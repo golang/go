@@ -1,0 +1,2 @@
+pkg p2, type Twoer interface { PackageTwoMeth }
+pkg p2, type Twoer interface, PackageTwoMeth()

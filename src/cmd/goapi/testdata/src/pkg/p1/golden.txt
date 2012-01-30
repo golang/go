@@ -31,11 +31,18 @@ pkg p1, type EmbedSelector struct, embedded time.Time
 pkg p1, type EmbedURLPtr struct
 pkg p1, type EmbedURLPtr struct, embedded *url.URL
 pkg p1, type Embedded struct
-pkg p1, type I interface { Get, GetNamed, Set }
+pkg p1, type Error interface { Error, Temporary }
+pkg p1, type Error interface, Error() string
+pkg p1, type Error interface, Temporary() bool
+pkg p1, type I interface { Get, GetNamed, Name, PackageTwoMeth, Set }
 pkg p1, type I interface, Get(string) int64
 pkg p1, type I interface, GetNamed(string) int64
+pkg p1, type I interface, Name() string
+pkg p1, type I interface, PackageTwoMeth()
 pkg p1, type I interface, Set(string, int64)
 pkg p1, type MyInt int
+pkg p1, type Namer interface { Name }
+pkg p1, type Namer interface, Name() string
 pkg p1, type S struct
 pkg p1, type S struct, Public *int
 pkg p1, type S struct, PublicTime time.Time

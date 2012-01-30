@@ -1,8 +1,7 @@
-package foo
+package p1
 
 import (
-	"time"
-	"url"
+	ptwo "p2"
 )
 
 const (
@@ -44,14 +43,25 @@ var X int64
 
 var (
 	Y int
-	X I // todo: resolve this to foo.I? probably doesn't matter.
+	X I
 )
 
+type Namer interface {
+	Name() string
+}
+
 type I interface {
+	Namer
+	ptwo.Twoer
 	Set(name string, balance int64)
 	Get(string) int64
 	GetNamed(string) (balance int64)
 	private()
+}
+
+type Error interface {
+	error
+	Temporary() bool
 }
 
 func (myInt) privateTypeMethod()           {}

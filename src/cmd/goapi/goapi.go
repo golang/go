@@ -21,8 +21,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -51,6 +53,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to find tree: %v", err)
 	}
+	w.tree = tree
+
+	for _, pkg := range pkgs {
+		w.wantedPkg[pkg] = true
+	}
 
 	for _, pkg := range pkgs {
 		if strings.HasPrefix(pkg, "cmd/") ||
@@ -61,8 +68,7 @@ func main() {
 		if !tree.HasSrc(pkg) {
 			log.Fatalf("no source in tree for package %q", pkg)
 		}
-		pkgSrcDir := filepath.Join(tree.SrcDir(), filepath.FromSlash(pkg))
-		w.WalkPackage(pkg, pkgSrcDir)
+		w.WalkPackage(pkg)
 	}
 
 	bw := bufio.NewWriter(os.Stdout)
@@ -99,22 +105,46 @@ func main() {
 	}
 }
 
+// pkgSymbol represents a symbol in a package
+type pkgSymbol struct {
+	pkg    string // "net/http"
+	symbol string // "RoundTripper"
+}
+
 type Walker struct {
-	fset           *token.FileSet
-	scope          []string
-	features       map[string]bool // set
-	lastConstType  string
-	curPackageName string
-	curPackage     *ast.Package
-	prevConstType  map[string]string // identifer -> "ideal-int"
+	tree            *build.Tree
+	fset            *token.FileSet
+	scope           []string
+	features        map[string]bool // set
+	lastConstType   string
+	curPackageName  string
+	curPackage      *ast.Package
+	prevConstType   map[string]string // identifer -> "ideal-int"
+	packageState    map[string]loadState
+	interfaces      map[pkgSymbol]*ast.InterfaceType
+	selectorFullPkg map[string]string // "http" => "net/http", updated by imports
+	wantedPkg       map[string]bool   // packages requested on the command line
 }
 
 func NewWalker() *Walker {
 	return &Walker{
-		fset:     token.NewFileSet(),
-		features: make(map[string]bool),
+		fset:            token.NewFileSet(),
+		features:        make(map[string]bool),
+		packageState:    make(map[string]loadState),
+		interfaces:      make(map[pkgSymbol]*ast.InterfaceType),
+		selectorFullPkg: make(map[string]string),
+		wantedPkg:       make(map[string]bool),
 	}
 }
+
+// loadState is the state of a package's parsing.
+type loadState int
+
+const (
+	notLoaded loadState = iota
+	loading
+	loaded
+)
 
 // hardCodedConstantType is a hack until the type checker is sufficient for our needs.
 // Rather than litter the code with unnecessary type annotations, we'll hard-code
@@ -162,10 +192,34 @@ func (w *Walker) Features() (fs []string) {
 	return
 }
 
-func (w *Walker) WalkPackage(name, dir string) {
-	log.Printf("package %s", name)
-	pop := w.pushScope("pkg " + name)
-	defer pop()
+// fileDeps returns the imports in a file.
+func fileDeps(f *ast.File) (pkgs []string) {
+	for _, is := range f.Imports {
+		fpkg, err := strconv.Unquote(is.Path.Value)
+		if err != nil {
+			log.Fatalf("error unquoting import string %q: %v", is.Path.Value, err)
+		}
+		if fpkg != "C" {
+			pkgs = append(pkgs, fpkg)
+		}
+	}
+	return
+}
+
+// WalkPackage walks all files in package `name'.
+// WalkPackage does nothing if the package has already been loaded.
+func (w *Walker) WalkPackage(name string) {
+	switch w.packageState[name] {
+	case loading:
+		log.Fatalf("import cycle loading package %q?", name)
+	case loaded:
+		return
+	}
+	w.packageState[name] = loading
+	defer func() {
+		w.packageState[name] = loaded
+	}()
+	dir := filepath.Join(w.tree.SrcDir(), filepath.FromSlash(name))
 
 	info, err := build.ScanDir(dir)
 	if err != nil {
@@ -183,13 +237,26 @@ func (w *Walker) WalkPackage(name, dir string) {
 			log.Fatalf("error parsing package %s, file %s: %v", name, file, err)
 		}
 		apkg.Files[file] = f
+
+		for _, dep := range fileDeps(f) {
+			w.WalkPackage(dep)
+		}
 	}
+
+	log.Printf("package %s", name)
+	pop := w.pushScope("pkg " + name)
+	defer pop()
 
 	w.curPackageName = name
 	w.curPackage = apkg
 	w.prevConstType = map[string]string{}
-	for name, afile := range apkg.Files {
-		w.walkFile(filepath.Join(dir, name), afile)
+
+	for _, afile := range apkg.Files {
+		w.recordTypes(afile)
+	}
+
+	for _, afile := range apkg.Files {
+		w.walkFile(afile)
 	}
 
 	// Now that we're done walking types, vars and consts
@@ -229,7 +296,27 @@ func (w *Walker) pushScope(name string) (popFunc func()) {
 	}
 }
 
-func (w *Walker) walkFile(name string, file *ast.File) {
+func (w *Walker) recordTypes(file *ast.File) {
+	for _, di := range file.Decls {
+		switch d := di.(type) {
+		case *ast.GenDecl:
+			switch d.Tok {
+			case token.TYPE:
+				for _, sp := range d.Specs {
+					ts := sp.(*ast.TypeSpec)
+					name := ts.Name.Name
+					if ast.IsExported(name) {
+						if it, ok := ts.Type.(*ast.InterfaceType); ok {
+							w.noteInterface(name, it)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func (w *Walker) walkFile(file *ast.File) {
 	// Not entering a scope here; file boundaries aren't interesting.
 
 	for _, di := range file.Decls {
@@ -237,7 +324,18 @@ func (w *Walker) walkFile(name string, file *ast.File) {
 		case *ast.GenDecl:
 			switch d.Tok {
 			case token.IMPORT:
-				continue
+				for _, sp := range d.Specs {
+					is := sp.(*ast.ImportSpec)
+					fpath, err := strconv.Unquote(is.Path.Value)
+					if err != nil {
+						log.Fatal(err)
+					}
+					name := path.Base(fpath)
+					if is.Name != nil {
+						name = is.Name.Name
+					}
+					w.selectorFullPkg[name] = fpath
+				}
 			case token.CONST:
 				for _, sp := range d.Specs {
 					w.walkConst(sp.(*ast.ValueSpec))
@@ -527,12 +625,15 @@ func (w *Walker) nodeDebug(node interface{}) string {
 	return b.String()
 }
 
+func (w *Walker) noteInterface(name string, it *ast.InterfaceType) {
+	w.interfaces[pkgSymbol{w.curPackageName, name}] = it
+}
+
 func (w *Walker) walkTypeSpec(ts *ast.TypeSpec) {
 	name := ts.Name.Name
 	if !ast.IsExported(name) {
 		return
 	}
-
 	switch t := ts.Type.(type) {
 	case *ast.StructType:
 		w.walkStructType(name, t)
@@ -540,7 +641,6 @@ func (w *Walker) walkTypeSpec(ts *ast.TypeSpec) {
 		w.walkInterfaceType(name, t)
 	default:
 		w.emitFeature(fmt.Sprintf("type %s %s", name, w.nodeString(ts.Type)))
-		//log.Fatalf("unknown typespec %T", ts.Type)
 	}
 }
 
@@ -582,27 +682,78 @@ func (w *Walker) walkStructType(name string, t *ast.StructType) {
 	}
 }
 
-func (w *Walker) walkInterfaceType(name string, t *ast.InterfaceType) {
-	methods := []string{}
+// method is a method of an interface.
+type method struct {
+	name string // "Read"
+	sig  string // "([]byte) (int, error)", from funcSigString
+}
 
-	pop := w.pushScope("type " + name + " interface")
+// interfaceMethods returns the expanded list of methods for an interface.
+// pkg is the complete package name ("net/http")
+// iname is the interface name.
+func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
+	t, ok := w.interfaces[pkgSymbol{pkg, iname}]
+	if !ok {
+		log.Fatalf("failed to find interface %s.%s", pkg, iname)
+	}
+
 	for _, f := range t.Methods.List {
 		typ := f.Type
-		for _, name := range f.Names {
-			if ast.IsExported(name.Name) {
-				ft := typ.(*ast.FuncType)
-				w.emitFeature(fmt.Sprintf("%s%s", name, w.funcSigString(ft)))
-				methods = append(methods, name.Name)
+		switch tv := typ.(type) {
+		case *ast.FuncType:
+			for _, mname := range f.Names {
+				if ast.IsExported(mname.Name) {
+					ft := typ.(*ast.FuncType)
+					methods = append(methods, method{
+						name: mname.Name,
+						sig:  w.funcSigString(ft),
+					})
+				}
 			}
+		case *ast.Ident:
+			embedded := typ.(*ast.Ident).Name
+			if embedded == "error" {
+				methods = append(methods, method{
+					name: "Error",
+					sig:  "() string",
+				})
+				continue
+			}
+			if !ast.IsExported(embedded) {
+				log.Fatalf("unexported embedded interface %q in exported interface %s.%s; confused",
+					embedded, pkg, iname)
+			}
+			methods = append(methods, w.interfaceMethods(pkg, embedded)...)
+		case *ast.SelectorExpr:
+			lhs := w.nodeString(tv.X)
+			rhs := w.nodeString(tv.Sel)
+			fpkg, ok := w.selectorFullPkg[lhs]
+			if !ok {
+				log.Fatalf("can't resolve selector %q in interface %s.%s", lhs, pkg, iname)
+			}
+			methods = append(methods, w.interfaceMethods(fpkg, rhs)...)
+		default:
+			log.Fatalf("unknown type %T in interface field", typ)
 		}
+	}
+	return
+}
+
+func (w *Walker) walkInterfaceType(name string, t *ast.InterfaceType) {
+	methNames := []string{}
+
+	pop := w.pushScope("type " + name + " interface")
+	for _, m := range w.interfaceMethods(w.curPackageName, name) {
+		methNames = append(methNames, m.name)
+		w.emitFeature(fmt.Sprintf("%s%s", m.name, m.sig))
 	}
 	pop()
 
-	sort.Strings(methods)
-	if len(methods) == 0 {
+	sort.Strings(methNames)
+	if len(methNames) == 0 {
 		w.emitFeature(fmt.Sprintf("type %s interface {}", name))
 	} else {
-		w.emitFeature(fmt.Sprintf("type %s interface { %s }", name, strings.Join(methods, ", ")))
+		w.emitFeature(fmt.Sprintf("type %s interface { %s }", name, strings.Join(methNames, ", ")))
 	}
 }
 
@@ -691,6 +842,9 @@ func (w *Walker) namelessField(f *ast.Field) *ast.Field {
 }
 
 func (w *Walker) emitFeature(feature string) {
+	if !w.wantedPkg[w.curPackageName] {
+		return
+	}
 	f := strings.Join(w.scope, ", ") + ", " + feature
 	if _, dup := w.features[f]; dup {
 		panic("duplicate feature inserted: " + f)

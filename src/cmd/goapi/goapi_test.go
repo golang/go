@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ var (
 )
 
 func TestGolden(t *testing.T) {
-	td, err := os.Open("testdata")
+	td, err := os.Open("testdata/src/pkg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,9 +34,11 @@ func TestGolden(t *testing.T) {
 			continue
 		}
 		w := NewWalker()
-		goldenFile := filepath.Join("testdata", fi.Name(), "golden.txt")
+		w.wantedPkg[fi.Name()] = true
 
-		w.WalkPackage(fi.Name(), filepath.Join("testdata", fi.Name()))
+		w.tree = &build.Tree{Path: "testdata", Goroot: true}
+		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
+		w.WalkPackage(fi.Name())
 
 		if *updateGolden {
 			os.Remove(goldenFile)
