@@ -9,6 +9,7 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -28,7 +29,7 @@ For more about each tool command, see 'go tool command -h'.
 var (
 	toolGoos       = build.DefaultContext.GOOS
 	toolIsWindows  = toolGoos == "windows"
-	toolBinToolDir = build.Path[0].BinDir() + "/go-tool"
+	toolBinToolDir = filepath.Join(build.Path[0].Path, "bin", "go-tool")
 )
 
 const toolWindowsExtension = ".exe"

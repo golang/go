@@ -38,4 +38,4 @@ install-darwin: $(TARG)
 	@true
 
 install-default: $(TARG)
-	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
+	cp $(TARG) "$(GOROOT)"/bin/go-tool/$(TARG)
