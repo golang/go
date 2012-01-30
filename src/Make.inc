@@ -98,10 +98,10 @@ GOBIN=$(QUOTED_GOROOT)/bin
 endif
 QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
 
-AS=${O}a
-CC=${O}c
-GC=${O}g
-LD=${O}l
+AS=$(QUOTED_GOROOT)/bin/go-tool/$(O)a
+CC=$(QUOTED_GOROOT)/bin/go-tool/$(O)c
+GC=$(QUOTED_GOROOT)/bin/go-tool/$(O)g
+LD=$(QUOTED_GOROOT)/bin/go-tool/$(O)l
 OS=568vq
 CFLAGS=-FVw
 

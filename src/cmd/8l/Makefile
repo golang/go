@@ -37,7 +37,7 @@ HFILES=\
 	../ld/macho.h\
 	../ld/pe.h\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 enam.c: 8.out.h
 	sh mkenam

@@ -31,20 +31,3 @@ CLEANFILES+=$(TARG) _test _testmain.go test.out build.out
 
 nuke: clean
 	rm -f $(TARGDIR)/$(TARG)
-
-# for gotest
-testpackage: _test/main.a
-
-testpackage-clean:
-	rm -f _test/main.a _gotest_.$O
-
-_test/main.a: _gotest_.$O
-	@mkdir -p _test
-	rm -f $@
-	"$(GOROOT)/bin/go-tool/pack" grc $@ _gotest_.$O
-
-_gotest_.$O: $(GOFILES) $(GOTESTFILES)
-	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
-
-importpath:
-	echo main

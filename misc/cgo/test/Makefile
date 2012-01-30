@@ -43,3 +43,6 @@ $(CHKSTK):
 endif
 
 include ../../../src/Make.pkg
+
+test:
+	echo cgo: tests disabled. gotest is gone. TODO

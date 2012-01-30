@@ -32,7 +32,7 @@ HFILES=\
 	5.out.h\
 	../ld/elf.h\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 enam.c: 5.out.h
 	sh mkenam

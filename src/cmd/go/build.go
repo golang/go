@@ -976,7 +976,8 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 		gcargs = append(gcargs, "-+")
 	}
 
-	args := stringList(b.arch+"g", "-o", ofile, b.gcflags, gcargs, importArgs)
+	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"g")
+	args := stringList(binary, "-o", ofile, b.gcflags, gcargs, importArgs)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
@@ -985,7 +986,8 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 
 func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, b.arch+"a", "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
+	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"a")
+	return b.run(p.Dir, p.ImportPath, binary, "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
 }
 
 func (goToolchain) pkgpath(basedir string, p *Package) string {
@@ -1002,13 +1004,15 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 
 func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	return b.run(p.Dir, p.ImportPath, b.arch+"l", "-o", out, importArgs, mainpkg)
+	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"l")
+	return b.run(p.Dir, p.ImportPath, binary, "-o", out, importArgs, mainpkg)
 }
 
 func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.ImportPath, b.arch+"c", "-FVw",
+	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"c")
+	return b.run(p.Dir, p.ImportPath, binary, "-FVw",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
 }

@@ -20,6 +20,6 @@ OFILES=\
 YFILES=\
 	a.y\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 lex.$O:	../cc/macbody ../cc/lexbody

@@ -28,7 +28,7 @@ OFILES=\
 LIB=\
 	../cc/cc.a\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 %.$O: ../cc/%.c
 	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
