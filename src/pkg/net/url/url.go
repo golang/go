@@ -431,30 +431,30 @@ func ParseWithReference(rawurlref string) (url *URL, err error) {
 	return url, nil
 }
 
-// String reassembles url into a valid URL string.
-func (url *URL) String() string {
+// String reassembles the URL into a valid URL string.
+func (u *URL) String() string {
 	// TODO: Rewrite to use bytes.Buffer
 	result := ""
-	if url.Scheme != "" {
-		result += url.Scheme + ":"
+	if u.Scheme != "" {
+		result += u.Scheme + ":"
 	}
-	if url.Opaque != "" {
-		result += url.Opaque
+	if u.Opaque != "" {
+		result += u.Opaque
 	} else {
-		if url.Host != "" || url.User != nil {
+		if u.Host != "" || u.User != nil {
 			result += "//"
-			if u := url.User; u != nil {
+			if u := u.User; u != nil {
 				result += u.String() + "@"
 			}
-			result += url.Host
+			result += u.Host
 		}
-		result += escape(url.Path, encodePath)
+		result += escape(u.Path, encodePath)
 	}
-	if url.RawQuery != "" {
-		result += "?" + url.RawQuery
+	if u.RawQuery != "" {
+		result += "?" + u.RawQuery
 	}
-	if url.Fragment != "" {
-		result += "#" + escape(url.Fragment, encodeFragment)
+	if u.Fragment != "" {
+		result += "#" + escape(u.Fragment, encodeFragment)
 	}
 	return result
 }
@@ -585,8 +585,8 @@ func resolvePath(basepath string, refpath string) string {
 }
 
 // IsAbs returns true if the URL is absolute.
-func (url *URL) IsAbs() bool {
-	return url.Scheme != ""
+func (u *URL) IsAbs() bool {
+	return u.Scheme != ""
 }
 
 // Parse parses a URL in the context of a base URL.  The URL in ref

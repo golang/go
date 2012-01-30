@@ -546,15 +546,15 @@ Loop:
 // Read tokens until we find the end element.
 // Token is taking care of making sure the
 // end element matches the start element we saw.
-func (p *Decoder) Skip() error {
+func (d *Decoder) Skip() error {
 	for {
-		tok, err := p.Token()
+		tok, err := d.Token()
 		if err != nil {
 			return err
 		}
 		switch tok.(type) {
 		case StartElement:
-			if err := p.Skip(); err != nil {
+			if err := d.Skip(); err != nil {
 				return err
 			}
 		case EndElement:

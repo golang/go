@@ -112,13 +112,13 @@ func (bp *Part) populateHeaders() error {
 
 // Read reads the body of a part, after its headers and before the
 // next part (if any) begins.
-func (bp *Part) Read(p []byte) (n int, err error) {
-	if bp.buffer.Len() >= len(p) {
+func (p *Part) Read(d []byte) (n int, err error) {
+	if p.buffer.Len() >= len(d) {
 		// Internal buffer of unconsumed data is large enough for
 		// the read request.  No need to parse more at the moment.
-		return bp.buffer.Read(p)
+		return p.buffer.Read(d)
 	}
-	peek, err := bp.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
+	peek, err := p.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
 	unexpectedEof := err == io.EOF
 	if err != nil && !unexpectedEof {
 		return 0, fmt.Errorf("multipart: Part Read: %v", err)
@@ -133,10 +133,10 @@ func (bp *Part) Read(p []byte) (n int, err error) {
 	// string.
 	nCopy := 0
 	foundBoundary := false
-	if idx := bytes.Index(peek, bp.mr.nlDashBoundary); idx != -1 {
+	if idx := bytes.Index(peek, p.mr.nlDashBoundary); idx != -1 {
 		nCopy = idx
 		foundBoundary = true
-	} else if safeCount := len(peek) - len(bp.mr.nlDashBoundary); safeCount > 0 {
+	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
 		nCopy = safeCount
 	} else if unexpectedEof {
 		// If we've run out of peek buffer and the boundary
@@ -145,11 +145,11 @@ func (bp *Part) Read(p []byte) (n int, err error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 	if nCopy > 0 {
-		if _, err := io.CopyN(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
+		if _, err := io.CopyN(p.buffer, p.mr.bufReader, int64(nCopy)); err != nil {
 			return 0, err
 		}
 	}
-	n, err = bp.buffer.Read(p)
+	n, err = p.buffer.Read(d)
 	if err == io.EOF && !foundBoundary {
 		// If the boundary hasn't been reached there's more to
 		// read, so don't pass through an EOF from the buffer
@@ -158,8 +158,8 @@ func (bp *Part) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (bp *Part) Close() error {
-	io.Copy(ioutil.Discard, bp)
+func (p *Part) Close() error {
+	io.Copy(ioutil.Discard, p)
 	return nil
 }
 
@@ -177,29 +177,29 @@ type Reader struct {
 
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error io.EOF is returned.
-func (mr *Reader) NextPart() (*Part, error) {
-	if mr.currentPart != nil {
-		mr.currentPart.Close()
+func (r *Reader) NextPart() (*Part, error) {
+	if r.currentPart != nil {
+		r.currentPart.Close()
 	}
 
 	expectNewPart := false
 	for {
-		line, err := mr.bufReader.ReadSlice('\n')
+		line, err := r.bufReader.ReadSlice('\n')
 		if err != nil {
 			return nil, fmt.Errorf("multipart: NextPart: %v", err)
 		}
 
-		if mr.isBoundaryDelimiterLine(line) {
-			mr.partsRead++
-			bp, err := newPart(mr)
+		if r.isBoundaryDelimiterLine(line) {
+			r.partsRead++
+			bp, err := newPart(r)
 			if err != nil {
 				return nil, err
 			}
-			mr.currentPart = bp
+			r.currentPart = bp
 			return bp, nil
 		}
 
-		if hasPrefixThenNewline(line, mr.dashBoundaryDash) {
+		if hasPrefixThenNewline(line, r.dashBoundaryDash) {
 			// Expected EOF
 			return nil, io.EOF
 		}
@@ -208,7 +208,7 @@ func (mr *Reader) NextPart() (*Part, error) {
 			return nil, fmt.Errorf("multipart: expecting a new Part; got line %q", string(line))
 		}
 
-		if mr.partsRead == 0 {
+		if r.partsRead == 0 {
 			// skip line
 			continue
 		}
@@ -217,7 +217,7 @@ func (mr *Reader) NextPart() (*Part, error) {
 		// body of the previous part and the boundary line we
 		// now expect will follow. (either a new part or the
 		// end boundary)
-		if bytes.Equal(line, mr.nl) {
+		if bytes.Equal(line, r.nl) {
 			expectNewPart = true
 			continue
 		}
