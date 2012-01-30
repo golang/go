@@ -196,17 +196,44 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 		Run(c)
 	for {
 		com := new(Commit)
-		if _, err := t.Next(com); err != nil {
-			if err == datastore.Done {
-				err = nil
-			}
+		if _, err := t.Next(com); err == datastore.Done {
+			break
+		} else if err != nil {
 			return nil, err
 		}
 		if com.Result(builder, goHash) == nil {
 			return com, nil
 		}
 	}
-	panic("unreachable")
+
+	// Nothing left to do if this is a package (not the Go tree).
+	if packagePath != "" {
+		return nil, nil
+	}
+
+	// If there are no Go tree commits left to build,
+	// see if there are any subrepo commits that need to be built at tip.
+	// If so, ask the builder to build a go tree at the tip commit.
+	// TODO(adg): do the same for "weekly" and "release" tags.
+	tag, err := GetTag(c, "tip")
+	if err != nil {
+		return nil, err
+	}
+	pkgs, err := Packages(c, "subrepo")
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range pkgs {
+		com, err := pkg.LastCommit(c)
+		if err != nil {
+			c.Warningf("%v: no Commit found: %v", pkg, err)
+			continue
+		}
+		if com.Result(builder, tag.Hash) == nil {
+			return tag.Commit(c)
+		}
+	}
+	return nil, nil
 }
 
 // packagesHandler returns a list of the non-Go Packages monitored

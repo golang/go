@@ -262,6 +262,13 @@ func (t *Tag) Valid() os.Error {
 	return nil
 }
 
+// Commit returns the Commit that corresponds with this Tag.
+func (t *Tag) Commit(c appengine.Context) (*Commit, os.Error) {
+	com := &Commit{Hash: t.Hash}
+	err := datastore.Get(c, com.Key(c), com)
+	return com, err
+}
+
 // GetTag fetches a Tag by name from the datastore.
 func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
 	t := &Tag{Kind: tag}

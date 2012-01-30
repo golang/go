@@ -109,7 +109,11 @@ var testRequests = []struct {
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
+
+	// re-build Go revision for stale subrepos
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: "boo"}, nil},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
@@ -215,8 +219,8 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 				errorf("Response.Data not *Commit: %T", g.Data)
 				return
 			}
-			if e.Data.(*Commit).Hash != gd.Hash {
-				errorf("hashes don't match: got %q, want %q", g, e)
+			if eh := e.Data.(*Commit).Hash; eh != gd.Hash {
+				errorf("hashes don't match: got %q, want %q", gd.Hash, eh)
 				return
 			}
 		}

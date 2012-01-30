@@ -145,7 +145,7 @@ func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
 	for _, pkg := range pkgs {
 		commit, err := pkg.LastCommit(c)
 		if err != nil {
-			c.Errorf("no Commit found: %v", pkg)
+			c.Warningf("%v: no Commit found: %v", pkg, err)
 			continue
 		}
 		results := commit.Results(tag.Hash)
