@@ -279,17 +279,20 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 			p.target += ".exe"
 		}
 	} else {
-		p.target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
-	}
-
-	// For gccgo, rewrite p.target with the expected library name. We won't do
-	// that for the standard library for the moment.
-	if !p.Standard {
 		dir := t.PkgDir()
+		// For gccgo, rewrite p.target with the expected library name.
 		if _, ok := buildToolchain.(gccgoToolchain); ok {
 			dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
 		}
 		p.target = buildToolchain.pkgpath(dir, p)
+
+		// NB. Currently we have gccgo install the standard libraries
+		// in the "usual" location, where the Go toolchain puts them.
+		if p.Standard {
+			if _, ok := buildToolchain.(gccgoToolchain); ok {
+				p.target = goToolchain{}.pkgpath(dir, p)
+			}
+		}
 	}
 
 	var built time.Time
