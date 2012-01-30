@@ -244,7 +244,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_386/unicode/utf16.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
+8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./security_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_386.8 -DGOOS_windows -DGOARCH_386 ./asm_windows_386.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_windows_386.8
 cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_386/syscall.a

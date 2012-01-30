@@ -125,7 +125,6 @@ const (
 
 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
 
-	STANDARD_RIGHTS_READ      = 0x00020000
 	PROCESS_QUERY_INFORMATION = 0x00000400
 	SYNCHRONIZE               = 0x00100000
 
@@ -143,6 +142,7 @@ const (
 )
 
 const (
+	// do not reorder
 	FILE_NOTIFY_CHANGE_FILE_NAME = 1 << iota
 	FILE_NOTIFY_CHANGE_DIR_NAME
 	FILE_NOTIFY_CHANGE_ATTRIBUTES
@@ -153,6 +153,7 @@ const (
 )
 
 const (
+	// do not reorder
 	FILE_ACTION_ADDED = iota + 1
 	FILE_ACTION_REMOVED
 	FILE_ACTION_MODIFIED
@@ -674,6 +675,7 @@ type CertContext struct {
 }
 
 const (
+	// do not reorder
 	HKEY_CLASSES_ROOT = 0x80000000 + iota
 	HKEY_CURRENT_USER
 	HKEY_LOCAL_MACHINE
@@ -697,6 +699,7 @@ const (
 )
 
 const (
+	// do not reorder
 	REG_NONE = iota
 	REG_SZ
 	REG_EXPAND_SZ
