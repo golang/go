@@ -183,11 +183,12 @@ func dashboardCommit(pkg, hash string) bool {
 	return err == nil
 }
 
-func dashboardPackages() []string {
+func dashboardPackages(kind string) []string {
+	args := url.Values{"kind": []string{kind}}
 	var resp []struct {
 		Path string
 	}
-	if err := dash("GET", "packages", nil, nil, &resp); err != nil {
+	if err := dash("GET", "packages", args, nil, &resp); err != nil {
 		log.Println("dashboardPackages:", err)
 		return nil
 	}

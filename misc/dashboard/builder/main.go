@@ -318,8 +318,8 @@ func (b *Builder) buildHash(hash string) (err error) {
 		return fmt.Errorf("recordResult: %s", err)
 	}
 
-	// build goinstallable packages
-	b.buildPackages(filepath.Join(workpath, "go"), hash)
+	// build Go sub-repositories
+	b.buildSubrepos(filepath.Join(workpath, "go"), hash)
 
 	// finish here if codeUsername and codePassword aren't set
 	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
@@ -355,46 +355,67 @@ func (b *Builder) buildHash(hash string) (err error) {
 	return
 }
 
-func (b *Builder) buildPackages(goRoot, goHash string) {
-	for _, pkg := range dashboardPackages() {
+func (b *Builder) buildSubrepos(goRoot, goHash string) {
+	for _, pkg := range dashboardPackages("subrepo") {
 		// get the latest todo for this package
 		hash, err := b.todo("build-package", pkg, goHash)
 		if err != nil {
-			log.Printf("buildPackages %s: %v", pkg, err)
+			log.Printf("buildSubrepos %s: %v", pkg, err)
 			continue
 		}
 		if hash == "" {
 			continue
 		}
 
-		// goinstall the package
+		// build the package
 		if *verbose {
-			log.Printf("buildPackages %s: installing %q", pkg, hash)
+			log.Printf("buildSubrepos %s: building %q", pkg, hash)
 		}
-		buildLog, err := b.goinstall(goRoot, pkg, hash)
-		ok := buildLog == ""
+		buildLog, err := b.buildSubrepo(goRoot, pkg, hash)
 		if err != nil {
-			ok = false
-			log.Printf("buildPackages %s: %v", pkg, err)
+			if buildLog == "" {
+				buildLog = err.Error()
+			}
+			log.Printf("buildSubrepos %s: %v", pkg, err)
 		}
 
 		// record the result
-		err = b.recordResult(ok, pkg, hash, goHash, buildLog, 0)
+		err = b.recordResult(err == nil, pkg, hash, goHash, buildLog, 0)
 		if err != nil {
-			log.Printf("buildPackages %s: %v", pkg, err)
+			log.Printf("buildSubrepos %s: %v", pkg, err)
 		}
 	}
 }
 
-func (b *Builder) goinstall(goRoot, pkg, hash string) (string, error) {
-	bin := filepath.Join(goRoot, "bin/goinstall")
+// buildSubrepo fetches the given package, updates it to the specified hash,
+// and runs 'go test pkg/...'. It returns the build log and any error.
+func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
+	goBin := filepath.Join(goRoot, "bin")
+	goTool := filepath.Join(goBin, "go")
 	env := append(b.envv(), "GOROOT="+goRoot)
 
+	// add goBin to PATH
+	for i, e := range env {
+		const p = "PATH="
+		if !strings.HasPrefix(e, p) {
+			continue
+		}
+		env[i] = p + goBin + string(os.PathListSeparator) + e[len(p):]
+	}
+
 	// fetch package and dependencies
-	log, status, err := runLog(env, "", goRoot, bin,
-		"-dashboard=false", "-install=false", pkg)
-	if err != nil || status != 0 {
-		return log, err
+	log, status, err := runLog(env, "", goRoot, goTool, "get", "-d", pkg)
+	if err == nil && status != 0 {
+		err = fmt.Errorf("go exited with status %d", status)
+	}
+	if err != nil {
+		// 'go get -d' will fail for a subrepo because its top-level
+		// directory does not contain a go package. No matter, just
+		// check whether an hg directory exists and proceed.
+		hgDir := filepath.Join(goRoot, "src/pkg", pkg, ".hg")
+		if fi, e := os.Stat(hgDir); e != nil || !fi.IsDir() {
+			return log, err
+		}
 	}
 
 	// hg update to the specified hash
@@ -403,8 +424,11 @@ func (b *Builder) goinstall(goRoot, pkg, hash string) (string, error) {
 		return "", err
 	}
 
-	// build the package
-	log, _, err = runLog(env, "", goRoot, bin, "-dashboard=false", pkg)
+	// test the package
+	log, status, err = runLog(env, "", goRoot, goTool, "test", pkg+"/...")
+	if err == nil && status != 0 {
+		err = fmt.Errorf("go exited with status %d", status)
+	}
 	return log, err
 }
 
@@ -491,8 +515,10 @@ func commitWatcher() {
 		if *verbose {
 			log.Printf("poll...")
 		}
+		// Main Go repository.
 		commitPoll(key, "")
-		for _, pkg := range dashboardPackages() {
+		// Go sub-repositories.
+		for _, pkg := range dashboardPackages("subrepo") {
 			commitPoll(key, pkg)
 		}
 		if *verbose {
