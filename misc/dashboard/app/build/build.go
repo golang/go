@@ -22,6 +22,7 @@ const maxDatastoreStringLen = 500
 
 // A Package describes a package that is listed on the dashboard.
 type Package struct {
+	Kind    string // "subrepo", "external", or empty for the main Go tree
 	Name    string
 	Path    string // (empty for the main Go tree)
 	NextNum int    // Num of the next head Commit
@@ -276,10 +277,17 @@ func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
 	return t, nil
 }
 
-// Packages returns all non-Go packages.
-func Packages(c appengine.Context) ([]*Package, os.Error) {
+// Packages returns packages of the specified kind.
+// Kind must be one of "external" or "subrepo".
+func Packages(c appengine.Context, kind string) ([]*Package, os.Error) {
+	switch kind {
+	case "external", "subrepo":
+	default:
+		return nil, os.NewError(`kind must be one of "external" or "subrepo"`)
+	}
 	var pkgs []*Package
-	for t := datastore.NewQuery("Package").Run(c); ; {
+	q := datastore.NewQuery("Package").Filter("Kind=", kind)
+	for t := q.Run(c); ; {
 		pkg := new(Package)
 		if _, err := t.Next(pkg); err == datastore.Done {
 			break

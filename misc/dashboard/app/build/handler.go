@@ -18,11 +18,6 @@ import (
 
 const commitsPerPage = 30
 
-// defaultPackages specifies the Package records to be created by initHandler.
-var defaultPackages = []*Package{
-	&Package{Name: "Go"},
-}
-
 // commitHandler retrieves commit data or records a new commit.
 //
 // For GET requests it returns a Commit value for the specified
@@ -217,14 +212,15 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 // packagesHandler returns a list of the non-Go Packages monitored
 // by the dashboard.
 func packagesHandler(r *http.Request) (interface{}, os.Error) {
+	kind := r.FormValue("kind")
 	c := appengine.NewContext(r)
 	now := cache.Now(c)
-	const key = "build-packages"
+	key := "build-packages-" + kind
 	var p []*Package
 	if cache.Get(r, now, key, &p) {
 		return p, nil
 	}
-	p, err := Packages(c)
+	p, err := Packages(c, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -353,25 +349,6 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 			c.Criticalf("encoding response: %v", err)
 		}
 	}
-}
-
-func initHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO(adg): devise a better way of bootstrapping new packages
-	c := appengine.NewContext(r)
-	defer cache.Tick(c)
-	for _, p := range defaultPackages {
-		if err := datastore.Get(c, p.Key(c), new(Package)); err == nil {
-			continue
-		} else if err != datastore.ErrNoSuchEntity {
-			logErr(w, r, err)
-			return
-		}
-		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
-			logErr(w, r, err)
-			return
-		}
-	}
-	fmt.Fprint(w, "OK")
 }
 
 func keyHandler(w http.ResponseWriter, r *http.Request) {

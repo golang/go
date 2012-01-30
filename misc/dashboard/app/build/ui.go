@@ -131,13 +131,13 @@ type PackageState struct {
 	OK      bool
 }
 
-// TagState fetches the results for all non-Go packages at the specified tag.
+// TagState fetches the results for all Go subrepos at the specified tag.
 func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
 	tag, err := GetTag(c, name)
 	if err != nil {
 		return nil, err
 	}
-	pkgs, err := Packages(c)
+	pkgs, err := Packages(c, "subrepo")
 	if err != nil {
 		return nil, err
 	}
