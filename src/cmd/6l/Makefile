@@ -37,7 +37,7 @@ HFILES=\
 	../ld/dwarf.h\
 	../ld/pe.h\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 enam.c: 6.out.h
 	sh mkenam

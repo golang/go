@@ -59,7 +59,7 @@ if $USE_GO_TOOL; then
 	go test runtime -short -cpu=1,2,4
 else
 	(xcd pkg/runtime;
-	gotest -short -cpu=1,2,4
+	go test -short -cpu=1,2,4
 	) || exit $?
 fi
 
@@ -99,7 +99,7 @@ gomake clean
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
 gomake clean
-gotest
+make test
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||

@@ -158,7 +158,6 @@ DIRS=\
 	../cmd/godoc\
 	../cmd/fix\
 	../cmd/gofmt\
-	../cmd/gotest\
 	../cmd/vet\
 	../cmd/yacc\
 
@@ -192,7 +191,6 @@ NOTEST+=\
 	testing/iotest\
 	../cmd/cgo\
 	../cmd/godoc\
-	../cmd/gotest\
 	../cmd/yacc\
 
 NOBENCH+=\

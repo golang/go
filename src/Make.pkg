@@ -56,19 +56,19 @@ endif
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 coverage:
-	gotest
+	go test
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
 CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* test.out build.out
 
 test:
-	gotest
+	go test
 
 testshort:
-	gotest -test.short -test.timeout=2m
+	go test -test.short -test.timeout=2m
 
 bench:
-	gotest -test.bench=. -test.run="Do not run tests"
+	go test -test.bench=. -test.run="Do not run tests"
 
 nuke: clean
 	rm -f $(TARGDIR)/$(TARG).a
@@ -92,11 +92,6 @@ _obj/$(TARG).a: _go_.$O $(OFILES)
 	@mkdir -p _obj/$(dir)
 	rm -f _obj/$(TARG).a
 	"$(GOROOT)/bin/go-tool/pack" grc $@ _go_.$O $(OFILES)
-
-_test/$(TARG).a: _gotest_.$O $(OFILES)
-	@mkdir -p _test/$(dir)
-	rm -f _test/$(TARG).a
-	"$(GOROOT)/bin/go-tool/pack" grc $@ _gotest_.$O $(OFILES)
 
 importpath:
 	@echo $(TARG)

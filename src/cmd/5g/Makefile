@@ -30,7 +30,7 @@ OFILES=\
 LIB=\
 	../gc/gc.a\
 
-include ../../Make.ccmd
+include ../../Make.ctool
 
 %.$O: ../gc/%.c
 	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c

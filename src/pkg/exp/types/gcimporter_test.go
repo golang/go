@@ -31,7 +31,7 @@ func init() {
 		gcPath = gcName
 		return
 	}
-	gcPath, _ = exec.LookPath(gcName)
+	gcPath = filepath.Join(runtime.GOROOT(), "/bin/go-tool/", gcName)
 }
 
 func compile(t *testing.T, dirname, filename string) {

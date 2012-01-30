@@ -33,6 +33,9 @@ failed=0
 
 PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
 
+# TODO: We add the go-tools directory to the PATH to avoid thinking about a better way.
+PATH="$GOROOT/bin/go-tool":$PATH
+
 RUNFILE="/tmp/gorun-$$-$USER"
 TMP1FILE="/tmp/gotest1-$$-$USER"
 TMP2FILE="/tmp/gotest2-$$-$USER"

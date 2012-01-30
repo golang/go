@@ -40,7 +40,6 @@ CLEANDIRS=\
 	godoc\
 	fix\
 	gofmt\
-	gotest\
 	vet\
 	yacc\
 
