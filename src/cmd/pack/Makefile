@@ -5,8 +5,8 @@
 include ../../Make.inc
 O:=$(HOST_O)
 
-TARG=gopack
+TARG=pack
 OFILES=\
 	ar.$O\
 
-include ../../Make.ccmd
+include ../../Make.ctool

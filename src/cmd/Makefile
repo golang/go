@@ -16,8 +16,8 @@ DIRS=\
 	cc\
 	cov\
 	gc\
-	gopack\
 	nm\
+	pack\
 	prof\
 	
 # Clean applies to all directories, even for other architectures or 

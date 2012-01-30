@@ -91,12 +91,12 @@ _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
 _obj/$(TARG).a: _go_.$O $(OFILES)
 	@mkdir -p _obj/$(dir)
 	rm -f _obj/$(TARG).a
-	gopack grc $@ _go_.$O $(OFILES)
+	"$(GOROOT)/bin/go-tool/pack" grc $@ _go_.$O $(OFILES)
 
 _test/$(TARG).a: _gotest_.$O $(OFILES)
 	@mkdir -p _test/$(dir)
 	rm -f _test/$(TARG).a
-	gopack grc $@ _gotest_.$O $(OFILES)
+	"$(GOROOT)/bin/go-tool/pack" grc $@ _gotest_.$O $(OFILES)
 
 importpath:
 	@echo $(TARG)
