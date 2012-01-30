@@ -102,7 +102,7 @@ func (d *compressor) fillDeflate(b []byte) int {
 		if d.blockStart >= windowSize {
 			d.blockStart -= windowSize
 		} else {
-			d.blockStart = skipNever
+			d.blockStart = math.MaxInt32
 		}
 		d.hashOffset += windowSize
 	}
