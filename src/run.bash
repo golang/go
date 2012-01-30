@@ -99,7 +99,7 @@ gomake clean
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
 gomake clean
-make test
+gomake test
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
