@@ -174,7 +174,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 }
 
 // Writes the response (header, body and trailer) in wire format. This method
-// consults the following fields of resp:
+// consults the following fields of the response:
 //
 //  StatusCode
 //  ProtoMajor
@@ -186,28 +186,28 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  ContentLength
 //  Header, values for non-canonical keys will have unpredictable behavior
 //
-func (resp *Response) Write(w io.Writer) error {
+func (r *Response) Write(w io.Writer) error {
 
 	// RequestMethod should be upper-case
-	if resp.Request != nil {
-		resp.Request.Method = strings.ToUpper(resp.Request.Method)
+	if r.Request != nil {
+		r.Request.Method = strings.ToUpper(r.Request.Method)
 	}
 
 	// Status line
-	text := resp.Status
+	text := r.Status
 	if text == "" {
 		var ok bool
-		text, ok = statusText[resp.StatusCode]
+		text, ok = statusText[r.StatusCode]
 		if !ok {
-			text = "status code " + strconv.Itoa(resp.StatusCode)
+			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
 	}
-	io.WriteString(w, "HTTP/"+strconv.Itoa(resp.ProtoMajor)+".")
-	io.WriteString(w, strconv.Itoa(resp.ProtoMinor)+" ")
-	io.WriteString(w, strconv.Itoa(resp.StatusCode)+" "+text+"\r\n")
+	io.WriteString(w, "HTTP/"+strconv.Itoa(r.ProtoMajor)+".")
+	io.WriteString(w, strconv.Itoa(r.ProtoMinor)+" ")
+	io.WriteString(w, strconv.Itoa(r.StatusCode)+" "+text+"\r\n")
 
 	// Process Body,ContentLength,Close,Trailer
-	tw, err := newTransferWriter(resp)
+	tw, err := newTransferWriter(r)
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (resp *Response) Write(w io.Writer) error {
 	}
 
 	// Rest of header
-	err = resp.Header.WriteSubset(w, respExcludeHeader)
+	err = r.Header.WriteSubset(w, respExcludeHeader)
 	if err != nil {
 		return err
 	}

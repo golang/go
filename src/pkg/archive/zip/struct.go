@@ -57,8 +57,8 @@ type FileHeader struct {
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.
-func (fh *FileHeader) FileInfo() os.FileInfo {
-	return headerFileInfo{fh}
+func (h *FileHeader) FileInfo() os.FileInfo {
+	return headerFileInfo{h}
 }
 
 // headerFileInfo implements os.FileInfo.

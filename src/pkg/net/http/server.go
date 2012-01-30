@@ -1078,8 +1078,8 @@ func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Han
 // of the server's certificate followed by the CA's certificate.
 //
 // If srv.Addr is blank, ":https" is used.
-func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
-	addr := s.Addr
+func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+	addr := srv.Addr
 	if addr == "" {
 		addr = ":https"
 	}
@@ -1101,7 +1101,7 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	}
 
 	tlsListener := tls.NewListener(conn, config)
-	return s.Serve(tlsListener)
+	return srv.Serve(tlsListener)
 }
 
 // TimeoutHandler returns a Handler that runs h with the given time limit.
