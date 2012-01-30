@@ -41,7 +41,7 @@ testpackage-clean:
 _test/main.a: _gotest_.$O
 	@mkdir -p _test
 	rm -f $@
-	gopack grc $@ _gotest_.$O
+	"$(GOROOT)/bin/go-tool/pack" grc $@ _gotest_.$O
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES)
 	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)

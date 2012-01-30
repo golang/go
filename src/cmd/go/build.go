@@ -997,7 +997,7 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, "gopack", "grc", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, filepath.Join(b.goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
 }
 
 func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
@@ -1145,9 +1145,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			cgoLDFLAGS = append(cgoLDFLAGS, strings.Fields(string(out))...)
 		}
 	}
-
-	// Allows including _cgo_export.h from .[ch] files in the package.
-	cgoCFLAGS = append(cgoCFLAGS, "-I", obj)
 
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?

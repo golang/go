@@ -64,7 +64,7 @@ cp "$GOROOT"/src/pkg/runtime/zasm_freebsd_386.h "$WORK"/runtime/_obj/zasm_GOOS_G
 8a -I "$WORK"/runtime/_obj/ -o "$WORK"/runtime/_obj/rt0_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./rt0_freebsd_386.s
 8a -I "$WORK"/runtime/_obj/ -o "$WORK"/runtime/_obj/sys_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./sys_freebsd_386.s
 8a -I "$WORK"/runtime/_obj/ -o "$WORK"/runtime/_obj/vlop_386.8 -DGOOS_freebsd -DGOARCH_386 ./vlop_386.s
-gopack grc "$WORK"/runtime.a "$WORK"/runtime/_obj/_go_.8 "$WORK"/runtime/_obj/alg.8 "$WORK"/runtime/_obj/atomic_386.8 "$WORK"/runtime/_obj/cgocall.8 "$WORK"/runtime/_obj/chan.8 "$WORK"/runtime/_obj/closure_386.8 "$WORK"/runtime/_obj/complex.8 "$WORK"/runtime/_obj/cpuprof.8 "$WORK"/runtime/_obj/float.8 "$WORK"/runtime/_obj/hashmap.8 "$WORK"/runtime/_obj/iface.8 "$WORK"/runtime/_obj/lock_futex.8 "$WORK"/runtime/_obj/mcache.8 "$WORK"/runtime/_obj/mcentral.8 "$WORK"/runtime/_obj/mem_freebsd.8 "$WORK"/runtime/_obj/mfinal.8 "$WORK"/runtime/_obj/mfixalloc.8 "$WORK"/runtime/_obj/mgc0.8 "$WORK"/runtime/_obj/mheap.8 "$WORK"/runtime/_obj/msize.8 "$WORK"/runtime/_obj/print.8 "$WORK"/runtime/_obj/proc.8 "$WORK"/runtime/_obj/rune.8 "$WORK"/runtime/_obj/runtime.8 "$WORK"/runtime/_obj/signal_freebsd_386.8 "$WORK"/runtime/_obj/slice.8 "$WORK"/runtime/_obj/symtab.8 "$WORK"/runtime/_obj/thread_freebsd.8 "$WORK"/runtime/_obj/traceback_x86.8 "$WORK"/runtime/_obj/vlrt_386.8 "$WORK"/runtime/_obj/zmalloc_386.8 "$WORK"/runtime/_obj/zmprof_386.8 "$WORK"/runtime/_obj/zruntime1_386.8 "$WORK"/runtime/_obj/zsema_386.8 "$WORK"/runtime/_obj/zsigqueue_386.8 "$WORK"/runtime/_obj/zstring_386.8 "$WORK"/runtime/_obj/ztime_386.8 "$WORK"/runtime/_obj/asm_386.8 "$WORK"/runtime/_obj/memmove_386.8 "$WORK"/runtime/_obj/rt0_freebsd_386.8 "$WORK"/runtime/_obj/sys_freebsd_386.8 "$WORK"/runtime/_obj/vlop_386.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/runtime.a "$WORK"/runtime/_obj/_go_.8 "$WORK"/runtime/_obj/alg.8 "$WORK"/runtime/_obj/atomic_386.8 "$WORK"/runtime/_obj/cgocall.8 "$WORK"/runtime/_obj/chan.8 "$WORK"/runtime/_obj/closure_386.8 "$WORK"/runtime/_obj/complex.8 "$WORK"/runtime/_obj/cpuprof.8 "$WORK"/runtime/_obj/float.8 "$WORK"/runtime/_obj/hashmap.8 "$WORK"/runtime/_obj/iface.8 "$WORK"/runtime/_obj/lock_futex.8 "$WORK"/runtime/_obj/mcache.8 "$WORK"/runtime/_obj/mcentral.8 "$WORK"/runtime/_obj/mem_freebsd.8 "$WORK"/runtime/_obj/mfinal.8 "$WORK"/runtime/_obj/mfixalloc.8 "$WORK"/runtime/_obj/mgc0.8 "$WORK"/runtime/_obj/mheap.8 "$WORK"/runtime/_obj/msize.8 "$WORK"/runtime/_obj/print.8 "$WORK"/runtime/_obj/proc.8 "$WORK"/runtime/_obj/rune.8 "$WORK"/runtime/_obj/runtime.8 "$WORK"/runtime/_obj/signal_freebsd_386.8 "$WORK"/runtime/_obj/slice.8 "$WORK"/runtime/_obj/symtab.8 "$WORK"/runtime/_obj/thread_freebsd.8 "$WORK"/runtime/_obj/traceback_x86.8 "$WORK"/runtime/_obj/vlrt_386.8 "$WORK"/runtime/_obj/zmalloc_386.8 "$WORK"/runtime/_obj/zmprof_386.8 "$WORK"/runtime/_obj/zruntime1_386.8 "$WORK"/runtime/_obj/zsema_386.8 "$WORK"/runtime/_obj/zsigqueue_386.8 "$WORK"/runtime/_obj/zstring_386.8 "$WORK"/runtime/_obj/ztime_386.8 "$WORK"/runtime/_obj/asm_386.8 "$WORK"/runtime/_obj/memmove_386.8 "$WORK"/runtime/_obj/rt0_freebsd_386.8 "$WORK"/runtime/_obj/sys_freebsd_386.8 "$WORK"/runtime/_obj/vlop_386.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/
 cp "$WORK"/runtime.a "$GOROOT"/pkg/freebsd_386/runtime.a
 
@@ -75,7 +75,7 @@ cp "$WORK"/runtime.a "$GOROOT"/pkg/freebsd_386/runtime.a
 mkdir -p "$WORK"/errors/_obj/
 cd "$GOROOT"/src/pkg/errors
 8g -o "$WORK"/errors/_obj/_go_.8 -p errors -I "$WORK" ./errors.go
-gopack grc "$WORK"/errors.a "$WORK"/errors/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/errors.a "$WORK"/errors/_obj/_go_.8
 cp "$WORK"/errors.a "$GOROOT"/pkg/freebsd_386/errors.a
 
 #
@@ -86,7 +86,7 @@ mkdir -p "$WORK"/sync/atomic/_obj/
 cd "$GOROOT"/src/pkg/sync/atomic
 8g -o "$WORK"/sync/atomic/_obj/_go_.8 -p sync/atomic -I "$WORK" ./doc.go
 8a -I "$WORK"/sync/atomic/_obj/ -o "$WORK"/sync/atomic/_obj/asm_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_386.s
-gopack grc "$WORK"/sync/atomic.a "$WORK"/sync/atomic/_obj/_go_.8 "$WORK"/sync/atomic/_obj/asm_386.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/sync/atomic.a "$WORK"/sync/atomic/_obj/_go_.8 "$WORK"/sync/atomic/_obj/asm_386.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/sync/
 cp "$WORK"/sync/atomic.a "$GOROOT"/pkg/freebsd_386/sync/atomic.a
 
@@ -97,7 +97,7 @@ cp "$WORK"/sync/atomic.a "$GOROOT"/pkg/freebsd_386/sync/atomic.a
 mkdir -p "$WORK"/sync/_obj/
 cd "$GOROOT"/src/pkg/sync
 8g -o "$WORK"/sync/_obj/_go_.8 -p sync -I "$WORK" ./cond.go ./mutex.go ./once.go ./rwmutex.go ./waitgroup.go
-gopack grc "$WORK"/sync.a "$WORK"/sync/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/sync.a "$WORK"/sync/_obj/_go_.8
 cp "$WORK"/sync.a "$GOROOT"/pkg/freebsd_386/sync.a
 
 #
@@ -107,7 +107,7 @@ cp "$WORK"/sync.a "$GOROOT"/pkg/freebsd_386/sync.a
 mkdir -p "$WORK"/io/_obj/
 cd "$GOROOT"/src/pkg/io
 8g -o "$WORK"/io/_obj/_go_.8 -p io -I "$WORK" ./io.go ./multi.go ./pipe.go
-gopack grc "$WORK"/io.a "$WORK"/io/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/io.a "$WORK"/io/_obj/_go_.8
 cp "$WORK"/io.a "$GOROOT"/pkg/freebsd_386/io.a
 
 #
@@ -117,7 +117,7 @@ cp "$WORK"/io.a "$GOROOT"/pkg/freebsd_386/io.a
 mkdir -p "$WORK"/unicode/_obj/
 cd "$GOROOT"/src/pkg/unicode
 8g -o "$WORK"/unicode/_obj/_go_.8 -p unicode -I "$WORK" ./casetables.go ./digit.go ./graphic.go ./letter.go ./tables.go
-gopack grc "$WORK"/unicode.a "$WORK"/unicode/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/unicode.a "$WORK"/unicode/_obj/_go_.8
 cp "$WORK"/unicode.a "$GOROOT"/pkg/freebsd_386/unicode.a
 
 #
@@ -127,7 +127,7 @@ cp "$WORK"/unicode.a "$GOROOT"/pkg/freebsd_386/unicode.a
 mkdir -p "$WORK"/unicode/utf8/_obj/
 cd "$GOROOT"/src/pkg/unicode/utf8
 8g -o "$WORK"/unicode/utf8/_obj/_go_.8 -p unicode/utf8 -I "$WORK" ./utf8.go
-gopack grc "$WORK"/unicode/utf8.a "$WORK"/unicode/utf8/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/unicode/utf8.a "$WORK"/unicode/utf8/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/unicode/
 cp "$WORK"/unicode/utf8.a "$GOROOT"/pkg/freebsd_386/unicode/utf8.a
 
@@ -139,7 +139,7 @@ mkdir -p "$WORK"/bytes/_obj/
 cd "$GOROOT"/src/pkg/bytes
 8g -o "$WORK"/bytes/_obj/_go_.8 -p bytes -I "$WORK" ./buffer.go ./bytes.go ./bytes_decl.go
 8a -I "$WORK"/bytes/_obj/ -o "$WORK"/bytes/_obj/asm_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_386.s
-gopack grc "$WORK"/bytes.a "$WORK"/bytes/_obj/_go_.8 "$WORK"/bytes/_obj/asm_386.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/bytes.a "$WORK"/bytes/_obj/_go_.8 "$WORK"/bytes/_obj/asm_386.8
 cp "$WORK"/bytes.a "$GOROOT"/pkg/freebsd_386/bytes.a
 
 #
@@ -171,7 +171,7 @@ cd "$GOROOT"/src/pkg/math
 8a -I "$WORK"/math/_obj/ -o "$WORK"/math/_obj/sincos_386.8 -DGOOS_freebsd -DGOARCH_386 ./sincos_386.s
 8a -I "$WORK"/math/_obj/ -o "$WORK"/math/_obj/sqrt_386.8 -DGOOS_freebsd -DGOARCH_386 ./sqrt_386.s
 8a -I "$WORK"/math/_obj/ -o "$WORK"/math/_obj/tan_386.8 -DGOOS_freebsd -DGOARCH_386 ./tan_386.s
-gopack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/math.a "$WORK"/math/_obj/_go_.8 "$WORK"/math/_obj/abs_386.8 "$WORK"/math/_obj/asin_386.8 "$WORK"/math/_obj/atan2_386.8 "$WORK"/math/_obj/atan_386.8 "$WORK"/math/_obj/dim_386.8 "$WORK"/math/_obj/exp2_386.8 "$WORK"/math/_obj/exp_386.8 "$WORK"/math/_obj/expm1_386.8 "$WORK"/math/_obj/floor_386.8 "$WORK"/math/_obj/frexp_386.8 "$WORK"/math/_obj/hypot_386.8 "$WORK"/math/_obj/ldexp_386.8 "$WORK"/math/_obj/log10_386.8 "$WORK"/math/_obj/log1p_386.8 "$WORK"/math/_obj/log_386.8 "$WORK"/math/_obj/mod_386.8 "$WORK"/math/_obj/modf_386.8 "$WORK"/math/_obj/remainder_386.8 "$WORK"/math/_obj/sin_386.8 "$WORK"/math/_obj/sincos_386.8 "$WORK"/math/_obj/sqrt_386.8 "$WORK"/math/_obj/tan_386.8
 cp "$WORK"/math.a "$GOROOT"/pkg/freebsd_386/math.a
 
 #
@@ -181,7 +181,7 @@ cp "$WORK"/math.a "$GOROOT"/pkg/freebsd_386/math.a
 mkdir -p "$WORK"/sort/_obj/
 cd "$GOROOT"/src/pkg/sort
 8g -o "$WORK"/sort/_obj/_go_.8 -p sort -I "$WORK" ./search.go ./sort.go
-gopack grc "$WORK"/sort.a "$WORK"/sort/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/sort.a "$WORK"/sort/_obj/_go_.8
 cp "$WORK"/sort.a "$GOROOT"/pkg/freebsd_386/sort.a
 
 #
@@ -191,7 +191,7 @@ cp "$WORK"/sort.a "$GOROOT"/pkg/freebsd_386/sort.a
 mkdir -p "$WORK"/container/heap/_obj/
 cd "$GOROOT"/src/pkg/container/heap
 8g -o "$WORK"/container/heap/_obj/_go_.8 -p container/heap -I "$WORK" ./heap.go
-gopack grc "$WORK"/container/heap.a "$WORK"/container/heap/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/container/heap.a "$WORK"/container/heap/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/container/
 cp "$WORK"/container/heap.a "$GOROOT"/pkg/freebsd_386/container/heap.a
 
@@ -202,7 +202,7 @@ cp "$WORK"/container/heap.a "$GOROOT"/pkg/freebsd_386/container/heap.a
 mkdir -p "$WORK"/strings/_obj/
 cd "$GOROOT"/src/pkg/strings
 8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" ./reader.go ./replace.go ./strings.go
-gopack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
 cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_386/strings.a
 
 #
@@ -212,7 +212,7 @@ cp "$WORK"/strings.a "$GOROOT"/pkg/freebsd_386/strings.a
 mkdir -p "$WORK"/strconv/_obj/
 cd "$GOROOT"/src/pkg/strconv
 8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" ./atob.go ./atof.go ./atoi.go ./decimal.go ./extfloat.go ./ftoa.go ./itoa.go ./quote.go
-gopack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
 cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_386/strconv.a
 
 #
@@ -222,7 +222,7 @@ cp "$WORK"/strconv.a "$GOROOT"/pkg/freebsd_386/strconv.a
 mkdir -p "$WORK"/encoding/base64/_obj/
 cd "$GOROOT"/src/pkg/encoding/base64
 8g -o "$WORK"/encoding/base64/_obj/_go_.8 -p encoding/base64 -I "$WORK" ./base64.go
-gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/encoding/
 cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_386/encoding/base64.a
 
@@ -234,7 +234,7 @@ mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
 8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_freebsd_386.s
-gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_freebsd_386.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_freebsd_386.8
 cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_386/syscall.a
 
 #
@@ -244,7 +244,7 @@ cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_386/syscall.a
 mkdir -p "$WORK"/time/_obj/
 cd "$GOROOT"/src/pkg/time
 8g -o "$WORK"/time/_obj/_go_.8 -p time -I "$WORK" ./format.go ./sleep.go ./sys_unix.go ./tick.go ./time.go ./zoneinfo.go ./zoneinfo_unix.go
-gopack grc "$WORK"/time.a "$WORK"/time/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/time.a "$WORK"/time/_obj/_go_.8
 cp "$WORK"/time.a "$GOROOT"/pkg/freebsd_386/time.a
 
 #
@@ -254,7 +254,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/freebsd_386/time.a
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
 8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_freebsd.go ./sys_bsd.go ./time.go ./types.go
-gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
 cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_386/os.a
 
 #
@@ -264,7 +264,7 @@ cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_386/os.a
 mkdir -p "$WORK"/reflect/_obj/
 cd "$GOROOT"/src/pkg/reflect
 8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
 cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_386/reflect.a
 
 #
@@ -274,7 +274,7 @@ cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_386/reflect.a
 mkdir -p "$WORK"/fmt/_obj/
 cd "$GOROOT"/src/pkg/fmt
 8g -o "$WORK"/fmt/_obj/_go_.8 -p fmt -I "$WORK" ./doc.go ./format.go ./print.go ./scan.go
-gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
 cp "$WORK"/fmt.a "$GOROOT"/pkg/freebsd_386/fmt.a
 
 #
@@ -284,7 +284,7 @@ cp "$WORK"/fmt.a "$GOROOT"/pkg/freebsd_386/fmt.a
 mkdir -p "$WORK"/unicode/utf16/_obj/
 cd "$GOROOT"/src/pkg/unicode/utf16
 8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
 cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_386/unicode/utf16.a
 
 #
@@ -294,7 +294,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_386/unicode/utf16.a
 mkdir -p "$WORK"/encoding/json/_obj/
 cd "$GOROOT"/src/pkg/encoding/json
 8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
 cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_386/encoding/json.a
 
 #
@@ -304,7 +304,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_386/encoding/json.a
 mkdir -p "$WORK"/flag/_obj/
 cd "$GOROOT"/src/pkg/flag
 8g -o "$WORK"/flag/_obj/_go_.8 -p flag -I "$WORK" ./flag.go
-gopack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
 cp "$WORK"/flag.a "$GOROOT"/pkg/freebsd_386/flag.a
 
 #
@@ -314,7 +314,7 @@ cp "$WORK"/flag.a "$GOROOT"/pkg/freebsd_386/flag.a
 mkdir -p "$WORK"/bufio/_obj/
 cd "$GOROOT"/src/pkg/bufio
 8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" ./bufio.go
-gopack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
 cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_386/bufio.a
 
 #
@@ -324,7 +324,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/freebsd_386/bufio.a
 mkdir -p "$WORK"/encoding/gob/_obj/
 cd "$GOROOT"/src/pkg/encoding/gob
 8g -o "$WORK"/encoding/gob/_obj/_go_.8 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
-gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.8
 cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/freebsd_386/encoding/gob.a
 
 #
@@ -334,7 +334,7 @@ cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/freebsd_386/encoding/gob.a
 mkdir -p "$WORK"/go/token/_obj/
 cd "$GOROOT"/src/pkg/go/token
 8g -o "$WORK"/go/token/_obj/_go_.8 -p go/token -I "$WORK" ./position.go ./serialize.go ./token.go
-gopack grc "$WORK"/go/token.a "$WORK"/go/token/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/go/token.a "$WORK"/go/token/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/go/
 cp "$WORK"/go/token.a "$GOROOT"/pkg/freebsd_386/go/token.a
 
@@ -345,7 +345,7 @@ cp "$WORK"/go/token.a "$GOROOT"/pkg/freebsd_386/go/token.a
 mkdir -p "$WORK"/path/filepath/_obj/
 cd "$GOROOT"/src/pkg/path/filepath
 8g -o "$WORK"/path/filepath/_obj/_go_.8 -p path/filepath -I "$WORK" ./match.go ./path.go ./path_unix.go
-gopack grc "$WORK"/path/filepath.a "$WORK"/path/filepath/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/path/filepath.a "$WORK"/path/filepath/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/path/
 cp "$WORK"/path/filepath.a "$GOROOT"/pkg/freebsd_386/path/filepath.a
 
@@ -356,7 +356,7 @@ cp "$WORK"/path/filepath.a "$GOROOT"/pkg/freebsd_386/path/filepath.a
 mkdir -p "$WORK"/go/scanner/_obj/
 cd "$GOROOT"/src/pkg/go/scanner
 8g -o "$WORK"/go/scanner/_obj/_go_.8 -p go/scanner -I "$WORK" ./errors.go ./scanner.go
-gopack grc "$WORK"/go/scanner.a "$WORK"/go/scanner/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/go/scanner.a "$WORK"/go/scanner/_obj/_go_.8
 cp "$WORK"/go/scanner.a "$GOROOT"/pkg/freebsd_386/go/scanner.a
 
 #
@@ -366,7 +366,7 @@ cp "$WORK"/go/scanner.a "$GOROOT"/pkg/freebsd_386/go/scanner.a
 mkdir -p "$WORK"/go/ast/_obj/
 cd "$GOROOT"/src/pkg/go/ast
 8g -o "$WORK"/go/ast/_obj/_go_.8 -p go/ast -I "$WORK" ./ast.go ./filter.go ./import.go ./print.go ./resolve.go ./scope.go ./walk.go
-gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
 cp "$WORK"/go/ast.a "$GOROOT"/pkg/freebsd_386/go/ast.a
 
 #
@@ -376,7 +376,7 @@ cp "$WORK"/go/ast.a "$GOROOT"/pkg/freebsd_386/go/ast.a
 mkdir -p "$WORK"/io/ioutil/_obj/
 cd "$GOROOT"/src/pkg/io/ioutil
 8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/io/
 cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_386/io/ioutil.a
 
@@ -387,7 +387,7 @@ cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_386/io/ioutil.a
 mkdir -p "$WORK"/go/parser/_obj/
 cd "$GOROOT"/src/pkg/go/parser
 8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
 cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_386/go/parser.a
 
 #
@@ -397,7 +397,7 @@ cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_386/go/parser.a
 mkdir -p "$WORK"/log/_obj/
 cd "$GOROOT"/src/pkg/log
 8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
 cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_386/log.a
 
 #
@@ -407,7 +407,7 @@ cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_386/log.a
 mkdir -p "$WORK"/path/_obj/
 cd "$GOROOT"/src/pkg/path
 8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
 cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
 
 #
@@ -417,7 +417,7 @@ cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
 mkdir -p "$WORK"/go/build/_obj/
 cd "$GOROOT"/src/pkg/go/build
 8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
 cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
 
 #
@@ -427,7 +427,7 @@ cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
 mkdir -p "$WORK"/os/exec/_obj/
 cd "$GOROOT"/src/pkg/os/exec
 8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/os/
 cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_386/os/exec.a
 
@@ -438,7 +438,7 @@ cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_386/os/exec.a
 mkdir -p "$WORK"/regexp/syntax/_obj/
 cd "$GOROOT"/src/pkg/regexp/syntax
 8g -o "$WORK"/regexp/syntax/_obj/_go_.8 -p regexp/syntax -I "$WORK" ./compile.go ./parse.go ./perl_groups.go ./prog.go ./regexp.go ./simplify.go
-gopack grc "$WORK"/regexp/syntax.a "$WORK"/regexp/syntax/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/regexp/syntax.a "$WORK"/regexp/syntax/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/regexp/
 cp "$WORK"/regexp/syntax.a "$GOROOT"/pkg/freebsd_386/regexp/syntax.a
 
@@ -449,7 +449,7 @@ cp "$WORK"/regexp/syntax.a "$GOROOT"/pkg/freebsd_386/regexp/syntax.a
 mkdir -p "$WORK"/regexp/_obj/
 cd "$GOROOT"/src/pkg/regexp
 8g -o "$WORK"/regexp/_obj/_go_.8 -p regexp -I "$WORK" ./exec.go ./regexp.go
-gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
 cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_386/regexp.a
 
 #
@@ -459,7 +459,7 @@ cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_386/regexp.a
 mkdir -p "$WORK"/net/url/_obj/
 cd "$GOROOT"/src/pkg/net/url
 8g -o "$WORK"/net/url/_obj/_go_.8 -p net/url -I "$WORK" ./url.go
-gopack grc "$WORK"/net/url.a "$WORK"/net/url/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/net/url.a "$WORK"/net/url/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/net/
 cp "$WORK"/net/url.a "$GOROOT"/pkg/freebsd_386/net/url.a
 
@@ -470,7 +470,7 @@ cp "$WORK"/net/url.a "$GOROOT"/pkg/freebsd_386/net/url.a
 mkdir -p "$WORK"/text/template/parse/_obj/
 cd "$GOROOT"/src/pkg/text/template/parse
 8g -o "$WORK"/text/template/parse/_obj/_go_.8 -p text/template/parse -I "$WORK" ./lex.go ./node.go ./parse.go
-gopack grc "$WORK"/text/template/parse.a "$WORK"/text/template/parse/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/text/template/parse.a "$WORK"/text/template/parse/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/text/template/
 cp "$WORK"/text/template/parse.a "$GOROOT"/pkg/freebsd_386/text/template/parse.a
 
@@ -481,7 +481,7 @@ cp "$WORK"/text/template/parse.a "$GOROOT"/pkg/freebsd_386/text/template/parse.a
 mkdir -p "$WORK"/text/template/_obj/
 cd "$GOROOT"/src/pkg/text/template
 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
-gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/freebsd_386/text/
 cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_386/text/template.a
 
@@ -492,7 +492,7 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_386/text/template.a
 mkdir -p "$WORK"/cmd/go/_obj/
 cd "$GOROOT"/src/cmd/go
 8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
-gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
 mkdir -p "$GOBIN"/
 cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
