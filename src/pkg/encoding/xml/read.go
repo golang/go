@@ -265,12 +265,13 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		saveData = v
 
 	case reflect.Struct:
-		sv = v
-		typ := sv.Type()
+		typ := v.Type()
 		if typ == nameType {
 			v.Set(reflect.ValueOf(start.Name))
 			break
 		}
+
+		sv = v
 		tinfo, err = getTypeInfo(typ)
 		if err != nil {
 			return err

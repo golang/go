@@ -532,6 +532,11 @@ var marshalTests = []struct {
 		Value:     &NameInField{Name{Space: "ns", Local: "foo"}},
 		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
 	},
+	{
+		Value:         &NameInField{Name{Space: "ns", Local: "foo"}},
+		ExpectXML:     `<NameInField><foo xmlns="ns"><ignore></ignore></foo></NameInField>`,
+		UnmarshalOnly: true,
+	},
 
 	// Marshaling zero xml.Name uses the tag or field name.
 	{
