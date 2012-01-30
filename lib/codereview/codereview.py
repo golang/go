@@ -895,7 +895,7 @@ def CheckFormat(ui, repo, files, just_warn=False):
 
 # Check that gofmt run on the list of files does not change them
 def CheckGofmt(ui, repo, files, just_warn):
-	files = [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
+	files = gofmt_required(files)
 	if not files:
 		return
 	cwd = os.getcwd()
@@ -1749,7 +1749,7 @@ def gofmt(ui, repo, *pats, **opts):
 		return codereview_disabled
 
 	files = ChangedExistingFiles(ui, repo, pats, opts)
-	files = [f for f in files if f.endswith(".go")]
+	files = gofmt_required(files)
 	if not files:
 		return "no modified go files"
 	cwd = os.getcwd()
@@ -1765,6 +1765,9 @@ def gofmt(ui, repo, *pats, **opts):
 	except:
 		raise hg_util.Abort("gofmt: " + ExceptionDetail())
 	return
+
+def gofmt_required(files):
+	return [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
 
 #######################################################################
 # hg mail
