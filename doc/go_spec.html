@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 21, 2012"
+	"Subtitle": "Version of January 30, 2012"
 }-->
 
 <!--
@@ -1150,7 +1150,8 @@ KeyType     = Type .
 <p>
 The comparison operators <code>==</code> and <code>!=</code>
 (§<a href="#Comparison_operators">Comparison operators</a>) must be fully defined
-for operands of the key type; thus the key type must not be a struct, array or slice.
+for operands of the key type; thus the key type must not be a function, map, or
+slice.
 If the key type is an interface type, these
 comparison operators must be defined for the dynamic key values;
 failure will cause a <a href="#Run_time_panics">run-time panic</a>.
