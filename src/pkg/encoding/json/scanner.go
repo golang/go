@@ -185,18 +185,9 @@ func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
-// NOTE(rsc): The various instances of
-//
-//	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-//
-// below should all be if c <= ' ' && isSpace(c), but inlining
-// the checks makes a significant difference (>10%) in tight loops
-// such as nextValue.  These should be rewritten with the clearer
-// function call once 6g knows to inline the call.
-
 // stateBeginValueOrEmpty is the state after reading `[`.
 func stateBeginValueOrEmpty(s *scanner, c int) int {
-	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+	if c <= ' ' && isSpace(rune(c)) {
 		return scanSkipSpace
 	}
 	if c == ']' {
@@ -207,7 +198,7 @@ func stateBeginValueOrEmpty(s *scanner, c int) int {
 
 // stateBeginValue is the state at the beginning of the input.
 func stateBeginValue(s *scanner, c int) int {
-	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+	if c <= ' ' && isSpace(rune(c)) {
 		return scanSkipSpace
 	}
 	switch c {
@@ -247,7 +238,7 @@ func stateBeginValue(s *scanner, c int) int {
 
 // stateBeginStringOrEmpty is the state after reading `{`.
 func stateBeginStringOrEmpty(s *scanner, c int) int {
-	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+	if c <= ' ' && isSpace(rune(c)) {
 		return scanSkipSpace
 	}
 	if c == '}' {
@@ -260,7 +251,7 @@ func stateBeginStringOrEmpty(s *scanner, c int) int {
 
 // stateBeginString is the state after reading `{"key": value,`.
 func stateBeginString(s *scanner, c int) int {
-	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+	if c <= ' ' && isSpace(rune(c)) {
 		return scanSkipSpace
 	}
 	if c == '"' {
@@ -280,7 +271,7 @@ func stateEndValue(s *scanner, c int) int {
 		s.endTop = true
 		return stateEndTop(s, c)
 	}
-	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+	if c <= ' ' && isSpace(rune(c)) {
 		s.step = stateEndValue
 		return scanSkipSpace
 	}
