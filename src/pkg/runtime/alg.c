@@ -263,7 +263,7 @@ runtime·f64hash(uintptr *h, uintptr s, void *a)
 	uint64 u;
 
 	USED(s);
-	f = *(float32*)a;
+	f = *(float64*)a;
 	if(f == 0)
 		hash = 0;	// +0, -0
 	else if(f != f)
