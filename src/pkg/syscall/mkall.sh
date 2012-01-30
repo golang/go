@@ -209,6 +209,9 @@ esac
 	darwin | freebsd | netbsd | openbsd)
 		syscall_goos="syscall_bsd.go $syscall_goos"
 		;;
+	windows)
+		syscall_goos="$syscall_goos security_windows.go"
+		;;
 	esac
 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi

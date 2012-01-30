@@ -75,9 +75,10 @@ GOFILES_plan9=\
 	exec_plan9.go\
 
 GOFILES_windows=\
+	dll_windows.go\
 	env_windows.go\
 	exec_windows.go\
-	dll_windows.go\
+	security_windows.go\
 	zerrors_windows.go\
 	ztypes_windows.go\
 

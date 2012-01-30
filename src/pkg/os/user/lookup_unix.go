@@ -10,6 +10,7 @@ package user
 import (
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -28,8 +29,9 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
 */
 import "C"
 
-func init() {
-	implemented = true
+// Current returns the current user. 
+func Current() (*User, error) {
+	return lookup(syscall.Getuid(), "", false)
 }
 
 // Lookup looks up a user by username. If the user cannot be found,
@@ -40,8 +42,12 @@ func Lookup(username string) (*User, error) {
 
 // LookupId looks up a user by userid. If the user cannot be found,
 // the returned error is of type UnknownUserIdError.
-func LookupId(uid int) (*User, error) {
-	return lookup(uid, "", false)
+func LookupId(uid string) (*User, error) {
+	i, e := strconv.Atoi(uid)
+	if e != nil {
+		return nil, e
+	}
+	return lookup(i, "", false)
 }
 
 func lookup(uid int, username string, lookupByName bool) (*User, error) {
@@ -94,8 +100,8 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
 		}
 	}
 	u := &User{
-		Uid:      int(pwd.pw_uid),
-		Gid:      int(pwd.pw_gid),
+		Uid:      strconv.Itoa(int(pwd.pw_uid)),
+		Gid:      strconv.Itoa(int(pwd.pw_gid)),
 		Username: C.GoString(pwd.pw_name),
 		Name:     C.GoString(pwd.pw_gecos),
 		HomeDir:  C.GoString(pwd.pw_dir),

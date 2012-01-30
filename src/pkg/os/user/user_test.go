@@ -6,9 +6,7 @@ package user
 
 import (
 	"os"
-	"reflect"
 	"runtime"
-	"syscall"
 	"testing"
 )
 
@@ -18,7 +16,8 @@ func skip(t *testing.T) bool {
 		return true
 	}
 
-	if runtime.GOOS == "linux" || runtime.GOOS == "freebsd" || runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "linux", "freebsd", "darwin", "windows":
 		return false
 	}
 
@@ -26,36 +25,75 @@ func skip(t *testing.T) bool {
 	return true
 }
 
+func TestCurrent(t *testing.T) {
+	if skip(t) {
+		return
+	}
+
+	u, err := Current()
+	if err != nil {
+		t.Fatalf("Current: %v", err)
+	}
+	fi, err := os.Stat(u.HomeDir)
+	if err != nil || !fi.IsDir() {
+		t.Errorf("expected a valid HomeDir; stat(%q): err=%v", u.HomeDir, err)
+	}
+	if u.Username == "" {
+		t.Fatalf("didn't get a username")
+	}
+}
+
+func compare(t *testing.T, want, got *User) {
+	if want.Uid != got.Uid {
+		t.Errorf("got Uid=%q; want %q", got.Uid, want.Uid)
+	}
+	if want.Username != got.Username {
+		t.Errorf("got Username=%q; want %q", got.Username, want.Username)
+	}
+	if want.Name != got.Name {
+		t.Errorf("got Name=%q; want %q", got.Name, want.Name)
+	}
+	// TODO(brainman): fix it once we know how.
+	if runtime.GOOS == "windows" {
+		t.Log("skipping Gid and HomeDir comparisons")
+		return
+	}
+	if want.Gid != got.Gid {
+		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
+	}
+	if want.HomeDir != got.HomeDir {
+		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
+	}
+}
+
 func TestLookup(t *testing.T) {
 	if skip(t) {
 		return
 	}
 
-	// Test LookupId on the current user
-	uid := syscall.Getuid()
-	u, err := LookupId(uid)
+	want, err := Current()
 	if err != nil {
-		t.Fatalf("LookupId: %v", err)
+		t.Fatalf("Current: %v", err)
 	}
-	if e, g := uid, u.Uid; e != g {
-		t.Errorf("expected Uid of %d; got %d", e, g)
-	}
-	fi, err := os.Stat(u.HomeDir)
-	if err != nil || !fi.IsDir() {
-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDir=%v", u.HomeDir, err, fi.IsDir())
-	}
-	if u.Username == "" {
-		t.Fatalf("didn't get a username")
-	}
-
-	// Test Lookup by username, using the username from LookupId
-	un, err := Lookup(u.Username)
+	got, err := Lookup(want.Username)
 	if err != nil {
 		t.Fatalf("Lookup: %v", err)
 	}
-	if !reflect.DeepEqual(u, un) {
-		t.Errorf("Lookup by userid vs. name didn't match\n"+
-			"LookupId(%d): %#v\n"+
-			"Lookup(%q): %#v\n", uid, u, u.Username, un)
+	compare(t, want, got)
+}
+
+func TestLookupId(t *testing.T) {
+	if skip(t) {
+		return
 	}
+
+	want, err := Current()
+	if err != nil {
+		t.Fatalf("Current: %v", err)
+	}
+	got, err := LookupId(want.Uid)
+	if err != nil {
+		t.Fatalf("LookupId: %v", err)
+	}
+	compare(t, want, got)
 }
