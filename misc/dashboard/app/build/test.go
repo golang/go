@@ -34,7 +34,7 @@ var testEntityKinds = []string{
 
 const testPkg = "code.google.com/p/go.test"
 
-var testPackage = &Package{Name: "Test", Path: testPkg}
+var testPackage = &Package{Name: "Test", Kind: "subrepo", Path: testPkg}
 
 var testPackages = []*Package{
 	&Package{Name: "Go", Path: ""},
@@ -61,7 +61,7 @@ var testRequests = []struct {
 	res  interface{}
 }{
 	// Packages
-	{"/packages", nil, nil, []*Package{testPackage}},
+	{"/packages?kind=subrepo", nil, nil, []*Package{testPackage}},
 
 	// Go repo
 	{"/commit", nil, tCommit("0001", "0000"), nil},
