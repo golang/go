@@ -131,7 +131,8 @@ shown, and only an identifier index but no full text search index is created.
 The presentation mode of web pages served by godoc can be controlled with the
 "m" URL parameter; it accepts a comma-separated list of flag names as value:
 
-	all	show documentation for all (not just exported) declarations
+	all	show documentation for all declarations, not just the exported ones
+	methods	show all embedded methods, not just those of unexported anonymous fields
 	src	show the original source code rather then the extracted documentation
 	text	present the page in textual (command-line) form rather than HTML
 	flat	present flat (not indented) directory listings using full paths

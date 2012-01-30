@@ -867,6 +867,7 @@ type PageInfoMode uint
 
 const (
 	noFiltering PageInfoMode = 1 << iota // do not filter exports
+	allMethods                           // show all embedded methods
 	showSource                           // show source code, do not extract documentation
 	noHtml                               // show result in textual form, do not generate HTML
 	flatDir                              // show directory in a flat (non-indented) manner
@@ -874,10 +875,11 @@ const (
 
 // modeNames defines names for each PageInfoMode flag.
 var modeNames = map[string]PageInfoMode{
-	"all":  noFiltering,
-	"src":  showSource,
-	"text": noHtml,
-	"flat": flatDir,
+	"all":     noFiltering,
+	"methods": allMethods,
+	"src":     showSource,
+	"text":    noHtml,
+	"flat":    flatDir,
 }
 
 // getPageInfoMode computes the PageInfoMode flags by analyzing the request
@@ -1087,6 +1089,9 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 			var m doc.Mode
 			if mode&noFiltering != 0 {
 				m = doc.AllDecls
+			}
+			if mode&allMethods != 0 {
+				m |= doc.AllMethods
 			}
 			pdoc = doc.New(pkg, path.Clean(relpath), m) // no trailing '/' in importpath
 		} else {
