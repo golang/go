@@ -535,7 +535,9 @@ func (pc *persistConn) readLoop() {
 		}
 		resp, err := ReadResponse(pc.br, rc.req)
 
-		if err == nil {
+		if err != nil {
+			pc.close()
+		} else {
 			hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
 			if rc.addedGzip && hasBody && resp.Header.Get("Content-Encoding") == "gzip" {
 				resp.Header.Del("Content-Encoding")
