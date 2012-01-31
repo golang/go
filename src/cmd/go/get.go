@@ -132,7 +132,7 @@ func download(arg string, stk *importStack) {
 	}
 
 	if *getFix {
-		run(stringList("gofix", relPaths(p.gofiles)))
+		run(stringList(tool("fix"), relPaths(p.gofiles)))
 
 		// The imports might have changed, so reload again.
 		p = reloadPackage(arg, stk)

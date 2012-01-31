@@ -184,6 +184,7 @@ type builder struct {
 	gcflags     []string             // additional flags for Go compiler
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
 	mkdirCache  map[string]bool      // a cache of created directories
+	print       func(args ...interface{}) (int, error)
 
 	output    sync.Mutex
 	scriptDir string // current directory in printed script
@@ -240,6 +241,7 @@ var (
 
 func (b *builder) init() {
 	var err error
+	b.print = fmt.Print
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
 	b.goarch = buildContext.GOARCH
@@ -454,7 +456,7 @@ func (b *builder) do(root *action) {
 
 		if err != nil {
 			if err == errPrintedOutput {
-				exitStatus = 2
+				setExitStatus(2)
 			} else {
 				errorf("%s", err)
 			}
@@ -742,7 +744,7 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
 	os.Remove(dst)
 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
-		if runtime.GOOS != "windows" {
+		if !toolIsWindows {
 			return err
 		}
 		// Windows does not allow to replace binary file
@@ -799,7 +801,7 @@ func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string 
 func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 	b.output.Lock()
 	defer b.output.Unlock()
-	fmt.Println(b.fmtcmd(dir, format, args...))
+	b.print(b.fmtcmd(dir, format, args...) + "\n")
 }
 
 // showOutput prints "# desc" followed by the given output.
@@ -836,7 +838,7 @@ func (b *builder) showOutput(dir, desc, out string) {
 
 	b.output.Lock()
 	defer b.output.Unlock()
-	fmt.Print(prefix, suffix)
+	b.print(prefix, suffix)
 }
 
 // relPaths returns a copy of paths with absolute paths
@@ -987,8 +989,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 		gcargs = append(gcargs, "-+")
 	}
 
-	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"g")
-	args := stringList(binary, "-o", ofile, b.gcflags, gcargs, importArgs)
+	args := stringList(tool(b.arch+"g"), "-o", ofile, b.gcflags, gcargs, importArgs)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
@@ -997,8 +998,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 
 func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"a")
-	return b.run(p.Dir, p.ImportPath, binary, "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, tool(b.arch+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
 }
 
 func (goToolchain) pkgpath(basedir string, p *Package) string {
@@ -1010,20 +1010,18 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, filepath.Join(goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
 }
 
 func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"l")
-	return b.run(p.Dir, p.ImportPath, binary, "-o", out, importArgs, mainpkg)
+	return b.run(p.Dir, p.ImportPath, tool(b.arch+"l"), "-o", out, importArgs, mainpkg)
 }
 
 func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"c")
-	return b.run(p.Dir, p.ImportPath, binary, "-FVw",
+	return b.run(p.Dir, p.ImportPath, tool(b.arch+"c"), "-FVw",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
 }
@@ -1136,7 +1134,7 @@ func (b *builder) gccCmd(objdir string) []string {
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
 func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
-	if b.goos != runtime.GOOS {
+	if b.goos != toolGOOS {
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
 	}
 
