@@ -105,8 +105,8 @@ LD=$(QUOTED_GOROOT)/bin/go-tool/$(O)l
 OS=568vq
 CFLAGS=-FVw
 
-HOST_CC=quietgcc
-HOST_LD=quietgcc
+HOST_CC=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
+HOST_LD=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
 HOST_O=o
 HOST_YFLAGS=-d
 HOST_AR?=ar
