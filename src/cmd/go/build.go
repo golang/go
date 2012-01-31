@@ -349,6 +349,12 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 			// Fake packages - nothing to build.
 			return a
 		}
+		// gccgo standard library is "fake" too.
+		if _, ok := buildToolchain.(gccgoToolchain); ok {
+			// the target name is needed for cgo.
+			a.target = p.target
+			return a
+		}
 	}
 
 	if !p.Stale && !buildA && p.target != "" {
