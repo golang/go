@@ -59,10 +59,14 @@ type Package struct {
 // A PackageError describes an error loading information about a package.
 type PackageError struct {
 	ImportStack []string // shortest path from package named on command line to this one
+	Pos         string   // position of error
 	Err         string   // the error itself
 }
 
 func (p *PackageError) Error() string {
+	if p.Pos != "" {
+		return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Pos + ": " + p.Err
+	}
 	return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
 }
 
@@ -360,6 +364,12 @@ Stale:
 		}
 		deps[path] = true
 		p1 := loadPackage(path, stk)
+		if p1.Error != nil {
+			if info.ImportPos != nil && len(info.ImportPos[path]) > 0 {
+				pos := info.ImportPos[path][0]
+				p1.Error.Pos = pos.String()
+			}
+		}
 		imports = append(imports, p1)
 		for _, dep := range p1.Deps {
 			deps[dep] = true
