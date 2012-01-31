@@ -135,8 +135,8 @@ func setWriteDeadline(fd *netFD, t time.Time) error {
 }
 
 func setDeadline(fd *netFD, t time.Time) error {
-	if e := setReadDeadline(fd, t); e != nil {
-		return e
+	if err := setReadDeadline(fd, t); err != nil {
+		return err
 	}
 	return setWriteDeadline(fd, t)
 }

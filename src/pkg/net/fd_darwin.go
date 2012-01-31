@@ -52,7 +52,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	}
 	syscall.SetKevent(ev, fd, kmode, flags)
 
-	n, err := syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
+	n, err := syscall.Kevent(p.kq, p.kbuf[:], p.kbuf[:], nil)
 	if err != nil {
 		return false, os.NewSyscallError("kevent", err)
 	}
@@ -93,19 +93,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
 		}
 
 		s.Unlock()
-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[0:], t)
+		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
 		s.Lock()
 
-		if e != nil {
-			if e == syscall.EINTR {
+		if err != nil {
+			if err == syscall.EINTR {
 				continue
 			}
 			return -1, 0, os.NewSyscallError("kevent", nil)
 		}
-		if nn == 0 {
+		if n == 0 {
 			return -1, 0, nil
 		}
-		p.events = p.eventbuf[0:nn]
+		p.events = p.eventbuf[:n]
 	}
 	ev := &p.events[0]
 	p.events = p.events[1:]

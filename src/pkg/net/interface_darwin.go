@@ -15,23 +15,17 @@ import (
 // addresses for all network interfaces.  Otherwise it returns
 // addresses for a specific interface.
 func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
-	var (
-		tab   []byte
-		e     error
-		msgs  []syscall.RoutingMessage
-		ifmat []Addr
-	)
-
-	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
-	if e != nil {
-		return nil, os.NewSyscallError("route rib", e)
+	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
+	if err != nil {
+		return nil, os.NewSyscallError("route rib", err)
 	}
 
-	msgs, e = syscall.ParseRoutingMessage(tab)
-	if e != nil {
-		return nil, os.NewSyscallError("route message", e)
+	msgs, err := syscall.ParseRoutingMessage(tab)
+	if err != nil {
+		return nil, os.NewSyscallError("route message", err)
 	}
 
+	var ifmat []Addr
 	for _, m := range msgs {
 		switch v := m.(type) {
 		case *syscall.InterfaceMulticastAddrMessage:
@@ -44,18 +38,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 			}
 		}
 	}
-
 	return ifmat, nil
 }
 
 func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
-	var ifmat []Addr
-
-	sas, e := syscall.ParseRoutingSockaddr(m)
-	if e != nil {
-		return nil, os.NewSyscallError("route sockaddr", e)
+	sas, err := syscall.ParseRoutingSockaddr(m)
+	if err != nil {
+		return nil, os.NewSyscallError("route sockaddr", err)
 	}
 
+	var ifmat []Addr
 	for _, s := range sas {
 		switch v := s.(type) {
 		case *syscall.SockaddrInet4:
@@ -75,6 +67,5 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) 
 			ifmat = append(ifmat, ifma.toAddr())
 		}
 	}
-
 	return ifmat, nil
 }

@@ -49,12 +49,12 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	}
 	syscall.SetKevent(ev, fd, kmode, flags)
 
-	n, e := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
-	if e != nil {
-		return false, os.NewSyscallError("kevent", e)
+	n, err := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
+	if err != nil {
+		return false, os.NewSyscallError("kevent", err)
 	}
 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
-		return false, os.NewSyscallError("kqueue phase error", e)
+		return false, os.NewSyscallError("kqueue phase error", err)
 	}
 	if ev.Data != 0 {
 		return false, syscall.Errno(int(ev.Data))
@@ -88,19 +88,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
 		}
 
 		s.Unlock()
-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
+		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
 		s.Lock()
 
-		if e != nil {
-			if e == syscall.EINTR {
+		if err != nil {
+			if err == syscall.EINTR {
 				continue
 			}
-			return -1, 0, os.NewSyscallError("kevent", e)
+			return -1, 0, os.NewSyscallError("kevent", err)
 		}
-		if nn == 0 {
+		if n == 0 {
 			return -1, 0, nil
 		}
-		p.events = p.eventbuf[0:nn]
+		p.events = p.eventbuf[:n]
 	}
 	ev := &p.events[0]
 	p.events = p.events[1:]

@@ -17,8 +17,6 @@ import (
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
-	var ift []Interface
-
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
 		return nil, os.NewSyscallError("netlink rib", err)
@@ -29,6 +27,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		return nil, os.NewSyscallError("netlink message", err)
 	}
 
+	var ift []Interface
 	for _, m := range msgs {
 		switch m.Header.Type {
 		case syscall.NLMSG_DONE:
@@ -45,7 +44,6 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 			}
 		}
 	}
-
 done:
 	return ift, nil
 }
@@ -111,13 +109,11 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return ifat, nil
 }
 
 func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 	var ifat []Addr
-
 	for _, m := range msgs {
 		switch m.Header.Type {
 		case syscall.NLMSG_DONE:
@@ -133,7 +129,6 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 			}
 		}
 	}
-
 done:
 	return ifat, nil
 }
@@ -165,32 +160,28 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 		err error
 		ifi *Interface
 	)
-
 	if ifindex > 0 {
 		ifi, err = InterfaceByIndex(ifindex)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	ifmat4 := parseProcNetIGMP(ifi)
 	ifmat6 := parseProcNetIGMP6(ifi)
-
 	return append(ifmat4, ifmat6...), nil
 }
 
 func parseProcNetIGMP(ifi *Interface) []Addr {
-	var (
-		ifmat []Addr
-		name  string
-	)
-
 	fd, err := open("/proc/net/igmp")
 	if err != nil {
 		return nil
 	}
 	defer fd.close()
 
+	var (
+		ifmat []Addr
+		name  string
+	)
 	fd.readLine() // skip first line
 	b := make([]byte, IPv4len)
 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
@@ -206,19 +197,17 @@ func parseProcNetIGMP(ifi *Interface) []Addr {
 			name = f[1]
 		}
 	}
-
 	return ifmat
 }
 
 func parseProcNetIGMP6(ifi *Interface) []Addr {
-	var ifmat []Addr
-
 	fd, err := open("/proc/net/igmp6")
 	if err != nil {
 		return nil
 	}
 	defer fd.close()
 
+	var ifmat []Addr
 	b := make([]byte, IPv6len)
 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
 		f := getFields(l)
@@ -229,6 +218,5 @@ func parseProcNetIGMP6(ifi *Interface) []Addr {
 
 		}
 	}
-
 	return ifmat
 }

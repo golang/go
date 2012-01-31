@@ -42,10 +42,6 @@ func TestMulticastUDP(t *testing.T) {
 	}
 
 	for _, tt := range multicastUDPTests {
-		var (
-			ifi   *Interface
-			found bool
-		)
 		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
 			continue
 		}
@@ -53,6 +49,7 @@ func TestMulticastUDP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Interfaces failed: %v", err)
 		}
+		var ifi *Interface
 		for _, x := range ift {
 			if x.Flags&tt.flags == tt.flags {
 				ifi = &x
@@ -80,6 +77,7 @@ func TestMulticastUDP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MulticastAddrs failed: %v", err)
 		}
+		var found bool
 		for _, ifma := range ifmat {
 			if ifma.(*IPAddr).IP.Equal(tt.gaddr) {
 				found = true

@@ -35,17 +35,15 @@ type pollster struct {
 
 func newpollster() (p *pollster, err error) {
 	p = new(pollster)
-	var e error
-
-	if p.epfd, e = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC); e != nil {
-		if e != syscall.ENOSYS {
-			return nil, os.NewSyscallError("epoll_create1", e)
+	if p.epfd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC); err != nil {
+		if err != syscall.ENOSYS {
+			return nil, os.NewSyscallError("epoll_create1", err)
 		}
 		// The arg to epoll_create is a hint to the kernel
 		// about the number of FDs we will care about.
 		// We don't know, and since 2.6.8 the kernel ignores it anyhow.
-		if p.epfd, e = syscall.EpollCreate(16); e != nil {
-			return nil, os.NewSyscallError("epoll_create", e)
+		if p.epfd, err = syscall.EpollCreate(16); err != nil {
+			return nil, os.NewSyscallError("epoll_create", err)
 		}
 		syscall.CloseOnExec(p.epfd)
 	}
@@ -74,8 +72,8 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	} else {
 		op = syscall.EPOLL_CTL_ADD
 	}
-	if e := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); e != nil {
-		return false, os.NewSyscallError("epoll_ctl", e)
+	if err := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); err != nil {
+		return false, os.NewSyscallError("epoll_ctl", err)
 	}
 	p.events[fd] = p.ctlEvent.Events
 	return false, nil
@@ -103,13 +101,13 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 	if int32(events)&^syscall.EPOLLONESHOT != 0 {
 		p.ctlEvent.Fd = int32(fd)
 		p.ctlEvent.Events = events
-		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); e != nil {
-			print("Epoll modify fd=", fd, ": ", e.Error(), "\n")
+		if err := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); err != nil {
+			print("Epoll modify fd=", fd, ": ", err.Error(), "\n")
 		}
 		p.events[fd] = events
 	} else {
-		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != nil {
-			print("Epoll delete fd=", fd, ": ", e.Error(), "\n")
+		if err := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); err != nil {
+			print("Epoll delete fd=", fd, ": ", err.Error(), "\n")
 		}
 		delete(p.events, fd)
 	}
@@ -144,14 +142,14 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
 		}
 
 		s.Unlock()
-		n, e := syscall.EpollWait(p.epfd, p.waitEventBuf[0:], msec)
+		n, err := syscall.EpollWait(p.epfd, p.waitEventBuf[0:], msec)
 		s.Lock()
 
-		if e != nil {
-			if e == syscall.EAGAIN || e == syscall.EINTR {
+		if err != nil {
+			if err == syscall.EAGAIN || err == syscall.EINTR {
 				continue
 			}
-			return -1, 0, os.NewSyscallError("epoll_wait", e)
+			return -1, 0, os.NewSyscallError("epoll_wait", err)
 		}
 		if n == 0 {
 			return -1, 0, nil

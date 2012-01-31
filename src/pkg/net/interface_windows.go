@@ -25,31 +25,31 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
 	b := make([]byte, 1000)
 	l := uint32(len(b))
 	a := (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
-	e := syscall.GetAdaptersInfo(a, &l)
-	if e == syscall.ERROR_BUFFER_OVERFLOW {
+	err := syscall.GetAdaptersInfo(a, &l)
+	if err == syscall.ERROR_BUFFER_OVERFLOW {
 		b = make([]byte, l)
 		a = (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
-		e = syscall.GetAdaptersInfo(a, &l)
+		err = syscall.GetAdaptersInfo(a, &l)
 	}
-	if e != nil {
-		return nil, os.NewSyscallError("GetAdaptersInfo", e)
+	if err != nil {
+		return nil, os.NewSyscallError("GetAdaptersInfo", err)
 	}
 	return a, nil
 }
 
 func getInterfaceList() ([]syscall.InterfaceInfo, error) {
-	s, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-	if e != nil {
-		return nil, os.NewSyscallError("Socket", e)
+	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+	if err != nil {
+		return nil, os.NewSyscallError("Socket", err)
 	}
 	defer syscall.Closesocket(s)
 
 	ii := [20]syscall.InterfaceInfo{}
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(ii))
-	e = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
-	if e != nil {
-		return nil, os.NewSyscallError("WSAIoctl", e)
+	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
+	if err != nil {
+		return nil, os.NewSyscallError("WSAIoctl", err)
 	}
 	c := ret / uint32(unsafe.Sizeof(ii[0]))
 	return ii[:c-1], nil
@@ -59,14 +59,14 @@ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
-	ai, e := getAdapterList()
-	if e != nil {
-		return nil, e
+	ai, err := getAdapterList()
+	if err != nil {
+		return nil, err
 	}
 
-	ii, e := getInterfaceList()
-	if e != nil {
-		return nil, e
+	ii, err := getInterfaceList()
+	if err != nil {
+		return nil, err
 	}
 
 	var ift []Interface
@@ -130,9 +130,9 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 // for all network interfaces.  Otherwise it returns addresses
 // for a specific interface.
 func interfaceAddrTable(ifindex int) ([]Addr, error) {
-	ai, e := getAdapterList()
-	if e != nil {
-		return nil, e
+	ai, err := getAdapterList()
+	if err != nil {
+		return nil, err
 	}
 
 	var ifat []Addr

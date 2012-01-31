@@ -22,33 +22,22 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
 func parsePlan9Addr(s string) (ip IP, iport int, err error) {
-	var (
-		addr IP
-		p, i int
-		ok   bool
-	)
-	addr = IPv4zero // address contains port only
+	addr := IPv4zero // address contains port only
 	i = byteIndex(s, '!')
 	if i >= 0 {
 		addr = ParseIP(s[:i])
 		if addr == nil {
-			err = errors.New("net: parsing IP failed")
-			goto Error
+			return nil, 0, errors.New("net: parsing IP failed")
 		}
 	}
-	p, _, ok = dtoi(s[i+1:], 0)
+	p, _, ok := dtoi(s[i+1:], 0)
 	if !ok {
-		err = errors.New("net: parsing port failed")
-		goto Error
+		return nil, 0, errors.New("net: parsing port failed")
 	}
 	if p < 0 || p > 0xFFFF {
-		err = &AddrError{"invalid port", string(p)}
-		goto Error
+		return nil, 0, &AddrError{"invalid port", string(p)}
 	}
 	return addr, p, nil
-
-Error:
-	return nil, 0, err
 }
 
 func readPlan9Addr(proto, filename string) (addr Addr, err error) {

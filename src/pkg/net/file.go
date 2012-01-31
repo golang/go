@@ -11,15 +11,15 @@ import (
 	"syscall"
 )
 
-func newFileFD(f *os.File) (nfd *netFD, err error) {
-	fd, errno := syscall.Dup(f.Fd())
-	if errno != nil {
-		return nil, os.NewSyscallError("dup", errno)
+func newFileFD(f *os.File) (*netFD, error) {
+	fd, err := syscall.Dup(f.Fd())
+	if err != nil {
+		return nil, os.NewSyscallError("dup", err)
 	}
 
-	proto, errno := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
-	if errno != nil {
-		return nil, os.NewSyscallError("getsockopt", errno)
+	proto, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+	if err != nil {
+		return nil, os.NewSyscallError("getsockopt", err)
 	}
 
 	family := syscall.AF_UNSPEC
@@ -56,11 +56,12 @@ func newFileFD(f *os.File) (nfd *netFD, err error) {
 	sa, _ = syscall.Getpeername(fd)
 	raddr := toAddr(sa)
 
-	if nfd, err = newFD(fd, family, proto, laddr.Network()); err != nil {
+	netfd, err := newFD(fd, family, proto, laddr.Network())
+	if err != nil {
 		return nil, err
 	}
-	nfd.setAddr(laddr, raddr)
-	return nfd, nil
+	netfd.setAddr(laddr, raddr)
+	return netfd, nil
 }
 
 // FileConn returns a copy of the network connection corresponding to
