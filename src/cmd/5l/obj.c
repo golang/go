@@ -558,8 +558,8 @@ loop:
 		// redefinitions.
 		s = p->from.sym;
 		if(s->dupok) {
-			if(debug['v'])
-				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+//			if(debug['v'])
+//				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
 		if(s->file == nil)
