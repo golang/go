@@ -493,5 +493,5 @@ cd "$GOROOT"/src/cmd/go
 "$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
 "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
 "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
-mkdir -p "$GOBIN"/openbsd_amd64/
-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/openbsd_amd64/go
+mkdir -p "$GOBIN"/
+cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap

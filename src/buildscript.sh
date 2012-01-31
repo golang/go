@@ -30,10 +30,11 @@ set -e
 	# as a shell escape but also makes sure that we generate the
 	# same scripts on Unix and Windows systems.
 	go install -a -n -t cmd_go_bootstrap cmd/go | sed '
+		s;\\;/;g
+		s;\$GOBIN/[a-z0-9]*_[a-z0-9]*/;\$GOBIN/;g
 		s/\$GOBIN/"$GOBIN"/g
 		s/\$GOROOT/"$GOROOT"/g
 		s/\$WORK/"$WORK"/g
-		s;\\;/;g
 		s;"\$GOBIN"/go;&_bootstrap;g
 		s/go_bootstrap-tool/go-tool/g
 		s;"\$GOBIN"/go-tool;"$GOROOT"/bin/go-tool;g
