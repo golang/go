@@ -15,7 +15,7 @@
         background: #eee;
       }
       h2 {
-        margin-top: 10px;
+        margin-top: 20px;
       }
       .build, .packages {
         margin: 5px;
@@ -103,23 +103,23 @@
       </tr>
     {{range $c := $.Commits}}
       <tr class="commit">
-      <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
-      {{range $.Builders}}
-      <td class="result">
-      {{with $c.Result . ""}}
-        {{if .OK}}
-        <span class="ok">ok</span>
-        {{else}}
-        <a href="/log/{{.LogHash}}" class="fail">fail</a>
+        <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+        {{range $.Builders}}
+          <td class="result">
+            {{with $c.Result . ""}}
+              {{if .OK}}
+                <span class="ok">ok</span>
+              {{else}}
+                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+              {{end}}
+            {{else}}
+              &nbsp;
+            {{end}}
+          </td>
         {{end}}
-      {{else}}
-        &nbsp;
-      {{end}}
-      </td>
-      {{end}}
-      <td class="user" title="{{.User}}">{{shortUser .User}}</td>
-      <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
-      <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+        <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+        <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
+        <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
       </tr>
     {{end}}
     </table>
@@ -136,41 +136,72 @@
     <p>No commits to display. Hm.</p>
   {{end}}
 
-  {{if $.TipState}}
-    <h2>Other packages</h2>
+  {{with $.TipState}}
+    {{$goHash := .Tag.Hash}}
+    <h2>
+      Sub-repositories at tip
+      <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
+    </h2>
 
-    <table class="packages">
-    <tr>
-      <th>State</th>
-      <th>Package</th>
-      <th>&nbsp;</th>
-    </tr>
-  {{range $state := $.TipState}}
-    <tr>
-      <td>
-    {{if .Results}}
-        <img src="/static/status_{{if .OK}}good{{else}}alert{{end}}.gif" />
-    {{else}}
-        &nbsp;
+    <table class="build">
+      <colgroup class="col-package"></colgroup>
+      <colgroup class="col-hash"></colgroup>
+      {{range $.Builders | builderSpans}}
+        <colgroup class="col-result" span="{{.N}}"></colgroup>
+      {{end}}
+      <colgroup class="col-user"></colgroup>
+      <colgroup class="col-time"></colgroup>
+      <colgroup class="col-desc"></colgroup>
+      <tr>
+        <!-- extra row to make alternating colors use dark for first result -->
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        {{range $.Builders | builderSpans}}
+          <th colspan="{{.N}}">{{.OS}}</th>
+        {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        {{range $.Builders}}
+          <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
+        {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
+    {{range $pkg := .Packages}}
+      <tr class="commit">
+        <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+        <td class="hash">
+          {{$h := $pkg.Commit.Hash}}
+          <a href="{{repoURL $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
+        </td>
+        {{range $.Builders}}
+          <td class="result">
+            {{with $pkg.Commit.Result . $goHash}}
+              {{if .OK}}
+                <span class="ok">ok</span>
+              {{else}}
+                <a href="/log/{{.LogHash}}" class="fail">fail</a>
+              {{end}}
+            {{else}}
+              &nbsp;
+            {{end}}
+          </td>
+        {{end}}
+        {{with $pkg.Commit}}
+          <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+          <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
+          <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+        {{end}}
+      </tr>
     {{end}}
-      </td>
-      <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
-      <td>
-    {{range .Results}}
-        <div>
-          {{$h := $state.Commit.Hash}}
-          <a href="{{repoURL $h $state.Commit.PackagePath}}">{{shortHash $h}}</a>
-          {{if .OK}}
-            ok
-          {{else}}
-            <a href="/log/{{.LogHash}}" class="fail">failed</a>
-          {{end}}
-          on {{.Builder}}/<a href="{{repoURL .GoHash ""}}">{{shortHash .GoHash}}</a>
-        </a></div>
-    {{end}}
-      </td>
-    </tr>
-  {{end}}
     </table>
   {{end}}
 
