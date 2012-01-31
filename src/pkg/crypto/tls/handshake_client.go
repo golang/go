@@ -59,7 +59,8 @@ func (c *Conn) clientHandshake() error {
 	finishedHash.Write(serverHello.marshal())
 
 	vers, ok := mutualVersion(serverHello.vers)
-	if !ok {
+	if !ok || vers < versionTLS10 {
+		// TLS 1.0 is the minimum version supported as a client.
 		return c.sendAlert(alertProtocolVersion)
 	}
 	c.vers = vers
