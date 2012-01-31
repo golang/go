@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -150,6 +151,15 @@ func TestExtraFiles(t *testing.T) {
 		return
 	}
 
+	// Ensure that file descriptors have not already been leaked into
+	// our environment.
+	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+		err := syscall.Close(fd)
+		if err == nil {
+			t.Logf("Something already leaked - closed fd %d", fd)
+		}
+	}
+
 	// Force network usage, to verify the epoll (or whatever) fd
 	// doesn't leak to the child,
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -201,6 +211,13 @@ func TestHelperProcess(*testing.T) {
 		return
 	}
 	defer os.Exit(0)
+
+	// Determine which command to use to display open files.
+	ofcmd := "lsof"
+	switch runtime.GOOS {
+	case "freebsd", "netbsd", "openbsd":
+		ofcmd = "fstat"
+	}
 
 	args := os.Args
 	for len(args) > 0 {
@@ -282,7 +299,7 @@ func TestHelperProcess(*testing.T) {
 				}
 				if got := f.Fd(); got != wantfd {
 					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
-					out, _ := Command("lsof", "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
+					out, _ := Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
 					fmt.Print(string(out))
 					os.Exit(1)
 				}
