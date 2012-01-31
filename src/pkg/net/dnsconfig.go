@@ -17,19 +17,6 @@ type dnsConfig struct {
 	rotate   bool     // round robin among servers
 }
 
-var dnsconfigError error
-
-type DNSConfigError struct {
-	Err error
-}
-
-func (e *DNSConfigError) Error() string {
-	return "error reading DNS config: " + e.Err.Error()
-}
-
-func (e *DNSConfigError) Timeout() bool   { return false }
-func (e *DNSConfigError) Temporary() bool { return false }
-
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
