@@ -1215,8 +1215,13 @@ reads and writes will time out and no longer block.
 </p>
 
 <p>
-There is also a new <a href="/pkg/net/#DialTimeout"><code>net.DialTimeout</code></a> method to simplify
-timing out dialing a network address.
+There are also new functions
+<a href="/pkg/net/#DialTimeout"><code>net.DialTimeout</code></a>
+to simplify timing out dialing a network address and
+<a href="/pkg/net/#ListenMulticastUDP"><code>net.ListenMulticastUDP</code></a>
+to allow multicast UDP to listen concurrently across multiple listeners.
+The <code>net.ListenMulticastUDP</code> function replaces the old
+<code>JoinGroup</code> and <code>LeaveGroup</code> methods.
 </p>
 
 <p>
