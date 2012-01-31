@@ -366,6 +366,7 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
 	s.fieldLimit = hugeWid
 	s.maxWid = hugeWid
 	s.validSave = true
+	s.count = 0
 	return
 }
 
