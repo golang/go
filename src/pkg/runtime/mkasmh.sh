@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+trap "rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h" EXIT SIGINT SIGTERM
 set -e
 
 SYS=$1
@@ -135,5 +136,3 @@ aggr != "" && /^	/ {
 	printf("#define %s_%s %s\n", aggr, name, offset);
 }
 '
-
-rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h
