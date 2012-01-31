@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"os"
 	"text/template"
@@ -81,15 +82,19 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
+
 	var do func(*Package)
 	if *listJson {
 		do = func(p *Package) {
 			b, err := json.MarshalIndent(p, "", "\t")
 			if err != nil {
+				out.Flush()
 				fatalf("%s", err)
 			}
-			os.Stdout.Write(b)
-			os.Stdout.Write(nl)
+			out.Write(b)
+			out.Write(nl)
 		}
 	} else {
 		tmpl, err := template.New("main").Parse(*listFmt + "\n")
@@ -97,7 +102,8 @@ func runList(cmd *Command, args []string) {
 			fatalf("%s", err)
 		}
 		do = func(p *Package) {
-			if err := tmpl.Execute(os.Stdout, p); err != nil {
+			if err := tmpl.Execute(out, p); err != nil {
+				out.Flush()
 				fatalf("%s", err)
 			}
 		}

@@ -177,6 +177,36 @@ cd "$GOROOT"/src/pkg/math
 cp "$WORK"/math.a "$GOROOT"/pkg/windows_386/math.a
 
 #
+# strings
+#
+
+mkdir -p "$WORK"/strings/_obj/
+cd "$GOROOT"/src/pkg/strings
+"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
+cp "$WORK"/strings.a "$GOROOT"/pkg/windows_386/strings.a
+
+#
+# strconv
+#
+
+mkdir -p "$WORK"/strconv/_obj/
+cd "$GOROOT"/src/pkg/strconv
+"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
+cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_386/strconv.a
+
+#
+# bufio
+#
+
+mkdir -p "$WORK"/bufio/_obj/
+cd "$GOROOT"/src/pkg/bufio
+"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
+"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
+cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_386/bufio.a
+
+#
 # sort
 #
 
@@ -196,26 +226,6 @@ cd "$GOROOT"/src/pkg/container/heap
 "$GOROOT"/bin/go-tool/pack grc "$WORK"/container/heap.a "$WORK"/container/heap/_obj/_go_.8
 mkdir -p "$GOROOT"/pkg/windows_386/container/
 cp "$WORK"/container/heap.a "$GOROOT"/pkg/windows_386/container/heap.a
-
-#
-# strings
-#
-
-mkdir -p "$WORK"/strings/_obj/
-cd "$GOROOT"/src/pkg/strings
-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strings/_obj/_go_.8 -p strings -I "$WORK" reader.go replace.go strings.go
-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strings.a "$WORK"/strings/_obj/_go_.8
-cp "$WORK"/strings.a "$GOROOT"/pkg/windows_386/strings.a
-
-#
-# strconv
-#
-
-mkdir -p "$WORK"/strconv/_obj/
-cd "$GOROOT"/src/pkg/strconv
-"$GOROOT"/bin/go-tool/8g -o "$WORK"/strconv/_obj/_go_.8 -p strconv -I "$WORK" atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go itoa.go quote.go
-"$GOROOT"/bin/go-tool/pack grc "$WORK"/strconv.a "$WORK"/strconv/_obj/_go_.8
-cp "$WORK"/strconv.a "$GOROOT"/pkg/windows_386/strconv.a
 
 #
 # encoding/base64
@@ -308,16 +318,6 @@ cd "$GOROOT"/src/pkg/flag
 "$GOROOT"/bin/go-tool/8g -o "$WORK"/flag/_obj/_go_.8 -p flag -I "$WORK" flag.go
 "$GOROOT"/bin/go-tool/pack grc "$WORK"/flag.a "$WORK"/flag/_obj/_go_.8
 cp "$WORK"/flag.a "$GOROOT"/pkg/windows_386/flag.a
-
-#
-# bufio
-#
-
-mkdir -p "$WORK"/bufio/_obj/
-cd "$GOROOT"/src/pkg/bufio
-"$GOROOT"/bin/go-tool/8g -o "$WORK"/bufio/_obj/_go_.8 -p bufio -I "$WORK" bufio.go
-"$GOROOT"/bin/go-tool/pack grc "$WORK"/bufio.a "$WORK"/bufio/_obj/_go_.8
-cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_386/bufio.a
 
 #
 # encoding/gob

@@ -5,7 +5,9 @@
 package main
 
 import (
+	"bytes"
 	"go/build"
+	"go/scanner"
 	"os"
 	"path/filepath"
 	"sort"
@@ -258,6 +260,20 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		p.Error = &PackageError{
 			ImportStack: stk.copy(),
 			Err:         err.Error(),
+		}
+		// Look for parser errors.
+		if err, ok := err.(scanner.ErrorList); ok {
+			// Prepare error with \n before each message.
+			// When printed in something like context: %v
+			// this will put the leading file positions each on
+			// its own line.  It will also show all the errors
+			// instead of just the first, as err.Error does.
+			var buf bytes.Buffer
+			for _, e := range err {
+				buf.WriteString("\n")
+				buf.WriteString(e.Error())
+			}
+			p.Error.Err = buf.String()
 		}
 		p.Incomplete = true
 		return p

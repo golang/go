@@ -75,7 +75,7 @@ func runTool(cmd *Command, args []string) {
 	}
 	err := toolCmd.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool %s failed: %s\n", tool, err)
+		fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
 		setExitStatus(1)
 		return
 	}
