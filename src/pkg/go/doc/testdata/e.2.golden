@@ -40,3 +40,6 @@ TYPES
 		T4
 	}
 
+	// T4.M should appear as method of T5 only if AllMethods is set. 
+	func (*T5) M()
+

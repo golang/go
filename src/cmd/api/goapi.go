@@ -264,7 +264,7 @@ func (w *Walker) WalkPackage(name string) {
 	// (functions and methods). This is done here because
 	// go/doc is destructive.  We can't use the
 	// *ast.Package after this.
-	dpkg := doc.New(apkg, name, 0)
+	dpkg := doc.New(apkg, name, doc.AllMethods)
 
 	for _, t := range dpkg.Types {
 		// Move funcs up to the top-level, not hiding in the Types.

@@ -64,3 +64,16 @@ type T4 struct {
 	t2
 	T2
 }
+
+// ----------------------------------------------------------------------------
+// Don't show embedded methods of exported anonymous fields unless AllMethods
+// is set.
+
+type T4 struct{}
+
+// T4.M should appear as method of T5 only if AllMethods is set.
+func (*T4) M() {}
+
+type T5 struct {
+	T4
+}
