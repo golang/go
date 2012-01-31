@@ -10,6 +10,7 @@ Usage: go command [arguments]
 The commands are:
 
     build       compile packages and dependencies
+    clean       remove object files
     doc         run godoc on package sources
     fix         run gofix on packages
     fmt         run gofmt on package sources
@@ -18,6 +19,7 @@ The commands are:
     list        list packages
     run         compile and run Go program
     test        test packages
+    tool        run specified go tool
     version     print Go version
     vet         run govet on packages
 
@@ -67,6 +69,48 @@ For more about import paths, see 'go help importpath'.
 See also: go install, go get, go clean.
 
 
+Remove object files
+
+Usage:
+
+	go clean [-i] [-r] [-n] [-x] [importpath...]
+
+Clean removes object files from package source directories.
+The go command builds most objects in a temporary directory,
+so go clean is mainly concerned with object files left by other
+tools or by manual invocations of go build.
+
+Specifically, clean removes the following files from each of the
+source directories corresponding to the import paths:
+
+	_obj/            old object directory, left from Makefiles
+	_test/           old test directory, left from Makefiles
+	_testmain.go     old gotest file, left from Makefiles
+	test.out         old test log, left from Makefiles
+	build.out        old test log, left from Makefiles
+	*.[568ao]        object files, left from Makefiles
+
+	DIR(.exe)        from go build
+	DIR.test(.exe)   from go test -c
+	MAINFILE(.exe)   from go build MAINFILE.go
+
+In the list, DIR represents the final path element of the
+directory, and MAINFILE is the base name of any Go source
+file in the directory that is not included when building
+the package.
+
+The -i flag causes clean to remove the corresponding installed
+archive or binary (what 'go install' would create).
+
+The -n flag causes clean to print the remove commands it would execute,
+but not run them.
+
+The -r flag causes clean to be applied recursively to all the
+dependencies of the packages named by the import paths.
+
+The -x flag causes clean to print remove commands as it executes them.
+
+
 Run godoc on package sources
 
 Usage:
@@ -90,12 +134,12 @@ Usage:
 
 	go fix [importpath...]
 
-Fix runs the gofix command on the packages named by the import paths.
+Fix runs the Go fix command on the packages named by the import paths.
 
-For more about gofix, see 'godoc gofix'.
+For more about fix, see 'godoc fix'.
 For more about import paths, see 'go help importpath'.
 
-To run gofix with specific options, run gofix itself.
+To run fix with specific options, run 'go tool fix'.
 
 See also: go fmt, go vet.
 
@@ -252,7 +296,7 @@ Test packages
 
 Usage:
 
-	go test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]
+	go test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]
 
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
@@ -285,6 +329,18 @@ See 'go help importpath' for more about import paths.
 See also: go build, go vet.
 
 
+Run specified go tool
+
+Usage:
+
+	go tool command [args...]
+
+Tool runs the go tool command identified by the arguments.
+With no arguments it prints the list of known tools.
+
+For more about each tool command, see 'go tool command -h'.
+
+
 Print Go version
 
 Usage:
@@ -300,12 +356,12 @@ Usage:
 
 	go vet [importpath...]
 
-Vet runs the govet command on the packages named by the import paths.
+Vet runs the Go vet command on the packages named by the import paths.
 
-For more about govet, see 'godoc govet'.
+For more about vet, see 'godoc vet'.
 For more about import paths, see 'go help importpath'.
 
-To run govet with specific options, run govet itself.
+To run govet with specific options, run 'go tool vet'.
 
 See also: go fmt, go fix.
 
@@ -487,11 +543,14 @@ and flags that apply to the resulting test binary.
 
 The flags handled by 'go test' are:
 
-	-c  Compile the test binary to test.out but do not run it.
+	-c  Compile the test binary to pkg.test but do not run it.
 
 	-file a.go
 	    Use only the tests in the source file a.go.
 	    Multiple -file flags may be provided.
+
+	-i
+	    Install packages that are dependencies of the test.
 
 	-p n
 	    Compile and test up to n packages in parallel.
@@ -499,7 +558,8 @@ The flags handled by 'go test' are:
 
 	-x  Print each subcommand go test executes.
 
-The resulting test binary, called test.out, has its own flags:
+The resulting test binary, called pkg.test, where pkg is the name of the
+directory containing the package sources, has its own flags:
 
 	-test.v
 	    Verbose output: log all tests as they are run.
@@ -557,7 +617,7 @@ here are passed through unaltered.  For instance, the command
 
 will compile the test binary using x_test.go and then run it as
 
-	test.out -test.v -test.cpuprofile=prof.out -dir=testdata -update
+	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 
 
 Description of testing functions

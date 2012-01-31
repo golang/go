@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -113,7 +114,10 @@ func runBuild(cmd *Command, args []string) {
 	}
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
-		*buildO = "a.out"
+		_, *buildO = path.Split(pkgs[0].ImportPath)
+		if b.goos == "windows" {
+			*buildO += ".exe"
+		}
 	}
 
 	if *buildO != "" {
@@ -174,10 +178,8 @@ func runInstall(cmd *Command, args []string) {
 type builder struct {
 	work        string               // the temporary work directory (ends in filepath.Separator)
 	arch        string               // e.g., "6"
-	goroot      string               // the $GOROOT
 	goarch      string               // the $GOARCH
 	goos        string               // the $GOOS
-	gobin       string               // the $GOBIN
 	exe         string               // the executable suffix - "" or ".exe"
 	gcflags     []string             // additional flags for Go compiler
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
@@ -231,14 +233,17 @@ const (
 	modeInstall
 )
 
+var (
+	gobin  = build.Path[0].BinDir()
+	goroot = build.Path[0].Path
+)
+
 func (b *builder) init() {
 	var err error
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
 	b.goarch = buildContext.GOARCH
 	b.goos = buildContext.GOOS
-	b.goroot = build.Path[0].Path
-	b.gobin = build.Path[0].BinDir()
 	if b.goos == "windows" {
 		b.exe = ".exe"
 	}
@@ -367,8 +372,6 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		a.target = a.objpkg
 		if a.link {
 			// An executable file.
-			// Have to use something other than .a for the suffix.
-			// It is easier on Windows if we use .exe, so use .exe everywhere.
 			// (This is the name of a temporary file.)
 			a.target = a.objdir + "a.out" + b.exe
 		}
@@ -762,7 +765,7 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
 //	fmtcmd inserts "cd dir\n" before the command.
 //
 //	fmtcmd replaces the value of b.work with $WORK.
-//	fmtcmd replaces the value of b.goroot with $GOROOT.
+//	fmtcmd replaces the value of goroot with $GOROOT.
 //	fmtcmd replaces the value of b.gobin with $GOBIN.
 //
 //	fmtcmd replaces the name of the current directory with dot (.)
@@ -777,9 +780,11 @@ func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string 
 			cmd = "cd " + dir + "\n" + cmd
 		}
 	}
-	cmd = strings.Replace(cmd, b.work, "$WORK", -1)
-	cmd = strings.Replace(cmd, b.gobin, "$GOBIN", -1)
-	cmd = strings.Replace(cmd, b.goroot, "$GOROOT", -1)
+	if b.work != "" {
+		cmd = strings.Replace(cmd, b.work, "$WORK", -1)
+	}
+	cmd = strings.Replace(cmd, gobin, "$GOBIN", -1)
+	cmd = strings.Replace(cmd, goroot, "$GOROOT", -1)
 	return cmd
 }
 
@@ -976,7 +981,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 		gcargs = append(gcargs, "-+")
 	}
 
-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"g")
+	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"g")
 	args := stringList(binary, "-o", ofile, b.gcflags, gcargs, importArgs)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
@@ -986,7 +991,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 
 func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"a")
+	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"a")
 	return b.run(p.Dir, p.ImportPath, binary, "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
 }
 
@@ -999,19 +1004,19 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, filepath.Join(b.goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, filepath.Join(goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
 }
 
 func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"l")
+	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"l")
 	return b.run(p.Dir, p.ImportPath, binary, "-o", out, importArgs, mainpkg)
 }
 
 func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
-	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
+	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"c")
+	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"c")
 	return b.run(p.Dir, p.ImportPath, binary, "-FVw",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
@@ -1075,7 +1080,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 }
 
 func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
-	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
+	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
 	cfile = mkAbs(p.Dir, cfile)
 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile,
