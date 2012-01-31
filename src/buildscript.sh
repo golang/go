@@ -38,6 +38,7 @@ set -e
 		s;"\$GOBIN"/go;&_bootstrap;g
 		s/go_bootstrap-tool/go-tool/g
 		s;"\$GOBIN"/go-tool;"$GOROOT"/bin/go-tool;g
+		s; \./; ;g
 	'
 	)>$targ
 	chmod +x $targ
