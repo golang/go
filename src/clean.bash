@@ -19,13 +19,20 @@ if [ "$1" != "--nopkg" ]; then
 	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
 fi
 rm -f "$GOROOT"/lib/*.a
-for i in lib9 libbio libmach cmd pkg \
-	../misc/cgo/gmp ../misc/cgo/stdio \
-	../misc/cgo/life ../misc/cgo/test \
-	../misc/dashboard/builder ../misc/goplay\
-	../doc/codelab/wiki\
-	../test/bench/shootout ../test/bench/garbage ../test/bench/go1
+for i in lib9 libbio libmach cmd
 do
 	# Do not use gomake here. It may not be available.
 	$MAKE -C "$GOROOT/src/$i" clean
 done
+
+if [ -x "$GOBIN/go" ]; then
+	go clean std || true  # go command might not know about clean
+	
+	# TODO: Make clean work in directories outside $GOPATH
+	true || go clean \
+		../misc/cgo/gmp ../misc/cgo/stdio \
+		../misc/cgo/life ../misc/cgo/test \
+		../misc/dashboard/builder ../misc/goplay\
+		../doc/codelab/wiki\
+		../test/bench/shootout ../test/bench/garbage ../test/bench/go1
+fi

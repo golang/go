@@ -2,12 +2,5 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../src/Make.inc
-
-TARG=goplay
-
-GOFILES=\
-	goplay.go\
-
-include ../../src/Make.cmd
-
+goplay: goplay.go
+	go build goplay.go

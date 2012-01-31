@@ -2,24 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../Make.inc
+# Help for debugging.
+dump:	dump.go
+	go clean -i  # remove installed copy
+	go build -t gob-debug -o dump dump.go
 
-TARG=encoding/gob
-GOFILES=\
-	decode.go\
-	decoder.go\
-	doc.go\
-	encode.go\
-	encoder.go\
-	error.go\
-	type.go\
-
-include ../../../Make.pkg
-
-# Help for debugging. Requires adding debug.go to the gob package as well.
-
-dump:	dump.$O
-	$(LD) -o dump $<
-
-dump.$O:	dump.go
-	$(GC) $(GCFLAGS) $(GCIMPORTS) $<

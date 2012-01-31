@@ -2,13 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../src/Make.inc
+gobuilder: $(shell ls *.go)
+	go build -o $@ $^
 
-TARG=gobuilder
-GOFILES=\
-	exec.go\
-	http.go\
-	main.go\
-	package.go\
-
-include ../../../src/Make.cmd
+clean:
+	rm -f gobuilder

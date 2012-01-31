@@ -49,13 +49,15 @@ export CC
 sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
 chmod +x "$GOBIN"/quietgcc
 
+export GOMAKE="$GOROOT"/bin/go-tool/make
 rm -f "$GOBIN"/gomake
+rm -f "$GOMAKE"
 (
 	echo '#!/bin/sh'
 	echo 'export GOROOT=${GOROOT:-'$GOROOT_FINAL'}'
 	echo 'exec '$MAKE' "$@"'
-) >"$GOBIN"/gomake
-chmod +x "$GOBIN"/gomake
+) >"$GOMAKE"
+chmod +x "$GOMAKE"
 
 # on Fedora 16 the selinux filesystem is mounted at /sys/fs/selinux,
 # so loop through the possible selinux mount points
@@ -78,18 +80,13 @@ do
 	fi
 done
 
-$USE_GO_TOOL ||
-(
-	cd "$GOROOT"/src/pkg;
-	bash deps.bash	# do this here so clean.bash will work in the pkg directory
-) || exit 1
 bash "$GOROOT"/src/clean.bash
 
 # pkg builds runtime/cgo and the Go programs in cmd.
 for i in lib9 libbio libmach cmd
 do
 	echo; echo; echo %%%% making $i %%%%; echo
-	gomake -C $i install
+	"$GOMAKE" -C $i install
 done
 
 echo; echo; echo %%%% making runtime generated files %%%%; echo
@@ -97,36 +94,33 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
 (
 	cd "$GOROOT"/src/pkg/runtime
 	./autogen.sh
-	gomake install; gomake clean # copy runtime.h to pkg directory
+	"$GOMAKE" install; "$GOMAKE" clean # copy runtime.h to pkg directory
 ) || exit 1
 
-if $USE_GO_TOOL; then
-	echo
-	echo '# Building go_bootstrap command from bootstrap script.'
-	if ! ./buildscript/${GOOS}_$GOARCH.sh; then
-		echo '# Bootstrap script failed.'
-		if [ ! -x "$GOBIN/go" ]; then
-			exit 1
-		fi
-		echo '# Regenerating bootstrap script using pre-existing go binary.'
-		./buildscript.sh
-		./buildscript/${GOOS}_$GOARCH.sh
+echo
+echo '# Building go_bootstrap command from bootstrap script.'
+if ! ./buildscript/${GOOS}_$GOARCH.sh; then
+	echo '# Bootstrap script failed.'
+	if [ ! -x "$GOBIN/go" ]; then
+		exit 1
 	fi
-
-	echo '# Building Go code.'
-	go_bootstrap install -a -v std
-	rm -f "$GOBIN/go_bootstrap"
-
-else
-	echo; echo; echo %%%% making pkg %%%%; echo
-	gomake -C pkg install
+	echo '# Regenerating bootstrap script using pre-existing go binary.'
+	./buildscript.sh
+	./buildscript/${GOOS}_$GOARCH.sh
 fi
+
+# Clean what clean.bash couldn't.
+go_bootstrap clean std
+
+echo '# Building Go code.'
+go_bootstrap install -a -v std
+rm -f "$GOBIN/go_bootstrap"
 
 # Print post-install messages.
 # Implemented as a function so that all.bash can repeat the output
 # after run.bash finishes running all the tests.
 installed() {
-	eval $(gomake --no-print-directory -f Make.inc go-env)
+	eval $("$GOMAKE" --no-print-directory -f Make.inc go-env)
 	echo
 	echo ---
 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
@@ -137,7 +131,6 @@ installed() {
 	*)
 		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'
 	esac
-	echo The compiler is $GC.
 	if [ "$(uname)" = "Darwin" ]; then
 		echo
 		echo On OS X the debuggers must be installed setgrp procmod.

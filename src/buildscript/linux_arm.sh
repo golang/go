@@ -494,8 +494,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
 
 mkdir -p "$WORK"/cmd/go/_obj/
 cd "$GOROOT"/src/cmd/go
-"$GOROOT"/bin/go-tool/5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+"$GOROOT"/bin/go-tool/5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
 "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.5
 "$GOROOT"/bin/go-tool/5l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
-mkdir -p "$GOBIN"/
-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
+mkdir -p "$GOBIN"/linux_arm/
+cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_arm/go
