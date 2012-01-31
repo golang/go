@@ -574,6 +574,11 @@ importfile(Val *f, int line)
 		yyerror("import path contains NUL");
 		errorexit();
 	}
+	
+	if(strchr(f->u.sval->s, '\\')) {
+		yyerror("import path contains backslash; use slash");
+		errorexit();
+	}
 
 	// The package name main is no longer reserved,
 	// but we reserve the import path "main" to identify
