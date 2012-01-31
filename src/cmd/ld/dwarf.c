@@ -1601,7 +1601,7 @@ finddebugruntimepath(void)
 	char *c;
 
 	for (i = 1; i < histfilesize; i++) {
-		if ((c = strstr(histfile[i], "runtime/runtime_defs.go")) != nil) {
+		if ((c = strstr(histfile[i], "runtime/zruntime_defs")) != nil) {
 			l = c - histfile[i];
 			memmove(gdbscript, histfile[i], l);
 			memmove(gdbscript + l, "runtime/runtime-gdb.py", strlen("runtime/runtime-gdb.py") + 1);
