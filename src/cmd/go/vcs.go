@@ -23,9 +23,9 @@ type vcsCmd struct {
 	createCmd   string // command to download a fresh copy of a repository
 	downloadCmd string // command to download updates into an existing repository
 
-	tagCmd     []tagCmd // commands to list tags
-	tagDefault string   // default tag to use
-	tagSyncCmd string   // command to sync to specific tag
+	tagCmd         []tagCmd // commands to list tags
+	tagSyncCmd     string   // command to sync to specific tag
+	tagSyncDefault string   // command to sync to default tag
 }
 
 // A tagCmd describes a command to list available tags
@@ -71,8 +71,8 @@ var vcsHg = &vcsCmd{
 		{"tags", `^(\S+)`},
 		{"branches", `^(\S+)`},
 	},
-	tagDefault: "default",
-	tagSyncCmd: "update -r {tag}",
+	tagSyncCmd:     "update -r {tag}",
+	tagSyncDefault: "update default",
 }
 
 // vcsGit describes how to use Git.
@@ -83,9 +83,9 @@ var vcsGit = &vcsCmd{
 	createCmd:   "clone {repo} {dir}",
 	downloadCmd: "fetch",
 
-	tagCmd:     []tagCmd{{"tag", `^(\S+)$`}},
-	tagDefault: "master",
-	tagSyncCmd: "checkout {tag}",
+	tagCmd:         []tagCmd{{"tag", `^(\S+)$`}},
+	tagSyncCmd:     "checkout {tag}",
+	tagSyncDefault: "checkout origin/master",
 }
 
 // vcsBzr describes how to use Bazaar.
@@ -99,9 +99,9 @@ var vcsBzr = &vcsCmd{
 	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
 	downloadCmd: "pull --overwrite",
 
-	tagCmd:     []tagCmd{{"tags", `^(\S+)`}},
-	tagDefault: "revno:-1",
-	tagSyncCmd: "update -r {tag}",
+	tagCmd:         []tagCmd{{"tags", `^(\S+)`}},
+	tagSyncCmd:     "update -r {tag}",
+	tagSyncDefault: "update -r revno:-1",
 }
 
 // vcsSvn describes how to use Subversion.
@@ -197,6 +197,9 @@ func (v *vcsCmd) tags(dir string) ([]string, error) {
 func (v *vcsCmd) tagSync(dir, tag string) error {
 	if v.tagSyncCmd == "" {
 		return nil
+	}
+	if tag == "" && v.tagSyncDefault != "" {
+		return v.run(dir, v.tagSyncDefault)
 	}
 	return v.run(dir, v.tagSyncCmd, "tag", tag)
 }

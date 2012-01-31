@@ -215,11 +215,7 @@ func downloadPackage(p *Package) error {
 	if i := strings.Index(vers, " "); i >= 0 {
 		vers = vers[:i]
 	}
-	tag := selectTag(vers, tags)
-	if tag == "" {
-		tag = vcs.tagDefault
-	}
-	if err := vcs.tagSync(root, tag); err != nil {
+	if err := vcs.tagSync(root, selectTag(vers, tags)); err != nil {
 		return err
 	}
 
