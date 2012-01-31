@@ -667,7 +667,7 @@ func testnan() {
 		return time.Since(t0)
 	}
 
-	n := 30000 // 0.02 seconds on a MacBook Air
+	n := 60000 // 0.04 seconds on a MacBook Air
 	t1 := t(n)
 	t2 := t(2 * n)
 	if t2 > 3*t1 { // should be 2x (linear); allow up to 3x
