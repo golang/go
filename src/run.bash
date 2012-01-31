@@ -31,111 +31,91 @@ xcd() {
 }
 
 if $rebuild; then
-	if $USE_GO_TOOL; then
-		echo
-		echo '# Package builds'
-		time go install -a -v std
-	else
-		(xcd pkg
-			gomake clean
-			time gomake install
-		) || exit $?
-	fi
-fi
-
-if $USE_GO_TOOL; then
 	echo
-	echo '# Package tests'
-	time go test std -short
-else
-	(xcd pkg
-	gomake testshort
-	) || exit $?
+	echo '# Package builds'
+	time go install -a -v std
 fi
 
-if $USE_GO_TOOL; then
-	echo
-	echo '# runtime -cpu=1,2,4'
-	go test runtime -short -cpu=1,2,4
-else
-	(xcd pkg/runtime;
-	go test -short -cpu=1,2,4
-	) || exit $?
-fi
+echo
+echo '# Package tests'
+time go test std -short
 
-if $USE_GO_TOOL; then
-	echo
-	echo '# sync -cpu=10'
-	go test sync -short -cpu=10
-else
-	(xcd pkg/sync;
-	GOMAXPROCS=10 gomake testshort
-	) || exit $?
-fi
+echo
+echo '# runtime -cpu=1,2,4'
+go test runtime -short -cpu=1,2,4
 
-if $USE_GO_TOOL; then
-	echo
-	echo '# Build bootstrap scripts'
-	./buildscript.sh
-fi
+echo
+echo '# sync -cpu=10'
+go test sync -short -cpu=10
 
-(xcd pkg/exp/ebnflint
-time gomake test
-) || exit $?
+echo
+echo '# Build bootstrap scripts'
+./buildscript.sh
 
+BROKEN=true
+
+$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
-gomake clean
+"$GOMAKE" clean
 ./test.bash
 ) || exit $?
 
+$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/life
-gomake clean
+"$GOMAKE" clean
 ./test.bash
 ) || exit $?
 
+$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
-gomake clean
-gomake test
+"$GOMAKE" clean
+gotest
 ) || exit $?
 
+$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 [ "$GOHOSTOS" == darwin ] ||
 (xcd ../misc/cgo/testso
-gomake clean
+"$GOMAKE" clean
 ./test.bash
 ) || exit $?
 
+$BROKEN ||
 (xcd ../doc/progs
 time ./run
 ) || exit $?
 
+$BROKEN ||
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/codelab/wiki
-gomake clean
-gomake
-gomake test
+"$GOMAKE" clean
+"$GOMAKE"
+"$GOMAKE" test
 ) || exit $?
 
+$BROKEN ||
 for i in ../misc/dashboard/builder ../misc/goplay
 do
 	(xcd $i
-	gomake clean
-	gomake
+	"$GOMAKE" clean
+	"$GOMAKE"
 	) || exit $?
 done
 
+$BROKEN ||
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
 ./timing.sh -test
 ) || exit $?
 
+$BROKEN ||
 (xcd ../test/bench/go1
-gomake test
+"$GOMAKE" test
 ) || exit $?
 
 (xcd ../test

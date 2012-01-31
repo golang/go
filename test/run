@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval $(gomake --no-print-directory -f ../src/Make.inc go-env)
+eval $(../bin/go-tool/make --no-print-directory -f ../src/Make.inc go-env)
 
 export E=
 

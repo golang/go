@@ -635,11 +635,11 @@ func TestEvalSymlinks(t *testing.T) {
 var abstests = []string{
 	"../AUTHORS",
 	"pkg/../../AUTHORS",
-	"Make.pkg",
-	"pkg/Makefile",
+	"Make.inc",
+	"pkg/math",
 	".",
-	"$GOROOT/src/Make.pkg",
-	"$GOROOT/src/../src/Make.pkg",
+	"$GOROOT/src/Make.inc",
+	"$GOROOT/src/../src/Make.inc",
 	"$GOROOT/misc/cgo",
 	"$GOROOT",
 }

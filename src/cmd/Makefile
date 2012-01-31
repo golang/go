@@ -20,8 +20,7 @@ DIRS=\
 	pack\
 	prof\
 	
-# Clean applies to all directories, even for other architectures or 
-# written in Go.
+# Clean applies to all directories, even for other architectures.
 CLEANDIRS=\
 	$(DIRS)\
 	5a\
@@ -36,12 +35,6 @@ CLEANDIRS=\
 	8c\
 	8g\
 	8l\
-	cgo\
-	godoc\
-	fix\
-	gofmt\
-	vet\
-	yacc\
 
 install: $(patsubst %,%.install,$(DIRS))
 clean: $(patsubst %,%.clean,$(CLEANDIRS))
