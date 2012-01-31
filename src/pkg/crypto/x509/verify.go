@@ -7,6 +7,7 @@ package x509
 import (
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type InvalidReason int
@@ -225,17 +226,51 @@ func matchHostnames(pattern, host string) bool {
 	return true
 }
 
+// toLowerCaseASCII returns a lower-case version of in. See RFC 6125 6.4.1. We use
+// an explicitly ASCII function to avoid any sharp corners resulting from
+// performing Unicode operations on DNS labels.
+func toLowerCaseASCII(in string) string {
+	// If the string is already lower-case then there's nothing to do.
+	isAlreadyLowerCase := true
+	for _, c := range in {
+		if c == utf8.RuneError {
+			// If we get a UTF-8 error then there might be
+			// upper-case ASCII bytes in the invalid sequence.
+			isAlreadyLowerCase = false
+			break
+		}
+		if 'A' <= c && c <= 'Z' {
+			isAlreadyLowerCase = false
+			break
+		}
+	}
+
+	if isAlreadyLowerCase {
+		return in
+	}
+
+	out := []byte(in)
+	for i, c := range out {
+		if 'A' <= c && c <= 'Z' {
+			out[i] += 'a' - 'A'
+		}
+	}
+	return string(out)
+}
+
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
 func (c *Certificate) VerifyHostname(h string) error {
+	lowered := toLowerCaseASCII(h)
+
 	if len(c.DNSNames) > 0 {
 		for _, match := range c.DNSNames {
-			if matchHostnames(match, h) {
+			if matchHostnames(toLowerCaseASCII(match), lowered) {
 				return nil
 			}
 		}
 		// If Subject Alt Name is given, we ignore the common name.
-	} else if matchHostnames(c.Subject.CommonName, h) {
+	} else if matchHostnames(toLowerCaseASCII(c.Subject.CommonName), lowered) {
 		return nil
 	}
 
