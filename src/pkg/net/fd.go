@@ -43,12 +43,6 @@ type netFD struct {
 	ncr, ncw int
 }
 
-type InvalidConnError struct{}
-
-func (e *InvalidConnError) Error() string   { return "invalid Conn" }
-func (e *InvalidConnError) Temporary() bool { return false }
-func (e *InvalidConnError) Timeout() bool   { return false }
-
 // A pollServer helps FDs determine when to retry a non-blocking
 // read or write after they get EAGAIN.  When an FD needs to wait,
 // send the fd on s.cr (for a read) or s.cw (for a write) to pass the
