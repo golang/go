@@ -6,6 +6,7 @@ package elliptic
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -348,5 +349,15 @@ func TestMarshal(t *testing.T) {
 	if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 		t.Error("unmarshal returned different values")
 		return
+	}
+}
+
+func TestP224Overflow(t *testing.T) {
+	// This tests for a specific bug in the P224 implementation.
+	p224 := P224()
+	pointData, _ := hex.DecodeString("049B535B45FB0A2072398A6831834624C7E32CCFD5A4B933BCEAF77F1DD945E08BBE5178F5EDF5E733388F196D2A631D2E075BB16CBFEEA15B")
+	x, y := Unmarshal(p224, pointData)
+	if !p224.IsOnCurve(x, y) {
+		t.Error("P224 failed to validate a correct point")
 	}
 }
