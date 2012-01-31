@@ -61,7 +61,7 @@ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
 // Implementation of the Conn interface - see Conn for documentation.
 
 // Read implements the Conn Read method.
-func (c *UDPConn) Read(b []byte) (n int, err error) {
+func (c *UDPConn) Read(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
@@ -69,7 +69,7 @@ func (c *UDPConn) Read(b []byte) (n int, err error) {
 }
 
 // Write implements the Conn Write method.
-func (c *UDPConn) Write(b []byte) (n int, err error) {
+func (c *UDPConn) Write(b []byte) (int, error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
@@ -167,7 +167,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
-func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
 	}
@@ -206,6 +206,11 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	return c.WriteToUDP(b, a)
 }
+
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (c *UDPConn) File() (f *os.File, err error) { return c.fd.dup() }
 
 // DialUDP connects to the remote address raddr on the network net,
 // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
@@ -246,36 +251,75 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	return newUDPConn(fd), nil
 }
 
-// File returns a copy of the underlying os.File, set to blocking mode.
-// It is the caller's responsibility to close f when finished.
-// Closing c does not affect f, and closing f does not affect c.
-func (c *UDPConn) File() (f *os.File, err error) { return c.fd.dup() }
-
-// JoinGroup joins the IP multicast group named by addr on ifi,
-// which specifies the interface to join.  JoinGroup uses the
-// default multicast interface if ifi is nil.
-func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) error {
-	if !c.ok() {
-		return os.EINVAL
+// ListenMulticastUDP listens for incoming multicast UDP packets
+// addressed to the group address gaddr on ifi, which specifies
+// the interface to join.  ListenMulticastUDP uses default
+// multicast interface if ifi is nil.
+func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	switch net {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, UnknownNetworkError(net)
 	}
-	setDefaultMulticastSockopts(c.fd)
-	ip := addr.To4()
-	if ip != nil {
-		return joinIPv4GroupUDP(c, ifi, ip)
+	if gaddr == nil || gaddr.IP == nil {
+		return nil, &OpError{"listenmulticastudp", "udp", nil, errMissingAddress}
 	}
-	return joinIPv6GroupUDP(c, ifi, addr)
+	fd, err := internetSocket(net, gaddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+	if err != nil {
+		return nil, err
+	}
+	c := newUDPConn(fd)
+	ip4 := gaddr.IP.To4()
+	if ip4 != nil {
+		err := listenIPv4MulticastUDP(c, ifi, ip4)
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+	} else {
+		err := listenIPv6MulticastUDP(c, ifi, gaddr.IP)
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+	}
+	return c, nil
 }
 
-// LeaveGroup exits the IP multicast group named by addr on ifi.
-func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) error {
-	if !c.ok() {
-		return os.EINVAL
+func listenIPv4MulticastUDP(c *UDPConn, ifi *Interface, ip IP) error {
+	if ifi != nil {
+		err := setIPv4MulticastInterface(c.fd, ifi)
+		if err != nil {
+			return err
+		}
 	}
-	ip := addr.To4()
-	if ip != nil {
-		return leaveIPv4GroupUDP(c, ifi, ip)
+	err := setIPv4MulticastLoopback(c.fd, false)
+	if err != nil {
+		return err
 	}
-	return leaveIPv6GroupUDP(c, ifi, addr)
+	err = joinIPv4GroupUDP(c, ifi, ip)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func listenIPv6MulticastUDP(c *UDPConn, ifi *Interface, ip IP) error {
+	if ifi != nil {
+		err := setIPv6MulticastInterface(c.fd, ifi)
+		if err != nil {
+			return err
+		}
+	}
+	err := setIPv6MulticastLoopback(c.fd, false)
+	if err != nil {
+		return err
+	}
+	err = joinIPv6GroupUDP(c, ifi, ip)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {

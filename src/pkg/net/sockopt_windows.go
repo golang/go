@@ -7,13 +7,15 @@
 package net
 
 import (
+	"os"
 	"syscall"
 )
 
-func setDefaultSockopts(s syscall.Handle, f, t int) {
+func setDefaultSockopts(s syscall.Handle, f, t int) error {
 	switch f {
 	case syscall.AF_INET6:
 		// Allow both IP versions even if the OS default is otherwise.
+		// Note that some operating systems never admit this option.
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 	}
 
@@ -25,14 +27,20 @@ func setDefaultSockopts(s syscall.Handle, f, t int) {
 	// to be handled by the correct socket.
 
 	// Allow broadcast.
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
 
+	return nil
 }
 
-func setDefaultMulticastSockopts(fd *netFD) {
-	fd.incref()
-	defer fd.decref()
+func setDefaultMulticastSockopts(s syscall.Handle) error {
 	// Allow multicast UDP and raw IP datagram sockets to listen
 	// concurrently across multiple listeners.
-	syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	return nil
 }

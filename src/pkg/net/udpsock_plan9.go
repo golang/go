@@ -186,20 +186,10 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 	return &UDPConn{*l.plan9Conn()}, nil
 }
 
-// JoinGroup joins the IP multicast group named by addr on ifi,
-// which specifies the interface to join.  JoinGroup uses the
-// default multicast interface if ifi is nil.
-func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
-	return os.EPLAN9
-}
-
-// LeaveGroup exits the IP multicast group named by addr on ifi.
-func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
-	return os.EPLAN9
+// ListenMulticastUDP listens for incoming multicast UDP packets
+// addressed to the group address gaddr on ifi, which specifies
+// the interface to join.  ListenMulticastUDP uses default
+// multicast interface if ifi is nil.
+func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	return nil, os.EPLAN9
 }

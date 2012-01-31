@@ -28,9 +28,18 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	setDefaultSockopts(s, f, t)
+	err = setDefaultSockopts(s, f, t)
+	if err != nil {
+		closesocket(s)
+		return nil, err
+	}
 
 	if la != nil {
+		la, err = listenerSockaddr(s, f, la, toAddr)
+		if err != nil {
+			closesocket(s)
+			return nil, err
+		}
 		err = syscall.Bind(s, la)
 		if err != nil {
 			closesocket(s)

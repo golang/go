@@ -5,43 +5,36 @@
 package net
 
 import (
-	"flag"
 	"os"
 	"runtime"
 	"testing"
 )
 
-var multicast = flag.Bool("multicast", false, "enable multicast tests")
-
-var multicastUDPTests = []struct {
+var listenMulticastUDPTests = []struct {
 	net   string
-	laddr IP
-	gaddr IP
+	gaddr *UDPAddr
 	flags Flags
 	ipv6  bool
 }{
 	// cf. RFC 4727: Experimental Values in IPv4, IPv6, ICMPv4, ICMPv6, UDP, and TCP Headers
-	{"udp", IPv4zero, IPv4(224, 0, 0, 254), (FlagUp | FlagLoopback), false},
-	{"udp4", IPv4zero, IPv4(224, 0, 0, 254), (FlagUp | FlagLoopback), false},
-	{"udp", IPv6unspecified, ParseIP("ff0e::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff01::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff02::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff04::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff05::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff08::114"), (FlagUp | FlagLoopback), true},
-	{"udp6", IPv6unspecified, ParseIP("ff0e::114"), (FlagUp | FlagLoopback), true},
+	{"udp", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, FlagUp | FlagLoopback, false},
+	{"udp4", &UDPAddr{IPv4(224, 0, 0, 254), 12345}, FlagUp | FlagLoopback, false},
+	{"udp", &UDPAddr{ParseIP("ff0e::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff01::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff02::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff04::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff05::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff08::114"), 12345}, FlagUp | FlagLoopback, true},
+	{"udp6", &UDPAddr{ParseIP("ff0e::114"), 12345}, FlagUp | FlagLoopback, true},
 }
 
-func TestMulticastUDP(t *testing.T) {
-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
-		return
-	}
-	if !*multicast {
-		t.Logf("test disabled; use --multicast to enable")
+func TestListenMulticastUDP(t *testing.T) {
+	switch runtime.GOOS {
+	case "netbsd", "openbsd", "plan9", "windows":
 		return
 	}
 
-	for _, tt := range multicastUDPTests {
+	for _, tt := range listenMulticastUDPTests {
 		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
 			continue
 		}
@@ -60,14 +53,11 @@ func TestMulticastUDP(t *testing.T) {
 			t.Logf("an appropriate multicast interface not found")
 			return
 		}
-		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
+		c, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
 		if err != nil {
-			t.Fatalf("ListenUDP failed: %v", err)
+			t.Fatalf("ListenMulticastUDP failed: %v", err)
 		}
-		defer c.Close()
-		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
-			t.Fatalf("JoinGroup failed: %v", err)
-		}
+		defer c.Close() // test to listen concurrently across multiple listeners
 		if !tt.ipv6 {
 			testIPv4MulticastSocketOptions(t, c.fd, ifi)
 		} else {
@@ -79,7 +69,7 @@ func TestMulticastUDP(t *testing.T) {
 		}
 		var found bool
 		for _, ifma := range ifmat {
-			if ifma.(*IPAddr).IP.Equal(tt.gaddr) {
+			if ifma.(*IPAddr).IP.Equal(tt.gaddr.IP) {
 				found = true
 				break
 			}
@@ -87,23 +77,16 @@ func TestMulticastUDP(t *testing.T) {
 		if !found {
 			t.Fatalf("%q not found in RIB", tt.gaddr.String())
 		}
-		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
-			t.Fatalf("LeaveGroup failed: %v", err)
-		}
 	}
 }
 
-func TestSimpleMulticastUDP(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		return
-	}
-	if !*multicast {
-		t.Logf("test disabled; use --multicast to enable")
+func TestSimpleListenMulticastUDP(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
 		return
 	}
 
-	for _, tt := range multicastUDPTests {
-		var ifi *Interface
+	for _, tt := range listenMulticastUDPTests {
 		if tt.ipv6 {
 			continue
 		}
@@ -112,6 +95,7 @@ func TestSimpleMulticastUDP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Interfaces failed: %v", err)
 		}
+		var ifi *Interface
 		for _, x := range ift {
 			if x.Flags&tt.flags == tt.flags {
 				ifi = &x
@@ -122,17 +106,11 @@ func TestSimpleMulticastUDP(t *testing.T) {
 			t.Logf("an appropriate multicast interface not found")
 			return
 		}
-		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
+		c, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
 		if err != nil {
-			t.Fatalf("ListenUDP failed: %v", err)
+			t.Fatalf("ListenMulticastUDP failed: %v", err)
 		}
-		defer c.Close()
-		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
-			t.Fatalf("JoinGroup failed: %v", err)
-		}
-		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
-			t.Fatalf("LeaveGroup failed: %v", err)
-		}
+		c.Close()
 	}
 }
 
