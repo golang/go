@@ -42,6 +42,17 @@ var verifyTests = []verifyTest{
 		intermediates: []string{thawteIntermediate},
 		roots:         []string{verisignRoot},
 		currentTime:   1302726541,
+		dnsName:       "WwW.GooGLE.coM",
+
+		expectedChains: [][]string{
+			{"Google", "Thawte", "VeriSign"},
+		},
+	},
+	{
+		leaf:          googleLeaf,
+		intermediates: []string{thawteIntermediate},
+		roots:         []string{verisignRoot},
+		currentTime:   1302726541,
 		dnsName:       "www.example.com",
 
 		errorCallback: expectHostnameError,
