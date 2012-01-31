@@ -10,7 +10,6 @@ package net
 
 import (
 	"io"
-	"reflect"
 	"syscall"
 )
 
@@ -68,14 +67,6 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 
 	fd.setAddr(laddr, raddr)
 	return fd, nil
-}
-
-type UnknownSocketError struct {
-	sa syscall.Sockaddr
-}
-
-func (e *UnknownSocketError) Error() string {
-	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
 }
 
 type writerOnly struct {
