@@ -71,6 +71,8 @@ func TestBuild(t *testing.T) {
 			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
 			continue
 		}
+		// Don't bother testing import positions.
+		tt.info.ImportPos, tt.info.TestImportPos = info.ImportPos, info.TestImportPos
 		if !reflect.DeepEqual(info, tt.info) {
 			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
 			continue

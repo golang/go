@@ -116,10 +116,11 @@ func envOr(name, def string) string {
 }
 
 type DirInfo struct {
-	Package        string            // Name of package in dir
-	PackageComment *ast.CommentGroup // Package comments from GoFiles
-	ImportPath     string            // Import path of package in dir
-	Imports        []string          // All packages imported by GoFiles
+	Package        string                      // Name of package in dir
+	PackageComment *ast.CommentGroup           // Package comments from GoFiles
+	ImportPath     string                      // Import path of package in dir
+	Imports        []string                    // All packages imported by GoFiles
+	ImportPos      map[string][]token.Position // Source code location of imports
 
 	// Source files
 	GoFiles  []string // .go files in dir (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -134,9 +135,10 @@ type DirInfo struct {
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 
 	// Test information
-	TestGoFiles  []string // _test.go files in package
-	XTestGoFiles []string // _test.go files outside package
-	TestImports  []string // All packages imported by (X)TestGoFiles
+	TestGoFiles   []string // _test.go files in package
+	XTestGoFiles  []string // _test.go files outside package
+	TestImports   []string // All packages imported by (X)TestGoFiles
+	TestImportPos map[string][]token.Position
 }
 
 func (d *DirInfo) IsCommand() bool {
@@ -223,8 +225,8 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 
 	var Sfiles []string // files with ".S" (capital S)
 	var di DirInfo
-	imported := make(map[string]bool)
-	testImported := make(map[string]bool)
+	imported := make(map[string][]token.Position)
+	testImported := make(map[string][]token.Position)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
 		if d.IsDir() {
@@ -327,9 +329,9 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
 				}
 				if isTest {
-					testImported[path] = true
+					testImported[path] = append(testImported[path], fset.Position(spec.Pos()))
 				} else {
-					imported[path] = true
+					imported[path] = append(imported[path], fset.Position(spec.Pos()))
 				}
 				if path == "C" {
 					if isTest {
@@ -366,12 +368,14 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		return nil, fmt.Errorf("%s: no Go source files", dir)
 	}
 	di.Imports = make([]string, len(imported))
+	di.ImportPos = imported
 	i := 0
 	for p := range imported {
 		di.Imports[i] = p
 		i++
 	}
 	di.TestImports = make([]string, len(testImported))
+	di.TestImportPos = testImported
 	i = 0
 	for p := range testImported {
 		di.TestImports[i] = p

@@ -119,7 +119,7 @@ func download(arg string, stk *importStack) {
 		stk.push(p.ImportPath)
 		defer stk.pop()
 		if err := downloadPackage(p); err != nil {
-			errorf("%s", &PackageError{stk.copy(), err.Error()})
+			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
 			return
 		}
 
