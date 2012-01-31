@@ -8,6 +8,7 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ type Package struct {
 	Name       string        `json:",omitempty"` // package name
 	Doc        string        `json:",omitempty"` // package documentation string
 	Dir        string        `json:",omitempty"` // directory containing package sources
+	Target     string        `json:",omitempty"` // install path
 	Version    string        `json:",omitempty"` // version of installed package (TODO)
 	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
 	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
@@ -273,6 +275,10 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		if t.Goroot && isGoTool[p.ImportPath] {
 			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
 		} else {
+			if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
+				// Install cross-compiled binaries to subdirectories of bin.
+				elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
+			}
 			p.target = filepath.Join(t.BinDir(), elem)
 		}
 		if ctxt.GOOS == "windows" {
@@ -403,6 +409,8 @@ Stale:
 		p.Stale = false
 		p.target = ""
 	}
+
+	p.Target = p.target
 
 	return p
 }

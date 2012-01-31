@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -28,7 +29,7 @@ func init() {
 
 var cmdTest = &Command{
 	CustomFlags: true,
-	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]",
+	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
@@ -72,11 +73,14 @@ and flags that apply to the resulting test binary.
 
 The flags handled by 'go test' are:
 
-	-c  Compile the test binary to test.out but do not run it.
+	-c  Compile the test binary to pkg.test but do not run it.
 
 	-file a.go
 	    Use only the tests in the source file a.go.
 	    Multiple -file flags may be provided.
+
+	-i
+	    Install packages that are dependencies of the test.
 
 	-p n
 	    Compile and test up to n packages in parallel.
@@ -84,7 +88,8 @@ The flags handled by 'go test' are:
 
 	-x  Print each subcommand go test executes.
 
-The resulting test binary, called test.out, has its own flags:
+The resulting test binary, called pkg.test, where pkg is the name of the
+directory containing the package sources, has its own flags:
 
 	-test.v
 	    Verbose output: log all tests as they are run.
@@ -142,7 +147,7 @@ here are passed through unaltered.  For instance, the command
 
 will compile the test binary using x_test.go and then run it as
 
-	test.out -test.v -test.cpuprofile=prof.out -dir=testdata -update
+	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 	`,
 }
 
@@ -296,7 +301,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// Build Package structs describing:
 	//	ptest - package + test files
 	//	pxtest - package of external test files
-	//	pmain - test.out binary
+	//	pmain - pkg.test binary
 	var ptest, pxtest, pmain *Package
 
 	// go/build does not distinguish the dependencies used
@@ -314,6 +319,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		imports = append(imports, p1)
 	}
 	stk.pop()
+
+	// Use last element of import path, not package name.
+	// They differ when package name is "main".
+	_, elem := path.Split(p.ImportPath)
+	testBinary := elem + ".test"
 
 	// The ptest package needs to be importable under the
 	// same import path that p has, but we cannot put it in
@@ -383,7 +393,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		a.target = a.objpkg
 	}
 
-	// Action for building test.out.
+	// Action for building pkg.test.
 	pmain = &Package{
 		Name:    "main",
 		Dir:     testDir,
@@ -412,7 +422,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
-	a.target = filepath.Join(testDir, "test.out") + b.exe
+	a.target = filepath.Join(testDir, testBinary) + b.exe
 	pmainAction := a
 
 	if testC {
@@ -421,7 +431,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			f:      (*builder).install,
 			deps:   []*action{pmainAction},
 			p:      pmain,
-			target: "test.out" + b.exe,
+			target: testBinary + b.exe,
 		}
 		printAction = &action{p: p, deps: []*action{runAction}} // nop
 	} else {
