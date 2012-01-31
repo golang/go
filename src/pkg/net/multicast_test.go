@@ -32,6 +32,10 @@ func TestListenMulticastUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "netbsd", "openbsd", "plan9", "windows":
 		return
+	case "linux":
+		if runtime.GOARCH == "arm" {
+			return
+		}
 	}
 
 	for _, tt := range listenMulticastUDPTests {
