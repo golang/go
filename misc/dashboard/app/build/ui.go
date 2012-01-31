@@ -53,12 +53,16 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		logErr(w, r, err)
 		return
 	}
-	builders := commitBuilders(commits)
+	builders := commitBuilders(commits, "")
 
-	tipState, err := TagState(c, "tip")
-	if err != nil {
-		logErr(w, r, err)
-		return
+	var tipState *TagState
+	if page == 0 {
+		// only show sub-repo state on first page
+		tipState, err = TagStateByName(c, "tip")
+		if err != nil {
+			logErr(w, r, err)
+			return
+		}
 	}
 
 	p := &Pagination{}
@@ -105,10 +109,10 @@ func goCommits(c appengine.Context, page int) ([]*Commit, os.Error) {
 
 // commitBuilders returns the names of the builders that provided
 // Results for the provided commits.
-func commitBuilders(commits []*Commit) []string {
+func commitBuilders(commits []*Commit, goHash string) []string {
 	builders := make(map[string]bool)
 	for _, commit := range commits {
-		for _, r := range commit.Results("") {
+		for _, r := range commit.Results(goHash) {
 			builders[r.Builder] = true
 		}
 	}
@@ -123,16 +127,20 @@ func keys(m map[string]bool) (s []string) {
 	return
 }
 
-// PackageState represents the state of a Package at a tag.
-type PackageState struct {
-	*Package
-	*Commit
-	Results []*Result
-	OK      bool
+// TagState represents the state of all Packages at a Tag.
+type TagState struct {
+	Tag      *Commit
+	Packages []*PackageState
 }
 
-// TagState fetches the results for all Go subrepos at the specified tag.
-func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
+// PackageState represents the state of a Package at a Tag.
+type PackageState struct {
+	Package *Package
+	Commit  *Commit
+}
+
+// TagStateByName fetches the results for all Go subrepos at the specified Tag.
+func TagStateByName(c appengine.Context, name string) (*TagState, os.Error) {
 	tag, err := GetTag(c, name)
 	if err != nil {
 		return nil, err
@@ -141,29 +149,26 @@ func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	var states []*PackageState
+	var st TagState
 	for _, pkg := range pkgs {
-		commit, err := pkg.LastCommit(c)
+		com, err := pkg.LastCommit(c)
 		if err != nil {
 			c.Warningf("%v: no Commit found: %v", pkg, err)
 			continue
 		}
-		results := commit.Results(tag.Hash)
-		ok := len(results) > 0
-		for _, r := range results {
-			ok = ok && r.OK
-		}
-		states = append(states, &PackageState{
-			pkg, commit, results, ok,
-		})
+		st.Packages = append(st.Packages, &PackageState{pkg, com})
 	}
-	return states, nil
+	st.Tag, err = tag.Commit(c)
+	if err != nil {
+		return nil, err
+	}
+	return &st, nil
 }
 
 type uiTemplateData struct {
 	Commits    []*Commit
 	Builders   []string
-	TipState   []*PackageState
+	TipState   *TagState
 	Pagination *Pagination
 }
 
