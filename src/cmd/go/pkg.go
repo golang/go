@@ -295,14 +295,6 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 			dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
 		}
 		p.target = buildToolchain.pkgpath(dir, p)
-
-		// NB. Currently we have gccgo install the standard libraries
-		// in the "usual" location, where the Go toolchain puts them.
-		if p.Standard {
-			if _, ok := buildToolchain.(gccgoToolchain); ok {
-				p.target = goToolchain{}.pkgpath(dir, p)
-			}
-		}
 	}
 
 	var built time.Time
