@@ -68,6 +68,10 @@ var go1PackageRenames = []struct{ old, new string }{
 	{"crypto/xtea", "code.google.com/p/go.crypto/xtea"},
 	{"exp/ssh", "code.google.com/p/go.crypto/ssh"},
 
+	// go.image sub-repository
+	{"image/bmp", "code.google.com/p/go.image/bmp"},
+	{"image/tiff", "code.google.com/p/go.image/tiff"},
+
 	// go.net sub-repository
 	{"net/dict", "code.google.com/p/go.net/dict"},
 	{"net/websocket", "code.google.com/p/go.net/websocket"},
