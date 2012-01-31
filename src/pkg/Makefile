@@ -89,13 +89,11 @@ DIRS=\
 	html\
 	html/template\
 	image\
-	image/bmp\
 	image/color\
 	image/draw\
 	image/gif\
 	image/jpeg\
 	image/png\
-	image/tiff\
 	index/suffixarray\
 	io\
 	io/ioutil\
@@ -181,7 +179,6 @@ NOTEST+=\
 	exp/ebnflint\
 	go/doc\
 	hash\
-	image/bmp\
 	image/gif\
 	net/http/pprof\
 	net/http/httptest\
