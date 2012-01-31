@@ -275,20 +275,20 @@ func startServer() {
 	pollserver = p
 }
 
-func newFD(fd, family, sotype int, net string) (f *netFD, err error) {
+func newFD(fd, family, sotype int, net string) (*netFD, error) {
 	onceStartServer.Do(startServer)
-	if e := syscall.SetNonblock(fd, true); e != nil {
-		return nil, e
+	if err := syscall.SetNonblock(fd, true); err != nil {
+		return nil, err
 	}
-	f = &netFD{
+	netfd := &netFD{
 		sysfd:  fd,
 		family: family,
 		sotype: sotype,
 		net:    net,
 	}
-	f.cr = make(chan bool, 1)
-	f.cw = make(chan bool, 1)
-	return f, nil
+	netfd.cr = make(chan bool, 1)
+	netfd.cw = make(chan bool, 1)
+	return netfd, nil
 }
 
 func (fd *netFD) setAddr(laddr, raddr Addr) {
@@ -304,8 +304,8 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
 }
 
-func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
-	err = syscall.Connect(fd.sysfd, ra)
+func (fd *netFD) connect(ra syscall.Sockaddr) error {
+	err := syscall.Connect(fd.sysfd, ra)
 	if err == syscall.EINPROGRESS {
 		pollserver.WaitWrite(fd)
 		var e int
@@ -466,7 +466,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	return
 }
 
-func (fd *netFD) Write(p []byte) (n int, err error) {
+func (fd *netFD) Write(p []byte) (int, error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -477,8 +477,9 @@ func (fd *netFD) Write(p []byte) (n int, err error) {
 	if fd.sysfile == nil {
 		return 0, os.EINVAL
 	}
-	nn := 0
 
+	var err error
+	nn := 0
 	for {
 		var n int
 		n, err = syscall.Write(fd.sysfile.Fd(), p[nn:])
@@ -565,7 +566,7 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	return
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err error) {
+func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return nil, os.EINVAL
 	}
@@ -600,13 +601,13 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	if nfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
+	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
 		syscall.Close(s)
 		return nil, err
 	}
-	lsa, _ := syscall.Getsockname(nfd.sysfd)
-	nfd.setAddr(toAddr(lsa), toAddr(rsa))
-	return nfd, nil
+	lsa, _ := syscall.Getsockname(netfd.sysfd)
+	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+	return netfd, nil
 }
 
 func (fd *netFD) dup() (f *os.File, err error) {

@@ -71,15 +71,15 @@ func TestDialError(t *testing.T) {
 		return
 	}
 	for i, tt := range dialErrorTests {
-		c, e := Dial(tt.Net, tt.Raddr)
+		c, err := Dial(tt.Net, tt.Raddr)
 		if c != nil {
 			c.Close()
 		}
-		if e == nil {
+		if err == nil {
 			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
 			continue
 		}
-		s := e.Error()
+		s := err.Error()
 		match, _ := regexp.MatchString(tt.Pattern, s)
 		if !match {
 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
@@ -111,16 +111,16 @@ var revAddrTests = []struct {
 
 func TestReverseAddress(t *testing.T) {
 	for i, tt := range revAddrTests {
-		a, e := reverseaddr(tt.Addr)
-		if len(tt.ErrPrefix) > 0 && e == nil {
+		a, err := reverseaddr(tt.Addr)
+		if len(tt.ErrPrefix) > 0 && err == nil {
 			t.Errorf("#%d: expected %q, got <nil> (error)", i, tt.ErrPrefix)
 			continue
 		}
-		if len(tt.ErrPrefix) == 0 && e != nil {
-			t.Errorf("#%d: expected <nil>, got %q (error)", i, e)
+		if len(tt.ErrPrefix) == 0 && err != nil {
+			t.Errorf("#%d: expected <nil>, got %q (error)", i, err)
 		}
-		if e != nil && e.(*DNSError).Err != tt.ErrPrefix {
-			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, e.(*DNSError).Err)
+		if err != nil && err.(*DNSError).Err != tt.ErrPrefix {
+			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, err.(*DNSError).Err)
 		}
 		if a != tt.Reverse {
 			t.Errorf("#%d: expected %q, got %q (reverse address)", i, tt.Reverse, a)

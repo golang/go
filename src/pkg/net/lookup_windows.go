@@ -21,9 +21,9 @@ var (
 func lookupProtocol(name string) (proto int, err error) {
 	protoentLock.Lock()
 	defer protoentLock.Unlock()
-	p, e := syscall.GetProtoByName(name)
-	if e != nil {
-		return 0, os.NewSyscallError("GetProtoByName", e)
+	p, err := syscall.GetProtoByName(name)
+	if err != nil {
+		return 0, os.NewSyscallError("GetProtoByName", err)
 	}
 	return int(p.Proto), nil
 }
@@ -43,9 +43,9 @@ func lookupHost(name string) (addrs []string, err error) {
 func lookupIP(name string) (addrs []IP, err error) {
 	hostentLock.Lock()
 	defer hostentLock.Unlock()
-	h, e := syscall.GetHostByName(name)
-	if e != nil {
-		return nil, os.NewSyscallError("GetHostByName", e)
+	h, err := syscall.GetHostByName(name)
+	if err != nil {
+		return nil, os.NewSyscallError("GetHostByName", err)
 	}
 	switch h.AddrType {
 	case syscall.AF_INET:
@@ -70,9 +70,9 @@ func lookupPort(network, service string) (port int, err error) {
 	}
 	serventLock.Lock()
 	defer serventLock.Unlock()
-	s, e := syscall.GetServByName(service, network)
-	if e != nil {
-		return 0, os.NewSyscallError("GetServByName", e)
+	s, err := syscall.GetServByName(service, network)
+	if err != nil {
+		return 0, os.NewSyscallError("GetServByName", err)
 	}
 	return int(syscall.Ntohs(s.Port)), nil
 }

@@ -99,16 +99,12 @@ func JoinHostPort(host, port string) string {
 
 // Convert "host:port" into IP address and port.
 func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
-	var (
-		addr IP
-		p, i int
-		ok   bool
-	)
 	host, port, err := SplitHostPort(hostport)
 	if err != nil {
-		goto Error
+		return nil, 0, err
 	}
 
+	var addr IP
 	if host != "" {
 		// Try as an IP address.
 		addr = ParseIP(host)
@@ -121,34 +117,29 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
 				filter = ipv6only
 			}
 			// Not an IP address.  Try as a DNS name.
-			addrs, err1 := LookupHost(host)
-			if err1 != nil {
-				err = err1
-				goto Error
+			addrs, err := LookupHost(host)
+			if err != nil {
+				return nil, 0, err
 			}
 			addr = firstFavoriteAddr(filter, addrs)
 			if addr == nil {
 				// should not happen
-				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
-				goto Error
+				return nil, 0, &AddrError{"LookupHost returned no suitable address", addrs[0]}
 			}
 		}
 	}
 
-	p, i, ok = dtoi(port, 0)
+	p, i, ok := dtoi(port, 0)
 	if !ok || i != len(port) {
 		p, err = LookupPort(net, port)
 		if err != nil {
-			goto Error
+			return nil, 0, err
 		}
 	}
 	if p < 0 || p > 0xFFFF {
-		err = &AddrError{"invalid port", port}
-		goto Error
+		return nil, 0, &AddrError{"invalid port", port}
 	}
 
 	return addr, p, nil
 
-Error:
-	return nil, 0, err
 }

@@ -223,13 +223,13 @@ func (c *TCPConn) File() (f *os.File, err error) { return c.fd.dup() }
 // DialTCP connects to the remote address raddr on the network net,
 // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
 // as the local address for the connection.
-func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
-	if e != nil {
-		return nil, e
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+	if err != nil {
+		return nil, err
 	}
 	return newTCPConn(fd), nil
 }
@@ -245,7 +245,7 @@ type TCPListener struct {
 // Net must be "tcp", "tcp4", or "tcp6".
 // If laddr has a port of 0, it means to listen on some available port.
 // The caller can use l.Addr() to retrieve the chosen address.
-func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
 		closesocket(fd.sysfd)
 		return nil, &OpError{"listen", net, laddr, err}
 	}
-	l = new(TCPListener)
+	l := new(TCPListener)
 	l.fd = fd
 	return l, nil
 }

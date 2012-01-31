@@ -210,7 +210,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // DialUDP connects to the remote address raddr on the network net,
 // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
 // as the local address for the connection.
-func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
+func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
@@ -219,9 +219,9 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
-	if e != nil {
-		return nil, e
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+	if err != nil {
+		return nil, err
 	}
 	return newUDPConn(fd), nil
 }
