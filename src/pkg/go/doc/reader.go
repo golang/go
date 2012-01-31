@@ -708,8 +708,13 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 	list := make([]*Func, len(m))
 	i := 0
 	for _, m := range m {
-		// exclude conflict entries
-		if m.Decl != nil && (allMethods || ast.IsExported(removeStar(m.Orig))) {
+		// determine which methods to include
+		switch {
+		case m.Decl == nil:
+			// exclude conflict entry
+		case allMethods, m.Level == 0, !ast.IsExported(removeStar(m.Orig)):
+			// forced inclusion, method not embedded, or method
+			// embedded but original receiver type not exported
 			list[i] = m
 			i++
 		}

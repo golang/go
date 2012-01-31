@@ -1,0 +1,156 @@
+// Package testing provides support for automated testing of Go ...
+PACKAGE testing
+
+IMPORTPATH
+	testdata/testing
+
+IMPORTS
+	bytes
+	flag
+	fmt
+	io
+	os
+	runtime
+	runtime/pprof
+	strconv
+	strings
+	time
+
+FILENAMES
+	testdata/benchmark.go
+	testdata/example.go
+	testdata/testing.go
+
+FUNCTIONS
+	// An internal function but exported because it is cross-package; ...
+	func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample)
+
+	// An internal function but exported because it is cross-package; ...
+	func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark)
+
+	// 
+	func RunExamples(examples []InternalExample) (ok bool)
+
+	// 
+	func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool)
+
+	// Short reports whether the -test.short flag is set. 
+	func Short() bool
+
+
+TYPES
+	// B is a type passed to Benchmark functions to manage benchmark ...
+	type B struct {
+		N int
+		// contains filtered or unexported fields
+	}
+
+	// Error is equivalent to Log() followed by Fail(). 
+	func (c *B) Error(args ...interface{})
+
+	// Errorf is equivalent to Logf() followed by Fail(). 
+	func (c *B) Errorf(format string, args ...interface{})
+
+	// Fail marks the function as having failed but continues ...
+	func (c *B) Fail()
+
+	// FailNow marks the function as having failed and stops its ...
+	func (c *B) FailNow()
+
+	// Failed returns whether the function has failed. 
+	func (c *B) Failed() bool
+
+	// Fatal is equivalent to Log() followed by FailNow(). 
+	func (c *B) Fatal(args ...interface{})
+
+	// Fatalf is equivalent to Logf() followed by FailNow(). 
+	func (c *B) Fatalf(format string, args ...interface{})
+
+	// Log formats its arguments using default formatting, analogous ...
+	func (c *B) Log(args ...interface{})
+
+	// Logf formats its arguments according to the format, analogous ...
+	func (c *B) Logf(format string, args ...interface{})
+
+	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
+	func (b *B) ResetTimer()
+
+	// SetBytes records the number of bytes processed in a single ...
+	func (b *B) SetBytes(n int64)
+
+	// StartTimer starts timing a test.  This function is called ...
+	func (b *B) StartTimer()
+
+	// StopTimer stops timing a test.  This can be used to pause the ...
+	func (b *B) StopTimer()
+
+	// The results of a benchmark run. 
+	type BenchmarkResult struct {
+		N	int		// The number of iterations.
+		T	time.Duration	// The total time taken.
+		Bytes	int64		// Bytes processed in one iteration.
+	}
+
+	// Benchmark benchmarks a single function. Useful for creating ...
+	func Benchmark(f func(b *B)) BenchmarkResult
+
+	// 
+	func (r BenchmarkResult) NsPerOp() int64
+
+	// 
+	func (r BenchmarkResult) String() string
+
+	// An internal type but exported because it is cross-package; part ...
+	type InternalBenchmark struct {
+		Name	string
+		F	func(b *B)
+	}
+
+	// 
+	type InternalExample struct {
+		Name	string
+		F	func()
+		Output	string
+	}
+
+	// An internal type but exported because it is cross-package; part ...
+	type InternalTest struct {
+		Name	string
+		F	func(*T)
+	}
+
+	// T is a type passed to Test functions to manage test state and ...
+	type T struct {
+		// contains filtered or unexported fields
+	}
+
+	// Error is equivalent to Log() followed by Fail(). 
+	func (c *T) Error(args ...interface{})
+
+	// Errorf is equivalent to Logf() followed by Fail(). 
+	func (c *T) Errorf(format string, args ...interface{})
+
+	// Fail marks the function as having failed but continues ...
+	func (c *T) Fail()
+
+	// FailNow marks the function as having failed and stops its ...
+	func (c *T) FailNow()
+
+	// Failed returns whether the function has failed. 
+	func (c *T) Failed() bool
+
+	// Fatal is equivalent to Log() followed by FailNow(). 
+	func (c *T) Fatal(args ...interface{})
+
+	// Fatalf is equivalent to Logf() followed by FailNow(). 
+	func (c *T) Fatalf(format string, args ...interface{})
+
+	// Log formats its arguments using default formatting, analogous ...
+	func (c *T) Log(args ...interface{})
+
+	// Logf formats its arguments according to the format, analogous ...
+	func (c *T) Logf(format string, args ...interface{})
+
+	// Parallel signals that this test is to be run in parallel with ...
+	func (t *T) Parallel()
+

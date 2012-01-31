@@ -1,0 +1,13 @@
+// comment 0  comment 1 
+PACKAGE a
+
+IMPORTPATH
+	testdata/a
+
+FILENAMES
+	testdata/a0.go
+	testdata/a1.go
+
+BUGS
+	// bug0 
+	// bug1 

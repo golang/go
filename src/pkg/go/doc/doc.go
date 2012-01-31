@@ -78,7 +78,6 @@ const (
 // New takes ownership of the AST pkg and may edit or overwrite it.
 //
 func New(pkg *ast.Package, importPath string, mode Mode) *Package {
-	mode |= AllMethods // TODO(gri) remove this to enable flag
 	var r reader
 	r.readPackage(pkg, mode)
 	r.computeMethodSets()

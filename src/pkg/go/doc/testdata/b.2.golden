@@ -1,0 +1,43 @@
+// 
+PACKAGE b
+
+IMPORTPATH
+	testdata/b
+
+IMPORTS
+	a
+
+FILENAMES
+	testdata/b.go
+
+CONSTANTS
+	// 
+	const Pi = 3.14	// Pi
+
+
+VARIABLES
+	// 
+	var MaxInt int	// MaxInt
+
+
+FUNCTIONS
+	// 
+	func F(x int) int
+
+	// Always under the package functions list. 
+	func NotAFactory() int
+
+	// Associated with uint type if AllDecls is set. 
+	func UintFactory() uint
+
+
+TYPES
+	// 
+	type T struct{}	// T
+
+	// 
+	var V T	// v
+
+	// 
+	func (x *T) M()
+

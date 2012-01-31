@@ -118,4 +118,5 @@ func test(t *testing.T, mode Mode) {
 func Test(t *testing.T) {
 	test(t, 0)
 	test(t, AllDecls)
+	test(t, AllMethods)
 }

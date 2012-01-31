@@ -141,6 +141,10 @@ func (r *reader) filterDecl(decl ast.Decl) bool {
 		d.Specs = r.filterSpecList(d.Specs)
 		return len(d.Specs) > 0
 	case *ast.FuncDecl:
+		// ok to filter these methods early because any
+		// conflicting method will be filtered here, too -
+		// thus, removing these methods early will not lead
+		// to the false removal of possible conflicts
 		return ast.IsExported(d.Name.Name)
 	}
 	return false
