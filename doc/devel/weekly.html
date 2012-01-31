@@ -24,6 +24,34 @@ Error variables in the archive/tar, archive/zip, compress/gzip, compress/zlib,
 and crypto/bcrypt packages have been renamed from FooError to ErrFoo. 
 There is no gofix, but the compiler will flag code that needs updating.
 
+This weekly snapshot relocates many packages to sub-repositories of the main 
+Go repository. These are the old and new import paths:
+
+	crypto/bcrypt          code.google.com/p/go.crypto/bcrypt
+	crypto/blowfish        code.google.com/p/go.crypto/blowfish
+	crypto/cast5           code.google.com/p/go.crypto/cast5
+	crypto/md4             code.google.com/p/go.crypto/md4
+	crypto/ocsp            code.google.com/p/go.crypto/ocsp
+	crypto/openpgp         code.google.com/p/go.crypto/openpgp
+	crypto/openpgp/armor   code.google.com/p/go.crypto/openpgp/armor
+	crypto/openpgp/elgamal code.google.com/p/go.crypto/openpgp/elgamal
+	crypto/openpgp/errors  code.google.com/p/go.crypto/openpgp/errors
+	crypto/openpgp/packet  code.google.com/p/go.crypto/openpgp/packet
+	crypto/openpgp/s2k     code.google.com/p/go.crypto/openpgp/s2k
+	crypto/ripemd160       code.google.com/p/go.crypto/ripemd160
+	crypto/twofish         code.google.com/p/go.crypto/twofish
+	crypto/xtea            code.google.com/p/go.crypto/xtea
+	exp/ssh                code.google.com/p/go.crypto/ssh
+	net/dict               code.google.com/p/go.net/dict
+	net/websocket          code.google.com/p/go.net/websocket
+	exp/spdy               code.google.com/p/go.net/spdy
+	encoding/git85         code.google.com/p/go.codereview/git85
+	patch                  code.google.com/p/go.codereview/patch
+
+Gofix will update imports of these packages to use the new import paths.
+Installations that depend on these packages will need to install them using a
+'go get' command.
+
 Other changes:
 * 6c, 8c: make floating point code NaN-safe.
 * 6l, 8l: remove unused macro definition (thanks Shenghou Ma).
