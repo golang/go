@@ -1131,6 +1131,10 @@ func (b *builder) gccCmd(objdir string) []string {
 	return a
 }
 
+func envList(key string) []string {
+	return strings.Fields(os.Getenv(key))
+}
+
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
 func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
@@ -1140,19 +1144,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	outObj = append(outObj, "") // for importObj, at end of function
 
-	cgoCFLAGS := stringList(p.info.CgoCFLAGS)
-	cgoLDFLAGS := stringList(p.info.CgoLDFLAGS)
+	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.info.CgoCFLAGS)
+	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.info.CgoLDFLAGS)
+
 	if pkgs := p.info.CgoPkgConfig; len(pkgs) > 0 {
 		out, err := b.runOut(p.Dir, p.ImportPath, "pkg-config", "--cflags", pkgs)
 		if err != nil {
-			return nil, nil, err
+			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
+			b.print(err.Error() + "\n")
+			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			cgoCFLAGS = append(cgoCFLAGS, strings.Fields(string(out))...)
 		}
 		out, err = b.runOut(p.Dir, p.ImportPath, "pkg-config", "--libs", pkgs)
 		if err != nil {
-			return nil, nil, err
+			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
+			b.print(err.Error() + "\n")
+			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
 			cgoLDFLAGS = append(cgoLDFLAGS, strings.Fields(string(out))...)
