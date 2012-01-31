@@ -36,7 +36,7 @@ TAG=$(hg tags |
 	grep $BRANCH |
 	sed 's/:.*//' |
 	sort -rn -k2 |
-	awk -v ver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
+	awk -v ver=$VERSION '$2+0 <= ver+0 && $1~/^(release|weekly)\./ {print $1}' |
 	sed -n 1p)
 
 if [ "$TAG" != "" ]; then
