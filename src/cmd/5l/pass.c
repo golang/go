@@ -213,6 +213,8 @@ patch(void)
 			if((a == ABL || a == ABX || a == AB || a == ARET) &&
 			   p->to.type != D_BRANCH && p->to.sym != S) {
 				s = p->to.sym;
+				if(s->text == nil)
+					continue;
 				switch(s->type) {
 				default:
 					diag("undefined: %s", s->name);
@@ -222,7 +224,8 @@ patch(void)
 				case STEXT:
 					p->to.offset = s->value;
 					p->to.type = D_BRANCH;
-					break;
+					p->cond = s->text;
+					continue;
 				}
 			}
 			if(p->to.type != D_BRANCH)
