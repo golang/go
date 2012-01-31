@@ -4,7 +4,11 @@
 
 package main
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 var cmdRun = &Command{
 	UsageLine: "run [-a] [-n] [-x] gofiles... [arguments...]",
@@ -28,9 +32,14 @@ func init() {
 	cmdRun.Flag.BoolVar(&buildX, "x", false, "")
 }
 
+func printStderr(args ...interface{}) (int, error) {
+	return fmt.Fprint(os.Stderr, args...)
+}
+
 func runRun(cmd *Command, args []string) {
 	var b builder
 	b.init()
+	b.print = printStderr
 	i := 0
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++

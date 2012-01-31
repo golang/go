@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -81,6 +82,7 @@ The flags handled by 'go test' are:
 
 	-i
 	    Install packages that are dependencies of the test.
+	    Do not run the test.
 
 	-p n
 	    Compile and test up to n packages in parallel.
@@ -190,24 +192,21 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC        bool     // -c flag
-	testP        int      // -p flag
-	testX        bool     // -x flag
-	testV        bool     // -v flag
-	testFiles    []string // -file flag(s)  TODO: not respected
-	testArgs     []string
-	testShowPass bool // whether to display passing output
-	testBench    bool
+	testC            bool     // -c flag
+	testI            bool     // -i flag
+	testP            int      // -p flag
+	testX            bool     // -x flag
+	testV            bool     // -v flag
+	testFiles        []string // -file flag(s)  TODO: not respected
+	testArgs         []string
+	testBench        bool
+	testStreamOutput bool // show output as it is generated
+	testShowPass     bool // show passing output
 )
 
 func runTest(cmd *Command, args []string) {
 	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
-
-	// show test PASS output when no packages
-	// are listed (implicitly current directory: "go test")
-	// or when the -v flag has been given.
-	testShowPass = len(pkgArgs) == 0 || testV
 
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
@@ -218,6 +217,21 @@ func runTest(cmd *Command, args []string) {
 		fatalf("cannot use -c flag with multiple packages")
 	}
 
+	// show passing test output (after buffering) with -v flag.
+	// must buffer because tests are running in parallel, and
+	// otherwise the output will get mixed.
+	testShowPass = testV
+
+	// stream test output (no buffering) when no package has
+	// been given on the command line (implicit current directory)
+	// or when benchmarking.
+	// Also stream if we're showing output anyway with a
+	// single package under test.  In that case, streaming the
+	// output produces the same result as not streaming,
+	// just more immediately.
+	testStreamOutput = len(pkgArgs) == 0 || testBench ||
+		(len(pkgs) <= 1 && testShowPass)
+
 	buildX = testX
 	if testP > 0 {
 		buildP = testP
@@ -225,6 +239,38 @@ func runTest(cmd *Command, args []string) {
 
 	var b builder
 	b.init()
+
+	if testI {
+		buildV = testV
+
+		deps := map[string]bool{
+			// Dependencies for testmain.
+			"testing": true,
+			"regexp":  true,
+		}
+		for _, p := range pkgs {
+			// Dependencies for each test.
+			for _, path := range p.info.Imports {
+				deps[path] = true
+			}
+			for _, path := range p.info.TestImports {
+				deps[path] = true
+			}
+		}
+
+		all := []string{}
+		for path := range deps {
+			all = append(all, path)
+		}
+		sort.Strings(all)
+
+		a := &action{}
+		for _, p := range packagesForBuild(all) {
+			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+		}
+		b.do(a)
+		return
+	}
 
 	var builds, runs, prints []*action
 
@@ -284,7 +330,7 @@ func runTest(cmd *Command, args []string) {
 		}
 	}
 	if warned {
-		fmt.Fprintf(os.Stderr, "installing these packages with 'go install' will speed future tests.\n\n")
+		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i' will speed future tests.\n\n")
 	}
 
 	b.do(root)
@@ -473,15 +519,20 @@ func (b *builder) runTest(a *action) error {
 		// We were unable to build the binary.
 		a.failed = false
 		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
-		exitStatus = 1
+		setExitStatus(1)
 		return nil
 	}
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
 	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
+	if testStreamOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+	}
 
 	t0 := time.Now()
 	err := cmd.Start()
@@ -511,21 +562,21 @@ func (b *builder) runTest(a *action) error {
 	t1 := time.Now()
 	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
 	if err == nil {
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
 		if testShowPass {
 			a.testOutput.Write(out)
 		}
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
 		return nil
 	}
 
-	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
-	exitStatus = 1
+	setExitStatus(1)
 	if len(out) > 0 {
 		a.testOutput.Write(out)
 		// assume printing the test binary's exit status is superfluous
 	} else {
 		fmt.Fprintf(a.testOutput, "%s\n", err)
 	}
+	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
 
 	return nil
 }

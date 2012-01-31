@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -27,37 +28,43 @@ For more about each tool command, see 'go tool command -h'.
 }
 
 var (
-	toolGoos       = build.DefaultContext.GOOS
-	toolIsWindows  = toolGoos == "windows"
-	toolBinToolDir = filepath.Join(build.Path[0].Path, "bin", "go-tool")
+	toolGOOS      = runtime.GOOS
+	toolGOARCH    = runtime.GOARCH
+	toolIsWindows = toolGOOS == "windows"
+	toolDir       = filepath.Join(build.Path[0].Path, "bin", "go-tool")
 )
 
 const toolWindowsExtension = ".exe"
+
+func tool(name string) string {
+	p := filepath.Join(toolDir, name)
+	if toolIsWindows {
+		p += toolWindowsExtension
+	}
+	return p
+}
 
 func runTool(cmd *Command, args []string) {
 	if len(args) == 0 {
 		listTools()
 		return
 	}
-	tool := args[0]
+	toolName := args[0]
 	// The tool name must be lower-case letters and numbers.
-	for _, c := range tool {
+	for _, c := range toolName {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9':
 		default:
 			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", tool)
-			exitStatus = 2
+			setExitStatus(2)
 			return
 		}
 	}
-	toolPath := toolBinToolDir + "/" + tool
-	if toolIsWindows {
-		toolPath += toolWindowsExtension
-	}
+	toolPath := tool(toolName)
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", tool)
-		exitStatus = 3
+		setExitStatus(3)
 		return
 	}
 	toolCmd := &exec.Cmd{
@@ -69,23 +76,24 @@ func runTool(cmd *Command, args []string) {
 	err := toolCmd.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go tool %s failed: %s\n", tool, err)
-		exitStatus = 1
+		setExitStatus(1)
 		return
 	}
 }
 
 // listTools prints a list of the available tools in the go-tools directory.
 func listTools() {
-	toolDir, err := os.Open(toolBinToolDir)
+	f, err := os.Open(toolDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
-		exitStatus = 2
+		setExitStatus(2)
 		return
 	}
-	names, err := toolDir.Readdirnames(-1)
+	defer f.Close()
+	names, err := f.Readdirnames(-1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
-		exitStatus = 2
+		setExitStatus(2)
 		return
 	}
 	sort.Strings(names)

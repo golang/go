@@ -8,7 +8,6 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -276,13 +275,13 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
+		if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
+			// Install cross-compiled binaries to subdirectories of bin.
+			elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
+		}
 		if t.Goroot && isGoTool[p.ImportPath] {
 			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
 		} else {
-			if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
-				// Install cross-compiled binaries to subdirectories of bin.
-				elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
-			}
 			p.target = filepath.Join(t.BinDir(), elem)
 		}
 		if ctxt.GOOS == "windows" {

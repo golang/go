@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 	"unicode"
 	"unicode/utf8"
@@ -88,6 +89,15 @@ var commands = []*Command{
 }
 
 var exitStatus = 0
+var exitMu sync.Mutex
+
+func setExitStatus(n int) {
+	exitMu.Lock()
+	if exitStatus < n {
+		exitStatus = n
+	}
+	exitMu.Unlock()
+}
 
 func main() {
 	flag.Usage = usage
@@ -268,7 +278,7 @@ func fatalf(format string, args ...interface{}) {
 
 func errorf(format string, args ...interface{}) {
 	log.Printf(format, args...)
-	exitStatus = 1
+	setExitStatus(1)
 }
 
 var logf = log.Printf

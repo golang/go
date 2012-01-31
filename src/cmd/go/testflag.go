@@ -40,7 +40,7 @@ var usageMessage = `Usage of go test:
 // usage prints a usage message and exits.
 func testUsage() {
 	fmt.Fprint(os.Stderr, usageMessage)
-	exitStatus = 2
+	setExitStatus(2)
 	exit()
 }
 
@@ -58,6 +58,7 @@ var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", isBool: true},
 	{name: "file", multiOK: true},
+	{name: "i", isBool: true},
 	{name: "p"},
 	{name: "x", isBool: true},
 
@@ -119,6 +120,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		switch f.name {
 		case "c":
 			setBoolFlag(&testC, value)
+		case "i":
+			setBoolFlag(&testI, value)
 		case "p":
 			setIntFlag(&testP, value)
 		case "x":
