@@ -442,9 +442,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			p:          p,
 			ignoreFail: true,
 		}
+		cleanAction := &action{
+			f:    (*builder).cleanTest,
+			deps: []*action{runAction},
+			p:    p,
+		}
 		printAction = &action{
 			f:    (*builder).printTest,
-			deps: []*action{runAction},
+			deps: []*action{cleanAction},
 			p:    p,
 		}
 	}
@@ -521,12 +526,22 @@ func (b *builder) runTest(a *action) error {
 	} else {
 		fmt.Fprintf(a.testOutput, "%s\n", err)
 	}
+
+	return nil
+}
+
+// cleanTest is the action for cleaning up after a test.
+func (b *builder) cleanTest(a *action) error {
+	run := a.deps[0]
+	testDir := filepath.Join(b.work, filepath.FromSlash(run.p.ImportPath+"/_test"))
+	os.RemoveAll(testDir)
 	return nil
 }
 
 // printTest is the action for printing a test result.
 func (b *builder) printTest(a *action) error {
-	run := a.deps[0]
+	clean := a.deps[0]
+	run := clean.deps[0]
 	os.Stdout.Write(run.testOutput.Bytes())
 	run.testOutput = nil
 	return nil
