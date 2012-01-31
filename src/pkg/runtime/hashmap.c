@@ -13,6 +13,7 @@ struct Hmap {	   /* a hash table; initialize with hash_init() */
 	uint8 indirectval;	/* storing pointers to values */
 	uint8 valoff;	/* offset of value in key+value data block */
 	int32 changes;	      /* inc'ed whenever a subtable is created/grown */
+	uintptr hash0;      /* hash seed */
 	struct hash_subtable *st;    /* first-level table */
 };
 
@@ -118,6 +119,7 @@ hash_init (Hmap *h, int32 datasize, int64 hint)
 	h->count = 0;
 	h->changes = 0;
 	h->st = hash_subtable_new (h, init_power, 0);
+	h->hash0 = runtime·fastrand1();
 }
 
 static void
@@ -266,7 +268,7 @@ hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
 	struct hash_entry *end_e;
 	bool eq;
 	
-	hash = 0;
+	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
 	hash &= ~HASH_MASK;
 	hash += HASH_ADJUST (hash);
@@ -311,7 +313,7 @@ hash_remove (MapType *t, Hmap *h, void *data)
 	struct hash_entry *end_e;
 	bool eq;
 
-	hash = 0;
+	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
 	hash &= ~HASH_MASK;
 	hash += HASH_ADJUST (hash);
@@ -435,7 +437,7 @@ hash_insert (MapType *t, Hmap *h, void *data, void **pres)
 	uintptr hash;
 	int32 rc;
 	
-	hash = 0;
+	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
 	rc = hash_insert_internal (t, &h->st, 0, hash, h, data, pres);
 
