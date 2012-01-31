@@ -700,33 +700,6 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	return inc
 }
 
-// removeByRenaming removes file name by moving it to a tmp
-// directory and deleting the target if possible.
-func removeByRenaming(name string) error {
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		return err
-	}
-	tmpname := f.Name()
-	f.Close()
-	err = os.Remove(tmpname)
-	if err != nil {
-		return err
-	}
-	err = os.Rename(name, tmpname)
-	if err != nil {
-		// assume name file does not exists,
-		// otherwise later code will fail.
-		return nil
-	}
-	err = os.Remove(tmpname)
-	if err != nil {
-		// TODO(brainman): file is locked and can't be deleted.
-		// We need to come up with a better way of doing it. 
-	}
-	return nil
-}
-
 // copyFile is like 'cp src dst'.
 func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
 	if buildN || buildX {
@@ -741,23 +714,30 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
 		return err
 	}
 	defer sf.Close()
-	os.Remove(dst)
-	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		if !toolIsWindows {
-			return err
-		}
-		// Windows does not allow to replace binary file
-		// while it is executing. We will cheat.
-		err = removeByRenaming(dst)
-		if err != nil {
-			return err
-		}
-		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-		if err != nil {
-			return err
+
+	// On Windows, remove lingering ~ file from last attempt.
+	if toolIsWindows {
+		if _, err := os.Stat(dst + "~"); err == nil {
+			os.Remove(dst + "~")
 		}
 	}
+
+	os.Remove(dst)
+	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil && toolIsWindows {
+		// Windows does not allow deletion of a binary file
+		// while it is executing.  Try to move it out of the way.
+		// If the remove fails, which is likely, we'll try again the
+		// next time we do an install of this binary.
+		if err := os.Rename(dst, dst+"~"); err == nil {
+			os.Remove(dst + "~")
+		}
+		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	}
+	if err != nil {
+		return err
+	}
+
 	_, err = io.Copy(df, sf)
 	df.Close()
 	if err != nil {
