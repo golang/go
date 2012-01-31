@@ -44,10 +44,11 @@ export MAKEFLAGS
 unset CDPATH	# in case user has it set
 
 rm -f "$GOBIN"/quietgcc
+rm -f "$GOROOT/bin/go-tool/quietgcc"
 CC=${CC:-gcc}
 export CC
-sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
-chmod +x "$GOBIN"/quietgcc
+sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOROOT"/bin/go-tool/quietgcc
+chmod +x "$GOROOT"/bin/go-tool/quietgcc
 
 export GOMAKE="$GOROOT"/bin/go-tool/make
 rm -f "$GOBIN"/gomake
