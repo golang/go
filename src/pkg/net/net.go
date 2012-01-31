@@ -201,3 +201,15 @@ type UnknownNetworkError string
 func (e UnknownNetworkError) Error() string   { return "unknown network " + string(e) }
 func (e UnknownNetworkError) Temporary() bool { return false }
 func (e UnknownNetworkError) Timeout() bool   { return false }
+
+// DNSConfigError represents an error reading the machine's DNS configuration.
+type DNSConfigError struct {
+	Err error
+}
+
+func (e *DNSConfigError) Error() string {
+	return "error reading DNS config: " + e.Err.Error()
+}
+
+func (e *DNSConfigError) Timeout() bool   { return false }
+func (e *DNSConfigError) Temporary() bool { return false }
