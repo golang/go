@@ -55,13 +55,11 @@ func Jn(n int, x float64) float64 {
 		TwoM29 = 1.0 / (1 << 29) // 2**-29 0x3e10000000000000
 		Two302 = 1 << 302        // 2**302 0x52D0000000000000
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x: // IsNaN(x)
+	case IsNaN(x):
 		return x
-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+	case IsInf(x, 0):
 		return 0
 	}
 	// J(-n, x) = (-1)**n * J(n, x), J(n, -x) = (-1)**n * J(n, x)
@@ -236,13 +234,11 @@ func Jn(n int, x float64) float64 {
 //	Y1(n, NaN) = NaN
 func Yn(n int, x float64) float64 {
 	const Two302 = 1 << 302 // 2**302 0x52D0000000000000
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x < 0 || x != x: // x < 0 || IsNaN(x):
+	case x < 0 || IsNaN(x):
 		return NaN()
-	case x > MaxFloat64: // IsInf(x, 1)
+	case IsInf(x, 1):
 		return 0
 	}
 
@@ -299,7 +295,7 @@ func Yn(n int, x float64) float64 {
 		a := Y0(x)
 		b = Y1(x)
 		// quit if b is -inf
-		for i := 1; i < n && b >= -MaxFloat64; i++ { // for i := 1; i < n && !IsInf(b, -1); i++ {
+		for i := 1; i < n && !IsInf(b, -1); i++ {
 			a, b = b, (float64(i+i)/x)*b-a
 		}
 	}

@@ -16,13 +16,11 @@ package math
 func Frexp(f float64) (frac float64, exp int)
 
 func frexp(f float64) (frac float64, exp int) {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
 	case f == 0:
 		return f, 0 // correctly return -0
-	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
+	case IsInf(f, 0) || IsNaN(f):
 		return f, 0
 	}
 	f, exp = normalize(f)

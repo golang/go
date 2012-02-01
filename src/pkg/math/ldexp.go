@@ -14,13 +14,11 @@ package math
 func Ldexp(frac float64, exp int) float64
 
 func ldexp(frac float64, exp int) float64 {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
 	case frac == 0:
 		return frac // correctly return -0
-	case frac < -MaxFloat64 || frac > MaxFloat64 || frac != frac: // IsInf(frac, 0) || IsNaN(frac):
+	case IsInf(frac, 0) || IsNaN(frac):
 		return frac
 	}
 	frac, e := normalize(frac)

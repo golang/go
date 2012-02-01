@@ -17,13 +17,11 @@ package math
 func Hypot(p, q float64) float64
 
 func hypot(p, q float64) float64 {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
+	case IsInf(p, 0) || IsInf(q, 0):
 		return Inf(1)
-	case p != p || q != q: // IsNaN(p) || IsNaN(q):
+	case IsNaN(p) || IsNaN(q):
 		return NaN()
 	}
 	if p < 0 {

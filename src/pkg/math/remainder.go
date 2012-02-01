@@ -41,13 +41,11 @@ func remainder(x, y float64) float64 {
 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
 		HalfMax = MaxFloat64 / 2
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x || y != y || x < -MaxFloat64 || x > MaxFloat64 || y == 0: // IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
+	case IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
 		return NaN()
-	case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y):
+	case IsInf(y, 0):
 		return x
 	}
 	sign := false

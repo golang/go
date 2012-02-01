@@ -33,11 +33,9 @@ func Cbrt(x float64) float64 {
 		C3 = 6.46502159e-02
 		C4 = 1.412333954e-01
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x == 0 || x != x || x < -MaxFloat64 || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 0):
+	case x == 0 || IsNaN(x) || IsInf(x, 0):
 		return x
 	}
 	sign := false
