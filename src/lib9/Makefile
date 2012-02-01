@@ -111,12 +111,12 @@ include ../Make.clib
 GOROOT_FINAL?=$(GOROOT)
 
 %.$O: fmt/%.c
-	$(HOST_CC) -c $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
+	$(HOST_CC) $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
 
 %.$O: utf/%.c
-	$(HOST_CC) -c $(HOST_CFLAGS) $<
+	$(HOST_CC) $(HOST_CFLAGS) $<
 
 goos.$O: goos.c
 	GOVERSION=`../version.bash` && \
-		$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$GOVERSION"'"' $<
+		$(HOST_CC) $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$GOVERSION"'"' $<
 

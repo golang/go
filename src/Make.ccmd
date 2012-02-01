@@ -38,7 +38,7 @@ all: $(TARG)
 
 # Use $(PWD)/$*.c so that gdb shows full path in stack traces.
 %.$(HOST_O): %.c
-	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
+	$(HOST_CC) $(HOST_CFLAGS) "$(PWD)/$*.c"
 
 # These are used by enough different Makefiles to be
 # worth writing down in one place, even if they don't

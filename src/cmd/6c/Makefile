@@ -33,4 +33,4 @@ LIB=\
 include ../../Make.ctool
 
 %.$O: ../cc/%.c
-	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
+	$(HOST_CC) $(HOST_CFLAGS) -I. -o $@ ../cc/$*.c

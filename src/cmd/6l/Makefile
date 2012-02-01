@@ -45,4 +45,4 @@ enam.c: 6.out.h
 CLEANFILES+=enam.c
 
 %.$O: ../ld/%.c
-	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
+	$(HOST_CC) $(HOST_CFLAGS) -I. ../ld/$*.c
