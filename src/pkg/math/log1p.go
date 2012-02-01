@@ -113,14 +113,12 @@ func log1p(x float64) float64 {
 	)
 
 	// special cases
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	switch {
-	case x < -1 || x != x: // x < -1 || IsNaN(x): // includes -Inf
+	case x < -1 || IsNaN(x): // includes -Inf
 		return NaN()
 	case x == -1:
 		return Inf(-1)
-	case x > MaxFloat64: // IsInf(x, 1):
+	case IsInf(x, 1):
 		return Inf(1)
 	}
 

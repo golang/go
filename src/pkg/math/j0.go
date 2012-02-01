@@ -89,13 +89,11 @@ func J0(x float64) float64 {
 		S03 = 5.13546550207318111446e-07  // 0x3EA13B54CE84D5A9
 		S04 = 1.16614003333790000205e-09  // 0x3E1408BCF4745D8F
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x: // IsNaN(x)
+	case IsNaN(x):
 		return x
-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+	case IsInf(x, 0):
 		return 0
 	case x == 0:
 		return 1
@@ -171,13 +169,11 @@ func Y0(x float64) float64 {
 		V03    = 2.59150851840457805467e-07  // 0x3E91642D7FF202FD
 		V04    = 4.41110311332675467403e-10  // 0x3DFE50183BD6D9EF
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x < 0 || x != x: // x < 0 || IsNaN(x):
+	case x < 0 || IsNaN(x):
 		return NaN()
-	case x > MaxFloat64: // IsInf(x, 1):
+	case IsInf(x, 1):
 		return 0
 	case x == 0:
 		return Inf(-1)

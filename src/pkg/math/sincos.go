@@ -21,13 +21,11 @@ func sincos(x float64) (sin, cos float64) {
 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
 	case x == 0:
 		return x, 1 // return ±0.0, 1.0
-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
+	case IsNaN(x) || IsInf(x, 0):
 		return NaN(), NaN()
 	}
 

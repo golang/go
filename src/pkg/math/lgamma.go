@@ -183,15 +183,13 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 		// Tt = -(tail of Tf)
 		Tt = -3.63867699703950536541e-18 // 0xBC50C7CAA48A971F
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	sign = 1
 	switch {
-	case x != x: // IsNaN(x):
+	case IsNaN(x):
 		lgamma = x
 		return
-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+	case IsInf(x, 0):
 		lgamma = x
 		return
 	case x == 0:

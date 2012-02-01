@@ -42,10 +42,8 @@ func Asinh(x float64) float64 {
 		NearZero = 1.0 / (1 << 28)            // 2**-28
 		Large    = 1 << 28                    // 2**28
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
-	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
+	if IsNaN(x) || IsInf(x, 0) {
 		return x
 	}
 	sign := false

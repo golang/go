@@ -123,11 +123,9 @@ func cos(x float64) float64 {
 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
+	case IsNaN(x) || IsInf(x, 0):
 		return NaN()
 	}
 
@@ -182,13 +180,11 @@ func sin(x float64) float64 {
 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x == 0 || x != x: // x == 0 || IsNaN():
+	case x == 0 || IsNaN(x):
 		return x // return ±0 || NaN()
-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+	case IsInf(x, 0):
 		return NaN()
 	}
 

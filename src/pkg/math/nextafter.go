@@ -11,10 +11,8 @@ package math
 //      Nextafter(NaN, y) = NaN
 //      Nextafter(x, NaN) = NaN
 func Nextafter(x, y float64) (r float64) {
-	// TODO(rsc): Remove manual inlining of IsNaN
-	// when compiler does it for us
 	switch {
-	case x != x || y != y: // IsNaN(x) || IsNaN(y): // special case
+	case IsNaN(x) || IsNaN(y): // special case
 		r = NaN()
 	case x == y:
 		r = x

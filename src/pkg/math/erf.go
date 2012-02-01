@@ -191,14 +191,12 @@ func Erf(x float64) float64 {
 		Small    = 1.0 / (1 << 28)        // 2**-28
 	)
 	// special cases
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	switch {
-	case x != x: // IsNaN(x):
+	case IsNaN(x):
 		return NaN()
-	case x > MaxFloat64: // IsInf(x, 1):
+	case IsInf(x, 1):
 		return 1
-	case x < -MaxFloat64: // IsInf(x, -1):
+	case IsInf(x, -1):
 		return -1
 	}
 	sign := false
@@ -267,14 +265,12 @@ func Erf(x float64) float64 {
 func Erfc(x float64) float64 {
 	const Tiny = 1.0 / (1 << 56) // 2**-56
 	// special cases
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	switch {
-	case x != x: // IsNaN(x):
+	case IsNaN(x):
 		return NaN()
-	case x > MaxFloat64: // IsInf(x, 1):
+	case IsInf(x, 1):
 		return 0
-	case x < -MaxFloat64: // IsInf(x, -1):
+	case IsInf(x, -1):
 		return 2
 	}
 	sign := false

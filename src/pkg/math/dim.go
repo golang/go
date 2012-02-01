@@ -26,13 +26,11 @@ func dim(x, y float64) float64 {
 func Max(x, y float64) float64
 
 func max(x, y float64) float64 {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x > MaxFloat64 || y > MaxFloat64: // IsInf(x, 1) || IsInf(y, 1):
+	case IsInf(x, 1) || IsInf(y, 1):
 		return Inf(1)
-	case x != x || y != y: // IsNaN(x) || IsNaN(y):
+	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0 && x == y:
 		if Signbit(x) {
@@ -55,13 +53,11 @@ func max(x, y float64) float64 {
 func Min(x, y float64) float64
 
 func min(x, y float64) float64 {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x < -MaxFloat64 || y < -MaxFloat64: // IsInf(x, -1) || IsInf(y, -1):
+	case IsInf(x, -1) || IsInf(y, -1):
 		return Inf(-1)
-	case x != x || y != y: // IsNaN(x) || IsNaN(y):
+	case IsNaN(x) || IsNaN(y):
 		return NaN()
 	case x == 0 && x == y:
 		if Signbit(x) {
