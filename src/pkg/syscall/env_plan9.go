@@ -6,69 +6,123 @@
 
 package syscall
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
-func Getenv(key string) (value string, found bool) {
-	if len(key) == 0 {
-		return "", false
-	}
-	f, e := Open("/env/"+key, O_RDONLY)
-	if e != nil {
-		return "", false
-	}
-	defer Close(f)
+var (
+	// envOnce guards initialization by copyenv, which populates env.
+	envOnce sync.Once
 
-	l, _ := Seek(f, 0, 2)
-	Seek(f, 0, 0)
+	// envLock guards env.
+	envLock sync.RWMutex
+
+	// env maps from an environment variable to its value.
+	env map[string]string
+)
+
+func readenv(key string) (string, error) {
+	fd, err := Open("/env/"+key, O_RDONLY)
+	if err != nil {
+		return "", err
+	}
+	defer Close(fd)
+	l, _ := Seek(fd, 0, 2)
+	Seek(fd, 0, 0)
 	buf := make([]byte, l)
-	n, e := Read(f, buf)
-	if e != nil {
-		return "", false
+	n, err := Read(fd, buf)
+	if err != nil {
+		return "", err
 	}
-
 	if n > 0 && buf[n-1] == 0 {
 		buf = buf[:n-1]
 	}
-	return string(buf), true
+	return string(buf), nil
+}
+
+func writeenv(key, value string) error {
+	fd, err := Create("/env/"+key, O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer Close(fd)
+	_, err = Write(fd, []byte(value))
+	return err
+}
+
+func copyenv() {
+	env = make(map[string]string)
+	fd, err := Open("/env", O_RDONLY)
+	if err != nil {
+		return
+	}
+	defer Close(fd)
+	files, err := readdirnames(fd)
+	if err != nil {
+		return
+	}
+	for _, key := range files {
+		v, err := readenv(key)
+		if err != nil {
+			continue
+		}
+		env[key] = v
+	}
+}
+
+func Getenv(key string) (value string, found bool) {
+	envOnce.Do(copyenv)
+	if len(key) == 0 {
+		return "", false
+	}
+
+	envLock.RLock()
+	defer envLock.RUnlock()
+
+	v, ok := env[key]
+	if !ok {
+		return "", false
+	}
+	return v, true
 }
 
 func Setenv(key, value string) error {
+	envOnce.Do(copyenv)
 	if len(key) == 0 {
-		return errors.New("bad arg in system call")
+		return errors.New("zero length key")
 	}
 
-	f, e := Create("/env/"+key, O_RDWR, 0666)
-	if e != nil {
-		return e
-	}
-	defer Close(f)
+	envLock.Lock()
+	defer envLock.Unlock()
 
-	_, e = Write(f, []byte(value))
+	err := writeenv(key, value)
+	if err != nil {
+		return err
+	}
+	env[key] = value
 	return nil
 }
 
 func Clearenv() {
+	envOnce.Do(copyenv) // prevent copyenv in Getenv/Setenv
+
+	envLock.Lock()
+	defer envLock.Unlock()
+
+	env = make(map[string]string)
 	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
 }
 
 func Environ() []string {
-	env := make([]string, 0, 100)
-
-	f, e := Open("/env", O_RDONLY)
-	if e != nil {
-		panic(e)
+	envOnce.Do(copyenv)
+	envLock.RLock()
+	defer envLock.RUnlock()
+	a := make([]string, len(env))
+	i := 0
+	for k, v := range env {
+		a[i] = k + "=" + v
+		i++
 	}
-	defer Close(f)
-
-	names, e := readdirnames(f)
-	if e != nil {
-		panic(e)
-	}
-
-	for _, k := range names {
-		if v, ok := Getenv(k); ok {
-			env = append(env, k+"="+v)
-		}
-	}
-	return env[0:len(env)]
+	return a
 }
