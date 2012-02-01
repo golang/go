@@ -85,7 +85,7 @@ LIB9OFILES=\
 
 ifeq ($(GOHOSTOS),windows)
 LIB9OFILES+=\
-	win32.$O\
+	windows.$O\
 
 else
 LIB9OFILES+=\

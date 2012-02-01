@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
 Plan 9 from User Space src/lib9/jmp.c
 http://code.swtch.com/plan9port/src/tip/src/lib9/jmp.c
