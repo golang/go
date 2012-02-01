@@ -499,7 +499,7 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 	for _, eg := range examples {
 		name := eg.Name
 
-		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name 
+		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name
 		// while keeping uppercase Braz in Foo_Braz
 		if i := strings.LastIndex(name, "_"); i != -1 {
 			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
@@ -743,7 +743,11 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 }
 
 func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
-	if canonical := path.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
+	canonical := path.Clean(r.URL.Path)
+	if !strings.HasSuffix("/", canonical) {
+		canonical += "/"
+	}
+	if r.URL.Path != canonical {
 		http.Redirect(w, r, canonical, http.StatusMovedPermanently)
 		redirected = true
 	}
