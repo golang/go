@@ -39,7 +39,7 @@ func (file *File) Fd() syscall.Handle {
 
 // NewFile returns a new File with the given file descriptor and name.
 func NewFile(fd syscall.Handle, name string) *File {
-	if fd < 0 {
+	if fd == syscall.InvalidHandle {
 		return nil
 	}
 	f := &File{&file{fd: fd, name: name}}
@@ -115,7 +115,7 @@ func (file *File) Close() error {
 }
 
 func (file *file) close() error {
-	if file == nil || file.fd < 0 {
+	if file == nil || file.fd == syscall.InvalidHandle {
 		return EINVAL
 	}
 	var e error
@@ -136,7 +136,7 @@ func (file *file) close() error {
 }
 
 func (file *File) readdir(n int) (fi []FileInfo, err error) {
-	if file == nil || file.fd < 0 {
+	if file == nil || file.fd == syscall.InvalidHandle {
 		return nil, EINVAL
 	}
 	if !file.isdir() {
