@@ -1148,6 +1148,9 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		}
 	}
 
+	// Allows including _cgo_export.h from .[ch] files in the package.
+	cgoCFLAGS = append(cgoCFLAGS, "-I", obj)
+
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
