@@ -27,11 +27,7 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
 	// to be handled by the correct socket.
 
 	// Allow broadcast.
-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-
+	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
 	return nil
 }
 
