@@ -197,3 +197,29 @@ func TestBig(t *testing.T) {
 		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i)
 	}
 }
+
+func TestNewLineCharacters(t *testing.T) {
+	// Each of these should decode to the string "sure", without errors.
+	const expected = "sure"
+	examples := []string{
+		"c3VyZQ==",
+		"c3VyZQ==\r",
+		"c3VyZQ==\n",
+		"c3VyZQ==\r\n",
+		"c3VyZ\r\nQ==",
+		"c3V\ryZ\nQ==",
+		"c3V\nyZ\rQ==",
+		"c3VyZ\nQ==",
+		"c3VyZQ\n==",
+	}
+	for _, e := range examples {
+		buf, err := StdEncoding.DecodeString(e)
+		if err != nil {
+			t.Errorf("Decode(%q) failed: %v", e, err)
+			continue
+		}
+		if s := string(buf); s != expected {
+			t.Errorf("Decode(%q) = %q, want %q", e, s, expected)
+		}
+	}
+}

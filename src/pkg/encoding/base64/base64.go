@@ -208,22 +208,30 @@ func (e CorruptInputError) Error() string {
 
 // decode is like Decode but returns an additional 'end' value, which
 // indicates if end-of-message padding was encountered and thus any
-// additional data is an error.  decode also assumes len(src)%4==0,
-// since it is meant for internal use.
+// additional data is an error.
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
-	for i := 0; i < len(src)/4 && !end; i++ {
+	osrc := src
+	for len(src) > 0 && !end {
 		// Decode quantum using the base64 alphabet
 		var dbuf [4]byte
 		dlen := 4
 
 	dbufloop:
-		for j := 0; j < 4; j++ {
-			in := src[i*4+j]
-			if in == '=' && j >= 2 && i == len(src)/4-1 {
+		for j := 0; j < 4; {
+			if len(src) == 0 {
+				return n, false, CorruptInputError(len(osrc) - len(src) - j)
+			}
+			in := src[0]
+			src = src[1:]
+			if in == '\r' || in == '\n' {
+				// Ignore this character.
+				continue
+			}
+			if in == '=' && j >= 2 && len(src) < 4 {
 				// We've reached the end and there's
 				// padding
-				if src[i*4+3] != '=' {
-					return n, false, CorruptInputError(i*4 + 2)
+				if len(src) > 0 && src[0] != '=' {
+					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
 				}
 				dlen = j
 				end = true
@@ -231,22 +239,24 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(i*4 + j)
+				return n, false, CorruptInputError(len(osrc) - len(src) - 1)
 			}
+			j++
 		}
 
 		// Pack 4x 6-bit source blocks into 3 byte destination
 		// quantum
 		switch dlen {
 		case 4:
-			dst[i*3+2] = dbuf[2]<<6 | dbuf[3]
+			dst[2] = dbuf[2]<<6 | dbuf[3]
 			fallthrough
 		case 3:
-			dst[i*3+1] = dbuf[1]<<4 | dbuf[2]>>2
+			dst[1] = dbuf[1]<<4 | dbuf[2]>>2
 			fallthrough
 		case 2:
-			dst[i*3+0] = dbuf[0]<<2 | dbuf[1]>>4
+			dst[0] = dbuf[0]<<2 | dbuf[1]>>4
 		}
+		dst = dst[3:]
 		n += dlen - 1
 	}
 
@@ -257,11 +267,8 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 // DecodedLen(len(src)) bytes to dst and returns the number of bytes
 // written.  If src contains invalid base64 data, it will return the
 // number of bytes successfully written and CorruptInputError.
+// New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
-	if len(src)%4 != 0 {
-		return 0, CorruptInputError(len(src) / 4 * 4)
-	}
-
 	n, _, err = enc.decode(dst, src)
 	return
 }
