@@ -7,6 +7,7 @@
 package net
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -16,8 +17,19 @@ func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
 }
 
 func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
-	// TODO: Implement this
-	return syscall.EWINDOWS
+	ip, err := interfaceToIPv4Addr(ifi)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	var x [4]byte
+	copy(x[:], ip.To4())
+	fd.incref()
+	defer fd.decref()
+	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, x)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	return nil
 }
 
 func ipv4MulticastTTL(fd *netFD) (int, error) {
@@ -26,8 +38,14 @@ func ipv4MulticastTTL(fd *netFD) (int, error) {
 }
 
 func setIPv4MulticastTTL(fd *netFD, v int) error {
-	// TODO: Implement this
-	return syscall.EWINDOWS
+	fd.incref()
+	defer fd.decref()
+	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, v)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	return nil
+
 }
 
 func ipv4MulticastLoopback(fd *netFD) (bool, error) {
@@ -36,8 +54,14 @@ func ipv4MulticastLoopback(fd *netFD) (bool, error) {
 }
 
 func setIPv4MulticastLoopback(fd *netFD, v bool) error {
-	// TODO: Implement this
-	return syscall.EWINDOWS
+	fd.incref()
+	defer fd.decref()
+	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	return nil
+
 }
 
 func ipv4ReceiveInterface(fd *netFD) (bool, error) {
