@@ -5,7 +5,7 @@
 include ../../Make.inc
 O:=$(HOST_O)
 
-LIB=gc.a
+LIB=gc.a$O
 
 HFILES=\
 	go.h\

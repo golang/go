@@ -5,7 +5,7 @@
 include ../../Make.inc
 O:=$(HOST_O)
 
-LIB=cc.a
+LIB=cc.a$O
 
 HFILES=\
 	cc.h\
