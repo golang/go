@@ -657,6 +657,9 @@ type IPv6Mreq struct {
 
 func GetsockoptInt(fd Handle, level, opt int) (int, error)              { return -1, EWINDOWS }
 func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
+func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
+}
 func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
 }
