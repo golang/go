@@ -3,7 +3,7 @@ syntax:glob
 .git
 .gitignore
 *.[568ao]
-*.ao
+*.a[568o]
 *.so
 *.pyc
 ._*

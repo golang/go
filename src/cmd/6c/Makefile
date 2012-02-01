@@ -28,7 +28,7 @@ OFILES=\
 	../6l/enam.$O\
 
 LIB=\
-	../cc/cc.a\
+	../cc/cc.a$O\
 
 include ../../Make.ctool
 

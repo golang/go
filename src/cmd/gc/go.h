@@ -4,6 +4,8 @@
 
 #include	<bio.h>
 
+#pragma	lib	"../gc/gc.a$O"
+
 #undef OAPPEND
 
 // avoid <ctype.h>

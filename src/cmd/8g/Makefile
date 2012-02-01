@@ -28,7 +28,7 @@ OFILES=\
 	reg.$O\
 
 LIB=\
-	../gc/gc.a\
+	../gc/gc.a$O\
 
 include ../../Make.ctool
 
