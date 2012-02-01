@@ -4,6 +4,7 @@
 
 syslist.go: ../../../Make.inc Makefile
 	echo '// Generated automatically by make.' >$@
+	echo >>$@
 	echo 'package build' >>$@
 	echo >>$@
 	echo 'const goosList = "$(GOOS_LIST)"' >>$@
