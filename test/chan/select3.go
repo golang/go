@@ -197,13 +197,13 @@ func main() {
 	})
 	testBlock(never, func() {
 		select {
-		case x := <-closedch:
+		case x := (<-closedch):
 			_ = x
 		}
 	})
 	testBlock(never, func() {
 		select {
-		case x, ok := <-closedch:
+		case x, ok := (<-closedch):
 			_, _ = x, ok
 		}
 	})
