@@ -27,6 +27,7 @@ func main() {
 	}
 	verifyStruct()
 	verifyInterface()
+	verifyType()
 }
 
 
@@ -229,4 +230,18 @@ func verifyInterface() {
 	}
 	verify("interface l", append(s), s)
 	verify("interface m", append(s, e...), r)
+}
+
+type T1 []int
+type T2 []int
+
+func verifyType() {
+	// The second argument to append has type []E where E is the
+	// element type of the first argument.  Test that the compiler
+	// accepts two slice types that meet that requirement but are
+	// not assignment compatible.  The return type of append is
+	// the type of the first argument.
+	t1 := T1{1}
+	t2 := T2{2}
+	verify("T1", append(t1, t2...), T1{1, 2})
 }
