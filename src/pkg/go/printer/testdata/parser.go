@@ -6,7 +6,7 @@
 // provided in a variety of forms (see the various Parse* functions); the
 // output is an abstract syntax tree (AST) representing the Go source. The
 // parser is invoked through one of the Parse* functions.
-//
+
 package parser
 
 import (
