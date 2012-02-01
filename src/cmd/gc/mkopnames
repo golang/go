@@ -14,8 +14,8 @@ echo '{'
 sed -n '/OXXX/,/OEND/p' go.h |
 	cpp |
 	sed 's!//.*!!; /^#/d'  |
-	tr ' ' '\n' |
-	tr -d ' \t,' |
+	tr ' ' '\012' |
+	tr -d ' \011,' |
 	grep . |
 	sort |
 	grep -v '^OEND$' |
