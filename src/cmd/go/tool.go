@@ -55,7 +55,7 @@ func runTool(cmd *Command, args []string) {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9':
 		default:
-			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", tool)
+			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
 			setExitStatus(2)
 			return
 		}
@@ -63,7 +63,7 @@ func runTool(cmd *Command, args []string) {
 	toolPath := tool(toolName)
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", tool)
+		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		setExitStatus(3)
 		return
 	}
