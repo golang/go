@@ -46,14 +46,14 @@ func (p *Process) Signal(sig Signal) error {
 
 // Release releases any resources associated with the Process.
 func (p *Process) Release() error {
-	if p.handle == -1 {
+	if p.handle == uintptr(syscall.InvalidHandle) {
 		return EINVAL
 	}
 	e := syscall.CloseHandle(syscall.Handle(p.handle))
 	if e != nil {
 		return NewSyscallError("CloseHandle", e)
 	}
-	p.handle = -1
+	p.handle = uintptr(syscall.InvalidHandle)
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(p, nil)
 	return nil
@@ -66,7 +66,7 @@ func findProcess(pid int) (p *Process, err error) {
 	if e != nil {
 		return nil, NewSyscallError("OpenProcess", e)
 	}
-	return newProcess(pid, int(h)), nil
+	return newProcess(pid, uintptr(h)), nil
 }
 
 func init() {

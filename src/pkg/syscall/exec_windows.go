@@ -232,7 +232,7 @@ type SysProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	if len(argv0) == 0 {
 		return 0, 0, EWINDOWS
 	}
@@ -319,7 +319,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	}
 	defer CloseHandle(Handle(pi.Thread))
 
-	return int(pi.ProcessId), int(pi.Process), nil
+	return int(pi.ProcessId), uintptr(pi.Process), nil
 }
 
 func Exec(argv0 string, argv []string, envv []string) (err error) {
