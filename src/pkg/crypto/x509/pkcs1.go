@@ -40,7 +40,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 	var priv pkcs1PrivateKey
 	rest, err := asn1.Unmarshal(der, &priv)
 	if len(rest) > 0 {
-		err = asn1.SyntaxError{"trailing data"}
+		err = asn1.SyntaxError{Msg: "trailing data"}
 		return
 	}
 	if err != nil {

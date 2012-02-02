@@ -107,7 +107,11 @@ func (w *Watcher) AddWatch(path string, flags uint32) error {
 	}
 	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
 	if err != nil {
-		return &os.PathError{"inotify_add_watch", path, err}
+		return &os.PathError{
+			Op:   "inotify_add_watch",
+			Path: path,
+			Err:  err,
+		}
 	}
 
 	if !found {

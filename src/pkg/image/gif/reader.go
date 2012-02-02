@@ -416,7 +416,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	if err := d.decode(r, true); err != nil {
 		return image.Config{}, err
 	}
-	return image.Config{d.globalColorMap, d.width, d.height}, nil
+	return image.Config{
+		ColorModel: d.globalColorMap,
+		Width:      d.width,
+		Height:     d.height,
+	}, nil
 }
 
 func init() {

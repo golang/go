@@ -1377,8 +1377,8 @@ func (p *parser) appendGroup(r []rune, g charGroup) []rune {
 }
 
 var anyTable = &unicode.RangeTable{
-	[]unicode.Range16{{0, 1<<16 - 1, 1}},
-	[]unicode.Range32{{1 << 16, unicode.MaxRune, 1}},
+	R16: []unicode.Range16{{Lo: 0, Hi: 1<<16 - 1, Stride: 1}},
+	R32: []unicode.Range32{{Lo: 1 << 16, Hi: unicode.MaxRune, Stride: 1}},
 }
 
 // unicodeTable returns the unicode.RangeTable identified by name

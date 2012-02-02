@@ -458,7 +458,7 @@ func (e *encoder) writeSOS(m image.Image) {
 			for i := 0; i < 4; i++ {
 				xOff := (i & 1) * 8
 				yOff := (i & 2) * 4
-				p := image.Point{x + xOff, y + yOff}
+				p := image.Pt(x+xOff, y+yOff)
 				if rgba != nil {
 					rgbaToYCbCr(rgba, p, &yBlock, &cbBlock[i], &crBlock[i])
 				} else {

@@ -56,7 +56,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 	var src image.Image
 	switch scm {
 	case nil:
-		src = &image.Uniform{color.RGBA{0x11, 0x22, 0x33, 0xff}}
+		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0xff}}
 	case color.RGBAModel:
 		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
@@ -145,7 +145,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		x := 3 * i % (dstw - srcw)
 		y := 7 * i % (dsth - srch)
 
-		DrawMask(dst, dst.Bounds().Add(image.Point{x, y}), src, image.ZP, mask, image.ZP, op)
+		DrawMask(dst, dst.Bounds().Add(image.Pt(x, y)), src, image.ZP, mask, image.ZP, op)
 	}
 }
 

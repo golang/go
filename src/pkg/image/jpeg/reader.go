@@ -454,9 +454,17 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	}
 	switch d.nComp {
 	case nGrayComponent:
-		return image.Config{color.GrayModel, d.width, d.height}, nil
+		return image.Config{
+			ColorModel: color.GrayModel,
+			Width:      d.width,
+			Height:     d.height,
+		}, nil
 	case nColorComponent:
-		return image.Config{color.YCbCrModel, d.width, d.height}, nil
+		return image.Config{
+			ColorModel: color.YCbCrModel,
+			Width:      d.width,
+			Height:     d.height,
+		}, nil
 	}
 	return image.Config{}, FormatError("missing SOF marker")
 }

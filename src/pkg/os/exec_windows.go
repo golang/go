@@ -29,7 +29,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	p.done = true
-	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
+	return &Waitmsg{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
 }
 
 // Signal sends a signal to the Process.

@@ -652,7 +652,11 @@ func foldAdjacent(r []Script) []unicode.Range32 {
 			s[j-1].Hi = r[i].hi
 		} else {
 			s = s[0 : j+1]
-			s[j] = unicode.Range32{uint32(r[i].lo), uint32(r[i].hi), 1}
+			s[j] = unicode.Range32{
+				Lo:     uint32(r[i].lo),
+				Hi:     uint32(r[i].hi),
+				Stride: 1,
+			}
 			j++
 		}
 	}

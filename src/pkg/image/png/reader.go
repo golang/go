@@ -690,7 +690,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	case cbTCA16:
 		cm = color.NRGBA64Model
 	}
-	return image.Config{cm, d.width, d.height}, nil
+	return image.Config{
+		ColorModel: cm,
+		Width:      d.width,
+		Height:     d.height,
+	}, nil
 }
 
 func init() {

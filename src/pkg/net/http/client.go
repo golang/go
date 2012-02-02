@@ -245,7 +245,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 	}
 
 	method := ireq.Method
-	err = &url.Error{method[0:1] + strings.ToLower(method[1:]), urlStr, err}
+	err = &url.Error{
+		Op:  method[0:1] + strings.ToLower(method[1:]),
+		URL: urlStr,
+		Err: err,
+	}
 	return
 }
 
