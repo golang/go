@@ -336,7 +336,7 @@ func blocks(text string) []block {
 
 		if lastWasBlank && !lastWasHeading && i+2 < len(lines) &&
 			isBlank(lines[i+1]) && !isBlank(lines[i+2]) && indentLen(lines[i+2]) == 0 {
-			// current line is non-blank, sourounded by blank lines
+			// current line is non-blank, surrounded by blank lines
 			// and the next non-blank line is not indented: this
 			// might be a heading.
 			if head := heading(line); head != "" {

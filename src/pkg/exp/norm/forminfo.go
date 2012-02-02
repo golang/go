@@ -111,7 +111,7 @@ func (r runeInfo) isInert() bool {
 
 // Wrappers for tables.go
 
-// The 16-bit value of the decompostion tries is an index into a byte
+// The 16-bit value of the decomposition tries is an index into a byte
 // array of UTF-8 decomposition sequences. The first byte is the number
 // of bytes in the decomposition (excluding this length byte). The actual
 // sequence starts at the offset+1.

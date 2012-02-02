@@ -49,7 +49,7 @@ http://codereview.appspot.com/4433066
 //
 // Not all type checks result in a single Kind check.  The rewrite of the type check for
 // reflect.ArrayOrSliceType checks x.Kind() against reflect.Array and reflect.Slice.
-// The rewrite for *reflect.IntType checks againt Int, Int8, Int16, Int32, Int64.
+// The rewrite for *reflect.IntType checks against Int, Int8, Int16, Int32, Int64.
 // The rewrite for *reflect.UintType adds Uintptr.
 //
 // A type switch turns into an assignment and a switch on Kind:

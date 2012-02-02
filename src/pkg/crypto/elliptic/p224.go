@@ -225,7 +225,7 @@ func p224ReduceLarge(out *p224FieldElement, in *p224LargeFieldElement) {
 		in[i] += p224ZeroModP63[i]
 	}
 
-	// Elimintate the coefficients at 2**224 and greater.
+	// Eliminate the coefficients at 2**224 and greater.
 	for i := 14; i >= 8; i-- {
 		in[i-8] -= in[i]
 		in[i-5] += (in[i] & 0xffff) << 12
@@ -288,7 +288,7 @@ func p224Reduce(a *p224FieldElement) {
 	a[0] += mask & (1 << 28)
 }
 
-// p224Invert calcuates *out = in**-1 by computing in**(2**224 - 2**96 - 1),
+// p224Invert calculates *out = in**-1 by computing in**(2**224 - 2**96 - 1),
 // i.e. Fermat's little theorem.
 func p224Invert(out, in *p224FieldElement) {
 	var f1, f2, f3, f4 p224FieldElement

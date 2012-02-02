@@ -154,7 +154,7 @@ func jsValEscaper(args ...interface{}) string {
 		a = fmt.Sprint(args...)
 	}
 	// TODO: detect cycles before calling Marshal which loops infinitely on
-	// cyclic data. This may be an unnacceptable DoS risk.
+	// cyclic data. This may be an unacceptable DoS risk.
 
 	b, err := json.Marshal(a)
 	if err != nil {

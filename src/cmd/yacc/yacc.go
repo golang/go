@@ -545,7 +545,7 @@ outer:
 	// put into prdptr array in the format
 	// target
 	// followed by id's of terminals and non-terminals
-	// followd by -nprod
+	// followed by -nprod
 
 	for t != MARK && t != ENDFILE {
 		mem := 0
