@@ -562,7 +562,7 @@ func makeEntry(f *FormInfo) uint16 {
 	switch f.quickCheck[MComposed] {
 	case QCYes:
 	case QCNo:
-		e |= 0x2
+		e |= 0x4
 	case QCMaybe:
 		e |= 0x6
 	default:
@@ -718,7 +718,7 @@ func makeTables() {
 		sz := nrentries * 8
 		size += sz
 		fmt.Printf("// recompMap: %d bytes (entries only)\n", sz)
-		fmt.Println("var recompMap = map[uint32]uint32{")
+		fmt.Println("var recompMap = map[uint32]rune{")
 		for i, c := range chars {
 			f := c.forms[FCanonical]
 			d := f.decomp
