@@ -29,7 +29,7 @@ type MethodSig struct {
 // For example, a type might implement a Scan method that
 // has nothing to do with fmt.Scanner, but we still want to check
 // the methods that are intended to implement fmt.Scanner.
-// To do that, the arguments that have a + prefix are treated as
+// To do that, the arguments that have a = prefix are treated as
 // signals that the canonical meaning is intended: if a Scan
 // method doesn't have a fmt.ScanState as its first argument,
 // we let it go.  But if it does have a fmt.ScanState, then the
