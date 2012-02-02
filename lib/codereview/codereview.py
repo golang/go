@@ -2187,10 +2187,6 @@ def reposetup(ui, repo):
 	if codereview_init:
 		return
 	codereview_init = True
-	
-	remote = ui.config("paths", "default", "")
-	if remote.find("://") < 0:
-		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
 
 	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
 	root = ''
@@ -2200,7 +2196,7 @@ def reposetup(ui, repo):
 		# Yes, repo might not have root; see issue 959.
 		codereview_disabled = 'codereview disabled: repository has no root'
 		return
-
+	
 	repo_config_path = ''
 	p1 = root + '/lib/codereview/codereview.cfg'
 	p2 = root + '/codereview.cfg'
@@ -2219,6 +2215,10 @@ def reposetup(ui, repo):
 	except:
 		codereview_disabled = 'codereview disabled: cannot open ' + repo_config_path
 		return
+
+	remote = ui.config("paths", "default", "")
+	if remote.find("://") < 0:
+		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
 
 	InstallMatch(ui, repo)
 	RietveldSetup(ui, repo)
