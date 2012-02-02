@@ -8,8 +8,7 @@
 
 package big
 
-// TODO(gri) Decide if Word needs to remain exported.
-
+// A Word represents a single digit of a multi-precision unsigned integer.
 type Word uintptr
 
 const (
