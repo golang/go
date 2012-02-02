@@ -14,7 +14,6 @@ type runeInfo struct {
 }
 
 // functions dispatchable per form
-type boundaryFunc func(f *formInfo, info runeInfo) bool
 type lookupFunc func(b input, i int) runeInfo
 type decompFunc func(b input, i int) []byte
 
@@ -24,10 +23,8 @@ type formInfo struct {
 
 	composing, compatibility bool // form type
 
-	decompose      decompFunc
-	info           lookupFunc
-	boundaryBefore boundaryFunc
-	boundaryAfter  boundaryFunc
+	decompose decompFunc
+	info      lookupFunc
 }
 
 var formTable []*formInfo
@@ -49,17 +46,17 @@ func init() {
 		}
 		if Form(i) == NFC || Form(i) == NFKC {
 			f.composing = true
-			f.boundaryBefore = compBoundaryBefore
-			f.boundaryAfter = compBoundaryAfter
-		} else {
-			f.boundaryBefore = decompBoundary
-			f.boundaryAfter = decompBoundary
 		}
 	}
 }
 
-func decompBoundary(f *formInfo, info runeInfo) bool {
-	if info.ccc == 0 && info.flags.isYesD() { // Implies isHangul(b) == true
+// We do not distinguish between boundaries for NFC, NFD, etc. to avoid
+// unexpected behavior for the user.  For example, in NFD, there is a boundary
+// after 'a'.  However, a might combine with modifiers, so from the application's
+// perspective it is not a good boundary. We will therefore always use the 
+// boundaries for the combining variants.
+func (i runeInfo) boundaryBefore() bool {
+	if i.ccc == 0 && !i.combinesBackward() {
 		return true
 	}
 	// We assume that the CCC of the first character in a decomposition
@@ -68,25 +65,13 @@ func decompBoundary(f *formInfo, info runeInfo) bool {
 	return false
 }
 
-func compBoundaryBefore(f *formInfo, info runeInfo) bool {
-	if info.ccc == 0 && !info.flags.combinesBackward() {
-		return true
-	}
-	// We assume that the CCC of the first character in a decomposition
-	// is always non-zero if different from info.ccc and that we can return
-	// false at this point. This is verified by maketables.
-	return false
-}
-
-func compBoundaryAfter(f *formInfo, info runeInfo) bool {
-	// This misses values where the last char in a decomposition is a
-	// boundary such as Hangul with JamoT.
-	return info.isInert()
+func (i runeInfo) boundaryAfter() bool {
+	return i.isInert()
 }
 
 // We pack quick check data in 4 bits:
 //   0:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
-//   1..2: NFC_QC Yes(00), No (01), or Maybe (11)
+//   1..2: NFC_QC Yes(00), No (10), or Maybe (11)
 //   3:    Combines forward  (0 == false, 1 == true)
 // 
 // When all 4 bits are zero, the character is inert, meaning it is never
@@ -95,15 +80,12 @@ func compBoundaryAfter(f *formInfo, info runeInfo) bool {
 // We pack the bits for both NFC/D and NFKC/D in one byte.
 type qcInfo uint8
 
-func (i qcInfo) isYesC() bool  { return i&0x2 == 0 }
-func (i qcInfo) isNoC() bool   { return i&0x6 == 0x2 }
-func (i qcInfo) isMaybe() bool { return i&0x4 != 0 }
-func (i qcInfo) isYesD() bool  { return i&0x1 == 0 }
-func (i qcInfo) isNoD() bool   { return i&0x1 != 0 }
+func (i runeInfo) isYesC() bool { return i.flags&0x4 == 0 }
+func (i runeInfo) isYesD() bool { return i.flags&0x1 == 0 }
 
-func (i qcInfo) combinesForward() bool  { return i&0x8 != 0 }
-func (i qcInfo) combinesBackward() bool { return i&0x4 != 0 } // == isMaybe
-func (i qcInfo) hasDecomposition() bool { return i&0x1 != 0 } // == isNoD
+func (i runeInfo) combinesForward() bool  { return i.flags&0x8 != 0 }
+func (i runeInfo) combinesBackward() bool { return i.flags&0x2 != 0 } // == isMaybe
+func (i runeInfo) hasDecomposition() bool { return i.flags&0x1 != 0 } // == isNoD
 
 func (r runeInfo) isInert() bool {
 	return r.flags&0xf == 0 && r.ccc == 0
@@ -137,7 +119,7 @@ func decomposeNFKC(s input, i int) []byte {
 // Note that the recomposition map for NFC and NFKC are identical.
 
 // combine returns the combined rune or 0 if it doesn't exist.
-func combine(a, b uint32) uint32 {
+func combine(a, b rune) rune {
 	key := uint32(uint16(a))<<16 + uint32(uint16(b))
 	return recompMap[key]
 }
@@ -148,10 +130,10 @@ func combine(a, b uint32) uint32 {
 //   12..15  qcInfo for NFKC/NFKD
 func lookupInfoNFC(b input, i int) runeInfo {
 	v, sz := b.charinfo(i)
-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 8)}
+	return runeInfo{size: uint8(sz), ccc: uint8(v), flags: qcInfo(v >> 8)}
 }
 
 func lookupInfoNFKC(b input, i int) runeInfo {
 	v, sz := b.charinfo(i)
-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 12)}
+	return runeInfo{size: uint8(sz), ccc: uint8(v), flags: qcInfo(v >> 12)}
 }

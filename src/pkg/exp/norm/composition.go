@@ -98,10 +98,10 @@ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
 func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
 	if info.size == 3 {
 		if rune := src.hangul(i); rune != 0 {
-			return rb.decomposeHangul(uint32(rune))
+			return rb.decomposeHangul(rune)
 		}
 	}
-	if info.flags.hasDecomposition() {
+	if info.hasDecomposition() {
 		dcomp := rb.f.decompose(src, i)
 		rb.tmpBytes = inputBytes(dcomp)
 		for i := 0; i < len(dcomp); {
@@ -126,26 +126,26 @@ func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
 }
 
 // appendRune inserts a rune at the end of the buffer. It is used for Hangul.
-func (rb *reorderBuffer) appendRune(r uint32) {
+func (rb *reorderBuffer) appendRune(r rune) {
 	bn := rb.nbyte
 	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
 	rb.nbyte += utf8.UTFMax
-	rb.rune[rb.nrune] = runeInfo{bn, uint8(sz), 0, 0}
+	rb.rune[rb.nrune] = runeInfo{pos: bn, size: uint8(sz)}
 	rb.nrune++
 }
 
 // assignRune sets a rune at position pos. It is used for Hangul and recomposition.
-func (rb *reorderBuffer) assignRune(pos int, r uint32) {
+func (rb *reorderBuffer) assignRune(pos int, r rune) {
 	bn := rb.rune[pos].pos
 	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
-	rb.rune[pos] = runeInfo{bn, uint8(sz), 0, 0}
+	rb.rune[pos] = runeInfo{pos: bn, size: uint8(sz)}
 }
 
 // runeAt returns the rune at position n. It is used for Hangul and recomposition.
-func (rb *reorderBuffer) runeAt(n int) uint32 {
+func (rb *reorderBuffer) runeAt(n int) rune {
 	inf := rb.rune[n]
 	r, _ := utf8.DecodeRune(rb.byte[inf.pos : inf.pos+inf.size])
-	return uint32(r)
+	return r
 }
 
 // bytesAt returns the UTF-8 encoding of the rune at position n.
@@ -237,7 +237,7 @@ func isHangulWithoutJamoT(b []byte) bool {
 // decomposeHangul algorithmically decomposes a Hangul rune into
 // its Jamo components.
 // See http://unicode.org/reports/tr15/#Hangul for details on decomposing Hangul.
-func (rb *reorderBuffer) decomposeHangul(r uint32) bool {
+func (rb *reorderBuffer) decomposeHangul(r rune) bool {
 	b := rb.rune[:]
 	n := rb.nrune
 	if n+3 > len(b) {
@@ -319,7 +319,7 @@ func (rb *reorderBuffer) compose() {
 		// get the info for the combined character. This is more
 		// expensive than using the filter. Using combinesBackward()
 		// is safe.
-		if ii.flags.combinesBackward() {
+		if ii.combinesBackward() {
 			cccB := b[k-1].ccc
 			cccC := ii.ccc
 			blocked := false // b[i] blocked by starter or greater or equal CCC?

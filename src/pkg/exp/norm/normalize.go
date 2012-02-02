@@ -188,11 +188,11 @@ func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
 		var info runeInfo
 		if p < n {
 			info = fd.info(src, p)
-			if p == 0 && !fd.boundaryBefore(fd, info) {
+			if p == 0 && !info.boundaryBefore() {
 				out = decomposeToLastBoundary(rb, out)
 			}
 		}
-		if info.size == 0 || fd.boundaryBefore(fd, info) {
+		if info.size == 0 || info.boundaryBefore() {
 			if fd.composing {
 				rb.compose()
 			}
@@ -257,11 +257,11 @@ func quickSpan(rb *reorderBuffer, i int) int {
 		}
 		cc := info.ccc
 		if rb.f.composing {
-			if !info.flags.isYesC() {
+			if !info.isYesC() {
 				break
 			}
 		} else {
-			if !info.flags.isYesD() {
+			if !info.isYesD() {
 				break
 			}
 		}
@@ -316,13 +316,13 @@ func firstBoundary(rb *reorderBuffer) int {
 	}
 	fd := &rb.f
 	info := fd.info(src, i)
-	for n := 0; info.size != 0 && !fd.boundaryBefore(fd, info); {
+	for n := 0; info.size != 0 && !info.boundaryBefore(); {
 		i += int(info.size)
 		if n++; n >= maxCombiningChars {
 			return i
 		}
 		if i >= nsrc {
-			if !fd.boundaryAfter(fd, info) {
+			if !info.boundaryAfter() {
 				return -1
 			}
 			return nsrc
@@ -368,11 +368,11 @@ func lastBoundary(fd *formInfo, b []byte) int {
 	if p+int(info.size) != i { // trailing non-starter bytes: illegal UTF-8
 		return i
 	}
-	if fd.boundaryAfter(fd, info) {
+	if info.boundaryAfter() {
 		return i
 	}
 	i = p
-	for n := 0; i >= 0 && !fd.boundaryBefore(fd, info); {
+	for n := 0; i >= 0 && !info.boundaryBefore(); {
 		info, p = lastRuneStart(fd, b[:i])
 		if n++; n >= maxCombiningChars {
 			return len(b)
@@ -404,7 +404,7 @@ func decomposeSegment(rb *reorderBuffer, sp int) int {
 			break
 		}
 		info = rb.f.info(rb.src, sp)
-		bound := rb.f.boundaryBefore(&rb.f, info)
+		bound := info.boundaryBefore()
 		if bound || info.size == 0 {
 			break
 		}
@@ -419,7 +419,7 @@ func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
 	for ; p >= 0 && !utf8.RuneStart(buf[p]); p-- {
 	}
 	if p < 0 {
-		return runeInfo{0, 0, 0, 0}, -1
+		return runeInfo{}, -1
 	}
 	return fd.info(inputBytes(buf), p), p
 }
@@ -433,7 +433,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 		// illegal trailing continuation bytes
 		return buf
 	}
-	if rb.f.boundaryAfter(fd, info) {
+	if info.boundaryAfter() {
 		return buf
 	}
 	var add [maxBackRunes]runeInfo // stores runeInfo in reverse order
@@ -441,13 +441,13 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 	padd := 1
 	n := 1
 	p := len(buf) - int(info.size)
-	for ; p >= 0 && !rb.f.boundaryBefore(fd, info); p -= int(info.size) {
+	for ; p >= 0 && !info.boundaryBefore(); p -= int(info.size) {
 		info, i = lastRuneStart(fd, buf[:p])
 		if int(info.size) != p-i {
 			break
 		}
 		// Check that decomposition doesn't result in overflow.
-		if info.flags.hasDecomposition() {
+		if info.hasDecomposition() {
 			dcomp := rb.f.decompose(inputBytes(buf), p-int(info.size))
 			for i := 0; i < len(dcomp); {
 				inf := rb.f.info(inputBytes(dcomp), i)
