@@ -667,10 +667,25 @@ func testnan() {
 		return time.Since(t0)
 	}
 
-	n := 60000 // 0.04 seconds on a MacBook Air
-	t1 := t(n)
-	t2 := t(2 * n)
-	if t2 > 3*t1 { // should be 2x (linear); allow up to 3x
-		fmt.Printf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2)
+	// Depending on the machine and OS, this test might be too fast
+	// to measure with accurate enough granularity. On failure,
+	// make it run longer, hoping that the timing granularity
+	// is eventually sufficient.
+
+	n := 30000 // 0.02 seconds on a MacBook Air
+	fails := 0
+	for {
+		t1 := t(n)
+		t2 := t(2 * n)
+		// should be 2x (linear); allow up to 3x
+		if t2 < 3*t1 {
+			return
+		}
+		fails++
+		if fails == 4 {
+			fmt.Printf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2)
+			return
+		}
+		n *= 2
 	}
 }
