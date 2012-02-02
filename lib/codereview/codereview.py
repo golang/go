@@ -1572,7 +1572,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 	try:
 		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
 	except:
-		return "hgpatch: " + ExceptionDetail()
+		return "hgpatch: " + ExceptionDetail() + "\nInstall hgpatch with:\n$ go get code.google.com/p/go.codereview/cmd/hgpatch\n"
 
 	out, err = cmd.communicate(patch)
 	if cmd.returncode != 0 and not opts["ignore_hgpatch_failure"]:
