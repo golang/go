@@ -568,4 +568,11 @@ TEXT runtime·getcallersp(SB),7,$0
 	MOVQ	sp+0(FP), AX
 	RET
 
+// int64 runtime·cputicks(void)
+TEXT runtime·cputicks(SB),7,$0
+	RDTSC
+	SHLQ	$32, DX
+	ADDQ	DX, AX
+	RET
+
 GLOBL runtime·tls0(SB), $64

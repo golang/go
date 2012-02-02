@@ -265,6 +265,16 @@ TEXT runtime·getcallersp(SB),7,$-4
 TEXT runtime·emptyfunc(SB),0,$0
 	RET
 
+// int64 runtime·cputicks(), so really
+// void runtime·cputicks(int64 *ticks)
+// stubbed: return int64(0)
+TEXT runtime·cputicks(SB),7,$0
+	MOVW    0(FP), R1
+	MOVW	$0, R0
+	MOVW    R0, 0(R1)
+	MOVW    R0, 4(R1)
+	RET
+
 TEXT runtime·abort(SB),7,$-4
 	MOVW	$0, R0
 	MOVW	(R0), R1

@@ -524,6 +524,15 @@ TEXT runtime·getcallersp(SB), 7, $0
 	MOVL	sp+0(FP), AX
 	RET
 
+// int64 runtime·cputicks(void), so really
+// void runtime·cputicks(int64 *ticks)
+TEXT runtime·cputicks(SB),7,$0
+	BYTE	$0x0F; BYTE $0x31;     // RDTSC; not supported by 8a
+	MOVL	ret+0(FP), DI
+	MOVL	AX, 0(DI)
+	MOVL	DX, 4(DI)
+	RET
+
 TEXT runtime·ldt0setup(SB),7,$16
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
