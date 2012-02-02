@@ -566,6 +566,7 @@ void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
 void	runtime·resetcpuprofiler(int32);
 void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
 void	runtime·usleep(uint32);
+int64	runtime·cputicks(void);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32

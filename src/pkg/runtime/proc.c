@@ -332,7 +332,7 @@ mcommoninit(M *m)
 	runtime·atomicstorep(&runtime·allm, m);
 
 	m->id = runtime·sched.mcount++;
-	m->fastrand = 0x49f6428aUL + m->id;
+	m->fastrand = 0x49f6428aUL + m->id + runtime·cputicks();
 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
 	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
 
