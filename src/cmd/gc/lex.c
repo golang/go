@@ -132,10 +132,25 @@ usage(void)
 {
 	print("gc: usage: %cg [flags] file.go...\n", thechar);
 	print("flags:\n");
-	// -A is allow use of "any" type, for bootstrapping
+	// -A allow use of "any" type, for bootstrapping
+	// -B disable bounds checking
+	// -E print imported declarations
+	// -K warn when lineno is zero
+	// -M print arguments to gmove
+	// -P print peephole diagnostics
+	// -R print optimizer diagnostics
+	// -g print code generation diagnostics
+	// -i print line history
+	// -j print variables to be initialized at runtime
+	// -r print generated helper functions
+	// -s print redundant types in composite literals
+	// -v print more information with -P or -R
+	// -y print declarations in cannedimports (used with -d)
+	// -% print non-static initializers
+	// -+ indicate that the runtime is being compiled
 	print("  -I DIR search for packages in DIR\n");
 	print("  -L show full path in file:line prints\n");
-	print("  -N disable optimizer\n");
+	print("  -N disable optimizations\n");
 	print("  -S print the assembly language\n");
 	print("  -V print the compiler version\n");
 	print("  -W print the parse tree after typing\n");
@@ -143,10 +158,10 @@ usage(void)
 	print("  -e no limit on number of errors printed\n");
 	print("  -f print stack frame structure\n");
 	print("  -h panic on an error\n");
-	print("  -m print about moves to heap\n");
+	print("  -l disable inlining\n");
+	print("  -m print optimization decisions\n");
 	print("  -o file specify output file\n");
 	print("  -p assumed import path for this code\n");
-	print("  -s disable escape analysis\n");
 	print("  -u disable package unsafe\n");
 	print("  -w print type checking details\n");
 	print("  -x print lex tokens\n");
