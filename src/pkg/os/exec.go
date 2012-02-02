@@ -12,11 +12,11 @@ import (
 // Process stores the information about a process created by StartProcess.
 type Process struct {
 	Pid    int
-	handle int
+	handle uintptr
 	done   bool // process has been successfuly waited on
 }
 
-func newProcess(pid, handle int) *Process {
+func newProcess(pid int, handle uintptr) *Process {
 	p := &Process{Pid: pid, handle: handle}
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
