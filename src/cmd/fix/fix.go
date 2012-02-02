@@ -704,7 +704,7 @@ func rewriteImport(f *ast.File, oldPath, newPath string) (rewrote bool) {
 	for _, imp := range f.Imports {
 		if importPath(imp) == oldPath {
 			rewrote = true
-			// record old End, beacuse the default is to compute
+			// record old End, because the default is to compute
 			// it using the length of imp.Path.Value.
 			imp.EndPos = imp.End()
 			imp.Path.Value = strconv.Quote(newPath)

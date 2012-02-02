@@ -193,7 +193,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 
 	// If the field type has an XMLName field, the names must match
 	// so that the behavior of both marshalling and unmarshalling
-	// is straighforward and unambiguous.
+	// is straightforward and unambiguous.
 	if finfo.flags&fElement != 0 {
 		ftyp := f.Type
 		xmlname := lookupXMLName(ftyp)

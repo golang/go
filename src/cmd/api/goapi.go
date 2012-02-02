@@ -119,7 +119,7 @@ type Walker struct {
 	lastConstType   string
 	curPackageName  string
 	curPackage      *ast.Package
-	prevConstType   map[string]string // identifer -> "ideal-int"
+	prevConstType   map[string]string // identifier -> "ideal-int"
 	packageState    map[string]loadState
 	interfaces      map[pkgSymbol]*ast.InterfaceType
 	selectorFullPkg map[string]string // "http" => "net/http", updated by imports
