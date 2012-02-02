@@ -230,7 +230,13 @@ func TestScan(t *testing.T) {
 	var s Scanner
 	s.Init(fset.AddFile("", fset.Base(), len(source)), source, &testErrorHandler{t}, ScanComments|dontInsertSemis)
 	index := 0
-	epos := token.Position{"", 0, 1, 1} // expected position
+	// epos is the expected position
+	epos := token.Position{
+		Filename: "",
+		Offset:   0,
+		Line:     1,
+		Column:   1,
+	}
 	for {
 		pos, tok, lit := s.Scan()
 		if lit == "" {
@@ -505,7 +511,12 @@ func TestLineComments(t *testing.T) {
 	for _, s := range segs {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
-		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+		checkPos(t, lit, p, token.Position{
+			Filename: s.filename,
+			Offset:   pos.Offset,
+			Line:     s.line,
+			Column:   pos.Column,
+		})
 	}
 
 	if S.ErrorCount != 0 {

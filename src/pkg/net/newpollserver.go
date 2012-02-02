@@ -36,7 +36,11 @@ func newPollServer() (s *pollServer, err error) {
 	return s, nil
 
 Errno:
-	err = &os.PathError{"setnonblock", s.pr.Name(), err}
+	err = &os.PathError{
+		Op:   "setnonblock",
+		Path: s.pr.Name(),
+		Err:  err,
+	}
 Error:
 	s.pr.Close()
 	s.pw.Close()

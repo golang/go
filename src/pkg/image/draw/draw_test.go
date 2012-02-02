@@ -168,15 +168,15 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
 		sy := y + sp.Y - r.Min.Y
 		my := y + mp.Y - r.Min.Y
 		for x := r.Min.X; x < r.Max.X; x++ {
-			if !(image.Point{x, y}.In(b)) {
+			if !(image.Pt(x, y).In(b)) {
 				continue
 			}
 			sx := x + sp.X - r.Min.X
-			if !(image.Point{sx, sy}.In(sb)) {
+			if !(image.Pt(sx, sy).In(sb)) {
 				continue
 			}
 			mx := x + mp.X - r.Min.X
-			if !(image.Point{mx, my}.In(mb)) {
+			if !(image.Pt(mx, my).In(mb)) {
 				continue
 			}
 
@@ -313,7 +313,7 @@ func TestFill(t *testing.T) {
 		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
 		b := m.Bounds()
 		c := color.RGBA{11, 0, 0, 255}
-		src := &image.Uniform{c}
+		src := &image.Uniform{C: c}
 		check := func(desc string) {
 			for y := b.Min.Y; y < b.Max.Y; y++ {
 				for x := b.Min.X; x < b.Max.X; x++ {
@@ -333,21 +333,21 @@ func TestFill(t *testing.T) {
 		check("pixel")
 		// Draw 1 row at a time.
 		c = color.RGBA{0, 22, 0, 255}
-		src = &image.Uniform{c}
+		src = &image.Uniform{C: c}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
 		}
 		check("row")
 		// Draw 1 column at a time.
 		c = color.RGBA{0, 0, 33, 255}
-		src = &image.Uniform{c}
+		src = &image.Uniform{C: c}
 		for x := b.Min.X; x < b.Max.X; x++ {
 			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
 		}
 		check("column")
 		// Draw the whole image at once.
 		c = color.RGBA{44, 55, 66, 77}
-		src = &image.Uniform{c}
+		src = &image.Uniform{C: c}
 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
 		check("whole")
 	}

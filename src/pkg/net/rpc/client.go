@@ -232,7 +232,12 @@ func DialHTTPPath(network, address, path string) (*Client, error) {
 		err = errors.New("unexpected HTTP response: " + resp.Status)
 	}
 	conn.Close()
-	return nil, &net.OpError{"dial-http", network + " " + address, nil, err}
+	return nil, &net.OpError{
+		Op:   "dial-http",
+		Net:  network + " " + address,
+		Addr: nil,
+		Err:  err,
+	}
 }
 
 // Dial connects to an RPC server at the specified network address.

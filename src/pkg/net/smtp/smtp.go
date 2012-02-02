@@ -155,7 +155,7 @@ func (c *Client) Auth(a Auth) error {
 			// the last message isn't base64 because it isn't a challenge
 			msg = []byte(msg64)
 		default:
-			err = &textproto.Error{code, msg64}
+			err = &textproto.Error{Code: code, Msg: msg64}
 		}
 		resp, err = a.Next(msg, code == 334)
 		if err != nil {

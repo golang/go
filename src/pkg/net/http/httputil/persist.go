@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	ErrPersistEOF = &http.ProtocolError{"persistent connection closed"}
-	ErrPipeline   = &http.ProtocolError{"pipeline error"}
+	ErrPersistEOF = &http.ProtocolError{ErrorString: "persistent connection closed"}
+	ErrPipeline   = &http.ProtocolError{ErrorString: "pipeline error"}
 )
 
 // This is an API usage error - the local side is closed.

@@ -1471,7 +1471,7 @@ func TestEscapeText(t *testing.T) {
 
 	for _, test := range tests {
 		b, e := []byte(test.input), newEscaper(nil)
-		c := e.escapeText(context{}, &parse.TextNode{parse.NodeText, b})
+		c := e.escapeText(context{}, &parse.TextNode{NodeType: parse.NodeText, Text: b})
 		if !test.output.eq(c) {
 			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
 			continue

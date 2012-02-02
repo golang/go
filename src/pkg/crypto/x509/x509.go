@@ -592,7 +592,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					return nil, err
 				}
 				if !seq.IsCompound || seq.Tag != 16 || seq.Class != 0 {
-					return nil, asn1.StructuralError{"bad SAN sequence"}
+					return nil, asn1.StructuralError{Msg: "bad SAN sequence"}
 				}
 
 				parsedName := false
@@ -744,7 +744,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 		return nil, err
 	}
 	if len(rest) > 0 {
-		return nil, asn1.SyntaxError{"trailing data"}
+		return nil, asn1.SyntaxError{Msg: "trailing data"}
 	}
 
 	return parseCertificate(&cert)
