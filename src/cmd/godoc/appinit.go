@@ -56,6 +56,9 @@ func init() {
 	// initialize directory trees for user-defined file systems (-path flag).
 	initDirTrees()
 
+	// Immediately update metadata.
+	updateMetadata()
+
 	// initialize search index
 	if *indexEnabled {
 		go indexer()
