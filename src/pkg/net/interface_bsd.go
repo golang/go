@@ -18,8 +18,6 @@ import (
 // network interfaces.  Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
-	var ift []Interface
-
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
 	if err != nil {
 		return nil, os.NewSyscallError("route rib", err)
@@ -30,6 +28,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		return nil, os.NewSyscallError("route message", err)
 	}
 
+	var ift []Interface
 	for _, m := range msgs {
 		switch v := m.(type) {
 		case *syscall.InterfaceMessage:
@@ -42,18 +41,16 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 			}
 		}
 	}
-
 	return ift, nil
 }
 
 func newLink(m *syscall.InterfaceMessage) ([]Interface, error) {
-	var ift []Interface
-
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
 		return nil, os.NewSyscallError("route sockaddr", err)
 	}
 
+	var ift []Interface
 	for _, s := range sas {
 		switch v := s.(type) {
 		case *syscall.SockaddrDatalink:
@@ -75,7 +72,6 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, error) {
 			ift = append(ift, ifi)
 		}
 	}
-
 	return ift, nil
 }
 
@@ -103,8 +99,6 @@ func linkFlags(rawFlags int32) Flags {
 // for all network interfaces.  Otherwise it returns addresses
 // for a specific interface.
 func interfaceAddrTable(ifindex int) ([]Addr, error) {
-	var ifat []Addr
-
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
 	if err != nil {
 		return nil, os.NewSyscallError("route rib", err)
@@ -115,6 +109,7 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 		return nil, os.NewSyscallError("route message", err)
 	}
 
+	var ifat []Addr
 	for _, m := range msgs {
 		switch v := m.(type) {
 		case *syscall.InterfaceAddrMessage:
@@ -127,18 +122,16 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 			}
 		}
 	}
-
 	return ifat, nil
 }
 
 func newAddr(m *syscall.InterfaceAddrMessage) (Addr, error) {
-	ifa := &IPNet{}
-
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
 		return nil, os.NewSyscallError("route sockaddr", err)
 	}
 
+	ifa := &IPNet{}
 	for i, s := range sas {
 		switch v := s.(type) {
 		case *syscall.SockaddrInet4:
@@ -166,6 +159,5 @@ func newAddr(m *syscall.InterfaceAddrMessage) (Addr, error) {
 			}
 		}
 	}
-
 	return ifa, nil
 }
