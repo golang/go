@@ -68,6 +68,9 @@ func testpdpd() {
 
 	a = a[5:25]
 	res(sumpd(a), 5, 25)
+
+	a = a[30:95]
+	res(sumpd(a), 35, 100)
 }
 
 // call ptr fixed with ptr fixed
