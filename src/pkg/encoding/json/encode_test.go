@@ -126,3 +126,44 @@ func TestUnsupportedValues(t *testing.T) {
 		}
 	}
 }
+
+// Ref has Marshaler and Unmarshaler methods with pointer receiver.
+type Ref int
+
+func (*Ref) MarshalJSON() ([]byte, error) {
+	return []byte(`"ref"`), nil
+}
+
+func (r *Ref) UnmarshalJSON([]byte) error {
+	*r = 12
+	return nil
+}
+
+// Val has Marshaler methods with value receiver.
+type Val int
+
+func (Val) MarshalJSON() ([]byte, error) {
+	return []byte(`"val"`), nil
+}
+
+func TestRefValMarshal(t *testing.T) {
+	var s = struct {
+		R0 Ref
+		R1 *Ref
+		V0 Val
+		V1 *Val
+	}{
+		R0: 12,
+		R1: new(Ref),
+		V0: 13,
+		V1: new(Val),
+	}
+	const want = `{"R0":"ref","R1":"ref","V0":"val","V1":"val"}`
+	b, err := Marshal(&s)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
