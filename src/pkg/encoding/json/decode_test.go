@@ -598,3 +598,24 @@ var pallValueIndent = `{
 }`
 
 var pallValueCompact = strings.Map(noSpace, pallValueIndent)
+
+func TestRefUnmarshal(t *testing.T) {
+	type S struct {
+		// Ref is defined in encode_test.go.
+		R0 Ref
+		R1 *Ref
+	}
+	want := S{
+		R0: 12,
+		R1: new(Ref),
+	}
+	*want.R1 = 12
+
+	var got S
+	if err := Unmarshal([]byte(`{"R0":"ref","R1":"ref"}`), &got); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}

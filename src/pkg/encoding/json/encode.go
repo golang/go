@@ -262,8 +262,18 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 		return
 	}
 
-	if j, ok := v.Interface().(Marshaler); ok && (v.Kind() != reflect.Ptr || !v.IsNil()) {
-		b, err := j.MarshalJSON()
+	m, ok := v.Interface().(Marshaler)
+	if !ok {
+		// T doesn't match the interface. Check against *T too.
+		if v.Kind() != reflect.Ptr && v.CanAddr() {
+			m, ok = v.Addr().Interface().(Marshaler)
+			if ok {
+				v = v.Addr()
+			}
+		}
+	}
+	if ok && (v.Kind() != reflect.Ptr || !v.IsNil()) {
+		b, err := m.MarshalJSON()
 		if err == nil {
 			// copy JSON into buffer, checking validity.
 			err = Compact(&e.Buffer, b)
