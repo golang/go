@@ -154,6 +154,10 @@ type reader struct {
 	funcs   methodSet
 }
 
+func (r *reader) isVisible(name string) bool {
+	return r.mode&AllDecls != 0 || ast.IsExported(name)
+}
+
 // lookupType returns the base type with the given name.
 // If the base type has not been encountered yet, a new
 // type with the given name but no associated declaration
@@ -343,7 +347,7 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 	// strip function body
 	fun.Body = nil
 
-	// determine if it should be associated with a type
+	// associate methods with the receiver type, if any
 	if fun.Recv != nil {
 		// method
 		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
@@ -363,17 +367,16 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 		return
 	}
 
-	// perhaps a factory function
-	// determine result type, if any
+	// associate factory functions with the first visible result type, if any
 	if fun.Type.Results.NumFields() >= 1 {
 		res := fun.Type.Results.List[0]
 		if len(res.Names) <= 1 {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
-			if n, imp := baseTypeName(res.Type); !imp {
+			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
 				if typ := r.lookupType(n); typ != nil {
-					// associate Func with typ
+					// associate function with typ
 					typ.funcs.set(fun)
 					return
 				}
@@ -580,7 +583,7 @@ func (r *reader) computeMethodSets() {
 // 
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
-		visible := r.mode&AllDecls != 0 || ast.IsExported(t.name)
+		visible := r.isVisible(t.name)
 		if t.decl == nil && (predeclaredTypes[t.name] || t.isEmbedded && visible) {
 			// t.name is a predeclared type (and was not redeclared in this package),
 			// or it was embedded somewhere but its declaration is missing (because
