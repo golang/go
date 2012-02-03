@@ -6,7 +6,7 @@
 
 // used to crash the compiler
 
-package main
+package bug235
 
 type T struct {
 	x [4]byte

@@ -7,7 +7,7 @@
 // issue 2086
 // was calling makeclosure twice on the closure
 
-package main
+package bug354
 
 type Inner struct {
 	F func() error

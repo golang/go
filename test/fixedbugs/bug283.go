@@ -7,7 +7,7 @@
 // http://code.google.com/p/go/issues/detail?id=806
 // triggered out of registers on 8g
 
-package main
+package bug283
 
 type Point struct {
 	x int
