@@ -4,7 +4,7 @@
 
 # Makefile for commands written in C.
 
-# Tools always go into $GOROOT/bin/go-tool
+# Tools always go into $GOROOT/bin/tool
 
 ifeq (windows,$(findstring windows, $(shell uname | tr A-Z a-z | sed 's/mingw/windows/')))
 TARG:=$(TARG).exe
@@ -21,14 +21,14 @@ clean:
 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
 
 nuke: clean
-	rm -f "$(GOROOT)/bin/go-tool/$(TARG)"
+	rm -f "$(GOROOT)/bin/tool/$(TARG)"
 
 ifneq ($(NOINSTALL),1)
-install: $(QUOTED_GOROOT)/bin/go-tool/$(TARG)
+install: $(QUOTED_GOROOT)/bin/tool/$(TARG)
 endif
 
-$(QUOTED_GOROOT)/bin/go-tool/$(TARG): $(TARG)
-	mkdir -p "$(GOROOT)/bin/go-tool" && cp $(TARG) "$(GOROOT)/bin/go-tool/$(TARG)"
+$(QUOTED_GOROOT)/bin/tool/$(TARG): $(TARG)
+	mkdir -p "$(GOROOT)/bin/tool" && cp $(TARG) "$(GOROOT)/bin/tool/$(TARG)"
 
 y.tab.h: $(YFILES)
 	bison -y $(HOST_YFLAGS) $(YFILES)

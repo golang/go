@@ -31,7 +31,7 @@ var (
 	toolGOOS      = runtime.GOOS
 	toolGOARCH    = runtime.GOARCH
 	toolIsWindows = toolGOOS == "windows"
-	toolDir       = filepath.Join(build.Path[0].Path, "bin", "go-tool")
+	toolDir       = filepath.Join(build.Path[0].Path, "bin", "tool")
 )
 
 const toolWindowsExtension = ".exe"
@@ -81,7 +81,7 @@ func runTool(cmd *Command, args []string) {
 	}
 }
 
-// listTools prints a list of the available tools in the go-tools directory.
+// listTools prints a list of the available tools in the tools directory.
 func listTools() {
 	f, err := os.Open(toolDir)
 	if err != nil {

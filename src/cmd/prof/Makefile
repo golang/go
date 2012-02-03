@@ -32,7 +32,7 @@ install-darwin: $(TARG)
 	@true
 
 install-default: $(TARG)
-	cp $(TARG) "$(GOROOT)"/bin/go-tool/$(TARG)
+	cp $(TARG) "$(GOROOT)"/bin/tool/$(TARG)
 
 install-pprof: pprof
-	cp pprof "$(GOROOT)"/bin/go-tool/pprof
+	cp pprof "$(GOROOT)"/bin/tool/pprof

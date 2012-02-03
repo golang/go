@@ -98,15 +98,15 @@ GOBIN=$(QUOTED_GOROOT)/bin
 endif
 QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
 
-AS=$(QUOTED_GOROOT)/bin/go-tool/$(O)a
-CC=$(QUOTED_GOROOT)/bin/go-tool/$(O)c
-GC=$(QUOTED_GOROOT)/bin/go-tool/$(O)g
-LD=$(QUOTED_GOROOT)/bin/go-tool/$(O)l
+AS=$(QUOTED_GOROOT)/bin/tool/$(O)a
+CC=$(QUOTED_GOROOT)/bin/tool/$(O)c
+GC=$(QUOTED_GOROOT)/bin/tool/$(O)g
+LD=$(QUOTED_GOROOT)/bin/tool/$(O)l
 OS=568vq
 CFLAGS=-FVw
 
-HOST_CC=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
-HOST_LD=$(QUOTED_GOROOT)/bin/go-tool/quietgcc
+HOST_CC=$(QUOTED_GOROOT)/bin/tool/quietgcc
+HOST_LD=$(QUOTED_GOROOT)/bin/tool/quietgcc
 HOST_O=o
 HOST_YFLAGS=-d
 HOST_AR?=ar

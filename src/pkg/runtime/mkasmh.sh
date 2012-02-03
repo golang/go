@@ -16,7 +16,7 @@ case "$GOARCH" in
 amd64) CC=6c;;
 arm) CC=5c;;
 esac
-CC="$GOROOT/bin/go-tool/$CC"
+CC="$GOROOT/bin/tool/$CC"
 export CC
 
 export CFLAGS="-Dos_$GOOS -Darch_$GOARCH"
