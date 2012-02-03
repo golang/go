@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
  * make is(upper|lower|title|space|alpha)rune and
  * to(upper|lower|title)rune from a UnicodeData.txt file.

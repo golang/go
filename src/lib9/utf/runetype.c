@@ -35,4 +35,4 @@ rbsearch(Rune c, Rune *t, int n, int ne)
 	return 0;
 }
 
-#include "runetypebody-6.0.0.c"
+#include "runetypebody-6.0.0.h"
