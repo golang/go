@@ -114,7 +114,12 @@ func registerPublicHandlers(mux *http.ServeMux) {
 }
 
 func initFSTree() {
-	fsTree.set(newDirectory(filepath.Join(*goroot, *testDir), nil, -1))
+	dir := newDirectory(filepath.Join(*goroot, *testDir), nil, -1)
+	if dir == nil {
+		log.Println("Warning: FSTree is nil")
+		return
+	}
+	fsTree.set(dir)
 	invalidateIndex()
 }
 
