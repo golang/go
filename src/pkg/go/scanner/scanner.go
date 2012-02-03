@@ -53,36 +53,36 @@ type Scanner struct {
 	ErrorCount int // number of errors encountered
 }
 
-// Read the next Unicode char into S.ch.
-// S.ch < 0 means end-of-file.
+// Read the next Unicode char into s.ch.
+// s.ch < 0 means end-of-file.
 //
-func (S *Scanner) next() {
-	if S.rdOffset < len(S.src) {
-		S.offset = S.rdOffset
-		if S.ch == '\n' {
-			S.lineOffset = S.offset
-			S.file.AddLine(S.offset)
+func (s *Scanner) next() {
+	if s.rdOffset < len(s.src) {
+		s.offset = s.rdOffset
+		if s.ch == '\n' {
+			s.lineOffset = s.offset
+			s.file.AddLine(s.offset)
 		}
-		r, w := rune(S.src[S.rdOffset]), 1
+		r, w := rune(s.src[s.rdOffset]), 1
 		switch {
 		case r == 0:
-			S.error(S.offset, "illegal character NUL")
+			s.error(s.offset, "illegal character NUL")
 		case r >= 0x80:
 			// not ASCII
-			r, w = utf8.DecodeRune(S.src[S.rdOffset:])
+			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
 			if r == utf8.RuneError && w == 1 {
-				S.error(S.offset, "illegal UTF-8 encoding")
+				s.error(s.offset, "illegal UTF-8 encoding")
 			}
 		}
-		S.rdOffset += w
-		S.ch = r
+		s.rdOffset += w
+		s.ch = r
 	} else {
-		S.offset = len(S.src)
-		if S.ch == '\n' {
-			S.lineOffset = S.offset
-			S.file.AddLine(S.offset)
+		s.offset = len(s.src)
+		if s.ch == '\n' {
+			s.lineOffset = s.offset
+			s.file.AddLine(s.offset)
 		}
-		S.ch = -1 // eof
+		s.ch = -1 // eof
 	}
 }
 
@@ -96,7 +96,7 @@ const (
 	dontInsertSemis                  // do not automatically insert semicolons - for testing only
 )
 
-// Init prepares the scanner S to tokenize the text src by setting the
+// Init prepares the scanner s to tokenize the text src by setting the
 // scanner at the beginning of src. The scanner uses the file set file
 // for position information and it adds line information for each line.
 // It is ok to re-use the same file when re-scanning the same file as
@@ -111,37 +111,37 @@ const (
 // Note that Init may call err if there is an error in the first character
 // of the file.
 //
-func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
+func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	if file.Size() != len(src) {
 		panic("file size does not match src len")
 	}
-	S.file = file
-	S.dir, _ = filepath.Split(file.Name())
-	S.src = src
-	S.err = err
-	S.mode = mode
+	s.file = file
+	s.dir, _ = filepath.Split(file.Name())
+	s.src = src
+	s.err = err
+	s.mode = mode
 
-	S.ch = ' '
-	S.offset = 0
-	S.rdOffset = 0
-	S.lineOffset = 0
-	S.insertSemi = false
-	S.ErrorCount = 0
+	s.ch = ' '
+	s.offset = 0
+	s.rdOffset = 0
+	s.lineOffset = 0
+	s.insertSemi = false
+	s.ErrorCount = 0
 
-	S.next()
+	s.next()
 }
 
-func (S *Scanner) error(offs int, msg string) {
-	if S.err != nil {
-		S.err.Error(S.file.Position(S.file.Pos(offs)), msg)
+func (s *Scanner) error(offs int, msg string) {
+	if s.err != nil {
+		s.err.Error(s.file.Position(s.file.Pos(offs)), msg)
 	}
-	S.ErrorCount++
+	s.ErrorCount++
 }
 
 var prefix = []byte("//line ")
 
-func (S *Scanner) interpretLineComment(text []byte) {
+func (s *Scanner) interpretLineComment(text []byte) {
 	if bytes.HasPrefix(text, prefix) {
 		// get filename and line number, if any
 		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
@@ -150,88 +150,88 @@ func (S *Scanner) interpretLineComment(text []byte) {
 				filename := filepath.Clean(string(text[len(prefix):i]))
 				if !filepath.IsAbs(filename) {
 					// make filename relative to current directory
-					filename = filepath.Join(S.dir, filename)
+					filename = filepath.Join(s.dir, filename)
 				}
 				// update scanner position
-				S.file.AddLineInfo(S.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
+				s.file.AddLineInfo(s.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
 			}
 		}
 	}
 }
 
-func (S *Scanner) scanComment() string {
-	// initial '/' already consumed; S.ch == '/' || S.ch == '*'
-	offs := S.offset - 1 // position of initial '/'
+func (s *Scanner) scanComment() string {
+	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
+	offs := s.offset - 1 // position of initial '/'
 
-	if S.ch == '/' {
+	if s.ch == '/' {
 		//-style comment
-		S.next()
-		for S.ch != '\n' && S.ch >= 0 {
-			S.next()
+		s.next()
+		for s.ch != '\n' && s.ch >= 0 {
+			s.next()
 		}
-		if offs == S.lineOffset {
+		if offs == s.lineOffset {
 			// comment starts at the beginning of the current line
-			S.interpretLineComment(S.src[offs:S.offset])
+			s.interpretLineComment(s.src[offs:s.offset])
 		}
 		goto exit
 	}
 
 	/*-style comment */
-	S.next()
-	for S.ch >= 0 {
-		ch := S.ch
-		S.next()
-		if ch == '*' && S.ch == '/' {
-			S.next()
+	s.next()
+	for s.ch >= 0 {
+		ch := s.ch
+		s.next()
+		if ch == '*' && s.ch == '/' {
+			s.next()
 			goto exit
 		}
 	}
 
-	S.error(offs, "comment not terminated")
+	s.error(offs, "comment not terminated")
 
 exit:
-	return string(S.src[offs:S.offset])
+	return string(s.src[offs:s.offset])
 }
 
-func (S *Scanner) findLineEnd() bool {
+func (s *Scanner) findLineEnd() bool {
 	// initial '/' already consumed
 
 	defer func(offs int) {
 		// reset scanner state to where it was upon calling findLineEnd
-		S.ch = '/'
-		S.offset = offs
-		S.rdOffset = offs + 1
-		S.next() // consume initial '/' again
-	}(S.offset - 1)
+		s.ch = '/'
+		s.offset = offs
+		s.rdOffset = offs + 1
+		s.next() // consume initial '/' again
+	}(s.offset - 1)
 
 	// read ahead until a newline, EOF, or non-comment token is found
-	for S.ch == '/' || S.ch == '*' {
-		if S.ch == '/' {
+	for s.ch == '/' || s.ch == '*' {
+		if s.ch == '/' {
 			//-style comment always contains a newline
 			return true
 		}
 		/*-style comment: look for newline */
-		S.next()
-		for S.ch >= 0 {
-			ch := S.ch
+		s.next()
+		for s.ch >= 0 {
+			ch := s.ch
 			if ch == '\n' {
 				return true
 			}
-			S.next()
-			if ch == '*' && S.ch == '/' {
-				S.next()
+			s.next()
+			if ch == '*' && s.ch == '/' {
+				s.next()
 				break
 			}
 		}
-		S.skipWhitespace() // S.insertSemi is set
-		if S.ch < 0 || S.ch == '\n' {
+		s.skipWhitespace() // s.insertSemi is set
+		if s.ch < 0 || s.ch == '\n' {
 			return true
 		}
-		if S.ch != '/' {
+		if s.ch != '/' {
 			// non-comment token
 			return false
 		}
-		S.next() // consume '/'
+		s.next() // consume '/'
 	}
 
 	return false
@@ -245,12 +245,12 @@ func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
 }
 
-func (S *Scanner) scanIdentifier() string {
-	offs := S.offset
-	for isLetter(S.ch) || isDigit(S.ch) {
-		S.next()
+func (s *Scanner) scanIdentifier() string {
+	offs := s.offset
+	for isLetter(s.ch) || isDigit(s.ch) {
+		s.next()
 	}
-	return string(S.src[offs:S.offset])
+	return string(s.src[offs:s.offset])
 }
 
 func digitVal(ch rune) int {
@@ -265,176 +265,176 @@ func digitVal(ch rune) int {
 	return 16 // larger than any legal digit val
 }
 
-func (S *Scanner) scanMantissa(base int) {
-	for digitVal(S.ch) < base {
-		S.next()
+func (s *Scanner) scanMantissa(base int) {
+	for digitVal(s.ch) < base {
+		s.next()
 	}
 }
 
-func (S *Scanner) scanNumber(seenDecimalPoint bool) (token.Token, string) {
-	// digitVal(S.ch) < 10
-	offs := S.offset
+func (s *Scanner) scanNumber(seenDecimalPoint bool) (token.Token, string) {
+	// digitVal(s.ch) < 10
+	offs := s.offset
 	tok := token.INT
 
 	if seenDecimalPoint {
 		offs--
 		tok = token.FLOAT
-		S.scanMantissa(10)
+		s.scanMantissa(10)
 		goto exponent
 	}
 
-	if S.ch == '0' {
+	if s.ch == '0' {
 		// int or float
-		offs := S.offset
-		S.next()
-		if S.ch == 'x' || S.ch == 'X' {
+		offs := s.offset
+		s.next()
+		if s.ch == 'x' || s.ch == 'X' {
 			// hexadecimal int
-			S.next()
-			S.scanMantissa(16)
-			if S.offset-offs <= 2 {
+			s.next()
+			s.scanMantissa(16)
+			if s.offset-offs <= 2 {
 				// only scanned "0x" or "0X"
-				S.error(offs, "illegal hexadecimal number")
+				s.error(offs, "illegal hexadecimal number")
 			}
 		} else {
 			// octal int or float
 			seenDecimalDigit := false
-			S.scanMantissa(8)
-			if S.ch == '8' || S.ch == '9' {
+			s.scanMantissa(8)
+			if s.ch == '8' || s.ch == '9' {
 				// illegal octal int or float
 				seenDecimalDigit = true
-				S.scanMantissa(10)
+				s.scanMantissa(10)
 			}
-			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' || S.ch == 'i' {
+			if s.ch == '.' || s.ch == 'e' || s.ch == 'E' || s.ch == 'i' {
 				goto fraction
 			}
 			// octal int
 			if seenDecimalDigit {
-				S.error(offs, "illegal octal number")
+				s.error(offs, "illegal octal number")
 			}
 		}
 		goto exit
 	}
 
 	// decimal int or float
-	S.scanMantissa(10)
+	s.scanMantissa(10)
 
 fraction:
-	if S.ch == '.' {
+	if s.ch == '.' {
 		tok = token.FLOAT
-		S.next()
-		S.scanMantissa(10)
+		s.next()
+		s.scanMantissa(10)
 	}
 
 exponent:
-	if S.ch == 'e' || S.ch == 'E' {
+	if s.ch == 'e' || s.ch == 'E' {
 		tok = token.FLOAT
-		S.next()
-		if S.ch == '-' || S.ch == '+' {
-			S.next()
+		s.next()
+		if s.ch == '-' || s.ch == '+' {
+			s.next()
 		}
-		S.scanMantissa(10)
+		s.scanMantissa(10)
 	}
 
-	if S.ch == 'i' {
+	if s.ch == 'i' {
 		tok = token.IMAG
-		S.next()
+		s.next()
 	}
 
 exit:
-	return tok, string(S.src[offs:S.offset])
+	return tok, string(s.src[offs:s.offset])
 }
 
-func (S *Scanner) scanEscape(quote rune) {
-	offs := S.offset
+func (s *Scanner) scanEscape(quote rune) {
+	offs := s.offset
 
 	var i, base, max uint32
-	switch S.ch {
+	switch s.ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-		S.next()
+		s.next()
 		return
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		i, base, max = 3, 8, 255
 	case 'x':
-		S.next()
+		s.next()
 		i, base, max = 2, 16, 255
 	case 'u':
-		S.next()
+		s.next()
 		i, base, max = 4, 16, unicode.MaxRune
 	case 'U':
-		S.next()
+		s.next()
 		i, base, max = 8, 16, unicode.MaxRune
 	default:
-		S.next() // always make progress
-		S.error(offs, "unknown escape sequence")
+		s.next() // always make progress
+		s.error(offs, "unknown escape sequence")
 		return
 	}
 
 	var x uint32
-	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
-		d := uint32(digitVal(S.ch))
+	for ; i > 0 && s.ch != quote && s.ch >= 0; i-- {
+		d := uint32(digitVal(s.ch))
 		if d >= base {
-			S.error(S.offset, "illegal character in escape sequence")
+			s.error(s.offset, "illegal character in escape sequence")
 			break
 		}
 		x = x*base + d
-		S.next()
+		s.next()
 	}
 	// in case of an error, consume remaining chars
-	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
-		S.next()
+	for ; i > 0 && s.ch != quote && s.ch >= 0; i-- {
+		s.next()
 	}
 	if x > max || 0xd800 <= x && x < 0xe000 {
-		S.error(offs, "escape sequence is invalid Unicode code point")
+		s.error(offs, "escape sequence is invalid Unicode code point")
 	}
 }
 
-func (S *Scanner) scanChar() string {
+func (s *Scanner) scanChar() string {
 	// '\'' opening already consumed
-	offs := S.offset - 1
+	offs := s.offset - 1
 
 	n := 0
-	for S.ch != '\'' {
-		ch := S.ch
+	for s.ch != '\'' {
+		ch := s.ch
 		n++
-		S.next()
+		s.next()
 		if ch == '\n' || ch < 0 {
-			S.error(offs, "character literal not terminated")
+			s.error(offs, "character literal not terminated")
 			n = 1
 			break
 		}
 		if ch == '\\' {
-			S.scanEscape('\'')
+			s.scanEscape('\'')
 		}
 	}
 
-	S.next()
+	s.next()
 
 	if n != 1 {
-		S.error(offs, "illegal character literal")
+		s.error(offs, "illegal character literal")
 	}
 
-	return string(S.src[offs:S.offset])
+	return string(s.src[offs:s.offset])
 }
 
-func (S *Scanner) scanString() string {
+func (s *Scanner) scanString() string {
 	// '"' opening already consumed
-	offs := S.offset - 1
+	offs := s.offset - 1
 
-	for S.ch != '"' {
-		ch := S.ch
-		S.next()
+	for s.ch != '"' {
+		ch := s.ch
+		s.next()
 		if ch == '\n' || ch < 0 {
-			S.error(offs, "string not terminated")
+			s.error(offs, "string not terminated")
 			break
 		}
 		if ch == '\\' {
-			S.scanEscape('"')
+			s.scanEscape('"')
 		}
 	}
 
-	S.next()
+	s.next()
 
-	return string(S.src[offs:S.offset])
+	return string(s.src[offs:s.offset])
 }
 
 func stripCR(b []byte) []byte {
@@ -449,26 +449,26 @@ func stripCR(b []byte) []byte {
 	return c[:i]
 }
 
-func (S *Scanner) scanRawString() string {
+func (s *Scanner) scanRawString() string {
 	// '`' opening already consumed
-	offs := S.offset - 1
+	offs := s.offset - 1
 
 	hasCR := false
-	for S.ch != '`' {
-		ch := S.ch
-		S.next()
+	for s.ch != '`' {
+		ch := s.ch
+		s.next()
 		if ch == '\r' {
 			hasCR = true
 		}
 		if ch < 0 {
-			S.error(offs, "string not terminated")
+			s.error(offs, "string not terminated")
 			break
 		}
 	}
 
-	S.next()
+	s.next()
 
-	lit := S.src[offs:S.offset]
+	lit := s.src[offs:s.offset]
 	if hasCR {
 		lit = stripCR(lit)
 	}
@@ -476,9 +476,9 @@ func (S *Scanner) scanRawString() string {
 	return string(lit)
 }
 
-func (S *Scanner) skipWhitespace() {
-	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' && !S.insertSemi || S.ch == '\r' {
-		S.next()
+func (s *Scanner) skipWhitespace() {
+	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !s.insertSemi || s.ch == '\r' {
+		s.next()
 	}
 }
 
@@ -488,35 +488,35 @@ func (S *Scanner) skipWhitespace() {
 // respectively. Otherwise, the result is tok0 if there was no other
 // matching character, or tok2 if the matching character was ch2.
 
-func (S *Scanner) switch2(tok0, tok1 token.Token) token.Token {
-	if S.ch == '=' {
-		S.next()
+func (s *Scanner) switch2(tok0, tok1 token.Token) token.Token {
+	if s.ch == '=' {
+		s.next()
 		return tok1
 	}
 	return tok0
 }
 
-func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 rune, tok2 token.Token) token.Token {
-	if S.ch == '=' {
-		S.next()
+func (s *Scanner) switch3(tok0, tok1 token.Token, ch2 rune, tok2 token.Token) token.Token {
+	if s.ch == '=' {
+		s.next()
 		return tok1
 	}
-	if S.ch == ch2 {
-		S.next()
+	if s.ch == ch2 {
+		s.next()
 		return tok2
 	}
 	return tok0
 }
 
-func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Token) token.Token {
-	if S.ch == '=' {
-		S.next()
+func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Token) token.Token {
+	if s.ch == '=' {
+		s.next()
 		return tok1
 	}
-	if S.ch == ch2 {
-		S.next()
-		if S.ch == '=' {
-			S.next()
+	if s.ch == ch2 {
+		s.next()
+		if s.ch == '=' {
+			s.next()
 			return tok3
 		}
 		return tok2
@@ -553,18 +553,18 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // set with Init. Token positions are relative to that file
 // and thus relative to the file set.
 //
-func (S *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
+func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
-	S.skipWhitespace()
+	s.skipWhitespace()
 
 	// current token start
-	pos = S.file.Pos(S.offset)
+	pos = s.file.Pos(s.offset)
 
 	// determine token value
 	insertSemi := false
-	switch ch := S.ch; {
+	switch ch := s.ch; {
 	case isLetter(ch):
-		lit = S.scanIdentifier()
+		lit = s.scanIdentifier()
 		tok = token.Lookup(lit)
 		switch tok {
 		case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
@@ -572,44 +572,44 @@ scanAgain:
 		}
 	case digitVal(ch) < 10:
 		insertSemi = true
-		tok, lit = S.scanNumber(false)
+		tok, lit = s.scanNumber(false)
 	default:
-		S.next() // always make progress
+		s.next() // always make progress
 		switch ch {
 		case -1:
-			if S.insertSemi {
-				S.insertSemi = false // EOF consumed
+			if s.insertSemi {
+				s.insertSemi = false // EOF consumed
 				return pos, token.SEMICOLON, "\n"
 			}
 			tok = token.EOF
 		case '\n':
-			// we only reach here if S.insertSemi was
+			// we only reach here if s.insertSemi was
 			// set in the first place and exited early
-			// from S.skipWhitespace()
-			S.insertSemi = false // newline consumed
+			// from s.skipWhitespace()
+			s.insertSemi = false // newline consumed
 			return pos, token.SEMICOLON, "\n"
 		case '"':
 			insertSemi = true
 			tok = token.STRING
-			lit = S.scanString()
+			lit = s.scanString()
 		case '\'':
 			insertSemi = true
 			tok = token.CHAR
-			lit = S.scanChar()
+			lit = s.scanChar()
 		case '`':
 			insertSemi = true
 			tok = token.STRING
-			lit = S.scanRawString()
+			lit = s.scanRawString()
 		case ':':
-			tok = S.switch2(token.COLON, token.DEFINE)
+			tok = s.switch2(token.COLON, token.DEFINE)
 		case '.':
-			if digitVal(S.ch) < 10 {
+			if digitVal(s.ch) < 10 {
 				insertSemi = true
-				tok, lit = S.scanNumber(true)
-			} else if S.ch == '.' {
-				S.next()
-				if S.ch == '.' {
-					S.next()
+				tok, lit = s.scanNumber(true)
+			} else if s.ch == '.' {
+				s.next()
+				if s.ch == '.' {
+					s.next()
 					tok = token.ELLIPSIS
 				}
 			} else {
@@ -636,73 +636,73 @@ scanAgain:
 			insertSemi = true
 			tok = token.RBRACE
 		case '+':
-			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC)
+			tok = s.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC)
 			if tok == token.INC {
 				insertSemi = true
 			}
 		case '-':
-			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC)
+			tok = s.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC)
 			if tok == token.DEC {
 				insertSemi = true
 			}
 		case '*':
-			tok = S.switch2(token.MUL, token.MUL_ASSIGN)
+			tok = s.switch2(token.MUL, token.MUL_ASSIGN)
 		case '/':
-			if S.ch == '/' || S.ch == '*' {
+			if s.ch == '/' || s.ch == '*' {
 				// comment
-				if S.insertSemi && S.findLineEnd() {
+				if s.insertSemi && s.findLineEnd() {
 					// reset position to the beginning of the comment
-					S.ch = '/'
-					S.offset = S.file.Offset(pos)
-					S.rdOffset = S.offset + 1
-					S.insertSemi = false // newline consumed
+					s.ch = '/'
+					s.offset = s.file.Offset(pos)
+					s.rdOffset = s.offset + 1
+					s.insertSemi = false // newline consumed
 					return pos, token.SEMICOLON, "\n"
 				}
-				lit = S.scanComment()
-				if S.mode&ScanComments == 0 {
+				lit = s.scanComment()
+				if s.mode&ScanComments == 0 {
 					// skip comment
-					S.insertSemi = false // newline consumed
+					s.insertSemi = false // newline consumed
 					goto scanAgain
 				}
 				tok = token.COMMENT
 			} else {
-				tok = S.switch2(token.QUO, token.QUO_ASSIGN)
+				tok = s.switch2(token.QUO, token.QUO_ASSIGN)
 			}
 		case '%':
-			tok = S.switch2(token.REM, token.REM_ASSIGN)
+			tok = s.switch2(token.REM, token.REM_ASSIGN)
 		case '^':
-			tok = S.switch2(token.XOR, token.XOR_ASSIGN)
+			tok = s.switch2(token.XOR, token.XOR_ASSIGN)
 		case '<':
-			if S.ch == '-' {
-				S.next()
+			if s.ch == '-' {
+				s.next()
 				tok = token.ARROW
 			} else {
-				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN)
+				tok = s.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN)
 			}
 		case '>':
-			tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN)
+			tok = s.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN)
 		case '=':
-			tok = S.switch2(token.ASSIGN, token.EQL)
+			tok = s.switch2(token.ASSIGN, token.EQL)
 		case '!':
-			tok = S.switch2(token.NOT, token.NEQ)
+			tok = s.switch2(token.NOT, token.NEQ)
 		case '&':
-			if S.ch == '^' {
-				S.next()
-				tok = S.switch2(token.AND_NOT, token.AND_NOT_ASSIGN)
+			if s.ch == '^' {
+				s.next()
+				tok = s.switch2(token.AND_NOT, token.AND_NOT_ASSIGN)
 			} else {
-				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND)
+				tok = s.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND)
 			}
 		case '|':
-			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
-			S.error(S.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
-			insertSemi = S.insertSemi // preserve insertSemi info
+			s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
+			insertSemi = s.insertSemi // preserve insertSemi info
 			tok = token.ILLEGAL
 			lit = string(ch)
 		}
 	}
-	if S.mode&dontInsertSemis == 0 {
-		S.insertSemi = insertSemi
+	if s.mode&dontInsertSemis == 0 {
+		s.insertSemi = insertSemi
 	}
 
 	return
