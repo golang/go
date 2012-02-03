@@ -192,10 +192,11 @@ There is no return value. Deleting a non-existent entry is a no-op.
 
 <p>
 <em>Updating</em>:
-Gofix will convert expressions of the form <code>m[k] = ignored,
+Running <code>go fix</code> will convert expressions of the form <code>m[k] = ignored,
 false</code> into <code>delete(m, k)</code> when it is clear that
 the ignored value can be safely discarded from the program and
-<code>false</code> refers to the predefined boolean constant.  Gofix
+<code>false</code> refers to the predefined boolean constant.
+The fix tool
 will flag other uses of the syntax for inspection by the programmer.
 </p>
 
@@ -458,12 +459,12 @@ and <code>template</code>.
 
 <p>
 <em>Updating</em>:
-Gofix will update all imports and package renames for packages that
+Running <code>go fix</code> will update all imports and package renames for packages that
 remain inside the standard repository.  Programs that import packages
 that are no longer in the standard repository will need to be edited
 by hand.
 <br>
-<font color="red">TODO: gofix should warn about deletions.</font>
+<font color="red">TODO: go fix should warn about deletions.</font>
 </p>
 
 <h3 id="exp">The package tree exp</h3>
@@ -495,16 +496,17 @@ Also, the <code>utf8.String</code> type has been moved to its own package, <code
 
 <p>
 Finally, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
-<code>ebnflint</code> is now in <code>exp/ebnflint</code>
+<code>ebnflint</code> is now in <code>exp/ebnflint</code>.
+If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
 </p>
 
 <p>
 <em>Updating</em>:
 Code that uses packages in <code>exp</code> will need to be updated by hand,
 or else compiled from an installation that has <code>exp</code> available.
-Gofix or the compiler will complain about such uses.
+The go fix tool or the compiler will complain about such uses.
 <br>
-<font color="red">TODO: gofix should warn about such uses.</font>
+<font color="red">TODO: go fix should warn about such uses.</font>
 </p>
 
 <h3 id="old">The package tree old</h3>
@@ -529,9 +531,9 @@ The packages in their new locations are:
 <em>Updating</em>:
 Code that uses packages now in <code>old</code> will need to be updated by hand,
 or else compiled from an installation that has <code>old</code> available.
-Gofix will warn about such uses.
+The go fix tool will warn about such uses.
 <br>
-<font color="red">TODO: gofix should warn about such uses.</font>
+<font color="red">TODO: go fix should warn about such uses.</font>
 </p>
 
 <h3 id="deleted">Deleted packages</h3>
@@ -559,7 +561,7 @@ slices directly.  See
 Language Community Wiki</a> for some suggestions.
 Code that uses the other packages (there should be almost zero) will need to be rethought.
 <br>
-<font color="red">TODO: gofix should warn such uses.</font>
+<font color="red">TODO: go fix should warn such uses.</font>
 </p>
 
 <h3 id="subrepo">Packages moving to subrepositories</h3>
@@ -614,7 +616,7 @@ This table lists the old and new import paths:
 
 <p>
 <em>Updating</em>:
-Gofix will update imports of these packages to use the new import paths.
+Running <code>go fix</code> will update imports of these packages to use the new import paths.
 Installations that depend on these packages will need to install them using
 a <code>go install</code> command.
 </p>
@@ -669,7 +671,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
 		
 <p>
 <em>Updating</em>:
-Gofix will update almost all code affected by the change.
+Running <code>go fix</code> will update almost all code affected by the change.
 Code that defines error types with a <code>String</code> method will need to be updated
 by hand to rename the methods to <code>Error</code>.
 </p>
@@ -688,7 +690,7 @@ that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
 
 <p>
 <em>Updating</em>:
-Gofix will update almost all code affected by the change.
+Running <code>go fix</code> will update almost all code affected by the change.
 Regardless, most code should use the <code>os</code> package
 rather than <code>syscall</code> and so will be unaffected.
 </p>
@@ -746,11 +748,11 @@ its representation of file time stamps.
 
 <p>
 <em>Updating</em>:
-Gofix will update many uses of the old <code>time</code> package to use the new
+The <code>go fix</code> tool will update many uses of the old <code>time</code> package to use the new
 types and methods, although it does not replace values such as <code>1e9</code>
 representing nanoseconds per second.
 Also, because of type changes in some of the values that arise,
-some of the expressions rewritten by gofix may require
+some of the expressions rewritten by the fix tool may require
 further hand editing; in such cases the rewrite will include
 the correct function or method for the old functionality, but
 may have the wrong type or require further analysis.
@@ -761,7 +763,7 @@ may have the wrong type or require further analysis.
 <p>
 This section describes smaller changes, such as those to less commonly
 used packages or that affect
-few programs beyond the need to run gofix.
+few programs beyond the need to run <code>go fix</code>.
 This category includes packages that are new in Go 1.
 </p>
 
@@ -784,7 +786,7 @@ in <code>crypto/elliptic</code> that take an <code>elliptic.Curve</code>
 as their first argument.
 </p>
 
-<h3 id="crypto/hmac">The crypto/hmac package</h3>
+<h3 id="crypto_hmac">The crypto/hmac package</h3>
 
 <p>
 In Go 1, the hash-specific functions, such as <code>hmac.NewMD5</code>, have
@@ -794,7 +796,7 @@ a function that returns a <code>hash.Hash</code>, such as <code>md5.New</code>.
 
 <p>
 <em>Updating</em>:
-Gofix will perform the needed changes.
+Running <code>go fix</code> will perform the needed changes.
 </p>
 
 <h3 id="crypto_x509">The crypto/x509 package</h3>
@@ -923,7 +925,7 @@ The previous behavior can be recreated by adding a <code>nil</code> argument to 
 Existing implementations of <code>hash.Hash</code> will need to add a
 <code>BlockSize</code> method.  Hashes that process the input one byte at
 a time can implement <code>BlockSize</code> to return 1.
-Gofix will update calls to the <code>Sum</code> methods of the various
+Running <code>go fix</code> will update calls to the <code>Sum</code> methods of the various
 implementations of <code>hash.Hash</code>.
 </p>
 
@@ -965,7 +967,7 @@ historical artifact.
 
 <p>
 <em>Updating</em>:
-Gofix will update the few programs that are affected except for
+Running <code>go fix</code> will update the few programs that are affected except for
 uses of <code>RawURL</code>, which must be fixed by hand.
 </p>
 
@@ -1084,7 +1086,7 @@ and
 
 <p>
 <em>Updating</em>:
-Gofix will update almost all code affected by the change.
+Running <code>go fix</code> will update almost all code affected by the change.
 </p>
 
 <h3 id="mime">The mime package</h3>
@@ -1130,7 +1132,7 @@ The <code>net.ListenMulticastUDP</code> function replaces the old
 <p>
 <em>Updating</em>:
 Code that uses the old methods will fail to compile and must be updated by hand.
-The semantic change makes it difficult for gofix to update automatically.
+The semantic change makes it difficult for the fix tool to update automatically.
 </p>
 
 <h3 id="os_fileinfo">The os.FileInfo type</h3>
@@ -1202,7 +1204,7 @@ of the standard interface.
 	
 <p>
 <em>Updating</em>:
-Gofix will update code that uses the old equivalent of the current <code>os.FileInfo</code>
+Running <code>go fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
 and <code>os.FileMode</code> API.
 Code that needs system-specific file details will need to be updated by hand.
 </p>
@@ -1341,11 +1343,11 @@ for full details.
 		
 <p>
 <em>Updating</em>:
-Gofix will update almost all code affected by the change.
+Running <code>go fix</code> will update almost all code affected by the change.
 <br>
 § <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
 they may require
-a cast that must be added by hand; gofix will warn about it.
+a cast that must be added by hand; the go fix tool will warn about it.
 </p>
 
 
@@ -1430,7 +1432,7 @@ added to <code>URL</code>.
 <p>
 <em>Updating</em>:
 Code that uses the old fields will fail to compile and must be updated by hand.
-The semantic changes make it difficult for gofix to update automatically.
+The semantic changes make it difficult for the fix tool to update automatically.
 </p>
 
 <h3 id="xml">The xml package</h3>
@@ -1469,9 +1471,9 @@ of the XML element being marshaled.
 
 <p>
 <em>Updating</em>:
-Gofix will update most uses of the package except for some calls to
+Running <code>go fix</code> will update most uses of the package except for some calls to
 <code>Unmarshal</code>. Special care must be taken with field tags,
-since gofix will not update them and if not fixed by hand they will
+since the fix tool will not update them and if not fixed by hand they will
 misbehave silently in some cases. For example, the old
 <code>"attr"</code> is now written <code>",attr"</code> while plain
 <code>"attr"</code> remains valid but with a different meaning.
