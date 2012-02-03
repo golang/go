@@ -215,10 +215,22 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 	// see if there are any subrepo commits that need to be built at tip.
 	// If so, ask the builder to build a go tree at the tip commit.
 	// TODO(adg): do the same for "weekly" and "release" tags.
+
 	tag, err := GetTag(c, "tip")
 	if err != nil {
 		return nil, err
 	}
+
+	// Check that this Go commit builds OK for this builder.
+	// If not, don't re-build as the subrepos will never get built anyway.
+	com, err := tag.Commit(c)
+	if err != nil {
+		return nil, err
+	}
+	if r := com.Result(builder, ""); r != nil && !r.OK {
+		return nil, nil
+	}
+
 	pkgs, err := Packages(c, "subrepo")
 	if err != nil {
 		return nil, err
@@ -233,6 +245,7 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 			return tag.Commit(c)
 		}
 	}
+
 	return nil, nil
 }
 
