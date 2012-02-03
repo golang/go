@@ -5,6 +5,7 @@
 package doc
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -78,6 +79,31 @@ func TestBlocks(t *testing.T) {
 		b := blocks(tt.in)
 		if !reflect.DeepEqual(b, tt.out) {
 			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, b, tt.out)
+		}
+	}
+}
+
+var emphasizeTests = []struct {
+	in  string
+	out string
+}{
+	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
+	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
+	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},
+	{"(http://www.google.com/)", `(<a href="http://www.google.com/">http://www.google.com/</a>)`},
+	{"Foo bar http://example.com/ quux!", `Foo bar <a href="http://example.com/">http://example.com/</a> quux!`},
+	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
+	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
+	{"javascript://is/not/linked", "javascript://is/not/linked"},
+}
+
+func TestEmphasize(t *testing.T) {
+	for i, tt := range emphasizeTests {
+		var buf bytes.Buffer
+		emphasize(&buf, tt.in, nil, true)
+		out := buf.String()
+		if out != tt.out {
+			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, out, tt.out)
 		}
 	}
 }
