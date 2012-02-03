@@ -12,9 +12,6 @@ HFILES=\
 	y.tab.h\
 	md5.h\
 
-YFILES=\
-	go.y\
-
 OFILES=\
 	align.$O\
 	bits.$O\
@@ -44,7 +41,7 @@ OFILES=\
 	typecheck.$O\
 	unsafe.$O\
 	walk.$O\
-	y1.tab.$O\
+	y.tab.$O\
 
 HOST_CFLAGS+=-DGOEXPERIMENT='"$(GOEXPERIMENT)"' 
 
@@ -53,24 +50,25 @@ include ../../Make.clib
 
 install: $(LIB)
 
-y1.tab.c: y.tab.c	# make yystate global, yytname mutable
-	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c
-
-yerr.h: bisonerrors go.errors y.tab.h	# y.tab.h rule generates y.output too
-	awk -f bisonerrors y.output go.errors >yerr.h
-
 subr.$O: yerr.h
-
-builtin.c: builtin.c.boot
-	cp builtin.c.boot builtin.c
 
 fmt.$O: opnames.h
 
 opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h
 
-CLEANFILES+=*.[568] [568].out y1.tab.c yerr.h mkbuiltin1 builtin.c _builtin.c opnames.h
+CLEANFILES+=*.[568] [568].out mkbuiltin1 _builtin.c opnames.h
 
 mkbuiltin1: mkbuiltin1.$O
 	$(HOST_LD) -o $@ mkbuiltin1.$O -L"$(GOROOT)"/lib -lbio -l9 -lm $(HOST_LDFLAGS)
+
+y.tab.h: go.y
+	bison -v -y -d go.y
+	# make yystate global, yytname mutable
+	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c
+	mv y1.tab.c y.tab.c
+	awk -f bisonerrors y.output go.errors >yerr.h
+
+yerr.h: y.tab.h
+	test -f yerr.h && touch yerr.h
 
