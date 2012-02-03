@@ -56,7 +56,7 @@ const (
 		filePart + `([:.,]` + filePart + `)*`
 )
 
-var matchRx = regexp.MustCompile(`(` + identRx + `)|(` + urlRx + `)`)
+var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
 
 var (
 	html_a      = []byte(`<a href="`)
@@ -87,7 +87,7 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 		if m == nil {
 			break
 		}
-		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is identRx)
+		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is urlRx)
 
 		// write text before match
 		commentEscape(w, line[0:m[0]], nice)
@@ -99,8 +99,8 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 		if words != nil {
 			url, italics = words[string(match)]
 		}
-		if m[2] < 0 {
-			// didn't match against first parenthesized sub-regexp; must be match against urlRx
+		if m[2] >= 0 {
+			// match against first parenthesized sub-regexp; must be match against urlRx
 			if !italics {
 				// no alternative URL in words list, use match instead
 				url = string(match)
