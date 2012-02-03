@@ -328,36 +328,36 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 // String returns a string representation of z in the form "a/b" (even if b == 1).
-func (z *Rat) String() string {
+func (x *Rat) String() string {
 	s := "/1"
-	if len(z.b) != 0 {
-		s = "/" + z.b.decimalString()
+	if len(x.b) != 0 {
+		s = "/" + x.b.decimalString()
 	}
-	return z.a.String() + s
+	return x.a.String() + s
 }
 
 // RatString returns a string representation of z in the form "a/b" if b != 1,
 // and in the form "a" if b == 1.
-func (z *Rat) RatString() string {
-	if z.IsInt() {
-		return z.a.String()
+func (x *Rat) RatString() string {
+	if x.IsInt() {
+		return x.a.String()
 	}
-	return z.String()
+	return x.String()
 }
 
 // FloatString returns a string representation of z in decimal form with prec
 // digits of precision after the decimal point and the last digit rounded.
-func (z *Rat) FloatString(prec int) string {
-	if z.IsInt() {
-		s := z.a.String()
+func (x *Rat) FloatString(prec int) string {
+	if x.IsInt() {
+		s := x.a.String()
 		if prec > 0 {
 			s += "." + strings.Repeat("0", prec)
 		}
 		return s
 	}
-	// z.b != 0
+	// x.b != 0
 
-	q, r := nat(nil).div(nat(nil), z.a.abs, z.b)
+	q, r := nat(nil).div(nat(nil), x.a.abs, x.b)
 
 	p := natOne
 	if prec > 0 {
@@ -365,11 +365,11 @@ func (z *Rat) FloatString(prec int) string {
 	}
 
 	r = r.mul(r, p)
-	r, r2 := r.div(nat(nil), r, z.b)
+	r, r2 := r.div(nat(nil), r, x.b)
 
 	// see if we need to round up
 	r2 = r2.add(r2, r2)
-	if z.b.cmp(r2) <= 0 {
+	if x.b.cmp(r2) <= 0 {
 		r = r.add(r, natOne)
 		if r.cmp(p) >= 0 {
 			q = nat(nil).add(q, natOne)
@@ -378,7 +378,7 @@ func (z *Rat) FloatString(prec int) string {
 	}
 
 	s := q.decimalString()
-	if z.a.neg {
+	if x.a.neg {
 		s = "-" + s
 	}
 
@@ -395,10 +395,10 @@ func (z *Rat) FloatString(prec int) string {
 const ratGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
-func (z *Rat) GobEncode() ([]byte, error) {
-	buf := make([]byte, 1+4+(len(z.a.abs)+len(z.b))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
-	i := z.b.bytes(buf)
-	j := z.a.abs.bytes(buf[0:i])
+func (x *Rat) GobEncode() ([]byte, error) {
+	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+	i := x.b.bytes(buf)
+	j := x.a.abs.bytes(buf[0:i])
 	n := i - j
 	if int(uint32(n)) != n {
 		// this should never happen
@@ -407,7 +407,7 @@ func (z *Rat) GobEncode() ([]byte, error) {
 	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
 	j -= 1 + 4
 	b := ratGobVersion << 1 // make space for sign bit
-	if z.a.neg {
+	if x.a.neg {
 		b |= 1
 	}
 	buf[j] = b

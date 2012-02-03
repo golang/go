@@ -8,9 +8,15 @@
 //	- Int	signed integers
 //	- Rat	rational numbers
 //
-// All methods on Int take the result as the receiver; if it is one
-// of the operands it may be overwritten (and its memory reused).
-// To enable chaining of operations, the result is also returned.
+// Methods are typically of the form:
+//
+//	func (z *Int) Op(x, y *Int) *Int	(similar for *Rat)
+//
+// and implement operations z = x Op y with the result as receiver; if it
+// is one of the operands it may be overwritten (and its memory reused).
+// To enable chaining of operations, the result is also returned. Methods
+// returning a result other than *Int or *Rat take one of the operands as
+// the receiver.
 //
 package big
 
