@@ -44,7 +44,6 @@ import (
 	"errors"
 	"go/ast"
 	"go/parser"
-	"go/scanner"
 	"go/token"
 	"index/suffixarray"
 	"io"
@@ -54,6 +53,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // ----------------------------------------------------------------------------
@@ -921,15 +921,15 @@ func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
 	return
 }
 
+// isIdentifier reports whether s is a Go identifier.
 func isIdentifier(s string) bool {
-	var S scanner.Scanner
-	fset := token.NewFileSet()
-	S.Init(fset.AddFile("", fset.Base(), len(s)), []byte(s), nil, 0)
-	if _, tok, _ := S.Scan(); tok == token.IDENT {
-		_, tok, _ := S.Scan()
-		return tok == token.EOF
+	for i, ch := range s {
+		if unicode.IsLetter(ch) || ch == ' ' || i > 0 && unicode.IsDigit(ch) {
+			continue
+		}
+		return false
 	}
-	return false
+	return len(s) > 0
 }
 
 // For a given query, which is either a single identifier or a qualified
