@@ -1,0 +1,15 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package strings_test
+
+import (
+	"fmt"
+	"strings"
+)
+
+// Fields are: ["foo" "bar" "baz"]
+func ExampleFields() {
+	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
+}
