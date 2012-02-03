@@ -925,7 +925,7 @@ def CheckGofmt(ui, repo, files, just_warn):
 
 # Check that *.[chys] files indent using tabs.
 def CheckTabfmt(ui, repo, files, just_warn):
-	files = [f for f in files if f.startswith('src/') and re.search(r"\.[chys]$", f)]
+	files = [f for f in files if f.startswith('src/') and re.search(r"\.[chys]$", f) and not re.search(r"\.tab\.[ch]$", f)]
 	if not files:
 		return
 	cwd = os.getcwd()
