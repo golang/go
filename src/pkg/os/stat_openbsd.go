@@ -9,18 +9,18 @@ import (
 	"time"
 )
 
-func sameFile(fs1, fs2 *FileStat) bool {
-	sys1 := fs1.Sys.(*syscall.Stat_t)
-	sys2 := fs2.Sys.(*syscall.Stat_t)
-	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
+func sameFile(sys1, sys2 interface{}) bool {
+	stat1 := sys1.(*syscall.Stat_t)
+	stat2 := sys2.(*syscall.Stat_t)
+	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
 }
 
 func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
-	fs := &FileStat{
+	fs := &fileStat{
 		name:    basename(name),
 		size:    int64(st.Size),
 		modTime: timespecToTime(st.Mtim),
-		Sys:     st,
+		sys:     st,
 	}
 	fs.mode = FileMode(st.Mode & 0777)
 	switch st.Mode & syscall.S_IFMT {
@@ -57,5 +57,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
 
 // For testing.
 func atime(fi FileInfo) time.Time {
-	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atim)
+	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
 }

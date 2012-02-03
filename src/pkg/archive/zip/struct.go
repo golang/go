@@ -71,6 +71,7 @@ func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSi
 func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
 func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
+func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
 
 // FileInfoHeader creates a partially-populated FileHeader from an
 // os.FileInfo.

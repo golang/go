@@ -47,6 +47,7 @@ func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }
 func (fi *fileInfo) Size() int64        { return fi.size }
 func (fi *fileInfo) ModTime() time.Time { return fi.mtime }
 func (fi *fileInfo) IsDir() bool        { return fi.mode.IsDir() }
+func (fi *fileInfo) Sys() interface{}   { return nil }
 
 // httpZipFile is the zip-file based implementation of http.File
 type httpZipFile struct {

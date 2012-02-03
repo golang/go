@@ -65,6 +65,10 @@ func (fi zipFI) IsDir() bool {
 	return fi.file == nil
 }
 
+func (fi zipFI) Sys() interface{} {
+	return nil
+}
+
 // zipFS is the zip-file based implementation of FileSystem
 type zipFS struct {
 	*zip.ReadCloser

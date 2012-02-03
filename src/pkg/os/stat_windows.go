@@ -82,8 +82,12 @@ type winTimes struct {
 }
 
 func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime syscall.Filetime) FileInfo {
-	fs := new(FileStat)
-	fs.mode = 0
+	fs := &fileStat{
+		name:    name,
+		size:    int64(sizehi)<<32 + int64(sizelo),
+		modTime: time.Unix(0, mtime.Nanoseconds()),
+		sys:     &winTimes{atime, ctime},
+	}
 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 		fs.mode |= ModeDir
 	}
@@ -92,14 +96,10 @@ func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime sysc
 	} else {
 		fs.mode |= 0666
 	}
-	fs.size = int64(sizehi)<<32 + int64(sizelo)
-	fs.name = name
-	fs.modTime = time.Unix(0, mtime.Nanoseconds())
-	fs.Sys = &winTimes{atime, ctime}
 	return fs
 }
 
-func sameFile(fs1, fs2 *FileStat) bool {
+func sameFile(sys1, sys2 interface{}) bool {
 	// TODO(rsc): Do better than this, but this matches what
 	// used to happen when code compared .Dev and .Ino,
 	// which were both always zero.  Obviously not all files
@@ -109,5 +109,5 @@ func sameFile(fs1, fs2 *FileStat) bool {
 
 // For testing.
 func atime(fi FileInfo) time.Time {
-	return time.Unix(0, fi.(*FileStat).Sys.(*winTimes).atime.Nanoseconds())
+	return time.Unix(0, fi.Sys().(*winTimes).atime.Nanoseconds())
 }

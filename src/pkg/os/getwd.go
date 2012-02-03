@@ -30,7 +30,7 @@ func Getwd() (pwd string, err error) {
 	pwd = Getenv("PWD")
 	if len(pwd) > 0 && pwd[0] == '/' {
 		d, err := Stat(pwd)
-		if err == nil && dot.(*FileStat).SameFile(d.(*FileStat)) {
+		if err == nil && SameFile(dot, d) {
 			return pwd, nil
 		}
 	}
@@ -42,7 +42,7 @@ func Getwd() (pwd string, err error) {
 		// Can't stat root - no hope.
 		return "", err
 	}
-	if root.(*FileStat).SameFile(dot.(*FileStat)) {
+	if SameFile(root, dot) {
 		return "/", nil
 	}
 
@@ -67,7 +67,7 @@ func Getwd() (pwd string, err error) {
 			}
 			for _, name := range names {
 				d, _ := Lstat(parent + "/" + name)
-				if d.(*FileStat).SameFile(dot.(*FileStat)) {
+				if SameFile(d, dot) {
 					pwd = "/" + name + pwd
 					goto Found
 				}
@@ -82,7 +82,7 @@ func Getwd() (pwd string, err error) {
 			return "", err
 		}
 		fd.Close()
-		if pd.(*FileStat).SameFile(root.(*FileStat)) {
+		if SameFile(pd, root) {
 			break
 		}
 		// Set up for next round.

@@ -85,4 +85,7 @@ func TestFileHeaderRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(fh, fh2) {
 		t.Errorf("mismatch\n input=%#v\noutput=%#v\nerr=%v", fh, fh2, err)
 	}
+	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
+		t.Errorf("Sys didn't return original *FileHeader")
+	}
 }

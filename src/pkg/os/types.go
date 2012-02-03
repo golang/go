@@ -19,6 +19,7 @@ type FileInfo interface {
 	Mode() FileMode     // file mode bits
 	ModTime() time.Time // modification time
 	IsDir() bool        // abbreviation for Mode().IsDir()
+	Sys() interface{}   // underlying data source (can return nil)
 }
 
 // A FileMode represents a file's mode and permission bits.
@@ -92,28 +93,33 @@ func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// A FileStat is the implementation of FileInfo returned by Stat and Lstat.
-// Clients that need access to the underlying system-specific stat information
-// can test for *os.FileStat and then consult the Sys field.
-type FileStat struct {
+// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
+type fileStat struct {
 	name    string
 	size    int64
 	mode    FileMode
 	modTime time.Time
-
-	Sys interface{}
+	sys     interface{}
 }
 
-func (fs *FileStat) Name() string       { return fs.name }
-func (fs *FileStat) Size() int64        { return fs.size }
-func (fs *FileStat) Mode() FileMode     { return fs.mode }
-func (fs *FileStat) ModTime() time.Time { return fs.modTime }
-func (fs *FileStat) IsDir() bool        { return fs.mode.IsDir() }
+func (fs *fileStat) Name() string       { return fs.name }
+func (fs *fileStat) Size() int64        { return fs.size }
+func (fs *fileStat) Mode() FileMode     { return fs.mode }
+func (fs *fileStat) ModTime() time.Time { return fs.modTime }
+func (fs *fileStat) IsDir() bool        { return fs.mode.IsDir() }
+func (fs *fileStat) Sys() interface{}   { return fs.sys }
 
-// SameFile reports whether fs and other describe the same file.
+// SameFile reports whether fi1 and fi2 describe the same file.
 // For example, on Unix this means that the device and inode fields
 // of the two underlying structures are identical; on other systems
 // the decision may be based on the path names.
-func (fs *FileStat) SameFile(other *FileStat) bool {
-	return sameFile(fs, other)
+// SameFile only applies to results returned by this package's Stat.
+// It returns false in other cases.
+func SameFile(fi1, fi2 FileInfo) bool {
+	fs1, ok1 := fi1.(*fileStat)
+	fs2, ok2 := fi2.(*fileStat)
+	if !ok1 || !ok2 {
+		return false
+	}
+	return sameFile(fs1.sys, fs2.sys)
 }
