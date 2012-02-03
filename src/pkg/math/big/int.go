@@ -211,6 +211,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 //	r = x - y*q
 //
 // (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+// See DivMod for Euclidean division and modulus (unlike Go).
 //
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
@@ -268,6 +269,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // div and mod''. ACM Transactions on Programming Languages and
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
+// See QuoRem for T-division and modulus (like Go).
 //
 func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 	y0 := y // save y
@@ -579,20 +581,20 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	return z
 }
 
-// GcdInt sets d to the greatest common divisor of a and b, which must be
-// positive numbers.
-// If x and y are not nil, GcdInt sets x and y such that d = a*x + b*y.
-// If either a or b is not positive, GcdInt sets d = x = y = 0.
-func GcdInt(d, x, y, a, b *Int) {
+// GCD sets z to the greatest common divisor of a and b, which must be
+// positive numbers, and returns z.
+// If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
+// If either a or b is not positive, GCD sets z = x = y = 0.
+func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if a.neg || b.neg {
-		d.SetInt64(0)
+		z.SetInt64(0)
 		if x != nil {
 			x.SetInt64(0)
 		}
 		if y != nil {
 			y.SetInt64(0)
 		}
-		return
+		return z
 	}
 
 	A := new(Int).Set(a)
@@ -634,13 +636,14 @@ func GcdInt(d, x, y, a, b *Int) {
 		*y = *lastY
 	}
 
-	*d = *A
+	*z = *A
+	return z
 }
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
 // If it returns true, x is prime with probability 1 - 1/4^n.
 // If it returns false, x is not prime.
-func ProbablyPrime(x *Int, n int) bool {
+func (x *Int) ProbablyPrime(n int) bool {
 	return !x.neg && x.abs.probablyPrime(n)
 }
 
@@ -659,7 +662,7 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 // p is a prime) and returns z.
 func (z *Int) ModInverse(g, p *Int) *Int {
 	var d Int
-	GcdInt(&d, z, nil, g, p)
+	d.GCD(z, nil, g, p)
 	// x and y are such that g*x + p*y = d. Since p is prime, d = 1. Taking
 	// that modulo p results in g*x = 1, therefore x is the inverse element.
 	if z.neg {

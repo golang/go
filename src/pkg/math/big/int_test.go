@@ -824,7 +824,7 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	y := new(Int)
 	d := new(Int)
 
-	GcdInt(d, x, y, a, b)
+	d.GCD(x, y, a, b)
 	x.Mul(x, a)
 	y.Mul(y, b)
 	x.Add(x, y)
@@ -852,7 +852,7 @@ func TestGcd(t *testing.T) {
 		expectedY := NewInt(test.y)
 		expectedD := NewInt(test.d)
 
-		GcdInt(d, x, y, a, b)
+		d.GCD(x, y, a, b)
 
 		if expectedX.Cmp(x) != 0 ||
 			expectedY.Cmp(y) != 0 ||
@@ -903,14 +903,14 @@ func TestProbablyPrime(t *testing.T) {
 	}
 	for i, s := range primes {
 		p, _ := new(Int).SetString(s, 10)
-		if !ProbablyPrime(p, nreps) {
+		if !p.ProbablyPrime(nreps) {
 			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
 		}
 	}
 
 	for i, s := range composites {
 		c, _ := new(Int).SetString(s, 10)
-		if ProbablyPrime(c, nreps) {
+		if c.ProbablyPrime(nreps) {
 			t.Errorf("#%d composite found to be prime (%s)", i, s)
 		}
 		if testing.Short() {
