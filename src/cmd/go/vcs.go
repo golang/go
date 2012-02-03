@@ -24,6 +24,7 @@ type vcsCmd struct {
 	downloadCmd string // command to download updates into an existing repository
 
 	tagCmd         []tagCmd // commands to list tags
+	tagLookupCmd   []tagCmd // commands to lookup tags before running tagSyncCmd
 	tagSyncCmd     string   // command to sync to specific tag
 	tagSyncDefault string   // command to sync to default tag
 }
@@ -83,7 +84,14 @@ var vcsGit = &vcsCmd{
 	createCmd:   "clone {repo} {dir}",
 	downloadCmd: "fetch",
 
-	tagCmd:         []tagCmd{{"tag", `^(\S+)$`}},
+	tagCmd: []tagCmd{
+		// tags/xxx matches a git tag named xxx
+		// origin/xxx matches a git branch named xxx on the default remote repository
+		{"show-ref", `(?:tags|origin)/(\S+)$`},
+	},
+	tagLookupCmd: []tagCmd{
+		{"show-ref tags/{tag} origin/{tag}", `((?:tags|origin)/\S+)$`},
+	},
 	tagSyncCmd:     "checkout {tag}",
 	tagSyncDefault: "checkout origin/master",
 }
@@ -128,17 +136,17 @@ func (v *vcsCmd) String() string {
 // command's combined stdout+stderr to standard error.
 // Otherwise run discards the command's output.
 func (v *vcsCmd) run(dir string, cmd string, keyval ...string) error {
-	_, err := v.run1(dir, false, cmd, keyval)
+	_, err := v.run1(dir, cmd, keyval)
 	return err
 }
 
 // runOutput is like run but returns the output of the command.
 func (v *vcsCmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
-	return v.run1(dir, true, cmd, keyval)
+	return v.run1(dir, cmd, keyval)
 }
 
 // run1 is the generalized implementation of run and runOutput.
-func (v *vcsCmd) run1(dir string, output bool, cmdline string, keyval []string) ([]byte, error) {
+func (v *vcsCmd) run1(dir string, cmdline string, keyval []string) ([]byte, error) {
 	m := make(map[string]string)
 	for i := 0; i < len(keyval); i += 2 {
 		m[keyval[i]] = keyval[i+1]
@@ -187,7 +195,9 @@ func (v *vcsCmd) tags(dir string) ([]string, error) {
 			return nil, err
 		}
 		re := regexp.MustCompile(`(?m-s)` + tc.pattern)
-		tags = append(tags, re.FindAllString(string(out), -1)...)
+		for _, m := range re.FindAllStringSubmatch(string(out), -1) {
+			tags = append(tags, m[1])
+		}
 	}
 	return tags, nil
 }
@@ -197,6 +207,20 @@ func (v *vcsCmd) tags(dir string) ([]string, error) {
 func (v *vcsCmd) tagSync(dir, tag string) error {
 	if v.tagSyncCmd == "" {
 		return nil
+	}
+	if tag != "" {
+		for _, tc := range v.tagLookupCmd {
+			out, err := v.runOutput(dir, tc.cmd, "tag", tag)
+			if err != nil {
+				return err
+			}
+			re := regexp.MustCompile(`(?m-s)` + tc.pattern)
+			m := re.FindStringSubmatch(string(out))
+			if len(m) > 1 {
+				tag = m[1]
+				break
+			}
+		}
 	}
 	if tag == "" && v.tagSyncDefault != "" {
 		return v.run(dir, v.tagSyncDefault)
