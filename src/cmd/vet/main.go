@@ -175,6 +175,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		f.walkCallExpr(n)
+	case *ast.CompositeLit:
+		f.walkCompositeLit(n)
 	case *ast.Field:
 		f.walkFieldTag(n)
 	case *ast.FuncDecl:
@@ -188,6 +190,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 // walkCall walks a call expression.
 func (f *File) walkCall(call *ast.CallExpr, name string) {
 	f.checkFmtPrintfCall(call, name)
+}
+
+// walkCompositeLit walks a composite literal.
+func (f *File) walkCompositeLit(c *ast.CompositeLit) {
+	f.checkUntaggedLiteral(c)
 }
 
 // walkFieldTag walks a struct field tag.
