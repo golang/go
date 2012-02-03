@@ -4,14 +4,20 @@
 
 #include "a.h"
 
+int vflag;
+char *argv0;
+
 // cmdtab records the available commands.
 static struct {
 	char *name;
 	void (*f)(int, char**);
 } cmdtab[] = {
+	{"banner", cmdbanner},
 	{"bootstrap", cmdbootstrap},
+	{"clean", cmdclean},
 	{"env", cmdenv},
 	{"install", cmdinstall},
+	{"version", cmdversion},
 };
 
 // The OS-specific main calls into the portable code here.
@@ -20,12 +26,8 @@ xmain(int argc, char **argv)
 {
 	int i;
 
-	if(argc <= 1) {
-		xprintf("go tool dist commands:\n");
-		for(i=0; i<nelem(cmdtab); i++)
-			xprintf("\t%s\n", cmdtab[i].name);
-		xexit(1);
-	}
+	if(argc <= 1)
+		usage();
 	
 	for(i=0; i<nelem(cmdtab); i++) {
 		if(streq(cmdtab[i].name, argv[1])) {
@@ -34,5 +36,6 @@ xmain(int argc, char **argv)
 		}
 	}
 
-	fatal("unknown command %s", argv[1]);
+	xprintf("unknown command %s\n", argv[1]);
+	usage();
 }

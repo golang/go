@@ -40,6 +40,36 @@ bprintf(Buf *b, char *fmt, ...)
 	return bstr(b);
 }
 
+// bpathf is the same as bprintf (on windows it turns / into \ after the printf).
+// It returns a pointer to the NUL-terminated buffer contents.
+char*
+bpathf(Buf *b, char *fmt, ...)
+{
+	va_list arg;
+	char buf[4096];
+	
+	breset(b);
+	va_start(arg, fmt);
+	vsnprintf(buf, sizeof buf, fmt, arg);
+	va_end(arg);
+	bwritestr(b, buf);
+	return bstr(b);
+}
+
+// bwritef is like bprintf but does not reset the buffer
+// and does not return the NUL-terminated string.
+void
+bwritef(Buf *b, char *fmt, ...)
+{
+	va_list arg;
+	char buf[4096];
+	
+	va_start(arg, fmt);
+	vsnprintf(buf, sizeof buf, fmt, arg);
+	va_end(arg);
+	bwritestr(b, buf);
+}
+
 // breadfrom appends to b all the data that can be read from fd.
 static void
 breadfrom(Buf *b, int fd)
@@ -69,6 +99,8 @@ xgetenv(Buf *b, char *name)
 		bwritestr(b, p);
 }
 
+static void genrun(Buf *b, char *dir, int mode, Vec *argv, int bg);
+
 // run runs the command named by cmd.
 // If b is not nil, run replaces b with the output of the command.
 // If dir is not nil, run runs the command in that directory.
@@ -92,14 +124,42 @@ run(Buf *b, char *dir, int mode, char *cmd, ...)
 	vfree(&argv);
 }
 
-
 // runv is like run but takes a vector.
 void
 runv(Buf *b, char *dir, int mode, Vec *argv)
 {
-	int i, p[2], pid, status;
+	genrun(b, dir, mode, argv, 1);
+}
+
+// bgrunv is like run but runs the command in the background.
+// bgwait waits for pending bgrunv to finish.
+void
+bgrunv(char *dir, int mode, Vec *argv)
+{
+	genrun(nil, dir, mode, argv, 0);
+}
+
+#define MAXBG 4 /* maximum number of jobs to run at once */
+
+static struct {
+	int pid;
+	int mode;
+	char *cmd;
+} bg[MAXBG];
+static int nbg;
+
+static void bgwait1(void);
+
+// genrun is the generic run implementation.
+static void
+genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+{
+	int i, p[2], pid;
 	Buf cmd;
 	char *q;
+
+	while(nbg >= nelem(bg))
+		bgwait1();
 
 	// Generate a copy of the command to show in a log.
 	// Substitute $WORK for the work directory.
@@ -114,8 +174,8 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 		}
 		bwritestr(&cmd, q);
 	}
-	printf("%s\n", bstr(&cmd));
-	bfree(&cmd);
+	if(vflag > 1)
+		xprintf("%s\n", bstr(&cmd));
 
 	if(b != nil) {
 		breset(b);
@@ -143,6 +203,7 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 		}
 		vadd(argv, nil);
 		execvp(argv->p[0], argv->p);
+		fprintf(stderr, "%s\n", bstr(&cmd));
 		fprintf(stderr, "exec %s: %s\n", argv->p[0], strerror(errno));
 		_exit(1);
 	}
@@ -151,18 +212,55 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 		breadfrom(b, p[0]);
 		close(p[0]);
 	}
-wait:
+
+	if(nbg < 0)
+		fatal("bad bookkeeping");
+	bg[nbg].pid = pid;
+	bg[nbg].mode = mode;
+	bg[nbg].cmd = btake(&cmd);
+	nbg++;
+	
+	if(wait)
+		bgwait();
+
+	bfree(&cmd);
+}
+
+// bgwait1 waits for a single background job.
+static void
+bgwait1(void)
+{
+	int i, pid, status, mode;
+	char *cmd;
+
 	errno = 0;
-	if(waitpid(pid, &status, 0) != pid) {
-		if(errno == EINTR)
-			goto wait;
-		fatal("waitpid: %s", strerror(errno));
+	while((pid = wait(&status)) < 0) {
+		if(errno != EINTR)
+			fatal("waitpid: %s", strerror(errno));
 	}
-	if(mode==CheckExit && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
-		if(b != nil)
-			fwrite(b->p, b->len, 1, stderr);
-		fatal("%s failed", argv->p[0]);
+	for(i=0; i<nbg; i++)
+		if(bg[i].pid == pid)
+			goto ok;
+	fatal("waitpid: unexpected pid");
+
+ok:
+	cmd = bg[i].cmd;
+	mode = bg[i].mode;
+	bg[i].pid = 0;
+	bg[i] = bg[--nbg];
+	
+	if(mode == CheckExit && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
+		fatal("FAILED: %s", cmd);
 	}
+	xfree(cmd);
+}
+
+// bgwait waits for all the background jobs.
+void
+bgwait(void)
+{
+	while(nbg > 0)
+		bgwait1();
 }
 
 // xgetwd replaces b with the current directory.
@@ -288,6 +386,8 @@ xmkdirall(char *p)
 void
 xremove(char *p)
 {
+	if(vflag > 1)
+		xprintf("rm %s\n", p);
 	unlink(p);
 }
 
@@ -308,8 +408,12 @@ xremoveall(char *p)
 			bprintf(&b, "%s/%s", p, dir.p[i]);
 			xremoveall(bstr(&b));
 		}
+		if(vflag > 1)
+			xprintf("rm %s\n", p);
 		rmdir(p);
 	} else {
+		if(vflag > 1)
+			xprintf("rm %s\n", p);
 		unlink(p);
 	}
 	
@@ -526,9 +630,9 @@ main(int argc, char **argv)
 
 	binit(&b);
 	p = argv[0];
-	if(hassuffix(p, "bin/go-tool/dist")) {
+	if(hassuffix(p, "bin/tool/dist")) {
 		default_goroot = xstrdup(p);
-		default_goroot[strlen(p)-strlen("bin/go-tool/dist")] = '\0';
+		default_goroot[strlen(p)-strlen("bin/tool/dist")] = '\0';
 	}
 	
 	slash = "/";

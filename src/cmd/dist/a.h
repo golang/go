@@ -37,10 +37,13 @@ enum {
 
 // buf.c
 bool	bequal(Buf *s, Buf *t);
+void	bsubst(Buf *b, char *x, char *y);
 void	bfree(Buf *b);
 void	bgrow(Buf *b, int n);
 void	binit(Buf *b);
+char*	bpathf(Buf *b, char *fmt, ...);
 char*	bprintf(Buf *b, char *fmt, ...);
+void	bwritef(Buf *b, char *fmt, ...);
 void	breset(Buf *b);
 char*	bstr(Buf *b);
 char*	btake(Buf *b);
@@ -62,23 +65,41 @@ void	splitfields(Vec*, char*);
 extern char *default_goroot;
 extern char *goarch;
 extern char *gobin;
+extern char *gochar;
 extern char *gohostarch;
 extern char *gohostos;
 extern char *goos;
 extern char *goroot;
+extern char *goversion;
 extern char *workdir;
 extern char *slash;
 
+int	find(char*, char**, int);
 void	init(void);
+void	cmdbanner(int, char**);
 void	cmdbootstrap(int, char**);
+void	cmdclean(int, char**);
 void	cmdenv(int, char**);
 void	cmdinstall(int, char**);
+void	cmdversion(int, char**);
 
 // buildgc.c
 void	gcopnames(char*, char*);
 void	mkenam(char*, char*);
 
+// buildruntime.c
+void	mkzasm(char*, char*);
+void	mkzgoarch(char*, char*);
+void	mkzgoos(char*, char*);
+void	mkzruntimedefs(char*, char*);
+void	mkzversion(char*, char*);
+
+// goc2c.c
+void	goc2c(char*, char*);
+
 // main.c
+extern int vflag;
+void	usage(void);
 void	xmain(int argc, char **argv);
 
 // portability layer (plan9.c, unix.c, windows.c)
@@ -94,6 +115,8 @@ Time	mtime(char*);
 void	readfile(Buf*, char*);
 void	run(Buf *b, char *dir, int mode, char *cmd, ...);
 void	runv(Buf *b, char *dir, int mode, Vec *argv);
+void	bgrunv(char *dir, int mode, Vec *argv);
+void	bgwait(void);
 bool	streq(char*, char*);
 void	writefile(Buf*, char*);
 void	xatexit(void (*f)(void));
@@ -118,7 +141,6 @@ void	xremoveall(char *p);
 void	xsetenv(char*, char*);
 int	xstrcmp(char*, char*);
 char*	xstrdup(char *p);
-int	xstreq(char*, char*);
 int	xstrlen(char*);
 char*	xstrrchr(char*, int);
 char*	xstrstr(char*, char*);
