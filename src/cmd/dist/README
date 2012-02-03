@@ -1,0 +1,45 @@
+This program, dist, is the bootstrapping tool for the Go distribution.
+It takes care of building the C programs (like the Go compiler) and
+the initial bootstrap copy of the go tool.  It also serves as a catch-all
+to replace odd jobs previously done with shell scripts.
+
+Dist is itself written in very simple C.  All interaction with C libraries,
+even standard C libraries, is confined to a single system-specific file
+(plan9.c, unix.c, windows.c), to aid portability.  Functionality needed
+by other files should be exposed via the portability layer.  Functions
+in the portability layer begin with an x prefix when they would otherwise
+use the same name as or be confused for an existing function.
+For example, xprintf is the portable printf.
+
+By far the most common data types in dist are strings and arrays of
+strings.  Instead of using char* and char**, though, dist uses two named
+data structures, Buf and Vec, which own all the data they point at.
+The Buf operations are functions beginning with b; the Vec operations
+are functions beginning with v.  The basic form of any function declaring
+Bufs or Vecs on the stack should be
+
+	void
+	myfunc(void)
+	{
+		Buf b1, b2;
+		Vec v1;
+		
+		binit(&b1);
+		binit(&b2);
+		vinit(&v1);
+		
+		... main code ...
+		bprintf(&b1, "hello, world");
+		vadd(&v1, bstr(&b1));  // v1 takes a copy of its argument
+		bprintf(&b1, "another string");
+		vadd(&v1, bstr(&b1));  // v1 now has two strings
+		
+		bfree(&b1);
+		bfree(&b2);
+		vfree(&v1);
+	}
+	
+The binit/vinit calls prepare a buffer or vector for use, initializing the 
+data structures, and the bfree/vfree calls free any memory they are still
+holding onto.  Use of this idiom gives us lexically scoped allocations.
+
