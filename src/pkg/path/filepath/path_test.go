@@ -667,7 +667,7 @@ func TestAbs(t *testing.T) {
 			continue
 		}
 		absinfo, err := os.Stat(abspath)
-		if err != nil || !absinfo.(*os.FileStat).SameFile(info.(*os.FileStat)) {
+		if err != nil || !os.SameFile(absinfo, info) {
 			t.Errorf("Abs(%q)=%q, not the same file", path, abspath)
 		}
 		if !filepath.IsAbs(abspath) {

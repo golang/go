@@ -9,18 +9,18 @@ import (
 	"time"
 )
 
-func sameFile(fs1, fs2 *FileStat) bool {
-	a := fs1.Sys.(*Dir)
-	b := fs2.Sys.(*Dir)
+func sameFile(sys1, sys2 interface{}) bool {
+	a := sys1.(*Dir)
+	b := sys2.(*Dir)
 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
 }
 
 func fileInfoFromStat(d *Dir) FileInfo {
-	fs := &FileStat{
+	fs := &fileStat{
 		name:    d.Name,
 		size:    int64(d.Length),
 		modTime: time.Unix(int64(d.Mtime), 0),
-		Sys:     d,
+		sys:     d,
 	}
 	fs.mode = FileMode(d.Mode & 0777)
 	if d.Mode&syscall.DMDIR != 0 {
@@ -100,5 +100,5 @@ func Lstat(name string) (FileInfo, error) {
 
 // For testing.
 func atime(fi FileInfo) time.Time {
-	return time.Unix(int64(fi.(*FileStat).Sys.(*Dir).Atime), 0)
+	return time.Unix(int64(fi.Sys().(*Dir).Atime), 0)
 }

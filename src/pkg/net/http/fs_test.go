@@ -190,7 +190,7 @@ func TestDirJoin(t *testing.T) {
 		if err != nil {
 			t.Fatalf("stat of %s: %v", name, err)
 		}
-		if !gfi.(*os.FileStat).SameFile(wfi.(*os.FileStat)) {
+		if !os.SameFile(gfi, wfi) {
 			t.Errorf("%s got different file", name)
 		}
 	}
