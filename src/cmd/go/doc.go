@@ -12,7 +12,7 @@ The commands are:
     build       compile packages and dependencies
     clean       remove object files
     doc         run godoc on package sources
-    fix         run gofix on packages
+    fix         run go tool fix on packages
     fmt         run gofmt on package sources
     get         download and install packages and dependencies
     install     compile and install packages and dependencies
@@ -21,7 +21,7 @@ The commands are:
     test        test packages
     tool        run specified go tool
     version     print Go version
-    vet         run govet on packages
+    vet         run go tool vet on packages
 
 Use "go help [command]" for more information about a command.
 
@@ -128,7 +128,7 @@ To run godoc with specific options, run godoc itself.
 See also: go fix, go fmt, go vet.
 
 
-Run gofix on packages
+Run go tool fix on packages
 
 Usage:
 
@@ -176,7 +176,7 @@ and 'go install'.  See 'go help install'.
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
 
-The -fix flag instructs get to run gofix on the downloaded packages
+The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -u flag instructs get to use the network to update the named packages
@@ -350,7 +350,7 @@ Usage:
 Version prints the Go version, as reported by runtime.Version.
 
 
-Run govet on packages
+Run go tool vet on packages
 
 Usage:
 
@@ -361,7 +361,7 @@ Vet runs the Go vet command on the packages named by the import paths.
 For more about vet, see 'godoc vet'.
 For more about import paths, see 'go help importpath'.
 
-To run govet with specific options, run 'go tool vet'.
+To run the vet tool with specific options, run 'go tool vet'.
 
 See also: go fmt, go fix.
 

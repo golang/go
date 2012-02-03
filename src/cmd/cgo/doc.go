@@ -6,7 +6,7 @@
 
 Cgo enables the creation of Go packages that call C code.
 
-Usage: cgo [compiler options] file.go
+Usage: go tool cgo [compiler options] file.go
 
 The compiler options are passed through uninterpreted when
 invoking gcc to compile the C parts of the package.

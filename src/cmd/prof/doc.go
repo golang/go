@@ -41,8 +41,7 @@ Flag -t sets the maximum real time to sample, in seconds, and -d
 sets the sampling interval in milliseconds.  The default is to sample
 every 100ms until the program completes.
 
-For reasons of disambiguation it is installed as 6prof although it also serves
-as an 8prof and a 5prof.
+It is installed as go tool prof and is architecture-independent.
 
 */
 package documentation

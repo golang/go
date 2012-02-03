@@ -21,7 +21,7 @@ var fset = token.NewFileSet()
 var start = flag.String("start", "Start", "name of start production")
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool ebnflint [flags] [filename]\n")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
