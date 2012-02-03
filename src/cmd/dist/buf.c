@@ -99,6 +99,32 @@ bequal(Buf *s, Buf *t)
 	return s->len == t->len && xmemcmp(s->p, t->p, s->len) == 0;
 }
 
+// bsubst rewites b to replace all occurrences of x with y.
+void
+bsubst(Buf *b, char *x, char *y)
+{
+	char *p;
+	int nx, ny, pos;
+
+	nx = xstrlen(x);
+	ny = xstrlen(y);
+
+	pos = 0;
+	for(;;) {
+		p = xstrstr(bstr(b)+pos, x);
+		if(p == nil)
+			break;
+		if(nx != ny) {
+			if(nx < ny)
+				bgrow(b, ny-nx);
+			xmemmove(p+ny, p+nx, (b->p+b->len)-(p+nx));
+		}
+		xmemmove(p, y, ny);
+		pos = p+ny - b->p;
+		b->len += ny - nx;
+	}
+}
+
 // The invariant with the vectors is that v->p[0:v->len] is allocated
 // strings that are owned by the vector.  The data beyond v->len may
 // be garbage.
@@ -214,7 +240,7 @@ vuniq(Vec *v)
 void
 splitlines(Vec *v, char *p)
 {
-	int i, c;
+	int i;
 	char *start;
 	
 	vreset(v);
