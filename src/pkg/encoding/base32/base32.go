@@ -125,6 +125,13 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 }
 
+// EncodeToString returns the base32 encoding of src.
+func (enc *Encoding) EncodeToString(src []byte) string {
+	buf := make([]byte, enc.EncodedLen(len(src)))
+	enc.Encode(buf, src)
+	return string(buf)
+}
+
 type encoder struct {
 	err  error
 	enc  *Encoding
@@ -296,6 +303,13 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 
 	n, _, err = enc.decode(dst, src)
 	return
+}
+
+// DecodeString returns the bytes represented by the base32 string s.
+func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+	dbuf := make([]byte, enc.DecodedLen(len(s)))
+	n, err := enc.Decode(dbuf, []byte(s))
+	return dbuf[:n], err
 }
 
 type decoder struct {
