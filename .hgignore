@@ -24,7 +24,7 @@ _testmain.go
 build.out
 test.out
 y.tab.[ch]
-doc/htmlgen
+doc/tmpltohtml
 doc/codelab/wiki/*.bin
 misc/cgo/life/run.out
 misc/dashboard/builder/gobuilder
