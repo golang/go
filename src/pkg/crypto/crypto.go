@@ -14,15 +14,15 @@ import (
 type Hash uint
 
 const (
-	MD4       Hash = 1 + iota // in package crypto/md4
-	MD5                       // in package crypto/md5
-	SHA1                      // in package crypto/sha1
-	SHA224                    // in package crypto/sha256
-	SHA256                    // in package crypto/sha256
-	SHA384                    // in package crypto/sha512
-	SHA512                    // in package crypto/sha512
+	MD4       Hash = 1 + iota // import code.google.com/p/go.crypto/md4
+	MD5                       // import crypto/md5
+	SHA1                      // import crypto/sha1
+	SHA224                    // import crypto/sha256
+	SHA256                    // import crypto/sha256
+	SHA384                    // import crypto/sha512
+	SHA512                    // import crypto/sha512
 	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
-	RIPEMD160                 // in package crypto/ripemd160
+	RIPEMD160                 // import code.google.com/p/go.crypto/ripemd160
 	maxHash
 )
 
@@ -50,8 +50,8 @@ func (h Hash) Size() int {
 
 var hashes = make([]func() hash.Hash, maxHash)
 
-// New returns a new hash.Hash calculating the given hash function. If the
-// hash function is not linked into the binary, New returns nil.
+// New returns a new hash.Hash calculating the given hash function. New panics
+// if the hash function is not linked into the binary.
 func (h Hash) New() hash.Hash {
 	if h > 0 && h < maxHash {
 		f := hashes[h]
@@ -59,7 +59,12 @@ func (h Hash) New() hash.Hash {
 			return f()
 		}
 	}
-	return nil
+	panic("crypto: requested hash function is unavailable")
+}
+
+// Available reports whether the given hash function is linked into the binary.
+func (h Hash) Available() bool {
+	return h < maxHash && hashes[h] != nil
 }
 
 // RegisterHash registers a function that returns a new instance of the given

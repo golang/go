@@ -33,16 +33,16 @@ func Client(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config, isClient: true}
 }
 
-// A Listener implements a network listener (net.Listener) for TLS connections.
-type Listener struct {
-	listener net.Listener
-	config   *Config
+// A listener implements a network listener (net.Listener) for TLS connections.
+type listener struct {
+	net.Listener
+	config *Config
 }
 
 // Accept waits for and returns the next incoming TLS connection.
 // The returned connection c is a *tls.Conn.
-func (l *Listener) Accept() (c net.Conn, err error) {
-	c, err = l.listener.Accept()
+func (l *listener) Accept() (c net.Conn, err error) {
+	c, err = l.Listener.Accept()
 	if err != nil {
 		return
 	}
@@ -50,28 +50,22 @@ func (l *Listener) Accept() (c net.Conn, err error) {
 	return
 }
 
-// Close closes the listener.
-func (l *Listener) Close() error { return l.listener.Close() }
-
-// Addr returns the listener's network address.
-func (l *Listener) Addr() net.Addr { return l.listener.Addr() }
-
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.
 // The configuration config must be non-nil and must have
 // at least one certificate.
-func NewListener(listener net.Listener, config *Config) (l *Listener) {
-	l = new(Listener)
-	l.listener = listener
+func NewListener(inner net.Listener, config *Config) net.Listener {
+	l := new(listener)
+	l.Listener = inner
 	l.config = config
-	return
+	return l
 }
 
 // Listen creates a TLS listener accepting connections on the
 // given network address using net.Listen.
 // The configuration config must be non-nil and must have
 // at least one certificate.
-func Listen(network, laddr string, config *Config) (*Listener, error) {
+func Listen(network, laddr string, config *Config) (net.Listener, error) {
 	if config == nil || len(config.Certificates) == 0 {
 		return nil, errors.New("tls.Listen: no certificates in configuration")
 	}

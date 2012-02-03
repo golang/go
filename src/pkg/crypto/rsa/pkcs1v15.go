@@ -65,7 +65,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // about the plaintext.
 // See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
-// (Crypto '98),
+// (Crypto '98).
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
