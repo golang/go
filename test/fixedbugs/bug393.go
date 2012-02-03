@@ -7,7 +7,7 @@
 // issue 2672
 // was trying binary search with an interface type
 
-package main
+package bug393
 
 func f(x interface{}) int {
 	switch x {

@@ -6,7 +6,7 @@
 
 // Check mutually recursive interfaces
 
-package main
+package recursive
 
 type I1 interface {
 	foo() I2

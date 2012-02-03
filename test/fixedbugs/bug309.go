@@ -6,7 +6,7 @@
 
 // issue 1016
 
-package main
+package bug309
 
 func foo(t interface{}, c chan int) {
 	switch v := t.(type) {
