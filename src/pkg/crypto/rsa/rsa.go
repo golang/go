@@ -412,7 +412,7 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
-// If rand != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
+// If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
