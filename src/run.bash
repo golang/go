@@ -38,15 +38,15 @@ fi
 
 echo
 echo '# Package tests'
-time go test std -short
+time go test std -short -timeout=120s
 
 echo
 echo '# runtime -cpu=1,2,4'
-go test runtime -short -cpu=1,2,4
+go test runtime -short -timeout=120s -cpu=1,2,4
 
 echo
 echo '# sync -cpu=10'
-go test sync -short -cpu=10
+go test sync -short -timeout=120s -cpu=10
 
 echo
 echo '# Build bootstrap scripts'
