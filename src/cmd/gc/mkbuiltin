@@ -10,22 +10,21 @@
 
 set -e
 
-eval $(gomake --no-print-directory -f ../../Make.inc go-env)
+eval $(go tool make --no-print-directory -f ../../Make.inc go-env)
 if [ -z "$GC" ]; then
 	echo 'missing $GC - gomake failed?' 1>&2
 	exit 1
 fi
 
-gomake mkbuiltin1
+go tool make mkbuiltin1
 rm -f _builtin.c
 for i in runtime unsafe
 do
-	$GC -A $i.go
+	go tool $GC -A $i.go
 	O=$O ./mkbuiltin1 $i >>_builtin.c
 done
 
 # If _builtin.c has changed vs builtin.c.boot,
 # check in the new change.
-cmp -s _builtin.c builtin.c.boot || cp _builtin.c builtin.c.boot
-
-mv _builtin.c builtin.c
+cmp -s _builtin.c builtin.c || cp _builtin.c builtin.c
+rm _builtin.c

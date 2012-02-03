@@ -23,7 +23,6 @@ _test
 _testmain.go
 build.out
 test.out
-y.tab.[ch]
 doc/tmpltohtml
 doc/codelab/wiki/*.bin
 misc/cgo/life/run.out
@@ -35,12 +34,9 @@ src/Make.inc
 src/cmd/6a/6a
 src/cmd/?l/enam.c
 src/cmd/cc/y.output
-src/cmd/gc/builtin.c
 src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/cmd/gc/y.output
-src/cmd/gc/y1.tab.c
-src/cmd/gc/yerr.h
 src/pkg/Make.deps
 src/pkg/exp/norm/maketables
 src/pkg/exp/norm/maketesttables
