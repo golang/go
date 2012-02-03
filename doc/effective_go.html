@@ -66,7 +66,10 @@ prescriptive style guide.
 With Go we take an unusual
 approach and let the machine
 take care of most formatting issues.
-The <code>gofmt</code> tool reads a Go program
+The <code>gofmt</code> program
+(also available as <code>go tool fmt</code>, which
+operates at the package level rather than source file level)
+reads a Go program
 and emits the source in a standard style of indentation
 and vertical alignment, retaining and if necessary
 reformatting comments.
