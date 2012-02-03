@@ -232,7 +232,7 @@ Loop:
 }
 
 // isGoTool is the list of directories for Go programs that are installed in
-// $GOROOT/bin/go-tool.
+// $GOROOT/bin/tool.
 var isGoTool = map[string]bool{
 	"cmd/api":      true,
 	"cmd/cgo":      true,
@@ -300,7 +300,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 			elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
 		}
 		if t.Goroot && isGoTool[p.ImportPath] {
-			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
+			p.target = filepath.Join(t.Path, "bin/tool", elem)
 		} else {
 			p.target = filepath.Join(t.BinDir(), elem)
 		}

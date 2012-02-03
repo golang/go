@@ -22,10 +22,11 @@ if ld --version 2>&1 | grep 'gold.* 2\.20' >/dev/null; then
 fi
 
 # Create target directories
-mkdir -p "$GOROOT/bin/go-tool"
+mkdir -p "$GOROOT/bin/tool"
 mkdir -p "$GOROOT/pkg"
 
-# Remove old, pre-go-tool binaries.
+# Remove old, pre-tool binaries.
+rm -rf "$GOROOT"/bin/go-tool
 rm -f "$GOROOT"/bin/[568][acgl]
 rm -f "$GOROOT"/bin/{6cov,6nm,cgo,ebnflint,goapi,gofix,goinstall,gomake,gopack,gopprof,gotest,gotype,govet,goyacc,quietgcc}
 
@@ -44,13 +45,13 @@ export MAKEFLAGS
 unset CDPATH	# in case user has it set
 
 rm -f "$GOBIN"/quietgcc
-rm -f "$GOROOT/bin/go-tool/quietgcc"
+rm -f "$GOROOT/bin/tool/quietgcc"
 CC=${CC:-gcc}
 export CC
-sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOROOT"/bin/go-tool/quietgcc
-chmod +x "$GOROOT"/bin/go-tool/quietgcc
+sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOROOT"/bin/tool/quietgcc
+chmod +x "$GOROOT"/bin/tool/quietgcc
 
-export GOMAKE="$GOROOT"/bin/go-tool/make
+export GOMAKE="$GOROOT"/bin/tool/make
 rm -f "$GOBIN"/gomake
 rm -f "$GOMAKE"
 (

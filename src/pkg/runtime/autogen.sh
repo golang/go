@@ -27,7 +27,7 @@ if [ "$GOROOT" = "" ]; then
 fi
 
 # Use goc2c to translate .goc files into arch-specific .c files.
-"$GOROOT"/bin/go-tool/quietgcc -o goc2c -I "$GOROOT/include" goc2c.c "$GOROOT/lib/lib9.a"
+"$GOROOT"/bin/tool/quietgcc -o goc2c -I "$GOROOT/include" goc2c.c "$GOROOT/lib/lib9.a"
 for file in *.goc
 do
 	for arch in $GOARCHES
@@ -39,7 +39,7 @@ do
 done
 
 # Version constants.
-"$GOROOT"/bin/go-tool/quietgcc -o mkversion -I "$GOROOT/include" mkversion.c "$GOROOT/lib/lib9.a"
+"$GOROOT"/bin/tool/quietgcc -o mkversion -I "$GOROOT/include" mkversion.c "$GOROOT/lib/lib9.a"
 GOROOT="$GOROOT_FINAL" ./mkversion >z.tmp
 mv z.tmp zversion.go
 

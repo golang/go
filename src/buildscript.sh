@@ -36,8 +36,7 @@ set -e
 		s/\$GOROOT/"$GOROOT"/g
 		s/\$WORK/"$WORK"/g
 		s;"\$GOBIN"/go;&_bootstrap;g
-		s/go_bootstrap-tool/go-tool/g
-		s;"\$GOBIN"/go-tool;"$GOROOT"/bin/go-tool;g
+		s;"\$GOBIN"/tool;"$GOROOT"/bin/tool;g
 		s; \./; ;g
 	'
 	)>$targ

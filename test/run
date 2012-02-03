@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval $(../bin/go-tool/make --no-print-directory -f ../src/Make.inc go-env)
+eval $(../bin/tool/make --no-print-directory -f ../src/Make.inc go-env)
 
 export E=
 
@@ -33,8 +33,8 @@ failed=0
 
 PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
 
-# TODO: We add the go-tools directory to the PATH to avoid thinking about a better way.
-PATH="$GOROOT/bin/go-tool":$PATH
+# TODO: We add the tool directory to the PATH to avoid thinking about a better way.
+PATH="$GOROOT/bin/tool":$PATH
 
 RUNFILE="/tmp/gorun-$$-$USER"
 TMP1FILE="/tmp/gotest1-$$-$USER"
