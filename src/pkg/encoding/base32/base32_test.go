@@ -101,7 +101,7 @@ func TestDecode(t *testing.T) {
 
 		dbuf, err = StdEncoding.DecodeString(p.encoded)
 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
-		testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
+		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
 	}
 }
 
@@ -192,5 +192,31 @@ func TestBig(t *testing.T) {
 			}
 		}
 		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i)
+	}
+}
+
+func TestNewLineCharacters(t *testing.T) {
+	// Each of these should decode to the string "sure", without errors.
+	const expected = "sure"
+	examples := []string{
+		"ON2XEZI=",
+		"ON2XEZI=\r",
+		"ON2XEZI=\n",
+		"ON2XEZI=\r\n",
+		"ON2XEZ\r\nI=",
+		"ON2X\rEZ\nI=",
+		"ON2X\nEZ\rI=",
+		"ON2XEZ\nI=",
+		"ON2XEZI\n=",
+	}
+	for _, e := range examples {
+		buf, err := StdEncoding.DecodeString(e)
+		if err != nil {
+			t.Errorf("Decode(%q) failed: %v", e, err)
+			continue
+		}
+		if s := string(buf); s != expected {
+			t.Errorf("Decode(%q) = %q, want %q", e, s, expected)
+		}
 	}
 }
