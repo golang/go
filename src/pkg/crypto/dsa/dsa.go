@@ -102,7 +102,7 @@ GeneratePrimes:
 		qBytes[0] |= 0x80
 		q.SetBytes(qBytes)
 
-		if !big.ProbablyPrime(q, numMRTests) {
+		if !q.ProbablyPrime(numMRTests) {
 			continue
 		}
 
@@ -123,7 +123,7 @@ GeneratePrimes:
 				continue
 			}
 
-			if !big.ProbablyPrime(p, numMRTests) {
+			if !p.ProbablyPrime(numMRTests) {
 				continue
 			}
 

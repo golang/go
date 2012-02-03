@@ -39,7 +39,7 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
 		bytes[len(bytes)-1] |= 1
 
 		p.SetBytes(bytes)
-		if big.ProbablyPrime(p, 20) {
+		if p.ProbablyPrime(20) {
 			return
 		}
 	}
