@@ -113,52 +113,52 @@ darwin_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 darwin_amd64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 freebsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
 	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 freebsd_amd64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 linux_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
 	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd_32.h"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 linux_amd64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd_64.h"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 linux_arm)
 	mkerrors="$mkerrors"
 	mksyscall="./mksyscall.pl -b32"
 	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd.h"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 netbsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -netbsd"
 	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 netbsd_amd64)
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -netbsd"
 	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 openbsd_386)
 	mkerrors="$mkerrors -m32"
@@ -166,7 +166,7 @@ openbsd_386)
 	mksysctl="./mksysctl_openbsd.pl"
 	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 openbsd_amd64)
 	mkerrors="$mkerrors -m64"
@@ -174,7 +174,7 @@ openbsd_amd64)
 	mksysctl="./mksysctl_openbsd.pl"
 	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 plan9_386)
 	mkerrors=
