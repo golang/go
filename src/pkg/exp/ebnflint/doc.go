@@ -13,7 +13,7 @@ Grammar productions are grouped in boxes demarcated by the HTML elements
 
 
 Usage:
-	ebnflint [--start production] [file]
+	go tool ebnflint [--start production] [file]
 
 The --start flag specifies the name of the start production for
 the grammar; it defaults to "Start".

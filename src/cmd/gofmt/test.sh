@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval $(gomake --no-print-directory -f ../../Make.inc go-env)
+eval $(go tool make --no-print-directory -f ../../Make.inc go-env)
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1

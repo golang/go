@@ -29,7 +29,7 @@ and 'go install'.  See 'go help install'.
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
 
-The -fix flag instructs get to run gofix on the downloaded packages
+The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -u flag instructs get to use the network to update the named packages

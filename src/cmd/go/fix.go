@@ -7,7 +7,7 @@ package main
 var cmdFix = &Command{
 	Run:       runFix,
 	UsageLine: "fix [importpath...]",
-	Short:     "run gofix on packages",
+	Short:     "run go tool fix on packages",
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
 
