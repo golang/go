@@ -688,6 +688,8 @@ fatal(char *msg, ...)
 	va_end(arg);
 
 	xprintf("go tool dist: %s\n", buf1);
+	
+	bgwait();
 	ExitProcess(1);
 }
 
@@ -800,7 +802,7 @@ xstrlen(char *p)
 void
 xexit(int n)
 {
-	exit(n);
+	ExitProcess(n);
 }
 
 void
@@ -830,8 +832,6 @@ main(int argc, char **argv)
 
 	setvbuf(stdout, nil, _IOLBF, 0);
 	setvbuf(stderr, nil, _IOLBF, 0);
-
-	default_goroot = DEFAULT_GOROOT;
 
 	slash = "\\";
 	gohostos = "windows";

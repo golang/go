@@ -475,6 +475,8 @@ fatal(char *msg, ...)
 	vfprintf(stderr, msg, arg);
 	va_end(arg);
 	fprintf(stderr, "\n");
+	
+	bgwait();
 	exit(1);
 }
 
@@ -624,16 +626,10 @@ xsetenv(char *name, char *value)
 int
 main(int argc, char **argv)
 {
-	char *p;
 	Buf b;
 	struct utsname u;
 
 	binit(&b);
-	p = argv[0];
-	if(hassuffix(p, "bin/tool/dist")) {
-		default_goroot = xstrdup(p);
-		default_goroot[strlen(p)-strlen("bin/tool/dist")] = '\0';
-	}
 	
 	slash = "/";
 
