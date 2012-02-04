@@ -83,7 +83,7 @@ func (v *Float) Set(value float64) {
 // Map is a string-to-Var map variable that satisfies the Var interface.
 type Map struct {
 	m  map[string]Var
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 // KeyValue represents a single entry in a Map.
@@ -93,8 +93,8 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	b := new(bytes.Buffer)
 	fmt.Fprintf(b, "{")
 	first := true
@@ -115,8 +115,8 @@ func (v *Map) Init() *Map {
 }
 
 func (v *Map) Get(key string) Var {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	return v.m[key]
 }
 
@@ -127,12 +127,17 @@ func (v *Map) Set(key string, av Var) {
 }
 
 func (v *Map) Add(key string, delta int64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
 	av, ok := v.m[key]
+	v.mu.RUnlock()
 	if !ok {
-		av = new(Int)
-		v.m[key] = av
+		// check again under the write lock
+		v.mu.Lock()
+		if _, ok = v.m[key]; !ok {
+			av = new(Int)
+			v.m[key] = av
+		}
+		v.mu.Unlock()
 	}
 
 	// Add to Int; ignore otherwise.
@@ -143,12 +148,17 @@ func (v *Map) Add(key string, delta int64) {
 
 // AddFloat adds delta to the *Float value stored under the given map key.
 func (v *Map) AddFloat(key string, delta float64) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
 	av, ok := v.m[key]
+	v.mu.RUnlock()
 	if !ok {
-		av = new(Float)
-		v.m[key] = av
+		// check again under the write lock
+		v.mu.Lock()
+		if _, ok = v.m[key]; !ok {
+			av = new(Float)
+			v.m[key] = av
+		}
+		v.mu.Unlock()
 	}
 
 	// Add to Float; ignore otherwise.
@@ -157,18 +167,15 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
-// TODO(rsc): Make sure map access in separate thread is safe.
-func (v *Map) iterate(c chan<- KeyValue) {
+// Do calls f for each entry in the map.
+// The map is locked during the iteration,
+// but existing entries may be concurrently updated.
+func (v *Map) Do(f func(KeyValue)) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	for k, v := range v.m {
-		c <- KeyValue{k, v}
+		f(KeyValue{k, v})
 	}
-	close(c)
-}
-
-func (v *Map) Iter() <-chan KeyValue {
-	c := make(chan KeyValue)
-	go v.iterate(c)
-	return c
 }
 
 // String is a string variable, and satisfies the Var interface.
@@ -190,8 +197,10 @@ func (f Func) String() string {
 }
 
 // All published variables.
-var vars map[string]Var = make(map[string]Var)
-var mutex sync.Mutex
+var (
+	mutex sync.RWMutex
+	vars  map[string]Var = make(map[string]Var)
+)
 
 // Publish declares a named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
@@ -207,15 +216,9 @@ func Publish(name string, v Var) {
 
 // Get retrieves a named exported variable.
 func Get(name string) Var {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return vars[name]
-}
-
-// RemoveAll removes all exported variables.
-// This is for tests; don't call this on a real server.
-func RemoveAll() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	vars = make(map[string]Var)
 }
 
 // Convenience functions for creating new exported variables.
@@ -244,31 +247,28 @@ func NewString(name string) *String {
 	return v
 }
 
-// TODO(rsc): Make sure map access in separate thread is safe.
-func iterate(c chan<- KeyValue) {
+// Do calls f for each exported variable.
+// The global variable map is locked during the iteration,
+// but existing entries may be concurrently updated.
+func Do(f func(KeyValue)) {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	for k, v := range vars {
-		c <- KeyValue{k, v}
+		f(KeyValue{k, v})
 	}
-	close(c)
-}
-
-func Iter() <-chan KeyValue {
-	c := make(chan KeyValue)
-	go iterate(c)
-	return c
 }
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintf(w, "{\n")
 	first := true
-	for name, value := range vars {
+	Do(func(kv KeyValue) {
 		if !first {
 			fmt.Fprintf(w, ",\n")
 		}
 		first = false
-		fmt.Fprintf(w, "%q: %s", name, value)
-	}
+		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
+	})
 	fmt.Fprintf(w, "\n}\n")
 }
 
@@ -281,7 +281,7 @@ func memstats() interface{} {
 }
 
 func init() {
-	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
+	http.HandleFunc("/debug/vars", expvarHandler)
 	Publish("cmdline", Func(cmdline))
 	Publish("memstats", Func(memstats))
 }

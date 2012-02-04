@@ -913,6 +913,23 @@ to be implemented in the future.
 No changes will be needed.
 </p>
 
+<h3 id="expvar">The expvar package</h3>
+
+<p>
+In Go 1, the <code>RemoveAll</code> function has been removed.
+The <code>Iter</code> function and Iter method on <code>*Map</code> have
+been replaced by
+<a href="/pkg/expvar/#Do"><code>Do</code></a>
+and
+<a href="/pkg/expvar/#Map.Do"><code>(*Map).Do</code></a>.
+</p>
+
+<p>
+<em>Updating</em>:
+Most code using <code>expvar</code> will not need changing. The rare code that used
+<code>Iter</code> can be updated to pass a closure to Do to achieve the same effect.
+</p>
+
 <h3 id="flag">The flag package</h3>
 
 <p>
