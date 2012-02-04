@@ -21,7 +21,7 @@ char *gochar;
 char *goroot_final;
 char *goversion;
 char *slash;	// / for unix, \ for windows
-char *default_goroot;
+char *default_goroot = DEFAULT_GOROOT;
 
 static bool shouldbuild(char*, char*);
 static void copy(char*, char*);
@@ -487,7 +487,7 @@ install(char *dir)
 	Buf b, b1, path;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
-	int i, j, k, n;
+	int i, j, k, n, doclean;
 
 	binit(&b);
 	binit(&b1);
@@ -747,6 +747,8 @@ install(char *dir)
 			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goos));
 		}	
 
+		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
+		doclean = 1;
 		if(!isgo && streq(gohostos, "darwin")) {
 			// To debug C programs on OS X, it is not enough to say -ggdb
 			// on the command line.  You have to leave the object files
@@ -755,8 +757,8 @@ install(char *dir)
 			bpathf(&b1, "%s/pkg/obj/%s", goroot, dir);
 			xmkdirall(bstr(&b1));
 			bpathf(&b, "%s/%s", bstr(&b1), lastelem(files.p[i]));
-		} else
-			bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
+			doclean = 0;
+		}
 
 		b.p[b.len-1] = 'o';  // was c or s
 		vadd(&compile, "-o");
@@ -765,7 +767,8 @@ install(char *dir)
 		bgrunv(bstr(&path), CheckExit, &compile);
 
 		vadd(&link, bstr(&b));
-		vadd(&clean, bstr(&b));
+		if(doclean)
+			vadd(&clean, bstr(&b));
 	}
 	bgwait();
 	
@@ -1144,7 +1147,7 @@ cmdenv(int argc, char **argv)
 	binit(&b);
 	binit(&b1);
 
-	format = "%s=\"%s\"";
+	format = "%s=\"%s\"\n";
 	pflag = 0;
 	ARGBEGIN{
 	case 'p':

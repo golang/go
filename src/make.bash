@@ -47,7 +47,8 @@ done
 
 echo '# Building C bootstrap tool.'
 mkdir -p ../bin/tool
-gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist cmd/dist/*.c
+DEFGOROOT='-DDEFAULT_GOROOT="'"$(cd .. && pwd)"'"'
+gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 echo
 
 echo '# Building compilers and Go bootstrap tool.'
