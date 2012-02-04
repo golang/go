@@ -227,7 +227,7 @@ vuniq(Vec *v)
 	xqsort(v->p, v->len, sizeof(v->p[0]), strpcmp);
 	n = 0;
 	for(i=0; i<v->len; i++) {
-		if(i>0 && streq(v->p[i], v->p[i-1]))
+		if(n>0 && streq(v->p[i], v->p[n-1]))
 			xfree(v->p[i]);
 		else
 			v->p[n++] = v->p[i];
