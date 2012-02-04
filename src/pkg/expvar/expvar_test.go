@@ -9,6 +9,14 @@ import (
 	"testing"
 )
 
+// RemoveAll removes all exported variables.
+// This is for tests only.
+func RemoveAll() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	vars = make(map[string]Var)
+}
+
 func TestInt(t *testing.T) {
 	reqs := NewInt("requests")
 	if reqs.i != 0 {
