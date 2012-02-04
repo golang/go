@@ -2701,6 +2701,7 @@ var _Zs = &RangeTable{
 	},
 }
 
+// The following variables are of type *RangeTable:
 var (
 	Cc     = _Cc // Cc is the set of Unicode characters in category Cc.
 	Cf     = _Cf // Cf is the set of Unicode characters in category Cf.
@@ -4053,6 +4054,7 @@ var _Yi = &RangeTable{
 	},
 }
 
+// The following variables are of type *RangeTable:
 var (
 	Arabic                 = _Arabic                 // Arabic is the set of Unicode characters in script Arabic.
 	Armenian               = _Armenian               // Armenian is the set of Unicode characters in script Armenian.
@@ -5114,6 +5116,7 @@ var _White_Space = &RangeTable{
 	},
 }
 
+// The following variables are of type *RangeTable:
 var (
 	ASCII_Hex_Digit                    = _ASCII_Hex_Digit                    // ASCII_Hex_Digit is the set of Unicode characters with property ASCII_Hex_Digit.
 	Bidi_Control                       = _Bidi_Control                       // Bidi_Control is the set of Unicode characters with property Bidi_Control.
