@@ -1528,6 +1528,18 @@ func TestAddr(t *testing.T) {
 	if p.X != 4 {
 		t.Errorf("Addr.Elem.Set valued to set value in top value")
 	}
+
+	// Verify that taking the address of a type gives us a pointer
+	// which we can convert back using the usual interface
+	// notation.
+	var s struct {
+		B *bool
+	}
+	ps := ValueOf(&s).Elem().Field(0).Addr().Interface()
+	*(ps.(**bool)) = new(bool)
+	if s.B == nil {
+		t.Errorf("Addr.Interface direct assignment failed")
+	}
 }
 
 func noAlloc(t *testing.T, n int, f func(int)) {
