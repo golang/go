@@ -470,6 +470,7 @@ fatal(char *msg, ...)
 {
 	va_list arg;
 	
+	fflush(stdout);
 	fprintf(stderr, "go tool dist: ");
 	va_start(arg, msg);
 	vfprintf(stderr, msg, arg);
@@ -654,7 +655,7 @@ main(int argc, char **argv)
 	if(gohostarch == nil) {
 		if(uname(&u) < 0)
 			fatal("uname: %s", strerror(errno));
-		if(contains(u.machine, "x86_64"))
+		if(contains(u.machine, "x86_64") || contains(u.machine, "amd64"))
 			gohostarch = "amd64";
 		else if(hassuffix(u.machine, "86"))
 			gohostarch = "386";
