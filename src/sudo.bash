@@ -23,7 +23,7 @@ do
 	# Remove old binaries if present
 	sudo rm -f /usr/local/bin/6$i
 	# Install new binaries
-	sudo cp "$GOROOT"/src/cmd/$i/$i /usr/local/bin/go$i
+	sudo cp "$GOROOT"/bin/tool/$i /usr/local/bin/go$i
 	sudo chgrp procmod /usr/local/bin/go$i
 	sudo chmod g+s /usr/local/bin/go$i
 done
