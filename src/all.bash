@@ -8,7 +8,6 @@ if [ ! -f make.bash ]; then
 	echo 'all.bash must be run from $GOROOT/src' 1>&2
 	exit 1
 fi
-. ./make.bash
-bash run.bash --no-env --no-rebuild
-installed  # function defined by make.bash
-
+. ./make.bash --no-banner
+bash run.bash --no-rebuild
+../bin/tool/dist banner  # print build info

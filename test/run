@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval $(../bin/tool/make --no-print-directory -f ../src/Make.inc go-env)
-
+eval $(../bin/tool/dist env)
+export GOARCH GOOS GOROOT
 export E=
 
 case X"$GOARCH" in
