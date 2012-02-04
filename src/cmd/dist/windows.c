@@ -94,8 +94,7 @@ toutf(Buf *b, Rune *r)
 static void
 torune(Rune **rp, char *p)
 {
-	int i, n;
-	Rune *r, *w, r1;
+	Rune *r, *w;
 
 	r = xmalloc((strlen(p)+1) * sizeof r[0]);
 	w = r;
@@ -125,7 +124,6 @@ errstr(void)
 void
 xgetenv(Buf *b, char *name)
 {
-	char *p;
 	Rune *buf;
 	int n;
 	Rune *r;
@@ -169,6 +167,42 @@ bprintf(Buf *b, char *fmt, ...)
 	return bstr(b);
 }
 
+void
+bwritef(Buf *b, char *fmt, ...)
+{
+	va_list arg;
+	char buf[4096];
+	
+	// no reset
+	va_start(arg, fmt);
+	vsnprintf(buf, sizeof buf, fmt, arg);
+	va_end(arg);
+	bwritestr(b, buf);
+}
+
+// bpathf is like bprintf but replaces / with \ in the result,
+// to make it a canonical windows file path.
+char*
+bpathf(Buf *b, char *fmt, ...)
+{
+	int i;
+	va_list arg;
+	char buf[4096];
+	
+	breset(b);
+	va_start(arg, fmt);
+	vsnprintf(buf, sizeof buf, fmt, arg);
+	va_end(arg);
+	bwritestr(b, buf);
+
+	for(i=0; i<b->len; i++)
+		if(b->p[i] == '/')
+			b->p[i] = '\\';
+
+	return bstr(b);
+}
+
+
 static void
 breadfrom(Buf *b, HANDLE h)
 {
@@ -179,8 +213,10 @@ breadfrom(Buf *b, HANDLE h)
 			fatal("unlikely file size in readfrom");
 		bgrow(b, 4096);
 		n = 0;
-		if(!ReadFile(h, b->p+b->len, 4096, &n, nil))
-			fatal("ReadFile: %s", errstr());
+		if(!ReadFile(h, b->p+b->len, 4096, &n, nil)) {
+			// Happens for pipe reads.
+			break;
+		}
 		if(n == 0)
 			break;
 		b->len += n;
@@ -188,36 +224,71 @@ breadfrom(Buf *b, HANDLE h)
 }
 
 void
+run(Buf *b, char *dir, int mode, char *cmd, ...)
+{
+	va_list arg;
+	Vec argv;
+	char *p;
+	
+	vinit(&argv);
+	vadd(&argv, cmd);
+	va_start(arg, cmd);
+	while((p = va_arg(arg, char*)) != nil)
+		vadd(&argv, p);
+	va_end(arg);
+	
+	runv(b, dir, mode, &argv);
+	
+	vfree(&argv);
+}
+
+static void genrun(Buf*, char*, int, Vec*, int);
+
+void
 runv(Buf *b, char *dir, int mode, Vec *argv)
+{
+	genrun(b, dir, mode, argv, 1);
+}
+
+void
+bgrunv(char *dir, int mode, Vec *argv)
+{
+	genrun(nil, dir, mode, argv, 0);
+}
+
+#define MAXBG 4 /* maximum number of jobs to run at once */
+
+static struct {
+	PROCESS_INFORMATION pi;
+	int mode;
+	char *cmd;
+} bg[MAXBG];
+
+static int nbg;
+
+static void bgwait1(void);
+
+static void
+genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 {
 	int i, j, nslash;
 	Buf cmd;
-	char *e, *q;
+	char *q;
 	Rune *rcmd, *rexe, *rdir;
 	STARTUPINFOW si;
 	PROCESS_INFORMATION pi;
 	HANDLE p[2];
-	DWORD code;
+
+	while(nbg >= nelem(bg))
+		bgwait1();
 
 	binit(&cmd);
-	for(i=0; i<argv->len; i++) {
-		if(i > 0)
-			bwritestr(&cmd, " ");
-		q = argv->p[i];
-		if(workdir != nil && hasprefix(q, workdir)) {
-			bwritestr(&cmd, "$WORK");
-			q += strlen(workdir);
-		}
-		bwritestr(&cmd, q);
-	}
-	//xprintf("%s\n", bstr(&cmd));
 
-	breset(&cmd);
 	for(i=0; i<argv->len; i++) {
 		if(i > 0)
 			bwritestr(&cmd, " ");
 		q = argv->p[i];
-		if(contains(q, " ") || contains(q, "\t") || contains(q, "\\") || contains(q, "\"")) {
+		if(contains(q, " ") || contains(q, "\t") || contains(q, "\"") || contains(q, "\\\\") || hassuffix(q, "\\")) {
 			bwritestr(&cmd, "\"");
 			nslash = 0;
 			for(; *q; q++) {
@@ -242,6 +313,8 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 			bwritestr(&cmd, q);
 		}
 	}
+	if(vflag > 1)
+		xprintf("%s\n", bstr(&cmd));
 
 	torune(&rcmd, bstr(&cmd));
 	rexe = nil;
@@ -257,8 +330,13 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
 		si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 	} else {
+		SECURITY_ATTRIBUTES seci;
+
+		memset(&seci, 0, sizeof seci);
+		seci.nLength = sizeof seci;
+		seci.bInheritHandle = 1;
 		breset(b);
-		if(!CreatePipe(&p[0], &p[1], nil, 0))
+		if(!CreatePipe(&p[0], &p[1], &seci, 0))
 			fatal("CreatePipe: %s", errstr());
 		si.hStdOutput = p[1];
 		si.hStdError = p[1];
@@ -279,31 +357,55 @@ runv(Buf *b, char *dir, int mode, Vec *argv)
 		breadfrom(b, p[0]);
 		CloseHandle(p[0]);
 	}
-	WaitForSingleObject(pi.hProcess, INFINITE);
 
-	if(!GetExitCodeProcess(pi.hProcess, &code))
+	if(nbg < 0)
+		fatal("bad bookkeeping");
+	bg[nbg].pi = pi;
+	bg[nbg].mode = mode;
+	bg[nbg].cmd = btake(&cmd);
+	nbg++;
+
+	if(wait)
+		bgwait();
+
+	bfree(&cmd);
+}
+
+// bgwait1 waits for a single background job
+static void
+bgwait1(void)
+{
+	int i, mode;
+	char *cmd;
+	HANDLE bgh[MAXBG];
+	DWORD code;
+
+	if(nbg == 0)
+		fatal("bgwait1: nothing left");
+
+	for(i=0; i<nbg; i++)
+		bgh[i] = bg[i].pi.hProcess;
+	i = WaitForMultipleObjects(nbg, bgh, FALSE, INFINITE);
+	if(i < 0 || i >= nbg)
+		fatal("WaitForMultipleObjects: %s", errstr());
+
+	cmd = bg[i].cmd;
+	mode = bg[i].mode;
+	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code))
 		fatal("GetExitCodeProcess: %s", errstr());
 	if(mode==CheckExit && code != 0)
-		fatal("%s failed", argv->p[0]);
+		fatal("FAILED: %s", cmd);
+	CloseHandle(bg[i].pi.hProcess);
+	CloseHandle(bg[i].pi.hThread);
+
+	bg[i] = bg[--nbg];
 }
 
 void
-run(Buf *b, char *dir, int mode, char *cmd, ...)
+bgwait(void)
 {
-	va_list arg;
-	Vec argv;
-	char *p;
-	
-	vinit(&argv);
-	vadd(&argv, cmd);
-	va_start(arg, cmd);
-	while((p = va_arg(arg, char*)) != nil)
-		vadd(&argv, p);
-	va_end(arg);
-	
-	runv(b, dir, mode, &argv);
-	
-	vfree(&argv);
+	while(nbg > 0)
+		bgwait1();
 }
 
 // rgetwd returns a rune string form of the current directory's path.
@@ -313,7 +415,7 @@ rgetwd(void)
 	int n;
 	Rune *r;
 
-	n = GetCurrentDirectory(0, nil);
+	n = GetCurrentDirectoryW(0, nil);
 	r = xmalloc((n+1)*sizeof r[0]);
 	GetCurrentDirectoryW(n+1, r);
 	r[n] = '\0';
@@ -334,7 +436,6 @@ xgetwd(Buf *b)
 void
 xrealwd(Buf *b, char *path)
 {
-	int n;
 	Rune *old;
 	Rune *rnew;
 
@@ -354,25 +455,25 @@ xrealwd(Buf *b, char *path)
 bool
 isdir(char *p)
 {
-	int attr;
+	DWORD attr;
 	Rune *r;
 
 	torune(&r, p);
 	attr = GetFileAttributesW(r);
 	xfree(r);
-	return attr >= 0 && (attr & FILE_ATTRIBUTE_DIRECTORY);
+	return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 bool
 isfile(char *p)
 {
-	int attr;
+	DWORD attr;
 	Rune *r;
 
 	torune(&r, p);
 	attr = GetFileAttributesW(r);
 	xfree(r);
-	return attr >= 0 && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+	return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 Time
@@ -381,7 +482,6 @@ mtime(char *p)
 	HANDLE h;
 	WIN32_FIND_DATAW data;
 	Rune *r;
-	Time t;
 	FILETIME *ft;
 
 	torune(&r, p);
@@ -389,6 +489,7 @@ mtime(char *p)
 	xfree(r);
 	if(h == INVALID_HANDLE_VALUE)
 		return 0;
+	FindClose(h);
 	ft = &data.ftLastWriteTime;
 	return (Time)ft->dwLowDateTime + ((Time)ft->dwHighDateTime<<32);
 }
@@ -396,10 +497,10 @@ mtime(char *p)
 bool
 isabs(char *p)
 {
-	// "c:/" or "c:\"
+	// c:/ or c:\ at beginning
 	if(('A' <= p[0] && p[0] <= 'Z') || ('a' <= p[0] && p[0] <= 'z'))
 		return p[1] == ':' && (p[2] == '/' || p[2] == '\\');
-	// "/" or "\"
+	// / or \ at beginning
 	return p[0] == '/' || p[0] == '\\';
 }
 
@@ -409,6 +510,8 @@ readfile(Buf *b, char *file)
 	HANDLE h;
 	Rune *r;
 
+	if(vflag > 2)
+		xprintf("read %s\n", file);
 	torune(&r, file);
 	h = CreateFileW(r, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
 	if(h == INVALID_HANDLE_VALUE)
@@ -424,6 +527,8 @@ writefile(Buf *b, char *file)
 	Rune *r;
 	DWORD n;
 
+	if(vflag > 2)
+		xprintf("write %s\n", file);
 	torune(&r, file);
 	h = CreateFileW(r, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, CREATE_ALWAYS, 0, 0);
 	if(h == INVALID_HANDLE_VALUE)
@@ -582,8 +687,7 @@ fatal(char *msg, ...)
 	vsnprintf(buf1, sizeof buf1, msg, arg);
 	va_end(arg);
 
-	fprintf(stderr, "cbuild: %s\n", buf1);
-	fflush(stderr);
+	xprintf("go tool dist: %s\n", buf1);
 	ExitProcess(1);
 }
 
@@ -717,26 +821,35 @@ xprintf(char *fmt, ...)
 	va_end(arg);
 	n = 0;
 	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &n, 0);
-	fflush(stdout);
 }
 
 int
 main(int argc, char **argv)
 {
-	char *p;
+	SYSTEM_INFO si;
 
 	setvbuf(stdout, nil, _IOLBF, 0);
 	setvbuf(stderr, nil, _IOLBF, 0);
 
-	p = argv[0];
-	if(hassuffix(p, "bin/go-tool/dist.exe") || hassuffix(p, "bin\\go-tool\\dist.exe")) {
-		default_goroot = xstrdup(p);
-		default_goroot[strlen(p)-strlen("bin/go-tool/dist.exe")] = '\0';
-	}
-	
+	default_goroot = DEFAULT_GOROOT;
+
 	slash = "\\";
 	gohostos = "windows";
+
+	GetSystemInfo(&si);
+	switch(si.wProcessorArchitecture) {
+	case PROCESSOR_ARCHITECTURE_AMD64:
+		gohostarch = "amd64";
+		break;
+	case PROCESSOR_ARCHITECTURE_INTEL:
+		gohostarch = "386";
+		break;
+	default:
+		fatal("unknown processor architecture");
+	}
+
 	init();
+
 	xmain(argc, argv);
 	return 0;
 }
