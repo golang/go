@@ -641,6 +641,12 @@ main(int argc, char **argv)
 		gohostarch = "amd64";
 #elif defined(__linux__)
 	gohostos = "linux";
+#elif defined(__FreeBSD__)
+	gohostos = "freebsd";
+#elif defined(__OpenBSD__)
+	gohostos = "openbsd";
+#elif defined(__NetBSD__)
+	gohostos = "netbsd";
 #else
 	fatal("unknown operating system");
 #endif
