@@ -429,7 +429,14 @@ static struct {
 		"$GOROOT/pkg/obj/libgc.a",
 	}},
 	{"cmd/5l", {
-		"../ld/*",
+		"../ld/data.c",
+		"../ld/elf.c",
+		"../ld/go.c",
+		"../ld/ldelf.c",
+		"../ld/ldmacho.c",
+		"../ld/ldpe.c",
+		"../ld/lib.c",
+		"../ld/symtab.c",
 		"enam.c",
 	}},
 	{"cmd/6l", {
