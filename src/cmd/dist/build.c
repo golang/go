@@ -1174,6 +1174,7 @@ cmdenv(int argc, char **argv)
 		usage();
 	
 	xprintf(format, "GOROOT", goroot);
+	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);
 	xprintf(format, "GOOS", goos);
 	if(pflag) {
