@@ -10,10 +10,9 @@ import (
 	"appengine/delay"
 	"appengine/mail"
 	"bytes"
+	"encoding/gob"
 	"fmt"
-	"gob"
-	"os"
-	"template"
+	"text/template"
 )
 
 const (
@@ -30,7 +29,7 @@ const (
 //
 // This must be run in a datastore transaction, and the provided *Commit must
 // have been retrieved from the datastore within that transaction.
-func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error {
+func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 	// TODO(adg): implement notifications for packages
 	if com.PackagePath != "" {
 		return nil
@@ -73,7 +72,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error 
 			broken = com
 		}
 	}
-	var err os.Error
+	var err error
 	if broken != nil && !broken.FailNotificationSent {
 		c.Infof("%s is broken commit; notifying", broken.Hash)
 		sendFailMailLater.Call(c, broken, builder) // add task to queue
@@ -84,7 +83,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error 
 }
 
 // firstMatch executes the query q and loads the first entity into v.
-func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) os.Error {
+func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) error {
 	t := q.Limit(1).Run(c)
 	_, err := t.Next(v)
 	if err == datastore.Done {
@@ -96,7 +95,9 @@ func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) os.Error
 var (
 	sendFailMailLater = delay.Func("sendFailMail", sendFailMail)
 	sendFailMailTmpl  = template.Must(
-		template.New("notify").Funcs(tmplFuncs).ParseFile("build/notify.txt"),
+		template.New("notify.txt").
+			Funcs(template.FuncMap(tmplFuncs)).
+			ParseFiles("build/notify.txt"),
 	)
 )
 

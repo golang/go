@@ -6,7 +6,7 @@
 application: golang-org
 version: build
 runtime: go
-api_version: 3
+api_version: go1beta
 
 handlers:
 - url: /static

@@ -10,15 +10,15 @@ import (
 	"appengine"
 	"appengine/datastore"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"http"
-	"http/httptest"
 	"io"
-	"json"
-	"os"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"time"
-	"url"
 )
 
 func init() {
@@ -41,14 +41,14 @@ var testPackages = []*Package{
 	testPackage,
 }
 
-var tCommitTime = time.Seconds() - 60*60*24*7
+var tCommitTime = time.Now().Add(-time.Hour * 24 * 7)
 
 func tCommit(hash, parentHash string) *Commit {
-	tCommitTime += 60 * 60 * 12 // each commit should have a different time
+	tCommitTime.Add(time.Hour) // each commit should have a different time
 	return &Commit{
 		Hash:       hash,
 		ParentHash: parentHash,
-		Time:       datastore.Time(tCommitTime * 1e6),
+		Time:       tCommitTime,
 		User:       "adg",
 		Desc:       "change description",
 	}
@@ -233,9 +233,9 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "PASS")
 }
 
-func nukeEntities(c appengine.Context, kinds []string) os.Error {
+func nukeEntities(c appengine.Context, kinds []string) error {
 	if !appengine.IsDevAppServer() {
-		return os.NewError("can't nuke production data")
+		return errors.New("can't nuke production data")
 	}
 	var keys []*datastore.Key
 	for _, kind := range kinds {

@@ -9,14 +9,13 @@ package build
 
 import (
 	"bytes"
-	"exp/template/html"
-	"http"
-	"os"
+	"errors"
+	"html/template"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"template"
 
 	"appengine"
 	"appengine/datastore"
@@ -25,7 +24,6 @@ import (
 
 func init() {
 	http.HandleFunc("/", uiHandler)
-	html.Escape(uiTemplate)
 }
 
 // uiHandler draws the build status page.
@@ -96,7 +94,7 @@ type Pagination struct {
 
 // goCommits gets a slice of the latest Commits to the Go repository.
 // If page > 0 it paginates by commitsPerPage.
-func goCommits(c appengine.Context, page int) ([]*Commit, os.Error) {
+func goCommits(c appengine.Context, page int) ([]*Commit, error) {
 	q := datastore.NewQuery("Commit").
 		Ancestor((&Package{}).Key(c)).
 		Order("-Time").
@@ -140,7 +138,7 @@ type PackageState struct {
 }
 
 // TagStateByName fetches the results for all Go subrepos at the specified Tag.
-func TagStateByName(c appengine.Context, name string) (*TagState, os.Error) {
+func TagStateByName(c appengine.Context, name string) (*TagState, error) {
 	tag, err := GetTag(c, name)
 	if err != nil {
 		return nil, err
@@ -173,7 +171,7 @@ type uiTemplateData struct {
 }
 
 var uiTemplate = template.Must(
-	template.New("ui").Funcs(tmplFuncs).ParseFile("build/ui.html"),
+	template.New("ui.html").Funcs(tmplFuncs).ParseFiles("build/ui.html"),
 )
 
 var tmplFuncs = template.FuncMap{
@@ -293,13 +291,13 @@ func shortUser(user string) string {
 var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
 
 // repoURL returns the URL of a change at a Google Code repository or subrepo.
-func repoURL(hash, packagePath string) (string, os.Error) {
+func repoURL(hash, packagePath string) (string, error) {
 	if packagePath == "" {
 		return "https://code.google.com/p/go/source/detail?r=" + hash, nil
 	}
 	m := repoRe.FindStringSubmatch(packagePath)
 	if m == nil {
-		return "", os.NewError("unrecognized package: " + packagePath)
+		return "", errors.New("unrecognized package: " + packagePath)
 	}
 	url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
 	if len(m) > 2 {

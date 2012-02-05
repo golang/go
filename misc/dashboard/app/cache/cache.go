@@ -6,7 +6,7 @@ package cache
 
 import (
 	"fmt"
-	"http"
+	"net/http"
 	"time"
 
 	"appengine"
@@ -19,7 +19,7 @@ const (
 	expiry  = 600 // 10 minutes
 )
 
-func newTime() uint64 { return uint64(time.Seconds()) << 32 }
+func newTime() uint64 { return uint64(time.Now().Unix()) << 32 }
 
 // Now returns the current logical datastore time to use for cache lookups.
 func Now(c appengine.Context) uint64 {
