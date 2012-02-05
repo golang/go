@@ -6,10 +6,11 @@ package build
 
 import (
 	"crypto/hmac"
+	"crypto/md5"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"http"
-	"json"
-	"os"
+	"net/http"
 
 	"appengine"
 	"appengine/datastore"
@@ -28,7 +29,7 @@ const commitsPerPage = 30
 // each new commit at tip.
 //
 // This handler is used by a gobuilder process in -commit mode.
-func commitHandler(r *http.Request) (interface{}, os.Error) {
+func commitHandler(r *http.Request) (interface{}, error) {
 	c := appengine.NewContext(r)
 	com := new(Commit)
 
@@ -56,7 +57,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 		return nil, fmt.Errorf("validating Commit: %v", err)
 	}
 	defer cache.Tick(c)
-	tx := func(c appengine.Context) os.Error {
+	tx := func(c appengine.Context) error {
 		return addCommit(c, com)
 	}
 	return nil, datastore.RunInTransaction(c, tx, nil)
@@ -64,7 +65,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 
 // addCommit adds the Commit entity to the datastore and updates the tip Tag.
 // It must be run inside a datastore transaction.
-func addCommit(c appengine.Context, com *Commit) os.Error {
+func addCommit(c appengine.Context, com *Commit) error {
 	var tc Commit // temp value so we don't clobber com
 	err := datastore.Get(c, com.Key(c), &tc)
 	if err != datastore.ErrNoSuchEntity {
@@ -94,7 +95,7 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 			return fmt.Errorf("testing for parent Commit: %v", err)
 		}
 		if n == 0 {
-			return os.NewError("parent commit not found")
+			return errors.New("parent commit not found")
 		}
 	}
 	// update the tip Tag if this is the Go repo
@@ -115,7 +116,7 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 // request body and updates the Tag entity for the Kind of tag provided.
 //
 // This handler is used by a gobuilder process in -commit mode.
-func tagHandler(r *http.Request) (interface{}, os.Error) {
+func tagHandler(r *http.Request) (interface{}, error) {
 	if r.Method != "POST" {
 		return nil, errBadMethod(r.Method)
 	}
@@ -143,7 +144,7 @@ type Todo struct {
 // todoHandler returns the next action to be performed by a builder.
 // It expects "builder" and "kind" query parameters and returns a *Todo value.
 // Multiple "kind" parameters may be specified.
-func todoHandler(r *http.Request) (interface{}, os.Error) {
+func todoHandler(r *http.Request) (interface{}, error) {
 	c := appengine.NewContext(r)
 	now := cache.Now(c)
 	key := "build-todo-" + r.Form.Encode()
@@ -151,7 +152,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 	if cache.Get(r, now, key, &todo) {
 		return todo, nil
 	}
-	var err os.Error
+	var err error
 	builder := r.FormValue("builder")
 	for _, kind := range r.Form["kind"] {
 		var data interface{}
@@ -183,7 +184,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 // If provided with non-empty packagePath and goHash args, it scans the first
 // 20 Commits in Num-descending order for the specified packagePath and
 // returns the first that doesn't have a Result for this builder and goHash.
-func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, os.Error) {
+func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, error) {
 	p, err := GetPackage(c, packagePath)
 	if err != nil {
 		return nil, err
@@ -251,7 +252,7 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 
 // packagesHandler returns a list of the non-Go Packages monitored
 // by the dashboard.
-func packagesHandler(r *http.Request) (interface{}, os.Error) {
+func packagesHandler(r *http.Request) (interface{}, error) {
 	kind := r.FormValue("kind")
 	c := appengine.NewContext(r)
 	now := cache.Now(c)
@@ -273,7 +274,7 @@ func packagesHandler(r *http.Request) (interface{}, os.Error) {
 // creates a new Result entity, and updates the relevant Commit entity.
 // If the Log field is not empty, resultHandler creates a new Log entity
 // and updates the LogHash field before putting the Commit entity.
-func resultHandler(r *http.Request) (interface{}, os.Error) {
+func resultHandler(r *http.Request) (interface{}, error) {
 	if r.Method != "POST" {
 		return nil, errBadMethod(r.Method)
 	}
@@ -296,7 +297,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 		}
 		res.LogHash = hash
 	}
-	tx := func(c appengine.Context) os.Error {
+	tx := func(c appengine.Context) error {
 		// check Package exists
 		if _, err := GetPackage(c, res.PackagePath); err != nil {
 			return fmt.Errorf("GetPackage: %v", err)
@@ -338,7 +339,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-type dashHandler func(*http.Request) (interface{}, os.Error)
+type dashHandler func(*http.Request) (interface{}, error)
 
 type dashResponse struct {
 	Response interface{}
@@ -349,7 +350,7 @@ type dashResponse struct {
 // the request has an unsuitable method.
 type errBadMethod string
 
-func (e errBadMethod) String() string {
+func (e errBadMethod) Error() string {
 	return "bad method: " + string(e)
 }
 
@@ -363,14 +364,14 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		// request body when calling r.FormValue.
 		r.Form = r.URL.Query()
 
-		var err os.Error
+		var err error
 		var resp interface{}
 
 		// Validate key query parameter for POST requests only.
 		key := r.FormValue("key")
 		builder := r.FormValue("builder")
 		if r.Method == "POST" && !validKey(c, key, builder) {
-			err = os.NewError("invalid key: " + key)
+			err = errors.New("invalid key: " + key)
 		}
 
 		// Call the original HandlerFunc and return the response.
@@ -382,7 +383,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		dashResp := &dashResponse{Response: resp}
 		if err != nil {
 			c.Errorf("%v", err)
-			dashResp.Error = err.String()
+			dashResp.Error = err.Error()
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(dashResp); err != nil {
@@ -394,7 +395,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 func keyHandler(w http.ResponseWriter, r *http.Request) {
 	builder := r.FormValue("builder")
 	if builder == "" {
-		logErr(w, r, os.NewError("must supply builder in query string"))
+		logErr(w, r, errors.New("must supply builder in query string"))
 		return
 	}
 	c := appengine.NewContext(r)
@@ -433,12 +434,12 @@ func validKey(c appengine.Context, key, builder string) bool {
 }
 
 func builderKey(c appengine.Context, builder string) string {
-	h := hmac.NewMD5([]byte(secretKey(c)))
+	h := hmac.New(md5.New, []byte(secretKey(c)))
 	h.Write([]byte(builder))
-	return fmt.Sprintf("%x", h.Sum())
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
+func logErr(w http.ResponseWriter, r *http.Request, err error) {
 	appengine.NewContext(r).Errorf("Error: %v", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprint(w, "Error: ", err)

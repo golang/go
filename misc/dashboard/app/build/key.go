@@ -55,7 +55,7 @@ func secretKey(c appengine.Context) string {
 			datastore.Put(c, theKey.Key(c), &theKey.BuilderKey)
 			return theKey.Secret
 		}
-		panic("cannot load builder key: " + err.String())
+		panic("cannot load builder key: " + err.Error())
 	}
 
 	return theKey.Secret

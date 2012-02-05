@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
+	"time"
 
 	"appengine"
 	"appengine/datastore"
@@ -41,7 +42,7 @@ func (p *Package) Key(c appengine.Context) *datastore.Key {
 }
 
 // LastCommit returns the most recent Commit for this Package.
-func (p *Package) LastCommit(c appengine.Context) (*Commit, os.Error) {
+func (p *Package) LastCommit(c appengine.Context) (*Commit, error) {
 	var commits []*Commit
 	_, err := datastore.NewQuery("Commit").
 		Ancestor(p.Key(c)).
@@ -58,7 +59,7 @@ func (p *Package) LastCommit(c appengine.Context) (*Commit, os.Error) {
 }
 
 // GetPackage fetches a Package by path from the datastore.
-func GetPackage(c appengine.Context, path string) (*Package, os.Error) {
+func GetPackage(c appengine.Context, path string) (*Package, error) {
 	p := &Package{Path: path}
 	err := datastore.Get(c, p.Key(c), p)
 	if err == datastore.ErrNoSuchEntity {
@@ -80,7 +81,7 @@ type Commit struct {
 
 	User string
 	Desc string `datastore:",noindex"`
-	Time datastore.Time
+	Time time.Time
 
 	// ResultData is the Data string of each build Result for this Commit.
 	// For non-Go commits, only the Results for the current Go tip, weekly,
@@ -100,19 +101,19 @@ func (com *Commit) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Commit", key, 0, p.Key(c))
 }
 
-func (c *Commit) Valid() os.Error {
+func (c *Commit) Valid() error {
 	if !validHash(c.Hash) {
-		return os.NewError("invalid Hash")
+		return errors.New("invalid Hash")
 	}
 	if c.ParentHash != "" && !validHash(c.ParentHash) { // empty is OK
-		return os.NewError("invalid ParentHash")
+		return errors.New("invalid ParentHash")
 	}
 	return nil
 }
 
 // AddResult adds the denormalized Reuslt data to the Commit's Result field.
 // It must be called from inside a datastore transaction.
-func (com *Commit) AddResult(c appengine.Context, r *Result) os.Error {
+func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("getting Commit: %v", err)
 	}
@@ -192,12 +193,12 @@ func (r *Result) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Result", key, 0, p.Key(c))
 }
 
-func (r *Result) Valid() os.Error {
+func (r *Result) Valid() error {
 	if !validHash(r.Hash) {
-		return os.NewError("invalid Hash")
+		return errors.New("invalid Hash")
 	}
 	if r.PackagePath != "" && !validHash(r.GoHash) {
-		return os.NewError("invalid GoHash")
+		return errors.New("invalid GoHash")
 	}
 	return nil
 }
@@ -214,7 +215,7 @@ type Log struct {
 	CompressedLog []byte
 }
 
-func (l *Log) Text() ([]byte, os.Error) {
+func (l *Log) Text() ([]byte, error) {
 	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
 	if err != nil {
 		return nil, fmt.Errorf("reading log data: %v", err)
@@ -226,14 +227,14 @@ func (l *Log) Text() ([]byte, os.Error) {
 	return b, nil
 }
 
-func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
+func PutLog(c appengine.Context, text string) (hash string, err error) {
 	h := sha1.New()
 	io.WriteString(h, text)
 	b := new(bytes.Buffer)
 	z, _ := gzip.NewWriterLevel(b, gzip.BestCompression)
 	io.WriteString(z, text)
 	z.Close()
-	hash = fmt.Sprintf("%x", h.Sum())
+	hash = fmt.Sprintf("%x", h.Sum(nil))
 	key := datastore.NewKey(c, "Log", hash, 0, nil)
 	_, err = datastore.Put(c, key, &Log{b.Bytes()})
 	return
@@ -252,29 +253,29 @@ func (t *Tag) Key(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Tag", t.Kind, 0, p.Key(c))
 }
 
-func (t *Tag) Valid() os.Error {
+func (t *Tag) Valid() error {
 	if t.Kind != "weekly" && t.Kind != "release" && t.Kind != "tip" {
-		return os.NewError("invalid Kind")
+		return errors.New("invalid Kind")
 	}
 	if !validHash(t.Hash) {
-		return os.NewError("invalid Hash")
+		return errors.New("invalid Hash")
 	}
 	return nil
 }
 
 // Commit returns the Commit that corresponds with this Tag.
-func (t *Tag) Commit(c appengine.Context) (*Commit, os.Error) {
+func (t *Tag) Commit(c appengine.Context) (*Commit, error) {
 	com := &Commit{Hash: t.Hash}
 	err := datastore.Get(c, com.Key(c), com)
 	return com, err
 }
 
 // GetTag fetches a Tag by name from the datastore.
-func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
+func GetTag(c appengine.Context, tag string) (*Tag, error) {
 	t := &Tag{Kind: tag}
 	if err := datastore.Get(c, t.Key(c), t); err != nil {
 		if err == datastore.ErrNoSuchEntity {
-			return nil, os.NewError("tag not found: " + tag)
+			return nil, errors.New("tag not found: " + tag)
 		}
 		return nil, err
 	}
@@ -286,11 +287,11 @@ func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
 
 // Packages returns packages of the specified kind.
 // Kind must be one of "external" or "subrepo".
-func Packages(c appengine.Context, kind string) ([]*Package, os.Error) {
+func Packages(c appengine.Context, kind string) ([]*Package, error) {
 	switch kind {
 	case "external", "subrepo":
 	default:
-		return nil, os.NewError(`kind must be one of "external" or "subrepo"`)
+		return nil, errors.New(`kind must be one of "external" or "subrepo"`)
 	}
 	var pkgs []*Package
 	q := datastore.NewQuery("Package").Filter("Kind=", kind)
