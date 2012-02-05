@@ -115,8 +115,11 @@ bsubst(Buf *b, char *x, char *y)
 		if(p == nil)
 			break;
 		if(nx != ny) {
-			if(nx < ny)
+			if(nx < ny) {
+				pos = p - b->p;
 				bgrow(b, ny-nx);
+				p = b->p + pos;
+			}
 			xmemmove(p+ny, p+nx, (b->p+b->len)-(p+nx));
 		}
 		xmemmove(p, y, ny);
