@@ -31,8 +31,6 @@
 #include <libc.h>
 #include <bio.h>
 
-#pragma	lib	"../cc/cc.a$O"
-
 #ifndef	EXTERN
 #define EXTERN	extern
 #endif
