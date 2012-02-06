@@ -10,9 +10,6 @@ enum
 	Runemax = 0x10FFFF, /* maximum rune value */
 };
 
-#pragma src "/sys/src/go/src/lib9"
-#pragma lib "/sys/src/go/lib/$M/lib9.a"
-
 char*	getgoos(void);
 char*	getgoarch(void);
 char*	getgoroot(void);
