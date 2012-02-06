@@ -9,11 +9,6 @@ find bin -exec chmod ugo+rx \{\} \;
 find . -type d -exec chmod ugo+rx \{\} \;
 chmod o-w .
 
-echo "Setting GOROOT system-wide"
-echo "eval \`/etc/profile_go\`" >> /etc/csh.login
-echo "eval \`/etc/profile_go\`" >> /etc/zshenv
-echo "eval \`/etc/profile_go\`" >> /etc/profile
-
 echo "Fixing debuggers via sudo.bash"
 # setgrp procmod the debuggers (sudo.bash)
 cd $GOROOT/src

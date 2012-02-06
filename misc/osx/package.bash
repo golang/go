@@ -13,34 +13,32 @@ fi
 
 BUILD=/tmp/go.build.tmp
 ROOT=`hg root`
+export GOROOT=$BUILD/root/usr/local/go
+export GOROOT_FINAL=/usr/local/go
 
 echo "Removing old images"
 rm -f *.pkg *.dmg
 
 echo "Preparing temporary directory"
-rm -rf ${BUILD}
-mkdir -p ${BUILD}
-
-echo "Preparing template"
-mkdir -p ${BUILD}/root/usr/local/
+rm -rf $BUILD
+mkdir -p $BUILD
 
 echo "Copying go source distribution"
-cp -r $ROOT ${BUILD}/root/usr/local/go
-cp -r etc ${BUILD}/root/etc
+mkdir -p $BUILD/root/usr/local
+cp -r $ROOT $GOROOT
+cp -r etc $BUILD/root/etc
 
 echo "Building go"
-pushd . > /dev/null
-cd ${BUILD}/root/usr/local/go
-GOROOT=`pwd`
+pushd $GOROOT > /dev/null
 src/version.bash -save
 rm -rf .hg .hgignore .hgtags
 cd src
 ./all.bash | sed "s/^/  /"
-cd ..
 popd > /dev/null
 
 echo "Building package"
-${PM} -v -r ${BUILD}/root -o "Go `hg id`.pkg" \
+# $PM came from utils.bahs
+$PM -v -r $BUILD/root -o "Go `hg id`.pkg" \
 	--scripts scripts \
 	--id com.googlecode.go \
 	--title Go \
@@ -48,4 +46,4 @@ ${PM} -v -r ${BUILD}/root -o "Go `hg id`.pkg" \
 	--target "10.5"
 
 echo "Removing temporary directory"
-rm -rf ${BUILD}
+rm -rf $BUILD
