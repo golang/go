@@ -1183,7 +1183,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
 	}
-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", p.CgoFiles); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
