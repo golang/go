@@ -73,7 +73,7 @@ var lineBreakerTests = []lineBreakerTest{
 
 func TestLineBreaker(t *testing.T) {
 	for i, test := range lineBreakerTests {
-		buf := bytes.NewBuffer(nil)
+		buf := new(bytes.Buffer)
 		var breaker lineBreaker
 		breaker.out = buf
 		_, err := breaker.Write([]byte(test.in))
@@ -93,7 +93,7 @@ func TestLineBreaker(t *testing.T) {
 	}
 
 	for i, test := range lineBreakerTests {
-		buf := bytes.NewBuffer(nil)
+		buf := new(bytes.Buffer)
 		var breaker lineBreaker
 		breaker.out = buf
 

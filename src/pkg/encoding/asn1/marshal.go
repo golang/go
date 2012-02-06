@@ -24,7 +24,7 @@ type forkableWriter struct {
 }
 
 func newForkableWriter() *forkableWriter {
-	return &forkableWriter{bytes.NewBuffer(nil), nil, nil}
+	return &forkableWriter{new(bytes.Buffer), nil, nil}
 }
 
 func (f *forkableWriter) fork() (pre, post *forkableWriter) {

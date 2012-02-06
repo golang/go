@@ -77,8 +77,7 @@ func (t Token) tagString() string {
 	if len(t.Attr) == 0 {
 		return t.Data
 	}
-	buf := bytes.NewBuffer(nil)
-	buf.WriteString(t.Data)
+	buf := bytes.NewBufferString(t.Data)
 	for _, a := range t.Attr {
 		buf.WriteByte(' ')
 		buf.WriteString(a.Key)

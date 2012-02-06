@@ -555,8 +555,8 @@ func TestUnescapeEscape(t *testing.T) {
 
 func TestBufAPI(t *testing.T) {
 	s := "0<a>1</a>2<b>3<a>4<a>5</a>6</b>7</a>8<a/>9"
-	z := NewTokenizer(bytes.NewBuffer([]byte(s)))
-	result := bytes.NewBuffer(nil)
+	z := NewTokenizer(bytes.NewBufferString(s))
+	var result bytes.Buffer
 	depth := 0
 loop:
 	for {

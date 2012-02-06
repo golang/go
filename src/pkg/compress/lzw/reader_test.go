@@ -81,7 +81,7 @@ var lzwTests = []lzwTest{
 }
 
 func TestReader(t *testing.T) {
-	b := bytes.NewBuffer(nil)
+	var b bytes.Buffer
 	for _, tt := range lzwTests {
 		d := strings.Split(tt.desc, ";")
 		var order Order
@@ -97,7 +97,7 @@ func TestReader(t *testing.T) {
 		rc := NewReader(strings.NewReader(tt.compressed), order, litWidth)
 		defer rc.Close()
 		b.Reset()
-		n, err := io.Copy(b, rc)
+		n, err := io.Copy(&b, rc)
 		if err != nil {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
@@ -116,7 +116,7 @@ func benchmarkDecoder(b *testing.B, n int) {
 	b.SetBytes(int64(n))
 	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
 	buf0 = buf0[:10000]
-	compressed := bytes.NewBuffer(nil)
+	compressed := new(bytes.Buffer)
 	w := NewWriter(compressed, LSB, 8)
 	for i := 0; i < n; i += len(buf0) {
 		io.Copy(w, bytes.NewBuffer(buf0))

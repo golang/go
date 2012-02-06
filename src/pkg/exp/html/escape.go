@@ -233,8 +233,8 @@ func EscapeString(s string) string {
 	if strings.IndexAny(s, escapedChars) == -1 {
 		return s
 	}
-	buf := bytes.NewBuffer(nil)
-	escape(buf, s)
+	var buf bytes.Buffer
+	escape(&buf, s)
 	return buf.String()
 }
 

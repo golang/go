@@ -795,8 +795,8 @@ func TestFormatters(t *testing.T) {
 				t.Errorf("For %q, expected error, got none.", c.in)
 				continue
 			}
-			buf := bytes.NewBuffer(nil)
-			err = tmpl.Execute(buf, data)
+			var buf bytes.Buffer
+			err = tmpl.Execute(&buf, data)
 			if err != nil {
 				t.Error("unexpected Execute error: ", err)
 				continue

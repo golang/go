@@ -688,7 +688,7 @@ func TestReadAfterLines(t *testing.T) {
 }
 
 func TestReadEmptyBuffer(t *testing.T) {
-	l, _ := NewReaderSize(bytes.NewBuffer(nil), minReadBufferSize)
+	l, _ := NewReaderSize(new(bytes.Buffer), minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
 	if err != io.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)

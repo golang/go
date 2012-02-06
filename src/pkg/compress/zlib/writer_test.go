@@ -124,8 +124,8 @@ func TestWriterDict(t *testing.T) {
 
 func TestWriterDictIsUsed(t *testing.T) {
 	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
-	buf := bytes.NewBuffer(nil)
-	compressor, err := NewWriterDict(buf, BestCompression, input)
+	var buf bytes.Buffer
+	compressor, err := NewWriterDict(&buf, BestCompression, input)
 	if err != nil {
 		t.Errorf("error in NewWriterDict: %s", err)
 		return

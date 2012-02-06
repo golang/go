@@ -155,8 +155,8 @@ func TestDumper(t *testing.T) {
 	}
 
 	for stride := 1; stride < len(in); stride++ {
-		out := bytes.NewBuffer(nil)
-		dumper := Dumper(out)
+		var out bytes.Buffer
+		dumper := Dumper(&out)
 		done := 0
 		for done < len(in) {
 			todo := done + stride

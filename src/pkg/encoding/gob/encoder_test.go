@@ -570,8 +570,7 @@ func TestGobMapInterfaceEncode(t *testing.T) {
 		"bo": []bool{false},
 		"st": []string{"s"},
 	}
-	buf := bytes.NewBuffer(nil)
-	enc := NewEncoder(buf)
+	enc := NewEncoder(new(bytes.Buffer))
 	err := enc.Encode(m)
 	if err != nil {
 		t.Errorf("encode map: %s", err)
@@ -579,7 +578,7 @@ func TestGobMapInterfaceEncode(t *testing.T) {
 }
 
 func TestSliceReusesMemory(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
+	buf := new(bytes.Buffer)
 	// Bytes
 	{
 		x := []byte("abcd")

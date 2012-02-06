@@ -159,9 +159,9 @@ func dump(n *Node) (string, error) {
 	if n == nil || len(n.Child) == 0 {
 		return "", nil
 	}
-	b := bytes.NewBuffer(nil)
+	var b bytes.Buffer
 	for _, child := range n.Child {
-		if err := dumpLevel(b, child, 0); err != nil {
+		if err := dumpLevel(&b, child, 0); err != nil {
 			return "", err
 		}
 	}
