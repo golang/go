@@ -527,7 +527,7 @@ TEXT runtime·getcallersp(SB), 7, $0
 // int64 runtime·cputicks(void), so really
 // void runtime·cputicks(int64 *ticks)
 TEXT runtime·cputicks(SB),7,$0
-	BYTE	$0x0F; BYTE $0x31;     // RDTSC; not supported by 8a
+	RDTSC
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
