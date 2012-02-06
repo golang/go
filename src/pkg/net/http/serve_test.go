@@ -504,8 +504,9 @@ func Test304Responses(t *testing.T) {
 }
 
 // TestHeadResponses verifies that responses to HEAD requests don't
-// declare that they're chunking in their response headers and aren't
-// allowed to produce output.
+// declare that they're chunking in their response headers, aren't
+// allowed to produce output, and don't set a Content-Type since
+// the real type of the body data cannot be inferred.
 func TestHeadResponses(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("Ignored body"))
@@ -526,6 +527,10 @@ func TestHeadResponses(t *testing.T) {
 	}
 	if len(res.TransferEncoding) > 0 {
 		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+	}
+	ct := res.Header.Get("Content-Type")
+	if ct != "" {
+		t.Errorf("expected no Content-Type; got %s", ct)
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
