@@ -37,3 +37,11 @@ func (ts *Timespec) Unix() (sec int64, nsec int64) {
 func (tv *Timeval) Unix() (sec int64, nsec int64) {
 	return int64(tv.Sec), int64(tv.Usec) * 1000
 }
+
+func (ts *Timespec) Nano() int64 {
+	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
+}
+
+func (tv *Timeval) Nano() int64 {
+	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
+}
