@@ -20,3 +20,22 @@ func F3() (ret []int) { return append(ret, 1) }
 // Call of inlined method with blank receiver.
 func (_ *T) M() int { return 1 }
 func (t *T) MM() int { return t.M() }
+
+
+// One more like issue 2678
+type S struct { x, y int }
+type U []S
+
+func F4(S int) U { return U{{S,S}} }
+
+func F5() []*S {
+	return []*S{ {1,2}, { 3, 4} }
+}
+
+func F6(S int) *U {
+	return &U{{S,S}}
+}
+
+
+
+

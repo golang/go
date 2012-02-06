@@ -2047,10 +2047,9 @@ typecheckcomplit(Node **np)
 	n->type = t;
 	
 	if(isptr[t->etype]) {
-		// For better or worse, we don't allow pointers as
-		// the composite literal type, except when using
-		// the &T syntax, which sets implicit.
-		if(!n->right->implicit) {
+		// For better or worse, we don't allow pointers as the composite literal type,
+		// except when using the &T syntax, which sets implicit to ImplPtr.
+		if(n->right->implicit == Explicit) {
 			yyerror("invalid pointer type %T for composite literal (use &%T instead)", t, t->type);
 			goto error;
 		}
