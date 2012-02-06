@@ -69,8 +69,23 @@ var tests = []ZipTest{
 			},
 		},
 	},
-	{Name: "readme.zip"},
-	{Name: "readme.notzip", Error: ErrFormat},
+	{
+		Name: "symlink.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "symlink",
+				Content: []byte("../target"),
+				Mode:    0777 | os.ModeSymlink,
+			},
+		},
+	},
+	{
+		Name: "readme.zip",
+	},
+	{
+		Name:  "readme.notzip",
+		Error: ErrFormat,
+	},
 	{
 		Name: "dd.zip",
 		File: []ZipTestFile{

@@ -47,10 +47,10 @@ var writeTests = []WriteTest{
 		Mode:   0755 | os.ModeSetgid,
 	},
 	{
-		Name:   "setgid",
-		Data:   []byte("setgid file"),
+		Name:   "symlink",
+		Data:   []byte("../link/target"),
 		Method: Deflate,
-		Mode:   0755 | os.ModeSetgid,
+		Mode:   0755 | os.ModeSymlink,
 	},
 }
 
