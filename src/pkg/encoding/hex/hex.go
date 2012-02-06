@@ -103,8 +103,8 @@ func DecodeString(s string) ([]byte, error) {
 // Dump returns a string that contains a hex dump of the given data. The format
 // of the hex dump matches the output of `hexdump -C` on the command line.
 func Dump(data []byte) string {
-	buf := bytes.NewBuffer(nil)
-	dumper := Dumper(buf)
+	var buf bytes.Buffer
+	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()
 	return string(buf.Bytes())

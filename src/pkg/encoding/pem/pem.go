@@ -251,7 +251,7 @@ func Encode(out io.Writer, b *Block) (err error) {
 }
 
 func EncodeToMemory(b *Block) []byte {
-	buf := bytes.NewBuffer(nil)
-	Encode(buf, b)
+	var buf bytes.Buffer
+	Encode(&buf, b)
 	return buf.Bytes()
 }

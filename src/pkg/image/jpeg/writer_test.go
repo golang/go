@@ -54,14 +54,14 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		// Encode that image as JPEG.
-		buf := bytes.NewBuffer(nil)
-		err = Encode(buf, m0, &Options{Quality: tc.quality})
+		var buf bytes.Buffer
+		err = Encode(&buf, m0, &Options{Quality: tc.quality})
 		if err != nil {
 			t.Error(tc.filename, err)
 			continue
 		}
 		// Decode that JPEG.
-		m1, err := Decode(buf)
+		m1, err := Decode(&buf)
 		if err != nil {
 			t.Error(tc.filename, err)
 			continue

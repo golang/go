@@ -35,12 +35,12 @@ func diff(m0, m1 image.Image) error {
 }
 
 func encodeDecode(m image.Image) (image.Image, error) {
-	b := bytes.NewBuffer(nil)
-	err := Encode(b, m)
+	var b bytes.Buffer
+	err := Encode(&b, m)
 	if err != nil {
 		return nil, err
 	}
-	m, err = Decode(b)
+	m, err = Decode(&b)
 	if err != nil {
 		return nil, err
 	}

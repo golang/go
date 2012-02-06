@@ -229,14 +229,14 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) err
 }
 
 func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name string, limit int) error {
-	buffer := bytes.NewBuffer(nil)
-	w := NewWriter(buffer, level)
+	var buffer bytes.Buffer
+	w := NewWriter(&buffer, level)
 	w.Write(input)
 	w.Close()
 	if limit > 0 && buffer.Len() > limit {
 		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
 	}
-	r := NewReader(buffer)
+	r := NewReader(&buffer)
 	out, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Errorf("read: %s", err)
