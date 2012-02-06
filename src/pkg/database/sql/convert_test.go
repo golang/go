@@ -18,14 +18,15 @@ type conversionTest struct {
 	s, d interface{} // source and destination
 
 	// following are used if they're non-zero
-	wantint  int64
-	wantuint uint64
-	wantstr  string
-	wantf32  float32
-	wantf64  float64
-	wanttime time.Time
-	wantbool bool // used if d is of type *bool
-	wanterr  string
+	wantint   int64
+	wantuint  uint64
+	wantstr   string
+	wantf32   float32
+	wantf64   float64
+	wanttime  time.Time
+	wantbool  bool // used if d is of type *bool
+	wanterr   string
+	wantiface interface{}
 }
 
 // Target variables for scanning into.
@@ -41,6 +42,7 @@ var (
 	scanf32    float32
 	scanf64    float64
 	scantime   time.Time
+	scaniface  interface{}
 )
 
 var conversionTests = []conversionTest{
@@ -95,6 +97,14 @@ var conversionTests = []conversionTest{
 	{s: float64(1.5), d: &scanf32, wantf32: float32(1.5)},
 	{s: "1.5", d: &scanf32, wantf32: float32(1.5)},
 	{s: "1.5", d: &scanf64, wantf64: float64(1.5)},
+
+	// To interface{}
+	{s: float64(1.5), d: &scaniface, wantiface: float64(1.5)},
+	{s: int64(1), d: &scaniface, wantiface: int64(1)},
+	{s: "str", d: &scaniface, wantiface: "str"},
+	{s: []byte("byteslice"), d: &scaniface, wantiface: []byte("byteslice")},
+	{s: true, d: &scaniface, wantiface: true},
+	{s: nil, d: &scaniface},
 }
 
 func intValue(intptr interface{}) int64 {
@@ -151,6 +161,18 @@ func TestConversions(t *testing.T) {
 		}
 		if !ct.wanttime.IsZero() && !ct.wanttime.Equal(timeValue(ct.d)) {
 			errf("want time %v, got %v", ct.wanttime, timeValue(ct.d))
+		}
+		if ifptr, ok := ct.d.(*interface{}); ok {
+			if !reflect.DeepEqual(ct.wantiface, scaniface) {
+				errf("want interface %#v, got %#v", ct.wantiface, scaniface)
+				continue
+			}
+			if srcBytes, ok := ct.s.([]byte); ok {
+				dstBytes := (*ifptr).([]byte)
+				if &dstBytes[0] == &srcBytes[0] {
+					errf("copy into interface{} didn't copy []byte data")
+				}
+			}
 		}
 	}
 }

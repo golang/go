@@ -880,6 +880,10 @@ func (rs *Rows) Columns() ([]string, error) {
 // be modified and held indefinitely. The copy can be avoided by using
 // an argument of type *RawBytes instead; see the documentation for
 // RawBytes for restrictions on its use.
+//
+// If an argument has type *interface{}, Scan copies the value
+// provided by the underlying driver without conversion. If the value
+// is of type []byte, a copy is made and the caller owns the result.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
 		return errors.New("sql: Rows closed")
