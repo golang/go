@@ -8,30 +8,27 @@
 // abstract the functionality, plus some other related primitives.
 package io
 
-// Error represents an unexpected I/O behavior.
-type Error struct {
-	ErrorString string
-}
-
-func (err *Error) Error() string { return err.ErrorString }
+import (
+	"errors"
+)
 
 // ErrShortWrite means that a write accepted fewer bytes than requested
 // but failed to return an explicit error.
-var ErrShortWrite error = &Error{"short write"}
+var ErrShortWrite = errors.New("short write")
 
 // ErrShortBuffer means that a read required a longer buffer than was provided.
-var ErrShortBuffer error = &Error{"short buffer"}
+var ErrShortBuffer = errors.New("short buffer")
 
 // EOF is the error returned by Read when no more input is available.
 // Functions should return EOF only to signal a graceful end of input.
 // If the EOF occurs unexpectedly in a structured data stream,
 // the appropriate error is either ErrUnexpectedEOF or some other error
 // giving more detail.
-var EOF error = &Error{"EOF"}
+var EOF = errors.New("EOF")
 
 // ErrUnexpectedEOF means that EOF was encountered in the
 // middle of reading a fixed-size block or data structure.
-var ErrUnexpectedEOF error = &Error{"unexpected EOF"}
+var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
 // Reader is the interface that wraps the basic Read method.
 //
@@ -220,6 +217,7 @@ type stringWriter interface {
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+// If w already implements a WriteString method, it is invoked directly.
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(stringWriter); ok {
 		return sw.WriteString(s)
@@ -268,7 +266,7 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
 // (including EOF), so can CopyN.
 //
 // If dst implements the ReaderFrom interface,
-// the copy is implemented by calling dst.ReadFrom(src).
+// the copy is implemented using it.
 func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 	// If the writer has a ReadFrom method, use it to do the copy.
 	// Avoids a buffer allocation and a copy.
@@ -411,8 +409,8 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-var errWhence = &Error{"Seek: invalid whence"}
-var errOffset = &Error{"Seek: invalid offset"}
+var errWhence = errors.New("Seek: invalid whence")
+var errOffset = errors.New("Seek: invalid offset")
 
 func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err error) {
 	switch whence {
