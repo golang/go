@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -112,6 +113,7 @@ func clean(p *Package) {
 	}
 
 	var b builder
+	b.print = fmt.Print
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {
@@ -146,7 +148,7 @@ func clean(p *Package) {
 		}
 	}
 	if cleanN || cleanX {
-		b.showcmd(p.Dir, "rm %s", strings.Join(allRemove, " "))
+		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
 	toRemove := map[string]bool{}
@@ -180,7 +182,7 @@ func clean(p *Package) {
 
 	if cleanI && p.target != "" {
 		if cleanN || cleanX {
-			b.showcmd("", "rm %s", p.target)
+			b.showcmd("", "rm -f %s", p.target)
 		}
 		if !cleanN {
 			os.Remove(p.target)
