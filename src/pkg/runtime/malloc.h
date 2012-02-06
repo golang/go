@@ -234,7 +234,7 @@ struct MStats
 	} by_size[NumSizeClasses];
 };
 
-#define mstats runtime·MemStats	/* name shared with Go */
+#define mstats runtime·memStats	/* name shared with Go */
 extern MStats mstats;
 
 

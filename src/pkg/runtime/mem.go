@@ -6,9 +6,9 @@ package runtime
 
 import "unsafe"
 
-type MemStatsType struct {
+// A MemStats records statistics about the memory allocator.
+type MemStats struct {
 	// General statistics.
-	// Not locked during update; approximate.
 	Alloc      uint64 // bytes allocated and still in use
 	TotalAlloc uint64 // bytes allocated (even if freed)
 	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
@@ -43,7 +43,6 @@ type MemStatsType struct {
 	DebugGC      bool
 
 	// Per-size allocation statistics.
-	// Not locked during update; approximate.
 	// 61 is NumSizeClasses in the C code.
 	BySize [61]struct {
 		Size    uint32
@@ -54,21 +53,17 @@ type MemStatsType struct {
 
 var sizeof_C_MStats uintptr // filled in by malloc.goc
 
+var memStats MemStats
+
 func init() {
-	if sizeof_C_MStats != unsafe.Sizeof(MemStats) {
-		println(sizeof_C_MStats, unsafe.Sizeof(MemStats))
+	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
+		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
 		panic("MStats vs MemStatsType size mismatch")
 	}
 }
 
-// MemStats holds statistics about the memory system.
-// The statistics may be out of date, as the information is
-// updated lazily from per-thread caches.
-// Use UpdateMemStats to bring the statistics up to date.
-var MemStats MemStatsType
-
-// UpdateMemStats brings MemStats up to date.
-func UpdateMemStats()
+// ReadMemStats populates m with memory allocator statistics.
+func ReadMemStats(m *MemStats)
 
 // GC runs a garbage collection.
 func GC()

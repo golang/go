@@ -16,10 +16,11 @@ func init() {
 	c := make(chan int)
 	go send(c)
 	<-c
-	
-	const chunk = 1<<20
-	runtime.UpdateMemStats()
-	sys := runtime.MemStats.Sys	
+
+	const chunk = 1 << 20
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	sys := memstats.Sys
 	b := make([]byte, chunk)
 	for i := range b {
 		b[i] = byte(i%10 + '0')
@@ -28,8 +29,8 @@ func init() {
 	for i := 0; i < 1000; i++ {
 		x = []byte(s)
 	}
-	runtime.UpdateMemStats()
-	sys1 := runtime.MemStats.Sys
+	runtime.ReadMemStats(memstats)
+	sys1 := memstats.Sys
 	if sys1-sys > chunk*50 {
 		println("allocated 1000 chunks of", chunk, "and used ", sys1-sys, "memory")
 	}
@@ -41,4 +42,3 @@ func send(c chan int) {
 
 func main() {
 }
-

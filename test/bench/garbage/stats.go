@@ -12,7 +12,8 @@ import (
 )
 
 func gcstats(name string, n int, t time.Duration) {
-	st := &runtime.MemStats
+	st := new(runtime.MemStats)
+	runtime.ReadMemStats(st)
 	fmt.Printf("garbage.%sMem Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
 	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t.Nanoseconds()/int64(n))
 	fmt.Printf("garbage.%sLastPause 1 %d ns/op\n", name, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])

@@ -277,7 +277,9 @@ func cmdline() interface{} {
 }
 
 func memstats() interface{} {
-	return runtime.MemStats
+	stats := new(runtime.MemStats)
+	runtime.ReadMemStats(stats)
+	return *stats
 }
 
 func init() {

@@ -35,14 +35,17 @@ func main() {
 	go sender(c, 100000)
 	receiver(c, dummy, 100000)
 	runtime.GC()
-	runtime.MemStats.Alloc = 0
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	alloc := memstats.Alloc
 
 	// second time shouldn't increase footprint by much
 	go sender(c, 100000)
 	receiver(c, dummy, 100000)
 	runtime.GC()
+	runtime.ReadMemStats(memstats)
 
-	if runtime.MemStats.Alloc > 1e5 {
-		println("BUG: too much memory for 100,000 selects:", runtime.MemStats.Alloc)
+	if memstats.Alloc-alloc > 1e5 {
+		println("BUG: too much memory for 100,000 selects:", memstats.Alloc-alloc)
 	}
 }

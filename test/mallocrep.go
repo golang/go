@@ -16,10 +16,12 @@ import (
 var chatty = flag.Bool("v", false, "chatty")
 
 var oldsys uint64
+var memstats runtime.MemStats
 
 func bigger() {
-	runtime.UpdateMemStats()
-	if st := runtime.MemStats; oldsys < st.Sys {
+	st := &memstats
+	runtime.ReadMemStats(st)
+	if oldsys < st.Sys {
 		oldsys = st.Sys
 		if *chatty {
 			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes")
@@ -32,26 +34,26 @@ func bigger() {
 }
 
 func main() {
-	runtime.GC()               // clean up garbage from init
-	runtime.UpdateMemStats()   // first call can do some allocations
-	runtime.MemProfileRate = 0 // disable profiler
-	runtime.MemStats.Alloc = 0 // ignore stacks
+	runtime.GC()                    // clean up garbage from init
+	runtime.ReadMemStats(&memstats) // first call can do some allocations
+	runtime.MemProfileRate = 0      // disable profiler
+	stacks := memstats.Alloc        // ignore stacks
 	flag.Parse()
 	for i := 0; i < 1<<7; i++ {
 		for j := 1; j <= 1<<22; j <<= 1 {
 			if i == 0 && *chatty {
 				println("First alloc:", j)
 			}
-			if a := runtime.MemStats.Alloc; a != 0 {
+			if a := memstats.Alloc - stacks; a != 0 {
 				println("no allocations but stats report", a, "bytes allocated")
 				panic("fail")
 			}
 			b := runtime.Alloc(uintptr(j))
-			runtime.UpdateMemStats()
-			during := runtime.MemStats.Alloc
+			runtime.ReadMemStats(&memstats)
+			during := memstats.Alloc - stacks
 			runtime.Free(b)
-			runtime.UpdateMemStats()
-			if a := runtime.MemStats.Alloc; a != 0 {
+			runtime.ReadMemStats(&memstats)
+			if a := memstats.Alloc - stacks; a != 0 {
 				println("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
 				panic("fail")
 			}

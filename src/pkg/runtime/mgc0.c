@@ -997,7 +997,7 @@ runtime·gc(int32 force)
 }
 
 void
-runtime·UpdateMemStats(void)
+runtime·ReadMemStats(MStats *stats)
 {
 	// Have to acquire gcsema to stop the world,
 	// because stoptheworld can only be used by
@@ -1007,6 +1007,7 @@ runtime·UpdateMemStats(void)
 	m->gcing = 1;
 	runtime·stoptheworld();
 	cachestats();
+	*stats = mstats;
 	m->gcing = 0;
 	runtime·semrelease(&gcsema);
 	runtime·starttheworld(false);

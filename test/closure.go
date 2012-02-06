@@ -92,8 +92,9 @@ func main() {
 	go h()
 	check([]int{100, 200, 101, 201, 500, 101, 201, 500})
 
-	runtime.UpdateMemStats()
-        n0 := runtime.MemStats.Mallocs
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	n0 := memstats.Mallocs
 
 	x, y := newfunc(), newfunc()
 	if x(1) != 1 || y(2) != 2 {
@@ -101,8 +102,8 @@ func main() {
 		fail = true
 	}
 
-	runtime.UpdateMemStats()
-        if n0 != runtime.MemStats.Mallocs {
+	runtime.ReadMemStats(memstats)
+	if n0 != memstats.Mallocs {
 		println("newfunc allocated unexpectedly")
 		fail = true
 	}
@@ -110,7 +111,7 @@ func main() {
 	ff(1)
 
 	if fail {
-		panic("fail") 
+		panic("fail")
 	}
 }
 

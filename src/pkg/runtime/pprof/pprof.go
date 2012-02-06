@@ -75,7 +75,8 @@ func WriteHeapProfile(w io.Writer) error {
 
 	// Print memstats information too.
 	// Pprof will ignore, but useful for people.
-	s := &runtime.MemStats
+	s := new(runtime.MemStats)
+	runtime.ReadMemStats(s)
 	fmt.Fprintf(b, "\n# runtime.MemStats\n")
 	fmt.Fprintf(b, "# Alloc = %d\n", s.Alloc)
 	fmt.Fprintf(b, "# TotalAlloc = %d\n", s.TotalAlloc)

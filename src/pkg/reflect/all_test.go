@@ -1545,15 +1545,19 @@ func TestAddr(t *testing.T) {
 func noAlloc(t *testing.T, n int, f func(int)) {
 	// once to prime everything
 	f(-1)
-	runtime.MemStats.Mallocs = 0
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	oldmallocs := memstats.Mallocs
 
 	for j := 0; j < n; j++ {
 		f(j)
 	}
 	// A few allocs may happen in the testing package when GOMAXPROCS > 1, so don't
 	// require zero mallocs.
-	if runtime.MemStats.Mallocs > 5 {
-		t.Fatalf("%d mallocs after %d iterations", runtime.MemStats.Mallocs, n)
+	runtime.ReadMemStats(memstats)
+	mallocs := memstats.Mallocs - oldmallocs
+	if mallocs > 5 {
+		t.Fatalf("%d mallocs after %d iterations", mallocs, n)
 	}
 }
 

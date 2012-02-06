@@ -538,13 +538,14 @@ var _ bytes.Buffer
 func TestCountMallocs(t *testing.T) {
 	for _, mt := range mallocTest {
 		const N = 100
-		runtime.UpdateMemStats()
-		mallocs := 0 - runtime.MemStats.Mallocs
+		memstats := new(runtime.MemStats)
+		runtime.ReadMemStats(memstats)
+		mallocs := 0 - memstats.Mallocs
 		for i := 0; i < N; i++ {
 			mt.fn()
 		}
-		runtime.UpdateMemStats()
-		mallocs += runtime.MemStats.Mallocs
+		runtime.ReadMemStats(memstats)
+		mallocs += memstats.Mallocs
 		if mallocs/N > uint64(mt.count) {
 			t.Errorf("%s: expected %d mallocs, got %d", mt.desc, mt.count, mallocs/N)
 		}

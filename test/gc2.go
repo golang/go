@@ -19,7 +19,9 @@ import (
 
 func main() {
 	const N = 10000
-	st := runtime.MemStats
+	st := new(runtime.MemStats)
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(st)
 	for i := 0; i < N; i++ {
 		c := make(chan int, 10)
 		_ = c
@@ -33,8 +35,8 @@ func main() {
 		}
 	}
 
-	runtime.UpdateMemStats()
-	obj := runtime.MemStats.HeapObjects - st.HeapObjects
+	runtime.ReadMemStats(memstats)
+	obj := memstats.HeapObjects - st.HeapObjects
 	if obj > N/5 {
 		fmt.Println("too many objects left:", obj)
 		os.Exit(1)

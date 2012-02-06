@@ -20,7 +20,7 @@ var reverse = flag.Bool("r", false, "reverse")
 var longtest = flag.Bool("l", false, "long test")
 
 var b []*byte
-var stats = &runtime.MemStats
+var stats = new(runtime.MemStats)
 
 func OkAmount(size, n uintptr) bool {
 	if n < size {
@@ -42,7 +42,7 @@ func AllocAndFree(size, count int) {
 	if *chatty {
 		fmt.Printf("size=%d count=%d ...\n", size, count)
 	}
-	runtime.UpdateMemStats()
+	runtime.ReadMemStats(stats)
 	n1 := stats.Alloc
 	for i := 0; i < count; i++ {
 		b[i] = runtime.Alloc(uintptr(size))
@@ -51,13 +51,13 @@ func AllocAndFree(size, count int) {
 			println("lookup failed: got", base, n, "for", b[i])
 			panic("fail")
 		}
-		runtime.UpdateMemStats()
+		runtime.ReadMemStats(stats)
 		if stats.Sys > 1e9 {
 			println("too much memory allocated")
 			panic("fail")
 		}
 	}
-	runtime.UpdateMemStats()
+	runtime.ReadMemStats(stats)
 	n2 := stats.Alloc
 	if *chatty {
 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
@@ -75,17 +75,17 @@ func AllocAndFree(size, count int) {
 			panic("fail")
 		}
 		runtime.Free(b[i])
-		runtime.UpdateMemStats()
+		runtime.ReadMemStats(stats)
 		if stats.Alloc != uint64(alloc-n) {
 			println("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
 			panic("fail")
 		}
-		if runtime.MemStats.Sys > 1e9 {
+		if stats.Sys > 1e9 {
 			println("too much memory allocated")
 			panic("fail")
 		}
 	}
-	runtime.UpdateMemStats()
+	runtime.ReadMemStats(stats)
 	n4 := stats.Alloc
 
 	if *chatty {

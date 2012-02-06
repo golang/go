@@ -17,9 +17,10 @@ import (
 var chatty = flag.Bool("v", false, "chatty")
 
 func main() {
+	memstats := new(runtime.MemStats)
 	runtime.Free(runtime.Alloc(1))
-	runtime.UpdateMemStats()
+	runtime.ReadMemStats(memstats)
 	if *chatty {
-		fmt.Printf("%+v %v\n", runtime.MemStats, uint64(0))
+		fmt.Printf("%+v %v\n", memstats, uint64(0))
 	}
 }
