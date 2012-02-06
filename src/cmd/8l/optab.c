@@ -707,6 +707,8 @@ Optab optab[] =
 	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
 	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
 
+	{ ARDTSC,	ynone,	Pm, 0x31 },
+
 	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
 	{ AXADDL,	yrl_ml,	Pm, 0xc1 },
 	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
