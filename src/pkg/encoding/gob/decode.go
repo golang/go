@@ -690,7 +690,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 	// Create a writable interface reflect.Value.  We need one even for the nil case.
 	ivalue := allocValue(ityp)
 	// Read the name of the concrete type.
-	b := make([]byte, state.decodeUint())
+	nr := state.decodeUint()
+	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
+		errorf("invalid type name length %d", nr)
+	}
+	b := make([]byte, nr)
 	state.b.Read(b)
 	name := string(b)
 	if name == "" {
