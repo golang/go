@@ -423,7 +423,7 @@ simple_stmt:
 				yyerror("expr.(type) must be alone in list");
 			if($1->next != nil)
 				yyerror("argument count mismatch: %d = %d", count($1), 1);
-			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
+			else if(($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME) || isblank($1->n))
 				yyerror("invalid variable name %N in type switch", $1->n);
 			else
 				$$->left = dclname($1->n->sym);  // it's a colas, so must not re-use an oldname.

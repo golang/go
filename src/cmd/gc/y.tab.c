@@ -2714,7 +2714,7 @@ yyreduce:
 				yyerror("expr.(type) must be alone in list");
 			if((yyvsp[(1) - (3)].list)->next != nil)
 				yyerror("argument count mismatch: %d = %d", count((yyvsp[(1) - (3)].list)), 1);
-			else if((yyvsp[(1) - (3)].list)->n->op != ONAME && (yyvsp[(1) - (3)].list)->n->op != OTYPE && (yyvsp[(1) - (3)].list)->n->op != ONONAME)
+			else if(((yyvsp[(1) - (3)].list)->n->op != ONAME && (yyvsp[(1) - (3)].list)->n->op != OTYPE && (yyvsp[(1) - (3)].list)->n->op != ONONAME) || isblank((yyvsp[(1) - (3)].list)->n))
 				yyerror("invalid variable name %N in type switch", (yyvsp[(1) - (3)].list)->n);
 			else
 				(yyval.node)->left = dclname((yyvsp[(1) - (3)].list)->n->sym);  // it's a colas, so must not re-use an oldname.

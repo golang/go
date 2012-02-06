@@ -30,6 +30,10 @@ func main(){
 	switch r.(type) {
 	case io.Writer:
 	}
+	
+	// Issue 2827.
+	switch _ := r.(type) {  // ERROR "invalid variable name _"
+	}
 }
 
 
