@@ -51,6 +51,11 @@ DEFGOROOT='-DDEFAULT_GOROOT="'"$(cd .. && pwd)"'"'
 gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 echo
 
+if [ "$1" = "--dist-tool" ]; then
+	# Stop after building dist tool.
+	exit 0
+fi
+
 echo '# Building compilers and Go bootstrap tool.'
 ../bin/tool/dist bootstrap -v # builds go_bootstrap
 echo
