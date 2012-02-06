@@ -9,7 +9,7 @@ import "io"
 // The Stream* objects are so simple that all their members are public. Users
 // can create them themselves.
 
-// StreamReader wraps a Stream into an io.Reader. It simply calls XORKeyStream
+// StreamReader wraps a Stream into an io.Reader. It calls XORKeyStream
 // to process each slice of data which passes through.
 type StreamReader struct {
 	S Stream
@@ -22,7 +22,7 @@ func (r StreamReader) Read(dst []byte) (n int, err error) {
 	return
 }
 
-// StreamWriter wraps a Stream into an io.Writer. It simply calls XORKeyStream
+// StreamWriter wraps a Stream into an io.Writer. It calls XORKeyStream
 // to process each slice of data which passes through. If any Write call
 // returns short then the StreamWriter is out of sync and must be discarded.
 type StreamWriter struct {

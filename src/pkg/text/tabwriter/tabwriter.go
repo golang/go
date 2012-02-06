@@ -52,7 +52,7 @@ type cell struct {
 // this flag.
 //
 // If a Writer is configured to filter HTML, HTML tags and entities
-// are simply passed through. The widths of tags and entities are
+// are passed through. The widths of tags and entities are
 // assumed to be zero (tags) and one (entities) for formatting purposes.
 //
 // A segment of text may be escaped by bracketing it with Escape
@@ -448,7 +448,7 @@ func handlePanic(err *error) {
 
 // Flush should be called after the last call to Write to ensure
 // that any data buffered in the Writer is written to output. Any
-// incomplete escape sequence at the end is simply considered
+// incomplete escape sequence at the end is considered
 // complete for formatting purposes.
 //
 func (b *Writer) Flush() (err error) {

@@ -360,7 +360,7 @@ The name of Go functions accessed from C is subject to change. At present
 the name of a Go function that does not have a receiver is
 <code>prefix.package.Functionname</code>. The prefix is set by
 the <code>-fgo-prefix</code> option used when the package is compiled;
-if the option is not used, the default is simply <code>go</code>.
+if the option is not used, the default is <code>go</code>.
 To call the function from C you must set the name using
 a <code>gcc</code> extension similar to the <code>gccgo</code>
 extension.
