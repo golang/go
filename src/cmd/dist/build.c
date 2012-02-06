@@ -555,6 +555,22 @@ install(char *dir)
 	// Everything in that directory, and any target-specific
 	// additions.
 	xreaddir(&files, bstr(&path));
+
+	// Remove files beginning with . or _,
+	// which are likely to be editor temporary files.
+	// This is the same heuristic build.ScanDir uses.
+	// There do exist real C files beginning with _,
+	// so limit that check to just Go files.
+	n = 0;
+	for(i=0; i<files.len; i++) {
+		p = files.p[i];
+		if(hasprefix(p, ".") || (hasprefix(p, "_") && hassuffix(p, ".go")))
+			xfree(p);
+		else
+			files.p[n++] = p;
+	}
+	files.len = n;
+
 	for(i=0; i<nelem(deptab); i++) {
 		if(hasprefix(dir, deptab[i].prefix)) {
 			for(j=0; (p=deptab[i].dep[j])!=nil; j++) {
@@ -595,7 +611,7 @@ install(char *dir)
 		}
 	}
 	vuniq(&files);
-
+	
 	// Convert to absolute paths.
 	for(i=0; i<files.len; i++) {
 		if(!isabs(files.p[i])) {
