@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package html provides functions for escaping and unescaping HTML text.
 package html
 
 import (
