@@ -64,6 +64,10 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	return
 }
 
+func lineno(pos token.Pos) string {
+	return fset.Position(pos).String()
+}
+
 // Die with an error message.
 func fatalf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
