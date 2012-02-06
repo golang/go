@@ -1097,6 +1097,16 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%V", &n->val);
 
 	case ONAME:
+		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+		// but for export, this should be rendered as (*pkg.T).meth.
+		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+		if(fmtmode == FExp && n->left && n->left->op == OTYPE && n->right && n->right->op == ONAME) {
+			if(isptr[n->left->type->etype])
+				return fmtprint(f, "(%T).%hhS", n->left->type, n->right->sym);
+			else
+				return fmtprint(f, "%T.%hhS", n->left->type, n->right->sym);
+		}
+		//fallthrough
 	case OPACK:
 	case ONONAME:
 		return fmtprint(f, "%S", n->sym);
