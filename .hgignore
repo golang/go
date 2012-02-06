@@ -43,12 +43,8 @@ src/pkg/exp/norm/normregtest
 src/pkg/exp/ebnflint/ebnflint
 src/pkg/go/build/syslist.go
 src/pkg/go/doc/headscan
-src/pkg/runtime/arch_GOARCH.h
-src/pkg/runtime/defs_GOOS_GOARCH.h
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
-src/pkg/runtime/os_GOOS.h
-src/pkg/runtime/signals_GOOS.h
 src/pkg/runtime/version.go
 src/pkg/runtime/version_*.go
 src/pkg/runtime/z*
