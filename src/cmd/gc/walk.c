@@ -1203,10 +1203,11 @@ walkexpr(Node **np, NodeList **init)
 	fatal("missing switch %O", n->op);
 
 ret:
+	ullmancalc(n);
+
 	if(debug['w'] && n != N)
 		dump("walk", n);
 
-	ullmancalc(n);
 	lineno = lno;
 	*np = n;
 }

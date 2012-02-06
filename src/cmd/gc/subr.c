@@ -1670,6 +1670,11 @@ ullmancalc(Node *n)
 	if(n == N)
 		return;
 
+	if(n->ninit != nil) {
+		ul = UINF;
+		goto out;
+	}
+
 	switch(n->op) {
 	case OREGISTER:
 	case OLITERAL:
@@ -3577,4 +3582,5 @@ addinit(Node **np, NodeList *init)
 		break;
 	}
 	n->ninit = concat(init, n->ninit);
+	n->ullman = UINF;
 }
