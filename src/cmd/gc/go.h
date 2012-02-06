@@ -217,6 +217,13 @@ enum
 	EscNever,
 };
 
+enum
+{
+	Explicit,
+	Implicit,  // don't print in output
+	ImplPtr,   // OIND added by &T{ ... } literal
+};
+
 struct	Node
 {
 	// Tree structure.
@@ -252,7 +259,7 @@ struct	Node
 	uchar	used;
 	uchar	isddd;
 	uchar	readonly;
-	uchar	implicit;	// don't show in printout
+	uchar	implicit;	// Explicit, Implicit, ImplPtr. 
 	uchar	addrtaken;	// address taken, even if not moved to heap
 	uchar	dupok;	// duplicate definitions ok (for func)
 

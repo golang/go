@@ -1150,11 +1150,16 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%N{ %,H }", n->right, n->list);
 
 	case OPTRLIT:
+		if (fmtmode == FExp && n->left->right->implicit == Implicit) 
+			return fmtprint(f, "%N", n->left);
 		return fmtprint(f, "&%N", n->left);
 
 	case OSTRUCTLIT:
 		if (fmtmode == FExp) {   // requires special handling of field names
-			fmtprint(f, "%T{", n->type);
+			if(n->right->implicit == Implicit)
+				fmtstrcpy(f, "{");
+			else 
+				fmtprint(f, "%T{", n->type);
 			for(l=n->list; l; l=l->next) {
 				// another special case: if n->left is an embedded field of builtin type,
 				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
@@ -1411,7 +1416,7 @@ nodedump(Fmt *fp, Node *n)
 		fmtprint(fp, "%O-%O%J", n->op, n->etype, n);
 		break;
 	case OTYPE:
-		fmtprint(fp, "%O %S type=%T", n->op, n->sym, n->type);
+		fmtprint(fp, "%O %S%J type=%T", n->op, n->sym, n, n->type);
 		if(recur && n->type == T && n->ntype) {
 			indent(fp);
 			fmtprint(fp, "%O-ntype%N", n->op, n->ntype);

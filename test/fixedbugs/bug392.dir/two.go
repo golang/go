@@ -13,6 +13,7 @@ func use() {
 	one.F1(nil)
 	one.F2(nil)
 	one.F3()
+	one.F4(1)
 
 	var t *one.T
 	t.M()

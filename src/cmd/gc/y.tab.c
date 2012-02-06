@@ -3232,7 +3232,7 @@ yyreduce:
 			// Special case for &T{...}: turn into (*T){...}.
 			(yyval.node) = (yyvsp[(2) - (2)].node);
 			(yyval.node)->right = nod(OIND, (yyval.node)->right, N);
-			(yyval.node)->right->implicit = 1;
+			(yyval.node)->right->implicit = ImplPtr;
 		} else {
 			(yyval.node) = nod(OADDR, (yyvsp[(2) - (2)].node), N);
 		}
