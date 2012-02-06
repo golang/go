@@ -1,36 +1,10 @@
-# Copyright 2009 The Go Authors. All rights reserved.
+# Copyright 2012 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
-O:=$(HOST_O)
+include ../../Make.dist
 
-LIB=cc.a$O
+install: y.tab.h
 
-HFILES=\
-	cc.h\
-	y.tab.h\
-
-YFILES=\
-	cc.y\
-
-OFILES=\
-	y.tab.$O\
-	lex.$O\
-	mac.$O\
-	dcl.$O\
-	acid.$O\
-	godefs.$O\
-	bits.$O\
-	com.$O\
-	scon.$O\
-	funct.$O\
-	sub.$O\
-	com64.$O\
-	dpchk.$O\
-	omachcap.$O\
-
-NOINSTALL=1
-include ../../Make.clib
-
-install: $(LIB)
+y.tab.h: cc.y
+	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
