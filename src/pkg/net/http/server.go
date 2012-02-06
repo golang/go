@@ -341,7 +341,7 @@ func (w *response) WriteHeader(code int) {
 		}
 	} else {
 		// If no content type, apply sniffing algorithm to body.
-		if w.header.Get("Content-Type") == "" {
+		if w.header.Get("Content-Type") == "" && w.req.Method != "HEAD" {
 			w.needSniff = true
 		}
 	}
