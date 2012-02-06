@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"errors"
 	"math"
+	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -1406,4 +1408,61 @@ func TestDebugStruct(t *testing.T) {
 		t.Error("decode:", err)
 	}
 	debugFunc(debugBuffer)
+}
+
+func encFuzzDec(rng *rand.Rand, in interface{}) error {
+	buf := new(bytes.Buffer)
+	enc := NewEncoder(buf)
+	if err := enc.Encode(&in); err != nil {
+		return err
+	}
+
+	b := buf.Bytes()
+	for i, bi := range b {
+		if rng.Intn(10) < 3 {
+			b[i] = bi + uint8(rng.Intn(256))
+		}
+	}
+
+	dec := NewDecoder(buf)
+	var e interface{}
+	if err := dec.Decode(&e); err != nil {
+		return err
+	}
+	return nil
+}
+
+// This does some "fuzz testing" by attempting to decode a sequence of random bytes.
+func TestFuzz(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	// all possible inputs
+	input := []interface{}{
+		new(int),
+		new(float32),
+		new(float64),
+		new(complex128),
+		&ByteStruct{255},
+		&ArrayStruct{},
+		&StringStruct{"hello"},
+		&GobTest1{0, &StringStruct{"hello"}},
+	}
+	testFuzz(t, time.Now().UnixNano(), 100, input...)
+}
+
+func TestFuzzRegressions(t *testing.T) {
+	// An instance triggering a type name of length ~102 GB.
+	testFuzz(t, 1328492090837718000, 100, new(float32))
+}
+
+func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
+	t.Logf("seed=%d n=%d\n", seed, n)
+	for _, e := range input {
+		rng := rand.New(rand.NewSource(seed))
+		for i := 0; i < n; i++ {
+			encFuzzDec(rng, e)
+		}
+	}
 }

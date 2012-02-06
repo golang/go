@@ -33,7 +33,11 @@ func error_(err error) {
 // plain error.  It overwrites the error return of the function that deferred its call.
 func catchError(err *error) {
 	if e := recover(); e != nil {
-		*err = e.(gobError).err // Will re-panic if not one of our errors, such as a runtime error.
+		ge, ok := e.(gobError)
+		if !ok {
+			panic(e)
+		}
+		*err = ge.err
 	}
 	return
 }
