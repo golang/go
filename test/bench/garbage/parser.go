@@ -73,7 +73,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 }
 
 func main() {
-	st := &runtime.MemStats
+	st := new(runtime.MemStats)
 	packages = append(packages, packages...)
 	packages = append(packages, packages...)
 	n := flag.Int("n", 4, "iterations")
@@ -83,14 +83,17 @@ func main() {
 
 	var lastParsed []map[string]*ast.Package
 	var t0 time.Time
+	var numGC uint32
+	var pauseTotalNs uint64
 	pkgroot := runtime.GOROOT() + "/src/pkg/"
 	for pass := 0; pass < 2; pass++ {
 		// Once the heap is grown to full size, reset counters.
 		// This hides the start-up pauses, which are much smaller
 		// than the normal pauses and would otherwise make
 		// the average look much better than it actually is.
-		st.NumGC = 0
-		st.PauseTotalNs = 0
+		runtime.ReadMemStats(st)
+		numGC = st.NumGC
+		pauseTotalNs = st.PauseTotalNs
 		t0 = time.Now()
 
 		for i := 0; i < *n; i++ {
@@ -107,6 +110,9 @@ func main() {
 	}
 	t1 := time.Now()
 
+	runtime.ReadMemStats(st)
+	st.NumGC -= numGC
+	st.PauseTotalNs -= pauseTotalNs
 	fmt.Printf("Alloc=%d/%d Heap=%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
 		st.Alloc, st.TotalAlloc,
 		st.Sys,
@@ -142,9 +148,7 @@ var packages = []string{
 	"container/list",
 	"container/ring",
 	"crypto/aes",
-	"crypto/blowfish",
 	"crypto/hmac",
-	"crypto/md4",
 	"crypto/md5",
 	"crypto/rand",
 	"crypto/rc4",
@@ -155,7 +159,6 @@ var packages = []string{
 	"crypto/subtle",
 	"crypto/tls",
 	"crypto/x509",
-	"crypto/xtea",
 	"debug/dwarf",
 	"debug/macho",
 	"debug/elf",
@@ -164,7 +167,6 @@ var packages = []string{
 	"encoding/ascii85",
 	"encoding/base64",
 	"encoding/binary",
-	"encoding/git85",
 	"encoding/hex",
 	"encoding/pem",
 	"os/exec",
@@ -193,8 +195,7 @@ var packages = []string{
 	"mime",
 	"net",
 	"os",
-	"os/signal",
-	"patch",
+	"exp/signal",
 	"path",
 	"math/rand",
 	"reflect",
@@ -219,6 +220,5 @@ var packages = []string{
 	"unicode",
 	"unicode/utf8",
 	"unicode/utf16",
-	"websocket",
 	"encoding/xml",
 }

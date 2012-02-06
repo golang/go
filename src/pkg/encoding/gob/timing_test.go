@@ -53,8 +53,9 @@ func TestCountEncodeMallocs(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	runtime.UpdateMemStats()
-	mallocs := 0 - runtime.MemStats.Mallocs
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	mallocs := 0 - memstats.Mallocs
 	const count = 1000
 	for i := 0; i < count; i++ {
 		err := enc.Encode(bench)
@@ -62,8 +63,8 @@ func TestCountEncodeMallocs(t *testing.T) {
 			t.Fatal("encode:", err)
 		}
 	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
+	runtime.ReadMemStats(memstats)
+	mallocs += memstats.Mallocs
 	fmt.Printf("mallocs per encode of type Bench: %d\n", mallocs/count)
 }
 
@@ -79,8 +80,9 @@ func TestCountDecodeMallocs(t *testing.T) {
 		}
 	}
 	dec := NewDecoder(&buf)
-	runtime.UpdateMemStats()
-	mallocs := 0 - runtime.MemStats.Mallocs
+	memstats := new(runtime.MemStats)
+	runtime.ReadMemStats(memstats)
+	mallocs := 0 - memstats.Mallocs
 	for i := 0; i < count; i++ {
 		*bench = Bench{}
 		err := dec.Decode(&bench)
@@ -88,7 +90,7 @@ func TestCountDecodeMallocs(t *testing.T) {
 			t.Fatal("decode:", err)
 		}
 	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
+	runtime.ReadMemStats(memstats)
+	mallocs += memstats.Mallocs
 	fmt.Printf("mallocs per decode of type Bench: %d\n", mallocs/count)
 }
