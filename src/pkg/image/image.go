@@ -4,7 +4,20 @@
 
 // Package image implements a basic 2-D image library.
 //
-// See "The Go image package" for an introduction to this package:
+// The fundamental interface is called Image. An Image contains colors, which
+// are described in the image/color package.
+//
+// Values of the Image interface are created either by calling functions such
+// as NewRGBA and NewPaletted, or by calling Decode on an io.Reader containing
+// image data in a format such as GIF, JPEG or PNG. Decoding any particular
+// image format requires the prior registration of a decoder function.
+// Registration is typically automatic as a side effect of initializing that
+// format's package so that, to decode a PNG image, it suffices to have
+//	import _ "image/png"
+// in a program's main package. The _ means to import a package purely for its
+// initialization side effects.
+//
+// See "The Go image package" for more details:
 // http://blog.golang.org/2011/09/go-image-package.html
 package image
 
@@ -18,7 +31,8 @@ type Config struct {
 	Width, Height int
 }
 
-// Image is a finite rectangular grid of Colors drawn from a color model.
+// Image is a finite rectangular grid of color.Color values taken from a color
+// model.
 type Image interface {
 	// ColorModel returns the Image's color model.
 	ColorModel() color.Model
@@ -42,7 +56,7 @@ type PalettedImage interface {
 	Image
 }
 
-// RGBA is an in-memory image of RGBAColor values.
+// RGBA is an in-memory image whose At method returns color.RGBA values.
 type RGBA struct {
 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
@@ -137,7 +151,7 @@ func NewRGBA(r Rectangle) *RGBA {
 	return &RGBA{buf, 4 * w, r}
 }
 
-// RGBA64 is an in-memory image of RGBA64Color values.
+// RGBA64 is an in-memory image whose At method returns color.RGBA64 values.
 type RGBA64 struct {
 	// Pix holds the image's pixels, in R, G, B, A order and big-endian format. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*8].
@@ -245,7 +259,7 @@ func NewRGBA64(r Rectangle) *RGBA64 {
 	return &RGBA64{pix, 8 * w, r}
 }
 
-// NRGBA is an in-memory image of NRGBAColor values.
+// NRGBA is an in-memory image whose At method returns color.NRGBA values.
 type NRGBA struct {
 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
@@ -340,7 +354,7 @@ func NewNRGBA(r Rectangle) *NRGBA {
 	return &NRGBA{pix, 4 * w, r}
 }
 
-// NRGBA64 is an in-memory image of NRGBA64Color values.
+// NRGBA64 is an in-memory image whose At method returns color.NRGBA64 values.
 type NRGBA64 struct {
 	// Pix holds the image's pixels, in R, G, B, A order and big-endian format. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*8].
@@ -448,7 +462,7 @@ func NewNRGBA64(r Rectangle) *NRGBA64 {
 	return &NRGBA64{pix, 8 * w, r}
 }
 
-// Alpha is an in-memory image of AlphaColor values.
+// Alpha is an in-memory image whose At method returns color.Alpha values.
 type Alpha struct {
 	// Pix holds the image's pixels, as alpha values. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*1].
@@ -536,7 +550,7 @@ func NewAlpha(r Rectangle) *Alpha {
 	return &Alpha{pix, 1 * w, r}
 }
 
-// Alpha16 is an in-memory image of Alpha16Color values.
+// Alpha16 is an in-memory image whose At method returns color.Alpha64 values.
 type Alpha16 struct {
 	// Pix holds the image's pixels, as alpha values in big-endian format. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*2].
@@ -627,7 +641,7 @@ func NewAlpha16(r Rectangle) *Alpha16 {
 	return &Alpha16{pix, 2 * w, r}
 }
 
-// Gray is an in-memory image of GrayColor values.
+// Gray is an in-memory image whose At method returns color.Gray values.
 type Gray struct {
 	// Pix holds the image's pixels, as gray values. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*1].
@@ -702,7 +716,7 @@ func NewGray(r Rectangle) *Gray {
 	return &Gray{pix, 1 * w, r}
 }
 
-// Gray16 is an in-memory image of Gray16Color values.
+// Gray16 is an in-memory image whose At method returns color.Gray16 values.
 type Gray16 struct {
 	// Pix holds the image's pixels, as gray values in big-endian format. The pixel at
 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*2].
