@@ -5,11 +5,9 @@
 // Goplay is a web interface for experimenting with Go code.
 // It is similar to the Go Playground: http://golang.org/doc/play/
 // 
-// To use goplay, first build and install it:
+// To use goplay:
 //   $ cd $GOROOT/misc/goplay
-//   $ gomake install
-// Then, run it:
-//   $ goplay
+//   $ go run goplay.go
 // and load http://localhost:3999/ in a web browser.
 // 
 // You should see a Hello World program, which you can compile and run by
