@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"text/template"
 )
@@ -25,24 +24,10 @@ var (
 var (
 	// a source of numbers, for naming temporary files
 	uniq = make(chan int)
-	// the architecture-identifying character of the tool chain, 5, 6, or 8
-	archChar string
 )
 
 func main() {
 	flag.Parse()
-
-	// set archChar
-	switch runtime.GOARCH {
-	case "arm":
-		archChar = "5"
-	case "amd64":
-		archChar = "6"
-	case "386":
-		archChar = "8"
-	default:
-		log.Fatalln("unrecognized GOARCH:", runtime.GOARCH)
-	}
 
 	// source of unique numbers
 	go func() {
@@ -50,6 +35,12 @@ func main() {
 			uniq <- i
 		}
 	}()
+
+	// go to TempDir
+	err := os.Chdir(os.TempDir())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	http.HandleFunc("/", FrontPage)
 	http.HandleFunc("/compile", Compile)
@@ -69,25 +60,19 @@ func FrontPage(w http.ResponseWriter, req *http.Request) {
 }
 
 // Compile is an HTTP handler that reads Go source code from the request,
-// compiles and links the code (returning any errors), runs the program, 
+// runs the program (returning any errors),
 // and sends the program's output as the HTTP response.
 func Compile(w http.ResponseWriter, req *http.Request) {
-	// x is the base name for .go, .6, executable files
-	x := os.TempDir() + "/compile" + strconv.Itoa(<-uniq)
-	src := x + ".go"
-	obj := x + "." + archChar
-	bin := x
-	if runtime.GOOS == "windows" {
-		bin += ".exe"
-	}
+	// x is the base name for .go files
+	x := "goplay" + strconv.Itoa(<-uniq) + ".go"
 
 	// write request Body to x.go
-	f, err := os.Create(src)
+	f, err := os.Create(x)
 	if err != nil {
 		error_(w, nil, err)
 		return
 	}
-	defer os.Remove(src)
+	defer os.Remove(x)
 	defer f.Close()
 	_, err = io.Copy(f, req.Body)
 	if err != nil {
@@ -96,26 +81,11 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	}
 	f.Close()
 
-	// build x.go, creating x.6
-	out, err := run(archChar+"g", "-o", obj, src)
-	defer os.Remove(obj)
-	if err != nil {
-		error_(w, out, err)
-		return
-	}
-
-	// link x.6, creating x (the program binary)
-	out, err = run(archChar+"l", "-o", bin, obj)
-	defer os.Remove(bin)
-	if err != nil {
-		error_(w, out, err)
-		return
-	}
-
 	// run x
-	out, err = run(bin)
+	out, err := run("go", "run", x)
 	if err != nil {
 		error_(w, out, err)
+		return
 	}
 
 	// write the output of x as the http response
