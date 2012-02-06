@@ -304,6 +304,17 @@ func goFilesPackage(gofiles []string, target string) *Package {
 	if pkg.Error != nil {
 		fatalf("%s", pkg.Error)
 	}
+	printed := map[error]bool{}
+	for _, err := range pkg.DepsErrors {
+		// Since these are errors in dependencies,
+		// the same error might show up multiple times,
+		// once in each package that depends on it.
+		// Only print each once.
+		if !printed[err] {
+			printed[err] = true
+			errorf("%s", err)
+		}
+	}
 	if target != "" {
 		pkg.target = target
 	} else if pkg.Name == "main" {
@@ -312,6 +323,7 @@ func goFilesPackage(gofiles []string, target string) *Package {
 		pkg.target = pkg.Name + ".a"
 	}
 	pkg.ImportPath = "_/" + pkg.target
+	exitIfErrors()
 	return pkg
 }
 
