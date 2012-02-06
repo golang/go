@@ -7,10 +7,13 @@
 
 package io
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 // ErrClosedPipe is the error used for read or write operations on a closed pipe.
-var ErrClosedPipe = &Error{"io: read/write on closed pipe"}
+var ErrClosedPipe = errors.New("io: read/write on closed pipe")
 
 type pipeResult struct {
 	n   int
