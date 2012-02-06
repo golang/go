@@ -1,25 +1,10 @@
-# Copyright 2009 The Go Authors. All rights reserved.
+# Copyright 2012 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
-O:=$(HOST_O)
+include ../../Make.dist
 
-TARG=5a
+install: y.tab.h
 
-HFILES=\
-	a.h\
-	y.tab.h\
-	../5l/5.out.h\
-
-OFILES=\
-	y.tab.$O\
-	lex.$O\
-	../5l/enam.$O\
-
-YFILES=\
-	a.y\
-
-include ../../Make.ctool
-
-lex.$O:	../cc/macbody ../cc/lexbody
+y.tab.h: a.y
+	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
