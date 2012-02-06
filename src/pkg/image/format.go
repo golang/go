@@ -10,8 +10,8 @@ import (
 	"io"
 )
 
-// An UnknownFormatErr indicates that decoding encountered an unknown format.
-var UnknownFormatErr = errors.New("image: unknown format")
+// ErrFormat indicates that decoding encountered an unknown format.
+var ErrFormat = errors.New("image: unknown format")
 
 // A format holds an image format's name, magic header and how to decode it.
 type format struct {
@@ -79,7 +79,7 @@ func Decode(r io.Reader) (Image, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
 	if f.decode == nil {
-		return nil, "", UnknownFormatErr
+		return nil, "", ErrFormat
 	}
 	m, err := f.decode(rr)
 	return m, f.name, err
@@ -93,7 +93,7 @@ func DecodeConfig(r io.Reader) (Config, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
 	if f.decodeConfig == nil {
-		return Config{}, "", UnknownFormatErr
+		return Config{}, "", ErrFormat
 	}
 	c, err := f.decodeConfig(rr)
 	return c, f.name, err

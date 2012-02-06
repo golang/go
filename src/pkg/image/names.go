@@ -51,11 +51,15 @@ func NewUniform(c color.Color) *Uniform {
 	return &Uniform{c}
 }
 
-// Repeated is an infinite-sized Image that repeats another Image in both
-// directions. Repeated{i, p}.At(x, y) will equal i.At(x+p.X, y+p.Y) for all
-// points {x+p.X, y+p.Y} within i's Bounds.
+// Repeated is an Image that is a source Image translated by -Offset and then
+// repeated in all four directions to infinity.
+//
+// Repeated{src, off}.At(x, y) will equal src.At(x+off.X, y+off.Y) for all
+// points {x+off.X, y+off.Y} within src's Bounds.
 type Repeated struct {
-	I      Image
+	// I is the source image.
+	I Image
+	// Offset is the translation vector from result pixel to source pixel.
 	Offset Point
 }
 
