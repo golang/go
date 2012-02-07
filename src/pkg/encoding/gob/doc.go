@@ -162,7 +162,7 @@ description, constructed from these types:
 		StructT *StructType
 		MapT    *MapType
 	}
-	type ArrayType struct {
+	type arrayType struct {
 		CommonType
 		Elem typeId
 		Len  int
@@ -171,19 +171,19 @@ description, constructed from these types:
 		Name string // the name of the struct type
 		Id  int    // the id of the type, repeated so it's inside the type
 	}
-	type SliceType struct {
+	type sliceType struct {
 		CommonType
 		Elem typeId
 	}
-	type StructType struct {
+	type structType struct {
 		CommonType
 		Field []*fieldType // the fields of the struct.
 	}
-	type FieldType struct {
+	type fieldType struct {
 		Name string // the name of the field.
 		Id   int    // the type id of the field, which must be already defined
 	}
-	type MapType struct {
+	type mapType struct {
 		CommonType
 		Key  typeId
 		Elem typeId
@@ -308,15 +308,15 @@ reserved).
 	// Set the field number implicitly to -1; this is done at the beginning
 	// of every struct, including nested structs.
 	03	// Add 3 to field number; now 2 (wireType.structType; this is a struct).
-		// structType starts with an embedded commonType, which appears
+		// structType starts with an embedded CommonType, which appears
 		// as a regular structure here too.
-	01	// add 1 to field number (now 0); start of embedded commonType.
+	01	// add 1 to field number (now 0); start of embedded CommonType.
 	01	// add 1 to field number (now 0, the name of the type)
 	05	// string is (unsigned) 5 bytes long
-	50 6f 69 6e 74	// wireType.structType.commonType.name = "Point"
+	50 6f 69 6e 74	// wireType.structType.CommonType.name = "Point"
 	01	// add 1 to field number (now 1, the id of the type)
-	ff 82	// wireType.structType.commonType._id = 65
-	00	// end of embedded wiretype.structType.commonType struct
+	ff 82	// wireType.structType.CommonType._id = 65
+	00	// end of embedded wiretype.structType.CommonType struct
 	01	// add 1 to field number (now 1, the field array in wireType.structType)
 	02	// There are two fields in the type (len(structType.field))
 	01	// Start of first field structure; add 1 to get field number 0: field[0].name
