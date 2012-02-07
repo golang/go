@@ -1,4 +1,8 @@
-// errchk cgo $D/$F.go
+// true
+
+// WAS: errchk cgo $D/$F.go
+// but this fails (cgo succeeds) on OS X Snow Leopard
+// with Xcode 4.2 and gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00).
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
