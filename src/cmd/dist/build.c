@@ -179,7 +179,12 @@ findgoversion(void)
 	if(isfile(bstr(&path))) {
 		readfile(&b, bstr(&path));
 		chomp(&b);
-		goto done;
+		// Commands such as "dist version > VERSION" will cause
+		// the shell to create an empty VERSION file and set dist's
+		// stdout to its fd. dist in turn looks at VERSION and uses
+		// its content if available, which is empty at this point.
+		if(b.len > 0)
+			goto done;
 	}
 
 	// The $GOROOT/VERSION.cache file is a cache to avoid invoking
@@ -1370,5 +1375,5 @@ cmdversion(int argc, char **argv)
 	if(argc > 0)
 		usage();
 
-	xprintf("%s\n", findgoversion());
+	xprintf("%s\n", goversion);
 }
