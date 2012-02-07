@@ -9,6 +9,7 @@ package bufio
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"strconv"
 	"unicode/utf8"
@@ -18,19 +19,12 @@ const (
 	defaultBufSize = 4096
 )
 
-// Errors introduced by this package.
-type Error struct {
-	ErrorString string
-}
-
-func (err *Error) Error() string { return err.ErrorString }
-
 var (
-	ErrInvalidUnreadByte error = &Error{"bufio: invalid use of UnreadByte"}
-	ErrInvalidUnreadRune error = &Error{"bufio: invalid use of UnreadRune"}
-	ErrBufferFull        error = &Error{"bufio: buffer full"}
-	ErrNegativeCount     error = &Error{"bufio: negative count"}
-	errInternal          error = &Error{"bufio: internal error"}
+	ErrInvalidUnreadByte = errors.New("bufio: invalid use of UnreadByte")
+	ErrInvalidUnreadRune = errors.New("bufio: invalid use of UnreadRune")
+	ErrBufferFull        = errors.New("bufio: buffer full")
+	ErrNegativeCount     = errors.New("bufio: negative count")
+	errInternal          = errors.New("bufio: internal error")
 )
 
 // BufSizeError is the error representing an invalid buffer size.
@@ -208,7 +202,8 @@ func (b *Reader) UnreadByte() error {
 }
 
 // ReadRune reads a single UTF-8 encoded Unicode character and returns the
-// rune and its size in bytes.
+// rune and its size in bytes. If the encoded rune is invalid, it consumes one byte
+// and returns unicode.ReplacementChar (U+FFFD) with a size of 1.
 func (b *Reader) ReadRune() (r rune, size int, err error) {
 	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
 		b.fill()
@@ -392,6 +387,8 @@ func (b *Reader) ReadString(delim byte) (line string, err error) {
 // buffered output
 
 // Writer implements buffering for an io.Writer object.
+// If an error occurs writing to a Writer, no more data will be
+// accepted and all subsequent writes will return the error.
 type Writer struct {
 	err error
 	buf []byte
