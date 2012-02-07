@@ -542,10 +542,12 @@ Loop:
 	panic("unreachable")
 }
 
-// Have already read a start element.
-// Read tokens until we find the end element.
-// Token is taking care of making sure the
-// end element matches the start element we saw.
+// Skip reads tokens until it has consumed the end element
+// matching the most recent start element already consumed.
+// It recurs if it encounters a start element, so it can be used to
+// skip nested structures.
+// It returns nil if it finds an end element matching the start
+// element; otherwise it returns an error describing the problem.
 func (d *Decoder) Skip() error {
 	for {
 		tok, err := d.Token()
