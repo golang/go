@@ -5,45 +5,65 @@
 
 set -e
 
-source utils.bash
-
-if ! test -f ../../src/env.bash; then
-	echo "package.bash must be run from $GOROOT/misc/osx" 1>&2
+if ! test -f ../../src/all.bash; then
+	echo >&2 "package.bash must be run from $GOROOT/misc/osx"
+	exit 1
 fi
+
+echo >&2 "Locating PackageMaker..."
+PM=/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
+if [ ! -x $PM ]; then
+	PM=/Developer$PM
+	if [ ! -x $PM ]; then
+		echo >&2 "could not find PackageMaker; aborting"
+		exit 1
+	fi
+fi
+echo >&2 "  Found: $PM"
 
 BUILD=/tmp/go.build.tmp
 ROOT=`hg root`
 export GOROOT=$BUILD/root/usr/local/go
 export GOROOT_FINAL=/usr/local/go
 
-echo "Removing old images"
+echo >&2 "Removing old images"
 rm -f *.pkg *.dmg
 
-echo "Preparing temporary directory"
+echo >&2 "Preparing temporary directory"
 rm -rf $BUILD
 mkdir -p $BUILD
+trap "rm -rf $BUILD" 0
 
-echo "Copying go source distribution"
+echo >&2 "Copying go source distribution"
 mkdir -p $BUILD/root/usr/local
 cp -r $ROOT $GOROOT
 cp -r etc $BUILD/root/etc
 
-echo "Building go"
 pushd $GOROOT > /dev/null
-src/version.bash -save
+
+echo >&2 "Detecting version..."
+pushd src > /dev/null
+./make.bash --dist-tool > /dev/null
+../bin/tool/dist version > /dev/null
+popd > /dev/null
+mv VERSION.cache VERSION
+VERSION="$(cat VERSION | awk '{ print $1 }')"
+echo >&2 "  Version: $VERSION"
+
+echo >&2 "Pruning Mercurial metadata"
 rm -rf .hg .hgignore .hgtags
-cd src
-./all.bash | sed "s/^/  /"
+
+echo >&2 "Building Go"
+pushd src
+./all.bash 2>&1 | sed "s/^/  /" >&2
 popd > /dev/null
 
-echo "Building package"
-# $PM came from utils.bahs
-$PM -v -r $BUILD/root -o "Go `hg id`.pkg" \
+popd > /dev/null
+
+echo >&2 "Building package"
+$PM -v -r $BUILD/root -o "go.darwin.$VERSION.pkg" \
 	--scripts scripts \
 	--id com.googlecode.go \
 	--title Go \
 	--version "0.1" \
 	--target "10.5"
-
-echo "Removing temporary directory"
-rm -rf $BUILD
