@@ -49,6 +49,7 @@
 
 	Integer flags accept 1234, 0664, 0x1234 and may be negative.
 	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+	Duration flags accept any input valid for time.ParseDuration.
 
 	The default set of command-line flags is controlled by
 	top-level functions.  The FlagSet type allows one to define
