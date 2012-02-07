@@ -896,14 +896,14 @@ func (x *Index) Read(r io.Reader) error {
 	x.snippets = fx.Snippets
 	if fx.Fulltext {
 		x.fset = token.NewFileSet()
-		if err := x.fset.Read(r); err != nil {
-			return err
-		}
-		x.suffixes = new(suffixarray.Index)
 		decode := func(x interface{}) error {
 			return gob.NewDecoder(r).Decode(x)
 		}
-		if err := x.suffixes.Read(decode); err != nil {
+		if err := x.fset.Read(decode); err != nil {
+			return err
+		}
+		x.suffixes = new(suffixarray.Index)
+		if err := x.suffixes.Read(r); err != nil {
 			return err
 		}
 	}
