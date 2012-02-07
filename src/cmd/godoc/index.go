@@ -867,7 +867,10 @@ func (x *Index) Write(w io.Writer) error {
 		return err
 	}
 	if fulltext {
-		if err := x.fset.Write(w); err != nil {
+		encode := func(x interface{}) error {
+			return gob.NewEncoder(w).Encode(x)
+		}
+		if err := x.fset.Write(encode); err != nil {
 			return err
 		}
 		if err := x.suffixes.Write(w); err != nil {
@@ -897,7 +900,10 @@ func (x *Index) Read(r io.Reader) error {
 			return err
 		}
 		x.suffixes = new(suffixarray.Index)
-		if err := x.suffixes.Read(r); err != nil {
+		decode := func(x interface{}) error {
+			return gob.NewDecoder(r).Decode(x)
+		}
+		if err := x.suffixes.Read(decode); err != nil {
 			return err
 		}
 	}
