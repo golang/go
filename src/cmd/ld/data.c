@@ -589,6 +589,25 @@ strnput(char *s, int n)
 	}
 }
 
+void
+addstrdata(char *name, char *value)
+{
+	Sym *s, *sp;
+	char *p;
+	
+	p = smprint("%s.str", name);
+	sp = lookup(p, 0);
+	free(p);
+	addstring(sp, value);
+
+	s = lookup(name, 0);
+	s->dupok = 1;
+	addaddr(s, sp);
+	adduint32(s, strlen(value));
+	if(PtrSize == 8)
+		adduint32(s, 0);  // round struct to pointer width
+}
+
 vlong
 addstring(Sym *s, char *str)
 {
