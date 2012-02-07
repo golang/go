@@ -179,6 +179,7 @@ void	reloc(void);
 void	relocsym(Sym*);
 void	savedata(Sym*, Prog*, char*);
 void	symgrow(Sym*, int32);
+void	addstrdata(char*, char*);
 vlong	addstring(Sym*, char*);
 vlong	adduint32(Sym*, uint32);
 vlong	adduint64(Sym*, uint64);

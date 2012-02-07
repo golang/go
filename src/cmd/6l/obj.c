@@ -82,6 +82,7 @@ void
 main(int argc, char *argv[])
 {
 	int c;
+	char *name, *val;
 
 	Binit(&bso, 1, OWRITE);
 	listinit();
@@ -93,6 +94,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	nuxiinit();
 
 	ARGBEGIN {
 	default:
@@ -133,9 +135,9 @@ main(int argc, char *argv[])
 		print("%cl version %s\n", thechar, getgoversion());
 		errorexit();
 	case 'X':
-		// TODO: golang.org/issue/2676
-		EARGF(usage());
-		EARGF(usage());
+		name = EARGF(usage());
+		val = EARGF(usage());
+		addstrdata(name, val);
 		break;
 	} ARGEND
 
@@ -253,7 +255,6 @@ main(int argc, char *argv[])
 	zprg.mode = 64;
 
 	pcstr = "%.6llux ";
-	nuxiinit();
 	histgen = 0;
 	pc = 0;
 	dtype = 4;
