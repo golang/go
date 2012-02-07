@@ -76,6 +76,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 	}
 	p.comments[0] = g
 	p.cindex = 0
+	p.nextComment() // get comment ready for use
 }
 
 type exprListMode uint

@@ -158,4 +158,30 @@ func main() {
 }
 `,
 	},
+	{
+		Name: "timefileinfo.5", // test for issues 1505, 2636
+		In: `package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	fmt.Println(time.SecondsToUTC(now)) // this comment must not introduce an illegal linebreak
+}
+`,
+		Out: `package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	fmt.Println(time.Unix(now, 0).UTC( // this comment must not introduce an illegal linebreak
+	))
+}
+`,
+	},
 }
