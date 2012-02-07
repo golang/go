@@ -6,6 +6,7 @@ package token
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"testing"
 )
@@ -69,12 +70,18 @@ func equal(p, q *FileSet) error {
 
 func checkSerialize(t *testing.T, p *FileSet) {
 	var buf bytes.Buffer
-	if err := p.Write(&buf); err != nil {
+	encode := func(x interface{}) error {
+		return gob.NewEncoder(&buf).Encode(x)
+	}
+	if err := p.Write(encode); err != nil {
 		t.Errorf("writing fileset failed: %s", err)
 		return
 	}
 	q := NewFileSet()
-	if err := q.Read(&buf); err != nil {
+	decode := func(x interface{}) error {
+		return gob.NewDecoder(&buf).Decode(x)
+	}
+	if err := q.Read(decode); err != nil {
 		t.Errorf("reading fileset failed: %s", err)
 		return
 	}
