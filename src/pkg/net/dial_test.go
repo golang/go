@@ -43,18 +43,17 @@ func TestDialTimeout(t *testing.T) {
 				errc <- err
 			}()
 		}
-	case "darwin":
+	case "darwin", "windows":
 		// At least OS X 10.7 seems to accept any number of
 		// connections, ignoring listen's backlog, so resort
 		// to connecting to a hopefully-dead 127/8 address.
+		// Same for windows.
 		go func() {
 			_, err := DialTimeout("tcp", "127.0.71.111:80", 200*time.Millisecond)
 			errc <- err
 		}()
 	default:
-		// TODO(bradfitz): this probably doesn't work on
-		// Windows? SOMAXCONN is huge there.  I'm not sure how
-		// listen works there.
+		// TODO(bradfitz):
 		// OpenBSD may have a reject route to 10/8.
 		// FreeBSD likely works, but is untested.
 		t.Logf("skipping test on %q; untested.", runtime.GOOS)
