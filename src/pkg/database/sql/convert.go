@@ -110,6 +110,14 @@ func convertAssign(dest, src interface{}) error {
 	}
 
 	switch dv.Kind() {
+	case reflect.Ptr:
+		if src == nil {
+			dv.Set(reflect.Zero(dv.Type()))
+			return nil
+		} else {
+			dv.Set(reflect.New(dv.Type().Elem()))
+			return convertAssign(dv.Interface(), src)
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())

@@ -248,6 +248,13 @@ func (defaultConverter) ConvertValue(v interface{}) (interface{}, error) {
 
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
+	case reflect.Ptr:
+		// indirect pointers
+		if rv.IsNil() {
+			return nil, nil
+		} else {
+			return defaultConverter{}.ConvertValue(rv.Elem().Interface())
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return rv.Int(), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:

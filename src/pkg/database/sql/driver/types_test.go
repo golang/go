@@ -18,6 +18,7 @@ type valueConverterTest struct {
 }
 
 var now = time.Now()
+var answer int64 = 42
 
 var valueConverterTests = []valueConverterTest{
 	{Bool, "true", true, ""},
@@ -37,6 +38,9 @@ var valueConverterTests = []valueConverterTest{
 	{c: Bool, in: "foo", err: "sql/driver: couldn't convert \"foo\" into type bool"},
 	{c: Bool, in: 2, err: "sql/driver: couldn't convert 2 into type bool"},
 	{DefaultParameterConverter, now, now, ""},
+	{DefaultParameterConverter, (*int64)(nil), nil, ""},
+	{DefaultParameterConverter, &answer, answer, ""},
+	{DefaultParameterConverter, &now, now, ""},
 }
 
 func TestValueConverters(t *testing.T) {
