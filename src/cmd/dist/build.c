@@ -336,8 +336,7 @@ setup(void)
  */
 
 // gccargs is the gcc command line to use for compiling a single C file.
-static char *gccargs[] = {
-	"gcc",
+static char *proto_gccargs[] = {
 	"-Wall",
 	"-Wno-sign-compare",
 	"-Wno-missing-braces",
@@ -351,6 +350,8 @@ static char *gccargs[] = {
 	"-O2",
 	"-c",
 };
+
+static Vec gccargs;
 
 // deptab lists changes to the default dependencies for a given prefix.
 // deps ending in /* read the whole directory; deps beginning with - 
@@ -512,6 +513,16 @@ install(char *dir)
 	vinit(&clean);
 	vinit(&lib);
 	vinit(&extra);
+	
+	// set up gcc command line on first run.
+	if(gccargs.len == 0) {
+		xgetenv(&b, "CC");
+		if(b.len == 0)
+			bprintf(&b, "gcc");
+		splitfields(&gccargs, bstr(&b));
+		for(i=0; i<nelem(proto_gccargs); i++)
+			vadd(&gccargs, proto_gccargs[i]);
+	}
 	
 	// path = full path to dir.
 	bpathf(&path, "%s/src/%s", goroot, dir);
@@ -732,7 +743,7 @@ install(char *dir)
 		vreset(&compile);
 		if(!isgo) {
 			// C library or tool.
-			vcopy(&compile, gccargs, nelem(gccargs));
+			vcopy(&compile, gccargs.p, gccargs.len);
 			if(streq(gohostarch, "amd64"))
 				vadd(&compile, "-m64");
 			else if(streq(gohostarch, "386"))
