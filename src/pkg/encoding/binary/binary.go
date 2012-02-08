@@ -163,7 +163,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	default:
 		return errors.New("binary.Read: invalid type " + d.Type().String())
 	}
-	size := TotalSize(v)
+	size := dataSize(v)
 	if size < 0 {
 		return errors.New("binary.Read: invalid type " + v.Type().String())
 	}
@@ -242,7 +242,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		return err
 	}
 	v := reflect.Indirect(reflect.ValueOf(data))
-	size := TotalSize(v)
+	size := dataSize(v)
 	if size < 0 {
 		return errors.New("binary.Write: invalid type " + v.Type().String())
 	}
@@ -253,7 +253,11 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	return err
 }
 
-func TotalSize(v reflect.Value) int {
+// dataSize returns the number of bytes the actual data represented by v occupies in memory.
+// For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
+// it returns the length of the slice times the element size and does not count the memory
+// occupied by the header.
+func dataSize(v reflect.Value) int {
 	if v.Kind() == reflect.Slice {
 		elem := sizeof(v.Type().Elem())
 		if elem < 0 {
