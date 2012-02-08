@@ -878,7 +878,7 @@ loop:
 	case 3:	// set
 		if(p->as == p0->as)
 		if(p->from.type == p0->from.type)
-		if(p->from.sym == p0->from.sym)
+		if(p->from.node == p0->from.node)
 		if(p->from.offset == p0->from.offset)
 		if(p->from.scale == p0->from.scale)
 		if(p->from.dval == p0->from.dval)
