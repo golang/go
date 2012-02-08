@@ -217,7 +217,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer cmd.Wait()
 	defer stdoutRead.Close()
 
-	linebody, _ := bufio.NewReaderSize(stdoutRead, 1024)
+	linebody := bufio.NewReaderSize(stdoutRead, 1024)
 	headers := make(http.Header)
 	statusCode := 0
 	for {

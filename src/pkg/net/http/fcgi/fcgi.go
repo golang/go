@@ -240,7 +240,7 @@ func (w *bufWriter) Close() error {
 
 func newWriter(c *conn, recType recType, reqId uint16) *bufWriter {
 	s := &streamWriter{c: c, recType: recType, reqId: reqId}
-	w, _ := bufio.NewWriterSize(s, maxWrite)
+	w := bufio.NewWriterSize(s, maxWrite)
 	return &bufWriter{s, w}
 }
 

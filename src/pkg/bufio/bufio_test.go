@@ -161,7 +161,7 @@ func TestReader(t *testing.T) {
 					bufreader := bufreaders[j]
 					bufsize := bufsizes[k]
 					read := readmaker.fn(bytes.NewBufferString(text))
-					buf, _ := NewReaderSize(read, bufsize)
+					buf := NewReaderSize(read, bufsize)
 					s := bufreader.fn(buf)
 					if s != text {
 						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
@@ -379,18 +379,14 @@ func TestWriter(t *testing.T) {
 			// and that the data is correct.
 
 			w.Reset()
-			buf, e := NewWriterSize(w, bs)
+			buf := NewWriterSize(w, bs)
 			context := fmt.Sprintf("nwrite=%d bufsize=%d", nwrite, bs)
-			if e != nil {
-				t.Errorf("%s: NewWriterSize %d: %v", context, bs, e)
-				continue
-			}
 			n, e1 := buf.Write(data[0:nwrite])
 			if e1 != nil || n != nwrite {
 				t.Errorf("%s: buf.Write %d = %d, %v", context, nwrite, n, e1)
 				continue
 			}
-			if e = buf.Flush(); e != nil {
+			if e := buf.Flush(); e != nil {
 				t.Errorf("%s: buf.Flush = %v", context, e)
 			}
 
@@ -447,23 +443,14 @@ func TestWriteErrors(t *testing.T) {
 
 func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000
-	b, err := NewReaderSize(bytes.NewBufferString("hello world"), BufSize)
-	if err != nil {
-		t.Error("NewReaderSize create fail", err)
-	}
+	b := NewReaderSize(bytes.NewBufferString("hello world"), BufSize)
 	// Does it recognize itself?
-	b1, err2 := NewReaderSize(b, BufSize)
-	if err2 != nil {
-		t.Error("NewReaderSize #2 create fail", err2)
-	}
+	b1 := NewReaderSize(b, BufSize)
 	if b1 != b {
 		t.Error("NewReaderSize did not detect underlying Reader")
 	}
 	// Does it wrap if existing buffer is too small?
-	b2, err3 := NewReaderSize(b, 2*BufSize)
-	if err3 != nil {
-		t.Error("NewReaderSize #3 create fail", err3)
-	}
+	b2 := NewReaderSize(b, 2*BufSize)
 	if b2 == b {
 		t.Error("NewReaderSize did not enlarge buffer")
 	}
@@ -471,23 +458,14 @@ func TestNewReaderSizeIdempotent(t *testing.T) {
 
 func TestNewWriterSizeIdempotent(t *testing.T) {
 	const BufSize = 1000
-	b, err := NewWriterSize(new(bytes.Buffer), BufSize)
-	if err != nil {
-		t.Error("NewWriterSize create fail", err)
-	}
+	b := NewWriterSize(new(bytes.Buffer), BufSize)
 	// Does it recognize itself?
-	b1, err2 := NewWriterSize(b, BufSize)
-	if err2 != nil {
-		t.Error("NewWriterSize #2 create fail", err2)
-	}
+	b1 := NewWriterSize(b, BufSize)
 	if b1 != b {
 		t.Error("NewWriterSize did not detect underlying Writer")
 	}
 	// Does it wrap if existing buffer is too small?
-	b2, err3 := NewWriterSize(b, 2*BufSize)
-	if err3 != nil {
-		t.Error("NewWriterSize #3 create fail", err3)
-	}
+	b2 := NewWriterSize(b, 2*BufSize)
 	if b2 == b {
 		t.Error("NewWriterSize did not enlarge buffer")
 	}
@@ -496,10 +474,7 @@ func TestNewWriterSizeIdempotent(t *testing.T) {
 func TestWriteString(t *testing.T) {
 	const BufSize = 8
 	buf := new(bytes.Buffer)
-	b, err := NewWriterSize(buf, BufSize)
-	if err != nil {
-		t.Error("NewWriterSize create fail", err)
-	}
+	b := NewWriterSize(buf, BufSize)
 	b.WriteString("0")                         // easy
 	b.WriteString("123456")                    // still easy
 	b.WriteString("7890")                      // easy after flush
@@ -516,10 +491,7 @@ func TestWriteString(t *testing.T) {
 
 func TestBufferFull(t *testing.T) {
 	const longString = "And now, hello, world! It is the time for all good men to come to the aid of their party"
-	buf, err := NewReaderSize(strings.NewReader(longString), minReadBufferSize)
-	if err != nil {
-		t.Fatal("NewReaderSize:", err)
-	}
+	buf := NewReaderSize(strings.NewReader(longString), minReadBufferSize)
 	line, err := buf.ReadSlice('!')
 	if string(line) != "And now, hello, " || err != ErrBufferFull {
 		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
@@ -533,7 +505,7 @@ func TestBufferFull(t *testing.T) {
 func TestPeek(t *testing.T) {
 	p := make([]byte, 10)
 	// string is 16 (minReadBufferSize) long.
-	buf, _ := NewReaderSize(strings.NewReader("abcdefghijklmnop"), minReadBufferSize)
+	buf := NewReaderSize(strings.NewReader("abcdefghijklmnop"), minReadBufferSize)
 	if s, err := buf.Peek(1); string(s) != "a" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "a", string(s), err)
 	}
@@ -609,7 +581,7 @@ func testReadLine(t *testing.T, input []byte) {
 	for stride := 1; stride < 2; stride++ {
 		done := 0
 		reader := testReader{input, stride}
-		l, _ := NewReaderSize(&reader, len(input)+1)
+		l := NewReaderSize(&reader, len(input)+1)
 		for {
 			line, isPrefix, err := l.ReadLine()
 			if len(line) > 0 && err != nil {
@@ -646,7 +618,7 @@ func TestLineTooLong(t *testing.T) {
 		data = append(data, '0'+byte(i%10))
 	}
 	buf := bytes.NewBuffer(data)
-	l, _ := NewReaderSize(buf, minReadBufferSize)
+	l := NewReaderSize(buf, minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
 	if !isPrefix || !bytes.Equal(line, data[:minReadBufferSize]) || err != nil {
 		t.Errorf("bad result for first line: got %q want %q %v", line, data[:minReadBufferSize], err)
@@ -673,7 +645,7 @@ func TestReadAfterLines(t *testing.T) {
 	inbuf := bytes.NewBuffer([]byte(line1 + "\n" + restData))
 	outbuf := new(bytes.Buffer)
 	maxLineLength := len(line1) + len(restData)/2
-	l, _ := NewReaderSize(inbuf, maxLineLength)
+	l := NewReaderSize(inbuf, maxLineLength)
 	line, isPrefix, err := l.ReadLine()
 	if isPrefix || err != nil || string(line) != line1 {
 		t.Errorf("bad result for first line: isPrefix=%v err=%v line=%q", isPrefix, err, string(line))
@@ -688,7 +660,7 @@ func TestReadAfterLines(t *testing.T) {
 }
 
 func TestReadEmptyBuffer(t *testing.T) {
-	l, _ := NewReaderSize(new(bytes.Buffer), minReadBufferSize)
+	l := NewReaderSize(new(bytes.Buffer), minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
 	if err != io.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
@@ -696,7 +668,7 @@ func TestReadEmptyBuffer(t *testing.T) {
 }
 
 func TestLinesAfterRead(t *testing.T) {
-	l, _ := NewReaderSize(bytes.NewBuffer([]byte("foo")), minReadBufferSize)
+	l := NewReaderSize(bytes.NewBuffer([]byte("foo")), minReadBufferSize)
 	_, err := ioutil.ReadAll(l)
 	if err != nil {
 		t.Error(err)
@@ -752,10 +724,7 @@ func TestReadLineNewlines(t *testing.T) {
 }
 
 func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
-	b, err := NewReaderSize(strings.NewReader(input), minReadBufferSize)
-	if err != nil {
-		t.Fatal(err)
-	}
+	b := NewReaderSize(strings.NewReader(input), minReadBufferSize)
 	for i, e := range expect {
 		line, isPrefix, err := b.ReadLine()
 		if bytes.Compare(line, e.line) != 0 {
