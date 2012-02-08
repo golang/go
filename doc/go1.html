@@ -929,6 +929,61 @@ to be implemented in the future.
 No changes will be needed.
 </p>
 
+<h3 id="encoding_binary">The encoding/binary package</h3>
+
+<p>
+In Go 1, the <code>binary.TotalSize</code></a> function is no longer exported.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that depends on the function will need to be updated.
+</p>
+
+<h3 id="encoding_xml">The encoding/xml package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
+has been brought closer in design to the other marshaling packages such
+as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
+</p>
+
+<p>
+The old <code>Parser</code> type is renamed
+<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
+<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
+introduced.
+</p>
+
+<p>
+The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+work with <code>[]byte</code> values now. To work with streams,
+use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
+</p>
+
+<p>
+When marshaling or unmarshaling values, the format of supported flags in
+field tags has changed to be closer to the
+<a href="/pkg/encoding/json"><code>json</code></a> package
+(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
+names, and the XML attribute and element names is now case-sensitive.
+The <code>XMLName</code> field tag, if present, must also match the name
+of the XML element being marshaled.
+</p>
+
+<p>
+<em>Updating</em>:
+Running <code>go fix</code> will update most uses of the package except for some calls to
+<code>Unmarshal</code>. Special care must be taken with field tags,
+since the fix tool will not update them and if not fixed by hand they will
+misbehave silently in some cases. For example, the old
+<code>"attr"</code> is now written <code>",attr"</code> while plain
+<code>"attr"</code> remains valid but with a different meaning.
+</p>
+
 <h3 id="expvar">The expvar package</h3>
 
 <p>
@@ -1573,50 +1628,6 @@ added to <code>URL</code>.
 <em>Updating</em>:
 Code that uses the old fields will fail to compile and must be updated by hand.
 The semantic changes make it difficult for the fix tool to update automatically.
-</p>
-
-<h3 id="xml">The xml package</h3>
-
-<p>
-In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
-has been brought closer in design to the other marshaling packages such
-as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
-</p>
-
-<p>
-The old <code>Parser</code> type is renamed
-<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
-<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
-introduced.
-</p>
-
-<p>
-The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
-and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
-work with <code>[]byte</code> values now. To work with streams,
-use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
-and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
-</p>
-
-<p>
-When marshaling or unmarshaling values, the format of supported flags in
-field tags has changed to be closer to the
-<a href="/pkg/encoding/json"><code>json</code></a> package
-(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
-names, and the XML attribute and element names is now case-sensitive.
-The <code>XMLName</code> field tag, if present, must also match the name
-of the XML element being marshaled.
-</p>
-
-<p>
-<em>Updating</em>:
-Running <code>go fix</code> will update most uses of the package except for some calls to
-<code>Unmarshal</code>. Special care must be taken with field tags,
-since the fix tool will not update them and if not fixed by hand they will
-misbehave silently in some cases. For example, the old
-<code>"attr"</code> is now written <code>",attr"</code> while plain
-<code>"attr"</code> remains valid but with a different meaning.
 </p>
 
 <h2 id="go_command">The go command</h2>
