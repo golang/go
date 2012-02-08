@@ -50,30 +50,3 @@ func (c *Uniform) Opaque() bool {
 func NewUniform(c color.Color) *Uniform {
 	return &Uniform{c}
 }
-
-// Repeated is an Image that is a source Image translated by -Offset and then
-// repeated in all four directions to infinity.
-//
-// Repeated{src, off}.At(x, y) will equal src.At(x+off.X, y+off.Y) for all
-// points {x+off.X, y+off.Y} within src's Bounds.
-type Repeated struct {
-	// I is the source image.
-	I Image
-	// Offset is the translation vector from result pixel to source pixel.
-	Offset Point
-}
-
-func (r *Repeated) ColorModel() color.Model {
-	return r.I.ColorModel()
-}
-
-func (r *Repeated) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
-
-func (r *Repeated) At(x, y int) color.Color {
-	p := Point{x, y}.Add(r.Offset).Mod(r.I.Bounds())
-	return r.I.At(p.X, p.Y)
-}
-
-func NewRepeated(i Image, offset Point) *Repeated {
-	return &Repeated{i, offset}
-}
