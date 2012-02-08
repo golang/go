@@ -19,6 +19,9 @@ type Decoder struct {
 }
 
 // NewDecoder returns a new decoder that reads from r.
+//
+// The decoder introduces its own buffering and may
+// read data from r beyond the JSON values requested.
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
