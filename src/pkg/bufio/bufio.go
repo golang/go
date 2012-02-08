@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"strconv"
 	"unicode/utf8"
 )
 
@@ -27,13 +26,6 @@ var (
 	errInternal          = errors.New("bufio: internal error")
 )
 
-// BufSizeError is the error representing an invalid buffer size.
-type BufSizeError int
-
-func (b BufSizeError) Error() string {
-	return "bufio: bad buffer size " + strconv.Itoa(int(b))
-}
-
 // Buffered input.
 
 // Reader implements buffering for an io.Reader object.
@@ -48,35 +40,29 @@ type Reader struct {
 
 const minReadBufferSize = 16
 
-// NewReaderSize creates a new Reader whose buffer has the specified size,
-// which must be at least 16 bytes.  If the argument io.Reader is already a
-// Reader with large enough size, it returns the underlying Reader.
-// It returns the Reader and any error.
-func NewReaderSize(rd io.Reader, size int) (*Reader, error) {
-	if size < minReadBufferSize {
-		return nil, BufSizeError(size)
-	}
+// NewReaderSize returns a new Reader whose buffer has at least the specified
+// size. If the argument io.Reader is already a Reader with large enough
+// size, it returns the underlying Reader.
+func NewReaderSize(rd io.Reader, size int) *Reader {
 	// Is it already a Reader?
 	b, ok := rd.(*Reader)
 	if ok && len(b.buf) >= size {
-		return b, nil
+		return b
 	}
-	b = new(Reader)
-	b.buf = make([]byte, size)
-	b.rd = rd
-	b.lastByte = -1
-	b.lastRuneSize = -1
-	return b, nil
+	if size < minReadBufferSize {
+		size = minReadBufferSize
+	}
+	return &Reader{
+		buf:          make([]byte, size),
+		rd:           rd,
+		lastByte:     -1,
+		lastRuneSize: -1,
+	}
 }
 
 // NewReader returns a new Reader whose buffer has the default size.
 func NewReader(rd io.Reader) *Reader {
-	b, err := NewReaderSize(rd, defaultBufSize)
-	if err != nil {
-		// cannot happen - defaultBufSize is a valid size
-		panic(err)
-	}
-	return b
+	return NewReaderSize(rd, defaultBufSize)
 }
 
 // fill reads a new chunk into the buffer.
@@ -396,33 +382,27 @@ type Writer struct {
 	wr  io.Writer
 }
 
-// NewWriterSize creates a new Writer whose buffer has the specified size,
-// which must be greater than zero. If the argument io.Writer is already a
-// Writer with large enough size, it returns the underlying Writer.
-// It returns the Writer and any error.
-func NewWriterSize(wr io.Writer, size int) (*Writer, error) {
-	if size <= 0 {
-		return nil, BufSizeError(size)
-	}
+// NewWriterSize returns a new Writer whose buffer has at least the specified
+// size. If the argument io.Writer is already a Writer with large enough
+// size, it returns the underlying Writer.
+func NewWriterSize(wr io.Writer, size int) *Writer {
 	// Is it already a Writer?
 	b, ok := wr.(*Writer)
 	if ok && len(b.buf) >= size {
-		return b, nil
+		return b
+	}
+	if size <= 0 {
+		size = defaultBufSize
 	}
 	b = new(Writer)
 	b.buf = make([]byte, size)
 	b.wr = wr
-	return b, nil
+	return b
 }
 
 // NewWriter returns a new Writer whose buffer has the default size.
 func NewWriter(wr io.Writer) *Writer {
-	b, err := NewWriterSize(wr, defaultBufSize)
-	if err != nil {
-		// cannot happen - defaultBufSize is valid size
-		panic(err)
-	}
-	return b
+	return NewWriterSize(wr, defaultBufSize)
 }
 
 // Flush writes any buffered data to the underlying io.Writer.

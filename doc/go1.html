@@ -863,6 +863,22 @@ few programs beyond the need to run <code>go fix</code>.
 This category includes packages that are new in Go 1.
 </p>
 
+<h3 id="bufio">The bufio package</h3>
+
+<p>
+In Go 1, <a href="/pkg/bufio/#NewReaderSize"><code>bufio.NewReaderSize</code></a>
+and
+<a href="/pkg/bufio/#NewWriterSize"><code>bufio.NewWriterSize</code></a>
+functions no longer return an error for invalid sizes.
+If the argument size is too small or invalid, it is adjusted.
+</p>
+
+<p>
+<em>Updating</em>:
+These functions are rarely used, and code must be updated by hand.
+All that is required is to drop the second return value.
+</p>
+
 <h3 id="crypto_elliptic">The crypto/elliptic package</h3>
 
 <p>

@@ -2,12 +2,6 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../src/Make.inc
-
-TARG=tmpltohtml
-GOFILES=\
-	tmpltohtml.go\
-
 HTML=\
 	articles/defer_panic_recover.html\
 	articles/error_handling.html\
@@ -18,7 +12,8 @@ HTML=\
 
 all: tmpltohtml $(HTML)
 
+tmpltohtml: tmpltohtml.go
+	go build tmpltohtml.go
+
 %.html: %.tmpl tmpltohtml
 	./makehtml $*.tmpl
-
-include ../src/Make.cmd

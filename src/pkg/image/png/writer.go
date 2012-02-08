@@ -408,10 +408,7 @@ func (e *encoder) writeIDATs() {
 		return
 	}
 	var bw *bufio.Writer
-	bw, e.err = bufio.NewWriterSize(e, 1<<15)
-	if e.err != nil {
-		return
-	}
+	bw = bufio.NewWriterSize(e, 1<<15)
 	e.err = writeImage(bw, e.m, e.cb)
 	if e.err != nil {
 		return
