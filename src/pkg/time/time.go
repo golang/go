@@ -841,46 +841,17 @@ func (t *Time) GobDecode(buf []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 // Time is formatted as RFC3339.
 func (t Time) MarshalJSON() ([]byte, error) {
-	yearInt := t.Year()
-	if yearInt < 0 || yearInt > 9999 {
+	if y := t.Year(); y < 0 || y >= 10000 {
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
 	}
-
-	// We need a four-digit year, but Format produces variable-width years.
-	year := itoa(yearInt)
-	year = "0000"[:4-len(year)] + year
-
-	var formattedTime string
-	if t.nsec == 0 {
-		// RFC3339, no fractional second
-		formattedTime = t.Format("-01-02T15:04:05Z07:00")
-	} else {
-		// RFC3339 with fractional second
-		formattedTime = t.Format("-01-02T15:04:05.000000000Z07:00")
-
-		// Trim trailing zeroes from fractional second.
-		const nanoEnd = 24 // Index of last digit of fractional second
-		var i int
-		for i = nanoEnd; formattedTime[i] == '0'; i-- {
-			// Seek backwards until first significant digit is found.
-		}
-
-		formattedTime = formattedTime[:i+1] + formattedTime[nanoEnd+1:]
-	}
-
-	buf := make([]byte, 0, 1+len(year)+len(formattedTime)+1)
-	buf = append(buf, '"')
-	buf = append(buf, year...)
-	buf = append(buf, formattedTime...)
-	buf = append(buf, '"')
-	return buf, nil
+	return []byte(t.Format(`"` + RFC3339Nano + `"`)), nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // Time is expected in RFC3339 format.
 func (t *Time) UnmarshalJSON(data []byte) (err error) {
-	*t, err = Parse("\""+RFC3339+"\"", string(data))
 	// Fractional seconds are handled implicitly by Parse.
+	*t, err = Parse(`"`+RFC3339+`"`, string(data))
 	return
 }
 

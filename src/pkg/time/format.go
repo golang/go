@@ -27,7 +27,10 @@ const (
 // compatibility with fixed-width Unix time formats.
 //
 // A decimal point followed by one or more zeros represents a fractional
-// second. When parsing (only), the input may contain a fractional second
+// second, printed to the given number of decimal places.  A decimal point
+// followed by one or more nines represents a fractional second, printed to
+// the given number of decimal places, with trailing zeros removed.
+// When parsing (only), the input may contain a fractional second
 // field immediately after the seconds field, even if the layout does not
 // signify its presence. In that case a decimal point followed by a maximal
 // series of digits is parsed as a fractional second.
@@ -41,16 +44,17 @@ const (
 //	Z0700  Z or ±hhmm
 //	Z07:00 Z or ±hh:mm
 const (
-	ANSIC    = "Mon Jan _2 15:04:05 2006"
-	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
-	RubyDate = "Mon Jan 02 15:04:05 -0700 2006"
-	RFC822   = "02 Jan 06 1504 MST"
-	RFC822Z  = "02 Jan 06 1504 -0700" // RFC822 with numeric zone
-	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
-	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
-	RFC1123Z = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
-	RFC3339  = "2006-01-02T15:04:05Z07:00"
-	Kitchen  = "3:04PM"
+	ANSIC       = "Mon Jan _2 15:04:05 2006"
+	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
+	RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
+	RFC822      = "02 Jan 06 1504 MST"
+	RFC822Z     = "02 Jan 06 1504 -0700" // RFC822 with numeric zone
+	RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
+	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
+	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+	RFC3339     = "2006-01-02T15:04:05Z07:00"
+	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+	Kitchen     = "3:04PM"
 	// Handy time stamps.
 	Stamp      = "Jan _2 15:04:05"
 	StampMilli = "Jan _2 15:04:05.000"
@@ -165,15 +169,17 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 			if len(layout) >= i+6 && layout[i:i+6] == stdISO8601ColonTZ {
 				return layout[0:i], layout[i : i+6], layout[i+6:]
 			}
-		case '.': // .000 - multiple digits of zeros (only) for fractional seconds.
-			numZeros := 0
-			var j int
-			for j = i + 1; j < len(layout) && layout[j] == '0'; j++ {
-				numZeros++
-			}
-			// String of digits must end here - only fractional second is all zeros.
-			if numZeros > 0 && !isDigit(layout, j) {
-				return layout[0:i], layout[i : i+1+numZeros], layout[i+1+numZeros:]
+		case '.': // .000 or .999 - repeated digits for fractional seconds.
+			if i+1 < len(layout) && (layout[i+1] == '0' || layout[i+1] == '9') {
+				ch := layout[i+1]
+				j := i + 1
+				for j < len(layout) && layout[j] == ch {
+					j++
+				}
+				// String of digits must end here - only fractional second is all digits.
+				if !isDigit(layout, j) {
+					return layout[0:i], layout[i:j], layout[j:]
+				}
 			}
 		}
 	}
@@ -313,7 +319,7 @@ func pad(i int, padding string) string {
 func zeroPad(i int) string { return pad(i, "0") }
 
 // formatNano formats a fractional second, as nanoseconds.
-func formatNano(nanosec, n int) string {
+func formatNano(nanosec, n int, trim bool) string {
 	// User might give us bad data. Make sure it's positive and in range.
 	// They'll get nonsense output but it will have the right format.
 	s := itoa(int(uint(nanosec) % 1e9))
@@ -323,6 +329,14 @@ func formatNano(nanosec, n int) string {
 	}
 	if n > 9 {
 		n = 9
+	}
+	if trim {
+		for n > 0 && s[n-1] == '0' {
+			n--
+		}
+		if n == 0 {
+			return ""
+		}
 	}
 	return "." + s[:n]
 }
@@ -388,7 +402,24 @@ func (t Time) Format(layout string) string {
 		case stdYear:
 			p = zeroPad(year % 100)
 		case stdLongYear:
+			// Pad year to at least 4 digits.
 			p = itoa(year)
+			switch {
+			case year <= -1000:
+				// ok
+			case year <= -100:
+				p = p[:1] + "0" + p[1:]
+			case year <= -10:
+				p = p[:1] + "00" + p[1:]
+			case year < 0:
+				p = p[:1] + "000" + p[1:]
+			case year < 10:
+				p = "000" + p
+			case year < 100:
+				p = "00" + p
+			case year < 1000:
+				p = "0" + p
+			}
 		case stdMonth:
 			p = month.String()[:3]
 		case stdLongMonth:
@@ -481,8 +512,8 @@ func (t Time) Format(layout string) string {
 				p += zeroPad(zone % 60)
 			}
 		default:
-			if len(std) >= 2 && std[0:2] == ".0" {
-				p = formatNano(t.Nanosecond(), len(std)-1)
+			if len(std) >= 2 && (std[0:2] == ".0" || std[0:2] == ".9") {
+				p = formatNano(t.Nanosecond(), len(std)-1, std[1] == '9')
 			}
 		}
 		b.WriteString(p)

@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
@@ -270,6 +271,10 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			v.Set(reflect.ValueOf(start.Name))
 			break
 		}
+		if typ == timeType {
+			saveData = v
+			break
+		}
 
 		sv = v
 		tinfo, err = getTypeInfo(typ)
@@ -473,6 +478,14 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 			src = []byte{}
 		}
 		t.SetBytes(src)
+	case reflect.Struct:
+		if t.Type() == timeType {
+			tv, err := time.Parse(time.RFC3339, string(src))
+			if err != nil {
+				return err
+			}
+			t.Set(reflect.ValueOf(tv))
+		}
 	}
 	return nil
 }
