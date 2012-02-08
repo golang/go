@@ -176,6 +176,45 @@ var replaceTests = []ReplaceTest{
 	{"[a-c]*", "x", "def", "xdxexfx"},
 	{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
 	{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
+
+	// Substitutions
+	{"a+", "($0)", "banana", "b(a)n(a)n(a)"},
+	{"a+", "(${0})", "banana", "b(a)n(a)n(a)"},
+	{"a+", "(${0})$0", "banana", "b(a)an(a)an(a)a"},
+	{"a+", "(${0})$0", "banana", "b(a)an(a)an(a)a"},
+	{"hello, (.+)", "goodbye, ${1}", "hello, world", "goodbye, world"},
+	{"hello, (.+)", "goodbye, $1x", "hello, world", "goodbye, "},
+	{"hello, (.+)", "goodbye, ${1}x", "hello, world", "goodbye, worldx"},
+	{"hello, (.+)", "<$0><$1><$2><$3>", "hello, world", "<hello, world><world><><>"},
+	{"hello, (?P<noun>.+)", "goodbye, $noun!", "hello, world", "goodbye, world!"},
+	{"hello, (?P<noun>.+)", "goodbye, ${noun}", "hello, world", "goodbye, world"},
+	{"(?P<x>hi)|(?P<x>bye)", "$x$x$x", "hi", "hihihi"},
+	{"(?P<x>hi)|(?P<x>bye)", "$x$x$x", "bye", "byebyebye"},
+	{"(?P<x>hi)|(?P<x>bye)", "$xyz", "hi", ""},
+	{"(?P<x>hi)|(?P<x>bye)", "${x}yz", "hi", "hiyz"},
+	{"(?P<x>hi)|(?P<x>bye)", "hello $$x", "hi", "hello $x"},
+	{"a+", "${oops", "aaa", "${oops"},
+	{"a+", "$$", "aaa", "$"},
+	{"a+", "$", "aaa", "$"},
+}
+
+var replaceLiteralTests = []ReplaceTest{
+	// Substitutions
+	{"a+", "($0)", "banana", "b($0)n($0)n($0)"},
+	{"a+", "(${0})", "banana", "b(${0})n(${0})n(${0})"},
+	{"a+", "(${0})$0", "banana", "b(${0})$0n(${0})$0n(${0})$0"},
+	{"a+", "(${0})$0", "banana", "b(${0})$0n(${0})$0n(${0})$0"},
+	{"hello, (.+)", "goodbye, ${1}", "hello, world", "goodbye, ${1}"},
+	{"hello, (?P<noun>.+)", "goodbye, $noun!", "hello, world", "goodbye, $noun!"},
+	{"hello, (?P<noun>.+)", "goodbye, ${noun}", "hello, world", "goodbye, ${noun}"},
+	{"(?P<x>hi)|(?P<x>bye)", "$x$x$x", "hi", "$x$x$x"},
+	{"(?P<x>hi)|(?P<x>bye)", "$x$x$x", "bye", "$x$x$x"},
+	{"(?P<x>hi)|(?P<x>bye)", "$xyz", "hi", "$xyz"},
+	{"(?P<x>hi)|(?P<x>bye)", "${x}yz", "hi", "${x}yz"},
+	{"(?P<x>hi)|(?P<x>bye)", "hello $$x", "hi", "hello $$x"},
+	{"a+", "${oops", "aaa", "${oops"},
+	{"a+", "$$", "aaa", "$$"},
+	{"a+", "$", "aaa", "$"},
 }
 
 type ReplaceFuncTest struct {
@@ -199,13 +238,58 @@ func TestReplaceAll(t *testing.T) {
 		}
 		actual := re.ReplaceAllString(tc.input, tc.replacement)
 		if actual != tc.output {
-			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+			t.Errorf("%q.ReplaceAllString(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 		// now try bytes
 		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
 		if actual != tc.output {
-			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+			t.Errorf("%q.ReplaceAll(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+	}
+}
+
+func TestReplaceAllLiteral(t *testing.T) {
+	// Run ReplaceAll tests that do not have $ expansions.
+	for _, tc := range replaceTests {
+		if strings.Contains(tc.replacement, "$") {
+			continue
+		}
+		re, err := Compile(tc.pattern)
+		if err != nil {
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+			continue
+		}
+		actual := re.ReplaceAllLiteralString(tc.input, tc.replacement)
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceAllLiteralString(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+		// now try bytes
+		actual = string(re.ReplaceAllLiteral([]byte(tc.input), []byte(tc.replacement)))
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceAllLiteral(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+	}
+
+	// Run literal-specific tests.
+	for _, tc := range replaceLiteralTests {
+		re, err := Compile(tc.pattern)
+		if err != nil {
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+			continue
+		}
+		actual := re.ReplaceAllLiteralString(tc.input, tc.replacement)
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceAllLiteralString(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+		}
+		// now try bytes
+		actual = string(re.ReplaceAllLiteral([]byte(tc.input), []byte(tc.replacement)))
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceAllLiteral(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 	}
