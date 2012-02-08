@@ -36,8 +36,7 @@ const (
 	fComment
 	fAny
 
-	// TODO:
-	//fOmitEmpty
+	fOmitEmpty
 
 	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
 )
@@ -133,20 +132,28 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 				finfo.flags |= fComment
 			case "any":
 				finfo.flags |= fAny
+			case "omitempty":
+				finfo.flags |= fOmitEmpty
 			}
 		}
 
 		// Validate the flags used.
+		valid := true
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
 			finfo.flags |= fElement
 		case fAttr, fCharData, fInnerXml, fComment, fAny:
-			if f.Name != "XMLName" && (tag == "" || mode == fAttr) {
-				break
+			if f.Name == "XMLName" || tag != "" && mode != fAttr {
+				valid = false
 			}
-			fallthrough
 		default:
 			// This will also catch multiple modes in a single field.
+			valid = false
+		}
+		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {
+			valid = false
+		}
+		if !valid {
 			return nil, fmt.Errorf("xml: invalid tag in field %s of type %s: %q",
 				f.Name, typ, f.Tag.Get("xml"))
 		}
