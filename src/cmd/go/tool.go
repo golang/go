@@ -70,6 +70,7 @@ func runTool(cmd *Command, args []string) {
 	toolCmd := &exec.Cmd{
 		Path:   toolPath,
 		Args:   args,
+		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
