@@ -738,7 +738,7 @@ func (re *Regexp) Expand(dst []byte, template []byte, src []byte, match []int) [
 
 // ExpandString is like Expand but the template and source are strings.
 // It appends to and returns a byte slice in order to give the calling
-// code control ovr allocation.
+// code control over allocation.
 func (re *Regexp) ExpandString(dst []byte, template string, src string, match []int) []byte {
 	return re.expand(dst, template, nil, src, match)
 }
