@@ -80,13 +80,25 @@ const (
 // are returned via a scanner.ErrorList which is sorted by file position.
 //
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (*ast.File, error) {
+	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
+
+	// parse source
 	var p parser
 	p.init(fset, filename, text, mode)
-	return p.parseFile(), p.errors()
+	f := p.parseFile()
+
+	// sort errors
+	if p.mode&SpuriousErrors == 0 {
+		p.errors.RemoveMultiples()
+	} else {
+		p.errors.Sort()
+	}
+
+	return f, p.errors.Err()
 }
 
 // ParseDir calls ParseFile for the files in the directory specified by path and

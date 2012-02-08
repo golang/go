@@ -186,14 +186,6 @@ var source = func() []byte {
 	return src
 }()
 
-type testErrorHandler struct {
-	t *testing.T
-}
-
-func (h *testErrorHandler) Error(pos token.Position, msg string) {
-	h.t.Errorf("Error() called (msg = %s)", msg)
-}
-
 func newlineCount(s string) int {
 	n := 0
 	for i := 0; i < len(s); i++ {
@@ -226,9 +218,14 @@ func TestScan(t *testing.T) {
 	src_linecount := newlineCount(string(source))
 	whitespace_linecount := newlineCount(whitespace)
 
+	// error handler
+	eh := func(_ token.Position, msg string) {
+		t.Errorf("error handler called (msg = %s)", msg)
+	}
+
 	// verify scan
 	var s Scanner
-	s.Init(fset.AddFile("", fset.Base(), len(source)), source, &testErrorHandler{t}, ScanComments|dontInsertSemis)
+	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis)
 	index := 0
 	// epos is the expected position
 	epos := token.Position{
@@ -569,35 +566,36 @@ func TestStdErrorHander(t *testing.T) {
 		"//line File1:1\n" +
 		"@ @ @" // original file, line 1 again
 
-	v := new(ErrorVector)
+	var list ErrorList
+	eh := func(pos token.Position, msg string) { list.Add(pos, msg) }
+
 	var s Scanner
-	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, dontInsertSemis)
+	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), eh, dontInsertSemis)
 	for {
 		if _, tok, _ := s.Scan(); tok == token.EOF {
 			break
 		}
 	}
 
-	list := v.GetErrorList(Raw)
+	if len(list) != s.ErrorCount {
+		t.Errorf("found %d errors, expected %d", len(list), s.ErrorCount)
+	}
+
 	if len(list) != 9 {
 		t.Errorf("found %d raw errors, expected 9", len(list))
 		PrintError(os.Stderr, list)
 	}
 
-	list = v.GetErrorList(Sorted)
+	list.Sort()
 	if len(list) != 9 {
 		t.Errorf("found %d sorted errors, expected 9", len(list))
 		PrintError(os.Stderr, list)
 	}
 
-	list = v.GetErrorList(NoMultiples)
+	list.RemoveMultiples()
 	if len(list) != 4 {
 		t.Errorf("found %d one-per-line errors, expected 4", len(list))
 		PrintError(os.Stderr, list)
-	}
-
-	if v.ErrorCount() != s.ErrorCount {
-		t.Errorf("found %d errors, expected %d", v.ErrorCount(), s.ErrorCount)
 	}
 }
 
@@ -607,16 +605,15 @@ type errorCollector struct {
 	pos token.Position // last error position encountered
 }
 
-func (h *errorCollector) Error(pos token.Position, msg string) {
-	h.cnt++
-	h.msg = msg
-	h.pos = pos
-}
-
 func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
 	var s Scanner
 	var h errorCollector
-	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments|dontInsertSemis)
+	eh := func(pos token.Position, msg string) {
+		h.cnt++
+		h.msg = msg
+		h.pos = pos
+	}
+	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, ScanComments|dontInsertSemis)
 	_, tok0, _ := s.Scan()
 	_, tok1, _ := s.Scan()
 	if tok0 != tok {

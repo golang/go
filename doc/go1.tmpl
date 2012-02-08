@@ -945,6 +945,16 @@ for that purpose.
 </p>
 
 <p>
+The <a href="/pkg/go/scanner/#ErrorHandler"><code>ErrorHandler</code></a> provided
+to the scanner's <a href="/pkg/go/scanner/#Scanner.Init"><code>Init</code></a> method is
+now simply a function rather than an interface. The <code>ErrorVector</code> type has
+been removed in favor of the (existing) <a href="/pkg/go/scanner/#ErrorList"><code>ErrorList</code></a>
+type, and the <code>ErrorVector</code> methods have been migrated. Instead of embedding
+an <code>ErrorVector</code> in a client of the scanner, now a client should maintain
+an <code>ErrorList</code>.
+</p>
+
+<p>
 The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
 package has been reduced to the primary parse function
 <a href="/pkg/go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
