@@ -11,44 +11,18 @@ import (
 	"sort"
 )
 
-// An implementation of an ErrorHandler may be provided to the Scanner.
-// If a syntax error is encountered and a handler was installed, Error
-// is called with a position and an error message. The position points
-// to the beginning of the offending token.
-//
-type ErrorHandler interface {
-	Error(pos token.Position, msg string)
-}
-
-// ErrorVector implements the ErrorHandler interface. It maintains a list
-// of errors which can be retrieved with GetErrorList and GetError. The
-// zero value for an ErrorVector is an empty ErrorVector ready to use.
-//
-// A common usage pattern is to embed an ErrorVector alongside a
-// scanner in a data structure that uses the scanner. By passing a
-// reference to an ErrorVector to the scanner's Init call, default
-// error handling is obtained.
-//
-type ErrorVector struct {
-	errors []*Error
-}
-
-// Reset resets an ErrorVector to no errors.
-func (h *ErrorVector) Reset() { h.errors = h.errors[:0] }
-
-// ErrorCount returns the number of errors collected.
-func (h *ErrorVector) ErrorCount() int { return len(h.errors) }
-
-// Within ErrorVector, an error is represented by an Error node. The
-// position Pos, if valid, points to the beginning of the offending
-// token, and the error condition is described by Msg.
+// In an ErrorList, an error is represented by an *Error.
+// The position Pos, if valid, points to the beginning of
+// the offending token, and the error condition is described
+// by Msg.
 //
 type Error struct {
 	Pos token.Position
 	Msg string
 }
 
-func (e *Error) Error() string {
+// Error implements the error interface.
+func (e Error) Error() string {
 	if e.Pos.Filename != "" || e.Pos.IsValid() {
 		// don't print "<unknown position>"
 		// TODO(gri) reconsider the semantics of Position.IsValid
@@ -57,8 +31,18 @@ func (e *Error) Error() string {
 	return e.Msg
 }
 
-// An ErrorList is a (possibly sorted) list of Errors.
+// ErrorList is a list of *Errors.
+// The zero value for an ErrorList is an empty ErrorList ready to use.
+//
 type ErrorList []*Error
+
+// Add adds an Error with given position and error message to an ErrorList.
+func (p *ErrorList) Add(pos token.Position, msg string) {
+	*p = append(*p, &Error{pos, msg})
+}
+
+// Reset resets an ErrorList to no errors.
+func (p *ErrorList) Reset() { *p = (*p)[0:0] }
 
 // ErrorList implements the sort Interface.
 func (p ErrorList) Len() int      { return len(p) }
@@ -84,72 +68,47 @@ func (p ErrorList) Less(i, j int) bool {
 	return false
 }
 
+// Sort sorts an ErrorList. *Error entries are sorted by position,
+// other errors are sorted by error message, and before any *Error
+// entry.
+//
+func (p ErrorList) Sort() {
+	sort.Sort(p)
+}
+
+// RemoveMultiples sorts an ErrorList and removes all but the first error per line.
+func (p *ErrorList) RemoveMultiples() {
+	sort.Sort(p)
+	var last token.Position // initial last.Line is != any legal error line
+	i := 0
+	for _, e := range *p {
+		if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
+			last = e.Pos
+			(*p)[i] = e
+			i++
+		}
+	}
+	(*p) = (*p)[0:i]
+}
+
+// An ErrorList implements the error interface.
 func (p ErrorList) Error() string {
 	switch len(p) {
 	case 0:
-		return "unspecified error"
+		return "no errors"
 	case 1:
 		return p[0].Error()
 	}
 	return fmt.Sprintf("%s (and %d more errors)", p[0], len(p)-1)
 }
 
-// These constants control the construction of the ErrorList
-// returned by GetErrors.
-//
-const (
-	Raw         = iota // leave error list unchanged
-	Sorted             // sort error list by file, line, and column number
-	NoMultiples        // sort error list and leave only the first error per line
-)
-
-// GetErrorList returns the list of errors collected by an ErrorVector.
-// The construction of the ErrorList returned is controlled by the mode
-// parameter. If there are no errors, the result is nil.
-//
-func (h *ErrorVector) GetErrorList(mode int) ErrorList {
-	if len(h.errors) == 0 {
+// Err returns an error equivalent to this error list.
+// If the list is empty, Err returns nil.
+func (p ErrorList) Err() error {
+	if len(p) == 0 {
 		return nil
 	}
-
-	list := make(ErrorList, len(h.errors))
-	copy(list, h.errors)
-
-	if mode >= Sorted {
-		sort.Sort(list)
-	}
-
-	if mode >= NoMultiples {
-		var last token.Position // initial last.Line is != any legal error line
-		i := 0
-		for _, e := range list {
-			if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
-				last = e.Pos
-				list[i] = e
-				i++
-			}
-		}
-		list = list[0:i]
-	}
-
-	return list
-}
-
-// GetError is like GetErrorList, but it returns an error instead
-// so that a nil result can be assigned to an error variable and
-// remains nil.
-//
-func (h *ErrorVector) GetError(mode int) error {
-	if len(h.errors) == 0 {
-		return nil
-	}
-
-	return h.GetErrorList(mode)
-}
-
-// ErrorVector implements the ErrorHandler interface.
-func (h *ErrorVector) Error(pos token.Position, msg string) {
-	h.errors = append(h.errors, &Error{pos, msg})
+	return p
 }
 
 // PrintError is a utility function that prints a list of errors to w,

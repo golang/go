@@ -17,14 +17,14 @@ import (
 const debug = false
 
 type checker struct {
-	fset *token.FileSet
-	scanner.ErrorVector
-	types map[ast.Expr]Type
+	fset   *token.FileSet
+	errors scanner.ErrorList
+	types  map[ast.Expr]Type
 }
 
 func (c *checker) errorf(pos token.Pos, format string, args ...interface{}) string {
 	msg := fmt.Sprintf(format, args...)
-	c.Error(c.fset.Position(pos), msg)
+	c.errors.Add(c.fset.Position(pos), msg)
 	return msg
 }
 
@@ -221,5 +221,6 @@ func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err 
 		c.checkObj(obj, false)
 	}
 
-	return c.types, c.GetError(scanner.NoMultiples)
+	c.errors.RemoveMultiples()
+	return c.types, c.errors.Err()
 }

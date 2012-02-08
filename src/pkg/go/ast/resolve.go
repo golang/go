@@ -14,12 +14,12 @@ import (
 )
 
 type pkgBuilder struct {
-	scanner.ErrorVector
-	fset *token.FileSet
+	fset   *token.FileSet
+	errors scanner.ErrorList
 }
 
 func (p *pkgBuilder) error(pos token.Pos, msg string) {
-	p.Error(p.fset.Position(pos), msg)
+	p.errors.Add(p.fset.Position(pos), msg)
 }
 
 func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
@@ -169,5 +169,6 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 		pkgScope.Outer = universe // reset universe scope
 	}
 
-	return &Package{pkgName, pkgScope, imports, files}, p.GetError(scanner.Sorted)
+	p.errors.Sort()
+	return &Package{pkgName, pkgScope, imports, files}, p.errors.Err()
 }

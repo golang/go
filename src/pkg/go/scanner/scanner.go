@@ -30,6 +30,13 @@ import (
 	"unicode/utf8"
 )
 
+// An ErrorHandler may be provided to Scanner.Init. If a syntax error is
+// encountered and a handler was installed, the handler is called with a
+// position and an error message. The position points to the beginning of
+// the offending token.
+//
+type ErrorHandler func(pos token.Position, msg string)
+
 // A Scanner holds the scanner's internal state while processing
 // a given text.  It can be allocated as part of another data
 // structure but must be initialized via Init before use.
@@ -103,7 +110,7 @@ const (
 // line information which is already present is ignored. Init causes a
 // panic if the file size does not match the src size.
 //
-// Calls to Scan will use the error handler err if they encounter a
+// Calls to Scan will invoke the error handler err if they encounter a
 // syntax error and err is not nil. Also, for each error encountered,
 // the Scanner field ErrorCount is incremented by one. The mode parameter
 // determines how comments are handled.
@@ -134,7 +141,7 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 
 func (s *Scanner) error(offs int, msg string) {
 	if s.err != nil {
-		s.err.Error(s.file.Position(s.file.Pos(offs)), msg)
+		s.err(s.file.Position(s.file.Pos(offs)), msg)
 	}
 	s.ErrorCount++
 }
