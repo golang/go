@@ -324,13 +324,6 @@ runtime·idlegoroutine(void)
 static void
 mcommoninit(M *m)
 {
-	// Add to runtime·allm so garbage collector doesn't free m
-	// when it is just in a register or thread-local storage.
-	m->alllink = runtime·allm;
-	// runtime·Cgocalls() iterates over allm w/o schedlock,
-	// so we need to publish it safely.
-	runtime·atomicstorep(&runtime·allm, m);
-
 	m->id = runtime·sched.mcount++;
 	m->fastrand = 0x49f6428aUL + m->id + runtime·cputicks();
 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
@@ -338,6 +331,15 @@ mcommoninit(M *m)
 
 	if(m->mcache == nil)
 		m->mcache = runtime·allocmcache();
+
+	runtime·callers(1, m->createstack, nelem(m->createstack));
+	
+	// Add to runtime·allm so garbage collector doesn't free m
+	// when it is just in a register or thread-local storage.
+	m->alllink = runtime·allm;
+	// runtime·Cgocalls() iterates over allm w/o schedlock,
+	// so we need to publish it safely.
+	runtime·atomicstorep(&runtime·allm, m);
 }
 
 // Try to increment mcpu.  Report whether succeeded.
