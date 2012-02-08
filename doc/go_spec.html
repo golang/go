@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 6, 2012"
+	"Subtitle": "Version of February 8, 2012"
 }-->
 
 <!--
@@ -665,6 +665,12 @@ Any other type has an empty method set.
 In a method set, each method must have a unique name.
 </p>
 
+<p>
+The method set of a type determines the interfaces that the
+type <a href="#Interface_types">implements</a>
+and the methods that can be <a href="#Calls">called</a>
+using a receiver of that type.
+</p>
 
 <h3 id="Boolean_types">Boolean types</h3>
 
