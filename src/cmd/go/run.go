@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -61,6 +62,19 @@ func (b *builder) runProgram(a *action) error {
 			return nil
 		}
 	}
-	run(a.deps[0].target, a.args)
+
+	runStdin(a.deps[0].target, a.args)
 	return nil
+}
+
+// runStdin is like run, but connects Stdin.
+func runStdin(cmdargs ...interface{}) {
+	cmdline := stringList(cmdargs...)
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		errorf("%v", err)
+	}
 }
