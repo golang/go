@@ -386,7 +386,7 @@ xmkdirall(char *p)
 void
 xremove(char *p)
 {
-	if(vflag > 1)
+	if(vflag > 2)
 		xprintf("rm %s\n", p);
 	unlink(p);
 }
@@ -408,11 +408,11 @@ xremoveall(char *p)
 			bprintf(&b, "%s/%s", p, dir.p[i]);
 			xremoveall(bstr(&b));
 		}
-		if(vflag > 1)
+		if(vflag > 2)
 			xprintf("rm %s\n", p);
 		rmdir(p);
 	} else {
-		if(vflag > 1)
+		if(vflag > 2)
 			xprintf("rm %s\n", p);
 		unlink(p);
 	}
