@@ -540,7 +540,7 @@ loop:
 			s->type = SBSS;
 			s->value = 0;
 		}
-		if(s->type != SBSS) {
+		if(s->type != SBSS && !s->dupok) {
 			diag("redefinition: %s\n%P", s->name, p);
 			s->type = SBSS;
 			s->value = 0;
