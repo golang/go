@@ -694,7 +694,7 @@ install(char *dir)
 	// For cmd/prof, copy pprof into the tool directory.
 	if(streq(dir, "cmd/prof")) {
 		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
-			bpathf(&b, "%s/src/cmd/prof/pprof", goroot));
+			bpathf(&b1, "%s/src/cmd/prof/pprof", goroot));
 	}
 
 	// Generate any missing files; regenerate existing ones.
