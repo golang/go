@@ -4,6 +4,8 @@
 
 package xml
 
+import "time"
+
 var atomValue = &Feed{
 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
 	Title:   "Example Feed",
@@ -24,11 +26,10 @@ var atomValue = &Feed{
 }
 
 var atomXml = `` +
-	`<feed xmlns="http://www.w3.org/2005/Atom">` +
+	`<feed xmlns="http://www.w3.org/2005/Atom" updated="2003-12-13T18:30:02Z">` +
 	`<title>Example Feed</title>` +
 	`<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>` +
 	`<link href="http://example.org/"></link>` +
-	`<updated>2003-12-13T18:30:02Z</updated>` +
 	`<author><name>John Doe</name><uri></uri><email></email></author>` +
 	`<entry>` +
 	`<title>Atom-Powered Robots Run Amok</title>` +
@@ -40,8 +41,12 @@ var atomXml = `` +
 	`</entry>` +
 	`</feed>`
 
-func ParseTime(str string) Time {
-	return Time(str)
+func ParseTime(str string) time.Time {
+	t, err := time.Parse(time.RFC3339, str)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 func NewText(text string) Text {

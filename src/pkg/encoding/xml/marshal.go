@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -223,7 +224,14 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 	return nil
 }
 
+var timeType = reflect.TypeOf(time.Time{})
+
 func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
+	// Normally we don't see structs, but this can happen for an attribute.
+	if val.Type() == timeType {
+		p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
+		return nil
+	}
 	switch val.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		p.WriteString(strconv.FormatInt(val.Int(), 10))
@@ -255,6 +263,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
 var ddBytes = []byte("--")
 
 func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+	if val.Type() == timeType {
+		p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
+		return nil
+	}
 	s := parentStack{printer: p}
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
