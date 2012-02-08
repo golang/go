@@ -38,14 +38,14 @@ type NamedType string
 
 type Port struct {
 	XMLName struct{} `xml:"port"`
-	Type    string   `xml:"type,attr"`
+	Type    string   `xml:"type,attr,omitempty"`
 	Comment string   `xml:",comment"`
 	Number  string   `xml:",chardata"`
 }
 
 type Domain struct {
 	XMLName struct{} `xml:"domain"`
-	Country string   `xml:",attr"`
+	Country string   `xml:",attr,omitempty"`
 	Name    []byte   `xml:",chardata"`
 	Comment []byte   `xml:",comment"`
 }
@@ -149,11 +149,33 @@ type NameInField struct {
 
 type AttrTest struct {
 	Int   int     `xml:",attr"`
-	Lower int     `xml:"int,attr"`
+	Named int     `xml:"int,attr"`
 	Float float64 `xml:",attr"`
 	Uint8 uint8   `xml:",attr"`
 	Bool  bool    `xml:",attr"`
 	Str   string  `xml:",attr"`
+	Bytes []byte  `xml:",attr"`
+}
+
+type OmitAttrTest struct {
+	Int   int     `xml:",attr,omitempty"`
+	Named int     `xml:"int,attr,omitempty"`
+	Float float64 `xml:",attr,omitempty"`
+	Uint8 uint8   `xml:",attr,omitempty"`
+	Bool  bool    `xml:",attr,omitempty"`
+	Str   string  `xml:",attr,omitempty"`
+	Bytes []byte  `xml:",attr,omitempty"`
+}
+
+type OmitFieldTest struct {
+	Int   int           `xml:",omitempty"`
+	Named int           `xml:"int,omitempty"`
+	Float float64       `xml:",omitempty"`
+	Uint8 uint8         `xml:",omitempty"`
+	Bool  bool          `xml:",omitempty"`
+	Str   string        `xml:",omitempty"`
+	Bytes []byte        `xml:",omitempty"`
+	Ptr   *PresenceTest `xml:",omitempty"`
 }
 
 type AnyTest struct {
@@ -549,13 +571,65 @@ var marshalTests = []struct {
 	{
 		Value: &AttrTest{
 			Int:   8,
-			Lower: 9,
+			Named: 9,
 			Float: 23.5,
 			Uint8: 255,
 			Bool:  true,
-			Str:   "s",
+			Str:   "str",
+			Bytes: []byte("byt"),
 		},
-		ExpectXML: `<AttrTest Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="s"></AttrTest>`,
+		ExpectXML: `<AttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
+			` Bool="true" Str="str" Bytes="byt"></AttrTest>`,
+	},
+	{
+		Value: &AttrTest{Bytes: []byte{}},
+		ExpectXML: `<AttrTest Int="0" int="0" Float="0" Uint8="0"` +
+			` Bool="false" Str="" Bytes=""></AttrTest>`,
+	},
+	{
+		Value: &OmitAttrTest{
+			Int:   8,
+			Named: 9,
+			Float: 23.5,
+			Uint8: 255,
+			Bool:  true,
+			Str:   "str",
+			Bytes: []byte("byt"),
+		},
+		ExpectXML: `<OmitAttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
+			` Bool="true" Str="str" Bytes="byt"></OmitAttrTest>`,
+	},
+	{
+		Value:     &OmitAttrTest{},
+		ExpectXML: `<OmitAttrTest></OmitAttrTest>`,
+	},
+
+	// omitempty on fields
+	{
+		Value: &OmitFieldTest{
+			Int:   8,
+			Named: 9,
+			Float: 23.5,
+			Uint8: 255,
+			Bool:  true,
+			Str:   "str",
+			Bytes: []byte("byt"),
+			Ptr:   &PresenceTest{},
+		},
+		ExpectXML: `<OmitFieldTest>` +
+			`<Int>8</Int>` +
+			`<int>9</int>` +
+			`<Float>23.5</Float>` +
+			`<Uint8>255</Uint8>` +
+			`<Bool>true</Bool>` +
+			`<Str>str</Str>` +
+			`<Bytes>byt</Bytes>` +
+			`<Ptr></Ptr>` +
+			`</OmitFieldTest>`,
+	},
+	{
+		Value:     &OmitFieldTest{},
+		ExpectXML: `<OmitFieldTest></OmitFieldTest>`,
 	},
 
 	// Test ",any"
