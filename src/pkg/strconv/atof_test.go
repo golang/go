@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"reflect"
 	. "strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -117,6 +118,20 @@ var atoftests = []atofTest{
 
 	// A very large number (initially wrongly parsed by the fast algorithm).
 	{"4.630813248087435e+307", "4.630813248087435e+307", nil},
+
+	// A different kind of very large number.
+	{"22.222222222222222", "22.22222222222222", nil},
+	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
+
+	// Exactly halfway between 1 and math.Nextafter(1, 2).
+	// Round to even (down).
+	{"1.00000000000000011102230246251565404236316680908203125", "1", nil},
+	// Slightly lower; still round down.
+	{"1.00000000000000011102230246251565404236316680908203124", "1", nil},
+	// Slightly higher; round up.
+	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil},
+	// Slightly higher, but you have to read all the way to the end.
+	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},
 }
 
 type atofSimpleTest struct {
