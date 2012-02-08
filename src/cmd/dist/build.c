@@ -796,7 +796,7 @@ install(char *dir)
 			vadd(&compile, "-I");
 			vadd(&compile, workdir);
 			vadd(&compile, bprintf(&b, "-DGOOS_%s", goos));
-			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goos));
+			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goarch));
 		}	
 
 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
