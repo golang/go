@@ -70,7 +70,7 @@ EXT(crosscall2):
 	movq  %rdx, 0(%rsp)	/* arg */
 	movq  %r8, 8(%rsp)	/* argsize (includes padding) */
 	
-	call %rcx	/* fn */
+	call *%rcx	/* fn */
 #else
 	movq  %rsi, 0(%rsp)	/* arg */
 	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
