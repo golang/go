@@ -69,3 +69,41 @@ func TestReverseProxy(t *testing.T) {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
 }
+
+var proxyQueryTests = []struct {
+	baseSuffix string // suffix to add to backend URL
+	reqSuffix  string // suffix to add to frontend's request URL
+	want       string // what backend should see for final request URL (without ?)
+}{
+	{"", "", ""},
+	{"?sta=tic", "?us=er", "sta=tic&us=er"},
+	{"", "?us=er", "us=er"},
+	{"?sta=tic", "", "sta=tic"},
+}
+
+func TestReverseProxyQuery(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Got-Query", r.URL.RawQuery)
+		w.Write([]byte("hi"))
+	}))
+	defer backend.Close()
+
+	for i, tt := range proxyQueryTests {
+		backendURL, err := url.Parse(backend.URL + tt.baseSuffix)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frontend := httptest.NewServer(NewSingleHostReverseProxy(backendURL))
+		req, _ := http.NewRequest("GET", frontend.URL+tt.reqSuffix, nil)
+		req.Close = true
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("%d. Get: %v", i, err)
+		}
+		if g, e := res.Header.Get("X-Got-Query"), tt.want; g != e {
+			t.Errorf("%d. got query %q; expected %q", i, g, e)
+		}
+		res.Body.Close()
+		frontend.Close()
+	}
+}
