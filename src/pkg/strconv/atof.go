@@ -52,10 +52,10 @@ func special(s string) (f float64, ok bool) {
 	return
 }
 
-// TODO(rsc): Better truncation handling.
 func (b *decimal) set(s string) (ok bool) {
 	i := 0
 	b.neg = false
+	b.trunc = false
 
 	// optional sign
 	if i >= len(s) {
@@ -88,8 +88,12 @@ func (b *decimal) set(s string) (ok bool) {
 				b.dp--
 				continue
 			}
-			b.d[b.nd] = s[i]
-			b.nd++
+			if b.nd < len(b.d) {
+				b.d[b.nd] = s[i]
+				b.nd++
+			} else if s[i] != '0' {
+				b.trunc = true
+			}
 			continue
 		}
 		break

@@ -12,12 +12,11 @@
 package strconv
 
 type decimal struct {
-	// TODO(rsc): Can make d[] a bit smaller and add
-	// truncated bool;
-	d   [800]byte // digits
-	nd  int       // number of digits used
-	dp  int       // decimal point
-	neg bool
+	d     [800]byte // digits
+	nd    int       // number of digits used
+	dp    int       // decimal point
+	neg   bool
+	trunc bool // discarded nonzero digits beyond d[:nd]
 }
 
 func (a *decimal) String() string {
@@ -145,8 +144,12 @@ func rightShift(a *decimal, k uint) {
 	for n > 0 {
 		dig := n >> k
 		n -= dig << k
-		a.d[w] = byte(dig + '0')
-		w++
+		if w < len(a.d) {
+			a.d[w] = byte(dig + '0')
+			w++
+		} else if dig > 0 {
+			a.trunc = true
+		}
 		n = n * 10
 	}
 
@@ -242,7 +245,11 @@ func leftShift(a *decimal, k uint) {
 		quo := n / 10
 		rem := n - 10*quo
 		w--
-		a.d[w] = byte(rem + '0')
+		if w < len(a.d) {
+			a.d[w] = byte(rem + '0')
+		} else if rem != 0 {
+			a.trunc = true
+		}
 		n = quo
 	}
 
@@ -251,11 +258,18 @@ func leftShift(a *decimal, k uint) {
 		quo := n / 10
 		rem := n - 10*quo
 		w--
-		a.d[w] = byte(rem + '0')
+		if w < len(a.d) {
+			a.d[w] = byte(rem + '0')
+		} else if rem != 0 {
+			a.trunc = true
+		}
 		n = quo
 	}
 
 	a.nd += delta
+	if a.nd >= len(a.d) {
+		a.nd = len(a.d)
+	}
 	a.dp += delta
 	trim(a)
 }
@@ -286,6 +300,10 @@ func shouldRoundUp(a *decimal, nd int) bool {
 		return false
 	}
 	if a.d[nd] == '5' && nd+1 == a.nd { // exactly halfway - round to even
+		// if we truncated, a little higher than what's recorded - always round up
+		if a.trunc {
+			return true
+		}
 		return nd > 0 && (a.d[nd-1]-'0')%2 != 0
 	}
 	// not halfway - digit tells all
@@ -293,7 +311,6 @@ func shouldRoundUp(a *decimal, nd int) bool {
 }
 
 // Round a to nd digits (or fewer).
-// Returns receiver for convenience.
 // If nd is zero, it means we're rounding
 // just to the left of the digits, as in
 // 0.09 -> 0.1.
@@ -309,7 +326,6 @@ func (a *decimal) Round(nd int) {
 }
 
 // Round a down to nd digits (or fewer).
-// Returns receiver for convenience.
 func (a *decimal) RoundDown(nd int) {
 	if nd < 0 || nd >= a.nd {
 		return
@@ -319,7 +335,6 @@ func (a *decimal) RoundDown(nd int) {
 }
 
 // Round a up to nd digits (or fewer).
-// Returns receiver for convenience.
 func (a *decimal) RoundUp(nd int) {
 	if nd < 0 || nd >= a.nd {
 		return
