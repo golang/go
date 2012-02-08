@@ -147,6 +147,7 @@ static struct {
 	char *cmd;
 } bg[MAXBG];
 static int nbg;
+static int maxnbg = nelem(bg);
 
 static void bgwait1(void);
 
@@ -158,7 +159,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 	Buf cmd;
 	char *q;
 
-	while(nbg >= nelem(bg))
+	while(nbg >= maxnbg)
 		bgwait1();
 
 	// Generate a copy of the command to show in a log.
@@ -664,6 +665,9 @@ main(int argc, char **argv)
 		else
 			fatal("unknown architecture: %s", u.machine);
 	}
+
+	if(strcmp(gohostarch, "arm") == 0)
+		maxnbg = 1;
 
 	init();
 	xmain(argc, argv);
