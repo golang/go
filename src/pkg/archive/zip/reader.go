@@ -117,7 +117,7 @@ func (rc *ReadCloser) Close() error {
 }
 
 // Open returns a ReadCloser that provides access to the File's contents.
-// It is safe to Open and Read from files concurrently.
+// Multiple files may be read concurrently.
 func (f *File) Open() (rc io.ReadCloser, err error) {
 	bodyOffset, err := f.findBodyOffset()
 	if err != nil {

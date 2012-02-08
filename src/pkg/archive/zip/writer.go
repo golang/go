@@ -19,7 +19,7 @@ import (
 
 // Writer implements a zip file writer.
 type Writer struct {
-	*countWriter
+	countWriter
 	dir    []*header
 	last   *fileWriter
 	closed bool
@@ -32,7 +32,7 @@ type header struct {
 
 // NewWriter returns a new Writer writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
-	return &Writer{countWriter: &countWriter{w: bufio.NewWriter(w)}}
+	return &Writer{countWriter: countWriter{w: bufio.NewWriter(w)}}
 }
 
 // Close finishes writing the zip file by writing the central directory.
