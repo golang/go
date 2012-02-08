@@ -348,7 +348,6 @@ static char *proto_gccargs[] = {
 	"-fno-common",
 	"-ggdb",
 	"-O2",
-	"-c",
 };
 
 static Vec gccargs;
@@ -561,9 +560,16 @@ install(char *dir)
 		vadd(&link, bpathf(&b, "%s/bin/tool/go_bootstrap%s", goroot, exe));
 	} else {
 		// C command.
-		vadd(&link, "gcc");
+		// Use gccargs, but ensure that link.p[2] is output file,
+		// as noted above.
+		vadd(&link, gccargs.p[0]);
 		vadd(&link, "-o");
 		vadd(&link, bpathf(&b, "%s/bin/tool/%s%s", goroot, name, exe));
+		vcopy(&link, gccargs.p+1, gccargs.len-1);
+		if(streq(gohostarch, "amd64"))
+			vadd(&link, "-m64");
+		else if(streq(gohostarch, "386"))
+			vadd(&link, "-m32");
 	}
 	ttarg = mtime(link.p[2]);
 
@@ -750,6 +756,7 @@ install(char *dir)
 		if(!isgo) {
 			// C library or tool.
 			vcopy(&compile, gccargs.p, gccargs.len);
+			vadd(&compile, "-c");
 			if(streq(gohostarch, "amd64"))
 				vadd(&compile, "-m64");
 			else if(streq(gohostarch, "386"))
