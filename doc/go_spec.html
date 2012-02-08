@@ -3687,10 +3687,10 @@ Channel  = Expression .
 
 <p>
 Both the channel and the value expression are evaluated before communication
-begins. Communication blocks until the send can proceed, at which point the
-value is transmitted on the channel.
+begins. Communication blocks until the send can proceed.
 A send on an unbuffered channel can proceed if a receiver is ready.
 A send on a buffered channel can proceed if there is room in the buffer.
+A send on a closed channel proceeds by causing a <a href="#Run_time_panics">run-time panic</a>.
 A send on a <code>nil</code> channel blocks forever.
 </p>
 
