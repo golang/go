@@ -261,6 +261,8 @@ runtime·mallocinit(void)
 	extern byte end[];
 	byte *want;
 
+	p = nil;
+
 	runtime·InitSizes();
 
 	// Set up the allocation arena, a contiguous area of memory where
