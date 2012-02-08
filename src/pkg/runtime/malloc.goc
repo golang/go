@@ -289,12 +289,13 @@ runtime·mallocinit(void)
 		// Actually we reserve 17 GB (because the bitmap ends up being 1 GB)
 		// but it hardly matters: fc is not valid UTF-8 either, and we have to
 		// allocate 15 GB before we get that far.
+		//
+		// If this fails we fall back to the 32 bit memory mechanism
 		arena_size = 16LL<<30;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
 		p = runtime·SysReserve((void*)(0x00f8ULL<<32), bitmap_size + arena_size);
-		if(p == nil)
-			runtime·throw("runtime: cannot reserve arena virtual address space");
-	} else {
+	}
+	if (p == nil) {
 		// On a 32-bit machine, we can't typically get away
 		// with a giant virtual address space reservation.
 		// Instead we map the memory information bitmap
@@ -359,8 +360,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		return p;
 	}
 	
-	// On 64-bit, our reservation is all we have.
-	if(sizeof(void*) == 8)
+	// If using 64-bit, our reservation is all we have.
+	if(sizeof(void*) == 8 && (uintptr)h->bitmap >= 0xffffffffU)
 		return nil;
 
 	// On 32-bit, once the reservation is gone we can

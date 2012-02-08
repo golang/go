@@ -73,9 +73,18 @@ runtime·SysReserve(void *v, uintptr n)
 
 	// On 64-bit, people with ulimit -v set complain if we reserve too
 	// much address space.  Instead, assume that the reservation is okay
-	// and check the assumption in SysMap.
-	if(sizeof(void*) == 8)
+	// if we can reserve at least 64K and check the assumption in SysMap.
+	// Only user-mode Linux (UML) rejects these requests.
+	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
+		p = runtime·mmap(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+		if (p != v) {
+			return nil;
+		}
+		runtime·munmap(p, 64<<10);
+		
+		
 		return v;
+	}
 	
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if((uintptr)p < 4096 || -(uintptr)p < 4096) {
@@ -92,7 +101,7 @@ runtime·SysMap(void *v, uintptr n)
 	mstats.sys += n;
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
-	if(sizeof(void*) == 8) {
+	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 		if(p != v && addrspace_free(v, n)) {
 			// On some systems, mmap ignores v without
