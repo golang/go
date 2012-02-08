@@ -897,9 +897,9 @@ struct {
 </pre>
 
 <p>
-A field declared with a type but no explicit field name is an <i>anonymous field</i>
-(colloquially called an embedded field).
-Such a field type must be specified as
+A field declared with a type but no explicit field name is an <i>anonymous field</i>,
+also called an <i>embedded</i> field or an embedding of the type in the struct.
+An embedded type must be specified as
 a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
 and <code>T</code> itself may not be
 a pointer type. The unqualified type name acts as the field name.
@@ -1141,8 +1141,8 @@ type File interface {
 </pre>
 
 <p>
-An interface definition for type <code>T</code> may not embed itself,
-nor any interface type that embeds <code>T</code> directly or indirectly.
+An interface type <code>T</code> may not embed itself
+or any interface type that embeds <code>T</code>, recursively.
 </p>
 
 <pre>
