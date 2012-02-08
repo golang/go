@@ -501,6 +501,9 @@ install(char *dir)
 	Time ttarg, t;
 	int i, j, k, n, doclean;
 
+	if(vflag)
+		xprintf("%s\n", dir);
+
 	binit(&b);
 	binit(&b1);
 	binit(&path);
@@ -1242,7 +1245,6 @@ cmdbootstrap(int argc, char **argv)
 {
 	int i;
 	Buf b;
-	char *p;
 
 	ARGBEGIN{
 	case 'v':
@@ -1259,12 +1261,8 @@ cmdbootstrap(int argc, char **argv)
 	setup();
 	
 	binit(&b);
-	for(i=0; i<nelem(buildorder); i++) {
-		p = bprintf(&b, buildorder[i], gochar);
-		if(vflag > 0)
-			xprintf("%s\n", p);
-		install(p);
-	}
+	for(i=0; i<nelem(buildorder); i++)
+		install(bprintf(&b, buildorder[i], gochar));
 	bfree(&b);
 }
 
