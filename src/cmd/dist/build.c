@@ -684,6 +684,12 @@ install(char *dir)
 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
 	}
+	
+	// For cmd/prof, copy pprof into the tool directory.
+	if(streq(dir, "cmd/prof")) {
+		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
+			bpathf(&b, "%s/src/cmd/prof/pprof", goroot));
+	}
 
 	// Generate any missing files; regenerate existing ones.
 	for(i=0; i<files.len; i++) {

@@ -103,6 +103,7 @@ my $CURL = "curl";
 
 # These are the web pages that servers need to support for dynamic profiles
 my $HEAP_PAGE = "/pprof/heap";
+my $THREAD_PAGE = "/pprof/thread";
 my $PROFILE_PAGE = "/pprof/profile";   # must support cgi-param "?seconds=#"
 my $PMUPROFILE_PAGE = "/pprof/pmuprofile(?:\\?.*)?"; # must support cgi-param
                                                 # ?seconds=#&event=x&period=n
@@ -149,7 +150,7 @@ pprof [options] <profile>
 
    The /<service> can be $HEAP_PAGE, $PROFILE_PAGE, /pprof/pmuprofile,
                          $GROWTH_PAGE, $CONTENTION_PAGE, /pprof/wall,
-                         or /pprof/filteredprofile.
+                         $THREAD_PAGE, or /pprof/filteredprofile.
    For instance:
      pprof http://myserver.com:80$HEAP_PAGE
    If /<service> is omitted, the service defaults to $PROFILE_PAGE (cpu profiling).
@@ -2451,6 +2452,8 @@ sub Units {
     }
   } elsif ($main::profile_type eq 'contention' && !$main::opt_contentions) {
     return "seconds";
+  } elsif ($main::profile_type eq 'thread') {
+    return "threads";
   } else {
     return "samples";
   }
@@ -2968,7 +2971,7 @@ sub IsProfileURL {
 sub ParseProfileURL {
   my $profile_name = shift;
   if (defined($profile_name) &&
-      $profile_name =~ m,^(http://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
+      $profile_name =~ m,^(http://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
     # $7 is $PROFILE_PAGE/$HEAP_PAGE/etc.  $5 is *everything* after
     # the hostname, as long as that everything is the empty string,
     # a slash, or something ending in $PROFILE_PAGE/$HEAP_PAGE/etc.
@@ -3065,30 +3068,20 @@ sub FetchSymbols {
 
   if (!defined($symbol_map)) {
     $symbol_map = {};
-    my @toask = @pcs;
-    while (@toask > 0) {
-      my $n = @toask;
-      # NOTE(rsc): Limiting the number of PCs requested per round
-      # used to be necessary, but I think it was a bug in
-      # debug/pprof/symbol's implementation.  Leaving here
-      # in case I am wrong.
-      # 	if ($n > 49) { $n = 49; }
-      my @thisround = @toask[0..$n];
-      @toask = @toask[($n+1)..(@toask-1)];
-      my $post_data = join("+", sort((map {"0x" . "$_"} @thisround)));
-      open(POSTFILE, ">$main::tmpfile_sym");
-      print POSTFILE $post_data;
-      close(POSTFILE);
 
-      my $url = SymbolPageURL();
-      $url = ResolveRedirectionForCurl($url);
-      my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
-      # We use c++filt in case $SYMBOL_PAGE gives us mangled symbols.
-      my $cppfilt = $obj_tool_map{"c++filt"};
-      open(SYMBOL, "$command_line | $cppfilt |") or error($command_line);
-      ReadSymbols(*SYMBOL{IO}, $symbol_map);
-      close(SYMBOL);
-    }
+    my $post_data = join("+", sort((map {"0x" . "$_"} @pcs)));
+    open(POSTFILE, ">$main::tmpfile_sym");
+    print POSTFILE $post_data;
+    close(POSTFILE);
+
+    my $url = SymbolPageURL();
+    $url = ResolveRedirectionForCurl($url);
+    my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
+    # We use c++filt in case $SYMBOL_PAGE gives us mangled symbols.
+    my $cppfilt = $obj_tool_map{"c++filt"};
+    open(SYMBOL, "$command_line | $cppfilt |") or error($command_line);
+    ReadSymbols(*SYMBOL{IO}, $symbol_map);
+    close(SYMBOL);
   }
 
   my $symbols = {};
@@ -3462,6 +3455,9 @@ sub ReadProfile {
       "condition variable signals as lock contentions.\n";
     $main::profile_type = 'contention';
     $result = ReadSynchProfile($prog, $fname);
+  } elsif ($header =~ m/^thread creation profile:/) {
+    $main::profile_type = 'thread';
+    $result = ReadThreadProfile($prog, $fname);
   } elsif ($header =~ m/^--- *$profile_marker/) {
     # the binary cpu profile data starts immediately after this line
     $main::profile_type = 'cpu';
@@ -3770,6 +3766,61 @@ sub ReadHeapProfile {
 
   my $r = {};
   $r->{version} = "heap";
+  $r->{period} = 1;
+  $r->{profile} = $profile;
+  $r->{libs} = ParseLibraries($prog, $map, $pcs);
+  $r->{pcs} = $pcs;
+  return $r;
+}
+
+sub ReadThreadProfile {
+  my $prog = shift;
+  my $fname = shift;
+
+  my $profile = {};
+  my $pcs = {};
+  my $map = "";
+
+  while (<PROFILE>) {
+    s/\r//g;         # turn windows-looking lines into unix-looking lines
+    if (/^MAPPED_LIBRARIES:/) {
+      # Read the /proc/self/maps data
+      while (<PROFILE>) {
+        s/\r//g;         # turn windows-looking lines into unix-looking lines
+        $map .= $_;
+      }
+      last;
+    }
+
+    if (/^--- Memory map:/) {
+      # Read /proc/self/maps data as formatted by DumpAddressMap()
+      my $buildvar = "";
+      while (<PROFILE>) {
+        s/\r//g;         # turn windows-looking lines into unix-looking lines
+        # Parse "build=<dir>" specification if supplied
+        if (m/^\s*build=(.*)\n/) {
+          $buildvar = $1;
+        }
+
+        # Expand "$build" variable if available
+        $_ =~ s/\$build\b/$buildvar/g;
+
+        $map .= $_;
+      }
+      last;
+    }
+
+    # Read entry of the form:
+    #  @ a1 a2 a3 ... an
+    s/^\s*//;
+    s/\s*$//;
+    if (m/^@\s+(.*)$/) {
+      AddEntries($profile, $pcs, FixCallerAddresses($1), 1);
+    }
+  }
+
+  my $r = {};
+  $r->{version} = "thread";
   $r->{period} = 1;
   $r->{profile} = $profile;
   $r->{libs} = ParseLibraries($prog, $map, $pcs);

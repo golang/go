@@ -233,6 +233,7 @@ struct	M
 	FixAlloc	*stackalloc;
 	G*	lockedg;
 	G*	idleg;
+	uintptr	createstack[32];	// Stack that created this thread.
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags

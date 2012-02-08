@@ -95,10 +95,36 @@ func (r *MemProfileRecord) Stack() []uintptr {
 // where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
 // These are sites where memory was allocated, but it has all
 // been released back to the runtime.
+//
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.memprofile flag instead
 // of calling MemProfile directly.
 func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+
+// A ThreadProfileRecord describes the execution stack that
+// caused a new thread to be created.
+type ThreadProfileRecord struct {
+	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
+}
+
+// Stack returns the stack trace associated with the record,
+// a prefix of r.Stack0.
+func (r *ThreadProfileRecord) Stack() []uintptr {
+	for i, v := range r.Stack0 {
+		if v == 0 {
+			return r.Stack0[0:i]
+		}
+	}
+	return r.Stack0[0:]
+}
+
+// ThreadProfile returns n, the number of records in the current thread profile.
+// If len(p) >= n, ThreadProfile copies the profile into p and returns n, true.
+// If len(p) < n, ThreadProfile does not change p and returns n, false.
+//
+// Most clients should use the runtime/pprof package instead
+// of calling ThreadProfile directly.
+func ThreadProfile(p []ThreadProfileRecord) (n int, ok bool)
 
 // CPUProfile returns the next chunk of binary CPU profiling stack trace data,
 // blocking until data is available.  If profiling is turned off and all the profile

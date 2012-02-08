@@ -16,11 +16,15 @@
 //
 // Then use the pprof tool to look at the heap profile:
 //
-//	pprof http://localhost:6060/debug/pprof/heap
+//	go tool pprof http://localhost:6060/debug/pprof/heap
 //
 // Or to look at a 30-second CPU profile:
 //
-//	pprof http://localhost:6060/debug/pprof/profile
+//	go tool pprof http://localhost:6060/debug/pprof/profile
+//
+// Or to look at the thread creation profile:
+//
+//	go tool pprof http://localhost:6060/debug/pprof/thread
 //
 package pprof
 
@@ -43,6 +47,7 @@ func init() {
 	http.Handle("/debug/pprof/profile", http.HandlerFunc(Profile))
 	http.Handle("/debug/pprof/heap", http.HandlerFunc(Heap))
 	http.Handle("/debug/pprof/symbol", http.HandlerFunc(Symbol))
+	http.Handle("/debug/pprof/thread", http.HandlerFunc(Thread))
 }
 
 // Cmdline responds with the running program's
@@ -58,6 +63,13 @@ func Cmdline(w http.ResponseWriter, r *http.Request) {
 func Heap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	pprof.WriteHeapProfile(w)
+}
+
+// Thread responds with the pprof-formatted thread creation profile.
+// The package initialization registers it as /debug/pprof/thread.
+func Thread(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	pprof.WriteThreadProfile(w)
 }
 
 // Profile responds with the pprof-formatted cpu profile.
