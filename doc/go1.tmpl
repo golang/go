@@ -1049,8 +1049,14 @@ The affected items are:
 </ul>
 
 <p>
-Also, the <code>Request.RawURL</code> field has been removed; it was a
+The <code>Request.RawURL</code> field has been removed; it was a
 historical artifact.
+</p>
+
+<p>
+The <code>Handle</code> and <code>HandleFunc</code>
+functions, and the similarly-named methods of <code>ServeMux</code>,
+now panic if an attempt is made to register the same pattern twice.
 </p>
 
 <p>
