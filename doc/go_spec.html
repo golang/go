@@ -1120,9 +1120,10 @@ they implement the <code>Lock</code> interface as well
 as the <code>File</code> interface.
 </p>
 <p>
-An interface may contain an interface type name <code>T</code>
+An interface may use an interface type name <code>T</code>
 in place of a method specification.
-The effect is equivalent to enumerating the methods of <code>T</code> explicitly
+The effect, called embedding an interface,
+is equivalent to enumerating the methods of <code>T</code> explicitly
 in the interface.
 </p>
 
@@ -1136,6 +1137,26 @@ type File interface {
 	ReadWrite  // same as enumerating the methods in ReadWrite
 	Lock       // same as enumerating the methods in Lock
 	Close()
+}
+</pre>
+
+<p>
+An interface definition for type <code>T</code> may not embed itself,
+nor any interface type that embeds <code>T</code> directly or indirectly.
+</p>
+
+<pre>
+// illegal: Bad cannot embed itself
+type Bad interface {
+	Bad
+}
+
+// illegal: Bad1 cannot embed itself using Bad2
+type Bad1 interface {
+	Bad2
+}
+type Bad2 interface {
+	Bad1
 }
 </pre>
 
