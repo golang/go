@@ -182,14 +182,21 @@ func makeSlice(n int) []byte {
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
 	if b.off < len(b.buf) {
+		nBytes := b.Len()
 		m, e := w.Write(b.buf[b.off:])
+		if m > nBytes {
+			panic("bytes.Buffer.WriteTo: invalid Write count")
+		}
 		b.off += m
 		n = int64(m)
 		if e != nil {
 			return n, e
 		}
-		// otherwise all bytes were written, by definition of
+		// all bytes should have been written, by definition of
 		// Write method in io.Writer
+		if m != nBytes {
+			return n, io.ErrShortWrite
+		}
 	}
 	// Buffer is now empty; reset.
 	b.Truncate(0)
