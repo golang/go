@@ -34,6 +34,27 @@ var (
 	verbose   = flag.Bool("v", false, "Verbose debugging")
 )
 
+var contexts = []*build.Context{
+	{GOOS: "linux", GOARCH: "386", CgoEnabled: true},
+	{GOOS: "linux", GOARCH: "386"},
+	{GOOS: "linux", GOARCH: "amd64", CgoEnabled: true},
+	{GOOS: "linux", GOARCH: "amd64"},
+	{GOOS: "darwin", GOARCH: "386", CgoEnabled: true},
+	{GOOS: "darwin", GOARCH: "386"},
+	{GOOS: "darwin", GOARCH: "amd64", CgoEnabled: true},
+	{GOOS: "darwin", GOARCH: "amd64"},
+	{GOOS: "windows", GOARCH: "amd64"},
+	{GOOS: "windows", GOARCH: "386"},
+}
+
+func contextName(c *build.Context) string {
+	s := c.GOOS + "-" + c.GOARCH
+	if c.CgoEnabled {
+		return s + "-cgo"
+	}
+	return s
+}
+
 func main() {
 	flag.Parse()
 
@@ -48,28 +69,54 @@ func main() {
 		pkgs = strings.Fields(string(stds))
 	}
 
-	w := NewWalker()
 	tree, _, err := build.FindTree("os") // some known package
 	if err != nil {
 		log.Fatalf("failed to find tree: %v", err)
 	}
-	w.tree = tree
 
-	for _, pkg := range pkgs {
-		w.wantedPkg[pkg] = true
+	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
+	for _, context := range contexts {
+		w := NewWalker()
+		w.context = context
+		w.tree = tree
+
+		for _, pkg := range pkgs {
+			w.wantedPkg[pkg] = true
+		}
+
+		for _, pkg := range pkgs {
+			if strings.HasPrefix(pkg, "cmd/") ||
+				strings.HasPrefix(pkg, "exp/") ||
+				strings.HasPrefix(pkg, "old/") {
+				continue
+			}
+			if !tree.HasSrc(pkg) {
+				log.Fatalf("no source in tree for package %q", pkg)
+			}
+			w.WalkPackage(pkg)
+		}
+		ctxName := contextName(context)
+		for _, f := range w.Features() {
+			if featureCtx[f] == nil {
+				featureCtx[f] = make(map[string]bool)
+			}
+			featureCtx[f][ctxName] = true
+		}
 	}
 
-	for _, pkg := range pkgs {
-		if strings.HasPrefix(pkg, "cmd/") ||
-			strings.HasPrefix(pkg, "exp/") ||
-			strings.HasPrefix(pkg, "old/") {
+	var features []string
+	for f, cmap := range featureCtx {
+		if len(cmap) == len(contexts) {
+			features = append(features, f)
 			continue
 		}
-		if !tree.HasSrc(pkg) {
-			log.Fatalf("no source in tree for package %q", pkg)
+		comma := strings.Index(f, ",")
+		for cname := range cmap {
+			f2 := fmt.Sprintf("%s (%s)%s", f[:comma], cname, f[comma:])
+			features = append(features, f2)
 		}
-		w.WalkPackage(pkg)
 	}
+	sort.Strings(features)
 
 	bw := bufio.NewWriter(os.Stdout)
 	defer bw.Flush()
@@ -81,7 +128,7 @@ func main() {
 		}
 		v1 := strings.Split(string(bs), "\n")
 		sort.Strings(v1)
-		v2 := w.Features()
+		v2 := features
 		take := func(sl *[]string) string {
 			s := (*sl)[0]
 			*sl = (*sl)[1:]
@@ -99,7 +146,7 @@ func main() {
 			}
 		}
 	} else {
-		for _, f := range w.Features() {
+		for _, f := range features {
 			fmt.Fprintf(bw, "%s\n", f)
 		}
 	}
@@ -112,6 +159,7 @@ type pkgSymbol struct {
 }
 
 type Walker struct {
+	context         *build.Context
 	tree            *build.Tree
 	fset            *token.FileSet
 	scope           []string
@@ -221,8 +269,17 @@ func (w *Walker) WalkPackage(name string) {
 	}()
 	dir := filepath.Join(w.tree.SrcDir(), filepath.FromSlash(name))
 
-	info, err := build.ScanDir(dir)
+	var info *build.DirInfo
+	var err error
+	if ctx := w.context; ctx != nil {
+		info, err = ctx.ScanDir(dir)
+	} else {
+		info, err = build.ScanDir(dir)
+	}
 	if err != nil {
+		if strings.Contains(err.Error(), "no Go source files") {
+			return
+		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
 
