@@ -441,7 +441,11 @@ func TestRoundTripGzip(t *testing.T) {
 		}
 		if accept == "gzip" {
 			rw.Header().Set("Content-Encoding", "gzip")
-			gz, _ := gzip.NewWriter(rw)
+			gz, err := gzip.NewWriter(rw)
+			if err != nil {
+				t.Errorf("gzip NewWriter: %v", err)
+				return
+			}
 			gz.Write([]byte(responseBody))
 			gz.Close()
 		} else {
@@ -460,7 +464,11 @@ func TestRoundTripGzip(t *testing.T) {
 		res, err := DefaultTransport.RoundTrip(req)
 		var body []byte
 		if test.compressed {
-			gzip, _ := gzip.NewReader(res.Body)
+			gzip, err := gzip.NewReader(res.Body)
+			if err != nil {
+				t.Errorf("%d. gzip NewReader: %v", i, err)
+				continue
+			}
 			body, err = ioutil.ReadAll(gzip)
 			res.Body.Close()
 		} else {
