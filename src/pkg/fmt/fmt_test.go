@@ -423,6 +423,7 @@ var fmttests = []struct {
 	{"p0=%p", new(int), "p0=0xPTR"},
 	{"p1=%s", &pValue, "p1=String(p)"}, // String method...
 	{"p2=%p", &pValue, "p2=0xPTR"},     // ... not called with %p
+	{"p3=%p", (*int)(nil), "p3=0x0"},
 	{"p4=%#p", new(int), "p4=PTR"},
 
 	// %p on non-pointers
@@ -430,6 +431,14 @@ var fmttests = []struct {
 	{"%p", make(map[int]int), "0xPTR"},
 	{"%p", make([]int, 1), "0xPTR"},
 	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
+
+	// %q on pointers
+	{"%q", (*int)(nil), "%!q(*int=<nil>)"},
+	{"%q", new(int), "%!q(*int=0xPTR)"},
+
+	// %v on pointers formats 0 as <nil>
+	{"%v", (*int)(nil), "<nil>"},
+	{"%v", new(int), "0xPTR"},
 
 	// %d on Stringer should give integer if possible
 	{"%s", time.Time{}.Month(), "January"},

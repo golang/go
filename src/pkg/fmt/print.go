@@ -553,6 +553,14 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 }
 
 func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+	switch verb {
+	case 'p', 'v', 'b', 'd', 'o', 'x', 'X':
+		// ok
+	default:
+		p.badVerb(verb)
+		return
+	}
+
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
@@ -561,6 +569,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 		p.badVerb(verb)
 		return
 	}
+
 	if goSyntax {
 		p.add('(')
 		p.buf.WriteString(value.Type().String())
@@ -572,6 +581,8 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 			p.fmt0x64(uint64(u), true)
 		}
 		p.add(')')
+	} else if verb == 'v' && u == 0 {
+		p.buf.Write(nilAngleBytes)
 	} else {
 		p.fmt0x64(uint64(u), !p.fmt.sharp)
 	}
@@ -929,24 +940,7 @@ BigSwitch:
 				break BigSwitch
 			}
 		}
-		if goSyntax {
-			p.buf.WriteByte('(')
-			p.buf.WriteString(value.Type().String())
-			p.buf.WriteByte(')')
-			p.buf.WriteByte('(')
-			if v == 0 {
-				p.buf.Write(nilBytes)
-			} else {
-				p.fmt0x64(uint64(v), true)
-			}
-			p.buf.WriteByte(')')
-			break
-		}
-		if v == 0 {
-			p.buf.Write(nilAngleBytes)
-			break
-		}
-		p.fmt0x64(uint64(v), true)
+		fallthrough
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
 		p.fmtPointer(value, verb, goSyntax)
 	default:
