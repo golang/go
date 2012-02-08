@@ -833,11 +833,17 @@ func RedirectHandler(url string, code int) Handler {
 // redirecting any request containing . or .. elements to an
 // equivalent .- and ..-free URL.
 type ServeMux struct {
-	m map[string]Handler
+	mu sync.RWMutex
+	m  map[string]muxEntry
+}
+
+type muxEntry struct {
+	explicit bool
+	h        Handler
 }
 
 // NewServeMux allocates and returns a new ServeMux.
-func NewServeMux() *ServeMux { return &ServeMux{make(map[string]Handler)} }
+func NewServeMux() *ServeMux { return &ServeMux{m: make(map[string]muxEntry)} }
 
 // DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = NewServeMux()
@@ -883,8 +889,24 @@ func (mux *ServeMux) match(path string) Handler {
 		}
 		if h == nil || len(k) > n {
 			n = len(k)
-			h = v
+			h = v.h
 		}
+	}
+	return h
+}
+
+// handler returns the handler to use for the request r.
+func (mux *ServeMux) handler(r *Request) Handler {
+	mux.mu.RLock()
+	defer mux.mu.RUnlock()
+
+	// Host-specific pattern takes precedence over generic ones
+	h := mux.match(r.Host + r.URL.Path)
+	if h == nil {
+		h = mux.match(r.URL.Path)
+	}
+	if h == nil {
+		h = NotFoundHandler()
 	}
 	return h
 }
@@ -898,30 +920,33 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusMovedPermanently)
 		return
 	}
-	// Host-specific pattern takes precedence over generic ones
-	h := mux.match(r.Host + r.URL.Path)
-	if h == nil {
-		h = mux.match(r.URL.Path)
-	}
-	if h == nil {
-		h = NotFoundHandler()
-	}
-	h.ServeHTTP(w, r)
+	mux.handler(r).ServeHTTP(w, r)
 }
 
 // Handle registers the handler for the given pattern.
+// If a handler already exists for pattern, Handle panics.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
+	mux.mu.Lock()
+	defer mux.mu.Unlock()
+
 	if pattern == "" {
 		panic("http: invalid pattern " + pattern)
 	}
+	if handler == nil {
+		panic("http: nil handler")
+	}
+	if mux.m[pattern].explicit {
+		panic("http: multiple registrations for " + pattern)
+	}
 
-	mux.m[pattern] = handler
+	mux.m[pattern] = muxEntry{explicit: true, h: handler}
 
 	// Helpful behavior:
-	// If pattern is /tree/, insert permanent redirect for /tree.
+	// If pattern is /tree/, insert an implicit permanent redirect for /tree.
+	// It can be overridden by an explicit registration.
 	n := len(pattern)
-	if n > 0 && pattern[n-1] == '/' {
-		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
+	if n > 0 && pattern[n-1] == '/' && !mux.m[pattern[0:n-1]].explicit {
+		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(pattern, StatusMovedPermanently)}
 	}
 }
 
