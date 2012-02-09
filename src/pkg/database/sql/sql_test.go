@@ -386,6 +386,38 @@ func TestNullByteSlice(t *testing.T) {
 	}
 }
 
+func TestPointerParamsAndScans(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t|id=int32,name=nullstring")
+
+	bob := "bob"
+	var name *string
+
+	name = &bob
+	exec(t, db, "INSERT|t|id=10,name=?", name)
+	name = nil
+	exec(t, db, "INSERT|t|id=20,name=?", name)
+
+	err := db.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
+	if err != nil {
+		t.Fatalf("querying id 10: %v", err)
+	}
+	if name == nil {
+		t.Errorf("id 10's name = nil; want bob")
+	} else if *name != "bob" {
+		t.Errorf("id 10's name = %q; want bob", *name)
+	}
+
+	err = db.QueryRow("SELECT|t|name|id=?", 20).Scan(&name)
+	if err != nil {
+		t.Fatalf("querying id 20: %v", err)
+	}
+	if name != nil {
+		t.Errorf("id 20 = %q; want nil", *name)
+	}
+}
+
 func TestQueryRowClosingStmt(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
