@@ -61,9 +61,9 @@ func TestNewLogger(t *testing.T) {
 	if skipNetTest(t) {
 		return
 	}
-	f := NewLogger(LOG_INFO, 0)
+	f, err := NewLogger(LOG_INFO, 0)
 	if f == nil {
-		t.Error("NewLogger() failed")
+		t.Error(err)
 	}
 }
 

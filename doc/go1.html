@@ -931,8 +931,10 @@ No changes will be needed.
 <h3 id="encoding_binary">The encoding/binary package</h3>
 
 <p>
-In Go 1, the <code>binary.TotalSize</code> function is renamed
-<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>.
+In Go 1, the <code>binary.TotalSize</code> function has been replaced by
+<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>,
+which takes an <code>interface{}</code> argument rather than
+a <code>reflect.Value</code>.
 </p>
 
 <p>
@@ -1285,6 +1287,18 @@ and
 <p>
 <em>Updating</em>:
 Running <code>go fix</code> will update almost all code affected by the change.
+</p>
+
+<h3 id="log_syslog">The log/syslog package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>
+function returns an error as well as a <code>log.Logger</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
 </p>
 
 <h3 id="mime">The mime package</h3>
