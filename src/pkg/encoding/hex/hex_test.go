@@ -87,7 +87,7 @@ func TestInvalidErr(t *testing.T) {
 		dst := make([]byte, DecodedLen(len(test.in)))
 		_, err := Decode(dst, []byte(test.in))
 		if err == nil {
-			t.Errorf("#%d: expected error; got none")
+			t.Errorf("#%d: expected error; got none", i)
 		} else if err.Error() != test.err {
 			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
 		}
@@ -98,7 +98,7 @@ func TestInvalidStringErr(t *testing.T) {
 	for i, test := range errTests {
 		_, err := DecodeString(test.in)
 		if err == nil {
-			t.Errorf("#%d: expected error; got none")
+			t.Errorf("#%d: expected error; got none", i)
 		} else if err.Error() != test.err {
 			t.Errorf("#%d: got: %v want: %v", i, err, test.err)
 		}
