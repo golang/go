@@ -3,6 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Api computes the exported API of a set of Go packages.
+//
+// BUG(bradfitz): Note that this tool is only currently suitable
+// for use on the Go standard library, not arbitrary packages.
+// Once the Go AST has type information, this tool will be more
+// reliable without hard-coded hacks throughout.
 package main
 
 import (
@@ -167,7 +172,8 @@ type Walker struct {
 	lastConstType   string
 	curPackageName  string
 	curPackage      *ast.Package
-	prevConstType   map[string]string // identifier -> "ideal-int"
+	prevConstType   map[pkgSymbol]string
+	constDep        map[string]string // key's const identifier has type of future value const identifier
 	packageState    map[string]loadState
 	interfaces      map[pkgSymbol]*ast.InterfaceType
 	selectorFullPkg map[string]string // "http" => "net/http", updated by imports
@@ -182,6 +188,7 @@ func NewWalker() *Walker {
 		interfaces:      make(map[pkgSymbol]*ast.InterfaceType),
 		selectorFullPkg: make(map[string]string),
 		wantedPkg:       make(map[string]bool),
+		prevConstType:   make(map[pkgSymbol]string),
 	}
 }
 
@@ -199,34 +206,10 @@ const (
 // the cases we can't handle yet.
 func (w *Walker) hardCodedConstantType(name string) (typ string, ok bool) {
 	switch w.scope[0] {
-	case "pkg compress/gzip", "pkg compress/zlib":
+	case "pkg syscall":
 		switch name {
-		case "NoCompression", "BestSpeed", "BestCompression", "DefaultCompression":
-			return "ideal-int", true
-		}
-	case "pkg os":
-		switch name {
-		case "WNOHANG", "WSTOPPED", "WUNTRACED":
-			return "ideal-int", true
-		}
-	case "pkg path/filepath":
-		switch name {
-		case "Separator", "ListSeparator":
-			return "char", true
-		}
-	case "pkg unicode/utf8":
-		switch name {
-		case "RuneError":
-			return "char", true
-		}
-	case "pkg text/scanner":
-		// TODO: currently this tool only resolves const types
-		// that reference other constant types if they appear
-		// in the right order.  the scanner package has
-		// ScanIdents and such coming before the Ident/Int/etc
-		// tokens, hence this hack.
-		if strings.HasPrefix(name, "Scan") || name == "SkipComments" {
-			return "ideal-int", true
+		case "darwinAMD64":
+			return "ideal-bool", true
 		}
 	}
 	return "", false
@@ -306,7 +289,7 @@ func (w *Walker) WalkPackage(name string) {
 
 	w.curPackageName = name
 	w.curPackage = apkg
-	w.prevConstType = map[string]string{}
+	w.constDep = map[string]string{}
 
 	for _, afile := range apkg.Files {
 		w.recordTypes(afile)
@@ -315,6 +298,8 @@ func (w *Walker) WalkPackage(name string) {
 	for _, afile := range apkg.Files {
 		w.walkFile(afile)
 	}
+
+	w.resolveConstantDeps()
 
 	// Now that we're done walking types, vars and consts
 	// in the *ast.Package, use go/doc to do the rest
@@ -447,8 +432,16 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 	case *ast.UnaryExpr:
 		return w.constValueType(v.X)
 	case *ast.SelectorExpr:
-		// e.g. compress/gzip's BestSpeed == flate.BestSpeed
-		return "", errTODO
+		lhs := w.nodeString(v.X)
+		rhs := w.nodeString(v.Sel)
+		pkg, ok := w.selectorFullPkg[lhs]
+		if !ok {
+			return "", fmt.Errorf("unknown constant reference; unknown package in expression %s.%s", lhs, rhs)
+		}
+		if t, ok := w.prevConstType[pkgSymbol{pkg, rhs}]; ok {
+			return t, nil
+		}
+		return "", fmt.Errorf("unknown constant reference to %s.%s", lhs, rhs)
 	case *ast.Ident:
 		if v.Name == "iota" {
 			return "ideal-int", nil // hack.
@@ -460,10 +453,10 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 			// Hack.
 			return "ideal-int", nil
 		}
-		if t, ok := w.prevConstType[v.Name]; ok {
+		if t, ok := w.prevConstType[pkgSymbol{w.curPackageName, v.Name}]; ok {
 			return t, nil
 		}
-		return "", fmt.Errorf("can't resolve existing constant %q", v.Name)
+		return constDepPrefix + v.Name, nil
 	case *ast.BinaryExpr:
 		left, err := w.constValueType(v.X)
 		if err != nil {
@@ -474,6 +467,8 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 			return "", err
 		}
 		if left != right {
+			// TODO(bradfitz): encode the real rules here,
+			// rather than this mess.
 			if left == "ideal-int" && right == "ideal-float" {
 				return "ideal-float", nil // math.Log2E
 			}
@@ -486,6 +481,17 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 			if left == "ideal-int" && right == "Duration" {
 				// Hack, for package time.
 				return "Duration", nil
+			}
+			if left == "ideal-int" && !strings.HasPrefix(right, "ideal-") {
+				return right, nil
+			}
+			if right == "ideal-int" && !strings.HasPrefix(left, "ideal-") {
+				return left, nil
+			}
+			if strings.HasPrefix(left, constDepPrefix) && strings.HasPrefix(right, constDepPrefix) {
+				// Just pick one.
+				// e.g. text/scanner GoTokens const-dependency:ScanIdents, const-dependency:ScanFloats
+				return left, nil
 			}
 			return "", fmt.Errorf("in BinaryExpr, unhandled type mismatch; left=%q, right=%q", left, right)
 		}
@@ -601,11 +607,13 @@ func (w *Walker) resolveName(name string) (v interface{}, t interface{}, ok bool
 	return nil, nil, false
 }
 
+// constDepPrefix is a magic prefix that is used by constValueType
+// and walkConst to signal that a type isn't known yet. These are
+// resolved at the end of walking of a package's files.
+const constDepPrefix = "const-dependency:"
+
 func (w *Walker) walkConst(vs *ast.ValueSpec) {
 	for _, ident := range vs.Names {
-		if !ast.IsExported(ident.Name) {
-			continue
-		}
 		litType := ""
 		if vs.Type != nil {
 			litType = w.nodeString(vs.Type)
@@ -627,13 +635,44 @@ func (w *Walker) walkConst(vs *ast.ValueSpec) {
 				}
 			}
 		}
+		if strings.HasPrefix(litType, constDepPrefix) {
+			dep := litType[len(constDepPrefix):]
+			w.constDep[ident.Name] = dep
+			continue
+		}
 		if litType == "" {
 			log.Fatalf("unknown kind in const %q", ident.Name)
 		}
 		w.lastConstType = litType
 
-		w.emitFeature(fmt.Sprintf("const %s %s", ident, litType))
-		w.prevConstType[ident.Name] = litType
+		w.prevConstType[pkgSymbol{w.curPackageName, ident.Name}] = litType
+
+		if ast.IsExported(ident.Name) {
+			w.emitFeature(fmt.Sprintf("const %s %s", ident, litType))
+		}
+	}
+}
+
+func (w *Walker) resolveConstantDeps() {
+	var findConstType func(string) string
+	findConstType = func(ident string) string {
+		if dep, ok := w.constDep[ident]; ok {
+			return findConstType(dep)
+		}
+		if t, ok := w.prevConstType[pkgSymbol{w.curPackageName, ident}]; ok {
+			return t
+		}
+		return ""
+	}
+	for ident := range w.constDep {
+		if !ast.IsExported(ident) {
+			continue
+		}
+		t := findConstType(ident)
+		if t == "" {
+			log.Fatalf("failed to resolve constant %q", ident)
+		}
+		w.emitFeature(fmt.Sprintf("const %s %s", ident, t))
 	}
 }
 

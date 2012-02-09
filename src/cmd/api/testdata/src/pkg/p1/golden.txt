@@ -1,6 +1,8 @@
 pkg p1, const A ideal-int
 pkg p1, const A64 int64
+pkg p1, const AIsLowerA ideal-int
 pkg p1, const B ideal-int
+pkg p1, const ConstChase2 ideal-int
 pkg p1, const ConversionConst MyInt
 pkg p1, const FloatConst ideal-float
 pkg p1, const StrConst ideal-string

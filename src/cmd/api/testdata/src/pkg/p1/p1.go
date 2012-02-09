@@ -5,9 +5,14 @@ import (
 )
 
 const (
+	ConstChase2 = constChase // forward declaration to unexported ident
+	constChase  = AIsLowerA  // forward declaration to exported ident
+
 	A         = 1
 	a         = 11
 	A64 int64 = 1
+
+	AIsLowerA = a // previously declared
 )
 
 const (
