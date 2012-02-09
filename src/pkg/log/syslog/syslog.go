@@ -155,14 +155,14 @@ func (n netConn) close() error {
 	return n.conn.Close()
 }
 
-// NewLogger provides an object that implements the full log.Logger interface,
-// but sends messages to Syslog instead; flag is passed as is to Logger;
-// priority will be used for all messages sent using this interface.
-// All messages are logged with priority p.
-func NewLogger(p Priority, flag int) *log.Logger {
+// NewLogger creates a log.Logger whose output is written to
+// the system log service with the specified priority. The logFlag
+// argument is the flag set passed through to log.New to create
+// the Logger.
+func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
 	s, err := New(p, "")
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return log.New(s, "", flag)
+	return log.New(s, "", logFlag), nil
 }

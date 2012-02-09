@@ -1192,6 +1192,18 @@ and
 Running <code>go fix</code> will update almost all code affected by the change.
 </p>
 
+<h3 id="log_syslog">The log/syslog package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>
+function returns an error as well as a <code>log.Logger</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
 <h3 id="mime">The mime package</h3>
 
 <p>
