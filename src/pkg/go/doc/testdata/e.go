@@ -77,3 +77,71 @@ func (*T4) M() {}
 type T5 struct {
 	T4
 }
+
+// ----------------------------------------------------------------------------
+// Recursive type declarations must not lead to endless recursion.
+
+type U1 struct {
+	*U1
+}
+
+// U1.M should appear as method of U1.
+func (*U1) M() {}
+
+type U2 struct {
+	*U3
+}
+
+// U2.M should appear as method of U2 and as method of U3 only if AllMethods is set.
+func (*U2) M() {}
+
+type U3 struct {
+	*U2
+}
+
+// U3.N should appear as method of U3 and as method of U2 only if AllMethods is set.
+func (*U3) N() {}
+
+type U4 struct {
+	*u5
+}
+
+// U4.M should appear as method of U4. 
+func (*U4) M() {}
+
+type u5 struct {
+	*U4
+}
+
+// ----------------------------------------------------------------------------
+// A higher-level embedded type (and its methods) wins over the same type (and
+// its methods) embedded at a lower level.
+
+type V1 struct {
+	*V2
+	*V5
+}
+
+type V2 struct {
+	*V3
+}
+
+type V3 struct {
+	*V4
+}
+
+type V4 struct {
+	*V5
+}
+
+type V5 struct {
+	*V6
+}
+
+type V6 struct{}
+
+// V4.M should appear as method of V2 and V3 if AllMethods is set.
+func (*V4) M() {}
+
+// V6.M should appear as method of V1 and V5 if AllMethods is set.
+func (*V6) M() {}
