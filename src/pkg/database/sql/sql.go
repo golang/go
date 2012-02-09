@@ -368,7 +368,7 @@ func (db *DB) Begin() (*Tx, error) {
 	}, nil
 }
 
-// DriverDatabase returns the database's underlying driver.
+// Driver returns the database's underlying driver.
 func (db *DB) Driver() driver.Driver {
 	return db.driver
 }
@@ -378,7 +378,7 @@ func (db *DB) Driver() driver.Driver {
 // A transaction must end with a call to Commit or Rollback.
 //
 // After a call to Commit or Rollback, all operations on the
-// transaction fail with ErrTransactionFinished.
+// transaction fail with ErrTxDone.
 type Tx struct {
 	db *DB
 
@@ -393,11 +393,11 @@ type Tx struct {
 
 	// done transitions from false to true exactly once, on Commit
 	// or Rollback. once done, all operations fail with
-	// ErrTransactionFinished.
+	// ErrTxDone.
 	done bool
 }
 
-var ErrTransactionFinished = errors.New("sql: Transaction has already been committed or rolled back")
+var ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
 
 func (tx *Tx) close() {
 	if tx.done {
@@ -411,7 +411,7 @@ func (tx *Tx) close() {
 
 func (tx *Tx) grabConn() (driver.Conn, error) {
 	if tx.done {
-		return nil, ErrTransactionFinished
+		return nil, ErrTxDone
 	}
 	tx.cimu.Lock()
 	return tx.ci, nil
@@ -424,7 +424,7 @@ func (tx *Tx) releaseConn() {
 // Commit commits the transaction.
 func (tx *Tx) Commit() error {
 	if tx.done {
-		return ErrTransactionFinished
+		return ErrTxDone
 	}
 	defer tx.close()
 	return tx.txi.Commit()
@@ -433,7 +433,7 @@ func (tx *Tx) Commit() error {
 // Rollback aborts the transaction.
 func (tx *Tx) Rollback() error {
 	if tx.done {
-		return ErrTransactionFinished
+		return ErrTxDone
 	}
 	defer tx.close()
 	return tx.txi.Rollback()
@@ -550,7 +550,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 // Query executes a query that returns rows, typically a SELECT.
 func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 	if tx.done {
-		return nil, ErrTransactionFinished
+		return nil, ErrTxDone
 	}
 	stmt, err := tx.Prepare(query)
 	if err != nil {
