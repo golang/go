@@ -1058,7 +1058,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	NodeList *l;
 	Type *t;
 
-	while(n && n->implicit)
+	while(n && n->implicit && (n->op == OIND || n->op == OADDR))
 		n = n->left;
 
 	if(n == N)
@@ -1160,13 +1160,13 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%N{ %,H }", n->right, n->list);
 
 	case OPTRLIT:
-		if (fmtmode == FExp && n->left->right->implicit == Implicit) 
+		if(fmtmode == FExp && n->left->implicit)
 			return fmtprint(f, "%N", n->left);
 		return fmtprint(f, "&%N", n->left);
 
 	case OSTRUCTLIT:
-		if (fmtmode == FExp) {   // requires special handling of field names
-			if(n->right->implicit == Implicit)
+		if(fmtmode == FExp) {   // requires special handling of field names
+			if(n->implicit)
 				fmtstrcpy(f, "{");
 			else 
 				fmtprint(f, "%T{", n->type);
@@ -1194,6 +1194,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAPLIT:
 		if(fmtmode == FErr)
 			return fmtprint(f, "%T literal", n->type);
+		if(fmtmode == FExp && n->implicit)
+			return fmtprint(f, "{ %,H }", n->list);
 		return fmtprint(f, "%T{ %,H }", n->type, n->list);
 
 	case OKEY:

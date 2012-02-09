@@ -36,6 +36,8 @@ func F6(S int) *U {
 	return &U{{S,S}}
 }
 
+// Bug in the fix.
 
+type PB struct { x int }
 
-
+func (t *PB) Reset() { *t = PB{} }

@@ -5,21 +5,9 @@
 // Use the functions in one.go so that the inlined
 // forms get type-checked.
 
-package two
+package three
 
-import "./one"
+import "./two"
 
-func use() {
-	one.F1(nil)
-	one.F2(nil)
-	one.F3()
-	one.F4(1)
-
-	var t *one.T
-	t.M()
-	t.MM()
-}
-
-var V = []one.PB{{}, {}}
-
-func F() *one.PB
+var x = two.F()
+var v = two.V
