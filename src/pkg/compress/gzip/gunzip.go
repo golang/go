@@ -83,7 +83,6 @@ func NewReader(r io.Reader) (*Decompressor, error) {
 	z.r = makeReader(r)
 	z.digest = crc32.NewIEEE()
 	if err := z.readHeader(true); err != nil {
-		z.err = err
 		return nil, err
 	}
 	return z, nil
