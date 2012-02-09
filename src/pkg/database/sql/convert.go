@@ -90,8 +90,8 @@ func convertAssign(dest, src interface{}) error {
 		return nil
 	}
 
-	if scanner, ok := dest.(ScannerInto); ok {
-		return scanner.ScanInto(src)
+	if scanner, ok := dest.(Scanner); ok {
+		return scanner.Scan(src)
 	}
 
 	dpv := reflect.ValueOf(dest)
