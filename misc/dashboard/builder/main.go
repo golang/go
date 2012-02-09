@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -49,12 +48,12 @@ type Builder struct {
 }
 
 var (
-	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
+	buildroot     = flag.String("buildroot", filepath.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
 	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
 	dashboard     = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
-	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
+	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
 	external      = flag.Bool("external", false, "Build external packages")
 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	verbose       = flag.Bool("v", false, "verbose")
@@ -64,6 +63,9 @@ var (
 	goroot      string
 	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
 	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
+	allCmd      = "all" + suffix
+	cleanCmd    = "clean" + suffix
+	suffix      = defaultSuffix()
 )
 
 func main() {
@@ -76,7 +78,7 @@ func main() {
 	if len(flag.Args()) == 0 && !*commitFlag {
 		flag.Usage()
 	}
-	goroot = path.Join(*buildroot, "goroot")
+	goroot = filepath.Join(*buildroot, "goroot")
 	builders := make([]*Builder, len(flag.Args()))
 	for i, builder := range flag.Args() {
 		b, err := NewBuilder(builder)
@@ -171,7 +173,13 @@ func NewBuilder(builder string) (*Builder, error) {
 	}
 
 	// read keys from keyfile
-	fn := path.Join(os.Getenv("HOME"), ".gobuildkey")
+	fn := ""
+	if runtime.GOOS == "windows" {
+		fn = os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+	} else {
+		fn = os.Getenv("HOME")
+	}
+	fn = filepath.Join(fn, ".gobuildkey")
 	if s := fn + "-" + b.name; isFile(s) { // builder-specific file
 		fn = s
 	}
@@ -257,7 +265,7 @@ func (b *Builder) buildHash(hash string) error {
 	log.Println(b.name, "building", hash)
 
 	// create place in which to do work
-	workpath := path.Join(*buildroot, b.name+"-"+hash[:12])
+	workpath := filepath.Join(*buildroot, b.name+"-"+hash[:12])
 	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
 		return err
 	}
@@ -269,16 +277,20 @@ func (b *Builder) buildHash(hash string) error {
 	}
 
 	// update to specified revision
-	if err := run(nil, path.Join(workpath, "go"), "hg", "update", hash); err != nil {
+	if err := run(nil, filepath.Join(workpath, "go"), "hg", "update", hash); err != nil {
 		return err
 	}
 
-	srcDir := path.Join(workpath, "go", "src")
+	srcDir := filepath.Join(workpath, "go", "src")
 
 	// build
-	logfile := path.Join(workpath, "build.log")
+	logfile := filepath.Join(workpath, "build.log")
+	cmd := *buildCmd
+	if !filepath.IsAbs(cmd) {
+		cmd = filepath.Join(srcDir, cmd)
+	}
 	startTime := time.Now()
-	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
+	buildLog, status, err := runLog(b.envv(), logfile, srcDir, cmd)
 	runTime := time.Now().Sub(startTime)
 	if err != nil {
 		return fmt.Errorf("%s: %s", *buildCmd, err)
@@ -314,15 +326,16 @@ func (b *Builder) buildHash(hash string) error {
 	releaseHash, release, err := firstTag(binaryTagRe)
 	if hash == releaseHash {
 		// clean out build state
-		if err := run(b.envv(), srcDir, "./clean.bash", "--nopkg"); err != nil {
-			return fmt.Errorf("clean.bash: %s", err)
+		cmd := filepath.Join(srcDir, cleanCmd)
+		if err := run(b.envv(), srcDir, cmd, "--nopkg"); err != nil {
+			return fmt.Errorf("%s: %s", cleanCmd, err)
 		}
 		// upload binary release
 		fn := fmt.Sprintf("go.%s.%s-%s.tar.gz", release, b.goos, b.goarch)
 		if err := run(nil, workpath, "tar", "czf", fn, "go"); err != nil {
 			return fmt.Errorf("tar: %s", err)
 		}
-		err := run(nil, workpath, path.Join(goroot, codePyScript),
+		err := run(nil, workpath, filepath.Join(goroot, codePyScript),
 			"-s", release,
 			"-p", codeProject,
 			"-u", b.codeUsername,
@@ -556,7 +569,7 @@ func commitPoll(key, pkg string) {
 	pkgRoot := goroot
 
 	if pkg != "" {
-		pkgRoot = path.Join(*buildroot, pkg)
+		pkgRoot = filepath.Join(*buildroot, pkg)
 		if !hgRepoExists(pkgRoot) {
 			if err := hgClone(repoURL(pkg), pkgRoot); err != nil {
 				log.Printf("%s: hg clone failed: %v", pkg, err)
@@ -718,4 +731,13 @@ func repoURL(importPath string) string {
 		return ""
 	}
 	return "https://code.google.com/p/" + m[1]
+}
+
+// defaultSuffix returns file extension used for command files in
+// current os environment.
+func defaultSuffix() string {
+	if runtime.GOOS == "windows" {
+		return ".bat"
+	}
+	return ".bash"
 }
