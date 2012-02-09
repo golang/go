@@ -317,6 +317,7 @@ var overflowTests = []ScanTest{
 	{"(1-1e500i)", &complex128Val, 0},
 }
 
+var truth bool
 var i, j, k int
 var f float64
 var s, t string
@@ -350,6 +351,9 @@ var multiTests = []ScanfMultiTest{
 
 	// Bad UTF-8: should see every byte.
 	{"%c%c%c", "\xc2X\xc2", args(&r1, &r2, &r3), args(utf8.RuneError, 'X', utf8.RuneError), ""},
+
+	// Fixed bugs
+	{"%v%v", "FALSE23", args(&truth, &i), args(false, 23), ""},
 }
 
 func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}) (int, error)) {
