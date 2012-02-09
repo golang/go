@@ -1,0 +1,4 @@
+This directory contains the binary distribution packaging scripts for the
+supported GOOSes.
+
+To build a package, run $GOOS/dist.bash.
