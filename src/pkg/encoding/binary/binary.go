@@ -253,6 +253,12 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	return err
 }
 
+// Size returns how many bytes Write would generate to encode the value v, assuming
+// the Write would succeed.
+func Size(v interface{}) int {
+	return dataSize(reflect.ValueOf(v))
+}
+
 // dataSize returns the number of bytes the actual data represented by v occupies in memory.
 // For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
 // it returns the length of the slice times the element size and does not count the memory
