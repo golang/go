@@ -1,0 +1,23 @@
+#!/bin/bash
+
+GOROOT=/usr/local/go
+
+echo "Fixing permissions"
+cd $GOROOT
+find . -exec chmod ugo+r \{\} \;
+find bin -exec chmod ugo+rx \{\} \;
+find . -type d -exec chmod ugo+rx \{\} \;
+chmod o-w .
+
+echo "Fixing debuggers via sudo.bash"
+# setgrp procmod the debuggers (sudo.bash)
+cd $GOROOT/src
+./sudo.bash
+
+echo "Installing miscellaneous files:"
+XCODE_MISC_DIR="/Library/Application Support/Developer/Shared/Xcode/Specifications/"
+if [ -f $XCODE_MISC_DIR ]; then
+	echo "  XCode"
+	cp $GOROOT/misc/xcode/* $XCODE_MISC_DIR
+fi
+
