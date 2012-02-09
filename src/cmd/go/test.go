@@ -56,23 +56,7 @@ compiled.)
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
 
-See 'go help testflag' for details about flags handled by 'go test'
-and the test binary.
-
-See 'go help importpath' for more about import paths.
-
-See also: go build, go vet.
-	`,
-}
-
-var helpTestflag = &Command{
-	UsageLine: "testflag",
-	Short:     "description of testing flags",
-	Long: `
-The 'go test' command takes both flags that apply to 'go test' itself
-and flags that apply to the resulting test binary.
-
-The flags handled by 'go test' are:
+The flags handled by 'go test' itself are:
 
 	-c  Compile the test binary to pkg.test but do not run it.
 
@@ -90,7 +74,23 @@ The flags handled by 'go test' are:
 
 	-x  Print each subcommand go test executes.
 
-The resulting test binary, called pkg.test, where pkg is the name of the
+The test binary also accepts flags that control execution of the test; these
+flags are also accessible by 'go test'.  See 'go help testflag' for details.
+
+See 'go help importpath' for more about import paths.
+
+See also: go build, go vet.
+	`,
+}
+
+var helpTestflag = &Command{
+	UsageLine: "testflag",
+	Short:     "description of testing flags",
+	Long: `
+The 'go test' command takes both flags that apply to 'go test' itself
+and flags that apply to the resulting test binary.
+
+The test binary, called pkg.test, where pkg is the name of the
 directory containing the package sources, has its own flags:
 
 	-test.v
