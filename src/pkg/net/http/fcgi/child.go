@@ -243,9 +243,9 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 }
 
 // Serve accepts incoming FastCGI connections on the listener l, creating a new
-// service thread for each. The service threads read requests and then call handler
+// goroutine for each. The goroutine reads requests and then calls handler
 // to reply to them.
-// If l is nil, Serve accepts connections on stdin.
+// If l is nil, Serve accepts connections from os.Stdin.
 // If handler is nil, http.DefaultServeMux is used.
 func Serve(l net.Listener, handler http.Handler) error {
 	if l == nil {
