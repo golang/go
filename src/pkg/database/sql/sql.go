@@ -523,10 +523,12 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 
 	if execer, ok := ci.(driver.Execer); ok {
 		resi, err := execer.Exec(query, args)
-		if err != nil {
+		if err == nil {
+			return result{resi}, nil
+		}
+		if err != driver.ErrSkip {
 			return nil, err
 		}
-		return result{resi}, nil
 	}
 
 	sti, err := ci.Prepare(query)
