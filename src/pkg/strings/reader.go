@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the io.Reader, io.ByteScanner, and
+// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
 // io.RuneScanner interfaces by reading from a string.
 type Reader struct {
 	s        string
@@ -21,10 +21,16 @@ type Reader struct {
 // Len returns the number of bytes of the unread portion of the
 // string.
 func (r *Reader) Len() int {
+	if r.i >= len(r.s) {
+		return 0
+	}
 	return len(r.s) - r.i
 }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	if r.i >= len(r.s) {
 		return 0, io.EOF
 	}
@@ -85,6 +91,29 @@ func (r *Reader) UnreadRune() error {
 	r.i = r.prevRune
 	r.prevRune = -1
 	return nil
+}
+
+// Seek implements the io.Seeker interface.
+func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+	var abs int64
+	switch whence {
+	case 0:
+		abs = offset
+	case 1:
+		abs = int64(r.i) + offset
+	case 2:
+		abs = int64(len(r.s)) + offset
+	default:
+		return 0, errors.New("strings: invalid whence")
+	}
+	if abs < 0 {
+		return 0, errors.New("strings: negative position")
+	}
+	if abs >= 1<<31 {
+		return 0, errors.New("strings: position out of range")
+	}
+	r.i = int(abs)
+	return abs, nil
 }
 
 // NewReader returns a new Reader reading from s.
