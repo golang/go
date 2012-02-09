@@ -3,7 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package os provides a platform-independent interface to operating system
-// functionality.  The design is Unix-like.
+// functionality. The design is Unix-like, although the error handling is
+// Go-like; failing calls return values of type error rather than error numbers.
+// Often, more information is available within the error. For example,
+// if a call that takes a file name fails, such as Open or Stat, the error
+// will include failing file name when printed and will be of type *PathError,
+// which may be unpacked for more information.
+// 
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
 package os
@@ -157,7 +163,7 @@ func (f *File) WriteString(s string) (ret int, err error) {
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
-// It returns an error, if any.
+// If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	e := syscall.Mkdir(name, syscallMode(perm))
 	if e != nil {
@@ -167,6 +173,7 @@ func Mkdir(name string, perm FileMode) error {
 }
 
 // Chdir changes the current working directory to the named directory.
+// If there is an error, it will be of type *PathError.
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
 		return &PathError{"chdir", dir, e}
@@ -176,6 +183,7 @@ func Chdir(dir string) error {
 
 // Chdir changes the current working directory to the file,
 // which must be a directory.
+// If there is an error, it will be of type *PathError.
 func (f *File) Chdir() error {
 	if e := syscall.Fchdir(f.fd); e != nil {
 		return &PathError{"chdir", f.name, e}
@@ -186,7 +194,7 @@ func (f *File) Chdir() error {
 // Open opens the named file for reading.  If successful, methods on
 // the returned file can be used for reading; the associated file
 // descriptor has mode O_RDONLY.
-// It returns the File and an error, if any.
+// If there is an error, it will be of type *PathError.
 func Open(name string) (file *File, err error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
@@ -195,7 +203,7 @@ func Open(name string) (file *File, err error) {
 // it if it already exists.  If successful, methods on the returned
 // File can be used for I/O; the associated file descriptor has mode
 // O_RDWR.
-// It returns the File and an error, if any.
+// If there is an error, it will be of type *PathError.
 func Create(name string) (file *File, err error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }

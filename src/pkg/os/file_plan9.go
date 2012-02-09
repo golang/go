@@ -76,7 +76,7 @@ func syscallMode(i FileMode) (o uint32) {
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
-// It returns the File and an error, if any.
+// If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	var (
 		fd     int
@@ -181,6 +181,7 @@ func (f *File) Truncate(size int64) error {
 const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | ModePerm)
 
 // Chmod changes the mode of the file to mode.
+// If there is an error, it will be of type *PathError.
 func (f *File) Chmod(mode FileMode) error {
 	var d Dir
 
@@ -248,6 +249,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
+// If there is an error, it will be of type *PathError.
 func Truncate(name string, size int64) error {
 	var d Dir
 	d.Null()
@@ -261,6 +263,7 @@ func Truncate(name string, size int64) error {
 }
 
 // Remove removes the named file or directory.
+// If there is an error, it will be of type *PathError.
 func Remove(name string) error {
 	if e := syscall.Remove(name); e != nil {
 		return &PathError{"remove", name, e}
@@ -269,6 +272,7 @@ func Remove(name string) error {
 }
 
 // Rename renames a file.
+// If there is an error, it will be of type *PathError.
 func Rename(oldname, newname string) error {
 	var d Dir
 	d.Null()
@@ -282,6 +286,7 @@ func Rename(oldname, newname string) error {
 }
 
 // Chmod changes the mode of the named file to mode.
+// If there is an error, it will be of type *PathError.
 func Chmod(name string, mode FileMode) error {
 	var d Dir
 
