@@ -43,3 +43,88 @@ TYPES
 	// T4.M should appear as method of T5 only if AllMethods is set. 
 	func (*T5) M()
 
+	// 
+	type U1 struct {
+		*U1
+	}
+
+	// U1.M should appear as method of U1. 
+	func (*U1) M()
+
+	// 
+	type U2 struct {
+		*U3
+	}
+
+	// U2.M should appear as method of U2 and as method of U3 only if ...
+	func (*U2) M()
+
+	// U3.N should appear as method of U3 and as method of U2 only if ...
+	func (U2) N()
+
+	// 
+	type U3 struct {
+		*U2
+	}
+
+	// U2.M should appear as method of U2 and as method of U3 only if ...
+	func (U3) M()
+
+	// U3.N should appear as method of U3 and as method of U2 only if ...
+	func (*U3) N()
+
+	// 
+	type U4 struct {
+		// contains filtered or unexported fields
+	}
+
+	// U4.M should appear as method of U4. 
+	func (*U4) M()
+
+	// 
+	type V1 struct {
+		*V2
+		*V5
+	}
+
+	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
+	func (V1) M()
+
+	// 
+	type V2 struct {
+		*V3
+	}
+
+	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
+	func (V2) M()
+
+	// 
+	type V3 struct {
+		*V4
+	}
+
+	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
+	func (V3) M()
+
+	// 
+	type V4 struct {
+		*V5
+	}
+
+	// V4.M should appear as method of V2 and V3 if AllMethods is set. 
+	func (*V4) M()
+
+	// 
+	type V5 struct {
+		*V6
+	}
+
+	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
+	func (V5) M()
+
+	// 
+	type V6 struct{}
+
+	// V6.M should appear as method of V1 and V5 if AllMethods is set. 
+	func (*V6) M()
+

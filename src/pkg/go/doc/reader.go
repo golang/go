@@ -543,7 +543,8 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) 
 
 // collectEmbeddedMethods collects the embedded methods of typ in mset.
 //
-func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int) {
+func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited map[*namedType]bool) {
+	visited[typ] = true
 	for embedded, isPtr := range typ.embedded {
 		// Once an embedded type is embedded as a pointer type
 		// all embedded types in those types are treated like
@@ -557,8 +558,11 @@ func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvType
 				mset.add(customizeRecv(m, recvTypeName, thisEmbeddedIsPtr, level))
 			}
 		}
-		r.collectEmbeddedMethods(mset, embedded, recvTypeName, thisEmbeddedIsPtr, level+1)
+		if !visited[embedded] {
+			r.collectEmbeddedMethods(mset, embedded, recvTypeName, thisEmbeddedIsPtr, level+1, visited)
+		}
 	}
+	delete(visited, typ)
 }
 
 // computeMethodSets determines the actual method sets for each type encountered.
@@ -568,7 +572,7 @@ func (r *reader) computeMethodSets() {
 		// collect embedded methods for t
 		if t.isStruct {
 			// struct
-			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1)
+			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(map[*namedType]bool))
 		} else {
 			// interface
 			// TODO(gri) fix this
