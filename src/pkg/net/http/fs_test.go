@@ -6,6 +6,7 @@ package http_test
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	. "net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -56,18 +58,18 @@ func TestServeFile(t *testing.T) {
 	req.Method = "GET"
 
 	// straight GET
-	_, body := getBody(t, req)
+	_, body := getBody(t, "straight get", req)
 	if !equal(body, file) {
 		t.Fatalf("body mismatch: got %q, want %q", body, file)
 	}
 
 	// Range tests
-	for _, rt := range ServeFileRangeTests {
+	for i, rt := range ServeFileRangeTests {
 		req.Header.Set("Range", "bytes="+rt.r)
 		if rt.r == "" {
 			req.Header["Range"] = nil
 		}
-		r, body := getBody(t, req)
+		r, body := getBody(t, fmt.Sprintf("test %d", i), req)
 		if r.StatusCode != rt.code {
 			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, r.StatusCode, rt.code)
 		}
@@ -298,7 +300,6 @@ func TestServeIndexHtml(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
 		b, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal("reading Body:", err)
@@ -306,17 +307,66 @@ func TestServeIndexHtml(t *testing.T) {
 		if s := string(b); s != want {
 			t.Errorf("for path %q got %q, want %q", path, s, want)
 		}
+		res.Body.Close()
 	}
 }
 
-func getBody(t *testing.T, req Request) (*Response, []byte) {
+func TestServeContent(t *testing.T) {
+	type req struct {
+		name    string
+		modtime time.Time
+		content io.ReadSeeker
+	}
+	ch := make(chan req, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		p := <-ch
+		ServeContent(w, r, p.name, p.modtime, p.content)
+	}))
+	defer ts.Close()
+
+	css, err := os.Open("testdata/style.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer css.Close()
+
+	ch <- req{"style.css", time.Time{}, css}
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := res.Header.Get("Content-Type"), "text/css; charset=utf-8"; g != e {
+		t.Errorf("style.css: content type = %q, want %q", g, e)
+	}
+	if g := res.Header.Get("Last-Modified"); g != "" {
+		t.Errorf("want empty Last-Modified; got %q", g)
+	}
+
+	fi, err := css.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch <- req{"style.html", fi.ModTime(), css}
+	res, err = Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != e {
+		t.Errorf("style.html: content type = %q, want %q", g, e)
+	}
+	if g := res.Header.Get("Last-Modified"); g == "" {
+		t.Errorf("want non-empty last-modified")
+	}
+}
+
+func getBody(t *testing.T, testName string, req Request) (*Response, []byte) {
 	r, err := DefaultClient.Do(&req)
 	if err != nil {
-		t.Fatal(req.URL.String(), "send:", err)
+		t.Fatalf("%s: for URL %q, send error: %v", testName, req.URL.String(), err)
 	}
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		t.Fatal("reading Body:", err)
+		t.Fatalf("%s: for URL %q, reading body: %v", testName, req.URL.String(), err)
 	}
 	return r, b
 }

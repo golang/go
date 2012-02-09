@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // A Dir implements http.FileSystem using the native file
@@ -58,32 +57,6 @@ type File interface {
 	Seek(offset int64, whence int) (int64, error)
 }
 
-// Heuristic: b is text if it is valid UTF-8 and doesn't
-// contain any unprintable ASCII or Unicode characters.
-func isText(b []byte) bool {
-	for len(b) > 0 && utf8.FullRune(b) {
-		rune, size := utf8.DecodeRune(b)
-		if size == 1 && rune == utf8.RuneError {
-			// decoding error
-			return false
-		}
-		if 0x7F <= rune && rune <= 0x9F {
-			return false
-		}
-		if rune < ' ' {
-			switch rune {
-			case '\n', '\r', '\t':
-				// okay
-			default:
-				// binary garbage
-				return false
-			}
-		}
-		b = b[size:]
-	}
-	return true
-}
-
 func dirList(w ResponseWriter, f File) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<pre>\n")
@@ -102,6 +75,123 @@ func dirList(w ResponseWriter, f File) {
 		}
 	}
 	fmt.Fprintf(w, "</pre>\n")
+}
+
+// ServeContent replies to the request using the content in the
+// provided ReadSeeker.  The main benefit of ServeContent over io.Copy
+// is that it handles Range requests properly, sets the MIME type, and
+// handles If-Modified-Since requests.
+//
+// If the response's Content-Type header is not set, ServeContent
+// first tries to deduce the type from name's file extension and,
+// if that fails, falls back to reading the first block of the content
+// and passing it to DetectContentType.
+// The name is otherwise unused; in particular it can be empty and is
+// never sent in the response.
+//
+// If modtime is not the zero time, ServeContent includes it in a
+// Last-Modified header in the response.  If the request includes an
+// If-Modified-Since header, ServeContent uses modtime to decide
+// whether the content needs to be sent at all.
+//
+// The content's Seek method must work: ServeContent uses
+// a seek to the end of the content to determine its size.
+//
+// Note that *os.File implements the io.ReadSeeker interface.
+func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+	size, err := content.Seek(0, os.SEEK_END)
+	if err != nil {
+		Error(w, "seeker can't seek", StatusInternalServerError)
+		return
+	}
+	_, err = content.Seek(0, os.SEEK_SET)
+	if err != nil {
+		Error(w, "seeker can't seek", StatusInternalServerError)
+		return
+	}
+	serveContent(w, req, name, modtime, size, content)
+}
+
+// if name is empty, filename is unknown. (used for mime type, before sniffing)
+// if modtime.IsZero(), modtime is unknown.
+// content must be seeked to the beginning of the file.
+func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, size int64, content io.ReadSeeker) {
+	if checkLastModified(w, r, modtime) {
+		return
+	}
+
+	code := StatusOK
+
+	// If Content-Type isn't set, use the file's extension to find it.
+	if w.Header().Get("Content-Type") == "" {
+		ctype := mime.TypeByExtension(filepath.Ext(name))
+		if ctype == "" {
+			// read a chunk to decide between utf-8 text and binary
+			var buf [1024]byte
+			n, _ := io.ReadFull(content, buf[:])
+			b := buf[:n]
+			ctype = DetectContentType(b)
+			_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
+			if err != nil {
+				Error(w, "seeker can't seek", StatusInternalServerError)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", ctype)
+	}
+
+	// handle Content-Range header.
+	// TODO(adg): handle multiple ranges
+	sendSize := size
+	if size >= 0 {
+		ranges, err := parseRange(r.Header.Get("Range"), size)
+		if err == nil && len(ranges) > 1 {
+			err = errors.New("multiple ranges not supported")
+		}
+		if err != nil {
+			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+			return
+		}
+		if len(ranges) == 1 {
+			ra := ranges[0]
+			if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
+				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+				return
+			}
+			sendSize = ra.length
+			code = StatusPartialContent
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, size))
+		}
+
+		w.Header().Set("Accept-Ranges", "bytes")
+		if w.Header().Get("Content-Encoding") == "" {
+			w.Header().Set("Content-Length", strconv.FormatInt(sendSize, 10))
+		}
+	}
+
+	w.WriteHeader(code)
+
+	if r.Method != "HEAD" {
+		if sendSize == -1 {
+			io.Copy(w, content)
+		} else {
+			io.CopyN(w, content, sendSize)
+		}
+	}
+}
+
+// modtime is the modification time of the resource to be served, or IsZero().
+// return value is whether this request is now complete.
+func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
+	if modtime.IsZero() {
+		return false
+	}
+	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.After(t) {
+		w.WriteHeader(StatusNotModified)
+		return true
+	}
+	w.Header().Set("Last-Modified", modtime.UTC().Format(TimeFormat))
+	return false
 }
 
 // name is '/'-separated, not filepath.Separator.
@@ -148,14 +238,11 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
-	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && !d.ModTime().After(t) {
-		w.WriteHeader(StatusNotModified)
-		return
-	}
-	w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
-
 	// use contents of index.html for directory, if present
 	if d.IsDir() {
+		if checkLastModified(w, r, d.ModTime()) {
+			return
+		}
 		index := name + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -174,60 +261,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		return
 	}
 
-	// serve file
-	size := d.Size()
-	code := StatusOK
-
-	// If Content-Type isn't set, use the file's extension to find it.
-	if w.Header().Get("Content-Type") == "" {
-		ctype := mime.TypeByExtension(filepath.Ext(name))
-		if ctype == "" {
-			// read a chunk to decide between utf-8 text and binary
-			var buf [1024]byte
-			n, _ := io.ReadFull(f, buf[:])
-			b := buf[:n]
-			if isText(b) {
-				ctype = "text/plain; charset=utf-8"
-			} else {
-				// generic binary
-				ctype = "application/octet-stream"
-			}
-			f.Seek(0, os.SEEK_SET) // rewind to output whole file
-		}
-		w.Header().Set("Content-Type", ctype)
-	}
-
-	// handle Content-Range header.
-	// TODO(adg): handle multiple ranges
-	ranges, err := parseRange(r.Header.Get("Range"), size)
-	if err == nil && len(ranges) > 1 {
-		err = errors.New("multiple ranges not supported")
-	}
-	if err != nil {
-		Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
-		return
-	}
-	if len(ranges) == 1 {
-		ra := ranges[0]
-		if _, err := f.Seek(ra.start, os.SEEK_SET); err != nil {
-			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
-			return
-		}
-		size = ra.length
-		code = StatusPartialContent
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, d.Size()))
-	}
-
-	w.Header().Set("Accept-Ranges", "bytes")
-	if w.Header().Get("Content-Encoding") == "" {
-		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
-	}
-
-	w.WriteHeader(code)
-
-	if r.Method != "HEAD" {
-		io.CopyN(w, f, size)
-	}
+	serveContent(w, r, d.Name(), d.ModTime(), d.Size(), f)
 }
 
 // localRedirect gives a Moved Permanently response.
