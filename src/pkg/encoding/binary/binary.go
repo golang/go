@@ -5,6 +5,9 @@
 // Package binary implements translation between
 // unsigned integer values and byte sequences
 // and the reading and writing of fixed-size values.
+// A fixed-size value is either a fixed-size arithmetic
+// type (int8, uint8, int16, float32, complex64, ...)
+// or an array or struct containing only fixed-size values.
 package binary
 
 import (
@@ -117,11 +120,8 @@ func (bigEndian) String() string { return "BigEndian" }
 func (bigEndian) GoString() string { return "binary.BigEndian" }
 
 // Read reads structured binary data from r into data.
-// Data must be a pointer to a decodable value or a slice
-// of decodable values.
-// A decodable value is either a fixed-size arithmetic
-// type (int8, uint8, int16, float32, complex64, ...)
-// or an array, slice or struct containing only decodable values.
+// Data must be a pointer to a fixed-size value or a slice
+// of fixed-size values.
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
@@ -176,11 +176,8 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 }
 
 // Write writes the binary representation of data into w.
-// Data must be an encodable value or a pointer to
-// an encodable value.
-// An encodable value is either a fixed-size arithmetic
-// type (int8, uint8, int16, float32, complex64, ...)
-// or an array, slice or struct containing only encodable values.
+// Data must be a fixed-size value or a slice of fixed-size
+// values, or a pointer to such data.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
@@ -253,10 +250,10 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	return err
 }
 
-// Size returns how many bytes Write would generate to encode the value v, assuming
-// the Write would succeed.
+// Size returns how many bytes Write would generate to encode the value v, which
+// must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 func Size(v interface{}) int {
-	return dataSize(reflect.ValueOf(v))
+	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
 }
 
 // dataSize returns the number of bytes the actual data represented by v occupies in memory.
