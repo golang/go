@@ -2008,7 +2008,8 @@ pushtype(Node *n, Type *t)
 	
 	if(n->right == N) {
 		n->right = typenod(t);
-		n->right->implicit = 1;
+		n->implicit = 1;  // don't print
+		n->right->implicit = 1;  // * is okay
 	}
 	else if(debug['s']) {
 		typecheck(&n->right, Etype);
@@ -2048,8 +2049,8 @@ typecheckcomplit(Node **np)
 	
 	if(isptr[t->etype]) {
 		// For better or worse, we don't allow pointers as the composite literal type,
-		// except when using the &T syntax, which sets implicit to ImplPtr.
-		if(n->right->implicit == Explicit) {
+		// except when using the &T syntax, which sets implicit on the OIND.
+		if(!n->right->implicit) {
 			yyerror("invalid pointer type %T for composite literal (use &%T instead)", t, t->type);
 			goto error;
 		}

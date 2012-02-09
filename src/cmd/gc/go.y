@@ -808,7 +808,7 @@ uexpr:
 			// Special case for &T{...}: turn into (*T){...}.
 			$$ = $2;
 			$$->right = nod(OIND, $$->right, N);
-			$$->right->implicit = ImplPtr;
+			$$->right->implicit = 1;
 		} else {
 			$$ = nod(OADDR, $2, N);
 		}
