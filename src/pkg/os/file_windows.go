@@ -87,7 +87,7 @@ func openDir(name string) (file *File, err error) {
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
-// It returns the File and an error, if any.
+// If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if name == "" {
 		return nil, &PathError{"open", name, syscall.ENOENT}
@@ -267,6 +267,7 @@ func Truncate(name string, size int64) error {
 }
 
 // Remove removes the named file or directory.
+// If there is an error, it will be of type *PathError.
 func Remove(name string) error {
 	p := &syscall.StringToUTF16(name)[0]
 

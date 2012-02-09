@@ -26,6 +26,8 @@ func (sig UnixSignal) String() string {
 //
 // StartProcess is a low-level interface. The os/exec package provides
 // higher-level interfaces.
+//
+// If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
@@ -57,6 +59,8 @@ func (p *Process) Kill() error {
 //
 // To run a child process, see StartProcess (for a low-level interface)
 // or the os/exec package (for higher-level interfaces).
+//
+// If there is an error, it will be of type *PathError.
 func Exec(name string, argv []string, envv []string) error {
 	if envv == nil {
 		envv = Environ()

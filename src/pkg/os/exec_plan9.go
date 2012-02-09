@@ -12,6 +12,7 @@ import (
 
 // StartProcess starts a new process with the program, arguments and attributes
 // specified by name, argv and attr.
+// If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
@@ -75,6 +76,7 @@ func (p *Process) Kill() error {
 // named binary, with arguments argv and environment envv.
 // If successful, Exec never returns.  If it fails, it returns an error.
 // ForkExec is almost always a better way to execute a program.
+// If there is an error, it will be of type *PathError.
 func Exec(name string, argv []string, envv []string) error {
 	e := syscall.Exec(name, argv, envv)
 	if e != nil {

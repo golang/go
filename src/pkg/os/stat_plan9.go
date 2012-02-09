@@ -82,7 +82,8 @@ func dirstat(arg interface{}) (d *Dir, err error) {
 	return nil, &PathError{"stat", name, Ebadstat}
 }
 
-// Stat returns a FileInfo structure describing the named file and an error, if any.
+// Stat returns a FileInfo structure describing the named file.
+// If there is an error, it will be of type *PathError.
 func Stat(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
@@ -91,9 +92,10 @@ func Stat(name string) (FileInfo, error) {
 	return fileInfoFromStat(d), nil
 }
 
-// Lstat returns the FileInfo structure describing the named file and an
-// error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
+// Lstat returns the FileInfo structure describing the named file.
+// If the file is a symbolic link (though Plan 9 does not have symbolic links), 
 // the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
+// If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
 	return Stat(name)
 }

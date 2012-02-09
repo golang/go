@@ -11,7 +11,7 @@ import (
 )
 
 // Stat returns the FileInfo structure describing file.
-// It returns the FileInfo and an error, if any.
+// If there is an error, it will be of type *PathError.
 func (file *File) Stat() (fi FileInfo, err error) {
 	if file == nil || file.fd < 0 {
 		return nil, EINVAL
@@ -28,11 +28,12 @@ func (file *File) Stat() (fi FileInfo, err error) {
 	return toFileInfo(basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
-// Stat returns a FileInfo structure describing the named file and an error, if any.
+// Stat returns a FileInfo structure describing the named file.
 // If name names a valid symbolic link, the returned FileInfo describes
 // the file pointed at by the link and has fi.FollowedSymlink set to true.
 // If name names an invalid symbolic link, the returned FileInfo describes
 // the link itself and has fi.FollowedSymlink set to false.
+// If there is an error, it will be of type *PathError.
 func Stat(name string) (fi FileInfo, err error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
@@ -45,9 +46,10 @@ func Stat(name string) (fi FileInfo, err error) {
 	return toFileInfo(basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
-// Lstat returns the FileInfo structure describing the named file and an
-// error, if any.  If the file is a symbolic link, the returned FileInfo
+// Lstat returns the FileInfo structure describing the named file.
+// If the file is a symbolic link, the returned FileInfo
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
+// If there is an error, it will be of type *PathError.
 func Lstat(name string) (fi FileInfo, err error) {
 	// No links on Windows
 	return Stat(name)
