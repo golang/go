@@ -117,11 +117,11 @@ func (bigEndian) String() string { return "BigEndian" }
 func (bigEndian) GoString() string { return "binary.BigEndian" }
 
 // Read reads structured binary data from r into data.
-// Data must be a pointer to a fixed-size value or a slice
-// of fixed-size values.
-// A fixed-size value is either a fixed-size arithmetic
+// Data must be a pointer to a decodable value or a slice
+// of decodable values.
+// A decodable value is either a fixed-size arithmetic
 // type (int8, uint8, int16, float32, complex64, ...)
-// or an array or struct containing only fixed-size values.
+// or an array, slice or struct containing only decodable values.
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
@@ -176,11 +176,11 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 }
 
 // Write writes the binary representation of data into w.
-// Data must be a fixed-size value or a pointer to
-// a fixed-size value.
-// A fixed-size value is either a fixed-size arithmetic
+// Data must be an encodable value or a pointer to
+// an encodable value.
+// An encodable value is either a fixed-size arithmetic
 // type (int8, uint8, int16, float32, complex64, ...)
-// or an array or struct containing only fixed-size values.
+// or an array, slice or struct containing only encodable values.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
@@ -379,6 +379,7 @@ func (d *decoder) value(v reflect.Value) {
 		for i := 0; i < l; i++ {
 			d.value(v.Index(i))
 		}
+
 	case reflect.Struct:
 		l := v.NumField()
 		for i := 0; i < l; i++ {
@@ -434,11 +435,13 @@ func (e *encoder) value(v reflect.Value) {
 		for i := 0; i < l; i++ {
 			e.value(v.Index(i))
 		}
+
 	case reflect.Struct:
 		l := v.NumField()
 		for i := 0; i < l; i++ {
 			e.value(v.Field(i))
 		}
+
 	case reflect.Slice:
 		l := v.Len()
 		for i := 0; i < l; i++ {
