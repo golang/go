@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 // run is a simple wrapper for exec.Run/Close
@@ -18,7 +17,6 @@ func run(envv []string, dir string, argv ...string) error {
 	if *verbose {
 		log.Println("run", argv)
 	}
-	argv = useBash(argv)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = dir
 	cmd.Env = envv
@@ -35,7 +33,6 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, er
 	if *verbose {
 		log.Println("runLog", argv)
 	}
-	argv = useBash(argv)
 
 	b := new(bytes.Buffer)
 	var w io.Writer = b
@@ -61,14 +58,4 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, er
 		}
 	}
 	return b.String(), 0, err
-}
-
-// useBash prefixes a list of args with 'bash' if the first argument
-// is a bash script.
-func useBash(argv []string) []string {
-	// TODO(brainman): choose a more reliable heuristic here.
-	if strings.HasSuffix(argv[0], ".bash") {
-		argv = append([]string{"bash"}, argv...)
-	}
-	return argv
 }
