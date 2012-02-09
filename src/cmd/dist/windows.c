@@ -735,7 +735,7 @@ xrealloc(void *p, int n)
 		return xmalloc(n);
 	if(HEAP == INVALID_HANDLE_VALUE)
 		HEAP = GetProcessHeap();
-	p = HeapReAlloc(HEAP, HEAP_GENERATE_EXCEPTIONS, p, n);
+	p = HeapReAlloc(HEAP, 0, p, n);
 	if(p == nil)
 		fatal("out of memory reallocating %d", n);
 	return p;
