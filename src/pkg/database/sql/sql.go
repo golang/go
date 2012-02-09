@@ -35,7 +35,7 @@ func Register(name string, driver driver.Driver) {
 type RawBytes []byte
 
 // NullString represents a string that may be null.
-// NullString implements the ScannerInto interface so
+// NullString implements the Scanner interface so
 // it can be used as a scan destination:
 //
 //  var s NullString
@@ -52,8 +52,8 @@ type NullString struct {
 	Valid  bool // Valid is true if String is not NULL
 }
 
-// ScanInto implements the ScannerInto interface.
-func (ns *NullString) ScanInto(value interface{}) error {
+// Scan implements the Scanner interface.
+func (ns *NullString) Scan(value interface{}) error {
 	if value == nil {
 		ns.String, ns.Valid = "", false
 		return nil
@@ -71,15 +71,15 @@ func (ns NullString) SubsetValue() (interface{}, error) {
 }
 
 // NullInt64 represents an int64 that may be null.
-// NullInt64 implements the ScannerInto interface so
+// NullInt64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
 type NullInt64 struct {
 	Int64 int64
 	Valid bool // Valid is true if Int64 is not NULL
 }
 
-// ScanInto implements the ScannerInto interface.
-func (n *NullInt64) ScanInto(value interface{}) error {
+// Scan implements the Scanner interface.
+func (n *NullInt64) Scan(value interface{}) error {
 	if value == nil {
 		n.Int64, n.Valid = 0, false
 		return nil
@@ -97,15 +97,15 @@ func (n NullInt64) SubsetValue() (interface{}, error) {
 }
 
 // NullFloat64 represents a float64 that may be null.
-// NullFloat64 implements the ScannerInto interface so
+// NullFloat64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
 type NullFloat64 struct {
 	Float64 float64
 	Valid   bool // Valid is true if Float64 is not NULL
 }
 
-// ScanInto implements the ScannerInto interface.
-func (n *NullFloat64) ScanInto(value interface{}) error {
+// Scan implements the Scanner interface.
+func (n *NullFloat64) Scan(value interface{}) error {
 	if value == nil {
 		n.Float64, n.Valid = 0, false
 		return nil
@@ -123,15 +123,15 @@ func (n NullFloat64) SubsetValue() (interface{}, error) {
 }
 
 // NullBool represents a bool that may be null.
-// NullBool implements the ScannerInto interface so
+// NullBool implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
 type NullBool struct {
 	Bool  bool
 	Valid bool // Valid is true if Bool is not NULL
 }
 
-// ScanInto implements the ScannerInto interface.
-func (n *NullBool) ScanInto(value interface{}) error {
+// Scan implements the Scanner interface.
+func (n *NullBool) Scan(value interface{}) error {
 	if value == nil {
 		n.Bool, n.Valid = false, false
 		return nil
@@ -148,22 +148,24 @@ func (n NullBool) SubsetValue() (interface{}, error) {
 	return n.Bool, nil
 }
 
-// ScannerInto is an interface used by Scan.
-type ScannerInto interface {
-	// ScanInto assigns a value from a database driver.
+// Scanner is an interface used by Scan.
+type Scanner interface {
+	// Scan assigns a value from a database driver.
 	//
-	// The value will be of one of the following restricted
+	// The src value will be of one of the following restricted
 	// set of types:
 	//
 	//    int64
 	//    float64
 	//    bool
 	//    []byte
+	//    string
+	//    time.Time
 	//    nil - for NULL values
 	//
 	// An error should be returned if the value can not be stored
 	// without loss of information.
-	ScanInto(value interface{}) error
+	Scan(src interface{}) error
 }
 
 // ErrNoRows is returned by Scan when QueryRow doesn't return a
@@ -769,7 +771,7 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 // Example usage:
 //
 //  var name string
-//  err := nameByUseridStmt.QueryRow(id).Scan(&s)
+//  err := nameByUseridStmt.QueryRow(id).Scan(&name)
 func (s *Stmt) QueryRow(args ...interface{}) *Row {
 	rows, err := s.Query(args...)
 	if err != nil {
