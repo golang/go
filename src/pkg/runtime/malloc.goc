@@ -262,6 +262,13 @@ runtime·mallocinit(void)
 	byte *want;
 
 	p = nil;
+	arena_size = 0;
+	bitmap_size = 0;
+	
+	// for 64-bit build
+	USED(p);
+	USED(arena_size);
+	USED(bitmap_size);
 
 	runtime·InitSizes();
 
