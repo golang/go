@@ -15,13 +15,12 @@ char *gobin;
 char *gohostarch;
 char *gohostos;
 char *goos;
-char *goroot;
+char *goroot = GOROOT_FINAL;
+char *goroot_final = GOROOT_FINAL;
 char *workdir;
 char *gochar;
-char *goroot_final;
 char *goversion;
 char *slash;	// / for unix, \ for windows
-char *default_goroot = DEFAULT_GOROOT;
 
 static bool shouldbuild(char*, char*);
 static void copy(char*, char*);
@@ -74,12 +73,8 @@ init(void)
 	binit(&b);
 
 	xgetenv(&b, "GOROOT");
-	if(b.len == 0) {
-		if(default_goroot == nil)
-			fatal("$GOROOT not set and not available");
-		bwritestr(&b, default_goroot);
-	}
-	goroot = btake(&b);
+	if(b.len > 0)
+		goroot = btake(&b);
 
 	xgetenv(&b, "GOBIN");
 	if(b.len == 0)
@@ -116,12 +111,6 @@ init(void)
 	bprintf(&b, "%c", gochars[i]);
 	gochar = btake(&b);
 
-	xgetenv(&b, "GOROOT_FINAL");
-	if(b.len > 0)
-		goroot_final = btake(&b);
-	else
-		goroot_final = goroot;
-	
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
 	xsetenv("GOOS", goos);
@@ -777,7 +766,7 @@ install(char *dir)
 			if(streq(name, "goos.c")) {
 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
 				vadd(&compile, bprintf(&b, "-DGOARCH=\"%s\"", goarch));
-				bprintf(&b1, "%s", goroot);
+				bprintf(&b1, "%s", goroot_final);
 				bsubst(&b1, "\\", "\\\\");  // turn into C string
 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));

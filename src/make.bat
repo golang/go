@@ -10,14 +10,16 @@ echo Must run make.bat from Go src directory.
 goto fail 
 :ok
 
-:: Grab default $GOROOT, escape \ for C string.
-:: The expression %CD:\=\\% means to take %CD%
+:: Grab default GOROOT_FINAL and set GOROOT for build.
+:: The expression %VAR:\=\\% means to take %VAR%
 :: and apply the substitution \ = \\, escaping the
 :: backslashes.  Then we wrap that in quotes to create
 :: a C string.
 cd ..
-set DEFGOROOT=-DDEFAULT_GOROOT="\"%CD:\=\\%\""
+set GOROOT="%CD%"
 cd src
+if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL="%GOROOT%"
+set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
 echo # Building C bootstrap tool.
 if not exist ..\bin\tool mkdir ..\bin\tool
@@ -40,7 +42,7 @@ if errorlevel 1 goto fail
 del ..\bin\tool\go_bootstrap.exe
 echo .
 
-if x%1==x--no-banner goto nobanner
+if "x%1"=="x--no-banner" goto nobanner
 ..\bin\tool\dist banner
 :nobanner
 

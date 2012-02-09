@@ -29,7 +29,7 @@ mkzversion(char *dir, char *file)
 		"package runtime\n"
 		"\n"
 		"const defaultGoroot = `%s`\n"
-		"const theVersion = `%s`\n", goroot, goversion));
+		"const theVersion = `%s`\n", goroot_final, goversion));
 
 	writefile(&out, file);
 	

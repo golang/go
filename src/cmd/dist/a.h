@@ -62,7 +62,6 @@ void	splitlines(Vec*, char*);
 void	splitfields(Vec*, char*);
 
 // build.c
-extern char *default_goroot;
 extern char *goarch;
 extern char *gobin;
 extern char *gochar;
@@ -70,6 +69,7 @@ extern char *gohostarch;
 extern char *gohostos;
 extern char *goos;
 extern char *goroot;
+extern char *goroot_final;
 extern char *goversion;
 extern char *workdir;
 extern char *slash;

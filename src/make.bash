@@ -47,7 +47,9 @@ done
 
 echo '# Building C bootstrap tool.'
 mkdir -p ../bin/tool
-DEFGOROOT='-DDEFAULT_GOROOT="'"$(cd .. && pwd)"'"'
+export GOROOT="$(cd .. && pwd)"
+GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
+DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
 gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 echo
 
