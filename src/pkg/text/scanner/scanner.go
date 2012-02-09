@@ -5,8 +5,7 @@
 // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
 // It takes an io.Reader providing the source, which then can be tokenized
 // through repeated calls to the Scan function.  For compatibility with
-// existing tools, the NUL character is not allowed (implementation
-// restriction).
+// existing tools, the NUL character is not allowed.
 //
 // By default, a Scanner skips white space and Go comments and recognizes all
 // literals as defined by the Go language specification.  It may be
@@ -104,7 +103,7 @@ var tokenString = map[rune]string{
 	Comment:   "Comment",
 }
 
-// TokenString returns a (visible) string for a token or Unicode character.
+// TokenString returns a printable string for a token or Unicode character.
 func TokenString(tok rune) string {
 	if s, found := tokenString[tok]; found {
 		return s
@@ -287,7 +286,7 @@ func (s *Scanner) next() rune {
 	// special situations
 	switch ch {
 	case 0:
-		// implementation restriction for compatibility with other tools
+		// for compatibility with other tools
 		s.error("illegal character NUL")
 	case '\n':
 		s.line++
