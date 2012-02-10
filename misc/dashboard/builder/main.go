@@ -54,6 +54,7 @@ var (
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+	failAll = flag.Bool("fail", false, "fail all builds")
 	external      = flag.Bool("external", false, "Build external packages")
 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	verbose       = flag.Bool("v", false, "verbose")
@@ -86,6 +87,11 @@ func main() {
 			log.Fatal(err)
 		}
 		builders[i] = b
+	}
+	
+	if *failAll {
+		failMode(builders)
+		return
 	}
 
 	// set up work environment
@@ -157,6 +163,21 @@ func main() {
 		dt := time.Now().Sub(t)
 		if dt < waitInterval {
 			time.Sleep(waitInterval - dt)
+		}
+	}
+}
+
+// go continuous fail mode
+// check for new commits and FAIL them
+func failMode(builders []*Builder) {
+	for {
+		built := false
+		for _, b := range builders {
+			built = b.failBuild() || built
+		}
+		// stop if there was nothing to fail
+		if !built {
+			break
 		}
 	}
 }
@@ -348,6 +369,27 @@ func (b *Builder) buildHash(hash string) error {
 	}
 
 	return nil
+}
+
+// failBuild checks for a new commit for this builder
+// and fails it if one is found. 
+// It returns true if a build was "attempted".
+func (b *Builder) failBuild() bool {
+	hash, err := b.todo("build-go-commit", "", "")
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	if hash == "" {
+		return false
+	}
+	
+	log.Printf("fail %s %s\n", b.name, hash)
+
+	if err := b.recordResult(false, "", hash, "", "auto-fail mode run by " + os.Getenv("USER"), 0); err != nil {
+		log.Print(err)
+	}
+	return true
 }
 
 func (b *Builder) buildSubrepos(goRoot, goHash string) {
