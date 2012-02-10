@@ -15,7 +15,6 @@ var (
 	ESRCH        error = syscall.ESRCH
 	EINTR        error = syscall.EINTR
 	EIO          error = syscall.EIO
-	ENXIO        error = syscall.ENXIO
 	E2BIG        error = syscall.E2BIG
 	ENOEXEC      error = syscall.ENOEXEC
 	EBADF        error = syscall.EBADF

@@ -25,26 +25,22 @@ func (f *File) Name() string { return f.name }
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
 var (
-	Stdin  = NewFile(syscall.Stdin, "/dev/stdin")
-	Stdout = NewFile(syscall.Stdout, "/dev/stdout")
-	Stderr = NewFile(syscall.Stderr, "/dev/stderr")
+	Stdin  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
+	Stdout = NewFile(uintptr(syscall.Stdout), "/dev/stdout")
+	Stderr = NewFile(uintptr(syscall.Stderr), "/dev/stderr")
 )
 
 // Flags to Open wrapping those of the underlying system. Not all flags
 // may be implemented on a given system.
 const (
-	O_RDONLY   int = syscall.O_RDONLY   // open the file read-only.
-	O_WRONLY   int = syscall.O_WRONLY   // open the file write-only.
-	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
-	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
-	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
-	O_CREATE   int = syscall.O_CREAT    // create a new file if none exists.
-	O_EXCL     int = syscall.O_EXCL     // used with O_CREATE, file must not exist
-	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
-	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
-	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
-	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
-	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
+	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
+	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
+	O_RDWR   int = syscall.O_RDWR   // open the file read-write.
+	O_APPEND int = syscall.O_APPEND // append data to the file when writing.
+	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
+	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist
+	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
+	O_TRUNC  int = syscall.O_TRUNC  // if possible, truncate file when opened.
 )
 
 // Seek whence values.

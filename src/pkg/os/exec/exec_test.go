@@ -153,7 +153,7 @@ func TestExtraFiles(t *testing.T) {
 
 	// Ensure that file descriptors have not already been leaked into
 	// our environment.
-	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+	for fd := int(os.Stderr.Fd()) + 1; fd <= 101; fd++ {
 		err := syscall.Close(fd)
 		if err == nil {
 			t.Logf("Something already leaked - closed fd %d", fd)

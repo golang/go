@@ -28,19 +28,20 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (f *File) Fd() int {
+func (f *File) Fd() uintptr {
 	if f == nil {
-		return -1
+		return ^(uintptr(0))
 	}
-	return f.fd
+	return uintptr(f.fd)
 }
 
 // NewFile returns a new File with the given file descriptor and name.
-func NewFile(fd int, name string) *File {
-	if fd < 0 {
+func NewFile(fd uintptr, name string) *File {
+	fdi := int(fd)
+	if fdi < 0 {
 		return nil
 	}
-	f := &File{&file{fd: fd, name: name}}
+	f := &File{&file{fd: fdi, name: name}}
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
@@ -78,7 +79,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return NewFile(r, name), nil
+	return NewFile(uintptr(r), name), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
@@ -114,10 +115,6 @@ func (f *File) Stat() (fi FileInfo, err error) {
 }
 
 // Stat returns a FileInfo describing the named file.
-// If name names a valid symbolic link, the returned FileInfo describes
-// the file pointed at by the link and has fi.FollowedSymlink set to true.
-// If name names an invalid symbolic link, the returned FileInfo describes
-// the link itself and has fi.FollowedSymlink set to false.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (fi FileInfo, err error) {
 	var stat syscall.Stat_t
@@ -268,7 +265,7 @@ func Pipe() (r *File, w *File, err error) {
 	syscall.CloseOnExec(p[1])
 	syscall.ForkLock.RUnlock()
 
-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }
 
 // TempDir returns the default directory to use for temporary files.
