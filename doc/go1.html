@@ -1347,7 +1347,18 @@ Code that uses the old methods will fail to compile and must be updated by hand.
 The semantic change makes it difficult for the fix tool to update automatically.
 </p>
 
-<h3 id="os_fileinfo">The os.FileInfo type</h3>
+<h3 id="os">The os package</h3>
+
+<p>The <code>Time</code> function has been removed; callers should use
+the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
+<code>time</code> package.</p>
+
+<p>
+<em>Updating</em>:
+Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
+</p>
+
+<h4 id="os_fileinfo">The os.FileInfo type</h4>
 
 <p>
 Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
