@@ -53,22 +53,62 @@ static Node *inlfn;		// function currently being inlined
 static Node *inlretlabel;	// target of the goto substituted in place of a return
 static NodeList *inlretvars;	// temp out variables
 
-// Lazy typechecking of imported bodies.
-// TODO avoid redoing local functions (imporpkg would be wrong)
+// Get the function's package.  For ordinary functions it's on the ->sym, but for imported methods
+// the ->sym can be re-used in the local package, so peel it off the receiver's type.
+static Pkg*
+fnpkg(Node *fn)
+{
+	Type *rcvr;
+	
+	if(fn->type->thistuple) {
+		// method
+		rcvr = getthisx(fn->type)->type->type;
+		if(isptr[rcvr->etype])
+			rcvr = rcvr->type;
+		if(!rcvr->sym)
+			fatal("receiver with no sym: [%S] %lN  (%T)", fn->sym, fn, rcvr);
+		return rcvr->sym->pkg;
+	}
+	// non-method
+	return fn->sym->pkg;
+}
+
+// Lazy typechecking of imported bodies.  For local functions, caninl will set ->typecheck
+// because they're a copy of an already checked body. 
 void
 typecheckinl(Node *fn)
 {
 	Node *savefn;
+	Pkg *pkg;
+	int save_safemode, lno;
+
+	if(fn->typecheck)
+		return;
+
+	lno = setlineno(fn);
 
 	if (debug['m']>2)
 		print("typecheck import [%S] %lN { %#H }\n", fn->sym, fn, fn->inl);
 
+	// typecheckinl is only used for imported functions;
+	// their bodies may refer to unsafe as long as the package
+	// was marked safe during import (which was checked then).
+	pkg = fnpkg(fn);
+	if (pkg == localpkg || pkg == nil)
+		fatal("typecheckinl on local function %lN", fn);
+
+	save_safemode = safemode;
+	safemode = 0;
+
 	savefn = curfn;
 	curfn = fn;
-	importpkg = fn->sym->pkg;
 	typechecklist(fn->inl, Etop);
-	importpkg = nil;
+	fn->typecheck = 1;
 	curfn = savefn;
+
+	safemode = save_safemode;
+
+	lineno = lno;
 }
 
 // Caninl determines whether fn is inlineable. Currently that means:
@@ -105,6 +145,8 @@ caninl(Node *fn)
 
 	fn->nname->inl = fn->nbody;
 	fn->nbody = inlcopylist(fn->nname->inl);
+	// nbody will have been typechecked, so we can set this:
+	fn->typecheck = 1;
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
@@ -444,12 +486,30 @@ inlnode(Node **np)
 	lineno = lno;
 }
 
+static void	mkinlcall1(Node **np, Node *fn);
+
+static void
+mkinlcall(Node **np, Node *fn)
+{
+	int save_safemode;
+	Pkg *pkg;
+
+	save_safemode = safemode;
+
+	// imported functions may refer to unsafe as long as the
+	// package was marked safe during import (already checked).
+	pkg = fnpkg(fn);
+	if(pkg != localpkg && pkg != nil)
+		safemode = 0;
+	mkinlcall1(np, fn);
+	safemode = save_safemode;
+}
 // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
 // parameters.
 static void
-mkinlcall(Node **np, Node *fn)
+mkinlcall1(Node **np, Node *fn)
 {
 	int i;
 	Node *n, *call, *saveinlfn, *as, *m;
@@ -598,7 +658,7 @@ mkinlcall(Node **np, Node *fn)
 	*np = call;
 
 	inlfn =	saveinlfn;
-	
+
 	// transitive inlining
 	// TODO do this pre-expansion on fn->inl directly.  requires
 	// either supporting exporting statemetns with complex ninits

@@ -56,7 +56,7 @@ filterout() {
 	grep '^'"$2"'$' $1 >/dev/null
 }
 
-for dir in . ken chan interface syntax dwarf fixedbugs bugs
+for dir in . ken chan interface syntax dwarf safe fixedbugs bugs
 do
 	echo
 	echo '==' $dir'/'
