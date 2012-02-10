@@ -17,6 +17,8 @@ import (
 	"strings"
 )
 
+var conf = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
+
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeDefs() {
@@ -57,7 +59,7 @@ func (p *Package) writeDefs() {
 
 	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
-		printer.Fprint(fgo2, fset, def)
+		conf.Fprint(fgo2, fset, def)
 		fmt.Fprintf(fgo2, "\n\n")
 	}
 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
@@ -87,7 +89,7 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fc, "\n")
 
 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
-		printer.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
+		conf.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
 		fmt.Fprintf(fgo2, "\n")
 	}
 	fmt.Fprintf(fc, "\n")
@@ -255,7 +257,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		Name: ast.NewIdent(n.Mangle),
 		Type: gtype,
 	}
-	printer.Fprint(fgo2, fset, d)
+	conf.Fprint(fgo2, fset, d)
 	if *gccgo {
 		fmt.Fprintf(fgo2, " __asm__(\"%s\")\n", n.C)
 	} else {
@@ -327,8 +329,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
-	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
-	printer.Fprint(fgo1, fset, f.AST)
+	conf.Fprint(fgo1, fset, f.AST)
 
 	// While we process the vars and funcs, also write 6c and gcc output.
 	// Gcc output starts with the preamble.
@@ -542,11 +543,11 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		// a Go wrapper function.
 		if fn.Recv != nil {
 			fmt.Fprintf(fgo2, "func %s(recv ", goname)
-			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
+			conf.Fprint(fgo2, fset, fn.Recv.List[0].Type)
 			forFieldList(fntype.Params,
 				func(i int, atype ast.Expr) {
 					fmt.Fprintf(fgo2, ", p%d ", i)
-					printer.Fprint(fgo2, fset, atype)
+					conf.Fprint(fgo2, fset, atype)
 				})
 			fmt.Fprintf(fgo2, ")")
 			if gccResult != "void" {
@@ -556,7 +557,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 						if i > 0 {
 							fmt.Fprint(fgo2, ", ")
 						}
-						printer.Fprint(fgo2, fset, atype)
+						conf.Fprint(fgo2, fset, atype)
 					})
 				fmt.Fprint(fgo2, ")")
 			}

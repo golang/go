@@ -1050,6 +1050,15 @@ Several packages under <code>go</code> have slightly revised APIs.
 </p>
 
 <p>
+A concrete <code>Mode</code> type was introduced for configuration mode flags
+in the packages
+<a href="/pkg/go/scanner/"><code>go/scanner</code></a>,
+<a href="/pkg/go/parser/"><code>go/parser</code></a>,
+<a href="/pkg/go/printer/"><code>go/printer</code></a>, and
+<a href="/pkg/go/doc/"><code>go/doc</code></a>.
+</p>
+
+<p>
 The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
 from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
 useful for scanning text other then Go source files. Instead, the
@@ -1073,6 +1082,17 @@ package has been reduced to the primary parse function
 <a href="/pkg/go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
 convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></a>
 and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+</p>
+
+<p>
+The <a href="/pkg/go/printer/"><code>go/printer</code></a> package supports an additional
+configuration mode <a href="/pkg/go/printer/#Mode"><code>SourcePos</code></a>;
+if set, the printer will emit <code>//line</code> comments such that the generated
+output contains the original source code position information. The new type
+<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be
+used to provide comments associated with an arbitrary
+<a href="/pkg/go/ast/#Node"><code>ast.Node</code></a> (until now only
+<a href="/pkg/go/ast/#File"><code>ast.File</code></a> carried comment information).
 </p>
 
 <p>

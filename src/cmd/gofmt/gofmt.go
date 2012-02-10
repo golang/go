@@ -45,7 +45,7 @@ var (
 	exitCode    = 0
 	rewrite     func(*ast.File) *ast.File
 	parserMode  parser.Mode
-	printerMode uint
+	printerMode printer.Mode
 )
 
 func report(err error) {
