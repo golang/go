@@ -410,7 +410,7 @@ func _() {
 }
 
 
-// Some interesting interspersed comments
+// Some interesting interspersed comments.
 func _(/* this */x/* is *//* an */ int) {
 }
 
@@ -432,6 +432,26 @@ func _() {
 	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */}
 }
 
+// Test cases from issue 1542:
+// Comments must not be placed before commas and cause invalid programs.
+func _() {
+	var a = []int{1, 2, /*jasldf*/
+	}
+	_ = a
+}
+
+func _() {
+	var a = []int{1, 2, /*jasldf
+						*/
+	}
+	_ = a
+}
+
+func _() {
+	var a = []int{1, 2, // jasldf 
+	}
+	_ = a
+}
 
 // Comments immediately adjacent to punctuation (for which the go/printer
 // may only have estimated position information) must remain after the punctuation.
