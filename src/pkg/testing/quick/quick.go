@@ -50,7 +50,7 @@ const complexSize = 50
 
 // Value returns an arbitrary value of the given type.
 // If the type implements the Generator interface, that will be used.
-// Note: in order to create arbitrary values for structs, all the members must be public.
+// Note: To create arbitrary values for structs, all the fields must be exported.
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
 		return m.Generate(rand, complexSize), true
@@ -155,9 +155,10 @@ type Config struct {
 	// If non-nil, rand is a source of random numbers. Otherwise a default
 	// pseudo-random source will be used.
 	Rand *rand.Rand
-	// If non-nil, Values is a function which generates a slice of arbitrary
-	// Values that are congruent with the arguments to the function being
-	// tested. Otherwise, Values is used to generate the values.
+	// If non-nil, the Values function generates a slice of arbitrary
+	// reflect.Values that are congruent with the arguments to the function
+	// being tested. Otherwise, the top-level Values function is used
+	// to generate them.
 	Values func([]reflect.Value, *rand.Rand)
 }
 
