@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package syntax parses regular expressions into syntax trees.
-// WORK IN PROGRESS.
 package syntax
 
 // Note to implementers:
