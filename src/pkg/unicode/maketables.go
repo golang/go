@@ -417,7 +417,7 @@ func printCategories() {
 	fmt.Printf("const Version = %q\n\n", version())
 
 	if *tablelist == "all" {
-		fmt.Println("// Categories is the set of Unicode data tables.")
+		fmt.Println("// Categories is the set of Unicode category tables.")
 		fmt.Println("var Categories = map[string] *RangeTable {")
 		for _, k := range allCategories() {
 			fmt.Printf("\t%q: %s,\n", k, k)

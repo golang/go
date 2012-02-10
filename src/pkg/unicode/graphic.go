@@ -53,7 +53,6 @@ func IsPrint(r rune) bool {
 }
 
 // IsOneOf reports whether the rune is a member of one of the ranges.
-// The rune is known to be above Latin-1.
 func IsOneOf(set []*RangeTable, r rune) bool {
 	for _, inside := range set {
 		if Is(inside, r) {
@@ -65,7 +64,7 @@ func IsOneOf(set []*RangeTable, r rune) bool {
 
 // IsControl reports whether the rune is a control character.
 // The C (Other) Unicode category includes more code points
-// such as surrogates; use Is(C, rune) to test for them.
+// such as surrogates; use Is(C, r) to test for them.
 func IsControl(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pC != 0

@@ -7,7 +7,7 @@ package unicode
 // Version is the Unicode edition from which the tables are derived.
 const Version = "6.0.0"
 
-// Categories is the set of Unicode data tables.
+// Categories is the set of Unicode category tables.
 var Categories = map[string]*RangeTable{
 	"C":  C,
 	"Cc": Cc,
