@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package macho implements access to Mach-O object files, as defined by
-// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html.
+// Package macho implements access to Mach-O object files.
 package macho
 
 // High level access to low level data structures.
