@@ -16,9 +16,9 @@ goto fail
 :: backslashes.  Then we wrap that in quotes to create
 :: a C string.
 cd ..
-set GOROOT="%CD%"
+set GOROOT=%CD%
 cd src
-if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL="%GOROOT%"
+if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
 set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
 echo # Building C bootstrap tool.
