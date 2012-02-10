@@ -16,4 +16,4 @@ if %GOBUILDFAIL%==1 goto end
 ..\bin\tool\dist banner
 
 :end
-exit %GOBUILDFAIL%
+if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
