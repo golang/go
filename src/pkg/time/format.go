@@ -16,11 +16,13 @@ const (
 
 // These are predefined layouts for use in Time.Format.
 // The standard time used in the layouts is:
-//	Mon Jan 2 15:04:05 MST 2006  (MST is GMT-0700)
-// which is Unix time 1136243045.
-// (Think of it as 01/02 03:04:05PM '06 -0700.)
-// To define your own format, write down what the standard
-// time would look like formatted your way.
+//	Mon Jan 2 15:04:05 MST 2006
+// which is Unix time 1136243045. Since MST is GMT-0700,
+// the standard time can be thought of as
+//	01/02 03:04:05PM '06 -0700
+// To define your own format, write down what the standard time would look
+// like formatted your way; see the values of constants like ANSIC,
+// StampMicro or Kitchen for examples.
 //
 // Within the format string, an underscore _ represents a space that may be
 // replaced by a digit if the following number (a day) has two digits; for
@@ -359,10 +361,12 @@ func (b *buffer) String() string {
 
 // Format returns a textual representation of the time value formatted
 // according to layout.  The layout defines the format by showing the
-// representation of a standard time, which is then used to describe
-// the time to be formatted.  Predefined layouts ANSIC, UnixDate,
-// RFC3339 and others describe standard representations. For more
-// information about the formats, see the documentation for ANSIC.
+// representation of the standard time,
+//	Mon Jan 2 15:04:05 -0700 MST 2006
+// which is then used to describe the time to be formatted. Predefined
+// layouts ANSIC, UnixDate, RFC3339 and others describe standard
+// representations. For more information about the formats and the
+// definition of the standard time, see the documentation for ANSIC.
 func (t Time) Format(layout string) string {
 	var (
 		year  int = -1
@@ -605,13 +609,15 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout defines the format by showing the representation of a standard
-// time, which is then used to describe the string to be parsed.  Predefined
-// layouts ANSIC, UnixDate, RFC3339 and others describe standard
-// representations.For more information about the formats, see the
-// documentation for ANSIC.
+// The layout defines the format by showing the representation of the
+// standard time,
+//	Mon Jan 2 15:04:05 -0700 MST 2006
+// which is then used to describe the string to be parsed. Predefined layouts
+// ANSIC, UnixDate, RFC3339 and others describe standard representations. For
+// more information about the formats and the definition of the standard
+// time, see the documentation for ANSIC.
 //
-// Elements omitted from the value are assumed to be zero, or when
+// Elements omitted from the value are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time
 // corresponding to Jan 1, year 0, 15:04:00 UTC.
 // Years must be in the range 0000..9999. The day of the week is checked
