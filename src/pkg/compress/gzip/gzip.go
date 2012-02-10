@@ -130,6 +130,8 @@ func (z *Writer) writeString(s string) (err error) {
 	return err
 }
 
+// Write writes a compressed form of p to the underlying io.Writer. The
+// compressed bytes are not necessarily flushed until the Writer is closed.
 func (z *Writer) Write(p []byte) (int, error) {
 	if z.err != nil {
 		return 0, z.err

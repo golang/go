@@ -34,8 +34,12 @@ func makeReader(r io.Reader) flate.Reader {
 	return bufio.NewReader(r)
 }
 
-var ErrHeader = errors.New("invalid gzip header")
-var ErrChecksum = errors.New("gzip checksum error")
+var (
+	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
+	ErrChecksum = errors.New("gzip: invalid checksum")
+	// ErrHeader is returned when reading GZIP data that has an invalid header.
+	ErrHeader = errors.New("gzip: invalid header")
+)
 
 // The gzip file stores a header giving metadata about the compressed file.
 // That header is exposed as the fields of the Writer and Reader structs.

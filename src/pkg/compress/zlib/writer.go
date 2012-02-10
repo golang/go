@@ -119,6 +119,9 @@ func (z *Writer) writeHeader() (err error) {
 	return nil
 }
 
+// Write writes a compressed form of p to the underlying io.Writer. The
+// compressed bytes are not necessarily flushed until the Writer is closed or
+// explicitly flushed.
 func (z *Writer) Write(p []byte) (n int, err error) {
 	if !z.wroteHeader {
 		z.err = z.writeHeader()
@@ -138,7 +141,7 @@ func (z *Writer) Write(p []byte) (n int, err error) {
 	return
 }
 
-// Flush flushes the underlying compressor.
+// Flush flushes the Writer to its underlying io.Writer.
 func (z *Writer) Flush() error {
 	if !z.wroteHeader {
 		z.err = z.writeHeader()
