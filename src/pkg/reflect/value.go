@@ -700,7 +700,7 @@ func (v Value) FieldByNameFunc(match func(string) bool) Value {
 	return Value{}
 }
 
-// Float returns v's underlying value, as an float64.
+// Float returns v's underlying value, as a float64.
 // It panics if v's Kind is not Float32 or Float64
 func (v Value) Float() float64 {
 	k := v.kind()
@@ -804,6 +804,8 @@ func (v Value) CanInterface() bool {
 // If v is a method obtained by invoking Value.Method
 // (as opposed to Type.Method), Interface cannot return an
 // interface value, so it panics.
+// It also panics if the Value was obtained by accessing
+// unexported struct fields.
 func (v Value) Interface() interface{} {
 	return valueInterface(v, true)
 }
@@ -1252,7 +1254,8 @@ func (v Value) SetInt(x int64) {
 }
 
 // SetLen sets v's length to n.
-// It panics if v's Kind is not Slice.
+// It panics if v's Kind is not Slice or if n is negative or
+// greater than the capacity of the slice.
 func (v Value) SetLen(n int) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -1647,7 +1650,7 @@ func MakeMap(typ Type) Value {
 }
 
 // Indirect returns the value that v points to.
-// If v is a nil pointer, Indirect returns a nil Value.
+// If v is a nil pointer, Indirect returns a zero Value.
 // If v is not a pointer, Indirect returns v.
 func Indirect(v Value) Value {
 	if v.Kind() != Ptr {
