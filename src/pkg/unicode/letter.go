@@ -60,8 +60,8 @@ type CaseRange struct {
 // Methods of SpecialCase customize (by overriding) the standard mappings.
 type SpecialCase []CaseRange
 
-//BUG(r): Provide a mechanism for full case folding (those that involve
-// multiple runes in the input or output).
+// BUG(r): There is no mechanism for full case folding, that is, for
+// characters that involve multiple runes in the input or output.
 
 // Indices into the Delta arrays inside CaseRanges for case mapping.
 const (
@@ -288,7 +288,7 @@ type foldPair struct {
 // SimpleFold iterates over Unicode code points equivalent under
 // the Unicode-defined simple case folding.  Among the code points
 // equivalent to rune (including rune itself), SimpleFold returns the
-// smallest r >= rune if one exists, or else the smallest r >= 0. 
+// smallest rune >= r if one exists, or else the smallest rune >= 0. 
 //
 // For example:
 //	SimpleFold('A') = 'a'
