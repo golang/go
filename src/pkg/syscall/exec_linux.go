@@ -40,7 +40,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	)
 
 	// guard against side effects of shuffling fds below.
-	fd := append([]int(nil), attr.Files...)
+	fd := make([]int, len(attr.Files))
+	for i, ufd := range attr.Files {
+		fd[i] = int(ufd)
+	}
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.

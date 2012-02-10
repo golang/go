@@ -70,7 +70,7 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return NewFile(r, name), nil
+	return NewFile(uintptr(r), name), nil
 }
 
 func openDir(name string) (file *File, err error) {
@@ -79,7 +79,7 @@ func openDir(name string) (file *File, err error) {
 	if e != nil {
 		return nil, &PathError{"open", name, e}
 	}
-	f := NewFile(r, name)
+	f := NewFile(uintptr(r), name)
 	f.dirinfo = d
 	return f, nil
 }
@@ -313,7 +313,7 @@ func Pipe() (r *File, w *File, err error) {
 	syscall.CloseOnExec(p[1])
 	syscall.ForkLock.RUnlock()
 
-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }
 
 // TempDir returns the default directory to use for temporary files.

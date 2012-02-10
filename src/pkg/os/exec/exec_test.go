@@ -17,7 +17,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -153,8 +152,8 @@ func TestExtraFiles(t *testing.T) {
 
 	// Ensure that file descriptors have not already been leaked into
 	// our environment.
-	for fd := int(os.Stderr.Fd()) + 1; fd <= 101; fd++ {
-		err := syscall.Close(fd)
+	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+		err := os.NewFile(fd, "").Close()
 		if err == nil {
 			t.Logf("Something already leaked - closed fd %d", fd)
 		}

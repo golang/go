@@ -38,7 +38,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		sysattr.Env = Environ()
 	}
 	for _, f := range attr.Files {
-		sysattr.Files = append(sysattr.Files, int(f.Fd()))
+		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
