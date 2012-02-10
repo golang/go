@@ -67,6 +67,13 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 	res := buf.Bytes()
 
+	// formatted source must be valid
+	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+		t.Error(err)
+		t.Logf("\n%s", res)
+		return
+	}
+
 	// update golden files if necessary
 	if *update {
 		if err := ioutil.WriteFile(golden, res, 0644); err != nil {
