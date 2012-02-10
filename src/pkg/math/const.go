@@ -6,7 +6,7 @@
 package math
 
 // Mathematical constants.
-// Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
+// Reference: http://oeis.org/Axxxxxx
 const (
 	E   = 2.71828182845904523536028747135266249775724709369995957496696763 // A001113
 	Pi  = 3.14159265358979323846264338327950288419716939937510582097494459 // A000796

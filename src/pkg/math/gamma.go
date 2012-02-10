@@ -116,7 +116,7 @@ func stirling(x float64) float64 {
 //	Gamma(±Inf) = ±Inf
 //	Gamma(NaN) = NaN
 // Large values overflow to +Inf.
-// Negative integer values equal ±Inf.
+// Zero and negative integer arguments return ±Inf.
 func Gamma(x float64) float64 {
 	const Euler = 0.57721566490153286060651209008240243104215933593992 // A001620
 	// special cases
