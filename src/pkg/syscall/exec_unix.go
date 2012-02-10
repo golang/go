@@ -101,9 +101,9 @@ type Credential struct {
 // ProcAttr holds attributes that will be applied to a new process started
 // by StartProcess.
 type ProcAttr struct {
-	Dir   string   // Current working directory.
-	Env   []string // Environment.
-	Files []int    // File descriptors.
+	Dir   string    // Current working directory.
+	Env   []string  // Environment.
+	Files []uintptr // File descriptors.
 	Sys   *SysProcAttr
 }
 

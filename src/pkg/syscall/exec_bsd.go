@@ -39,8 +39,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		i      int
 	)
 
-	// guard against side effects of shuffling fds below.
-	fd := append([]int(nil), attr.Files...)
+	fd := make([]int, len(attr.Files))
+	for i, ufd := range attr.Files {
+		fd[i] = int(ufd)
+	}
 
 	darwin := runtime.GOOS == "darwin"
 

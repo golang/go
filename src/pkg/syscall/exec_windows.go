@@ -220,7 +220,7 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
 type ProcAttr struct {
 	Dir   string
 	Env   []string
-	Files []Handle
+	Files []uintptr
 	Sys   *SysProcAttr
 }
 
