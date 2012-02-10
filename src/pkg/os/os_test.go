@@ -23,7 +23,6 @@ var dot = []string{
 	"error.go",
 	"file.go",
 	"os_test.go",
-	"time.go",
 	"types.go",
 	"stat_darwin.go",
 	"stat_linux.go",
@@ -742,19 +741,6 @@ func TestChdirAndGetwd(t *testing.T) {
 		}
 	}
 	fd.Close()
-}
-
-func TestTime(t *testing.T) {
-	// Just want to check that Time() is getting something.
-	// A common failure mode on Darwin is to get 0, 0,
-	// because it returns the time in registers instead of
-	// filling in the structure passed to the system call.
-	// Too bad the compiler doesn't know that
-	// 365.24*86400 is an integer.
-	sec, nsec, err := Time()
-	if sec < (2009-1970)*36524*864 {
-		t.Errorf("Time() = %d, %d, %s; not plausible", sec, nsec, err)
-	}
 }
 
 func TestSeek(t *testing.T) {
