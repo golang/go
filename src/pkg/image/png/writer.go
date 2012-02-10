@@ -263,10 +263,7 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 }
 
 func writeImage(w io.Writer, m image.Image, cb int) error {
-	zw, err := zlib.NewWriter(w)
-	if err != nil {
-		return err
-	}
+	zw := zlib.NewWriter(w)
 	defer zw.Close()
 
 	bpp := 0 // Bytes per pixel.
@@ -391,8 +388,7 @@ func writeImage(w io.Writer, m image.Image, cb int) error {
 		f := filter(&cr, pr, bpp)
 
 		// Write the compressed bytes.
-		_, err = zw.Write(cr[f])
-		if err != nil {
+		if _, err := zw.Write(cr[f]); err != nil {
 			return err
 		}
 

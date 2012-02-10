@@ -441,11 +441,7 @@ func TestRoundTripGzip(t *testing.T) {
 		}
 		if accept == "gzip" {
 			rw.Header().Set("Content-Encoding", "gzip")
-			gz, err := gzip.NewWriter(rw)
-			if err != nil {
-				t.Errorf("gzip NewWriter: %v", err)
-				return
-			}
+			gz := gzip.NewWriter(rw)
 			gz.Write([]byte(responseBody))
 			gz.Close()
 		} else {
@@ -512,7 +508,7 @@ func TestTransportGzip(t *testing.T) {
 				rw.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
 			}()
 		}
-		gz, _ := gzip.NewWriter(w)
+		gz := gzip.NewWriter(w)
 		gz.Write([]byte(testString))
 		if req.FormValue("body") == "large" {
 			io.CopyN(gz, rand.Reader, nRandBytes)
