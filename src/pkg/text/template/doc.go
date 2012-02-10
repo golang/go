@@ -3,8 +3,10 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package template implements data-driven templates for generating textual output
-such as HTML.
+Package template implements data-driven templates for generating textual output.
+
+To generate HTML output, see package html/template, which has the same interface
+as this package but automatically secures HTML output against certain attacks.
 
 Templates are executed by applying them to a data structure. Annotations in the
 template refer to elements of the data structure (typically a field of a struct
