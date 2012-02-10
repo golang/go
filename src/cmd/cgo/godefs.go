@@ -109,7 +109,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
 		}
 	}
 
-	printer.Fprint(&buf, fset, f.AST)
+	conf.Fprint(&buf, fset, f.AST)
 
 	return buf.String()
 }
