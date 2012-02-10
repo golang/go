@@ -68,7 +68,7 @@ type Cmd struct {
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
 	//
-	// BUG: on OS X 10.6, child processes may sometimes inherit extra fds.
+	// BUG: on OS X 10.6, child processes may sometimes inherit unwanted fds.
 	// http://golang.org/issue/2603
 	ExtraFiles []*os.File
 
@@ -78,6 +78,10 @@ type Cmd struct {
 
 	// Process is the underlying process, once started.
 	Process *os.Process
+
+	// Waitmsg contains information about an exited process,
+	// available after a call to Wait or Run.
+	Waitmsg *os.Waitmsg
 
 	err             error // last error (from LookPath, stdin, stdout, stderr)
 	finished        bool  // when Wait was called
@@ -288,6 +292,7 @@ func (c *Cmd) Wait() error {
 	}
 	c.finished = true
 	msg, err := c.Process.Wait(0)
+	c.Waitmsg = msg
 
 	var copyError error
 	for _ = range c.goroutine {
