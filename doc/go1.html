@@ -878,6 +878,20 @@ If the argument size is too small or invalid, it is adjusted.
 What little code is affected will be caught by the compiler and must be updated by hand.
 </p>
 
+<h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+
+<p>
+In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
+compress/zlib all return (*Writer, error) if they take a compression level,
+and *Writer otherwise. Package gzip's Compressor and Decompressor types have
+been renamed to Writer and Reader.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
 <h3 id="crypto_elliptic">The crypto/elliptic package</h3>
 
 <p>

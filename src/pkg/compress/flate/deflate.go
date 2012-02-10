@@ -408,17 +408,22 @@ func (d *compressor) close() error {
 	return d.w.err
 }
 
-// NewWriter returns a new Writer compressing
-// data at the given level.  Following zlib, levels
-// range from 1 (BestSpeed) to 9 (BestCompression);
-// higher levels typically run slower but compress more.
-// Level 0 (NoCompression) does not attempt any
-// compression; it only adds the necessary DEFLATE framing.
-func NewWriter(w io.Writer, level int) *Writer {
+// NewWriter returns a new Writer compressing data at the given level.
+// Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
+// higher levels typically run slower but compress more. Level 0
+// (NoCompression) does not attempt any compression; it only adds the
+// necessary DEFLATE framing. Level -1 (DefaultCompression) uses the default
+// compression level.
+//
+// If level is in the range [-1, 9] then the error returned will be nil.
+// Otherwise the error returned will be non-nil.
+func NewWriter(w io.Writer, level int) (*Writer, error) {
 	const logWindowSize = logMaxOffsetSize
 	var dw Writer
-	dw.d.init(w, level)
-	return &dw
+	if err := dw.d.init(w, level); err != nil {
+		return nil, err
+	}
+	return &dw, nil
 }
 
 // NewWriterDict is like NewWriter but initializes the new
@@ -427,13 +432,16 @@ func NewWriter(w io.Writer, level int) *Writer {
 // any compressed output.  The compressed data written to w
 // can only be decompressed by a Reader initialized with the
 // same dictionary.
-func NewWriterDict(w io.Writer, level int, dict []byte) *Writer {
+func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	dw := &dictWriter{w, false}
-	zw := NewWriter(dw, level)
+	zw, err := NewWriter(dw, level)
+	if err != nil {
+		return nil, err
+	}
 	zw.Write(dict)
 	zw.Flush()
 	dw.enabled = true
-	return zw
+	return zw, err
 }
 
 type dictWriter struct {

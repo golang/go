@@ -321,9 +321,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		if test.compressed {
 			buf.WriteString("Content-Encoding: gzip\r\n")
-			var err error
-			wr, err = gzip.NewWriter(wr)
-			checkErr(err, "gzip.NewWriter")
+			wr = gzip.NewWriter(wr)
 		}
 		buf.WriteString("\r\n")
 
@@ -337,7 +335,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 			wr.Write(chunk)
 		}
 		if test.compressed {
-			err := wr.(*gzip.Compressor).Close()
+			err := wr.(*gzip.Writer).Close()
 			checkErr(err, "compressor close")
 		}
 		if test.chunked {

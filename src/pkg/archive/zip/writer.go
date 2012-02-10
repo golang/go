@@ -127,7 +127,11 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	case Store:
 		fw.comp = nopCloser{fw.compCount}
 	case Deflate:
-		fw.comp = flate.NewWriter(fw.compCount, 5)
+		var err error
+		fw.comp, err = flate.NewWriter(fw.compCount, 5)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, ErrAlgorithm
 	}

@@ -52,7 +52,7 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
 	defer piper.Close()
 	go func() {
 		defer pipew.Close()
-		zlibw, err := NewWriterDict(pipew, level, dict)
+		zlibw, err := NewWriterLevelDict(pipew, level, dict)
 		if err != nil {
 			t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 			return
@@ -125,9 +125,9 @@ func TestWriterDict(t *testing.T) {
 func TestWriterDictIsUsed(t *testing.T) {
 	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
 	var buf bytes.Buffer
-	compressor, err := NewWriterDict(&buf, BestCompression, input)
+	compressor, err := NewWriterLevelDict(&buf, BestCompression, input)
 	if err != nil {
-		t.Errorf("error in NewWriterDict: %s", err)
+		t.Errorf("error in NewWriterLevelDict: %s", err)
 		return
 	}
 	compressor.Write(input)
