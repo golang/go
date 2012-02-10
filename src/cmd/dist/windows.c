@@ -371,6 +371,19 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 	bfree(&cmd);
 }
 
+// closes the background job for bgwait1
+static void
+bgwaitclose(int i)
+{
+	if(i < 0 || i >= nbg)
+		return;
+
+	CloseHandle(bg[i].pi.hProcess);
+	CloseHandle(bg[i].pi.hThread);
+	
+	bg[i] = bg[--nbg];
+}
+
 // bgwait1 waits for a single background job
 static void
 bgwait1(void)
@@ -391,14 +404,19 @@ bgwait1(void)
 
 	cmd = bg[i].cmd;
 	mode = bg[i].mode;
-	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code))
+	if(!GetExitCodeProcess(bg[i].pi.hProcess, &code)) {
+		bgwaitclose(i);
 		fatal("GetExitCodeProcess: %s", errstr());
-	if(mode==CheckExit && code != 0)
-		fatal("FAILED: %s", cmd);
-	CloseHandle(bg[i].pi.hProcess);
-	CloseHandle(bg[i].pi.hThread);
+		return;
+	}
 
-	bg[i] = bg[--nbg];
+	if(mode==CheckExit && code != 0) {
+		bgwaitclose(i);
+		fatal("FAILED: %s", cmd);
+		return;
+	}
+
+	bgwaitclose(i);
 }
 
 void
