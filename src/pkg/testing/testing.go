@@ -12,8 +12,8 @@
 //
 // Functions of the form
 //     func BenchmarkXxx(*testing.B)
-// are considered benchmarks, and are executed by gotest when the -test.bench
-// flag is provided.
+// are considered benchmarks, and are executed by the "go test" command when
+// the -test.bench flag is provided.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
@@ -81,7 +81,7 @@ var (
 	// The short flag requests that tests run more quickly, but its functionality
 	// is provided by test writers themselves.  The testing package is just its
 	// home.  The all.bash installation script sets it to make installation more
-	// efficient, but by default the flag is off so a plain "gotest" will do a
+	// efficient, but by default the flag is off so a plain "go test" will do a
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
@@ -162,7 +162,7 @@ func (c *common) Fail() { c.failed = true }
 func (c *common) Failed() bool { return c.failed }
 
 // FailNow marks the function as having failed and stops its execution.
-// Execution will continue at the next Test.
+// Execution will continue at the next test or benchmark.
 func (c *common) FailNow() {
 	c.Fail()
 
@@ -246,7 +246,7 @@ func (t *T) Parallel() {
 }
 
 // An internal type but exported because it is cross-package; part of the implementation
-// of gotest.
+// of the "go test" command.
 type InternalTest struct {
 	Name string
 	F    func(*T)
@@ -275,7 +275,7 @@ func tRunner(t *T, test *InternalTest) {
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
-// of gotest.
+// of the "go test" command.
 func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
 	flag.Parse()
 	parseCpuList()
