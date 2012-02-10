@@ -30,19 +30,20 @@ type file struct {
 }
 
 // Fd returns the Windows handle referencing the open file.
-func (file *File) Fd() syscall.Handle {
+func (file *File) Fd() uintptr {
 	if file == nil {
-		return syscall.InvalidHandle
+		return uintptr(syscall.InvalidHandle)
 	}
-	return file.fd
+	return uintptr(file.fd)
 }
 
 // NewFile returns a new File with the given file descriptor and name.
-func NewFile(fd syscall.Handle, name string) *File {
-	if fd == syscall.InvalidHandle {
+func NewFile(fd uintptr, name string) *File {
+	h := syscall.Handle(fd)
+	if h == syscall.InvalidHandle {
 		return nil
 	}
-	f := &File{&file{fd: fd, name: name}}
+	f := &File{&file{fd: h, name: name}}
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }

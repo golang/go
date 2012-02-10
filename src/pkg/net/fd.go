@@ -228,7 +228,7 @@ func (s *pollServer) Run() {
 			s.CheckDeadlines()
 			continue
 		}
-		if fd == s.pr.Fd() {
+		if fd == int(s.pr.Fd()) {
 			// Drain our wakeup pipe (we could loop here,
 			// but it's unlikely that there are more than
 			// len(scratch) wakeup calls).
@@ -295,7 +295,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	if raddr != nil {
 		rs = raddr.String()
 	}
-	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
+	fd.sysfile = os.NewFile(uintptr(fd.sysfd), fd.net+":"+ls+"->"+rs)
 }
 
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
@@ -382,7 +382,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		return 0, os.EINVAL
 	}
 	for {
-		n, err = syscall.Read(fd.sysfile.Fd(), p)
+		n, err = syscall.Read(int(fd.sysfile.Fd()), p)
 		if err == syscall.EAGAIN {
 			if fd.rdeadline >= 0 {
 				pollserver.WaitRead(fd)
@@ -476,7 +476,7 @@ func (fd *netFD) Write(p []byte) (int, error) {
 	nn := 0
 	for {
 		var n int
-		n, err = syscall.Write(fd.sysfile.Fd(), p[nn:])
+		n, err = syscall.Write(int(fd.sysfile.Fd()), p[nn:])
 		if n > 0 {
 			nn += n
 		}
@@ -615,7 +615,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
 		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
 	}
 
-	return os.NewFile(ns, fd.sysfile.Name()), nil
+	return os.NewFile(uintptr(ns), fd.sysfile.Name()), nil
 }
 
 func closesocket(s int) error {

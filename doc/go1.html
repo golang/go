@@ -1353,10 +1353,19 @@ The semantic change makes it difficult for the fix tool to update automatically.
 the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
 <code>time</code> package.</p>
 
-<p>
-<em>Updating</em>:
-Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
-</p>
+<p>The <code>Exec</code> function has been removed; callers should use
+<code>Exec</code> from the <code>syscall</code> package, where available.</p>
+
+<p>The <code>ShellExpand</code> function has been renamed to <a
+href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.</p>
+
+<p>The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
+now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
+The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
+also returns a <code>uintptr</code>.</p>
+
+<p><em>Updating</em>: Code will fail to compile and must be updated
+by hand.  </p>
 
 <h4 id="os_fileinfo">The os.FileInfo type</h4>
 

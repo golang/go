@@ -29,10 +29,10 @@ func Expand(s string, mapping func(string) string) string {
 	return string(buf) + s[i:]
 }
 
-// ShellExpand replaces ${var} or $var in the string according to the values
-// of the operating system's environment variables.  References to undefined
+// ExpandEnv replaces ${var} or $var in the string according to the values
+// of the current environment variables.  References to undefined
 // variables are replaced by the empty string.
-func ShellExpand(s string) string {
+func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
 }
 
@@ -115,7 +115,7 @@ func Clearenv() {
 	syscall.Clearenv()
 }
 
-// Environ returns an array of strings representing the environment,
+// Environ returns a copy of strings representing the environment,
 // in the form "key=value".
 func Environ() []string {
 	return syscall.Environ()

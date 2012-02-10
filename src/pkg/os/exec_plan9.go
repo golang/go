@@ -72,20 +72,6 @@ func (p *Process) Kill() error {
 	return e
 }
 
-// Exec replaces the current process with an execution of the
-// named binary, with arguments argv and environment envv.
-// If successful, Exec never returns.  If it fails, it returns an error.
-// ForkExec is almost always a better way to execute a program.
-// If there is an error, it will be of type *PathError.
-func Exec(name string, argv []string, envv []string) error {
-	e := syscall.Exec(name, argv, envv)
-	if e != nil {
-		return &PathError{"exec", name, e}
-	}
-
-	return nil
-}
-
 // Waitmsg stores the information about an exited process as reported by Wait.
 type Waitmsg struct {
 	syscall.Waitmsg

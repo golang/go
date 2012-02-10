@@ -42,7 +42,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	defer c.decref()
 
 	dst := c.sysfd
-	src := f.Fd()
+	src := int(f.Fd())
 	for remain > 0 {
 		n := maxSendfileSize
 		if int64(n) > remain {

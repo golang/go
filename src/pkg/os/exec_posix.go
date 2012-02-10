@@ -38,7 +38,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		sysattr.Env = Environ()
 	}
 	for _, f := range attr.Files {
-		sysattr.Files = append(sysattr.Files, f.Fd())
+		sysattr.Files = append(sysattr.Files, int(f.Fd()))
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
@@ -51,25 +51,6 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 // Kill causes the Process to exit immediately.
 func (p *Process) Kill() error {
 	return p.Signal(UnixSignal(syscall.SIGKILL))
-}
-
-// Exec replaces the current process with an execution of the
-// named binary, with arguments argv and environment envv.
-// If successful, Exec never returns.  If it fails, it returns an error.
-//
-// To run a child process, see StartProcess (for a low-level interface)
-// or the os/exec package (for higher-level interfaces).
-//
-// If there is an error, it will be of type *PathError.
-func Exec(name string, argv []string, envv []string) error {
-	if envv == nil {
-		envv = Environ()
-	}
-	e := syscall.Exec(name, argv, envv)
-	if e != nil {
-		return &PathError{"exec", name, e}
-	}
-	return nil
 }
 
 // TODO(rsc): Should os implement its own syscall.WaitStatus

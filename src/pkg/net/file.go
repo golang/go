@@ -12,7 +12,7 @@ import (
 )
 
 func newFileFD(f *os.File) (*netFD, error) {
-	fd, err := syscall.Dup(f.Fd())
+	fd, err := syscall.Dup(int(f.Fd()))
 	if err != nil {
 		return nil, os.NewSyscallError("dup", err)
 	}

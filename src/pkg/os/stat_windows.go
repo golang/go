@@ -29,10 +29,6 @@ func (file *File) Stat() (fi FileInfo, err error) {
 }
 
 // Stat returns a FileInfo structure describing the named file.
-// If name names a valid symbolic link, the returned FileInfo describes
-// the file pointed at by the link and has fi.FollowedSymlink set to true.
-// If name names an invalid symbolic link, the returned FileInfo describes
-// the link itself and has fi.FollowedSymlink set to false.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (fi FileInfo, err error) {
 	if len(name) == 0 {
