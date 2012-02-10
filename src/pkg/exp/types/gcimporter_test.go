@@ -61,7 +61,7 @@ func testPath(t *testing.T, path string) bool {
 const maxTime = 3 * time.Second
 
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
-	dirname := filepath.Join(pkgRoot, dir)
+	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
 	list, err := ioutil.ReadDir(dirname)
 	if err != nil {
 		t.Errorf("testDir(%s): %s", dirname, err)
