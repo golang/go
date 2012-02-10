@@ -50,9 +50,6 @@ func (r *Reader) ReadByte() (b byte, err error) {
 	return
 }
 
-// UnreadByte moves the reading position back by one byte.
-// It is an error to call UnreadByte if nothing has been
-// read yet.
 func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader: at beginning of string")
@@ -62,11 +59,6 @@ func (r *Reader) UnreadByte() error {
 	return nil
 }
 
-// ReadRune reads and returns the next UTF-8-encoded
-// Unicode code point from the buffer.
-// If no bytes are available, the error returned is io.EOF.
-// If the bytes are an erroneous UTF-8 encoding, it
-// consumes one byte and returns U+FFFD, 1.
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= len(r.s) {
 		return 0, 0, io.EOF
@@ -81,9 +73,6 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	return
 }
 
-// UnreadRune causes the next call to ReadRune to return the same rune
-// as the previous call to ReadRune.
-// The last method called on r must have been ReadRune.
 func (r *Reader) UnreadRune() error {
 	if r.prevRune < 0 {
 		return errors.New("strings.Reader: previous operation was not ReadRune")
