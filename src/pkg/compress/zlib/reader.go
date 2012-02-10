@@ -34,9 +34,14 @@ import (
 
 const zlibDeflate = 8
 
-var ErrChecksum = errors.New("zlib checksum error")
-var ErrHeader = errors.New("invalid zlib header")
-var ErrDictionary = errors.New("invalid zlib dictionary")
+var (
+	// ErrChecksum is returned when reading ZLIB data that has an invalid checksum.
+	ErrChecksum = errors.New("zlib: invalid checksum")
+	// ErrDictionary is returned when reading ZLIB data that has an invalid dictionary.
+	ErrDictionary = errors.New("zlib: invalid dictionary")
+	// ErrHeader is returned when reading ZLIB data that has an invalid header.
+	ErrHeader = errors.New("zlib: invalid header")
+)
 
 type reader struct {
 	r            flate.Reader
