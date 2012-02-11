@@ -246,7 +246,7 @@ var readerErrors = []struct {
 	file string
 	err  string
 }{
-	{"invalid-zlib.png", "zlib checksum error"},
+	{"invalid-zlib.png", "zlib: invalid checksum"},
 	{"invalid-crc32.png", "invalid checksum"},
 	{"invalid-noend.png", "unexpected EOF"},
 	{"invalid-trunc.png", "unexpected EOF"},
