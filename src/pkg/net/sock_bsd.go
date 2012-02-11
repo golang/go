@@ -38,6 +38,11 @@ func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockadd
 		return la, nil
 	}
 	switch v := a.(type) {
+	case *TCPAddr, *UnixAddr:
+		err := setDefaultListenerSockopts(s)
+		if err != nil {
+			return nil, err
+		}
 	case *UDPAddr:
 		if v.IP.IsMulticast() {
 			err := setDefaultMulticastSockopts(s)

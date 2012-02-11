@@ -18,16 +18,18 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
 		// Note that some operating systems never admit this option.
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 	}
+	// Allow broadcast.
+	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	return nil
+}
 
+func setDefaultListenerSockopts(s syscall.Handle, f, t int) error {
 	// Windows will reuse recently-used addresses by default.
 	// SO_REUSEADDR should not be used here, as it allows
 	// a socket to forcibly bind to a port in use by another socket.
 	// This could lead to a non-deterministic behavior, where
 	// connection requests over the port cannot be guaranteed
 	// to be handled by the correct socket.
-
-	// Allow broadcast.
-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
 	return nil
 }
 
