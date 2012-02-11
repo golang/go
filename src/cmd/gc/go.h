@@ -1049,7 +1049,7 @@ void	mpsubfltflt(Mpflt *a, Mpflt *b);
 /*
  *	mparith2.c
  */
-void	mpaddfixfix(Mpint *a, Mpint *b);
+void	mpaddfixfix(Mpint *a, Mpint *b, int);
 void	mpandfixfix(Mpint *a, Mpint *b);
 void	mpandnotfixfix(Mpint *a, Mpint *b);
 void	mpdivfract(Mpint *a, Mpint *b);

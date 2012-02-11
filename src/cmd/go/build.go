@@ -671,6 +671,13 @@ func (b *builder) install(a *action) error {
 		}
 	}
 
+	// remove object dir to keep the amount of
+	// garbage down in a large build.  On an operating system
+	// with aggressive buffering, cleaning incrementally like
+	// this keeps the intermediate objects from hitting the disk.
+	defer os.RemoveAll(a1.objdir)
+	defer os.Remove(a1.target)
+
 	return b.copyFile(a.target, a1.target, perm)
 }
 

@@ -10,3 +10,7 @@ const (
 	A int = 1
 	B byte;	// ERROR "type without expr|expected .=."
 )
+
+const LargeA = 1000000000000000000
+const LargeB = LargeA * LargeA * LargeA
+const LargeC = LargeB * LargeB * LargeB  // ERROR "constant multiplication overflow"

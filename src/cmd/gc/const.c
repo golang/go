@@ -589,7 +589,7 @@ evconst(Node *n)
 
 	case TUP(OADD, CTINT):
 	case TUP(OADD, CTRUNE):
-		mpaddfixfix(v.u.xval, rv.u.xval);
+		mpaddfixfix(v.u.xval, rv.u.xval, 0);
 		break;
 	case TUP(OSUB, CTINT):
 	case TUP(OSUB, CTRUNE):
