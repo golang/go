@@ -17,6 +17,10 @@ import (
 type Node interface {
 	Type() NodeType
 	String() string
+	// Copy does a deep copy of the Node and all its components.
+	// To avoid type assertions, some XxxNodes also have specialized
+	// CopyXxx methods that return *XxxNode.
+	Copy() Node
 }
 
 // NodeType identifies the type of a parse tree node.
@@ -73,6 +77,21 @@ func (l *ListNode) String() string {
 	return b.String()
 }
 
+func (l *ListNode) CopyList() *ListNode {
+	if l == nil {
+		return l
+	}
+	n := newList()
+	for _, elem := range l.Nodes {
+		n.append(elem.Copy())
+	}
+	return n
+}
+
+func (l *ListNode) Copy() Node {
+	return l.CopyList()
+}
+
 // TextNode holds plain text.
 type TextNode struct {
 	NodeType
@@ -85,6 +104,10 @@ func newText(text string) *TextNode {
 
 func (t *TextNode) String() string {
 	return fmt.Sprintf("%q", t.Text)
+}
+
+func (t *TextNode) Copy() Node {
+	return &TextNode{NodeType: NodeText, Text: append([]byte{}, t.Text...)}
 }
 
 // PipeNode holds a pipeline with optional declaration
@@ -123,6 +146,25 @@ func (p *PipeNode) String() string {
 	return s
 }
 
+func (p *PipeNode) CopyPipe() *PipeNode {
+	if p == nil {
+		return p
+	}
+	var decl []*VariableNode
+	for _, d := range p.Decl {
+		decl = append(decl, d.Copy().(*VariableNode))
+	}
+	n := newPipeline(p.Line, decl)
+	for _, c := range p.Cmds {
+		n.append(c.Copy().(*CommandNode))
+	}
+	return n
+}
+
+func (p *PipeNode) Copy() Node {
+	return p.CopyPipe()
+}
+
 // ActionNode holds an action (something bounded by delimiters).
 // Control actions have their own nodes; ActionNode represents simple
 // ones such as field evaluations.
@@ -138,6 +180,11 @@ func newAction(line int, pipe *PipeNode) *ActionNode {
 
 func (a *ActionNode) String() string {
 	return fmt.Sprintf("{{%s}}", a.Pipe)
+
+}
+
+func (a *ActionNode) Copy() Node {
+	return newAction(a.Line, a.Pipe.CopyPipe())
 
 }
 
@@ -166,6 +213,17 @@ func (c *CommandNode) String() string {
 	return s
 }
 
+func (c *CommandNode) Copy() Node {
+	if c == nil {
+		return c
+	}
+	n := newCommand()
+	for _, c := range c.Args {
+		n.append(c.Copy())
+	}
+	return n
+}
+
 // IdentifierNode holds an identifier.
 type IdentifierNode struct {
 	NodeType
@@ -179,6 +237,10 @@ func NewIdentifier(ident string) *IdentifierNode {
 
 func (i *IdentifierNode) String() string {
 	return i.Ident
+}
+
+func (i *IdentifierNode) Copy() Node {
+	return NewIdentifier(i.Ident)
 }
 
 // VariableNode holds a list of variable names. The dollar sign is
@@ -203,6 +265,10 @@ func (v *VariableNode) String() string {
 	return s
 }
 
+func (v *VariableNode) Copy() Node {
+	return &VariableNode{NodeType: NodeVariable, Ident: append([]string{}, v.Ident...)}
+}
+
 // DotNode holds the special identifier '.'. It is represented by a nil pointer.
 type DotNode bool
 
@@ -216,6 +282,10 @@ func (d *DotNode) Type() NodeType {
 
 func (d *DotNode) String() string {
 	return "."
+}
+
+func (d *DotNode) Copy() Node {
+	return newDot()
 }
 
 // FieldNode holds a field (identifier starting with '.').
@@ -238,6 +308,10 @@ func (f *FieldNode) String() string {
 	return s
 }
 
+func (f *FieldNode) Copy() Node {
+	return &FieldNode{NodeType: NodeField, Ident: append([]string{}, f.Ident...)}
+}
+
 // BoolNode holds a boolean constant.
 type BoolNode struct {
 	NodeType
@@ -253,6 +327,10 @@ func (b *BoolNode) String() string {
 		return "true"
 	}
 	return "false"
+}
+
+func (b *BoolNode) Copy() Node {
+	return newBool(b.True)
 }
 
 // NumberNode holds a number: signed or unsigned integer, float, or complex.
@@ -373,6 +451,12 @@ func (n *NumberNode) String() string {
 	return n.Text
 }
 
+func (n *NumberNode) Copy() Node {
+	nn := new(NumberNode)
+	*nn = *n // Easy, fast, correct.
+	return nn
+}
+
 // StringNode holds a string constant. The value has been "unquoted".
 type StringNode struct {
 	NodeType
@@ -386,6 +470,10 @@ func newString(orig, text string) *StringNode {
 
 func (s *StringNode) String() string {
 	return s.Quoted
+}
+
+func (s *StringNode) Copy() Node {
+	return newString(s.Quoted, s.Text)
 }
 
 // endNode represents an {{end}} action. It is represented by a nil pointer.
@@ -404,6 +492,10 @@ func (e *endNode) String() string {
 	return "{{end}}"
 }
 
+func (e *endNode) Copy() Node {
+	return newEnd()
+}
+
 // elseNode represents an {{else}} action. Does not appear in the final tree.
 type elseNode struct {
 	NodeType
@@ -420,6 +512,10 @@ func (e *elseNode) Type() NodeType {
 
 func (e *elseNode) String() string {
 	return "{{else}}"
+}
+
+func (e *elseNode) Copy() Node {
+	return newElse(e.Line)
 }
 
 // BranchNode is the common representation of if, range, and with.
@@ -458,6 +554,10 @@ func newIf(line int, pipe *PipeNode, list, elseList *ListNode) *IfNode {
 	return &IfNode{BranchNode{NodeType: NodeIf, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
 }
 
+func (i *IfNode) Copy() Node {
+	return newIf(i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
+}
+
 // RangeNode represents a {{range}} action and its commands.
 type RangeNode struct {
 	BranchNode
@@ -467,6 +567,10 @@ func newRange(line int, pipe *PipeNode, list, elseList *ListNode) *RangeNode {
 	return &RangeNode{BranchNode{NodeType: NodeRange, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
 }
 
+func (r *RangeNode) Copy() Node {
+	return newRange(r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
+}
+
 // WithNode represents a {{with}} action and its commands.
 type WithNode struct {
 	BranchNode
@@ -474,6 +578,10 @@ type WithNode struct {
 
 func newWith(line int, pipe *PipeNode, list, elseList *ListNode) *WithNode {
 	return &WithNode{BranchNode{NodeType: NodeWith, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+}
+
+func (w *WithNode) Copy() Node {
+	return newWith(w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
 }
 
 // TemplateNode represents a {{template}} action.
@@ -493,4 +601,8 @@ func (t *TemplateNode) String() string {
 		return fmt.Sprintf("{{template %q}}", t.Name)
 	}
 	return fmt.Sprintf("{{template %q %s}}", t.Name, t.Pipe)
+}
+
+func (t *TemplateNode) Copy() Node {
+	return newTemplate(t.Line, t.Name, t.Pipe.CopyPipe())
 }
