@@ -1420,6 +1420,7 @@ changing it from a struct to an interface:
         Mode() FileMode     // file mode bits
         ModTime() time.Time // modification time
         IsDir() bool        // abbreviation for Mode().IsDir()
+        Sys() interface{}   // underlying data source (can return nil)
     }
 </pre>
 
@@ -1435,7 +1436,7 @@ The system-specific details of file modes and properties such as (on Unix)
 i-number have been removed from <code>FileInfo</code> altogether.
 Instead, each operating system's <code>os</code> package provides an
 implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
-which in turn contains a <code>Sys</code> field that stores the
+which has a <code>Sys</code> method that returns the
 system-specific representation of file metadata.
 For instance, to discover the i-number of a file on a Unix system, unpack
 the <code>FileInfo</code> like this:
@@ -1446,13 +1447,8 @@ the <code>FileInfo</code> like this:
     if err != nil {
         log.Fatal(err)
     }
-    // Make sure it's an implementation known to package os.
-    fileStat, ok := fi.(*os.FileStat)
-    if !ok {
-        log.Fatal("hello.go: not an os File")
-    }
-    // Now check that it's a Unix file.
-    unixStat, ok := fileStat.Sys.(*syscall.Stat_t)
+    // Check that it's a Unix file.
+    unixStat, ok := fi.Sys().(*syscall.Stat_t)
     if !ok {
         log.Fatal("hello.go: not a Unix file")
     }
