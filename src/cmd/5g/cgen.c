@@ -402,9 +402,9 @@ abop:	// asymmetric binary
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 	} else {
-		regalloc(&n2, nr->type, N);
+		regalloc(&n2, nr->type, res);
 		cgen(nr, &n2);
-		regalloc(&n1, nl->type, res);
+		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 	}
 	gins(a, &n2, &n1);
