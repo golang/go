@@ -1247,6 +1247,7 @@ cmdbootstrap(int argc, char **argv)
 		usage();
 
 	clean();
+	goversion = findgoversion();
 	setup();
 	
 	binit(&b);
