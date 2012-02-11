@@ -20,31 +20,28 @@ func setDefaultSockopts(s, f, t int) error {
 		// Note that some operating systems never admit this option.
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 	}
-
-	if f == syscall.AF_UNIX ||
-		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
-		// Allow reuse of recently-used addresses.
-		err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-		if err != nil {
-			return os.NewSyscallError("setsockopt", err)
-		}
-
-		// Allow reuse of recently-used ports.
-		// This option is supported only in descendants of 4.4BSD,
-		// to make an effective multicast application and an application
-		// that requires quick draw possible.
-		err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
-		if err != nil {
-			return os.NewSyscallError("setsockopt", err)
-		}
-	}
-
 	// Allow broadcast.
 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
 	if err != nil {
 		return os.NewSyscallError("setsockopt", err)
 	}
+	return nil
+}
 
+func setDefaultListenerSockopts(s int) error {
+	// Allow reuse of recently-used addresses.
+	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	// Allow reuse of recently-used ports.
+	// This option is supported only in descendants of 4.4BSD,
+	// to make an effective multicast application and an application
+	// that requires quick draw possible.
+	err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
 	return nil
 }
 
