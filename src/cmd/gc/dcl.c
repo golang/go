@@ -1303,6 +1303,14 @@ addmethod(Sym *sf, Type *t, int local)
 	}
 
 	pa = f;
+	if(pa->etype == TSTRUCT) {
+		for(f=pa->type; f; f=f->down) {
+			if(f->sym == sf) {
+				yyerror("type %T has both field and method named %S", pa, sf);
+				return;
+			}
+		}
+	}
 
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
