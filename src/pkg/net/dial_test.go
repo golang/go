@@ -27,8 +27,7 @@ func TestDialTimeout(t *testing.T) {
 
 	errc := make(chan error)
 
-	const SOMAXCONN = 0x80 // copied from syscall, but not always available
-	const numConns = SOMAXCONN + 10
+	numConns := listenerBacklog + 10
 
 	// TODO(bradfitz): It's hard to test this in a portable
 	// way. This is unforunate, but works for now.
@@ -54,8 +53,8 @@ func TestDialTimeout(t *testing.T) {
 		}()
 	default:
 		// TODO(bradfitz):
-		// OpenBSD may have a reject route to 10/8.
-		// FreeBSD likely works, but is untested.
+		// OpenBSD may have a reject route to 127/8 except 127.0.0.1/32
+		// by default. FreeBSD likely works, but is untested.
 		t.Logf("skipping test on %q; untested.", runtime.GOOS)
 		return
 	}
