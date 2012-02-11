@@ -287,8 +287,6 @@ static	int	resvd[] =
 	D_CX,	// for shift
 	D_DX,	// for divide
 	D_SP,	// for stack
-	D_R14,	// reserved for m
-	D_R15,	// reserved for u
 };
 
 void
@@ -340,6 +338,8 @@ anyregalloc(void)
 	return 0;
 }
 
+static	uintptr	regpc[D_R15+1 - D_AX];
+
 /*
  * allocate register of type t, leave in n.
  * if o != N, o is desired fixed register.
@@ -372,11 +372,15 @@ regalloc(Node *n, Type *t, Node *o)
 				goto out;
 		}
 		for(i=D_AX; i<=D_R15; i++)
-			if(reg[i] == 0)
+			if(reg[i] == 0) {
+				regpc[i-D_AX] = (uintptr)getcallerpc(&n);
 				goto out;
+			}
 
-		yyerror("out of fixed registers");
-		goto err;
+		flusherrors();
+		for(i=0; i+D_AX<=D_R15; i++)
+			print("%d %p\n", i, regpc[i]);
+		fatal("out of fixed registers");
 
 	case TFLOAT32:
 	case TFLOAT64:
@@ -388,18 +392,14 @@ regalloc(Node *n, Type *t, Node *o)
 		for(i=D_X0; i<=D_X7; i++)
 			if(reg[i] == 0)
 				goto out;
-		yyerror("out of floating registers");
-		goto err;
+		fatal("out of floating registers");
 
 	case TCOMPLEX64:
 	case TCOMPLEX128:
 		tempname(n, t);
 		return;
 	}
-	yyerror("regalloc: unknown type %T", t);
-
-err:
-	nodreg(n, t, 0);
+	fatal("regalloc: unknown type %T", t);
 	return;
 
 out:
@@ -424,6 +424,8 @@ regfree(Node *n)
 	if(reg[i] <= 0)
 		fatal("regfree: reg not allocated");
 	reg[i]--;
+	if(reg[i] == 0 && D_AX <= i && i <= D_R15)
+		regpc[i - D_AX] = 0;
 }
 
 /*
