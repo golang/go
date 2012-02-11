@@ -111,16 +111,15 @@ typekind(Type *t)
  * replaces *np with a new pointer in some cases.
  * returns the final value of *np as a convenience.
  */
+static void typecheck1(Node **, int);
 Node*
 typecheck(Node **np, int top)
 {
-	int et, aop, op, ptr;
-	Node *n, *l, *r;
-	NodeList *args;
-	int lno, ok, ntop;
-	Type *t, *tp, *ft, *missing, *have, *badtype;
-	Val v;
-	char *why;
+	Node *n;
+	int lno;
+	Fmt fmt;
+	NodeList *l;
+	static NodeList *tcstack, *tcfree;
 
 	// cannot type check until all the source has been parsed
 	if(!typecheckok)
@@ -157,11 +156,52 @@ typecheck(Node **np, int top)
 	}
 
 	if(n->typecheck == 2) {
-		yyerror("typechecking loop involving %N", n);
+		if(nsavederrors+nerrors == 0) {
+			fmtstrinit(&fmt);
+			for(l=tcstack; l; l=l->next)
+				fmtprint(&fmt, "\n\t%L %N", l->n->lineno, l->n);
+			yyerror("typechecking loop involving %N%s", n, fmtstrflush(&fmt));
+		}
 		lineno = lno;
 		return n;
 	}
 	n->typecheck = 2;
+	
+	if(tcfree != nil) {
+		l = tcfree;
+		tcfree = l->next;
+	} else
+		l = mal(sizeof *l);
+	l->next = tcstack;
+	l->n = n;
+	tcstack = l;
+
+	typecheck1(&n, top);
+	*np = n;
+	n->typecheck = 1;
+
+	if(tcstack != l)
+		fatal("typecheck stack out of sync");
+	tcstack = l->next;
+	l->next = tcfree;
+	tcfree = l;
+
+	lineno = lno;
+	return n;
+}
+
+static void
+typecheck1(Node **np, int top)
+{
+	int et, aop, op, ptr;
+	Node *n, *l, *r;
+	NodeList *args;
+	int ok, ntop;
+	Type *t, *tp, *ft, *missing, *have, *badtype;
+	Val v;
+	char *why;
+	
+	n = *np;
 
 	if(n->sym) {
 		if(n->op == ONAME && n->etype != 0 && !(top & Ecall)) {
@@ -1484,10 +1524,7 @@ error:
 	n->type = T;
 
 out:
-	lineno = lno;
-	n->typecheck = 1;
 	*np = n;
-	return n;
 }
 
 static void
