@@ -484,6 +484,7 @@ enum
 	ODDD,
 	ODDDARG,
 	OINLCALL,	// intermediary representation of an inlined call
+	OITAB,	// itable word of interface value
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,

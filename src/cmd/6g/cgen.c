@@ -125,6 +125,9 @@ cgen(Node *n, Node *res)
 		if(isslice(n->left->type))
 			n->addable = n->left->addable;
 		break;
+	case OITAB:
+		n->addable = n->left->addable;
+		break;
 	}
 
 	if(complexop(n, res)) {
@@ -256,6 +259,14 @@ cgen(Node *n, Node *res)
 	case OIND:
 	case ONAME:	// PHEAP or PPARAMREF var
 		igen(n, &n1, res);
+		gmove(&n1, res);
+		regfree(&n1);
+		break;
+	
+	case OITAB:
+		// interface table is first word of interface value
+		igen(nl, &n1, res);
+		n1.type = n->type;
 		gmove(&n1, res);
 		regfree(&n1);
 		break;

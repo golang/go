@@ -346,6 +346,8 @@ anyregalloc(void)
 	return 0;
 }
 
+uintptr regpc[REGALLOC_RMAX+1];
+
 /*
  * allocate register of type t, leave in n.
  * if o != N, o is desired fixed register.
@@ -389,9 +391,12 @@ regalloc(Node *n, Type *t, Node *o)
 				goto out;
 		}
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
-			if(reg[i] == 0)
+			if(reg[i] == 0) {
+				regpc[i] = (uintptr)getcallerpc(&n);
 				goto out;
-
+			}
+		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+			print("%d %p\n", i, regpc[i]);
 		yyerror("out of fixed registers");
 		goto err;
 
@@ -451,6 +456,8 @@ regfree(Node *n)
 	if(reg[i] <= 0)
 		fatal("regfree: reg not allocated");
 	reg[i]--;
+	if(reg[i] == 0)
+		regpc[i] = 0;
 }
 
 /*
@@ -1345,6 +1352,16 @@ naddr(Node *n, Addr *a, int canemitcode)
 			a->offset = 0;
 			break;
 		}
+		break;
+
+	case OITAB:
+		// itable of interface value
+		naddr(n->left, a, canemitcode);
+		a->etype = TINT32;
+		if(a->type == D_CONST && a->offset == 0)
+			break;	// len(nil)
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 	case OLEN:

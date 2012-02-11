@@ -64,6 +64,9 @@ cgen(Node *n, Node *res)
 		if(isslice(n->left->type))
 			n->addable = n->left->addable;
 		break;
+	case OITAB:
+		n->addable = n->left->addable;
+		break;
 	}
 
 	// if both are addressable, move
@@ -278,6 +281,20 @@ cgen(Node *n, Node *res)
 		igen(n, &n1, res);
 		gmove(&n1, res);
 		regfree(&n1);
+		break;
+
+	case OITAB:
+		// itable of interface value
+		igen(nl, &n1, res);
+		n1.op = OREGISTER;	// was OINDREG
+		regalloc(&n2, n->type, &n1);
+		n1.op = OINDREG;
+		n1.type = n->type;
+		n1.xoffset = 0;
+		gmove(&n1, &n2);
+		gmove(&n2, res);
+		regfree(&n1);
+		regfree(&n2);
 		break;
 
 	case OLEN:

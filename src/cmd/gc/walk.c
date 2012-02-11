@@ -432,6 +432,10 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		goto ret;
 
+	case OITAB:
+		walkexpr(&n->left, init);
+		goto ret;
+
 	case OLEN:
 	case OCAP:
 		walkexpr(&n->left, init);
@@ -1176,10 +1180,21 @@ walkexpr(Node **np, NodeList **init)
 		argtype(fn, n->right->type);
 		argtype(fn, n->left->type);
 		r = mkcall1(fn, n->type, init, n->left, n->right);
-		if(n->etype == ONE) {
+		if(n->etype == ONE)
 			r = nod(ONOT, r, N);
-			typecheck(&r, Erv);
-		}
+		
+		// check itable/type before full compare.
+		if(n->etype == OEQ)
+			r = nod(OANDAND, nod(OEQ, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
+		else
+			r = nod(OOROR, nod(ONE, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
+		typecheck(&r, Erv);
+		walkexpr(&r, nil);
+
+		n = r;
+		goto ret;
+
+	
 		n = r;
 		goto ret;
 
