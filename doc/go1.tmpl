@@ -785,10 +785,15 @@ What little code is affected will be caught by the compiler and must be updated 
 <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
 
 <p>
-In Go 1, the NewWriterXxx functions in compress/flate, compress/gzip and
-compress/zlib all return (*Writer, error) if they take a compression level,
-and *Writer otherwise. Package gzip's Compressor and Decompressor types have
-been renamed to Writer and Reader.
+In Go 1, the <code>NewWriterXxx</code> functions in
+<a href="/pkg/compress/flate"><code>compress/flate</code></a>,
+<a href="/pkg/compress/gzip"><code>compress/gzip</code></a> and
+<a href="/pkg/compress/zlib"><code>compress/zlib</code></a>
+all return <code>(*Writer, error)</code> if they take a compression level,
+and <code>*Writer</code> otherwise. Package <code>gzip</code>'s
+<code>Compressor</code> and <code>Decompressor</code> types have been renamed
+to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
+<code>WrongValueError</code> type has been removed.
 </p>
 
 <p>

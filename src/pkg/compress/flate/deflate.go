@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"fmt"
 	"io"
 	"math"
 )
@@ -390,7 +391,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 		d.fill = (*compressor).fillDeflate
 		d.step = (*compressor).deflate
 	default:
-		return WrongValueError{"level", 0, 9, int32(level)}
+		return fmt.Errorf("flate: invalid compression level %d: want value in range [-1, 9]", level)
 	}
 	return nil
 }
