@@ -563,6 +563,7 @@ int
 ismem(Node *n)
 {
 	switch(n->op) {
+	case OITAB:
 	case OLEN:
 	case OCAP:
 	case OINDREG:
@@ -1219,6 +1220,17 @@ naddr(Node *n, Addr *a, int canemitcode)
 				break;
 			}
 		fatal("naddr: OADDR\n");
+	
+	case OITAB:
+		// itable of interface value
+		naddr(n->left, a, canemitcode);
+		if(a->type == D_CONST && a->offset == 0)
+			break;  // itab(nil)
+		a->etype = tptr;
+		a->width = widthptr;
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
+		break;
 
 	case OLEN:
 		// len of string or slice

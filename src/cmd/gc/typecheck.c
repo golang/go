@@ -1304,6 +1304,16 @@ reswitch:
 		if(n->type == T)
 			goto error;
 		goto ret;
+	
+	case OITAB:
+		ok |= Erv;
+		typecheck(&n->left, Erv);
+		if((t = n->left->type) == T)
+			goto error;
+		if(t->etype != TINTER)
+			fatal("OITAB of %T", t);
+		n->type = ptrto(types[TUINTPTR]);
+		goto ret;
 
 	/*
 	 * statements
