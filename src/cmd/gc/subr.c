@@ -2170,8 +2170,11 @@ adddot(Node *n)
 	goto ret;
 
 out:
-	if(c > 1)
-		yyerror("ambiguous selector %T.%S", t, s);
+	if(c > 1) {
+		yyerror("ambiguous selector %N", n);
+		n->left = N;
+		return n;
+	}
 
 	// rebuild elided dots
 	for(c=d-1; c>=0; c--)

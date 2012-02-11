@@ -20,7 +20,7 @@ static int	twoarg(Node*);
 static int	lookdot(Node*, Type*, int);
 static int	looktypedot(Node*, Type*, int);
 static void	typecheckaste(int, Node*, int, Type*, NodeList*, char*);
-static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+static Type*	lookdot1(Node*, Sym *s, Type *t, Type *f, int);
 static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
 static void	typecheckas2(Node*);
@@ -581,6 +581,8 @@ reswitch:
 	case OXDOT:
 		n = adddot(n);
 		n->op = ODOT;
+		if(n->left == N)
+			goto error;
 		// fall through
 	case ODOT:
 		typecheck(&n->left, Erv|Etype);
@@ -1495,6 +1497,7 @@ implicitstar(Node **nn)
 	if(!isfixedarray(t))
 		return;
 	n = nod(OIND, n, N);
+	n->implicit = 1;
 	typecheck(&n, Erv);
 	*nn = n;
 }
@@ -1554,7 +1557,7 @@ twoarg(Node *n)
 }
 
 static Type*
-lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
+lookdot1(Node *errnode, Sym *s, Type *t, Type *f, int dostrcmp)
 {
 	Type *r;
 
@@ -1565,7 +1568,12 @@ lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
 		if(f->sym != s)
 			continue;
 		if(r != T) {
-			yyerror("ambiguous selector %T.%S", t, s);
+			if(errnode)
+				yyerror("ambiguous selector %N", errnode);
+			else if(isptr[t->etype])
+				yyerror("ambiguous selector (%T).%S", t, s);
+			else
+				yyerror("ambiguous selector %T.%S", t, s);
 			break;
 		}
 		r = f;
@@ -1582,7 +1590,7 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 	s = n->right->sym;
 
 	if(t->etype == TINTER) {
-		f1 = lookdot1(s, t, t->type, dostrcmp);
+		f1 = lookdot1(n, s, t, t->type, dostrcmp);
 		if(f1 == T)
 			return 0;
 
@@ -1604,7 +1612,7 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 		return 0;
 
 	expandmeth(f2->sym, f2);
-	f2 = lookdot1(s, f2, f2->xmethod, dostrcmp);
+	f2 = lookdot1(n, s, f2, f2->xmethod, dostrcmp);
 	if(f2 == T)
 		return 0;
 
@@ -1643,7 +1651,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 	dowidth(t);
 	f1 = T;
 	if(t->etype == TSTRUCT || t->etype == TINTER)
-		f1 = lookdot1(s, t, t->type, dostrcmp);
+		f1 = lookdot1(n, s, t, t->type, dostrcmp);
 
 	f2 = T;
 	if(n->left->type == t || n->left->type->sym == S) {
@@ -1651,7 +1659,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(f2 != T) {
 			// Use f2->method, not f2->xmethod: adddot has
 			// already inserted all the necessary embedded dots.
-			f2 = lookdot1(s, f2, f2->method, dostrcmp);
+			f2 = lookdot1(n, s, f2, f2->method, dostrcmp);
 		}
 	}
 
@@ -1666,6 +1674,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(t->etype == TINTER) {
 			if(isptr[n->left->type->etype]) {
 				n->left = nod(OIND, n->left, N);	// implicitstar
+				n->left->implicit = 1;
 				typecheck(&n->left, Erv);
 			}
 			n->op = ODOTINTER;
@@ -2194,7 +2203,7 @@ typecheckcomplit(Node **np)
 				if(s->pkg != localpkg && exportname(s->name))
 					s = lookup(s->name);
 
-				f = lookdot1(s, t, t->type, 0);
+				f = lookdot1(nil, s, t, t->type, 0);
 				if(f == nil) {
 					yyerror("unknown %T field '%S' in struct literal", t, s);
 					continue;
