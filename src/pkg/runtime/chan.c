@@ -586,6 +586,10 @@ newselect(int32 size, Select **selp)
 	if(size > 1)
 		n = size-1;
 
+	// allocate all the memory we need in a single allocation
+	// start with Select with size cases
+	// then lockorder with size entries
+	// then pollorder with size entries
 	sel = runtime·mal(sizeof(*sel) +
 		n*sizeof(sel->scase[0]) +
 		size*sizeof(sel->lockorder[0]) +
@@ -593,8 +597,8 @@ newselect(int32 size, Select **selp)
 
 	sel->tcase = size;
 	sel->ncase = 0;
-	sel->pollorder = (void*)(sel->scase + size);
-	sel->lockorder = (void*)(sel->pollorder + size);
+	sel->lockorder = (void*)(sel->scase + size);
+	sel->pollorder = (void*)(sel->lockorder + size);
 	*selp = sel;
 
 	if(debug)
