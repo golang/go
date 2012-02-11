@@ -121,7 +121,8 @@ mpcmp(Mpint *a, Mpint *b)
 	int i;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in cmp");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in cmp");
 		return 0;
 	}
 
@@ -190,13 +191,14 @@ mpshiftfix(Mpint *a, int s)
 /// implements fix arihmetic
 
 void
-mpaddfixfix(Mpint *a, Mpint *b)
+mpaddfixfix(Mpint *a, Mpint *b, int quiet)
 {
 	int i, c;
 	long x, *a1, *b1;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mpaddxx");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mpaddxx");
 		a->ovf = 1;
 		return;
 	}
@@ -218,8 +220,8 @@ mpaddfixfix(Mpint *a, Mpint *b)
 		*a1++ = x;
 	}
 	a->ovf = c;
-	if(a->ovf)
-		yyerror("set ovf in mpaddxx");
+	if(a->ovf && !quiet)
+		yyerror("constant addition overflow");
 
 	return;
 
@@ -266,7 +268,8 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	Mpint s, q;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mpmulfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mpmulfixfix");
 		a->ovf = 1;
 		return;
 	}
@@ -290,7 +293,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
 		x = *a1++;
 		for(j=0; j<Mpscale; j++) {
 			if(x & 1)
-				mpaddfixfix(&q, &s);
+				mpaddfixfix(&q, &s, 1);
 			mplsh(&s);
 			x >>= 1;
 		}
@@ -299,7 +302,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
 	q.neg = a->neg ^ b->neg;
 	mpmovefixfix(a, &q);
 	if(a->ovf)
-		yyerror("set ovf in mpmulfixfix");
+		yyerror("constant multiplication overflow");
 }
 
 void
@@ -311,7 +314,8 @@ mpmulfract(Mpint *a, Mpint *b)
 	Mpint s, q;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mpmulflt");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mpmulflt");
 		a->ovf = 1;
 		return;
 	}
@@ -334,7 +338,7 @@ mpmulfract(Mpint *a, Mpint *b)
 		for(j=0; j<Mpscale; j++) {
 			x <<= 1;
 			if(x & Mpbase)
-				mpaddfixfix(&q, &s);
+				mpaddfixfix(&q, &s, 1);
 			mprsh(&s);
 		}
 	}
@@ -342,7 +346,7 @@ mpmulfract(Mpint *a, Mpint *b)
 	q.neg = a->neg ^ b->neg;
 	mpmovefixfix(a, &q);
 	if(a->ovf)
-		yyerror("set ovf in mpmulflt");
+		yyerror("constant multiplication overflow");
 }
 
 void
@@ -353,7 +357,8 @@ mporfixfix(Mpint *a, Mpint *b)
 
 	x = 0;
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mporfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -388,7 +393,8 @@ mpandfixfix(Mpint *a, Mpint *b)
 
 	x = 0;
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mpandfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mpandfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -423,7 +429,8 @@ mpandnotfixfix(Mpint *a, Mpint *b)
 
 	x = 0;
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mpandnotfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mpandnotfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -458,7 +465,8 @@ mpxorfixfix(Mpint *a, Mpint *b)
 
 	x = 0;
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mporfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -491,7 +499,8 @@ mplshfixfix(Mpint *a, Mpint *b)
 	vlong s;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mporfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mporfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -512,7 +521,8 @@ mprshfixfix(Mpint *a, Mpint *b)
 	vlong s;
 
 	if(a->ovf || b->ovf) {
-		yyerror("ovf in mprshfixfix");
+		if(nsavederrors+nerrors == 0)
+			yyerror("ovf in mprshfixfix");
 		mpmovecfix(a, 0);
 		a->ovf = 1;
 		return;
@@ -542,7 +552,8 @@ mpgetfix(Mpint *a)
 	vlong v;
 
 	if(a->ovf) {
-		yyerror("constant overflow");
+		if(nsavederrors+nerrors == 0)
+			yyerror("constant overflow");
 		return 0;
 	}
 
@@ -605,7 +616,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 		r->ovf = 1;
 		n->neg = ns;
 		d->neg = ds;
-		yyerror("set ovf in mpdivmodfixfix");
+		yyerror("constant division overflow");
 		return;
 	}
 

@@ -89,17 +89,17 @@ mpaddfltflt(Mpflt *a, Mpflt *b)
 		// a is larger, shift b right
 		mpmovefltflt(&c, b);
 		mpshiftfix(&c.val, -s);
-		mpaddfixfix(&a->val, &c.val);
+		mpaddfixfix(&a->val, &c.val, 0);
 		goto out;
 	}
 	if(s < 0) {
 		// b is larger, shift a right
 		mpshiftfix(&a->val, s);
 		a->exp -= s;
-		mpaddfixfix(&a->val, &b->val);
+		mpaddfixfix(&a->val, &b->val, 0);
 		goto out;
 	}
-	mpaddfixfix(&a->val, &b->val);
+	mpaddfixfix(&a->val, &b->val, 0);
 
 out:
 	mpnorm(a);
@@ -153,7 +153,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
 		a->exp = 0;
 		a->val.neg = 0;
 		a->val.ovf = 1;
-		yyerror("mpdivfltflt divide by zero");
+		yyerror("constant division by zero");
 		return;
 	}
 
@@ -185,7 +185,7 @@ mpgetflt(Mpflt *a)
 	uvlong v, vm;
 	double f;
 
-	if(a->val.ovf)
+	if(a->val.ovf && nsavederrors+nerrors == 0)
 		yyerror("mpgetflt ovf");
 
 	s = sigfig(a);

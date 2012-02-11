@@ -2027,7 +2027,7 @@ hidden_constant:
 	{
 		if($2->val.ctype == CTRUNE && $4->val.ctype == CTINT) {
 			$$ = $2;
-			mpaddfixfix($2->val.u.xval, $4->val.u.xval);
+			mpaddfixfix($2->val.u.xval, $4->val.u.xval, 0);
 			break;
 		}
 		$$ = nodcplxlit($2->val, $4->val);
