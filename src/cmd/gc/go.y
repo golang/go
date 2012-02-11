@@ -1422,6 +1422,7 @@ structdcl:
 		NodeList *l;
 
 		Node *n;
+		l = $1;
 		if(l != nil && l->next == nil && l->n == nil) {
 			// ? symbol, during import
 			n = $2;
