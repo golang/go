@@ -1414,13 +1414,13 @@ identifier in place of the usual variable for the value.
 _, present := timeZone[tz]
 </pre>
 <p>
-To delete a map entry, turn the multiple assignment around by placing
-an extra boolean on the right; if the boolean is false, the entry
-is deleted. It's safe to do this even if the key is already absent
+To delete a map entry, use the <code>delete</code>
+built-in function, whose arguments are the map and the key to be deleted.
+It's safe to do this this even if the key is already absent
 from the map.
 </p>
 <pre>
-timeZone["PDT"] = 0, false  // Now on Standard Time
+delete(timeZone, "PDT")  // Now on Standard Time
 </pre>
 
 <h3 id="printing">Printing</h3>
