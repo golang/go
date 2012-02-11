@@ -27,13 +27,13 @@ type Pointer *ArbitraryType
 func Sizeof(v ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by v,
-// which must be of the form struct_value.field.  In other words, it returns the
+// which must be of the form structValue.field.  In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
 func Offsetof(v ArbitraryType) uintptr
 
 // Alignof returns the alignment of the value v.  It is the maximum value m such
 // that the address of a variable with the type of v will always always be zero mod m.
-// If v is of the form obj.f, it returns the alignment of field f within struct object obj.
+// If v is of the form structValue.field, it returns the alignment of field f within struct object obj.
 func Alignof(v ArbitraryType) uintptr
 
 // Typeof returns the type of an interface value, a runtime.Type.
