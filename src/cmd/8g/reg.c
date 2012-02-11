@@ -220,6 +220,9 @@ regopt(Prog *firstp)
 		 * funny
 		 */
 		case ALEAL:
+		case AFMOVL: 
+		case AFMOVW:
+		case AFMOVV:
 			setaddrs(bit);
 			break;
 
@@ -741,7 +744,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	p1->as = AMOVL;
 	switch(v->etype) {
 	default:
-		fatal("unknown type\n");
+		fatal("unknown type %E", v->etype);
 	case TINT8:
 	case TUINT8:
 	case TBOOL:
