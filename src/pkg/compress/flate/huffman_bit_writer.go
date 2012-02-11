@@ -7,7 +7,6 @@ package flate
 import (
 	"io"
 	"math"
-	"strconv"
 )
 
 const (
@@ -85,13 +84,6 @@ type huffmanBitWriter struct {
 	err             error
 }
 
-type WrongValueError struct {
-	name  string
-	from  int32
-	to    int32
-	value int32
-}
-
 func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 	return &huffmanBitWriter{
 		w:               w,
@@ -103,11 +95,6 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 		offsetEncoding:  newHuffmanEncoder(offsetCodeCount),
 		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
 	}
-}
-
-func (err WrongValueError) Error() string {
-	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.FormatInt(int64(err.from), 10) + ";" +
-		strconv.FormatInt(int64(err.to), 10) + "] but actual value is " + strconv.FormatInt(int64(err.value), 10)
 }
 
 func (w *huffmanBitWriter) flushBits() {
