@@ -987,7 +987,10 @@ lbrace:
 new_name:
 	sym
 	{
-		$$ = newname($1);
+		if($1 == S)
+			$$ = N;
+		else
+			$$ = newname($1);
 	}
 
 dcl_name:
@@ -1417,6 +1420,19 @@ structdcl:
 	new_name_list ntype oliteral
 	{
 		NodeList *l;
+
+		Node *n;
+		if(l != nil && l->next == nil && l->n == nil) {
+			// ? symbol, during import
+			n = $2;
+			if(n->op == OIND)
+				n = n->left;
+			n = embedded(n->sym);
+			n->right = $2;
+			n->val = $3;
+			$$ = list1(n);
+			break;
+		}
 
 		for(l=$1; l; l=l->next) {
 			l->n = nod(ODCLFIELD, l->n, $2);
