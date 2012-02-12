@@ -1364,7 +1364,7 @@ the i-number expression could be contracted to
 </p>
 
 <pre>
-    fi.(*os.FileStat).Sys.(*syscall.Stat_t).Ino
+    fi.Sys().(*syscall.Stat_t).Ino
 </pre>
 
 <p>
