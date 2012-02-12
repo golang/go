@@ -23,7 +23,7 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
 	return nil
 }
 
-func setDefaultListenerSockopts(s syscall.Handle, f, t int) error {
+func setDefaultListenerSockopts(s syscall.Handle) error {
 	// Windows will reuse recently-used addresses by default.
 	// SO_REUSEADDR should not be used here, as it allows
 	// a socket to forcibly bind to a port in use by another socket.
