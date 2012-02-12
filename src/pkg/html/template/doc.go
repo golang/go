@@ -3,15 +3,19 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package template (html/template) is a specialization of package text/template
-that automates the construction of HTML output that is safe against code
-injection.
+Package template (html/template) implements data-driven templates for
+generating HTML output safe against code injection. It provides the
+same interface as package text/template and should be used instead of
+text/template whenever the output is HTML.
 
+The documentation here focuses on the security features of the package.
+For information about how to program the templates themselves, see the
+documentation for text/template.
 
 Introduction
 
-This package wraps package template so you can use the standard template API
-to parse and execute templates.
+This package wraps package text/template so you can share its template API
+to parse and execute HTML templates safely.
 
   set, err := new(template.Set).Parse(...)
   // Error checking elided
@@ -25,7 +29,8 @@ can be safely embedded in an HTML document. The escaping is contextual, so
 actions can appear within JavaScript, CSS, and URI contexts.
 
 The security model used by this package assumes that template authors are
-trusted, while Execute's data parameter is not. More details are provided below.
+trusted, while text/template Execute's data parameter is not. More details are
+provided below.
 
 Example
 
@@ -38,7 +43,7 @@ produces
 
   Hello, <script>alert('you have been pwned')</script>!
 
-but with contextual autoescaping,
+but the contextual autoescaping in html/template
 
   import "html/template"
   ...
