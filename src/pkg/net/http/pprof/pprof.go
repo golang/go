@@ -12,7 +12,7 @@
 // The handled paths all begin with /debug/pprof/.
 //
 // To use pprof, link this package into your program:
-//	import _ "http/pprof"
+//	import _ "net/http/pprof"
 //
 // Then use the pprof tool to look at the heap profile:
 //
