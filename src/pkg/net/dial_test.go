@@ -84,3 +84,34 @@ func TestDialTimeout(t *testing.T) {
 		}
 	}
 }
+
+func TestSelfConnect(t *testing.T) {
+	// Test that Dial does not honor self-connects.
+	// See the comment in DialTCP.
+
+	// Find a port that would be used as a local address.
+	l, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := c.LocalAddr().String()
+	c.Close()
+	l.Close()
+
+	// Try to connect to that address repeatedly.
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	for i := 0; i < n; i++ {
+		c, err := Dial("tcp", addr)
+		if err == nil {
+			c.Close()
+			t.Errorf("#%d: Dial %q succeeded", i, addr)
+		}
+	}
+}
