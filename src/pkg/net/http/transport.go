@@ -85,15 +85,15 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	if !useProxy(canonicalAddr(req.URL)) {
 		return nil, nil
 	}
-	proxyURL, err := url.ParseRequest(proxy)
+	proxyURL, err := url.Parse(proxy)
 	if err != nil {
-		return nil, errors.New("invalid proxy address")
-	}
-	if proxyURL.Host == "" {
-		proxyURL, err = url.ParseRequest("http://" + proxy)
-		if err != nil {
-			return nil, errors.New("invalid proxy address")
+		if u, err := url.Parse("http://" + proxy); err == nil {
+			proxyURL = u
+			err = nil
 		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
 	}
 	return proxyURL, nil
 }
