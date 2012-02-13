@@ -675,7 +675,7 @@ func printCharInfoTables() int {
 				if c.ccc != ccc(d[0]) {
 					// We assume the lead ccc of a decomposition !=0 in this case.
 					if ccc(d[0]) == 0 {
-						logger.Fatal("Expected leading CCC to be non-zero; ccc is %d", c.ccc)
+						logger.Fatalf("Expected leading CCC to be non-zero; ccc is %d", c.ccc)
 					}
 				}
 			} else if v := makeEntry(&f)<<8 | uint16(c.ccc); v != 0 {
