@@ -248,12 +248,10 @@ func tRunner(t *T, test *InternalTest) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		if false {
-			// Log and recover from panic instead of aborting binary.
-			if err := recover(); err != nil {
-				t.failed = true
-				t.Logf("%s\n%s", err, debug.Stack())
-			}
+		// Log and recover from panic instead of aborting binary.
+		if err := recover(); err != nil {
+			t.failed = true
+			t.Logf("%s\n%s", err, debug.Stack())
 		}
 
 		t.duration = time.Now().Sub(t.start)
