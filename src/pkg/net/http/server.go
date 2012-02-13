@@ -59,7 +59,9 @@ type ResponseWriter interface {
 
 	// Write writes the data to the connection as part of an HTTP reply.
 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
-	// before writing the data.
+	// before writing the data.  If the Header does not contain a
+	// Content-Type line, Write adds a Content-Type set to the result of passing
+	// the initial 512 bytes of written data to DetectContentType.
 	Write([]byte) (int, error)
 
 	// WriteHeader sends an HTTP response header with status code.
