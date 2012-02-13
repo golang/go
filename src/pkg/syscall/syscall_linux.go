@@ -802,7 +802,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Close(fd int) (err error)
 //sys	Creat(path string, mode uint32) (fd int, err error)
 //sysnb	Dup(oldfd int) (fd int, err error)
-//sysnb	Dup2(oldfd int, newfd int) (fd int, err error)
+//sysnb	Dup2(oldfd int, newfd int) (err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
