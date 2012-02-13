@@ -133,6 +133,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		case "bench":
 			// record that we saw the flag; don't care about the value
 			testBench = true
+		case "timeout":
+			testTimeout = value
 		}
 		if extraWord {
 			i++
