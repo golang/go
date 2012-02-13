@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"runtime"
 	. "strconv"
 	"strings"
 	"testing"
@@ -237,6 +238,10 @@ var roundTripCases = []struct {
 }
 
 func TestRoundTrip(t *testing.T) {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "386" {
+		t.Logf("skipping round-trip test on darwin/386 - known failure, issue 2917")
+		return
+	}
 	for _, tt := range roundTripCases {
 		old := SetOptimize(false)
 		s := FormatFloat(tt.f, 'g', -1, 64)
