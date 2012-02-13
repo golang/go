@@ -186,7 +186,10 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
 	if modtime.IsZero() {
 		return false
 	}
-	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.After(t) {
+
+	// The Date-Modified header truncates sub-second precision, so
+	// use mtime < t+1s instead of mtime <= t to check for unmodified.
+	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.Before(t.Add(1*time.Second)) {
 		w.WriteHeader(StatusNotModified)
 		return true
 	}
