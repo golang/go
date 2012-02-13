@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"io"
 	"os"
@@ -156,6 +157,13 @@ func main() {
 	if *godefs && *cdefs {
 		fmt.Fprintf(os.Stderr, "cgo: cannot use -cdefs and -godefs together\n")
 		os.Exit(2)
+	}
+
+	if *godefs || *cdefs {
+		// Generating definitions pulled from header files,
+		// to be checked into Go repositories.
+		// Line numbers are just noise.
+		conf.Mode &^= printer.SourcePos
 	}
 
 	args := flag.Args()
