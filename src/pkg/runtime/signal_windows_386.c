@@ -25,7 +25,7 @@ runtime·dumpregs(Context *r)
 }
 
 void
-runtime·initsig(int32)
+runtime·initsig(void)
 {
 	runtime·siginit();
 }

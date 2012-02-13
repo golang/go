@@ -7,19 +7,8 @@
 package os
 
 import (
-	"runtime"
 	"syscall"
 )
-
-type UnixSignal int32
-
-func (sig UnixSignal) String() string {
-	s := runtime.Signame(int32(sig))
-	if len(s) > 0 {
-		return s
-	}
-	return "UnixSignal"
-}
 
 // StartProcess starts a new process with the program, arguments and attributes
 // specified by name, argv and attr.
@@ -50,7 +39,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 
 // Kill causes the Process to exit immediately.
 func (p *Process) Kill() error {
-	return p.Signal(UnixSignal(syscall.SIGKILL))
+	return p.Signal(Kill)
 }
 
 // TODO(rsc): Should os implement its own syscall.WaitStatus
@@ -118,9 +107,9 @@ func (w *Waitmsg) String() string {
 	case w.Exited():
 		res = "exit status " + itod(w.ExitStatus())
 	case w.Signaled():
-		res = "signal " + itod(w.Signal())
+		res = "signal " + itod(int(w.Signal()))
 	case w.Stopped():
-		res = "stop signal " + itod(w.StopSignal())
+		res = "stop signal " + itod(int(w.StopSignal()))
 		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
 			res += " (trap " + itod(w.TrapCause()) + ")"
 		}

@@ -151,18 +151,18 @@ func (w WaitStatus) ExitStatus() int {
 	return int(w>>shift) & 0xFF
 }
 
-func (w WaitStatus) Signal() int {
+func (w WaitStatus) Signal() Signal {
 	if !w.Signaled() {
 		return -1
 	}
-	return int(w & mask)
+	return Signal(w & mask)
 }
 
-func (w WaitStatus) StopSignal() int {
+func (w WaitStatus) StopSignal() Signal {
 	if !w.Stopped() {
 		return -1
 	}
-	return int(w>>shift) & 0xFF
+	return Signal(w>>shift) & 0xFF
 }
 
 func (w WaitStatus) TrapCause() int {
@@ -830,7 +830,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	InotifyInit() (fd int, err error)
 //sysnb	InotifyInit1(flags int) (fd int, err error)
 //sysnb	InotifyRmWatch(fd int, watchdesc uint32) (success int, err error)
-//sysnb	Kill(pid int, sig int) (err error)
+//sysnb	Kill(pid int, sig Signal) (err error)
 //sys	Klogctl(typ int, buf []byte) (n int, err error) = SYS_SYSLOG
 //sys	Link(oldpath string, newpath string) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)

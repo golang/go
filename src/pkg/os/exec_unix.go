@@ -57,7 +57,11 @@ func (p *Process) Signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
-	if e := syscall.Kill(p.Pid, int(sig.(UnixSignal))); e != nil {
+	s, ok := sig.(syscall.Signal)
+	if !ok {
+		return errors.New("os: unsupported signal type")
+	}
+	if e := syscall.Kill(p.Pid, s); e != nil {
 		return e
 	}
 	return nil

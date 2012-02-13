@@ -48,7 +48,7 @@ runtime·goenvs(void)
 }
 
 void
-runtime·initsig(int32)
+runtime·initsig(void)
 {
 }
 

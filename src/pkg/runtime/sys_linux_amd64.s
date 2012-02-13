@@ -157,9 +157,6 @@ TEXT runtime·sigtramp(SB),7,$64
 	MOVQ	R10, g(BX)
 	RET
 
-TEXT runtime·sigignore(SB),7,$0
-	RET
-
 TEXT runtime·sigreturn(SB),7,$0
 	MOVL	$15, AX	// rt_sigreturn
 	SYSCALL

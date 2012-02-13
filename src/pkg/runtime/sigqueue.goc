@@ -39,18 +39,15 @@
 package runtime
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
 
 static struct {
 	Note;
-	uint32 mask;
+	uint32 mask[(NSIG+31)/32];
+	uint32 wanted[(NSIG+31)/32];
+	uint32 kick;
 	bool inuse;
 } sig;
-
-void
-runtime·siginit(void)
-{
-	runtime·noteclear(&sig);
-}
 
 // Called from sighandler to send a signal back out of the signal handling thread.
 bool
@@ -58,17 +55,17 @@ runtime·sigsend(int32 s)
 {
 	uint32 bit, mask;
 
-	if(!sig.inuse)
+	if(!sig.inuse || s < 0 || s >= 32*nelem(sig.wanted) || !(sig.wanted[s/32]&(1U<<(s&31))))
 		return false;
-	bit = 1 << s;
+	bit = 1 << (s&31);
 	for(;;) {
-		mask = sig.mask;
+		mask = sig.mask[s/32];
 		if(mask & bit)
 			break;		// signal already in queue
-		if(runtime·cas(&sig.mask, mask, mask|bit)) {
+		if(runtime·cas(&sig.mask[s/32], mask, mask|bit)) {
 			// Added to queue.
-			// Only send a wakeup for the first signal in each round.
-			if(mask == 0)
+			// Only send a wakeup if the receiver needs a kick.
+			if(runtime·cas(&sig.kick, 1, 0))
 				runtime·notewakeup(&sig);
 			break;
 		}
@@ -76,24 +73,77 @@ runtime·sigsend(int32 s)
 	return true;
 }
 
-// Called to receive a bitmask of queued signals.
-func Sigrecv() (m uint32) {
-	runtime·entersyscall();
-	runtime·notesleep(&sig);
-	runtime·exitsyscall();
-	runtime·noteclear(&sig);
+// Called to receive the next queued signal.
+// Must only be called from a single goroutine at a time.
+func signal_recv() (m uint32) {
+	static uint32 recv[nelem(sig.mask)];
+	int32 i, more;
+	
 	for(;;) {
-		m = sig.mask;
-		if(runtime·cas(&sig.mask, m, 0))
-			break;
+		// Serve from local copy if there are bits left.
+		for(i=0; i<NSIG; i++) {
+			if(recv[i/32]&(1U<<(i&31))) {
+				recv[i/32] ^= 1U<<(i&31);
+				m = i;
+				goto done;
+			}
+		}
+
+		// Get a new local copy.
+		// Ask for a kick if more signals come in
+		// during or after our check (before the sleep).
+		if(sig.kick == 0) {
+			runtime·noteclear(&sig);
+			runtime·cas(&sig.kick, 0, 1);
+		}
+
+		more = 0;
+		for(i=0; i<nelem(sig.mask); i++) {
+			for(;;) {
+				m = sig.mask[i];
+				if(runtime·cas(&sig.mask[i], m, 0))
+					break;
+			}
+			recv[i] = m;
+			if(m != 0)
+				more = 1;
+		}
+		if(more)
+			continue;
+
+		// Sleep waiting for more.
+		runtime·entersyscall();
+		runtime·notesleep(&sig);
+		runtime·exitsyscall();
 	}
+
+done:;
+	// goc requires that we fall off the end of functions
+	// that return values instead of using our own return
+	// statements.
 }
 
-func Signame(sig int32) (name String) {
-	name = runtime·signame(sig);
-}
+// Must only be called from a single goroutine at a time.
+func signal_enable(s uint32) {
+	int32 i;
 
-func Siginit() {
-	runtime·initsig(SigQueue);
-	sig.inuse = true;	// enable reception of signals; cannot disable
+	if(!sig.inuse) {
+		// The first call to signal_enable is for us
+		// to use for initialization.  It does not pass
+		// signal information in m.
+		sig.inuse = true;	// enable reception of signals; cannot disable
+		runtime·noteclear(&sig);
+		return;
+	}
+	
+	if(~s == 0) {
+		// Special case: want everything.
+		for(i=0; i<nelem(sig.wanted); i++)
+			sig.wanted[i] = ~(uint32)0;
+		return;
+	}
+
+	if(s >= nelem(sig.wanted)*32)
+		return;
+	sig.wanted[s/32] |= 1U<<(s&31);
 }

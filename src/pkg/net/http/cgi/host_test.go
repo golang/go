@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -355,7 +356,7 @@ func TestCopyError(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		return p.Signal(os.UnixSignal(0)) == nil
+		return p.Signal(syscall.Signal(0)) == nil
 	}
 
 	if !childRunning() {

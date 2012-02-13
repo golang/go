@@ -343,7 +343,7 @@ runtime·check(void)
 	if(!(i != i1))
 		runtime·throw("float32nan3");
 
-	runtime·initsig(0);
+	runtime·initsig();
 }
 
 void

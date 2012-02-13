@@ -175,9 +175,6 @@ TEXT runtime·sigtramp(SB),7,$44
 
 	RET
 
-TEXT runtime·sigignore(SB),7,$0
-	RET
-
 TEXT runtime·sigreturn(SB),7,$0
 	MOVL	$173, AX	// rt_sigreturn
 	// Sigreturn expects same SP as signal handler,

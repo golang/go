@@ -50,18 +50,18 @@ const (
 	BIOCGETIF                         = 0x4020426b
 	BIOCGHDRCMPLT                     = 0x40044274
 	BIOCGRSIG                         = 0x40044272
-	BIOCGRTIMEOUT                     = 0x4010426e
+	BIOCGRTIMEOUT                     = 0x4008426e
 	BIOCGSEESENT                      = 0x40044276
 	BIOCGSTATS                        = 0x4008426f
 	BIOCIMMEDIATE                     = 0x80044270
 	BIOCPROMISC                       = 0x20004269
 	BIOCSBLEN                         = 0xc0044266
 	BIOCSDLT                          = 0x80044278
-	BIOCSETF                          = 0x80104267
+	BIOCSETF                          = 0x80084267
 	BIOCSETIF                         = 0x8020426c
 	BIOCSHDRCMPLT                     = 0x80044275
 	BIOCSRSIG                         = 0x80044273
-	BIOCSRTIMEOUT                     = 0x8010426d
+	BIOCSRTIMEOUT                     = 0x8008426d
 	BIOCSSEESENT                      = 0x80044277
 	BIOCVERSION                       = 0x40044271
 	BPF_A                             = 0x10
@@ -789,38 +789,6 @@ const (
 	SHUT_RD                           = 0x0
 	SHUT_RDWR                         = 0x2
 	SHUT_WR                           = 0x1
-	SIGABRT                           = 0x6
-	SIGALRM                           = 0xe
-	SIGBUS                            = 0xa
-	SIGCHLD                           = 0x14
-	SIGCONT                           = 0x13
-	SIGEMT                            = 0x7
-	SIGFPE                            = 0x8
-	SIGHUP                            = 0x1
-	SIGILL                            = 0x4
-	SIGINFO                           = 0x1d
-	SIGINT                            = 0x2
-	SIGIO                             = 0x17
-	SIGIOT                            = 0x6
-	SIGKILL                           = 0x9
-	SIGPIPE                           = 0xd
-	SIGPROF                           = 0x1b
-	SIGQUIT                           = 0x3
-	SIGSEGV                           = 0xb
-	SIGSTOP                           = 0x11
-	SIGSYS                            = 0xc
-	SIGTERM                           = 0xf
-	SIGTRAP                           = 0x5
-	SIGTSTP                           = 0x12
-	SIGTTIN                           = 0x15
-	SIGTTOU                           = 0x16
-	SIGURG                            = 0x10
-	SIGUSR1                           = 0x1e
-	SIGUSR2                           = 0x1f
-	SIGVTALRM                         = 0x1a
-	SIGWINCH                          = 0x1c
-	SIGXCPU                           = 0x18
-	SIGXFSZ                           = 0x19
 	SIOCADDMULTI                      = 0x80206931
 	SIOCAIFADDR                       = 0x8040691a
 	SIOCALIFADDR                      = 0x8118691d
@@ -832,7 +800,7 @@ const (
 	SIOCDIFADDR                       = 0x80206919
 	SIOCDIFPHYADDR                    = 0x80206941
 	SIOCDLIFADDR                      = 0x8118691f
-	SIOCGDRVSPEC                      = 0xc028697b
+	SIOCGDRVSPEC                      = 0xc01c697b
 	SIOCGETSGCNT                      = 0xc014721c
 	SIOCGETVIFCNT                     = 0xc014721b
 	SIOCGETVLAN                       = 0xc020697f
@@ -843,14 +811,14 @@ const (
 	SIOCGIFBOND                       = 0xc0206947
 	SIOCGIFBRDADDR                    = 0xc0206923
 	SIOCGIFCAP                        = 0xc020695b
-	SIOCGIFCONF                       = 0xc00c6924
+	SIOCGIFCONF                       = 0xc0086924
 	SIOCGIFDEVMTU                     = 0xc0206944
 	SIOCGIFDSTADDR                    = 0xc0206922
 	SIOCGIFFLAGS                      = 0xc0206911
 	SIOCGIFGENERIC                    = 0xc020693a
 	SIOCGIFKPI                        = 0xc0206987
 	SIOCGIFMAC                        = 0xc0206982
-	SIOCGIFMEDIA                      = 0xc02c6938
+	SIOCGIFMEDIA                      = 0xc0286938
 	SIOCGIFMETRIC                     = 0xc0206917
 	SIOCGIFMTU                        = 0xc0206933
 	SIOCGIFNETMASK                    = 0xc0206925
@@ -867,8 +835,8 @@ const (
 	SIOCIFCREATE                      = 0xc0206978
 	SIOCIFCREATE2                     = 0xc020697a
 	SIOCIFDESTROY                     = 0x80206979
-	SIOCRSLVMULTI                     = 0xc010693b
-	SIOCSDRVSPEC                      = 0x8028697b
+	SIOCRSLVMULTI                     = 0xc008693b
+	SIOCSDRVSPEC                      = 0x801c697b
 	SIOCSETVLAN                       = 0x8020697e
 	SIOCSHIWAT                        = 0x80047300
 	SIOCSIFADDR                       = 0x8020690c
@@ -988,14 +956,14 @@ const (
 	TIOCCBRK                          = 0x2000747a
 	TIOCCDTR                          = 0x20007478
 	TIOCCONS                          = 0x80047462
-	TIOCDCDTIMESTAMP                  = 0x40107458
+	TIOCDCDTIMESTAMP                  = 0x40087458
 	TIOCDRAIN                         = 0x2000745e
 	TIOCDSIMICROCODE                  = 0x20007455
 	TIOCEXCL                          = 0x2000740d
 	TIOCEXT                           = 0x80047460
 	TIOCFLUSH                         = 0x80047410
 	TIOCGDRAINWAIT                    = 0x40047456
-	TIOCGETA                          = 0x40487413
+	TIOCGETA                          = 0x402c7413
 	TIOCGETD                          = 0x4004741a
 	TIOCGPGRP                         = 0x40047477
 	TIOCGWINSZ                        = 0x40087468
@@ -1041,9 +1009,9 @@ const (
 	TIOCSCTTY                         = 0x20007461
 	TIOCSDRAINWAIT                    = 0x80047457
 	TIOCSDTR                          = 0x20007479
-	TIOCSETA                          = 0x80487414
-	TIOCSETAF                         = 0x80487416
-	TIOCSETAW                         = 0x80487415
+	TIOCSETA                          = 0x802c7414
+	TIOCSETAF                         = 0x802c7416
+	TIOCSETAW                         = 0x802c7415
 	TIOCSETD                          = 0x8004741b
 	TIOCSIG                           = 0x2000745f
 	TIOCSPGRP                         = 0x80047476
@@ -1052,7 +1020,7 @@ const (
 	TIOCSTI                           = 0x80017472
 	TIOCSTOP                          = 0x2000746f
 	TIOCSWINSZ                        = 0x80087467
-	TIOCTIMESTAMP                     = 0x40107459
+	TIOCTIMESTAMP                     = 0x40087459
 	TIOCUCNTL                         = 0x80047466
 	WCONTINUED                        = 0x10
 	WCOREFLAG                         = 0x80
@@ -1175,6 +1143,42 @@ const (
 	EXDEV           = Errno(0x12)
 )
 
+// Signals
+const (
+	SIGABRT   = Signal(0x6)
+	SIGALRM   = Signal(0xe)
+	SIGBUS    = Signal(0xa)
+	SIGCHLD   = Signal(0x14)
+	SIGCONT   = Signal(0x13)
+	SIGEMT    = Signal(0x7)
+	SIGFPE    = Signal(0x8)
+	SIGHUP    = Signal(0x1)
+	SIGILL    = Signal(0x4)
+	SIGINFO   = Signal(0x1d)
+	SIGINT    = Signal(0x2)
+	SIGIO     = Signal(0x17)
+	SIGIOT    = Signal(0x6)
+	SIGKILL   = Signal(0x9)
+	SIGPIPE   = Signal(0xd)
+	SIGPROF   = Signal(0x1b)
+	SIGQUIT   = Signal(0x3)
+	SIGSEGV   = Signal(0xb)
+	SIGSTOP   = Signal(0x11)
+	SIGSYS    = Signal(0xc)
+	SIGTERM   = Signal(0xf)
+	SIGTRAP   = Signal(0x5)
+	SIGTSTP   = Signal(0x12)
+	SIGTTIN   = Signal(0x15)
+	SIGTTOU   = Signal(0x16)
+	SIGURG    = Signal(0x10)
+	SIGUSR1   = Signal(0x1e)
+	SIGUSR2   = Signal(0x1f)
+	SIGVTALRM = Signal(0x1a)
+	SIGWINCH  = Signal(0x1c)
+	SIGXCPU   = Signal(0x18)
+	SIGXFSZ   = Signal(0x19)
+)
+
 // Error table
 var errors = [...]string{
 	1:   "operation not permitted",
@@ -1282,4 +1286,39 @@ var errors = [...]string{
 	103: "policy not found",
 	104: "state not recoverable",
 	105: "previous owner died",
+}
+
+// Signal table
+var signals = [...]string{
+	1:  "hangup",
+	2:  "interrupt",
+	3:  "quit",
+	4:  "illegal instruction",
+	5:  "trace/BPT trap",
+	6:  "abort trap",
+	7:  "EMT trap",
+	8:  "floating point exception",
+	9:  "killed",
+	10: "bus error",
+	11: "segmentation fault",
+	12: "bad system call",
+	13: "broken pipe",
+	14: "alarm clock",
+	15: "terminated",
+	16: "urgent I/O condition",
+	17: "suspended (signal)",
+	18: "suspended",
+	19: "continued",
+	20: "child exited",
+	21: "stopped (tty input)",
+	22: "stopped (tty output)",
+	23: "I/O possible",
+	24: "cputime limit exceeded",
+	25: "filesize limit exceeded",
+	26: "virtual timer expired",
+	27: "profiling timer expired",
+	28: "window size changes",
+	29: "information request",
+	30: "user defined signal 1",
+	31: "user defined signal 2",
 }
