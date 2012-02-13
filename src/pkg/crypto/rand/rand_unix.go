@@ -12,6 +12,7 @@ package rand
 import (
 	"bufio"
 	"crypto/aes"
+	"crypto/cipher"
 	"io"
 	"os"
 	"sync"
@@ -66,7 +67,7 @@ func newReader(entropy io.Reader) io.Reader {
 type reader struct {
 	mu                   sync.Mutex
 	budget               int // number of bytes that can be generated
-	cipher               *aes.Cipher
+	cipher               cipher.Block
 	entropy              io.Reader
 	time, seed, dst, key [aes.BlockSize]byte
 }

@@ -8,11 +8,12 @@
 // Special Publication 800-38A, ``Recommendation for Block Cipher
 // Modes of Operation,'' 2001 Edition, pp. 52-55.
 
-package cipher
+package cipher_test
 
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"testing"
 )
 
@@ -76,7 +77,7 @@ func TestOFB(t *testing.T) {
 
 		for j := 0; j <= 5; j += 5 {
 			plaintext := tt.in[0 : len(tt.in)-j]
-			ofb := NewOFB(c, tt.iv)
+			ofb := cipher.NewOFB(c, tt.iv)
 			ciphertext := make([]byte, len(plaintext))
 			ofb.XORKeyStream(ciphertext, plaintext)
 			if !bytes.Equal(ciphertext, tt.out[:len(plaintext)]) {
@@ -86,7 +87,7 @@ func TestOFB(t *testing.T) {
 
 		for j := 0; j <= 5; j += 5 {
 			ciphertext := tt.out[0 : len(tt.in)-j]
-			ofb := NewOFB(c, tt.iv)
+			ofb := cipher.NewOFB(c, tt.iv)
 			plaintext := make([]byte, len(ciphertext))
 			ofb.XORKeyStream(plaintext, ciphertext)
 			if !bytes.Equal(plaintext, tt.in[:len(ciphertext)]) {

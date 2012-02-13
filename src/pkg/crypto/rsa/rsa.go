@@ -206,13 +206,9 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	}
 }
 
-// MessageTooLongError is returned when attempting to encrypt a message which
-// is too large for the size of the public key.
-type MessageTooLongError struct{}
-
-func (MessageTooLongError) Error() string {
-	return "message too long for RSA public key size"
-}
+// ErrMessageTooLong is returned when attempting to encrypt a message which is
+// too large for the size of the public key.
+var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA public key size")
 
 func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 	e := big.NewInt(int64(pub.E))
@@ -227,7 +223,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	hash.Reset()
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-2*hash.Size()-2 {
-		err = MessageTooLongError{}
+		err = ErrMessageTooLong
 		return
 	}
 
@@ -266,17 +262,13 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	return
 }
 
-// A DecryptionError represents a failure to decrypt a message.
+// ErrDecryption represents a failure to decrypt a message.
 // It is deliberately vague to avoid adaptive attacks.
-type DecryptionError struct{}
+var ErrDecryption = errors.New("crypto/rsa: decryption error")
 
-func (DecryptionError) Error() string { return "RSA decryption error" }
-
-// A VerificationError represents a failure to verify a signature.
+// ErrVerification represents a failure to verify a signature.
 // It is deliberately vague to avoid adaptive attacks.
-type VerificationError struct{}
-
-func (VerificationError) Error() string { return "RSA verification error" }
+var ErrVerification = errors.New("crypto/rsa: verification error")
 
 // modInverse returns ia, the inverse of a in the multiplicative group of prime
 // order n. It requires that a be a member of the group (i.e. less than n).
@@ -338,7 +330,7 @@ func (priv *PrivateKey) Precompute() {
 func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
 	// TODO(agl): can we get away with reusing blinds?
 	if c.Cmp(priv.N) > 0 {
-		err = DecryptionError{}
+		err = ErrDecryption
 		return
 	}
 
@@ -417,7 +409,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
-		err = DecryptionError{}
+		err = ErrDecryption
 		return
 	}
 
@@ -473,7 +465,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
-		err = DecryptionError{}
+		err = ErrDecryption
 		return
 	}
 

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cipher
+package cipher_test
 
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"testing"
 )
@@ -21,11 +22,11 @@ func TestCFB(t *testing.T) {
 	plaintext := []byte("this is the plaintext")
 	iv := make([]byte, block.BlockSize())
 	rand.Reader.Read(iv)
-	cfb := NewCFBEncrypter(block, iv)
+	cfb := cipher.NewCFBEncrypter(block, iv)
 	ciphertext := make([]byte, len(plaintext))
 	cfb.XORKeyStream(ciphertext, plaintext)
 
-	cfbdec := NewCFBDecrypter(block, iv)
+	cfbdec := cipher.NewCFBDecrypter(block, iv)
 	plaintextCopy := make([]byte, len(plaintext))
 	cfbdec.XORKeyStream(plaintextCopy, ciphertext)
 
