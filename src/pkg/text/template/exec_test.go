@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -168,10 +167,12 @@ func (t *T) MAdd(a int, b []int) []int {
 	return v
 }
 
-// EPERM returns a value and an error according to its argument.
-func (t *T) EPERM(error bool) (bool, error) {
+var myError = errors.New("my error")
+
+// MyError returns a value and an error according to its argument.
+func (t *T) MyError(error bool) (bool, error) {
 	if error {
-		return true, os.EPERM
+		return true, myError
 	}
 	return false, nil
 }
@@ -417,8 +418,8 @@ var execTests = []execTest{
 	{"or as if false", `{{or .SIEmpty "slice is empty"}}`, "slice is empty", tVal, true},
 
 	// Error handling.
-	{"error method, error", "{{.EPERM true}}", "", tVal, false},
-	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
+	{"error method, error", "{{.MyError true}}", "", tVal, false},
+	{"error method, no error", "{{.MyError false}}", "false", tVal, true},
 
 	// Fixed bugs.
 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
@@ -565,18 +566,18 @@ func TestDelims(t *testing.T) {
 func TestExecuteError(t *testing.T) {
 	b := new(bytes.Buffer)
 	tmpl := New("error")
-	_, err := tmpl.Parse("{{.EPERM true}}")
+	_, err := tmpl.Parse("{{.MyError true}}")
 	if err != nil {
 		t.Fatalf("parse error: %s", err)
 	}
 	err = tmpl.Execute(b, tVal)
 	if err == nil {
 		t.Errorf("expected error; got none")
-	} else if !strings.Contains(err.Error(), os.EPERM.Error()) {
+	} else if !strings.Contains(err.Error(), myError.Error()) {
 		if *debug {
 			fmt.Printf("test execute error: %s\n", err)
 		}
-		t.Errorf("expected os.EPERM; got %s", err)
+		t.Errorf("expected myError; got %s", err)
 	}
 }
 
