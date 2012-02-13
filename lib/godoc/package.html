@@ -10,18 +10,18 @@
 			<dd><code>import "{{html .ImportPath}}"</code></dd>
 			</dl>
 			<dl>
-			<dd><a href="#Overview">Overview</a></dd>
-			<dd><a href="#Index">Index</a></dd>
+			<dd><a href="#overview">Overview</a></dd>
+			<dd><a href="#index">Index</a></dd>
 			{{if $.Dirs}}
 				<dd><a href="#Subdirectories">Subdirectories</a></dd>
 			{{end}}
 			</dl>
 		</div>
-		<h2 id="Overview">Overview</h2>
+		<h2 id="overview">Overview</h2>
 		<!-- The package's Name is printed as title by the top-level template -->
 		{{comment_html .Doc}}
 	
-		<h2 id="Index">Index</h2>
+		<h2 id="index">Index</h2>
 		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
 		<div id="manual-nav">
 			<dl>
@@ -65,14 +65,14 @@
 		</dl>
 	
 		{{with .Consts}}
-			<h2 id="Constants">Constants</h2>
+			<h2 id="constants">Constants</h2>
 			{{range .}}
 				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
 			{{end}}
 		{{end}}
 		{{with .Vars}}
-			<h2 id="Variables">Variables</h2>
+			<h2 id="variables">Variables</h2>
 			{{range .}}
 				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
@@ -122,7 +122,7 @@
 	{{end}}
 
 	{{with .Bugs}}
-		<h2 id="Bugs">Bugs</h2>
+		<h2 id="bugs">Bugs</h2>
 		{{range .}}
 		{{comment_html .}}
 		{{end}}
@@ -145,7 +145,7 @@
 
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
-	<h2 id="Subdirectories">Subdirectories</h2>
+	<h2 id="subdirectories">Subdirectories</h2>
 	<p>
 	<table class="layout">
 	<tr>
