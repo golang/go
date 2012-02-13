@@ -140,7 +140,7 @@ type entry struct {
 	mode           checkMode
 }
 
-// Use gotest -update to create/update the respective golden files.
+// Use go test -update to create/update the respective golden files.
 var data = []entry{
 	{"empty.input", "empty.golden", 0},
 	{"comments.input", "comments.golden", 0},

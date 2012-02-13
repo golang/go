@@ -284,7 +284,7 @@ func loadPEMCert(in string) *x509.Certificate {
 
 // Script of interaction with gnutls implementation.
 // The values for this test are obtained by building and running in server mode:
-//   % gotest -test.run "TestRunServer" -serve
+//   % go test -run "TestRunServer" -serve
 // and then:
 //   % gnutls-cli --insecure --debug 100 -p 10443 localhost > /tmp/log 2>&1
 //   % python parse-gnutls-cli-debug-log.py < /tmp/log
@@ -949,7 +949,7 @@ var sslv3ServerScript = [][]byte{
 
 var clientauthTests = []clientauthTest{
 	// Server doesn't asks for cert
-	// gotest -test.run "TestRunServer" -serve -clientauth 0
+	// go test -run "TestRunServer" -serve -clientauth 0
 	// gnutls-cli --insecure --debug 100 -p 10443 localhost 2>&1 |
 	//   python parse-gnutls-cli-debug-log.py
 	{"NoClientCert", NoClientCert, nil,
@@ -1115,7 +1115,7 @@ var clientauthTests = []clientauthTest{
 				0x03, 0x11, 0x43, 0x3e, 0xee, 0xb7, 0x4d, 0x69,
 			}}},
 	// Server asks for cert with empty CA list, client doesn't give it.
-	// gotest -test.run "TestRunServer" -serve -clientauth 1
+	// go test -run "TestRunServer" -serve -clientauth 1
 	// gnutls-cli --insecure --debug 100 -p 10443 localhost
 	{"RequestClientCert, none given", RequestClientCert, nil,
 		[][]byte{{
@@ -1282,7 +1282,7 @@ var clientauthTests = []clientauthTest{
 				0xf4, 0x70, 0xcc, 0xb4, 0xed, 0x07, 0x76, 0x3a,
 			}}},
 	// Server asks for cert with empty CA list, client gives one
-	// gotest -test.run "TestRunServer" -serve -clientauth 1
+	// go test -run "TestRunServer" -serve -clientauth 1
 	// gnutls-cli --insecure --debug 100 -p 10443 localhost
 	{"RequestClientCert, client gives it", RequestClientCert,
 		[]*x509.Certificate{clicert},
