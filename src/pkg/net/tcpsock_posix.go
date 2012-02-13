@@ -227,11 +227,41 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
+
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+
+	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+	// connect to a simultaneous Dial("tcp", addr2, addr1) run on the machine
+	// at addr2, without either machine executing Listen.  If laddr == nil,
+	// it means we want the kernel to pick an appropriate originating local
+	// address.  Some Linux kernels cycle blindly through a fixed range of
+	// local ports, regardless of destination port.  If a kernel happens to
+	// pick local port 50001 as the source for a Dial("tcp", "", "localhost:50001"),
+	// then the Dial will succeed, having simultaneously connected to itself.
+	// This can only happen when we are letting the kernel pick a port (laddr == nil)
+	// and when there is no listener for the destination address.
+	// It's hard to argue this is anything other than a kernel bug.  If we
+	// see this happen, rather than expose the buggy effect to users, we
+	// close the fd and try again.  If it happens twice more, we relent and
+	// use the result.  See also:
+	//	http://golang.org/issue/2690
+	//	http://stackoverflow.com/questions/4949858/
+	for i := 0; i < 2 && err == nil && laddr == nil && selfConnect(fd); i++ {
+		fd.Close()
+		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 	return newTCPConn(fd), nil
+}
+
+func selfConnect(fd *netFD) bool {
+	l := fd.laddr.(*TCPAddr)
+	r := fd.raddr.(*TCPAddr)
+	return l.Port == r.Port && l.IP.Equal(r.IP)
 }
 
 // TCPListener is a TCP network listener.
