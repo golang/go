@@ -327,13 +327,9 @@ type Certificate struct {
 	PolicyIdentifiers []asn1.ObjectIdentifier
 }
 
-// UnsupportedAlgorithmError results from attempting to perform an operation
-// that involves algorithms that are not currently implemented.
-type UnsupportedAlgorithmError struct{}
-
-func (UnsupportedAlgorithmError) Error() string {
-	return "cannot verify signature: algorithm unimplemented"
-}
+// ErrUnsupportedAlgorithm results from attempting to perform an operation that
+// involves algorithms that are not currently implemented.
+var ErrUnsupportedAlgorithm = errors.New("crypto/x509: cannot verify signature: algorithm unimplemented")
 
 // ConstraintViolationError results when a requested usage is not permitted by
 // a certificate. For example: checking a signature when the public key isn't a
@@ -341,7 +337,7 @@ func (UnsupportedAlgorithmError) Error() string {
 type ConstraintViolationError struct{}
 
 func (ConstraintViolationError) Error() string {
-	return "invalid signature: parent certificate cannot sign this kind of certificate"
+	return "crypto/x509: invalid signature: parent certificate cannot sign this kind of certificate"
 }
 
 func (c *Certificate) Equal(other *Certificate) bool {
@@ -366,7 +362,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
 	}
 
 	if parent.PublicKeyAlgorithm == UnknownPublicKeyAlgorithm {
-		return UnsupportedAlgorithmError{}
+		return ErrUnsupportedAlgorithm
 	}
 
 	// TODO(agl): don't ignore the path length constraint.
@@ -389,12 +385,12 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	case SHA512WithRSA:
 		hashType = crypto.SHA512
 	default:
-		return UnsupportedAlgorithmError{}
+		return ErrUnsupportedAlgorithm
 	}
 
 	h := hashType.New()
 	if h == nil {
-		return UnsupportedAlgorithmError{}
+		return ErrUnsupportedAlgorithm
 	}
 
 	h.Write(signed)
@@ -416,7 +412,7 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 		}
 		return
 	}
-	return UnsupportedAlgorithmError{}
+	return ErrUnsupportedAlgorithm
 }
 
 // CheckCRLSignature checks that the signature in crl is from c.

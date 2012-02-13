@@ -79,7 +79,7 @@ func ksRotate(in uint32) (out []uint32) {
 }
 
 // creates 16 56-bit subkeys from the original key
-func (c *Cipher) generateSubkeys(keyBytes []byte) {
+func (c *desCipher) generateSubkeys(keyBytes []byte) {
 	// apply PC1 permutation to key
 	key := binary.BigEndian.Uint64(keyBytes)
 	permutedKey := permuteBlock(key, permutedChoice1[:])

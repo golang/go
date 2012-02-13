@@ -8,11 +8,12 @@
 // Special Publication 800-38A, ``Recommendation for Block Cipher
 // Modes of Operation,'' 2001 Edition, pp. 24-29.
 
-package cipher
+package cipher_test
 
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"testing"
 )
 
@@ -72,14 +73,14 @@ func TestCBC_AES(t *testing.T) {
 			continue
 		}
 
-		encrypter := NewCBCEncrypter(c, tt.iv)
+		encrypter := cipher.NewCBCEncrypter(c, tt.iv)
 		d := make([]byte, len(tt.in))
 		encrypter.CryptBlocks(d, tt.in)
 		if !bytes.Equal(tt.out, d) {
 			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out)
 		}
 
-		decrypter := NewCBCDecrypter(c, tt.iv)
+		decrypter := cipher.NewCBCDecrypter(c, tt.iv)
 		p := make([]byte, len(d))
 		decrypter.CryptBlocks(p, d)
 		if !bytes.Equal(tt.in, p) {

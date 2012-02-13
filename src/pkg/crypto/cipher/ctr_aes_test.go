@@ -8,11 +8,12 @@
 // Special Publication 800-38A, ``Recommendation for Block Cipher
 // Modes of Operation,'' 2001 Edition, pp. 55-58.
 
-package cipher
+package cipher_test
 
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"testing"
 )
 
@@ -76,7 +77,7 @@ func TestCTR_AES(t *testing.T) {
 
 		for j := 0; j <= 5; j += 5 {
 			in := tt.in[0 : len(tt.in)-j]
-			ctr := NewCTR(c, tt.iv)
+			ctr := cipher.NewCTR(c, tt.iv)
 			encrypted := make([]byte, len(in))
 			ctr.XORKeyStream(encrypted, in)
 			if out := tt.out[0:len(in)]; !bytes.Equal(out, encrypted) {
@@ -86,7 +87,7 @@ func TestCTR_AES(t *testing.T) {
 
 		for j := 0; j <= 7; j += 7 {
 			in := tt.out[0 : len(tt.out)-j]
-			ctr := NewCTR(c, tt.iv)
+			ctr := cipher.NewCTR(c, tt.iv)
 			plain := make([]byte, len(in))
 			ctr.XORKeyStream(plain, in)
 			if out := tt.in[0:len(in)]; !bytes.Equal(out, plain) {

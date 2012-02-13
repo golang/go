@@ -1260,11 +1260,19 @@ var tableA4Tests = []CryptTest{
 		[]byte{0x63, 0xfa, 0xc0, 0xd0, 0x34, 0xd9, 0xf7, 0x93}},
 }
 
+func newCipher(key []byte) *desCipher {
+	c, err := NewCipher(key)
+	if err != nil {
+		panic("NewCipher failed: " + err.Error())
+	}
+	return c.(*desCipher)
+}
+
 // Use the known weak keys to test DES implementation
 func TestWeakKeys(t *testing.T) {
 	for i, tt := range weakKeyTests {
 		var encrypt = func(in []byte) (out []byte) {
-			c, _ := NewCipher(tt.key)
+			c := newCipher(tt.key)
 			out = make([]byte, len(in))
 			encryptBlock(c.subkeys[:], out, in)
 			return
@@ -1285,7 +1293,7 @@ func TestWeakKeys(t *testing.T) {
 func TestSemiWeakKeyPairs(t *testing.T) {
 	for i, tt := range semiWeakKeyTests {
 		var encrypt = func(key, in []byte) (out []byte) {
-			c, _ := NewCipher(key)
+			c := newCipher(key)
 			out = make([]byte, len(in))
 			encryptBlock(c.subkeys[:], out, in)
 			return
@@ -1305,7 +1313,7 @@ func TestSemiWeakKeyPairs(t *testing.T) {
 
 func TestDESEncryptBlock(t *testing.T) {
 	for i, tt := range encryptDESTests {
-		c, _ := NewCipher(tt.key)
+		c := newCipher(tt.key)
 		out := make([]byte, len(tt.in))
 		encryptBlock(c.subkeys[:], out, tt.in)
 
@@ -1317,7 +1325,7 @@ func TestDESEncryptBlock(t *testing.T) {
 
 func TestDESDecryptBlock(t *testing.T) {
 	for i, tt := range encryptDESTests {
-		c, _ := NewCipher(tt.key)
+		c := newCipher(tt.key)
 		plain := make([]byte, len(tt.in))
 		decryptBlock(c.subkeys[:], plain, tt.out)
 

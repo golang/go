@@ -21,7 +21,7 @@ import (
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-11 {
-		err = MessageTooLongError{}
+		err = ErrMessageTooLong
 		return
 	}
 
@@ -47,7 +47,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
 	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext)
 	if err == nil && valid == 0 {
-		err = DecryptionError{}
+		err = ErrDecryption
 	}
 
 	return
@@ -69,7 +69,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
-		err = DecryptionError{}
+		err = ErrDecryption
 		return
 	}
 
@@ -86,7 +86,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, msg []byte, err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if k < 11 {
-		err = DecryptionError{}
+		err = ErrDecryption
 		return
 	}
 
@@ -170,7 +170,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 	tLen := len(prefix) + hashLen
 	k := (priv.N.BitLen() + 7) / 8
 	if k < tLen+11 {
-		return nil, MessageTooLongError{}
+		return nil, ErrMessageTooLong
 	}
 
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
@@ -203,7 +203,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 	tLen := len(prefix) + hashLen
 	k := (pub.N.BitLen() + 7) / 8
 	if k < tLen+11 {
-		err = VerificationError{}
+		err = ErrVerification
 		return
 	}
 
@@ -223,7 +223,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 	}
 
 	if ok != 1 {
-		return VerificationError{}
+		return ErrVerification
 	}
 
 	return nil
