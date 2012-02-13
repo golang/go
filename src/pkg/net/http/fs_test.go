@@ -5,14 +5,20 @@
 package http_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -359,6 +365,68 @@ func TestServeContent(t *testing.T) {
 	}
 }
 
+// verifies that sendfile is being used on Linux
+func TestLinuxSendfile(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Logf("skipping; linux-only test")
+		return
+	}
+	_, err := exec.LookPath("strace")
+	if err != nil {
+		t.Logf("skipping; strace not found in path")
+		return
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lnf, err := ln.(*net.TCPListener).File()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	child := exec.Command(os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child.ExtraFiles = append(child.ExtraFiles, lnf)
+	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+
+	err = child.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pid := child.Process.Pid
+
+	var buf bytes.Buffer
+	strace := exec.Command("strace", "-f", "-p", strconv.Itoa(pid))
+	strace.Stdout = &buf
+	strace.Stderr = &buf
+	err = strace.Start()
+	if err != nil {
+		t.Logf("skipping; failed to start strace: %v", err)
+		return
+	}
+
+	_, err = Get(fmt.Sprintf("http://%s/", ln.Addr()))
+	if err != nil {
+		t.Errorf("http client error: %v", err)
+		return
+	}
+
+	// Force child to exit cleanly.
+	Get(fmt.Sprintf("http://%s/quit", ln.Addr()))
+	child.Wait()
+	strace.Wait()
+
+	rx := regexp.MustCompile(`sendfile\(\d+,\s*\d+,\s*NULL,\s*\d+\)\s*=\s*\d+\s*\n`)
+	rxResume := regexp.MustCompile(`<\.\.\. sendfile resumed> \)\s*=\s*\d+\s*\n`)
+	out := buf.String()
+	if !rx.MatchString(out) && !rxResume.MatchString(out) {
+		t.Errorf("no sendfile system call found in:\n%s", out)
+	}
+}
+
 func getBody(t *testing.T, testName string, req Request) (*Response, []byte) {
 	r, err := DefaultClient.Do(&req)
 	if err != nil {
@@ -369,6 +437,30 @@ func getBody(t *testing.T, testName string, req Request) (*Response, []byte) {
 		t.Fatalf("%s: for URL %q, reading body: %v", testName, req.URL.String(), err)
 	}
 	return r, b
+}
+
+// TestLinuxSendfileChild isn't a real test. It's used as a helper process
+// for TestLinuxSendfile.
+func TestLinuxSendfileChild(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	fd3 := os.NewFile(3, "ephemeral-port-listener")
+	ln, err := net.FileListener(fd3)
+	if err != nil {
+		panic(err)
+	}
+	mux := NewServeMux()
+	mux.Handle("/", FileServer(Dir("testdata")))
+	mux.HandleFunc("/quit", func(ResponseWriter, *Request) {
+		os.Exit(0)
+	})
+	s := &Server{Handler: mux}
+	err = s.Serve(ln)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func equal(a, b []byte) bool {
