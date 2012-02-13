@@ -102,7 +102,7 @@ func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
 		}
 	}
 	if info.hasDecomposition() {
-		dcomp := rb.f.decompose(src, i)
+		dcomp := info.decomposition()
 		rb.tmpBytes = inputBytes(dcomp)
 		for i := 0; i < len(dcomp); {
 			info = rb.f.info(&rb.tmpBytes, i)

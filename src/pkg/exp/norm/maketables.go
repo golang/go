@@ -4,6 +4,7 @@
 
 // Normalization table generator.
 // Data read from the web.
+// See forminfo.go for a description of the trie values associated with each rune.
 
 package main
 
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -187,17 +189,13 @@ func (f FormInfo) String() string {
 	fmt.Fprintf(buf, "    cmbBackward: %v\n", f.combinesBackward)
 	fmt.Fprintf(buf, "    isOneWay: %v\n", f.isOneWay)
 	fmt.Fprintf(buf, "    inDecomp: %v\n", f.inDecomp)
-	fmt.Fprintf(buf, "    decomposition: %v\n", f.decomp)
-	fmt.Fprintf(buf, "    expandedDecomp: %v\n", f.expandedDecomp)
+	fmt.Fprintf(buf, "    decomposition: %X\n", f.decomp)
+	fmt.Fprintf(buf, "    expandedDecomp: %X\n", f.expandedDecomp)
 
 	return buf.String()
 }
 
 type Decomposition []rune
-
-func (d Decomposition) String() string {
-	return fmt.Sprintf("%.4X", d)
-}
 
 func openReader(file string) (input io.ReadCloser) {
 	if *localFiles {
@@ -571,80 +569,121 @@ func makeEntry(f *FormInfo) uint16 {
 	return e
 }
 
-// Bits
-// 0..8:   CCC
-// 9..12:  NF(C|D) qc bits.
-// 13..16: NFK(C|D) qc bits.
-func makeCharInfo(c Char) uint16 {
-	e := makeEntry(&c.forms[FCompatibility])
-	e = e<<4 | makeEntry(&c.forms[FCanonical])
-	e = e<<8 | uint16(c.ccc)
-	return e
+// decompSet keeps track of unique decompositions, grouped by whether
+// the decomposition is followed by a trailing and/or leading CCC.
+type decompSet [4]map[string]bool
+
+func makeDecompSet() decompSet {
+	m := decompSet{}
+	for i, _ := range m {
+		m[i] = make(map[string]bool)
+	}
+	return m
+}
+func (m *decompSet) insert(key int, s string) {
+	m[key][s] = true
 }
 
 func printCharInfoTables() int {
-	// Quick Check + CCC trie.
-	t := newNode()
-	for i, char := range chars {
-		v := makeCharInfo(char)
-		if v != 0 {
-			t.insert(rune(i), v)
+	mkstr := func(r rune, f *FormInfo) (int, string) {
+		d := f.expandedDecomp
+		s := string([]rune(d))
+		if max := 1 << 6; len(s) >= max {
+			const msg = "%U: too many bytes in decomposition: %d >= %d"
+			logger.Fatalf(msg, r, len(s), max)
 		}
+		head := uint8(len(s))
+		if f.quickCheck[MComposed] != QCYes {
+			head |= 0x40
+		}
+		if f.combinesForward {
+			head |= 0x80
+		}
+		s = string([]byte{head}) + s
+
+		lccc := ccc(d[0])
+		tccc := ccc(d[len(d)-1])
+		if tccc < lccc && lccc != 0 {
+			const msg = "%U: lccc (%d) must be <= tcc (%d)"
+			logger.Fatalf(msg, r, lccc, tccc)
+		}
+		index := 0
+		if tccc > 0 || lccc > 0 {
+			s += string([]byte{tccc})
+			index = 1
+			if lccc > 0 {
+				s += string([]byte{lccc})
+				index |= 2
+			}
+		}
+		return index, s
 	}
-	return t.printTables("charInfo")
-}
 
-func printDecompositionTables() int {
-	decompositions := bytes.NewBuffer(make([]byte, 0, 10000))
-	size := 0
-
-	// Map decompositions
-	positionMap := make(map[string]uint16)
+	decompSet := makeDecompSet()
 
 	// Store the uniqued decompositions in a byte buffer,
 	// preceded by their byte length.
 	for _, c := range chars {
-		for f := 0; f < 2; f++ {
-			d := c.forms[f].expandedDecomp
-			s := string([]rune(d))
-			if _, ok := positionMap[s]; !ok {
-				p := decompositions.Len()
-				decompositions.WriteByte(uint8(len(s)))
-				decompositions.WriteString(s)
-				positionMap[s] = uint16(p)
+		for _, f := range c.forms {
+			if len(f.expandedDecomp) == 0 {
+				continue
 			}
+			if f.combinesBackward {
+				logger.Fatalf("%U: combinesBackward and decompose", c.codePoint)
+			}
+			index, s := mkstr(c.codePoint, &f)
+			decompSet.insert(index, s)
 		}
 	}
+
+	decompositions := bytes.NewBuffer(make([]byte, 0, 10000))
+	size := 0
+	positionMap := make(map[string]uint16)
+	decompositions.WriteString("\000")
+	cname := []string{"firstCCC", "firstLeadingCCC", "", "lastDecomp"}
+	fmt.Println("const (")
+	for i, m := range decompSet {
+		sa := []string{}
+		for s, _ := range m {
+			sa = append(sa, s)
+		}
+		sort.Strings(sa)
+		for _, s := range sa {
+			p := decompositions.Len()
+			decompositions.WriteString(s)
+			positionMap[s] = uint16(p)
+		}
+		if cname[i] != "" {
+			fmt.Printf("%s = 0x%X\n", cname[i], decompositions.Len())
+		}
+	}
+	fmt.Println("maxDecomp = 0x8000")
+	fmt.Println(")")
 	b := decompositions.Bytes()
 	printBytes(b, "decomps")
 	size += len(b)
 
-	nfcT := newNode()
-	nfkcT := newNode()
-	for i, c := range chars {
-		d := c.forms[FCanonical].expandedDecomp
-		if len(d) != 0 {
-			nfcT.insert(rune(i), positionMap[string([]rune(d))])
-			if ccc(c.codePoint) != ccc(d[0]) {
-				// We assume the lead ccc of a decomposition is !=0 in this case.
-				if ccc(d[0]) == 0 {
-					logger.Fatal("Expected differing CCC to be non-zero.")
+	varnames := []string{"nfc", "nfkc"}
+	for i := 0; i < FNumberOfFormTypes; i++ {
+		trie := newNode()
+		for r, c := range chars {
+			f := c.forms[i]
+			d := f.expandedDecomp
+			if len(d) != 0 {
+				_, key := mkstr(c.codePoint, &f)
+				trie.insert(rune(r), positionMap[key])
+				if c.ccc != ccc(d[0]) {
+					// We assume the lead ccc of a decomposition !=0 in this case.
+					if ccc(d[0]) == 0 {
+						logger.Fatal("Expected leading CCC to be non-zero; ccc is %d", c.ccc)
+					}
 				}
+			} else if v := makeEntry(&f)<<8 | uint16(c.ccc); v != 0 {
+				trie.insert(c.codePoint, 0x8000|v)
 			}
 		}
-		d = c.forms[FCompatibility].expandedDecomp
-		if len(d) != 0 {
-			nfkcT.insert(rune(i), positionMap[string([]rune(d))])
-			if ccc(c.codePoint) != ccc(d[0]) {
-				// We assume the lead ccc of a decomposition is !=0 in this case.
-				if ccc(d[0]) == 0 {
-					logger.Fatal("Expected differing CCC to be non-zero.")
-				}
-			}
-		}
+		size += trie.printTables(varnames[i])
 	}
-	size += nfcT.printTables("nfcDecomp")
-	size += nfkcT.printTables("nfkcDecomp")
 	return size
 }
 
@@ -687,15 +726,15 @@ func makeTables() {
 	}
 	list := strings.Split(*tablelist, ",")
 	if *tablelist == "all" {
-		list = []string{"decomp", "recomp", "info"}
+		list = []string{"recomp", "info"}
 	}
 	fmt.Printf(fileHeader, *tablelist, *url)
 
 	fmt.Println("// Version is the Unicode edition from which the tables are derived.")
 	fmt.Printf("const Version = %q\n\n", version())
 
-	if contains(list, "decomp") {
-		size += printDecompositionTables()
+	if contains(list, "info") {
+		size += printCharInfoTables()
 	}
 
 	if contains(list, "recomp") {
@@ -730,9 +769,6 @@ func makeTables() {
 		fmt.Printf("}\n\n")
 	}
 
-	if contains(list, "info") {
-		size += printCharInfoTables()
-	}
 	fmt.Printf("// Total size of tables: %dKB (%d bytes)\n", (size+512)/1024, size)
 }
 
@@ -760,6 +796,11 @@ func verifyComputed() {
 			if f.combinesBackward != isMaybe {
 				log.Fatalf("%U: NF*C must be maybe if combinesBackward", i)
 			}
+		}
+		nfc := c.forms[FCanonical]
+		nfkc := c.forms[FCompatibility]
+		if nfc.combinesBackward != nfkc.combinesBackward {
+			logger.Fatalf("%U: Cannot combine combinesBackward\n", c.codePoint)
 		}
 	}
 }
