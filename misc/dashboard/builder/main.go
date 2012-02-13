@@ -54,7 +54,7 @@ var (
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
-	failAll = flag.Bool("fail", false, "fail all builds")
+	failAll       = flag.Bool("fail", false, "fail all builds")
 	external      = flag.Bool("external", false, "Build external packages")
 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	verbose       = flag.Bool("v", false, "verbose")
@@ -88,7 +88,7 @@ func main() {
 		}
 		builders[i] = b
 	}
-	
+
 	if *failAll {
 		failMode(builders)
 		return
@@ -383,10 +383,10 @@ func (b *Builder) failBuild() bool {
 	if hash == "" {
 		return false
 	}
-	
+
 	log.Printf("fail %s %s\n", b.name, hash)
 
-	if err := b.recordResult(false, "", hash, "", "auto-fail mode run by " + os.Getenv("USER"), 0); err != nil {
+	if err := b.recordResult(false, "", hash, "", "auto-fail mode run by "+os.Getenv("USER"), 0); err != nil {
 		log.Print(err)
 	}
 	return true
@@ -478,7 +478,6 @@ func (b *Builder) envv() []string {
 		"GOOS=" + b.goos,
 		"GOARCH=" + b.goarch,
 		"GOROOT_FINAL=/usr/local/go",
-		"GOBUILDEXIT=1", // On Windows, exit all.bat with completion status.
 	}
 	for _, k := range extraEnv {
 		s, err := os.Getenverror(k)
@@ -496,7 +495,8 @@ func (b *Builder) envvWindows() []string {
 		"GOARCH":       b.goarch,
 		"GOROOT_FINAL": "/c/go",
 		// TODO(brainman): remove once we find make that does not hang.
-		"MAKEFLAGS": "-j1",
+		"MAKEFLAGS":   "-j1",
+		"GOBUILDEXIT": "1", // exit all.bat with completion status.
 	}
 	for _, name := range extraEnv {
 		s, err := os.Getenverror(name)
