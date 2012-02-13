@@ -855,6 +855,18 @@ few programs beyond the need to run <code>go fix</code>.
 This category includes packages that are new in Go 1.
 </p>
 
+<h3 id="archive_zip">The archive/zip package</h3>
+
+<p>
+In Go 1, <a href="/pkg/archive/zip/#Writer"><code>*zip.Writer</code></a> no
+longer has a <code>Write</code> method. Its presence was a mistake.
+</p>
+
+<p>
+<i>Updating:</i> What little code is affected will be caught by the compiler
+and must be updated by hand. Such code is almost certainly incorrect.
+</p>
+
 <h3 id="crypto_aes_des">The crypto/aes and crypto/des packages</h3>
 
 <p>
