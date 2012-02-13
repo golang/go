@@ -198,10 +198,13 @@ var (
 	testX            bool     // -x flag
 	testV            bool     // -v flag
 	testFiles        []string // -file flag(s)  TODO: not respected
+	testTimeout      string   // -timeout flag
 	testArgs         []string
 	testBench        bool
 	testStreamOutput bool // show output as it is generated
 	testShowPass     bool // show passing output
+
+	testKillTimeout = 10 * time.Minute
 )
 
 func runTest(cmd *Command, args []string) {
@@ -215,6 +218,14 @@ func runTest(cmd *Command, args []string) {
 
 	if testC && len(pkgs) != 1 {
 		fatalf("cannot use -c flag with multiple packages")
+	}
+
+	// If a test timeout was given and is parseable, set our kill timeout
+	// to that timeout plus one minute.  This is a backup alarm in case
+	// the test wedges with a goroutine spinning and its background
+	// timer does not get a chance to fire.
+	if dt, err := time.ParseDuration(testTimeout); err == nil {
+		testKillTimeout = dt + 1*time.Minute
 	}
 
 	// show passing test output (after buffering) with -v flag.
@@ -540,9 +551,7 @@ func (b *builder) runTest(a *action) error {
 	// This is a last-ditch deadline to detect and
 	// stop wedged test binaries, to keep the builders
 	// running.
-	const deadline = 10 * time.Minute
-
-	tick := time.NewTimer(deadline)
+	tick := time.NewTimer(testKillTimeout)
 	if err == nil {
 		done := make(chan error)
 		go func() {
