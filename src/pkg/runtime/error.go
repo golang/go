@@ -17,9 +17,6 @@ type Error interface {
 
 // A TypeAssertionError explains a failed type assertion.
 type TypeAssertionError struct {
-	interfaceType   Type // interface had this type
-	concreteType    Type // concrete value had this type
-	assertedType    Type // asserted type
 	interfaceString string
 	concreteString  string
 	assertedString  string
@@ -33,7 +30,7 @@ func (e *TypeAssertionError) Error() string {
 	if inter == "" {
 		inter = "interface"
 	}
-	if e.concreteType == nil {
+	if e.concreteString == "" {
 		return "interface conversion: " + inter + " is nil, not " + e.assertedString
 	}
 	if e.missingMethod == "" {
@@ -44,40 +41,10 @@ func (e *TypeAssertionError) Error() string {
 		": missing method " + e.missingMethod
 }
 
-// Concrete returns the type of the concrete value in the failed type assertion.
-// If the interface value was nil, Concrete returns nil.
-func (e *TypeAssertionError) Concrete() Type {
-	return e.concreteType
-}
-
-// Asserted returns the type incorrectly asserted by the type assertion.
-func (e *TypeAssertionError) Asserted() Type {
-	return e.assertedType
-}
-
-// If the type assertion is to an interface type, MissingMethod returns the
-// name of a method needed to satisfy that interface type but not implemented
-// by Concrete.  If there are multiple such methods,
-// MissingMethod returns one; which one is unspecified.
-// If the type assertion is not to an interface type, MissingMethod returns an empty string.
-func (e *TypeAssertionError) MissingMethod() string {
-	return e.missingMethod
-}
-
 // For calling from C.
-func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
-	var t1, t2, t3 Type
+func newTypeAssertionError(ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
 	var s1, s2, s3, meth string
 
-	if pt1 != nil {
-		t1 = *pt1
-	}
-	if pt2 != nil {
-		t2 = *pt2
-	}
-	if pt3 != nil {
-		t3 = *pt3
-	}
 	if ps1 != nil {
 		s1 = *ps1
 	}
@@ -90,7 +57,7 @@ func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *st
 	if pmeth != nil {
 		meth = *pmeth
 	}
-	*ret = &TypeAssertionError{t1, t2, t3, s1, s2, s3, meth}
+	*ret = &TypeAssertionError{s1, s2, s3, meth}
 }
 
 // An errorString represents a runtime error described by a single string.

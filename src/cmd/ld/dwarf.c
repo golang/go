@@ -2317,7 +2317,7 @@ dwarfemitdebugsections(void)
 
 	// Needed by the prettyprinter code for interface inspection.
 	defgotype(lookup_or_diag("type.runtime.commonType"));
-	defgotype(lookup_or_diag("type.runtime.InterfaceType"));
+	defgotype(lookup_or_diag("type.runtime.interfaceType"));
 	defgotype(lookup_or_diag("type.runtime.itab"));
 
 	genasmsym(defdwsymb);
