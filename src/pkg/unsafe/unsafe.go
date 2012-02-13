@@ -35,27 +35,3 @@ func Offsetof(v ArbitraryType) uintptr
 // that the address of a variable with the type of v will always always be zero mod m.
 // If v is of the form structValue.field, it returns the alignment of field f within struct object obj.
 func Alignof(v ArbitraryType) uintptr
-
-// Typeof returns the type of an interface value, a runtime.Type.
-func Typeof(i interface{}) (typ interface{})
-
-// Reflect unpacks an interface value into its type and the address of a copy of the
-// internal value.
-func Reflect(i interface{}) (typ interface{}, addr Pointer)
-
-// Unreflect inverts Reflect: Given a type and a pointer to a value, it returns an
-// empty interface value with contents the type and the value (not the pointer to
-// the value).  The typ is assumed to contain a pointer to a runtime type; the type
-// information in the interface{} is ignored, so that, for example, both
-// *reflect.structType and *runtime.StructType can be passed for typ.
-func Unreflect(typ interface{}, addr Pointer) (ret interface{})
-
-// New allocates and returns a pointer to memory for a new value of the given type.
-// The typ is assumed to hold a pointer to a runtime type.
-// Callers should use reflect.New or reflect.Zero instead of invoking unsafe.New directly.
-func New(typ interface{}) Pointer
-
-// NewArray allocates and returns a pointer to an array of n elements of the given type.
-// The typ is assumed to hold a pointer to a runtime type.
-// Callers should use reflect.MakeSlice instead of invoking unsafe.NewArray directly.
-func NewArray(typ interface{}, n int) Pointer

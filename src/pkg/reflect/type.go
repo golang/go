@@ -16,7 +16,6 @@
 package reflect
 
 import (
-	"runtime"
 	"strconv"
 	"sync"
 	"unsafe"
@@ -181,7 +180,7 @@ type Type interface {
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
 
-	runtimeType() *runtime.Type
+	runtimeType() *runtimeType
 	common() *commonType
 	uncommon() *uncommonType
 }
@@ -221,128 +220,131 @@ const (
 )
 
 /*
- * Copy of data structures from ../runtime/type.go.
- * For comments, see the ones in that file.
- *
- * These data structures are known to the compiler and the runtime.
- *
- * Putting these types in runtime instead of reflect means that
- * reflect doesn't need to be autolinked into every binary, which
- * simplifies bootstrapping and package dependencies.
- * Unfortunately, it also means that reflect needs its own
- * copy in order to access the private fields.
+ * These data structures are known to the compiler (../../cmd/gc/reflect.c).
+ * A few are known to ../runtime/type.go to convey to debuggers.
  */
+
+// The compiler can only construct empty interface values at
+// compile time; non-empty interface values get created
+// during initialization.  Type is an empty interface
+// so that the compiler can lay out references as data.
+// The underlying type is *reflect.ArrayType and so on.
+type runtimeType interface{}
 
 // commonType is the common implementation of most values.
 // It is embedded in other, public struct types, but always
 // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
 // so that code cannot convert from, say, *arrayType to *ptrType.
-
 type commonType struct {
-	size       uintptr
-	hash       uint32
-	_          uint8
-	align      uint8
-	fieldAlign uint8
-	kind       uint8
-	alg        *uintptr
-	string     *string
-	*uncommonType
-	ptrToThis *runtime.Type
+	size          uintptr      // size in bytes
+	hash          uint32       // hash of type; avoids computation in hash tables
+	_             uint8        // unused/padding
+	align         uint8        // alignment of variable with this type
+	fieldAlign    uint8        // alignment of struct field with this type
+	kind          uint8        // enumeration for C
+	alg           *uintptr     // algorithm table (../runtime/runtime.h:/Alg)
+	string        *string      // string form; unnecessary  but undeniably useful
+	*uncommonType              // (relatively) uncommon fields
+	ptrToThis     *runtimeType // pointer to this type, if used in binary or has methods
 }
 
+// Method on non-interface type
 type method struct {
-	name    *string
-	pkgPath *string
-	mtyp    *runtime.Type
-	typ     *runtime.Type
-	ifn     unsafe.Pointer
-	tfn     unsafe.Pointer
+	name    *string        // name of method
+	pkgPath *string        // nil for exported Names; otherwise import path
+	mtyp    *runtimeType   // method type (without receiver)
+	typ     *runtimeType   // .(*FuncType) underneath (with receiver)
+	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
+	tfn     unsafe.Pointer // fn used for normal method call
 }
 
+// uncommonType is present only for types with names or methods
+// (if T is a named type, the uncommonTypes for T and *T have methods).
+// Using a pointer to this struct reduces the overall size required
+// to describe an unnamed type with no methods.
 type uncommonType struct {
-	name    *string
-	pkgPath *string
-	methods []method
+	name    *string  // name of type
+	pkgPath *string  // import path; nil for built-in types like int, string
+	methods []method // methods associated with type
 }
 
 // ChanDir represents a channel type's direction.
 type ChanDir int
 
 const (
-	RecvDir ChanDir = 1 << iota
-	SendDir
-	BothDir = RecvDir | SendDir
+	RecvDir ChanDir             = 1 << iota // <-chan
+	SendDir                                 // chan<-
+	BothDir = RecvDir | SendDir             // chan
 )
 
 // arrayType represents a fixed array type.
 type arrayType struct {
 	commonType `reflect:"array"`
-	elem       *runtime.Type
-	slice      *runtime.Type
+	elem       *runtimeType // array element type
+	slice      *runtimeType // slice type
 	len        uintptr
 }
 
 // chanType represents a channel type.
 type chanType struct {
 	commonType `reflect:"chan"`
-	elem       *runtime.Type
-	dir        uintptr
+	elem       *runtimeType // channel element type
+	dir        uintptr      // channel direction (ChanDir)
 }
 
 // funcType represents a function type.
 type funcType struct {
 	commonType `reflect:"func"`
-	dotdotdot  bool
-	in         []*runtime.Type
-	out        []*runtime.Type
+	dotdotdot  bool           // last input parameter is ...
+	in         []*runtimeType // input parameter types
+	out        []*runtimeType // output parameter types
 }
 
 // imethod represents a method on an interface type
 type imethod struct {
-	name    *string
-	pkgPath *string
-	typ     *runtime.Type
+	name    *string      // name of method
+	pkgPath *string      // nil for exported Names; otherwise import path
+	typ     *runtimeType // .(*FuncType) underneath
 }
 
 // interfaceType represents an interface type.
 type interfaceType struct {
 	commonType `reflect:"interface"`
-	methods    []imethod
+	methods    []imethod // sorted by hash
 }
 
 // mapType represents a map type.
 type mapType struct {
 	commonType `reflect:"map"`
-	key        *runtime.Type
-	elem       *runtime.Type
+	key        *runtimeType // map key type
+	elem       *runtimeType // map element (value) type
 }
 
 // ptrType represents a pointer type.
 type ptrType struct {
 	commonType `reflect:"ptr"`
-	elem       *runtime.Type
+	elem       *runtimeType // pointer element (pointed at) type
 }
 
 // sliceType represents a slice type.
 type sliceType struct {
 	commonType `reflect:"slice"`
-	elem       *runtime.Type
+	elem       *runtimeType // slice element type
 }
 
 // Struct field
 type structField struct {
-	name    *string
-	pkgPath *string
-	typ     *runtime.Type
-	tag     *string
-	offset  uintptr
+	name    *string      // nil for embedded fields
+	pkgPath *string      // nil for exported Names; otherwise import path
+	typ     *runtimeType // type of field
+	tag     *string      // nil if no tag
+	offset  uintptr      // byte offset of field within struct
 }
 
 // structType represents a struct type.
 type structType struct {
 	commonType `reflect:"struct"`
-	fields     []structField
+	fields     []structField // sorted by offset
 }
 
 /*
@@ -909,23 +911,18 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (f StructField, pr
 }
 
 // Convert runtime type to reflect type.
-func toCommonType(p *runtime.Type) *commonType {
+func toCommonType(p *runtimeType) *commonType {
 	if p == nil {
 		return nil
 	}
-	type hdr struct {
-		x interface{}
-		t commonType
-	}
-	x := unsafe.Pointer(p)
-	return &(*hdr)(x).t
+	return (*p).(*commonType)
 }
 
-func toType(p *runtime.Type) Type {
+func toType(p *runtimeType) Type {
 	if p == nil {
 		return nil
 	}
-	return toCommonType(p).toType()
+	return (*p).(*commonType)
 }
 
 // TypeOf returns the reflection Type of the value in the interface{}.
@@ -940,14 +937,14 @@ var ptrMap struct {
 	m map[*commonType]*ptrType
 }
 
-func (t *commonType) runtimeType() *runtime.Type {
-	// The runtime.Type always precedes the commonType in memory.
+func (t *commonType) runtimeType() *runtimeType {
+	// The runtimeType always precedes the commonType in memory.
 	// Adjust pointer to find it.
 	var rt struct {
-		i  runtime.Type
+		i  runtimeType
 		ct commonType
 	}
-	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
+	return (*runtimeType)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
 }
 
 // PtrTo returns the pointer type with element t.
@@ -986,16 +983,15 @@ func (ct *commonType) ptrTo() *commonType {
 	}
 
 	var rt struct {
-		i runtime.Type
+		i runtimeType
 		ptrType
 	}
-	rt.i = (*runtime.PtrType)(unsafe.Pointer(&rt.ptrType))
+	rt.i = &rt.commonType
 
 	// initialize p using *byte's ptrType as a prototype.
-	// have to do assignment as ptrType, not runtime.PtrType,
-	// in order to write to unexported fields.
 	p = &rt.ptrType
-	bp := (*ptrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))
+	var ibyte interface{} = (*byte)(nil)
+	bp := (*ptrType)(unsafe.Pointer((**(**runtimeType)(unsafe.Pointer(&ibyte))).(*commonType)))
 	*p = *bp
 
 	s := "*" + *ct.string
@@ -1010,7 +1006,7 @@ func (ct *commonType) ptrTo() *commonType {
 
 	p.uncommonType = nil
 	p.ptrToThis = nil
-	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
+	p.elem = (*runtimeType)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
 
 	ptrMap.m[ct] = p
 	ptrMap.Unlock()

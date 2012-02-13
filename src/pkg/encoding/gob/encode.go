@@ -590,7 +590,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 				// Maps cannot be accessed by moving addresses around the way
 				// that slices etc. can.  We must recover a full reflection value for
 				// the iteration.
-				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
+				v := reflect.NewAt(t, unsafe.Pointer(p)).Elem()
 				mv := reflect.Indirect(v)
 				// We send zero-length (but non-nil) maps because the
 				// receiver might want to use the map.  (Maps don't use append.)
@@ -613,7 +613,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				// Interfaces transmit the name and contents of the concrete
 				// value they contain.
-				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
+				v := reflect.NewAt(t, unsafe.Pointer(p)).Elem()
 				iv := reflect.Indirect(v)
 				if !state.sendZero && (!iv.IsValid() || iv.IsNil()) {
 					return
@@ -645,9 +645,9 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 		var v reflect.Value
 		if ut.encIndir == -1 {
 			// Need to climb up one level to turn value into pointer.
-			v = reflect.ValueOf(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+			v = reflect.NewAt(rt, unsafe.Pointer(&p)).Elem()
 		} else {
-			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
+			v = reflect.NewAt(rt, p).Elem()
 		}
 		if !state.sendZero && isZero(v) {
 			return

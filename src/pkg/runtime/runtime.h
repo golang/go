@@ -674,7 +674,7 @@ void	runtime·panicslice(void);
  */
 void	runtime·newError(String, Eface*);
 void	runtime·printany(Eface);
-void	runtime·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
+void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
 void	runtime·newErrorString(String, Eface*);
 void	runtime·fadd64c(uint64, uint64, uint64*);
 void	runtime·fsub64c(uint64, uint64, uint64*);

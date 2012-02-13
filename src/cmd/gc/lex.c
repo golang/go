@@ -209,6 +209,10 @@ main(int argc, char *argv[])
 	typepkg = mkpkg(strlit("type"));
 	typepkg->name = "type";
 
+	weaktypepkg = mkpkg(strlit("weak.type"));
+	weaktypepkg->name = "weak.type";
+	weaktypepkg->prefix = "weak.type";  // not weak%2etype
+
 	unsafepkg = mkpkg(strlit("unsafe"));
 	unsafepkg->name = "unsafe";
 
