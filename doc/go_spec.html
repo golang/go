@@ -662,7 +662,7 @@ The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
 Any other type has an empty method set.
-In a method set, each method must have a unique name.
+In a method set, each method must have a unique <a href="#MethodName">method name</a>.
 </p>
 
 <p>
@@ -1862,11 +1862,13 @@ they can be used to declare local temporary variables (§<a href="#Statements">S
 <h3 id="Function_declarations">Function declarations</h3>
 
 <p>
-A function declaration binds an identifier to a function (§<a href="#Function_types">Function types</a>).
+A function declaration binds an identifier, the <i>function name</i>,
+to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" identifier Signature [ Body ] .
+FunctionDecl = "func" FunctionName Signature [ Body ] .
+FunctionName = identifier .
 Body         = Block .
 </pre>
 
@@ -1890,8 +1892,10 @@ func flushICache(begin, end uintptr)  // implemented externally
 
 <p>
 A method is a function with a <i>receiver</i>.
-A method declaration binds an identifier to a method.
+A method declaration binds an identifier, the <i>method name</i>, to a method.
+It also associates the method with the receiver's <i>base type</i>.
 </p>
+
 <pre class="ebnf">
 MethodDecl   = "func" Receiver MethodName Signature [ Body ] .
 Receiver     = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
@@ -1900,13 +1904,18 @@ BaseTypeName = identifier .
 
 <p>
 The receiver type must be of the form <code>T</code> or <code>*T</code> where
-<code>T</code> is a type name. <code>T</code> is called the
-<i>receiver base type</i> or just <i>base type</i>.
-The base type must not be a pointer or interface type and must be
-declared in the same package as the method.
-The method is said to be <i>bound</i> to the base type
-and is visible only within selectors for that type
-(§<a href="#Type_declarations">Type declarations</a>, §<a href="#Selectors">Selectors</a>).
+<code>T</code> is a type name. The type denoted by <code>T</code> is called
+the receiver <i>base type</i>; it must not be a pointer or interface type and
+it must be declared in the same package as the method.
+The method is said to be <i>bound</i> to the base type and the method name
+is visible only within selectors for that type.
+</p>
+
+<p>
+For a base type, the non-<a href="#Blank_identifier">blank</a> names of
+methods bound to it must be unique.
+If the base type is a <a href="#Struct_types">struct type</a>,
+the non-blank method and field names must be distinct.
 </p>
 
 <p>
