@@ -226,6 +226,40 @@ func TestAtofRandom(t *testing.T) {
 	t.Logf("tested %d random numbers", len(atofRandomTests))
 }
 
+var roundTripCases = []struct {
+	f float64
+	s string
+}{
+	// Issue 2917.
+	// A Darwin/386 builder failed on AtofRandom with this case.
+	{8865794286000691 << 39, "4.87402195346389e+27"},
+	{8865794286000692 << 39, "4.8740219534638903e+27"},
+}
+
+func TestRoundTrip(t *testing.T) {
+	for _, tt := range roundTripCases {
+		old := SetOptimize(false)
+		s := FormatFloat(tt.f, 'g', -1, 64)
+		if s != tt.s {
+			t.Errorf("no-opt FormatFloat(%b) = %s, want %s", tt.f, s, tt.s)
+		}
+		f, err := ParseFloat(tt.s, 64)
+		if f != tt.f || err != nil {
+			t.Errorf("no-opt ParseFloat(%s) = %b, %v want %b, nil", tt.s, f, err, tt.f)
+		}
+		SetOptimize(true)
+		s = FormatFloat(tt.f, 'g', -1, 64)
+		if s != tt.s {
+			t.Errorf("opt FormatFloat(%b) = %s, want %s", tt.f, s, tt.s)
+		}
+		f, err = ParseFloat(tt.s, 64)
+		if f != tt.f || err != nil {
+			t.Errorf("opt ParseFloat(%s) = %b, %v want %b, nil", tt.s, f, err, tt.f)
+		}
+		SetOptimize(old)
+	}
+}
+
 func BenchmarkAtof64Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseFloat("33909", 64)
