@@ -463,8 +463,6 @@ Running <code>go fix</code> will update all imports and package renames for pack
 remain inside the standard repository.  Programs that import packages
 that are no longer in the standard repository will need to be edited
 by hand.
-<br>
-<font color="red">TODO: go fix should warn about deletions.</font>
 </p>
 
 <h3 id="exp">The package tree exp</h3>
@@ -505,8 +503,6 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
 Code that uses packages in <code>exp</code> will need to be updated by hand,
 or else compiled from an installation that has <code>exp</code> available.
 The go fix tool or the compiler will complain about such uses.
-<br>
-<font color="red">TODO: go fix should warn about such uses.</font>
 </p>
 
 <h3 id="old">The package tree old</h3>
@@ -532,8 +528,6 @@ The packages in their new locations are:
 Code that uses packages now in <code>old</code> will need to be updated by hand,
 or else compiled from an installation that has <code>old</code> available.
 The go fix tool will warn about such uses.
-<br>
-<font color="red">TODO: go fix should warn about such uses.</font>
 </p>
 
 <h3 id="deleted">Deleted packages</h3>
@@ -560,8 +554,6 @@ slices directly.  See
 <a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
 Language Community Wiki</a> for some suggestions.
 Code that uses the other packages (there should be almost zero) will need to be rethought.
-<br>
-<font color="red">TODO: go fix should warn such uses.</font>
 </p>
 
 <h3 id="subrepo">Packages moving to subrepositories</h3>
