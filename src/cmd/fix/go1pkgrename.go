@@ -6,6 +6,7 @@ package main
 
 import (
 	"go/ast"
+	"strings"
 )
 
 func init() {
@@ -76,10 +77,24 @@ var go1PackageRenames = []struct{ old, new string }{
 	{"net/dict", "code.google.com/p/go.net/dict"},
 	{"net/websocket", "code.google.com/p/go.net/websocket"},
 	{"exp/spdy", "code.google.com/p/go.net/spdy"},
+	{"http/spdy", "code.google.com/p/go.net/spdy"},
 
 	// go.codereview sub-repository
 	{"encoding/git85", "code.google.com/p/go.codereview/git85"},
 	{"patch", "code.google.com/p/go.codereview/patch"},
+
+	// exp
+	{"ebnf", "exp/ebnf"},
+	{"go/types", "exp/types"},
+
+	// deleted
+	{"container/vector", ""},
+	{"exp/datafmt", ""},
+	{"go/typechecker", ""},
+	{"old/netchan", ""},
+	{"old/regexp", ""},
+	{"old/template", ""},
+	{"try", ""},
 }
 
 var go1PackageNameRenames = []struct{ newPath, old, new string }{
@@ -92,11 +107,19 @@ func go1pkgrename(f *ast.File) bool {
 
 	// First update the imports.
 	for _, rename := range go1PackageRenames {
-		if !imports(f, rename.old) {
+		spec := importSpec(f, rename.old)
+		if spec == nil {
+			continue
+		}
+		if rename.new == "" {
+			warn(spec.Pos(), "package %q has been deleted in Go 1", rename.old)
 			continue
 		}
 		if rewriteImport(f, rename.old, rename.new) {
 			fixed = true
+		}
+		if strings.HasPrefix(rename.new, "exp/") {
+			warn(spec.Pos(), "package %q is not part of Go 1", rename.new)
 		}
 	}
 	if !fixed {

@@ -87,6 +87,11 @@ import (
 import "cmath"
 import poot "exp/template/html"
 
+import (
+	"ebnf"
+	"old/regexp"
+)
+
 var _ = cmath.Sin
 var _ = poot.Poot
 `,
@@ -94,6 +99,11 @@ var _ = poot.Poot
 
 import "math/cmplx"
 import poot "html/template"
+
+import (
+	"exp/ebnf"
+	"old/regexp"
+)
 
 var _ = cmplx.Sin
 var _ = poot.Poot
