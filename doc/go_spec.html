@@ -589,11 +589,33 @@ functions return and test for those values at run time.
 </p>
 
 <p>
-Implementation restriction: A compiler may implement numeric constants by choosing
-an internal representation with at least twice as many bits as any machine type;
-for floating-point values, both the mantissa and exponent must be twice as large.
+Implementation restriction: Although numeric constants have arbitrary
+precision in the language, a compiler may implement them using an
+internal representation with limited precision.  That said, every
+implementation must:
 </p>
+<ul>
+	<li>Represent integer constants with at least 256 bits.</li>
 
+	<li>Represent floating-point constants, including the parts of
+	    a complex constant, with a mantissa of at least 256 bits
+	    and a signed exponent of at least 32 bits.</li>
+
+	<li>Give an error if unable to represent an integer constant
+	    precisely.</li>
+
+	<li>Give an error if unable to represent a floating-point or
+	    complex constant due to overflow.</li>
+
+	<li>Round to the nearest representable constant if unable to
+	    represent a floating-point or complex constant due to limits
+	    on precision.</li>
+</ul>
+<p>
+These requirements apply both to literal constants and to the result
+of evaluating <a href="#Constant_expressions">constant
+expressions</a>.
+</p>
 
 <h2 id="Types">Types</h2>
 
@@ -3573,6 +3595,16 @@ uint8(^1)  // error, same as uint8(-2), out of range
 int8(^1)   // same as int8(-2)
 ^int8(1)   // same as -1 ^ int8(1) = -2
 </pre>
+
+<p>
+Implementation restriction: A compiler may use rounding while
+computing untyped floating-point or complex constant expressions; see
+the implementation restriction in the section
+on <a href="#Constants">constants</a>.  This rounding may cause a
+floating-point constant expression to be invalid in an integer
+context, even if it would be integral when calculated using infinite
+precision.
+</p>
 
 <!--
 <p>
