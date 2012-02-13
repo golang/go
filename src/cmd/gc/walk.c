@@ -1194,10 +1194,6 @@ walkexpr(Node **np, NodeList **init)
 		n = r;
 		goto ret;
 
-	
-		n = r;
-		goto ret;
-
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
