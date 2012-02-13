@@ -26,6 +26,10 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/thread
 //
+// For a study of the facility in action, visit
+//
+//	http://blog.golang.org/2011/06/profiling-go-programs.html
+//
 package pprof
 
 import (
