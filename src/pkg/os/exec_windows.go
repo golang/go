@@ -37,10 +37,11 @@ func (p *Process) Signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
-	if us, ok := sig.(UnixSignal); ok && us == syscall.SIGKILL {
+	if sig == Kill {
 		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
 		return NewSyscallError("TerminateProcess", e)
 	}
+	// TODO(rsc): Handle Interrupt too?
 	return syscall.Errno(syscall.EWINDOWS)
 }
 

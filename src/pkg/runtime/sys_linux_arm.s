@@ -271,9 +271,6 @@ TEXT runtime·sigaltstack(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT runtime·sigignore(SB),7,$0
-	RET
-
 TEXT runtime·sigtramp(SB),7,$24
 	// save g
 	MOVW	g, R3

@@ -22,6 +22,8 @@ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
 struct Sigaction;
 void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
 
 struct StackT;
 void	runtime·sigaltstack(struct StackT*, struct StackT*);
@@ -30,3 +32,6 @@ void	runtime·sigpanic(void);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 
 void	runtime·raisesigpipe(void);
+
+#define	NSIG 32
+#define	SI_USER	0  /* empirically true, but not what headers say */

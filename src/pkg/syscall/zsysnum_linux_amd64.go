@@ -307,10 +307,4 @@ const (
 	SYS_FANOTIFY_INIT          = 300
 	SYS_FANOTIFY_MARK          = 301
 	SYS_PRLIMIT64              = 302
-	SYS_NAME_TO_HANDLE_AT      = 303
-	SYS_OPEN_BY_HANDLE_AT      = 304
-	SYS_CLOCK_ADJTIME          = 305
-	SYS_SYNCFS                 = 306
-	SYS_SENDMMSG               = 307
-	SYS_SETNS                  = 308
 )

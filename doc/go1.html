@@ -1363,6 +1363,39 @@ will need to be updated by hand.
 The compiler will catch code using the old interface.
 </p>
 
+<h3 id="os/signal">The os/signal package</h3>
+
+<p>
+The <code>os/signal</code> package in Go 1 replaces the
+<code>Incoming</code> function, which returned a channel
+that received all incoming signals,
+with the selective <code>Notify</code> function, which asks
+for delivery of specific signals on an existing channel.
+</p>
+
+<p>
+<em>Updating</em>:
+Code must be updated by hand.
+A literal translation of
+</p>
+<pre>
+c := signal.Incoming()
+</pre>
+<p>
+is
+</p>
+<pre>
+c := make(chan os.Signal)
+signal.Notify(c) // ask for all signals
+</pre>
+<p>
+but most code should list the specific signals it wants to handle instead:
+</p>
+<pre>
+c := make(chan os.Signal)
+signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT)
+</pre>
+
 <h3 id="runtime">The runtime package</h3>
 
 <p>

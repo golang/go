@@ -106,8 +106,8 @@ func (w WaitStatus) ExitStatus() int {
 
 func (w WaitStatus) Signaled() bool { return w&mask != stopped && w&mask != 0 }
 
-func (w WaitStatus) Signal() int {
-	sig := int(w & mask)
+func (w WaitStatus) Signal() Signal {
+	sig := Signal(w & mask)
 	if sig == stopped || sig == 0 {
 		return -1
 	}
@@ -116,15 +116,15 @@ func (w WaitStatus) Signal() int {
 
 func (w WaitStatus) CoreDump() bool { return w.Signaled() && w&core != 0 }
 
-func (w WaitStatus) Stopped() bool { return w&mask == stopped && w>>shift != SIGSTOP }
+func (w WaitStatus) Stopped() bool { return w&mask == stopped && Signal(w>>shift) != SIGSTOP }
 
-func (w WaitStatus) Continued() bool { return w&mask == stopped && w>>shift == SIGSTOP }
+func (w WaitStatus) Continued() bool { return w&mask == stopped && Signal(w>>shift) == SIGSTOP }
 
-func (w WaitStatus) StopSignal() int {
+func (w WaitStatus) StopSignal() Signal {
 	if !w.Stopped() {
 		return -1
 	}
-	return int(w>>shift) & 0xFF
+	return Signal(w>>shift) & 0xFF
 }
 
 func (w WaitStatus) TrapCause() int { return -1 }

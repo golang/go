@@ -104,7 +104,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 
 //sys	kill(pid int, signum int, posix int) (err error)
 
-func Kill(pid int, signum int) (err error) { return kill(pid, signum, 1) }
+func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1) }
 
 /*
  * Exposed directly
