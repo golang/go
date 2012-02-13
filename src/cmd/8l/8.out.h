@@ -445,6 +445,10 @@ enum	as
 	AFCMOVNU,
 	AFCMOVUN,
 
+	ALFENCE,
+	AMFENCE,
+	ASFENCE,
+
 	ALAST
 };
 

@@ -755,5 +755,9 @@ Optab optab[] =
 	{ AFCMOVNU,	yfcmv,	Px, 0xdb,(03) },
 	{ AFCMOVUN,	yfcmv,	Px, 0xda,(03) },
 
+	{ ALFENCE, ynone, Pm, 0xae,0xe8 },
+	{ AMFENCE, ynone, Pm, 0xae,0xf0 },
+	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
+
 	0
 };
