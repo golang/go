@@ -448,7 +448,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 		}
 		// Check that decomposition doesn't result in overflow.
 		if info.hasDecomposition() {
-			dcomp := rb.f.decompose(inputBytes(buf), p-int(info.size))
+			dcomp := info.decomposition()
 			for i := 0; i < len(dcomp); {
 				inf := rb.f.info(inputBytes(dcomp), i)
 				i += int(inf.size)

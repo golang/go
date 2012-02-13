@@ -6,25 +6,50 @@ package norm
 
 // This file contains Form-specific logic and wrappers for data in tables.go.
 
+// Rune info is stored in a separate trie per composing form. A composing form
+// and its corresponding decomposing form share the same trie.  Each trie maps
+// a rune to a uint16. The values take two forms.  For v >= 0x8000:
+//   bits
+//   0..8:   ccc
+//   9..12:  qcInfo (see below). isYesD is always true (no decompostion).
+//   16:     1
+// For v < 0x8000, the respective rune has a decomposition and v is an index
+// into a byte array of UTF-8 decomposition sequences and additional info and
+// has the form:
+//    <header> <decomp_byte>* [<tccc> [<lccc>]]
+// The header contains the number of bytes in the decomposition (excluding this
+// length byte). The two most significant bits of this lenght byte correspond
+// to bit 2 and 3 of qcIfo (see below).  The byte sequence itself starts at v+1.
+// The byte sequence is followed by a trailing and leading CCC if the values
+// for these are not zero.  The value of v determines which ccc are appended
+// to the sequences.  For v < firstCCC, there are none, for v >= firstCCC,
+// the seqence is followed by a trailing ccc, and for v >= firstLeadingCC
+// there is an additional leading ccc.
+
+const (
+	qcInfoMask      = 0xF  // to clear all but the relevant bits in a qcInfo
+	headerLenMask   = 0x3F // extract the lenght value from the header byte
+	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
+)
+
+// runeInfo is a representation for the data stored in charinfoTrie.
 type runeInfo struct {
 	pos   uint8  // start position in reorderBuffer; used in composition.go
 	size  uint8  // length of UTF-8 encoding of this rune
-	ccc   uint8  // canonical combining class
+	ccc   uint8  // leading canonical combining class (ccc if not decomposition)
+	tccc  uint8  // trailing canonical combining class (ccc if not decomposition)
 	flags qcInfo // quick check flags
+	index uint16
 }
 
 // functions dispatchable per form
 type lookupFunc func(b input, i int) runeInfo
-type decompFunc func(b input, i int) []byte
 
 // formInfo holds Form-specific functions and tables.
 type formInfo struct {
-	form Form
-
+	form                     Form
 	composing, compatibility bool // form type
-
-	decompose decompFunc
-	info      lookupFunc
+	info                     lookupFunc
 }
 
 var formTable []*formInfo
@@ -38,10 +63,8 @@ func init() {
 		f.form = Form(i)
 		if Form(i) == NFKD || Form(i) == NFKC {
 			f.compatibility = true
-			f.decompose = decomposeNFKC
 			f.info = lookupInfoNFKC
 		} else {
-			f.decompose = decomposeNFC
 			f.info = lookupInfoNFC
 		}
 		if Form(i) == NFC || Form(i) == NFKC {
@@ -76,8 +99,6 @@ func (i runeInfo) boundaryAfter() bool {
 // 
 // When all 4 bits are zero, the character is inert, meaning it is never
 // influenced by normalization.
-//
-// We pack the bits for both NFC/D and NFKC/D in one byte.
 type qcInfo uint8
 
 func (i runeInfo) isYesC() bool { return i.flags&0x4 == 0 }
@@ -91,22 +112,12 @@ func (r runeInfo) isInert() bool {
 	return r.flags&0xf == 0 && r.ccc == 0
 }
 
-// Wrappers for tables.go
-
-// The 16-bit value of the decomposition tries is an index into a byte
-// array of UTF-8 decomposition sequences. The first byte is the number
-// of bytes in the decomposition (excluding this length byte). The actual
-// sequence starts at the offset+1.
-func decomposeNFC(s input, i int) []byte {
-	p := s.decomposeNFC(i)
-	n := decomps[p]
-	p++
-	return decomps[p : p+uint16(n)]
-}
-
-func decomposeNFKC(s input, i int) []byte {
-	p := s.decomposeNFKC(i)
-	n := decomps[p]
+func (r runeInfo) decomposition() []byte {
+	if r.index == 0 {
+		return nil
+	}
+	p := r.index
+	n := decomps[p] & 0x3F
 	p++
 	return decomps[p : p+uint16(n)]
 }
@@ -124,16 +135,40 @@ func combine(a, b rune) rune {
 	return recompMap[key]
 }
 
-// The 16-bit character info has the following bit layout:
-//    0..7   CCC value.
-//    8..11  qcInfo for NFC/NFD
-//   12..15  qcInfo for NFKC/NFKD
 func lookupInfoNFC(b input, i int) runeInfo {
-	v, sz := b.charinfo(i)
-	return runeInfo{size: uint8(sz), ccc: uint8(v), flags: qcInfo(v >> 8)}
+	v, sz := b.charinfoNFC(i)
+	return compInfo(v, sz)
 }
 
 func lookupInfoNFKC(b input, i int) runeInfo {
-	v, sz := b.charinfo(i)
-	return runeInfo{size: uint8(sz), ccc: uint8(v), flags: qcInfo(v >> 12)}
+	v, sz := b.charinfoNFKC(i)
+	return compInfo(v, sz)
+}
+
+// compInfo converts the information contained in v and sz
+// to a runeInfo.  See the comment at the top of the file
+// for more information on the format.
+func compInfo(v uint16, sz int) runeInfo {
+	if v == 0 {
+		return runeInfo{size: uint8(sz)}
+	} else if v >= 0x8000 {
+		return runeInfo{
+			size:  uint8(sz),
+			ccc:   uint8(v),
+			tccc:  uint8(v),
+			flags: qcInfo(v>>8) & qcInfoMask,
+		}
+	}
+	// has decomposition
+	h := decomps[v]
+	f := (qcInfo(h&headerFlagsMask) >> 4) | 0x1
+	ri := runeInfo{size: uint8(sz), flags: f, index: v}
+	if v >= firstCCC {
+		v += uint16(h&headerLenMask) + 1
+		ri.tccc = decomps[v]
+		if v >= firstLeadingCCC {
+			ri.ccc = decomps[v+1]
+		}
+	}
+	return ri
 }
