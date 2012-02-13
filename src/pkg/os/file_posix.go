@@ -37,7 +37,7 @@ func (e *LinkError) Error() string {
 	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
 }
 
-// Link creates a hard link.
+// Link creates newname as a hard link to the oldname file.
 func Link(oldname, newname string) error {
 	e := syscall.Link(oldname, newname)
 	if e != nil {
@@ -46,7 +46,7 @@ func Link(oldname, newname string) error {
 	return nil
 }
 
-// Symlink creates a symbolic link.
+// Symlink creates newname as a symbolic link to oldname.
 func Symlink(oldname, newname string) error {
 	e := syscall.Symlink(oldname, newname)
 	if e != nil {
@@ -55,8 +55,7 @@ func Symlink(oldname, newname string) error {
 	return nil
 }
 
-// Readlink reads the contents of a symbolic link: the destination of
-// the link.  It returns the contents and an error, if any.
+// Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
