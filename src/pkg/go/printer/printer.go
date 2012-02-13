@@ -413,7 +413,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 
 // Split comment text into lines
 // (using strings.Split(text, "\n") is significantly slower for
-// this specific purpose, as measured with: gotest -bench=Print)
+// this specific purpose, as measured with: go test -bench=Print)
 func split(text string) []string {
 	// count lines (comment text never ends in a newline)
 	n := 1

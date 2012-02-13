@@ -8,7 +8,7 @@
 // results are somewhat fragile; use repeated runs to get
 // a clear picture.
 
-// Usage: gotest -calibrate
+// Usage: go test -run=TestCalibrate -calibrate
 
 package big
 

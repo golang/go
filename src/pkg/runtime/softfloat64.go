@@ -4,7 +4,7 @@
 
 // Software IEEE754 64-bit floating point.
 // Only referred to (and thus linked in) by arm port
-// and by gotest in this directory.
+// and by tests in this directory.
 
 package runtime
 

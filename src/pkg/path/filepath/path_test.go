@@ -357,7 +357,7 @@ func TestWalk(t *testing.T) {
 
 	// Test permission errors.  Only possible if we're not root
 	// and only on some file systems (AFS, FAT).  To avoid errors during
-	// all.bash on those file systems, skip during gotest -short.
+	// all.bash on those file systems, skip during go test -short.
 	if os.Getuid() > 0 && !testing.Short() {
 		// introduce 2 errors: chmod top-level directories to 0
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
