@@ -487,6 +487,25 @@ func _() {
 }
 
 
+// Print line directives correctly.
+
+// The following is a legal line directive.
+//line foo:1
+func _() {
+	_ = 0
+// The following is a legal line directive. It must not be indented:
+//line foo:2
+	_ = 1
+
+// The following is not a legal line directive (it doesn't start in column 1):
+	//line foo:2
+	_ = 2
+
+// The following is not a legal line directive (negative line number):
+//line foo:-3
+	_ = 3
+}
+
 // Line comments with tabs
 func _() {
 var	finput		*bufio.Reader			// input file
