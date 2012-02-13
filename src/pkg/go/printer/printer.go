@@ -275,8 +275,6 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	p.last = p.pos
 }
 
-const linePrefix = "//line "
-
 // writeCommentPrefix writes the whitespace before a comment.
 // If there is any pending whitespace, it consumes as much of
 // it as is likely to help position the comment nicely.
@@ -397,16 +395,10 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 		}
 
 		if n > 0 {
-			// turn off indent if we're about to print a line directive
-			indent := p.indent
-			if strings.HasPrefix(comment.Text, linePrefix) {
-				p.indent = 0
-			}
 			// use formfeeds to break columns before a comment;
 			// this is analogous to using formfeeds to separate
 			// individual lines of /*-style comments
 			p.writeByte('\f', nlimit(n))
-			p.indent = indent // restore indent
 		}
 	}
 }
@@ -588,30 +580,33 @@ func stripCommonPrefix(lines []string) {
 
 func (p *printer) writeComment(comment *ast.Comment) {
 	text := comment.Text
+	pos := p.posFor(comment.Pos())
 
-	if strings.HasPrefix(text, linePrefix) {
-		pos := strings.TrimSpace(text[len(linePrefix):])
-		i := strings.LastIndex(pos, ":")
-		if i >= 0 {
-			// The line directive we are about to print changed
-			// the Filename and Line number used by go/token
-			// as it was reading the input originally.
-			// In order to match the original input, we have to
-			// update our own idea of the file and line number
-			// accordingly, after printing the directive.
-			file := pos[:i]
-			line, _ := strconv.Atoi(pos[i+1:])
-			defer func() {
-				p.pos.Filename = file
-				p.pos.Line = line
-				p.pos.Column = 1
-			}()
+	const linePrefix = "//line "
+	if strings.HasPrefix(text, linePrefix) && (!pos.IsValid() || pos.Column == 1) {
+		// possibly a line directive
+		ldir := strings.TrimSpace(text[len(linePrefix):])
+		if i := strings.LastIndex(ldir, ":"); i >= 0 {
+			if line, err := strconv.Atoi(ldir[i+1:]); err == nil && line > 0 {
+				// The line directive we are about to print changed
+				// the Filename and Line number used for subsequent
+				// tokens. We have to update our AST-space position
+				// accordingly and suspend indentation temporarily.
+				indent := p.indent
+				p.indent = 0
+				defer func() {
+					p.pos.Filename = ldir[:i]
+					p.pos.Line = line
+					p.pos.Column = 1
+					p.indent = indent
+				}()
+			}
 		}
 	}
 
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
-		p.writeString(p.posFor(comment.Pos()), text, true)
+		p.writeString(pos, text, true)
 		return
 	}
 
@@ -622,7 +617,6 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// write comment lines, separated by formfeed,
 	// without a line break after the last line
-	pos := p.posFor(comment.Pos())
 	for i, line := range lines {
 		if i > 0 {
 			p.writeByte('\f', 1)
