@@ -50,6 +50,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	Ucontext *uc;
 	Mcontext *r;
 	uintptr *sp;
+	SigTab *t;
 
 	uc = context;
 	r = &uc->uc_mcontext;
