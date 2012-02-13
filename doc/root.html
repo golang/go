@@ -2,105 +2,112 @@
 	"Path": "/"
 }-->
 
-<link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
+<div id="left" class="aboutcol">
 
-<script src="http://www.google.com/jsapi" type="text/javascript"></script>
-<script type="text/javascript">
-function loadFeed() {
-        var url = "http://blog.golang.org/feeds/posts/default";
-        var divId = "blogFeed";
-        var feed = new google.feeds.Feed(url);
-        feed.setNumEntries(4)
-        feed.load(function (result) {
-                var container = document.getElementById(divId)
-                if (result.error) {
-                        container.innerHTML = "Error loading feed.";
-                        return;
-                }
-                container.innerHTML = "";
-                var entries = result.feed.entries;
-                for (var i=0; i<entries.length; i++) {
-                        var li = document.createElement("li");
-                        var a = document.createElement("a");
-                        a.setAttribute("href", entries[i].link);
-                        var span_title = document.createElement("span"); 
-                        span_title.appendChild(document.createTextNode(entries[i].title));
-                        span_title.className = "title";
-                        a.appendChild(span_title);
-                        li.appendChild(a);
-                        var span_date = document.createElement("span"); 
-                        span_date.appendChild(document.createTextNode(entries[i].publishedDate.substr(0, 11)));
-                        span_date.className = "date";
-                        a.appendChild(span_date);
-                        container.appendChild(li);
-                }
-        });
-}
+<div id="about">
+Go is an open source programming environment that makes it easy to build
+simple, reliable, and efficient software.
+</div>
+
+<div id="gopher"></div>
+
+<a href="/install/" id="start">
+<div class="big">Download Go</div>
+<div class="desc">
+Binary distributions available for<br>
+Linux, Mac OS X, Windows, and more.
+</div>
+</a>
+
+</div>
+
+<div id="right" class="learncol">
+
+<div id="learn">
+<div class="rootHeading">Try Go</div>
+<div class="input">
+<textarea spellcheck="false">// You can edit this code!
+// Click here and start typing.
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, 世界")
+}</textarea>
+</div>
+<div class="output">
+<pre>
+Hello, 世界
+</pre>
+</div>
+<div class="buttons">
+<a href="#">Run</a>
+<a href="#">Share</a>
+</div>
+</div>
+
+</div>
+
+<div style="clear: both"></div>
+
+<div id="left">
+
+<div id="video">
+<div class="rootHeading">Featured video</div>
+<a class="title" href="http://www.youtube.com/watch?v=Mo1YKpIF1PQ">Building integrated apps on Google's cloud platform with Go</a>
+<iframe width="415" height="241" src="http://www.youtube.com/embed/Mo1YKpIF1PQ" frameborder="0" allowfullscreen></iframe>
+</div>
+
+</div>
+
+<div id="right">
+
+<div id="blog">
+<div class="rootHeading">Featured articles</div>
+<div class="read"><a href="http://blog.golang.org/">Read more</a></div>
+</div>
+
+</div>
+
+<div style="clear: both;"></div>
+
+<div id="plusoneRoot"><g:plusone annotation="none"></g:plusone></div>
+
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script>
 google.load("feeds", "1");
-google.setOnLoadCallback(loadFeed);
-</script>
 
-  <div id="frontpage">
-    <div class="left-column">
-      <p style="margin-top: 0;">
-        The Go programming language is an open source project to make
-        programmers more productive.  Go is expressive, concise, clean,
-        and efficient.  Its concurrency mechanisms make it easy to write
-        programs that get the most out of multicore and networked machines,
-        while its novel type system enables flexible and modular program
-        construction.  Go compiles quickly to machine code yet has the
-        convenience of garbage collection and the power of run-time reflection.
-        It's a fast, statically typed, compiled language that feels like a 
-        dynamically typed, interpreted language.
-      </p>
-      <h2>
-        Get started now with
-	<a target="_blank" href="http://tour.golang.org/">A Tour of Go</a>
-        in your browser.
-      </h2>
-      <p>
-      <div class="how">[<a href="/doc/playground.html">How does this work?</a>]</div>
-      Or try Go right here:</p>
-      <div id="playground" class="small"></div>
-      <script src="/doc/play/playground.js"></script>
-    </div>
-    <div class="right-column">
-      <div id="content-rotating">
-      <div id="content-videos">
-        <h2>Go Videos <span class="more">| <a href="/doc/docs.html#videos_talks">More...</a></span></h2>
-        <a class="video" href="http://www.youtube.com/watch?v=-i0hat7pdpk"><img src="/doc/play_overlay.png" class="thumbnail _005" /> <span class="caption title">&ldquo;Writing Web Apps in Go&rdquo;</span> <span class="caption description">Google I/O 2011</span></a>
-      </div>
-      <h2>Go Blog <span class="more">| <a href="http://blog.golang.org/">More...</a></span></h2>
-      <div id="content-blog">
-        <ul id="blogFeed">
-        </ul>
-      </div>
-      </div>
-      <h2>Quick Links</h2>
-      <div id="resources">
-        <div id="resources-users">
-          <h3>For newcomers:</h3>
-          <ul>
-            <li><a href="/doc/install.html">Getting Started</a></li>
-            <li><a href="/doc/go_tutorial.html">Tutorial</a></li>
-            <li><a href="/doc/effective_go.html">Effective Go</a></li>
-            <li><a href="/doc/go_faq.html">Go FAQ</a></li>
-            <li><a href="/doc/docs.html">Other Documentation</a></li>
-            <li><a href="http://code.google.com/appengine/docs/go/">Go for Google App Engine</a> <sup class="new">New!</sup></li>
-          </ul>
-        </div>
-        <div id="resources-contributors" >
-          <h3>For developers:</h3>
-          <ul>
-            <li><a href="http://godashboard.appspot.com/package">Package Dashboard</a></li>
-            <li><a href="http://code.google.com/p/go/issues">Issue Tracker</a></li>
-            <li><a href="http://build.golang.org/">Build Status</a></li>
-            <li><a href="http://code.google.com/p/go/source/browse/">Go Source</a> [<a href="http://code.google.com/p/go/source/list">changes</a>]</li>
-            <li><a href="/pkg/">Package Reference</a></li>
-            <li><a href="/doc/go_spec.html">Language Specification</a></li>
-          </ul>
-        </div>
-      </div>  
-    </div>
-    <div class="end-columns"></div>
-  </div>
+function feedLoaded(result) {
+  if (result.error) {
+    console.log(result.error);
+    return;
+  }
+  var blog = document.getElementById("blog");
+  var read = blog.getElementsByClassName("read")[0];
+  for (var i = 0; i < result.feed.entries.length && i < 2; i++) {
+    var entry = result.feed.entries[i];
+    var title = document.createElement("a");
+    title.className = "title";
+    title.href = entry.link;
+    title.innerHTML = entry.title;
+    blog.insertBefore(title, read);
+    var extract = document.createElement("div");
+    extract.className = "extract";
+    extract.innerHTML = entry.contentSnippet;
+    blog.insertBefore(extract, read);
+    var when = document.createElement("div");
+    when.className = "when";
+    var pub = entry.publishedDate.split(" ").slice(1,3).join(" ");
+    when.innerHTML = "Published " + pub
+    blog.insertBefore(when, read);
+  }
+}
+
+function fetchFeeds() {
+  var feed = new google.feeds.Feed("http://blog.golang.org/feeds/posts/default");
+  feed.load(feedLoaded);
+}
+
+google.setOnLoadCallback(fetchFeeds);
+</script>

@@ -1,72 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 {{with .Title}}
   <title>{{html .}} - The Go Programming Language</title>
 {{else}}
   <title>The Go Programming Language</title>
 {{end}}
-<link rel="stylesheet" href="/doc/all.css" type="text/css" media="all" charset="utf-8">
-<!--[if lt IE 8]>
-<link rel="stylesheet" href="/doc/ie.css" type="text/css">
-<![endif]-->
+<link type="text/css" rel="stylesheet" href="/doc/style.css">
 <script type="text/javascript" src="/doc/godocs.js"></script>
 {{if .SearchBox}}
 <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
 {{end}}
 </head>
 <body>
-<div id="container">
-  <div id="topnav">
-    <h1 id="title">The Go Programming Language</h1>
-    <div id="nav-main">
-      <ul>
-      <li><a href="/">Home</a></li><li><a href="/doc/install.html">Getting Started</a></li><li><a href="/doc/docs.html">Documentation</a></li><li><a href="/doc/contrib.html">Contributing</a></li><li><a href="/doc/community.html">Community</a></li>
-      </ul>
-      <div class="quickref">
-        <form method="GET" action="/search">
-        {{range .PkgRoots}}
-        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
-        {{else}}
-        References:
-        {{end}}
-        <a href="/pkg/">Packages</a> <span class="sep">|</span>
-        <a href="/cmd/">Commands</a> <span class="sep">|</span>
-        <a href="/doc/go_spec.html">Specification</a>
-	{{if .SearchBox}}
-        <input id="search" type="search" name="q" value="{{with .Query}}{{html .}}{{end}}" class="{{if not .Query}}inactive{{end}}" placeholder="code search" results="0" />
-	{{end}}
-        </form>
-      </div>
-    </div>
-    <a id="logo-box" href="/"></a>
-  </div>
-  <div id="content">
-  <!-- Menu is HTML-escaped elsewhere -->
-  {{with .Menu}}
-    <div id="menu">
-      {{printf "%s" .}}
-    </div>
-  {{end}}
 
-  {{with .Title}}
-    <h1 id="generatedHeader">{{html .}}</h1>
-  {{end}}
-  {{with .Subtitle}}
-    <span class="subtitle">{{html .}}</span>
-  {{end}}
+<div id="topbar"><div class="container">
 
-  <!-- The Table of Contents is automatically inserted in this <div>.
-       Do not delete this <div>. -->
-  <div id="nav"></div>
-
-  <!-- Content is HTML-escaped elsewhere -->
-  {{printf "%s" .Content}}
-  </div>
-  <div id="site-info">
-    <p>Build version {{html .Version}}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
-  </div>
+<form method="GET" action="/search">
+<div id="heading"><a href="/">The Go Programming Language</a></div>
+<div id="menu">
+<a href="/doc/">Learn</a>
+<a href="/install/">Install</a>
+<a href="/project/">Project</a>
+<a href="/doc/reference.html">Reference</a>
+<input type="text" id="search" name="q" class="inactive" value="Search">
 </div>
+</form>
+
+</div></div>
+
+<div id="page">
+
+<div id="content">
+
+{{with .Title}}
+  <div id="plusone"><g:plusone size="small" annotation="none"></g:plusone></div>
+  <h1>{{html .}}</h1>
+{{end}}
+{{with .Subtitle}}
+  <h2>{{html .}}</h2>
+{{end}}
+
+{{/* The Table of Contents is automatically inserted in this <div>.
+     Do not delete this <div>. */}}
+<div id="nav"></div>
+
+{{/* Content is HTML-escaped elsewhere */}}
+{{printf "%s" .Content}}
+
+</div>
+
+</div>
+
+<div id="copyright">
+Build version {{html .Version}}.
+Except as noted, this content is licensed under a
+Creative Commons Attribution 3.0 License.
+</div>
+
 </body>
+<!--
+<script type="text/javascript">
+  (function() {
+    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+    po.src = 'https://apis.google.com/js/plusone.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+  })();
+</script>
+-->
 </html>
+

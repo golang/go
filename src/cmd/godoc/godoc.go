@@ -63,7 +63,7 @@ var (
 
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
-	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
+	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
 
 	// search index

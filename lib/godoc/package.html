@@ -50,19 +50,18 @@
 			{{if .Bugs}}
 				<dd><a href="#Bugs">Bugs</a></dd>
 			{{end}}
-			<dd>
-			{{with .Filenames}}
-				<h4>Package files</h4>
-				<p>
-				<span style="font-size:90%">
-				{{range .}}
-					<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
-				{{end}}
-				</span>
-				</p>
-			{{end}}
-			</dd>
 		</dl>
+
+		{{with .Filenames}}
+			<h4>Package files</h4>
+			<p>
+			<span style="font-size:90%">
+			{{range .}}
+				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+			{{end}}
+			</span>
+			</p>
+		{{end}}
 	
 		{{with .Consts}}
 			<h2 id="constants">Constants</h2>
@@ -147,30 +146,23 @@
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
 	<h2 id="subdirectories">Subdirectories</h2>
 	<p>
-	<table class="layout">
+	<table class="dir">
 	<tr>
-	{{if $.DirFlat}}
-		<th align="left">Name</th>
-	{{else}}
-		<th align="left" colspan="{{html .MaxHeight}}">Name</th>
-	{{end}}
-	<th width="25"></th>
-	<th align="left">Synopsis</th>
+	<th>Name</th>
+	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
+	<th style="text-align: left; width: auto">Synopsis</th>
 	</tr>
 	<tr>
-	<td align="left"><a href="..">..</a></td>
+	<td><a href="..">..</a></td>
 	</tr>
 	{{range .List}}
-		<tr>
-		{{if $.DirFlat}}
-			<td align="left"><a href="{{html .Path}}">{{html .Path}}</a></td>
-		{{else}}
-			{{repeat `<td width="20"></td>` .Depth}}
-			<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
-		{{end}}
-		<td></td>
-		<td align="left">{{html .Synopsis}}</td>
-		</tr>
+	<tr>
+		<td>
+		{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
+		</td>
+		<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		<td style="width: auto">{{html .Synopsis}}</td>
+	</tr>
 	{{end}}
 	</table>
 	</p>
