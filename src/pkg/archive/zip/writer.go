@@ -19,7 +19,7 @@ import (
 
 // Writer implements a zip file writer.
 type Writer struct {
-	countWriter
+	cw     *countWriter
 	dir    []*header
 	last   *fileWriter
 	closed bool
@@ -32,7 +32,7 @@ type header struct {
 
 // NewWriter returns a new Writer writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
-	return &Writer{countWriter: countWriter{w: bufio.NewWriter(w)}}
+	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
 }
 
 // Close finishes writing the zip file by writing the central directory.
@@ -52,42 +52,42 @@ func (w *Writer) Close() (err error) {
 	defer recoverError(&err)
 
 	// write central directory
-	start := w.count
+	start := w.cw.count
 	for _, h := range w.dir {
-		write(w, uint32(directoryHeaderSignature))
-		write(w, h.CreatorVersion)
-		write(w, h.ReaderVersion)
-		write(w, h.Flags)
-		write(w, h.Method)
-		write(w, h.ModifiedTime)
-		write(w, h.ModifiedDate)
-		write(w, h.CRC32)
-		write(w, h.CompressedSize)
-		write(w, h.UncompressedSize)
-		write(w, uint16(len(h.Name)))
-		write(w, uint16(len(h.Extra)))
-		write(w, uint16(len(h.Comment)))
-		write(w, uint16(0)) // disk number start
-		write(w, uint16(0)) // internal file attributes
-		write(w, h.ExternalAttrs)
-		write(w, h.offset)
-		writeBytes(w, []byte(h.Name))
-		writeBytes(w, h.Extra)
-		writeBytes(w, []byte(h.Comment))
+		write(w.cw, uint32(directoryHeaderSignature))
+		write(w.cw, h.CreatorVersion)
+		write(w.cw, h.ReaderVersion)
+		write(w.cw, h.Flags)
+		write(w.cw, h.Method)
+		write(w.cw, h.ModifiedTime)
+		write(w.cw, h.ModifiedDate)
+		write(w.cw, h.CRC32)
+		write(w.cw, h.CompressedSize)
+		write(w.cw, h.UncompressedSize)
+		write(w.cw, uint16(len(h.Name)))
+		write(w.cw, uint16(len(h.Extra)))
+		write(w.cw, uint16(len(h.Comment)))
+		write(w.cw, uint16(0)) // disk number start
+		write(w.cw, uint16(0)) // internal file attributes
+		write(w.cw, h.ExternalAttrs)
+		write(w.cw, h.offset)
+		writeBytes(w.cw, []byte(h.Name))
+		writeBytes(w.cw, h.Extra)
+		writeBytes(w.cw, []byte(h.Comment))
 	}
-	end := w.count
+	end := w.cw.count
 
 	// write end record
-	write(w, uint32(directoryEndSignature))
-	write(w, uint16(0))          // disk number
-	write(w, uint16(0))          // disk number where directory starts
-	write(w, uint16(len(w.dir))) // number of entries this disk
-	write(w, uint16(len(w.dir))) // number of entries total
-	write(w, uint32(end-start))  // size of directory
-	write(w, uint32(start))      // start of directory
-	write(w, uint16(0))          // size of comment
+	write(w.cw, uint32(directoryEndSignature))
+	write(w.cw, uint16(0))          // disk number
+	write(w.cw, uint16(0))          // disk number where directory starts
+	write(w.cw, uint16(len(w.dir))) // number of entries this disk
+	write(w.cw, uint16(len(w.dir))) // number of entries total
+	write(w.cw, uint32(end-start))  // size of directory
+	write(w.cw, uint32(start))      // start of directory
+	write(w.cw, uint16(0))          // size of comment
 
-	return w.w.(*bufio.Writer).Flush()
+	return w.cw.w.(*bufio.Writer).Flush()
 }
 
 // Create adds a file to the zip file using the provided name.
@@ -119,8 +119,8 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	fh.ReaderVersion = 0x14
 
 	fw := &fileWriter{
-		zipw:      w,
-		compCount: &countWriter{w: w},
+		zipw:      w.cw,
+		compCount: &countWriter{w: w.cw},
 		crc32:     crc32.NewIEEE(),
 	}
 	switch fh.Method {
@@ -139,12 +139,12 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 
 	h := &header{
 		FileHeader: fh,
-		offset:     uint32(w.count),
+		offset:     uint32(w.cw.count),
 	}
 	w.dir = append(w.dir, h)
 	fw.header = h
 
-	if err := writeHeader(w, fh); err != nil {
+	if err := writeHeader(w.cw, fh); err != nil {
 		return nil, err
 	}
 
