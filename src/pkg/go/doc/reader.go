@@ -274,7 +274,7 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 	// determine values list with which to associate the Value for this decl
 	values := &r.values
 	const threshold = 0.75
-	if domName != "" && domFreq >= int(float64(len(decl.Specs))*threshold) {
+	if domName != "" && r.isVisible(domName) && domFreq >= int(float64(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
 		if typ := r.lookupType(domName); typ != nil {
 			values = &typ.values // associate with that type
