@@ -636,6 +636,7 @@ func init() {
 		// 64-bit system; clear uintptr tests
 		hammer32[2].f = nil
 		hammer32[5].f = nil
+		hammer32[6].f = nil
 	}
 }
 
@@ -760,6 +761,7 @@ func init() {
 		// 32-bit system; clear uintptr tests
 		hammer64[2].f = nil
 		hammer64[5].f = nil
+		hammer64[6].f = nil
 	}
 }
 
