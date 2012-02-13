@@ -9,6 +9,16 @@ if [ ! -f run.bash ]; then
 	exit 1
 fi
 
+# Test for Windows.
+case "$(uname)" in
+*MINGW* | *WIN32* | *CYGWIN*)
+	echo 'ERROR: Do not use make.bash to build on Windows.'
+	echo 'Use make.bat instead.'
+	echo
+	exit 1
+	;;
+esac
+
 # Test for bad ld.
 if ld --version 2>&1 | grep 'gold.* 2\.20' >/dev/null; then
 	echo 'ERROR: Your system has gold 2.20 installed.'
@@ -46,6 +56,7 @@ done
 # Finally!  Run the build.
 
 echo '# Building C bootstrap tool.'
+echo cmd/dist
 mkdir -p ../bin/tool
 export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"

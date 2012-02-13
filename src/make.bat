@@ -1,7 +1,7 @@
 :: Copyright 2012 The Go Authors. All rights reserved.
 :: Use of this source code is governed by a BSD-style
 :: license that can be found in the LICENSE file.
-::@echo off
+@echo off
 
 set GOBUILDFAIL=0
 
@@ -22,6 +22,7 @@ if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
 set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
 echo # Building C bootstrap tool.
+echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
 :: Windows has no glob expansion, so spell out cmd/dist/*.c.
 gcc -O2 -Wall -Werror -o ../bin/tool/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
