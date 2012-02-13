@@ -124,7 +124,7 @@ compile(Node *fn)
 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
 
 	setlineno(curfn);
-	if(stksize+maxarg > (1ULL<<31))
+	if((int64)stksize+maxarg > (1ULL<<31))
 		yyerror("stack frame too large (>2GB)");
 
 	defframe(ptxt);

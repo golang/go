@@ -1108,11 +1108,9 @@ eqtype1(Type *t1, Type *t2, TypePairList *assumed_equal)
 	goto no;
 
 yes:
-	assumed_equal = l.next;
 	return 1;
 
 no:
-	assumed_equal = l.next;
 	return 0;
 }
 
@@ -2491,7 +2489,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 }
 
 static Node*
-hashmem(Type *t, vlong width)
+hashmem(Type *t)
 {
 	Node *tfn, *n;
 	Sym *sym;
@@ -2519,7 +2517,7 @@ hashfor(Type *t)
 	a = algtype1(t, nil);
 	switch(a) {
 	case AMEM:
-		return hashmem(t, t->width);
+		return hashmem(t);
 	case AINTER:
 		sym = pkglookup("interhash", runtimepkg);
 		break;
@@ -2667,7 +2665,7 @@ genhash(Sym *sym, Type *t)
 					size = t->width - first->width;  // first->width is offset
 				else
 					size = t1->width - first->width;  // both are offsets
-				hashel = hashmem(first->type, size);
+				hashel = hashmem(first->type);
 				// hashel(h, size, &p.first)
 				call = nod(OCALL, hashel, N);
 				call->list = list(call->list, nh);

@@ -1004,6 +1004,9 @@ asmb(void)
 			phsh(ph, sh);
 		}
 
+		// Additions to the reserved area must be above this line.
+		USED(resoff);
+
 		elfphload(&segtext);
 		elfphload(&segdata);
 

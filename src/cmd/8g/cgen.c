@@ -1146,7 +1146,7 @@ sgen(Node *n, Node *res, int64 w)
 	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
-		print("\nsgen w=%ld\n", w);
+		print("\nsgen w=%lld\n", w);
 		dump("r", n);
 		dump("res", res);
 	}

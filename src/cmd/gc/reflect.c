@@ -907,7 +907,7 @@ dumptypestructs(void)
 	}
 }
 
-Sym*
+static Sym*
 dalgsym(Type *t)
 {
 	int ot;
