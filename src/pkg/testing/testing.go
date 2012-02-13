@@ -71,6 +71,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -225,19 +226,6 @@ func (c *common) Fatalf(format string, args ...interface{}) {
 	c.FailNow()
 }
 
-// TODO(dsymonds): Consider hooking into runtime·traceback instead.
-func (c *common) stack() {
-	for i := 2; ; i++ { // Caller we care about is the user, 2 frames up
-		pc, file, line, ok := runtime.Caller(i)
-		f := runtime.FuncForPC(pc)
-		if !ok || f == nil {
-			break
-		}
-		c.Logf("%s:%d (0x%x)", file, line, pc)
-		c.Logf("\t%s", f.Name())
-	}
-}
-
 // Parallel signals that this test is to be run in parallel with (and only with) 
 // other parallel tests in this CPU group.
 func (t *T) Parallel() {
@@ -260,11 +248,12 @@ func tRunner(t *T, test *InternalTest) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		// Consider any uncaught panic a failure.
-		if err := recover(); err != nil {
-			t.failed = true
-			t.Log(err)
-			t.stack()
+		if false {
+			// Log and recover from panic instead of aborting binary.
+			if err := recover(); err != nil {
+				t.failed = true
+				t.Logf("%s\n%s", err, debug.Stack())
+			}
 		}
 
 		t.duration = time.Now().Sub(t.start)
