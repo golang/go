@@ -4,14 +4,6 @@
 
 package main
 
-/*
-receiver named error
-function named error
-method on error
-exiterror
-slice of named type (go/scanner)
-*/
-
 import (
 	"fmt"
 	"go/ast"
@@ -19,6 +11,7 @@ import (
 	"go/token"
 	"os"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -750,5 +743,105 @@ func expr(s string) ast.Expr {
 	if err != nil {
 		panic("parsing " + s + ": " + err.Error())
 	}
+	// Remove position information to avoid spurious newlines.
+	killPos(reflect.ValueOf(x))
 	return x
+}
+
+var posType = reflect.TypeOf(token.Pos(0))
+
+func killPos(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Interface:
+		if !v.IsNil() {
+			killPos(v.Elem())
+		}
+	case reflect.Slice:
+		n := v.Len()
+		for i := 0; i < n; i++ {
+			killPos(v.Index(i))
+		}
+	case reflect.Struct:
+		n := v.NumField()
+		for i := 0; i < n; i++ {
+			f := v.Field(i)
+			if f.Type() == posType {
+				f.SetInt(0)
+				continue
+			}
+			killPos(f)
+		}
+	}
+}
+
+// A Rename describes a single renaming.
+type rename struct {
+	OldImport string // only apply rename if this import is present
+	NewImport string // add this import during rewrite
+	Old       string // old name: p.T or *p.T
+	New       string // new name: p.T or *p.T
+}
+
+func renameFix(tab []rename) func(*ast.File) bool {
+	return func(f *ast.File) bool {
+		return renameFixTab(f, tab)
+	}
+}
+
+func parseName(s string) (ptr bool, pkg, nam string) {
+	i := strings.Index(s, ".")
+	if i < 0 {
+		panic("parseName: invalid name " + s)
+	}
+	if strings.HasPrefix(s, "*") {
+		ptr = true
+		s = s[1:]
+		i--
+	}
+	pkg = s[:i]
+	nam = s[i+1:]
+	return
+}
+
+func renameFixTab(f *ast.File, tab []rename) bool {
+	fixed := false
+	added := map[string]bool{}
+	check := map[string]bool{}
+	for _, t := range tab {
+		if !imports(f, t.OldImport) {
+			continue
+		}
+		optr, opkg, onam := parseName(t.Old)
+		walk(f, func(n interface{}) {
+			np, ok := n.(*ast.Expr)
+			if !ok {
+				return
+			}
+			x := *np
+			if optr {
+				p, ok := x.(*ast.StarExpr)
+				if !ok {
+					return
+				}
+				x = p.X
+			}
+			if !isPkgDot(x, opkg, onam) {
+				return
+			}
+			if t.NewImport != "" && !added[t.NewImport] {
+				addImport(f, t.NewImport)
+				added[t.NewImport] = true
+			}
+			*np = expr(t.New)
+			check[t.OldImport] = true
+			fixed = true
+		})
+	}
+
+	for ipath := range check {
+		if !usesImport(f, ipath) {
+			deleteImport(f, ipath)
+		}
+	}
+	return fixed
 }
