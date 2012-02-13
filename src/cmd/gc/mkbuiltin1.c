@@ -6,13 +6,17 @@
 
 // Compile .go file, import data from .6 file, and generate C string version.
 
-#include <u.h>
-#include <libc.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <stdarg.h>
 
 void esc(char*);
+void fatal(char*, ...);
 
-void
+int
 main(int argc, char **argv)
 {
 	char *name;
@@ -21,7 +25,7 @@ main(int argc, char **argv)
 
 	if(argc != 2) {
 		fprintf(stderr, "usage: mkbuiltin1 sys\n");
-		sysfatal("in file $1.6 s/PACKAGE/$1/\n");
+		fatal("in file $1.6 s/PACKAGE/$1/");
 	}
 
 	name = argv[1];
@@ -29,14 +33,14 @@ main(int argc, char **argv)
 
 	snprintf(buf, sizeof(buf), "%s.%s", name, getenv("O"));
 	if((fin = fopen(buf, "r")) == NULL) {
-		sysfatal("open %s: %r\n", buf);
+		fatal("open %s: %s", buf, strerror(errno));
 	}
 
 	// look for $$ that introduces imports
 	while(fgets(buf, sizeof buf, fin) != NULL)
 		if(strstr(buf, "$$"))
 			goto begin;
-	sysfatal("did not find beginning of imports\n");
+	fatal("did not find beginning of imports");
 
 begin:
 	printf("char *%simport =\n", name);
@@ -68,11 +72,11 @@ begin:
 		esc(p);
 		printf("\\n\"\n");
 	}
-	sysfatal("did not find end of imports\n");
+	fatal("did not find end of imports");
 
 end:
 	printf("\t\"$$\\n\";\n");
-	exits(0);
+	return 0;
 }
 
 void
@@ -83,4 +87,16 @@ esc(char *p)
 			printf("\\");
 		putchar(*p);
 	}
+}
+
+void
+fatal(char *msg, ...)
+{
+	va_list arg;
+	
+	va_start(arg, msg);
+	fprintf(stderr, "fatal: ");
+	vfprintf(stderr, msg, arg);
+	fprintf(stderr, "\n");
+	exit(2);
 }

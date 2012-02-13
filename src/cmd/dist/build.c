@@ -1212,6 +1212,7 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);
 	xprintf(format, "GOOS", goos);
+	xprintf(format, "GOCHAR", gochar);
 	if(pflag) {
 		sep = ":";
 		if(streq(gohostos, "windows"))
