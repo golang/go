@@ -856,7 +856,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Sync()
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
 //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
-//sysnb	Tgkill(tgid int, tid int, sig int) (err error)
+//sysnb	Tgkill(tgid int, tid int, sig Signal) (err error)
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sysnb	Umask(mask int) (oldmask int)
 //sysnb	Uname(buf *Utsname) (err error)
