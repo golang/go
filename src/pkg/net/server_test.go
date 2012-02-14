@@ -115,16 +115,13 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 }
 
 func TestTCPServer(t *testing.T) {
-	if runtime.GOOS != "openbsd" {
-		doTest(t, "tcp", "", "127.0.0.1")
-	}
+	doTest(t, "tcp", "", "127.0.0.1")
 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
 	doTest(t, "tcp4", "", "127.0.0.1")
 	doTest(t, "tcp4", "0.0.0.0", "127.0.0.1")
 	doTest(t, "tcp4", "127.0.0.1", "127.0.0.1")
 	if supportsIPv6 {
-		doTest(t, "tcp", "", "[::1]")
 		doTest(t, "tcp", "[::]", "[::1]")
 		doTest(t, "tcp", "[::1]", "[::1]")
 		doTest(t, "tcp6", "", "[::1]")
