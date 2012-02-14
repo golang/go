@@ -1152,8 +1152,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
 	}
 
-	outObj = append(outObj, "") // for importObj, at end of function
-
 	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.info.CgoCFLAGS)
 	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.info.CgoLDFLAGS)
 
@@ -1238,6 +1236,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		return nil, nil, err
 	}
 
+	if _, ok := buildToolchain.(gccgoToolchain); ok {
+		// we don't use dynimport when using gccgo.
+		return outGo, outObj, nil
+	}
+
 	// cgo -dynimport
 	importC := obj + "_cgo_import.c"
 	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
@@ -1252,8 +1255,8 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
 	// must be processed before the gcc-generated objects.
-	// Put it first.  We left room above.  http://golang.org/issue/2601
-	outObj[0] = importObj
+	// Put it first.  http://golang.org/issue/2601
+	outObj = append([]string{importObj}, outObj...)
 
 	return outGo, outObj, nil
 }
