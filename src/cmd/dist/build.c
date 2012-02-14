@@ -283,6 +283,15 @@ static char *oldtool[] = {
 	"quietgcc",
 };
 
+// Unreleased directories (relative to $GOROOT) that should
+// not be in release branches.
+static char *unreleased[] = {
+	"src/cmd/cov",
+	"src/cmd/prof",
+	"src/pkg/old",
+	"src/pkg/exp",
+};
+
 // setup sets up the tree for the initial build.
 static void
 setup(void)
@@ -345,6 +354,13 @@ setup(void)
 				xremove(bprintf(&b, "%s%s%s", gobin, slash, oldtool[i]));
 			break;
 		}
+	}
+
+	// For release, make sure excluded things are excluded.
+	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go.")) {
+		for(i=0; i<nelem(unreleased); i++)
+			if(isdir(bpathf(&b, "%s/%s", goroot, unreleased[i])))
+				fatal("%s should not exist in release build", bstr(&b));
 	}
 
 	bfree(&b);
@@ -539,6 +555,24 @@ install(char *dir)
 	vinit(&lib);
 	vinit(&extra);
 	
+	// path = full path to dir.
+	bpathf(&path, "%s/src/%s", goroot, dir);
+	name = lastelem(dir);
+
+	// For misc/prof, copy into the tool directory and we're done.
+	if(hasprefix(dir, "misc/")) {
+		copy(bpathf(&b, "%s/%s", tooldir, name),
+			bpathf(&b1, "%s/misc/%s", goroot, name));
+		goto out;
+	}
+
+	// For release, cmd/prof and cmd/cov are not included.
+	if((streq(dir, "cmd/cov") || streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
+		if(vflag > 1)
+			xprintf("skipping %s - does not exist\n", dir);
+		goto out;
+	}
+
 	// set up gcc command line on first run.
 	if(gccargs.len == 0) {
 		xgetenv(&b, "CC");
@@ -549,10 +583,6 @@ install(char *dir)
 			vadd(&gccargs, proto_gccargs[i]);
 	}
 	
-	// path = full path to dir.
-	bpathf(&path, "%s/src/%s", goroot, dir);
-	name = lastelem(dir);
-
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
 	ispkg = hasprefix(dir, "pkg");
 	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");
@@ -1030,6 +1060,8 @@ static char *buildorder[] = {
 	"lib9",
 	"libbio",
 	"libmach",
+	
+	"misc/pprof",
 
 	"cmd/cov",
 	"cmd/nm",
