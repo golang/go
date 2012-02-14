@@ -335,7 +335,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
 	if pos == p.pos {
 		// the error happened at the current position;
 		// make the error message more specific
-		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
 			msg += ", found newline"
 		} else {
 			msg += ", found '" + p.tok.String() + "'"
@@ -354,6 +354,17 @@ func (p *parser) expect(tok token.Token) token.Pos {
 	}
 	p.next() // make progress
 	return pos
+}
+
+// expectClosing is like expect but provides a better error message
+// for the common case of a missing comma before a newline.
+//
+func (p *parser) expectClosing(tok token.Token, construct string) token.Pos {
+	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
+		p.error(p.pos, "missing ',' before newline in "+construct)
+		p.next()
+	}
+	return p.expect(tok)
 }
 
 func (p *parser) expectSemi() {
@@ -1056,7 +1067,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 		p.next()
 	}
 	p.exprLev--
-	rparen := p.expect(token.RPAREN)
+	rparen := p.expectClosing(token.RPAREN, "argument list")
 
 	return &ast.CallExpr{fun, lparen, list, ellipsis, rparen}
 }
@@ -1111,7 +1122,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 		elts = p.parseElementList()
 	}
 	p.exprLev--
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expectClosing(token.RBRACE, "composite literal")
 	return &ast.CompositeLit{typ, lbrace, elts, rbrace}
 }
 
