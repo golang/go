@@ -23,7 +23,7 @@ bindEvent(window, 'load', godocs_onload);
 function godocs_onload() {
   godocs_bindSearchEvents();
   godocs_generateTOC();
-  godocs_bindExampleToggles();
+  godocs_bindExamples();
 }
 
 function godocs_bindSearchEvents() {
@@ -158,11 +158,14 @@ function godocs_nodeToText(node) {
   return text;
 }
 
-function godocs_bindExampleToggles() {
+function godocs_bindExamples() {
   var examples = document.getElementsByClassName("example");
   for (var i = 0; i < examples.length; i++) {
-    var eg = examples[i];
-    godocs_bindExampleToggle(eg);
+    godocs_bindExampleToggle(examples[i]);
+  }
+  var links = document.getElementsByClassName("exampleLink");
+  for (var i = 0; i < links.length; i++) {
+    godocs_bindExampleLink(links[i]);
   }
 }
 function godocs_bindExampleToggle(eg) {
@@ -176,4 +179,15 @@ function godocs_bindExampleToggle(eg) {
       }
     });
   }
+}
+function godocs_bindExampleLink(l) {
+  var prefix = "example_";
+  bindEvent(l, "click", function() {
+    var i = l.href.indexOf("#"+prefix);
+    if (i < 0)
+      return;
+    var id = prefix + l.href.slice(i+1+prefix.length);
+    var eg = document.getElementById(id);
+    eg.className = "exampleVisible";
+  });
 }
