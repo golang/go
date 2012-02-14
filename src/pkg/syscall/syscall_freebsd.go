@@ -146,7 +146,7 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Issetugid() (tainted bool)
-//sys	Kill(pid int, signum int) (err error)
+//sys	Kill(pid int, signum Signal) (err error)
 //sys	Kqueue() (fd int, err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
