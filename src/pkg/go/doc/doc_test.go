@@ -14,12 +14,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"text/template"
 )
 
 var update = flag.Bool("update", false, "update golden (.out) files")
+var files = flag.String("files", "", "consider only Go test files matching this regular expression")
 
 const dataDir = "testdata"
 
@@ -66,14 +68,26 @@ type bundle struct {
 }
 
 func test(t *testing.T, mode Mode) {
-	// get all packages
+	// determine file filter
+	filter := isGoFile
+	if *files != "" {
+		rx, err := regexp.Compile(*files)
+		if err != nil {
+			t.Fatal(err)
+		}
+		filter = func(fi os.FileInfo) bool {
+			return isGoFile(fi) && rx.MatchString(fi.Name())
+		}
+	}
+
+	// get packages
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, dataDir, filter, parser.ParseComments)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// test all packages
+	// test packages
 	for _, pkg := range pkgs {
 		importpath := dataDir + "/" + pkg.Name
 		doc := New(pkg, importpath, mode)
