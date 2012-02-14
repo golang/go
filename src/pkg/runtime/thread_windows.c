@@ -291,6 +291,17 @@ runtime·sigpanic(void)
 	runtime·throw("fault");
 }
 
+extern void *runtime·sigtramp;
+
+void
+runtime·initsig(void)
+{
+	// following line keeps sigtramp alive at link stage
+	// if there's a better way please write it here
+	void *p = runtime·sigtramp;
+	USED(p);
+}
+
 String
 runtime·signame(int32 sig)
 {

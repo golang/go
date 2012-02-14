@@ -27,3 +27,6 @@ uint32 runtime·ctrlhandler(uint32 type);
 // Windows dll function to go callback entry.
 byte *runtime·compilecallback(Eface fn, bool cleanstack);
 void *runtime·callbackasm(void);
+
+// TODO(brainman): should not need those
+#define	NSIG	65

@@ -6,8 +6,6 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 
-extern void *runtime·sigtramp;
-
 void
 runtime·dumpregs(Context *r)
 {
@@ -32,16 +30,6 @@ runtime·dumpregs(Context *r)
 	runtime·printf("cs      %X\n", (uint64)r->SegCs);
 	runtime·printf("fs      %X\n", (uint64)r->SegFs);
 	runtime·printf("gs      %X\n", (uint64)r->SegGs);
-}
-
-void
-runtime·initsig(void)
-{
-	runtime·siginit();
-	// following line keeps sigtramp alive at link stage
-	// if there's a better way please write it here
-	void *p = runtime·sigtramp;
-	USED(p);
 }
 
 uint32
