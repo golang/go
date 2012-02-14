@@ -493,9 +493,7 @@ func (b *Builder) envvWindows() []string {
 	start := map[string]string{
 		"GOOS":         b.goos,
 		"GOARCH":       b.goarch,
-		"GOROOT_FINAL": "/c/go",
-		// TODO(brainman): remove once we find make that does not hang.
-		"MAKEFLAGS":   "-j1",
+		"GOROOT_FINAL": `c:\go`,
 		"GOBUILDEXIT": "1", // exit all.bat with completion status.
 	}
 	for _, name := range extraEnv {
