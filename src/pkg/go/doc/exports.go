@@ -22,12 +22,38 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
 	return list[0:j]
 }
 
+// removeErrorField removes anonymous fields named "error" from an interface.
+// This is called when "error" has been determined to be a local name,
+// not the predeclared type.
+//
+func removeErrorField(ityp *ast.InterfaceType) {
+	list := ityp.Methods.List // we know that ityp.Methods != nil
+	j := 0
+	for _, field := range list {
+		keepField := true
+		if n := len(field.Names); n == 0 {
+			// anonymous field
+			if fname, _ := baseTypeName(field.Type); fname == "error" {
+				keepField = false
+			}
+		}
+		if keepField {
+			list[j] = field
+			j++
+		}
+	}
+	if j < len(list) {
+		ityp.Incomplete = true
+	}
+	ityp.Methods.List = list[0:j]
+}
+
 // filterFieldList removes unexported fields (field names) from the field list
 // in place and returns true if fields were removed. Anonymous fields are
 // recorded with the parent type. filterType is called with the types of
 // all remaining fields.
 //
-func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList) (removedFields bool) {
+func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp *ast.InterfaceType) (removedFields bool) {
 	if fields == nil {
 		return
 	}
@@ -37,9 +63,15 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList) (remo
 		keepField := false
 		if n := len(field.Names); n == 0 {
 			// anonymous field
-			name := r.recordAnonymousField(parent, field.Type)
-			if ast.IsExported(name) {
+			fname := r.recordAnonymousField(parent, field.Type)
+			if ast.IsExported(fname) {
 				keepField = true
+			} else if ityp != nil && fname == "error" {
+				// possibly the predeclared error interface; keep
+				// it for now but remember this interface so that
+				// it can be fixed if error is also defined locally
+				keepField = true
+				r.remember(ityp)
 			}
 		} else {
 			field.Names = filterIdentList(field.Names)
@@ -86,14 +118,14 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	case *ast.ArrayType:
 		r.filterType(nil, t.Elt)
 	case *ast.StructType:
-		if r.filterFieldList(parent, t.Fields) {
+		if r.filterFieldList(parent, t.Fields, nil) {
 			t.Incomplete = true
 		}
 	case *ast.FuncType:
 		r.filterParamList(t.Params)
 		r.filterParamList(t.Results)
 	case *ast.InterfaceType:
-		if r.filterFieldList(parent, t.Methods) {
+		if r.filterFieldList(parent, t.Methods, t) {
 			t.Incomplete = true
 		}
 	case *ast.MapType:
@@ -116,9 +148,12 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
 			return true
 		}
 	case *ast.TypeSpec:
-		if ast.IsExported(s.Name.Name) {
+		if name := s.Name.Name; ast.IsExported(name) {
 			r.filterType(r.lookupType(s.Name.Name), s.Type)
 			return true
+		} else if name == "error" {
+			// special case: remember that error is declared locally
+			r.errorDecl = true
 		}
 	}
 	return false

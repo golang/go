@@ -17,7 +17,7 @@ import (
 //
 // Internally, we treat functions like methods and collect them in method sets.
 
-// methodSet describes a set of methods. Entries where Decl == nil are conflict
+// A methodSet describes a set of methods. Entries where Decl == nil are conflict
 // entries (more then one method with the same name at the same embedding level).
 //
 type methodSet map[string]*Func
@@ -110,6 +110,9 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	return
 }
 
+// An embeddedSet describes a set of embedded types.
+type embeddedSet map[*namedType]bool
+
 // A namedType represents a named unqualified (package local, or possibly
 // predeclared) type. The namedType for a type name is always found via
 // reader.lookupType.
@@ -119,9 +122,9 @@ type namedType struct {
 	name string       // type name
 	decl *ast.GenDecl // nil if declaration hasn't been seen yet
 
-	isEmbedded bool                // true if this type is embedded
-	isStruct   bool                // true if this type is a struct
-	embedded   map[*namedType]bool // true if the embedded type is a pointer
+	isEmbedded bool        // true if this type is embedded
+	isStruct   bool        // true if this type is a struct
+	embedded   embeddedSet // true if the embedded type is a pointer
 
 	// associated declarations
 	values  []*Value // consts and vars
@@ -152,6 +155,10 @@ type reader struct {
 	values  []*Value // consts and vars
 	types   map[string]*namedType
 	funcs   methodSet
+
+	// support for package-local error type declarations
+	errorDecl bool                 // if set, type "error" was declared locally
+	fixlist   []*ast.InterfaceType // list of interfaces containing anonymous field "error"
 }
 
 func (r *reader) isVisible(name string) bool {
@@ -173,7 +180,7 @@ func (r *reader) lookupType(name string) *namedType {
 	// type not found - add one without declaration
 	typ := &namedType{
 		name:     name,
-		embedded: make(map[*namedType]bool),
+		embedded: make(embeddedSet),
 		funcs:    make(methodSet),
 		methods:  make(methodSet),
 	}
@@ -208,6 +215,10 @@ func (r *reader) readDoc(comment *ast.CommentGroup) {
 		return
 	}
 	r.doc += "\n" + text
+}
+
+func (r *reader) remember(typ *ast.InterfaceType) {
+	r.fixlist = append(r.fixlist, typ)
 }
 
 func specNames(specs []ast.Spec) []string {
@@ -315,7 +326,7 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 		return // no name or blank name - ignore the type
 	}
 
-	// A type should be added at most once, so info.decl
+	// A type should be added at most once, so typ.decl
 	// should be nil - if it is not, simply overwrite it.
 	typ.decl = decl
 
@@ -543,7 +554,7 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) 
 
 // collectEmbeddedMethods collects the embedded methods of typ in mset.
 //
-func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited map[*namedType]bool) {
+func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited embeddedSet) {
 	visited[typ] = true
 	for embedded, isPtr := range typ.embedded {
 		// Once an embedded type is embedded as a pointer type
@@ -572,10 +583,17 @@ func (r *reader) computeMethodSets() {
 		// collect embedded methods for t
 		if t.isStruct {
 			// struct
-			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(map[*namedType]bool))
+			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(embeddedSet))
 		} else {
 			// interface
 			// TODO(gri) fix this
+		}
+	}
+
+	// if error was declared locally, don't treat it as exported field anymore
+	if r.errorDecl {
+		for _, ityp := range r.fixlist {
+			removeErrorField(ityp)
 		}
 	}
 }
