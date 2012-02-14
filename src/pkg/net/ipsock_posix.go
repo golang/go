@@ -53,13 +53,13 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 }
 
 // favoriteAddrFamily returns the appropriate address family to
-// the given net, raddr, laddr and mode.  At first it figures
+// the given net, laddr, raddr and mode.  At first it figures
 // address family out from the net.  If mode indicates "listen"
 // and laddr.(type).IP is nil, it assumes that the user wants to
 // make a passive connection with wildcard address family, both
 // INET and INET6, and wildcard address.  Otherwise guess: if the
 // addresses are IPv4 then returns INET, or else returns INET6.
-func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
+func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) int {
 	switch net[len(net)-1] {
 	case '4':
 		return syscall.AF_INET
@@ -68,17 +68,20 @@ func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
 	}
 
 	if mode == "listen" {
+		// Note that OpenBSD allows neither "net.inet6.ip6.v6only"
+		// change nor IPPROTO_IPV6 level IPV6_V6ONLY socket option
+		// setting.
 		switch a := laddr.(type) {
 		case *TCPAddr:
-			if a.IP == nil && supportsIPv6 {
+			if a.IP == nil && supportsIPv6 && supportsIPv4map {
 				return syscall.AF_INET6
 			}
 		case *UDPAddr:
-			if a.IP == nil && supportsIPv6 {
+			if a.IP == nil && supportsIPv6 && supportsIPv4map {
 				return syscall.AF_INET6
 			}
 		case *IPAddr:
-			if a.IP == nil && supportsIPv6 {
+			if a.IP == nil && supportsIPv6 && supportsIPv4map {
 				return syscall.AF_INET6
 			}
 		}
@@ -104,7 +107,7 @@ type sockaddr interface {
 func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	var oserr error
 	var la, ra syscall.Sockaddr
-	family := favoriteAddrFamily(net, raddr, laddr, mode)
+	family := favoriteAddrFamily(net, laddr, raddr, mode)
 	if laddr != nil {
 		if la, oserr = laddr.sockaddr(family); oserr != nil {
 			goto Error

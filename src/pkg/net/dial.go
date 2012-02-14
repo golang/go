@@ -185,7 +185,7 @@ func Listen(net, laddr string) (Listener, error) {
 		if a != nil {
 			la = a.(*TCPAddr)
 		}
-		return ListenTCP(afnet, la)
+		return ListenTCP(net, la)
 	case "unix", "unixpacket":
 		var la *UnixAddr
 		if a != nil {
