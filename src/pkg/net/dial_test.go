@@ -114,6 +114,12 @@ func TestSelfConnect(t *testing.T) {
 	if testing.Short() {
 		n = 1000
 	}
+	switch runtime.GOOS {
+	case "darwin", "freebsd", "openbsd", "windows":
+		// Non-Linux systems take a long time to figure
+		// out that there is nothing listening on localhost.
+		n = 100
+	}
 	for i := 0; i < n; i++ {
 		c, err := Dial("tcp", addr)
 		if err == nil {

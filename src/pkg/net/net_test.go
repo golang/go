@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime"
 	"testing"
+	"time"
 )
 
 var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
@@ -171,5 +172,60 @@ func TestShutdown(t *testing.T) {
 	got := string(buf[:n])
 	if got != "response" {
 		t.Errorf("read = %q, want \"response\"", got)
+	}
+}
+
+func TestTCPListenClose(t *testing.T) {
+	l, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+
+	done := make(chan bool, 1)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		l.Close()
+	}()
+	go func() {
+		_, err = l.Accept()
+		if err == nil {
+			t.Error("Accept succeeded")
+		} else {
+			t.Logf("Accept timeout error: %s (any error is fine)", err)
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for TCP close")
+	}
+}
+
+func TestUDPListenClose(t *testing.T) {
+	l, err := ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+
+	buf := make([]byte, 1000)
+	done := make(chan bool, 1)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		l.Close()
+	}()
+	go func() {
+		_, _, err = l.ReadFrom(buf)
+		if err == nil {
+			t.Error("ReadFrom succeeded")
+		} else {
+			t.Logf("ReadFrom timeout error: %s (any error is fine)", err)
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for UDP close")
 	}
 }

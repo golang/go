@@ -83,7 +83,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 	}
 
 	// Send explicit ending for unixpacket.
-	// Older Linux kernels do stop reads on close.
+	// Older Linux kernels do not stop reads on close.
 	if network == "unixpacket" {
 		fd.Write([]byte("END"))
 	}
