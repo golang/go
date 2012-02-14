@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 // Normalization table generator.
 // Data read from the web.
 // See forminfo.go for a description of the trie values associated with each rune.

@@ -273,6 +273,10 @@ func runTest(cmd *Command, args []string) {
 			}
 		}
 
+		// Ignore pseudo-packages.
+		delete(deps, "C")
+		delete(deps, "unsafe")
+
 		all := []string{}
 		for path := range deps {
 			all = append(all, path)
