@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# Generate builtin.c and builtin.c.boot from $* (runtime.go and unsafe.go).
+# Generate builtin.c from $* (runtime.go and unsafe.go).
 # Run this after changing runtime.go and unsafe.go
 # or after changing the export metadata format in the compiler.
 # Either way, you need to have a working compiler binary first.
@@ -25,7 +25,7 @@ do
 	O=$GOCHAR ./mkbuiltin1 $i >>_builtin.c
 done
 
-# If _builtin.c has changed vs builtin.c.boot,
+# If _builtin.c has changed vs builtin.c,
 # check in the new change.
 cmp -s _builtin.c builtin.c || cp _builtin.c builtin.c
 rm _builtin.c mkbuiltin1 unsafe.$GOCHAR runtime.$GOCHAR
