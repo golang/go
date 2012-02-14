@@ -62,7 +62,7 @@ export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
 DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
 gcc -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
-eval $(./cmd/dist/dist env)
+eval $(./cmd/dist/dist env -p)
 echo
 
 if [ "$1" = "--dist-tool" ]; then
