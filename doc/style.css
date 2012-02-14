@@ -10,6 +10,9 @@ pre, code {
 pre .comment {
 	color: #375EAB;
 }
+pre .ln {
+	color: #999;
+}
 body {
 	color: #222;
 }
