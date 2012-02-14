@@ -33,7 +33,7 @@ func TestListenMulticastUDP(t *testing.T) {
 	case "netbsd", "openbsd", "plan9", "windows":
 		return
 	case "linux":
-		if runtime.GOARCH == "arm" {
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
 			return
 		}
 	}
