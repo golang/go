@@ -52,6 +52,15 @@
 			{{end}}
 		</dl>
 
+		{{if $.Examples}}
+			<h4>Examples</h4>
+			<dl>
+			{{range $.Examples}}
+			<dd><a class="exampleLink" href="#example_{{.Name}}">{{.Name}}</a></dd>
+			{{end}}
+			</dl>
+		{{end}}
+
 		{{with .Filenames}}
 			<h4>Package files</h4>
 			<p>
