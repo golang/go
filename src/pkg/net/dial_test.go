@@ -42,7 +42,7 @@ func TestDialTimeout(t *testing.T) {
 				errc <- err
 			}()
 		}
-	case "darwin", "windows":
+	case "darwin":
 		// At least OS X 10.7 seems to accept any number of
 		// connections, ignoring listen's backlog, so resort
 		// to connecting to a hopefully-dead 127/8 address.
@@ -55,6 +55,8 @@ func TestDialTimeout(t *testing.T) {
 		// TODO(bradfitz):
 		// OpenBSD may have a reject route to 127/8 except 127.0.0.1/32
 		// by default. FreeBSD likely works, but is untested.
+		// TODO(rsc):
+		// The timeout never happens on Windows.  Why?  Issue 3016.
 		t.Logf("skipping test on %q; untested.", runtime.GOOS)
 		return
 	}
