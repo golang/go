@@ -18,9 +18,9 @@ import (
 // Network file descriptor.
 type netFD struct {
 	// locking/lifetime of sysfd
-	sysmu   sync.Mutex
-	sysref  int
-	
+	sysmu  sync.Mutex
+	sysref int
+
 	// must lock both sysmu and pollserver to write
 	// can lock either to read
 	closing bool
@@ -376,7 +376,7 @@ func (fd *netFD) decref() {
 }
 
 func (fd *netFD) Close() error {
-	pollserver.Lock()  // needed for both fd.incref(true) and pollserver.Evict
+	pollserver.Lock() // needed for both fd.incref(true) and pollserver.Evict
 	defer pollserver.Unlock()
 	if err := fd.incref(true); err != nil {
 		return err

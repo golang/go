@@ -5,6 +5,7 @@
 package net
 
 import (
+	"errors"
 	"io"
 	"os"
 	"runtime"
@@ -518,7 +519,7 @@ func (o *acceptOp) Name() string {
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	if err := fd.incref(false); err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer fd.decref()
 
