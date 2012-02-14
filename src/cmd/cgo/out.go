@@ -257,20 +257,43 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		Name: ast.NewIdent(n.Mangle),
 		Type: gtype,
 	}
-	conf.Fprint(fgo2, fset, d)
+
 	if *gccgo {
-		fmt.Fprintf(fgo2, " __asm__(\"%s\")\n", n.C)
-	} else {
-		fmt.Fprintf(fgo2, "\n")
+		// Gccgo style hooks.
+		// we hook directly into C. gccgo goes not support cgocall yet.
+		if !n.AddError {
+			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
+			conf.Fprint(fgo2, fset, d)
+			fmt.Fprint(fgo2, "\n")
+		} else {
+			// write a small wrapper to retrieve errno.
+			cname := fmt.Sprintf("_cgo%s%s", cPrefix, n.Mangle)
+			paramnames := []string(nil)
+			for i, param := range d.Type.Params.List {
+				paramName := fmt.Sprintf("p%d", i)
+				param.Names = []*ast.Ident{ast.NewIdent(paramName)}
+				paramnames = append(paramnames, paramName)
+			}
+			conf.Fprint(fgo2, fset, d)
+			fmt.Fprintf(fgo2, "{\n")
+			fmt.Fprintf(fgo2, "\tr := %s(%s)\n", cname, strings.Join(paramnames, ", "))
+			fmt.Fprintf(fgo2, "\treturn r, syscall.GetErrno()\n")
+			fmt.Fprintf(fgo2, "}\n")
+			// declare the C function.
+			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
+			d.Name = ast.NewIdent(cname)
+			l := d.Type.Results.List
+			d.Type.Results.List = l[:len(l)-1]
+			conf.Fprint(fgo2, fset, d)
+			fmt.Fprint(fgo2, "\n")
+		}
+		return
 	}
+	conf.Fprint(fgo2, fset, d)
+	fmt.Fprint(fgo2, "\n")
 
 	if name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" {
 		// The builtins are already defined in the C prolog.
-		return
-	}
-
-	// gccgo does not require a wrapper unless an error must be returned.
-	if *gccgo && !n.AddError {
 		return
 	}
 
@@ -354,6 +377,11 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		return
 	}
 	p.Written[name] = true
+
+	if *gccgo {
+		// we don't use wrappers with gccgo.
+		return
+	}
 
 	ctype, _ := p.structType(n)
 
@@ -783,7 +811,7 @@ struct __go_string __go_byte_array_to_string(const void* p, int len);
 struct __go_open_array __go_string_to_byte_array (struct __go_string str);
 
 const char *CString(struct __go_string s) {
-	return strndup(s.__data, s.__length);
+	return strndup((const char*)s.__data, s.__length);
 }
 
 struct __go_string GoString(char *p) {
@@ -796,7 +824,7 @@ struct __go_string GoStringN(char *p, int n) {
 }
 
 Slice GoBytes(char *p, int n) {
-	struct __go_string s = { p, n };
+	struct __go_string s = { (const unsigned char *)p, n };
 	return __go_string_to_byte_array(s);
 }
 `
