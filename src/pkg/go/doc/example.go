@@ -9,6 +9,7 @@ package doc
 import (
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -21,28 +22,47 @@ type Example struct {
 }
 
 func Examples(pkg *ast.Package) []*Example {
-	var examples []*Example
-	for _, src := range pkg.Files {
-		for _, decl := range src.Decls {
+	var list []*Example
+	for _, file := range pkg.Files {
+		hasTests := false // file contains tests or benchmarks
+		numDecl := 0      // number of non-import declarations in the file
+		var flist []*Example
+		for _, decl := range file.Decls {
+			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
+				numDecl++
+				continue
+			}
 			f, ok := decl.(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
+			numDecl++
 			name := f.Name.Name
+			if isTest(name, "Test") || isTest(name, "Benchmark") {
+				hasTests = true
+				continue
+			}
 			if !isTest(name, "Example") {
 				continue
 			}
-			examples = append(examples, &Example{
+			flist = append(flist, &Example{
 				Name: name[len("Example"):],
 				Body: &printer.CommentedNode{
 					Node:     f.Body,
-					Comments: src.Comments,
+					Comments: file.Comments,
 				},
 				Output: f.Doc.Text(),
 			})
 		}
+		if !hasTests && numDecl > 1 && len(flist) == 1 {
+			// If this file only has one example function, some
+			// other top-level declarations, and no tests or
+			// benchmarks, use the whole file as the example.
+			flist[0].Body.Node = file
+		}
+		list = append(list, flist...)
 	}
-	return examples
+	return list
 }
 
 // isTest tells whether name looks like a test, example, or benchmark.

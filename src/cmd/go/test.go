@@ -187,6 +187,10 @@ Here is an example of an example:
 		Println("The output of this example function.")
 	}
 
+The entire test file is presented as the example when it contains a single
+example function, at least one other function, type, variable, or constant
+declaration, and no test or benchmark functions.
+
 See the documentation of the testing package for more information.
 		`,
 }

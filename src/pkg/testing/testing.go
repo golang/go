@@ -64,6 +64,9 @@
 //     func ExampleT_suffix() { ... }
 //     func ExampleT_M_suffix() { ... }
 //
+// The entire test file is presented as the example when it contains a single
+// example function, at least one other function, type, variable, or constant
+// declaration, and no test or benchmark functions.
 package testing
 
 import (
