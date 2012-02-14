@@ -38,7 +38,9 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 
 	c.wio.Lock()
 	defer c.wio.Unlock()
-	c.incref()
+	if err := c.incref(false); err != nil {
+		return 0, err, true
+	}
 	defer c.decref()
 
 	dst := c.sysfd
@@ -57,8 +59,9 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			break
 		}
 		if err1 == syscall.EAGAIN && c.wdeadline >= 0 {
-			pollserver.WaitWrite(c)
-			continue
+			if err1 = pollserver.WaitWrite(c); err1 == nil {
+				continue
+			}
 		}
 		if err1 != nil {
 			// This includes syscall.ENOSYS (no kernel

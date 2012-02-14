@@ -14,17 +14,21 @@ import (
 )
 
 func ipv4MulticastTTL(fd *netFD) (int, error) {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return 0, err
+	}
 	defer fd.decref()
 	v, err := syscall.GetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL)
 	if err != nil {
-		return -1, os.NewSyscallError("getsockopt", err)
+		return 0, os.NewSyscallError("getsockopt", err)
 	}
 	return int(v), nil
 }
 
 func setIPv4MulticastTTL(fd *netFD, v int) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, byte(v))
 	if err != nil {
@@ -34,17 +38,21 @@ func setIPv4MulticastTTL(fd *netFD, v int) error {
 }
 
 func ipv6TrafficClass(fd *netFD) (int, error) {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return 0, err
+	}
 	defer fd.decref()
 	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS)
 	if err != nil {
-		return -1, os.NewSyscallError("getsockopt", err)
+		return 0, os.NewSyscallError("getsockopt", err)
 	}
 	return v, nil
 }
 
 func setIPv6TrafficClass(fd *netFD, v int) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, v)
 	if err != nil {

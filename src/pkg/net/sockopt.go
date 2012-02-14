@@ -105,13 +105,17 @@ done:
 }
 
 func setReadBuffer(fd *netFD, bytes int) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes))
 }
 
 func setWriteBuffer(fd *netFD, bytes int) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes))
 }
@@ -142,25 +146,33 @@ func setDeadline(fd *netFD, t time.Time) error {
 }
 
 func setReuseAddr(fd *netFD, reuse bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse)))
 }
 
 func setDontRoute(fd *netFD, dontroute bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute)))
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive)))
 }
 
 func setNoDelay(fd *netFD, noDelay bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
 }
@@ -174,7 +186,9 @@ func setLinger(fd *netFD, sec int) error {
 		l.Onoff = 0
 		l.Linger = 0
 	}
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l))
 }

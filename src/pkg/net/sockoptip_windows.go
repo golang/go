@@ -23,7 +23,9 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 	}
 	var x [4]byte
 	copy(x[:], ip.To4())
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, x)
 	if err != nil {
@@ -38,7 +40,9 @@ func ipv4MulticastTTL(fd *netFD) (int, error) {
 }
 
 func setIPv4MulticastTTL(fd *netFD, v int) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, v)
 	if err != nil {
@@ -54,7 +58,9 @@ func ipv4MulticastLoopback(fd *netFD) (bool, error) {
 }
 
 func setIPv4MulticastLoopback(fd *netFD, v bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
 	if err != nil {

@@ -12,7 +12,9 @@ import (
 )
 
 func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return nil, err
+	}
 	defer fd.decref()
 	a, err := syscall.GetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
 	if err != nil {
@@ -28,7 +30,9 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 	}
 	var x [4]byte
 	copy(x[:], ip.To4())
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, x)
 	if err != nil {
@@ -38,7 +42,9 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 }
 
 func ipv4MulticastLoopback(fd *netFD) (bool, error) {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return false, err
+	}
 	defer fd.decref()
 	v, err := syscall.GetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
 	if err != nil {
@@ -48,7 +54,9 @@ func ipv4MulticastLoopback(fd *netFD) (bool, error) {
 }
 
 func setIPv4MulticastLoopback(fd *netFD, v bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v)))
 	if err != nil {
@@ -58,7 +66,9 @@ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
 }
 
 func ipv4ReceiveInterface(fd *netFD) (bool, error) {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return false, err
+	}
 	defer fd.decref()
 	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF)
 	if err != nil {
@@ -68,7 +78,9 @@ func ipv4ReceiveInterface(fd *netFD) (bool, error) {
 }
 
 func setIPv4ReceiveInterface(fd *netFD, v bool) error {
-	fd.incref()
+	if err := fd.incref(false); err != nil {
+		return err
+	}
 	defer fd.decref()
 	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF, boolint(v))
 	if err != nil {

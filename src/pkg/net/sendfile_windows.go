@@ -50,7 +50,9 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 
 	c.wio.Lock()
 	defer c.wio.Unlock()
-	c.incref()
+	if err := c.incref(); err != nil {
+		return 0, err, true
+	}
 	defer c.decref()
 
 	var o sendfileOp
