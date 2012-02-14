@@ -126,7 +126,8 @@ type Statfs_t struct {
 	Fsid      Fsid
 	Namelen   int32
 	Frsize    int32
-	Spare     [5]int32
+	Flags     int32
+	Spare     [4]int32
 	Pad_cgo_0 [4]byte
 }
 

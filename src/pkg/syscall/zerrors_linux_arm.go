@@ -7,6 +7,7 @@
 package syscall
 
 const (
+	AF_ALG                           = 0x26
 	AF_APPLETALK                     = 0x5
 	AF_ASH                           = 0x12
 	AF_ATMPVC                        = 0x8
@@ -14,6 +15,7 @@ const (
 	AF_AX25                          = 0x3
 	AF_BLUETOOTH                     = 0x1f
 	AF_BRIDGE                        = 0x7
+	AF_CAIF                          = 0x25
 	AF_CAN                           = 0x1d
 	AF_DECnet                        = 0xc
 	AF_ECONET                        = 0x13
@@ -28,7 +30,7 @@ const (
 	AF_KEY                           = 0xf
 	AF_LLC                           = 0x1a
 	AF_LOCAL                         = 0x1
-	AF_MAX                           = 0x25
+	AF_MAX                           = 0x27
 	AF_NETBEUI                       = 0xd
 	AF_NETLINK                       = 0x10
 	AF_NETROM                        = 0x6
@@ -471,8 +473,10 @@ const (
 	MADV_DOFORK                      = 0xb
 	MADV_DONTFORK                    = 0xa
 	MADV_DONTNEED                    = 0x4
+	MADV_HUGEPAGE                    = 0xe
 	MADV_HWPOISON                    = 0x64
 	MADV_MERGEABLE                   = 0xc
+	MADV_NOHUGEPAGE                  = 0xf
 	MADV_NORMAL                      = 0x0
 	MADV_RANDOM                      = 0x1
 	MADV_REMOVE                      = 0x9
@@ -876,41 +880,6 @@ const (
 	SHUT_RD                          = 0x0
 	SHUT_RDWR                        = 0x2
 	SHUT_WR                          = 0x1
-	SIGABRT                          = 0x6
-	SIGALRM                          = 0xe
-	SIGBUS                           = 0x7
-	SIGCHLD                          = 0x11
-	SIGCLD                           = 0x11
-	SIGCONT                          = 0x12
-	SIGFPE                           = 0x8
-	SIGHUP                           = 0x1
-	SIGILL                           = 0x4
-	SIGINT                           = 0x2
-	SIGIO                            = 0x1d
-	SIGIOT                           = 0x6
-	SIGKILL                          = 0x9
-	SIGPIPE                          = 0xd
-	SIGPOLL                          = 0x1d
-	SIGPROF                          = 0x1b
-	SIGPWR                           = 0x1e
-	SIGQUIT                          = 0x3
-	SIGSEGV                          = 0xb
-	SIGSTKFLT                        = 0x10
-	SIGSTOP                          = 0x13
-	SIGSYS                           = 0x1f
-	SIGTERM                          = 0xf
-	SIGTRAP                          = 0x5
-	SIGTSTP                          = 0x14
-	SIGTTIN                          = 0x15
-	SIGTTOU                          = 0x16
-	SIGUNUSED                        = 0x1f
-	SIGURG                           = 0x17
-	SIGUSR1                          = 0xa
-	SIGUSR2                          = 0xc
-	SIGVTALRM                        = 0x1a
-	SIGWINCH                         = 0x1c
-	SIGXCPU                          = 0x18
-	SIGXFSZ                          = 0x19
 	SIOCADDDLCI                      = 0x8980
 	SIOCADDMULTI                     = 0x8931
 	SIOCADDRT                        = 0x890b
@@ -1298,6 +1267,45 @@ const (
 	EXFULL          = Errno(0x36)
 )
 
+// Signals
+const (
+	SIGABRT   = Signal(0x6)
+	SIGALRM   = Signal(0xe)
+	SIGBUS    = Signal(0x7)
+	SIGCHLD   = Signal(0x11)
+	SIGCLD    = Signal(0x11)
+	SIGCONT   = Signal(0x12)
+	SIGFPE    = Signal(0x8)
+	SIGHUP    = Signal(0x1)
+	SIGILL    = Signal(0x4)
+	SIGINT    = Signal(0x2)
+	SIGIO     = Signal(0x1d)
+	SIGIOT    = Signal(0x6)
+	SIGKILL   = Signal(0x9)
+	SIGPIPE   = Signal(0xd)
+	SIGPOLL   = Signal(0x1d)
+	SIGPROF   = Signal(0x1b)
+	SIGPWR    = Signal(0x1e)
+	SIGQUIT   = Signal(0x3)
+	SIGSEGV   = Signal(0xb)
+	SIGSTKFLT = Signal(0x10)
+	SIGSTOP   = Signal(0x13)
+	SIGSYS    = Signal(0x1f)
+	SIGTERM   = Signal(0xf)
+	SIGTRAP   = Signal(0x5)
+	SIGTSTP   = Signal(0x14)
+	SIGTTIN   = Signal(0x15)
+	SIGTTOU   = Signal(0x16)
+	SIGUNUSED = Signal(0x1f)
+	SIGURG    = Signal(0x17)
+	SIGUSR1   = Signal(0xa)
+	SIGUSR2   = Signal(0xc)
+	SIGVTALRM = Signal(0x1a)
+	SIGWINCH  = Signal(0x1c)
+	SIGXCPU   = Signal(0x18)
+	SIGXFSZ   = Signal(0x19)
+)
+
 // Error table
 var errors = [...]string{
 	1:   "operation not permitted",
@@ -1430,4 +1438,39 @@ var errors = [...]string{
 	130: "owner died",
 	131: "state not recoverable",
 	132: "unknown error 132",
+}
+
+// Signal table
+var signals = [...]string{
+	1:  "hangup",
+	2:  "interrupt",
+	3:  "quit",
+	4:  "illegal instruction",
+	5:  "trace/breakpoint trap",
+	6:  "aborted",
+	7:  "bus error",
+	8:  "floating point exception",
+	9:  "killed",
+	10: "user defined signal 1",
+	11: "segmentation fault",
+	12: "user defined signal 2",
+	13: "broken pipe",
+	14: "alarm clock",
+	15: "terminated",
+	16: "stack fault",
+	17: "child exited",
+	18: "continued",
+	19: "stopped (signal)",
+	20: "stopped",
+	21: "stopped (tty input)",
+	22: "stopped (tty output)",
+	23: "urgent I/O condition",
+	24: "CPU time limit exceeded",
+	25: "file size limit exceeded",
+	26: "virtual timer expired",
+	27: "profiling timer expired",
+	28: "window changed",
+	29: "I/O possible",
+	30: "power failure",
+	31: "bad system call",
 }

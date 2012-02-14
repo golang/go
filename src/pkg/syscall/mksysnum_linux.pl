@@ -28,7 +28,7 @@ while(<>){
 		$prev = $2;
 		fmt($1, $2);
 	}
-	elsif(/^#define __NR_(\w+)\s+\(\w+\+([0-9]+)\)/){
+	elsif(/^#define __NR_(\w+)\s+\(\w+\+\s*([0-9]+)\)/){
 		fmt($1, $prev+$2)
 	}
 }
