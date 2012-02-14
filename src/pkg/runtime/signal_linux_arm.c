@@ -45,6 +45,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
 	Ucontext *uc;
 	Sigcontext *r;
+	SigTab *t;
 
 	uc = context;
 	r = &uc->uc_mcontext;
@@ -54,7 +55,10 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		return;
 	}
 
-	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+	t = &runtime·sigtab[sig];
+	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+		if(gp == nil)
+			goto Throw;
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -75,12 +79,15 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		return;
 	}
 
-	if(runtime·sigtab[sig].flags & SigQueue) {
-		if(runtime·sigsend(sig) || (runtime·sigtab[sig].flags & SigIgnore))
+	if(info->si_code == SI_USER || (t->flags & SigNotify))
+		if(runtime·sigsend(sig))
 			return;
-		runtime·exit(2);	// SIGINT, SIGTERM, etc
-	}
+	if(t->flags & SigKill)
+		runtime·exit(2);
+	if(!(t->flags & SigThrow))
+		return;
 
+Throw:
 	if(runtime·panicking)	// traceback already printed
 		runtime·exit(2);
 	runtime·panicking = 1;
