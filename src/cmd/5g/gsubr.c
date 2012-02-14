@@ -346,7 +346,7 @@ anyregalloc(void)
 	return 0;
 }
 
-uintptr regpc[REGALLOC_RMAX+1];
+uintptr regpc[REGALLOC_FMAX+1];
 
 /*
  * allocate register of type t, leave in n.
@@ -451,7 +451,7 @@ regfree(Node *n)
 	if(n->op != OREGISTER && n->op != OINDREG)
 		fatal("regfree: not a register");
 	i = n->val.u.reg;
-	if(i < 0 || i >= sizeof(reg))
+	if(i < 0 || i >= nelem(reg) || i >= nelem(regpc))
 		fatal("regfree: reg out of range");
 	if(reg[i] <= 0)
 		fatal("regfree: reg not allocated");
