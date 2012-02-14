@@ -11,7 +11,7 @@
 //
 // Ownership for sig.Note passes back and forth between
 // the signal handler and the signal goroutine in rounds.
-// The initial state is that sig.note is cleared (setup by siginit).
+// The initial state is that sig.note is cleared (setup by signal_enable).
 // At the beginning of each round, mask == 0.
 // The round goes through three stages:
 //

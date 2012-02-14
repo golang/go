@@ -610,7 +610,7 @@ func (w WaitStatus) Exited() bool { return true }
 
 func (w WaitStatus) ExitStatus() int { return int(w.ExitCode) }
 
-func (w WaitStatus) Signal() int { return -1 }
+func (w WaitStatus) Signal() Signal { return -1 }
 
 func (w WaitStatus) CoreDump() bool { return false }
 
@@ -618,7 +618,7 @@ func (w WaitStatus) Stopped() bool { return false }
 
 func (w WaitStatus) Continued() bool { return false }
 
-func (w WaitStatus) StopSignal() int { return -1 }
+func (w WaitStatus) StopSignal() Signal { return -1 }
 
 func (w WaitStatus) Signaled() bool { return false }
 
@@ -685,3 +685,17 @@ func Geteuid() (euid int)                { return -1 }
 func Getgid() (gid int)                  { return -1 }
 func Getegid() (egid int)                { return -1 }
 func Getgroups() (gids []int, err error) { return nil, EWINDOWS }
+
+type Signal int
+
+func (s Signal) Signal() {}
+
+func (s Signal) String() string {
+	if 0 <= s && int(s) < len(signals) {
+		str := signals[s]
+		if str != "" {
+			return str
+		}
+	}
+	return "signal " + itoa(int(s))
+}

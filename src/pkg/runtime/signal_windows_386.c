@@ -24,12 +24,6 @@ runtime·dumpregs(Context *r)
 	runtime·printf("gs      %x\n", r->SegGs);
 }
 
-void
-runtime·initsig(void)
-{
-	runtime·siginit();
-}
-
 uint32
 runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {

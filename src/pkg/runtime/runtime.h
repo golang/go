@@ -555,7 +555,6 @@ void	runtime·asmcgocall(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
 void	runtime·exitsyscall(void);
 G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
-void	runtime·siginit(void);
 bool	runtime·sigsend(int32 sig);
 int32	runtime·callers(int32, uintptr*, int32);
 int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
