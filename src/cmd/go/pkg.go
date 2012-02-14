@@ -295,13 +295,14 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
-		if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
-			// Install cross-compiled binaries to subdirectories of bin.
-			elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
-		}
+		full := ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
 		if t.Goroot && isGoTool[p.ImportPath] {
-			p.target = filepath.Join(t.Path, "bin/tool", elem)
+			p.target = filepath.Join(t.Path, "pkg/tool", full)
 		} else {
+			if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
+				// Install cross-compiled binaries to subdirectories of bin.
+				elem = full
+			}
 			p.target = filepath.Join(t.BinDir(), elem)
 		}
 		if ctxt.GOOS == "windows" {

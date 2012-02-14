@@ -191,7 +191,7 @@ ok:
 	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -a proc.c
 	// to get acid [sic] output.
 	vreset(&argv);
-	vadd(&argv, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
+	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
 	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
 	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
 	vadd(&argv, bprintf(&b, "-I%s", workdir));
@@ -287,7 +287,7 @@ mkzruntimedefs(char *dir, char *file)
 	
 	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -q
 	// on each of the runtimedefs C files.
-	vadd(&argv, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
+	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
 	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
 	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
 	vadd(&argv, bprintf(&b, "-I%s", workdir));

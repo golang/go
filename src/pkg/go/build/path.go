@@ -12,6 +12,9 @@ import (
 	"runtime"
 )
 
+// ToolDir is the directory containing build tools.
+var ToolDir = filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
+
 // Path is a validated list of Trees derived from $GOROOT and $GOPATH at init.
 var Path []*Tree
 

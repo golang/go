@@ -347,14 +347,21 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		a.deps = append(a.deps, b.action(depMode, depMode, p1))
 	}
 
-	if len(p.CgoFiles) > 0 {
-		var stk importStack
-		p1 := loadPackage("cmd/cgo", &stk)
-		if p1.Error != nil {
-			fatalf("load cmd/cgo: %v", p1.Error)
+	// If we are not doing a cross-build, then record the binary we'll
+	// generate for cgo as a dependency of the build of any package
+	// using cgo, to make sure we do not overwrite the binary while
+	// a package is using it.  If this is a cross-build, then the cgo we
+	// are writing is not the cgo we need to use.
+	if b.goos == runtime.GOOS && b.goarch == runtime.GOARCH {
+		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
+			var stk importStack
+			p1 := loadPackage("cmd/cgo", &stk)
+			if p1.Error != nil {
+				fatalf("load cmd/cgo: %v", p1.Error)
+			}
+			a.cgo = b.action(depMode, depMode, p1)
+			a.deps = append(a.deps, a.cgo)
 		}
-		a.cgo = b.action(depMode, depMode, p1)
-		a.deps = append(a.deps, a.cgo)
 	}
 
 	if p.Standard {
@@ -567,7 +574,11 @@ func (b *builder) build(a *action) error {
 			sfiles = nil
 		}
 
-		outGo, outObj, err := b.cgo(a.p, a.cgo.target, obj, gccfiles)
+		cgoExe := tool("cgo")
+		if a.cgo != nil {
+			cgoExe = a.cgo.target
+		}
+		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles)
 		if err != nil {
 			return err
 		}
