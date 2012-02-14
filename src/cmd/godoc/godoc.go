@@ -516,10 +516,13 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 			continue
 		}
 
-		// print code, unindent and remove surrounding braces
+		// print code
 		code := node_htmlFunc(eg.Body, fset)
-		code = strings.Replace(code, "\n    ", "\n", -1)
-		code = code[2 : len(code)-2]
+		if len(code) > 0 && code[0] == '{' {
+			// unindent and remove surrounding braces
+			code = strings.Replace(code, "\n    ", "\n", -1)
+			code = code[2 : len(code)-2]
+		}
 
 		err := exampleHTML.Execute(&buf, struct {
 			Name, Code, Output string
