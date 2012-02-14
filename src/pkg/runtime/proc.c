@@ -720,6 +720,7 @@ runtime·mstart(void)
 	runtime·gosave(&m->g0->sched);
 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
 
+	runtime·asminit();
 	runtime·minit();
 	schedule(nil);
 }
