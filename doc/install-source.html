@@ -1,0 +1,475 @@
+<!--{
+	"Title": "Installing Go from source",
+	"Path": "/install/source/"
+}-->
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Go is an open source project, distributed under a
+<a href="/LICENSE">BSD-style license</a>.
+This document explains how to check out the sources,
+build them on your own machine, and run them.
+</p>
+
+<div class="detail">
+
+<p>
+There are two official Go compiler tool chains.
+This document focuses on the <code>gc</code> Go
+compiler and tools (<code>6g</code>, <code>8g</code> etc.).
+For information on how to use <code>gccgo</code>, a more traditional
+compiler using the GCC back end, see
+<a href="gccgo_install.html">Setting up and using gccgo</a>.
+</p>
+
+<p>
+The Go compilers support three instruction sets.
+There are important differences in the quality of the compilers for the different
+architectures.
+</p>
+
+<dl>
+<dt>
+	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
+</dt>
+<dd>
+	The most mature implementation. The compiler has an effective
+	optimizer (registerizer) and generates good code (although
+	<code>gccgo</code> can do noticeably better sometimes).
+</dd>
+<dt>
+	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
+</dt>
+<dd>
+	Comparable to the <code>amd64</code> port.
+</dd>
+<dt>
+	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
+</dt>
+<dd>
+	Supports only Linux binaries. Less tested than the other ports.
+</dd>
+</dl>
+
+<p>
+Except for things like low-level operating system interface code, the run-time
+support is the same in all ports and includes a mark-and-sweep garbage
+collector, efficient array and string slicing, and support for efficient
+goroutines, such as stacks that grow and shrink on demand.
+</p>
+
+<p>
+The compilers can target the FreeBSD, Linux, NetBSD, OpenBSD, OS X (Darwin),
+and Windows operating systems.
+The full set of supported combinations is listed in the discussion of
+<a href="#environment">environment variables</a> below.
+</p>
+
+</div>
+
+<h2 id="ctools">Install C tools, if needed</h2>
+
+<p>
+The Go tool chain is written in C.
+To build it, you need a C compiler installed.
+</p>
+
+<p>
+On OS X, a C compiler can be installed as part of
+<a href="http://developer.apple.com/Xcode/">Xcode</a>. 
+</p>
+
+<p>
+On Ubuntu/Debian, use <code>sudo apt-get install gcc libc6-dev</code>.
+If you want to build 32-bit binaries on a 64-bit system you'll also need the
+<code>libc6-dev-i386</code> package.
+</p>
+
+<p>
+<font color="red">TODO: add Windows compiler info</font>
+</p>
+
+<h2 id="mercurial">Install Mercurial, if needed</h2>
+
+<p>
+To perform the next step you must have Mercurial installed. (Check that you
+have an <code>hg</code> command.) This suffices to install Mercurial on most
+systems:
+</p>
+
+<pre>
+sudo easy_install mercurial==2.0
+</pre>
+
+<p>
+On Ubuntu/Debian, 
+the Mercurial in your distribution's
+package repository is most likely old and broken.
+You might try this first:
+</p>
+
+<pre>apt-get install python-setuptools python-dev build-essential</pre>
+
+<p>
+If that fails, try installing manually from the
+<a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a>
+page.</p>
+</p>
+
+<p>
+Mercurial versions 1.7.x and up require the configuration of
+<a href="http://mercurial.selenic.com/wiki/CACertificates">Certification Authorities</a>
+(CAs). Error messages of the form:
+</p>
+
+<pre>
+warning: code.google.com certificate with fingerprint b1:af: ... bc not verified (check hostfingerprints or web.cacerts config setting)
+</pre>
+
+<p>
+when using Mercurial indicate that the CAs are missing.
+Check your Mercurial version (<code>hg --version</code>) and
+<a href="http://mercurial.selenic.com/wiki/CACertificates#Configuration_of_HTTPS_certificate_authorities">configure the CAs</a>
+if necessary.
+</p>
+
+
+<h2 id="fetch">Fetch the repository</h2>
+
+<p>
+<p>Go will install to a directory named <code>go</code>.
+Change to the directory that will be its parent
+and make sure the <code>go</code> directory does not exist.
+Then check out the repository:</p>
+
+<pre>
+$ hg clone -u release https://code.google.com/p/go
+</pre>
+
+<h2 id="install">Install Go</h2>
+
+<p>
+To build the Go distribution, run
+</p>
+
+<pre>
+$ cd go/src
+$ ./all.bash
+</pre>
+
+<p>
+(To build under Windows use <code>all.bat</code>.)
+</p>
+
+<p>
+If all goes well, it will finish by printing output like:
+</p>
+
+<pre>
+ALL TESTS PASSED
+
+---
+Installed Go for linux/amd64 in /home/you/go.
+Installed commands in /home/you/go/bin.
+*** You need to add /home/you/go/bin to your $PATH. ***
+The compiler is 6g.
+</pre>
+
+<p>
+where the details on the last few lines reflect the operating system,
+architecture, and root directory used during the install.
+</p>
+
+<div class="detail">
+<p>
+For more information about ways to control the build, see the discussion of
+<a href="#environment">environment variables</a> below.
+</p>
+</div>
+
+
+<h2 id="testing">Testing your installation</h2>
+
+<p>
+Check that Go is installed correctly by building a simple program.
+</p>
+
+<p>
+Create a file named <code>hello.go</code> and put the following program in it:
+</p>
+
+<pre>
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Printf("hello, world\n")
+}
+</pre>
+
+<p>
+Then run it with the <code>go</code> tool:
+</p>
+
+<pre>
+$ go run hello.go
+hello, world
+</pre>
+
+<p>
+If you see the "hello, world" message then Go is installed correctly.
+</p>
+
+
+<h2 id="next">What's next</h2>
+
+<p>
+Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>
+or reading the <a href="go_tutorial.html">Go Tutorial</a>.
+</p>
+
+<p>
+For more detail about the process of building and testing Go programs
+read <a href="/doc/code.html">How to Write Go Code</a>.
+</p>
+
+<p>
+Build a web application by following the <a href="codelab/wiki/">Wiki
+Codelab</a>.
+</p>
+
+<p>
+Read <a href="effective_go.html">Effective Go</a> to learn about writing
+idiomatic Go code.
+</p>
+
+<p>
+For the full story, consult Go's extensive 
+<a href="docs.html">documentation</a>.
+</p>
+
+
+<h2 id="community">Community resources</h2>
+
+<p>
+For real-time help, there may be users or developers on
+<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
+</p>
+
+<p>
+The official mailing list for discussion of the Go language is
+<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
+</p>
+
+<p>
+Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
+</p>
+
+<p>
+For those who wish to keep up with development,
+there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
+that receives a message summarizing each checkin to the Go repository.
+</p>
+
+
+<h2 id="releases">Keeping up with releases</h2>
+
+<p>
+The Go project maintains two stable tags in its Mercurial repository:
+<code>release</code> and <code>weekly</code>.
+The <code>weekly</code> tag is updated about once a week, and should be used by
+those who want to track the project's development.
+The <code>release</code> tag is given, less often, to those weekly releases
+that have proven themselves to be robust.
+</p>
+
+<p>
+Most Go users will want to keep their Go installation at the latest
+<code>release</code> tag.
+New releases are announced on the
+<a href="http://groups.google.com/group/golang-announce">golang-announce</a>
+mailing list.
+</p>
+
+<p>
+To update an existing tree to the latest release, you can run:
+</p>
+
+<pre>
+$ cd go/src
+$ hg pull
+$ hg update release
+$ ./all.bash
+</pre>
+
+<p>
+To use the <code>weekly</code> tag run <code>hg update weekly</code> instead.
+</p>
+
+
+<h2 id="environment">Optional environment variables</h2>
+
+<p>
+The Go compilation environment can be customized by environment variables.
+<i>None are required by the build</i>, but you may wish to set them
+to override the defaults.
+</p>
+
+<dl>
+<dt>
+	<code>$GOROOT</code>
+</dt>
+<dd>
+	<p>
+	The root of the Go tree, often <code>$HOME/go</code>.
+	This defaults to the parent of the directory where <code>all.bash</code> is run.
+	If you choose not to set <code>$GOROOT</code>, you must
+	run <code>gomake</code> instead of <code>make</code> or <code>gmake</code>
+	when developing Go programs using the conventional makefiles.
+</dd>
+
+<dt>
+	<code>$GOROOT_FINAL</code>
+</dt>
+<dd>
+	<p>
+	The value assumed by installed binaries and scripts when
+	<code>$GOROOT</code> is not set.
+	It defaults to the value used for <code>$GOROOT</code>.
+	If you want to build the Go tree in one location
+	but move it elsewhere after the build, set 
+	<code>$GOROOT_FINAL</code> to the eventual location.
+</dd>
+
+<dt>
+<code>$GOOS</code> and <code>$GOARCH</code>
+</dt>
+<dd>
+	<p>
+	The name of the target operating system and compilation architecture.
+	These default to the values of <code>$GOHOSTOS</code> and
+	<code>$GOHOSTARCH</code> respectively (described below).
+
+	<p>
+	Choices for <code>$GOOS</code> are
+	<code>darwin</code> (Mac OS X 10.5 and above), <code>freebsd</code>,
+	<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
+	<code>plan9</code>, and <code>windows</code>.
+	Choices for <code>$GOARCH</code> are
+	<code>amd64</code> (64-bit x86, the most mature port),
+	<code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
+	The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+	<table cellpadding="0">
+	<tr>
+	<th width="50"><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th> <th align="left"></th>
+	</tr>
+	<tr>
+	<td></td><td><code>darwin</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>freebsd</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>freebsd</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>arm</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>netbsd</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>netbsd</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>openbsd</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>openbsd</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>plan9</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>windows</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>windows</code></td> <td><code>amd64</code></td>
+	</tr>
+	</table>
+	<p>
+</dd>
+
+<dt>
+<code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code>
+</dt>
+<dd>
+	<p>
+	The name of the host operating system and compilation architecture.
+	These default to the local system's operating system and
+	architecture.
+
+	<p>
+	Valid choices are the same as for <code>$GOOS</code> and
+	<code>$GOARCH</code>, listed above.
+	The specified values must be compatible with the local system.
+	For example, you should not set <code>$GOHOSTARCH</code> to 
+	<code>arm</code> on an x86 system.
+</dd>
+
+<dt>
+<code>$GOBIN</code>
+</dt>
+<dd>
+	<p>
+	The location where binaries will be installed.
+	The default is <code>$GOROOT/bin</code>.
+	After installing, you will want to arrange to add this
+	directory to your <code>$PATH</code>, so you can use the tools.
+</dd>
+
+<dt>
+<code>$GOARM</code> (arm, default=6)
+</dt>
+<dd>
+	<p>
+	The ARM architecture version the run-time libraries should target.
+	Setting <code>$GOARM</code> to 5 causes the linker to emit calls
+	to a software floating point implementation instead of using
+	hardware floating point support.
+</dd>
+</dl>
+
+<p>
+Note that <code>$GOARCH</code> and <code>$GOOS</code> identify the
+<em>target</em> environment, not the environment you are running on.
+In effect, you are always cross-compiling.
+By architecture, we mean the kind of binaries
+that the target environment can run:
+an x86-64 system running a 32-bit-only operating system
+must set <code>GOARCH</code> to <code>386</code>,
+not <code>amd64</code>.
+</p>
+
+<p>
+If you choose to override the defaults,
+set these variables in your shell profile (<code>$HOME/.bashrc</code>,
+<code>$HOME/.profile</code>, or equivalent). The settings might look 
+something like this:
+</p>
+
+<pre>
+export GOROOT=$HOME/go
+export GOARCH=amd64
+export GOOS=linux
+</pre>
