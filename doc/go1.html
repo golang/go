@@ -867,6 +867,40 @@ longer has a <code>Write</code> method. Its presence was a mistake.
 and must be updated by hand. Such code is almost certainly incorrect.
 </p>
 
+<h3 id="bufio">The bufio package</h3>
+
+<p>
+In Go 1, <a href="/pkg/bufio/#NewReaderSize"><code>bufio.NewReaderSize</code></a>
+and
+<a href="/pkg/bufio/#NewWriterSize"><code>bufio.NewWriterSize</code></a>
+functions no longer return an error for invalid sizes.
+If the argument size is too small or invalid, it is adjusted.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
+<h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+
+<p>
+In Go 1, the <code>NewWriterXxx</code> functions in
+<a href="/pkg/compress/flate"><code>compress/flate</code></a>,
+<a href="/pkg/compress/gzip"><code>compress/gzip</code></a> and
+<a href="/pkg/compress/zlib"><code>compress/zlib</code></a>
+all return <code>(*Writer, error)</code> if they take a compression level,
+and <code>*Writer</code> otherwise. Package <code>gzip</code>'s
+<code>Compressor</code> and <code>Decompressor</code> types have been renamed
+to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
+<code>WrongValueError</code> type has been removed.
+</p>
+
+<p>
+<em>Updating</em>
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
 <h3 id="crypto_aes_des">The crypto/aes and crypto/des packages</h3>
 
 <p>
@@ -936,6 +970,63 @@ to be implemented in the future.
 No changes will be needed.
 </p>
 
+<h3 id="encoding_binary">The encoding/binary package</h3>               
+
+<p>
+In Go 1, the <code>binary.TotalSize</code> function has been replaced by
+<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>,
+which takes an <code>interface{}</code> argument rather than
+a <code>reflect.Value</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
+<h3 id="encoding_xml">The encoding/xml package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
+has been brought closer in design to the other marshaling packages such
+as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
+</p>
+
+<p>
+The old <code>Parser</code> type is renamed
+<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
+<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also     introducted.
+</p>
+
+<p>
+The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+work with <code>[]byte</code> values now. To work with streams,
+use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
+</p>
+
+<p>
+When marshaling or unmarshaling values, the format of supported flags in
+field tags has changed to be closer to the
+<a href="/pkg/encoding/json"><code>json</code></a> package
+(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
+names, and the XML attribute and element names is now case-sensitive.
+The <code>XMLName</code> field tag, if present, must also match the name
+of the XML element being marshaled.
+</p>
+
+<p>
+<em>Updating</em>:
+Running <code>go fix</code> will update most uses of the package except for some calls to
+<code>Unmarshal</code>. Special care must be taken with field tags,
+since the fix tool will not update them and if not fixed by hand they will
+misbehave silently in some cases. For example, the old
+<code>"attr"</code> is now written <code>",attr"</code> while plain
+<code>"attr"</code> remains valid but with a different meaning.
+</p>
+
 <h3 id="expvar">The expvar package</h3>
 
 <p>
@@ -986,6 +1077,15 @@ Several packages under <code>go</code> have slightly revised APIs.
 </p>
 
 <p>
+A concrete <code>Mode</code> type was introduced for configuration mode flags
+in the packages
+<a href="/pkg/go/scanner/"><code>go/scanner</code></a>,
+<a href="/pkg/go/parser/"><code>go/parser</code></a>,
+<a href="/pkg/go/printer/"><code>go/printer</code></a>, and
+<a href="/pkg/go/doc/"><code>go/doc</code></a>.
+</p>
+
+<p>
 The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
 from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
 useful for scanning text other then Go source files. Instead, the
@@ -994,11 +1094,32 @@ for that purpose.
 </p>
 
 <p>
+The <a href="/pkg/go/scanner/#ErrorHandler"><code>ErrorHandler</code></a> provided
+to the scanner's <a href="/pkg/go/scanner/#Scanner.Init"><code>Init</code></a> method is
+now simply a function rather than an interface. The <code>ErrorVector</code> type has
+been removed in favor of the (existing) <a href="/pkg/go/scanner/#ErrorList"><code>ErrorList</code></a>
+type, and the <code>ErrorVector</code> methods have been migrated. Instead of embedding
+an <code>ErrorVector</code> in a client of the scanner, now a client should maintain
+an <code>ErrorList</code>.
+</p>
+
+<p>
 The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
 package has been reduced to the primary parse function
 <a href="/pkg/go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
 convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></a>
 and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+</p>
+
+<p>
+The <a href="/pkg/go/printer/"><code>go/printer</code></a> package supports an additional
+configuration mode <a href="/pkg/go/printer/#Mode"><code>SourcePos</code></a>;
+if set, the printer will emit <code>//line</code> comments such that the generated
+output contains the original source code position information. The new type
+<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be  
+used to provide comments associated with an arbitrary
+<a href="/pkg/go/ast/#Node"><code>ast.Node</code></a> (until now only
+<a href="/pkg/go/ast/#File"><code>ast.File</code></a> carried comment information).
 </p>
 
 <p>
@@ -1098,8 +1219,14 @@ The affected items are:
 </ul>
 
 <p>
-Also, the <code>Request.RawURL</code> field has been removed; it was a
+The <code>Request.RawURL</code> field has been removed; it was a
 historical artifact.
+</p>
+
+<p>
+The <code>Handle</code> and <code>HandleFunc</code>
+functions, and the similarly-named methods of <code>ServeMux</code>,
+now panic if an attempt is made to register the same pattern twice.
 </p>
 
 <p>
@@ -1138,9 +1265,7 @@ packages.
 The old <code>image.ColorImage</code> type is still in the <code>image</code>
 package but has been renamed
 <a href="/pkg/image/#Uniform"><code>image.Uniform</code></a>,
-while <code>image.Tiled</code>
-has been renamed
-<a href="/pkg/image/#Repeated"><code>image.Repeated</code></a>.
+while <code>image.Tiled</code> has been removed.
 </p>
 
 <p>
@@ -1201,7 +1326,6 @@ This table lists the renamings.
 <td colspan="2"><hr></td>
 </tr>
 <tr><td>image.ColorImage</td> <td>image.Uniform</td></tr>
-<tr><td>image.Tiled</td> <td>image.Repeated</td></tr>
 </table>
 
 <p>
@@ -1224,6 +1348,18 @@ and
 <p>
 <em>Updating</em>:
 Running <code>go fix</code> will update almost all code affected by the change.
+</p>
+
+<h3 id="log_syslog">The log/syslog package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>     
+function returns an error as well as a <code>log.Logger</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
 </p>
 
 <h3 id="mime">The mime package</h3>
@@ -1272,7 +1408,27 @@ Code that uses the old methods will fail to compile and must be updated by hand.
 The semantic change makes it difficult for the fix tool to update automatically.
 </p>
 
-<h3 id="os_fileinfo">The os.FileInfo type</h3>
+<h3 id="os">The os package</h3>
+
+<p>The <code>Time</code> function has been removed; callers should use
+the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
+<code>time</code> package.</p>
+
+<p>The <code>Exec</code> function has been removed; callers should use
+<code>Exec</code> from the <code>syscall</code> package, where available.</p>
+
+<p>The <code>ShellExpand</code> function has been renamed to <a
+href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.</p>
+
+<p>The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
+now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
+The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
+also returns a <code>uintptr</code>.</p>
+
+<p><em>Updating</em>: Code will fail to compile and must be updated
+by hand.  </p>
+
+<h4 id="os_fileinfo">The os.FileInfo type</h4>
 
 <p>
 Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
@@ -1546,6 +1702,17 @@ Existing code is unaffected, although benchmarks that use <code>println</code>
 or <code>panic</code> should be updated to use the new methods.
 </p>
 
+<h3 id="testing_script">The testing/script package</h3>
+
+<p>
+The testing/script package has been deleted. It was a dreg.
+</p>
+
+<p>
+<em>Updating</em>:
+No code is likely to be affected.
+</p>
+
 <h3 id="url">The url package</h3>
 
 <p>
@@ -1612,50 +1779,6 @@ added to <code>URL</code>.
 <em>Updating</em>:
 Code that uses the old fields will fail to compile and must be updated by hand.
 The semantic changes make it difficult for the fix tool to update automatically.
-</p>
-
-<h3 id="xml">The xml package</h3>
-
-<p>
-In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
-has been brought closer in design to the other marshaling packages such
-as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
-</p>
-
-<p>
-The old <code>Parser</code> type is renamed
-<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
-<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
-introduced.
-</p>
-
-<p>
-The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
-and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
-work with <code>[]byte</code> values now. To work with streams,
-use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
-and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
-</p>
-
-<p>
-When marshaling or unmarshaling values, the format of supported flags in
-field tags has changed to be closer to the
-<a href="/pkg/encoding/json"><code>json</code></a> package
-(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
-names, and the XML attribute and element names is now case-sensitive.
-The <code>XMLName</code> field tag, if present, must also match the name
-of the XML element being marshaled.
-</p>
-
-<p>
-<em>Updating</em>:
-Running <code>go fix</code> will update most uses of the package except for some calls to
-<code>Unmarshal</code>. Special care must be taken with field tags,
-since the fix tool will not update them and if not fixed by hand they will
-misbehave silently in some cases. For example, the old
-<code>"attr"</code> is now written <code>",attr"</code> while plain
-<code>"attr"</code> remains valid but with a different meaning.
 </p>
 
 <h2 id="go_command">The go command</h2>
