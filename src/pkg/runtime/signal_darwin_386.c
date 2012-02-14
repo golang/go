@@ -92,9 +92,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		return;
 
 Throw:
-	if(runtime·panicking)	// traceback already printed
-		runtime·exit(2);
-	runtime·panicking = 1;
+	runtime·startpanic();
 
 	if(sig < 0 || sig >= NSIG){
 		runtime·printf("Signal %d\n", sig);
