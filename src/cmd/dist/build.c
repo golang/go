@@ -13,14 +13,18 @@
 char *goarch;
 char *gobin;
 char *gohostarch;
+char *gohostchar;
 char *gohostos;
 char *goos;
 char *goroot = GOROOT_FINAL;
 char *goroot_final = GOROOT_FINAL;
 char *workdir;
+char	*tooldir;
 char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
+
+bool	rebuildall = 0;
 
 static bool shouldbuild(char*, char*);
 static void copy(char*, char*);
@@ -99,14 +103,18 @@ init(void)
 	if(b.len > 0)
 		gohostarch = btake(&b);
 
-	if(find(gohostarch, okgoarch, nelem(okgoarch)) < 0)
+	i = find(gohostarch, okgoarch, nelem(okgoarch));
+	if(i < 0)
 		fatal("unknown $GOHOSTARCH %s", gohostarch);
+	bprintf(&b, "%c", gochars[i]);
+	gohostchar = btake(&b);
 
 	xgetenv(&b, "GOARCH");
 	if(b.len == 0)
 		bwritestr(&b, gohostarch);
 	goarch = btake(&b);
-	if((i=find(goarch, okgoarch, nelem(okgoarch))) < 0)
+	i = find(goarch, okgoarch, nelem(okgoarch));
+	if(i < 0)
 		fatal("unknown $GOARCH %s", goarch);
 	bprintf(&b, "%c", gochars[i]);
 	gochar = btake(&b);
@@ -123,6 +131,9 @@ init(void)
 
 	workdir = xworkdir();
 	xatexit(rmworkdir);
+
+	bpathf(&b, "%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch);
+	tooldir = btake(&b);
 
 	bfree(&b);
 }
@@ -256,6 +267,7 @@ static char *oldtool[] = {
 	"8a", "8c", "8g", "8l",
 	"6cov",
 	"6nm",
+	"6prof",
 	"cgo",
 	"ebnflint",
 	"goapi",
@@ -281,11 +293,8 @@ setup(void)
 
 	binit(&b);
 
-	// Create tool directory.
+	// Create bin directory.
 	p = bpathf(&b, "%s/bin", goroot);
-	if(!isdir(p))
-		xmkdir(p);
-	p = bpathf(&b, "%s/bin/tool", goroot);
 	if(!isdir(p))
 		xmkdir(p);
 
@@ -293,21 +302,42 @@ setup(void)
 	p = bpathf(&b, "%s/pkg", goroot);
 	if(!isdir(p))
 		xmkdir(p);
-	p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
-	xremoveall(p);
+	p = bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch);
+	if(rebuildall)
+		xremoveall(p);
 	xmkdir(p);
-
+	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
+		p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
+		if(rebuildall)
+			xremoveall(p);
+		xmkdir(p);
+	}
+	
 	// Create object directory.
 	// We keep it in pkg/ so that all the generated binaries
-	// are in one tree.
-	p = bpathf(&b, "%s/pkg/obj", goroot);
-	xremoveall(p);
-	xmkdir(p);
+	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
+	// before we used subdirectories of obj.  Delete all of obj
+	// to clean up.
+	bpathf(&b, "%s/pkg/obj/libgc.a", goroot);
+	if(isfile(bstr(&b)))
+		xremoveall(bpathf(&b, "%s/pkg/obj", goroot));
+	p = bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch);
+	if(rebuildall)
+		xremoveall(p);
+	xmkdirall(p);
+
+	// Create tool directory.
+	// We keep it in pkg/, just like the object directory above.
+	xremoveall(tooldir);
+	xmkdirall(tooldir);
+
+	// Remove tool binaries from before the tool/gohostos_gohostarch
+	xremoveall(bpathf(&b, "%s/bin/tool", goroot));
 
 	// Remove old pre-tool binaries.
 	for(i=0; i<nelem(oldtool); i++)
-		xremove(bprintf(&b, "%s%s%s%s%s", goroot, slash, "bin", slash, oldtool[i]));
-	
+		xremove(bpathf(&b, "%s/bin/%s", goroot, oldtool[i]));
+
 	// If $GOBIN is set and has a Go compiler, it must be cleaned.
 	for(i=0; gochars[i]; i++) {
 		if(isfile(bprintf(&b, "%s%s%c%s", gobin, slash, gochars[i], "g"))) {
@@ -390,37 +420,37 @@ static struct {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
 		"../5l/enam.c",
-		"$GOROOT/pkg/obj/libcc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/6c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
 		"../6l/enam.c",
-		"$GOROOT/pkg/obj/libcc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/8c", {
 		"../cc/pgen.c",
 		"../cc/pswt.c",
 		"../8l/enam.c",
-		"$GOROOT/pkg/obj/libcc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libcc.a",
 	}},
 	{"cmd/5g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
 		"../5l/enam.c",
-		"$GOROOT/pkg/obj/libgc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/6g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
 		"../6l/enam.c",
-		"$GOROOT/pkg/obj/libgc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/8g", {
 		"../gc/cplx.c",
 		"../gc/pgen.c",
 		"../8l/enam.c",
-		"$GOROOT/pkg/obj/libgc.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
 	}},
 	{"cmd/5l", {
 		"../ld/data.c",
@@ -442,9 +472,9 @@ static struct {
 		"enam.c",
 	}},
 	{"cmd/", {
-		"$GOROOT/pkg/obj/libmach.a",
-		"$GOROOT/pkg/obj/libbio.a",
-		"$GOROOT/pkg/obj/lib9.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
+		"$GOROOT/pkg/obj/$GOOS_$GOARCH/lib9.a",
 	}},
 	{"pkg/runtime", {
 		"zasm_$GOOS_$GOARCH.h",
@@ -490,8 +520,12 @@ install(char *dir)
 	Time ttarg, t;
 	int i, j, k, n, doclean;
 
-	if(vflag)
-		xprintf("%s\n", dir);
+	if(vflag) {
+		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+			xprintf("%s (%s/%s)\n", dir, goos, goarch);
+		else
+			xprintf("%s\n", dir);
+	}
 
 	binit(&b);
 	binit(&b1);
@@ -521,7 +555,7 @@ install(char *dir)
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
 	ispkg = hasprefix(dir, "pkg");
-	isgo = ispkg || streq(dir, "cmd/go");
+	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");
 
 	exe = "";
 	if(streq(gohostos, "windows"))
@@ -536,27 +570,30 @@ install(char *dir)
 		prefix = "";
 		if(!hasprefix(name, "lib"))
 			prefix = "lib";
-		vadd(&link, bpathf(&b, "%s/pkg/obj/%s%s.a", goroot, prefix, name));
+		vadd(&link, bpathf(&b, "%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name));
 	} else if(ispkg) {
 		// Go library (package).
-		vadd(&link, bpathf(&b, "%s/bin/tool/pack", goroot));
+		vadd(&link, bpathf(&b, "%s/pack", tooldir));
 		vadd(&link, "grc");
-		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
+		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, gohostos, gohostarch, dir+4);
 		*xstrrchr(p, '/') = '\0';
 		xmkdirall(p);
-		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
-	} else if(streq(dir, "cmd/go")) {
+		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, gohostos, gohostarch, dir+4));
+	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
 		// Go command.
-		vadd(&link, bpathf(&b, "%s/bin/tool/%sl", goroot, gochar));
+		vadd(&link, bpathf(&b, "%s/%sl", tooldir, gochar));
 		vadd(&link, "-o");
-		vadd(&link, bpathf(&b, "%s/bin/tool/go_bootstrap%s", goroot, exe));
+		elem = name;
+		if(streq(elem, "go"))
+			elem = "go_bootstrap";
+		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
 	} else {
 		// C command.
 		// Use gccargs, but ensure that link.p[2] is output file,
 		// as noted above.
 		vadd(&link, gccargs.p[0]);
 		vadd(&link, "-o");
-		vadd(&link, bpathf(&b, "%s/bin/tool/%s%s", goroot, name, exe));
+		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
 		vcopy(&link, gccargs.p+1, gccargs.len-1);
 		if(streq(gohostarch, "amd64"))
 			vadd(&link, "-m64");
@@ -636,7 +673,7 @@ install(char *dir)
 	}
 
 	// Is the target up-to-date?
-	stale = 1;  // TODO: Decide when 0 is okay.
+	stale = rebuildall;
 	n = 0;
 	for(i=0; i<files.len; i++) {
 		p = files.p[i];
@@ -681,12 +718,6 @@ install(char *dir)
 			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos));
 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
-	}
-	
-	// For cmd/prof, copy pprof into the tool directory.
-	if(streq(dir, "cmd/prof")) {
-		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
-			bpathf(&b1, "%s/src/cmd/prof/pprof", goroot));
 	}
 
 	// Generate any missing files; regenerate existing ones.
@@ -737,6 +768,13 @@ install(char *dir)
 		}
 		vuniq(&files);
 	}
+	
+	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
+		// We've generated the right files; the go command can do the build.
+		if(vflag > 1)
+			xprintf("skip build for cross-compile %s\n", dir);
+		goto nobuild;
+	}
 
 	// Compile the files.
 	for(i=0; i<files.len; i++) {
@@ -762,7 +800,7 @@ install(char *dir)
 			vadd(&compile, "-I");
 			vadd(&compile, bstr(&path));
 	
-			// runtime/goos.c gets the default constants hard-coded.
+			// lib9/goos.c gets the default constants hard-coded.
 			if(streq(name, "goos.c")) {
 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
 				vadd(&compile, bprintf(&b, "-DGOARCH=\"%s\"", goarch));
@@ -780,9 +818,9 @@ install(char *dir)
 		} else {
 			// Supporting files for a Go package.
 			if(hassuffix(files.p[i], ".s"))
-				vadd(&compile, bpathf(&b, "%s/bin/tool/%sa", goroot, gochar));
+				vadd(&compile, bpathf(&b, "%s/%sa", tooldir, gochar));
 			else {
-				vadd(&compile, bpathf(&b, "%s/bin/tool/%sc", goroot, gochar));
+				vadd(&compile, bpathf(&b, "%s/%sc", tooldir, gochar));
 				vadd(&compile, "-FVw");
 			}
 			vadd(&compile, "-I");
@@ -820,7 +858,7 @@ install(char *dir)
 		// The last loop was compiling individual files.
 		// Hand the Go files to the compiler en masse.
 		vreset(&compile);
-		vadd(&compile, bpathf(&b, "%s/bin/tool/%sg", goroot, gochar));
+		vadd(&compile, bpathf(&b, "%s/%sg", tooldir, gochar));
 
 		bpathf(&b, "%s/_go_.%s", workdir, gochar);
 		vadd(&compile, "-o");
@@ -853,6 +891,7 @@ install(char *dir)
 
 	runv(nil, nil, CheckExit, &link);
 
+nobuild:
 	// In package runtime, we install runtime.h and cgocall.h too,
 	// for use by cgo compilation.
 	if(streq(dir, "pkg/runtime")) {
@@ -921,6 +960,8 @@ shouldbuild(char *file, char *dir)
 	// so special case that file.
 	if(hassuffix(file, "cmd/go/doc.go") || hassuffix(file, "cmd\\go\\doc.go"))
 		return 0;
+	if(hassuffix(file, "cmd/cgo/doc.go") || hassuffix(file, "cmd\\cgo\\doc.go"))
+		return 0;
 
 	// Check file contents for // +build lines.
 	binit(&b);
@@ -940,7 +981,7 @@ shouldbuild(char *file, char *dir)
 			ret = 0;
 			goto out;
 		}
-		if(contains(p, "package main") && !streq(dir, "cmd/go")) {
+		if(contains(p, "package main") && !streq(dir, "cmd/go") && !streq(dir, "cmd/cgo")) {
 			ret = 0;
 			goto out;
 		}
@@ -1044,7 +1085,6 @@ static char *buildorder[] = {
 	"pkg/net/url",
 	"pkg/text/template/parse",
 	"pkg/text/template",
-
 	"cmd/go",
 };
 
@@ -1140,15 +1180,18 @@ clean(void)
 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
 	}
 
-	// Remove object tree.
-	xremoveall(bpathf(&b, "%s/pkg/obj", goroot));
+	if(rebuildall) {
+		// Remove object tree.
+		xremoveall(bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch));
 	
-	// Remove installed packages and tools.
-	xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
-	xremove(bpathf(&b, "%s/bin/tool", goroot));
-	
-	// Remove cached version info.
-	xremove(bpathf(&b, "%s/VERSION.cache", goroot));
+		// Remove installed packages and tools.
+		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch));
+		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+		xremoveall(tooldir);
+
+		// Remove cached version info.
+		xremove(bpathf(&b, "%s/VERSION.cache", goroot));
+	}
 
 	bfree(&b);
 	bfree(&path);
@@ -1212,7 +1255,11 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);
 	xprintf(format, "GOOS", goos);
+	xprintf(format, "GOHOSTARCH", gohostarch);
+	xprintf(format, "GOHOSTOS", gohostos);
+	xprintf(format, "GOTOOLDIR", tooldir);
 	xprintf(format, "GOCHAR", gochar);
+
 	if(pflag) {
 		sep = ":";
 		if(streq(gohostos, "windows"))
@@ -1233,8 +1280,14 @@ cmdbootstrap(int argc, char **argv)
 {
 	int i;
 	Buf b;
+	char *oldgoos, *oldgoarch, *oldgochar;
+
+	binit(&b);
 
 	ARGBEGIN{
+	case 'a':
+		rebuildall = 1;
+		break;
 	case 'v':
 		vflag++;
 		break;
@@ -1249,9 +1302,32 @@ cmdbootstrap(int argc, char **argv)
 	goversion = findgoversion();
 	setup();
 	
-	binit(&b);
-	for(i=0; i<nelem(buildorder); i++)
-		install(bprintf(&b, buildorder[i], gochar));
+	// For the main bootstrap, building for host os/arch.
+	oldgoos = goos;
+	oldgoarch = goarch;
+	oldgochar = gochar;
+	goos = gohostos;
+	goarch = gohostarch;
+	gochar = gohostchar;
+	xsetenv("GOARCH", goarch);
+	xsetenv("GOOS", goos);
+	
+	for(i=0; i<nelem(buildorder); i++) {
+		install(bprintf(&b, buildorder[i], gohostchar));
+		if(!streq(oldgochar, gohostchar) && xstrstr(buildorder[i], "%s"))
+			install(bprintf(&b, buildorder[i], oldgochar));
+	}
+
+	goos = oldgoos;
+	goarch = oldgoarch;
+	gochar = oldgochar;
+	xsetenv("GOARCH", goarch);
+	xsetenv("GOOS", goos);
+
+	// Build pkg/runtime for actual goos/goarch too.
+	if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+		install("pkg/runtime");
+
 	bfree(&b);
 }
 

@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval $(../bin/tool/dist env)
+eval $(go tool dist env)
 export GOARCH GOOS GOROOT
 export E=
 
@@ -34,7 +34,7 @@ failed=0
 PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
 
 # TODO: We add the tool directory to the PATH to avoid thinking about a better way.
-PATH="$GOROOT/bin/tool":$PATH
+PATH="$GOTOOLDIR:$PATH"
 
 RUNFILE="/tmp/gorun-$$-$USER"
 TMP1FILE="/tmp/gotest1-$$-$USER"

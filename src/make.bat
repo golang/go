@@ -25,26 +25,48 @@ echo # Building C bootstrap tool.
 echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
 :: Windows has no glob expansion, so spell out cmd/dist/*.c.
-gcc -O2 -Wall -Werror -o ../bin/tool/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
+gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
 if errorlevel 1 goto fail
+.\cmd\dist\dist env -wp >env.bat
+if errorlevel 1 goto fail
+call env.bat
+del env.bat
 :: Echo with no arguments prints whether echo is turned on, so echo dot.
 echo .
 
 echo # Building compilers and Go bootstrap tool.
-..\bin\tool\dist bootstrap -v
+.\cmd\dist\dist bootstrap -a -v
+if errorlevel 1 goto fail
+:: Delay move of dist tool to now, because bootstrap cleared tool directory.
+move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
+%GOTOOLDIR%\go_bootstrap clean -i std
+echo .
+
+if not %GOHOSTARCH% == %GOARCH% goto localbuild
+if not %GOHOSTOS% == %GOOS% goto localbuild
+goto mainbuild
+
+:localbuild
+echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+set oldGOOS=%GOOS%
+set oldGOARCH=%GOARCH%
+set GOOS=%GOHOSTOS%
+set GOARCH=%GOHOSTARCH%
+%GOTOOLDIR%\go_bootstrap install -v std
+set GOOS=%oldGOOS%
+set GOARCH=%oldGOARCH%
 if errorlevel 1 goto fail
 echo .
 
+:mainbuild
 echo # Building packages and commands.
-..\bin\tool\go_bootstrap clean std
+%GOTOOLDIR%\go_bootstrap install -a -v std
 if errorlevel 1 goto fail
-..\bin\tool\go_bootstrap install -a -v std
-if errorlevel 1 goto fail
-del ..\bin\tool\go_bootstrap.exe
+del %GOTOOLDIR%\go_bootstrap.exe
 echo .
 
 if "x%1"=="x--no-banner" goto nobanner
-..\bin\tool\dist banner
+%GOTOOLDIR%\dist banner
 :nobanner
 
 goto end

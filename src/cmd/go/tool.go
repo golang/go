@@ -31,7 +31,7 @@ var (
 	toolGOOS      = runtime.GOOS
 	toolGOARCH    = runtime.GOARCH
 	toolIsWindows = toolGOOS == "windows"
-	toolDir       = filepath.Join(build.Path[0].Path, "bin", "tool")
+	toolDir       = build.ToolDir
 )
 
 const toolWindowsExtension = ".exe"
@@ -97,6 +97,7 @@ func listTools() {
 		setExitStatus(2)
 		return
 	}
+
 	sort.Strings(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.

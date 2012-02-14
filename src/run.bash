@@ -5,7 +5,7 @@
 
 set -e
 
-eval $(../bin/tool/dist env -p)
+eval $(go tool dist env)
 
 unset CDPATH	# in case user has it set
 

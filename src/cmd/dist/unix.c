@@ -145,6 +145,7 @@ static struct {
 	int pid;
 	int mode;
 	char *cmd;
+	Buf *b;
 } bg[MAXBG];
 static int nbg;
 static int maxnbg = nelem(bg);
@@ -219,6 +220,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 	bg[nbg].pid = pid;
 	bg[nbg].mode = mode;
 	bg[nbg].cmd = btake(&cmd);
+	bg[nbg].b = b;
 	nbg++;
 	
 	if(wait)
@@ -233,6 +235,7 @@ bgwait1(void)
 {
 	int i, pid, status, mode;
 	char *cmd;
+	Buf *b;
 
 	errno = 0;
 	while((pid = wait(&status)) < 0) {
@@ -248,9 +251,13 @@ ok:
 	cmd = bg[i].cmd;
 	mode = bg[i].mode;
 	bg[i].pid = 0;
+	b = bg[i].b;
+	bg[i].b = nil;
 	bg[i] = bg[--nbg];
 	
 	if(mode == CheckExit && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
+		if(b != nil)
+			xprintf("%s\n", bstr(b));
 		fatal("FAILED: %s", cmd);
 	}
 	xfree(cmd);

@@ -72,7 +72,9 @@ extern char *goroot;
 extern char *goroot_final;
 extern char *goversion;
 extern char *workdir;
+extern char *tooldir;
 extern char *slash;
+extern bool rebuildall;
 
 int	find(char*, char**, int);
 void	init(void);

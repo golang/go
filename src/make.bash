@@ -61,24 +61,36 @@ mkdir -p ../bin/tool
 export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
 DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
-gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+gcc -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+eval $(./cmd/dist/dist env)
 echo
 
 if [ "$1" = "--dist-tool" ]; then
 	# Stop after building dist tool.
+	mv cmd/dist/dist $GOTOOLDIR/dist
 	exit 0
 fi
 
-echo '# Building compilers and Go bootstrap tool.'
-../bin/tool/dist bootstrap -v # builds go_bootstrap
+echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
+./cmd/dist/dist bootstrap -a -v # builds go_bootstrap
+# Delay move of dist tool to now, because bootstrap cleared tool directory.
+mv cmd/dist/dist $GOTOOLDIR/dist
+$GOTOOLDIR/go_bootstrap clean -i std
 echo
 
-echo '# Building packages and commands.'
-../bin/tool/go_bootstrap clean std
-../bin/tool/go_bootstrap install -a -v std
-rm -f ../bin/tool/go_bootstrap
+if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+		$GOTOOLDIR/go_bootstrap install -v std
+	echo
+fi
+
+echo "# Building packages and commands for $GOOS/$GOARCH."
+$GOTOOLDIR/go_bootstrap install -v std
 echo
+
+rm -f $GOTOOLDIR/go_bootstrap
 
 if [ "$1" != "--no-banner" ]; then
-	../bin/tool/dist banner
+	$GOTOOLDIR/dist banner
 fi
