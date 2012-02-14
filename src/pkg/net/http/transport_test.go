@@ -16,6 +16,7 @@ import (
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -629,6 +630,66 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}
 	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
 		t.Fatalf("Content-Encoding = %q; want %q", g, e)
+	}
+}
+
+// tests that persistent goroutine connections shut down when no longer desired.
+func TestTransportPersistConnLeak(t *testing.T) {
+	gotReqCh := make(chan bool)
+	unblockCh := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		gotReqCh <- true
+		<-unblockCh
+		w.Header().Set("Content-Length", "0")
+		w.WriteHeader(204)
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	n0 := runtime.Goroutines()
+
+	const numReq = 100
+	didReqCh := make(chan bool)
+	for i := 0; i < numReq; i++ {
+		go func() {
+			c.Get(ts.URL)
+			didReqCh <- true
+		}()
+	}
+
+	// Wait for all goroutines to be stuck in the Handler.
+	for i := 0; i < numReq; i++ {
+		<-gotReqCh
+	}
+
+	nhigh := runtime.Goroutines()
+
+	// Tell all handlers to unblock and reply.
+	for i := 0; i < numReq; i++ {
+		unblockCh <- true
+	}
+
+	// Wait for all HTTP clients to be done.
+	for i := 0; i < numReq; i++ {
+		<-didReqCh
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	runtime.GC()
+	runtime.GC() // even more.
+	nfinal := runtime.Goroutines()
+
+	growth := nfinal - n0
+
+	// We expect 5 extra goroutines, empirically. That number is at least
+	// DefaultMaxIdleConnsPerHost * 2 (one reader goroutine, one writer),
+	// and something else.
+	expectedGoroutineGrowth := DefaultMaxIdleConnsPerHost*2 + 1
+
+	if int(growth) > expectedGoroutineGrowth*2 {
+		t.Errorf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
 	}
 }
 
