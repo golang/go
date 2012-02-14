@@ -95,7 +95,7 @@ func (s *Server) Start() {
 	s.URL = "http://" + s.Listener.Addr().String()
 	go s.Config.Serve(s.Listener)
 	if *serve != "" {
-		fmt.Println(os.Stderr, "httptest: serving on", s.URL)
+		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
 		select {}
 	}
 }

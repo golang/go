@@ -207,7 +207,18 @@ func (f *File) checkPrintfVerb(call *ast.CallExpr, verb rune, flags []byte) {
 // call.Args[skip] is the first argument to be printed.
 func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 	isLn := strings.HasSuffix(name, "ln")
+	isF := strings.HasPrefix(name, "F")
 	args := call.Args
+	// check for Println(os.Stderr, ...)
+	if skip == 0 && !isF && len(args) > 0 {
+		if sel, ok := args[0].(*ast.SelectorExpr); ok {
+			if x, ok := sel.X.(*ast.Ident); ok {
+				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+					f.Warnf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
+				}
+			}
+		}
+	}
 	if len(args) <= skip {
 		if *verbose && !isLn {
 			f.Badf(call.Pos(), "no args in %s call", name)
