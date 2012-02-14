@@ -27,6 +27,9 @@ type vcsCmd struct {
 	tagLookupCmd   []tagCmd // commands to lookup tags before running tagSyncCmd
 	tagSyncCmd     string   // command to sync to specific tag
 	tagSyncDefault string   // command to sync to default tag
+
+	scheme  []string
+	pingCmd string
 }
 
 // A tagCmd describes a command to list available tags
@@ -74,6 +77,9 @@ var vcsHg = &vcsCmd{
 	},
 	tagSyncCmd:     "update -r {tag}",
 	tagSyncDefault: "update default",
+
+	scheme:  []string{"https", "http"},
+	pingCmd: "identify {scheme}://{repo}",
 }
 
 // vcsGit describes how to use Git.
@@ -94,6 +100,9 @@ var vcsGit = &vcsCmd{
 	},
 	tagSyncCmd:     "checkout {tag}",
 	tagSyncDefault: "checkout origin/master",
+
+	scheme:  []string{"git", "https", "http"},
+	pingCmd: "ls-remote {scheme}://{repo}",
 }
 
 // vcsBzr describes how to use Bazaar.
@@ -110,6 +119,9 @@ var vcsBzr = &vcsCmd{
 	tagCmd:         []tagCmd{{"tags", `^(\S+)`}},
 	tagSyncCmd:     "update -r {tag}",
 	tagSyncDefault: "update -r revno:-1",
+
+	scheme:  []string{"https", "http", "bzr"},
+	pingCmd: "info {scheme}://{repo}",
 }
 
 // vcsSvn describes how to use Subversion.
@@ -122,6 +134,9 @@ var vcsSvn = &vcsCmd{
 
 	// There is no tag command in subversion.
 	// The branch information is all in the path names.
+
+	scheme:  []string{"https", "http", "svn"},
+	pingCmd: "info {scheme}://{repo}",
 }
 
 func (v *vcsCmd) String() string {
@@ -136,17 +151,23 @@ func (v *vcsCmd) String() string {
 // command's combined stdout+stderr to standard error.
 // Otherwise run discards the command's output.
 func (v *vcsCmd) run(dir string, cmd string, keyval ...string) error {
-	_, err := v.run1(dir, cmd, keyval)
+	_, err := v.run1(dir, cmd, keyval, true)
+	return err
+}
+
+// runVerboseOnly is like run but only generates error output to standard error in verbose mode.
+func (v *vcsCmd) runVerboseOnly(dir string, cmd string, keyval ...string) error {
+	_, err := v.run1(dir, cmd, keyval, false)
 	return err
 }
 
 // runOutput is like run but returns the output of the command.
 func (v *vcsCmd) runOutput(dir string, cmd string, keyval ...string) ([]byte, error) {
-	return v.run1(dir, cmd, keyval)
+	return v.run1(dir, cmd, keyval, true)
 }
 
 // run1 is the generalized implementation of run and runOutput.
-func (v *vcsCmd) run1(dir string, cmdline string, keyval []string) ([]byte, error) {
+func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([]byte, error) {
 	m := make(map[string]string)
 	for i := 0; i < len(keyval); i += 2 {
 		m[keyval[i]] = keyval[i+1]
@@ -168,11 +189,18 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string) ([]byte, erro
 	err := cmd.Run()
 	out := buf.Bytes()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
-		os.Stderr.Write(out)
+		if verbose || buildV {
+			fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
+			os.Stderr.Write(out)
+		}
 		return nil, err
 	}
 	return out, nil
+}
+
+// ping pings to determine scheme to use.
+func (v *vcsCmd) ping(scheme, repo string) error {
+	return v.runVerboseOnly(".", v.pingCmd, "scheme", scheme, "repo", repo)
 }
 
 // create creates a new copy of repo in dir.
@@ -236,6 +264,7 @@ type vcsPath struct {
 	repo   string                              // repository to use (expand with match of re)
 	vcs    string                              // version control system to use (expand with match of re)
 	check  func(match map[string]string) error // additional checks
+	ping   bool                                // ping for scheme to use to download repo
 
 	regexp *regexp.Regexp // cached compiled form of re
 }
@@ -282,6 +311,14 @@ func vcsForImportPath(importPath string) (vcs *vcsCmd, repo, root string, err er
 		vcs := vcsByCmd(match["vcs"])
 		if vcs == nil {
 			return nil, "", "", fmt.Errorf("unknown version control system %q", match["vcs"])
+		}
+		if srv.ping {
+			for _, scheme := range vcs.scheme {
+				if vcs.ping(scheme, match["repo"]) == nil {
+					match["repo"] = scheme + "://" + match["repo"]
+					break
+				}
+			}
 		}
 		return vcs, match["repo"], match["root"], nil
 	}
@@ -340,7 +377,8 @@ var vcsPaths = []*vcsPath{
 
 	// General syntax for any server.
 	{
-		re: `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
+		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
+		ping: true,
 	},
 }
 
