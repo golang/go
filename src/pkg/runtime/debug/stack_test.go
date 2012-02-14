@@ -5,7 +5,6 @@
 package debug
 
 import (
-	. "runtime/debug"
 	"strings"
 	"testing"
 )
