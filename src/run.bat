@@ -3,13 +3,7 @@
 :: license that can be found in the LICENSE file.
 @echo off
 
-set GOOLDPATH=%PATH%
 set GOBUILDFAIL=0
-
-..\bin\tool\dist env -wp >env.bat
-if errorlevel 1 goto fail
-call env.bat
-del env.bat
 
 rem TODO avoid rebuild if possible
 
@@ -44,4 +38,3 @@ goto end
 set GOBUILDFAIL=1
 
 :end
-set PATH=%GOOLDPATH%
