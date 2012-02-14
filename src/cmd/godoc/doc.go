@@ -9,12 +9,15 @@ Godoc extracts and generates documentation for Go programs.
 It has two modes.
 
 Without the -http flag, it runs in command-line mode and prints plain text
-documentation to standard output and exits. If the -src flag is specified,
-godoc prints the exported interface of a package in Go source form, or the
-implementation of a specific exported language entity:
+documentation to standard output and exits. If both a library package and
+a command with the same name exists, using the prefix cmd/ will force
+documentation on the command rather than the library package. If the -src
+flag is specified, godoc prints the exported interface of a package in Go
+source form, or the implementation of a specific exported language entity:
 
 	godoc fmt                # documentation for package fmt
 	godoc fmt Printf         # documentation for fmt.Printf
+	godoc cmd/go             # force documentation for the go command
 	godoc -src fmt           # fmt package interface in Go source form
 	godoc -src fmt Printf    # implementation of fmt.Printf
 

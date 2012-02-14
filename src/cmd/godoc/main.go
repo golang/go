@@ -374,11 +374,16 @@ func main() {
 	}
 
 	// determine paths
+	const cmdPrefix = "cmd/"
 	path := flag.Arg(0)
-	if len(path) > 0 && path[0] == '.' {
+	var forceCmd bool
+	if strings.HasPrefix(path, ".") {
 		// assume cwd; don't assume -goroot
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
+	} else if strings.HasPrefix(path, cmdPrefix) {
+		path = path[len(cmdPrefix):]
+		forceCmd = true
 	}
 	relpath := path
 	abspath := path
@@ -393,6 +398,7 @@ func main() {
 
 	var mode PageInfoMode
 	if relpath == builtinPkgPath {
+		// the fake built-in package contains unexported identifiers
 		mode = noFiltering
 	}
 	if *srcMode {
@@ -404,20 +410,35 @@ func main() {
 	}
 	// TODO(gri): Provide a mechanism (flag?) to select a package
 	//            if there are multiple packages in a directory.
-	info := pkgHandler.getPageInfo(abspath, relpath, "", mode)
 
+	// first, try as package unless forced as command
+	var info PageInfo
+	if !forceCmd {
+		info = pkgHandler.getPageInfo(abspath, relpath, "", mode)
+	}
+
+	// second, try as command
+	if !filepath.IsAbs(path) {
+		abspath = absolutePath(path, cmdHandler.fsRoot)
+	}
+	cinfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
+
+	// determine what to use
 	if info.IsEmpty() {
-		// try again, this time assume it's a command
-		if !filepath.IsAbs(path) {
-			abspath = absolutePath(path, cmdHandler.fsRoot)
+		if !cinfo.IsEmpty() {
+			// only cinfo exists - switch to cinfo
+			info = cinfo
 		}
-		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
-		// only use the cmdInfo if it actually contains a result
-		// (don't hide errors reported from looking up a package)
-		if !cmdInfo.IsEmpty() {
-			info = cmdInfo
+	} else if !cinfo.IsEmpty() {
+		// both info and cinfo exist - use cinfo if info
+		// contains only subdirectory information
+		if info.PAst == nil && info.PDoc == nil {
+			info = cinfo
+		} else {
+			fmt.Printf("use 'godoc %s%s' for documentation on the %s command \n\n", cmdPrefix, relpath, relpath)
 		}
 	}
+
 	if info.Err != nil {
 		log.Fatalf("%v", info.Err)
 	}
