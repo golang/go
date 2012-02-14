@@ -525,6 +525,7 @@ int32	runtime·atoi(byte*);
 void	runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void));
 void	runtime·signalstack(byte*, int32);
 G*	runtime·malg(int32);
+void	runtime·asminit(void);
 void	runtime·minit(void);
 Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uintptr);

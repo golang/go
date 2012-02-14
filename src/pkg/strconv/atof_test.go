@@ -8,7 +8,6 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
-	"runtime"
 	. "strconv"
 	"strings"
 	"testing"
@@ -232,16 +231,16 @@ var roundTripCases = []struct {
 	s string
 }{
 	// Issue 2917.
-	// A Darwin/386 builder failed on AtofRandom with this case.
+	// This test will break the optimized conversion if the
+	// FPU is using 80-bit registers instead of 64-bit registers,
+	// usually because the operating system initialized the
+	// thread with 80-bit precision and the Go runtime didn't
+	// fix the FP control word.
 	{8865794286000691 << 39, "4.87402195346389e+27"},
 	{8865794286000692 << 39, "4.8740219534638903e+27"},
 }
 
 func TestRoundTrip(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "386" {
-		t.Logf("skipping round-trip test on darwin/386 - known failure, issue 2917")
-		return
-	}
 	for _, tt := range roundTripCases {
 		old := SetOptimize(false)
 		s := FormatFloat(tt.f, 'g', -1, 64)

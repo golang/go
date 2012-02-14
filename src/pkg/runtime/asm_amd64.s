@@ -80,6 +80,10 @@ TEXT runtime·breakpoint(SB),7,$0
 	BYTE	$0xcc
 	RET
 
+TEXT runtime·asminit(SB),7,$0
+	// No per-thread init.
+	RET
+
 /*
  *  go-routine
  */

@@ -74,6 +74,10 @@ TEXT runtime·breakpoint(SB),7,$0
 	// no breakpoint yet; let program exit
 	RET
 
+TEXT runtime·asminit(SB),7,$0
+	// No per-thread init.
+	RET
+
 /*
  *  go-routine
  */
