@@ -25,10 +25,11 @@ import (
 
 // A Context specifies the supporting context for a build.
 type Context struct {
-	GOARCH     string   // target architecture
-	GOOS       string   // target operating system
-	CgoEnabled bool     // whether cgo can be used
-	BuildTags  []string // additional tags to recognize in +build lines
+	GOARCH      string   // target architecture
+	GOOS        string   // target operating system
+	CgoEnabled  bool     // whether cgo can be used
+	BuildTags   []string // additional tags to recognize in +build lines
+	UseAllFiles bool     // use files regardless of +build lines, file names
 
 	// By default, ScanDir uses the operating system's
 	// file system calls to read directories and files.
@@ -225,6 +226,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 
 	var Sfiles []string // files with ".S" (capital S)
 	var di DirInfo
+	var firstFile string
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
 	fset := token.NewFileSet()
@@ -237,7 +239,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			strings.HasPrefix(name, ".") {
 			continue
 		}
-		if !ctxt.goodOSArchFile(name) {
+		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
 			continue
 		}
 
@@ -250,12 +252,13 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			continue
 		}
 
-		// Look for +build comments to accept or reject the file.
 		filename, data, err := ctxt.readFile(dir, name)
 		if err != nil {
 			return nil, err
 		}
-		if !ctxt.shouldBuild(data) {
+
+		// Look for +build comments to accept or reject the file.
+		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
 			continue
 		}
 
@@ -281,9 +284,6 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		}
 
 		pkg := string(pf.Name.Name)
-		if pkg == "main" && di.Package != "" && di.Package != "main" {
-			continue
-		}
 		if pkg == "documentation" {
 			continue
 		}
@@ -293,15 +293,11 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
 
-		if pkg != di.Package && di.Package == "main" {
-			// Found non-main package but was recording
-			// information about package main.  Reset.
-			di = DirInfo{}
-		}
 		if di.Package == "" {
 			di.Package = pkg
+			firstFile = name
 		} else if pkg != di.Package {
-			return nil, fmt.Errorf("%s: found packages %s and %s", dir, pkg, di.Package)
+			return nil, fmt.Errorf("%s: found packages %s (%s) and %s (%s)", dir, di.Package, firstFile, pkg, name)
 		}
 		if pf.Doc != nil {
 			if di.PackageComment != nil {

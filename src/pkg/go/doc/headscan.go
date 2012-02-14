@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 	The headscan command extracts comment headings from package files;
 	it is used to detect false positives which may require an adjustment

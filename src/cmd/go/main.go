@@ -398,7 +398,7 @@ func allPackages(pattern string) []string {
 			have[name] = true
 
 			_, err = build.ScanDir(path)
-			if err != nil {
+			if err != nil && strings.Contains(err.Error(), "no Go source files") {
 				return nil
 			}
 

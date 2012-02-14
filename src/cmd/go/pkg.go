@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/build"
 	"go/scanner"
 	"os"
@@ -135,6 +136,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 	}
 
 	// Find basic information about package path.
+	isCmd := false
 	t, importPath, err := build.FindTree(arg)
 	dir := ""
 	// Maybe it is a standard command.
@@ -146,6 +148,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 			importPath = arg
 			dir = p
 			err = nil
+			isCmd = true
 		}
 	}
 	// Maybe it is a path to a standard command.
@@ -158,6 +161,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 			importPath = filepath.FromSlash(arg[len(cmd):])
 			dir = arg
 			err = nil
+			isCmd = true
 		}
 	}
 	if err != nil {
@@ -178,12 +182,23 @@ func loadPackage(arg string, stk *importStack) *Package {
 	}
 
 	// Maybe we know the package by its directory.
-	if p := packageCache[dir]; p != nil {
+	p := packageCache[dir]
+	if p != nil {
 		packageCache[importPath] = p
-		return reusePackage(p, stk)
+		p = reusePackage(p, stk)
+	} else {
+		p = scanPackage(&buildContext, t, arg, importPath, dir, stk, false)
 	}
 
-	return scanPackage(&buildContext, t, arg, importPath, dir, stk)
+	// If we loaded the files from the Go root's cmd/ tree,
+	// it must be a command (package main).
+	if isCmd && p.Error == nil && p.Name != "main" {
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("expected package main in %q; found package %s", dir, p.Name),
+		}
+	}
+	return p
 }
 
 func reusePackage(p *Package, stk *importStack) *Package {
@@ -243,7 +258,7 @@ var isGoTool = map[string]bool{
 	"exp/ebnflint": true,
 }
 
-func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
+func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack, useAllFiles bool) *Package {
 	// Read the files in the directory to learn the structure
 	// of the package.
 	p := &Package{
@@ -255,7 +270,9 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 	packageCache[dir] = p
 	packageCache[importPath] = p
 
+	ctxt.UseAllFiles = useAllFiles
 	info, err := ctxt.ScanDir(dir)
+	useAllFiles = false // flag does not apply to dependencies
 	if err != nil {
 		p.Error = &PackageError{
 			ImportStack: stk.copy(),
