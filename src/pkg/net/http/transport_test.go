@@ -635,9 +635,6 @@ func TestTransportGzipRecursive(t *testing.T) {
 
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
-	t.Logf("test is buggy - appears to leak fds")
-	return
-
 	gotReqCh := make(chan bool)
 	unblockCh := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -653,12 +650,17 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	n0 := runtime.Goroutines()
 
-	const numReq = 100
+	const numReq = 25
 	didReqCh := make(chan bool)
 	for i := 0; i < numReq; i++ {
 		go func() {
-			c.Get(ts.URL)
+			res, err := c.Get(ts.URL)
 			didReqCh <- true
+			if err != nil {
+				t.Errorf("client fetch error: %v", err)
+				return
+			}
+			res.Body.Close()
 		}()
 	}
 
@@ -679,6 +681,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 		<-didReqCh
 	}
 
+	tr.CloseIdleConnections()
 	time.Sleep(100 * time.Millisecond)
 	runtime.GC()
 	runtime.GC() // even more.
@@ -686,13 +689,11 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	growth := nfinal - n0
 
-	// We expect 5 extra goroutines, empirically. That number is at least
-	// DefaultMaxIdleConnsPerHost * 2 (one reader goroutine, one writer),
-	// and something else.
-	expectedGoroutineGrowth := DefaultMaxIdleConnsPerHost*2 + 1
-
-	if int(growth) > expectedGoroutineGrowth*2 {
-		t.Errorf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
+	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
+	// Previously we were leaking one per numReq.
+	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
+	if int(growth) > 5 {
+		t.Error("too many new goroutines")
 	}
 }
 
