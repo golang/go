@@ -57,7 +57,6 @@ done
 
 echo '# Building C bootstrap tool.'
 echo cmd/dist
-mkdir -p ../bin/tool
 export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
 DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
@@ -67,6 +66,10 @@ echo
 
 if [ "$1" = "--dist-tool" ]; then
 	# Stop after building dist tool.
+	mkdir -p $GOTOOLDIR
+	if [ "$2" != "" ]; then
+		cp cmd/dist/dist "$2"
+	fi
 	mv cmd/dist/dist $GOTOOLDIR/dist
 	exit 0
 fi
