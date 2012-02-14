@@ -818,6 +818,24 @@ const (
 	NET_RT_MAXID                      = 0x6
 	NET_RT_STATS                      = 0x4
 	NET_RT_TABLE                      = 0x5
+	NOTE_ATTRIB                       = 0x8
+	NOTE_CHILD                        = 0x4
+	NOTE_DELETE                       = 0x1
+	NOTE_EOF                          = 0x2
+	NOTE_EXEC                         = 0x20000000
+	NOTE_EXIT                         = 0x80000000
+	NOTE_EXTEND                       = 0x4
+	NOTE_FORK                         = 0x40000000
+	NOTE_LINK                         = 0x10
+	NOTE_LOWAT                        = 0x1
+	NOTE_PCTRLMASK                    = 0xf0000000
+	NOTE_PDATAMASK                    = 0xfffff
+	NOTE_RENAME                       = 0x20
+	NOTE_REVOKE                       = 0x40
+	NOTE_TRACK                        = 0x1
+	NOTE_TRACKERR                     = 0x2
+	NOTE_TRUNCATE                     = 0x80
+	NOTE_WRITE                        = 0x2
 	O_ACCMODE                         = 0x3
 	O_APPEND                          = 0x8
 	O_ASYNC                           = 0x40
@@ -930,39 +948,6 @@ const (
 	SHUT_RD                           = 0x0
 	SHUT_RDWR                         = 0x2
 	SHUT_WR                           = 0x1
-	SIGABRT                           = 0x6
-	SIGALRM                           = 0xe
-	SIGBUS                            = 0xa
-	SIGCHLD                           = 0x14
-	SIGCONT                           = 0x13
-	SIGEMT                            = 0x7
-	SIGFPE                            = 0x8
-	SIGHUP                            = 0x1
-	SIGILL                            = 0x4
-	SIGINFO                           = 0x1d
-	SIGINT                            = 0x2
-	SIGIO                             = 0x17
-	SIGIOT                            = 0x6
-	SIGKILL                           = 0x9
-	SIGPIPE                           = 0xd
-	SIGPROF                           = 0x1b
-	SIGQUIT                           = 0x3
-	SIGSEGV                           = 0xb
-	SIGSTOP                           = 0x11
-	SIGSYS                            = 0xc
-	SIGTERM                           = 0xf
-	SIGTHR                            = 0x20
-	SIGTRAP                           = 0x5
-	SIGTSTP                           = 0x12
-	SIGTTIN                           = 0x15
-	SIGTTOU                           = 0x16
-	SIGURG                            = 0x10
-	SIGUSR1                           = 0x1e
-	SIGUSR2                           = 0x1f
-	SIGVTALRM                         = 0x1a
-	SIGWINCH                          = 0x1c
-	SIGXCPU                           = 0x18
-	SIGXFSZ                           = 0x19
 	SIOCADDMULTI                      = 0x80206931
 	SIOCAIFADDR                       = 0x8040691a
 	SIOCAIFGROUP                      = 0x80246987
@@ -1287,6 +1272,43 @@ const (
 	EXDEV           = Errno(0x12)
 )
 
+// Signals
+const (
+	SIGABRT   = Signal(0x6)
+	SIGALRM   = Signal(0xe)
+	SIGBUS    = Signal(0xa)
+	SIGCHLD   = Signal(0x14)
+	SIGCONT   = Signal(0x13)
+	SIGEMT    = Signal(0x7)
+	SIGFPE    = Signal(0x8)
+	SIGHUP    = Signal(0x1)
+	SIGILL    = Signal(0x4)
+	SIGINFO   = Signal(0x1d)
+	SIGINT    = Signal(0x2)
+	SIGIO     = Signal(0x17)
+	SIGIOT    = Signal(0x6)
+	SIGKILL   = Signal(0x9)
+	SIGPIPE   = Signal(0xd)
+	SIGPROF   = Signal(0x1b)
+	SIGQUIT   = Signal(0x3)
+	SIGSEGV   = Signal(0xb)
+	SIGSTOP   = Signal(0x11)
+	SIGSYS    = Signal(0xc)
+	SIGTERM   = Signal(0xf)
+	SIGTHR    = Signal(0x20)
+	SIGTRAP   = Signal(0x5)
+	SIGTSTP   = Signal(0x12)
+	SIGTTIN   = Signal(0x15)
+	SIGTTOU   = Signal(0x16)
+	SIGURG    = Signal(0x10)
+	SIGUSR1   = Signal(0x1e)
+	SIGUSR2   = Signal(0x1f)
+	SIGVTALRM = Signal(0x1a)
+	SIGWINCH  = Signal(0x1c)
+	SIGXCPU   = Signal(0x18)
+	SIGXFSZ   = Signal(0x19)
+)
+
 // Error table
 var errors = [...]string{
 	1:  "operation not permitted",
@@ -1380,4 +1402,40 @@ var errors = [...]string{
 	89: "identifier removed",
 	90: "no message of desired type",
 	91: "not supported",
+}
+
+// Signal table
+var signals = [...]string{
+	1:  "hangup",
+	2:  "interrupt",
+	3:  "quit",
+	4:  "illegal instruction",
+	5:  "trace/BPT trap",
+	6:  "abort trap",
+	7:  "EMT trap",
+	8:  "floating point exception",
+	9:  "killed",
+	10: "bus error",
+	11: "segmentation fault",
+	12: "bad system call",
+	13: "broken pipe",
+	14: "alarm clock",
+	15: "terminated",
+	16: "urgent I/O condition",
+	17: "stopped (signal)",
+	18: "stopped",
+	19: "continued",
+	20: "child exited",
+	21: "stopped (tty input)",
+	22: "stopped (tty output)",
+	23: "I/O possible",
+	24: "cputime limit exceeded",
+	25: "filesize limit exceeded",
+	26: "virtual timer expired",
+	27: "profiling timer expired",
+	28: "window size changes",
+	29: "information request",
+	30: "user defined signal 1",
+	31: "user defined signal 2",
+	32: "thread AST",
 }
