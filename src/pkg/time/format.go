@@ -344,9 +344,9 @@ func formatNano(nanosec, n int, trim bool) string {
 }
 
 // String returns the time formatted using the format string
-//	"Mon Jan _2 15:04:05 -0700 MST 2006"
+//	"2006-01-02 15:04:05.999999999 -0700 MST"
 func (t Time) String() string {
-	return t.Format("Mon Jan _2 15:04:05 -0700 MST 2006")
+	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 }
 
 type buffer []byte
