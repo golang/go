@@ -767,7 +767,7 @@ func (w *Walker) walkStructType(name string, t *ast.StructType) {
 				case *ast.SelectorExpr:
 					w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))
 				default:
-					log.Fatal("unable to handle embedded starexpr before %T", typ)
+					log.Fatalf("unable to handle embedded starexpr before %T", typ)
 				}
 			case *ast.SelectorExpr:
 				w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))
