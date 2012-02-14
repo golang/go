@@ -419,8 +419,8 @@ func TestLinuxSendfile(t *testing.T) {
 	child.Wait()
 	strace.Wait()
 
-	rx := regexp.MustCompile(`sendfile\(\d+,\s*\d+,\s*NULL,\s*\d+\)\s*=\s*\d+\s*\n`)
-	rxResume := regexp.MustCompile(`<\.\.\. sendfile resumed> \)\s*=\s*\d+\s*\n`)
+	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+\)\s*=\s*\d+\s*\n`)
+	rxResume := regexp.MustCompile(`<\.\.\. sendfile(64)? resumed> \)\s*=\s*\d+\s*\n`)
 	out := buf.String()
 	if !rx.MatchString(out) && !rxResume.MatchString(out) {
 		t.Errorf("no sendfile system call found in:\n%s", out)
