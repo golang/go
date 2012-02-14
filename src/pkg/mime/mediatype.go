@@ -23,7 +23,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		return ""
 	}
 	major, sub := t[:slash], t[slash+1:]
-	if !IsToken(major) || !IsToken(sub) {
+	if !isToken(major) || !isToken(sub) {
 		return ""
 	}
 	var b bytes.Buffer
@@ -34,12 +34,12 @@ func FormatMediaType(t string, param map[string]string) string {
 	for attribute, value := range param {
 		b.WriteByte(';')
 		b.WriteByte(' ')
-		if !IsToken(attribute) {
+		if !isToken(attribute) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(attribute))
 		b.WriteByte('=')
-		if IsToken(value) {
+		if isToken(value) {
 			b.WriteString(value)
 			continue
 		}
@@ -205,7 +205,7 @@ func decode2231Enc(v string) string {
 }
 
 func isNotTokenChar(r rune) bool {
-	return !IsTokenChar(r)
+	return !isTokenChar(r)
 }
 
 // consumeToken consumes a token from the beginning of provided
