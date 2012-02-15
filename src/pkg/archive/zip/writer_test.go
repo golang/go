@@ -77,7 +77,7 @@ func TestWriter(t *testing.T) {
 	}
 
 	// read it back
-	r, err := NewReader(sliceReaderAt(buf.Bytes()), int64(buf.Len()))
+	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 	if err != nil {
 		t.Fatal(err)
 	}

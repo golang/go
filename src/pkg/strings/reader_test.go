@@ -5,6 +5,8 @@
 package strings_test
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -53,6 +55,34 @@ func TestReader(t *testing.T) {
 		got := string(buf[:n])
 		if got != tt.want {
 			t.Errorf("%d. got %q; want %q", i, got, tt.want)
+		}
+	}
+}
+
+func TestReaderAt(t *testing.T) {
+	r := strings.NewReader("0123456789")
+	tests := []struct {
+		off     int64
+		n       int
+		want    string
+		wanterr interface{}
+	}{
+		{0, 10, "0123456789", nil},
+		{1, 10, "123456789", io.EOF},
+		{1, 9, "123456789", nil},
+		{11, 10, "", io.EOF},
+		{0, 0, "", nil},
+		{-1, 0, "", "strings: invalid offset"},
+	}
+	for i, tt := range tests {
+		b := make([]byte, tt.n)
+		rn, err := r.ReadAt(b, tt.off)
+		got := string(b[:rn])
+		if got != tt.want {
+			t.Errorf("%d. got %q; want %q", i, got, tt.want)
+		}
+		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
+			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
 		}
 	}
 }
