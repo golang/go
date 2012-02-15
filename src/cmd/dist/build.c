@@ -605,10 +605,10 @@ install(char *dir)
 		// Go library (package).
 		vadd(&link, bpathf(&b, "%s/pack", tooldir));
 		vadd(&link, "grc");
-		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, gohostos, gohostarch, dir+4);
+		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
 		*xstrrchr(p, '/') = '\0';
 		xmkdirall(p);
-		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, gohostos, gohostarch, dir+4));
+		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
 	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
 		// Go command.
 		vadd(&link, bpathf(&b, "%s/%sl", tooldir, gochar));
