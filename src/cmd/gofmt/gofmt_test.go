@@ -77,6 +77,7 @@ var tests = []struct {
 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
 	{"testdata/rewrite2.input", "-r=int->bool"},
 	{"testdata/rewrite3.input", "-r=x->x"},
+	{"testdata/rewrite4.input", "-r=(x)->x"},
 	{"testdata/stdin*.input", "-stdin"},
 	{"testdata/comments.input", ""},
 	{"testdata/import.input", ""},

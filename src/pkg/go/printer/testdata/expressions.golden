@@ -545,7 +545,7 @@ func _() {
 	// handle multiline argument list correctly
 	_ = new(T).
 		foo(
-			1).
+		1).
 		foo(2)
 
 	_ = new(T).foo(
@@ -587,12 +587,12 @@ func _() {
 	_ = new(T).
 		Field.
 		Array[3+
-			4].
+		4].
 		Table["foo"].
 		Blob.(*Type).
 		Slices[1:4].
 		Method(1, 2,
-			3).
+		3).
 		Thingy
 
 	_ = a.b.c
