@@ -59,6 +59,8 @@ type T struct {
 	PI  *int
 	PSI *[]int
 	NIL *int
+	// Function (not method)
+	Func func(...string) string
 	// Template to test evaluation of templates.
 	Tmpl *Template
 }
@@ -118,6 +120,7 @@ var tVal = &T{
 	Err:               errors.New("erroozle"),
 	PI:                newInt(23),
 	PSI:               newIntSlice(21, 22, 23),
+	Func:              func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -297,8 +300,13 @@ var execTests = []execTest{
 		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
 		"true", tVal, true},
 
+	// Function call
+	{".Func", "-{{.Func}}-", "-<>-", tVal, true},
+	{".Func2", "-{{.Func `he` `llo`}}-", "-<he+llo>-", tVal, true},
+
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
+	{"pipeline func", "-{{.Func `llo` | .Func `he` }}-", "-<he+<llo>>-", tVal, true},
 
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
