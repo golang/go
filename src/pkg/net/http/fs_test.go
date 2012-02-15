@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -387,24 +386,15 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 	defer ln.Close()
 
-	child := exec.Command(os.Args[0], "-test.run=TestLinuxSendfileChild")
+	var buf bytes.Buffer
+	child := exec.Command("strace", "-f", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
-
+	child.Stdout = &buf
+	child.Stderr = &buf
 	err = child.Start()
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	pid := child.Process.Pid
-
-	var buf bytes.Buffer
-	strace := exec.Command("strace", "-f", "-p", strconv.Itoa(pid))
-	strace.Stdout = &buf
-	strace.Stderr = &buf
-	err = strace.Start()
-	if err != nil {
-		t.Logf("skipping; failed to start strace: %v", err)
+		t.Logf("skipping; failed to start straced child: %v", err)
 		return
 	}
 
@@ -417,7 +407,6 @@ func TestLinuxSendfile(t *testing.T) {
 	// Force child to exit cleanly.
 	Get(fmt.Sprintf("http://%s/quit", ln.Addr()))
 	child.Wait()
-	strace.Wait()
 
 	rx := regexp.MustCompile(`sendfile(64)?\(\d+,\s*\d+,\s*NULL,\s*\d+\)\s*=\s*\d+\s*\n`)
 	rxResume := regexp.MustCompile(`<\.\.\. sendfile(64)? resumed> \)\s*=\s*\d+\s*\n`)
