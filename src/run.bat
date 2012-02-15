@@ -3,6 +3,13 @@
 :: license that can be found in the LICENSE file.
 @echo off
 
+:: Keep environment variables within this script
+:: unless invoked with --no-local.
+if x%1==x--no-local goto nolocal
+if x%2==x--no-local goto nolocal
+setlocal
+:nolocal
+
 set GOBUILDFAIL=0
 
 rem TODO avoid rebuild if possible

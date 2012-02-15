@@ -13,7 +13,7 @@ goto end
 
 call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
-call run.bat --no-rebuild
+call run.bat --no-rebuild --no-local
 if %GOBUILDFAIL%==1 goto end
 go tool dist banner
 
