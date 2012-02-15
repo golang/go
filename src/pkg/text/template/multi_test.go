@@ -193,7 +193,7 @@ func TestClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	clone := root.Clone()
+	clone := Must(root.Clone())
 	// Add variants to both.
 	_, err = root.Parse(cloneText3)
 	if err != nil {

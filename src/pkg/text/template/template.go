@@ -69,9 +69,9 @@ func (t *Template) init() {
 // templates. The actual representation is not copied, but the name space of
 // associated templates is, so further calls to Parse in the copy will add
 // templates to the copy but not to the original. Clone can be used to prepare
-// common templates and use them with variant definitions for other templates by
-// adding the variants after the clone is made.
-func (t *Template) Clone() *Template {
+// common templates and use them with variant definitions for other templates
+// by adding the variants after the clone is made.
+func (t *Template) Clone() (*Template, error) {
 	nt := t.copy(nil)
 	nt.init()
 	nt.tmpl[t.name] = nt
@@ -89,7 +89,7 @@ func (t *Template) Clone() *Template {
 	for k, v := range t.execFuncs {
 		nt.execFuncs[k] = v
 	}
-	return nt
+	return nt, nil
 }
 
 // copy returns a shallow copy of t, with common set to the argument.
