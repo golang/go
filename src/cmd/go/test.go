@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -273,8 +274,15 @@ func runTest(cmd *Command, args []string) {
 			}
 		}
 
+		// translate C to runtime/cgo
+		if deps["C"] {
+			delete(deps, "C")
+			deps["runtime/cgo"] = true
+			if buildContext.GOOS == runtime.GOOS && buildContext.GOARCH == runtime.GOARCH {
+				deps["cmd/cgo"] = true
+			}
+		}
 		// Ignore pseudo-packages.
-		delete(deps, "C")
 		delete(deps, "unsafe")
 
 		all := []string{}
