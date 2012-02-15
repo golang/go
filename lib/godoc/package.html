@@ -26,10 +26,10 @@
 		<div id="manual-nav">
 			<dl>
 			{{if .Consts}}
-				<dd><a href="#Constants">Constants</a></dd>
+				<dd><a href="#constants">Constants</a></dd>
 			{{end}}
 			{{if .Vars}}
-				<dd><a href="#Variables">Variables</a></dd>
+				<dd><a href="#variables">Variables</a></dd>
 			{{end}}
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
@@ -48,7 +48,7 @@
 				{{end}}
 			{{end}}
 			{{if .Bugs}}
-				<dd><a href="#Bugs">Bugs</a></dd>
+				<dd><a href="#bugs">Bugs</a></dd>
 			{{end}}
 		</dl>
 
