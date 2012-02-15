@@ -539,6 +539,27 @@ func TestPeek(t *testing.T) {
 	if _, err := buf.Peek(1); err != io.EOF {
 		t.Fatalf("want EOF got %v", err)
 	}
+
+	// Test for issue 3022, not exposing a reader's error on a successful Peek.
+	buf = NewReaderSize(dataAndEOFReader("abcd"), 32)
+	if s, err := buf.Peek(2); string(s) != "ab" || err != nil {
+		t.Errorf(`Peek(2) on "abcd", EOF = %q, %v; want "ab", nil`, string(s), err)
+	}
+	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
+		t.Errorf(`Peek(4) on "abcd", EOF = %q, %v; want "abcd", nil`, string(s), err)
+	}
+	if n, err := buf.Read(p[0:5]); string(p[0:n]) != "abcd" || err != nil {
+		t.Fatalf("Read after peek = %q, %v; want abcd, EOF", p[0:n], err)
+	}
+	if n, err := buf.Read(p[0:1]); string(p[0:n]) != "" || err != io.EOF {
+		t.Fatalf(`second Read after peek = %q, %v; want "", EOF`, p[0:n], err)
+	}
+}
+
+type dataAndEOFReader string
+
+func (r dataAndEOFReader) Read(p []byte) (int, error) {
+	return copy(p, r), io.EOF
 }
 
 func TestPeekThenUnreadRune(t *testing.T) {
