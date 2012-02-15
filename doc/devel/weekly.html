@@ -14,6 +14,125 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-02-14">2012-02-14</h2>
+
+<pre>
+This release includes some package changes that require changes to client code.
+
+The flate, gzip and zlib's NewWriterXxx functions no longer return an error.
+The compiler will flag all affected code which must then be updated by hand.
+
+The os package's Exec and Time functions were removed. Callers should use the
+os/exec package and time.Now instead. The ShellExpand function was renamed to
+ExpandEnv. The NewFile function now takes a uintptr.
+
+The runtime package's Type type and its methods have been removed.
+Use the reflect package instead.
+
+Other changes:
+* 8a, 8l: add LFENCE, MFENCE, SFENCE (thanks Darren Elwood).
+* all.bat: report error code back to the gobuilder (thanks Alex Brainman).
+* archive/zip: hide Write method from *Writer type.
+* build: create the correct $GOTOOLDIR,
+	get rid of deps.bash (thanks Anthony Martin),
+	reject make.bash on Windows.
+* builder: set $GOBUILDEXIT for Windows (thanks Alex Brainman),
+* bytes: add Reader,
+	return error in WriteTo if buffer is not drained.
+* cgo: add support for returning errno with gccgo (thanks Rémy Oudompheng).
+* cmd/api: follow constant references.
+* cmd/cgo: omit //line in -godefs, -cdefs output.
+* cmd/dist: fixes (thanks Alex Brainman, Gustavo Niemeyer, Mikio Hara, Shenghou Ma).
+* cmd/fix: warn about exp, old, deleted packages.
+* cmd/gc: suspend safemode during typecheck of inlined bodies.
+* cmd/go: a raft of fixes,
+	connect os.Stdin for go run and go tool,
+	go get scheme detection (thanks Daniel Krech),
+	respect test -timeout flag.
+* cmd/vet: warn for construct 'Println(os.Stderr, ...)' (thanks Shenghou Ma).
+* compress/gzip: remove dead code (thanks Alex Brainman).
+* container/heap: add example.
+* dashboard: add gobuilder -fail mode.
+* database/sql: more tests,
+	remove Into from ScannerInto/ScanInto,
+	rename ErrTransactionFinished to ErrTxDone,
+	support ErrSkip in Tx.Exec (thanks Andrew Balholm),
+	treat pointers as nullable types as with encoding/json (thanks Andrew Pritchard).
+* debug/macho: drop terrifyingly monstrous URL from package comment.
+* dist: prevent recusive loop on windows when fatal() is called (thanks Daniel Theophanes).
+* doc: add App Engine docs to 'learn' and 'reference' pages,
+	add playground.js,
+	new document about compatibility of releases,
+	update install.html for binary distros, add install-source.html.
+* effective_go: use new map deletion syntax.
+* encoding/binary: add Size, to replace the functionality of the old TotalSize,
+	another attempt to describe the type of Read and Write's data,
+	slices are allowed; say so.
+* encoding/json: document buffering.
+* encoding/xml: add support for the omitempty flag (thanks Gustavo Niemeyer).
+* exp/norm: merged charinfo and decomposition tables.
+* exp/types: use build.FindTree in GcImporter (thanks James Whitehead).
+* flate: delete WrongValueError type.
+* fmt: diagnose invalid verb applied to pointer,
+	scan FALSE correctly.
+* gc: bug fixes, better error messages.
+* go/doc: handle recursive embedded types (thanks Gary Burd),
+	don't lose exported consts/vars with unexported type,
+	treat predeclared error interface like an exported type.
+* go/printer: implement SourcePos mode.
+* godoc: list examples in index,
+	new design,
+	regard lone examples as "whole file" examples.
+* html/template: added more words about examples and doc (thanks Bjorn Tipling).
+* log/syslog: return length of data provided by the user, not length of header.
+* make.bat: remove double quotes (thanks Alex Brainman).
+* math: fix gamma doc, link to OEIS.
+* mime: unexport some internal details.
+* misc/dist: add binary distribution packaging script for linux,
+	new hierarchy for binary distribution packaging scripts.
+* net/http: add ServeContent,
+	don't spin on temporary accept failure,
+	fix client goroutine leak with persistent connections,
+	fix reference to URL.RawPath in docs (thanks Bjorn Tipling),
+	panic on duplicate registrations,
+	use mtime < t+1s to check for unmodified (thanks Hong Ruiqi).
+* net: avoid Shutdown during Close,
+	avoid TCP self-connect,
+	disable TestDialTimeout on Windows,
+	disable multicast test on Alpha GNU/Linux,
+	disable wild use of SO_REUSEPORT on BSD variants (thanks Mikio Hara),
+	enable flags on stream for multicast listeners (thanks Mikio Hara),
+	make use of listenerBacklog (thanks Mikio Hara),
+	prefer an IPv4 listen if no address given (thanks Mikio Hara).
+* os/exec: add Cmd.Waitmsg.
+* os/signal: revive this package.
+* regexp/syntax: add package and Parse commentary.
+* regexp: allow substitutions in Replace, ReplaceString.
+* runtime, pprof: add profiling of thread creation.
+* runtime, time: accelerate tests in short mode (thanks Rémy Oudompheng).
+* runtime: exit early on OABI systems (thanks Shenghou Ma),
+	drop to 32 bit malloc if 64 bit will not work,
+	fix "SysReserve returned unaligned address" bug on 32-bit systems (thanks Shenghou Ma),
+	fix grsec support (thanks Gustavo Niemeyer),
+	on 386, fix FP control word on all threads, not just initial thread,
+	put lockorder before pollorder in Select memory block,
+	use startpanic so that only one thread handles an incoming SIGQUIT.
+* spec: add forward links from 'method set' to where it gets used,
+	clarify implementation restrictions on untyped floats,
+	disallow recursive embedded interfaces,
+	method names must be unique,
+	send on closed channel counts as "proceeding",
+	strings are more slices than arrays.
+* strconv: handle very large inputs.
+* strings: add Seek and ReadAt methods to Reader.
+* sync/atomic: disable hammer pointer tests on wrong size system.
+* testing: let runtime catch the panic.
+* text/template: refer HTML users to html/template.
+* text/template/parse: deep Copy method for nodes.
+* time: clean up MarshalJSON, add RFC3339 method,
+	use "2006-01-02 15:04:05.999999999 -0700 MST" as String format.
+</pre>
+
 <h2 id="2012-02-07">2012-02-07</h2>
 
 <pre>
