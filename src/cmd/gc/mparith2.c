@@ -27,10 +27,10 @@ mplen(Mpint *a)
 
 //
 // left shift mpint by one
-// ignores sign and overflow
+// ignores sign
 //
 static void
-mplsh(Mpint *a)
+mplsh(Mpint *a, int quiet)
 {
 	long *a1, x;
 	int i, c;
@@ -46,19 +46,27 @@ mplsh(Mpint *a)
 		}
 		*a1++ = x;
 	}
+	a->ovf = c;
+	if(a->ovf && !quiet)
+		yyerror("constant shift overflow");
 }
 
 //
 // left shift mpint by Mpscale
-// ignores sign and overflow
+// ignores sign
 //
 static void
-mplshw(Mpint *a)
+mplshw(Mpint *a, int quiet)
 {
 	long *a1;
 	int i;
 
 	a1 = &a->a[Mpprec-1];
+	if(*a1) {
+		a->ovf = 1;
+		if(!quiet)
+			yyerror("constant shift overflow");
+	}
 	for(i=1; i<Mpprec; i++) {
 		a1[0] = a1[-1];
 		a1--;
@@ -168,11 +176,11 @@ mpshiftfix(Mpint *a, int s)
 {
 	if(s >= 0) {
 		while(s >= Mpscale) {
-			mplshw(a);
+			mplshw(a, 0);
 			s -= Mpscale;
 		}
 		while(s > 0) {
-			mplsh(a);
+			mplsh(a, 0);
 			s--;
 		}
 	} else {
@@ -294,7 +302,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
 		for(j=0; j<Mpscale; j++) {
 			if(x & 1)
 				mpaddfixfix(&q, &s, 1);
-			mplsh(&s);
+			mplsh(&s, 1);
 			x >>= 1;
 		}
 	}
@@ -606,7 +614,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	for(i=0; i<Mpprec*Mpscale; i++) {
 		if(mpcmp(d, r) > 0)
 			break;
-		mplsh(d);
+		mplsh(d, 1);
 	}
 
 	// if it never happens
@@ -625,7 +633,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
 	// when done the remaining numerator
 	// will be the remainder
 	for(; i>0; i--) {
-		mplsh(q);
+		mplsh(q, 1);
 		mprsh(d);
 		if(mpcmp(d, r) <= 0) {
 			mpaddcfix(q, 1);
