@@ -120,8 +120,8 @@ func main() {
 	numWords := flag.Int("words", 100, "maximum number of words to print")
 	prefixLen := flag.Int("prefix", 2, "prefix length in words")
 
-	flag.Parse()                  // Parse command-line flags.
-	rand.Seed(time.Nanoseconds()) // Seed the random number generator.
+	flag.Parse()                     // Parse command-line flags.
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator.
 
 	c := NewChain(*prefixLen)     // Initialize a new Chain.
 	c.Build(os.Stdin)             // Build chains from standard input.
