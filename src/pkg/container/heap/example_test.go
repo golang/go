@@ -58,10 +58,7 @@ func (pq *PriorityQueue) Pop() interface{} {
 }
 
 // 99:seven 88:five 77:zero 66:nine 55:three 44:two 33:six 22:one 11:four 00:eight
-func ExampleInterface() {
-	// The full code of this example, including the methods that implement
-	// heap.Interface, is in the file src/pkg/container/heap/example_test.go.
-
+func Example() {
 	const nItem = 10
 	// Random priorities for the items (a permutation of 0..9, times 11)).
 	priorities := [nItem]int{

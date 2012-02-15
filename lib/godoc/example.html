@@ -1,9 +1,9 @@
 <div id="example_{{.Name}}" class="example">
 	<div class="collapsed">
-		<p class="exampleHeading">▹ Example</p>
+		<p class="exampleHeading">▹ Example{{example_suffix .Name}}</p>
 	</div>
 	<div class="expanded">
-		<p class="exampleHeading">▾ Example</p>
+		<p class="exampleHeading">▾ Example{{example_suffix .Name}}</p>
 		<p>Code:</p>
 		<pre class="code">{{.Code}}</pre>
 		{{if .Output}}

@@ -526,12 +526,44 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 
 		err := exampleHTML.Execute(&buf, struct {
 			Name, Code, Output string
-		}{name, code, eg.Output})
+		}{eg.Name, code, eg.Output})
 		if err != nil {
 			log.Print(err)
 		}
 	}
 	return buf.String()
+}
+
+// example_nameFunc takes an example function name and returns its display
+// name. For example, "Foo_Bar_quux" becomes "Foo.Bar (Quux)".
+func example_nameFunc(s string) string {
+	name, suffix := splitExampleName(s)
+	// replace _ with . for method names
+	name = strings.Replace(name, "_", ".", 1)
+	// use "Package" if no name provided
+	if name == "" {
+		name = "Package"
+	}
+	return name + suffix
+}
+
+// example_suffixFunc takes an example function name and returns its suffix in
+// parenthesized form. For example, "Foo_Bar_quux" becomes " (Quux)".
+func example_suffixFunc(name string) string {
+	_, suffix := splitExampleName(name)
+	return suffix
+
+}
+
+func splitExampleName(s string) (name, suffix string) {
+	i := strings.LastIndex(s, "_")
+	if 0 <= i && i < len(s)-1 && !startsWithUppercase(s[i+1:]) {
+		name = s[:i]
+		suffix = " (" + strings.Title(s[i+1:]) + ")"
+		return
+	}
+	name = s
+	return
 }
 
 func pkgLinkFunc(path string) string {
@@ -610,7 +642,9 @@ var fmap = template.FuncMap{
 	"posLink_url": posLink_urlFunc,
 
 	// formatting of Examples
-	"example_html": example_htmlFunc,
+	"example_html":   example_htmlFunc,
+	"example_name":   example_nameFunc,
+	"example_suffix": example_suffixFunc,
 }
 
 func readTemplate(name string) *template.Template {

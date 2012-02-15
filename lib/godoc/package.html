@@ -20,6 +20,7 @@
 		<h2 id="overview">Overview</h2>
 		<!-- The package's Name is printed as title by the top-level template -->
 		{{comment_html .Doc}}
+		{{example_html "" $.Examples $.FSet}}
 	
 		<h2 id="index">Index</h2>
 		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
@@ -56,7 +57,7 @@
 			<h4>Examples</h4>
 			<dl>
 			{{range $.Examples}}
-			<dd><a class="exampleLink" href="#example_{{.Name}}">{{.Name}}</a></dd>
+			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
 			{{end}}
 			</dl>
 		{{end}}
