@@ -419,10 +419,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if hasArgs {
-				s.errorf("%s is not a method but has arguments", fieldName)
-			}
 			if tField.PkgPath == "" { // field is exported
+				// If it's a function, we must call it.
+				if field.Type().Kind() == reflect.Func {
+					return s.evalCall(dot, field, fieldName, args, final)
+				}
+				if hasArgs {
+					s.errorf("%s is not a method or function but has arguments", fieldName)
+				}
 				return field
 			}
 		}
