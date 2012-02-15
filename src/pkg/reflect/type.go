@@ -561,7 +561,7 @@ func (t *commonType) Elem() Type {
 		tt := (*sliceType)(unsafe.Pointer(t))
 		return toType(tt.elem)
 	}
-	panic("reflect; Elem of invalid type")
+	panic("reflect: Elem of invalid type")
 }
 
 func (t *commonType) Field(i int) StructField {
@@ -630,7 +630,7 @@ func (t *commonType) NumField() int {
 
 func (t *commonType) NumIn() int {
 	if t.Kind() != Func {
-		panic("reflect; NumIn of non-func type")
+		panic("reflect: NumIn of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return len(tt.in)
@@ -638,7 +638,7 @@ func (t *commonType) NumIn() int {
 
 func (t *commonType) NumOut() int {
 	if t.Kind() != Func {
-		panic("reflect; NumOut of non-func type")
+		panic("reflect: NumOut of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
 	return len(tt.out)
