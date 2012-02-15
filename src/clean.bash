@@ -5,11 +5,12 @@
 
 set -e
 
-if [ ! -x ../bin/tool/dist ]; then
-	echo 'cannot find ../bin/tool/dist; nothing to clean' >&2
+eval $(go tool dist env)
+
+if [ ! -x $GOTOOLDIR/dist ]; then
+	echo 'cannot find $GOTOOLDIR/dist; nothing to clean' >&2
 	exit 1
 fi
 
-eval $(../bin/tool/dist env)
 "$GOBIN/go" clean -i std
-../bin/tool/dist clean
+$GOTOOLDIR/dist clean
