@@ -9,21 +9,11 @@ package zip
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
-
-type stringReaderAt string
-
-func (s stringReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
-	if off >= int64(len(s)) {
-		return 0, io.EOF
-	}
-	n = copy(p, s[off:])
-	return
-}
 
 func TestOver65kFiles(t *testing.T) {
 	if testing.Short() {
@@ -42,8 +32,8 @@ func TestOver65kFiles(t *testing.T) {
 	if err := w.Close(); err != nil {
 		t.Fatalf("Writer.Close: %v", err)
 	}
-	rat := stringReaderAt(buf.String())
-	zr, err := NewReader(rat, int64(len(rat)))
+	s := buf.String()
+	zr, err := NewReader(strings.NewReader(s), int64(len(s)))
 	if err != nil {
 		t.Fatalf("NewReader: %v", err)
 	}

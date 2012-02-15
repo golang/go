@@ -10,8 +10,9 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
-// io.RuneScanner interfaces by reading from a string.
+// A Reader implements the io.Reader, io.ReaderAt, io.Seeker,
+// io.ByteScanner, and io.RuneScanner interfaces by reading
+// from a string.
 type Reader struct {
 	s        string
 	i        int // current reading index
@@ -37,6 +38,20 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	n = copy(b, r.s[r.i:])
 	r.i += n
 	r.prevRune = -1
+	return
+}
+
+func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, errors.New("strings: invalid offset")
+	}
+	if off >= int64(len(r.s)) {
+		return 0, io.EOF
+	}
+	n = copy(b, r.s[int(off):])
+	if n < len(b) {
+		err = io.EOF
+	}
 	return
 }
 

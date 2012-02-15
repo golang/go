@@ -130,7 +130,7 @@ type FileHeader struct {
 // Open opens and returns the FileHeader's associated File.
 func (fh *FileHeader) Open() (File, error) {
 	if b := fh.content; b != nil {
-		r := io.NewSectionReader(sliceReaderAt(b), 0, int64(len(b)))
+		r := io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b)))
 		return sectionReadCloser{r}, nil
 	}
 	return os.Open(fh.tmpfile)
@@ -154,14 +154,4 @@ type sectionReadCloser struct {
 
 func (rc sectionReadCloser) Close() error {
 	return nil
-}
-
-type sliceReaderAt []byte
-
-func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
-	if int(off) >= len(r) || off < 0 {
-		return 0, io.ErrUnexpectedEOF
-	}
-	n := copy(b, r[int(off):])
-	return n, nil
 }
