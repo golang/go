@@ -3,6 +3,13 @@
 :: license that can be found in the LICENSE file.
 @echo off
 
+:: Keep environment variables within this script
+:: unless invoked with --no-local.
+if x%1==x--no-local goto nolocal
+if x%2==x--no-local goto nolocal
+setlocal
+:nolocal
+
 set GOBUILDFAIL=0
 
 if exist make.bat goto ok
@@ -48,13 +55,11 @@ goto mainbuild
 
 :localbuild
 echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
-set oldGOOS=%GOOS%
-set oldGOARCH=%GOARCH%
+setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
 %GOTOOLDIR%\go_bootstrap install -v std
-set GOOS=%oldGOOS%
-set GOARCH=%oldGOARCH%
+endlocal
 if errorlevel 1 goto fail
 echo .
 
@@ -65,7 +70,7 @@ if errorlevel 1 goto fail
 del %GOTOOLDIR%\go_bootstrap.exe
 echo .
 
-if "x%1"=="x--no-banner" goto nobanner
+if x%1==x--no-banner goto nobanner
 %GOTOOLDIR%\dist banner
 :nobanner
 
