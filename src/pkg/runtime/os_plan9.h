@@ -66,3 +66,4 @@ struct Tos {
 	/* top of stack is here */
 };
 
+#define	NSIG 1
