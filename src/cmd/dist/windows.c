@@ -833,14 +833,17 @@ void
 xprintf(char *fmt, ...)
 {
 	va_list arg;
-	static char buf[1024];
-	DWORD n;
+	char *p;
+	DWORD n, w;
 
 	va_start(arg, fmt);
-	vsnprintf(buf, sizeof buf, fmt, arg);
+	n = vsnprintf(NULL, 0, fmt, arg);
+	p = xmalloc(n+1);
+	vsnprintf(p, n+1, fmt, arg);
 	va_end(arg);
-	n = 0;
-	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &n, 0);
+	w = 0;
+	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), p, n, &w, 0);
+	xfree(p);
 }
 
 int
