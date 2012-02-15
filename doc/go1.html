@@ -578,7 +578,7 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
 <em>Updating</em>:
 Code that uses packages in <code>exp</code> will need to be updated by hand,
 or else compiled from an installation that has <code>exp</code> available.
-The go fix tool or the compiler will complain about such uses.
+The <code>go fix</code> tool or the compiler will complain about such uses.
 </p>
 
 <h3 id="old">The package tree old</h3>
@@ -603,7 +603,7 @@ The packages in their new locations are:
 <em>Updating</em>:
 Code that uses packages now in <code>old</code> will need to be updated by hand,
 or else compiled from an installation that has <code>old</code> available.
-The go fix tool will warn about such uses.
+The <code>go fix</code> tool will warn about such uses.
 </p>
 
 <h3 id="deleted">Deleted packages</h3>
@@ -863,8 +863,8 @@ longer has a <code>Write</code> method. Its presence was a mistake.
 </p>
 
 <p>
-<i>Updating:</i> What little code is affected will be caught by the compiler
-and must be updated by hand. Such code is almost certainly incorrect.
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
 </p>
 
 <h3 id="bufio">The bufio package</h3>
@@ -879,7 +879,8 @@ If the argument size is too small or invalid, it is adjusted.
 
 <p>
 <em>Updating</em>:
-What little code is affected will be caught by the compiler and must be updated by hand.
+Running <code>go fix</code> will update calls that assign the error to _.
+Calls that aren't fixed will be caught by the compiler and must be updated by hand.
 </p>
 
 <h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
@@ -898,7 +899,8 @@ to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
 
 <p>
 <em>Updating</em>
-What little code is affected will be caught by the compiler and must be updated by hand.
+Running <code>go fix</code> will update old names and calls that assign the error to _.
+Calls that aren't fixed will be caught by the compiler and must be updated by hand.
 </p>
 
 <h3 id="crypto_aes_des">The crypto/aes and crypto/des packages</h3>
@@ -1425,8 +1427,10 @@ now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
 The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
 also returns a <code>uintptr</code>.</p>
 
-<p><em>Updating</em>: Code will fail to compile and must be updated
-by hand.  </p>
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
 
 <h4 id="os_fileinfo">The os.FileInfo type</h4>
 
@@ -1669,7 +1673,7 @@ Running <code>go fix</code> will update almost all code affected by the change.
 <br>
 § <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
 they may require
-a cast that must be added by hand; the go fix tool will warn about it.
+a cast that must be added by hand; the <code>go fix</code> tool will warn about it.
 </p>
 
 
