@@ -893,7 +893,7 @@ regfree(Node *n)
 	i = n->val.u.reg;
 	if(i == D_SP)
 		return;
-	if(i < 0 || i >= sizeof(reg))
+	if(i < 0 || i >= nelem(reg))
 		fatal("regfree: reg out of range");
 	if(reg[i] <= 0)
 		fatal("regfree: reg not allocated");
