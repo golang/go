@@ -398,11 +398,15 @@ func TestLinuxSendfile(t *testing.T) {
 		return
 	}
 
-	_, err = Get(fmt.Sprintf("http://%s/", ln.Addr()))
+	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
 	if err != nil {
-		t.Errorf("http client error: %v", err)
-		return
+		t.Fatalf("http client error: %v", err)
 	}
+	_, err = io.Copy(ioutil.Discard, res.Body)
+	if err != nil {
+		t.Fatalf("client body read error: %v", err)
+	}
+	res.Body.Close()
 
 	// Force child to exit cleanly.
 	Get(fmt.Sprintf("http://%s/quit", ln.Addr()))
