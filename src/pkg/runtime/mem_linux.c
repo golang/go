@@ -34,6 +34,21 @@ addrspace_free(void *v, uintptr n)
 	return 1;
 }
 
+static void *
+mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
+{
+	void *p;
+
+	p = runtime·mmap(v, n, prot, flags, fd, offset);
+	if(p != v && addrspace_free(v, n)) {
+		// On some systems, mmap ignores v without
+		// MAP_FIXED, so retry if the address space is free.
+		if(p > (void*)4096)
+			runtime·munmap(p, n);
+		p = runtime·mmap(v, n, prot, flags|MAP_FIXED, fd, offset);
+	}
+	return p;
+}
 
 void*
 runtime·SysAlloc(uintptr n)
@@ -76,20 +91,16 @@ runtime·SysReserve(void *v, uintptr n)
 	// if we can reserve at least 64K and check the assumption in SysMap.
 	// Only user-mode Linux (UML) rejects these requests.
 	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
-		p = runtime·mmap(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-		if (p != v) {
+		p = mmap_fixed(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+		if (p != v)
 			return nil;
-		}
 		runtime·munmap(p, 64<<10);
-		
-		
 		return v;
 	}
 	
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-	if((uintptr)p < 4096 || -(uintptr)p < 4096) {
+	if((uintptr)p < 4096 || -(uintptr)p < 4096)
 		return nil;
-	}
 	return p;
 }
 
@@ -102,15 +113,7 @@ runtime·SysMap(void *v, uintptr n)
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
-		if(p != v && addrspace_free(v, n)) {
-			// On some systems, mmap ignores v without
-			// MAP_FIXED, so retry if the address space is free.
-			if(p > (void*)4096) {
-				runtime·munmap(p, n);
-			}
-			p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
-		}
+		p = mmap_fixed(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 		if(p == (void*)ENOMEM)
 			runtime·throw("runtime: out of memory");
 		if(p != v) {
