@@ -87,7 +87,6 @@ const (
 	commaSep                            // elements are separated by commas
 	commaTerm                           // list is optionally terminated by a comma
 	noIndent                            // no extra indentation in multi-line lists
-	periodSep                           // elements are separated by periods
 )
 
 // Sets multiLine to true if the identifier list spans multiple lines.
@@ -213,13 +212,10 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		}
 
 		if i > 0 {
-			switch {
-			case mode&commaSep != 0:
+			if mode&commaSep != 0 {
 				p.print(token.COMMA)
-			case mode&periodSep != 0:
-				p.print(token.PERIOD)
 			}
-			needsBlank := mode&periodSep == 0 // period-separated list elements don't need a blank
+			needsBlank := true
 			if prevLine < line && prevLine > 0 && line > 0 {
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
@@ -668,63 +664,6 @@ func isBinary(expr ast.Expr) bool {
 	return ok
 }
 
-// If the expression contains one or more selector expressions, splits it into
-// two expressions at the rightmost period. Writes entire expr to suffix when
-// selector isn't found. Rewrites AST nodes for calls, index expressions and
-// type assertions, all of which may be found in selector chains, to make them
-// parts of the chain.
-func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
-	switch x := expr.(type) {
-	case *ast.SelectorExpr:
-		body, suffix = x.X, x.Sel
-		return
-	case *ast.CallExpr:
-		body, suffix = splitSelector(x.Fun)
-		if body != nil {
-			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Ellipsis, x.Rparen}
-			return
-		}
-	case *ast.IndexExpr:
-		body, suffix = splitSelector(x.X)
-		if body != nil {
-			suffix = &ast.IndexExpr{suffix, x.Lbrack, x.Index, x.Rbrack}
-			return
-		}
-	case *ast.SliceExpr:
-		body, suffix = splitSelector(x.X)
-		if body != nil {
-			suffix = &ast.SliceExpr{suffix, x.Lbrack, x.Low, x.High, x.Rbrack}
-			return
-		}
-	case *ast.TypeAssertExpr:
-		body, suffix = splitSelector(x.X)
-		if body != nil {
-			suffix = &ast.TypeAssertExpr{suffix, x.Type}
-			return
-		}
-	}
-	suffix = expr
-	return
-}
-
-// Convert an expression into an expression list split at the periods of
-// selector expressions.
-func selectorExprList(expr ast.Expr) (list []ast.Expr) {
-	// split expression
-	for expr != nil {
-		var suffix ast.Expr
-		expr, suffix = splitSelector(expr)
-		list = append(list, suffix)
-	}
-
-	// reverse list
-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-		list[i], list[j] = list[j], list[i]
-	}
-
-	return
-}
-
 // Sets multiLine to true if the expression spans multiple lines.
 func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
 	p.print(expr.Pos())
@@ -798,8 +737,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
 		}
 
 	case *ast.SelectorExpr:
-		parts := selectorExprList(expr)
-		p.exprList(token.NoPos, parts, depth, periodSep, multiLine, token.NoPos)
+		p.expr1(x.X, token.HighestPrec, depth, multiLine)
+		p.print(token.PERIOD)
+		if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
+			p.print(indent, newline, x.Sel.Pos(), x.Sel, unindent)
+			*multiLine = true
+		} else {
+			p.print(x.Sel.Pos(), x.Sel)
+		}
 
 	case *ast.TypeAssertExpr:
 		p.expr1(x.X, token.HighestPrec, depth, multiLine)

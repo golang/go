@@ -494,7 +494,7 @@ func (b *Builder) envvWindows() []string {
 		"GOOS":         b.goos,
 		"GOARCH":       b.goarch,
 		"GOROOT_FINAL": `c:\go`,
-		"GOBUILDEXIT": "1", // exit all.bat with completion status.
+		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
 	}
 	for _, name := range extraEnv {
 		s, err := os.Getenverror(name)
