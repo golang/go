@@ -314,12 +314,12 @@ setup(void)
 	p = bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch);
 	if(rebuildall)
 		xremoveall(p);
-	xmkdir(p);
+	xmkdirall(p);
 	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
 		p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
 		if(rebuildall)
 			xremoveall(p);
-		xmkdir(p);
+		xmkdirall(p);
 	}
 	
 	// Create object directory.
@@ -337,7 +337,8 @@ setup(void)
 
 	// Create tool directory.
 	// We keep it in pkg/, just like the object directory above.
-	xremoveall(tooldir);
+	if(rebuildall)
+		xremoveall(tooldir);
 	xmkdirall(tooldir);
 
 	// Remove tool binaries from before the tool/gohostos_gohostarch
@@ -1330,7 +1331,8 @@ cmdbootstrap(int argc, char **argv)
 	if(argc > 0)
 		usage();
 
-	clean();
+	if(rebuildall)
+		clean();
 	goversion = findgoversion();
 	setup();
 	
