@@ -18,7 +18,7 @@ type SysProcAttr struct {
 	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
 	Setctty    bool        // Set controlling terminal to fd 0
 	Noctty     bool        // Detach fd 0 from controlling terminal
-	Pdeathsig  int         // Signal that the process will get when its parent dies (Linux only)
+	Pdeathsig  Signal      // Signal that the process will get when its parent dies (Linux only)
 }
 
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
