@@ -357,7 +357,11 @@ func runTest(cmd *Command, args []string) {
 		}
 	}
 	if warned {
-		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i' will speed future tests.\n\n")
+		args := strings.Join(pkgArgs, " ")
+		if args != "" {
+			args = " " + args
+		}
+		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i%s' will speed future tests.\n\n", args)
 	}
 
 	b.do(root)
