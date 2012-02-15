@@ -22,9 +22,10 @@ This release includes some package changes that require changes to client code.
 The flate, gzip and zlib's NewWriterXxx functions no longer return an error.
 The compiler will flag all affected code which must then be updated by hand.
 
-The os package's Exec and Time functions were removed. Callers should use the
-os/exec package and time.Now instead. The ShellExpand function was renamed to
-ExpandEnv. The NewFile function now takes a uintptr.
+The os package's Exec and Time functions were removed.  Callers should use
+syscall.Exec and time.Now instead. The ShellExpand function was renamed to
+ExpandEnv. The NewFile function now takes a uintptr and the *File.Fd method
+returns a uintptr.
 
 The runtime package's Type type and its methods have been removed.
 Use the reflect package instead.
