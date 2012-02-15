@@ -227,6 +227,7 @@ body {
 }
 
 #learn pre, #learn textarea {
+	padding: 0;
 	margin: 0;
 	font-family: Menlo, monospace;
 	font-size: 14px;

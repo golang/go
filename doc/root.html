@@ -26,7 +26,7 @@ Linux, Mac OS X, Windows, and more.
 <div id="learn">
 <div class="rootHeading">Try Go</div>
 <div class="input">
-<textarea spellcheck="false">// You can edit this code!
+<textarea spellcheck="false" id="code">// You can edit this code!
 // Click here and start typing.
 package main
 
@@ -36,14 +36,14 @@ func main() {
 	fmt.Println("Hello, 世界")
 }</textarea>
 </div>
-<div class="output">
+<div class="output" id="output">
 <pre>
 Hello, 世界
 </pre>
 </div>
 <div class="buttons">
-<a href="#">Run</a>
-<a href="#">Share</a>
+<a id="run" href="#">Run</a>
+<a id="share" href="#">Share</a>
 </div>
 </div>
 
@@ -75,39 +75,52 @@ Hello, 世界
 <div id="plusoneRoot"><g:plusone annotation="none"></g:plusone></div>
 
 <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-<script>
+<script type="text/javascript" src="/doc/play/playground.js"></script>
+<script type="text/javascript">
 google.load("feeds", "1");
+google.load("jquery", "1.7.1");
 
 function feedLoaded(result) {
-  if (result.error) {
-    console.log(result.error);
-    return;
-  }
-  var blog = document.getElementById("blog");
-  var read = blog.getElementsByClassName("read")[0];
-  for (var i = 0; i < result.feed.entries.length && i < 2; i++) {
-    var entry = result.feed.entries[i];
-    var title = document.createElement("a");
-    title.className = "title";
-    title.href = entry.link;
-    title.innerHTML = entry.title;
-    blog.insertBefore(title, read);
-    var extract = document.createElement("div");
-    extract.className = "extract";
-    extract.innerHTML = entry.contentSnippet;
-    blog.insertBefore(extract, read);
-    var when = document.createElement("div");
-    when.className = "when";
-    var pub = entry.publishedDate.split(" ").slice(1,3).join(" ");
-    when.innerHTML = "Published " + pub
-    blog.insertBefore(when, read);
-  }
+	if (result.error) {
+		console.log(result.error);
+		return;
+	}
+	var blog = document.getElementById("blog");
+	var read = blog.getElementsByClassName("read")[0];
+	for (var i = 0; i < result.feed.entries.length && i < 2; i++) {
+		var entry = result.feed.entries[i];
+		var title = document.createElement("a");
+		title.className = "title";
+		title.href = entry.link;
+		title.innerHTML = entry.title;
+		blog.insertBefore(title, read);
+		var extract = document.createElement("div");
+		extract.className = "extract";
+		extract.innerHTML = entry.contentSnippet;
+		blog.insertBefore(extract, read);
+		var when = document.createElement("div");
+		when.className = "when";
+		var pub = entry.publishedDate.split(" ").slice(1,3).join(" ");
+		when.innerHTML = "Published " + pub
+		blog.insertBefore(when, read);
+	}
 }
 
-function fetchFeeds() {
-  var feed = new google.feeds.Feed("http://blog.golang.org/feeds/posts/default");
-  feed.load(feedLoaded);
+function init() {
+	// Load blog feed.
+	var feed = new google.feeds.Feed("http://blog.golang.org/feeds/posts/default");
+	feed.load(feedLoaded);
+
+	// Set up playground.
+	playground({
+		"simple":     true,
+		"codeEl":     "#code",
+		"outputEl":   "#output",
+		"runEl":      "#run",
+		"shareEl":    "#share",
+		"shareURLEl": "#shareURL"
+	});
 }
 
-google.setOnLoadCallback(fetchFeeds);
+google.setOnLoadCallback(init);
 </script>
