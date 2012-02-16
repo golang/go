@@ -985,25 +985,24 @@ func TestAppend(t *testing.T) {
 }
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
-	// Create new dir, in _test so it will get
-	// cleaned up by make if not by us.
-	path := "_test/_TestStatDirWithSlash_"
-	err := MkdirAll(path, 0777)
+	// Create new temporary directory and arrange to clean it up.
+	path, err := ioutil.TempDir("", "/_TestStatDirWithSlash_")
 	if err != nil {
-		t.Fatalf("MkdirAll %q: %s", path, err)
+		t.Fatalf("TempDir: %s", err)
 	}
 	defer RemoveAll(path)
 
 	// Stat of path should succeed.
 	_, err = Stat(path)
 	if err != nil {
-		t.Fatal("stat failed:", err)
+		t.Fatalf("stat %s failed: %s", path, err)
 	}
 
 	// Stat of path+"/" should succeed too.
-	_, err = Stat(path + "/")
+	path += "/"
+	_, err = Stat(path)
 	if err != nil {
-		t.Fatal("stat failed:", err)
+		t.Fatalf("stat %s failed: %s", path, err)
 	}
 }
 
