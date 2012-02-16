@@ -26,11 +26,11 @@ func GOMAXPROCS(n int) int
 // NumCPU returns the number of logical CPUs on the local machine.
 func NumCPU() int
 
-// Cgocalls returns the number of cgo calls made by the current process.
-func Cgocalls() int64
+// NumCgoCall returns the number of cgo calls made by the current process.
+func NumCgoCall() int64
 
-// Goroutines returns the number of goroutines that currently exist.
-func Goroutines() int32
+// NumGoroutine returns the number of goroutines that currently exist.
+func NumGoroutine() int32
 
 // Alloc allocates a block of the given size.
 // FOR TESTING AND DEBUGGING ONLY.
