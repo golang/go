@@ -70,7 +70,7 @@ func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
 // Read implements the Conn Read method.
 func (c *TCPConn) Read(b []byte) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	return c.fd.Read(b)
 }
@@ -86,7 +86,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 // Write implements the Conn Write method.
 func (c *TCPConn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	return c.fd.Write(b)
 }
@@ -94,7 +94,7 @@ func (c *TCPConn) Write(b []byte) (n int, err error) {
 // Close closes the TCP connection.
 func (c *TCPConn) Close() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	err := c.fd.Close()
 	c.fd = nil
@@ -105,7 +105,7 @@ func (c *TCPConn) Close() error {
 // Most callers should just use Close.
 func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return c.fd.CloseRead()
 }
@@ -114,7 +114,7 @@ func (c *TCPConn) CloseRead() error {
 // Most callers should just use Close.
 func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return c.fd.CloseWrite()
 }
@@ -138,7 +138,7 @@ func (c *TCPConn) RemoteAddr() Addr {
 // SetDeadline implements the Conn SetDeadline method.
 func (c *TCPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setDeadline(c.fd, t)
 }
@@ -146,7 +146,7 @@ func (c *TCPConn) SetDeadline(t time.Time) error {
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *TCPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadDeadline(c.fd, t)
 }
@@ -154,7 +154,7 @@ func (c *TCPConn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteDeadline(c.fd, t)
 }
@@ -163,7 +163,7 @@ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 // receive buffer associated with the connection.
 func (c *TCPConn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadBuffer(c.fd, bytes)
 }
@@ -172,7 +172,7 @@ func (c *TCPConn) SetReadBuffer(bytes int) error {
 // transmit buffer associated with the connection.
 func (c *TCPConn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteBuffer(c.fd, bytes)
 }
@@ -190,7 +190,7 @@ func (c *TCPConn) SetWriteBuffer(bytes int) error {
 // data to be sent and acknowledged.
 func (c *TCPConn) SetLinger(sec int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setLinger(c.fd, sec)
 }
@@ -199,7 +199,7 @@ func (c *TCPConn) SetLinger(sec int) error {
 // keepalive messages on the connection.
 func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setKeepAlive(c.fd, keepalive)
 }
@@ -210,7 +210,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 // that data is sent as soon as possible after a Write.
 func (c *TCPConn) SetNoDelay(noDelay bool) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setNoDelay(c.fd, noDelay)
 }
@@ -294,7 +294,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 // and the remote address.
 func (l *TCPListener) AcceptTCP() (c *TCPConn, err error) {
 	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
-		return nil, os.EINVAL
+		return nil, syscall.EINVAL
 	}
 	fd, err := l.fd.accept(sockaddrToTCP)
 	if err != nil {
@@ -317,7 +317,7 @@ func (l *TCPListener) Accept() (c Conn, err error) {
 // Already Accepted connections are not closed.
 func (l *TCPListener) Close() error {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return l.fd.Close()
 }
@@ -329,7 +329,7 @@ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
 // A zero time value disables the deadline.
 func (l *TCPListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setDeadline(l.fd, t)
 }

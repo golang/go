@@ -14,7 +14,7 @@ import (
 // If there is an error, it will be of type *PathError.
 func (file *File) Stat() (fi FileInfo, err error) {
 	if file == nil || file.fd < 0 {
-		return nil, EINVAL
+		return nil, syscall.EINVAL
 	}
 	if file.isdir() {
 		// I don't know any better way to do that for directory

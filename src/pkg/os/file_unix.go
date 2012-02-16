@@ -90,7 +90,7 @@ func (f *File) Close() error {
 
 func (file *file) close() error {
 	if file == nil || file.fd < 0 {
-		return EINVAL
+		return syscall.EINVAL
 	}
 	var err error
 	if e := syscall.Close(file.fd); e != nil {

@@ -4,6 +4,18 @@
 
 package os
 
+import (
+	"errors"
+)
+
+// Portable analogs of some common system call errors.
+var (
+	ErrInvalid    = errors.New("invalid argument")
+	ErrPermission = errors.New("permission denied")
+	ErrExist      = errors.New("file already exists")
+	ErrNotExist   = errors.New("file does not exit")
+)
+
 // PathError records an error and the operation and file path that caused it.
 type PathError struct {
 	Op   string

@@ -623,7 +623,7 @@ each of which declares a receiver variable <code>file</code>.
 <pre><!--{{code "progs/file.go" `/Close/` "$"}}
 -->func (file *File) Close() error {
     if file == nil {
-        return os.EINVAL
+        return os.ErrInvalid
     }
     err := syscall.Close(file.fd)
     file.fd = -1 // so it can&#39;t be closed again
@@ -632,7 +632,7 @@ each of which declares a receiver variable <code>file</code>.
 
 func (file *File) Read(b []byte) (ret int, err error) {
     if file == nil {
-        return -1, os.EINVAL
+        return -1, os.ErrInvalid
     }
     r, err := syscall.Read(file.fd, b)
     return int(r), err
@@ -640,7 +640,7 @@ func (file *File) Read(b []byte) (ret int, err error) {
 
 func (file *File) Write(b []byte) (ret int, err error) {
     if file == nil {
-        return -1, os.EINVAL
+        return -1, os.ErrInvalid
     }
     r, err := syscall.Write(file.fd, b)
     return int(r), err
@@ -659,7 +659,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
 The <code>String</code> method is so called because of a printing convention we'll
 describe later.
 <p>
-The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
+The methods use the public variable <code>os.ErrInvalid</code> to return the (<code>error</code>
 version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
 set of such error values.
 <p>

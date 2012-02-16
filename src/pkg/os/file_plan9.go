@@ -5,10 +5,13 @@
 package os
 
 import (
+	"errors"
 	"runtime"
 	"syscall"
 	"time"
 )
+
+var ErrPlan9 = errors.New("unimplemented on Plan 9")
 
 // File represents an open file descriptor.
 type File struct {
@@ -140,7 +143,7 @@ func (file *File) Close() error {
 
 func (file *file) close() error {
 	if file == nil || file.fd < 0 {
-		return Ebadfd
+		return ErrInvalid
 	}
 	var err error
 	syscall.ForkLock.RLock()
@@ -203,7 +206,7 @@ func (f *File) Chmod(mode FileMode) error {
 // of recently written data to disk.
 func (f *File) Sync() (err error) {
 	if f == nil {
-		return EINVAL
+		return ErrInvalid
 	}
 
 	var d Dir
@@ -338,27 +341,27 @@ func Pipe() (r *File, w *File, err error) {
 
 // Link creates a hard link.
 func Link(oldname, newname string) error {
-	return EPLAN9
+	return ErrPlan9
 }
 
 func Symlink(oldname, newname string) error {
-	return EPLAN9
+	return ErrPlan9
 }
 
 func Readlink(name string) (string, error) {
-	return "", EPLAN9
+	return "", ErrPlan9
 }
 
 func Chown(name string, uid, gid int) error {
-	return EPLAN9
+	return ErrPlan9
 }
 
 func Lchown(name string, uid, gid int) error {
-	return EPLAN9
+	return ErrPlan9
 }
 
 func (f *File) Chown(uid, gid int) error {
-	return EPLAN9
+	return ErrPlan9
 }
 
 // TempDir returns the default directory to use for temporary files.

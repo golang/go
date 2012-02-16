@@ -98,7 +98,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if e == nil {
 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
 			r.Close()
-			return nil, &PathError{"open", name, EISDIR}
+			return nil, &PathError{"open", name, syscall.EISDIR}
 		}
 		return r, nil
 	}
@@ -117,7 +117,7 @@ func (file *File) Close() error {
 
 func (file *file) close() error {
 	if file == nil || file.fd == syscall.InvalidHandle {
-		return EINVAL
+		return syscall.EINVAL
 	}
 	var e error
 	if file.isdir() {
@@ -138,10 +138,10 @@ func (file *file) close() error {
 
 func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	if file == nil || file.fd == syscall.InvalidHandle {
-		return nil, EINVAL
+		return nil, syscall.EINVAL
 	}
 	if !file.isdir() {
-		return nil, &PathError{"Readdir", file.name, ENOTDIR}
+		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
 	}
 	wantAll := n <= 0
 	size := n

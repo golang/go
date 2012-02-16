@@ -335,7 +335,7 @@ func (fd *netFD) Close() error {
 
 func (fd *netFD) shutdown(how int) error {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	err := syscall.Shutdown(fd.sysfd, how)
 	if err != nil {
@@ -369,7 +369,7 @@ func (o *readOp) Name() string {
 
 func (fd *netFD) Read(buf []byte) (int, error) {
 	if fd == nil {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	fd.rio.Lock()
 	defer fd.rio.Unlock()
@@ -378,7 +378,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	}
 	defer fd.decref()
 	if fd.sysfd == syscall.InvalidHandle {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	var o readOp
 	o.Init(fd, buf, 'r')
@@ -408,7 +408,7 @@ func (o *readFromOp) Name() string {
 
 func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	if fd == nil {
-		return 0, nil, os.EINVAL
+		return 0, nil, syscall.EINVAL
 	}
 	if len(buf) == 0 {
 		return 0, nil, nil
@@ -447,7 +447,7 @@ func (o *writeOp) Name() string {
 
 func (fd *netFD) Write(buf []byte) (int, error) {
 	if fd == nil {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	fd.wio.Lock()
 	defer fd.wio.Unlock()
@@ -478,7 +478,7 @@ func (o *writeToOp) Name() string {
 
 func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	if fd == nil {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	if len(buf) == 0 {
 		return 0, nil
@@ -490,7 +490,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	}
 	defer fd.decref()
 	if fd.sysfd == syscall.InvalidHandle {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	var o writeToOp
 	o.Init(fd, buf, 'w')
@@ -578,10 +578,12 @@ func (fd *netFD) dup() (*os.File, error) {
 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
 }
 
+var errNoSupport = errors.New("address family not supported")
+
 func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
-	return 0, 0, 0, nil, os.EAFNOSUPPORT
+	return 0, 0, 0, nil, errNoSupport
 }
 
 func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
-	return 0, 0, os.EAFNOSUPPORT
+	return 0, 0, errNoSupport
 }

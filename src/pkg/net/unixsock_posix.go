@@ -123,7 +123,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
 // Read implements the Conn Read method.
 func (c *UnixConn) Read(b []byte) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	return c.fd.Read(b)
 }
@@ -131,7 +131,7 @@ func (c *UnixConn) Read(b []byte) (n int, err error) {
 // Write implements the Conn Write method.
 func (c *UnixConn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	return c.fd.Write(b)
 }
@@ -139,7 +139,7 @@ func (c *UnixConn) Write(b []byte) (n int, err error) {
 // Close closes the Unix domain connection.
 func (c *UnixConn) Close() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	err := c.fd.Close()
 	c.fd = nil
@@ -168,7 +168,7 @@ func (c *UnixConn) RemoteAddr() Addr {
 // SetDeadline implements the Conn SetDeadline method.
 func (c *UnixConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setDeadline(c.fd, t)
 }
@@ -176,7 +176,7 @@ func (c *UnixConn) SetDeadline(t time.Time) error {
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadDeadline(c.fd, t)
 }
@@ -184,7 +184,7 @@ func (c *UnixConn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteDeadline(c.fd, t)
 }
@@ -193,7 +193,7 @@ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 // receive buffer associated with the connection.
 func (c *UnixConn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadBuffer(c.fd, bytes)
 }
@@ -202,7 +202,7 @@ func (c *UnixConn) SetReadBuffer(bytes int) error {
 // transmit buffer associated with the connection.
 func (c *UnixConn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteBuffer(c.fd, bytes)
 }
@@ -216,7 +216,7 @@ func (c *UnixConn) SetWriteBuffer(bytes int) error {
 // see SetDeadline and SetReadDeadline.
 func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, syscall.EINVAL
 	}
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
@@ -229,7 +229,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 // ReadFrom implements the PacketConn ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, syscall.EINVAL
 	}
 	n, uaddr, err := c.ReadFromUnix(b)
 	return n, uaddr.toAddr(), err
@@ -243,10 +243,10 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 // On packet-oriented connections, write timeouts are rare.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	if addr.Net != sotypeToNet(c.fd.sotype) {
-		return 0, os.EAFNOSUPPORT
+		return 0, syscall.EAFNOSUPPORT
 	}
 	sa := &syscall.SockaddrUnix{Name: addr.Name}
 	return c.fd.WriteTo(b, sa)
@@ -255,18 +255,18 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 // WriteTo implements the PacketConn WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	a, ok := addr.(*UnixAddr)
 	if !ok {
-		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
+		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
 	}
 	return c.WriteToUnix(b, a)
 }
 
 func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
 	if !c.ok() {
-		return 0, 0, 0, nil, os.EINVAL
+		return 0, 0, 0, nil, syscall.EINVAL
 	}
 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
@@ -278,11 +278,11 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 
 func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
 	if !c.ok() {
-		return 0, 0, os.EINVAL
+		return 0, 0, syscall.EINVAL
 	}
 	if addr != nil {
 		if addr.Net != sotypeToNet(c.fd.sotype) {
-			return 0, 0, os.EAFNOSUPPORT
+			return 0, 0, syscall.EAFNOSUPPORT
 		}
 		sa := &syscall.SockaddrUnix{Name: addr.Name}
 		return c.fd.WriteMsg(b, oob, sa)
@@ -339,7 +339,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 // and the remote address.
 func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	if l == nil || l.fd == nil {
-		return nil, os.EINVAL
+		return nil, syscall.EINVAL
 	}
 	fd, err := l.fd.accept(sockaddrToUnix)
 	if err != nil {
@@ -363,7 +363,7 @@ func (l *UnixListener) Accept() (c Conn, err error) {
 // Already accepted connections are not closed.
 func (l *UnixListener) Close() error {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 
 	// The operating system doesn't clean up
@@ -391,7 +391,7 @@ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 // A zero time value disables the deadline.
 func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setDeadline(l.fd, t)
 }

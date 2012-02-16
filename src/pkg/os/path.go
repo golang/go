@@ -4,7 +4,10 @@
 
 package os
 
-import "io"
+import (
+	"io"
+	"syscall"
+)
 
 // MkdirAll creates a directory named path,
 // along with any necessary parents, and returns nil,
@@ -20,7 +23,7 @@ func MkdirAll(path string, perm FileMode) error {
 		if dir.IsDir() {
 			return nil
 		}
-		return &PathError{"mkdir", path, ENOTDIR}
+		return &PathError{"mkdir", path, syscall.ENOTDIR}
 	}
 
 	// Doesn't already exist; make sure parent does.
@@ -70,7 +73,7 @@ func RemoveAll(path string) error {
 	// Otherwise, is this a directory we need to recurse into?
 	dir, serr := Lstat(path)
 	if serr != nil {
-		if serr, ok := serr.(*PathError); ok && (serr.Err == ENOENT || serr.Err == ENOTDIR) {
+		if serr, ok := serr.(*PathError); ok && (IsNotExist(serr.Err) || serr.Err == syscall.ENOTDIR) {
 			return nil
 		}
 		return serr

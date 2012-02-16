@@ -6,6 +6,7 @@ package http_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -131,7 +132,7 @@ func TestFileServerCleans(t *testing.T) {
 	ch := make(chan string, 1)
 	fs := FileServer(&testFileSystem{func(name string) (File, error) {
 		ch <- name
-		return nil, os.ENOENT
+		return nil, errors.New("file does not exist")
 	}})
 	tests := []struct {
 		reqPath, openArg string

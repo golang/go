@@ -55,7 +55,7 @@ const (
 // EOF is signaled by a zero count with err set to io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
 	if f == nil {
-		return 0, EINVAL
+		return 0, ErrInvalid
 	}
 	n, e := f.read(b)
 	if n < 0 {
@@ -76,7 +76,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 // At end of file, that error is io.EOF.
 func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	if f == nil {
-		return 0, EINVAL
+		return 0, ErrInvalid
 	}
 	for len(b) > 0 {
 		m, e := f.pread(b, off)
@@ -99,7 +99,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 // Write returns a non-nil error when n != len(b).
 func (f *File) Write(b []byte) (n int, err error) {
 	if f == nil {
-		return 0, EINVAL
+		return 0, ErrInvalid
 	}
 	n, e := f.write(b)
 	if n < 0 {
@@ -119,7 +119,7 @@ func (f *File) Write(b []byte) (n int, err error) {
 // WriteAt returns a non-nil error when n != len(b).
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	if f == nil {
-		return 0, EINVAL
+		return 0, ErrInvalid
 	}
 	for len(b) > 0 {
 		m, e := f.pwrite(b, off)
@@ -153,7 +153,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 // an array of bytes.
 func (f *File) WriteString(s string) (ret int, err error) {
 	if f == nil {
-		return 0, EINVAL
+		return 0, ErrInvalid
 	}
 	return f.Write([]byte(s))
 }

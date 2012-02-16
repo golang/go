@@ -66,7 +66,7 @@ func (c *IPConn) Read(b []byte) (int, error) {
 // Write implements the Conn Write method.
 func (c *IPConn) Write(b []byte) (int, error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	return c.fd.Write(b)
 }
@@ -74,7 +74,7 @@ func (c *IPConn) Write(b []byte) (int, error) {
 // Close closes the IP connection.
 func (c *IPConn) Close() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	err := c.fd.Close()
 	c.fd = nil
@@ -100,7 +100,7 @@ func (c *IPConn) RemoteAddr() Addr {
 // SetDeadline implements the Conn SetDeadline method.
 func (c *IPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setDeadline(c.fd, t)
 }
@@ -108,7 +108,7 @@ func (c *IPConn) SetDeadline(t time.Time) error {
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *IPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadDeadline(c.fd, t)
 }
@@ -116,7 +116,7 @@ func (c *IPConn) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *IPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteDeadline(c.fd, t)
 }
@@ -125,7 +125,7 @@ func (c *IPConn) SetWriteDeadline(t time.Time) error {
 // receive buffer associated with the connection.
 func (c *IPConn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setReadBuffer(c.fd, bytes)
 }
@@ -134,7 +134,7 @@ func (c *IPConn) SetReadBuffer(bytes int) error {
 // transmit buffer associated with the connection.
 func (c *IPConn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return setWriteBuffer(c.fd, bytes)
 }
@@ -150,7 +150,7 @@ func (c *IPConn) SetWriteBuffer(bytes int) error {
 // SetReadDeadline.
 func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, syscall.EINVAL
 	}
 	// TODO(cw,rsc): consider using readv if we know the family
 	// type to avoid the header trim/copy
@@ -173,7 +173,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 // ReadFrom implements the PacketConn ReadFrom method.
 func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, syscall.EINVAL
 	}
 	n, uaddr, err := c.ReadFromIP(b)
 	return n, uaddr.toAddr(), err
@@ -187,7 +187,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 // On packet-oriented connections, write timeouts are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
@@ -199,11 +199,11 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 // WriteTo implements the PacketConn WriteTo method.
 func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 	a, ok := addr.(*IPAddr)
 	if !ok {
-		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
+		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
 	}
 	return c.WriteToIP(b, a)
 }

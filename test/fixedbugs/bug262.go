@@ -7,7 +7,7 @@
 package main
 
 import (
-	"os"
+	"errors"
 	"strconv"
 )
 
@@ -44,7 +44,7 @@ func main() {
 	}
 	mm := make(map[string]error)
 	trace = ""
-	mm["abc"] = os.EINVAL
+	mm["abc"] = errors.New("invalid")
 	*i(), mm[f()] = strconv.Atoi(h())
 	if mm["abc"] != nil || trace != "ifh" {
 		println("BUG1", mm["abc"], trace)

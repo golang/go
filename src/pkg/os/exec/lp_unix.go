@@ -23,7 +23,7 @@ func findExecutable(file string) error {
 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
 		return nil
 	}
-	return os.EPERM
+	return os.ErrPermission
 }
 
 // LookPath searches for an executable binary named file

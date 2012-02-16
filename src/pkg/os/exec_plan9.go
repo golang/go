@@ -76,7 +76,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	var waitmsg syscall.Waitmsg
 
 	if p.Pid == -1 {
-		return nil, EINVAL
+		return nil, ErrInvalid
 	}
 
 	for true {

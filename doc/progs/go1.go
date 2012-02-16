@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"testing"
 	"time"
 	"unicode"
@@ -27,6 +28,7 @@ func main() {
 	runeType()
 	errorExample()
 	timePackage()
+	osIsExist()
 }
 
 var timeout = flag.Duration("timeout", 30*time.Second, "how long to wait for completion")
@@ -205,4 +207,13 @@ func BenchmarkSprintf(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		fmt.Sprintf("%x", 23)
 	}
+}
+
+func osIsExist() {
+	name := "go1.go"
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if os.IsExist(err) {
+		log.Printf("%s already exists", name)
+	}
+	_ = f
 }

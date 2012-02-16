@@ -29,7 +29,7 @@ const (
 // (WNOHANG etc.) affect the behavior of the Wait call.
 func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	if p.Pid == -1 {
-		return nil, EINVAL
+		return nil, syscall.EINVAL
 	}
 	var status syscall.WaitStatus
 	var rusage *syscall.Rusage

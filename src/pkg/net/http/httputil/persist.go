@@ -13,12 +13,12 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
-	"os"
 	"sync"
 )
 
 var (
 	ErrPersistEOF = &http.ProtocolError{ErrorString: "persistent connection closed"}
+	ErrClosed     = &http.ProtocolError{ErrorString: "connection closed by user"}
 	ErrPipeline   = &http.ProtocolError{ErrorString: "pipeline error"}
 )
 
@@ -191,7 +191,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
 	}
 	if sc.c == nil { // connection closed by user in the meantime
 		defer sc.lk.Unlock()
-		return os.EBADF
+		return ErrClosed
 	}
 	c := sc.c
 	if sc.nread <= sc.nwritten {

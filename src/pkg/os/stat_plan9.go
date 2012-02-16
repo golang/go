@@ -62,7 +62,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
 			return nil, &PathError{"stat", name, err}
 		}
 		if n < syscall.STATFIXLEN {
-			return nil, &PathError{"stat", name, Eshortstat}
+			return nil, &PathError{"stat", name, errShortStat}
 		}
 
 		// Pull the real size out of the stat message.
@@ -79,7 +79,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
 			return
 		}
 	}
-	return nil, &PathError{"stat", name, Ebadstat}
+	return nil, &PathError{"stat", name, errBadStat}
 }
 
 // Stat returns a FileInfo structure describing the named file.

@@ -36,7 +36,7 @@ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 // Most callers should just use Close.
 func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return os.EPLAN9
 }
@@ -45,7 +45,7 @@ func (c *TCPConn) CloseRead() error {
 // Most callers should just use Close.
 func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
-		return os.EINVAL
+		return syscall.EINVAL
 	}
 	return os.EPLAN9
 }

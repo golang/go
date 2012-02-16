@@ -49,7 +49,7 @@ func Create(name string) (file *File, err error) {
 
 func (file *File) Close() error {
 	if file == nil {
-		return os.EINVAL
+		return os.ErrInvalid
 	}
 	err := syscall.Close(file.fd)
 	file.fd = syscall.InvalidHandle // so it can't be closed again
@@ -58,7 +58,7 @@ func (file *File) Close() error {
 
 func (file *File) Read(b []byte) (ret int, err error) {
 	if file == nil {
-		return -1, os.EINVAL
+		return -1, os.ErrInvalid
 	}
 	r, err := syscall.Read(file.fd, b)
 	return int(r), err
@@ -66,7 +66,7 @@ func (file *File) Read(b []byte) (ret int, err error) {
 
 func (file *File) Write(b []byte) (ret int, err error) {
 	if file == nil {
-		return -1, os.EINVAL
+		return -1, os.ErrInvalid
 	}
 	r, err := syscall.Write(file.fd, b)
 	return int(r), err
