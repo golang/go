@@ -13,7 +13,7 @@ import (
 
 func TestMkdirAll(t *testing.T) {
 	tmpDir := TempDir()
-	path := tmpDir + "_/_TestMkdirAll_/dir/./dir2"
+	path := tmpDir + "/_TestMkdirAll_/dir/./dir2"
 	err := MkdirAll(path, 0777)
 	if err != nil {
 		t.Fatalf("MkdirAll %q: %s", path, err)
