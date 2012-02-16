@@ -42,7 +42,9 @@ del env.bat
 echo .
 
 echo # Building compilers and Go bootstrap tool.
-.\cmd\dist\dist bootstrap -a -v
+set buildall=-a
+if x%1==x--no-clean set buildall=
+.\cmd\dist\dist bootstrap %buildall% -v
 if errorlevel 1 goto fail
 :: Delay move of dist tool to now, because bootstrap cleared tool directory.
 move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
