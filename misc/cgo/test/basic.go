@@ -111,7 +111,7 @@ func testErrno(t *testing.T) {
 		t.Fatalf("C.fopen: should fail")
 	}
 	if err != os.ENOENT {
-		t.Fatalf("C.fopen: unexpected error: ", err)
+		t.Fatalf("C.fopen: unexpected error: %v", err)
 	}
 }
 

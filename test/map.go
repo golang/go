@@ -487,7 +487,7 @@ func testbasic() {
 
 		mipM[i][i]++
 		if mipM[i][i] != (i+1)+1 {
-			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i])
+			fmt.Printf("update mipM[%d][%d] = %d\n", i, i, mipM[i][i])
 		}
 	}
 
