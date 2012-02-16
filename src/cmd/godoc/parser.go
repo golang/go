@@ -40,7 +40,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.P
 		pkg, found := pkgs[name]
 		if !found {
 			// TODO(gri) Use NewPackage here; reconsider ParseFiles API.
-			pkg = &ast.Package{name, nil, nil, make(map[string]*ast.File)}
+			pkg = &ast.Package{Name: name, Files: make(map[string]*ast.File)}
 			pkgs[name] = pkg
 		}
 		pkg.Files[filename] = file

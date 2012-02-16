@@ -62,7 +62,14 @@ func genSnippet(fset *token.FileSet, d *ast.GenDecl, id *ast.Ident) *Snippet {
 	}
 
 	// only use the spec containing the id for the snippet
-	dd := &ast.GenDecl{d.Doc, d.Pos(), d.Tok, d.Lparen, []ast.Spec{s}, d.Rparen}
+	dd := &ast.GenDecl{
+		Doc:    d.Doc,
+		TokPos: d.Pos(),
+		Tok:    d.Tok,
+		Lparen: d.Lparen,
+		Specs:  []ast.Spec{s},
+		Rparen: d.Rparen,
+	}
 
 	return newSnippet(fset, dd, id)
 }
@@ -73,7 +80,12 @@ func funcSnippet(fset *token.FileSet, d *ast.FuncDecl, id *ast.Ident) *Snippet {
 	}
 
 	// only use the function signature for the snippet
-	dd := &ast.FuncDecl{d.Doc, d.Recv, d.Name, d.Type, nil}
+	dd := &ast.FuncDecl{
+		Doc:  d.Doc,
+		Recv: d.Recv,
+		Name: d.Name,
+		Type: d.Type,
+	}
 
 	return newSnippet(fset, dd, id)
 }

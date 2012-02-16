@@ -39,7 +39,10 @@ func httpfs(f *ast.File) bool {
 		}
 		dir, prefix := call.Args[0], call.Args[1]
 		call.Args = []ast.Expr{&ast.CallExpr{
-			Fun:  &ast.SelectorExpr{ast.NewIdent("http"), ast.NewIdent("Dir")},
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("http"),
+				Sel: ast.NewIdent("Dir"),
+			},
 			Args: []ast.Expr{dir},
 		}}
 		wrapInStripHandler := true
@@ -53,7 +56,10 @@ func httpfs(f *ast.File) bool {
 			call.Args = []ast.Expr{
 				prefix,
 				&ast.CallExpr{
-					Fun:  &ast.SelectorExpr{ast.NewIdent("http"), ast.NewIdent("FileServer")},
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("http"),
+						Sel: ast.NewIdent("FileServer"),
+					},
 					Args: call.Args,
 				},
 			}

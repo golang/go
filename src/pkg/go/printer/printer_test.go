@@ -283,10 +283,10 @@ func fibo(n int) {
 		t.Error("expected offset 1") // error in test
 	}
 
-	testComment(t, f, len(src), &ast.Comment{pos, "//-style comment"})
-	testComment(t, f, len(src), &ast.Comment{pos, "/*-style comment */"})
-	testComment(t, f, len(src), &ast.Comment{pos, "/*-style \n comment */"})
-	testComment(t, f, len(src), &ast.Comment{pos, "/*-style comment \n\n\n */"})
+	testComment(t, f, len(src), &ast.Comment{Slash: pos, Text: "//-style comment"})
+	testComment(t, f, len(src), &ast.Comment{Slash: pos, Text: "/*-style comment */"})
+	testComment(t, f, len(src), &ast.Comment{Slash: pos, Text: "/*-style \n comment */"})
+	testComment(t, f, len(src), &ast.Comment{Slash: pos, Text: "/*-style comment \n\n\n */"})
 }
 
 type visitor chan *ast.Ident

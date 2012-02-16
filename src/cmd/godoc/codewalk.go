@@ -119,7 +119,7 @@ func loadCodewalk(filename string) (*Codewalk, error) {
 	d.Entity = xml.HTMLEntity
 	err = d.Decode(cw)
 	if err != nil {
-		return nil, &os.PathError{"parsing", filename, err}
+		return nil, &os.PathError{Op: "parsing", Path: filename, Err: err}
 	}
 
 	// Compute file list, evaluate line numbers for addresses.
