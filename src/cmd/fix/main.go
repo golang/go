@@ -104,8 +104,8 @@ const (
 )
 
 var printConfig = &printer.Config{
-	printerMode,
-	tabWidth,
+	Mode:     printerMode,
+	Tabwidth: tabWidth,
 }
 
 func gofmtFile(f *ast.File) ([]byte, error) {

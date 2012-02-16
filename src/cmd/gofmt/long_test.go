@@ -37,7 +37,7 @@ func gofmt(filename string, src *bytes.Buffer) error {
 	}
 	ast.SortImports(fset, f)
 	src.Reset()
-	return (&printer.Config{printerMode, *tabWidth}).Fprint(src, fset, f)
+	return (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(src, fset, f)
 }
 
 func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {

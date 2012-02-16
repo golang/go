@@ -383,7 +383,7 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	//           with an another printer mode (which is more efficiently
 	//           implemented in the printer than here with another layer)
 	mode := printer.TabIndent | printer.UseSpaces
-	err := (&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
+	err := (&printer.Config{Mode: mode, Tabwidth: *tabwidth}).Fprint(&tconv{output: w}, fset, x)
 	if err != nil {
 		log.Print(err)
 	}

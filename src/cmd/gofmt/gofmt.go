@@ -118,7 +118,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 	}
 
 	var buf bytes.Buffer
-	err = (&printer.Config{printerMode, *tabWidth}).Fprint(&buf, fset, file)
+	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fset, file)
 	if err != nil {
 		return err
 	}

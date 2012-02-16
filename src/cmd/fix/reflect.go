@@ -188,7 +188,7 @@ func reflectFn(f *ast.File) bool {
 			}
 			*n = v
 		case *ast.IfStmt:
-			x := &ast.ExprStmt{n.Cond}
+			x := &ast.ExprStmt{X: n.Cond}
 			if reflectFixTypecheck(&n.Init, nil, []ast.Stmt{x, n.Body, n.Else}) {
 				n.Cond = x.X
 				fixed = true
