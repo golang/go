@@ -64,6 +64,12 @@ func (c *Command) Usage() {
 	os.Exit(2)
 }
 
+// Runnable reports whether the command can be run; otherwise
+// it is a documentation pseudo-command such as importpath.
+func (c *Command) Runnable() bool {
+	return c.Run != nil
+}
+
 // Commands lists the available commands and help topics.
 // The order here is the order in which they are printed by 'go help'.
 var commands = []*Command{
@@ -138,13 +144,13 @@ var usageTemplate = `Go is a tool for managing Go source code.
 Usage: go command [arguments]
 
 The commands are:
-{{range .}}{{if .Run}}
+{{range .}}{{if .Runnable}}
     {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
 
 Use "go help [command]" for more information about a command.
 
 Additional help topics:
-{{range .}}{{if not .Run}}
+{{range .}}{{if not .Runnable}}
     {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
 
 Use "go help [topic]" for more information about that topic.
