@@ -31,7 +31,7 @@
       }
       .build .hash {
         font-family: monospace;
-	font-size: 9pt;
+        font-size: 9pt;
       }
       .build .result {
         text-align: center;
@@ -128,7 +128,7 @@
     <div class="paginate">
       <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>prev</a>
       <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>next</a>
-      <a {{if .HasPrev}}href="?page=0}"{{else}}class="inactive"{{end}}>top</a>
+      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>top</a>
     </div>
     {{end}}
 
