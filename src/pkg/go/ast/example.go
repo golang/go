@@ -9,6 +9,7 @@ package ast
 import (
 	"go/token"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -66,6 +67,7 @@ func Examples(files ...*File) []*Example {
 		}
 		list = append(list, flist...)
 	}
+	sort.Sort(exampleByName(list))
 	return list
 }
 
@@ -106,3 +108,9 @@ func isTest(name, prefix string) bool {
 	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
 	return !unicode.IsLower(rune)
 }
+
+type exampleByName []*Example
+
+func (s exampleByName) Len() int           { return len(s) }
+func (s exampleByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s exampleByName) Less(i, j int) bool { return s[i].Name < s[j].Name }
