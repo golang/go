@@ -464,7 +464,7 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 // decodeSingle decodes a top-level value that is not a struct and stores it through p.
 // Such values are preceded by a zero, making them have the memory layout of a
 // struct field (although with an illegal field number).
-func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) (err error) {
+func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) {
 	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
 	delta := int(state.decodeUint())
@@ -473,7 +473,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 	}
 	instr := &engine.instr[singletonField]
 	if instr.indir != ut.indir {
-		return errors.New("gob: internal error: inconsistent indirection")
+		errorf("gob: internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
 	}
 	ptr := unsafe.Pointer(basep) // offset will be zero
 	if instr.indir > 1 {
@@ -481,10 +481,9 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 	}
 	instr.op(instr, state, ptr)
 	dec.freeDecoderState(state)
-	return nil
 }
 
-// decodeSingle decodes a top-level struct and stores it through p.
+// decodeStruct decodes a top-level struct and stores it through p.
 // Indir is for the value, not the type.  At the time of the call it may
 // differ from ut.indir, which was computed when the engine was built.
 // This state cannot arise for decodeSingle, which is called directly
@@ -839,11 +838,10 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			}
 
 		case reflect.Map:
-			name = "element of " + name
 			keyId := dec.wireType[wireId].MapT.Key
 			elemId := dec.wireType[wireId].MapT.Elem
-			keyOp, keyIndir := dec.decOpFor(keyId, t.Key(), name, inProgress)
-			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
+			keyOp, keyIndir := dec.decOpFor(keyId, t.Key(), "key of "+name, inProgress)
+			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), "element of "+name, inProgress)
 			ovfl := overflow(name)
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 				up := unsafe.Pointer(p)
