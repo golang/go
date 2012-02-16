@@ -28,6 +28,8 @@ func dotest() bool {
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = os.TempDir() + "/pclinetest"
 	cmd := exec.Command("sh", "-c", "go tool 6a pclinetest.asm && go tool 6l -E main -o "+pclinetestBinary+" pclinetest.6")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		panic(err)
 	}
