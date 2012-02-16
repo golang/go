@@ -7,6 +7,7 @@
 package winfsnotify
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
