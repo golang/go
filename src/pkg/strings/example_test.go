@@ -9,134 +9,142 @@ import (
 	"strings"
 )
 
-// Fields are: ["foo" "bar" "baz"]
 func ExampleFields() {
 	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
+	// Output: Fields are: ["foo" "bar" "baz"]
 }
 
-// true
-// false
-// true
-// true
 func ExampleContains() {
 	fmt.Println(strings.Contains("seafood", "foo"))
 	fmt.Println(strings.Contains("seafood", "bar"))
 	fmt.Println(strings.Contains("seafood", ""))
 	fmt.Println(strings.Contains("", ""))
+	// Output:
+	// true
+	// false
+	// true
+	// true
 }
 
-// false
-// true
-// false
-// false
 func ExampleContainsAny() {
 	fmt.Println(strings.ContainsAny("team", "i"))
 	fmt.Println(strings.ContainsAny("failure", "u & i"))
 	fmt.Println(strings.ContainsAny("foo", ""))
 	fmt.Println(strings.ContainsAny("", ""))
-
+	// Output:
+	// false
+	// true
+	// false
+	// false
 }
 
-// 3
-// 5
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
+	// Output:
+	// 3
+	// 5
 }
 
-// true
 func ExampleEqualFold() {
 	fmt.Println(strings.EqualFold("Go", "go"))
+	// Output: true
 }
 
-// 4
-// -1
 func ExampleIndex() {
 	fmt.Println(strings.Index("chicken", "ken"))
 	fmt.Println(strings.Index("chicken", "dmr"))
+	// Output:
+	// 4
+	// -1
 }
 
-// 4
-// -1
 func ExampleRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
+	// Output:
+	// 4
+	// -1
 }
 
-// 0
-// 3
-// -1
 func ExampleLastIndex() {
 	fmt.Println(strings.Index("go gopher", "go"))
 	fmt.Println(strings.LastIndex("go gopher", "go"))
 	fmt.Println(strings.LastIndex("go gopher", "rodent"))
+	// Output:
+	// 0
+	// 3
+	// -1
 }
 
-// foo, bar, baz
 func ExampleJoin() {
 	s := []string{"foo", "bar", "baz"}
 	fmt.Println(strings.Join(s, ", "))
+	// Output: foo, bar, baz
 }
 
-// banana
 func ExampleRepeat() {
 	fmt.Println("ba" + strings.Repeat("na", 2))
+	// Output: banana
 }
 
-// oinky oinky oink
-// moo moo moo
 func ExampleReplace() {
 	fmt.Println(strings.Replace("oink oink oink", "k", "ky", 2))
 	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
+	// Output:
+	// oinky oinky oink
+	// moo moo moo
 }
 
-// ["a" "b" "c"]
-// ["" "man " "plan " "canal panama"]
-// [" " "x" "y" "z" " "]
-// [""]
 func ExampleSplit() {
 	fmt.Printf("%q\n", strings.Split("a,b,c", ","))
 	fmt.Printf("%q\n", strings.Split("a man a plan a canal panama", "a "))
 	fmt.Printf("%q\n", strings.Split(" xyz ", ""))
 	fmt.Printf("%q\n", strings.Split("", "Bernardo O'Higgins"))
+	// Output:
+	// ["a" "b" "c"]
+	// ["" "man " "plan " "canal panama"]
+	// [" " "x" "y" "z" " "]
+	// [""]
 }
 
-// ["a" "b,c"]
-// [] (nil = true)
 func ExampleSplitN() {
 	fmt.Printf("%q\n", strings.SplitN("a,b,c", ",", 2))
 	z := strings.SplitN("a,b,c", ",", 0)
 	fmt.Printf("%q (nil = %v)\n", z, z == nil)
+	// Output:
+	// ["a" "b,c"]
+	// [] (nil = true)
 }
 
-// ["a," "b," "c"]
 func ExampleSplitAfter() {
 	fmt.Printf("%q\n", strings.SplitAfter("a,b,c", ","))
+	// Output: ["a," "b," "c"]
 }
 
-// ["a," "b,c"]
 func ExampleSplitAfterN() {
 	fmt.Printf("%q\n", strings.SplitAfterN("a,b,c", ",", 2))
+	// Output: ["a," "b,c"]
 }
 
-// Her Royal Highness
 func ExampleTitle() {
 	fmt.Println(strings.Title("her royal highness"))
+	// Output: Her Royal Highness
 }
 
-// LOUD NOISES
-// ХЛЕБ
 func ExampleToTitle() {
 	fmt.Println(strings.ToTitle("loud noises"))
 	fmt.Println(strings.ToTitle("хлеб"))
+	// Output:
+	// LOUD NOISES
+	// ХЛЕБ
 }
 
-// [Achtung]
 func ExampleTrim() {
-	fmt.Printf("[%s]", strings.Trim(" !!! Achtung !!! ", "! "))
+	fmt.Printf("[%q]", strings.Trim(" !!! Achtung !!! ", "! "))
+	// Output: ["Achtung"]
 }
 
-// 'Gjnf oevyyvt naq gur fyvgul tbcure...
 func ExampleMap() {
 	rot13 := func(r rune) rune {
 		switch {
@@ -148,25 +156,26 @@ func ExampleMap() {
 		return r
 	}
 	fmt.Println(strings.Map(rot13, "'Twas brillig and the slithy gopher..."))
+	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
 }
 
-// a lone gopher
 func ExampleTrimSpace() {
 	fmt.Println(strings.TrimSpace(" \t\n a lone gopher \n\t\r\n"))
+	// Output: a lone gopher
 }
 
-// This is &lt;b&gt;HTML&lt;/b&gt;!
 func ExampleNewReplacer() {
 	r := strings.NewReplacer("<", "&lt;", ">", "&gt;")
 	fmt.Println(r.Replace("This is <b>HTML</b>!"))
+	// Output: This is &lt;b&gt;HTML&lt;/b&gt;!
 }
 
-// GOPHER
 func ExampleToUpper() {
 	fmt.Println(strings.ToUpper("Gopher"))
+	// Output: GOPHER
 }
 
-// gopher
 func ExampleToLower() {
 	fmt.Println(strings.ToLower("Gopher"))
+	// Output: gopher
 }

@@ -51,8 +51,8 @@ func ExampleMonth() {
 	}
 }
 
-// Go launched at 2009-11-10 15:00:00 -0800 PST
 func ExampleDate() {
 	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
 	fmt.Printf("Go launched at %s\n", t.Local())
+	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
 }

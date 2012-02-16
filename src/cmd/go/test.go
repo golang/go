@@ -183,9 +183,9 @@ where xxx is a suffix not beginning with an upper case letter.
 
 Here is an example of an example:
 
-	// The output of this example function.
 	func ExamplePrintln() {
 		Println("The output of this example function.")
+		// Output: The output of this example function.
 	}
 
 The entire test file is presented as the example when it contains a single
@@ -717,17 +717,16 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 		case isTest(name, "Benchmark"):
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
 			*seen = true
-		case isTest(name, "Example"):
-			output := n.Doc.Text()
-			if output == "" {
-				// Don't run examples with no output.
-				continue
-			}
-			t.Examples = append(t.Examples, testFunc{pkg, name, output})
-			*seen = true
 		}
 	}
-
+	for _, e := range ast.Examples(f) {
+		if e.Output == "" {
+			// Don't run examples with no output.
+			continue
+		}
+		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
+		*seen = true
+	}
 	return nil
 }
 

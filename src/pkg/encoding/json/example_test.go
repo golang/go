@@ -10,7 +10,6 @@ import (
 	"os"
 )
 
-// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
 func ExampleMarshal() {
 	type ColorGroup struct {
 		ID     int
@@ -27,9 +26,10 @@ func ExampleMarshal() {
 		fmt.Println("error:", err)
 	}
 	os.Stdout.Write(b)
+	// Output:
+	// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
 }
 
-// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
 func ExampleUnmarshal() {
 	var jsonBlob = []byte(`[
 		{"Name": "Platypus", "Order": "Monotremata"},
@@ -45,4 +45,6 @@ func ExampleUnmarshal() {
 		fmt.Println("error:", err)
 	}
 	fmt.Printf("%+v", animals)
+	// Output:
+	// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
 }
