@@ -18,23 +18,23 @@ if x%1==x--no-rebuild goto norebuild
 echo # Building packages and commands.
 go install -a -v std
 if errorlevel 1 goto fail
-echo .
+echo.
 :norebuild
 
 echo # Testing packages.
 go test std -short -timeout=120s
 if errorlevel 1 goto fail
-echo .
+echo.
 
 echo # runtime -cpu=1,2,4
 go test runtime -short -timeout=120s -cpu=1,2,4
 if errorlevel 1 goto fail
-echo .
+echo.
 
 echo # sync -cpu=10
 go test sync -short -timeout=120s -cpu=10
 if errorlevel 1 goto fail
-echo .
+echo.
 
 :: TODO: The other tests in run.bash, especially $GOROOT/test/run.
 

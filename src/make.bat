@@ -38,8 +38,7 @@ if errorlevel 1 goto fail
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
-:: Echo with no arguments prints whether echo is turned on, so echo dot.
-echo .
+echo.
 
 echo # Building compilers and Go bootstrap tool.
 set buildall=-a
@@ -49,7 +48,7 @@ if errorlevel 1 goto fail
 :: Delay move of dist tool to now, because bootstrap cleared tool directory.
 move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
 %GOTOOLDIR%\go_bootstrap clean -i std
-echo .
+echo.
 
 if not %GOHOSTARCH% == %GOARCH% goto localbuild
 if not %GOHOSTOS% == %GOOS% goto localbuild
@@ -63,14 +62,14 @@ set GOARCH=%GOHOSTARCH%
 %GOTOOLDIR%\go_bootstrap install -v std
 endlocal
 if errorlevel 1 goto fail
-echo .
+echo.
 
 :mainbuild
 echo # Building packages and commands.
 %GOTOOLDIR%\go_bootstrap install -a -v std
 if errorlevel 1 goto fail
 del %GOTOOLDIR%\go_bootstrap.exe
-echo .
+echo.
 
 if x%1==x--no-banner goto nobanner
 %GOTOOLDIR%\dist banner
