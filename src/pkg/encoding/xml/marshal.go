@@ -60,37 +60,30 @@ const (
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b.  Fields that appear next to each other that name
-// the same parent will be enclosed in one XML element.  For example:
+// the same parent will be enclosed in one XML element.
 //
-//	type Result struct {
-//		XMLName   xml.Name `xml:"result"`
-//		Id        int      `xml:"id,attr"`
-//		FirstName string   `xml:"person>name>first"`
-//		LastName  string   `xml:"person>name>last"`
-//		Age       int      `xml:"person>age"`
-//		Height    float    `xml:"person>height,omitempty"`
-//		Married   bool     `xml:"person>married"`
-//	}
-//
-//	xml.Marshal(&Result{Id: 13, FirstName: "John", LastName: "Doe", Age: 42})
-//
-// would be marshalled as:
-//
-//	<result>
-//		<person id="13">
-//			<name>
-//				<first>John</first>
-//				<last>Doe</last>
-//			</name>
-//			<age>42</age>
-//			<married>false</married>
-//		</person>
-//	</result>
+// See MarshalIndent for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
 func Marshal(v interface{}) ([]byte, error) {
 	var b bytes.Buffer
 	if err := NewEncoder(&b).Encode(v); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+// MarshalIndent works like Marshal, but each XML element begins on a new
+// indented line that starts with prefix and is followed by one or more
+// copies of indent according to the nesting depth.
+func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+	enc.prefix = prefix
+	enc.indent = indent
+	err := enc.marshalValue(reflect.ValueOf(v), nil)
+	enc.Flush()
+	if err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -103,7 +96,7 @@ type Encoder struct {
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{printer{bufio.NewWriter(w)}}
+	return &Encoder{printer{Writer: bufio.NewWriter(w)}}
 }
 
 // Encode writes the XML encoding of v to the stream.
@@ -118,8 +111,14 @@ func (enc *Encoder) Encode(v interface{}) error {
 
 type printer struct {
 	*bufio.Writer
+	indent     string
+	prefix     string
+	depth      int
+	indentedIn bool
 }
 
+// marshalValue writes one or more XML elements representing val.
+// If val was obtained from a struct field, finfo must have its details.
 func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 	if !val.IsValid() {
 		return nil
@@ -177,6 +176,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		}
 	}
 
+	p.writeIndent(1)
 	p.WriteByte('<')
 	p.WriteString(name)
 
@@ -216,6 +216,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		return err
 	}
 
+	p.writeIndent(-1)
 	p.WriteByte('<')
 	p.WriteByte('/')
 	p.WriteString(name)
@@ -294,6 +295,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			if vf.Len() == 0 {
 				continue
 			}
+			p.writeIndent(0)
 			p.WriteString("<!--")
 			dashDash := false
 			dashLast := false
@@ -352,6 +354,33 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	return nil
 }
 
+func (p *printer) writeIndent(depthDelta int) {
+	if len(p.prefix) == 0 && len(p.indent) == 0 {
+		return
+	}
+	if depthDelta < 0 {
+		p.depth--
+		if p.indentedIn {
+			p.indentedIn = false
+			return
+		}
+		p.indentedIn = false
+	}
+	p.WriteByte('\n')
+	if len(p.prefix) > 0 {
+		p.WriteString(p.prefix)
+	}
+	if len(p.indent) > 0 {
+		for i := 0; i < p.depth; i++ {
+			p.WriteString(p.indent)
+		}
+	}
+	if depthDelta > 0 {
+		p.depth++
+		p.indentedIn = true
+	}
+}
+
 type parentStack struct {
 	*printer
 	stack []string
@@ -367,20 +396,20 @@ func (s *parentStack) trim(parents []string) {
 			break
 		}
 	}
-
 	for i := len(s.stack) - 1; i >= split; i-- {
+		s.writeIndent(-1)
 		s.WriteString("</")
 		s.WriteString(s.stack[i])
 		s.WriteByte('>')
 	}
-
 	s.stack = parents[:split]
 }
 
 // push adds parent elements to the stack and writes open tags.
 func (s *parentStack) push(parents []string) {
 	for i := 0; i < len(parents); i++ {
-		s.WriteString("<")
+		s.writeIndent(1)
+		s.WriteByte('<')
 		s.WriteString(parents[i])
 		s.WriteByte('>')
 	}
