@@ -589,15 +589,15 @@ func (u *URL) IsAbs() bool {
 	return u.Scheme != ""
 }
 
-// Parse parses a URL in the context of a base URL.  The URL in ref
+// Parse parses a URL in the context of the receiver.  The provided URL
 // may be relative or absolute.  Parse returns nil, err on parse
 // failure, otherwise its return value is the same as ResolveReference.
-func (base *URL) Parse(ref string) (*URL, error) {
+func (u *URL) Parse(ref string) (*URL, error) {
 	refurl, err := Parse(ref)
 	if err != nil {
 		return nil, err
 	}
-	return base.ResolveReference(refurl), nil
+	return u.ResolveReference(refurl), nil
 }
 
 // ResolveReference resolves a URI reference to an absolute URI from
@@ -606,13 +606,13 @@ func (base *URL) Parse(ref string) (*URL, error) {
 // URL instance, even if the returned URL is identical to either the
 // base or reference. If ref is an absolute URL, then ResolveReference
 // ignores base and returns a copy of ref.
-func (base *URL) ResolveReference(ref *URL) *URL {
+func (u *URL) ResolveReference(ref *URL) *URL {
 	if ref.IsAbs() {
 		url := *ref
 		return &url
 	}
 	// relativeURI = ( net_path | abs_path | rel_path ) [ "?" query ]
-	url := *base
+	url := *u
 	url.RawQuery = ref.RawQuery
 	url.Fragment = ref.Fragment
 	if ref.Opaque != "" {
@@ -632,7 +632,7 @@ func (base *URL) ResolveReference(ref *URL) *URL {
 		url.Path = ref.Path
 	} else {
 		// The "rel_path" case.
-		path := resolvePath(base.Path, ref.Path)
+		path := resolvePath(u.Path, ref.Path)
 		if !strings.HasPrefix(path, "/") {
 			path = "/" + path
 		}
