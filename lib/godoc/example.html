@@ -4,11 +4,12 @@
 	</div>
 	<div class="expanded">
 		<p class="exampleHeading">▾ Example{{example_suffix .Name}}</p>
+		{{with .Doc}}<p>{{html .}}</p>{{end}}
 		<p>Code:</p>
 		<pre class="code">{{.Code}}</pre>
-		{{if .Output}}
+		{{with .Output}}
 		<p>Output:</p>
-		<pre class="output">{{html .Output}}</pre>
+		<pre class="output">{{html .}}</pre>
 		{{end}}
 	</div>
 </div>
