@@ -716,8 +716,10 @@ sweep(void)
 	byte *p;
 	MCache *c;
 	byte *arena_start;
+	int64 now;
 
 	arena_start = runtime·mheap.arena_start;
+	now = runtime·nanotime();
 
 	for(;;) {
 		s = work.spans;
@@ -725,6 +727,11 @@ sweep(void)
 			break;
 		if(!runtime·casp(&work.spans, s, s->allnext))
 			continue;
+
+		// Stamp newly unused spans. The scavenger will use that
+		// info to potentially give back some pages to the OS.
+		if(s->state == MSpanFree && s->unusedsince == 0)
+			s->unusedsince = now;
 
 		if(s->state != MSpanInUse)
 			continue;
@@ -963,6 +970,7 @@ runtime·gc(int32 force)
 	obj1 = mstats.nmalloc - mstats.nfree;
 
 	t3 = runtime·nanotime();
+	mstats.last_gc = t3;
 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t3 - t0;
 	mstats.pause_total_ns += t3 - t0;
 	mstats.numgc++;

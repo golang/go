@@ -17,11 +17,12 @@ type MemStats struct {
 	Frees      uint64 // number of frees
 
 	// Main allocation heap statistics.
-	HeapAlloc   uint64 // bytes allocated and still in use
-	HeapSys     uint64 // bytes obtained from system
-	HeapIdle    uint64 // bytes in idle spans
-	HeapInuse   uint64 // bytes in non-idle span
-	HeapObjects uint64 // total number of allocated objects
+	HeapAlloc    uint64 // bytes allocated and still in use
+	HeapSys      uint64 // bytes obtained from system
+	HeapIdle     uint64 // bytes in idle spans
+	HeapInuse    uint64 // bytes in non-idle span
+	HeapReleased uint64 // bytes released to the OS
+	HeapObjects  uint64 // total number of allocated objects
 
 	// Low-level fixed-size structure allocator statistics.
 	//	Inuse is bytes used now.
@@ -35,7 +36,8 @@ type MemStats struct {
 	BuckHashSys uint64 // profiling bucket hash table
 
 	// Garbage collector statistics.
-	NextGC       uint64
+	NextGC       uint64 // next run in HeapAlloc time (bytes)
+	LastGC       uint64 // last run in absolute time (ns)
 	PauseTotalNs uint64
 	PauseNs      [256]uint64 // most recent GC pause times
 	NumGC        uint32

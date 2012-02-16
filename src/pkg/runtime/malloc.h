@@ -205,6 +205,7 @@ struct MStats
 	uint64	heap_sys;	// bytes obtained from system
 	uint64	heap_idle;	// bytes in idle spans
 	uint64	heap_inuse;	// bytes in non-idle spans
+	uint64	heap_released;	// bytes released to the OS
 	uint64	heap_objects;	// total number of allocated objects
 
 	// Statistics about allocation of low-level fixed-size structures.
@@ -220,6 +221,7 @@ struct MStats
 	// Statistics about garbage collector.
 	// Protected by stopping the world during GC.
 	uint64	next_gc;	// next GC (in heap_alloc time)
+	uint64  last_gc;	// last GC (in absolute time)
 	uint64	pause_total_ns;
 	uint64	pause_ns[256];
 	uint32	numgc;
@@ -304,14 +306,16 @@ struct MSpan
 {
 	MSpan	*next;		// in a span linked list
 	MSpan	*prev;		// in a span linked list
-	MSpan	*allnext;		// in the list of all spans
+	MSpan	*allnext;	// in the list of all spans
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
 	uint32	state;		// MSpanInUse etc
-	byte	*limit;	// end of data in span
+	int64   unusedsince;	// First time spotted by GC in MSpanFree state
+	uintptr npreleased;	// number of pages released to the OS
+	byte	*limit;		// end of data in span
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -381,6 +385,7 @@ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
 void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
 void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
 void	runtime·MHeap_MapBits(MHeap *h);
+void	runtime·MHeap_Scavenger(void);
 
 void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
 int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
