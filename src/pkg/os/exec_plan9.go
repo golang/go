@@ -20,17 +20,9 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 
-	// Create array of integer (system) fds.
-	intfd := make([]int, len(attr.Files))
-	for i, f := range attr.Files {
-		if f == nil {
-			intfd[i] = -1
-		} else {
-			intfd[i] = f.Fd()
-		}
+	for _, f := range attr.Files {
+		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
-
-	sysattr.Files = intfd
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
 	if e != nil {
