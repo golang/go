@@ -1861,10 +1861,10 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	case token.CONST, token.TYPE, token.VAR:
 		s = &ast.DeclStmt{Decl: p.parseDecl()}
 	case
-		// tokens that may start a top-level expression
-		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operand
-		token.LBRACK, token.STRUCT, // composite type
-		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR: // unary operators
+		// tokens that may start an expression
+		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
+		token.LBRACK, token.STRUCT, // composite types
+		token.ADD, token.SUB, token.MUL, token.AND, token.XOR, token.ARROW, token.NOT: // unary operators
 		s, _ = p.parseSimpleStmt(labelOk)
 		// because of the required look-ahead, labeled statements are
 		// parsed by parseSimpleStmt - don't expect a semicolon after
