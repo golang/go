@@ -157,7 +157,7 @@ Use "go help [topic]" for more information about that topic.
 
 `
 
-var helpTemplate = `{{if .Run}}usage: go {{.UsageLine}}
+var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
 
 {{end}}{{.Long | trim}}
 `
@@ -169,7 +169,7 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
 /*
 {{range .}}{{if .Short}}{{.Short | capitalize}}
 
-{{end}}{{if .Run}}Usage:
+{{end}}{{if .Runnable}}Usage:
 
 	go {{.UsageLine}}
 
