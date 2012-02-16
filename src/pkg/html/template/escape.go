@@ -505,7 +505,7 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
 		dt := e.template(dname)
 		if dt == nil {
 			dt = template.New(dname)
-			dt.Tree = &parse.Tree{Name: dname, Root: cloneList(t.Root)}
+			dt.Tree = &parse.Tree{Name: dname, Root: t.Root.CopyList()}
 			e.derived[dname] = dt
 		}
 		t = dt
