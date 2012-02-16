@@ -559,6 +559,7 @@ var EvalSymlinksTestDirs = []EvalSymlinksTest{
 	{"test/dir/link3", "../../"},
 	{"test/link1", "../test"},
 	{"test/link2", "dir"},
+	{"test/linkabs", "/tmp"},
 }
 
 var EvalSymlinksTests = []EvalSymlinksTest{
@@ -571,6 +572,7 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 	{"test/link2/..", "test"},
 	{"test/dir/link3", "."},
 	{"test/link2/link3/test", "test"},
+	{"test/linkabs", "/tmp"},
 }
 
 var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{
@@ -629,6 +631,9 @@ func TestEvalSymlinks(t *testing.T) {
 	for _, d := range tests {
 		path := simpleJoin(tmpDir, d.path)
 		dest := simpleJoin(tmpDir, d.dest)
+		if filepath.IsAbs(d.dest) {
+			dest = d.dest
+		}
 		if p, err := filepath.EvalSymlinks(path); err != nil {
 			t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
 		} else if filepath.Clean(p) != filepath.Clean(dest) {
