@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 14, 2012"
+	"Subtitle": "Version of February 16, 2012"
 }-->
 
 <!--
@@ -3058,8 +3058,9 @@ These terms and the result of the comparisons are defined as follows:
 	</li>
 
 	<li>
-	Struct values are comparable if all the fields are comparable.
-	Two struct values are equal if their corresponding fields are equal.
+	Struct values are comparable if all their fields are comparable.
+	Two struct values are equal if their corresponding
+	non-<a href="#Blank_identifier">blank</a> fields are equal.
 	</li>
 	
 	<li>
