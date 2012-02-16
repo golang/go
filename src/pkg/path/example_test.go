@@ -9,17 +9,11 @@ import (
 	"path"
 )
 
-// b
 func ExampleBase() {
 	fmt.Println(path.Base("/a/b"))
+	// Output: b
 }
 
-// Clean("a/c") = "a/c"
-// Clean("a//c") = "a/c"
-// Clean("a/c/.") = "a/c"
-// Clean("a/c/b/..") = "a/c"
-// Clean("/../a/c") = "/a/c"
-// Clean("/../a/b/../././/c") = "/a/c"
 func ExampleClean() {
 	paths := []string{
 		"a/c",
@@ -33,29 +27,37 @@ func ExampleClean() {
 	for _, p := range paths {
 		fmt.Printf("Clean(%q) = %q\n", p, path.Clean(p))
 	}
+
+	// Output:
+	// Clean("a/c") = "a/c"
+	// Clean("a//c") = "a/c"
+	// Clean("a/c/.") = "a/c"
+	// Clean("a/c/b/..") = "a/c"
+	// Clean("/../a/c") = "/a/c"
+	// Clean("/../a/b/../././/c") = "/a/c"
 }
 
-// /a/b
 func ExampleDir() {
 	fmt.Println(path.Dir("/a/b/c"))
+	// Output: /a/b
 }
 
-// .css
 func ExampleExt() {
 	fmt.Println(path.Ext("/a/b/c/bar.css"))
+	// Output: .css
 }
 
-// true
 func ExampleIsAbs() {
 	fmt.Println(path.IsAbs("/dev/null"))
+	// Output: true
 }
 
-// a/b/c
 func ExampleJoin() {
 	fmt.Println(path.Join("a", "b", "c"))
+	// Output: a/b/c
 }
 
-// static/ myfile.css
 func ExampleSplit() {
 	fmt.Println(path.Split("static/myfile.css"))
+	// Output: static/ myfile.css
 }

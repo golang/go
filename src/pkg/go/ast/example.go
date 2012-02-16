@@ -2,37 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Extract example functions from package ASTs.
+// Extract example functions from file ASTs.
 
-package doc
+package ast
 
 import (
-	"go/ast"
-	"go/printer"
 	"go/token"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
 type Example struct {
-	Name   string                 // name of the item being demonstrated
-	Body   *printer.CommentedNode // code
-	Output string                 // expected output
+	Name     string // name of the item being exemplified
+	Code     Node
+	Comments []*CommentGroup
+	Output   string // expected output
 }
 
-func Examples(pkg *ast.Package) []*Example {
+func Examples(files ...*File) []*Example {
 	var list []*Example
-	for _, file := range pkg.Files {
+	for _, file := range files {
 		hasTests := false // file contains tests or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
 		for _, decl := range file.Decls {
-			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
+			if g, ok := decl.(*GenDecl); ok && g.Tok != token.IMPORT {
 				numDecl++
 				continue
 			}
-			f, ok := decl.(*ast.FuncDecl)
+			f, ok := decl.(*FuncDecl)
 			if !ok {
 				continue
 			}
@@ -46,23 +46,45 @@ func Examples(pkg *ast.Package) []*Example {
 				continue
 			}
 			flist = append(flist, &Example{
-				Name: name[len("Example"):],
-				Body: &printer.CommentedNode{
-					Node:     f.Body,
-					Comments: file.Comments,
-				},
-				Output: f.Doc.Text(),
+				Name:     name[len("Example"):],
+				Code:     f.Body,
+				Comments: file.Comments,
+				Output:   exampleOutput(f, file.Comments),
 			})
 		}
 		if !hasTests && numDecl > 1 && len(flist) == 1 {
 			// If this file only has one example function, some
 			// other top-level declarations, and no tests or
 			// benchmarks, use the whole file as the example.
-			flist[0].Body.Node = file
+			flist[0].Code = file
 		}
 		list = append(list, flist...)
 	}
 	return list
+}
+
+var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
+
+func exampleOutput(fun *FuncDecl, comments []*CommentGroup) string {
+	// find the last comment in the function
+	var last *CommentGroup
+	for _, cg := range comments {
+		if cg.Pos() < fun.Pos() {
+			continue
+		}
+		if cg.End() > fun.End() {
+			break
+		}
+		last = cg
+	}
+	if last != nil {
+		// test that it begins with the correct prefix
+		text := last.Text()
+		if loc := outputPrefix.FindStringIndex(text); loc != nil {
+			return strings.TrimSpace(text[loc[1]:])
+		}
+	}
+	return "" // no suitable comment found
 }
 
 // isTest tells whether name looks like a test, example, or benchmark.

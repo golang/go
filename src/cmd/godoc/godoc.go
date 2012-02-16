@@ -499,7 +499,9 @@ func startsWithUppercase(s string) bool {
 	return unicode.IsUpper(r)
 }
 
-func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
+var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
+
+func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
 		name := eg.Name
@@ -517,16 +519,28 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 		}
 
 		// print code
-		code := node_htmlFunc(eg.Body, fset)
+		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+		code := node_htmlFunc(cnode, fset)
+		out := eg.Output
+
+		// additional formatting if this is a function body
 		if len(code) > 0 && code[0] == '{' {
-			// unindent and remove surrounding braces
+			// unindent
 			code = strings.Replace(code, "\n    ", "\n", -1)
+			// remove surrounding braces
 			code = code[2 : len(code)-2]
+			// remove output comment
+			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
+				code = strings.TrimSpace(code[:loc[0]])
+			}
+		} else {
+			// drop output, as the output comment will appear in the code
+			out = ""
 		}
 
 		err := exampleHTML.Execute(&buf, struct {
 			Name, Code, Output string
-		}{eg.Name, code, eg.Output})
+		}{eg.Name, code, out})
 		if err != nil {
 			log.Print(err)
 		}
@@ -552,7 +566,6 @@ func example_nameFunc(s string) string {
 func example_suffixFunc(name string) string {
 	_, suffix := splitExampleName(name)
 	return suffix
-
 }
 
 func splitExampleName(s string) (name, suffix string) {
@@ -966,7 +979,7 @@ type PageInfo struct {
 	FSet     *token.FileSet // corresponding file set
 	PAst     *ast.File      // nil if no single AST with package exports
 	PDoc     *doc.Package   // nil if no single package documentation
-	Examples []*doc.Example // nil if no example code
+	Examples []*ast.Example // nil if no example code
 	Dirs     *DirList       // nil if no directory information
 	DirTime  time.Time      // directory time stamp
 	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
@@ -1115,7 +1128,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	}
 
 	// get examples from *_test.go files
-	var examples []*doc.Example
+	var examples []*ast.Example
 	filter = func(d os.FileInfo) bool {
 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
 	}
@@ -1123,7 +1136,11 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		log.Println("parsing test files:", err)
 	} else {
 		for _, testpkg := range testpkgs {
-			examples = append(examples, doc.Examples(testpkg)...)
+			var files []*ast.File
+			for _, f := range testpkg.Files {
+				files = append(files, f)
+			}
+			examples = append(examples, ast.Examples(files...)...)
 		}
 	}
 

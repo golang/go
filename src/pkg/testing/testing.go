@@ -38,16 +38,25 @@
 //         }
 //     }
 //
-// The package also runs and verifies example code. Example functions
-// include an introductory comment that is compared with the standard output
-// of the function when the tests are run, as in this example of an example:
+// The package also runs and verifies example code. Example functions may
+// include a concluding comment that begins with "Output:" and is compared with
+// the standard output of the function when the tests are run, as in these
+// examples of an example:
 //
-//     // hello
 //     func ExampleHello() {
 //             fmt.Println("hello")
+//             // Output: hello
 //     }
 //
-// Example functions without comments are compiled but not executed.
+//     func ExampleSalutations() {
+//             fmt.Println("hello, and")
+//             fmt.Println("goodbye")
+//             // Output:
+//             // hello, and
+//             // goodbye
+//     }
+//
+// Example functions without output comments are compiled but not executed.
 //
 // The naming convention to declare examples for a function F, a type T and
 // method M on type T are:

@@ -10,21 +10,20 @@ import (
 	"math/big"
 )
 
-// 3.142
 func ExampleRat_SetString() {
 	r := new(big.Rat)
 	r.SetString("355/113")
 	fmt.Println(r.FloatString(3))
+	// Output: 3.142
 }
 
-// 420
 func ExampleInt_SetString() {
 	i := new(big.Int)
 	i.SetString("644", 8) // octal
 	fmt.Println(i)
+	// Output: 420
 }
 
-// 3/2
 func ExampleRat_Scan() {
 	// The Scan function is rarely used directly;
 	// the fmt package recognizes it as an implementation of fmt.Scanner.
@@ -35,9 +34,9 @@ func ExampleRat_Scan() {
 	} else {
 		fmt.Println(r)
 	}
+	// Output: 3/2
 }
 
-// 18446744073709551617
 func ExampleInt_Scan() {
 	// The Scan function is rarely used directly;
 	// the fmt package recognizes it as an implementation of fmt.Scanner.
@@ -48,4 +47,5 @@ func ExampleInt_Scan() {
 	} else {
 		fmt.Println(i)
 	}
+	// Output: 18446744073709551617
 }
