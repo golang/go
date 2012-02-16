@@ -164,6 +164,9 @@ setmcpumax(uint32 n)
 	}
 }
 
+// Keep trace of scavenger's goroutine for deadlock detection.
+static G *scvg;
+
 // The bootstrap sequence is:
 //
 //	call osinit
@@ -206,6 +209,8 @@ runtime·schedinit(void)
 
 	mstats.enablegc = 1;
 	m->nomemprof--;
+
+	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·schedinit);
 }
 
 extern void main·init(void);
@@ -582,9 +587,12 @@ top:
 		mput(m);
 	}
 
-	v = runtime·atomicload(&runtime·sched.atomic);
-	if(runtime·sched.grunning == 0)
-		runtime·throw("all goroutines are asleep - deadlock!");
+	// Look for deadlock situation: one single active g which happens to be scvg.
+	if(runtime·sched.grunning == 1 && runtime·sched.gwait == 0) {
+		if(scvg->status == Grunning || scvg->status == Gsyscall)
+			runtime·throw("all goroutines are asleep - deadlock!");
+	}
+
 	m->nextg = nil;
 	m->waitnextg = 1;
 	runtime·noteclear(&m->havenextg);
@@ -593,6 +601,7 @@ top:
 	// Entersyscall might have decremented mcpu too, but if so
 	// it will see the waitstop and take the slow path.
 	// Exitsyscall never increments mcpu beyond mcpumax.
+	v = runtime·atomicload(&runtime·sched.atomic);
 	if(atomic_waitstop(v) && atomic_mcpu(v) <= atomic_mcpumax(v)) {
 		// set waitstop = 0 (known to be 1)
 		runtime·xadd(&runtime·sched.atomic, -1<<waitstopShift);
