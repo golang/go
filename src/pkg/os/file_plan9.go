@@ -26,19 +26,20 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (file *File) Fd() int {
-	if file == nil {
-		return -1
+func (f *File) Fd() uintptr {
+	if f == nil {
+		return ^(uintptr(0))
 	}
-	return file.fd
+	return uintptr(f.fd)
 }
 
 // NewFile returns a new File with the given file descriptor and name.
-func NewFile(fd int, name string) *File {
-	if fd < 0 {
+func NewFile(fd uintptr, name string) *File {
+	fdi := int(fd)
+	if fdi < 0 {
 		return nil
 	}
-	f := &File{&file{fd: fd, name: name}}
+	f := &File{&file{fd: fdi, name: name}}
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
@@ -128,7 +129,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 		}
 	}
 
-	return NewFile(fd, name), nil
+	return NewFile(uintptr(fd), name), nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
@@ -330,7 +331,7 @@ func Pipe() (r *File, w *File, err error) {
 	}
 	syscall.ForkLock.RUnlock()
 
-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }
 
 // not supported on Plan 9

@@ -182,7 +182,10 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	)
 
 	// guard against side effects of shuffling fds below.
-	fd := append([]int(nil), attr.Files...)
+	fd := make([]int, len(attr.Files))
+	for i, ufd := range attr.Files {
+		fd[i] = int(ufd)
+	}
 
 	if envv != nil {
 		clearenv = RFCENVG
@@ -338,9 +341,9 @@ type envItem struct {
 }
 
 type ProcAttr struct {
-	Dir   string   // Current working directory.
-	Env   []string // Environment.
-	Files []int    // File descriptors.
+	Dir   string    // Current working directory.
+	Env   []string  // Environment.
+	Files []uintptr // File descriptors.
 	Sys   *SysProcAttr
 }
 
@@ -423,7 +426,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	for _, fd := range openFds {
 		isReserved := false
 		for _, reservedFd := range attr.Files {
-			if fd == reservedFd {
+			if fd == int(reservedFd) {
 				isReserved = true
 				break
 			}
