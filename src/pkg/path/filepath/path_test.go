@@ -559,7 +559,7 @@ var EvalSymlinksTestDirs = []EvalSymlinksTest{
 	{"test/dir/link3", "../../"},
 	{"test/link1", "../test"},
 	{"test/link2", "dir"},
-	{"test/linkabs", "/tmp"},
+	{"test/linkabs", "/"},
 }
 
 var EvalSymlinksTests = []EvalSymlinksTest{
@@ -572,7 +572,7 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 	{"test/link2/..", "test"},
 	{"test/dir/link3", "."},
 	{"test/link2/link3/test", "test"},
-	{"test/linkabs", "/tmp"},
+	{"test/linkabs", "/"},
 }
 
 var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{
