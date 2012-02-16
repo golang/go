@@ -6,6 +6,7 @@ package gosym
 
 import (
 	"debug/elf"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -27,7 +28,9 @@ func dotest() bool {
 	// the resulting binary looks like it was built from pclinetest.s,
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = os.TempDir() + "/pclinetest"
-	cmd := exec.Command("sh", "-c", "go tool 6a pclinetest.asm && go tool 6l -E main -o "+pclinetestBinary+" pclinetest.6")
+	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -E main -o %s %s.6",
+		pclinetestBinary, pclinetestBinary, pclinetestBinary)
+	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -185,8 +188,8 @@ func TestPCLine(t *testing.T) {
 		t.Logf("off is %d", off)
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if !strings.HasSuffix(file, "pclinetest.s") {
-			t.Errorf("expected %s (%s) at PC %#x, got %s (%s)", "pclinetest.s", sym.Name, pc, file, fn.Name)
+		} else if !strings.HasSuffix(file, "pclinetest.asm") {
+			t.Errorf("expected %s (%s) at PC %#x, got %s (%s)", "pclinetest.asm", sym.Name, pc, file, fn.Name)
 		} else if line != wantLine || fn != sym {
 			t.Errorf("expected :%d (%s) at PC %#x, got :%d (%s)", wantLine, sym.Name, pc, line, fn.Name)
 		}
