@@ -539,8 +539,8 @@ func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.File
 		}
 
 		err := exampleHTML.Execute(&buf, struct {
-			Name, Code, Output string
-		}{eg.Name, code, out})
+			Name, Doc, Code, Output string
+		}{eg.Name, eg.Doc, code, out})
 		if err != nil {
 			log.Print(err)
 		}

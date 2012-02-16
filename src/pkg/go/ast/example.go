@@ -16,6 +16,7 @@ import (
 
 type Example struct {
 	Name     string // name of the item being exemplified
+	Doc      string // example function doc string
 	Code     Node
 	Comments []*CommentGroup
 	Output   string // expected output
@@ -45,8 +46,13 @@ func Examples(files ...*File) []*Example {
 			if !isTest(name, "Example") {
 				continue
 			}
+			var doc string
+			if f.Doc != nil {
+				doc = f.Doc.Text()
+			}
 			flist = append(flist, &Example{
 				Name:     name[len("Example"):],
+				Doc:      doc,
 				Code:     f.Body,
 				Comments: file.Comments,
 				Output:   exampleOutput(f, file.Comments),
