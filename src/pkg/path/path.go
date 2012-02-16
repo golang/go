@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package path implements utility routines for manipulating slash-separated
-// filename paths.
+// paths.
 package path
 
 import (
@@ -25,7 +25,7 @@ import (
 // returns the string ".".
 //
 // See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot right,''
+// Getting Dot-Dot Right,''
 // http://plan9.bell-labs.com/sys/doc/lexnames.html
 func Clean(path string) string {
 	if path == "" {
@@ -100,17 +100,19 @@ func Clean(path string) string {
 	return string(buf[0:w])
 }
 
-// Split splits path immediately following the final path separator,
+// Split splits path immediately following the final slash.
 // separating it into a directory and file name component.
-// If there is no separator in path, Split returns an empty dir and
+// If there is no slash path, Split returns an empty dir and
 // file set to path.
+// The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
 	i := strings.LastIndex(path, "/")
 	return path[:i+1], path[i+1:]
 }
 
 // Join joins any number of path elements into a single path, adding a
-// separating slash if necessary.  All empty strings are ignored.
+// separating slash if necessary. The result is Cleaned; in particular,
+// all empty strings are ignored.
 func Join(elem ...string) string {
 	for i, e := range elem {
 		if e != "" {
@@ -161,11 +163,12 @@ func IsAbs(path string) bool {
 	return len(path) > 0 && path[0] == '/'
 }
 
-// Dir returns the all but the last element of path, typically the path's directory.
-// Trailing path separators are removed before processing.
+// Dir returns all but the last element of path, typically the path's directory.
+// The path is Cleaned and trailing slashes are removed before processing.
 // If the path is empty, Dir returns ".".
-// If the path consists entirely of separators, Dir returns a single separator.
-// The returned path does not end in a separator unless it is the root directory.
+// If the path consists entirely of slashes followed by non-slash bytes, Dir
+// returns a single slash. In any other case, the returned path does not end in a
+// slash.
 func Dir(path string) string {
 	dir, _ := Split(path)
 	dir = Clean(dir)

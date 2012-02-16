@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 )
 
+// ErrBadPattern indicates a globbing pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
 // Match returns true if name matches the shell file name pattern.
@@ -33,7 +34,8 @@ var ErrBadPattern = errors.New("syntax error in pattern")
 //		lo '-' hi   matches character c for lo <= c <= hi
 //
 // Match requires pattern to match all of name, not just a substring.
-// The only possible error return occurs when the pattern is malformed.
+// The only possible returned error is ErrBadPattern, when pattern
+// is malformed.
 //
 func Match(pattern, name string) (matched bool, err error) {
 Pattern:
@@ -211,7 +213,6 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 // if there is no matching file. The syntax of patterns is the same
 // as in Match. The pattern may describe hierarchical names such as
 // /usr/*/bin/ed (assuming the Separator is '/').
-// The only possible error return occurs when the pattern is malformed.
 //
 func Glob(pattern string) (matches []string, err error) {
 	if !hasMeta(pattern) {
@@ -253,7 +254,6 @@ func Glob(pattern string) (matches []string, err error) {
 // and appends them to matches. If the directory cannot be
 // opened, it returns the existing matches. New matches are
 // added in lexicographical order.
-// The only possible error return occurs when the pattern is malformed.
 func glob(dir, pattern string, matches []string) (m []string, e error) {
 	m = matches
 	fi, err := os.Stat(dir)

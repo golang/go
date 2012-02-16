@@ -36,7 +36,7 @@ const (
 // returns the string ".".
 //
 // See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot right,''
+// Getting Dot-Dot Right,''
 // http://plan9.bell-labs.com/sys/doc/lexnames.html
 func Clean(path string) string {
 	vol := VolumeName(path)
@@ -118,7 +118,8 @@ func Clean(path string) string {
 }
 
 // ToSlash returns the result of replacing each separator character
-// in path with a slash ('/') character.
+// in path with a slash ('/') character. Multiple separators are
+// replaced by multiple slashes.
 func ToSlash(path string) string {
 	if Separator == '/' {
 		return path
@@ -127,7 +128,8 @@ func ToSlash(path string) string {
 }
 
 // FromSlash returns the result of replacing each slash ('/') character
-// in path with a separator character.
+// in path with a separator character. Multiple slashes are replaced
+// by multiple separators.
 func FromSlash(path string) string {
 	if Separator == '/' {
 		return path
@@ -135,7 +137,8 @@ func FromSlash(path string) string {
 	return strings.Replace(path, "/", string(Separator), -1)
 }
 
-// SplitList splits a list of paths joined by the OS-specific ListSeparator.
+// SplitList splits a list of paths joined by the OS-specific ListSeparator,
+// usually found in PATH or GOPATH environment variables.
 func SplitList(path string) []string {
 	if path == "" {
 		return []string{}
@@ -158,7 +161,8 @@ func Split(path string) (dir, file string) {
 }
 
 // Join joins any number of path elements into a single path, adding
-// a Separator if necessary.  All empty strings are ignored.
+// a Separator if necessary. The result is Cleaned, in particular
+// all empty strings are ignored.
 func Join(elem ...string) string {
 	for i, e := range elem {
 		if e != "" {
@@ -183,7 +187,8 @@ func Ext(path string) string {
 
 // EvalSymlinks returns the path name after the evaluation of any symbolic
 // links.
-// If path is relative it will be evaluated relative to the current directory.
+// If path is relative the result will be relative to the current directory,
+// unless one of the components is an absolute symbolic link.
 func EvalSymlinks(path string) (string, error) {
 	if runtime.GOOS == "windows" {
 		// Symlinks are not supported under windows.
@@ -443,7 +448,7 @@ func Base(path string) string {
 	return path
 }
 
-// Dir returns the all but the last element of path, typically the path's directory.
+// Dir returns all but the last element of path, typically the path's directory.
 // Trailing path separators are removed before processing.
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of separators, Dir returns a single separator.
