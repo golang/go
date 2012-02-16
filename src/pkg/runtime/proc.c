@@ -342,7 +342,7 @@ mcommoninit(M *m)
 	// Add to runtime·allm so garbage collector doesn't free m
 	// when it is just in a register or thread-local storage.
 	m->alllink = runtime·allm;
-	// runtime·Cgocalls() iterates over allm w/o schedlock,
+	// runtime·NumCgoCall() iterates over allm w/o schedlock,
 	// so we need to publish it safely.
 	runtime·atomicstorep(&runtime·allm, m);
 }
@@ -1652,7 +1652,7 @@ runtime·mid(uint32 ret)
 }
 
 void
-runtime·Goroutines(int32 ret)
+runtime·NumGoroutine(int32 ret)
 {
 	ret = runtime·sched.gcount;
 	FLUSH(&ret);

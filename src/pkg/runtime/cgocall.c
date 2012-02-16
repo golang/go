@@ -151,7 +151,7 @@ unlockm(void)
 }
 
 void
-runtime·Cgocalls(int64 ret)
+runtime·NumCgoCall(int64 ret)
 {
 	M *m;
 

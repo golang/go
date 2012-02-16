@@ -141,10 +141,10 @@ func Version() string {
 	return theVersion
 }
 
-// GOOS is the Go tree's operating system target:
+// GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
 const GOOS string = theGoos
 
-// GOARCH is the Go tree's architecture target:
+// GOARCH is the running program's architecture target:
 // 386, amd64, or arm.
 const GOARCH string = theGoarch

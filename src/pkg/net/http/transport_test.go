@@ -648,7 +648,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	tr := &Transport{}
 	c := &Client{Transport: tr}
 
-	n0 := runtime.Goroutines()
+	n0 := runtime.NumGoroutine()
 
 	const numReq = 25
 	didReqCh := make(chan bool)
@@ -669,7 +669,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 		<-gotReqCh
 	}
 
-	nhigh := runtime.Goroutines()
+	nhigh := runtime.NumGoroutine()
 
 	// Tell all handlers to unblock and reply.
 	for i := 0; i < numReq; i++ {
@@ -685,7 +685,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	runtime.GC()
 	runtime.GC() // even more.
-	nfinal := runtime.Goroutines()
+	nfinal := runtime.NumGoroutine()
 
 	growth := nfinal - n0
 
