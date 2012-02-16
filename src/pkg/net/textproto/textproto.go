@@ -20,6 +20,9 @@
 //
 // Writer, to write dot-encoded text blocks.
 //
+// Conn, a convenient packaging of Reader, Writer, and Pipeline for use
+// with a single network connection."
+//
 package textproto
 
 import (
