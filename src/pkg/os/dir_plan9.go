@@ -10,6 +10,9 @@ import (
 	"syscall"
 )
 
+var errShortStat = errors.New("short stat message")
+var errBadStat = errors.New("bad stat message format")
+
 func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {
@@ -35,7 +38,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 				break
 			}
 			if d.nbuf < syscall.STATFIXLEN {
-				return result, &PathError{"readdir", file.name, Eshortstat}
+				return result, &PathError{"readdir", file.name, errShortStat}
 			}
 		}
 
@@ -43,7 +46,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 		m, _ := gbit16(d.buf[d.bufp:])
 		m += 2
 		if m < syscall.STATFIXLEN {
-			return result, &PathError{"readdir", file.name, Eshortstat}
+			return result, &PathError{"readdir", file.name, errShortStat}
 		}
 		dir, e := UnmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
 		if e != nil {
@@ -138,7 +141,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
 	n, b = gbit16(b)
 
 	if int(n) != len(b) {
-		return nil, Ebadstat
+		return nil, errBadStat
 	}
 
 	d = new(Dir)
@@ -155,7 +158,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
 	d.Muid, b = gstring(b)
 
 	if len(b) != 0 {
-		return nil, Ebadstat
+		return nil, errBadStat
 	}
 
 	return d, nil

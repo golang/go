@@ -1494,12 +1494,31 @@ the i-number expression could be contracted to
 The vast majority of uses of <code>FileInfo</code> need only the methods
 of the standard interface.
 </p>
-	
+
+<p>
+The <code>os</code> package no longer contains wrappers for the POSIX errors
+such as <code>ENOENT</code>.
+For the few programs that need to verify particular error conditions, there are
+now the boolean functions
+<a href="/pkg/os/#IsExist"><code>IsExist</code></a>,
+<a href="/pkg/os/#IsNotExist"><code>IsNotExist</code></a>
+and
+<a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>.
+</p>
+
+<pre><!--{{code "progs/go1.go" `/os\.Open/` `/}/`}}
+-->    f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+    if os.IsExist(err) {
+        log.Printf(&#34;%s already exists&#34;, name)
+    }</pre>
+
 <p>
 <em>Updating</em>:
 Running <code>go fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
 and <code>os.FileMode</code> API.
 Code that needs system-specific file details will need to be updated by hand.
+Code that uses the old POSIX error values from the <code>os</code> package
+will fail to compile and will also need to be updated by hand.
 </p>
 
 <h3 id="path_filepath">The path/filepath package</h3>

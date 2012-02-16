@@ -506,7 +506,7 @@ func (fd *netFD) Write(p []byte) (int, error) {
 	}
 	defer fd.decref()
 	if fd.sysfile == nil {
-		return 0, os.EINVAL
+		return 0, syscall.EINVAL
 	}
 
 	var err error

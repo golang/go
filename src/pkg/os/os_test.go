@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -769,7 +770,7 @@ func TestSeek(t *testing.T) {
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
-			if e, ok := err.(*PathError); ok && e.Err == EINVAL && tt.out > 1<<32 {
+			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
 				// Reiserfs rejects the big seeks.
 				// http://code.google.com/p/go/issues/detail?id=91
 				break
@@ -789,17 +790,17 @@ var openErrorTests = []openErrorTest{
 	{
 		sfdir + "/no-such-file",
 		O_RDONLY,
-		ENOENT,
+		syscall.ENOENT,
 	},
 	{
 		sfdir,
 		O_WRONLY,
-		EISDIR,
+		syscall.EISDIR,
 	},
 	{
 		sfdir + "/" + sfname + "/no-such-file",
 		O_WRONLY,
-		ENOTDIR,
+		syscall.ENOTDIR,
 	},
 }
 

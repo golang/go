@@ -52,7 +52,7 @@ func Getwd() (pwd string, err error) {
 	pwd = ""
 	for parent := ".."; ; parent = "../" + parent {
 		if len(parent) >= 1024 { // Sanity check
-			return "", ENAMETOOLONG
+			return "", syscall.ENAMETOOLONG
 		}
 		fd, err := Open(parent)
 		if err != nil {
@@ -74,7 +74,7 @@ func Getwd() (pwd string, err error) {
 			}
 		}
 		fd.Close()
-		return "", ENOENT
+		return "", ErrNotExist
 
 	Found:
 		pd, err := fd.Stat()

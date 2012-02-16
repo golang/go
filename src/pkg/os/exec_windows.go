@@ -48,7 +48,7 @@ func (p *Process) Signal(sig Signal) error {
 // Release releases any resources associated with the Process.
 func (p *Process) Release() error {
 	if p.handle == uintptr(syscall.InvalidHandle) {
-		return EINVAL
+		return syscall.EINVAL
 	}
 	e := syscall.CloseHandle(syscall.Handle(p.handle))
 	if e != nil {

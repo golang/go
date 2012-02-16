@@ -4,34 +4,38 @@
 
 package os
 
-import (
-	"errors"
-	"syscall"
-)
+// IsExist returns whether the error is known to report that a file already exists.
+func IsExist(err error) bool {
+	if pe, ok := err.(*PathError); ok {
+		err = pe.Err
+	}
+	return contains(err.Error(), " exists")
+}
 
-var (
-	Eshortstat = errors.New("stat buffer too small")
-	Ebadstat   = errors.New("malformed stat buffer")
-	Ebadfd     = errors.New("fd out of range or not open")
-	Ebadarg    = errors.New("bad arg in system call")
-	Enotdir    = errors.New("not a directory")
-	Enonexist  = errors.New("file does not exist")
-	Eexist     = errors.New("file already exists")
-	Eio        = errors.New("i/o error")
-	Eperm      = errors.New("permission denied")
+// IsNotExist returns whether the error is known to report that a file does not exist.
+func IsNotExist(err error) bool {
+	if pe, ok := err.(*PathError); ok {
+		err = pe.Err
+	}
+	return contains(err.Error(), "does not exist")
+}
 
-	EINVAL  = Ebadarg
-	ENOTDIR = Enotdir
-	ENOENT  = Enonexist
-	EEXIST  = Eexist
-	EIO     = Eio
-	EACCES  = Eperm
-	EPERM   = Eperm
-	EISDIR  = syscall.EISDIR
+// IsPermission returns whether the error is known to report that permission is denied.
+func IsPermission(err error) bool {
+	if pe, ok := err.(*PathError); ok {
+		err = pe.Err
+	}
+	return contains(err.Error(), "permission denied")
+}
 
-	EBADF        = errors.New("bad file descriptor")
-	ENAMETOOLONG = errors.New("file name too long")
-	ERANGE       = errors.New("math result not representable")
-	EPIPE        = errors.New("Broken Pipe")
-	EPLAN9       = errors.New("not supported by plan 9")
-)
+// contains is a local version of strings.Contains. It knows len(sep) > 1.
+func contains(s, sep string) bool {
+	n := len(sep)
+	c := sep[0]
+	for i := 0; i+n <= len(s); i++ {
+		if s[i] == c && s[i:i+n] == sep {
+			return true
+		}
+	}
+	return false
+}

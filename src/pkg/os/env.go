@@ -84,7 +84,7 @@ var ENOENV = errors.New("no such environment variable")
 // It returns the value and an error, if any.
 func Getenverror(key string) (value string, err error) {
 	if len(key) == 0 {
-		return "", EINVAL
+		return "", ErrInvalid
 	}
 	val, found := syscall.Getenv(key)
 	if !found {

@@ -19,7 +19,7 @@ func chkStat(file string) error {
 		return err
 	}
 	if d.IsDir() {
-		return os.EPERM
+		return os.ErrPermission
 	}
 	return nil
 }
@@ -39,7 +39,7 @@ func findExecutable(file string, exts []string) (string, error) {
 			return f, nil
 		}
 	}
-	return ``, os.ENOENT
+	return ``, os.ErrNotExist
 }
 
 // LookPath searches for an executable binary named file

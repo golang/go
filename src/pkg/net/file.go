@@ -28,7 +28,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 	switch sa.(type) {
 	default:
 		closesocket(fd)
-		return nil, os.EINVAL
+		return nil, syscall.EINVAL
 	case *syscall.SockaddrInet4:
 		family = syscall.AF_INET
 		if proto == syscall.SOCK_DGRAM {
@@ -84,7 +84,7 @@ func FileConn(f *os.File) (c Conn, err error) {
 		return newIPConn(fd), nil
 	}
 	fd.Close()
-	return nil, os.EINVAL
+	return nil, syscall.EINVAL
 }
 
 // FileListener returns a copy of the network listener corresponding
@@ -103,7 +103,7 @@ func FileListener(f *os.File) (l Listener, err error) {
 		return &UnixListener{fd, laddr.Name}, nil
 	}
 	fd.Close()
-	return nil, os.EINVAL
+	return nil, syscall.EINVAL
 }
 
 // FilePacketConn returns a copy of the packet network connection
@@ -122,5 +122,5 @@ func FilePacketConn(f *os.File) (c PacketConn, err error) {
 		return newUnixConn(fd), nil
 	}
 	fd.Close()
-	return nil, os.EINVAL
+	return nil, syscall.EINVAL
 }
