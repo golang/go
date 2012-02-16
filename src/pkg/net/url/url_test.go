@@ -260,9 +260,9 @@ func TestParse(t *testing.T) {
 	DoTest(t, Parse, "Parse", urlnofragtests)
 }
 
-func TestParseWithReference(t *testing.T) {
-	DoTest(t, ParseWithReference, "ParseWithReference", urltests)
-	DoTest(t, ParseWithReference, "ParseWithReference", urlfragtests)
+func TestParseWithFragment(t *testing.T) {
+	DoTest(t, ParseWithFragment, "ParseWithFragment", urltests)
+	DoTest(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
@@ -320,8 +320,8 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
 func TestURLString(t *testing.T) {
 	DoTestString(t, Parse, "Parse", urltests)
 	DoTestString(t, Parse, "Parse", urlnofragtests)
-	DoTestString(t, ParseWithReference, "ParseWithReference", urltests)
-	DoTestString(t, ParseWithReference, "ParseWithReference", urlfragtests)
+	DoTestString(t, ParseWithFragment, "ParseWithFragment", urltests)
+	DoTestString(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
 }
 
 type EscapeTest struct {
@@ -538,7 +538,7 @@ var resolveReferenceTests = []struct {
 
 func TestResolveReference(t *testing.T) {
 	mustParse := func(url string) *URL {
-		u, err := ParseWithReference(url)
+		u, err := ParseWithFragment(url)
 		if err != nil {
 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
 		}
@@ -589,7 +589,7 @@ func TestResolveReference(t *testing.T) {
 
 func TestResolveReferenceOpaque(t *testing.T) {
 	mustParse := func(url string) *URL {
-		u, err := ParseWithReference(url)
+		u, err := ParseWithFragment(url)
 		if err != nil {
 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
 		}

@@ -415,18 +415,18 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 	return
 }
 
-// ParseWithReference is like Parse but allows a trailing #fragment.
-func ParseWithReference(rawurlref string) (url *URL, err error) {
+// ParseWithFragment is like Parse but allows a trailing #fragment.
+func ParseWithFragment(rawurl string) (url *URL, err error) {
 	// Cut off #frag
-	rawurl, frag := split(rawurlref, '#', true)
-	if url, err = Parse(rawurl); err != nil {
+	u, frag := split(rawurl, '#', true)
+	if url, err = Parse(u); err != nil {
 		return nil, err
 	}
 	if frag == "" {
 		return url, nil
 	}
 	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
-		return nil, &Error{"parse", rawurlref, err}
+		return nil, &Error{"parse", rawurl, err}
 	}
 	return url, nil
 }
