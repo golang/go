@@ -1410,7 +1410,10 @@ reswitch:
 
 	case ORETURN:
 		ok |= Etop;
-		typechecklist(n->list, Erv | Efnstruct);
+		if(count(n->list) == 1)
+			typechecklist(n->list, Erv | Efnstruct);
+		else
+			typechecklist(n->list, Erv);
 		if(curfn == N) {
 			yyerror("return outside function");
 			goto error;
