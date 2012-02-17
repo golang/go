@@ -113,6 +113,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.Ellipsis:
+		walkBeforeAfter(&n.Elt, before, after)
 	case *ast.BasicLit:
 	case *ast.FuncLit:
 		walkBeforeAfter(&n.Type, before, after)

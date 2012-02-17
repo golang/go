@@ -42,6 +42,10 @@ func g() {
 	error := 1
 	_ = error
 }
+
+func h(os.Error) {}
+
+func i(...os.Error) {}
 `,
 		Out: `package main
 
@@ -59,6 +63,10 @@ func g() {
 	error := 1
 	_ = error
 }
+
+func h(error) {}
+
+func i(...error) {}
 `,
 	},
 	{
