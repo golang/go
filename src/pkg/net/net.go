@@ -2,8 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package net provides a portable interface to Unix networks sockets,
-// including TCP/IP, UDP, domain name resolution, and Unix domain sockets.
+/*
+Package net provides a portable interface for network I/O, including
+TCP/IP, UDP, domain name resolution, and Unix domain sockets.
+
+Although the package provides access to low-level networking
+primitives, most clients will need only the basic interface
+provided by the Dial, Listen, and Accept functions.
+
+The Dial function connects to a server:
+
+	conn, err := net.Dial("tcp", "google.com:80")
+	if err != nil {
+		// handle error
+	}
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	// ...
+
+The Listen function creates servers:
+
+	ln, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		// handle error
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			// handle error
+			continue
+		}
+		go handleConnection(conn)
+	}
+*/
 package net
 
 // TODO(rsc):
