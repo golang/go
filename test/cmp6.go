@@ -15,6 +15,10 @@ type T3 struct{ z []int }
 
 var t3 T3
 
+type T4 struct { _ []int; a float64 }
+
+var t4 T4
+
 func main() {
 	// Arguments to comparison must be
 	// assignable one to the other (or vice versa)
@@ -46,6 +50,7 @@ func main() {
 
 	// Comparison of structs should have a good message
 	use(t3 == t3) // ERROR "struct|expected"
+	use(t4 == t4) // ok; the []int is a blank field
 
 	// Slices, functions, and maps too.
 	var x []int

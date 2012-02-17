@@ -281,6 +281,25 @@ func main() {
 		isfalse(ix != z)
 		isfalse(iz != x)
 	}
+	
+	// structs with _ fields
+	{
+		var x = struct {
+			x int
+			_ []int
+			y float64
+			_ float64
+			z int
+		}{
+			x: 1, y: 2, z: 3,
+		}
+		var ix interface{} = x
+		
+		istrue(x == x)
+		istrue(x == ix)
+		istrue(ix == x)
+		istrue(ix == ix)
+	}
 
 	// arrays
 	{
