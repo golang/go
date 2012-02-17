@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !windows,!plan9
+
 // Package syslog provides a simple interface to the system log service. It
 // can send messages to the syslog daemon using UNIX domain sockets, UDP, or
 // TCP connections.
