@@ -13,7 +13,7 @@ var (
 	ErrInvalid    = errors.New("invalid argument")
 	ErrPermission = errors.New("permission denied")
 	ErrExist      = errors.New("file already exists")
-	ErrNotExist   = errors.New("file does not exit")
+	ErrNotExist   = errors.New("file does not exist")
 )
 
 // PathError records an error and the operation and file path that caused it.
