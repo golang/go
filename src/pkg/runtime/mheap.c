@@ -346,7 +346,10 @@ runtime·MHeap_Scavenger(void)
 	// we hand it back to the operating system.
 	limit = 5*60*1e9;
 	// Make wake-up period small enough for the sampling to be correct.
-	tick = forcegc < limit ? forcegc/2 : limit/2;
+	if(forcegc < limit)
+		tick = forcegc/2;
+	else
+		tick = limit/2;
 
 	trace = false;
 	env = runtime·getenv("GOGCTRACE");
