@@ -2,21 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package scanner implements a scanner for Go source text. Takes a []byte as
-// source which can then be tokenized through repeated calls to the Scan
-// function. Typical use:
-//
-//	var s scanner.Scanner
-//	fset := token.NewFileSet()  // position information is relative to fset
-//	file := fset.AddFile(filename, fset.Base(), len(src))  // register file
-//	s.Init(file, src, nil /* no error handler */, 0)
-//	for {
-//		pos, tok, lit := s.Scan()
-//		if tok == token.EOF {
-//			break
-//		}
-//		// do something here with pos, tok, and lit
-//	}
+// Package scanner implements a scanner for Go source text.
+// It takes a []byte as source which can then be tokenized
+// through repeated calls to the Scan method.
 //
 package scanner
 
