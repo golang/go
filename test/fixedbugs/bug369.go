@@ -1,6 +1,6 @@
 // $G -N -o slow.$A $D/bug369.dir/pkg.go &&
 // $G -o fast.$A $D/bug369.dir/pkg.go &&
-// $G $D/$F.go && $L $F.$A && ./$A.out
+// run
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
