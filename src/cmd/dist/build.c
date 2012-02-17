@@ -1126,6 +1126,7 @@ static char *buildorder[] = {
 	"pkg/net/url",
 	"pkg/text/template/parse",
 	"pkg/text/template",
+	"pkg/go/doc",
 	"cmd/go",
 };
 
@@ -1165,6 +1166,7 @@ static char *cleantab[] = {
 	"pkg/fmt",
 	"pkg/go/ast",
 	"pkg/go/build",
+	"pkg/go/doc",
 	"pkg/go/parser",
 	"pkg/go/scanner",
 	"pkg/go/token",

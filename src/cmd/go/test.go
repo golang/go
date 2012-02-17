@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/doc"
 	"go/parser"
 	"go/token"
 	"os"
@@ -719,7 +720,7 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 			*seen = true
 		}
 	}
-	for _, e := range ast.Examples(f) {
+	for _, e := range doc.Examples(f) {
 		if e.Output == "" {
 			// Don't run examples with no output.
 			continue

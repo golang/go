@@ -4,9 +4,10 @@
 
 // Extract example functions from file ASTs.
 
-package ast
+package doc
 
 import (
+	"go/ast"
 	"go/token"
 	"regexp"
 	"sort"
@@ -18,23 +19,23 @@ import (
 type Example struct {
 	Name     string // name of the item being exemplified
 	Doc      string // example function doc string
-	Code     Node
-	Comments []*CommentGroup
+	Code     ast.Node
+	Comments []*ast.CommentGroup
 	Output   string // expected output
 }
 
-func Examples(files ...*File) []*Example {
+func Examples(files ...*ast.File) []*Example {
 	var list []*Example
 	for _, file := range files {
 		hasTests := false // file contains tests or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
 		for _, decl := range file.Decls {
-			if g, ok := decl.(*GenDecl); ok && g.Tok != token.IMPORT {
+			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
 				numDecl++
 				continue
 			}
-			f, ok := decl.(*FuncDecl)
+			f, ok := decl.(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
@@ -73,9 +74,9 @@ func Examples(files ...*File) []*Example {
 
 var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
 
-func exampleOutput(fun *FuncDecl, comments []*CommentGroup) string {
+func exampleOutput(fun *ast.FuncDecl, comments []*ast.CommentGroup) string {
 	// find the last comment in the function
-	var last *CommentGroup
+	var last *ast.CommentGroup
 	for _, cg := range comments {
 		if cg.Pos() < fun.Pos() {
 			continue
