@@ -49,9 +49,10 @@ func (r *Rand) Int() int {
 }
 
 // Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func (r *Rand) Int63n(n int64) int64 {
 	if n <= 0 {
-		return 0
+		panic("invalid argument to Int63n")
 	}
 	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
 	v := r.Int63()
@@ -62,9 +63,10 @@ func (r *Rand) Int63n(n int64) int64 {
 }
 
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func (r *Rand) Int31n(n int32) int32 {
 	if n <= 0 {
-		return 0
+		panic("invalid argument to Int31n")
 	}
 	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
 	v := r.Int31()
@@ -75,7 +77,11 @@ func (r *Rand) Int31n(n int32) int32 {
 }
 
 // Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func (r *Rand) Intn(n int) int {
+	if n <= 0 {
+		panic("invalid argument to Intn")
+	}
 	if n <= 1<<31-1 {
 		return int(r.Int31n(int32(n)))
 	}
@@ -125,12 +131,15 @@ func Int31() int32 { return globalRand.Int31() }
 func Int() int { return globalRand.Int() }
 
 // Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func Int63n(n int64) int64 { return globalRand.Int63n(n) }
 
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func Int31n(n int32) int32 { return globalRand.Int31n(n) }
 
 // Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// It panics if n <= 0.
 func Intn(n int) int { return globalRand.Intn(n) }
 
 // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
