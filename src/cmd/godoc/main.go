@@ -417,11 +417,13 @@ func main() {
 		info = pkgHandler.getPageInfo(abspath, relpath, "", mode)
 	}
 
-	// second, try as command
+	// second, try as command unless the path is absolute
+	// (the go command invokes godoc w/ absolute paths; don't override)
+	var cinfo PageInfo
 	if !filepath.IsAbs(path) {
 		abspath = absolutePath(path, cmdHandler.fsRoot)
+		cinfo = cmdHandler.getPageInfo(abspath, relpath, "", mode)
 	}
-	cinfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
 
 	// determine what to use
 	if info.IsEmpty() {
