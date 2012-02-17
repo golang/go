@@ -1355,8 +1355,8 @@ it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
 control; it is
 compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
-The <code>gccgo</code> compiler also implements segmented
-stacks, supported by recent modifications to its linker.
+The <code>gccgo</code> compiler implements segmented
+stacks on Linux only, supported by recent modifications to the gold linker.
 </p>
 
 <h3 id="Why_is_my_trivial_program_such_a_large_binary">
