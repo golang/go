@@ -83,6 +83,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 void
 runtime·sigenable(uint32 sig)
 {
+	USED(sig);
 }
 
 void
