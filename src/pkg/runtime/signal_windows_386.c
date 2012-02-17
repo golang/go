@@ -81,6 +81,11 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 }
 
 void
+runtime·sigenable(uint32 sig)
+{
+}
+
+void
 runtime·dosigprof(Context *r, G *gp)
 {
 	runtime·sigprof((uint8*)r->Eip, (uint8*)r->Esp, nil, gp);

@@ -6,6 +6,7 @@
 #define K SigKill
 #define T SigThrow
 #define P SigPanic
+#define D SigDefault
 
 SigTab runtime·sigtab[] = {
 	/* 0 */	0, "SIGNONE: no trap",
@@ -28,9 +29,9 @@ SigTab runtime·sigtab[] = {
 	/* 17 */	N, "SIGCHLD: child status has changed",
 	/* 18 */	0, "SIGCONT: continue",
 	/* 19 */	0, "SIGSTOP: stop, unblockable",
-	/* 20 */	N, "SIGTSTP: keyboard stop",
-	/* 21 */	N, "SIGTTIN: background read from tty",
-	/* 22 */	N, "SIGTTOU: background write to tty",
+	/* 20 */	N+D, "SIGTSTP: keyboard stop",
+	/* 21 */	N+D, "SIGTTIN: background read from tty",
+	/* 22 */	N+D, "SIGTTOU: background write to tty",
 	/* 23 */	N, "SIGURG: urgent condition on socket",
 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
@@ -79,3 +80,4 @@ SigTab runtime·sigtab[] = {
 #undef K
 #undef T
 #undef P
+#undef D

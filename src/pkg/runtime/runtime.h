@@ -268,9 +268,10 @@ struct	SigTab
 enum
 {
 	SigNotify = 1<<0,	// let signal.Notify have signal, even if from kernel
-	SigKill = 1<<1,  // if signal.Notify doesn't take it, exit quietly
-	SigThrow = 1<<2,  // if signal.Notify doesn't take it, exit loudly
-	SigPanic = 1<<3,  // if the signal is from the kernel, panic
+	SigKill = 1<<1,		// if signal.Notify doesn't take it, exit quietly
+	SigThrow = 1<<2,	// if signal.Notify doesn't take it, exit loudly
+	SigPanic = 1<<3,	// if the signal is from the kernel, panic
+	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
 };
 
 // NOTE(rsc): keep in sync with extern.go:/type.Func.
@@ -501,6 +502,7 @@ Slice	runtime·gobytes(byte*, int32);
 String	runtime·gostringnocopy(byte*);
 String	runtime·gostringw(uint16*);
 void	runtime·initsig(void);
+void	runtime·sigenable(uint32 sig);
 int32	runtime·gotraceback(void);
 void	runtime·goroutineheader(G*);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);

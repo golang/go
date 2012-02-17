@@ -27,9 +27,27 @@ runtime·initsig(void)
 	// First call: basic setup.
 	for(i = 0; i<NSIG; i++) {
 		t = &runtime·sigtab[i];
-		if(t->flags == 0)
+		if((t->flags == 0) || (t->flags & SigDefault))
 			continue;
-		runtime·setsig(i, runtime·sighandler, 1);
+		runtime·setsig(i, runtime·sighandler, true);
+	}
+}
+
+void
+runtime·sigenable(uint32 sig)
+{
+	int32 i;
+	SigTab *t;
+
+	for(i = 0; i<NSIG; i++) {
+		// ~0 means all signals.
+		if(~sig == 0 || i == sig) {
+			t = &runtime·sigtab[i];
+			if(t->flags & SigDefault) {
+				runtime·setsig(i, runtime·sighandler, true);
+				t->flags &= ~SigDefault;  // make this idempotent
+			}
+		}
 	}
 }
 
