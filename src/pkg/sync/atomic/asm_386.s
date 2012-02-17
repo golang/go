@@ -108,8 +108,7 @@ TEXT ·LoadUint64(SB),7,$0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
 	// MOVQ %MM0, 0x8(%ESP)
 	BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
-	// EMMS
-	BYTE $0x0F; BYTE $0x77
+	EMMS
 	RET
 
 TEXT ·LoadUintptr(SB),7,$0
@@ -137,8 +136,7 @@ TEXT ·StoreUint64(SB),7,$0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
 	// MOVQ %MM0, (%EAX)
 	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
-	// EMMS
-	BYTE $0x0F; BYTE $0x77
+	EMMS
 	// This is essentially a no-op, but it provides required memory fencing.
 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
 	XORL	AX, AX

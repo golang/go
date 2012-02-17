@@ -759,5 +759,7 @@ Optab optab[] =
 	{ AMFENCE, ynone, Pm, 0xae,0xf0 },
 	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
 
+	{ AEMMS, ynone, Pm, 0x77 },
+
 	0
 };
