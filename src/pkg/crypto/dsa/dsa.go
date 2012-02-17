@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package dsa implements the Digital Signature Algorithm, as defined in FIPS 186-3
+// Package dsa implements the Digital Signature Algorithm, as defined in FIPS 186-3.
 package dsa
 
 import (
