@@ -688,6 +688,7 @@ static Optable optab0F[256]=
 [0x74] =	{ RM,0,		"PCMPEQB %m,%M" },
 [0x75] =	{ RM,0,		"PCMPEQW %m,%M" },
 [0x76] =	{ RM,0,		"PCMPEQL %m,%M" },
+[0x77] =	{ 0,0,		"EMMS" },
 [0x7E] =	{ RM,0,		"MOV%S %M,%e" },
 [0x7F] =	{ RM,0,		"MOVQ %M,%m" },
 [0xAE] =	{ RMOP,0,		optab0FAE },

@@ -449,6 +449,8 @@ enum	as
 	AMFENCE,
 	ASFENCE,
 
+	AEMMS,
+
 	ALAST
 };
 
