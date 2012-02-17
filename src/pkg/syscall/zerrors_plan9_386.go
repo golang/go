@@ -4,6 +4,8 @@
 
 package syscall
 
+import "errors"
+
 // Constants
 const (
 	// Invented values to support what package os expects.
@@ -22,6 +24,19 @@ const (
 	S_IFREG  = 0x8000
 	S_IFLNK  = 0xa000
 	S_IFSOCK = 0xc000
+
+	SIGINT  = Signal(0x2)
+	SIGKILL = Signal(0x9)
 )
 
-// Error table
+// Errors
+var (
+	EINVAL       = errors.New("bad arg in system call")
+	ENOTDIR      = errors.New("not a directory")
+	ENOENT       = errors.New("file does not exist")
+	EEXIST       = errors.New("file already exists")
+	EIO          = errors.New("i/o error")
+	ENAMETOOLONG = errors.New("file name too long")
+	EPERM        = errors.New("permission denied")
+	EPLAN9       = errors.New("not supported by plan 9")
+)

@@ -335,6 +335,14 @@ func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
 }
 
+type Signal int
+
+func (s Signal) Signal() {}
+
+func (s Signal) String() string {
+	return ""
+}
+
 //sys	Dup(oldfd int, newfd int) (fd int, err error)
 //sys	Open(path string, mode int) (fd int, err error)
 //sys	Create(path string, mode int, perm uint32) (fd int, err error)
