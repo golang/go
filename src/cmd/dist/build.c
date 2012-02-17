@@ -77,8 +77,12 @@ init(void)
 	binit(&b);
 
 	xgetenv(&b, "GOROOT");
-	if(b.len > 0)
+	if(b.len > 0) {
+		// if not "/", then strip trailing path separator
+		if(b.len >= 2 && b.p[b.len - 1] == slash[0])
+			b.len--;
 		goroot = btake(&b);
+	}
 
 	xgetenv(&b, "GOBIN");
 	if(b.len == 0)
@@ -1373,20 +1377,30 @@ static char*
 defaulttarg(void)
 {
 	char *p;
-	Buf pwd, src;
+	Buf pwd, src, real_src;
 	
 	binit(&pwd);
 	binit(&src);
+	binit(&real_src);
 
+	// xgetwd might return a path with symlinks fully resolved, and if
+	// there happens to be symlinks in goroot, then the hasprefix test
+	// will never succeed. Instead, we use xrealwd to get a canonical
+	// goroot/src before the comparison to avoid this problem.
 	xgetwd(&pwd);
 	p = btake(&pwd);
 	bpathf(&src, "%s/src/", goroot);
-	if(!hasprefix(p, bstr(&src)))
-		fatal("current directory %s is not under %s", p, bstr(&src));
-	p += src.len;
+	xrealwd(&real_src, bstr(&src));
+	if(!hasprefix(p, bstr(&real_src)))
+		fatal("current directory %s is not under %s", p, bstr(&real_src));
+	p += real_src.len;
+	// guard againt xrealwd return the directory without the trailing /
+	if(*p == slash[0])
+		p++;
 
 	bfree(&pwd);
 	bfree(&src);
+	bfree(&real_src);
 	
 	return p;
 }
