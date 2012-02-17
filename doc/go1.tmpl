@@ -1439,12 +1439,10 @@ instead of a <code>Visitor</code> interface value.
 The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
 in such cases the error argument will describe the failure.
 If a directory's contents are to be skipped,
-the function should return the value <code>SkipDir</code>.
+the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
 </p>
 
-<p>
-<font color="red">TODO: add an example?</font>
-</p>
+{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
 
 <p>
 <em>Updating</em>:

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 	"unicode"
@@ -28,6 +29,7 @@ func main() {
 	runeType()
 	errorExample()
 	timePackage()
+	walkExample()
 	osIsExist()
 }
 
@@ -181,6 +183,25 @@ func sleepUntil(wakeup time.Time) {
 
 func timePackage() {
 	sleepUntil(time.Now().Add(123 * time.Millisecond))
+}
+
+func walkExample() {
+	// STARTWALK OMIT
+	markFn := func(path string, info os.FileInfo, err error) error {
+		if path == "pictures" { // Will skip walking of directory pictures and its contents.
+			return filepath.SkipDir
+		}
+		if err != nil {
+			return err
+		}
+		log.Println(path)
+		return nil
+	}
+	err := filepath.Walk(".", markFn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// ENDWALK OMIT
 }
 
 func initializationFunction(c chan int) {
