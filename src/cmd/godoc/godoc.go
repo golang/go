@@ -501,7 +501,7 @@ func startsWithUppercase(s string) bool {
 
 var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
 
-func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.FileSet) string {
+func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
 		name := eg.Name
@@ -979,7 +979,7 @@ type PageInfo struct {
 	FSet     *token.FileSet // corresponding file set
 	PAst     *ast.File      // nil if no single AST with package exports
 	PDoc     *doc.Package   // nil if no single package documentation
-	Examples []*ast.Example // nil if no example code
+	Examples []*doc.Example // nil if no example code
 	Dirs     *DirList       // nil if no directory information
 	DirTime  time.Time      // directory time stamp
 	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
@@ -1128,7 +1128,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	}
 
 	// get examples from *_test.go files
-	var examples []*ast.Example
+	var examples []*doc.Example
 	filter = func(d os.FileInfo) bool {
 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
 	}
@@ -1140,7 +1140,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 			for _, f := range testpkg.Files {
 				files = append(files, f)
 			}
-			examples = append(examples, ast.Examples(files...)...)
+			examples = append(examples, doc.Examples(files...)...)
 		}
 	}
 
