@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -148,17 +149,17 @@ func (c *plan9Conn) RemoteAddr() Addr {
 
 // SetDeadline implements the Conn SetDeadline method.
 func (c *plan9Conn) SetDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *plan9Conn) SetReadDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {

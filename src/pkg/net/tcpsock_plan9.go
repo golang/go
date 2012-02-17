@@ -7,7 +7,7 @@
 package net
 
 import (
-	"os"
+	"syscall"
 	"time"
 )
 
@@ -19,17 +19,17 @@ type TCPConn struct {
 
 // SetDeadline implements the Conn SetDeadline method.
 func (c *TCPConn) SetDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *TCPConn) SetReadDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *TCPConn) SetWriteDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // CloseRead shuts down the reading side of the TCP connection.
@@ -38,7 +38,7 @@ func (c *TCPConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // CloseWrite shuts down the writing side of the TCP connection.
@@ -47,7 +47,7 @@ func (c *TCPConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // DialTCP connects to the remote address raddr on the network net,

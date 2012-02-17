@@ -6,6 +6,7 @@ package net
 
 import (
 	"os"
+	"syscall"
 )
 
 // FileConn returns a copy of the network connection corresponding to
@@ -13,7 +14,7 @@ import (
 // finished.  Closing c does not affect f, and closing f does not
 // affect c.
 func FileConn(f *os.File) (c Conn, err error) {
-	return nil, os.EPLAN9
+	return nil, syscall.EPLAN9
 }
 
 // FileListener returns a copy of the network listener corresponding
@@ -21,7 +22,7 @@ func FileConn(f *os.File) (c Conn, err error) {
 // when finished.  Closing c does not affect l, and closing l does not
 // affect c.
 func FileListener(f *os.File) (l Listener, err error) {
-	return nil, os.EPLAN9
+	return nil, syscall.EPLAN9
 }
 
 // FilePacketConn returns a copy of the packet network connection
@@ -29,5 +30,5 @@ func FileListener(f *os.File) (l Listener, err error) {
 // responsibility to close f when finished.  Closing c does not affect
 // f, and closing f does not affect c.
 func FilePacketConn(f *os.File) (c PacketConn, err error) {
-	return nil, os.EPLAN9
+	return nil, syscall.EPLAN9
 }

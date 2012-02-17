@@ -9,6 +9,7 @@ package net
 import (
 	"errors"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -20,17 +21,17 @@ type UDPConn struct {
 
 // SetDeadline implements the Conn SetDeadline method.
 func (c *UDPConn) SetDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *UDPConn) SetReadDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *UDPConn) SetWriteDeadline(t time.Time) error {
-	return os.EPLAN9
+	return syscall.EPLAN9
 }
 
 // UDP-specific methods.
@@ -191,5 +192,5 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 // the interface to join.  ListenMulticastUDP uses default
 // multicast interface if ifi is nil.
 func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	return nil, os.EPLAN9
+	return nil, syscall.EPLAN9
 }
