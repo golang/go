@@ -321,19 +321,28 @@ func split(s string, c byte, cutc bool) (string, string) {
 }
 
 // Parse parses rawurl into a URL structure.
-// The string rawurl is assumed not to have a #fragment suffix.
-// (Web browsers strip #fragment before sending the URL to a web server.)
 // The rawurl may be relative or absolute.
 func Parse(rawurl string) (url *URL, err error) {
-	return parse(rawurl, false)
+	// Cut off #frag
+	u, frag := split(rawurl, '#', true)
+	if url, err = parse(u, false); err != nil {
+		return nil, err
+	}
+	if frag == "" {
+		return url, nil
+	}
+	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+		return nil, &Error{"parse", rawurl, err}
+	}
+	return url, nil
 }
 
-// ParseRequest parses rawurl into a URL structure.  It assumes that
-// rawurl was received from an HTTP request, so the rawurl is interpreted
+// ParseRequestURI parses rawurl into a URL structure.  It assumes that
+// rawurl was received in an HTTP request, so the rawurl is interpreted
 // only as an absolute URI or an absolute path.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseRequest(rawurl string) (url *URL, err error) {
+func ParseRequestURI(rawurl string) (url *URL, err error) {
 	return parse(rawurl, true)
 }
 
@@ -413,22 +422,6 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		user = UserPassword(username, password)
 	}
 	return
-}
-
-// ParseWithFragment is like Parse but allows a trailing #fragment.
-func ParseWithFragment(rawurl string) (url *URL, err error) {
-	// Cut off #frag
-	u, frag := split(rawurl, '#', true)
-	if url, err = Parse(u); err != nil {
-		return nil, err
-	}
-	if frag == "" {
-		return url, nil
-	}
-	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
-		return nil, &Error{"parse", rawurl, err}
-	}
-	return url, nil
 }
 
 // String reassembles the URL into a valid URL string.

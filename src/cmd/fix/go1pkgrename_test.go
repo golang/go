@@ -5,10 +5,10 @@
 package main
 
 func init() {
-	addTestCases(go1renameTests, go1pkgrename)
+	addTestCases(go1pkgrenameTests, go1pkgrename)
 }
 
-var go1renameTests = []testCase{
+var go1pkgrenameTests = []testCase{
 	{
 		Name: "go1rename.0",
 		In: `package main
