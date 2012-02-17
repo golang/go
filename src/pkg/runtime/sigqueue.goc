@@ -140,10 +140,12 @@ func signal_enable(s uint32) {
 		// Special case: want everything.
 		for(i=0; i<nelem(sig.wanted); i++)
 			sig.wanted[i] = ~(uint32)0;
+		runtime·sigenable(s);
 		return;
 	}
 
 	if(s >= nelem(sig.wanted)*32)
 		return;
 	sig.wanted[s/32] |= 1U<<(s&31);
+	runtime·sigenable(s);
 }
