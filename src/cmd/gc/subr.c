@@ -571,6 +571,8 @@ algtype1(Type *t, Type **bad)
 		}
 		ret = AMEM;
 		for(t1=t->type; t1!=T; t1=t1->down) {
+			if(isblanksym(t1->sym))
+				continue;
 			a = algtype1(t1->type, bad);
 			if(a == ANOEQ)
 				return ANOEQ;  // not comparable
@@ -888,11 +890,19 @@ isslice(Type *t)
 int
 isblank(Node *n)
 {
+	if(n == N)
+		return 0;
+	return isblanksym(n->sym);
+}
+
+int
+isblanksym(Sym *s)
+{
 	char *p;
 
-	if(n == N || n->sym == S)
+	if(s == S)
 		return 0;
-	p = n->sym->name;
+	p = s->name;
 	if(p == nil)
 		return 0;
 	return p[0] == '_' && p[1] == '\0';
@@ -2652,12 +2662,14 @@ genhash(Sym *sym, Type *t)
 		// and calling specific hash functions for the others.
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
-			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
+			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
 				if(first == T)
 					first = t1;
 				continue;
 			}
 			// Run memhash for fields up to this one.
+			while(first != T && isblanksym(first->sym))
+				first = first->down;
 			if(first != T) {
 				if(first->down == t1)
 					size = first->type->width;
@@ -2867,7 +2879,7 @@ geneq(Sym *sym, Type *t)
 		// and calling specific equality tests for the others.
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
-			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
+			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
 				if(first == T)
 					first = t1;
 				continue;
@@ -2875,13 +2887,16 @@ geneq(Sym *sym, Type *t)
 			// Run memequal for fields up to this one.
 			// TODO(rsc): All the calls to newname are wrong for
 			// cross-package unexported fields.
+			while(first != T && isblanksym(first->sym))
+				first = first->down;
 			if(first != T) {
 				if(first->down == t1) {
 					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
 				} else if(first->down->down == t1) {
 					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
 					first = first->down;
-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+					if(!isblanksym(first->sym))
+						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
 				} else {
 					// More than two fields: use memequal.
 					if(t1 == T)
