@@ -680,6 +680,85 @@ for i, v := range t {
 }
 </pre>
 
+<h3 id="nil_error">
+Why is my nil error value not equal to nil?
+</h3>
+
+<p>
+Under the covers, interfaces are implemented as two elements, a type and a value.
+The value, called the interface's dynamic value,
+is an arbitrary concrete value and the type is that of the value.
+For the <code>int</code> value 3, an interface value contains,
+schematically, (<code>int</code>, <code>3</code>).
+</p>
+
+<p>
+An interface value is <code>nil</code> only if the inner value and type are both unset,
+(<code>nil</code>, <code>nil</code>).
+In particular, a <code>nil</code> interface will always hold a <code>nil</code> type.
+If we store a pointer of type <code>*int</code> inside
+an interface value, the inner type will be <code>*int</code> regardless of the value of the pointer:
+(<code>*int</code>, <code>nil</code>).
+Such an interface value will therefore be non-<code>nil</code>
+<em>even when the pointer inside is</em> <code>nil</code>.
+</p>
+
+<p>
+This situation can be confusing, and often arises when a <code>nil</code> value is
+stored inside an interface value such as an <code>error</code> return:
+</p>
+
+<pre>
+func returnsError() error {
+	var p *MyError = nil
+	if bad() {
+		p = ErrBad
+	}
+	return p // Will always return a non-nil error.
+}
+</pre>
+
+<p>
+If all goes well, the function returns a <code>nil</code> <code>p</code>,
+so the return value is an <code>error</code> interface
+value holding (<code>*MyError</code>, <code>nil</code>).
+This means that if the caller compares the returned error to <code>nil</code>,
+it will always look as if there was an error even if nothing bad happened.
+To return a proper <code>nil</code> <code>error</code> to the caller,
+the function must return an explicit <code>nil</code>:
+</p>
+
+
+<pre>
+func returnsError() error {
+	if bad() {
+		return ErrBad
+	}
+	return nil
+}
+</pre>
+
+<p>
+It's a good idea for functions
+that return errors always to use the <code>error</code> type in
+their signature (as we did above) rather than a concrete type such
+as <code>*MyError</code>, to help guarantee the error is
+created correctly. As an example,
+<a href="/pkg/os/#Open"><code>os.Open</code></a>
+returns an <code>error</code> even though, if not <code>nil</code>,
+it's always of concrete type
+<a href="/pkg/os/#PathError"><code>*os.PathError</code></a>.
+</p>
+
+<p>
+Similar situations to those described here can arise whenever interfaces are used.
+Just keep in mind that if any concrete value
+has been stored in the interface, the interface will not be <code>nil</code>.
+For more information, see
+<a href="http://blog.golang.org/2011/09/laws-of-reflection.html">this blog post</a>.
+</p>
+
+
 <h3 id="unions">
 Why are there no untagged unions, as in C?</h3>
 
