@@ -4,17 +4,22 @@
 
 package main
 
-var cryptotypeFix = fix{
-	"cryptotype",
+func init() {
+	register(go1renameFix)
+}
+
+var go1renameFix = fix{
+	"go1rename",
 	"2012-02-12",
-	renameFix(cryptotypeReplace),
-	`Rewrite uses of concrete cipher types to refer to the generic cipher.Block.
+	renameFix(go1renameReplace),
+	`Rewrite package-level names that have been renamed in Go 1.
 
 http://codereview.appspot.com/5625045/
+http://codereview.appspot.com/5672072/
 `,
 }
 
-var cryptotypeReplace = []rename{
+var go1renameReplace = []rename{
 	{
 		OldImport: "crypto/aes",
 		NewImport: "crypto/cipher",
@@ -32,5 +37,23 @@ var cryptotypeReplace = []rename{
 		NewImport: "crypto/cipher",
 		Old:       "*des.TripleDESCipher",
 		New:       "cipher.Block",
+	},
+	{
+		OldImport: "net/url",
+		NewImport: "",
+		Old:       "url.ParseWithReference",
+		New:       "url.Parse",
+	},
+	{
+		OldImport: "net/url",
+		NewImport: "",
+		Old:       "url.ParseRequest",
+		New:       "url.ParseRequestURI",
+	},
+	{
+		OldImport: "os",
+		NewImport: "syscall",
+		Old:       "os.Exec",
+		New:       "syscall.Exec",
 	},
 }

@@ -5,17 +5,19 @@
 package main
 
 func init() {
-	addTestCases(cryptotypeTests, cryptotypeFix.f)
+	addTestCases(go1renameTests, go1renameFix.f)
 }
 
-var cryptotypeTests = []testCase{
+var go1renameTests = []testCase{
 	{
-		Name: "cryptotype.0",
+		Name: "go1rename.0",
 		In: `package main
 
 import (
 	"crypto/aes"
 	"crypto/des"
+	"net/url"
+	"os"
 )
 
 var (
@@ -23,6 +25,10 @@ var (
 	_ *des.Cipher
 	_ *des.TripleDESCipher
 	_ = aes.New()
+	_ = url.Parse
+	_ = url.ParseWithReference
+	_ = url.ParseRequest
+	_ = os.Exec
 )
 `,
 		Out: `package main
@@ -30,6 +36,8 @@ var (
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"net/url"
+	"syscall"
 )
 
 var (
@@ -37,6 +45,10 @@ var (
 	_ cipher.Block
 	_ cipher.Block
 	_ = aes.New()
+	_ = url.Parse
+	_ = url.Parse
+	_ = url.ParseRequestURI
+	_ = syscall.Exec
 )
 `,
 	},

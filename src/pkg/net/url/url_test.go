@@ -188,22 +188,6 @@ var urltests = []URLTest{
 		},
 		"http://user:password@google.com",
 	},
-}
-
-var urlnofragtests = []URLTest{
-	{
-		"http://www.google.com/?q=go+language#foo",
-		&URL{
-			Scheme:   "http",
-			Host:     "www.google.com",
-			Path:     "/",
-			RawQuery: "q=go+language#foo",
-		},
-		"",
-	},
-}
-
-var urlfragtests = []URLTest{
 	{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
@@ -257,12 +241,6 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
 
 func TestParse(t *testing.T) {
 	DoTest(t, Parse, "Parse", urltests)
-	DoTest(t, Parse, "Parse", urlnofragtests)
-}
-
-func TestParseWithFragment(t *testing.T) {
-	DoTest(t, ParseWithFragment, "ParseWithFragment", urltests)
-	DoTest(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
@@ -281,16 +259,16 @@ var parseRequestUrlTests = []struct {
 	{"../dir/", false},
 }
 
-func TestParseRequest(t *testing.T) {
+func TestParseRequestURI(t *testing.T) {
 	for _, test := range parseRequestUrlTests {
-		_, err := ParseRequest(test.url)
+		_, err := ParseRequestURI(test.url)
 		valid := err == nil
 		if valid != test.expectedValid {
 			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
 		}
 	}
 
-	url, err := ParseRequest(pathThatLooksSchemeRelative)
+	url, err := ParseRequestURI(pathThatLooksSchemeRelative)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -319,9 +297,6 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
 
 func TestURLString(t *testing.T) {
 	DoTestString(t, Parse, "Parse", urltests)
-	DoTestString(t, Parse, "Parse", urlnofragtests)
-	DoTestString(t, ParseWithFragment, "ParseWithFragment", urltests)
-	DoTestString(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
 }
 
 type EscapeTest struct {
@@ -538,7 +513,7 @@ var resolveReferenceTests = []struct {
 
 func TestResolveReference(t *testing.T) {
 	mustParse := func(url string) *URL {
-		u, err := ParseWithFragment(url)
+		u, err := Parse(url)
 		if err != nil {
 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
 		}
@@ -589,7 +564,7 @@ func TestResolveReference(t *testing.T) {
 
 func TestResolveReferenceOpaque(t *testing.T) {
 	mustParse := func(url string) *URL {
-		u, err := ParseWithFragment(url)
+		u, err := Parse(url)
 		if err != nil {
 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
 		}
