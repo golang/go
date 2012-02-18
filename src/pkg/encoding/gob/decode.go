@@ -473,7 +473,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 	}
 	instr := &engine.instr[singletonField]
 	if instr.indir != ut.indir {
-		errorf("gob: internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
+		errorf("internal error: inconsistent indirection instr %d ut %d", instr.indir, ut.indir)
 	}
 	ptr := unsafe.Pointer(basep) // offset will be zero
 	if instr.indir > 1 {
@@ -1149,7 +1149,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 
 // getDecEnginePtr returns the engine for the specified type.
 func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePtr **decEngine, err error) {
-	rt := ut.base
+	rt := ut.user
 	decoderMap, ok := dec.decoderCache[rt]
 	if !ok {
 		decoderMap = make(map[typeId]**decEngine)
