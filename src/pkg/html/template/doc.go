@@ -17,11 +17,11 @@ Introduction
 This package wraps package text/template so you can share its template API
 to parse and execute HTML templates safely.
 
-  set, err := new(template.Set).Parse(...)
+  tmpl, err := template.New("name").Parse(...)
   // Error checking elided
-  err = set.Execute(out, "Foo", data)
+  err = tmpl.Execute(out, "Foo", data)
 
-If successful, set will now be injection-safe. Otherwise, err is an error
+If successful, tmpl will now be injection-safe. Otherwise, err is an error
 defined in the docs for ErrorCode.
 
 HTML templates treat data values as plain text which should be encoded so they
