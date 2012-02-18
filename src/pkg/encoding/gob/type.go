@@ -152,6 +152,10 @@ var idToType = make(map[typeId]gobType)
 var builtinIdToType map[typeId]gobType // set in init() after builtins are established
 
 func setTypeId(typ gobType) {
+	// When building recursive types, someone may get there before us.
+	if typ.id() != 0 {
+		return
+	}
 	nextId++
 	typ.setId(nextId)
 	idToType[nextId] = typ
@@ -346,6 +350,11 @@ func newSliceType(name string) *sliceType {
 func (s *sliceType) init(elem gobType) {
 	// Set our type id before evaluating the element's, in case it's our own.
 	setTypeId(s)
+	// See the comments about ids in newTypeObject. Only slices and
+	// structs have mutual recursion.
+	if elem.id() == 0 {
+		setTypeId(elem)
+	}
 	s.Elem = elem.id()
 }
 
@@ -502,6 +511,13 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			gt, err := getBaseType(tname, f.Type)
 			if err != nil {
 				return nil, err
+			}
+			// Some mutually recursive types can cause us to be here while
+			// still defining the element. Fix the element type id here.
+			// We could do this more neatly by setting the id at the start of
+			// building every type, but that would break binary compatibility.
+			if gt.id() == 0 {
+				setTypeId(gt)
 			}
 			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
 		}
