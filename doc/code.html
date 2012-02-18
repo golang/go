@@ -109,7 +109,7 @@ package foo
 const String = "Go rules!"
 ^D
 $ go install widgets/foo
-$ ls $GOPATH/pkg/*/example
+$ ls $GOPATH/pkg/*/widgets
 foo.a
 </pre>
 
@@ -162,6 +162,7 @@ Use "<code>go install</code>":
 </p>
 
 <pre>
+$ mkdir -p $GOPATH/src/widgets/bar
 $ cat &gt; $GOPATH/src/widgets/bar/bar.go
 package main
 
@@ -217,7 +218,7 @@ func TestString(t *testing.T) {
 }
 ^D
 $ go test widgets/foo
-ok  	widgets/foo
+ok  	widgets/foo	0.018s
 </pre>
 
 <p>
@@ -323,8 +324,8 @@ foo_arm.go
 </pre>
 
 describes a package that builds on
-different operating systems by parameterizing the file name with
-<code>$GOOS</code>.</p>
+different architectures by parameterizing the file name with
+<code>$GOARCH</code>.</p>
 
 <p>The general code goes in <code>foo.go</code>, while architecture-specific
 code goes in <code>foo_386.go</code>, <code>foo_amd64.go</code>, and
