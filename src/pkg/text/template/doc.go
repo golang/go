@@ -22,6 +22,20 @@ Actions may not span newlines, although comments can.
 
 Once constructed, a template may be executed safely in parallel.
 
+Here is a trivial example that prints "17 items are made of wool".
+
+	type Inventory struct {
+		Material string
+		Count    uint
+	}
+	sweaters := Inventory{"wool", 17}
+	tmpl, err := template.New("test").Parse("{{.Count}} items are made of {{.Material}}")
+	if err != nil { panic(err) }
+	err = tmpl.Execute(os.Stdout, sweaters)
+	if err != nil { panic(err) }
+
+More intricate examples appear below.
+
 Actions
 
 Here is the list of actions. "Arguments" and "pipelines" are evaluations of
@@ -128,6 +142,11 @@ An argument is a simple value, denoted by one of the following.
 	    .Field1.Key1.Method1.Field2.Key2.Method2
 	  Methods can also be evaluated on variables, including chaining:
 	    $x.Method1.Field
+	- The name of a niladic function-valued struct field of the data,
+	  preceded by a period, such as
+		.Function
+	  Function-valued fields behave like methods (of structs) but do not
+	  pass a receiver.
 	- The name of a niladic function, such as
 		fun
 	  The result is the value of invoking the function, fun(). The return
@@ -148,6 +167,9 @@ value (argument) or a function or method call, possibly with multiple arguments:
 		The result is the value of calling the method with the
 		arguments:
 			dot.Method(Argument1, etc.)
+	.Function [Argument...]
+		A function-valued field of a struct works like a method but does
+		not pass the receiver.
 	functionName [Argument...]
 		The result is the value of calling the function associated
 		with the name:
@@ -303,7 +325,7 @@ produce the text
 By construction, a template may reside in only one association. If it's
 necessary to have a template addressable from multiple associations, the
 template definition must be parsed multiple times to create distinct *Template
-values.
+values, or must be copied with the Clone or AddParseTree method.
 
 Parse may be called multiple times to assemble the various associated templates;
 see the ParseFiles and ParseGlob functions and methods for simple ways to parse
