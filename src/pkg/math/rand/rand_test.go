@@ -141,6 +141,9 @@ func TestNonStandardNormalValues(t *testing.T) {
 		for m := 0.5; m < mmax; m *= 2 {
 			for _, seed := range testSeeds {
 				testNormalDistribution(t, numTestSamples, m, sd, seed)
+				if testing.Short() {
+					break
+				}
 			}
 		}
 	}
@@ -191,6 +194,9 @@ func TestNonStandardExponentialValues(t *testing.T) {
 	for rate := 0.05; rate < 10; rate *= 2 {
 		for _, seed := range testSeeds {
 			testExponentialDistribution(t, numTestSamples, rate, seed)
+			if testing.Short() {
+				break
+			}
 		}
 	}
 }

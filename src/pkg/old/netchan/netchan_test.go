@@ -291,6 +291,10 @@ func exportLoopback(exp *Exporter, t *testing.T) {
 // This test checks that channel operations can proceed
 // even when other concurrent operations are blocked.
 func TestIndependentSends(t *testing.T) {
+	if testing.Short() {
+		t.Logf("disabled test during -short")
+		return
+	}
 	exp, imp := pair(t)
 
 	exportLoopback(exp, t)
@@ -378,6 +382,10 @@ const flowCount = 100
 
 // test flow control from exporter to importer.
 func TestExportFlowControl(t *testing.T) {
+	if testing.Short() {
+		t.Logf("disabled test during -short")
+		return
+	}
 	exp, imp := pair(t)
 
 	sendDone := make(chan bool, 1)
@@ -394,6 +402,10 @@ func TestExportFlowControl(t *testing.T) {
 
 // test flow control from importer to exporter.
 func TestImportFlowControl(t *testing.T) {
+	if testing.Short() {
+		t.Logf("disabled test during -short")
+		return
+	}
 	exp, imp := pair(t)
 
 	ch := make(chan int)

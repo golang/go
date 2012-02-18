@@ -512,6 +512,9 @@ func TestStringPowers(t *testing.T) {
 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
 			}
 		}
+		if b >= 3 && testing.Short() {
+			break
+		}
 	}
 }
 
