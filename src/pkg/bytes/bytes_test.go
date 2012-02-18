@@ -46,32 +46,39 @@ type BinOpTest struct {
 	i int
 }
 
-var comparetests = []BinOpTest{
-	{"", "", 0},
-	{"a", "", 1},
-	{"", "a", -1},
-	{"abc", "abc", 0},
-	{"ab", "abc", -1},
-	{"abc", "ab", 1},
-	{"x", "ab", 1},
-	{"ab", "x", -1},
-	{"x", "a", 1},
-	{"b", "x", -1},
+var compareTests = []struct {
+	a, b []byte
+	i    int
+}{
+	{[]byte(""), []byte(""), 0},
+	{[]byte("a"), []byte(""), 1},
+	{[]byte(""), []byte("a"), -1},
+	{[]byte("abc"), []byte("abc"), 0},
+	{[]byte("ab"), []byte("abc"), -1},
+	{[]byte("abc"), []byte("ab"), 1},
+	{[]byte("x"), []byte("ab"), 1},
+	{[]byte("ab"), []byte("x"), -1},
+	{[]byte("x"), []byte("a"), 1},
+	{[]byte("b"), []byte("x"), -1},
+	// nil tests
+	{nil, nil, 0},
+	{[]byte(""), nil, 0},
+	{nil, []byte(""), 0},
+	{[]byte("a"), nil, 1},
+	{nil, []byte("a"), -1},
 }
 
 func TestCompare(t *testing.T) {
-	for _, tt := range comparetests {
-		a := []byte(tt.a)
-		b := []byte(tt.b)
-		cmp := Compare(a, b)
+	for _, tt := range compareTests {
+		cmp := Compare(tt.a, tt.b)
 		if cmp != tt.i {
 			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
 		}
-		eql := Equal(a, b)
+		eql := Equal(tt.a, tt.b)
 		if eql != (tt.i == 0) {
 			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
 		}
-		eql = EqualPortable(a, b)
+		eql = EqualPortable(tt.a, tt.b)
 		if eql != (tt.i == 0) {
 			t.Errorf(`EqualPortable(%q, %q) = %v`, tt.a, tt.b, eql)
 		}
