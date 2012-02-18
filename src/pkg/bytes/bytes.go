@@ -13,6 +13,7 @@ import (
 
 // Compare returns an integer comparing the two byte arrays lexicographically.
 // The result will be 0 if a==b, -1 if a < b, and +1 if a > b
+// A nil argument is equivalent to an empty slice.
 func Compare(a, b []byte) int {
 	m := len(a)
 	if m > len(b) {
@@ -37,6 +38,7 @@ func Compare(a, b []byte) int {
 }
 
 // Equal returns a boolean reporting whether a == b.
+// A nil argument is equivalent to an empty slice.
 func Equal(a, b []byte) bool
 
 func equalPortable(a, b []byte) bool {
