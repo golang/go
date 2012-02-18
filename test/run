@@ -36,9 +36,9 @@ PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
 # TODO: We add the tool directory to the PATH to avoid thinking about a better way.
 PATH="$GOTOOLDIR:$PATH"
 
-RUNFILE="/tmp/gorun-$$-$USER"
-TMP1FILE="/tmp/gotest1-$$-$USER"
-TMP2FILE="/tmp/gotest2-$$-$USER"
+RUNFILE="${TMPDIR:-/tmp}/gorun-$$-$USER"
+TMP1FILE="${TMPDIR:-/tmp}/gotest1-$$-$USER"
+TMP2FILE="${TMPDIR:-/tmp}/gotest2-$$-$USER"
 
 # don't run the machine out of memory: limit individual processes to 4GB.
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
