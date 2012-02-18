@@ -276,7 +276,6 @@ func Remove(name string) error {
 }
 
 // Rename renames a file.
-// If there is an error, it will be of type *PathError.
 func Rename(oldname, newname string) error {
 	var d Dir
 	d.Null()
@@ -340,12 +339,15 @@ func Pipe() (r *File, w *File, err error) {
 // not supported on Plan 9
 
 // Link creates a hard link.
+// If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	return ErrPlan9
+	return &LinkError{"link", oldname, newname, ErrPlan9}
 }
 
+// Symlink creates newname as a symbolic link to oldname.
+// If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	return ErrPlan9
+	return &LinkError{"symlink", oldname, newname, ErrPlan9}
 }
 
 func Readlink(name string) (string, error) {
