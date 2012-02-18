@@ -306,6 +306,9 @@ func TestDeflateInflateString(t *testing.T) {
 			t.Error(err)
 		}
 		testToFromWithLimit(t, gold, test.label, test.limit)
+		if testing.Short() {
+			break
+		}
 	}
 }
 
@@ -363,6 +366,10 @@ func TestWriterDict(t *testing.T) {
 
 // See http://code.google.com/p/go/issues/detail?id=2508
 func TestRegression2508(t *testing.T) {
+	if testing.Short() {
+		t.Logf("test disabled with -short")
+		return
+	}
 	w, err := NewWriter(ioutil.Discard, 1)
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
