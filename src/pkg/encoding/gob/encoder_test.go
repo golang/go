@@ -712,3 +712,27 @@ func TestGobPtrSlices(t *testing.T) {
 		t.Fatal("got %v; wanted %v", out, in)
 	}
 }
+
+// getDecEnginePtr cached engine for ut.base instead of ut.user so we passed
+// a *map and then tried to reuse its engine to decode the inner map.
+func TestPtrToMapOfMap(t *testing.T) {
+	Register(make(map[string]interface{}))
+	subdata := make(map[string]interface{})
+	subdata["bar"] = "baz"
+	data := make(map[string]interface{})
+	data["foo"] = subdata
+
+	b := new(bytes.Buffer)
+	err := NewEncoder(b).Encode(data)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	var newData map[string]interface{}
+	err = NewDecoder(b).Decode(&newData)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if !reflect.DeepEqual(data, newData) {
+		t.Fatalf("expected %v got %v", data, newData)
+	}
+}
