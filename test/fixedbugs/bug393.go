@@ -1,4 +1,4 @@
-// $G $D/$F.go || echo BUG: bug393
+// compile
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
