@@ -1011,6 +1011,7 @@ runtime·oldstack(void)
 {
 	Stktop *top, old;
 	uint32 argsize;
+	uintptr cret;
 	byte *sp;
 	G *g1;
 	int32 goid;
@@ -1034,7 +1035,9 @@ runtime·oldstack(void)
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
-	runtime·gogo(&old.gobuf, m->cret);
+	cret = m->cret;
+	m->cret = 0;  // drop reference
+	runtime·gogo(&old.gobuf, cret);
 }
 
 // Called from reflect·call or from runtime·morestack when a new
