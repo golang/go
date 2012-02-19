@@ -17,7 +17,7 @@
 // See Mullender and Cox, ``Semaphores in Plan 9,''
 // http://swtch.com/semaphore.pdf
 
-package runtime
+package sync
 #include "runtime.h"
 #include "arch_GOARCH.h"
 
@@ -169,10 +169,10 @@ runtime·semrelease(uint32 volatile *addr)
 		runtime·ready(s->g);
 }
 
-func Semacquire(addr *uint32) {
+func runtime_Semacquire(addr *uint32) {
 	runtime·semacquire(addr);
 }
 
-func Semrelease(addr *uint32) {
+func runtime_Semrelease(addr *uint32) {
 	runtime·semrelease(addr);
 }

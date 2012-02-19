@@ -32,18 +32,6 @@ func NumCgoCall() int64
 // NumGoroutine returns the number of goroutines that currently exist.
 func NumGoroutine() int32
 
-// Alloc allocates a block of the given size.
-// FOR TESTING AND DEBUGGING ONLY.
-func Alloc(uintptr) *byte
-
-// Free frees the block starting at the given pointer.
-// FOR TESTING AND DEBUGGING ONLY.
-func Free(*byte)
-
-// Lookup returns the base and size of the block containing the given pointer.
-// FOR TESTING AND DEBUGGING ONLY.
-func Lookup(*byte) (*byte, uintptr)
-
 // MemProfileRate controls the fraction of memory allocations
 // that are recorded and reported in the memory profile.
 // The profiler aims to sample an average of
