@@ -77,6 +77,8 @@ func Getpagesize() int { return 4096 }
 // Errno is the Windows error number.
 type Errno uintptr
 
+func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
+
 func (e Errno) Error() string {
 	// deal with special go errors
 	idx := int(e - APPLICATION_ERROR)
@@ -86,7 +88,7 @@ func (e Errno) Error() string {
 	// ask windows for the remaining errors
 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
-	n, err := FormatMessage(flags, 0, uint32(e), 0, b, nil)
+	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
 	if err != nil {
 		return "error " + itoa(int(e)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
 	}
