@@ -81,6 +81,9 @@ func TestListenMulticastUDP(t *testing.T) {
 		if !found {
 			t.Fatalf("%q not found in RIB", tt.gaddr.String())
 		}
+		if c.LocalAddr().String() != tt.gaddr.String() {
+			t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), tt.gaddr.String())
+		}
 	}
 }
 
@@ -113,6 +116,9 @@ func TestSimpleListenMulticastUDP(t *testing.T) {
 		c, err := ListenMulticastUDP(tt.net, ifi, tt.gaddr)
 		if err != nil {
 			t.Fatalf("ListenMulticastUDP failed: %v", err)
+		}
+		if c.LocalAddr().String() != tt.gaddr.String() {
+			t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), tt.gaddr.String())
 		}
 		c.Close()
 	}

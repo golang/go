@@ -33,13 +33,14 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 		return nil, err
 	}
 
+	var bla syscall.Sockaddr
 	if la != nil {
-		la, err = listenerSockaddr(s, f, la, toAddr)
+		bla, err = listenerSockaddr(s, f, la, toAddr)
 		if err != nil {
 			closesocket(s)
 			return nil, err
 		}
-		err = syscall.Bind(s, la)
+		err = syscall.Bind(s, bla)
 		if err != nil {
 			closesocket(s)
 			return nil, err
@@ -61,7 +62,12 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 	}
 
 	sa, _ := syscall.Getsockname(s)
-	laddr := toAddr(sa)
+	var laddr Addr
+	if la != nil && bla != la {
+		laddr = toAddr(la)
+	} else {
+		laddr = toAddr(sa)
+	}
 	sa, _ = syscall.Getpeername(s)
 	raddr := toAddr(sa)
 

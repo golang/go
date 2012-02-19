@@ -262,7 +262,7 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
 		return nil, UnknownNetworkError(net)
 	}
 	if gaddr == nil || gaddr.IP == nil {
-		return nil, &OpError{"listenmulticastudp", "udp", nil, errMissingAddress}
+		return nil, &OpError{"listenmulticast", net, nil, errMissingAddress}
 	}
 	fd, err := internetSocket(net, gaddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if err != nil {
