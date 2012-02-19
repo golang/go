@@ -18,6 +18,7 @@ import (
 	"crypto/des"
 	"net/url"
 	"os"
+	"runtime"
 )
 
 var (
@@ -29,6 +30,8 @@ var (
 	_ = url.ParseWithReference
 	_ = url.ParseRequest
 	_ = os.Exec
+	_ = runtime.Cgocalls
+	_ = runtime.Goroutines
 )
 `,
 		Out: `package main
@@ -37,6 +40,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"net/url"
+	"runtime"
 	"syscall"
 )
 
@@ -49,6 +53,8 @@ var (
 	_ = url.Parse
 	_ = url.ParseRequestURI
 	_ = syscall.Exec
+	_ = runtime.NumCgoCall
+	_ = runtime.NumGoroutine
 )
 `,
 	},
