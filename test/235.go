@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Solve the 2,3,5 problem (print all numbers with 2, 3, or 5 as factor) using channels.
+// Test the solution, silently.
+
 package main
 
 type T chan uint64

@@ -4,10 +4,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
 // Test that error messages say what the source file says
 // (uint8 vs byte, int32 vs. rune).
+// Does not compile.
+
+package main
 
 import (
 	"fmt"

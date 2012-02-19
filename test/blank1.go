@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test that incorrect uses of the blank identifer are caught.
+// Does not compile.
+
 package _	// ERROR "invalid package name _"
 
 func main() {
