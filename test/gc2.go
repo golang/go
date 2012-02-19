@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check that buffered channels are garbage collected properly.
+// Test that buffered channels are garbage collected properly.
 // An interesting case because they have finalizers and used to
 // have self loops that kept them from being collected.
 // (Cyclic data with finalizers is never finalized, nor collected.)

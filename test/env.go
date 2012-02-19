@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test that the Go environment variables are present and accessible through
+// package os and package runtime.
+
 package main
 
 import (

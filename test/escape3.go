@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test run-time behavior of escape analysis-related optimizations.
+// Test the run-time behavior of escape analysis-related optimizations.
 
 package main
 
