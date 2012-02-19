@@ -209,7 +209,7 @@ func (w *Walker) hardCodedConstantType(name string) (typ string, ok bool) {
 	case "pkg syscall":
 		switch name {
 		case "darwinAMD64":
-			return "ideal-bool", true
+			return "bool", true
 		}
 	}
 	return "", false
@@ -447,7 +447,7 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 			return "ideal-int", nil // hack.
 		}
 		if v.Name == "false" || v.Name == "true" {
-			return "ideal-bool", nil
+			return "bool", nil
 		}
 		if v.Name == "intSize" && w.curPackageName == "strconv" {
 			// Hack.
