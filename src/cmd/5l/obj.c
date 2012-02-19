@@ -301,6 +301,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 
 	a->type = Bgetc(f);
 	a->reg = Bgetc(f);
+	a->flag = Bgetc(f);
 	c = Bgetc(f);
 	if(c < 0 || c > NSYM){
 		print("sym out of range: %d\n", c);
@@ -549,9 +550,9 @@ loop:
 			s->size = p->to.offset;
 		if(p->reg & DUPOK)
 			s->dupok = 1;
-		if(p->from.scale & RODATA)
+		if(p->from.flag & RODATA)
 			s->type = SRODATA;
-		else if(p->from.scale & NOPTR)
+		else if(p->from.flag & NOPTR)
 			s->type = SNOPTRDATA;
 		break;
 

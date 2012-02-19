@@ -76,6 +76,7 @@ struct	Adr
 	uchar	index; // not used on arm, required by ld/go.c
 	char	reg;
 	char	name;
+	char	flag;
 	int32	offset2; // argsize
 	char	class;
 	Sym*	gotype;

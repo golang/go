@@ -93,6 +93,7 @@ zaddr(Biobuf *b, Addr *a, int s)
 	default:
 		Bputc(b, a->type);
 		Bputc(b, a->reg);
+		Bputc(b, a->flag);
 		Bputc(b, s);
 		Bputc(b, a->name);
 	}
