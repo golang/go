@@ -1103,6 +1103,9 @@ runtime·newstack(void)
 	top->argp = m->moreargp;
 	top->argsize = argsize;
 	top->free = free;
+	m->moreargp = nil;
+	m->morebuf.pc = nil;
+	m->morebuf.sp = nil;
 
 	// copy flag from panic
 	top->panic = g1->ispanic;
@@ -1114,7 +1117,7 @@ runtime·newstack(void)
 	sp = (byte*)top;
 	if(argsize > 0) {
 		sp -= argsize;
-		runtime·memmove(sp, m->moreargp, argsize);
+		runtime·memmove(sp, top->argp, argsize);
 	}
 	if(thechar == '5') {
 		// caller would have saved its LR below args.
