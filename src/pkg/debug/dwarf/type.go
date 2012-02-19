@@ -426,6 +426,8 @@ func (d *Data) Type(off Offset) (Type, error) {
 		t.StructName, _ = e.Val(AttrName).(string)
 		t.Incomplete = e.Val(AttrDeclaration) != nil
 		t.Field = make([]*StructField, 0, 8)
+		var lastFieldType Type
+		var lastFieldBitOffset int64
 		for kid := next(); kid != nil; kid = next() {
 			if kid.Tag == TagMember {
 				f := new(StructField)
@@ -444,11 +446,32 @@ func (d *Data) Type(off Offset) (Type, error) {
 						goto Error
 					}
 				}
+
+				haveBitOffset := false
 				f.Name, _ = kid.Val(AttrName).(string)
 				f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
-				f.BitOffset, _ = kid.Val(AttrBitOffset).(int64)
+				f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
 				f.BitSize, _ = kid.Val(AttrBitSize).(int64)
 				t.Field = append(t.Field, f)
+
+				bito := f.BitOffset
+				if !haveBitOffset {
+					bito = f.ByteOffset * 8
+				}
+				if bito == lastFieldBitOffset && t.Kind != "union" {
+					// Last field was zero width.  Fix array length.
+					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
+					zeroArray(lastFieldType)
+				}
+				lastFieldType = f.Type
+				lastFieldBitOffset = bito
+			}
+		}
+		if t.Kind != "union" {
+			b, ok := e.Val(AttrByteSize).(int64)
+			if ok && b*8 == lastFieldBitOffset {
+				// Final field must be zero width.  Fix array length.
+				zeroArray(lastFieldType)
 			}
 		}
 
@@ -578,4 +601,15 @@ Error:
 	// the cache and return success.
 	delete(d.typeCache, off)
 	return nil, err
+}
+
+func zeroArray(t Type) {
+	for {
+		at, ok := t.(*ArrayType)
+		if !ok {
+			break
+		}
+		at.Count = 0
+		t = at.Type
+	}
 }

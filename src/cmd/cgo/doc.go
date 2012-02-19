@@ -16,8 +16,8 @@ the pseudo-package "C" and then refers to types such as C.size_t,
 variables such as C.stdout, or functions such as C.putchar.
 
 If the import of "C" is immediately preceded by a comment, that
-comment is used as a header when compiling the C parts of
-the package.  For example:
+comment, called the preamble, is used as a header when compiling
+the C parts of the package.  For example:
 
 	// #include <stdio.h>
 	// #include <errno.h>
@@ -56,6 +56,8 @@ The C type void* is represented by Go's unsafe.Pointer.
 
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
+
+Go structs cannot embed fields with C types.
 
 Any C function that returns a value may be called in a multiple
 assignment context to retrieve both the return value and the
@@ -100,7 +102,8 @@ They will be available in the C code as:
 	extern int64 MyFunction(int arg1, int arg2, GoString arg3);
 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
 
-found in _cgo_export.h generated header. Functions with multiple
+found in _cgo_export.h generated header, after any preambles
+copied from the cgo input files. Functions with multiple
 return values are mapped to functions returning a struct.
 Not all Go types can be mapped to C types in a useful way.
 

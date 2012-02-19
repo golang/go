@@ -39,6 +39,7 @@ type Package struct {
 	Decl        []ast.Decl
 	GoFiles     []string // list of Go files
 	GccFiles    []string // list of gcc output files
+	Preamble    string   // collected preamble for _cgo_export.h
 }
 
 // A File collects information about a single Go input file.
@@ -98,6 +99,7 @@ type Type struct {
 	C          *TypeRepr
 	Go         ast.Expr
 	EnumValues map[string]int64
+	Typedef    string
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
@@ -312,6 +314,9 @@ func (p *Package) Record(f *File) {
 		}
 	}
 
-	p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
+	if f.ExpFunc != nil {
+		p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
+		p.Preamble += "\n" + f.Preamble
+	}
 	p.Decl = append(p.Decl, f.AST.Decls...)
 }
