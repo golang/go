@@ -1824,17 +1824,16 @@ lexinit(void)
 	// this is the ideal form
 	// (the type of x in const x = "hello").
 	idealstring = typ(TSTRING);
-	idealbool = typ(TBOOL);
 
 	s = pkglookup("true", builtinpkg);
 	s->def = nodbool(1);
 	s->def->sym = lookup("true");
-	s->def->type = idealbool;
+	s->def->type = types[TBOOL];
 
 	s = pkglookup("false", builtinpkg);
 	s->def = nodbool(0);
 	s->def->sym = lookup("false");
-	s->def->type = idealbool;
+	s->def->type = types[TBOOL];
 
 	s = lookup("_");
 	s->block = -100;

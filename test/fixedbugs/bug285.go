@@ -20,7 +20,6 @@ func main() {
 	type B bool
 	b := B(false)
 	mb := make(map[B]int)
-	mb[false] = 42 // this should work: false is assignment compatible with B
 	mb[b] = 42
 
 	type Z int

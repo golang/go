@@ -602,7 +602,7 @@ typefmt(Fmt *fp, Type *t)
 	}
 
 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
-		if(fmtmode == FErr && (t == idealbool || t == idealstring))
+		if(fmtmode == FErr && t == idealstring)
 			fmtstrcpy(fp, "ideal ");
 		return fmtstrcpy(fp, basicnames[t->etype]);
 	}
@@ -1086,7 +1086,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 			return fmtprint(f, "%S", n->sym);
 		if(n->val.ctype == CTNIL)
 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
-		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
+		if(n->type != types[n->type->etype] && n->type != idealstring) {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))
