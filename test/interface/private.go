@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test that unexported methods are not visible outside the package.
+// Does not compile.
+
 package main
 
 import "./private1"
