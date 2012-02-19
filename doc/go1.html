@@ -1635,15 +1635,41 @@ signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT)
 <h3 id="runtime">The runtime package</h3>
 
 <p>
-The <code>runtime</code> package in Go 1 includes a new niladic function,
+In Go 1, much of the API exported by package
+<code>runtime</code> has been removed in favor of
+functionality provided by other packages.
+Code using the <code>runtime.Type</code> interface
+or its specific concrete type implementations should
+now use package <a href="/pkg/reflect/"><code>reflect</code></a>.
+Code using <code>runtime.Semacquire</code> or <code>runtime.Semrelease</code>
+should use channels or the abstractions in package <a href="/pkg/sync/"><code>sync</code></a>.
+The <code>runtime.Alloc</code>, <code>runtime.Free</code>,
+and <code>runtime.Lookup</code> functions, an unsafe API created for
+debugging the memory allocator, have no replacement.
+</p>
+
+<p>
+Before, <code>runtime.MemStats</code> was a global variable holding
+statistics about memory allocation, and calls to <code>runtime.UpdateMemStats</code>
+ensured that it was up to date.
+In Go 1, <code>runtime.MemStats</code> is a struct type, and code should use
+<a href="/pkg/runtime/#ReadMemStats"><code>runtime.ReadMemStats</code></a>
+to obtain the current statistics.
+</p>
+
+<p>
+The package adds a new function,
 <a href="/pkg/runtime/#NumCPU"><code>runtime.NumCPU</code></a>, that returns the number of CPUs available
 for parallel execution, as reported by the operating system kernel.
 Its value can inform the setting of <code>GOMAXPROCS</code>.
+The <code>runtime.Cgocalls</code> and <code>runtime.Goroutines</code> functions
+have been renamed to <code>runtime.NumCgoCall</code> and <code>runtime.NumGoroutine</code>.
 </p>
 
 <p>
 <em>Updating</em>:
-No existing code is affected.
+Running <code>go fix</code> will update code for the function renamings.
+Other code will need to be updated by hand.
 </p>
 
 <h3 id="strconv">The strconv package</h3>
@@ -1779,6 +1805,25 @@ The testing/script package has been deleted. It was a dreg.
 <p>
 <em>Updating</em>:
 No code is likely to be affected.
+</p>
+
+<h3 id="unsafe">The unsafe package</h3>
+
+<p>
+In Go 1, the functions
+<code>unsafe.Typeof</code>, <code>unsafe.Reflect</code>,
+<code>unsafe.Unreflect</code>, <code>unsafe.New</code>, and
+<code>unsafe.NewArray</code> have been removed;
+they duplicated safer functionality provided by
+package <a href="/pkg/reflect/"><code>reflect</code></a>.
+</p>
+
+<p>
+<em>Updating</em>:
+Code using these functions must be rewritten to use
+package <a href="/pkg/reflect/"><code>reflect</code></a>.
+The changes to <a href="http://code.google.com/p/go/source/detail?r=2646dc956207">encoding/gob</a> and the <a href="http://code.google.com/p/goprotobuf/source/detail?r=5340ad310031">protocol buffer library</a>
+may be helpful as examples.
 </p>
 
 <h3 id="url">The url package</h3>
