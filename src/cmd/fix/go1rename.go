@@ -56,4 +56,16 @@ var go1renameReplace = []rename{
 		Old:       "os.Exec",
 		New:       "syscall.Exec",
 	},
+	{
+		OldImport: "runtime",
+		NewImport: "",
+		Old:       "runtime.Cgocalls",
+		New:       "runtime.NumCgoCall",
+	},
+	{
+		OldImport: "runtime",
+		NewImport: "",
+		Old:       "runtime.Goroutines",
+		New:       "runtime.NumGoroutine",
+	},
 }
