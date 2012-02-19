@@ -15,18 +15,14 @@ import (
 )
 
 func main() {
-	ga, e0 := os.Getenverror("GOARCH")
-	if e0 != nil {
-		print("$GOARCH: ", e0.Error(), "\n")
-		os.Exit(1)
-	}
+	ga := os.Getenv("GOARCH")
 	if ga != runtime.GOARCH {
 		print("$GOARCH=", ga, "!= runtime.GOARCH=", runtime.GOARCH, "\n")
 		os.Exit(1)
 	}
-	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")
-	if e1 != os.ENOENV {
-		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.Error(), "\n")
+	xxx := os.Getenv("DOES_NOT_EXIST")
+	if xxx != "" {
+		print("$DOES_NOT_EXIST=", xxx, "\n")
 		os.Exit(1)
 	}
 }

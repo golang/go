@@ -480,8 +480,7 @@ func (b *Builder) envv() []string {
 		"GOROOT_FINAL=/usr/local/go",
 	}
 	for _, k := range extraEnv {
-		s, err := os.Getenverror(k)
-		if err == nil {
+		if s, ok := getenvOk(k); ok {
 			e = append(e, k+"="+s)
 		}
 	}
@@ -497,8 +496,7 @@ func (b *Builder) envvWindows() []string {
 		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
 	}
 	for _, name := range extraEnv {
-		s, err := os.Getenverror(name)
-		if err == nil {
+		if s, ok := getenvOk(name); ok {
 			start[name] = s
 		}
 	}
@@ -781,4 +779,18 @@ func defaultSuffix() string {
 		return ".bat"
 	}
 	return ".bash"
+}
+
+func getenvOk(k string) (v string, ok bool) {
+	v = os.Getenv(k)
+	if v != "" {
+		return v, true
+	}
+	keq := k + "="
+	for _, kv := range os.Environ() {
+		if kv == keq {
+			return "", true
+		}
+	}
+	return "", false
 }

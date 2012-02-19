@@ -1354,7 +1354,14 @@ with more Go-like names, such as
 <a href="/pkg/os/#ErrPermission"><code>ErrPermission</code></a>
 and
 <a href="/pkg/os/#ErrNoEnv"><code>ErrNoEnv</code></a>.
+</p>
 
+<p>
+The <code>Getenverror</code> function has been removed. To distinguish
+between a non-existent environment variable and an empty string,
+use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
+<a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
+</p>
 
 <p>
 <em>Updating</em>:
