@@ -34,6 +34,7 @@
 #define DUPOK	(1<<1)
 #define NOSPLIT	(1<<2)
 #define RODATA	(1<<3)
+#define NOPTR	(1<<4)
 
 /*
  *	amd64

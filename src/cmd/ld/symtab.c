@@ -330,6 +330,8 @@ symtab(void)
 	xdefine("etext", STEXT, 0);
 	xdefine("rodata", SRODATA, 0);
 	xdefine("erodata", SRODATA, 0);
+	xdefine("noptrdata", SBSS, 0);
+	xdefine("enoptrdata", SBSS, 0);
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, 0);
 	xdefine("end", SBSS, 0);

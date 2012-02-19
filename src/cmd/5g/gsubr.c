@@ -253,6 +253,10 @@ ggloblnod(Node *nam, int32 width)
 	p->to.sym = S;
 	p->to.type = D_CONST;
 	p->to.offset = width;
+	if(nam->readonly)
+		p->from.scale = RODATA;
+	if(nam->type != T && !haspointers(nam->type))
+		p->from.scale |= NOPTR;
 }
 
 void

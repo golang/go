@@ -615,7 +615,7 @@ addstring(Sym *s, char *str)
 	int32 r;
 
 	if(s->type == 0)
-		s->type = SDATA;
+		s->type = SNOPTRDATA;
 	s->reachable = 1;
 	r = s->size;
 	n = strlen(str)+1;
@@ -782,7 +782,7 @@ void
 dodata(void)
 {
 	int32 t, datsize;
-	Section *sect;
+	Section *sect, *noptr;
 	Sym *s, *last, **l;
 
 	if(debug['v'])
@@ -887,7 +887,7 @@ dodata(void)
 
 	/* writable ELF sections */
 	datsize = 0;
-	for(; s != nil && s->type < SDATA; s = s->next) {
+	for(; s != nil && s->type < SNOPTRDATA; s = s->next) {
 		sect = addsection(&segdata, s->name, 06);
 		if(s->align != 0)
 			datsize = rnd(datsize, s->align);
@@ -897,17 +897,26 @@ dodata(void)
 		datsize += rnd(s->size, PtrSize);
 		sect->len = datsize - sect->vaddr;
 	}
-
-	/* data */
-	sect = addsection(&segdata, ".data", 06);
+	
+	/* pointer-free data, then data */
+	sect = addsection(&segdata, ".noptrdata", 06);
 	sect->vaddr = datsize;
-	for(; s != nil && s->type < SBSS; s = s->next) {
+	noptr = sect;
+	for(; ; s = s->next) {
+		if((s == nil || s->type >= SDATA) && sect == noptr) {
+			// finish noptrdata, start data
+			datsize = rnd(datsize, 8);
+			sect->len = datsize - sect->vaddr;
+			sect = addsection(&segdata, ".data", 06);
+			sect->vaddr = datsize;
+		}
+		if(s == nil || s->type >= SBSS) {
+			// finish data
+			sect->len = datsize - sect->vaddr;
+			break;
+		}
 		s->type = SDATA;
 		t = s->size;
-		if(t == 0 && s->name[0] != '.') {
-			diag("%s: no size", s->name);
-			t = 1;
-		}
 		if(t >= PtrSize)
 			t = rnd(t, PtrSize);
 		else if(t > 2)
@@ -925,7 +934,6 @@ dodata(void)
 		s->value = datsize;
 		datsize += t;
 	}
-	sect->len = datsize - sect->vaddr;
 
 	/* bss */
 	sect = addsection(&segdata, ".bss", 06);
@@ -996,7 +1004,7 @@ textaddress(void)
 void
 address(void)
 {
-	Section *s, *text, *data, *rodata, *symtab, *pclntab;
+	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -1022,6 +1030,7 @@ address(void)
 	if(HEADTYPE == Hplan9x32)
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
 	data = nil;
+	noptr = nil;
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;
@@ -1029,6 +1038,8 @@ address(void)
 		segdata.len = va - segdata.vaddr;
 		if(strcmp(s->name, ".data") == 0)
 			data = s;
+		if(strcmp(s->name, ".noptrdata") == 0)
+			noptr = s;
 	}
 	segdata.filelen -= data->next->len; // deduct .bss
 
@@ -1039,7 +1050,7 @@ address(void)
 
 	for(sym = datap; sym != nil; sym = sym->next) {
 		cursym = sym;
-		if(sym->type < SDATA)
+		if(sym->type < SNOPTRDATA)
 			sym->value += rodata->vaddr;
 		else
 			sym->value += segdata.sect->vaddr;
@@ -1055,6 +1066,8 @@ address(void)
 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
 	xdefine("pclntab", SRODATA, pclntab->vaddr);
 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+	xdefine("noptrdata", SBSS, noptr->vaddr);
+	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
 	xdefine("data", SBSS, data->vaddr);
 	xdefine("edata", SBSS, data->vaddr + data->len);
 	xdefine("end", SBSS, segdata.vaddr + segdata.len);

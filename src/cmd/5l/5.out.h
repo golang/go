@@ -35,7 +35,8 @@
 #define NOPROF		(1<<0)
 #define DUPOK		(1<<1)
 #define NOSPLIT		(1<<2)
-#define	ALLTHUMBS	(1<<3)
+#define RODATA	(1<<3)
+#define NOPTR	(1<<4)
 
 #define	REGRET		0
 /* -1 disables use of REGARG */
