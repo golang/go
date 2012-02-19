@@ -26,7 +26,7 @@ type String string
 
 func main() {
 	var (
-		b    Bool = true
+		b    Bool = Bool(true)
 		i, j int
 		c    = make(chan int)
 		m    = make(Map)
@@ -34,7 +34,7 @@ func main() {
 
 	asBool(b)
 	asBool(!b)
-	asBool(true)
+	asBool(true) // ERROR "cannot use.*type bool.*as type Bool"
 	asBool(*&b)
 	asBool(Bool(true))
 	asBool(1 != 2) // ERROR "cannot use.*type bool.*as type Bool"

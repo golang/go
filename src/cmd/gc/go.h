@@ -775,7 +775,6 @@ EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;
-EXTERN	Type*	idealbool;
 EXTERN	Type*	bytetype;
 EXTERN	Type*	runetype;
 EXTERN	Type*	errortype;

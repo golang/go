@@ -122,7 +122,7 @@ reexportdep(Node *n)
 
 	case OLITERAL:
 		t = n->type;
-		if(t != types[n->type->etype] && t != idealbool && t != idealstring) {
+		if(t != types[n->type->etype] && t != idealstring) {
 			if(isptr[t->etype])
 				t = t->type;
 			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {

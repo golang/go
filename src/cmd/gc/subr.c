@@ -768,7 +768,7 @@ nodbool(int b)
 	c = nodintconst(0);
 	c->val.ctype = CTBOOL;
 	c->val.u.bval = b;
-	c->type = idealbool;
+	c->type = types[TBOOL];
 	return c;
 }
 
@@ -929,7 +929,7 @@ isideal(Type *t)
 {
 	if(t == T)
 		return 0;
-	if(t == idealstring || t == idealbool)
+	if(t == idealstring)
 		return 1;
 	switch(t->etype) {
 	case TNIL:
