@@ -1,0 +1,9 @@
+The zoneinfo directory contains time zone files compiled using
+the code and data maintained as part of the IANA Time Zone Database.
+The IANA asserts that the database is in the public domain.
+
+For more information, see
+http://www.iana.org/time-zones
+ftp://ftp.iana.org/tz/code/tz-link.htm
+http://tools.ietf.org/html/draft-lear-iana-timezone-database-05
+
