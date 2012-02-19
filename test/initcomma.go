@@ -4,12 +4,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test trailing commas. DO NOT gofmt THIS FILE.
+
 package main
 
-var a = []int{1, 2}
-var b = [5]int{1, 2, 3}
-var c = []int{1}
-var d = [...]int{1, 2, 3}
+var a = []int{1, 2, }
+var b = [5]int{1, 2, 3, }
+var c = []int{1, }
+var d = [...]int{1, 2, 3, }
 
 func main() {
 	if len(a) != 2 {
