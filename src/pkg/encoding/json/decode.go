@@ -496,6 +496,12 @@ func (d *decodeState) object(v reflect.Value) {
 					// Pretend this field doesn't exist.
 					continue
 				}
+				if sf.Anonymous {
+					// Pretend this field doesn't exist,
+					// so that we can do a good job with
+					// these in a later version.
+					continue
+				}
 				// First, tag match
 				tagName, _ := parseTag(tag)
 				if tagName == key {
@@ -963,3 +969,11 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	}
 	return b[0:w], true
 }
+
+// The following is issue 3069.
+
+// BUG(rsc): This package ignores anonymous (embedded) struct fields
+// during encoding and decoding.  A future version may assign meaning
+// to them.  To force an anonymous field to be ignored in all future
+// versions of this package, use an explicit `json:"-"` tag in the struct
+// definition.

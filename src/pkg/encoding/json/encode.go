@@ -538,6 +538,11 @@ func encodeFields(t reflect.Type) []encodeField {
 		if f.PkgPath != "" {
 			continue
 		}
+		if f.Anonymous {
+			// We want to do a better job with these later,
+			// so for now pretend they don't exist.
+			continue
+		}
 		var ef encodeField
 		ef.i = i
 		ef.tag = f.Name
