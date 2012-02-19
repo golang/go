@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test concurrency primitives: prime sieve of Eratosthenes.
+
 // Generate primes up to 100 using channels, checking the results.
 // This sieve is Eratosthenesque and only considers odd candidates.
 // See discussion at <http://blog.onideas.ws/eratosthenes.go>.

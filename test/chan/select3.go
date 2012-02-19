@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Tests verifying the semantics of the select statement
+// Test the semantics of the select statement
 // for basic empty/non-empty cases.
 
 package main
