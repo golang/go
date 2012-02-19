@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test variadic functions and calls (dot-dot-dot).
+
 package main
 
 func sum(args ...int) int {

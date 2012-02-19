@@ -4,11 +4,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// does not compile and should not compile
+// Test that result parameters are in the same scope as regular parameters.
+// Does not compile.
 
 package main
 
-func f1(a int) (int, float32) { // BUG (not caught by compiler): multiple return values must have names
+func f1(a int) (int, float32) {
 	return 7, 7.0
 }
 

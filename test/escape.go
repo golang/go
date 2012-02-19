@@ -6,8 +6,8 @@
 
 package main
 
-// check for correct heap-moving of escaped variables.
-// it is hard to check for the allocations, but it is easy
+// Test for correct heap-moving of escaped variables.
+// It is hard to check for the allocations, but it is easy
 // to check that if you call the function twice at the
 // same stack level, the pointers returned should be
 // different.

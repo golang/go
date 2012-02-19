@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Verify goto semantics.
+// Does not compile.
+//
 // Each test is in a separate function just so that if the
 // compiler stops processing after one error, we don't
 // lose other ones.

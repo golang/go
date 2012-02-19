@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test floating-point comparison involving NaN.
+
 package main
 
 import "math"
