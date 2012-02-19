@@ -51,7 +51,7 @@ func fields(s string) []string {
 	return a
 }
 
-func loadZoneData(s string) (l *Location, err error) {
+func loadZoneDataPlan9(s string) (l *Location, err error) {
 	f := fields(s)
 	if len(f) < 4 {
 		if len(f) == 2 && f[0] == "GMT" {
@@ -112,33 +112,32 @@ func loadZoneData(s string) (l *Location, err error) {
 	return l, nil
 }
 
-func loadZoneFile(name string) (*Location, error) {
+func loadZoneFilePlan9(name string) (*Location, error) {
 	b, err := readFile(name)
 	if err != nil {
 		return nil, err
 	}
-	return loadZoneData(string(b))
+	return loadZoneDataPlan9(string(b))
 }
 
 func initTestingZone() {
-	if z, err := loadZoneFile("/adm/timezone/US_Pacific"); err == nil {
-		localLoc = *z
-		return
+	z, err := loadLocation("America/Los_Angeles")
+	if err != nil {
+		panic("cannot load America/Los_Angeles for testing: " + err.Error())
 	}
-
-	// Fall back to UTC.
-	localLoc.name = "UTC"
+	z.name = "Local"
+	localLoc = *z
 }
 
 func initLocal() {
 	t, ok := syscall.Getenv("timezone")
 	if ok {
-		if z, err := loadZoneData(t); err == nil {
+		if z, err := loadZoneDataPlan9(t); err == nil {
 			localLoc = *z
 			return
 		}
 	} else {
-		if z, err := loadZoneFile("/adm/timezone/local"); err == nil {
+		if z, err := loadZoneFilePlan9("/adm/timezone/local"); err == nil {
 			localLoc = *z
 			localLoc.name = "Local"
 			return
@@ -150,7 +149,8 @@ func initLocal() {
 }
 
 func loadLocation(name string) (*Location, error) {
-	if z, err := loadZoneFile("/adm/timezone/" + name); err == nil {
+	if z, err := loadZoneFile(runtime.GOROOT() + "/lib/time/zoneinfo/" + name); err == nil {
+		z.name = name
 		return z, nil
 	}
 	return nil, errors.New("unknown time zone " + name)

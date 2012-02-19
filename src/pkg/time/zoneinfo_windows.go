@@ -151,7 +151,10 @@ func initLocal() {
 	initLocalFromTZI(&i)
 }
 
-// TODO(rsc): Implement.
 func loadLocation(name string) (*Location, error) {
+	if z, err := loadZoneFile(runtime.GOROOT() + `\lib\time\zoneinfo\` + name); err == nil {
+		z.name = name
+		return z, nil
+	}
 	return nil, errors.New("unknown time zone " + name)
 }
