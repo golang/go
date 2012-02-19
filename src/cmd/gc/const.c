@@ -660,6 +660,14 @@ evconst(Node *n)
 		}
 		mpdivfltflt(v.u.fval, rv.u.fval);
 		break;
+	case TUP(OMOD, CTFLT):
+		// The default case above would print 'ideal % ideal',
+		// which is not quite an ideal error.
+		if(!n->diag) {
+			yyerror("illegal constant expression: floating-point %% operation");
+			n->diag = 1;
+		}
+		return;
 	case TUP(OADD, CTCPLX):
 		mpaddfltflt(&v.u.cval->real, &rv.u.cval->real);
 		mpaddfltflt(&v.u.cval->imag, &rv.u.cval->imag);
