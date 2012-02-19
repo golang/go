@@ -11,9 +11,10 @@ CODE=2011i
 DATA=2011n
 
 set -e
-rm -rf zoneinfo work
-mkdir zoneinfo work
+rm -rf work
+mkdir work
 cd work
+mkdir zoneinfo
 curl -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
 curl -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
 tar xzf tzcode$CODE.tar.gz
@@ -23,23 +24,27 @@ tar xzf tzdata$DATA.tar.gz
 # We don't need those until 2037.
 perl -p -i -e 's/pass <= 2/pass <= 1/' zic.c
 
-make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=../zoneinfo posix_only
+make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only
 
 # America/Los_Angeles should not be bigger than 1100 bytes.
 # If it is, we probably failed to disable the 64-bit output, which
 # triples the size of the files.
-size=$(ls -l ../zoneinfo/America/Los_Angeles | awk '{print $5}')
+size=$(ls -l zoneinfo/America/Los_Angeles | awk '{print $5}')
 if [ $size -gt 1200 ]; then
 	echo 'zone file too large; 64-bit edit failed?' >&2
 	exit 2
 fi
 
-cd ..
-hg addremove zoneinfo
+cd zoneinfo
+rm -f ../../zoneinfo.zip
+zip -0 -r ../../zoneinfo.zip *
+cd ../..
+
 echo
 if [ "$1" == "-work" ]; then 
 	echo Left workspace behind in work/.
 else
 	rm -rf work
 fi
-echo New time zone files in zoneinfo/.
+echo New time zone files in zoneinfo.zip.
+

@@ -183,9 +183,10 @@ var zoneinfo, _ = syscall.Getenv("ZONEINFO")
 //
 // The time zone database needed by LoadLocation may not be
 // present on all systems, especially non-Unix systems.
-// LoadLocation looks in the directory named by the ZONEINFO environment
-// variable, if any, then looks in known installation locations on Unix systems,
-// and finally looks in $GOROOT/lib/time/zoneinfo.
+// LoadLocation looks in the directory or uncompressed zip file
+// named by the ZONEINFO environment variable, if any, then looks in
+// known installation locations on Unix systems,
+// and finally looks in $GOROOT/lib/time/zoneinfo.zip.
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil
@@ -194,7 +195,7 @@ func LoadLocation(name string) (*Location, error) {
 		return Local, nil
 	}
 	if zoneinfo != "" {
-		if z, err := loadZoneFile(zoneinfo + "/" + name); err == nil {
+		if z, err := loadZoneFile(zoneinfo, name); err == nil {
 			z.name = name
 			return z, nil
 		}

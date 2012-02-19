@@ -194,10 +194,148 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 	return l, nil
 }
 
-func loadZoneFile(name string) (l *Location, err error) {
+func loadZoneFile(dir, name string) (l *Location, err error) {
+	if len(dir) > 4 && dir[len(dir)-4:] == ".zip" {
+		return loadZoneZip(dir, name)
+	}
+	if dir != "" {
+		name = dir + "/" + name
+	}
 	buf, err := readFile(name)
 	if err != nil {
 		return
 	}
 	return loadZoneData(buf)
+}
+
+// There are 500+ zoneinfo files.  Rather than distribute them all
+// individually, we ship them in an uncompressed zip file.
+// Used this way, the zip file format serves as a commonly readable
+// container for the individual small files.  We choose zip over tar
+// because zip files have a contiguous table of contents, making
+// individual file lookups faster, and because the per-file overhead
+// in a zip file is considerably less than tar's 512 bytes.
+
+// get4 returns the little-endian 32-bit value in b.
+func get4(b []byte) int {
+	if len(b) < 4 {
+		return 0
+	}
+	return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 | int(b[3])<<24
+}
+
+// get2 returns the little-endian 16-bit value in b.
+func get2(b []byte) int {
+	if len(b) < 2 {
+		return 0
+	}
+	return int(b[0]) | int(b[1])<<8
+}
+
+func loadZoneZip(zipfile, name string) (l *Location, err error) {
+	fd, err := open(zipfile)
+	if err != nil {
+		return nil, errors.New("open " + zipfile + ": " + err.Error())
+	}
+	defer closefd(fd)
+
+	const (
+		zecheader = 0x06054b50
+		zcheader  = 0x02014b50
+		ztailsize = 22
+
+		zheadersize = 30
+		zheader     = 0x04034b50
+	)
+
+	buf := make([]byte, ztailsize)
+	if err := preadn(fd, buf, -ztailsize); err != nil || get4(buf) != zecheader {
+		return nil, errors.New("corrupt zip file " + zipfile)
+	}
+	n := get2(buf[10:])
+	size := get4(buf[12:])
+	off := get4(buf[16:])
+
+	buf = make([]byte, size)
+	if err := preadn(fd, buf, off); err != nil {
+		return nil, errors.New("corrupt zip file " + zipfile)
+	}
+
+	for i := 0; i < n; i++ {
+		// zip entry layout:
+		//	0	magic[4]
+		//	4	madevers[1]
+		//	5	madeos[1]
+		//	6	extvers[1]
+		//	7	extos[1]
+		//	8	flags[2]
+		//	10	meth[2]
+		//	12	modtime[2]
+		//	14	moddate[2]
+		//	16	crc[4]
+		//	20	csize[4]
+		//	24	uncsize[4]
+		//	28	namelen[2]
+		//	30	xlen[2]
+		//	32	fclen[2]
+		//	34	disknum[2]
+		//	36	iattr[2]
+		//	38	eattr[4]
+		//	42	off[4]
+		//	46	name[namelen]
+		//	46+namelen+xlen+fclen - next header
+		//		
+		if get4(buf) != zcheader {
+			break
+		}
+		meth := get2(buf[10:])
+		size := get4(buf[24:])
+		namelen := get2(buf[28:])
+		xlen := get2(buf[30:])
+		fclen := get2(buf[32:])
+		off := get4(buf[42:])
+		zname := buf[46 : 46+namelen]
+		buf = buf[46+namelen+xlen+fclen:]
+		if string(zname) != name {
+			continue
+		}
+		if meth != 0 {
+			return nil, errors.New("unsupported compression for " + name + " in " + zipfile)
+		}
+
+		// zip per-file header layout:
+		//	0	magic[4]
+		//	4	extvers[1]
+		//	5	extos[1]
+		//	6	flags[2]
+		//	8	meth[2]
+		//	10	modtime[2]
+		//	12	moddate[2]
+		//	14	crc[4]
+		//	18	csize[4]
+		//	22	uncsize[4]
+		//	26	namelen[2]
+		//	28	xlen[2]
+		//	30	name[namelen]
+		//	30+namelen+xlen - file data
+		//
+		buf = make([]byte, zheadersize+namelen)
+		if err := preadn(fd, buf, off); err != nil ||
+			get4(buf) != zheader ||
+			get2(buf[8:]) != meth ||
+			get2(buf[26:]) != namelen ||
+			string(buf[30:30+namelen]) != name {
+			return nil, errors.New("corrupt zip file " + zipfile)
+		}
+		xlen = get2(buf[28:])
+
+		buf = make([]byte, size)
+		if err := preadn(fd, buf, off+30+namelen+xlen); err != nil {
+			return nil, errors.New("corrupt zip file " + zipfile)
+		}
+
+		return loadZoneData(buf)
+	}
+
+	return nil, errors.New("cannot find " + name + " in zip file " + zipfile)
 }
