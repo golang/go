@@ -1853,7 +1853,24 @@ Code that uses the old fields will fail to compile and must be updated by hand.
 The semantic changes make it difficult for the fix tool to update automatically.
 </p>
 
-<h2 id="go_command">The go command</h2>
+<h2 id="cmd_go">The go command</h2>
+
+<p>
+TODO: Write this.
+</p>
+
+<h2 id="cmd_cgo">The cgo command</h2>
+
+<p>
+In Go 1, the <a href="/cmd/cgo">cgo command</a>
+uses a different <code>_cgo_export.h</code>
+file, which is generated for packages containing <code>//export</code> lines.
+The <code>_cgo_export.h</code> file now begins with the C preamble comment,
+so that exported function definitions can use types defined there.
+This has the effect of compiling the preamble multiple times, so a
+package using <code>//export</code> must not put function definitions
+or variable initializations in the C preamble.
+</p
 
 <h2 id="releases">Packaged releases</h2>
 

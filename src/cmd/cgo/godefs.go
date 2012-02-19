@@ -80,7 +80,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
 	// and xxx is a typedef for yyy, make C.yyy format as T.
 	for typ, def := range typedef {
 		if new := override[typ]; new != "" {
-			if id, ok := def.(*ast.Ident); ok {
+			if id, ok := def.Go.(*ast.Ident); ok {
 				override[id.Name] = new
 			}
 		}

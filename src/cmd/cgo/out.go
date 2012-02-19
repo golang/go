@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
 
 	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
-		conf.Fprint(fgo2, fset, def)
+		conf.Fprint(fgo2, fset, def.Go)
 		fmt.Fprintf(fgo2, "\n\n")
 	}
 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
@@ -196,7 +196,11 @@ func (p *Package) structType(n *Name) (string, int64) {
 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
 			off += pad
 		}
-		fmt.Fprintf(&buf, "\t\t%s p%d;\n", t.C, i)
+		c := t.Typedef
+		if c == "" {
+			c = t.C.String()
+		}
+		fmt.Fprintf(&buf, "\t\t%s p%d;\n", c, i)
 		off += t.Size
 	}
 	if off%p.PtrSize != 0 {
@@ -428,6 +432,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 	fgcch := creat(*objDir + "_cgo_export.h")
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
 	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
@@ -693,10 +698,8 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 				}
 			}
 		}
-		for name, def := range typedef {
-			if name == t.Name {
-				return p.cgoType(def)
-			}
+		if def := typedef[t.Name]; def != nil {
+			return def
 		}
 		if t.Name == "uintptr" {
 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
@@ -721,7 +724,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 		}
 	}
-	error_(e.Pos(), "unrecognized Go type %T", e)
+	error_(e.Pos(), "Go type not supported in export: %s", gofmt(e))
 	return &Type{Size: 4, Align: 4, C: c("int")}
 }
 

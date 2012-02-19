@@ -28,8 +28,13 @@ typedef struct my_struct {
 	volatile int vi;
 	char x : 1;
 	int y : 4;
+	int z[0];
 	long long array[40];
+	int zz[0];
 } t_my_struct;
+typedef struct my_struct1 {
+	int zz [1];
+} t_my_struct1;
 typedef union my_union {
 	volatile int vi;
 	char x : 1;
@@ -65,7 +70,8 @@ t_func_void_of_char *a9;
 t_func_void_of_void *a10;
 t_func_void_of_ptr_char_dots *a11;
 t_my_struct *a12;
-t_my_union *a12a;
+t_my_struct1 *a12a;
+t_my_union *a12b;
 t_my_enum *a13;
 t_my_list *a14;
 t_my_tree *a15;

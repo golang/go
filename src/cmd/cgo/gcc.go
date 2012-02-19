@@ -709,7 +709,7 @@ func (p *Package) rewriteRef(f *File) {
 			// Substitute definition for mangled type name.
 			if id, ok := expr.(*ast.Ident); ok {
 				if t := typedef[id.Name]; t != nil {
-					expr = t
+					expr = t.Go
 				}
 				if id.Name == r.Name.Mangle && r.Name.Const != "" {
 					expr = ast.NewIdent(r.Name.Const)
@@ -894,7 +894,7 @@ type typeConv struct {
 }
 
 var tagGen int
-var typedef = make(map[string]ast.Expr)
+var typedef = make(map[string]*Type)
 var goIdent = make(map[string]*ast.Ident)
 
 func (c *typeConv) Init(ptrSize int64) {
@@ -1164,17 +1164,22 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		goIdent[name.Name] = name
 		switch dt.Kind {
 		case "union", "class":
-			typedef[name.Name] = c.Opaque(t.Size)
 			if t.C.Empty() {
 				t.C.Set("typeof(unsigned char[%d])", t.Size)
 			}
+			typedef[name.Name] = t
 		case "struct":
 			g, csyntax, align := c.Struct(dt, pos)
 			if t.C.Empty() {
 				t.C.Set(csyntax)
 			}
 			t.Align = align
-			typedef[name.Name] = g
+			tt := *t
+			if tag != "" {
+				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
+			}
+			tt.Go = g
+			typedef[name.Name] = &tt
 		}
 
 	case *dwarf.TypedefType:
@@ -1203,7 +1208,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		t.Size = sub.Size
 		t.Align = sub.Align
 		if _, ok := typedef[name.Name]; !ok {
-			typedef[name.Name] = sub.Go
+			tt := *t
+			tt.Go = sub.Go
+			typedef[name.Name] = &tt
 		}
 		if *godefs || *cdefs {
 			t.Go = sub.Go
@@ -1250,7 +1257,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			}
 			s = strings.Join(strings.Split(s, " "), "") // strip spaces
 			name := c.Ident("_Ctype_" + s)
-			typedef[name.Name] = t.Go
+			tt := *t
+			typedef[name.Name] = &tt
 			if !*godefs && !*cdefs {
 				t.Go = name
 			}
@@ -1288,9 +1296,18 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
 		if ptr, ok := base(dt.Type).(*dwarf.PtrType); ok {
 			// Unless the typedef happens to point to void* since
 			// Go has special rules around using unsafe.Pointer.
-			if _, void := base(ptr.Type).(*dwarf.VoidType); !void {
-				return c.Type(ptr, pos)
+			if _, void := base(ptr.Type).(*dwarf.VoidType); void {
+				break
 			}
+
+			t = c.Type(ptr, pos)
+			if t == nil {
+				return nil
+			}
+
+			// Remember the C spelling, in case the struct
+			// has __attribute__((unavailable)) on it.  See issue 2888.
+			t.Typedef = dt.Name
 		}
 	}
 	return t
@@ -1443,7 +1460,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		off = dt.ByteSize
 	}
 	if off != dt.ByteSize {
-		fatalf("%s: struct size calculation error", lineno(pos))
+		fatalf("%s: struct size calculation error off=%d bytesize=%d", lineno(pos), off, dt.ByteSize)
 	}
 	buf.WriteString("}")
 	csyntax = buf.String()
