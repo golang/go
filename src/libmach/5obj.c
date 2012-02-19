@@ -112,7 +112,7 @@ addr(Biobuf *bp)
 	long off;
 
 	a.type = Bgetc(bp);	/* a.type */
-	skip(bp,1);		/* reg */
+	skip(bp,2);		/* reg, flag */
 	a.sym = Bgetc(bp);	/* sym index */
 	a.name = Bgetc(bp);	/* sym type */
 	switch(a.type){

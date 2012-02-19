@@ -74,6 +74,7 @@ enum {
 	ElfStrRelPlt,
 	ElfStrPlt,
 	ElfStrNoteNetbsdIdent,
+	ElfStrNoPtrData,
 	NElfStr
 };
 
@@ -164,6 +165,7 @@ doelf(void)
 
 	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
 	if(HEADTYPE == Hnetbsd)
