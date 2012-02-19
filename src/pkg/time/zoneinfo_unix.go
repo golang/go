@@ -18,7 +18,7 @@ import (
 )
 
 func initTestingZone() {
-	z, err := loadZoneFile(runtime.GOROOT() + "/lib/time/zoneinfo/" + "America/Los_Angeles")
+	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", "America/Los_Angeles")
 	if err != nil {
 		panic("cannot load America/Los_Angeles for testing: " + err.Error())
 	}
@@ -44,7 +44,7 @@ func initLocal() {
 	tz, ok := syscall.Getenv("TZ")
 	switch {
 	case !ok:
-		z, err := loadZoneFile("/etc/localtime")
+		z, err := loadZoneFile("", "/etc/localtime")
 		if err == nil {
 			localLoc = *z
 			localLoc.name = "Local"
@@ -63,7 +63,7 @@ func initLocal() {
 
 func loadLocation(name string) (*Location, error) {
 	for _, zoneDir := range zoneDirs {
-		if z, err := loadZoneFile(zoneDir + name); err == nil {
+		if z, err := loadZoneFile(zoneDir, name); err == nil {
 			z.name = name
 			return z, nil
 		}
