@@ -7,7 +7,7 @@
 -->
 
 
-<!-- Center the tables, and disable the 1995 3D borders -->
+<!-- Center the tables, and disable the 1995-era 3D borders -->
 <style>
 table { margin-left: auto; margin-right: auto; border-style: none; }
 hr { border-style: none; border-top: 1px solid black; }
@@ -889,7 +889,7 @@ Running <code>go fix</code> will update calls that assign the error to _.
 Calls that aren't fixed will be caught by the compiler and must be updated by hand.
 </p>
 
-<h3 id="bufio">The compress/flate, compress/gzip and compress/zlib packages</h3>
+<h3 id="compress">The compress/flate, compress/gzip and compress/zlib packages</h3>
 
 <p>
 In Go 1, the <code>NewWriterXxx</code> functions in
@@ -1418,24 +1418,44 @@ The semantic change makes it difficult for the fix tool to update automatically.
 
 <h3 id="os">The os package</h3>
 
-<p>The <code>Time</code> function has been removed; callers should use
+<p>
+The <code>Time</code> function has been removed; callers should use
 the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
-<code>time</code> package.</p>
+<code>time</code> package.
+</p>
 
-<p>The <code>Exec</code> function has been removed; callers should use
-<code>Exec</code> from the <code>syscall</code> package, where available.</p>
+<p>
+The <code>Exec</code> function has been removed; callers should use
+<code>Exec</code> from the <code>syscall</code> package, where available.
+</p>
 
-<p>The <code>ShellExpand</code> function has been renamed to <a
-href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.</p>
+<p>
+The <code>ShellExpand</code> function has been renamed to <a
+href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.
+</p>
 
-<p>The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
+<p>
+The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
 now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
 The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
-also returns a <code>uintptr</code>.</p>
+also returns a <code>uintptr</code>.
+</p>
+
+<p>
+There are no longer error constants such as <code>EINVAL</code>
+in the <code>os</code> package, since the set of values varied with
+the underlying operating system. There are new portable functions like
+<a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>
+to test common error properties, plus a few new error values
+with more Go-like names, such as
+<a href="/pkg/os/#ErrPermission"><code>ErrPermission</code></a>
+and
+<a href="/pkg/os/#ErrNoEnv"><code>ErrNoEnv</code></a>.
+
 
 <p>
 <em>Updating</em>:
-What little code is affected will be caught by the compiler and must be updated by hand.
+Affected code will be caught by the compiler and must be updated by hand.
 </p>
 
 <h4 id="os_fileinfo">The os.FileInfo type</h4>
@@ -1572,7 +1592,7 @@ will need to be updated by hand.
 The compiler will catch code using the old interface.
 </p>
 
-<h3 id="os/signal">The os/signal package</h3>
+<h3 id="os_signal">The os/signal package</h3>
 
 <p>
 The <code>os/signal</code> package in Go 1 replaces the
