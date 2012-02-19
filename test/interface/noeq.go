@@ -4,7 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Interface values containing types that cannot be compared for equality.
+// Test run-time error detection for interface values containing types
+// that cannot be compared for equality.
 
 package main
 

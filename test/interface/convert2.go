@@ -4,8 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check that static interface conversion of
-// interface value nil succeeds.
+// Test static interface conversion of interface value nil.
 
 package main
 

@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check that the mutually recursive types in recursive1.go made it
+// Test that the mutually recursive types in recursive1.go made it
 // intact and with the same meaning, by assigning to or using them.
 
 package main

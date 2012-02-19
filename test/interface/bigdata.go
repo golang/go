@@ -4,8 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// check that big vs small, pointer vs not
-// interface methods work.
+// Test big vs. small, pointer vs. value interface methods.
 
 package main
 

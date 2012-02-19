@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check that interface conversion fails when method is missing.
+// Test that interface conversion fails when method is missing.
 
 package main
 

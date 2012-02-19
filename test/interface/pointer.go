@@ -4,7 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check that interface{M()} = *interface{M()} produces a compiler error.
+// Test that interface{M()} = *interface{M()} produces a compiler error.
+// Does not compile.
 
 package main
 
