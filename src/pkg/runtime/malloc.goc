@@ -446,18 +446,6 @@ runtime·stackfree(void *v, uintptr n)
 	runtime·free(v);
 }
 
-func Alloc(n uintptr) (p *byte) {
-	p = runtime·malloc(n);
-}
-
-func Free(p *byte) {
-	runtime·free(p);
-}
-
-func Lookup(p *byte) (base *byte, size uintptr) {
-	runtime·mlookup(p, &base, &size, nil);
-}
-
 func GC() {
 	runtime·gc(1);
 }

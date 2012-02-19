@@ -4,10 +4,7 @@
 
 package sync
 
-import (
-	"runtime"
-	"sync/atomic"
-)
+import "sync/atomic"
 
 // An RWMutex is a reader/writer mutual exclusion lock.
 // The lock can be held by an arbitrary number of readers
@@ -29,7 +26,7 @@ const rwmutexMaxReaders = 1 << 30
 func (rw *RWMutex) RLock() {
 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
 		// A writer is pending, wait for it.
-		runtime.Semacquire(&rw.readerSem)
+		runtime_Semacquire(&rw.readerSem)
 	}
 }
 
@@ -42,7 +39,7 @@ func (rw *RWMutex) RUnlock() {
 		// A writer is pending.
 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
 			// The last reader unblocks the writer.
-			runtime.Semrelease(&rw.writerSem)
+			runtime_Semrelease(&rw.writerSem)
 		}
 	}
 }
@@ -60,7 +57,7 @@ func (rw *RWMutex) Lock() {
 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
-		runtime.Semacquire(&rw.writerSem)
+		runtime_Semacquire(&rw.writerSem)
 	}
 }
 
@@ -75,7 +72,7 @@ func (rw *RWMutex) Unlock() {
 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
 	// Unblock blocked readers, if any.
 	for i := 0; i < int(r); i++ {
-		runtime.Semrelease(&rw.readerSem)
+		runtime_Semrelease(&rw.readerSem)
 	}
 	// Allow other writers to proceed.
 	rw.w.Unlock()

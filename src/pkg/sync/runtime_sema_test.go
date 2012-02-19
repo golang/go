@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package runtime_test
+package sync_test
 
 import (
 	"runtime"
+	. "sync"
 	"sync/atomic"
 	"testing"
 )
@@ -25,8 +26,8 @@ func BenchmarkSemaUncontended(b *testing.B) {
 			for atomic.AddInt32(&N, -1) >= 0 {
 				runtime.Gosched()
 				for g := 0; g < CallsPerSched; g++ {
-					runtime.Semrelease(&sem.sem)
-					runtime.Semacquire(&sem.sem)
+					Runtime_Semrelease(&sem.sem)
+					Runtime_Semacquire(&sem.sem)
 				}
 			}
 			c <- true
@@ -48,7 +49,7 @@ func benchmarkSema(b *testing.B, block, work bool) {
 	if block {
 		for p := 0; p < procs/2; p++ {
 			go func() {
-				runtime.Semacquire(&sem)
+				Runtime_Semacquire(&sem)
 				c2 <- true
 			}()
 		}
@@ -59,18 +60,18 @@ func benchmarkSema(b *testing.B, block, work bool) {
 			for atomic.AddInt32(&N, -1) >= 0 {
 				runtime.Gosched()
 				for g := 0; g < CallsPerSched; g++ {
-					runtime.Semrelease(&sem)
+					Runtime_Semrelease(&sem)
 					if work {
 						for i := 0; i < LocalWork; i++ {
 							foo *= 2
 							foo /= 2
 						}
 					}
-					runtime.Semacquire(&sem)
+					Runtime_Semacquire(&sem)
 				}
 			}
 			c <- foo == 42
-			runtime.Semrelease(&sem)
+			Runtime_Semrelease(&sem)
 		}()
 	}
 	if block {

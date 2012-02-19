@@ -4,10 +4,7 @@
 
 package sync
 
-import (
-	"runtime"
-	"sync/atomic"
-)
+import "sync/atomic"
 
 // A WaitGroup waits for a collection of goroutines to finish.
 // The main goroutine calls Add to set the number of
@@ -60,7 +57,7 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 	wg.m.Lock()
 	for i := int32(0); i < wg.waiters; i++ {
-		runtime.Semrelease(wg.sema)
+		runtime_Semrelease(wg.sema)
 	}
 	wg.waiters = 0
 	wg.sema = nil
@@ -93,5 +90,5 @@ func (wg *WaitGroup) Wait() {
 	}
 	s := wg.sema
 	wg.m.Unlock()
-	runtime.Semacquire(s)
+	runtime_Semacquire(s)
 }
