@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Issue 2075
+// Test for select: Issue 2075
 // A bug in select corrupts channel queues of failed cases
 // if there are multiple waiters on those channels and the
 // select is the last in the queue. If further waits are made

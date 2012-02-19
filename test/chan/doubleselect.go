@@ -4,8 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This test is designed to flush out the case where two cases of a select can
+// Test the situation in which two cases of a select can
 // both end up running. See http://codereview.appspot.com/180068.
+
 package main
 
 import (

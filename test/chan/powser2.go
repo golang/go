@@ -4,15 +4,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test concurrency primitives: power series.
+
+// Like powser1.go but uses channels of interfaces.
+// Has not been cleaned up as much as powser1.go, to keep
+// it distinct and therefore a different test.
+
 // Power series package
 // A power series is a channel, along which flow rational
 // coefficients.  A denominator of zero signifies the end.
 // Original code in Newsqueak by Doug McIlroy.
 // See Squinting at Power Series by Doug McIlroy,
 //   http://www.cs.bell-labs.com/who/rsc/thread/squint.pdf
-// Like powser1.go but uses channels of interfaces.
-// Has not been cleaned up as much as powser1.go, to keep
-// it distinct and therefore a different test.
 
 package main
 

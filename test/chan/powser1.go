@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test concurrency primitives: power series.
+
 // Power series package
 // A power series is a channel, along which flow rational
 // coefficients.  A denominator of zero signifies the end.

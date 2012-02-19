@@ -4,8 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Verify channel operations that test for blocking
-// Use several sizes and types of operands
+// Test channel operations that test for blocking.
+// Use several sizes and types of operands.
 
 package main
 

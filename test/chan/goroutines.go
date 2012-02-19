@@ -4,8 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// make a lot of goroutines, threaded together.
-// tear them down cleanly.
+// Torture test for goroutines.
+// Make a lot of goroutines, threaded together, and tear them down cleanly.
 
 package main
 
