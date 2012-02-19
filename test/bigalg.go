@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test the internal "algorithms" for objects larger than a word: hashing, equality etc.
+
 package main
 
 type T struct {
