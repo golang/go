@@ -8,10 +8,9 @@ package time
 
 import (
 	"errors"
+	"runtime"
 	"syscall"
 )
-
-var badData = errors.New("malformed time zone information")
 
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n'
@@ -149,7 +148,7 @@ func initLocal() {
 }
 
 func loadLocation(name string) (*Location, error) {
-	if z, err := loadZoneFile(runtime.GOROOT() + "/lib/time/zoneinfo/" + name); err == nil {
+	if z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name); err == nil {
 		z.name = name
 		return z, nil
 	}
