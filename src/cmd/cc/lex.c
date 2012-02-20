@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 
 	case 'l':			/* for little-endian mips */
 		if(thechar != 'v'){
-			print("can only use -l with vc");
+			print("can only use -l with vc\n");
 			errorexit();
 		}
 		thechar = '0';
