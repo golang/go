@@ -56,7 +56,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	<-c
 	<-c
 
-	w, err := p.Wait(0)
+	w, err := p.Wait()
 	if err != nil {
 		fatalf("%s", err)
 	}

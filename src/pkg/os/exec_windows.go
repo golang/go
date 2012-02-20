@@ -13,7 +13,7 @@ import (
 
 // Wait waits for the Process to exit or stop, and then returns a
 // Waitmsg describing its status and an error, if any.
-func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+func (p *Process) Wait() (w *Waitmsg, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:

@@ -56,20 +56,6 @@ type Waitmsg struct {
 	Rusage             *syscall.Rusage // System-dependent resource usage info.
 }
 
-// Wait waits for process pid to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any. The options
-// (WNOHANG etc.) affect the behavior of the Wait call.
-// Wait is equivalent to calling FindProcess and then Wait
-// and Release on the result.
-func Wait(pid int, options int) (w *Waitmsg, err error) {
-	p, e := FindProcess(pid)
-	if e != nil {
-		return nil, e
-	}
-	defer p.Release()
-	return p.Wait(options)
-}
-
 // Convert i to decimal string.
 func itod(i int) string {
 	if i == 0 {

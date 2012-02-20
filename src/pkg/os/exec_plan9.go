@@ -70,9 +70,8 @@ type Waitmsg struct {
 }
 
 // Wait waits for the Process to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any. The options
-// (WNOHANG etc.) affect the behavior of the Wait call.
-func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+// Waitmsg describing its status and an error, if any.
+func (p *Process) Wait() (w *Waitmsg, err error) {
 	var waitmsg syscall.Waitmsg
 
 	if p.Pid == -1 {
@@ -93,20 +92,6 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	}
 
 	return &Waitmsg{waitmsg}, nil
-}
-
-// Wait waits for process pid to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any. The options
-// (WNOHANG etc.) affect the behavior of the Wait call.
-// Wait is equivalent to calling FindProcess and then Wait
-// and Release on the result.
-func Wait(pid int, options int) (w *Waitmsg, err error) {
-	p, e := FindProcess(pid)
-	if e != nil {
-		return nil, e
-	}
-	defer p.Release()
-	return p.Wait(options)
 }
 
 // Release releases any resources associated with the Process.

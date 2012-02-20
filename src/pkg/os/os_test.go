@@ -541,7 +541,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 		t.Errorf("exec %q returned %q wanted %q",
 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
 	}
-	p.Wait(0)
+	p.Wait()
 }
 
 func TestStartProcess(t *testing.T) {
@@ -853,7 +853,7 @@ func run(t *testing.T, cmd []string) string {
 
 	var b bytes.Buffer
 	io.Copy(&b, r)
-	_, err = p.Wait(0)
+	_, err = p.Wait()
 	if err != nil {
 		t.Fatalf("run hostname Wait: %v", err)
 	}
