@@ -46,8 +46,6 @@ src/pkg/go/build/syslist.go
 src/pkg/go/doc/headscan
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
-src/pkg/runtime/version.go
-src/pkg/runtime/version_*.go
 src/pkg/runtime/z*
 src/pkg/unicode/maketables
 src/pkg/*.*/
