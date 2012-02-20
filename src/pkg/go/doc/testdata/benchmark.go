@@ -16,7 +16,7 @@ var matchBenchmarks = flag.String("test.bench", "", "regular expression to selec
 var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
 
 // An internal type but exported because it is cross-package; part of the implementation
-// of gotest.
+// of go test.
 type InternalBenchmark struct {
 	Name string
 	F    func(b *B)
@@ -213,7 +213,7 @@ func (r BenchmarkResult) String() string {
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
-// of gotest.
+// of go test.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
@@ -281,7 +281,7 @@ func (b *B) trimOutput() {
 }
 
 // Benchmark benchmarks a single function. Useful for creating
-// custom benchmarks that do not use gotest.
+// custom benchmarks that do not use go test.
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
