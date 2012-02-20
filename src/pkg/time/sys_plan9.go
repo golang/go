@@ -43,7 +43,7 @@ func readFile(name string) ([]byte, error) {
 }
 
 func open(name string) (uintptr, error) {
-	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
+	fd, err := syscall.Open(name, syscall.O_RDONLY)
 	if err != nil {
 		return 0, err
 	}
@@ -72,4 +72,5 @@ func preadn(fd uintptr, buf []byte, off int) error {
 		}
 		buf = buf[m:]
 	}
+	return nil
 }

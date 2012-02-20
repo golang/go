@@ -72,6 +72,19 @@ const (
 	SEEK_END int = 2 // seek relative to the end
 )
 
+// LinkError records an error during a link or symlink or rename
+// system call and the paths that caused it.
+type LinkError struct {
+	Op  string
+	Old string
+	New string
+	Err error
+}
+
+func (e *LinkError) Error() string {
+	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
+}
+
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 // EOF is signaled by a zero count with err set to io.EOF.
