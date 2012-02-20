@@ -127,6 +127,7 @@ func TestUitoa(t *testing.T) {
 }
 
 func numAllocations(f func()) int {
+	runtime.GC()
 	memstats := new(runtime.MemStats)
 	runtime.ReadMemStats(memstats)
 	n0 := memstats.Mallocs
