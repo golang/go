@@ -485,6 +485,7 @@ or how the <code>image</code> packages generate compressed
 image files.  All these ideas stem from a single interface
 (<code>io.Writer</code>) representing a single method
 (<code>Write</code>).  And that's only scratching the surface.
+Go's interfaces have a profound influence on how programs are structured.
 </p>
 
 <p>
@@ -840,12 +841,12 @@ there are multiple considerations involving shallow vs. deep comparison, pointer
 value comparison, how to deal with recursive types, and so on.
 We may revisit this issue&mdash;and implementing equality for slices
 will not invalidate any existing programs&mdash;but without a clear idea of what
-equality of structs and arrays should mean, it was simpler to leave it out for now.
+equality of slices should mean, it was simpler to leave it out for now.
 </p>
 
 <p>
-In Go 1, equality is defined for structs and arrays, so such
-types can be used as map keys, but slices still do not have a definition of equality.
+In Go 1, unlike prior releases, equality is defined for structs and arrays, so such
+types can be used as map keys. Slices still do not have a definition of equality, though.
 </p>
 
 <h3 id="references">
@@ -941,7 +942,7 @@ func (s MyStruct)  valueMethod()   { } // method on value
 For programmers unaccustomed to pointers, the distinction between these
 two examples can be confusing, but the situation is actually very simple.
 When defining a method on a type, the receiver (<code>s</code> in the above
-example) behaves exactly as if it were an argument to the method.
+examples) behaves exactly as if it were an argument to the method.
 Whether to define the receiver as a value or as a pointer is the same
 question, then, as whether a function argument should be a value or
 a pointer.
@@ -1082,15 +1083,15 @@ See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code
 Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
 <p>
-You must set <code>GOMAXPROCS</code> to allow the
+You must set the <code>GOMAXPROCS</code> shell environment variable
+or use the similarly-named <a href="/pkg/runtime/#GOMAXPROCS"><code>function</code></a>
+of the runtime package to allow the
 run-time support to utilize more than one OS thread. 
 </p>
 
 <p>
 Programs that perform parallel computation should benefit from an increase in
-<code>GOMAXPROCS</code>. (See the <a
-href="http://golang.org/pkg/runtime/#GOMAXPROCS"><code>runtime</code> package's
-documentation</a>.)
+<code>GOMAXPROCS</code>.
 </p>
 
 <h3 id="Why_GOMAXPROCS">
@@ -1148,7 +1149,10 @@ there is no useful way for a method call to obtain a pointer.
 </p>
 
 <p>
-If not for this restriction, this code:
+Even in cases where the compiler could take the address of a value
+to pass to the method, if the method modifies the value the changes
+will be lost in the caller.
+As a common example, this code:
 </p>
 
 <pre>
@@ -1174,7 +1178,7 @@ Consider the following program:
 func main() {
     done := make(chan bool)
 
-    values := []string{ "a", "b", "c" }
+    values := []string{"a", "b", "c"}
     for _, v := range values {
         go func() {
             fmt.Println(v)
@@ -1268,18 +1272,21 @@ func TestFoo(t *testing.T) {
 </pre>
 
 <p>
-Run <code>gotest</code> in that directory.
+Run <code>go test</code> in that directory.
 That script finds the <code>Test</code> functions,
 builds a test binary, and runs it.
 </p>
 
-<p>See the <a href="/doc/code.html">How to Write Go Code</a> document for more details.</p>
+<p>See the <a href="/doc/code.html">How to Write Go Code</a> document,
+the <a href="/pkg/testing/"><code>testing</code></a> package
+and the <a href="/cmd/go/#Test_packages"><code>go test</code></a> subcommand for more details.
+</p>
 
 <h3 id="testing_framework">
 Where is my favorite helper function for testing?</h3>
 
 <p>
-Go's standard <code>testing</code> package makes it easy to write unit tests, but it lacks
+Go's standard <a href="/pkg/testing/"><code>testing</code></a> package makes it easy to write unit tests, but it lacks
 features provided in other language's testing frameworks such as assertion functions.
 An <a href="#assertions">earlier section</a> of this document explained why Go
 doesn't have assertions, and
@@ -1371,9 +1378,9 @@ type checks, reflection, and even panic-time stack traces.
 
 <p>
 A trivial C "hello, world" program compiled and linked statically using gcc
-on Linux is around 750 kB.  An equivalent Go program is around 1.1 MB, but
-that includes more powerful run-time support.  We believe that with some effort
-the size of Go binaries can be reduced.
+on Linux is around 750 kB.  An equivalent Go program using <code>fmt.Printf</code>
+is around 1.3 MB, but
+that includes more powerful run-time support.
 </p>
 
 <h3 id="unused_variables_and_imports">
@@ -1438,7 +1445,7 @@ Why does Go perform badly on benchmark X?</h3>
 <p>
 One of Go's design goals is to approach the performance of C for comparable
 programs, yet on some benchmarks it does quite poorly, including several 
-in <a href="/test/bench/">test/bench</a>. The slowest depend on libraries 
+in <a href="/test/bench/shootout/">test/bench/shootout</a>. The slowest depend on libraries 
 for which versions of comparable performance are not available in Go. 
 For instance, <a href="/test/bench/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
@@ -1467,7 +1474,10 @@ garbage can have a huge effect.)
 </p>
 
 <p>
-In any case, Go can often be very competitive. See the blog post about
+In any case, Go can often be very competitive.
+There has been significant improvement in the performance of many programs
+as the language and tools have developed.
+See the blog post about
 <a href="http://blog.golang.org/2011/06/profiling-go-programs.html">profiling
 Go programs</a> for an informative example.
 
