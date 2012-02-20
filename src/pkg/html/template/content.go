@@ -85,6 +85,22 @@ func indirect(a interface{}) interface{} {
 	return v.Interface()
 }
 
+var (
+	errorType       = reflect.TypeOf((*error)(nil)).Elem()
+	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+)
+
+// indirectToStringerOrError returns the value, after dereferencing as many times
+// as necessary to reach the base type (or nil) or an implementation of fmt.Stringer
+// or error,
+func indirectToStringerOrError(a interface{}) interface{} {
+	v := reflect.ValueOf(a)
+	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+		v = v.Elem()
+	}
+	return v.Interface()
+}
+
 // stringify converts its arguments to a string and the type of the content.
 // All pointers are dereferenced, as in the text/template package.
 func stringify(args ...interface{}) (string, contentType) {
@@ -107,7 +123,7 @@ func stringify(args ...interface{}) (string, contentType) {
 		}
 	}
 	for i, arg := range args {
-		args[i] = indirect(arg)
+		args[i] = indirectToStringerOrError(arg)
 	}
 	return fmt.Sprint(args...), contentTypePlain
 }
