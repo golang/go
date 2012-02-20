@@ -1,20 +1,29 @@
-package.bash packages the Go toolchain for Windows in 
-zip and installer (msi) format. 
+dist.bat packages the Go toolchain for Windows in both zip
+and installer (msi) format.
 
 Dependencies
 ============
-- WiX Installer XML (WiX) toolset: http://wix.sourceforge.net/
-- 7Zip command-line: http://www.7-zip.org/download.html
-- MinGW/Msys tools
+- Windows Installer XML (WiX) toolset: http://wix.sourceforge.net/
+- 7Zip (command-line version): http://www.7-zip.org/download.html
+- Mercurial (hg): http://mercurial.selenic.com/
 
-Unzip and place 7za.exe in msys' bin directory.
-Add the WiX bin directory to PATH.
 
 Packaging
 =========
-- have a go tree at $GOROOT
-- make sure $GOBIN=$GOROOT\bin or is empty
-- make sure $GOARCH=386 or $GOARCH=amd64
-- select appropriate version "hg up -r ..."
-- build go "cd $GOROOT/src; ./all.bash"
-- create Windows packages "cd $GOROOT/misc/windows; ./package.bash"
+The dependencies must be callable from dist.bat, therefore,
+they'll need to be in/added to the system's search PATH.
+
+Ensure the working directory reflects the toolset version;
+the packager clones the Go directory it resides in and copies the
+pre-built toolchain over into the cloned folder.
+
+To create an i386 distribution package on a 64 bit system, set
+GOARCH=386 prior to calling dist.bat.
+
+Run dist.bat from a command prompt or click on the batch file.
+
+TODO
+----
+- Documentation server shortcut checkbox option
+
+
