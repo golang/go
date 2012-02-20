@@ -7,10 +7,14 @@ setlocal
 
 :: Requires Windows Installer XML (WiX), 7zip, and Mercurial (hg)
 
+echo # Cleaning previous WiX output files
+del /F /Q /S *.wixobj AppFiles.wxs *.wixpdb>NUL
+
 echo # Setting some variables
 for /f %%i in ('hg.exe root') do set ROOT=%%i
-for /f %%i in ('hg.exe id -n') do set ID=%%i
 for /f "tokens=3" %%i in ('%ROOT%\bin\go.exe version') do set VER=%%i
+for /f "tokens=4" %%i in ('%ROOT%\bin\go.exe version') do set ID=%%i
+set ID=%ID:+=%
 if errorlevel 1 goto end
 
 echo # Getting GOARCH
@@ -35,7 +39,7 @@ xcopy %ROOT%\pkg                   go\pkg /V /E /Y /I
 xcopy %ROOT%\bin                   go\bin /V /E /Y /I
 xcopy %ROOT%\src\pkg\runtime\z*.c  go\src\pkg\runtime  /V /E /Y
 xcopy %ROOT%\src\pkg\runtime\z*.go go\src\pkg\runtime  /V /E /Y
-xcopy %ROOT%\src\pkg\runtime\z*.h  go\src\pkg\runtime  /V /E /T
+xcopy %ROOT%\src\pkg\runtime\z*.h  go\src\pkg\runtime  /V /E /Y
 
 echo # Starting zip packaging
 7za a -tzip -mx=9 go.%VER%.windows-%GOARCH%.zip "go/"

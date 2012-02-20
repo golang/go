@@ -25,7 +25,8 @@
     <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
 
 <Package
-    Id='*' Keywords='Installer'
+    Id='*' 
+    Keywords='Installer'
     Description="The Go Programming Language Installer"
     Comments="The Go programming language is an open source project to make programmers more productive."
     InstallerVersion="300"
@@ -40,21 +41,11 @@
     <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
     <Property Id="ARPREADME" Value="golang.org" />
     <Property Id="ARPURLINFOABOUT" Value="golang.org" />
-
-<!--
-<Upgrade Id="">
-    <UpgradeVersion
-        IncludeMaximum="yes"
-        IncludeMinimum="yes"
-        Language="1033"
-        Maximum=""
-        Minimum=""
-        Property="" />
-</Upgrade>
--->
-
+<Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
+<Property Id="ARPPRODUCTICON" Value="gopher.ico" />
 <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
 <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
+<MajorUpgrade AllowDowngrades="yes" />
 <SetDirectory Id="INSTALLDIRROOT" Value="C:\"/>
 
 <CustomAction
@@ -70,10 +61,13 @@
   <Directory Id="ProgramMenuFolder">
     <Directory Id="GoProgramShortcutsDir" Name="Go Programming Language"/>
   </Directory>
+  <Directory Id="EnvironmentEntries">
+    <Directory Id="GoEnvironmentEntries" Name="Go Programming Language"/>
+  </Directory>
   <Directory Id="DesktopFolder" Name="Desktop"/>
 </Directory>
 
-<!-- Programs Menu & Desktop Shortcuts, Registry & Environment Settings -->
+<!-- Programs Menu & Desktop Shortcuts -->
 <DirectoryRef Id="GoProgramShortcutsDir">
   <Component Id="Component_GoShortCuts" Guid="f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b">
     <Shortcut
@@ -82,6 +76,7 @@
         Description="Starts the Go documentation server (http://localhost:6060)"
         Show="minimized"
         Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
+        Icon="gopher.ico"
         Target="[%ComSpec]" />
     <Shortcut
         Id="GoDocServerDesktopShortcut"
@@ -89,6 +84,7 @@
         Name="GoDocServer"
         Description="Starts the godoc server (http://localhost:6060)"
         Show="minimized"
+        Icon="gopher.ico"
         Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
         Target="[%ComSpec]" />
     <Shortcut
@@ -102,11 +98,31 @@
         On="uninstall" />
     <RegistryValue
         Root="HKCU"
-        Key="Software\Microsoft\TheGoProgrammingLanguage"
+        Key="Software\GoProgrammingLanguage"
+        Name="ShortCuts"
+        Type="integer" 
+        Value="1"
+        KeyPath="yes" /> 
+  </Component>
+</DirectoryRef>
+
+<!-- Registry & Environment Settings -->
+<DirectoryRef Id="GoEnvironmentEntries">
+  <Component Id="Component_GoEnvironment" Guid="3ec7a4d5-eb08-4de7-9312-2df392c45993">
+    <RegistryKey 
+        Root="HKCU"
+        Key="Software\GoProgrammingLanguage"
+        Action="create" >
+            <RegistryValue
         Name="installed"
         Type="integer"
         Value="1"
         KeyPath="yes" />
+            <RegistryValue
+                Name="installLocation"
+                Type="string"
+                Value="[INSTALLDIR]" />
+    </RegistryKey>
     <Environment
         Id="Environment"
         Action="set"
@@ -115,6 +131,9 @@
         Permanent="no"
         System="yes"
         Value="[INSTALLDIR]bin" />
+    <RemoveFolder
+        Id="GoEnvironmentEntries"
+        On="uninstall" />
   </Component>
 </DirectoryRef>
 
@@ -126,19 +145,20 @@
     Title="Go"
     Level="1">
 
+      <ComponentRef Id="Component_GoEnvironment" />
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="Component_GoShortCuts" />
 </Feature>
 
 <!-- Update the environment -->
 <InstallExecuteSequence>
-  <Custom
-    Action="SetApplicationRootDirectory"
-    Before="InstallFinalize" />
+    <Custom Action="SetApplicationRootDirectory" Before="InstallFinalize" />
 </InstallExecuteSequence>
 
 <!-- Include the user interface -->
 <WixVariable Id="WixUILicenseRtf" Value="LICENSE" />
+<WixVariable Id="WixUIBannerBmp" Value="images\Banner.jpg" />
+<WixVariable Id="WixUIDialogBmp" Value="images\Dialog.jpg" />
 <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 <UIRef Id="WixUI_InstallDir" />
 
