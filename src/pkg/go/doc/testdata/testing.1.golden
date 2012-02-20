@@ -27,7 +27,7 @@ VARIABLES
 		// The short flag requests that tests run more quickly, but its functionality
 		// is provided by test writers themselves.  The testing package is just its
 		// home.  The all.bash installation script sets it to make installation more
-		// efficient, but by default the flag is off so a plain "gotest" will do a
+		// efficient, but by default the flag is off so a plain "go test" will do a
 		// full test of the package.
 		short	= flag.Bool("test.short", false, "run smaller test suite to save time")
 	
