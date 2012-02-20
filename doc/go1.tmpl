@@ -4,7 +4,7 @@
 {{donotedit}}
 
 <!-- Center the tables, and disable the 1995-era 3D borders -->
-<style>
+<style type="text/css">
 table { margin-left: auto; margin-right: auto; border-style: none; }
 hr { border-style: none; border-top: 1px solid black; }
 </style>
@@ -1363,9 +1363,20 @@ use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
 <a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
 </p>
 
+
+<p>
+The <a href="/pkg/os/#Process.Wait"><code>Process.Wait</code></a> method has
+dropped its option argument and the associated constants are gone
+from the package.
+Also, the function <code>Wait</code> is gone; only the method of
+the <code>Process</code> type persists.
+</p>
+
 <p>
 <em>Updating</em>:
-Affected code will be caught by the compiler and must be updated by hand.
+Gofix will rewrite calls to <code>os.Wait</code> with an explicit zero
+argument, dropping the argument.
+All other changes will be caught by the compiler and must be updated by hand.
 </p>
 
 <h4 id="os_fileinfo">The os.FileInfo type</h4>
@@ -1787,7 +1798,7 @@ so that exported function definitions can use types defined there.
 This has the effect of compiling the preamble multiple times, so a
 package using <code>//export</code> must not put function definitions
 or variable initializations in the C preamble.
-</p
+</p>
 
 <h2 id="releases">Packaged releases</h2>
 

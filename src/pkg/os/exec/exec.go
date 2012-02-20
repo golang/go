@@ -291,7 +291,7 @@ func (c *Cmd) Wait() error {
 		return errors.New("exec: Wait was already called")
 	}
 	c.finished = true
-	msg, err := c.Process.Wait(0)
+	msg, err := c.Process.Wait()
 	c.Waitmsg = msg
 
 	var copyError error

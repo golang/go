@@ -103,7 +103,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
-	wait, err := p.Wait(0)
+	wait, err := p.Wait()
 	if err != nil {
 		os.Stderr.Write(buf.Bytes())
 		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
