@@ -17,28 +17,28 @@ import (
 // driver package to provide consistent implementations of conversions
 // between drivers.  The ValueConverters have several uses:
 //
-//  * converting from the subset types as provided by the sql package
+//  * converting from the Value types as provided by the sql package
 //    into a database table's specific column type and making sure it
 //    fits, such as making sure a particular int64 fits in a
 //    table's uint16 column.
 //
 //  * converting a value as given from the database into one of the
-//    subset types.
+//    driver Value types.
 //
-//  * by the sql package, for converting from a driver's subset type
+//  * by the sql package, for converting from a driver's Value type
 //    to a user's type in a scan.
 type ValueConverter interface {
-	// ConvertValue converts a value to a restricted subset type.
-	ConvertValue(v interface{}) (interface{}, error)
+	// ConvertValue converts a value to a driver Value.
+	ConvertValue(v interface{}) (Value, error)
 }
 
-// SubsetValuer is the interface providing the SubsetValue method.
+// Valuer is the interface providing the Value method.
 //
-// Types implementing SubsetValuer interface are able to convert
-// themselves to one of the driver's allowed subset values.
-type SubsetValuer interface {
-	// SubsetValue returns a driver parameter subset value.
-	SubsetValue() (interface{}, error)
+// Types implementing Valuer interface are able to convert
+// themselves to a driver Value.
+type Valuer interface {
+	// Value returns a driver Value.
+	Value() (Value, error)
 }
 
 // Bool is a ValueConverter that converts input values to bools.
@@ -59,7 +59,7 @@ var _ ValueConverter = boolType{}
 
 func (boolType) String() string { return "Bool" }
 
-func (boolType) ConvertValue(src interface{}) (interface{}, error) {
+func (boolType) ConvertValue(src interface{}) (Value, error) {
 	switch s := src.(type) {
 	case bool:
 		return s, nil
@@ -104,7 +104,7 @@ type int32Type struct{}
 
 var _ ValueConverter = int32Type{}
 
-func (int32Type) ConvertValue(v interface{}) (interface{}, error) {
+func (int32Type) ConvertValue(v interface{}) (Value, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -137,7 +137,7 @@ var String stringType
 
 type stringType struct{}
 
-func (stringType) ConvertValue(v interface{}) (interface{}, error) {
+func (stringType) ConvertValue(v interface{}) (Value, error) {
 	switch v.(type) {
 	case string, []byte:
 		return v, nil
@@ -151,7 +151,7 @@ type Null struct {
 	Converter ValueConverter
 }
 
-func (n Null) ConvertValue(v interface{}) (interface{}, error) {
+func (n Null) ConvertValue(v interface{}) (Value, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -164,28 +164,17 @@ type NotNull struct {
 	Converter ValueConverter
 }
 
-func (n NotNull) ConvertValue(v interface{}) (interface{}, error) {
+func (n NotNull) ConvertValue(v interface{}) (Value, error) {
 	if v == nil {
 		return nil, fmt.Errorf("nil value not allowed")
 	}
 	return n.Converter.ConvertValue(v)
 }
 
-// IsParameterSubsetType reports whether v is of a valid type for a
-// parameter. These types are:
-//
-//   int64
-//   float64
-//   bool
-//   nil
-//   []byte
-//   time.Time
-//   string
-//
-// This is the same list as IsScanSubsetType, with the addition of
-// string.
-func IsParameterSubsetType(v interface{}) bool {
-	if IsScanSubsetType(v) {
+// IsValue reports whether v is a valid Value parameter type.
+// Unlike IsScanValue, IsValue permits the string type.
+func IsValue(v interface{}) bool {
+	if IsScanValue(v) {
 		return true
 	}
 	if _, ok := v.(string); ok {
@@ -194,18 +183,9 @@ func IsParameterSubsetType(v interface{}) bool {
 	return false
 }
 
-// IsScanSubsetType reports whether v is of a valid type for a
-// value populated by Rows.Next. These types are:
-//
-//   int64
-//   float64
-//   bool
-//   nil
-//   []byte
-//   time.Time
-//
-// This is the same list as IsParameterSubsetType, without string.
-func IsScanSubsetType(v interface{}) bool {
+// IsScanValue reports whether v is a valid Value scan type.
+// Unlike IsValue, IsScanValue does not permit the string type.
+func IsScanValue(v interface{}) bool {
 	if v == nil {
 		return true
 	}
@@ -221,7 +201,7 @@ func IsScanSubsetType(v interface{}) bool {
 // ColumnConverter.
 //
 // DefaultParameterConverter returns the given value directly if
-// IsSubsetType(value).  Otherwise integer type are converted to
+// IsValue(value).  Otherwise integer type are converted to
 // int64, floats to float64, and strings to []byte.  Other types are
 // an error.
 var DefaultParameterConverter defaultConverter
@@ -230,18 +210,18 @@ type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
-func (defaultConverter) ConvertValue(v interface{}) (interface{}, error) {
-	if IsParameterSubsetType(v) {
+func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+	if IsValue(v) {
 		return v, nil
 	}
 
-	if svi, ok := v.(SubsetValuer); ok {
-		sv, err := svi.SubsetValue()
+	if svi, ok := v.(Valuer); ok {
+		sv, err := svi.Value()
 		if err != nil {
 			return nil, err
 		}
-		if !IsParameterSubsetType(sv) {
-			return nil, fmt.Errorf("non-subset type %T returned from SubsetValue", sv)
+		if !IsValue(sv) {
+			return nil, fmt.Errorf("non-Value type %T returned from Value", sv)
 		}
 		return sv, nil
 	}

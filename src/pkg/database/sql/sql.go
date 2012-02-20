@@ -62,8 +62,8 @@ func (ns *NullString) Scan(value interface{}) error {
 	return convertAssign(&ns.String, value)
 }
 
-// SubsetValue implements the driver SubsetValuer interface.
-func (ns NullString) SubsetValue() (interface{}, error) {
+// Value implements the driver Valuer interface.
+func (ns NullString) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
@@ -88,8 +88,8 @@ func (n *NullInt64) Scan(value interface{}) error {
 	return convertAssign(&n.Int64, value)
 }
 
-// SubsetValue implements the driver SubsetValuer interface.
-func (n NullInt64) SubsetValue() (interface{}, error) {
+// Value implements the driver Valuer interface.
+func (n NullInt64) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
@@ -114,8 +114,8 @@ func (n *NullFloat64) Scan(value interface{}) error {
 	return convertAssign(&n.Float64, value)
 }
 
-// SubsetValue implements the driver SubsetValuer interface.
-func (n NullFloat64) SubsetValue() (interface{}, error) {
+// Value implements the driver Valuer interface.
+func (n NullFloat64) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
@@ -140,8 +140,8 @@ func (n *NullBool) Scan(value interface{}) error {
 	return convertAssign(&n.Bool, value)
 }
 
-// SubsetValue implements the driver SubsetValuer interface.
-func (n NullBool) SubsetValue() (interface{}, error) {
+// Value implements the driver Valuer interface.
+func (n NullBool) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
@@ -523,8 +523,13 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	}
 	defer tx.releaseConn()
 
+	sargs, err := subsetTypeArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
 	if execer, ok := ci.(driver.Execer); ok {
-		resi, err := execer.Exec(query, args)
+		resi, err := execer.Exec(query, sargs)
 		if err == nil {
 			return result{resi}, nil
 		}
@@ -538,11 +543,6 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 		return nil, err
 	}
 	defer sti.Close()
-
-	sargs, err := subsetTypeArgs(args)
-	if err != nil {
-		return nil, err
-	}
 
 	resi, err := sti.Exec(sargs)
 	if err != nil {
@@ -618,19 +618,21 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(args))
 	}
 
+	sargs := make([]driver.Value, len(args))
+
 	// Convert args to subset types.
 	if cc, ok := si.(driver.ColumnConverter); ok {
 		for n, arg := range args {
 			// First, see if the value itself knows how to convert
 			// itself to a driver type.  For example, a NullString
 			// struct changing into a string or nil.
-			if svi, ok := arg.(driver.SubsetValuer); ok {
-				sv, err := svi.SubsetValue()
+			if svi, ok := arg.(driver.Valuer); ok {
+				sv, err := svi.Value()
 				if err != nil {
-					return nil, fmt.Errorf("sql: argument index %d from SubsetValue: %v", n, err)
+					return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
 				}
-				if !driver.IsParameterSubsetType(sv) {
-					return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from SubsetValue", n, sv)
+				if !driver.IsValue(sv) {
+					return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from Value", n, sv)
 				}
 				arg = sv
 			}
@@ -642,25 +644,25 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 			// truncated), or that a nil can't go into a NOT NULL
 			// column before going across the network to get the
 			// same error.
-			args[n], err = cc.ColumnConverter(n).ConvertValue(arg)
+			sargs[n], err = cc.ColumnConverter(n).ConvertValue(arg)
 			if err != nil {
 				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
 			}
-			if !driver.IsParameterSubsetType(args[n]) {
+			if !driver.IsValue(sargs[n]) {
 				return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
-					arg, args[n])
+					arg, sargs[n])
 			}
 		}
 	} else {
 		for n, arg := range args {
-			args[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
+			sargs[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
 			if err != nil {
 				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
 			}
 		}
 	}
 
-	resi, err := si.Exec(args)
+	resi, err := si.Exec(sargs)
 	if err != nil {
 		return nil, err
 	}
@@ -829,7 +831,7 @@ type Rows struct {
 	rowsi       driver.Rows
 
 	closed    bool
-	lastcols  []interface{}
+	lastcols  []driver.Value
 	lasterr   error
 	closeStmt *Stmt // if non-nil, statement to Close on close
 }
@@ -846,7 +848,7 @@ func (rs *Rows) Next() bool {
 		return false
 	}
 	if rs.lastcols == nil {
-		rs.lastcols = make([]interface{}, len(rs.rowsi.Columns()))
+		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
 	}
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
 	if rs.lasterr == io.EOF {
