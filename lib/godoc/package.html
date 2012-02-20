@@ -126,6 +126,7 @@
 				{{example_html $name $.Examples $.FSet}}
 			{{end}}
 		{{end}}
+		</div>
 	{{else}}  {{/* not a package; is a command */}}
 		{{comment_html .Doc}}
 	{{end}}
@@ -155,7 +156,6 @@
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
 	<h2 id="subdirectories">Subdirectories</h2>
-	<p>
 	<table class="dir">
 	<tr>
 	<th>Name</th>
@@ -175,5 +175,4 @@
 	</tr>
 	{{end}}
 	</table>
-	</p>
 {{end}}
