@@ -11,7 +11,7 @@ sections of code have been executed.  When the command finishes,
 cov prints the line numbers of sections of code in the binary that
 were not executed.   With no arguments it assumes the command "6.out".
 
-Usage: cov [-lsv] [-g substring] [-m minlines] [6.out args]
+Usage: go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
 
 The options are:
 
@@ -26,8 +26,7 @@ The options are:
 	-m minlines
 		only report uncovered sections of code larger than minlines lines
 
-For reasons of disambiguation it is installed as 6cov although it also serves
-as an 8cov and a 5cov.
+The program is the same for all architectures: 386, amd64, and arm.
 
 */
 package documentation
