@@ -34,7 +34,7 @@ var hosttests = []hostTest{
 
 func TestLookupStaticHost(t *testing.T) {
 	p := hostsPath
-	hostsPath = "hosts_testdata"
+	hostsPath = "testdata/hosts"
 	for i := 0; i < len(hosttests); i++ {
 		tt := hosttests[i]
 		ips := lookupStaticHost(tt.host)
