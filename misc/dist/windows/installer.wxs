@@ -16,8 +16,9 @@
 
 <Product
     Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
-    Name="The Go Programming Language $(var.Arch) $(var.Version)"
+    Name="Go Programming Language $(var.Arch) $(var.Version)"
     Language="1033"
+    Codepage="1252"
     Version="0.0.0.0"
     Manufacturer="http://golang.org"
     UpgradeCode="1C3114EA-08C3-11E1-9095-7FCA4824019B" >
@@ -29,10 +30,17 @@
     Comments="The Go programming language is an open source project to make programmers more productive."
     InstallerVersion="300"
     Compressed="yes"
-    Manufacturer="http://golang.org"
     InstallScope="perMachine"
+    SummaryCodepage="1252"
     Languages="1033" />
-     <!--    Platform="x86 or x64" -->
+    <!--    Platform="x86 or x64" -->
+
+    <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
+    <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
+    <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
+    <Property Id="ARPREADME" Value="golang.org" />
+    <Property Id="ARPURLINFOABOUT" Value="golang.org" />
+
 <!--
 <Upgrade Id="">
     <UpgradeVersion
@@ -44,6 +52,7 @@
         Property="" />
 </Upgrade>
 -->
+
 <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
 <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
 <SetDirectory Id="INSTALLDIRROOT" Value="C:\"/>
@@ -59,36 +68,29 @@
     <Directory Id="INSTALLDIR" Name="Go"/>
   </Directory>
   <Directory Id="ProgramMenuFolder">
-    <Directory Id="GoProgramShortcutsDir" Name="Go Programming"/>
+    <Directory Id="GoProgramShortcutsDir" Name="Go Programming Language"/>
   </Directory>
   <Directory Id="DesktopFolder" Name="Desktop"/>
 </Directory>
 
-<!-- Programs Menu & Desktop Shortcuts -->
+<!-- Programs Menu & Desktop Shortcuts, Registry & Environment Settings -->
 <DirectoryRef Id="GoProgramShortcutsDir">
   <Component Id="Component_GoShortCuts" Guid="f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b">
     <Shortcut
-        Id="GoEnvStartMenuShortcut"
-        Name="GoEnv"
-        Description="Sets the Go environment and spawns a shell window"
-        Target="[INSTALLDIR]goenv.bat" />
-    <Shortcut
-        Id="GoEnvDesktopShortcut"
-        Directory="DesktopFolder"
-        Name="GoEnv"
-        Description="Sets the Go environment and spawns a shell window"
-        Target="[INSTALLDIR]goenv.bat" />
-    <Shortcut
         Id="GoDocServerStartMenuShortcut"
         Name="GoDocServer"
-        Description="Starts the godoc server on localhost:6060"
-        Target="[INSTALLDIR]godocserver.bat" />
+        Description="Starts the Go documentation server (http://localhost:6060)"
+        Show="minimized"
+        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
+        Target="[%ComSpec]" />
     <Shortcut
         Id="GoDocServerDesktopShortcut"
         Directory="DesktopFolder"
         Name="GoDocServer"
-        Description="Starts the godoc server on localhost:6060"
-        Target="[INSTALLDIR]godocserver.bat" />
+        Description="Starts the godoc server (http://localhost:6060)"
+        Show="minimized"
+        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
+        Target="[%ComSpec]" />
     <Shortcut
         Id="UninstallShortcut"
         Name="Uninstall Go"
@@ -105,24 +107,18 @@
         Type="integer"
         Value="1"
         KeyPath="yes" />
+    <Environment
+        Id="Environment"
+        Action="set"
+        Part="last"
+        Name="PATH"
+        Permanent="no"
+        System="yes"
+        Value="[INSTALLDIR]bin" />
   </Component>
 </DirectoryRef>
 
 <!-- Components -->
-<DirectoryRef Id="INSTALLDIR">
-  <Component Id="Component_GoDocServerBAT" Guid="c40ea60a-4290-4a91-864d-e1d8eb5cf693">
-    <File
-        Id="FILE_GoDocServerBat"
-        Source="godocserver.bat"
-        KeyPath="yes" />
-  </Component>
-  <Component Id="Component_GoEnvBAT" Guid="ee4587d3-fba3-47f9-b45e-ec9ca9c8a9c3">
-    <File
-        Id="FILE_GoEnvBat"
-        Source="goenv.bat"
-        KeyPath="yes" />
-  </Component>
-</DirectoryRef>
 
 <!-- Install the files -->
 <Feature
@@ -131,8 +127,6 @@
     Level="1">
 
       <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="Component_GoDocServerBAT" />
-      <ComponentRef Id="Component_GoEnvBAT" />
       <ComponentRef Id="Component_GoShortCuts" />
 </Feature>
 
