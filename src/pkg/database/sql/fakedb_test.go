@@ -217,7 +217,7 @@ func (c *fakeConn) Close() error {
 	return nil
 }
 
-func checkSubsetTypes(args []interface{}) error {
+func checkSubsetTypes(args []driver.Value) error {
 	for n, arg := range args {
 		switch arg.(type) {
 		case int64, float64, bool, nil, []byte, string, time.Time:
@@ -228,7 +228,7 @@ func checkSubsetTypes(args []interface{}) error {
 	return nil
 }
 
-func (c *fakeConn) Exec(query string, args []interface{}) (driver.Result, error) {
+func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	// This is an optional interface, but it's implemented here
 	// just to check that all the args of of the proper types.
 	// ErrSkip is returned so the caller acts as if we didn't
@@ -379,7 +379,7 @@ func (s *fakeStmt) Close() error {
 
 var errClosed = errors.New("fakedb: statement has been closed")
 
-func (s *fakeStmt) Exec(args []interface{}) (driver.Result, error) {
+func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	if s.closed {
 		return nil, errClosed
 	}
@@ -392,12 +392,12 @@ func (s *fakeStmt) Exec(args []interface{}) (driver.Result, error) {
 	switch s.cmd {
 	case "WIPE":
 		db.wipe()
-		return driver.DDLSuccess, nil
+		return driver.ResultNoRows, nil
 	case "CREATE":
 		if err := db.createTable(s.table, s.colName, s.colType); err != nil {
 			return nil, err
 		}
-		return driver.DDLSuccess, nil
+		return driver.ResultNoRows, nil
 	case "INSERT":
 		return s.execInsert(args)
 	}
@@ -405,7 +405,7 @@ func (s *fakeStmt) Exec(args []interface{}) (driver.Result, error) {
 	return nil, fmt.Errorf("unimplemented statement Exec command type of %q", s.cmd)
 }
 
-func (s *fakeStmt) execInsert(args []interface{}) (driver.Result, error) {
+func (s *fakeStmt) execInsert(args []driver.Value) (driver.Result, error) {
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
@@ -441,7 +441,7 @@ func (s *fakeStmt) execInsert(args []interface{}) (driver.Result, error) {
 	return driver.RowsAffected(1), nil
 }
 
-func (s *fakeStmt) Query(args []interface{}) (driver.Rows, error) {
+func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	if s.closed {
 		return nil, errClosed
 	}
@@ -548,7 +548,7 @@ func (rc *rowsCursor) Columns() []string {
 	return rc.cols
 }
 
-func (rc *rowsCursor) Next(dest []interface{}) error {
+func (rc *rowsCursor) Next(dest []driver.Value) error {
 	if rc.closed {
 		return errors.New("fakedb: cursor is closed")
 	}
