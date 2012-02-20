@@ -229,3 +229,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVL	$0, AX
 	RET
 
+TEXT runtime·osyield(SB),7,$-4
+	MOVL	$331, AX		// sys_sched_yield
+	INT	$0x80
+	RET
