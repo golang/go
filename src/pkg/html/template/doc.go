@@ -172,18 +172,18 @@ This package assumes that template authors are trusted, that Execute's data
 parameter is not, and seeks to preserve the properties below in the face
 of untrusted data:
 
-Structure Preservation Property
+Structure Preservation Property:
 "... when a template author writes an HTML tag in a safe templating language,
 the browser will interpret the corresponding portion of the output as a tag
 regardless of the values of untrusted data, and similarly for other structures
 such as attribute boundaries and JS and CSS string boundaries."
 
-Code Effect Property
+Code Effect Property:
 "... only code specified by the template author should run as a result of
 injecting the template output into a page and all code specified by the
 template author should run as a result of the same."
 
-Least Surprise Property
+Least Surprise Property:
 "A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
 knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
