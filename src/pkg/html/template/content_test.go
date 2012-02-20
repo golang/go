@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -217,5 +218,44 @@ func TestTypedContent(t *testing.T) {
 				continue
 			}
 		}
+	}
+}
+
+// Test that we print using the String method. Was issue 3073.
+type stringer struct {
+	v int
+}
+
+func (s *stringer) String() string {
+	return fmt.Sprintf("string=%d", s.v)
+}
+
+type errorer struct {
+	v int
+}
+
+func (s *errorer) Error() string {
+	return fmt.Sprintf("error=%d", s.v)
+}
+
+func TestStringer(t *testing.T) {
+	s := &stringer{3}
+	b := new(bytes.Buffer)
+	tmpl := Must(New("x").Parse("{{.}}"))
+	if err := tmpl.Execute(b, s); err != nil {
+		t.Fatal(err)
+	}
+	var expect = "string=3"
+	if b.String() != expect {
+		t.Errorf("expected %q got %q", expect, b.String())
+	}
+	e := &errorer{7}
+	b.Reset()
+	if err := tmpl.Execute(b, e); err != nil {
+		t.Fatal(err)
+	}
+	expect = "error=7"
+	if b.String() != expect {
+		t.Errorf("expected %q got %q", expect, b.String())
 	}
 }
