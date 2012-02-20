@@ -1029,6 +1029,13 @@ prop(Reg *r, Bits ref, Bits cal)
 				ref.b[z] = 0;
 			}
 			break;
+
+		default:
+			// Work around for issue 1304:
+			// flush modified globals before each instruction.
+			for(z=0; z<BITS; z++)
+				cal.b[z] |= externs.b[z];
+			break;
 		}
 		for(z=0; z<BITS; z++) {
 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
