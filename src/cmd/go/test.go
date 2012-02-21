@@ -142,7 +142,7 @@ here are passed through unaltered.  For instance, the command
 
 	go test -x -v -cpuprofile=prof.out -dir=testdata -update
 
-will compile the test binary using x_test.go and then run it as
+will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 	`,
