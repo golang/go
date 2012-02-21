@@ -5,13 +5,16 @@
 package main
 
 import (
+	"bytes"
 	"flag"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"strconv"
 	"text/template"
 )
@@ -63,26 +66,7 @@ func FrontPage(w http.ResponseWriter, req *http.Request) {
 // runs the program (returning any errors),
 // and sends the program's output as the HTTP response.
 func Compile(w http.ResponseWriter, req *http.Request) {
-	// x is the base name for .go files
-	x := "goplay" + strconv.Itoa(<-uniq) + ".go"
-
-	// write request Body to x.go
-	f, err := os.Create(x)
-	if err != nil {
-		error_(w, nil, err)
-		return
-	}
-	defer os.Remove(x)
-	defer f.Close()
-	_, err = io.Copy(f, req.Body)
-	if err != nil {
-		error_(w, nil, err)
-		return
-	}
-	f.Close()
-
-	// run x
-	out, err := run("go", "run", x)
+	out, err := compile(req)
 	if err != nil {
 		error_(w, out, err)
 		return
@@ -94,6 +78,60 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	} else {
 		output.Execute(w, out)
 	}
+}
+
+var (
+	commentRe = regexp.MustCompile(`(?m)^#.*\n`)
+	tmpdir    string
+)
+
+func init() {
+	// find real temporary directory (for rewriting filename in output)
+	var err error
+	tmpdir, err = filepath.EvalSymlinks(os.TempDir())
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func compile(req *http.Request) (out []byte, err error) {
+	// x is the base name for .go, .6, executable files
+	x := filepath.Join(tmpdir, "compile"+strconv.Itoa(<-uniq))
+	src := x + ".go"
+	bin := x
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+
+	// rewrite filename in error output
+	defer func() {
+		if err != nil {
+			// drop messages from the go tool like '# _/compile0'
+			out = commentRe.ReplaceAll(out, nil)
+		}
+		out = bytes.Replace(out, []byte(src+":"), []byte("main.go:"), -1)
+	}()
+
+	// write body to x.go
+	body := new(bytes.Buffer)
+	if _, err = body.ReadFrom(req.Body); err != nil {
+		return
+	}
+	defer os.Remove(src)
+	if err = ioutil.WriteFile(src, body.Bytes(), 0666); err != nil {
+		return
+	}
+
+	// build x.go, creating x
+	dir, file := filepath.Split(src)
+	out, err = run(dir, "go", "build", "-o", bin, file)
+	defer os.Remove(bin)
+	if err != nil {
+		return
+	}
+
+	// run x
+	return run("", bin)
 }
 
 // error writes compile, link, or runtime errors to the HTTP connection.
@@ -108,8 +146,14 @@ func error_(w http.ResponseWriter, out []byte, err error) {
 }
 
 // run executes the specified command and returns its output and an error.
-func run(cmd ...string) ([]byte, error) {
-	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+func run(dir string, args ...string) ([]byte, error) {
+	var buf bytes.Buffer
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = dir
+	cmd.Stdout = &buf
+	cmd.Stderr = cmd.Stdout
+	err := cmd.Run()
+	return buf.Bytes(), err
 }
 
 var frontPage = template.Must(template.New("frontPage").Parse(frontPageText)) // HTML template
