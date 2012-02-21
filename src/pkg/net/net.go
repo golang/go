@@ -7,8 +7,10 @@ Package net provides a portable interface for network I/O, including
 TCP/IP, UDP, domain name resolution, and Unix domain sockets.
 
 Although the package provides access to low-level networking
-primitives, most clients will need only the basic interface
-provided by the Dial, Listen, and Accept functions.
+primitives, most clients will need only the basic interface provided
+by the Dial, Listen, and Accept functions and the associated
+Conn and Listener interfaces. The crypto/tls package uses
+the same interfaces and similar Dial and Listen functions.
 
 The Dial function connects to a server:
 
@@ -73,21 +75,28 @@ type Conn interface {
 	RemoteAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
-	// with the connection.
+	// with the connection. It is equivalent to calling both
+	// SetReadDeadline and SetWriteDeadline.
+	//
+	// A deadline is an absolute time after which I/O operations
+	// fail with a timeout (see type Error) instead of
+	// blocking. The deadline applies to all future I/O, not just
+	// the immediately following call to Read or Write.
+	//
+	// An idle timeout can be implemented by repeatedly extending
+	// the deadline after successful Read or Write calls.
+	//
+	// A zero value for t means I/O operations will not time out.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for all Read calls to return.
-	// If the deadline is reached, Read will fail with a timeout
-	// (see type Error) instead of blocking.
+	// SetReadDeadline sets the deadline for Read calls.
 	// A zero value for t means Read will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for all Write calls to return.
-	// If the deadline is reached, Write will fail with a timeout
-	// (see type Error) instead of blocking.
-	// A zero value for t means Write will not time out.
+	// SetWriteDeadline sets the deadline for Write calls.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
+	// A zero value for t means Write will not time out.
 	SetWriteDeadline(t time.Time) error
 }
 
