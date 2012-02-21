@@ -39,12 +39,6 @@ func main() {
 		}
 	}()
 
-	// go to TempDir
-	err := os.Chdir(os.TempDir())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	http.HandleFunc("/", FrontPage)
 	http.HandleFunc("/compile", Compile)
 	log.Fatal(http.ListenAndServe(*httpListen, nil))
