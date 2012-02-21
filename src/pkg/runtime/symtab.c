@@ -437,13 +437,17 @@ runtime·findfunc(uintptr addr)
 	// (Before enabling the signal handler,
 	// SetCPUProfileRate calls findfunc to trigger
 	// the initialization outside the handler.)
-	if(runtime·atomicload(&funcinit) == 0) {
-		runtime·lock(&funclock);
-		if(funcinit == 0) {
-			buildfuncs();
-			runtime·atomicstore(&funcinit, 1);
+	// Avoid deadlock on fault during malloc
+	// by not calling buildfuncs if we're already in malloc.
+	if(!m->mallocing && !m->gcing) {
+		if(runtime·atomicload(&funcinit) == 0) {
+			runtime·lock(&funclock);
+			if(funcinit == 0) {
+				buildfuncs();
+				runtime·atomicstore(&funcinit, 1);
+			}
+			runtime·unlock(&funclock);
 		}
-		runtime·unlock(&funclock);
 	}
 
 	if(nfunc == 0)
