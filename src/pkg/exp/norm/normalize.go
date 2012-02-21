@@ -243,7 +243,7 @@ func quickSpan(rb *reorderBuffer, i int) int {
 	lastSegStart := i
 	src, n := rb.src, rb.nsrc
 	for i < n {
-		if j := src.skipASCII(i); i != j {
+		if j := src.skipASCII(i, n); i != j {
 			i = j
 			lastSegStart = i - 1
 			lastCC = 0
@@ -448,11 +448,16 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 		}
 		// Check that decomposition doesn't result in overflow.
 		if info.hasDecomposition() {
-			dcomp := info.decomposition()
-			for i := 0; i < len(dcomp); {
-				inf := rb.f.info(inputBytes(dcomp), i)
-				i += int(inf.size)
+			if isHangul(buf) {
+				i += int(info.size)
 				n++
+			} else {
+				dcomp := info.decomposition()
+				for i := 0; i < len(dcomp); {
+					inf := rb.f.info(inputBytes(dcomp), i)
+					i += int(inf.size)
+					n++
+				}
 			}
 		} else {
 			n++

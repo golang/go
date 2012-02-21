@@ -220,6 +220,17 @@ func cmpIsNormal(t *Test, name string, f norm.Form, test string, result, want bo
 func doTest(t *Test, f norm.Form, gold, test string) {
 	result := f.Bytes([]byte(test))
 	cmpResult(t, "Bytes", f, gold, test, string(result))
+	sresult := f.String(test)
+	cmpResult(t, "String", f, gold, test, sresult)
+	buf := make([]byte, norm.MaxSegmentSize)
+	acc := []byte{}
+	i := norm.Iter{}
+	i.SetInputString(f, test)
+	for !i.Done() {
+		n := i.Next(buf)
+		acc = append(acc, buf[:n]...)
+	}
+	cmpResult(t, "Iter.Next", f, gold, test, string(acc))
 	for i := range test {
 		out := f.Append(f.Bytes([]byte(test[:i])), []byte(test[i:])...)
 		cmpResult(t, fmt.Sprintf(":Append:%d", i), f, gold, test, string(out))

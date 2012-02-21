@@ -47,14 +47,14 @@ func runTests(t *testing.T, name string, fm Form, f insertFunc, tests []TestCase
 	}
 }
 
-func TestFlush(t *testing.T) {
+type flushFunc func(rb *reorderBuffer) []byte
+
+func testFlush(t *testing.T, name string, fn flushFunc) {
 	rb := reorderBuffer{}
 	rb.init(NFC, nil)
-	out := make([]byte, 0)
-
-	out = rb.flush(out)
+	out := fn(&rb)
 	if len(out) != 0 {
-		t.Errorf("wrote bytes on flush of empty buffer. (len(out) = %d)", len(out))
+		t.Errorf("%s: wrote bytes on flush of empty buffer. (len(out) = %d)", name, len(out))
 	}
 
 	for _, r := range []rune("world!") {
@@ -65,14 +65,30 @@ func TestFlush(t *testing.T) {
 	out = rb.flush(out)
 	want := "Hello world!"
 	if string(out) != want {
-		t.Errorf(`output after flush was "%s"; want "%s"`, string(out), want)
+		t.Errorf(`%s: output after flush was "%s"; want "%s"`, name, string(out), want)
 	}
 	if rb.nrune != 0 {
-		t.Errorf("flush: non-null size of info buffer (rb.nrune == %d)", rb.nrune)
+		t.Errorf("%s: non-null size of info buffer (rb.nrune == %d)", name, rb.nrune)
 	}
 	if rb.nbyte != 0 {
-		t.Errorf("flush: non-null size of byte buffer (rb.nbyte == %d)", rb.nbyte)
+		t.Errorf("%s: non-null size of byte buffer (rb.nbyte == %d)", name, rb.nbyte)
 	}
+}
+
+func flushF(rb *reorderBuffer) []byte {
+	out := make([]byte, 0)
+	return rb.flush(out)
+}
+
+func flushCopyF(rb *reorderBuffer) []byte {
+	out := make([]byte, MaxSegmentSize)
+	n := rb.flushCopy(out)
+	return out[:n]
+}
+
+func TestFlush(t *testing.T) {
+	testFlush(t, "flush", flushF)
+	testFlush(t, "flushCopy", flushCopyF)
 }
 
 var insertTests = []TestCase{
