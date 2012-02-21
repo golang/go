@@ -7,7 +7,7 @@ package norm
 import "unicode/utf8"
 
 type input interface {
-	skipASCII(p int) int
+	skipASCII(p, max int) int
 	skipNonStarter(p int) int
 	appendSlice(buf []byte, s, e int) []byte
 	copySlice(buf []byte, s, e int)
@@ -18,8 +18,8 @@ type input interface {
 
 type inputString string
 
-func (s inputString) skipASCII(p int) int {
-	for ; p < len(s) && s[p] < utf8.RuneSelf; p++ {
+func (s inputString) skipASCII(p, max int) int {
+	for ; p < max && s[p] < utf8.RuneSelf; p++ {
 	}
 	return p
 }
@@ -59,8 +59,8 @@ func (s inputString) hangul(p int) rune {
 
 type inputBytes []byte
 
-func (s inputBytes) skipASCII(p int) int {
-	for ; p < len(s) && s[p] < utf8.RuneSelf; p++ {
+func (s inputBytes) skipASCII(p, max int) int {
+	for ; p < max && s[p] < utf8.RuneSelf; p++ {
 	}
 	return p
 }

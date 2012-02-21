@@ -5,6 +5,7 @@
 package norm
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -495,15 +496,40 @@ func TestAppend(t *testing.T) {
 	runAppendTests(t, "TestString", NFKC, stringF, appendTests)
 }
 
+func appendBench(f Form, in []byte) func() {
+	buf := make([]byte, 0, 4*len(in))
+	return func() {
+		f.Append(buf, in...)
+	}
+}
+
+func iterBench(f Form, in []byte) func() {
+	buf := make([]byte, 4*len(in))
+	iter := Iter{}
+	return func() {
+		iter.SetInput(f, in)
+		for !iter.Done() {
+			iter.Next(buf)
+		}
+	}
+}
+
+func appendBenchmarks(bm []func(), f Form, in []byte) []func() {
+	//bm = append(bm, appendBench(f, in))
+	bm = append(bm, iterBench(f, in))
+	return bm
+}
+
 func doFormBenchmark(b *testing.B, inf, f Form, s string) {
 	b.StopTimer()
 	in := inf.Bytes([]byte(s))
-	buf := make([]byte, 2*len(in))
-	b.SetBytes(int64(len(in)))
+	bm := appendBenchmarks(nil, f, in)
+	b.SetBytes(int64(len(in) * len(bm)))
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		buf = f.Append(buf[0:0], in...)
-		buf = buf[0:0]
+		for _, fn := range bm {
+			fn()
+		}
 	}
 }
 
@@ -549,17 +575,21 @@ func BenchmarkNormalizeHangulNFD2NFD(b *testing.B) {
 	doFormBenchmark(b, NFD, NFD, txt_kr)
 }
 
+var forms = []Form{NFC, NFD, NFKC, NFKD}
+
 func doTextBenchmark(b *testing.B, s string) {
 	b.StopTimer()
-	b.SetBytes(int64(len(s)) * 4)
 	in := []byte(s)
-	var buf = make([]byte, 0, 2*len(in))
+	bm := []func(){}
+	for _, f := range forms {
+		bm = appendBenchmarks(bm, f, in)
+	}
+	b.SetBytes(int64(len(s) * len(bm)))
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		NFC.Append(buf, in...)
-		NFD.Append(buf, in...)
-		NFKC.Append(buf, in...)
-		NFKD.Append(buf, in...)
+		for _, f := range bm {
+			f()
+		}
 	}
 }
 
@@ -584,6 +614,11 @@ func BenchmarkJapanese(b *testing.B) {
 func BenchmarkChinese(b *testing.B) {
 	doTextBenchmark(b, txt_cn)
 }
+func BenchmarkOverflow(b *testing.B) {
+	doTextBenchmark(b, overflow)
+}
+
+var overflow = string(bytes.Repeat([]byte("\u035D"), 4096)) + "\u035B"
 
 // Tests sampled from the Canonical ordering tests (Part 2) of
 // http://unicode.org/Public/UNIDATA/NormalizationTest.txt
