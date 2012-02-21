@@ -9,6 +9,7 @@ pkg p1, const StrConst ideal-string
 pkg p1, func Bar(int8, int16, int64)
 pkg p1, func Bar1(int8, int16, int64) uint64
 pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
+pkg p1, func BarE() Error
 pkg p1, func TakesFunc(func(int) int)
 pkg p1, method (*B) JustOnB()
 pkg p1, method (*B) OnBothTandBPtr()
@@ -61,6 +62,10 @@ pkg p1, var ChecksumError error
 pkg p1, var SIPtr *SI
 pkg p1, var SIPtr2 *SI
 pkg p1, var SIVal SI
+pkg p1, var V string
+pkg p1, var VError Error
+pkg p1, var V1 uint64
+pkg p1, var V2 p2.Twoer
 pkg p1, var X I
 pkg p1, var X int64
 pkg p1, var Y int

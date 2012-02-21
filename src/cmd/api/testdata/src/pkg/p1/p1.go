@@ -19,7 +19,15 @@ const (
 	ConversionConst = MyInt(5)
 )
 
-var ChecksumError = errors.New("gzip checksum error")
+// Variables from function calls.
+var (
+	V      = ptwo.F()
+	VError = BarE()
+	V1     = Bar1(1, 2, 3)
+	V2     = ptwo.G()
+)
+
+var ChecksumError = ptwo.NewError("gzip checksum error")
 
 const B = 2
 const StrConst = "foo"
@@ -87,6 +95,7 @@ func (s *S2) unexported(x int8, y int16, z int64) {}
 func Bar(x int8, y int16, z int64)                  {}
 func Bar1(x int8, y int16, z int64) uint64          {}
 func Bar2(x int8, y int16, z int64) (uint8, uint64) {}
+func BarE() Error                                   {}
 
 func unexported(x int8, y int16, z int64) {}
 
