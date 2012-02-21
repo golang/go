@@ -9,6 +9,7 @@
 package net
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"syscall"
@@ -26,6 +27,12 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 		return &TCPAddr{sa.Addr[0:], sa.Port}
 	case *syscall.SockaddrInet6:
 		return &TCPAddr{sa.Addr[0:], sa.Port}
+	default:
+		if sa != nil {
+			// TODO(r): Diagnose when we will turn a non-nil sockaddr into a nil.
+			// Part of diagnosing the selfConnect bug.
+			panic(fmt.Sprintf("unexpected type in sockaddrToTCP: %T", sa))
+		}
 	}
 	return nil
 }
