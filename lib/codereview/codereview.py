@@ -1949,9 +1949,17 @@ def submit(ui, repo, *pats, **opts):
 	# We're committed. Upload final patch, close review, add commit message.
 	changeURL = hg_node.short(node)
 	url = ui.expandpath("default")
-	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/?", url)
+	m = re.match("(^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/?)" + "|" +
+		"(^https?://([^@/]+@)?code\.google\.com/p/([^/.]+)(\.[^./]+)?/?)", url)
 	if m:
-		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
+		if m.group(1): # prj.googlecode.com/hg/ case
+			changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(3), changeURL)
+		elif m.group(4) and m.group(7): # code.google.com/p/prj.subrepo/ case
+			changeURL = "http://code.google.com/p/%s/source/detail?r=%s&repo=%s" % (m.group(6), changeURL, m.group(7)[1:])
+		elif m.group(4): # code.google.com/p/prj/ case
+			changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(6), changeURL)
+		else:
+			print >>sys.stderr, "URL: ", url
 	else:
 		print >>sys.stderr, "URL: ", url
 	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + message
