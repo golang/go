@@ -109,10 +109,10 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
 		return 2
 	}
-	status = wait.ExitStatus()
-	if !wait.Exited() || status > 1 {
+	if !wait.Success() {
 		os.Stderr.Write(buf.Bytes())
-		log.Printf("executing %v failed (exit status = %d)", args, status)
+		log.Printf("executing %v failed", args)
+		status = 1 // See comment in default case in dosync.
 		return
 	}
 
@@ -143,6 +143,8 @@ func dosync(w http.ResponseWriter, r *http.Request) {
 		// don't change the package tree
 		syncDelay.set(time.Duration(*syncMin) * time.Minute) //  revert to regular sync schedule
 	default:
+		// TODO(r): this cannot happen now, since Wait has a boolean exit condition,
+		// not an integer.
 		// sync failed because of an error - back off exponentially, but try at least once a day
 		syncDelay.backoff(24 * time.Hour)
 	}

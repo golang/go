@@ -42,18 +42,41 @@ func (p *Process) Kill() error {
 	return p.Signal(Kill)
 }
 
-// TODO(rsc): Should os implement its own syscall.WaitStatus
-// wrapper with the methods, or is exposing the underlying one enough?
-//
-// TODO(rsc): Certainly need to have Rusage struct,
-// since syscall one might have different field types across
-// different OS.
+// ProcessState stores information about process as reported by Wait.
+type ProcessState struct {
+	pid    int                 // The process's id.
+	status *syscall.WaitStatus // System-dependent status info.
+	rusage *syscall.Rusage
+}
 
-// Waitmsg stores the information about an exited process as reported by Wait.
-type Waitmsg struct {
-	Pid                int             // The process's id.
-	syscall.WaitStatus                 // System-dependent status info.
-	Rusage             *syscall.Rusage // System-dependent resource usage info.
+// Pid returns the process id of the exited process.
+func (p *ProcessState) Pid() int {
+	return p.pid
+}
+
+// Exited returns whether the program has exited.
+func (p *ProcessState) Exited() bool {
+	return p.status.Exited()
+}
+
+// Success reports whether the program exited successfully,
+// such as with exit status 0 on Unix.
+func (p *ProcessState) Success() bool {
+	return p.status.ExitStatus() == 0
+}
+
+// Sys returns system-dependent exit information about
+// the process.  Convert it to the appropriate underlying
+// type, such as *syscall.WaitStatus on Unix, to access its contents.
+func (p *ProcessState) Sys() interface{} {
+	return p.status
+}
+
+// SysUsage returns system-dependent resource usage information about
+// the exited process.  Convert it to the appropriate underlying
+// type, such as *syscall.Rusage on Unix, to access its contents.
+func (p *ProcessState) SysUsage() interface{} {
+	return p.rusage
 }
 
 // Convert i to decimal string.
@@ -83,26 +106,26 @@ func itod(i int) string {
 	return string(b[bp:])
 }
 
-func (w *Waitmsg) String() string {
-	if w == nil {
+func (p *ProcessState) String() string {
+	if p == nil {
 		return "<nil>"
 	}
-	// TODO(austin) Use signal names when possible?
+	status := p.Sys().(*syscall.WaitStatus)
 	res := ""
 	switch {
-	case w.Exited():
-		res = "exit status " + itod(w.ExitStatus())
-	case w.Signaled():
-		res = "signal " + itod(int(w.Signal()))
-	case w.Stopped():
-		res = "stop signal " + itod(int(w.StopSignal()))
-		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
-			res += " (trap " + itod(w.TrapCause()) + ")"
+	case status.Exited():
+		res = "exit status " + itod(status.ExitStatus())
+	case status.Signaled():
+		res = "signal " + itod(int(status.Signal()))
+	case status.Stopped():
+		res = "stop signal " + itod(int(status.StopSignal()))
+		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
+			res += " (trap " + itod(status.TrapCause()) + ")"
 		}
-	case w.Continued():
+	case status.Continued():
 		res = "continued"
 	}
-	if w.CoreDump() {
+	if status.CoreDump() {
 		res += " (core dumped)"
 	}
 	return res

@@ -10,26 +10,30 @@ import (
 	"errors"
 	"runtime"
 	"syscall"
+	"time"
 )
 
 // Wait waits for the Process to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any.
-func (p *Process) Wait() (w *Waitmsg, err error) {
+// ProcessState describing its status and an error, if any.
+func (p *Process) Wait() (ps *ProcessState, err error) {
 	if p.Pid == -1 {
 		return nil, syscall.EINVAL
 	}
 	var status syscall.WaitStatus
-	pid1, e := syscall.Wait4(p.Pid, &status, 0, nil)
+	var rusage syscall.Rusage
+	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
 	if e != nil {
 		return nil, NewSyscallError("wait", e)
 	}
 	if pid1 != 0 {
 		p.done = true
 	}
-	w = new(Waitmsg)
-	w.Pid = pid1
-	w.WaitStatus = status
-	return w, nil
+	ps = &ProcessState{
+		pid:    pid1,
+		status: &status,
+		rusage: &rusage,
+	}
+	return ps, nil
 }
 
 // Signal sends a signal to the Process.
@@ -59,4 +63,14 @@ func (p *Process) Release() error {
 func findProcess(pid int) (p *Process, err error) {
 	// NOOP for unix.
 	return newProcess(pid, 0), nil
+}
+
+// UserTime returns the user CPU time of the exited process and its children.
+func (p *ProcessState) UserTime() time.Duration {
+	return time.Duration(p.rusage.Utime.Nano()) * time.Nanosecond
+}
+
+// SystemTime returns the system CPU time of the exited process and its children.
+func (p *ProcessState) SystemTime() time.Duration {
+	return time.Duration(p.rusage.Stime.Nano()) * time.Nanosecond
 }
