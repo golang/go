@@ -168,7 +168,11 @@
 	{{range .List}}
 	<tr>
 		<td>
-		{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
+		{{if $.DirFlat}}
+			<a href="{{html .Path}}">{{html .Path}}</a>
+		{{else}}
+			{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
+		{{end}}
 		</td>
 		<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
 		<td style="width: auto">{{html .Synopsis}}</td>
