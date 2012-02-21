@@ -1,4 +1,6 @@
-// $G $F.go && $L $F.$A  # don't run it - produces too much output
+// build
+
+// don't run it - produces too much output
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
