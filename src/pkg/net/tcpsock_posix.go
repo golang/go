@@ -29,8 +29,7 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 		return &TCPAddr{sa.Addr[0:], sa.Port}
 	default:
 		if sa != nil {
-			// TODO(r): Diagnose when we will turn a non-nil sockaddr into a nil.
-			// Part of diagnosing the selfConnect bug.
+			// Diagnose when we will turn a non-nil sockaddr into a nil.
 			panic(fmt.Sprintf("unexpected type in sockaddrToTCP: %T", sa))
 		}
 	}
@@ -237,13 +236,6 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 
-	checkRaddr := func(s string) {
-		if err == nil && fd.raddr == nil {
-			panic("nil raddr in DialTCP: " + s)
-		}
-	}
-	checkRaddr("early")
-
 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
 	// connect to a simultaneous Dial("tcp", addr2, addr1) run on the machine
@@ -264,7 +256,6 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	for i := 0; i < 2 && err == nil && laddr == nil && selfConnect(fd); i++ {
 		fd.Close()
 		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
-		checkRaddr("after close")
 	}
 
 	if err != nil {
@@ -274,6 +265,17 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 
 func selfConnect(fd *netFD) bool {
+	// The socket constructor can return an fd with raddr nil under certain
+	// unknown conditions. The errors in the calls there to Getpeername
+	// are discarded, but we can't catch the problem there because those
+	// calls are sometimes legally erroneous with a "socket not connected".
+	// Since this code (selfConnect) is already trying to work around
+	// a problem, we make sure if this happens we recognize trouble and
+	// ask the DialTCP routine to try again.
+	// TODO: try to understand what's really going on.
+	if fd.laddr == nil || fd.raddr == nil {
+		return true
+	}
 	l := fd.laddr.(*TCPAddr)
 	r := fd.raddr.(*TCPAddr)
 	return l.Port == r.Port && l.IP.Equal(r.IP)
