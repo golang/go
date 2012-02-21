@@ -7,4 +7,4 @@ include ../../Make.dist
 install: y.tab.h
 
 y.tab.h: a.y
-	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
+	LANG=C LANGUAGE=en_US.UTF8 bison -d -v -y a.y
