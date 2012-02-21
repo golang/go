@@ -731,5 +731,5 @@ goc2c(char *goc, char *c)
 
 	process_file();
 	
-	writefile(&out, c);
+	writefile(&out, c, 0);
 }

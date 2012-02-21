@@ -55,7 +55,7 @@ gcopnames(char *dir, char *file)
 	
 	bwritestr(&out, bprintf(&b, "};\n"));
 
-	writefile(&out, file);
+	writefile(&out, file, 0);
 
 	bfree(&in);
 	bfree(&b);
@@ -97,7 +97,7 @@ mkenam(char *dir, char *file)
 		}
 	}
 	bwritestr(&out, "};\n");
-	writefile(&out, file);
+	writefile(&out, file, 0);
 
 	bfree(&b);
 	bfree(&in);
