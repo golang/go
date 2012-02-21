@@ -50,15 +50,14 @@ func Dial(addr string) (*Client, error) {
 // server name to be used when authenticating.
 func NewClient(conn net.Conn, host string) (*Client, error) {
 	text := textproto.NewConn(conn)
-	_, msg, err := text.ReadResponse(220)
+	_, _, err := text.ReadResponse(220)
 	if err != nil {
 		text.Close()
 		return nil, err
 	}
 	c := &Client{Text: text, conn: conn, serverName: host}
-	if strings.Contains(msg, "ESMTP") {
-		err = c.ehlo()
-	} else {
+	err = c.ehlo()
+	if err != nil {
 		err = c.helo()
 	}
 	return c, err

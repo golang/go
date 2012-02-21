@@ -8,9 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"net"
 	"net/textproto"
 	"strings"
 	"testing"
+	"time"
 )
 
 type authTest struct {
@@ -59,9 +61,12 @@ type faker struct {
 	io.ReadWriter
 }
 
-func (f faker) Close() error {
-	return nil
-}
+func (f faker) Close() error                     { return nil }
+func (f faker) LocalAddr() net.Addr              { return nil }
+func (f faker) RemoteAddr() net.Addr             { return nil }
+func (f faker) SetDeadline(time.Time) error      { return nil }
+func (f faker) SetReadDeadline(time.Time) error  { return nil }
+func (f faker) SetWriteDeadline(time.Time) error { return nil }
 
 func TestBasic(t *testing.T) {
 	basicServer = strings.Join(strings.Split(basicServer, "\n"), "\r\n")
@@ -178,5 +183,89 @@ Line 1
 ..Leading dot line .
 Goodbye.
 .
+QUIT
+`
+
+func TestNewClient(t *testing.T) {
+	newClientServer = strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
+	newClientClient = strings.Join(strings.Split(newClientClient, "\n"), "\r\n")
+
+	var cmdbuf bytes.Buffer
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	out := func() string {
+		bcmdbuf.Flush()
+		return cmdbuf.String()
+	}
+	var fake faker
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(newClientServer)), bcmdbuf)
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v\n(after %v)", err, out())
+	}
+	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
+		t.Fatalf("Expected AUTH supported")
+	}
+	if ok, _ := c.Extension("DSN"); ok {
+		t.Fatalf("Shouldn't support DSN")
+	}
+	if err := c.Quit(); err != nil {
+		t.Fatalf("QUIT failed: %s", err)
+	}
+
+	actualcmds := out()
+	if newClientClient != actualcmds {
+		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, newClientClient)
+	}
+}
+
+var newClientServer = `220 hello world
+250-mx.google.com at your service
+250-SIZE 35651584
+250-AUTH LOGIN PLAIN
+250 8BITMIME
+221 OK
+`
+
+var newClientClient = `EHLO localhost
+QUIT
+`
+
+func TestNewClient2(t *testing.T) {
+	newClient2Server = strings.Join(strings.Split(newClient2Server, "\n"), "\r\n")
+	newClient2Client = strings.Join(strings.Split(newClient2Client, "\n"), "\r\n")
+
+	var cmdbuf bytes.Buffer
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	var fake faker
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(newClient2Server)), bcmdbuf)
+	c, err := NewClient(fake, "fake.host")
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if ok, _ := c.Extension("DSN"); ok {
+		t.Fatalf("Shouldn't support DSN")
+	}
+	if err := c.Quit(); err != nil {
+		t.Fatalf("QUIT failed: %s", err)
+	}
+
+	bcmdbuf.Flush()
+	actualcmds := cmdbuf.String()
+	if newClient2Client != actualcmds {
+		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, newClient2Client)
+	}
+}
+
+var newClient2Server = `220 hello world
+502 EH?
+250-mx.google.com at your service
+250-SIZE 35651584
+250-AUTH LOGIN PLAIN
+250 8BITMIME
+221 OK
+`
+
+var newClient2Client = `EHLO localhost
+HELO localhost
 QUIT
 `
