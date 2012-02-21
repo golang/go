@@ -169,12 +169,6 @@ const (
 //			to the tab width in the viewer displaying the result)
 //	flags		formatting control
 //
-// To format in tab-separated columns with a tab stop of 8:
-//	b.Init(w, 8, 1, 8, '\t', 0);
-//
-// To format in space-separated columns with at least 4 spaces between columns:
-//	b.Init(w, 0, 4, 8, ' ', 0);
-//
 func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
 		panic("negative minwidth, tabwidth, or padding")
