@@ -117,6 +117,10 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
 		if ra, oserr = raddr.sockaddr(family); oserr != nil {
 			goto Error
 		}
+		if ra == nil {
+			// TODO(r): part of selfConnect debugging
+			panic("ra nil when raddr non-nil")
+		}
 	}
 	fd, oserr = socket(net, family, sotype, proto, la, ra, toAddr)
 	if oserr != nil {
