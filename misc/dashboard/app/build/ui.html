@@ -126,9 +126,9 @@
 
     {{with $.Pagination}}
     <div class="paginate">
-      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>prev</a>
-      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>next</a>
-      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>top</a>
+      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
+      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
+      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
     </div>
     {{end}}
 
