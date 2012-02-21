@@ -271,7 +271,7 @@ func F(arg int) {
 	X = 0
 	X = 0
 	X = 0 // used 256 times
-	if arg != 0 {
+	if arg != 1 {
 		panic("argument was changed")
 	}
 }
