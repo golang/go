@@ -32,7 +32,7 @@ func init() {
 
 var cmdTest = &Command{
 	CustomFlags: true,
-	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
+	UsageLine:   "test [-c] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
@@ -51,9 +51,6 @@ benchmark functions, and example functions.  See 'go help testfunc' for more.
 
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
-If file names are given (with flag -file=test.go, one per extra test source file),
-only those test files are added to the package.  (The non-test files are always
-compiled.)
 
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
@@ -61,10 +58,6 @@ non-test installation.
 The flags handled by 'go test' itself are:
 
 	-c  Compile the test binary to pkg.test but do not run it.
-
-	-file a.go
-	    Use only the tests in the source file a.go.
-	    Multiple -file flags may be provided.
 
 	-i
 	    Install packages that are dependencies of the test.
@@ -147,7 +140,7 @@ For convenience, each of these -test.X flags of the test binary is
 also available as the flag -X in 'go test' itself.  Flags not listed
 here are passed through unaltered.  For instance, the command
 
-	go test -x -v -cpuprofile=prof.out -dir=testdata -update -file x_test.go
+	go test -x -v -cpuprofile=prof.out -dir=testdata -update
 
 will compile the test binary using x_test.go and then run it as
 
