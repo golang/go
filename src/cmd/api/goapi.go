@@ -176,8 +176,9 @@ type Walker struct {
 	constDep        map[string]string // key's const identifier has type of future value const identifier
 	packageState    map[string]loadState
 	interfaces      map[pkgSymbol]*ast.InterfaceType
-	selectorFullPkg map[string]string // "http" => "net/http", updated by imports
-	wantedPkg       map[string]bool   // packages requested on the command line
+	functionTypes   map[pkgSymbol]string // symbol => return type
+	selectorFullPkg map[string]string    // "http" => "net/http", updated by imports
+	wantedPkg       map[string]bool      // packages requested on the command line
 }
 
 func NewWalker() *Walker {
@@ -186,6 +187,7 @@ func NewWalker() *Walker {
 		features:        make(map[string]bool),
 		packageState:    make(map[string]loadState),
 		interfaces:      make(map[pkgSymbol]*ast.InterfaceType),
+		functionTypes:   make(map[pkgSymbol]string),
 		selectorFullPkg: make(map[string]string),
 		wantedPkg:       make(map[string]bool),
 		prevConstType:   make(map[pkgSymbol]string),
@@ -295,6 +297,15 @@ func (w *Walker) WalkPackage(name string) {
 		w.recordTypes(afile)
 	}
 
+	// Register all function declarations first.
+	for _, afile := range apkg.Files {
+		for _, di := range afile.Decls {
+			if d, ok := di.(*ast.FuncDecl); ok {
+				w.peekFuncDecl(d)
+			}
+		}
+	}
+
 	for _, afile := range apkg.Files {
 		w.walkFile(afile)
 	}
@@ -360,7 +371,6 @@ func (w *Walker) recordTypes(file *ast.File) {
 
 func (w *Walker) walkFile(file *ast.File) {
 	// Not entering a scope here; file boundaries aren't interesting.
-
 	for _, di := range file.Decls {
 		switch d := di.(type) {
 		case *ast.GenDecl:
@@ -506,11 +516,6 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 }
 
 func (w *Walker) varValueType(vi interface{}) (string, error) {
-	valStr := w.nodeString(vi)
-	if strings.HasPrefix(valStr, "errors.New(") {
-		return "error", nil
-	}
-
 	switch v := vi.(type) {
 	case *ast.BasicLit:
 		litType, ok := varType[v.Kind]
@@ -552,17 +557,30 @@ func (w *Walker) varValueType(vi interface{}) (string, error) {
 	case *ast.ParenExpr:
 		return w.varValueType(v.X)
 	case *ast.CallExpr:
-		funStr := w.nodeString(v.Fun)
-		node, _, ok := w.resolveName(funStr)
-		if !ok {
-			return "", fmt.Errorf("unresolved named %q", funStr)
-		}
-		if funcd, ok := node.(*ast.FuncDecl); ok {
-			// Assume at the top level that all functions have exactly 1 result
-			return w.nodeString(w.namelessType(funcd.Type.Results.List[0].Type)), nil
+		var funSym pkgSymbol
+		if selnode, ok := v.Fun.(*ast.SelectorExpr); ok {
+			// assume it is not a method.
+			pkg, ok := w.selectorFullPkg[w.nodeString(selnode.X)]
+			if !ok {
+				return "", fmt.Errorf("not a package: %s", w.nodeString(selnode.X))
+			}
+			funSym = pkgSymbol{pkg, selnode.Sel.Name}
+			if retType, ok := w.functionTypes[funSym]; ok {
+				if ast.IsExported(retType) && pkg != w.curPackageName {
+					// otherpkg.F returning an exported type from otherpkg.
+					return pkg + "." + retType, nil
+				} else {
+					return retType, nil
+				}
+			}
+		} else {
+			funSym = pkgSymbol{w.curPackageName, w.nodeString(v.Fun)}
+			if retType, ok := w.functionTypes[funSym]; ok {
+				return retType, nil
+			}
 		}
 		// maybe a function call; maybe a conversion.  Need to lookup type.
-		return "", fmt.Errorf("resolved name %q to a %T: %#v", funStr, node, node)
+		return "", fmt.Errorf("not a known function %q", w.nodeString(v.Fun))
 	default:
 		return "", fmt.Errorf("unknown const value type %T", vi)
 	}
@@ -575,19 +593,8 @@ func (w *Walker) resolveName(name string) (v interface{}, t interface{}, ok bool
 	for _, file := range w.curPackage.Files {
 		for _, di := range file.Decls {
 			switch d := di.(type) {
-			case *ast.FuncDecl:
-				if d.Name.Name == name {
-					return d, d.Type, true
-				}
 			case *ast.GenDecl:
 				switch d.Tok {
-				case token.TYPE:
-					for _, sp := range d.Specs {
-						ts := sp.(*ast.TypeSpec)
-						if ts.Name.Name == name {
-							return ts, ts.Type, true
-						}
-					}
 				case token.VAR:
 					for _, sp := range d.Specs {
 						vs := sp.(*ast.ValueSpec)
@@ -850,6 +857,17 @@ func (w *Walker) walkInterfaceType(name string, t *ast.InterfaceType) {
 		w.emitFeature(fmt.Sprintf("type %s interface {}", name))
 	} else {
 		w.emitFeature(fmt.Sprintf("type %s interface { %s }", name, strings.Join(methNames, ", ")))
+	}
+}
+
+func (w *Walker) peekFuncDecl(f *ast.FuncDecl) {
+	if f.Recv != nil {
+		return
+	}
+	// Record return type for later use.
+	if f.Type.Results != nil && len(f.Type.Results.List) == 1 {
+		retType := w.nodeString(w.namelessType(f.Type.Results.List[0].Type))
+		w.functionTypes[pkgSymbol{w.curPackageName, f.Name.Name}] = retType
 	}
 }
 
