@@ -56,11 +56,11 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	<-c
 	<-c
 
-	w, err := p.Wait()
+	state, err := p.Wait()
 	if err != nil {
 		fatalf("%s", err)
 	}
-	ok = w.Exited() && w.ExitStatus() == 0
+	ok = state.Success()
 	return
 }
 

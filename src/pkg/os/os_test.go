@@ -1007,10 +1007,10 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
 	}
 }
 
-func TestNilWaitmsgString(t *testing.T) {
-	var w *Waitmsg
-	s := w.String()
+func TestNilProcessStateString(t *testing.T) {
+	var ps *ProcessState
+	s := ps.String()
 	if s != "<nil>" {
-		t.Errorf("(*Waitmsg)(nil).String() = %q, want %q", s, "<nil>")
+		t.Errorf("(*ProcessState)(nil).String() = %q, want %q", s, "<nil>")
 	}
 }

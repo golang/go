@@ -8,12 +8,13 @@ import (
 	"errors"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
 // Wait waits for the Process to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any.
-func (p *Process) Wait() (w *Waitmsg, err error) {
+// ProcessState describing its status and an error, if any.
+func (p *Process) Wait() (ps *ProcessState, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:
@@ -29,7 +30,7 @@ func (p *Process) Wait() (w *Waitmsg, err error) {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	p.done = true
-	return &Waitmsg{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+	return &ProcessState{p.Pid, &syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
 }
 
 // Signal sends a signal to the Process.
@@ -82,4 +83,16 @@ func init() {
 	for i, v := range (*argv)[:argc] {
 		Args[i] = string(syscall.UTF16ToString((*v)[:]))
 	}
+}
+
+// UserTime returns the user CPU time of the exited process and its children.
+// For now, it is always reported as 0 on Windows.
+func (p *ProcessState) UserTime() time.Duration {
+	return 0
+}
+
+// SystemTime returns the system CPU time of the exited process and its children.
+// For now, it is always reported as 0 on Windows.
+func (p *ProcessState) SystemTime() time.Duration {
+	return 0
 }

@@ -79,9 +79,9 @@ type Cmd struct {
 	// Process is the underlying process, once started.
 	Process *os.Process
 
-	// Waitmsg contains information about an exited process,
+	// ProcessState contains information about an exited process,
 	// available after a call to Wait or Run.
-	Waitmsg *os.Waitmsg
+	ProcessState *os.ProcessState
 
 	err             error // last error (from LookPath, stdin, stdout, stderr)
 	finished        bool  // when Wait was called
@@ -266,11 +266,11 @@ func (c *Cmd) Start() error {
 
 // An ExitError reports an unsuccessful exit by a command.
 type ExitError struct {
-	*os.Waitmsg
+	*os.ProcessState
 }
 
 func (e *ExitError) Error() string {
-	return e.Waitmsg.String()
+	return e.ProcessState.String()
 }
 
 // Wait waits for the command to exit.
@@ -291,8 +291,8 @@ func (c *Cmd) Wait() error {
 		return errors.New("exec: Wait was already called")
 	}
 	c.finished = true
-	msg, err := c.Process.Wait()
-	c.Waitmsg = msg
+	state, err := c.Process.Wait()
+	c.ProcessState = state
 
 	var copyError error
 	for _ = range c.goroutine {
@@ -307,8 +307,8 @@ func (c *Cmd) Wait() error {
 
 	if err != nil {
 		return err
-	} else if !msg.Exited() || msg.ExitStatus() != 0 {
-		return &ExitError{msg}
+	} else if !state.Success() {
+		return &ExitError{state}
 	}
 
 	return copyError
