@@ -27,7 +27,7 @@ char *slash;	// / for unix, \ for windows
 bool	rebuildall = 0;
 
 static bool shouldbuild(char*, char*);
-static void copy(char*, char*);
+static void copy(char*, char*, int);
 static char *findgoversion(void);
 
 // The known architecture letters.
@@ -245,7 +245,7 @@ findgoversion(void)
 		bwriteb(&b, &bmore);
 
 	// Cache version.
-	writefile(&b, bstr(&path));
+	writefile(&b, bstr(&path), 0);
 
 done:
 	p = btake(&b);
@@ -567,7 +567,7 @@ install(char *dir)
 	// For misc/prof, copy into the tool directory and we're done.
 	if(hasprefix(dir, "misc/")) {
 		copy(bpathf(&b, "%s/%s", tooldir, name),
-			bpathf(&b1, "%s/misc/%s", goroot, name));
+			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
 		goto out;
 	}
 
@@ -750,13 +750,13 @@ install(char *dir)
 	// For package runtime, copy some files into the work space.
 	if(streq(dir, "pkg/runtime")) {
 		copy(bpathf(&b, "%s/arch_GOARCH.h", workdir),
-			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch));
+			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
 		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
-			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch));
+			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
 		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
-			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos));
+			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
-			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
+			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
 	}
 
 	// Generate any missing files; regenerate existing ones.
@@ -789,7 +789,7 @@ install(char *dir)
 	// This one is generated.
 	if(streq(dir, "pkg/runtime")) {
 		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
-			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch));
+			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
 	}
 	
 	// Generate .c files from .goc files.
@@ -935,9 +935,9 @@ nobuild:
 	// for use by cgo compilation.
 	if(streq(dir, "pkg/runtime")) {
 		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
-			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot));
+			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
 		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
-			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot));
+			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
 	}
 
 
@@ -1051,7 +1051,7 @@ out:
 
 // copy copies the file src to dst, via memory (so only good for small files).
 static void
-copy(char *dst, char *src)
+copy(char *dst, char *src, int exec)
 {
 	Buf b;
 	
@@ -1060,7 +1060,7 @@ copy(char *dst, char *src)
 
 	binit(&b);
 	readfile(&b, src);
-	writefile(&b, dst);
+	writefile(&b, dst, exec);
 	bfree(&b);
 }
 

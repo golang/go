@@ -539,11 +539,13 @@ readfile(Buf *b, char *file)
 }
 
 void
-writefile(Buf *b, char *file)
+writefile(Buf *b, char *file, int exec)
 {
 	HANDLE h;
 	Rune *r;
 	DWORD n;
+
+	USED(exec);
 
 	if(vflag > 2)
 		xprintf("write %s\n", file);

@@ -31,7 +31,7 @@ mkzversion(char *dir, char *file)
 		"const defaultGoroot = `%s`\n"
 		"const theVersion = `%s`\n", goroot_final, goversion));
 
-	writefile(&out, file);
+	writefile(&out, file, 0);
 	
 	bfree(&b);
 	bfree(&out);
@@ -57,7 +57,7 @@ mkzgoarch(char *dir, char *file)
 		"\n"
 		"const theGoarch = `%s`\n", goarch));
 
-	writefile(&out, file);
+	writefile(&out, file, 0);
 	
 	bfree(&b);
 	bfree(&out);
@@ -83,7 +83,7 @@ mkzgoos(char *dir, char *file)
 		"\n"
 		"const theGoos = `%s`\n", goos));
 
-	writefile(&out, file);
+	writefile(&out, file, 0);
 	
 	bfree(&b);
 	bfree(&out);
@@ -235,8 +235,8 @@ ok:
 	}
 	
 	// Write both to file and to workdir/zasm_GOOS_GOARCH.h.
-	writefile(&out, file);
-	writefile(&out, bprintf(&b, "%s/zasm_GOOS_GOARCH.h", workdir));
+	writefile(&out, file, 0);
+	writefile(&out, bprintf(&b, "%s/zasm_GOOS_GOARCH.h", workdir), 0);
 
 	bfree(&in);
 	bfree(&b);
@@ -334,7 +334,7 @@ mkzruntimedefs(char *dir, char *file)
 		bwritestr(&out, p);
 	}
 	
-	writefile(&out, file);
+	writefile(&out, file, 0);
 
 	bfree(&in);
 	bfree(&b);

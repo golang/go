@@ -120,7 +120,7 @@ void	runv(Buf *b, char *dir, int mode, Vec *argv);
 void	bgrunv(char *dir, int mode, Vec *argv);
 void	bgwait(void);
 bool	streq(char*, char*);
-void	writefile(Buf*, char*);
+void	writefile(Buf*, char*, int);
 void	xatexit(void (*f)(void));
 void	xexit(int);
 void	xfree(void*);

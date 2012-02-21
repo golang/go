@@ -351,9 +351,10 @@ readfile(Buf *b, char *file)
 	close(fd);
 }
 
-// writefile writes b to the named file, creating it if needed.
+// writefile writes b to the named file, creating it if needed.  if
+// exec is non-zero, marks the file as executable.
 void
-writefile(Buf *b, char *file)
+writefile(Buf *b, char *file, int exec)
 {
 	int fd;
 	
@@ -362,9 +363,11 @@ writefile(Buf *b, char *file)
 		fatal("create %s: %s", file, strerror(errno));
 	if(write(fd, b->p, b->len) != b->len)
 		fatal("short write: %s", strerror(errno));
+	if(exec)
+		fchmod(fd, 0755);
 	close(fd);
 }
-	
+
 // xmkdir creates the directory p.
 void
 xmkdir(char *p)
