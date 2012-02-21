@@ -28,10 +28,10 @@ markautoused(Prog* p)
 {
 	for (; p; p = p->link) {
 		if (p->from.type == D_AUTO && p->from.node)
-			p->from.node->used++;
+			p->from.node->used = 1;
 
 		if (p->to.type == D_AUTO && p->to.node)
-			p->to.node->used++;
+			p->to.node->used = 1;
 	}
 }
 
