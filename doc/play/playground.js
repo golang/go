@@ -8,6 +8,7 @@
 // 	runEl - run button element
 // 	shareEl - share button element (optional)
 // 	shareURLEl - share URL text input element (optional)
+// 	shareRedirect - base URL to redirect to on share (optional)
 // 	preCompile - callback to mutate request data before compiling
 // 	postCompile - callback to read response data after compiling
 //      simple - use plain textarea instead of CodeMirror.
@@ -163,7 +164,7 @@ function playground(opts) {
 	}
 	$(opts['runEl']).click(run);
 
-	if (opts['shareEl'] == null || opts['shareURLEl'] == null) {
+	if (opts['shareEl'] == null || (opts['shareURLEl'] == null && opts['shareRedirect'] == null)) {
 		return editor;
 	}
 
@@ -171,7 +172,10 @@ function playground(opts) {
 		return (""+href).split("/").slice(0, 3).join("/");
 	}
 
-	var shareURL = $(opts['shareURLEl']).hide();
+	var shareURL;
+	if (opts['shareURLEl']) {
+		shareURL = $(opts['shareURLEl']).hide();
+	}
 	var sharing = false;
 	$(opts['shareEl']).click(function() {
 		if (sharing) return;
@@ -184,11 +188,16 @@ function playground(opts) {
 				sharing = false;
 				if (xhr.status != 200) {
 					alert("Server error; try again.");
-					return
+					return;
 				}
-				var url = origin(window.location) + "/p/" +
-					xhr.responseText;
-				shareURL.show().val(url).focus().select();
+				if (opts['shareRedirect']) {
+					window.location = opts['shareRedirect'] + xhr.responseText;
+				}
+				if (shareURL) {
+					var url = origin(window.location) + "/p/" +
+						xhr.responseText;
+					shareURL.show().val(url).focus().select();
+				}
 			}
 		});
 	});
