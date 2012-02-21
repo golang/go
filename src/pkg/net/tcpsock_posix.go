@@ -230,6 +230,13 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 
+	checkRaddr := func(s string) {
+		if err == nil && fd.raddr == nil {
+			panic("nil raddr in DialTCP: " + s)
+		}
+	}
+	checkRaddr("early")
+
 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
 	// connect to a simultaneous Dial("tcp", addr2, addr1) run on the machine
@@ -250,6 +257,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	for i := 0; i < 2 && err == nil && laddr == nil && selfConnect(fd); i++ {
 		fd.Close()
 		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+		checkRaddr("after close")
 	}
 
 	if err != nil {
