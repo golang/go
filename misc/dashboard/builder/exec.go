@@ -28,7 +28,7 @@ func run(envv []string, dir string, argv ...string) error {
 // as well as writing it to logfile (if specified). It returns
 // process combined stdout and stderr output, exit status and error.
 // The error returned is nil, if process is started successfully,
-// even if exit status is not 0.
+// even if exit status is not successful.
 func runLog(envv []string, logfile, dir string, argv ...string) (string, int, error) {
 	if *verbose {
 		log.Println("runLog", argv)
@@ -51,11 +51,13 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, er
 	cmd.Stdout = w
 	cmd.Stderr = w
 
-	err := cmd.Run()
-	if err != nil {
-		if ws, ok := err.(*exec.ExitError); ok {
-			return b.String(), ws.ExitStatus(), nil
-		}
+	startErr := cmd.Start()
+	if startErr != nil {
+		return "", 1, startErr
 	}
-	return b.String(), 0, err
+	exitStatus := 0
+	if err := cmd.Wait(); err != nil {
+		exitStatus = 1 // TODO(bradfitz): this is fake. no callers care, so just return a bool instead.
+	}
+	return b.String(), exitStatus, nil
 }
