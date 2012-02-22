@@ -11,19 +11,17 @@ Dependencies
 Packaging
 =========
 The dependencies must be callable from dist.bat, therefore,
-they'll need to be in/added to the system's search PATH.
+they'll need to be in/added to the system's search PATH. 
 
 The packaging needs to be done from within a tracked Go folder. 
 Packages are built by cloning the same version of the source tree
 that the Go tools were built from.
 
-To create an i386 distribution package on a 64 bit system, set
-GOARCH=386 prior to calling dist.bat.
-
 Run dist.bat from a command prompt or click on the batch file.
 
 TODO
 ----
+- Write a Go program for dist.bat functionality
 - Documentation server shortcut checkbox option
 
 Misc

@@ -36,11 +36,11 @@
     Languages="1033" />
     <!--    Platform="x86 or x64" -->
 
-    <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
-    <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
-    <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
-    <Property Id="ARPREADME" Value="golang.org" />
-    <Property Id="ARPURLINFOABOUT" Value="golang.org" />
+<Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
+<Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
+<Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
+<Property Id="ARPREADME" Value="golang.org" />
+<Property Id="ARPURLINFOABOUT" Value="golang.org" />
 <Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
 <Property Id="ARPPRODUCTICON" Value="gopher.ico" />
 <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
@@ -114,10 +114,10 @@
         Key="Software\GoProgrammingLanguage"
         Action="create" >
             <RegistryValue
-        Name="installed"
-        Type="integer"
-        Value="1"
-        KeyPath="yes" />
+                Name="installed"
+                Type="integer"
+                Value="1"
+                KeyPath="yes" />
             <RegistryValue
                 Name="installLocation"
                 Type="string"
@@ -144,7 +144,6 @@
     Id="GoTools"
     Title="Go"
     Level="1">
-
       <ComponentRef Id="Component_GoEnvironment" />
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="Component_GoShortCuts" />
@@ -156,7 +155,7 @@
 </InstallExecuteSequence>
 
 <!-- Include the user interface -->
-<WixVariable Id="WixUILicenseRtf" Value="LICENSE" />
+<WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
 <WixVariable Id="WixUIBannerBmp" Value="images\Banner.jpg" />
 <WixVariable Id="WixUIDialogBmp" Value="images\Dialog.jpg" />
 <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
