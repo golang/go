@@ -7,6 +7,9 @@ pre, code {
 	font-family: Menlo, monospace;
 	font-size: 14px;
 }
+pre {
+	line-height: 18px;
+}
 pre .comment {
 	color: #375EAB;
 }
