@@ -98,9 +98,9 @@ func (s *socks5) Dial(network, addr string) (net.Conn, error) {
 
 	buf = append(buf, socks5Version)
 	if len(s.user) > 0 && len(s.user) < 256 && len(s.password) < 256 {
-		buf = append(buf, 2, /* num auth methods */ socks5AuthNone, socks5AuthPassword)
+		buf = append(buf, 2 /* num auth methods */, socks5AuthNone, socks5AuthPassword)
 	} else {
-		buf = append(buf, 1, /* num auth methods */ socks5AuthNone)
+		buf = append(buf, 1 /* num auth methods */, socks5AuthNone)
 	}
 
 	if _, err = conn.Write(buf); err != nil {
@@ -139,7 +139,7 @@ func (s *socks5) Dial(network, addr string) (net.Conn, error) {
 	}
 
 	buf = buf[:0]
-	buf = append(buf, socks5Version, socks5Connect, 0 /* reserved */ )
+	buf = append(buf, socks5Version, socks5Connect, 0 /* reserved */)
 
 	if ip := net.ParseIP(host); ip != nil {
 		if len(ip) == 4 {

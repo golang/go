@@ -132,7 +132,9 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		for i, x := range list {
 			if i > 0 {
 				if mode&commaSep != 0 {
-					p.print(token.COMMA)
+					// use position of expression following the comma as
+					// comma position for correct comment placement
+					p.print(x.Pos(), token.COMMA)
 				}
 				p.print(blank)
 			}
@@ -212,11 +214,18 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		}
 
 		if i > 0 {
+			needsLinebreak := prevLine < line && prevLine > 0 && line > 0
 			if mode&commaSep != 0 {
+				// use position of expression following the comma as
+				// comma position for correct comment placement, but
+				// only if the expression is on the same line
+				if !needsLinebreak {
+					p.print(x.Pos())
+				}
 				p.print(token.COMMA)
 			}
 			needsBlank := true
-			if prevLine < line && prevLine > 0 && line > 0 {
+			if needsLinebreak {
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
 				// the same line in which case formfeed is used
@@ -283,11 +292,18 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 				parLineBeg = parLineEnd
 			}
 			// separating "," if needed
+			needsLinebreak := 0 < prevLine && prevLine < parLineBeg
 			if i > 0 {
+				// use position of parameter following the comma as
+				// comma position for correct comma placement, but
+				// only if the next parameter is on the same line
+				if !needsLinebreak {
+					p.print(par.Pos())
+				}
 				p.print(token.COMMA)
 			}
 			// separator if needed (linebreak or blank)
-			if 0 < prevLine && prevLine < parLineBeg && p.linebreak(parLineBeg, 0, ws, true) {
+			if needsLinebreak && p.linebreak(parLineBeg, 0, ws, true) {
 				// break line if the opening "(" or previous parameter ended on a different line
 				ws = ignore
 				*multiLine = true
@@ -312,7 +328,7 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 		// if the closing ")" is on a separate line from the last parameter,
 		// print an additional "," and line break
 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
-			p.print(",")
+			p.print(token.COMMA)
 			p.linebreak(closing, 0, ignore, true)
 		}
 		// unindent if we indented
@@ -393,6 +409,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			f := list[0]
 			for i, x := range f.Names {
 				if i > 0 {
+					// no comments so no need for comma position
 					p.print(token.COMMA, blank)
 				}
 				p.expr(x, ignoreMultiLine)
@@ -1125,7 +1142,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 		p.print(token.FOR, blank)
 		p.expr(s.Key, multiLine)
 		if s.Value != nil {
-			p.print(token.COMMA, blank)
+			// use position of value following the comma as
+			// comma position for correct comment placement
+			p.print(s.Value.Pos(), token.COMMA, blank)
 			p.expr(s.Value, multiLine)
 		}
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)

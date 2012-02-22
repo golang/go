@@ -405,16 +405,17 @@ func _() {
 }
 
 // Some interesting interspersed comments.
+// See below for more common cases.
 func _( /* this */ x /* is */ /* an */ int) {
 }
 
-func _( /* no params */ )	{}
+func _( /* no params */)	{}
 
 func _() {
-	f( /* no args */ )
+	f( /* no args */)
 }
 
-func ( /* comment1 */ T /* comment2 */ ) _()	{}
+func ( /* comment1 */ T /* comment2 */) _()	{}
 
 func _() { /* one-line functions with comments are formatted as multi-line functions */
 }
@@ -425,7 +426,7 @@ func _() {
 }
 
 func _() {
-	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */ }
+	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */}
 }
 
 // Test cases from issue 1542:
@@ -448,8 +449,9 @@ func _() {
 	_ = a
 }
 
-// Comments immediately adjacent to punctuation (for which the go/printer
-// may only have estimated position information) must remain after the punctuation.
+// Comments immediately adjacent to punctuation followed by a newline
+// remain after the punctuation (looks better and permits alignment of
+// comments).
 func _() {
 	_ = T{
 		1,	// comment after comma
@@ -476,6 +478,35 @@ func _() {
 	for i = 0;	// comment after semicolon
 	i < 9;		/* comment before semicolon - ok to move after semicolon */
 	i++ /* comment before opening curly brace */ {
+	}
+}
+
+// If there is no newline following punctuation, commas move before the punctuation.
+// This way, commas interspersed in lists stay with the respective expression.
+func f(x /* comment */, y int, z int /* comment */, u, v, w int /* comment */) {
+	f(x /* comment */, y)
+	f(x,	/* comment */
+		y)
+	f(
+		x,	/* comment */
+	)
+}
+
+func g(
+	x int,	/* comment */
+) {
+}
+
+type _ struct {
+	a, b /* comment */, c int
+}
+
+type _ struct {
+	a, b /* comment */, c int
+}
+
+func _() {
+	for a /* comment */, b := range x {
 	}
 }
 
