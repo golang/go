@@ -178,7 +178,8 @@ func (m *Mapping) ToAbsolute(spath string) string {
 //
 func (m *Mapping) ToRelative(fpath string) string {
 	for _, e := range m.list {
-		if strings.HasPrefix(fpath, e.path) {
+		// if fpath has prefix e.path, the next character must be a separator (was issue 3096)
+		if strings.HasPrefix(fpath, e.path) && fpath[len(e.path)] == filepath.Separator {
 			spath := filepath.ToSlash(fpath)
 			// /absolute/prefix/foo -> prefix/foo
 			return path.Join(e.prefix, spath[len(e.path):]) // Join will remove a trailing '/'
