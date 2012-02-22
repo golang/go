@@ -65,7 +65,7 @@ Pconv(Fmt *fp)
 	switch(a) {
 	default:
 		fmtprint(fp, "(%d)", p->line);
-		if(p->reg == NREG)
+		if(p->reg == NREG && p->as != AGLOBL)
 			fmtprint(fp, "	%A%C	%D,%D",
 				a, p->scond, &p->from, &p->to);
 		else

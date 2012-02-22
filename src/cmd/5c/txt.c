@@ -1185,7 +1185,8 @@ gpseudo(int a, Sym *s, Node *n)
 	if(a == ATEXT) {
 		p->reg = textflag;
 		textflag = 0;
-	}
+	} else if(a == AGLOBL)
+		p->reg = 0;
 	if(s->class == CSTATIC)
 		p->from.name = D_STATIC;
 	naddr(n, &p->to);

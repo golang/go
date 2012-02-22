@@ -75,6 +75,7 @@ prog(int as)
 		p = dpc;
 		dpc = mal(sizeof(*dpc));
 		p->link = dpc;
+		p->reg = 0;  // used for flags
 	} else {
 		p = pc;
 		pc = mal(sizeof(*pc));
@@ -1116,7 +1117,8 @@ gins(int as, Node *f, Node *t)
 	if(f != N)
 		naddr(f, &af, 1);
 	if(t != N)
-		naddr(t, &at, 1);	p = prog(as);
+		naddr(t, &at, 1);
+	p = prog(as);
 	if(f != N)
 		p->from = af;
 	if(t != N)
