@@ -334,6 +334,10 @@ symtab(void)
 	xdefine("enoptrdata", SBSS, 0);
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, 0);
+	xdefine("bss", SBSS, 0);
+	xdefine("ebss", SBSS, 0);
+	xdefine("noptrbss", SBSS, 0);
+	xdefine("enoptrbss", SBSS, 0);
 	xdefine("end", SBSS, 0);
 	xdefine("epclntab", SRODATA, 0);
 	xdefine("esymtab", SRODATA, 0);

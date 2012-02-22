@@ -491,7 +491,6 @@ zaddr(Gen *a, int s)
 
 	Bputc(&obuf, a->type);
 	Bputc(&obuf, a->reg);
-	Bputc(&obuf, 0); // flag
 	Bputc(&obuf, s);
 	Bputc(&obuf, a->name);
 	switch(a->type) {

@@ -122,6 +122,7 @@ struct	Sym
 	uchar	sym;
 	uchar	aused;
 	uchar	sig;
+	uchar	dataflag;
 };
 #define	S	((Sym*)0)
 
@@ -524,6 +525,7 @@ EXTERN	int	nterm;
 EXTERN	int	packflg;
 EXTERN	int	fproundflg;
 EXTERN	int	textflag;
+EXTERN	int	dataflag;
 EXTERN	int	ncontin;
 EXTERN	int	canreach;
 EXTERN	int	warnreach;
@@ -766,6 +768,7 @@ void	arginit(void);
 void	pragvararg(void);
 void	pragpack(void);
 void	pragfpround(void);
+void	pragdataflag(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
 void	pragdynimport(void);

@@ -254,9 +254,9 @@ ggloblnod(Node *nam, int32 width)
 	p->to.type = D_CONST;
 	p->to.offset = width;
 	if(nam->readonly)
-		p->from.flag = RODATA;
+		p->reg = RODATA;
 	if(nam->type != T && !haspointers(nam->type))
-		p->from.flag |= NOPTR;
+		p->reg |= NOPTR;
 }
 
 void
@@ -273,7 +273,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
 	p->to.offset = width;
 	if(dupok)
 		p->reg = DUPOK;
-	p->from.flag |= RODATA;
+	p->reg |= RODATA;
 }
 
 int

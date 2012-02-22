@@ -301,7 +301,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 
 	a->type = Bgetc(f);
 	a->reg = Bgetc(f);
-	a->flag = Bgetc(f);
 	c = Bgetc(f);
 	if(c < 0 || c > NSYM){
 		print("sym out of range: %d\n", c);
@@ -541,7 +540,7 @@ loop:
 			s->type = SBSS;
 			s->value = 0;
 		}
-		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
+		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
 			diag("redefinition: %s\n%P", s->name, p);
 			s->type = SBSS;
 			s->value = 0;
@@ -550,10 +549,14 @@ loop:
 			s->size = p->to.offset;
 		if(p->reg & DUPOK)
 			s->dupok = 1;
-		if(p->from.flag & RODATA)
+		if(p->reg & RODATA)
 			s->type = SRODATA;
-		else if(p->from.flag & NOPTR)
-			s->type = SNOPTRDATA;
+		else if(p->reg & NOPTR) {
+			if(s->np > 0)
+				s->type = SNOPTRDATA;
+			else
+				s->type = SNOPTRBSS;
+		}
 		break;
 
 	case ADATA:
