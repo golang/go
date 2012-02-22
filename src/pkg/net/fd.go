@@ -252,7 +252,9 @@ func (s *pollServer) Run() {
 		} else {
 			netfd := s.LookupFD(fd, mode)
 			if netfd == nil {
-				print("pollServer: unexpected wakeup for fd=", fd, " mode=", string(mode), "\n")
+				// This can happen because the WaitFD runs without
+				// holding s's lock, so there might be a pending wakeup
+				// for an fd that has been evicted.  No harm done.
 				continue
 			}
 			s.WakeFD(netfd, mode, nil)
