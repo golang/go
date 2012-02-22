@@ -59,8 +59,8 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		f = sockaddrToUnixpacket
 	}
 
-	fd, oserr := socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
-	if oserr != nil {
+	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
+	if err != nil {
 		goto Error
 	}
 	return fd, nil
@@ -70,7 +70,7 @@ Error:
 	if mode == "listen" {
 		addr = laddr
 	}
-	return nil, &OpError{Op: mode, Net: net, Addr: addr, Err: oserr}
+	return nil, &OpError{Op: mode, Net: net, Addr: addr, Err: err}
 }
 
 func sockaddrToUnix(sa syscall.Sockaddr) Addr {
