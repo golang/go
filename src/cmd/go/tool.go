@@ -17,11 +17,14 @@ import (
 
 var cmdTool = &Command{
 	Run:       runTool,
-	UsageLine: "tool command [args...]",
+	UsageLine: "tool [-n] command [args...]",
 	Short:     "run specified go tool",
 	Long: `
 Tool runs the go tool command identified by the arguments.
 With no arguments it prints the list of known tools.
+
+The -n flag causes tool to print the command that would be
+executed but not execute it.
 
 For more about each tool command, see 'go tool command -h'.
 `,
@@ -32,7 +35,13 @@ var (
 	toolGOARCH    = runtime.GOARCH
 	toolIsWindows = toolGOOS == "windows"
 	toolDir       = build.ToolDir
+
+	toolN bool
 )
+
+func init() {
+	cmdTool.Flag.BoolVar(&toolN, "n", false, "")
+}
 
 const toolWindowsExtension = ".exe"
 
@@ -65,6 +74,11 @@ func runTool(cmd *Command, args []string) {
 	if _, err := os.Stat(toolPath); err != nil {
 		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		setExitStatus(3)
+		return
+	}
+
+	if toolN {
+		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
 		return
 	}
 	toolCmd := &exec.Cmd{
