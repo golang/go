@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 16, 2012"
+	"Subtitle": "Version of February 21, 2012"
 }-->
 
 <!--
@@ -2238,7 +2238,7 @@ A function literal can be assigned to a variable or invoked directly.
 
 <pre>
 f := func(x, y int) int { return x + y }
-func(ch chan int) { ch &lt;- ACK } (reply_chan)
+func(ch chan int) { ch &lt;- ACK }(replyChan)
 </pre>
 
 <p>
@@ -2827,7 +2827,7 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 x &lt;= f()
 ^a &gt;&gt; b
 f() || g()
-x == y+1 &amp;&amp; &lt;-chan_ptr &gt; 0
+x == y+1 &amp;&amp; &lt;-chanPtr &gt; 0
 </pre>
 
 
@@ -2977,7 +2977,7 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 <h3 id="Comparison_operators">Comparison operators</h3>
 
 <p>
-Comparison operators compare two operands and yield a value of type <code>bool</code>.
+Comparison operators compare two operands and yield a boolean value.
 </p>
 
 <pre class="grammar">
@@ -3084,6 +3084,23 @@ be compared to the predeclared identifier <code>nil</code>.
 Comparison of pointer, channel, and interface values to <code>nil</code>
 is also allowed and follows from the general rules above.
 </p>
+
+<p>
+The result of a comparison can be assigned to any boolean type.
+If the context does not demand a specific boolean type,
+the result has type <code>bool</code>.
+</p>
+
+<pre>
+type MyBool bool
+
+var x, y int
+var (
+	b1 MyBool = x == y // result of comparison has type MyBool
+	b2 bool   = x == y // result of comparison has type bool
+	b3        = x == y // result of comparison has type bool
+)
+</pre>
 
 <h3 id="Logical_operators">Logical operators</h3>
 
@@ -3511,7 +3528,7 @@ Untyped boolean, numeric, and string constants may be used as operands
 wherever it is legal to use an operand of boolean, numeric, or string type,
 respectively.
 Except for shift operations, if the operands of a binary operation are
-different kinds of untyped constants, the operation and result use
+different kinds of untyped constants, the operation and, for non-boolean operations, the result use
 the kind that appears later in this list: integer, character, floating-point, complex.
 For example, an untyped integer constant divided by an
 untyped complex constant yields an untyped complex constant.
@@ -3519,7 +3536,7 @@ untyped complex constant yields an untyped complex constant.
 
 <p>
 A constant <a href="#Comparison_operators">comparison</a> always yields
-an untyped boolean constant. If the left operand of a constant
+an untyped boolean constant.  If the left operand of a constant
 <a href="#Operators">shift expression</a> is an untyped constant, the
 result is an integer constant; otherwise it is a constant of the same
 type as the left operand, which must be of integer type
@@ -3866,8 +3883,8 @@ operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
 is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
 to type <code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
 <code>complex128</code> or <code>string</code>
-respectively, depending on whether the value is a boolean,
-character, integer, floating-point, complex, or string constant.
+respectively, depending on whether the value is a
+boolean, character, integer, floating-point, complex, or string constant.
 </p>
 
 
@@ -4049,16 +4066,16 @@ could be rewritten:
 v := x  // x is evaluated exactly once
 if v == nil {
 	printString("x is nil")
-} else if i, is_int := v.(int); is_int {
+} else if i, isInt := v.(int); isInt {
 	printInt(i)  // i is an int
-} else if i, is_float64 := v.(float64); is_float64 {
+} else if i, isFloat64 := v.(float64); isFloat64 {
 	printFloat64(i)  // i is a float64
-} else if i, is_func := v.(func(int) float64); is_func {
+} else if i, isFunc := v.(func(int) float64); isFunc {
 	printFunction(i)  // i is a function
 } else {
-	i1, is_bool := v.(bool)
-	i2, is_string := v.(string)
-	if is_bool || is_string {
+	i1, isBool := v.(bool)
+	i2, isString := v.(string)
+	if isBool || isString {
 		i := v
 		printString("type is bool or string")  // i is an interface{}
 	} else {
@@ -4388,7 +4405,7 @@ In a function without a result type, a "return" statement must not
 specify any result values.
 </p>
 <pre>
-func no_result() {
+func noResult() {
 	return
 }
 </pre>
@@ -4404,11 +4421,11 @@ type:
 		and <a href="#Assignability">assignable</a>
 		to the corresponding element of the function's result type.
 <pre>
-func simple_f() int {
+func simpleF() int {
 	return 2
 }
 
-func complex_f1() (re float64, im float64) {
+func complexF1() (re float64, im float64) {
 	return -7.0, -4.0
 }
 </pre>
@@ -4420,8 +4437,8 @@ func complex_f1() (re float64, im float64) {
 		"return" statement listing these variables, at which point the
 		rules of the previous case apply.
 <pre>
-func complex_f2() (re float64, im float64) {
-	return complex_f1()
+func complexF2() (re float64, im float64) {
+	return complexF1()
 }
 </pre>
 	</li>
@@ -4431,7 +4448,7 @@ func complex_f2() (re float64, im float64) {
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
 <pre>
-func complex_f3() (re float64, im float64) {
+func complexF3() (re float64, im float64) {
 	re = 7.0
 	im = 4.0
 	return
