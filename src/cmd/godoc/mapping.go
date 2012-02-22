@@ -139,14 +139,16 @@ func (m *Mapping) Fprint(w io.Writer) {
 	}
 }
 
+const sep = string(filepath.Separator)
+
 // splitFirst splits a path at the first path separator and returns
 // the path's head (the top-most directory specified by the path) and
 // its tail (the rest of the path). If there is no path separator,
-// splitFirst returns path as head, and the the empty string as tail.
+// splitFirst returns path as head, and the empty string as tail.
 // Specifically, splitFirst("foo") == splitFirst("foo/").
 //
 func splitFirst(path string) (head, tail string) {
-	if i := strings.Index(path, string(filepath.Separator)); i > 0 {
+	if i := strings.Index(path, sep); i > 0 {
 		// 0 < i < len(path)
 		return path[0:i], path[i+1:]
 	}
@@ -179,7 +181,7 @@ func (m *Mapping) ToAbsolute(spath string) string {
 func (m *Mapping) ToRelative(fpath string) string {
 	for _, e := range m.list {
 		// if fpath has prefix e.path, the next character must be a separator (was issue 3096)
-		if strings.HasPrefix(fpath, e.path) && fpath[len(e.path)] == filepath.Separator {
+		if strings.HasPrefix(fpath, e.path+sep) {
 			spath := filepath.ToSlash(fpath)
 			// /absolute/prefix/foo -> prefix/foo
 			return path.Join(e.prefix, spath[len(e.path):]) // Join will remove a trailing '/'
