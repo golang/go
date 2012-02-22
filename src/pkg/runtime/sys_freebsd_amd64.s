@@ -26,7 +26,7 @@ TEXT runtime·thr_new(SB),7,$0
 	RET
 
 TEXT runtime·thr_start(SB),7,$0
-	MOVQ	DI, R13	// m
+	MOVQ	DI, R13 // m
 
 	// set up FS to point at m->tls
 	LEAQ	m_tls(R13), DI
@@ -232,4 +232,14 @@ TEXT runtime·sysctl(SB),7,$0
 TEXT runtime·osyield(SB),7,$-4
 	MOVL	$331, AX		// sys_sched_yield
 	SYSCALL
+	RET
+
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
+	MOVQ	8(SP), SI		// arg 2 - set
+	MOVQ	16(SP), DX		// arg 3 - oset
+	MOVL	$340, AX		// sys_sigprocmask
+	SYSCALL
+	JAE	2(PC)
+	CALL	runtime·notok(SB)
 	RET

@@ -13,6 +13,9 @@ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 #define	CTL_HW	6
 #define	HW_NCPU	3
 
+static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
+static Sigset sigset_none = { 0, 0, 0, 0, };
+
 static int32
 getncpu(void)
 {
@@ -77,6 +80,7 @@ void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	ThrParam param;
+	Sigset oset;
 
 	USED(fn);	// thr_start assumes fn == mstart
 	USED(g);	// thr_start assumes g == m->g0
@@ -86,6 +90,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
 
+	runtime·sigprocmask(&sigset_all, &oset);
 	runtime·memclr((byte*)&param, sizeof param);
 
 	param.start_func = runtime·thr_start;
@@ -100,6 +105,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	m->tls[0] = m->id;	// so 386 asm can find it
 
 	runtime·thr_new(&param, sizeof param);
+	runtime·sigprocmask(&oset, nil);
 }
 
 void
@@ -121,6 +127,7 @@ runtime·minit(void)
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·sigprocmask(&sigset_none, nil);
 }
 
 void
