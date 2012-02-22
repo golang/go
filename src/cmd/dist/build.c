@@ -808,7 +808,7 @@ install(char *dir)
 		vuniq(&files);
 	}
 	
-	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
+	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
 		// We've generated the right files; the go command can do the build.
 		if(vflag > 1)
 			xprintf("skip build for cross-compile %s\n", dir);
