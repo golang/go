@@ -30,7 +30,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	p.done = true
-	return &ProcessState{p.Pid, &syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
 }
 
 // Signal sends a signal to the Process.

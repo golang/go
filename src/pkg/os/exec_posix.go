@@ -44,8 +44,8 @@ func (p *Process) Kill() error {
 
 // ProcessState stores information about process as reported by Wait.
 type ProcessState struct {
-	pid    int                 // The process's id.
-	status *syscall.WaitStatus // System-dependent status info.
+	pid    int                // The process's id.
+	status syscall.WaitStatus // System-dependent status info.
 	rusage *syscall.Rusage
 }
 
@@ -67,7 +67,7 @@ func (p *ProcessState) Success() bool {
 
 // Sys returns system-dependent exit information about
 // the process.  Convert it to the appropriate underlying
-// type, such as *syscall.WaitStatus on Unix, to access its contents.
+// type, such as syscall.WaitStatus on Unix, to access its contents.
 func (p *ProcessState) Sys() interface{} {
 	return p.status
 }
@@ -110,7 +110,7 @@ func (p *ProcessState) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	status := p.Sys().(*syscall.WaitStatus)
+	status := p.Sys().(syscall.WaitStatus)
 	res := ""
 	switch {
 	case status.Exited():
