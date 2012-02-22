@@ -31,6 +31,7 @@ func asString(String) {}
 
 func (Map) M() {}
 
+
 // These functions check at run time that the default type
 // (in the absence of any implicit conversion hints)
 // is the given type.
@@ -46,7 +47,7 @@ func isString(x interface{}) { _ = x.(String) }
 func main() {
 	var (
 		a     Array
-		b     Bool   = Bool(true)
+		b     Bool   = true
 		c     Chan   = make(Chan)
 		f     Float  = 1
 		i     Int    = 1
@@ -66,6 +67,7 @@ func main() {
 	isBool(b)
 	asBool(!b)
 	isBool(!b)
+	asBool(true)
 	asBool(*&b)
 	isBool(*&b)
 	asBool(Bool(true))

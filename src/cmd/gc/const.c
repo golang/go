@@ -586,7 +586,7 @@ evconst(Node *n)
 			n->diag = 1;
 		}
 		return;
-	
+
 	case TUP(OADD, CTINT):
 	case TUP(OADD, CTRUNE):
 		mpaddfixfix(v.u.xval, rv.u.xval, 0);
@@ -668,6 +668,7 @@ evconst(Node *n)
 			n->diag = 1;
 		}
 		return;
+
 	case TUP(OADD, CTCPLX):
 		mpaddfltflt(&v.u.cval->real, &rv.u.cval->real);
 		mpaddfltflt(&v.u.cval->imag, &rv.u.cval->imag);
@@ -943,7 +944,7 @@ nodlit(Val v)
 		n->type = idealstring;
 		break;
 	case CTBOOL:
-		n->type = types[TBOOL];
+		n->type = idealbool;
 		break;
 	case CTINT:
 	case CTRUNE:
@@ -1032,7 +1033,7 @@ defaultlit(Node **np, Type *t)
 			defaultlit(&n->left, t);
 			defaultlit(&n->right, t);
 		}
-		if(n->type == types[TBOOL] || n->type == idealstring)
+		if(n->type == idealbool || n->type == idealstring)
 			n->type = types[n->type->etype];
 		else
 			n->type = n->left->type;
