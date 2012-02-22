@@ -166,13 +166,13 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 			return nil, err
 		}
 	}
-	ifmat4 := parseProcNetIGMP(ifi)
-	ifmat6 := parseProcNetIGMP6(ifi)
+	ifmat4 := parseProcNetIGMP("/proc/net/igmp", ifi)
+	ifmat6 := parseProcNetIGMP6("/proc/net/igmp6", ifi)
 	return append(ifmat4, ifmat6...), nil
 }
 
-func parseProcNetIGMP(ifi *Interface) []Addr {
-	fd, err := open("/proc/net/igmp")
+func parseProcNetIGMP(path string, ifi *Interface) []Addr {
+	fd, err := open(path)
 	if err != nil {
 		return nil
 	}
@@ -185,23 +185,26 @@ func parseProcNetIGMP(ifi *Interface) []Addr {
 	fd.readLine() // skip first line
 	b := make([]byte, IPv4len)
 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
-		f := getFields(l)
-		switch len(f) {
-		case 4:
+		f := splitAtBytes(l, " :\r\t\n")
+		if len(f) < 4 {
+			continue
+		}
+		switch {
+		case l[0] != ' ' && l[0] != '\t': // new interface line
+			name = f[1]
+		case len(f[0]) == 8:
 			if ifi == nil || name == ifi.Name {
 				fmt.Sscanf(f[0], "%08x", &b)
 				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
 				ifmat = append(ifmat, ifma.toAddr())
 			}
-		case 5:
-			name = f[1]
 		}
 	}
 	return ifmat
 }
 
-func parseProcNetIGMP6(ifi *Interface) []Addr {
-	fd, err := open("/proc/net/igmp6")
+func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
+	fd, err := open(path)
 	if err != nil {
 		return nil
 	}
@@ -210,7 +213,10 @@ func parseProcNetIGMP6(ifi *Interface) []Addr {
 	var ifmat []Addr
 	b := make([]byte, IPv6len)
 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
-		f := getFields(l)
+		f := splitAtBytes(l, " \r\t\n")
+		if len(f) < 6 {
+			continue
+		}
 		if ifi == nil || f[1] == ifi.Name {
 			fmt.Sscanf(f[2], "%32x", &b)
 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
