@@ -1346,15 +1346,11 @@ nodefmt(Fmt *f, Node *n)
 	Type *t;
 
 	t = n->type;
-	if(n->orig == N) {
-		n->orig = n;
-		fatal("node with no orig %N", n);
-	}
 
 	// we almost always want the original, except in export mode for literals
 	// this saves the importer some work, and avoids us having to redo some
 	// special casing for package unsafe
-	if(fmtmode != FExp || n->op != OLITERAL)
+	if((fmtmode != FExp || n->op != OLITERAL) && n->orig != N)
 		n = n->orig;
 
 	if(f->flags&FmtLong && t != T) {
