@@ -105,21 +105,20 @@ type sockaddr interface {
 }
 
 func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
-	var oserr error
 	var la, ra syscall.Sockaddr
 	family := favoriteAddrFamily(net, laddr, raddr, mode)
 	if laddr != nil {
-		if la, oserr = laddr.sockaddr(family); oserr != nil {
+		if la, err = laddr.sockaddr(family); err != nil {
 			goto Error
 		}
 	}
 	if raddr != nil {
-		if ra, oserr = raddr.sockaddr(family); oserr != nil {
+		if ra, err = raddr.sockaddr(family); err != nil {
 			goto Error
 		}
 	}
-	fd, oserr = socket(net, family, sotype, proto, la, ra, toAddr)
-	if oserr != nil {
+	fd, err = socket(net, family, sotype, proto, la, ra, toAddr)
+	if err != nil {
 		goto Error
 	}
 	return fd, nil
@@ -129,7 +128,7 @@ Error:
 	if mode == "listen" {
 		addr = laddr
 	}
-	return nil, &OpError{mode, net, addr, oserr}
+	return nil, &OpError{mode, net, addr, err}
 }
 
 func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
