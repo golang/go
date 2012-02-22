@@ -1164,6 +1164,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		goIdent[name.Name] = name
 		switch dt.Kind {
 		case "union", "class":
+			t.Go = c.Opaque(t.Size)
 			if t.C.Empty() {
 				t.C.Set("typeof(unsigned char[%d])", t.Size)
 			}
