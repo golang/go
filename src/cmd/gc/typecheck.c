@@ -526,7 +526,7 @@ reswitch:
 		t = l->type;
 		if(iscmp[n->op]) {
 			evconst(n);
-			t = types[TBOOL];
+			t = idealbool;
 			if(n->op != OLITERAL) {
 				defaultlit2(&l, &r, 1);
 				n->left = l;
@@ -1317,6 +1317,13 @@ reswitch:
 	case OPRINTN:
 		ok |= Etop;
 		typechecklist(n->list, Erv | Eindir);  // Eindir: address does not escape
+		for(args=n->list; args; args=args->next) {
+			// Special case for print: int constant is int64, not int.
+			if(isconst(args->n, CTINT))
+				defaultlit(&args->n, types[TINT64]);
+			else
+				defaultlit(&args->n, T);
+		}
 		goto ret;
 
 	case OPANIC:
@@ -2887,6 +2894,8 @@ typecheckdef(Node *n)
 	}
 
 ret:
+	if(n->op != OLITERAL && n->type != T && isideal(n->type))
+		fatal("got %T for %N", n->type, n);
 	if(typecheckdefstack->n != n)
 		fatal("typecheckdefstack mismatch");
 	l = typecheckdefstack;
