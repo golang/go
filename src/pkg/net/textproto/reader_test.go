@@ -164,6 +164,29 @@ func TestLargeReadMIMEHeader(t *testing.T) {
 	}
 }
 
+// Test that we read slightly-bogus MIME headers seen in the wild,
+// with spaces before colons, and spaces in keys.
+func TestReadMIMEHeaderNonCompliant(t *testing.T) {
+	// Invalid HTTP response header as sent by an Axis security
+	// camera: (this is handled by IE, Firefox, Chrome, curl, etc.)
+	r := reader("Foo: bar\r\n" +
+		"Content-Language: en\r\n" +
+		"SID : 0\r\n" +
+		"Audio Mode : None\r\n" +
+		"Privilege : 127\r\n\r\n")
+	m, err := r.ReadMIMEHeader()
+	want := MIMEHeader{
+		"Foo":              {"bar"},
+		"Content-Language": {"en"},
+		"Sid":              {"0"},
+		"Audio-Mode":       {"None"},
+		"Privilege":        {"127"},
+	}
+	if !reflect.DeepEqual(m, want) || err != nil {
+		t.Fatalf("ReadMIMEHeader =\n%v, %v; want:\n%v", m, err, want)
+	}
+}
+
 type readResponseTest struct {
 	in       string
 	inCode   int
