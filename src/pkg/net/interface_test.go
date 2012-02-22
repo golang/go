@@ -31,17 +31,17 @@ func TestInterfaces(t *testing.T) {
 	for _, ifi := range ift {
 		ifxi, err := InterfaceByIndex(ifi.Index)
 		if err != nil {
-			t.Fatalf("InterfaceByIndex(%#q) failed: %v", ifi.Index, err)
+			t.Fatalf("InterfaceByIndex(%q) failed: %v", ifi.Index, err)
 		}
 		if !sameInterface(ifxi, &ifi) {
-			t.Fatalf("InterfaceByIndex(%#q) = %v, want %v", ifi.Index, *ifxi, ifi)
+			t.Fatalf("InterfaceByIndex(%q) = %v, want %v", ifi.Index, *ifxi, ifi)
 		}
 		ifxn, err := InterfaceByName(ifi.Name)
 		if err != nil {
-			t.Fatalf("InterfaceByName(%#q) failed: %v", ifi.Name, err)
+			t.Fatalf("InterfaceByName(%q) failed: %v", ifi.Name, err)
 		}
 		if !sameInterface(ifxn, &ifi) {
-			t.Fatalf("InterfaceByName(%#q) = %v, want %v", ifi.Name, *ifxn, ifi)
+			t.Fatalf("InterfaceByName(%q) = %v, want %v", ifi.Name, *ifxn, ifi)
 		}
 		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
