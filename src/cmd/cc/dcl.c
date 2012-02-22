@@ -120,6 +120,10 @@ loop:
 		(*f)(c, t, s);
 		if(s->class == CLOCAL)
 			s = mkstatic(s);
+		if(dataflag) {
+			s->dataflag = dataflag;
+			dataflag = 0;
+		}
 		firstbit = 0;
 		n->sym = s;
 		n->type = s->type;

@@ -421,6 +421,8 @@ symaddr(Sym *s)
 	case SDATA:
 	case SBSS:
 	case SCONST:
+	case SNOPTRDATA:
+	case SNOPTRBSS:
 		break;
 	}
 	return v;

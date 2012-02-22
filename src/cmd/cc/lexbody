@@ -75,6 +75,13 @@ pragtextflag(void)
 }
 
 void
+pragdataflag(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
+void
 pragprofile(void)
 {
 	while(getnsc() != '\n')

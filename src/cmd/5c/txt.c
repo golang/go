@@ -139,7 +139,9 @@ gclean(void)
 			continue;
 		if(s->type == types[TENUM])
 			continue;
+		textflag = s->dataflag;
 		gpseudo(AGLOBL, s, nodconst(s->type->width));
+		textflag = 0;
 	}
 	nextpc();
 	p->as = AEND;

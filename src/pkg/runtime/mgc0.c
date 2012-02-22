@@ -85,7 +85,7 @@ struct FinBlock
 
 extern byte data[];
 extern byte etext[];
-extern byte end[];
+extern byte ebss[];
 
 static G *fing;
 static FinBlock *finq; // list of finalizers that are to be executed
@@ -630,10 +630,7 @@ mark(void (*scan)(byte*, int64))
 	FinBlock *fb;
 
 	// mark data+bss.
-	// skip runtime·mheap itself, which has no interesting pointers
-	// and is mostly zeroed and would not otherwise be paged in.
-	scan(data, (byte*)&runtime·mheap - data);
-	scan((byte*)(&runtime·mheap+1), end - (byte*)(&runtime·mheap+1));
+	scan(data, ebss - data);
 
 	// mark stacks
 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {

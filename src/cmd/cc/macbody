@@ -731,6 +731,10 @@ macprag(void)
 		pragtextflag();
 		return;
 	}
+	if(s && strcmp(s->name, "dataflag") == 0) {
+		pragdataflag();
+		return;
+	}
 	if(s && strcmp(s->name, "varargck") == 0) {
 		pragvararg();
 		return;

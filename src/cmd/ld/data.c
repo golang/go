@@ -806,8 +806,12 @@ dodata(void)
 	}
 
 	for(s = datap; s != nil; s = s->next) {
-		if(s->np > 0 && s->type == SBSS)
-			s->type = SDATA;
+		if(s->np > 0) {
+			if(s->type == SBSS)
+				s->type = SDATA;
+			if(s->type == SNOPTRBSS)
+				s->type = SNOPTRDATA;
+		}
 		if(s->np > s->size)
 			diag("%s: initialize bounds (%lld < %d)",
 				s->name, (vlong)s->size, s->np);
@@ -935,11 +939,24 @@ dodata(void)
 		datsize += t;
 	}
 
-	/* bss */
+	/* bss, then pointer-free bss */
+	noptr = nil;
 	sect = addsection(&segdata, ".bss", 06);
 	sect->vaddr = datsize;
-	for(; s != nil; s = s->next) {
-		if(s->type != SBSS) {
+	for(; ; s = s->next) {
+		if((s == nil || s->type >= SNOPTRBSS) && noptr == nil) {
+			// finish bss, start noptrbss
+			datsize = rnd(datsize, 8);
+			sect->len = datsize - sect->vaddr;
+			sect = addsection(&segdata, ".noptrbss", 06);
+			sect->vaddr = datsize;
+			noptr = sect;
+		}
+		if(s == nil) {
+			sect->len = datsize - sect->vaddr;
+			break;
+		}
+		if(s->type > SNOPTRBSS) {
 			cursym = s;
 			diag("unexpected symbol type %d", s->type);
 		}
@@ -961,7 +978,6 @@ dodata(void)
 		s->value = datsize;
 		datsize += t;
 	}
-	sect->len = datsize - sect->vaddr;
 }
 
 // assign addresses to text
@@ -1004,7 +1020,7 @@ textaddress(void)
 void
 address(void)
 {
-	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr;
+	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -1031,6 +1047,8 @@ address(void)
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
 	data = nil;
 	noptr = nil;
+	bss = nil;
+	noptrbss = nil;
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;
@@ -1040,8 +1058,12 @@ address(void)
 			data = s;
 		if(strcmp(s->name, ".noptrdata") == 0)
 			noptr = s;
+		if(strcmp(s->name, ".bss") == 0)
+			bss = s;
+		if(strcmp(s->name, ".noptrbss") == 0)
+			noptrbss = s;
 	}
-	segdata.filelen -= data->next->len; // deduct .bss
+	segdata.filelen -= bss->len + noptrbss->len; // deduct .bss
 
 	text = segtext.sect;
 	rodata = text->next;
@@ -1068,7 +1090,11 @@ address(void)
 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
 	xdefine("noptrdata", SBSS, noptr->vaddr);
 	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
+	xdefine("bss", SBSS, bss->vaddr);
+	xdefine("ebss", SBSS, bss->vaddr + bss->len);
 	xdefine("data", SBSS, data->vaddr);
 	xdefine("edata", SBSS, data->vaddr + data->len);
+	xdefine("noptrbss", SBSS, noptrbss->vaddr);
+	xdefine("enoptrbss", SBSS, noptrbss->vaddr + noptrbss->len);
 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
 }

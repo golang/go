@@ -567,17 +567,21 @@ pragfpround(void)
 void
 pragtextflag(void)
 {
-	Sym *s;
-
-	textflag = 0;
-	s = getsym();
-	textflag = 7;
-	if(s)
-		textflag = atoi(s->name+1);
+	textflag = getnsn();
 	while(getnsc() != '\n')
 		;
 	if(debug['f'])
 		print("%4d: textflag %d\n", lineno, textflag);
+}
+
+void
+pragdataflag(void)
+{
+	dataflag = getnsn();
+	while(getnsc() != '\n')
+		;
+	if(debug['f'])
+		print("%4d: dataflag %d\n", lineno, dataflag);
 }
 
 void

@@ -92,6 +92,7 @@ enum {
 	ElfStrGnuVersionR,
 	ElfStrNoteNetbsdIdent,
 	ElfStrNoPtrData,
+	ElfStrNoPtrBss,
 	NElfStr
 };
 
@@ -530,6 +531,7 @@ doelf(void)
 	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
 	if(HEADTYPE == Hnetbsd)
 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
 	addstring(shstrtab, ".elfdata");
@@ -1256,12 +1258,14 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SSTRING:
 			case SGOSTRING:
 			case SWINDOWS:
+			case SNOPTRDATA:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
 				continue;
 
 			case SBSS:
+			case SNOPTRBSS:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
