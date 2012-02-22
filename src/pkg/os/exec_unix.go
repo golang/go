@@ -30,7 +30,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 	}
 	ps = &ProcessState{
 		pid:    pid1,
-		status: &status,
+		status: status,
 		rusage: &rusage,
 	}
 	return ps, nil

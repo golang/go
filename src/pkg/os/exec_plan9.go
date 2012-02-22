@@ -66,7 +66,7 @@ func (p *Process) Kill() error {
 }
 
 // Wait waits for the Process to exit or stop, and then returns a
-// Waitmsg describing its status and an error, if any.
+// ProcessState describing its status and an error, if any.
 func (p *Process) Wait() (ps *ProcessState, err error) {
 	var waitmsg syscall.Waitmsg
 
@@ -89,7 +89,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 
 	ps = &ProcessState{
 		pid:    waitmsg.Pid,
-		status: waitmsg,
+		status: &waitmsg,
 	}
 	return ps, nil
 }
@@ -110,8 +110,8 @@ func findProcess(pid int) (p *Process, err error) {
 
 // ProcessState stores information about process as reported by Wait.
 type ProcessState struct {
-	pid    int             // The process's id.
-	status syscall.Waitmsg // System-dependent status info.
+	pid    int              // The process's id.
+	status *syscall.Waitmsg // System-dependent status info.
 }
 
 // Pid returns the process id of the exited process.
@@ -134,14 +134,14 @@ func (p *ProcessState) Success() bool {
 // the process.  Convert it to the appropriate underlying
 // type, such as *syscall.Waitmsg on Plan 9, to access its contents.
 func (p *ProcessState) Sys() interface{} {
-	return &p.status
+	return p.status
 }
 
 // SysUsage returns system-dependent resource usage information about
 // the exited process.  Convert it to the appropriate underlying
-// type, such as *syscall.Waitmsg on Unix, to access its contents.
+// type, such as *syscall.Waitmsg on Plan 9, to access its contents.
 func (p *ProcessState) SysUsage() interface{} {
-	return &p.status
+	return p.status
 }
 
 // UserTime returns the user CPU time of the exited process and its children.
