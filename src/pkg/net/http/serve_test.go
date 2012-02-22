@@ -245,8 +245,7 @@ func TestServerTimeouts(t *testing.T) {
 		fmt.Fprintf(res, "req=%d", reqNum)
 	})
 
-	const second = 1000000000 /* nanos */
-	server := &Server{Handler: handler, ReadTimeout: 0.25 * second, WriteTimeout: 0.25 * second}
+	server := &Server{Handler: handler, ReadTimeout: 250 * time.Millisecond, WriteTimeout: 250 * time.Millisecond}
 	go server.Serve(l)
 
 	url := fmt.Sprintf("http://%s/", addr)
@@ -277,7 +276,7 @@ func TestServerTimeouts(t *testing.T) {
 	if n != 0 || err != io.EOF {
 		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
 	}
-	if latency < 200*time.Millisecond /* fudge from 0.25 above */ {
+	if latency < 200*time.Millisecond /* fudge from 250 ms above */ {
 		t.Errorf("got EOF after %s, want >= %s", latency, 200*time.Millisecond)
 	}
 
