@@ -454,10 +454,14 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 
 		// Key ends at first colon; must not have spaces.
 		i := bytes.IndexByte(kv, ':')
-		if i < 0 || bytes.IndexByte(kv[0:i], ' ') >= 0 {
+		if i < 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		key := CanonicalMIMEHeaderKey(string(kv[0:i]))
+		key := string(kv[0:i])
+		if strings.Index(key, " ") >= 0 {
+			key = strings.TrimRight(key, " ")
+		}
+		key = CanonicalMIMEHeaderKey(key)
 
 		// Skip initial spaces in value.
 		i++ // skip colon
@@ -503,6 +507,11 @@ MustRewrite:
 	a := []byte(s)
 	upper := true
 	for i, v := range a {
+		if v == ' ' {
+			a[i] = '-'
+			upper = true
+			continue
+		}
 		if upper && 'a' <= v && v <= 'z' {
 			a[i] = v + 'A' - 'a'
 		}
