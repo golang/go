@@ -196,6 +196,7 @@ void	asmelfsym(void);
 void	asmplan9sym(void);
 void	strnput(char*, int);
 void	dodata(void);
+void	dosymtype(void);
 void	address(void);
 void	textaddress(void);
 void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));

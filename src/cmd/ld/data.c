@@ -414,13 +414,13 @@ savedata(Sym *s, Prog *p, char *pn)
 }
 
 static void
-blk(Sym *allsym, int32 addr, int32 size)
+blk(Sym *start, int32 addr, int32 size)
 {
 	Sym *sym;
 	int32 eaddr;
 	uchar *p, *ep;
 
-	for(sym = allsym; sym != nil; sym = sym->next)
+	for(sym = start; sym != nil; sym = sym->next)
 		if(!(sym->type&SSUB) && sym->value >= addr)
 			break;
 
@@ -779,6 +779,21 @@ addsize(Sym *s, Sym *t)
 }
 
 void
+dosymtype(void)
+{
+	Sym *s;
+
+	for(s = allsym; s != nil; s = s->allsym) {
+		if(s->np > 0) {
+			if(s->type == SBSS)
+				s->type = SDATA;
+			if(s->type == SNOPTRBSS)
+				s->type = SNOPTRDATA;
+		}
+	}
+}
+
+void
 dodata(void)
 {
 	int32 t, datsize;
@@ -806,17 +821,12 @@ dodata(void)
 	}
 
 	for(s = datap; s != nil; s = s->next) {
-		if(s->np > 0) {
-			if(s->type == SBSS)
-				s->type = SDATA;
-			if(s->type == SNOPTRBSS)
-				s->type = SNOPTRDATA;
-		}
 		if(s->np > s->size)
 			diag("%s: initialize bounds (%lld < %d)",
 				s->name, (vlong)s->size, s->np);
 	}
-	
+
+
 	/*
 	 * now that we have the datap list, but before we start
 	 * to assign addresses, record all the necessary
@@ -1088,13 +1098,13 @@ address(void)
 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
 	xdefine("pclntab", SRODATA, pclntab->vaddr);
 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
-	xdefine("noptrdata", SBSS, noptr->vaddr);
-	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
+	xdefine("noptrdata", SNOPTRDATA, noptr->vaddr);
+	xdefine("enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
 	xdefine("bss", SBSS, bss->vaddr);
 	xdefine("ebss", SBSS, bss->vaddr + bss->len);
-	xdefine("data", SBSS, data->vaddr);
-	xdefine("edata", SBSS, data->vaddr + data->len);
-	xdefine("noptrbss", SBSS, noptrbss->vaddr);
-	xdefine("enoptrbss", SBSS, noptrbss->vaddr + noptrbss->len);
+	xdefine("data", SDATA, data->vaddr);
+	xdefine("edata", SDATA, data->vaddr + data->len);
+	xdefine("noptrbss", SNOPTRBSS, noptrbss->vaddr);
+	xdefine("enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
 }

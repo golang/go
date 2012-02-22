@@ -1259,6 +1259,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SGOSTRING:
 			case SWINDOWS:
 			case SNOPTRDATA:
+			case SSYMTAB:
+			case SPCLNTAB:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
