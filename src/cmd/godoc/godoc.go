@@ -524,11 +524,11 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 		out := eg.Output
 
 		// additional formatting if this is a function body
-		if len(code) > 0 && code[0] == '{' {
+		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
+			// remove surrounding braces
+			code = code[1 : n-1]
 			// unindent
 			code = strings.Replace(code, "\n    ", "\n", -1)
-			// remove surrounding braces
-			code = code[2 : len(code)-2]
 			// remove output comment
 			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
 				code = strings.TrimSpace(code[:loc[0]])
