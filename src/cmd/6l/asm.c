@@ -1170,6 +1170,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		switch(s->type&~SSUB) {
 		case SCONST:
 		case SRODATA:
+		case SSYMTAB:
+		case SPCLNTAB:
 		case SDATA:
 		case SNOPTRDATA:
 		case SELFROSECT:
@@ -1187,6 +1189,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		case SNOPTRBSS:
 			if(!s->reachable)
 				continue;
+			if(s->np > 0)
+				diag("%s should not be bss (size=%d type=%d special=%d)", s->name, (int)s->np, s->type, s->special);
 			put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
 			continue;
 
