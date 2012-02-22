@@ -94,15 +94,19 @@ func main() {
 		return
 	}
 
-	// set up work environment
-	if err := os.RemoveAll(*buildroot); err != nil {
-		log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
-	}
-	if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
-		log.Fatalf("Error making build root (%s): %s", *buildroot, err)
-	}
-	if err := hgClone(hgUrl, goroot); err != nil {
-		log.Fatal("Error cloning repository:", err)
+	// set up work environment, use existing enviroment if possible
+	if hgRepoExists(goroot) {
+		log.Print("Found old workspace, will use it")
+	} else {
+		if err := os.RemoveAll(*buildroot); err != nil {
+			log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
+		}
+		if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
+			log.Fatalf("Error making build root (%s): %s", *buildroot, err)
+		}
+		if err := hgClone(hgUrl, goroot); err != nil {
+			log.Fatal("Error cloning repository:", err)
+		}
 	}
 
 	if *commitFlag {
