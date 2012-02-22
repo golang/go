@@ -217,7 +217,7 @@ inst:
  */
 |	LTYPEB name ',' imm
 	{
-		outcode($1, Always, &$2, NREG, &$4);
+		outcode($1, Always, &$2, 0, &$4);
 	}
 |	LTYPEB name ',' con ',' imm
 	{
