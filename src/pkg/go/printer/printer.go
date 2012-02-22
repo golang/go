@@ -686,9 +686,11 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	}
 
 	if last != nil {
-		if last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line {
-			// the last comment is a /*-style comment and the next item
-			// follows on the same line: separate with an extra blank
+		// if the last comment is a /*-style comment and the next item
+		// follows on the same line but is not a comma or a "closing"
+		// token, add an extra blank for separation
+		if last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line && tok != token.COMMA &&
+			tok != token.RPAREN && tok != token.RBRACK && tok != token.RBRACE {
 			p.writeByte(' ', 1)
 		}
 		// ensure that there is a line break after a //-style comment,

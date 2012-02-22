@@ -389,12 +389,12 @@ func (t *Terminal) Write(buf []byte) (n int, err error) {
 
 	// We have a prompt and possibly user input on the screen. We
 	// have to clear it first.
-	t.move(0, /* up */ 0, /* down */ t.cursorX, /* left */ 0 /* right */ )
+	t.move(0 /* up */, 0 /* down */, t.cursorX /* left */, 0 /* right */)
 	t.cursorX = 0
 	t.clearLineToRight()
 
 	for t.cursorY > 0 {
-		t.move(1, /* up */ 0, 0, 0)
+		t.move(1 /* up */, 0, 0, 0)
 		t.cursorY--
 		t.clearLineToRight()
 	}

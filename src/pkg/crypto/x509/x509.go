@@ -791,7 +791,7 @@ var (
 )
 
 func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
-	ret = make([]pkix.Extension, 7 /* maximum number of elements. */ )
+	ret = make([]pkix.Extension, 7 /* maximum number of elements. */)
 	n := 0
 
 	if template.KeyUsage != 0 {

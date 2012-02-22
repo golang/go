@@ -295,7 +295,7 @@ FindCipherSuite:
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
 		keysFromPreMasterSecret(c.vers, preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
 
-	clientCipher := suite.cipher(clientKey, clientIV, true /* for reading */ )
+	clientCipher := suite.cipher(clientKey, clientIV, true /* for reading */)
 	clientHash := suite.mac(c.vers, clientMAC)
 	c.in.prepareCipherSpec(c.vers, clientCipher, clientHash)
 	c.readRecord(recordTypeChangeCipherSpec)
@@ -333,7 +333,7 @@ FindCipherSuite:
 
 	finishedHash.Write(clientFinished.marshal())
 
-	serverCipher := suite.cipher(serverKey, serverIV, false /* not for reading */ )
+	serverCipher := suite.cipher(serverKey, serverIV, false /* not for reading */)
 	serverHash := suite.mac(c.vers, serverMAC)
 	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
