@@ -551,12 +551,8 @@ loop:
 			s->dupok = 1;
 		if(p->reg & RODATA)
 			s->type = SRODATA;
-		else if(p->reg & NOPTR) {
-			if(s->np > 0)
-				s->type = SNOPTRDATA;
-			else
-				s->type = SNOPTRBSS;
-		}
+		else if(p->reg & NOPTR)
+			s->type = SNOPTRBSS;
 		break;
 
 	case ADATA:

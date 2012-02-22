@@ -563,7 +563,7 @@ loop:
 			s->type = SBSS;
 			s->size = 0;
 		}
-		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
+		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
 			diag("%s: redefinition: %s in %s",
 				pn, s->name, TNAME);
 			s->type = SBSS;
@@ -576,7 +576,7 @@ loop:
 		if(p->from.scale & RODATA)
 			s->type = SRODATA;
 		else if(p->from.scale & NOPTR)
-			s->type = SNOPTRDATA;
+			s->type = SNOPTRBSS;
 		goto loop;
 
 	case ADATA:
