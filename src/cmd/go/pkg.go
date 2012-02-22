@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"go/doc"
 	"go/scanner"
 	"os"
 	"path/filepath"
@@ -220,32 +221,6 @@ func reusePackage(p *Package, stk *importStack) *Package {
 	return p
 }
 
-// firstSentence returns the first sentence of the document text.
-// The sentence ends after the first period followed by a space.
-// The returned sentence will have no \n \r or \t characters and
-// will use only single spaces between words.
-func firstSentence(text string) string {
-	var b []byte
-	space := true
-Loop:
-	for i := 0; i < len(text); i++ {
-		switch c := text[i]; c {
-		case ' ', '\t', '\r', '\n':
-			if !space {
-				space = true
-				if len(b) > 0 && b[len(b)-1] == '.' {
-					break Loop
-				}
-				b = append(b, ' ')
-			}
-		default:
-			space = false
-			b = append(b, c)
-		}
-	}
-	return string(b)
-}
-
 // isGoTool is the list of directories for Go programs that are installed in
 // $GOROOT/bin/tool.
 var isGoTool = map[string]bool{
@@ -298,7 +273,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 
 	p.info = info
 	p.Name = info.Package
-	p.Doc = firstSentence(info.PackageComment.Text())
+	p.Doc = doc.Synopsis(info.PackageComment.Text())
 	p.Imports = info.Imports
 	p.GoFiles = info.GoFiles
 	p.TestGoFiles = info.TestGoFiles
