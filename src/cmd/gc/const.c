@@ -87,6 +87,8 @@ convlit1(Node **np, Type *t, int explicit)
 
 	switch(n->op) {
 	default:
+		if(n->type == idealbool)
+			n->type = types[TBOOL];
 		if(n->type->etype == TIDEAL) {
 			convlit(&n->left, t);
 			convlit(&n->right, t);
@@ -1010,6 +1012,10 @@ defaultlit(Node **np, Type *t)
 		}
 		n->type = t;
 		return;
+	case ONOT:
+		defaultlit(&n->left, t);
+		n->type = n->left->type;
+		return;
 	default:
 		if(n->left == N) {
 			dump("defaultlit", n);
@@ -1029,13 +1035,18 @@ defaultlit(Node **np, Type *t)
 		} else if(t == T && (n->left->op == OLSH || n->left->op == ORSH)) {
 			defaultlit(&n->right, T);
 			defaultlit(&n->left, n->right->type);
+		} else if(iscmp[n->op]) {
+			defaultlit2(&n->left, &n->right, 1);
 		} else {
 			defaultlit(&n->left, t);
 			defaultlit(&n->right, t);
 		}
-		if(n->type == idealbool || n->type == idealstring)
-			n->type = types[n->type->etype];
-		else
+		if(n->type == idealbool || n->type == idealstring) {
+			if(t != T && t->etype == n->type->etype)
+				n->type = t;
+			else
+				n->type = types[n->type->etype];
+		} else
 			n->type = n->left->type;
 		return;
 	}
@@ -1124,6 +1135,10 @@ defaultlit2(Node **lp, Node **rp, int force)
 	}
 	if(!force)
 		return;
+	if(l->type->etype == TBOOL) {
+		convlit(lp, types[TBOOL]);
+		convlit(rp, types[TBOOL]);
+	}
 	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
 		convlit(lp, types[TCOMPLEX128]);
 		convlit(rp, types[TCOMPLEX128]);

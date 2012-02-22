@@ -1055,6 +1055,8 @@ walkexpr(Node **np, NodeList **init)
 			walkexpr(&r, nil);
 		}
 		typecheck(&r, Erv);
+		if(n->type->etype != TBOOL) fatal("cmp %T", n->type);
+		r->type = n->type;
 		n = r;
 		goto ret;
 
@@ -1190,7 +1192,7 @@ walkexpr(Node **np, NodeList **init)
 			r = nod(OOROR, nod(ONE, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
 		typecheck(&r, Erv);
 		walkexpr(&r, nil);
-
+		r->type = n->type;
 		n = r;
 		goto ret;
 

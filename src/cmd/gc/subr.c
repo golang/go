@@ -1354,6 +1354,18 @@ assignconv(Node *n, Type *t, char *context)
 	if(t->etype == TBLANK)
 		return n;
 
+	// Convert ideal bool from comparison to plain bool
+	// if the next step is non-bool (like interface{}).
+	if(n->type == idealbool && t->etype != TBOOL) {
+		if(n->op == ONAME || n->op == OLITERAL) {
+			r = nod(OCONVNOP, n, N);
+			r->type = types[TBOOL];
+			r->typecheck = 1;
+			r->implicit = 1;
+			n = r;
+		}
+	}
+
 	if(eqtype(n->type, t))
 		return n;
 
