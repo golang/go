@@ -29,17 +29,13 @@ type ByteOrder interface {
 	String() string
 }
 
-// This is byte instead of struct{} so that it can be compared,
-// allowing, e.g., order == binary.LittleEndian.
-type unused byte
-
 // LittleEndian is the little-endian implementation of ByteOrder.
 var LittleEndian littleEndian
 
 // BigEndian is the big-endian implementation of ByteOrder.
 var BigEndian bigEndian
 
-type littleEndian unused
+type littleEndian struct{}
 
 func (littleEndian) Uint16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
 
@@ -79,7 +75,7 @@ func (littleEndian) String() string { return "LittleEndian" }
 
 func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
-type bigEndian unused
+type bigEndian struct{}
 
 func (bigEndian) Uint16(b []byte) uint16 { return uint16(b[1]) | uint16(b[0])<<8 }
 
