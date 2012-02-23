@@ -13,6 +13,27 @@ pre {
 pre .comment {
 	color: #375EAB;
 }
+pre .highlight {
+	background: #FFFF00;
+}
+pre .highlight-comment {
+	background: #FFFF00;
+	color: #375EAB;
+}
+pre .selection {
+	background: #FF9632;
+}
+pre .selection-comment {
+	background: #FF9632;
+	color: #375EAB;
+}
+pre .selection-highlight {
+	background: #FFFF00;
+}
+pre .selection-highlight-comment {
+	background: #FFFF00;
+	color: #375EAB;
+}
 pre .ln {
 	color: #999;
 }
@@ -86,6 +107,10 @@ table.dir th {
 table.dir td {
 	word-wrap: break-word;
 	vertical-align: top;
+}
+
+.alert {
+	color: #FF0000;
 }
 
 #heading {
