@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// derived from fixedbugs/bug294.go
+// Test reorderings; derived from fixedbugs/bug294.go.
 
 package main
 
