@@ -106,6 +106,13 @@ TEXT runtime·nanotime(SB), 7, $32
 	MOVL	DX, 4(DI)
 	RET
 
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	$48, AX
+	INT	$0x80
+	JAE	2(PC)
+	CALL	runtime·notok(SB)
+	RET
+
 TEXT runtime·sigaction(SB),7,$0
 	MOVL	$46, AX
 	INT	$0x80

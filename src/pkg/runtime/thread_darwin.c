@@ -9,6 +9,9 @@
 
 extern SigTab runtime·sigtab[];
 
+static Sigset sigset_all = ~(Sigset)0;
+static Sigset sigset_none;
+
 static void
 unimplemented(int8 *name)
 {
@@ -70,13 +73,19 @@ void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	int32 errno;
+	Sigset oset;
 
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
 	}
-	if((errno = runtime·bsdthread_create(stk, m, g, fn)) < 0) {
+
+	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
+	errno = runtime·bsdthread_create(stk, m, g, fn);
+	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
+	
+	if(errno < 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -errno);
 		runtime·throw("runtime.newosproc");
 	}
@@ -89,6 +98,7 @@ runtime·minit(void)
 	// Initialize signal handling.
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
 
 // Mach IPC, to get at semaphores

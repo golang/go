@@ -92,6 +92,16 @@ TEXT runtime·nanotime(SB), 7, $32
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVL	$(0x2000000+48), AX	// syscall entry
+	SYSCALL
+	JCC	2(PC)
+	CALL	runtime·notok(SB)
+	RET
+
 TEXT runtime·sigaction(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act

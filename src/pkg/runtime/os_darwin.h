@@ -20,6 +20,9 @@ uint32	runtime·mach_thread_self(void);
 uint32	runtime·mach_thread_self(void);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
+typedef uint32 Sigset;
+void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+
 struct Sigaction;
 void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
 void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
@@ -35,3 +38,4 @@ void	runtime·raisesigpipe(void);
 
 #define	NSIG 32
 #define	SI_USER	0  /* empirically true, but not what headers say */
+#define	SIG_SETMASK 3
