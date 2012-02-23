@@ -23,6 +23,7 @@
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
 #define SYS_rt_sigaction (SYS_BASE + 174)
+#define SYS_rt_sigprocmask (SYS_BASE + 175)
 #define SYS_sigaltstack (SYS_BASE + 186)
 #define SYS_mmap2 (SYS_BASE + 192)
 #define SYS_futex (SYS_BASE + 240)
@@ -290,6 +291,15 @@ TEXT runtime·sigtramp(SB),7,$24
 	// restore g
 	MOVW	20(R13), g
 
+	RET
+
+TEXT runtime·rtsigprocmask(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	12(FP), R3
+	MOVW	$SYS_rt_sigprocmask, R7
+	SWI	$0
 	RET
 
 TEXT runtime·rt_sigaction(SB),7,$0
