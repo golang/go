@@ -267,6 +267,11 @@ uchar	yimul[] =
 	Yml,	Yrl,	Zm_r,	2,
 	0
 };
+uchar	yimul3[] =
+{
+	Yml,	Yrl,	Zibm_r,	1,
+	0
+};
 uchar	ybyte[] =
 {
 	Yi64,	Ynone,	Zbyte,	1,
@@ -772,6 +777,7 @@ Optab optab[] =
 	{ AIMULL,	yimul,	Px, 0xf7,(05),0x6b,0x69,Pm,0xaf },
 	{ AIMULQ,	yimul,	Pw, 0xf7,(05),0x6b,0x69,Pm,0xaf },
 	{ AIMULW,	yimul,	Pe, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+	{ AIMUL3Q,	yimul3,	Pw, 0x6b },
 	{ AINB,		yin,	Pb, 0xe4,0xec },
 	{ AINCB,	yincb,	Pb, 0xfe,(00) },
 	{ AINCL,	yincl,	Px, 0xff,(00) },
