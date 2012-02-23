@@ -735,6 +735,7 @@ enum	as
 	AMODE,
 	ACRC32B,
 	ACRC32Q,
+	AIMUL3Q,
 
 	ALAST
 };
