@@ -4,7 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// check for import conflicts
+// Verify that import conflicts are detected by the compiler.
+// Does not compile.
 
 package main
 

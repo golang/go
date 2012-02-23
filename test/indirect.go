@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test various safe uses of indirection.
+
 package main
 
 var m0 map[string]int
