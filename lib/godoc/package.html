@@ -76,22 +76,22 @@
 		{{with .Consts}}
 			<h2 id="constants">Constants</h2>
 			{{range .}}
-				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{with .Vars}}
 			<h2 id="variables">Variables</h2>
 			{{range .}}
-				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{range .Funcs}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
 			<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
-			<p><code>{{node_html .Decl $.FSet}}</code></p>
+			<pre>{{node_html .Decl $.FSet}}</pre>
 			{{comment_html .Doc}}
 			{{example_html .Name $.Examples $.FSet}}
 		{{end}}
@@ -99,28 +99,33 @@
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
 			<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
-			{{comment_html .Doc}}
 			<pre>{{node_html .Decl $.FSet}}</pre>
+			{{comment_html .Doc}}
+
 			{{range .Consts}}
-				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
 			{{end}}
+
 			{{range .Vars}}
-				{{comment_html .Doc}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
 			{{end}}
+
 			{{example_html $tname $.Examples $.FSet}}
+
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
 				{{example_html .Name $.Examples $.FSet}}
 			{{end}}
+
 			{{range .Methods}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
 				{{example_html $name $.Examples $.FSet}}
