@@ -14,6 +14,9 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/token"
+	"strconv"
+	"strings"
+	"unicode"
 )
 
 // The parser structure holds the parser's internal state.
@@ -1913,6 +1916,17 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 
 type parseSpecFunction func(p *parser, doc *ast.CommentGroup, iota int) ast.Spec
 
+func isValidImport(lit string) bool {
+	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
+	s, _ := strconv.Unquote(lit) // go/scanner returns a legal string literal
+	for _, r := range s {
+		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
+			return false
+		}
+	}
+	return s != ""
+}
+
 func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
@@ -1929,6 +1943,9 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 
 	var path *ast.BasicLit
 	if p.tok == token.STRING {
+		if !isValidImport(p.lit) {
+			p.error(p.pos, "invalid import path: "+p.lit)
+		}
 		path = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
 		p.next()
 	} else {
