@@ -539,7 +539,7 @@ install(char *dir)
 	Buf b, b1, path;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
-	int i, j, k, n, doclean;
+	int i, j, k, n, doclean, targ;
 
 	if(vflag) {
 		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
@@ -601,7 +601,7 @@ install(char *dir)
 		exe = ".exe";
 	
 	// Start final link command line.
-	// Note: code below knows that link.p[2] is the target.
+	// Note: code below knows that link.p[targ] is the target.
 	if(islib) {
 		// C library.
 		vadd(&link, "ar");
@@ -609,6 +609,7 @@ install(char *dir)
 		prefix = "";
 		if(!hasprefix(name, "lib"))
 			prefix = "lib";
+		targ = link.len;
 		vadd(&link, bpathf(&b, "%s/pkg/obj/%s_%s/%s%s.a", goroot, gohostos, gohostarch, prefix, name));
 	} else if(ispkg) {
 		// Go library (package).
@@ -617,6 +618,7 @@ install(char *dir)
 		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
 		*xstrrchr(p, '/') = '\0';
 		xmkdirall(p);
+		targ = link.len;
 		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
 	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
 		// Go command.
@@ -625,21 +627,20 @@ install(char *dir)
 		elem = name;
 		if(streq(elem, "go"))
 			elem = "go_bootstrap";
+		targ = link.len;
 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
 	} else {
-		// C command.
-		// Use gccargs, but ensure that link.p[2] is output file,
-		// as noted above.
-		vadd(&link, gccargs.p[0]);
+		// C command. Use gccargs.
+		vcopy(&link, gccargs.p, gccargs.len);
 		vadd(&link, "-o");
+		targ = link.len;
 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
-		vcopy(&link, gccargs.p+1, gccargs.len-1);
 		if(streq(gohostarch, "amd64"))
 			vadd(&link, "-m64");
 		else if(streq(gohostarch, "386"))
 			vadd(&link, "-m32");
 	}
-	ttarg = mtime(link.p[2]);
+	ttarg = mtime(link.p[targ]);
 
 	// Gather files that are sources for this target.
 	// Everything in that directory, and any target-specific
@@ -926,7 +927,7 @@ install(char *dir)
 	}
 
 	// Remove target before writing it.
-	xremove(link.p[2]);
+	xremove(link.p[targ]);
 
 	runv(nil, nil, CheckExit, &link);
 
