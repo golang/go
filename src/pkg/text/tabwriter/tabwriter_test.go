@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package tabwriter
+package tabwriter_test
 
 import (
 	"io"
 	"testing"
+	. "text/tabwriter"
 )
 
 type buffer struct {
