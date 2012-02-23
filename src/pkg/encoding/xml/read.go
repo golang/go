@@ -81,6 +81,9 @@ import (
 //      of the above rules and the struct has a field with tag ",any",
 //      unmarshal maps the sub-element to that struct field.
 //
+//   * A non-pointer anonymous struct field is handled as if the
+//      fields of its value were part of the outer struct.
+//
 //   * A struct field with tag "-" is never unmarshalled into.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
