@@ -11,6 +11,9 @@ import (
 )
 
 func ExampleMarshalIndent() {
+	type Address struct {
+		City, State string
+	}
 	type Person struct {
 		XMLName   xml.Name `xml:"person"`
 		Id        int      `xml:"id,attr"`
@@ -19,11 +22,13 @@ func ExampleMarshalIndent() {
 		Age       int      `xml:"age"`
 		Height    float32  `xml:"height,omitempty"`
 		Married   bool
-		Comment   string `xml:",comment"`
+		Address
+		Comment string `xml:",comment"`
 	}
 
 	v := &Person{Id: 13, FirstName: "John", LastName: "Doe", Age: 42}
-	v.Comment = " Need more fields. "
+	v.Comment = " Need more details. "
+	v.Address = Address{"Hanga Roa", "Easter Island"}
 
 	output, err := xml.MarshalIndent(v, "  ", "    ")
 	if err != nil {
@@ -39,7 +44,9 @@ func ExampleMarshalIndent() {
 	//       </name>
 	//       <age>42</age>
 	//       <Married>false</Married>
-	//       <!-- Need more fields. -->
+	//       <City>Hanga Roa</City>
+	//       <State>Easter Island</State>
+	//       <!-- Need more details. -->
 	//   </person>
 }
 
@@ -52,14 +59,19 @@ func ExampleUnmarshal() {
 		Where string `xml:"where,attr"`
 		Addr  string
 	}
+	type Address struct {
+		City, State string
+	}
 	type Result struct {
 		XMLName xml.Name `xml:"Person"`
 		Name    string   `xml:"FullName"`
 		Phone   string
 		Email   []Email
 		Groups  []string `xml:"Group>Value"`
+		Address
 	}
-	p := Result{Name: "none", Phone: "none"}
+	v := Result{Name: "none", Phone: "none"}
+	v.Address = Address{"Hanga Roa", "Easter Island"}
 
 	data := `
 		<Person>
@@ -77,20 +89,22 @@ func ExampleUnmarshal() {
 			<Address>123 Main Street</Address>
 		</Person>
 	`
-	err := xml.Unmarshal([]byte(data), &p)
+	err := xml.Unmarshal([]byte(data), &v)
 	if err != nil {
 		fmt.Printf("error: %v", err)
 		return
 	}
-	fmt.Printf("XMLName: %#v\n", p.XMLName)
-	fmt.Printf("Name: %q\n", p.Name)
-	fmt.Printf("Phone: %q\n", p.Phone)
-	fmt.Printf("Email: %v\n", p.Email)
-	fmt.Printf("Groups: %v\n", p.Groups)
+	fmt.Printf("XMLName: %#v\n", v.XMLName)
+	fmt.Printf("Name: %q\n", v.Name)
+	fmt.Printf("Phone: %q\n", v.Phone)
+	fmt.Printf("Email: %v\n", v.Email)
+	fmt.Printf("Groups: %v\n", v.Groups)
+	fmt.Printf("Address: %v\n", v.Address)
 	// Output:
 	// XMLName: xml.Name{Space:"", Local:"Person"}
 	// Name: "Grace R. Emlin"
 	// Phone: "none"
 	// Email: [{home gre@example.com} {work gre@work.com}]
 	// Groups: [Friends Squash]
+	// Address: {Hanga Roa Easter Island}
 }

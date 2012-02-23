@@ -57,6 +57,8 @@ const (
 //       if the field value is empty. The empty values are false, 0, any
 //       nil pointer or interface value, and any array, slice, map, or
 //       string of length zero.
+//     - a non-pointer anonymous struct field is handled as if the
+//       fields of its value were part of the outer struct.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b.  Fields that appear next to each other that name
