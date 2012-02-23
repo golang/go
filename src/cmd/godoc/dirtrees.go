@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
 )
 
 type Directory struct {
@@ -42,41 +41,6 @@ func isPkgDir(fi os.FileInfo) bool {
 	name := fi.Name()
 	return fi.IsDir() && len(name) > 0 &&
 		name[0] != '_' && name[0] != '.' // ignore _files and .files
-}
-
-func firstSentence(s string) string {
-	i := -1 // index+1 of first terminator (punctuation ending a sentence)
-	j := -1 // index+1 of first terminator followed by white space
-	prev := 'A'
-	for k, ch := range s {
-		k1 := k + 1
-		if ch == '.' || ch == '!' || ch == '?' {
-			if i < 0 {
-				i = k1 // first terminator
-			}
-			if k1 < len(s) && s[k1] <= ' ' {
-				if j < 0 {
-					j = k1 // first terminator followed by white space
-				}
-				if !unicode.IsUpper(prev) {
-					j = k1
-					break
-				}
-			}
-		}
-		prev = ch
-	}
-
-	if j < 0 {
-		// use the next best terminator
-		j = i
-		if j < 0 {
-			// no terminator at all, use the entire string
-			j = len(s)
-		}
-	}
-
-	return s[0:j]
 }
 
 type treeBuilder struct {
