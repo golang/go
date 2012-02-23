@@ -17,6 +17,11 @@ import (
 	"strings"
 )
 
+// Conventional name for directories containing test data.
+// Excluded from directory trees.
+//
+const testdataDirName = "testdata"
+
 type Directory struct {
 	Depth int
 	Path  string // includes Name
@@ -49,7 +54,7 @@ type treeBuilder struct {
 }
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
-	if b.pathFilter != nil && !b.pathFilter(path) {
+	if b.pathFilter != nil && !b.pathFilter(path) || name == testdataDirName {
 		return nil
 	}
 
