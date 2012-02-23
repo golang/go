@@ -156,7 +156,10 @@ typ(int et, Type *d)
 	t->link = d;
 	t->down = T;
 	t->sym = S;
-	t->width = ewidth[et];
+	if(et < NTYPE)
+		t->width = ewidth[et];
+	else
+		t->width = -1; // for TDOT or TOLD in prototype
 	t->offset = 0;
 	t->shift = 0;
 	t->nbits = 0;
