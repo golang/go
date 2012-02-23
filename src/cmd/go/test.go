@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/doc"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"os"
 	"os/exec"
@@ -299,6 +300,16 @@ func runTest(cmd *Command, args []string) {
 	for _, p := range pkgs {
 		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
+			if list, ok := err.(scanner.ErrorList); ok {
+				const n = 10
+				if len(list) > n {
+					list = list[:n]
+				}
+				for _, err := range list {
+					errorf("%s", err)
+				}
+				continue
+			}
 			errorf("%s", err)
 			continue
 		}
