@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 22, 2012"
+	"Subtitle": "Version of February 23, 2012"
 }-->
 
 <!--
@@ -5094,6 +5094,15 @@ file block and can be accessed without a qualifier.
 The interpretation of the ImportPath is implementation-dependent but
 it is typically a substring of the full file name of the compiled
 package and may be relative to a repository of installed packages.
+</p>
+
+<p>
+Implementation restriction: A compiler may restrict ImportPaths to
+non-empty strings using only characters belonging to
+<a href="http://www.unicode.org/versions/Unicode6.0.0/">Unicode's</a>
+L, M, N, P, and S general categories (the Graphic characters without
+spaces) and may also exclude the ASCII characters
+<code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code>.
 </p>
 
 <p>
