@@ -8,10 +8,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// OABI
-//#define SYS_BASE 0x00900000
-
-// EABI
+// for EABI, as we don't support OABI
 #define SYS_BASE 0x0
 
 #define SYS_exit (SYS_BASE + 1)
@@ -39,6 +36,11 @@
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
+
+TEXT notok<>(SB),7,$0
+	MOVW	$0, R9
+	MOVW	R9, (R9)
+	B   	0(PC)
 
 TEXT runtime·open(SB),7,$0
 	MOVW	0(FP), R0
@@ -104,6 +106,9 @@ TEXT runtime·mmap(SB),7,$0
 	MOVW	20(FP), R5
 	MOVW	$SYS_mmap2, R7
 	SWI	$0
+	MOVW	$0xfffff001, R6
+	CMP		R6, R0
+	RSB.HI	$0, R0
 	RET
 
 TEXT runtime·munmap(SB),7,$0
@@ -111,6 +116,9 @@ TEXT runtime·munmap(SB),7,$0
 	MOVW	4(FP), R1
 	MOVW	$SYS_munmap, R7
 	SWI	$0
+	MOVW	$0xfffff001, R6
+	CMP 	R6, R0
+	BL.HI	notok<>(SB)
 	RET
 
 TEXT runtime·madvise(SB),7,$0
@@ -119,6 +127,9 @@ TEXT runtime·madvise(SB),7,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
+	MOVW	$0xfffff001, R6
+	CMP 	R6, R0
+	BL.HI	notok<>(SB)
 	RET
 
 TEXT runtime·setitimer(SB),7,$0
@@ -270,6 +281,9 @@ TEXT runtime·sigaltstack(SB),7,$0
 	MOVW	4(FP), R1
 	MOVW	$SYS_sigaltstack, R7
 	SWI	$0
+	MOVW	$0xfffff001, R6
+	CMP 	R6, R0
+	BL.HI	notok<>(SB)
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
@@ -333,8 +347,8 @@ TEXT runtime·usleep(SB),7,$12
 	SWI	$0
 	RET
 
-// Use kernel version instead of native armcas in ../../arm.s.
-// See ../../../sync/atomic/asm_linux_arm.s for details.
+// Use kernel version instead of native armcas in asm_arm.s.
+// See ../sync/atomic/asm_linux_arm.s for details.
 TEXT cas<>(SB),7,$0
 	MOVW	$0xffff0fc0, PC
 
