@@ -14,7 +14,7 @@ import (
 )
 
 // If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
-var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+var testIPv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
@@ -130,7 +130,7 @@ func TestDialGoogleIPv6(t *testing.T) {
 		return
 	}
 	// Only run tcp6 if the kernel will take it.
-	if !*ipv6 || !supportsIPv6 {
+	if !*testIPv6 || !supportsIPv6 {
 		return
 	}
 

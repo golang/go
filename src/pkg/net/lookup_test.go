@@ -8,14 +8,14 @@
 package net
 
 import (
-	"runtime"
+	"flag"
 	"testing"
 )
 
-var avoidMacFirewall = runtime.GOOS == "darwin"
+var testExternal = flag.Bool("external", false, "allow use of external networks during test")
 
 func TestGoogleSRV(t *testing.T) {
-	if testing.Short() || avoidMacFirewall {
+	if testing.Short() || !*testExternal {
 		t.Logf("skipping test to avoid external network")
 		return
 	}
@@ -38,7 +38,7 @@ func TestGoogleSRV(t *testing.T) {
 }
 
 func TestGmailMX(t *testing.T) {
-	if testing.Short() || avoidMacFirewall {
+	if testing.Short() || !*testExternal {
 		t.Logf("skipping test to avoid external network")
 		return
 	}
@@ -52,7 +52,7 @@ func TestGmailMX(t *testing.T) {
 }
 
 func TestGmailTXT(t *testing.T) {
-	if testing.Short() || avoidMacFirewall {
+	if testing.Short() || !*testExternal {
 		t.Logf("skipping test to avoid external network")
 		return
 	}
@@ -66,7 +66,7 @@ func TestGmailTXT(t *testing.T) {
 }
 
 func TestGoogleDNSAddr(t *testing.T) {
-	if testing.Short() || avoidMacFirewall {
+	if testing.Short() || !*testExternal {
 		t.Logf("skipping test to avoid external network")
 		return
 	}

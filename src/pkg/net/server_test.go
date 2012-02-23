@@ -95,7 +95,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	t.Logf("Test %q %q %q", network, listenaddr, dialaddr)
 	switch listenaddr {
 	case "", "0.0.0.0", "[::]", "[::ffff:0.0.0.0]":
-		if testing.Short() || avoidMacFirewall {
+		if testing.Short() || !*testExternal {
 			t.Logf("skip wildcard listen during short test")
 			return
 		}
