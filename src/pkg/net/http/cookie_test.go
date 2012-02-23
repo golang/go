@@ -128,6 +128,34 @@ var readSetCookiesTests = []struct {
 			Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
 		}},
 	},
+	{
+		Header{"Set-Cookie": {".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly"}},
+		[]*Cookie{{
+			Name:       ".ASPXAUTH",
+			Value:      "7E3AA",
+			Path:       "/",
+			Expires:    time.Date(2012, 3, 7, 14, 25, 6, 0, time.UTC),
+			RawExpires: "Wed, 07-Mar-2012 14:25:06 GMT",
+			HttpOnly:   true,
+			Raw:        ".ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly",
+		}},
+	},
+	{
+		Header{"Set-Cookie": {"ASP.NET_SessionId=foo; path=/; HttpOnly"}},
+		[]*Cookie{{
+			Name:     "ASP.NET_SessionId",
+			Value:    "foo",
+			Path:     "/",
+			HttpOnly: true,
+			Raw:      "ASP.NET_SessionId=foo; path=/; HttpOnly",
+		}},
+	},
+
+	// TODO(bradfitz): users have reported seeing this in the
+	// wild, but do browsers handle it? RFC 6265 just says "don't
+	// do that" (section 3) and then never mentions header folding
+	// again.
+	// Header{"Set-Cookie": {"ASP.NET_SessionId=foo; path=/; HttpOnly, .ASPXAUTH=7E3AA; expires=Wed, 07-Mar-2012 14:25:06 GMT; path=/; HttpOnly"}},
 }
 
 func toJSON(v interface{}) string {
