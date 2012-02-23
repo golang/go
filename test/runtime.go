@@ -4,12 +4,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// make sure that even if a file imports runtime,
+// Test that even if a file imports runtime,
 // it cannot get at the low-level runtime definitions
-// known to the compiler.  for normal packages
+// known to the compiler.  For normal packages
 // the compiler doesn't even record the lower case
 // functions in its symbol table, but some functions
 // in runtime are hard-coded into the compiler.
+// Does not compile.
 
 package main
 
