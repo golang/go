@@ -191,6 +191,8 @@ struct	G
 	M*	lockedm;
 	M*	idlem;
 	int32	sig;
+	int32	writenbuf;
+	byte*	writebuf;
 	uintptr	sigcode0;
 	uintptr	sigcode1;
 	uintptr	sigpc;
@@ -545,6 +547,7 @@ bool	runtime·addfinalizer(void*, void(*fn)(void*), int32);
 void	runtime·runpanic(Panic*);
 void*	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
+int32	runtime·gcount(void);
 void	runtime·mcall(void(*)(G*));
 uint32	runtime·fastrand1(void);
 
@@ -585,10 +588,9 @@ int64	runtime·cputicks(void);
 #pragma	varargck	type	"s"	uint8*
 #pragma	varargck	type	"S"	String
 
-// TODO(rsc): Remove. These are only temporary,
-// for the mark and sweep collector.
 void	runtime·stoptheworld(void);
 void	runtime·starttheworld(bool);
+extern uint32 runtime·worldsema;
 
 /*
  * mutual exclusion locks.  in the uncontended case,

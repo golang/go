@@ -9,6 +9,26 @@
 
 static void vprintf(int8*, byte*);
 
+// write to goroutine-local buffer if diverting output,
+// or else standard error.
+static void
+gwrite(void *v, int32 n)
+{
+	if(g == nil || g->writebuf == nil) {
+		runtime·write(2, v, n);
+		return;
+	}
+	
+	if(g->writenbuf == 0)
+		return;
+	
+	if(n > g->writenbuf)
+		n = g->writenbuf;
+	runtime·memmove(g->writebuf, v, n);
+	g->writebuf += n;
+	g->writenbuf -= n;
+}
+
 void
 runtime·dump(byte *p, int32 n)
 {
@@ -29,7 +49,7 @@ runtime·dump(byte *p, int32 n)
 void
 runtime·prints(int8 *s)
 {
-	runtime·write(2, s, runtime·findnull((byte*)s));
+	gwrite(s, runtime·findnull((byte*)s));
 }
 
 #pragma textflag 7
@@ -59,7 +79,7 @@ vprintf(int8 *s, byte *base)
 		if(*p != '%')
 			continue;
 		if(p > lp)
-			runtime·write(2, lp, p-lp);
+			gwrite(lp, p-lp);
 		p++;
 		narg = 0;
 		switch(*p) {
@@ -150,7 +170,7 @@ vprintf(int8 *s, byte *base)
 		lp = p+1;
 	}
 	if(p > lp)
-		runtime·write(2, lp, p-lp);
+		gwrite(lp, p-lp);
 
 	//runtime·unlock(&debuglock);
 }
@@ -176,10 +196,10 @@ void
 runtime·printbool(bool v)
 {
 	if(v) {
-		runtime·write(2, (byte*)"true", 4);
+		gwrite((byte*)"true", 4);
 		return;
 	}
-	runtime·write(2, (byte*)"false", 5);
+	gwrite((byte*)"false", 5);
 }
 
 void
@@ -190,15 +210,15 @@ runtime·printfloat(float64 v)
 	float64 h;
 
 	if(runtime·isNaN(v)) {
-		runtime·write(2, "NaN", 3);
+		gwrite("NaN", 3);
 		return;
 	}
 	if(runtime·isInf(v, 1)) {
-		runtime·write(2, "+Inf", 4);
+		gwrite("+Inf", 4);
 		return;
 	}
 	if(runtime·isInf(v, -1)) {
-		runtime·write(2, "-Inf", 4);
+		gwrite("-Inf", 4);
 		return;
 	}
 
@@ -257,16 +277,16 @@ runtime·printfloat(float64 v)
 	buf[n+4] = (e/100) + '0';
 	buf[n+5] = (e/10)%10 + '0';
 	buf[n+6] = (e%10) + '0';
-	runtime·write(2, buf, n+7);
+	gwrite(buf, n+7);
 }
 
 void
 runtime·printcomplex(Complex128 v)
 {
-	runtime·write(2, "(", 1);
+	gwrite("(", 1);
 	runtime·printfloat(v.real);
 	runtime·printfloat(v.imag);
-	runtime·write(2, "i)", 2);
+	gwrite("i)", 2);
 }
 
 void
@@ -281,14 +301,14 @@ runtime·printuint(uint64 v)
 			break;
 		v = v/10;
 	}
-	runtime·write(2, buf+i, nelem(buf)-i);
+	gwrite(buf+i, nelem(buf)-i);
 }
 
 void
 runtime·printint(int64 v)
 {
 	if(v < 0) {
-		runtime·write(2, "-", 1);
+		gwrite("-", 1);
 		v = -v;
 	}
 	runtime·printuint(v);
@@ -308,7 +328,7 @@ runtime·printhex(uint64 v)
 		buf[--i] = '0';
 	buf[--i] = 'x';
 	buf[--i] = '0';
-	runtime·write(2, buf+i, nelem(buf)-i);
+	gwrite(buf+i, nelem(buf)-i);
 }
 
 void
@@ -323,23 +343,23 @@ runtime·printstring(String v)
 	extern uint32 runtime·maxstring;
 
 	if(v.len > runtime·maxstring) {
-		runtime·write(2, "[invalid string]", 16);
+		gwrite("[invalid string]", 16);
 		return;
 	}
 	if(v.len > 0)
-		runtime·write(2, v.str, v.len);
+		gwrite(v.str, v.len);
 }
 
 void
 runtime·printsp(void)
 {
-	runtime·write(2, " ", 1);
+	gwrite(" ", 1);
 }
 
 void
 runtime·printnl(void)
 {
-	runtime·write(2, "\n", 1);
+	gwrite("\n", 1);
 }
 
 void
