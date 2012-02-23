@@ -14,6 +14,125 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-02-22">2012-02-22</h2>
+
+<pre>
+This weekly snapshot includes changes to the os and runtime packages.
+
+This should be the last of the significant incompatible changes before Go 1.
+
+There are no longer error constants such as EINVAL in the os package, since the
+set of values varied with the underlying operating system. There are new
+portable functions like IsPermission to test common error properties, plus a
+few new error values with more Go-like names, such as ErrPermission and
+ErrNoEnv.
+
+The os.Getenverror function has been removed. To distinguish between a
+non-existent environment variable and an empty string, use os.Environ or
+syscall.Getenv.
+
+The Process.Wait method has dropped its option argument and the associated
+constants are gone from the package. Also, the function Wait is gone; only the
+method of the Process type persists.
+
+The non-portable Waitmsg type has been replaced with the portable ProcessState.
+
+Much of the API exported by package runtime has been removed in favor of
+functionality provided by other packages. Code using the runtime.Type
+interface or its specific concrete type implementations should now use package
+reflect.  Code using runtime.Semacquire or runtime.Semrelease should use
+channels or the abstractions in package sync.
+
+The runtime.Alloc, runtime.Free, and runtime.Lookup functions, an unsafe API
+created for debugging the memory allocator, have no replacement.
+
+The runtime.Cgocalls and runtime.Goroutines functions have been renamed to
+runtime.NumCgoCall and runtime.NumGoroutine.
+
+The "go fix" command will update code to accommodate most of these changes.
+
+Other changes:
+* 5c, 6c, 8c, 6g, 8g: correct boundary checking (thanks Shenghou Ma).
+* 5g, 6g, 8g: flush modified globals aggressively.
+* 8a, 8l: add EMMS instruction (thanks Evan Shaw).
+* bufio: don't return errors from good Peeks.
+* build: add make.bash --no-clean option,
+	improve Windows support.
+* builder: reuse existing workspace if possible (thanks Shenghou Ma),
+	update for os.Wait changes.
+* bytes: document Compare/Equal semantics for nil arguments, and add tests.
+* cgo: fix definition of opaque types (thanks Gustavo Niemeyer).
+* cmd/api: record return type of functions for variable typecheck (thanks Rémy Oudompheng).
+* cmd/cgo: bug fixes.
+* cmd/dist: add clang specific -Wno options (thanks Bobby Powers),
+	fix install cmd/5g on non-arm system,
+	fix pprof permissions (thanks Bobby Powers),
+	make dir check in defaulttarg() more robust (thanks Shenghou Ma),
+	use correct package target when cross-compiling (thanks Alex Brainman).
+* cmd/gc: correctly typecheck expression lists in returns (thanks Rémy Oudompheng),
+	don't believe that variables mentioned 256 times are unused (thanks Rémy Oudompheng),
+	error on constant shift overflows (thanks Rémy Oudompheng),
+	fix comparison of struct with _ field.
+	fix error for floating-point constant %,
+	new, less strict bool rules.
+* cmd/go: add tool -n flag,
+	go test -i correctly handle cgo packages (thanks Shenghou Ma).
+* codereview: fix submit message for new clone URL (thanks Shenghou Ma).
+* database/sql/driver: API cleanups.
+* doc: many fixes and adjustments.
+* encoding/gob: cache engine for user type, not base type,
+	catch internal error when it happens,
+	fix mutually recursive slices of structs.
+* encoding/json: ignore anonymous fields.
+* go/doc: return Examples in name order.
+* go/parser: imaginary constants and ! may start an expression.
+* go/printer, gofmt: improved comma placement.
+* go/printer: don't lose relevant parentheses when rewriting selector expressions.
+* godoc: adjust line height in pre blocks,
+	don't print spurious suggestion when running "go doc foo",
+	fix absolute->relative mapping,
+	fix tag mismatch validation errors (thanks Scott Lawrence),
+	import example code support,
+	support flat directory view again.
+* html/template: add Clone and AddParseTree,
+	don't indirect past a Stringer,
+	minor tweak to docs to improve HTML typography.
+* image: add Decode example.
+* ld: add NOPTRBSS for large, pointer-free uninitialized data.
+* math/rand: Intn etc. should panic if their argument is <= 0.
+* misc/dist/windows: distro builder updates (thanks Joe Poirier).
+* misc/goplay: remain in work directory, build in temp directory.
+* net, os, syscall: delete os.EPLAN9 (thanks Mikio Hara).
+* net/http: add optional Server.TLSConfig field.
+* net/smtp: use EHLO then HELO.
+* net/textproto: accept bad MIME headers as browsers do.
+* net/url: regularise receiver names.
+* net: make LocalAddr on multicast return group address (thanks Mikio Hara),
+	make parseProcNetIGMP more robust (thanks Mikio Hara),
+	more selfConnect debugging: panic if ra == nil in internetSocket,
+	panic if sockaddrToTCP returns nil incorrectly,
+	other miscellaneous fixes.
+* path, path/filepath: polish documentation (thanks Rémy Oudompheng).
+* pprof: add Profile type.
+* runtime: avoid malloc during malloc,
+	define NSIG to fix plan 9 build (thanks David du Colombier),
+	fix FreeBSD signal handling around thread creation (thanks Devon H. O'Dell),
+	goroutine profile, stack dumps,
+	implement runtime.osyield on FreeBSD 386, amd64 (thanks Devon H. O'Dell),
+	permit default behaviour of SIGTSTP, SIGTTIN, SIGTTOU,
+	release unused memory to the OS (thanks Sébastien Paolacci),
+	remove an obsolete file (thanks Mikio Hara).
+* spec: make all comparison results untyped bool,
+	refine the wording about variables in type switches,
+	struct comparison only compares non-blank fields.
+* syscall: Make Pdeathsig type Signal in SysProcAttr on Linux (thanks Albert Strasheim),
+	fix bounds check in Error,
+	force Windows to always use US English error messages (thanks Shenghou Ma).
+* test: migrated to new go-based testing framework.
+* text/template: evaluate function fields.
+* time: use Go distribution zoneinfo if system copy not found.
+</pre>
+
 <h2 id="2012-02-14">2012-02-14</h2>
 
 <pre>
