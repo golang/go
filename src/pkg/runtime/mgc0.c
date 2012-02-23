@@ -52,6 +52,21 @@ enum {
 
 #define bitMask (bitBlockBoundary | bitAllocated | bitMarked | bitSpecial)
 
+// Holding worldsema grants an M the right to try to stop the world.
+// The procedure is:
+//
+//	runtime·semacquire(&runtime·worldsema);
+//	m->gcing = 1;
+//	runtime·stoptheworld();
+//
+//	... do stuff ...
+//
+//	m->gcing = 0;
+//	runtime·semrelease(&runtime·worldsema);
+//	runtime·starttheworld();
+//
+uint32 runtime·worldsema = 1;
+
 // TODO: Make these per-M.
 static uint64 nhandoff;
 
@@ -816,11 +831,6 @@ runtime·gchelper(void)
 		runtime·notewakeup(&work.alldone);
 }
 
-// Semaphore, not Lock, so that the goroutine
-// reschedules when there is contention rather
-// than spinning.
-static uint32 gcsema = 1;
-
 // Initialized from $GOGC.  GOGC=off means no gc.
 //
 // Next gc is after we've allocated an extra amount of
@@ -903,9 +913,9 @@ runtime·gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
-	runtime·semacquire(&gcsema);
+	runtime·semacquire(&runtime·worldsema);
 	if(!force && mstats.heap_alloc < mstats.next_gc) {
-		runtime·semrelease(&gcsema);
+		runtime·semrelease(&runtime·worldsema);
 		return;
 	}
 
@@ -981,8 +991,9 @@ runtime·gc(int32 force)
 			mstats.nmalloc, mstats.nfree,
 			nhandoff);
 	}
-
-	runtime·semrelease(&gcsema);
+	
+	runtime·MProf_GC();
+	runtime·semrelease(&runtime·worldsema);
 
 	// If we could have used another helper proc, start one now,
 	// in the hope that it will be available next time.
@@ -1004,17 +1015,17 @@ runtime·gc(int32 force)
 void
 runtime·ReadMemStats(MStats *stats)
 {
-	// Have to acquire gcsema to stop the world,
+	// Have to acquire worldsema to stop the world,
 	// because stoptheworld can only be used by
 	// one goroutine at a time, and there might be
 	// a pending garbage collection already calling it.
-	runtime·semacquire(&gcsema);
+	runtime·semacquire(&runtime·worldsema);
 	m->gcing = 1;
 	runtime·stoptheworld();
 	cachestats();
 	*stats = mstats;
 	m->gcing = 0;
-	runtime·semrelease(&gcsema);
+	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld(false);
 }
 

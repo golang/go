@@ -26,6 +26,10 @@ struct Bucket
 	uintptr	frees;
 	uintptr	alloc_bytes;
 	uintptr	free_bytes;
+	uintptr	recent_allocs;  // since last gc
+	uintptr	recent_frees;
+	uintptr	recent_alloc_bytes;
+	uintptr	recent_free_bytes;
 	uintptr	hash;
 	uintptr	nstk;
 	uintptr	stk[1];
@@ -39,7 +43,7 @@ static uintptr bucketmem;
 
 // Return the bucket for stk[0:nstk], allocating new bucket if needed.
 static Bucket*
-stkbucket(uintptr *stk, int32 nstk)
+stkbucket(uintptr *stk, int32 nstk, bool alloc)
 {
 	int32 i;
 	uintptr h;
@@ -66,6 +70,9 @@ stkbucket(uintptr *stk, int32 nstk)
 		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
 			return b;
 
+	if(!alloc)
+		return nil;
+
 	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
@@ -76,6 +83,26 @@ stkbucket(uintptr *stk, int32 nstk)
 	b->allnext = buckets;
 	buckets = b;
 	return b;
+}
+
+// Record that a gc just happened: all the 'recent' statistics are now real.
+void
+runtime·MProf_GC(void)
+{
+	Bucket *b;
+	
+	runtime·lock(&proflock);
+	for(b=buckets; b; b=b->allnext) {
+		b->allocs += b->recent_allocs;
+		b->frees += b->recent_frees;
+		b->alloc_bytes += b->recent_alloc_bytes;
+		b->free_bytes += b->recent_free_bytes;
+		b->recent_allocs = 0;
+		b->recent_frees = 0;
+		b->recent_alloc_bytes = 0;
+		b->recent_free_bytes = 0;
+	}
+	runtime·unlock(&proflock);
 }
 
 // Map from pointer to Bucket* that allocated it.
@@ -198,9 +225,9 @@ runtime·MProf_Malloc(void *p, uintptr size)
 	m->nomemprof++;
 	nstk = runtime·callers(1, stk, 32);
 	runtime·lock(&proflock);
-	b = stkbucket(stk, nstk);
-	b->allocs++;
-	b->alloc_bytes += size;
+	b = stkbucket(stk, nstk, true);
+	b->recent_allocs++;
+	b->recent_alloc_bytes += size;
 	setaddrbucket((uintptr)p, b);
 	runtime·unlock(&proflock);
 	m->nomemprof--;
@@ -219,8 +246,8 @@ runtime·MProf_Free(void *p, uintptr size)
 	runtime·lock(&proflock);
 	b = getaddrbucket((uintptr)p);
 	if(b != nil) {
-		b->frees++;
-		b->free_bytes += size;
+		b->recent_frees++;
+		b->recent_free_bytes += size;
 	}
 	runtime·unlock(&proflock);
 	m->nomemprof--;
@@ -274,13 +301,13 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
 	runtime·unlock(&proflock);
 }
 
-// Must match ThreadProfileRecord in debug.go.
+// Must match StackRecord in debug.go.
 typedef struct TRecord TRecord;
 struct TRecord {
 	uintptr stk[32];
 };
 
-func ThreadProfile(p Slice) (n int32, ok bool) {
+func ThreadCreateProfile(p Slice) (n int32, ok bool) {
 	TRecord *r;
 	M *first, *m;
 	
@@ -298,3 +325,80 @@ func ThreadProfile(p Slice) (n int32, ok bool) {
 		}
 	}
 }
+
+func Stack(b Slice, all bool) (n int32) {
+	byte *pc, *sp;
+	
+	sp = runtime·getcallersp(&b);
+	pc = runtime·getcallerpc(&b);
+
+	if(all) {
+		runtime·semacquire(&runtime·worldsema);
+		m->gcing = 1;
+		runtime·stoptheworld();
+	}
+
+	if(b.len == 0)
+		n = 0;
+	else{
+		g->writebuf = (byte*)b.array;
+		g->writenbuf = b.len;
+		runtime·goroutineheader(g);
+		runtime·traceback(pc, sp, 0, g);
+		if(all)
+			runtime·tracebackothers(g);
+		n = b.len - g->writenbuf;
+		g->writebuf = nil;
+		g->writenbuf = 0;
+	}
+	
+	if(all) {
+		m->gcing = 0;
+		runtime·semrelease(&runtime·worldsema);
+		runtime·starttheworld(false);
+	}
+}
+
+static void
+saveg(byte *pc, byte *sp, G *g, TRecord *r)
+{
+	int32 n;
+	
+	n = runtime·gentraceback(pc, sp, 0, g, 0, r->stk, nelem(r->stk));
+	if(n < nelem(r->stk))
+		r->stk[n] = 0;
+}
+
+func GoroutineProfile(b Slice) (n int32, ok bool) {
+	byte *pc, *sp;
+	TRecord *r;
+	G *gp;
+	
+	sp = runtime·getcallersp(&b);
+	pc = runtime·getcallerpc(&b);
+	
+	ok = false;
+	n = runtime·gcount();
+	if(n <= b.len) {
+		runtime·semacquire(&runtime·worldsema);
+		m->gcing = 1;
+		runtime·stoptheworld();
+
+		n = runtime·gcount();
+		if(n <= b.len) {
+			ok = true;
+			r = (TRecord*)b.array;
+			saveg(pc, sp, g, r++);
+			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+				if(gp == g || gp->status == Gdead)
+					continue;
+				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
+			}
+		}
+	
+		m->gcing = 0;
+		runtime·semrelease(&runtime·worldsema);
+		runtime·starttheworld(false);
+	}
+}
+

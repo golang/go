@@ -1665,6 +1665,12 @@ runtime·NumGoroutine(int32 ret)
 }
 
 int32
+runtime·gcount(void)
+{
+	return runtime·sched.gcount;
+}
+
+int32
 runtime·mcount(void)
 {
 	return runtime·sched.mcount;

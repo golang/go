@@ -411,17 +411,9 @@ enum
 
 void	runtime·MProf_Malloc(void*, uintptr);
 void	runtime·MProf_Free(void*, uintptr);
+void	runtime·MProf_GC(void);
 int32	runtime·helpgc(bool*);
 void	runtime·gchelper(void);
-
-// Malloc profiling settings.
-// Must match definition in extern.go.
-enum {
-	MProf_None = 0,
-	MProf_Sample = 1,
-	MProf_All = 2,
-};
-extern int32 runtime·malloc_profile;
 
 bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
 void	runtime·walkfintab(void (*fn)(void*));
