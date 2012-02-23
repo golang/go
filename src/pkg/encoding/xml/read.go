@@ -25,58 +25,6 @@ import (
 // slice, or string. Well-formed data that does not fit into v is
 // discarded.
 //
-// For example, given these definitions:
-//
-//	type Email struct {
-//		Where string `xml:",attr"`
-//		Addr  string
-//	}
-//
-//	type Result struct {
-//		XMLName xml.Name `xml:"result"`
-//		Name	string
-//		Phone	string
-//		Email	[]Email
-//		Groups  []string `xml:"group>value"`
-//	}
-//
-//	result := Result{Name: "name", Phone: "phone", Email: nil}
-//
-// unmarshalling the XML input
-//
-//	<result>
-//		<email where="home">
-//			<addr>gre@example.com</addr>
-//		</email>
-//		<email where='work'>
-//			<addr>gre@work.com</addr>
-//		</email>
-//		<name>Grace R. Emlin</name>
-// 		<group>
-// 			<value>Friends</value>
-// 			<value>Squash</value>
-// 		</group>
-//		<address>123 Main Street</address>
-//	</result>
-//
-// via Unmarshal(data, &result) is equivalent to assigning
-//
-//	r = Result{
-//		xml.Name{Local: "result"},
-//		"Grace R. Emlin", // name
-//		"phone",	  // no phone given
-//		[]Email{
-//			Email{"home", "gre@example.com"},
-//			Email{"work", "gre@work.com"},
-//		},
-//		[]string{"Friends", "Squash"},
-//	}
-//
-// Note that the field r.Phone has not been modified and
-// that the XML <address> element was discarded. Also, the field
-// Groups was assigned considering the element path provided in the
-// field tag.
-//
 // Because Unmarshal uses the reflect package, it can only assign
 // to exported (upper case) fields.  Unmarshal uses a case-sensitive
 // comparison to match XML element names to tag values and struct
