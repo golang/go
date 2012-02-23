@@ -4,7 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Pass 1 label errors.
+// Verify that erroneous labels are caught by the compiler.
+// This set is caught by pass 1.
+// Does not compile.
 
 package main
 

@@ -4,9 +4,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+// Verify that various kinds of "imported and not used"
+// errors are caught by the compiler.
+// Does not compile.
 
-// various kinds of imported and not used
+package main
 
 // standard
 import "fmt"	// ERROR "imported and not used.*fmt"

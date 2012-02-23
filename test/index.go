@@ -9,6 +9,7 @@
 // license that can be found in the LICENSE file.
 
 // Generate test of index and slice bounds checks.
+// The output is compiled and run.
 
 package main
 

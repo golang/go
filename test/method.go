@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test simple methods of various types, with pointer and
+// value receivers.
+
 package main
 
 type S string
