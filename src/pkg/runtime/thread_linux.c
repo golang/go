@@ -13,6 +13,9 @@ int32 runtime·open(uint8*, int32, int32);
 int32 runtime·close(int32);
 int32 runtime·read(int32, void*, int32);
 
+static Sigset sigset_all = { ~(uint32)0, ~(uint32)0 };
+static Sigset sigset_none;
+
 // Linux futex.
 //
 //	futexsleep(uint32 *addr, uint32 val)
@@ -135,6 +138,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	int32 ret;
 	int32 flags;
+	Sigset oset;
 
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
@@ -152,7 +156,13 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 			stk, m, g, fn, runtime·clone, m->id, m->tls[0], &m);
 	}
 
-	if((ret = runtime·clone(flags, stk, m, g, fn)) < 0) {
+	// Disable signals during clone, so that the new thread starts
+	// with signals disabled.  It will enable them in minit.
+	runtime·rtsigprocmask(SIG_SETMASK, &sigset_all, &oset, sizeof oset);
+	ret = runtime·clone(flags, stk, m, g, fn);
+	runtime·rtsigprocmask(SIG_SETMASK, &oset, nil, sizeof oset);
+
+	if(ret < 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -ret);
 		runtime·throw("runtime.newosproc");
 	}
@@ -177,6 +187,7 @@ runtime·minit(void)
 	// Initialize signal handling.
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
 }
 
 void
