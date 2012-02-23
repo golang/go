@@ -22,9 +22,9 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/profile
 //
-// Or to look at the thread creation profile:
+// Or to view all available profiles:
 //
-//	go tool pprof http://localhost:6060/debug/pprof/thread
+//	go tool pprof http://localhost:6060/debug/pprof/
 //
 // For a study of the facility in action, visit
 //
@@ -36,7 +36,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"runtime"
@@ -47,11 +49,10 @@ import (
 )
 
 func init() {
+	http.Handle("/debug/pprof/", http.HandlerFunc(Index))
 	http.Handle("/debug/pprof/cmdline", http.HandlerFunc(Cmdline))
 	http.Handle("/debug/pprof/profile", http.HandlerFunc(Profile))
-	http.Handle("/debug/pprof/heap", http.HandlerFunc(Heap))
 	http.Handle("/debug/pprof/symbol", http.HandlerFunc(Symbol))
-	http.Handle("/debug/pprof/thread", http.HandlerFunc(Thread))
 }
 
 // Cmdline responds with the running program's
@@ -60,20 +61,6 @@ func init() {
 func Cmdline(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
-}
-
-// Heap responds with the pprof-formatted heap profile.
-// The package initialization registers it as /debug/pprof/heap.
-func Heap(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	pprof.WriteHeapProfile(w)
-}
-
-// Thread responds with the pprof-formatted thread creation profile.
-// The package initialization registers it as /debug/pprof/thread.
-func Thread(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	pprof.WriteThreadProfile(w)
 }
 
 // Profile responds with the pprof-formatted cpu profile.
@@ -147,3 +134,61 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(buf.Bytes())
 }
+
+// Handler returns an HTTP handler that serves the named profile.
+func Handler(name string) http.Handler {
+	return handler(name)
+}
+
+type handler string
+
+func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	debug, _ := strconv.Atoi(r.FormValue("debug"))
+	p := pprof.Lookup(string(name))
+	if p == nil {
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Unknown profile: %s\n", name)
+		return
+	}
+	p.WriteTo(w, debug)
+	return
+}
+
+// Index responds with the pprof-formatted profile named by the request.
+// For example, "/debug/pprof/heap" serves the "heap" profile.
+// Index responds to a request for "/debug/pprof/" with an HTML page
+// listing the available profiles.
+func Index(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
+		name := r.URL.Path[len("/debug/pprof/"):]
+		if name != "" {
+			handler(name).ServeHTTP(w, r)
+			return
+		}
+	}
+
+	profiles := pprof.Profiles()
+	if err := indexTmpl.Execute(w, profiles); err != nil {
+		log.Print(err)
+	}
+}
+
+var indexTmpl = template.Must(template.New("index").Parse(`<html>
+<head>
+<title>/debug/pprof/</title>
+</head>
+/debug/pprof/<br>
+<br>
+<body>
+profiles:<br>
+<table>
+{{range .}}
+<tr><td align=right>{{.Count}}<td><a href="/debug/pprof/{{.Name}}?debug=1">{{.Name}}</a>
+{{end}}
+</table>
+<br>
+<a href="/debug/pprof/goroutine?debug=2">full goroutine stack dump</a><br>
+</body>
+</html>
+`))
