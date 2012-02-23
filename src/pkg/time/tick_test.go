@@ -12,9 +12,6 @@ import (
 func TestTicker(t *testing.T) {
 	const Count = 10
 	Delta := 100 * Millisecond
-	if testing.Short() {
-		Delta = 20 * Millisecond
-	}
 	ticker := NewTicker(Delta)
 	t0 := Now()
 	for i := 0; i < Count; i++ {
