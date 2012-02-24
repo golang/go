@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Test, using compiler diagnostic flags, that the escape analysis is working.
-// Compiles but does not run.
+// Compiles but does not run.  Inlining is disabled.
 
 package foo
 

@@ -59,7 +59,7 @@ static int	dstcount, edgecount;	// diagnostic
 static NodeList*	noesc;	// list of possible non-escaping nodes, for printing
 
 void
-escapes(void)
+escapes(NodeList *all)
 {
 	NodeList *l;
 
@@ -70,9 +70,10 @@ escapes(void)
 	theSink.escloopdepth = -1;
 
 	safetag = strlit("noescape");
+	noesc = nil;
 
-	// flow-analyze top level functions
-	for(l=xtop; l; l=l->next)
+	// flow-analyze functions
+	for(l=all; l; l=l->next)
 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE)
 			escfunc(l->n);
 
@@ -84,7 +85,7 @@ escapes(void)
 		escflood(l->n);
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
-	for(l=xtop; l; l=l->next)
+	for(l=all; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			esctag(l->n);
 
