@@ -144,6 +144,7 @@ func Serve(handler http.Handler) error {
 		bufw:   bufio.NewWriter(os.Stdout),
 	}
 	handler.ServeHTTP(rw, req)
+	rw.Write(nil) // make sure a response is sent
 	if err = rw.bufw.Flush(); err != nil {
 		return err
 	}
