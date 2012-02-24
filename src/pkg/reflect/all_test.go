@@ -629,6 +629,13 @@ type DeepEqualTest struct {
 	eq   bool
 }
 
+// Simple functions for DeepEqual tests.
+var (
+	fn1 func()             // nil.
+	fn2 func()             // nil.
+	fn3 = func() { fn1() } // Not nil.
+)
+
 var deepEqualTests = []DeepEqualTest{
 	// Equalities
 	{1, 1, true},
@@ -641,6 +648,7 @@ var deepEqualTests = []DeepEqualTest{
 	{Basic{1, 0.5}, Basic{1, 0.5}, true},
 	{error(nil), error(nil), true},
 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
+	{fn1, fn2, true},
 
 	// Inequalities
 	{1, 2, false},
@@ -658,6 +666,8 @@ var deepEqualTests = []DeepEqualTest{
 	{map[int]string{2: "two", 1: "one"}, map[int]string{1: "one"}, false},
 	{nil, 1, false},
 	{1, nil, false},
+	{fn1, fn3, false},
+	{fn3, fn3, false},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
