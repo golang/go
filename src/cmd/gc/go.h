@@ -955,7 +955,7 @@ NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
 /*
  *	esc.c
  */
-void	escapes(void);
+void	escapes(NodeList*);
 
 /*
  *	export.c

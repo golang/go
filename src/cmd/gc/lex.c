@@ -186,7 +186,7 @@ int
 main(int argc, char *argv[])
 {
 	int i, c;
-	NodeList *l;
+	NodeList *l, *batch;
 	char *p;
 
 #ifdef	SIGBUS	
@@ -390,7 +390,7 @@ main(int argc, char *argv[])
 
 	// Phase 5: escape analysis.
 	if(!debug['N'])
-		escapes();
+		escapes(xtop);
 
 	// Phase 6: Compile top level functions.
 	for(l=xtop; l; l=l->next)
@@ -401,14 +401,17 @@ main(int argc, char *argv[])
 		fninit(xtop);
 
 	// Phase 6b: Compile all closures.
+	// Can generate more closures, so run in batches.
 	while(closures) {
-		l = closures;
+		batch = closures;
 		closures = nil;
-		for(; l; l=l->next) {
-			if (debug['l'])
+		if(debug['l'])
+			for(l=batch; l; l=l->next)
 				inlcalls(l->n);
+		if(!debug['N'])
+			escapes(batch);
+		for(l=batch; l; l=l->next)
 			funccompile(l->n, 1);
-		}
 	}
 
 	// Phase 7: check external declarations.
