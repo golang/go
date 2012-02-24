@@ -50,6 +50,13 @@ TEXT runtime·read(SB),7,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·getrlimit(SB),7,$0-24
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	$97, AX			// syscall entry
+	SYSCALL
+	RET
+
 TEXT runtime·usleep(SB),7,$16
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX

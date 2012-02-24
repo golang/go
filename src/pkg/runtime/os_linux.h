@@ -33,3 +33,11 @@ struct Sigset
 };
 void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
 #define SIG_SETMASK 2
+
+#define RLIMIT_AS 9
+typedef struct Rlimit Rlimit;
+struct Rlimit {
+	uintptr	rlim_cur;
+	uintptr	rlim_max;
+};
+int32	runtime·getrlimit(int32, Rlimit*);

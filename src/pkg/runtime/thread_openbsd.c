@@ -201,3 +201,9 @@ runtime·sigpanic(void)
 	}
 	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
+
+uintptr
+runtime·memlimit(void)
+{
+	return 0;
+}

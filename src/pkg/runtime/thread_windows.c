@@ -425,3 +425,9 @@ os·sigpipe(void)
 {
 	runtime·throw("too many writes on closed pipe");
 }
+
+uintptr
+runtime·memlimit(void)
+{
+	return 0;
+}

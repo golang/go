@@ -729,3 +729,4 @@ bool	runtime·showframe(Func*);
 
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
 
+uintptr	runtime·memlimit(void);
