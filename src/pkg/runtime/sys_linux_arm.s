@@ -33,6 +33,7 @@
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_select (SYS_BASE + 142) // newselect
+#define SYS_ugetrlimit (SYS_BASE + 191)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -69,6 +70,13 @@ TEXT runtime·read(SB),7,$0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
 	MOVW	$SYS_read, R7
+	SWI	$0
+	RET
+
+TEXT runtime·getrlimit(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	$SYS_ugetrlimit, R7
 	SWI	$0
 	RET
 

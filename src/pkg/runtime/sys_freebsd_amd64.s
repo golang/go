@@ -65,6 +65,13 @@ TEXT runtime·write(SB),7,$-8
 	SYSCALL
 	RET
 
+TEXT runtime·getrlimit(SB),7,$-8
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	$194, AX
+	SYSCALL
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$16
 	// thr_self(&8(SP))
 	LEAQ	8(SP), DI	// arg 1 &8(SP)

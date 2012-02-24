@@ -60,6 +60,11 @@ TEXT runtime·write(SB),7,$-4
 	INT	$0x80
 	RET
 
+TEXT runtime·getrlimit(SB),7,$-4
+	MOVL	$194, AX
+	INT	$0x80
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$12
 	// thr_self(&8(SP))
 	LEAL	8(SP), AX

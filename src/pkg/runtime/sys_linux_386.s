@@ -52,6 +52,13 @@ TEXT runtime·read(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
+TEXT runtime·getrlimit(SB),7,$0
+	MOVL	$191, AX		// syscall - ugetrlimit
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	CALL	*runtime·_vdso(SB)
+	RET
+
 TEXT runtime·usleep(SB),7,$8
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX

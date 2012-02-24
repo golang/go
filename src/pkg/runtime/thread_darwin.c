@@ -424,3 +424,13 @@ void
 runtime·osyield(void)
 {
 }
+
+uintptr
+runtime·memlimit(void)
+{
+	// NOTE(rsc): Could use getrlimit here,
+	// like on FreeBSD or Linux, but Darwin doesn't enforce
+	// ulimit -v, so it's unclear why we'd try to stay within
+	// the limit.
+	return 0;
+}

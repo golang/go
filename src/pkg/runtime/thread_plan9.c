@@ -235,3 +235,9 @@ runtime·write(int32 fd, void *buf, int32 nbytes)
 {
 	return runtime·pwrite(fd, buf, nbytes, -1LL);
 }
+
+uintptr
+runtime·memlimit(void)
+{
+	return 0;
+}

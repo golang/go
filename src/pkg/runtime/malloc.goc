@@ -262,6 +262,7 @@ runtime·mallocinit(void)
 	uintptr arena_size, bitmap_size;
 	extern byte end[];
 	byte *want;
+	uintptr limit;
 
 	p = nil;
 	arena_size = 0;
@@ -274,10 +275,12 @@ runtime·mallocinit(void)
 
 	runtime·InitSizes();
 
+	limit = runtime·memlimit();
+
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found.  The arena begins with a bitmap large
 	// enough to hold 4 bits per allocated word.
-	if(sizeof(void*) == 8) {
+	if(sizeof(void*) == 8 && (limit == 0 || limit > (1<<30))) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
 		// 16 GB should be big enough for now.
 		//
@@ -326,6 +329,10 @@ runtime·mallocinit(void)
 		// of address space, which is probably too much in a 32-bit world.
 		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
 		arena_size = 512<<20;
+		if(limit > 0 && arena_size+bitmap_size > limit) {
+			bitmap_size = (limit / 9) & ~((1<<PageShift) - 1);
+			arena_size = bitmap_size * 8;
+		}
 		
 		// SysReserve treats the address we ask for, end, as a hint,
 		// not as an absolute requirement.  If we ask for the end
@@ -340,6 +347,8 @@ runtime·mallocinit(void)
 		p = runtime·SysReserve(want, bitmap_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
+		if((uintptr)p & (((uintptr)1<<PageShift)-1))
+			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p, bitmap_size+arena_size);
 	}
 	if((uintptr)p & (((uintptr)1<<PageShift)-1))
 		runtime·throw("runtime: SysReserve returned unaligned address");
