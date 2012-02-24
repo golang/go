@@ -76,7 +76,7 @@ flags are also accessible by 'go test'.  See 'go help testflag' for details.
 See 'go help importpath' for more about import paths.
 
 See also: go build, go vet.
-	`,
+`,
 }
 
 var helpTestflag = &Command{
@@ -146,7 +146,7 @@ here are passed through unaltered.  For instance, the command
 will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
-	`,
+`,
 }
 
 var helpTestfunc = &Command{
@@ -167,8 +167,10 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
 
 An example function is similar to a test function but, instead of using *testing.T
 to report success or failure, prints output to os.Stdout and os.Stderr.
-That output is compared against the function's doc comment.
-An example without a doc comment is compiled but not executed.
+That output is compared against the function's "Output:" comment, which
+must be the last comment in the function body (see example below). An
+example with no such comment, or with no text after "Output:" is compiled
+but not executed.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
 of the function, constant, or variable XXX.  An example of a method M with
@@ -179,8 +181,9 @@ where xxx is a suffix not beginning with an upper case letter.
 Here is an example of an example:
 
 	func ExamplePrintln() {
-		Println("The output of this example function.")
-		// Output: The output of this example function.
+		Println("The output of\nthis example.")
+		// Output: The output of
+		// this example.
 	}
 
 The entire test file is presented as the example when it contains a single
@@ -188,7 +191,7 @@ example function, at least one other function, type, variable, or constant
 declaration, and no test or benchmark functions.
 
 See the documentation of the testing package for more information.
-		`,
+`,
 }
 
 var (
