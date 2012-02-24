@@ -167,7 +167,7 @@ var printVerbs = []printVerb{
 	{'b', numFlag},
 	{'c', "-"},
 	{'d', numFlag},
-	{'e', "-."},
+	{'e', numFlag},
 	{'E', numFlag},
 	{'f', numFlag},
 	{'F', numFlag},
