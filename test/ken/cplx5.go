@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test compound types made of complex numbers.
+
 package main
 
 var a [12]complex128

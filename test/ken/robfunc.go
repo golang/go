@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test functions of many signatures.
+
 package main
 
 func assertequal(is, shouldbe int, msg string) {
