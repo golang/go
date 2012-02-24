@@ -96,7 +96,7 @@ Node*	nodmmv;
 
 Node*	nodvasop;
 
-char	etconv[NTYPE];	/* for _vasop */
+char	etconv[NALLTYPES];	/* for _vasop */
 Init	initetconv[] =
 {
 	TCHAR,		1,	0,
