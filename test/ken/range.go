@@ -4,6 +4,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test 'for range' on arrays, slices, and maps.
+
 package main
 
 const size = 16
