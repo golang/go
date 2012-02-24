@@ -4,7 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test illegal shifts.
 // Issue 1708, illegal cases.
+// Does not compile.
 
 package p
 

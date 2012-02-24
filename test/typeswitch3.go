@@ -4,6 +4,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Verify that erroneous type switches are caught be the compiler.
+// Issue 2700, among other things.
+// Does not compile.
+
 package main
 
 import (

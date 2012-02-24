@@ -4,6 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test stack splitting code.
 // Try to tickle stack splitting bugs by doing
 // go, defer, and closure calls at different stack depths.
 
