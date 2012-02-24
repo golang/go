@@ -5,7 +5,11 @@
 
 set -e
 
-eval $(gomake --no-print-directory -f ../../../src/Make.inc go-env)
+eval $(go tool dist env)
+O=$GOCHAR
+GC="go tool ${O}g"
+LD="go tool ${O}l"
+
 PATH=.:$PATH
 
 havegccgo=false
