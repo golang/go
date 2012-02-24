@@ -1023,6 +1023,11 @@ textaddress(void)
 		}
 		va += sym->size;
 	}
+	
+	// Align end of code so that rodata starts aligned.
+	// 128 bytes is likely overkill but definitely cheap.
+	va = rnd(va, 128);
+
 	sect->len = va - sect->vaddr;
 }
 
