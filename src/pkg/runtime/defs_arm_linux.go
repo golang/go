@@ -114,7 +114,6 @@ const (
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 )
 
-type Sigset C.sigset_t
 type Timespec C.struct_timespec
 type Sigaltstack C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
