@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"text/template"
 )
@@ -82,8 +83,8 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
-	out := bufio.NewWriter(os.Stdout)
-	defer out.Flush()
+	out := newCountingWriter(os.Stdout)
+	defer out.w.Flush()
 
 	var do func(*Package)
 	if *listJson {
@@ -97,14 +98,18 @@ func runList(cmd *Command, args []string) {
 			out.Write(nl)
 		}
 	} else {
-		tmpl, err := template.New("main").Parse(*listFmt + "\n")
+		tmpl, err := template.New("main").Parse(*listFmt)
 		if err != nil {
 			fatalf("%s", err)
 		}
 		do = func(p *Package) {
+			out.Reset()
 			if err := tmpl.Execute(out, p); err != nil {
 				out.Flush()
 				fatalf("%s", err)
+			}
+			if out.Count() > 0 {
+				out.w.WriteRune('\n')
 			}
 		}
 	}
@@ -117,4 +122,34 @@ func runList(cmd *Command, args []string) {
 	for _, pkg := range load(args) {
 		do(pkg)
 	}
+}
+
+// CountingWriter counts its data, so we can avoid appending a newline
+// if there was no actual output.
+type CountingWriter struct {
+	w     *bufio.Writer
+	count int64
+}
+
+func newCountingWriter(w io.Writer) *CountingWriter {
+	return &CountingWriter{
+		w: bufio.NewWriter(w),
+	}
+}
+
+func (cw *CountingWriter) Write(p []byte) (n int, err error) {
+	cw.count += int64(len(p))
+	return cw.w.Write(p)
+}
+
+func (cw *CountingWriter) Flush() {
+	cw.w.Flush()
+}
+
+func (cw *CountingWriter) Reset() {
+	cw.count = 0
+}
+
+func (cw *CountingWriter) Count() int64 {
+	return cw.count
 }
