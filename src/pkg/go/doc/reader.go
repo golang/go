@@ -432,6 +432,17 @@ func (r *reader) readFile(src *ast.File) {
 				r.readValue(d)
 			case token.TYPE:
 				// types are handled individually
+				if len(d.Specs) == 1 && !d.Lparen.IsValid() {
+					// common case: single declaration w/o parentheses
+					// (if a single declaration is parenthesized,
+					// create a new fake declaration below, so that
+					// go/doc type declarations always appear w/o
+					// parentheses)
+					if s, ok := d.Specs[0].(*ast.TypeSpec); ok {
+						r.readType(d, s)
+					}
+					break
+				}
 				for _, spec := range d.Specs {
 					if s, ok := spec.(*ast.TypeSpec); ok {
 						// use an individual (possibly fake) declaration
@@ -439,8 +450,13 @@ func (r *reader) readFile(src *ast.File) {
 						// gets to (re-)use the declaration documentation
 						// if there's none associated with the spec itself
 						fake := &ast.GenDecl{
-							Doc:    d.Doc,
-							TokPos: d.Pos(),
+							Doc: d.Doc,
+							// don't use the existing TokPos because it
+							// will lead to the wrong selection range for
+							// the fake declaration if there are more
+							// than one type in the group (this affects
+							// src/cmd/godoc/godoc.go's posLink_urlFunc)
+							TokPos: s.Pos(),
 							Tok:    token.TYPE,
 							Specs:  []ast.Spec{s},
 						}
