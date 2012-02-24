@@ -10,29 +10,46 @@
 <h2 id="introduction">Introduction to Go 1</h2>
 
 <p>
-For a full explanation of the motivation and design of Go 1, see XXX.
-Here follows a summary.
+Go version 1, Go 1 for short, defines a language and a set of core libraries
+that provide a stable foundation for creating reliable products, projects, and
+publications.
 </p>
 
 <p>
-Go 1 is intended to be a stable language and core library set that
-will form a reliable foundation for people and organizations that
-want to make a long-term commitment to developing in the Go programming
-language. Go will continue to develop, but in a way that guarantees
-code written to the Go 1 specification will continue to work. For
-instance, Go 1 will be a supported platform on Google App Engine
-for the next few years. Incompatible changes to the environment,
-should they arise, will be done in a distinct version.
+The driving motivation for Go 1 is stability for its users. People should be able to
+write Go programs and expect that they will continue to compile and run without
+change, on a time scale of years, including in production environments such as
+Google App Engine. Similarly, people should be able to write books about Go, be
+able to say which version of Go the book is describing, and have that version
+number still be meaningful much later.
 </p>
 
 <p>
-This document describes the changes in the language and libraries
-in Go 1, relative to the previous release, r60 (at the time of
-writing, tagged as r60.3). It also explains how to update code at
-r60 to compile and run under Go 1. Finally, it outlines the new
-<code>go</code> command for building Go programs and the new binary
-release process being introduced. Most of these topics have more
-thorough presentations elsewhere; such documents are linked below.
+Code that compiles in Go 1 should, with few exceptions, continue to compile and
+run throughout the lifetime of that version, even as we issue updates and bug
+fixes such as Go version 1.1, 1.2, and so on. Other than critical fixes, changes
+made to the language and library for subsequent releases of Go 1 may
+add functionality but will not break existing Go 1 programs.
+<a href="go1compat.html">The Go 1 compatibility document</a>
+explains the compatibility guidelines in more detail.
+</p>
+
+<p>
+Go 1 is a representation of Go as it used today, not a wholesale rethinking of
+the language. We avoided designing new features and instead focused on cleaning
+up problems and inconsistencies and improving portability. There are a number
+changes to the Go language and packages that we had considered for some time and
+prototyped but not released primarily because they are significant and
+backwards-incompatible. Go 1 was an opportunity to get them out, which is
+helpful for the long term, but also means that Go 1 introduces incompatibilities
+for old programs. Fortunately, the <code>go</code> <code>fix</code> tool can
+automate much of the work needed to bring programs up to the Go 1 standard.
+</p>
+
+<p>
+This document outlines the major changes in Go 1 that will affect programmers
+updating existing code; its reference point is the prior release, r60 (tagged as
+r60.3). It also explains how to update code from r60 to run under Go 1.
 </p>
 
 <h2 id="language">Changes to the language</h2>
