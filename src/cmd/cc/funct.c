@@ -46,7 +46,7 @@ struct	Gtab
 };
 
 Ftab	ftabinit[OEND];
-Gtab	gtabinit[NTYPE];
+Gtab	gtabinit[NALLTYPES];
 
 int
 isfunct(Node *n)
@@ -350,7 +350,7 @@ bad:
 	diag(Z, "dclfunct bad %T %s\n", t, s->name);
 }
 
-Gtab	gtabinit[NTYPE] =
+Gtab	gtabinit[NALLTYPES] =
 {
 	TCHAR,		"c",
 	TUCHAR,		"uc",
