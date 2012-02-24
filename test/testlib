@@ -17,6 +17,10 @@ run() {
 	$G $D/$F.go && $L $F.$A && ./$A.out "$@"
 }
 
+cmpout() {
+	$G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
+}
+
 errorcheck() {
 	errchk $G -e $D/$F.go
 }
