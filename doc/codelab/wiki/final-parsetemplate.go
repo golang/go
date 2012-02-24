@@ -5,10 +5,10 @@
 package main
 
 import (
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"regexp"
-	"text/template"
 )
 
 type Page struct {
@@ -59,7 +59,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFiles(tmpl+".html", nil)
+	t, err := template.ParseFiles(tmpl + ".html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

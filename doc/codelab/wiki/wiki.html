@@ -6,8 +6,8 @@ Covered in this codelab:
 </p>
 <ul>
 <li>Creating a data structure with load and save methods</li>
-<li>Using the <code>http</code> package to build web applications
-<li>Using the <code>template</code> package to process HTML templates</li>
+<li>Using the <code>net/http</code> package to build web applications
+<li>Using the <code>html/template</code> package to process HTML templates</li>
 <li>Using the <code>regexp</code> package to validate user input</li>
 <li>Using closures</li>
 </ul>
@@ -18,21 +18,18 @@ Assumed knowledge:
 <ul>
 <li>Programming experience</li>
 <li>Understanding of basic web technologies (HTTP, HTML)</li>
-<li>Some UNIX command-line knowledge</li>
+<li>Some UNIX/DOS command-line knowledge</li>
 </ul>
 
 <h2>Getting Started</h2>
 
 <p>
-At present, you need to have a Linux, OS X, or FreeBSD machine to run Go. If
-you don't have access to one, you could set up a Linux Virtual Machine (using 
-<a href="http://www.virtualbox.org/">VirtualBox</a> or similar) or a
-<a href="http://www.google.com/search?q=virtual+private+server">Virtual 
-Private Server</a>.
+At present, you need to have a FreeBSD, Linux, OS X, or Windows machine to run Go.
+We will use <code>$</code> to represent the command prompt.
 </p>
 
 <p>
-Install Go (see the <a href="http://golang.org/doc/install.html">Installation Instructions</a>).
+Install Go (see the <a href="/doc/install.html">Installation Instructions</a>).
 </p>
 
 <p>
@@ -40,8 +37,8 @@ Make a new directory for this codelab and cd to it:
 </p>
 
 <pre>
-$ mkdir ~/gowiki
-$ cd ~/gowiki
+$ mkdir gowiki
+$ cd gowiki
 </pre>
 
 <p>
@@ -55,15 +52,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 )
 </pre>
 
 <p>
-We import the <code>fmt</code>, <code>ioutil</code> and <code>os</code>
-packages from the Go standard library. Later, as we implement additional
-functionality, we will add more packages to this <code>import</code>
-declaration.
+We import the <code>fmt</code> and <code>ioutil</code> packages from the Go 
+standard library. Later, as we implement additional functionality, we will 
+add more packages to this <code>import</code> declaration.
 </p>
 
 <h2>Data Structures</h2>
@@ -81,8 +76,8 @@ the title and body.
 
 <p>
 The type <code>[]byte</code> means "a <code>byte</code> slice". 
-(See <a href="http://golang.org/doc/effective_go.html#slices">Effective Go</a> 
-for more on slices.)  
+(See <a href="/doc/articles/slices_usage_and_internals.html">Slices: usage and
+internals</a> for more on slices.)
 The <code>Body</code> element is a <code>[]byte</code> rather than
 <code>string</code> because that is the type expected by the <code>io</code>
 libraries we will use, as you'll see below.
@@ -161,9 +156,8 @@ function to return <code>*Page</code> and <code>error</code>.
 <p>
 Callers of this function can now check the second parameter; if it is
 <code>nil</code> then it has successfully loaded a Page. If not, it will be an
-<code>error</code> that can be handled by the caller (see the <a
-href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
-details).
+<code>error</code> that can be handled by the caller (see the 
+<a href="/doc/go_spec.html#Errors">language specification</a> for details).
 </p>
 
 <p>
@@ -188,23 +182,21 @@ You can compile and run the program like this:
 </p>
 
 <pre>
-$ 8g wiki.go
-$ 8l wiki.8
-$ ./8.out
+$ go build wiki.go
+$ ./wiki
 This is a sample page.
 </pre>
 
 <p>
-(The <code>8g</code> and <code>8l</code> commands are applicable to
-<code>GOARCH=386</code>. If you're on an <code>amd64</code> system,
-substitute 6's for the 8's.)
+(If you're using Windows you must type "<code>wiki</code>" without the 
+"<code>./</code>" to run the program.)
 </p>
 
 <p>
 <a href="part1.go">Click here to view the code we've written so far.</a>
 </p>
 
-<h2>Introducing the <code>http</code> package (an interlude)</h2>
+<h2>Introducing the <code>net/http</code> package (an interlude)</h2>
 
 <p>
 Here's a full working example of a simple web server:
@@ -256,18 +248,17 @@ the program would present a page containing:
 </p>
 <pre>Hi there, I love monkeys!</pre>
 
-<h2>Using <code>http</code> to serve wiki pages</h2>
+<h2>Using <code>net/http</code> to serve wiki pages</h2>
 
 <p>
-To use the <code>http</code> package, it must be imported:
+To use the <code>net/http</code> package, it must be imported:
 </p>
 
 <pre>
 import (
 	"fmt"
-	<b>"http"</b>
+	<b>"net/http"</b>
 	"io/ioutil"
-	"os"
 )
 </pre>
 
@@ -318,14 +309,17 @@ any requests under the path <code>/view/</code>.
 
 <p>
 Let's create some page data (as <code>test.txt</code>), compile our code, and
-try serving a wiki page:
+try serving a wiki page.
+</p>
+
+<p>
+Open <code>test.txt</code> file in your editor, and save the string "Hello world" (without quotes)
+in it.
 </p>
 
 <pre>
-$ echo "Hello world" &gt; test.txt
-$ 8g wiki.go
-$ 8l wiki.8
-$ ./8.out
+$ go build wiki.go
+$ ./wiki
 </pre>
 
 <p>
@@ -366,19 +360,17 @@ This function will work fine, but all that hard-coded HTML is ugly.
 Of course, there is a better way.
 </p>
  
-<h2>The <code>template</code> package</h2>
+<h2>The <code>html/template</code> package</h2>
 
 <p>
-The <code>template</code> package is part of the Go standard library.
-(A new template package is coming; this code lab will be updated soon.)
-We can
-use <code>template</code> to keep the HTML in a separate file, allowing
-us to change the layout of our edit page without modifying the underlying Go
-code.
+The <code>html/template</code> package is part of the Go standard library.
+We can use <code>html/template</code> to keep the HTML in a separate file,
+allowing us to change the layout of our edit page without modifying the
+underlying Go code.
 </p>
 
 <p>
-First, we must add <code>template</code> to the list of imports:
+First, we must add <code>html/template</code> to the list of imports:
 </p>
 
 <pre>
@@ -386,7 +378,7 @@ import (
 	"http"
 	"io/ioutil"
 	"os"
-	<b>"template"</b>
+	<b>"html/template"</b>
 )
 </pre>
 
@@ -409,7 +401,7 @@ HTML:
 </pre>
 
 <p>
-The function <code>template.ParseFile</code> will read the contents of 
+The function <code>template.ParseFiles</code> will read the contents of 
 <code>edit.html</code> and return a <code>*template.Template</code>. 
 </p>
 
@@ -474,10 +466,11 @@ The handlers are now shorter and simpler.
 <h2>Handling non-existent pages</h2>
 
 <p>
-What if you visit <code>/view/APageThatDoesntExist</code>? The program will 
-crash. This is because it ignores the error return value from
-<code>loadPage</code>. Instead, if the requested Page doesn't exist, it should 
-redirect the client to the edit Page so the content may be created:
+What if you visit <a href="http://localhost:8080/view/APageThatDoesntExist">
+<code>/view/APageThatDoesntExist</code></a>? The program will crash. This is 
+because it ignores the error return value from <code>loadPage</code>. Instead,
+if the requested Page doesn't exist, it should redirect the client to the edit
+Page so the content may be created:
 </p>
 
 <pre>
@@ -753,9 +746,8 @@ Recompile the code, and run the app:
 </p>
 
 <pre>
-$ 8g wiki.go
-$ 8l wiki.8
-$ ./8.out
+$ go build wiki.go
+$ ./wiki
 </pre>
 
 <p>

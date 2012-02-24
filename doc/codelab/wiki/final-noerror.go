@@ -5,9 +5,9 @@
 package main
 
 import (
+	"html/template"
 	"io/ioutil"
 	"net/http"
-	"text/template"
 )
 
 type Page struct {
