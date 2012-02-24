@@ -69,8 +69,6 @@ enum {
 // Types
 #pragma pack on
 
-typedef uint32 Sigset;
-
 typedef struct Timespec Timespec;
 struct Timespec {
 	int32 tv_sec;
