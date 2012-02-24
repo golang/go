@@ -43,6 +43,7 @@ const (
 	StatusUnsupportedMediaType         = 415
 	StatusRequestedRangeNotSatisfiable = 416
 	StatusExpectationFailed            = 417
+	StatusTeapot                       = 418
 
 	StatusInternalServerError     = 500
 	StatusNotImplemented          = 501
@@ -90,6 +91,7 @@ var statusText = map[int]string{
 	StatusUnsupportedMediaType:         "Unsupported Media Type",
 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
 	StatusExpectationFailed:            "Expectation Failed",
+	StatusTeapot:                       "I'm a teapot",
 
 	StatusInternalServerError:     "Internal Server Error",
 	StatusNotImplemented:          "Not Implemented",
