@@ -13,26 +13,15 @@ pre {
 pre .comment {
 	color: #375EAB;
 }
-pre .highlight {
-	background: #FFFF00;
-}
-pre .highlight-comment {
-	background: #FFFF00;
-	color: #375EAB;
-}
-pre .selection {
-	background: #FF9632;
-}
-pre .selection-comment {
-	background: #FF9632;
-	color: #375EAB;
-}
-pre .selection-highlight {
-	background: #FFFF00;
-}
+pre .highlight,
+pre .highlight-comment,
+pre .selection-highlight,
 pre .selection-highlight-comment {
-	background: #FFFF00;
-	color: #375EAB;
+    background: #FFFF00;
+}
+pre .selection,
+pre .selection-comment {
+    background: #FF9632;
 }
 pre .ln {
 	color: #999;
@@ -110,7 +99,7 @@ table.dir td {
 }
 
 .alert {
-	color: #FF0000;
+	color: #AA0000;
 }
 
 #heading {
