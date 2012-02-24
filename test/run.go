@@ -238,6 +238,9 @@ func (t *test) run() {
 	action = strings.TrimSpace(action)
 
 	switch action {
+	case "cmpout":
+		action = "run" // the run case already looks for <dir>/<test>.out files
+		fallthrough
 	case "compile", "build", "run", "errorcheck":
 		t.action = action
 	default:
