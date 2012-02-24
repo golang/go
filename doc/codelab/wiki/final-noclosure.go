@@ -6,10 +6,10 @@ package main
 
 import (
 	"errors"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"regexp"
-	"text/template"
 )
 
 type Page struct {

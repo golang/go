@@ -8,10 +8,10 @@ cleanup() {
 }
 trap cleanup 0 INT
 
-gomake get.bin
+make get.bin
 addr=$(./get.bin -addr)
 sed s/:8080/$addr/ < final.go > final-test.go
-gomake final-test.bin
+make final-test.bin
 (./final-test.bin) &
 wiki_pid=$!
 
