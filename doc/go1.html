@@ -242,7 +242,7 @@ There is no return value. Deleting a non-existent entry is a no-op.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will convert expressions of the form <code>m[k] = ignored,
+Running <code>go</code> <code>fix</code> will convert expressions of the form <code>m[k] = ignored,
 false</code> into <code>delete(m, k)</code> when it is clear that
 the ignored value can be safely discarded from the program and
 <code>false</code> refers to the predefined boolean constant.
@@ -535,7 +535,7 @@ and <code>template</code>.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update all imports and package renames for packages that
+Running <code>go</code> <code>fix</code> will update all imports and package renames for packages that
 remain inside the standard repository.  Programs that import packages
 that are no longer in the standard repository will need to be edited
 by hand.
@@ -578,7 +578,7 @@ If they are installed, they now reside in <code>$GOROOT/bin/tool</code>.
 <em>Updating</em>:
 Code that uses packages in <code>exp</code> will need to be updated by hand,
 or else compiled from an installation that has <code>exp</code> available.
-The <code>go fix</code> tool or the compiler will complain about such uses.
+The <code>go</code> <code>fix</code> tool or the compiler will complain about such uses.
 </p>
 
 <h3 id="old">The package tree old</h3>
@@ -603,7 +603,7 @@ The packages in their new locations are:
 <em>Updating</em>:
 Code that uses packages now in <code>old</code> will need to be updated by hand,
 or else compiled from an installation that has <code>old</code> available.
-The <code>go fix</code> tool will warn about such uses.
+The <code>go</code> <code>fix</code> tool will warn about such uses.
 </p>
 
 <h3 id="deleted">Deleted packages</h3>
@@ -684,7 +684,7 @@ This table lists the old and new import paths:
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update imports of these packages to use the new import paths.
+Running <code>go</code> <code>fix</code> will update imports of these packages to use the new import paths.
 Installations that depend on these packages will need to install them using
 a <code>go install</code> command.
 </p>
@@ -749,7 +749,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
 		
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update almost all code affected by the change.
+Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
 Code that defines error types with a <code>String</code> method will need to be updated
 by hand to rename the methods to <code>Error</code>.
 </p>
@@ -768,7 +768,7 @@ that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update almost all code affected by the change.
+Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
 Regardless, most code should use the <code>os</code> package
 rather than <code>syscall</code> and so will be unaffected.
 </p>
@@ -836,7 +836,7 @@ its representation of file time stamps.
 
 <p>
 <em>Updating</em>:
-The <code>go fix</code> tool will update many uses of the old <code>time</code> package to use the new
+The <code>go</code> <code>fix</code> tool will update many uses of the old <code>time</code> package to use the new
 types and methods, although it does not replace values such as <code>1e9</code>
 representing nanoseconds per second.
 Also, because of type changes in some of the values that arise,
@@ -851,7 +851,7 @@ may have the wrong type or require further analysis.
 <p>
 This section describes smaller changes, such as those to less commonly
 used packages or that affect
-few programs beyond the need to run <code>go fix</code>.
+few programs beyond the need to run <code>go</code> <code>fix</code>.
 This category includes packages that are new in Go 1.
 </p>
 
@@ -879,7 +879,7 @@ If the argument size is too small or invalid, it is adjusted.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update calls that assign the error to _.
+Running <code>go</code> <code>fix</code> will update calls that assign the error to _.
 Calls that aren't fixed will be caught by the compiler and must be updated by hand.
 </p>
 
@@ -899,7 +899,7 @@ to <code>Writer</code> and <code>Reader</code>. Package <code>flate</code>'s
 
 <p>
 <em>Updating</em>
-Running <code>go fix</code> will update old names and calls that assign the error to _.
+Running <code>go</code> <code>fix</code> will update old names and calls that assign the error to _.
 Calls that aren't fixed will be caught by the compiler and must be updated by hand.
 </p>
 
@@ -951,7 +951,7 @@ a function that returns a <code>hash.Hash</code>, such as <code>md5.New</code>.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will perform the needed changes.
+Running <code>go</code> <code>fix</code> will perform the needed changes.
 </p>
 
 <h3 id="crypto_x509">The crypto/x509 package</h3>
@@ -1021,7 +1021,7 @@ of the XML element being marshaled.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update most uses of the package except for some calls to
+Running <code>go</code> <code>fix</code> will update most uses of the package except for some calls to
 <code>Unmarshal</code>. Special care must be taken with field tags,
 since the fix tool will not update them and if not fixed by hand they will
 misbehave silently in some cases. For example, the old
@@ -1185,7 +1185,7 @@ The previous behavior can be recreated by adding a <code>nil</code> argument to 
 Existing implementations of <code>hash.Hash</code> will need to add a
 <code>BlockSize</code> method.  Hashes that process the input one byte at
 a time can implement <code>BlockSize</code> to return 1.
-Running <code>go fix</code> will update calls to the <code>Sum</code> methods of the various
+Running <code>go</code> <code>fix</code> will update calls to the <code>Sum</code> methods of the various
 implementations of <code>hash.Hash</code>.
 </p>
 
@@ -1233,7 +1233,7 @@ now panic if an attempt is made to register the same pattern twice.
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update the few programs that are affected except for
+Running <code>go</code> <code>fix</code> will update the few programs that are affected except for
 uses of <code>RawURL</code>, which must be fixed by hand.
 </p>
 
@@ -1349,7 +1349,7 @@ and
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update almost all code affected by the change.
+Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
 </p>
 
 <h3 id="log_syslog">The log/syslog package</h3>
@@ -1464,8 +1464,26 @@ the <code>Process</code> type persists.
 </p>
 
 <p>
+The <code>Waitmsg</code> type returned by
+<a href="/pkg/os/#Process.Wait"><code>Process.Wait</code></a>
+has been replaced with a more portable
+<a href="/pkg/os/#ProcessState"><code>ProcessState</code></a>
+type with accessor methods to recover information about the
+process.
+Because of changes to <code>Wait</code>, the <code>ProcessState</code>
+value always describes an exited process.
+Portability concerns simplified the interface in other ways, but the values returned by the
+<a href="/pkg/os/#ProcessState.Sys"><code>ProcessState.Sys</code></a> and
+<a href="/pkg/os/#ProcessState.SysUsage"><code>ProcessState.SysUsage</code></a>
+methods can be type-asserted to underlying system-specific data structures such as
+<a href="/pkg/syscall/#WaitStatus"><code>syscall.WaitStatus</code></a> and
+<a href="/pkg/syscall/#Rusage"><code>syscall.Rusage</code></a> on Unix.
+</p>
+
+<p>
 <em>Updating</em>:
-All changes will be caught by the compiler and must be updated by hand.
+Running <code>go</code> <code>fix</code> will drop a zero argument to <code>Process.Wait</code>.
+All other changes will be caught by the compiler and must be updated by hand.
 </p>
 
 <h4 id="os_fileinfo">The os.FileInfo type</h4>
@@ -1550,7 +1568,7 @@ and
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
+Running <code>go</code> <code>fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
 and <code>os.FileMode</code> API.
 Code that needs system-specific file details will need to be updated by hand.
 Code that uses the old POSIX error values from the <code>os</code> package
@@ -1671,7 +1689,7 @@ have been renamed to <code>runtime.NumCgoCall</code> and <code>runtime.NumGorout
 
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update code for the function renamings.
+Running <code>go</code> <code>fix</code> will update code for the function renamings.
 Other code will need to be updated by hand.
 </p>
 
@@ -1762,11 +1780,11 @@ for full details.
 		
 <p>
 <em>Updating</em>:
-Running <code>go fix</code> will update almost all code affected by the change.
+Running <code>go</code> <code>fix</code> will update almost all code affected by the change.
 <br>
 § <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
 they may require
-a cast that must be added by hand; the <code>go fix</code> tool will warn about it.
+a cast that must be added by hand; the <code>go</code> <code>fix</code> tool will warn about it.
 </p>
 
 
