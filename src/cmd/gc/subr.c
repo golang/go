@@ -3559,11 +3559,9 @@ mkpkg(Strlit *path)
 {
 	Pkg *p;
 	int h;
-	
-	if(strlen(path->s) != path->len) {
-		yyerror("import path contains NUL byte");
+
+	if(isbadimport(path))
 		errorexit();
-	}
 	
 	h = stringhash(path->s) & (nelem(phash)-1);
 	for(p=phash[h]; p; p=p->link)
@@ -3611,4 +3609,42 @@ addinit(Node **np, NodeList *init)
 	}
 	n->ninit = concat(init, n->ninit);
 	n->ullman = UINF;
+}
+
+int
+isbadimport(Strlit *path)
+{
+	char *s;
+	Rune r;
+
+	if(strlen(path->s) != path->len) {
+		yyerror("import path contains NUL");
+		return 1;
+	}
+
+	s = path->s;
+	while(*s) {
+		s += chartorune(&r, s);
+		if(r == Runeerror) {
+			yyerror("import path contains invalid UTF-8 sequence");
+			return 1;
+		}
+		if(r < 0x20 || r == 0x7f) {
+			yyerror("import path contains control character");
+			return 1;
+		}
+		if(r == '\\') {
+			yyerror("import path contains backslash; use slash");
+			return 1;
+		}
+		if(isspacerune(r)) {
+			yyerror("import path contains space character");
+			return 1;
+		}
+		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}~", r)) {
+			yyerror("import path contains invalid character '%C'", r);
+			return 1;
+		}
+	}
+	return 0;
 }

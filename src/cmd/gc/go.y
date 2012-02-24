@@ -205,7 +205,15 @@ import_stmt:
 		my->lastlineno = $1;
 		my->block = 1;	// at top level
 	}
-
+|	import_here import_there
+	{
+		// When an invalid import path is passed to importfile,
+		// it calls yyerror and then sets up a fake import with
+		// no package statement. This allows us to test more
+		// than one invalid import statement in a single file.
+		if(nerrors == 0)
+			fatal("phase error in import");
+	}
 
 import_stmt_list:
 	import_stmt

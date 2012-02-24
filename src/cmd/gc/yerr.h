@@ -14,25 +14,25 @@ static struct {
 	// is converted by bisonerrors into the yystate and yychar caused
 	// by that token list.
 
-	220, ',',
+	221, ',',
 	"unexpected comma during import block",
 
-	376, ';',
+	377, ';',
 	"unexpected semicolon or newline before {",
 
-	397, ';',
+	398, ';',
 	"unexpected semicolon or newline before {",
 
-	236, ';',
+	237, ';',
 	"unexpected semicolon or newline before {",
 
-	473, LBODY,
+	474, LBODY,
 	"unexpected semicolon or newline before {",
 
 	22, '{',
 	"unexpected semicolon or newline before {",
 
-	143, ';',
+	144, ';',
 	"unexpected semicolon or newline in type declaration",
 
 	37, '}',
@@ -44,30 +44,30 @@ static struct {
 	37, ',',
 	"unexpected comma in channel type",
 
-	436, LELSE,
+	437, LELSE,
 	"unexpected semicolon or newline before else",
 
-	256, ',',
+	257, ',',
 	"name list not allowed in interface type",
 
-	236, LVAR,
+	237, LVAR,
 	"var declaration not allowed in for initializer",
 
 	65, '{',
 	"unexpected { at end of statement",
 
-	375, '{',
+	376, '{',
 	"unexpected { at end of statement",
 	
-	124, ';',
+	125, ';',
 	"argument to go/defer must be function call",
 	
-	424, ';',
+	425, ';',
 	"need trailing comma before newline in composite literal",
 	
-	111, LNAME,
+	112, LNAME,
 	"nested func not allowed",
 
-	614, ';',
+	615, ';',
 	"else must be followed by if or statement block"
 };

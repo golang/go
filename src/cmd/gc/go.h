@@ -1171,6 +1171,7 @@ Type*	getthisx(Type *t);
 int	implements(Type *t, Type *iface, Type **missing, Type **have, int *ptr);
 void	importdot(Pkg *opkg, Node *pack);
 int	is64(Type *t);
+int	isbadimport(Strlit *s);
 int	isblank(Node *n);
 int	isblanksym(Sym *s);
 int	isfixedarray(Type *t);

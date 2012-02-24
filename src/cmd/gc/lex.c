@@ -573,6 +573,13 @@ findpkg(Strlit *name)
 	return 0;
 }
 
+static void
+fakeimport(void)
+{
+	importpkg = mkpkg(strlit("fake"));
+	cannedimports("fake.6", "$$\n");
+}
+
 void
 importfile(Val *f, int line)
 {
@@ -589,17 +596,19 @@ importfile(Val *f, int line)
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
+		fakeimport();
 		return;
 	}
 
-	if(strlen(f->u.sval->s) != f->u.sval->len) {
-		yyerror("import path contains NUL");
-		errorexit();
+	if(f->u.sval->len == 0) {
+		yyerror("import path is empty");
+		fakeimport();
+		return;
 	}
-	
-	if(strchr(f->u.sval->s, '\\')) {
-		yyerror("import path contains backslash; use slash");
-		errorexit();
+
+	if(isbadimport(f->u.sval)) {
+		fakeimport();
+		return;
 	}
 
 	// The package name main is no longer reserved,
