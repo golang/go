@@ -25,7 +25,7 @@
 //	open file.go: no such file or directory
 //
 // The file's data can then be read into a slice of bytes. Read and
-// Write take their byte counts from the length of the artument slice.
+// Write take their byte counts from the length of the argument slice.
 //
 //	data := make([]byte, 100)
 //	count, err := file.Read(data)
