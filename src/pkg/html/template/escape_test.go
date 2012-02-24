@@ -432,6 +432,11 @@ func TestEscape(t *testing.T) {
 			"<!DOCTYPE html>Hello, World!",
 		},
 		{
+			"HTML doctype not case-insensitive",
+			"<!doCtYPE htMl>Hello, World!",
+			"<!doCtYPE htMl>Hello, World!",
+		},
+		{
 			"No doctype injection",
 			`<!{{"DOCTYPE"}}`,
 			"&lt;!DOCTYPE",
