@@ -6,6 +6,7 @@
 
 // Test that basic operations on named types are valid
 // and preserve the type.
+// Does not compile.
 
 package main
 

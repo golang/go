@@ -1,10 +1,12 @@
 // build
 
-// don't run it - produces too much output
-
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Test general operation by solving a peg solitaire game.
+// A version of this is in the Go playground.
+// Don't run it - produces too much output.
 
 // This program solves the (English) peg solitaire board game.
 // See also: http://en.wikipedia.org/wiki/Peg_solitaire

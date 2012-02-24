@@ -4,6 +4,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test that many initializations can be done at link time and
+// generate no executable init functions.
+
 package p
 
 // Should be no init func in the assembly.

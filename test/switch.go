@@ -4,7 +4,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Test switch statements.
+
 package main
+
+import "os"
 
 func assert(cond bool, msg string) {
 	if !cond {
@@ -278,5 +282,14 @@ func main() {
 	case nil:
 		assert(false, "m should not be nil")
 	default:
+	}
+
+	i := 0
+	switch x := 5; {
+		case i < x:
+			os.Exit(0)
+		case i == x:
+		case i > x:
+			os.Exit(1)
 	}
 }
