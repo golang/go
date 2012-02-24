@@ -52,7 +52,7 @@ func ExampleMarshalIndent() {
 
 // This example demonstrates unmarshaling an XML excerpt into a value with
 // some preset fields. Note that the Phone field isn't modified and that
-// the XML <address> element is ignored. Also, the Groups field is assigned
+// the XML <Company> element is ignored. Also, the Groups field is assigned
 // considering the element path provided in its tag.
 func ExampleUnmarshal() {
 	type Email struct {
@@ -71,11 +71,11 @@ func ExampleUnmarshal() {
 		Address
 	}
 	v := Result{Name: "none", Phone: "none"}
-	v.Address = Address{"Hanga Roa", "Easter Island"}
 
 	data := `
 		<Person>
 			<FullName>Grace R. Emlin</FullName>
+			<Company>Example Inc.</Company>
 			<Email where="home">
 				<Addr>gre@example.com</Addr>
 			</Email>
@@ -86,7 +86,8 @@ func ExampleUnmarshal() {
 				<Value>Friends</Value>
 				<Value>Squash</Value>
 			</Group>
-			<Address>123 Main Street</Address>
+			<City>Hanga Roa</City>
+			<State>Easter Island</State>
 		</Person>
 	`
 	err := xml.Unmarshal([]byte(data), &v)
