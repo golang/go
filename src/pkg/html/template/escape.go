@@ -593,7 +593,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 				}
 			}
 			for j := i; j < end; j++ {
-				if s[j] == '<' && !bytes.HasPrefix(s[j:], doctypeBytes) {
+				if s[j] == '<' && !bytes.HasPrefix(bytes.ToUpper(s[j:]), doctypeBytes) {
 					b.Write(s[written:j])
 					b.WriteString("&lt;")
 					written = j + 1
