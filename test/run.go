@@ -32,6 +32,7 @@ var (
 	verbose     = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
 	numParallel = flag.Int("n", 8, "number of parallel tests to run")
 	summary     = flag.Bool("summary", false, "show summary of results")
+	showSkips   = flag.Bool("show_skips", false, "show skipped tests")
 )
 
 var (
@@ -98,13 +99,10 @@ func main() {
 	for _, test := range tests {
 		<-test.donec
 		_, isSkip := test.err.(skipError)
-		if isSkip {
-			resCount["skip"]++
-			if !*verbose {
-				continue
-			}
-		}
 		errStr := "pass"
+		if isSkip {
+			errStr = "skip"
+		}
 		if test.err != nil {
 			errStr = test.err.Error()
 			if !isSkip {
@@ -112,9 +110,12 @@ func main() {
 			}
 		}
 		resCount[errStr]++
+		if isSkip && !*verbose && !*showSkips {
+			continue
+		}
 		if !*verbose && test.err == nil {
 			continue
-	}
+		}
 		fmt.Printf("%-10s %-20s: %s\n", test.action, test.goFileName(), errStr)
 	}
 
