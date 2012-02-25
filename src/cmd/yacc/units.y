@@ -15,9 +15,8 @@
 // example of a Go yacc program
 // usage is
 //	go tool yacc -p "units_" units.y (produces y.go)
-//	6g y.go
-//	6l y.6
-//	./6.out $GOROOT/src/cmd/yacc/units
+//	go build -o units y.go
+//	./units $GOROOT/src/cmd/yacc/units.txt
 //	you have: c
 //	you want: furlongs/fortnight
 //		* 1.8026178e+12
@@ -288,9 +287,14 @@ func main() {
 
 	flag.Parse()
 
-	file = os.Getenv("GOROOT") + "/src/cmd/yacc/units.txt"
+	if dir := os.Getenv("GOROOT"); dir != "" {
+		file = dir + "/src/cmd/yacc/units.txt"
+	}
 	if flag.NArg() > 0 {
 		file = flag.Arg(0)
+	} else if file == "" {
+		fmt.Fprintf(os.Stderr, "can not find data file units.txt; provide it as argument or set $GOROOT\n")
+		os.Exit(1)
 	}
 
 	f, err := os.Open(file)

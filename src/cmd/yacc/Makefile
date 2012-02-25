@@ -5,3 +5,6 @@
 units: yacc.go units.y
 	go run yacc.go -p units_ units.y
 	go build -o units y.go
+
+clean:
+	rm -f y.go y.output units
