@@ -1503,7 +1503,7 @@ instead of a <code>Visitor</code> interface value.
 </p>
 
 <pre>
-    type WalkFunc func(path string, info *os.FileInfo, err os.Error) os.Error
+    type WalkFunc func(path string, info os.FileInfo, err error) error
 </pre>
 
 <p>
