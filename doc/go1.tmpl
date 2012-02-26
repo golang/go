@@ -53,9 +53,11 @@ r60.3). It also explains how to update code from r60 to run under Go 1.
 <h3 id="append">Append</h3>
 
 <p>
-The <code>append</code> built-in function is variadic, so one can
-append to a byte slice using the <code>...</code> syntax in the
-call.
+The <code>append</code> predeclared variadic function makes it easy to grow a slice
+by adding elements to the end.
+A common use is to add bytes to the end of a byte slice when generating output.
+However, <code>append</code> did not provide a way to append a string to a <code>[]byte</code>,
+which is another common case.
 </p>
 
 {{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
@@ -63,7 +65,8 @@ call.
 <p>
 By analogy with the similar property of <code>copy</code>, Go 1
 permits a string to be appended (byte-wise) directly to a byte
-slice; the conversion is no longer necessary:
+slice, reducing the friction between strings and byte slices.
+The conversion is no longer necessary:
 </p>
 
 {{code "progs/go1.go" `/append.*world/`}}
@@ -76,10 +79,20 @@ This is a new feature, so existing code needs no changes.
 <h3 id="close">Close</h3>
 
 <p>
-The <code>close</code> built-in function lets a sender tell a receiver
-that no more data will be transmitted on the channel.  In Go 1 the
-type system enforces the directionality when possible: it is illegal
-to call <code>close</code> on a receive-only channel:
+The <code>close</code> predeclared function provides a mechanism
+for a sender to signal that no more values will be sent.
+It is important to the implementation of <code>for</code> <code>range</code>
+loops over channels and is helpful in other situations.
+Partly by design and partly because of race conditions that can occur otherwise,
+it is intended for use only by the goroutine sending on the channel,
+not by the goroutine receiving data.
+However, before Go 1 there was no compile-time checking that <code>close</code>
+was being used correctly.
+</p>
+
+<p>
+To close this gap, at least in part, Go 1 disallows <code>close</code> on receive-only channels.
+Attempting to close such a channel is a compile-time error.
 </p>
 
 <pre>
@@ -119,9 +132,18 @@ will, among other things, elide explicit element types wherever permitted.
 <h3 id="init">Goroutines during init</h3>
 
 <p>
-Go 1 allows goroutines to be created and run during initialization.
-(They used to be created but were not run until after initialization
-completed.) Code that uses goroutines can now be called from
+The old language defined that <code>go</code> statements executed during initialization created goroutines but that they did not begin to run until initialization of the entire program was complete.
+This introduced clumsiness in many places and, in effect, limited the utility
+of the <code>init</code> construct:
+if it was possible for another package to use the library during initialization, the library
+was forced to avoid goroutines.
+This design was done for reasons of simplicity and safety but,
+as our confidence in the language grew, it seemed unnecessary.
+Running goroutines during initialization is no more complex or unsafe than running them during normal execution.
+</p>
+
+<p>
+In Go 1, code that uses goroutines can be called from
 <code>init</code> routines and global initialization expressions
 without introducing a deadlock.
 </p>
@@ -138,7 +160,16 @@ There was no such code in the standard repository.
 <h3 id="rune">The rune type</h3>
 
 <p>
-Go 1 introduces a new basic type, <code>rune</code>, to be used to represent
+The language spec allows the <code>int</code> type to be 32 or 64 bits wide, but current implementations set <code>int</code> to 32 bits even on 64-bit platforms.
+It would be preferable to have <code>int</code> be 64 bits on 64-bit platforms.
+(There are important consequences for indexing large slices.)
+However, this change would waste space when processing Unicode characters with
+the old language because the <code>int</code> type was also used to hold Unicode code points: each code point would waste an extra 32 bits of storage if <code>int</code> grew from 32 bits to 64.
+</p>
+
+<p>
+To make changing to 64-bit <code>int</code> feasible,
+Go 1 introduces a new basic type, <code>rune</code>, to represent
 individual Unicode code points.
 It is an alias for <code>int32</code>, analogous to <code>byte</code>
 as an alias for <code>uint8</code>.
@@ -188,12 +219,19 @@ it is discussed <a href="#errors">below</a>.
 <h3 id="delete">Deleting from maps</h3>
 
 <p>
-The original syntax for deleting an element in a map was:
+In the old language, to delete the entry with key <code>k</code> from map <code>m</code>, one wrote the statement,
 </p>
 
 <pre>
-    m[k] = ignored, false
+    m[k] = value, false
 </pre>
+
+<p>
+This syntax was a peculiar special case, the only two-to-one assignment.
+It required passing a value (usually ignored) that is evaluated but discarded,
+plus a boolean that was nearly always the constant <code>false</code>.
+It did the job but was odd and a point of contention.
+</p>
 
 <p>
 In Go 1, that syntax has gone; instead there is a new built-in
@@ -209,7 +247,7 @@ There is no return value. Deleting a non-existent entry is a no-op.
 
 <p>
 <em>Updating</em>:
-Running <code>go</code> <code>fix</code> will convert expressions of the form <code>m[k] = ignored,
+Running <code>go</code> <code>fix</code> will convert expressions of the form <code>m[k] = value,
 false</code> into <code>delete(m, k)</code> when it is clear that
 the ignored value can be safely discarded from the program and
 <code>false</code> refers to the predefined boolean constant.
@@ -220,11 +258,23 @@ will flag other uses of the syntax for inspection by the programmer.
 <h3 id="iteration">Iterating in maps</h3>
 
 <p>
+The old language specification did not define the order of iteration for maps,
+and in practice it differed across hardware platforms.
+This caused tests that iterated over maps to be fragile and non-portable, with the
+unpleasant property that a test might always pass on one machine but break on another.
+</p>
+
+<p>
 In Go 1, the order in which elements are visited when iterating
 over a map using a <code>for</code> <code>range</code> statement
 is defined to be unpredictable, even if the same loop is run multiple
 times with the same map.
 Code should not assume that the elements are visited in any particular order.
+</p>
+
+<p>
+This change means that code that depends on iteration order is very likely to break early and be fixed long before it becomes a problem.
+Just as important, it allows the map implementation to ensure better map balancing even when programs are using range loops to select an element from a map.
 </p>
 
 {{code "progs/go1.go" `/Sunday/` `/^	}/`}}
@@ -243,8 +293,14 @@ was unspecified. This change codifies the unpredictability.
 <h3 id="multiple_assignment">Multiple assignment</h3>
 
 <p>
-Go 1 fully specifies the evaluation order in multiple assignment
-statements. In particular, if the left-hand side of the assignment
+The language specification guarantees that in assignments
+the right-hand-side expressions are all evaluated before any left-hand-side expressions are assigned.
+To guarantee predictable behavior,
+Go 1 refines the specification further.
+</p>
+
+<p>
+If the left-hand side of the assignment
 statement contains expressions that require evaluation, such as
 function calls or array indexing operations, these will all be done
 using the usual left-to-right rule before any variables are assigned
@@ -268,7 +324,11 @@ that depended on the previous unspecified behavior was already incorrect.
 <h3 id="shadowing">Returns and shadowed variables</h3>
 
 <p>
-A shadowed variable is one that has the same name as another variable in an inner scope.
+A common mistake is to use <code>return</code> (without arguments) after an assignment to a variable that has the same name as a result variable but is not the same variable.
+This situation is called <em>shadowing</em>: the result variable has been shadowed by another variable with the same name declared in an inner scope.
+</p>
+
+<p>
 In functions with named return values,
 the Go 1 compilers disallow return statements without arguments if any of the named return values is shadowed at the point of the return statement.
 (It isn't part of the specification, because this is one area we are still exploring;
@@ -302,9 +362,17 @@ The few cases that arose in the standard repository were mostly bugs.
 <h3 id="unexported">Copying structs with unexported fields</h3>
 
 <p>
-Go 1 relaxes the rules about accessing structs with unexported (lower-case) fields,
-permitting a client package to assign (and therefore copy) such a struct.
-Of course, the client package still cannot access such fields individually.
+The old language did not allow a package to make a copy of a struct value containing unexported fields belonging to a different package.
+There was, however, a required exception for a method receiver;
+also, the implementations of <code>copy</code> and <code>append</code> have never honored the restriction.
+</p>
+
+<p>
+Go 1 will allow packages to copy struct values containing unexported fields from other packages.
+Besides resolving the inconsistency,
+this change admits a new kind of API: a package can return an opaque value without resorting to a pointer or interface.
+The new implementations of <code>time.Time</code> and
+<code>reflect.Value</code> are examples of types taking advantage of this new property.
 </p>
 
 <p>
@@ -349,21 +417,36 @@ will show that the secret field of the struct has been copied to the new value.
 This is a new feature, so existing code needs no changes.
 </p>
 
-<h3 id="equality">Equality of structs and arrays</h3>
+<h3 id="equality">Equality</h3>
 
 <p>
-Go 1 defines equality and inequality (<code>==</code> and
-<code>!=</code>) for struct and array values, respectively, provided
-the elements of the data structures can themselves be compared.
-That is, if equality is defined for all the fields of a struct (or
-an array element), then it is defined for the struct (or array).
+Before Go 1, the language did not define equality on struct and array values.
+This meant,
+among other things, that structs and arrays could not be used as map keys.
+On the other hand, Go did define equality on function and map values.
+Function equality was problematic in the presence of closures
+(when are two closures equal?)
+while map equality compared pointers, not the maps' content, which was usually
+not what the user would want.
 </p>
 
 <p>
-As a result, structs and arrays can now be used as map keys:
+Go 1 addressed these issues.
+First, structs and arrays can be compared for equality and inequality
+(<code>==</code> and <code>!=</code>),
+and therefore be used as map keys,
+provided they are composed from elements for which equality is also defined,
+using element-wise comparison.
 </p>
 
 {{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
+
+<p>
+Second, Go 1 removes the definition of equality for function values,
+except for comparison with <code>nil</code>.
+Finally, Map equality is gone too, also except for comparison with <code>nil</code>,
+although it may return one day in a more intuitive form.
+</p>
 
 <p>
 Note that equality is still undefined for slices, for which the
@@ -374,18 +457,7 @@ structs and arrays.
 
 <p>
 <em>Updating</em>:
-This is a new feature, so existing code needs no changes.
-</p>
-
-<h3 id="funcs">Function and map equality</h3>
-
-<p>
-Go 1 disallows checking for equality of functions and maps,
-respectively, except to compare them directly to <code>nil</code>.
-</p>
-
-<p>
-<em>Updating</em>:
+Struct and array equality is a new feature, so existing code needs no changes.
 Existing code that depends on function or map equality will be
 rejected by the compiler and will need to be fixed by hand.
 Few programs will be affected, but the fix may require some
@@ -393,6 +465,12 @@ redesign.
 </p>
 
 <h2 id="packages">The package hierarchy</h2>
+
+<p>
+Go 1 addresses many deficiencies in the old standard library and
+cleans up a number of packages, making them more internally consistent
+and portable.
+</p>
 
 <p>
 This section describes how the packages have been rearranged in Go 1.
@@ -640,8 +718,19 @@ affect the most programs.
 <h3 id="errors">The error type and errors package</h3>
 
 <p>
-As mentioned above, Go 1 introduces a new built-in interface type called <code>error</code>.
-Its intent is to replace the old <code>os.Error</code> type with a more central concept.
+The placement of <code>os.Error</code> in package <code>os</code> is mostly historical: errors first came up when implementing package <code>os</code>, and they seemed system-related at the time.
+Since then it has become clear that errors are more fundamental than the operating system.  For example, it would be nice to use <code>Errors</code> in packages that <code>os</code> depends on, like <code>syscall</code>.
+Also, having <code>Error</code> in <code>os</code> introduces many dependencies on <code>os</code> that would otherwise not exist.
+</p>
+
+<p>
+Go 1 solves these problems by introducing a built-in <code>error</code> interface type and a separate <code>errors</code> package (analogous to <code>bytes</code> and <code>strings</code>) that contains utility functions.
+It replaces <code>os.NewError</code> with
+<a href="/pkg/errors/#New"><code>errors.New</code></a>,
+giving errors a more central place in the environment.
+</p>
+
+<p>
 So the widely-used <code>String</code> method does not cause accidental satisfaction
 of the <code>error</code> interface, the <code>error</code> interface uses instead
 the name <code>Error</code> for that method:
@@ -688,14 +777,26 @@ by hand to rename the methods to <code>Error</code>.
 <h3 id="errno">System call errors</h3>
 
 <p>
+The old <code>syscall</code> package, which predated <code>os.Error</code>
+(and just about everything else),
+returned errors as <code>int</code> values.
+In turn, the <code>os</code> package forwarded many of these errors, such
+as <code>EINVAL</code>, but using a different set of errors on each platform.
+This behavior was unpleasant and unportable.
+</p>
+
+<p>
 In Go 1, the
 <a href="/pkg/syscall/"><code>syscall</code></a>
-package returns an <code>error</code> for system call errors,
-rather than plain integer <code>errno</code> values.
+package instead returns an <code>error</code> for system call errors.
 On Unix, the implementation is done by a 
 <a href="/pkg/syscall/#Errno"><code>syscall.Errno</code></a> type
 that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
 </p>
+
+<p>
+The changes affecting <code>os.EINVAL</code> and relatives are
+described <a href="#os">elsewhere</a>.
 
 <p>
 <em>Updating</em>:
@@ -707,7 +808,14 @@ rather than <code>syscall</code> and so will be unaffected.
 <h3 id="time">Time</h3>
 
 <p>
-One of the most sweeping changes in the Go 1 library is the
+Time is always a challenge to support well in a programming language.
+The old Go <code>time</code> package had <code>int64</code> units, no
+real type safety,
+and no distinction between absolute times and durations.
+</p>
+
+<p>
+One of the most sweeping changes in the Go 1 library is therefore a
 complete redesign of the 
 <a href="/pkg/time/"><code>time</code></a> package.
 Instead of an integer number of nanoseconds as an <code>int64</code>,
@@ -774,6 +882,8 @@ This section describes smaller changes, such as those to less commonly
 used packages or that affect
 few programs beyond the need to run <code>go</code> <code>fix</code>.
 This category includes packages that are new in Go 1.
+Collectively they improve portability, regularize behavior, and
+make the interfaces more modern and Go-like.
 </p>
 
 <h3 id="archive_zip">The archive/zip package</h3>
@@ -919,7 +1029,7 @@ as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
 The old <code>Parser</code> type is renamed
 <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
 <a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also     introducted.
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also     introduced.
 </p>
 
 <p>
@@ -1080,7 +1190,7 @@ accepts a function argument instead.
 <p>
 <em>Updating</em>:
 Code that uses packages in <code>go</code> will have to be updated by hand; the
-compiler will reject incorrect uses. Templates used in conjuction with any of the
+compiler will reject incorrect uses. Templates used in conjunction with any of the
 <code>go/doc</code> types may need manual fixes; the renamed fields will lead
 to run-time errors.
 </p>
