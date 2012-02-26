@@ -41,6 +41,7 @@ func runCgiTest(t *testing.T, h *Handler, httpreq string, expectedMap map[string
 
 	// Make a map to hold the test map that the CGI returns.
 	m := make(map[string]string)
+	m["_body"] = rw.Body.String()
 	linesRead := 0
 readlines:
 	for {

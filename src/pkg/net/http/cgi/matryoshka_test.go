@@ -51,6 +51,22 @@ func TestHostingOurselves(t *testing.T) {
 	}
 }
 
+// Test that a child handler only writing headers works.
+func TestChildOnlyHeaders(t *testing.T) {
+	h := &Handler{
+		Path: os.Args[0],
+		Root: "/test.go",
+		Args: []string{"-test.run=TestBeChildCGIProcess"},
+	}
+	expectedMap := map[string]string{
+		"_body": "",
+	}
+	replay := runCgiTest(t, h, "GET /test.go?no-body=1 HTTP/1.0\nHost: example.com\n\n", expectedMap)
+	if expected, got := "X-Test-Value", replay.Header().Get("X-Test-Header"); got != expected {
+		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
+	}
+}
+
 // Note: not actually a test.
 func TestBeChildCGIProcess(t *testing.T) {
 	if os.Getenv("REQUEST_METHOD") == "" {
@@ -59,8 +75,11 @@ func TestBeChildCGIProcess(t *testing.T) {
 	}
 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("X-Test-Header", "X-Test-Value")
-		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
 		req.ParseForm()
+		if req.FormValue("no-body") == "1" {
+			return
+		}
+		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
 		for k, vv := range req.Form {
 			for _, v := range vv {
 				fmt.Fprintf(rw, "param-%s=%s\n", k, v)
