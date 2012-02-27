@@ -23,7 +23,7 @@ type InternalExample struct {
 }
 
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
-	if *match != "" {
+	if *match != "" && *matchExamples == "" {
 		return // Don't run examples if testing is restricted: we're debugging.
 	}
 	ok = true
