@@ -118,7 +118,7 @@
           </td>
         {{end}}
         <td class="user" title="{{.User}}">{{shortUser .User}}</td>
-        <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
+        <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
         <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
       </tr>
     {{end}}
@@ -197,7 +197,7 @@
         {{end}}
         {{with $pkg.Commit}}
           <td class="user" title="{{.User}}">{{shortUser .User}}</td>
-          <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
+          <td class="time">{{.Time.Format "Mon 02 Jan 15:04"}}</td>
           <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
         {{end}}
       </tr>
