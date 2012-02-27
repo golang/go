@@ -19,7 +19,7 @@ to parse and execute HTML templates safely.
 
   tmpl, err := template.New("name").Parse(...)
   // Error checking elided
-  err = tmpl.Execute(out, "Foo", data)
+  err = tmpl.Execute(out, data)
 
 If successful, tmpl will now be injection-safe. Otherwise, err is an error
 defined in the docs for ErrorCode.
