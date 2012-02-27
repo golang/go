@@ -52,6 +52,7 @@ func NewFile(fd uintptr, name string) *File {
 type dirInfo struct {
 	data     syscall.Win32finddata
 	needdata bool
+	path     string
 }
 
 const DevNull = "NUL"
@@ -78,6 +79,11 @@ func openDir(name string) (file *File, err error) {
 	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
 	if e != nil {
 		return nil, &PathError{"open", name, e}
+	}
+	d.path = name
+	if !isAbs(d.path) {
+		cwd, _ := Getwd()
+		d.path = cwd + `\` + d.path
 	}
 	f := NewFile(uintptr(r), name)
 	f.dirinfo = d
@@ -171,7 +177,13 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 		if name == "." || name == ".." { // Useless names
 			continue
 		}
-		f := toFileInfo(name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+		f := &fileStat{
+			name:    name,
+			size:    mkSize(d.FileSizeHigh, d.FileSizeLow),
+			modTime: mkModTime(d.LastWriteTime),
+			mode:    mkMode(d.FileAttributes),
+			sys:     mkSys(file.dirinfo.path+`\`+name, d.LastAccessTime, d.CreationTime),
+		}
 		n--
 		fi = append(fi, f)
 	}
