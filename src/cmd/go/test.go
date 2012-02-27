@@ -299,7 +299,10 @@ func runTest(cmd *Command, args []string) {
 			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
 		}
 		b.do(a)
-		return
+		if !testC {
+			return
+		}
+		b.init()
 	}
 
 	var builds, runs, prints []*action
