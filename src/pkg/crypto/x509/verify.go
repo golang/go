@@ -135,8 +135,8 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
 
 // Verify attempts to verify c by building one or more chains from c to a
 // certificate in opts.roots, using certificates in opts.Intermediates if
-// needed. If successful, it returns one or chains where the first element of
-// the chain is c and the last element is from opts.Roots.
+// needed. If successful, it returns one or more chains where the first
+// element of the chain is c and the last element is from opts.Roots.
 //
 // WARNING: this doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
