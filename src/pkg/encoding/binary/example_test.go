@@ -25,9 +25,9 @@ func ExampleWrite() {
 func ExampleWrite_multi() {
 	buf := new(bytes.Buffer)
 	var data = []interface{}{
+		uint16(61374),
 		int8(-54),
 		uint8(254),
-		uint16(48826),
 	}
 	for _, v := range data {
 		err := binary.Write(buf, binary.LittleEndian, v)
@@ -36,7 +36,7 @@ func ExampleWrite_multi() {
 		}
 	}
 	fmt.Printf("%x", buf.Bytes())
-	// Output: cafebabe
+	// Output: beefcafe
 }
 
 func ExampleRead() {
