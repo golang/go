@@ -51,24 +51,25 @@ func (w *Writer) Close() error {
 	// write central directory
 	start := w.cw.count
 	for _, h := range w.dir {
-		var b [directoryHeaderLen]byte
-		putUint32(b[:], uint32(directoryHeaderSignature))
-		putUint16(b[4:], h.CreatorVersion)
-		putUint16(b[6:], h.ReaderVersion)
-		putUint16(b[8:], h.Flags)
-		putUint16(b[10:], h.Method)
-		putUint16(b[12:], h.ModifiedTime)
-		putUint16(b[14:], h.ModifiedDate)
-		putUint32(b[16:], h.CRC32)
-		putUint32(b[20:], h.CompressedSize)
-		putUint32(b[24:], h.UncompressedSize)
-		putUint16(b[28:], uint16(len(h.Name)))
-		putUint16(b[30:], uint16(len(h.Extra)))
-		putUint16(b[32:], uint16(len(h.Comment)))
-		// skip two uint16's, disk number start and internal file attributes
-		putUint32(b[38:], h.ExternalAttrs)
-		putUint32(b[42:], h.offset)
-		if _, err := w.cw.Write(b[:]); err != nil {
+		var buf [directoryHeaderLen]byte
+		b := writeBuf(buf[:])
+		b.uint32(uint32(directoryHeaderSignature))
+		b.uint16(h.CreatorVersion)
+		b.uint16(h.ReaderVersion)
+		b.uint16(h.Flags)
+		b.uint16(h.Method)
+		b.uint16(h.ModifiedTime)
+		b.uint16(h.ModifiedDate)
+		b.uint32(h.CRC32)
+		b.uint32(h.CompressedSize)
+		b.uint32(h.UncompressedSize)
+		b.uint16(uint16(len(h.Name)))
+		b.uint16(uint16(len(h.Extra)))
+		b.uint16(uint16(len(h.Comment)))
+		b = b[4:] // skip disk number start and internal file attr (2x uint16)
+		b.uint32(h.ExternalAttrs)
+		b.uint32(h.offset)
+		if _, err := w.cw.Write(buf[:]); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w.cw, h.Name); err != nil {
@@ -84,16 +85,16 @@ func (w *Writer) Close() error {
 	end := w.cw.count
 
 	// write end record
-	var b [directoryEndLen]byte
-	putUint32(b[:], uint32(directoryEndSignature))
-	putUint16(b[4:], uint16(0))           // disk number
-	putUint16(b[6:], uint16(0))           // disk number where directory starts
-	putUint16(b[8:], uint16(len(w.dir)))  // number of entries this disk
-	putUint16(b[10:], uint16(len(w.dir))) // number of entries total
-	putUint32(b[12:], uint32(end-start))  // size of directory
-	putUint32(b[16:], uint32(start))      // start of directory
+	var buf [directoryEndLen]byte
+	b := writeBuf(buf[:])
+	b.uint32(uint32(directoryEndSignature))
+	b = b[4:]                     // skip over disk number and first disk number (2x uint16)
+	b.uint16(uint16(len(w.dir)))  // number of entries this disk
+	b.uint16(uint16(len(w.dir)))  // number of entries total
+	b.uint32(uint32(end - start)) // size of directory
+	b.uint32(uint32(start))       // start of directory
 	// skipped size of comment (always zero)
-	if _, err := w.cw.Write(b[:]); err != nil {
+	if _, err := w.cw.Write(buf[:]); err != nil {
 		return err
 	}
 
@@ -163,19 +164,20 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 }
 
 func writeHeader(w io.Writer, h *FileHeader) error {
-	var b [fileHeaderLen]byte
-	putUint32(b[:], uint32(fileHeaderSignature))
-	putUint16(b[4:], h.ReaderVersion)
-	putUint16(b[6:], h.Flags)
-	putUint16(b[8:], h.Method)
-	putUint16(b[10:], h.ModifiedTime)
-	putUint16(b[12:], h.ModifiedDate)
-	putUint32(b[14:], h.CRC32)
-	putUint32(b[18:], h.CompressedSize)
-	putUint32(b[22:], h.UncompressedSize)
-	putUint16(b[26:], uint16(len(h.Name)))
-	putUint16(b[28:], uint16(len(h.Extra)))
-	if _, err := w.Write(b[:]); err != nil {
+	var buf [fileHeaderLen]byte
+	b := writeBuf(buf[:])
+	b.uint32(uint32(fileHeaderSignature))
+	b.uint16(h.ReaderVersion)
+	b.uint16(h.Flags)
+	b.uint16(h.Method)
+	b.uint16(h.ModifiedTime)
+	b.uint16(h.ModifiedDate)
+	b.uint32(h.CRC32)
+	b.uint32(h.CompressedSize)
+	b.uint32(h.UncompressedSize)
+	b.uint16(uint16(len(h.Name)))
+	b.uint16(uint16(len(h.Extra)))
+	if _, err := w.Write(buf[:]); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(w, h.Name); err != nil {
@@ -219,11 +221,12 @@ func (w *fileWriter) close() error {
 	fh.UncompressedSize = uint32(w.rawCount.count)
 
 	// write data descriptor
-	var b [dataDescriptorLen]byte
-	putUint32(b[:], fh.CRC32)
-	putUint32(b[4:], fh.CompressedSize)
-	putUint32(b[8:], fh.UncompressedSize)
-	_, err := w.zipw.Write(b[:])
+	var buf [dataDescriptorLen]byte
+	b := writeBuf(buf[:])
+	b.uint32(fh.CRC32)
+	b.uint32(fh.CompressedSize)
+	b.uint32(fh.UncompressedSize)
+	_, err := w.zipw.Write(buf[:])
 	return err
 }
 
@@ -246,17 +249,21 @@ func (w nopCloser) Close() error {
 	return nil
 }
 
-// We use these putUintXX functions instead of encoding/binary's Write to avoid
-// reflection. It's easy enough, anyway.
+// We use this helper instead of encoding/binary's Write to avoid reflection.
+// It's easy enough, anyway.
 
-func putUint16(b []byte, v uint16) {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
+type writeBuf []byte
+
+func (b *writeBuf) uint16(v uint16) {
+	(*b)[0] = byte(v)
+	(*b)[1] = byte(v >> 8)
+	*b = (*b)[2:]
 }
 
-func putUint32(b []byte, v uint32) {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-	b[3] = byte(v >> 24)
+func (b *writeBuf) uint32(v uint32) {
+	(*b)[0] = byte(v)
+	(*b)[1] = byte(v >> 8)
+	(*b)[2] = byte(v >> 16)
+	(*b)[3] = byte(v >> 24)
+	*b = (*b)[4:]
 }
