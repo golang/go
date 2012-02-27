@@ -167,21 +167,27 @@
 	<th>&nbsp;&nbsp;&nbsp;&nbsp;</th>
 	<th style="text-align: left; width: auto">Synopsis</th>
 	</tr>
-	<tr>
-	<td><a href="..">..</a></td>
-	</tr>
+	{{if not $.DirFlat}}
+		<tr>
+		<td><a href="..">..</a></td>
+		</tr>
+	{{end}}
 	{{range .List}}
-	<tr>
-		<td>
 		{{if $.DirFlat}}
-			<a href="{{html .Path}}">{{html .Path}}</a>
+			{{if .HasPkg}}
+				<tr>
+				<td><a href="{{html .Path}}">{{html .Path}}</a></td>
+				<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+				<td style="width: auto">{{html .Synopsis}}</td>
+				</tr>
+			{{end}}
 		{{else}}
-			{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a>
+			<tr>
+			<td>{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a></td>
+			<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+			<td style="width: auto">{{html .Synopsis}}</td>
+			</tr>
 		{{end}}
-		</td>
-		<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-		<td style="width: auto">{{html .Synopsis}}</td>
-	</tr>
 	{{end}}
 	</table>
 {{end}}
