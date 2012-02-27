@@ -84,13 +84,13 @@ import (
 // more import examples
 import (
 	"xxx"
-	"much longer name" // comment
-	"short name" // comment
+	"much_longer_name" // comment
+	"short_name" // comment
 )
 
 import (
 	_ "xxx"
-	"much longer name" // comment
+	"much_longer_name" // comment
 )
 
 import (
