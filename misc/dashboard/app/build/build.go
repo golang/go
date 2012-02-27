@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,10 @@ type Package struct {
 	Name    string
 	Path    string // (empty for the main Go tree)
 	NextNum int    // Num of the next head Commit
+
+	Installs         int      // All-time total install count
+	InstallsByDay    []string `datastore:",noindex"` // "yyyy-mm-dd,n"
+	InstallsThisWeek int      // Rolling weekly count
 }
 
 func (p *Package) String() string {
@@ -39,6 +44,53 @@ func (p *Package) Key(c appengine.Context) *datastore.Key {
 		key = "go"
 	}
 	return datastore.NewKey(c, "Package", key, 0, nil)
+}
+
+const day = time.Hour * 24
+
+// IncrementInstalls increments the total install count and today's install count.
+// Daily install counts for dates older than 30 days are discarded.
+func (p *Package) IncrementInstalls() {
+	c := p.dayCounts()
+	s := []string{}
+	now := time.Now()
+	for i := 0; i < 30; i++ {
+		d := now.Add(-day * time.Duration(i)).Format("2006-01-02")
+		n := c[d]
+		if i == 0 {
+			n++ // increment today's count
+		}
+		if n > 0 { // no need to store zeroes in the datastore
+			s = append(s, fmt.Sprintf("%s,%d", d, n))
+		}
+	}
+	p.InstallsByDay = s
+	p.Installs++
+	p.UpdateInstallsThisWeek()
+}
+
+// UpdateInstallsThisWeek updates the package's InstallsThisWeek field using data
+// from the InstallsByDay list.
+func (p *Package) UpdateInstallsThisWeek() {
+	c := p.dayCounts()
+	n := 0
+	now := time.Now()
+	for i := 0; i < 7; i++ {
+		d := now.Add(-day * time.Duration(i)).Format("2006-01-02")
+		n += c[d]
+	}
+	p.InstallsThisWeek = n
+}
+
+// dayCounts explodes InstallsByDay into a map of dates to install counts.
+func (p *Package) dayCounts() map[string]int {
+	c := make(map[string]int)
+	for _, d := range p.InstallsByDay {
+		p := strings.SplitN(d, ",", 2)
+		n, _ := strconv.Atoi(p[1])
+		c[p[0]] = n
+	}
+	return c
 }
 
 // LastCommit returns the most recent Commit for this Package.
