@@ -7,6 +7,7 @@ package zip
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
@@ -249,21 +250,14 @@ func (w nopCloser) Close() error {
 	return nil
 }
 
-// We use this helper instead of encoding/binary's Write to avoid reflection.
-// It's easy enough, anyway.
-
 type writeBuf []byte
 
 func (b *writeBuf) uint16(v uint16) {
-	(*b)[0] = byte(v)
-	(*b)[1] = byte(v >> 8)
+	binary.LittleEndian.PutUint16(*b, v)
 	*b = (*b)[2:]
 }
 
 func (b *writeBuf) uint32(v uint32) {
-	(*b)[0] = byte(v)
-	(*b)[1] = byte(v >> 8)
-	(*b)[2] = byte(v >> 16)
-	(*b)[3] = byte(v >> 24)
+	binary.LittleEndian.PutUint32(*b, v)
 	*b = (*b)[4:]
 }
