@@ -69,14 +69,24 @@ export PATH=$PATH:$GOROOT/bin
 <h3 id="freebsd_linux">FreeBSD and Linux</h3>
 
 <p>
+On FreeBSD and Linux, if you are upgrading from an older version of Go you must
+first remove the existing version from <code>/usr/local/go</code>:
+</p>
+
+<pre>
+rm -r /usr/local/go
+</pre>
+
+<p>
 Extract the archive into <code>/usr/local</code>, creating a Go tree in
-<code>/usr/local/go</code> (typically this must be run as root or through
-<code>sudo</code>):
+<code>/usr/local/go</code>:
 </p>
 
 <pre>
 tar -C /usr/local -xzf go.release.go1.tar.gz
 </pre>
+
+<p>(Typically these commands must be run as root or through <code>sudo</code>.)</p>
 
 <p>
 Add <code>/usr/local/go/bin</code> to the <code>PATH</code> environment
