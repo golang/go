@@ -654,3 +654,25 @@ func f() {
 	    log.Fatal(err)
 	}
 }
+
+// Handle multi-line argument lists ending in ... correctly.
+// Was issue 3130.
+func _() {
+	_ = append(s, a...)
+	_ = append(
+		s, a...)
+	_ = append(s,
+		a...)
+	_ = append(
+		s,
+		a...)
+	_ = append(s, a...,
+	)
+	_ = append(s,
+		a...,
+	)
+	_ = append(
+		s,
+		a...,
+	)
+}

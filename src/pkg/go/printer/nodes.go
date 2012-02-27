@@ -804,9 +804,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
 		}
 		p.expr1(x.Fun, token.HighestPrec, depth, multiLine)
 		p.print(x.Lparen, token.LPAREN)
-		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
 		if x.Ellipsis.IsValid() {
+			p.exprList(x.Lparen, x.Args, depth, commaSep, multiLine, x.Ellipsis)
 			p.print(x.Ellipsis, token.ELLIPSIS)
+			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
+				p.print(token.COMMA, formfeed)
+			}
+		} else {
+			p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
 		}
 		p.print(x.Rparen, token.RPAREN)
 
