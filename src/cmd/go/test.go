@@ -93,7 +93,8 @@ directory containing the package sources, has its own flags:
 	    Verbose output: log all tests as they are run.
 
 	-test.run pattern
-	    Run only those tests matching the regular expression.
+	    Run only those tests and examples matching the regular
+	    expression.
 
 	-test.bench pattern
 	    Run benchmarks matching the regular expression.
