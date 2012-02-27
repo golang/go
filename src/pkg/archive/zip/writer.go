@@ -7,7 +7,6 @@ package zip
 import (
 	"bufio"
 	"compress/flate"
-	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
@@ -37,10 +36,10 @@ func NewWriter(w io.Writer) *Writer {
 
 // Close finishes writing the zip file by writing the central directory.
 // It does not (and can not) close the underlying writer.
-func (w *Writer) Close() (err error) {
+func (w *Writer) Close() error {
 	if w.last != nil && !w.last.closed {
-		if err = w.last.close(); err != nil {
-			return
+		if err := w.last.close(); err != nil {
+			return err
 		}
 		w.last = nil
 	}
@@ -49,43 +48,54 @@ func (w *Writer) Close() (err error) {
 	}
 	w.closed = true
 
-	defer recoverError(&err)
-
 	// write central directory
 	start := w.cw.count
 	for _, h := range w.dir {
-		write(w.cw, uint32(directoryHeaderSignature))
-		write(w.cw, h.CreatorVersion)
-		write(w.cw, h.ReaderVersion)
-		write(w.cw, h.Flags)
-		write(w.cw, h.Method)
-		write(w.cw, h.ModifiedTime)
-		write(w.cw, h.ModifiedDate)
-		write(w.cw, h.CRC32)
-		write(w.cw, h.CompressedSize)
-		write(w.cw, h.UncompressedSize)
-		write(w.cw, uint16(len(h.Name)))
-		write(w.cw, uint16(len(h.Extra)))
-		write(w.cw, uint16(len(h.Comment)))
-		write(w.cw, uint16(0)) // disk number start
-		write(w.cw, uint16(0)) // internal file attributes
-		write(w.cw, h.ExternalAttrs)
-		write(w.cw, h.offset)
-		writeBytes(w.cw, []byte(h.Name))
-		writeBytes(w.cw, h.Extra)
-		writeBytes(w.cw, []byte(h.Comment))
+		var b [directoryHeaderLen]byte
+		putUint32(b[:], uint32(directoryHeaderSignature))
+		putUint16(b[4:], h.CreatorVersion)
+		putUint16(b[6:], h.ReaderVersion)
+		putUint16(b[8:], h.Flags)
+		putUint16(b[10:], h.Method)
+		putUint16(b[12:], h.ModifiedTime)
+		putUint16(b[14:], h.ModifiedDate)
+		putUint32(b[16:], h.CRC32)
+		putUint32(b[20:], h.CompressedSize)
+		putUint32(b[24:], h.UncompressedSize)
+		putUint16(b[28:], uint16(len(h.Name)))
+		putUint16(b[30:], uint16(len(h.Extra)))
+		putUint16(b[32:], uint16(len(h.Comment)))
+		// skip two uint16's, disk number start and internal file attributes
+		putUint32(b[38:], h.ExternalAttrs)
+		putUint32(b[42:], h.offset)
+		if _, err := w.cw.Write(b[:]); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w.cw, h.Name); err != nil {
+			return err
+		}
+		if _, err := w.cw.Write(h.Extra); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w.cw, h.Comment); err != nil {
+			return err
+		}
 	}
 	end := w.cw.count
 
 	// write end record
-	write(w.cw, uint32(directoryEndSignature))
-	write(w.cw, uint16(0))          // disk number
-	write(w.cw, uint16(0))          // disk number where directory starts
-	write(w.cw, uint16(len(w.dir))) // number of entries this disk
-	write(w.cw, uint16(len(w.dir))) // number of entries total
-	write(w.cw, uint32(end-start))  // size of directory
-	write(w.cw, uint32(start))      // start of directory
-	write(w.cw, uint16(0))          // size of comment
+	var b [directoryEndLen]byte
+	putUint32(b[:], uint32(directoryEndSignature))
+	putUint16(b[4:], uint16(0))           // disk number
+	putUint16(b[6:], uint16(0))           // disk number where directory starts
+	putUint16(b[8:], uint16(len(w.dir)))  // number of entries this disk
+	putUint16(b[10:], uint16(len(w.dir))) // number of entries total
+	putUint32(b[12:], uint32(end-start))  // size of directory
+	putUint32(b[16:], uint32(start))      // start of directory
+	// skipped size of comment (always zero)
+	if _, err := w.cw.Write(b[:]); err != nil {
+		return err
+	}
 
 	return w.cw.w.(*bufio.Writer).Flush()
 }
@@ -152,22 +162,27 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	return fw, nil
 }
 
-func writeHeader(w io.Writer, h *FileHeader) (err error) {
-	defer recoverError(&err)
-	write(w, uint32(fileHeaderSignature))
-	write(w, h.ReaderVersion)
-	write(w, h.Flags)
-	write(w, h.Method)
-	write(w, h.ModifiedTime)
-	write(w, h.ModifiedDate)
-	write(w, h.CRC32)
-	write(w, h.CompressedSize)
-	write(w, h.UncompressedSize)
-	write(w, uint16(len(h.Name)))
-	write(w, uint16(len(h.Extra)))
-	writeBytes(w, []byte(h.Name))
-	writeBytes(w, h.Extra)
-	return nil
+func writeHeader(w io.Writer, h *FileHeader) error {
+	var b [fileHeaderLen]byte
+	putUint32(b[:], uint32(fileHeaderSignature))
+	putUint16(b[4:], h.ReaderVersion)
+	putUint16(b[6:], h.Flags)
+	putUint16(b[8:], h.Method)
+	putUint16(b[10:], h.ModifiedTime)
+	putUint16(b[12:], h.ModifiedDate)
+	putUint32(b[14:], h.CRC32)
+	putUint32(b[18:], h.CompressedSize)
+	putUint32(b[22:], h.UncompressedSize)
+	putUint16(b[26:], uint16(len(h.Name)))
+	putUint16(b[28:], uint16(len(h.Extra)))
+	if _, err := w.Write(b[:]); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, h.Name); err != nil {
+		return err
+	}
+	_, err := w.Write(h.Extra)
+	return err
 }
 
 type fileWriter struct {
@@ -188,13 +203,13 @@ func (w *fileWriter) Write(p []byte) (int, error) {
 	return w.rawCount.Write(p)
 }
 
-func (w *fileWriter) close() (err error) {
+func (w *fileWriter) close() error {
 	if w.closed {
 		return errors.New("zip: file closed twice")
 	}
 	w.closed = true
-	if err = w.comp.Close(); err != nil {
-		return
+	if err := w.comp.Close(); err != nil {
+		return err
 	}
 
 	// update FileHeader
@@ -204,12 +219,12 @@ func (w *fileWriter) close() (err error) {
 	fh.UncompressedSize = uint32(w.rawCount.count)
 
 	// write data descriptor
-	defer recoverError(&err)
-	write(w.zipw, fh.CRC32)
-	write(w.zipw, fh.CompressedSize)
-	write(w.zipw, fh.UncompressedSize)
-
-	return nil
+	var b [dataDescriptorLen]byte
+	putUint32(b[:], fh.CRC32)
+	putUint32(b[4:], fh.CompressedSize)
+	putUint32(b[8:], fh.UncompressedSize)
+	_, err := w.zipw.Write(b[:])
+	return err
 }
 
 type countWriter struct {
@@ -231,18 +246,17 @@ func (w nopCloser) Close() error {
 	return nil
 }
 
-func write(w io.Writer, data interface{}) {
-	if err := binary.Write(w, binary.LittleEndian, data); err != nil {
-		panic(err)
-	}
+// We use these putUintXX functions instead of encoding/binary's Write to avoid
+// reflection. It's easy enough, anyway.
+
+func putUint16(b []byte, v uint16) {
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
 }
 
-func writeBytes(w io.Writer, b []byte) {
-	n, err := w.Write(b)
-	if err != nil {
-		panic(err)
-	}
-	if n != len(b) {
-		panic(io.ErrShortWrite)
-	}
+func putUint32(b []byte, v uint32) {
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
 }

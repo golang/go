@@ -7,7 +7,6 @@ package zip
 import (
 	"bufio"
 	"compress/flate"
-	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
@@ -174,20 +173,19 @@ func readFileHeader(f *File, r io.Reader) error {
 	if _, err := io.ReadFull(r, b[:]); err != nil {
 		return err
 	}
-	c := binary.LittleEndian
-	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
+	if sig := toUint32(b[:]); sig != fileHeaderSignature {
 		return ErrFormat
 	}
-	f.ReaderVersion = c.Uint16(b[4:6])
-	f.Flags = c.Uint16(b[6:8])
-	f.Method = c.Uint16(b[8:10])
-	f.ModifiedTime = c.Uint16(b[10:12])
-	f.ModifiedDate = c.Uint16(b[12:14])
-	f.CRC32 = c.Uint32(b[14:18])
-	f.CompressedSize = c.Uint32(b[18:22])
-	f.UncompressedSize = c.Uint32(b[22:26])
-	filenameLen := int(c.Uint16(b[26:28]))
-	extraLen := int(c.Uint16(b[28:30]))
+	f.ReaderVersion = toUint16(b[4:])
+	f.Flags = toUint16(b[6:])
+	f.Method = toUint16(b[8:])
+	f.ModifiedTime = toUint16(b[10:])
+	f.ModifiedDate = toUint16(b[12:])
+	f.CRC32 = toUint32(b[14:])
+	f.CompressedSize = toUint32(b[18:])
+	f.UncompressedSize = toUint32(b[22:])
+	filenameLen := int(toUint16(b[26:]))
+	extraLen := int(toUint16(b[28:]))
 	d := make([]byte, filenameLen+extraLen)
 	if _, err := io.ReadFull(r, d); err != nil {
 		return err
@@ -205,12 +203,11 @@ func (f *File) findBodyOffset() (int64, error) {
 	if _, err := io.ReadFull(r, b[:]); err != nil {
 		return 0, err
 	}
-	c := binary.LittleEndian
-	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
+	if sig := toUint32(b[:4]); sig != fileHeaderSignature {
 		return 0, ErrFormat
 	}
-	filenameLen := int(c.Uint16(b[26:28]))
-	extraLen := int(c.Uint16(b[28:30]))
+	filenameLen := int(toUint16(b[26:28]))
+	extraLen := int(toUint16(b[28:30]))
 	return int64(fileHeaderLen + filenameLen + extraLen), nil
 }
 
@@ -222,26 +219,24 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	if _, err := io.ReadFull(r, b[:]); err != nil {
 		return err
 	}
-	c := binary.LittleEndian
-	if sig := c.Uint32(b[:4]); sig != directoryHeaderSignature {
+	if sig := toUint32(b[:]); sig != directoryHeaderSignature {
 		return ErrFormat
 	}
-	f.CreatorVersion = c.Uint16(b[4:6])
-	f.ReaderVersion = c.Uint16(b[6:8])
-	f.Flags = c.Uint16(b[8:10])
-	f.Method = c.Uint16(b[10:12])
-	f.ModifiedTime = c.Uint16(b[12:14])
-	f.ModifiedDate = c.Uint16(b[14:16])
-	f.CRC32 = c.Uint32(b[16:20])
-	f.CompressedSize = c.Uint32(b[20:24])
-	f.UncompressedSize = c.Uint32(b[24:28])
-	filenameLen := int(c.Uint16(b[28:30]))
-	extraLen := int(c.Uint16(b[30:32]))
-	commentLen := int(c.Uint16(b[32:34]))
-	// startDiskNumber := c.Uint16(b[34:36])    // Unused
-	// internalAttributes := c.Uint16(b[36:38]) // Unused
-	f.ExternalAttrs = c.Uint32(b[38:42])
-	f.headerOffset = int64(c.Uint32(b[42:46]))
+	f.CreatorVersion = toUint16(b[4:])
+	f.ReaderVersion = toUint16(b[6:])
+	f.Flags = toUint16(b[8:])
+	f.Method = toUint16(b[10:])
+	f.ModifiedTime = toUint16(b[12:])
+	f.ModifiedDate = toUint16(b[14:])
+	f.CRC32 = toUint32(b[16:])
+	f.CompressedSize = toUint32(b[20:])
+	f.UncompressedSize = toUint32(b[24:])
+	filenameLen := int(toUint16(b[28:]))
+	extraLen := int(toUint16(b[30:32]))
+	commentLen := int(toUint16(b[32:]))
+	// skipped start disk number and internal attributes (2x uint16)
+	f.ExternalAttrs = toUint32(b[38:])
+	f.headerOffset = int64(toUint32(b[42:]))
 	d := make([]byte, filenameLen+extraLen+commentLen)
 	if _, err := io.ReadFull(r, d); err != nil {
 		return err
@@ -257,10 +252,9 @@ func readDataDescriptor(r io.Reader, f *File) error {
 	if _, err := io.ReadFull(r, b[:]); err != nil {
 		return err
 	}
-	c := binary.LittleEndian
-	f.CRC32 = c.Uint32(b[:4])
-	f.CompressedSize = c.Uint32(b[4:8])
-	f.UncompressedSize = c.Uint32(b[8:12])
+	f.CRC32 = toUint32(b[:4])
+	f.CompressedSize = toUint32(b[4:8])
+	f.UncompressedSize = toUint32(b[8:12])
 	return nil
 }
 
@@ -285,15 +279,14 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	}
 
 	// read header into struct
-	c := binary.LittleEndian
 	d := new(directoryEnd)
-	d.diskNbr = c.Uint16(b[4:6])
-	d.dirDiskNbr = c.Uint16(b[6:8])
-	d.dirRecordsThisDisk = c.Uint16(b[8:10])
-	d.directoryRecords = c.Uint16(b[10:12])
-	d.directorySize = c.Uint32(b[12:16])
-	d.directoryOffset = c.Uint32(b[16:20])
-	d.commentLen = c.Uint16(b[20:22])
+	d.diskNbr = toUint16(b[4:])
+	d.dirDiskNbr = toUint16(b[6:])
+	d.dirRecordsThisDisk = toUint16(b[8:])
+	d.directoryRecords = toUint16(b[10:])
+	d.directorySize = toUint32(b[12:])
+	d.directoryOffset = toUint32(b[16:])
+	d.commentLen = toUint16(b[20:])
 	d.comment = string(b[22 : 22+int(d.commentLen)])
 	return d, nil
 }
@@ -310,4 +303,10 @@ func findSignatureInBlock(b []byte) int {
 		}
 	}
 	return -1
+}
+
+func toUint16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
+
+func toUint32(b []byte) uint32 {
+	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
