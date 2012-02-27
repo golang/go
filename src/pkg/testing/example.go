@@ -6,6 +6,7 @@ package testing
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -13,13 +14,18 @@ import (
 	"time"
 )
 
+var matchExamples = flag.String("test.example", "", "regular expression to select examples to run")
+
 type InternalExample struct {
 	Name   string
 	F      func()
 	Output string
 }
 
-func RunExamples(examples []InternalExample) (ok bool) {
+func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+	if *match != "" {
+		return // Don't run examples if testing is restricted: we're debugging.
+	}
 	ok = true
 
 	var eg InternalExample
@@ -27,6 +33,14 @@ func RunExamples(examples []InternalExample) (ok bool) {
 	stdout, stderr := os.Stdout, os.Stderr
 
 	for _, eg = range examples {
+		matched, err := matchString(*matchExamples, eg.Name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.example: %s\n", err)
+			os.Exit(1)
+		}
+		if !matched {
+			continue
+		}
 		if *chatty {
 			fmt.Printf("=== RUN: %s\n", eg.Name)
 		}

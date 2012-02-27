@@ -280,7 +280,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 	before()
 	startAlarm()
 	testOk := RunTests(matchString, tests)
-	exampleOk := RunExamples(examples)
+	exampleOk := RunExamples(matchString, examples)
 	if !testOk || !exampleOk {
 		fmt.Println("FAIL")
 		os.Exit(1)
