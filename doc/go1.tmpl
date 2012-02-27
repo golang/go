@@ -1601,37 +1601,6 @@ Code that uses the old POSIX error values from the <code>os</code> package
 will fail to compile and will also need to be updated by hand.
 </p>
 
-<h3 id="path_filepath">The path/filepath package</h3>
-
-<p>
-In Go 1, the <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a> function of the
-<code>path/filepath</code> package
-has been changed to take a function value of type
-<a href="/pkg/path/filepath/#WalkFunc"><code>WalkFunc</code></a>
-instead of a <code>Visitor</code> interface value.
-<code>WalkFunc</code> unifies the handling of both files and directories.
-</p>
-
-<pre>
-    type WalkFunc func(path string, info os.FileInfo, err error) error
-</pre>
-
-<p>
-The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
-in such cases the error argument will describe the failure.
-If a directory's contents are to be skipped,
-the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
-</p>
-
-{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
-
-<p>
-<em>Updating</em>:
-The change simplifies most code but has subtle consequences, so affected programs
-will need to be updated by hand.
-The compiler will catch code using the old interface.
-</p>
-
 <h3 id="os_signal">The os/signal package</h3>
 
 <p>
@@ -1664,6 +1633,51 @@ but most code should list the specific signals it wants to handle instead:
 c := make(chan os.Signal)
 signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT)
 </pre>
+
+<h3 id="path_filepath">The path/filepath package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a> function of the
+<code>path/filepath</code> package
+has been changed to take a function value of type
+<a href="/pkg/path/filepath/#WalkFunc"><code>WalkFunc</code></a>
+instead of a <code>Visitor</code> interface value.
+<code>WalkFunc</code> unifies the handling of both files and directories.
+</p>
+
+<pre>
+    type WalkFunc func(path string, info os.FileInfo, err error) error
+</pre>
+
+<p>
+The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
+in such cases the error argument will describe the failure.
+If a directory's contents are to be skipped,
+the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
+</p>
+
+{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
+
+<p>
+<em>Updating</em>:
+The change simplifies most code but has subtle consequences, so affected programs
+will need to be updated by hand.
+The compiler will catch code using the old interface.
+</p>
+
+<h3 id="regexp">The regexp package</h3>
+
+<p>
+The <a href="/pkg/regexp/"><code>regexp</code></a> package has been rewritten.
+It has the same interface but the specification of the regular expressions 
+it supports has changed from the old "egrep" form to that of
+<a href="code.google.com/p/re2">RE2</a>.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses the package should have its regular expressions checked by hand.
+</p>
 
 <h3 id="runtime">The runtime package</h3>
 
