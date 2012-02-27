@@ -28,6 +28,7 @@ var usageMessage = `Usage of go test:
   -benchtime=1: passes -test.benchtime to test
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
+  -example="": passes -test.example to test
   -memprofile="": passes -test.memprofile to test
   -memprofilerate=0: passes -test.memprofilerate to test
   -parallel=0: passes -test.parallel to test
@@ -67,6 +68,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "benchtime", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
+	{name: "example", passToTest: true},
 	{name: "memprofile", passToTest: true},
 	{name: "memprofilerate", passToTest: true},
 	{name: "parallel", passToTest: true},
