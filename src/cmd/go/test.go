@@ -99,11 +99,6 @@ directory containing the package sources, has its own flags:
 	    Run benchmarks matching the regular expression.
 	    By default, no benchmarks run.
 
-	-test.example pattern
-	    Run examples matching the regular expression.
-	    By default, all examples run, but if -test.run is set,
-	    no examples are run.
-
 	-test.cpuprofile cpu.out
 	    Write a CPU profile to the specified file before exiting.
 
