@@ -165,7 +165,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		t.Errorf("%s: comment=%q, want %q", zt.Name, z.Comment, zt.Comment)
 	}
 	if len(z.File) != len(zt.File) {
-		t.Errorf("%s: file count=%d, want %d", zt.Name, len(z.File), len(zt.File))
+		t.Fatalf("%s: file count=%d, want %d", zt.Name, len(z.File), len(zt.File))
 	}
 
 	// test read of each file
