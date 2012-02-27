@@ -100,16 +100,6 @@ type directoryEnd struct {
 	comment            string
 }
 
-func recoverError(errp *error) {
-	if e := recover(); e != nil {
-		if err, ok := e.(error); ok {
-			*errp = err
-			return
-		}
-		panic(e)
-	}
-}
-
 // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
 // The resolution is 2s.
 // See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
