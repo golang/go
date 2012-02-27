@@ -23,11 +23,12 @@ import (
 const testdataDirName = "testdata"
 
 type Directory struct {
-	Depth int
-	Path  string // includes Name
-	Name  string
-	Text  string       // package documentation, if any
-	Dirs  []*Directory // subdirectories
+	Depth    int
+	Path     string       // directory path; includes Name
+	Name     string       // directory name
+	HasPkg   bool         // true if the directory contains at least one package
+	Synopsis string       // package documentation, if any
+	Dirs     []*Directory // subdirectories
 }
 
 func isGoFile(fi os.FileInfo) bool {
@@ -62,7 +63,11 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		// return a dummy directory so that the parent directory
 		// doesn't get discarded just because we reached the max
 		// directory depth
-		return &Directory{depth, path, name, "", nil}
+		return &Directory{
+			Depth: depth,
+			Path:  path,
+			Name:  name,
+		}
 	}
 
 	list, err := fs.ReadDir(path)
@@ -145,7 +150,14 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	return &Directory{depth, path, name, synopsis, dirs}
+	return &Directory{
+		Depth:    depth,
+		Path:     path,
+		Name:     name,
+		HasPkg:   hasPkgFiles,
+		Synopsis: synopsis,
+		Dirs:     dirs,
+	}
 }
 
 // newDirectory creates a new package directory tree with at most maxDepth
@@ -247,9 +259,10 @@ func (dir *Directory) lookup(path string) *Directory {
 type DirEntry struct {
 	Depth    int    // >= 0
 	Height   int    // = DirList.MaxHeight - Depth, > 0
-	Path     string // includes Name, relative to DirList root
-	Name     string
-	Synopsis string
+	Path     string // directory path; includes Name, relative to DirList root
+	Name     string // directory name
+	HasPkg   bool   // true if the directory contains at least one package 
+	Synopsis string // package documentation, if any
 }
 
 type DirList struct {
@@ -304,7 +317,8 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		}
 		p.Path = path
 		p.Name = d.Name
-		p.Synopsis = d.Text
+		p.HasPkg = d.HasPkg
+		p.Synopsis = d.Synopsis
 		i++
 	}
 

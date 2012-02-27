@@ -76,8 +76,8 @@ OTHER PACKAGES
 
 */}}{{with .Dirs}}
 SUBDIRECTORIES
-{{if $.DirFlat}}{{range .List}}
-	{{.Path}}{{end}}
+{{if $.DirFlat}}{{range .List}}{{if .HasPkg}}
+	{{.Path}}{{end}}{{end}}
 {{else}}{{range .List}}
 	{{repeat `. ` .Depth}}{{.Name}}{{end}}
 {{end}}{{end}}
