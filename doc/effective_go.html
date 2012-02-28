@@ -31,8 +31,10 @@ will be easy for other Go programmers to understand.
 
 <p>
 This document gives tips for writing clear, idiomatic Go code.
-It augments the <a href="go_spec.html">language specification</a>
-and the <a href="go_tutorial.html">tutorial</a>, both of which you
+It augments the <a href="go_spec.html">language specification</a>,
+the <a href="http://tour.golang.org/">Tour of Go</a>,
+and <a href="/doc/code.html">How to Write Go Code</a>,
+all of which you
 should read first.
 </p>
 
@@ -1454,7 +1456,7 @@ fmt.Println(fmt.Sprint("Hello ", 23))
 </pre>
 <p>
 As mentioned in
-the <a href="go_tutorial.html">tutorial</a>, <code>fmt.Fprint</code>
+the <a href="http://code.google.com/p/go-tour/">Tour</a>, <code>fmt.Fprint</code>
 and friends take as a first argument any object
 that implements the <code>io.Writer</code> interface; the variables <code>os.Stdout</code>
 and <code>os.Stderr</code> are familiar instances.

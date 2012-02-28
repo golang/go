@@ -8,7 +8,6 @@ HTML=\
 	articles/slices_usage_and_internals.html\
 	effective_go.html\
 	go1.html\
-	go_tutorial.html\
 
 all: tmpltohtml $(HTML)
 

@@ -5,7 +5,7 @@
 
 set -e
 
-TMPL=${1:-go_tutorial.tmpl}                        # input file
+TMPL=${1:-effective_go.tmpl}                        # input file
 HTML=$(dirname $TMPL)/$(basename $TMPL .tmpl).html # output file
 
 if ! test -w $HTML

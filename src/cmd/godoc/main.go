@@ -7,7 +7,7 @@
 // Web server tree:
 //
 //	http://godoc/		main landing page
-//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
+//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, etc.
 //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
 //	http://godoc/cmd/	serve documentation about commands
 //	http://godoc/pkg/	serve documentation about packages
