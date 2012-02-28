@@ -12,6 +12,9 @@
 			<dl>
 			<dd><a href="#overview">Overview</a></dd>
 			<dd><a href="#index">Index</a></dd>
+			{{if $.Examples}}
+				<dd><a href="#examples">Examples</a></dd>
+			{{end}}
 			{{if $.Dirs}}
 				<dd><a href="#subdirectories">Subdirectories</a></dd>
 			{{end}}
@@ -54,7 +57,7 @@
 		</dl>
 
 		{{if $.Examples}}
-			<h4>Examples</h4>
+			<h4 id="examples">Examples</h4>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
