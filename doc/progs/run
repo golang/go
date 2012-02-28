@@ -14,12 +14,6 @@ fi
 
 rm -f *.$O
 
-if [ "$GOOS" = "windows" ];then
-	$GC -o file.$O file_windows.go
-else
-	$GC file.go
-fi
-
 defer_panic_recover="
 	defer.go 
 	defer2.go 
@@ -38,29 +32,10 @@ error_handling="
 	error4.go
 "
 
-go_tutorial="
-	cat.go 
-	cat_rot13.go 
-	echo.go 
-	helloworld.go 
-	helloworld3.go 
-	print.go 
-	print_string.go 
-	server.go 
-	server1.go 
-	sieve.go 
-	sieve1.go 
-	sort.go 
-	sortmain.go 
-	strings.go 
-	sum.go 
-"
-
 for i in \
 	$defer_panic_recover \
 	$effective_go \
 	$error_handling \
-	$go_tutorial \
 	slices.go \
 	go1.go \
 ; do
@@ -80,42 +55,9 @@ function testit {
 	fi
 }
 
-function testitpipe {
-	$LD $1.$O
-	./$O.out | $2 2>&1 >"$TMPFILE" || true
-	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
-	if [ "$x" != "$3" ]
-	then
-		echo $1 failed: '"'$x'"' is not '"'$3'"'
-	fi
-}
 
-
-testit helloworld "" "Hello, world; or Καλημέρα κόσμε; or こんにちは 世界"
-testit helloworld3 "" "hello, world can't open file; err=no such file or directory"
-testit echo "hello, world" "hello, world"
-testit sum "" "6"
-testit strings "" ""
 testit defer "" "0 3210 2"
 testit defer2 "" "Calling g. Printing in g 0 Printing in g 1 Printing in g 2 Printing in g 3 Panicking! Defer in g 3 Defer in g 2 Defer in g 1 Defer in g 0 Recovered in f 4 Returned normally from f."
-
-alphabet=abcdefghijklmnopqrstuvwxyz
-rot13=nopqrstuvwxyzabcdefghijklm
-echo $alphabet | testit cat "" $alphabet
-echo $alphabet | testit cat_rot13 "--rot13" $rot13
-echo $rot13 | testit cat_rot13 "--rot13" $alphabet
-
-testit sortmain "" "Sunday Monday Tuesday Wednesday Thursday Friday Saturday"
-
-testit print "" "18446744073709551615 -1 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4]"
-testit print_string "" "77 Sunset Strip"
-
-testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
-testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
-
-# server hangs; don't run it, just compile it
-$GC server.go
-testit server1 "" ""
 
 testit eff_bytesize "" "1.00YB 9.09TB"
 testit eff_sequence "" "[-1 2 6 16 44]"
