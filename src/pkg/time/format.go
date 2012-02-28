@@ -6,14 +6,6 @@ package time
 
 import "errors"
 
-const (
-	numeric = iota
-	alphabetic
-	separator
-	plus
-	minus
-)
-
 // These are predefined layouts for use in Time.Format.
 // The standard time used in the layouts is:
 //	Mon Jan 2 15:04:05 MST 2006

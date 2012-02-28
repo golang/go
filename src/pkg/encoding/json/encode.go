@@ -189,11 +189,6 @@ func (e *MarshalerError) Error() string {
 	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
 }
 
-type interfaceOrPtrValue interface {
-	IsNil() bool
-	Elem() reflect.Value
-}
-
 var hex = "0123456789abcdef"
 
 // An encodeState encodes JSON into a bytes.Buffer.

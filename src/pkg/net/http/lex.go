@@ -14,14 +14,6 @@ func isSeparator(c byte) bool {
 	return false
 }
 
-func isSpace(c byte) bool {
-	switch c {
-	case ' ', '\t', '\r', '\n':
-		return true
-	}
-	return false
-}
-
 func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }
 
 func isChar(c byte) bool { return 0 <= c && c <= 127 }

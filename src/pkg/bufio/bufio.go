@@ -23,7 +23,6 @@ var (
 	ErrInvalidUnreadRune = errors.New("bufio: invalid use of UnreadRune")
 	ErrBufferFull        = errors.New("bufio: buffer full")
 	ErrNegativeCount     = errors.New("bufio: negative count")
-	errInternal          = errors.New("bufio: internal error")
 )
 
 // Buffered input.

@@ -767,10 +767,6 @@ func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
 }
 
-type gobError string
-
-func (g gobError) Error() string { return string(g) }
-
 const timeGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
