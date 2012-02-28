@@ -5,11 +5,9 @@
 package tls
 
 /*
-// Note: We disable -Werror here because the code in this file uses a deprecated API to stay
-// compatible with both Mac OS X 10.6 and 10.7. Using a deprecated function on Darwin generates
-// a warning.
-#cgo CFLAGS: -Wno-error -Wno-deprecated-declarations
+#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
+
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 
@@ -40,26 +38,12 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
 			continue;
 		}
 
-		// SecKeychainImportExport is deprecated in >= OS X 10.7, and has been replaced by
-		// SecItemExport.  If we're built on a host with a Lion SDK, this code gets conditionally
-		// included in the output, also for binaries meant for 10.6.
-		//
-		// To make sure that we run on both Mac OS X 10.6 and 10.7 we use weak linking
-		// and check whether SecItemExport is available before we attempt to call it. On
-		// 10.6, this won't be the case, and we'll fall back to calling SecKeychainItemExport.
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
-		if (SecItemExport) {
-			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
-			if (err != noErr) {
-				continue;
-			}
-		} else
-#endif
-		if (data == NULL) {
-			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
-			if (err != noErr) {
-				continue;
-			}
+		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
+		// Once we support weak imports via cgo we should prefer that, and fall back to this
+		// for older systems.
+		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+		if (err != noErr) {
+			continue;
 		}
 
 		if (data != NULL) {
