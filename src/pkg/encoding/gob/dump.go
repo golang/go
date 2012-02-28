@@ -7,6 +7,7 @@
 package main
 
 // Need to compile package gob with debug.go to build this program.
+// See comments in debug.go for how to do this.
 
 import (
 	"encoding/gob"

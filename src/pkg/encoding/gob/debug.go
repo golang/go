@@ -3,14 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Delete the next line to include in the gob package.
-// +build gob-debug
+// +build ignore
 
 package gob
 
 // This file is not normally included in the gob package.  Used only for debugging the package itself.
-// Add debug.go to the files listed in the Makefile to add Debug to the gob package.
 // Except for reading uints, it is an implementation of a reader that is independent of
 // the one implemented by Decoder.
+// To enable the Debug function, delete the +build ignore line above and do
+//	go install
 
 import (
 	"bytes"
