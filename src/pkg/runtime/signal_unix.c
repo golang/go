@@ -55,17 +55,17 @@ void
 runtime·resetcpuprofiler(int32 hz)
 {
 	Itimerval it;
-	
+
 	runtime·memclr((byte*)&it, sizeof it);
 	if(hz == 0) {
 		runtime·setitimer(ITIMER_PROF, &it, nil);
-		runtime·setsig(SIGPROF, SIG_IGN, true);
+		runtime·setprof(false);
 	} else {
-		runtime·setsig(SIGPROF, runtime·sighandler, true);
 		it.it_interval.tv_sec = 0;
 		it.it_interval.tv_usec = 1000000 / hz;
 		it.it_value = it.it_interval;
 		runtime·setitimer(ITIMER_PROF, &it, nil);
+		runtime·setprof(true);
 	}
 	m->profilehz = hz;
 }

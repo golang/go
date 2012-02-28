@@ -228,7 +228,7 @@ runtime·memlimit(void)
 	Rlimit rl;
 	extern byte text[], end[];
 	uintptr used;
-	
+
 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
 		return 0;
 	if(rl.rlim_cur >= 0x7fffffff)
@@ -248,4 +248,10 @@ runtime·memlimit(void)
 		return 0;
 
 	return rl.rlim_cur - used;
+}
+
+void
+runtime·setprof(bool on)
+{
+	USED(on);
 }

@@ -40,7 +40,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	r = &mc->ss;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
+		if(gp != m->g0 && gp != m->gsignal)
+			runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
 		return;
 	}
 
@@ -58,7 +59,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 			if(pc[0] == 0xF6 || pc[0] == 0xF7)
 				info->si_code = FPE_INTDIV;
 		}
-		
+
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break

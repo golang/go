@@ -87,7 +87,7 @@ runtime·nanotime(void)
 	// The naïve implementation (without the cached
 	// file descriptor) is roughly four times slower
 	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
-	
+
 	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
 		return 0;
 	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
@@ -240,4 +240,10 @@ uintptr
 runtime·memlimit(void)
 {
 	return 0;
+}
+
+void
+runtime·setprof(bool on)
+{
+	USED(on);
 }

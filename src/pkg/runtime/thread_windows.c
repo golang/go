@@ -226,7 +226,7 @@ void
 time·now(int64 sec, int32 usec)
 {
 	int64 ns;
-	
+
 	ns = runtime·nanotime();
 	sec = ns / 1000000000LL;
 	usec = ns - sec * 1000000000LL;
@@ -430,4 +430,10 @@ uintptr
 runtime·memlimit(void)
 {
 	return 0;
+}
+
+void
+runtime·setprof(bool on)
+{
+	USED(on);
 }

@@ -100,14 +100,14 @@ TEXT runtime·nanotime(SB), 7, $32
 	IMULL	$1000, BX
 	ADDL	BX, AX
 	ADCL	$0, DX
-	
+
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
 	RET
 
 TEXT runtime·sigprocmask(SB),7,$0
-	MOVL	$48, AX
+	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
 	INT	$0x80
 	JAE	2(PC)
 	CALL	runtime·notok(SB)

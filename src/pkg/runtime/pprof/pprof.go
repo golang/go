@@ -20,8 +20,8 @@ import (
 	"text/tabwriter"
 )
 
-// BUG(rsc): CPU profiling is broken on OS X, due to an Apple kernel bug.
-// For details, see http://code.google.com/p/go/source/detail?r=35b716c94225.
+// BUG(rsc): A bug in the OS X Snow Leopard 64-bit kernel prevents
+// CPU profiling from giving accurate results on that system.
 
 // A Profile is a collection of stack traces showing the call sequences
 // that led to instances of a particular event, such as allocation.
@@ -156,7 +156,7 @@ func (p *Profile) Count() int {
 }
 
 // Add adds the current execution stack to the profile, associated with value.
-// Add stores value in an internal map, so value must be suitable for use as 
+// Add stores value in an internal map, so value must be suitable for use as
 // a map key and will not be garbage collected until the corresponding
 // call to Remove.  Add panics if the profile already contains a stack for value.
 //

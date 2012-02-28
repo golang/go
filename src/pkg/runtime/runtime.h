@@ -730,3 +730,13 @@ bool	runtime·showframe(Func*);
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
 
 uintptr	runtime·memlimit(void);
+
+// If appropriate, ask the operating system to control whether this
+// thread should receive profiling signals.  This is only necessary on OS X.
+// An operating system should not deliver a profiling signal to a
+// thread that is not actually executing (what good is that?), but that's
+// what OS X prefers to do.  When profiling is turned on, we mask
+// away the profiling signal when threads go to sleep, so that OS X
+// is forced to deliver the signal to a thread that's actually running.
+// This is a no-op on other systems.
+void	runtime·setprof(bool);
