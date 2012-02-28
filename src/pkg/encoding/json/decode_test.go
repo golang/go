@@ -239,16 +239,6 @@ func TestEscape(t *testing.T) {
 	}
 }
 
-func TestHTMLEscape(t *testing.T) {
-	b, err := MarshalForHTML("foobarbaz<>&quux")
-	if err != nil {
-		t.Fatalf("MarshalForHTML error: %v", err)
-	}
-	if !bytes.Equal(b, []byte(`"foobarbaz\u003c\u003e\u0026quux"`)) {
-		t.Fatalf("Unexpected encoding of \"<>&\": %s", b)
-	}
-}
-
 // WrongString is a struct that's misusing the ,string modifier.
 type WrongString struct {
 	Message string `json:"result,string"`
