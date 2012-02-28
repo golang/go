@@ -3,7 +3,8 @@ body {
 	font-family: Helvetica, Arial, sans-serif;
 	font-size: 16px;
 }
-pre, code {
+pre,
+code {
 	font-family: Menlo, monospace;
 	font-size: 14px;
 }
@@ -33,7 +34,10 @@ a {
 	color: #375EAB;
 	text-decoration: none;
 }
-p, pre, ul, ol {
+p,
+pre,
+ul,
+ol {
 	margin: 20px;
 }
 pre {
@@ -45,7 +49,11 @@ pre {
 	border-radius: 5px;
 }
 
-h1, h2, h3, h4, .rootHeading {
+h1,
+h2,
+h3,
+h4,
+.rootHeading {
 	margin: 20px 0;
 	padding: 0;
 	color: #375EAB;
@@ -62,7 +70,8 @@ h2 {
 h3 {
 	font-size: 18px;
 }
-h3, h4 {
+h3,
+h4 {
 	margin: 20px 5px;
 }
 h4 {
@@ -73,7 +82,10 @@ h4 {
 	margin: 0;
 }
 
-h1 a, h2 a, h3 a, h4 a {
+h1 a,
+h2 a,
+h3 a,
+h4 a {
 	text-decoration: underline;
 }
 
@@ -83,10 +95,11 @@ dl {
 dd {
 	margin: 2px 20px;
 }
-dl, dd {
+dl,
+dd {
 	font-size: 14px;
 }
-#nav table td {
+div#nav table td {
 	vertical-align: top;
 }
 
@@ -102,50 +115,50 @@ table.dir td {
 	color: #AA0000;
 }
 
-#heading {
+div#heading {
 	float: left;
 	margin: 0 0 10px 0;
 	padding: 16px 0;
 	font-size: 26px;
 	font-weight: normal;
 }
-#heading a {
+div#heading a {
 	color: #222;
 	text-decoration: none;
 }
 
-#topbar {
+div#topbar {
 	background: #E0EBF5;
 }
 
 body {
 	text-align: center;
 }
-#page,
-#topbar .container {
+div#page,
+div#topbar .container {
 	clear: both;
 	text-align: left;
 	margin-left: auto;
 	margin-right: auto;
 	width: 900px;
 }
-#plusone {
+div#plusone {
 	float: right;
 }
-#plusoneRoot {
+div#plusoneRoot {
 	float: right;
 }
 
-#copyright {
+div#copyright {
 	color: #666;
 	font-size: 14px;
 	margin: 40px 0;
 }
 
-#menu > a,
-#menu > input,
-#learn .buttons a,
-#blog .read a {
+div#menu > a,
+div#menu > input,
+div#learn .buttons a,
+div#blog .read a {
 	padding: 10px;
 
 	text-decoration: none;
@@ -155,74 +168,75 @@ body {
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 }
-#menu > a,
-#menu > input {
+div#menu > a,
+div#menu > input {
 	border: 1px solid #375EAB;
 }
-#menu > a {
+div#menu > a {
 	color: white;
 	background: #375EAB;
 }
-#start,
-#learn .buttons a,
-#blog .read a {
+a#start,
+div#learn .buttons a,
+div#blog .read a {
 	color: #222;
 	border: 1px solid #375EAB;
 	background: #E0EBF5;
 }
 
-#menu {
+div#menu {
 	padding: 10px 0;
 	text-align: right;
 }
-#menu > a {
+div#menu > a {
 	margin-right: 5px;
 	margin-bottom: 10px;
 
 	padding: 10px;
 }
-#menu > input {
+div#menu > input {
 	position: relative;
 	top: 1px;
 	width: 100px;
 	background: white;
 	color: #222;
 }
-#menu > input.inactive {
+div#menu > input.inactive {
 	color: #999;
 }
 
-#left {
+div#left {
 	float: left;
 }
-#right {
+div#right {
 	float: right;
 }
-#left, #right {
+div#left,
+div#right {
 	width: 415px;
 }
 
-#learn,
-#about {
+div#learn,
+div#about {
 	padding-top: 20px;
 }
-#learn h2,
-#about {
+div#learn h2,
+div#about {
 	margin: 0;
 }
-#about {
+div#about {
 	font-size: 20px;
 }
 
-#about {
+div#about {
 	height: 96px;
 }
-#gopher {
+div#gopher {
 	background: url(/doc/gopher/frontpage.png) no-repeat;
 	background-position: center top;
 	height: 155px;
 }
-#start {
+a#start {
 	display: block;
 	padding: 10px;
 
@@ -233,23 +247,24 @@ body {
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 }
-#start .big {
+a#start .big {
 	font-weight: bold;
 	font-size: 20px;
 }
-#start .desc {
+a#start .desc {
 	font-size: 14px;
 	font-weight: normal;
 	margin-top: 5px;
 }
 
-#learn pre, #learn textarea {
+div#learn pre,
+div#learn textarea {
 	padding: 0;
 	margin: 0;
 	font-family: Menlo, monospace;
 	font-size: 14px;
 }
-#learn .input {
+div#learn .input {
 	padding: 10px;
 	margin-top: 10px;
 	height: 150px;
@@ -261,14 +276,14 @@ body {
 	border-top-left-radius: 5px;
 	border-top-right-radius: 5px;
 }
-#learn .input textarea {
+div#learn .input textarea {
 	width: 100%;
 	height: 100%;
 	border: none;
 	outline: none;
 	resize: none;
 }
-#learn .output {
+div#learn .output {
 	border-top: none !important;
 
 	padding: 10px;
@@ -282,58 +297,65 @@ body {
 	border-bottom-right-radius: 5px;
 	border-bottom-left-radius: 5px;
 }
-#learn .output pre {
+div#learn .output pre {
 	padding: 0;
 
 	-webkit-border-radius: 0;
 	-moz-border-radius: 0;
 	border-radius: 0;
 }
-#learn .input,
-#learn .input textarea,
-#learn .output,
-#learn .output pre {
+div#learn .input,
+div#learn .input textarea,
+div#learn .output,
+div#learn .output pre {
 	background: #FFFFD8;
 }
-#learn .input,
-#learn .output {
+div#learn .input,
+div#learn .output {
 	border: 1px solid #375EAB;
 }
-#learn .buttons {
+div#learn .buttons {
 	padding: 20px 0 10px 0;
 	text-align: right;
 }
-#learn .buttons a {
+div#learn .buttons a {
 	height: 16px;
 	margin-left: 5px;
 
 	padding: 10px;
 }
-#learn .buttons .tour {
+div#learn .buttons .tour {
 	float: right;
 }
-#learn .buttons .tour a {
+div#learn .buttons .tour a {
 	margin-right: 0;
 	font-weight: bold;
 }
 
-#blog, #video {
+div#blog,
+div#video {
 	margin-top: 40px;
 }
-#blog > div, #blog > a, #video > div, #video > a, #blog > h2, #video > h2 {
+div#blog > a,
+div#blog > div,
+div#blog > h2,
+div#video > a,
+div#video > div,
+div#video > h2 {
 	margin-bottom: 10px;
 }
-#blog .title, #video .title {
+div#blog .title,
+div#video .title {
 	color: #222;
 	text-decoration: none;
 	display: block;
 	font-size: 20px;
 }
-#blog .when {
+div#blog .when {
 	color: #666;
 	font-size: 14px;
 }
-#blog .read {
+div#blog .read {
 	text-align: right;
 }
 
