@@ -20,7 +20,7 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
 		name:    basename(name),
 		size:    int64(st.Size),
 		modTime: timespecToTime(st.Mtim),
-		Sys:     st,
+		sys:     st,
 	}
 	fs.mode = FileMode(st.Mode & 0777)
 	switch st.Mode & syscall.S_IFMT {
