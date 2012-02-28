@@ -27,8 +27,9 @@ var (
 	allErrors = flag.Bool("e", false, "print all (including spurious) errors")
 
 	// debugging support
-	printTrace = flag.Bool("trace", false, "print parse trace")
-	printAST   = flag.Bool("ast", false, "print AST")
+	parseComments = flag.Bool("comments", false, "parse comments (ignored if -ast not set)")
+	printTrace    = flag.Bool("trace", false, "print parse trace")
+	printAST      = flag.Bool("ast", false, "print AST")
 )
 
 var exitCode = 0
@@ -72,6 +73,9 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
 	mode := parser.DeclarationErrors
 	if *allErrors {
 		mode |= parser.SpuriousErrors
+	}
+	if *parseComments && *printAST {
+		mode |= parser.ParseComments
 	}
 	if *printTrace {
 		mode |= parser.Trace

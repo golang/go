@@ -34,6 +34,8 @@ The flags are:
 		Verbose mode.
 
 Debugging flags:
+	-comments
+		Parse comments (ignored if -ast not set).
 	-ast
 		Print AST (disables concurrent parsing).
 	-trace
