@@ -12,9 +12,6 @@ import (
 	"runtime"
 )
 
-// ToolDir is the directory containing build tools.
-var ToolDir = filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
-
 // Path is a validated list of Trees derived from $GOROOT and $GOPATH at init.
 var Path []*Tree
 
@@ -126,16 +123,6 @@ func FindTree(path string) (tree *Tree, pkg string, err error) {
 		err = ErrNotFound
 	}
 	return
-}
-
-// isLocalPath returns whether the given path is local (/foo ./foo ../foo . ..)
-// Windows paths that starts with drive letter (c:\foo c:foo) are considered local.
-func isLocalPath(s string) bool {
-	const sep = string(filepath.Separator)
-	return s == "." || s == ".." ||
-		filepath.HasPrefix(s, sep) ||
-		filepath.HasPrefix(s, "."+sep) || filepath.HasPrefix(s, ".."+sep) ||
-		filepath.VolumeName(s) != ""
 }
 
 var (
