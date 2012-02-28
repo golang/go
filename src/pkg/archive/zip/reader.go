@@ -169,34 +169,6 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 
 func (r *checksumReader) Close() error { return r.rc.Close() }
 
-func readFileHeader(f *File, r io.Reader) error {
-	var buf [fileHeaderLen]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return err
-	}
-	b := readBuf(buf[:])
-	if sig := b.uint32(); sig != fileHeaderSignature {
-		return ErrFormat
-	}
-	f.ReaderVersion = b.uint16()
-	f.Flags = b.uint16()
-	f.Method = b.uint16()
-	f.ModifiedTime = b.uint16()
-	f.ModifiedDate = b.uint16()
-	f.CRC32 = b.uint32()
-	f.CompressedSize = b.uint32()
-	f.UncompressedSize = b.uint32()
-	filenameLen := int(b.uint16())
-	extraLen := int(b.uint16())
-	d := make([]byte, filenameLen+extraLen)
-	if _, err := io.ReadFull(r, d); err != nil {
-		return err
-	}
-	f.Name = string(d[:filenameLen])
-	f.Extra = d[filenameLen:]
-	return nil
-}
-
 // findBodyOffset does the minimum work to verify the file has a header
 // and returns the file body offset.
 func (f *File) findBodyOffset() (int64, error) {
