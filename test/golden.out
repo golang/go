@@ -17,5 +17,8 @@
 
 == bugs/
 
+=========== bugs/424.go
+BUG: myT3: lib.T.m called
+
 =========== bugs/bug395.go
 bug395 is broken
