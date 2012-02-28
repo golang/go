@@ -169,7 +169,7 @@ func postCommit(key, pkg string, l *HgLog) error {
 		"PackagePath": pkg,
 		"Hash":        l.Hash,
 		"ParentHash":  l.Parent,
-		"Time":        t.Unix() * 1e6, // in microseconds, yuck!
+		"Time":        t.Format(time.RFC3339),
 		"User":        l.Author,
 		"Desc":        l.Desc,
 	}, nil)
