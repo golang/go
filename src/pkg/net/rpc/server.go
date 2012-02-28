@@ -13,12 +13,18 @@
 	Only methods that satisfy these criteria will be made available for remote access;
 	other methods will be ignored:
 
-		- the method name is exported, that is, begins with an upper case letter.
-		- the method receiver is exported or local (defined in the package
-		  registering the service).
-		- the method has two arguments, both exported or local types.
+		- the method is exported.
+		- the method has two arguments, both exported (or builtin) types.
 		- the method's second argument is a pointer.
 		- the method has return type error.
+
+	In effect, the method must look schematically like
+
+		func (t *T) MethodName(argType T1, replyType *T2) error
+
+	where T, T1 and T2 can be marshaled by encoding/gob.
+	These requirements apply even if a different codec is used.
+	(In future, these requirements may soften for custom codecs.)
 
 	The method's first argument represents the arguments provided by the caller; the
 	second argument represents the result parameters to be returned to the caller.
@@ -36,10 +42,12 @@
 	call, a pointer containing the arguments, and a pointer to receive the result
 	parameters.
 
-	Call waits for the remote call to complete; Go launches the call asynchronously
-	and returns a channel that will signal completion.
+	The Call method waits for the remote call to complete while the Go method
+	launches the call asynchronously and signals completion using the Call
+	structure's Done channel.
 
-	Package "gob" is used to transport the data.
+	Unless an explicit codec is set up, package encoding/gob is used to
+	transport the data.
 
 	Here is a simple example.  A server wishes to export an object of type Arith:
 
@@ -256,6 +264,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		method := s.typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
+		// Method must be exported.
 		if method.PkgPath != "" {
 			continue
 		}
@@ -267,7 +276,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		// First arg need not be a pointer.
 		argType := mtype.In(1)
 		if !isExportedOrBuiltinType(argType) {
-			log.Println(mname, "argument type not exported or local:", argType)
+			log.Println(mname, "argument type not exported:", argType)
 			continue
 		}
 		// Second arg must be a pointer.
@@ -276,15 +285,17 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 			log.Println("method", mname, "reply type not a pointer:", replyType)
 			continue
 		}
+		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			log.Println("method", mname, "reply type not exported or local:", replyType)
+			log.Println("method", mname, "reply type not exported:", replyType)
 			continue
 		}
-		// Method needs one out: error.
+		// Method needs one out.
 		if mtype.NumOut() != 1 {
 			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
 			continue
 		}
+		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
 			log.Println("method", mname, "returns", returnType.String(), "not error")
 			continue
@@ -301,10 +312,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 	return nil
 }
 
-// A value sent as a placeholder for the response when the server receives an invalid request.
-type InvalidRequest struct{}
-
-var invalidRequest = InvalidRequest{}
+// A value sent as a placeholder for the server's response value when the server
+// receives an invalid request. It is never decoded by the client since the Response
+// contains an error when it is used.
+var invalidRequest = struct{}{}
 
 func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec ServerCodec, errmsg string) {
 	resp := server.getResponse()
