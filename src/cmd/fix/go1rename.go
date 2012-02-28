@@ -39,6 +39,12 @@ var go1renameReplace = []rename{
 		New:       "cipher.Block",
 	},
 	{
+		OldImport: "encoding/json",
+		NewImport: "",
+		Old:       "json.MarshalForHTML",
+		New:       "json.Marshal",
+	},
+	{
 		OldImport: "net/url",
 		NewImport: "",
 		Old:       "url.ParseWithReference",

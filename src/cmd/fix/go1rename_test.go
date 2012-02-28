@@ -16,6 +16,7 @@ var go1renameTests = []testCase{
 import (
 	"crypto/aes"
 	"crypto/des"
+	"encoding/json"
 	"net/url"
 	"os"
 	"runtime"
@@ -25,6 +26,7 @@ var (
 	_ *aes.Cipher
 	_ *des.Cipher
 	_ *des.TripleDESCipher
+	_ = json.MarshalForHTML
 	_ = aes.New()
 	_ = url.Parse
 	_ = url.ParseWithReference
@@ -39,6 +41,7 @@ var (
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/json"
 	"net/url"
 	"runtime"
 	"syscall"
@@ -48,6 +51,7 @@ var (
 	_ cipher.Block
 	_ cipher.Block
 	_ cipher.Block
+	_ = json.Marshal
 	_ = aes.New()
 	_ = url.Parse
 	_ = url.Parse

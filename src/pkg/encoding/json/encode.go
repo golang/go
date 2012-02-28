@@ -123,17 +123,6 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// MarshalForHTML is like Marshal but applies HTMLEscape to the output.
-func MarshalForHTML(v interface{}) ([]byte, error) {
-	b, err := Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	HTMLEscape(&buf, b)
-	return buf.Bytes(), nil
-}
-
 // HTMLEscape appends to dst the JSON-encoded src with <, >, and &
 // characters inside string literals changed to \u003c, \u003e, \u0026
 // so that the JSON will be safe to embed inside HTML <script> tags.
