@@ -641,6 +641,9 @@ main(int argc, char **argv)
 	Buf b;
 	struct utsname u;
 
+	setvbuf(stdout, nil, _IOLBF, 0);
+	setvbuf(stderr, nil, _IOLBF, 0);
+
 	binit(&b);
 	
 	slash = "/";
