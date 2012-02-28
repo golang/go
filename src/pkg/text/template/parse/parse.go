@@ -193,6 +193,8 @@ func (t *Tree) add(treeSet map[string]*Tree) {
 // IsEmptyTree reports whether this tree (node) is empty of everything but space.
 func IsEmptyTree(n Node) bool {
 	switch n := n.(type) {
+	case nil:
+		return true
 	case *ActionNode:
 	case *IfNode:
 	case *ListNode:

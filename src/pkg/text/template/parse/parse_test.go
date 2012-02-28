@@ -287,6 +287,9 @@ var isEmptyTests = []isEmptyTest{
 }
 
 func TestIsEmpty(t *testing.T) {
+	if !IsEmptyTree(nil) {
+		t.Errorf("nil tree is not empty")
+	}
 	for _, test := range isEmptyTests {
 		tree, err := New("root").Parse(test.input, "", "", make(map[string]*Tree), nil)
 		if err != nil {
