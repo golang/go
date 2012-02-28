@@ -59,7 +59,7 @@ int
 find(char *p, char **l, int n)
 {
 	int i;
-	
+
 	for(i=0; i<n; i++)
 		if(streq(p, l[i]))
 			return i;
@@ -73,7 +73,7 @@ init(void)
 	char *p;
 	int i;
 	Buf b;
-	
+
 	binit(&b);
 
 	xgetenv(&b, "GOROOT");
@@ -126,7 +126,7 @@ init(void)
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
 	xsetenv("GOOS", goos);
-	
+
 	// Make the environment more predictable.
 	xsetenv("LANG", "C");
 	xsetenv("LANGUAGE", "en_US.UTF8");
@@ -170,13 +170,13 @@ findgoversion(void)
 	int i, nrev;
 	Buf b, path, bmore, branch;
 	Vec tags;
-	
+
 	binit(&b);
 	binit(&path);
 	binit(&bmore);
 	binit(&branch);
 	vinit(&tags);
-	
+
 	// The $GOROOT/VERSION file takes priority, for distributions
 	// without the Mercurial repo.
 	bpathf(&path, "%s/VERSION", goroot);
@@ -232,14 +232,14 @@ findgoversion(void)
 		bprintf(&b, "branch.%s", bstr(&branch));
 		tag = btake(&b);
 	}
-	
+
 	if(rev[0]) {
 		// Tag is before the revision we're building.
 		// Add extra information.
 		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short}", "-r", rev, nil);
 		chomp(&bmore);
 	}
-	
+
 	bprintf(&b, "%s", tag);
 	if(bmore.len > 0)
 		bwriteb(&b, &bmore);
@@ -249,14 +249,14 @@ findgoversion(void)
 
 done:
 	p = btake(&b);
-	
-	
+
+
 	bfree(&b);
 	bfree(&path);
 	bfree(&bmore);
 	bfree(&branch);
 	vfree(&tags);
-	
+
 	return p;
 }
 
@@ -325,7 +325,7 @@ setup(void)
 			xremoveall(p);
 		xmkdirall(p);
 	}
-	
+
 	// Create object directory.
 	// We keep it in pkg/ so that all the generated binaries
 	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
@@ -393,7 +393,7 @@ static char *proto_gccargs[] = {
 static Vec gccargs;
 
 // deptab lists changes to the default dependencies for a given prefix.
-// deps ending in /* read the whole directory; deps beginning with - 
+// deps ending in /* read the whole directory; deps beginning with -
 // exclude files with that prefix.
 static struct {
 	char *prefix;  // prefix of target
@@ -559,7 +559,7 @@ install(char *dir)
 	vinit(&clean);
 	vinit(&lib);
 	vinit(&extra);
-	
+
 	// path = full path to dir.
 	bpathf(&path, "%s/src/%s", goroot, dir);
 	name = lastelem(dir);
@@ -599,7 +599,7 @@ install(char *dir)
 	exe = "";
 	if(streq(gohostos, "windows"))
 		exe = ".exe";
-	
+
 	// Start final link command line.
 	// Note: code below knows that link.p[targ] is the target.
 	if(islib) {
@@ -696,13 +696,13 @@ install(char *dir)
 					}
 					files.len = n;
 					continue;
-				}				
+				}
 				vadd(&files, p);
 			}
 		}
 	}
 	vuniq(&files);
-	
+
 	// Convert to absolute paths.
 	for(i=0; i<files.len; i++) {
 		if(!isabs(files.p[i])) {
@@ -740,11 +740,11 @@ install(char *dir)
 		files.p[n++] = files.p[i];
 	}
 	files.len = n;
-	
+
 	for(i=0; i<lib.len && !stale; i++)
 		if(mtime(lib.p[i]) > ttarg)
 			stale = 1;
-		
+
 	if(!stale)
 		goto out;
 
@@ -792,9 +792,9 @@ install(char *dir)
 		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
 	}
-	
+
 	// Generate .c files from .goc files.
-	if(streq(dir, "pkg/runtime")) {		
+	if(streq(dir, "pkg/runtime")) {
 		for(i=0; i<files.len; i++) {
 			p = files.p[i];
 			if(!hassuffix(p, ".goc"))
@@ -808,7 +808,7 @@ install(char *dir)
 		}
 		vuniq(&files);
 	}
-	
+
 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
 		// We've generated the right files; the go command can do the build.
 		if(vflag > 1)
@@ -833,13 +833,13 @@ install(char *dir)
 				vadd(&compile, "-m32");
 			if(streq(dir, "lib9"))
 				vadd(&compile, "-DPLAN9PORT");
-	
+
 			vadd(&compile, "-I");
 			vadd(&compile, bpathf(&b, "%s/include", goroot));
-			
+
 			vadd(&compile, "-I");
 			vadd(&compile, bstr(&path));
-	
+
 			// lib9/goos.c gets the default constants hard-coded.
 			if(streq(name, "goos.c")) {
 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
@@ -849,7 +849,7 @@ install(char *dir)
 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
 			}
-	
+
 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
 			if(streq(name, "lex.c")) {
 				xgetenv(&b, "GOEXPERIMENT");
@@ -867,7 +867,7 @@ install(char *dir)
 			vadd(&compile, workdir);
 			vadd(&compile, bprintf(&b, "-DGOOS_%s", goos));
 			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goarch));
-		}	
+		}
 
 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
 		doclean = 1;
@@ -893,7 +893,7 @@ install(char *dir)
 			vadd(&clean, bstr(&b));
 	}
 	bgwait();
-	
+
 	if(isgo) {
 		// The last loop was compiling individual files.
 		// Hand the Go files to the compiler en masse.
@@ -905,16 +905,16 @@ install(char *dir)
 		vadd(&compile, bstr(&b));
 		vadd(&clean, bstr(&b));
 		vadd(&link, bstr(&b));
-		
+
 		vadd(&compile, "-p");
 		if(hasprefix(dir, "pkg/"))
 			vadd(&compile, dir+4);
 		else
 			vadd(&compile, "main");
-		
+
 		if(streq(dir, "pkg/runtime"))
 			vadd(&compile, "-+");
-		
+
 		vcopy(&compile, go.p, go.len);
 
 		runv(nil, bstr(&path), CheckExit, &compile);
@@ -980,7 +980,7 @@ shouldbuild(char *file, char *dir)
 	int i, j, ret;
 	Buf b;
 	Vec lines, fields;
-	
+
 	// Check file name for GOOS or GOARCH.
 	name = lastelem(file);
 	for(i=0; i<nelem(okgoos); i++)
@@ -989,11 +989,11 @@ shouldbuild(char *file, char *dir)
 	for(i=0; i<nelem(okgoarch); i++)
 		if(contains(name, okgoarch[i]) && !streq(okgoarch[i], goarch))
 			return 0;
-	
+
 	// Omit test files.
 	if(contains(name, "_test"))
 		return 0;
-	
+
 	// cmd/go/doc.go has a giant /* */ comment before
 	// it gets to the important detail that it is not part of
 	// package main.  We don't parse those comments,
@@ -1046,7 +1046,7 @@ out:
 	bfree(&b);
 	vfree(&lines);
 	vfree(&fields);
-	
+
 	return ret;
 }
 
@@ -1055,7 +1055,7 @@ static void
 copy(char *dst, char *src, int exec)
 {
 	Buf b;
-	
+
 	if(vflag > 1)
 		xprintf("cp %s %s\n", src, dst);
 
@@ -1070,11 +1070,13 @@ static char *buildorder[] = {
 	"lib9",
 	"libbio",
 	"libmach",
-	
+
 	"misc/pprof",
 
+	"cmd/addr2line",
 	"cmd/cov",
 	"cmd/nm",
+	"cmd/objdump",
 	"cmd/pack",
 	"cmd/prof",
 
@@ -1122,12 +1124,12 @@ static char *buildorder[] = {
 	"pkg/go/scanner",
 	"pkg/go/ast",
 	"pkg/go/parser",
-	"pkg/go/build",
 	"pkg/os/exec",
 	"pkg/net/url",
 	"pkg/text/template/parse",
 	"pkg/text/template",
 	"pkg/go/doc",
+	"pkg/go/build",
 	"cmd/go",
 };
 
@@ -1147,11 +1149,13 @@ static char *cleantab[] = {
 	"cmd/8c",
 	"cmd/8g",
 	"cmd/8l",
+	"cmd/addr2line",
 	"cmd/cc",
 	"cmd/cov",
 	"cmd/gc",
 	"cmd/go",
 	"cmd/nm",
+	"cmd/objdump",
 	"cmd/pack",
 	"cmd/prof",
 	"lib9",
@@ -1204,11 +1208,11 @@ clean(void)
 	int i, j, k;
 	Buf b, path;
 	Vec dir;
-	
+
 	binit(&b);
 	binit(&path);
 	vinit(&dir);
-	
+
 	for(i=0; i<nelem(cleantab); i++) {
 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
 		xreaddir(&dir, bstr(&path));
@@ -1227,7 +1231,7 @@ clean(void)
 	if(rebuildall) {
 		// Remove object tree.
 		xremoveall(bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch));
-	
+
 		// Remove installed packages and tools.
 		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch));
 		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
@@ -1294,7 +1298,7 @@ cmdenv(int argc, char **argv)
 
 	if(argc > 0)
 		usage();
-	
+
 	xprintf(format, "GOROOT", goroot);
 	xprintf(format, "GOBIN", gobin);
 	xprintf(format, "GOARCH", goarch);
@@ -1346,7 +1350,7 @@ cmdbootstrap(int argc, char **argv)
 		clean();
 	goversion = findgoversion();
 	setup();
-	
+
 	// For the main bootstrap, building for host os/arch.
 	oldgoos = goos;
 	oldgoarch = goarch;
@@ -1356,7 +1360,7 @@ cmdbootstrap(int argc, char **argv)
 	gochar = gohostchar;
 	xsetenv("GOARCH", goarch);
 	xsetenv("GOOS", goos);
-	
+
 	for(i=0; i<nelem(buildorder); i++) {
 		install(bprintf(&b, buildorder[i], gohostchar));
 		if(!streq(oldgochar, gohostchar) && xstrstr(buildorder[i], "%s"))
@@ -1381,7 +1385,7 @@ defaulttarg(void)
 {
 	char *p;
 	Buf pwd, src, real_src;
-	
+
 	binit(&pwd);
 	binit(&src);
 	binit(&real_src);
@@ -1404,7 +1408,7 @@ defaulttarg(void)
 	bfree(&pwd);
 	bfree(&src);
 	bfree(&real_src);
-	
+
 	return p;
 }
 
@@ -1421,7 +1425,7 @@ cmdinstall(int argc, char **argv)
 	default:
 		usage();
 	}ARGEND
-	
+
 	if(argc == 0)
 		install(defaulttarg());
 
@@ -1469,7 +1473,7 @@ cmdbanner(int argc, char **argv)
 	binit(&b);
 	binit(&b1);
 	binit(&search);
-	
+
 	xprintf("\n");
 	xprintf("---\n");
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
@@ -1490,7 +1494,7 @@ cmdbanner(int argc, char **argv)
 			"On OS X the debuggers must be installed setgrp procmod.\n"
 			"Read and run ./sudo.bash to install the debuggers.\n");
 	}
-	
+
 	if(!streq(goroot_final, goroot)) {
 		xprintf("\n"
 			"The binaries expect %s to be copied or moved to %s\n",

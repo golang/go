@@ -1,11 +1,11 @@
 // Inferno libmach/8db.c
 // http://code.google.com/p/inferno-os/source/browse/utils/libmach/8db.c
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.
-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+//	Copyright © 1994-1999 Lucent Technologies Inc.
+//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2088,18 +2088,23 @@ immediate(Instr *ip, vlong val)
 static void
 pea(Instr *ip)
 {
+	int base;
+
+	base = ip->base;
+	if(base >= 0 && (ip->rex & REXB))
+		base += 8;
+
 	if (ip->mod == 3) {
 		if (ip->osize == 'B')
 			bprint(ip, (ip->rex & REXB? breg64: breg)[(uchar)ip->base]);
-		else if(ip->rex & REXB)
-			bprint(ip, "%s%s", ANAME(ip), reg[ip->base+8]);
 		else
-			bprint(ip, "%s%s", ANAME(ip), reg[(uchar)ip->base]);
+			bprint(ip, "%s%s", ANAME(ip), reg[base]);
 		return;
 	}
+
 	if (ip->segment)
 		bprint(ip, ip->segment);
-	if (ip->asize == 'E' && ip->base == SP)
+	if (ip->asize == 'E' && base == SP)
 		plocal(ip);
 	else {
 		if (ip->base < 0)

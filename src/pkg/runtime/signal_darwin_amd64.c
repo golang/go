@@ -48,7 +48,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	r = &mc->ss;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
+		if(gp != m->g0 && gp != m->gsignal)
+			runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
 		return;
 	}
 
@@ -68,7 +69,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 			if(pc[0] == 0xF6 || pc[0] == 0xF7)
 				info->si_code = FPE_INTDIV;
 		}
-		
+
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break
@@ -77,7 +78,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		gp->sigcode0 = info->si_code;
 		gp->sigcode1 = (uintptr)info->si_addr;
 		gp->sigpc = r->rip;
-		
+
 		// Only push runtime·sigpanic if r->rip != 0.
 		// If r->rip == 0, probably panicked because of a
 		// call to a nil func.  Not pushing that onto sp will
@@ -92,7 +93,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		r->rip = (uintptr)runtime·sigpanic;
 		return;
 	}
-	
+
 	if(info->si_code == SI_USER || (t->flags & SigNotify))
 		if(runtime·sigsend(sig))
 			return;

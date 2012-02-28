@@ -9,7 +9,6 @@ struct	sigaction;
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·sigprocmask(Sigset *, Sigset *);
 void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
-void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 

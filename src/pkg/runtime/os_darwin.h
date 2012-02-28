@@ -38,4 +38,7 @@ void	runtime·raisesigpipe(void);
 
 #define	NSIG 32
 #define	SI_USER	0  /* empirically true, but not what headers say */
+#define	SIG_BLOCK 1
+#define	SIG_UNBLOCK 2
 #define	SIG_SETMASK 3
+

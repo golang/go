@@ -12,7 +12,6 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
 void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
-void	runtime·setitimerval(int32, Itimerval*, Itimerval*);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
 int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 

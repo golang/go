@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 
 # This is a copy of http://google-perftools.googlecode.com/svn/trunk/src/pprof
-# with local modifications to handle generation of SVG images and 
+# with local modifications to handle generation of SVG images and
 # the Go-style pprof paths.  These modifications will probably filter
 # back into the official source before long.
 # It's convenient to have a copy here because we need just the one
@@ -9,11 +9,11 @@
 
 # Copyright (c) 1998-2007, Google Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
-# 
+#
 #     * Redistributions of source code must retain the above copyright
 # notice, this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above
@@ -23,7 +23,7 @@
 #     * Neither the name of Google Inc. nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -1234,6 +1234,13 @@ sub Disassemble {
   my $cmd = sprintf("$objdump -C -d -l --no-show-raw-insn " .
                     "--start-address=0x$start_addr " .
                     "--stop-address=0x$end_addr $prog");
+
+  if (system("$objdump --help >/dev/null 2>&1") != 0) {
+    # objdump must not exist.  Fall back to go tool objdump.
+    $objdump = "go tool objdump";
+    $cmd = "$objdump $prog 0x$start_addr 0x$end_addr";
+  }
+
   open(OBJDUMP, "$cmd |") || error("$objdump: $!\n");
   my @result = ();
   my $filename = "";
@@ -1305,10 +1312,10 @@ sub PrintListing {
   my $cumulative = shift;
   my $list_opts = shift;
   my $html = shift;
-  
+
   my $output = \*STDOUT;
   my $fname = "";
-  
+
 
   if ($html) {
     # Arrange to write the output to a temporary file
@@ -1323,7 +1330,7 @@ sub PrintListing {
     printf $output ("<div class=\"legend\">%s<br>Total: %s %s</div>\n",
                     $main::prog, Unparse($total), Units());
   }
- 
+
   my $listed = 0;
   foreach my $lib (@{$libs}) {
     my $symbol_table = GetProcedureBoundaries($lib->[0], $list_opts);
@@ -2221,7 +2228,7 @@ function handleMouseWheel(evt) {
 		z = 0.1;
 	if(z > 10.0)
 		z = 10.0;
-		
+
 	var g = svgDoc.getElementById("viewport");
 
 	var p = getEventPoint(evt);
@@ -4391,6 +4398,12 @@ sub MapToSymbols {
     $cmd = "$addr2line --demangle -f -C -e $image";
   }
 
+  if (system("$addr2line --help >/dev/null 2>&1") != 0) {
+    # addr2line must not exist.  Fall back to go tool addr2line.
+    $addr2line = "go tool addr2line";
+    $cmd = "$addr2line $image";
+  }
+
   # If "addr2line" isn't installed on the system at all, just use
   # nm to get what info we can (function names, but not line numbers).
   if (system("$addr2line --help >/dev/null 2>&1") != 0) {
@@ -4434,7 +4447,7 @@ sub MapToSymbols {
   if ($debug) {
     print("----\n");
     system("cat $main::tmpfile_sym");
-    print("----\n");
+    print("---- $cmd\n");
     system("$cmd <$main::tmpfile_sym");
     print("----\n");
   }
@@ -4544,7 +4557,7 @@ sub ShortFunctionName {
 # Trim overly long symbols found in disassembler output
 sub CleanDisassembly {
   my $d = shift;
-  while ($d =~ s/(?<!\.)\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
+  while ($d =~ s/(?<!\.)\([^()%A-Z]*\)(\s*const)?//g) { } # Argument types, not (%rax)
   while ($d =~ s/(\w+)<[^<>]*>/$1/g)  { }       # Remove template arguments
   return $d;
 }
@@ -4625,7 +4638,7 @@ sub ConfigureTool {
     my $dirname = $`;    # this is everything up to and including the last slash
     if (-x "$dirname$tool") {
       $path = "$dirname$tool";
-    } else { 
+    } else {
       $path = $tool;
     }
   }

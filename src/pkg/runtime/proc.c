@@ -338,7 +338,7 @@ mcommoninit(M *m)
 		m->mcache = runtime·allocmcache();
 
 	runtime·callers(1, m->createstack, nelem(m->createstack));
-	
+
 	// Add to runtime·allm so garbage collector doesn't free m
 	// when it is just in a register or thread-local storage.
 	m->alllink = runtime·allm;
@@ -728,7 +728,6 @@ runtime·mstart(void)
 	// so other calls can reuse this stack space.
 	runtime·gosave(&m->g0->sched);
 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
-
 	runtime·asminit();
 	runtime·minit();
 	schedule(nil);
@@ -916,6 +915,9 @@ runtime·entersyscall(void)
 {
 	uint32 v;
 
+	if(m->profilehz > 0)
+		runtime·setprof(false);
+
 	// Leave SP around for gc and traceback.
 	runtime·gosave(&g->sched);
 	g->gcsp = g->sched.sp;
@@ -979,6 +981,9 @@ runtime·exitsyscall(void)
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack.
 		g->gcstack = nil;
+
+		if(m->profilehz > 0)
+			runtime·setprof(true);
 		return;
 	}
 

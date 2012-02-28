@@ -96,7 +96,7 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVQ	24(SP), DX
-	MOVL	$(0x2000000+48), AX	// syscall entry
+	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
 	SYSCALL
 	JCC	2(PC)
 	CALL	runtime·notok(SB)
