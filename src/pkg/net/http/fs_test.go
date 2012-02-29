@@ -152,12 +152,19 @@ func TestFileServerCleans(t *testing.T) {
 	}
 }
 
+func mustRemoveAll(dir string) {
+	err := os.RemoveAll(dir)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestFileServerImplicitLeadingSlash(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer mustRemoveAll(tempDir)
 	if err := ioutil.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -172,6 +179,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ReadAll %s: %v", suffix, err)
 		}
+		res.Body.Close()
 		return string(b)
 	}
 	if s := get("/bar/"); !strings.Contains(s, ">foo.txt<") {
