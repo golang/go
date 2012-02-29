@@ -76,7 +76,9 @@ type Transport struct {
 // ProxyFromEnvironment returns the URL of the proxy to use for a
 // given request, as indicated by the environment variables
 // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
-// Either URL or an error is returned.
+// An error is returned if the proxy environment is invalid.
+// A nil URL and nil error are returned if no proxy is defined in the
+// environment, or a proxy should not be used for the given request.
 func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	proxy := getenvEitherCase("HTTP_PROXY")
 	if proxy == "" {
@@ -86,7 +88,7 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 		return nil, nil
 	}
 	proxyURL, err := url.Parse(proxy)
-	if err != nil {
+	if err != nil || proxyURL.Scheme == "" {
 		if u, err := url.Parse("http://" + proxy); err == nil {
 			proxyURL = u
 			err = nil
