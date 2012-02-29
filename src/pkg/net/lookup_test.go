@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var testExternal = flag.Bool("external", false, "allow use of external networks during test")
+var testExternal = flag.Bool("external", true, "allow use of external networks during long test")
 
 func TestGoogleSRV(t *testing.T) {
 	if testing.Short() || !*testExternal {
