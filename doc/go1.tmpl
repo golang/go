@@ -293,7 +293,7 @@ was unspecified. This change codifies the unpredictability.
 <h3 id="multiple_assignment">Multiple assignment</h3>
 
 <p>
-The language specification guarantees that in assignments
+The language specification has long guaranteed that in assignments
 the right-hand-side expressions are all evaluated before any left-hand-side expressions are assigned.
 To guarantee predictable behavior,
 Go 1 refines the specification further.
@@ -444,8 +444,7 @@ using element-wise comparison.
 <p>
 Second, Go 1 removes the definition of equality for function values,
 except for comparison with <code>nil</code>.
-Finally, Map equality is gone too, also except for comparison with <code>nil</code>,
-although it may return one day in a more intuitive form.
+Finally, map equality is gone too, also except for comparison with <code>nil</code>.
 </p>
 
 <p>
@@ -1029,7 +1028,7 @@ as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
 The old <code>Parser</code> type is renamed
 <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
 <a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also     introduced.
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also introduced.
 </p>
 
 <p>
