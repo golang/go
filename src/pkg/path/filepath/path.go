@@ -139,6 +139,7 @@ func FromSlash(path string) string {
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
 // usually found in PATH or GOPATH environment variables.
+// Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
 func SplitList(path string) []string {
 	if path == "" {
 		return []string{}
