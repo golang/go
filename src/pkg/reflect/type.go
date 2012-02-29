@@ -12,7 +12,7 @@
 // for that type.
 //
 // See "The Laws of Reflection" for an introduction to reflection in Go:
-// http://blog.golang.org/2011/09/laws-of-reflection.html
+// http://golang.org/doc/articles/laws_of_reflection.html
 package reflect
 
 import (
