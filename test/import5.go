@@ -49,3 +49,7 @@ import "\x80\x80" // ERROR "import path"
 import `\x80\x80` // ERROR "import path"
 import "\xFFFD"   // ERROR "import path"
 import `\xFFFD`   // ERROR "import path"
+
+// Invalid local imports.
+import "/foo"  // ERROR "import path cannot be absolute path"
+import "c:/foo"  // ERROR "import path contains invalid character"
