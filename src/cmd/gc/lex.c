@@ -637,6 +637,11 @@ importfile(Val *f, int line)
 	
 	path = f->u.sval;
 	if(islocalname(path)) {
+		if(path->s[0] == '/') {
+			yyerror("import path cannot be absolute path");
+			fakeimport();
+			return;
+		}
 		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
 		strcpy(cleanbuf, pathname);
 		strcat(cleanbuf, "/");
