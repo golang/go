@@ -71,6 +71,18 @@ var dumpTests = []dumpTest{
 			"User-Agent: Go http package\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
+
+	// Test that an https URL doesn't try to do an SSL negotiation
+	// with a bytes.Buffer and hang with all goroutines not
+	// runnable.
+	{
+		Req: *mustNewRequest("GET", "https://example.com/foo", nil),
+
+		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n",
+	},
 }
 
 func TestDumpRequest(t *testing.T) {

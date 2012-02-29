@@ -59,6 +59,15 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		}
 	}
 
+	// Since we're using the actual Transport code to write the request,
+	// switch to http so the Transport doesn't try to do an SSL
+	// negotiation with our dumpConn and its bytes.Buffer & pipe.
+	// The wire format for https and http are the same, anyway.
+	if req.URL.Scheme == "https" {
+		defer func() { req.URL.Scheme = "https" }()
+		req.URL.Scheme = "http"
+	}
+
 	// Use the actual Transport code to record what we would send
 	// on the wire, but not using TCP.  Use a Transport with a
 	// customer dialer that returns a fake net.Conn that waits
