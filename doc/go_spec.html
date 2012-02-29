@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 23, 2012"
+	"Subtitle": "Version of February 28, 2012"
 }-->
 
 <!--
@@ -1832,6 +1832,13 @@ of the expression list.
 If the type is absent and the corresponding expression evaluates to an
 untyped <a href="#Constants">constant</a>, the type of the declared variable
 is as described in §<a href="#Assignments">Assignments</a>.
+</p>
+
+<p>
+Implementation restriction: A compiler may make it illegal to declare a variable
+inside a <a href="#Function_declarations">function body</a> if the variable is
+never used.
+</p>
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
 
@@ -1844,8 +1851,8 @@ ShortVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
 <p>
-It is a shorthand for a regular variable declaration with
-initializer expressions but no types:
+It is a shorthand for a regular <a href="#Variable_declarations">variable declaration</a>
+with initializer expressions but no types:
 </p>
 
 <pre class="grammar">
@@ -4238,7 +4245,9 @@ iteration variables as in an <a href="#Assignments">assignment statement</a>.
 </p>
 
 <p>
-The iteration variables may be declared by the "range" clause (<code>:=</code>).
+The iteration variables may be declared by the "range" using a form of
+<a href="#Short_variable_declarations">short variable declaration</a>
+(<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
 and their <a href="#Declarations_and_scope">scope</a> ends at the end of the "for"
 statement; they are re-used in each iteration.
