@@ -709,7 +709,7 @@ func TestGobPtrSlices(t *testing.T) {
 		t.Fatal("decode:", err)
 	}
 	if !reflect.DeepEqual(in, out) {
-		t.Fatal("got %v; wanted %v", out, in)
+		t.Fatalf("got %v; wanted %v", out, in)
 	}
 }
 
