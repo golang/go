@@ -186,7 +186,7 @@ var duplicateErrorPattern = `dial (.*) dial (.*)`
 
 func TestDialError(t *testing.T) {
 	if !*runErrorTest {
-		t.Logf("test disabled; use --run_error_test to enable")
+		t.Logf("test disabled; use -run_error_test to enable")
 		return
 	}
 	for i, tt := range dialErrorTests {
