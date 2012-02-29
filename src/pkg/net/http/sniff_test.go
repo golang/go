@@ -129,9 +129,10 @@ func TestSniffWriteSize(t *testing.T) {
 	}))
 	defer ts.Close()
 	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
-		_, err := Get(fmt.Sprintf("%s/?size=%d", ts.URL, size))
+		res, err := Get(fmt.Sprintf("%s/?size=%d", ts.URL, size))
 		if err != nil {
 			t.Fatalf("size %d: %v", size, err)
 		}
+		res.Body.Close()
 	}
 }

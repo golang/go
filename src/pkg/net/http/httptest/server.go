@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 )
 
 // A Server is an HTTP server listening on a system-chosen port on the
@@ -25,6 +26,10 @@ type Server struct {
 	// Config may be changed after calling NewUnstartedServer and
 	// before Start or StartTLS.
 	Config *http.Server
+
+	// wg counts the number of outstanding HTTP requests on this server.
+	// Close blocks until all requests are finished.
+	wg sync.WaitGroup
 }
 
 // historyListener keeps track of all connections that it's ever
@@ -93,6 +98,7 @@ func (s *Server) Start() {
 	}
 	s.Listener = &historyListener{s.Listener, make([]net.Conn, 0)}
 	s.URL = "http://" + s.Listener.Addr().String()
+	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
 	if *serve != "" {
 		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
@@ -118,7 +124,19 @@ func (s *Server) StartTLS() {
 
 	s.Listener = &historyListener{tlsListener, make([]net.Conn, 0)}
 	s.URL = "https://" + s.Listener.Addr().String()
+	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
+}
+
+func (s *Server) wrapHandler() {
+	h := s.Config.Handler
+	if h == nil {
+		h = http.DefaultServeMux
+	}
+	s.Config.Handler = &waitGroupHandler{
+		s: s,
+		h: h,
+	}
 }
 
 // NewTLSServer starts and returns a new Server using TLS.
@@ -129,9 +147,11 @@ func NewTLSServer(handler http.Handler) *Server {
 	return ts
 }
 
-// Close shuts down the server.
+// Close shuts down the server and blocks until all outstanding
+// requests on this server have completed.
 func (s *Server) Close() {
 	s.Listener.Close()
+	s.wg.Wait()
 }
 
 // CloseClientConnections closes any currently open HTTP connections
@@ -144,6 +164,20 @@ func (s *Server) CloseClientConnections() {
 	for _, conn := range hl.history {
 		conn.Close()
 	}
+}
+
+// waitGroupHandler wraps a handler, incrementing and decrementing a
+// sync.WaitGroup on each request, to enable Server.Close to block
+// until outstanding requests are finished.
+type waitGroupHandler struct {
+	s *Server
+	h http.Handler // non-nil
+}
+
+func (h *waitGroupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.s.wg.Add(1)
+	defer h.s.wg.Done() // a defer, in case ServeHTTP below panics
+	h.h.ServeHTTP(w, r)
 }
 
 // localhostCert is a PEM-encoded TLS cert with SAN DNS names
