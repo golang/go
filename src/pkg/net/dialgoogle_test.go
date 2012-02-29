@@ -42,9 +42,8 @@ func doDial(t *testing.T, network, addr string) {
 }
 
 func TestLookupCNAME(t *testing.T) {
-	if testing.Short() {
-		// Don't use external network.
-		t.Logf("skipping external network test during -short")
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
 		return
 	}
 	cname, err := LookupCNAME("www.google.com")
@@ -67,9 +66,8 @@ var googleaddrsipv4 = []string{
 }
 
 func TestDialGoogleIPv4(t *testing.T) {
-	if testing.Short() {
-		// Don't use external network.
-		t.Logf("skipping external network test during -short")
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
 		return
 	}
 
@@ -124,9 +122,8 @@ var googleaddrsipv6 = []string{
 }
 
 func TestDialGoogleIPv6(t *testing.T) {
-	if testing.Short() {
-		// Don't use external network.
-		t.Logf("skipping external network test during -short")
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
 		return
 	}
 	// Only run tcp6 if the kernel will take it.
