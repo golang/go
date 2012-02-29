@@ -500,7 +500,7 @@ type _ struct {
 
 type _ struct {
 	a, b,
-	c, d	int	// this line should be indented
+	c, d		int	// this line should be indented
 	u, v, w, x	float	// this line should be indented
 	p, q,
 	r, s	float	// this line should be indented
@@ -562,7 +562,7 @@ var a2, b2,
 
 var (
 	a3, b3,
-	c3, d3	int	// this line should be indented
+	c3, d3		int	// this line should be indented
 	a4, b4, c4	int	// this line should be indented
 )
 
