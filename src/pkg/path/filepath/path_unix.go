@@ -19,7 +19,7 @@ func VolumeName(path string) string {
 	return ""
 }
 
-// HasPrefix tests whether the path p begins with prefix.
+// HasPrefix exists for historical compatibility and should not be used.
 func HasPrefix(p, prefix string) bool {
 	return strings.HasPrefix(p, prefix)
 }
