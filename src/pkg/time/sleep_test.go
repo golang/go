@@ -120,8 +120,11 @@ func TestAfterTick(t *testing.T) {
 	t1 := Now()
 	d := t1.Sub(t0)
 	target := Delta * Count
-	if d < target*9/10 || d > target*30/10 {
-		t.Fatalf("%d ticks of %s took %s, expected %s", Count, Delta, d, target)
+	if d < target*9/10 {
+		t.Fatalf("%d ticks of %s too fast: took %s, expected %s", Count, Delta, d, target)
+	}
+	if !testing.Short() && d > target*30/10 {
+		t.Fatalf("%d ticks of %s too slow: took %s, expected %s", Count, Delta, d, target)
 	}
 }
 
