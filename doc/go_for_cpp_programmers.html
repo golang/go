@@ -8,16 +8,19 @@ systems language, like C++.
 These are some notes on Go for experienced C++ programmers. This
 document discusses the differences between Go and C++, and says little
 to nothing about the similarities.
+</p>
 
 <p>
 For a more general introduction to Go, see the
 <a href="http://tour.golang.org/">Go Tour</a>,
 <a href="/doc/code.html">How to Write Go Code</a>
 and <a href="effective_go.html">Effective Go</a>.
+</p>
 
 <p>
 For a detailed description of the Go language, see the
 <a href="go_spec.html">Go spec</a>.
+</p>
 
 <h2 id="Conceptual_Differences">Conceptual Differences</h2>
 
@@ -29,8 +32,7 @@ For a detailed description of the Go language, see the
     Interfaces are also used where C++ uses templates.
 
 <li>Go uses garbage collection. It is not necessary (or possible)
-    to release memory explicitly. The garbage collection is (intended to be)
-    incremental and highly efficient on modern processors.
+    to release memory explicitly.
 
 <li>Go has pointers but not pointer arithmetic. You cannot
     use a pointer variable to walk through the bytes of a string.
@@ -81,6 +83,7 @@ The declaration syntax is reversed compared to C++. You write the name
 followed by the type. Unlike in C++, the syntax for a type does not match
 the way in which the variable is used. Type declarations may be read
 easily from left to right.
+</p>
 
 <pre>
 <b>Go                           C++</b>
@@ -102,10 +105,12 @@ of the object being declared.  The keyword is one of <code>var</code>,
 exception in that
 the receiver appears before the name of the object being declared; see
 the <a href="#Interfaces">discussion of interfaces</a>.
+</p>
 
 <p>
 You can also use a keyword followed by a series of declarations in
 parentheses.
+</p>
 
 <pre>
 var (
@@ -118,6 +123,7 @@ var (
 When declaring a function, you must either provide a name for each parameter
 or not provide a name for any parameter; you can't omit some names
 and provide others.  You may group several names with the same type:
+</p>
 
 <pre>
 func f(i, j, k int, s, t string)
@@ -128,6 +134,7 @@ A variable may be initialized when it is declared.  When this is done,
 specifying the type is permitted but not required.  When the type is
 not specified, the type of the variable is the type of the
 initialization expression.
+</p>
 
 <pre>
 var v = *p
@@ -137,12 +144,15 @@ var v = *p
 See also the <a href="#Constants">discussion of constants, below</a>.
 If a variable is not initialized explicitly, the type must be specified.
 In that case it will be
-implicitly initialized to the type's zero value (0, nil, etc.).  There are no
+implicitly initialized to the type's zero value
+(<code>0</code>, <code>nil</code>, etc.).  There are no
 uninitialized variables in Go.
+</p>
 
 <p>
 Within a function, a short declaration syntax is available with
 <code>:=</code> .
+</p>
 
 <pre>
 v1 := v2
@@ -150,6 +160,7 @@ v1 := v2
 
 <p>
 This is equivalent to
+</p>
 
 <pre>
 var v1 = v2
@@ -157,6 +168,7 @@ var v1 = v2
 
 <p>
 Go permits multiple assignments, which are done in parallel.
+</p>
 
 <pre>
 i, j = j, i    // Swap i and j.
@@ -166,6 +178,7 @@ i, j = j, i    // Swap i and j.
 Functions may have multiple return values, indicated by a list in
 parentheses.  The returned values can be stored by assignment
 to a list of variables.
+</p>
 
 <pre>
 func f() (i int, j int) { ... }
@@ -180,22 +193,27 @@ incomplete (the exact rules are
 in <a href="go_spec.html#Semicolons">the language specification</a>).
 A consequence of this is that in some cases Go does not permit you to
 use a line break.  For example, you may not write
+</p>
 <pre>
 func g()
 {                  // INVALID
 }
 </pre>
+<p>
 A semicolon will be inserted after <code>g()</code>, causing it to be
 a function declaration rather than a function definition.  Similarly,
 you may not write
+</p>
 <pre>
 if x {
 }
 else {             // INVALID
 }
 </pre>
+<p>
 A semicolon will be inserted after the <code>}</code> preceding
 the <code>else</code>, causing a syntax error.
+</p>
 
 <p>
 Since semicolons do end statements, you may continue using them as in
@@ -203,6 +221,7 @@ C++.  However, that is not the recommended style.  Idiomatic Go code
 omits unnecessary semicolons, which in practice is all of them other
 than the initial <code>for</code> loop clause and cases where you want several
 short statements on a single line.
+</p>
 
 <p>
 While we're on the topic, we recommend that rather than worry about
@@ -211,12 +230,14 @@ the <code>gofmt</code> program.  That will produce a single standard
 Go style, and let you worry about your code rather than your
 formatting.  While the style may initially seem odd, it is as good as
 any other style, and familiarity will lead to comfort.
+</p>
 
 <p>
 When using a pointer to a struct, you use <code>.</code> instead
 of <code>-&gt;</code>.
 Thus syntactically speaking a structure and a pointer to a structure
 are used in the same way.
+</p>
 
 <pre>
 type myStruct struct { i int }
@@ -230,6 +251,7 @@ Go does not require parentheses around the condition of an <code>if</code>
 statement, or the expressions of a <code>for</code> statement, or the value of a
 <code>switch</code> statement.  On the other hand, it does require curly braces
 around the body of an <code>if</code> or <code>for</code> statement.
+</p>
 
 <pre>
 if a &lt; b { f() }             // Valid
@@ -245,18 +267,21 @@ Go does not have a <code>while</code> statement nor does it have a
 statement.  The <code>for</code> statement may be used with a single condition,
 which makes it equivalent to a <code>while</code> statement.  Omitting the
 condition entirely is an endless loop.
+</p>
 
 <p>
 Go permits <code>break</code> and <code>continue</code> to specify a label.
 The label must
 refer to a <code>for</code>, <code>switch</code>, or <code>select</code>
 statement.
+</p>
 
 <p>
 In a <code>switch</code> statement, <code>case</code> labels do not fall
 through.  You can
 make them fall through using the <code>fallthrough</code> keyword.  This applies
 even to adjacent cases.
+</p>
 
 <pre>
 switch i {
@@ -268,6 +293,7 @@ case 1:
 
 <p>
 But a <code>case</code> can have multiple values.
+</p>
 
 <pre>
 switch i {
@@ -282,6 +308,7 @@ any type
 that supports the equality comparison operator, such as strings or
 pointers, can be used&mdash;and if the <code>switch</code>
 value is omitted it defaults to <code>true</code>.
+</p>
 
 <pre>
 switch {
@@ -299,10 +326,12 @@ The <code>++</code> and <code>--</code> operators may only be used in
 statements, not in expressions.
 You cannot write <code>c = *p++</code>.  <code>*p++</code> is parsed as
 <code>(*p)++</code>.
+</p>
 
 <p>
 The <code>defer</code> statement may be used to call a function after
 the function containing the <code>defer</code> statement returns.
+</p>
 
 <pre>
 fd := open("filename")
@@ -320,6 +349,7 @@ A value derived from an untyped constant becomes typed when it
 is used within a context that
 requires a typed value. This permits constants to be used relatively
 freely without requiring general implicit type conversion.
+</p>
 
 <pre>
 var a uint
@@ -330,6 +360,7 @@ f(a + 1)  // untyped numeric constant "1" becomes typed as uint
 The language does not impose any limits on the size of an untyped
 numeric constant or constant expression. A limit is only applied when
 a constant is used where a type is required.
+</p>
 
 <pre>
 const huge = 1 &lt;&lt; 100
@@ -342,6 +373,7 @@ Go does not support enums.  Instead, you can use the special name
 series of increasing
 value.  When an initialization expression is omitted for a <code>const</code>,
 it reuses the preceding expression.
+</p>
 
 <pre>
 const (
@@ -362,40 +394,43 @@ The builtin
 <code>len</code> function returns the
 length of the slice.  The builtin <code>cap</code> function returns the
 capacity.
+</p>
 
 <p>
 Given an array, or another slice, a new slice is created via
-<code>a[I:J]</code>.  This
+<code>a[i:j]</code>.  This
 creates a new slice which refers to <code>a</code>, starts at
-index <code>I</code>, and ends before index
-<code>J</code>.  It has length <code>J - I</code>.
+index <code>i</code>, and ends before index
+<code>j</code>.  It has length <code>j-i</code>.
+If <code>i</code> is omitted, the slice starts at <code>0</code>.
+If <code>j</code> is omitted, the slice ends at <code>len(a)</code>.
 The new slice refers to the same array
 to which <code>a</code>
 refers.  That is, changes made using the new slice may be seen using
 <code>a</code>.  The
 capacity of the new slice is simply the capacity of <code>a</code> minus
-<code>I</code>.  The capacity
-of an array is the length of the array.  You may also assign an array pointer
-to a variable of slice type; given <code>var s []int; var a[10] int</code>,
-the assignment <code>s = &amp;a</code> is equivalent to
-<code>s = a[0:len(a)]</code>.
+<code>i</code>.  The capacity
+of an array is the length of the array.
+</p>
 
 <p>
 What this means is that Go uses slices for some cases where C++ uses pointers.
 If you create a value of type <code>[100]byte</code> (an array of 100 bytes,
 perhaps a
 buffer) and you want to pass it to a function without copying it, you should
-declare the function parameter to have type <code>[]byte</code>, and pass the
-address
-of the array.  Unlike in C++, it is not
+declare the function parameter to have type <code>[]byte</code>, and
+pass a slice of the array (<code>a[:]</code> will pass the entire array).
+Unlike in C++, it is not
 necessary to pass the length of the buffer; it is efficiently accessible via
 <code>len</code>.
+</p>
 
 <p>
 The slice syntax may also be used with a string.  It returns a new string,
 whose value is a substring of the original string.
 Because strings are immutable, string slices can be implemented
 without allocating new storage for the slices's contents.
+</p>
 
 <h2 id="Making_values">Making values</h2>
 
@@ -408,6 +443,33 @@ initializes it with the value <code>0</code>,
 and returns its address, which has type <code>*int</code>.
 Unlike in C++, <code>new</code> is a function, not an operator;
 <code>new int</code> is a syntax error.
+</p>
+
+<p>
+Perhaps surprisingly, <code>new</code> is not commonly used in Go
+programs.  In Go taking the address of a variable is always safe and
+never yields a dangling pointer.  If the program takes the address of
+a variable, it will be allocated on the heap if necessary.  So these
+functions are equivalent:
+</p>
+
+<pre>
+type S { I int }
+
+func f1() *S {
+	return new(S)
+}
+
+func f2() *S {
+	var s S
+	return &amp;s
+}
+
+func f3() *S {
+	// More idiomatic: use composite literal syntax.
+	return &amp;S{0}
+}
+</pre>
 
 <p>
 Map and channel values must be allocated using the builtin function
@@ -424,6 +486,7 @@ a map type takes an optional argument which is the expected capacity of the
 map.  Calling <code>make</code> with a channel type takes an optional
 argument which sets the
 buffering capacity of the channel; the default is 0 (unbuffered).
+</p>
 
 <p>
 The <code>make</code> function may also be used to allocate a slice.
@@ -435,6 +498,7 @@ A second, optional, argument is the capacity of the slice.  For example,
 <code>new([20]int)[0:10]</code>.  Since
 Go uses garbage collection, the newly allocated array will be discarded
 sometime after there are no references to the returned slice.
+</p>
 
 <h2 id="Interfaces">Interfaces</h2>
 
@@ -447,33 +511,38 @@ Go, any type which provides the methods named in the interface may be
 treated as an implementation of the interface.  No explicitly declared
 inheritance is required.  The implementation of the interface is
 entirely separate from the interface itself.
+</p>
 
 <p>
 A method looks like an ordinary function definition, except that it
 has a <em>receiver</em>.  The receiver is similar to
 the <code>this</code> pointer in a C++ class method.
+</p>
 
 <pre>
 type myType struct { i int }
-func (p *myType) get() int { return p.i }
+func (p *myType) Get() int { return p.i }
 </pre>
 
 <p>
-This declares a method <code>get</code> associated with <code>myType</code>.
+This declares a method <code>Get</code> associated with <code>myType</code>.
 The receiver is named <code>p</code> in the body of the function.
+</p>
 
 <p>
 Methods are defined on named types.  If you convert the value
 to a different type, the new value will have the methods of the new type,
 not the old type.
+</p>
 
 <p>
 You may define methods on a builtin type by declaring a new named type
 derived from it.  The new type is distinct from the builtin type.
+</p>
 
 <pre>
 type myInteger int
-func (p myInteger) get() int { return int(p) } // Conversion required.
+func (p myInteger) Get() int { return int(p) } // Conversion required.
 func f(i int) { }
 var v myInteger
 // f(v) is invalid.
@@ -482,58 +551,64 @@ var v myInteger
 
 <p>
 Given this interface:
+</p>
 
 <pre>
 type myInterface interface {
-	get() int
-	set(i int)
+	Get() int
+	Set(i int)
 }
 </pre>
 
 <p>
 we can make <code>myType</code> satisfy the interface by adding
+</p>
 
 <pre>
-func (p *myType) set(i int) { p.i = i }
+func (p *myType) Set(i int) { p.i = i }
 </pre>
 
 <p>
 Now any function which takes <code>myInterface</code> as a parameter
 will accept a
 variable of type <code>*myType</code>.
+</p>
 
 <pre>
-func getAndSet(x myInterface) {}
+func GetAndSet(x myInterface) {}
 func f1() {
 	var p myType
-	getAndSet(&amp;p)
+	GetAndSet(&amp;p)
 }
 </pre>
 
 <p>
 In other words, if we view <code>myInterface</code> as a C++ pure abstract
 base
-class, defining <code>set</code> and <code>get</code> for
+class, defining <code>Set</code> and <code>Get</code> for
 <code>*myType</code> made <code>*myType</code> automatically
 inherit from <code>myInterface</code>.  A type may satisfy multiple interfaces.
+</p>
 
 <p>
 An anonymous field may be used to implement something much like a C++ child
 class.
+</p>
 
 <pre>
 type myChildType struct { myType; j int }
-func (p *myChildType) get() int { p.j++; return p.myType.get() }
+func (p *myChildType) Get() int { p.j++; return p.myType.Get() }
 </pre>
 
 <p>
 This effectively implements <code>myChildType</code> as a child of
 <code>myType</code>.
+</p>
 
 <pre>
 func f2() {
 	var p myChildType
-	getAndSet(&amp;p)
+	GetAndSet(&amp;p)
 }
 </pre>
 
@@ -544,8 +619,9 @@ methods associated with the anonymous field are promoted to become methods
 of the enclosing type.  In this case, because <code>myChildType</code> has an
 anonymous field of type <code>myType</code>, the methods of
 <code>myType</code> also become methods of <code>myChildType</code>.
-In this example, the <code>get</code> method was
-overridden, and the <code>set</code> method was inherited.
+In this example, the <code>Get</code> method was
+overridden, and the <code>Set</code> method was inherited.
+</p>
 
 <p>
 This is not precisely the same as a child class in C++.
@@ -553,21 +629,23 @@ When a method of an anonymous field is called,
 its receiver is the field, not the surrounding struct.
 In other words, methods on anonymous fields are not virtual functions.
 When you want the equivalent of a virtual function, use an interface.
+</p>
 
 <p>
-A variable which has an interface type may be converted to have a
+A variable that has an interface type may be converted to have a
 different interface type using a special construct called a type assertion.
 This is implemented dynamically
 at run time, like C++ <code>dynamic_cast</code>.  Unlike
 <code>dynamic_cast</code>, there does
 not need to be any declared relationship between the two interfaces.
+</p>
 
 <pre>
 type myPrintInterface interface {
-  print()
+	Print()
 }
 func f3(x myInterface) {
-	x.(myPrintInterface).print()  // type assertion to myPrintInterface
+	x.(myPrintInterface).Print()  // type assertion to myPrintInterface
 }
 </pre>
 
@@ -576,11 +654,13 @@ The conversion to <code>myPrintInterface</code> is entirely dynamic.
 It will
 work as long as the underlying type of x (the <em>dynamic type</em>) defines
 a <code>print</code> method.
+</p>
 
 <p>
 Because the conversion is dynamic, it may be used to implement generic
 programming similar to templates in C++.  This is done by
 manipulating values of the minimal interface.
+</p>
 
 <pre>
 type Any interface { }
@@ -593,15 +673,23 @@ values of the contained type.  As the typing is dynamic rather
 than static, there is no equivalent of the way that a C++ template may
 inline the relevant operations.  The operations are fully type-checked
 at run time, but all operations will involve a function call.
+</p>
 
 <pre>
-type iterator interface {
-	get() Any
-	set(v Any)
-	increment()
-	equal(arg *iterator) bool
+type Iterator interface {
+	Get() Any
+	Set(v Any)
+	Increment()
+	Equal(arg Iterator) bool
 }
 </pre>
+
+<p>
+Note that <code>Equal</code> has an argument of
+type <code>Iterator</code>.  This does not behave like a C++
+template.  See <a href="go_faq.html#t_and_equal_interface">the
+FAQ</a>.
+</p>
 
 <h2 id="Goroutines">Goroutines</h2>
 
@@ -611,18 +699,20 @@ using the <code>go</code>
 statement.  The <code>go</code> statement runs a function in a
 different, newly created, goroutine.
 All goroutines in a single program share the same address space.
+</p>
 
 <p>
 Internally, goroutines act like coroutines that are multiplexed among
 multiple operating system threads.  You do not have to worry
 about these details.
+</p>
 
 <pre>
 func server(i int) {
-    for {
-        print(i)
-        sys.sleep(10)
-    }
+	for {
+		fmt.Print(i)
+		time.Sleep(10 * time.Second)
+	}
 }
 go server(1)
 go server(2)
@@ -631,13 +721,16 @@ go server(2)
 <p>
 (Note that the <code>for</code> statement in the <code>server</code>
 function is equivalent to a C++ <code>while (true)</code> loop.)
+</p>
 
 <p>
 Goroutines are (intended to be) cheap.
+</p>
 
 <p>
 Function literals (which Go implements as closures)
 can be useful with the <code>go</code> statement.
+</p>
 
 <pre>
 var g int
@@ -658,21 +751,23 @@ operator.  To
 receive a value on a channel, use <code>&lt;-</code> as a unary operator.
 When calling
 functions, channels are passed by reference.
+</p>
 
 <p>
 The Go library provides mutexes, but you can also use
 a single goroutine with a shared channel.
 Here is an example of using a manager function to control access to a
 single value.
+</p>
 
 <pre>
-type cmd struct { get bool; val int }
-func manager(ch chan cmd) {
-	var val int = 0
+type Cmd struct { Get bool; Val int }
+func Manager(ch chan Cmd) {
+	val := 0
 	for {
-		c := &lt;- ch
-		if c.get { c.val = val; ch &lt;- c }
-		else { val = c.val }
+		c := &lt;-ch
+		if c.Get { c.Val = val; ch &lt;- c }
+		else { val = c.Val }
 	}
 }
 </pre>
@@ -684,26 +779,28 @@ with the manager at once: a goroutine waiting for a response
 from the manager might receive a request from another goroutine
 instead.
 A solution is to pass in a channel.
+</p>
 
 <pre>
-type cmd2 struct { get bool; val int; ch &lt;- chan int }
-func manager2(ch chan cmd2) {
-	var val int = 0
+type Cmd2 struct { Get bool; Val int; Ch &lt;- chan int }
+func Manager2(ch chan Cmd2) {
+	val := 0
 	for {
-		c := &lt;- ch
-		if c.get { c.ch &lt;- val }
-		else { val = c.val }
+		c := &lt;-ch
+		if c.Get { c.ch &lt;- val }
+		else { val = c.Val }
 	}
 }
 </pre>
 
 <p>
-To use <code>manager2</code>, given a channel to it:
+To use <code>Manager2</code>, given a channel to it:
+</p>
 
 <pre>
-func f4(ch &lt;- chan cmd2) int {
+func f4(ch &lt;- chan Cmd2) int {
 	myCh := make(chan int)
-	c := cmd2{ true, 0, myCh }   // Composite literal syntax.
+	c := Cmd2{ true, 0, myCh }   // Composite literal syntax.
 	ch &lt;- c
 	return &lt;-myCh
 }
