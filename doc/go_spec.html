@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 28, 2012"
+	"Subtitle": "Version of February 29, 2012"
 }-->
 
 <!--
@@ -2011,7 +2011,8 @@ BasicLit   = int_lit | float_lit | imaginary_lit | char_lit | string_lit .
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is a non-<a href="#Blank_identifier">blank</a> identifier qualified by a package name prefix.
+A qualified identifier is a non-<a href="#Blank_identifier">blank</a> identifier
+qualified by a package name prefix.
 </p>
 
 <pre class="ebnf">
@@ -2019,7 +2020,8 @@ QualifiedIdent = [ PackageName "." ] identifier .
 </pre>
 
 <p>
-A qualified identifier accesses an identifier in a separate package.
+A qualified identifier accesses an identifier in a different package, which
+must be <a href="#Import_declarations">imported</a>.
 The identifier must be <a href="#Exported_identifiers">exported</a> by that
 package, which means that it must begin with a Unicode upper case letter.
 </p>
@@ -2027,12 +2029,6 @@ package, which means that it must begin with a Unicode upper case letter.
 <pre>
 math.Sin
 </pre>
-
-<!--
-<p>
-<span class="alert">TODO: Unify this section with Selectors - it's the same syntax.</span>
-</p>
--->
 
 <h3 id="Composite_literals">Composite literals</h3>
 
@@ -4245,7 +4241,7 @@ iteration variables as in an <a href="#Assignments">assignment statement</a>.
 </p>
 
 <p>
-The iteration variables may be declared by the "range" using a form of
+The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
 In this case their types are set to the types of the respective iteration values
