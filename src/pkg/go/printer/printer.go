@@ -34,9 +34,6 @@ const (
 	unindent = whiteSpace('<')
 )
 
-// Use ignoreMultiLine if the multiLine information is not important.
-var ignoreMultiLine = new(bool)
-
 // A pmode value represents the current printer mode.
 type pmode int
 
@@ -1011,18 +1008,18 @@ func (p *printer) printNode(node interface{}) error {
 	// format node
 	switch n := node.(type) {
 	case ast.Expr:
-		p.expr(n, ignoreMultiLine)
+		p.expr(n)
 	case ast.Stmt:
 		// A labeled statement will un-indent to position the
 		// label. Set indent to 1 so we don't get indent "underflow".
 		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
 			p.indent = 1
 		}
-		p.stmt(n, false, ignoreMultiLine)
+		p.stmt(n, false)
 	case ast.Decl:
-		p.decl(n, ignoreMultiLine)
+		p.decl(n)
 	case ast.Spec:
-		p.spec(n, 1, false, ignoreMultiLine)
+		p.spec(n, 1, false)
 	case *ast.File:
 		p.file(n)
 	default:
