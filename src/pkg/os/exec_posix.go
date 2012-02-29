@@ -18,6 +18,16 @@ import (
 //
 // If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+	// Double-check existence of the directory we want
+	// to chdir into.  We can make the error clearer this way.
+	if attr != nil && attr.Dir != "" {
+		if _, err := Stat(attr.Dir); err != nil {
+			pe := err.(*PathError)
+			pe.Op = "chdir"
+			return nil, pe
+		}
+	}
+
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
 		Env: attr.Env,
