@@ -26,6 +26,7 @@ func TestCPUProfile(t *testing.T) {
 		t.Logf("uname -a: %v", vers)
 		if strings.Contains(vers, "Darwin Kernel Version 10.8.0") && strings.Contains(vers, "root:xnu-1504.15.3~1/RELEASE_X86_64") {
 			t.Logf("skipping test on known-broken kernel (64-bit Snow Leopard)")
+			return
 		}
 	case "plan9":
 		// unimplemented
