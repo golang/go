@@ -1017,6 +1017,7 @@ walkexpr(Node **np, NodeList **init)
 			r = nod(n->etype, nod(OLEN, n->left, N), nod(OLEN, n->right, N));
 			typecheck(&r, Erv);
 			walkexpr(&r, init);
+			r->type = n->type;
 			n = r;
 			goto ret;
 		}
@@ -1029,6 +1030,7 @@ walkexpr(Node **np, NodeList **init)
 			r = nod(n->etype, nod(OLEN, n->left->left, N), nodintconst(0));
 			typecheck(&r, Erv);
 			walkexpr(&r, init);
+			r->type = n->type;
 			n = r;
 			goto ret;
 		}
