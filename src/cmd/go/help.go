@@ -138,6 +138,9 @@ var helpGopath = &Command{
 	UsageLine: "gopath",
 	Short:     "GOPATH environment variable",
 	Long: `
+The Go path is used to resolve import statements.
+It is implemented by and documented in the go/build package.
+
 The GOPATH environment variable lists places to look for Go code.
 On Unix, the value is a colon-separated string.
 On Windows, the value is a semicolon-separated string.
