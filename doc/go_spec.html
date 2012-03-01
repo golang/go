@@ -684,7 +684,8 @@ The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
 Any other type has an empty method set.
-In a method set, each method must have a unique <a href="#MethodName">method name</a>.
+In a method set, each method must have a
+<a href="#Uniqueness_of_identifiers">unique</a> <a href="#MethodName">method name</a>.
 </p>
 
 <p>
@@ -895,7 +896,7 @@ A struct is a sequence of named elements, called fields, each of which has a
 name and a type. Field names may be specified explicitly (IdentifierList) or
 implicitly (AnonymousField).
 Within a struct, non-<a href="#Blank_identifier">blank</a> field names must
-be unique.
+be <a href="#Uniqueness_of_identifiers">unique</a>.
 </p>
 
 <pre class="ebnf">
@@ -1074,7 +1075,8 @@ InterfaceTypeName  = TypeName .
 </pre>
 
 <p>
-As with all method sets, in an interface type, each method must have a unique name.
+As with all method sets, in an interface type, each method must have a
+<a href="#Uniqueness_of_identifiers">unique</a> name.
 </p>
 
 <pre>
@@ -1538,10 +1540,19 @@ the body of any nested function.
 </p>
 
 
+<h3 id="Blank_identifier">Blank identifier</h3>
+
+<p>
+The <i>blank identifier</i>, represented by the underscore character <code>_</code>, may be used in a declaration like
+any other identifier but the declaration does not introduce a new binding.
+</p>
+
+
 <h3 id="Predeclared_identifiers">Predeclared identifiers</h3>
 
 <p>
-The following identifiers are implicitly declared in the universe block:
+The following identifiers are implicitly declared in the
+<a href="#Blocks">universe block</a>:
 </p>
 <pre class="grammar">
 Types:
@@ -1564,27 +1575,30 @@ Functions:
 <h3 id="Exported_identifiers">Exported identifiers</h3>
 
 <p>
-An identifier may be <i>exported</i> to permit access to it from another package
-using a <a href="#Qualified_identifiers">qualified identifier</a>. An identifier
-is exported if both:
+An identifier may be <i>exported</i> to permit access to it from another package.
+An identifier is exported if both:
 </p>
 <ol>
-	<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu"); and</li>
-	<li>the identifier is declared in the <a href="#Blocks">package block</a> or denotes a field or method of a type
-	    declared in that block.</li>
+	<li>the first character of the identifier's name is a Unicode upper case
+	letter (Unicode class "Lu"); and</li>
+	<li>the identifier is declared in the <a href="#Blocks">package block</a>
+	or it is a <a href="#Struct_types">field name</a> or
+	<a href="#MethodName">method name</a>.</li>
 </ol>
 <p>
 All other identifiers are not exported.
 </p>
 
 
-<h3 id="Blank_identifier">Blank identifier</h3>
+<h3 id="Uniqueness_of_identifiers">Uniqueness of identifiers</h3>
 
 <p>
-The <i>blank identifier</i>, represented by the underscore character <code>_</code>, may be used in a declaration like
-any other identifier but the declaration does not introduce a new binding.
+Given a set of identifiers, an identifier is called <i>unique</i> if it is
+<i>different</i> from every other in the set.
+Two identifiers are different if they are spelled differently, or if they
+appear in different <a href="#Packages">packages</a> and are not
+<a href="Exported_identifiers">exported</a>. Otherwise, they are the same.
 </p>
-
 
 <h3 id="Constant_declarations">Constant declarations</h3>
 
@@ -1942,7 +1956,7 @@ is visible only within selectors for that type.
 
 <p>
 For a base type, the non-<a href="#Blank_identifier">blank</a> names of
-methods bound to it must be unique.
+methods bound to it must be <a href="#Uniqueness_of_identifiers">unique</a>.
 If the base type is a <a href="#Struct_types">struct type</a>,
 the non-blank method and field names must be distinct.
 </p>
@@ -2022,12 +2036,12 @@ QualifiedIdent = [ PackageName "." ] identifier .
 <p>
 A qualified identifier accesses an identifier in a different package, which
 must be <a href="#Import_declarations">imported</a>.
-The identifier must be <a href="#Exported_identifiers">exported</a> by that
-package, which means that it must begin with a Unicode upper case letter.
+The identifier must be <a href="#Exported_identifiers">exported</a> and
+declared in the <a href="#Blocks">package block</a> of that package.
 </p>
 
 <pre>
-math.Sin
+math.Sin	// denotes the Sin function in package math
 </pre>
 
 <h3 id="Composite_literals">Composite literals</h3>
@@ -2332,8 +2346,8 @@ where <code>T</code> is not an interface type,
 <code>x.f</code> denotes the field or method at the shallowest depth
 in <code>T</code> where there
 is such an <code>f</code>.
-If there is not exactly one <code>f</code> with shallowest depth, the selector
-expression is illegal.
+If there is not exactly <a href="#Uniqueness_of_identifiers">one <code>f</code></a>
+with shallowest depth, the selector expression is illegal.
 </li>
 <li>
 For a variable <code>x</code> of type <code>I</code>
@@ -5070,11 +5084,12 @@ An implementation may require that all source files for a package inhabit the sa
 <h3 id="Import_declarations">Import declarations</h3>
 
 <p>
-An import declaration states that the source file containing the
-declaration uses identifiers
-<a href="#Exported_identifiers">exported</a> by the <i>imported</i>
-package and enables access to them.  The import names an
-identifier (PackageName) to be used for access and an ImportPath
+An import declaration states that the source file containing the declaration
+depends on functionality of the <i>imported</i> package
+(<a href="#Program_initialization_and_execution">§Program initialization and execution</a>)
+and it enables access to <a href="#Exported_identifiers">exported</a> identifiers
+of that package.
+The import names an identifier (PackageName) to be used for access and an ImportPath
 that specifies the package to be imported.
 </p>
 
@@ -5086,13 +5101,14 @@ ImportPath       = string_lit .
 
 <p>
 The PackageName is used in <a href="#Qualified_identifiers">qualified identifiers</a>
-to access the exported identifiers of the package within the importing source file.
+to access exported identifiers of the package within the importing source file.
 It is declared in the <a href="#Blocks">file block</a>.
 If the PackageName is omitted, it defaults to the identifier specified in the
 <a href="#Package_clause">package clause</a> of the imported package.
 If an explicit period (<code>.</code>) appears instead of a name, all the
-package's exported identifiers will be declared in the current file's
-file block and can be accessed without a qualifier.
+package's exported identifiers declared in that package's
+<a href="#Blocks">package block</a> will be declared in the importing source
+file's file block and can be accessed without a qualifier.
 </p>
 
 <p>
