@@ -392,12 +392,12 @@ func decUint8Slice(i *decInstr, state *decoderState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	n := int(state.decodeUint())
-	if n < 0 {
-		errorf("negative length decoding []byte")
+	n := state.decodeUint()
+	if n > uint64(state.b.Len()) {
+		errorf("length of []byte exceeds input size (%d bytes)", n)
 	}
 	slice := (*[]uint8)(p)
-	if cap(*slice) < n {
+	if uint64(cap(*slice)) < n {
 		*slice = make([]uint8, n)
 	} else {
 		*slice = (*slice)[0:n]
@@ -417,7 +417,11 @@ func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	b := make([]byte, state.decodeUint())
+	n := state.decodeUint()
+	if n > uint64(state.b.Len()) {
+		errorf("string length exceeds input size (%d bytes)", n)
+	}
+	b := make([]byte, n)
 	state.b.Read(b)
 	// It would be a shame to do the obvious thing here,
 	//	*(*string)(p) = string(b)
@@ -647,7 +651,11 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 // decodeSlice decodes a slice and stores the slice header through p.
 // Slices are encoded as an unsigned length followed by the elements.
 func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
-	n := int(uintptr(state.decodeUint()))
+	nr := state.decodeUint()
+	if nr > uint64(state.b.Len()) {
+		errorf("length of slice exceeds input size (%d elements)", nr)
+	}
+	n := int(nr)
 	if indir > 0 {
 		up := unsafe.Pointer(p)
 		if *(*unsafe.Pointer)(up) == nil {
@@ -701,6 +709,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 		// This is horribly unsafe and special.
 		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
 		return
+	}
+	if len(name) > 1024 {
+		errorf("name too long (%d bytes): %.20q...", len(name), name)
 	}
 	// The concrete type must be registered.
 	typ, ok := nameToConcreteType[name]

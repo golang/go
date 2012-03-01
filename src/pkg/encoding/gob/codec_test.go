@@ -1455,11 +1455,14 @@ func TestFuzz(t *testing.T) {
 func TestFuzzRegressions(t *testing.T) {
 	// An instance triggering a type name of length ~102 GB.
 	testFuzz(t, 1328492090837718000, 100, new(float32))
+	// An instance triggering a type name of 1.6 GB.
+	// Commented out because it takes 5m to run.
+	//testFuzz(t, 1330522872628565000, 100, new(int))
 }
 
 func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
-	t.Logf("seed=%d n=%d\n", seed, n)
 	for _, e := range input {
+		t.Logf("seed=%d n=%d e=%T", seed, n, e)
 		rng := rand.New(rand.NewSource(seed))
 		for i := 0; i < n; i++ {
 			encFuzzDec(rng, e)
