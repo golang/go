@@ -15,6 +15,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -90,11 +91,11 @@ var (
 
 func initHandlers() {
 	paths := filepath.SplitList(*pkgPath)
-	for _, t := range build.Path {
-		if t.Goroot {
-			continue
+	gorootSrc := filepath.Join(build.Default.GOROOT, "src", "pkg")
+	for _, p := range build.Default.SrcDirs() {
+		if p != gorootSrc {
+			paths = append(paths, p)
 		}
-		paths = append(paths, t.SrcDir())
 	}
 	fsMap.Init(paths)
 
@@ -1002,11 +1003,13 @@ func fsReadDir(dir string) ([]os.FileInfo, error) {
 	return fs.ReadDir(dir)
 }
 
-// fsReadFile implements ReadFile for the go/build package.
-func fsReadFile(dir, name string) (path string, data []byte, err error) {
-	path = filepath.Join(dir, name)
-	data, err = ReadFile(fs, path)
-	return
+// fsOpenFile implements OpenFile for the go/build package.
+func fsOpenFile(name string) (r io.ReadCloser, err error) {
+	data, err := ReadFile(fs, name)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.NopCloser(bytes.NewReader(data)), nil
 }
 
 func inList(name string, list []string) bool {
@@ -1039,10 +1042,11 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		// To use different pair, such as if we allowed the user
 		// to choose, set ctxt.GOOS and ctxt.GOARCH before
 		// calling ctxt.ScanDir.
-		ctxt := build.DefaultContext
+		ctxt := build.Default
+		ctxt.IsAbsPath = path.IsAbs
 		ctxt.ReadDir = fsReadDir
-		ctxt.ReadFile = fsReadFile
-		dir, err := ctxt.ScanDir(abspath)
+		ctxt.OpenFile = fsOpenFile
+		dir, err := ctxt.ImportDir(abspath, 0)
 		if err == nil {
 			pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
 		}

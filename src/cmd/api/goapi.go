@@ -74,16 +74,10 @@ func main() {
 		pkgs = strings.Fields(string(stds))
 	}
 
-	tree, _, err := build.FindTree("os") // some known package
-	if err != nil {
-		log.Fatalf("failed to find tree: %v", err)
-	}
-
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, context := range contexts {
 		w := NewWalker()
 		w.context = context
-		w.tree = tree
 
 		for _, pkg := range pkgs {
 			w.wantedPkg[pkg] = true
@@ -95,7 +89,7 @@ func main() {
 				strings.HasPrefix(pkg, "old/") {
 				continue
 			}
-			if !tree.HasSrc(pkg) {
+			if fi, err := os.Stat(filepath.Join(w.root, pkg)); err != nil || !fi.IsDir() {
 				log.Fatalf("no source in tree for package %q", pkg)
 			}
 			w.WalkPackage(pkg)
@@ -165,7 +159,7 @@ type pkgSymbol struct {
 
 type Walker struct {
 	context         *build.Context
-	tree            *build.Tree
+	root            string
 	fset            *token.FileSet
 	scope           []string
 	features        map[string]bool // set
@@ -191,6 +185,7 @@ func NewWalker() *Walker {
 		selectorFullPkg: make(map[string]string),
 		wantedPkg:       make(map[string]bool),
 		prevConstType:   make(map[pkgSymbol]string),
+		root:            filepath.Join(build.Default.GOROOT, "src/pkg"),
 	}
 }
 
@@ -252,15 +247,13 @@ func (w *Walker) WalkPackage(name string) {
 	defer func() {
 		w.packageState[name] = loaded
 	}()
-	dir := filepath.Join(w.tree.SrcDir(), filepath.FromSlash(name))
+	dir := filepath.Join(w.root, filepath.FromSlash(name))
 
-	var info *build.DirInfo
-	var err error
-	if ctx := w.context; ctx != nil {
-		info, err = ctx.ScanDir(dir)
-	} else {
-		info, err = build.ScanDir(dir)
+	ctxt := w.context
+	if ctxt == nil {
+		ctxt = &build.Default
 	}
+	info, err := ctxt.ImportDir(dir, 0)
 	if err != nil {
 		if strings.Contains(err.Error(), "no Go source files") {
 			return

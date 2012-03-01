@@ -388,9 +388,9 @@ func main() {
 	}
 	relpath := path
 	abspath := path
-	if t, pkg, err := build.FindTree(path); err == nil {
-		relpath = pkg
-		abspath = filepath.Join(t.SrcDir(), pkg)
+	if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
+		relpath = bp.ImportPath
+		abspath = bp.Dir
 	} else if !filepath.IsAbs(path) {
 		abspath = absolutePath(path, pkgHandler.fsRoot)
 	} else {

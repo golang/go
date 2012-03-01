@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"text/scanner"
 )
 
@@ -39,11 +40,14 @@ func findPkg(path string) (filename, id string) {
 	switch path[0] {
 	default:
 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
-		tree, pkg, err := build.FindTree(path)
-		if err != nil {
+		bp, _ := build.Import(path, "", build.FindOnly)
+		if bp.PkgObj == "" {
 			return
 		}
-		noext = filepath.Join(tree.PkgDir(), pkg)
+		noext = bp.PkgObj
+		if strings.HasSuffix(noext, ".a") {
+			noext = noext[:len(noext)-2]
+		}
 
 	case '.':
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
@@ -742,7 +746,7 @@ func (p *gcParser) parseVarDecl() {
 }
 
 // FuncBody = "{" ... "}" .
-// 
+//
 func (p *gcParser) parseFuncBody() {
 	p.expect('{')
 	for i := 1; i > 0; p.next() {
