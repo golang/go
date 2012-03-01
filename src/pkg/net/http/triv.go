@@ -108,7 +108,6 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(rw, "fork/exec: %s\n", err)
 		return
 	}
-	defer p.Release()
 	io.Copy(rw, r)
 	wait, err := p.Wait(0)
 	if err != nil {

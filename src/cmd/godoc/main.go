@@ -99,7 +99,6 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 		log.Printf("os.StartProcess(%q): %v", bin, err)
 		return 2
 	}
-	defer p.Release()
 
 	var buf bytes.Buffer
 	io.Copy(&buf, r)

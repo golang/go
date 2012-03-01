@@ -14,6 +14,7 @@ import (
 
 // Wait waits for the Process to exit or stop, and then returns a
 // ProcessState describing its status and an error, if any.
+// Wait releases any resources associated with the Process.
 func (p *Process) Wait() (ps *ProcessState, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
@@ -30,6 +31,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	p.done = true
+	defer p.Release()
 	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
 }
 
@@ -46,8 +48,7 @@ func (p *Process) Signal(sig Signal) error {
 	return syscall.Errno(syscall.EWINDOWS)
 }
 
-// Release releases any resources associated with the Process.
-func (p *Process) Release() error {
+func (p *Process) release() error {
 	if p.handle == uintptr(syscall.InvalidHandle) {
 		return syscall.EINVAL
 	}

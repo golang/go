@@ -94,8 +94,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-// Release releases any resources associated with the Process.
-func (p *Process) Release() error {
+func (p *Process) release() error {
 	// NOOP for Plan 9.
 	p.Pid = -1
 	// no need for a finalizer anymore
