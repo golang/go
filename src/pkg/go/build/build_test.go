@@ -5,83 +5,14 @@
 package build
 
 import (
+	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
-	"sort"
 	"testing"
 )
 
-func sortstr(x []string) []string {
-	sort.Strings(x)
-	return x
-}
-
-var buildPkgs = []struct {
-	dir  string
-	info *DirInfo
-}{
-	{
-		"go/build/pkgtest",
-		&DirInfo{
-			GoFiles:      []string{"pkgtest.go"},
-			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
-			Package:      "pkgtest",
-			Imports:      []string{"bytes"},
-			TestImports:  []string{"fmt", "pkgtest"},
-			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
-			XTestGoFiles: []string{"xsqrt_test.go"},
-		},
-	},
-	{
-		"go/build/cmdtest",
-		&DirInfo{
-			GoFiles:     []string{"main.go"},
-			Package:     "main",
-			Imports:     []string{"go/build/pkgtest"},
-			TestImports: []string{},
-		},
-	},
-	{
-		"go/build/cgotest",
-		&DirInfo{
-			CgoFiles:    ifCgo([]string{"cgotest.go"}),
-			CFiles:      []string{"cgotest.c"},
-			HFiles:      []string{"cgotest.h"},
-			Imports:     []string{"C", "unsafe"},
-			TestImports: []string{},
-			Package:     "cgotest",
-		},
-	},
-}
-
-func ifCgo(x []string) []string {
-	if DefaultContext.CgoEnabled {
-		return x
-	}
-	return nil
-}
-
-func TestBuild(t *testing.T) {
-	for _, tt := range buildPkgs {
-		tree := Path[0] // Goroot
-		dir := filepath.Join(tree.SrcDir(), tt.dir)
-		info, err := ScanDir(dir)
-		if err != nil {
-			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
-			continue
-		}
-		// Don't bother testing import positions.
-		tt.info.ImportPos, tt.info.TestImportPos = info.ImportPos, info.TestImportPos
-		if !reflect.DeepEqual(info, tt.info) {
-			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
-			continue
-		}
-	}
-}
-
 func TestMatch(t *testing.T) {
-	ctxt := DefaultContext
+	ctxt := Default
 	what := "default"
 	match := func(tag string) {
 		if !ctxt.match(tag) {
@@ -105,4 +36,41 @@ func TestMatch(t *testing.T) {
 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",!foo")
 	match(runtime.GOOS + "," + runtime.GOARCH + ",!bar")
 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",bar")
+}
+
+func TestDotSlashImport(t *testing.T) {
+	p, err := ImportDir("testdata/other", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Imports) != 1 || p.Imports[0] != "./file" {
+		t.Fatalf("testdata/other: Imports=%v, want [./file]", p.Imports)
+	}
+
+	p1, err := Import("./file", "testdata/other", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p1.Name != "file" {
+		t.Fatalf("./file: Name=%q, want %q", p1.Name, "file")
+	}
+	dir := filepath.Clean("testdata/other/file") // Clean to use \ on Windows
+	if p1.Dir != dir {
+		t.Fatalf("./file: Dir=%q, want %q", p1.Name, dir)
+	}
+}
+
+func TestLocalDirectory(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := ImportDir(cwd, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.ImportPath != "go/build" {
+		t.Fatalf("ImportPath=%q, want %q", p.ImportPath, "go/build")
+	}
 }

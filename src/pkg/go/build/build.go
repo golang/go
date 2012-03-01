@@ -48,7 +48,7 @@
 // To build a file only when using cgo, and only on Linux and OS X:
 //
 //	// +build linux,cgo darwin,cgo
-// 
+//
 // Such a file is usually paired with another file implementing the
 // default functionality for other systems, which in this case would
 // carry the constraint:
@@ -66,12 +66,14 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
+	pathpkg "path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -84,56 +86,186 @@ import (
 type Context struct {
 	GOARCH      string   // target architecture
 	GOOS        string   // target operating system
+	GOROOT      string   // Go root
+	GOPATH      string   // Go path
 	CgoEnabled  bool     // whether cgo can be used
 	BuildTags   []string // additional tags to recognize in +build lines
 	UseAllFiles bool     // use files regardless of +build lines, file names
+	Gccgo       bool     // assume use of gccgo when computing object paths
 
-	// By default, ScanDir uses the operating system's
-	// file system calls to read directories and files.
-	// Callers can override those calls to provide other
-	// ways to read data by setting ReadDir and ReadFile.
-	// ScanDir does not make any assumptions about the
-	// format of the strings dir and file: they can be
-	// slash-separated, backslash-separated, even URLs.
+	// By default, Import uses the operating system's file system calls
+	// to read directories and files.  To read from other sources,
+	// callers can set the following functions.  They all have default
+	// behaviors that use the local file system, so clients need only set
+	// the functions whose behaviors they wish to change.
+
+	// JoinPath joins the sequence of path fragments into a single path.
+	// If JoinPath is nil, Import uses filepath.Join.
+	JoinPath func(elem ...string) string
+
+	// SplitPathList splits the path list into a slice of individual paths.
+	// If SplitPathList is nil, Import uses filepath.SplitList.
+	SplitPathList func(list string) []string
+
+	// IsAbsPath reports whether path is an absolute path.
+	// If IsAbsPath is nil, Import uses filepath.IsAbs.
+	IsAbsPath func(path string) bool
+
+	// IsDir reports whether the path names a directory.
+	// If IsDir is nil, Import calls os.Stat and uses the result's IsDir method.
+	IsDir func(path string) bool
+
+	// HasSubdir reports whether dir is a subdirectory of
+	// (perhaps multiple levels below) root.
+	// If so, HasSubdir sets rel to a slash-separated path that
+	// can be joined to root to produce a path equivalent to dir.
+	// If HasSubdir is nil, Import uses an implementation built on
+	// filepath.EvalSymlinks.
+	HasSubdir func(root, dir string) (rel string, ok bool)
 
 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
-	// The dir argument is the argument to ScanDir.
-	// If ReadDir is nil, ScanDir uses io.ReadDir.
+	// If ReadDir is nil, Import uses io.ReadDir.
 	ReadDir func(dir string) (fi []os.FileInfo, err error)
 
-	// ReadFile returns the content of the file named file
-	// in the directory named dir.  The dir argument is the
-	// argument to ScanDir, and the file argument is the
-	// Name field from an os.FileInfo returned by ReadDir.
-	// The returned path is the full name of the file, to be
-	// used in error messages.
-	//
-	// If ReadFile is nil, ScanDir uses filepath.Join(dir, file)
-	// as the path and ioutil.ReadFile to read the data.
-	ReadFile func(dir, file string) (path string, content []byte, err error)
+	// OpenFile opens a file (not a directory) for reading.
+	// If OpenFile is nil, Import uses os.Open.
+	OpenFile func(path string) (r io.ReadCloser, err error)
 }
 
-func (ctxt *Context) readDir(dir string) ([]os.FileInfo, error) {
+// joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.
+func (ctxt *Context) joinPath(elem ...string) string {
+	if f := ctxt.JoinPath; f != nil {
+		return f(elem...)
+	}
+	return filepath.Join(elem...)
+}
+
+// splitPathList calls ctxt.SplitPathList (if not nil) or else filepath.SplitList.
+func (ctxt *Context) splitPathList(s string) []string {
+	if f := ctxt.SplitPathList; f != nil {
+		return f(s)
+	}
+	return filepath.SplitList(s)
+}
+
+// isAbsPath calls ctxt.IsAbsSPath (if not nil) or else filepath.IsAbs.
+func (ctxt *Context) isAbsPath(path string) bool {
+	if f := ctxt.IsAbsPath; f != nil {
+		return f(path)
+	}
+	return filepath.IsAbs(path)
+}
+
+// isDir calls ctxt.IsDir (if not nil) or else uses os.Stat.
+func (ctxt *Context) isDir(path string) bool {
+	if f := ctxt.IsDir; f != nil {
+		return f(path)
+	}
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
+}
+
+// hasSubdir calls ctxt.HasSubdir (if not nil) or else uses
+// the local file system to answer the question.
+func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
+	if f := ctxt.HasSubdir; f != nil {
+		return f(root, dir)
+	}
+
+	if p, err := filepath.EvalSymlinks(root); err == nil {
+		root = p
+	}
+	if p, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = p
+	}
+	const sep = string(filepath.Separator)
+	root = filepath.Clean(root)
+	if !strings.HasSuffix(root, sep) {
+		root += sep
+	}
+	dir = filepath.Clean(dir)
+	if !strings.HasPrefix(dir, root) {
+		return "", false
+	}
+	return filepath.ToSlash(dir[len(root):]), true
+}
+
+// readDir calls ctxt.ReadDir (if not nil) or else ioutil.ReadDir.
+func (ctxt *Context) readDir(path string) ([]os.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
-		return f(dir)
+		return f(path)
 	}
-	return ioutil.ReadDir(dir)
+	return ioutil.ReadDir(path)
 }
 
-func (ctxt *Context) readFile(dir, file string) (string, []byte, error) {
-	if f := ctxt.ReadFile; f != nil {
-		return f(dir, file)
+// openFile calls ctxt.OpenFile (if not nil) or else os.Open.
+func (ctxt *Context) openFile(path string) (io.ReadCloser, error) {
+	if fn := ctxt.OpenFile; fn != nil {
+		return fn(path)
 	}
-	p := filepath.Join(dir, file)
-	content, err := ioutil.ReadFile(p)
-	return p, content, err
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err // nil interface
+	}
+	return f, nil
 }
 
-// The DefaultContext is the default Context for builds.
-// It uses the GOARCH and GOOS environment variables
-// if set, or else the compiled code's GOARCH and GOOS.
-var DefaultContext Context = defaultContext()
+// isFile determines whether path is a file by trying to open it.
+// It reuses openFile instead of adding another function to the
+// list in Context.
+func (ctxt *Context) isFile(path string) bool {
+	f, err := ctxt.openFile(path)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
+}
+
+// gopath returns the list of Go path directories.
+func (ctxt *Context) gopath() []string {
+	var all []string
+	for _, p := range ctxt.splitPathList(ctxt.GOPATH) {
+		if p == "" || p == ctxt.GOROOT {
+			// Empty paths are uninteresting.
+			// If the path is the GOROOT, ignore it.
+			// People sometimes set GOPATH=$GOROOT, which is useless
+			// but would cause us to find packages with import paths
+			// like "pkg/math".
+			// Do not get confused by this common mistake.
+			continue
+		}
+		all = append(all, p)
+	}
+	return all
+}
+
+// SrcDirs returns a list of package source root directories.
+// It draws from the current Go root and Go path but omits directories
+// that do not exist.
+func (ctxt *Context) SrcDirs() []string {
+	var all []string
+	if ctxt.GOROOT != "" {
+		dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
+		if ctxt.isDir(dir) {
+			all = append(all, dir)
+		}
+	}
+	for _, p := range ctxt.gopath() {
+		dir := ctxt.joinPath(p, "src")
+		if ctxt.isDir(dir) {
+			all = append(all, dir)
+		}
+	}
+	return all
+}
+
+// Default is the default Context for builds.
+// It uses the GOARCH, GOOS, GOROOT, and GOPATH environment variables
+// if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
+var Default Context = defaultContext()
 
 var cgoEnabled = map[string]bool{
 	"darwin/386":    true,
@@ -151,9 +283,10 @@ func defaultContext() Context {
 
 	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
 	c.GOOS = envOr("GOOS", runtime.GOOS)
+	c.GOROOT = runtime.GOROOT()
+	c.GOPATH = envOr("GOPATH", "")
 
-	s := os.Getenv("CGO_ENABLED")
-	switch s {
+	switch os.Getenv("CGO_ENABLED") {
 	case "1":
 		c.CgoEnabled = true
 	case "0":
@@ -173,66 +306,203 @@ func envOr(name, def string) string {
 	return s
 }
 
-type DirInfo struct {
-	Package        string                      // Name of package in dir
-	PackageComment *ast.CommentGroup           // Package comments from GoFiles
-	ImportPath     string                      // Import path of package in dir
-	Imports        []string                    // All packages imported by GoFiles
-	ImportPos      map[string][]token.Position // Source code location of imports
+// An ImportMode controls the behavior of the Import method.
+type ImportMode uint
+
+const (
+	// If FindOnly is set, Import stops after locating the directory
+	// that should contain the sources for a package.  It does not
+	// read any files in the directory.
+	FindOnly ImportMode = 1 << iota
+
+	// If AllowBinary is set, Import can be satisfied by a compiled
+	// package object without corresponding sources.
+	AllowBinary
+)
+
+// A Package describes the Go package found in a directory.
+type Package struct {
+	Dir        string // directory containing package sources
+	Name       string // package name
+	Doc        string // documentation synopsis
+	ImportPath string // import path of package ("" if unknown)
+	Root       string // root of Go tree where this package lives
+	SrcRoot    string // package source root directory ("" if unknown)
+	PkgRoot    string // package install root directory ("" if unknown)
+	BinDir     string // command install directory ("" if unknown)
+	Goroot     bool   // package found in Go root
+	PkgObj     string // installed .a file
 
 	// Source files
-	GoFiles  []string // .go files in dir (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	HFiles   []string // .h files in dir
-	CFiles   []string // .c files in dir
-	SFiles   []string // .s (and, when using cgo, .S files in dir)
-	CgoFiles []string // .go files that import "C"
+	GoFiles  []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles []string // .go source files that import "C"
+	CFiles   []string // .c source files
+	HFiles   []string // .h source files
+	SFiles   []string // .s source files
 
 	// Cgo directives
 	CgoPkgConfig []string // Cgo pkg-config directives
 	CgoCFLAGS    []string // Cgo CFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 
+	// Dependency information
+	Imports   []string                    // imports from GoFiles, CgoFiles
+	ImportPos map[string][]token.Position // line information for Imports
+
 	// Test information
-	TestGoFiles   []string // _test.go files in package
-	XTestGoFiles  []string // _test.go files outside package
-	TestImports   []string // All packages imported by (X)TestGoFiles
-	TestImportPos map[string][]token.Position
+	TestGoFiles    []string                    // _test.go files in package
+	TestImports    []string                    // imports from TestGoFiles
+	TestImportPos  map[string][]token.Position // line information for TestImports
+	XTestGoFiles   []string                    // _test.go files outside package
+	XTestImports   []string                    // imports from XTestGoFiles
+	XTestImportPos map[string][]token.Position // line information for XTestImports
 }
 
-func (d *DirInfo) IsCommand() bool {
-	// TODO(rsc): This is at least a little bogus.
-	return d.Package == "main"
+// IsCommand reports whether the package is considered a
+// command to be installed (not just a library).
+// Packages named "main" are treated as commands.
+func (p *Package) IsCommand() bool {
+	return p.Name == "main"
 }
 
-// ScanDir calls DefaultContext.ScanDir.
-func ScanDir(dir string) (info *DirInfo, err error) {
-	return DefaultContext.ScanDir(dir)
+// ImportDir is like Import but processes the Go package found in
+// the named directory.
+func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+	return ctxt.Import(".", dir, mode)
 }
 
-// TODO(rsc): Move this comment to a more appropriate place.
-
-// ScanDir returns a structure with details about the Go package
-// found in the given directory.
+// Import returns details about the Go package named by the import path,
+// interpreting local import paths relative to the src directory.  If the path
+// is a local import path naming a package that can be imported using a
+// standard import path, the returned package will set p.ImportPath to
+// that path.
 //
-// Most .go, .c, .h, and .s files in the directory are considered part
-// of the package.  The exceptions are:
+// In the directory containing the package, .go, .c, .h, and .s files are
+// considered part of the package except for:
 //
-//	- .go files in package main (unless no other package is found)
 //	- .go files in package documentation
 //	- files starting with _ or .
 //	- files with build constraints not satisfied by the context
 //
-func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
-	dirs, err := ctxt.readDir(dir)
+// If an error occurs, Import returns a non-nil error also returns a non-nil
+// *Package containing partial information.
+//
+func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package, error) {
+	p := &Package{
+		ImportPath: path,
+	}
+
+	var pkga string
+	if ctxt.Gccgo {
+		dir, elem := pathpkg.Split(p.ImportPath)
+		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
+	} else {
+		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + p.ImportPath + ".a"
+	}
+
+	binaryOnly := false
+	if IsLocalImport(path) {
+		if src == "" {
+			return p, fmt.Errorf("import %q: import relative to unknown directory", path)
+		}
+		if !ctxt.isAbsPath(path) {
+			p.Dir = ctxt.joinPath(src, path)
+		}
+		// Determine canonical import path, if any.
+		if ctxt.GOROOT != "" {
+			root := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
+			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok {
+				p.Goroot = true
+				p.ImportPath = sub
+				p.Root = ctxt.GOROOT
+				goto Found
+			}
+		}
+		all := ctxt.gopath()
+		for i, root := range all {
+			rootsrc := ctxt.joinPath(root, "src")
+			if sub, ok := ctxt.hasSubdir(rootsrc, p.Dir); ok {
+				// We found a potential import path for dir,
+				// but check that using it wouldn't find something
+				// else first.
+				if ctxt.GOROOT != "" {
+					if dir := ctxt.joinPath(ctxt.GOROOT, "src", sub); ctxt.isDir(dir) {
+						goto Found
+					}
+				}
+				for _, earlyRoot := range all[:i] {
+					if dir := ctxt.joinPath(earlyRoot, "src", sub); ctxt.isDir(dir) {
+						goto Found
+					}
+				}
+
+				// sub would not name some other directory instead of this one.
+				// Record it.
+				p.ImportPath = sub
+				p.Root = root
+				goto Found
+			}
+		}
+		// It's okay that we didn't find a root containing dir.
+		// Keep going with the information we have.
+	} else {
+		if strings.HasPrefix(path, "/") {
+			return p, fmt.Errorf("import %q: cannot import absolute path", path)
+		}
+		// Determine directory from import path.
+		if ctxt.GOROOT != "" {
+			dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
+			isDir := ctxt.isDir(dir)
+			binaryOnly = !isDir && mode&AllowBinary != 0 && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+			if isDir || binaryOnly {
+				p.Dir = dir
+				p.Goroot = true
+				p.Root = ctxt.GOROOT
+				goto Found
+			}
+		}
+		for _, root := range ctxt.gopath() {
+			dir := ctxt.joinPath(root, "src", path)
+			isDir := ctxt.isDir(dir)
+			binaryOnly = !isDir && mode&AllowBinary != 0 && ctxt.isFile(ctxt.joinPath(root, pkga))
+			if isDir || binaryOnly {
+				p.Dir = dir
+				p.Root = root
+				goto Found
+			}
+		}
+		return p, fmt.Errorf("import %q: cannot find package", path)
+	}
+
+Found:
+	if p.Root != "" {
+		if p.Goroot {
+			p.SrcRoot = ctxt.joinPath(p.Root, "src", "pkg")
+		} else {
+			p.SrcRoot = ctxt.joinPath(p.Root, "src")
+		}
+		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+		p.BinDir = ctxt.joinPath(p.Root, "bin")
+		p.PkgObj = ctxt.joinPath(p.Root, pkga)
+	}
+
+	if mode&FindOnly != 0 {
+		return p, nil
+	}
+	if binaryOnly && (mode&AllowBinary) != 0 {
+		return p, nil
+	}
+
+	dirs, err := ctxt.readDir(p.Dir)
 	if err != nil {
-		return nil, err
+		return p, err
 	}
 
 	var Sfiles []string // files with ".S" (capital S)
-	var di DirInfo
 	var firstFile string
 	imported := make(map[string][]token.Position)
 	testImported := make(map[string][]token.Position)
+	xTestImported := make(map[string][]token.Position)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
 		if d.IsDir() {
@@ -247,7 +517,11 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			continue
 		}
 
-		ext := path.Ext(name)
+		i := strings.LastIndex(name, ".")
+		if i < 0 {
+			i = len(name)
+		}
+		ext := name[i:]
 		switch ext {
 		case ".go", ".c", ".s", ".h", ".S":
 			// tentatively okay
@@ -256,9 +530,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			continue
 		}
 
-		filename, data, err := ctxt.readFile(dir, name)
+		filename := ctxt.joinPath(p.Dir, name)
+		f, err := ctxt.openFile(filename)
 		if err != nil {
-			return nil, err
+			return p, err
+		}
+		data, err := ioutil.ReadAll(f)
+		f.Close()
+		if err != nil {
+			return p, fmt.Errorf("read %s: %v", filename, err)
 		}
 
 		// Look for +build comments to accept or reject the file.
@@ -269,13 +549,13 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		// Going to save the file.  For non-Go files, can stop here.
 		switch ext {
 		case ".c":
-			di.CFiles = append(di.CFiles, name)
+			p.CFiles = append(p.CFiles, name)
 			continue
 		case ".h":
-			di.HFiles = append(di.HFiles, name)
+			p.HFiles = append(p.HFiles, name)
 			continue
 		case ".s":
-			di.SFiles = append(di.SFiles, name)
+			p.SFiles = append(p.SFiles, name)
 			continue
 		case ".S":
 			Sfiles = append(Sfiles, name)
@@ -284,7 +564,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 
 		pf, err := parser.ParseFile(fset, filename, data, parser.ImportsOnly|parser.ParseComments)
 		if err != nil {
-			return nil, err
+			return p, err
 		}
 
 		pkg := string(pf.Name.Name)
@@ -293,22 +573,20 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		}
 
 		isTest := strings.HasSuffix(name, "_test.go")
+		isXTest := false
 		if isTest && strings.HasSuffix(pkg, "_test") {
+			isXTest = true
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
 
-		if di.Package == "" {
-			di.Package = pkg
+		if p.Name == "" {
+			p.Name = pkg
 			firstFile = name
-		} else if pkg != di.Package {
-			return nil, fmt.Errorf("%s: found packages %s (%s) and %s (%s)", dir, di.Package, firstFile, pkg, name)
+		} else if pkg != p.Name {
+			return p, fmt.Errorf("found packages %s (%s) and %s (%s) in %s", p.Name, firstFile, pkg, name, p.Dir)
 		}
-		if pf.Doc != nil {
-			if di.PackageComment != nil {
-				di.PackageComment.List = append(di.PackageComment.List, pf.Doc.List...)
-			} else {
-				di.PackageComment = pf.Doc
-			}
+		if pf.Doc != nil && p.Doc == "" {
+			p.Doc = doc.Synopsis(pf.Doc.Text())
 		}
 
 		// Record imports and information about cgo.
@@ -328,22 +606,24 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 				if err != nil {
 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
 				}
-				if isTest {
+				if isXTest {
+					xTestImported[path] = append(xTestImported[path], fset.Position(spec.Pos()))
+				} else if isTest {
 					testImported[path] = append(testImported[path], fset.Position(spec.Pos()))
 				} else {
 					imported[path] = append(imported[path], fset.Position(spec.Pos()))
 				}
 				if path == "C" {
 					if isTest {
-						return nil, fmt.Errorf("%s: use of cgo in test not supported", filename)
+						return p, fmt.Errorf("use of cgo in test %s not supported", filename)
 					}
 					cg := spec.Doc
 					if cg == nil && len(d.Specs) == 1 {
 						cg = d.Doc
 					}
 					if cg != nil {
-						if err := ctxt.saveCgo(filename, &di, cg); err != nil {
-							return nil, err
+						if err := ctxt.saveCgo(filename, p, cg); err != nil {
+							return p, err
 						}
 					}
 					isCgo = true
@@ -352,48 +632,52 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		}
 		if isCgo {
 			if ctxt.CgoEnabled {
-				di.CgoFiles = append(di.CgoFiles, name)
+				p.CgoFiles = append(p.CgoFiles, name)
 			}
+		} else if isXTest {
+			p.XTestGoFiles = append(p.XTestGoFiles, name)
 		} else if isTest {
-			if pkg == string(pf.Name.Name) {
-				di.TestGoFiles = append(di.TestGoFiles, name)
-			} else {
-				di.XTestGoFiles = append(di.XTestGoFiles, name)
-			}
+			p.TestGoFiles = append(p.TestGoFiles, name)
 		} else {
-			di.GoFiles = append(di.GoFiles, name)
+			p.GoFiles = append(p.GoFiles, name)
 		}
 	}
-	if di.Package == "" {
-		return nil, fmt.Errorf("%s: no Go source files", dir)
+	if p.Name == "" {
+		return p, fmt.Errorf("no Go source files in %s", p.Dir)
 	}
-	di.Imports = make([]string, len(imported))
-	di.ImportPos = imported
-	i := 0
-	for p := range imported {
-		di.Imports[i] = p
-		i++
-	}
-	di.TestImports = make([]string, len(testImported))
-	di.TestImportPos = testImported
-	i = 0
-	for p := range testImported {
-		di.TestImports[i] = p
-		i++
-	}
+
+	p.Imports, p.ImportPos = cleanImports(imported)
+	p.TestImports, p.TestImportPos = cleanImports(testImported)
+	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
 
 	// add the .S files only if we are using cgo
 	// (which means gcc will compile them).
 	// The standard assemblers expect .s files.
-	if len(di.CgoFiles) > 0 {
-		di.SFiles = append(di.SFiles, Sfiles...)
-		sort.Strings(di.SFiles)
+	if len(p.CgoFiles) > 0 {
+		p.SFiles = append(p.SFiles, Sfiles...)
+		sort.Strings(p.SFiles)
 	}
 
-	// File name lists are sorted because ReadDir sorts.
-	sort.Strings(di.Imports)
-	sort.Strings(di.TestImports)
-	return &di, nil
+	return p, nil
+}
+
+func cleanImports(m map[string][]token.Position) ([]string, map[string][]token.Position) {
+	all := make([]string, 0, len(m))
+	for path := range m {
+		all = append(all, path)
+	}
+	sort.Strings(all)
+	return all, m
+}
+
+// Import is shorthand for Default.Import.
+func Import(path, src string, mode ImportMode) (*Package, error) {
+	return Default.Import(path, src, mode)
+}
+
+// ImportDir is shorthand for Default.ImportDir.
+func ImportDir(dir string, mode ImportMode) (*Package, error) {
+	return Default.ImportDir(dir, mode)
 }
 
 var slashslash = []byte("//")
@@ -473,7 +757,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 //
 // TODO(rsc): This duplicates code in cgo.
 // Once the dust settles, remove this code from cgo.
-func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup) error {
+func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup) error {
 	text := cg.Text()
 	for _, line := range strings.Split(text, "\n") {
 		orig := line
@@ -711,14 +995,11 @@ func init() {
 // ToolDir is the directory containing build tools.
 var ToolDir = filepath.Join(runtime.GOROOT(), "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 
-// isLocalPath returns whether the given path is local (/foo ./foo ../foo . ..)
-// Windows paths that starts with drive letter (c:\foo c:foo) are considered local.
-func isLocalPath(s string) bool {
-	const sep = string(filepath.Separator)
-	return s == "." || s == ".." ||
-		filepath.HasPrefix(s, sep) ||
-		filepath.HasPrefix(s, "."+sep) || filepath.HasPrefix(s, ".."+sep) ||
-		filepath.VolumeName(s) != ""
+// IsLocalImport reports whether the import path is
+// a local import path, like ".", "..", "./foo", or "../foo".
+func IsLocalImport(path string) bool {
+	return path == "." || path == ".." ||
+		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../")
 }
 
 // ArchChar returns the architecture character for the given goarch.
