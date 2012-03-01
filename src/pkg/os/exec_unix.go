@@ -51,8 +51,7 @@ func (p *Process) Signal(sig Signal) error {
 	return nil
 }
 
-// Release releases any resources associated with the Process.
-func (p *Process) Release() error {
+func (p *Process) release() error {
 	// NOOP for unix.
 	p.Pid = -1
 	// no need for a finalizer anymore

@@ -530,7 +530,6 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
-	defer p.Release()
 	w.Close()
 
 	var b bytes.Buffer
@@ -848,7 +847,6 @@ func run(t *testing.T, cmd []string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer p.Release()
 	w.Close()
 
 	var b bytes.Buffer

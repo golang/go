@@ -11,6 +11,13 @@ func FindProcess(pid int) (p *Process, err error) {
 	return findProcess(pid)
 }
 
+// Release releases any resources associated with the Process p,
+// rendering it unusable in the future.
+// Release only needs to be called if Wait is not.
+func (p *Process) Release() error {
+	return p.release()
+}
+
 // Hostname returns the host name reported by the kernel.
 func Hostname() (name string, err error) {
 	return hostname()

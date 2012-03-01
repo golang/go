@@ -36,7 +36,6 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	if err != nil {
 		fatalf("%s", err)
 	}
-	defer p.Release()
 	r0.Close()
 	w1.Close()
 	w2.Close()
