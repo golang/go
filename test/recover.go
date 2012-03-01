@@ -244,3 +244,30 @@ func test7() {
 		die()
 	}
 }
+
+func varargs(s *int, a ...int) {
+	*s = 0
+	for _, v := range a {
+		*s += v
+	}
+	if recover() != nil {
+		*s += 100
+	}
+}
+
+func test8a() (r int) {
+	defer varargs(&r, 1, 2, 3)
+	panic(0)
+}
+
+func test8b() (r int) {
+	defer varargs(&r, 4, 5, 6)
+	return
+}
+
+func test8() {
+	if test8a() != 106 || test8b() != 15 {
+		println("wrong value")
+		die()
+	}
+}
