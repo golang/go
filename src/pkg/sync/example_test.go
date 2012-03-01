@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 )
@@ -31,4 +32,23 @@ func ExampleWaitGroup() {
 	}
 	// Wait for all HTTP fetches to complete.
 	wg.Wait()
+}
+
+func ExampleOnce() {
+	var once sync.Once
+	onceBody := func() {
+		fmt.Printf("Only once\n")
+	}
+	done := make(chan bool)
+	for i := 0; i < 10; i++ {
+		go func() {
+			once.Do(onceBody)
+			done <- true
+		}()
+	}
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+	// Output:
+	// Only once
 }
