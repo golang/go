@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 29, 2012"
+	"Subtitle": "Version of March 1, 2012"
 }-->
 
 <!--
@@ -1007,8 +1007,8 @@ BaseType = Type .
 </pre>
 
 <pre>
-*int
-*map[string]*chan int
+*Point
+*[4]int
 </pre>
 
 <h3 id="Function_types">Function types</h3>
@@ -1046,11 +1046,10 @@ may be invoked with zero or more arguments for that parameter.
 
 <pre>
 func()
-func(x int)
-func() int
-func(prefix string, values ...int)
-func(a, b int, z float32) bool
+func(x int) int
+func(a, _ int, z float32) bool
 func(a, b int, z float32) (bool)
+func(prefix string, values ...int)
 func(a, b int, z float64, opt ...interface{}) (success bool)
 func(int, int, float64) (float64, *[]int)
 func(n int) func(p *T)
@@ -2788,13 +2787,13 @@ var s uint = 33
 var i = 1&lt;&lt;s           // 1 has type int
 var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
-var m int = 1.0&lt;&lt;s     // legal: 1.0 has type int
-var n = 1.0&lt;&lt;s != 0    // legal: 1.0 has type int; n == false if ints are 32bits in size
-var o = 1&lt;&lt;s == 2&lt;&lt;s   // legal: 1 and 2 have type int; o == true if ints are 32bits in size
+var m int = 1.0&lt;&lt;s     // 1.0 has type int
+var n = 1.0&lt;&lt;s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+var o = 1&lt;&lt;s == 2&lt;&lt;s   // 1 and 2 have type int; o == true if ints are 32bits in size
 var p = 1&lt;&lt;s == 1&lt;&lt;33  // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
 var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift
 var v float32 = 1&lt;&lt;s   // illegal: 1 has type float32, cannot shift
-var w int64 = 1.0&lt;&lt;33  // legal: 1.0&lt;&lt;33 is a constant shift expression
+var w int64 = 1.0&lt;&lt;33  // 1.0&lt;&lt;33 is a constant shift expression
 </pre>
 
 <h3 id="Operator_precedence">Operator precedence</h3>
