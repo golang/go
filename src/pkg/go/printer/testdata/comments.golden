@@ -168,6 +168,91 @@ func typeswitch(x interface{}) {
 	// this comment should not be indented
 }
 
+//
+// Indentation of comments after possibly indented multi-line constructs
+// (test cases for issue 3147).
+//
+
+func _() {
+	s := 1 +
+		2
+	// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2	// comment
+	// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2	// comment
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+
+	// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2	// comment
+
+	// should be indented like s
+}
+
+func _() {
+	s := 1 +
+		2	// comment
+
+	// should be indented like s
+	_ = 0
+}
+
+func _() {
+	s := 1 +
+		2
+
+	// should be indented like s
+	_ = 0
+}
+
+// Test case from issue 3147.
+func f() {
+	templateText := "a" +	// A
+		"b" +	// B
+		"c"	// C
+
+	// should be aligned with f()
+	f()
+}
+
+// Modified test case from issue 3147.
+func f() {
+	templateText := "a" +	// A
+		"b" +	// B
+		"c"	// C
+
+		// may not be aligned with f() (source is not aligned)
+	f()
+}
+
+//
+// Test cases for alignment of lines in general comments.
+//
+
 func _() {
 	/* freestanding comment
 	   aligned		line
