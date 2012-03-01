@@ -383,7 +383,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, error) 
 	// chunked encoding must always come first.
 	for _, encoding := range encodings {
 		encoding = strings.ToLower(strings.TrimSpace(encoding))
-		// "identity" encoding is not recored
+		// "identity" encoding is not recorded
 		if encoding == "identity" {
 			break
 		}

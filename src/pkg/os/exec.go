@@ -13,7 +13,7 @@ import (
 type Process struct {
 	Pid    int
 	handle uintptr
-	done   bool // process has been successfuly waited on
+	done   bool // process has been successfully waited on
 }
 
 func newProcess(pid int, handle uintptr) *Process {

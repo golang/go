@@ -383,7 +383,7 @@ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
 	// Make sure body is fully consumed, even if user does not call body.Close
 	if lastbody != nil {
 		// body.Close is assumed to be idempotent and multiple calls to
-		// it should return the error that its first invokation
+		// it should return the error that its first invocation
 		// returned.
 		err = lastbody.Close()
 		if err != nil {

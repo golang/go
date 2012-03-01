@@ -18,17 +18,17 @@ package norm
 // has the form:
 //    <header> <decomp_byte>* [<tccc> [<lccc>]]
 // The header contains the number of bytes in the decomposition (excluding this
-// length byte). The two most significant bits of this lenght byte correspond
+// length byte). The two most significant bits of this length byte correspond
 // to bit 2 and 3 of qcIfo (see below).  The byte sequence itself starts at v+1.
 // The byte sequence is followed by a trailing and leading CCC if the values
 // for these are not zero.  The value of v determines which ccc are appended
 // to the sequences.  For v < firstCCC, there are none, for v >= firstCCC,
-// the seqence is followed by a trailing ccc, and for v >= firstLeadingCC
+// the sequence is followed by a trailing ccc, and for v >= firstLeadingCC
 // there is an additional leading ccc.
 
 const (
 	qcInfoMask      = 0xF  // to clear all but the relevant bits in a qcInfo
-	headerLenMask   = 0x3F // extract the lenght value from the header byte
+	headerLenMask   = 0x3F // extract the length value from the header byte
 	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
 )
 

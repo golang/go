@@ -110,7 +110,7 @@ func (s *nodeStack) top() *Node {
 	return nil
 }
 
-// index returns the index of the top-most occurence of n in the stack, or -1
+// index returns the index of the top-most occurrence of n in the stack, or -1
 // if n is not present.
 func (s *nodeStack) index(n *Node) int {
 	for i := len(*s) - 1; i >= 0; i-- {
