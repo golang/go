@@ -223,14 +223,14 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
 		},
 		{
-			"badMarshaller",
+			"badMarshaler",
 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
 			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
 		},
 		{
-			"jsMarshaller",
+			"jsMarshaler",
 			`<button onclick='alert({{.M}})'>`,
-			`<button onclick='alert({&#34;&lt;foo&gt;&#34;:&#34;O&#39;Reilly&#34;})'>`,
+			`<button onclick='alert({&#34;\u003cfoo\u003e&#34;:&#34;O&#39;Reilly&#34;})'>`,
 		},
 		{
 			"jsStrNotUnderEscaped",
