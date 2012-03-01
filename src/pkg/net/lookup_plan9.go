@@ -76,7 +76,7 @@ func lookupProtocol(name string) (proto int, err error) {
 }
 
 func lookupHost(host string) (addrs []string, err error) {
-	// Use /net/cs insead of /net/dns because cs knows about
+	// Use /net/cs instead of /net/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS("tcp", host, "1")
 	if err != nil {

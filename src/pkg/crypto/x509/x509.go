@@ -153,7 +153,7 @@ const (
 //
 // md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
 //
-// md5WithRSAEncryption OBJECT IDENTIFER ::= { pkcs-1 4 }
+// md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
 //
 // sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
 // 
@@ -172,9 +172,9 @@ const (
 //
 // RFC 5758 3.1 DSA Signature Algorithms
 //
-// dsaWithSha356 OBJECT IDENTIFER ::= {
+// dsaWithSha256 OBJECT IDENTIFIER ::= {
 //    joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
-//    algorithms(4) id-dsa-with-sha2(3) 2}
+//    csor(3) algorithms(4) id-dsa-with-sha2(3) 2}
 //
 var (
 	oidSignatureMD2WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}

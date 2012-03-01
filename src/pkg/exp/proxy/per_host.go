@@ -75,7 +75,7 @@ func (p *PerHost) dialerForRequest(host string) Dialer {
 }
 
 // AddFromString parses a string that contains comma-separated values
-// specifing hosts that should use the bypass proxy. Each value is either an
+// specifying hosts that should use the bypass proxy. Each value is either an
 // IP address, a CIDR range, a zone (*.example.com) or a hostname
 // (localhost). A best effort is made to parse the string and errors are
 // ignored.

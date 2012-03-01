@@ -152,7 +152,7 @@ func (d Weekday) String() string { return days[d] }
 // rely heavily on division and modulus by positive constants.  For
 // calendrical calculations we want these divisions to round down, even
 // for negative values, so that the remainder is always positive, but
-// Go's division (like most hardware divison instructions) rounds to
+// Go's division (like most hardware division instructions) rounds to
 // zero.  We can still do those computations and then adjust the result
 // for a negative numerator, but it's annoying to write the adjustment
 // over and over.  Instead, we can change to a different epoch so long

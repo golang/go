@@ -477,7 +477,7 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
 // all data is known with a error estimate of ulpBinary*ε.
 func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
-		// Appromixation is too wide.
+		// Approximation is too wide.
 		return false
 	}
 	for currentDiff+ulpDecimal/2+ulpBinary < targetDiff {

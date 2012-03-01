@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains printing suppport for ASTs.
+// This file contains printing support for ASTs.
 
 package ast
 
