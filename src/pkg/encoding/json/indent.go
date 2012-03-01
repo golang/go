@@ -9,11 +9,24 @@ import "bytes"
 // Compact appends to dst the JSON-encoded src with
 // insignificant space characters elided.
 func Compact(dst *bytes.Buffer, src []byte) error {
+	return compact(dst, src, false)
+}
+
+func compact(dst *bytes.Buffer, src []byte, escape bool) error {
 	origLen := dst.Len()
 	var scan scanner
 	scan.reset()
 	start := 0
 	for i, c := range src {
+		if escape && (c == '<' || c == '>' || c == '&') {
+			if start < i {
+				dst.Write(src[start:i])
+			}
+			dst.WriteString(`\u00`)
+			dst.WriteByte(hex[c>>4])
+			dst.WriteByte(hex[c&0xF])
+			start = i + 1
+		}
 		v := scan.step(&scan, int(c))
 		if v >= scanSkipSpace {
 			if v == scanError {
