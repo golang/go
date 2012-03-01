@@ -167,3 +167,22 @@ func TestRefValMarshal(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// C implements Marshaler and returns unescaped JSON.
+type C int
+
+func (C) MarshalJSON() ([]byte, error) {
+	return []byte(`"<&>"`), nil
+}
+
+func TestMarshalerEscaping(t *testing.T) {
+	var c C
+	const want = `"\u003c\u0026\u003e"`
+	b, err := Marshal(c)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

@@ -260,7 +260,7 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 		b, err := m.MarshalJSON()
 		if err == nil {
 			// copy JSON into buffer, checking validity.
-			err = Compact(&e.Buffer, b)
+			err = compact(&e.Buffer, b, true)
 		}
 		if err != nil {
 			e.error(&MarshalerError{v.Type(), err})
