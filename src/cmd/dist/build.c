@@ -1491,7 +1491,7 @@ cmdbanner(int argc, char **argv)
 
 	if(streq(gohostos, "darwin")) {
 		xprintf("\n"
-			"On OS X the debuggers must be installed setgrp procmod.\n"
+			"On OS X the debuggers must be installed setgid procmod.\n"
 			"Read and run ./sudo.bash to install the debuggers.\n");
 	}
 
