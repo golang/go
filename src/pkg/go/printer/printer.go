@@ -277,10 +277,9 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 // it as is likely to help position the comment nicely.
 // pos is the comment position, next the position of the item
 // after all pending comments, prev is the previous comment in
-// a group of comments (or nil), and isKeyword indicates if the
-// next item is a keyword.
+// a group of comments (or nil), and tok is the next token.
 //
-func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, isKeyword bool) {
+func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, tok token.Token) {
 	if len(p.output) == 0 {
 		// the comment is the first item to be printed - don't write any whitespace
 		return
@@ -335,38 +334,41 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 		// comment on a different line:
 		// separate with at least one line break
 		droppedLinebreak := false
-		if prev == nil {
-			// first comment of a comment group
-			j := 0
-			for i, ch := range p.wsbuf {
-				switch ch {
-				case blank, vtab:
-					// ignore any horizontal whitespace before line breaks
-					p.wsbuf[i] = ignore
+		j := 0
+		for i, ch := range p.wsbuf {
+			switch ch {
+			case blank, vtab:
+				// ignore any horizontal whitespace before line breaks
+				p.wsbuf[i] = ignore
+				continue
+			case indent:
+				// apply pending indentation
+				continue
+			case unindent:
+				// if this is not the last unindent, apply it
+				// as it is (likely) belonging to the last
+				// construct (e.g., a multi-line expression list)
+				// and is not part of closing a block
+				if i+1 < len(p.wsbuf) && p.wsbuf[i+1] == unindent {
 					continue
-				case indent:
-					// apply pending indentation
-					continue
-				case unindent:
-					// if the next token is a keyword, apply the outdent
-					// if it appears that the comment is aligned with the
-					// keyword; otherwise assume the outdent is part of a
-					// closing block and stop (this scenario appears with
-					// comments before a case label where the comments
-					// apply to the next case instead of the current one)
-					if isKeyword && pos.Column == next.Column {
-						continue
-					}
-				case newline, formfeed:
-					// TODO(gri): may want to keep formfeed info in some cases
-					p.wsbuf[i] = ignore
-					droppedLinebreak = true
 				}
-				j = i
-				break
+				// if the next token is not a closing }, apply the unindent
+				// if it appears that the comment is aligned with the
+				// token; otherwise assume the unindent is part of a
+				// closing block and stop (this scenario appears with
+				// comments before a case label where the comments
+				// apply to the next case instead of the current one)
+				if tok != token.RBRACE && pos.Column == next.Column {
+					continue
+				}
+			case newline, formfeed:
+				p.wsbuf[i] = ignore
+				droppedLinebreak = prev == nil // record only if first comment of a group
 			}
-			p.writeWhitespace(j)
+			j = i
+			break
 		}
+		p.writeWhitespace(j)
 
 		// determine number of linebreaks before the comment
 		n := 0
@@ -675,7 +677,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	var last *ast.Comment
 	for p.commentBefore(next) {
 		for _, c := range p.comment.List {
-			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, c, tok.IsKeyword())
+			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, c, tok)
 			p.writeComment(c)
 			last = c
 		}
