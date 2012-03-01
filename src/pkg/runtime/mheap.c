@@ -326,7 +326,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 }
 
 // Release (part of) unused memory to OS.
-// Goroutine created in runtime·schedinit.
+// Goroutine created at startup.
 // Loop forever.
 void
 runtime·MHeap_Scavenger(void)
