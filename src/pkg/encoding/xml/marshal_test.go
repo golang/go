@@ -136,12 +136,12 @@ type NamePrecedence struct {
 
 type XMLNameWithTag struct {
 	XMLName Name   `xml:"InXMLNameTag"`
-	Value   string ",chardata"
+	Value   string `xml:",chardata"`
 }
 
 type XMLNameWithoutTag struct {
 	XMLName Name
-	Value   string ",chardata"
+	Value   string `xml:",chardata"`
 }
 
 type NameInField struct {
@@ -532,9 +532,9 @@ var marshalTests = []struct {
 			InFieldName: "D",
 		},
 		ExpectXML: `<Parent>` +
-			`<InTag><Value>A</Value></InTag>` +
-			`<InXMLName><Value>B</Value></InXMLName>` +
-			`<InXMLNameTag><Value>C</Value></InXMLNameTag>` +
+			`<InTag>A</InTag>` +
+			`<InXMLName>B</InXMLName>` +
+			`<InXMLNameTag>C</InXMLNameTag>` +
 			`<InFieldName>D</InFieldName>` +
 			`</Parent>`,
 		MarshalOnly: true,
@@ -548,9 +548,9 @@ var marshalTests = []struct {
 			InFieldName: "D",
 		},
 		ExpectXML: `<Parent>` +
-			`<InTag><Value>A</Value></InTag>` +
-			`<FromNameVal><Value>B</Value></FromNameVal>` +
-			`<InXMLNameTag><Value>C</Value></InXMLNameTag>` +
+			`<InTag>A</InTag>` +
+			`<FromNameVal>B</FromNameVal>` +
+			`<InXMLNameTag>C</InXMLNameTag>` +
 			`<InFieldName>D</InFieldName>` +
 			`</Parent>`,
 		UnmarshalOnly: true,
