@@ -1,3 +1,0 @@
-Use dist.bash to construct a package file (Go.pkg) for installation on OS X.
-
-This script depends on PackageMaker (Developer Tools).
