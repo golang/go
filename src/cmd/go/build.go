@@ -791,7 +791,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	for _, a1 := range all {
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
 			if _, ok := buildToolchain.(gccgoToolchain); ok {
-				dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
+				dir = filepath.Join(dir, "gccgo")
+			} else {
+				dir = filepath.Join(dir, goos+"_"+goarch)
 			}
 			incMap[dir] = true
 			inc = append(inc, flag, dir)
