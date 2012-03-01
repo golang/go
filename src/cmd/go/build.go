@@ -902,7 +902,7 @@ func isObject(s string) bool {
 //
 func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string {
 	cmd := fmt.Sprintf(format, args...)
-	if dir != "" {
+	if dir != "" && dir != "/" {
 		cmd = strings.Replace(" "+cmd, " "+dir, " .", -1)[1:]
 		if b.scriptDir != dir {
 			b.scriptDir = dir
