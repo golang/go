@@ -11,21 +11,6 @@ import "sync/atomic"
 // goroutines to wait for.  Then each of the goroutines
 // runs and calls Done when finished.  At the same time,
 // Wait can be used to block until all goroutines have finished.
-//
-// For example:
-//
-//   for i := 0; i < n; i++ {
-//       if !condition(i) {
-//           continue
-//       }
-//       wg.Add(1)
-//       go func() {
-//           // Do something.
-//           wg.Done()
-//       }()
-//   }
-//   wg.Wait()
-// 
 type WaitGroup struct {
 	m       Mutex
 	counter int32
