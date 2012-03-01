@@ -209,8 +209,6 @@ runtime·schedinit(void)
 
 	mstats.enablegc = 1;
 	m->nomemprof--;
-
-	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·schedinit);
 }
 
 extern void main·init(void);
@@ -228,6 +226,7 @@ runtime·main(void)
 	// to preserve the lock.
 	runtime·LockOSThread();
 	runtime·sched.init = true;
+	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
 	main·init();
 	runtime·sched.init = false;
 	if(!runtime·sched.lockmain)
@@ -587,10 +586,11 @@ top:
 		mput(m);
 	}
 
-	// Look for deadlock situation: one single active g which happens to be scvg.
-	if(runtime·sched.grunning == 1 && runtime·sched.gwait == 0) {
-		if(scvg->status == Grunning || scvg->status == Gsyscall)
-			runtime·throw("all goroutines are asleep - deadlock!");
+	// Look for deadlock situation.
+	if((scvg == nil && runtime·sched.grunning == 0) ||
+	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
+	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
+		runtime·throw("all goroutines are asleep - deadlock!");
 	}
 
 	m->nextg = nil;
