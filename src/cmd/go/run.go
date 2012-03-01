@@ -12,14 +12,12 @@ import (
 )
 
 var cmdRun = &Command{
-	UsageLine: "run [-a] [-n] [-x] gofiles... [arguments...]",
+	UsageLine: "run [build flags] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
 
-The -a flag forces reinstallation of packages that are already up-to-date.
-The -n flag prints the commands but does not run them.
-The -x flag prints the commands.
+For more about build flags, see 'go help build'.
 
 See also: go build.
 	`,
@@ -46,7 +44,7 @@ func runRun(cmd *Command, args []string) {
 		i++
 	}
 	files, cmdArgs := args[:i], args[i:]
-	p := goFilesPackage(files, "")
+	p := goFilesPackage(files)
 	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)
 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}

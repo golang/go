@@ -6,13 +6,13 @@ package main
 
 var cmdFix = &Command{
 	Run:       runFix,
-	UsageLine: "fix [importpath...]",
+	UsageLine: "fix [packages]",
 	Short:     "run go tool fix on packages",
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
 
 For more about fix, see 'godoc fix'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run fix with specific options, run 'go tool fix'.
 

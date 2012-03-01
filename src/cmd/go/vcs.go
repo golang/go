@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -267,6 +268,38 @@ type vcsPath struct {
 	ping   bool                                // ping for scheme to use to download repo
 
 	regexp *regexp.Regexp // cached compiled form of re
+}
+
+// vcsForDir inspects dir and its parents to determine the
+// version control system and code repository to use.
+// On return, root is the import path
+// corresponding to the root of the repository
+// (thus root is a prefix of importPath).
+func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
+	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
+	dir := filepath.Clean(p.Dir)
+	srcRoot := filepath.Clean(p.build.SrcRoot)
+	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
+		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+	}
+
+	for len(dir) > len(srcRoot) {
+		for _, vcs := range vcsList {
+			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
+				return vcs, dir[len(srcRoot)+1:], nil
+			}
+		}
+
+		// Move to parent.
+		ndir := filepath.Dir(dir)
+		if len(ndir) >= len(dir) {
+			// Shouldn't happen, but just in case, stop.
+			break
+		}
+		dir = ndir
+	}
+
+	return nil, "", fmt.Errorf("directory %q is not using a known version control system", dir)
 }
 
 // vcsForImportPath analyzes importPath to determine the

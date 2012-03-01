@@ -11,7 +11,6 @@ import (
 	"go/build"
 	"go/doc"
 	"go/parser"
-	"go/scanner"
 	"go/token"
 	"os"
 	"os/exec"
@@ -33,7 +32,7 @@ func init() {
 
 var cmdTest = &Command{
 	CustomFlags: true,
-	UsageLine:   "test [-c] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
+	UsageLine:   "test [-c] [-i] [build flags] [packages] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
@@ -56,7 +55,7 @@ with source in the current directory, including tests, and runs the tests.
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
 
-The flags handled by 'go test' itself are:
+In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-c  Compile the test binary to pkg.test but do not run it.
 
@@ -64,16 +63,11 @@ The flags handled by 'go test' itself are:
 	    Install packages that are dependencies of the test.
 	    Do not run the test.
 
-	-p n
-	    Compile and test up to n packages in parallel.
-	    The default value is the number of CPUs available.
-
-	-x  Print each subcommand go test executes.
-
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.  See 'go help testflag' for details.
 
-See 'go help importpath' for more about import paths.
+For more about build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
 
 See also: go build, go vet.
 `,
@@ -134,7 +128,7 @@ directory containing the package sources, has its own flags:
 		The default is 1 second.
 
 	-test.cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or 
+	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
 	    of GOMAXPROCS.
 
@@ -265,10 +259,10 @@ func runTest(cmd *Command, args []string) {
 		}
 		for _, p := range pkgs {
 			// Dependencies for each test.
-			for _, path := range p.info.Imports {
+			for _, path := range p.Imports {
 				deps[path] = true
 			}
-			for _, path := range p.info.TestImports {
+			for _, path := range p.TestImports {
 				deps[path] = true
 			}
 		}
@@ -307,17 +301,15 @@ func runTest(cmd *Command, args []string) {
 	for _, p := range pkgs {
 		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
-			if list, ok := err.(scanner.ErrorList); ok {
-				const n = 10
-				if len(list) > n {
-					list = list[:n]
-				}
-				for _, err := range list {
-					errorf("%s", err)
-				}
-				continue
+			str := err.Error()
+			if strings.HasPrefix(str, "\n") {
+				str = str[1:]
 			}
-			errorf("%s", err)
+			if p.ImportPath != "" {
+				errorf("# %s\n%s", p.ImportPath, str)
+			} else {
+				errorf("%s", str)
+			}
 			continue
 		}
 		builds = append(builds, buildTest)
@@ -380,7 +372,7 @@ func runTest(cmd *Command, args []string) {
 }
 
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
-	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
+	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := &action{p: p}
 		run := &action{p: p}
 		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
@@ -393,19 +385,22 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	//	pmain - pkg.test binary
 	var ptest, pxtest, pmain *Package
 
-	// go/build does not distinguish the dependencies used
-	// by the TestGoFiles from the dependencies used by the
-	// XTestGoFiles, so we build one list and use it for both
-	// ptest and pxtest.  No harm done.
-	var imports []*Package
+	var imports, ximports []*Package
 	var stk importStack
 	stk.push(p.ImportPath + "_test")
-	for _, path := range p.info.TestImports {
-		p1 := loadPackage(path, &stk)
+	for _, path := range p.TestImports {
+		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
 		imports = append(imports, p1)
+	}
+	for _, path := range p.XTestImports {
+		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
+		if p1.Error != nil {
+			return nil, nil, nil, p1.Error
+		}
+		ximports = append(ximports, p1)
 	}
 	stk.pop()
 
@@ -429,7 +424,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// We write the external test package archive to
 	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
 	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
-	ptestObj := buildToolchain.pkgpath(testDir, p)
+	ptestObj := buildToolchain.pkgpath(testDir, p, false)
 
 	// Create the directory for the .a files.
 	ptestDir, _ := filepath.Split(ptestObj)
@@ -441,17 +436,27 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	// Test package.
-	if len(p.info.TestGoFiles) > 0 {
+	if len(p.TestGoFiles) > 0 {
 		ptest = new(Package)
 		*ptest = *p
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
-		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
+		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
 		ptest.target = ""
-		ptest.Imports = stringList(p.info.Imports, p.info.TestImports)
+		ptest.Imports = stringList(p.Imports, p.TestImports)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 		ptest.fake = true
+		ptest.build = new(build.Package)
+		*ptest.build = *p.build
+		m := map[string][]token.Position{}
+		for k, v := range p.build.ImportPos {
+			m[k] = append(m[k], v...)
+		}
+		for k, v := range p.build.TestImportPos {
+			m[k] = append(m[k], v...)
+		}
+		ptest.build.ImportPos = m
 		a := b.action(modeBuild, modeBuild, ptest)
 		a.objdir = testDir + string(filepath.Separator)
 		a.objpkg = ptestObj
@@ -462,23 +467,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	// External test package.
-	if len(p.info.XTestGoFiles) > 0 {
+	if len(p.XTestGoFiles) > 0 {
 		pxtest = &Package{
 			Name:       p.Name + "_test",
 			ImportPath: p.ImportPath + "_test",
 			Dir:        p.Dir,
-			GoFiles:    p.info.XTestGoFiles,
-			Imports:    p.info.TestImports,
-			t:          p.t,
-			info:       &build.DirInfo{},
-			imports:    imports,
-			pkgdir:     testDir,
-			fake:       true,
+			GoFiles:    p.XTestGoFiles,
+			Imports:    p.XTestImports,
+			build: &build.Package{
+				ImportPos: p.build.XTestImportPos,
+			},
+			imports: append(ximports, ptest),
+			pkgdir:  testDir,
+			fake:    true,
 		}
-		pxtest.imports = append(pxtest.imports, ptest)
 		a := b.action(modeBuild, modeBuild, pxtest)
 		a.objdir = testDir + string(filepath.Separator)
-		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
+		a.objpkg = buildToolchain.pkgpath(testDir, pxtest, false)
 		a.target = a.objpkg
 	}
 
@@ -487,9 +492,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		Name:    "main",
 		Dir:     testDir,
 		GoFiles: []string{"_testmain.go"},
-		t:       p.t,
-		info:    &build.DirInfo{},
 		imports: []*Package{ptest},
+		build:   &build.Package{},
 		fake:    true,
 	}
 	if pxtest != nil {
@@ -498,11 +502,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	// The generated main also imports testing and regexp.
 	stk.push("testmain")
-	ptesting := loadPackage("testing", &stk)
+	ptesting := loadImport("testing", "", &stk, nil)
 	if ptesting.Error != nil {
 		return nil, nil, nil, ptesting.Error
 	}
-	pregexp := loadPackage("regexp", &stk)
+	pregexp := loadImport("regexp", "", &stk, nil)
 	if pregexp.Error != nil {
 		return nil, nil, nil, pregexp.Error
 	}
@@ -511,7 +515,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
-	a.target = filepath.Join(testDir, testBinary) + b.exe
+	a.target = filepath.Join(testDir, testBinary) + exeSuffix
 	pmainAction := a
 
 	if testC {
@@ -520,7 +524,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			f:      (*builder).install,
 			deps:   []*action{pmainAction},
 			p:      pmain,
-			target: testBinary + b.exe,
+			target: testBinary + exeSuffix,
 		}
 		printAction = &action{p: p, deps: []*action{runAction}} // nop
 	} else {
@@ -664,14 +668,13 @@ func isTest(name, prefix string) bool {
 func writeTestmain(out string, p *Package) error {
 	t := &testFuncs{
 		Package: p,
-		Info:    p.info,
 	}
-	for _, file := range p.info.TestGoFiles {
+	for _, file := range p.TestGoFiles {
 		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
 			return err
 		}
 	}
-	for _, file := range p.info.XTestGoFiles {
+	for _, file := range p.XTestGoFiles {
 		if err := t.load(filepath.Join(p.Dir, file), "_xtest", &t.NeedXtest); err != nil {
 			return err
 		}
@@ -695,7 +698,6 @@ type testFuncs struct {
 	Benchmarks []testFunc
 	Examples   []testFunc
 	Package    *Package
-	Info       *build.DirInfo
 	NeedTest   bool
 	NeedXtest  bool
 }
@@ -711,7 +713,7 @@ var testFileSet = token.NewFileSet()
 func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
 	if err != nil {
-		return err
+		return expandScanner(err)
 	}
 	for _, d := range f.Decls {
 		n, ok := d.(*ast.FuncDecl)

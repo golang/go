@@ -4,13 +4,15 @@
 
 package main
 
-var helpImportpath = &Command{
-	UsageLine: "importpath",
-	Short:     "description of import paths",
+var helpPackages = &Command{
+	UsageLine: "packages",
+	Short:     "description of package lists",
 	Long: `
-Many commands apply to a set of packages named by import paths:
+Many commands apply to a set of packages:
 
-	go action [importpath...]
+	go action [packages]
+
+Usually, [packages] is a list of import paths.
 
 An import path that is a rooted path or that begins with
 a . or .. element is interpreted as a file system path and
@@ -34,7 +36,7 @@ An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
-patterns.  For example, encoding/... expands to all package
+patterns.  For example, encoding/... expands to all packages
 in subdirectories of the encoding tree, while net... expands to
 net and all its subdirectories.
 
@@ -47,6 +49,11 @@ unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'code.google.com/p/project'.
+
+As a special case, if the package list is a list of .go files from a
+single directory, the command is applied to a single synthesized
+package made up of exactly those files, ignoring any build constraints
+in those files and ignoring any other files in the directory.
 	`,
 }
 

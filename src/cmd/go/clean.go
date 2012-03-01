@@ -13,7 +13,7 @@ import (
 )
 
 var cmdClean = &Command{
-	UsageLine: "clean [-i] [-r] [-n] [-x] [importpath...]",
+	UsageLine: "clean [-i] [-r] [-n] [-x] [packages]",
 	Short:     "remove object files",
 	Long: `
 Clean removes object files from package source directories.
@@ -50,6 +50,8 @@ The -r flag causes clean to be applied recursively to all the
 dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
+
+For more about specifying packages, see 'go help packages'.
 	`,
 }
 

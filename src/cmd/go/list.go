@@ -13,7 +13,7 @@ import (
 )
 
 var cmdList = &Command{
-	UsageLine: "list [-e] [-f format] [-json] [importpath...]",
+	UsageLine: "list [-e] [-f format] [-json] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -69,7 +69,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 	`,
 }
 
