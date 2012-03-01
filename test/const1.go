@@ -43,7 +43,9 @@ var (
 	b3        = Uint8 - Uint8         // OK
 	b4        = Uint8 - Uint8 - Uint8 // ERROR "overflow"
 	b5        = uint8(^0)             // ERROR "overflow"
+	b5a       = int64(^0)             // OK
 	b6        = ^uint8(0)             // OK
+	b6a       = ^int64(0)             // OK
 	b7        = uint8(Minus1)         // ERROR "overflow"
 	b8        = uint8(int8(-1))       // ERROR "overflow"
 	b8a       = uint8(-1)             // ERROR "overflow"
