@@ -842,6 +842,16 @@ func valueInterface(v Value, safe bool) interface{} {
 	var eface emptyInterface
 	eface.typ = v.typ.runtimeType()
 	eface.word = v.iword()
+
+	if v.flag&flagIndir != 0 && v.typ.size > ptrSize {
+		// eface.word is a pointer to the actual data,
+		// which might be changed.  We need to return
+		// a pointer to unchanging data, so make a copy.
+		ptr := unsafe_New(v.typ)
+		memmove(ptr, unsafe.Pointer(eface.word), v.typ.size)
+		eface.word = iword(ptr)
+	}
+
 	return *(*interface{})(unsafe.Pointer(&eface))
 }
 

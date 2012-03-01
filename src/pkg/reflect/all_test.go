@@ -1743,3 +1743,15 @@ func isValid(v Value) {
 		panic("zero Value")
 	}
 }
+
+func TestAlias(t *testing.T) {
+	x := string("hello")
+	v := ValueOf(&x).Elem()
+	oldvalue := v.Interface()
+	v.SetString("world")
+	newvalue := v.Interface()
+
+	if oldvalue != "hello" || newvalue != "world" {
+		t.Errorf("aliasing: old=%q new=%q, want hello, world", oldvalue, newvalue)
+	}
+}
