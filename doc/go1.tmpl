@@ -1187,6 +1187,22 @@ accepts a function argument instead.
 </p>
 
 <p>
+In package <a href="/pkg/go/build/"><code>go/build</code></a>, the API
+has been nearly completely replaced.
+The package still computes Go package information
+but it does not run the build: the <code>Cmd</code> and <code>Script</code>
+types are gone.
+(To build code, use the new
+<a href="/cmd/go/"><code>go</code></a> command instead.)
+The <code>DirInfo</code> type is now named
+<a href="/pkg/go/build/#Package"><code>Package</code></a>.
+<code>FindTree</code> and <code>ScanDir</code> are replaced by
+<a href="/pkg/go/build/#Import"><code>Import</code></a>
+and
+<a href="/pkg/go/build/#ImportDir"><code>ImportDir</code></a>.
+</p>
+
+<p>
 <em>Updating</em>:
 Code that uses packages in <code>go</code> will have to be updated by hand; the
 compiler will reject incorrect uses. Templates used in conjunction with any of the
