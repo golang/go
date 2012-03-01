@@ -88,7 +88,7 @@ var commands = []*Command{
 	cmdVet,
 
 	helpGopath,
-	helpImportpath,
+	helpPackages,
 	helpRemote,
 	helpTestflag,
 	helpTestfunc,
@@ -251,7 +251,24 @@ func importPaths(args []string) []string {
 	}
 	var out []string
 	for _, a := range args {
-		if isLocalPath(a) && strings.Contains(a, "...") {
+		// Arguments are supposed to be import paths, but
+		// as a courtesy to Windows developers, rewrite \ to /
+		// in command-line arguments.  Handles .\... and so on.
+		if filepath.Separator == '\\' {
+			a = strings.Replace(a, `\`, `/`, -1)
+		}
+
+		// Put argument in canonical form, but preserve leading ./.
+		if strings.HasPrefix(a, "./") {
+			a = "./" + path.Clean(a)
+			if a == "./." {
+				a = "."
+			}
+		} else {
+			a = path.Clean(a)
+		}
+
+		if build.IsLocalImport(a) && strings.Contains(a, "...") {
 			out = append(out, allPackagesInFS(a)...)
 			continue
 		}
@@ -350,7 +367,6 @@ func allPackages(pattern string) []string {
 	var pkgs []string
 
 	// Commands
-	goroot := build.Path[0].Path
 	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
 	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
 		if err != nil || !fi.IsDir() || path == cmd {
@@ -362,7 +378,7 @@ func allPackages(pattern string) []string {
 			return filepath.SkipDir
 		}
 
-		_, err = build.ScanDir(path)
+		_, err = build.ImportDir(path, 0)
 		if err != nil {
 			return nil
 		}
@@ -378,11 +394,11 @@ func allPackages(pattern string) []string {
 		return nil
 	})
 
-	for _, t := range build.Path {
-		if pattern == "std" && !t.Goroot {
+	for _, src := range buildContext.SrcDirs() {
+		if pattern == "std" && src != gorootSrcPkg {
 			continue
 		}
-		src := t.SrcDir() + string(filepath.Separator)
+		src = filepath.Clean(src) + string(filepath.Separator)
 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
 			if err != nil || !fi.IsDir() || path == src {
 				return nil
@@ -403,21 +419,13 @@ func allPackages(pattern string) []string {
 			}
 			have[name] = true
 
-			_, err = build.ScanDir(path)
+			_, err = build.ImportDir(path, 0)
 			if err != nil && strings.Contains(err.Error(), "no Go source files") {
 				return nil
 			}
-
 			if match(name) {
 				pkgs = append(pkgs, name)
 			}
-
-			// Avoid go/build test data.
-			// TODO: Move it into a testdata directory.
-			if path == filepath.Join(build.Path[0].SrcDir(), "go/build") {
-				return filepath.SkipDir
-			}
-
 			return nil
 		})
 	}
@@ -465,7 +473,7 @@ func allPackagesInFS(pattern string) []string {
 		if !match(name) {
 			return nil
 		}
-		if _, err = build.ScanDir(path); err != nil {
+		if _, err = build.ImportDir(path, 0); err != nil {
 			return nil
 		}
 		pkgs = append(pkgs, name)
@@ -493,11 +501,4 @@ func stringList(args ...interface{}) []string {
 		}
 	}
 	return x
-}
-
-// isLocalPath returns true if arg is an import path denoting
-// a local file system directory.  That is, it returns true if the
-// path begins with ./ or ../ .
-func isLocalPath(arg string) bool {
-	return arg == "." || arg == ".." || strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "../")
 }

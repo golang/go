@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +16,7 @@ import (
 )
 
 var cmdGet = &Command{
-	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [importpath...]",
+	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads and installs the packages named by the import paths,
@@ -33,12 +32,12 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -u flag instructs get to use the network to update the named packages
-and their dependencies.  By default, get uses the network to check out 
+and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
 TODO: Explain versions better.
 
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
 download, see 'go help remote'.
@@ -151,22 +150,35 @@ func download(arg string, stk *importStack) {
 // downloadPackage runs the create or download command
 // to make the first copy of or update a copy of the given package.
 func downloadPackage(p *Package) error {
-	// Analyze the import path to determine the version control system,
-	// repository, and the import path for the root of the repository.
-	vcs, repo, rootPath, err := vcsForImportPath(p.ImportPath)
+	var (
+		vcs            *vcsCmd
+		repo, rootPath string
+		err            error
+	)
+	if p.build.SrcRoot != "" {
+		// Directory exists.  Look for checkout along path to src.
+		vcs, rootPath, err = vcsForDir(p)
+		repo = "<local>" // should be unused; make distinctive
+	} else {
+		// Analyze the import path to determine the version control system,
+		// repository, and the import path for the root of the repository.
+		vcs, repo, rootPath, err = vcsForImportPath(p.ImportPath)
+	}
 	if err != nil {
 		return err
 	}
-	if p.t == nil {
-		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
-		p.t = build.Path[0] // $GOROOT
-		if len(build.Path) > 1 {
-			p.t = build.Path[1] // first in $GOPATH
-		}
-		p.Dir = filepath.Join(p.t.SrcDir(), p.ImportPath)
-	}
-	root := filepath.Join(p.t.SrcDir(), rootPath)
 
+	if p.build.SrcRoot == "" {
+		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
+		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 {
+			p.build.SrcRoot = filepath.Join(list[0], "src")
+			p.build.PkgRoot = filepath.Join(list[0], "pkg")
+		} else {
+			p.build.SrcRoot = filepath.Join(goroot, "src", "pkg")
+			p.build.PkgRoot = filepath.Join(goroot, "pkg")
+		}
+	}
+	root := filepath.Join(p.build.SrcRoot, rootPath)
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil
@@ -204,6 +216,14 @@ func downloadPackage(p *Package) error {
 		if err = vcs.download(root); err != nil {
 			return err
 		}
+	}
+
+	if buildN {
+		// Do not show tag sync in -n; it's noise more than anything,
+		// and since we're not running commands, no tag will be found.
+		// But avoid printing nothing.
+		fmt.Fprintf(os.Stderr, "# cd %s; %s sync/update\n", root, vcs.cmd)
+		return nil
 	}
 
 	// Select and sync to appropriate version of the repository.

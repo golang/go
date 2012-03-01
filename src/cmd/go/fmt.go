@@ -6,14 +6,14 @@ package main
 
 var cmdFmt = &Command{
 	Run:       runFmt,
-	UsageLine: "fmt [importpath...]",
+	UsageLine: "fmt [packages]",
 	Short:     "run gofmt on package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
 
 For more about gofmt, see 'godoc gofmt'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run gofmt with specific options, run gofmt itself.
 
@@ -32,14 +32,14 @@ func runFmt(cmd *Command, args []string) {
 
 var cmdDoc = &Command{
 	Run:       runDoc,
-	UsageLine: "doc [importpath...]",
+	UsageLine: "doc [packages]",
 	Short:     "run godoc on package sources",
 	Long: `
 Doc runs the godoc command on the packages named by the
 import paths.
 
 For more about godoc, see 'godoc godoc'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run godoc with specific options, run godoc itself.
 
@@ -49,6 +49,10 @@ See also: go fix, go fmt, go vet.
 
 func runDoc(cmd *Command, args []string) {
 	for _, pkg := range packages(args) {
+		if pkg.ImportPath == "command-line arguments" {
+			errorf("go doc: cannot use package file list")
+			continue
+		}
 		run("godoc", pkg.Dir)
 	}
 }

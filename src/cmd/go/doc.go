@@ -28,7 +28,7 @@ Use "go help [command]" for more information about a command.
 Additional help topics:
 
     gopath      GOPATH environment variable
-    importpath  description of import paths
+    packages    description of package lists
     remote      remote import path syntax
     testflag    description of testing flags
     testfunc    description of testing functions
@@ -40,7 +40,7 @@ Compile packages and dependencies
 
 Usage:
 
-	go build [-a] [-n] [-o output] [-p n] [-v] [-x] [importpath... | gofiles...]
+	go build [-o output] [build flags] [packages]
 
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
@@ -53,18 +53,37 @@ build writes the resulting executable to output (default a.out).
 Otherwise build compiles the packages but discards the results,
 serving only as a check that the packages can be built.
 
-The -a flag forces rebuilding of packages that are already up-to-date.
-The -n flag prints the commands but does not run them.
-The -v flag prints the names of packages as they are compiled.
-The -x flag prints the commands.
-
 The -o flag specifies the output file name.
-It is an error to use -o when the command line specifies multiple packages.
 
-The -p flag specifies the number of builds that can be run in parallel.
-The default is the number of CPUs available.
+The build flags are shared by the build, install, run, and test commands:
 
-For more about import paths, see 'go help importpath'.
+	-a
+		force rebuilding of packages that are already up-to-date.
+	-n
+		print the commands but does not run them.
+	-p n
+		the number of builds that can be run in parallel.
+		The default is the number of CPUs available.
+	-v
+		print the names of packages as they are compiled.
+	-work
+		print the name of the temporary work directory and
+		do not delete it when exiting.
+	-x
+		print the commands.
+
+	-gccgoflags 'arg list'
+		arguments to pass on each gccgo compiler/linker invocation
+	-gcflags 'arg list'
+		arguments to pass on each 5g, 6g, or 8g compiler invocation
+	-ldflags 'flag list'
+		arguments to pass on each 5l, 6l, or 8l linker invocation
+	-tags 'tag list'
+		a list of build tags to consider satisfied during the build.
+		See the documentation for the go/build package for
+		more information about build tags.
+
+For more about specifying packages, see 'go help packages'.
 
 See also: go install, go get, go clean.
 
@@ -73,7 +92,7 @@ Remove object files
 
 Usage:
 
-	go clean [-i] [-r] [-n] [-x] [importpath...]
+	go clean [-i] [-r] [-n] [-x] [packages]
 
 Clean removes object files from package source directories.
 The go command builds most objects in a temporary directory,
@@ -110,18 +129,20 @@ dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
 
+For more about specifying packages, see 'go help packages'.
+
 
 Run godoc on package sources
 
 Usage:
 
-	go doc [importpath...]
+	go doc [packages]
 
 Doc runs the godoc command on the packages named by the
 import paths.
 
 For more about godoc, see 'godoc godoc'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run godoc with specific options, run godoc itself.
 
@@ -132,12 +153,12 @@ Run go tool fix on packages
 
 Usage:
 
-	go fix [importpath...]
+	go fix [packages]
 
 Fix runs the Go fix command on the packages named by the import paths.
 
 For more about fix, see 'godoc fix'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run fix with specific options, run 'go tool fix'.
 
@@ -148,13 +169,13 @@ Run gofmt on package sources
 
 Usage:
 
-	go fmt [importpath...]
+	go fmt [packages]
 
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
 
 For more about gofmt, see 'godoc gofmt'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run gofmt with specific options, run gofmt itself.
 
@@ -165,7 +186,7 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [importpath...]
+	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
@@ -180,12 +201,12 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
 The -u flag instructs get to use the network to update the named packages
-and their dependencies.  By default, get uses the network to check out 
+and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
 TODO: Explain versions better.
 
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
 download, see 'go help remote'.
@@ -197,20 +218,13 @@ Compile and install packages and dependencies
 
 Usage:
 
-	go install [-a] [-n] [-p n] [-v] [-x] [importpath...]
+	go install [build flags] [packages]
 
 Install compiles and installs the packages named by the import paths,
 along with their dependencies.
 
-The -a flag forces reinstallation of packages that are already up-to-date.
-The -n flag prints the commands but does not run them.
-The -v flag prints the names of packages as they are compiled.
-The -x flag prints the commands.
-
-The -p flag specifies the number of builds that can be run in parallel.
-The default is the number of CPUs available.
-
-For more about import paths, see 'go help importpath'.
+For more about the build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
 
 See also: go build, go get, go clean.
 
@@ -219,7 +233,7 @@ List packages
 
 Usage:
 
-	go list [-e] [-f format] [-json] [importpath...]
+	go list [-e] [-f format] [-json] [packages]
 
 List lists the packages named by the import paths, one per line.
 
@@ -274,20 +288,18 @@ printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 
 Compile and run Go program
 
 Usage:
 
-	go run [-a] [-n] [-x] gofiles... [arguments...]
+	go run [build flags] gofiles... [arguments...]
 
 Run compiles and runs the main package comprising the named Go source files.
 
-The -a flag forces reinstallation of packages that are already up-to-date.
-The -n flag prints the commands but does not run them.
-The -x flag prints the commands.
+For more about build flags, see 'go help build'.
 
 See also: go build.
 
@@ -296,7 +308,7 @@ Test packages
 
 Usage:
 
-	go test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]
+	go test [-c] [-i] [build flags] [packages] [flags for test binary]
 
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
@@ -314,17 +326,23 @@ benchmark functions, and example functions.  See 'go help testfunc' for more.
 
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
-If file names are given (with flag -file=test.go, one per extra test source file),
-only those test files are added to the package.  (The non-test files are always
-compiled.)
 
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
 
-See 'go help testflag' for details about flags handled by 'go test'
-and the test binary.
+In addition to the build flags, the flags handled by 'go test' itself are:
 
-See 'go help importpath' for more about import paths.
+	-c  Compile the test binary to pkg.test but do not run it.
+
+	-i
+	    Install packages that are dependencies of the test.
+	    Do not run the test.
+
+The test binary also accepts flags that control execution of the test; these
+flags are also accessible by 'go test'.  See 'go help testflag' for details.
+
+For more about build flags, see 'go help build'.
+For more about specifying packages, see 'go help packages'.
 
 See also: go build, go vet.
 
@@ -333,10 +351,13 @@ Run specified go tool
 
 Usage:
 
-	go tool command [args...]
+	go tool [-n] command [args...]
 
 Tool runs the go tool command identified by the arguments.
 With no arguments it prints the list of known tools.
+
+The -n flag causes tool to print the command that would be
+executed but not execute it.
 
 For more about each tool command, see 'go tool command -h'.
 
@@ -354,12 +375,12 @@ Run go tool vet on packages
 
 Usage:
 
-	go vet [importpath...]
+	go vet [packages]
 
 Vet runs the Go vet command on the packages named by the import paths.
 
 For more about vet, see 'godoc vet'.
-For more about import paths, see 'go help importpath'.
+For more about specifying packages, see 'go help packages'.
 
 To run the vet tool with specific options, run 'go tool vet'.
 
@@ -421,11 +442,13 @@ but new packages are always downloaded into the first directory
 in the list.
 
 
-Description of import paths
+Description of package lists
 
-Many commands apply to a set of packages named by import paths:
+Many commands apply to a set of packages:
 
-	go action [importpath...]
+	go action [packages]
+
+Usually, [packages] is a list of import paths.
 
 An import path that is a rooted path or that begins with
 a . or .. element is interpreted as a file system path and
@@ -449,8 +472,9 @@ An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
-patterns.  For example, encoding/... expands to all packages
-in the encoding tree.
+patterns.  For example, encoding/... expands to all package
+in subdirectories of the encoding tree, while net... expands to
+net and all its subdirectories.
 
 An import path can also name a package to be downloaded from
 a remote repository.  Run 'go help remote' for details.
@@ -461,6 +485,11 @@ unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'code.google.com/p/project'.
+
+As a special case, if the package list is a list of .go files from a
+single directory, the command is applied to a single synthesized
+package made up of exactly those files, ignoring any build constraints
+in those files and ignoring any other files in the directory.
 
 
 Remote import path syntax
@@ -541,24 +570,7 @@ Description of testing flags
 The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
-The flags handled by 'go test' are:
-
-	-c  Compile the test binary to pkg.test but do not run it.
-
-	-file a.go
-	    Use only the tests in the source file a.go.
-	    Multiple -file flags may be provided.
-
-	-i
-	    Install packages that are dependencies of the test.
-
-	-p n
-	    Compile and test up to n packages in parallel.
-	    The default value is the number of CPUs available.
-
-	-x  Print each subcommand go test executes.
-
-The resulting test binary, called pkg.test, where pkg is the name of the
+The test binary, called pkg.test, where pkg is the name of the
 directory containing the package sources, has its own flags:
 
 	-test.v
@@ -606,7 +618,7 @@ directory containing the package sources, has its own flags:
 		The default is 1 second.
 
 	-test.cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or 
+	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
 	    of GOMAXPROCS.
 
@@ -614,9 +626,9 @@ For convenience, each of these -test.X flags of the test binary is
 also available as the flag -X in 'go test' itself.  Flags not listed
 here are passed through unaltered.  For instance, the command
 
-	go test -x -v -cpuprofile=prof.out -dir=testdata -update -file x_test.go
+	go test -x -v -cpuprofile=prof.out -dir=testdata -update
 
-will compile the test binary using x_test.go and then run it as
+will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 
@@ -637,8 +649,10 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
 
 An example function is similar to a test function but, instead of using *testing.T
 to report success or failure, prints output to os.Stdout and os.Stderr.
-That output is compared against the function's doc comment.
-An example without a doc comment is compiled but not executed.
+That output is compared against the function's "Output:" comment, which
+must be the last comment in the function body (see example below). An
+example with no such comment, or with no text after "Output:" is compiled
+but not executed.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
 of the function, constant, or variable XXX.  An example of a method M with
@@ -648,10 +662,15 @@ where xxx is a suffix not beginning with an upper case letter.
 
 Here is an example of an example:
 
-	// The output of this example function.
 	func ExamplePrintln() {
-		Println("The output of this example function.")
+		Println("The output of\nthis example.")
+		// Output: The output of
+		// this example.
 	}
+
+The entire test file is presented as the example when it contains a single
+example function, at least one other function, type, variable, or constant
+declaration, and no test or benchmark functions.
 
 See the documentation of the testing package for more information.
 
