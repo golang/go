@@ -9,7 +9,5 @@ The $GOARCH for these tools is 386.
 
 It reads .go files and outputs .8 files. The flags are documented in ../gc/doc.go.
 
-There is no instruction optimizer, so the -N flag is a no-op.
-
 */
 package documentation
