@@ -586,7 +586,7 @@ install(char *dir)
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
-		if(xstrstr(gccargs.p[0], "clang") != nil) {
+		if(xstrstr(bstr(&b), "clang") != nil) {
 			vadd(&gccargs, "-Wno-dangling-else");
 			vadd(&gccargs, "-Wno-unused-value");
 		}
