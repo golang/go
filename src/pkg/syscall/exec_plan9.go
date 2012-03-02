@@ -71,13 +71,13 @@ func StringSlicePtr(ss []string) []*byte {
 	return bb
 }
 
-// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
+// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
 // returning the value and the remaining slice of b.
 func gbit16(b []byte) (uint16, []byte) {
 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
 }
 
-// gstring reads a string from a 9P protocol message strored in b,
+// gstring reads a string from a 9P protocol message stored in b,
 // returning the value as a Go string and the remaining slice of b.
 func gstring(b []byte) (string, []byte) {
 	n, b := gbit16(b)

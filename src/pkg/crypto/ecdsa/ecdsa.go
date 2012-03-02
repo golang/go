@@ -7,7 +7,7 @@
 package ecdsa
 
 // References:
-//   [NSA]: Suite B implementor's guide to FIPS 186-3,
+//   [NSA]: Suite B implementer's guide to FIPS 186-3,
 //     http://www.nsa.gov/ia/_files/ecdsa.pdf
 //   [SECG]: SECG, SEC1
 //     http://www.secg.org/download/aid-780/sec1-v2.pdf
