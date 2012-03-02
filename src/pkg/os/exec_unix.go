@@ -13,9 +13,7 @@ import (
 	"time"
 )
 
-// Wait waits for the Process to exit or stop, and then returns a
-// ProcessState describing its status and an error, if any.
-func (p *Process) Wait() (ps *ProcessState, err error) {
+func (p *Process) wait() (ps *ProcessState, err error) {
 	if p.Pid == -1 {
 		return nil, syscall.EINVAL
 	}
@@ -36,8 +34,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-// Signal sends a signal to the Process.
-func (p *Process) Signal(sig Signal) error {
+func (p *Process) signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
@@ -64,12 +61,10 @@ func findProcess(pid int) (p *Process, err error) {
 	return newProcess(pid, 0), nil
 }
 
-// UserTime returns the user CPU time of the exited process and its children.
-func (p *ProcessState) UserTime() time.Duration {
+func (p *ProcessState) userTime() time.Duration {
 	return time.Duration(p.rusage.Utime.Nano()) * time.Nanosecond
 }
 
-// SystemTime returns the system CPU time of the exited process and its children.
-func (p *ProcessState) SystemTime() time.Duration {
+func (p *ProcessState) systemTime() time.Duration {
 	return time.Duration(p.rusage.Stime.Nano()) * time.Nanosecond
 }

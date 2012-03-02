@@ -10,14 +10,7 @@ import (
 	"syscall"
 )
 
-// StartProcess starts a new process with the program, arguments and attributes
-// specified by name, argv and attr.
-//
-// StartProcess is a low-level interface. The os/exec package provides
-// higher-level interfaces.
-//
-// If there is an error, it will be of type *PathError.
-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	// Double-check existence of the directory we want
 	// to chdir into.  We can make the error clearer this way.
 	if attr != nil && attr.Dir != "" {
@@ -47,8 +40,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	return newProcess(pid, h), nil
 }
 
-// Kill causes the Process to exit immediately.
-func (p *Process) Kill() error {
+func (p *Process) kill() error {
 	return p.Signal(Kill)
 }
 
@@ -64,28 +56,19 @@ func (p *ProcessState) Pid() int {
 	return p.pid
 }
 
-// Exited returns whether the program has exited.
-func (p *ProcessState) Exited() bool {
+func (p *ProcessState) exited() bool {
 	return p.status.Exited()
 }
 
-// Success reports whether the program exited successfully,
-// such as with exit status 0 on Unix.
-func (p *ProcessState) Success() bool {
+func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-// Sys returns system-dependent exit information about
-// the process.  Convert it to the appropriate underlying
-// type, such as syscall.WaitStatus on Unix, to access its contents.
-func (p *ProcessState) Sys() interface{} {
+func (p *ProcessState) sys() interface{} {
 	return p.status
 }
 
-// SysUsage returns system-dependent resource usage information about
-// the exited process.  Convert it to the appropriate underlying
-// type, such as *syscall.Rusage on Unix, to access its contents.
-func (p *ProcessState) SysUsage() interface{} {
+func (p *ProcessState) sysUsage() interface{} {
 	return p.rusage
 }
 
