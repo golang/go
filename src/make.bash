@@ -17,10 +17,10 @@
 #
 # GOOS: The target operating system for installed packages and tools.
 #
-# GCFLAGS: Additional 5g/6g/8g arguments to use when
+# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
 # building the packages and commands.
 #
-# LDFLAGS: Additional 5l/6l/8l arguments to use when
+# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
 # building the packages and commands.
 #
 # CGO_ENABLED: Setting this to 0 disables the use of cgo
@@ -89,11 +89,11 @@ echo
 
 if [ "$1" = "--dist-tool" ]; then
 	# Stop after building dist tool.
-	mkdir -p $GOTOOLDIR
+	mkdir -p "$GOTOOLDIR"
 	if [ "$2" != "" ]; then
 		cp cmd/dist/dist "$2"
 	fi
-	mv cmd/dist/dist $GOTOOLDIR/dist
+	mv cmd/dist/dist "$GOTOOLDIR"/dist
 	exit 0
 fi
 
@@ -104,23 +104,23 @@ if [ "$1" = "--no-clean" ]; then
 fi
 ./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
-mv cmd/dist/dist $GOTOOLDIR/dist
-$GOTOOLDIR/go_bootstrap clean -i std
+mv cmd/dist/dist "$GOTOOLDIR"/dist
+"$GOTOOLDIR"/go_bootstrap clean -i std
 echo
 
 if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		$GOTOOLDIR/go_bootstrap install -gcflags "$GCFLAGS" -ldflags "$LDFLAGS" -v std
+		"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
 	echo
 fi
 
 echo "# Building packages and commands for $GOOS/$GOARCH."
-$GOTOOLDIR/go_bootstrap install -gcflags "$GCFLAGS" -ldflags "$LDFLAGS" -v std
+"$GOTOOLDIR"/go_bootstrap install -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
 echo
 
-rm -f $GOTOOLDIR/go_bootstrap
+rm -f "$GOTOOLDIR"/go_bootstrap
 
 if [ "$1" != "--no-banner" ]; then
-	$GOTOOLDIR/dist banner
+	"$GOTOOLDIR"/dist banner
 fi
