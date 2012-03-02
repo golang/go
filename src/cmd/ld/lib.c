@@ -39,8 +39,9 @@ int iconv(Fmt*);
 
 char	symname[]	= SYMDEF;
 char	pkgname[]	= "__.PKGDEF";
-char*	libdir[16];
+char**	libdir;
 int	nlibdir = 0;
+static int	maxlibdir = 0;
 static int	cout = -1;
 
 char*	goroot;
@@ -51,9 +52,19 @@ char*	theline;
 void
 Lflag(char *arg)
 {
-	if(nlibdir >= nelem(libdir)-1) {
-		print("too many -L's: %d\n", nlibdir);
-		usage();
+	char **p;
+
+	if(nlibdir >= maxlibdir) {
+		if (maxlibdir == 0)
+			maxlibdir = 8;
+		else
+			maxlibdir *= 2;
+		p = realloc(libdir, maxlibdir);
+		if (p == nil) {
+			print("too many -L's: %d\n", nlibdir);
+			usage();
+		}
+		libdir = p;
 	}
 	libdir[nlibdir++] = arg;
 }
@@ -69,7 +80,7 @@ libinit(void)
 		print("goarch is not known: %s\n", goarch);
 
 	// add goroot to the end of the libdir list.
-	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
+	Lflag(smprint("%s/pkg/%s_%s", goroot, goos, goarch));
 
 	// Unix doesn't like it when we write to a running (or, sometimes,
 	// recently run) binary, so remove the output file before writing it.

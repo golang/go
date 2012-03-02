@@ -103,7 +103,7 @@ struct Section
 };
 
 extern	char	symname[];
-extern	char	*libdir[];
+extern	char	**libdir;
 extern	int	nlibdir;
 
 EXTERN	char*	INITENTRY;
