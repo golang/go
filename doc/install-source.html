@@ -5,10 +5,20 @@
 
 <h2 id="introduction">Introduction</h2>
 
-<p>Go is an open source project, distributed under a
+<p>
+Go is an open source project, distributed under a
 <a href="/LICENSE">BSD-style license</a>.
 This document explains how to check out the sources,
 build them on your own machine, and run them.
+</p>
+
+<p>
+Most users don't need to do this, and will instead install
+from precompiled binary packages as described in
+<a href="/doc/install.html">Getting Started</a>,
+a much simpler process.
+If you want to help develop what goes into those precompiled
+packages, though, read on.
 </p>
 
 <div class="detail">
@@ -17,9 +27,9 @@ build them on your own machine, and run them.
 There are two official Go compiler tool chains.
 This document focuses on the <code>gc</code> Go
 compiler and tools (<code>6g</code>, <code>8g</code> etc.).
-For information on how to use <code>gccgo</code>, a more traditional
+For information on how to work on <code>gccgo</code>, a more traditional
 compiler using the GCC back end, see
-<a href="/install/gccgo/">Setting up and using gccgo</a>.
+<a href="/doc/gccgo_install.html">Setting up and using gccgo</a>.
 </p>
 
 <p>
@@ -33,7 +43,7 @@ architectures.
 	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
 </dt>
 <dd>
-	The most mature implementation. The compiler has an effective
+	A mature implementation. The compiler has an effective
 	optimizer (registerizer) and generates good code (although
 	<code>gccgo</code> can do noticeably better sometimes).
 </dd>
@@ -47,7 +57,8 @@ architectures.
 	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
 </dt>
 <dd>
-	Supports only Linux binaries. Less tested than the other ports.
+	Supports only Linux binaries. Less widely used than the other ports and therefore
+	not as thoroughly tested.
 </dd>
 </dl>
 
@@ -113,7 +124,7 @@ You might try this first:
 <p>
 If that fails, try installing manually from the
 <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a>
-page.</p>
+page.
 </p>
 
 <p>
@@ -136,7 +147,6 @@ if necessary.
 
 <h2 id="fetch">Fetch the repository</h2>
 
-<p>
 <p>Go will install to a directory named <code>go</code>.
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
@@ -222,57 +232,30 @@ If you see the "hello, world" message then Go is installed correctly.
 </p>
 
 
-<h2 id="next">What's next</h2>
-
-<p>
-Start by taking <a href="http://tour.golang.org/">A Tour of Go</a>.
-</p>
-
-<p>
-For more detail about the process of building and testing Go programs
-read <a href="/doc/code.html">How to Write Go Code</a>.
-</p>
-
-<p>
-Build a web application by following the <a href="/doc/articles/wiki/">Wiki
-Tutorial</a>.
-</p>
-
-<p>
-Read <a href="/doc/effective_go.html">Effective Go</a> to learn about writing
-idiomatic Go code.
-</p>
-
-<p>
-For the full story, consult Go's extensive 
-<a href="/doc/">documentation</a>.
-</p>
-
-
 <h2 id="community">Community resources</h2>
 
 <p>
-For real-time help, there may be users or developers on
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
-</p>
-
-<p>
-The official mailing list for discussion of the Go language is
-<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
+The usual community resources such as
+<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server
+and the
+<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>
+mailing list have active developers that can help you with problems
+with your installation or your development work.
+For those who wish to keep up to date,
+there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
+that receives a message summarizing each checkin to the Go repository.
 </p>
 
 <p>
 Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
 </p>
 
-<p>
-For those who wish to keep up with development,
-there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
-that receives a message summarizing each checkin to the Go repository.
-</p>
-
 
 <h2 id="releases">Keeping up with releases</h2>
+
+<p>
+XXX TODO XXX
+</p>
 
 <p>
 The Go project maintains two stable tags in its Mercurial repository:
@@ -311,7 +294,7 @@ To use the <code>weekly</code> tag run <code>hg update weekly</code> instead.
 
 <p>
 The Go compilation environment can be customized by environment variables.
-<i>None are required by the build</i>, but you may wish to set them
+<i>None is required by the build</i>, but you may wish to set some
 to override the defaults.
 </p>
 
@@ -321,11 +304,14 @@ to override the defaults.
 </dt>
 <dd>
 	<p>
+	XXX FONT IS WRONG IN THESE ENTRIES XXX
+	XXX I NEED SOME SPAN THING XXX
 	The root of the Go tree, often <code>$HOME/go</code>.
-	This defaults to the parent of the directory where <code>all.bash</code> is run.
-	If you choose not to set <code>$GOROOT</code>, you must
-	run <code>gomake</code> instead of <code>make</code> or <code>gmake</code>
-	when developing Go programs using the conventional makefiles.
+	Its value is built into the tree when it is compiled, and
+	defaults to the parent of the directory where <code>all.bash</code> was run.
+	There is no need to set this unless you want to switch between multiple
+	local copies of the repository.
+	</p>
 </dd>
 
 <dt>
@@ -334,11 +320,12 @@ to override the defaults.
 <dd>
 	<p>
 	The value assumed by installed binaries and scripts when
-	<code>$GOROOT</code> is not set.
-	It defaults to the value used for <code>$GOROOT</code>.
+	<code>$GOROOT</code> is not set explicitly.
+	It defaults to the value of <code>$GOROOT</code>.
 	If you want to build the Go tree in one location
 	but move it elsewhere after the build, set 
 	<code>$GOROOT_FINAL</code> to the eventual location.
+	</p>
 </dd>
 
 <dt>
@@ -406,7 +393,6 @@ to override the defaults.
 	<td></td><td><code>windows</code></td> <td><code>amd64</code></td>
 	</tr>
 	</table>
-	<p>
 </dd>
 
 <dt>
@@ -431,7 +417,8 @@ to override the defaults.
 </dt>
 <dd>
 	<p>
-	The location where binaries will be installed.
+	The location where binaries from the main repository will be installed.
+	XXX THIS MAY CHANGE TO BE AN OVERRIDE EVEN FOR GOPATH ENTRIES XXX
 	The default is <code>$GOROOT/bin</code>.
 	After installing, you will want to arrange to add this
 	directory to your <code>$PATH</code>, so you can use the tools.
@@ -472,3 +459,8 @@ export GOROOT=$HOME/go
 export GOARCH=amd64
 export GOOS=linux
 </pre>
+
+<p>
+although, to reiterate, none of these variables needs to be set to build,
+install, and develop the Go tree.
+</p>
