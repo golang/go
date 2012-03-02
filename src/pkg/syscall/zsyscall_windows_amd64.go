@@ -55,6 +55,7 @@ var (
 	procGetExitCodeProcess          = modkernel32.NewProc("GetExitCodeProcess")
 	procGetStartupInfoW             = modkernel32.NewProc("GetStartupInfoW")
 	procGetCurrentProcess           = modkernel32.NewProc("GetCurrentProcess")
+	procGetProcessTimes             = modkernel32.NewProc("GetProcessTimes")
 	procDuplicateHandle             = modkernel32.NewProc("DuplicateHandle")
 	procWaitForSingleObject         = modkernel32.NewProc("WaitForSingleObject")
 	procGetTempPathW                = modkernel32.NewProc("GetTempPathW")
@@ -588,6 +589,18 @@ func GetCurrentProcess() (pseudoHandle Handle, err error) {
 	r0, _, e1 := Syscall(procGetCurrentProcess.Addr(), 0, 0, 0, 0)
 	pseudoHandle = Handle(r0)
 	if pseudoHandle == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error) {
+	r1, _, e1 := Syscall6(procGetProcessTimes.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(creationTime)), uintptr(unsafe.Pointer(exitTime)), uintptr(unsafe.Pointer(kernelTime)), uintptr(unsafe.Pointer(userTime)), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			err = error(e1)
 		} else {
