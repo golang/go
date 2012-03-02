@@ -12,10 +12,7 @@ import (
 	"unsafe"
 )
 
-// Wait waits for the Process to exit or stop, and then returns a
-// ProcessState describing its status and an error, if any.
-// Wait releases any resources associated with the Process.
-func (p *Process) Wait() (ps *ProcessState, err error) {
+func (p *Process) wait() (ps *ProcessState, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:
@@ -35,8 +32,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
 	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
 }
 
-// Signal sends a signal to the Process.
-func (p *Process) Signal(sig Signal) error {
+func (p *Process) signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
@@ -86,14 +82,12 @@ func init() {
 	}
 }
 
-// UserTime returns the user CPU time of the exited process and its children.
-// For now, it is always reported as 0 on Windows.
-func (p *ProcessState) UserTime() time.Duration {
+// BUG(rsc): On Windows, ProcessState's UserTime and SystemTime methods always return 0.
+
+func (p *ProcessState) userTime() time.Duration {
 	return 0
 }
 
-// SystemTime returns the system CPU time of the exited process and its children.
-// For now, it is always reported as 0 on Windows.
-func (p *ProcessState) SystemTime() time.Duration {
+func (p *ProcessState) systemTime() time.Duration {
 	return 0
 }
