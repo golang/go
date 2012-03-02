@@ -252,6 +252,8 @@ type Filetime struct {
 	HighDateTime uint32
 }
 
+// Nanoseconds returns Filetime ft in nanoseconds
+// since Epoch (00:00:00 UTC, January 1, 1970).
 func (ft *Filetime) Nanoseconds() int64 {
 	// 100-nanosecond intervals since January 1, 1601
 	nsec := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)

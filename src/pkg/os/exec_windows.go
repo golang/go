@@ -27,9 +27,14 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if e != nil {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
+	var u syscall.Rusage
+	e = syscall.GetProcessTimes(syscall.Handle(p.handle), &u.CreationTime, &u.ExitTime, &u.KernelTime, &u.UserTime)
+	if e != nil {
+		return nil, NewSyscallError("GetProcessTimes", e)
+	}
 	p.done = true
 	defer p.Release()
-	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
 }
 
 func (p *Process) signal(sig Signal) error {
@@ -82,12 +87,15 @@ func init() {
 	}
 }
 
-// BUG(rsc): On Windows, ProcessState's UserTime and SystemTime methods always return 0.
+func ftToDuration(ft *syscall.Filetime) time.Duration {
+	n := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime) // in 100-nanosecond intervals
+	return time.Duration(n*100) * time.Nanosecond
+}
 
 func (p *ProcessState) userTime() time.Duration {
-	return 0
+	return ftToDuration(&p.rusage.UserTime)
 }
 
 func (p *ProcessState) systemTime() time.Duration {
-	return 0
+	return ftToDuration(&p.rusage.KernelTime)
 }
