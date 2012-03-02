@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/token"
+	"unicode/utf8"
 )
 
 // Other formatting issues:
@@ -82,11 +83,8 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 type exprListMode uint
 
 const (
-	blankStart exprListMode = 1 << iota // print a blank before a non-empty list
-	blankEnd                            // print a blank after a non-empty list
-	commaSep                            // elements are separated by commas
-	commaTerm                           // list is optionally terminated by a comma
-	noIndent                            // no extra indentation in multi-line lists
+	commaTerm exprListMode = 1 << iota // list is optionally terminated by a comma
+	noIndent                           // no extra indentation in multi-line lists
 )
 
 // If indent is set, a multi-line identifier list is indented after the
@@ -97,9 +95,9 @@ func (p *printer) identList(list []*ast.Ident, indent bool) {
 	for i, x := range list {
 		xlist[i] = x
 	}
-	mode := commaSep
+	var mode exprListMode
 	if !indent {
-		mode |= noIndent
+		mode = noIndent
 	}
 	p.exprList(token.NoPos, xlist, 1, mode, token.NoPos)
 }
@@ -116,10 +114,6 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		return
 	}
 
-	if mode&blankStart != 0 {
-		p.print(blank)
-	}
-
 	prev := p.posFor(prev0)
 	next := p.posFor(next0)
 	line := p.lineFor(list[0].Pos())
@@ -129,17 +123,11 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		// all list entries on a single line
 		for i, x := range list {
 			if i > 0 {
-				if mode&commaSep != 0 {
-					// use position of expression following the comma as
-					// comma position for correct comment placement
-					p.print(x.Pos(), token.COMMA)
-				}
-				p.print(blank)
+				// use position of expression following the comma as
+				// comma position for correct comment placement
+				p.print(x.Pos(), token.COMMA, blank)
 			}
 			p.expr0(x, depth)
-		}
-		if mode&blankEnd != 0 {
-			p.print(blank)
 		}
 		return
 	}
@@ -212,15 +200,13 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 
 		if i > 0 {
 			needsLinebreak := prevLine < line && prevLine > 0 && line > 0
-			if mode&commaSep != 0 {
-				// use position of expression following the comma as
-				// comma position for correct comment placement, but
-				// only if the expression is on the same line
-				if !needsLinebreak {
-					p.print(x.Pos())
-				}
-				p.print(token.COMMA)
+			// use position of expression following the comma as
+			// comma position for correct comment placement, but
+			// only if the expression is on the same line
+			if !needsLinebreak {
+				p.print(x.Pos())
 			}
+			p.print(token.COMMA)
 			needsBlank := true
 			if needsLinebreak {
 				// lines are broken using newlines so comments remain aligned
@@ -258,10 +244,6 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		}
 		p.print(formfeed) // terminating comma needs a line break to look good
 		return
-	}
-
-	if mode&blankEnd != 0 {
-		p.print(blank)
 	}
 
 	if ws == ignore && mode&noIndent == 0 {
@@ -350,9 +332,9 @@ func (p *printer) signature(params, result *ast.FieldList) {
 func identListSize(list []*ast.Ident, maxSize int) (size int) {
 	for i, x := range list {
 		if i > 0 {
-			size += 2 // ", "
+			size += len(", ")
 		}
-		size += len(x.Name)
+		size += utf8.RuneCountInString(x.Name)
 		if size >= maxSize {
 			break
 		}
@@ -798,13 +780,13 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.expr1(x.Fun, token.HighestPrec, depth)
 		p.print(x.Lparen, token.LPAREN)
 		if x.Ellipsis.IsValid() {
-			p.exprList(x.Lparen, x.Args, depth, commaSep, x.Ellipsis)
+			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis)
 			p.print(x.Ellipsis, token.ELLIPSIS)
 			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
 				p.print(token.COMMA, formfeed)
 			}
 		} else {
-			p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, x.Rparen)
+			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen)
 		}
 		p.print(x.Rparen, token.RPAREN)
 
@@ -814,7 +796,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.expr1(x.Type, token.HighestPrec, depth)
 		}
 		p.print(x.Lbrace, token.LBRACE)
-		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, x.Rbrace)
+		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
 		// do not insert extra line breaks because of comments before
 		// the closing '}' as it might break the code if there is no
 		// trailing ','
@@ -1032,9 +1014,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		if len(s.Lhs) > 1 && len(s.Rhs) > 1 {
 			depth++
 		}
-		p.exprList(s.Pos(), s.Lhs, depth, commaSep, s.TokPos)
-		p.print(blank, s.TokPos, s.Tok)
-		p.exprList(s.TokPos, s.Rhs, depth, blankStart|commaSep, token.NoPos)
+		p.exprList(s.Pos(), s.Lhs, depth, 0, s.TokPos)
+		p.print(blank, s.TokPos, s.Tok, blank)
+		p.exprList(s.TokPos, s.Rhs, depth, 0, token.NoPos)
 
 	case *ast.GoStmt:
 		p.print(token.GO, blank)
@@ -1047,7 +1029,8 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 	case *ast.ReturnStmt:
 		p.print(token.RETURN)
 		if s.Results != nil {
-			p.exprList(s.Pos(), s.Results, 1, blankStart|commaSep, token.NoPos)
+			p.print(blank)
+			p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos)
 		}
 
 	case *ast.BranchStmt:
@@ -1078,8 +1061,8 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.CaseClause:
 		if s.List != nil {
-			p.print(token.CASE)
-			p.exprList(s.Pos(), s.List, 1, blankStart|commaSep, s.Colon)
+			p.print(token.CASE, blank)
+			p.exprList(s.Pos(), s.List, 1, 0, s.Colon)
 		} else {
 			p.print(token.DEFAULT)
 		}
@@ -1229,8 +1212,8 @@ func (p *printer) valueSpec(s *ast.ValueSpec, keepType, doIndent bool) {
 		p.expr(s.Type)
 	}
 	if s.Values != nil {
-		p.print(vtab, token.ASSIGN)
-		p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, token.NoPos)
+		p.print(vtab, token.ASSIGN, blank)
+		p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos)
 		extraTabs--
 	}
 	if s.Comment != nil {
@@ -1268,8 +1251,8 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 			p.expr(s.Type)
 		}
 		if s.Values != nil {
-			p.print(blank, token.ASSIGN)
-			p.exprList(token.NoPos, s.Values, 1, blankStart|commaSep, token.NoPos)
+			p.print(blank, token.ASSIGN, blank)
+			p.exprList(token.NoPos, s.Values, 1, 0, token.NoPos)
 		}
 		p.setComment(s.Comment)
 

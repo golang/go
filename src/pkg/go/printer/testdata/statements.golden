@@ -8,6 +8,82 @@ var expr bool
 
 func use(x interface{})	{}
 
+// Formatting of multi-line return statements.
+func _f() {
+	return
+	return x, y, z
+	return T{}
+	return T{1, 2, 3},
+		x, y, z
+	return T{1, 2, 3},
+		x, y,
+		z
+	return T{1,
+		2,
+		3}
+	return T{1,
+		2,
+		3,
+	}
+	return T{
+		1,
+		2,
+		3}
+	return T{
+		1,
+		2,
+		3,
+	}
+	return T{
+		1,
+		T{1, 2, 3},
+		3,
+	}
+	return T{
+		1,
+		T{1,
+			2, 3},
+		3,
+	}
+	return T{
+		1,
+		T{1,
+			2,
+			3},
+		3,
+	}
+	return T{
+		1,
+		2,
+	},
+		nil
+	return T{
+		1,
+		2,
+	},
+		T{
+			x:	3,
+			y:	4,
+		},
+		nil
+	return x + y +
+		z
+	return func() {}
+	return func() {
+		_ = 0
+	}, T{
+		1, 2,
+	}
+	return func() {
+		_ = 0
+	}
+	return func() T {
+		return T{
+			1, 2,
+		}
+	}
+}
+
 // Formatting of if-statement headers.
 func _() {
 	if true {
