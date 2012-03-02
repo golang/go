@@ -44,7 +44,7 @@ func (p *Process) kill() error {
 	return p.Signal(Kill)
 }
 
-// ProcessState stores information about process as reported by Wait.
+// ProcessState stores information about a process, as reported by Wait.
 type ProcessState struct {
 	pid    int                // The process's id.
 	status syscall.WaitStatus // System-dependent status info.

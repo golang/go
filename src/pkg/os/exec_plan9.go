@@ -101,7 +101,7 @@ func findProcess(pid int) (p *Process, err error) {
 	return newProcess(pid, 0), nil
 }
 
-// ProcessState stores information about process as reported by Wait.
+// ProcessState stores information about a process, as reported by Wait.
 type ProcessState struct {
 	pid    int              // The process's id.
 	status *syscall.Waitmsg // System-dependent status info.
