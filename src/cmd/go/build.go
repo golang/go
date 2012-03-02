@@ -790,12 +790,12 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	// Finally, look in the installed package directories for each action.
 	for _, a1 := range all {
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+			incMap[dir] = true
 			if _, ok := buildToolchain.(gccgoToolchain); ok {
 				dir = filepath.Join(dir, "gccgo")
 			} else {
 				dir = filepath.Join(dir, goos+"_"+goarch)
 			}
-			incMap[dir] = true
 			inc = append(inc, flag, dir)
 		}
 	}
