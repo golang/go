@@ -40,7 +40,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 			errc <- fmt.Errorf("fd.%s on %s %s did not return 0, timeout: %v, %v", what, network, addr, n, err1)
 			return
 		}
-		if dt := t1.Sub(t0); dt < 50*time.Millisecond || dt > 250*time.Millisecond {
+		if dt := t1.Sub(t0); dt < 50*time.Millisecond || !testing.Short() && dt > 250*time.Millisecond {
 			errc <- fmt.Errorf("fd.%s on %s %s took %s, expected 0.1s", what, network, addr, dt)
 			return
 		}
