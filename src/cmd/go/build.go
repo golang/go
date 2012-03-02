@@ -363,7 +363,7 @@ func goFilesPackage(gofiles []string) *Package {
 	pkg.Target = ""
 	pkg.Stale = true
 
-	computeStale([]*Package{pkg})
+	computeStale(pkg)
 	return pkg
 }
 

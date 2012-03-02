@@ -396,6 +396,9 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		imports = append(imports, p1)
 	}
 	for _, path := range p.XTestImports {
+		if path == p.ImportPath {
+			continue
+		}
 		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
@@ -447,6 +450,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 		ptest.fake = true
+		ptest.Stale = true
 		ptest.build = new(build.Package)
 		*ptest.build = *p.build
 		m := map[string][]token.Position{}
@@ -457,6 +461,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			m[k] = append(m[k], v...)
 		}
 		ptest.build.ImportPos = m
+		computeStale(ptest)
 		a := b.action(modeBuild, modeBuild, ptest)
 		a.objdir = testDir + string(filepath.Separator)
 		a.objpkg = ptestObj
@@ -480,7 +485,9 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			imports: append(ximports, ptest),
 			pkgdir:  testDir,
 			fake:    true,
+			Stale:   true,
 		}
+		computeStale(pxtest)
 		a := b.action(modeBuild, modeBuild, pxtest)
 		a.objdir = testDir + string(filepath.Separator)
 		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
@@ -489,12 +496,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	// Action for building pkg.test.
 	pmain = &Package{
-		Name:    "main",
-		Dir:     testDir,
-		GoFiles: []string{"_testmain.go"},
-		imports: []*Package{ptest},
-		build:   &build.Package{},
-		fake:    true,
+		Name:       "main",
+		Dir:        testDir,
+		GoFiles:    []string{"_testmain.go"},
+		ImportPath: "testmain",
+		imports:    []*Package{ptest},
+		build:      &build.Package{},
+		fake:       true,
+		Stale:      true,
 	}
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
@@ -511,6 +520,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		return nil, nil, nil, pregexp.Error
 	}
 	pmain.imports = append(pmain.imports, ptesting, pregexp)
+	computeStale(pmain)
 
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)

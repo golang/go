@@ -376,7 +376,7 @@ func packageList(roots []*Package) []*Package {
 			return
 		}
 		seen[p] = true
-		for _, p1 := range p.deps {
+		for _, p1 := range p.imports {
 			walk(p1)
 		}
 		all = append(all, p)
@@ -389,7 +389,7 @@ func packageList(roots []*Package) []*Package {
 
 // computeStale computes the Stale flag in the package dag that starts
 // at the named pkgs (command-line arguments).
-func computeStale(pkgs []*Package) {
+func computeStale(pkgs ...*Package) {
 	topRoot := map[string]bool{}
 	for _, p := range pkgs {
 		topRoot[p.Root] = true
@@ -579,7 +579,7 @@ func packagesAndErrors(args []string) []*Package {
 		pkgs = append(pkgs, loadPackage(arg, &stk))
 	}
 
-	computeStale(pkgs)
+	computeStale(pkgs...)
 
 	return pkgs
 }
