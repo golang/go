@@ -5,129 +5,152 @@
 <h2 id="Introduction">Introduction</h2>
 
 <p>
-This document explains how to write a new package
-and how to test code.
-It assumes you have installed Go using the
-<a href="install.html">installation instructions</a>.
-</p>
-
-<p>
-Before embarking on a change to an existing
-package or the creation of a new package,
-be sure to send mail to the
-<a href="http://groups.google.com/group/golang-nuts">mailing list</a>
-to let people know what you are thinking of doing.
-Doing so helps avoid duplication of effort and
-enables discussions about design before any code
-has been written.
-</p>
-
-<h2 id="Community_resources">Community resources</h2>
-
-<p>
-For real-time help, there may be users or developers on
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
-</p>
-
-<p>
-The official mailing list for discussion of the Go language is
-<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
-</p>
-
-<p>
-Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
-</p>
-
-<p>
-For those who wish to keep up with development,
-there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
-that receives a message summarizing each checkin to the Go repository.
+This document demonstrates the development of a simple Go package and
+introduces the <a href="/cmd/go/">go command</a>, the standard way to fetch,
+build, and install Go packages and commands.
 </p>
 
 
-<h2 id="New_package">Creating a new package</h2>
+<h2 id="GOPATH">Code organization</h2>
 
-<h3>Choosing an import path</h3>
+<h3><code>GOPATH</code> and workspaces</h3>
 
 <p>
-The standard packages are given short names like <code>fmt</code> and
-<code>net/http</code> for convenience.
-For your own projects, choose a name space that is unlikely
-to collide with future additions to the standard library or other
+One of Go's design goals is to make writing software easier.  To that end, the
+<code>go</code> command doesn't use Makefiles or other configuration files to
+guide program construction. Instead, it uses the source code to find
+dependencies and determine build conditions. This means your source code and
+build scripts are always in sync; they are one and the same.
+</p>
+
+<p>
+The one thing you must do is set a <code>GOPATH</code> environment variable.
+<code>GOPATH</code> tells the <code>go</code> command (and other related tools)
+where to find and install the Go packages on your system.
+</p>
+
+<p>
+<code>GOPATH</code> is a list of paths. It shares the syntax of your system's
+<code>PATH</code> environment variable. A typical <code>GOPATH</code> on
+a Unix system might look like this:
+</p>
+
+<pre>
+GOPATH=/home/user/ext:/home/user/mygo
+</pre>
+
+<p>
+(On a Windows system use semicolons as the path separator instead of colons.)
+</p>
+
+<p>
+Each path in the list (in this case <code>/home/user/ext</code> or
+<code>/home/user/mygo</code>) specifies the location of a <i>workspace</i>.
+A workspace contains Go source files and their associated package objects, and
+command executables. It has a prescribed structure of three subdirectories:
+</p>
+
+<ul>
+<li><code>src</code> contains Go source files,
+<li><code>pkg</code> contains compiled package objects, and
+<li><code>bin</code> contains executable commands.</code>
+</ul>
+
+<p>
+Subdirectories of the <code>src</code> directory hold independent packages, and
+all source files (<code>.go</code>, <code>.c</code>, <code>.h</code>, and
+<code>.s</code>) in each subdirectory are elements of that subdirectory's
+package.
+</p>
+
+<p>
+When building a program that imports the package "<code>widget</code>" the
+<code>go</code> command looks for <code>src/pkg/widget</code> inside the Go root,
+and then&mdash;if the package source isn't found there&mdash;it searches
+for <code>src/widget</code> inside each workspace in order.
+</p>
+
+<p>
+Multiple workspaces can offer some flexibility and convenience, but for now
+we'll concern ourselves with only a single workspace.
+</p>
+
+<p>
+Let's work through a simple example. First, create a <code>$HOME/mygo</code>
+directory and its <code>src</code> subdirectory:
+</p>
+
+<pre>
+$ mkdir -p $HOME/mygo/src # create a place to put source code
+</pre>
+
+<p>
+Next, set it as the <code>GOPATH</code>. You should also add the
+<code>bin</code> subdirectory to your <code>PATH</code> environment variable so
+that you can run the commands therein without specifying their full path.
+To do this, add the following lines to <code>$HOME/.profile</code> (or
+equivalent):
+</p>
+
+<pre>
+export GOPATH=$HOME/mygo
+export PATH=$PATH:$HOME/mygo/bin
+</pre>
+
+
+<h3>Import paths</h3>
+
+<p>
+The standard packages are given short import paths such as <code>"fmt"</code>
+and <code>"net/http"</code> for convenience. 
+For your own projects, it is important to choose a base import path that is
+unlikely to collide with future additions to the standard library or other
 external libraries.
 </p>
 
 <p>
+The best way to choose an import path is to use the location of your version
+control repository.
 For instance, if your source repository is at <code>example.com</code> 
 or <code>code.google.com/p/example</code>, you should begin your package
 paths with that URL, as in "<code>example.com/foo/bar</code>" or
 "<code>code.google.com/p/example/foo/bar</code>".
-This way the <a href="/cmd/go/"><code>go</code> tool</a> can automatically
-check out and build the source code from its import path.
+Using this convention, the <code>go</code> command can automatically check out and
+build the source code by its import path alone.
 </p>
 
 <p>
-If you don't intend your code to be installed in this way, you should at
+If you don't intend to install your code in this way, you should at
 least use a unique prefix like "<code>widgets/</code>", as in
 "<code>widgets/foo/bar</code>". A good rule is to use a prefix such as your
-company or project name since it is unlikely to be used by another group.
-</p>
-
-
-<h3>The <code>go</code> tool and <code>GOPATH</code></h3>
-
-<p>
-The <a href="/cmd/go/"><code>go</code> tool</a> is the standard means of
-building and installing Go libraries and programs. It is a "zero configuration"
-tool; it determines how to build Go packages from their source code alone.
+company or project name, since it is unlikely to be used by another group.
 </p>
 
 <p>
-To use the <code>go</code> tool effectively you must set the
-<code>GOPATH</code> variable.
-<code>GOPATH</code> specifies a list of paths that contain Go source code
-and package binaries. Source code, package objects, and command binaries are
-located inside the <code>GOPATH</code>s' <code>src</code>, <code>pkg</code>,
-and <code>bin</code> subdirectories respectively.
-</p>
-
-<p>
-You should set <code>GOPATH</code> in your shell profile
-(<code>$HOME/.bashrc</code>, <code>$HOME/.profile</code>, or equivalent).
-</p>
-
-<p>
-This shell session demonstrates setting <code>GOPATH</code>, creating a trivial
-<code>widgets/foo</code> package, and building and installing the package.
+We'll use <code>example/</code> as our base import path:
 </p>
 
 <pre>
-$ export GOPATH=$HOME/gocode
-$ mkdir -p $GOPATH/src/widgets/foo
-$ cat &gt; $GOPATH/src/widgets/foo/foo.go
-package foo
-const String = "Go rules!"
-^D
-$ go install widgets/foo
-$ ls $GOPATH/pkg/*/widgets
-foo.a
+$ mkdir -p $GOPATH/src/example
 </pre>
 
-<p>(<code>^D</code> means to type Control-D.)</p>
+
+<h3>Package names</h3>
 
 <p>
-Type <code>go help gopath</code> on the command line for more information
-about <code>GOPATH</code>.
+The first statement in a Go source file should be
 </p>
 
-
-<h3>Go source files</h3>
+<pre>
+package <i>name</i>
+</pre>
 
 <p>
-The first statement in a Go source file should be <code>package
-<i>name</i></code>, where <code><i>name</i></code> is the package's default
-name for imports.
+where <code><i>name</i></code> is the package's default name for imports.
 (All files in a package must use the same <code><i>name</i></code>.)
+</p>
+
+<p>
 Go's convention is that the package name is the last element of the
 import path: the package imported as "<code>crypto/rot13</code>"
 should be named <code>rot13</code>.
@@ -137,208 +160,344 @@ only that the import paths (their full file names) be unique.
 </p>
 
 <p>
-Go compiles all the source files in a package at once, so one file
-can refer to constants, variables, types, and functions in another
-file without special arrangement or declarations.
-</p>
-
-<p>
-Writing clean, idiomatic Go code is beyond the scope of this document.
-<a href="effective_go.html">Effective Go</a> is an introduction to
-that topic.
-</p>
-
-<h2 id="Building_programs">Building programs</h2>
-
-<p>
-The <a href="/cmd/go/"><code>go</code> tool</a> treats code belonging to
-<code>package main</code> as an executable command, and installs the package
-binary to the <code>GOPATH</code>'s <code>bin</code> subdirectory.
-</p>
-
-<p>
-Building executable commands is the same as building packages.
-Use "<code>go install</code>":
+Create a new package under <code>example</code> called <code>newmath</code>:
 </p>
 
 <pre>
-$ mkdir -p $GOPATH/src/widgets/bar
-$ cat &gt; $GOPATH/src/widgets/bar/bar.go
-package main
-
-import (
-    "fmt"
-    "widgets/foo"
-)
-
-func main() {
-    fmt.Println(foo.String)
-}
-^D
-$ go install widgets/bar
-$ $GOPATH/bin/bar
-Go rules!
+$ cd $GOPATH/src/example
+$ mkdir newmath
 </pre>
 
 <p>
-Run <code>go help build</code> and <code>go help install</code> for more
-about building and installing Go binaries.
+Then create a file named <code>$GOPATH/src/example/newmath/sqrt.go</code>
+containing the following Go code:
 </p>
+
+<pre>
+// Package newmath is a trivial example package.
+package newmath
+
+// Sqrt returns an approximation to the square root of x.
+func Sqrt(x float64) float64 {
+        // This is a terrible implementation.
+        // Real code should import "math" and use math.Sqrt.
+        z := 0.0
+        for i := 0; i < 1000; i++ {
+                z -= (z*z - x) / (2 * x)
+        }
+        return z
+}
+</pre>
+
+<p>
+This package is imported by the path name of the directory it's in, starting
+after the <code>src</code> component:
+</p>
+
+<pre>
+import "example/newmath"
+</pre>
+
+<p>
+See <a href="/doc/effective_go.html#names">Effective Go</a> to learn more about
+Go's naming conventions.
+</p>
+
+
+<h2>Building and installing</h3>
+
+<p>
+The <code>go</code> command comprises several subcommands, the most central being
+<code>install</code>. Running <code>go install <i>importpath</i></code> builds
+and installs a package and its dependencies.
+</p>
+
+<p>
+To "install a package" means to write the package object or executable command
+to the <code>pkg</code> or <code>bin</code> subdirectory of the workspace in
+which the source resides.
+</p>
+
+<h3>Building a package</h3>
+
+<p>
+To build and install the <code>newmath</code> package, type
+</p>
+
+<pre>
+$ go install example/newmath
+</pre>
+
+<p>
+This command will produce no output if the package and its dependencies
+are built and installed correctly.
+</p>
+
+<p>
+As a convenience, the <code>go</code> command will assume the current directory
+if no import path is specified on the command line. This sequence of commands
+has the same affect as the one above:
+</p>
+
+<pre>
+$ cd $GOPATH/src/example/newmath
+$ go install
+</pre>
+
+<p>
+The resulting workspace directory tree (assuimg we're running Linux on a 64-bit
+system) looks like this:
+</p>
+
+<pre>
+pkg/
+    linux_amd64/
+        example/
+            newmath.a  # package object
+src/
+    example/
+        newmath/
+            sqrt.go    # package source
+</pre>
+
+
+<h3>Building a command</h3>
+
+<p>
+The <code>go</code> command treats code belonging to <code>package main</code> as
+an executable command and installs the package binary to the
+<code>GOPATH</code>'s <code>bin</code> subdirectory.
+</p>
+
+<p>
+Add a command named <code>hello</code> to the source tree.
+First create the <code>example/hello</code> directory:
+</p>
+
+<pre>
+$ cd $GOPATH/src/example
+$ mkdir hello
+</pre>
+
+<p>
+Then create the file <code>$GOPATH/src/example/hello/hello.go</code>
+containing the following Go code.
+</p>
+
+<pre>
+// Hello is a trivial example of a main package.
+package main
+
+import (
+        "example/newmath"
+        "fmt"
+)
+
+func main() {
+        fmt.Printf("Hello, world.  Sqrt(2) = %v\n", newmath.Sqrt(2))
+}
+</pre>
+
+<p>
+Next, run <code>go install</code>, which builds and installs the binary to
+<code>$GOPATH/bin</code>:
+</p>
+
+<pre>
+$ go install example/hello
+</pre>
+
+<p>
+To run the program, invoke it by name as you would any other command:
+</p>
+
+<pre>
+$ $GOPATH/bin/hello
+Hello, world.  Sqrt(2) = 1.414213562373095
+</pre>
+
+<p>
+If you added <code>$HOME/mygo/bin</code> to your <code>PATH</code>, you may omit
+the path to the executable:
+</p>
+
+<pre>
+$ hello
+Hello, world.  Sqrt(2) = 1.414213562373095
+</pre>
+
+<p>
+The workspace directory tree now looks like this:
+</p>
+
+<pre>
+bin/
+    hello              # command executable
+pkg/
+    linux_amd64/ 
+        example/
+            newmath.a  # package object
+src/
+    example/
+        hello/
+            hello.go   # command source
+        newmath/
+            sqrt.go    # package source
+</pre>
+
+<p>
+The <code>go</code> command also provides a <code>build</code> command, which is
+like <code>install</code> except it builds all objects in a temporary directory
+and does not install them under <code>pkg</code> or <code>bin</code>.
+When building a command an executable named after the last element of the
+import path is written to the current directory. When building a package, 
+<code>go build</code> serves merely to test that the package and its
+dependencies can be built. (The resulting package object is thrown away.)
+</p>
+
 
 <h2 id="Testing">Testing</h2>
 
 <p>
-Go has a lightweight test framework composed of the <code>go</code> tool and
-the <code>testing</code> package.
+Go has a lightweight test framework composed of the <code>go test</code>
+command and the <code>testing</code> package.
+</p>
+
+<p>
 You write a test by creating a file with a name ending in <code>_test.go</code>
 that contains functions named <code>TestXXX</code> with signature
 <code>func (t *testing.T)</code>.
 The test framework runs each such function;
 if the function calls a failure function such as <code>t.Error</code> or
 <code>t.Fail</code>, the test is considered to have failed.
-Run <code>go help test</code> and see the
-<a href="/pkg/testing/">testing package documentation</a> for more detail.
 </p>
 
 <p>
-To run the test, run "<code>go test</code>":
+Add a test to the <code>newmath</code> package by creating the file
+<code>$GOPATH/src/example/newmath/sqrt_test.go</code> containing the following
+Go code.
 </p>
 
 <pre>
-$ cat &gt; $GOPATH/src/widgets/foo/foo_test.go
-package foo
+package newmath
 
 import "testing"
 
-func TestString(t *testing.T) {
-    const expect = "Go rules!"
-    if String != expect {
-        t.Errorf("String == %q, want %q", String, expect)
-    }
+func TestSqrt(t *testing.T) {
+	const in, out = 9, 3
+	if x := Sqrt(in); x != out {
+		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
+        }
 }
-^D
-$ go test widgets/foo
-ok  	widgets/foo	0.018s
 </pre>
 
 <p>
-If your change affects performance, add a <code>Benchmark</code> function 
-(run <code>go help testfunc</code>) and run it using <code>go test
--test.bench=.*</code>.
-</p>
-
-<h2 id="pkg_example">An example package with tests</h2>
-
-<p>
-This example package, <code>numbers</code>, consists of the function
-<code>Double</code>, which takes an <code>int</code> and returns that value 
-multiplied by 2. It consists of two files.
-</p>
-
-<p>
-First, the package implementation, <code>numbers.go</code>:
+Now run the test with <code>go test</code>:
 </p>
 
 <pre>
-package numbers
-
-func Double(i int) int {
-	return i * 2
-}
+$ go test example/newmath
+ok  	example/newmath
 </pre>
 
 <p>
-Next, the tests, <code>numbers_test.go</code>:
-</p>
-
-<pre>
-package numbers
-
-import (
-	"testing"
-)
-
-type doubleTest struct {
-	in, out int
-}
-
-var doubleTests = []doubleTest{
-	doubleTest{1, 2},
-	doubleTest{2, 4},
-	doubleTest{-5, -10},
-}
-
-func TestDouble(t *testing.T) {
-	for _, dt := range doubleTests {
-		v := Double(dt.in)
-		if v != dt.out {
-			t.Errorf("Double(%d) = %d, want %d.", dt.in, v, dt.out)
-		}
-	}
-}
-</pre>
-
-<p>
-Running <code>go install</code> will build and install the package to
-the <code>GOPATH</code>'s <code>pkg</code> directory
-(it can then be imported by any other Go program).
-</p>
-
-<p>
-Running <code>go test</code> will rebuild the package, including the
-<code>numbers_test.go</code> file, and then run the <code>TestDouble</code>
-function. The output "<code>ok</code>" indicates that all tests passed
-successfully.  Breaking the implementation by changing the multiplier from
-<code>2</code> to <code>3</code> will allow you to see how failing tests are 
-reported.
-</p>
-
-<p>
-Run <code>go help test</code>, <code>go help testfunc</code>,
-and <code>go help testflag</code> and see the
+Run <code><a href="/cmd/go/#Test_packages">go help test</a></code> and see the
 <a href="/pkg/testing/">testing package documentation</a> for more detail.
 </p>
 
-<h2 id="arch_os_specific">Architecture- and operating system-specific code</h2>
 
-<p>First, a disclaimer: very few Go packages should need to know about the
-hardware and operating system they run on.  In the vast majority of cases the
-language and standard library handle most portability issues.  This section is
-a guide for experienced systems programmers who have a good reason to write
-platform-specific code, such as assembly-language support for fast
-trigonometric functions or code that implements a common interface above
-different operating systems.</p>
+<h2 id="remote">Remote packages</h3>
 
-<p>To compile such code, use the <code>$GOOS</code> and <code>$GOARCH</code>
-<a href="/doc/install.html#environment">environment variables</a> in your
-source file names.</p>
-
-<p>For example, consider the package <code>foo</code> that consists of four
-files:</p>
+<p>
+An import path can describe how to obtain the package source code using a
+revision control system such as Git or Mercurial. The <code>go</code> command uses
+this property to automatically fetch packages from remote repositories.
+For instance, the examples described in this document are also kept in a
+Mercurial repository hosted at Google Code,
+<code><a href="http://code.google.com/p/go.example">code.google.com/p/go.example</a></code>.
+If you include the repository URL in the package's import path,
+<code>go get</code> will fetch, build, and install it automatically:
+</p>
 
 <pre>
-foo.go
-foo_386.go
-foo_amd64.go
-foo_arm.go
+$ go get code.google.com/p/go.example/hello
+$ $GOPATH/bin/hello
+Hello, world.  Sqrt(2) = 1.414213562373095
 </pre>
 
-<p>describes a package that builds on
-different architectures by parameterizing the file name with
-<code>$GOARCH</code>.</p>
+<p>
+If the specified package is not present in a workspace, <code>go get</code>
+will place it inside the first workspace specified by <code>GOPATH</code>.
+(If the package does already exist, <code>go get</code> skips the remote
+fetch and behaves the same as <code>go install</code>.)
+</p>
 
-<p>The general code goes in <code>foo.go</code>, while architecture-specific
-code goes in <code>foo_386.go</code>, <code>foo_amd64.go</code>, and
-<code>foo_arm.go</code>.</p>
-
-<p>If you follow these conventional parameterizations, tools such as the <a
-href="/cmd/go/"><code>go</code> tool</a> will work seamlessly with your
-package:</p>
+<p>
+After issuing the above <code>go get</code> command, the workspace directory
+tree should now now look like this:
+</p>
 
 <pre>
-foo_$GOOS.go
-foo_$GOARCH.go
-foo_$GOOS_$GOARCH.go
+bin/
+    hello                 # command executable
+pkg/
+    linux_amd64/ 
+        code.google.com/p/go.example/
+            newmath.a     # package object
+        example/
+            newmath.a     # package object
+src/
+    code.google.com/p/go.example/
+        hello/
+            hello.go      # command source
+        newmath/
+            sqrt.go       # package source
+            sqrt_test.go  # test source
+    example/
+        hello/
+            hello.go      # command source
+        newmath/
+            sqrt.go       # package source
+            sqrt_test.go  # test source
 </pre>
 
-<p>The same holds for <code>.s</code> (assembly) and <code>.c</code> files.</p>
+<p>
+The <code>hello</code> command hosted at Google Code depends on the
+<code>newmath</code> package within the same repository. The imports in
+<code>hello.go</code> file use the same import path convention, so the <code>go
+get</code> command is able to locate and install the dependent package, too.
+</p>
+
+<pre>
+import "code.google.com/p/go.example/newmath"
+</pre>
+
+<p>
+This convention is the easiest way to make your Go packages available for
+others to use.
+The <a href="http://godashboard.appspot.com/package">Go Package Dashboard</a>
+displays a list of packages recently installed with the <code>go</code> command.
+</p>
+
+<p>
+For more information on using remote repositories with the <code>go</code> command, see
+<code><a href="/cmd/go/#Remote_import_path_syntax">go help remote</a></code>.
+</p>
+
+
+<h2 id="more">Further reading</h2>
+
+<p>
+See <a href="/doc/effective_go.html">Effective Go</a> for tips on writing
+clear, idiomatic Go code.
+</p>
+
+<p>
+Take <a href="http://tour.golang.org/">A Tour of Go</a> to learn the language
+proper.
+</p>
+
+<p>
+Visit the <a href="/doc/#articles">documentation page</a> for a set of in-depth
+articles about the Go language and its libraries and tools.
+</p>
