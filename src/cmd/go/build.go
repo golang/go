@@ -432,7 +432,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		prefix = "local"
 	}
 	a.objdir = filepath.Join(b.work, prefix, a.p.ImportPath, "_obj") + string(filepath.Separator)
-	a.objpkg = buildToolchain.pkgpath(b.work+"/"+prefix, a.p, false)
+	a.objpkg = buildToolchain.pkgpath(b.work+"/"+prefix, a.p)
 	a.link = p.Name == "main"
 
 	switch mode {
@@ -1083,8 +1083,8 @@ type toolchain interface {
 	// asm runs the assembler in a specific directory on a specific file
 	// to generate the named output file.
 	asm(b *builder, p *Package, obj, ofile, sfile string) error
-	// pkgpath creates the appropriate destination path for a package file.
-	pkgpath(basedir string, p *Package, install bool) string
+	// pkgpath builds an appropriate path for a temporary package file.
+	pkgpath(basedir string, p *Package) string
 	// pack runs the archive packer in a specific directory to create
 	// an archive from a set of object files.
 	// typically it is run in the object directory.
@@ -1104,6 +1104,7 @@ var buildToolchain toolchain
 func init() {
 	// TODO(rsc): Decide how to trigger gccgo.  Issue 3157.
 	if os.Getenv("GC") == "gccgo" {
+		buildContext.Gccgo = true
 		buildToolchain = gccgoToolchain{}
 	} else {
 		buildToolchain = goToolchain{}
@@ -1142,11 +1143,8 @@ func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
 }
 
-func (goToolchain) pkgpath(basedir string, p *Package, install bool) string {
+func (goToolchain) pkgpath(basedir string, p *Package) string {
 	end := filepath.FromSlash(p.ImportPath + ".a")
-	if install {
-		return filepath.Join(basedir, buildContext.GOOS+"_"+buildContext.GOARCH, end)
-	}
 	return filepath.Join(basedir, end)
 }
 
@@ -1206,10 +1204,9 @@ func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) erro
 	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
 }
 
-func (gccgoToolchain) pkgpath(basedir string, p *Package, install bool) string {
-	// NOTE: Apparently gccgo does not distinguish different trees
-	// using goos_goarch, so install is ignored here.
-	afile := filepath.Join(basedir, "gccgo", filepath.FromSlash(p.ImportPath+".a"))
+func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
+	end := filepath.FromSlash(p.ImportPath + ".a")
+	afile := filepath.Join(basedir, end)
 	// add "lib" to the final element
 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
 }
@@ -1224,21 +1221,25 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 
 func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
-	// and all LDFLAGS from cgo dependencies
-	afiles := []string{}
+	// and all LDFLAGS from cgo dependencies.
+	afiles := make(map[*Package]string)
 	ldflags := []string{}
-	seen := map[*Package]bool{}
+	cgoldflags := []string{}
 	for _, a := range allactions {
-		if a.p != nil && !seen[a.p] {
-			seen[a.p] = true
+		if a.p != nil {
 			if !a.p.Standard {
-				afiles = append(afiles, a.target)
+				if afiles[a.p] == "" || a.objpkg != a.target {
+					afiles[a.p] = a.target
+				}
 			}
-			ldflags = append(ldflags, a.p.CgoLDFLAGS...)
+			cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
 		}
 	}
-
-	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", afiles, ldflags, "-Wl,-)")
+	for _, afile := range afiles {
+		ldflags = append(ldflags, afile)
+	}
+	ldflags = append(ldflags, cgoldflags...)
+	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
 }
 
 func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {

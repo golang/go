@@ -295,7 +295,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		// No permanent install target.
 		p.target = ""
 	} else {
-		p.target = buildToolchain.pkgpath(p.build.PkgRoot, p, true)
+		p.target = p.build.PkgObj
 	}
 
 	importPaths := p.Imports
