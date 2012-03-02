@@ -59,7 +59,7 @@ Lflag(char *arg)
 			maxlibdir = 8;
 		else
 			maxlibdir *= 2;
-		p = realloc(libdir, maxlibdir);
+		p = realloc(libdir, maxlibdir * sizeof(*p));
 		if (p == nil) {
 			print("too many -L's: %d\n", nlibdir);
 			usage();
