@@ -992,7 +992,7 @@ func relPaths(paths []string) []string {
 var errPrintedOutput = errors.New("already printed output - no need to show error")
 
 // run runs the command given by cmdline in the directory dir.
-// If the commnd fails, run prints information about the failure
+// If the command fails, run prints information about the failure
 // and returns a non-nil error.
 func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{}) error {
 	out, err := b.runOut(dir, desc, cmdargs...)
