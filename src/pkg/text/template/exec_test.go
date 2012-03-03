@@ -60,7 +60,9 @@ type T struct {
 	PSI *[]int
 	NIL *int
 	// Function (not method)
-	Func func(...string) string
+	BinaryFunc      func(string, string) string
+	VariadicFunc    func(...string) string
+	VariadicFuncInt func(int, ...string) string
 	// Template to test evaluation of templates.
 	Tmpl *Template
 }
@@ -120,7 +122,9 @@ var tVal = &T{
 	Err:               errors.New("erroozle"),
 	PI:                newInt(23),
 	PSI:               newIntSlice(21, 22, 23),
-	Func:              func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+	BinaryFunc:        func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
+	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+	VariadicFuncInt:   func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -300,13 +304,25 @@ var execTests = []execTest{
 		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
 		"true", tVal, true},
 
-	// Function call
-	{".Func", "-{{.Func}}-", "-<>-", tVal, true},
-	{".Func2", "-{{.Func `he` `llo`}}-", "-<he+llo>-", tVal, true},
+	// Function call builtin.
+	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},
+	{".VariadicFunc0", "{{call .VariadicFunc}}", "<>", tVal, true},
+	{".VariadicFunc2", "{{call .VariadicFunc `he` `llo`}}", "<he+llo>", tVal, true},
+	{".VariadicFuncInt", "{{call .VariadicFuncInt 33 `he` `llo`}}", "33=<he+llo>", tVal, true},
+	{"if .BinaryFunc call", "{{ if .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{end}}", "[1=2]", tVal, true},
+	{"if not .BinaryFunc call", "{{ if not .BinaryFunc}}{{call .BinaryFunc `1` `2`}}{{else}}No{{end}}", "No", tVal, true},
+
+	// Erroneous function calls (check args).
+	{".BinaryFuncTooFew", "{{call .BinaryFunc `1`}}", "", tVal, false},
+	{".BinaryFuncTooMany", "{{call .BinaryFunc `1` `2` `3`}}", "", tVal, false},
+	{".BinaryFuncBad0", "{{call .BinaryFunc 1 3}}", "", tVal, false},
+	{".BinaryFuncBad1", "{{call .BinaryFunc `1` 3}}", "", tVal, false},
+	{".VariadicFuncBad0", "{{call .VariadicFunc 3}}", "", tVal, false},
+	{".VariadicFuncIntBad0", "{{call .VariadicFuncInt `x`}}", "", tVal, false},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
-	{"pipeline func", "-{{.Func `llo` | .Func `he` }}-", "-<he+<llo>>-", tVal, true},
+	{"pipeline func", "-{{call .VariadicFunc `llo` | call .VariadicFunc `he` }}-", "-<he+<llo>>-", tVal, true},
 
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},

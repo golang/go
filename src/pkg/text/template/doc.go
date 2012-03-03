@@ -142,11 +142,6 @@ An argument is a simple value, denoted by one of the following.
 	    .Field1.Key1.Method1.Field2.Key2.Method2
 	  Methods can also be evaluated on variables, including chaining:
 	    $x.Method1.Field
-	- The name of a niladic function-valued struct field of the data,
-	  preceded by a period, such as
-		.Function
-	  Function-valued fields behave like methods (of structs) but do not
-	  pass a receiver.
 	- The name of a niladic function, such as
 		fun
 	  The result is the value of invoking the function, fun(). The return
@@ -155,6 +150,10 @@ An argument is a simple value, denoted by one of the following.
 
 Arguments may evaluate to any type; if they are pointers the implementation
 automatically indirects to the base type when required.
+If an evaluation yields a function value, such as a function-valued
+field of a struct, the function is not invoked automatically, but it
+can be used as a truth value for an if action and the like. To invoke
+it, use the call function, defined below.
 
 A pipeline is a possibly chained sequence of "commands". A command is a simple
 value (argument) or a function or method call, possibly with multiple arguments:
@@ -167,9 +166,6 @@ value (argument) or a function or method call, possibly with multiple arguments:
 		The result is the value of calling the method with the
 		arguments:
 			dot.Method(Argument1, etc.)
-	.Function [Argument...]
-		A function-valued field of a struct works like a method but does
-		not pass the receiver.
 	functionName [Argument...]
 		The result is the value of calling the function associated
 		with the name:
@@ -257,6 +253,17 @@ Predefined global functions are named as follows.
 		first empty argument or the last argument, that is,
 		"and x y" behaves as "if x then y else x". All the
 		arguments are evaluated.
+	call
+		Returns the result of calling the first argument, which
+		must be a function, with the remaining arguments as parameters.
+		Thus "call .X.Y 1 2" is, in Go notation, dot.X.Y(1, 2) where
+		Y is a func-valued field, map entry, or the like.
+		The first argument must be the result of an evaluation
+		that yields a value of function type (as distinct from
+		a predefined function such as print). The function must
+		return either one or two result values, the second of which
+		is of type error. If the arguments don't match the function
+		or the returned error value is non-nil, execution stops.
 	html
 		Returns the escaped HTML equivalent of the textual
 		representation of its arguments.
