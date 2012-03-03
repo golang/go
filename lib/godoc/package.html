@@ -163,7 +163,7 @@
 
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
-	<h2 id="subdirectories">Subdirectories</h2>
+	{{if $.PDoc}}<h2 id="subdirectories">Subdirectories</h2>{{end}}
 	<table class="dir">
 	<tr>
 	<th>Name</th>
