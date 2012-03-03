@@ -30,6 +30,14 @@ if ! grep -q '^easysub\.Hello' hello.out; then
 	ok=false
 fi
 
+./testgo build -o hello testdata/local/easysub/main.go
+./hello >hello.out
+if ! grep -q '^easysub\.Hello' hello.out; then
+	echo "testdata/local/easysub/main.go did not generate expected output"
+	cat hello.out
+	ok=false
+fi
+
 ./testgo build -o hello testdata/local/hard.go
 ./hello >hello.out
 if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
@@ -43,6 +51,19 @@ rm -f err.out hello.out hello
 # Test that go install x.go fails.
 if ./testgo install testdata/local/easy.go >/dev/null 2>&1; then
 	echo "go install testdata/local/easy.go succeeded"
+	ok=false
+fi
+
+# Test tests with relative imports.
+if ! ./testgo test ./testdata/testimport; then
+	echo "go test ./testdata/testimport failed"
+	ok=false
+fi
+
+# Test tests with relative imports in packages synthesized
+# from Go files named on the command line.
+if ! ./testgo test ./testdata/testimport/*.go; then
+	echo "go test ./testdata/testimport/*.go failed"
 	ok=false
 fi
 

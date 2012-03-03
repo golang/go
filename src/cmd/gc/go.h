@@ -772,6 +772,7 @@ extern	char*	runtimeimport;
 extern	char*	unsafeimport;
 EXTERN	char*	myimportpath;
 EXTERN	Idir*	idirs;
+EXTERN	char*	localimport;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;

@@ -38,6 +38,8 @@ Flags:
 	-p path
 		assume that path is the eventual import path for this code,
 		and diagnose any attempt to import a package that depends on it.
+	-D path
+		treat a relative import as relative to path
 	-L
 		show entire file path when printing line numbers in errors
 	-I dir1 -I dir2

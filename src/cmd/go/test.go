@@ -351,7 +351,7 @@ func runTest(cmd *Command, args []string) {
 
 	warned := false
 	for _, a := range actionList(root) {
-		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake {
+		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake && !a.p.local {
 			okBuild[a.p] = true // don't warn again
 			if !warned {
 				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
@@ -474,11 +474,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// External test package.
 	if len(p.XTestGoFiles) > 0 {
 		pxtest = &Package{
-			Name:       p.Name + "_test",
-			ImportPath: p.ImportPath + "_test",
-			Dir:        p.Dir,
-			GoFiles:    p.XTestGoFiles,
-			Imports:    p.XTestImports,
+			Name:        p.Name + "_test",
+			ImportPath:  p.ImportPath + "_test",
+			localPrefix: p.localPrefix,
+			Dir:         p.Dir,
+			GoFiles:     p.XTestGoFiles,
+			Imports:     p.XTestImports,
 			build: &build.Package{
 				ImportPos: p.build.XTestImportPos,
 			},

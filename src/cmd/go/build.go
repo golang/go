@@ -349,8 +349,9 @@ func goFilesPackage(gofiles []string) *Package {
 	bp, err := ctxt.ImportDir(dir, 0)
 	pkg := new(Package)
 	pkg.load(&stk, bp, err)
+	pkg.localPrefix = dirToImportPath(dir)
+	pkg.ImportPath = "command-line-arguments"
 
-	pkg.ImportPath = "command-line arguments"
 	if *buildO == "" {
 		if pkg.Name == "main" {
 			_, elem := filepath.Split(gofiles[0])
@@ -425,14 +426,12 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		return a
 	}
 
-	prefix := "obj"
-	if p.target == "" && p.Dir == p.ImportPath {
+	if p.local {
 		// Imported via local path.  No permanent target.
 		mode = modeBuild
-		prefix = "local"
 	}
-	a.objdir = filepath.Join(b.work, prefix, a.p.ImportPath, "_obj") + string(filepath.Separator)
-	a.objpkg = buildToolchain.pkgpath(b.work+"/"+prefix, a.p)
+	a.objdir = filepath.Join(b.work, a.p.ImportPath, "_obj") + string(filepath.Separator)
+	a.objpkg = buildToolchain.pkgpath(b.work, a.p)
 	a.link = p.Name == "main"
 
 	switch mode {
@@ -635,32 +634,9 @@ func (b *builder) build(a *action) error {
 	// Prepare Go import path list.
 	inc := b.includeArgs("-I", a.deps)
 
-	// In what directory shall we run the Go compiler?
-	// We only pass absolute paths, so most of the time it doesn't matter.
-	// Default to the root directory.
-	// However, if the package contains local imports (./ or ../)
-	// then we need to run the compiler in a directory in the parallel
-	// tree of local package objects, so that those imports resolve to the
-	// compiled package objects.
-	gcdir := filepath.Clean("/")
-	for _, imp := range a.p.Imports {
-		if build.IsLocalImport(imp) {
-			dir := a.p.Dir
-			if filepath.Separator == '\\' {
-				// Avoid use of : on Windows.
-				dir = strings.Replace(dir, ":", "_", -1)
-			}
-			gcdir = filepath.Join(b.work, "local", dir)
-			if err := b.mkdir(gcdir); err != nil {
-				return err
-			}
-			break
-		}
-	}
-
 	// Compile Go.
 	if len(gofiles) > 0 {
-		if out, err := buildToolchain.gc(b, a.p, obj, gcdir, inc, gofiles); err != nil {
+		if out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles); err != nil {
 			return err
 		} else {
 			objects = append(objects, out)
@@ -768,9 +744,9 @@ func (b *builder) install(a *action) error {
 func (b *builder) includeArgs(flag string, all []*action) []string {
 	inc := []string{}
 	incMap := map[string]bool{
-		b.work + "/obj": true, // handled later
-		gorootPkg:       true,
-		"":              true, // ignore empty strings
+		b.work:    true, // handled later
+		gorootPkg: true,
+		"":        true, // ignore empty strings
 	}
 
 	// Look in the temporary space for results of test-specific actions.
@@ -785,7 +761,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 
 	// Also look in $WORK for any non-test packages that have
 	// been built but not installed.
-	inc = append(inc, flag, b.work+"/obj")
+	inc = append(inc, flag, b.work)
 
 	// Finally, look in the installed package directories for each action.
 	for _, a1 := range all {
@@ -994,7 +970,7 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
 // and returns a non-nil error.
-func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{}) error {
+func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
 	out, err := b.runOut(dir, desc, cmdargs...)
 	if len(out) > 0 {
 		if out[len(out)-1] != '\n' {
@@ -1003,7 +979,7 @@ func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{
 		if desc == "" {
 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
 		}
-		b.showOutput(shortenDir, desc, string(out))
+		b.showOutput(dir, desc, string(out))
 		if err != nil {
 			err = errPrintedOutput
 		}
@@ -1076,7 +1052,7 @@ type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
 	// The compiler runs in the directory dir.
-	gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error)
+	gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *builder, p *Package, objdir, ofile, cfile string) error
@@ -1121,7 +1097,7 @@ func (goToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
-func (goToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
+func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
 	out := "_go_." + archChar
 	ofile = obj + out
 	gcargs := []string{"-p", p.ImportPath}
@@ -1131,16 +1107,16 @@ func (goToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []stri
 		gcargs = append(gcargs, "-+")
 	}
 
-	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, importArgs)
+	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
-	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
+	return ofile, b.run(p.Dir, p.ImportPath, args)
 }
 
 func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
 }
 
 func (goToolchain) pkgpath(basedir string, p *Package) string {
@@ -1153,18 +1129,18 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
 }
 
 func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
+	return b.run(p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
 }
 
 func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
+	return b.run(p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
 }
@@ -1181,7 +1157,7 @@ func (gccgoToolchain) linker() string {
 	return gccgoBin
 }
 
-func (gccgoToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
+func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
 	out := p.Name + ".o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
@@ -1196,12 +1172,12 @@ func (gccgoToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []s
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
-	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
+	return ofile, b.run(p.Dir, p.ImportPath, args)
 }
 
 func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
 }
 
 func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
@@ -1216,7 +1192,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
 }
 
 func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
@@ -1239,13 +1215,13 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
 		ldflags = append(ldflags, afile)
 	}
 	ldflags = append(ldflags, cgoldflags...)
-	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
+	return b.run(p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
 }
 
 func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+goos, "-DGOARCH_"+goarch, "-c", cfile)
 }
@@ -1253,12 +1229,12 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files
 func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
-	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
+	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
 }
 
 // gccCmd returns a gcc command line prefix
@@ -1348,7 +1324,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
 	}
-	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -1392,7 +1368,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	// cgo -dynimport
 	importC := obj + "_cgo_import.c"
-	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
 		return nil, nil, err
 	}
 
