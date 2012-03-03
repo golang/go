@@ -45,6 +45,12 @@ func runRun(cmd *Command, args []string) {
 	}
 	files, cmdArgs := args[:i], args[i:]
 	p := goFilesPackage(files)
+	if p.Error != nil {
+		fatalf("%s", p.Error)
+	}
+	if p.Name != "main" {
+		fatalf("cannot run non-main package")
+	}
 	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)
 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}

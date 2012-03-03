@@ -148,6 +148,7 @@ usage(void)
 	// -y print declarations in cannedimports (used with -d)
 	// -% print non-static initializers
 	// -+ indicate that the runtime is being compiled
+	print("  -D PATH interpret local imports relative to this import path\n");
 	print("  -I DIR search for packages in DIR\n");
 	print("  -L show full path in file:line prints\n");
 	print("  -N disable optimizations\n");
@@ -238,14 +239,18 @@ main(int argc, char *argv[])
 		myimportpath = EARGF(usage());
 		break;
 
-	case 'I':
-		addidir(EARGF(usage()));
-		break;
-	
 	case 'u':
 		safemode = 1;
 		break;
 
+	case 'D':
+		localimport = EARGF(usage());
+		break;
+
+	case 'I':
+		addidir(EARGF(usage()));
+		break;
+	
 	case 'V':
 		p = expstring();
 		if(strcmp(p, "X:none") == 0)
@@ -516,7 +521,11 @@ islocalname(Strlit *name)
 	   	return 1;
 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
 		return 1;
+	if(name->len == 1 && strncmp(name->s, ".", 1) == 0)
+		return 1;
 	if(name->len >= 3 && strncmp(name->s, "../", 3) == 0)
+		return 1;
+	if(name->len == 2 && strncmp(name->s, "..", 2) == 0)
 		return 1;
 	return 0;
 }
@@ -588,7 +597,7 @@ importfile(Val *f, int line)
 	int32 c;
 	int len;
 	Strlit *path;
-	char *cleanbuf;
+	char *cleanbuf, *prefix;
 
 	USED(line);
 
@@ -642,8 +651,11 @@ importfile(Val *f, int line)
 			fakeimport();
 			return;
 		}
-		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
-		strcpy(cleanbuf, pathname);
+		prefix = pathname;
+		if(localimport != nil)
+			prefix = localimport;
+		cleanbuf = mal(strlen(prefix) + strlen(path->s) + 2);
+		strcpy(cleanbuf, prefix);
 		strcat(cleanbuf, "/");
 		strcat(cleanbuf, path->s);
 		cleanname(cleanbuf);

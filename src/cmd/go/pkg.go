@@ -12,6 +12,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -60,15 +61,16 @@ type Package struct {
 	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
 
 	// Unexported fields are not part of the public API.
-	build      *build.Package
-	pkgdir     string // overrides build.PkgDir
-	imports    []*Package
-	deps       []*Package
-	gofiles    []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
-	target     string   // installed file for this package (may be executable)
-	fake       bool     // synthesized package
-	forceBuild bool     // this package must be rebuilt
-	local      bool     // imported via local path (./ or ../)
+	build       *build.Package
+	pkgdir      string // overrides build.PkgDir
+	imports     []*Package
+	deps        []*Package
+	gofiles     []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+	target      string   // installed file for this package (may be executable)
+	fake        bool     // synthesized package
+	forceBuild  bool     // this package must be rebuilt
+	local       bool     // imported via local path (./ or ../)
+	localPrefix string   // interpret ./ and ../ imports relative to this prefix
 }
 
 func (p *Package) copyBuild(pp *build.Package) {
@@ -161,6 +163,17 @@ func reloadPackage(arg string, stk *importStack) *Package {
 	return loadPackage(arg, stk)
 }
 
+// dirToImportPath returns the pseudo-import path we use for a package
+// outside the Go path.  It begins with _/ and then contains the full path
+// to the directory.  If the package lives in c:\home\gopher\my\pkg then
+// the pseudo-import path is _/c_/home/gopher/my/pkg.
+// Using a pseudo-import path like this makes the ./ imports no longer
+// a special case, so that all the code to deal with ordinary imports works
+// automatically.
+func dirToImportPath(dir string) string {
+	return pathpkg.Join("_", strings.Replace(filepath.ToSlash(dir), ":", "_", -1))
+}
+
 // loadImport scans the directory named by path, which must be an import path,
 // but possibly a local import path (an absolute file system path or one beginning
 // with ./ or ../).  A local relative path is interpreted relative to srcDir.
@@ -170,24 +183,28 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 	defer stk.pop()
 
 	// Determine canonical identifier for this package.
-	// For a local path (./ or ../) the identifier is the full
-	// directory name.  Otherwise it is the import path.
-	pkgid := path
+	// For a local import the identifier is the pseudo-import path
+	// we create from the full directory to the package.
+	// Otherwise it is the usual import path.
+	importPath := path
 	isLocal := build.IsLocalImport(path)
 	if isLocal {
-		pkgid = filepath.Join(srcDir, path)
+		importPath = dirToImportPath(filepath.Join(srcDir, path))
 	}
-	if p := packageCache[pkgid]; p != nil {
+	if p := packageCache[importPath]; p != nil {
 		return reusePackage(p, stk)
 	}
 
 	p := new(Package)
-	packageCache[pkgid] = p
+	p.local = isLocal
+	p.ImportPath = importPath
+	packageCache[importPath] = p
 
 	// Load package.
 	// Import always returns bp != nil, even if an error occurs,
 	// in order to return partial information.
 	bp, err := buildContext.Import(path, srcDir, build.AllowBinary)
+	bp.ImportPath = importPath
 	p.load(stk, bp, err)
 	if p.Error != nil && len(importPos) > 0 {
 		pos := importPos[0]
@@ -211,7 +228,6 @@ func reusePackage(p *Package, stk *importStack) *Package {
 				ImportStack: stk.copy(),
 				Err:         "import loop",
 			}
-			panic("loop")
 		}
 		p.Incomplete = true
 	}
@@ -258,14 +274,12 @@ func expandScanner(err error) error {
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
 	p.copyBuild(bp)
-	p.local = build.IsLocalImport(p.ImportPath)
-	if p.local {
-		// The correct import for this package depends on which
-		// directory you are in.  Instead, record the full directory path.
-		// That can't be used as an import path at all, but at least
-		// it uniquely identifies the package.
-		p.ImportPath = p.Dir
-	}
+
+	// The localPrefix is the path we interpret ./ imports relative to.
+	// Now that we've fixed the import path, it's just the import path.
+	// Synthesized main packages sometimes override this.
+	p.localPrefix = p.ImportPath
+
 	if err != nil {
 		p.Incomplete = true
 		err = expandScanner(err)
@@ -326,7 +340,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
 		if p1.local {
-			path = p1.Dir
+			path = p1.ImportPath
 			importPaths[i] = path
 		}
 		deps[path] = true
