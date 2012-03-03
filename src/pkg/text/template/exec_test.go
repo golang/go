@@ -318,7 +318,8 @@ var execTests = []execTest{
 	{".BinaryFuncBad0", "{{call .BinaryFunc 1 3}}", "", tVal, false},
 	{".BinaryFuncBad1", "{{call .BinaryFunc `1` 3}}", "", tVal, false},
 	{".VariadicFuncBad0", "{{call .VariadicFunc 3}}", "", tVal, false},
-	{".VariadicFuncIntBad0", "{{call .VariadicFuncInt `x`}}", "", tVal, false},
+	{".VariadicFuncIntBad0", "{{call .VariadicFuncInt}}", "", tVal, false},
+	{".VariadicFuncIntBad`", "{{call .VariadicFuncInt `x`}}", "", tVal, false},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
