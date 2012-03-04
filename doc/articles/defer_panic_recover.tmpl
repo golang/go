@@ -22,7 +22,7 @@ contents of one file to the other:
 {{code "progs/defer.go" `/func CopyFile/` `/STOP/`}}
 
 <p>
-This works, but there is a bug. If the second call to os.Open fails, the
+This works, but there is a bug. If the call to os.Create fails, the
 function will return without closing the source file. This can be easily
 remedied by putting a call to src.Close() before the second return statement,
 but if the function were more complex the problem might not be so easily
