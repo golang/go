@@ -157,7 +157,7 @@ panic PC=0x2a9cd8
 For a real-world example of <b>panic</b> and <b>recover</b>, see the
 <a href="/pkg/encoding/json/">json package</a> from the Go standard library.
 It decodes JSON-encoded data with a set of recursive functions.
-When malformed JSON is encountered, the parser calls panic is to unwind the
+When malformed JSON is encountered, the parser calls panic to unwind the
 stack to the top-level function call, which recovers from the panic and returns
 an appropriate error value (see the 'error' and 'unmarshal' functions in
 <a href="/src/pkg/encoding/json/decode.go">decode.go</a>).
