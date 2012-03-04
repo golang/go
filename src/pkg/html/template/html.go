@@ -134,7 +134,7 @@ var htmlNospaceNormReplacementTable = []string{
 	'`': "&#96;",
 }
 
-// htmlReplacer returns s with runes replaced acccording to replacementTable
+// htmlReplacer returns s with runes replaced according to replacementTable
 // and when badRunes is true, certain bad runes are allowed through unescaped.
 func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 	written, b := 0, new(bytes.Buffer)
