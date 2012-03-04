@@ -7,7 +7,7 @@ case "$1" in
 -*)	
 	echo 'usage: benchcmp old.txt new.txt' >&2
 	echo >&2
-	echo 'Each input file should be gotest -bench output.' >&2
+	echo 'Each input file should be go test -test.run=NONE -test.bench=. > [old,new].txt' >&2
 	echo 'Benchcmp compares the first and last for each benchmark.' >&2
 	exit 2
 esac
