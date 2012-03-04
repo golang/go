@@ -118,8 +118,8 @@ table.dir td {
 div#heading {
 	float: left;
 	margin: 0 0 10px 0;
-	padding: 16px 0;
-	font-size: 26px;
+	padding: 21px 0;
+	font-size: 20px;
 	font-weight: normal;
 }
 div#heading a {
@@ -197,7 +197,7 @@ div#menu > a {
 div#menu > input {
 	position: relative;
 	top: 1px;
-	width: 100px;
+	width: 60px;
 	background: white;
 	color: #222;
 }
@@ -205,14 +205,14 @@ div#menu > input.inactive {
 	color: #999;
 }
 
-div#left {
+div.left {
 	float: left;
 }
-div#right {
+div.right {
 	float: right;
 }
-div#left,
-div#right {
+div.left,
+div.right {
 	width: 415px;
 }
 
