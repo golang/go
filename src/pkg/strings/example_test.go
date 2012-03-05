@@ -60,7 +60,7 @@ func ExampleIndex() {
 	// -1
 }
 
-func ExampleRune() {
+func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
 	// Output:
