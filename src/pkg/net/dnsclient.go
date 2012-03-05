@@ -5,8 +5,6 @@
 package net
 
 import (
-	"bytes"
-	"fmt"
 	"math/rand"
 	"sort"
 )
@@ -45,20 +43,22 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", ip[15], ip[14], ip[13], ip[12]), nil
+		return itoa(int(ip[15])) + "." + itoa(int(ip[14])) + "." + itoa(int(ip[13])) + "." +
+			itoa(int(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
-	var buf bytes.Buffer
+	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
 	// Add it, in reverse, to the buffer
 	for i := len(ip) - 1; i >= 0; i-- {
-		s := fmt.Sprintf("%02x", ip[i])
-		buf.WriteByte(s[1])
-		buf.WriteByte('.')
-		buf.WriteByte(s[0])
-		buf.WriteByte('.')
+		v := ip[i]
+		buf = append(buf, hexDigit[v&0xF])
+		buf = append(buf, '.')
+		buf = append(buf, hexDigit[v>>4])
+		buf = append(buf, '.')
 	}
 	// Append "ip6.arpa." and return (buf already has the final .)
-	return buf.String() + "ip6.arpa.", nil
+	buf = append(buf, "ip6.arpa."...)
+	return string(buf), nil
 }
 
 // Find answer for name in dns message.
