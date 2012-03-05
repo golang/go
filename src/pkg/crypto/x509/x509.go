@@ -429,7 +429,7 @@ func (h UnhandledCriticalExtension) Error() string {
 
 type basicConstraints struct {
 	IsCA       bool `asn1:"optional"`
-	MaxPathLen int  `asn1:"optional"`
+	MaxPathLen int  `asn1:"optional,default:-1"`
 }
 
 // RFC 5280 4.2.1.4
