@@ -34,6 +34,13 @@ func (a *IPAddr) family() int {
 	return syscall.AF_INET6
 }
 
+func (a *IPAddr) isWildcard() bool {
+	if a == nil || a.IP == nil {
+		return true
+	}
+	return a.IP.IsUnspecified()
+}
+
 func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, 0)
 }

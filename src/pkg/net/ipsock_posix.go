@@ -38,6 +38,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 			continue
 		}
 		defer closesocket(s)
+		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
 		if err != nil {
 			continue
@@ -55,58 +56,75 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 // favoriteAddrFamily returns the appropriate address family to
 // the given net, laddr, raddr and mode.  At first it figures
 // address family out from the net.  If mode indicates "listen"
-// and laddr.(type).IP is nil, it assumes that the user wants to
-// make a passive connection with wildcard address family, both
-// INET and INET6, and wildcard address.  Otherwise guess: if the
-// addresses are IPv4 then returns INET, or else returns INET6.
-func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) int {
+// and laddr is a wildcard, it assumes that the user wants to
+// make a passive connection with a wildcard address family, both
+// AF_INET and AF_INET6, and a wildcard address like following:
+//
+//	1. A wild-wild listen, "tcp" + ""
+//	If the platform supports both IPv6 and IPv6 IPv4-mapping
+//	capabilities, we assume that the user want to listen on
+//	both IPv4 and IPv6 wildcard address over an AF_INET6
+//	socket with IPV6_V6ONLY=0.  Otherwise we prefer an IPv4
+//	wildcard address listen over an AF_INET socket.
+//
+//	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
+//	Same as 1.
+//
+//	3. A wild-ipv6wild listen, "tcp" + "[::]"
+//	Almost same as 1 but we prefer an IPv6 wildcard address
+//	listen over an AF_INET6 socket with IPV6_V6ONLY=0 when
+//	the platform supports IPv6 capability but not IPv6 IPv4-
+//	mapping capability.
+//
+//	4. A ipv4-ipv4wild listen, "tcp4" + "" or "0.0.0.0"
+//	We use an IPv4 (AF_INET) wildcard address listen.
+//
+//	5. A ipv6-ipv6wild listen, "tcp6" + "" or "[::]"
+//	We use an IPv6 (AF_INET6, IPV6_V6ONLY=1) wildcard address
+//	listen.
+//
+// Otherwise guess: if the addresses are IPv4 then returns AF_INET,
+// or else returns AF_INET6.  It also returns a boolean value what
+// designates IPV6_V6ONLY option.
+//
+// Note that OpenBSD allows neither "net.inet6.ip6.v6only=1" change
+// nor IPPROTO_IPV6 level IPV6_V6ONLY socket option setting.
+func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
 	switch net[len(net)-1] {
 	case '4':
-		return syscall.AF_INET
+		return syscall.AF_INET, false
 	case '6':
-		return syscall.AF_INET6
+		return syscall.AF_INET6, true
 	}
 
-	if mode == "listen" {
-		// Note that OpenBSD allows neither "net.inet6.ip6.v6only"
-		// change nor IPPROTO_IPV6 level IPV6_V6ONLY socket option
-		// setting.
-		switch a := laddr.(type) {
-		case *TCPAddr:
-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
-				return syscall.AF_INET6
-			}
-		case *UDPAddr:
-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
-				return syscall.AF_INET6
-			}
-		case *IPAddr:
-			if a.IP == nil && supportsIPv6 && supportsIPv4map {
-				return syscall.AF_INET6
-			}
+	if mode == "listen" && laddr.isWildcard() {
+		if supportsIPv4map {
+			return syscall.AF_INET6, false
 		}
+		return laddr.family(), false
 	}
 
 	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
 		(raddr == nil || raddr.family() == syscall.AF_INET) {
-		return syscall.AF_INET
+		return syscall.AF_INET, false
 	}
-	return syscall.AF_INET6
+	return syscall.AF_INET6, false
 }
 
-// Internet sockets (TCP, UDP)
+// Internet sockets (TCP, UDP, IP)
 
-// A sockaddr represents a TCP or UDP network address that can
+// A sockaddr represents a TCP, UDP or IP network address that can
 // be converted into a syscall.Sockaddr.
 type sockaddr interface {
 	Addr
-	sockaddr(family int) (syscall.Sockaddr, error)
 	family() int
+	isWildcard() bool
+	sockaddr(family int) (syscall.Sockaddr, error)
 }
 
 func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	var la, ra syscall.Sockaddr
-	family := favoriteAddrFamily(net, laddr, raddr, mode)
+	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
 	if laddr != nil {
 		if la, err = laddr.sockaddr(family); err != nil {
 			goto Error
@@ -117,7 +135,7 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
 			goto Error
 		}
 	}
-	fd, err = socket(net, family, sotype, proto, la, ra, toAddr)
+	fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, toAddr)
 	if err != nil {
 		goto Error
 	}
@@ -152,7 +170,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
 		}
 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
-		// which it refuses to do.  Rewrite to the IPv6 all zeros.
+		// which it refuses to do.  Rewrite to the IPv6 unspecified address.
 		if ip.Equal(IPv4zero) {
 			ip = IPv6zero
 		}

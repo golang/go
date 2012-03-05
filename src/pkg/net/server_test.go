@@ -128,19 +128,14 @@ func TestTCPServer(t *testing.T) {
 		doTest(t, "tcp6", "[::]", "[::1]")
 		doTest(t, "tcp6", "[::1]", "[::1]")
 	}
-	if supportsIPv6 && supportsIPv4map {
+	if supportsIPv4map {
 		doTest(t, "tcp", "[::ffff:0.0.0.0]", "127.0.0.1")
 		doTest(t, "tcp", "[::]", "127.0.0.1")
 		doTest(t, "tcp4", "[::ffff:0.0.0.0]", "127.0.0.1")
-		doTest(t, "tcp6", "", "127.0.0.1")
-		doTest(t, "tcp6", "[::ffff:0.0.0.0]", "127.0.0.1")
-		doTest(t, "tcp6", "[::]", "127.0.0.1")
 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
 		doTest(t, "tcp", "[::ffff:127.0.0.1]", "127.0.0.1")
 		doTest(t, "tcp4", "127.0.0.1", "[::ffff:127.0.0.1]")
 		doTest(t, "tcp4", "[::ffff:127.0.0.1]", "127.0.0.1")
-		doTest(t, "tcp6", "127.0.0.1", "[::ffff:127.0.0.1]")
-		doTest(t, "tcp6", "[::ffff:127.0.0.1]", "127.0.0.1")
 	}
 }
 
@@ -215,7 +210,7 @@ func TestUDPServer(t *testing.T) {
 	for _, isEmpty := range []bool{false, true} {
 		doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1", isEmpty)
 		doTestPacket(t, "udp", "", "127.0.0.1", isEmpty)
-		if supportsIPv6 && supportsIPv4map {
+		if supportsIPv4map {
 			doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]", isEmpty)
 			doTestPacket(t, "udp", "[::]", "127.0.0.1", isEmpty)
 			doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]", isEmpty)
