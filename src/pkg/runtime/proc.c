@@ -200,7 +200,9 @@ runtime·schedinit(void)
 			n = maxgomaxprocs;
 		runtime·gomaxprocs = n;
 	}
-	setmcpumax(runtime·gomaxprocs);
+	// wait for the main goroutine to start before taking
+	// GOMAXPROCS into account.
+	setmcpumax(1);
 	runtime·singleproc = runtime·gomaxprocs == 1;
 
 	canaddmcpu();	// mcpu++ to account for bootstrap m
@@ -225,6 +227,8 @@ runtime·main(void)
 	// by calling runtime.LockOSThread during initialization
 	// to preserve the lock.
 	runtime·LockOSThread();
+	// From now on, newgoroutines may use non-main threads.
+	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.init = true;
 	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
 	main·init();
