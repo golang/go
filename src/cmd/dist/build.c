@@ -1351,6 +1351,9 @@ cmdbootstrap(int argc, char **argv)
 	goversion = findgoversion();
 	setup();
 
+	xsetenv("GOROOT", goroot);
+	xsetenv("GOROOT_FINAL", goroot_final);
+
 	// For the main bootstrap, building for host os/arch.
 	oldgoos = goos;
 	oldgoarch = goarch;

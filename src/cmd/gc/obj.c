@@ -126,10 +126,37 @@ outhist(Biobuf *b)
 {
 	Hist *h;
 	char *p, ds[] = {'c', ':', '/', 0};
+	char *tofree;
+	int n;
+	static int first = 1;
+	static char *goroot, *goroot_final;
 
+	if(first) {
+		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+		first = 0;
+		goroot = getenv("GOROOT");
+		goroot_final = getenv("GOROOT_FINAL");
+		if(goroot == nil)
+			goroot = "";
+		if(goroot_final == nil)
+			goroot_final = goroot;
+		if(strcmp(goroot, goroot_final) == 0) {
+			goroot = nil;
+			goroot_final = nil;
+		}
+	}
+
+	tofree = nil;
 	for(h = hist; h != H; h = h->link) {
 		p = h->name;
 		if(p) {
+			if(goroot != nil) {
+				n = strlen(goroot);
+				if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+					tofree = smprint("%s%s", goroot_final, p+n);
+					p = tofree;
+				}
+			}
 			if(windows) {
 				// if windows variable is set, then, we know already,
 				// pathname is started with windows drive specifier
@@ -161,9 +188,12 @@ outhist(Biobuf *b)
 					outzfile(b, p);
 				}
 			}
-		
 		}
 		zhist(b, h->line, h->offset);
+		if(tofree) {
+			free(tofree);
+			tofree = nil;
+		}
 	}
 }
 

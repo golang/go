@@ -29,6 +29,8 @@ export GOTRACEBACK=0
 export LANG=C
 unset GREP_OPTIONS	# in case user has a non-standard set
 
+unset GOROOT_FINAL  # breaks ./ imports
+
 failed=0
 
 PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
