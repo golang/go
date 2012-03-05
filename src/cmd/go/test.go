@@ -192,8 +192,6 @@ See the documentation of the testing package for more information.
 var (
 	testC            bool     // -c flag
 	testI            bool     // -i flag
-	testP            int      // -p flag
-	testX            bool     // -x flag
 	testV            bool     // -v flag
 	testFiles        []string // -file flag(s)  TODO: not respected
 	testTimeout      string   // -timeout flag
@@ -240,11 +238,6 @@ func runTest(cmd *Command, args []string) {
 	// just more immediately.
 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
 		(len(pkgs) <= 1 && testShowPass)
-
-	buildX = testX
-	if testP > 0 {
-		buildP = testP
-	}
 
 	var b builder
 	b.init()
@@ -639,6 +632,9 @@ func (b *builder) runTest(a *action) error {
 
 // cleanTest is the action for cleaning up after a test.
 func (b *builder) cleanTest(a *action) error {
+	if buildWork {
+		return nil
+	}
 	run := a.deps[0]
 	testDir := filepath.Join(b.work, filepath.FromSlash(run.p.ImportPath+"/_test"))
 	os.RemoveAll(testDir)
