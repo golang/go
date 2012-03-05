@@ -100,6 +100,7 @@ var buildContext = build.Default
 
 // addBuildFlags adds the flags common to the build and install commands.
 func addBuildFlags(cmd *Command) {
+	// NOTE: If you add flags here, also add them to testflag.go.
 	cmd.Flag.BoolVar(&buildA, "a", false, "")
 	cmd.Flag.BoolVar(&buildN, "n", false, "")
 	cmd.Flag.IntVar(&buildP, "p", buildP, "")

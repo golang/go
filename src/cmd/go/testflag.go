@@ -47,7 +47,7 @@ func testUsage() {
 // testFlagSpec defines a flag we know about.
 type testFlagSpec struct {
 	name       string
-	isBool     bool
+	boolVar    *bool
 	passToTest bool // pass to Test
 	multiOK    bool // OK to have multiple instances
 	present    bool // flag has been seen
@@ -56,11 +56,20 @@ type testFlagSpec struct {
 // testFlagDefn is the set of flags we process.
 var testFlagDefn = []*testFlagSpec{
 	// local.
-	{name: "c", isBool: true},
+	{name: "c", boolVar: &testC},
 	{name: "file", multiOK: true},
-	{name: "i", isBool: true},
+	{name: "i", boolVar: &testI},
+
+	// build flags.
+	{name: "a", boolVar: &buildA},
+	{name: "n", boolVar: &buildN},
 	{name: "p"},
-	{name: "x", isBool: true},
+	{name: "x", boolVar: &buildX},
+	{name: "work", boolVar: &buildWork},
+	{name: "gcflags"},
+	{name: "ldflags"},
+	{name: "gccgoflags"},
+	{name: "tags"},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},
@@ -71,9 +80,9 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "memprofilerate", passToTest: true},
 	{name: "parallel", passToTest: true},
 	{name: "run", passToTest: true},
-	{name: "short", isBool: true, passToTest: true},
+	{name: "short", boolVar: new(bool), passToTest: true},
 	{name: "timeout", passToTest: true},
-	{name: "v", isBool: true, passToTest: true},
+	{name: "v", boolVar: &testV, passToTest: true},
 }
 
 // testFlags processes the command line, grabbing -x and -c, rewriting known flags
@@ -118,16 +127,19 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			continue
 		}
 		switch f.name {
-		case "c":
-			setBoolFlag(&testC, value)
-		case "i":
-			setBoolFlag(&testI, value)
+		// bool flags.
+		case "a", "c", "i", "n", "x", "v", "work":
+			setBoolFlag(f.boolVar, value)
 		case "p":
-			setIntFlag(&testP, value)
-		case "x":
-			setBoolFlag(&testX, value)
-		case "v":
-			setBoolFlag(&testV, value)
+			setIntFlag(&buildP, value)
+		case "gcflags":
+			buildGcflags = strings.Fields(value)
+		case "ldflags":
+			buildLdflags = strings.Fields(value)
+		case "gccgoflags":
+			buildGccgoflags = strings.Fields(value)
+		case "tags":
+			buildContext.BuildTags = strings.Fields(value)
 		case "file":
 			testFiles = append(testFiles, value)
 		case "bench":
@@ -172,7 +184,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 	for _, f = range testFlagDefn {
 		if name == f.name {
 			// Booleans are special because they have modes -x, -x=true, -x=false.
-			if f.isBool {
+			if f.boolVar != nil {
 				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
 					value = "true"
 				} else {
