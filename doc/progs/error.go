@@ -102,7 +102,10 @@ func decodeError(dec *json.Decoder, val struct{}) error { // OMIT
 	return nil
 }
 
-func findLine(os.FileInfo, int64) (int, int)
+func findLine(os.FileInfo, int64) (int, int) {
+	// place holder; no need to run
+	return 0, 0
+}
 
 func netError(err error) { // OMIT
 	for { // OMIT

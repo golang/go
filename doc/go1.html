@@ -953,7 +953,7 @@ func sleepUntil(wakeup time.Time) {
         return
     }
     delta := wakeup.Sub(now) // A Duration.
-    log.Printf(&#34;Sleeping for %.3fs&#34;, delta.Seconds())
+    fmt.Printf(&#34;Sleeping for %.3fs\n&#34;, delta.Seconds())
     time.Sleep(delta)
 }</pre>
 
