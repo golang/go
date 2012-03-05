@@ -4,9 +4,12 @@
 
 /*
 
-Yacc is a version of yacc for Go. It is run with the command
-	go tool yacc args...
+Yacc is a version of yacc for Go.
 It is written in Go and generates parsers written in Go.
+
+Usage:
+
+	go tool yacc args...
 
 It is largely transliterated from the Inferno version written in Limbo
 which in turn was largely transliterated from the Plan 9 version

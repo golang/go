@@ -5,7 +5,9 @@
 /*
 Go is a tool for managing Go source code.
 
-Usage: go command [arguments]
+Usage:
+
+	go command [arguments]
 
 The commands are:
 
@@ -49,11 +51,13 @@ If the arguments are a list of .go files, build treats them as a list
 of source files specifying a single package.
 
 When the command line specifies a single main package,
-build writes the resulting executable to output (default a.out).
+build writes the resulting executable to output.
 Otherwise build compiles the packages but discards the results,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name.
+The -o flag specifies the output file name.  If not specified, the
+name is packagename.a (for a non-main package) or the base
+name of the first source file (for a main package).
 
 The build flags are shared by the build, install, run, and test commands:
 
@@ -389,6 +393,9 @@ See also: go fmt, go fix.
 
 GOPATH environment variable
 
+The Go path is used to resolve import statements.
+It is implemented by and documented in the go/build package.
+
 The GOPATH environment variable lists places to look for Go code.
 On Unix, the value is a colon-separated string.
 On Windows, the value is a semicolon-separated string.
@@ -472,7 +479,7 @@ An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
-patterns.  For example, encoding/... expands to all package
+patterns.  For example, encoding/... expands to all packages
 in subdirectories of the encoding tree, while net... expands to
 net and all its subdirectories.
 

@@ -12,7 +12,8 @@ It adds a special Go-specific section __.PKGDEF that collects all the
 Go type information from the files in the archive; that section is
 used by the compiler when importing the package during compilation.
 
-Usage: go tool pack [uvnbailogS][mrxtdpq][P prefix] archive files ...
+Usage:
+	go tool pack [uvnbailogS][mrxtdpq][P prefix] archive files ...
 
 The new option 'g' causes pack to maintain the __.PKGDEF section
 as files are added to the archive.
