@@ -66,7 +66,7 @@ func main() {
 
 	ratec = make(chan bool, *numParallel)
 	var err error
-	letter, err = build.ArchChar(build.DefaultContext.GOARCH)
+	letter, err = build.ArchChar(build.Default.GOARCH)
 	check(err)
 	gc = letter + "g"
 	ld = letter + "l"
