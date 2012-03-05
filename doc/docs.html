@@ -20,6 +20,15 @@ interpreted language.
 
 <div id="manual-nav"></div>
 
+<h2>Installing Go</h2>
+
+<h3><a href="/doc/install">Getting Started</a></h3>
+<p>
+Instructions for downloading and installing the Go compilers, tools, and
+libraries.
+</p>
+
+
 <h2 id="learning">Learning Go</h2>
 
 <h3 id="go_tour"><a href="http://tour.golang.org/">A Tour of Go</a></h3>
@@ -32,16 +41,17 @@ learned. You can <a href="http://tour.golang.org/">take the tour online</a> or
 <a href="http://code.google.com/p/go-tour/">install it locally</a>.
 </p>
 
+<h3 id="code"><a href="code.html">How to write Go code</a></h3>
+<p>
+How to use the <a href="/cmd/go/">go command</a> to fetch, build, and install
+packages, commands, and run tests.
+</p>
+
 <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>
 <p>
 A document that gives tips for writing clear, idiomatic Go code.
 A must read for any new Go programmer. It augments the tour and
 the language specification, both of which should be read first.
-</p>
-
-<h3 id="code"><a href="code.html">How to write Go code</a></h3>
-<p>
-How to write a new package and how to test code.
 </p>
 
 <h3 id="appengine"><a href="http://code.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
@@ -55,14 +65,14 @@ How to develop and deploy a simple Go project with
 Answers to common questions about Go.
 </p>
 
-<h3>Other introductory articles</h3>
-
-<ul>
-<li><a href="/doc/articles/wiki/">Writing Web Applications</a> - 
-	building a simple web application.</li>
-</ul>
+<h3 id="wiki"><a href="http://code.google.com/p/go-wiki/wiki">Go Language Community Wiki</a></h3>
+<p>A wiki full of useful information maintained by the Go community.</p>
 
 <h2 id="articles">Go Articles</h2>
+
+<h3 id="blog"><a href="http://blog.golang.org/">The Go Blog</a></h3>
+<p>The official blog of the Go project, featuring news and in-depth articles by
+the Go team and guests.</p>
 
 <h3>Codewalks</h3>
 <p>
@@ -72,6 +82,7 @@ Guided tours of Go programs.
 <li><a href="/doc/codewalk/functions">First-Class Functions in Go</a></li>
 <li><a href="/doc/codewalk/markov">Generating arbitrary text: a Markov chain algorithm</a></li>
 <li><a href="/doc/codewalk/sharemem">Share Memory by Communicating</a></li>
+<li><a href="/doc/articles/wiki/">Writing Web Applications</a> - building a simple web application.</li>
 </ul>
 
 <h3>Language</h3>
@@ -104,9 +115,15 @@ Guided tours of Go programs.
 <li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
 </ul>
 
-<h2 id="videos_talks">Videos and Talks</h2>
+<h2 id="talks">Talks</h2>
 
-<h3 id="writing_web_apps"><a href="http://www.youtube.com/watch?v=-i0hat7pdpk">Writing Web Apps in Go</a></h3>
+<p>
+The talks marked with a red asterisk (<font color="red">*</font>) were written
+before Go 1 and contain some examples that are no longer correct, but they are
+still of value.
+</p>
+
+<h3 id="writing_web_apps"><a href="http://www.youtube.com/watch?v=-i0hat7pdpk">Writing Web Apps in Go</a><font color="red">*</font></h3>
 <p>
 A talk by Rob Pike and Andrew Gerrand presented at Google I/O 2011.
 It walks through the construction and deployment of a simple web application
@@ -114,7 +131,7 @@ and unveils the <a href="http://blog.golang.org/2011/05/go-and-google-app-engine
 See the <a href="/doc/talks/io2011/Writing_Web_Apps_in_Go.pdf">presentation slides</a>.
 </p>
 
-<h3 id="real_world_go"><a href="http://www.youtube.com/watch?v=7QDVRowyUQA">Real World Go</a></h3>
+<h3 id="real_world_go"><a href="http://www.youtube.com/watch?v=7QDVRowyUQA">Real World Go</a><font color="red">*</font></h3>
 <p>
 A talk by Andrew Gerrand presented at Google I/O Bootcamp 2011.
 It gives a broad overview of Go's type system and concurrency model
@@ -122,7 +139,14 @@ and provides four examples of Go programs that solve real problems.
 See the <a href="/doc/talks/io2011/Real_World_Go.pdf">presentation slides</a>.
 </p>
 
-<h3 id="go_programming"><a href="http://www.youtube.com/watch?v=jgVhBThJdXc">Go Programming</a></h3>
+<h3 id="integrated_apps"><a href="http://www.youtube.com/watch?v=Mo1YKpIF1PQ">Building Integrated Apps on Google's Cloud Platform</a></h3>
+<p>
+A talk by Andrew Gerrand presented at Google Developer Day Japan 2011.
+It discusses the development of a web application that runs on Google
+App Engine and renders images that it stores on Google Cloud Storage.
+</p>
+
+<h3 id="go_programming"><a href="http://www.youtube.com/watch?v=jgVhBThJdXc">Go Programming</a><font color="red">*</font></h3>
 <p>
 A presentation delivered by Rob Pike and Russ Cox at Google I/O 2010.  It
 illustrates how programming in Go differs from other languages through a set of
@@ -130,7 +154,7 @@ examples demonstrating features particular to Go.  These include concurrency,
 embedded types, methods on any type, and program construction using interfaces. 
 </p>
 
-<h3 id="practical_go_programming"><a href="http://www.youtube.com/watch?v=2-pPAvqyluI">Practical Go Programming</a></h3>
+<h3 id="practical_go_programming"><a href="http://www.youtube.com/watch?v=2-pPAvqyluI">Practical Go Programming</a><font color="red">*</font></h3>
 <p>
 This talk presents the development of a complete web application in Go.
 It looks at design, storage, concurrency, and scaling issues in detail, using
@@ -138,118 +162,38 @@ the simple example of an URL shortening service.
 See the <a href="http://wh3rd.net/practical-go/">presentation slides</a>.
 </p>
 
-<h3 id="techtalk"><a href="http://www.youtube.com/watch?v=rKnDgT73v8s">The Go Tech Talk</a></h3>
+<h3 id="talks_more">More</h3>
 <p>
-An hour-long talk delivered by Rob Pike at Google in October 2009. 
-The language's first public introduction. (See the <a href="talks/go_talk-20091030.pdf">slides in PDF format</a>.) The language has changed since it was made,
-but it's still a good introduction.
+See the <a href="http://code.google.com/p/go-wiki/wiki/GoTalks">GoTalks
+page</a> at the <a href="http://code.google.com/p/go-wiki/wiki">Go Wiki</a> for
+more Go talks.
 </p>
 
-<h3 id="jaoo_go"><a href="/doc/ExpressivenessOfGo.pdf">The Expressiveness Of Go</a></h3>
+<h2 id="nonenglish">Non-English Documentation</h2>
+
 <p>
-A discussion of the qualities that make Go an expressive and comprehensible
-language.  The talk was presented by Rob Pike at JAOO 2010.
-The recording of the event was lost due to a hardware error.
+See the <a href="http://code.google.com/p/go-wiki/wiki/NonEnglish">NonEnglish</a> page 
+at the <a href="http://code.google.com/p/go-wiki/wiki">Go Wiki</a> for localized
+documentation.
 </p>
 
-<h3 id="oscon_go"><a href="http://www.oscon.com/oscon2010/public/schedule/detail/14760">Another Go at Language Design</a></h3>
-<p>
-A tour, with some background, of the major features of Go, intended for
-an audience new to the language.  The talk was presented at OSCON 2010.
-See the <a href="http://assets.en.oreilly.com/1/event/45/Another%20Go%20at%20Language%20Design%20Presentation.pdf">presentation slides</a>.
-</p>
-<p>
-This talk was also delivered at Sydney University in September 2010. A video
-of the lecture is available 
-<a href="http://sydney.edu.au/engineering/it/videos/seminar_pike">here</a>.
-</p>
-
-<h3 id="emerging_go"><a href="http://www.oscon.com/oscon2010/public/schedule/detail/15464">Go Emerging Languages Conference Talk</a></h3>
-<p>
-Rob Pike's Emerging Languages Conference presentation delivered in July 2010. See the <a href="http://assets.en.oreilly.com/1/event/45/Go%20Presentation.pdf">presentation slides</a>. Abstract:
-</p>
-<p><i>
-Go’s approach to concurrency differs from that of many languages, even those
-(such as Erlang) that make concurrency central, yet it has deep roots. The path
-from Hoare’s 1978 paper to Go provides insight into how and why Go works as it
-does.
-</i></p>
-
-<h3 id="go_frontend_gcc"><a href="talks/gofrontend-gcc-summit-2010.pdf">The Go frontend for GCC</a></h3>
-<p>
-A description of the Go language frontend for gcc.
-Ian Lance Taylor's paper delivered at the GCC Summit 2010.
-</p>
-
-<h3 id="promo_video"><a href="http://www.youtube.com/watch?v=wwoWei-GAPo">The Go Promo Video</a></h3>
-<p>
-A short promotional video featuring Russ Cox demonstrating Go's fast compiler.
-</p>
-
-<h2 id="developer_info">The Go Community</h2>
+<h2 id="community">The Go Community</h2>
 
 <h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
 <p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
 mailing list is for general Go discussion.</p>
 
-<h3 id=""><a href="http://godashboard.appspot.com/package">Go Packages Dashboard</a></h3>
-<p>A list of the most popular <a href="/cmd/goinstall/">goinstall</a>'d
-Go libraries.</p>
-
-<h3 id=""><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
+<h3 id="projects"><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
 <p>A list of external Go projects including programs and libraries.</p>
+
+<h3 id="wiki"><a href="http://code.google.com/p/go-wiki/wiki">Go Language Community Wiki</a></h3>
+<p>A wiki full of useful information maintained by the Go community.</p>
 
 <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
 <p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
 
+<h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
+<p>The Go project's Google+ page.</p>
+
 <h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
 <p>The Go project's official Twitter account.</p>
-
-<h2 id="tutorials_nonenglish">Non-English Documentation</h2>
-
-<h4 id="docs_be">Belarusian &mdash; Беларуская</h4>
-
-<ul>
-<li><a href="http://www.designcontest.com/show/faq-be">faq-be</a> - Frequently Asked Questions.</li>
-</ul>
-
-<h4 id="docs_cn">Chinese &mdash; 中文</h4>
-
-<ul>
-<li><a href="http://go-tour-zh.appspot.com/">A Tour of Go</a></li>
-<li><a href="http://code.google.com/p/golang-china/">golang-china</a> - a broad range of Go documentation.</li>
-<li><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and (old) Tutorial</a></li>
-</ul>
-
-<h4 id="docs_cz">Czech &mdash; Čeština</h4>
-
-<ul>
-<li><a href="http://www.abclinuxu.cz/clanky/google-go-pravidla-reflexe">Pravidla reflexe</a> - a translation of <a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a>.</li>
-</ul>
-
-<h4 id="docs_fr">French &mdash; Français</h4>
-
-<ul>
-<li>
-<a href="http://code.google.com/p/golang-france/">golang-france</a> - Go documentation.
-</ul>
-
-<h4 id="docs_de">German &mdash; Deutsch</h4>
-
-<ul>
-<li><a href="http://bitloeffel.de/DOC/golang/go_tutorial_de.html">Eine Anleitung zum Programmieren in Go</a> - the (old) Go Tutorial.</li>
-<li><a href="http://bitloeffel.de/DOC/golang/effective_go_de.html">Wirkungsvoll Go programmieren</a> - Effective Go.</li>
-<li><a href="http://bitloeffel.de/DOC/golang/code_de.html">Wie man Go-Kode schreibt</a> - How to Write Go Code.</li>
-</ul>
-
-<h4 id="docs_jp">Japanese &mdash; 日本語</h4>
-<ul>
-<li><a href="http://go-tour-jp.appspot.com/">A Tour of Go</a></li>
-<li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.</li>
-</ul>
-
-<h4 id="docs_kr">Korean &mdash; 한국어</h4>
-<ul>
-<li><a href="http://go-tour-kr.appspot.com">A Tour of Go</a></li>
-<li><a href="http://code.google.com/p/golang-korea">golang-korea</a> - Go documentation and news.</li>
-</ul>
