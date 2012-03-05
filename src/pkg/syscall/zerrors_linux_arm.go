@@ -189,6 +189,7 @@ const (
 	ETH_P_ATMMPOA                    = 0x884c
 	ETH_P_AX25                       = 0x2
 	ETH_P_BPQ                        = 0x8ff
+	ETH_P_CAIF                       = 0xf7
 	ETH_P_CAN                        = 0xc
 	ETH_P_CONTROL                    = 0x16
 	ETH_P_CUST                       = 0x6006
@@ -212,6 +213,7 @@ const (
 	ETH_P_IPX                        = 0x8137
 	ETH_P_IRDA                       = 0x17
 	ETH_P_LAT                        = 0x6004
+	ETH_P_LINK_CTL                   = 0x886c
 	ETH_P_LOCALTALK                  = 0x9
 	ETH_P_LOOP                       = 0x60
 	ETH_P_MOBITEX                    = 0x15
@@ -249,6 +251,7 @@ const (
 	F_GETLK64                        = 0xc
 	F_GETOWN                         = 0x9
 	F_GETOWN_EX                      = 0x10
+	F_GETPIPE_SZ                     = 0x408
 	F_GETSIG                         = 0xb
 	F_LOCK                           = 0x1
 	F_NOTIFY                         = 0x402
@@ -263,6 +266,7 @@ const (
 	F_SETLKW64                       = 0xe
 	F_SETOWN                         = 0x8
 	F_SETOWN_EX                      = 0xf
+	F_SETPIPE_SZ                     = 0x407
 	F_SETSIG                         = 0xa
 	F_SHLCK                          = 0x8
 	F_TEST                           = 0x3
@@ -325,6 +329,7 @@ const (
 	IN_DELETE                        = 0x200
 	IN_DELETE_SELF                   = 0x400
 	IN_DONT_FOLLOW                   = 0x2000000
+	IN_EXCL_UNLINK                   = 0x4000000
 	IN_IGNORED                       = 0x8000
 	IN_ISDIR                         = 0x40000000
 	IN_LOOPBACKNET                   = 0x7f
@@ -426,18 +431,24 @@ const (
 	IP_DF                            = 0x4000
 	IP_DROP_MEMBERSHIP               = 0x24
 	IP_DROP_SOURCE_MEMBERSHIP        = 0x28
+	IP_FREEBIND                      = 0xf
 	IP_HDRINCL                       = 0x3
+	IP_IPSEC_POLICY                  = 0x10
 	IP_MAXPACKET                     = 0xffff
 	IP_MAX_MEMBERSHIPS               = 0x14
 	IP_MF                            = 0x2000
+	IP_MINTTL                        = 0x15
 	IP_MSFILTER                      = 0x29
 	IP_MSS                           = 0x240
+	IP_MTU                           = 0xe
 	IP_MTU_DISCOVER                  = 0xa
 	IP_MULTICAST_IF                  = 0x20
 	IP_MULTICAST_LOOP                = 0x22
 	IP_MULTICAST_TTL                 = 0x21
 	IP_OFFMASK                       = 0x1fff
 	IP_OPTIONS                       = 0x4
+	IP_ORIGDSTADDR                   = 0x14
+	IP_PASSSEC                       = 0x12
 	IP_PKTINFO                       = 0x8
 	IP_PKTOPTIONS                    = 0x9
 	IP_PMTUDISC                      = 0xa
@@ -447,6 +458,7 @@ const (
 	IP_PMTUDISC_WANT                 = 0x1
 	IP_RECVERR                       = 0xb
 	IP_RECVOPTS                      = 0x6
+	IP_RECVORIGDSTADDR               = 0x14
 	IP_RECVRETOPTS                   = 0x7
 	IP_RECVTOS                       = 0xd
 	IP_RECVTTL                       = 0xc
@@ -454,8 +466,10 @@ const (
 	IP_RF                            = 0x8000
 	IP_ROUTER_ALERT                  = 0x5
 	IP_TOS                           = 0x1
+	IP_TRANSPARENT                   = 0x13
 	IP_TTL                           = 0x2
 	IP_UNBLOCK_SOURCE                = 0x25
+	IP_XFRM_POLICY                   = 0x11
 	LINUX_REBOOT_CMD_CAD_OFF         = 0x0
 	LINUX_REBOOT_CMD_CAD_ON          = 0x89abcdef
 	LINUX_REBOOT_CMD_HALT            = 0xcdef0123
@@ -520,22 +534,38 @@ const (
 	MSG_TRUNC                        = 0x20
 	MSG_TRYHARD                      = 0x4
 	MSG_WAITALL                      = 0x100
+	MSG_WAITFORONE                   = 0x10000
+	MS_ACTIVE                        = 0x40000000
 	MS_ASYNC                         = 0x1
 	MS_BIND                          = 0x1000
+	MS_DIRSYNC                       = 0x80
 	MS_INVALIDATE                    = 0x2
+	MS_I_VERSION                     = 0x800000
+	MS_KERNMOUNT                     = 0x400000
 	MS_MANDLOCK                      = 0x40
 	MS_MGC_MSK                       = 0xffff0000
 	MS_MGC_VAL                       = 0xc0ed0000
+	MS_MOVE                          = 0x2000
 	MS_NOATIME                       = 0x400
 	MS_NODEV                         = 0x4
 	MS_NODIRATIME                    = 0x800
 	MS_NOEXEC                        = 0x8
 	MS_NOSUID                        = 0x2
+	MS_NOUSER                        = -0x80000000
+	MS_POSIXACL                      = 0x10000
+	MS_PRIVATE                       = 0x40000
 	MS_RDONLY                        = 0x1
+	MS_REC                           = 0x4000
+	MS_RELATIME                      = 0x200000
 	MS_REMOUNT                       = 0x20
-	MS_RMT_MASK                      = 0xc51
+	MS_RMT_MASK                      = 0x800051
+	MS_SHARED                        = 0x100000
+	MS_SILENT                        = 0x8000
+	MS_SLAVE                         = 0x80000
+	MS_STRICTATIME                   = 0x1000000
 	MS_SYNC                          = 0x4
 	MS_SYNCHRONOUS                   = 0x10
+	MS_UNBINDABLE                    = 0x20000
 	NAME_MAX                         = 0xff
 	NETLINK_ADD_MEMBERSHIP           = 0x1
 	NETLINK_AUDIT                    = 0x9
@@ -555,6 +585,7 @@ const (
 	NETLINK_NFLOG                    = 0x5
 	NETLINK_NO_ENOBUFS               = 0x5
 	NETLINK_PKTINFO                  = 0x3
+	NETLINK_RDMA                     = 0x14
 	NETLINK_ROUTE                    = 0x0
 	NETLINK_SCSITRANSPORT            = 0x12
 	NETLINK_SELINUX                  = 0x7
@@ -629,6 +660,7 @@ const (
 	PROT_WRITE                       = 0x2
 	PR_CAPBSET_DROP                  = 0x18
 	PR_CAPBSET_READ                  = 0x17
+	PR_CLEAR_SECCOMP_FILTER          = 0x25
 	PR_ENDIAN_BIG                    = 0x0
 	PR_ENDIAN_LITTLE                 = 0x1
 	PR_ENDIAN_PPC_LITTLE             = 0x2
@@ -652,6 +684,7 @@ const (
 	PR_GET_NAME                      = 0x10
 	PR_GET_PDEATHSIG                 = 0x2
 	PR_GET_SECCOMP                   = 0x15
+	PR_GET_SECCOMP_FILTER            = 0x23
 	PR_GET_SECUREBITS                = 0x1b
 	PR_GET_TIMERSLACK                = 0x1e
 	PR_GET_TIMING                    = 0xd
@@ -664,6 +697,8 @@ const (
 	PR_MCE_KILL_GET                  = 0x22
 	PR_MCE_KILL_LATE                 = 0x0
 	PR_MCE_KILL_SET                  = 0x1
+	PR_SECCOMP_FILTER_EVENT          = 0x1
+	PR_SECCOMP_FILTER_SYSCALL        = 0x0
 	PR_SET_DUMPABLE                  = 0x4
 	PR_SET_ENDIAN                    = 0x14
 	PR_SET_FPEMU                     = 0xa
@@ -671,7 +706,9 @@ const (
 	PR_SET_KEEPCAPS                  = 0x8
 	PR_SET_NAME                      = 0xf
 	PR_SET_PDEATHSIG                 = 0x1
+	PR_SET_PTRACER                   = 0x59616d61
 	PR_SET_SECCOMP                   = 0x16
+	PR_SET_SECCOMP_FILTER            = 0x24
 	PR_SET_SECUREBITS                = 0x1c
 	PR_SET_TIMERSLACK                = 0x1d
 	PR_SET_TIMING                    = 0xe
@@ -697,7 +734,9 @@ const (
 	PTRACE_GETCRUNCHREGS             = 0x19
 	PTRACE_GETEVENTMSG               = 0x4201
 	PTRACE_GETFPREGS                 = 0xe
+	PTRACE_GETHBPREGS                = 0x1d
 	PTRACE_GETREGS                   = 0xc
+	PTRACE_GETREGSET                 = 0x4204
 	PTRACE_GETSIGINFO                = 0x4202
 	PTRACE_GETVFPREGS                = 0x1b
 	PTRACE_GETWMMXREGS               = 0x12
@@ -720,8 +759,10 @@ const (
 	PTRACE_POKEUSR                   = 0x6
 	PTRACE_SETCRUNCHREGS             = 0x1a
 	PTRACE_SETFPREGS                 = 0xf
+	PTRACE_SETHBPREGS                = 0x1e
 	PTRACE_SETOPTIONS                = 0x4200
 	PTRACE_SETREGS                   = 0xd
+	PTRACE_SETREGSET                 = 0x4205
 	PTRACE_SETSIGINFO                = 0x4203
 	PTRACE_SETVFPREGS                = 0x1c
 	PTRACE_SETWMMXREGS               = 0x13
@@ -749,8 +790,9 @@ const (
 	RTAX_FEATURE_TIMESTAMP           = 0x4
 	RTAX_HOPLIMIT                    = 0xa
 	RTAX_INITCWND                    = 0xb
+	RTAX_INITRWND                    = 0xe
 	RTAX_LOCK                        = 0x1
-	RTAX_MAX                         = 0xd
+	RTAX_MAX                         = 0xe
 	RTAX_MTU                         = 0x2
 	RTAX_REORDERING                  = 0x9
 	RTAX_RTO_MIN                     = 0xd
@@ -760,7 +802,7 @@ const (
 	RTAX_UNSPEC                      = 0x0
 	RTAX_WINDOW                      = 0x3
 	RTA_ALIGNTO                      = 0x4
-	RTA_MAX                          = 0xf
+	RTA_MAX                          = 0x10
 	RTCF_DIRECTSRC                   = 0x4000000
 	RTCF_DOREDIRECT                  = 0x1000000
 	RTCF_LOG                         = 0x2000000
@@ -987,6 +1029,7 @@ const (
 	SO_RCVLOWAT                      = 0x12
 	SO_RCVTIMEO                      = 0x14
 	SO_REUSEADDR                     = 0x2
+	SO_RXQ_OVFL                      = 0x28
 	SO_SECURITY_AUTHENTICATION       = 0x16
 	SO_SECURITY_ENCRYPTION_NETWORK   = 0x18
 	SO_SECURITY_ENCRYPTION_TRANSPORT = 0x17
@@ -998,7 +1041,6 @@ const (
 	SO_TIMESTAMPING                  = 0x25
 	SO_TIMESTAMPNS                   = 0x23
 	SO_TYPE                          = 0x3
-	S_APPEND                         = 0x100
 	S_BLKSIZE                        = 0x200
 	S_IEXEC                          = 0x40
 	S_IFBLK                          = 0x6000
@@ -1009,7 +1051,6 @@ const (
 	S_IFMT                           = 0xf000
 	S_IFREG                          = 0x8000
 	S_IFSOCK                         = 0xc000
-	S_IMMUTABLE                      = 0x200
 	S_IREAD                          = 0x100
 	S_IRGRP                          = 0x20
 	S_IROTH                          = 0x4
@@ -1027,7 +1068,6 @@ const (
 	S_IXGRP                          = 0x8
 	S_IXOTH                          = 0x1
 	S_IXUSR                          = 0x40
-	S_WRITE                          = 0x80
 	TCP_CONGESTION                   = 0xd
 	TCP_CORK                         = 0x3
 	TCP_DEFER_ACCEPT                 = 0x9
@@ -1049,11 +1089,13 @@ const (
 	TIOCCBRK                         = 0x5428
 	TIOCCONS                         = 0x541d
 	TIOCEXCL                         = 0x540c
+	TIOCGDEV                         = 0x80045432
 	TIOCGETD                         = 0x5424
 	TIOCGICOUNT                      = 0x545d
 	TIOCGLCKTRMIOS                   = 0x5456
 	TIOCGPGRP                        = 0x540f
 	TIOCGPTN                         = 0x80045430
+	TIOCGRS485                       = 0x542e
 	TIOCGSERIAL                      = 0x541e
 	TIOCGSID                         = 0x5429
 	TIOCGSOFTCAR                     = 0x5419
@@ -1084,6 +1126,7 @@ const (
 	TIOCPKT_DOSTOP                   = 0x20
 	TIOCPKT_FLUSHREAD                = 0x1
 	TIOCPKT_FLUSHWRITE               = 0x2
+	TIOCPKT_IOCTL                    = 0x40
 	TIOCPKT_NOSTOP                   = 0x10
 	TIOCPKT_START                    = 0x8
 	TIOCPKT_STOP                     = 0x4
@@ -1098,16 +1141,22 @@ const (
 	TIOCSERSWILD                     = 0x5455
 	TIOCSER_TEMT                     = 0x1
 	TIOCSETD                         = 0x5423
+	TIOCSIG                          = 0x40045436
 	TIOCSLCKTRMIOS                   = 0x5457
 	TIOCSPGRP                        = 0x5410
 	TIOCSPTLCK                       = 0x40045431
+	TIOCSRS485                       = 0x542f
 	TIOCSSERIAL                      = 0x541f
 	TIOCSSOFTCAR                     = 0x541a
 	TIOCSTI                          = 0x5412
 	TIOCSWINSZ                       = 0x5414
+	TIOCVHANGUP                      = 0x5437
+	TUNATTACHFILTER                  = 0x400854d5
+	TUNDETACHFILTER                  = 0x400854d6
 	TUNGETFEATURES                   = 0x800454cf
 	TUNGETIFF                        = 0x800454d2
 	TUNGETSNDBUF                     = 0x800454d3
+	TUNGETVNETHDRSZ                  = 0x800454d7
 	TUNSETDEBUG                      = 0x400454c9
 	TUNSETGROUP                      = 0x400454ce
 	TUNSETIFF                        = 0x400454ca
@@ -1118,6 +1167,7 @@ const (
 	TUNSETPERSIST                    = 0x400454cb
 	TUNSETSNDBUF                     = 0x400454d4
 	TUNSETTXFILTER                   = 0x400454d1
+	TUNSETVNETHDRSZ                  = 0x400454d8
 	WALL                             = 0x40000000
 	WCLONE                           = 0x80000000
 	WCONTINUED                       = 0x8
@@ -1167,6 +1217,7 @@ const (
 	EFBIG           = Errno(0x1b)
 	EHOSTDOWN       = Errno(0x70)
 	EHOSTUNREACH    = Errno(0x71)
+	EHWPOISON       = Errno(0x85)
 	EIDRM           = Errno(0x2b)
 	EILSEQ          = Errno(0x54)
 	EINPROGRESS     = Errno(0x73)
@@ -1437,7 +1488,8 @@ var errors = [...]string{
 	129: "key was rejected by service",
 	130: "owner died",
 	131: "state not recoverable",
-	132: "unknown error 132",
+	132: "operation not possible due to RF-kill",
+	133: "unknown error 133",
 }
 
 // Signal table

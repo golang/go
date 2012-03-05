@@ -233,7 +233,7 @@ type Cmsghdr struct {
 	Len          uint32
 	Level        int32
 	Type         int32
-	X__cmsg_data [0]byte
+	X__cmsg_data [0]uint8
 }
 
 type Inet4Pktinfo struct {
@@ -301,7 +301,7 @@ const (
 	IFLA_LINKINFO     = 0x12
 	IFLA_NET_NS_PID   = 0x13
 	IFLA_IFALIAS      = 0x14
-	IFLA_MAX          = 0x14
+	IFLA_MAX          = 0x1c
 	RT_SCOPE_UNIVERSE = 0x0
 	RT_SCOPE_SITE     = 0xc8
 	RT_SCOPE_LINK     = 0xfd
@@ -435,7 +435,7 @@ type InotifyEvent struct {
 	Mask   uint32
 	Cookie uint32
 	Len    uint32
-	Name   [0]byte
+	Name   [0]uint8
 }
 
 const SizeofInotifyEvent = 0x10

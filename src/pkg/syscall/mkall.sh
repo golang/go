@@ -144,8 +144,8 @@ linux_amd64)
 	;;
 linux_arm)
 	mkerrors="$mkerrors"
-	mksyscall="./mksyscall.pl -b32"
-	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd.h"
+	mksyscall="./mksyscall.pl -l32 -arm"
+	mksysnum="curl -s 'http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blob_plain;f=arch/arm/include/asm/unistd.h;hb=HEAD' | ./mksysnum_linux.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 netbsd_386)
