@@ -32,7 +32,7 @@ We will use <code>$</code> to represent the command prompt.
 </p>
 
 <p>
-Install Go (see the <a href="/doc/install.html">Installation Instructions</a>).
+Install Go (see the <a href="/doc/install">Installation Instructions</a>).
 </p>
 
 <p>
@@ -160,7 +160,7 @@ function to return <code>*Page</code> and <code>error</code>.
 Callers of this function can now check the second parameter; if it is
 <code>nil</code> then it has successfully loaded a Page. If not, it will be an
 <code>error</code> that can be handled by the caller (see the 
-<a href="/doc/go_spec.html#Errors">language specification</a> for details).
+<a href="/ref/spec#Errors">language specification</a> for details).
 </p>
 
 <p>
@@ -655,7 +655,7 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
 Catching the error condition in each handler introduces a lot of repeated code.
 What if we could wrap each of the handlers in a function that does this 
 validation and error checking? Go's 
-<a href="http://golang.org/doc/go_spec.html#Function_declarations">function 
+<a href="/ref/spec#Function_declarations">function 
 literals</a> provide a powerful means of abstracting functionality 
 that can help us here.
 </p>
