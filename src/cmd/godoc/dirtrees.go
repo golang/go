@@ -13,7 +13,7 @@ import (
 	"go/token"
 	"log"
 	"os"
-	"path/filepath"
+	pathpkg "path"
 	"strings"
 )
 
@@ -35,7 +35,7 @@ func isGoFile(fi os.FileInfo) bool {
 	name := fi.Name()
 	return !fi.IsDir() &&
 		len(name) > 0 && name[0] != '.' && // ignore .files
-		filepath.Ext(name) == ".go"
+		pathpkg.Ext(name) == ".go"
 }
 
 func isPkgFile(fi os.FileInfo) bool {
@@ -50,12 +50,11 @@ func isPkgDir(fi os.FileInfo) bool {
 }
 
 type treeBuilder struct {
-	pathFilter func(string) bool
-	maxDepth   int
+	maxDepth int
 }
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
-	if b.pathFilter != nil && !b.pathFilter(path) || name == testdataDirName {
+	if name == testdataDirName {
 		return nil
 	}
 
@@ -92,7 +91,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parseFile(fset, filepath.Join(path, d.Name()),
+				file, err := parseFile(fset, pathpkg.Join(path, d.Name()),
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil {
 					hasPkgFiles = true
@@ -126,7 +125,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		for _, d := range list {
 			if isPkgDir(d) {
 				name := d.Name()
-				dd := b.newDirTree(fset, filepath.Join(path, name), name, depth+1)
+				dd := b.newDirTree(fset, pathpkg.Join(path, name), name, depth+1)
 				if dd != nil {
 					dirs[i] = dd
 					i++
@@ -170,7 +169,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // are assumed to contain package files even if their contents are not known
 // (i.e., in this case the tree may contain directories w/o any package files).
 //
-func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
+func newDirectory(root string, maxDepth int) *Directory {
 	// The root could be a symbolic link so use Stat not Lstat.
 	d, err := fs.Stat(root)
 	// If we fail here, report detailed error messages; otherwise
@@ -186,7 +185,7 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
 	if maxDepth < 0 {
 		maxDepth = 1e6 // "infinity"
 	}
-	b := treeBuilder{pathFilter, maxDepth}
+	b := treeBuilder{maxDepth}
 	// the file set provided is only for local parsing, no position
 	// information escapes and thus we don't need to save the set
 	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)
@@ -235,10 +234,20 @@ func (dir *Directory) lookupLocal(name string) *Directory {
 	return nil
 }
 
+func splitPath(p string) []string {
+	if strings.HasPrefix(p, "/") {
+		p = p[1:]
+	}
+	if p == "" {
+		return nil
+	}
+	return strings.Split(p, "/")
+}
+
 // lookup looks for the *Directory for a given path, relative to dir.
 func (dir *Directory) lookup(path string) *Directory {
-	d := strings.Split(dir.Path, string(filepath.Separator))
-	p := strings.Split(path, string(filepath.Separator))
+	d := splitPath(dir.Path)
+	p := splitPath(path)
 	i := 0
 	for i < len(d) {
 		if i >= len(p) || d[i] != p[i] {
@@ -311,8 +320,8 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		if strings.HasPrefix(d.Path, root.Path) {
 			path = d.Path[len(root.Path):]
 		}
-		// remove trailing separator if any - path must be relative
-		if len(path) > 0 && path[0] == filepath.Separator {
+		// remove leading separator if any - path must be relative
+		if len(path) > 0 && path[0] == '/' {
 			path = path[1:]
 		}
 		p.Path = path

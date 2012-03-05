@@ -39,7 +39,7 @@ import (
 	"net/http"
 	_ "net/http/pprof" // to serve /debug/pprof/*
 	"os"
-	"path"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -239,19 +239,20 @@ func main() {
 	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
-		*goroot = filepath.Clean(*goroot) // normalize path separator
-		fs = OS
-		fsHttp = http.Dir(*goroot)
+		fs.Bind("/", OS(*goroot), "/", bindReplace)
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
 		if err != nil {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
-		defer rc.Close()                  // be nice (e.g., -writeIndex mode)
-		*goroot = path.Join("/", *goroot) // fsHttp paths are relative to '/'
-		fs = NewZipFS(rc)
-		fsHttp = NewHttpZipFS(rc, *goroot)
+		defer rc.Close() // be nice (e.g., -writeIndex mode)
+		fs.Bind("/", NewZipFS(rc, *zipfile), *goroot, bindReplace)
+	}
+
+	// Bind $GOPATH trees into Go root.
+	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+		fs.Bind("/src/pkg", OS(p), "/src", bindAfter)
 	}
 
 	readTemplates()
@@ -266,7 +267,6 @@ func main() {
 		log.Println("initialize file systems")
 		*verbose = true // want to see what happens
 		initFSTree()
-		initDirTrees()
 
 		*indexThrottle = 1
 		updateIndex()
@@ -303,10 +303,7 @@ func main() {
 			default:
 				log.Print("identifier search index enabled")
 			}
-			if !fsMap.IsEmpty() {
-				log.Print("user-defined mapping:")
-				fsMap.Fprint(os.Stderr)
-			}
+			fs.Fprint(os.Stderr)
 			handler = loggingHandler(handler)
 		}
 
@@ -318,9 +315,6 @@ func main() {
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)
 		go initFSTree()
-
-		// Initialize directory trees for user-defined file systems (-path flag).
-		initDirTrees()
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {
@@ -378,23 +372,27 @@ func main() {
 	const cmdPrefix = "cmd/"
 	path := flag.Arg(0)
 	var forceCmd bool
-	if strings.HasPrefix(path, ".") {
-		// assume cwd; don't assume -goroot
+	var abspath, relpath string
+	if filepath.IsAbs(path) {
+		fs.Bind("/target", OS(path), "/", bindReplace)
+		abspath = "/target"
+	} else if build.IsLocalImport(path) {
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
+		fs.Bind("/target", OS(path), "/", bindReplace)
+		abspath = "/target"
 	} else if strings.HasPrefix(path, cmdPrefix) {
-		path = path[len(cmdPrefix):]
+		abspath = path[len(cmdPrefix):]
 		forceCmd = true
-	}
-	relpath := path
-	abspath := path
-	if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
+	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
+		fs.Bind("/target", OS(bp.Dir), "/", bindReplace)
+		abspath = "/target"
 		relpath = bp.ImportPath
-		abspath = bp.Dir
-	} else if !filepath.IsAbs(path) {
-		abspath = absolutePath(path, pkgHandler.fsRoot)
 	} else {
-		relpath = relativeURL(path)
+		abspath = pathpkg.Join(pkgHandler.fsRoot, path)
+	}
+	if relpath == "" {
+		relpath = abspath
 	}
 
 	var mode PageInfoMode
@@ -422,7 +420,7 @@ func main() {
 	// (the go command invokes godoc w/ absolute paths; don't override)
 	var cinfo PageInfo
 	if !filepath.IsAbs(path) {
-		abspath = absolutePath(path, cmdHandler.fsRoot)
+		abspath = pathpkg.Join(cmdHandler.fsRoot, path)
 		cinfo = cmdHandler.getPageInfo(abspath, relpath, "", mode)
 	}
 
@@ -444,6 +442,9 @@ func main() {
 
 	if info.Err != nil {
 		log.Fatalf("%v", info.Err)
+	}
+	if info.PDoc.ImportPath == "/target" {
+		info.PDoc.ImportPath = flag.Arg(0)
 	}
 
 	// If we have more than one argument, use the remaining arguments for filtering

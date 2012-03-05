@@ -14,7 +14,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
+	pathpkg "path"
 )
 
 func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
@@ -58,7 +58,7 @@ func parseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool) (
 	i := 0
 	for _, d := range list {
 		if filter == nil || filter(d) {
-			filenames[i] = filepath.Join(path, d.Name())
+			filenames[i] = pathpkg.Join(path, d.Name())
 			i++
 		}
 	}

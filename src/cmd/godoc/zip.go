@@ -73,6 +73,11 @@ func (fi zipFI) Sys() interface{} {
 type zipFS struct {
 	*zip.ReadCloser
 	list zipList
+	name string
+}
+
+func (fs *zipFS) String() string {
+	return "zip(" + fs.name + ")"
 }
 
 func (fs *zipFS) Close() error {
@@ -102,7 +107,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
 	return i, zipFI{name, file}, nil
 }
 
-func (fs *zipFS) Open(abspath string) (io.ReadCloser, error) {
+func (fs *zipFS) Open(abspath string) (readSeekCloser, error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	if err != nil {
 		return nil, err
@@ -110,7 +115,29 @@ func (fs *zipFS) Open(abspath string) (io.ReadCloser, error) {
 	if fi.IsDir() {
 		return nil, fmt.Errorf("Open: %s is a directory", abspath)
 	}
-	return fi.file.Open()
+	r, err := fi.file.Open()
+	if err != nil {
+		return nil, err
+	}
+	return &zipSeek{fi.file, r}, nil
+}
+
+type zipSeek struct {
+	file *zip.File
+	io.ReadCloser
+}
+
+func (f *zipSeek) Seek(offset int64, whence int) (int64, error) {
+	if whence == 0 && offset == 0 {
+		r, err := f.file.Open()
+		if err != nil {
+			return 0, err
+		}
+		f.Close()
+		f.ReadCloser = r
+		return 0, nil
+	}
+	return 0, fmt.Errorf("unsupported Seek in %s", f.file.Name)
 }
 
 func (fs *zipFS) Lstat(abspath string) (os.FileInfo, error) {
@@ -161,11 +188,11 @@ func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
 	return list, nil
 }
 
-func NewZipFS(rc *zip.ReadCloser) FileSystem {
+func NewZipFS(rc *zip.ReadCloser, name string) FileSystem {
 	list := make(zipList, len(rc.File))
 	copy(list, rc.File) // sort a copy of rc.File
 	sort.Sort(list)
-	return &zipFS{rc, list}
+	return &zipFS{rc, list, name}
 }
 
 type zipList []*zip.File
