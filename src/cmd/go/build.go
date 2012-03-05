@@ -46,7 +46,7 @@ The build flags are shared by the build, install, run, and test commands:
 	-a
 		force rebuilding of packages that are already up-to-date.
 	-n
-		print the commands but does not run them.
+		print the commands but do not run them.
 	-p n
 		the number of builds that can be run in parallel.
 		The default is the number of CPUs available.
