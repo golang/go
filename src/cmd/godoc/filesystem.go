@@ -400,6 +400,7 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 		haveName = map[string]bool{}
 		all      []os.FileInfo
 		err      error
+		first    []os.FileInfo
 	)
 
 	for _, m := range ns.resolve(path) {
@@ -409,6 +410,14 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 				err = err1
 			}
 			continue
+		}
+
+		if dir == nil {
+			dir = []os.FileInfo{}
+		}
+
+		if first == nil {
+			first = dir
 		}
 
 		// If we don't yet have Go files in 'all' and this directory
@@ -431,6 +440,15 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 				haveName[name] = true
 				all = append(all, d)
 			}
+		}
+	}
+
+	// We didn't find any directories containing Go files.
+	// If some directory returned successfully, use that.
+	if len(all) == 0 && first != nil {
+		for _, d := range first {
+			haveName[d.Name()] = true
+			all = append(all, d)
 		}
 	}
 

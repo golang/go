@@ -658,7 +658,6 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 
 	list, err := fs.ReadDir(abspath)
 	if err != nil {
-		log.Printf("ReadDir: %s", err)
 		serveError(w, r, relpath, err)
 		return
 	}
