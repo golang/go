@@ -39,13 +39,20 @@ func TestStack(t *testing.T) {
 	if len(lines) <= 6 {
 		t.Fatal("too few lines")
 	}
-	check(t, lines[0], "src/pkg/runtime/debug/stack_test.go")
-	check(t, lines[1], "\t(*T).ptrmethod: return Stack()")
-	check(t, lines[2], "src/pkg/runtime/debug/stack_test.go")
-	check(t, lines[3], "\tT.method: return t.ptrmethod()")
-	check(t, lines[4], "src/pkg/runtime/debug/stack_test.go")
-	check(t, lines[5], "\tTestStack: b := T(0).method()")
-	check(t, lines[6], "src/pkg/testing/testing.go")
+	n := 0
+	frame := func(line, code string) {
+		check(t, lines[n], line)
+		n++
+		// The source might not be available while running the test.
+		if strings.HasPrefix(lines[n], "\t") {
+			check(t, lines[n], code)
+			n++
+		}
+	}
+	frame("src/pkg/runtime/debug/stack_test.go", "\t(*T).ptrmethod: return Stack()")
+	frame("src/pkg/runtime/debug/stack_test.go", "\tT.method: return t.ptrmethod()")
+	frame("src/pkg/runtime/debug/stack_test.go", "\tTestStack: b := T(0).method()")
+	frame("src/pkg/testing/testing.go", "")
 }
 
 func check(t *testing.T, line, has string) {
