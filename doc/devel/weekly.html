@@ -14,6 +14,124 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-03-04">2012-03-04</h2>
+
+<pre>
+This snapshot includes a major re-design of the go/build package.
+Its FindTree, ScanDir, Tree, and DirInfo types have been replaced with the
+Import and Package types. There is no gofix. Code that uses go/build will need
+to be updated manually to use the package's new interface.
+
+Other changes:
+* 6a/6l: add IMUL3Q and SHLDL.
+* all: remove unused unexported functions and constants (thanks Rémy Oudompheng).
+* build: add GO_ prefix to LDFLAGS and GCFLAGS (thanks Gustavo Niemeyer).
+* cmd/cc: fix an out of bounds array access (thanks Anthony Martin),
+	grow some global arrays.
+* cmd/dist: force line-buffering stdout/stderr on Unix (thanks Shenghou Ma),
+	recognize CC="ccache clang" as clang.
+* cmd/go: avoid repeated include dirs (thanks Rémy Oudompheng),
+	fix -I flag for gc command (thanks Gustavo Niemeyer),
+	fix verbose command displaying (thanks Gustavo Niemeyer),
+	fixes for gccgo (thanks Rémy Oudompheng),
+	many fixes,
+	test -i should not disable -c (thanks Shenghou Ma).
+* cmd/vet: don't give error for Printf("%+5.2e", x) (thanks Shenghou Ma).
+* cmd/yacc/units.y: update comment, give better error messages when $GOROOT not set (thanks Shenghou Ma).
+* crypto/tls: force OS X target version to 10.6 for API compatibility (thanks Mikkel Krautz).
+* crypto/x509: fix typo in Verify documentation (thanks Mikkel Krautz).
+* dist: treat CC as one unit (thanks Scott Lawrence).
+* doc/go1: add justification discussions to major changes,
+	minor corrections and updates.
+* doc: describe API changes to go/build,
+	elaborate available checks for cmd/vet (thanks Shenghou Ma),
+	expand code.html to discuss the go tool in more depth,
+	instruct FreeBSD/Linux users to rm the old version first,
+	remove Go for C++ Programmers,
+	remove roadmap document,
+	remove tutorial,
+	update codelab/wiki to Go 1 (thanks Shenghou Ma),
+* encoding/gob: fix "// +build" comment for debug.go (thanks Shenghou Ma),
+	more hardening for lengths of input strings.
+* encoding/json: drop MarshalForHTML; gofix calls to Marshal,
+	escape output from Marshalers.
+* encoding/xml: fix anonymous field Unmarshal example (thanks Gustavo Niemeyer),
+	fix xml test tag usage (thanks Gustavo Niemeyer).
+* gc: disallow absolute import paths,
+	fix escape analysis + inlining + closure bug,
+	fix string comparisons for new bool rules (thanks Anthony Martin),
+	reject import paths containing special characters (thanks Anthony Martin).
+* go/ast: examples for ast.Print, ast.Inspect.
+* go/doc, godoc: fix range of type declarations.
+* go/parser: check import path restrictions,
+	expand test cases for bad import.
+* go/printer, gofmt: improved comment placement.
+* go/printer: fix printing of variadic function calls (thanks Anthony Martin),
+	fix test for new import path restrictions (thanks Anthony Martin),
+	replace multiline logic,
+	simpler exprList code, more tests.
+* godoc: add Examples link to top-level index,
+	bring back highlighting, selections, and alerts,
+	consistent placement of documentation sections,
+	don't show directories w/o packages in flat dir mode,
+	don't show testdata directories,
+	fix codewalks.
+* gotype: provide -comments flag.
+* html/template: make doctype check case-insensitive (thanks Scott Lawrence),
+	use correct method signature in introduction example (thanks Mike Rosset).
+* io: document that I/O is not necessarily safe for parallel access.
+* ld: allow more -L options (thanks Shenghou Ma),
+	fix alignment of rodata section.
+* misc: add zsh completion for go tool (thanks Rémy Oudompheng).
+* misc/bash: Completion for go tool (thanks Yissakhar Z. Beck).
+* misc/dashboard: fix bug in UI template,
+	record install counts for external packages.
+* misc/dist: implement binary distribution scripts in go.
+* misc/gobuilder: send commit time in RFC3339 format.
+* misc/xcode: move Xcode3 specific files into sub directory.
+* net/http/cgi: add an empty response test,
+	fix empty response.
+* net/http/httptest: make Server.Close wait for outstanding requests to finish.
+* net/http/httputil: fix DumpRequestOut on https URLs,
+	make https DumpRequestOut less racy.
+* net/http: add overlooked 418 status code, per RFC 2324,
+	fix ProxyFromEnvironment bug, docs, add tests,
+	make a test more paranoid & reliable on Windows.
+* net/rpc: silence read error on closing connection.
+* net: add stubs for NetBSD (thanks Benny Siegert),
+	make -external flag for tests default to true (thanks Mikio Hara),
+	reorganize test files (thanks Mikio Hara).
+* os: diagnose chdir error during StartProcess,
+	implement UserTime/SystemTime on windows (thanks Alex Brainman),
+	implement sameFile on windows (thanks Alex Brainman),
+	release process handle at the end of windows (*Process).Wait (thanks Alex Brainman),
+	sleep 5ms after process has exited on windows (thanks Alex Brainman).
+* path/filepath: note that SplitList is different from strings.Split,
+	steer people away from HasPrefix.
+* reflect: don't panic comparing functions in DeepEqual.
+	make Value.Interface return immutable data.
+* runtime/pprof: support OS X CPU profiling.
+* runtime: add sanity checks to the runtime-gdb.py prettyprinters,
+	check for ARM syscall failures (thanks Shenghou Ma),
+	darwin and linux signal masking,
+	run init on main thread,
+	size arena to fit in virtual address space limit.
+* spec: allow disallow of \uFFFD in import path,
+	apply method sets, embedding to all types, not just named types,
+	clarifications around exports, uniqueness of identifiers,
+	import path implementation restriction,
+	inside functions, variables must be evaluated,
+	use the term "lexical token" (rather then "lexical symbol").
+* sync: add Once example, remove old WaitGroup example.
+* test/bench/shootout: update post-Makefile.
+* test: add documentation, misc fixes.
+* testing: add -test.example flag to control execution of examples.
+* text/template: add example showing use of custom function,
+	add examples that use multiple templates,
+	fix redefinition bugs.
+* time: add a comment about how to use the Duration constants.
+</pre>
+
 <h2 id="2012-02-22">2012-02-22</h2>
 
 <pre>
