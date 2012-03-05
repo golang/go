@@ -27,6 +27,7 @@ my $_32bit = "";
 my $plan9 = 0;
 my $openbsd = 0;
 my $netbsd = 0;
+my $arm = 0; # 64-bit value should use (even, odd)-pair
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
@@ -45,6 +46,10 @@ if($ARGV[0] eq "-openbsd") {
 }
 if($ARGV[0] eq "-netbsd") {
 	$netbsd = 1;
+	shift;
+}
+if($ARGV[0] eq "-arm") {
+	$arm = 1;
 	shift;
 }
 
@@ -135,6 +140,11 @@ while(<>) {
 				push @args, "uintptr($name)";
 			}
 		} elsif($type eq "int64" && $_32bit ne "") {
+			if(@args % 2 && $arm) {
+				# arm abi specifies 64-bit argument uses 
+				# (even, odd) pair
+				push @args, "0"
+			}
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
 			} else {

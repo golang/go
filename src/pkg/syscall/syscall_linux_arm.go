@@ -4,8 +4,6 @@
 
 package syscall
 
-import "unsafe"
-
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -20,52 +18,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	nsec += 999 // round up to microsecond
 	tv.Sec = int32(nsec / 1e9)
 	tv.Usec = int32(nsec % 1e9 / 1e3)
-	return
-}
-
-// Pread and Pwrite are special: they insert padding before the int64.
-
-func Pread(fd int, p []byte, offset int64) (n int, err error) {
-	var _p0 unsafe.Pointer
-	if len(p) > 0 {
-		_p0 = unsafe.Pointer(&p[0])
-	}
-	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
-	var _p0 unsafe.Pointer
-	if len(p) > 0 {
-		_p0 = unsafe.Pointer(&p[0])
-	}
-	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-func Ftruncate(fd int, length int64) (err error) {
-	// ARM EABI requires 64-bit arguments should be put in a pair
-	// of registers from an even register number.
-	_, _, e1 := Syscall6(SYS_FTRUNCATE64, uintptr(fd), 0, uintptr(length), uintptr(length>>32), 0, 0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-func Truncate(path string, length int64) (err error) {
-	_, _, e1 := Syscall6(SYS_TRUNCATE64, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, uintptr(length), uintptr(length>>32), 0, 0)
-	if e1 != 0 {
-		err = e1
-	}
 	return
 }
 
@@ -117,6 +69,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 // Vsyscalls on amd64.
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Time(t *Time_t) (tt Time_t, err error)
+
+//sys   Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys   Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
+//sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
 
