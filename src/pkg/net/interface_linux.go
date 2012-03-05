@@ -7,7 +7,6 @@
 package net
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 	"unsafe"
@@ -194,7 +193,9 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
 			name = f[1]
 		case len(f[0]) == 8:
 			if ifi == nil || name == ifi.Name {
-				fmt.Sscanf(f[0], "%08x", &b)
+				for i := 0; i+1 < len(f[0]); i += 2 {
+					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
+				}
 				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
 				ifmat = append(ifmat, ifma.toAddr())
 			}
@@ -218,10 +219,11 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 			continue
 		}
 		if ifi == nil || f[1] == ifi.Name {
-			fmt.Sscanf(f[2], "%32x", &b)
+			for i := 0; i+1 < len(f[2]); i += 2 {
+				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
+			}
 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
 			ifmat = append(ifmat, ifma.toAddr())
-
 		}
 	}
 	return ifmat

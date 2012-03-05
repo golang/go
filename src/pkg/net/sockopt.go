@@ -9,7 +9,6 @@
 package net
 
 import (
-	"bytes"
 	"os"
 	"syscall"
 	"time"
@@ -98,7 +97,7 @@ func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
 		}
 	}
 done:
-	if bytes.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
+	if bytesEqual(mreq.Multiaddr[:], IPv4zero.To4()) {
 		return errNoSuchMulticastInterface
 	}
 	return nil
