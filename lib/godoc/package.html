@@ -93,7 +93,7 @@
 		{{range .Funcs}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
-			<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
+			<h2 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
 			<pre>{{node_html .Decl $.FSet}}</pre>
 			{{comment_html .Doc}}
 			{{example_html .Name $.Examples $.FSet}}
@@ -101,7 +101,7 @@
 		{{range .Types}}
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
-			<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+			<h2 id="{{$tname_html}}">type <a href="{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
 			<pre>{{node_html .Decl $.FSet}}</pre>
 			{{comment_html .Doc}}
 
@@ -119,7 +119,7 @@
 
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+				<h3 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
 				{{example_html .Name $.Examples $.FSet}}
@@ -127,7 +127,7 @@
 
 			{{range .Methods}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
