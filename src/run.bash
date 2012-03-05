@@ -72,7 +72,6 @@ $BROKEN ||
 ./test.bash
 ) || exit $?
 
-$BROKEN ||
 (xcd ../doc/progs
 time ./run
 ) || exit $?

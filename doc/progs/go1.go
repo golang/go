@@ -35,6 +35,11 @@ func main() {
 
 var timeout = flag.Duration("timeout", 30*time.Second, "how long to wait for completion")
 
+func init() {
+	// canonicalize the logging
+	log.SetFlags(0)
+}
+
 func mapDelete() {
 	m := map[string]int{"7": 7, "23": 23}
 	k := "7"
@@ -177,7 +182,7 @@ func sleepUntil(wakeup time.Time) {
 		return
 	}
 	delta := wakeup.Sub(now) // A Duration.
-	log.Printf("Sleeping for %.3fs", delta.Seconds())
+	fmt.Printf("Sleeping for %.3fs\n", delta.Seconds())
 	time.Sleep(delta)
 }
 

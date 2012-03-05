@@ -57,3 +57,7 @@ func CopyDigits(filename string) []byte {
 }
 
 // STOP OMIT
+
+func main() {
+	// place holder; no need to run
+}
