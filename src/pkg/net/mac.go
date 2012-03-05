@@ -6,24 +6,26 @@
 
 package net
 
-import (
-	"bytes"
-	"errors"
-	"fmt"
-)
+import "errors"
+
+const hexDigit = "0123456789abcdef"
 
 // A HardwareAddr represents a physical hardware address.
 type HardwareAddr []byte
 
 func (a HardwareAddr) String() string {
-	var buf bytes.Buffer
+	if len(a) == 0 {
+		return ""
+	}
+	buf := make([]byte, 0, len(a)*3-1)
 	for i, b := range a {
 		if i > 0 {
-			buf.WriteByte(':')
+			buf = append(buf, ':')
 		}
-		fmt.Fprintf(&buf, "%02x", b)
+		buf = append(buf, hexDigit[b>>4])
+		buf = append(buf, hexDigit[b&0xF])
 	}
-	return buf.String()
+	return string(buf)
 }
 
 // ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, or EUI-64 using one of the

@@ -43,12 +43,24 @@ func match(err error, s string) bool {
 	return err != nil && strings.Contains(err.Error(), s)
 }
 
-func TestParseMAC(t *testing.T) {
-	for _, tt := range mactests {
+func TestMACParseString(t *testing.T) {
+	for i, tt := range mactests {
 		out, err := ParseMAC(tt.in)
 		if !reflect.DeepEqual(out, tt.out) || !match(err, tt.err) {
 			t.Errorf("ParseMAC(%q) = %v, %v, want %v, %v", tt.in, out, err, tt.out,
 				tt.err)
+		}
+		if tt.err == "" {
+			// Verify that serialization works too, and that it round-trips.
+			s := out.String()
+			out2, err := ParseMAC(s)
+			if err != nil {
+				t.Errorf("%d. ParseMAC(%q) = %v", i, s, err)
+				continue
+			}
+			if !reflect.DeepEqual(out2, out) {
+				t.Errorf("%d. ParseMAC(%q) = %v, want %v", i, s, out2, out)
+			}
 		}
 	}
 }
