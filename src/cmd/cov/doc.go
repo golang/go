@@ -6,12 +6,14 @@
 
 Cov is a rudimentary code coverage tool.
 
+Usage:
+	go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
+
 Given a command to run, it runs the command while tracking which
 sections of code have been executed.  When the command finishes,
 cov prints the line numbers of sections of code in the binary that
 were not executed.   With no arguments it assumes the command "6.out".
 
-Usage: go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
 
 The options are:
 

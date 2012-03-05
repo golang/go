@@ -141,7 +141,9 @@ func main() {
 
 var usageTemplate = `Go is a tool for managing Go source code.
 
-Usage: go command [arguments]
+Usage:
+
+	go command [arguments]
 
 The commands are:
 {{range .}}{{if .Runnable}}

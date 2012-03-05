@@ -16,8 +16,8 @@ the program's state even when it is not running, such as when it is
 asleep or waiting for I/O.  Each thread contributes equally to the
 statistics.
 
-
-Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]
+Usage:
+	go tool prof -p pid [-t total_secs] [-d delta_msec] [6.out args ...]
 
 The output modes (default -h) are:
 
