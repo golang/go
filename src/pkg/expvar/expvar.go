@@ -41,12 +41,12 @@ type Var interface {
 // Int is a 64-bit integer variable that satisfies the Var interface.
 type Int struct {
 	i  int64
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 func (v *Int) String() string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	return strconv.FormatInt(v.i, 10)
 }
 
@@ -65,12 +65,12 @@ func (v *Int) Set(value int64) {
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
 	f  float64
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 func (v *Float) String() string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	return strconv.FormatFloat(v.f, 'g', -1, 64)
 }
 
@@ -188,12 +188,21 @@ func (v *Map) Do(f func(KeyValue)) {
 
 // String is a string variable, and satisfies the Var interface.
 type String struct {
-	s string
+	s  string
+	mu sync.RWMutex
 }
 
-func (v *String) String() string { return strconv.Quote(v.s) }
+func (v *String) String() string {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return strconv.Quote(v.s)
+}
 
-func (v *String) Set(value string) { v.s = value }
+func (v *String) Set(value string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.s = value
+}
 
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
