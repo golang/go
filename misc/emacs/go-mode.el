@@ -406,6 +406,22 @@ token on the line."
        (when (/= (skip-chars-backward "[:word:]_") 0)
          (not (looking-at go-mode-non-terminating-keywords-regexp)))))))
 
+(defun go-mode-backward-skip-comments ()
+  "Skip backward over comments and whitespace."
+  (when (not (bobp))
+    (backward-char))
+  (while (and (not (bobp))
+              (or (eq 32 (char-syntax (char-after (point))))
+                  (go-mode-cs)))
+    (skip-syntax-backward "-")
+    (when (and (not (bobp)) (eq 32 (char-syntax (char-after (point)))))
+      (backward-char))
+    (when (go-mode-cs)
+      (let ((pos (previous-single-property-change (point) 'go-mode-cs)))
+        (if pos (goto-char pos) (goto-char (point-min))))))
+  (when (and (not (go-mode-cs)) (eq 32 (char-syntax (char-after (1+ (point))))))
+    (forward-char 1)))
+
 (defun go-mode-indentation ()
   "Compute the ideal indentation level of the current line.
 
@@ -451,7 +467,8 @@ indented one level."
                    (incf indent tab-width))
                   ((?\()
                    (goto-char (car nest))
-                   (forward-comment (- (buffer-size)))
+                   (beginning-of-line)
+                   (go-mode-backward-skip-comments)
                    ;; Really just want the token before
                    (when (looking-back "\\<import\\|const\\|var\\|type"
                                        (max (- (point) 7) (point-min)))
@@ -465,7 +482,8 @@ indented one level."
             (decf indent tab-width))
 
           ;; Continuation lines are indented 1 level
-          (forward-comment (- (buffer-size)))
+          (beginning-of-line)
+          (go-mode-backward-skip-comments)
           (when (case (char-before)
                   ((nil ?\{ ?:)
                    ;; At the beginning of a block or the statement
