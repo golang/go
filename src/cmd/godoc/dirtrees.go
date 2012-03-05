@@ -69,13 +69,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		}
 	}
 
-	list, err := fs.ReadDir(path)
-	if err != nil {
-		// newDirTree is called with a path that should be a package
-		// directory; errors here should not happen, but if they do,
-		// we want to know about them
-		log.Printf("ReadDir(%s): %s", path, err)
-	}
+	list, _ := fs.ReadDir(path)
 
 	// determine number of subdirectories and if there are package files
 	ndirs := 0
