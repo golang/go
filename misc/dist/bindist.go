@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"errors"
@@ -52,7 +53,9 @@ func main() {
 	if flag.NArg() == 0 {
 		flag.Usage()
 	}
-	readCredentials()
+	if err := readCredentials(); err != nil {
+		log.Println("readCredentials:", err)
+	}
 	for _, targ := range flag.Args() {
 		p := strings.SplitN(targ, "-", 2)
 		if len(p) != 2 {
@@ -91,7 +94,11 @@ func (b *Build) Do() error {
 	}
 
 	// Build.
-	_, err = b.run(filepath.Join(work, "go/src"), "bash", "make.bash")
+	if b.OS == "windows" {
+		_, err = b.run(filepath.Join(b.root, "src"), "cmd", "/C", "make.bat")
+	} else {
+		_, err = b.run(filepath.Join(b.root, "src"), "bash", "make.bash")
+	}
 	if err != nil {
 		return err
 	}
@@ -103,6 +110,7 @@ func (b *Build) Do() error {
 	}
 	v := bytes.SplitN(version, []byte(" "), 4)
 	version = bytes.Join(v[2:], []byte(" "))
+	ver := string(v[2])
 
 	// Write VERSION file.
 	err = ioutil.WriteFile(filepath.Join(b.root, "VERSION"), version, 0644)
@@ -119,7 +127,7 @@ func (b *Build) Do() error {
 	}
 
 	// Create packages.
-	targ := fmt.Sprintf("go.%s.%s-%s", v[2], b.OS, b.Arch)
+	targ := fmt.Sprintf("go.%s.%s-%s", ver, b.OS, b.Arch)
 	switch b.OS {
 	case "linux", "freebsd":
 		// build tarball
@@ -159,6 +167,47 @@ func (b *Build) Do() error {
 			"--title", "Go",
 			"--version", "1.0",
 			"--target", "10.5")
+	case "windows":
+		win := filepath.Join(b.root, "misc/dist/windows")
+		installer := filepath.Join(win, "installer.wxs")
+		appfiles := filepath.Join(work, "AppFiles.wxs")
+		msi := filepath.Join(work, "installer.msi")
+		// Gather files.
+		_, err = b.run(work, "heat", "dir", "go",
+			"-nologo",
+			"-gg", "-g1", "-srd", "-sfrag",
+			"-cg", "AppFiles",
+			"-template", "fragment",
+			"-dr", "INSTALLDIR",
+			"-var", "var.SourceDir",
+			"-out", appfiles)
+		if err != nil {
+			return err
+		}
+		// Build package.
+		_, err = b.run(work, "candle",
+			"-nologo",
+			"-dVersion="+ver,
+			"-dArch="+b.Arch,
+			"-dSourceDir=go",
+			installer, appfiles)
+		if err != nil {
+			return err
+		}
+		appfiles = filepath.Join(work, "AppFiles.wixobj")
+		installer = filepath.Join(work, "installer.wixobj")
+		_, err = b.run(win, "light",
+			"-nologo",
+			"-ext", "WixUIExtension",
+			"-ext", "WixUtilExtension",
+			installer, appfiles,
+			"-o", msi)
+		if err != nil {
+			return err
+		}
+		// Copy installer to target file.
+		targ += ".msi"
+		err = cp(targ, msi)
 	}
 	if err == nil && password != "" {
 		err = b.upload(string(v[2]), targ)
@@ -199,13 +248,17 @@ func (b *Build) env() []string {
 			}
 		}
 	}
+	final := "/usr/local/go"
+	if b.OS == "windows" {
+		final = `c:\go`
+	}
 	env = append(env,
 		"GOARCH="+b.Arch,
 		"GOHOSTARCH="+b.Arch,
 		"GOHOSTOS="+b.OS,
 		"GOOS="+b.OS,
 		"GOROOT="+b.root,
-		"GOROOT_FINAL=/usr/local/go",
+		"GOROOT_FINAL="+final,
 	)
 	return env
 }
@@ -230,6 +283,9 @@ func (b *Build) upload(version string, filename string) error {
 	case "darwin":
 		os_ = "Mac OS X"
 		labels = append(labels, "Type-Installer", "OpSys-OSX")
+	case "windows":
+		os_ = "Windows"
+		labels = append(labels, "Type-Installer", "OpSys-Windows")
 	}
 	summary := fmt.Sprintf("Go %s %s (%s)", version, os_, arch)
 
@@ -290,15 +346,41 @@ func exists(path string) bool {
 	return err == nil
 }
 
-func readCredentials() {
+func readCredentials() error {
 	name := filepath.Join(os.Getenv("HOME"), ".gobuildkey")
-	c, err := ioutil.ReadFile(name)
+	f, err := os.Open(name)
 	if err != nil {
-		log.Println("readCredentials:", err)
-		return
+		return err
 	}
-	v := bytes.Split(c, []byte("\n"))
-	if len(v) >= 3 {
-		username, password = string(v[1]), string(v[2])
+	defer f.Close()
+	r := bufio.NewReader(f)
+	for i := 0; i < 3; i++ {
+		b, _, err := r.ReadLine()
+		if err != nil {
+			return err
+		}
+		b = bytes.TrimSpace(b)
+		switch i {
+		case 1:
+			username = string(b)
+		case 2:
+			password = string(b)
+		}
 	}
+	return nil
+}
+
+func cp(dst, src string) error {
+	sf, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sf.Close()
+	df, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+	_, err = io.Copy(df, sf)
+	return err
 }
