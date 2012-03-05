@@ -54,6 +54,10 @@ type optionalRawValueTest struct {
 	A RawValue `asn1:"optional"`
 }
 
+type omitEmptyTest struct {
+	A []string `asn1:"omitempty"`
+}
+
 type testSET []int
 
 var PST = time.FixedZone("PST", -8*60*60)
@@ -116,6 +120,8 @@ var marshalTests = []marshalTest{
 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
 	{testSET([]int{10}), "310302010a"},
+	{omitEmptyTest{[]string{}}, "3000"},
+	{omitEmptyTest{[]string{"1"}}, "30053003130131"},
 }
 
 func TestMarshal(t *testing.T) {
