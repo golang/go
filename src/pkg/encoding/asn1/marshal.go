@@ -463,6 +463,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		return marshalField(out, v.Elem(), params)
 	}
 
+	if v.Kind() == reflect.Slice && v.Len() == 0 && params.omitEmpty {
+		return
+	}
+
 	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
 		return
 	}

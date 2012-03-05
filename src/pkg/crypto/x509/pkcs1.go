@@ -24,7 +24,7 @@ type pkcs1PrivateKey struct {
 	Dq   *big.Int `asn1:"optional"`
 	Qinv *big.Int `asn1:"optional"`
 
-	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional"`
+	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional,omitempty"`
 }
 
 type pkcs1AdditionalRSAPrime struct {

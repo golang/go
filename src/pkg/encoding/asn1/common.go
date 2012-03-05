@@ -75,6 +75,7 @@ type fieldParameters struct {
 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
 	stringType   int    // the string tag to use when marshaling.
 	set          bool   // true iff this should be encoded as a SET
+	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
 
 	// Invariants:
 	//   if explicit is set, tag is non-nil.
@@ -116,6 +117,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			if ret.tag == nil {
 				ret.tag = new(int)
 			}
+		case part == "omitempty":
+			ret.omitEmpty = true
 		}
 	}
 	return
