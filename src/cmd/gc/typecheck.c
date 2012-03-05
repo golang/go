@@ -1964,7 +1964,7 @@ keydup(Node *n, Node *hash[], ulong nhash)
 		b = cmp.val.u.bval;
 		if(b) {
 			// too lazy to print the literal
-			yyerror("duplicate key in map literal");
+			yyerror("duplicate key %N in map literal", n);
 			return;
 		}
 	}
