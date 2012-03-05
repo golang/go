@@ -24,21 +24,18 @@ type Package struct {
 	// Note: These fields are part of the go command's public API.
 	// See list.go.  It is okay to add fields, but not to change or
 	// remove existing ones.  Keep in sync with list.go
-	Dir        string        `json:",omitempty"` // directory containing package sources
-	ImportPath string        `json:",omitempty"` // import path of package in dir
-	Name       string        `json:",omitempty"` // package name
-	Doc        string        `json:",omitempty"` // package documentation string
-	Target     string        `json:",omitempty"` // install path
-	Goroot     bool          `json:",omitempty"` // is this package found in the Go root?
-	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
-	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
-	Incomplete bool          `json:",omitempty"` // was there an error loading this package or dependencies?
-	Error      *PackageError `json:",omitempty"` // error loading this package (not dependencies)
-
-	Root string `json:",omitempty"` // root dir of tree this package belongs to
+	Dir        string `json:",omitempty"` // directory containing package sources
+	ImportPath string `json:",omitempty"` // import path of package in dir
+	Name       string `json:",omitempty"` // package name
+	Doc        string `json:",omitempty"` // package documentation string
+	Target     string `json:",omitempty"` // install path
+	Goroot     bool   `json:",omitempty"` // is this package found in the Go root?
+	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
+	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
+	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
 
 	// Source files
-	GoFiles  []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles XTestGoFiles)
+	GoFiles  []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
 	CgoFiles []string `json:",omitempty"` // .go sources files that import "C"
 	CFiles   []string `json:",omitempty"` // .c source files
 	HFiles   []string `json:",omitempty"` // .h source files
@@ -50,8 +47,12 @@ type Package struct {
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
 
 	// Dependency information
-	Imports    []string        `json:",omitempty"` // import paths used by this package
-	Deps       []string        `json:",omitempty"` // all (recursively) imported dependencies
+	Imports []string `json:",omitempty"` // import paths used by this package
+	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
+
+	// Error information
+	Incomplete bool            `json:",omitempty"` // was there an error loading this package or dependencies?
+	Error      *PackageError   `json:",omitempty"` // error loading this package (not dependencies)
 	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
 
 	// Test information
