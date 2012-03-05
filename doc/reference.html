@@ -1,24 +1,25 @@
 <!--{
-	"Title": "References"
+	"Title": "References",
+	"Path":  "/ref/"
 }-->
 
 <img src="/doc/gopher/ref.png" align="right"/>
 
-<p>Good bathroom reading.</p>
+<p>Good bedtime reading.</p>
 
 <div>
 
 <h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
 <p>
-The built-in documentation for the Go standard library.
+The documentation for the Go standard library.
 </p>
 
-<h3 id="cmd"><a href="/cmd/">Command Documentation</a></h3>
+<h3 id="cmd"><a href="/ref/cmd">Command Documentation</a></h3>
 <p>
-The built-in documentation for the Go tools.
+The documentation for the Go tools.
 </p>
 
-<h3 id="spec"><a href="go_spec.html">Language Specification</a></h3>
+<h3 id="spec"><a href="/ref/spec">Language Specification</a></h3>
 <p>
 The official Go Language specification. 
 </p>
@@ -29,19 +30,30 @@ The documentation for
 <a href="http://code.google.com/appengine/">Google App Engine</a>'s Go runtime.
 </p>
 
-<h3 id="release"><a href="devel/release.html">Release History</a></h3>
-<p>A summary of the changes between Go releases.</p>
-
-<h3 id="go_mem"><a href="go_mem.html">The Go Memory Model</a></h3>
+<h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
 <p>
 A document that specifies the conditions under which reads of a variable in
 one goroutine can be guaranteed to observe values produced by writes to the
 same variable in a different goroutine.
 </p>
 
-<h3 id="debugging_with_gdb"><a href="debugging_with_gdb.html">Debugging Go Code with GDB</a></h3>
+<h3 id="debugging_with_gdb"><a href="/ref/gdb">Debugging Go Code with GDB</a></h3>
 <p>
 Using GDB to debug Go programs.
+</p>
+
+<h3 id="articles">Articles</h2>
+
+<ul>
+<li><a href="http://blog.golang.org/2011/03/c-go-cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
+<li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
+<li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
+<li><a href="http://blog.golang.org/2011/03/godoc-documenting-go-code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
+<li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
+</ul>
+
+<p>
+See the <a href=/doc/#articles">documentation page</a> for more articles.
 </p>
 
 </div>
