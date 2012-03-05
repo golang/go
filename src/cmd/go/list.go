@@ -30,30 +30,41 @@ is equivalent to -f '{{.ImportPath}}'.  The struct
 being passed to the template is:
 
     type Package struct {
+        Dir        string // directory containing package sources
+        ImportPath string // import path of package in dir
         Name       string // package name
         Doc        string // package documentation string
-        ImportPath string // import path of package in dir
-        Dir        string // directory containing package sources
-        Version    string // version of installed package (TODO)
+        Target     string // install path
+        Goroot     bool   // is this package in the Go root?
+        Standard   bool   // is this package part of the standard Go library?
         Stale      bool   // would 'go install' do anything for this package?
+        Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, and XTestGoFiles)
-        TestGoFiles  []string // _test.go source files internal to the package they are testing
-        XTestGoFiles []string // _test.go source files external to the package they are testing
-        CFiles       []string // .c source files
-        HFiles       []string // .h source files
-        SFiles       []string // .s source files
-        CgoFiles     []string // .go sources files that import "C"
+        GoFiles  []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string // .go sources files that import "C"
+        CFiles   []string // .c source files
+        HFiles   []string // .h source files
+        SFiles   []string // .s source files
+
+        // Cgo directives
+        CgoCFLAGS    []string // cgo: flags for C compiler
+        CgoLDFLAGS   []string // cgo: flags for linker
+        CgoPkgConfig []string // cgo: pkg-config names
 
         // Dependency information
         Imports []string // import paths used by this package
         Deps    []string // all (recursively) imported dependencies
-        
+
         // Error information
         Incomplete bool            // this package or a dependency has an error
-        Error *PackageError        // error loading package
+        Error      *PackageError   // error loading package
         DepsErrors []*PackageError // errors loading dependencies
+
+        TestGoFiles  []string // _test.go files in package
+        TestImports  []string // imports from TestGoFiles
+        XTestGoFiles []string // _test.go files outside package
+        XTestImports []string // imports from XTestGoFiles
     }
 
 The -json flag causes the package data to be printed in JSON format
