@@ -23,7 +23,7 @@ import (
 const (
 	codeProject      = "go"
 	codePyScript     = "misc/dashboard/googlecode_upload.py"
-	hgUrl            = "https://go.googlecode.com/hg/"
+	hgUrl            = "https://code.google.com/p/go/"
 	mkdirPerm        = 0750
 	waitInterval     = 30 * time.Second // time to wait before checking for new revs
 	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
@@ -429,7 +429,7 @@ func (b *Builder) buildSubrepos(goRoot, goHash string) {
 }
 
 // buildSubrepo fetches the given package, updates it to the specified hash,
-// and runs 'go test pkg/...'. It returns the build log and any error.
+// and runs 'go test -short pkg/...'. It returns the build log and any error.
 func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
 	goBin := filepath.Join(goRoot, "bin")
 	goTool := filepath.Join(goBin, "go")
@@ -466,7 +466,7 @@ func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
 	}
 
 	// test the package
-	log, status, err = runLog(env, "", goRoot, goTool, "test", pkg+"/...")
+	log, status, err = runLog(env, "", goRoot, goTool, "test", "-short", pkg+"/...")
 	if err == nil && status != 0 {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
