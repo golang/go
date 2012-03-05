@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binary implements translation between
-// unsigned integer values and byte sequences
-// and the reading and writing of fixed-size values.
+// Package binary implements translation between numbers and byte sequences
+// and encoding and decoding of varints.
+//
+// Numbers are translated by reading and writing fixed-size values.
 // A fixed-size value is either a fixed-size arithmetic
 // type (int8, uint8, int16, float32, complex64, ...)
 // or an array or struct containing only fixed-size values.
+//
+// Varints are a method of encoding integers using one or more bytes;
+// numbers with smaller absolute value take a smaller number of bytes.
+// For a specification, see http://code.google.com/apis/protocolbuffers/docs/encoding.html.
 package binary
 
 import (
