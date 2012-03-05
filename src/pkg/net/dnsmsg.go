@@ -24,8 +24,6 @@
 package net
 
 import (
-	"fmt"
-	"os"
 	"reflect"
 )
 
@@ -394,7 +392,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 		f := val.Type().Field(i)
 		switch fv := val.Field(i); fv.Kind() {
 		default:
-			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+			println("net: dns: unknown packing type", f.Type.String())
 			return len(msg), false
 		case reflect.Struct:
 			off, ok = packStructValue(fv, msg, off)
@@ -418,7 +416,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
-				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+				println("net: dns: unknown packing type", f.Type.String())
 				return len(msg), false
 			}
 			n := fv.Len()
@@ -433,7 +431,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			s := fv.String()
 			switch f.Tag {
 			default:
-				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
+				println("net: dns: unknown string tag", string(f.Tag))
 				return len(msg), false
 			case `net:"domain-name"`:
 				off, ok = packDomainName(s, msg, off)
@@ -471,7 +469,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 		f := val.Type().Field(i)
 		switch fv := val.Field(i); fv.Kind() {
 		default:
-			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+			println("net: dns: unknown packing type", f.Type.String())
 			return len(msg), false
 		case reflect.Struct:
 			off, ok = unpackStructValue(fv, msg, off)
@@ -491,7 +489,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
-				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+				println("net: dns: unknown packing type", f.Type.String())
 				return len(msg), false
 			}
 			n := fv.Len()
@@ -504,7 +502,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			var s string
 			switch f.Tag {
 			default:
-				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
+				println("net: dns: unknown string tag", string(f.Tag))
 				return len(msg), false
 			case `net:"domain-name"`:
 				s, off, ok = unpackDomainName(msg, off)
@@ -560,7 +558,9 @@ func printStructValue(val reflect.Value) string {
 			i := fv.Interface().([]byte)
 			s += IP(i).String()
 		} else {
-			s += fmt.Sprint(fval.Interface())
+			// TODO(bradfitz,rsc): this next line panics (the String method of
+			// *dnsMsg has been broken for awhile). Rewrite, ditch reflect.
+			//s += fmt.Sprint(fval.Interface())
 		}
 	}
 	s += "}"

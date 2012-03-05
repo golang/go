@@ -19,6 +19,7 @@ func TestDNSParseSRVReply(t *testing.T) {
 	if !ok {
 		t.Fatalf("unpacking packet failed")
 	}
+	msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {
 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
 	}
@@ -50,6 +51,7 @@ func TestDNSParseCorruptSRVReply(t *testing.T) {
 	if !ok {
 		t.Fatalf("unpacking packet failed")
 	}
+	msg.String() // exercise this code path
 	if g, e := len(msg.answer), 5; g != e {
 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
 	}
