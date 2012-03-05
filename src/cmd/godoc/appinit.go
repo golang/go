@@ -42,8 +42,7 @@ func init() {
 		log.Fatalf("%s: %s\n", zipfile, err)
 	}
 	// rc is never closed (app running forever)
-	fs = NewZipFS(rc)
-	fsHttp = NewHttpZipFS(rc, *goroot)
+	fs.Bind("/", NewZipFS(rc, zipFilename), "/", bindReplace)
 
 	// initialize http handlers
 	readTemplates()
@@ -52,9 +51,6 @@ func init() {
 
 	// initialize default directory tree with corresponding timestamp.
 	initFSTree()
-
-	// initialize directory trees for user-defined file systems (-path flag).
-	initDirTrees()
 
 	// Immediately update metadata.
 	updateMetadata()

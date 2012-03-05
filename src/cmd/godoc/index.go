@@ -48,7 +48,7 @@ import (
 	"index/suffixarray"
 	"io"
 	"os"
-	"path/filepath"
+	pathpkg "path"
 	"regexp"
 	"sort"
 	"strings"
@@ -248,7 +248,7 @@ type File struct {
 
 // Path returns the file path of f.
 func (f *File) Path() string {
-	return filepath.Join(f.Pak.Path, f.Name)
+	return pathpkg.Join(f.Pak.Path, f.Name)
 }
 
 // A Spot describes a single occurrence of a word.
@@ -695,7 +695,7 @@ var whitelisted = map[string]bool{
 // of "permitted" files for indexing. The filename must
 // be the directory-local name of the file.
 func isWhitelisted(filename string) bool {
-	key := filepath.Ext(filename)
+	key := pathpkg.Ext(filename)
 	if key == "" {
 		// file has no extension - use entire filename
 		key = filename
@@ -708,7 +708,7 @@ func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
 		return
 	}
 
-	filename := filepath.Join(dirname, f.Name())
+	filename := pathpkg.Join(dirname, f.Name())
 	goFile := false
 
 	switch {

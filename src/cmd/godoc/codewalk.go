@@ -31,7 +31,7 @@ import (
 // Handler for /doc/codewalk/ and below.
 func codewalk(w http.ResponseWriter, r *http.Request) {
 	relpath := r.URL.Path[len("/doc/codewalk/"):]
-	abspath := absolutePath(r.URL.Path[1:], *goroot)
+	abspath := r.URL.Path
 
 	r.ParseForm()
 	if f := r.FormValue("fileprint"); f != "" {
@@ -130,7 +130,7 @@ func loadCodewalk(filename string) (*Codewalk, error) {
 			i = len(st.Src)
 		}
 		filename := st.Src[0:i]
-		data, err := ReadFile(fs, absolutePath(filename, *goroot))
+		data, err := ReadFile(fs, filename)
 		if err != nil {
 			st.Err = err
 			continue
@@ -208,7 +208,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 // of the codewalk pages.  It is a separate iframe and does not get
 // the usual godoc HTML wrapper.
 func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
-	abspath := absolutePath(f, *goroot)
+	abspath := f
 	data, err := ReadFile(fs, abspath)
 	if err != nil {
 		log.Print(err)
