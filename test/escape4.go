@@ -11,8 +11,8 @@ package foo
 
 var p *int
 
-func alloc(x int) *int {  // ERROR "can inline alloc" "moved to heap: x"
-	return &x  // ERROR "&x escapes to heap"
+func alloc(x int) *int { // ERROR "can inline alloc" "moved to heap: x"
+	return &x // ERROR "&x escapes to heap"
 }
 
 var f func()
@@ -22,12 +22,18 @@ func f1() {
 
 	// Escape analysis used to miss inlined code in closures.
 
-	func() {  // ERROR "func literal does not escape"
-		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+	func() { // ERROR "func literal does not escape"
+		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
 	}()
-	
-	f = func() {  // ERROR "func literal escapes to heap"
-		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+
+	f = func() { // ERROR "func literal escapes to heap"
+		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
 	}
 	f()
 }
+
+func f2() {} // ERROR "can inline f2"
+
+// No inline for panic, recover.
+func f3() { panic(1) }
+func f4() { recover() }

@@ -182,6 +182,8 @@ ishairy(Node *n, int *budget)
 	case OCALLFUNC:
 	case OCALLINTER:
 	case OCALLMETH:
+	case OPANIC:
+	case ORECOVER:
 		if(debug['l'] < 4)
 			return 1;
 		break;
