@@ -23,6 +23,9 @@ const (
 	// certificate has a name constraint which doesn't include the name
 	// being checked.
 	CANotAuthorizedForThisName
+	// TooManyIntermediates results when a path length constraint is
+	// violated.
+	TooManyIntermediates
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -40,6 +43,8 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: certificate has expired or is not yet valid"
 	case CANotAuthorizedForThisName:
 		return "x509: a root or intermediate certificate is not authorized to sign in this domain"
+	case TooManyIntermediates:
+		return "x509: too many intermediates for path length constraint"
 	}
 	return "x509: unknown error"
 }
@@ -87,7 +92,7 @@ const (
 )
 
 // isValid performs validity checks on the c.
-func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
+func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
 	now := opts.CurrentTime
 	if now.IsZero() {
 		now = time.Now()
@@ -130,6 +135,13 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
 		return CertificateInvalidError{c, NotAuthorizedToSign}
 	}
 
+	if c.BasicConstraintsValid && c.MaxPathLen >= 0 {
+		numIntermediates := len(currentChain) - 1
+		if numIntermediates > c.MaxPathLen {
+			return CertificateInvalidError{c, TooManyIntermediates}
+		}
+	}
+
 	return nil
 }
 
@@ -140,7 +152,7 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
 //
 // WARNING: this doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
-	err = c.isValid(leafCertificate, &opts)
+	err = c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
 		return
 	}
@@ -163,7 +175,7 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	for _, rootNum := range opts.Roots.findVerifiedParents(c) {
 		root := opts.Roots.certs[rootNum]
-		err = root.isValid(rootCertificate, opts)
+		err = root.isValid(rootCertificate, currentChain, opts)
 		if err != nil {
 			continue
 		}
@@ -178,7 +190,7 @@ nextIntermediate:
 				continue nextIntermediate
 			}
 		}
-		err = intermediate.isValid(intermediateCertificate, opts)
+		err = intermediate.isValid(intermediateCertificate, currentChain, opts)
 		if err != nil {
 			continue
 		}
