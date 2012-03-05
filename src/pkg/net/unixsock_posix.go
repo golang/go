@@ -59,7 +59,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		f = sockaddrToUnixpacket
 	}
 
-	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
+	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, f)
 	if err != nil {
 		goto Error
 	}

@@ -60,12 +60,7 @@ func TestFileListener(t *testing.T) {
 		return
 	}
 	testFileListener(t, "tcp", "127.0.0.1")
-	testFileListener(t, "tcp", "127.0.0.1")
-	if supportsIPv6 && supportsIPv4map {
-		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
-		testFileListener(t, "tcp", "127.0.0.1")
-		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
-	}
+	testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
 	if runtime.GOOS == "linux" {
 		testFileListener(t, "unix", "@gotest/net")
 		testFileListener(t, "unixpacket", "@gotest/net")
@@ -125,11 +120,9 @@ func TestFilePacketConn(t *testing.T) {
 	}
 	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
 	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
+	testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
 	if supportsIPv6 {
 		testFilePacketConnListen(t, "udp", "[::1]:0")
-	}
-	if supportsIPv6 && supportsIPv4map {
-		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
 	}
 	if runtime.GOOS == "linux" {
 		testFilePacketConnListen(t, "unixgram", "@gotest1/net")

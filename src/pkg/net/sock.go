@@ -16,7 +16,7 @@ import (
 var listenerBacklog = maxListenerBacklog()
 
 // Generic socket creation.
-func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, err := syscall.Socket(f, t, p)
@@ -27,7 +27,7 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	err = setDefaultSockopts(s, f, t)
+	err = setDefaultSockopts(s, f, t, ipv6only)
 	if err != nil {
 		closesocket(s)
 		return nil, err

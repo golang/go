@@ -13,12 +13,17 @@ import (
 	"syscall"
 )
 
-func setDefaultSockopts(s, f, t int) error {
+func setDefaultSockopts(s, f, t int, ipv6only bool) error {
 	switch f {
 	case syscall.AF_INET6:
-		// Allow both IP versions even if the OS default is otherwise.
-		// Note that some operating systems never admit this option.
-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+		if ipv6only {
+			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
+		} else {
+			// Allow both IP versions even if the OS default
+			// is otherwise.  Note that some operating systems
+			// never admit this option.
+			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+		}
 	}
 	// Allow broadcast.
 	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
