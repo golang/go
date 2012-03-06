@@ -70,6 +70,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "ldflags"},
 	{name: "gccgoflags"},
 	{name: "tags"},
+	{name: "compiler"},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},
@@ -140,6 +141,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			buildGccgoflags = strings.Fields(value)
 		case "tags":
 			buildContext.BuildTags = strings.Fields(value)
+		case "compiler":
+			buildContext.Compiler = value
 		case "file":
 			testFiles = append(testFiles, value)
 		case "bench":

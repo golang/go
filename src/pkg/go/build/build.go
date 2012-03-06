@@ -34,7 +34,7 @@ type Context struct {
 	CgoEnabled  bool     // whether cgo can be used
 	BuildTags   []string // additional tags to recognize in +build lines
 	UseAllFiles bool     // use files regardless of +build lines, file names
-	Gccgo       bool     // assume use of gccgo when computing object paths
+	Compiler    string   // compiler to assume when computing target paths
 
 	// By default, Import uses the operating system's file system calls
 	// to read directories and files.  To read from other sources,
@@ -228,6 +228,7 @@ func defaultContext() Context {
 	c.GOOS = envOr("GOOS", runtime.GOOS)
 	c.GOROOT = runtime.GOROOT()
 	c.GOPATH = envOr("GOPATH", "")
+	c.Compiler = runtime.Compiler
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -336,11 +337,16 @@ func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package,
 	}
 
 	var pkga string
-	if ctxt.Gccgo {
+	var pkgerr error
+	switch ctxt.Compiler {
+	case "gccgo":
 		dir, elem := pathpkg.Split(p.ImportPath)
 		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
-	} else {
+	case "gc":
 		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + p.ImportPath + ".a"
+	default:
+		// Save error for end of function.
+		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)
 	}
 
 	binaryOnly := false
@@ -396,7 +402,7 @@ func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package,
 		if ctxt.GOROOT != "" {
 			dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
 			isDir := ctxt.isDir(dir)
-			binaryOnly = !isDir && mode&AllowBinary != 0 && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
 			if isDir || binaryOnly {
 				p.Dir = dir
 				p.Goroot = true
@@ -407,7 +413,7 @@ func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package,
 		for _, root := range ctxt.gopath() {
 			dir := ctxt.joinPath(root, "src", path)
 			isDir := ctxt.isDir(dir)
-			binaryOnly = !isDir && mode&AllowBinary != 0 && ctxt.isFile(ctxt.joinPath(root, pkga))
+			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(root, pkga))
 			if isDir || binaryOnly {
 				p.Dir = dir
 				p.Root = root
@@ -426,14 +432,16 @@ Found:
 		}
 		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
 		p.BinDir = ctxt.joinPath(p.Root, "bin")
-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
+		if pkga != "" {
+			p.PkgObj = ctxt.joinPath(p.Root, pkga)
+		}
 	}
 
 	if mode&FindOnly != 0 {
-		return p, nil
+		return p, pkgerr
 	}
 	if binaryOnly && (mode&AllowBinary) != 0 {
-		return p, nil
+		return p, pkgerr
 	}
 
 	dirs, err := ctxt.readDir(p.Dir)
@@ -601,7 +609,7 @@ Found:
 		sort.Strings(p.SFiles)
 	}
 
-	return p, nil
+	return p, pkgerr
 }
 
 func cleanImports(m map[string][]token.Position) ([]string, map[string][]token.Position) {
