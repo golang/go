@@ -380,11 +380,13 @@ func (p *parser) seesComma(context string) bool {
 	if p.tok == token.COMMA {
 		return true
 	}
-	if p.tok == token.SEMICOLON && p.lit == "\n" {
-		p.error(p.pos, "missing ',' before newline in "+context)
-		return true // "insert" the comma and continue
+	/*
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			p.error(p.pos, "missing ',' before newline in "+context)
+			return true // "insert" the comma and continue
 
-	}
+		}
+	*/
 	return false
 }
 
