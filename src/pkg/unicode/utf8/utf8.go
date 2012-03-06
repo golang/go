@@ -6,13 +6,16 @@
 // UTF-8. It includes functions to translate between runes and UTF-8 byte sequences.
 package utf8
 
-import "unicode" // only needed for a couple of constants
+// The conditions RuneError==unicode.ReplacementChar and
+// MaxRune==unicode.MaxRune are verified in the tests.
+// Defining them locally avoids this package depending on package unicode.
 
 // Numbers fundamental to the encoding.
 const (
-	RuneError = unicode.ReplacementChar // the "error" Rune or "replacement character".
-	RuneSelf  = 0x80                    // characters below Runeself are represented as themselves in a single byte.
-	UTFMax    = 4                       // maximum number of bytes of a UTF-8 encoded Unicode character.
+	RuneError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
+	RuneSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
+	MaxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
+	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
 )
 
 const (
@@ -309,7 +312,7 @@ func EncodeRune(p []byte, r rune) int {
 		return 2
 	}
 
-	if uint32(r) > unicode.MaxRune {
+	if uint32(r) > MaxRune {
 		r = RuneError
 	}
 
