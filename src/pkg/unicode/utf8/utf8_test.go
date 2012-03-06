@@ -7,8 +7,19 @@ package utf8_test
 import (
 	"bytes"
 	"testing"
+	"unicode"
 	. "unicode/utf8"
 )
+
+// Validate the constants redefined from unicode.
+func init() {
+	if MaxRune != unicode.MaxRune {
+		panic("utf8.MaxRune is wrong")
+	}
+	if RuneError != unicode.ReplacementChar {
+		panic("utf8.RuneError is wrong")
+	}
+}
 
 type Utf8Map struct {
 	r   rune
