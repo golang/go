@@ -45,6 +45,7 @@ var listenerTests = []struct {
 func TestTCPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -80,6 +81,7 @@ func TestTCPListener(t *testing.T) {
 func TestUDPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -125,6 +127,7 @@ func TestUDPListener(t *testing.T) {
 func TestSimpleTCPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -150,6 +153,7 @@ func TestSimpleTCPListener(t *testing.T) {
 func TestSimpleUDPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -255,6 +259,7 @@ var dualStackListenerTests = []struct {
 func TestDualStackTCPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 	if !supportsIPv6 {
@@ -291,6 +296,7 @@ func TestDualStackTCPListener(t *testing.T) {
 func TestDualStackUDPListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 	if !supportsIPv6 {
@@ -521,6 +527,7 @@ var prohibitionaryDialArgTests = []struct {
 func TestProhibitionaryDialArgs(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.

@@ -57,7 +57,9 @@ func testTimeout(t *testing.T, net, addr string, readFrom bool) {
 }
 
 func TestTimeoutUDP(t *testing.T) {
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -73,7 +75,9 @@ func TestTimeoutUDP(t *testing.T) {
 }
 
 func TestTimeoutTCP(t *testing.T) {
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
@@ -88,7 +92,9 @@ func TestTimeoutTCP(t *testing.T) {
 }
 
 func TestDeadlineReset(t *testing.T) {
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 	ln, err := Listen("tcp", "127.0.0.1:0")

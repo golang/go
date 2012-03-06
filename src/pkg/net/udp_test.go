@@ -10,7 +10,9 @@ import (
 )
 
 func TestWriteToUDP(t *testing.T) {
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 
