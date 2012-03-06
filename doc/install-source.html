@@ -97,7 +97,9 @@ If you want to build 32-bit binaries on a 64-bit system you'll also need the
 </p>
 
 <p>
-<font color="red">TODO: add Windows compiler info</font>
+On Windows, install <code>gcc</code> with
+<a href="http://www.mingw.org/">MinGW</a>.
+(Make sure you add its <code>bin</code> subdirectory to your <code>PATH</code>.)
 </p>
 
 <h2 id="mercurial">Install Mercurial, if needed</h2>
@@ -105,7 +107,7 @@ If you want to build 32-bit binaries on a 64-bit system you'll also need the
 <p>
 To perform the next step you must have Mercurial installed. (Check that you
 have an <code>hg</code> command.) This suffices to install Mercurial on most
-systems:
+Unix systems:
 </p>
 
 <pre>
@@ -113,8 +115,7 @@ sudo easy_install mercurial==2.0
 </pre>
 
 <p>
-On Ubuntu/Debian, 
-the Mercurial in your distribution's
+On Ubuntu/Debian, the Mercurial in your distribution's
 package repository is most likely old and broken.
 You might try this first:
 </p>
@@ -122,7 +123,7 @@ You might try this first:
 <pre>apt-get install python-setuptools python-dev build-essential</pre>
 
 <p>
-If that fails, try installing manually from the
+If that fails, or if you use Windows, install manually from the
 <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a>
 page.
 </p>
@@ -254,22 +255,13 @@ Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list"
 <h2 id="releases">Keeping up with releases</h2>
 
 <p>
-XXX TODO XXX
-</p>
-
-<p>
 The Go project maintains two stable tags in its Mercurial repository:
 <code>release</code> and <code>weekly</code>.
-The <code>weekly</code> tag is updated about once a week, and should be used by
-those who want to track the project's development.
-The <code>release</code> tag is given, less often, to those weekly releases
-that have proven themselves to be robust.
 </p>
 
 <p>
-Most Go users will want to keep their Go installation at the latest
-<code>release</code> tag.
-New releases are announced on the
+The <code>release</code> tag refers to the current stable release of Go.
+Most Go users should use this version. New releases are announced on the
 <a href="http://groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 </p>
@@ -286,6 +278,8 @@ $ ./all.bash
 </pre>
 
 <p>
+The <code>weekly</code> tag is updated about once a week, and should be used 
+only by those who are actively working on the Go core.
 To use the <code>weekly</code> tag run <code>hg update weekly</code> instead.
 </p>
 
@@ -298,143 +292,123 @@ The Go compilation environment can be customized by environment variables.
 to override the defaults.
 </p>
 
-<dl>
-<dt>
-	<code>$GOROOT</code>
-</dt>
-<dd>
-	<p>
-	XXX FONT IS WRONG IN THESE ENTRIES XXX
-	XXX I NEED SOME SPAN THING XXX
-	The root of the Go tree, often <code>$HOME/go</code>.
-	Its value is built into the tree when it is compiled, and
-	defaults to the parent of the directory where <code>all.bash</code> was run.
-	There is no need to set this unless you want to switch between multiple
-	local copies of the repository.
-	</p>
-</dd>
+<blockquote>
 
-<dt>
-	<code>$GOROOT_FINAL</code>
-</dt>
-<dd>
-	<p>
-	The value assumed by installed binaries and scripts when
-	<code>$GOROOT</code> is not set explicitly.
-	It defaults to the value of <code>$GOROOT</code>.
-	If you want to build the Go tree in one location
-	but move it elsewhere after the build, set 
-	<code>$GOROOT_FINAL</code> to the eventual location.
-	</p>
-</dd>
+<p><code>$GOROOT</code></p>
+<p>
+The root of the Go tree, often <code>$HOME/go</code>.
+Its value is built into the tree when it is compiled, and
+defaults to the parent of the directory where <code>all.bash</code> was run.
+There is no need to set this unless you want to switch between multiple
+local copies of the repository.
+</p>
 
-<dt>
-<code>$GOOS</code> and <code>$GOARCH</code>
-</dt>
-<dd>
-	<p>
-	The name of the target operating system and compilation architecture.
-	These default to the values of <code>$GOHOSTOS</code> and
-	<code>$GOHOSTARCH</code> respectively (described below).
+<p><code>$GOROOT_FINAL</code></p>
+<p>
+The value assumed by installed binaries and scripts when
+<code>$GOROOT</code> is not set explicitly.
+It defaults to the value of <code>$GOROOT</code>.
+If you want to build the Go tree in one location
+but move it elsewhere after the build, set 
+<code>$GOROOT_FINAL</code> to the eventual location.
+</p>
 
-	<p>
-	Choices for <code>$GOOS</code> are
-	<code>darwin</code> (Mac OS X 10.5 and above), <code>freebsd</code>,
-	<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
-	<code>plan9</code>, and <code>windows</code>.
-	Choices for <code>$GOARCH</code> are
-	<code>amd64</code> (64-bit x86, the most mature port),
-	<code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
-	The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
-	<table cellpadding="0">
-	<tr>
-	<th width="50"><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th> <th align="left"></th>
-	</tr>
-	<tr>
-	<td></td><td><code>darwin</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>freebsd</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>freebsd</code></td> <td><code>amd64</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>linux</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>linux</code></td> <td><code>amd64</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>linux</code></td> <td><code>arm</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>netbsd</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>netbsd</code></td> <td><code>amd64</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>openbsd</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>openbsd</code></td> <td><code>amd64</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>plan9</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>windows</code></td> <td><code>386</code></td>
-	</tr>
-	<tr>
-	<td></td><td><code>windows</code></td> <td><code>amd64</code></td>
-	</tr>
-	</table>
-</dd>
+<p><code>$GOOS</code> and <code>$GOARCH</code></p>
+<p>
+The name of the target operating system and compilation architecture.
+These default to the values of <code>$GOHOSTOS</code> and
+<code>$GOHOSTARCH</code> respectively (described below).
 
-<dt>
-<code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code>
-</dt>
-<dd>
-	<p>
-	The name of the host operating system and compilation architecture.
-	These default to the local system's operating system and
-	architecture.
+<p>
+Choices for <code>$GOOS</code> are
+<code>darwin</code> (Mac OS X 10.5 and above), <code>freebsd</code>,
+<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
+<code>plan9</code>, and <code>windows</code>.
+Choices for <code>$GOARCH</code> are
+<code>amd64</code> (64-bit x86, the most mature port),
+<code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
+The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+<table cellpadding="0">
+<tr>
+<th width="50"><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th> <th align="left"></th>
+</tr>
+<tr>
+<td></td><td><code>darwin</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>freebsd</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>freebsd</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>netbsd</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>netbsd</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>openbsd</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>openbsd</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>plan9</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>windows</code></td> <td><code>386</code></td>
+</tr>
+<tr>
+<td></td><td><code>windows</code></td> <td><code>amd64</code></td>
+</tr>
+</table>
 
-	<p>
-	Valid choices are the same as for <code>$GOOS</code> and
-	<code>$GOARCH</code>, listed above.
-	The specified values must be compatible with the local system.
-	For example, you should not set <code>$GOHOSTARCH</code> to 
-	<code>arm</code> on an x86 system.
-</dd>
+<p><code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code></p>
+<p>
+The name of the host operating system and compilation architecture.
+These default to the local system's operating system and
+architecture.
+</p>
 
-<dt>
-<code>$GOBIN</code>
-</dt>
-<dd>
-	<p>
-	The location where binaries from the main repository will be installed.
-	XXX THIS MAY CHANGE TO BE AN OVERRIDE EVEN FOR GOPATH ENTRIES XXX
-	The default is <code>$GOROOT/bin</code>.
-	After installing, you will want to arrange to add this
-	directory to your <code>$PATH</code>, so you can use the tools.
-</dd>
+<p>
+Valid choices are the same as for <code>$GOOS</code> and
+<code>$GOARCH</code>, listed above.
+The specified values must be compatible with the local system.
+For example, you should not set <code>$GOHOSTARCH</code> to 
+<code>arm</code> on an x86 system.
+</p>
 
-<dt>
-<code>$GOARM</code> (arm, default=6)
-</dt>
-<dd>
-	<p>
-	The ARM architecture version the run-time libraries should target.
-	Setting <code>$GOARM</code> to 5 causes the linker to emit calls
-	to a software floating point implementation instead of using
-	hardware floating point support.
-</dd>
-</dl>
+<p><code>$GOBIN</code>
+<p>
+The location where binaries from the main repository will be installed.
+XXX THIS MAY CHANGE TO BE AN OVERRIDE EVEN FOR GOPATH ENTRIES XXX
+The default is <code>$GOROOT/bin</code>.
+After installing, you will want to arrange to add this
+directory to your <code>$PATH</code>, so you can use the tools.
+</p>
+
+<p><code>$GOARM</code> (arm, default=6)</p>
+<p>
+The ARM architecture version the run-time libraries should target.
+Setting <code>$GOARM</code> to 5 causes the linker to emit calls
+to a software floating point implementation instead of using
+hardware floating point support.
+</p>
+
+</blockquote>
 
 <p>
 Note that <code>$GOARCH</code> and <code>$GOOS</code> identify the
