@@ -320,10 +320,9 @@ exceptional.
 <p>
 Go takes a different approach.  For plain error handling, Go's multi-value
 returns make it easy to report an error without overloading the return value.
-<a href="http://blog.golang.org/2011/07/error-handling-and-go.html">A
-canonical error type, coupled
-with Go's other features</a>, makes error
-handling pleasant but quite different from that in other languages.
+<a href="/doc/articles/error_handling.html">A canonical error type, coupled
+with Go's other features</a>, makes error handling pleasant but quite different
+from that in other languages.
 </p>
 
 <p>
@@ -336,7 +335,7 @@ when used well, can result in clean error-handling code.
 </p>
 
 <p>
-See the <a href="http://blog.golang.org/2010/08/defer-panic-and-recover.html">Defer, Panic, and Recover</a> article for details.
+See the <a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a> article for details.
 </p>
 
 <h3 id="assertions">
@@ -1317,8 +1316,7 @@ table-driven, iterating over a list of inputs and outputs defined
 in a data structure (Go has excellent support for data structure literals).
 The work to write a good test and good error messages will then be amortized over many
 test cases. The standard Go library is full of illustrative examples, such as in
-<a href="http://golang.org/src/pkg/fmt/fmt_test.go">the formatting
-tests for the <code>fmt</code> package</a>.
+<a href="/src/pkg/fmt/fmt_test.go">the formatting tests for the <code>fmt</code> package</a>.
 </p>
 
 
@@ -1588,7 +1586,7 @@ appear on a line by itself.
 Some have argued that the lexer should do lookahead to permit the
 brace to live on the next line.  We disagree.  Since Go code is meant
 to be formatted automatically by
-<a href="http://golang.org/cmd/gofmt/"><code>gofmt</code></a>,
+<a href="/cmd/gofmt/"><code>gofmt</code></a>,
 <i>some</i> style must be chosen.  That style may differ from what
 you've used in C or Java, but Go is a new language and
 <code>gofmt</code>'s style is as good as any other.  More
