@@ -293,7 +293,7 @@ var pkgDeps = map[string][]string{
 		"L3", "CRYPTO-MATH", "CGO", "OS",
 		"crypto/x509", "encoding/pem", "net", "syscall",
 	},
-	"crypto/x509":      {"L3", "CRYPTO-MATH", "crypto/x509/pkix", "encoding/pem"},
+	"crypto/x509":      {"L3", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
 	"crypto/x509/pkix": {"L3", "CRYPTO-MATH"},
 
 	// Simple net+crypto-aware packages.
