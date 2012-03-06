@@ -4,12 +4,6 @@
 
 #include "runtime.h"
 
-String
-runtime·signame(int32)
-{
-	return runtime·emptystring;
-}
-
 void
 runtime·sigenable(uint32 sig)
 {
