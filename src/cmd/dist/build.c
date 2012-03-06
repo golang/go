@@ -209,7 +209,7 @@ findgoversion(void)
 	// What are the tags along the current branch?
 	tag = "";
 	rev = ".";
-	run(&b, goroot, CheckExit, "hg", "log", "-b", bstr(&branch), "--template", "{tags} + ", nil);
+	run(&b, goroot, CheckExit, "hg", "log", "-b", bstr(&branch), "-r", ".:0", "--template", "{tags} + ", nil);
 	splitfields(&tags, bstr(&b));
 	nrev = 0;
 	for(i=0; i<tags.len; i++) {
