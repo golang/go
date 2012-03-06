@@ -11,6 +11,16 @@ import (
 	. "unicode/utf16"
 )
 
+// Validate the constants redefined from unicode.
+func TestConstants(t *testing.T) {
+	if MaxRune != unicode.MaxRune {
+		t.Errorf("utf16.maxRune is wrong: %x should be %x", MaxRune, unicode.MaxRune)
+	}
+	if ReplacementChar != unicode.ReplacementChar {
+		t.Errorf("utf16.replacementChar is wrong: %x should be %x", ReplacementChar, unicode.ReplacementChar)
+	}
+}
+
 type encodeTest struct {
 	in  []rune
 	out []uint16

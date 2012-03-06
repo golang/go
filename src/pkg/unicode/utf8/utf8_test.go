@@ -21,6 +21,16 @@ func init() {
 	}
 }
 
+// Validate the constants redefined from unicode.
+func TestConstants(t *testing.T) {
+	if MaxRune != unicode.MaxRune {
+		t.Errorf("utf8.MaxRune is wrong: %x should be %x", MaxRune, unicode.MaxRune)
+	}
+	if RuneError != unicode.ReplacementChar {
+		t.Errorf("utf8.RuneError is wrong: %x should be %x", RuneError, unicode.ReplacementChar)
+	}
+}
+
 type Utf8Map struct {
 	r   rune
 	str string
