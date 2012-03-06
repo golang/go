@@ -10,8 +10,21 @@
 
 package main
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
+
+var errHTTP = errors.New("no http in bootstrap go command")
 
 func httpGET(url string) ([]byte, error) {
-	return nil, errors.New("no http in bootstrap go command")
+	return nil, errHTTP
+}
+
+func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
+	return "", nil, errHTTP
+}
+
+func parseMetaGoImports(r io.Reader) (imports []metaImport) {
+	panic("unreachable")
 }

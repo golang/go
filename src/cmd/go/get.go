@@ -162,10 +162,11 @@ func downloadPackage(p *Package) error {
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		vcs, repo, rootPath, err = vcsForImportPath(p.ImportPath)
-	}
-	if err != nil {
-		return err
+		rr, err := repoRootForImportPath(p.ImportPath)
+		if err != nil {
+			return err
+		}
+		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
 	}
 
 	if p.build.SrcRoot == "" {
