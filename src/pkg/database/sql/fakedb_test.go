@@ -82,6 +82,7 @@ type fakeConn struct {
 	mu          sync.Mutex
 	stmtsMade   int
 	stmtsClosed int
+	numPrepare  int
 }
 
 func (c *fakeConn) incrStat(v *int) {
@@ -339,6 +340,7 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 }
 
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
+	c.numPrepare++
 	if c.db == nil {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}

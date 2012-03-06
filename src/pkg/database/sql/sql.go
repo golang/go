@@ -700,7 +700,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
 	for _, v := range s.css {
 		// TODO(bradfitz): lazily clean up entries in this
 		// list with dead conns while enumerating
-		if _, match = s.db.connIfFree(cs.ci); match {
+		if _, match = s.db.connIfFree(v.ci); match {
 			cs = v
 			break
 		}
