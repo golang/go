@@ -36,7 +36,14 @@ go test sync -short -timeout=120s -cpu=10
 if errorlevel 1 goto fail
 echo.
 
-:: TODO: The other tests in run.bash, especially $GOROOT/test/run.
+:: TODO: The other tests in run.bash.
+
+echo # test
+cd test
+go run run.go
+cd ..
+if errorlevel 1 goto fail
+echo.
 
 echo ALL TESTS PASSED
 goto end

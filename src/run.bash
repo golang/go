@@ -105,7 +105,7 @@ $BROKEN ||
 ) || exit $?
 
 (xcd ../test
-./run
+time go run run.go
 ) || exit $?
 
 echo
