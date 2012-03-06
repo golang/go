@@ -16,4 +16,7 @@ tmpltohtml: tmpltohtml.go
 	go build tmpltohtml.go
 
 %.html: %.tmpl tmpltohtml
-	./makehtml $*.tmpl
+	./tmpltohtml $*.tmpl > $@
+
+clean:
+	rm -f $(HTML) tmpltohtml 

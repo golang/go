@@ -23,14 +23,19 @@ error_handling="
 	error4
 "
 
-all=$(echo $defer_panic_recover  $effective_go $error_handling slices go1)
+law_of_reflection="
+	interface
+	interface2
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection slices go1)
 
 for i in $all; do
 	go build $i.go
 done
 
 # Write to temporary file to avoid mingw bash bug.
-TMPFILE="/tmp/gotest3.$USER"
+TMPFILE="${TMPDIR:-/tmp}/gotest3.$USER"
 
 function testit {
 	./$1 >"$TMPFILE" 2>&1 || true
@@ -49,5 +54,7 @@ testit eff_bytesize '^1.00YB 9.09TB$'
 testit eff_sequence '^\[-1 2 6 16 44\]$'
 
 testit go1 '^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$'
+
+testit interface2 "^type: float64$"
 
 rm -f $all "$TMPFILE"
