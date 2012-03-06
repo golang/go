@@ -9,13 +9,13 @@
 package main
 import "runtime"
 
-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix"
-	println(i, runtime.UintType) 
+func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix|undefined identifier"
+	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
 }
 
 func bar(i int) {
-	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side"
-	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type"
+	runtime.UintType := i       // ERROR "cannot declare name runtime.UintType|non-name on left side|undefined identifier"
+	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
 }
 
 func baz() {
