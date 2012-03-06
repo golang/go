@@ -666,6 +666,10 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Log("TestAbs disabled on windows")
+		return
+	}
 	oldwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal("Getwd failed: ", err)
