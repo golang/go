@@ -351,3 +351,59 @@ func Unquote(s string) (t string, err error) {
 	}
 	return string(buf), nil
 }
+
+// bsearch16 returns the smallest i such that a[i] >= x.
+// If there is no such i, bsearch16 returns len(a).
+func bsearch16(a []uint16, x uint16) int {
+	i, j := 0, len(a)
+	for i < j {
+		h := i + (j-i)/2
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
+}
+
+// bsearch32 returns the smallest i such that a[i] >= x.
+// If there is no such i, bsearch32 returns len(a).
+func bsearch32(a []uint32, x uint32) int {
+	i, j := 0, len(a)
+	for i < j {
+		h := i + (j-i)/2
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
+}
+
+func isPrint(r rune) bool {
+	// Same algorithm, either on uint16 or uint32 value.
+	// First, find first i such that isPrint[i] >= x.
+	// This is the index of either the start or end of a pair that might span x.
+	// The start is even (isPrint[i&^1]) and the end is odd (isPrint[i|1]).
+	// If we find x in a range, make sure x is not in isNotPrint list.
+
+	if 0 <= r && r < 1<<16 {
+		rr, isPrint, isNotPrint := uint16(r), isPrint16, isNotPrint16
+		i := bsearch16(isPrint, rr)
+		if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
+			return false
+		}
+		j := bsearch16(isNotPrint, rr)
+		return j >= len(isNotPrint) || isNotPrint[j] != rr
+	}
+
+	rr, isPrint, isNotPrint := uint32(r), isPrint32, isNotPrint32
+	i := bsearch32(isPrint, rr)
+	if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
+		return false
+	}
+	j := bsearch32(isNotPrint, rr)
+	return j >= len(isNotPrint) || isNotPrint[j] != rr
+}
