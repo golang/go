@@ -47,9 +47,19 @@ func closeDB(t *testing.T, db *DB) {
 	}
 }
 
+// numPrepares assumes that db has exactly 1 idle conn and returns
+// its count of calls to Prepare
+func numPrepares(t *testing.T, db *DB) int {
+	if n := len(db.freeConn); n != 1 {
+		t.Fatalf("free conns = %d; want 1", n)
+	}
+	return db.freeConn[0].(*fakeConn).numPrepare
+}
+
 func TestQuery(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
+	prepares0 := numPrepares(t, db)
 	rows, err := db.Query("SELECT|people|age,name|")
 	if err != nil {
 		t.Fatalf("Query: %v", err)
@@ -83,7 +93,10 @@ func TestQuery(t *testing.T) {
 	// And verify that the final rows.Next() call, which hit EOF,
 	// also closed the rows connection.
 	if n := len(db.freeConn); n != 1 {
-		t.Errorf("free conns after query hitting EOF = %d; want 1", n)
+		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
+	}
+	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+		t.Errorf("executed %d Prepare statements; want 1", prepares)
 	}
 }
 
