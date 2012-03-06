@@ -368,25 +368,32 @@ func main() {
 		return
 	}
 
-	// determine paths
+	// Determine paths.
+	//
+	// If we are passed an operating system path like . or ./foo or /foo/bar or c:\mysrc,
+	// we need to map that path somewhere in the fs name space so that routines
+	// like getPageInfo will see it.  We use the arbitrarily-chosen virtual path "/target"
+	// for this.  That is, if we get passed a directory like the above, we map that
+	// directory so that getPageInfo sees it as /target.
+	const target = "/target"
 	const cmdPrefix = "cmd/"
 	path := flag.Arg(0)
 	var forceCmd bool
 	var abspath, relpath string
 	if filepath.IsAbs(path) {
-		fs.Bind("/target", OS(path), "/", bindReplace)
-		abspath = "/target"
+		fs.Bind(target, OS(path), "/", bindReplace)
+		abspath = target
 	} else if build.IsLocalImport(path) {
 		cwd, _ := os.Getwd() // ignore errors
 		path = filepath.Join(cwd, path)
-		fs.Bind("/target", OS(path), "/", bindReplace)
-		abspath = "/target"
+		fs.Bind(target, OS(path), "/", bindReplace)
+		abspath = target
 	} else if strings.HasPrefix(path, cmdPrefix) {
-		abspath = path[len(cmdPrefix):]
+		path = path[len(cmdPrefix):]
 		forceCmd = true
 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
-		fs.Bind("/target", OS(bp.Dir), "/", bindReplace)
-		abspath = "/target"
+		fs.Bind(target, OS(bp.Dir), "/", bindReplace)
+		abspath = target
 		relpath = bp.ImportPath
 	} else {
 		abspath = pathpkg.Join(pkgHandler.fsRoot, path)
@@ -443,7 +450,8 @@ func main() {
 	if info.Err != nil {
 		log.Fatalf("%v", info.Err)
 	}
-	if info.PDoc.ImportPath == "/target" {
+	if info.PDoc != nil && info.PDoc.ImportPath == target {
+		// Replace virtual /target with actual argument from command line.
 		info.PDoc.ImportPath = flag.Arg(0)
 	}
 
