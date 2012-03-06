@@ -155,7 +155,7 @@ Prefix               Map key
 	<br/><br/>
 	For more information about the <code>append</code> function and slices
 	in general see the
-	<a href="http://blog.golang.org/2011/01/go-slices-usage-and-internals.html">Slices: usage and internals</a> article.
+	<a href="/doc/articles/slices_usage_and_internals.html">Slices: usage and internals</a> article.
 </step>
 
 <step title="Pushing the suffix onto the prefix" src="doc/codewalk/markov.go:/p\.Shift/">
