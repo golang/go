@@ -7,6 +7,7 @@ package net
 import (
 	"os"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -87,6 +88,12 @@ var fileListenerTests = []struct {
 }
 
 func TestFileListener(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
 	for _, tt := range fileListenerTests {
 		if skipServerTest(tt.net, "unix", tt.laddr, tt.ipv6, false, tt.linux) {
 			continue
@@ -172,6 +179,12 @@ var filePacketConnTests = []struct {
 }
 
 func TestFilePacketConn(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
 	for _, tt := range filePacketConnTests {
 		if skipServerTest(tt.net, "unixgram", tt.addr, tt.ipv6, false, tt.linux) {
 			continue
