@@ -7,7 +7,6 @@ package net
 import (
 	"os"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
@@ -27,7 +26,8 @@ type connFile interface {
 }
 
 func testFileListener(t *testing.T, net, laddr string) {
-	if net == "tcp" {
+	switch net {
+	case "tcp", "tcp4", "tcp6":
 		laddr += ":0" // any available port
 	}
 	l, err := Listen(net, laddr)
@@ -55,15 +55,46 @@ func testFileListener(t *testing.T, net, laddr string) {
 	}
 }
 
+var fileListenerTests = []struct {
+	net   string
+	laddr string
+	ipv6  bool // test with underlying AF_INET6 socket
+	linux bool // test with abstract unix domain socket, a Linux-ism
+}{
+	{net: "tcp", laddr: ""},
+	{net: "tcp", laddr: "0.0.0.0"},
+	{net: "tcp", laddr: "[::ffff:0.0.0.0]"},
+	{net: "tcp", laddr: "[::]", ipv6: true},
+
+	{net: "tcp", laddr: "127.0.0.1"},
+	{net: "tcp", laddr: "[::ffff:127.0.0.1]"},
+	{net: "tcp", laddr: "[::1]", ipv6: true},
+
+	{net: "tcp4", laddr: ""},
+	{net: "tcp4", laddr: "0.0.0.0"},
+	{net: "tcp4", laddr: "[::ffff:0.0.0.0]"},
+
+	{net: "tcp4", laddr: "127.0.0.1"},
+	{net: "tcp4", laddr: "[::ffff:127.0.0.1]"},
+
+	{net: "tcp6", laddr: "", ipv6: true},
+	{net: "tcp6", laddr: "[::]", ipv6: true},
+
+	{net: "tcp6", laddr: "[::1]", ipv6: true},
+
+	{net: "unix", laddr: "@gotest/net", linux: true},
+	{net: "unixpacket", laddr: "@gotest/net", linux: true},
+}
+
 func TestFileListener(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
-	}
-	testFileListener(t, "tcp", "127.0.0.1")
-	testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
-	if runtime.GOOS == "linux" {
-		testFileListener(t, "unix", "@gotest/net")
-		testFileListener(t, "unixpacket", "@gotest/net")
+	for _, tt := range fileListenerTests {
+		if skipServerTest(tt.net, "unix", tt.laddr, tt.ipv6, false, tt.linux) {
+			continue
+		}
+		if skipServerTest(tt.net, "unixpacket", tt.laddr, tt.ipv6, false, tt.linux) {
+			continue
+		}
+		testFileListener(t, tt.net, tt.laddr)
 	}
 }
 
@@ -93,9 +124,13 @@ func testFilePacketConn(t *testing.T, pcf packetConnFile, listen bool) {
 }
 
 func testFilePacketConnListen(t *testing.T, net, laddr string) {
+	switch net {
+	case "udp", "udp4", "udp6":
+		laddr += ":0" // any available port
+	}
 	l, err := ListenPacket(net, laddr)
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		t.Fatalf("ListenPacket failed: %v", err)
 	}
 	testFilePacketConn(t, l.(packetConnFile), true)
 	if err := l.Close(); err != nil {
@@ -104,6 +139,10 @@ func testFilePacketConnListen(t *testing.T, net, laddr string) {
 }
 
 func testFilePacketConnDial(t *testing.T, net, raddr string) {
+	switch net {
+	case "udp", "udp4", "udp6":
+		raddr += ":12345"
+	}
 	c, err := Dial(net, raddr)
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
@@ -114,17 +153,36 @@ func testFilePacketConnDial(t *testing.T, net, raddr string) {
 	}
 }
 
+var filePacketConnTests = []struct {
+	net   string
+	addr  string
+	ipv6  bool // test with underlying AF_INET6 socket
+	linux bool // test with abstract unix domain socket, a Linux-ism
+}{
+	{net: "udp", addr: "127.0.0.1"},
+	{net: "udp", addr: "[::ffff:127.0.0.1]"},
+	{net: "udp", addr: "[::1]", ipv6: true},
+
+	{net: "udp4", addr: "127.0.0.1"},
+	{net: "udp4", addr: "[::ffff:127.0.0.1]"},
+
+	{net: "udp6", addr: "[::1]", ipv6: true},
+
+	{net: "unixgram", addr: "@gotest3/net", linux: true},
+}
+
 func TestFilePacketConn(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
-	}
-	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
-	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
-	testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
-	if supportsIPv6 {
-		testFilePacketConnListen(t, "udp", "[::1]:0")
-	}
-	if runtime.GOOS == "linux" {
-		testFilePacketConnListen(t, "unixgram", "@gotest1/net")
+	for _, tt := range filePacketConnTests {
+		if skipServerTest(tt.net, "unixgram", tt.addr, tt.ipv6, false, tt.linux) {
+			continue
+		}
+		testFilePacketConnListen(t, tt.net, tt.addr)
+		switch tt.addr {
+		case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
+		default:
+			if tt.net != "unixgram" {
+				testFilePacketConnDial(t, tt.net, tt.addr)
+			}
+		}
 	}
 }
