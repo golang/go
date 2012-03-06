@@ -226,8 +226,8 @@ var pkgDeps = map[string][]string{
 	"os/user": {"L3", "CGO", "syscall"},
 
 	// Basic networking.
-	// TODO: Remove reflect, possibly math/rand.
-	"net": {"L0", "CGO", "math/rand", "os", "reflect", "sort", "syscall", "time"},
+	// TODO: maybe remove math/rand.
+	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {

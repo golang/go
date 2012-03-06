@@ -6,6 +6,7 @@ package net
 
 import (
 	"encoding/hex"
+	"reflect"
 	"testing"
 )
 
@@ -38,6 +39,16 @@ func TestDNSParseSRVReply(t *testing.T) {
 	if g, e := len(addrs), 5; g != e {
 		t.Errorf("len(addrs) = %d; want %d", g, e)
 		t.Logf("addrs = %#v", addrs)
+	}
+	// repack and unpack.
+	data2, ok := msg.Pack()
+	msg2 := new(dnsMsg)
+	msg2.Unpack(data2)
+	switch {
+	case !ok:
+		t.Errorf("failed to repack message")
+	case !reflect.DeepEqual(msg, msg2):
+		t.Errorf("repacked message differs from original")
 	}
 }
 
