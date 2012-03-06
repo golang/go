@@ -10,14 +10,6 @@
 
 extern SigTab runtime·sigtab[];
 
-String
-runtime·signame(int32 sig)
-{
-	if(sig < 0 || sig >= NSIG)
-		return runtime·emptystring;
-	return runtime·gostringnocopy((byte*)runtime·sigtab[sig].name);
-}
-
 void
 runtime·initsig(void)
 {

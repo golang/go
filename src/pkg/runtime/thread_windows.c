@@ -302,21 +302,6 @@ runtime·initsig(void)
 	USED(p);
 }
 
-String
-runtime·signame(int32 sig)
-{
-	int8 *s;
-
-	switch(sig) {
-	case SIGINT:
-		s = "SIGINT: interrupt";
-		break;
-	default:
-		return runtime·emptystring;
-	}
-	return runtime·gostringnocopy((byte*)s);
-}
-
 uint32
 runtime·ctrlhandler1(uint32 type)
 {

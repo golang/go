@@ -675,7 +675,6 @@ void	runtime·panicslice(void);
 /*
  * runtime c-called (but written in Go)
  */
-void	runtime·newError(String, Eface*);
 void	runtime·printany(Eface);
 void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
 void	runtime·newErrorString(String, Eface*);
@@ -706,7 +705,6 @@ float64	runtime·ldexp(float64 d, int32 e);
 float64	runtime·modf(float64 d, float64 *ip);
 void	runtime·semacquire(uint32*);
 void	runtime·semrelease(uint32*);
-String	runtime·signame(int32 sig);
 int32	runtime·gomaxprocsfunc(int32 n);
 void	runtime·procyield(uint32);
 void	runtime·osyield(void);
