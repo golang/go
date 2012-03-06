@@ -642,33 +642,61 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 }
 
-// Test paths relative to $GOROOT/src
-var abstests = []string{
-	"../AUTHORS",
-	"pkg/../../AUTHORS",
-	"Make.inc",
-	"pkg/math",
+// Test directories relative to temporary directory.
+// The tests are run in absTestDirs[0].
+var absTestDirs = []string{
+	"a",
+	"a/b",
+	"a/b/c",
+}
+
+// Test paths relative to temporary directory. $ expands to the directory.
+// The tests are run in absTestDirs[0].
+// We create absTestDirs first.
+var absTests = []string{
 	".",
-	"$GOROOT/src/Make.inc",
-	"$GOROOT/src/../src/Make.inc",
-	"$GOROOT/misc/cgo",
-	"$GOROOT",
+	"b",
+	"../a",
+	"../a/b",
+	"../a/b/./c/../../.././a",
+	"$",
+	"$/.",
+	"$/a/../a/b",
+	"$/a/b/c/../../.././a",
 }
 
 func TestAbs(t *testing.T) {
-	t.Logf("test needs to be rewritten; disabled")
-	return
-
 	oldwd, err := os.Getwd()
 	if err != nil {
-		t.Fatal("Getwd failed: " + err.Error())
+		t.Fatal("Getwd failed: ", err)
 	}
 	defer os.Chdir(oldwd)
-	goroot := os.Getenv("GOROOT")
-	cwd := filepath.Join(goroot, "src")
-	os.Chdir(cwd)
-	for _, path := range abstests {
-		path = strings.Replace(path, "$GOROOT", goroot, -1)
+
+	root, err := ioutil.TempDir("", "TestAbs")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(root)
+
+	err = os.Chdir(root)
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+
+	for _, dir := range absTestDirs {
+		err = os.Mkdir(dir, 0777)
+		if err != nil {
+			t.Fatal("Mkdir failed: ", err)
+		}
+	}
+
+	err = os.Chdir(absTestDirs[0])
+	if err != nil {
+		t.Fatal("chdir failed: ", err)
+	}
+
+	for _, path := range absTests {
+		path = strings.Replace(path, "$", root, -1)
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)
