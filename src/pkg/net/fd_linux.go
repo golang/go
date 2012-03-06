@@ -84,7 +84,8 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 
 	events, already := p.events[fd]
 	if !already {
-		print("Epoll unexpected fd=", fd, "\n")
+		// The fd returned by the kernel may have been
+		// cancelled already; return silently.
 		return
 	}
 
