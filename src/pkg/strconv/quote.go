@@ -5,7 +5,6 @@
 package strconv
 
 import (
-	"bytes"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -14,8 +13,9 @@ import (
 const lowerhex = "0123456789abcdef"
 
 func quoteWith(s string, quote byte, ASCIIonly bool) string {
-	var buf bytes.Buffer
-	buf.WriteByte(quote)
+	var runeTmp [utf8.UTFMax]byte
+	buf := make([]byte, 0, 3*len(s)/2) // Try to avoid more allocations.
+	buf = append(buf, quote)
 	for width := 0; len(s) > 0; s = s[width:] {
 		r := rune(s[0])
 		width = 1
@@ -23,64 +23,65 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 			r, width = utf8.DecodeRuneInString(s)
 		}
 		if width == 1 && r == utf8.RuneError {
-			buf.WriteString(`\x`)
-			buf.WriteByte(lowerhex[s[0]>>4])
-			buf.WriteByte(lowerhex[s[0]&0xF])
+			buf = append(buf, `\x`...)
+			buf = append(buf, lowerhex[s[0]>>4])
+			buf = append(buf, lowerhex[s[0]&0xF])
 			continue
 		}
 		if r == rune(quote) || r == '\\' { // always backslashed
-			buf.WriteByte('\\')
-			buf.WriteByte(byte(r))
+			buf = append(buf, '\\')
+			buf = append(buf, byte(r))
 			continue
 		}
 		if ASCIIonly {
 			if r <= unicode.MaxASCII && unicode.IsPrint(r) {
-				buf.WriteRune(r)
+				buf = append(buf, byte(r))
 				continue
 			}
 		} else if unicode.IsPrint(r) {
-			buf.WriteRune(r)
+			n := utf8.EncodeRune(runeTmp[:], r)
+			buf = append(buf, runeTmp[:n]...)
 			continue
 		}
 		switch r {
 		case '\a':
-			buf.WriteString(`\a`)
+			buf = append(buf, `\a`...)
 		case '\b':
-			buf.WriteString(`\b`)
+			buf = append(buf, `\b`...)
 		case '\f':
-			buf.WriteString(`\f`)
+			buf = append(buf, `\f`...)
 		case '\n':
-			buf.WriteString(`\n`)
+			buf = append(buf, `\n`...)
 		case '\r':
-			buf.WriteString(`\r`)
+			buf = append(buf, `\r`...)
 		case '\t':
-			buf.WriteString(`\t`)
+			buf = append(buf, `\t`...)
 		case '\v':
-			buf.WriteString(`\v`)
+			buf = append(buf, `\v`...)
 		default:
 			switch {
 			case r < ' ':
-				buf.WriteString(`\x`)
-				buf.WriteByte(lowerhex[s[0]>>4])
-				buf.WriteByte(lowerhex[s[0]&0xF])
+				buf = append(buf, `\x`...)
+				buf = append(buf, lowerhex[s[0]>>4])
+				buf = append(buf, lowerhex[s[0]&0xF])
 			case r > unicode.MaxRune:
 				r = 0xFFFD
 				fallthrough
 			case r < 0x10000:
-				buf.WriteString(`\u`)
+				buf = append(buf, `\u`...)
 				for s := 12; s >= 0; s -= 4 {
-					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
+					buf = append(buf, lowerhex[r>>uint(s)&0xF])
 				}
 			default:
-				buf.WriteString(`\U`)
+				buf = append(buf, `\U`...)
 				for s := 28; s >= 0; s -= 4 {
-					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
+					buf = append(buf, lowerhex[r>>uint(s)&0xF])
 				}
 			}
 		}
 	}
-	buf.WriteByte(quote)
-	return buf.String()
+	buf = append(buf, quote)
+	return string(buf)
 
 }
 
@@ -329,7 +330,8 @@ func Unquote(s string) (t string, err error) {
 		}
 	}
 
-	var buf bytes.Buffer
+	var runeTmp [utf8.UTFMax]byte
+	buf := make([]byte, 0, 3*len(s)/2) // Try to avoid more allocations.
 	for len(s) > 0 {
 		c, multibyte, ss, err := UnquoteChar(s, quote)
 		if err != nil {
@@ -337,14 +339,15 @@ func Unquote(s string) (t string, err error) {
 		}
 		s = ss
 		if c < utf8.RuneSelf || !multibyte {
-			buf.WriteByte(byte(c))
+			buf = append(buf, byte(c))
 		} else {
-			buf.WriteString(string(c))
+			n := utf8.EncodeRune(runeTmp[:], c)
+			buf = append(buf, runeTmp[:n]...)
 		}
 		if quote == '\'' && len(s) != 0 {
 			// single-quoted must be single character
 			return "", ErrSyntax
 		}
 	}
-	return buf.String(), nil
+	return string(buf), nil
 }
