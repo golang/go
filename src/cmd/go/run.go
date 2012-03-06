@@ -26,9 +26,7 @@ See also: go build.
 func init() {
 	cmdRun.Run = runRun // break init loop
 
-	cmdRun.Flag.BoolVar(&buildA, "a", false, "")
-	cmdRun.Flag.BoolVar(&buildN, "n", false, "")
-	cmdRun.Flag.BoolVar(&buildX, "x", false, "")
+	addBuildFlags(cmdRun)
 }
 
 func printStderr(args ...interface{}) (int, error) {
