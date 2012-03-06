@@ -349,6 +349,17 @@ var bools = []bool{false, true}
 var geese = []string{"darwin", "freebsd", "linux", "netbsd", "openbsd", "plan9", "windows"}
 var goarches = []string{"386", "amd64", "arm"}
 
+type osPkg struct {
+	goos, pkg string
+}
+
+// allowedErrors are the operating systems and packages known to contain errors
+// (currently just "no Go source files")
+var allowedErrors = map[osPkg]bool{
+	osPkg{"windows", "log/syslog"}: true,
+	osPkg{"plan9", "log/syslog"}:   true,
+}
+
 func TestDependencies(t *testing.T) {
 	var all []string
 
@@ -365,6 +376,9 @@ func TestDependencies(t *testing.T) {
 			}
 			p, err := ctxt.Import(pkg, "", 0)
 			if err != nil {
+				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
+					continue
+				}
 				// Some of the combinations we try might not
 				// be reasonable (like arm,plan9,cgo), so ignore
 				// errors for the auto-generated combinations.
