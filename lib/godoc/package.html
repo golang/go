@@ -163,7 +163,13 @@
 
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
-	{{if $.PDoc}}<h2 id="subdirectories">Subdirectories</h2>{{end}}
+	{{if $.PDoc}}
+		<h2 id="subdirectories">Subdirectories</h2>
+	{{else}}
+		<div class="pkgGopher">
+			<img class="gopher" src="/doc/gopher/pkg.png"/>
+		</div>
+	{{end}}
 	<table class="dir">
 	<tr>
 	<th>Name</th>

@@ -367,3 +367,20 @@ div#blog .read {
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
 hr { border-style: none; border-top: 1px solid black; }
+
+img.gopher {
+	float: right;
+	margin-left: 10px;
+	margin-bottom: 10px;
+}
+.pkgGopher {
+	text-align: right;
+}
+.pkgGopher .gopher {
+	float: none;
+	position: relative;
+	top: -40px;
+	margin-bottom: -120px;
+}
+h2 { clear: right; }
+
