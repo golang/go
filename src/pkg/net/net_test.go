@@ -21,6 +21,7 @@ var avoidOSXFirewallDialogPopup = func() bool {
 
 func TestShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
+		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
 	l, err := Listen("tcp", "127.0.0.1:0")
