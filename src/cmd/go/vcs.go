@@ -7,7 +7,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -302,12 +304,41 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
 	return nil, "", fmt.Errorf("directory %q is not using a known version control system", dir)
 }
 
-// vcsForImportPath analyzes importPath to determine the
+// repoRoot represents a version control system, a repo, and a root of
+// where to put it on disk.
+type repoRoot struct {
+	vcs *vcsCmd
+
+	// repo is the repository URL, including scheme
+	repo string
+
+	// root is the import path corresponding to the root of the
+	// repository
+	root string
+}
+
+// repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
-// On return, repo is the repository URL and root is the
-// import path corresponding to the root of the repository
-// (thus root is a prefix of importPath).
-func vcsForImportPath(importPath string) (vcs *vcsCmd, repo, root string, err error) {
+func repoRootForImportPath(importPath string) (*repoRoot, error) {
+	rr, err := repoRootForImportPathStatic(importPath, "")
+	if err == errUnknownSite {
+		rr, err = repoRootForImportDynamic(importPath)
+	}
+	return rr, err
+}
+
+var errUnknownSite = errors.New("dynamic lookup required to find mapping")
+
+// repoRootForImportPathStatic attempts to map importPath to a
+// repoRoot using the commonly-used VCS hosting sites in vcsPaths
+// (github.com/user/dir), or from a fully-qualified importPath already
+// containing its VCS type (foo.com/repo.git/dir)
+//
+// If scheme is non-empty, that scheme is forced.
+func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
+	if strings.Contains(importPath, "://") {
+		return nil, fmt.Errorf("invalid import path %q", importPath)
+	}
 	for _, srv := range vcsPaths {
 		if !strings.HasPrefix(importPath, srv.prefix) {
 			continue
@@ -315,7 +346,7 @@ func vcsForImportPath(importPath string) (vcs *vcsCmd, repo, root string, err er
 		m := srv.regexp.FindStringSubmatch(importPath)
 		if m == nil {
 			if srv.prefix != "" {
-				return nil, "", "", fmt.Errorf("invalid %s import path %q", srv.prefix, importPath)
+				return nil, fmt.Errorf("invalid %s import path %q", srv.prefix, importPath)
 			}
 			continue
 		}
@@ -338,24 +369,127 @@ func vcsForImportPath(importPath string) (vcs *vcsCmd, repo, root string, err er
 		}
 		if srv.check != nil {
 			if err := srv.check(match); err != nil {
-				return nil, "", "", err
+				return nil, err
 			}
 		}
 		vcs := vcsByCmd(match["vcs"])
 		if vcs == nil {
-			return nil, "", "", fmt.Errorf("unknown version control system %q", match["vcs"])
+			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
 		if srv.ping {
-			for _, scheme := range vcs.scheme {
-				if vcs.ping(scheme, match["repo"]) == nil {
-					match["repo"] = scheme + "://" + match["repo"]
-					break
+			if scheme != "" {
+				match["repo"] = scheme + "://" + match["repo"]
+			} else {
+				for _, scheme := range vcs.scheme {
+					if vcs.ping(scheme, match["repo"]) == nil {
+						match["repo"] = scheme + "://" + match["repo"]
+						break
+					}
 				}
 			}
 		}
-		return vcs, match["repo"], match["root"], nil
+		rr := &repoRoot{
+			vcs:  vcs,
+			repo: match["repo"],
+			root: match["root"],
+		}
+		return rr, nil
 	}
-	return nil, "", "", fmt.Errorf("unrecognized import path %q", importPath)
+	return nil, errUnknownSite
+}
+
+// repoRootForImportDynamic finds a *repoRoot for a custom domain that's not
+// statically known by repoRootForImportPathStatic.
+//
+// This handles "vanity import paths" like "name.tld/pkg/foo".
+func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
+	slash := strings.Index(importPath, "/")
+	if slash < 0 {
+		return nil, fmt.Errorf("missing / in import %q", importPath)
+	}
+	urlStr, body, err := httpsOrHTTP(importPath)
+	if err != nil {
+		return nil, fmt.Errorf("http/https fetch for import %q: %v", importPath, err)
+	}
+	defer body.Close()
+	metaImport, err := matchGoImport(parseMetaGoImports(body), importPath)
+	if err != nil {
+		if err != errNoMatch {
+			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
+		}
+		return nil, fmt.Errorf("parse %s: no go-import meta tags", urlStr)
+	}
+	if buildV {
+		log.Printf("get %q: found meta tag %#v at %s", importPath, metaImport, urlStr)
+	}
+	// If the import was "uni.edu/bob/project", which said the
+	// prefix was "uni.edu" and the RepoRoot was "evilroot.com",
+	// make sure we don't trust Bob and check out evilroot.com to
+	// "uni.edu" yet (possibly overwriting/preempting another
+	// non-evil student).  Instead, first verify the root and see
+	// if it matches Bob's claim.
+	if metaImport.Prefix != importPath {
+		if buildV {
+			log.Printf("get %q: verifying non-authoritative meta tag", importPath)
+		}
+		urlStr0 := urlStr
+		urlStr, body, err = httpsOrHTTP(metaImport.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("fetch %s: %v", urlStr, err)
+		}
+		imports := parseMetaGoImports(body)
+		if len(imports) == 0 {
+			return nil, fmt.Errorf("fetch %s: no go-import meta tag", urlStr)
+		}
+		metaImport2, err := matchGoImport(imports, importPath)
+		if err != nil || metaImport != metaImport2 {
+			return nil, fmt.Errorf("%s and %s disagree about go-import for %s", urlStr0, urlStr, metaImport.Prefix)
+		}
+	}
+
+	if !strings.Contains(metaImport.RepoRoot, "://") {
+		return nil, fmt.Errorf("%s: invalid repo root %q; no scheme", urlStr, metaImport.RepoRoot)
+	}
+	rr := &repoRoot{
+		vcs:  vcsByCmd(metaImport.VCS),
+		repo: metaImport.RepoRoot,
+		root: metaImport.Prefix,
+	}
+	if rr.vcs == nil {
+		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, metaImport.VCS)
+	}
+	return rr, nil
+}
+
+// metaImport represents the parsed <meta name="go-import"
+// content="prefix vcs reporoot" /> tags from HTML files.
+type metaImport struct {
+	Prefix, VCS, RepoRoot string
+}
+
+// errNoMatch is returned from matchGoImport when there's no applicable match.
+var errNoMatch = errors.New("no import match")
+
+// matchGoImport returns the metaImport from imports matching importPath.
+// An error is returned if there are multiple matches.
+// errNoMatch is returned if none match.
+func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
+	match := -1
+	for i, im := range imports {
+		if !strings.HasPrefix(importPath, im.Prefix) {
+			continue
+		}
+		if match != -1 {
+			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
+			return
+		}
+		match = i
+	}
+	if match == -1 {
+		err = errNoMatch
+		return
+	}
+	return imports[match], nil
 }
 
 // expand rewrites s to replace {k} with match[k] for each key k in match.
