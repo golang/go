@@ -1761,10 +1761,7 @@ var (
 <p>
 Finally, each source file can define its own niladic <code>init</code> function to
 set up whatever state is required.  (Actually each file can have multiple
-<code>init</code> functions.) The only restriction is that, although
-goroutines can be launched during initialization, they will not begin
-execution until it completes; initialization always runs as a single thread
-of execution.
+<code>init</code> functions.)
 And finally means finally: <code>init</code> is called after all the
 variable declarations in the package have evaluated their initializers,
 and those are evaluated only after all the imported packages have been
