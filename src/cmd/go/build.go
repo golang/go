@@ -168,9 +168,7 @@ func runBuild(cmd *Command, args []string) {
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
 		_, *buildO = path.Split(pkgs[0].ImportPath)
-		if goos == "windows" {
-			*buildO += ".exe"
-		}
+		*buildO += exeSuffix
 	}
 
 	if *buildO != "" {
@@ -392,7 +390,7 @@ func goFilesPackage(gofiles []string) *Package {
 	if *buildO == "" {
 		if pkg.Name == "main" {
 			_, elem := filepath.Split(gofiles[0])
-			*buildO = elem[:len(elem)-len(".go")]
+			*buildO = elem[:len(elem)-len(".go")] + exeSuffix
 		} else {
 			*buildO = pkg.Name + ".a"
 		}
