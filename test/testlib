@@ -28,7 +28,7 @@ run() {
 		esac
 	done
 
-	$G $D/$F.go "$gofiles" && $L $F.$A && ./$A.out "$@"
+	$G $D/$F.go $gofiles && $L $F.$A && ./$A.out "$@"
 }
 
 cmpout() {
