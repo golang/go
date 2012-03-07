@@ -5,25 +5,25 @@
 package tls
 
 import (
+	"crypto/x509"
+	"runtime"
 	"testing"
 )
 
 var tlsServers = []string{
-	"google.com:443",
-	"github.com:443",
-	"twitter.com:443",
+	"google.com",
+	"github.com",
+	"twitter.com",
 }
 
 func TestOSCertBundles(t *testing.T) {
-	defaultRoots()
-
 	if testing.Short() {
 		t.Logf("skipping certificate tests in short mode")
 		return
 	}
 
 	for _, addr := range tlsServers {
-		conn, err := Dial("tcp", addr, nil)
+		conn, err := Dial("tcp", addr+":443", &Config{ServerName: addr})
 		if err != nil {
 			t.Errorf("unable to verify %v: %v", addr, err)
 			continue
@@ -31,6 +31,31 @@ func TestOSCertBundles(t *testing.T) {
 		err = conn.Close()
 		if err != nil {
 			t.Error(err)
+		}
+	}
+}
+
+func TestCertHostnameVerifyWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	if testing.Short() {
+		t.Logf("skipping certificate tests in short mode")
+		return
+	}
+
+	for _, addr := range tlsServers {
+		cfg := &Config{ServerName: "example.com"}
+		conn, err := Dial("tcp", addr+":443", cfg)
+		if err == nil {
+			conn.Close()
+			t.Errorf("should fail to verify for example.com: %v", addr, err)
+			continue
+		}
+		_, ok := err.(x509.HostnameError)
+		if !ok {
+			t.Errorf("error type mismatch, got: %v", err)
 		}
 	}
 }

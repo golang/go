@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ type verifyTest struct {
 	roots         []string
 	currentTime   int64
 	dnsName       string
-	nilRoots      bool
+	systemSkip    bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -60,14 +61,6 @@ var verifyTests = []verifyTest{
 	{
 		leaf:          googleLeaf,
 		intermediates: []string{thawteIntermediate},
-		nilRoots:      true, // verifies that we don't crash
-		currentTime:   1302726541,
-		dnsName:       "www.google.com",
-		errorCallback: expectAuthorityUnknown,
-	},
-	{
-		leaf:          googleLeaf,
-		intermediates: []string{thawteIntermediate},
 		roots:         []string{verisignRoot},
 		currentTime:   1,
 		dnsName:       "www.example.com",
@@ -80,6 +73,9 @@ var verifyTests = []verifyTest{
 		currentTime: 1302726541,
 		dnsName:     "www.google.com",
 
+		// Skip when using systemVerify, since Windows
+		// *will* find the missing intermediate cert.
+		systemSkip:    true,
 		errorCallback: expectAuthorityUnknown,
 	},
 	{
@@ -109,6 +105,9 @@ var verifyTests = []verifyTest{
 		roots:         []string{startComRoot},
 		currentTime:   1302726541,
 
+		// Skip when using systemVerify, since Windows
+		// can only return a single chain to us (for now).
+		systemSkip: true,
 		expectedChains: [][]string{
 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
@@ -148,23 +147,26 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 	return ParseCertificate(block.Bytes)
 }
 
-func TestVerify(t *testing.T) {
+func testVerify(t *testing.T, useSystemRoots bool) {
 	for i, test := range verifyTests {
+		if useSystemRoots && test.systemSkip {
+			continue
+		}
+
 		opts := VerifyOptions{
-			Roots:         NewCertPool(),
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,
 			CurrentTime:   time.Unix(test.currentTime, 0),
 		}
-		if test.nilRoots {
-			opts.Roots = nil
-		}
 
-		for j, root := range test.roots {
-			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
-			if !ok {
-				t.Errorf("#%d: failed to parse root #%d", i, j)
-				return
+		if !useSystemRoots {
+			opts.Roots = NewCertPool()
+			for j, root := range test.roots {
+				ok := opts.Roots.AppendCertsFromPEM([]byte(root))
+				if !ok {
+					t.Errorf("#%d: failed to parse root #%d", i, j)
+					return
+				}
 			}
 		}
 
@@ -223,6 +225,19 @@ func TestVerify(t *testing.T) {
 			t.Errorf("#%d: No expected chain matched %s", i, chainToDebugString(chain))
 		}
 	}
+}
+
+func TestGoVerify(t *testing.T) {
+	testVerify(t, false)
+}
+
+func TestSystemVerify(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Logf("skipping verify test using system APIs on %q", runtime.GOOS)
+		return
+	}
+
+	testVerify(t, true)
 }
 
 func chainToDebugString(chain []*Certificate) string {

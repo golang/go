@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package tls
+package x509
 
 /*
 #cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
@@ -59,13 +59,14 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
 }
 */
 import "C"
-import (
-	"crypto/x509"
-	"unsafe"
-)
+import "unsafe"
 
-func initDefaultRoots() {
-	roots := x509.NewCertPool()
+func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	return nil, nil
+}
+
+func initSystemRoots() {
+	roots := NewCertPool()
 
 	var data C.CFDataRef = nil
 	err := C.FetchPEMRoots(&data)
@@ -75,5 +76,5 @@ func initDefaultRoots() {
 		roots.AppendCertsFromPEM(buf)
 	}
 
-	varDefaultRoots = roots
+	systemRoots = roots
 }

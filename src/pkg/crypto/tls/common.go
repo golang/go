@@ -198,14 +198,6 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
-func (c *Config) rootCAs() *x509.CertPool {
-	s := c.RootCAs
-	if s == nil {
-		s = defaultRoots()
-	}
-	return s
-}
-
 func (c *Config) cipherSuites() []uint16 {
 	s := c.CipherSuites
 	if s == nil {
@@ -311,27 +303,15 @@ func defaultConfig() *Config {
 	return &emptyConfig
 }
 
-var once sync.Once
-
-func defaultRoots() *x509.CertPool {
-	once.Do(initDefaults)
-	return varDefaultRoots
-}
-
-func defaultCipherSuites() []uint16 {
-	once.Do(initDefaults)
-	return varDefaultCipherSuites
-}
-
-func initDefaults() {
-	initDefaultRoots()
-	initDefaultCipherSuites()
-}
-
 var (
-	varDefaultRoots        *x509.CertPool
+	once                   sync.Once
 	varDefaultCipherSuites []uint16
 )
+
+func defaultCipherSuites() []uint16 {
+	once.Do(initDefaultCipherSuites)
+	return varDefaultCipherSuites
+}
 
 func initDefaultCipherSuites() {
 	varDefaultCipherSuites = make([]uint16, len(cipherSuites))
