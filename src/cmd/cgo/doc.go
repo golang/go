@@ -44,6 +44,11 @@ For example:
 	// #include <png.h>
 	import "C"
 
+The CGO_CFLAGS and CGO_LDFLAGS environment variables are added
+to the flags derived from these directives.  Package-specific flags should
+be set using the directives, not the environment variables, so that builds
+work in unmodified environments.
+
 Within the Go file, C identifiers or field names that are keywords in Go
 can be accessed by prefixing them with an underscore: if x points at a C
 struct with a field named "type", x._type accesses the field.
