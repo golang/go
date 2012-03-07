@@ -4,7 +4,10 @@
 # license that can be found in the LICENSE file.
 
 set -e
-gomake hello fib chain
+go build hello.go
+go build fib.go
+go build chain.go
+
 echo '*' hello >run.out
 ./hello >>run.out
 echo '*' fib >>run.out
@@ -12,4 +15,6 @@ echo '*' fib >>run.out
 echo '*' chain >>run.out
 ./chain >>run.out
 diff run.out golden.out
-gomake clean
+
+rm -f hello fib chain
+

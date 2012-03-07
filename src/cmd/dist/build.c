@@ -52,6 +52,19 @@ static char *okgoos[] = {
 	"windows",
 };
 
+// The known cgo-enabled combinations.
+// This list is also known to ../../pkg/go/build/build.go.
+static char *okcgo[] = {
+	"darwin/386",
+	"darwin/amd64",
+	"linux/386",
+	"linux/amd64",
+	"freebsd/386",
+	"freebsd/amd64",
+	"windows/386",
+	"windows/amd64",
+};
+
 static void rmworkdir(void);
 
 // find reports the first index of p in l[0:n], or else -1.
@@ -1307,6 +1320,11 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOHOSTOS", gohostos);
 	xprintf(format, "GOTOOLDIR", tooldir);
 	xprintf(format, "GOCHAR", gochar);
+
+	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)))
+		xprintf(format, "CGO_ENABLED", "1");
+	else
+		xprintf(format, "CGO_ENABLED", "0");
 
 	if(pflag) {
 		sep = ":";

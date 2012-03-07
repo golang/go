@@ -55,7 +55,7 @@ int add(int x, int y) {
 */
 import "C"
 import (
-	"os"
+	"syscall"
 	"testing"
 	"unsafe"
 )
@@ -110,7 +110,7 @@ func testErrno(t *testing.T) {
 		C.fclose(f)
 		t.Fatalf("C.fopen: should fail")
 	}
-	if err != os.ENOENT {
+	if err != syscall.ENOENT {
 		t.Fatalf("C.fopen: unexpected error: %v", err)
 	}
 }

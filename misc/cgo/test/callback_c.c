@@ -15,3 +15,23 @@ callback(void *f)
 	goCallback(f);
         data[sizeof(data)-1] = 0;
 }
+
+void
+callGoFoo(void)
+{
+	extern void goFoo(void);
+	goFoo();
+}
+
+void
+IntoC(void)
+{
+	BackIntoGo();
+}
+
+void
+twoSleep(int n)
+{
+	BackgroundSleep(n);
+	sleep(n);
+}
