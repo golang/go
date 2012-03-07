@@ -210,6 +210,8 @@ func runTests() {
 	}
 }
 
+var cwd, _ = os.Getwd()
+
 func (t *test) goFileName() string {
 	return filepath.Join(t.dir, t.gofile)
 }
@@ -237,7 +239,13 @@ func (t *test) run() {
 	if strings.HasPrefix(action, "//") {
 		action = action[2:]
 	}
-	action = strings.TrimSpace(action)
+	
+	var args []string
+	f := strings.Fields(action)
+	if len(f) > 0 {
+		action = f[0]
+		args = f[1:]
+	}
 
 	switch action {
 	case "cmpout":
@@ -256,67 +264,53 @@ func (t *test) run() {
 
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	check(err)
-
-	cmd := exec.Command("go", "tool", gc, "-e", "-o", "a."+letter, t.gofile)
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	cmd.Dir = t.tempDir
-	err = cmd.Run()
-	out := buf.String()
-
-	if action == "errorcheck" {
-		t.err = t.errorCheck(out)
-		return
-	}
-
-	if err != nil {
-		t.err = fmt.Errorf("build = %v (%q)", err, out)
-		return
-	}
-
-	if action == "compile" {
-		return
-	}
-
-	if action == "build" || action == "run" {
-		buf.Reset()
-		cmd = exec.Command("go", "tool", ld, "-o", "a.out", "a."+letter)
+	
+	useTmp := true
+	runcmd := func(args ...string) ([]byte, error) {
+		cmd := exec.Command(args[0], args[1:]...)
+		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
-		cmd.Dir = t.tempDir
-		err = cmd.Run()
-		out = buf.String()
-		if err != nil {
-			t.err = fmt.Errorf("link = %v (%q)", err, out)
-			return
+		if useTmp {
+			cmd.Dir = t.tempDir
 		}
-		if action == "build" {
-			return
-		}
+		cmd.Env = append(cmd.Env, "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
+		err := cmd.Run()
+		return buf.Bytes(), err
 	}
 
-	if action == "run" {
-		buf.Reset()
-		cmd = exec.Command(filepath.Join(t.tempDir, "a.out"))
-		cmd.Stdout = &buf
-		cmd.Stderr = &buf
-		cmd.Dir = t.tempDir
-		cmd.Env = append(cmd.Env, "GOARCH="+runtime.GOARCH)
-		err = cmd.Run()
-		out = buf.String()
-		if err != nil {
-			t.err = fmt.Errorf("run = %v (%q)", err, out)
-			return
-		}
+	long := filepath.Join(cwd, t.goFileName())
+	switch action {	
+	default:
+		t.err = fmt.Errorf("unimplemented action %q", action)
 
-		if out != t.expectedOutput() {
-			t.err = fmt.Errorf("output differs; got:\n%s", out)
-		}
+	case "errorcheck":
+		out, _ := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
+		t.err = t.errorCheck(string(out), long, t.gofile)
 		return
+	
+	case "compile":
+		out, err := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+	
+	case "build":
+		out, err := runcmd("go", "build", "-o", "a.exe", long)
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+	
+	case "run":
+		useTmp = false
+		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+		if string(out) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
+		}
 	}
-
-	t.err = fmt.Errorf("unimplemented action %q", action)
 }
 
 func (t *test) String() string {
@@ -337,7 +331,7 @@ func (t *test) expectedOutput() string {
 	return string(b)
 }
 
-func (t *test) errorCheck(outStr string) (err error) {
+func (t *test) errorCheck(outStr string, full, short string) (err error) {
 	defer func() {
 		if *verbose && err != nil {
 			log.Printf("%s gc output:\n%s", t, outStr)
@@ -356,11 +350,16 @@ func (t *test) errorCheck(outStr string) (err error) {
 		}
 	}
 
+	// Cut directory name.
+	for i := range out {
+		out[i] = strings.Replace(out[i], full, short, -1)
+	}
+
 	for _, we := range t.wantedErrors() {
 		var errmsgs []string
 		errmsgs, out = partitionStrings(we.filterRe, out)
 		if len(errmsgs) == 0 {
-			errs = append(errs, fmt.Errorf("errchk: %s:%d: missing expected error: %s", we.file, we.lineNum, we.reStr))
+			errs = append(errs, fmt.Errorf("%s:%d: missing error %q", we.file, we.lineNum, we.reStr))
 			continue
 		}
 		matched := false
@@ -372,7 +371,7 @@ func (t *test) errorCheck(outStr string) (err error) {
 			}
 		}
 		if !matched {
-			errs = append(errs, fmt.Errorf("errchk: %s:%d: error(s) on line didn't match pattern: %s", we.file, we.lineNum, we.reStr))
+			errs = append(errs, fmt.Errorf("%s:%d: no match for %q in%s", we.file, we.lineNum, we.reStr, strings.Join(out, "\n")))
 			continue
 		}
 	}
@@ -384,7 +383,7 @@ func (t *test) errorCheck(outStr string) (err error) {
 		return errs[0]
 	}
 	var buf bytes.Buffer
-	buf.WriteString("Multiple errors:\n")
+	fmt.Fprintf(&buf, "\n")
 	for _, err := range errs {
 		fmt.Fprintf(&buf, "%s\n", err.Error())
 	}

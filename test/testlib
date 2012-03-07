@@ -14,7 +14,21 @@ build() {
 }
 
 run() {
-	$G $D/$F.go && $L $F.$A && ./$A.out "$@"
+	gofiles=""
+	ingo=true
+	while $ingo; do
+		case "$1" in
+		*.go)
+			gofiles="$gofiles $1"
+			shift
+			;;
+		*)
+			ingo=false
+			;;
+		esac
+	done
+
+	$G $D/$F.go "$gofiles" && $L $F.$A && ./$A.out "$@"
 }
 
 cmpout() {
