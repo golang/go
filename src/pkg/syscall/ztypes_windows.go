@@ -208,6 +208,61 @@ const (
 	CRYPT_MACHINE_KEYSET             = 0x00000020
 	CRYPT_SILENT                     = 0x00000040
 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
+
+	USAGE_MATCH_TYPE_AND = 0
+	USAGE_MATCH_TYPE_OR  = 1
+
+	X509_ASN_ENCODING   = 0x00000001
+	PKCS_7_ASN_ENCODING = 0x00010000
+
+	CERT_STORE_PROV_MEMORY = 2
+
+	CERT_STORE_ADD_ALWAYS = 4
+
+	CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG = 0x00000004
+
+	CERT_TRUST_NO_ERROR                          = 0x00000000
+	CERT_TRUST_IS_NOT_TIME_VALID                 = 0x00000001
+	CERT_TRUST_IS_REVOKED                        = 0x00000004
+	CERT_TRUST_IS_NOT_SIGNATURE_VALID            = 0x00000008
+	CERT_TRUST_IS_NOT_VALID_FOR_USAGE            = 0x00000010
+	CERT_TRUST_IS_UNTRUSTED_ROOT                 = 0x00000020
+	CERT_TRUST_REVOCATION_STATUS_UNKNOWN         = 0x00000040
+	CERT_TRUST_IS_CYCLIC                         = 0x00000080
+	CERT_TRUST_INVALID_EXTENSION                 = 0x00000100
+	CERT_TRUST_INVALID_POLICY_CONSTRAINTS        = 0x00000200
+	CERT_TRUST_INVALID_BASIC_CONSTRAINTS         = 0x00000400
+	CERT_TRUST_INVALID_NAME_CONSTRAINTS          = 0x00000800
+	CERT_TRUST_HAS_NOT_SUPPORTED_NAME_CONSTRAINT = 0x00001000
+	CERT_TRUST_HAS_NOT_DEFINED_NAME_CONSTRAINT   = 0x00002000
+	CERT_TRUST_HAS_NOT_PERMITTED_NAME_CONSTRAINT = 0x00004000
+	CERT_TRUST_HAS_EXCLUDED_NAME_CONSTRAINT      = 0x00008000
+	CERT_TRUST_IS_OFFLINE_REVOCATION             = 0x01000000
+	CERT_TRUST_NO_ISSUANCE_CHAIN_POLICY          = 0x02000000
+	CERT_TRUST_IS_EXPLICIT_DISTRUST              = 0x04000000
+	CERT_TRUST_HAS_NOT_SUPPORTED_CRITICAL_EXT    = 0x08000000
+
+	CERT_CHAIN_POLICY_BASE              = 1
+	CERT_CHAIN_POLICY_AUTHENTICODE      = 2
+	CERT_CHAIN_POLICY_AUTHENTICODE_TS   = 3
+	CERT_CHAIN_POLICY_SSL               = 4
+	CERT_CHAIN_POLICY_BASIC_CONSTRAINTS = 5
+	CERT_CHAIN_POLICY_NT_AUTH           = 6
+	CERT_CHAIN_POLICY_MICROSOFT_ROOT    = 7
+	CERT_CHAIN_POLICY_EV                = 8
+
+	CERT_E_EXPIRED       = 0x800B0101
+	CERT_E_ROLE          = 0x800B0103
+	CERT_E_PURPOSE       = 0x800B0106
+	CERT_E_UNTRUSTEDROOT = 0x800B0109
+	CERT_E_CN_NO_MATCH   = 0x800B010F
+
+	AUTHTYPE_CLIENT = 1
+	AUTHTYPE_SERVER = 2
+)
+
+var (
+	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1" + string([]byte{0}))
 )
 
 // Invented values to support what package os expects.
@@ -700,6 +755,93 @@ type CertContext struct {
 	Length       uint32
 	CertInfo     uintptr
 	Store        Handle
+}
+
+type CertChainContext struct {
+	Size                       uint32
+	TrustStatus                CertTrustStatus
+	ChainCount                 uint32
+	Chains                     **CertSimpleChain
+	LowerQualityChainCount     uint32
+	LowerQualityChains         **CertChainContext
+	HasRevocationFreshnessTime uint32
+	RevocationFreshnessTime    uint32
+}
+
+type CertSimpleChain struct {
+	Size                       uint32
+	TrustStatus                CertTrustStatus
+	NumElements                uint32
+	Elements                   **CertChainElement
+	TrustListInfo              uintptr
+	HasRevocationFreshnessTime uint32
+	RevocationFreshnessTime    uint32
+}
+
+type CertChainElement struct {
+	Size              uint32
+	CertContext       *CertContext
+	TrustStatus       CertTrustStatus
+	RevocationInfo    *CertRevocationInfo
+	IssuanceUsage     *CertEnhKeyUsage
+	ApplicationUsage  *CertEnhKeyUsage
+	ExtendedErrorInfo *uint16
+}
+
+type CertRevocationInfo struct {
+	Size             uint32
+	RevocationResult uint32
+	RevocationOid    *byte
+	OidSpecificInfo  uintptr
+	HasFreshnessTime uint32
+	FreshnessTime    uint32
+	CrlInfo          uintptr // *CertRevocationCrlInfo
+}
+
+type CertTrustStatus struct {
+	ErrorStatus uint32
+	InfoStatus  uint32
+}
+
+type CertUsageMatch struct {
+	Type  uint32
+	Usage CertEnhKeyUsage
+}
+
+type CertEnhKeyUsage struct {
+	Length           uint32
+	UsageIdentifiers **byte
+}
+
+type CertChainPara struct {
+	Size                         uint32
+	RequestedUsage               CertUsageMatch
+	RequstedIssuancePolicy       CertUsageMatch
+	URLRetrievalTimeout          uint32
+	CheckRevocationFreshnessTime uint32
+	RevocationFreshnessTime      uint32
+	CacheResync                  *Filetime
+}
+
+type CertChainPolicyPara struct {
+	Size            uint32
+	Flags           uint32
+	ExtraPolicyPara uintptr
+}
+
+type SSLExtraCertChainPolicyPara struct {
+	Size       uint32
+	AuthType   uint32
+	Checks     uint32
+	ServerName *uint16
+}
+
+type CertChainPolicyStatus struct {
+	Size              uint32
+	Error             uint32
+	ChainIndex        uint32
+	ElementIndex      uint32
+	ExtraPolicyStatus uintptr
 }
 
 const (

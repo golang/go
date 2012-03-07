@@ -4,7 +4,12 @@
 
 // +build plan9 darwin,!cgo
 
-package tls
+package x509
 
-func initDefaultRoots() {
+func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	return nil, nil
+}
+
+func initSystemRoots() {
+	systemRoots = NewCertPool()
 }

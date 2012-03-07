@@ -4,12 +4,9 @@
 
 // +build freebsd linux openbsd netbsd
 
-package tls
+package x509
 
-import (
-	"crypto/x509"
-	"io/ioutil"
-)
+import "io/ioutil"
 
 // Possible certificate files; stop after finding one.
 var certFiles = []string{
@@ -20,8 +17,12 @@ var certFiles = []string{
 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD
 }
 
-func initDefaultRoots() {
-	roots := x509.NewCertPool()
+func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+	return nil, nil
+}
+
+func initSystemRoots() {
+	roots := NewCertPool()
 	for _, file := range certFiles {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
@@ -29,5 +30,6 @@ func initDefaultRoots() {
 			break
 		}
 	}
-	varDefaultRoots = roots
+
+	systemRoots = roots
 }

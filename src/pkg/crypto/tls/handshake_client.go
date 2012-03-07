@@ -102,7 +102,7 @@ func (c *Conn) clientHandshake() error {
 
 	if !c.config.InsecureSkipVerify {
 		opts := x509.VerifyOptions{
-			Roots:         c.config.rootCAs(),
+			Roots:         c.config.RootCAs,
 			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),

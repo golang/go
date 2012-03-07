@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -81,7 +82,7 @@ func (e UnknownAuthorityError) Error() string {
 type VerifyOptions struct {
 	DNSName       string
 	Intermediates *CertPool
-	Roots         *CertPool
+	Roots         *CertPool // if nil, the system roots are used
 	CurrentTime   time.Time // if zero, the current time is used
 }
 
@@ -146,22 +147,33 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 }
 
 // Verify attempts to verify c by building one or more chains from c to a
-// certificate in opts.roots, using certificates in opts.Intermediates if
+// certificate in opts.Roots, using certificates in opts.Intermediates if
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
 //
 // WARNING: this doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+	// Use Windows's own verification and chain building.
+	if opts.Roots == nil && runtime.GOOS == "windows" {
+		return c.systemVerify(&opts)
+	}
+
+	if opts.Roots == nil {
+		opts.Roots = systemRootsPool()
+	}
+
 	err = c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
 		return
 	}
+
 	if len(opts.DNSName) > 0 {
 		err = c.VerifyHostname(opts.DNSName)
 		if err != nil {
 			return
 		}
 	}
+
 	return c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
 }
 

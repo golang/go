@@ -97,7 +97,9 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 	if config == nil {
 		config = defaultConfig()
 	}
-	if config.ServerName != "" {
+	// If no ServerName is set, infer the ServerName
+	// from the hostname we're connecting to.
+	if config.ServerName == "" {
 		// Make a copy to avoid polluting argument or default.
 		c := *config
 		c.ServerName = hostname
