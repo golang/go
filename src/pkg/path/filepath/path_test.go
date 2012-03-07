@@ -621,6 +621,12 @@ func TestEvalSymlinks(t *testing.T) {
 			if d.path == d.dest {
 				// will test only real files and directories
 				tests = append(tests, d)
+				// test "canonical" names
+				d2 := EvalSymlinksTest{
+					path: strings.ToUpper(d.path),
+					dest: d.dest,
+				}
+				tests = append(tests, d2)
 			}
 		}
 	} else {
