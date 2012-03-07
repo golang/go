@@ -39,8 +39,6 @@ xcd() {
 	builtin cd "$GOROOT"/src/$1
 }
 
-BROKEN=true
-
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
@@ -70,33 +68,24 @@ $BROKEN ||
 time ./run
 ) || exit $?
 
-$BROKEN ||
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
-(xcd ../doc/codelab/wiki
-"$GOMAKE" clean
-"$GOMAKE"
-"$GOMAKE" test
+(xcd ../doc/articles/wiki
+make clean
+./test.sh
 ) || exit $?
 
-$BROKEN ||
-for i in ../misc/dashboard/builder ../misc/goplay
-do
-	(xcd $i
-	"$GOMAKE" clean
-	"$GOMAKE"
-	) || exit $?
-done
+echo
+echo '#' ../misc/dashboard/builder ../misc/goplay
+go build ../misc/dashboard/builder ../misc/goplay || exit $?
 
-$BROKEN ||
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
 ./timing.sh -test
 ) || exit $?
 
-$BROKEN ||
-(xcd ../test/bench/go1
-"$GOMAKE" test
-) || exit $?
+echo
+echo '#' ../test/bench/go1
+go test ../test/bench/go1 || exit $?
 
 (xcd ../test
 time go run run.go
