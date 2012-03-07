@@ -25,7 +25,7 @@ In command-line mode, the -q flag enables search queries against a godoc running
 as a webserver. If no explicit server address is specified with the -server flag,
 godoc first tries localhost:6060 and then http://golang.org.
 
-	godoc -q Reader Writer
+	godoc -q Reader
 	godoc -q math.Sin
 	godoc -server=:6060 -q sin
 
@@ -87,17 +87,15 @@ The flags are:
 		directory containing alternate template files; if set,
 		the directory may provide alternative template files
 		for the files in $GOROOT/lib/godoc
-	-filter=""
-		filter file containing permitted package directory paths
-	-filter_minutes=0
-		filter file update interval in minutes; update is disabled if <= 0
 	-zip=""
 		zip file providing the file system to serve; disabled if empty
 
-The -path flag accepts a list of colon-separated paths; unrooted paths are relative
-to the current working directory. Each path is considered as an additional root for
-packages in order of appearance. The last (absolute) path element is the prefix for
-the package path. For instance, given the flag value:
+By default, godoc looks at the packages it finds via $GOROOT and $GOPATH (if set).
+Additional directories may be specified via the -path flag which accepts a list
+of colon-separated paths; unrooted paths are relative to the current working
+directory. Each path is considered as an additional root for packages in order
+of appearance. The last (absolute) path element is the prefix for the package
+path. For instance, given the flag value:
 
 	path=".:/home/bar:/public"
 
@@ -107,13 +105,6 @@ as follows:
 	/home/user/godoc/x -> godoc/x
 	/home/bar/x        -> bar/x
 	/public/x          -> public/x
-
-Paths provided via -path may point to very large file systems that contain
-non-Go files. Creating the subtree of directories with Go packages may take
-a long amount of time. A file containing newline-separated directory paths
-may be provided with the -filter flag; if it exists, only directories
-on those paths are considered. If -filter_minutes is set, the filter_file is
-updated regularly by walking the entire directory tree.
 
 When godoc runs as a web server and -index is set, a search index is maintained.
 The index is created at startup and is automatically updated every time the
@@ -159,5 +150,6 @@ one may run godoc as follows:
 
 See "Godoc: documenting Go code" for how to write good comments for godoc:
 http://blog.golang.org/2011/03/godoc-documenting-go-code.html
+
 */
 package documentation
