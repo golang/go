@@ -1195,10 +1195,17 @@ methodsym(Sym *nsym, Type *t0, int iface)
 		if(t0->width < types[tptr]->width)
 			suffix = "·i";
 	}
-	if(t0->sym == S && isptr[t0->etype])
-		p = smprint("(%-hT).%s%s", t0, nsym->name, suffix);
-	else
-		p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
+	if(nsym->pkg != s->pkg && !exportname(nsym->name)) {
+		if(t0->sym == S && isptr[t0->etype])
+			p = smprint("(%-hT).%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
+		else
+			p = smprint("%-hT.%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
+	} else {
+		if(t0->sym == S && isptr[t0->etype])
+			p = smprint("(%-hT).%s%s", t0, nsym->name, suffix);
+		else
+			p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
+	}
 	s = pkglookup(p, s->pkg);
 	free(p);
 	return s;

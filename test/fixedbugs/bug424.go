@@ -1,3 +1,5 @@
+// run
+
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -9,7 +11,9 @@
 
 package main
 
-import "./lib"
+import "./bug424.dir"
+import "reflect"
+import "fmt"
 
 type localI interface {
 	m() string
@@ -53,9 +57,19 @@ func main() {
 		println("BUG: myT2:", i.m(), "called")
 	}
 
+	t3 := new(myT3)
+	if t3.m() != "main.localT.m" {
+		println("BUG: t3:", t3.m(), "called")
+	}
+	
 	i = new(myT3)
 	if i.m() != "main.localT.m" {
+		t := reflect.TypeOf(i)
+		n := t.NumMethod()
+		for j := 0; j < n; j++ {
+			m := t.Method(j)
+			fmt.Printf("#%d: %s.%s %s\n", j, m.PkgPath, m.Name, m.Type)
+		}
 		println("BUG: myT3:", i.m(), "called")
 	}
-
 }
