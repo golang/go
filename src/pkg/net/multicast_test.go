@@ -90,6 +90,11 @@ func TestSimpleMulticastListener(t *testing.T) {
 	case "plan9":
 		t.Logf("skipping test on %q", runtime.GOOS)
 		return
+	case "windows":
+		if testing.Short() || !*testExternal {
+			t.Logf("skipping test on windows to avoid firewall")
+			return
+		}
 	}
 
 	for _, tt := range multicastListenerTests {
