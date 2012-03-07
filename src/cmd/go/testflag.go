@@ -142,7 +142,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		case "tags":
 			buildContext.BuildTags = strings.Fields(value)
 		case "compiler":
-			buildContext.Compiler = value
+			buildCompiler{}.Set(value)
 		case "file":
 			testFiles = append(testFiles, value)
 		case "bench":
