@@ -86,6 +86,7 @@ For more about specifying packages, see 'go help packages'.
 
 func init() {
 	cmdList.Run = runList // break init cycle
+	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
 }
 
 var listE = cmdList.Flag.Bool("e", false, "")
