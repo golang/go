@@ -216,7 +216,7 @@ At the basic level, reflection is just a mechanism to examine the
 type and value pair stored inside an interface variable. To get
 started, there are two types we need to know about in
 <a href="http://golang.org/pkg/reflect">package reflect</a>:
-<a href="http://golang.org/pkg/reflect/#Type">Type</a>and
+<a href="http://golang.org/pkg/reflect/#Type">Type</a> and
 <a href="http://golang.org/pkg/reflect/#Value">Value</a>. Those two types
 give access to the contents of an interface variable, and two
 simple functions, called <code>reflect.TypeOf</code> and
@@ -356,7 +356,7 @@ reflection object contains a value of a user-defined integer type,
 as in
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f3/` `/STOP/`}}
 -->    type MyInt int
     var x MyInt = 7
     v := reflect.ValueOf(x)</pre>
@@ -395,7 +395,7 @@ func (v Value) Interface() interface{}
 As a consequence we can say
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3b/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f3b/` `/STOP/`}}
 -->    y := v.Interface().(float64) // y will have type float64.
     fmt.Println(y)</pre>
 
@@ -415,7 +415,7 @@ the <code>Interface</code> method to the formatted print
 routine:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3c/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f3c/` `/STOP/`}}
 -->    fmt.Println(v.Interface())</pre>
 
 <p>
@@ -518,7 +518,7 @@ determined by whether the reflection object holds the original
 item. When we say
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f6/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f6/` `/STOP/`}}
 -->    var x float64 = 3.4
     v := reflect.ValueOf(x)</pre>
 
@@ -577,7 +577,7 @@ and then create a reflection value that points to it, called
 <code>p</code>.
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f7/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f7/` `/STOP/`}}
 -->    var x float64 = 3.4
     p := reflect.ValueOf(&amp;x) // Note: take the address of x.
     fmt.Println(&#34;type of p:&#34;, p.Type())
@@ -601,7 +601,7 @@ and save the result in a reflection <code>Value</code> called
 <code>v</code>:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f7b/` `/START/`}}
+<pre><!--{{code "progs/interface2.go" `/START f7b/` `/STOP/`}}
 -->    v := p.Elem()
     fmt.Println(&#34;settability of v:&#34;, v.CanSet())</pre>
 
@@ -676,10 +676,7 @@ objects.
         f := s.Field(i)
         fmt.Printf(&#34;%d: %s %s = %v\n&#34;, i,
             typeOfT.Field(i).Name, f.Type(), f.Interface())
-    }
-    s.Field(0).SetInt(77)
-    s.Field(1).SetString(&#34;Sunset Strip&#34;)
-    fmt.Println(&#34;t is now&#34;, t)</pre>
+    }</pre>
 
 <p>
 The output of this program is
