@@ -175,6 +175,16 @@ var ErrNoRows = errors.New("sql: no rows in result set")
 
 // DB is a database handle. It's safe for concurrent use by multiple
 // goroutines.
+//
+// If the underlying database driver has the concept of a connection
+// and per-connection session state, the sql package manages creating
+// and freeing connections automatically, including maintaining a free
+// pool of idle connections. If observing session state is required,
+// either do not share a *DB between multiple concurrent goroutines or
+// create and observe all state only within a transaction. Once
+// DB.Open is called, the returned Tx is bound to a single isolated
+// connection. Once Tx.Commit or Tx.Rollback is called, that
+// connection is returned to DB's idle connection pool.
 type DB struct {
 	driver driver.Driver
 	dsn    string
