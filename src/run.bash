@@ -57,10 +57,13 @@ BROKEN=true
 go test
 ) || exit $?
 
+$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
+[ "$GOHOSTOS" == darwin ] ||
 (xcd ../misc/cgo/testso
-go test
+"$GOMAKE" clean
+./test.bash
 ) || exit $?
 
 (xcd ../doc/progs
