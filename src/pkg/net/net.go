@@ -54,6 +54,8 @@ type Addr interface {
 }
 
 // Conn is a generic stream-oriented network connection.
+//
+// Multiple goroutines may invoke methods on a Conn simultaneously.
 type Conn interface {
 	// Read reads data from the connection.
 	// Read can be made to time out and return a Error with Timeout() == true
@@ -66,6 +68,7 @@ type Conn interface {
 	Write(b []byte) (n int, err error)
 
 	// Close closes the connection.
+	// Any blocked Read or Write operations will be unblocked and return errors.
 	Close() error
 
 	// LocalAddr returns the local network address.
@@ -89,11 +92,11 @@ type Conn interface {
 	// A zero value for t means I/O operations will not time out.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for Read calls.
+	// SetReadDeadline sets the deadline for future Read calls.
 	// A zero value for t means Read will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for Write calls.
+	// SetWriteDeadline sets the deadline for future Write calls.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
 	// A zero value for t means Write will not time out.
@@ -108,6 +111,8 @@ type Error interface {
 }
 
 // PacketConn is a generic packet-oriented network connection.
+//
+// Multiple goroutines may invoke methods on a PacketConn simultaneously.
 type PacketConn interface {
 	// ReadFrom reads a packet from the connection,
 	// copying the payload into b.  It returns the number of
@@ -126,6 +131,7 @@ type PacketConn interface {
 	WriteTo(b []byte, addr Addr) (n int, err error)
 
 	// Close closes the connection.
+	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
 	Close() error
 
 	// LocalAddr returns the local network address.
@@ -135,13 +141,13 @@ type PacketConn interface {
 	// with the connection.
 	SetDeadline(t time.Time) error
 
-	// SetReadDeadline sets the deadline for all Read calls to return.
+	// SetReadDeadline sets the deadline for future Read calls.
 	// If the deadline is reached, Read will fail with a timeout
 	// (see type Error) instead of blocking.
 	// A zero value for t means Read will not time out.
 	SetReadDeadline(t time.Time) error
 
-	// SetWriteDeadline sets the deadline for all Write calls to return.
+	// SetWriteDeadline sets the deadline for future Write calls.
 	// If the deadline is reached, Write will fail with a timeout
 	// (see type Error) instead of blocking.
 	// A zero value for t means Write will not time out.
@@ -151,11 +157,14 @@ type PacketConn interface {
 }
 
 // A Listener is a generic network listener for stream-oriented protocols.
+//
+// Multiple goroutines may invoke methods on a Listener simultaneously.
 type Listener interface {
 	// Accept waits for and returns the next connection to the listener.
 	Accept() (c Conn, err error)
 
 	// Close closes the listener.
+	// Any blocked Accept operations will be unblocked and return errors.
 	Close() error
 
 	// Addr returns the listener's network address.

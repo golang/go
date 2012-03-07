@@ -13,7 +13,8 @@ import "errors"
 //
 // Programs using times should typically store and pass them as values,
 // not pointers.  That is, time variables and struct fields should be of
-// type time.Time, not *time.Time.
+// type time.Time, not *time.Time.  A Time value can be used by
+// multiple goroutines simultaneously.
 //
 // Time instants can be compared using the Before, After, and Equal methods.
 // The Sub method subtracts two instants, producing a Duration.
