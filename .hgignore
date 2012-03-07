@@ -24,10 +24,10 @@ _testmain.go
 build.out
 test.out
 doc/tmpltohtml
-doc/codelab/wiki/*.bin
+doc/articles/wiki/*.bin
 misc/cgo/life/run.out
 misc/cgo/stdio/run.out
-misc/dashboard/builder/gobuilder
+misc/dashboard/builder/builder
 misc/goplay/goplay
 misc/osx/*.pkg
 misc/osx/*.dmg

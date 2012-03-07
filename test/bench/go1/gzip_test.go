@@ -21,20 +21,14 @@ var (
 
 func init() {
 	var buf bytes.Buffer
-	c, err := gz.NewWriter(&buf)
-	if err != nil {
-		panic(err)
-	}
+	c := gz.NewWriter(&buf)
 	c.Write(jsongunz)
 	c.Close()
 	jsongz = buf.Bytes()
 }
 
 func gzip() {
-	c, err := gz.NewWriter(ioutil.Discard)
-	if err != nil {
-		panic(err)
-	}
+	c := gz.NewWriter(ioutil.Discard)
 	if _, err := c.Write(jsongunz); err != nil {
 		panic(err)
 	}
