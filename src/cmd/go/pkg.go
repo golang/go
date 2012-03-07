@@ -372,7 +372,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 
 	// unsafe is a fake package.
-	if p.Standard && p.ImportPath == "unsafe" {
+	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		p.target = ""
 	}
 
@@ -417,7 +417,7 @@ func computeStale(pkgs ...*Package) {
 
 // isStale reports whether package p needs to be rebuilt.
 func isStale(p *Package, topRoot map[string]bool) bool {
-	if p.Standard && p.ImportPath == "unsafe" {
+	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		// fake, builtin package
 		return false
 	}
