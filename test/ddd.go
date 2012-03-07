@@ -219,7 +219,6 @@ func main() {
 		println("s{&u}.Sum", x)
 		panic("fail")
 	}
-	/* TODO(rsc): Enable once nested method expressions work.
 	if x := (*U).Sum(&U{}, 1, 3, 5, 2); x != 11 {
 		println("(*U).Sum", x)
 		panic("fail")
@@ -228,5 +227,4 @@ func main() {
 		println("U.Sum", x)
 		panic("fail")
 	}
-	*/
 }
