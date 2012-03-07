@@ -78,6 +78,7 @@ var (
 	procSetHandleInformation             = modkernel32.NewProc("SetHandleInformation")
 	procFlushFileBuffers                 = modkernel32.NewProc("FlushFileBuffers")
 	procGetFullPathNameW                 = modkernel32.NewProc("GetFullPathNameW")
+	procGetLongPathNameW                 = modkernel32.NewProc("GetLongPathNameW")
 	procCreateFileMappingW               = modkernel32.NewProc("CreateFileMappingW")
 	procMapViewOfFile                    = modkernel32.NewProc("MapViewOfFile")
 	procUnmapViewOfFile                  = modkernel32.NewProc("UnmapViewOfFile")
@@ -879,6 +880,19 @@ func FlushFileBuffers(handle Handle) (err error) {
 
 func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) {
 	r0, _, e1 := Syscall6(procGetFullPathNameW.Addr(), 4, uintptr(unsafe.Pointer(path)), uintptr(buflen), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(fname)), 0, 0)
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func GetLongPathName(path *uint16, buf *uint16, buflen uint32) (n uint32, err error) {
+	r0, _, e1 := Syscall(procGetLongPathNameW.Addr(), 3, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(buf)), uintptr(buflen))
 	n = uint32(r0)
 	if n == 0 {
 		if e1 != 0 {

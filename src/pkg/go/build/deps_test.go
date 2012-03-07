@@ -120,7 +120,7 @@ var pkgDeps = map[string][]string{
 	"syscall":       {"L0", "unicode/utf16"},
 	"time":          {"L0", "syscall"},
 	"os":            {"L1", "os", "syscall", "time"},
-	"path/filepath": {"L2", "os"},
+	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
 	"os/exec":       {"L2", "os", "syscall"},
 	"os/signal":     {"L2", "os", "syscall"},
