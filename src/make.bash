@@ -76,6 +76,9 @@ do
 	fi
 done
 
+# Clean old generated file that will cause problems in the build.
+rm -f ./pkg/runtime/runtime_defs.go
+
 # Finally!  Run the build.
 
 echo '# Building C bootstrap tool.'
