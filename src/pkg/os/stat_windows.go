@@ -199,7 +199,7 @@ func (s *winSys) loadFileId() error {
 	}
 	s.Lock()
 	defer s.Unlock()
-	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(s.path), syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, 0, 0)
+	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(s.path), 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if e != nil {
 		return e
 	}
