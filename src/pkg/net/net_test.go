@@ -11,14 +11,6 @@ import (
 	"time"
 )
 
-// avoidOSXFirewallDialogPopup avoids OS X, former konwn as MacOS X,
-// firewall dialog popups during tests.  It looks like OS X checks
-// wildcard listens by default for security reasons.  A listen with
-// specific address doesn't make dialog popups for now.
-var avoidOSXFirewallDialogPopup = func() bool {
-	return testing.Short() && runtime.GOOS == "darwin"
-}
-
 func TestShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Logf("skipping test on %q", runtime.GOOS)

@@ -28,7 +28,7 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool)
 	}
 	switch addr {
 	case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
-		if avoidOSXFirewallDialogPopup() {
+		if testing.Short() || !*testExternal {
 			return true
 		}
 	}
