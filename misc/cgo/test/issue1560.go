@@ -10,10 +10,7 @@ package cgotest
 unsigned int sleep(unsigned int seconds);
 
 extern void BackgroundSleep(int);
-void twoSleep(int n) {
-	BackgroundSleep(n);
-	sleep(n);
-}
+void twoSleep(int);
 */
 import "C"
 

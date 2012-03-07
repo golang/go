@@ -7,7 +7,7 @@ package cgotest
 import "testing"
 
 // extern void BackIntoGo(void);
-// void IntoC() { BackIntoGo(); }
+// void IntoC(void);
 import "C"
 
 //export BackIntoGo

@@ -6,14 +6,12 @@ package cgotest
 
 /*
 void callback(void *f);
-void callGoFoo(void) {
-	extern void goFoo(void);
-	goFoo();
-}
+void callGoFoo(void);
 */
 import "C"
 
 import (
+	"./backdoor"
 	"runtime"
 	"testing"
 	"unsafe"
@@ -43,7 +41,7 @@ func testCallbackGC(t *testing.T) {
 	nestedCall(runtime.GC)
 }
 
-func lockedOSThread() bool // in runtime.c
+var lockedOSThread = backdoor.LockedOSThread
 
 func testCallbackPanic(t *testing.T) {
 	// Make sure panic during callback unwinds properly.

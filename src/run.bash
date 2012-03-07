@@ -35,32 +35,26 @@ go test sync -short -timeout=120s -cpu=10
 
 xcd() {
 	echo
-	echo --- cd $1
+	echo '#' $1
 	builtin cd "$GOROOT"/src/$1
 }
 
 BROKEN=true
 
-$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
-"$GOMAKE" clean
 ./test.bash
 ) || exit $?
 
-$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/life
-"$GOMAKE" clean
 ./test.bash
 ) || exit $?
 
-$BROKEN ||
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
-"$GOMAKE" clean
-gotest
+go test
 ) || exit $?
 
 $BROKEN ||

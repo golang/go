@@ -4,8 +4,11 @@
 # license that can be found in the LICENSE file.
 
 set -e
-gomake life
+go build -o life main.go
+
 echo '*' life >run.out
 ./life >>run.out
 diff run.out golden.out
-gomake clean
+
+rm -f life
+
