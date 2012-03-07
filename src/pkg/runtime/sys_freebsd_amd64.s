@@ -205,8 +205,6 @@ TEXT runtime·usleep(SB),7,$16
 	MOVQ	$0, SI			// arg 2 - rmtp
 	MOVL	$240, AX		// sys_nanosleep
 	SYSCALL
-	JCC	2(PC)
-	CALL	runtime·notok(SB)
 	RET
 
 // set tls base to DI

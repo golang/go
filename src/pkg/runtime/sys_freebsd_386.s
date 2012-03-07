@@ -220,8 +220,6 @@ TEXT runtime·usleep(SB),7,$20
 	MOVL	$0, 8(SP)		// arg 2 - rmtp
 	MOVL	$240, AX		// sys_nanosleep
 	INT	$0x80
-	JAE	2(PC)
-	CALL	runtime·notok(SB)
 	RET
 
 /*
