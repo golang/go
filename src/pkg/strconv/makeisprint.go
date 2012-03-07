@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"unicode"
 )
 
@@ -116,8 +117,8 @@ func main() {
 
 	for i := rune(0); i <= unicode.MaxRune; i++ {
 		if isPrint(i) != unicode.IsPrint(i) {
-			fmt.Printf("%U: isPrint=%v, want %v\n", i, isPrint(i), unicode.IsPrint(i))
-			break
+			fmt.Fprintf(os.Stderr, "%U: isPrint=%v, want %v\n", i, isPrint(i), unicode.IsPrint(i))
+			return
 		}
 	}
 
@@ -125,11 +126,11 @@ func main() {
 	fmt.Printf("//     go run makeisprint.go >x && mv x isprint.go\n\n")
 	fmt.Printf("package strconv\n\n")
 
-	fmt.Printf("// (%d+%d)*2 + (%d+%d)*4 = %d bytes\n\n",
-		len(range16), len(except16),
-		len(range32), len(except32),
-		(len(range16)+len(except16))*2+
-			(len(range32)+len(except32))*4)
+	fmt.Printf("// (%d+%d+%d)*2 + (%d)*4 = %d bytes\n\n",
+		len(range16), len(except16), len(except32),
+		len(range32),
+		(len(range16)+len(except16)+len(except32))*2+
+			(len(range32))*4)
 
 	fmt.Printf("var isPrint16 = []uint16{\n")
 	for i := 0; i < len(range16); i += 2 {
@@ -145,13 +146,17 @@ func main() {
 
 	fmt.Printf("var isPrint32 = []uint32{\n")
 	for i := 0; i < len(range32); i += 2 {
-		fmt.Printf("\t%#06x, %#06x,\n", range16[i], range16[i+1])
+		fmt.Printf("\t%#06x, %#06x,\n", range32[i], range32[i+1])
 	}
 	fmt.Printf("}\n\n")
 
-	fmt.Printf("var isNotPrint32 = []uint32{\n")
+	fmt.Printf("var isNotPrint32 = []uint16{ // add 0x10000 to each entry\n")
 	for _, r := range except32 {
-		fmt.Printf("\t%#04x,\n", r)
+		if r >= 0x20000 {
+			fmt.Fprintf(os.Stderr, "%U too big for isNotPrint32\n", r)
+			return
+		}
+		fmt.Printf("\t%#04x,\n", r-0x10000)
 	}
 	fmt.Printf("}\n")
 }

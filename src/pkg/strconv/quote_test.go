@@ -7,7 +7,22 @@ package strconv_test
 import (
 	. "strconv"
 	"testing"
+	"unicode"
 )
+
+// Verify that our isPrint agrees with unicode.IsPrint
+func TestIsPrint(t *testing.T) {
+	n := 0
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if IsPrint(r) != unicode.IsPrint(r) {
+			t.Errorf("IsPrint(%U)=%t incorrect", r, IsPrint(r))
+			n++
+			if n > 10 {
+				return
+			}
+		}
+	}
+}
 
 type quoteTest struct {
 	in    string

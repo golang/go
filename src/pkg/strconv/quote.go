@@ -5,8 +5,6 @@
 package strconv
 
 import (
-	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -34,11 +32,11 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 			continue
 		}
 		if ASCIIonly {
-			if r <= unicode.MaxASCII && unicode.IsPrint(r) {
+			if r < utf8.RuneSelf && IsPrint(r) {
 				buf = append(buf, byte(r))
 				continue
 			}
-		} else if unicode.IsPrint(r) {
+		} else if IsPrint(r) {
 			n := utf8.EncodeRune(runeTmp[:], r)
 			buf = append(buf, runeTmp[:n]...)
 			continue
@@ -64,7 +62,7 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 				buf = append(buf, `\x`...)
 				buf = append(buf, lowerhex[s[0]>>4])
 				buf = append(buf, lowerhex[s[0]&0xF])
-			case r > unicode.MaxRune:
+			case r > utf8.MaxRune:
 				r = 0xFFFD
 				fallthrough
 			case r < 0x10000:
@@ -88,7 +86,7 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 // Quote returns a double-quoted Go string literal representing s.  The
 // returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
 // control characters and non-printable characters as defined by
-// unicode.IsPrint.
+// IsPrint.
 func Quote(s string) string {
 	return quoteWith(s, '"', false)
 }
@@ -101,8 +99,7 @@ func AppendQuote(dst []byte, s string) []byte {
 
 // QuoteToASCII returns a double-quoted Go string literal representing s.
 // The returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
-// non-ASCII characters and non-printable characters as defined by
-// unicode.IsPrint.
+// non-ASCII characters and non-printable characters as defined by IsPrint.
 func QuoteToASCII(s string) string {
 	return quoteWith(s, '"', true)
 }
@@ -115,8 +112,7 @@ func AppendQuoteToASCII(dst []byte, s string) []byte {
 
 // QuoteRune returns a single-quoted Go character literal representing the
 // rune.  The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
-// for control characters and non-printable characters as defined by
-// unicode.IsPrint.
+// for control characters and non-printable characters as defined by IsPrint.
 func QuoteRune(r rune) string {
 	// TODO: avoid the allocation here.
 	return quoteWith(string(r), '\'', false)
@@ -131,7 +127,7 @@ func AppendQuoteRune(dst []byte, r rune) []byte {
 // QuoteRuneToASCII returns a single-quoted Go character literal representing
 // the rune.  The returned string uses Go escape sequences (\t, \n, \xFF,
 // \u0100) for non-ASCII characters and non-printable characters as defined
-// by unicode.IsPrint.
+// by IsPrint.
 func QuoteRuneToASCII(r rune) string {
 	// TODO: avoid the allocation here.
 	return quoteWith(string(r), '\'', true)
@@ -246,7 +242,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 			value = v
 			break
 		}
-		if v > unicode.MaxRune {
+		if v > utf8.MaxRune {
 			err = ErrSyntax
 			return
 		}
@@ -305,7 +301,7 @@ func Unquote(s string) (t string, err error) {
 	s = s[1 : n-1]
 
 	if quote == '`' {
-		if strings.Contains(s, "`") {
+		if contains(s, '`') {
 			return "", ErrSyntax
 		}
 		return s, nil
@@ -313,12 +309,12 @@ func Unquote(s string) (t string, err error) {
 	if quote != '"' && quote != '\'' {
 		return "", ErrSyntax
 	}
-	if strings.Index(s, "\n") >= 0 {
+	if contains(s, '\n') {
 		return "", ErrSyntax
 	}
 
 	// Is it trivial?  Avoid allocation.
-	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, rune(quote)) < 0 {
+	if !contains(s, '\\') && !contains(s, quote) {
 		switch quote {
 		case '"':
 			return s, nil
@@ -352,6 +348,16 @@ func Unquote(s string) (t string, err error) {
 	return string(buf), nil
 }
 
+// contains reports whether the string contains the byte c.
+func contains(s string, c byte) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return true
+		}
+	}
+	return false
+}
+
 // bsearch16 returns the smallest i such that a[i] >= x.
 // If there is no such i, bsearch16 returns len(a).
 func bsearch16(a []uint16, x uint16) int {
@@ -382,7 +388,29 @@ func bsearch32(a []uint32, x uint32) int {
 	return i
 }
 
-func isPrint(r rune) bool {
+// TODO: IsPrint is a local implementation of unicode.IsPrint, verified by the tests
+// to give the same answer. It allows this package not to depend on unicode,
+// and therefore not pull in all the Unicode tables. If the linker were better
+// at tossing unused tables, we could get rid of this implementation.
+// That would be nice.
+
+// IsPrint reports whether the rune is defined as printable by Go, with
+// the same definition as unicode.IsPrint: letters, numbers, punctuation,
+// symbols and ASCII space.
+func IsPrint(r rune) bool {
+	// Fast check for Latin-1
+	if r <= 0xFF {
+		if 0x20 <= r && r <= 0x7E {
+			// All the ASCII is printable from space through DEL-1.
+			return true
+		}
+		if 0xA1 <= r && r <= 0xFF {
+			// Similarly for ¡ through ÿ...
+			return r != 0xAD // ...except for the bizarre soft hyphen.
+		}
+		return false
+	}
+
 	// Same algorithm, either on uint16 or uint32 value.
 	// First, find first i such that isPrint[i] >= x.
 	// This is the index of either the start or end of a pair that might span x.
@@ -404,6 +432,10 @@ func isPrint(r rune) bool {
 	if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
 		return false
 	}
-	j := bsearch32(isNotPrint, rr)
-	return j >= len(isNotPrint) || isNotPrint[j] != rr
+	if r >= 0x20000 {
+		return true
+	}
+	r -= 0x10000
+	j := bsearch16(isNotPrint, uint16(r))
+	return j >= len(isNotPrint) || isNotPrint[j] != uint16(r)
 }
