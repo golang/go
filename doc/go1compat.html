@@ -94,6 +94,15 @@ We therefore recommend that composite literals whose type is defined
 in a separate package should use the tagged notation.
 </li>
 
+<li>
+Dot imports. If a program imports a standard package
+using <code>import . "path"</code>, additional names defined in the
+imported package in future releases may conflict with other names
+defined in the program.  We do not recommend the use of <code>import .</code>
+outside of tests, and using it may cause a program to fail
+to compile in future releases.
+</li>
+
 </ul>
 
 <p>
