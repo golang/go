@@ -1,0 +1,46 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test case for issue 3106: Better synchronization of
+// parser after certain syntax errors.
+
+package main
+
+func f() {
+	var m Mutex
+	c := MakeCond(&m)
+	percent := 0
+	const step = 10
+	for i := 0; i < 5; i++ {
+		go func() {
+			for {
+				// Emulates some useful work.
+				time.Sleep(1e8)
+				m.Lock()
+				defer
+				if /* ERROR "expected operand, found 'if'" */ percent == 100 {
+					m.Unlock()
+					break
+				}
+				percent++
+				if percent % step == 0 {
+					//c.Signal()
+				}
+				m.Unlock()
+			}
+		}()
+	}
+	for {
+		m.Lock()
+		if percent == 0 || percent % step != 0 {
+			c.Wait()
+		}
+		fmt.Print(",")
+		if percent == 100 {
+			m.Unlock()
+			break
+		}
+		m.Unlock()
+	}
+}
