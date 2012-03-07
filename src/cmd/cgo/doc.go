@@ -111,9 +111,9 @@ Not all Go types can be mapped to C types in a useful way.
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.
 
-The standard package makefile rules in Make.pkg automate the
-process of using cgo.  See $GOROOT/misc/cgo/stdio and
-$GOROOT/misc/cgo/gmp for examples.
+The standard package construction rules of the go command
+automate the process of using cgo.  See $GOROOT/misc/cgo/stdio
+and $GOROOT/misc/cgo/gmp for examples.
 
 Cgo does not yet work with gccgo.
 
