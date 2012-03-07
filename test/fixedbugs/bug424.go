@@ -72,4 +72,28 @@ func main() {
 		}
 		println("BUG: myT3:", i.m(), "called")
 	}
+	
+	var t4 struct {
+		localT
+		lib.T
+	}
+	if t4.m() != "main.localT.m" {
+		println("BUG: t4:", t4.m(), "called")
+	}
+	i = &t4
+	if i.m() != "main.localT.m" {
+		println("BUG: myT4:", i.m(), "called")
+	}
+	
+	var t5 struct {
+		lib.T
+		localT
+	}
+	if t5.m() != "main.localT.m" {
+		println("BUG: t5:", t5.m(), "called")
+	}
+	i = &t5
+	if i.m() != "main.localT.m" {
+		println("BUG: myT5:", i.m(), "called")
+	}
 }

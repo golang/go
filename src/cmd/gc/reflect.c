@@ -144,11 +144,11 @@ methods(Type *t)
 	Sig *a, *b;
 	Sym *method;
 
-	// named method type
-	mt = methtype(t);
+	// method type
+	mt = methtype(t, 0);
 	if(mt == T)
 		return nil;
-	expandmeth(mt->sym, mt);
+	expandmeth(mt);
 
 	// type stored in interface word
 	it = t;
