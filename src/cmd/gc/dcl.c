@@ -1168,21 +1168,22 @@ methodsym(Sym *nsym, Type *t0, int iface)
 	char *p;
 	Type *t;
 	char *suffix;
+	Pkg *spkg;
+	static Pkg *toppkg;
 
 	t = t0;
 	if(t == T)
 		goto bad;
 	s = t->sym;
-	if(s == S) {
-		if(!isptr[t->etype])
-			goto bad;
+	if(s == S && isptr[t->etype]) {
 		t = t->type;
 		if(t == T)
 			goto bad;
 		s = t->sym;
-		if(s == S)
-			goto bad;
 	}
+	spkg = nil;
+	if(s != S)
+		spkg = s->pkg;
 
 	// if t0 == *t and t0 has a sym,
 	// we want to see *t, not t0, in the method name.
@@ -1195,7 +1196,7 @@ methodsym(Sym *nsym, Type *t0, int iface)
 		if(t0->width < types[tptr]->width)
 			suffix = "·i";
 	}
-	if(nsym->pkg != s->pkg && !exportname(nsym->name)) {
+	if((spkg == nil || nsym->pkg != spkg) && !exportname(nsym->name)) {
 		if(t0->sym == S && isptr[t0->etype])
 			p = smprint("(%-hT).%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
 		else
@@ -1206,7 +1207,12 @@ methodsym(Sym *nsym, Type *t0, int iface)
 		else
 			p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
 	}
-	s = pkglookup(p, s->pkg);
+	if(spkg == nil) {
+		if(toppkg == nil)
+			toppkg = mkpkg(strlit("go"));
+		spkg = toppkg;
+	}
+	s = pkglookup(p, spkg);
 	free(p);
 	return s;
 
@@ -1275,7 +1281,7 @@ addmethod(Sym *sf, Type *t, int local)
 	}
 
 	pa = pa->type;
-	f = methtype(pa);
+	f = methtype(pa, 1);
 	if(f == T) {
 		t = pa;
 		if(t != T) {

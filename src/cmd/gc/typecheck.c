@@ -1664,11 +1664,11 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 	if(t->sym == S && isptr[t->etype])
 		tt = t->type;
 
-	f2 = methtype(tt);
+	f2 = methtype(tt, 0);
 	if(f2 == T)
 		return 0;
 
-	expandmeth(f2->sym, f2);
+	expandmeth(f2);
 	f2 = lookdot1(n, s, f2, f2->xmethod, dostrcmp);
 	if(f2 == T)
 		return 0;
@@ -1712,7 +1712,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 
 	f2 = T;
 	if(n->left->type == t || n->left->type->sym == S) {
-		f2 = methtype(t);
+		f2 = methtype(t, 0);
 		if(f2 != T) {
 			// Use f2->method, not f2->xmethod: adddot has
 			// already inserted all the necessary embedded dots.
