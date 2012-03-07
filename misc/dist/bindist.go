@@ -126,7 +126,7 @@ func (b *Build) Do() error {
 		version     string // "weekly.2012-03-04"
 		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
 	)
-	pat := b.root + "/pkg/tool/*/dist"
+	pat := filepath.Join(b.root, "pkg/tool/*/dist")
 	m, err := filepath.Glob(pat)
 	if err != nil {
 		return err
