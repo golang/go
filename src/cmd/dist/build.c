@@ -1321,7 +1321,7 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOTOOLDIR", tooldir);
 	xprintf(format, "GOCHAR", gochar);
 
-	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)))
+	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)) >= 0)
 		xprintf(format, "CGO_ENABLED", "1");
 	else
 		xprintf(format, "CGO_ENABLED", "0");
