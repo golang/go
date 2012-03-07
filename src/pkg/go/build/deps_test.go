@@ -43,56 +43,62 @@ var pkgDeps = map[string][]string{
 		"unsafe",
 	},
 
-	// L1 adds simple data and functions, most notably
-	// Unicode and strings processing.
-	"bufio":         {"L0", "unicode/utf8", "bytes"},
-	"bytes":         {"L0", "unicode", "unicode/utf8"},
+	// L1 adds simple functions and strings processing,
+	// but not Unicode tables.
 	"math":          {"unsafe"},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
-	"path":          {"L0", "unicode/utf8", "strings"},
 	"sort":          {"math"},
 	"strconv":       {"L0", "unicode/utf8", "math"},
-	"strings":       {"L0", "unicode", "unicode/utf8"},
-	"unicode":       {},
 	"unicode/utf16": {},
 	"unicode/utf8":  {},
 
 	"L1": {
 		"L0",
-		"bufio",
-		"bytes",
 		"math",
 		"math/cmplx",
 		"math/rand",
-		"path",
 		"sort",
 		"strconv",
-		"strings",
-		"unicode",
 		"unicode/utf16",
 		"unicode/utf8",
 	},
 
-	// L2 adds reflection and some basic utility packages
-	// and interface definitions, but nothing that makes
-	// system calls.
-	"crypto":          {"L1", "hash"}, // interfaces
-	"crypto/cipher":   {"L1"},         // interfaces
-	"encoding/base32": {"L1"},
-	"encoding/base64": {"L1"},
-	"encoding/binary": {"L1", "reflect"},
-	"hash":            {"L1"}, // interfaces
-	"hash/adler32":    {"L1", "hash"},
-	"hash/crc32":      {"L1", "hash"},
-	"hash/crc64":      {"L1", "hash"},
-	"hash/fnv":        {"L1", "hash"},
-	"image":           {"L1", "image/color"}, // interfaces
-	"image/color":     {"L1"},                // interfaces
-	"reflect":         {"L1"},
+	// L2 adds Unicode and strings processing.
+	"bufio":   {"L0", "unicode/utf8", "bytes"},
+	"bytes":   {"L0", "unicode", "unicode/utf8"},
+	"path":    {"L0", "unicode/utf8", "strings"},
+	"strings": {"L0", "unicode", "unicode/utf8"},
+	"unicode": {},
 
 	"L2": {
 		"L1",
+		"bufio",
+		"bytes",
+		"path",
+		"strings",
+		"unicode",
+	},
+
+	// L3 adds reflection and some basic utility packages
+	// and interface definitions, but nothing that makes
+	// system calls.
+	"crypto":          {"L2", "hash"}, // interfaces
+	"crypto/cipher":   {"L2"},         // interfaces
+	"encoding/base32": {"L2"},
+	"encoding/base64": {"L2"},
+	"encoding/binary": {"L2", "reflect"},
+	"hash":            {"L2"}, // interfaces
+	"hash/adler32":    {"L2", "hash"},
+	"hash/crc32":      {"L2", "hash"},
+	"hash/crc64":      {"L2", "hash"},
+	"hash/fnv":        {"L2", "hash"},
+	"image":           {"L2", "image/color"}, // interfaces
+	"image/color":     {"L2"},                // interfaces
+	"reflect":         {"L2"},
+
+	"L3": {
+		"L2",
 		"crypto",
 		"crypto/cipher",
 		"encoding/base32",
@@ -113,11 +119,11 @@ var pkgDeps = map[string][]string{
 	// Operating system access.
 	"syscall":       {"L0", "unicode/utf16"},
 	"time":          {"L0", "syscall"},
-	"os":            {"L0", "os", "syscall", "time", "unicode/utf16"},
-	"path/filepath": {"L1", "os"},
-	"io/ioutil":     {"L1", "os", "path/filepath", "time"},
-	"os/exec":       {"L1", "os", "syscall"},
-	"os/signal":     {"L1", "os", "syscall"},
+	"os":            {"L1", "os", "syscall", "time"},
+	"path/filepath": {"L2", "os"},
+	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+	"os/exec":       {"L2", "os", "syscall"},
+	"os/signal":     {"L2", "os", "syscall"},
 
 	// OS enables basic operating system functionality,
 	// but not direct use of package syscall, nor os/signal.
@@ -129,37 +135,37 @@ var pkgDeps = map[string][]string{
 		"time",
 	},
 
-	// Formatted I/O.
-	"fmt": {"L1", "OS", "reflect"},
-	"log": {"L1", "OS", "fmt"},
+	// Formatted I/O: few dependencies (L1) but we must add reflect.
+	"fmt": {"L1", "os", "reflect"},
+	"log": {"L1", "os", "fmt", "time"},
 
-	// Packages used by testing must be low-level (L1+fmt).
-	"regexp":         {"L1", "regexp/syntax"},
-	"regexp/syntax":  {"L1"},
-	"runtime/debug":  {"L1", "fmt", "io/ioutil", "os"},
-	"runtime/pprof":  {"L1", "fmt", "text/tabwriter"},
-	"text/tabwriter": {"L1"},
+	// Packages used by testing must be low-level (L2+fmt).
+	"regexp":         {"L2", "regexp/syntax"},
+	"regexp/syntax":  {"L2"},
+	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os"},
+	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
+	"text/tabwriter": {"L2"},
 
-	"testing":        {"L1", "flag", "fmt", "os", "runtime/pprof", "time"},
-	"testing/iotest": {"L1", "log"},
-	"testing/quick":  {"L1", "flag", "fmt", "reflect"},
+	"testing":        {"L2", "flag", "fmt", "os", "runtime/pprof", "time"},
+	"testing/iotest": {"L2", "log"},
+	"testing/quick":  {"L2", "flag", "fmt", "reflect"},
 
-	// L3 is defined as L2+fmt+log+time, because in general once
-	// you're using L2 packages, use of fmt, log, or time is not a big deal.
-	"L3": {
-		"L2",
+	// L4 is defined as L3+fmt+log+time, because in general once
+	// you're using L3 packages, use of fmt, log, or time is not a big deal.
+	"L4": {
+		"L3",
 		"fmt",
 		"log",
 		"time",
 	},
 
 	// Go parser.
-	"go/ast":     {"L3", "OS", "go/scanner", "go/token"},
-	"go/doc":     {"L3", "go/ast", "go/token", "regexp", "text/template"},
-	"go/parser":  {"L3", "OS", "go/ast", "go/scanner", "go/token"},
-	"go/printer": {"L3", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
-	"go/scanner": {"L3", "OS", "go/token"},
-	"go/token":   {"L3"},
+	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
+	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
+	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
+	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
+	"go/scanner": {"L4", "OS", "go/token"},
+	"go/token":   {"L4"},
 
 	"GOPARSER": {
 		"go/ast",
@@ -171,48 +177,48 @@ var pkgDeps = map[string][]string{
 	},
 
 	// One of a kind.
-	"archive/tar":         {"L3", "OS"},
-	"archive/zip":         {"L3", "OS", "compress/flate"},
-	"compress/bzip2":      {"L3"},
-	"compress/flate":      {"L3"},
-	"compress/gzip":       {"L3", "compress/flate"},
-	"compress/lzw":        {"L3"},
-	"compress/zlib":       {"L3", "compress/flate"},
-	"database/sql":        {"L3", "database/sql/driver"},
-	"database/sql/driver": {"L3", "time"},
-	"debug/dwarf":         {"L3"},
-	"debug/elf":           {"L3", "OS", "debug/dwarf"},
-	"debug/gosym":         {"L3"},
-	"debug/macho":         {"L3", "OS", "debug/dwarf"},
-	"debug/pe":            {"L3", "OS", "debug/dwarf"},
-	"encoding/ascii85":    {"L3"},
-	"encoding/asn1":       {"L3", "math/big"},
-	"encoding/csv":        {"L3"},
-	"encoding/gob":        {"L3", "OS"},
-	"encoding/hex":        {"L3"},
-	"encoding/json":       {"L3"},
-	"encoding/pem":        {"L3"},
-	"encoding/xml":        {"L3"},
-	"flag":                {"L3", "OS"},
-	"go/build":            {"L3", "OS", "GOPARSER"},
-	"html":                {"L3"},
-	"image/draw":          {"L3"},
-	"image/gif":           {"L3", "compress/lzw"},
-	"image/jpeg":          {"L3"},
-	"image/png":           {"L3", "compress/zlib"},
-	"index/suffixarray":   {"L3", "regexp"},
-	"math/big":            {"L3"},
-	"mime":                {"L3", "OS", "syscall"},
-	"net/url":             {"L3"},
-	"text/scanner":        {"L3", "OS"},
-	"text/template/parse": {"L3"},
+	"archive/tar":         {"L4", "OS"},
+	"archive/zip":         {"L4", "OS", "compress/flate"},
+	"compress/bzip2":      {"L4"},
+	"compress/flate":      {"L4"},
+	"compress/gzip":       {"L4", "compress/flate"},
+	"compress/lzw":        {"L4"},
+	"compress/zlib":       {"L4", "compress/flate"},
+	"database/sql":        {"L4", "database/sql/driver"},
+	"database/sql/driver": {"L4", "time"},
+	"debug/dwarf":         {"L4"},
+	"debug/elf":           {"L4", "OS", "debug/dwarf"},
+	"debug/gosym":         {"L4"},
+	"debug/macho":         {"L4", "OS", "debug/dwarf"},
+	"debug/pe":            {"L4", "OS", "debug/dwarf"},
+	"encoding/ascii85":    {"L4"},
+	"encoding/asn1":       {"L4", "math/big"},
+	"encoding/csv":        {"L4"},
+	"encoding/gob":        {"L4", "OS"},
+	"encoding/hex":        {"L4"},
+	"encoding/json":       {"L4"},
+	"encoding/pem":        {"L4"},
+	"encoding/xml":        {"L4"},
+	"flag":                {"L4", "OS"},
+	"go/build":            {"L4", "OS", "GOPARSER"},
+	"html":                {"L4"},
+	"image/draw":          {"L4"},
+	"image/gif":           {"L4", "compress/lzw"},
+	"image/jpeg":          {"L4"},
+	"image/png":           {"L4", "compress/zlib"},
+	"index/suffixarray":   {"L4", "regexp"},
+	"math/big":            {"L4"},
+	"mime":                {"L4", "OS", "syscall"},
+	"net/url":             {"L4"},
+	"text/scanner":        {"L4", "OS"},
+	"text/template/parse": {"L4"},
 
 	"html/template": {
-		"L3", "OS", "encoding/json", "html", "text/template",
+		"L4", "OS", "encoding/json", "html", "text/template",
 		"text/template/parse",
 	},
 	"text/template": {
-		"L3", "OS", "net/url", "text/template/parse",
+		"L4", "OS", "net/url", "text/template/parse",
 	},
 
 	// Cgo.
@@ -223,11 +229,12 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
-	"os/user": {"L3", "CGO", "syscall"},
+	"os/user": {"L4", "CGO", "syscall"},
 
 	// Basic networking.
-	// TODO: maybe remove math/rand.
-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time"},
+	// Because net must be used by any package that wants to
+	// do networking portably, it must have a small dependency set: just L1+basic os.
+	"net": {"L1", "CGO", "os", "syscall", "time"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -238,20 +245,20 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Uses of networking.
-	"log/syslog":    {"L3", "OS", "net"},
-	"net/mail":      {"L3", "NET", "OS"},
-	"net/textproto": {"L3", "OS", "net"},
+	"log/syslog":    {"L4", "OS", "net"},
+	"net/mail":      {"L4", "NET", "OS"},
+	"net/textproto": {"L4", "OS", "net"},
 
 	// Core crypto.
-	"crypto/aes":    {"L2"},
-	"crypto/des":    {"L2"},
-	"crypto/hmac":   {"L2"},
-	"crypto/md5":    {"L2"},
-	"crypto/rc4":    {"L2"},
-	"crypto/sha1":   {"L2"},
-	"crypto/sha256": {"L2"},
-	"crypto/sha512": {"L2"},
-	"crypto/subtle": {"L2"},
+	"crypto/aes":    {"L3"},
+	"crypto/des":    {"L3"},
+	"crypto/hmac":   {"L3"},
+	"crypto/md5":    {"L3"},
+	"crypto/rc4":    {"L3"},
+	"crypto/sha1":   {"L3"},
+	"crypto/sha256": {"L3"},
+	"crypto/sha512": {"L3"},
+	"crypto/subtle": {"L3"},
 
 	"CRYPTO": {
 		"crypto/aes",
@@ -268,14 +275,14 @@ var pkgDeps = map[string][]string{
 	// Random byte, number generation.
 	// This would be part of core crypto except that it imports
 	// math/big, which imports fmt.
-	"crypto/rand": {"L3", "CRYPTO", "OS", "math/big", "syscall"},
+	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall"},
 
-	// Mathematical crypto: dependencies on fmt (L3) and math/big.
+	// Mathematical crypto: dependencies on fmt (L4) and math/big.
 	// We could avoid some of the fmt, but math/big imports fmt anyway.
-	"crypto/dsa":      {"L3", "CRYPTO", "math/big"},
-	"crypto/ecdsa":    {"L3", "CRYPTO", "crypto/elliptic", "math/big"},
-	"crypto/elliptic": {"L3", "CRYPTO", "math/big"},
-	"crypto/rsa":      {"L3", "CRYPTO", "crypto/rand", "math/big"},
+	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},
+	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big"},
+	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
+	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
 
 	"CRYPTO-MATH": {
 		"CRYPTO",
@@ -290,31 +297,31 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L3", "CRYPTO-MATH", "CGO", "OS",
+		"L4", "CRYPTO-MATH", "CGO", "OS",
 		"crypto/x509", "encoding/pem", "net", "syscall",
 	},
-	"crypto/x509":      {"L3", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
-	"crypto/x509/pkix": {"L3", "CRYPTO-MATH"},
+	"crypto/x509":      {"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
+	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
 
 	// Simple net+crypto-aware packages.
-	"mime/multipart": {"L3", "OS", "mime", "crypto/rand", "net/textproto"},
-	"net/smtp":       {"L3", "CRYPTO", "NET", "crypto/tls"},
+	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto"},
+	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
 
 	// HTTP, kingpin of dependencies.
 	"net/http": {
-		"L3", "NET", "OS",
+		"L4", "NET", "OS",
 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
 	},
 
 	// HTTP-using packages.
-	"expvar":            {"L3", "OS", "encoding/json", "net/http"},
-	"net/http/cgi":      {"L3", "NET", "OS", "crypto/tls", "net/http", "regexp"},
-	"net/http/fcgi":     {"L3", "NET", "OS", "net/http", "net/http/cgi"},
-	"net/http/httptest": {"L3", "NET", "OS", "crypto/tls", "flag", "net/http"},
-	"net/http/httputil": {"L3", "NET", "OS", "net/http"},
-	"net/http/pprof":    {"L3", "OS", "html/template", "net/http", "runtime/pprof"},
-	"net/rpc":           {"L3", "NET", "encoding/gob", "net/http", "text/template"},
-	"net/rpc/jsonrpc":   {"L3", "NET", "encoding/json", "net/rpc"},
+	"expvar":            {"L4", "OS", "encoding/json", "net/http"},
+	"net/http/cgi":      {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
+	"net/http/fcgi":     {"L4", "NET", "OS", "net/http", "net/http/cgi"},
+	"net/http/httptest": {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
+	"net/http/httputil": {"L4", "NET", "OS", "net/http"},
+	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof"},
+	"net/rpc":           {"L4", "NET", "encoding/gob", "net/http", "text/template"},
+	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
 }
 
 // isMacro reports whether p is a package dependency macro

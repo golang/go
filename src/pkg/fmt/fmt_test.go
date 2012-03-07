@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 )
 
 type (
@@ -826,5 +827,15 @@ func TestBadVerbRecursion(t *testing.T) {
 	Sprintf("recur@%p, value: %d\n", r, r.i)
 	if failed {
 		t.Error("fail with value")
+	}
+}
+
+func TestIsSpace(t *testing.T) {
+	// This tests the internal isSpace function.
+	// IsSpace = isSpace is defined in export_test.go.
+	for i := rune(0); i <= unicode.MaxRune; i++ {
+		if IsSpace(i) != unicode.IsSpace(i) {
+			t.Errorf("isSpace(%U) = %v, want %v", IsSpace(i), unicode.IsSpace(i))
+		}
 	}
 }

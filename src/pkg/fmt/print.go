@@ -5,13 +5,11 @@
 package fmt
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"os"
 	"reflect"
 	"sync"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -71,11 +69,45 @@ type GoStringer interface {
 	GoString() string
 }
 
+// Use simple []byte instead of bytes.Buffer to avoid large dependency.
+type buffer []byte
+
+func (b *buffer) Write(p []byte) (n int, err error) {
+	*b = append(*b, p...)
+	return len(p), nil
+}
+
+func (b *buffer) WriteString(s string) (n int, err error) {
+	*b = append(*b, s...)
+	return len(s), nil
+}
+
+func (b *buffer) WriteByte(c byte) error {
+	*b = append(*b, c)
+	return nil
+}
+
+func (bp *buffer) WriteRune(r rune) error {
+	if r < utf8.RuneSelf {
+		*bp = append(*bp, byte(r))
+		return nil
+	}
+
+	b := *bp
+	n := len(b)
+	for n+utf8.UTFMax > cap(b) {
+		b = append(b, 0)
+	}
+	w := utf8.EncodeRune(b[n:n+utf8.UTFMax], r)
+	*bp = b[:n+w]
+	return nil
+}
+
 type pp struct {
 	n         int
 	panicking bool
 	erroring  bool // printing an error condition
-	buf       bytes.Buffer
+	buf       buffer
 	// field holds the current item, as an interface{}.
 	field interface{}
 	// value holds the current item, as a reflect.Value, and will be
@@ -133,10 +165,10 @@ func newPrinter() *pp {
 // Save used pp structs in ppFree; avoids an allocation per invocation.
 func (p *pp) free() {
 	// Don't hold on to pp structs with large buffers.
-	if cap(p.buf.Bytes()) > 1024 {
+	if cap(p.buf) > 1024 {
 		return
 	}
-	p.buf.Reset()
+	p.buf = p.buf[:0]
 	p.field = nil
 	p.value = reflect.Value{}
 	ppFree.put(p)
@@ -179,7 +211,7 @@ func (p *pp) Write(b []byte) (ret int, err error) {
 func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrintf(format, a)
-	n64, err := p.buf.WriteTo(w)
+	n64, err := w.Write(p.buf)
 	p.free()
 	return int(n64), err
 }
@@ -194,7 +226,7 @@ func Printf(format string, a ...interface{}) (n int, err error) {
 func Sprintf(format string, a ...interface{}) string {
 	p := newPrinter()
 	p.doPrintf(format, a)
-	s := p.buf.String()
+	s := string(p.buf)
 	p.free()
 	return s
 }
@@ -213,7 +245,7 @@ func Errorf(format string, a ...interface{}) error {
 func Fprint(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a, false, false)
-	n64, err := p.buf.WriteTo(w)
+	n64, err := w.Write(p.buf)
 	p.free()
 	return int(n64), err
 }
@@ -230,7 +262,7 @@ func Print(a ...interface{}) (n int, err error) {
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, false, false)
-	s := p.buf.String()
+	s := string(p.buf)
 	p.free()
 	return s
 }
@@ -245,7 +277,7 @@ func Sprint(a ...interface{}) string {
 func Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a, true, true)
-	n64, err := p.buf.WriteTo(w)
+	n64, err := w.Write(p.buf)
 	p.free()
 	return int(n64), err
 }
@@ -262,7 +294,7 @@ func Println(a ...interface{}) (n int, err error) {
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
 	p.doPrint(a, true, true)
-	s := p.buf.String()
+	s := string(p.buf)
 	p.free()
 	return s
 }
@@ -352,7 +384,7 @@ func (p *pp) fmtInt64(v int64, verb rune) {
 	case 'o':
 		p.fmt.integer(v, 8, signed, ldigits)
 	case 'q':
-		if 0 <= v && v <= unicode.MaxRune {
+		if 0 <= v && v <= utf8.MaxRune {
 			p.fmt.fmt_qc(v)
 		} else {
 			p.badVerb(verb)
@@ -416,7 +448,7 @@ func (p *pp) fmtUint64(v uint64, verb rune, goSyntax bool) {
 	case 'o':
 		p.fmt.integer(int64(v), 8, unsigned, ldigits)
 	case 'q':
-		if 0 <= v && v <= unicode.MaxRune {
+		if 0 <= v && v <= utf8.MaxRune {
 			p.fmt.fmt_qc(int64(v))
 		} else {
 			p.badVerb(verb)
