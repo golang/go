@@ -371,8 +371,16 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 }
 
 func (p *parser) expectSemi() {
+	// semicolon is optional before a closing ')' or '}'
 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		p.expect(token.SEMICOLON)
+		if p.tok == token.SEMICOLON {
+			p.next()
+		} else {
+			p.errorExpected(p.pos, "';'")
+			for !isStmtSync(p.tok) {
+				p.next() // make progress
+			}
+		}
 	}
 }
 
@@ -392,6 +400,31 @@ func assert(cond bool, msg string) {
 	if !cond {
 		panic("go/parser internal error: " + msg)
 	}
+}
+
+// isStmtSync reports whether tok starts a new statement.
+// Used for synchronization after an error.
+//
+func isStmtSync(tok token.Token) bool {
+	switch tok {
+	case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
+		token.FALLTHROUGH, token.FOR, token.GO, token.GOTO,
+		token.IF, token.RETURN, token.SELECT, token.SWITCH,
+		token.TYPE, token.VAR, token.EOF:
+		return true
+	}
+	return false
+}
+
+// isDeclSync reports whether tok starts a new declaration.
+// Used for synchronization after an error.
+//
+func isDeclSync(tok token.Token) bool {
+	switch tok {
+	case token.CONST, token.TYPE, token.VAR, token.EOF:
+		return true
+	}
+	return false
 }
 
 // ----------------------------------------------------------------------------
@@ -534,9 +567,11 @@ func (p *parser) makeIdentList(list []ast.Expr) []*ast.Ident {
 	for i, x := range list {
 		ident, isIdent := x.(*ast.Ident)
 		if !isIdent {
-			pos := x.Pos()
-			p.errorExpected(pos, "identifier")
-			ident = &ast.Ident{NamePos: pos, Name: "_"}
+			if _, isBad := x.(*ast.BadExpr); !isBad {
+				// only report error if it's a new one
+				p.errorExpected(x.Pos(), "identifier")
+			}
+			ident = &ast.Ident{NamePos: x.Pos(), Name: "_"}
 		}
 		idents[i] = ident
 	}
@@ -1003,19 +1038,21 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 
 	case token.FUNC:
 		return p.parseFuncTypeOrLit()
-
-	default:
-		if typ := p.tryIdentOrType(true); typ != nil {
-			// could be type for composite literal or conversion
-			_, isIdent := typ.(*ast.Ident)
-			assert(!isIdent, "type cannot be identifier")
-			return typ
-		}
 	}
 
+	if typ := p.tryIdentOrType(true); typ != nil {
+		// could be type for composite literal or conversion
+		_, isIdent := typ.(*ast.Ident)
+		assert(!isIdent, "type cannot be identifier")
+		return typ
+	}
+
+	// we have an error
 	pos := p.pos
 	p.errorExpected(pos, "operand")
-	p.next() // make progress
+	if !isStmtSync(p.tok) {
+		p.next() // make progress
+	}
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
@@ -1274,8 +1311,8 @@ L:
 				x = p.parseTypeAssertion(p.checkExpr(x))
 			default:
 				pos := p.pos
-				p.next() // make progress
 				p.errorExpected(pos, "selector or type assertion")
+				p.next() // make progress
 				x = &ast.BadExpr{From: pos, To: p.pos}
 			}
 		case token.LBRACK:
@@ -1483,7 +1520,10 @@ func (p *parser) parseCallExpr() *ast.CallExpr {
 	if call, isCall := x.(*ast.CallExpr); isCall {
 		return call
 	}
-	p.errorExpected(x.Pos(), "function/method call")
+	if _, isBad := x.(*ast.BadExpr); !isBad {
+		// only report error if it's a new one
+		p.errorExpected(x.Pos(), "function/method call")
+	}
 	return nil
 }
 
@@ -1874,7 +1914,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		s = &ast.DeclStmt{Decl: p.parseDecl()}
+		s = &ast.DeclStmt{Decl: p.parseDecl(isStmtSync)}
 	case
 		// tokens that may start an expression
 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
@@ -1916,7 +1956,9 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		// no statement found
 		pos := p.pos
 		p.errorExpected(pos, "statement")
-		p.next() // make progress
+		for !isStmtSync(p.tok) {
+			p.next() // make progress
+		}
 		s = &ast.BadStmt{From: pos, To: p.pos}
 	}
 
@@ -2107,8 +2149,13 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	recv := par.List[0]
 	base := deref(recv.Type)
 	if _, isIdent := base.(*ast.Ident); !isIdent {
-		p.errorExpected(base.Pos(), "(unqualified) identifier")
-		par.List = []*ast.Field{{Type: &ast.BadExpr{From: recv.Pos(), To: recv.End()}}}
+		if _, isBad := base.(*ast.BadExpr); !isBad {
+			// only report error if it's a new one
+			p.errorExpected(base.Pos(), "(unqualified) identifier")
+		}
+		par.List = []*ast.Field{
+			{Type: &ast.BadExpr{From: recv.Pos(), To: recv.End()}},
+		}
 	}
 
 	return par
@@ -2164,7 +2211,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
-func (p *parser) parseDecl() ast.Decl {
+func (p *parser) parseDecl(isSync func(token.Token) bool) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
 	}
@@ -2186,9 +2233,10 @@ func (p *parser) parseDecl() ast.Decl {
 	default:
 		pos := p.pos
 		p.errorExpected(pos, "declaration")
-		p.next() // make progress
-		decl := &ast.BadDecl{From: pos, To: p.pos}
-		return decl
+		for !isSync(p.tok) {
+			p.next() // make progress
+		}
+		return &ast.BadDecl{From: pos, To: p.pos}
 	}
 
 	return p.parseGenDecl(p.tok, f)
@@ -2227,7 +2275,7 @@ func (p *parser) parseFile() *ast.File {
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decls = append(decls, p.parseDecl())
+				decls = append(decls, p.parseDecl(isDeclSync))
 			}
 		}
 	}
