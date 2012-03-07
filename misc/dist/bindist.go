@@ -43,6 +43,11 @@ var cleanFiles = []string{
 	"VERSION.cache",
 }
 
+var sourceCleanFiles = []string{
+	"bin",
+	"pkg",
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] targets...\n", os.Args[0])
@@ -57,12 +62,18 @@ func main() {
 		log.Println("readCredentials:", err)
 	}
 	for _, targ := range flag.Args() {
-		p := strings.SplitN(targ, "-", 2)
-		if len(p) != 2 {
-			log.Println("Ignoring unrecognized target:", targ)
-			continue
+		var b Build
+		if targ == "source" {
+			b.Source = true
+		} else {
+			p := strings.SplitN(targ, "-", 2)
+			if len(p) != 2 {
+				log.Println("Ignoring unrecognized target:", targ)
+				continue
+			}
+			b.OS = p[0]
+			b.Arch = p[1]
 		}
-		b := Build{OS: p[0], Arch: p[1]}
 		if err := b.Do(); err != nil {
 			log.Printf("%s: %v", targ, err)
 		}
@@ -70,9 +81,10 @@ func main() {
 }
 
 type Build struct {
-	OS   string
-	Arch string
-	root string
+	Source bool // if true, OS and Arch must be empty
+	OS     string
+	Arch   string
+	root   string
 }
 
 func (b *Build) Do() error {
@@ -93,44 +105,66 @@ func (b *Build) Do() error {
 		return err
 	}
 
-	// Build.
-	if b.OS == "windows" {
-		_, err = b.run(filepath.Join(b.root, "src"), "cmd", "/C", "make.bat")
+	src := filepath.Join(b.root, "src")
+	if b.Source {
+		// Build dist tool only.
+		_, err = b.run(src, "bash", "make.bash", "--dist-tool")
 	} else {
-		_, err = b.run(filepath.Join(b.root, "src"), "bash", "make.bash")
+		// Build.
+		if b.OS == "windows" {
+			_, err = b.run(src, "cmd", "/C", "make.bat")
+		} else {
+			_, err = b.run(src, "bash", "make.bash")
+		}
 	}
 	if err != nil {
 		return err
 	}
 
-	// Get version string.
-	version, err := b.run("", filepath.Join(b.root, "bin/go"), "version")
+	// Get version strings.
+	var (
+		version     string // "weekly.2012-03-04"
+		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
+	)
+	pat := b.root + "/pkg/tool/*/dist"
+	m, err := filepath.Glob(pat)
 	if err != nil {
 		return err
 	}
-	v := bytes.SplitN(version, []byte(" "), 4)
-	version = bytes.Join(v[2:], []byte(" "))
-	ver := string(v[2])
+	if len(m) == 0 {
+		return fmt.Errorf("couldn't find dist in %q", pat)
+	}
+	fullVersion, err = b.run("", m[0], "version")
+	if err != nil {
+		return err
+	}
+	v := bytes.SplitN(fullVersion, []byte(" "), 2)
+	version = string(v[0])
 
 	// Write VERSION file.
-	err = ioutil.WriteFile(filepath.Join(b.root, "VERSION"), version, 0644)
+	err = ioutil.WriteFile(filepath.Join(b.root, "VERSION"), fullVersion, 0644)
 	if err != nil {
 		return err
 	}
 
 	// Clean goroot.
-	for _, name := range cleanFiles {
-		err = os.RemoveAll(filepath.Join(b.root, name))
-		if err != nil {
+	if err := b.clean(cleanFiles); err != nil {
+		return err
+	}
+	if b.Source {
+		if err := b.clean(sourceCleanFiles); err != nil {
 			return err
 		}
 	}
 
 	// Create packages.
-	targ := fmt.Sprintf("go.%s.%s-%s", ver, b.OS, b.Arch)
+	targ := fmt.Sprintf("go.%s.%s-%s", version, b.OS, b.Arch)
 	switch b.OS {
-	case "linux", "freebsd":
+	case "linux", "freebsd", "":
 		// build tarball
+		if b.Source {
+			targ = fmt.Sprintf("go.%s.src", version)
+		}
 		targ += ".tar.gz"
 		_, err = b.run("", "tar", "czf", targ, "-C", work, "go")
 	case "darwin":
@@ -187,7 +221,7 @@ func (b *Build) Do() error {
 		// Build package.
 		_, err = b.run(work, "candle",
 			"-nologo",
-			"-dVersion="+ver,
+			"-dVersion="+version,
 			"-dArch="+b.Arch,
 			"-dSourceDir=go",
 			installer, appfiles)
@@ -210,7 +244,7 @@ func (b *Build) Do() error {
 		err = cp(targ, msi)
 	}
 	if err == nil && password != "" {
-		err = b.upload(string(v[2]), targ)
+		err = b.upload(version, targ)
 	}
 	return err
 }
@@ -265,13 +299,16 @@ func (b *Build) env() []string {
 
 func (b *Build) upload(version string, filename string) error {
 	// Prepare upload metadata.
-	labels := []string{"Arch-" + b.Arch}
+	var labels []string
 	os_, arch := b.OS, b.Arch
 	switch b.Arch {
 	case "386":
 		arch = "32-bit"
 	case "amd64":
 		arch = "64-bit"
+	}
+	if arch != "" {
+		labels = append(labels, "Arch-"+b.Arch)
 	}
 	switch b.OS {
 	case "linux":
@@ -288,6 +325,10 @@ func (b *Build) upload(version string, filename string) error {
 		labels = append(labels, "Type-Installer", "OpSys-Windows")
 	}
 	summary := fmt.Sprintf("Go %s %s (%s)", version, os_, arch)
+	if b.Source {
+		labels = append(labels, "Type-Source")
+		summary = fmt.Sprintf("Go %s (source only)", version)
+	}
 
 	// Open file to upload.
 	f, err := os.Open(filename)
@@ -337,6 +378,16 @@ func (b *Build) upload(version string, filename string) error {
 		defer resp.Body.Close()
 		io.Copy(os.Stderr, resp.Body)
 		return fmt.Errorf("upload: %s", resp.Status)
+	}
+	return nil
+}
+
+func (b *Build) clean(files []string) error {
+	for _, name := range files {
+		err := os.RemoveAll(filepath.Join(b.root, name))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
