@@ -32,7 +32,7 @@ func TestDialTimeout(t *testing.T) {
 	numConns := listenerBacklog + 10
 
 	// TODO(bradfitz): It's hard to test this in a portable
-	// way. This is unforunate, but works for now.
+	// way. This is unfortunate, but works for now.
 	switch runtime.GOOS {
 	case "linux":
 		// The kernel will start accepting TCP connections before userspace

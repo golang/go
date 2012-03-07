@@ -50,7 +50,7 @@ func TestTCPListener(t *testing.T) {
 	}
 
 	for _, tt := range listenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		if tt.ipv6 && !supportsIPv6 {
@@ -98,7 +98,7 @@ func TestUDPListener(t *testing.T) {
 	}
 
 	for _, tt := range listenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		if tt.ipv6 && !supportsIPv6 {
@@ -132,7 +132,7 @@ func TestSimpleTCPListener(t *testing.T) {
 	}
 
 	for _, tt := range listenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		if tt.ipv6 {
@@ -170,7 +170,7 @@ func TestSimpleUDPListener(t *testing.T) {
 	}
 
 	for _, tt := range listenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		if tt.ipv6 {
@@ -267,7 +267,7 @@ func TestDualStackTCPListener(t *testing.T) {
 	}
 
 	for _, tt := range dualStackListenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		switch runtime.GOOS {
@@ -316,7 +316,7 @@ func TestDualStackUDPListener(t *testing.T) {
 	}
 
 	for _, tt := range dualStackListenerTests {
-		if tt.wildcard && avoidOSXFirewallDialogPopup() {
+		if tt.wildcard && (testing.Short() || !*testExternal) {
 			continue
 		}
 		tt.net1 = toudpnet(tt.net1)
@@ -531,7 +531,7 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 		return
 	}
 	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.
-	if !supportsIPv4map || avoidOSXFirewallDialogPopup() {
+	if !supportsIPv4map || testing.Short() || !*testExternal {
 		return
 	}
 
