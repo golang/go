@@ -545,7 +545,7 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 	for _, tt := range prohibitionaryDialArgTests {
 		_, err = Dial(tt.net, tt.addr+":"+port)
 		if err == nil {
-			t.Fatal("Dial(%q, %q) should fail", tt.net, tt.addr)
+			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
 		}
 	}
 }

@@ -1112,7 +1112,7 @@ type toolchain interface {
 type noToolchain struct{}
 
 func noCompiler() error {
-	log.Fatal("unknown compiler %q", buildContext.Compiler)
+	log.Fatalf("unknown compiler %q", buildContext.Compiler)
 	return nil
 }
 

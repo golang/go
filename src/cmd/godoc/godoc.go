@@ -88,7 +88,7 @@ func initHandlers() {
 	for _, p := range filepath.SplitList(*pkgPath) {
 		_, elem := filepath.Split(p)
 		if elem == "" {
-			log.Fatal("invalid -path argument: %q has no final element", p)
+			log.Fatalf("invalid -path argument: %q has no final element", p)
 		}
 		fs.Bind("/src/pkg/"+elem, OS(p), "/", bindReplace)
 	}
