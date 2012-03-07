@@ -707,6 +707,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 	if name == "" {
 		// Copy the representation of the nil interface value to the target.
 		// This is horribly unsafe and special.
+		if indir > 0 {
+			p = allocate(ityp, p, 1) // All but the last level has been allocated by dec.Indirect
+		}
 		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
 		return
 	}
