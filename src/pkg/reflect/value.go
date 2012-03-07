@@ -54,6 +54,10 @@ func memmove(adst, asrc unsafe.Pointer, n uintptr) {
 // its String method returns "<invalid Value>", and all other methods panic.
 // Most functions and methods never return an invalid value.
 // If one does, its documentation states the conditions explicitly.
+//
+// A Value can be used concurrently by multiple goroutines provided that
+// the underlying Go value can be used concurrently for the equivalent
+// direct operations.
 type Value struct {
 	// typ holds the type of the value represented by a Value.
 	typ *commonType

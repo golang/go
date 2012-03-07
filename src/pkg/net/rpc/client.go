@@ -36,7 +36,8 @@ type Call struct {
 
 // Client represents an RPC Client.
 // There may be multiple outstanding Calls associated
-// with a single Client.
+// with a single Client, and a Client may be used by
+// multiple goroutines simultaneously.
 type Client struct {
 	mutex    sync.Mutex // protects pending, seq, request
 	sending  sync.Mutex
