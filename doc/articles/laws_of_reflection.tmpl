@@ -184,7 +184,7 @@ At the basic level, reflection is just a mechanism to examine the
 type and value pair stored inside an interface variable. To get
 started, there are two types we need to know about in
 <a href="http://golang.org/pkg/reflect">package reflect</a>:
-<a href="http://golang.org/pkg/reflect/#Type">Type</a>and
+<a href="http://golang.org/pkg/reflect/#Type">Type</a> and
 <a href="http://golang.org/pkg/reflect/#Value">Value</a>. Those two types
 give access to the contents of an interface variable, and two
 simple functions, called <code>reflect.TypeOf</code> and
@@ -301,7 +301,7 @@ reflection object contains a value of a user-defined integer type,
 as in
 </p>
 
-{{code "progs/interface2.go" `/START f3/` `/START/`}}
+{{code "progs/interface2.go" `/START f3/` `/STOP/`}}
 
 <p>
 the <code>Kind</code> of <code>v</code> is still
@@ -337,7 +337,7 @@ func (v Value) Interface() interface{}
 As a consequence we can say
 </p>
 
-{{code "progs/interface2.go" `/START f3b/` `/START/`}}
+{{code "progs/interface2.go" `/START f3b/` `/STOP/`}}
 
 <p>
 to print the <code>float64</code> value represented by the
@@ -355,7 +355,7 @@ the <code>Interface</code> method to the formatted print
 routine:
 </p>
 
-{{code "progs/interface2.go" `/START f3c/` `/START/`}}
+{{code "progs/interface2.go" `/START f3c/` `/STOP/`}}
 
 <p>
 (Why not <code>fmt.Println(v)</code>? Because <code>v</code> is a
@@ -450,7 +450,7 @@ determined by whether the reflection object holds the original
 item. When we say
 </p>
 
-{{code "progs/interface2.go" `/START f6/` `/START/`}}
+{{code "progs/interface2.go" `/START f6/` `/STOP/`}}
 
 <p>
 we pass a <em>copy</em> of <code>x</code> to
@@ -506,7 +506,7 @@ and then create a reflection value that points to it, called
 <code>p</code>.
 </p>
 
-{{code "progs/interface2.go" `/START f7/` `/START/`}}
+{{code "progs/interface2.go" `/START f7/` `/STOP/`}}
 
 <p>
 The output so far is
@@ -526,7 +526,7 @@ and save the result in a reflection <code>Value</code> called
 <code>v</code>:
 </p>
 
-{{code "progs/interface2.go" `/START f7b/` `/START/`}}
+{{code "progs/interface2.go" `/START f7b/` `/STOP/`}}
 
 <p>
 Now <code>v</code> is a settable reflection object, as the output
