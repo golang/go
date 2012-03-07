@@ -1375,9 +1375,11 @@ type checks, reflection, and even panic-time stack traces.
 </p>
 
 <p>
-A trivial C "hello, world" program compiled and linked statically using gcc
-on Linux is around 750 kB.  An equivalent Go program using <code>fmt.Printf</code>
-is around 1.3 MB, but
+A simple C "hello, world" program compiled and linked statically using gcc
+on Linux is around 750 kB,
+including an implementation of <code>printf</code>.
+An equivalent Go program using <code>fmt.Printf</code>
+is around 1.2 MB, but
 that includes more powerful run-time support.
 </p>
 
