@@ -4,20 +4,16 @@
 
 # The library is built by the Makefile in the parent directory.
 # This Makefile only builds mkrunetype.
-
-include ../../Make.inc
-O:=$(HOST_O)
+# GOROOT, GOOS, and GOARCH must be set explicitly.
 
 TARG=mkrunetype
-
-OFILES=\
-	mkrunetype.$O\
-
-include ../../Make.ccmd
 
 UnicodeData-%.txt:
 	curl http://www.unicode.org/Public/$*/ucd/UnicodeData.txt >_$@
 	mv _$@ $@
+
+mkrunetype: mkrunetype.c
+	cc -I../../../include -o mkrunetype -L$(GOROOT)/pkg/obj/$(GOOS)_$(GOARCH)/ mkrunetype.c -l9
 
 runetypebody-%.c: mkrunetype UnicodeData-%.txt
 	mkrunetype -p UnicodeData-$*.txt >_$@
@@ -30,3 +26,5 @@ UNICODE_VERSION=6.0.0
 test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
 	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
 
+clean:
+	rm -f UnicodeData.txt mkrunetype
