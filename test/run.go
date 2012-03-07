@@ -265,6 +265,10 @@ func (t *test) run() {
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	check(err)
 	
+	// A few tests (of things like the environment) require these to be set.
+	os.Setenv("GOOS", runtime.GOOS)
+	os.Setenv("GOARCH", runtime.GOARCH)
+
 	useTmp := true
 	runcmd := func(args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -274,7 +278,6 @@ func (t *test) run() {
 		if useTmp {
 			cmd.Dir = t.tempDir
 		}
-		cmd.Env = append(cmd.Env, "GOOS="+runtime.GOOS, "GOARCH="+runtime.GOARCH)
 		err := cmd.Run()
 		return buf.Bytes(), err
 	}
