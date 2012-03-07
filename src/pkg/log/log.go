@@ -13,7 +13,6 @@
 package log
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -41,11 +40,11 @@ const (
 // the Writer's Write method.  A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu     sync.Mutex   // ensures atomic writes; protects the following fields
-	prefix string       // prefix to write at beginning of each line
-	flag   int          // properties
-	out    io.Writer    // destination for output
-	buf    bytes.Buffer // for accumulating text to write
+	mu     sync.Mutex // ensures atomic writes; protects the following fields
+	prefix string     // prefix to write at beginning of each line
+	flag   int        // properties
+	out    io.Writer  // destination for output
+	buf    []byte     // for accumulating text to write
 }
 
 // New creates a new Logger.   The out variable sets the
@@ -60,10 +59,10 @@ var std = New(os.Stderr, "", LstdFlags)
 
 // Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
 // Knows the buffer has capacity.
-func itoa(buf *bytes.Buffer, i int, wid int) {
+func itoa(buf *[]byte, i int, wid int) {
 	var u uint = uint(i)
 	if u == 0 && wid <= 1 {
-		buf.WriteByte('0')
+		*buf = append(*buf, '0')
 		return
 	}
 
@@ -75,38 +74,33 @@ func itoa(buf *bytes.Buffer, i int, wid int) {
 		wid--
 		b[bp] = byte(u%10) + '0'
 	}
-
-	// avoid slicing b to avoid an allocation.
-	for bp < len(b) {
-		buf.WriteByte(b[bp])
-		bp++
-	}
+	*buf = append(*buf, b[bp:]...)
 }
 
-func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line int) {
-	buf.WriteString(l.prefix)
+func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+	*buf = append(*buf, l.prefix...)
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
 		if l.flag&Ldate != 0 {
 			year, month, day := t.Date()
 			itoa(buf, year, 4)
-			buf.WriteByte('/')
+			*buf = append(*buf, '/')
 			itoa(buf, int(month), 2)
-			buf.WriteByte('/')
+			*buf = append(*buf, '/')
 			itoa(buf, day, 2)
-			buf.WriteByte(' ')
+			*buf = append(*buf, ' ')
 		}
 		if l.flag&(Ltime|Lmicroseconds) != 0 {
 			hour, min, sec := t.Clock()
 			itoa(buf, hour, 2)
-			buf.WriteByte(':')
+			*buf = append(*buf, ':')
 			itoa(buf, min, 2)
-			buf.WriteByte(':')
+			*buf = append(*buf, ':')
 			itoa(buf, sec, 2)
 			if l.flag&Lmicroseconds != 0 {
-				buf.WriteByte('.')
+				*buf = append(*buf, '.')
 				itoa(buf, t.Nanosecond()/1e3, 6)
 			}
-			buf.WriteByte(' ')
+			*buf = append(*buf, ' ')
 		}
 	}
 	if l.flag&(Lshortfile|Llongfile) != 0 {
@@ -120,10 +114,10 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line 
 			}
 			file = short
 		}
-		buf.WriteString(file)
-		buf.WriteByte(':')
+		*buf = append(*buf, file...)
+		*buf = append(*buf, ':')
 		itoa(buf, line, -1)
-		buf.WriteString(": ")
+		*buf = append(*buf, ": "...)
 	}
 }
 
@@ -150,13 +144,13 @@ func (l *Logger) Output(calldepth int, s string) error {
 		}
 		l.mu.Lock()
 	}
-	l.buf.Reset()
+	l.buf = l.buf[:0]
 	l.formatHeader(&l.buf, now, file, line)
-	l.buf.WriteString(s)
+	l.buf = append(l.buf, s...)
 	if len(s) > 0 && s[len(s)-1] != '\n' {
-		l.buf.WriteByte('\n')
+		l.buf = append(l.buf, '\n')
 	}
-	_, err := l.out.Write(l.buf.Bytes())
+	_, err := l.out.Write(l.buf)
 	return err
 }
 

@@ -5,15 +5,12 @@
 package fmt
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"math"
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -87,25 +84,36 @@ func Scanf(format string, a ...interface{}) (n int, err error) {
 	return Fscanf(os.Stdin, format, a...)
 }
 
+type stringReader string
+
+func (r *stringReader) Read(b []byte) (n int, err error) {
+	n = copy(b, *r)
+	*r = (*r)[n:]
+	if n == 0 {
+		err = io.EOF
+	}
+	return
+}
+
 // Sscan scans the argument string, storing successive space-separated
 // values into successive arguments.  Newlines count as space.  It
 // returns the number of items successfully scanned.  If that is less
 // than the number of arguments, err will report why.
 func Sscan(str string, a ...interface{}) (n int, err error) {
-	return Fscan(strings.NewReader(str), a...)
+	return Fscan((*stringReader)(&str), a...)
 }
 
 // Sscanln is similar to Sscan, but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Sscanln(str string, a ...interface{}) (n int, err error) {
-	return Fscanln(strings.NewReader(str), a...)
+	return Fscanln((*stringReader)(&str), a...)
 }
 
 // Sscanf scans the argument string, storing successive space-separated
 // values into successive arguments as determined by the format.  It
 // returns the number of items successfully parsed.
 func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
-	return Fscanf(strings.NewReader(str), format, a...)
+	return Fscanf((*stringReader)(&str), format, a...)
 }
 
 // Fscan scans text read from r, storing successive space-separated
@@ -149,7 +157,7 @@ const eof = -1
 // ss is the internal implementation of ScanState.
 type ss struct {
 	rr       io.RuneReader // where to read input
-	buf      bytes.Buffer  // token accumulator
+	buf      buffer        // token accumulator
 	peekRune rune          // one-rune lookahead
 	prevRune rune          // last rune returned by ReadRune
 	count    int           // runes consumed so far.
@@ -262,14 +270,46 @@ func (s *ss) Token(skipSpace bool, f func(rune) bool) (tok []byte, err error) {
 	if f == nil {
 		f = notSpace
 	}
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	tok = s.token(skipSpace, f)
 	return
 }
 
+// space is a copy of the unicode.White_Space ranges,
+// to avoid depending on package unicode.
+var space = [][2]uint16{
+	{0x0009, 0x000d},
+	{0x0020, 0x0020},
+	{0x0085, 0x0085},
+	{0x00a0, 0x00a0},
+	{0x1680, 0x1680},
+	{0x180e, 0x180e},
+	{0x2000, 0x200a},
+	{0x2028, 0x2029},
+	{0x202f, 0x202f},
+	{0x205f, 0x205f},
+	{0x3000, 0x3000},
+}
+
+func isSpace(r rune) bool {
+	if r >= 1<<16 {
+		return false
+	}
+	rx := uint16(r)
+	for _, rng := range space {
+		if rx < rng[0] {
+			return false
+		}
+		if rx <= rng[1] {
+			return true
+		}
+	}
+	return false
+}
+
 // notSpace is the default scanning function used in Token.
 func notSpace(r rune) bool {
-	return !unicode.IsSpace(r)
+	return !isSpace(r)
 }
 
 // skipSpace provides Scan() methods the ability to skip space and newline characters 
@@ -378,10 +418,10 @@ func (s *ss) free(old ssave) {
 		return
 	}
 	// Don't hold on to ss structs with large buffers.
-	if cap(s.buf.Bytes()) > 1024 {
+	if cap(s.buf) > 1024 {
 		return
 	}
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	s.rr = nil
 	ssFree.put(s)
 }
@@ -403,7 +443,7 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 			s.errorString("unexpected newline")
 			return
 		}
-		if !unicode.IsSpace(r) {
+		if !isSpace(r) {
 			s.UnreadRune()
 			break
 		}
@@ -429,7 +469,7 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 		}
 		s.buf.WriteRune(r)
 	}
-	return s.buf.Bytes()
+	return s.buf
 }
 
 // typeError indicates that the type of the operand did not match the format
@@ -440,6 +480,15 @@ func (s *ss) typeError(field interface{}, expected string) {
 var complexError = errors.New("syntax error scanning complex number")
 var boolError = errors.New("syntax error scanning boolean")
 
+func indexRune(s string, r rune) int {
+	for i, c := range s {
+		if c == r {
+			return i
+		}
+	}
+	return -1
+}
+
 // consume reads the next rune in the input and reports whether it is in the ok string.
 // If accept is true, it puts the character into the input token.
 func (s *ss) consume(ok string, accept bool) bool {
@@ -447,7 +496,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 	if r == eof {
 		return false
 	}
-	if strings.IndexRune(ok, r) >= 0 {
+	if indexRune(ok, r) >= 0 {
 		if accept {
 			s.buf.WriteRune(r)
 		}
@@ -465,7 +514,7 @@ func (s *ss) peek(ok string) bool {
 	if r != eof {
 		s.UnreadRune()
 	}
-	return strings.IndexRune(ok, r) >= 0
+	return indexRune(ok, r) >= 0
 }
 
 func (s *ss) notEOF() {
@@ -560,7 +609,7 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
 	}
 	for s.accept(digits) {
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 // scanRune returns the next rune value in the input.
@@ -660,16 +709,16 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 // if the width is specified. It's not rigorous about syntax because it doesn't check that
 // we have at least some digits, but Atof will do that.
 func (s *ss) floatToken() string {
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	// NaN?
 	if s.accept("nN") && s.accept("aA") && s.accept("nN") {
-		return s.buf.String()
+		return string(s.buf)
 	}
 	// leading sign?
 	s.accept(sign)
 	// Inf?
 	if s.accept("iI") && s.accept("nN") && s.accept("fF") {
-		return s.buf.String()
+		return string(s.buf)
 	}
 	// digits?
 	for s.accept(decimalDigits) {
@@ -688,7 +737,7 @@ func (s *ss) floatToken() string {
 		for s.accept(decimalDigits) {
 		}
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 // complexTokens returns the real and imaginary parts of the complex number starting here.
@@ -698,13 +747,13 @@ func (s *ss) complexTokens() (real, imag string) {
 	// TODO: accept N and Ni independently?
 	parens := s.accept("(")
 	real = s.floatToken()
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	// Must now have a sign.
 	if !s.accept("+-") {
 		s.error(complexError)
 	}
 	// Sign is now in buffer
-	imagSign := s.buf.String()
+	imagSign := string(s.buf)
 	imag = s.floatToken()
 	if !s.accept("i") {
 		s.error(complexError)
@@ -717,7 +766,7 @@ func (s *ss) complexTokens() (real, imag string) {
 
 // convertFloat converts the string to a float64value.
 func (s *ss) convertFloat(str string, n int) float64 {
-	if p := strings.Index(str, "p"); p >= 0 {
+	if p := indexRune(str, 'p'); p >= 0 {
 		// Atof doesn't handle power-of-2 exponents,
 		// but they're easy to evaluate.
 		f, err := strconv.ParseFloat(str[:p], n)
@@ -794,7 +843,7 @@ func (s *ss) quotedString() string {
 			}
 			s.buf.WriteRune(r)
 		}
-		return s.buf.String()
+		return string(s.buf)
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
 		s.buf.WriteRune(quote)
@@ -811,7 +860,7 @@ func (s *ss) quotedString() string {
 				break
 			}
 		}
-		result, err := strconv.Unquote(s.buf.String())
+		result, err := strconv.Unquote(string(s.buf))
 		if err != nil {
 			s.error(err)
 		}
@@ -844,7 +893,7 @@ func (s *ss) hexByte() (b byte, ok bool) {
 	if rune1 == eof {
 		return
 	}
-	if unicode.IsSpace(rune1) {
+	if isSpace(rune1) {
 		s.UnreadRune()
 		return
 	}
@@ -862,11 +911,11 @@ func (s *ss) hexString() string {
 		}
 		s.buf.WriteByte(b)
 	}
-	if s.buf.Len() == 0 {
+	if len(s.buf) == 0 {
 		s.errorString("Scan: no hex data for %x string")
 		return ""
 	}
-	return s.buf.String()
+	return string(s.buf)
 }
 
 const floatVerbs = "beEfFgGv"
@@ -875,7 +924,7 @@ const hugeWid = 1 << 30
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb rune, field interface{}) {
-	s.buf.Reset()
+	s.buf = s.buf[:0]
 	var err error
 	// If the parameter has its own Scan method, use that.
 	if v, ok := field.(Scanner); ok {
@@ -1004,7 +1053,7 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
 			if r == '\n' || r == eof {
 				break
 			}
-			if !unicode.IsSpace(r) {
+			if !isSpace(r) {
 				s.errorString("Scan: expected newline")
 				break
 			}
@@ -1032,7 +1081,7 @@ func (s *ss) advance(format string) (i int) {
 			i += w // skip the first %
 		}
 		sawSpace := false
-		for unicode.IsSpace(fmtc) && i < len(format) {
+		for isSpace(fmtc) && i < len(format) {
 			sawSpace = true
 			i += w
 			fmtc, w = utf8.DecodeRuneInString(format[i:])
@@ -1044,7 +1093,7 @@ func (s *ss) advance(format string) (i int) {
 			if inputc == eof {
 				return
 			}
-			if !unicode.IsSpace(inputc) {
+			if !isSpace(inputc) {
 				// Space in format but not in input: error
 				s.errorString("expected space in input to match format")
 			}

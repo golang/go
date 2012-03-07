@@ -5,9 +5,7 @@
 package fmt
 
 import (
-	"bytes"
 	"strconv"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -36,10 +34,10 @@ func init() {
 }
 
 // A fmt is the raw formatter used by Printf etc.
-// It prints into a bytes.Buffer that must be set up externally.
+// It prints into a buffer that must be set up separately.
 type fmt struct {
 	intbuf [nByte]byte
-	buf    *bytes.Buffer
+	buf    *buffer
 	// width, precision
 	wid  int
 	prec int
@@ -69,7 +67,7 @@ func (f *fmt) clearflags() {
 	f.zero = false
 }
 
-func (f *fmt) init(buf *bytes.Buffer) {
+func (f *fmt) init(buf *buffer) {
 	f.buf = buf
 	f.clearflags()
 }
@@ -247,7 +245,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	}
 
 	// If we want a quoted char for %#U, move the data up to make room.
-	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(rune(a)) {
+	if f.unicode && f.uniQuote && a >= 0 && a <= utf8.MaxRune && strconv.IsPrint(rune(a)) {
 		runeWidth := utf8.RuneLen(rune(a))
 		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
 		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
@@ -290,16 +288,15 @@ func (f *fmt) fmt_s(s string) {
 // fmt_sx formats a string as a hexadecimal encoding of its bytes.
 func (f *fmt) fmt_sx(s, digits string) {
 	// TODO: Avoid buffer by pre-padding.
-	var b bytes.Buffer
+	var b []byte
 	for i := 0; i < len(s); i++ {
 		if i > 0 && f.space {
-			b.WriteByte(' ')
+			b = append(b, ' ')
 		}
 		v := s[i]
-		b.WriteByte(digits[v>>4])
-		b.WriteByte(digits[v&0xF])
+		b = append(b, digits[v>>4], digits[v&0xF])
 	}
-	f.pad(b.Bytes())
+	f.pad(b)
 }
 
 // fmt_q formats a string as a double-quoted, escaped Go string constant.
