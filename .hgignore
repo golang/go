@@ -30,7 +30,6 @@ misc/dashboard/builder/gobuilder
 misc/goplay/goplay
 misc/osx/*.pkg
 misc/osx/*.dmg
-src/Make.inc
 src/cmd/6a/6a
 src/cmd/?l/enam.c
 src/cmd/cc/y.output
@@ -42,7 +41,6 @@ src/pkg/exp/norm/maketables
 src/pkg/exp/norm/maketesttables
 src/pkg/exp/norm/normregtest
 src/pkg/exp/ebnflint/ebnflint
-src/pkg/go/build/syslist.go
 src/pkg/go/doc/headscan
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
