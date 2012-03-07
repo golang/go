@@ -30,7 +30,7 @@ import (
 
 var (
 	verbose     = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
-	numParallel = flag.Int("n", 2*runtime.NumCPU(), "number of parallel tests to run")
+	numParallel = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary     = flag.Bool("summary", false, "show summary of results")
 	showSkips   = flag.Bool("show_skips", false, "show skipped tests")
 )
@@ -60,10 +60,9 @@ const maxTests = 5000
 
 func main() {
 	flag.Parse()
-	
-	// Disable parallelism if printing, or if running on
-	// (presumably underpowered) arm systems.
-	if *verbose || runtime.GOARCH == "arm" {
+
+	// Disable parallelism if printing
+	if *verbose {
 		*numParallel = 1
 	}
 
