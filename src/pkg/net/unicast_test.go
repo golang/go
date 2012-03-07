@@ -56,11 +56,7 @@ func TestTCPListener(t *testing.T) {
 		if tt.ipv6 && !supportsIPv6 {
 			continue
 		}
-		port := usableLocalPort(t, tt.net, tt.laddr)
-		l1, err := Listen(tt.net, tt.laddr+":"+port)
-		if err != nil {
-			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
-		}
+		l1, port := usableListenPort(t, tt.net, tt.laddr)
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := Listen(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
@@ -105,11 +101,7 @@ func TestUDPListener(t *testing.T) {
 			continue
 		}
 		tt.net = toudpnet(tt.net)
-		port := usableLocalPort(t, tt.net, tt.laddr)
-		l1, err := ListenPacket(tt.net, tt.laddr+":"+port)
-		if err != nil {
-			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
-		}
+		l1, port := usableListenPacketPort(t, tt.net, tt.laddr)
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
@@ -138,11 +130,7 @@ func TestSimpleTCPListener(t *testing.T) {
 		if tt.ipv6 {
 			continue
 		}
-		port := usableLocalPort(t, tt.net, tt.laddr)
-		l1, err := Listen(tt.net, tt.laddr+":"+port)
-		if err != nil {
-			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
-		}
+		l1, port := usableListenPort(t, tt.net, tt.laddr)
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := Listen(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
@@ -177,11 +165,7 @@ func TestSimpleUDPListener(t *testing.T) {
 			continue
 		}
 		tt.net = toudpnet(tt.net)
-		port := usableLocalPort(t, tt.net, tt.laddr)
-		l1, err := ListenPacket(tt.net, tt.laddr+":"+port)
-		if err != nil {
-			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net, tt.laddr+":"+port, err)
-		}
+		l1, port := usableListenPacketPort(t, tt.net, tt.laddr)
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
@@ -276,12 +260,8 @@ func TestDualStackTCPListener(t *testing.T) {
 				tt.xerr = nil
 			}
 		}
-		port := usableLocalPort(t, tt.net1, tt.laddr1)
+		l1, port := usableListenPort(t, tt.net1, tt.laddr1)
 		laddr := tt.laddr1 + ":" + port
-		l1, err := Listen(tt.net1, laddr)
-		if err != nil {
-			t.Fatalf("First Listen(%q, %q) failed: %v", tt.net1, laddr, err)
-		}
 		checkFirstListener(t, tt.net1, laddr, l1)
 		laddr = tt.laddr2 + ":" + port
 		l2, err := Listen(tt.net2, laddr)
@@ -327,12 +307,8 @@ func TestDualStackUDPListener(t *testing.T) {
 				tt.xerr = nil
 			}
 		}
-		port := usableLocalPort(t, tt.net1, tt.laddr1)
+		l1, port := usableListenPacketPort(t, tt.net1, tt.laddr1)
 		laddr := tt.laddr1 + ":" + port
-		l1, err := ListenPacket(tt.net1, laddr)
-		if err != nil {
-			t.Fatalf("First ListenPacket(%q, %q) failed: %v", tt.net1, laddr, err)
-		}
 		checkFirstListener(t, tt.net1, laddr, l1)
 		laddr = tt.laddr2 + ":" + port
 		l2, err := ListenPacket(tt.net2, laddr)
@@ -341,29 +317,44 @@ func TestDualStackUDPListener(t *testing.T) {
 	}
 }
 
-func usableLocalPort(t *testing.T, net, laddr string) string {
+func usableListenPort(t *testing.T, net, laddr string) (l Listener, port string) {
 	var nladdr string
+	var err error
 	switch net {
+	default:
+		panic("usableListenPort net=" + net)
 	case "tcp", "tcp4", "tcp6":
-		l, err := Listen(net, laddr+":0")
+		l, err = Listen(net, laddr+":0")
 		if err != nil {
 			t.Fatalf("Probe Listen(%q, %q) failed: %v", net, laddr, err)
 		}
-		defer l.Close()
 		nladdr = l.(*TCPListener).Addr().String()
-	case "udp", "udp4", "udp6":
-		c, err := ListenPacket(net, laddr+":0")
-		if err != nil {
-			t.Fatalf("Probe ListenPacket(%q, %q) failed: %v", net, laddr, err)
-		}
-		defer c.Close()
-		nladdr = c.(*UDPConn).LocalAddr().String()
 	}
-	_, port, err := SplitHostPort(nladdr)
+	_, port, err = SplitHostPort(nladdr)
 	if err != nil {
 		t.Fatalf("SplitHostPort failed: %v", err)
 	}
-	return port
+	return l, port
+}
+
+func usableListenPacketPort(t *testing.T, net, laddr string) (l PacketConn, port string) {
+	var nladdr string
+	var err error
+	switch net {
+	default:
+		panic("usableListenPacketPort net=" + net)
+	case "udp", "udp4", "udp6":
+		l, err = ListenPacket(net, laddr+":0")
+		if err != nil {
+			t.Fatalf("Probe ListenPacket(%q, %q) failed: %v", net, laddr, err)
+		}
+		nladdr = l.(*UDPConn).LocalAddr().String()
+	}
+	_, port, err = SplitHostPort(nladdr)
+	if err != nil {
+		t.Fatalf("SplitHostPort failed: %v", err)
+	}
+	return l, port
 }
 
 func differentWildcardAddr(i, j string) bool {
@@ -535,15 +526,11 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 		return
 	}
 
-	port := usableLocalPort(t, "tcp", "[::]")
-	l, err := Listen("tcp", "[::]"+":"+port)
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
+	l, port := usableListenPort(t, "tcp", "[::]")
 	defer l.Close()
 
 	for _, tt := range prohibitionaryDialArgTests {
-		_, err = Dial(tt.net, tt.addr+":"+port)
+		_, err := Dial(tt.net, tt.addr+":"+port)
 		if err == nil {
 			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
 		}
