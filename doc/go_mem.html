@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Memory Model",
-	"Subtitle": "Version of June 10, 2011",
+	"Subtitle": "Version of March 6, 2012"
 	"Path": "/ref/mem"
 }-->
 
@@ -107,9 +107,9 @@ unspecified order.
 <h3>Initialization</h3>
 
 <p>
-Program initialization runs in a single goroutine and
-new goroutines created during initialization do not
-start running until initialization ends.
+Program initialization runs in a single goroutine,
+but that goroutine may create other goroutines,
+which run concurrently.
 </p>
 
 <p class="rule">
@@ -120,11 +120,6 @@ If a package <code>p</code> imports package <code>q</code>, the completion of
 <p class="rule">
 The start of the function <code>main.main</code> happens after
 all <code>init</code> functions have finished.
-</p>
-
-<p class="rule">
-The execution of any goroutines created during <code>init</code>
-functions happens after all <code>init</code> functions have finished.
 </p>
 
 <h3>Goroutine creation</h3>
