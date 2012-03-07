@@ -52,7 +52,7 @@ var pkgDeps = map[string][]string{
 	"math/rand":     {"L0", "math"},
 	"path":          {"L0", "unicode/utf8", "strings"},
 	"sort":          {"math"},
-	"strconv":       {"L0", "unicode", "unicode/utf8", "math", "strings"},
+	"strconv":       {"L0", "unicode/utf8", "math"},
 	"strings":       {"L0", "unicode", "unicode/utf8"},
 	"unicode":       {},
 	"unicode/utf16": {},
