@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Expose some runtime functions for testing.
+// Must be in a non-cgo-using package so that
+// the go command compiles this file with 6c, not gcc.
 
 typedef char bool;
 
@@ -14,7 +16,7 @@ FLUSH(void*)
 }
 
 void
-·lockedOSThread(bool b)
+·LockedOSThread(bool b)
 {
 	b = runtime·lockedOSThread();
 	FLUSH(&b);
