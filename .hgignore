@@ -26,6 +26,7 @@ test.out
 doc/tmpltohtml
 doc/codelab/wiki/*.bin
 misc/cgo/life/run.out
+misc/cgo/stdio/run.out
 misc/dashboard/builder/gobuilder
 misc/goplay/goplay
 misc/osx/*.pkg
