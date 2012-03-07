@@ -60,6 +60,10 @@ type U struct {
 	*T
 }
 
+type I interface {
+	Sum(...int) int
+}
+
 func main() {
 	if x := sum(1, 2, 3); x != 6 {
 		println("sum 6", x)
@@ -205,6 +209,14 @@ func main() {
 	i = u
 	if x := i.Sum(2, 3, 5, 6); x != 16 {
 		println("i(=u).Sum", x)
+		panic("fail")
+	}
+	var s struct {
+		I
+	}
+	s.I = &u
+	if x := s.Sum(2, 3, 5, 8); x != 18 {
+		println("s{&u}.Sum", x)
 		panic("fail")
 	}
 	/* TODO(rsc): Enable once nested method expressions work.
