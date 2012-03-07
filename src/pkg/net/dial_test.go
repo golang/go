@@ -51,12 +51,15 @@ func TestDialTimeout(t *testing.T) {
 		// to connecting to a hopefully-dead 127/8 address.
 		// Same for windows.
 		//
-		// Use a bogus port (44444) instead of 80, because
+		// Use an IANA reserved port (49151) instead of 80, because
 		// on our 386 builder, this Dial succeeds, connecting
 		// to an IIS web server somewhere.  The data center
 		// or VM or firewall must be stealing the TCP connection.
+		// 
+		// IANA Service Name and Transport Protocol Port Number Registry
+		// <http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml>
 		go func() {
-			c, err := DialTimeout("tcp", "127.0.71.111:44444", 200*time.Millisecond)
+			c, err := DialTimeout("tcp", "127.0.71.111:49151", 200*time.Millisecond)
 			if err == nil {
 				err = fmt.Errorf("unexpected: connected to %s!", c.RemoteAddr())
 				c.Close()
