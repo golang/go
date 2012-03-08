@@ -1,10 +1,7 @@
 <!--{
-	"Title": "Defer, Panic, and Recover"
+	"Title": "Defer, Panic, and Recover",
+	"Template": true
 }-->
-<!--
-  DO NOT EDIT: created by
-    tmpltohtml articles/defer_panic_recover.tmpl
--->
 
 <p>
 Go has the usual mechanisms for control flow: if, for, switch, goto.  It also
@@ -23,23 +20,7 @@ For example, let's look at a function that opens two files and copies the
 contents of one file to the other:
 </p>
  
-<pre><!--{{code "progs/defer.go" `/func CopyFile/` `/STOP/`}}
--->func CopyFile(dstName, srcName string) (written int64, err error) {
-    src, err := os.Open(srcName)
-    if err != nil {
-        return
-    }
-
-    dst, err := os.Create(dstName)
-    if err != nil {
-        return
-    }
-
-    written, err = io.Copy(dst, src)
-    dst.Close()
-    src.Close()
-    return
-}</pre>
+{{code "/doc/progs/defer.go" `/func CopyFile/` `/STOP/`}}
 
 <p>
 This works, but there is a bug. If the call to os.Create fails, the
@@ -50,22 +31,7 @@ noticed and resolved. By introducing defer statements we can ensure that the
 files are always closed:
 </p>
  
-<pre><!--{{code "progs/defer2.go" `/func CopyFile/` `/STOP/`}}
--->func CopyFile(dstName, srcName string) (written int64, err error) {
-    src, err := os.Open(srcName)
-    if err != nil {
-        return
-    }
-    defer src.Close()
-
-    dst, err := os.Create(dstName)
-    if err != nil {
-        return
-    }
-    defer dst.Close()
-
-    return io.Copy(dst, src)
-}</pre>
+{{code "/doc/progs/defer2.go" `/func CopyFile/` `/STOP/`}}
 
 <p>
 Defer statements allow us to think about closing each file right after opening
@@ -88,13 +54,7 @@ In this example, the expression "i" is evaluated when the Println call is
 deferred. The deferred call will print "0" after the function returns.
 </p>
  
-<pre><!--{{code "progs/defer.go" `/func a/` `/STOP/`}}
--->func a() {
-    i := 0
-    defer fmt.Println(i)
-    i++
-    return
-}</pre>
+{{code "/doc/progs/defer.go" `/func a/` `/STOP/`}}
 
 <p>
 2. <i>Deferred function calls are executed in Last In First Out order
@@ -105,12 +65,7 @@ deferred. The deferred call will print "0" after the function returns.
 This function prints "3210":
 </p>
 
-<pre><!--{{code "progs/defer.go" `/func b/` `/STOP/`}}
--->func b() {
-    for i := 0; i &lt; 4; i++ {
-        defer fmt.Print(i)
-    }
-}</pre>
+{{code "/doc/progs/defer.go" `/func b/` `/STOP/`}}
  
 <p>
 3. <i>Deferred functions may read and assign to the returning function's named
@@ -122,11 +77,7 @@ In this example, a deferred function increments the return value i <i>after</i>
 the surrounding function returns. Thus, this function returns 2:
 </p>
 
-<pre><!--{{code "progs/defer.go" `/func c/` `/STOP/`}}
--->func c() (i int) {
-    defer func() { i++ }()
-    return 1
-}</pre>
+{{code "/doc/progs/defer.go" `/func c/` `/STOP/`}}
  
 <p>
 This is convenient for modifying the error return value of a function; we will
@@ -156,36 +107,7 @@ to panic and resume normal execution.
 Here's an example program that demonstrates the mechanics of panic and defer:
 </p>
 
-<pre><!--{{code "progs/defer2.go" `/package main/` `/STOP/`}}
--->package main
-
-import &#34;fmt&#34;
-
-func main() {
-    f()
-    fmt.Println(&#34;Returned normally from f.&#34;)
-}
-
-func f() {
-    defer func() {
-        if r := recover(); r != nil {
-            fmt.Println(&#34;Recovered in f&#34;, r)
-        }
-    }()
-    fmt.Println(&#34;Calling g.&#34;)
-    g(0)
-    fmt.Println(&#34;Returned normally from g.&#34;)
-}
-
-func g(i int) {
-    if i &gt; 3 {
-        fmt.Println(&#34;Panicking!&#34;)
-        panic(fmt.Sprintf(&#34;%v&#34;, i))
-    }
-    defer fmt.Println(&#34;Defer in g&#34;, i)
-    fmt.Println(&#34;Printing in g&#34;, i)
-    g(i + 1)
-}</pre>
+{{code "/doc/progs/defer2.go" `/package main/` `/STOP/`}}
  
 <p>
 The function g takes the int i, and panics if i is greater than 3, or else it

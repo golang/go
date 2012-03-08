@@ -2,21 +2,18 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-HTML=\
-	articles/defer_panic_recover.html\
-	articles/error_handling.html\
-	articles/slices_usage_and_internals.html\
-	articles/laws_of_reflection.html\
-	effective_go.html\
-	go1.html\
+RAWHTML=\
+	articles/defer_panic_recover.rawhtml\
+	articles/error_handling.rawhtml\
+	articles/slices_usage_and_internals.rawhtml\
+	articles/laws_of_reflection.rawhtml\
+	effective_go.rawhtml\
+	go1.rawhtml\
 
-all: tmpltohtml $(HTML)
+all: $(RAWHTML)
 
-tmpltohtml: tmpltohtml.go
-	go build tmpltohtml.go
-
-%.html: %.tmpl tmpltohtml
-	./tmpltohtml $*.tmpl > $@
+%.rawhtml: %.html
+	godoc -url /doc/$* >$@
 
 clean:
-	rm -f $(HTML) tmpltohtml 
+	rm -f $(RAWHTML) 

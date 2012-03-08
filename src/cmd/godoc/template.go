@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Template support for writing HTML documents.
+// Documents that include Template: true in their 
+// metadata are executed as input to text/template.
+//
+// This file defines functions for those templates to invoke.
+
 // The template uses the function "code" to inject program
 // source into the output by extracting code from files and
 // injecting them as HTML-escaped <pre> blocks.
@@ -26,52 +32,26 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
 )
 
-func Usage() {
-	fmt.Fprintf(os.Stderr, "usage: tmpltohtml file\n")
-	os.Exit(2)
-}
+// Functions in this file panic on error, but the panic is recovered
+// to an error by 'code'.
 
 var templateFuncs = template.FuncMap{
-	"code":      code,
-	"donotedit": donotedit,
+	"code": code,
 }
 
-func main() {
-	flag.Usage = Usage
-	flag.Parse()
-	if len(flag.Args()) != 1 {
-		Usage()
-	}
-
-	// Read and parse the input.
-	name := flag.Arg(0)
-	tmpl := template.New(filepath.Base(name)).Funcs(templateFuncs)
-	if _, err := tmpl.ParseFiles(name); err != nil {
-		log.Fatal(err)
-	}
-
-	// Execute the template.
-	if err := tmpl.Execute(os.Stdout, 0); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// contents reads a file by name and returns its contents as a string.
+// contents reads and returns the content of the named file
+// (from the virtual file system, so for example /doc refers to $GOROOT/doc).
 func contents(name string) string {
-	file, err := ioutil.ReadFile(name)
+	file, err := ReadFile(fs, name)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	return string(file)
 }
@@ -87,17 +67,18 @@ func format(arg interface{}) string {
 		}
 		return fmt.Sprintf("%q", arg)
 	default:
-		log.Fatalf("unrecognized argument: %v type %T", arg, arg)
+		log.Panicf("unrecognized argument: %v type %T", arg, arg)
 	}
 	return ""
 }
 
-func donotedit() string {
-	// No editing please.
-	return fmt.Sprintf("<!--\n  DO NOT EDIT: created by\n    tmpltohtml %s\n-->\n", flag.Args()[0])
-}
+func code(file string, arg ...interface{}) (s string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 
-func code(file string, arg ...interface{}) (string, error) {
 	text := contents(file)
 	var command string
 	switch len(arg) {
@@ -129,13 +110,13 @@ func parseArg(arg interface{}, file string, max int) (ival int, sval string, isI
 	switch n := arg.(type) {
 	case int:
 		if n <= 0 || n > max {
-			log.Fatalf("%q:%d is out of range", file, n)
+			log.Panicf("%q:%d is out of range", file, n)
 		}
 		return n, "", true
 	case string:
 		return 0, n, false
 	}
-	log.Fatalf("unrecognized argument %v type %T", arg, arg)
+	log.Panicf("unrecognized argument %v type %T", arg, arg)
 	return
 }
 
@@ -160,7 +141,7 @@ func multipleLines(file, text string, arg1, arg2 interface{}) string {
 	if !isInt2 {
 		line2 = match(file, line1, lines, pattern2)
 	} else if line2 < line1 {
-		log.Fatalf("lines out of order for %q: %d %d", text, line1, line2)
+		log.Panicf("lines out of order for %q: %d %d", text, line1, line2)
 	}
 	for k := line1 - 1; k < line2; k++ {
 		if strings.HasSuffix(lines[k], "OMIT\n") {
@@ -177,7 +158,7 @@ func match(file string, start int, lines []string, pattern string) int {
 	// $ matches the end of the file.
 	if pattern == "$" {
 		if len(lines) == 0 {
-			log.Fatalf("%q: empty file", file)
+			log.Panicf("%q: empty file", file)
 		}
 		return len(lines)
 	}
@@ -185,15 +166,15 @@ func match(file string, start int, lines []string, pattern string) int {
 	if len(pattern) > 2 && pattern[0] == '/' && pattern[len(pattern)-1] == '/' {
 		re, err := regexp.Compile(pattern[1 : len(pattern)-1])
 		if err != nil {
-			log.Fatal(err)
+			log.Panic(err)
 		}
 		for i := start; i < len(lines); i++ {
 			if re.MatchString(lines[i]) {
 				return i + 1
 			}
 		}
-		log.Fatalf("%s: no match for %#q", file, pattern)
+		log.Panicf("%s: no match for %#q", file, pattern)
 	}
-	log.Fatalf("unrecognized pattern: %q", pattern)
+	log.Panicf("unrecognized pattern: %q", pattern)
 	return 0
 }

@@ -38,6 +38,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof" // to serve /debug/pprof/*
+	"net/url"
 	"os"
 	pathpkg "path"
 	"path/filepath"
@@ -69,6 +70,7 @@ var (
 	// layout control
 	html    = flag.Bool("html", false, "print HTML in command-line mode")
 	srcMode = flag.Bool("src", false, "print (exported) source in command-line mode")
+	urlFlag = flag.String("url", "", "print HTML for named URL")
 
 	// command-line searches
 	query = flag.Bool("q", false, "arguments are considered search queries")
@@ -225,7 +227,7 @@ func main() {
 	flag.Parse()
 
 	// Check usage: either server and no args, command line and args, or index creation mode
-	if (*httpAddr != "") != (flag.NArg() == 0) && !*writeIndex {
+	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
 		usage()
 	}
 
@@ -284,6 +286,44 @@ func main() {
 
 		log.Println("done")
 		return
+	}
+
+	// Print content that would be served at the URL *urlFlag.
+	if *urlFlag != "" {
+		registerPublicHandlers(http.DefaultServeMux)
+		// Try up to 10 fetches, following redirects.
+		urlstr := *urlFlag
+		for i := 0; i < 10; i++ {
+			// Prepare request.
+			u, err := url.Parse(urlstr)
+			if err != nil {
+				log.Fatal(err)
+			}
+			req := &http.Request{
+				URL: u,
+			}
+
+			// Invoke default HTTP handler to serve request
+			// to our buffering httpWriter.
+			w := &httpWriter{h: http.Header{}, code: 200}
+			http.DefaultServeMux.ServeHTTP(w, req)
+
+			// Return data, error, or follow redirect.
+			switch w.code {
+			case 200: // ok
+				os.Stdout.Write(w.Bytes())
+				return
+			case 301, 302, 303, 307: // redirect
+				redirect := w.h.Get("Location")
+				if redirect == "" {
+					log.Fatalf("HTTP %d without Location header", w.code)
+				}
+				urlstr = redirect
+			default:
+				log.Fatalf("HTTP error %d", w.code)
+			}
+		}
+		log.Fatalf("too many redirects")
 	}
 
 	if *httpAddr != "" {
@@ -494,3 +534,13 @@ func main() {
 		log.Printf("packageText.Execute: %s", err)
 	}
 }
+
+// An httpWriter is an http.ResponseWriter writing to a bytes.Buffer.
+type httpWriter struct {
+	bytes.Buffer
+	h    http.Header
+	code int
+}
+
+func (w *httpWriter) Header() http.Header  { return w.h }
+func (w *httpWriter) WriteHeader(code int) { w.code = code }

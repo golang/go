@@ -605,6 +605,23 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		log.Printf("decoding metadata %s: %v", relpath, err)
 	}
 
+	// evaluate as template if indicated
+	if meta.Template {
+		tmpl, err := template.New("main").Funcs(templateFuncs).Parse(string(src))
+		if err != nil {
+			log.Printf("parsing template %s: %v", relpath, err)
+			serveError(w, r, relpath, err)
+			return
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, nil); err != nil {
+			log.Printf("executing template %s: %v", relpath, err)
+			serveError(w, r, relpath, err)
+			return
+		}
+		src = buf.Bytes()
+	}
+
 	// if it's the language spec, add tags to EBNF productions
 	if strings.HasSuffix(abspath, "go_spec.html") {
 		var buf bytes.Buffer
@@ -1177,6 +1194,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 type Metadata struct {
 	Title    string
 	Subtitle string
+	Template bool   // execute as template
 	Path     string // canonical path for this page
 	filePath string // filesystem path relative to goroot
 }
