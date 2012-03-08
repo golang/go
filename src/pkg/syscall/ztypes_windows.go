@@ -262,7 +262,9 @@ const (
 )
 
 var (
-	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1" + string([]byte{0}))
+	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1\x00")
+	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
+	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
 )
 
 // Invented values to support what package os expects.
