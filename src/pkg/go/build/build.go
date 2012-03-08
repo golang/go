@@ -317,6 +317,16 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return ctxt.Import(".", dir, mode)
 }
 
+// NoGoError is the error used by Import to describe a directory
+// containing no Go source files.
+type NoGoError struct {
+	Dir string
+}
+
+func (e *NoGoError) Error() string {
+	return "no Go source files in " + e.Dir
+}
+
 // Import returns details about the Go package named by the import path,
 // interpreting local import paths relative to the src directory.  If the path
 // is a local import path naming a package that can be imported using a
@@ -602,7 +612,7 @@ Found:
 		}
 	}
 	if p.Name == "" {
-		return p, fmt.Errorf("no Go source files in %s", p.Dir)
+		return p, &NoGoError{p.Dir}
 	}
 
 	p.Imports, p.ImportPos = cleanImports(imported)
