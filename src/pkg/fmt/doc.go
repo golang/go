@@ -7,7 +7,8 @@
 	to C's printf and scanf.  The format 'verbs' are derived from C's but
 	are simpler.
 
-	Printing:
+
+	Printing
 
 	The verbs:
 
@@ -127,7 +128,8 @@
 	by a single character (the verb) and end with a parenthesized
 	description.
 
-	Scanning:
+
+	Scanning
 
 	An analogous set of functions scans formatted text to yield
 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
