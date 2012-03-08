@@ -114,27 +114,6 @@ runtime·exit(int32 code)
 	runtime·stdcall(runtime·ExitProcess, 1, (uintptr)code);
 }
 
-int32
-runtime·write(int32 fd, void *buf, int32 n)
-{
-	void *handle;
-	uint32 written;
-
-	written = 0;
-	switch(fd) {
-	case 1:
-		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-11);
-		break;
-	case 2:
-		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
-		break;
-	default:
-		return -1;
-	}
-	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
-	return written;
-}
-
 void
 runtime·osyield(void)
 {
@@ -423,21 +402,5 @@ runtime·setprof(bool on)
 	USED(on);
 }
 
-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
-
-// This runs on a foreign stack, without an m or a g.  No stack split.
-#pragma textflag 7
-void
-runtime·badcallback(void)
-{
-	uint32 written;
-
-	runtime·stdcall(
-		runtime·WriteFile, 5,
-		runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12), // stderr
-		badcallback,
-		(uintptr)(sizeof badcallback - 1),
-		&written,
-		nil
-	);
-}
+int8 runtime·badcallbackmsg[] = "runtime: cgo callback on thread not created by Go.\n";
+int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
