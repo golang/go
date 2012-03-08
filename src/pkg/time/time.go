@@ -756,13 +756,13 @@ func (t Time) Zone() (name string, offset int) {
 	return
 }
 
-// Unix returns the Unix time, the number of seconds elapsed
+// Unix returns t as a Unix time, the number of seconds elapsed
 // since January 1, 1970 UTC.
 func (t Time) Unix() int64 {
 	return t.sec + internalToUnix
 }
 
-// UnixNano returns the Unix time, the number of nanoseconds elapsed
+// UnixNano returns t as a Unix time, the number of nanoseconds elapsed
 // since January 1, 1970 UTC.
 func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
