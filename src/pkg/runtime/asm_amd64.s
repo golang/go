@@ -471,6 +471,14 @@ TEXT runtime·cgocallback(SB),7,$24
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	get_tls(CX)
 	MOVQ	m(CX), BP
+	
+	// If m is nil, it is almost certainly because we have been called
+	// on a thread that Go did not create.  We're going to crash as
+	// soon as we try to use m; instead, try to print a nice error and exit.
+	CMPQ	BP, $0
+	JNE 2(PC)
+	CALL	runtime·badcallback(SB)
+
 	MOVQ	m_g0(BP), SI
 	PUSHQ	(g_sched+gobuf_sp)(SI)
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)

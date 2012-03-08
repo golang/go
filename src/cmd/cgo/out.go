@@ -573,8 +573,9 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
 		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
-		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
-		fmt.Fprintf(fc, "\nvoid\n")
+		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
+		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
+		fmt.Fprintf(fc, "void\n")
 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fc, "{\n")
 		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)

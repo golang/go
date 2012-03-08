@@ -422,3 +422,22 @@ runtime·setprof(bool on)
 {
 	USED(on);
 }
+
+static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+
+// This runs on a foreign stack, without an m or a g.  No stack split.
+#pragma textflag 7
+void
+runtime·badcallback(void)
+{
+	uint32 written;
+
+	runtime·stdcall(
+		runtime·WriteFile, 5,
+		runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12), // stderr
+		badcallback,
+		(uintptr)(sizeof badcallback - 1),
+		&written,
+		nil
+	);
+}
