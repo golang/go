@@ -125,41 +125,6 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runT
 	return dash("POST", "result", args, req, nil)
 }
 
-// packages fetches a list of package paths from the dashboard
-func packages() (pkgs []string, err error) {
-	return nil, nil
-	/* TODO(adg): un-stub this once the new package builder design is done
-	var resp struct {
-		Packages []struct {
-			Path string
-		}
-	}
-	err = dash("GET", "package", &resp, param{"fmt": "json"})
-	if err != nil {
-		return
-	}
-	for _, p := range resp.Packages {
-		pkgs = append(pkgs, p.Path)
-	}
-	return
-	*/
-}
-
-// updatePackage sends package build results and info to the dashboard
-func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
-	return nil
-	/* TODO(adg): un-stub this once the new package builder design is done
-	return dash("POST", "package", nil, param{
-		"builder": b.name,
-		"key":     b.key,
-		"path":    pkg,
-		"ok":      strconv.FormatBool(ok),
-		"log":     buildLog,
-		"info":    info,
-	})
-	*/
-}
-
 func postCommit(key, pkg string, l *HgLog) error {
 	t, err := time.Parse(time.RFC3339, l.Date)
 	if err != nil {
