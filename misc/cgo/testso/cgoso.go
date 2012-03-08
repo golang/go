@@ -4,7 +4,10 @@
 
 package cgosotest
 
-//void sofunc(void);
+/*
+#cgo LDFLAGS: -L. -lcgosotest
+void sofunc(void);
+*/
 import "C"
 
 func Test() {
