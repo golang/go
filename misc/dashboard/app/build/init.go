@@ -15,7 +15,7 @@ import (
 
 // defaultPackages specifies the Package records to be created by initHandler.
 var defaultPackages = []*Package{
-	&Package{Name: "Go", Kind: "go"},
+	{Name: "Go", Kind: "go"},
 }
 
 // subRepos specifies the Go project sub-repositories.

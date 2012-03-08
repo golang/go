@@ -4,4 +4,4 @@
 
 package backdoor
 
-func LockedOSThread() bool  // in runtime.c
+func LockedOSThread() bool // in runtime.c

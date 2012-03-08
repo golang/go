@@ -440,7 +440,7 @@ func TestBase(t *testing.T) {
 	tests := basetests
 	if runtime.GOOS == "windows" {
 		// make unix tests work on windows
-		for i, _ := range tests {
+		for i := range tests {
 			tests[i].result = filepath.Clean(tests[i].result)
 		}
 		// add windows specific tests
@@ -483,7 +483,7 @@ func TestDir(t *testing.T) {
 	tests := dirtests
 	if runtime.GOOS == "windows" {
 		// make unix tests work on windows
-		for i, _ := range tests {
+		for i := range tests {
 			tests[i].result = filepath.Clean(tests[i].result)
 		}
 		// add windows specific tests
