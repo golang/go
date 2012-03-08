@@ -73,7 +73,7 @@ ok:
 	// start this M
 	CALL	runtime·mstart(SB)
 
-	CALL	runtime·notok(SB)		// never returns
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·breakpoint(SB),7,$0

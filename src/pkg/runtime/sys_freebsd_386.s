@@ -45,14 +45,14 @@ TEXT runtime·thr_start(SB),7,$0
 TEXT runtime·exit(SB),7,$-4
 	MOVL	$1, AX
 	INT	$0x80
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·exit1(SB),7,$-4
 	MOVL	$431, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·write(SB),7,$-4
@@ -79,10 +79,6 @@ TEXT runtime·raisesigpipe(SB),7,$12
 	INT	$0x80
 	RET
 
-TEXT runtime·notok(SB),7,$0
-	MOVL	$0xf1, 0xf1
-	RET
-
 TEXT runtime·mmap(SB),7,$32
 	LEAL arg0+0(FP), SI
 	LEAL	4(SP), DI
@@ -103,7 +99,7 @@ TEXT runtime·munmap(SB),7,$-4
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·setitimer(SB), 7, $-4
@@ -157,7 +153,7 @@ TEXT runtime·sigaction(SB),7,$-4
 	MOVL	$416, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigtramp(SB),7,$44
@@ -194,14 +190,14 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	AX, 4(SP)
 	MOVL	$417, AX	// sigreturn(ucontext)
 	INT	$0x80
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·usleep(SB),7,$20
@@ -317,7 +313,7 @@ TEXT runtime·sigprocmask(SB),7,$16
 	MOVL	$340, AX		// sys_sigprocmask
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 GLOBL runtime·tlsoffset(SB),$4

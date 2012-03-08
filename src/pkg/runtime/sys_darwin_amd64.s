@@ -18,7 +18,7 @@ TEXT runtime·exit(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // Exit this OS thread (like pthread_exit, which eventually
@@ -27,7 +27,7 @@ TEXT runtime·exit1(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+361), AX	// syscall entry
 	SYSCALL
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·write(SB),7,$0
@@ -62,7 +62,7 @@ TEXT runtime·madvise(SB), 7, $0
 	MOVL	$(0x2000000+75), AX	// syscall entry madvise
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // func now() (sec int64, nsec int32)
@@ -99,7 +99,7 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaction(SB),7,$0
@@ -111,7 +111,7 @@ TEXT runtime·sigaction(SB),7,$0
 	MOVL	$(0x2000000+46), AX	// syscall entry
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigtramp(SB),7,$64
@@ -164,12 +164,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$(0x2000000+73), AX	// syscall entry
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
-	RET
-
-TEXT runtime·notok(SB),7,$0
-	MOVL	$0xf1, BP
-	MOVQ	BP, (BP)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$0
@@ -178,7 +173,7 @@ TEXT runtime·sigaltstack(SB),7,$0
 	MOVQ	$(0x2000000+53), AX
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·usleep(SB),7,$16
@@ -266,7 +261,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
 	SYSCALL
 	JCC 2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.

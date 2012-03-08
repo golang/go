@@ -83,13 +83,13 @@ TEXT runtime·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - exit status
 	MOVL	$1, AX			// sys_exit
 	SYSCALL
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·exit1(SB),7,$-8
 	MOVL	$302, AX		// sys_threxit
 	SYSCALL
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·write(SB),7,$-8
@@ -170,7 +170,7 @@ TEXT runtime·sigaction(SB),7,$-8
 	MOVL	$46, AX
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigtramp(SB),7,$64
@@ -221,12 +221,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX			// sys_munmap
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
-	RET
-
-TEXT runtime·notok(SB),7,$-8
-	MOVL	$0xf1, BP
-	MOVQ	BP, (BP)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$-8
@@ -235,7 +230,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	$288, AX		// sys_sigaltstack
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // set tls base to DI
@@ -248,7 +243,7 @@ TEXT runtime·settls(SB),7,$8
 	MOVQ	$165, AX		// sys_sysarch
 	SYSCALL
 	JCC	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sysctl(SB),7,$0

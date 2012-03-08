@@ -38,11 +38,6 @@
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
 
-TEXT notok<>(SB),7,$0
-	MOVW	$0, R9
-	MOVW	R9, (R9)
-	B   	0(PC)
-
 TEXT runtime·open(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
@@ -126,7 +121,8 @@ TEXT runtime·munmap(SB),7,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	BL.HI	notok<>(SB)
+	MOVW.HI	$0, R9  // crash on syscall failure
+	MOVW.HI	R9, (R9)
 	RET
 
 TEXT runtime·madvise(SB),7,$0
@@ -137,7 +133,8 @@ TEXT runtime·madvise(SB),7,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	BL.HI	notok<>(SB)
+	MOVW.HI	$0, R9  // crash on syscall failure
+	MOVW.HI	R9, (R9)
 	RET
 
 TEXT runtime·setitimer(SB),7,$0
@@ -291,7 +288,8 @@ TEXT runtime·sigaltstack(SB),7,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	BL.HI	notok<>(SB)
+	MOVW.HI	$0, R9  // crash on syscall failure
+	MOVW.HI	R9, (R9)
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24

@@ -8,15 +8,11 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-TEXT runtime·notok(SB),7,$0
-	MOVL	$0xf1, 0xf1
-	RET
-
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),7,$0
 	MOVL	$1, AX
 	INT	$0x80
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // Exit this OS thread (like pthread_exit, which eventually
@@ -25,7 +21,7 @@ TEXT runtime·exit1(SB),7,$0
 	MOVL	$361, AX
 	INT	$0x80
 	JAE 2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·write(SB),7,$0
@@ -52,14 +48,14 @@ TEXT runtime·madvise(SB),7,$0
 	MOVL	$75, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·setitimer(SB),7,$0
@@ -110,14 +106,14 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaction(SB),7,$0
 	MOVL	$46, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // Sigtramp's job is to call the actual signal handler.
@@ -165,14 +161,14 @@ TEXT runtime·sigtramp(SB),7,$40
 	MOVL	BX, 8(SP)
 	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
 	INT	$0x80
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$0
 	MOVL	$53, AX
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·usleep(SB),7,$32
@@ -268,7 +264,7 @@ TEXT runtime·bsdthread_register(SB),7,$40
 	MOVL	$0, 24(SP)	// dispatchqueue_offset
 	INT	$0x80
 	JAE	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // Invoke Mach system call.
