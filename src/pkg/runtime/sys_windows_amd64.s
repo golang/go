@@ -268,11 +268,6 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	XORL	AX, AX			// return 0 == success
 	RET
 
-TEXT runtime·notok(SB),7,$0
-	MOVQ	$0xf1, BP
-	MOVQ	BP, (BP)
-	RET
-
 // set tls base to DI
 TEXT runtime·settls(SB),7,$0
 	CALL	runtime·setstacklimits(SB)

@@ -139,7 +139,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0-32
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·rt_sigaction(SB),7,$0-32
@@ -205,7 +205,7 @@ TEXT runtime·munmap(SB),7,$0
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·madvise(SB),7,$0
@@ -216,12 +216,7 @@ TEXT runtime·madvise(SB),7,$0
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
-	CALL	runtime·notok(SB)
-	RET
-
-TEXT runtime·notok(SB),7,$0
-	MOVQ	$0xf1, BP
-	MOVQ	BP, (BP)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
@@ -290,7 +285,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 // set tls base to DI
@@ -303,7 +298,7 @@ TEXT runtime·settls(SB),7,$32
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	2(PC)
-	CALL	runtime·notok(SB)
+	MOVL	$0xf1, 0xf1  // crash
 	RET
 
 TEXT runtime·osyield(SB),7,$0
