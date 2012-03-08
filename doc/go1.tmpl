@@ -797,7 +797,7 @@ This behavior was unpleasant and unportable.
 In Go 1, the
 <a href="/pkg/syscall/"><code>syscall</code></a>
 package instead returns an <code>error</code> for system call errors.
-On Unix, the implementation is done by a 
+On Unix, the implementation is done by a
 <a href="/pkg/syscall/#Errno"><code>syscall.Errno</code></a> type
 that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
 </p>
@@ -824,7 +824,7 @@ and no distinction between absolute times and durations.
 
 <p>
 One of the most sweeping changes in the Go 1 library is therefore a
-complete redesign of the 
+complete redesign of the
 <a href="/pkg/time/"><code>time</code></a> package.
 Instead of an integer number of nanoseconds as an <code>int64</code>,
 and a separate <code>*time.Time</code> type to deal with human
@@ -1011,7 +1011,7 @@ to be implemented in the future.
 No changes will be needed.
 </p>
 
-<h3 id="encoding_binary">The encoding/binary package</h3>               
+<h3 id="encoding_binary">The encoding/binary package</h3>
 
 <p>
 In Go 1, the <code>binary.TotalSize</code> function has been replaced by
@@ -1156,7 +1156,7 @@ The <a href="/pkg/go/printer/"><code>go/printer</code></a> package supports an a
 configuration mode <a href="/pkg/go/printer/#Mode"><code>SourcePos</code></a>;
 if set, the printer will emit <code>//line</code> comments such that the generated
 output contains the original source code position information. The new type
-<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be  
+<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be
 used to provide comments associated with an arbitrary
 <a href="/pkg/go/ast/#Node"><code>ast.Node</code></a> (until now only
 <a href="/pkg/go/ast/#File"><code>ast.File</code></a> carried comment information).
@@ -1223,7 +1223,7 @@ to run-time errors.
 
 <p>
 In Go 1, the definition of <a href="/pkg/hash/#Hash"><code>hash.Hash</code></a> includes
-a new method, <code>BlockSize</code>.  This new method is used primarily in the 
+a new method, <code>BlockSize</code>.  This new method is used primarily in the
 cryptographic libraries.
 </p>
 
@@ -1409,7 +1409,7 @@ Running <code>go</code> <code>fix</code> will update almost all code affected by
 <h3 id="log_syslog">The log/syslog package</h3>
 
 <p>
-In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>     
+In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>
 function returns an error as well as a <code>log.Logger</code>.
 </p>
 
@@ -1424,7 +1424,7 @@ What little code is affected will be caught by the compiler and must be updated 
 In Go 1, the <a href="/pkg/mime/#FormatMediaType"><code>FormatMediaType</code></a> function
 of the <code>mime</code> package has  been simplified to make it
 consistent with
-<a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a>. 
+<a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a>.
 It now takes <code>"text/html"</code> rather than <code>"text"</code> and <code>"html"</code>.
 </p>
 
@@ -1438,9 +1438,9 @@ What little code is affected will be caught by the compiler and must be updated 
 <p>
 In Go 1, the various <code>SetTimeout</code>,
 <code>SetReadTimeout</code>, and <code>SetWriteTimeout</code> methods
-have been replaced with 
+have been replaced with
 <a href="/pkg/net/#IPConn.SetDeadline"><code>SetDeadline</code></a>,
-<a href="/pkg/net/#IPConn.SetReadDeadline"><code>SetReadDeadline</code></a>, and 
+<a href="/pkg/net/#IPConn.SetReadDeadline"><code>SetReadDeadline</code></a>, and
 <a href="/pkg/net/#IPConn.SetWriteDeadline"><code>SetWriteDeadline</code></a>,
 respectively.  Rather than taking a timeout value in nanoseconds that
 apply to any activity on the connection, the new methods set an
@@ -1693,7 +1693,7 @@ The compiler will catch code using the old interface.
 
 <p>
 The <a href="/pkg/regexp/"><code>regexp</code></a> package has been rewritten.
-It has the same interface but the specification of the regular expressions 
+It has the same interface but the specification of the regular expressions
 it supports has changed from the old "egrep" form to that of
 <a href="http://code.google.com/p/re2/">RE2</a>.
 </p>
@@ -1837,6 +1837,38 @@ they may require
 a cast that must be added by hand; the <code>go</code> <code>fix</code> tool will warn about it.
 </p>
 
+
+<h3 id="templates">The template packages</h3>
+
+<p>
+The <code>template</code> and <code>exp/template/html</code> packages have moved to 
+<a href="/pkg/text/template/"><code>text/template</code></a> and
+<a href="/pkg/html/template/"><code>html/template</code></a>.
+More significant, the interface to these packages has been simplified.
+The template language is the same, but the concept of "template set" is gone
+and the functions and methods of the packages have changed accordingly,
+often by elimination.
+</p>
+
+<p>
+Instead of sets, a <code>Template</code> object
+may contain multiple named template definitions,
+in effect constructing
+name spaces for template invocation.
+A template can invoke any other template associated with it, but only those
+templates associated with it.
+The simplest way to associate templates is to parse them together, something
+made easier with the new structure of the packages.
+</p>
+
+<p>
+<em>Updating</em>:
+The imports will be updated by fix tool.
+Single-template uses will be otherwise be largely unaffected.
+Code that uses multiple templates in concert will need to be updated by hand.
+The <a href="/pkg/text/template/#examples">examples</a> in
+the documentation for <code>text/template</code> can provide guidance.
+</p>
 
 <h3 id="testing">The testing package</h3>
 
