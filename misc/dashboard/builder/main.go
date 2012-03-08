@@ -5,8 +5,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -43,8 +43,6 @@ type Builder struct {
 	name         string
 	goos, goarch string
 	key          string
-	codeUsername string
-	codePassword string
 }
 
 var (
@@ -55,7 +53,6 @@ var (
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
 	failAll       = flag.Bool("fail", false, "fail all builds")
-	external      = flag.Bool("external", false, "Build external packages")
 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	verbose       = flag.Bool("v", false, "verbose")
 )
@@ -131,14 +128,6 @@ func main() {
 		return
 	}
 
-	// external package build mode
-	if *external {
-		if len(builders) != 1 {
-			log.Fatal("only one goos-goarch should be specified with -external")
-		}
-		builders[0].buildExternal()
-	}
-
 	// go continuous build mode (default)
 	// check for new commits and build them
 	for {
@@ -212,51 +201,8 @@ func NewBuilder(builder string) (*Builder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
 	}
-	v := strings.Split(string(c), "\n")
-	b.key = v[0]
-	if len(v) >= 3 {
-		b.codeUsername, b.codePassword = v[1], v[2]
-	}
-
+	b.key = string(bytes.TrimSpace(bytes.SplitN(c, []byte("\n"), 2)[0]))
 	return b, nil
-}
-
-// buildExternal downloads and builds external packages, and
-// reports their build status to the dashboard.
-// It will re-build all packages after pkgBuildInterval nanoseconds or
-// a new release tag is found.
-func (b *Builder) buildExternal() {
-	var prevTag string
-	var nextBuild time.Time
-	for {
-		time.Sleep(waitInterval)
-		err := run(nil, goroot, "hg", "pull", "-u")
-		if err != nil {
-			log.Println("hg pull failed:", err)
-			continue
-		}
-		hash, tag, err := firstTag(releaseRe)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		if *verbose {
-			log.Println("latest release:", tag)
-		}
-		// don't rebuild if there's no new release
-		// and it's been less than pkgBuildInterval
-		// nanoseconds since the last build.
-		if tag == prevTag && time.Now().Before(nextBuild) {
-			continue
-		}
-		// build will also build the packages
-		if err := b.buildHash(hash); err != nil {
-			log.Println(err)
-			continue
-		}
-		prevTag = tag
-		nextBuild = time.Now().Add(pkgBuildInterval)
-	}
 }
 
 // build checks for a new commit for this builder
@@ -321,14 +267,6 @@ func (b *Builder) buildHash(hash string) error {
 		return fmt.Errorf("%s: %s", *buildCmd, err)
 	}
 
-	// if we're in external mode, build all packages and return
-	if *external {
-		if status != 0 {
-			return errors.New("go build failed")
-		}
-		return b.buildExternalPackages(workpath, hash)
-	}
-
 	if status != 0 {
 		// record failure
 		return b.recordResult(false, "", hash, "", buildLog, runTime)
@@ -341,36 +279,6 @@ func (b *Builder) buildHash(hash string) error {
 
 	// build Go sub-repositories
 	b.buildSubrepos(filepath.Join(workpath, "go"), hash)
-
-	// finish here if codeUsername and codePassword aren't set
-	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
-		return nil
-	}
-
-	// if this is a release, create tgz and upload to google code
-	releaseHash, release, err := firstTag(binaryTagRe)
-	if hash == releaseHash {
-		// clean out build state
-		cmd := filepath.Join(srcDir, cleanCmd)
-		if err := run(b.envv(), srcDir, cmd, "--nopkg"); err != nil {
-			return fmt.Errorf("%s: %s", cleanCmd, err)
-		}
-		// upload binary release
-		fn := fmt.Sprintf("go.%s.%s-%s.tar.gz", release, b.goos, b.goarch)
-		if err := run(nil, workpath, "tar", "czf", fn, "go"); err != nil {
-			return fmt.Errorf("tar: %s", err)
-		}
-		err := run(nil, workpath, filepath.Join(goroot, codePyScript),
-			"-s", release,
-			"-p", codeProject,
-			"-u", b.codeUsername,
-			"-w", b.codePassword,
-			"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
-			fn)
-		if err != nil {
-			return fmt.Errorf("%s: %s", codePyScript, err)
-		}
-	}
 
 	return nil
 }
@@ -737,31 +645,6 @@ func fullHash(root, rev string) (string, error) {
 		return "", fmt.Errorf("hg returned invalid hash " + s)
 	}
 	return s, nil
-}
-
-var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
-
-// firstTag returns the hash and tag of the most recent tag matching re.
-func firstTag(re *regexp.Regexp) (hash string, tag string, err error) {
-	o, _, err := runLog(nil, "", goroot, "hg", "tags")
-	for _, l := range strings.Split(o, "\n") {
-		if l == "" {
-			continue
-		}
-		s := revisionRe.FindStringSubmatch(l)
-		if s == nil {
-			err = errors.New("couldn't find revision number")
-			return
-		}
-		if !re.MatchString(s[1]) {
-			continue
-		}
-		tag = s[1]
-		hash, err = fullHash(goroot, s[2])
-		return
-	}
-	err = errors.New("no matching tag found")
-	return
 }
 
 var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`)
