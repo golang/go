@@ -147,7 +147,7 @@ func goFiles(dir string) []string {
 	check(err)
 	names := []string{}
 	for _, name := range dirnames {
-		if strings.HasSuffix(name, ".go") {
+		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") {
 			names = append(names, name)
 		}
 	}
@@ -239,7 +239,7 @@ func (t *test) run() {
 	if strings.HasPrefix(action, "//") {
 		action = action[2:]
 	}
-	
+
 	var args []string
 	f := strings.Fields(action)
 	if len(f) > 0 {
@@ -264,7 +264,7 @@ func (t *test) run() {
 
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	check(err)
-	
+
 	// A few tests (of things like the environment) require these to be set.
 	os.Setenv("GOOS", runtime.GOOS)
 	os.Setenv("GOARCH", runtime.GOARCH)
@@ -283,7 +283,7 @@ func (t *test) run() {
 	}
 
 	long := filepath.Join(cwd, t.goFileName())
-	switch action {	
+	switch action {
 	default:
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
@@ -291,19 +291,19 @@ func (t *test) run() {
 		out, _ := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
 		t.err = t.errorCheck(string(out), long, t.gofile)
 		return
-	
+
 	case "compile":
 		out, err := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}
-	
+
 	case "build":
 		out, err := runcmd("go", "build", "-o", "a.exe", long)
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}
-	
+
 	case "run":
 		useTmp = false
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
