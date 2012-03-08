@@ -34,11 +34,14 @@ import (
 
 const testdata = "testdata"
 
+// getFile assumes that each filename occurs at most once
 func getFile(filename string) (file *token.File) {
 	fset.Iterate(func(f *token.File) bool {
 		if f.Name() == filename {
+			if file != nil {
+				panic(filename + " used multiple times")
+			}
 			file = f
-			return false // end iteration
 		}
 		return true
 	})
@@ -127,8 +130,8 @@ func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.Er
 	}
 }
 
-func checkErrors(t *testing.T, filename string) {
-	src, err := ioutil.ReadFile(filename)
+func checkErrors(t *testing.T, filename string, input interface{}) {
+	src, err := readSource(filename, input)
 	if err != nil {
 		t.Error(err)
 		return
@@ -157,7 +160,7 @@ func TestErrors(t *testing.T) {
 	for _, fi := range list {
 		name := fi.Name()
 		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
-			checkErrors(t, filepath.Join(testdata, name))
+			checkErrors(t, filepath.Join(testdata, name), nil)
 		}
 	}
 }
