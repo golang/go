@@ -251,34 +251,50 @@ func (db *DB) conn() (driver.Conn, error) {
 func (db *DB) connIfFree(wanted driver.Conn) (conn driver.Conn, ok bool) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	for n, conn := range db.freeConn {
-		if conn == wanted {
-			db.freeConn[n] = db.freeConn[len(db.freeConn)-1]
-			db.freeConn = db.freeConn[:len(db.freeConn)-1]
-			return wanted, true
+	for i, conn := range db.freeConn {
+		if conn != wanted {
+			continue
 		}
+		db.freeConn[i] = db.freeConn[len(db.freeConn)-1]
+		db.freeConn = db.freeConn[:len(db.freeConn)-1]
+		return wanted, true
 	}
 	return nil, false
 }
 
-func (db *DB) putConn(c driver.Conn) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if n := len(db.freeConn); !db.closed && n < db.maxIdleConns() {
-		db.freeConn = append(db.freeConn, c)
+// putConn adds a connection to the db's free pool.
+// err is optionally the last error that occured on this connection.
+func (db *DB) putConn(c driver.Conn, err error) {
+	if err == driver.ErrBadConn {
+		// Don't reuse bad connections.
 		return
 	}
-	db.closeConn(c) // TODO(bradfitz): release lock before calling this?
-}
-
-func (db *DB) closeConn(c driver.Conn) {
-	// TODO: check to see if we need this Conn for any prepared statements
-	// that are active.
+	db.mu.Lock()
+	if n := len(db.freeConn); !db.closed && n < db.maxIdleConns() {
+		db.freeConn = append(db.freeConn, c)
+		db.mu.Unlock()
+		return
+	}
+	// TODO: check to see if we need this Conn for any prepared
+	// statements which are still active?
+	db.mu.Unlock()
 	c.Close()
 }
 
 // Prepare creates a prepared statement for later execution.
 func (db *DB) Prepare(query string) (*Stmt, error) {
+	var stmt *Stmt
+	var err error
+	for i := 0; i < 10; i++ {
+		stmt, err = db.prepare(query)
+		if err != driver.ErrBadConn {
+			break
+		}
+	}
+	return stmt, err
+}
+
+func (db *DB) prepare(query string) (stmt *Stmt, err error) {
 	// TODO: check if db.driver supports an optional
 	// driver.Preparer interface and call that instead, if so,
 	// otherwise we make a prepared statement that's bound
@@ -289,12 +305,12 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.putConn(ci)
+	defer db.putConn(ci, err)
 	si, err := ci.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
-	stmt := &Stmt{
+	stmt = &Stmt{
 		db:    db,
 		query: query,
 		css:   []connStmt{{ci, si}},
@@ -305,15 +321,22 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 // Exec executes a query without returning any rows.
 func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	sargs, err := subsetTypeArgs(args)
-	if err != nil {
-		return nil, err
+	var res Result
+	for i := 0; i < 10; i++ {
+		res, err = db.exec(query, sargs)
+		if err != driver.ErrBadConn {
+			break
+		}
 	}
+	return res, err
+}
 
+func (db *DB) exec(query string, sargs []driver.Value) (res Result, err error) {
 	ci, err := db.conn()
 	if err != nil {
 		return nil, err
 	}
-	defer db.putConn(ci)
+	defer db.putConn(ci, err)
 
 	if execer, ok := ci.(driver.Execer); ok {
 		resi, err := execer.Exec(query, sargs)
@@ -364,13 +387,25 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 // Begin starts a transaction. The isolation level is dependent on
 // the driver.
 func (db *DB) Begin() (*Tx, error) {
+	var tx *Tx
+	var err error
+	for i := 0; i < 10; i++ {
+		tx, err = db.begin()
+		if err != driver.ErrBadConn {
+			break
+		}
+	}
+	return tx, err
+}
+
+func (db *DB) begin() (tx *Tx, err error) {
 	ci, err := db.conn()
 	if err != nil {
 		return nil, err
 	}
 	txi, err := ci.Begin()
 	if err != nil {
-		db.putConn(ci)
+		db.putConn(ci, err)
 		return nil, fmt.Errorf("sql: failed to Begin transaction: %v", err)
 	}
 	return &Tx{
@@ -416,7 +451,7 @@ func (tx *Tx) close() {
 		panic("double close") // internal error
 	}
 	tx.done = true
-	tx.db.putConn(tx.ci)
+	tx.db.putConn(tx.ci, nil)
 	tx.ci = nil
 	tx.txi = nil
 }
@@ -720,22 +755,28 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
 	// Make a new conn if all are busy.
 	// TODO(bradfitz): or wait for one? make configurable later?
 	if !match {
-		ci, err := s.db.conn()
-		if err != nil {
-			return nil, nil, nil, err
+		for i := 0; ; i++ {
+			ci, err := s.db.conn()
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			si, err := ci.Prepare(s.query)
+			if err == driver.ErrBadConn && i < 10 {
+				continue
+			}
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			s.mu.Lock()
+			cs = connStmt{ci, si}
+			s.css = append(s.css, cs)
+			s.mu.Unlock()
+			break
 		}
-		si, err := ci.Prepare(s.query)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		s.mu.Lock()
-		cs = connStmt{ci, si}
-		s.css = append(s.css, cs)
-		s.mu.Unlock()
 	}
 
 	conn := cs.ci
-	releaseConn = func() { s.db.putConn(conn) }
+	releaseConn = func() { s.db.putConn(conn, nil) }
 	return conn, releaseConn, cs.si, nil
 }
 
@@ -759,7 +800,7 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	}
 	rowsi, err := si.Query(sargs)
 	if err != nil {
-		s.db.putConn(ci)
+		s.db.putConn(ci, err)
 		return nil, err
 	}
 	// Note: ownership of ci passes to the *Rows, to be freed
@@ -810,7 +851,7 @@ func (s *Stmt) Close() error {
 		for _, v := range s.css {
 			if ci, match := s.db.connIfFree(v.ci); match {
 				v.si.Close()
-				s.db.putConn(ci)
+				s.db.putConn(ci, nil)
 			} else {
 				// TODO(bradfitz): care that we can't close
 				// this statement because the statement's
