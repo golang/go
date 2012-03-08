@@ -13,8 +13,8 @@ handlers:
   static_dir: static
 - url: /log/.+
   script: _go_app
-- url: /(|commit|install|packages|result|tag|todo)
+- url: /(|commit|packages|result|tag|todo)
   script: _go_app
-- url: /(init|buildtest|key|_ah/queue/go/delay|install/cron)
+- url: /(init|buildtest|key|_ah/queue/go/delay)
   script: _go_app
   login: admin

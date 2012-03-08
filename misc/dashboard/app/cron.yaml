@@ -1,4 +1,0 @@
-cron:
-- description: update rolling package install counts
-  url: /install/cron
-  schedule: every 24 hours
