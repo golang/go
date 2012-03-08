@@ -14,7 +14,8 @@ Plan 9 C compiler.
 This implementation adds the flag -S, which prints each symbol's size 
 in decimal after its address.
 
-It is installed as go tool nm and is architecture-independent.
+Usage:
+	go tool nm [-aghnsTu] file
 
 */
 package documentation
