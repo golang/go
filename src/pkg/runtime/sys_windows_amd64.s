@@ -60,6 +60,49 @@ loadregs:
 
 	RET
 
+TEXT runtime·write(SB),7,$48
+	// write only ever writes to stderr; ignore fd
+	MOVQ	$-12, CX // stderr
+	MOVQ	CX, 0(SP)
+	MOVQ	runtime·GetStdHandle(SB), AX
+	CALL	AX
+
+	MOVQ	AX, CX	// handle
+	MOVQ	CX, 0(SP)
+	MOVQ	buf+8(FP), DX // pointer
+	MOVQ	DX, 8(SP)
+	MOVL	count+16(FP), R8 // count
+	MOVQ	R8, 16(SP)
+	LEAQ	40(SP), R9  // written count
+	MOVQ	$0, 0(R9)
+	MOVQ	R9, 24(SP)
+	MOVQ	$0, 32(SP)	// overlapped
+	MOVQ	runtime·WriteFile(SB), AX
+	CALL	AX
+	
+	RET
+
+TEXT runtime·badcallback(SB),7,$48
+	MOVQ	$-12, CX // stderr
+	MOVQ	CX, 0(SP)
+	MOVQ	runtime·GetStdHandle(SB), AX
+	CALL	AX
+
+	MOVQ	AX, CX	// handle
+	MOVQ	CX, 0(SP)
+	MOVQ	$runtime·badcallbackmsg(SB), DX // pointer
+	MOVQ	DX, 8(SP)
+	MOVL	$runtime·badcallbacklen(SB), R8 // count
+	MOVQ	R8, 16(SP)
+	LEAQ	40(SP), R9  // written count
+	MOVQ	$0, 0(R9)
+	MOVQ	R9, 24(SP)
+	MOVQ	$0, 32(SP)	// overlapped
+	MOVQ	runtime·WriteFile(SB), AX
+	CALL	AX
+	
+	RET
+
 // faster get/set last error
 TEXT runtime·getlasterror(SB),7,$0
 	MOVQ	0x30(GS), AX
@@ -207,15 +250,18 @@ TEXT runtime·callbackasm(SB),7,$0
 	MOVQ	R14, 8(SP)
 	MOVQ	R15, 0(SP)
 
+	// prepare call stack.  use SUBQ to hide from stack frame checks
 	// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
-	PUSHQ	DX    // uintptr framesize
-	PUSHQ	CX    // void *frame
-	PUSHQ	AX    // void (*fn)(void*)
+	SUBQ	$24, SP
+	MOVQ	DX, 16(SP)	// uintptr framesize
+	MOVQ	CX, 8(SP)   // void *frame
+	MOVQ	AX, 0(SP)    // void (*fn)(void*)
 	CLD
 	CALL  runtime·cgocallback(SB)
-	POPQ	AX
-	POPQ	CX
-	POPQ	DX
+	MOVQ	0(SP), AX
+	MOVQ	8(SP), CX
+	MOVQ	16(SP), DX
+	ADDQ	$24, SP
 
 	// restore registers as required for windows callback
 	// 6l does not allow writing many POPs here issuing a warning "nosplit stack overflow"
