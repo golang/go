@@ -27,6 +27,7 @@ doc/tmpltohtml
 doc/articles/wiki/*.bin
 misc/cgo/life/run.out
 misc/cgo/stdio/run.out
+misc/cgo/testso/testso
 misc/dashboard/builder/builder
 misc/goplay/goplay
 misc/osx/*.pkg

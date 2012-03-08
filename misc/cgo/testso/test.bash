@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
-gomake out
-LD_LIBRARY_PATH=. ./out
-gomake clean
+gcc -fPIC -g -shared -o libcgosotest.so cgoso_c.c
+go build main.go
+LD_LIBRARY_PATH=. ./main
+rm -f libcgosotest.so main
