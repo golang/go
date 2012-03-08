@@ -646,12 +646,6 @@ walkexpr(Node **np, NodeList **init)
 		n->ninit = nil;
 		l = n->list->n;
 		r = n->list->next->n;
-		if(n->right != N) {
-			// TODO: Remove once two-element map assigment is gone.
-			l = safeexpr(l, init);
-			r = safeexpr(r, init);
-			safeexpr(n->right, init);  // cause side effects from n->right
-		}
 		t = l->type;
 		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
 		goto ret;
