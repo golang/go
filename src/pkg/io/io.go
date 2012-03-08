@@ -179,7 +179,7 @@ type ReaderAt interface {
 // seek offset.
 //
 // Clients of WriteAt can execute parallel WriteAt calls on the same
-// destination if the ranges are not overlapping.
+// destination if the ranges do not overlap.
 type WriterAt interface {
 	WriteAt(p []byte, off int64) (n int, err error)
 }
