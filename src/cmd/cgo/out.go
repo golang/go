@@ -411,9 +411,19 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		}
 	}
 	fmt.Fprintf(fgcc, "%s(", n.C)
-	for i := range n.FuncType.Params {
+	for i, t := range n.FuncType.Params {
 		if i > 0 {
 			fmt.Fprintf(fgcc, ", ")
+		}
+		// We know the type params are correct, because
+		// the Go equivalents had good type params.
+		// However, our version of the type omits the magic
+		// words const and volatile, which can provoke
+		// C compiler warnings.  Silence them by casting
+		// all pointers to void*.  (Eventually that will produce
+		// other warnings.)
+		if c := t.C.String(); c[len(c)-1] == '*' {
+			fmt.Fprintf(fgcc, "(void*)")
 		}
 		fmt.Fprintf(fgcc, "a->p%d", i)
 	}
