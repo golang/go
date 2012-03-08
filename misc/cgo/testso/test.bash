@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
-gcc -fPIC -g -shared -o libcgosotest.so cgoso_c.c
+gcc $(go env GOGCCFLAGS) -shared -o libcgosotest.so cgoso_c.c
 go build main.go
 LD_LIBRARY_PATH=. ./main
 rm -f libcgosotest.so main

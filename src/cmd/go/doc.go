@@ -14,6 +14,7 @@ The commands are:
     build       compile packages and dependencies
     clean       remove object files
     doc         run godoc on package sources
+    env         print Go environment information
     fix         run go tool fix on packages
     fmt         run gofmt on package sources
     get         download and install packages and dependencies
@@ -76,6 +77,8 @@ The build flags are shared by the build, install, run, and test commands:
 	-x
 		print the commands.
 
+	-compiler name
+		name of compiler to use, as in runtime.Compiler (gccgo or gc)
 	-gccgoflags 'arg list'
 		arguments to pass on each gccgo compiler/linker invocation
 	-gcflags 'arg list'
@@ -151,6 +154,20 @@ For more about specifying packages, see 'go help packages'.
 To run godoc with specific options, run godoc itself.
 
 See also: go fix, go fmt, go vet.
+
+
+Print Go environment information
+
+Usage:
+
+	go env [var ...]
+
+Env prints Go environment information.
+
+By default env prints information as a shell script
+(on Windows, a batch file).  If one or more variable
+names is given as arguments,  env prints the value of
+each named variable on its own line.
 
 
 Run go tool fix on packages
@@ -253,21 +270,28 @@ is equivalent to -f '{{.ImportPath}}'.  The struct
 being passed to the template is:
 
     type Package struct {
+        Dir        string // directory containing package sources
+        ImportPath string // import path of package in dir
         Name       string // package name
         Doc        string // package documentation string
-        ImportPath string // import path of package in dir
-        Dir        string // directory containing package sources
-        Version    string // version of installed package (TODO)
+        Target     string // install path
+        Goroot     bool   // is this package in the Go root?
+        Standard   bool   // is this package part of the standard Go library?
         Stale      bool   // would 'go install' do anything for this package?
+        Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, and XTestGoFiles)
-        TestGoFiles  []string // _test.go source files internal to the package they are testing
-        XTestGoFiles []string // _test.go source files external to the package they are testing
-        CFiles       []string // .c source files
-        HFiles       []string // .h source files
-        SFiles       []string // .s source files
-        CgoFiles     []string // .go sources files that import "C"
+        GoFiles  []string  // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string  // .go sources files that import "C"
+        CFiles   []string  // .c source files
+        HFiles   []string  // .h source files
+        SFiles   []string  // .s source files
+        SysoFiles []string // .syso object files to add to archive
+
+        // Cgo directives
+        CgoCFLAGS    []string // cgo: flags for C compiler
+        CgoLDFLAGS   []string // cgo: flags for linker
+        CgoPkgConfig []string // cgo: pkg-config names
 
         // Dependency information
         Imports []string // import paths used by this package
@@ -275,8 +299,13 @@ being passed to the template is:
 
         // Error information
         Incomplete bool            // this package or a dependency has an error
-        Error *PackageError        // error loading package
+        Error      *PackageError   // error loading package
         DepsErrors []*PackageError // errors loading dependencies
+
+        TestGoFiles  []string // _test.go files in package
+        TestImports  []string // imports from TestGoFiles
+        XTestGoFiles []string // _test.go files outside package
+        XTestImports []string // imports from XTestGoFiles
     }
 
 The -json flag causes the package data to be printed in JSON format
