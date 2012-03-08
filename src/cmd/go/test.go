@@ -258,6 +258,9 @@ func runTest(cmd *Command, args []string) {
 			for _, path := range p.TestImports {
 				deps[path] = true
 			}
+			for _, path := range p.XTestImports {
+				deps[path] = true
+			}
 		}
 
 		// translate C to runtime/cgo
@@ -454,12 +457,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			m[k] = append(m[k], v...)
 		}
 		ptest.build.ImportPos = m
-		computeStale(ptest)
-		a := b.action(modeBuild, modeBuild, ptest)
-		a.objdir = testDir + string(filepath.Separator)
-		a.objpkg = ptestObj
-		a.target = ptestObj
-		a.link = false
 	} else {
 		ptest = p
 	}
@@ -470,6 +467,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			Name:        p.Name + "_test",
 			ImportPath:  p.ImportPath + "_test",
 			localPrefix: p.localPrefix,
+			Root:        p.Root,
 			Dir:         p.Dir,
 			GoFiles:     p.XTestGoFiles,
 			Imports:     p.XTestImports,
@@ -481,11 +479,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 			fake:    true,
 			Stale:   true,
 		}
-		computeStale(pxtest)
-		a := b.action(modeBuild, modeBuild, pxtest)
-		a.objdir = testDir + string(filepath.Separator)
-		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
-		a.target = a.objpkg
 	}
 
 	// Action for building pkg.test.
@@ -494,6 +487,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		Dir:        testDir,
 		GoFiles:    []string{"_testmain.go"},
 		ImportPath: "testmain",
+		Root:       p.Root,
 		imports:    []*Package{ptest},
 		build:      &build.Package{},
 		fake:       true,
@@ -515,6 +509,21 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 	pmain.imports = append(pmain.imports, ptesting, pregexp)
 	computeStale(pmain)
+
+	if ptest != p {
+		a := b.action(modeBuild, modeBuild, ptest)
+		a.objdir = testDir + string(filepath.Separator)
+		a.objpkg = ptestObj
+		a.target = ptestObj
+		a.link = false
+	}
+
+	if pxtest != nil {
+		a := b.action(modeBuild, modeBuild, pxtest)
+		a.objdir = testDir + string(filepath.Separator)
+		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
+		a.target = a.objpkg
+	}
 
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)
