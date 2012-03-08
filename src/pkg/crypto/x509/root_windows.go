@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 )
@@ -58,6 +59,87 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 	return storeCtx, nil
 }
 
+// extractSimpleChain extracts the final certificate chain from a CertSimpleChain.
+func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain []*Certificate, err error) {
+	if simpleChain == nil || count == 0 {
+		return nil, errors.New("x509: invalid simple chain")
+	}
+
+	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(simpleChain))[:]
+	lastChain := simpleChains[count-1]
+	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(lastChain.Elements))[:]
+	for i := 0; i < int(lastChain.NumElements); i++ {
+		// Copy the buf, since ParseCertificate does not create its own copy.
+		cert := elements[i].CertContext
+		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
+		buf := make([]byte, cert.Length)
+		copy(buf, encodedCert[:])
+		parsedCert, err := ParseCertificate(buf)
+		if err != nil {
+			return nil, err
+		}
+		chain = append(chain, parsedCert)
+	}
+
+	return chain, nil
+}
+
+// checkChainTrustStatus checks the trust status of the certificate chain, translating
+// any errors it finds into Go errors in the process.
+func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) error {
+	if chainCtx.TrustStatus.ErrorStatus != syscall.CERT_TRUST_NO_ERROR {
+		status := chainCtx.TrustStatus.ErrorStatus
+		switch status {
+		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
+			return CertificateInvalidError{c, Expired}
+		default:
+			return UnknownAuthorityError{c}
+		}
+	}
+	return nil
+}
+
+// checkChainSSLServerPolicy checks that the certificate chain in chainCtx is valid for
+// use as a certificate chain for a SSL/TLS server.
+func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContext, opts *VerifyOptions) error {
+	sslPara := &syscall.SSLExtraCertChainPolicyPara{
+		AuthType:   syscall.AUTHTYPE_SERVER,
+		ServerName: syscall.StringToUTF16Ptr(opts.DNSName),
+	}
+	sslPara.Size = uint32(unsafe.Sizeof(*sslPara))
+
+	para := &syscall.CertChainPolicyPara{
+		ExtraPolicyPara: uintptr(unsafe.Pointer(sslPara)),
+	}
+	para.Size = uint32(unsafe.Sizeof(*para))
+
+	status := syscall.CertChainPolicyStatus{}
+	err := syscall.CertVerifyCertificateChainPolicy(syscall.CERT_CHAIN_POLICY_SSL, chainCtx, para, &status)
+	if err != nil {
+		return err
+	}
+
+	// TODO(mkrautz): use the lChainIndex and lElementIndex fields
+	// of the CertChainPolicyStatus to provide proper context, instead
+	// using c.
+	if status.Error != 0 {
+		switch status.Error {
+		case syscall.CERT_E_EXPIRED:
+			return CertificateInvalidError{c, Expired}
+		case syscall.CERT_E_CN_NO_MATCH:
+			return HostnameError{c, opts.DNSName}
+		case syscall.CERT_E_UNTRUSTEDROOT:
+			return UnknownAuthorityError{c}
+		default:
+			return UnknownAuthorityError{c}
+		}
+	}
+
+	return nil
+}
+
+// systemVerify is like Verify, except that it uses CryptoAPI calls
+// to build certificate chains and verify them.
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	hasDNSName := opts != nil && len(opts.DNSName) > 0
 
@@ -69,15 +151,23 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 
 	para := new(syscall.CertChainPara)
 	para.Size = uint32(unsafe.Sizeof(*para))
-	para.RequestedUsage.Type = syscall.USAGE_MATCH_TYPE_AND
 
 	// If there's a DNSName set in opts, assume we're verifying
 	// a certificate from a TLS server.
 	if hasDNSName {
-		oids := []*byte{&syscall.OID_PKIX_KP_SERVER_AUTH[0]}
+		oids := []*byte{
+			&syscall.OID_PKIX_KP_SERVER_AUTH[0],
+			// Both IE and Chrome allow certificates with
+			// Server Gated Crypto as well. Some certificates
+			// in the wild require them.
+			&syscall.OID_SERVER_GATED_CRYPTO[0],
+			&syscall.OID_SGC_NETSCAPE[0],
+		}
+		para.RequestedUsage.Type = syscall.USAGE_MATCH_TYPE_OR
 		para.RequestedUsage.Usage.Length = uint32(len(oids))
 		para.RequestedUsage.Usage.UsageIdentifiers = &oids[0]
 	} else {
+		para.RequestedUsage.Type = syscall.USAGE_MATCH_TYPE_AND
 		para.RequestedUsage.Usage.Length = 0
 		para.RequestedUsage.Usage.UsageIdentifiers = nil
 	}
@@ -113,77 +203,24 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	}
 	defer syscall.CertFreeCertificateChain(chainCtx)
 
-	if chainCtx.TrustStatus.ErrorStatus != syscall.CERT_TRUST_NO_ERROR {
-		status := chainCtx.TrustStatus.ErrorStatus
-		switch status {
-		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
-			return nil, CertificateInvalidError{c, Expired}
-		default:
-			return nil, UnknownAuthorityError{c}
-		}
+	err = checkChainTrustStatus(c, chainCtx)
+	if err != nil {
+		return nil, err
 	}
 
-	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(chainCtx.Chains))[:]
-	if chainCtx.ChainCount == 0 {
-		return nil, UnknownAuthorityError{c}
-	}
-	verifiedChain := simpleChains[int(chainCtx.ChainCount)-1]
-
-	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(verifiedChain.Elements))[:]
-	if verifiedChain.NumElements == 0 {
-		return nil, UnknownAuthorityError{c}
-	}
-
-	var chain []*Certificate
-	for i := 0; i < int(verifiedChain.NumElements); i++ {
-		// Copy the buf, since ParseCertificate does not create its own copy.
-		cert := elements[i].CertContext
-		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
-		buf := make([]byte, cert.Length)
-		copy(buf, encodedCert[:])
-		parsedCert, err := ParseCertificate(buf)
-		if err != nil {
-			return nil, err
-		}
-		chain = append(chain, parsedCert)
-	}
-
-	// Apply the system SSL policy if VerifyOptions dictates that we
-	// must check for a DNS name.
 	if hasDNSName {
-		sslPara := &syscall.SSLExtraCertChainPolicyPara{
-			AuthType:   syscall.AUTHTYPE_SERVER,
-			ServerName: syscall.StringToUTF16Ptr(opts.DNSName),
-		}
-		sslPara.Size = uint32(unsafe.Sizeof(*sslPara))
-
-		para := &syscall.CertChainPolicyPara{
-			ExtraPolicyPara: uintptr(unsafe.Pointer(sslPara)),
-		}
-		para.Size = uint32(unsafe.Sizeof(*para))
-
-		status := syscall.CertChainPolicyStatus{}
-		err = syscall.CertVerifyCertificateChainPolicy(syscall.CERT_CHAIN_POLICY_SSL, chainCtx, para, &status)
+		err = checkChainSSLServerPolicy(c, chainCtx, opts)
 		if err != nil {
 			return nil, err
 		}
-
-		if status.Error != 0 {
-			switch status.Error {
-			case syscall.CERT_E_EXPIRED:
-				return nil, CertificateInvalidError{c, Expired}
-			case syscall.CERT_E_CN_NO_MATCH:
-				return nil, HostnameError{c, opts.DNSName}
-			case syscall.CERT_E_UNTRUSTEDROOT:
-				return nil, UnknownAuthorityError{c}
-			default:
-				return nil, UnknownAuthorityError{c}
-			}
-		}
 	}
 
-	chains = make([][]*Certificate, 1)
-	chains[0] = chain
+	chain, err := extractSimpleChain(chainCtx.Chains, int(chainCtx.ChainCount))
+	if err != nil {
+		return nil, err
+	}
+
+	chains = append(chains, chain)
 
 	return chains, nil
 }
