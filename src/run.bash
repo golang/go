@@ -71,7 +71,7 @@ time ./run
 [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
 (xcd ../doc/articles/wiki
 make clean
-./test.sh
+./test.bash
 ) || exit $?
 
 echo
