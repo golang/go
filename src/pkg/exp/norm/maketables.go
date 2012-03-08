@@ -577,7 +577,7 @@ type decompSet [4]map[string]bool
 
 func makeDecompSet() decompSet {
 	m := decompSet{}
-	for i, _ := range m {
+	for i := range m {
 		m[i] = make(map[string]bool)
 	}
 	return m
@@ -646,7 +646,7 @@ func printCharInfoTables() int {
 	fmt.Println("const (")
 	for i, m := range decompSet {
 		sa := []string{}
-		for s, _ := range m {
+		for s := range m {
 			sa = append(sa, s)
 		}
 		sort.Strings(sa)

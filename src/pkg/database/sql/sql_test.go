@@ -463,48 +463,48 @@ type nullTestSpec struct {
 
 func TestNullStringParam(t *testing.T) {
 	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
-		nullTestRow{NullString{"aqua", true}, "", NullString{"aqua", true}},
-		nullTestRow{NullString{"brown", false}, "", NullString{"", false}},
-		nullTestRow{"chartreuse", "", NullString{"chartreuse", true}},
-		nullTestRow{NullString{"darkred", true}, "", NullString{"darkred", true}},
-		nullTestRow{NullString{"eel", false}, "", NullString{"", false}},
-		nullTestRow{"foo", NullString{"black", false}, nil},
+		{NullString{"aqua", true}, "", NullString{"aqua", true}},
+		{NullString{"brown", false}, "", NullString{"", false}},
+		{"chartreuse", "", NullString{"chartreuse", true}},
+		{NullString{"darkred", true}, "", NullString{"darkred", true}},
+		{NullString{"eel", false}, "", NullString{"", false}},
+		{"foo", NullString{"black", false}, nil},
 	}}
 	nullTestRun(t, spec)
 }
 
 func TestNullInt64Param(t *testing.T) {
 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
-		nullTestRow{NullInt64{31, true}, 1, NullInt64{31, true}},
-		nullTestRow{NullInt64{-22, false}, 1, NullInt64{0, false}},
-		nullTestRow{22, 1, NullInt64{22, true}},
-		nullTestRow{NullInt64{33, true}, 1, NullInt64{33, true}},
-		nullTestRow{NullInt64{222, false}, 1, NullInt64{0, false}},
-		nullTestRow{0, NullInt64{31, false}, nil},
+		{NullInt64{31, true}, 1, NullInt64{31, true}},
+		{NullInt64{-22, false}, 1, NullInt64{0, false}},
+		{22, 1, NullInt64{22, true}},
+		{NullInt64{33, true}, 1, NullInt64{33, true}},
+		{NullInt64{222, false}, 1, NullInt64{0, false}},
+		{0, NullInt64{31, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }
 
 func TestNullFloat64Param(t *testing.T) {
 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
-		nullTestRow{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
-		nullTestRow{NullFloat64{13.1, false}, 1, NullFloat64{0, false}},
-		nullTestRow{-22.9, 1, NullFloat64{-22.9, true}},
-		nullTestRow{NullFloat64{33.81, true}, 1, NullFloat64{33.81, true}},
-		nullTestRow{NullFloat64{222, false}, 1, NullFloat64{0, false}},
-		nullTestRow{10, NullFloat64{31.2, false}, nil},
+		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
+		{NullFloat64{13.1, false}, 1, NullFloat64{0, false}},
+		{-22.9, 1, NullFloat64{-22.9, true}},
+		{NullFloat64{33.81, true}, 1, NullFloat64{33.81, true}},
+		{NullFloat64{222, false}, 1, NullFloat64{0, false}},
+		{10, NullFloat64{31.2, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }
 
 func TestNullBoolParam(t *testing.T) {
 	spec := nullTestSpec{"nullbool", "bool", [6]nullTestRow{
-		nullTestRow{NullBool{false, true}, true, NullBool{false, true}},
-		nullTestRow{NullBool{true, false}, false, NullBool{false, false}},
-		nullTestRow{true, true, NullBool{true, true}},
-		nullTestRow{NullBool{true, true}, false, NullBool{true, true}},
-		nullTestRow{NullBool{true, false}, true, NullBool{false, false}},
-		nullTestRow{true, NullBool{true, false}, nil},
+		{NullBool{false, true}, true, NullBool{false, true}},
+		{NullBool{true, false}, false, NullBool{false, false}},
+		{true, true, NullBool{true, true}},
+		{NullBool{true, true}, false, NullBool{true, true}},
+		{NullBool{true, false}, true, NullBool{false, false}},
+		{true, NullBool{true, false}, nil},
 	}}
 	nullTestRun(t, spec)
 }

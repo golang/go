@@ -238,9 +238,9 @@ func TestRedirects(t *testing.T) {
 }
 
 var expectedCookies = []*Cookie{
-	&Cookie{Name: "ChocolateChip", Value: "tasty"},
-	&Cookie{Name: "First", Value: "Hit"},
-	&Cookie{Name: "Second", Value: "Hit"},
+	{Name: "ChocolateChip", Value: "tasty"},
+	{Name: "First", Value: "Hit"},
+	{Name: "Second", Value: "Hit"},
 }
 
 var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) {

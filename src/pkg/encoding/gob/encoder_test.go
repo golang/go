@@ -694,8 +694,8 @@ type Bug3 struct {
 
 func TestGobPtrSlices(t *testing.T) {
 	in := []*Bug3{
-		&Bug3{1, nil},
-		&Bug3{2, nil},
+		{1, nil},
+		{2, nil},
 	}
 	b := new(bytes.Buffer)
 	err := NewEncoder(b).Encode(&in)

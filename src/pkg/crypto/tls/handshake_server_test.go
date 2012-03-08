@@ -143,7 +143,7 @@ func testServerScript(t *testing.T, name string, serverScript [][]byte, config *
 	if peers != nil {
 		gotpeers := <-pchan
 		if len(peers) == len(gotpeers) {
-			for i, _ := range peers {
+			for i := range peers {
 				if !peers[i].Equal(gotpeers[i]) {
 					t.Fatalf("%s: mismatch on peer cert %d", name, i)
 				}
