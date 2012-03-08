@@ -40,6 +40,13 @@ type parser struct {
 	tok token.Token // one token look-ahead
 	lit string      // token literal
 
+	// Error recovery
+	// (used to limit the number of calls to syncXXX functions
+	// w/o making scanning progress - avoids potential endless
+	// loops across multiple parser functions during error recovery)
+	syncPos token.Pos // last synchronization position
+	syncCnt int       // number of calls to syncXXX without progress
+
 	// Non-syntactic parser control
 	exprLev int // < 0: in control clause, >= 0: in expression
 
@@ -377,9 +384,7 @@ func (p *parser) expectSemi() {
 			p.next()
 		} else {
 			p.errorExpected(p.pos, "';'")
-			for !isStmtSync(p.tok) {
-				p.next() // make progress
-			}
+			syncStmt(p)
 		}
 	}
 }
@@ -402,29 +407,66 @@ func assert(cond bool, msg string) {
 	}
 }
 
-// isStmtSync reports whether tok starts a new statement.
+// syncStmt advances to the next statement.
 // Used for synchronization after an error.
 //
-func isStmtSync(tok token.Token) bool {
-	switch tok {
-	case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
-		token.FALLTHROUGH, token.FOR, token.GO, token.GOTO,
-		token.IF, token.RETURN, token.SELECT, token.SWITCH,
-		token.TYPE, token.VAR, token.EOF:
-		return true
+func syncStmt(p *parser) {
+	for {
+		switch p.tok {
+		case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
+			token.FALLTHROUGH, token.FOR, token.GO, token.GOTO,
+			token.IF, token.RETURN, token.SELECT, token.SWITCH,
+			token.TYPE, token.VAR:
+			// Return only if parser made some progress since last
+			// sync or if it has not reached 10 sync calls without
+			// progress. Otherwise consume at least one token to
+			// avoid an endless parser loop (it is possible that
+			// both parseOperand and parseStmt call syncStmt and
+			// correctly do not advance, thus the need for the
+			// invocation limit p.syncCnt).
+			if p.pos == p.syncPos && p.syncCnt < 10 {
+				p.syncCnt++
+				return
+			}
+			if p.pos > p.syncPos {
+				p.syncPos = p.pos
+				p.syncCnt = 0
+				return
+			}
+			// Reaching here indicates a parser bug, likely an
+			// incorrect token list in this function, but it only
+			// leads to skipping of possibly correct code if a
+			// previous error is present, and thus is preferred
+			// over a non-terminating parse.
+		case token.EOF:
+			return
+		}
+		p.next()
 	}
-	return false
 }
 
-// isDeclSync reports whether tok starts a new declaration.
+// syncDecl advances to the next declaration.
 // Used for synchronization after an error.
 //
-func isDeclSync(tok token.Token) bool {
-	switch tok {
-	case token.CONST, token.TYPE, token.VAR, token.EOF:
-		return true
+func syncDecl(p *parser) {
+	for {
+		switch p.tok {
+		case token.CONST, token.TYPE, token.VAR:
+			// see comments in syncStmt
+			if p.pos == p.syncPos && p.syncCnt < 10 {
+				p.syncCnt++
+				return
+			}
+			if p.pos > p.syncPos {
+				p.syncPos = p.pos
+				p.syncCnt = 0
+				return
+			}
+		case token.EOF:
+			return
+		}
+		p.next()
 	}
-	return false
 }
 
 // ----------------------------------------------------------------------------
@@ -1050,9 +1092,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	// we have an error
 	pos := p.pos
 	p.errorExpected(pos, "operand")
-	if !isStmtSync(p.tok) {
-		p.next() // make progress
-	}
+	syncStmt(p)
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
@@ -1914,7 +1954,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		s = &ast.DeclStmt{Decl: p.parseDecl(isStmtSync)}
+		s = &ast.DeclStmt{Decl: p.parseDecl(syncStmt)}
 	case
 		// tokens that may start an expression
 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
@@ -1956,9 +1996,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		// no statement found
 		pos := p.pos
 		p.errorExpected(pos, "statement")
-		for !isStmtSync(p.tok) {
-			p.next() // make progress
-		}
+		syncStmt(p)
 		s = &ast.BadStmt{From: pos, To: p.pos}
 	}
 
@@ -2211,7 +2249,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
-func (p *parser) parseDecl(isSync func(token.Token) bool) ast.Decl {
+func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
 	}
@@ -2233,9 +2271,7 @@ func (p *parser) parseDecl(isSync func(token.Token) bool) ast.Decl {
 	default:
 		pos := p.pos
 		p.errorExpected(pos, "declaration")
-		for !isSync(p.tok) {
-			p.next() // make progress
-		}
+		sync(p)
 		return &ast.BadDecl{From: pos, To: p.pos}
 	}
 
@@ -2275,7 +2311,7 @@ func (p *parser) parseFile() *ast.File {
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decls = append(decls, p.parseDecl(isDeclSync))
+				decls = append(decls, p.parseDecl(syncDecl))
 			}
 		}
 	}
