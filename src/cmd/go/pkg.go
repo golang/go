@@ -35,11 +35,12 @@ type Package struct {
 	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
 
 	// Source files
-	GoFiles  []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles []string `json:",omitempty"` // .go sources files that import "C"
-	CFiles   []string `json:",omitempty"` // .c source files
-	HFiles   []string `json:",omitempty"` // .h source files
-	SFiles   []string `json:",omitempty"` // .s source files
+	GoFiles   []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles  []string `json:",omitempty"` // .go sources files that import "C"
+	CFiles    []string `json:",omitempty"` // .c source files
+	HFiles    []string `json:",omitempty"` // .h source files
+	SFiles    []string `json:",omitempty"` // .s source files
+	SysoFiles []string `json:",omitempty"` // .syso system object files added to package
 
 	// Cgo directives
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
@@ -90,6 +91,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CFiles = pp.CFiles
 	p.HFiles = pp.HFiles
 	p.SFiles = pp.SFiles
+	p.SysoFiles = pp.SysoFiles
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
@@ -487,7 +489,7 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles)
+	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true

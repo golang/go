@@ -279,11 +279,12 @@ type Package struct {
 	PkgObj     string // installed .a file
 
 	// Source files
-	GoFiles  []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles []string // .go source files that import "C"
-	CFiles   []string // .c source files
-	HFiles   []string // .h source files
-	SFiles   []string // .s source files
+	GoFiles   []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles  []string // .go source files that import "C"
+	CFiles    []string // .c source files
+	HFiles    []string // .h source files
+	SFiles    []string // .s source files
+	SysoFiles []string // .syso system object files to add to archive
 
 	// Cgo directives
 	CgoPkgConfig []string // Cgo pkg-config directives
@@ -476,7 +477,12 @@ Found:
 		ext := name[i:]
 		switch ext {
 		case ".go", ".c", ".s", ".h", ".S":
-			// tentatively okay
+			// tentatively okay - read to make sure
+		case ".syso":
+			// binary objects to add to package archive
+			// Likely of the form foo_windows.syso, but
+			// the name was vetted above with goodOSArchFile.
+			p.SysoFiles = append(p.SysoFiles, name)
 		default:
 			// skip
 			continue
