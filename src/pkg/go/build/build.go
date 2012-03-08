@@ -483,6 +483,7 @@ Found:
 			// Likely of the form foo_windows.syso, but
 			// the name was vetted above with goodOSArchFile.
 			p.SysoFiles = append(p.SysoFiles, name)
+			continue
 		default:
 			// skip
 			continue
