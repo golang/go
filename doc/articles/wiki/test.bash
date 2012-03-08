@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2010 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
 
 set -e
 wiki_pid=
@@ -8,10 +11,10 @@ cleanup() {
 }
 trap cleanup 0 INT
 
-make get.bin
+go build -o get.bin get.go
 addr=$(./get.bin -addr)
 sed s/:8080/$addr/ < final.go > final-test.go
-make final-test.bin
+go build -o final-test.bin final-test.go
 (./final-test.bin) &
 wiki_pid=$!
 
