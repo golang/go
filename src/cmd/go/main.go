@@ -76,6 +76,7 @@ var commands = []*Command{
 	cmdBuild,
 	cmdClean,
 	cmdDoc,
+	cmdEnv,
 	cmdFix,
 	cmdFmt,
 	cmdGet,
