@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -30,8 +31,8 @@ var (
 	nfiles  int // number of files processed
 )
 
-func gofmt(filename string, src *bytes.Buffer) error {
-	f, _, err := parse(filename, src.Bytes(), false)
+func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
+	f, _, err := parse(fset, filename, src.Bytes(), false)
 	if err != nil {
 		return err
 	}
@@ -58,7 +59,8 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 	}
 
 	// exclude files w/ syntax errors (typically test cases)
-	if _, _, err = parse(filename, b1.Bytes(), false); err != nil {
+	fset := token.NewFileSet()
+	if _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "ignoring %s\n", err)
 		}
@@ -66,7 +68,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 	}
 
 	// gofmt file
-	if err = gofmt(filename, b1); err != nil {
+	if err = gofmt(fset, filename, b1); err != nil {
 		t.Errorf("1st gofmt failed: %v", err)
 		return
 	}
@@ -76,7 +78,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 	b2.Write(b1.Bytes())
 
 	// gofmt result again
-	if err = gofmt(filename, b2); err != nil {
+	if err = gofmt(fset, filename, b2); err != nil {
 		t.Errorf("2nd gofmt failed: %v", err)
 		return
 	}
