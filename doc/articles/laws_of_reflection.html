@@ -1,11 +1,7 @@
 <!--{
-	"Title": "The Laws of Reflection"
+	"Title": "The Laws of Reflection",
+	"Template": true
 }-->
-<!--
-  DO NOT EDIT: created by
-    tmpltohtml articles/laws_of_reflection.tmpl
--->
-
 
 <p>
 Reflection in computing is the
@@ -36,11 +32,7 @@ exactly one type known and fixed at compile time: <code>int</code>,
 and so on. If we declare
 </p>
 
-<pre><!--{{code "progs/interface.go" `/type MyInt/` `/STOP/`}}
--->type MyInt int
-
-var i int
-var j MyInt</pre>
+{{code "/doc/progs/interface.go" `/type MyInt/` `/STOP/`}}
 
 <p>
 then <code>i</code> has type <code>int</code> and <code>j</code>
@@ -60,16 +52,7 @@ interface's methods. A well-known pair of examples is
 "http://golang.org/pkg/io/">io package</a>:
 </p>
 
-<pre><!--{{code "progs/interface.go" `/// Reader/` `/STOP/`}}
--->// Reader is the interface that wraps the basic Read method.
-type Reader interface {
-    Read(p []byte) (n int, err error)
-}
-
-// Writer is the interface that wraps the basic Write method.
-type Writer interface {
-    Write(p []byte) (n int, err error)
-}</pre>
+{{code "/doc/progs/interface.go" `/// Reader/` `/STOP/`}}
 
 <p>
 Any type that implements a <code>Read</code> (or
@@ -80,12 +63,7 @@ purposes of this discussion, that means that a variable of type
 <code>Read</code> method:
 </p>
 
-<pre><!--{{code "progs/interface.go" `/func readers/` `/STOP/`}}
--->    var r io.Reader
-    r = os.Stdin
-    r = bufio.NewReader(r)
-    r = new(bytes.Buffer)
-    // and so on</pre>
+{{code "/doc/progs/interface.go" `/func readers/` `/STOP/`}}
 
 <p>
 It's important to be clear that whatever concrete value
@@ -138,13 +116,7 @@ that implements the interface and the type describes the full type
 of that item. For instance, after
 </p>
 
-<pre><!--{{code "progs/interface.go" `/func typeAssertions/` `/STOP/`}}
--->    var r io.Reader
-    tty, err := os.OpenFile(&#34;/dev/tty&#34;, os.O_RDWR, 0)
-    if err != nil {
-        return nil, err
-    }
-    r = tty</pre>
+{{code "/doc/progs/interface.go" `/func typeAssertions/` `/STOP/`}}
 
 <p>
 <code>r</code> contains, schematically, the (value, type) pair,
@@ -156,9 +128,7 @@ the type information about that value. That's why we can do things
 like this:
 </p>
 
-<pre><!--{{code "progs/interface.go" `/var w io.Writer/` `/STOP/`}}
--->    var w io.Writer
-    w = r.(io.Writer)</pre>
+{{code "/doc/progs/interface.go" `/var w io.Writer/` `/STOP/`}}
 
 <p>
 The expression in this assignment is a type assertion; what it
@@ -176,9 +146,7 @@ methods.
 Continuing, we can do this:
 </p>
 
-<pre><!--{{code "progs/interface.go" `/var empty interface{}/` `/STOP/`}}
--->    var empty interface{}
-    empty = w</pre>
+{{code "/doc/progs/interface.go" `/var empty interface{}/` `/STOP/`}}
 
 <p>
 and our empty interface value <code>e</code> will again contain
@@ -232,18 +200,7 @@ now.)
 Let's start with <code>TypeOf</code>:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/package main/` `/STOP main/`}}
--->package main
-
-import (
-    &#34;fmt&#34;
-    &#34;reflect&#34;
-)
-
-func main() {
-    var x float64 = 3.4
-    fmt.Println(&#34;type:&#34;, reflect.TypeOf(x))
-}</pre>
+{{code "/doc/progs/interface2.go" `/package main/` `/STOP main/`}}
 
 <p>
 This program prints
@@ -281,9 +238,7 @@ value (from here on we'll elide the boilerplate and focus just on
 the executable code):
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/var x/` `/STOP/`}}
--->    var x float64 = 3.4
-    fmt.Println(&#34;type:&#34;, reflect.TypeOf(x))</pre>
+{{code "/doc/progs/interface2.go" `/var x/` `/STOP/`}}
 
 <p>
 prints
@@ -307,12 +262,7 @@ on. Also methods on <code>Value</code> with names like
 <code>int64</code> and <code>float64</code>) stored inside:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f1/` `/STOP/`}}
--->    var x float64 = 3.4
-    v := reflect.ValueOf(x)
-    fmt.Println(&#34;type:&#34;, v.Type())
-    fmt.Println(&#34;kind is float64:&#34;, v.Kind() == reflect.Float64)
-    fmt.Println(&#34;value:&#34;, v.Float())</pre>
+{{code "/doc/progs/interface2.go" `/START f1/` `/STOP/`}}
 
 <p>
 prints
@@ -342,12 +292,7 @@ instance. That is, the <code>Int</code> method of
 necessary to convert to the actual type involved:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f2/` `/STOP/`}}
--->    var x uint8 = &#39;x&#39;
-    v := reflect.ValueOf(x)
-    fmt.Println(&#34;type:&#34;, v.Type())                            // uint8.
-    fmt.Println(&#34;kind is uint8: &#34;, v.Kind() == reflect.Uint8) // true.
-    x = uint8(v.Uint())                                       // v.Uint returns a uint64.</pre>
+{{code "/doc/progs/interface2.go" `/START f2/` `/STOP/`}}
 
 <p>
 The second property is that the <code>Kind</code> of a reflection
@@ -356,10 +301,7 @@ reflection object contains a value of a user-defined integer type,
 as in
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3/` `/STOP/`}}
--->    type MyInt int
-    var x MyInt = 7
-    v := reflect.ValueOf(x)</pre>
+{{code "/doc/progs/interface2.go" `/START f3/` `/STOP/`}}
 
 <p>
 the <code>Kind</code> of <code>v</code> is still
@@ -395,9 +337,7 @@ func (v Value) Interface() interface{}
 As a consequence we can say
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3b/` `/STOP/`}}
--->    y := v.Interface().(float64) // y will have type float64.
-    fmt.Println(y)</pre>
+{{code "/doc/progs/interface2.go" `/START f3b/` `/STOP/`}}
 
 <p>
 to print the <code>float64</code> value represented by the
@@ -415,8 +355,7 @@ the <code>Interface</code> method to the formatted print
 routine:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3c/` `/STOP/`}}
--->    fmt.Println(v.Interface())</pre>
+{{code "/doc/progs/interface2.go" `/START f3c/` `/STOP/`}}
 
 <p>
 (Why not <code>fmt.Println(v)</code>? Because <code>v</code> is a
@@ -425,8 +364,7 @@ Since our value is a <code>float64</code>, we can even use a
 floating-point format if we want:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f3d/` `/STOP/`}}
--->    fmt.Printf(&#34;value is %7.1e\n&#34;, v.Interface())</pre>
+{{code "/doc/progs/interface2.go" `/START f3d/` `/STOP/`}}
 
 <p>
 and get in this case
@@ -467,10 +405,7 @@ enough to understand if we start from first principles.
 Here is some code that does not work, but is worth studying.
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f4/` `/STOP/`}}
--->    var x float64 = 3.4
-    v := reflect.ValueOf(x)
-    v.SetFloat(7.1) // Error: will panic.</pre>
+{{code "/doc/progs/interface2.go" `/START f4/` `/STOP/`}}
 
 <p>
 If you run this code, it will panic with the cryptic message
@@ -492,10 +427,7 @@ The <code>CanSet</code> method of <code>Value</code> reports the
 settability of a <code>Value</code>; in our case,
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f5/` `/STOP/`}}
--->    var x float64 = 3.4
-    v := reflect.ValueOf(x)
-    fmt.Println(&#34;settability of v:&#34;, v.CanSet())</pre>
+{{code "/doc/progs/interface2.go" `/START f5/` `/STOP/`}}
 
 <p>
 prints
@@ -518,9 +450,7 @@ determined by whether the reflection object holds the original
 item. When we say
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f6/` `/STOP/`}}
--->    var x float64 = 3.4
-    v := reflect.ValueOf(x)</pre>
+{{code "/doc/progs/interface2.go" `/START f6/` `/STOP/`}}
 
 <p>
 we pass a <em>copy</em> of <code>x</code> to
@@ -530,8 +460,7 @@ argument to <code>reflect.ValueOf</code> is a <em>copy</em> of
 statement
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f6b/` `/STOP/`}}
--->    v.SetFloat(7.1)</pre>
+{{code "/doc/progs/interface2.go" `/START f6b/` `/STOP/`}}
 
 <p>
 were allowed to succeed, it would not update <code>x</code>, even
@@ -577,11 +506,7 @@ and then create a reflection value that points to it, called
 <code>p</code>.
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f7/` `/STOP/`}}
--->    var x float64 = 3.4
-    p := reflect.ValueOf(&amp;x) // Note: take the address of x.
-    fmt.Println(&#34;type of p:&#34;, p.Type())
-    fmt.Println(&#34;settability of p:&#34;, p.CanSet())</pre>
+{{code "/doc/progs/interface2.go" `/START f7/` `/STOP/`}}
 
 <p>
 The output so far is
@@ -601,9 +526,7 @@ and save the result in a reflection <code>Value</code> called
 <code>v</code>:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f7b/` `/STOP/`}}
--->    v := p.Elem()
-    fmt.Println(&#34;settability of v:&#34;, v.CanSet())</pre>
+{{code "/doc/progs/interface2.go" `/START f7b/` `/STOP/`}}
 
 <p>
 Now <code>v</code> is a settable reflection object, as the output
@@ -620,10 +543,7 @@ and since it represents <code>x</code>, we are finally able to use
 <code>x</code>:
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f7c/` `/STOP/`}}
--->    v.SetFloat(7.1)
-    fmt.Println(v.Interface())
-    fmt.Println(x)</pre>
+{{code "/doc/progs/interface2.go" `/START f7c/` `/STOP/`}}
 
 <p>
 The output, as expected, is
@@ -664,19 +584,7 @@ but the fields themselves are regular <code>reflect.Value</code>
 objects.
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f8/` `/STOP/`}}
--->    type T struct {
-        A int
-        B string
-    }
-    t := T{23, &#34;skidoo&#34;}
-    s := reflect.ValueOf(&amp;t).Elem()
-    typeOfT := s.Type()
-    for i := 0; i &lt; s.NumField(); i++ {
-        f := s.Field(i)
-        fmt.Printf(&#34;%d: %s %s = %v\n&#34;, i,
-            typeOfT.Field(i).Name, f.Type(), f.Interface())
-    }</pre>
+{{code "/doc/progs/interface2.go" `/START f8/` `/STOP/`}}
 
 <p>
 The output of this program is
@@ -699,10 +607,7 @@ Because <code>s</code> contains a settable reflection object, we
 can modify the fields of the structure.
 </p>
 
-<pre><!--{{code "progs/interface2.go" `/START f8b/` `/STOP/`}}
--->    s.Field(0).SetInt(77)
-    s.Field(1).SetString(&#34;Sunset Strip&#34;)
-    fmt.Println(&#34;t is now&#34;, t)</pre>
+{{code "/doc/progs/interface2.go" `/START f8b/` `/STOP/`}}
 
 <p>
 And here's the result:

@@ -1,11 +1,7 @@
 <!--{
-	"Title": "Slices: usage and internals"
+	"Title": "Slices: usage and internals",
+	"Template": true
 }-->
-<!--
-  DO NOT EDIT: created by
-    tmpltohtml articles/slices_usage_and_internals.tmpl
--->
-
 
 <p>
 Go's slice type provides a convenient and efficient means of working with
@@ -326,20 +322,7 @@ appends byte elements to a slice of bytes, growing the slice if necessary, and
 returns the updated slice value:
 </p>
 
-<pre><!--{{code "progs/slices.go" `/AppendByte/` `/STOP/`}}
--->func AppendByte(slice []byte, data ...byte) []byte {
-    m := len(slice)
-    n := m + len(data)
-    if n &gt; cap(slice) { // if necessary, reallocate
-        // allocate double what&#39;s needed, for future growth.
-        newSlice := make([]byte, (n+1)*2)
-        copy(newSlice, slice)
-        slice = newSlice
-    }
-    slice = slice[0:n]
-    copy(slice[m:n], data)
-    return slice
-}</pre>
+{{code "/doc/progs/slices.go" `/AppendByte/` `/STOP/`}}
 
 <p>
 One could use <code>AppendByte</code> like this:
@@ -398,18 +381,7 @@ Since the zero value of a slice (<code>nil</code>) acts like a zero-length
 slice, you can declare a slice variable and then append to it in a loop:
 </p>
 
-<pre><!--{{code "progs/slices.go" `/Filter/` `/STOP/`}}
--->// Filter returns a new slice holding only
-// the elements of s that satisfy f()
-func Filter(s []int, fn func(int) bool) []int {
-    var p []int // == nil
-    for _, i := range s {
-        if fn(i) {
-            p = append(p, i)
-        }
-    }
-    return p
-}</pre>
+{{code "/doc/progs/slices.go" `/Filter/` `/STOP/`}}
 
 <p>
 <b>A possible "gotcha"</b>
@@ -428,13 +400,7 @@ searches it for the first group of consecutive numeric digits, returning them
 as a new slice.
 </p>
 
-<pre><!--{{code "progs/slices.go" `/digit/` `/STOP/`}}
--->var digitRegexp = regexp.MustCompile(&#34;[0-9]+&#34;)
-
-func FindDigits(filename string) []byte {
-    b, _ := ioutil.ReadFile(filename)
-    return digitRegexp.Find(b)
-}</pre>
+{{code "/doc/progs/slices.go" `/digit/` `/STOP/`}}
 
 <p>
 This code behaves as advertised, but the returned <code>[]byte</code> points
@@ -449,14 +415,7 @@ To fix this problem one can copy the interesting data to a new slice before
 returning it:
 </p>
 
-<pre><!--{{code "progs/slices.go" `/CopyDigits/` `/STOP/`}}
--->func CopyDigits(filename string) []byte {
-    b, _ := ioutil.ReadFile(filename)
-    b = digitRegexp.Find(b)
-    c := make([]byte, len(b))
-    copy(c, b)
-    return c
-}</pre>
+{{code "/doc/progs/slices.go" `/CopyDigits/` `/STOP/`}}
 
 <p>
 A more concise version of this function could be constructed by using

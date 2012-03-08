@@ -1,11 +1,7 @@
 <!--{
-	"Title": "Effective Go"
+	"Title": "Effective Go",
+	"Template": true
 }-->
-<!--
-  DO NOT EDIT: created by
-    tmpltohtml effective_go.tmpl
--->
-
 
 <h2 id="introduction">Introduction</h2>
 
@@ -1693,47 +1689,13 @@ enumerator.  Since <code>iota</code> can be part of an expression and
 expressions can be implicitly repeated, it is easy to build intricate
 sets of values.
 </p>
-<pre><!--{{code "progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
--->type ByteSize float64
-
-const (
-    _           = iota // ignore first value by assigning to blank identifier
-    KB ByteSize = 1 &lt;&lt; (10 * iota)
-    MB
-    GB
-    TB
-    PB
-    EB
-    ZB
-    YB
-)</pre>
+{{code "/doc/progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
 <p>
 The ability to attach a method such as <code>String</code> to a
 type makes it possible for such values to format themselves
 automatically for printing, even as part of a general type.
 </p>
-<pre><!--{{code "progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
--->func (b ByteSize) String() string {
-    switch {
-    case b &gt;= YB:
-        return fmt.Sprintf(&#34;%.2fYB&#34;, float64(b/YB))
-    case b &gt;= ZB:
-        return fmt.Sprintf(&#34;%.2fZB&#34;, float64(b/ZB))
-    case b &gt;= EB:
-        return fmt.Sprintf(&#34;%.2fEB&#34;, float64(b/EB))
-    case b &gt;= PB:
-        return fmt.Sprintf(&#34;%.2fPB&#34;, float64(b/PB))
-    case b &gt;= TB:
-        return fmt.Sprintf(&#34;%.2fTB&#34;, float64(b/TB))
-    case b &gt;= GB:
-        return fmt.Sprintf(&#34;%.2fGB&#34;, float64(b/GB))
-    case b &gt;= MB:
-        return fmt.Sprintf(&#34;%.2fMB&#34;, float64(b/MB))
-    case b &gt;= KB:
-        return fmt.Sprintf(&#34;%.2fKB&#34;, float64(b/KB))
-    }
-    return fmt.Sprintf(&#34;%.2fB&#34;, float64(b))
-}</pre>
+{{code "/doc/progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
 <p>
 (The <code>float64</code> conversions prevent <code>Sprintf</code> 
 from recurring back through the <code>String</code> method for 
@@ -1879,32 +1841,7 @@ by the routines in package <code>sort</code> if it implements
 and it could also have a custom formatter.
 In this contrived example <code>Sequence</code> satisfies both.
 </p>
-<pre><!--{{code "progs/eff_sequence.go" `/^type/` "$"}}
--->type Sequence []int
-
-// Methods required by sort.Interface.
-func (s Sequence) Len() int {
-    return len(s)
-}
-func (s Sequence) Less(i, j int) bool {
-    return s[i] &lt; s[j]
-}
-func (s Sequence) Swap(i, j int) {
-    s[i], s[j] = s[j], s[i]
-}
-
-// Method for printing - sorts the elements before printing.
-func (s Sequence) String() string {
-    sort.Sort(s)
-    str := &#34;[&#34;
-    for i, elem := range s {
-        if i &gt; 0 {
-            str += &#34; &#34;
-        }
-        str += fmt.Sprint(elem)
-    }
-    return str + &#34;]&#34;
-}</pre>
+{{code "/doc/progs/eff_sequence.go" `/^type/` "$"}}
 
 <h3 id="conversions">Conversions</h3>
 
@@ -3010,53 +2947,7 @@ for instance, a URL, saving you typing the URL into the phone's tiny keyboard.
 Here's the complete program.
 An explanation follows.
 </p>
-<pre><!--{{code "progs/eff_qr.go"}}
--->package main
-
-import (
-    &#34;flag&#34;
-    &#34;log&#34;
-    &#34;net/http&#34;
-    &#34;text/template&#34;
-)
-
-var addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;) // Q=17, R=18
-
-var templ = template.Must(template.New(&#34;qr&#34;).Parse(templateStr))
-
-func main() {
-    flag.Parse()
-    http.Handle(&#34;/&#34;, http.HandlerFunc(QR))
-    err := http.ListenAndServe(*addr, nil)
-    if err != nil {
-        log.Fatal(&#34;ListenAndServe:&#34;, err)
-    }
-}
-
-func QR(w http.ResponseWriter, req *http.Request) {
-    templ.Execute(w, req.FormValue(&#34;s&#34;))
-}
-
-const templateStr = `
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;QR Link Generator&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-{{if .}}
-&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{urlquery .}}&#34; /&gt;
-&lt;br&gt;
-{{html .}}
-&lt;br&gt;
-&lt;br&gt;
-{{end}}
-&lt;form action=&#34;/&#34; name=f method=&#34;GET&#34;&gt;&lt;input maxLength=1024 size=70
-name=s value=&#34;&#34; title=&#34;Text to QR Encode&#34;&gt;&lt;input type=submit
-value=&#34;Show QR&#34; name=qr&gt;
-&lt;/form&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-`</pre>
+{{code "/doc/progs/eff_qr.go"}}
 <p>
 The pieces up to <code>main</code> should be easy to follow.
 The one flag sets a default HTTP port for our server.  The template
@@ -3082,13 +2973,13 @@ from data items passed to <code>templ.Execute</code>, in this case the
 form value.  
 Within the template text (<code>templateStr</code>),
 double-brace-delimited pieces denote template actions.
-The piece from <code>{{if .}}</code>
-to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
+The piece from <code>{{html "{{if .}}"}}</code>
+to <code>{{html "{{end}}"}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
 is non-empty.
 That is, when the string is empty, this piece of the template is suppressed.
 </p>
 <p>
-The snippet <code>{{urlquery .}}</code> says to process the data with the function
+The snippet <code>{{html "{{urlquery .}}"}}</code> says to process the data with the function
 <code>urlquery</code>, which sanitizes the query string
 for safe display on the web page.
 </p>

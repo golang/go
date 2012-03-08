@@ -1,11 +1,7 @@
 <!--{
-	"Title": "Go 1 Release Notes"
+	"Title": "Go 1 Release Notes",
+	"Template": true
 }-->
-<!--
-  DO NOT EDIT: created by
-    tmpltohtml go1.tmpl
--->
-
 
 <h2 id="introduction">Introduction to Go 1</h2>
 
@@ -64,9 +60,7 @@ However, <code>append</code> did not provide a way to append a string to a <code
 which is another common case.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
--->    greeting := []byte{}
-    greeting = append(greeting, []byte(&#34;hello &#34;)...)</pre>
+{{code "/doc/progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
 
 <p>
 By analogy with the similar property of <code>copy</code>, Go 1
@@ -75,8 +69,7 @@ slice, reducing the friction between strings and byte slices.
 The conversion is no longer necessary:
 </p>
 
-<pre><!--{{code "progs/go1.go" `/append.*world/`}}
--->    greeting = append(greeting, &#34;world&#34;...)</pre>
+{{code "/doc/progs/go1.go" `/append.*world/`}}
 
 <p>
 <em>Updating</em>:
@@ -126,35 +119,7 @@ type specification for the elements' initializers if they are of pointer type.
 All four of the initializations in this example are legal; the last one was illegal before Go 1.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/type Date struct/` `/STOP/`}}
--->    type Date struct {
-        month string
-        day   int
-    }
-    // Struct values, fully qualified; always legal.
-    holiday1 := []Date{
-        Date{&#34;Feb&#34;, 14},
-        Date{&#34;Nov&#34;, 11},
-        Date{&#34;Dec&#34;, 25},
-    }
-    // Struct values, type name elided; always legal.
-    holiday2 := []Date{
-        {&#34;Feb&#34;, 14},
-        {&#34;Nov&#34;, 11},
-        {&#34;Dec&#34;, 25},
-    }
-    // Pointers, fully qualified, always legal.
-    holiday3 := []*Date{
-        &amp;Date{&#34;Feb&#34;, 14},
-        &amp;Date{&#34;Nov&#34;, 11},
-        &amp;Date{&#34;Dec&#34;, 25},
-    }
-    // Pointers, type name elided; legal in Go 1.
-    holiday4 := []*Date{
-        {&#34;Feb&#34;, 14},
-        {&#34;Nov&#34;, 11},
-        {&#34;Dec&#34;, 25},
-    }</pre>
+{{code "/doc/progs/go1.go" `/type Date struct/` `/STOP/`}}
 
 <p>
 <em>Updating</em>:
@@ -183,14 +148,7 @@ In Go 1, code that uses goroutines can be called from
 without introducing a deadlock.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/PackageGlobal/` `/^}/`}}
--->var PackageGlobal int
-
-func init() {
-    c := make(chan int)
-    go initializationFunction(c)
-    PackageGlobal = &lt;-c
-}</pre>
+{{code "/doc/progs/go1.go" `/PackageGlobal/` `/^}/`}}
 
 <p>
 <em>Updating</em>:
@@ -231,14 +189,7 @@ when appropriate. For instance, the functions <code>unicode.ToLower</code> and
 relatives now take and return a <code>rune</code>.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
--->    delta := &#39;δ&#39; // delta has type rune.
-    var DELTA rune
-    DELTA = unicode.ToUpper(delta)
-    epsilon := unicode.ToLower(DELTA + 1)
-    if epsilon != &#39;δ&#39;+1 {
-        log.Fatal(&#34;inconsistent casing for Greek&#34;)
-    }</pre>
+{{code "/doc/progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
 
 <p>
 <em>Updating</em>:
@@ -287,8 +238,7 @@ In Go 1, that syntax has gone; instead there is a new built-in
 function, <code>delete</code>.  The call
 </p>
 
-<pre><!--{{code "progs/go1.go" `/delete\(m, k\)/`}}
--->    delete(m, k)</pre>
+{{code "/doc/progs/go1.go" `/delete\(m, k\)/`}}
 
 <p>
 will delete the map entry retrieved by the expression <code>m[k]</code>.
@@ -327,12 +277,7 @@ This change means that code that depends on iteration order is very likely to br
 Just as important, it allows the map implementation to ensure better map balancing even when programs are using range loops to select an element from a map.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/Sunday/` `/^	}/`}}
--->    m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
-    for name, value := range m {
-        // This loop should not assume Sunday will be visited first.
-        f(name, value)
-    }</pre>
+{{code "/doc/progs/go1.go" `/Sunday/` `/^	}/`}}
 
 <p>
 <em>Updating</em>:
@@ -367,17 +312,7 @@ proceed in left-to-right order.
 These examples illustrate the behavior.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
--->    sa := []int{1, 2, 3}
-    i := 0
-    i, sa[i] = 1, 2 // sets i = 1, sa[0] = 2
-
-    sb := []int{1, 2, 3}
-    j := 0
-    sb[j], j = 2, 1 // sets sb[0] = 2, j = 1
-
-    sc := []int{1, 2, 3}
-    sc[0], sc[0] = 1, 2 // sets sc[0] = 1, then sc[0] = 2 (so sc[0] = 2 at end)</pre>
+{{code "/doc/progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
 
 <p>
 <em>Updating</em>:
@@ -504,18 +439,7 @@ provided they are composed from elements for which equality is also defined,
 using element-wise comparison.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
--->    type Day struct {
-        long  string
-        short string
-    }
-    Christmas := Day{&#34;Christmas&#34;, &#34;XMas&#34;}
-    Thanksgiving := Day{&#34;Thanksgiving&#34;, &#34;Turkey&#34;}
-    holiday := map[Day]bool{
-        Christmas:    true,
-        Thanksgiving: true,
-    }
-    fmt.Printf(&#34;Christmas is a holiday: %t\n&#34;, holiday[Christmas])</pre>
+{{code "/doc/progs/go1.go" `/type Day struct/` `/Printf/`}}
 
 <p>
 Second, Go 1 removes the definition of equality for function values,
@@ -831,16 +755,7 @@ The <code>fmt</code> library automatically invokes <code>Error</code>, as it alr
 does for <code>String</code>, for easy printing of error values.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/START ERROR EXAMPLE/` `/END ERROR EXAMPLE/`}}
--->type SyntaxError struct {
-    File    string
-    Line    int
-    Message string
-}
-
-func (se *SyntaxError) Error() string {
-    return fmt.Sprintf(&#34;%s:%d: %s&#34;, se.File, se.Line, se.Message)
-}</pre>
+{{code "/doc/progs/go1.go" `/START ERROR EXAMPLE/` `/END ERROR EXAMPLE/`}}
 
 <p>
 All standard packages have been updated to use the new interface; the old <code>os.Error</code> is gone.
@@ -858,8 +773,7 @@ func New(text string) error
 to turn a string into an error. It replaces the old <code>os.NewError</code>.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/ErrSyntax/`}}
--->    var ErrSyntax = errors.New(&#34;syntax error&#34;)</pre>
+{{code "/doc/progs/go1.go" `/ErrSyntax/`}}
 		
 <p>
 <em>Updating</em>:
@@ -949,17 +863,7 @@ returns a <code>time.Time</code> value rather than, in the old
 API, an integer nanosecond count since the Unix epoch.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/sleepUntil/` `/^}/`}}
--->// sleepUntil sleeps until the specified time. It returns immediately if it&#39;s too late.
-func sleepUntil(wakeup time.Time) {
-    now := time.Now() // A Time.
-    if !wakeup.After(now) {
-        return
-    }
-    delta := wakeup.Sub(now) // A Duration.
-    fmt.Printf(&#34;Sleeping for %.3fs\n&#34;, delta.Seconds())
-    time.Sleep(delta)
-}</pre>
+{{code "/doc/progs/go1.go" `/sleepUntil/` `/^}/`}}
 
 <p>
 The new types, methods, and constants have been propagated through
@@ -1196,8 +1100,7 @@ Values for such flags must be given units, just as <code>time.Duration</code>
 formats them: <code>10s</code>, <code>1h30m</code>, etc.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/timeout/`}}
--->var timeout = flag.Duration(&#34;timeout&#34;, 30*time.Second, &#34;how long to wait for completion&#34;)</pre>
+{{code "/doc/progs/go1.go" `/timeout/`}}
 
 <p>
 <em>Updating</em>:
@@ -1711,11 +1614,7 @@ and
 <a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/os\.Open/` `/}/`}}
--->    f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-    if os.IsExist(err) {
-        log.Printf(&#34;%s already exists&#34;, name)
-    }</pre>
+{{code "/doc/progs/go1.go" `/os\.Open/` `/}/`}}
 
 <p>
 <em>Updating</em>:
@@ -1781,21 +1680,7 @@ If a directory's contents are to be skipped,
 the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
 </p>
 
-<pre><!--{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
--->    markFn := func(path string, info os.FileInfo, err error) error {
-        if path == &#34;pictures&#34; { // Will skip walking of directory pictures and its contents.
-            return filepath.SkipDir
-        }
-        if err != nil {
-            return err
-        }
-        log.Println(path)
-        return nil
-    }
-    err := filepath.Walk(&#34;.&#34;, markFn)
-    if err != nil {
-        log.Fatal(err)
-    }</pre>
+{{code "/doc/progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
 
 <p>
 <em>Updating</em>:
@@ -1993,20 +1878,7 @@ In Go 1, <code>B</code> has new methods, analogous to those of <code>T</code>, e
 logging and failure reporting.
 </p>
 
-<pre><!--{{code "progs/go1.go" `/func.*Benchmark/` `/^}/`}}
--->func BenchmarkSprintf(b *testing.B) {
-    // Verify correctness before running benchmark.
-    b.StopTimer()
-    got := fmt.Sprintf(&#34;%x&#34;, 23)
-    const expect = &#34;17&#34;
-    if expect != got {
-        b.Fatalf(&#34;expected %q; got %q&#34;, expect, got)
-    }
-    b.StartTimer()
-    for i := 0; i &lt; b.N; i++ {
-        fmt.Sprintf(&#34;%x&#34;, 23)
-    }
-}</pre>
+{{code "/doc/progs/go1.go" `/func.*Benchmark/` `/^}/`}}
 
 <p>
 <em>Updating</em>:
