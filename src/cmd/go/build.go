@@ -727,6 +727,11 @@ func (b *builder) build(a *action) error {
 	// http://golang.org/issue/2601
 	objects = append(objects, cgoObjects...)
 
+	// Add system object files.
+	for _, syso := range a.p.SysoFiles {
+		objects = append(objects, filepath.Join(a.p.Dir, syso))
+	}
+
 	// Pack into archive in obj directory
 	if err := buildToolchain.pack(b, a.p, obj, a.objpkg, objects); err != nil {
 		return err

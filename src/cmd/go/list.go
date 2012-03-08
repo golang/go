@@ -41,11 +41,12 @@ being passed to the template is:
         Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles  []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles []string // .go sources files that import "C"
-        CFiles   []string // .c source files
-        HFiles   []string // .h source files
-        SFiles   []string // .s source files
+        GoFiles  []string  // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string  // .go sources files that import "C"
+        CFiles   []string  // .c source files
+        HFiles   []string  // .h source files
+        SFiles   []string  // .s source files
+        SysoFiles []string // .syso object files to add to archive
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
