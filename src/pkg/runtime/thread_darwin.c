@@ -477,3 +477,13 @@ runtime·setprof(bool on)
 	else
 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
 }
+
+static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+
+// This runs on a foreign stack, without an m or a g.  No stack split.
+#pragma textflag 7
+void
+runtime·badcallback(void)
+{
+	runtime·write(2, badcallback, sizeof badcallback - 1);
+}
