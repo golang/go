@@ -109,7 +109,7 @@ const (
 func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	if file.Size() != len(src) {
-		panic("file size does not match src len")
+		panic(fmt.Sprintf("file size (%d) does not match src len (%d)", file.Size(), len(src)))
 	}
 	s.file = file
 	s.dir, _ = filepath.Split(file.Name())
