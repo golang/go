@@ -41,7 +41,7 @@ var (
 )
 
 var (
-	fset        = token.NewFileSet()
+	fileSet     = token.NewFileSet() // per process FileSet
 	exitCode    = 0
 	rewrite     func(*ast.File) *ast.File
 	parserMode  parser.Mode
@@ -98,7 +98,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		return err
 	}
 
-	file, adjust, err := parse(filename, src, stdin)
+	file, adjust, err := parse(fileSet, filename, src, stdin)
 	if err != nil {
 		return err
 	}
@@ -111,14 +111,14 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		}
 	}
 
-	ast.SortImports(fset, file)
+	ast.SortImports(fileSet, file)
 
 	if *simplifyAST {
 		simplify(file)
 	}
 
 	var buf bytes.Buffer
-	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fset, file)
+	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fileSet, file)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 
 // parse parses src, which was read from filename,
 // as a Go source file or statement list.
-func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
+func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
 	// Try as whole source file.
 	file, err := parser.ParseFile(fset, filename, src, parserMode)
 	if err == nil {
