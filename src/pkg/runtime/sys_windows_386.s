@@ -38,33 +38,13 @@ TEXT runtime·asmstdcall(SB),7,$0
 
 	RET
 
-TEXT	runtime·write(SB),7,$24
-	// write only writes to stderr; ignore fd
-	MOVL	$-12, 0(SP)
-	MOVL	SP, BP
-	CALL	*runtime·GetStdHandle(SB)
-	MOVL	BP, SP
-	
-	MOVL	AX, 0(SP)	// handle
-	MOVL	buf+4(FP), DX // pointer
-	MOVL	DX, 4(SP)
-	MOVL	count+8(FP), DX // count
-	MOVL	DX, 8(SP)
-	LEAL	20(SP), DX  // written count
-	MOVL	$0, 0(DX)
-	MOVL	DX, 12(SP)
-	MOVL	$0, 16(SP) // overlapped
-	CALL	*runtime·WriteFile(SB)
-	MOVL	BP, SI
-	RET
-
 TEXT	runtime·badcallback(SB),7,$24
-	// write only writes to stderr; ignore fd
+	// stderr
 	MOVL	$-12, 0(SP)
 	MOVL	SP, BP
 	CALL	*runtime·GetStdHandle(SB)
 	MOVL	BP, SP
-	
+
 	MOVL	AX, 0(SP)	// handle
 	MOVL	$runtime·badcallbackmsg(SB), DX // pointer
 	MOVL	DX, 4(SP)

@@ -60,29 +60,8 @@ loadregs:
 
 	RET
 
-TEXT runtime·write(SB),7,$48
-	// write only ever writes to stderr; ignore fd
-	MOVQ	$-12, CX // stderr
-	MOVQ	CX, 0(SP)
-	MOVQ	runtime·GetStdHandle(SB), AX
-	CALL	AX
-
-	MOVQ	AX, CX	// handle
-	MOVQ	CX, 0(SP)
-	MOVQ	buf+8(FP), DX // pointer
-	MOVQ	DX, 8(SP)
-	MOVL	count+16(FP), R8 // count
-	MOVQ	R8, 16(SP)
-	LEAQ	40(SP), R9  // written count
-	MOVQ	$0, 0(R9)
-	MOVQ	R9, 24(SP)
-	MOVQ	$0, 32(SP)	// overlapped
-	MOVQ	runtime·WriteFile(SB), AX
-	CALL	AX
-	
-	RET
-
 TEXT runtime·badcallback(SB),7,$48
+	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
 	MOVQ	runtime·GetStdHandle(SB), AX

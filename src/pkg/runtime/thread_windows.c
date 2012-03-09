@@ -114,6 +114,27 @@ runtime·exit(int32 code)
 	runtime·stdcall(runtime·ExitProcess, 1, (uintptr)code);
 }
 
+int32
+runtime·write(int32 fd, void *buf, int32 n)
+{
+	void *handle;
+	uint32 written;
+
+	written = 0;
+	switch(fd) {
+	case 1:
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-11);
+		break;
+	case 2:
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
+		break;
+	default:
+		return -1;
+	}
+	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
+	return written;
+}
+
 void
 runtime·osyield(void)
 {
