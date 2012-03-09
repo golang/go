@@ -163,6 +163,46 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	// Tests that we verify (and accept valid) crc32s on files
+	// with crc32s in their file header (not in data descriptors)
+	{
+		Name: "crc32-not-streamed.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "foo.txt",
+				Content: []byte("foo\n"),
+				Mtime:   "03-08-12 16:59:10",
+				Mode:    0644,
+			},
+			{
+				Name:    "bar.txt",
+				Content: []byte("bar\n"),
+				Mtime:   "03-08-12 16:59:12",
+				Mode:    0644,
+			},
+		},
+	},
+	// Tests that we verify (and reject invalid) crc32s on files
+	// with crc32s in their file header (not in data descriptors)
+	{
+		Name:   "crc32-not-streamed.zip",
+		Source: returnCorruptNotStreamedZip,
+		File: []ZipTestFile{
+			{
+				Name:       "foo.txt",
+				Content:    []byte("foo\n"),
+				Mtime:      "03-08-12 16:59:10",
+				Mode:       0644,
+				ContentErr: ErrChecksum,
+			},
+			{
+				Name:    "bar.txt",
+				Content: []byte("bar\n"),
+				Mtime:   "03-08-12 16:59:12",
+				Mode:    0644,
+			},
+		},
+	},
 }
 
 var crossPlatform = []ZipTestFile{
@@ -284,10 +324,10 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	}
 
 	_, err = io.Copy(&b, r)
+	if err != ft.ContentErr {
+		t.Errorf("%s: copying contents: %v (want %v)", zt.Name, err, ft.ContentErr)
+	}
 	if err != nil {
-		if err != ft.ContentErr {
-			t.Errorf("%s: copying contents: %v", zt.Name, err)
-		}
 		return
 	}
 	r.Close()
@@ -344,12 +384,34 @@ func TestInvalidFiles(t *testing.T) {
 	}
 }
 
-func returnCorruptCRC32Zip() (r io.ReaderAt, size int64) {
-	data, err := ioutil.ReadFile(filepath.Join("testdata", "go-with-datadesc-sig.zip"))
+func messWith(fileName string, corrupter func(b []byte)) (r io.ReaderAt, size int64) {
+	data, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
 	if err != nil {
-		panic(err)
+		panic("Error reading " + fileName + ": " + err.Error())
 	}
-	// Corrupt one of the CRC32s in the data descriptor:
-	data[0x2d]++
+	corrupter(data)
 	return bytes.NewReader(data), int64(len(data))
+}
+
+func returnCorruptCRC32Zip() (r io.ReaderAt, size int64) {
+	return messWith("go-with-datadesc-sig.zip", func(b []byte) {
+		// Corrupt one of the CRC32s in the data descriptor:
+		b[0x2d]++
+	})
+}
+
+func returnCorruptNotStreamedZip() (r io.ReaderAt, size int64) {
+	return messWith("crc32-not-streamed.zip", func(b []byte) {
+		// Corrupt foo.txt's final crc32 byte, in both
+		// the file header and TOC. (0x7e -> 0x7f)
+		b[0x11]++
+		b[0x9d]++
+
+		// TODO(bradfitz): add a new test that only corrupts
+		// one of these values, and verify that that's also an
+		// error. Currently, the reader code doesn't verify the
+		// fileheader and TOC's crc32 match if they're both
+		// non-zero and only the second line above, the TOC,
+		// is what matters.
+	})
 }
