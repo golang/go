@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -126,7 +127,7 @@ func (b *Build) Do() error {
 		version     string // "weekly.2012-03-04"
 		fullVersion []byte // "weekly.2012-03-04 9353aa1efdf3"
 	)
-	pat := filepath.Join(b.root, "pkg/tool/*/dist")
+	pat := filepath.Join(b.root, "pkg/tool/*/dist*") // trailing * for .exe
 	m, err := filepath.Glob(pat)
 	if err != nil {
 		return err
@@ -158,15 +159,17 @@ func (b *Build) Do() error {
 	}
 
 	// Create packages.
-	targ := fmt.Sprintf("go.%s.%s-%s", version, b.OS, b.Arch)
+	base := fmt.Sprintf("go.%s.%s-%s", version, b.OS, b.Arch)
+	var targs []string
 	switch b.OS {
 	case "linux", "freebsd", "":
 		// build tarball
+		targ := base + ".tar.gz"
 		if b.Source {
 			targ = fmt.Sprintf("go.%s.src", version)
 		}
-		targ += ".tar.gz"
 		_, err = b.run("", "tar", "czf", targ, "-C", work, "go")
+		targs = append(targs, targ)
 	case "darwin":
 		// arrange work so it's laid out as the dest filesystem
 		etc := filepath.Join(b.root, "misc/dist/darwin/etc")
@@ -191,7 +194,7 @@ func (b *Build) Do() error {
 				return errors.New("couldn't find PackageMaker")
 			}
 		}
-		targ += ".pkg"
+		targ := base + ".pkg"
 		scripts := filepath.Join(work, "usr/local/go/misc/dist/darwin/scripts")
 		_, err = b.run("", pm, "-v",
 			"-r", work,
@@ -201,7 +204,20 @@ func (b *Build) Do() error {
 			"--title", "Go",
 			"--version", "1.0",
 			"--target", "10.5")
+		targs = append(targs, targ)
 	case "windows":
+		// Create ZIP file.
+		zip := filepath.Join(work, base+".zip")
+		_, err = b.run(work, "7z", "a", "-tzip", zip, "go")
+		// Copy zip to target file.
+		targ := base + ".zip"
+		err = cp(targ, zip)
+		if err != nil {
+			return err
+		}
+		targs = append(targs, targ)
+
+		// Create MSI installer.
 		win := filepath.Join(b.root, "misc/dist/windows")
 		installer := filepath.Join(win, "installer.wxs")
 		appfiles := filepath.Join(work, "AppFiles.wxs")
@@ -240,11 +256,17 @@ func (b *Build) Do() error {
 			return err
 		}
 		// Copy installer to target file.
-		targ += ".msi"
+		targ = base + ".msi"
 		err = cp(targ, msi)
+		targs = append(targs, targ)
 	}
 	if err == nil && password != "" {
-		err = b.upload(version, targ)
+		for _, targ := range targs {
+			err = b.upload(version, targ)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return err
 }
@@ -322,9 +344,19 @@ func (b *Build) upload(version string, filename string) error {
 		labels = append(labels, "Type-Installer", "OpSys-OSX")
 	case "windows":
 		os_ = "Windows"
-		labels = append(labels, "Type-Installer", "OpSys-Windows")
+		labels = append(labels, "OpSys-Windows")
 	}
 	summary := fmt.Sprintf("Go %s %s (%s)", version, os_, arch)
+	if b.OS == "windows" {
+		switch {
+		case strings.HasSuffix(filename, ".msi"):
+			labels = append(labels, "Type-Installer")
+			summary += " MSI installer"
+		case strings.HasSuffix(filename, ".zip"):
+			labels = append(labels, "Type-Archive")
+			summary += " ZIP archive"
+		}
+	}
 	if b.Source {
 		labels = append(labels, "Type-Source")
 		summary = fmt.Sprintf("Go %s (source only)", version)
@@ -398,7 +430,11 @@ func exists(path string) bool {
 }
 
 func readCredentials() error {
-	name := filepath.Join(os.Getenv("HOME"), ".gobuildkey")
+	name := os.Getenv("HOME")
+	if runtime.GOOS == "windows" {
+		name = os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+	}
+	name = filepath.Join(name, ".gobuildkey")
 	f, err := os.Open(name)
 	if err != nil {
 		return err
