@@ -78,7 +78,7 @@ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	return interfaceMulticastAddrTable(ifi.Index)
 }
 
-// Interfaces returns a list of the systems's network interfaces.
+// Interfaces returns a list of the system's network interfaces.
 func Interfaces() ([]Interface, error) {
 	return interfaceTable(0)
 }
