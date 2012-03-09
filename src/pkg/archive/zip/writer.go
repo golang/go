@@ -224,6 +224,7 @@ func (w *fileWriter) close() error {
 	// write data descriptor
 	var buf [dataDescriptorLen]byte
 	b := writeBuf(buf[:])
+	b.uint32(dataDescriptorSignature) // de-facto standard, required by OS X
 	b.uint32(fh.CRC32)
 	b.uint32(fh.CompressedSize)
 	b.uint32(fh.UncompressedSize)
