@@ -17,7 +17,7 @@ if [[ ! -d /usr/local/bin ]]; then
 	exit 2
 fi
 
-eval $(go tool dist env)
+eval $(go env)
 cd $(dirname $0)
 for i in prof cov
 do

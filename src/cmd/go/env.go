@@ -45,6 +45,12 @@ func mkEnv() []envVar {
 		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
 	}
 
+	if buildContext.CgoEnabled {
+		env = append(env, envVar{"CGO_ENABLED", "1"})
+	} else {
+		env = append(env, envVar{"CGO_ENABLED", "0"})
+	}
+
 	return env
 }
 
