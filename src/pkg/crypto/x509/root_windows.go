@@ -45,11 +45,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 			}
 
 			err = syscall.CertAddCertificateContextToStore(handle, ctx, syscall.CERT_STORE_ADD_ALWAYS, nil)
-			if err != nil {
-				return nil, err
-			}
-
-			err = syscall.CertFreeCertificateContext(ctx)
+			syscall.CertFreeCertificateContext(ctx)
 			if err != nil {
 				return nil, err
 			}
