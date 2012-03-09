@@ -55,12 +55,24 @@ func _f() {
 	return T{
 		1,
 		2,
-	},
+	}, nil
+	return T{
+			1,
+			2,
+		},
+		T{
+			x:	3,
+			y:	4,
+		}, nil
+	return T{
+			1,
+			2,
+		},
 		nil
 	return T{
-		1,
-		2,
-	},
+			1,
+			2,
+		},
 		T{
 			x:	3,
 			y:	4,
@@ -70,10 +82,10 @@ func _f() {
 		z
 	return func() {}
 	return func() {
-		_ = 0
-	}, T{
-		1, 2,
-	}
+			_ = 0
+		}, T{
+			1, 2,
+		}
 	return func() {
 		_ = 0
 	}
@@ -82,6 +94,37 @@ func _f() {
 			1, 2,
 		}
 	}
+}
+
+// Formatting of multi-line returns: test cases from issue 1207.
+func F() (*T, os.Error) {
+	return &T{
+			X:	1,
+			Y:	2,
+		},
+		nil
+}
+
+func G() (*T, *T, os.Error) {
+	return &T{
+			X:	1,
+			Y:	2,
+		},
+		&T{
+			X:	3,
+			Y:	4,
+		},
+		nil
+}
+
+func _() interface{} {
+	return &fileStat{
+		name:		basename(file.name),
+		size:		mkSize(d.FileSizeHigh, d.FileSizeLow),
+		modTime:	mkModTime(d.LastWriteTime),
+		mode:		mkMode(d.FileAttributes),
+		sys:		mkSysFromFI(&d),
+	}, nil
 }
 
 // Formatting of if-statement headers.
