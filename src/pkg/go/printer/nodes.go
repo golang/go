@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-// Other formatting issues:
+// Formatting issues:
 // - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
 //   when the comment spans multiple lines; if such a comment is just two lines, formatting is
 //   not idempotent
@@ -964,6 +964,41 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	}
 }
 
+// indentList reports whether an expression list would look better if it
+// were indented wholesale (starting with the very first element, rather
+// than starting at the first line break).
+//
+func (p *printer) indentList(list []ast.Expr) bool {
+	// Heuristic: indentList returns true if there are more than one multi-
+	// line element in the list, or if there is any element that is not
+	// starting on the same line as the previous one ends.
+	if len(list) >= 2 {
+		var b = p.lineFor(list[0].Pos())
+		var e = p.lineFor(list[len(list)-1].End())
+		if 0 < b && b < e {
+			// list spans multiple lines
+			n := 0 // multi-line element count
+			line := b
+			for _, x := range list {
+				xb := p.lineFor(x.Pos())
+				xe := p.lineFor(x.End())
+				if line < xb {
+					// x is not starting on the same
+					// line as the previous one ended
+					return true
+				}
+				if xb < xe {
+					// x is a multi-line element
+					n++
+				}
+				line = xe
+			}
+			return n > 1
+		}
+	}
+	return false
+}
+
 func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 	p.print(stmt.Pos())
 
@@ -1030,7 +1065,18 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		p.print(token.RETURN)
 		if s.Results != nil {
 			p.print(blank)
-			p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos)
+			// Use indentList heuristic to make corner cases look
+			// better (issue 1207). A more systematic approach would
+			// always indent, but this would cause significant
+			// reformatting of the code base and not necessarily
+			// lead to more nicely formatted code in general.
+			if p.indentList(s.Results) {
+				p.print(indent)
+				p.exprList(s.Pos(), s.Results, 1, noIndent, token.NoPos)
+				p.print(unindent)
+			} else {
+				p.exprList(s.Pos(), s.Results, 1, 0, token.NoPos)
+			}
 		}
 
 	case *ast.BranchStmt:
@@ -1200,9 +1246,9 @@ func keepTypeColumn(specs []ast.Spec) []bool {
 	return m
 }
 
-func (p *printer) valueSpec(s *ast.ValueSpec, keepType, doIndent bool) {
+func (p *printer) valueSpec(s *ast.ValueSpec, keepType bool) {
 	p.setComment(s.Doc)
-	p.identList(s.Names, doIndent) // always present
+	p.identList(s.Names, false) // always present
 	extraTabs := 3
 	if s.Type != nil || keepType {
 		p.print(vtab)
@@ -1290,7 +1336,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 					if i > 0 {
 						p.linebreak(p.lineFor(s.Pos()), 1, ignore, newSection)
 					}
-					p.valueSpec(s.(*ast.ValueSpec), keepType[i], false)
+					p.valueSpec(s.(*ast.ValueSpec), keepType[i])
 					newSection = p.isMultiLine(s)
 				}
 			} else {
