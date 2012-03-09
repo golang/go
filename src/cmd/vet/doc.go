@@ -13,7 +13,7 @@ Available checks:
 
 1. Printf family
 
-Suspicious calls to functions in the Printf familiy, including any functions
+Suspicious calls to functions in the Printf family, including any functions
 with these names:
 	Print Printf Println
 	Fprint Fprintf Fprintln
