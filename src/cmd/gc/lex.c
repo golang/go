@@ -514,7 +514,7 @@ addidir(char* dir)
 static int
 islocalname(Strlit *name)
 {
-	if(!windows && name->len >= 1 && name->s[0] == '/')
+	if(name->len >= 1 && name->s[0] == '/')
 		return 1;
 	if(windows && name->len >= 3 &&
 	   yy_isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')
