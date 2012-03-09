@@ -124,10 +124,6 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 		return
 	}
 	size := int64(f.CompressedSize)
-	if size == 0 && f.hasDataDescriptor() {
-		// permit SectionReader to see the rest of the file
-		size = f.zipsize - (f.headerOffset + bodyOffset)
-	}
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	switch f.Method {
 	case Store: // (no compression)
@@ -136,10 +132,13 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 		rc = flate.NewReader(r)
 	default:
 		err = ErrAlgorithm
+		return
 	}
-	if rc != nil {
-		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
+	var desr io.Reader
+	if f.hasDataDescriptor() {
+		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
 	}
+	rc = &checksumReader{rc, crc32.NewIEEE(), f, desr, nil}
 	return
 }
 
@@ -147,23 +146,31 @@ type checksumReader struct {
 	rc   io.ReadCloser
 	hash hash.Hash32
 	f    *File
-	zipr io.Reader // for reading the data descriptor
+	desr io.Reader // if non-nil, where to read the data descriptor
+	err  error     // sticky error
 }
 
 func (r *checksumReader) Read(b []byte) (n int, err error) {
+	if r.err != nil {
+		return 0, r.err
+	}
 	n, err = r.rc.Read(b)
 	r.hash.Write(b[:n])
-	if err != io.EOF {
+	if err == nil {
 		return
 	}
-	if r.f.hasDataDescriptor() {
-		if err = readDataDescriptor(r.zipr, r.f); err != nil {
-			return
+	if err == io.EOF && r.desr != nil {
+		if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
+			err = err1
+		} else if r.hash.Sum32() != r.f.CRC32 {
+			err = ErrChecksum
 		}
+		// TODO(bradfitz): even if there's not a data
+		// descriptor, we could still compare our accumulated
+		// crc32 on EOF with the content-precededing file
+		// header's crc32, if it's non-zero.
 	}
-	if r.hash.Sum32() != r.f.CRC32 {
-		err = ErrChecksum
-	}
+	r.err = err
 	return
 }
 
@@ -226,10 +233,31 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 
 func readDataDescriptor(r io.Reader, f *File) error {
 	var buf [dataDescriptorLen]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+
+	// The spec says: "Although not originally assigned a
+	// signature, the value 0x08074b50 has commonly been adopted
+	// as a signature value for the data descriptor record.
+	// Implementers should be aware that ZIP files may be
+	// encountered with or without this signature marking data
+	// descriptors and should account for either case when reading
+	// ZIP files to ensure compatibility."
+	//
+	// dataDescriptorLen includes the size of the signature but
+	// first read just those 4 bytes to see if it exists.
+	if _, err := io.ReadFull(r, buf[:4]); err != nil {
 		return err
 	}
-	b := readBuf(buf[:])
+	off := 0
+	maybeSig := readBuf(buf[:4])
+	if maybeSig.uint32() != dataDescriptorSignature {
+		// No data descriptor signature. Keep these four
+		// bytes.
+		off += 4
+	}
+	if _, err := io.ReadFull(r, buf[off:12]); err != nil {
+		return err
+	}
+	b := readBuf(buf[:12])
 	f.CRC32 = b.uint32()
 	f.CompressedSize = b.uint32()
 	f.UncompressedSize = b.uint32()
