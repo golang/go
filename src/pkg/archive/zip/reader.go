@@ -159,16 +159,21 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 	if err == nil {
 		return
 	}
-	if err == io.EOF && r.desr != nil {
-		if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
-			err = err1
-		} else if r.hash.Sum32() != r.f.CRC32 {
-			err = ErrChecksum
+	if err == io.EOF {
+		if r.desr != nil {
+			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
+				err = err1
+			} else if r.hash.Sum32() != r.f.CRC32 {
+				err = ErrChecksum
+			}
+		} else {
+			// If there's not a data descriptor, we still compare
+			// the CRC32 of what we've read against the file header
+			// or TOC's CRC32, if it seems like it was set.
+			if r.f.CRC32 != 0 && r.hash.Sum32() != r.f.CRC32 {
+				err = ErrChecksum
+			}
 		}
-		// TODO(bradfitz): even if there's not a data
-		// descriptor, we could still compare our accumulated
-		// crc32 on EOF with the content-precededing file
-		// header's crc32, if it's non-zero.
 	}
 	r.err = err
 	return
