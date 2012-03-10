@@ -5,12 +5,34 @@
 package sql
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+func init() {
+	type dbConn struct {
+		db *DB
+		c  driver.Conn
+	}
+	freedFrom := make(map[dbConn]string)
+	putConnHook = func(db *DB, c driver.Conn) {
+		for _, oc := range db.freeConn {
+			if oc == c {
+				// print before panic, as panic may get lost due to conflicting panic
+				// (all goroutines asleep) elsewhere, since we might not unlock
+				// the mutex in freeConn here.
+				println("double free of conn. conflicts are:\nA) " + freedFrom[dbConn{db, c}] + "\n\nand\nB) " + stack())
+				panic("double free of conn.")
+			}
+		}
+		freedFrom[dbConn{db, c}] = stack()
+	}
+}
 
 const fakeDBName = "foo"
 
@@ -358,6 +380,22 @@ func TestTxQuery(t *testing.T) {
 	}
 }
 
+func TestTxQueryInvalid(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Query("SELECT|t1|name|")
+	if err == nil {
+		t.Fatal("Error expected")
+	}
+}
+
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
@@ -561,4 +599,9 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 			t.Errorf("id=%d got %#v, want %#v", id, bindValDeref, spec.rows[i].scanNullVal)
 		}
 	}
+}
+
+func stack() string {
+	buf := make([]byte, 1024)
+	return string(buf[:runtime.Stack(buf, false)])
 }

@@ -262,6 +262,9 @@ func (db *DB) connIfFree(wanted driver.Conn) (conn driver.Conn, ok bool) {
 	return nil, false
 }
 
+// putConnHook is a hook for testing.
+var putConnHook func(*DB, driver.Conn)
+
 // putConn adds a connection to the db's free pool.
 // err is optionally the last error that occured on this connection.
 func (db *DB) putConn(c driver.Conn, err error) {
@@ -270,6 +273,9 @@ func (db *DB) putConn(c driver.Conn, err error) {
 		return
 	}
 	db.mu.Lock()
+	if putConnHook != nil {
+		putConnHook(db, c)
+	}
 	if n := len(db.freeConn); !db.closed && n < db.maxIdleConns() {
 		db.freeConn = append(db.freeConn, c)
 		db.mu.Unlock()
@@ -654,7 +660,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer releaseConn()
+	defer releaseConn(nil)
 
 	// -1 means the driver doesn't know how to count the number of
 	// placeholders, so we won't sanity check input here and instead let the
@@ -717,7 +723,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 // connStmt returns a free driver connection on which to execute the
 // statement, a function to call to release the connection, and a
 // statement bound to that connection.
-func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, err error) {
+func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(error), si driver.Stmt, err error) {
 	if err = s.stickyErr; err != nil {
 		return
 	}
@@ -736,7 +742,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
 		if err != nil {
 			return
 		}
-		releaseConn = func() { s.tx.releaseConn() }
+		releaseConn = func(error) { s.tx.releaseConn() }
 		return ci, releaseConn, s.txsi, nil
 	}
 
@@ -776,7 +782,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
 	}
 
 	conn := cs.ci
-	releaseConn = func() { s.db.putConn(conn, nil) }
+	releaseConn = func(err error) { s.db.putConn(conn, err) }
 	return conn, releaseConn, cs.si, nil
 }
 
@@ -800,7 +806,7 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	}
 	rowsi, err := si.Query(sargs)
 	if err != nil {
-		s.db.putConn(ci, err)
+		releaseConn(err)
 		return nil, err
 	}
 	// Note: ownership of ci passes to the *Rows, to be freed
@@ -878,7 +884,7 @@ func (s *Stmt) Close() error {
 type Rows struct {
 	db          *DB
 	ci          driver.Conn // owned; must call putconn when closed to release
-	releaseConn func()
+	releaseConn func(error)
 	rowsi       driver.Rows
 
 	closed    bool
@@ -990,7 +996,7 @@ func (rs *Rows) Close() error {
 	}
 	rs.closed = true
 	err := rs.rowsi.Close()
-	rs.releaseConn()
+	rs.releaseConn(err)
 	if rs.closeStmt != nil {
 		rs.closeStmt.Close()
 	}
