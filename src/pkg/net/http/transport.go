@@ -196,7 +196,7 @@ func (t *Transport) CloseIdleConnections() {
 			pconn.close()
 		}
 	}
-	t.idleConn = nil
+	t.idleConn = make(map[string][]*persistConn)
 }
 
 //
