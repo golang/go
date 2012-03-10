@@ -612,9 +612,11 @@ func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 		return nil, err
 	}
 	rows, err := stmt.Query(args...)
-	if err == nil {
-		rows.closeStmt = stmt
+	if err != nil {
+		stmt.Close()
+		return nil, err
 	}
+	rows.closeStmt = stmt
 	return rows, err
 }
 
@@ -1020,7 +1022,7 @@ func (r *Row) Scan(dest ...interface{}) error {
 	}
 
 	// TODO(bradfitz): for now we need to defensively clone all
-	// []byte that the driver returned (not permitting 
+	// []byte that the driver returned (not permitting
 	// *RawBytes in Rows.Scan), since we're about to close
 	// the Rows in our defer, when we return from this function.
 	// the contract with the driver.Next(...) interface is that it
