@@ -251,6 +251,7 @@ func TestStatementQueryRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
+	defer stmt.Close()
 	var age int
 	for n, tt := range []struct {
 		name string
@@ -291,6 +292,7 @@ func TestExec(t *testing.T) {
 	if err != nil {
 		t.Errorf("Stmt, err = %v, %v", stmt, err)
 	}
+	defer stmt.Close()
 
 	type execTest struct {
 		args    []interface{}
@@ -332,11 +334,14 @@ func TestTxStmt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stmt, err = %v, %v", stmt, err)
 	}
+	defer stmt.Close()
 	tx, err := db.Begin()
 	if err != nil {
 		t.Fatalf("Begin = %v", err)
 	}
-	_, err = tx.Stmt(stmt).Exec("Bobby", 7)
+	txs := tx.Stmt(stmt)
+	defer txs.Close()
+	_, err = txs.Exec("Bobby", 7)
 	if err != nil {
 		t.Fatalf("Exec = %v", err)
 	}
@@ -365,6 +370,7 @@ func TestTxQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer r.Close()
 
 	if !r.Next() {
 		if r.Err() != nil {
@@ -561,6 +567,7 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
 	}
+	defer stmt.Close()
 	if _, err := stmt.Exec(3, "chris", spec.rows[2].nullParam, spec.rows[2].notNullParam); err != nil {
 		t.Errorf("exec insert chris: %v", err)
 	}
