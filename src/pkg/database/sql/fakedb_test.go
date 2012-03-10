@@ -209,10 +209,10 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 
 func (c *fakeConn) Close() error {
 	if c.currTx != nil {
-		return errors.New("can't close; in a Transaction")
+		return errors.New("can't close fakeConn; in a Transaction")
 	}
 	if c.db == nil {
-		return errors.New("can't close; already closed")
+		return errors.New("can't close fakeConn; already closed")
 	}
 	c.db = nil
 	return nil
