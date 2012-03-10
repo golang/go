@@ -394,8 +394,7 @@ func (p *addrParser) consumeAtom(dot bool) (atom string, err error) {
 	i := 1
 	for ; i < p.len() && isAtext((*p)[i], dot); i++ {
 	}
-	// TODO(dsymonds): Remove the []byte() conversion here when 6g doesn't need it.
-	atom, *p = string([]byte((*p)[:i])), (*p)[i:]
+	atom, *p = string((*p)[:i]), (*p)[i:]
 	return atom, nil
 }
 
