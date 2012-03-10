@@ -698,6 +698,32 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	}
 }
 
+// This used to crash; http://golang.org/issue/3266
+func TestTransportIdleConnCrash(t *testing.T) {
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	unblockCh := make(chan bool, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-unblockCh
+		tr.CloseIdleConnections()
+	}))
+	defer ts.Close()
+
+	didreq := make(chan bool)
+	go func() {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			t.Error(err)
+		} else {
+			res.Body.Close() // returns idle conn
+		}
+		didreq <- true
+	}()
+	unblockCh <- true
+	<-didreq
+}
+
 type fooProto struct{}
 
 func (fooProto) RoundTrip(req *Request) (*Response, error) {
