@@ -383,6 +383,7 @@ func goFilesPackage(gofiles []string) *Package {
 
 	bp, err := ctxt.ImportDir(dir, 0)
 	pkg := new(Package)
+	pkg.local = true
 	pkg.load(&stk, bp, err)
 	pkg.localPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
@@ -1202,7 +1203,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 
 func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	importArgs := b.includeArgs("-L", allactions)
-	return b.run(p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
+	return b.run(".", p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
 }
 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -1284,7 +1285,7 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 		ldflags = append(ldflags, afile)
 	}
 	ldflags = append(ldflags, cgoldflags...)
-	return b.run(p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
+	return b.run(".", p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
 }
 
 func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
@@ -1308,6 +1309,9 @@ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) er
 
 // gccCmd returns a gcc command line prefix
 func (b *builder) gccCmd(objdir string) []string {
+	// NOTE: env.go's mkEnv knows that the first three
+	// strings returned are "gcc", "-I", objdir (and cuts them off).
+
 	// TODO: HOST_CC?
 	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
 
