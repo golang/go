@@ -279,9 +279,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	p.copyBuild(bp)
 
 	// The localPrefix is the path we interpret ./ imports relative to.
-	// Now that we've fixed the import path, it's just the import path.
 	// Synthesized main packages sometimes override this.
-	p.localPrefix = p.ImportPath
+	p.localPrefix = dirToImportPath(p.Dir)
 
 	if err != nil {
 		p.Incomplete = true
@@ -343,6 +342,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
 		if p1.local {
+			if !p.local && p.Error == nil {
+				p.Error = &PackageError{
+					ImportStack: stk.copy(),
+					Err:         fmt.Sprintf("local import %q in non-local package", path),
+				}
+				pos := p.build.ImportPos[path]
+				if len(pos) > 0 {
+					p.Error.Pos = pos[0].String()
+				}
+			}
 			path = p1.ImportPath
 			importPaths[i] = path
 		}
