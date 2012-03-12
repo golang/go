@@ -15,10 +15,9 @@
 </head>
 <body>
 
-<div id="topbar"><div class="container">
+<div id="topbar"><div class="container{{if .Title}} wide{{end}}">
 
 <form method="GET" action="/search">
-<div id="heading"><a href="/">The Go Programming Language</a></div>
 <div id="menu">
 <a href="/doc/">Documents</a>
 <a href="/ref/">References</a>
@@ -27,13 +26,12 @@
 <a href="/help/">Help</a>
 <input type="text" id="search" name="q" class="inactive" value="Search">
 </div>
+<div id="heading"><a href="/">The Go Programming Language</a></div>
 </form>
 
 </div></div>
 
-<div id="page">
-
-<div id="content">
+<div id="page"{{if .Title}} class="wide"{{end}}>
 
 {{with .Title}}
   <div id="plusone"><g:plusone size="small" annotation="none"></g:plusone></div>
@@ -49,8 +47,6 @@
 
 {{/* Content is HTML-escaped elsewhere */}}
 {{printf "%s" .Content}}
-
-</div>
 
 </div>
 
