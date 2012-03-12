@@ -82,6 +82,28 @@ TEXT runtime·badcallback(SB),7,$48
 	
 	RET
 
+TEXT runtime·badsignal(SB),7,$48
+	// stderr
+	MOVQ	$-12, CX // stderr
+	MOVQ	CX, 0(SP)
+	MOVQ	runtime·GetStdHandle(SB), AX
+	CALL	AX
+
+	MOVQ	AX, CX	// handle
+	MOVQ	CX, 0(SP)
+	MOVQ	$runtime·badsignalmsg(SB), DX // pointer
+	MOVQ	DX, 8(SP)
+	MOVL	$runtime·badsignallen(SB), R8 // count
+	MOVQ	R8, 16(SP)
+	LEAQ	40(SP), R9  // written count
+	MOVQ	$0, 0(R9)
+	MOVQ	R9, 24(SP)
+	MOVQ	$0, 32(SP)	// overlapped
+	MOVQ	runtime·WriteFile(SB), AX
+	CALL	AX
+	
+	RET
+
 // faster get/set last error
 TEXT runtime·getlasterror(SB),7,$0
 	MOVQ	0x30(GS), AX
@@ -106,7 +128,15 @@ TEXT runtime·sigtramp(SB),7,$56
 	// copy arguments for call to sighandler
 	MOVQ	CX, 0(SP)
 	MOVQ	R8, 8(SP)
+
 	get_tls(CX)
+
+	// check that m exists
+	MOVQ	m(BX), AX
+	CMPQ	AX, $0
+	JNE	2(PC)
+	CALL	runtime·badsignal(SB)
+
 	MOVQ	g(CX), CX
 	MOVQ	CX, 16(SP)
 

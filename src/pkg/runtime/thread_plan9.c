@@ -257,3 +257,13 @@ runtime·badcallback(void)
 {
 	runtime·pwrite(2, badcallback, sizeof badcallback - 1, -1LL);
 }
+
+static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+
+// This runs on a foreign stack, without an m or a g.  No stack split.
+#pragma textflag 7
+void
+runtime·badsignal(void)
+{
+	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+}

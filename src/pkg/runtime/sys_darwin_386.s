@@ -126,13 +126,18 @@ TEXT runtime·sigaction(SB),7,$0
 //	20(FP)	context
 TEXT runtime·sigtramp(SB),7,$40
 	get_tls(CX)
+	
+	// check that m exists
+	MOVL	m(CX), BP
+	CMPL	BP, $0
+	JNE	2(PC)
+	CALL	runtime·badsignal(SB)
 
 	// save g
 	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
 
 	// g = m->gsignal
-	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), BP
 	MOVL	BP, g(CX)
 

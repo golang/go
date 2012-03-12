@@ -167,6 +167,12 @@ TEXT runtime·rt_sigaction(SB),7,$0
 TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
 
+	// check that m exists
+	MOVL	m(CX), BX
+	CMPL	BX, $0
+	JNE	2(PC)
+	CALL	runtime·badsignal(SB)
+
 	// save g
 	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)

@@ -58,6 +58,26 @@ TEXT	runtime·badcallback(SB),7,$24
 	MOVL	BP, SI
 	RET
 
+TEXT	runtime·badsignal(SB),7,$24
+	// stderr
+	MOVL	$-12, 0(SP)
+	MOVL	SP, BP
+	CALL	*runtime·GetStdHandle(SB)
+	MOVL	BP, SP
+
+	MOVL	AX, 0(SP)	// handle
+	MOVL	$runtime·badsignalmsg(SB), DX // pointer
+	MOVL	DX, 4(SP)
+	MOVL	runtime·badsignallen(SB), DX // count
+	MOVL	DX, 8(SP)
+	LEAL	20(SP), DX  // written count
+	MOVL	$0, 0(DX)
+	MOVL	DX, 12(SP)
+	MOVL	$0, 16(SP) // overlapped
+	CALL	*runtime·WriteFile(SB)
+	MOVL	BP, SI
+	RET
+
 // faster get/set last error
 TEXT runtime·getlasterror(SB),7,$0
 	MOVL	0x34(FS), AX
@@ -79,7 +99,15 @@ TEXT runtime·sigtramp(SB),7,$28
 	MOVL	CX, 0(SP)
 	MOVL	context+8(FP), CX
 	MOVL	CX, 4(SP)
+
 	get_tls(CX)
+
+	// check that m exists
+	MOVL	m(CX), AX
+	CMPL	AX, $0
+	JNE	2(PC)
+	CALL	runtime·badsignal(SB)
+
 	MOVL	g(CX), CX
 	MOVL	CX, 8(SP)
 

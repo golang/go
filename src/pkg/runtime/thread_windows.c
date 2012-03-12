@@ -425,3 +425,6 @@ runtime·setprof(bool on)
 
 int8 runtime·badcallbackmsg[] = "runtime: cgo callback on thread not created by Go.\n";
 int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
+
+int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
