@@ -104,7 +104,7 @@ var vcsGit = &vcsCmd{
 	tagSyncCmd:     "checkout {tag}",
 	tagSyncDefault: "checkout origin/master",
 
-	scheme:  []string{"git", "https", "http"},
+	scheme:  []string{"git", "https", "http", "git+ssh"},
 	pingCmd: "ls-remote {scheme}://{repo}",
 }
 
@@ -123,7 +123,7 @@ var vcsBzr = &vcsCmd{
 	tagSyncCmd:     "update -r {tag}",
 	tagSyncDefault: "update -r revno:-1",
 
-	scheme:  []string{"https", "http", "bzr"},
+	scheme:  []string{"https", "http", "bzr", "bzr+ssh"},
 	pingCmd: "info {scheme}://{repo}",
 }
 
@@ -138,7 +138,7 @@ var vcsSvn = &vcsCmd{
 	// There is no tag command in subversion.
 	// The branch information is all in the path names.
 
-	scheme:  []string{"https", "http", "svn"},
+	scheme:  []string{"https", "http", "svn", "svn+ssh"},
 	pingCmd: "info {scheme}://{repo}",
 }
 
