@@ -508,9 +508,8 @@ An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
 strings containing slashes.  Such a pattern expands to all package
 directories found in the GOPATH trees with names matching the
-patterns.  For example, encoding/... expands to all packages
-in subdirectories of the encoding tree, while net... expands to
-net and all its subdirectories.
+patterns.  As a special case, x/... matches x as well as x's subdirectories.
+For example, net/... expands to net and packages in its subdirectories.
 
 An import path can also name a package to be downloaded from
 a remote repository.  Run 'go help remote' for details.
