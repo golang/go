@@ -393,12 +393,11 @@ For example, you should not set <code>$GOHOSTARCH</code> to
 
 <p><code>$GOBIN</code>
 <p>
-The location where Go binaries will be installed.
+The location where binaries from the main repository will be installed.
+XXX THIS MAY CHANGE TO BE AN OVERRIDE EVEN FOR GOPATH ENTRIES XXX
 The default is <code>$GOROOT/bin</code>.
 After installing, you will want to arrange to add this
 directory to your <code>$PATH</code>, so you can use the tools.
-If <code>$GOBIN</code> is set, the <a href="/cmd/go">go command</a>
-installs all commands there.
 </p>
 
 <p><code>$GOARM</code> (arm, default=6)</p>
