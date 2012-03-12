@@ -52,6 +52,12 @@ var contexts = []*build.Context{
 	{GOOS: "windows", GOARCH: "386"},
 }
 
+func init() {
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
+}
+
 func contextName(c *build.Context) string {
 	s := c.GOOS + "-" + c.GOARCH
 	if c.CgoEnabled {
