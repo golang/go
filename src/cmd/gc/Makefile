@@ -6,7 +6,7 @@ include ../../Make.dist
 
 install: y.tab.h builtin.c
 
-y.tab.h: go.y
+y.tab.h: go.y go.errors bisonerrors
 	bison -v -y -d go.y
 	# make yystate global, yytname mutable
 	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c
