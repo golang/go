@@ -27,7 +27,7 @@ const (
 	// order they appear (the order listed here) or the format they present (as
 	// described in the comments).  A colon appears after these items:
 	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
-	Ldate         = 1 << iota     // the date: 2009/0123
+	Ldate         = 1 << iota     // the date: 2009/01/23
 	Ltime                         // the time: 01:23:23
 	Lmicroseconds                 // microsecond resolution: 01:23:23.123123.  assumes Ltime.
 	Llongfile                     // full file name and line number: /a/b/c/d.go:23
