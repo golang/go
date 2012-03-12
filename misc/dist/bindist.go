@@ -7,9 +7,11 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -24,6 +26,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -181,7 +184,7 @@ func (b *Build) Do() error {
 			targ = fmt.Sprintf("go.%s.src", version)
 		}
 		targ += ".tar.gz"
-		_, err = b.run("", "tar", "czf", targ, "-C", work, "go")
+		err = makeTar(targ, work)
 		targs = append(targs, targ)
 	case "darwin":
 		// arrange work so it's laid out as the dest filesystem
@@ -492,6 +495,73 @@ func cp(dst, src string) error {
 	defer df.Close()
 	_, err = io.Copy(df, sf)
 	return err
+}
+
+func makeTar(targ, workdir string) error {
+	f, err := os.Create(targ)
+	if err != nil {
+		return err
+	}
+	zout := gzip.NewWriter(f)
+	tw := tar.NewWriter(zout)
+
+	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
+		if !strings.HasPrefix(path, workdir) {
+			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
+		}
+		name := path[len(workdir):]
+
+		// Chop of any leading / from filename, leftover from removing workdir.
+		if strings.HasPrefix(name, "/") {
+			name = name[1:]
+		}
+		// Don't include things outside of the go subdirectory (for instance,
+		// the zip file that we're currently writing here.)
+		if !strings.HasPrefix(name, "go/") {
+			return nil
+		}
+		if *verbose {
+			log.Printf("adding to tar: %s", name)
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		var typeFlag byte
+		switch {
+		case fi.Mode()&os.ModeType == 0:
+			typeFlag = tar.TypeReg
+		default:
+			log.Fatalf("makeTar: unknown file for file %q", name)
+		}
+		hdr := &tar.Header{
+			Name:     name,
+			Mode:     int64(fi.Sys().(*syscall.Stat_t).Mode),
+			Size:     fi.Size(),
+			ModTime:  fi.ModTime(),
+			Typeflag: typeFlag,
+			Uname:    "root",
+			Gname:    "root",
+		}
+		err = tw.WriteHeader(hdr)
+		if err != nil {
+			return fmt.Errorf("Error writing file %q: %v", name, err)
+		}
+		r, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_, err = io.Copy(tw, r)
+		return err
+	}))
+
+	if err := tw.Close(); err != nil {
+		return err
+	}
+	if err := zout.Close(); err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 func makeZip(targ, workdir string) error {
