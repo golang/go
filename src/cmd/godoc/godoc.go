@@ -72,7 +72,7 @@ var (
 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
 
 	// file system information
-	fsTree      RWValue // *Directory tree of packages, updated with each sync
+	fsTree      RWValue // *Directory tree of packages, updated with each sync (but sync code is removed now)
 	fsModified  RWValue // timestamp of last call to invalidateIndex
 	docMetadata RWValue // mapping from paths to *Metadata
 
