@@ -929,8 +929,6 @@ func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string 
 	if b.work != "" {
 		cmd = strings.Replace(cmd, b.work, "$WORK", -1)
 	}
-	cmd = strings.Replace(cmd, gobin, "$GOBIN", -1)
-	cmd = strings.Replace(cmd, goroot, "$GOROOT", -1)
 	return cmd
 }
 
