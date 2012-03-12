@@ -420,17 +420,11 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 			first = dir
 		}
 
-		useFiles := false
-
-		// Always include all files under /doc.
-		if path == "/doc" || strings.HasPrefix(path, "/doc/") {
-			useFiles = true // always include docs
-		}
-
 		// If we don't yet have Go files in 'all' and this directory
 		// has some, add all the files from this directory.
 		// Otherwise, only add subdirectories.
-		if !useFiles && !haveGo {
+		useFiles := false
+		if !haveGo {
 			for _, d := range dir {
 				if strings.HasSuffix(d.Name(), ".go") {
 					useFiles = true
@@ -451,10 +445,12 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 
 	// We didn't find any directories containing Go files.
 	// If some directory returned successfully, use that.
-	if len(all) == 0 && first != nil {
+	if !haveGo {
 		for _, d := range first {
-			haveName[d.Name()] = true
-			all = append(all, d)
+			if !haveName[d.Name()] {
+				haveName[d.Name()] = true
+				all = append(all, d)
+			}
 		}
 	}
 
