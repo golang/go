@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,19 +58,13 @@ func init() {
 
 func runGet(cmd *Command, args []string) {
 	// Phase 1.  Download/update.
-	args = importPaths(args)
 	var stk importStack
-	for _, arg := range args {
+	for _, arg := range downloadPaths(args) {
 		download(arg, &stk)
 	}
 	exitIfErrors()
 
-	if *getD {
-		// download only
-		return
-	}
-
-	// Phase 2. Install.
+	// Phase 2. Rescan packages and reevaluate args list.
 
 	// Code we downloaded and all code that depends on it
 	// needs to be evicted from the package cache so that
@@ -80,7 +75,46 @@ func runGet(cmd *Command, args []string) {
 		delete(packageCache, name)
 	}
 
+	args = importPaths(args)
+
+	// Phase 3.  Install.
+	if *getD {
+		// Download only.
+		// Check delayed until now so that importPaths
+		// has a chance to print errors.
+		return
+	}
+
 	runInstall(cmd, args)
+}
+
+// downloadPath prepares the list of paths to pass to download.
+// It expands ... patterns that can be expanded.  If there is no match
+// for a particular pattern, downloadPaths leaves it in the result list,
+// in the hope that we can figure out the repository from the
+// initial ...-free prefix.
+func downloadPaths(args []string) []string {
+	args = importPathsNoDotExpansion(args)
+	var out []string
+	for _, a := range args {
+		if strings.Contains(a, "...") {
+			var expand []string
+			// Use matchPackagesInFS to avoid printing
+			// warnings.  They will be printed by the 
+			// eventual call to importPaths instead.
+			if build.IsLocalImport(a) {
+				expand = matchPackagesInFS(a)
+			} else {
+				expand = matchPackages(a)
+			}
+			if len(expand) > 0 {
+				out = append(out, expand...)
+				continue
+			}
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // downloadCache records the import paths we have already
@@ -112,38 +146,73 @@ func download(arg string, stk *importStack) {
 	}
 	downloadCache[arg] = true
 
+	pkgs := []*Package{p}
+	wildcardOkay := len(*stk) == 0
+
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
 		stk.push(p.ImportPath)
-		defer stk.pop()
-		if err := downloadPackage(p); err != nil {
+		err := downloadPackage(p)
+		if err != nil {
 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
+			stk.pop()
 			return
 		}
 
-		// Reread the package information from the updated files.
-		p = reloadPackage(arg, stk)
-		if p.Error != nil {
-			errorf("%s", p.Error)
-			return
+		args := []string{arg}
+		// If the argument has a wildcard in it, re-evaluate the wildcard.
+		// We delay this until after reloadPackage so that the old entry
+		// for p has been replaced in the package cache.
+		if wildcardOkay && strings.Contains(arg, "...") {
+			if build.IsLocalImport(arg) {
+				args = matchPackagesInFS(arg)
+			} else {
+				args = matchPackages(arg)
+			}
+		}
+
+		// Clear all relevant package cache entries before
+		// doing any new loads.
+		for _, arg := range args {
+			p := packageCache[arg]
+			if p != nil {
+				delete(packageCache, p.Dir)
+				delete(packageCache, p.ImportPath)
+			}
+		}
+
+		pkgs = pkgs[:0]
+		for _, arg := range args {
+			stk.push(arg)
+			p := loadPackage(arg, stk)
+			stk.pop()
+			if p.Error != nil {
+				errorf("%s", p.Error)
+				continue
+			}
+			pkgs = append(pkgs, p)
 		}
 	}
 
-	if *getFix {
-		run(stringList(tool("fix"), relPaths(p.gofiles)))
+	// Process package, which might now be multiple packages
+	// due to wildcard expansion.
+	for _, p := range pkgs {
+		if *getFix {
+			run(stringList(tool("fix"), relPaths(p.gofiles)))
 
-		// The imports might have changed, so reload again.
-		p = reloadPackage(arg, stk)
-		if p.Error != nil {
-			errorf("%s", p.Error)
-			return
+			// The imports might have changed, so reload again.
+			p = reloadPackage(arg, stk)
+			if p.Error != nil {
+				errorf("%s", p.Error)
+				return
+			}
 		}
-	}
 
-	// Process dependencies, now that we know what they are.
-	for _, dep := range p.deps {
-		download(dep.ImportPath, stk)
+		// Process dependencies, now that we know what they are.
+		for _, dep := range p.deps {
+			download(dep.ImportPath, stk)
+		}
 	}
 }
 

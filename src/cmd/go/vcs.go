@@ -323,6 +323,23 @@ func repoRootForImportPath(importPath string) (*repoRoot, error) {
 	rr, err := repoRootForImportPathStatic(importPath, "")
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath)
+
+		// repoRootForImportDynamic returns error detail
+		// that is irrelevant if the user didn't intend to use a
+		// dynamic import in the first place.
+		// Squelch it.
+		if err != nil {
+			if buildV {
+				log.Printf("import %q: %v", importPath, err)
+			}
+			err = fmt.Errorf("unrecognized import path %q", importPath)
+		}
+	}
+
+	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
+		// Do not allow wildcards in the repo root.
+		rr = nil
+		err = fmt.Errorf("cannot expand ... in %q", importPath)
 	}
 	return rr, err
 }
