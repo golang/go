@@ -601,7 +601,7 @@ func (c *conn) serve() {
 				// while they're still writing their
 				// request.  Undefined behavior.
 				msg = "413 Request Entity Too Large"
-			} else if err == io.ErrUnexpectedEOF {
+			} else if err == io.EOF {
 				break // Don't reply
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				break // Don't reply

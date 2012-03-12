@@ -455,11 +455,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 	// First line: GET /index.html HTTP/1.0
 	var s string
 	if s, err = tp.ReadLine(); err != nil {
+		return nil, err
+	}
+	defer func() {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return nil, err
-	}
+	}()
 
 	var f []string
 	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
