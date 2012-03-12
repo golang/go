@@ -50,7 +50,7 @@ func TestCertHostnameVerifyWindows(t *testing.T) {
 		conn, err := Dial("tcp", addr+":443", cfg)
 		if err == nil {
 			conn.Close()
-			t.Errorf("should fail to verify for example.com: %v", addr, err)
+			t.Errorf("should fail to verify for example.com: %v", addr)
 			continue
 		}
 		_, ok := err.(x509.HostnameError)

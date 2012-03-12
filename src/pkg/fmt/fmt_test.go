@@ -835,7 +835,7 @@ func TestIsSpace(t *testing.T) {
 	// IsSpace = isSpace is defined in export_test.go.
 	for i := rune(0); i <= unicode.MaxRune; i++ {
 		if IsSpace(i) != unicode.IsSpace(i) {
-			t.Errorf("isSpace(%U) = %v, want %v", IsSpace(i), unicode.IsSpace(i))
+			t.Errorf("isSpace(%U) = %v, want %v", i, IsSpace(i), unicode.IsSpace(i))
 		}
 	}
 }
