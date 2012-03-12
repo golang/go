@@ -4,7 +4,6 @@ Windows build dependencies
 - Mercurial (hg): http://mercurial.selenic.com/
 - MinGW: http://www.mingw.org/
 - Windows Installer XML (WiX) toolset: http://wix.sourceforge.net/
-- 7zip
 
 Packaging
 

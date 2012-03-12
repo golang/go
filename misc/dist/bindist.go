@@ -7,6 +7,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"encoding/base64"
@@ -26,8 +27,10 @@ import (
 )
 
 var (
-	tag  = flag.String("tag", "weekly", "mercurial tag to check out")
-	repo = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	tag     = flag.String("tag", "weekly", "mercurial tag to check out")
+	repo    = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	verbose = flag.Bool("v", false, "verbose output")
+	upload  = flag.Bool("upload", true, "upload resulting files to Google Code")
 
 	username, password string // for Google Code upload
 )
@@ -59,8 +62,14 @@ func main() {
 	if flag.NArg() == 0 {
 		flag.Usage()
 	}
-	if err := readCredentials(); err != nil {
-		log.Println("readCredentials:", err)
+	if runtime.GOOS == "windows" {
+		checkWindowsDeps()
+	}
+
+	if *upload {
+		if err := readCredentials(); err != nil {
+			log.Println("readCredentials:", err)
+		}
 	}
 	for _, targ := range flag.Args() {
 		var b Build
@@ -108,6 +117,9 @@ func (b *Build) Do() error {
 
 	src := filepath.Join(b.root, "src")
 	if b.Source {
+		if runtime.GOOS == "windows" {
+			log.Print("Warning: running make.bash on Windows; source builds are intended to be run on a Unix machine")
+		}
 		// Build dist tool only.
 		_, err = b.run(src, "bash", "make.bash", "--dist-tool")
 	} else {
@@ -164,10 +176,11 @@ func (b *Build) Do() error {
 	switch b.OS {
 	case "linux", "freebsd", "":
 		// build tarball
-		targ := base + ".tar.gz"
+		targ := base
 		if b.Source {
 			targ = fmt.Sprintf("go.%s.src", version)
 		}
+		targ += ".tar.gz"
 		_, err = b.run("", "tar", "czf", targ, "-C", work, "go")
 		targs = append(targs, targ)
 	case "darwin":
@@ -208,7 +221,7 @@ func (b *Build) Do() error {
 	case "windows":
 		// Create ZIP file.
 		zip := filepath.Join(work, base+".zip")
-		_, err = b.run(work, "7z", "a", "-tzip", zip, "go")
+		err = makeZip(zip, work)
 		// Copy zip to target file.
 		targ := base + ".zip"
 		err = cp(targ, zip)
@@ -260,7 +273,7 @@ func (b *Build) Do() error {
 		err = cp(targ, msi)
 		targs = append(targs, targ)
 	}
-	if err == nil && password != "" {
+	if err == nil && *upload {
 		for _, targ := range targs {
 			err = b.upload(version, targ)
 			if err != nil {
@@ -273,9 +286,18 @@ func (b *Build) Do() error {
 
 func (b *Build) run(dir, name string, args ...string) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = buf
-	cmd.Stderr = buf
+	absName, err := lookPath(name)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(absName, args...)
+	var output io.Writer = buf
+	if *verbose {
+		log.Printf("Running %q %q", absName, args)
+		output = io.MultiWriter(buf, os.Stdout)
+	}
+	cmd.Stdout = output
+	cmd.Stderr = output
 	cmd.Dir = dir
 	cmd.Env = b.env()
 	if err := cmd.Run(); err != nil {
@@ -470,4 +492,126 @@ func cp(dst, src string) error {
 	defer df.Close()
 	_, err = io.Copy(df, sf)
 	return err
+}
+
+func makeZip(targ, workdir string) error {
+	f, err := os.Create(targ)
+	if err != nil {
+		return err
+	}
+	zw := zip.NewWriter(f)
+
+	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
+		if fi.IsDir() {
+			return nil
+		}
+		if !strings.HasPrefix(path, workdir) {
+			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
+		}
+		name := path[len(workdir):]
+
+		// Convert to Unix-style named paths, as that's the
+		// type of zip file that archive/zip creates.
+		name = strings.Replace(name, "\\", "/", -1)
+		// Chop of any leading / from filename, leftover from removing workdir.
+		if strings.HasPrefix(name, "/") {
+			name = name[1:]
+		}
+		// Don't include things outside of the go subdirectory (for instance,
+		// the zip file that we're currently writing here.)
+		if !strings.HasPrefix(name, "go/") {
+			return nil
+		}
+		if *verbose {
+			log.Printf("adding to zip: %s", name)
+		}
+		fh, err := zip.FileInfoHeader(fi)
+		if err != nil {
+			return err
+		}
+		fh.Name = name
+		fh.Method = zip.Deflate
+		w, err := zw.CreateHeader(fh)
+		if err != nil {
+			return err
+		}
+		r, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_, err = io.Copy(w, r)
+		return err
+	}))
+
+	if err := zw.Close(); err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+type tool struct {
+	name       string
+	commonDirs []string
+}
+
+var wixTool = tool{
+	"http://wix.sourceforge.net/, version 3.5",
+	[]string{`C:\Program Files\Windows Installer XML v3.5\bin`,
+		`C:\Program Files (x86)\Windows Installer XML v3.5\bin`},
+}
+
+var hgTool = tool{
+	"http://mercurial.selenic.com/wiki/WindowsInstall",
+	[]string{`C:\Program Files\Mercurial`,
+		`C:\Program Files (x86)\Mercurial`,
+	},
+}
+
+var gccTool = tool{
+	"Mingw gcc; http://sourceforge.net/projects/mingw/files/Installer/mingw-get-inst/",
+	[]string{`C:\Mingw\bin`},
+}
+
+var windowsDeps = map[string]tool{
+	"gcc":    gccTool,
+	"heat":   wixTool,
+	"candle": wixTool,
+	"light":  wixTool,
+	"cmd":    {"Windows cmd.exe", nil},
+	"hg":     hgTool,
+}
+
+func checkWindowsDeps() {
+	for prog, help := range windowsDeps {
+		absPath, err := lookPath(prog)
+		if err != nil {
+			log.Fatalf("Failed to find necessary binary %q in path or common locations; %s", prog, help)
+		}
+		if *verbose {
+			log.Printf("found windows dep %s at %s", prog, absPath)
+		}
+	}
+}
+
+func lookPath(prog string) (absPath string, err error) {
+	absPath, err = exec.LookPath(prog)
+	if err == nil {
+		return
+	}
+	t, ok := windowsDeps[prog]
+	if !ok {
+		return
+	}
+	for _, dir := range t.commonDirs {
+		for _, ext := range []string{"exe", "bat"} {
+			absPath = filepath.Join(dir, prog+"."+ext)
+			if _, err1 := os.Stat(absPath); err1 == nil {
+				err = nil
+				os.Setenv("PATH", os.Getenv("PATH")+";"+dir)
+				return
+			}
+		}
+	}
+	return
 }
