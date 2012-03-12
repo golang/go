@@ -58,14 +58,16 @@ pkg p1, type T struct
 pkg p1, type TPtrExported struct
 pkg p1, type TPtrExported struct, embedded *Embedded
 pkg p1, type TPtrUnexported struct
+pkg p1, var ByteConv []byte
 pkg p1, var ChecksumError error
 pkg p1, var SIPtr *SI
 pkg p1, var SIPtr2 *SI
 pkg p1, var SIVal SI
+pkg p1, var StrConv string
 pkg p1, var V string
-pkg p1, var VError Error
 pkg p1, var V1 uint64
 pkg p1, var V2 p2.Twoer
+pkg p1, var VError Error
 pkg p1, var X I
 pkg p1, var X int64
 pkg p1, var Y int

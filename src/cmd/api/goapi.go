@@ -579,7 +579,14 @@ func (w *Walker) varValueType(vi interface{}) (string, error) {
 			}
 		}
 		// maybe a function call; maybe a conversion.  Need to lookup type.
-		return "", fmt.Errorf("not a known function %q", w.nodeString(v.Fun))
+		// TODO(bradfitz): this is a hack, but arguably most of this tool is,
+		// until the Go AST has type information.
+		nodeStr := w.nodeString(v.Fun)
+		switch nodeStr {
+		case "string", "[]byte":
+			return nodeStr, nil
+		}
+		return "", fmt.Errorf("not a known function %q", nodeStr)
 	default:
 		return "", fmt.Errorf("unknown const value type %T", vi)
 	}

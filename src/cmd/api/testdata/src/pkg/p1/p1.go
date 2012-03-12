@@ -27,6 +27,12 @@ var (
 	V2     = ptwo.G()
 )
 
+// Variables with conversions:
+var (
+	StrConv  = string("foo")
+	ByteConv = []byte("foo")
+)
+
 var ChecksumError = ptwo.NewError("gzip checksum error")
 
 const B = 2
