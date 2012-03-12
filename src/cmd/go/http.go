@@ -76,7 +76,6 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
 	}
 	if err != nil {
 		closeBody(res)
-		log.Printf("http fetch failed")
 		return "", nil, err
 	}
 	// Note: accepting a non-200 OK here, so people can serve a
