@@ -1247,9 +1247,28 @@ def MatchAt(ctx, pats=None, opts=None, globbed=False, default='relpath'):
 #######################################################################
 # Commands added by code review extension.
 
+# As of Mercurial 2.1 the commands are all required to return integer
+# exit codes, whereas earlier versions allowed returning arbitrary strings
+# to be printed as errors.  We wrap the old functions to make sure we
+# always return integer exit codes now.  Otherwise Mercurial dies
+# with a TypeError traceback (unsupported operand type(s) for &: 'str' and 'int').
+# Introduce a Python decorator to convert old functions to the new
+# stricter convention.
+
+def hgcommand(f):
+	def wrapped(ui, repo, *pats, **opts):
+		err = f(ui, repo, *pats, **opts)
+		if type(err) is int:
+			return err
+		if not err:
+			return 0
+		raise hg_util.Abort(err)
+	return wrapped
+
 #######################################################################
 # hg change
 
+@hgcommand
 def change(ui, repo, *pats, **opts):
 	"""create, edit or delete a change list
 
@@ -1363,6 +1382,7 @@ def change(ui, repo, *pats, **opts):
 #######################################################################
 # hg code-login (broken?)
 
+@hgcommand
 def code_login(ui, repo, **opts):
 	"""log in to code review server
 
@@ -1378,6 +1398,7 @@ def code_login(ui, repo, **opts):
 # hg clpatch / undo / release-apply / download
 # All concerned with applying or unapplying patches to the repository.
 
+@hgcommand
 def clpatch(ui, repo, clname, **opts):
 	"""import a patch from the code review server
 
@@ -1392,6 +1413,7 @@ def clpatch(ui, repo, clname, **opts):
 		return "cannot run hg clpatch outside default branch"
 	return clpatch_or_undo(ui, repo, clname, opts, mode="clpatch")
 
+@hgcommand
 def undo(ui, repo, clname, **opts):
 	"""undo the effect of a CL
 	
@@ -1403,6 +1425,7 @@ def undo(ui, repo, clname, **opts):
 		return "cannot run hg undo outside default branch"
 	return clpatch_or_undo(ui, repo, clname, opts, mode="undo")
 
+@hgcommand
 def release_apply(ui, repo, clname, **opts):
 	"""apply a CL to the release branch
 
@@ -1655,6 +1678,7 @@ def lineDelta(deltas, n, len):
 		d = newdelta
 	return d, ""
 
+@hgcommand
 def download(ui, repo, clname, **opts):
 	"""download a change from the code review server
 
@@ -1674,6 +1698,7 @@ def download(ui, repo, clname, **opts):
 #######################################################################
 # hg file
 
+@hgcommand
 def file(ui, repo, clname, pat, *pats, **opts):
 	"""assign files to or remove files from a change list
 
@@ -1739,6 +1764,7 @@ def file(ui, repo, clname, pat, *pats, **opts):
 #######################################################################
 # hg gofmt
 
+@hgcommand
 def gofmt(ui, repo, *pats, **opts):
 	"""apply gofmt to modified files
 
@@ -1772,6 +1798,7 @@ def gofmt_required(files):
 #######################################################################
 # hg mail
 
+@hgcommand
 def mail(ui, repo, *pats, **opts):
 	"""mail a change for review
 
@@ -1804,18 +1831,21 @@ def mail(ui, repo, *pats, **opts):
 #######################################################################
 # hg p / hg pq / hg ps / hg pending
 
+@hgcommand
 def ps(ui, repo, *pats, **opts):
 	"""alias for hg p --short
 	"""
 	opts['short'] = True
 	return pending(ui, repo, *pats, **opts)
 
+@hgcommand
 def pq(ui, repo, *pats, **opts):
 	"""alias for hg p --quick
 	"""
 	opts['quick'] = True
 	return pending(ui, repo, *pats, **opts)
 
+@hgcommand
 def pending(ui, repo, *pats, **opts):
 	"""show pending changes
 
@@ -1851,6 +1881,7 @@ def pending(ui, repo, *pats, **opts):
 def need_sync():
 	raise hg_util.Abort("local repository out of date; must sync before submit")
 
+@hgcommand
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
 
@@ -1983,6 +2014,7 @@ def submit(ui, repo, *pats, **opts):
 #######################################################################
 # hg sync
 
+@hgcommand
 def sync(ui, repo, **opts):
 	"""synchronize with remote repository
 
@@ -2036,6 +2068,7 @@ def sync_changes(ui, repo):
 #######################################################################
 # hg upload
 
+@hgcommand
 def upload(ui, repo, name, **opts):
 	"""upload diffs to the code review server
 
