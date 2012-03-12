@@ -53,7 +53,9 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Otherwise append .xml and hope to find
-	// a codewalk description.
+	// a codewalk description, but before trim
+	// the trailing /.
+	abspath = strings.TrimRight(abspath, "/")
 	cw, err := loadCodewalk(abspath + ".xml")
 	if err != nil {
 		log.Print(err)
