@@ -117,12 +117,17 @@ TEXT runtime·sigaction(SB),7,$0
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
 
+	// check that m exists
+	MOVQ	m(BX), BP
+	CMPQ	BP, $0
+	JNE	2(PC)
+	CALL	runtime·badsignal(SB)
+
 	// save g
 	MOVQ	g(BX), R10
 	MOVQ	R10, 48(SP)
 
 	// g = m->gsignal
-	MOVQ	m(BX), BP
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
 
