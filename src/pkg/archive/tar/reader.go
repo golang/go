@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ErrHeader = errors.New("invalid tar header")
+	ErrHeader = errors.New("archive/tar: invalid tar header")
 )
 
 // A Reader provides sequential access to the contents of a tar archive.
