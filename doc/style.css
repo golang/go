@@ -129,18 +129,24 @@ div#heading a {
 
 div#topbar {
 	background: #E0EBF5;
+	height: 64px;
 }
 
 body {
 	text-align: center;
 }
 div#page,
-div#topbar .container {
+div#topbar > .container {
 	clear: both;
 	text-align: left;
 	margin-left: auto;
 	margin-right: auto;
+	padding: 0 20px;
 	width: 900px;
+}
+div#page.wide,
+div#topbar > .wide {
+	width: auto;
 }
 div#plusone {
 	float: right;
@@ -182,6 +188,8 @@ div#blog .read a {
 }
 
 div#menu {
+	float: right;
+	min-width: 590px;
 	padding: 10px 0;
 	text-align: right;
 }
