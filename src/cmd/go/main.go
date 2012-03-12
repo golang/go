@@ -247,8 +247,9 @@ func help(args []string) {
 	os.Exit(2) // failed at 'go help cmd'
 }
 
-// importPaths returns the import paths to use for the given command line.
-func importPaths(args []string) []string {
+// importPathsNoDotExpansion returns the import paths to use for the given
+// command line, but it does no ... expansion.
+func importPathsNoDotExpansion(args []string) []string {
 	if len(args) == 0 {
 		return []string{"."}
 	}
@@ -270,13 +271,26 @@ func importPaths(args []string) []string {
 		} else {
 			a = path.Clean(a)
 		}
-
-		if build.IsLocalImport(a) && strings.Contains(a, "...") {
-			out = append(out, allPackagesInFS(a)...)
+		if a == "all" || a == "std" {
+			out = append(out, allPackages(a)...)
 			continue
 		}
-		if a == "all" || a == "std" || strings.Contains(a, "...") {
-			out = append(out, allPackages(a)...)
+		out = append(out, a)
+	}
+	return out
+}
+
+// importPaths returns the import paths to use for the given command line.
+func importPaths(args []string) []string {
+	args = importPathsNoDotExpansion(args)
+	var out []string
+	for _, a := range args {
+		if strings.Contains(a, "...") {
+			if build.IsLocalImport(a) {
+				out = append(out, allPackagesInFS(a)...)
+			} else {
+				out = append(out, allPackages(a)...)
+			}
 			continue
 		}
 		out = append(out, a)
@@ -345,6 +359,10 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
 func matchPattern(pattern string) func(name string) bool {
 	re := regexp.QuoteMeta(pattern)
 	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+	// Special case: foo/... matches foo too.
+	if strings.HasSuffix(re, `/.*`) {
+		re = re[:len(re)-len(`/.*`)] + `(/.*)?`
+	}
 	reg := regexp.MustCompile(`^` + re + `$`)
 	return func(name string) bool {
 		return reg.MatchString(name)
@@ -356,6 +374,14 @@ func matchPattern(pattern string) func(name string) bool {
 // The pattern is either "all" (all packages), "std" (standard packages)
 // or a path including "...".
 func allPackages(pattern string) []string {
+	pkgs := matchPackages(pattern)
+	if len(pkgs) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
+	}
+	return pkgs
+}
+
+func matchPackages(pattern string) []string {
 	match := func(string) bool { return true }
 	if pattern != "all" && pattern != "std" {
 		match = matchPattern(pattern)
@@ -432,10 +458,6 @@ func allPackages(pattern string) []string {
 			return nil
 		})
 	}
-
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
 	return pkgs
 }
 
@@ -443,6 +465,14 @@ func allPackages(pattern string) []string {
 // beginning ./ or ../, meaning it should scan the tree rooted
 // at the given directory.  There are ... in the pattern too.
 func allPackagesInFS(pattern string) []string {
+	pkgs := matchPackagesInFS(pattern)
+	if len(pkgs) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
+	}
+	return pkgs
+}
+
+func matchPackagesInFS(pattern string) []string {
 	// Find directory to begin the scan.
 	// Could be smarter but this one optimization
 	// is enough for now, since ... is usually at the
@@ -482,10 +512,6 @@ func allPackagesInFS(pattern string) []string {
 		pkgs = append(pkgs, name)
 		return nil
 	})
-
-	if len(pkgs) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
-	}
 	return pkgs
 }
 
