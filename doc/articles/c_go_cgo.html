@@ -1,0 +1,159 @@
+<!--{
+"Title": "C? Go? Cgo!",
+"Template": true
+}-->
+
+<p>
+Cgo lets Go packages call C code. Given a Go source file written with some
+special features, cgo outputs Go and C files that can be combined into a
+single Go package.
+</p>
+
+<p>
+To lead with an example, here's a Go package that provides two functions -
+<code>Random</code> and <code>Seed</code> - that wrap C's <code>random</code>
+and <code>srandom</code> functions.
+</p>
+
+{{code "/doc/progs/cgo1.go" `/package rand/` `/END/`}}
+
+<p>
+Let’s look at what's happening here, starting with the import statement.
+</p>
+
+<p>
+The rand package imports "C", but you'll find there's no such package in
+the standard Go library. That's because <code>C</code> is a
+"pseudo-package", a special name interpreted by cgo as a reference to C's
+name space.
+</p>
+
+<p>
+The rand package contains four references to the <code>C</code> package:
+the calls to <code>C.random</code> and <code>C.srandom</code>, the
+conversion <code>C.uint(i)</code>, and the import statement.
+</p>
+
+<p>
+The <code>Random</code> function calls the libc random function and returns
+the result.  In C, random returns a value of the C type <code>long</code>,
+which cgo represents as the type <code>C.long</code>. It must be converted
+to a Go type before it can be used by Go code outside this package, using
+an ordinary Go type conversion:
+</p>
+
+{{code "/doc/progs/cgo1.go" `/func Random/` `/STOP/`}}
+
+<p>
+Here’s an equivalent function that uses a temporary variable to illustrate
+the type conversion more explicitly:
+</p>
+
+{{code "/doc/progs/cgo2.go" `/func Random/` `/STOP/`}}
+
+<p>
+The <code>Seed</code> function does the reverse, in a way. It takes a
+regular Go <code>int</code>, converts it to the C <code>unsigned int</code>
+type, and passes it to the C function srandom.
+</p>
+
+{{code "/doc/progs/cgo1.go" `/func Seed/` `/END/`}}
+
+<p>
+Note that cgo knows the unsigned int type as C.uint; see the
+<a href="/cmd/cgo">cgo documentation</a> for a complete list of these
+numeric type names.
+</p>
+
+<p>
+The one detail of this example we haven't examined yet is the comment
+above the import statement.
+</p>
+
+{{code "/doc/progs/cgo1.go" `/INCLUDE/` `/STOP/`}}
+
+<p>
+Cgo recognizes this comment and uses it as a header when compiling the C
+parts of the package. In this case it is just a simple include statement,
+but it can be any valid C code. The comment must be immediately before the
+line that imports "C", without any intervening blank lines, just like a
+documentation comment.
+</p>
+
+<p>
+<b>Strings and things</b>
+</p>
+
+<p>
+Unlike Go, C doesn’t have an explicit string type. Strings in C are
+represented by a zero-terminated array of chars.
+</p>
+
+<p>
+Conversion between Go and C strings is done with the
+<code>C.CString</code>, <code>C.GoString</code>, and
+<code>C.GoStringN</code> functions. These conversions make a copy of the
+string data.
+</p>
+
+<p>
+This next example implements a <code>Print</code> function that writes a
+string to standard output using C's <code>fputs</code> function from the
+<code>stdio</code> library:
+</p>
+
+{{code "/doc/progs/cgo3.go" `/package print/` `/END/`}}
+
+<p>
+Memory allocations made by C code are not known to Go's memory manager.
+When you create a C string with <code>C.CString</code> (or any C memory
+allocation) you must remember to free the memory when you’re done with it
+by calling <code>C.free</code>.
+</p>
+
+<p>
+The call to <code>C.CString</code> returns a pointer to the start of the
+char array, so before the function exits we convert it to an
+<a href="/pkg/unsafe/#Pointer">unsafe.Pointer</a> and release the memory
+allocation with <code>C.free</code>. A common idiom in cgo programs is to
+<a href="/doc/articles/defer_panic_recover.html">defer</a> the free
+immediately after allocating (especially when the code that follows is more
+complex than a single function call), as in this rewrite of
+<code>Print</code>:
+</p>
+
+{{code "/doc/progs/cgo4.go" `/func Print/` `/END/`}}
+
+<p>
+<b>Building cgo packages</b>
+</p>
+
+<p>
+To build cgo packages, just use <a href="/cmd/go/#Compile_packages_and_dependencies">"go build"</a> or
+<a href="/cmd/go/#Compile_and_install_packages_and_dependencies">"go install"</a>
+as usual. The go tool recognizes the special "C" import and automatically uses
+cgo for those files.
+</p>
+
+<p>
+<b>More cgo resources</b>
+</p>
+
+<p>
+The <a href="/cmd/cgo/">cgo command</a> documentation has more detail about
+the C pseudo-package and the build process. The cgo examples in the Go tree
+demonstrate more advanced concepts.
+</p>
+
+<p>
+For a simple, idiomatic example of a cgo-based package, see Russ Cox’s <a
+href="http://code.google.com/p/gosqlite/source/browse/sqlite/sqlite.go">gosqlite</a>.
+Also, the Go Project Dashboard lists <a
+href="https://godashboard.appspot.com/project?tag=cgo">several other
+cgo packages</a>.
+</p>
+
+<p>
+Finally, if you’re curious as to how all this works internally, take a look
+at the introductory comment of the runtime package’s <a href="/src/pkg/runtime/cgocall.c">cgocall.c</a>.
+</p>

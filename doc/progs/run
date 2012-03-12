@@ -28,7 +28,14 @@ law_of_reflection="
 	interface2
 "
 
-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection slices go1)
+c_go_cgo="
+    cgo1
+    cgo2
+    cgo3
+    cgo4
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo slices go1)
 
 for i in $all; do
 	go build $i.go
