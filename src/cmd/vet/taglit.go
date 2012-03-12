@@ -81,7 +81,8 @@ var untaggedLiteralWhitelist = map[string]bool{
 
 		find $GOROOT/src/pkg -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
 			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/pkg/,,' | \
-			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | sort
+			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | \
+			sort | awk '{ print "\"" $0 "\": true," }'
 	*/
 	"crypto/x509/pkix.RDNSequence":                  true,
 	"crypto/x509/pkix.RelativeDistinguishedNameSET": true,
