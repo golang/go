@@ -203,7 +203,7 @@ func (b *Build) Do() error {
 			"--id", "com.googlecode.go",
 			"--title", "Go",
 			"--version", "1.0",
-			"--target", "10.5")
+			"--target", "10.6")
 		targs = append(targs, targ)
 	case "windows":
 		// Create ZIP file.
