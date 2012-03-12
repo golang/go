@@ -5,6 +5,7 @@
 package http_test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -174,6 +175,24 @@ func TestRequestMultipartCallOrder(t *testing.T) {
 	err = req.ParseMultipartForm(1024)
 	if err == nil {
 		t.Errorf("expected an error from ParseMultipartForm after call to MultipartReader")
+	}
+}
+
+var readRequestErrorTests = []struct {
+	in  string
+	err error
+}{
+	{"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", nil},
+	{"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF},
+	{"", io.EOF},
+}
+
+func TestReadRequestErrors(t *testing.T) {
+	for i, tt := range readRequestErrorTests {
+		_, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
+		if err != tt.err {
+			t.Errorf("%d. got error = %v; want %v", i, err, tt.err)
+		}
 	}
 }
 
