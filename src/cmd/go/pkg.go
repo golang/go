@@ -276,9 +276,6 @@ func expandScanner(err error) error {
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
-	if gobin != "" {
-		bp.BinDir = gobin
-	}
 	p.copyBuild(bp)
 
 	// The localPrefix is the path we interpret ./ imports relative to.
@@ -541,6 +538,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 		bp, err := build.ImportDir(filepath.Join(gorootSrc, arg), 0)
 		bp.ImportPath = arg
 		bp.Goroot = true
+		bp.BinDir = gobin
 		bp.Root = goroot
 		bp.SrcRoot = gorootSrc
 		p := new(Package)

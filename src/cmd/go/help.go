@@ -209,9 +209,7 @@ the final element, not the entire path.  That is, the
 command with source in DIR/src/foo/quux is installed into
 DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
 so that you can add DIR/bin to your PATH to get at the
-installed commands.  If the GOBIN environment variable is
-set, commands are installed to the directory it names instead
-of DIR/bin.
+installed commands.
 
 Here's an example directory layout:
 
