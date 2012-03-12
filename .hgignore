@@ -33,6 +33,7 @@ misc/goplay/goplay
 misc/osx/*.pkg
 misc/osx/*.dmg
 src/cmd/6a/6a
+src/cmd/?a/y.output
 src/cmd/?l/enam.c
 src/cmd/cc/y.output
 src/cmd/dist/dist.dSYM
