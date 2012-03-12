@@ -199,6 +199,8 @@ along with their dependencies.
 
 For more about the build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
+For more about where packages and binaries are installed,
+see 'go help gopath'.
 
 See also: go build, go get, go clean.
 	`,
@@ -302,19 +304,12 @@ const (
 )
 
 var (
+	gobin        = os.Getenv("GOBIN")
 	goroot       = filepath.Clean(runtime.GOROOT())
-	gobin        = defaultGobin()
 	gorootSrcPkg = filepath.Join(goroot, "src/pkg")
 	gorootPkg    = filepath.Join(goroot, "pkg")
 	gorootSrc    = filepath.Join(goroot, "src")
 )
-
-func defaultGobin() string {
-	if s := os.Getenv("GOBIN"); s != "" {
-		return s
-	}
-	return filepath.Join(goroot, "bin")
-}
 
 func (b *builder) init() {
 	var err error
@@ -387,18 +382,24 @@ func goFilesPackage(gofiles []string) *Package {
 	pkg.load(&stk, bp, err)
 	pkg.localPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
+	pkg.target = ""
 
-	if *buildO == "" {
-		if pkg.Name == "main" {
-			_, elem := filepath.Split(gofiles[0])
-			*buildO = elem[:len(elem)-len(".go")] + exeSuffix
-		} else {
+	if pkg.Name == "main" {
+		_, elem := filepath.Split(gofiles[0])
+		exe := elem[:len(elem)-len(".go")] + exeSuffix
+		if *buildO == "" {
+			*buildO = exe
+		}
+		if gobin != "" {
+			pkg.target = filepath.Join(gobin, exe)
+		}
+	} else {
+		if *buildO == "" {
 			*buildO = pkg.Name + ".a"
 		}
 	}
-	pkg.target = ""
-	pkg.Target = ""
 	pkg.Stale = true
+	pkg.Target = pkg.target
 
 	computeStale(pkg)
 	return pkg
@@ -462,13 +463,13 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		return a
 	}
 
-	if p.local {
+	a.link = p.Name == "main"
+	if p.local && (!a.link || p.target == "") {
 		// Imported via local path.  No permanent target.
 		mode = modeBuild
 	}
 	a.objdir = filepath.Join(b.work, a.p.ImportPath, "_obj") + string(filepath.Separator)
 	a.objpkg = buildToolchain.pkgpath(b.work, a.p)
-	a.link = p.Name == "main"
 
 	switch mode {
 	case modeInstall:
