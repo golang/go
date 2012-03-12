@@ -29,7 +29,7 @@ can be safely embedded in an HTML document. The escaping is contextual, so
 actions can appear within JavaScript, CSS, and URI contexts.
 
 The security model used by this package assumes that template authors are
-trusted, while text/template Execute's data parameter is not. More details are
+trusted, while Execute's data parameter is not. More details are
 provided below.
 
 Example
