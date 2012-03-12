@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -95,7 +96,8 @@ var writerTests = []*writerTest{
 					Uname:    "dsymonds",
 					Gname:    "eng",
 				},
-				// no contents
+				// fake contents
+				contents: strings.Repeat("\x00", 4<<10),
 			},
 		},
 	},
@@ -150,7 +152,9 @@ testLoop:
 
 		buf := new(bytes.Buffer)
 		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
+		big := false
 		for j, entry := range test.entries {
+			big = big || entry.header.Size > 1<<10
 			if err := tw.WriteHeader(entry.header); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err)
 				continue testLoop
@@ -160,7 +164,8 @@ testLoop:
 				continue testLoop
 			}
 		}
-		if err := tw.Close(); err != nil {
+		// Only interested in Close failures for the small tests.
+		if err := tw.Close(); err != nil && !big {
 			t.Errorf("test %d: Failed closing archive: %v", i, err)
 			continue testLoop
 		}

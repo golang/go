@@ -5,18 +5,19 @@
 package tar
 
 // TODO(dsymonds):
-// - catch more errors (no first header, write after close, etc.)
+// - catch more errors (no first header, etc.)
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 )
 
 var (
-	ErrWriteTooLong    = errors.New("write too long")
-	ErrFieldTooLong    = errors.New("header field too long")
-	ErrWriteAfterClose = errors.New("write after close")
+	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+	ErrWriteAfterClose = errors.New("archive/tar: write after close")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -48,6 +49,11 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
 // Flush finishes writing the current file (optional).
 func (tw *Writer) Flush() error {
+	if tw.nb > 0 {
+		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
+		return tw.err
+	}
+
 	n := tw.nb + tw.pad
 	for n > 0 && tw.err == nil {
 		nr := n
@@ -193,6 +199,9 @@ func (tw *Writer) Close() error {
 	}
 	tw.Flush()
 	tw.closed = true
+	if tw.err != nil {
+		return tw.err
+	}
 
 	// trailer: two zero blocks
 	for i := 0; i < 2; i++ {
