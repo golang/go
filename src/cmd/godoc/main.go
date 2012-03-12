@@ -45,7 +45,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 )
 
 const defaultAddr = ":6060" // default webserver address
@@ -57,11 +56,6 @@ var (
 
 	// file-based index
 	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
-
-	// periodic sync
-	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
-	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
-	syncDelay delayTime // actual sync interval in minutes; usually syncDelay == syncMin, but syncDelay may back off exponentially
 
 	// network
 	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
@@ -80,75 +74,6 @@ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err erro
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
 	servePage(w, "File "+relpath, "", "", contents)
-}
-
-func exec(rw http.ResponseWriter, args []string) (status int) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		log.Printf("os.Pipe(): %v", err)
-		return 2
-	}
-
-	bin := args[0]
-	fds := []*os.File{nil, w, w}
-	if *verbose {
-		log.Printf("executing %v", args)
-	}
-	p, err := os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: *goroot})
-	defer r.Close()
-	w.Close()
-	if err != nil {
-		log.Printf("os.StartProcess(%q): %v", bin, err)
-		return 2
-	}
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	wait, err := p.Wait()
-	if err != nil {
-		os.Stderr.Write(buf.Bytes())
-		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
-		return 2
-	}
-	if !wait.Success() {
-		os.Stderr.Write(buf.Bytes())
-		log.Printf("executing %v failed", args)
-		status = 1 // See comment in default case in dosync.
-		return
-	}
-
-	if *verbose {
-		os.Stderr.Write(buf.Bytes())
-	}
-	if rw != nil {
-		rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		rw.Write(buf.Bytes())
-	}
-
-	return
-}
-
-func dosync(w http.ResponseWriter, r *http.Request) {
-	args := []string{"/bin/sh", "-c", *syncCmd}
-	switch exec(w, args) {
-	case 0:
-		// sync succeeded and some files have changed;
-		// update package tree.
-		// TODO(gri): The directory tree may be temporarily out-of-sync.
-		//            Consider keeping separate time stamps so the web-
-		//            page can indicate this discrepancy.
-		initFSTree()
-		fallthrough
-	case 1:
-		// sync failed because no files changed;
-		// don't change the package tree
-		syncDelay.set(time.Duration(*syncMin) * time.Minute) //  revert to regular sync schedule
-	default:
-		// TODO(r): this cannot happen now, since Wait has a boolean exit condition,
-		// not an integer.
-		// sync failed because of an error - back off exponentially, but try at least once a day
-		syncDelay.backoff(24 * time.Hour)
-	}
 }
 
 func usage() {
@@ -348,29 +273,10 @@ func main() {
 		}
 
 		registerPublicHandlers(http.DefaultServeMux)
-		if *syncCmd != "" {
-			http.Handle("/debug/sync", http.HandlerFunc(dosync))
-		}
 
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)
 		go initFSTree()
-
-		// Start sync goroutine, if enabled.
-		if *syncCmd != "" && *syncMin > 0 {
-			syncDelay.set(*syncMin) // initial sync delay
-			go func() {
-				for {
-					dosync(nil, nil)
-					delay, _ := syncDelay.get()
-					dt := delay.(time.Duration)
-					if *verbose {
-						log.Printf("next sync in %s", dt)
-					}
-					time.Sleep(dt)
-				}
-			}()
-		}
 
 		// Immediately update metadata.
 		updateMetadata()
