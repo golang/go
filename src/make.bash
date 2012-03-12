@@ -86,7 +86,14 @@ echo cmd/dist
 export GOROOT="$(cd .. && pwd)"
 GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
 DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
-gcc -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+
+mflag=""
+case "$GOHOSTARCH" in
+386) mflag=-m32;;
+amd64) mflag=-m64;;
+esac
+gcc $mflag -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+
 eval $(./cmd/dist/dist env -p)
 echo
 
