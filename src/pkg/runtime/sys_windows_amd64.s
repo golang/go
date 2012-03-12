@@ -116,7 +116,7 @@ TEXT runtime·setlasterror(SB),7,$0
 	MOVL	AX, 0x68(CX)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$56
+TEXT runtime·sigtramp(SB),7,$0
 	// CX: exception record
 	// R8: context
 
@@ -125,7 +125,12 @@ TEXT runtime·sigtramp(SB),7,$56
 	MOVL	$1, AX
 	JNZ	sigdone
 
-	// copy arguments for call to sighandler
+	// copy arguments for call to sighandler.
+
+	// Stack adjustment is here to hide from 6l,
+	// which doesn't understand that sigtramp
+	// runs on essentially unlimited stack.
+	SUBQ	$56, SP
 	MOVQ	CX, 0(SP)
 	MOVQ	R8, 8(SP)
 
@@ -151,6 +156,8 @@ TEXT runtime·sigtramp(SB),7,$56
 	MOVQ	32(SP), BP
 	MOVQ	40(SP), SI
 	MOVQ	48(SP), DI
+	ADDQ	$56, SP
+
 sigdone:
 	RET
 
