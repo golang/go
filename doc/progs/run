@@ -5,6 +5,8 @@
 
 set -e
 
+goos=$(go env GOOS)
+
 defer_panic_recover="
 	defer
 	defer2
@@ -29,11 +31,15 @@ law_of_reflection="
 "
 
 c_go_cgo="
-    cgo1
-    cgo2
-    cgo3
-    cgo4
+	cgo1
+	cgo2
+	cgo3
+	cgo4
 "
+# cgo1 and cgo2 don't run on freebsd, srandom has a different signature
+if [ "$goos" == "freebsd" ]; then
+	c_go_cgo="cgo3 cgo4"
+fi
 
 all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo slices go1)
 
