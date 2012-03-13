@@ -21,7 +21,7 @@
 # building the packages and commands.
 #
 # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
-# building the packages and commands.
+# building the commands.
 #
 # CGO_ENABLED: Setting this to 0 disables the use of cgo
 # in the built and installed packages and tools.
