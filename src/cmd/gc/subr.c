@@ -3624,23 +3624,23 @@ isbadimport(Strlit *path)
 	while(*s) {
 		s += chartorune(&r, s);
 		if(r == Runeerror) {
-			yyerror("import path contains invalid UTF-8 sequence");
+			yyerror("import path contains invalid UTF-8 sequence: \"%s\"", path->s);
 			return 1;
 		}
 		if(r < 0x20 || r == 0x7f) {
-			yyerror("import path contains control character");
+			yyerror("import path contains control character: \"%s\"", path->s);
 			return 1;
 		}
 		if(r == '\\') {
-			yyerror("import path contains backslash; use slash");
+			yyerror("import path contains backslash; use slash: \"%s\"", path->s);
 			return 1;
 		}
 		if(isspacerune(r)) {
-			yyerror("import path contains space character");
+			yyerror("import path contains space character: \"%s\"", path->s);
 			return 1;
 		}
 		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}~", r)) {
-			yyerror("import path contains invalid character '%C'", r);
+			yyerror("import path contains invalid character '%C': \"%s\"", r, path->s);
 			return 1;
 		}
 	}
