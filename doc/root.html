@@ -5,9 +5,10 @@
 <div class="left">
 
 <div id="learn">
+<img class="icon share" src="/doc/share.png">
 <div class="rootHeading">Try Go</div>
 <div class="input">
-<textarea spellcheck="false" id="code">// You can edit this code!
+<textarea spellcheck="false" class="code">// You can edit this code!
 // Click here and start typing.
 package main
 
@@ -17,14 +18,14 @@ func main() {
 	fmt.Println("Hello, 世界")
 }</textarea>
 </div>
-<div class="output" id="output">
+<div class="output">
 <pre>
 Hello, 世界
 </pre>
 </div>
 <div class="buttons">
-<a id="run" href="#">Run</a>
-<a id="share" href="#">Share</a>
+<a class="run" href="#">Run</a>
+<a class="share" href="#">Share</a>
 </div>
 </div>
 
@@ -112,10 +113,10 @@ function init() {
 	// Set up playground.
 	playground({
 		"simple":        true,
-		"codeEl":        "#code",
-		"outputEl":      "#output",
-		"runEl":         "#run",
-		"shareEl":       "#share",
+		"codeEl":        "#learn .code",
+		"outputEl":      "#learn .output",
+		"runEl":         "#learn .run",
+		"shareEl":       "#learn .share",
 		"shareRedirect": "http://play.golang.org/p/"
 	});
 }

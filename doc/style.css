@@ -18,11 +18,11 @@ pre .highlight,
 pre .highlight-comment,
 pre .selection-highlight,
 pre .selection-highlight-comment {
-    background: #FFFF00;
+	background: #FFFF00;
 }
 pre .selection,
 pre .selection-comment {
-    background: #FF9632;
+	background: #FF9632;
 }
 pre .ln {
 	color: #999;
@@ -33,6 +33,9 @@ body {
 a {
 	color: #375EAB;
 	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
 }
 p,
 pre,
@@ -80,13 +83,6 @@ h4 {
 .rootHeading {
 	font-size: 20px;
 	margin: 0;
-}
-
-h1 a,
-h2 a,
-h3 a,
-h4 a {
-	text-decoration: underline;
 }
 
 dl {
@@ -262,6 +258,10 @@ a#start .desc {
 	margin-top: 5px;
 }
 
+div#learn .icon {
+	float: right;
+	cursor: pointer;
+}
 div#learn pre,
 div#learn textarea {
 	padding: 0;
@@ -351,8 +351,6 @@ div#video > h2 {
 }
 div#blog .title,
 div#video .title {
-	color: #222;
-	text-decoration: none;
 	display: block;
 	font-size: 20px;
 }
