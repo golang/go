@@ -201,6 +201,10 @@ var parseTests = []parseTest{
 		`{{range .X | .M}}"true"{{else}}"false"{{end}}`},
 	{"range []int", "{{range .SI}}{{.}}{{end}}", noError,
 		`{{range .SI}}{{.}}{{end}}`},
+	{"range 1 var", "{{range $x := .SI}}{{.}}{{end}}", noError,
+		`{{range $x := .SI}}{{.}}{{end}}`},
+	{"range 2 vars", "{{range $x, $y := .SI}}{{.}}{{end}}", noError,
+		`{{range $x, $y := .SI}}{{.}}{{end}}`},
 	{"constants", "{{range .SI 1 -3.2i true false 'a'}}{{end}}", noError,
 		`{{range .SI 1 -3.2i true false 'a'}}{{end}}`},
 	{"template", "{{template `x`}}", noError,
@@ -226,6 +230,17 @@ var parseTests = []parseTest{
 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+	// Equals (and other chars) do not assignments make (yet).
+	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
+	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},
+	{"bug0c", "{{$x ! 2}}{{$x}}", hasError, ""},
+	{"bug0d", "{{$x % 3}}{{$x}}", hasError, ""},
+	// Check the parse fails for := rather than comma.
+	{"bug0e", "{{range $x := $y := 3}}{{end}}", hasError, ""},
+	// Another bug: variable read must ignore following punctuation.
+	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
+	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
+	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
 }
 
 var builtins = map[string]interface{}{

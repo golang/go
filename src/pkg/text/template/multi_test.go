@@ -93,7 +93,7 @@ var multiExecTests = []execTest{
 	{"invoke dot []int", `{{template "dot" .SI}}`, "[3 4 5]", tVal, true},
 	{"invoke dotV", `{{template "dotV" .U}}`, "v", tVal, true},
 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
-	{"variable declared by template", `{{template "nested" $x=.SI}},{{index $x 1}}`, "[3 4 5],4", tVal, true},
+	{"variable declared by template", `{{template "nested" $x:=.SI}},{{index $x 1}}`, "[3 4 5],4", tVal, true},
 
 	// User-defined function: test argument evaluator.
 	{"testFunc literal", `{{oneArg "joe"}}`, "oneArg=joe", tVal, true},
