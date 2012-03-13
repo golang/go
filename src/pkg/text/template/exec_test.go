@@ -466,6 +466,10 @@ var execTests = []execTest{
 	{"bug6b", "{{vfunc .V0 .V0}}", "vfunc", tVal, true},
 	{"bug6c", "{{vfunc .V1 .V0}}", "vfunc", tVal, true},
 	{"bug6d", "{{vfunc .V1 .V1}}", "vfunc", tVal, true},
+	// Legal parse but illegal execution: non-function should have no arguments.
+	{"bug7a", "{{3 2}}", "", tVal, false},
+	{"bug7b", "{{$x := 1}}{{$x 2}}", "", tVal, false},
+	{"bug7c", "{{$x := 1}}{{3 | $x}}", "", tVal, false},
 }
 
 func zeroArgs() string {

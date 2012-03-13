@@ -369,6 +369,7 @@ func (s *state) evalVariableNode(dot reflect.Value, v *parse.VariableNode, args 
 	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
 	value := s.varValue(v.Ident[0])
 	if len(v.Ident) == 1 {
+		s.notAFunction(args, final)
 		return value
 	}
 	return s.evalFieldChain(dot, value, v.Ident[1:], args, final)
