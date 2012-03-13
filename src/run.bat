@@ -39,11 +39,13 @@ echo.
 :: TODO: The other tests in run.bash.
 
 echo # test
-cd test
+cd ..\test
+set FAIL=0
 go run run.go
-cd ..
-if errorlevel 1 goto fail
+if errorlevel 1 set FAIL=1
+cd ..\src
 echo.
+if %FAIL%==1 goto fail
 
 echo ALL TESTS PASSED
 goto end
