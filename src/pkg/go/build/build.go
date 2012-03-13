@@ -874,7 +874,7 @@ func splitQuoted(s string) (r []string, err error) {
 //	!cgo (if cgo is disabled)
 //	tag (if tag is listed in ctxt.BuildTags)
 //	!tag (if tag is not listed in ctxt.BuildTags)
-//	a slash-separated list of any of these
+//	a comma-separated list of any of these
 //
 func (ctxt *Context) match(name string) bool {
 	if name == "" {
@@ -888,11 +888,11 @@ func (ctxt *Context) match(name string) bool {
 		return false
 	}
 	if strings.HasPrefix(name, "!") { // negation
-		return !ctxt.match(name[1:])
+		return len(name) > 1 && !ctxt.match(name[1:])
 	}
 
 	// Tags must be letters, digits, underscores.
-	// Unlike in Go identifiers, all digits is fine (e.g., "386").
+	// Unlike in Go identifiers, all digits are fine (e.g., "386").
 	for _, c := range name {
 		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
 			return false

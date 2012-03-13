@@ -36,6 +36,7 @@ func TestMatch(t *testing.T) {
 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",!foo")
 	match(runtime.GOOS + "," + runtime.GOARCH + ",!bar")
 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",bar")
+	nomatch("!")
 }
 
 func TestDotSlashImport(t *testing.T) {
