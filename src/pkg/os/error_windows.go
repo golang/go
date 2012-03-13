@@ -6,9 +6,7 @@ package os
 
 import "syscall"
 
-// IsExist returns whether the error is known to report that a file already exists.
-// It is satisfied by ErrExist as well as some syscall errors.
-func IsExist(err error) bool {
+func isExist(err error) bool {
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
@@ -16,18 +14,14 @@ func IsExist(err error) bool {
 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
 }
 
-// IsNotExist returns whether the error is known to report that a file does not exist.
-// It is satisfied by ErrNotExist as well as some syscall errors.
-func IsNotExist(err error) bool {
+func isNotExist(err error) bool {
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
 	return err == syscall.ENOENT || err == ErrNotExist
 }
 
-// IsPermission returns whether the error is known to report that permission is denied.
-// It is satisfied by ErrPermission as well as some syscall errors.
-func IsPermission(err error) bool {
+func isPermission(err error) bool {
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
