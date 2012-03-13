@@ -810,7 +810,7 @@ func TestMultiLine(t *testing.T) {
 	}
 }
 
-// RecursiveInt accepts an string matching %d.%d.%d....
+// RecursiveInt accepts a string matching %d.%d.%d....
 // and parses it into a linked list.
 // It allows us to benchmark recursive descent style scanners.
 type RecursiveInt struct {
@@ -826,7 +826,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
 	next := new(RecursiveInt)
 	_, err = Fscanf(state, ".%v", next)
 	if err != nil {
-		if err == errors.New("input does not match format") || err == io.ErrUnexpectedEOF {
+		if err == io.ErrUnexpectedEOF {
 			err = nil
 		}
 		return
