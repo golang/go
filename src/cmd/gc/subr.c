@@ -3639,7 +3639,7 @@ isbadimport(Strlit *path)
 			yyerror("import path contains space character: \"%s\"", path->s);
 			return 1;
 		}
-		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}~", r)) {
+		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}", r)) {
 			yyerror("import path contains invalid character '%C': \"%s\"", r, path->s);
 			return 1;
 		}
