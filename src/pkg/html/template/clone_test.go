@@ -113,3 +113,10 @@ func TestClone(t *testing.T) {
 		t.Errorf("t3: got %q want %q", got, want)
 	}
 }
+
+// This used to crash; http://golang.org/issue/3281
+func TestCloneCrash(t *testing.T) {
+	t1 := New("all")
+	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))
+	t1.Clone()
+}
