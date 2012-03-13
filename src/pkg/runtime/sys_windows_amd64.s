@@ -137,7 +137,7 @@ TEXT runtime·sigtramp(SB),7,$0
 	get_tls(CX)
 
 	// check that m exists
-	MOVQ	m(BX), AX
+	MOVQ	m(CX), AX
 	CMPQ	AX, $0
 	JNE	2(PC)
 	CALL	runtime·badsignal(SB)
