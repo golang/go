@@ -46,8 +46,8 @@ if x%1==x--no-clean set buildall=
 .\cmd\dist\dist bootstrap %buildall% -v
 if errorlevel 1 goto fail
 :: Delay move of dist tool to now, because bootstrap cleared tool directory.
-move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
-%GOTOOLDIR%\go_bootstrap clean -i std
+move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
+"%GOTOOLDIR%\go_bootstrap" clean -i std
 echo.
 
 if not %GOHOSTARCH% == %GOARCH% goto localbuild
@@ -59,20 +59,20 @@ echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
-%GOTOOLDIR%\go_bootstrap install -v std
+"%GOTOOLDIR%\go_bootstrap" install -v std
 endlocal
 if errorlevel 1 goto fail
 echo.
 
 :mainbuild
 echo # Building packages and commands.
-%GOTOOLDIR%\go_bootstrap install -a -v std
+"%GOTOOLDIR%\go_bootstrap" install -a -v std
 if errorlevel 1 goto fail
-del %GOTOOLDIR%\go_bootstrap.exe
+del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.
 
 if x%1==x--no-banner goto nobanner
-%GOTOOLDIR%\dist banner
+"%GOTOOLDIR%\dist" banner
 :nobanner
 
 goto end
