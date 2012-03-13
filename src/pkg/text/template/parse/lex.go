@@ -347,6 +347,9 @@ Loop:
 		default:
 			l.backup()
 			word := l.input[l.start:l.pos]
+			if !l.atTerminator() {
+				return l.errorf("unexpected character %+U", r)
+			}
 			switch {
 			case key[word] > itemKeyword:
 				l.emit(key[word])
@@ -363,6 +366,28 @@ Loop:
 		}
 	}
 	return lexInsideAction
+}
+
+// atTerminator reports whether the input is at valid termination character to
+// appear after an identifier. Mostly to catch cases like "$x+2" not being
+// acceptable without a space, in case we decide one day to implement
+// arithmetic.
+func (l *lexer) atTerminator() bool {
+	r := l.peek()
+	if isSpace(r) {
+		return true
+	}
+	switch r {
+	case eof, ',', '|', ':':
+		return true
+	}
+	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
+	// succeed but should fail) but only in extremely rare cases caused by willfully
+	// bad choice of delimiter.
+	if rd, _ := utf8.DecodeRuneInString(l.rightDelim); rd == r {
+		return true
+	}
+	return false
 }
 
 // lexChar scans a character constant. The initial quote is already

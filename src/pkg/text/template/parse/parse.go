@@ -326,7 +326,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	for {
 		if v := t.peek(); v.typ == itemVariable {
 			t.next()
-			if next := t.peek(); next.typ == itemColonEquals || next.typ == itemChar {
+			if next := t.peek(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
 				t.next()
 				variable := newVariable(v.val)
 				if len(variable.Ident) != 1 {
