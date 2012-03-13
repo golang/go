@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 var (
@@ -527,22 +526,16 @@ func makeTar(targ, workdir string) error {
 		if fi.IsDir() {
 			return nil
 		}
-		var typeFlag byte
-		switch {
-		case fi.Mode()&os.ModeType == 0:
-			typeFlag = tar.TypeReg
-		default:
-			log.Fatalf("makeTar: unknown file for file %q", name)
+		hdr, err := tarFileInfoHeader(fi, path)
+		if err != nil {
+			return err
 		}
-		hdr := &tar.Header{
-			Name:     name,
-			Mode:     int64(fi.Sys().(*syscall.Stat_t).Mode),
-			Size:     fi.Size(),
-			ModTime:  fi.ModTime(),
-			Typeflag: typeFlag,
-			Uname:    "root",
-			Gname:    "root",
-		}
+		hdr.Name = name
+		hdr.Uname = "root"
+		hdr.Gname = "root"
+		hdr.Uid = 0
+		hdr.Gid = 0
+
 		err = tw.WriteHeader(hdr)
 		if err != nil {
 			return fmt.Errorf("Error writing file %q: %v", name, err)
@@ -685,4 +678,65 @@ func lookPath(prog string) (absPath string, err error) {
 		}
 	}
 	return
+}
+
+// sysStat, if non-nil, populates h from system-dependent fields of fi.
+var sysStat func(fi os.FileInfo, h *tar.Header) error
+
+// Mode constants from the tar spec.
+const (
+	c_ISDIR  = 040000
+	c_ISFIFO = 010000
+	c_ISREG  = 0100000
+	c_ISLNK  = 0120000
+	c_ISBLK  = 060000
+	c_ISCHR  = 020000
+	c_ISSOCK = 0140000
+)
+
+// tarFileInfoHeader creates a partially-populated Header from an os.FileInfo.
+// The filename parameter is used only in the case of symlinks, to call os.Readlink.
+// If fi is a symlink but filename is empty, an error is returned.
+func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
+	h := &tar.Header{
+		Name:    fi.Name(),
+		ModTime: fi.ModTime(),
+		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
+	}
+	switch {
+	case fi.Mode()&os.ModeType == 0:
+		h.Mode |= c_ISREG
+		h.Typeflag = tar.TypeReg
+		h.Size = fi.Size()
+	case fi.IsDir():
+		h.Typeflag = tar.TypeDir
+		h.Mode |= c_ISDIR
+	case fi.Mode()&os.ModeSymlink != 0:
+		h.Typeflag = tar.TypeSymlink
+		h.Mode |= c_ISLNK
+		if filename == "" {
+			return h, fmt.Errorf("archive/tar: unable to populate Header.Linkname of symlinks")
+		}
+		targ, err := os.Readlink(filename)
+		if err != nil {
+			return h, err
+		}
+		h.Linkname = targ
+	case fi.Mode()&os.ModeDevice != 0:
+		if fi.Mode()&os.ModeCharDevice != 0 {
+			h.Mode |= c_ISCHR
+			h.Typeflag = tar.TypeChar
+		} else {
+			h.Mode |= c_ISBLK
+			h.Typeflag = tar.TypeBlock
+		}
+	case fi.Mode()&os.ModeSocket != 0:
+		h.Mode |= c_ISSOCK
+	default:
+		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fi.Mode())
+	}
+	if sysStat != nil {
+		return h, sysStat(fi, h)
+	}
+	return h, nil
 }
