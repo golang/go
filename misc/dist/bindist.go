@@ -154,6 +154,7 @@ func (b *Build) Do() error {
 	if err != nil {
 		return err
 	}
+	fullVersion = bytes.TrimSpace(fullVersion)
 	v := bytes.SplitN(fullVersion, []byte(" "), 2)
 	version = string(v[0])
 
