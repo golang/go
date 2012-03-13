@@ -14,6 +14,150 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-03-12">2012-03-12</h2>
+
+<pre>
+This weekly snapshot is very close to what we expect will be the contents of
+the Go 1 release. There are still a few minor documentation issues to resolve,
+and a handful of bugs that should be addressed before the release, but the vast
+majority of Go programs should be completely unaffected by any changes we make
+between now and the full release.
+
+If you're interested in helping us test, eager to try out Go 1, or just
+curious, this weekly snapshot is the one to try. We'll issue a new App Engine
+Go 1 beta SDK very soon, so if you're an App Engine user you can try it there
+too.
+
+To help us focus on any remaining bugs and avoid introducing new ones, we will
+restrict our attention to critical fixes and issues marked Go1-Must in the
+issue tracker. Everything non-essential will be held until after the Go 1
+release is cut and in the field for a while.
+
+Changes in this snapshot:
+* archive/zip: verify CRC32s in non-streamed files,
+	write data descriptor signature for OS X; fix bugs reading it.
+* build: re-enable some broken tests in run.bash (thanks Shenghou Ma),
+	remove some references to Make.inc etc.
+	use run.go for running tests.
+* builder: use short test for subrepos (thanks Shenghou Ma).
+* cgo, runtime: diagnose callback on non-Go thread.
+* cmd/api: set compiler for all build contexts,
+	work on Windows again, and make gccgo files work a bit more.
+* cmd/cgo: document CGO_LDFLAGS and CGO_CFLAGS,
+	silence const warnings.
+* cmd/dist, cmd/go: move CGO_ENABLED from 'go tool dist env' to 'go env' (thanks Shenghou Ma).
+* cmd/dist: fix build for Linux/ARM (thanks Shenghou Ma),
+	use correct hg tag for go version (thanks Alex Brainman).
+* cmd/gc: delete old map delete in walk,
+	do not confuse unexported methods of same name,
+	if $GOROOT_FINAL is set, rewrite file names in object files,
+	implement len(array) / cap(array) rule,
+	import path cannot start with slash on Windows (thanks Shenghou Ma),
+	must not inline panic, recover,
+	show duplicate key in error,
+	unnamed struct types can have methods.
+* cmd/go: add -compiler,
+	add env command, use to fix misc/cgo/testso,
+	allow go get with arbitrary URLs,
+	always provide .exe suffix on windows (thanks Shenghou Ma),
+	document import path meta tag discovery in go help remote,
+	honor buildflags in run, test (thanks Rémy Oudompheng),
+	local import fixes,
+	rebuild external test package dependencies,
+	support -compiler for go list, fix isStale for gccgo (thanks Rémy Oudompheng).
+* cmd/godoc: add support for serving templates,
+	remove extra / in paths (thanks Ugorji Nwoke).
+* cmd/gofmt: fix race in long test (thanks Mikio Hara).
+* crypto/x509: allow server gated crypto in windows systemVerify (thanks Mikkel Krautz),
+	do not forget to free cert context (thanks Alex Brainman),
+	don't include empty additional primes in PKCS#1 private key,
+	enforce path length constraint,
+	new home for root fetchers; build chains using Windows API (thanks Mikkel Krautz).
+* csv: clarify what a negative FieldsPerRecord means.
+* database/sql: add docs about connection state, pooling,
+	ensure Stmts are correctly closed (thanks Gwenael Treguier),
+	fix double connection free on Stmt.Query error,
+	fix typo bug resulting in double-Prepare.
+* database/sql: add ErrBadConn.
+* doc/go1: template packages have changed since r60.
+* doc/go_mem: init-created goroutine behavior changes for Go 1 (thanks Shenghou Ma).
+* doc/gopher: flip frontpage gopher's eyes.
+* doc: add "About the go command" article,
+	add more gophers,
+	add note about import . to Go 1 compatibility notes,
+	several doc fixes and improvements,
+	update progs/run (thanks Shenghou Ma),
+	update Effective Go init section.
+* encoding/asn1: handle UTCTime before the year 2000.
+* encoding/binary: improve package comment (thanks Stefan Nilsson).
+* encoding/gob: fix memory corruption.
+* encoding/json: document that nil slice encodes as `null`.
+* exp/wingui: moved to code.google.com/p/gowingui.
+* expvar: add locking to String, and use RWMutex properly throughout,
+	add missing locking in String methods.
+* fmt, log: stop using unicode.
+* fmt: minor tweak of package doc to show headings in godoc (thanks Volker Dobler).
+* go/build, cmd/go: add support for .syso files.
+* go/build: add NoGoError,
+	add dependency test,
+	do not parse .syso files (thanks Alex Brainman).
+* go/parser: avoid endless loop in case of internal error,
+	better error synchronization.
+* go/printer, gofmt: nicer formatting of multi-line returns.
+* go/printer: example for Fprint.
+* go/scanner: better panic diagnostic.
+* go spec: no known implementation differences anymore.
+* godoc: quiet log spam,
+	support $GOPATH, simplify file system code,
+	switch on +1 buttons,
+	update documentation.
+* io: better document WriterAt.
+* misc/dashboard: remove obsolete package builder code.
+* misc/dist: add source archive support,
+	add windows installer and zip support,
+	minimum target requirement is 10.6 for Darwin (thanks Shenghou Ma).
+* misc/emacs: fix extra indentation after comments that end with a period.
+* misc/xcode: example install of language spec for Xcode 4.x (thanks Emil Hessman).
+* net, net/rpc, reflect, time: document concurrency guarantees.
+* net/http: fix crash with Transport.CloseIdleConnections.
+* net: add skip message to test (thanks Mikio Hara),
+	disable use of external listen along with other external network uses,
+	do not use reflect for DNS messages (thanks Rémy Oudompheng),
+	document ReadMsgUnix, WriteMsgUnix,
+	fix TestDialTimeout on windows builder,
+	improve server and file tests (thanks Mikio Hara),
+	make Dial and Listen behavior consistent across over platforms (thanks Mikio Hara),
+	remove dependence on bytes, fmt, strconv,
+	silence another epoll print,
+	use IANA reserved port to test dial timeout (thanks Mikio Hara).
+* os: fix SameFile to work for directories on windows (thanks Alex Brainman).
+* path/filepath/path_test.go: repair and enable TestAbs.
+* path/filepath: disable AbsTest on windows,
+	retrieve real file name in windows EvalSymlinks (thanks Alex Brainman).
+* runtime/pprof: disable test on Leopard 64-bit.
+* runtime: add Compiler,
+	inline calls to notok,
+	move runtime.write back to C,
+	remove unused runtime·signame and runtime·newError,
+	try extending arena size in 32-bit allocator (thanks Rémy Oudompheng),
+	wait for main goroutine before setting GOMAXPROCS (thanks Rémy Oudompheng).
+* strconv: add table-based isPrint, remove dependence on bytes, unicode, and strings.
+* sync/atomic: disable store and load test on a single processor machine (thanks Mikio Hara).
+* syscall: fix mkall.sh, mksyscall_linux.pl, and regen for Linux/ARM (thanks Shenghou Ma).
+* test/run: use all available cores on ARM system (thanks Shenghou Ma).
+* test: add inherited interface test to ddd.go,
+	enable method expression tests in ddd.go,
+	invoke go command in run.go,
+	match gccgo error messages for bug388.go,
+	skip . files in directory.
+* testing: do not print 'no tests' when there are examples.
+* time: during short test, do not bother tickers take longer than expected (thanks Shenghou Ma),
+	mention receiver in Unix, UnixNano docs.
+* unicode/utf16: remove dependence on package unicode.
+* unicode/utf8: remove dependence on unicode.
+* windows: make background of gopher icon transparent (thanks Volker Dobler).
+</pre>
+
 <h2 id="2012-03-04">2012-03-04</h2>
 
 <pre>
