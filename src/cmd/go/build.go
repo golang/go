@@ -102,7 +102,7 @@ var buildGccgoflags []string // -gccgoflags flag
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
 
-// buildCompier implements flag.Var.
+// buildCompiler implements flag.Var.
 // It implements Set by updating both
 // buildToolchain and buildContext.Compiler.
 type buildCompiler struct{}
