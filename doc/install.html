@@ -51,7 +51,8 @@ OS/arch combination you may want to try
 
 <p>
 The Go binary distributions assume they will be installed in
-<code>/usr/local/go</code>, but it is possible to install them in a different
+<code>/usr/local/go</code> (or <code>c:\Go</code> under Windows),
+but it is possible to install them in a different
 location. If you do this, you will need to set the <code>GOROOT</code>
 environment variable to that directory when using the Go tools.
 </p>
@@ -65,6 +66,11 @@ following commands to <code>$HOME/.profile</code>:
 export GOROOT=$HOME/go
 export PATH=$PATH:$GOROOT/bin
 </pre>
+
+<p>
+Windows users should read the section about <a href="#windows_env">setting
+environment variables under Windows</a>.
+</p>
 
 <h3 id="freebsd_linux">FreeBSD and Linux</h3>
 
@@ -114,6 +120,15 @@ Terminal sessions for the change to take effect.
 <h3 id="windows">Windows</h3>
 
 <p>
+The Go project provides two installation options for Windows users
+(besides <a href="/doc/install/source">installing from source</a>):
+an MSI installer that configures your installation automatically,
+and a zip archive that requires you to set some environment variables.
+</p>
+
+<h4 id="windows_msi">MSI installer</h3>
+
+<p>
 Open the <code>.msi</code> file and follow the prompts to install the Go tools.
 By default, the installer puts the Go distribution in <code>c:\Go</code>.
 </p>
@@ -122,6 +137,31 @@ By default, the installer puts the Go distribution in <code>c:\Go</code>.
 The installer should put the <code>c:\Go\bin</code> directory in your
 <code>PATH</code> environment variable. You may need to restart any open
 command prompts for the change to take effect.
+</p>
+
+<h4 id="windows_zip">Zip archive</h3>
+
+<p>
+Extract the <code>.zip</code> file to the directory of your choice (we
+suggest <code>c:\Go</code>).
+</p>
+
+<p>
+If you chose a directory other than <code>c:\Go</code>, you must set
+the <code>GOROOT</code> environment variable to your chosen path.
+</p>
+
+<p>
+Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
+</p>
+
+<h4 id="windows_env">Setting environment variables under Windows</h4>
+
+<p>
+Under Windows, you may set environment variables through the "Environment
+Variables" button on the "Advanced" tab of the "System" control panel. Some
+versions of Windows provide this control panel through the "Advanced System
+Settings" option inside the "System" control panel.
 </p>
 
 <h2 id="testing">Testing your installation</h2>
