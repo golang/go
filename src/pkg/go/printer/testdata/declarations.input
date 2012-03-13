@@ -577,6 +577,16 @@ c3, d3 int  // this line should be indented
 a4, b4, c4 int  // this line should be indented
 )
 
+// Test case from issue 3304: multi-line declarations must end
+// a formatting section and not influence indentation of the
+// next line.
+var (
+	minRefreshTimeSec = flag.Int64("min_refresh_time_sec", 604800,
+		"minimum time window between two refreshes for a given user.")
+	x = flag.Int64("refresh_user_rollout_percent", 100,
+		"temporary flag to ramp up the refresh user rpc")
+	aVeryLongVariableName = stats.GetVarInt("refresh-user-count")
+)
 
 func _() {
 	var privateKey2 = &Block{Type: "RSA PRIVATE KEY",

@@ -365,7 +365,7 @@ func (p *printer) setLineComment(text string) {
 }
 
 func (p *printer) isMultiLine(n ast.Node) bool {
-	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 1
+	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 0
 }
 
 func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
