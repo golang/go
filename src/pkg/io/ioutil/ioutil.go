@@ -53,10 +53,13 @@ func ReadFile(filename string) ([]byte, error) {
 	defer f.Close()
 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
 	// read, so let's try it but be prepared for the answer to be wrong.
-	fi, err := f.Stat()
 	var n int64
-	if size := fi.Size(); err == nil && size < 2e9 { // Don't preallocate a huge buffer, just in case.
-		n = size
+
+	if fi, err := f.Stat(); err == nil {
+		// Don't preallocate a huge buffer, just in case.
+		if size := fi.Size(); size < 1e9 {
+			n = size
+		}
 	}
 	// As initial capacity for readAll, use n + a little extra in case Size is zero,
 	// and to avoid another allocation after Read has filled the buffer.  The readAll
