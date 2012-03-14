@@ -328,10 +328,10 @@ func (e *NoGoError) Error() string {
 }
 
 // Import returns details about the Go package named by the import path,
-// interpreting local import paths relative to the src directory.  If the path
-// is a local import path naming a package that can be imported using a
-// standard import path, the returned package will set p.ImportPath to
-// that path.
+// interpreting local import paths relative to the srcDir directory.
+// If the path is a local import path naming a package that can be imported
+// using a standard import path, the returned package will set p.ImportPath
+// to that path.
 //
 // In the directory containing the package, .go, .c, .h, and .s files are
 // considered part of the package except for:
@@ -343,7 +343,7 @@ func (e *NoGoError) Error() string {
 // If an error occurs, Import returns a non-nil error also returns a non-nil
 // *Package containing partial information.
 //
-func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package, error) {
+func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
 	}
@@ -363,11 +363,11 @@ func (ctxt *Context) Import(path string, src string, mode ImportMode) (*Package,
 
 	binaryOnly := false
 	if IsLocalImport(path) {
-		if src == "" {
+		if srcDir == "" {
 			return p, fmt.Errorf("import %q: import relative to unknown directory", path)
 		}
 		if !ctxt.isAbsPath(path) {
-			p.Dir = ctxt.joinPath(src, path)
+			p.Dir = ctxt.joinPath(srcDir, path)
 		}
 		// Determine canonical import path, if any.
 		if ctxt.GOROOT != "" {
@@ -640,8 +640,8 @@ func cleanImports(m map[string][]token.Position) ([]string, map[string][]token.P
 }
 
 // Import is shorthand for Default.Import.
-func Import(path, src string, mode ImportMode) (*Package, error) {
-	return Default.Import(path, src, mode)
+func Import(path, srcDir string, mode ImportMode) (*Package, error) {
+	return Default.Import(path, srcDir, mode)
 }
 
 // ImportDir is shorthand for Default.ImportDir.
