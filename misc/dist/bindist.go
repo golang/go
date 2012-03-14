@@ -42,6 +42,11 @@ const (
 	uploadURL    = "https://go.googlecode.com/files"
 )
 
+var preBuildCleanFiles = []string{
+	"src/pkg/exp",
+	"src/pkg/old",
+}
+
 var cleanFiles = []string{
 	".hg",
 	".hgtags",
@@ -114,6 +119,11 @@ func (b *Build) Do() error {
 	}
 	_, err = b.run(b.root, "hg", "update", *tag)
 	if err != nil {
+		return err
+	}
+
+	// Remove exp and old packages.
+	if err := b.clean(preBuildCleanFiles); err != nil {
 		return err
 	}
 
