@@ -546,11 +546,11 @@ func makeTar(targ, workdir string) error {
 		hdr.Uid = 0
 		hdr.Gid = 0
 
-		// Force mode to 0755 for executables, 0644 for everything else.
-		if hdr.Mode&0111 != 0 {
-			hdr.Mode = 0755
+		// Force permissions to 0755 for executables, 0644 for everything else.
+		if fi.Mode().Perm()&0111 != 0 {
+			hdr.Mode = hdr.Mode&^0777 | 0755
 		} else {
-			hdr.Mode = 0644
+			hdr.Mode = hdr.Mode&^0777 | 0644
 		}
 
 		err = tw.WriteHeader(hdr)
