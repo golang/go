@@ -258,8 +258,9 @@ Next we modify the appHandler type to return <code>*appError</code> values:
 
 <p>
 (It's usually a mistake to pass back the concrete type of an error rather than
-<code>error</code>, for reasons to be discussed in another article, but
-it's the right thing to do here because <code>ServeHTTP</code> is the only
+<code>error</code>,
+for reasons discussed in <a href="/doc/go_faq.html#nil_error">the Go FAQ</a>,
+but it's the right thing to do here because <code>ServeHTTP</code> is the only
 place that sees the value and uses its contents.)
 </p>
 
