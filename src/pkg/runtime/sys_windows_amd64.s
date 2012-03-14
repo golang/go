@@ -60,7 +60,11 @@ loadregs:
 
 	RET
 
-TEXT runtime·badcallback(SB),7,$48
+// This should be called on a system stack,
+// so we don't need to concern about split stack.
+TEXT runtime·badcallback(SB),7,$0
+	SUBQ	$48, SP
+
 	// stderr
 	MOVQ	$-12, CX // stderr
 	MOVQ	CX, 0(SP)
@@ -80,6 +84,7 @@ TEXT runtime·badcallback(SB),7,$48
 	MOVQ	runtime·WriteFile(SB), AX
 	CALL	AX
 	
+	ADDQ	$48, SP
 	RET
 
 TEXT runtime·badsignal(SB),7,$48
