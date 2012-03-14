@@ -43,14 +43,14 @@ func NewSyscallError(syscall string, err error) error {
 	return &SyscallError{syscall, err}
 }
 
-// IsExist returns whether the error is known to report that a file already exists.
-// It is satisfied by ErrExist as well as some syscall errors.
+// IsExist returns whether the error is known to report that a file or directory 
+// already exists. It is satisfied by ErrExist as well as some syscall errors.
 func IsExist(err error) bool {
 	return isExist(err)
 }
 
-// IsNotExist returns whether the error is known to report that a file does not exist.
-// It is satisfied by ErrNotExist as well as some syscall errors.
+// IsNotExist returns whether the error is known to report that a file or directory
+// does not exist. It is satisfied by ErrNotExist as well as some syscall errors.
 func IsNotExist(err error) bool {
 	return isNotExist(err)
 }
