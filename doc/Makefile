@@ -7,6 +7,8 @@ RAWHTML=\
 	articles/error_handling.rawhtml\
 	articles/slices_usage_and_internals.rawhtml\
 	articles/laws_of_reflection.rawhtml\
+	articles/c_go_cgo.rawhtml\
+	articles/go_concurrency_patterns_timing_out_moving_on.rawhtml\
 	articles/image_draw.rawhtml\
 	effective_go.rawhtml\
 	go1.rawhtml\
@@ -17,4 +19,4 @@ all: $(RAWHTML)
 	godoc -url /doc/$< >$@
 
 clean:
-	rm -f $(RAWHTML) 
+	rm -f $(RAWHTML)
