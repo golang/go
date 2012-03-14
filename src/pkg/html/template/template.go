@@ -64,7 +64,13 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	tmpl = t.set[name]
-	if (tmpl == nil) != (t.text.Lookup(name) == nil) {
+	if tmpl == nil {
+		return nil, fmt.Errorf("html/template: %q is undefined", name)
+	}
+	if tmpl.text.Tree == nil || tmpl.text.Root == nil {
+		return nil, fmt.Errorf("html/template: %q is an incomplete template", name)
+	}
+	if t.text.Lookup(name) == nil {
 		panic("html/template internal error: template escaping out of sync")
 	}
 	if tmpl != nil && !tmpl.escaped {
@@ -276,7 +282,7 @@ func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 func parseFiles(t *Template, filenames ...string) (*Template, error) {
 	if len(filenames) == 0 {
 		// Not really a problem, but be consistent.
-		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
+		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
@@ -333,7 +339,7 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 		return nil, err
 	}
 	if len(filenames) == 0 {
-		return nil, fmt.Errorf("template: pattern matches no files: %#q", pattern)
+		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
 	return parseFiles(t, filenames...)
 }

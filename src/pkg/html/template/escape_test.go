@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"text/template"
@@ -1634,6 +1635,14 @@ func TestIndirectPrint(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	} else if buf.String() != "hello" {
 		t.Errorf(`Expected "hello"; got %q`, buf.String())
+	}
+}
+
+// This is a test for issue 3272.
+func TestEmptyTemplate(t *testing.T) {
+	page := Must(New("page").ParseFiles(os.DevNull))
+	if err := page.ExecuteTemplate(os.Stdout, "page", "nothing"); err == nil {
+		t.Fatal("expected error")
 	}
 }
 
