@@ -30,11 +30,13 @@ pre .ln {
 body {
 	color: #222;
 }
-a {
+a,
+.exampleHeading .text {
 	color: #375EAB;
 	text-decoration: none;
 }
-a:hover {
+a:hover,
+.exampleHeading .text:hover {
 	text-decoration: underline;
 }
 p,
