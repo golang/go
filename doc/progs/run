@@ -41,7 +41,12 @@ if [ "$goos" == "freebsd" ]; then
 	c_go_cgo="cgo3 cgo4"
 fi
 
-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo slices go1)
+timeout="
+	timeout1
+	timeout2
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout slices go1)
 
 for i in $all; do
 	go build $i.go
