@@ -334,7 +334,7 @@ func (ns nameSpace) Open(path string) (readSeekCloser, error) {
 		}
 	}
 	if err == nil {
-		err = &os.PathError{"open", path, os.ErrNotExist}
+		err = &os.PathError{Op: "open", Path: path, Err: os.ErrNotExist}
 	}
 	return nil, err
 }
@@ -352,7 +352,7 @@ func (ns nameSpace) stat(path string, f func(FileSystem, string) (os.FileInfo, e
 		}
 	}
 	if err == nil {
-		err = &os.PathError{"stat", path, os.ErrNotExist}
+		err = &os.PathError{Op: "stat", Path: path, Err: os.ErrNotExist}
 	}
 	return nil, err
 }
