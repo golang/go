@@ -7,13 +7,14 @@ RAWHTML=\
 	articles/error_handling.rawhtml\
 	articles/slices_usage_and_internals.rawhtml\
 	articles/laws_of_reflection.rawhtml\
+	articles/image_draw.rawhtml\
 	effective_go.rawhtml\
 	go1.rawhtml\
 
 all: $(RAWHTML)
 
 %.rawhtml: %.html
-	godoc -url /doc/$* >$@
+	godoc -url /doc/$< >$@
 
 clean:
 	rm -f $(RAWHTML) 
