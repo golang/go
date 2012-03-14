@@ -5,7 +5,7 @@
 // Package draw provides image composition functions.
 //
 // See "The Go image/draw package" for an introduction to this package:
-// http://blog.golang.org/2011/09/go-imagedraw-package.html
+// http://golang.org/doc/articles/image_draw.html
 package draw
 
 import (
