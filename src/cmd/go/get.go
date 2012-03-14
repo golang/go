@@ -24,7 +24,7 @@ Get downloads and installs the packages named by the import paths,
 along with their dependencies.
 
 The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
-and 'go install'.  See 'go help install'.
+and 'go install'.  See 'go help build'.
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
