@@ -5,8 +5,10 @@
 package os_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -24,8 +26,56 @@ func TestErrIsExist(t *testing.T) {
 		t.Fatal("Open should have failed")
 		return
 	}
-	if !os.IsExist(err) {
-		t.Fatalf("os.IsExist does not work as expected for %#v", err)
+	if s := checkErrorPredicate("os.IsExist", os.IsExist, err); s != "" {
+		t.Fatal(s)
 		return
 	}
+}
+
+func testErrNotExist(name string) string {
+	f, err := os.Open(name)
+	if err == nil {
+		f.Close()
+		return "Open should have failed"
+	}
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err); s != "" {
+		return s
+	}
+
+	err = os.Chdir(name)
+	if err == nil {
+		return "Chdir should have failed"
+	}
+	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err); s != "" {
+		return s
+	}
+	return ""
+}
+
+func TestErrIsNotExist(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "_Go_ErrIsNotExist")
+	if err != nil {
+		t.Fatalf("create ErrIsNotExist tempdir: %s", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	name := filepath.Join(tmpDir, "NotExists")
+	if s := testErrNotExist(name); s != "" {
+		t.Fatal(s)
+		return
+	}
+
+	name = filepath.Join(name, "NotExists2")
+	if s := testErrNotExist(name); s != "" {
+		t.Fatal(s)
+		return
+	}
+}
+
+func checkErrorPredicate(predName string, pred func(error) bool, err error) string {
+	if !pred(err) {
+		return fmt.Sprintf("%s does not work as expected for %#v", predName, err)
+	}
+	return ""
 }
