@@ -11,7 +11,7 @@
 // Consecutive groups of suffixes in sa are labeled as sorted groups or
 // unsorted groups. For a given pass of the sorter, all suffixes are ordered
 // up to their first h characters, and sa is h-ordered. Suffixes in their
-// final positions and unambiguouly sorted in h-order are in a sorted group.
+// final positions and unambiguously sorted in h-order are in a sorted group.
 // Consecutive groups of suffixes with identical first h characters are an
 // unsorted group. In each pass of the algorithm, unsorted groups are sorted
 // according to the group number of their following suffix.
@@ -78,7 +78,7 @@ func sortedByFirstByte(data []byte) []int {
 	for _, b := range data {
 		count[b]++
 	}
-	// make count[b] equal index of first occurence of b in sorted array
+	// make count[b] equal index of first occurrence of b in sorted array
 	sum := 0
 	for b := range count {
 		count[b], sum = sum, count[b]+sum

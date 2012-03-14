@@ -627,7 +627,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err erro
 
 	// Remainder.
 	for len(out) > 0 {
-		// We use an internal buffer to gaurantee alignment.
+		// We use an internal buffer to guarantee alignment.
 		// It's not documented if this is necessary, but we're paranoid.
 		err = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
 		if err != nil {

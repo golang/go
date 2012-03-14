@@ -13,7 +13,7 @@ import (
 )
 
 // If the ifindex is zero, interfaceTable returns mappings of all
-// network interfaces.  Otheriwse it returns a mapping of a specific
+// network interfaces.  Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
