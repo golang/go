@@ -22,37 +22,50 @@ do
 done
 
 # Test local (./) imports.
-./testgo build -o hello testdata/local/easy.go
-./hello >hello.out
-if ! grep -q '^easysub\.Hello' hello.out; then
-	echo "testdata/local/easy.go did not generate expected output"
-	cat hello.out
-	ok=false
-fi
+testlocal() {
+	local="$1"
+	./testgo build -o hello "testdata/$local/easy.go"
+	./hello >hello.out
+	if ! grep -q '^easysub\.Hello' hello.out; then
+		echo "testdata/$local/easy.go did not generate expected output"
+		cat hello.out
+		ok=false
+	fi
+	
+	./testgo build -o hello "testdata/$local/easysub/main.go"
+	./hello >hello.out
+	if ! grep -q '^easysub\.Hello' hello.out; then
+		echo "testdata/$local/easysub/main.go did not generate expected output"
+		cat hello.out
+		ok=false
+	fi
+	
+	./testgo build -o hello "testdata/$local/hard.go"
+	./hello >hello.out
+	if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
+		echo "testdata/$local/hard.go did not generate expected output"
+		cat hello.out
+		ok=false
+	fi
+	
+	rm -f err.out hello.out hello
+	
+	# Test that go install x.go fails.
+	if ./testgo install "testdata/$local/easy.go" >/dev/null 2>&1; then
+		echo "go install testdata/$local/easy.go succeeded"
+		ok=false
+	fi
+}
 
-./testgo build -o hello testdata/local/easysub/main.go
-./hello >hello.out
-if ! grep -q '^easysub\.Hello' hello.out; then
-	echo "testdata/local/easysub/main.go did not generate expected output"
-	cat hello.out
-	ok=false
-fi
+# Test local imports
+testlocal local
 
-./testgo build -o hello testdata/local/hard.go
-./hello >hello.out
-if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
-	echo "testdata/local/hard.go did not generate expected output"
-	cat hello.out
-	ok=false
-fi
-
-rm -f err.out hello.out hello
-
-# Test that go install x.go fails.
-if ./testgo install testdata/local/easy.go >/dev/null 2>&1; then
-	echo "go install testdata/local/easy.go succeeded"
-	ok=false
-fi
+# Test local imports again, with bad characters in the directory name.
+bad='#$%:, &()*;<=>?\^{}'
+rm -rf "testdata/$bad"
+cp -R testdata/local "testdata/$bad"
+testlocal "$bad"
+rm -rf "testdata/$bad"
 
 # Test tests with relative imports.
 if ! ./testgo test ./testdata/testimport; then

@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // A Package describes a single package found in a directory.
@@ -174,7 +175,16 @@ func reloadPackage(arg string, stk *importStack) *Package {
 // a special case, so that all the code to deal with ordinary imports works
 // automatically.
 func dirToImportPath(dir string) string {
-	return pathpkg.Join("_", strings.Replace(filepath.ToSlash(dir), ":", "_", -1))
+	return pathpkg.Join("_", strings.Map(makeImportValid, filepath.ToSlash(dir)))
+}
+
+func makeImportValid(r rune) rune {
+	// Should match Go spec, compilers, and ../../pkg/go/parser/parser.go:/isValidImport.
+	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
+	if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
+		return '_'
+	}
+	return r
 }
 
 // loadImport scans the directory named by path, which must be an import path,
