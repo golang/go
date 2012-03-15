@@ -173,7 +173,21 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
-	return syscall.Write(f.fd, b)
+	for {
+		m, err := syscall.Write(f.fd, b)
+		n += m
+
+		// If the syscall wrote some data but not all (short write)
+		// or it returned EINTR, then assume it stopped early for
+		// reasons that are uninteresting to the caller, and try again.
+		if 0 < m && m < len(b) || err == syscall.EINTR {
+			b = b[m:]
+			continue
+		}
+
+		return n, err
+	}
+	panic("not reached")
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
