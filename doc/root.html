@@ -24,8 +24,20 @@ Hello, 世界
 </pre>
 </div>
 <div class="buttons">
-<a class="run" href="#">Run</a>
-<a class="share" href="#">Share</a>
+<a class="run" href="#" title="Run this code [shift-enter]">Run</a>
+<a class="share" href="#" title="Share this code">Share</a>
+<a class="tour" href="http://tour.golang.org/" title="Learn Go from your browser">Tour</a>
+</div>
+<div class="toys">
+<select>
+	<option value="hello.go">Hello, World!</option>
+	<option value="fib.go">Fibonacci Closure</option>
+	<option value="peano.go">Peano Integers</option>
+	<option value="pi.go">Concurrent pi</option>
+	<option value="sieve.go">Concurrent Prime Sieve</option>
+	<option value="solitaire.go">Peg Solitaire Solver</option>
+	<option value="tree.go">Tree Comparison</option>
+</select>
 </div>
 </div>
 
@@ -117,7 +129,8 @@ function init() {
 		"outputEl":      "#learn .output",
 		"runEl":         "#learn .run",
 		"shareEl":       "#learn .share",
-		"shareRedirect": "http://play.golang.org/p/"
+		"shareRedirect": "http://play.golang.org/p/",
+		"toysEl":        "#learn .toys select"
 	});
 }
 
