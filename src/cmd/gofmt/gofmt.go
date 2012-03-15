@@ -26,7 +26,7 @@ var (
 	// main operation modes
 	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
+	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
 	simplifyAST = flag.Bool("s", false, "simplify code")
 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
 	allErrors   = flag.Bool("e", false, "print all (including spurious) errors")
