@@ -43,6 +43,8 @@ const (
 )
 
 var preBuildCleanFiles = []string{
+	"src/cmd/cov",
+	"src/cmd/prof",
 	"src/pkg/exp",
 	"src/pkg/old",
 }
