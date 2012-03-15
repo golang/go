@@ -38,7 +38,7 @@
 				{{$src_html := srcLink .File.Path | html}}
 				{{range .Groups}}
 					{{range .}}
-						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
+						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
 						{{infoSnippet_html .}}
 					{{end}}
 				{{end}}
@@ -52,7 +52,7 @@
 			<h3 id="Local_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
 				{{$src_html := srcLink .File.Path | html}}
-				<a href="/{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>
+				<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
@@ -61,7 +61,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{{range .}}
-						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
+						<a href="{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -86,14 +86,14 @@
 		{{$src_html := srcLink .Filename | html}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>:
+		<a href="{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="/{{$src_html}}?h={{$query_url}}#L{{html .}}">{{html .}}</a>
+			<a href="{{$src_html}}?h={{$query_url}}#L{{html .}}">{{html .}}</a>
 		{{end}}
 		{{if not $.Complete}}
 			...
