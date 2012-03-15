@@ -322,21 +322,21 @@ div#learn .output {
 	border: 1px solid #375EAB;
 }
 div#learn .buttons {
+	float: right;
 	padding: 20px 0 10px 0;
 	text-align: right;
 }
 div#learn .buttons a {
 	height: 16px;
 	margin-left: 5px;
-
 	padding: 10px;
 }
-div#learn .buttons .tour {
-	float: right;
+div#learn .toys {
+	margin-top: 8px;
 }
-div#learn .buttons .tour a {
-	margin-right: 0;
-	font-weight: bold;
+div#learn .toys select {
+	border: 1px solid #375EAB;
+	margin: 0;
 }
 
 div#blog,

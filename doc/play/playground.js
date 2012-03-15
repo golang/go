@@ -12,6 +12,7 @@
 // 	preCompile - callback to mutate request data before compiling
 // 	postCompile - callback to read response data after compiling
 //      simple - use plain textarea instead of CodeMirror.
+//      toysEl - select element with a list of toys.
 function playground(opts) {
 	var simple = opts['simple'];
 	var code = $(opts['codeEl']);
@@ -109,6 +110,16 @@ function playground(opts) {
 		}
 		return $(opts['codeEl']).val();
 	}
+	function setBody(text) {
+		if (editor) {
+			editor.setValue(text);
+			return;
+		}
+		$(opts['codeEl']).val(text);
+	}
+	function origin(href) {
+		return (""+href).split("/").slice(0, 3).join("/");
+	}
 
 	var seq = 0;
 	function run() {
@@ -164,43 +175,53 @@ function playground(opts) {
 	}
 	$(opts['runEl']).click(run);
 
-	if (opts['shareEl'] == null || (opts['shareURLEl'] == null && opts['shareRedirect'] == null)) {
-		return editor;
-	}
-
-	function origin(href) {
-		return (""+href).split("/").slice(0, 3).join("/");
-	}
-
-	var shareURL;
-	if (opts['shareURLEl']) {
-		shareURL = $(opts['shareURLEl']).hide();
-	}
-	var sharing = false;
-	$(opts['shareEl']).click(function() {
-		if (sharing) return;
-		sharing = true;
-		$.ajax("/share", {
-			processData: false,
-			data: body(),
-			type: "POST",
-			complete: function(xhr) {
-				sharing = false;
-				if (xhr.status != 200) {
-					alert("Server error; try again.");
-					return;
+	if (opts['shareEl'] != null && (opts['shareURLEl'] != null || opts['shareRedirect'] != null)) {
+		var shareURL;
+		if (opts['shareURLEl']) {
+			shareURL = $(opts['shareURLEl']).hide();
+		}
+		var sharing = false;
+		$(opts['shareEl']).click(function() {
+			if (sharing) return;
+			sharing = true;
+			$.ajax("/share", {
+				processData: false,
+				data: body(),
+				type: "POST",
+				complete: function(xhr) {
+					sharing = false;
+					if (xhr.status != 200) {
+						alert("Server error; try again.");
+						return;
+					}
+					if (opts['shareRedirect']) {
+						window.location = opts['shareRedirect'] + xhr.responseText;
+					}
+					if (shareURL) {
+						var url = origin(window.location) + "/p/" + xhr.responseText;
+						shareURL.show().val(url).focus().select();
+					}
 				}
-				if (opts['shareRedirect']) {
-					window.location = opts['shareRedirect'] + xhr.responseText;
-				}
-				if (shareURL) {
-					var url = origin(window.location) + "/p/" +
-						xhr.responseText;
-					shareURL.show().val(url).focus().select();
-				}
-			}
+			});
 		});
-	});
+	}
+
+	if (opts['toysEl'] != null) {
+		$(opts['toysEl']).bind('change', function() {
+			var toy = $(this).val();
+			$.ajax("/doc/play/"+toy, {
+				processData: false,
+				type: "GET",
+				complete: function(xhr) {
+					if (xhr.status != 200) {
+						alert("Server error; try again.")
+						return;
+					}
+					setBody(xhr.responseText);
+				}
+			});
+		});
+	}
 
 	return editor;
 }
