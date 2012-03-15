@@ -446,6 +446,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 		ptest.fake = true
+		ptest.forceLibrary = true
 		ptest.Stale = true
 		ptest.build = new(build.Package)
 		*ptest.build = *p.build
@@ -489,7 +490,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ImportPath: "testmain",
 		Root:       p.Root,
 		imports:    []*Package{ptest},
-		build:      &build.Package{},
+		build:      &build.Package{Name: "main"},
 		fake:       true,
 		Stale:      true,
 	}
