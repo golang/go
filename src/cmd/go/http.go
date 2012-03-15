@@ -80,6 +80,8 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
 	}
 	// Note: accepting a non-200 OK here, so people can serve a
 	// meta import in their http 404 page.
-	log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
+	if buildV {
+		log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
+	}
 	return urlStr, res.Body, nil
 }
