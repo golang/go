@@ -1047,3 +1047,22 @@ func TestSameFile(t *testing.T) {
 		t.Errorf("files should be different")
 	}
 }
+
+func TestDevNullFile(t *testing.T) {
+	f, err := Open(DevNull)
+	if err != nil {
+		t.Fatalf("Open(%s): %v", DevNull, err)
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", DevNull, err)
+	}
+	name := filepath.Base(DevNull)
+	if fi.Name() != name {
+		t.Fatalf("wrong file name have %v want %v", fi.Name(), name)
+	}
+	if fi.Size() != 0 {
+		t.Fatalf("wrong file size have %d want 0", fi.Size())
+	}
+}

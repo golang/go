@@ -21,6 +21,9 @@ func (file *File) Stat() (fi FileInfo, err error) {
 		// I don't know any better way to do that for directory
 		return Stat(file.name)
 	}
+	if file.name == DevNull {
+		return statDevNull()
+	}
 	var d syscall.ByHandleFileInformation
 	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
 	if e != nil {
@@ -40,6 +43,9 @@ func (file *File) Stat() (fi FileInfo, err error) {
 func Stat(name string) (fi FileInfo, err error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+	}
+	if name == DevNull {
+		return statDevNull()
 	}
 	var d syscall.Win32FileAttributeData
 	e := syscall.GetFileAttributesEx(syscall.StringToUTF16Ptr(name), syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
@@ -67,6 +73,22 @@ func Stat(name string) (fi FileInfo, err error) {
 func Lstat(name string) (fi FileInfo, err error) {
 	// No links on Windows
 	return Stat(name)
+}
+
+// statDevNull return FileInfo structure describing DevNull file ("NUL").
+// It creates invented data, since none of windows api will return
+// that information.
+func statDevNull() (fi FileInfo, err error) {
+	return &fileStat{
+		name: DevNull,
+		mode: ModeDevice | ModeCharDevice | 0666,
+		sys: &winSys{
+			// hopefully this will work for SameFile
+			vol:   0,
+			idxhi: 0,
+			idxlo: 0,
+		},
+	}, nil
 }
 
 // basename removes trailing slashes and the leading
