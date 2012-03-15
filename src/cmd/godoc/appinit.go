@@ -42,7 +42,7 @@ func init() {
 		log.Fatalf("%s: %s\n", zipfile, err)
 	}
 	// rc is never closed (app running forever)
-	fs.Bind("/", NewZipFS(rc, zipFilename), "/", bindReplace)
+	fs.Bind("/", NewZipFS(rc, zipFilename), *goroot, bindReplace)
 
 	// initialize http handlers
 	readTemplates()
