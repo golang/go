@@ -1,4 +1,0 @@
-cron:
-- description: daily package maintenance
-  url: /package/daily
-  schedule: every 24 hours

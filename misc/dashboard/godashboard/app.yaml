@@ -11,16 +11,5 @@ handlers:
 - url: /static
   static_dir: static
 
-- url: /package
-  script: package.py
-
-- url: /package/daily
-  script: package.py
-  login: admin
-
-- url: /project.*
-  script: package.py
-
-- url: /
-  static_files: main.html
-  upload: main.html
+- url: /(|project(|/login|/edit))
+  script: project.py
