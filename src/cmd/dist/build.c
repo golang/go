@@ -1214,6 +1214,8 @@ clean(void)
 	vinit(&dir);
 
 	for(i=0; i<nelem(cleantab); i++) {
+		if((streq(cleantab[i], "cmd/cov") || streq(cleantab[i], "cmd/prof")) && !isdir(cleantab[i]))
+			continue;
 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
 		xreaddir(&dir, bstr(&path));
 		// Remove generated files.
