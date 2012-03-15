@@ -66,9 +66,10 @@ type Type interface {
 	// It returns an empty string for unnamed types.
 	Name() string
 
-	// PkgPath returns the type's package path.
-	// The package path is a full package import path like "encoding/base64".
-	// PkgPath returns an empty string for unnamed or predeclared types.
+	// PkgPath returns a named type's package path, that is, the import path
+	// that uniquely identifies the package, such as "encoding/base64".
+	// If the type was predeclared (string, error) or unnamed (*T, struct{}, []int),
+	// the package path will be the empty string.
 	PkgPath() string
 
 	// Size returns the number of bytes needed to store
@@ -354,11 +355,18 @@ type structType struct {
 
 // Method represents a single method.
 type Method struct {
-	PkgPath string // empty for uppercase Name
+	// Name is the method name.
+	// PkgPath is the package path that qualifies a lower case (unexported)
+	// method name.  It is empty for upper case (exported) method names.
+	// The combination of PkgPath and Name uniquely identifies a method
+	// in a method set. 
+	// See http://golang.org/ref/spec#Uniqueness_of_identifiers
 	Name    string
-	Type    Type
-	Func    Value
-	Index   int
+	PkgPath string
+
+	Type  Type  // method type
+	Func  Value // func with receiver as first argument
+	Index int   // index for Type.Method
 }
 
 // High bit says whether type has
@@ -697,14 +705,20 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 	return
 }
 
+// A StructField describes a single field in a struct.
 type StructField struct {
-	PkgPath   string // empty for uppercase Name
-	Name      string
-	Type      Type
-	Tag       StructTag
-	Offset    uintptr
-	Index     []int
-	Anonymous bool
+	// Name is the field name.
+	// PkgPath is the package path that qualifies a lower case (unexported)
+	// field name.  It is empty for upper case (exported) field names.
+	// See http://golang.org/ref/spec#Uniqueness_of_identifiers
+	Name    string
+	PkgPath string
+
+	Type      Type      // field type
+	Tag       StructTag // field tag string
+	Offset    uintptr   // offset within struct, in bytes
+	Index     []int     // index sequence for Type.FieldByIndex
+	Anonymous bool      // is an anonymous field
 }
 
 // A StructTag is the tag string in a struct field.
