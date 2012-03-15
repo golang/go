@@ -107,7 +107,11 @@ func (p *Package) writeDefs() {
 		}
 	}
 
-	p.writeExports(fgo2, fc, fm)
+	if *gccgo {
+		p.writeGccgoExports(fgo2, fc, fm)
+	} else {
+		p.writeExports(fgo2, fc, fm)
+	}
 
 	fgo2.Close()
 	fc.Close()
@@ -621,6 +625,83 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 			fmt.Fprint(fgo2, ")\n")
 			fmt.Fprint(fgo2, "}\n")
 		}
+	}
+}
+
+// Write out the C header allowing C code to call exported gccgo functions.
+func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
+	fgcc := creat(*objDir + "_cgo_export.c")
+	fgcch := creat(*objDir + "_cgo_export.h")
+	_ = fgcc
+
+	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
+	fmt.Fprintf(fm, "#include \"_cgo_export.h\"\n")
+
+	clean := func(r rune) rune {
+		switch {
+		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
+			'0' <= r && r <= '9':
+			return r
+		}
+		return '_'
+	}
+	gccgoSymbolPrefix := strings.Map(clean, *gccgoprefix)
+
+	for _, exp := range p.ExpFunc {
+		// TODO: support functions with receivers.
+		fn := exp.Func
+		fntype := fn.Type
+
+		if !ast.IsExported(fn.Name.Name) {
+			fatalf("cannot export unexported function %s with gccgo", fn.Name)
+		}
+
+		cdeclBuf := new(bytes.Buffer)
+		resultCount := 0
+		forFieldList(fntype.Results,
+			func(i int, atype ast.Expr) { resultCount++ })
+		switch resultCount {
+		case 0:
+			fmt.Fprintf(cdeclBuf, "void")
+		case 1:
+			forFieldList(fntype.Results,
+				func(i int, atype ast.Expr) {
+					t := p.cgoType(atype)
+					fmt.Fprintf(cdeclBuf, "%s", t.C)
+				})
+		default:
+			// Declare a result struct.
+			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
+			forFieldList(fntype.Results,
+				func(i int, atype ast.Expr) {
+					t := p.cgoType(atype)
+					fmt.Fprintf(fgcch, "\t%s r%d;\n", t.C, i)
+				})
+			fmt.Fprintf(fgcch, "};\n")
+			fmt.Fprintf(cdeclBuf, "struct %s_result", exp.ExpName)
+		}
+
+		// The function name.
+		fmt.Fprintf(cdeclBuf, " "+exp.ExpName)
+		gccgoSymbol := fmt.Sprintf("%s.%s.%s", gccgoSymbolPrefix, p.PackageName, exp.Func.Name)
+		fmt.Fprintf(cdeclBuf, " (")
+		// Function parameters.
+		forFieldList(fntype.Params,
+			func(i int, atype ast.Expr) {
+				if i > 0 {
+					fmt.Fprintf(cdeclBuf, ", ")
+				}
+				t := p.cgoType(atype)
+				fmt.Fprintf(cdeclBuf, "%s p%d", t.C, i)
+			})
+		fmt.Fprintf(cdeclBuf, ")")
+		cdecl := cdeclBuf.String()
+
+		fmt.Fprintf(fgcch, "extern %s __asm__(\"%s\");\n", cdecl, gccgoSymbol)
+		// Dummy declaration for _cgo_main.c
+		fmt.Fprintf(fm, "%s {}\n", cdecl)
 	}
 }
 

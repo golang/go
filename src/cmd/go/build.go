@@ -661,7 +661,7 @@ func (b *builder) build(a *action) (err error) {
 		}
 
 		cgoExe := tool("cgo")
-		if a.cgo != nil {
+		if a.cgo != nil && a.cgo.target != "" {
 			cgoExe = a.cgo.target
 		}
 		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, gccfiles)
@@ -1239,12 +1239,8 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 	out := p.Name + ".o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
-	if p.Name != "main" {
-		if p.fake {
-			gcargs = append(gcargs, "-fgo-prefix=fake_"+p.ImportPath)
-		} else {
-			gcargs = append(gcargs, "-fgo-prefix=go_"+p.ImportPath)
-		}
+	if prefix := gccgoPrefix(p); prefix != "" {
+		gcargs = append(gcargs, "-fgo-prefix="+gccgoPrefix(p))
 	}
 	args := stringList("gccgo", importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
 	for _, f := range gofiles {
@@ -1302,6 +1298,16 @@ func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile,
 		"-DGOOS_"+goos, "-DGOARCH_"+goarch, "-c", cfile)
+}
+
+func gccgoPrefix(p *Package) string {
+	switch {
+	case p.build.IsCommand() && !p.forceLibrary:
+		return ""
+	case p.fake:
+		return "fake_" + p.ImportPath
+	}
+	return "go_" + p.ImportPath
 }
 
 // gcc runs the gcc C compiler to create an object from a single C file.
@@ -1404,6 +1410,9 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 	if _, ok := buildToolchain.(gccgcToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
+		if prefix := gccgoPrefix(p); prefix != "" {
+			cgoflags = append(cgoflags, "-gccgoprefix="+gccgoPrefix(p))
+		}
 	}
 	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err

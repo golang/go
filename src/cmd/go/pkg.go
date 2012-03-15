@@ -64,16 +64,17 @@ type Package struct {
 	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
 
 	// Unexported fields are not part of the public API.
-	build       *build.Package
-	pkgdir      string // overrides build.PkgDir
-	imports     []*Package
-	deps        []*Package
-	gofiles     []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
-	target      string   // installed file for this package (may be executable)
-	fake        bool     // synthesized package
-	forceBuild  bool     // this package must be rebuilt
-	local       bool     // imported via local path (./ or ../)
-	localPrefix string   // interpret ./ and ../ imports relative to this prefix
+	build        *build.Package
+	pkgdir       string // overrides build.PkgDir
+	imports      []*Package
+	deps         []*Package
+	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+	target       string   // installed file for this package (may be executable)
+	fake         bool     // synthesized package
+	forceBuild   bool     // this package must be rebuilt
+	forceLibrary bool     // this package is a library (even if named "main")
+	local        bool     // imported via local path (./ or ../)
+	localPrefix  string   // interpret ./ and ../ imports relative to this prefix
 }
 
 func (p *Package) copyBuild(pp *build.Package) {
