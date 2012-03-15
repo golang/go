@@ -46,7 +46,12 @@ timeout="
 	timeout2
 "
 
-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout slices go1)
+gobs="
+	gobs1
+	gobs2
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs slices go1)
 
 for i in $all; do
 	go build $i.go

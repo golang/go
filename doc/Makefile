@@ -10,6 +10,7 @@ RAWHTML=\
 	articles/c_go_cgo.rawhtml\
 	articles/go_concurrency_patterns_timing_out_moving_on.rawhtml\
 	articles/godoc_documenting_go_code.rawhtml\
+	articles/gobs_of_data.rawhtml\
 	articles/image_draw.rawhtml\
 	effective_go.rawhtml\
 	go1.rawhtml\
