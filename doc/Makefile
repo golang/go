@@ -9,6 +9,7 @@ RAWHTML=\
 	articles/laws_of_reflection.rawhtml\
 	articles/c_go_cgo.rawhtml\
 	articles/go_concurrency_patterns_timing_out_moving_on.rawhtml\
+	articles/godoc_documenting_go_code.rawhtml\
 	articles/image_draw.rawhtml\
 	effective_go.rawhtml\
 	go1.rawhtml\
