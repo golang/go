@@ -501,10 +501,17 @@ dostkoff(void)
 				q = p;
 			}
 
-			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+			// If we ask for more stack, we'll get a minimum of StackMin bytes.
+			// We need a stack frame large enough to hold the top-of-stack data,
+			// the function arguments+results, our caller's PC, our frame,
+			// a word for the return PC of the next call, and then the StackLimit bytes
+			// that must be available on entry to any function called from a function
+			// that did a stack check.  If StackMin is enough, don't ask for a specific
+			// amount: then we can use the custom functions and save a few
+			// instructions.
 			moreconst1 = 0;
-			if(autoffset+160+textarg > 4096)
-				moreconst1 = (autoffset+160) & ~7LL;
+			if(StackTop + textarg + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
+				moreconst1 = autoffset;
 			moreconst2 = textarg;
 
 			// 4 varieties varieties (const1==0 cross const2==0)

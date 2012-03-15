@@ -226,8 +226,7 @@ noops(void)
 					p->as = AMOVW;
 					p->scond = C_SCOND_LO;
 					p->from.type = D_CONST;
-					/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
-					p->from.offset = autosize+160;
+					p->from.offset = autosize;
 					p->to.type = D_REG;
 					p->to.reg = 1;
 	

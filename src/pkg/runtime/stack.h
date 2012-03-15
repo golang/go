@@ -94,4 +94,9 @@ enum {
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
 	StackLimit = StackGuard - StackSystem - StackSmall,
+	
+	// The assumed size of the top-of-stack data block.
+	// The actual size can be smaller than this but cannot be larger.
+	// Checked in proc.c's runtime.malg.
+	StackTop = 72,
 };

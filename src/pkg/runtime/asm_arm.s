@@ -313,3 +313,10 @@ casl:
 casfail:
 	MOVW	$0, R0
 	RET
+
+TEXT runtime·stackguard(SB),7,$0
+	MOVL	R13, R1
+	MOVL	g_stackguard(g), R2
+	MOVL	R1, sp+0(FP)
+	MOVL	R2, limit+4(FP)
+	RET

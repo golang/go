@@ -587,4 +587,13 @@ TEXT runtime·cputicks(SB),7,$0
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·stackguard(SB),7,$0
+	MOVQ	SP, DX
+	MOVQ	DX, sp+0(FP)
+	get_tls(CX)
+	MOVQ	g(CX), BX
+	MOVQ	g_stackguard(BX), DX
+	MOVQ	DX, guard+8(FP)
+	RET
+
 GLOBL runtime·tls0(SB), $64
