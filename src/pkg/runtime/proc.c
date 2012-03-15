@@ -1161,6 +1161,11 @@ runtime·malg(int32 stacksize)
 {
 	G *newg;
 	byte *stk;
+	
+	if(StackTop < sizeof(Stktop)) {
+		runtime·printf("runtime: SizeofStktop=%d, should be >=%d\n", (int32)StackTop, (int32)sizeof(Stktop));
+		runtime·throw("runtime: bad stack.h");
+	}
 
 	newg = runtime·malloc(sizeof(G));
 	if(stacksize >= 0) {

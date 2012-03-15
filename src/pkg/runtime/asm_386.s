@@ -560,4 +560,13 @@ TEXT runtime·emptyfunc(SB),0,$0
 TEXT runtime·abort(SB),7,$0
 	INT $0x3
 
+TEXT runtime·stackguard(SB),7,$0
+	MOVL	SP, DX
+	MOVL	DX, sp+0(FP)
+	get_tls(CX)
+	MOVL	g(CX), BX
+	MOVL	g_stackguard(BX), DX
+	MOVL	DX, guard+4(FP)
+	RET
+
 GLOBL runtime·tls0(SB), $32

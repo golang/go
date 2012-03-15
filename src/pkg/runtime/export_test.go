@@ -19,7 +19,9 @@ var F64toint = f64toint
 func entersyscall()
 func exitsyscall()
 func golockedOSThread() bool
+func stackguard() (sp, limit uintptr)
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = golockedOSThread
+var Stackguard = stackguard

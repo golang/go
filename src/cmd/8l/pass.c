@@ -527,10 +527,18 @@ dostkoff(void)
 			p = appendp(p);	// save frame size in DX
 			p->as = AMOVL;
 			p->to.type = D_DX;
-			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
 			p->from.type = D_CONST;
-			if(autoffset+160+cursym->text->to.offset2 > 4096)
-				p->from.offset = (autoffset+160) & ~7LL;
+
+			// If we ask for more stack, we'll get a minimum of StackMin bytes.
+			// We need a stack frame large enough to hold the top-of-stack data,
+			// the function arguments+results, our caller's PC, our frame,
+			// a word for the return PC of the next call, and then the StackLimit bytes
+			// that must be available on entry to any function called from a function
+			// that did a stack check.  If StackMin is enough, don't ask for a specific
+			// amount: then we can use the custom functions and save a few
+			// instructions.
+			if(StackTop + cursym->text->to.offset2 + PtrSize + autoffset + PtrSize + StackLimit >= StackMin)
+				p->from.offset = (autoffset+7) & ~7LL;
 
 			p = appendp(p);	// save arg size in AX
 			p->as = AMOVL;
