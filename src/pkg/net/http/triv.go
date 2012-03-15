@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 )
 
@@ -95,35 +96,18 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // exec a program, redirecting output
 func DateServer(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	r, w, err := os.Pipe()
-	if err != nil {
-		fmt.Fprintf(rw, "pipe: %s\n", err)
-		return
-	}
 
-	p, err := os.StartProcess("/bin/date", []string{"date"}, &os.ProcAttr{Files: []*os.File{nil, w, w}})
-	defer r.Close()
-	w.Close()
+	date, err := exec.Command("/bin/date").Output()
 	if err != nil {
-		fmt.Fprintf(rw, "fork/exec: %s\n", err)
+		http.Error(rw, err.Error(), 500)
 		return
 	}
-	io.Copy(rw, r)
-	wait, err := p.Wait(0)
-	if err != nil {
-		fmt.Fprintf(rw, "wait: %s\n", err)
-		return
-	}
-	if !wait.Exited() || wait.ExitStatus() != 0 {
-		fmt.Fprintf(rw, "date: %v\n", wait)
-		return
-	}
+	rw.Write(date)
 }
 
 func Logger(w http.ResponseWriter, req *http.Request) {
-	log.Print(req.URL.Raw)
-	w.WriteHeader(404)
-	w.Write([]byte("oops"))
+	log.Print(req.URL)
+	http.Error(w, "oops", 404)
 }
 
 var webroot = flag.String("root", "/home/rsc", "web root directory")
