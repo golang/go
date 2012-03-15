@@ -110,7 +110,7 @@ func clean(p *Package) {
 	}
 	dirs, err := ioutil.ReadDir(p.Dir)
 	if err != nil {
-		errorf("%v", err)
+		errorf("go clean %s: %v", p.Dir, err)
 		return
 	}
 

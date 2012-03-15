@@ -604,7 +604,12 @@ func (b *builder) do(root *action) {
 }
 
 // build is the action for building a single package or command.
-func (b *builder) build(a *action) error {
+func (b *builder) build(a *action) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
+		}
+	}()
 	if buildN {
 		// In -n mode, print a banner between packages.
 		// The banner is five lines so that when changes to
@@ -753,7 +758,12 @@ func (b *builder) build(a *action) error {
 }
 
 // install is the action for installing a single package or executable.
-func (b *builder) install(a *action) error {
+func (b *builder) install(a *action) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("go install %s: %v", a.p.ImportPath, err)
+		}
+	}()
 	a1 := a.deps[0]
 	perm := os.FileMode(0666)
 	if a1.link {
@@ -874,7 +884,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
 	df.Close()
 	if err != nil {
 		os.Remove(dst)
-		return err
+		return fmt.Errorf("copying %s to %s: %v", src, dst, err)
 	}
 	return nil
 }
