@@ -315,8 +315,8 @@ casfail:
 	RET
 
 TEXT runtime·stackguard(SB),7,$0
-	MOVL	R13, R1
-	MOVL	g_stackguard(g), R2
-	MOVL	R1, sp+0(FP)
-	MOVL	R2, limit+4(FP)
+	MOVW	R13, R1
+	MOVW	g_stackguard(g), R2
+	MOVW	R1, sp+0(FP)
+	MOVW	R2, limit+4(FP)
 	RET
