@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 )
 
 // hello world, the web server
@@ -29,14 +30,21 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 
 // Simple counter server. POSTing to it will set the value.
 type Counter struct {
-	n int
+	mu sync.Mutex // protects n
+	n  int
 }
 
 // This makes Counter satisfy the expvar.Var interface, so we can export
 // it directly.
-func (ctr *Counter) String() string { return fmt.Sprintf("%d", ctr.n) }
+func (ctr *Counter) String() string {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+	return fmt.Sprintf("%d", ctr.n)
+}
 
 func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
 	switch req.Method {
 	case "GET":
 		ctr.n++
@@ -110,23 +118,22 @@ func Logger(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "oops", 404)
 }
 
-var webroot = flag.String("root", "/home/rsc", "web root directory")
+var webroot = flag.String("root", os.Getenv("HOME"), "web root directory")
 
 func main() {
 	flag.Parse()
 
 	// The counter is published as a variable directly.
 	ctr := new(Counter)
-	http.Handle("/counter", ctr)
 	expvar.Publish("counter", ctr)
-
+	http.Handle("/counter", ctr)
 	http.Handle("/", http.HandlerFunc(Logger))
 	http.Handle("/go/", http.StripPrefix("/go/", http.FileServer(http.Dir(*webroot))))
-	http.Handle("/flags", http.HandlerFunc(FlagServer))
-	http.Handle("/args", http.HandlerFunc(ArgServer))
-	http.Handle("/go/hello", http.HandlerFunc(HelloServer))
 	http.Handle("/chan", ChanCreate())
-	http.Handle("/date", http.HandlerFunc(DateServer))
+	http.HandleFunc("/flags", FlagServer)
+	http.HandleFunc("/args", ArgServer)
+	http.HandleFunc("/go/hello", HelloServer)
+	http.HandleFunc("/date", DateServer)
 	err := http.ListenAndServe(":12345", nil)
 	if err != nil {
 		log.Panicln("ListenAndServe:", err)
