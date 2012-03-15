@@ -363,6 +363,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 	binaryOnly := false
 	if IsLocalImport(path) {
+		pkga = "" // local imports have no installed path
 		if srcDir == "" {
 			return p, fmt.Errorf("import %q: import relative to unknown directory", path)
 		}
