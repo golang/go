@@ -127,3 +127,10 @@ td.time {
 .notice a {
 	color: #FF6;
 }
+.unapproved a.name {
+	color: red;
+}
+.tag {
+	font-size: 0.8em;
+	color: #666;
+}

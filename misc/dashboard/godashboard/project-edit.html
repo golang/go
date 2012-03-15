@@ -19,8 +19,6 @@ Tags: (comma-separated)<br/>
 <input type="text" id="tags" name="tags" value="{{tags}}"><br/>
 Web URL:<br/>
 <input type="text" name="web_url" value="{{p.web_url|escape}}"><br/>
-Package URL: (to link to a goinstall'd package)<br/>
-<input type="text" name="package" value="{{p.package.path|escape}}"><br/>
 Approved: <input type="checkbox" name="approved" value="1" {% if p.approved %}checked{% endif %}><br/>
 <br/>
 <input type="submit" name="do" value="Save">
