@@ -2357,7 +2357,7 @@ go list.Sort()  // run list.Sort in parallel; don't wait for it.
 <p>
 A function literal can be handy in a goroutine invocation.
 <pre>
-func Announce(message string, delay int64) {
+func Announce(message string, delay time.Duration) {
     go func() {
         time.Sleep(delay)
         fmt.Println(message)
