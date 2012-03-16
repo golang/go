@@ -119,7 +119,7 @@ void
 runtime·panicstring(int8 *s)
 {
 	Eface err;
-	
+
 	if(m->gcing) {
 		runtime·printf("panic: %s\n", s);
 		runtime·throw("panic during gc");
@@ -189,7 +189,7 @@ runtime·goargs(void)
 {
 	String *s;
 	int32 i;
-	
+
 	// for windows implementation see "os" package
 	if(Windows)
 		return;
@@ -207,7 +207,7 @@ runtime·goenvs_unix(void)
 {
 	String *s;
 	int32 i, n;
-	
+
 	for(n=0; argv[argc+1+n] != 0; n++)
 		;
 
@@ -342,8 +342,6 @@ runtime·check(void)
 		runtime·throw("float32nan2");
 	if(!(i != i1))
 		runtime·throw("float32nan3");
-
-	runtime·initsig();
 }
 
 void

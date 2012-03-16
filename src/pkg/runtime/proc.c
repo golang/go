@@ -734,6 +734,12 @@ runtime·mstart(void)
 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
 	runtime·asminit();
 	runtime·minit();
+
+	// Install signal handlers; after minit so that minit can
+	// prepare the thread to be able to handle the signals.
+	if(m == &runtime·m0)
+		runtime·initsig();
+
 	schedule(nil);
 }
 
@@ -1161,7 +1167,7 @@ runtime·malg(int32 stacksize)
 {
 	G *newg;
 	byte *stk;
-	
+
 	if(StackTop < sizeof(Stktop)) {
 		runtime·printf("runtime: SizeofStktop=%d, should be >=%d\n", (int32)StackTop, (int32)sizeof(Stktop));
 		runtime·throw("runtime: bad stack.h");
