@@ -1403,6 +1403,14 @@ func (b *builder) gccCmd(objdir string) []string {
 			a = append(a, "-pthread")
 		}
 	}
+
+	// On OS X, some of the compilers behave as if -fno-common
+	// is always set, and the Mach-O linker in 6l/8l assumes this.
+	// See http://golang.org/issue/3253.
+	if goos == "darwin" {
+		a = append(a, "-fno-common")
+	}
+
 	return a
 }
 
