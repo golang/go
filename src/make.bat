@@ -29,7 +29,7 @@ if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
 set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
 
 :: Clean old generated file that will cause problems in the build.
-del /F ".\pkg\runtime\runtime_defs.go"
+del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 
 echo # Building C bootstrap tool.
 echo cmd/dist
