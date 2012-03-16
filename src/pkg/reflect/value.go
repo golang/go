@@ -1632,6 +1632,15 @@ func MakeSlice(typ Type, len, cap int) Value {
 	if typ.Kind() != Slice {
 		panic("reflect.MakeSlice of non-slice type")
 	}
+	if len < 0 {
+		panic("reflect.MakeSlice: negative len")
+	}
+	if cap < 0 {
+		panic("reflect.MakeSlice: negative cap")
+	}
+	if len > cap {
+		panic("reflect.MakeSlice: len > cap")
+	}
 
 	// Declare slice so that gc can see the base pointer in it.
 	var x []byte
