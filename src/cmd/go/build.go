@@ -607,7 +607,7 @@ func (b *builder) do(root *action) {
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) (err error) {
 	defer func() {
-		if err != nil {
+		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
 		}
 	}()
@@ -761,7 +761,7 @@ func (b *builder) build(a *action) (err error) {
 // install is the action for installing a single package or executable.
 func (b *builder) install(a *action) (err error) {
 	defer func() {
-		if err != nil {
+		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go install %s: %v", a.p.ImportPath, err)
 		}
 	}()
