@@ -32,6 +32,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"regexp"
@@ -98,10 +99,11 @@ func code(file string, arg ...interface{}) (s string, err error) {
 	text = strings.Trim(text, "\n")
 	// Replace tabs by spaces, which work better in HTML.
 	text = strings.Replace(text, "\t", "    ", -1)
-	// Escape the program text for HTML.
-	text = template.HTMLEscapeString(text)
+	var buf bytes.Buffer
+	// HTML-escape text and syntax-color comments like elsewhere.
+	FormatText(&buf, []byte(text), -1, true, "", nil)
 	// Include the command as a comment.
-	text = fmt.Sprintf("<pre><!--{{%s}}\n-->%s</pre>", command, text)
+	text = fmt.Sprintf("<pre><!--{{%s}}\n-->%s</pre>", command, buf.Bytes())
 	return text, nil
 }
 
