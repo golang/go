@@ -1382,11 +1382,14 @@ mesg(int c, char *file)
 void
 trim(char *s, char *buf, int n)
 {
-	char *p;
+	char *p, *q;
 
 	for(;;) {
 		p = strrchr(s, '/');
-		if (!p) {		/* no slash in name */
+		q = strrchr(s, '\\');
+		if (q > p)
+			p = q;
+		if (!p) {		/* no (back)slash in name */
 			strncpy(buf, s, n);
 			return;
 		}
@@ -1394,7 +1397,7 @@ trim(char *s, char *buf, int n)
 			strncpy(buf, p+1, n);
 			return;
 		}
-		*p = 0;			/* strip trailing slash */
+		*p = 0;			/* strip trailing (back)slash */
 	}
 }
 
