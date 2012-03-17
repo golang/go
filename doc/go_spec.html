@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 12, 2012",
+	"Subtitle": "Version of March 17, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -5403,10 +5403,6 @@ type Pointer *ArbitraryType
 func Alignof(variable ArbitraryType) uintptr
 func Offsetof(selector ArbitraryType) uinptr
 func Sizeof(variable ArbitraryType) uintptr
-
-func Reflect(val interface{}) (typ runtime.Type, addr uintptr)
-func Typeof(val interface{}) (typ interface{})
-func Unreflect(typ runtime.Type, addr uintptr) interface{}
 </pre>
 
 <p>
@@ -5446,23 +5442,6 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
 </p>
 <p>
-The functions <code>unsafe.Typeof</code>,
-<code>unsafe.Reflect</code>,
-and <code>unsafe.Unreflect</code> allow access at run time to the dynamic
-types and values stored in interfaces.
-<code>Typeof</code> returns a representation of
-<code>val</code>'s
-dynamic type as a <code>runtime.Type</code>.
-<code>Reflect</code> allocates a copy of
-<code>val</code>'s dynamic
-value and returns both the type and the address of the copy.
-<code>Unreflect</code> inverts <code>Reflect</code>,
-creating an
-interface value from a type and address.
-The <a href="/pkg/reflect/"><code>reflect</code> package</a> built on these primitives
-provides a safe, more convenient way to inspect interface values.
-</p>
-
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 
