@@ -1317,7 +1317,7 @@ standard GCC back end. <code>Gc</code> is written in C using
 <code>yacc</code>/<code>bison</code> for the parser.
 Although it's a new program, it fits in the Plan 9 C compiler suite
 (<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">http://plan9.bell-labs.com/sys/doc/compiler.html</a>)
-and uses a variant of the Plan 9 loader to generate ELF binaries.
+and uses a variant of the Plan 9 loader to generate ELF/Mach-O/PE binaries.
 </p>
 
 <p>
@@ -1327,7 +1327,7 @@ especially of open source distribution&mdash;you'd need a Go compiler to
 set up a Go environment. <code>Gccgo</code>, which came later, makes it possible to
 consider writing a compiler in Go, which might well happen. (Go would be a
 fine language in which to implement a compiler; a native lexer and
-parser are already available in <a href="/pkg/go/"><code>/pkg/go</code></a>.)
+parser are already available in the <a href="/pkg/go/"><code>go</code></a> package.)
 </p>
 
 <p>
