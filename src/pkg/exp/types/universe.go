@@ -102,11 +102,6 @@ func init() {
 	defType("Pointer")
 
 	defFun("Alignof")
-	defFun("New")
-	defFun("NewArray")
 	defFun("Offsetof")
-	defFun("Reflect")
 	defFun("Sizeof")
-	defFun("Typeof")
-	defFun("Unreflect")
 }
