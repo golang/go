@@ -131,7 +131,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error reading file %s: %v", *checkFile, err)
 		}
-		v1 := strings.Split(string(bs), "\n")
+		v1 := strings.Split(strings.TrimSpace(string(bs)), "\n")
 		sort.Strings(v1)
 		v2 := features
 		take := func(sl *[]string) string {
@@ -139,16 +139,23 @@ func main() {
 			*sl = (*sl)[1:]
 			return s
 		}
+		changes := false
 		for len(v1) > 0 || len(v2) > 0 {
 			switch {
 			case len(v2) == 0 || v1[0] < v2[0]:
 				fmt.Fprintf(bw, "-%s\n", take(&v1))
+				changes = true
 			case len(v1) == 0 || v1[0] > v2[0]:
 				fmt.Fprintf(bw, "+%s\n", take(&v2))
+				changes = true
 			default:
 				take(&v1)
 				take(&v2)
 			}
+		}
+		if changes {
+			bw.Flush()
+			os.Exit(1)
 		}
 	} else {
 		for _, f := range features {
@@ -284,7 +291,9 @@ func (w *Walker) WalkPackage(name string) {
 		}
 	}
 
-	log.Printf("package %s", name)
+	if *verbose {
+		log.Printf("package %s", name)
+	}
 	pop := w.pushScope("pkg " + name)
 	defer pop()
 

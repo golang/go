@@ -74,7 +74,7 @@ make clean
 
 echo
 echo '#' ../misc/dashboard/builder ../misc/goplay
-go build ../misc/dashboard/builder ../misc/goplay || exit $?
+go build ../misc/dashboard/builder ../misc/goplay
 
 [ "$GOARCH" == arm ] ||
 (xcd ../test/bench/shootout
@@ -83,11 +83,15 @@ go build ../misc/dashboard/builder ../misc/goplay || exit $?
 
 echo
 echo '#' ../test/bench/go1
-go test ../test/bench/go1 || exit $?
+go test ../test/bench/go1
 
 (xcd ../test
 time go run run.go
 ) || exit $?
+
+echo
+echo '# Checking API compatibility.'
+go tool api -c $GOROOT/api/go1.txt
 
 echo
 echo ALL TESTS PASSED
