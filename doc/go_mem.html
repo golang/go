@@ -283,7 +283,7 @@ The <code>sync</code> package implements two lock data types,
 
 <p class="rule">
 For any <code>sync.Mutex</code> or <code>sync.RWMutex</code> variable <code>l</code> and <i>n</i> &lt; <i>m</i>,
-the <i>n</i>'th call to <code>l.Unlock()</code> happens before the <i>m</i>'th call to <code>l.Lock()</code> returns.
+call <i>n</i> of <code>l.Unlock()</code> happens before call <i>m</i> of <code>l.Lock()</code> returns.
 </p>
 
 <p>
@@ -316,9 +316,9 @@ which happens before the <code>print</code>.
 
 <p class="rule">
 For any call to <code>l.RLock</code> on a <code>sync.RWMutex</code> variable <code>l</code>,
-there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after the <i>n</i>'th call to
+there is an <i>n</i> such that the <code>l.RLock</code> happens (returns) after call <i>n</i> to
 <code>l.Unlock</code> and the matching <code>l.RUnlock</code> happens
-before the <i>n</i>+1'th call to <code>l.Lock</code>.
+before call <i>n</i>+1 to <code>l.Lock</code>.
 </p>
 
 <h3>Once</h3>
