@@ -342,7 +342,7 @@ func c_open(name *byte, mode int, perm int) int __asm__ ("open");
 </pre>
 
 <p>
-The C function naturally expects a nul terminated string, which in
+The C function naturally expects a NUL-terminated string, which in
 Go is equivalent to a pointer to an array (not a slice!) of
 <code>byte</code> with a terminating zero byte. So a sample call
 from Go would look like (after importing the <code>os</code> package):
