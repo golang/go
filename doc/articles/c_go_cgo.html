@@ -22,24 +22,24 @@ Let’s look at what's happening here, starting with the import statement.
 </p>
 
 <p>
-The rand package imports "C", but you'll find there's no such package in
-the standard Go library. That's because <code>C</code> is a
+The <code>rand</code> package imports <code>"C"</code>, but you'll find there's
+no such package in the standard Go library. That's because <code>C</code> is a
 "pseudo-package", a special name interpreted by cgo as a reference to C's
 name space.
 </p>
 
 <p>
-The rand package contains four references to the <code>C</code> package:
-the calls to <code>C.random</code> and <code>C.srandom</code>, the
-conversion <code>C.uint(i)</code>, and the import statement.
+The <code>rand</code> package contains four references to the <code>C</code>
+package: the calls to <code>C.random</code> and <code>C.srandom</code>, the
+conversion <code>C.uint(i)</code>, and the <code>import</code> statement.
 </p>
 
 <p>
-The <code>Random</code> function calls the libc random function and returns
-the result.  In C, random returns a value of the C type <code>long</code>,
-which cgo represents as the type <code>C.long</code>. It must be converted
-to a Go type before it can be used by Go code outside this package, using
-an ordinary Go type conversion:
+The <code>Random</code> function calls the standard C library's <code>random</code>
+function and returns the result.  In C, <code>random</code> returns a value of the
+C type <code>long</code>, which cgo represents as the type <code>C.long</code>.
+It must be converted to a Go type before it can be used by Go code outside this
+package, using an ordinary Go type conversion:
 </p>
 
 {{code "/doc/progs/cgo1.go" `/func Random/` `/STOP/`}}
@@ -54,30 +54,30 @@ the type conversion more explicitly:
 <p>
 The <code>Seed</code> function does the reverse, in a way. It takes a
 regular Go <code>int</code>, converts it to the C <code>unsigned int</code>
-type, and passes it to the C function srandom.
+type, and passes it to the C function <code>srandom</code>.
 </p>
 
 {{code "/doc/progs/cgo1.go" `/func Seed/` `/END/`}}
 
 <p>
-Note that cgo knows the unsigned int type as C.uint; see the
-<a href="/cmd/cgo">cgo documentation</a> for a complete list of these
-numeric type names.
+Note that cgo knows the <code>unsigned int</code> type as <code>C.uint</code>;
+see the <a href="/cmd/cgo">cgo documentation</a> for a complete list of
+these numeric type names.
 </p>
 
 <p>
 The one detail of this example we haven't examined yet is the comment
-above the import statement.
+above the <code>import</code> statement.
 </p>
 
-{{code "/doc/progs/cgo1.go" `/INCLUDE/` `/STOP/`}}
+{{code "/doc/progs/cgo1.go" `/\/\*/` `/STOP/`}}
 
 <p>
 Cgo recognizes this comment and uses it as a header when compiling the C
 parts of the package. In this case it is just a simple include statement,
 but it can be any valid C code. The comment must be immediately before the
-line that imports "C", without any intervening blank lines, just like a
-documentation comment.
+line that imports <code>"C"</code>, without any intervening blank lines,
+just like a documentation comment.
 </p>
 
 <p>
@@ -114,11 +114,11 @@ by calling <code>C.free</code>.
 <p>
 The call to <code>C.CString</code> returns a pointer to the start of the
 char array, so before the function exits we convert it to an
-<a href="/pkg/unsafe/#Pointer">unsafe.Pointer</a> and release the memory
-allocation with <code>C.free</code>. A common idiom in cgo programs is to
-<a href="/doc/articles/defer_panic_recover.html">defer</a> the free
-immediately after allocating (especially when the code that follows is more
-complex than a single function call), as in this rewrite of
+<a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a> and release
+the memory allocation with <code>C.free</code>. A common idiom in cgo programs
+is to <a href="/doc/articles/defer_panic_recover.html"><code>defer</code></a>
+the free immediately after allocating (especially when the code that follows
+is more complex than a single function call), as in this rewrite of
 <code>Print</code>:
 </p>
 
@@ -129,10 +129,11 @@ complex than a single function call), as in this rewrite of
 </p>
 
 <p>
-To build cgo packages, just use <a href="/cmd/go/#Compile_packages_and_dependencies">"go build"</a> or
-<a href="/cmd/go/#Compile_and_install_packages_and_dependencies">"go install"</a>
-as usual. The go tool recognizes the special "C" import and automatically uses
-cgo for those files.
+To build cgo packages, just use <a href="/cmd/go/#Compile_packages_and_dependencies">"
+<code>go build</code>"</a> or
+<a href="/cmd/go/#Compile_and_install_packages_and_dependencies">"<code>go install</code>
+"</a> as usual. The go tool recognizes the special <code>"C"</code> import and automatically
+uses cgo for those files.
 </p>
 
 <p>
@@ -141,8 +142,8 @@ cgo for those files.
 
 <p>
 The <a href="/cmd/cgo/">cgo command</a> documentation has more detail about
-the C pseudo-package and the build process. The cgo examples in the Go tree
-demonstrate more advanced concepts.
+the C pseudo-package and the build process. The <a href="/misc/cgo/">cgo examples</a>
+in the Go tree demonstrate more advanced concepts.
 </p>
 
 <p>
