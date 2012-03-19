@@ -7,6 +7,7 @@ package filepath_test
 import (
 	. "path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -76,21 +77,26 @@ func errp(e error) string {
 }
 
 func TestMatch(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// XXX: Don't pass for windows.
-		return
-	}
 	for _, tt := range matchTests {
-		ok, err := Match(tt.pattern, tt.s)
+		pattern := tt.pattern
+		s := tt.s
+		if runtime.GOOS == "windows" {
+			if strings.Index(pattern, "\\") >= 0 {
+				// no escape allowed on windows.
+				continue
+			}
+			pattern = Clean(pattern)
+			s = Clean(s)
+		}
+		ok, err := Match(pattern, s)
 		if ok != tt.match || err != tt.err {
-			t.Errorf("Match(%#q, %#q) = %v, %q want %v, %q", tt.pattern, tt.s, ok, errp(err), tt.match, errp(tt.err))
+			t.Errorf("Match(%#q, %#q) = %v, %q want %v, %q", pattern, s, ok, errp(err), tt.match, errp(tt.err))
 		}
 	}
 }
 
 // contains returns true if vector contains the string s.
 func contains(vector []string, s string) bool {
-	s = ToSlash(s)
 	for _, elem := range vector {
 		if elem == s {
 			return true
@@ -109,18 +115,20 @@ var globTests = []struct {
 }
 
 func TestGlob(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// XXX: Don't pass for windows.
-		return
-	}
 	for _, tt := range globTests {
-		matches, err := Glob(tt.pattern)
+		pattern := tt.pattern
+		result := tt.result
+		if runtime.GOOS == "windows" {
+			pattern = Clean(pattern)
+			result = Clean(result)
+		}
+		matches, err := Glob(pattern)
 		if err != nil {
-			t.Errorf("Glob error for %q: %s", tt.pattern, err)
+			t.Errorf("Glob error for %q: %s", pattern, err)
 			continue
 		}
-		if !contains(matches, tt.result) {
-			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+		if !contains(matches, result) {
+			t.Errorf("Glob(%#q) = %#v want %v", pattern, matches, result)
 		}
 	}
 	for _, pattern := range []string{"no_match", "../*/no_match"} {
