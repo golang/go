@@ -2514,6 +2514,7 @@ walkcompare(Node **np, NodeList **init)
 			expr = nodbool(n->op == OEQ);
 		typecheck(&expr, Erv);
 		walkexpr(&expr, init);
+		expr->type = n->type;
 		*np = expr;
 		return;
 	}
@@ -2534,6 +2535,7 @@ walkcompare(Node **np, NodeList **init)
 			expr = nodbool(n->op == OEQ);
 		typecheck(&expr, Erv);
 		walkexpr(&expr, init);
+		expr->type = n->type;
 		*np = expr;
 		return;
 	}
