@@ -166,8 +166,11 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	var certToSend *Certificate
+	var certRequested bool
 	certReq, ok := msg.(*certificateRequestMsg)
 	if ok {
+		certRequested = true
+
 		// RFC 4346 on the certificateAuthorities field:
 		// A list of the distinguished names of acceptable certificate
 		// authorities. These distinguished names may specify a desired
@@ -238,9 +241,14 @@ func (c *Conn) clientHandshake() error {
 	}
 	finishedHash.Write(shd.marshal())
 
-	if certToSend != nil {
+	// If the server requested a certificate then we have to send a
+	// Certificate message, even if it's empty because we don't have a
+	// certificate to send.
+	if certRequested {
 		certMsg = new(certificateMsg)
-		certMsg.certificates = certToSend.Certificate
+		if certToSend != nil {
+			certMsg.certificates = certToSend.Certificate
+		}
 		finishedHash.Write(certMsg.marshal())
 		c.writeRecord(recordTypeHandshake, certMsg.marshal())
 	}
