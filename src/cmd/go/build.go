@@ -1466,6 +1466,8 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	cgoflags := []string{}
 	// TODO: make cgo not depend on $GOARCH?
 
+	objExt := archChar
+
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
@@ -1474,6 +1476,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		if prefix := gccgoPrefix(p); prefix != "" {
 			cgoflags = append(cgoflags, "-gccgoprefix="+gccgoPrefix(p))
 		}
+		objExt = "o"
 	}
 	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
 		return nil, nil, err
@@ -1481,7 +1484,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	outGo = append(outGo, gofiles...)
 
 	// cc _cgo_defun.c
-	defunObj := obj + "_cgo_defun." + archChar
+	defunObj := obj + "_cgo_defun." + objExt
 	if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
 		return nil, nil, err
 	}
@@ -1524,7 +1527,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 
 	// cc _cgo_import.ARCH
-	importObj := obj + "_cgo_import." + archChar
+	importObj := obj + "_cgo_import." + objExt
 	if err := buildToolchain.cc(b, p, obj, importObj, importC); err != nil {
 		return nil, nil, err
 	}
