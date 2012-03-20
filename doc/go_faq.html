@@ -187,8 +187,8 @@ document server running in a production configuration on
 Do Go programs link with C/C++ programs?</h3>
 
 <p>
-There are two Go compiler implementations, <code>6g</code> and friends, 
-generically called <code>gc</code>, and <code>gccgo</code>.
+There are two Go compiler implementations, <code>gc</code>
+(the <code>6g</code> program and friends) and <code>gccgo</code>.
 <code>Gc</code> uses a different calling convention and linker and can
 therefore only be linked with C programs using the same convention.
 There is such a C compiler but no C++ compiler. 
@@ -994,7 +994,7 @@ Why is <code>int</code> 32 bits on 64 bit machines?</h3>
 <p>
 The sizes of <code>int</code> and <code>uint</code> are implementation-specific
 but the same as each other on a given platform.
-The 64 bit Go compilers (both 6g and gccgo) use a 32 bit representation for
+The 64 bit Go compilers (both gc and gccgo) use a 32 bit representation for
 <code>int</code>.  Code that relies on a particular
 size of value should use an explicitly sized type, like <code>int64</code>.
 On the other hand, floating-point scalars and complex
@@ -1321,7 +1321,7 @@ and uses a variant of the Plan 9 loader to generate ELF/Mach-O/PE binaries.
 </p>
 
 <p>
-We considered writing <code>6g</code>, the original Go compiler, in Go itself but
+We considered writing <code>gc</code>, the original Go compiler, in Go itself but
 elected not to do so because of the difficulties of bootstrapping and
 especially of open source distribution&mdash;you'd need a Go compiler to
 set up a Go environment. <code>Gccgo</code>, which came later, makes it possible to
@@ -1331,7 +1331,7 @@ parser are already available in the <a href="/pkg/go/"><code>go</code></a> packa
 </p>
 
 <p>
-We also considered using LLVM for <code>6g</code> but we felt it was too large and
+We also considered using LLVM for <code>gc</code> but we felt it was too large and
 slow to meet our performance goals.
 </p>
 
