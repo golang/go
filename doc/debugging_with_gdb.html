@@ -13,13 +13,14 @@ Besides this overview you might want to consult the
 
 <p>
 When you compile and link your Go programs with the <code>gc</code> toolchain
-on Linux, Mac OSX or FreeBSD, the resulting binaries contain DWARFv3
-debugging information that recent versions (>7.1) of the GDB debugger can
+on Linux, Mac OS X or FreeBSD, the resulting binaries contain DWARFv3
+debugging information that recent versions (&gt;7.1) of the GDB debugger can
 use to inspect a live process or a core dump.
 </p>
 
 <p>
-Pass the <code>'-s'</code> flag to the linker to omit the debug information.
+Pass the <code>'-s'</code> flag to the linker to omit the debug information
+(for example, <code>go build -ldflags "-s" prog.go</code>).
 </p>
 
 
@@ -28,7 +29,7 @@ Pass the <code>'-s'</code> flag to the linker to omit the debug information.
 <ul>
 <li>
 Show file and line number for code 
-and set breakpoints:
+, set breakpoints and disassemble:
 <pre>(gdb) <b>list</b>
 (gdb) <b>list <i>line</i></b>
 (gdb) <b>list <i>file.go</i>:<i>line</i></b>
@@ -37,7 +38,7 @@ and set breakpoints:
 (gdb) <b>disas</b></pre>
 </li>
 <li>
-Unwind stack frames:
+Show backtraces and unwind stack frames:
 <pre>(gdb) <b>bt</b>
 (gdb) <b>frame <i>n</i></b></pre>
 </li>
@@ -101,7 +102,7 @@ the Go source distribution. It depends on some special magic types
 <code>runtime.g</code>) that the linker
 (<a href="/src/cmd/ld/dwarf.c">src/cmd/ld/dwarf.c</a>) ensures are described in
 the DWARF code.
-</ines
+</p>
 
 <p>
 If you're interested in what the debugging information looks like, run
@@ -128,26 +129,26 @@ the form <code>pkg.(*MyType).Meth</code>.
 <p>
 In this tutorial we will inspect the binary of the
 <a href="/pkg/regexp/">regexp</a> package's unit tests. To build the binary,
-change to <code>$GOROOT/src/pkg/regexp</code> and run <code>gotest</code>.
-This should produce an executable file named <code>6.out</code>.
+change to <code>$GOROOT/src/pkg/regexp</code> and run <code>go test -c</code>.
+This should produce an executable file named <code>regexp.test</code>.
 </p>
 
 
 <h3 id="Getting_Started">Getting Started</h3>
 
 <p>
-Launch GDB, debugging <code>6.out</code>:
+Launch GDB, debugging <code>regexp.test</code>:
 </p>
 
 <pre>
-$ <b>gdb 6.out</b>
+$ <b>gdb regexp.test</b>
 GNU gdb (GDB) 7.2-gg8
 Copyright (C) 2010 Free Software Foundation, Inc.
 License GPLv  3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;
 Type "show copying" and "show warranty" for licensing/warranty details.
 This GDB was configured as "x86_64-linux".
 
-Reading symbols from  /home/user/go/src/pkg/regexp/6.out...
+Reading symbols from  /home/user/go/src/pkg/regexp/regexp.test...
 done.
 Loading Go Runtime support.
 (gdb) 
@@ -164,7 +165,7 @@ pass your <code>$GOROOT</code> with the <code>'-d'</code> flag:
 </p>
 
 <pre>
-$ <b>gdb 6.out -d $GOROOT</b>
+$ <b>gdb regexp.test -d $GOROOT</b>
 </pre>
 
 <p>
@@ -217,14 +218,13 @@ package is known to GDB as <code>'regexp.Compile'</code>.
 
 <p>
 Methods must be qualified with the name of their receiver types. For example,
-the <code>*Regexp</code> type’s <code>doParse</code> method is known as
-<code>'regexp.*Regexp.doParse'</code>. (Note that the second dot is a "middot,"
-an artifact of Go’s internal representation of methods.)
+the <code>*Regexp</code> type’s <code>String</code> method is known as
+<code>'regexp.(*Regexp).String'</code>.
 </p>
 
 <p>
 Variables that shadow other variables are magically suffixed with a number in the debug info.
-Variables referenced by closures will appear as pointers magically prefixed with '&amp'.
+Variables referenced by closures will appear as pointers magically prefixed with '&amp;'.
 </p>
 
 <h3 id="Setting_breakpoints">Setting breakpoints</h3>
@@ -244,7 +244,7 @@ Run the program:
 
 <pre>
 (gdb) <b>run</b>
-Starting program: /home/lvd/g/src/pkg/regexp/6.out 
+Starting program: /home/user/go/src/pkg/regexp/regexp.test
 
 Breakpoint 1, regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/pkg/regexp/find_test.go:148
 148	func TestFind(t *testing.T) {
@@ -287,16 +287,18 @@ The other goroutine, number 1, is stuck in <code>runtime.gosched</code>, blocked
 
 <pre>
 (gdb) <b>goroutine 1 bt</b>
-#0  0x000000000040facb in runtime.gosched () at /home/lvd/g/src/pkg/runtime/proc.c:873
+#0  0x000000000040facb in runtime.gosched () at /home/user/go/src/pkg/runtime/proc.c:873
 #1  0x00000000004031c9 in runtime.chanrecv (c=void, ep=void, selected=void, received=void)
- at  /home/lvd/g/src/pkg/runtime/chan.c:342
-#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/lvd/g/src/pkg/runtime/chan.c:423
-#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/lvd/g/src/pkg/testing/testing.go:201
-#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
-    at /home/lvd/g/src/pkg/testing/testing.go:168
-#5  0x0000000000400dc1 in main.main () at /home/lvd/g/src/pkg/regexp/_testmain.go:98
-#6  0x00000000004022e7 in runtime.mainstart () at /home/lvd/g/src/pkg/runtime/amd64/asm.s:78
-#7  0x000000000040ea6f in runtime.initdone () at /home/lvd/g/src/pkg/runtime/proc.c:243
+ at  /home/user/go/src/pkg/runtime/chan.c:342
+#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/user/go/src/pkg/runtime/chan.c:423
+#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)}
+ 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/user/go/src/pkg/testing/testing.go:201
+#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 
+ 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
+at /home/user/go/src/pkg/testing/testing.go:168
+#5  0x0000000000400dc1 in main.main () at /home/user/go/src/pkg/regexp/_testmain.go:98
+#6  0x00000000004022e7 in runtime.mainstart () at /home/user/go/src/pkg/runtime/amd64/asm.s:78
+#7  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
 #8  0x0000000000000000 in ?? ()
 </pre>
 
@@ -307,7 +309,7 @@ The stack frame shows we’re currently executing the <code>regexp.TestFind</cod
 <pre>
 (gdb) <b>info frame</b>
 Stack level 0, frame at 0x7ffff7f9ff88:
- rip = 0x425530 in regexp.TestFind (/home/lvd/g/src/pkg/regexp/find_test.go:148); 
+ rip = 0x425530 in regexp.TestFind (/home/user/go/src/pkg/regexp/find_test.go:148); 
     saved rip 0x430233
  called by frame at 0x7ffff7f9ffa8
  source language minimal.
@@ -346,12 +348,12 @@ $1 = (struct testing.T *) 0xf840688b60
 $1 = (struct testing.T *) 0xf840688b60
 (gdb) p *t
 $2 = {errors = "", failed = false, ch = 0xf8406f5690}
-(gdb) p *t->ch
-$3 = struct hchan<*testing.T>
+(gdb) p *t-&gt;ch
+$3 = struct hchan&lt;*testing.T&gt;
 </pre>
 
 <p>
-That <code>struct hchan<*testing.T></code> is the runtime-internal representation of a channel.  It is currently empty, or gdb would have pretty-printed it's contents.
+That <code>struct hchan&lt;*testing.T&gt;</code> is the runtime-internal representation of a channel.  It is currently empty, or gdb would have pretty-printed it's contents.
 </p>
 
 <p>
@@ -384,7 +386,7 @@ We can step into the <code>String</code>function call with <code>"s"</code>:
 
 <pre>
 (gdb) <b>s</b>
-regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/lvd/g/src/pkg/regexp/regexp.go:97
+regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/user/go/src/pkg/regexp/regexp.go:97
 97      func (re *Regexp) String() string {
 </pre>
 
@@ -394,14 +396,13 @@ Get a stack trace to see where we are:
 
 <pre>
 (gdb) <b>bt</b>
-(gdb) bt
 #0  regexp.(*Regexp).String (re=0xf84068d070, noname=void)
-    at /home/lvd/g/src/pkg/regexp/regexp.go:97
+    at /home/user/go/src/pkg/regexp/regexp.go:97
 #1  0x0000000000425615 in regexp.TestFind (t=0xf840688b60)
-    at /home/lvd/g/src/pkg/regexp/find_test.go:151
+    at /home/user/go/src/pkg/regexp/find_test.go:151
 #2  0x0000000000430233 in testing.tRunner (t=0xf840688b60, test=0x5747b8)
-    at /home/lvd/g/src/pkg/testing/testing.go:156
-#3  0x000000000040ea6f in runtime.initdone () at /home/lvd/g/src/pkg/runtime/proc.c:243
+    at /home/user/go/src/pkg/testing/testing.go:156
+#3  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
 ....
 </pre>
 
@@ -442,7 +443,7 @@ you can look inside the runtime representation to do that (tab completion helps 
 
 (gdb) <b>p slc</b>
 $11 =  []int = {0, 0}
-(gdb) <b>p slc-&gt</b><i>&ltTAB&gt</i>
+(gdb) <b>p slc-&gt;</b><i>&lt;TAB&gt;</i>
 array  slc    len    
 (gdb) <b>p slc->array</b>
 $12 = (int *) 0xf84057af00
@@ -463,7 +464,7 @@ $24 = 4
 </pre>
 
 <p>
-Channels and maps are 'reference' types, which gdb shows as pointers to C++-like types <code>hash&ltint,string&gt*</code>.  Dereferencing will trigger prettyprinting
+Channels and maps are 'reference' types, which gdb shows as pointers to C++-like types <code>hash&lt;int,string&gt;*</code>.  Dereferencing will trigger prettyprinting
 </p>
 
 <p>
