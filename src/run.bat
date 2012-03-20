@@ -41,10 +41,11 @@ go build ..\misc\dashboard\builder ..\misc\goplay
 if errorlevel 1 goto fail
 echo.
 
-echo # ..\test\bench\go1
-go test ..\test\bench\go1
-if errorlevel 1 goto fail
-echo.
+:: TODO(brainman): disabled, because it fails with: mkdir C:\Users\ADMINI~1\AppData\Local\Temp\2.....\test\bench\: The filename or extension is too long.
+::echo # ..\test\bench\go1
+::go test ..\test\bench\go1
+::if errorlevel 1 goto fail
+::echo.
 
 :: TODO: The other tests in run.bash.
 
