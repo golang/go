@@ -12,6 +12,10 @@ setlocal
 
 set GOBUILDFAIL=0
 
+:: we disallow local import for non-local packages, if %GOROOT% happens
+:: to be under %GOPATH%, then some tests below will fail
+set GOPATH=
+
 rem TODO avoid rebuild if possible
 
 if x%1==x--no-rebuild goto norebuild
