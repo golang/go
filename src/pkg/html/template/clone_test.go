@@ -114,6 +114,32 @@ func TestClone(t *testing.T) {
 	}
 }
 
+func TestTemplates(t *testing.T) {
+	names := []string{"t0", "a", "lhs", "rhs"}
+	// Some template definitions borrowed from TestClone.
+	const tmpl = `
+		{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}
+		{{define "lhs"}} <a href=" {{end}}
+		{{define "rhs"}} "></a> {{end}}`
+	t0 := Must(New("t0").Parse(tmpl))
+	templates := t0.Templates()
+	if len(templates) != len(names) {
+		t.Errorf("expected %d templates; got %d", len(names), len(templates))
+	}
+	for _, name := range names {
+		found := false
+		for _, tmpl := range templates {
+			if name == tmpl.text.Name() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("could not find template", name)
+		}
+	}
+}
+
 // This used to crash; http://golang.org/issue/3281
 func TestCloneCrash(t *testing.T) {
 	t1 := New("all")
