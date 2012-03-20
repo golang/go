@@ -23,8 +23,9 @@
 # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
 # building the commands.
 #
-# CGO_ENABLED: Setting this to 0 disables the use of cgo
-# in the built and installed packages and tools.
+# CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+# to include all cgo related files, .c and .go file with "cgo"
+# build directive, in the build. Set it to 0 to ignore them.
 
 set -e
 if [ ! -f run.bash ]; then
