@@ -5,7 +5,6 @@
 package net
 
 import (
-	"io"
 	"runtime"
 	"syscall"
 	"testing"
@@ -67,7 +66,7 @@ func TestTCPListener(t *testing.T) {
 		case syscall.AF_INET6:
 			testIPv6UnicastSocketOptions(t, fd)
 		}
-		l1.(io.Closer).Close()
+		l1.Close()
 	}
 }
 
@@ -112,7 +111,7 @@ func TestUDPListener(t *testing.T) {
 		case syscall.AF_INET6:
 			testIPv6UnicastSocketOptions(t, fd)
 		}
-		l1.(io.Closer).Close()
+		l1.Close()
 	}
 }
 
@@ -134,7 +133,7 @@ func TestSimpleTCPListener(t *testing.T) {
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := Listen(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		l1.(io.Closer).Close()
+		l1.Close()
 	}
 }
 
@@ -169,7 +168,7 @@ func TestSimpleUDPListener(t *testing.T) {
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		l1.(io.Closer).Close()
+		l1.Close()
 	}
 }
 
@@ -530,8 +529,9 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 	defer l.Close()
 
 	for _, tt := range prohibitionaryDialArgTests {
-		_, err := Dial(tt.net, tt.addr+":"+port)
+		c, err := Dial(tt.net, tt.addr+":"+port)
 		if err == nil {
+			c.Close()
 			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
 		}
 	}
