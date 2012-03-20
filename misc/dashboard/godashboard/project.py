@@ -22,7 +22,6 @@ class Project(db.Model):
     name = db.StringProperty(indexed=True)
     descr = db.StringProperty()
     web_url = db.StringProperty()
-    package = db.ReferenceProperty(Package)
     category = db.StringProperty(indexed=True)
     tags = db.ListProperty(str)
     approved = db.BooleanProperty(indexed=True)
@@ -117,11 +116,6 @@ class ProjectPage(webapp.RequestHandler):
             if self.request.get("do") == "Delete":
                 p.delete()
             else:
-                pkg_name = self.request.get("package", None)
-                if pkg_name:
-                    pkg = Package.get_by_key_name("pkg-"+pkg_name)
-                    if pkg:
-                        p.package = pkg.key()
                 for f in ['name', 'descr', 'web_url', 'category']:
                     setattr(p, f, self.request.get(f, None))
                 p.approved = self.request.get("approved") == "1"
