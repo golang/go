@@ -2711,11 +2711,11 @@ field for recoverable failures.
 
 <pre>
 for try := 0; try &lt; 2; try++ {
-    file, err = os.Open(filename)
+    file, err = os.Create(filename)
     if err == nil {
         return
     }
-    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == os.ENOSPC {
+    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == syscall.ENOSPC {
         deleteTempFiles()  // Recover some space.
         continue
     }
