@@ -31,6 +31,20 @@ type nameSpace struct {
 	set map[string]*Template
 }
 
+// Templates returns a slice of the templates associated with t, including t
+// itself.
+func (t *Template) Templates() []*Template {
+	ns := t.nameSpace
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+	// Return a slice so we don't expose the map.
+	m := make([]*Template, 0, len(ns.set))
+	for _, v := range ns.set {
+		m = append(m, v)
+	}
+	return m
+}
+
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
 func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
