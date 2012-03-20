@@ -166,10 +166,13 @@ function playground(opts) {
 				}
 				pre.text(out);
 			},
-			error: function() {
-				output.addClass("error").text(
-					"Error communicating with remote server."
-				);
+			error: function(xhr) {
+				var text = "Error communicating with remote server.";
+				console.log(xhr.status);
+				if (xhr.status == 501) {
+					text = xhr.responseText;
+				}
+				output.addClass("error").text(text);
 			}
 		});
 	}
@@ -190,6 +193,10 @@ function playground(opts) {
 				type: "POST",
 				complete: function(xhr) {
 					sharing = false;
+					if (xhr.status == 501) {
+						alert(xhr.responseText);
+						return;
+					}
 					if (xhr.status != 200) {
 						alert("Server error; try again.");
 						return;

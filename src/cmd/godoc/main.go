@@ -274,6 +274,10 @@ func main() {
 
 		registerPublicHandlers(http.DefaultServeMux)
 
+		// Playground handlers are not available in local godoc.
+		http.HandleFunc("/compile", disabledHandler)
+		http.HandleFunc("/share", disabledHandler)
+
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)
 		go initFSTree()
@@ -450,3 +454,9 @@ type httpWriter struct {
 
 func (w *httpWriter) Header() http.Header  { return w.h }
 func (w *httpWriter) WriteHeader(code int) { w.code = code }
+
+// disabledHandler serves a 501 "Not Implemented" response.
+func disabledHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+	fmt.Fprint(w, "This functionality is not available via local godoc.")
+}
