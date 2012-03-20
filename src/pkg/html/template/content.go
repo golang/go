@@ -26,10 +26,10 @@ type (
 	HTML string
 
 	// HTMLAttr encapsulates an HTML attribute from a trusted source,
-	// for example: ` dir="ltr"`.
+	// for example, ` dir="ltr"`.
 	HTMLAttr string
 
-	// JS encapsulates a known safe EcmaScript5 Expression, or example,
+	// JS encapsulates a known safe EcmaScript5 Expression, for example,
 	// `(x + y * z())`. 
 	// Template authors are responsible for ensuring that typed expressions
 	// do not break the intended precedence and that there is no
