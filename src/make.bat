@@ -1,6 +1,31 @@
 :: Copyright 2012 The Go Authors. All rights reserved.
 :: Use of this source code is governed by a BSD-style
 :: license that can be found in the LICENSE file.
+
+:: Environment variables that control make.bat:
+::
+:: GOROOT_FINAL: The expected final Go root, baked into binaries.
+:: The default is the location of the Go tree during the build.
+::
+:: GOHOSTARCH: The architecture for host tools (compilers and
+:: binaries).  Binaries of this type must be executable on the current
+:: system, so the only common reason to set this is to set
+:: GOHOSTARCH=386 on an amd64 machine.
+::
+:: GOARCH: The target architecture for installed packages and tools.
+::
+:: GOOS: The target operating system for installed packages and tools.
+::
+:: GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+:: building the packages and commands.
+::
+:: GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+:: building the commands.
+::
+:: CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+:: to include all cgo related files, .c and .go file with "cgo"
+:: build directive, in the build. Set it to 0 to ignore them.
+
 @echo off
 
 :: Keep environment variables within this script
@@ -17,6 +42,9 @@ echo Must run make.bat from Go src directory.
 goto fail 
 :ok
 
+:: Clean old generated file that will cause problems in the build.
+del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
+
 :: Grab default GOROOT_FINAL and set GOROOT for build.
 :: The expression %VAR:\=\\% means to take %VAR%
 :: and apply the substitution \ = \\, escaping the
@@ -27,9 +55,6 @@ set GOROOT=%CD%
 cd src
 if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
 set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
-
-:: Clean old generated file that will cause problems in the build.
-del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
 
 echo # Building C bootstrap tool.
 echo cmd/dist
@@ -62,14 +87,14 @@ echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
-"%GOTOOLDIR%\go_bootstrap" install -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std
 endlocal
 if errorlevel 1 goto fail
 echo.
 
 :mainbuild
 echo # Building packages and commands.
-"%GOTOOLDIR%\go_bootstrap" install -a -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.
