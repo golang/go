@@ -102,5 +102,5 @@ func main() {
 		}
 	}
 
-	fmt.Printf("\n%d calls; bit sizes: %d %d %d\n", runtime.Cgocalls(), numer.Len(), accum.Len(), denom.Len())
+	fmt.Printf("\n%d calls; bit sizes: %d %d %d\n", runtime.NumCgoCall(), numer.Len(), accum.Len(), denom.Len())
 }
