@@ -3348,10 +3348,17 @@ pkg html/template, const ErrPartialEscape ErrorCode
 pkg html/template, const ErrRangeLoopReentry ErrorCode
 pkg html/template, const ErrSlashAmbig ErrorCode
 pkg html/template, const OK ErrorCode
+pkg html/template, func HTMLEscape(io.Writer, []byte)
+pkg html/template, func HTMLEscapeString(string) string
+pkg html/template, func HTMLEscaper(...interface{}) string
+pkg html/template, func JSEscape(io.Writer, []byte)
+pkg html/template, func JSEscapeString(string) string
+pkg html/template, func JSEscaper(...interface{}) string
 pkg html/template, func Must(*Template, error) *Template
 pkg html/template, func New(string) *Template
 pkg html/template, func ParseFiles(...string) (*Template, error)
 pkg html/template, func ParseGlob(string) (*Template, error)
+pkg html/template, func URLQueryEscaper(...interface{}) string
 pkg html/template, method (*Error) Error() string
 pkg html/template, method (*Template) AddParseTree(string, *parse.Tree) (*Template, error)
 pkg html/template, method (*Template) Clone() (*Template, error)
@@ -3365,6 +3372,7 @@ pkg html/template, method (*Template) New(string) *Template
 pkg html/template, method (*Template) Parse(string) (*Template, error)
 pkg html/template, method (*Template) ParseFiles(...string) (*Template, error)
 pkg html/template, method (*Template) ParseGlob(string) (*Template, error)
+pkg html/template, method (*Template) Templates() []*Template
 pkg html/template, type CSS string
 pkg html/template, type Error struct
 pkg html/template, type Error struct, Description string
