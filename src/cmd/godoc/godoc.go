@@ -546,8 +546,12 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-func servePage(w http.ResponseWriter, title, subtitle, query string, content []byte) {
+func servePage(w http.ResponseWriter, tabtitle, title, subtitle, query string, content []byte) {
+	if tabtitle == "" {
+		tabtitle = title
+	}
 	d := struct {
+		Tabtitle  string
 		Title     string
 		Subtitle  string
 		SearchBox bool
@@ -556,6 +560,7 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 		Menu      []byte
 		Content   []byte
 	}{
+		tabtitle,
 		title,
 		subtitle,
 		*indexEnabled,
@@ -630,7 +635,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		src = buf.Bytes()
 	}
 
-	servePage(w, meta.Title, meta.Subtitle, "", src)
+	servePage(w, "", meta.Title, meta.Subtitle, "", src)
 }
 
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
@@ -666,7 +671,7 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
 	buf.WriteString("</pre>")
 
-	servePage(w, title+" "+relpath, "", "", buf.Bytes())
+	servePage(w, relpath, title+" "+relpath, "", "", buf.Bytes())
 }
 
 func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
@@ -681,7 +686,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 	}
 
 	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
-	servePage(w, "Directory "+relpath, "", "", contents)
+	servePage(w, relpath, "Directory "+relpath, "", "", contents)
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request) {
@@ -1073,30 +1078,41 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var title, subtitle string
+	var tabtitle, title, subtitle string
 	switch {
 	case info.PAst != nil:
-		title = "Package " + info.PAst.Name.Name
+		tabtitle = info.PAst.Name.Name
+		title = "Package " + tabtitle
 	case info.PDoc != nil:
-		switch {
-		case info.IsPkg:
-			title = "Package " + info.PDoc.Name
-		case info.PDoc.Name == fakePkgName:
+		if info.PDoc.Name == fakePkgName {
 			// assume that the directory name is the command name
-			_, pkgname := pathpkg.Split(relpath)
-			title = "Command " + pkgname
-		default:
-			title = "Command " + info.PDoc.Name
+			_, tabtitle = pathpkg.Split(relpath)
+		} else {
+			tabtitle = info.PDoc.Name
+		}
+		if info.IsPkg {
+			title = "Package " + tabtitle
+		} else {
+			title = "Command " + tabtitle
 		}
 	default:
-		title = "Directory " + info.Dirname
+		tabtitle = info.Dirname
+		title = "Directory " + tabtitle
 		if *showTimestamps {
 			subtitle = "Last update: " + info.DirTime.String()
 		}
 	}
 
+	// special cases for top-level package/command directories
+	switch tabtitle {
+	case "/src/pkg":
+		tabtitle = "Packages"
+	case "/src/cmd":
+		tabtitle = "Commands"
+	}
+
 	contents := applyTemplate(packageHTML, "packageHTML", info)
-	servePage(w, title, subtitle, "", contents)
+	servePage(w, tabtitle, title, subtitle, "", contents)
 }
 
 // ----------------------------------------------------------------------------
@@ -1186,7 +1202,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contents := applyTemplate(searchHTML, "searchHTML", result)
-	servePage(w, title, "", query, contents)
+	servePage(w, query, title, "", query, contents)
 }
 
 // ----------------------------------------------------------------------------
