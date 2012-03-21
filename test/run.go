@@ -1,4 +1,4 @@
-// #ignore
+// skip
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -172,7 +172,7 @@ type test struct {
 	donec       chan bool // closed when done
 
 	src    string
-	action string // "compile", "build", "run", "errorcheck"
+	action string // "compile", "build", "run", "errorcheck", "skip"
 
 	tempDir string
 	err     error
@@ -253,6 +253,9 @@ func (t *test) run() {
 		fallthrough
 	case "compile", "build", "run", "errorcheck":
 		t.action = action
+	case "skip":
+		t.action = "skip"
+		return
 	default:
 		t.err = skipError("skipped; unknown pattern: " + action)
 		t.action = "??"
