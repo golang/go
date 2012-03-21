@@ -284,8 +284,13 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 			}
 			conf.Fprint(fgo2, fset, d)
 			fmt.Fprintf(fgo2, "{\n")
+			fmt.Fprintf(fgo2, "\tsyscall.SetErrno(0)\n")
 			fmt.Fprintf(fgo2, "\tr := %s(%s)\n", cname, strings.Join(paramnames, ", "))
-			fmt.Fprintf(fgo2, "\treturn r, syscall.GetErrno()\n")
+			fmt.Fprintf(fgo2, "\te := syscall.GetErrno()\n")
+			fmt.Fprintf(fgo2, "\tif e != 0 {\n")
+			fmt.Fprintf(fgo2, "\t\treturn r, e\n")
+			fmt.Fprintf(fgo2, "\t}\n")
+			fmt.Fprintf(fgo2, "\treturn r, nil\n")
 			fmt.Fprintf(fgo2, "}\n")
 			// declare the C function.
 			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
