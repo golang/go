@@ -337,7 +337,7 @@ func (e *NoGoError) Error() string {
 // considered part of the package except for:
 //
 //	- .go files in package documentation
-//	- files starting with _ or .
+//	- files starting with _ or . (likely editor temporary files)
 //	- files with build constraints not satisfied by the context
 //
 // If an error occurs, Import returns a non-nil error also returns a non-nil
