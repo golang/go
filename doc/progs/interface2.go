@@ -123,3 +123,10 @@ func f8() {
 	fmt.Println("t is now", t)
 	// STOP OMIT
 }
+
+func f9() {
+	// START f9 OMIT
+	var x float64 = 3.4
+	fmt.Println("value:", reflect.ValueOf(x))
+	// STOP OMIT
+}
