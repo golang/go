@@ -771,7 +771,7 @@ error code secreted away in a volatile location.
 In Go, <code>Write</code>
 can return a count <i>and</i> an error: &ldquo;Yes, you wrote some
 bytes but not all of them because you filled the device&rdquo;.
-The signature of <code>*File.Write</code> in package <code>os</code> is:
+The signature of <code>File.Write</code> in package <code>os</code> is:
 </p>
 
 <pre>
@@ -1327,9 +1327,9 @@ values of different types.
 The key can be of any type for which the equality operator is defined,
 such as integers,
 floating point and complex numbers,
-strings, pointers, and interfaces (as long as the dynamic type
-supports equality).  Structs, arrays and slices cannot be used as map keys,
-because equality is not defined on those types.
+strings, pointers, interfaces (as long as the dynamic type
+supports equality), structs and arrays. Slices cannot be used as map keys,
+because equality is not defined on them.
 Like slices, maps are a reference type. If you pass a map to a function
 that changes the contents of the map, the changes will be visible
 in the caller.
@@ -1452,7 +1452,7 @@ fmt.Println(fmt.Sprint("Hello ", 23))
 </pre>
 <p>
 As mentioned in
-the <a href="http://code.google.com/p/go-tour/">Tour</a>, <code>fmt.Fprint</code>
+the <a href="http://tour.golang.org">Tour</a>, <code>fmt.Fprint</code>
 and friends take as a first argument any object
 that implements the <code>io.Writer</code> interface; the variables <code>os.Stdout</code>
 and <code>os.Stderr</code> are familiar instances.
@@ -1920,7 +1920,7 @@ A similar approach allows the streaming cipher algorithms
 in the various <code>crypto</code> packages to be
 separated from the block ciphers they chain together.
 The <code>Block</code> interface
-in the <code>crypto/cipher</code>package specifies the
+in the <code>crypto/cipher</code> package specifies the
 behavior of a block cipher, which provides encryption
 of a single block of data.
 Then, by analogy with the <code>bufio</code> package,
@@ -2331,7 +2331,7 @@ it can also be seen as a type-safe generalization of Unix pipes.
 They're called <em>goroutines</em> because the existing
 terms&mdash;threads, coroutines, processes, and so on&mdash;convey
 inaccurate connotations.  A goroutine has a simple model: it is a
-function executing in parallel with other goroutines in the same
+function executing concurrently with other goroutines in the same
 address space.  It is lightweight, costing little more than the
 allocation of stack space.
 And the stacks start small, so they are cheap, and grow
@@ -2352,7 +2352,7 @@ exits, silently.  (The effect is similar to the Unix shell's
 background.)
 </p>
 <pre>
-go list.Sort()  // run list.Sort in parallel; don't wait for it. 
+go list.Sort()  // run list.Sort concurrently; don't wait for it. 
 </pre>
 <p>
 A function literal can be handy in a goroutine invocation.
@@ -2697,14 +2697,14 @@ it is much more informative than the plain
 <p>
 When feasible, error strings should identify their origin, such as by having
 a prefix naming the package that generated the error.  For example, in package
-image, the string representation for a decoding error due to an unknown format
-is "image: unknown format".
+<code>image</code>, the string representation for a decoding error due to an
+unknown format is "image: unknown format".
 </p>
 
 <p>
 Callers that care about the precise error details can
 use a type switch or a type assertion to look for specific
-errors and extract details.  For <code>PathErrors</code>
+errors and extract details.  For <code>PathError</code>s
 this might include examining the internal <code>Err</code>
 field for recoverable failures.
 </p>
@@ -2985,7 +2985,7 @@ for safe display on the web page.
 </p>
 <p>
 The rest of the template string is just the HTML to show when the page loads.
-If this is too quick an explanation, see the <a href="/pkg/template/">documentation</a>
+If this is too quick an explanation, see the <a href="/pkg/text/template/">documentation</a>
 for the template package for a more thorough discussion.
 </p>
 <p>
