@@ -38,3 +38,7 @@ cmpout() {
 errorcheck() {
 	errchk $G -e $D/$F.go
 }
+
+skip() {
+	true
+}
