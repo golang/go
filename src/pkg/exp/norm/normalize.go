@@ -356,7 +356,7 @@ func lastBoundary(fd *formInfo, b []byte) int {
 		return -1
 	}
 	if info.size == 0 { // ends with incomplete rune
-		if p == 0 { // starts wtih incomplete rune
+		if p == 0 { // starts with incomplete rune
 			return -1
 		}
 		i = p
