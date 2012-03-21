@@ -29,7 +29,7 @@ time go test std -short -timeout=120s
 echo
 
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
-GOMAXPROCS=2 go test runtime -short -timeout=120s -cpu=1,2,4
+GOMAXPROCS=2 go test runtime -short -timeout=240s -cpu=1,2,4
 echo
 
 echo '# sync -cpu=10'
