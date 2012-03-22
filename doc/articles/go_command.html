@@ -42,12 +42,12 @@ statements.</p>
 <h2>Configuration versus convention</h2>
 
 <p>The way to achieve the simplicity of a configuration-free system is to
-establish conventions. The system works only to the extent that the convention
-is followed. When we first launched Go, many people published packages that
+establish conventions. The system works only to the extent that those conventions
+are followed. When we first launched Go, many people published packages that
 had to be installed in certain places, under certain names, using certain build
 tools, in order to be used. That's understandable: that's the way it works in
 most other languages. Over the last few years we consistently reminded people
-about the old <code>goinstall</code> command
+about the <code>goinstall</code> command
 (now replaced by <a href="/cmd/go/#Download_and_install_packages_and_dependencies"><code>go get</code></a>)
 and its conventions: first, that the import path is derived in a known way from
 the URL of the source code; second, that that the place to store the sources in
@@ -55,7 +55,7 @@ the local file system is derived in a known way from the import path; third,
 that each directory in a source tree corresponds to a single package; and
 fourth, that the package is built using only information in the source code.
 Today, the vast majority of packages follow these conventions.
-The Go ecosystem is simpler and more powerful for it.</p>
+The Go ecosystem is simpler and more powerful as a result.</p>
 
 <p>We received many requests to allow a makefile in a package directory to
 provide just a little extra configuration beyond what's in the source code.
