@@ -6,7 +6,7 @@
 // RFC 4627.
 //
 // See "JSON and Go" for an introduction to this package:
-// http://blog.golang.org/2011/01/json-and-go.html
+// http://golang.org/doc/articles/json_and_go.html
 package json
 
 import (
