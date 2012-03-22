@@ -2358,10 +2358,10 @@ append(Node *n, NodeList **init)
 
 	walkexprlistsafe(n->list, init);
 
-	// walkexprlistsafe will leave OINDEX (s[n]) along if both s
+	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here.  Fix explicitly.
-	for(l = n->list; l; l=l->next)
+	for(l=n->list; l; l=l->next)
 		l->n = cheapexpr(l->n, init);
 
 	nsrc = n->list->n;
