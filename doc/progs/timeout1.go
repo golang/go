@@ -11,7 +11,7 @@ func Timeout() {
 	ch := make(chan bool, 1)
 	timeout := make(chan bool, 1)
 	go func() {
-		time.Sleep(1e9) // one second
+		time.Sleep(1 * time.Second)
 		timeout <- true
 	}()
 
