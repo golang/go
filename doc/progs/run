@@ -51,7 +51,15 @@ gobs="
 	gobs2
 "
 
-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs slices go1)
+json="
+	json1
+	json2
+	json3
+	json4
+	json5
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs $json slices go1)
 
 for i in $all; do
 	go build $i.go
@@ -79,5 +87,9 @@ testit eff_sequence '^\[-1 2 6 16 44\]$'
 testit go1 '^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$'
 
 testit interface2 "^type: float64$"
+testit json1 "^$"
+testit json2 "the reciprocal of i is"
+testit json3 "Age is int 6"
+testit json4 "^$"
 
 rm -f $all "$TMPFILE"
