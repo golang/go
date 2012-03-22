@@ -1,4 +1,4 @@
-// run
+// $G $D/$F.dir/lib.go && $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11,7 +11,7 @@
 
 package main
 
-import "./bug424.dir"
+import "./lib"
 import "reflect"
 import "fmt"
 
