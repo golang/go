@@ -184,7 +184,8 @@ func quickSort(data Interface, a, b, maxDepth int) {
 }
 
 // Sort sorts data.
-// The algorithm used is not guaranteed to be a stable sort.
+// It makes one call to data.Len to determine n, and O(n*log(n)) calls to
+// data.Less and data.Swap. The sort is not guaranteed to be stable.
 func Sort(data Interface) {
 	// Switch to heapsort if depth of 2*ceil(lg(n+1)) is reached.
 	n := data.Len()
