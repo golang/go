@@ -14,7 +14,95 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
-<h2 id="2012-03-13">2012-03-13</h2>
+<h2 id="2012-03-22">2012-03-22 (Go 1 Release Candidate 2)</h2>
+
+<pre>
+As with last week's snapshot, this snapshot is another Go 1 release candidate.
+A notable change in this snapshot are Windows installer fixes.
+
+Changes in this snapshot:
+* 5l, 6l, 8l: fix stack split logic for stacks near default segment size.
+* archive/zip: move r.zip off disk, into reader_test.go.
+* build: catch API changes during build,
+	do more during windows build (thanks Alex Brainman),
+	lengthen timeout for the lengthy runtime test (thanks Shenghou Ma),
+	unset GOPATH before tests (thanks Shenghou Ma).
+* cmd/cgo: add support for function export for gccgo (thanks Rémy Oudompheng),
+	fix handling of errno for gccgo.
+* cmd/go: add -fno-common by default on Darwin (thanks Shenghou Ma),
+	don't add detail to errPrintedOutput,
+	fix directory->import path conversion,
+	make build errors more visible,
+	use .o, not .{5,6,8}, for gccgo created object files,
+	work around occasional ETXTBSY running cgo.
+* cmd/godoc: add toys, tour button to playground,
+	inform users that the playground doesn't work via local godoc,
+	style example headings like links,
+	use *goroot as base path in zip file,
+	use FormatText for formating code in html template,
+	use shorter titles for tabs.
+* cmd/gofmt: show ascii in usage (thanks Yasuhiro Matsumoto).
+* cmd/pack: also recognize '\\' as path separator in filenames (thanks Shenghou Ma).
+* crypto/tls: always send a Certificate message if one was requested.
+* doc/install: remove reference to "Go Tutorial" (thanks Shenghou Ma).
+* doc/play: use []rune instead of []int (thanks Yasuhiro Matsumoto).
+* doc: add Go Concurrency Patterns: Timing out, moving on article (thanks Francisco Souza),
+	add Go image/draw package article and convert code snippets to Go1,
+	add Gobs of data article (thanks Francisco Souza),
+	add Godoc: documenting Go code article (thanks Francisco Souza),
+	add JSON and Go article (thanks Francisco Souza),
+	general update of gccgo installation instructions,
+	minor updates to most docs.
+* flag: add examples.
+* gc: fix struct and array comparisons for new bool rules (thanks Anthony Martin),
+	use quoted string format in import error,
+	when expanding append inline, preserve arguments.
+* go/build: clarify why we exclude files starting with '_' or '.' (thanks Shenghou Ma),
+	clearer argument name for Import (src -> srcDir),
+	do not report Target for local imports,
+	fix match.
+* go/printer, gofmt: fix multi-line logic.
+* html/template: add Templates and XXXEscape functions,
+	fix nil pointer bug,
+	fix panic on Clone.
+* io/ioutil: fix crash when Stat fails.
+* make.bat: fix for old files (thanks Christopher Redden),
+	don't show error message if old generated files do not exist (thanks Shenghou Ma),
+	properly handle directories with spaces (thanks Alex Brainman).
+* misc/cgo/gmp: update for Go 1 (thanks Shenghou Ma).
+* misc/dashboard: remove old python package dashboard.
+* misc/dist: don't ship cmd/cov or cmd/prof,
+	force modes to 0755 or 0644 in tarballs,
+	remove exp and old before building.
+* misc/vim: restore fileencodings (thanks Yasuhiro Matsumoto).
+* net/http: couple more triv.go modernizations,
+	ensure triv.go compiles and runs (thanks Robert Hencke).
+* net: drop unnecessary type assertions and fix leak in test (thanks Mikio Hara).
+* os: IsNotExist() should also consider ERROR_PATH_NOT_FOUND on Windows (thanks Shenghou Ma),
+	do not assume syscall.Write will write everything,
+	remove document duplication in error predicate functions (thanks Shenghou Ma),
+	return some invented data from Stat(DevNull) on windows (thanks Alex Brainman).
+* path/filepath: implement Match and Glob on windows (thanks Alex Brainman).
+* reflect: document PkgPath, Method, StructField,
+	panic if MakeSlice is given bad len/cap arguments.
+* run.bat: disable test in test\bench\go1 to fix build (thanks Alex Brainman).
+* runtime/cgo: darwin signal masking (thanks Mikio Hara),
+	linux signal masking (thanks Mikio Hara).
+* runtime: do not handle signals before configuring handler,
+	manage stack by ourselves for badcallback on windows/amd64 (thanks Shenghou Ma),
+	remove unused goc2c.c (thanks Shenghou Ma).
+* sort: add time complexity to doc (thanks Stefan Nilsson),
+	fix computation of maxDepth to avoid infinite loop (thanks Stefan Nilsson).
+* spec: delete references to unsafe.Reflect,Typeof,Unreflect.
+* syscall: Test SCM_CREDENTIALS, SO_PASSCRED on Linux (thanks Albert Strasheim),
+	add a test for passing an fd over a unix socket,
+	delete passfd_test.go.
+* test: use testlib in a few more cases (thanks Shenghou Ma).
+* text/template: fix a couple of parse bugs around identifiers,
+	variables do not take arguments.
+</pre>
+
+<h2 id="2012-03-13">2012-03-13 (Go 1 Release Candidate 1)</h2>
 
 <pre>
 This weekly snapshot is very close to what we expect will be the contents of
