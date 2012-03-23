@@ -4,7 +4,38 @@
 }-->
 
 <p>
-Click on the links for more documentation and usage messages.
+There is a suite of programs to build and process Go source code.
+Instead of being run directly, programs in the suite are usually invoked
+by the <a href="/cmd/go/">go</a> program.
+</p>
+
+<p>
+The most common way to run these programs is as a subcommand of the go
+program,
+for instance as "go fmt". Run like this, the command operates on complete
+packages of Go source code, with the go program invoking the underlying binary
+with arguments appropriate to package-level processing.
+</p>
+
+<p>
+The programs can also be run as stand-alone binaries, with unmodified arguments,
+using the go tool subcommand, such as "go tool fmt".
+This style of invocation allows, for instance, reformatting a single source file rather than
+an entire package: "go tool fmt myprogram.go" as compared to
+"go fmt mypackage".
+Some of the commands, such as prof and yacc, are accessible
+only through the go tool subcommand.
+</p>
+
+<p>
+Finally, two of the commands, fmt and
+doc, are also installed as regular binaries called
+gofmt and godoc
+because they are so often referenced.
+</p>
+
+<p>
+Click on the links for more documentation, invocation methods, and usage details.
 </p>
 
 <table class="dir">
@@ -18,10 +49,9 @@ Click on the links for more documentation and usage messages.
 <td><a href="/cmd/go/">go</a></td>
 <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
 <td>
-Go is a tool for managing Go source code.
-<br>
-Besides compiling and running Go programs, the go command is also used to
-invoke the other commands listed below. See the command docs for usage
+The <code>go</code> program manages Go source code and runs the other
+commands listed here.
+See the command docs for usage
 details.
 <br><br>
 </td>
@@ -76,7 +106,7 @@ calls whose arguments do not align with the format string.</td>
 <tr>
 <td><a href="/cmd/yacc/">yacc</a></td>
 <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-<td>Yacc is a version of yacc for Go.</td>
+<td>Yacc is a version of yacc that generates parsers implemented in Go.</td>
 </tr>
 
 </table>
