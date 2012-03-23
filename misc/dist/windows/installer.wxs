@@ -7,11 +7,15 @@
 -->
 
 <?if $(var.Arch) = 386 ?>
-  <?define SYSFOLDER=SystemFolder ?>
-  <?define Win64=no ?>
+  <?define ProdId = {FF5B30B2-08C2-11E1-85A2-6ACA4824019B} ?>
+  <?define UpgradeCode = {1C3114EA-08C3-11E1-9095-7FCA4824019B} ?>
+  <?define SysFolder=SystemFolder ?>
+  <?define IsX64Target = no ?>
 <?else?>
-  <?define SYSFOLDER=System64Folder ?>
-  <?define Win64=yes ?>
+  <?define ProdId = {716c3eaa-9302-48d2-8e5e-5cfec5da2fab} ?>
+  <?define UpgradeCode = {22ea7650-4ac6-4001-bf29-f4b8775db1c0} ?>
+  <?define SysFolder=System64Folder ?>
+  <?define IsX64Target = yes ?>
 <?endif?>
 
 <Product
@@ -21,7 +25,7 @@
     Codepage="1252"
     Version="0.0.0.0"
     Manufacturer="http://golang.org"
-    UpgradeCode="1C3114EA-08C3-11E1-9095-7FCA4824019B" >
+    UpgradeCode="$(var.UpgradeCode)" >
     <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
 
 <Package
@@ -41,12 +45,12 @@
 <Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
 <Property Id="ARPREADME" Value="golang.org" />
 <Property Id="ARPURLINFOABOUT" Value="golang.org" />
+<Property Id="LicenseAccepted">1</Property>
 <Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
 <Property Id="ARPPRODUCTICON" Value="gopher.ico" />
 <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
 <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
 <MajorUpgrade AllowDowngrades="yes" />
-<SetDirectory Id="INSTALLDIRROOT" Value="C:\"/>
 
 <CustomAction
     Id="SetApplicationRootDirectory"
@@ -64,34 +68,24 @@
   <Directory Id="EnvironmentEntries">
     <Directory Id="GoEnvironmentEntries" Name="Go Programming Language"/>
   </Directory>
-  <Directory Id="DesktopFolder" Name="Desktop"/>
 </Directory>
 
-<!-- Programs Menu & Desktop Shortcuts -->
+<!-- Programs Menu Shortcuts -->
 <DirectoryRef Id="GoProgramShortcutsDir">
-  <Component Id="Component_GoShortCuts" Guid="f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b">
+  <Component Id="Component_GoProgramShortCuts" Guid="{f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b}" Win64="$(var.IsX64Target)">
     <Shortcut
         Id="GoDocServerStartMenuShortcut"
         Name="GoDocServer"
         Description="Starts the Go documentation server (http://localhost:6060)"
         Show="minimized"
-        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
+        Arguments='/c start "Godoc Server http://localhost:6060" /d"[INSTALLDIR]bin" godoc.exe -http=:6060 -goroot="[INSTALLDIR]" -path="%GOPATH%" &amp;&amp; start http://localhost:6060'
         Icon="gopher.ico"
-        Target="[%ComSpec]" />
-    <Shortcut
-        Id="GoDocServerDesktopShortcut"
-        Directory="DesktopFolder"
-        Name="GoDocServer"
-        Description="Starts the godoc server (http://localhost:6060)"
-        Show="minimized"
-        Icon="gopher.ico"
-        Arguments='/c "start /d[INSTALLDIR]bin godoc.exe -http=:6060 &amp;&amp; start http://localhost:6060"'
         Target="[%ComSpec]" />
     <Shortcut
         Id="UninstallShortcut"
         Name="Uninstall Go"
         Description="Uninstalls Go and all of its components"
-        Target="[$(var.SYSFOLDER)]msiexec.exe"
+        Target="[$(var.SysFolder)]msiexec.exe"
         Arguments="/x [ProductCode]" />
     <RemoveFolder
         Id="GoProgramShortcutsDir"
@@ -108,7 +102,7 @@
 
 <!-- Registry & Environment Settings -->
 <DirectoryRef Id="GoEnvironmentEntries">
-  <Component Id="Component_GoEnvironment" Guid="3ec7a4d5-eb08-4de7-9312-2df392c45993">
+  <Component Id="Component_GoEnvironment" Guid="{3ec7a4d5-eb08-4de7-9312-2df392c45993}" Win64="$(var.IsX64Target)">
     <RegistryKey 
         Root="HKCU"
         Key="Software\GoProgrammingLanguage"
@@ -124,20 +118,26 @@
                 Value="[INSTALLDIR]" />
     </RegistryKey>
     <Environment
-        Id="Environment"
+        Id="GoPathEntry"
         Action="set"
         Part="last"
         Name="PATH"
         Permanent="no"
         System="yes"
         Value="[INSTALLDIR]bin" />
+    <Environment
+        Id="GoRoot"
+        Action="set"
+        Part="all"
+        Name="GOROOT"
+        Permanent="no"
+        System="yes"
+        Value="[INSTALLDIR]" />
     <RemoveFolder
         Id="GoEnvironmentEntries"
         On="uninstall" />
   </Component>
 </DirectoryRef>
-
-<!-- Components -->
 
 <!-- Install the files -->
 <Feature
@@ -146,7 +146,7 @@
     Level="1">
       <ComponentRef Id="Component_GoEnvironment" />
       <ComponentGroupRef Id="AppFiles" />
-      <ComponentRef Id="Component_GoShortCuts" />
+      <ComponentRef Id="Component_GoProgramShortCuts" />
 </Feature>
 
 <!-- Update the environment -->
