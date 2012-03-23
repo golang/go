@@ -78,7 +78,7 @@
         Name="GoDocServer"
         Description="Starts the Go documentation server (http://localhost:6060)"
         Show="minimized"
-        Arguments='/c start "Godoc Server http://localhost:6060" /d"[INSTALLDIR]bin" godoc.exe -http=:6060 -goroot="[INSTALLDIR]" -path="%GOPATH%" &amp;&amp; start http://localhost:6060'
+        Arguments='/c start "Godoc Server http://localhost:6060" "[INSTALLDIR]bin\godoc.exe" -http=localhost:6060 -goroot="[INSTALLDIR]." &amp;&amp; start http://localhost:6060'
         Icon="gopher.ico"
         Target="[%ComSpec]" />
     <Shortcut
