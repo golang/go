@@ -713,7 +713,7 @@ This table lists the old and new import paths:
 <em>Updating</em>:
 Running <code>go</code> <code>fix</code> will update imports of these packages to use the new import paths.
 Installations that depend on these packages will need to install them using
-a <code>go install</code> command.
+a <code>go get</code> command.
 </p>
 
 <h2 id="major">Major changes to the library</h2>
@@ -2027,3 +2027,12 @@ or variable initializations in the C preamble.
 
 <h2 id="releases">Packaged releases</h2>
 
+<p>
+One of the most significant changes associated with Go 1 is the availability
+of prepackaged, downloadable distributions.
+They are available for many combinations of architecture and operating system
+(including Windows) and the list will grow.
+Installation details are described on the
+<a href="/doc/install">Getting Started</a> page, while
+the distributions themselves are listed on the
+<a href="http://code.google.com/p/go/downloads/list">downloads page</a>.
