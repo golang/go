@@ -814,6 +814,7 @@ type VolumeNameTest struct {
 var volumenametests = []VolumeNameTest{
 	{`c:/foo/bar`, `c:`},
 	{`c:`, `c:`},
+	{`2:`, ``},
 	{``, ``},
 	{`\\\host`, ``},
 	{`\\\host\`, ``},
