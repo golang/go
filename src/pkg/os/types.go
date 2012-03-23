@@ -58,7 +58,7 @@ const (
 
 func (m FileMode) String() string {
 	const str = "dalTLDpSugct"
-	var buf [20]byte
+	var buf [32]byte // Mode is uint32.
 	w := 0
 	for i, c := range str {
 		if m&(1<<uint(32-1-i)) != 0 {
