@@ -65,7 +65,7 @@ and then loops passing completed Resources back to the pending
 channel after appropriate delays.
 </step>
 
-<step title="Creating channels" src="doc/codewalk/urlpoll.go:/create our/,/complete/">
+<step title="Creating channels" src="doc/codewalk/urlpoll.go:/Create our/,/complete/">
 First, main makes two channels of *Resource, pending and complete.
 <br/><br/>
 Inside main, a new goroutine sends one Resource per URL to pending
@@ -75,7 +75,7 @@ The pending and complete channels are passed to each of the Poller
 goroutines, within which they are known as in and out. 
 </step>
 
-<step title="Initializing StateMonitor" src="doc/codewalk/urlpoll.go:/launch the StateMonitor/,/statusInterval/">
+<step title="Initializing StateMonitor" src="doc/codewalk/urlpoll.go:/Launch the StateMonitor/,/statusInterval/">
 StateMonitor will initialize and launch a goroutine that stores the state 
 of each Resource. We will look at this function in detail later. 
 <br/><br/>
@@ -83,14 +83,14 @@ For now, the important thing to note is that it returns a channel of State,
 which is saved as status and passed to the Poller goroutines.
 </step>
 
-<step title="Launching Poller goroutines" src="doc/codewalk/urlpoll.go:/launch some Poller/,/}/">
+<step title="Launching Poller goroutines" src="doc/codewalk/urlpoll.go:/Launch some Poller/,/}/">
 Now that it has the necessary channels, main launches a number of
 Poller goroutines, passing the channels as arguments.
 The channels provide the means of communication between the main, Poller, and 
 StateMonitor goroutines.
 </step>
 
-<step title="Send Resources to pending" src="doc/codewalk/urlpoll.go:/send some Resources/,/}\(\)/">
+<step title="Send Resources to pending" src="doc/codewalk/urlpoll.go:/Send some Resources/,/}\(\)/">
 To add the initial work to the system, main starts a new goroutine
 that allocates and sends one Resource per URL to pending.
 <br/><br/>
