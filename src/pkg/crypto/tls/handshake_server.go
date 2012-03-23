@@ -60,21 +60,23 @@ FindCipherSuite:
 	for _, id := range clientHello.cipherSuites {
 		for _, supported := range config.cipherSuites() {
 			if id == supported {
-				suite = nil
+				var candidate *cipherSuite
+
 				for _, s := range cipherSuites {
 					if s.id == id {
-						suite = s
+						candidate = s
 						break
 					}
 				}
-				if suite == nil {
+				if candidate == nil {
 					continue
 				}
 				// Don't select a ciphersuite which we can't
 				// support for this client.
-				if suite.elliptic && !ellipticOk {
+				if candidate.elliptic && !ellipticOk {
 					continue
 				}
+				suite = candidate
 				break FindCipherSuite
 			}
 		}
