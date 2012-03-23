@@ -25,7 +25,7 @@ contents of one file to the other:
 <p>
 This works, but there is a bug. If the call to os.Create fails, the
 function will return without closing the source file. This can be easily
-remedied by putting a call to src.Close() before the second return statement,
+remedied by putting a call to src.Close before the second return statement,
 but if the function were more complex the problem might not be so easily
 noticed and resolved. By introducing defer statements we can ensure that the
 files are always closed:
@@ -160,7 +160,8 @@ For a real-world example of <b>panic</b> and <b>recover</b>, see the
 It decodes JSON-encoded data with a set of recursive functions.
 When malformed JSON is encountered, the parser calls panic to unwind the
 stack to the top-level function call, which recovers from the panic and returns
-an appropriate error value (see the 'error' and 'unmarshal' functions in
+an appropriate error value (see the 'error' and 'unmarshal' methods of
+the decodeState type in
 <a href="/src/pkg/encoding/json/decode.go">decode.go</a>).
 </p>
 
@@ -170,7 +171,7 @@ internally, its external API still presents explicit error return values.
 </p>
  
 <p>
-Other uses of <b>defer</b> (beyond the file.Close() example given earlier)
+Other uses of <b>defer</b> (beyond the file.Close example given earlier)
 include releasing a mutex:
 </p>
 
