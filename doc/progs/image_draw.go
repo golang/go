@@ -117,7 +117,7 @@ func Glyph() {
 	// STOP OMIT
 }
 
-//CIRCLE OMIT
+//CIRCLESTRUCT OMIT
 type circle struct {
 	p image.Point
 	r int
@@ -139,4 +139,4 @@ func (c *circle) At(x, y int) color.Color {
 	return color.Alpha{0}
 }
 
-//STOP
+//STOP OMIT
