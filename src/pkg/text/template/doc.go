@@ -244,7 +244,7 @@ Functions
 
 During execution functions are found in two function maps: first in the
 template, then in the global function map. By default, no functions are defined
-in the template but the Funcs methods can be used to add them.
+in the template but the Funcs method can be used to add them.
 
 Predefined global functions are named as follows.
 
