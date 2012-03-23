@@ -130,6 +130,10 @@ Curve:
 		}
 	}
 
+	if curveid == 0 {
+		return nil, errors.New("tls: no supported elliptic curves offered")
+	}
+
 	var x, y *big.Int
 	var err error
 	ka.privateKey, x, y, err = elliptic.GenerateKey(ka.curve, config.rand())
