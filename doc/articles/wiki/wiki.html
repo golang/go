@@ -36,7 +36,7 @@ Install Go (see the <a href="/doc/install">Installation Instructions</a>).
 </p>
 
 <p>
-Make a new directory for this tutorial and cd to it:
+Make a new directory for this tutorial inside your <code>GOPATH</code> and cd to it:
 </p>
 
 <pre>
@@ -551,8 +551,8 @@ to the user.
 
 <p>
 There is an inefficiency in this code: <code>renderTemplate</code> calls 
-<code>ParseFile</code> every time a page is rendered. 
-A better approach would be to call <code>ParseFile</code> once for each 
+<code>ParseFiles</code> every time a page is rendered. 
+A better approach would be to call <code>ParseFiles</code> once for each 
 template at program initialization, and store the resultant 
 <code>*Template</code> values in a data structure for later use.
 </p>
