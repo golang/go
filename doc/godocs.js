@@ -18,13 +18,6 @@ function bindEvent(el, e, fn) {
     el.attachEvent('on'+e, fn);
   }
 }
-bindEvent(window, 'load', godocs_onload);
-
-function godocs_onload() {
-  godocs_bindSearchEvents();
-  godocs_generateTOC();
-  godocs_bindExamples();
-}
 
 function godocs_bindSearchEvents() {
   var search = document.getElementById('search');
@@ -39,7 +32,7 @@ function godocs_bindSearchEvents() {
     }
   }
   function restoreInactive() {
-    if (search.value != "") {
+    if (search.value !== "") {
       return;
     }
     if (search.type != "search") {
@@ -50,6 +43,26 @@ function godocs_bindSearchEvents() {
   restoreInactive();
   bindEvent(search, 'focus', clearInactive);
   bindEvent(search, 'blur', restoreInactive);
+}
+
+/* Returns the "This sweet header" from <h2>This <i>sweet</i> header</h2>.
+ * Takes a node, returns a string.
+ */
+function godocs_nodeToText(node) {
+  var TEXT_NODE = 3; // Defined in Mozilla but not MSIE :(
+
+  var text = '';
+  for (var j = 0; j != node.childNodes.length; j++) {
+    var child = node.childNodes[j];
+    if (child.nodeType == TEXT_NODE) {
+      if (child.nodeValue != '[Top]') { //ok, that's a hack, but it works.
+        text = text + child.nodeValue;
+      }
+    } else {
+      text = text + godocs_nodeToText(child);
+    }
+  }
+  return text;
 }
 
 /* Generates a table of contents: looks for h2 and h3 elements and generates
@@ -138,56 +151,59 @@ function godocs_generateTOC() {
   tocCell.appendChild(dl2);
 }
 
-/* Returns the "This sweet header" from <h2>This <i>sweet</i> header</h2>.
- * Takes a node, returns a string.
- */
-function godocs_nodeToText(node) {
-  var TEXT_NODE = 3; // Defined in Mozilla but not MSIE :(
-
-  var text = '';
-  for (var j = 0; j != node.childNodes.length; j++) {
-    var child = node.childNodes[j];
-    if (child.nodeType == TEXT_NODE) {
-      if (child.nodeValue != '[Top]') { //ok, that's a hack, but it works.
-        text = text + child.nodeValue;
-      }
-    } else {
-      text = text + godocs_nodeToText(child);
+function getElementsByClassName(base, clazz) {
+  if (base.getElementsByClassName) {
+    return base.getElementsByClassName(clazz);
+  }
+  var elements = base.getElementsByTagName('*'), foundElements = [];
+  for (var n in elements) {
+    if (clazz == elements[n].className) {
+      foundElements.push(elements[n]);
     }
   }
-  return text;
+  return foundElements;
 }
 
-function godocs_bindExamples() {
-  var examples = document.getElementsByClassName("example");
-  for (var i = 0; i < examples.length; i++) {
-    godocs_bindExampleToggle(examples[i]);
-  }
-  var links = document.getElementsByClassName("exampleLink");
-  for (var i = 0; i < links.length; i++) {
-    godocs_bindExampleLink(links[i]);
-  }
-}
 function godocs_bindExampleToggle(eg) {
-  var heading = eg.getElementsByClassName("exampleHeading");
+  var heading = getElementsByClassName(eg, "exampleHeading");
+  var callback = function() {
+    if (eg.className == "example") {
+      eg.className = "exampleVisible";
+    } else {
+      eg.className = "example";
+    }
+  };
   for (var i = 0; i < heading.length; i++) {
-    bindEvent(heading[i], "click", function() {
-      if (eg.className == "example") {
-        eg.className = "exampleVisible";
-      } else {
-        eg.className = "example";
-      }
-    });
+    bindEvent(heading[i], "click", callback);
   }
 }
 function godocs_bindExampleLink(l) {
   var prefix = "example_";
   bindEvent(l, "click", function() {
     var i = l.href.indexOf("#"+prefix);
-    if (i < 0)
+    if (i < 0) {
       return;
+    }
     var id = prefix + l.href.slice(i+1+prefix.length);
     var eg = document.getElementById(id);
     eg.className = "exampleVisible";
   });
 }
+function godocs_bindExamples() {
+  var examples = getElementsByClassName(document, "example");
+  for (var i = 0; i < examples.length; i++) {
+    godocs_bindExampleToggle(examples[i]);
+  }
+  var links = getElementsByClassName(document, "exampleLink");
+  for (i = 0; i < links.length; i++) {
+    godocs_bindExampleLink(links[i]);
+  }
+}
+
+function godocs_onload() {
+  godocs_bindSearchEvents();
+  godocs_generateTOC();
+  godocs_bindExamples();
+}
+
+bindEvent(window, 'load', godocs_onload);
