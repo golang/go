@@ -23,23 +23,23 @@ const (
 func (b ByteSize) String() string {
 	switch {
 	case b >= YB:
-		return fmt.Sprintf("%.2fYB", float64(b/YB))
+		return fmt.Sprintf("%.2fYB", b/YB)
 	case b >= ZB:
-		return fmt.Sprintf("%.2fZB", float64(b/ZB))
+		return fmt.Sprintf("%.2fZB", b/ZB)
 	case b >= EB:
-		return fmt.Sprintf("%.2fEB", float64(b/EB))
+		return fmt.Sprintf("%.2fEB", b/EB)
 	case b >= PB:
-		return fmt.Sprintf("%.2fPB", float64(b/PB))
+		return fmt.Sprintf("%.2fPB", b/PB)
 	case b >= TB:
-		return fmt.Sprintf("%.2fTB", float64(b/TB))
+		return fmt.Sprintf("%.2fTB", b/TB)
 	case b >= GB:
-		return fmt.Sprintf("%.2fGB", float64(b/GB))
+		return fmt.Sprintf("%.2fGB", b/GB)
 	case b >= MB:
-		return fmt.Sprintf("%.2fMB", float64(b/MB))
+		return fmt.Sprintf("%.2fMB", b/MB)
 	case b >= KB:
-		return fmt.Sprintf("%.2fKB", float64(b/KB))
+		return fmt.Sprintf("%.2fKB", b/KB)
 	}
-	return fmt.Sprintf("%.2fB", float64(b))
+	return fmt.Sprintf("%.2fB", b)
 }
 
 func main() {
