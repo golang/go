@@ -625,9 +625,28 @@ or reading from a channel, a <code>range</code> clause can
 manage the loop.
 </p>
 <pre>
-var m map[string]int
+for key, value := range oldMap {
+    newMap[key] = value
+}
+</pre>
+
+<p>
+If you only need the first item in the range (the key or index), drop the second:
+</p>
+<pre>
+for key := range m {
+    if expired(key) {
+        delete(m, key)
+    }
+}
+</pre>
+
+<p>
+If you only need the second item in the range (the value), use the <em>blank identifier</em>, an underscore, to discard the first:
+</p>
+<pre>
 sum := 0
-for _, value := range m {  // key is unused
+for _, value := range array {
     sum += value
 }
 </pre>
@@ -709,7 +728,7 @@ func shouldEscape(c byte) bool {
 Here's a comparison routine for byte arrays that uses two
 <code>switch</code> statements:
 <pre>
-// Compare returns an integer comparing the two byte arrays
+// Compare returns an integer comparing the two byte arrays,
 // lexicographically.
 // The result will be 0 if a == b, -1 if a &lt; b, and +1 if a &gt; b
 func Compare(a, b []byte) int {
@@ -1003,7 +1022,7 @@ but the rules are simple.
 Let's talk about <code>new</code> first.
 It's a built-in function that allocates memory, but unlike its namesakes
 in some other languages it does not <em>initialize</em> the memory,
-it only <em>zeroes</em> it.
+it only <em>zeros</em> it.
 That is,
 <code>new(T)</code> allocates zeroed storage for a new item of type
 <code>T</code> and returns its address, a value of type <code>*T</code>.
@@ -1265,7 +1284,7 @@ any.  To read into the first 32 bytes of a larger buffer
 </pre>
 <p>
 Such slicing is common and efficient.  In fact, leaving efficiency aside for
-the moment, this snippet would also read the first 32 bytes of the buffer.
+the moment, the following snippet would also read the first 32 bytes of the buffer.
 </p>
 <pre>
     var n int
@@ -1407,7 +1426,7 @@ func offset(tz string) int {
 </pre>
 <p>
 To test for presence in the map without worrying about the actual value,
-you can use the <em>blank identifier</em>, a simple underscore (<code>_</code>).
+you can use the blank identifier (<code>_</code>).
 The blank identifier can be assigned or declared with any value of any type, with the
 value discarded harmlessly.  For testing just presence in a map, use the blank
 identifier in place of the usual variable for the value.
@@ -1697,11 +1716,18 @@ automatically for printing, even as part of a general type.
 </p>
 {{code "/doc/progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
 <p>
-(The <code>float64</code> conversions prevent <code>Sprintf</code> 
-from recurring back through the <code>String</code> method for 
-<code>ByteSize</code>.)
 The expression <code>YB</code> prints as <code>1.00YB</code>,
 while <code>ByteSize(1e13)</code> prints as <code>9.09TB</code>.
+</p>
+
+<p>
+Note that it's fine to call <code>Sprintf</code> and friends in the
+implementation of <code>String</code> methods, but beware of
+recurring into the <code>String</code> method through the nested
+<code>Sprintf</code> call using a string format
+(<code>%s</code>, <code>%q</code>, <code>%v</code>, <code>%x</code> or <code>%X</code>).
+The <code>ByteSize</code> implementation of <code>String</code> is safe
+because it calls <code>Sprintf</code> with <code>%f</code>.
 </p>
 
 <h3 id="variables">Variables</h3>
@@ -2520,8 +2546,8 @@ system, and there's not a mutex in sight.
 <p>
 Another application of these ideas is to parallelize a calculation
 across multiple CPU cores.  If the calculation can be broken into
-separate pieces, it can be parallelized, with a channel to signal
-when each piece completes.
+separate pieces that can execute independently, it can be parallelized,
+with a channel to signal when each piece completes.
 </p>
 <p>
 Let's say we have an expensive operation to perform on a vector of items,
@@ -2563,7 +2589,7 @@ func (v Vector) DoAll(u Vector) {
 </pre>
 
 <p>
-The current implementation of <code>gc</code> (<code>6g</code>, etc.)
+The current implementation of the Go runtime
 will not parallelize this code by default.
 It dedicates only a single core to user-level processing.  An
 arbitrary number of goroutines can be blocked in system calls, but
@@ -2989,7 +3015,7 @@ If this is too quick an explanation, see the <a href="/pkg/text/template/">docum
 for the template package for a more thorough discussion.
 </p>
 <p>
-And there you have it: a useful webserver in a few lines of code plus some
+And there you have it: a useful web server in a few lines of code plus some
 data-driven HTML text.
 Go is powerful enough to make a lot happen in a few lines.
 </p>
