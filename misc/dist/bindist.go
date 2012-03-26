@@ -44,7 +44,8 @@ const (
 )
 
 var preBuildCleanFiles = []string{
-	"misc/dashboard/godashboard", // old python code
+	"lib/codereview",
+	"misc/dashboard/godashboard",
 	"src/cmd/cov",
 	"src/cmd/prof",
 	"src/pkg/exp",
