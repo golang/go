@@ -24,7 +24,7 @@ For information about installing <code>gccgo</code>, see
 <a href="/doc/install/gccgo">Setting up and using gccgo</a>.
 </p>
 
-<h2 id="download">Obtaining the Go tools</h2>
+<h2 id="download">Download the Go tools</h2>
 
 <p>
 Visit the
@@ -47,7 +47,7 @@ OS/arch combination you may want to try
 <a href="/doc/install/gccgo">installing gccgo instead of gc</a>.
 </p>
 
-<h2 id="install">Installing the Go tools</h2>
+<h2 id="install">Install the Go tools</h2>
 
 <p>
 The Go binary distributions assume they will be installed in
@@ -84,15 +84,17 @@ rm -r /usr/local/go
 </pre>
 
 <p>
-Extract the archive into <code>/usr/local</code>, creating a Go tree in
-<code>/usr/local/go</code>:
+Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux">the archive</a>
+into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>:
 </p>
 
 <pre>
 tar -C /usr/local -xzf go.release.go1.tar.gz
 </pre>
 
-<p>(Typically these commands must be run as root or through <code>sudo</code>.)</p>
+<p>
+(Typically these commands must be run as root or through <code>sudo</code>.)
+</p>
 
 <p>
 Add <code>/usr/local/go/bin</code> to the <code>PATH</code> environment
@@ -107,7 +109,8 @@ export PATH=$PATH:/usr/local/go/bin
 <h3 id="osx">Mac OS X</h3>
 
 <p>
-Open the <code>.pkg</code> file and follow the prompts to install the Go tools.
+Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Darwin">package file</a>
+and follow the prompts to install the Go tools.
 The package installs the Go distribution to <code>/usr/local/go</code>.
 </p>
 
@@ -129,7 +132,8 @@ and a zip archive that requires you to set some environment variables.
 <h4 id="windows_msi">MSI installer</h3>
 
 <p>
-Open the <code>.msi</code> file and follow the prompts to install the Go tools.
+Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>
+and follow the prompts to install the Go tools.
 By default, the installer puts the Go distribution in <code>c:\Go</code>.
 </p>
 
@@ -142,8 +146,8 @@ command prompts for the change to take effect.
 <h4 id="windows_zip">Zip archive</h3>
 
 <p>
-Extract the <code>.zip</code> file to the directory of your choice (we
-suggest <code>c:\Go</code>).
+Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">ZIP file</a>
+to the directory of your choice (we suggest <code>c:\Go</code>).
 </p>
 
 <p>
@@ -164,7 +168,7 @@ versions of Windows provide this control panel through the "Advanced System
 Settings" option inside the "System" control panel.
 </p>
 
-<h2 id="testing">Testing your installation</h2>
+<h2 id="testing">Test your installation</h2>
 
 <p>
 Check that Go is installed correctly by building a simple program, as follows.
