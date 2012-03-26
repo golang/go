@@ -10,7 +10,7 @@
 			<dd><code>import "{{html .ImportPath}}"</code></dd>
 			</dl>
 			<dl>
-			<dd><a href="#overview">Overview</a></dd>
+			<dd><a href="#overview" class="overviewLink">Overview</a></dd>
 			<dd><a href="#index">Index</a></dd>
 			{{if $.Examples}}
 				<dd><a href="#examples">Examples</a></dd>
@@ -20,9 +20,16 @@
 			{{end}}
 			</dl>
 		</div>
-		<h2 id="overview">Overview</h2>
 		<!-- The package's Name is printed as title by the top-level template -->
-		{{comment_html .Doc}}
+		<div id="overview" class="toggleVisible">
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
+			</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
+				{{comment_html .Doc}}
+			</div>
+		</div>
 		{{example_html "" $.Examples $.FSet}}
 	
 		<h2 id="index">Index</h2>

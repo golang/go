@@ -364,11 +364,11 @@ div#blog .read {
 	text-align: right;
 }
 
-.exampleHeading { cursor: pointer; }
-.example .collapsed { display: block; }
-.example .expanded { display: none; }
-.exampleVisible .collapsed { display: none; }
-.exampleVisible .expanded { display: block; }
+.toggleButton { cursor: pointer; }
+.toggle .collapsed { display: block; }
+.toggle .expanded { display: none; }
+.toggleVisible .collapsed { display: none; }
+.toggleVisible .expanded { display: block; }
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
 hr { border-style: none; border-top: 1px solid black; }
