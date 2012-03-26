@@ -76,6 +76,7 @@ make clean
 
 (xcd ../doc/codewalk
 # TODO: test these too.
+set -e
 go build pig.go
 go build urlpoll.go
 rm -f pig urlpoll
