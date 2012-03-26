@@ -227,6 +227,9 @@ func downloadPackage(p *Package) error {
 	if p.build.SrcRoot != "" {
 		// Directory exists.  Look for checkout along path to src.
 		vcs, rootPath, err = vcsForDir(p)
+		if err != nil {
+			return err
+		}
 		repo = "<local>" // should be unused; make distinctive
 	} else {
 		// Analyze the import path to determine the version control system,
