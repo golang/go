@@ -1,9 +1,9 @@
-<div id="example_{{.Name}}" class="example">
+<div id="example_{{.Name}}" class="toggle">
 	<div class="collapsed">
-		<p class="exampleHeading">▹ <span class="text">Example{{example_suffix .Name}}</span></p>
+		<p class="exampleHeading toggleButton">▹ <span class="text">Example{{example_suffix .Name}}</span></p>
 	</div>
 	<div class="expanded">
-		<p class="exampleHeading">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
+		<p class="exampleHeading toggleButton">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
 		{{with .Doc}}<p>{{html .}}</p>{{end}}
 		<p>Code:</p>
 		<pre class="code">{{.Code}}</pre>

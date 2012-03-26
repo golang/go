@@ -164,21 +164,26 @@ function getElementsByClassName(base, clazz) {
   return foundElements;
 }
 
-function godocs_bindExampleToggle(eg) {
-  var heading = getElementsByClassName(eg, "exampleHeading");
+function godocs_bindToggle(el) {
+  var button = getElementsByClassName(el, "toggleButton");
   var callback = function() {
-    if (eg.className == "example") {
-      eg.className = "exampleVisible";
+    if (el.className == "toggle") {
+      el.className = "toggleVisible";
     } else {
-      eg.className = "example";
+      el.className = "toggle";
     }
   };
-  for (var i = 0; i < heading.length; i++) {
-    bindEvent(heading[i], "click", callback);
+  for (var i = 0; i < button.length; i++) {
+    bindEvent(button[i], "click", callback);
   }
 }
-function godocs_bindExampleLink(l) {
-  var prefix = "example_";
+function godocs_bindToggles(className) {
+  var els = getElementsByClassName(document, className);
+  for (var i = 0; i < els.length; i++) {
+    godocs_bindToggle(els[i]);
+  }
+}
+function godocs_bindToggleLink(l, prefix) {
   bindEvent(l, "click", function() {
     var i = l.href.indexOf("#"+prefix);
     if (i < 0) {
@@ -186,24 +191,23 @@ function godocs_bindExampleLink(l) {
     }
     var id = prefix + l.href.slice(i+1+prefix.length);
     var eg = document.getElementById(id);
-    eg.className = "exampleVisible";
+    eg.className = "toggleVisible";
   });
 }
-function godocs_bindExamples() {
-  var examples = getElementsByClassName(document, "example");
-  for (var i = 0; i < examples.length; i++) {
-    godocs_bindExampleToggle(examples[i]);
-  }
-  var links = getElementsByClassName(document, "exampleLink");
+function godocs_bindToggleLinks(className, prefix) {
+  var links = getElementsByClassName(document, className);
   for (i = 0; i < links.length; i++) {
-    godocs_bindExampleLink(links[i]);
+    godocs_bindToggleLink(links[i], prefix);
   }
 }
 
 function godocs_onload() {
   godocs_bindSearchEvents();
   godocs_generateTOC();
-  godocs_bindExamples();
+  godocs_bindToggles("toggle");
+  godocs_bindToggles("toggleVisible");
+  godocs_bindToggleLinks("exampleLink", "example_");
+  godocs_bindToggleLinks("overviewLink", "");
 }
 
 bindEvent(window, 'load', godocs_onload);
