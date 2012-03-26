@@ -17,23 +17,23 @@ import (
 	"time"
 )
 
-var gcName, gcPath string // compiler name and path
+var gcPath string // Go compiler path
 
 func init() {
 	// determine compiler
+	var gc string
 	switch runtime.GOARCH {
 	case "386":
-		gcName = "8g"
+		gc = "8g"
 	case "amd64":
-		gcName = "6g"
+		gc = "6g"
 	case "arm":
-		gcName = "5g"
+		gc = "5g"
 	default:
-		gcName = "unknown-GOARCH-compiler"
-		gcPath = gcName
+		gcPath = "unknown-GOARCH-compiler"
 		return
 	}
-	gcPath = filepath.Join(build.ToolDir, gcName)
+	gcPath = filepath.Join(build.ToolDir, gc)
 }
 
 func compile(t *testing.T, dirname, filename string) {
@@ -41,7 +41,7 @@ func compile(t *testing.T, dirname, filename string) {
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Errorf("%s %s failed: %s", gcName, filename, err)
+		t.Errorf("%s %s failed: %s", gcPath, filename, err)
 		return
 	}
 	t.Logf("%s", string(out))
@@ -52,7 +52,7 @@ func compile(t *testing.T, dirname, filename string) {
 var imports = make(map[string]*ast.Object)
 
 func testPath(t *testing.T, path string) bool {
-	_, err := GcImporter(imports, path)
+	_, err := GcImport(imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return false

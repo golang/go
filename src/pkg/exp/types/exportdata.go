@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements ExportData.
+// This file implements FindGcExportData.
 
 package types
 
@@ -11,15 +11,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 )
 
-func readGopackHeader(buf *bufio.Reader) (name string, size int, err error) {
+func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 	// See $GOROOT/include/ar.h.
 	hdr := make([]byte, 16+12+6+6+8+10+2)
-	_, err = io.ReadFull(buf, hdr)
+	_, err = io.ReadFull(r, hdr)
 	if err != nil {
 		return
 	}
@@ -36,33 +35,14 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err error) {
 	return
 }
 
-type dataReader struct {
-	*bufio.Reader
-	io.Closer
-}
-
-// ExportData returns a readCloser positioned at the beginning of the
-// export data section of the given object/archive file, or an error.
-// It is the caller's responsibility to close the readCloser.
+// FindGcExportData positions the reader r at the beginning of the
+// export data section of an underlying GC-created object/archive
+// file by reading from it. The reader must be positioned at the
+// start of the file before calling this function.
 //
-func ExportData(filename string) (rc io.ReadCloser, err error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			file.Close()
-			// Add file name to error.
-			err = fmt.Errorf("reading export data: %s: %v", filename, err)
-		}
-	}()
-
-	buf := bufio.NewReader(file)
-
+func FindGcExportData(r *bufio.Reader) (err error) {
 	// Read first line to make sure this is an object file.
-	line, err := buf.ReadSlice('\n')
+	line, err := r.ReadSlice('\n')
 	if err != nil {
 		return
 	}
@@ -74,7 +54,7 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
 
 		// First entry should be __.SYMDEF.
 		// Read and discard.
-		if name, size, err = readGopackHeader(buf); err != nil {
+		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
 		if name != "__.SYMDEF" {
@@ -88,15 +68,14 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
 			if n > block {
 				n = block
 			}
-			_, err = io.ReadFull(buf, tmp[:n])
-			if err != nil {
+			if _, err = io.ReadFull(r, tmp[:n]); err != nil {
 				return
 			}
 			size -= n
 		}
 
 		// Second entry should be __.PKGDEF.
-		if name, size, err = readGopackHeader(buf); err != nil {
+		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
 		if name != "__.PKGDEF" {
@@ -106,8 +85,7 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
 
 		// Read first line of __.PKGDEF data, so that line
 		// is once again the first line of the input.
-		line, err = buf.ReadSlice('\n')
-		if err != nil {
+		if line, err = r.ReadSlice('\n'); err != nil {
 			return
 		}
 	}
@@ -122,12 +100,10 @@ func ExportData(filename string) (rc io.ReadCloser, err error) {
 	// Skip over object header to export data.
 	// Begins after first line with $$.
 	for line[0] != '$' {
-		line, err = buf.ReadSlice('\n')
-		if err != nil {
+		if line, err = r.ReadSlice('\n'); err != nil {
 			return
 		}
 	}
 
-	rc = &dataReader{buf, file}
 	return
 }
