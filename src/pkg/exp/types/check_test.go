@@ -184,7 +184,7 @@ func check(t *testing.T, testname string, testfiles []string) {
 	eliminate(t, errors, err)
 
 	// verify errors returned after resolving identifiers
-	pkg, err := ast.NewPackage(fset, files, GcImporter, Universe)
+	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
 	eliminate(t, errors, err)
 
 	// verify errors returned by the typechecker
