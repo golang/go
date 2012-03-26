@@ -59,10 +59,10 @@ func runTool(cmd *Command, args []string) {
 		return
 	}
 	toolName := args[0]
-	// The tool name must be lower-case letters and numbers.
+	// The tool name must be lower-case letters, numbers or underscores.
 	for _, c := range toolName {
 		switch {
-		case 'a' <= c && c <= 'z', '0' <= c && c <= '9':
+		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
 		default:
 			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
 			setExitStatus(2)
