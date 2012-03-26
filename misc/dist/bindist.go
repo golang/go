@@ -33,6 +33,7 @@ var (
 	repo    = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose = flag.Bool("v", false, "verbose output")
 	upload  = flag.Bool("upload", true, "upload resulting files to Google Code")
+	wxsFile = flag.String("wxs", "", "path to custom installer.wxs")
 
 	username, password string // for Google Code upload
 )
@@ -248,6 +249,9 @@ func (b *Build) Do() error {
 		// Create MSI installer.
 		win := filepath.Join(b.root, "misc/dist/windows")
 		installer := filepath.Join(win, "installer.wxs")
+		if *wxsFile != "" {
+			installer = *wxsFile
+		}
 		appfiles := filepath.Join(work, "AppFiles.wxs")
 		msi := filepath.Join(work, "installer.msi")
 		// Gather files.
