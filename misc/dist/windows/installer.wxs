@@ -10,12 +10,10 @@
   <?define ProdId = {FF5B30B2-08C2-11E1-85A2-6ACA4824019B} ?>
   <?define UpgradeCode = {1C3114EA-08C3-11E1-9095-7FCA4824019B} ?>
   <?define SysFolder=SystemFolder ?>
-  <?define IsX64Target = no ?>
 <?else?>
   <?define ProdId = {716c3eaa-9302-48d2-8e5e-5cfec5da2fab} ?>
   <?define UpgradeCode = {22ea7650-4ac6-4001-bf29-f4b8775db1c0} ?>
   <?define SysFolder=System64Folder ?>
-  <?define IsX64Target = yes ?>
 <?endif?>
 
 <Product
@@ -51,6 +49,7 @@
 <Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
 <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
 <MajorUpgrade AllowDowngrades="yes" />
+<SetDirectory Id="INSTALLDIRROOT" Value="[%SYSTEMDRIVE]"/>
 
 <CustomAction
     Id="SetApplicationRootDirectory"
@@ -72,7 +71,7 @@
 
 <!-- Programs Menu Shortcuts -->
 <DirectoryRef Id="GoProgramShortcutsDir">
-  <Component Id="Component_GoProgramShortCuts" Guid="{f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b}" Win64="$(var.IsX64Target)">
+  <Component Id="Component_GoProgramShortCuts" Guid="{f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b}">
     <Shortcut
         Id="GoDocServerStartMenuShortcut"
         Name="GoDocServer"
@@ -102,7 +101,7 @@
 
 <!-- Registry & Environment Settings -->
 <DirectoryRef Id="GoEnvironmentEntries">
-  <Component Id="Component_GoEnvironment" Guid="{3ec7a4d5-eb08-4de7-9312-2df392c45993}" Win64="$(var.IsX64Target)">
+  <Component Id="Component_GoEnvironment" Guid="{3ec7a4d5-eb08-4de7-9312-2df392c45993}">
     <RegistryKey 
         Root="HKCU"
         Key="Software\GoProgrammingLanguage"
