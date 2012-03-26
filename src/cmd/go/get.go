@@ -36,7 +36,15 @@ The -u flag instructs get to use the network to update the named packages
 and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
 
-TODO: Explain versions better.
+When checking out or updating a package, get looks for a branch or
+tag that matches the locally installed version of Go. If the local
+version "is release.rNN", it searches for "go.rNN". (For an
+installation using Go version "weekly.YYYY-MM-DD", it searches for a
+package version labeled "go.YYYY-MM-DD".)  If the desired version
+cannot be found but others exist with labels in the correct format,
+get retrieves the most recent version before the desired label.
+Finally, if all else fails it retrieves the most recent version of
+the package.
 
 For more about specifying packages, see 'go help packages'.
 
