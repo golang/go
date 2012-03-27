@@ -125,11 +125,27 @@ Terminal sessions for the change to take effect.
 <p>
 The Go project provides two installation options for Windows users
 (besides <a href="/doc/install/source">installing from source</a>):
-an MSI installer that configures your installation automatically,
-and a zip archive that requires you to set some environment variables.
+a zip archive that requires you to set some environment variables and an
+experimental MSI installer that configures your installation automatically.
 </p>
 
-<h4 id="windows_msi">MSI installer</h3>
+<h4 id="windows_zip">Zip archive</h3>
+
+<p>
+Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">zip file</a>
+to the directory of your choice (we suggest <code>c:\Go</code>).
+</p>
+
+<p>
+If you chose a directory other than <code>c:\Go</code>, you must set
+the <code>GOROOT</code> environment variable to your chosen path.
+</p>
+
+<p>
+Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
+</p>
+
+<h4 id="windows_msi">MSI installer (experimental)</h3>
 
 <p>
 Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>
@@ -141,22 +157,6 @@ By default, the installer puts the Go distribution in <code>c:\Go</code>.
 The installer should put the <code>c:\Go\bin</code> directory in your
 <code>PATH</code> environment variable. You may need to restart any open
 command prompts for the change to take effect.
-</p>
-
-<h4 id="windows_zip">Zip archive</h3>
-
-<p>
-Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">ZIP file</a>
-to the directory of your choice (we suggest <code>c:\Go</code>).
-</p>
-
-<p>
-If you chose a directory other than <code>c:\Go</code>, you must set
-the <code>GOROOT</code> environment variable to your chosen path.
-</p>
-
-<p>
-Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
 </p>
 
 <h4 id="windows_env">Setting environment variables under Windows</h4>
