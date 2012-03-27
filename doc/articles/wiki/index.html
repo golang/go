@@ -1,5 +1,6 @@
 <!--{
-	"Title": "Writing Web Applications"
+	"Title": "Writing Web Applications",
+	"Template": true
 }-->
 
 <h2>Introduction</h2>
@@ -36,7 +37,7 @@ Install Go (see the <a href="/doc/install">Installation Instructions</a>).
 </p>
 
 <p>
-Make a new directory for this tutorial and cd to it:
+Make a new directory for this tutorial inside your <code>GOPATH</code> and cd to it:
 </p>
 
 <pre>
@@ -73,12 +74,7 @@ Here, we define <code>Page</code> as a struct with two fields representing
 the title and body.
 </p>
 
-<pre>
-type Page struct {
-	Title	string
-	Body	[]byte
-}
-</pre>
+{{code "doc/articles/wiki/part1.go" `/^type Page/` `/}/`}}
 
 <p>
 The type <code>[]byte</code> means "a <code>byte</code> slice". 
@@ -95,12 +91,7 @@ But what about persistent storage? We can address that by creating a
 <code>save</code> method on <code>Page</code>:
 </p>
 
-<pre>
-func (p *Page) save() error {
-	filename := p.Title + &#34;.txt&#34;
-	return ioutil.WriteFile(filename, p.Body, 0600)
-}
-</pre>
+{{code "doc/articles/wiki/part1.go" `/^func.*Page.*save/` `/}/`}}
 
 <p>
 This method's signature reads: "This is a method named <code>save</code> that
@@ -134,13 +125,7 @@ read-write permissions for the current user only. (See the Unix man page
 We will want to load pages, too:
 </p>
 
-<pre>
-func loadPage(title string) *Page {
-	filename := title + &#34;.txt&#34;
-	body, _ := ioutil.ReadFile(filename)
-	return &amp;Page{Title: title, Body: body}
-}
-</pre>
+{{code "doc/articles/wiki/part1-noerror.go" `/^func loadPage/` `/^}/`}}
 
 <p>
 The function <code>loadPage</code> constructs the file name from
@@ -162,16 +147,7 @@ the file might not exist. We should not ignore such errors.  Let's modify the
 function to return <code>*Page</code> and <code>error</code>.
 </p>
 
-<pre>
-func loadPage(title string) (*Page, error) {
-	filename := title + &#34;.txt&#34;
-	body, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	return &amp;Page{Title: title, Body: body}, nil
-}
-</pre>
+{{code "doc/articles/wiki/part1.go" `/^func loadPage/` `/^}/`}}
 
 <p>
 Callers of this function can now check the second parameter; if it is
@@ -186,14 +162,7 @@ load from a file. Let's write a <code>main</code> function to test what we've
 written:
 </p>
 
-<pre>
-func main() {
-	p1 := &amp;Page{Title: &#34;TestPage&#34;, Body: []byte(&#34;This is a sample Page.&#34;)}
-	p1.save()
-	p2, _ := loadPage(&#34;TestPage&#34;)
-	fmt.Println(string(p2.Body))
-}
-</pre>
+{{code "doc/articles/wiki/part1.go" `/^func main/` `/^}/`}}
 
 <p>
 After compiling and executing this code, a file named <code>TestPage.txt</code>
@@ -227,23 +196,7 @@ This is a sample page.
 Here's a full working example of a simple web server:
 </p>
 
-<pre>
-package main
-
-import (
-	&#34;fmt&#34;
-	&#34;net/http&#34;
-)
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, &#34;Hi there, I love %s!&#34;, r.URL.Path[1:])
-}
-
-func main() {
-	http.HandleFunc(&#34;/&#34;, handler)
-	http.ListenAndServe(&#34;:8080&#34;, nil)
-}
-</pre>
+{{code "doc/articles/wiki/http-sample.go"}}
 
 <p>
 The <code>main</code> function begins with a call to 
@@ -305,15 +258,9 @@ import (
 Let's create a handler to view a wiki page: 
 </p>
 
-<pre>
-const lenPath = len(&#34;/view/&#34;)
+{{code "doc/articles/wiki/part2.go" `/^const lenPath/`}}
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, _ := loadPage(title)
-	fmt.Fprintf(w, &#34;&lt;h1&gt;%s&lt;/h1&gt;&lt;div&gt;%s&lt;/div&gt;&#34;, p.Title, p.Body)
-}
-</pre>
+{{code "doc/articles/wiki/part2.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
 First, this function extracts the page title from <code>r.URL.Path</code>,
@@ -342,12 +289,7 @@ initializes <code>http</code> using the <code>viewHandler</code> to handle
 any requests under the path <code>/view/</code>.
 </p>
 
-<pre>
-func main() {
-	http.HandleFunc(&#34;/view/&#34;, viewHandler)
-	http.ListenAndServe(&#34;:8080&#34;, nil)
-}
-</pre>
+{{code "doc/articles/wiki/part2.go" `/^func main/` `/^}/`}}
 
 <p>
 <a href="part2.go">Click here to view the code we've written so far.</a>
@@ -387,14 +329,7 @@ form.
 First, we add them to <code>main()</code>: 
 </p>
 
-<pre>
-func main() {
-	http.HandleFunc(&#34;/view/&#34;, viewHandler)
-	http.HandleFunc(&#34;/edit/&#34;, editHandler)
-	http.HandleFunc(&#34;/save/&#34;, saveHandler)
-	http.ListenAndServe(&#34;:8080&#34;, nil)
-}
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/^func main/` `/^}/`}}
 
 <p>
 The function <code>editHandler</code> loads the page 
@@ -402,21 +337,7 @@ The function <code>editHandler</code> loads the page
 and displays an HTML form.
 </p>
 
-<pre>
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, err := loadPage(title)
-	if err != nil {
-		p = &amp;Page{Title: title}
-	}
-	fmt.Fprintf(w, &#34;&lt;h1&gt;Editing %s&lt;/h1&gt;&#34;+
-		&#34;&lt;form action=\&#34;/save/%s\&#34; method=\&#34;POST\&#34;&gt;&#34;+
-		&#34;&lt;textarea name=\&#34;body\&#34;&gt;%s&lt;/textarea&gt;&lt;br&gt;&#34;+
-		&#34;&lt;input type=\&#34;submit\&#34; value=\&#34;Save\&#34;&gt;&#34;+
-		&#34;&lt;/form&gt;&#34;,
-		p.Title, p.Title, p.Body)
-}
-</pre>
+{{code "doc/articles/wiki/notemplate.go" `/^func editHandler/` `/^}/`}}
 
 <p>
 This function will work fine, but all that hard-coded HTML is ugly.
@@ -450,31 +371,14 @@ Let's create a template file containing the HTML form.
 Open a new file named <code>edit.html</code>, and add the following lines:
 </p>
 
-<pre>
-&lt;h1&gt;Editing {{.Title |html}}&lt;/h1&gt;
-
-&lt;form action=&#34;/save/{{.Title |html}}&#34; method=&#34;POST&#34;&gt;
-&lt;div&gt;&lt;textarea name=&#34;body&#34; rows=&#34;20&#34; cols=&#34;80&#34;&gt;{{printf &#34;%s&#34; .Body |html}}&lt;/textarea&gt;&lt;/div&gt;
-&lt;div&gt;&lt;input type=&#34;submit&#34; value=&#34;Save&#34;&gt;&lt;/div&gt;
-&lt;/form&gt;
-</pre>
+{{code "doc/articles/wiki/edit.html"}}
 
 <p>
 Modify <code>editHandler</code> to use the template, instead of the hard-coded
 HTML:
 </p>
 
-<pre>
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, err := loadPage(title)
-	if err != nil {
-		p = &amp;Page{Title: title}
-	}
-	t, _ := template.ParseFiles(&#34;edit.html&#34;)
-	t.Execute(w, p)
-}
-</pre>
+{{code "doc/articles/wiki/final-noerror.go" `/^func editHandler/` `/^}/`}}
 
 <p>
 The function <code>template.ParseFiles</code> will read the contents of 
@@ -509,26 +413,13 @@ While we're working with templates, let's create a template for our
 <code>viewHandler</code> called <code>view.html</code>:
 </p>
 
-<pre>
-&lt;h1&gt;{{.Title |html}}&lt;/h1&gt;
-
-&lt;p&gt;[&lt;a href=&#34;/edit/{{.Title |html}}&#34;&gt;edit&lt;/a&gt;]&lt;/p&gt;
-
-&lt;div&gt;{{printf &#34;%s&#34; .Body |html}}&lt;/div&gt;
-</pre>
+{{code "doc/articles/wiki/view.html"}}
 
 <p>
 Modify <code>viewHandler</code> accordingly:
 </p>
 
-<pre>
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, _ := loadPage(title)
-	t, _ := template.ParseFiles(&#34;view.html&#34;)
-	t.Execute(w, p)
-}
-</pre>
+{{code "doc/articles/wiki/final-noerror.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
 Notice that we've used almost exactly the same templating code in both
@@ -536,27 +427,9 @@ handlers. Let's remove this duplication by moving the templating code
 to its own function:
 </p>
 
-<pre>
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, _ := loadPage(title)
-	renderTemplate(w, &#34;view&#34;, p)
-}
-
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	p, err := loadPage(title)
-	if err != nil {
-		p = &amp;Page{Title: title}
-	}
-	renderTemplate(w, &#34;edit&#34;, p)
-}
-
-func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, _ := template.ParseFiles(tmpl + &#34;.html&#34;)
-	t.Execute(w, p)
-}
-</pre>
+{{code "doc/articles/wiki/final-template.go" `/^func viewHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final-template.go" `/^func editHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final-template.go" `/^func renderTemplate/` `/^}/`}}
 
 <p>
 The handlers are now shorter and simpler. 
@@ -572,20 +445,7 @@ if the requested Page doesn't exist, it should redirect the client to the edit
 Page so the content may be created:
 </p>
 
-<pre>
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
-	p, err := loadPage(title)
-	if err != nil {
-		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
-		return
-	}
-	renderTemplate(w, &#34;view&#34;, p)
-}
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
 The <code>http.Redirect</code> function adds an HTTP status code of 
@@ -599,15 +459,7 @@ header to the HTTP response.
 The function <code>saveHandler</code> will handle the form submission. 
 </p>
 
-<pre>
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[lenPath:]
-	body := r.FormValue(&#34;body&#34;)
-	p := &amp;Page{Title: title, Body: []byte(body)}
-	p.save()
-	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
-}
-</pre>
+{{code "doc/articles/wiki/final-template.go" `/^func saveHandler/` `/^}/`}}
 
 <p>
 The page title (provided in the URL) and the form's only field, 
@@ -637,19 +489,7 @@ function and the user will be notified.
 First, let's handle the errors in <code>renderTemplate</code>:
 </p>
 
-<pre>
-func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFiles(tmpl + &#34;.html&#34;)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = t.Execute(w, p)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-</pre>
+{{code "doc/articles/wiki/final-parsetemplate.go" `/^func renderTemplate/` `/^}/`}}
 
 <p>
 The <code>http.Error</code> function sends a specified HTTP response code 
@@ -661,22 +501,7 @@ Already the decision to put this in a separate function is paying off.
 Now let's fix up <code>saveHandler</code>:
 </p>
 
-<pre>
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
-	body := r.FormValue(&#34;body&#34;)
-	p := &amp;Page{Title: title, Body: []byte(body)}
-	err = p.save()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
-}
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/^func saveHandler/` `/^}/`}}
 
 <p>
 Any errors that occur during <code>p.save()</code> will be reported 
@@ -687,39 +512,27 @@ to the user.
 
 <p>
 There is an inefficiency in this code: <code>renderTemplate</code> calls 
-<code>ParseFile</code> every time a page is rendered. 
-A better approach would be to call <code>ParseFile</code> once for each 
-template at program initialization, and store the resultant 
-<code>*Template</code> values in a data structure for later use.
+<code>ParseFiles</code> every time a page is rendered. 
+A better approach would be to call <code>ParseFiles</code> once at program
+initialization, parsing all templates into a single <code>*Template</code>.
+Then we can use the
+<a href="/pkg/html/template/#Template.ExecuteTemplate"><code>ExecuteTemplate</code></a>
+method to render a specific template.
 </p>
 
 <p>
-First we create a global map named <code>templates</code> in which to store 
-our <code>*Template</code> values, keyed by <code>string</code> 
-(the template name):
+First we create a global variable named <code>templates</code>, and initialize
+it with <code>ParseFiles</code>.
 </p>
 
-<pre>
-var templates = make(map[string]*template.Template)
-</pre>
+{{code "doc/articles/wiki/final.go" `/var templates/`}}
 
 <p>
-Then we create an <code>init</code> function, which will be called before
-<code>main</code> at program initialization. The function
-<code>template.Must</code> is a convenience wrapper that panics when passed a
-non-nil <code>error</code> value, and otherwise returns the
+The function <code>template.Must</code> is a convenience wrapper that panics
+when passed a non-nil <code>error</code> value, and otherwise returns the
 <code>*Template</code> unaltered. A panic is appropriate here; if the templates
 can't be loaded the only sensible thing to do is exit the program.
 </p>
-
-<pre>
-func init() {
-	for _, tmpl := range []string{&#34;edit&#34;, &#34;view&#34;} {
-		t := template.Must(template.ParseFiles(tmpl + &#34;.html&#34;))
-		templates[tmpl] = t
-	}
-}
-</pre>
 
 <p>
 A <code>for</code> loop is used with a <code>range</code> statement to iterate 
@@ -729,18 +542,17 @@ that array.
 </p>
 
 <p>
-We then modify our <code>renderTemplate</code> function to call 
-the <code>Execute</code> method on the appropriate <code>Template</code> from 
-<code>templates</code>:
+We then modify the <code>renderTemplate</code> function to call the
+<code>templates.ExecuteTemplate</code> method with the name of the appropriate
+template:
+</p>
 
-<pre>
-func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	err := templates[tmpl].Execute(w, p)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-</pre>
+{{code "doc/articles/wiki/final.go" `/func renderTemplate/` `/^}/`}}
+
+<p>
+Note that the template name is the template file name, so we must
+append <code>".html"</code> to the <code>tmpl</code> argument.
+</p>
 
 <h2>Validation</h2>
 
@@ -755,9 +567,7 @@ First, add <code>"regexp"</code> to the <code>import</code> list.
 Then we can create a global variable to store our validation regexp:
 </p>
 
-<pre>
-var titleValidator = regexp.MustCompile(&#34;^[a-zA-Z0-9]+$&#34;)
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/^var titleValidator/`}}
 
 <p>
 The function <code>regexp.MustCompile</code> will parse and compile the 
@@ -772,16 +582,7 @@ Now, let's write a function that extracts the title string from the request
 URL, and tests it against our <code>TitleValidator</code> expression:
 </p>
 
-<pre>
-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
-	title = r.URL.Path[lenPath:]
-	if !titleValidator.MatchString(title) {
-		http.NotFound(w, r)
-		err = errors.New(&#34;Invalid Page Title&#34;)
-	}
-	return
-}
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/func getTitle/` `/^}/`}}
 
 <p>
 If the title is valid, it will be returned along with a <code>nil</code>
@@ -794,47 +595,9 @@ handler.
 Let's put a call to <code>getTitle</code> in each of the handlers:
 </p>
 
-<pre>
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
-	p, err := loadPage(title)
-	if err != nil {
-		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
-		return
-	}
-	renderTemplate(w, &#34;view&#34;, p)
-}
-
-func editHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
-	p, err := loadPage(title)
-	if err != nil {
-		p = &amp;Page{Title: title}
-	}
-	renderTemplate(w, &#34;edit&#34;, p)
-}
-
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title, err := getTitle(w, r)
-	if err != nil {
-		return
-	}
-	body := r.FormValue(&#34;body&#34;)
-	p := &amp;Page{Title: title, Body: []byte(body)}
-	err = p.save()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
-}
-</pre>
+{{code "doc/articles/wiki/final-noclosure.go" `/^func viewHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final-noclosure.go" `/^func editHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final-noclosure.go" `/^func saveHandler/` `/^}/`}}
 
 <h2>Introducing Function Literals and Closures</h2>
 
@@ -885,18 +648,7 @@ Now we can take the code from <code>getTitle</code> and use it here
 (with some minor modifications):
 </p>
 
-<pre>
-func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		title := r.URL.Path[lenPath:]
-		if !titleValidator.MatchString(title) {
-			http.NotFound(w, r)
-			return
-		}
-		fn(w, r, title)
-	}
-}
-</pre>
+{{code "doc/articles/wiki/final.go" `/func makeHandler/` `/^}/`}}
 
 <p>
 The closure returned by <code>makeHandler</code> is a function that takes
@@ -917,49 +669,16 @@ Now we can wrap the handler functions with <code>makeHandler</code> in
 package:
 </p>
 
-<pre>
-func main() {
-	http.HandleFunc(&#34;/view/&#34;, makeHandler(viewHandler))
-	http.HandleFunc(&#34;/edit/&#34;, makeHandler(editHandler))
-	http.HandleFunc(&#34;/save/&#34;, makeHandler(saveHandler))
-	http.ListenAndServe(&#34;:8080&#34;, nil)
-}
-</pre>
+{{code "doc/articles/wiki/final.go" `/func main/` `/^}/`}}
 
 <p>
 Finally we remove the calls to <code>getTitle</code> from the handler functions,
 making them much simpler:
 </p>
 
-<pre>
-func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p, err := loadPage(title)
-	if err != nil {
-		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
-		return
-	}
-	renderTemplate(w, &#34;view&#34;, p)
-}
-
-func editHandler(w http.ResponseWriter, r *http.Request, title string) {
-	p, err := loadPage(title)
-	if err != nil {
-		p = &amp;Page{Title: title}
-	}
-	renderTemplate(w, &#34;edit&#34;, p)
-}
-
-func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
-	body := r.FormValue(&#34;body&#34;)
-	p := &amp;Page{Title: title, Body: []byte(body)}
-	err := p.save()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
-}
-</pre>
+{{code "doc/articles/wiki/final.go" `/^func viewHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final.go" `/^func editHandler/` `/^}/`}}
+{{code "doc/articles/wiki/final.go" `/^func saveHandler/` `/^}/`}}
 
 <h2>Try it out!</h2>
 
