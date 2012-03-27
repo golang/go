@@ -623,6 +623,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 						continue
 					}
 				}
+			} else if err == syscall.ECONNABORTED {
+				// This means that a socket on the listen queue was closed
+				// before we Accept()ed it; it's a silly error, so try again.
+				continue
 			}
 			return nil, &OpError{"accept", fd.net, fd.laddr, err}
 		}
