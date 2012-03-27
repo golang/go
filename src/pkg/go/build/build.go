@@ -387,7 +387,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 				// but check that using it wouldn't find something
 				// else first.
 				if ctxt.GOROOT != "" {
-					if dir := ctxt.joinPath(ctxt.GOROOT, "src", sub); ctxt.isDir(dir) {
+					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
 						goto Found
 					}
 				}
