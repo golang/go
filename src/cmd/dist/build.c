@@ -362,7 +362,7 @@ setup(void)
 	}
 
 	// For release, make sure excluded things are excluded.
-	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go.")) {
+	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go")) {
 		for(i=0; i<nelem(unreleased); i++)
 			if(isdir(bpathf(&b, "%s/%s", goroot, unreleased[i])))
 				fatal("%s should not exist in release build", bstr(&b));
