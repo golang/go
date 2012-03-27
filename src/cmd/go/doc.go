@@ -91,6 +91,8 @@ The build flags are shared by the build, install, run, and test commands:
 		more information about build tags.
 
 For more about specifying packages, see 'go help packages'.
+For more about where packages and binaries are installed,
+see 'go help gopath'.
 
 See also: go install, go get, go clean.
 
@@ -461,7 +463,9 @@ the final element, not the entire path.  That is, the
 command with source in DIR/src/foo/quux is installed into
 DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
 so that you can add DIR/bin to your PATH to get at the
-installed commands.
+installed commands.  If the GOBIN environment variable is
+set, commands are installed to the directory it names instead
+of DIR/bin.
 
 Here's an example directory layout:
 
