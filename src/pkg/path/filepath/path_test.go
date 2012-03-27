@@ -846,3 +846,26 @@ func TestVolumeName(t *testing.T) {
 		}
 	}
 }
+
+func TestDriveLetterInEvalSymlinks(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	wd, _ := os.Getwd()
+	if len(wd) < 3 {
+		t.Errorf("Current directory path %q is too short", wd)
+	}
+	lp := strings.ToLower(wd)
+	up := strings.ToUpper(wd)
+	flp, err := filepath.EvalSymlinks(lp)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) failed: %q", lp, err)
+	}
+	fup, err := filepath.EvalSymlinks(up)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q) failed: %q", up, err)
+	}
+	if flp != fup {
+		t.Errorf("Results of EvalSymlinks do not match: %q and %q", flp, fup)
+	}
+}
