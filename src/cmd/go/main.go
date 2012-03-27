@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"text/template"
@@ -119,6 +120,13 @@ func main() {
 	if args[0] == "help" {
 		help(args[1:])
 		return
+	}
+
+	// Diagnose common mistake: GOPATH==GOROOT.
+	// This setting is equivalent to not setting GOPATH at all,
+	// which is not what most people want when they do it.
+	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
+		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	}
 
 	for _, cmd := range commands {
