@@ -209,17 +209,25 @@ function autoindent(el) {
 	}, 1);
 }
 
+function preventDefault(e) {
+	if (e.preventDefault) {
+		e.preventDefault();
+	} else {
+		e.cancelBubble = true;
+	}
+}
+
 function keyHandler(event) {
 	var e = window.event || event;
 	if (e.keyCode == 9) { // tab
 		insertTabs(1);
-		e.preventDefault();
+		preventDefault(e);
 		return false;
 	}
 	if (e.keyCode == 13) { // enter
 		if (e.shiftKey) { // +shift
 			compile(e.target);
-			e.preventDefault();
+			preventDefault(e);
 			return false;
 		} else {
 			autoindent(e.target);
