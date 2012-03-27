@@ -15,9 +15,6 @@
 
 == fixedbugs/
 
-=========== fixedbugs/bug429.go
-throw: all goroutines are asleep - deadlock!
-
 == bugs/
 
 =========== bugs/bug395.go
