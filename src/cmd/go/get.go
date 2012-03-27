@@ -252,7 +252,9 @@ func downloadPackage(p *Package) error {
 
 	if p.build.SrcRoot == "" {
 		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
-		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 {
+		// Guard against people setting GOPATH=$GOROOT.  We have to use
+		// $GOROOT's directory hierarchy (src/pkg, not just src) in that case.
+		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 && list[0] != goroot {
 			p.build.SrcRoot = filepath.Join(list[0], "src")
 			p.build.PkgRoot = filepath.Join(list[0], "pkg")
 		} else {
