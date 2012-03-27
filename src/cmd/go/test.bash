@@ -8,6 +8,9 @@ go build -o testgo
 
 ok=true
 
+unset GOPATH
+unset GOBIN
+
 # Test that error messages have file:line information
 # at beginning of line.
 for i in testdata/errmsg/*.go
@@ -77,6 +80,42 @@ fi
 # from Go files named on the command line.
 if ! ./testgo test ./testdata/testimport/*.go; then
 	echo "go test ./testdata/testimport/*.go failed"
+	ok=false
+fi
+
+# Test that without $GOBIN set, binaries get installed
+# into the GOPATH bin directory.
+rm -rf testdata/bin
+if ! GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then
+	echo "go install go-cmd-test failed"
+	ok=false
+elif ! test -x testdata/bin/go-cmd-test; then
+	echo "go install go-cmd-test did not write to testdata/bin/go-cmd-test"
+	ok=false
+fi
+
+# And with $GOBIN set, binaries get installed to $GOBIN.
+if ! GOBIN=$(pwd)/testdata/bin1 GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then
+	echo "go install go-cmd-test failed"
+	ok=false
+elif ! test -x testdata/bin1/go-cmd-test; then
+	echo "go install go-cmd-test did not write to testdata/bin1/go-cmd-test"
+	ok=false
+fi
+
+# Without $GOBIN set, installing a program outside $GOPATH should fail
+# (there is nowhere to install it).
+if ./testgo install testdata/src/go-cmd-test/helloworld.go; then
+	echo "go install testdata/src/go-cmd-test/helloworld.go should have failed, did not"
+	ok=false
+fi
+
+# With $GOBIN set, should install there.
+if ! GOBIN=$(pwd)/testdata/bin1 ./testgo install testdata/src/go-cmd-test/helloworld.go; then
+	echo "go install testdata/src/go-cmd-test/helloworld.go failed"
+	ok=false
+elif ! test -x testdata/bin1/helloworld; then
+	echo "go install testdata/src/go-cmd-test/helloworld.go did not write testdata/bin1/helloworld"
 	ok=false
 fi
 
