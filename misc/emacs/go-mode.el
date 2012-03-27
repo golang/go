@@ -110,6 +110,7 @@ built-ins, functions, and some types.")
   (let ((m (make-sparse-keymap)))
     (define-key m "}" #'go-mode-insert-and-indent)
     (define-key m ")" #'go-mode-insert-and-indent)
+    (define-key m "," #'go-mode-insert-and-indent)
     (define-key m ":" #'go-mode-delayed-electric)
     ;; In case we get : indentation wrong, correct ourselves
     (define-key m "=" #'go-mode-insert-and-indent)
@@ -161,6 +162,18 @@ will be marked from the beginning up to this point (that is, up
 to and including character (1- go-mode-mark-cs-end)).")
 (make-variable-buffer-local 'go-mode-mark-cs-end)
 
+(defvar go-mode-mark-string-end 1
+  "The point at which the string cache ends.  The buffer
+will be marked from the beginning up to this point (that is, up
+to and including character (1- go-mode-mark-string-end)).")
+(make-variable-buffer-local 'go-mode-mark-string-end)
+
+(defvar go-mode-mark-comment-end 1
+  "The point at which the comment cache ends.  The buffer
+will be marked from the beginning up to this point (that is, up
+to and including character (1- go-mode-mark-comment-end)).")
+(make-variable-buffer-local 'go-mode-mark-comment-end)
+
 (defvar go-mode-mark-nesting-end 1
   "The point at which the nesting cache ends.  The buffer will be
 marked from the beginning up to this point.")
@@ -180,6 +193,24 @@ nesting caches from the modified point on."
 	(remove-text-properties
 	 b (min go-mode-mark-cs-end (point-max)) '(go-mode-cs nil))
 	(setq go-mode-mark-cs-end b)))
+
+    (when (<= b go-mode-mark-string-end)
+      ;; Remove the property adjacent to the change position.
+      ;; It may contain positions pointing beyond the new end mark.
+      (let ((b (let ((cs (get-text-property (max 1 (1- b)) 'go-mode-string)))
+		 (if cs (car cs) b))))
+	(remove-text-properties
+	 b (min go-mode-mark-string-end (point-max)) '(go-mode-string nil))
+	(setq go-mode-mark-string-end b)))
+    (when (<= b go-mode-mark-comment-end)
+      ;; Remove the property adjacent to the change position.
+      ;; It may contain positions pointing beyond the new end mark.
+      (let ((b (let ((cs (get-text-property (max 1 (1- b)) 'go-mode-comment)))
+		 (if cs (car cs) b))))
+	(remove-text-properties
+	 b (min go-mode-mark-string-end (point-max)) '(go-mode-comment nil))
+	(setq go-mode-mark-comment-end b)))
+    
     (when (< b go-mode-mark-nesting-end)
       (remove-text-properties b (min go-mode-mark-nesting-end (point-max)) '(go-mode-nesting nil))
       (setq go-mode-mark-nesting-end b))))
@@ -237,7 +268,7 @@ directly; use `go-mode-cs'."
 		(cond
 		 ((looking-at "//")
 		  (end-of-line)
-		  (point))
+		  (1+ (point)))
 		 ((looking-at "/\\*")
 		  (goto-char (+ pos 2))
 		  (if (search-forward "*/" (1+ end) t)
@@ -273,7 +304,114 @@ directly; use `go-mode-cs'."
 	     (setq pos end)))))
        (setq go-mode-mark-cs-end pos)))))
 
+(defun go-mode-in-comment (&optional pos)
+  "Return the comment/string state at point POS.  If point is
+inside a comment (including the delimiters), this
+returns a pair (START . END) indicating the extents of the
+comment or string."
 
+  (unless pos
+    (setq pos (point)))
+  (when (> pos go-mode-mark-comment-end)
+    (go-mode-mark-comment pos))
+  (get-text-property pos 'go-mode-comment))
+
+(defun go-mode-mark-comment (end)
+  "Mark comments up to point END.  Don't call this directly; use `go-mode-in-comment'."
+  (setq end (min end (point-max)))
+  (go-mode-parser
+   (save-match-data
+     (let ((pos
+	    ;; Back up to the last known state.
+	    (let ((last-comment
+		   (and (> go-mode-mark-comment-end 1)
+			(get-text-property (1- go-mode-mark-comment-end) 
+					   'go-mode-comment))))
+	      (if last-comment
+		  (car last-comment)
+		(max 1 (1- go-mode-mark-comment-end))))))
+       (while (< pos end)
+	 (goto-char pos)
+	 (let ((comment-end			; end of the text property
+		(cond
+		 ((looking-at "//")
+		  (end-of-line)
+		  (1+ (point)))
+		 ((looking-at "/\\*")
+		  (goto-char (+ pos 2))
+		  (if (search-forward "*/" (1+ end) t)
+		      (point)
+		    end)))))
+	   (cond
+	    (comment-end
+	     (put-text-property pos comment-end 'go-mode-comment (cons pos comment-end))
+	     (setq pos comment-end))
+	    ((re-search-forward "/[/*]" end t)
+	     (setq pos (match-beginning 0)))
+	    (t
+	     (setq pos end)))))
+       (setq go-mode-mark-comment-end pos)))))
+
+(defun go-mode-in-string (&optional pos)
+  "Return the string state at point POS.  If point is
+inside a string (including the delimiters), this
+returns a pair (START . END) indicating the extents of the
+comment or string."
+
+  (unless pos
+    (setq pos (point)))
+  (when (> pos go-mode-mark-string-end)
+    (go-mode-mark-string pos))
+  (get-text-property pos 'go-mode-string))
+
+(defun go-mode-mark-string (end)
+  "Mark strings up to point END.  Don't call this
+directly; use `go-mode-in-string'."
+  (setq end (min end (point-max)))
+  (go-mode-parser
+   (save-match-data
+     (let ((pos
+	    ;; Back up to the last known state.
+	    (let ((last-cs
+		   (and (> go-mode-mark-string-end 1)
+			(get-text-property (1- go-mode-mark-string-end) 
+					   'go-mode-string))))
+	      (if last-cs
+		  (car last-cs)
+		(max 1 (1- go-mode-mark-string-end))))))
+       (while (< pos end)
+	 (goto-char pos)
+	 (let ((cs-end			; end of the text property
+		(cond 
+		 ((looking-at "\"")
+		  (goto-char (1+ pos))
+		  (if (looking-at "[^\"\n\\\\]*\\(\\\\.[^\"\n\\\\]*\\)*\"")
+		      (match-end 0)
+		    (end-of-line)
+		    (point)))
+		 ((looking-at "'")
+		  (goto-char (1+ pos))
+		  (if (looking-at "[^'\n\\\\]*\\(\\\\.[^'\n\\\\]*\\)*'")
+		      (match-end 0)
+		    (end-of-line)
+		    (point)))
+		 ((looking-at "`")
+		  (goto-char (1+ pos))
+		  (while (if (search-forward "`" end t)
+			     (if (eq (char-after) ?`)
+				 (goto-char (1+ (point))))
+			   (goto-char end)
+			   nil))
+		  (point)))))
+	   (cond
+	    (cs-end
+	     (put-text-property pos cs-end 'go-mode-string (cons pos cs-end))
+	     (setq pos cs-end))
+	    ((re-search-forward "[\"'`]" end t)
+	     (setq pos (match-beginning 0)))
+	    (t
+	     (setq pos end)))))
+       (setq go-mode-mark-string-end pos)))))
 
 (defun go-mode-font-lock-cs (limit comment)
   "Helper function for highlighting comment/strings.  If COMMENT is t,
@@ -406,21 +544,31 @@ token on the line."
        (when (/= (skip-chars-backward "[:word:]_") 0)
          (not (looking-at go-mode-non-terminating-keywords-regexp)))))))
 
+(defun go-mode-whitespace-p (char)
+  "Is char whitespace in the syntax table for go."
+  (eq 32 (char-syntax char)))
+
 (defun go-mode-backward-skip-comments ()
   "Skip backward over comments and whitespace."
-  (when (not (bobp))
-    (backward-char))
-  (while (and (not (bobp))
-              (or (eq 32 (char-syntax (char-after (point))))
-                  (go-mode-cs)))
-    (skip-syntax-backward "-")
-    (when (and (not (bobp)) (eq 32 (char-syntax (char-after (point)))))
-      (backward-char))
-    (when (go-mode-cs)
-      (let ((pos (previous-single-property-change (point) 'go-mode-cs)))
-        (if pos (goto-char pos) (goto-char (point-min))))))
-  (when (and (not (go-mode-cs)) (eq 32 (char-syntax (char-after (1+ (point))))))
-    (forward-char 1)))
+  ;; only proceed if point is in a comment or white space
+  (if (or (go-mode-in-comment)
+	  (go-mode-whitespace-p (char-after (point))))
+      (let ((loop-guard t))
+	(while (and
+		loop-guard
+		(not (bobp)))
+
+	  (cond ((go-mode-whitespace-p (char-after (point)))
+		 ;; moves point back over any whitespace
+		 (re-search-backward "[^[:space:]]"))
+
+		((go-mode-in-comment)
+		 ;; move point to char preceeding current comment
+		 (goto-char (1- (car (go-mode-in-comment)))))
+		
+		;; not in a comment or whitespace? we must be done.
+		(t (setq loop-guard nil)
+		   (forward-char 1)))))))
 
 (defun go-mode-indentation ()
   "Compute the ideal indentation level of the current line.
@@ -467,10 +615,10 @@ indented one level."
                    (incf indent tab-width))
                   ((?\()
                    (goto-char (car nest))
-                   (beginning-of-line)
                    (go-mode-backward-skip-comments)
+                   (backward-char)
                    ;; Really just want the token before
-                   (when (looking-back "\\<import\\|const\\|var\\|type"
+                   (when (looking-back "\\<import\\|const\\|var\\|type\\|package"
                                        (max (- (point) 7) (point-min)))
                      (incf indent tab-width)
                      (when first
@@ -481,9 +629,13 @@ indented one level."
           (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\(\\S.\\|$\\)")
             (decf indent tab-width))
 
+	  (when (looking-at "\\w+\\s *:.+,\\s *$")
+	    (incf indent tab-width))
+
           ;; Continuation lines are indented 1 level
-          (beginning-of-line)
-          (go-mode-backward-skip-comments)
+          (beginning-of-line)		; back up to end of previous line
+	  (backward-char)
+          (go-mode-backward-skip-comments) ; back up past any comments
           (when (case (char-before)
                   ((nil ?\{ ?:)
                    ;; At the beginning of a block or the statement
@@ -517,12 +669,15 @@ indented one level."
   "Indent the current line according to `go-mode-indentation'."
   (interactive)
 
-  (let ((col (go-mode-indentation)))
-    (when col
-      (let ((offset (- (current-column) (current-indentation))))
-        (indent-line-to col)
-        (when (> offset 0)
-          (forward-char offset))))))
+  ;; turn off case folding to distinguish keywords from identifiers
+  ;; e.g. "default" is a keyword; "Default" can be a variable name.
+  (let ((case-fold-search nil))
+    (let ((col (go-mode-indentation)))
+      (when col
+	(let ((offset (- (current-column) (current-indentation))))
+	  (indent-line-to col)
+	  (when (> offset 0)
+	    (forward-char offset)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go mode
