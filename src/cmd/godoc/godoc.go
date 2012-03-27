@@ -491,14 +491,6 @@ var fmap = template.FuncMap{
 
 func readTemplate(name string) *template.Template {
 	path := "lib/godoc/" + name
-	if *templateDir != "" {
-		defaultpath := path
-		path = pathpkg.Join(*templateDir, name)
-		if _, err := fs.Stat(path); err != nil {
-			log.Print("readTemplate:", err)
-			path = defaultpath
-		}
-	}
 
 	// use underlying file system fs to read the template file
 	// (cannot use template ParseFile functions directly)
