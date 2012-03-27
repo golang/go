@@ -358,6 +358,9 @@ runtime·MHeap_Scavenger(void)
 
 	h = &runtime·mheap;
 	for(k=0;; k++) {
+		// Return to the scheduler in case the rest of the world is deadlocked.
+		runtime·gosched();
+
 		runtime·noteclear(&note);
 		runtime·entersyscall();
 		runtime·notetsleep(&note, tick);

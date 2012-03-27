@@ -521,6 +521,16 @@ mnextg(M *m, G *g)
 	}
 }
 
+// Check for a deadlock situation.
+static void
+checkdeadlock(void) {
+	if((scvg == nil && runtime·sched.grunning == 0) ||
+	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
+	    (scvg->status == Grunnable || scvg->status == Grunning || scvg->status == Gsyscall))) {
+		runtime·throw("all goroutines are asleep - deadlock!");
+	}
+}
+
 // Get the next goroutine that m should run.
 // Sched must be locked on entry, is unlocked on exit.
 // Makes sure that at most $GOMAXPROCS g's are
@@ -570,6 +580,9 @@ top:
 				continue;
 			}
 			runtime·sched.grunning++;
+			// The work could actually have been the sole scavenger
+			// goroutine. Look for deadlock situation.
+			checkdeadlock();
 			schedunlock();
 			return gp;
 		}
@@ -591,11 +604,7 @@ top:
 	}
 
 	// Look for deadlock situation.
-	if((scvg == nil && runtime·sched.grunning == 0) ||
-	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
-	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
-		runtime·throw("all goroutines are asleep - deadlock!");
-	}
+	checkdeadlock();
 
 	m->nextg = nil;
 	m->waitnextg = 1;
