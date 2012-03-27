@@ -18,6 +18,12 @@ var selectTagTestTags = []string{
 	"go.weekly.2011-10-12.1",
 	"go.weekly.2011-10-14",
 	"go.weekly.2011-11-01",
+	"go1",
+	"go1.0.1",
+	"go1.999",
+	"go1.9.2",
+	"go5",
+
 	// these should be ignored:
 	"release.r59",
 	"release.r59.1",
@@ -30,6 +36,14 @@ var selectTagTestTags = []string{
 	"go.f00",
 	"go!r60",
 	"go.1999-01-01",
+	"go.2x",
+	"go.20000000000000",
+	"go.2.",
+	"go.2.0",
+	"go2x",
+	"go20000000000000",
+	"go2.",
+	"go2.0",
 }
 
 var selectTagTests = []struct {
@@ -56,11 +70,21 @@ var selectTagTests = []struct {
 	{"weekly.2011-11-01", "go.weekly.2011-11-01"},
 	{"weekly.2014-01-01", "go.weekly.2011-11-01"},
 	{"weekly.3000-01-01", "go.weekly.2011-11-01"},
+	{"go1", "go1"},
+	{"go1.1", "go1.0.1"},
+	{"go1.998", "go1.9.2"},
+	{"go1.1000", "go1.999"},
+	{"go6", "go5"},
+
 	// faulty versions:
 	{"release.f00", ""},
 	{"weekly.1999-01-01", ""},
 	{"junk", ""},
 	{"", ""},
+	{"go2x", ""},
+	{"go200000000000", ""},
+	{"go2.", ""},
+	{"go2.0", ""},
 }
 
 func TestSelectTag(t *testing.T) {
