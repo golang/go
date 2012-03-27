@@ -8,7 +8,24 @@ import (
 	"syscall"
 )
 
-func evalSymlinks(path string) (string, error) {
+func toShort(path string) (string, error) {
+	p := syscall.StringToUTF16(path)
+	b := p // GetShortPathName says we can reuse buffer
+	n, err := syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
+	if err != nil {
+		return "", err
+	}
+	if n > uint32(len(b)) {
+		b = make([]uint16, n)
+		n, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
+		if err != nil {
+			return "", err
+		}
+	}
+	return syscall.UTF16ToString(b), nil
+}
+
+func toLong(path string) (string, error) {
 	p := syscall.StringToUTF16(path)
 	b := p // GetLongPathName says we can reuse buffer
 	n, err := syscall.GetLongPathName(&p[0], &b[0], uint32(len(b)))
@@ -23,13 +40,24 @@ func evalSymlinks(path string) (string, error) {
 		}
 	}
 	b = b[:n]
-	s := syscall.UTF16ToString(b)
+	return syscall.UTF16ToString(b), nil
+}
+
+func evalSymlinks(path string) (string, error) {
+	p, err := toShort(path)
+	if err != nil {
+		return "", err
+	}
+	p, err = toLong(p)
+	if err != nil {
+		return "", err
+	}
 	// syscall.GetLongPathName does not change the case of the drive letter,
 	// but the result of EvalSymlinks must be unique, so we have
 	// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
 	// Make drive letter upper case. This matches what os.Getwd returns.
-	if len(s) >= 2 && s[1] == ':' && 'a' <= s[0] && s[0] <= 'z' {
-		s = string(s[0]+'A'-'a') + s[1:]
+	if len(p) >= 2 && p[1] == ':' && 'a' <= p[0] && p[0] <= 'z' {
+		p = string(p[0]+'A'-'a') + p[1:]
 	}
-	return Clean(s), nil
+	return Clean(p), nil
 }
