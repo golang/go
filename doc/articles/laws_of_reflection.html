@@ -48,8 +48,8 @@ fixed sets of methods. An interface variable can store any concrete
 (non-interface) value as long as that value implements the
 interface's methods. A well-known pair of examples is
 <code>io.Reader</code> and <code>io.Writer</code>, the types
-<code>Reader</code> and <code>Writer</code> from the <a href=
-"http://golang.org/pkg/io/">io package</a>:
+<code>Reader</code> and <code>Writer</code> from the
+<a href="/pkg/io/">io package</a>:
 </p>
 
 {{code "/doc/progs/interface.go" `/// Reader/` `/STOP/`}}
@@ -101,11 +101,10 @@ interfaces are closely related.
 <p><b>The representation of an interface</b></p>
 
 <p>
-Russ Cox has written a <a href=
-"http://research.swtch.com/2009/12/go-data-structures-interfaces.html">
-detailed blog post</a> about the representation of interface values
-in Go. It's not necessary to repeat the full story here, but a
-simplified summary is in order.
+Russ Cox has written a
+<a href="http://research.swtch.com/2009/12/go-data-structures-interfaces.html">detailed blog post</a>
+about the representation of interface values in Go. It's not necessary to
+repeat the full story here, but a simplified summary is in order.
 </p>
 
 <p>
@@ -183,9 +182,9 @@ Now we're ready to reflect.
 At the basic level, reflection is just a mechanism to examine the
 type and value pair stored inside an interface variable. To get
 started, there are two types we need to know about in
-<a href="http://golang.org/pkg/reflect">package reflect</a>:
-<a href="http://golang.org/pkg/reflect/#Type">Type</a> and
-<a href="http://golang.org/pkg/reflect/#Value">Value</a>. Those two types
+<a href="/pkg/reflect/">package reflect</a>:
+<a href="/pkg/reflect/#Type">Type</a> and
+<a href="/pkg/reflect/#Value">Value</a>. Those two types
 give access to the contents of an interface variable, and two
 simple functions, called <code>reflect.TypeOf</code> and
 <code>reflect.ValueOf</code>, retrieve <code>reflect.Type</code>
@@ -211,13 +210,11 @@ type: float64
 </pre>
 
 <p>
-You might be wondering where the interface is here, since the
-program looks like it's passing the <code>float64</code>
-variable <code>x</code>, not an interface value, to
-<code>reflect.TypeOf</code>. But it's there; as <a href=
-"http://golang.org/pkg/reflect/#Type.TypeOf">godoc reports</a>, the
-signature of <code>reflect.TypeOf</code> includes an empty
-interface:
+You might be wondering where the interface is here, since the program looks
+like it's passing the <code>float64</code> variable <code>x</code>, not an
+interface value, to <code>reflect.TypeOf</code>. But it's there; as
+<a href="/pkg/reflect/#Type.TypeOf">godoc reports</a>, the signature of
+<code>reflect.TypeOf</code> includes an empty interface:
 </p>
 
 <pre>
@@ -573,15 +570,13 @@ fields.
 </p>
 
 <p>
-Here's a simple example that analyzes a struct value,
-<code>t</code>. We create the reflection object with the address of
-the struct because we'll want to modify it later. Then we set
-<code>typeOfT</code> to its type and iterate over the fields using
-straightforward method calls (see 
-<a href="http://golang.org/pkg/reflect/">package reflect</a> for details).
-Note that we extract the names of the fields from the struct type,
-but the fields themselves are regular <code>reflect.Value</code>
-objects.
+Here's a simple example that analyzes a struct value, <code>t</code>. We create
+the reflection object with the address of the struct because we'll want to
+modify it later. Then we set <code>typeOfT</code> to its type and iterate over
+the fields using straightforward method calls
+(see <a href="/pkg/reflect/">package reflect</a> for details).
+Note that we extract the names of the fields from the struct type, but the
+fields themselves are regular <code>reflect.Value</code> objects.
 </p>
 
 {{code "/doc/progs/interface2.go" `/START f8/` `/STOP/`}}
