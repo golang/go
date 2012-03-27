@@ -167,6 +167,9 @@ func main() {
 	if *zipfile == "" {
 		// use file system of underlying OS
 		fs.Bind("/", OS(*goroot), "/", bindReplace)
+		if *templateDir != "" {
+			fs.Bind("/lib/godoc", OS(*templateDir), "/", bindBefore)
+		}
 	} else {
 		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
