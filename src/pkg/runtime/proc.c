@@ -236,6 +236,11 @@ runtime·main(void)
 	if(!runtime·sched.lockmain)
 		runtime·UnlockOSThread();
 
+	// The deadlock detection has false negatives.
+	// Let scvg start up, to eliminate the false negative
+	// for the trivial program func main() { select{} }.
+	runtime·gosched();
+
 	main·main();
 	runtime·exit(0);
 	for(;;)
@@ -591,6 +596,20 @@ top:
 	}
 
 	// Look for deadlock situation.
+	// There is a race with the scavenger that causes false negatives:
+	// if the scavenger is just starting, then we have
+	//	scvg != nil && grunning == 0 && gwait == 0
+	// and we do not detect a deadlock.  It is possible that we should
+	// add that case to the if statement here, but it is too close to Go 1
+	// to make such a subtle change.  Instead, we work around the
+	// false negative in trivial programs by calling runtime.gosched
+	// from the main goroutine just before main.main.
+	// See runtime·main above.
+	//
+	// On a related note, it is also possible that the scvg == nil case is
+	// wrong and should include gwait, but that does not happen in
+	// standard Go programs, which all start the scavenger.
+	//
 	if((scvg == nil && runtime·sched.grunning == 0) ||
 	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
 	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
