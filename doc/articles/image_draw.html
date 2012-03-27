@@ -4,7 +4,7 @@
 }-->
 
 <p>
-<a href="http://golang.org/pkg/image/draw/">Package image/draw</a> defines
+<a href="/pkg/image/draw/">Package image/draw</a> defines
 only one operation: drawing a source image onto a destination
 image, through an optional mask image. This one operation is
 surprisingly versatile and can perform a number of common image
@@ -64,10 +64,10 @@ respective co-ordinate space.
 </p>
 
 <p>
-The <a href="http://golang.org/pkg/image/draw/#DrawMask"><code>DrawMask</code></a>
+The <a href="/pkg/image/draw/#DrawMask"><code>DrawMask</code></a>
 function takes seven arguments, but an explicit mask and mask-point
 are usually unnecessary, so the
-<a href="http://golang.org/pkg/image/draw/#Draw"><code>Draw</code></a> function takes five:
+<a href="/pkg/image/draw/#Draw"><code>Draw</code></a> function takes five:
 </p>
 
 <pre>
@@ -79,7 +79,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 
 <p>
 The destination image must be mutable, so the image/draw package
-defines a <a href="http://golang.org/pkg/image/draw/#Image"><code>draw.Image</code></a>
+defines a <a href="/pkg/image/draw/#Image"><code>draw.Image</code></a>
 interface which has a <code>Set</code> method.
 </p>
 
