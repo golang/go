@@ -22244,6 +22244,7 @@ pkg syscall (windows-386), func GetProcessTimes(Handle, *Filetime, *Filetime, *F
 pkg syscall (windows-386), func GetProtoByName(string) (*Protoent, error)
 pkg syscall (windows-386), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
 pkg syscall (windows-386), func GetServByName(string, string) (*Servent, error)
+pkg syscall (windows-386), func GetShortPathName(*uint16, *uint16, uint32) (uint32, error)
 pkg syscall (windows-386), func GetStartupInfo(*StartupInfo) error
 pkg syscall (windows-386), func GetStdHandle(int) (Handle, error)
 pkg syscall (windows-386), func GetSystemTimeAsFileTime(*Filetime)
@@ -23161,6 +23162,7 @@ pkg syscall (windows-amd64), func GetProcessTimes(Handle, *Filetime, *Filetime, 
 pkg syscall (windows-amd64), func GetProtoByName(string) (*Protoent, error)
 pkg syscall (windows-amd64), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
 pkg syscall (windows-amd64), func GetServByName(string, string) (*Servent, error)
+pkg syscall (windows-amd64), func GetShortPathName(*uint16, *uint16, uint32) (uint32, error)
 pkg syscall (windows-amd64), func GetStartupInfo(*StartupInfo) error
 pkg syscall (windows-amd64), func GetStdHandle(int) (Handle, error)
 pkg syscall (windows-amd64), func GetSystemTimeAsFileTime(*Filetime)
