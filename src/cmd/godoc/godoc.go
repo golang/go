@@ -1315,7 +1315,18 @@ func refreshMetadataLoop() {
 //
 func metadataFor(relpath string) *Metadata {
 	if m, _ := docMetadata.get(); m != nil {
-		return m.(map[string]*Metadata)[relpath]
+		meta := m.(map[string]*Metadata)
+		// If metadata for this relpath exists, return it.
+		if p := meta[relpath]; p != nil {
+			return p
+		}
+		// Try with or without trailing slash.
+		if strings.HasSuffix(relpath, "/") {
+			relpath = relpath[:len(relpath)-1]
+		} else {
+			relpath = relpath + "/"
+		}
+		return meta[relpath]
 	}
 	return nil
 }
