@@ -206,4 +206,7 @@
 		{{end}}
 	{{end}}
 	</table>
+	{{if $.PDoc}}{{else}}
+	<p>Need more packages? Take a look at the <a href="http://godashboard.appspot.com/">Go Project Dashboard</a>.</p>
+	{{end}}
 {{end}}
