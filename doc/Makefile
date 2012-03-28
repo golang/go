@@ -14,6 +14,7 @@ RAWHTML=\
 	articles/json_and_go.rawhtml\
 	articles/json_rpc_tale_of_interfaces.rawhtml\
 	articles/image_draw.rawhtml\
+	articles/image_package.rawhtml\
 	effective_go.rawhtml\
 	go1.rawhtml\
 

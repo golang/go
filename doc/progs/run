@@ -59,7 +59,16 @@ json="
 	json5
 "
 
-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs $json slices go1)
+image_package="
+	image_package1
+	image_package2
+	image_package3
+	image_package4
+	image_package5
+	image_package6
+"
+
+all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs $json $image_package slices go1)
 
 for i in $all; do
 	go build $i.go
@@ -87,9 +96,17 @@ testit eff_sequence '^\[-1 2 6 16 44\]$'
 testit go1 '^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$'
 
 testit interface2 "^type: float64$"
+
 testit json1 "^$"
 testit json2 "the reciprocal of i is"
 testit json3 "Age is int 6"
 testit json4 "^$"
+
+testit image_package1 "^X is 2 Y is 1$"
+testit image_package2 "^3 4 false$"
+testit image_package3 "^3 4 true$"
+testit image_package4 "^image.Point{X:2, Y:1}$"
+testit image_package5 "^{255 0 0 255}$"
+testit image_package6 "^8 4 true$"
 
 rm -f $all "$TMPFILE"
