@@ -1,4 +1,6 @@
-<!-- Weekly Snapshot History -->
+<!--{
+	"Title": "Weekly Snapshot History"
+}-->
 
 <p>This page summarizes the changes between tagged weekly snapshots of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
@@ -12,6 +14,47 @@ latest features, use the <a href="release.html">official releases</a> instead.</
 <pre>
 hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
+</pre>
+
+<h2 id="2012-03-27">2012-03-27 (<a href="release.html#go1">Go 1</a>)</h2>
+
+<pre>
+* cmd/dist: fix detection of go1 version.
+* cmd/go: add missing error check (thanks Evan Shaw),
+	allow underscores in tool name (thanks Shenghou Ma),
+	bug fixes,
+	copy tag_test.go from goinstall,
+	explain versions better,
+	respect $GOBIN always,
+	update for go1 tag format.
+* cmd/godoc: canonicalize custom path redirects,
+	fix app engine version,
+	use virtual filesystem to implement -templates flag.
+* codewalk/sharemem.xml: fix references to files.
+* crypto/tls: don't select ECC ciphersuites with no mutual curve.
+* doc: add JSON-RPC: a tale of interfaces article (thanks Francisco Souza),
+	describe the Windows MSI installer as experimental,
+	link to Go Project Dashboard from package list,
+	update wiki tutorial templates and template discussion,
+	and many minor fixes.
+* exp/types: generalized GCImporter API.
+* go/build: cgoEnabled is not known to cmd/dist anymore (thanks Shenghou Ma),
+	fix import check.
+* godoc: make 'Overview' section collapsible.
+* misc/dist: many fixes and tweaks.
+* misc/emacs: fix indentation bug.
+* misc/goplay: fix error on IE8 (thanks Yasuhiro Matsumoto).
+* net: ignore ECONNABORTED from syscall.Accept (thanks Devon H. O'Dell).
+* os: add missing byte to FileMode buffer (thanks Stefan Nilsson).
+* path/filepath: convert drive letter to upper case in windows EvalSymlinks (thanks Alex Brainman),
+	correct comment in EvalSymlinks (thanks Alex Brainman),
+	use windows GetShortPathName api to force GetLongPathName to do its work (thanks Alex Brainman),
+	windows drive letter cannot be a digit (thanks Alex Brainman).
+* run.bash: compile the codewalks.
+* runtime: restore deadlock detection in the simplest case (thanks Rémy Oudompheng),
+	work around false negative in deadlock detection.
+* text/template: fix typo in package comment.
+* windows: installer fixes (thanks Joe Poirier).
 </pre>
 
 <h2 id="2012-03-22">2012-03-22 (Go 1 Release Candidate 2)</h2>
