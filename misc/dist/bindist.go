@@ -35,7 +35,7 @@ var (
 	verbose  = flag.Bool("v", false, "verbose output")
 	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
 	wxsFile  = flag.String("wxs", "", "path to custom installer.wxs")
-	addLabel = flag.String("label", "", "additional label to apply to file hwhen uploading")
+	addLabel = flag.String("label", "", "additional label to apply to file when uploading")
 
 	username, password string // for Google Code upload
 )
