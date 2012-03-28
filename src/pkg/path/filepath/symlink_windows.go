@@ -55,7 +55,7 @@ func evalSymlinks(path string) (string, error) {
 	// syscall.GetLongPathName does not change the case of the drive letter,
 	// but the result of EvalSymlinks must be unique, so we have
 	// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
-	// Make drive letter upper case. This matches what os.Getwd returns.
+	// Make drive letter upper case.
 	if len(p) >= 2 && p[1] == ':' && 'a' <= p[0] && p[0] <= 'z' {
 		p = string(p[0]+'A'-'a') + p[1:]
 	}
