@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This is a tool for packaging binary releases.
-// It supports FreeBSD, Linux, and OS X.
+// It supports FreeBSD, Linux, OS X, and Windows.
 package main
 
 import (
@@ -24,16 +24,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
 
 var (
-	tag     = flag.String("tag", "weekly", "mercurial tag to check out")
-	repo    = flag.String("repo", "https://code.google.com/p/go", "repo URL")
-	verbose = flag.Bool("v", false, "verbose output")
-	upload  = flag.Bool("upload", true, "upload resulting files to Google Code")
-	wxsFile = flag.String("wxs", "", "path to custom installer.wxs")
+	tag      = flag.String("tag", "weekly", "mercurial tag to check out")
+	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	verbose  = flag.Bool("v", false, "verbose output")
+	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
+	wxsFile  = flag.String("wxs", "", "path to custom installer.wxs")
+	addLabel = flag.String("label", "", "additional label to apply to file hwhen uploading")
 
 	username, password string // for Google Code upload
 )
@@ -64,6 +66,8 @@ var sourceCleanFiles = []string{
 	"pkg",
 }
 
+var fileRe = regexp.MustCompile(`^go\.([a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+))\.`)
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] targets...\n", os.Args[0])
@@ -85,6 +89,24 @@ func main() {
 	}
 	for _, targ := range flag.Args() {
 		var b Build
+		if m := fileRe.FindStringSubmatch(targ); m != nil {
+			// targ is a file name; upload it to googlecode.
+			version := m[1]
+			if m[2] == "src" {
+				b.Source = true
+			} else {
+				b.OS = m[3]
+				b.Arch = m[4]
+			}
+			if !*upload {
+				log.Printf("%s: -upload=false, skipping", targ)
+				continue
+			}
+			if err := b.Upload(version, targ); err != nil {
+				log.Printf("%s: %v", targ, err)
+			}
+			continue
+		}
 		if targ == "source" {
 			b.Source = true
 		} else {
@@ -296,7 +318,7 @@ func (b *Build) Do() error {
 	}
 	if err == nil && *upload {
 		for _, targ := range targs {
-			err = b.upload(version, targ)
+			err = b.Upload(version, targ)
 			if err != nil {
 				return err
 			}
@@ -362,7 +384,7 @@ func (b *Build) env() []string {
 	return env
 }
 
-func (b *Build) upload(version string, filename string) error {
+func (b *Build) Upload(version string, filename string) error {
 	// Prepare upload metadata.
 	var labels []string
 	os_, arch := b.OS, b.Arch
@@ -389,7 +411,7 @@ func (b *Build) upload(version string, filename string) error {
 		os_ = "Windows"
 		labels = append(labels, "OpSys-Windows")
 	}
-	summary := fmt.Sprintf("Go %s %s (%s)", version, os_, arch)
+	summary := fmt.Sprintf("%s %s (%s)", version, os_, arch)
 	if b.OS == "windows" {
 		switch {
 		case strings.HasSuffix(filename, ".msi"):
@@ -402,7 +424,14 @@ func (b *Build) upload(version string, filename string) error {
 	}
 	if b.Source {
 		labels = append(labels, "Type-Source")
-		summary = fmt.Sprintf("Go %s (source only)", version)
+		summary = fmt.Sprintf("%s (source only)", version)
+	}
+	if *addLabel != "" {
+		labels = append(labels, *addLabel)
+	}
+	// Put "Go" prefix on summary when it doesn't already begin with "go".
+	if !strings.HasPrefix(strings.ToLower(summary), "go") {
+		summary = "Go " + summary
 	}
 
 	// Open file to upload.
