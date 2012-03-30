@@ -215,7 +215,7 @@ p[len(p)-1] = suffix
 
 <step title="Choosing a suffix at random" src="doc/codewalk/markov.go:/next := choices/,/Shift/">
 	To choose a suffix we use the
-	<code><a href="/pkg/rand/#Intn">rand.Intn</a></code> function.
+	<code><a href="/pkg/math/rand/#Intn">rand.Intn</a></code> function.
 	It returns a random integer up to (but not including) the provided
 	value. Passing in <code>len(choices)</code> gives us a random index
 	into the full length of the list.
@@ -287,11 +287,11 @@ a plan a man a plan a canal panama</pre>
 	Here's a transcript of generating some text using the Go distribution's
 	README file as source material:
 	<pre>
-$ ./markov -words=10 &lt $GOROOT/go/README
+$ ./markov -words=10 &lt; $GOROOT/README
 This is the source code repository for the Go source
-$ ./markov -prefix=1 -words=10 &lt $GOROOT/go/README
+$ ./markov -prefix=1 -words=10 &lt; $GOROOT/README
 This is the go directory (the one containing this README).
-$ ./markov -prefix=1 -words=10 &lt $GOROOT/go/README
+$ ./markov -prefix=1 -words=10 &lt; $GOROOT/README
 This is the variable if you have just untarred a</pre>
 </step>
 
