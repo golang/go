@@ -538,31 +538,26 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-func servePage(w http.ResponseWriter, tabtitle, title, subtitle, query string, content []byte) {
-	if tabtitle == "" {
-		tabtitle = title
-	}
-	d := struct {
-		Tabtitle  string
-		Title     string
-		Subtitle  string
-		SearchBox bool
-		Query     string
-		Version   string
-		Menu      []byte
-		Content   []byte
-	}{
-		tabtitle,
-		title,
-		subtitle,
-		*indexEnabled,
-		query,
-		runtime.Version(),
-		nil,
-		content,
-	}
+// Page describes the contents of the top-level godoc webpage.
+type Page struct {
+	Title    string
+	Tabtitle string
+	Subtitle string
+	Query    string
+	Body     []byte
 
-	if err := godocHTML.Execute(w, &d); err != nil {
+	// filled in by servePage
+	SearchBox bool
+	Version   string
+}
+
+func servePage(w http.ResponseWriter, page Page) {
+	if page.Tabtitle == "" {
+		page.Tabtitle = page.Title
+	}
+	page.SearchBox = *indexEnabled
+	page.Version = runtime.Version()
+	if err := godocHTML.Execute(w, page); err != nil {
 		log.Printf("godocHTML.Execute: %s", err)
 	}
 }
@@ -627,7 +622,11 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		src = buf.Bytes()
 	}
 
-	servePage(w, "", meta.Title, meta.Subtitle, "", src)
+	servePage(w, Page{
+		Title:    meta.Title,
+		Subtitle: meta.Subtitle,
+		Body:     src,
+	})
 }
 
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
@@ -663,7 +662,11 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
 	buf.WriteString("</pre>")
 
-	servePage(w, relpath, title+" "+relpath, "", "", buf.Bytes())
+	servePage(w, Page{
+		Title:    title + " " + relpath,
+		Tabtitle: relpath,
+		Body:     buf.Bytes(),
+	})
 }
 
 func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
@@ -677,8 +680,11 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 		return
 	}
 
-	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
-	servePage(w, relpath, "Directory "+relpath, "", "", contents)
+	servePage(w, Page{
+		Title:    "Directory " + relpath,
+		Tabtitle: relpath,
+		Body:     applyTemplate(dirlistHTML, "dirlistHTML", list),
+	})
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request) {
@@ -1065,8 +1071,7 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mode&noHtml != 0 {
-		contents := applyTemplate(packageText, "packageText", info)
-		serveText(w, contents)
+		serveText(w, applyTemplate(packageText, "packageText", info))
 		return
 	}
 
@@ -1103,8 +1108,12 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tabtitle = "Commands"
 	}
 
-	contents := applyTemplate(packageHTML, "packageHTML", info)
-	servePage(w, tabtitle, title, subtitle, "", contents)
+	servePage(w, Page{
+		Title:    title,
+		Tabtitle: tabtitle,
+		Subtitle: subtitle,
+		Body:     applyTemplate(packageHTML, "packageHTML", info),
+	})
 }
 
 // ----------------------------------------------------------------------------
@@ -1181,8 +1190,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	result := lookup(query)
 
 	if getPageInfoMode(r)&noHtml != 0 {
-		contents := applyTemplate(searchText, "searchText", result)
-		serveText(w, contents)
+		serveText(w, applyTemplate(searchText, "searchText", result))
 		return
 	}
 
@@ -1193,8 +1201,12 @@ func search(w http.ResponseWriter, r *http.Request) {
 		title = fmt.Sprintf(`No results found for query %q`, query)
 	}
 
-	contents := applyTemplate(searchHTML, "searchHTML", result)
-	servePage(w, query, title, "", query, contents)
+	servePage(w, Page{
+		Title:    title,
+		Tabtitle: query,
+		Query:    query,
+		Body:     applyTemplate(searchHTML, "searchHTML", result),
+	})
 }
 
 // ----------------------------------------------------------------------------
