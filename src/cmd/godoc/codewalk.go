@@ -68,8 +68,11 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := applyTemplate(codewalkHTML, "codewalk", cw)
-	servePage(w, cw.Title, "Codewalk: "+cw.Title, "", "", b)
+	servePage(w, Page{
+		Title:    "Codewalk: " + cw.Title,
+		Tabtitle: cw.Title,
+		Body:     applyTemplate(codewalkHTML, "codewalk", cw),
+	})
 }
 
 // A Codewalk represents a single codewalk read from an XML file.
@@ -199,8 +202,10 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 		}
 	}
 
-	b := applyTemplate(codewalkdirHTML, "codewalkdir", v)
-	servePage(w, "", "Codewalks", "", "", b)
+	servePage(w, Page{
+		Title: "Codewalks",
+		Body:  applyTemplate(codewalkdirHTML, "codewalkdir", v),
+	})
 }
 
 // codewalkFileprint serves requests with ?fileprint=f&lo=lo&hi=hi.
