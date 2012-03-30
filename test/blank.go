@@ -113,7 +113,7 @@ type I interface {
 
 type TI struct{}
 
-func (TI) M(x int, y int) {
+func (_ TI) M(x int, y int) {
 	if x != y {
 		println("invalid M call:", x, y)
 		panic("bad M")
