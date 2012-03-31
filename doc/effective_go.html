@@ -2291,7 +2291,7 @@ This would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
 func (job *Job) Logf(format string, args ...interface{}) {
-    job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args))
+    job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args...))
 }
 </pre>
 <p>
