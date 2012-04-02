@@ -1309,7 +1309,7 @@ def change(ui, repo, *pats, **opts):
 		name = "new"
 		cl = CL("new")
 		if repo[None].branch() != "default":
-			return "cannot create CL outside default branch"
+			return "cannot create CL outside default branch; switch with 'hg update default'"
 		dirty[cl] = True
 		files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
 
