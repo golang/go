@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-gobuilder: $(shell ls *.go)
+builder: $(shell ls *.go)
 	go build -o $@ $^
 
 clean:
-	rm -f gobuilder
+	rm -f builder

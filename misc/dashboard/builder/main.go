@@ -220,7 +220,7 @@ func (b *Builder) build() bool {
 	// Look for hash locally before running hg pull.
 	if _, err := fullHash(goroot, hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
-		if err := run(nil, goroot, "hg", "pull"); err != nil {
+		if err := run(nil, goroot, hgCmd("pull")...); err != nil {
 			log.Println("hg pull failed:", err)
 			return false
 		}
@@ -243,12 +243,12 @@ func (b *Builder) buildHash(hash string) error {
 	defer os.RemoveAll(workpath)
 
 	// clone repo
-	if err := run(nil, workpath, "hg", "clone", goroot, "go"); err != nil {
+	if err := run(nil, workpath, hgCmd("clone", goroot, "go")...); err != nil {
 		return err
 	}
 
 	// update to specified revision
-	if err := run(nil, filepath.Join(workpath, "go"), "hg", "update", hash); err != nil {
+	if err := run(nil, filepath.Join(workpath, "go"), hgCmd("update", hash)...); err != nil {
 		return err
 	}
 
@@ -369,7 +369,7 @@ func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
 
 	// hg update to the specified hash
 	pkgPath := filepath.Join(goRoot, "src/pkg", pkg)
-	if err := run(nil, pkgPath, "hg", "update", hash); err != nil {
+	if err := run(nil, pkgPath, hgCmd("update", hash)...); err != nil {
 		return "", err
 	}
 
@@ -475,7 +475,7 @@ func commitWatcher() {
 }
 
 func hgClone(url, path string) error {
-	return run(nil, *buildroot, "hg", "clone", url, path)
+	return run(nil, *buildroot, hgCmd("clone", url, path)...)
 }
 
 func hgRepoExists(path string) bool {
@@ -532,17 +532,17 @@ func commitPoll(key, pkg string) {
 		}
 	}
 
-	if err := run(nil, pkgRoot, "hg", "pull"); err != nil {
+	if err := run(nil, pkgRoot, hgCmd("pull")...); err != nil {
 		log.Printf("hg pull: %v", err)
 		return
 	}
 
 	const N = 50 // how many revisions to grab
 
-	data, _, err := runLog(nil, "", pkgRoot, "hg", "log",
+	data, _, err := runLog(nil, "", pkgRoot, hgCmd("log",
 		"--encoding=utf-8",
 		"--limit="+strconv.Itoa(N),
-		"--template="+xmlLogTemplate,
+		"--template="+xmlLogTemplate)...,
 	)
 	if err != nil {
 		log.Printf("hg log: %v", err)
@@ -628,11 +628,11 @@ func addCommit(pkg, hash, key string) bool {
 // fullHash returns the full hash for the given Mercurial revision.
 func fullHash(root, rev string) (string, error) {
 	s, _, err := runLog(nil, "", root,
-		"hg", "log",
-		"--encoding=utf-8",
-		"--rev="+rev,
-		"--limit=1",
-		"--template={node}",
+		hgCmd("log",
+			"--encoding=utf-8",
+			"--rev="+rev,
+			"--limit=1",
+			"--template={node}")...,
 	)
 	if err != nil {
 		return "", nil
@@ -680,4 +680,8 @@ func getenvOk(k string) (v string, ok bool) {
 		}
 	}
 	return "", false
+}
+
+func hgCmd(args ...string) []string {
+	return append([]string{"hg", "--config", "extensions.codereview=!"}, args...)
 }
