@@ -199,5 +199,5 @@ func (s *String) At(i int) rune {
 	return r
 }
 
-var outOfRange = errors.New("utf8.String: index out of range")
-var sliceOutOfRange = errors.New("utf8.String: slice index out of range")
+var outOfRange = errors.New("utf8string: index out of range")
+var sliceOutOfRange = errors.New("utf8string: slice index out of range")
