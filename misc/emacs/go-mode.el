@@ -33,8 +33,8 @@
     ;; Operators (punctuation)
     (modify-syntax-entry ?+  "." st)
     (modify-syntax-entry ?-  "." st)
-    (modify-syntax-entry ?*  "." st)
-    (modify-syntax-entry ?/  "." st)
+    (modify-syntax-entry ?*  ". 23" st)   ; also part of comments
+    (modify-syntax-entry ?/  ". 124b" st) ; ditto
     (modify-syntax-entry ?%  "." st)
     (modify-syntax-entry ?&  "." st)
     (modify-syntax-entry ?|  "." st)
@@ -49,6 +49,9 @@
     (modify-syntax-entry ?\' "." st)
     (modify-syntax-entry ?`  "." st)
     (modify-syntax-entry ?\\ "." st)
+
+    ;; Newline is a comment-ender.
+    (modify-syntax-entry ?\n "> b" st)
 
     st)
   "Syntax table for Go mode.")
@@ -545,8 +548,9 @@ token on the line."
          (not (looking-at go-mode-non-terminating-keywords-regexp)))))))
 
 (defun go-mode-whitespace-p (char)
-  "Is char whitespace in the syntax table for go."
-  (eq 32 (char-syntax char)))
+  "Is newline, or char whitespace in the syntax table for go."
+  (or (eq char ?\n)
+      (eq 32 (char-syntax char))))
 
 (defun go-mode-backward-skip-comments ()
   "Skip backward over comments and whitespace."
