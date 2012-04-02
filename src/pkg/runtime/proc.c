@@ -1376,7 +1376,7 @@ rundefer(void)
 }
 
 // Free stack frames until we hit the last one
-// or until we find the one that contains the argp.
+// or until we find the one that contains the sp.
 static void
 unwindstack(G *gp, byte *sp)
 {
