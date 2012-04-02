@@ -19,7 +19,7 @@ char *goos;
 char *goroot = GOROOT_FINAL;
 char *goroot_final = GOROOT_FINAL;
 char *workdir;
-char	*tooldir;
+char *tooldir;
 char *gochar;
 char *goversion;
 char *slash;	// / for unix, \ for windows
@@ -1462,7 +1462,7 @@ void
 cmdbanner(int argc, char **argv)
 {
 	char *pathsep;
-	Buf b, b1, search;
+	Buf b, b1, search, path;
 
 	ARGBEGIN{
 	case 'v':
@@ -1478,6 +1478,7 @@ cmdbanner(int argc, char **argv)
 	binit(&b);
 	binit(&b1);
 	binit(&search);
+	binit(&path);
 
 	xprintf("\n");
 	xprintf("---\n");
@@ -1495,9 +1496,10 @@ cmdbanner(int argc, char **argv)
 		xprintf("*** You need to add %s to your PATH.\n", gobin);
 
 	if(streq(gohostos, "darwin")) {
-		xprintf("\n"
-			"On OS X the debuggers must be installed setgid procmod.\n"
-			"Read and run ./sudo.bash to install the debuggers.\n");
+		if(isfile(bpathf(&path, "%s/cov", tooldir)))
+			xprintf("\n"
+				"On OS X the debuggers must be installed setgid procmod.\n"
+				"Read and run ./sudo.bash to install the debuggers.\n");
 	}
 
 	if(!streq(goroot_final, goroot)) {
@@ -1509,6 +1511,7 @@ cmdbanner(int argc, char **argv)
 	bfree(&b);
 	bfree(&b1);
 	bfree(&search);
+	bfree(&path);
 }
 
 // Version prints the Go version.
