@@ -65,6 +65,9 @@ static struct {
 	% loadsys package imports LVAR LNAME '=' LNAME '{' LNAME ';'
 	"need trailing comma before newline in composite literal",
 	
+	% loadsys package imports LVAR LNAME '=' comptype '{' LNAME ';'
+	"need trailing comma before newline in composite literal",
+	
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFUNC LNAME
 	"nested func not allowed",
 
