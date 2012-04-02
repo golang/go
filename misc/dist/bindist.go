@@ -240,6 +240,11 @@ func (b *Build) Do() error {
 			return err
 		}
 		// build package
+		pkginfo, err := createPackageInfo(work)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(pkginfo)
 		pm := packageMaker
 		if !exists(pm) {
 			pm = "/Developer" + pm
@@ -252,11 +257,10 @@ func (b *Build) Do() error {
 		_, err = b.run("", pm, "-v",
 			"-r", work,
 			"-o", targ,
+			"--info", pkginfo,
 			"--scripts", scripts,
-			"--id", "com.googlecode.go",
 			"--title", "Go",
-			"--version", "1.0",
-			"--target", "10.6")
+			"--target", "10.5")
 		targs = append(targs, targ)
 	case "windows":
 		// Create ZIP file.
@@ -793,4 +797,31 @@ func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
+}
+
+// createPackageInfo creates a PackageInfo template file for use with PackageMaker.
+// The returned filename points to a file in a temporary directory on the filesystem,
+// and should be removed after use.
+func createPackageInfo(work string) (filename string, err error) {
+	var size, nfiles int64
+	err = filepath.Walk(work, func(path string, info os.FileInfo, err error) error {
+		nfiles++
+		size += info.Size()
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	pi, err := ioutil.TempFile("", "PackageInfo")
+	if err != nil {
+		return "", err
+	}
+	defer pi.Close()
+	_, err = fmt.Fprintf(pi, "<pkg-info identifier=\"com.googlecode.go\" version=\"1.0\" followSymLinks=\"true\">\n"+
+		"\t<payload installKBytes=\"%v\" numberOfFiles=\"%v\"/>\n"+
+		"</pkg-info>\n", size/1024, nfiles)
+	if err != nil {
+		return "", err
+	}
+	return pi.Name(), nil
 }
