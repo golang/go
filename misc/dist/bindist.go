@@ -556,7 +556,7 @@ func makeTar(targ, workdir string) error {
 	zout := gzip.NewWriter(f)
 	tw := tar.NewWriter(zout)
 
-	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(workdir, func(path string, fi os.FileInfo, err error) error {
 		if !strings.HasPrefix(path, workdir) {
 			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
 		}
@@ -605,8 +605,10 @@ func makeTar(targ, workdir string) error {
 		defer r.Close()
 		_, err = io.Copy(tw, r)
 		return err
-	}))
-
+	})
+	if err != nil {
+		return err
+	}
 	if err := tw.Close(); err != nil {
 		return err
 	}
@@ -623,7 +625,7 @@ func makeZip(targ, workdir string) error {
 	}
 	zw := zip.NewWriter(f)
 
-	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(workdir, func(path string, fi os.FileInfo, err error) error {
 		if fi.IsDir() {
 			return nil
 		}
@@ -664,8 +666,10 @@ func makeZip(targ, workdir string) error {
 		defer r.Close()
 		_, err = io.Copy(w, r)
 		return err
-	}))
-
+	})
+	if err != nil {
+		return err
+	}
 	if err := zw.Close(); err != nil {
 		return err
 	}
