@@ -223,7 +223,7 @@ var formatTests = []FormatTest{
 	{"ANSIC", ANSIC, "Wed Feb  4 21:00:57 2009"},
 	{"UnixDate", UnixDate, "Wed Feb  4 21:00:57 PST 2009"},
 	{"RubyDate", RubyDate, "Wed Feb 04 21:00:57 -0800 2009"},
-	{"RFC822", RFC822, "04 Feb 09 2100 PST"},
+	{"RFC822", RFC822, "04 Feb 09 21:00 PST"},
 	{"RFC850", RFC850, "Wednesday, 04-Feb-09 21:00:57 PST"},
 	{"RFC1123", RFC1123, "Wed, 04 Feb 2009 21:00:57 PST"},
 	{"RFC1123Z", RFC1123Z, "Wed, 04 Feb 2009 21:00:57 -0800"},
