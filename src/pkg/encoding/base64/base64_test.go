@@ -151,6 +151,9 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAA=AAAA", 3},
 		{"AAAAA", 4},
 		{"AAAAAA", 4},
+		{"A=", 1},
+		{"AA=", 3},
+		{"AAAAAA=", 7},
 	}
 
 	for _, e := range examples {
