@@ -491,7 +491,11 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
 	}
 	// Add final value if necessary.
 	if final.IsValid() {
-		argv[i] = final
+		t := typ.In(typ.NumIn() - 1)
+		if typ.IsVariadic() {
+			t = t.Elem()
+		}
+		argv[i] = s.validateType(final, t)
 	}
 	result := fun.Call(argv)
 	// If we have an error that is not nil, stop execution and return that error to the caller.
@@ -507,6 +511,7 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 		switch typ.Kind() {
 		case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Map, reflect.Slice, reflect.Func:
 			// An untyped nil interface{}. Accept as a proper nil value.
+			// TODO: Can we delete the other types in this list? Should we?
 			value = reflect.Zero(typ)
 		default:
 			s.errorf("invalid value; expected %s", typ)
