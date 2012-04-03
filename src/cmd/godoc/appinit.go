@@ -17,9 +17,12 @@ import (
 )
 
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
-	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
-	servePage(w, relpath, "File "+relpath, "", "", contents)
+	servePage(w, Page{
+		Title:    "File " + relpath,
+		Subtitle: relpath,
+		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
+	})
 }
 
 func init() {
