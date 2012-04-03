@@ -83,6 +83,9 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 		l.cacheStart = -1 << 63
 		l.cacheEnd = 1<<63 - 1
 		l.cacheZone = std
+		l.tx = make([]zoneTrans, 1)
+		l.tx[0].when = l.cacheStart
+		l.tx[0].index = 0
 		return
 	}
 
