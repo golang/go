@@ -470,6 +470,9 @@ var execTests = []execTest{
 	{"bug7a", "{{3 2}}", "", tVal, false},
 	{"bug7b", "{{$x := 1}}{{$x 2}}", "", tVal, false},
 	{"bug7c", "{{$x := 1}}{{3 | $x}}", "", tVal, false},
+	// Pipelined arg was not being type-checked.
+	{"bug8a", "{{3|oneArg}}", "", tVal, false},
+	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
 }
 
 func zeroArgs() string {
@@ -478,6 +481,10 @@ func zeroArgs() string {
 
 func oneArg(a string) string {
 	return "oneArg=" + a
+}
+
+func dddArg(a int, b ...string) string {
+	return fmt.Sprintln(a, b)
 }
 
 // count returns a channel that will deliver n sequential 1-letter strings starting at "a"
@@ -504,6 +511,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
 		"count":    count,
+		"dddArg":   dddArg,
 		"oneArg":   oneArg,
 		"typeOf":   typeOf,
 		"vfunc":    vfunc,
