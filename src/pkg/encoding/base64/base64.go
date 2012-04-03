@@ -230,7 +230,12 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 			if in == '=' && j >= 2 && len(src) < 4 {
 				// We've reached the end and there's
 				// padding
+				if len(src) == 0 && j == 2 {
+					// not enough padding
+					return n, false, CorruptInputError(len(osrc))
+				}
 				if len(src) > 0 && src[0] != '=' {
+					// incorrect padding
 					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
 				}
 				dlen = j
