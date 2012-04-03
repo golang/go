@@ -343,12 +343,38 @@ outhist(Biobuf *b)
 	char *p, *q, *op, c;
 	Prog pg;
 	int n;
+	char *tofree;
+	static int first = 1;
+	static char *goroot, *goroot_final;
 
+	if(first) {
+		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+		first = 0;
+		goroot = getenv("GOROOT");
+		goroot_final = getenv("GOROOT_FINAL");
+		if(goroot == nil)
+			goroot = "";
+		if(goroot_final == nil)
+			goroot_final = goroot;
+		if(strcmp(goroot, goroot_final) == 0) {
+			goroot = nil;
+			goroot_final = nil;
+		}
+	}
+
+	tofree = nil;
 	pg = zprog;
 	pg.as = AHISTORY;
 	c = pathchar();
 	for(h = hist; h != H; h = h->link) {
 		p = h->name;
+		if(p != nil && goroot != nil) {
+			n = strlen(goroot);
+			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+				tofree = smprint("%s%s", goroot_final, p+n);
+				p = tofree;
+			}
+		}
 		op = 0;
 		if(systemtype(Windows) && p && p[1] == ':'){
 			c = p[2];
@@ -404,6 +430,11 @@ outhist(Biobuf *b)
 		Bputc(b, pg.lineno>>24);
 		zaddr(b, &pg.from, 0);
 		zaddr(b, &pg.to, 0);
+
+		if(tofree) {
+			free(tofree);
+			tofree = nil;
+		}
 	}
 }
 
