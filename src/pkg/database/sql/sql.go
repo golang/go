@@ -327,6 +327,9 @@ func (db *DB) prepare(query string) (stmt *Stmt, err error) {
 // Exec executes a query without returning any rows.
 func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	sargs, err := subsetTypeArgs(args)
+	if err != nil {
+		return nil, err
+	}
 	var res Result
 	for i := 0; i < 10; i++ {
 		res, err = db.exec(query, sargs)
