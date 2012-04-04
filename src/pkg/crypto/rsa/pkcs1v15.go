@@ -232,11 +232,11 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err error) {
 	hashLen = hash.Size()
 	if inLen != hashLen {
-		return 0, nil, errors.New("input must be hashed message")
+		return 0, nil, errors.New("crypto/rsa: input must be hashed message")
 	}
 	prefix, ok := hashPrefixes[hash]
 	if !ok {
-		return 0, nil, errors.New("unsupported hash function")
+		return 0, nil, errors.New("crypto/rsa: unsupported hash function")
 	}
 	return
 }

@@ -63,7 +63,7 @@ func (priv *PrivateKey) Validate() error {
 	// easy for an attack to generate composites that pass this test.
 	for _, prime := range priv.Primes {
 		if !prime.ProbablyPrime(20) {
-			return errors.New("prime factor is composite")
+			return errors.New("crypto/rsa: prime factor is composite")
 		}
 	}
 
@@ -73,13 +73,20 @@ func (priv *PrivateKey) Validate() error {
 		modulus.Mul(modulus, prime)
 	}
 	if modulus.Cmp(priv.N) != 0 {
-		return errors.New("invalid modulus")
+		return errors.New("crypto/rsa: invalid modulus")
 	}
 	// Check that e and totient(Πprimes) are coprime.
 	totient := new(big.Int).Set(bigOne)
+	var gcdTotients *big.Int
 	for _, prime := range priv.Primes {
 		pminus1 := new(big.Int).Sub(prime, bigOne)
 		totient.Mul(totient, pminus1)
+
+		if gcdTotients == nil {
+			gcdTotients = pminus1
+		} else {
+			gcdTotients.GCD(nil, nil, gcdTotients, pminus1)
+		}
 	}
 	e := big.NewInt(int64(priv.E))
 	gcd := new(big.Int)
@@ -87,13 +94,14 @@ func (priv *PrivateKey) Validate() error {
 	y := new(big.Int)
 	gcd.GCD(x, y, totient, e)
 	if gcd.Cmp(bigOne) != 0 {
-		return errors.New("invalid public exponent E")
+		return errors.New("crypto/rsa: invalid public exponent E")
 	}
-	// Check that de ≡ 1 (mod totient(Πprimes))
+	// Check that de ≡ 1 mod |ℤ/nℤ| where |ℤ/nℤ| = totient/gcdTotients
 	de := new(big.Int).Mul(priv.D, e)
-	de.Mod(de, totient)
+	order := new(big.Int).Div(totient, gcdTotients)
+	de.Mod(de, order)
 	if de.Cmp(bigOne) != 0 {
-		return errors.New("invalid private exponent D")
+		return errors.New("crypto/rsa: invalid private exponent D")
 	}
 	return nil
 }
@@ -118,7 +126,7 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *Priva
 	priv.E = 65537
 
 	if nprimes < 2 {
-		return nil, errors.New("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
+		return nil, errors.New("crypto/rsa: GenerateMultiPrimeKey: nprimes must be >= 2")
 	}
 
 	primes := make([]*big.Int, nprimes)
