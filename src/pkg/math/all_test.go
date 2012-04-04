@@ -1128,9 +1128,9 @@ var vfgammaSC = []float64{
 	NaN(),
 }
 var gammaSC = []float64{
+	NaN(),
+	NaN(),
 	Inf(-1),
-	Inf(1),
-	Inf(1),
 	Inf(1),
 	Inf(1),
 	NaN(),
