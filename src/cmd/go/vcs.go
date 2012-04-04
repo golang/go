@@ -422,11 +422,15 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
-		return nil, fmt.Errorf("missing / in import %q", importPath)
+		return nil, errors.New("import path doesn't contain a slash")
+	}
+	host := importPath[:slash]
+	if !strings.Contains(host, ".") {
+		return nil, errors.New("import path doesn't contain a hostname")
 	}
 	urlStr, body, err := httpsOrHTTP(importPath)
 	if err != nil {
-		return nil, fmt.Errorf("http/https fetch for import %q: %v", importPath, err)
+		return nil, fmt.Errorf("http/https fetch: %v", err)
 	}
 	defer body.Close()
 	metaImport, err := matchGoImport(parseMetaGoImports(body), importPath)
