@@ -57,6 +57,7 @@ func Encode(dst, src []byte) int {
 		if v == 0 && len(src) >= 4 {
 			dst[0] = 'z'
 			dst = dst[1:]
+			src = src[4:]
 			n++
 			continue
 		}
