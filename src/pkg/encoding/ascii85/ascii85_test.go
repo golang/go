@@ -28,6 +28,11 @@ var pairs = []testpair{
 			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
 			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
 	},
+	// Special case when shortening !!!!! to z.
+	{
+		"\000\000\000\000",
+		"z",
+	},
 }
 
 var bigtest = pairs[len(pairs)-1]
