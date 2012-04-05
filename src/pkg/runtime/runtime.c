@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "stack.h"
+#include "arch_GOARCH.h"
 
 enum {
 	maxround = sizeof(uintptr),
@@ -267,6 +268,33 @@ runtime·atoi(byte *p)
 	return n;
 }
 
+static void
+TestAtomic64(void)
+{
+	uint64 z64, x64;
+
+	z64 = 42;
+	x64 = 0;
+	PREFETCH(&z64);
+	if(runtime·cas64(&z64, &x64, 1))
+		runtime·throw("cas64 failed");
+	if(x64 != 42)
+		runtime·throw("cas64 failed");
+	if(!runtime·cas64(&z64, &x64, 1))
+		runtime·throw("cas64 failed");
+	if(x64 != 42 || z64 != 1)
+		runtime·throw("cas64 failed");
+	if(runtime·atomicload64(&z64) != 1)
+		runtime·throw("load64 failed");
+	runtime·atomicstore64(&z64, (1ull<<40)+1);
+	if(runtime·atomicload64(&z64) != (1ull<<40)+1)
+		runtime·throw("store64 failed");
+	if(runtime·xadd64(&z64, (1ull<<40)+1) != (2ull<<40)+2)
+		runtime·throw("xadd64 failed");
+	if(runtime·atomicload64(&z64) != (2ull<<40)+2)
+		runtime·throw("xadd64 failed");
+}
+
 void
 runtime·check(void)
 {
@@ -342,6 +370,8 @@ runtime·check(void)
 		runtime·throw("float32nan2");
 	if(!(i != i1))
 		runtime·throw("float32nan3");
+
+	TestAtomic64();
 }
 
 void

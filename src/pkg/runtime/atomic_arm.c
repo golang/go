@@ -3,6 +3,14 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch_GOARCH.h"
+
+static union {
+	Lock l;
+	byte pad [CacheLineSize];
+} locktab[57];
+
+#define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
 
 // Atomic add and return new value.
 #pragma textflag 7
@@ -80,4 +88,56 @@ runtime·atomicstore(uint32 volatile* addr, uint32 v)
 		if(runtime·cas(addr, old, v))
 			return;
 	}
+}
+
+#pragma textflag 7
+bool
+runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+{
+	bool res;
+	
+	runtime·lock(LOCK(addr));
+	if(*addr == *old) {
+		*addr = new;
+		res = true;
+	} else {
+		*old = *addr;
+		res = false;
+	}
+	runtime·unlock(LOCK(addr));
+	return res;
+}
+
+#pragma textflag 7
+uint64
+runtime·xadd64(uint64 volatile *addr, int64 delta)
+{
+	uint64 res;
+	
+	runtime·lock(LOCK(addr));
+	res = *addr + delta;
+	*addr = res;
+	runtime·unlock(LOCK(addr));
+	return res;
+}
+
+#pragma textflag 7
+uint64
+runtime·atomicload64(uint64 volatile *addr)
+{
+	uint64 res;
+	
+	runtime·lock(LOCK(addr));
+	res = *addr;
+	runtime·unlock(LOCK(addr));
+	return res;
+}
+
+#pragma textflag 7
+void
+runtime·atomicstore64(uint64 volatile *addr, uint64 v)
+{
+	runtime·lock(LOCK(addr));
+	*addr = v;
+	runtime·unlock(LOCK(addr));
 }
