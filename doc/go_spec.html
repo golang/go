@@ -2659,7 +2659,7 @@ back to the calling function when the function returns.
 </p>
 
 <p>
-Calling a <code>nil</code> function value 
+Calling a <code>nil</code> function value
 causes a <a href="#Run_time_panics">run-time panic</a>.
 </p>
 
@@ -3030,29 +3030,29 @@ These terms and the result of the comparisons are defined as follows:
 	<li>
 	Integer values are comparable and ordered, in the usual way.
 	</li>
-	
+
 	<li>
 	Floating point values are comparable and ordered,
 	as defined by the IEEE-754 standard.
 	</li>
-	
+
 	<li>
 	Complex values are comparable.
 	Two complex values <code>u</code> and <code>v</code> are
 	equal if both <code>real(u) == real(v)</code> and
 	<code>imag(u) == imag(v)</code>.
 	</li>
-	
+
 	<li>
 	String values are comparable and ordered, lexically byte-wise.
 	</li>
-	
+
 	<li>
 	Pointer values are comparable.
 	Two pointer values are equal if they point to the same variable or if both have value <code>nil</code>.
 	Pointers to distinct <a href="#Size_and_alignment_guarantees">zero-size</a> variables may or may not be equal.
 	</li>
-	
+
 	<li>
 	Channel values are comparable.
 	Two channel values are equal if they were created by the same call to <code>make</code>
@@ -3065,7 +3065,7 @@ These terms and the result of the comparisons are defined as follows:
 	Two interface values are equal if they have <a href="#Type_identity">identical</a> dynamic types
 	and equal dynamic values or if both have value <code>nil</code>.
 	</li>
-	
+
 	<li>
 	A value <code>x</code> of non-interface type <code>X</code> and
 	a value <code>t</code> of interface type <code>T</code> are comparable when values
@@ -3080,7 +3080,7 @@ These terms and the result of the comparisons are defined as follows:
 	Two struct values are equal if their corresponding
 	non-<a href="#Blank_identifier">blank</a> fields are equal.
 	</li>
-	
+
 	<li>
 	Array values are comparable if values of the array element type are comparable.
 	Two array values are equal if their corresponding elements are equal.
@@ -5401,7 +5401,7 @@ type ArbitraryType int  // shorthand for an arbitrary Go type; it is not a real 
 type Pointer *ArbitraryType
 
 func Alignof(variable ArbitraryType) uintptr
-func Offsetof(selector ArbitraryType) uinptr
+func Offsetof(selector ArbitraryType) uintptr
 func Sizeof(variable ArbitraryType) uintptr
 </pre>
 
