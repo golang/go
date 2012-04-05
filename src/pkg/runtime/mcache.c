@@ -43,11 +43,6 @@ runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 		// block is zeroed iff second word is zero ...
 		if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
 			runtime·memclr((byte*)v, size);
-		else {
-			// ... except for the link pointer
-			// that we used above; zero that.
-			v->next = nil;
-		}
 	}
 	c->local_cachealloc += size;
 	c->local_objects++;
