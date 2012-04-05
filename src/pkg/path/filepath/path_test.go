@@ -684,10 +684,15 @@ func TestAbs(t *testing.T) {
 	}
 	defer os.RemoveAll(root)
 
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("getwd failed: ", err)
+	}
 	err = os.Chdir(root)
 	if err != nil {
 		t.Fatal("chdir failed: ", err)
 	}
+	defer os.Chdir(wd)
 
 	for _, dir := range absTestDirs {
 		err = os.Mkdir(dir, 0777)
