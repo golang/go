@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"time"
 	"unsafe"
 )
 
@@ -83,7 +84,12 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	for i := 0; i < 10; i++ {
+	const N = 10
+	var t0 time.Time
+	for i := 0; i < N; i++ {
+		t0 = time.Now()
 		gc()
 	}
+	// Standard gotest benchmark output, collected by build dashboard.
+	gcstats("BenchmarkTree2", N, time.Now().Sub(t0))
 }

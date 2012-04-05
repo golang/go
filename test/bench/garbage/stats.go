@@ -14,16 +14,21 @@ import (
 func gcstats(name string, n int, t time.Duration) {
 	st := new(runtime.MemStats)
 	runtime.ReadMemStats(st)
-	fmt.Printf("garbage.%sMem Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
-	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t.Nanoseconds()/int64(n))
-	fmt.Printf("garbage.%sLastPause 1 %d ns/op\n", name, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
-	fmt.Printf("garbage.%sPause %d %d ns/op\n", name, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
+	nprocs := runtime.GOMAXPROCS(-1)
+	cpus := ""
+	if nprocs != 1 {
+		cpus = fmt.Sprintf("-%d", nprocs)
+	}
+	fmt.Printf("garbage.%sMem%s Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, cpus, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
+	fmt.Printf("garbage.%s%s %d %d ns/op\n", name, cpus, n, t.Nanoseconds()/int64(n))
+	fmt.Printf("garbage.%sLastPause%s 1 %d ns/op\n", name, cpus, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
+	fmt.Printf("garbage.%sPause%s %d %d ns/op\n", name, cpus, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
 	nn := int(st.NumGC)
 	if nn >= len(st.PauseNs) {
 		nn = len(st.PauseNs)
 	}
 	t1, t2, t3, t4, t5 := tukey5(st.PauseNs[0:nn])
-	fmt.Printf("garbage.%sPause5: %d %d %d %d %d\n", name, t1, t2, t3, t4, t5)
+	fmt.Printf("garbage.%sPause5%s: %d %d %d %d %d\n", name, cpus, t1, t2, t3, t4, t5)
 
 	//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
 }
