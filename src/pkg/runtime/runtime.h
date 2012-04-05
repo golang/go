@@ -71,6 +71,7 @@ typedef	struct	Complex128	Complex128;
 typedef	struct	WinCall		WinCall;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
+typedef struct	GCStats		GCStats;
 
 /*
  * per-cpu declaration.
@@ -166,6 +167,16 @@ struct	Gobuf
 	byte*	pc;
 	G*	g;
 };
+struct	GCStats
+{
+	// the struct must consist of only uint64's,
+	// because it is casted to uint64[].
+	uint64	nhandoff;
+	uint64	nhandoffcnt;
+	uint64	nprocyield;
+	uint64	nosyield;
+	uint64	nsleep;
+};
 struct	G
 {
 	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
@@ -243,6 +254,7 @@ struct	M
 	uintptr	waitsema;	// semaphore for parking on locks
 	uint32	waitsemacount;
 	uint32	waitsemalock;
+	GCStats	gcstats;
 
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
