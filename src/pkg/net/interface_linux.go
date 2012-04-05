@@ -64,7 +64,7 @@ func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) Interfac
 		case syscall.IFLA_IFNAME:
 			ifi.Name = string(a.Value[:len(a.Value)-1])
 		case syscall.IFLA_MTU:
-			ifi.MTU = int(uint32(a.Value[3])<<24 | uint32(a.Value[2])<<16 | uint32(a.Value[1])<<8 | uint32(a.Value[0]))
+			ifi.MTU = int(*(*uint32)(unsafe.Pointer(&a.Value[:4][0])))
 		}
 	}
 	return ifi
@@ -193,10 +193,14 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
 			name = f[1]
 		case len(f[0]) == 8:
 			if ifi == nil || name == ifi.Name {
+				// The Linux kernel puts the IP
+				// address in /proc/net/igmp in native
+				// endianness.
 				for i := 0; i+1 < len(f[0]); i += 2 {
 					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
 				}
-				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
+				i := *(*uint32)(unsafe.Pointer(&b[:4][0]))
+				ifma := IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
 				ifmat = append(ifmat, ifma.toAddr())
 			}
 		}
