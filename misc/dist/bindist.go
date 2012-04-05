@@ -394,9 +394,9 @@ func (b *Build) Upload(version string, filename string) error {
 	os_, arch := b.OS, b.Arch
 	switch b.Arch {
 	case "386":
-		arch = "32-bit"
+		arch = "x86 32-bit"
 	case "amd64":
-		arch = "64-bit"
+		arch = "x86 64-bit"
 	}
 	if arch != "" {
 		labels = append(labels, "Arch-"+b.Arch)
