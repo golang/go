@@ -61,16 +61,16 @@ func (e EscapeError) Error() string {
 }
 
 // Return true if the specified character should be escaped when
-// appearing in a URL string, according to RFC 2396.
+// appearing in a URL string, according to RFC 3986.
 // When 'all' is true the full range of reserved characters are matched.
 func shouldEscape(c byte, mode encoding) bool {
-	// RFC 2396 §2.3 Unreserved characters (alphanum)
+	// §2.3 Unreserved characters (alphanum)
 	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
 		return false
 	}
-	// TODO: Update the character sets after RFC 3986.
+
 	switch c {
-	case '-', '_', '.', '!', '~', '*', '\'', '(', ')': // §2.3 Unreserved characters (mark)
+	case '-', '_', '.', '~': // §2.3 Unreserved characters (mark)
 		return false
 
 	case '$', '&', '+', ',', '/', ':', ';', '=', '?', '@': // §2.2 Reserved characters (reserved)
