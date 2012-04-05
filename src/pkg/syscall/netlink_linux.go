@@ -30,29 +30,18 @@ type NetlinkRouteRequest struct {
 
 func (rr *NetlinkRouteRequest) toWireFormat() []byte {
 	b := make([]byte, rr.Header.Len)
-	b[0] = byte(rr.Header.Len)
-	b[1] = byte(rr.Header.Len >> 8)
-	b[2] = byte(rr.Header.Len >> 16)
-	b[3] = byte(rr.Header.Len >> 24)
-	b[4] = byte(rr.Header.Type)
-	b[5] = byte(rr.Header.Type >> 8)
-	b[6] = byte(rr.Header.Flags)
-	b[7] = byte(rr.Header.Flags >> 8)
-	b[8] = byte(rr.Header.Seq)
-	b[9] = byte(rr.Header.Seq >> 8)
-	b[10] = byte(rr.Header.Seq >> 16)
-	b[11] = byte(rr.Header.Seq >> 24)
-	b[12] = byte(rr.Header.Pid)
-	b[13] = byte(rr.Header.Pid >> 8)
-	b[14] = byte(rr.Header.Pid >> 16)
-	b[15] = byte(rr.Header.Pid >> 24)
+	*(*uint32)(unsafe.Pointer(&b[0:4][0])) = rr.Header.Len
+	*(*uint16)(unsafe.Pointer(&b[4:6][0])) = rr.Header.Type
+	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Header.Flags
+	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Header.Seq
+	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Header.Pid
 	b[16] = byte(rr.Data.Family)
 	return b
 }
 
 func newNetlinkRouteRequest(proto, seq, family int) []byte {
 	rr := &NetlinkRouteRequest{}
-	rr.Header.Len = NLMSG_HDRLEN + SizeofRtGenmsg
+	rr.Header.Len = uint32(NLMSG_HDRLEN + SizeofRtGenmsg)
 	rr.Header.Type = uint16(proto)
 	rr.Header.Flags = NLM_F_DUMP | NLM_F_REQUEST
 	rr.Header.Seq = uint32(seq)
@@ -156,7 +145,7 @@ func ParseNetlinkMessage(buf []byte) ([]NetlinkMessage, error) {
 		}
 		m := NetlinkMessage{}
 		m.Header = *h
-		m.Data = dbuf[:h.Len-NLMSG_HDRLEN]
+		m.Data = dbuf[:int(h.Len)-NLMSG_HDRLEN]
 		msgs = append(msgs, m)
 		buf = buf[dlen:]
 	}
@@ -166,7 +155,7 @@ func ParseNetlinkMessage(buf []byte) ([]NetlinkMessage, error) {
 
 func netlinkMessageHeaderAndData(buf []byte) (*NlMsghdr, []byte, int, error) {
 	h := (*NlMsghdr)(unsafe.Pointer(&buf[0]))
-	if h.Len < NLMSG_HDRLEN || int(h.Len) > len(buf) {
+	if int(h.Len) < NLMSG_HDRLEN || int(h.Len) > len(buf) {
 		return nil, nil, 0, EINVAL
 	}
 	return h, buf[NLMSG_HDRLEN:], nlmAlignOf(int(h.Len)), nil
@@ -209,7 +198,7 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, error) {
 		}
 		ra := NetlinkRouteAttr{}
 		ra.Attr = *a
-		ra.Value = vbuf[:a.Len-SizeofRtAttr]
+		ra.Value = vbuf[:int(a.Len)-SizeofRtAttr]
 		attrs = append(attrs, ra)
 		buf = buf[alen:]
 	}
@@ -219,7 +208,7 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, error) {
 
 func netlinkRouteAttrAndValue(buf []byte) (*RtAttr, []byte, int, error) {
 	h := (*RtAttr)(unsafe.Pointer(&buf[0]))
-	if h.Len < SizeofRtAttr || int(h.Len) > len(buf) {
+	if int(h.Len) < SizeofRtAttr || int(h.Len) > len(buf) {
 		return nil, nil, 0, EINVAL
 	}
 	return h, buf[SizeofRtAttr:], rtaAlignOf(int(h.Len)), nil
