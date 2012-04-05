@@ -299,6 +299,33 @@ TEXT runtime·cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
+// bool runtime·cas64(uint64 *val, uint64 *old, uint64 new)
+// Atomically:
+//	if(*val == *old){
+//		*val = new;
+//		return 1;
+//	} else {
+//		*old = *val
+//		return 0;
+//	}
+TEXT runtime·cas64(SB), 7, $0
+	MOVL	4(SP), BP
+	MOVL	8(SP), SI
+	MOVL	0(SI), AX
+	MOVL	4(SI), DX
+	MOVL	12(SP), BX
+	MOVL	16(SP), CX
+	LOCK
+	CMPXCHG8B	0(BP)
+	JNZ	cas64_fail
+	MOVL	$1, AX
+	RET
+cas64_fail:
+	MOVL	AX, 0(SI)
+	MOVL	DX, 4(SI)
+	XORL	AX, AX
+	RET
+
 // bool casp(void **p, void *old, void *new)
 // Atomically:
 //	if(*p == old){
@@ -355,6 +382,43 @@ TEXT runtime·atomicstore(SB), 7, $0
 	MOVL	4(SP), BX
 	MOVL	8(SP), AX
 	XCHGL	AX, 0(BX)
+	RET
+
+// uint64 atomicload64(uint64 volatile* addr);
+// so actually
+// void atomicload64(uint64 *res, uint64 volatile *addr);
+TEXT runtime·atomicload64(SB), 7, $0
+	MOVL    4(SP), BX
+	MOVL	8(SP), AX
+	// MOVQ (%EAX), %MM0
+	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+	// MOVQ %MM0, 0(%EBX)
+	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
+	// EMMS
+	BYTE $0x0F; BYTE $0x77
+	RET
+
+// void runtime·atomicstore64(uint64 volatile* addr, uint64 v);
+TEXT runtime·atomicstore64(SB), 7, $0
+	MOVL	4(SP), AX
+	// MOVQ and EMMS were introduced on the Pentium MMX.
+	// MOVQ 0x8(%ESP), %MM0
+	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+	// MOVQ %MM0, (%EAX)
+	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
+	// EMMS
+	BYTE $0x0F; BYTE $0x77
+	// This is essentially a no-op, but it provides required memory fencing.
+	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
+	MOVL	$0, AX
+	LOCK
+	XADDL	AX, (SP)
+	RET
+
+TEXT runtime·prefetch(SB), 7, $0
+	MOVL    4(SP), AX
+	// PREFETCHNTA (AX)
+	BYTE $0x0f; BYTE $0x18; BYTE $0x00
 	RET
 
 // void jmpdefer(fn, sp);

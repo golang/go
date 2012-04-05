@@ -344,6 +344,30 @@ TEXT runtime·cas(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
+// bool	runtime·cas64(uint64 *val, uint64 *old, uint64 new)
+// Atomically:
+//	if(*val == *old){
+//		*val = new;
+//		return 1;
+//	} else {
+//		*old = *val
+//		return 0;
+//	}
+TEXT runtime·cas64(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), BP
+	MOVQ	0(BP), AX
+	MOVQ	24(SP), CX
+	LOCK
+	CMPXCHGQ	CX, 0(BX)
+	JNZ	cas64_fail
+	MOVL	$1, AX
+	RET
+cas64_fail:
+	MOVQ	AX, 0(BP)
+	MOVL	$0, AX
+	RET
+
 // bool casp(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
@@ -376,6 +400,15 @@ TEXT runtime·xadd(SB), 7, $0
 	ADDL	CX, AX
 	RET
 
+TEXT runtime·xadd64(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), AX
+	MOVQ	AX, CX
+	LOCK
+	XADDQ	AX, 0(BX)
+	ADDQ	CX, AX
+	RET
+
 TEXT runtime·xchg(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVL	16(SP), AX
@@ -400,6 +433,18 @@ TEXT runtime·atomicstore(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVL	16(SP), AX
 	XCHGL	AX, 0(BX)
+	RET
+
+TEXT runtime·atomicstore64(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), AX
+	XCHGQ	AX, 0(BX)
+	RET
+
+TEXT runtime·prefetch(SB), 7, $0
+	MOVQ    8(SP), AX
+	// PREFETCHNTA (AX)
+	BYTE $0x0f; BYTE $0x18; BYTE $0x00
 	RET
 
 // void jmpdefer(fn, sp);
