@@ -719,22 +719,17 @@ handlespecial(byte *p, uintptr size)
 	return true;
 }
 
+static void sweepspan(MSpan *s);
+
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 static void
 sweep(void)
 {
 	MSpan *s;
-	int32 cl, n, npages;
-	uintptr size;
-	byte *p;
-	MCache *c;
-	byte *arena_start;
 	int64 now;
 
-	arena_start = runtime·mheap.arena_start;
 	now = runtime·nanotime();
-
 	for(;;) {
 		s = work.spans;
 		if(s == nil)
@@ -750,69 +745,82 @@ sweep(void)
 		if(s->state != MSpanInUse)
 			continue;
 
-		p = (byte*)(s->start << PageShift);
-		cl = s->sizeclass;
-		if(cl == 0) {
-			size = s->npages<<PageShift;
-			n = 1;
+		sweepspan(s);
+	}
+}
+
+static void
+sweepspan(MSpan *s)
+{
+	int32 cl, n, npages;
+	uintptr size;
+	byte *p;
+	MCache *c;
+	byte *arena_start;
+
+	arena_start = runtime·mheap.arena_start;
+	p = (byte*)(s->start << PageShift);
+	cl = s->sizeclass;
+	if(cl == 0) {
+		size = s->npages<<PageShift;
+		n = 1;
+	} else {
+		// Chunk full of small blocks.
+		size = runtime·class_to_size[cl];
+		npages = runtime·class_to_allocnpages[cl];
+		n = (npages << PageShift) / size;
+	}
+
+	// Sweep through n objects of given size starting at p.
+	// This thread owns the span now, so it can manipulate
+	// the block bitmap without atomic operations.
+	for(; n > 0; n--, p += size) {
+		uintptr off, *bitp, shift, bits;
+
+		off = (uintptr*)p - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		bits = *bitp>>shift;
+
+		if((bits & bitAllocated) == 0)
+			continue;
+
+		if((bits & bitMarked) != 0) {
+			if(DebugMark) {
+				if(!(bits & bitSpecial))
+					runtime·printf("found spurious mark on %p\n", p);
+				*bitp &= ~(bitSpecial<<shift);
+			}
+			*bitp &= ~(bitMarked<<shift);
+			continue;
+		}
+
+		// Special means it has a finalizer or is being profiled.
+		// In DebugMark mode, the bit has been coopted so
+		// we have to assume all blocks are special.
+		if(DebugMark || (bits & bitSpecial) != 0) {
+			if(handlespecial(p, size))
+				continue;
+		}
+
+		// Mark freed; restore block boundary bit.
+		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+
+		c = m->mcache;
+		if(s->sizeclass == 0) {
+			// Free large span.
+			runtime·unmarkspan(p, 1<<PageShift);
+			*(uintptr*)p = 1;	// needs zeroing
+			runtime·MHeap_Free(&runtime·mheap, s, 1);
 		} else {
-			// Chunk full of small blocks.
-			size = runtime·class_to_size[cl];
-			npages = runtime·class_to_allocnpages[cl];
-			n = (npages << PageShift) / size;
+			// Free small object.
+			if(size > sizeof(uintptr))
+				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
+			c->local_by_size[s->sizeclass].nfree++;
+			runtime·MCache_Free(c, p, s->sizeclass, size);
 		}
-
-		// Sweep through n objects of given size starting at p.
-		// This thread owns the span now, so it can manipulate
-		// the block bitmap without atomic operations.
-		for(; n > 0; n--, p += size) {
-			uintptr off, *bitp, shift, bits;
-
-			off = (uintptr*)p - (uintptr*)arena_start;
-			bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
-			shift = off % wordsPerBitmapWord;
-			bits = *bitp>>shift;
-
-			if((bits & bitAllocated) == 0)
-				continue;
-
-			if((bits & bitMarked) != 0) {
-				if(DebugMark) {
-					if(!(bits & bitSpecial))
-						runtime·printf("found spurious mark on %p\n", p);
-					*bitp &= ~(bitSpecial<<shift);
-				}
-				*bitp &= ~(bitMarked<<shift);
-				continue;
-			}
-
-			// Special means it has a finalizer or is being profiled.
-			// In DebugMark mode, the bit has been coopted so
-			// we have to assume all blocks are special.
-			if(DebugMark || (bits & bitSpecial) != 0) {
-				if(handlespecial(p, size))
-					continue;
-			}
-
-			// Mark freed; restore block boundary bit.
-			*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
-
-			c = m->mcache;
-			if(s->sizeclass == 0) {
-				// Free large span.
-				runtime·unmarkspan(p, 1<<PageShift);
-				*(uintptr*)p = 1;	// needs zeroing
-				runtime·MHeap_Free(&runtime·mheap, s, 1);
-			} else {
-				// Free small object.
-				if(size > sizeof(uintptr))
-					((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
-				c->local_by_size[s->sizeclass].nfree++;
-				runtime·MCache_Free(c, p, s->sizeclass, size);
-			}
-			c->local_alloc -= size;
-			c->local_nfree++;
-		}
+		c->local_alloc -= size;
+		c->local_nfree++;
 	}
 }
 
