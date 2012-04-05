@@ -352,15 +352,39 @@ func TestCipherDecrypt(t *testing.T) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	b.StopTimer()
 	tt := encryptTests[0]
 	c, err := NewCipher(tt.key)
 	if err != nil {
 		b.Fatal("NewCipher:", err)
 	}
 	out := make([]byte, len(tt.in))
-	b.StartTimer()
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.Encrypt(out, tt.in)
+	}
+}
+
+func BenchmarkDecrypt(b *testing.B) {
+	tt := encryptTests[0]
+	c, err := NewCipher(tt.key)
+	if err != nil {
+		b.Fatal("NewCipher:", err)
+	}
+	out := make([]byte, len(tt.out))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.Decrypt(out, tt.out)
+	}
+}
+
+func BenchmarkExpand(b *testing.B) {
+	tt := encryptTests[0]
+	n := len(tt.key) + 28
+	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		expandKey(tt.key, c.enc, c.dec)
 	}
 }
