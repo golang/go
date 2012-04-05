@@ -323,7 +323,7 @@ TEXT runtime·cas64(SB), 7, $0
 cas64_fail:
 	MOVL	AX, 0(SI)
 	MOVL	DX, 4(SI)
-	XORL	AX, AX
+	MOVL	$0, AX
 	RET
 
 // bool casp(void **p, void *old, void *new)
