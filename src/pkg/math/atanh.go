@@ -36,7 +36,7 @@ package math
 //	atanh(+-1) is +-INF with signal.
 //
 
-// Atanh(x) calculates the inverse hyperbolic tangent of x.
+// Atanh returns the inverse hyperbolic tangent of x.
 //
 // Special cases are:
 //	Atanh(1) = +Inf

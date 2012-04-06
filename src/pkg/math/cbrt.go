@@ -12,7 +12,7 @@ package math
 	(http://www.jstor.org/stable/2006387?seq=9, accessed 11-Feb-2010)
 */
 
-// Cbrt returns the cube root of its argument.
+// Cbrt returns the cube root of x.
 //
 // Special cases are:
 //	Cbrt(±0) = ±0

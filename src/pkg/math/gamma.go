@@ -110,7 +110,7 @@ func stirling(x float64) float64 {
 	return y
 }
 
-// Gamma(x) returns the Gamma function of x.
+// Gamma returns the Gamma function of x.
 //
 // Special cases are:
 //	Gamma(+Inf) = +Inf

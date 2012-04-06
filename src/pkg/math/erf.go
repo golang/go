@@ -179,7 +179,7 @@ const (
 	sb7 = -2.24409524465858183362e+01 // 0xC03670E242712D62
 )
 
-// Erf(x) returns the error function of x.
+// Erf returns the error function of x.
 //
 // Special cases are:
 //	Erf(+Inf) = 1
@@ -256,7 +256,7 @@ func Erf(x float64) float64 {
 	return 1 - r/x
 }
 
-// Erfc(x) returns the complementary error function of x.
+// Erfc returns the complementary error function of x.
 //
 // Special cases are:
 //	Erfc(+Inf) = 0
