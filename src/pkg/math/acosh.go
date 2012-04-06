@@ -33,7 +33,7 @@ package math
 //	acosh(NaN) is NaN without signal.
 //
 
-// Acosh(x) calculates the inverse hyperbolic cosine of x.
+// Acosh returns the inverse hyperbolic cosine of x.
 //
 // Special cases are:
 //	Acosh(+Inf) = +Inf

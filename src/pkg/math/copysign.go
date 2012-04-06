@@ -4,7 +4,7 @@
 
 package math
 
-// Copysign(x, y) returns a value with the magnitude
+// Copysign returns a value with the magnitude
 // of x and the sign of y.
 func Copysign(x, y float64) float64 {
 	const sign = 1 << 63
