@@ -367,7 +367,7 @@ func (t Time) Format(layout string) string {
 		hour  int = -1
 		min   int
 		sec   int
-		b     buffer
+		b     buffer = make([]byte, 0, len(layout))
 	)
 	// Each iteration generates one std value.
 	for {
