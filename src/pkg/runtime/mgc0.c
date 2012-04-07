@@ -268,6 +268,8 @@ scanblock(byte *b, int64 n)
 			if((bits & bitNoPointers) != 0)
 				continue;
 
+			PREFETCH(obj);
+
 			// If another proc wants a pointer, give it some.
 			if(nobj > 4 && work.nwait > 0 && work.full == nil) {
 				wbuf->nobj = nobj;
