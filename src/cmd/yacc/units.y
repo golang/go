@@ -26,11 +26,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
-	"bufio"
-	"os"
 	"math"
+	"runtime"
+	"os"
+	"path/filepath"
 	"strconv"
 	"unicode/utf8"
 )
@@ -287,13 +289,11 @@ func main() {
 
 	flag.Parse()
 
-	if dir := os.Getenv("GOROOT"); dir != "" {
-		file = dir + "/src/cmd/yacc/units.txt"
-	}
+	file = filepath.Join(runtime.GOROOT(), "src/cmd/yacc/units.txt")
 	if flag.NArg() > 0 {
 		file = flag.Arg(0)
 	} else if file == "" {
-		fmt.Fprintf(os.Stderr, "can not find data file units.txt; provide it as argument or set $GOROOT\n")
+		fmt.Fprintf(os.Stderr, "cannot find data file units.txt; provide it as argument or set $GOROOT\n")
 		os.Exit(1)
 	}
 
@@ -308,7 +308,7 @@ func main() {
 
 	/*
 	 * read the 'units' file to
-	 * develope a database
+	 * develop a database
 	 */
 	lineno = 0
 	for {
