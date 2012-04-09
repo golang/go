@@ -306,7 +306,6 @@ struct MSpan
 {
 	MSpan	*next;		// in a span linked list
 	MSpan	*prev;		// in a span linked list
-	MSpan	*allnext;	// in the list of all spans
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
@@ -351,7 +350,9 @@ struct MHeap
 	Lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
 	MSpan large;			// free lists length >= MaxMHeapList
-	MSpan *allspans;
+	MSpan **allspans;
+	uint32	nspan;
+	uint32	nspancap;
 
 	// span lookup
 	MSpan *map[1<<MHeapMap_Bits];

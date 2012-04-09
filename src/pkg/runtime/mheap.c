@@ -27,11 +27,24 @@ RecordSpan(void *vh, byte *p)
 {
 	MHeap *h;
 	MSpan *s;
+	MSpan **all;
+	uint32 cap;
 
 	h = vh;
 	s = (MSpan*)p;
-	s->allnext = h->allspans;
-	h->allspans = s;
+	if(h->nspan >= h->nspancap) {
+		cap = 64*1024/sizeof(all[0]);
+		if(cap < h->nspancap*3/2)
+			cap = h->nspancap*3/2;
+		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
+		if(h->allspans) {
+			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
+			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
+		}
+		h->allspans = all;
+		h->nspancap = cap;
+	}
+	h->allspans[h->nspan++] = s;
 }
 
 // Initialize the heap; fetch memory using alloc.
