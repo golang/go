@@ -9,5 +9,5 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 . ./make.bash --no-banner
-bash run.bash --no-rebuild --banner
+bash run.bash --no-rebuild
 $GOTOOLDIR/dist banner  # print build info
