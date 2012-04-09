@@ -115,7 +115,7 @@ errstr(void)
 	binit(&b);
 	code = GetLastError();
 	r = nil;
-	FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM,
+	FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
 		nil, code, 0, (Rune*)&r, 0, nil);
 	toutf(&b, r);
 	return bstr(&b);  // leak but we're dying anyway
@@ -285,9 +285,11 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 	binit(&cmd);
 
 	for(i=0; i<argv->len; i++) {
+		q = argv->p[i];
+		if(i == 0 && streq(q, "hg"))
+			bwritestr(&cmd, "cmd.exe /c ");
 		if(i > 0)
 			bwritestr(&cmd, " ");
-		q = argv->p[i];
 		if(contains(q, " ") || contains(q, "\t") || contains(q, "\"") || contains(q, "\\\\") || hassuffix(q, "\\")) {
 			bwritestr(&cmd, "\"");
 			nslash = 0;
