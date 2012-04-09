@@ -384,7 +384,7 @@ package newmath
 import "testing"
 
 func TestSqrt(t *testing.T) {
-	const in, out = 9, 3
+	const in, out = 4, 2
 	if x := Sqrt(in); x != out {
 		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
         }
@@ -397,7 +397,7 @@ Now run the test with <code>go test</code>:
 
 <pre>
 $ go test example/newmath
-ok  	example/newmath
+ok  	example/newmath 0.165s
 </pre>
 
 <p>
