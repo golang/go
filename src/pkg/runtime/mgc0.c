@@ -123,7 +123,7 @@ static struct {
 	Note	alldone;
 	Lock	markgate;
 	Lock	sweepgate;
-	MSpan	*spans;
+	uint32	spanidx;
 
 	Lock;
 	byte	*chunk;
@@ -728,16 +728,18 @@ static void sweepspan(MSpan *s);
 static void
 sweep(void)
 {
-	MSpan *s;
+	MSpan *s, **allspans;
 	int64 now;
+	uint32 spanidx, nspan;
 
 	now = runtime·nanotime();
+	nspan = runtime·mheap.nspan;
+	allspans = runtime·mheap.allspans;
 	for(;;) {
-		s = work.spans;
-		if(s == nil)
+		spanidx = runtime·xadd(&work.spanidx, 1) - 1;
+		if(spanidx >= nspan)
 			break;
-		if(!runtime·casp(&work.spans, s, s->allnext))
-			continue;
+		s = allspans[spanidx];
 
 		// Stamp newly unused spans. The scavenger will use that
 		// info to potentially give back some pages to the OS.
@@ -969,7 +971,7 @@ runtime·gc(int32 force)
 		mark(debug_scanblock);
 	t1 = runtime·nanotime();
 
-	work.spans = runtime·mheap.allspans;
+	work.spanidx = 0;
 	runtime·unlock(&work.sweepgate);  // let the helpers in
 	sweep();
 	if(work.nproc > 1)
