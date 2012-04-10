@@ -232,5 +232,7 @@ Optab	optab[] =
 	{ ALDREXD,	C_SOREG,C_NONE,	C_REG,		91, 4, 0 },
 	{ ASTREXD,	C_SOREG,C_REG,	C_REG,		92, 4, 0 },
 
+	{ APLD,		C_REG,	C_NONE,	C_NONE,		95, 4, 0 },
+
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };

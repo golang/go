@@ -403,6 +403,8 @@ struct
 
 	"MCR",		LTYPEJ, 0,
 	"MRC",		LTYPEJ, 1,
+
+	"PLD",		LTYPEPLD, APLD,
 	0
 };
 
