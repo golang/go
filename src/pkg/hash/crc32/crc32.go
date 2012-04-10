@@ -123,11 +123,7 @@ func (d *digest) Sum32() uint32 { return d.crc }
 
 func (d *digest) Sum(in []byte) []byte {
 	s := d.Sum32()
-	in = append(in, byte(s>>24))
-	in = append(in, byte(s>>16))
-	in = append(in, byte(s>>8))
-	in = append(in, byte(s))
-	return in
+	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
 }
 
 // Checksum returns the CRC-32 checksum of data
