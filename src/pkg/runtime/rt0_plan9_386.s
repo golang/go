@@ -25,6 +25,7 @@ argv_fix:
 	ADDL	$4, BP
 	LOOP	argv_fix
 	
+	CALL	runtime·asminit(SB)
 	JMP	_rt0_386(SB)
 
 DATA  runtime·isplan9(SB)/4, $1
