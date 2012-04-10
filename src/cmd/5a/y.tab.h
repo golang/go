@@ -63,28 +63,29 @@
      LTYPEM = 279,
      LTYPEN = 280,
      LTYPEBX = 281,
-     LCONST = 282,
-     LSP = 283,
-     LSB = 284,
-     LFP = 285,
-     LPC = 286,
-     LTYPEX = 287,
-     LR = 288,
-     LREG = 289,
-     LF = 290,
-     LFREG = 291,
-     LC = 292,
-     LCREG = 293,
-     LPSR = 294,
-     LFCR = 295,
-     LCOND = 296,
-     LS = 297,
-     LAT = 298,
-     LFCONST = 299,
-     LSCONST = 300,
-     LNAME = 301,
-     LLAB = 302,
-     LVAR = 303
+     LTYPEPLD = 282,
+     LCONST = 283,
+     LSP = 284,
+     LSB = 285,
+     LFP = 286,
+     LPC = 287,
+     LTYPEX = 288,
+     LR = 289,
+     LREG = 290,
+     LF = 291,
+     LFREG = 292,
+     LC = 293,
+     LCREG = 294,
+     LPSR = 295,
+     LFCR = 296,
+     LCOND = 297,
+     LS = 298,
+     LAT = 299,
+     LFCONST = 300,
+     LSCONST = 301,
+     LNAME = 302,
+     LLAB = 303,
+     LVAR = 304
    };
 #endif
 /* Tokens.  */
@@ -112,28 +113,29 @@
 #define LTYPEM 279
 #define LTYPEN 280
 #define LTYPEBX 281
-#define LCONST 282
-#define LSP 283
-#define LSB 284
-#define LFP 285
-#define LPC 286
-#define LTYPEX 287
-#define LR 288
-#define LREG 289
-#define LF 290
-#define LFREG 291
-#define LC 292
-#define LCREG 293
-#define LPSR 294
-#define LFCR 295
-#define LCOND 296
-#define LS 297
-#define LAT 298
-#define LFCONST 299
-#define LSCONST 300
-#define LNAME 301
-#define LLAB 302
-#define LVAR 303
+#define LTYPEPLD 282
+#define LCONST 283
+#define LSP 284
+#define LSB 285
+#define LFP 286
+#define LPC 287
+#define LTYPEX 288
+#define LR 289
+#define LREG 290
+#define LF 291
+#define LFREG 292
+#define LC 293
+#define LCREG 294
+#define LPSR 295
+#define LFCR 296
+#define LCOND 297
+#define LS 298
+#define LAT 299
+#define LFCONST 300
+#define LSCONST 301
+#define LNAME 302
+#define LLAB 303
+#define LVAR 304
 
 
 
@@ -154,7 +156,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 158 "y.tab.h"
+#line 160 "y.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
