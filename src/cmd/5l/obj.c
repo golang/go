@@ -63,13 +63,6 @@ Header headers[] = {
  *	-Hlinux -Tx -Rx			is linux elf
  */
 
-static char*
-linkername[] =
-{
-	"runtime.softfloat",
-	"math.sqrtGoC",
-};
-
 void
 usage(void)
 {
@@ -80,7 +73,7 @@ usage(void)
 void
 main(int argc, char *argv[])
 {
-	int c, i;
+	int c;
 	char *p, *name, *val;
 
 	Binit(&bso, 1, OWRITE);
@@ -250,9 +243,8 @@ main(int argc, char *argv[])
 	loadlib();
 
 	// mark some functions that are only referenced after linker code editing
-	// TODO(kaib): this doesn't work, the prog can't be found in runtime
-	for(i=0; i<nelem(linkername); i++)
-		mark(lookup(linkername[i], 0));
+	if(debug['F'])
+		mark(rlookup("_sfloat", 0));
 	deadcode();
 	if(textp == nil) {
 		diag("no code");
