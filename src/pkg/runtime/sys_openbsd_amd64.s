@@ -173,6 +173,16 @@ TEXT runtime·sigaction(SB),7,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	8(SP), DI		// arg 1 - how
+	MOVL	12(SP), SI		// arg 2 - set
+	MOVL	$48, AX			// sys_sigprocmask
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	MOVL	AX, oset+0(FP)		// Return oset
+	RET
+
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
 	

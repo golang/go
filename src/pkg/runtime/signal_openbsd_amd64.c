@@ -70,8 +70,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		gp->sigcode1 = *(uintptr*)((byte*)info + 16); /* si_addr */
 		gp->sigpc = r->sc_rip;
 
-		// Only push runtime·sigpanic if r->mc_rip != 0.
-		// If r->mc_rip == 0, probably panicked because of a
+		// Only push runtime·sigpanic if r->sc_rip != 0.
+		// If r->sc_rip == 0, probably panicked because of a
 		// call to a nil func.  Not pushing that onto sp will
 		// make the trace look like a call to runtime·sigpanic instead.
 		// (Otherwise the trace will end at runtime·sigpanic and we
@@ -133,8 +133,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
-	sa.sa_mask = ~0ULL;
-	if (fn == runtime·sighandler)
+	sa.sa_mask = ~0U;
+	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.__sigaction_u.__sa_sigaction = (void*)fn;
 	runtime·sigaction(i, &sa, nil);

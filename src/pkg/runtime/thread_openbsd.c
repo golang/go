@@ -20,6 +20,9 @@ enum
 
 extern SigTab runtime·sigtab[];
 
+static Sigset sigset_all = ~(Sigset)0;
+static Sigset sigset_none;
+
 extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
@@ -128,6 +131,7 @@ runtime·semawakeup(M *mp)
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
+	Sigset oset;
 	int32 flags;
 	int32 ret;
 
@@ -141,7 +145,11 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	m->tls[0] = m->id;	// so 386 asm can find it
 
-	if((ret = runtime·rfork_thread(flags, stk, m, g, fn)) < 0) {
+	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+	ret = runtime·rfork_thread(flags, stk, m, g, fn);
+	runtime·sigprocmask(SIG_SETMASK, oset);
+
+	if(ret < 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
 		if (ret == -ENOTSUP)
 			runtime·printf("runtime: is kern.rthreads disabled?\n");
@@ -168,6 +176,7 @@ runtime·minit(void)
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·sigprocmask(SIG_SETMASK, sigset_none);
 }
 
 void

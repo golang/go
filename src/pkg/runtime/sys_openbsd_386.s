@@ -135,6 +135,14 @@ TEXT runtime·sigaction(SB),7,$-4
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
+TEXT runtime·sigprocmask(SB),7,$-4
+	MOVL	$48, AX			// sys_sigprocmask
+	INT	$0x80
+	JAE	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	MOVL	AX, oset+0(FP)
+	RET
+
 TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
 
