@@ -26,5 +26,5 @@ func isPermission(err error) bool {
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
-	return err == ErrPermission
+	return err == syscall.ERROR_ACCESS_DENIED || err == ErrPermission
 }
