@@ -1672,7 +1672,7 @@ copy:
 		regsalloc(&nod2, nn);
 		nn->type = t;
 
-		gins(AMOVL, &nod1, &nod2);
+		gins(AMOVQ, &nod1, &nod2);
 		regfree(&nod1);
 
 		nod2.type = typ(TIND, t);
