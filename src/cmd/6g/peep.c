@@ -200,6 +200,7 @@ loop1:
 		case AMOVWQZX:
 		case AMOVLQSX:
 		case AMOVLQZX:
+		case AMOVQL:
 			if(regtyp(&p->to)) {
 				r1 = rnops(uniqs(r));
 				if(r1 != R) {
@@ -636,6 +637,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVWLZX:
 	case AMOVWQSX:
 	case AMOVWQZX:
+	case AMOVQL:
 
 	case AMOVSS:
 	case AMOVSD:

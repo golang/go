@@ -211,6 +211,7 @@ regopt(Prog *p)
 		case AMOVWLZX:
 		case AMOVWQSX:
 		case AMOVWQZX:
+		case AMOVQL:
 
 		case AMOVSS:
 		case AMOVSD:
