@@ -417,8 +417,7 @@ TEXT runtime·atomicstore64(SB), 7, $0
 
 TEXT runtime·prefetch(SB), 7, $0
 	MOVL    4(SP), AX
-	// PREFETCHNTA (AX)
-	BYTE $0x0f; BYTE $0x18; BYTE $0x00
+	PREFETCHNTA (AX)
 	RET
 
 // void jmpdefer(fn, sp);
