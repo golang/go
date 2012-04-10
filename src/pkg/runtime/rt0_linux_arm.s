@@ -20,15 +20,23 @@ TEXT _rt0_arm_linux(SB),7,$-4
 	MOVM.DB.W [R0-R3], (R13)
 	MOVW	$4, R0 // SIGILL
 	MOVW	R13, R1 // sa
-	MOVW	$0, R2 // old_sa
+	SUB	$16, R13
+	MOVW	R13, R2 // old_sa
 	MOVW	$8, R3 // c
 	MOVW	$174, R7 // sys_sigaction
 	BL	oabi_syscall<>(SB)
-	ADD 	$16, R13
+
 	// do an EABI syscall
 	MOVW	$20, R7 // sys_getpid
-	SWI 	$0 // this will trigger SIGILL on OABI systems
-
+	SWI	$0 // this will trigger SIGILL on OABI systems
+	
+	MOVW	$4, R0  // SIGILL
+	MOVW	R13, R1 // sa
+	MOVW	$0, R2 // old_sa
+	MOVW	$8, R3 // c
+	MOVW	$174, R7 // sys_sigaction
+	SWI	$0 // restore signal handler
+	ADD	$32, R13
 	B	_rt0_arm(SB)
 
 TEXT bad_abi<>(SB),7,$-4
