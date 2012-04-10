@@ -349,6 +349,11 @@ uchar	ysvrs[] =
 	Ym,	Ynone,	Zm_o,	2,
 	0
 };
+uchar	yprefetch[] =
+{
+	Ym,	Ynone,	Zm_o,	2,
+	0,
+};
 
 Optab optab[] =
 /*	as, ytab, andproto, opcode */
@@ -760,6 +765,11 @@ Optab optab[] =
 	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
 
 	{ AEMMS, ynone, Pm, 0x77 },
+
+	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
 
 	0
 };
