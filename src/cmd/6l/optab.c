@@ -539,6 +539,11 @@ uchar	ycrc32l[] =
 {
 	Yml,	Yrl,	Zlitm_r,	0,
 };
+uchar	yprefetch[] =
+{
+	Ym,	Ynone,	Zm_o,	2,
+	0,
+};
 
 /*
  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
@@ -1270,8 +1275,13 @@ Optab optab[] =
 	{ AXADDQ,	yrl_ml,	Pw, 0x0f,0xc1 },
 	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
 
-	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0},
-	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0},
+	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0 },
+	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0 },
+	
+	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
 
 	{ AEND },
 	0
