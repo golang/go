@@ -11,8 +11,6 @@ import (
 	"testing"
 )
 
-const testDataSize = 40
-
 type golden struct {
 	sum  []byte
 	text string
@@ -134,34 +132,34 @@ func testIntegrity(t *testing.T, h hash.Hash) {
 	}
 }
 
-func Benchmark32(b *testing.B) {
-	benchmark(b, New32())
+func BenchmarkFnv32KB(b *testing.B) {
+	benchmarkKB(b, New32())
 }
 
-func Benchmark32a(b *testing.B) {
-	benchmark(b, New32a())
+func BenchmarkFnv32aKB(b *testing.B) {
+	benchmarkKB(b, New32a())
 }
 
-func Benchmark64(b *testing.B) {
-	benchmark(b, New64())
+func BenchmarkFnv64KB(b *testing.B) {
+	benchmarkKB(b, New64())
 }
 
-func Benchmark64a(b *testing.B) {
-	benchmark(b, New64a())
+func BenchmarkFnv64aKB(b *testing.B) {
+	benchmarkKB(b, New64a())
 }
 
-func benchmark(b *testing.B, h hash.Hash) {
-	b.ResetTimer()
-	b.SetBytes(testDataSize)
-	data := make([]byte, testDataSize)
+func benchmarkKB(b *testing.B, h hash.Hash) {
+	b.SetBytes(1024)
+	data := make([]byte, 1024)
 	for i := range data {
-		data[i] = byte(i + 'a')
+		data[i] = byte(i)
 	}
+	in := make([]byte, 0, h.Size())
 
-	b.StartTimer()
-	for todo := b.N; todo != 0; todo-- {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
 		h.Reset()
 		h.Write(data)
-		h.Sum(nil)
+		h.Sum(in)
 	}
 }

@@ -64,15 +64,18 @@ func TestGolden(t *testing.T) {
 }
 
 func BenchmarkCrc64KB(b *testing.B) {
-	b.StopTimer()
-	data := make([]uint8, 1024)
-	for i := 0; i < 1024; i++ {
-		data[i] = uint8(i)
+	b.SetBytes(1024)
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i)
 	}
-	c := New(tab)
-	b.StartTimer()
+	h := New(tab)
+	in := make([]byte, 0, h.Size())
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Write(data)
+		h.Reset()
+		h.Write(data)
+		h.Sum(in)
 	}
 }

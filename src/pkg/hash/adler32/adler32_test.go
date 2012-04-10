@@ -5,7 +5,6 @@
 package adler32
 
 import (
-	"bytes"
 	"io"
 	"testing"
 )
@@ -63,15 +62,19 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-func BenchmarkGolden(b *testing.B) {
-	b.StopTimer()
-	c := New()
-	var buf bytes.Buffer
-	for _, g := range golden {
-		buf.Write([]byte(g.in))
+func BenchmarkAdler32KB(b *testing.B) {
+	b.SetBytes(1024)
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i)
 	}
-	b.StartTimer()
+	h := New()
+	in := make([]byte, 0, h.Size())
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Write(buf.Bytes())
+		h.Reset()
+		h.Write(data)
+		h.Sum(in)
 	}
 }
