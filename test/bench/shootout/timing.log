@@ -900,3 +900,96 @@ threadring 50000000
 
 chameneos 6000000
 	gc chameneosredux	7.41u 0.00s 7.42r # -3%
+
+# A complete run at the Go 1 release.
+# Significant changes:
+# - gccgo is now enabled for all tests (goroutines are cheap enough)
+# - threadring and chameneos are 14% faster, probably due to runtime changes
+# - regex-dna 36% faster
+# - fannkuch-parallel (only) slowed down 40%
+# - gccgo on binary-tree-freelist is still optimized to nothing
+# Other changes are modest.
+
+fasta -n 25000000
+	gcc -O2 fasta.c	1.45u 0.02s 1.48r
+	gccgo -O2 fasta.go	1.46u 0.00s 1.47r
+	gc fasta	1.99u 0.01s 2.00r
+	gc_B fasta	1.99u 0.01s 2.01r
+
+reverse-complement < output-of-fasta-25000000
+	gcc -O2 reverse-complement.c	0.95u 0.48s 4.99r
+	gccgo -O2 reverse-complement.go	0.93u 0.16s 1.09r
+	gc reverse-complement	1.20u 0.19s 1.39r
+	gc_B reverse-complement	1.04u 0.16s 1.20r
+
+nbody -n 50000000
+	gcc -O2 -lm nbody.c	13.02u 0.00s 13.05r
+	gccgo -O2 nbody.go	14.46u 0.00s 14.49r
+	gc nbody	21.79u 0.00s 21.84r
+	gc_B nbody	21.74u 0.00s 21.79r
+
+binary-tree 15 # too slow to use 20
+	gcc -O2 binary-tree.c -lm	0.60u 0.01s 0.61r
+	gccgo -O2 binary-tree.go	1.30u 0.01s 1.32r
+	gccgo -O2 binary-tree-freelist.go	0.00u 0.00s 0.00r
+	gc binary-tree	1.84u 0.01s 1.86r
+	gc binary-tree-freelist	0.33u 0.00s 0.33r
+
+fannkuch 12
+	gcc -O2 fannkuch.c	45.24u 0.00s 45.34r
+	gccgo -O2 fannkuch.go	59.76u 0.01s 59.90r
+	gccgo -O2 fannkuch-parallel.go	218.20u 0.01s 61.60r
+	gc fannkuch	103.92u 0.00s 104.16r
+	gc fannkuch-parallel	221.61u 0.00s 60.49r
+	gc_B fannkuch	53.17u 0.00s 53.30r
+
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.47u 0.00s 0.48r
+	gccgo -O2 regex-dna.go	6.52u 0.00s 6.54r
+	gccgo -O2 regex-dna-parallel.go	14.40u 0.73s 4.35r
+	gc regex-dna	2.63u 0.02s 2.66r # -36%
+	gc regex-dna-parallel	2.87u 0.01s 1.11r
+	gc_B regex-dna	2.65u 0.00s 2.66r
+
+spectral-norm 5500
+	gcc -O2 spectral-norm.c -lm	15.78u 0.00s 15.82r
+	gccgo -O2 spectral-norm.go	15.79u 0.00s 15.83r
+	gc spectral-norm	19.76u 0.00s 19.80r
+	gc_B spectral-norm	19.73u 0.01s 19.78r
+
+k-nucleotide 1000000
+	gcc -O2  k-nucleotide.c	5.59u 0.03s 5.63r
+	gccgo -O2 k-nucleotide.go	4.09u 0.03s 4.13r
+	gccgo -O2 k-nucleotide-parallel.go	4.50u 0.06s 1.63r
+	gc k-nucleotide	9.23u 0.02s 9.27r
+	gc k-nucleotide-parallel	9.87u 0.03s 3.55r
+	gc_B k-nucleotide	9.20u 0.00s 9.22r
+
+mandelbrot 16000
+	gcc -O2 mandelbrot.c	36.09u 0.00s 36.18r
+	gccgo -O2 mandelbrot.go	41.69u 0.01s 41.80r
+	gc mandelbrot	60.91u 0.02s 61.07r
+	gc_B mandelbrot	60.90u 0.00s 61.04r
+
+meteor 2098
+	gcc -O2 meteor-contest.c	0.09u 0.00s 0.09r
+	gccgo -O2 meteor-contest.go	0.09u 0.00s 0.09r
+	gc meteor-contest	0.14u 0.00s 0.15r
+	gc_B meteor-contest	0.14u 0.00s 0.14r
+
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.27u 0.00s 2.27r
+	gccgo -O2 pidigits.go	8.65u 0.00s 8.67r
+	gc pidigits	3.70u 0.04s 3.75r
+	gc_B pidigits	3.72u 0.02s 3.75r
+
+threadring 50000000
+	gcc -O2 threadring.c	40.91u 369.85s 323.31r
+	gccgo -O2 threadring.go	26.97u 30.82s 57.93r
+	gc threadring	12.81u 0.01s 12.85r # -13%
+
+chameneos 6000000
+	gcc -O2 chameneosredux.c -lpthread	9.44u 72.90s 12.65r
+	gccgo -O2 chameneosredux.go	7.73u 7.53s 15.30r
+	gc chameneosredux	6.51u 0.00s 6.53r # - 14%
+
