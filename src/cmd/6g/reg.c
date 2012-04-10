@@ -326,6 +326,7 @@ regopt(Prog *firstp)
 		case AMOVWLZX:
 		case AMOVWQSX:
 		case AMOVWQZX:
+		case AMOVQL:
 		case APOPQ:
 
 		case AMOVSS:

@@ -1282,6 +1282,8 @@ Optab optab[] =
 	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
 	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
 	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+	
+	{ AMOVQL,	yrl_ml,	Px, 0x89 },
 
 	{ AEND },
 	0

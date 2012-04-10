@@ -706,11 +706,14 @@ gmove(Node *f, Node *t)
 	case CASE(TINT32, TUINT32):
 	case CASE(TUINT32, TINT32):
 	case CASE(TUINT32, TUINT32):
+		a = AMOVL;
+		break;
+
 	case CASE(TINT64, TINT32):	// truncate
 	case CASE(TUINT64, TINT32):
 	case CASE(TINT64, TUINT32):
 	case CASE(TUINT64, TUINT32):
-		a = AMOVL;
+		a = AMOVQL;
 		break;
 
 	case CASE(TINT64, TINT64):	// same size

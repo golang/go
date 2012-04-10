@@ -383,6 +383,7 @@ subprop(Reg *r0)
 		case AMOVSB:
 		case AMOVSL:
 		case AMOVSQ:
+		case AMOVQL:
 			return 0;
 
 		case AMOVL:
@@ -581,6 +582,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVWLZX:
 	case AMOVWQSX:
 	case AMOVWQZX:
+	case AMOVQL:
 
 	case AMOVSS:
 	case AMOVSD:
