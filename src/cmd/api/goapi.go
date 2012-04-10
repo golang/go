@@ -147,7 +147,7 @@ func main() {
 				changes = true
 			case len(v1) == 0 || v1[0] > v2[0]:
 				fmt.Fprintf(bw, "+%s\n", take(&v2))
-				changes = true
+				// we allow API additions now
 			default:
 				take(&v1)
 				take(&v2)
