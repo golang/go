@@ -58,17 +58,6 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	$1234, R0
 	MOVW	$1000, R1
 	MOVW	R0, (R1)	// fail hard
-	B	runtime·_dep_dummy(SB)	// Never reached
-
-// TODO(kaib): remove these once i actually understand how the linker removes symbols
-// pull in dummy dependencies
-TEXT runtime·_dep_dummy(SB),7,$0
-	BL	_div(SB)
-	BL	_divu(SB)
-	BL	_mod(SB)
-	BL	_modu(SB)
-	BL	_modu(SB)
-	BL	_sfloat(SB)
 
 TEXT runtime·breakpoint(SB),7,$0
 	// no breakpoint yet; let program exit
