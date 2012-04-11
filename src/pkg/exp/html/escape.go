@@ -205,13 +205,15 @@ func escape(w writer, s string) error {
 		case '&':
 			esc = "&amp;"
 		case '\'':
-			esc = "&apos;"
+			// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+			esc = "&#39;"
 		case '<':
 			esc = "&lt;"
 		case '>':
 			esc = "&gt;"
 		case '"':
-			esc = "&quot;"
+			// "&#34;" is shorter than "&quot;".
+			esc = "&#34;"
 		default:
 			panic("unrecognized escape character")
 		}
@@ -226,7 +228,7 @@ func escape(w writer, s string) error {
 }
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
-// escapes only five such characters: amp, apos, lt, gt and quot.
+// escapes only five such characters: <, >, &, ' and ".
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {

@@ -359,7 +359,7 @@ var tokenTests = []tokenTest{
 	{
 		"tricky",
 		"<p \t\n iD=\"a&quot;B\"  foo=\"bar\"><EM>te&lt;&amp;;xt</em></p>",
-		`<p id="a&quot;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
+		`<p id="a&#34;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
 	},
 	// A nonexistent entity. Tokenizing and converting back to a string should
 	// escape the "&" to become "&amp;".
@@ -421,7 +421,7 @@ var tokenTests = []tokenTest{
 	{
 		"Double-quoted attribute value",
 		`<input value="I'm an attribute" FOO="BAR">`,
-		`<input value="I&apos;m an attribute" foo="BAR">`,
+		`<input value="I&#39;m an attribute" foo="BAR">`,
 	},
 	{
 		"Attribute name characters",
@@ -436,7 +436,7 @@ var tokenTests = []tokenTest{
 	{
 		"Attributes with a solitary single quote",
 		`<p id=can't><p id=won't>`,
-		`<p id="can&apos;t">$<p id="won&apos;t">`,
+		`<p id="can&#39;t">$<p id="won&#39;t">`,
 	},
 }
 
@@ -545,10 +545,11 @@ func TestUnescapeEscape(t *testing.T) {
 		`"<&>"`,
 		`&quot;&lt;&amp;&gt;&quot;`,
 		`3&5==1 && 0<1, "0&lt;1", a+acute=&aacute;`,
+		`The special characters are: <, >, &, ' and "`,
 	}
 	for _, s := range ss {
-		if s != UnescapeString(EscapeString(s)) {
-			t.Errorf("s != UnescapeString(EscapeString(s)), s=%q", s)
+		if got := UnescapeString(EscapeString(s)); got != s {
+			t.Errorf("got %q want %q", got, s)
 		}
 	}
 }
