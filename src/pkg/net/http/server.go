@@ -785,8 +785,10 @@ var htmlReplacer = strings.NewReplacer(
 	"&", "&amp;",
 	"<", "&lt;",
 	">", "&gt;",
-	`"`, "&quot;",
-	"'", "&apos;",
+	// "&#34;" is shorter than "&quot;".
+	`"`, "&#34;",
+	// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+	"'", "&#39;",
 )
 
 func htmlEscape(s string) string {
