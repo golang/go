@@ -11,12 +11,15 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"math/big"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -79,7 +82,6 @@ func TestRejectBadProtocolVersion(t *testing.T) {
 func TestNoSuiteOverlap(t *testing.T) {
 	clientHello := &clientHelloMsg{nil, 0x0301, nil, nil, []uint16{0xff00}, []uint8{0}, false, "", false, nil, nil}
 	testClientHelloFailure(t, clientHello, alertHandshakeFailure)
-
 }
 
 func TestNoCompressionOverlap(t *testing.T) {
@@ -193,55 +195,133 @@ func TestClientAuth(t *testing.T) {
 	}
 }
 
+// recordingConn is a net.Conn that records the traffic that passes through it.
+// WriteTo can be used to produce Go code that contains the recorded traffic.
+type recordingConn struct {
+	net.Conn
+	lock             sync.Mutex
+	flows            [][]byte
+	currentlyReading bool
+}
+
+func (r *recordingConn) Read(b []byte) (n int, err error) {
+	if n, err = r.Conn.Read(b); n == 0 {
+		return
+	}
+	b = b[:n]
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if l := len(r.flows); l == 0 || !r.currentlyReading {
+		buf := make([]byte, len(b))
+		copy(buf, b)
+		r.flows = append(r.flows, buf)
+	} else {
+		r.flows[l-1] = append(r.flows[l-1], b[:n]...)
+	}
+	r.currentlyReading = true
+	return
+}
+
+func (r *recordingConn) Write(b []byte) (n int, err error) {
+	if n, err = r.Conn.Write(b); n == 0 {
+		return
+	}
+	b = b[:n]
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if l := len(r.flows); l == 0 || r.currentlyReading {
+		buf := make([]byte, len(b))
+		copy(buf, b)
+		r.flows = append(r.flows, buf)
+	} else {
+		r.flows[l-1] = append(r.flows[l-1], b[:n]...)
+	}
+	r.currentlyReading = false
+	return
+}
+
+// WriteTo writes Go source code to w that contains the recorded traffic.
+func (r *recordingConn) WriteTo(w io.Writer) {
+	fmt.Fprintf(w, "var changeMe = [][]byte {\n")
+	for _, buf := range r.flows {
+		fmt.Fprintf(w, "\t{")
+		for i, b := range buf {
+			if i%8 == 0 {
+				fmt.Fprintf(w, "\n\t\t")
+			}
+			fmt.Fprintf(w, "0x%02x, ", b)
+		}
+		fmt.Fprintf(w, "\n\t},\n")
+	}
+	fmt.Fprintf(w, "}\n")
+}
+
 var serve = flag.Bool("serve", false, "run a TLS server on :10443")
 var testCipherSuites = flag.String("ciphersuites",
 	"0x"+strconv.FormatInt(int64(TLS_RSA_WITH_RC4_128_SHA), 16),
 	"cipher suites to accept in serving mode")
 var testClientAuth = flag.Int("clientauth", 0, "value for tls.Config.ClientAuth")
 
-func TestRunServer(t *testing.T) {
-	if !*serve {
-		return
-	}
-
+func GetTestConfig() *Config {
+	var config = *testConfig
 	suites := strings.Split(*testCipherSuites, ",")
-	testConfig.CipherSuites = make([]uint16, len(suites))
+	config.CipherSuites = make([]uint16, len(suites))
 	for i := range suites {
 		suite, err := strconv.ParseUint(suites[i], 0, 64)
 		if err != nil {
 			panic(err)
 		}
-		testConfig.CipherSuites[i] = uint16(suite)
+		config.CipherSuites[i] = uint16(suite)
 	}
 
-	testConfig.ClientAuth = ClientAuthType(*testClientAuth)
+	config.ClientAuth = ClientAuthType(*testClientAuth)
+	return &config
+}
 
-	l, err := Listen("tcp", ":10443", testConfig)
+func TestRunServer(t *testing.T) {
+	if !*serve {
+		return
+	}
+
+	config := GetTestConfig()
+
+	const addr = ":10443"
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
+	log.Printf("Now listening for connections on %s", addr)
 
 	for {
-		c, err := l.Accept()
+		tcpConn, err := l.Accept()
 		if err != nil {
+			log.Printf("error accepting connection: %s", err)
+			break
+		}
+
+		record := &recordingConn{
+			Conn: tcpConn,
+		}
+
+		conn := Server(record, config)
+		if err := conn.Handshake(); err != nil {
 			log.Printf("error from TLS handshake: %s", err)
 			break
 		}
 
-		_, err = c.Write([]byte("hello, world\n"))
+		_, err = conn.Write([]byte("hello, world\n"))
 		if err != nil {
-			log.Printf("error from TLS: %s", err)
+			log.Printf("error from Write: %s", err)
 			continue
 		}
 
-		st := c.(*Conn).ConnectionState()
-		if len(st.PeerCertificates) > 0 {
-			log.Print("Handling request from client ", st.PeerCertificates[0].Subject.CommonName)
-		} else {
-			log.Print("Handling request from anon client")
-		}
+		conn.Close()
 
-		c.Close()
+		record.WriteTo(os.Stdout)
 	}
 }
 
@@ -284,10 +364,8 @@ func loadPEMCert(in string) *x509.Certificate {
 
 // Script of interaction with gnutls implementation.
 // The values for this test are obtained by building and running in server mode:
-//   % go test -run "TestRunServer" -serve
-// and then:
-//   % gnutls-cli --insecure --debug 100 -p 10443 localhost > /tmp/log 2>&1
-//   % python parse-gnutls-cli-debug-log.py < /tmp/log
+//   % go test -test.run "TestRunServer" -serve
+// The recorded bytes are written to stdout.
 var rc4ServerScript = [][]byte{
 	{
 		0x16, 0x03, 0x02, 0x00, 0x7a, 0x01, 0x00, 0x00,
