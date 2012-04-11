@@ -32,8 +32,8 @@ const (
 	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
 )
 
-// runeInfo is a representation for the data stored in charinfoTrie.
-type runeInfo struct {
+// Properties provides access to normalization properties of a rune.
+type Properties struct {
 	pos   uint8  // start position in reorderBuffer; used in composition.go
 	size  uint8  // length of UTF-8 encoding of this rune
 	ccc   uint8  // leading canonical combining class (ccc if not decomposition)
@@ -43,7 +43,7 @@ type runeInfo struct {
 }
 
 // functions dispatchable per form
-type lookupFunc func(b input, i int) runeInfo
+type lookupFunc func(b input, i int) Properties
 
 // formInfo holds Form-specific functions and tables.
 type formInfo struct {
@@ -75,11 +75,14 @@ func init() {
 
 // We do not distinguish between boundaries for NFC, NFD, etc. to avoid
 // unexpected behavior for the user.  For example, in NFD, there is a boundary
-// after 'a'.  However, a might combine with modifiers, so from the application's
+// after 'a'.  However, 'a' might combine with modifiers, so from the application's
 // perspective it is not a good boundary. We will therefore always use the 
 // boundaries for the combining variants.
-func (i runeInfo) boundaryBefore() bool {
-	if i.ccc == 0 && !i.combinesBackward() {
+
+// BoundaryBefore returns true if this rune starts a new segment and
+// cannot combine with any rune on the left.
+func (p Properties) BoundaryBefore() bool {
+	if p.ccc == 0 && !p.combinesBackward() {
 		return true
 	}
 	// We assume that the CCC of the first character in a decomposition
@@ -88,8 +91,10 @@ func (i runeInfo) boundaryBefore() bool {
 	return false
 }
 
-func (i runeInfo) boundaryAfter() bool {
-	return i.isInert()
+// BoundaryAfter returns true if this rune cannot combine with runes to the right
+// and always denotes the end of a segment.
+func (p Properties) BoundaryAfter() bool {
+	return p.isInert()
 }
 
 // We pack quick check data in 4 bits:
@@ -101,25 +106,52 @@ func (i runeInfo) boundaryAfter() bool {
 // influenced by normalization.
 type qcInfo uint8
 
-func (i runeInfo) isYesC() bool { return i.flags&0x4 == 0 }
-func (i runeInfo) isYesD() bool { return i.flags&0x1 == 0 }
+func (p Properties) isYesC() bool { return p.flags&0x4 == 0 }
+func (p Properties) isYesD() bool { return p.flags&0x1 == 0 }
 
-func (i runeInfo) combinesForward() bool  { return i.flags&0x8 != 0 }
-func (i runeInfo) combinesBackward() bool { return i.flags&0x2 != 0 } // == isMaybe
-func (i runeInfo) hasDecomposition() bool { return i.flags&0x1 != 0 } // == isNoD
+func (p Properties) combinesForward() bool  { return p.flags&0x8 != 0 }
+func (p Properties) combinesBackward() bool { return p.flags&0x2 != 0 } // == isMaybe
+func (p Properties) hasDecomposition() bool { return p.flags&0x1 != 0 } // == isNoD
 
-func (r runeInfo) isInert() bool {
-	return r.flags&0xf == 0 && r.ccc == 0
+func (p Properties) isInert() bool {
+	return p.flags&0xf == 0 && p.ccc == 0
 }
 
-func (r runeInfo) decomposition() []byte {
-	if r.index == 0 {
+// Decomposition returns the decomposition for the underlying rune
+// or nil if there is none.
+func (p Properties) Decomposition() []byte {
+	if p.index == 0 {
 		return nil
 	}
-	p := r.index
-	n := decomps[p] & 0x3F
-	p++
-	return decomps[p : p+uint16(n)]
+	i := p.index
+	n := decomps[i] & headerLenMask
+	i++
+	return decomps[i : i+uint16(n)]
+}
+
+// Size returns the length of UTF-8 encoding of the rune.
+func (p Properties) Size() int {
+	return int(p.size)
+}
+
+// CCC returns the canonical combining class of the underlying rune.
+func (p Properties) CCC() uint8 {
+	if p.index > firstCCCZeroExcept {
+		return 0
+	}
+	return p.ccc
+}
+
+// LeadCCC returns the CCC of the first rune in the decomposition.
+// If there is no decomposition, LeadCCC equals CCC.
+func (p Properties) LeadCCC() uint8 {
+	return p.ccc
+}
+
+// TrailCCC returns the CCC of the last rune in the decomposition.
+// If there is no decomposition, TrailCCC equals CCC.
+func (p Properties) TrailCCC() uint8 {
+	return p.tccc
 }
 
 // Recomposition
@@ -135,24 +167,40 @@ func combine(a, b rune) rune {
 	return recompMap[key]
 }
 
-func lookupInfoNFC(b input, i int) runeInfo {
+func lookupInfoNFC(b input, i int) Properties {
 	v, sz := b.charinfoNFC(i)
 	return compInfo(v, sz)
 }
 
-func lookupInfoNFKC(b input, i int) runeInfo {
+func lookupInfoNFKC(b input, i int) Properties {
 	v, sz := b.charinfoNFKC(i)
 	return compInfo(v, sz)
 }
 
+// Properties returns properties for the first rune in s.
+func (f Form) Properties(s []byte) Properties {
+	if f == NFC || f == NFD {
+		return compInfo(nfcTrie.lookup(s))
+	}
+	return compInfo(nfkcTrie.lookup(s))
+}
+
+// PropertiesString returns properties for the first rune in s.
+func (f Form) PropertiesString(s string) Properties {
+	if f == NFC || f == NFD {
+		return compInfo(nfcTrie.lookupString(s))
+	}
+	return compInfo(nfkcTrie.lookupString(s))
+}
+
 // compInfo converts the information contained in v and sz
-// to a runeInfo.  See the comment at the top of the file
+// to a Properties.  See the comment at the top of the file
 // for more information on the format.
-func compInfo(v uint16, sz int) runeInfo {
+func compInfo(v uint16, sz int) Properties {
 	if v == 0 {
-		return runeInfo{size: uint8(sz)}
+		return Properties{size: uint8(sz)}
 	} else if v >= 0x8000 {
-		return runeInfo{
+		return Properties{
 			size:  uint8(sz),
 			ccc:   uint8(v),
 			tccc:  uint8(v),
@@ -162,7 +210,7 @@ func compInfo(v uint16, sz int) runeInfo {
 	// has decomposition
 	h := decomps[v]
 	f := (qcInfo(h&headerFlagsMask) >> 4) | 0x1
-	ri := runeInfo{size: uint8(sz), flags: f, index: v}
+	ri := Properties{size: uint8(sz), flags: f, index: v}
 	if v >= firstCCC {
 		v += uint16(h&headerLenMask) + 1
 		ri.tccc = decomps[v]
