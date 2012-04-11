@@ -75,33 +75,21 @@ func (priv *PrivateKey) Validate() error {
 	if modulus.Cmp(priv.N) != 0 {
 		return errors.New("crypto/rsa: invalid modulus")
 	}
-	// Check that e and totient(Πprimes) are coprime.
-	totient := new(big.Int).Set(bigOne)
-	var gcdTotients *big.Int
+
+	// Check that de ≡ 1 mod p-1, for each prime.
+	// This implies that e is coprime to each p-1 as e has a multiplicative
+	// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) =
+	// exponent(ℤ/nℤ). It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1
+	// mod p. Thus a^de ≡ a mod n for all a coprime to n, as required.
+	congruence := new(big.Int)
+	de := new(big.Int).SetInt64(int64(priv.E))
+	de.Mul(de, priv.D)
 	for _, prime := range priv.Primes {
 		pminus1 := new(big.Int).Sub(prime, bigOne)
-		totient.Mul(totient, pminus1)
-
-		if gcdTotients == nil {
-			gcdTotients = pminus1
-		} else {
-			gcdTotients.GCD(nil, nil, gcdTotients, pminus1)
+		congruence.Mod(de, pminus1)
+		if congruence.Cmp(bigOne) != 0 {
+			return errors.New("crypto/rsa: invalid exponents")
 		}
-	}
-	e := big.NewInt(int64(priv.E))
-	gcd := new(big.Int)
-	x := new(big.Int)
-	y := new(big.Int)
-	gcd.GCD(x, y, totient, e)
-	if gcd.Cmp(bigOne) != 0 {
-		return errors.New("crypto/rsa: invalid public exponent E")
-	}
-	// Check that de ≡ 1 mod |ℤ/nℤ| where |ℤ/nℤ| = totient/gcdTotients
-	de := new(big.Int).Mul(priv.D, e)
-	order := new(big.Int).Div(totient, gcdTotients)
-	de.Mod(de, order)
-	if de.Cmp(bigOne) != 0 {
-		return errors.New("crypto/rsa: invalid private exponent D")
 	}
 	return nil
 }
