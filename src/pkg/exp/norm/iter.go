@@ -10,8 +10,8 @@ const MaxSegmentSize = maxByteBufferSize
 // to a given Form.
 type Iter struct {
 	rb   reorderBuffer
-	info runeInfo // first character saved from previous iteration
-	next iterFunc // implementation of next depends on form
+	info Properties // first character saved from previous iteration
+	next iterFunc   // implementation of next depends on form
 
 	p        int // current position in input source
 	outStart int // start of current segment in output buffer
@@ -124,7 +124,7 @@ doFast:
 					break
 				}
 			}
-		} else if d := i.info.decomposition(); d != nil {
+		} else if d := i.info.Decomposition(); d != nil {
 			i.rb.src.copySlice(out[outCopyStart:], inCopyStart, i.p)
 			p := outp + len(d)
 			if p > i.maxseg && i.setStart(outp, i.p) {
@@ -245,7 +245,7 @@ doFast:
 			if i.setStart(outp-1, i.p-1) {
 				i.p--
 				outp--
-				i.info = runeInfo{size: 1}
+				i.info = Properties{size: 1}
 				break
 			}
 		}
@@ -274,7 +274,7 @@ doNorm:
 			return outp
 		}
 		i.info = i.rb.f.info(i.rb.src, i.p)
-		if i.info.boundaryBefore() {
+		if i.info.BoundaryBefore() {
 			break
 		}
 	}

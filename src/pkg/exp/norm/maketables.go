@@ -605,6 +605,10 @@ func printCharInfoTables() int {
 
 		lccc := ccc(d[0])
 		tccc := ccc(d[len(d)-1])
+		cc := ccc(r)
+		if cc != 0 && lccc == 0 && tccc == 0 {
+			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", cc)
+		}
 		if tccc < lccc && lccc != 0 {
 			const msg = "%U: lccc (%d) must be <= tcc (%d)"
 			logger.Fatalf(msg, r, lccc, tccc)
@@ -615,7 +619,13 @@ func printCharInfoTables() int {
 			index = 1
 			if lccc > 0 {
 				s += string([]byte{lccc})
-				index |= 2
+				index = 2
+			}
+			if cc != lccc {
+				if cc != 0 {
+					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", cc)
+				}
+				index = 3
 			}
 		}
 		return index, s
@@ -642,7 +652,7 @@ func printCharInfoTables() int {
 	size := 0
 	positionMap := make(map[string]uint16)
 	decompositions.WriteString("\000")
-	cname := []string{"firstCCC", "firstLeadingCCC", "", "lastDecomp"}
+	cname := []string{"firstCCC", "firstLeadingCCC", "firstCCCZeroExcept", "lastDecomp"}
 	fmt.Println("const (")
 	for i, m := range decompSet {
 		sa := []string{}

@@ -185,14 +185,14 @@ func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
 	}
 	fd := &rb.f
 	if doMerge {
-		var info runeInfo
+		var info Properties
 		if p < n {
 			info = fd.info(src, p)
-			if p == 0 && !info.boundaryBefore() {
+			if p == 0 && !info.BoundaryBefore() {
 				out = decomposeToLastBoundary(rb, out)
 			}
 		}
-		if info.size == 0 || info.boundaryBefore() {
+		if info.size == 0 || info.BoundaryBefore() {
 			if fd.composing {
 				rb.compose()
 			}
@@ -316,13 +316,13 @@ func firstBoundary(rb *reorderBuffer) int {
 	}
 	fd := &rb.f
 	info := fd.info(src, i)
-	for n := 0; info.size != 0 && !info.boundaryBefore(); {
+	for n := 0; info.size != 0 && !info.BoundaryBefore(); {
 		i += int(info.size)
 		if n++; n >= maxCombiningChars {
 			return i
 		}
 		if i >= nsrc {
-			if !info.boundaryAfter() {
+			if !info.BoundaryAfter() {
 				return -1
 			}
 			return nsrc
@@ -368,11 +368,11 @@ func lastBoundary(fd *formInfo, b []byte) int {
 	if p+int(info.size) != i { // trailing non-starter bytes: illegal UTF-8
 		return i
 	}
-	if info.boundaryAfter() {
+	if info.BoundaryAfter() {
 		return i
 	}
 	i = p
-	for n := 0; i >= 0 && !info.boundaryBefore(); {
+	for n := 0; i >= 0 && !info.BoundaryBefore(); {
 		info, p = lastRuneStart(fd, b[:i])
 		if n++; n >= maxCombiningChars {
 			return len(b)
@@ -404,7 +404,7 @@ func decomposeSegment(rb *reorderBuffer, sp int) int {
 			break
 		}
 		info = rb.f.info(rb.src, sp)
-		bound := info.boundaryBefore()
+		bound := info.BoundaryBefore()
 		if bound || info.size == 0 {
 			break
 		}
@@ -414,12 +414,12 @@ func decomposeSegment(rb *reorderBuffer, sp int) int {
 
 // lastRuneStart returns the runeInfo and position of the last
 // rune in buf or the zero runeInfo and -1 if no rune was found.
-func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
+func lastRuneStart(fd *formInfo, buf []byte) (Properties, int) {
 	p := len(buf) - 1
 	for ; p >= 0 && !utf8.RuneStart(buf[p]); p-- {
 	}
 	if p < 0 {
-		return runeInfo{}, -1
+		return Properties{}, -1
 	}
 	return fd.info(inputBytes(buf), p), p
 }
@@ -433,15 +433,15 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 		// illegal trailing continuation bytes
 		return buf
 	}
-	if info.boundaryAfter() {
+	if info.BoundaryAfter() {
 		return buf
 	}
-	var add [maxBackRunes]runeInfo // stores runeInfo in reverse order
+	var add [maxBackRunes]Properties // stores runeInfo in reverse order
 	add[0] = info
 	padd := 1
 	n := 1
 	p := len(buf) - int(info.size)
-	for ; p >= 0 && !info.boundaryBefore(); p -= int(info.size) {
+	for ; p >= 0 && !info.BoundaryBefore(); p -= int(info.size) {
 		info, i = lastRuneStart(fd, buf[:p])
 		if int(info.size) != p-i {
 			break
@@ -452,7 +452,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 				i += int(info.size)
 				n++
 			} else {
-				dcomp := info.decomposition()
+				dcomp := info.Decomposition()
 				for i := 0; i < len(dcomp); {
 					inf := rb.f.info(inputBytes(dcomp), i)
 					i += int(inf.size)
