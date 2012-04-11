@@ -24,7 +24,7 @@ static Sigset sigset_all = ~(Sigset)0;
 static Sigset sigset_none;
 
 extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
+extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
 // From OpenBSD's <sys/sysctl.h>
@@ -72,12 +72,12 @@ runtime·semasleep(int64 ns)
 			// sleep until semaphore != 0 or timeout.
 			// thrsleep unlocks m->waitsemalock.
 			if(ns < 0)
-				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
+				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
 			else {
 				ns += runtime·nanotime();
 				ts.tv_sec = ns/1000000000LL;
 				ts.tv_nsec = ns%1000000000LL;
-				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock);
+				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
 			}
 			// reacquire lock
 			while(runtime·xchg(&m->waitsemalock, 1))

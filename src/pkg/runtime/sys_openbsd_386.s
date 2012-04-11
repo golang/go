@@ -12,14 +12,16 @@
 TEXT runtime·exit(SB),7,$-4
 	MOVL	$1, AX
 	INT	$0x80
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·exit1(SB),7,$-4
-	MOVL	$302, AX		// sys_threxit
+TEXT runtime·exit1(SB),7,$8
+	MOVL	$0, 0(SP)
+	MOVL	$0, 4(SP)		// arg 1 - notdead
+	MOVL	$302, AX		// sys___threxit
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·write(SB),7,$-4
@@ -79,7 +81,7 @@ TEXT runtime·munmap(SB),7,$-4
 	MOVL	$73, AX			// sys_munmap
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·setitimer(SB),7,$-4
@@ -132,14 +134,14 @@ TEXT runtime·sigaction(SB),7,$-4
 	MOVL	$46, AX			// sys_sigaction
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigprocmask(SB),7,$-4
 	MOVL	$48, AX			// sys_sigprocmask
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	MOVL	AX, oset+0(FP)
 	RET
 
@@ -182,7 +184,7 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	AX, 4(SP)		// arg 1 - sigcontext
 	MOVL	$103, AX		// sys_sigreturn
 	INT	$0x80
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
@@ -294,7 +296,7 @@ TEXT runtime·settls(SB),7,$16
 	MOVL	$165, AX		// sys_sysarch
 	INT	$0x80
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·osyield(SB),7,$-4
@@ -303,12 +305,12 @@ TEXT runtime·osyield(SB),7,$-4
 	RET
 
 TEXT runtime·thrsleep(SB),7,$-4
-	MOVL	$300, AX		// sys_thrsleep
+	MOVL	$300, AX		// sys___thrsleep
 	INT	$0x80
 	RET
 
 TEXT runtime·thrwakeup(SB),7,$-4
-	MOVL	$301, AX		// sys_thrwakeup
+	MOVL	$301, AX		// sys___thrwakeup
 	INT	$0x80
 	RET
 
