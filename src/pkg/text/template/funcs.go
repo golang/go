@@ -246,7 +246,7 @@ func not(arg interface{}) (truth bool) {
 
 var (
 	htmlQuot = []byte("&#34;") // shorter than "&quot;"
-	htmlApos = []byte("&#39;") // shorter than "&apos;"
+	htmlApos = []byte("&#39;") // shorter than "&apos;" and apos was not in HTML until HTML5
 	htmlAmp  = []byte("&amp;")
 	htmlLt   = []byte("&lt;")
 	htmlGt   = []byte("&gt;")

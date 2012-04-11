@@ -98,7 +98,7 @@ func TestRenderer(t *testing.T) {
 			},
 		},
 	}
-	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&quot;def">` +
+	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&#34;def">` +
 		`2<b empty="">3</b><i backslash="\">&amp;4</i></p>` +
 		`5<blockquote></blockquote><br/>6</body></html>`
 	b := new(bytes.Buffer)
