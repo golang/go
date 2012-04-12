@@ -761,6 +761,8 @@ sweepspan(MSpan *s)
 	byte *p;
 	MCache *c;
 	byte *arena_start;
+	MLink *start, *end;
+	int32 nfree;
 
 	arena_start = runtime·mheap.arena_start;
 	p = (byte*)(s->start << PageShift);
@@ -774,6 +776,9 @@ sweepspan(MSpan *s)
 		npages = runtime·class_to_allocnpages[cl];
 		n = (npages << PageShift) / size;
 	}
+	nfree = 0;
+	start = end = nil;
+	c = m->mcache;
 
 	// Sweep through n objects of given size starting at p.
 	// This thread owns the span now, so it can manipulate
@@ -810,21 +815,33 @@ sweepspan(MSpan *s)
 		// Mark freed; restore block boundary bit.
 		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
 
-		c = m->mcache;
 		if(s->sizeclass == 0) {
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = 1;	// needs zeroing
 			runtime·MHeap_Free(&runtime·mheap, s, 1);
+			c->local_alloc -= size;
+			c->local_nfree++;
 		} else {
 			// Free small object.
 			if(size > sizeof(uintptr))
 				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
-			c->local_by_size[s->sizeclass].nfree++;
-			runtime·MCache_Free(c, p, s->sizeclass, size);
+			if(nfree)
+				end->next = (MLink*)p;
+			else
+				start = (MLink*)p;
+			end = (MLink*)p;
+			nfree++;
 		}
-		c->local_alloc -= size;
-		c->local_nfree++;
+	}
+
+	if(nfree) {
+		c->local_by_size[s->sizeclass].nfree += nfree;
+		c->local_alloc -= size * nfree;
+		c->local_nfree += nfree;
+		c->local_cachealloc -= nfree * size;
+		c->local_objects -= nfree;
+		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, start, end);
 	}
 }
 
