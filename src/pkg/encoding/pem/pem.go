@@ -28,9 +28,10 @@ type Block struct {
 }
 
 // getLine results the first \r\n or \n delineated line from the given byte
-// array. The line does not include the \r\n or \n. The remainder of the byte
-// array (also not including the new line bytes) is also returned and this will
-// always be smaller than the original argument.
+// array. The line does not include trailing whitespace or the trailing new
+// line bytes. The remainder of the byte array (also not including the new line
+// bytes) is also returned and this will always be smaller than the original
+// argument.
 func getLine(data []byte) (line, rest []byte) {
 	i := bytes.Index(data, []byte{'\n'})
 	var j int
@@ -43,7 +44,7 @@ func getLine(data []byte) (line, rest []byte) {
 			i--
 		}
 	}
-	return data[0:i], data[j:]
+	return bytes.TrimRight(data[0:i], " \t"), data[j:]
 }
 
 // removeWhitespace returns a copy of its input with all spaces, tab and
