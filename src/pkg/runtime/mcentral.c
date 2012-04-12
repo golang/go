@@ -88,9 +88,6 @@ MCentral_Alloc(MCentral *c)
 }
 
 // Free n objects back into the central free list.
-// Return the number of objects allocated.
-// The objects are linked together by their first words.
-// On return, *pstart points at the first object and *pend at the last.
 void
 runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *start)
 {
@@ -145,6 +142,42 @@ MCentral_Free(MCentral *c, void *v)
 		runtime·unlock(c);
 		runtime·MHeap_Free(&runtime·mheap, s, 0);
 		runtime·lock(c);
+	}
+}
+
+// Free n objects from a span s back into the central free list c.
+// Called from GC.
+void
+runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end)
+{
+	int32 size;
+
+	runtime·lock(c);
+
+	// Move to nonempty if necessary.
+	if(s->freelist == nil) {
+		runtime·MSpanList_Remove(s);
+		runtime·MSpanList_Insert(&c->nonempty, s);
+	}
+
+	// Add the objects back to s's free list.
+	end->next = s->freelist;
+	s->freelist = start;
+	s->ref -= n;
+	c->nfree += n;
+
+	// If s is completely freed, return it to the heap.
+	if(s->ref == 0) {
+		size = runtime·class_to_size[c->sizeclass];
+		runtime·MSpanList_Remove(s);
+		*(uintptr*)(s->start<<PageShift) = 1;  // needs zeroing
+		s->freelist = nil;
+		c->nfree -= (s->npages << PageShift) / size;
+		runtime·unlock(c);
+		runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+		runtime·MHeap_Free(&runtime·mheap, s, 0);
+	} else {
+		runtime·unlock(c);
 	}
 }
 
