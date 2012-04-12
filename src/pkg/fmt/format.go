@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	nByte = 64
+	nByte = 65 // %b of an int64, plus a sign.
 
 	ldigits = "0123456789abcdef"
 	udigits = "0123456789ABCDEF"
