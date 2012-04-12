@@ -348,7 +348,7 @@ Loop:
 			l.backup()
 			word := l.input[l.start:l.pos]
 			if !l.atTerminator() {
-				return l.errorf("unexpected character %+U", r)
+				return l.errorf("bad character %+U", r)
 			}
 			switch {
 			case key[word] > itemKeyword:
