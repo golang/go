@@ -112,37 +112,38 @@ FindCipherSuite:
 		hello.nextProtoNeg = true
 		hello.nextProtos = config.NextProtos
 	}
-	if clientHello.ocspStapling && len(config.Certificates[0].OCSPStaple) > 0 {
+
+	if len(config.Certificates) == 0 {
+		return c.sendAlert(alertInternalError)
+	}
+	cert := &config.Certificates[0]
+	if len(clientHello.serverName) > 0 {
+		c.serverName = clientHello.serverName
+		cert = config.getCertificateForName(clientHello.serverName)
+	}
+
+	if clientHello.ocspStapling && len(cert.OCSPStaple) > 0 {
 		hello.ocspStapling = true
 	}
 
 	finishedHash.Write(hello.marshal())
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 
-	if len(config.Certificates) == 0 {
-		return c.sendAlert(alertInternalError)
-	}
-
 	certMsg := new(certificateMsg)
-	if len(clientHello.serverName) > 0 {
-		c.serverName = clientHello.serverName
-		certMsg.certificates = config.getCertificateForName(clientHello.serverName).Certificate
-	} else {
-		certMsg.certificates = config.Certificates[0].Certificate
-	}
+	certMsg.certificates = cert.Certificate
 	finishedHash.Write(certMsg.marshal())
 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
 
 	if hello.ocspStapling {
 		certStatus := new(certificateStatusMsg)
 		certStatus.statusType = statusTypeOCSP
-		certStatus.response = config.Certificates[0].OCSPStaple
+		certStatus.response = cert.OCSPStaple
 		finishedHash.Write(certStatus.marshal())
 		c.writeRecord(recordTypeHandshake, certStatus.marshal())
 	}
 
 	keyAgreement := suite.ka()
-	skx, err := keyAgreement.generateServerKeyExchange(config, clientHello, hello)
+	skx, err := keyAgreement.generateServerKeyExchange(config, cert, clientHello, hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
@@ -288,7 +289,7 @@ FindCipherSuite:
 		finishedHash.Write(certVerify.marshal())
 	}
 
-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx, c.vers)
+	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, cert, ckx, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
