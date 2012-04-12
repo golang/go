@@ -20,11 +20,11 @@ import (
 // encrypts the pre-master secret to the server's public key.
 type rsaKeyAgreement struct{}
 
-func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	return nil, nil
 }
 
-func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
+func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certificate, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
 	preMasterSecret := make([]byte, 48)
 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
@@ -44,7 +44,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 		ciphertext = ckx.ciphertext[2:]
 	}
 
-	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey.(*rsa.PrivateKey), ciphertext, preMasterSecret)
+	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), cert.PrivateKey.(*rsa.PrivateKey), ciphertext, preMasterSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ type ecdheRSAKeyAgreement struct {
 	x, y       *big.Int
 }
 
-func (ka *ecdheRSAKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+func (ka *ecdheRSAKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	var curveid uint16
 
 Curve:
@@ -151,7 +151,7 @@ Curve:
 	copy(serverECDHParams[4:], ecdhePublic)
 
 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
-	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, md5sha1)
+	sig, err := rsa.SignPKCS1v15(config.rand(), cert.PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, md5sha1)
 	if err != nil {
 		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
 	}
@@ -167,7 +167,7 @@ Curve:
 	return skx, nil
 }
 
-func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
+func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, cert *Certificate, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
 		return nil, errors.New("bad ClientKeyExchange")
 	}
