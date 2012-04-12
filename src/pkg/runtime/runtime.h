@@ -72,6 +72,7 @@ typedef	struct	WinCall		WinCall;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
 typedef struct	GCStats		GCStats;
+typedef struct	LFNode		LFNode;
 
 /*
  * per-cpu declaration.
@@ -349,6 +350,13 @@ struct	Timer
 	int64	period;
 	void	(*f)(int64, Eface);
 	Eface	arg;
+};
+
+// Lock-free stack node.
+struct LFNode
+{
+	LFNode	*next;
+	uintptr	pushcnt;
 };
 
 /*
@@ -650,6 +658,15 @@ void	runtime·semawakeup(M*);
 // or
 void	runtime·futexsleep(uint32*, uint32, int64);
 void	runtime·futexwakeup(uint32*, uint32);
+
+/*
+ * Lock-free stack.
+ * Initialize uint64 head to 0, compare with 0 to test for emptiness.
+ * The stack does not keep pointers to nodes,
+ * so they can be garbage collected if there are no other pointers to nodes.
+ */
+void	runtime·lfstackpush(uint64 *head, LFNode *node);
+LFNode*	runtime·lfstackpop(uint64 *head);
 
 /*
  * This is consistent across Linux and BSD.

@@ -25,3 +25,14 @@ var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = golockedOSThread
 var Stackguard = stackguard
+
+type LFNode struct {
+	Next    *LFNode
+	Pushcnt uintptr
+}
+
+func lfstackpush(head *uint64, node *LFNode)
+func lfstackpop2(head *uint64) *LFNode
+
+var LFStackPush = lfstackpush
+var LFStackPop = lfstackpop2
