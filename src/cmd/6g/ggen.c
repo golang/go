@@ -389,7 +389,9 @@ cgen_asop(Node *n)
 hard:
 	n2.op = 0;
 	n1.op = 0;
-	if(nr->ullman >= nl->ullman || nl->addable) {
+	if(nr->op == OLITERAL) {
+		// don't allocate a register for literals.
+	} else if(nr->ullman >= nl->ullman || nl->addable) {
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 		nr = &n2;
