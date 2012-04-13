@@ -763,7 +763,9 @@ func (t Time) Unix() int64 {
 }
 
 // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
-// since January 1, 1970 UTC.
+// since January 1, 1970 UTC. The result is undefined if the Unix time
+// in nanoseconds cannot be represented by an int64. Note that this
+// means the result of calling UnixNano on the zero Time is undefined.
 func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
 }
