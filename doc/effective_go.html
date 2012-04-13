@@ -2479,7 +2479,7 @@ func handle(queue chan *Request) {
     }
 }
 
-func Serve(clientRequests chan *clientRequests, quit chan bool) {
+func Serve(clientRequests chan *Request, quit chan bool) {
     // Start handlers
     for i := 0; i &lt; MaxOutstanding; i++ {
         go handle(clientRequests)
