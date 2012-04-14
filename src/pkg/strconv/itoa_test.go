@@ -5,7 +5,6 @@
 package strconv_test
 
 import (
-	"runtime"
 	. "strconv"
 	"testing"
 )
@@ -123,35 +122,6 @@ func TestUitoa(t *testing.T) {
 				"abc", test.in, test.base, x, test.out)
 		}
 
-	}
-}
-
-func numAllocations(f func()) int {
-	runtime.GC()
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	n0 := memstats.Mallocs
-	f()
-	runtime.ReadMemStats(memstats)
-	return int(memstats.Mallocs - n0)
-}
-
-var globalBuf [64]byte
-
-func TestAppendUintDoesntAllocate(t *testing.T) {
-	n := numAllocations(func() {
-		var buf [64]byte
-		AppendInt(buf[:0], 123, 10)
-	})
-	want := 1 // TODO(bradfitz): this might be 0, once escape analysis is better
-	if n != want {
-		t.Errorf("with local buffer, did %d allocations, want %d", n, want)
-	}
-	n = numAllocations(func() {
-		AppendInt(globalBuf[:0], 123, 10)
-	})
-	if n != 0 {
-		t.Errorf("with reused buffer, did %d allocations, want 0", n)
 	}
 }
 
