@@ -173,23 +173,6 @@ func TestFtoaRandom(t *testing.T) {
 	}
 }
 
-func TestAppendFloatDoesntAllocate(t *testing.T) {
-	n := numAllocations(func() {
-		var buf [64]byte
-		AppendFloat(buf[:0], 1.23, 'g', 5, 64)
-	})
-	want := 1 // TODO(bradfitz): this might be 0, once escape analysis is better
-	if n != want {
-		t.Errorf("with local buffer, did %d allocations, want %d", n, want)
-	}
-	n = numAllocations(func() {
-		AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64)
-	})
-	if n != 0 {
-		t.Errorf("with reused buffer, did %d allocations, want 0", n)
-	}
-}
-
 func BenchmarkFormatFloatDecimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		FormatFloat(33909, 'g', -1, 64)
