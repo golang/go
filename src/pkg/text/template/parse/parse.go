@@ -101,7 +101,7 @@ func (t *Tree) expect(expected itemType, context string) item {
 	return token
 }
 
-// expectEither consumes the next token and guarantees it has one of the required types.
+// expectOneOf consumes the next token and guarantees it has one of the required types.
 func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
 	token := t.next()
 	if token.typ != expected1 && token.typ != expected2 {
