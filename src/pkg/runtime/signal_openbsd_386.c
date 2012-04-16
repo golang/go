@@ -109,7 +109,7 @@ runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
-	st.ss_sp = (int8*)p;
+	st.ss_sp = p;
 	st.ss_size = n;
 	st.ss_flags = 0;
 	runtime·sigaltstack(&st, nil);

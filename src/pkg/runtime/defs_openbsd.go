@@ -7,8 +7,8 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
-GOARCH=386 cgo -cdefs defs.go >386/defs.h
+GOARCH=amd64 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_amd64.h
+GOARCH=386 go tool cgo -cdefs defs_openbsd.go >defs_openbsd_386.h
 */
 
 package runtime
@@ -93,9 +93,12 @@ const (
 	ITIMER_PROF    = C.ITIMER_PROF
 )
 
+type Tfork C.struct___tfork
+
 type Sigaltstack C.struct_sigaltstack
-type Sigset C.sigset_t
+type Sigcontext C.struct_sigcontext
 type Siginfo C.siginfo_t
+type Sigset C.sigset_t
 type Sigval C.union_sigval
 
 type StackT C.stack_t
@@ -103,9 +106,3 @@ type StackT C.stack_t
 type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
-
-// This is a hack to avoid pulling in machine/fpu.h.
-type sfxsave64 struct{}
-type usavefpu struct{}
-
-type Sigcontext C.struct_sigcontext
