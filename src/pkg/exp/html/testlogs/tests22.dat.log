@@ -1,0 +1,5 @@
+PASS "<a><b><big><em><strong><div>X</a>"
+PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8>A</a>"
+PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8><div id=9>A</a>"
+PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8><div id=9><div id=10>A</a>"
+PASS "<cite><b><cite><i><cite><i><cite><i><div>X</b>TEST"

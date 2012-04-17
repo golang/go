@@ -1,0 +1,2 @@
+FAIL "<input type=\"hidden\"><frameset>"
+PASS "<!DOCTYPE html><table><caption><svg>foo</table>bar"

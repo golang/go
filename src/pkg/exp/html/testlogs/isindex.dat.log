@@ -1,0 +1,3 @@
+PASS "<isindex>"
+FAIL "<isindex name=\"A\" action=\"B\" prompt=\"C\" foo=\"D\">"
+PASS "<form><isindex>"
