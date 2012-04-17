@@ -287,7 +287,13 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		if int(r1) == -1 {
 			goto childerror
 		}
-		RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
+	}
+
+	// Pass 3: close fds that were dup-ed
+	for i = 0; i < len(fd); i++ {
+		if fd[i] >= 0 && fd[i] != int(i) {
+			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
+		}
 	}
 
 	// Time to exec.
