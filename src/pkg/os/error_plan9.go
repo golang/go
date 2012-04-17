@@ -5,6 +5,9 @@
 package os
 
 func isExist(err error) bool {
+	if err == nil {
+		return false
+	}
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
@@ -12,6 +15,9 @@ func isExist(err error) bool {
 }
 
 func isNotExist(err error) bool {
+	if err == nil {
+		return false
+	}
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
@@ -19,6 +25,9 @@ func isNotExist(err error) bool {
 }
 
 func isPermission(err error) bool {
+	if err == nil {
+		return false
+	}
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
