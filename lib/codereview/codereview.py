@@ -1263,6 +1263,7 @@ def hgcommand(f):
 		if not err:
 			return 0
 		raise hg_util.Abort(err)
+	wrapped.__doc__ = f.__doc__
 	return wrapped
 
 #######################################################################
