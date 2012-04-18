@@ -408,6 +408,9 @@ func initialIM(p *parser) bool {
 // Section 12.2.5.4.2.
 func beforeHTMLIM(p *parser) bool {
 	switch p.tok.Type {
+	case DoctypeToken:
+		// Ignore the token.
+		return true
 	case TextToken:
 		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
 		if len(p.tok.Data) == 0 {
