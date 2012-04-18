@@ -7,11 +7,14 @@
 package httputil
 
 import (
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"testing"
+	"time"
 )
 
 func TestReverseProxy(t *testing.T) {
@@ -105,5 +108,60 @@ func TestReverseProxyQuery(t *testing.T) {
 		}
 		res.Body.Close()
 		frontend.Close()
+	}
+}
+
+func TestReverseProxyFlushInterval(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	const expected = "hi"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(expected))
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.FlushInterval = time.Microsecond
+
+	dstChan := make(chan io.Writer, 1)
+	beforeCopyResponse = func(dst io.Writer) { dstChan <- dst }
+	defer func() { beforeCopyResponse = nil }()
+
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	initGoroutines := runtime.NumGoroutine()
+	for i := 0; i < 100; i++ {
+		req, _ := http.NewRequest("GET", frontend.URL, nil)
+		req.Close = true
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if bodyBytes, _ := ioutil.ReadAll(res.Body); string(bodyBytes) != expected {
+			t.Errorf("got body %q; expected %q", bodyBytes, expected)
+		}
+
+		select {
+		case dst := <-dstChan:
+			if _, ok := dst.(*maxLatencyWriter); !ok {
+				t.Errorf("got writer %T; expected %T", dst, &maxLatencyWriter{})
+			}
+		default:
+			t.Error("maxLatencyWriter Write() was never called")
+		}
+
+		res.Body.Close()
+	}
+	// Allow up to 50 additional goroutines over 100 requests.
+	if delta := runtime.NumGoroutine() - initGoroutines; delta > 50 {
+		t.Errorf("grew %d goroutines; leak?", delta)
 	}
 }
