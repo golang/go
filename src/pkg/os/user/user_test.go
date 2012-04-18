@@ -5,7 +5,6 @@
 package user
 
 import (
-	"os"
 	"runtime"
 	"testing"
 )
@@ -34,12 +33,11 @@ func TestCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Current: %v", err)
 	}
-	fi, err := os.Stat(u.HomeDir)
-	if err != nil || !fi.IsDir() {
-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v", u.HomeDir, err)
+	if u.HomeDir == "" {
+		t.Errorf("didn't get a HomeDir")
 	}
 	if u.Username == "" {
-		t.Fatalf("didn't get a username")
+		t.Errorf("didn't get a username")
 	}
 }
 
