@@ -17,6 +17,10 @@ import (
 	"time"
 )
 
+// beforeCopyResponse is a callback set by tests to intercept the state of the
+// output io.Writer before the data is copied to it.
+var beforeCopyResponse func(dst io.Writer)
+
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
@@ -112,20 +116,32 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer res.Body.Close()
 
 	copyHeader(rw.Header(), res.Header)
 
 	rw.WriteHeader(res.StatusCode)
+	p.copyResponse(rw, res.Body)
+}
 
-	if res.Body != nil {
-		var dst io.Writer = rw
-		if p.FlushInterval != 0 {
-			if wf, ok := rw.(writeFlusher); ok {
-				dst = &maxLatencyWriter{dst: wf, latency: p.FlushInterval}
+func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+	if p.FlushInterval != 0 {
+		if wf, ok := dst.(writeFlusher); ok {
+			mlw := &maxLatencyWriter{
+				dst:     wf,
+				latency: p.FlushInterval,
+				done:    make(chan bool),
 			}
+			go mlw.flushLoop()
+			defer mlw.stop()
+			dst = mlw
 		}
-		io.Copy(dst, res.Body)
 	}
+
+	if beforeCopyResponse != nil {
+		beforeCopyResponse(dst)
+	}
+	io.Copy(dst, src)
 }
 
 type writeFlusher interface {
@@ -137,22 +153,14 @@ type maxLatencyWriter struct {
 	dst     writeFlusher
 	latency time.Duration
 
-	lk   sync.Mutex // protects init of done, as well Write + Flush
+	lk   sync.Mutex // protects Write + Flush
 	done chan bool
 }
 
-func (m *maxLatencyWriter) Write(p []byte) (n int, err error) {
+func (m *maxLatencyWriter) Write(p []byte) (int, error) {
 	m.lk.Lock()
 	defer m.lk.Unlock()
-	if m.done == nil {
-		m.done = make(chan bool)
-		go m.flushLoop()
-	}
-	n, err = m.dst.Write(p)
-	if err != nil {
-		m.done <- true
-	}
-	return
+	return m.dst.Write(p)
 }
 
 func (m *maxLatencyWriter) flushLoop() {
@@ -160,13 +168,15 @@ func (m *maxLatencyWriter) flushLoop() {
 	defer t.Stop()
 	for {
 		select {
+		case <-m.done:
+			return
 		case <-t.C:
 			m.lk.Lock()
 			m.dst.Flush()
 			m.lk.Unlock()
-		case <-m.done:
-			return
 		}
 	}
 	panic("unreached")
 }
+
+func (m *maxLatencyWriter) stop() { m.done <- true }
