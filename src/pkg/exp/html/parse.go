@@ -446,37 +446,30 @@ func beforeHTMLIM(p *parser) bool {
 
 // Section 12.2.5.4.3.
 func beforeHeadIM(p *parser) bool {
-	var (
-		add     bool
-		attr    []Attribute
-		implied bool
-	)
 	switch p.tok.Type {
-	case ErrorToken:
-		implied = true
 	case TextToken:
 		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
 		if len(p.tok.Data) == 0 {
 			// It was all whitespace, so ignore it.
 			return true
 		}
-		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
 		case "head":
-			add = true
-			attr = p.tok.Attr
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.head = p.top()
+			p.im = inHeadIM
+			return true
 		case "html":
 			return inBodyIM(p)
-		default:
-			implied = true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
 		case "head", "body", "html", "br":
-			implied = true
+			// Drop down to adding an implied <head> tag.
 		default:
 			// Ignore the token.
+			return true
 		}
 	case CommentToken:
 		p.addChild(&Node{
@@ -484,13 +477,15 @@ func beforeHeadIM(p *parser) bool {
 			Data: p.tok.Data,
 		})
 		return true
+	case DoctypeToken:
+		// Ignore the token.
+		return true
 	}
-	if add || implied {
-		p.addElement("head", attr)
-		p.head = p.top()
-	}
+
+	p.addElement("head", nil)
+	p.head = p.top()
 	p.im = inHeadIM
-	return !implied
+	return false
 }
 
 // Section 12.2.5.4.4.
