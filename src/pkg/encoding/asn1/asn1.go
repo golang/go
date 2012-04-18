@@ -377,11 +377,6 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	} else {
 		// Bottom 7 bits give the number of length bytes to follow.
 		numBytes := int(b & 0x7f)
-		// We risk overflowing a signed 32-bit number if we accept more than 3 bytes.
-		if numBytes > 3 {
-			err = StructuralError{"length too large"}
-			return
-		}
 		if numBytes == 0 {
 			err = SyntaxError{"indefinite length found (not DER)"}
 			return
@@ -394,8 +389,19 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 			}
 			b = bytes[offset]
 			offset++
+			if ret.length >= 1<<23 {
+				// We can't shift ret.length up without
+				// overflowing.
+				err = StructuralError{"length too large"}
+				return
+			}
 			ret.length <<= 8
 			ret.length |= int(b)
+			if ret.length == 0 {
+				// DER requires that lengths be minimal.
+				err = StructuralError{"superfluous leading zeros in length"}
+				return
+			}
 		}
 	}
 
