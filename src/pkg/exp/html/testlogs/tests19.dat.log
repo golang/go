@@ -1,5 +1,5 @@
 FAIL "<!doctype html><math><mn DefinitionUrl=\"foo\">"
-FAIL "<!doctype html><html></p><!--foo-->"
+PASS "<!doctype html><html></p><!--foo-->"
 PASS "<!doctype html><head></head></p><!--foo-->"
 FAIL "<!doctype html><body><p><pre>"
 FAIL "<!doctype html><body><p><listing>"
