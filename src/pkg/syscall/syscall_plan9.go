@@ -69,23 +69,10 @@ func errstr() string {
 
 func Getpagesize() int { return 4096 }
 
-//sys	exits(msg *byte)
-func Exits(msg *string) {
-	if msg == nil {
-		exits(nil)
-	}
+// Implemented in assembly to import from runtime.
+func exit(int)
 
-	exits(StringBytePtr(*msg))
-}
-
-func Exit(code int) {
-	if code == 0 {
-		Exits(nil)
-	}
-
-	msg := itoa(code)
-	Exits(&msg)
-}
+func Exit(code int) { exit(code) }
 
 func readnum(path string) (uint, error) {
 	var b [12]byte

@@ -149,3 +149,11 @@ copyresult6:
 	MOVSL
 	MOVSL
 	RET
+
+//func exit(code int)
+// Import runtime·exit for cleanly exiting.
+TEXT ·exit(SB),7,$4
+	MOVL	code+0(FP), AX
+	MOVL	AX, 0(SP)
+	CALL	runtime·exit(SB)
+	RET
