@@ -477,13 +477,7 @@ func beforeHeadIM(p *parser) bool {
 
 // Section 12.2.5.4.4.
 func inHeadIM(p *parser) bool {
-	var (
-		pop     bool
-		implied bool
-	)
 	switch p.tok.Type {
-	case ErrorToken:
-		implied = true
 	case TextToken:
 		s := strings.TrimLeft(p.tok.Data, whitespace)
 		if len(s) < len(p.tok.Data) {
@@ -494,7 +488,6 @@ func inHeadIM(p *parser) bool {
 			}
 			p.tok.Data = s
 		}
-		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
 		case "html":
@@ -503,6 +496,7 @@ func inHeadIM(p *parser) bool {
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
+			return true
 		case "script", "title", "noscript", "noframes", "style":
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.setOriginalIM()
@@ -511,15 +505,19 @@ func inHeadIM(p *parser) bool {
 		case "head":
 			// Ignore the token.
 			return true
-		default:
-			implied = true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
 		case "head":
-			pop = true
+			n := p.oe.pop()
+			if n.Data != "head" {
+				panic("html: bad parser state: <head> element not found, in the in-head insertion mode")
+			}
+			p.im = afterHeadIM
+			return true
 		case "body", "html", "br":
-			implied = true
+			p.parseImpliedToken(EndTagToken, "head", nil)
+			return false
 		default:
 			// Ignore the token.
 			return true
@@ -530,16 +528,13 @@ func inHeadIM(p *parser) bool {
 			Data: p.tok.Data,
 		})
 		return true
+	case DoctypeToken:
+		// Ignore the token.
+		return true
 	}
-	if pop || implied {
-		n := p.oe.pop()
-		if n.Data != "head" {
-			panic("html: bad parser state: <head> element not found, in the in-head insertion mode")
-		}
-		p.im = afterHeadIM
-		return !implied
-	}
-	return true
+
+	p.parseImpliedToken(EndTagToken, "head", nil)
+	return false
 }
 
 // Section 12.2.5.4.6.
