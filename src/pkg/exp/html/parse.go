@@ -295,23 +295,12 @@ func (p *parser) reconstructActiveFormattingElements() {
 	}
 }
 
-// read reads the next token. This is usually from the tokenizer, but it may
-// be the synthesized end tag implied by a self-closing tag.
+// read reads the next token from the tokenizer.
 func (p *parser) read() error {
-	if p.hasSelfClosingToken {
-		p.hasSelfClosingToken = false
-		p.tok.Type = EndTagToken
-		p.tok.Attr = nil
-		return nil
-	}
 	p.tokenizer.Next()
 	p.tok = p.tokenizer.Token()
-	switch p.tok.Type {
-	case ErrorToken:
+	if p.tok.Type == ErrorToken {
 		return p.tokenizer.Err()
-	case SelfClosingTagToken:
-		p.hasSelfClosingToken = true
-		p.tok.Type = StartTagToken
 	}
 	return nil
 }
@@ -426,7 +415,8 @@ func beforeHTMLIM(p *parser) bool {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "head", "body", "html", "br":
-			// Drop down to creating an implied <html> tag.
+			p.parseImpliedToken(StartTagToken, "html", nil)
+			return false
 		default:
 			// Ignore the token.
 			return true
@@ -438,9 +428,7 @@ func beforeHTMLIM(p *parser) bool {
 		})
 		return true
 	}
-	// Create an implied <html> tag.
-	p.addElement("html", nil)
-	p.im = beforeHeadIM
+	p.parseImpliedToken(StartTagToken, "html", nil)
 	return false
 }
 
@@ -466,7 +454,8 @@ func beforeHeadIM(p *parser) bool {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "head", "body", "html", "br":
-			// Drop down to adding an implied <head> tag.
+			p.parseImpliedToken(StartTagToken, "head", nil)
+			return false
 		default:
 			// Ignore the token.
 			return true
@@ -482,9 +471,7 @@ func beforeHeadIM(p *parser) bool {
 		return true
 	}
 
-	p.addElement("head", nil)
-	p.head = p.top()
-	p.im = inHeadIM
+	p.parseImpliedToken(StartTagToken, "head", nil)
 	return false
 }
 
@@ -1767,29 +1754,52 @@ func (p *parser) inForeignContent() bool {
 	return true
 }
 
-func (p *parser) parse() error {
-	// Iterate until EOF. Any other error will cause an early return.
-	consumed := true
-	for {
-		if consumed {
-			if err := p.read(); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
-			}
-		}
+// parseImpliedToken parses a token as though it had appeared in the parser's
+// input.
+func (p *parser) parseImpliedToken(t TokenType, data string, attr []Attribute) {
+	realToken, selfClosing := p.tok, p.hasSelfClosingToken
+	p.tok = Token{
+		Type: t,
+		Data: data,
+		Attr: attr,
+	}
+	p.hasSelfClosingToken = false
+	p.parseCurrentToken()
+	p.tok, p.hasSelfClosingToken = realToken, selfClosing
+}
+
+// parseCurrentToken runs the current token through the parsing routines
+// until it is consumed.
+func (p *parser) parseCurrentToken() {
+	if p.tok.Type == SelfClosingTagToken {
+		p.hasSelfClosingToken = true
+		p.tok.Type = StartTagToken
+	}
+
+	consumed := false
+	for !consumed {
 		if p.inForeignContent() {
 			consumed = parseForeignContent(p)
 		} else {
 			consumed = p.im(p)
 		}
 	}
-	// Loop until the final token (the ErrorToken signifying EOF) is consumed.
-	for {
-		if consumed = p.im(p); consumed {
-			break
+
+	if p.hasSelfClosingToken {
+		p.hasSelfClosingToken = false
+		p.parseImpliedToken(EndTagToken, p.tok.Data, nil)
+	}
+}
+
+func (p *parser) parse() error {
+	// Iterate until EOF. Any other error will cause an early return.
+	var err error
+	for err != io.EOF {
+		err = p.read()
+		if err != nil && err != io.EOF {
+			return err
 		}
+		p.parseCurrentToken()
 	}
 	return nil
 }
