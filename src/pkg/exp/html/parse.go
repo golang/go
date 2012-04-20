@@ -616,25 +616,25 @@ func copyAttributes(dst *Node, src Token) {
 func inBodyIM(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
+		d := p.tok.Data
 		switch n := p.oe.top(); n.Data {
 		case "pre", "listing", "textarea":
 			if len(n.Child) == 0 {
 				// Ignore a newline at the start of a <pre> block.
-				d := p.tok.Data
 				if d != "" && d[0] == '\r' {
 					d = d[1:]
 				}
 				if d != "" && d[0] == '\n' {
 					d = d[1:]
 				}
-				if d == "" {
-					return true
-				}
-				p.tok.Data = d
 			}
 		}
+		d = strings.Replace(d, "\x00", "", -1)
+		if d == "" {
+			return true
+		}
 		p.reconstructActiveFormattingElements()
-		p.addText(p.tok.Data)
+		p.addText(d)
 		p.framesetOK = false
 	case StartTagToken:
 		switch p.tok.Data {
