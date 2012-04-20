@@ -15,6 +15,8 @@ func TestGcSys(t *testing.T) {
 	runtime.ReadMemStats(memstats)
 	sys := memstats.Sys
 
+	runtime.MemProfileRate = 0 // disable profiler
+
 	itercount := 1000000
 	if testing.Short() {
 		itercount = 100000
