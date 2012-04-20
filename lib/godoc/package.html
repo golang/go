@@ -192,14 +192,14 @@
 		{{if $.DirFlat}}
 			{{if .HasPkg}}
 				<tr>
-				<td><a href="{{html .Path}}">{{html .Path}}</a></td>
+				<td class="name"><a href="{{html .Path}}">{{html .Path}}</a></td>
 				<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
 				<td style="width: auto">{{html .Synopsis}}</td>
 				</tr>
 			{{end}}
 		{{else}}
 			<tr>
-			<td>{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a></td>
+			<td class="name">{{repeat `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;` .Depth}}<a href="{{html .Path}}">{{html .Name}}</a></td>
 			<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
 			<td style="width: auto">{{html .Synopsis}}</td>
 			</tr>
