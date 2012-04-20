@@ -166,6 +166,31 @@ func (p *parser) clearStackToContext(s scope) {
 	}
 }
 
+// generateImpliedEndTags pops nodes off the stack of open elements as long as
+// the top node has a tag name of dd, dt, li, option, optgroup, p, rp, or rt.
+// If exceptions are specified, nodes with that name will not be popped off.
+func (p *parser) generateImpliedEndTags(exceptions ...string) {
+	var i int
+loop:
+	for i = len(p.oe) - 1; i >= 0; i-- {
+		n := p.oe[i]
+		if n.Type == ElementNode {
+			switch n.Data {
+			case "dd", "dt", "li", "option", "optgroup", "p", "rp", "rt":
+				for _, except := range exceptions {
+					if n.Data == except {
+						break loop
+					}
+				}
+				continue
+			}
+		}
+		break
+	}
+
+	p.oe = p.oe[:i+1]
+}
+
 // addChild adds a child node n to the top element, and pushes n onto the stack
 // of open elements if it is an element node.
 func (p *parser) addChild(n *Node) {
@@ -673,6 +698,61 @@ func inBodyIM(p *parser) bool {
 				p.oe.pop()
 			}
 			p.addElement(p.tok.Data, p.tok.Attr)
+		case "pre", "listing":
+			p.popUntil(buttonScope, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
+			// The newline, if any, will be dealt with by the TextToken case.
+			p.framesetOK = false
+		case "form":
+			if p.form == nil {
+				p.popUntil(buttonScope, "p")
+				p.addElement(p.tok.Data, p.tok.Attr)
+				p.form = p.top()
+			}
+		case "li":
+			p.framesetOK = false
+			for i := len(p.oe) - 1; i >= 0; i-- {
+				node := p.oe[i]
+				switch node.Data {
+				case "li":
+					p.oe = p.oe[:i]
+				case "address", "div", "p":
+					continue
+				default:
+					if !isSpecialElement(node) {
+						continue
+					}
+				}
+				break
+			}
+			p.popUntil(buttonScope, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "dd", "dt":
+			p.framesetOK = false
+			for i := len(p.oe) - 1; i >= 0; i-- {
+				node := p.oe[i]
+				switch node.Data {
+				case "dd", "dt":
+					p.oe = p.oe[:i]
+				case "address", "div", "p":
+					continue
+				default:
+					if !isSpecialElement(node) {
+						continue
+					}
+				}
+				break
+			}
+			p.popUntil(buttonScope, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "plaintext":
+			p.popUntil(buttonScope, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "button":
+			p.popUntil(defaultScope, "button")
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
 		case "a":
 			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
 				if n := p.afe[i]; n.Type == ElementNode && n.Data == "a" {
@@ -725,56 +805,6 @@ func inBodyIM(p *parser) bool {
 			p.framesetOK = false
 			p.im = inSelectIM
 			return true
-		case "form":
-			if p.form == nil {
-				p.popUntil(buttonScope, "p")
-				p.addElement(p.tok.Data, p.tok.Attr)
-				p.form = p.top()
-			}
-		case "li":
-			p.framesetOK = false
-			for i := len(p.oe) - 1; i >= 0; i-- {
-				node := p.oe[i]
-				switch node.Data {
-				case "li":
-					p.popUntil(listItemScope, "li")
-				case "address", "div", "p":
-					continue
-				default:
-					if !isSpecialElement(node) {
-						continue
-					}
-				}
-				break
-			}
-			p.popUntil(buttonScope, "p")
-			p.addElement(p.tok.Data, p.tok.Attr)
-		case "dd", "dt":
-			p.framesetOK = false
-			for i := len(p.oe) - 1; i >= 0; i-- {
-				node := p.oe[i]
-				switch node.Data {
-				case "dd", "dt":
-					p.oe = p.oe[:i]
-				case "address", "div", "p":
-					continue
-				default:
-					if !isSpecialElement(node) {
-						continue
-					}
-				}
-				break
-			}
-			p.popUntil(buttonScope, "p")
-			p.addElement(p.tok.Data, p.tok.Attr)
-		case "plaintext":
-			p.popUntil(buttonScope, "p")
-			p.addElement(p.tok.Data, p.tok.Attr)
-		case "button":
-			p.popUntil(defaultScope, "button")
-			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.Data, p.tok.Attr)
-			p.framesetOK = false
 		case "optgroup", "option":
 			if p.top().Data == "option" {
 				p.oe.pop()
@@ -856,15 +886,31 @@ func inBodyIM(p *parser) bool {
 				return false
 			}
 			return true
+		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
+			p.popUntil(defaultScope, p.tok.Data)
+		case "form":
+			node := p.form
+			p.form = nil
+			i := p.indexOfElementInScope(defaultScope, "form")
+			if node == nil || i == -1 || p.oe[i] != node {
+				// Ignore the token.
+				return true
+			}
+			p.generateImpliedEndTags()
+			p.oe.remove(node)
 		case "p":
 			if !p.elementInScope(buttonScope, "p") {
 				p.addElement("p", nil)
 			}
 			p.popUntil(buttonScope, "p")
+		case "li":
+			p.popUntil(listItemScope, "li")
+		case "dd", "dt":
+			p.popUntil(defaultScope, p.tok.Data)
+		case "h1", "h2", "h3", "h4", "h5", "h6":
+			p.popUntil(defaultScope, "h1", "h2", "h3", "h4", "h5", "h6")
 		case "a", "b", "big", "code", "em", "font", "i", "nobr", "s", "small", "strike", "strong", "tt", "u":
 			p.inBodyEndTagFormatting(p.tok.Data)
-		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
-			p.popUntil(defaultScope, p.tok.Data)
 		case "applet", "marquee", "object":
 			if p.popUntil(defaultScope, p.tok.Data) {
 				p.clearActiveFormattingElements()
