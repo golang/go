@@ -17,9 +17,9 @@ import (
 	"time"
 )
 
-// beforeCopyResponse is a callback set by tests to intercept the state of the
-// output io.Writer before the data is copied to it.
-var beforeCopyResponse func(dst io.Writer)
+// onExitFlushLoop is a callback set by tests to detect the state of the
+// flushLoop() goroutine.
+var onExitFlushLoop func()
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
@@ -138,9 +138,6 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
 		}
 	}
 
-	if beforeCopyResponse != nil {
-		beforeCopyResponse(dst)
-	}
 	io.Copy(dst, src)
 }
 
@@ -169,6 +166,9 @@ func (m *maxLatencyWriter) flushLoop() {
 	for {
 		select {
 		case <-m.done:
+			if onExitFlushLoop != nil {
+				onExitFlushLoop()
+			}
 			return
 		case <-t.C:
 			m.lk.Lock()
