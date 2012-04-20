@@ -172,7 +172,7 @@ type test struct {
 	donec       chan bool // closed when done
 
 	src    string
-	action string // "compile", "build", "run", "errorcheck", "skip"
+	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput"
 
 	tempDir string
 	err     error
@@ -251,7 +251,7 @@ func (t *test) run() {
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
 		fallthrough
-	case "compile", "build", "run", "errorcheck":
+	case "compile", "build", "run", "errorcheck", "runoutput":
 		t.action = action
 	case "skip":
 		t.action = "skip"
@@ -310,6 +310,26 @@ func (t *test) run() {
 	case "run":
 		useTmp = false
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+		if string(out) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
+		}
+
+	case "runoutput":
+		useTmp = false
+		out, err := runcmd("go", "run", t.goFileName())
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+		tfile := filepath.Join(t.tempDir, "tmp__.go")
+		err = ioutil.WriteFile(tfile, out, 0666)
+		if err != nil {
+			t.err = fmt.Errorf("write tempfile:%s", err)
+			return
+		}
+		out, err = runcmd("go", "run", tfile)
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}

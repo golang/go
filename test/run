@@ -100,7 +100,7 @@ do
 			echo $i >>pass.out
 		fi
 		echo $(awk 'NR==1{print $2}' "$TMP2FILE") $D/$F >>times.out
-		rm -f $F.$A $A.out
+		rm -f $F.$A $A.out tmp.go
 	) done
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
