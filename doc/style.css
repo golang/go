@@ -108,7 +108,9 @@ table.dir td {
 	word-wrap: break-word;
 	vertical-align: top;
 }
-
+div#page.wide table.dir td.name {
+	white-space: nowrap;
+}
 .alert {
 	color: #AA0000;
 }
@@ -388,4 +390,3 @@ img.gopher {
 	margin-bottom: -120px;
 }
 h2 { clear: right; }
-
