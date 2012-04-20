@@ -640,6 +640,29 @@ func inBodyIM(p *parser) bool {
 		switch p.tok.Data {
 		case "html":
 			copyAttributes(p.oe[0], p.tok)
+		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
+			return inHeadIM(p)
+		case "body":
+			if len(p.oe) >= 2 {
+				body := p.oe[1]
+				if body.Type == ElementNode && body.Data == "body" {
+					p.framesetOK = false
+					copyAttributes(body, p.tok)
+				}
+			}
+		case "frameset":
+			if !p.framesetOK || len(p.oe) < 2 || p.oe[1].Data != "body" {
+				// Ignore the token.
+				return true
+			}
+			body := p.oe[1]
+			if body.Parent != nil {
+				body.Parent.Remove(body)
+			}
+			p.oe = p.oe[:1]
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.im = inFramesetIM
+			return true
 		case "address", "article", "aside", "blockquote", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "menu", "nav", "ol", "p", "section", "summary", "ul":
 			p.popUntil(buttonScope, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -758,29 +781,6 @@ func inBodyIM(p *parser) bool {
 			}
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
-		case "body":
-			if len(p.oe) >= 2 {
-				body := p.oe[1]
-				if body.Type == ElementNode && body.Data == "body" {
-					p.framesetOK = false
-					copyAttributes(body, p.tok)
-				}
-			}
-		case "frameset":
-			if !p.framesetOK || len(p.oe) < 2 || p.oe[1].Data != "body" {
-				// Ignore the token.
-				return true
-			}
-			body := p.oe[1]
-			if body.Parent != nil {
-				body.Parent.Remove(body)
-			}
-			p.oe = p.oe[:1]
-			p.addElement(p.tok.Data, p.tok.Attr)
-			p.im = inFramesetIM
-			return true
-		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
-			return inHeadIM(p)
 		case "image":
 			p.tok.Data = "img"
 			return false
@@ -847,8 +847,14 @@ func inBodyIM(p *parser) bool {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "body":
-			// TODO: autoclose the stack of open elements.
-			p.im = afterBodyIM
+			if p.elementInScope(defaultScope, "body") {
+				p.im = afterBodyIM
+			}
+		case "html":
+			if p.elementInScope(defaultScope, "body") {
+				p.parseImpliedToken(EndTagToken, "body", nil)
+				return false
+			}
 			return true
 		case "p":
 			if !p.elementInScope(buttonScope, "p") {
