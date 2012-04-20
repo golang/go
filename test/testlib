@@ -13,6 +13,11 @@ build() {
 	$G $D/$F.go && $L $F.$A
 }
 
+runoutput() {
+	go run "$D/$F.go" > tmp.go
+	go run tmp.go
+}
+
 run() {
 	gofiles=""
 	ingo=true
