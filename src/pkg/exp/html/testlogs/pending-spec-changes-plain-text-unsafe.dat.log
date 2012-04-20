@@ -1,1 +1,1 @@
-FAIL "<body><table>\x00filler\x00text\x00"
+PASS "<body><table>\x00filler\x00text\x00"
