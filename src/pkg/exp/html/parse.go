@@ -539,16 +539,7 @@ func inHeadIM(p *parser) bool {
 
 // Section 12.2.5.4.6.
 func afterHeadIM(p *parser) bool {
-	var (
-		add        bool
-		attr       []Attribute
-		framesetOK bool
-		implied    bool
-	)
 	switch p.tok.Type {
-	case ErrorToken:
-		implied = true
-		framesetOK = true
 	case TextToken:
 		s := strings.TrimLeft(p.tok.Data, whitespace)
 		if len(s) < len(p.tok.Data) {
@@ -559,16 +550,15 @@ func afterHeadIM(p *parser) bool {
 			}
 			p.tok.Data = s
 		}
-		implied = true
-		framesetOK = true
 	case StartTagToken:
 		switch p.tok.Data {
 		case "html":
-			// TODO.
+			return inBodyIM(p)
 		case "body":
-			add = true
-			attr = p.tok.Attr
-			framesetOK = false
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
+			p.im = inBodyIM
+			return true
 		case "frameset":
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.im = inFramesetIM
@@ -580,15 +570,11 @@ func afterHeadIM(p *parser) bool {
 		case "head":
 			// Ignore the token.
 			return true
-		default:
-			implied = true
-			framesetOK = true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
 		case "body", "html", "br":
-			implied = true
-			framesetOK = true
+			// Drop down to creating an implied <body> tag.
 		default:
 			// Ignore the token.
 			return true
@@ -599,13 +585,14 @@ func afterHeadIM(p *parser) bool {
 			Data: p.tok.Data,
 		})
 		return true
+	case DoctypeToken:
+		// Ignore the token.
+		return true
 	}
-	if add || implied {
-		p.addElement("body", attr)
-		p.framesetOK = framesetOK
-	}
-	p.im = inBodyIM
-	return !implied
+
+	p.parseImpliedToken(StartTagToken, "body", nil)
+	p.framesetOK = true
+	return false
 }
 
 // copyAttributes copies attributes of src not found on dst to dst.
