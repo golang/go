@@ -264,24 +264,21 @@ var uint64pow10 = [...]uint64{
 	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
 }
 
-// AssignDecimal sets f to an approximate value of the decimal d. It
+// AssignDecimal sets f to an approximate value mantissa*10^exp. It
 // returns true if the value represented by f is guaranteed to be the
 // best approximation of d after being rounded to a float64. 
-func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
+func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool) (ok bool) {
 	const uint64digits = 19
 	const errorscale = 8
-	mant10, digits := d.atou64()
-	exp10 := d.dp - digits
 	errors := 0 // An upper bound for error, computed in errorscale*ulp.
-
-	if digits < d.nd {
+	if trunc {
 		// the decimal number was truncated.
 		errors += errorscale / 2
 	}
 
-	f.mant = mant10
+	f.mant = mantissa
 	f.exp = 0
-	f.neg = d.neg
+	f.neg = neg
 
 	// Multiply by powers of ten.
 	i := (exp10 - firstPowerOfTen) / stepPowerOfTen
@@ -291,9 +288,9 @@ func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
 	adjExp := (exp10 - firstPowerOfTen) % stepPowerOfTen
 
 	// We multiply by exp%step
-	if digits+adjExp <= uint64digits {
-		// We can multiply the mantissa
-		f.mant *= uint64(float64pow10[adjExp])
+	if adjExp < uint64digits && mantissa < uint64pow10[uint64digits-adjExp] {
+		// We can multiply the mantissa exactly.
+		f.mant *= uint64pow10[adjExp]
 		f.Normalize()
 	} else {
 		f.Normalize()

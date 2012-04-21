@@ -37,17 +37,28 @@ func equalIgnoreCase(s1, s2 string) bool {
 }
 
 func special(s string) (f float64, ok bool) {
-	switch {
-	case equalIgnoreCase(s, "nan"):
-		return math.NaN(), true
-	case equalIgnoreCase(s, "-inf"),
-		equalIgnoreCase(s, "-infinity"):
-		return math.Inf(-1), true
-	case equalIgnoreCase(s, "+inf"),
-		equalIgnoreCase(s, "+infinity"),
-		equalIgnoreCase(s, "inf"),
-		equalIgnoreCase(s, "infinity"):
-		return math.Inf(1), true
+	if len(s) == 0 {
+		return
+	}
+	switch s[0] {
+	default:
+		return
+	case '+':
+		if equalIgnoreCase(s, "+inf") || equalIgnoreCase(s, "+infinity") {
+			return math.Inf(1), true
+		}
+	case '-':
+		if equalIgnoreCase(s, "-inf") || equalIgnoreCase(s, "-infinity") {
+			return math.Inf(-1), true
+		}
+	case 'n', 'N':
+		if equalIgnoreCase(s, "nan") {
+			return math.NaN(), true
+		}
+	case 'i', 'I':
+		if equalIgnoreCase(s, "inf") || equalIgnoreCase(s, "infinity") {
+			return math.Inf(1), true
+		}
 	}
 	return
 }
@@ -140,6 +151,105 @@ func (b *decimal) set(s string) (ok bool) {
 
 	ok = true
 	return
+}
+
+// readFloat reads a decimal mantissa and exponent from a float
+// string representation. It sets ok to false if the number could
+// not fit return types or is invalid.
+func readFloat(s string) (mantissa uint64, exp int, neg, trunc, ok bool) {
+	const uint64digits = 19
+	i := 0
+
+	// optional sign
+	if i >= len(s) {
+		return
+	}
+	switch {
+	case s[i] == '+':
+		i++
+	case s[i] == '-':
+		neg = true
+		i++
+	}
+
+	// digits
+	sawdot := false
+	sawdigits := false
+	nd := 0
+	ndMant := 0
+	dp := 0
+	for ; i < len(s); i++ {
+		switch c := s[i]; true {
+		case c == '.':
+			if sawdot {
+				return
+			}
+			sawdot = true
+			dp = nd
+			continue
+
+		case '0' <= c && c <= '9':
+			sawdigits = true
+			if c == '0' && nd == 0 { // ignore leading zeros
+				dp--
+				continue
+			}
+			nd++
+			if ndMant < uint64digits {
+				mantissa *= 10
+				mantissa += uint64(c - '0')
+				ndMant++
+			} else if s[i] != '0' {
+				trunc = true
+			}
+			continue
+		}
+		break
+	}
+	if !sawdigits {
+		return
+	}
+	if !sawdot {
+		dp = nd
+	}
+
+	// optional exponent moves decimal point.
+	// if we read a very large, very long number,
+	// just be sure to move the decimal point by
+	// a lot (say, 100000).  it doesn't matter if it's
+	// not the exact number.
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		i++
+		if i >= len(s) {
+			return
+		}
+		esign := 1
+		if s[i] == '+' {
+			i++
+		} else if s[i] == '-' {
+			i++
+			esign = -1
+		}
+		if i >= len(s) || s[i] < '0' || s[i] > '9' {
+			return
+		}
+		e := 0
+		for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+			if e < 10000 {
+				e = e*10 + int(s[i]) - '0'
+			}
+		}
+		dp += e * esign
+	}
+
+	if i != len(s) {
+		return
+	}
+
+	exp = dp - ndMant
+	ok = true
+	return
+
 }
 
 // decimal power of ten to binary power of two.
@@ -243,19 +353,6 @@ out:
 	return bits, overflow
 }
 
-// Compute exact floating-point integer from d's digits.
-// Caller is responsible for avoiding overflow.
-func (d *decimal) atof64int() float64 {
-	f := 0.0
-	for i := 0; i < d.nd; i++ {
-		f = f*10 + float64(d.d[i]-'0')
-	}
-	if d.neg {
-		f = -f
-	}
-	return f
-}
-
 func (d *decimal) atof32int() float32 {
 	f := float32(0)
 	for i := 0; i < d.nd; i++ {
@@ -267,18 +364,6 @@ func (d *decimal) atof32int() float32 {
 	return f
 }
 
-// Reads a uint64 decimal mantissa, which might be truncated.
-func (d *decimal) atou64() (mant uint64, digits int) {
-	const uint64digits = 19
-	for i, c := range d.d[:d.nd] {
-		if i == uint64digits {
-			return mant, i
-		}
-		mant = 10*mant + uint64(c-'0')
-	}
-	return mant, d.nd
-}
-
 // Exact powers of 10.
 var float64pow10 = []float64{
 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
@@ -287,38 +372,41 @@ var float64pow10 = []float64{
 }
 var float32pow10 = []float32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10}
 
-// If possible to convert decimal d to 64-bit float f exactly,
+// If possible to convert decimal representation to 64-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
 // Three common cases:
 //	value is exact integer
 //	value is exact integer * exact power of ten
 //	value is exact integer / exact power of ten
 // These all produce potentially inexact but correctly rounded answers.
-func (d *decimal) atof64() (f float64, ok bool) {
-	// Exact integers are <= 10^15.
-	// Exact powers of ten are <= 10^22.
-	if d.nd > 15 {
+func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
+	if mantissa>>float64info.mantbits != 0 {
 		return
 	}
+	f = float64(mantissa)
+	if neg {
+		f = -f
+	}
 	switch {
-	case d.dp == d.nd: // int
-		f := d.atof64int()
+	case exp == 0:
+		// an integer.
 		return f, true
-
-	case d.dp > d.nd && d.dp <= 15+22: // int * 10^k
-		f := d.atof64int()
-		k := d.dp - d.nd
+	// Exact integers are <= 10^15.
+	// Exact powers of ten are <= 10^22.
+	case exp > 0 && exp <= 15+22: // int * 10^k
 		// If exponent is big but number of digits is not,
 		// can move a few zeros into the integer part.
-		if k > 22 {
-			f *= float64pow10[k-22]
-			k = 22
+		if exp > 22 {
+			f *= float64pow10[exp-22]
+			exp = 22
 		}
-		return f * float64pow10[k], true
-
-	case d.dp < d.nd && d.nd-d.dp <= 22: // int / 10^k
-		f := d.atof64int()
-		return f / float64pow10[d.nd-d.dp], true
+		if f > 1e15 || f < -1e15 {
+			// the exponent was really too large.
+			return
+		}
+		return f * float64pow10[exp], true
+	case exp < 0 && exp >= -22: // int / 10^k
+		return f / float64pow10[-exp], true
 	}
 	return
 }
@@ -383,25 +471,31 @@ func atof64(s string) (f float64, err error) {
 		return val, nil
 	}
 
+	if optimize {
+		// Parse mantissa and exponent.
+		mantissa, exp, neg, trunc, ok := readFloat(s)
+		if ok {
+			// Try pure floating-point arithmetic conversion.
+			if !trunc {
+				if f, ok := atof64exact(mantissa, exp, neg); ok {
+					return f, nil
+				}
+			}
+			// Try another fast path.
+			ext := new(extFloat)
+			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc); ok {
+				b, ovf := ext.floatBits()
+				f = math.Float64frombits(b)
+				if ovf {
+					err = rangeError(fnParseFloat, s)
+				}
+				return f, err
+			}
+		}
+	}
 	var d decimal
 	if !d.set(s) {
 		return 0, syntaxError(fnParseFloat, s)
-	}
-	if optimize {
-		if f, ok := d.atof64(); ok {
-			return f, nil
-		}
-
-		// Try another fast path.
-		ext := new(extFloat)
-		if ok := ext.AssignDecimal(&d); ok {
-			b, ovf := ext.floatBits()
-			f = math.Float64frombits(b)
-			if ovf {
-				err = rangeError(fnParseFloat, s)
-			}
-			return f, err
-		}
 	}
 	b, ovf := d.floatBits(&float64info)
 	f = math.Float64frombits(b)
