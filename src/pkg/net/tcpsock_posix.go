@@ -108,9 +108,7 @@ func (c *TCPConn) Close() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	err := c.fd.Close()
-	c.fd = nil
-	return err
+	return c.fd.Close()
 }
 
 // CloseRead shuts down the reading side of the TCP connection.
