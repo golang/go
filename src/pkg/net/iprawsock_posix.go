@@ -83,9 +83,7 @@ func (c *IPConn) Close() error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	err := c.fd.Close()
-	c.fd = nil
-	return err
+	return c.fd.Close()
 }
 
 // LocalAddr returns the local network address.
