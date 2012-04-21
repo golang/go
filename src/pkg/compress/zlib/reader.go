@@ -11,7 +11,7 @@ and compress during writing.  For example, to write compressed data
 to a buffer:
 
 	var b bytes.Buffer
-	w, err := zlib.NewWriter(&b)
+	w := zlib.NewWriter(&b)
 	w.Write([]byte("hello, world\n"))
 	w.Close()
 
