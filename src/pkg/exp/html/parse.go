@@ -643,7 +643,7 @@ func inBodyIM(p *parser) bool {
 	case TextToken:
 		d := p.tok.Data
 		switch n := p.oe.top(); n.Data {
-		case "pre", "listing", "textarea":
+		case "pre", "listing":
 			if len(n.Child) == 0 {
 				// Ignore a newline at the start of a <pre> block.
 				if d != "" && d[0] == '\r' {
@@ -779,12 +779,6 @@ func inBodyIM(p *parser) bool {
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.afe = append(p.afe, &scopeMarker)
 			p.framesetOK = false
-		case "area", "br", "embed", "img", "input", "keygen", "wbr":
-			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.Data, p.tok.Attr)
-			p.oe.pop()
-			p.acknowledgeSelfClosingTag()
-			p.framesetOK = false
 		case "table":
 			if !p.quirks {
 				p.popUntil(buttonScope, "p")
@@ -793,6 +787,26 @@ func inBodyIM(p *parser) bool {
 			p.framesetOK = false
 			p.im = inTableIM
 			return true
+		case "area", "br", "embed", "img", "input", "keygen", "wbr":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
+			if p.tok.Data == "input" {
+				for _, a := range p.tok.Attr {
+					if a.Key == "type" {
+						if strings.ToLower(a.Val) == "hidden" {
+							// Skip setting framesetOK = false
+							return true
+						}
+					}
+				}
+			}
+			p.framesetOK = false
+		case "param", "source", "track":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
 		case "hr":
 			p.popUntil(buttonScope, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -852,11 +866,27 @@ func inBodyIM(p *parser) bool {
 			p.oe.pop()
 			p.oe.pop()
 			p.form = nil
+		case "textarea":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.setOriginalIM()
+			p.framesetOK = false
+			p.im = textIM
 		case "xmp":
 			p.popUntil(buttonScope, "p")
 			p.reconstructActiveFormattingElements()
 			p.framesetOK = false
 			p.addElement(p.tok.Data, p.tok.Attr)
+			p.setOriginalIM()
+			p.im = textIM
+		case "iframe":
+			p.framesetOK = false
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.setOriginalIM()
+			p.im = textIM
+		case "noembed", "noscript":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.setOriginalIM()
+			p.im = textIM
 		case "math", "svg":
 			p.reconstructActiveFormattingElements()
 			if p.tok.Data == "math" {
@@ -1074,7 +1104,20 @@ func textIM(p *parser) bool {
 	case ErrorToken:
 		p.oe.pop()
 	case TextToken:
-		p.addText(p.tok.Data)
+		d := p.tok.Data
+		if n := p.oe.top(); n.Data == "textarea" && len(n.Child) == 0 {
+			// Ignore a newline at the start of a <textarea> block.
+			if d != "" && d[0] == '\r' {
+				d = d[1:]
+			}
+			if d != "" && d[0] == '\n' {
+				d = d[1:]
+			}
+		}
+		if d == "" {
+			return true
+		}
+		p.addText(d)
 		return true
 	case EndTagToken:
 		p.oe.pop()
