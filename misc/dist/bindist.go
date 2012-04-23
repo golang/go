@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -41,8 +40,7 @@ var (
 )
 
 const (
-	packageMaker = "/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker"
-	uploadURL    = "https://go.googlecode.com/files"
+	uploadURL = "https://go.googlecode.com/files"
 )
 
 var preBuildCleanFiles = []string{
@@ -231,7 +229,7 @@ func (b *Build) Do() error {
 			return err
 		}
 		localDir := filepath.Join(work, "usr/local")
-		err = os.MkdirAll(localDir, 0744)
+		err = os.MkdirAll(localDir, 0755)
 		if err != nil {
 			return err
 		}
@@ -240,27 +238,29 @@ func (b *Build) Do() error {
 			return err
 		}
 		// build package
-		pkginfo, err := createPackageInfo(work)
+		pkgdest, err := ioutil.TempDir("", "pkgdest")
 		if err != nil {
 			return err
 		}
-		defer os.Remove(pkginfo)
-		pm := packageMaker
-		if !exists(pm) {
-			pm = "/Developer" + pm
-			if !exists(pm) {
-				return errors.New("couldn't find PackageMaker")
-			}
+		defer os.RemoveAll(pkgdest)
+		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
+		_, err = b.run("", "pkgbuild",
+			"--identifier", "com.googlecode.go",
+			"--version", "1.0",
+			"--scripts", filepath.Join(dist, "darwin/scripts"),
+			"--root", work,
+			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
+		if err != nil {
+			return err
 		}
 		targ := base + ".pkg"
-		scripts := filepath.Join(work, "usr/local/go/misc/dist/darwin/scripts")
-		_, err = b.run("", pm, "-v",
-			"-r", work,
-			"-o", targ,
-			"--info", pkginfo,
-			"--scripts", scripts,
-			"--title", "Go",
-			"--target", "10.5")
+		_, err = b.run("", "productbuild",
+			"--distribution", filepath.Join(dist, "darwin/Distribution"),
+			"--package-path", pkgdest,
+			targ)
+		if err != nil {
+			return err
+		}
 		targs = append(targs, targ)
 	case "windows":
 		// Create ZIP file.
@@ -805,31 +805,4 @@ func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
-}
-
-// createPackageInfo creates a PackageInfo template file for use with PackageMaker.
-// The returned filename points to a file in a temporary directory on the filesystem,
-// and should be removed after use.
-func createPackageInfo(work string) (filename string, err error) {
-	var size, nfiles int64
-	err = filepath.Walk(work, func(path string, info os.FileInfo, err error) error {
-		nfiles++
-		size += info.Size()
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	pi, err := ioutil.TempFile("", "PackageInfo")
-	if err != nil {
-		return "", err
-	}
-	defer pi.Close()
-	_, err = fmt.Fprintf(pi, "<pkg-info identifier=\"com.googlecode.go\" version=\"1.0\" followSymLinks=\"true\">\n"+
-		"\t<payload installKBytes=\"%v\" numberOfFiles=\"%v\"/>\n"+
-		"</pkg-info>\n", size/1024, nfiles)
-	if err != nil {
-		return "", err
-	}
-	return pi.Name(), nil
 }
