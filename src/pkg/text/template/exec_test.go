@@ -65,6 +65,8 @@ type T struct {
 	VariadicFuncInt func(int, ...string) string
 	// Template to test evaluation of templates.
 	Tmpl *Template
+	// Unexported field; cannot be accessed by template.
+	unexported int
 }
 
 type U struct {
@@ -232,6 +234,7 @@ var execTests = []execTest{
 	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+	{".unexported", "{{.unexported}}", "", tVal, false},
 
 	// Fields on maps.
 	{"map .one", "{{.MSI.one}}", "1", tVal, true},
@@ -473,6 +476,8 @@ var execTests = []execTest{
 	// Pipelined arg was not being type-checked.
 	{"bug8a", "{{3|oneArg}}", "", tVal, false},
 	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
+	// A bug was introduced that broke map lookups for lower-case names.
+	{"bug9", "{{.cause}}", "neglect", map[string]string{"cause": "neglect"}, true},
 }
 
 func zeroArgs() string {
