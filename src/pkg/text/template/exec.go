@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"text/template/parse"
+	"unicode"
+	"unicode/utf8"
 )
 
 // state represents the state of an execution. It's not part of the
@@ -414,9 +416,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 		return s.evalCall(dot, method, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final.IsValid()
-	// It's not a method; is it a field of a struct?
+	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
 	receiver, isNil := indirect(receiver)
-	if receiver.Kind() == reflect.Struct {
+	if isNil {
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+	}
+	switch receiver.Kind() {
+	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
@@ -428,9 +434,11 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 				return field
 			}
 		}
-	}
-	// If it's a map, attempt to use the field name as a key.
-	if receiver.Kind() == reflect.Map {
+		if !isExported(fieldName) {
+			s.errorf("%s is not an exported field of struct type %s", fieldName, typ)
+		}
+	case reflect.Map:
+		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
 			if hasArgs {
@@ -439,11 +447,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 			return receiver.MapIndex(nameVal)
 		}
 	}
-	if isNil {
-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
 	panic("not reached")
+}
+
+// isExported reports whether the field name (which starts with a period) can be accessed.
+func isExported(fieldName string) bool {
+	r, _ := utf8.DecodeRuneInString(fieldName[1:]) // drop the period
+	return unicode.IsUpper(r)
 }
 
 var (
