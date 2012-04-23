@@ -131,7 +131,12 @@ escfunc(Node *func)
 	}
 
 	// walk will take the address of cvar->closure later and assign it to cvar.
-	// handle that here by linking a fake oaddr node directly to the closure.
+	// linking a fake oaddr node directly to the closure handles the case
+	// of the closure itself leaking.  Following the flow of the value to th
+	// paramref is done in escflow, because if we did that here, it would look
+	// like the original is assigned out of its loop depth, whereas it's just
+	// assigned to something in an inner function.  A paramref itself is never
+	// moved to the heap, only its original.
 	for(ll=curfn->cvars; ll; ll=ll->next) {
 		if(ll->n->op == OXXX)  // see dcl.c:398
 			continue;
@@ -221,16 +226,19 @@ esc(Node *n)
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth++;
 
-	esc(n->left);
-	esc(n->right);
-	esc(n->ntest);
-	esc(n->nincr);
-	esclist(n->ninit);
-	esclist(n->nbody);
-	esclist(n->nelse);
-	esclist(n->list);
-	esclist(n->rlist);
-
+	if(n->op == OCLOSURE) {
+		escfunc(n);
+	} else {
+		esc(n->left);
+		esc(n->right);
+		esc(n->ntest);
+		esc(n->nincr);
+		esclist(n->ninit);
+		esclist(n->nbody);
+		esclist(n->nelse);
+		esclist(n->list);
+		esclist(n->rlist);
+	}
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth--;
 
@@ -379,8 +387,8 @@ esc(Node *n)
 		}
 		break;
 	
-	case OADDR:
 	case OCLOSURE:
+	case OADDR:
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
@@ -407,8 +415,8 @@ escassign(Node *dst, Node *src)
 		return;
 
 	if(debug['m'] > 1)
-		print("%L:[%d] %S escassign: %hN = %hN\n", lineno, loopdepth,
-		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, src);
+		print("%L:[%d] %S escassign: %hN(%hJ) = %hN(%hJ)\n", lineno, loopdepth,
+		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, dst, src, src);
 
 	setlineno(dst);
 	
@@ -467,7 +475,11 @@ escassign(Node *dst, Node *src)
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
-		// loopdepth was set in the defining statement or function header
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case ONEW:
+	case OCLOSURE:
 		escflows(dst, src);
 		break;
 
@@ -498,18 +510,6 @@ escassign(Node *dst, Node *src)
 		// Index of array preserves input value.
 		if(isfixedarray(src->left->type))
 			escassign(dst, src->left);
-		break;
-
-	case OMAKECHAN:
-	case OMAKEMAP:
-	case OMAKESLICE:
-	case ONEW:
-		escflows(dst, src);
-		break;
-
-	case OCLOSURE:
-		escflows(dst, src);
-		escfunc(src);
 		break;
 
 	case OADD:
@@ -543,7 +543,7 @@ escassign(Node *dst, Node *src)
 // This is a bit messier than fortunate, pulled out of escassign's big
 // switch for clarity.	We either have the paramnodes, which may be
 // connected to other things throug flows or we have the parameter type
-// nodes, which may be marked 'n(ofloworescape)'. Navigating the ast is slightly
+// nodes, which may be marked "noescape". Navigating the ast is slightly
 // different for methods vs plain functions and for imported vs
 // this-package
 static void
@@ -711,8 +711,8 @@ escwalk(int level, Node *dst, Node *src)
 	src->walkgen = walkgen;
 
 	if(debug['m']>1)
-		print("escwalk: level:%d depth:%d %.*s %hN scope:%S[%d]\n",
-		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src,
+		print("escwalk: level:%d depth:%d %.*s %hN(%hJ) scope:%S[%d]\n",
+		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src, src,
 		      (src->curfn && src->curfn->nname) ? src->curfn->nname->sym : S, src->escloopdepth);
 
 	pdepth++;
@@ -725,6 +725,16 @@ escwalk(int level, Node *dst, Node *src)
 			src->esc = EscScope;
 			if(debug['m'])
 				warnl(src->lineno, "leaking param: %hN", src);
+		}
+		// handle the missing flow ref <- orig
+		// a paramref is automagically dereferenced, and taking its
+		// address produces the address of the original, so all we have to do here
+		// is keep track of the value flow, so level is unchanged.
+		// alternatively, we could have substituted PPARAMREFs with their ->closure in esc/escassign/flow,
+		if(src->class == PPARAMREF) {
+			if(leaks && debug['m'])
+				warnl(src->lineno, "leaking closure reference %hN", src);
+			escwalk(level, dst, src->closure);
 		}
 		break;
 

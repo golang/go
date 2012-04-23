@@ -1051,7 +1051,7 @@ func foo122() {
 
 	goto L1
 L1:
-	i = new(int) // ERROR "does not escape"
+	i = new(int) // ERROR "new.int. does not escape"
 	_ = i
 }
 
@@ -1060,8 +1060,141 @@ func foo123() {
 	var i *int
 
 L1:
-	i = new(int) // ERROR "escapes"
+	i = new(int) // ERROR "new.int. escapes to heap"
 
 	goto L1
 	_ = i
+}
+
+func foo124(x **int) {	// ERROR "x does not escape"
+	var i int	// ERROR "moved to heap: i"
+	p := &i 	// ERROR "&i escapes"
+	func() {	// ERROR "func literal does not escape"
+		*x = p	// ERROR "leaking closure reference p"
+	}()
+}
+
+func foo125(ch chan *int) {	// ERROR "does not escape"
+	var i int	// ERROR "moved to heap"
+	p := &i 	// ERROR "&i escapes to heap"
+	func() {	// ERROR "func literal does not escape"
+		ch <- p	// ERROR "leaking closure reference p"
+	}()
+}
+
+func foo126() {
+	var px *int  // loopdepth 0
+	for {
+		// loopdepth 1
+		var i int  // ERROR "moved to heap"
+		func() {  // ERROR "func literal does not escape"
+			px = &i  // ERROR "&i escapes"
+		}()
+	}
+}
+
+var px *int
+
+func foo127() {
+	var i int  // ERROR "moved to heap: i"
+	p := &i  // ERROR "&i escapes to heap"
+	q := p
+	px = q
+}
+
+func foo128() {
+	var i int
+	p := &i // ERROR "&i does not escape"
+	q := p
+	_ = q
+}
+
+func foo129() {
+	var i int  // ERROR "moved to heap: i"
+	p := &i  // ERROR "&i escapes to heap"
+	func() {  // ERROR "func literal does not escape"
+		q := p  // ERROR "leaking closure reference p"
+		func() {  // ERROR "func literal does not escape"
+			r := q  // ERROR "leaking closure reference q"
+			px = r
+		}()
+	}()
+}
+
+func foo130() {
+	for {
+		var i int  // ERROR "moved to heap"
+		func() {  // ERROR "func literal does not escape"
+			px = &i  // ERROR "&i escapes" "leaking closure reference i"
+		}()
+	}
+}
+
+func foo131() {
+	var i int  // ERROR "moved to heap"
+	func() {  // ERROR "func literal does not escape"
+		px = &i  // ERROR "&i escapes" "leaking closure reference i"
+	}()
+}
+
+func foo132() {
+	var i int  // ERROR "moved to heap"
+	go func() {  // ERROR "func literal escapes to heap"
+		px = &i  // ERROR "&i escapes" "leaking closure reference i"
+	}()
+}
+
+func foo133() {
+	var i int  // ERROR "moved to heap"
+	defer func() {  // ERROR "func literal does not escape"
+		px = &i  // ERROR "&i escapes" "leaking closure reference i"
+	}()
+}
+
+func foo134() {
+	var i int
+	p := &i  // ERROR "&i does not escape"
+	func() {  // ERROR "func literal does not escape"
+		q := p
+		func() {  // ERROR "func literal does not escape"
+			r := q
+			_ = r
+		}()
+	}()
+}
+
+func foo135() {
+	var i int  // ERROR "moved to heap: i"
+	p := &i  // ERROR "&i escapes to heap" "moved to heap: p"
+	go func() {  // ERROR "func literal escapes to heap"
+		q := p  // ERROR "&p escapes to heap"
+		func() {  // ERROR "func literal does not escape"
+			r := q
+			_ = r
+		}()
+	}()
+}
+
+func foo136() {
+	var i int  // ERROR "moved to heap: i"
+	p := &i  // ERROR "&i escapes to heap" "moved to heap: p"
+	go func() {  // ERROR "func literal escapes to heap"
+		q := p  // ERROR "&p escapes to heap" "leaking closure reference p"
+		func() {  // ERROR "func literal does not escape"
+			r := q // ERROR "leaking closure reference q"
+			px = r
+		}()
+	}()
+}
+
+func foo137() {
+	var i int  // ERROR "moved to heap: i"
+	p := &i  // ERROR "&i escapes to heap"
+	func() {  // ERROR "func literal does not escape"
+		q := p  // ERROR "leaking closure reference p" "moved to heap: q"
+		go func() { // ERROR "func literal escapes to heap"
+			r := q  // ERROR "&q escapes to heap"
+			_ = r
+		}()
+	}()
 }
