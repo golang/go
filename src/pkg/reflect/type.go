@@ -940,6 +940,7 @@ func toType(p *runtimeType) Type {
 }
 
 // TypeOf returns the reflection Type of the value in the interface{}.
+// TypeOf(nil) returns nil.
 func TypeOf(i interface{}) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
