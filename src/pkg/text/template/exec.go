@@ -12,8 +12,6 @@ import (
 	"sort"
 	"strings"
 	"text/template/parse"
-	"unicode"
-	"unicode/utf8"
 )
 
 // state represents the state of an execution. It's not part of the
@@ -426,17 +424,16 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath == "" { // field is exported
-				// If it's a function, we must call it.
-				if hasArgs {
-					s.errorf("%s has arguments but cannot be invoked as function", fieldName)
-				}
-				return field
+			if tField.PkgPath != "" { // field is unexported
+				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
+			// If it's a function, we must call it.
+			if hasArgs {
+				s.errorf("%s has arguments but cannot be invoked as function", fieldName)
+			}
+			return field
 		}
-		if !isExported(fieldName) {
-			s.errorf("%s is not an exported field of struct type %s", fieldName, typ)
-		}
+		s.errorf("%s is not a field of struct type %s", fieldName, typ)
 	case reflect.Map:
 		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
@@ -449,12 +446,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
 	panic("not reached")
-}
-
-// isExported reports whether the field name (which starts with a period) can be accessed.
-func isExported(fieldName string) bool {
-	r, _ := utf8.DecodeRuneInString(fieldName[1:]) // drop the period
-	return unicode.IsUpper(r)
 }
 
 var (
