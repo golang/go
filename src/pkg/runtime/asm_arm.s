@@ -60,7 +60,9 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	R0, (R1)	// fail hard
 
 TEXT runtime·breakpoint(SB),7,$0
-	// no breakpoint yet; let program exit
+	// gdb won't skip this breakpoint instruction automatically,
+	// so you must manually "set $pc+=4" to skip it and continue.
+	WORD    $0xe1200071 // BKPT 0x0001
 	RET
 
 TEXT runtime·asminit(SB),7,$0
