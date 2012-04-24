@@ -1,5 +1,5 @@
 // Inferno utils/5c/reg.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5g/reg.c
+// http://code.google.com/p/inferno-os/source/browse/utils/5c/reg.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
