@@ -732,12 +732,24 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 }
 
 func (r *Request) expectsContinue() bool {
-	return strings.ToLower(r.Header.Get("Expect")) == "100-continue"
+	return hasToken(r.Header.Get("Expect"), "100-continue")
 }
 
 func (r *Request) wantsHttp10KeepAlive() bool {
 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
 		return false
 	}
-	return strings.Contains(strings.ToLower(r.Header.Get("Connection")), "keep-alive")
+	return hasToken(r.Header.Get("Connection"), "keep-alive")
+}
+
+func (r *Request) wantsClose() bool {
+	return hasToken(r.Header.Get("Connection"), "close")
+}
+
+func hasToken(s, token string) bool {
+	if s == "" {
+		return false
+	}
+	// TODO This is a poor implementation of the RFC. See http://golang.org/issue/3535
+	return strings.Contains(strings.ToLower(s), token)
 }
