@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -375,5 +376,54 @@ func TestLineContinuation(t *testing.T) {
 		if n <= 0 {
 			t.Errorf("read %d bytes; expected >0", n)
 		}
+	}
+}
+
+// Test parsing an image attachment from gmail, which previously failed.
+func TestNested(t *testing.T) {
+	// nested-mime is the body part of a multipart/mixed email
+	// with boundary e89a8ff1c1e83553e304be640612
+	f, err := os.Open("testdata/nested-mime")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	mr := NewReader(f, "e89a8ff1c1e83553e304be640612")
+	p, err := mr.NextPart()
+	if err != nil {
+		t.Fatalf("error reading first section (alternative): %v", err)
+	}
+
+	// Read the inner text/plain and text/html sections of the multipart/alternative.
+	mr2 := NewReader(p, "e89a8ff1c1e83553e004be640610")
+	p, err = mr2.NextPart()
+	if err != nil {
+		t.Fatalf("reading text/plain part: %v", err)
+	}
+	if b, err := ioutil.ReadAll(p); string(b) != "*body*\r\n" || err != nil {
+		t.Fatalf("reading text/plain part: got %q, %v", b, err)
+	}
+	p, err = mr2.NextPart()
+	if err != nil {
+		t.Fatalf("reading text/html part: %v", err)
+	}
+	if b, err := ioutil.ReadAll(p); string(b) != "<b>body</b>\r\n" || err != nil {
+		t.Fatalf("reading text/html part: got %q, %v", b, err)
+	}
+
+	p, err = mr2.NextPart()
+	if err != io.EOF {
+		t.Fatalf("final inner NextPart = %v; want io.EOF", err)
+	}
+
+	// Back to the outer multipart/mixed, reading the image attachment.
+	_, err = mr.NextPart()
+	if err != nil {
+		t.Fatalf("error reading the image attachment at the end: %v", err)
+	}
+
+	_, err = mr.NextPart()
+	if err != io.EOF {
+		t.Fatalf("final outer NextPart = %v; want io.EOF", err)
 	}
 }
