@@ -813,18 +813,6 @@ func inBodyIM(p *parser) bool {
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			p.framesetOK = false
-		case "select":
-			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.Data, p.tok.Attr)
-			p.framesetOK = false
-			p.im = inSelectIM
-			return true
-		case "optgroup", "option":
-			if p.top().Data == "option" {
-				p.oe.pop()
-			}
-			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.Data, p.tok.Attr)
 		case "image":
 			p.tok.Data = "img"
 			return false
@@ -887,12 +875,29 @@ func inBodyIM(p *parser) bool {
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.setOriginalIM()
 			p.im = textIM
+		case "select":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
+			p.im = inSelectIM
+			return true
+		case "optgroup", "option":
+			if p.top().Data == "option" {
+				p.oe.pop()
+			}
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "rp", "rt":
+			if p.elementInScope(defaultScope, "ruby") {
+				p.generateImpliedEndTags()
+			}
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "math", "svg":
 			p.reconstructActiveFormattingElements()
 			if p.tok.Data == "math" {
-				// TODO: adjust MathML attributes.
+				adjustAttributeNames(p.tok.Attr, mathMLAttributeAdjustments)
 			} else {
-				// TODO: adjust SVG attributes.
+				adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
 			}
 			adjustForeignAttributes(p.tok.Attr)
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -901,7 +906,7 @@ func inBodyIM(p *parser) bool {
 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// Ignore the token.
 		default:
-			// TODO.
+			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
 		}
 	case EndTagToken:
@@ -1785,14 +1790,14 @@ func parseForeignContent(p *parser) bool {
 		}
 		switch p.top().Namespace {
 		case "math":
-			// TODO: adjust MathML attributes.
+			adjustAttributeNames(p.tok.Attr, mathMLAttributeAdjustments)
 		case "svg":
 			// Adjust SVG tag names. The tokenizer lower-cases tag names, but
 			// SVG wants e.g. "foreignObject" with a capital second "O".
 			if x := svgTagNameAdjustments[p.tok.Data]; x != "" {
 				p.tok.Data = x
 			}
-			// TODO: adjust SVG attributes.
+			adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
 		default:
 			panic("html: bad parser state: unexpected namespace")
 		}
