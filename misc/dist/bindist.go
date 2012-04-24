@@ -256,6 +256,7 @@ func (b *Build) Do() error {
 		targ := base + ".pkg"
 		_, err = b.run("", "productbuild",
 			"--distribution", filepath.Join(dist, "darwin/Distribution"),
+			"--resources", filepath.Join(dist, "darwin/Resources"),
 			"--package-path", pkgdest,
 			targ)
 		if err != nil {
