@@ -185,6 +185,14 @@ func (r *Reader) NextPart() (*Part, error) {
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
+		if err == io.EOF && bytes.Equal(line, r.dashBoundaryDash) {
+			// If the buffer ends in "--boundary--" without the
+			// trailing "\r\n", ReadSlice will return an error
+			// (since it's missing the '\n'), but this is a valid
+			// multipart EOF so we need to return io.EOF instead of
+			// a fmt-wrapped one.
+			return nil, io.EOF
+		}
 		if err != nil {
 			return nil, fmt.Errorf("multipart: NextPart: %v", err)
 		}
