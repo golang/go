@@ -8,20 +8,20 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·rfork_thread(SB),7,$0
-	MOVL	flags+8(SP), DI
-	MOVQ	stack+16(SP), SI
+// int64 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+TEXT runtime·tfork_thread(SB),7,$32
 
-	// Copy m, g, fn off parent stack for use by child.
-	MOVQ	mm+24(SP), R8
-	MOVQ	gg+32(SP), R9
-	MOVQ	fn+40(SP), R12
+	// Copy stack, m, g and fn off parent stack for use by child.
+	MOVQ	stack+8(FP), SI
+	MOVQ	mm+16(FP), R8
+	MOVQ	gg+24(FP), R9
+	MOVQ	fn+32(FP), R12
 
-	MOVL	$251, AX		// sys_rfork
+	MOVQ	param+0(FP), DI
+	MOVL	$328, AX		// sys___tfork
 	SYSCALL
 
-	// Return if rfork syscall failed
+	// Return if tfork syscall failed.
 	JCC	3(PC)
 	NEGL	AX
 	RET
@@ -31,19 +31,14 @@ TEXT runtime·rfork_thread(SB),7,$0
 	JEQ	2(PC)
 	RET
 
-	// In child, on new stack.
+	// In child, switch to new stack.
 	MOVQ	SI, SP
-
-	// Initialize m->procid to thread ID
-	MOVL	$299, AX		// sys_getthrid
-	SYSCALL
-	MOVQ	AX, m_procid(R8)
 
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
 
-	// In child, set up new stack
+	// In child, set up new stack.
 	get_tls(CX)
 	MOVQ	R8, m(CX)
 	MOVQ	R9, g(CX)

@@ -187,40 +187,42 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·rfork_thread(SB),7,$8
-	MOVL	flags+8(SP), AX
-	MOVL	stack+12(SP), CX
+// int32 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+TEXT runtime·tfork_thread(SB),7,$8
 
-	// Copy m, g, fn off parent stack for use by child.
+	// Copy m, g, fn off parent stack and onto the child stack.
+	MOVL	stack+8(FP), CX
 	SUBL	$16, CX
-	MOVL	mm+16(SP), SI
+	MOVL	mm+12(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+20(SP), SI
+	MOVL	gg+16(FP), SI
 	MOVL	SI, 4(CX)
-	MOVL	fn+24(SP), SI
+	MOVL	fn+20(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
 	MOVL	CX, SI
 
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	AX, 4(SP)		// arg 1 - flags
-	MOVL	$251, AX		// sys_rfork
+	MOVL	params+4(FP), AX
+	MOVL	AX, 4(SP)		// arg 1 - param
+	MOVL	$328, AX		// sys___tfork
 	INT	$0x80
 
-	// Return if rfork syscall failed
-	JCC	4(PC)
+	// Return if tfork syscall failed.
+	JCC	5(PC)
 	NEGL	AX
-	MOVL	AX, 48(SP)
+	MOVL	ret+0(FP), DX
+	MOVL	AX, 0(DX)
 	RET
 
 	// In parent, return.
 	CMPL	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, 48(SP)
+	JEQ	4(PC)
+	MOVL	ret+0(FP), DX
+	MOVL	AX, 0(DX)
 	RET
 
-	// In child, on new stack.
+	// In child, switch to new stack.
 	MOVL    SI, SP
 
 	// Paranoia: check that SP is as we expect.
@@ -229,17 +231,12 @@ TEXT runtime·rfork_thread(SB),7,$8
 	JEQ	2(PC)
 	INT	$3
 
-	// Reload registers
+	// Reload registers.
 	MOVL	0(SP), BX		// m
 	MOVL	4(SP), DX		// g
 	MOVL	8(SP), SI		// fn
 
-	// Initialize m->procid to thread ID
-	MOVL	$299, AX		// sys_getthrid
-	INT	$0x80
-	MOVL	AX, m_procid(BX)
-
-	// Set FS to point at m->tls
+	// Set FS to point at m->tls.
 	LEAL	m_tls(BX), BP
 	PUSHAL				// save registers
 	PUSHL	BP
@@ -256,12 +253,12 @@ TEXT runtime·rfork_thread(SB),7,$8
 	MOVL	0(DX), DX		// paranoia; check they are not nil
 	MOVL	0(BX), BX
 
-	// more paranoia; check that stack splitting code works
+	// More paranoia; check that stack splitting code works.
 	PUSHAL
 	CALL	runtime·emptyfunc(SB)
 	POPAL
 
-	// Call fn
+	// Call fn.
 	CALL	SI
 
 	CALL	runtime·exit1(SB)
