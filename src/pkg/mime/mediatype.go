@@ -99,7 +99,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 	err = checkMediaTypeDisposition(mediatype)
 	if err != nil {
-		return
+		return "", nil, err
 	}
 
 	params = make(map[string]string)
