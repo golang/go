@@ -303,7 +303,8 @@ func (w *response) WriteHeader(code int) {
 		if !connectionHeaderSet {
 			w.header.Set("Connection", "keep-alive")
 		}
-	} else if !w.req.ProtoAtLeast(1, 1) || w.req.wantsClose() {
+	} else if !w.req.ProtoAtLeast(1, 1) {
+		// Client did not ask to keep connection alive.
 		w.closeAfterReply = true
 	}
 
