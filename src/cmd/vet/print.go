@@ -54,6 +54,33 @@ func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
 	}
 }
 
+// literal returns the literal value represented by the expression, or nil if it is not a literal.
+func (f *File) literal(value ast.Expr) *ast.BasicLit {
+	switch v := value.(type) {
+	case *ast.BasicLit:
+		return v
+	case *ast.Ident:
+		// See if it's a constant or initial value (we can't tell the difference).
+		if v.Obj == nil || v.Obj.Decl == nil {
+			return nil
+		}
+		valueSpec, ok := v.Obj.Decl.(*ast.ValueSpec)
+		if ok && len(valueSpec.Names) == len(valueSpec.Values) {
+			// Find the index in the list of names
+			var i int
+			for i = 0; i < len(valueSpec.Names); i++ {
+				if valueSpec.Names[i].Name == v.Name {
+					if lit, ok := valueSpec.Values[i].(*ast.BasicLit); ok {
+						return lit
+					}
+					return nil
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // checkPrintf checks a call to a formatted print routine such as Printf.
 // The skip argument records how many arguments to ignore; that is,
 // call.Args[skip] is (well, should be) the format argument.
@@ -61,31 +88,30 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 	if len(call.Args) <= skip {
 		return
 	}
-	// Common case: literal is first argument.
-	arg := call.Args[skip]
-	lit, ok := arg.(*ast.BasicLit)
-	if !ok {
-		// Too hard to check.
+	lit := f.literal(call.Args[skip])
+	if lit == nil {
 		if *verbose {
 			f.Warn(call.Pos(), "can't check non-literal format in call to", name)
 		}
 		return
 	}
-	if lit.Kind == token.STRING {
-		if !strings.Contains(lit.Value, "%") {
-			if len(call.Args) > skip+1 {
-				f.Badf(call.Pos(), "no formatting directive in %s call", name)
-			}
-			return
+	if lit.Kind != token.STRING {
+		f.Badf(call.Pos(), "literal %v not a string in call to", lit.Value, name)
+	}
+	format := lit.Value
+	if !strings.Contains(format, "%") {
+		if len(call.Args) > skip+1 {
+			f.Badf(call.Pos(), "no formatting directive in %s call", name)
 		}
+		return
 	}
 	// Hard part: check formats against args.
 	// Trivial but useful test: count.
 	numArgs := 0
-	for i, w := 0, 0; i < len(lit.Value); i += w {
+	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
-		if lit.Value[i] == '%' {
-			nbytes, nargs := f.parsePrintfVerb(call, lit.Value[i:])
+		if format[i] == '%' {
+			nbytes, nargs := f.parsePrintfVerb(call, format[i:])
 			w = nbytes
 			numArgs += nargs
 		}
@@ -254,6 +280,9 @@ func BadFunctionUsedInTests() {
 	printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("hi")                       // ok
+	const format = "%s %s\n"
+	Printf(format, "hi", "there")
+	Printf(format, "hi") // ERROR "wrong number of args in Printf call"
 	f := new(File)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
