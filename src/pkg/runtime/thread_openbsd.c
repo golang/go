@@ -23,7 +23,7 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_all = ~(Sigset)0;
 static Sigset sigset_none;
 
-extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+extern int64 runtime·tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
@@ -122,22 +122,14 @@ runtime·semawakeup(M *mp)
 	runtime·atomicstore(&mp->waitsemalock, 0);
 }
 
-// From OpenBSD's sys/param.h
-#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
-#define	RFMEM		(1<<5)	/* share `address space' */
-#define	RFNOWAIT	(1<<6)	/* parent need not wait() on child */
-#define	RFTHREAD	(1<<13)	/* create a thread, not a process */
-
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
+	Tfork param;
 	Sigset oset;
-	int32 flags;
 	int32 ret;
 
-	flags = RFPROC | RFTHREAD | RFMEM | RFNOWAIT;
-
-	if (0) {
+	if(0) {
 		runtime·printf(
 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);
@@ -145,8 +137,12 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	m->tls[0] = m->id;	// so 386 asm can find it
 
+	param.tf_tcb = (byte*)&m->tls[0];
+	param.tf_tid = (int32*)&m->procid;
+	param.tf_flags = (int32)0;
+
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
-	ret = runtime·rfork_thread(flags, stk, m, g, fn);
+	ret = runtime·tfork_thread((byte*)&param, stk, m, g, fn);
 	runtime·sigprocmask(SIG_SETMASK, oset);
 
 	if(ret < 0) {
