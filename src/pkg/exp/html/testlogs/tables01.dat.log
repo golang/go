@@ -1,6 +1,6 @@
 PASS "<table><th>"
 PASS "<table><td>"
-FAIL "<table><col foo='bar'>"
+PASS "<table><col foo='bar'>"
 PASS "<table><colgroup></html>foo"
 PASS "<table></table><p>foo"
 PASS "<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr><td>"
