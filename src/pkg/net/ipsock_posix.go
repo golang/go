@@ -97,9 +97,12 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 		return syscall.AF_INET6, true
 	}
 
-	if mode == "listen" && laddr.isWildcard() {
+	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
 		if supportsIPv4map {
 			return syscall.AF_INET6, false
+		}
+		if laddr == nil {
+			return syscall.AF_INET, false
 		}
 		return laddr.family(), false
 	}
