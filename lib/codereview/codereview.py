@@ -2610,15 +2610,14 @@ def RietveldSetup(ui, repo):
 	
 	global releaseBranch
 	tags = repo.branchtags().keys()
-	if 'release-branch.r100' in tags:
+	if 'release-branch.go10' in tags:
 		# NOTE(rsc): This tags.sort is going to get the wrong
-		# answer when comparing release-branch.r99 with
-		# release-branch.r100.  If we do ten releases a year
-		# that gives us 4 years before we have to worry about this.
-		raise hg_util.Abort('tags.sort needs to be fixed for release-branch.r100')
+		# answer when comparing release-branch.go9 with
+		# release-branch.go10.  It will be a while before we care.
+		raise hg_util.Abort('tags.sort needs to be fixed for release-branch.go10')
 	tags.sort()
 	for t in tags:
-		if t.startswith('release-branch.'):
+		if t.startswith('release-branch.go'):
 			releaseBranch = t			
 
 #######################################################################
