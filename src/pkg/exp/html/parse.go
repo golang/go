@@ -1139,7 +1139,14 @@ func inTableIM(p *parser) bool {
 		// Stop parsing.
 		return true
 	case TextToken:
-		// TODO.
+		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
+		switch p.oe.top().Data {
+		case "table", "tbody", "tfoot", "thead", "tr":
+			if strings.Trim(p.tok.Data, whitespace) == "" {
+				p.addText(p.tok.Data)
+				return true
+			}
+		}
 	case StartTagToken:
 		switch p.tok.Data {
 		case "caption":
@@ -1148,15 +1155,21 @@ func inTableIM(p *parser) bool {
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.im = inCaptionIM
 			return true
+		case "colgroup":
+			p.clearStackToContext(tableScope)
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.im = inColumnGroupIM
+			return true
+		case "col":
+			p.parseImpliedToken(StartTagToken, "colgroup", nil)
+			return false
 		case "tbody", "tfoot", "thead":
 			p.clearStackToContext(tableScope)
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.im = inTableBodyIM
 			return true
 		case "td", "th", "tr":
-			p.clearStackToContext(tableScope)
-			p.addElement("tbody", nil)
-			p.im = inTableBodyIM
+			p.parseImpliedToken(StartTagToken, "tbody", nil)
 			return false
 		case "table":
 			if p.popUntil(tableScope, "table") {
@@ -1165,16 +1178,24 @@ func inTableIM(p *parser) bool {
 			}
 			// Ignore the token.
 			return true
-		case "colgroup":
-			p.clearStackToContext(tableScope)
+		case "style", "script":
+			return inHeadIM(p)
+		case "input":
+			for _, a := range p.tok.Attr {
+				if a.Key == "type" && strings.ToLower(a.Val) == "hidden" {
+					p.addElement(p.tok.Data, p.tok.Attr)
+					p.oe.pop()
+					return true
+				}
+			}
+			// Otherwise drop down to the default action.
+		case "form":
+			if p.form != nil {
+				// Ignore the token.
+				return true
+			}
 			p.addElement(p.tok.Data, p.tok.Attr)
-			p.im = inColumnGroupIM
-			return true
-		case "col":
-			p.clearStackToContext(tableScope)
-			p.addElement("colgroup", p.tok.Attr)
-			p.im = inColumnGroupIM
-			return false
+			p.form = p.oe.pop()
 		case "select":
 			p.reconstructActiveFormattingElements()
 			switch p.top().Data {
@@ -1186,8 +1207,6 @@ func inTableIM(p *parser) bool {
 			p.framesetOK = false
 			p.im = inSelectInTableIM
 			return true
-		default:
-			// TODO.
 		}
 	case EndTagToken:
 		switch p.tok.Data {
@@ -1207,6 +1226,9 @@ func inTableIM(p *parser) bool {
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
+		return true
+	case DoctypeToken:
+		// Ignore the token.
 		return true
 	}
 
