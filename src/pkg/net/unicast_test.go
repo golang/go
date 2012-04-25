@@ -536,3 +536,33 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestWildWildcardListener(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	defer func() {
+		if recover() != nil {
+			t.Fatalf("panicked")
+		}
+	}()
+
+	if ln, err := Listen("tcp", ""); err != nil {
+		ln.Close()
+	}
+	if ln, err := ListenPacket("udp", ""); err != nil {
+		ln.Close()
+	}
+	if ln, err := ListenTCP("tcp", nil); err != nil {
+		ln.Close()
+	}
+	if ln, err := ListenUDP("udp", nil); err != nil {
+		ln.Close()
+	}
+	if ln, err := ListenIP("ip:icmp", nil); err != nil {
+		ln.Close()
+	}
+}
