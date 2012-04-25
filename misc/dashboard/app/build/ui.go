@@ -97,7 +97,7 @@ type Pagination struct {
 func goCommits(c appengine.Context, page int) ([]*Commit, error) {
 	q := datastore.NewQuery("Commit").
 		Ancestor((&Package{}).Key(c)).
-		Order("-Time").
+		Order("-Num").
 		Limit(commitsPerPage).
 		Offset(page * commitsPerPage)
 	var commits []*Commit
