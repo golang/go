@@ -917,11 +917,13 @@ func (mux *ServeMux) handler(r *Request) Handler {
 // ServeHTTP dispatches the request to the handler whose
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
-	// Clean path to canonical form and redirect.
-	if p := cleanPath(r.URL.Path); p != r.URL.Path {
-		w.Header().Set("Location", p)
-		w.WriteHeader(StatusMovedPermanently)
-		return
+	if r.Method != "CONNECT" {
+		// Clean path to canonical form and redirect.
+		if p := cleanPath(r.URL.Path); p != r.URL.Path {
+			w.Header().Set("Location", p)
+			w.WriteHeader(StatusMovedPermanently)
+			return
+		}
 	}
 	mux.handler(r).ServeHTTP(w, r)
 }
