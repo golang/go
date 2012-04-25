@@ -244,13 +244,33 @@ func TestParseMediaType(t *testing.T) {
 	}
 }
 
+type badMediaTypeTest struct {
+	in  string
+	err string
+}
+
+var badMediaTypeTests = []badMediaTypeTest{
+	{"bogus ;=========", "mime: invalid media parameter"},
+	{"bogus/<script>alert</script>", "mime: expected token after slash"},
+	{"bogus/bogus<script>alert</script>", "mime: unexpected content after media subtype"},
+}
+
 func TestParseMediaTypeBogus(t *testing.T) {
-	mt, params, err := ParseMediaType("bogus ;=========")
-	if err == nil {
-		t.Fatalf("expected an error parsing invalid media type; got type %q, params %#v", mt, params)
-	}
-	if err.Error() != "mime: invalid media parameter" {
-		t.Errorf("expected invalid media parameter; got error %q", err)
+	for _, tt := range badMediaTypeTests {
+		mt, params, err := ParseMediaType(tt.in)
+		if err == nil {
+			t.Errorf("ParseMediaType(%q) = nil error; want parse error", tt.in)
+			continue
+		}
+		if err.Error() != tt.err {
+			t.Errorf("ParseMediaType(%q) = err %q; want %q", tt.in, err.Error(), tt.err)
+		}
+		if params != nil {
+			t.Errorf("ParseMediaType(%q): got non-nil params on error", tt.in)
+		}
+		if mt != "" {
+			t.Errorf("ParseMediaType(%q): got non-empty media type string on error", tt.in)
+		}
 	}
 }
 
