@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
@@ -415,9 +416,11 @@ func isValidTag(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		switch c {
-		case '$', '-', '_', '/', '%':
-			// Acceptable
+		switch {
+		case strings.ContainsRune("!#$%&()*+-./:<=>?@[]^_{|}~", c):
+			// Backslash and quote chars are reserved, but
+			// otherwise any punctuation chars are allowed
+			// in a tag name.
 		default:
 			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
 				return false
