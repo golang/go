@@ -607,7 +607,7 @@ func printCharInfoTables() int {
 		tccc := ccc(d[len(d)-1])
 		cc := ccc(r)
 		if cc != 0 && lccc == 0 && tccc == 0 {
-			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", cc)
+			logger.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", r, cc)
 		}
 		if tccc < lccc && lccc != 0 {
 			const msg = "%U: lccc (%d) must be <= tcc (%d)"
@@ -623,7 +623,7 @@ func printCharInfoTables() int {
 			}
 			if cc != lccc {
 				if cc != 0 {
-					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", cc)
+					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", r, cc)
 				}
 				index = 3
 			}
