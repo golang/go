@@ -335,56 +335,32 @@ var goTag = regexp.MustCompile(
 // Version "goX" (or "goX.Y" or "goX.Y.Z") matches tags of the same form.
 // Version "release.rN" matches tags of the form "go.rN" (N being a floating-point number).
 // Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
+//
+// NOTE(rsc): Eventually we will need to decide on some logic here.
+// For now, there is only "go1".  This matches the docs in go help get.
 func selectTag(goVersion string, tags []string) (match string) {
-	const rPrefix = "release.r"
-	if strings.HasPrefix(goVersion, rPrefix) {
-		p := "go.r"
-		v, err := strconv.ParseFloat(goVersion[len(rPrefix):], 64)
-		if err != nil {
-			return ""
-		}
-		var matchf float64
-		for _, t := range tags {
-			if !strings.HasPrefix(t, p) {
-				continue
-			}
-			tf, err := strconv.ParseFloat(t[len(p):], 64)
-			if err != nil {
-				continue
-			}
-			if matchf < tf && tf <= v {
-				match, matchf = t, tf
-			}
+	for _, t := range tags {
+		if t == "go1" {
+			return "go1"
 		}
 	}
+	return ""
 
-	const wPrefix = "weekly."
-	if strings.HasPrefix(goVersion, wPrefix) {
-		p := "go.weekly."
-		v := goVersion[len(wPrefix):]
-		for _, t := range tags {
-			if !strings.HasPrefix(t, p) {
-				continue
-			}
-			if match < t && t[len(p):] <= v {
-				match = t
+	/*
+		if goTag.MatchString(goVersion) {
+			v := goVersion
+			for _, t := range tags {
+				if !goTag.MatchString(t) {
+					continue
+				}
+				if cmpGoVersion(match, t) < 0 && cmpGoVersion(t, v) <= 0 {
+					match = t
+				}
 			}
 		}
-	}
 
-	if goTag.MatchString(goVersion) {
-		v := goVersion
-		for _, t := range tags {
-			if !goTag.MatchString(t) {
-				continue
-			}
-			if cmpGoVersion(match, t) < 0 && cmpGoVersion(t, v) <= 0 {
-				match = t
-			}
-		}
-	}
-
-	return match
+		return match
+	*/
 }
 
 // cmpGoVersion returns -1, 0, +1 reporting whether
