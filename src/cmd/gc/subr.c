@@ -142,6 +142,11 @@ yyerror(char *fmt, ...)
 		if(debug['x'])	
 			print("yyerror: yystate=%d yychar=%d\n", yystate, yychar);
 
+		// An unexpected EOF caused a syntax error. Use the previous
+		// line number since getc generated a fake newline character.
+		if(curio.eofnl)
+			lexlineno = prevlineno;
+
 		// only one syntax error per line
 		if(lastsyntax == lexlineno)
 			return;
