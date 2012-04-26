@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	tag      = flag.String("tag", "release", "mercurial tag to check out")
+	tag      = flag.String("tag", "weekly", "mercurial tag to check out")
 	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose  = flag.Bool("v", false, "verbose output")
 	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
@@ -211,20 +211,14 @@ func (b *Build) Do() error {
 	}
 
 	// Create packages.
-	base := fmt.Sprintf("%s.%s-%s", version, b.OS, b.Arch)
-	if !strings.HasPrefix(base, "go") {
-		base = "go." + base
-	}
+	base := fmt.Sprintf("go.%s.%s-%s", version, b.OS, b.Arch)
 	var targs []string
 	switch b.OS {
 	case "linux", "freebsd", "":
 		// build tarball
 		targ := base
 		if b.Source {
-			targ = fmt.Sprintf("%s.src", version)
-			if !strings.HasPrefix(targ, "go") {
-				targ = "go." + targ
-			}
+			targ = fmt.Sprintf("go.%s.src", version)
 		}
 		targ += ".tar.gz"
 		err = makeTar(targ, work)
