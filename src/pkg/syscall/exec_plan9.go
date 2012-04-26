@@ -86,66 +86,60 @@ func gstring(b []byte) (string, []byte) {
 
 // readdirnames returns the names of files inside the directory represented by dirfd.
 func readdirnames(dirfd int) (names []string, err error) {
-	result := make([]string, 0, 100)
+	names = make([]string, 0, 100)
 	var buf [STATMAX]byte
 
 	for {
 		n, e := Read(dirfd, buf[:])
 		if e != nil {
-			return []string{}, e
+			return nil, e
 		}
 		if n == 0 {
 			break
 		}
-
 		for i := 0; i < n; {
 			m, _ := gbit16(buf[i:])
 			m += 2
 
 			if m < STATFIXLEN {
-				return []string{}, NewError("malformed stat buffer")
+				return nil, NewError("malformed stat buffer")
 			}
 
-			name, _ := gstring(buf[i+41:])
-			result = append(result, name)
-
+			s, _ := gstring(buf[i+41:])
+			names = append(names, s)
 			i += int(m)
 		}
 	}
-	return []string{}, nil
+	return
 }
 
 // readdupdevice returns a list of currently opened fds (excluding stdin, stdout, stderr) from the dup device #d.
 // ForkLock should be write locked before calling, so that no new fds would be created while the fd list is being read.
 func readdupdevice() (fds []int, err error) {
 	dupdevfd, err := Open("#d", O_RDONLY)
-
 	if err != nil {
 		return
 	}
 	defer Close(dupdevfd)
 
-	fileNames, err := readdirnames(dupdevfd)
+	names, err := readdirnames(dupdevfd)
 	if err != nil {
 		return
 	}
 
-	fds = make([]int, 0, len(fileNames)>>1)
-	for _, fdstr := range fileNames {
-		if l := len(fdstr); l > 2 && fdstr[l-3] == 'c' && fdstr[l-2] == 't' && fdstr[l-1] == 'l' {
+	fds = make([]int, 0, len(names)/2)
+	for _, name := range names {
+		if n := len(name); n > 3 && name[n-3:n] == "ctl" {
 			continue
 		}
-
-		fd := int(atoi([]byte(fdstr)))
-
-		if fd == 0 || fd == 1 || fd == 2 || fd == dupdevfd {
+		fd := int(atoi([]byte(name)))
+		switch fd {
+		case 0, 1, 2, dupdevfd:
 			continue
 		}
-
 		fds = append(fds, fd)
 	}
-
-	return fds[0:len(fds)], nil
+	return
 }
 
 var startupFds []int
@@ -282,14 +276,13 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		if fd[i] == int(i) {
 			continue
 		}
-
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
 		if int(r1) == -1 {
 			goto childerror
 		}
 	}
 
-	// Pass 3: close fds that were dup-ed
+	// Pass 3: close fd[i] if it was moved in the previous pass.
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] != int(i) {
 			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
@@ -406,39 +399,32 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	// get a list of open fds, excluding stdin,stdout and stderr that need to be closed in the child.
 	// no new fds can be created while we hold the ForkLock for writing.
 	openFds, e := readdupdevice()
-
 	if e != nil {
 		ForkLock.Unlock()
 		return 0, e
 	}
 
 	fdsToClose := make([]int, 0, len(openFds))
-	// exclude fds opened from startup from the list of fds to be closed.
 	for _, fd := range openFds {
-		isReserved := false
-		for _, reservedFd := range startupFds {
-			if fd == reservedFd {
-				isReserved = true
+		doClose := true
+
+		// exclude files opened at startup.
+		for _, sfd := range startupFds {
+			if fd == sfd {
+				doClose = false
 				break
 			}
 		}
 
-		if !isReserved {
-			fdsToClose = append(fdsToClose, fd)
-		}
-	}
-
-	// exclude fds requested by the caller from the list of fds to be closed.
-	for _, fd := range openFds {
-		isReserved := false
-		for _, reservedFd := range attr.Files {
-			if fd == int(reservedFd) {
-				isReserved = true
+		// exclude files explicitly requested by the caller.
+		for _, rfd := range attr.Files {
+			if fd == int(rfd) {
+				doClose = false
 				break
 			}
 		}
 
-		if !isReserved {
+		if doClose {
 			fdsToClose = append(fdsToClose, fd)
 		}
 	}
