@@ -8,8 +8,8 @@ godoc on appengine
 Prerequisites
 -------------
 
-* Go appengine SDK 1.5.5 - 2011-10-11
-  http://code.google.com/appengine/downloads.html#Google_App_Engine_SDK_for_Go
+* Go appengine SDK
+  https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go
 
 * Go sources at tip under $GOROOT
 
@@ -23,10 +23,6 @@ Directory structure
 * $APPDIR contains the following entries (this may change depending on
   app-engine release and version of godoc):
 
-	alt/
-		encoding/binary/
-		go/*
-		index/suffixarray/
 	app.yaml
 	godoc.zip
 	godoc/
@@ -36,31 +32,16 @@ Directory structure
   For instance:
 
 	application: godoc-app
-	version: 1-5-5
+	version: 1
 	runtime: go
-	api_version: 3
+	api_version: go1
 
 	handlers:
 	- url: /.*
 	  script: _go_app
 
 * The godoc/ directory contains a copy of the files under $GOROOT/src/cmd/godoc
-  with modifications:
-
-	- doc.go is excluded (it belongs to pseudo-package “documentation”)
-	- main.go is excluded (appinit.go is taking its place)
-
-  Additional manual modifications are required to refer to the alt/ packages
-  where the app-engine library is not up-to-date with the godoc version.
-
-* The alt/ directory contains up-to-date copies of Go packages that a tip-based
-  godoc is dependent on but which do not yet exist in the current app-engine SDK.
-  At the time of this writing (10/14/2011) this is the entire go directory tree
-  (for the missing FileSet serialization code in go/token) as well as the
-  index/suffixarray package (for the missing suffix array serialization code).
-  The latest (alt/)index/suffixarray package internally requires the latest
-  version of encoding/binary, which is why it also needs to be present under
-  alt/.
+  with doc.go excluded (it belongs to pseudo-package "documentation")
 
 
 Configuring and running godoc

@@ -44,8 +44,8 @@ getArgs() {
 	if [ ! -d $GOROOT ]; then
 		error "$GOROOT is not a directory"
 	fi
-	if [ ! -x $GOROOT/src/cmd/godoc/godoc ]; then
-		error "$GOROOT/src/cmd/godoc/godoc does not exist or is not executable"
+	if [ ! -x $GOROOT/bin/godoc ]; then
+		error "$GOROOT/bin/godoc does not exist or is not executable"
 	fi
 	if [ ! -d $APPDIR ]; then
 		error "$APPDIR is not a directory"
@@ -72,15 +72,15 @@ cleanup() {
 
 makeZipfile() {
 	echo "*** make $APPDIR/$ZIPFILE"
-	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
+	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.xml -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
 }
 
 makeIndexfile() {
 	echo "*** make $APPDIR/$INDEXFILE"
 	OUT=/tmp/godoc.out
-	$GOROOT/src/cmd/godoc/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
+	$GOROOT/bin/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
 	if [ $? != 0 ]; then
-		error "$GOROOT/src/cmd/godoc/godoc failed - see $OUT for details"
+		error "$GOROOT/bin/godoc failed - see $OUT for details"
 	fi
 }
 
