@@ -68,6 +68,7 @@ const (
 	buttonScope
 	tableScope
 	tableRowScope
+	tableBodyScope
 )
 
 // popUntil pops the stack of open elements at the highest element whose tag
@@ -157,6 +158,11 @@ func (p *parser) clearStackToContext(s scope) {
 			}
 		case tableRowScope:
 			if tag == "html" || tag == "tr" {
+				p.oe = p.oe[:i+1]
+				return
+			}
+		case tableBodyScope:
+			if tag == "html" || tag == "tbody" || tag == "tfoot" || tag == "thead" {
 				p.oe = p.oe[:i+1]
 				return
 			}
@@ -1290,6 +1296,16 @@ func inCaptionIM(p *parser) bool {
 // Section 12.2.5.4.12.
 func inColumnGroupIM(p *parser) bool {
 	switch p.tok.Type {
+	case TextToken:
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) < len(p.tok.Data) {
+			// Add the initial whitespace to the current node.
+			p.addText(p.tok.Data[:len(p.tok.Data)-len(s)])
+			if s == "" {
+				return true
+			}
+			p.tok.Data = s
+		}
 	case CommentToken:
 		p.addChild(&Node{
 			Type: CommentNode,
@@ -1332,40 +1348,34 @@ func inColumnGroupIM(p *parser) bool {
 
 // Section 12.2.5.4.13.
 func inTableBodyIM(p *parser) bool {
-	var (
-		add      bool
-		data     string
-		attr     []Attribute
-		consumed bool
-	)
 	switch p.tok.Type {
-	case ErrorToken:
-		// TODO.
-	case TextToken:
-		// TODO.
 	case StartTagToken:
 		switch p.tok.Data {
 		case "tr":
-			add = true
-			data = p.tok.Data
-			attr = p.tok.Attr
-			consumed = true
+			p.clearStackToContext(tableBodyScope)
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.im = inRowIM
+			return true
 		case "td", "th":
-			add = true
-			data = "tr"
-			consumed = false
-		case "caption", "col", "colgroup", "tbody", "tfoot", "thead":
-			if !p.popUntil(tableScope, "tbody", "thead", "tfoot") {
-				// Ignore the token.
-				return true
-			}
-			p.im = inTableIM
+			p.parseImpliedToken(StartTagToken, "tr", nil)
 			return false
-		default:
-			// TODO.
+		case "caption", "col", "colgroup", "tbody", "tfoot", "thead":
+			if p.popUntil(tableScope, "tbody", "thead", "tfoot") {
+				p.im = inTableIM
+				return false
+			}
+			// Ignore the token.
+			return true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
+		case "tbody", "tfoot", "thead":
+			if p.elementInScope(tableScope, p.tok.Data) {
+				p.clearStackToContext(tableBodyScope)
+				p.oe.pop()
+				p.im = inTableIM
+			}
+			return true
 		case "table":
 			if p.popUntil(tableScope, "tbody", "thead", "tfoot") {
 				p.im = inTableIM
@@ -1384,12 +1394,7 @@ func inTableBodyIM(p *parser) bool {
 		})
 		return true
 	}
-	if add {
-		// TODO: clear the stack back to a table body context.
-		p.addElement(data, attr)
-		p.im = inRowIM
-		return consumed
-	}
+
 	return inTableIM(p)
 }
 
