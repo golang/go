@@ -403,7 +403,7 @@ const (
 	Hour                 = 60 * Minute
 )
 
-// Duration returns a string representing the duration in the form "72h3m0.5s".
+// String returns a string representing the duration in the form "72h3m0.5s".
 // Leading zero units are omitted.  As a special case, durations less than one
 // second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
 // that the leading digit is non-zero.  The zero duration formats as 0,
