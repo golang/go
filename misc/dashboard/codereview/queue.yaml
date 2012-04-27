@@ -1,0 +1,4 @@
+queue:
+- name: update-cl
+  rate: 12/m
+  bucket_size: 1

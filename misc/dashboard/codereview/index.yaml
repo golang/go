@@ -1,0 +1,19 @@
+indexes:
+
+- kind: CL
+  properties:
+  - name: Author
+  - name: Modified
+    direction: desc
+
+- kind: CL
+  properties:
+  - name: Closed
+  - name: Modified
+    direction: desc
+
+- kind: CL
+  properties:
+  - name: Reviewer
+  - name: Modified
+    direction: desc
