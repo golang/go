@@ -47,9 +47,9 @@ type CL struct {
 	Reviewer string
 }
 
-// ShortOwner returns the CL's owner, either as their email address
+// DisplayOwner returns the CL's owner, either as their email address
 // or the person ID if it's a reviewer. It is for display only.
-func (cl *CL) ShortOwner() string {
+func (cl *CL) DisplayOwner() string {
 	if p, ok := emailToPerson[cl.Owner]; ok {
 		return p
 	}
@@ -79,13 +79,20 @@ func (cl *CL) LGTMHTML() template.HTML {
 }
 
 func (cl *CL) ModifiedAgo() string {
-	d := time.Now().Sub(cl.Modified)
-	d -= d % time.Minute // truncate to minute resolution
-	s := d.String()
-	if strings.HasSuffix(s, "0s") {
-		s = s[:len(s)-2]
+	// Just the first non-zero unit.
+	units := map[string]time.Duration{
+		"d": 24 * time.Hour,
+		"h": time.Hour,
+		"m": time.Minute,
+		"s": time.Second,
 	}
-	return s
+	d := time.Now().Sub(cl.Modified)
+	for suffix, u := range units {
+		if d > u {
+			return fmt.Sprintf("%d%s", d/u, suffix)
+		}
+	}
+	return "just now"
 }
 
 func handleAssign(w http.ResponseWriter, r *http.Request) {
