@@ -16,7 +16,7 @@ handlers:
 - url: /_ah/queue/go/delay
   script: _go_app
   login: admin
-- url: /update-cl
+- url: /(gc|update-cl)
   script: _go_app
   login: admin
 - url: /.*

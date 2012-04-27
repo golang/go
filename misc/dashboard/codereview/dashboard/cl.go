@@ -80,16 +80,19 @@ func (cl *CL) LGTMHTML() template.HTML {
 
 func (cl *CL) ModifiedAgo() string {
 	// Just the first non-zero unit.
-	units := map[string]time.Duration{
-		"d": 24 * time.Hour,
-		"h": time.Hour,
-		"m": time.Minute,
-		"s": time.Second,
+	units := [...]struct {
+		suffix string
+		unit   time.Duration
+	}{
+		{"d", 24 * time.Hour},
+		{"h", time.Hour},
+		{"m", time.Minute},
+		{"s", time.Second},
 	}
 	d := time.Now().Sub(cl.Modified)
-	for suffix, u := range units {
-		if d > u {
-			return fmt.Sprintf("%d%s", d/u, suffix)
+	for _, u := range units {
+		if d > u.unit {
+			return fmt.Sprintf("%d%s", d/u.unit, u.suffix)
 		}
 	}
 	return "just now"
