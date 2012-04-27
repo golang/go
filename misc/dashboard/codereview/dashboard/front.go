@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"appengine"
 	"appengine/datastore"
@@ -34,42 +35,42 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 		Filter("Closed =", false).
 		Order("-Modified")
 
-	if data.UserIsReviewer {
+	tableFetch := func(index int, f func(tbl *clTable) error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tbl := &data.Tables[0]
-			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(10)
-			tbl.Title = "CLs assigned to you for review"
-			tbl.Assignable = true
-			if _, err := q.GetAll(c, &tbl.CLs); err != nil {
+			start := time.Now()
+			if err := f(&data.Tables[index]); err != nil {
 				errc <- err
 			}
+			data.Timing[index] = time.Now().Sub(start)
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tbl := &data.Tables[1]
+	if data.UserIsReviewer {
+		tableFetch(0, func(tbl *clTable) error {
+			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(10)
+			tbl.Title = "CLs assigned to you for review"
+			tbl.Assignable = true
+			_, err := q.GetAll(c, &tbl.CLs)
+			return err
+		})
+	}
+
+	tableFetch(1, func(tbl *clTable) error {
 		q := activeCLs.Filter("Author =", currentPerson).Limit(10)
 		tbl.Title = "CLs sent by you"
 		tbl.Assignable = true
-		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
-			errc <- err
-		}
-	}()
+		_, err := q.GetAll(c, &tbl.CLs)
+		return err
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tbl := &data.Tables[2]
+	tableFetch(2, func(tbl *clTable) error {
 		q := activeCLs.Limit(50)
 		tbl.Title = "Other active CLs"
 		tbl.Assignable = true
 		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
-			errc <- err
-			return
+			return err
 		}
 		// filter
 		if data.UserIsReviewer {
@@ -81,22 +82,19 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	}()
+		return nil
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tbl := &data.Tables[3]
+	tableFetch(3, func(tbl *clTable) error {
 		q := datastore.NewQuery("CL").
 			Filter("Closed =", true).
 			Order("-Modified").
 			Limit(10)
 		tbl.Title = "Recently closed CLs"
 		tbl.Assignable = false
-		if _, err := q.GetAll(c, &tbl.CLs); err != nil {
-			errc <- err
-		}
-	}()
+		_, err := q.GetAll(c, &tbl.CLs)
+		return err
+	})
 
 	wg.Wait()
 
@@ -119,6 +117,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 
 type frontPageData struct {
 	Tables [4]clTable
+	Timing [4]time.Duration
 
 	Reviewers      []string
 	UserIsReviewer bool
@@ -174,6 +173,10 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
       a {
         color: blue;
 	text-decoration: none;  /* no link underline */
+      }
+      address {
+        font-size: 10px;
+	text-align: right;
       }
       .email {
         font-family: monospace;
@@ -234,6 +237,11 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
 <em>none</em>
 {{end}}
 {{end}}
+
+<hr />
+<address>
+datastore timing: {{range .Timing}} {{.}}{{end}}
+</address>
 
   </body>
 </html>
