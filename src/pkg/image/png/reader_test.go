@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -266,4 +267,42 @@ func TestReaderError(t *testing.T) {
 			t.Errorf("decoding %s: have image + error", tt.file)
 		}
 	}
+}
+
+func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
+	b.StopTimer()
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		b.Fatal(err)
+	}
+	s := string(data)
+	cfg, err := DecodeConfig(strings.NewReader(s))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(cfg.Width * cfg.Height * bytesPerPixel))
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(strings.NewReader(s))
+	}
+}
+
+func BenchmarkDecodeGray(b *testing.B) {
+	benchmarkDecode(b, "testdata/benchGray.png", 1)
+}
+
+func BenchmarkDecodeNRGBAGradient(b *testing.B) {
+	benchmarkDecode(b, "testdata/benchNRGBA-gradient.png", 4)
+}
+
+func BenchmarkDecodeNRGBAOpaque(b *testing.B) {
+	benchmarkDecode(b, "testdata/benchNRGBA-opaque.png", 4)
+}
+
+func BenchmarkDecodePaletted(b *testing.B) {
+	benchmarkDecode(b, "testdata/benchPaletted.png", 1)
+}
+
+func BenchmarkDecodeRGB(b *testing.B) {
+	benchmarkDecode(b, "testdata/benchRGB.png", 4)
 }

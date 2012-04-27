@@ -301,6 +301,7 @@ func (d *decoder) decode() (image.Image, error) {
 	defer r.Close()
 	bitsPerPixel := 0
 	maxPalette := uint8(0)
+	pixOffset := 0
 	var (
 		gray     *image.Gray
 		rgba     *image.RGBA
@@ -423,18 +424,24 @@ func (d *decoder) decode() (image.Image, error) {
 				}
 			}
 		case cbG8:
-			for x := 0; x < d.width; x++ {
-				gray.SetGray(x, y, color.Gray{cdat[x]})
-			}
+			copy(gray.Pix[pixOffset:], cdat)
+			pixOffset += gray.Stride
 		case cbGA8:
 			for x := 0; x < d.width; x++ {
 				ycol := cdat[2*x+0]
 				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
 			}
 		case cbTC8:
+			pix, i, j := rgba.Pix, pixOffset, 0
 			for x := 0; x < d.width; x++ {
-				rgba.SetRGBA(x, y, color.RGBA{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+				pix[i+0] = cdat[j+0]
+				pix[i+1] = cdat[j+1]
+				pix[i+2] = cdat[j+2]
+				pix[i+3] = 0xff
+				i += 4
+				j += 3
 			}
+			pixOffset += rgba.Stride
 		case cbP1:
 			for x := 0; x < d.width; x += 8 {
 				b := cdat[x/8]
@@ -472,16 +479,18 @@ func (d *decoder) decode() (image.Image, error) {
 				}
 			}
 		case cbP8:
-			for x := 0; x < d.width; x++ {
-				if cdat[x] > maxPalette {
-					return nil, FormatError("palette index out of range")
+			if maxPalette != 255 {
+				for x := 0; x < d.width; x++ {
+					if cdat[x] > maxPalette {
+						return nil, FormatError("palette index out of range")
+					}
 				}
-				paletted.SetColorIndex(x, y, cdat[x])
 			}
+			copy(paletted.Pix[pixOffset:], cdat)
+			pixOffset += paletted.Stride
 		case cbTCA8:
-			for x := 0; x < d.width; x++ {
-				nrgba.SetNRGBA(x, y, color.NRGBA{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
-			}
+			copy(nrgba.Pix[pixOffset:], cdat)
+			pixOffset += nrgba.Stride
 		case cbG16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
