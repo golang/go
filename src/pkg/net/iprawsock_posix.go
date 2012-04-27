@@ -9,9 +9,7 @@
 package net
 
 import (
-	"os"
 	"syscall"
-	"time"
 )
 
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
@@ -55,94 +53,10 @@ func (a *IPAddr) toAddr() sockaddr {
 // IPConn is the implementation of the Conn and PacketConn
 // interfaces for IP network connections.
 type IPConn struct {
-	fd *netFD
+	conn
 }
 
-func newIPConn(fd *netFD) *IPConn { return &IPConn{fd} }
-
-func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
-
-// Implementation of the Conn interface - see Conn for documentation.
-
-// Read implements the Conn Read method.
-func (c *IPConn) Read(b []byte) (int, error) {
-	n, _, err := c.ReadFrom(b)
-	return n, err
-}
-
-// Write implements the Conn Write method.
-func (c *IPConn) Write(b []byte) (int, error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	return c.fd.Write(b)
-}
-
-// Close closes the IP connection.
-func (c *IPConn) Close() error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return c.fd.Close()
-}
-
-// LocalAddr returns the local network address.
-func (c *IPConn) LocalAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.fd.laddr
-}
-
-// RemoteAddr returns the remote network address, a *IPAddr.
-func (c *IPConn) RemoteAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.fd.raddr
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *IPConn) SetDeadline(t time.Time) error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return setDeadline(c.fd, t)
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *IPConn) SetReadDeadline(t time.Time) error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return setReadDeadline(c.fd, t)
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *IPConn) SetWriteDeadline(t time.Time) error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return setWriteDeadline(c.fd, t)
-}
-
-// SetReadBuffer sets the size of the operating system's
-// receive buffer associated with the connection.
-func (c *IPConn) SetReadBuffer(bytes int) error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return setReadBuffer(c.fd, bytes)
-}
-
-// SetWriteBuffer sets the size of the operating system's
-// transmit buffer associated with the connection.
-func (c *IPConn) SetWriteBuffer(bytes int) error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	return setWriteBuffer(c.fd, bytes)
-}
+func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 
 // IP-specific methods.
 
@@ -255,8 +169,3 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	}
 	return newIPConn(fd), nil
 }
-
-// File returns a copy of the underlying os.File, set to blocking mode.
-// It is the caller's responsibility to close f when finished.
-// Closing c does not affect f, and closing f does not affect c.
-func (c *IPConn) File() (f *os.File, err error) { return c.fd.dup() }
