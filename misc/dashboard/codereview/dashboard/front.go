@@ -192,7 +192,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
 <table class="cls">
 {{range $cl := .CLs}}
   <tr id="cl-{{$cl.Number}}">
-    <td class="email">{{$cl.ShortOwner}}</td>
+    <td class="email">{{$cl.DisplayOwner}}</td>
     {{if $tbl.Assignable}}
     <td>
     <select id="cl-rev-{{$cl.Number}}" {{if not $.UserIsReviewer}}disabled{{end}}>
