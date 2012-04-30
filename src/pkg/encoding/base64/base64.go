@@ -318,7 +318,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	}
 	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf)
 	d.nbuf += nn
-	if d.nbuf < 4 {
+	if d.err != nil || d.nbuf < 4 {
 		return 0, d.err
 	}
 
