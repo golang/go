@@ -265,8 +265,10 @@ TEXT runtime·bsdthread_register(SB),7,$0
 	MOVQ	$0, R9	// dispatchqueue_offset
 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
 	SYSCALL
-	JCC 2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	JCC 3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
 	RET
 
 // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.

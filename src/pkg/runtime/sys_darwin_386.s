@@ -268,8 +268,10 @@ TEXT runtime·bsdthread_register(SB),7,$40
 	MOVL	$0, 20(SP)	// targetconc_ptr
 	MOVL	$0, 24(SP)	// dispatchqueue_offset
 	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	JAE	3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
 	RET
 
 // Invoke Mach system call.
