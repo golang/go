@@ -16,6 +16,8 @@ import (
 
 	"appengine"
 	"appengine/datastore"
+	"appengine/delay"
+	"appengine/mail"
 	"appengine/taskqueue"
 	"appengine/urlfetch"
 	"appengine/user"
@@ -41,6 +43,10 @@ type CL struct {
 	Description []byte `datastore:",noindex"`
 	FirstLine   string `datastore:",noindex"`
 	LGTMs       []string
+
+	// Mail information.
+	Subject    string   `datastore:",noindex"`
+	Recipients []string `datastore:",noindex"`
 
 	// These are person IDs (e.g. "rsc"); they may be empty
 	Author   string
@@ -98,6 +104,8 @@ func (cl *CL) ModifiedAgo() string {
 	return "just now"
 }
 
+var sendMailLater = delay.Func("send-mail", mail.Send)
+
 func handleAssign(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -106,7 +114,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := emailToPerson[user.Current(c).Email]; !ok {
+	u := user.Current(c)
+	if _, ok := emailToPerson[u.Email]; !ok {
 		http.Error(w, "Not allowed", http.StatusUnauthorized)
 		return
 	}
@@ -117,8 +126,79 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad CL", 400)
 		return
 	}
+	if _, ok := preferredEmail[rev]; !ok && rev != "" {
+		c.Errorf("Unknown reviewer %q", rev)
+		http.Error(w, "Unknown reviewer", 400)
+		return
+	}
 
 	key := datastore.NewKey(c, "CL", n, 0, nil)
+
+	if rev != "" {
+		// Make sure the reviewer is listed in Rietveld as a reviewer.
+		url := codereviewBase + "/" + n + "/fields"
+		resp, err := urlfetch.Client(c).Get(url + "?field=reviewers")
+		if err != nil {
+			c.Errorf("Retrieving CL reviewer list failed: %v", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			c.Errorf("Retrieving CL reviewer list failed: got HTTP response %d", resp.StatusCode)
+			http.Error(w, "Failed contacting Rietveld", 500)
+			return
+		}
+
+		var apiResp struct {
+			Reviewers []string `json:"reviewers"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+			// probably can't be retried
+			msg := fmt.Sprintf("Malformed JSON from %v: %v", url, err)
+			c.Errorf("%s", msg)
+			http.Error(w, msg, 500)
+			return
+		}
+		found := false
+		for _, r := range apiResp.Reviewers {
+			if emailToPerson[r] == rev {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.Infof("Adding %v as a reviewer of CL %v", rev, n)
+
+			// We can't do this easily, as we need authentication to edit
+			// an issue on behalf of a user, which is non-trivial. For now,
+			// just send a mail with the body "R=<reviewer>", Cc'ing that person,
+			// and rely on social convention.
+			cl := new(CL)
+			err := datastore.Get(c, key, cl)
+			if err != nil {
+				c.Errorf("%s", err)
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			// The current data does not have the subject/recipient information.
+			// TODO(dsymonds): Remove this if when all the CLs have subject lines.
+			if cl.Subject != "" {
+				msg := &mail.Message{
+					Sender: u.Email,
+					To:     []string{preferredEmail[rev]},
+					Cc:     cl.Recipients,
+					// Take care to match Rietveld's subject line
+					// so that Gmail will correctly thread mail.
+					Subject: cl.Subject + " (issue " + n + ")",
+					Body:    "R=" + rev + "\n\n(sent by gocodereview)",
+				}
+				sendMailLater.Call(c, msg)
+			}
+		}
+	}
+
+	// Update our own record.
 	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
 		cl := new(CL)
 		err := datastore.Get(c, key, cl)
@@ -187,10 +267,12 @@ func updateCL(c appengine.Context, n string) error {
 		OwnerEmail  string `json:"owner_email"`
 		Modified    string `json:"modified"`
 		Closed      bool   `json:"closed"`
+		Subject     string `json:"subject"`
 		Messages    []struct {
-			Text     string `json:"text"`
-			Sender   string `json:"sender"`
-			Approval bool   `json:"approval"`
+			Text       string   `json:"text"`
+			Sender     string   `json:"sender"`
+			Recipients []string `json:"recipients"`
+			Approval   bool     `json:"approval"`
 		} `json:"messages"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
@@ -206,6 +288,7 @@ func updateCL(c appengine.Context, n string) error {
 		Owner:       apiResp.OwnerEmail,
 		Description: []byte(apiResp.Description),
 		FirstLine:   apiResp.Description,
+		Subject:     apiResp.Subject,
 		Author:      emailToPerson[apiResp.OwnerEmail],
 	}
 	cl.Created, err = time.Parse("2006-01-02 15:04:05.000000", apiResp.Created)
@@ -219,6 +302,7 @@ func updateCL(c appengine.Context, n string) error {
 	if i := strings.Index(cl.FirstLine, "\n"); i >= 0 {
 		cl.FirstLine = cl.FirstLine[:i]
 	}
+	rcpt := make(map[string]bool)
 	for _, msg := range apiResp.Messages {
 		s, rev := msg.Sender, false
 		if p, ok := emailToPerson[s]; ok {
@@ -234,10 +318,19 @@ func updateCL(c appengine.Context, n string) error {
 		}
 
 		if msg.Approval {
+			// TODO(dsymonds): De-dupe LGTMs.
 			cl.LGTMs = append(cl.LGTMs, s)
 		}
+
+		for _, r := range msg.Recipients {
+			rcpt[r] = true
+		}
+	}
+	for r := range rcpt {
+		cl.Recipients = append(cl.Recipients, r)
 	}
 	sort.Strings(cl.LGTMs)
+	sort.Strings(cl.Recipients)
 
 	key := datastore.NewKey(c, "CL", n, 0, nil)
 	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
