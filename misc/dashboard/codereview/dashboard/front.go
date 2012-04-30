@@ -25,9 +25,10 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 
 	data := &frontPageData{
 		Reviewers: personList,
+		User:      user.Current(c).Email,
 	}
 	var currentPerson string
-	currentPerson, data.UserIsReviewer = emailToPerson[user.Current(c).Email]
+	currentPerson, data.UserIsReviewer = emailToPerson[data.User]
 
 	var wg sync.WaitGroup
 	errc := make(chan error, 10)
@@ -96,6 +97,13 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 
+	// Not really a table fetch.
+	tableFetch(0, func(_ *clTable) error {
+		var err error
+		data.LogoutURL, err = user.LogoutURL(c, "/")
+		return err
+	})
+
 	wg.Wait()
 
 	select {
@@ -107,7 +115,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var b bytes.Buffer
-	if err := frontPage.ExecuteTemplate(&b, "front", data); err != nil {
+	if err := frontPage.ExecuteTemplate(&b, "front", &data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -121,6 +129,8 @@ type frontPageData struct {
 
 	Reviewers      []string
 	UserIsReviewer bool
+
+	User, LogoutURL string
 }
 
 type clTable struct {
@@ -240,6 +250,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
 
 <hr />
 <address>
+You are <span class="email">{{.User}}</span> &middot; <a href="{{.LogoutURL}}">logout</a><br />
 datastore timing: {{range .Timing}} {{.}}{{end}}
 </address>
 
