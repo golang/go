@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"appengine"
+	"appengine/datastore"
 )
 
 func init() {
@@ -35,6 +36,23 @@ func handleMail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.Infof("Found issue %q", m[1])
+
+	// Track the MessageID.
+	key := datastore.NewKey(c, "CL", m[1], 0, nil)
+	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
+		cl := new(CL)
+		err := datastore.Get(c, key, cl)
+		if err != nil && err != datastore.ErrNoSuchEntity {
+			return err
+		}
+		cl.LastMessageID = msg.Header.Get("Message-ID")
+		_, err = datastore.Put(c, key, cl)
+		return err
+	}, nil)
+	if err != nil {
+		c.Errorf("datastore transaction failed: %v", err)
+	}
+
 	// Update the CL after a delay to give Rietveld a chance to catch up.
 	UpdateCLLater(c, m[1], 10*time.Second)
 }
