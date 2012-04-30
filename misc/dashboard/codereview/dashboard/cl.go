@@ -45,8 +45,9 @@ type CL struct {
 	LGTMs       []string
 
 	// Mail information.
-	Subject    string   `datastore:",noindex"`
-	Recipients []string `datastore:",noindex"`
+	Subject       string   `datastore:",noindex"`
+	Recipients    []string `datastore:",noindex"`
+	LastMessageID string   `datastore:",noindex"`
 
 	// These are person IDs (e.g. "rsc"); they may be empty
 	Author   string
@@ -193,6 +194,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 					Subject: cl.Subject + " (issue " + n + ")",
 					Body:    "R=" + rev + "\n\n(sent by gocodereview)",
 				}
+				// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
+				// when the appengine/mail package supports that.
 				sendMailLater.Call(c, msg)
 			}
 		}
@@ -339,7 +342,8 @@ func updateCL(c appengine.Context, n string) error {
 		if err != nil && err != datastore.ErrNoSuchEntity {
 			return err
 		} else if err == nil {
-			// Reviewer is the only field that needs preserving.
+			// LastMessageID and Reviewer need preserving.
+			cl.LastMessageID = ocl.LastMessageID
 			cl.Reviewer = ocl.Reviewer
 		}
 		_, err = datastore.Put(c, key, cl)
