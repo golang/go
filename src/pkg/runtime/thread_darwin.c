@@ -50,11 +50,8 @@ runtime·semacreate(void)
 void
 runtime·osinit(void)
 {
-	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
-	// but only if we're not using cgo.  If we are using cgo we need
-	// to let the C pthread libary install its own thread-creation callback.
-	if(!runtime·iscgo)
-		runtime·bsdthread_register();
+	// bsdthread_register delayed until end of goenvs so that we
+	// can look at the environment first.
 
 	// Use sysctl to fetch hw.ncpu.
 	uint32 mib[2];
@@ -75,6 +72,18 @@ void
 runtime·goenvs(void)
 {
 	runtime·goenvs_unix();
+
+	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
+	// but only if we're not using cgo.  If we are using cgo we need
+	// to let the C pthread libary install its own thread-creation callback.
+	if(!runtime·iscgo) {
+		if(runtime·bsdthread_register() != 0) {
+			if(runtime·getenv("DYLD_INSERT_LIBRARIES"))
+				runtime·throw("runtime: bsdthread_register error (unset DYLD_INSERT_LIBRARIES)");
+			runtime·throw("runtime: bsdthread_register error");
+		}
+	}
+
 }
 
 void
