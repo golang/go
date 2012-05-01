@@ -78,7 +78,8 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 			for i := len(tbl.CLs) - 1; i >= 0; i-- {
 				cl := tbl.CLs[i]
 				if cl.Author == currentPerson || cl.Reviewer == currentPerson {
-					tbl.CLs[i] = tbl.CLs[len(tbl.CLs)-1]
+					// Preserve order.
+					copy(tbl.CLs[i:], tbl.CLs[i+1:])
 					tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
 				}
 			}
