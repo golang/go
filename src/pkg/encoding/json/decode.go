@@ -504,10 +504,15 @@ func (d *decodeState) object(v reflect.Value) {
 				}
 				// First, tag match
 				tagName, _ := parseTag(tag)
-				if tagName == key {
-					f = sf
-					ok = true
-					break // no better match possible
+				if tagName != "" {
+					if tagName == key {
+						f = sf
+						ok = true
+						break // no better match possible
+					}
+					// There was a tag, but it didn't match.
+					// Ignore field names.
+					continue
 				}
 				// Second, exact field name match
 				if sf.Name == key {
