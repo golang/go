@@ -18,6 +18,10 @@ type T struct {
 	Z int `json:"-"`
 }
 
+type U struct {
+	Alphabet string `json:"alpha"`
+}
+
 type tx struct {
 	x int
 }
@@ -71,6 +75,10 @@ var unmarshalTests = []unmarshalTest{
 
 	// Z has a "-" tag.
 	{`{"Y": 1, "Z": 2}`, new(T), T{Y: 1}, nil},
+
+	{`{"alpha": "abc", "alphabet": "xyz"}`, new(U), U{Alphabet: "abc"}, nil},
+	{`{"alpha": "abc"}`, new(U), U{Alphabet: "abc"}, nil},
+	{`{"alphabet": "xyz"}`, new(U), U{}, nil},
 
 	// syntax errors
 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
