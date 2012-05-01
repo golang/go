@@ -505,51 +505,49 @@ func (f *decompressor) huffmanBlock() {
 			return
 		}
 
-		p := f.hp - dist
-		if p < 0 {
-			p += len(f.hist)
-		}
-		for i := 0; i < length; i++ {
-			f.hist[f.hp] = f.hist[p]
-			f.hp++
-			p++
-			if f.hp == len(f.hist) {
-				// After flush continue copying out of history.
-				f.copyLen = length - (i + 1)
-				f.copyDist = dist
-				f.flush((*decompressor).copyHuff)
-				return
-			}
-			if p == len(f.hist) {
-				p = 0
-			}
+		f.copyLen, f.copyDist = length, dist
+		if f.copyHist() {
+			return
 		}
 	}
 	panic("unreached")
 }
 
-func (f *decompressor) copyHuff() {
-	length := f.copyLen
-	dist := f.copyDist
-	p := f.hp - dist
+// copyHist copies f.copyLen bytes from f.hist (f.copyDist bytes ago) to itself.
+// It reports whether the f.hist buffer is full.
+func (f *decompressor) copyHist() bool {
+	p := f.hp - f.copyDist
 	if p < 0 {
 		p += len(f.hist)
 	}
-	for i := 0; i < length; i++ {
-		f.hist[f.hp] = f.hist[p]
-		f.hp++
-		p++
+	for f.copyLen > 0 {
+		n := f.copyLen
+		if x := len(f.hist) - f.hp; n > x {
+			n = x
+		}
+		if x := len(f.hist) - p; n > x {
+			n = x
+		}
+		forwardCopy(f.hist[f.hp:f.hp+n], f.hist[p:p+n])
+		p += n
+		f.hp += n
+		f.copyLen -= n
 		if f.hp == len(f.hist) {
-			f.copyLen = length - (i + 1)
+			// After flush continue copying out of history.
 			f.flush((*decompressor).copyHuff)
-			return
+			return true
 		}
 		if p == len(f.hist) {
 			p = 0
 		}
 	}
+	return false
+}
 
-	// Continue processing Huffman block.
+func (f *decompressor) copyHuff() {
+	if f.copyHist() {
+		return
+	}
 	f.huffmanBlock()
 }
 
@@ -584,9 +582,9 @@ func (f *decompressor) dataBlock() {
 	f.copyData()
 }
 
+// copyData copies f.copyLen bytes from the underlying reader into f.hist.
+// It pauses for reads when f.hist is full.
 func (f *decompressor) copyData() {
-	// Read f.dataLen bytes into history,
-	// pausing for reads as history fills.
 	n := f.copyLen
 	for n > 0 {
 		m := len(f.hist) - f.hp
