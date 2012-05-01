@@ -45,6 +45,12 @@ func handleMail(w http.ResponseWriter, r *http.Request) {
 		if err != nil && err != datastore.ErrNoSuchEntity {
 			return err
 		}
+		if err == datastore.ErrNoSuchEntity {
+			// Must set sentinel values for time.Time fields
+			// if this is a new entity.
+			cl.Created = time.Unix(0, 0)
+			cl.Modified = time.Unix(0, 0)
+		}
 		cl.LastMessageID = msg.Header.Get("Message-ID")
 		_, err = datastore.Put(c, key, cl)
 		return err
