@@ -736,25 +736,23 @@ func c(repr string, args ...interface{}) *TypeRepr {
 
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
-	"bool":       {Size: 1, Align: 1, C: c("uchar")},
-	"byte":       {Size: 1, Align: 1, C: c("uchar")},
-	"int":        {Size: 4, Align: 4, C: c("int")},
-	"uint":       {Size: 4, Align: 4, C: c("uint")},
-	"rune":       {Size: 4, Align: 4, C: c("int")},
-	"int8":       {Size: 1, Align: 1, C: c("schar")},
-	"uint8":      {Size: 1, Align: 1, C: c("uchar")},
-	"int16":      {Size: 2, Align: 2, C: c("short")},
-	"uint16":     {Size: 2, Align: 2, C: c("ushort")},
-	"int32":      {Size: 4, Align: 4, C: c("int")},
-	"uint32":     {Size: 4, Align: 4, C: c("uint")},
-	"int64":      {Size: 8, Align: 8, C: c("int64")},
-	"uint64":     {Size: 8, Align: 8, C: c("uint64")},
-	"float":      {Size: 4, Align: 4, C: c("float")},
-	"float32":    {Size: 4, Align: 4, C: c("float")},
-	"float64":    {Size: 8, Align: 8, C: c("double")},
-	"complex":    {Size: 8, Align: 8, C: c("__complex float")},
-	"complex64":  {Size: 8, Align: 8, C: c("__complex float")},
-	"complex128": {Size: 16, Align: 16, C: c("__complex double")},
+	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
+	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
+	"int":        {Size: 4, Align: 4, C: c("GoInt")},
+	"uint":       {Size: 4, Align: 4, C: c("GoUint")},
+	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
+	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
+	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
+	"int16":      {Size: 2, Align: 2, C: c("GoInt16")},
+	"uint16":     {Size: 2, Align: 2, C: c("GoUint16")},
+	"int32":      {Size: 4, Align: 4, C: c("GoInt32")},
+	"uint32":     {Size: 4, Align: 4, C: c("GoUint32")},
+	"int64":      {Size: 8, Align: 8, C: c("GoInt64")},
+	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
+	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
+	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
+	"complex64":  {Size: 8, Align: 8, C: c("GoComplex64")},
+	"complex128": {Size: 16, Align: 16, C: c("GoComplex128")},
 }
 
 // Map an ast type to a Type.
@@ -799,7 +797,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return def
 		}
 		if t.Name == "uintptr" {
-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
+			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoUintptr")}
 		}
 		if t.Name == "string" {
 			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
@@ -930,13 +928,21 @@ Slice GoBytes(char *p, int n) {
 `
 
 const gccExportHeaderProlog = `
-typedef unsigned int uint;
-typedef signed char schar;
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef long long int64;
-typedef unsigned long long uint64;
-typedef __SIZE_TYPE__ uintptr;
+typedef int GoInt;
+typedef unsigned int GoUint;
+typedef signed char GoInt8;
+typedef unsigned char GoUint8;
+typedef short GoInt16;
+typedef unsigned short GoUint16;
+typedef int GoInt32;
+typedef unsigned int GoUint32;
+typedef long long GoInt64;
+typedef unsigned long long GoUint64;
+typedef __SIZE_TYPE__ GoUintptr;
+typedef float GoFloat32;
+typedef double GoFloat64;
+typedef __complex float GoComplex64;
+typedef __complex double GoComplex128;
 
 typedef struct { char *p; int n; } GoString;
 typedef void *GoMap;
