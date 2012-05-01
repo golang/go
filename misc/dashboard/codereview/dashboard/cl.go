@@ -304,6 +304,7 @@ func updateCL(c appengine.Context, n string) error {
 	if i := strings.Index(cl.FirstLine, "\n"); i >= 0 {
 		cl.FirstLine = cl.FirstLine[:i]
 	}
+	lgtm := make(map[string]bool)
 	rcpt := make(map[string]bool)
 	for _, msg := range apiResp.Messages {
 		s, rev := msg.Sender, false
@@ -320,13 +321,15 @@ func updateCL(c appengine.Context, n string) error {
 		}
 
 		if msg.Approval {
-			// TODO(dsymonds): De-dupe LGTMs.
-			cl.LGTMs = append(cl.LGTMs, s)
+			lgtm[s] = true
 		}
 
 		for _, r := range msg.Recipients {
 			rcpt[r] = true
 		}
+	}
+	for l := range lgtm {
+		cl.LGTMs = append(cl.LGTMs, l)
 	}
 	for r := range rcpt {
 		cl.Recipients = append(cl.Recipients, r)
