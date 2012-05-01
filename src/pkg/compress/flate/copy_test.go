@@ -29,7 +29,7 @@ func TestForwardCopy(t *testing.T) {
 		{0, 0, 0, 0, ""},
 	}
 	for _, tc := range testCases {
-		b := []byte("012345678")
+		b := []byte("0123456789")
 		dst := b[tc.dst0:tc.dst1]
 		src := b[tc.src0:tc.src1]
 		n := forwardCopy(dst, src)
@@ -37,6 +37,16 @@ func TestForwardCopy(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("dst=b[%d:%d], src=b[%d:%d]: got %q, want %q",
 				tc.dst0, tc.dst1, tc.src0, tc.src1, got, tc.want)
+		}
+		// Check that the bytes outside of dst[:n] were not modified.
+		for i, x := range b {
+			if i >= tc.dst0 && i < tc.dst0+n {
+				continue
+			}
+			if int(x) != '0'+i {
+				t.Errorf("dst=b[%d:%d], src=b[%d:%d]: copy overrun at b[%d]: got '%c', want '%c'",
+					tc.dst0, tc.dst1, tc.src0, tc.src1, i, x, '0'+i)
+			}
 		}
 	}
 }
