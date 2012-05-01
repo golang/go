@@ -16,7 +16,6 @@ import (
 
 	"appengine"
 	"appengine/datastore"
-	"appengine/delay"
 	"appengine/mail"
 	"appengine/taskqueue"
 	"appengine/urlfetch"
@@ -104,8 +103,6 @@ func (cl *CL) ModifiedAgo() string {
 	}
 	return "just now"
 }
-
-var sendMailLater = delay.Func("send-mail", mail.Send)
 
 func handleAssign(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -196,7 +193,9 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 				}
 				// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
 				// when the appengine/mail package supports that.
-				sendMailLater.Call(c, msg)
+				if err := mail.Send(c, msg); err != nil {
+					c.Errorf("mail.Send: %v", err)
+				}
 			}
 		}
 	}
