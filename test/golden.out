@@ -22,3 +22,7 @@ throw: all goroutines are asleep - deadlock!
 
 =========== bugs/bug395.go
 bug395 is broken
+
+=========== bugs/bug434.go
+bugs/bug434.dir/two.go:10: one.t.int undefined (cannot refer to unexported field or method one.int)
+BUG:bug434
