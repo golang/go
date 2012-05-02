@@ -380,7 +380,7 @@ struct MHeap
 extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
-MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct);
+MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);

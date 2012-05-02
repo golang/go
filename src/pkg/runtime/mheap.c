@@ -66,7 +66,7 @@ runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*
-runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed)
 {
 	MSpan *s;
 
@@ -81,6 +81,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 		}
 	}
 	runtime·unlock(h);
+	if(s != nil && *(uintptr*)(s->start<<PageShift) != 0 && zeroed)
+		runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
 	return s;
 }
 
@@ -137,9 +139,6 @@ HaveSpan:
 		t->state = MSpanInUse;
 		MHeap_FreeLocked(h, t);
 	}
-
-	if(*(uintptr*)(s->start<<PageShift) != 0)
-		runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
 
 	// Record span info, because gc needs to be
 	// able to map interior pointer to containing span.
