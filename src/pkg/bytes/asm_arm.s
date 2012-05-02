@@ -27,4 +27,30 @@ _notfound:
 	RET
 
 TEXT ·Equal(SB),7,$0
-	B	·equalPortable(SB)
+	MOVW	alen+4(FP), R1
+	MOVW	blen+16(FP), R3
+	
+	CMP	R1, R3		// unequal lengths are not equal
+	B.NE	_notequal
+
+	MOVW	aptr+0(FP), R0
+	MOVW	bptr+12(FP), R2
+	ADD	R0, R1		// end
+
+_next:
+	CMP	R0, R1
+	B.EQ	_equal		// reached the end
+	MOVBU.P	1(R0), R4
+	MOVBU.P	1(R2), R5
+	CMP	R4, R5
+	B.EQ	_next
+
+_notequal:
+	MOVW	$0, R0
+	MOVW	R0, equal+24(FP)
+	RET
+
+_equal:
+	MOVW	$1, R0
+	MOVW	R0, equal+24(FP)
+	RET
