@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 #include "a.h"
-#include <stdio.h>
 
 /*
  * Helpers for building pkg/runtime.
@@ -20,6 +19,8 @@ mkzversion(char *dir, char *file)
 {
 	Buf b, out;
 	
+	USED(dir);
+
 	binit(&b);
 	binit(&out);
 	
@@ -46,6 +47,8 @@ void
 mkzgoarch(char *dir, char *file)
 {
 	Buf b, out;
+
+	USED(dir);
 	
 	binit(&b);
 	binit(&out);
@@ -72,6 +75,8 @@ void
 mkzgoos(char *dir, char *file)
 {
 	Buf b, out;
+
+	USED(dir);
 	
 	binit(&b);
 	binit(&out);

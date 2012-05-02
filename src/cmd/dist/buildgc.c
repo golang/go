@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 #include "a.h"
-#include <stdio.h>
 
 /*
  * Helpers for building cmd/gc.

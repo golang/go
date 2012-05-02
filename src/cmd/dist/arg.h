@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 /* command line */
 extern char	*argv0;
-#define	ARGBEGIN	for((argv0?0:(argv0=(*argv))),argv++,argc--;\
+#define	ARGBEGIN	for((argv0=(argv0?argv0:*argv)),argv++,argc--;\
 			    argv[0] && argv[0][0]=='-' && argv[0][1];\
 			    argc--, argv++) {\
 				char *_args, *_argt;\
@@ -37,7 +37,6 @@ extern char	*argv0;
 				if(_args[0]=='-' && _args[1]==0){\
 					argc--; argv++; break;\
 				}\
-				_argc = 0;\
 				while((_argc = *_args++) != 0)\
 				switch(_argc)
 #define	ARGEND		_argt=0;USED(_argt);USED(_argc);USED(_args);}USED(argv);USED(argc);
