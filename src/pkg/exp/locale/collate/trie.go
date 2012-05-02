@@ -27,15 +27,10 @@ const (
 	t5 = 0xF8 // 1111 1000
 	t6 = 0xFC // 1111 1100
 	te = 0xFE // 1111 1110
-
-	maskx = 0x3F // 0011 1111
-	mask2 = 0x1F // 0001 1111
-	mask3 = 0x0F // 0000 1111
-	mask4 = 0x07 // 0000 0111
 )
 
 func (t *trie) lookupValue(n uint16, b byte) colElem {
-	return colElem(t.values[int(n)<<6+int(b&maskx)])
+	return colElem(t.values[int(n)<<6+int(b)])
 }
 
 // lookup returns the trie value for the first UTF-8 encoding in s and
@@ -67,7 +62,7 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := int(i)<<6 + int(c1)&maskx
+		o := int(i)<<6 + int(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
@@ -83,13 +78,13 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := int(i)<<6 + int(c1)&maskx
+		o := int(i)<<6 + int(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
 			return 0, 2
 		}
-		o = int(i)<<6 + int(c2)&maskx
+		o = int(i)<<6 + int(c2)
 		i = t.index[o]
 		c3 := s[3]
 		if c3 < tx || t2 <= c3 {

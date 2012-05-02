@@ -20,14 +20,14 @@ func makeCE(weights []int) colElem {
 		maxPrimaryBits   = 21
 		maxSecondaryBits = 16
 		maxTertiaryBits  = 8
-		isPrimary        = 0x40000000
+		isSecondary      = 0x40000000
 	)
 	var ce colElem
 	if weights[0] != 0 {
 		ce = colElem(weights[0]<<maxTertiaryBits + weights[2])
-		ce |= isPrimary
 	} else {
 		ce = colElem(weights[1]<<maxTertiaryBits + weights[2])
+		ce |= isSecondary
 	}
 	return ce
 }

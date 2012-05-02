@@ -23,7 +23,7 @@ type trie struct {
 // the value for b is by r.value + (b - r.lo) * stride.
 func (t *trie) lookupValue(n uint8, b byte) uint16 {
 	if n < t.cutoff {
-		return t.values[uint16(n)<<6+uint16(b&maskx)]
+		return t.values[uint16(n)<<6+uint16(b)]
 	}
 	offset := t.sparseOffset[n-t.cutoff]
 	header := t.sparse[offset]
@@ -53,11 +53,6 @@ const (
 	t5 = 0xF8 // 1111 1000
 	t6 = 0xFC // 1111 1100
 	te = 0xFE // 1111 1110
-
-	maskx = 0x3F // 0011 1111
-	mask2 = 0x1F // 0001 1111
-	mask3 = 0x0F // 0000 1111
-	mask4 = 0x07 // 0000 0111
 )
 
 // lookup returns the trie value for the first UTF-8 encoding in s and
@@ -89,7 +84,7 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
+		o := uint16(i)<<6 + uint16(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
@@ -105,13 +100,13 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
+		o := uint16(i)<<6 + uint16(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
 			return 0, 2
 		}
-		o = uint16(i)<<6 + uint16(c2)&maskx
+		o = uint16(i)<<6 + uint16(c2)
 		i = t.index[o]
 		c3 := s[3]
 		if c3 < tx || t2 <= c3 {
@@ -152,7 +147,7 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
+		o := uint16(i)<<6 + uint16(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
@@ -168,13 +163,13 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
+		o := uint16(i)<<6 + uint16(c1)
 		i = t.index[o]
 		c2 := s[2]
 		if c2 < tx || t2 <= c2 {
 			return 0, 2
 		}
-		o = uint16(i)<<6 + uint16(c2)&maskx
+		o = uint16(i)<<6 + uint16(c2)
 		i = t.index[o]
 		c3 := s[3]
 		if c3 < tx || t2 <= c3 {
@@ -200,11 +195,11 @@ func (t *trie) lookupUnsafe(s []byte) uint16 {
 	if c0 < t3 {
 		return t.lookupValue(i, s[1])
 	}
-	i = t.index[uint16(i)<<6+uint16(s[1])&maskx]
+	i = t.index[uint16(i)<<6+uint16(s[1])]
 	if c0 < t4 {
 		return t.lookupValue(i, s[2])
 	}
-	i = t.index[uint16(i)<<6+uint16(s[2])&maskx]
+	i = t.index[uint16(i)<<6+uint16(s[2])]
 	if c0 < t5 {
 		return t.lookupValue(i, s[3])
 	}
@@ -225,11 +220,11 @@ func (t *trie) lookupStringUnsafe(s string) uint16 {
 	if c0 < t3 {
 		return t.lookupValue(i, s[1])
 	}
-	i = t.index[uint16(i)<<6+uint16(s[1])&maskx]
+	i = t.index[uint16(i)<<6+uint16(s[1])]
 	if c0 < t4 {
 		return t.lookupValue(i, s[2])
 	}
-	i = t.index[uint16(i)<<6+uint16(s[2])&maskx]
+	i = t.index[uint16(i)<<6+uint16(s[2])]
 	if c0 < t5 {
 		return t.lookupValue(i, s[3])
 	}

@@ -29,9 +29,9 @@ func decompCE(in []int) (ce uint32, err error) {
 }
 
 var ceTests = []ceTest{
-	{normalCE, []int{0, 0, 0}, 000},
-	{normalCE, []int{0, 30, 3}, 0x1E03},
-	{normalCE, []int{100, defaultSecondary, 3}, 0x40006403},
+	{normalCE, []int{0, 0, 0}, 0x40000000},
+	{normalCE, []int{0, 30, 3}, 0x40001E03},
+	{normalCE, []int{100, defaultSecondary, 3}, 0x6403},
 	{normalCE, []int{100, 0, 3}, 0xFFFF}, // non-ignorable primary with non-default secondary
 	{normalCE, []int{100, 1, 3}, 0xFFFF},
 	{normalCE, []int{1 << maxPrimaryBits, defaultSecondary, 0}, 0xFFFF},

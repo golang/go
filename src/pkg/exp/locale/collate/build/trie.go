@@ -19,7 +19,10 @@ import (
 	"reflect"
 )
 
-const blockSize = 64
+const (
+	blockSize   = 64
+	blockOffset = 2 // Substract 2 blocks to compensate for the 0x80 added to continuation bytes.
+)
 
 type trie struct {
 	index  []uint16
@@ -102,7 +105,7 @@ func computeOffsets(index *nodeIndex, n *trieNode) int64 {
 	if n.isInternal() {
 		v, ok := index.lookupBlockIdx[h]
 		if !ok {
-			v = int64(len(index.lookupBlocks))
+			v = int64(len(index.lookupBlocks)) - blockOffset
 			index.lookupBlocks = append(index.lookupBlocks, n)
 			index.lookupBlockIdx[h] = v
 		}
@@ -110,7 +113,7 @@ func computeOffsets(index *nodeIndex, n *trieNode) int64 {
 	} else {
 		v, ok := index.valueBlockIdx[h]
 		if !ok {
-			v = int64(len(index.valueBlocks))
+			v = int64(len(index.valueBlocks)) - blockOffset
 			index.valueBlocks = append(index.valueBlocks, n)
 			index.valueBlockIdx[h] = v
 		}

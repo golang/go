@@ -19,8 +19,11 @@ import (
 	"unicode/utf8"
 )
 
-const blockSize = 64
-const maxSparseEntries = 16
+const (
+	blockSize        = 64
+	blockOffset      = 2 // Substract two blocks to compensate for the 0x80 added to continuation bytes.
+	maxSparseEntries = 16
+)
 
 // Intermediate trie structure
 type trieNode struct {
@@ -157,7 +160,7 @@ func computeOffsets(index *nodeIndex, n *trieNode) int {
 	if n.isInternal() {
 		v, ok := index.lookupBlockIdx[h]
 		if !ok {
-			v = len(index.lookupBlocks)
+			v = len(index.lookupBlocks) - blockOffset
 			index.lookupBlocks = append(index.lookupBlocks, n)
 			index.lookupBlockIdx[h] = v
 		}
@@ -166,7 +169,7 @@ func computeOffsets(index *nodeIndex, n *trieNode) int {
 		v, ok := index.valueBlockIdx[h]
 		if !ok {
 			if c := n.countSparseEntries(); c > maxSparseEntries {
-				v = len(index.valueBlocks)
+				v = len(index.valueBlocks) - blockOffset
 				index.valueBlocks = append(index.valueBlocks, n)
 				index.valueBlockIdx[h] = v
 			} else {
@@ -295,7 +298,7 @@ func (t *trieNode) printTables(name string) int {
 	}
 	fmt.Print("\n}\n\n")
 
-	cutoff := len(index.valueBlocks)
+	cutoff := len(index.valueBlocks) - blockOffset
 	ni := len(index.lookupBlocks) * blockSize
 	fmt.Printf("// %sLookup: %d bytes\n", name, ni)
 	fmt.Printf("// Block 0 is the null block.\n")
