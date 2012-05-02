@@ -88,28 +88,29 @@
      LIF = 304,
      LINT = 305,
      LLONG = 306,
-     LREGISTER = 307,
-     LRETURN = 308,
-     LSHORT = 309,
-     LSIZEOF = 310,
-     LUSED = 311,
-     LSTATIC = 312,
-     LSTRUCT = 313,
-     LSWITCH = 314,
-     LTYPEDEF = 315,
-     LTYPESTR = 316,
-     LUNION = 317,
-     LUNSIGNED = 318,
-     LWHILE = 319,
-     LVOID = 320,
-     LENUM = 321,
-     LSIGNED = 322,
-     LCONSTNT = 323,
-     LVOLATILE = 324,
-     LSET = 325,
-     LSIGNOF = 326,
-     LRESTRICT = 327,
-     LINLINE = 328
+     LPREFETCH = 307,
+     LREGISTER = 308,
+     LRETURN = 309,
+     LSHORT = 310,
+     LSIZEOF = 311,
+     LUSED = 312,
+     LSTATIC = 313,
+     LSTRUCT = 314,
+     LSWITCH = 315,
+     LTYPEDEF = 316,
+     LTYPESTR = 317,
+     LUNION = 318,
+     LUNSIGNED = 319,
+     LWHILE = 320,
+     LVOID = 321,
+     LENUM = 322,
+     LSIGNED = 323,
+     LCONSTNT = 324,
+     LVOLATILE = 325,
+     LSET = 326,
+     LSIGNOF = 327,
+     LRESTRICT = 328,
+     LINLINE = 329
    };
 #endif
 /* Tokens.  */
@@ -162,28 +163,29 @@
 #define LIF 304
 #define LINT 305
 #define LLONG 306
-#define LREGISTER 307
-#define LRETURN 308
-#define LSHORT 309
-#define LSIZEOF 310
-#define LUSED 311
-#define LSTATIC 312
-#define LSTRUCT 313
-#define LSWITCH 314
-#define LTYPEDEF 315
-#define LTYPESTR 316
-#define LUNION 317
-#define LUNSIGNED 318
-#define LWHILE 319
-#define LVOID 320
-#define LENUM 321
-#define LSIGNED 322
-#define LCONSTNT 323
-#define LVOLATILE 324
-#define LSET 325
-#define LSIGNOF 326
-#define LRESTRICT 327
-#define LINLINE 328
+#define LPREFETCH 307
+#define LREGISTER 308
+#define LRETURN 309
+#define LSHORT 310
+#define LSIZEOF 311
+#define LUSED 312
+#define LSTATIC 313
+#define LSTRUCT 314
+#define LSWITCH 315
+#define LTYPEDEF 316
+#define LTYPESTR 317
+#define LUNION 318
+#define LUNSIGNED 319
+#define LWHILE 320
+#define LVOID 321
+#define LENUM 322
+#define LSIGNED 323
+#define LCONSTNT 324
+#define LVOLATILE 325
+#define LSET 326
+#define LSIGNOF 327
+#define LRESTRICT 328
+#define LINLINE 329
 
 
 
@@ -217,7 +219,7 @@ typedef union YYSTYPE
 	vlong	vval;
 }
 /* Line 1529 of yacc.c.  */
-#line 221 "y.tab.h"
+#line 223 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

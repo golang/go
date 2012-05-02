@@ -415,11 +415,6 @@ TEXT runtime·atomicstore64(SB), 7, $0
 	XADDL	AX, (SP)
 	RET
 
-TEXT runtime·prefetch(SB), 7, $0
-	MOVL    4(SP), AX
-	PREFETCHNTA (AX)
-	RET
-
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller

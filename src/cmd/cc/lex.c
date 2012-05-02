@@ -1174,6 +1174,7 @@ struct
 	"inline",	LINLINE,	0,
 	"int",		LINT,		TINT,
 	"long",		LLONG,		TLONG,
+	"PREFETCH",	LPREFETCH,	0,
 	"register",	LREGISTER,	0,
 	"restrict",	LRESTRICT,	0,
 	"return",	LRETURN,	0,

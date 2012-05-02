@@ -602,6 +602,12 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACMPL:	/* read only */
 	case ACMPW:
 	case ACMPB:
+	
+	case APREFETCHT0:
+	case APREFETCHT1:
+	case APREFETCHT2:
+	case APREFETCHNTA:
+
 
 	case AFCOMB:
 	case AFCOMBP:

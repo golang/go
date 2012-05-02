@@ -528,6 +528,7 @@ loop:
 
 	case OSET:
 	case OUSED:
+	case OPREFETCH:
 		usedset(n->left, o);
 		break;
 	}
@@ -542,6 +543,10 @@ usedset(Node *n, int o)
 		return;
 	}
 	complex(n);
+	if(o == OPREFETCH) {
+		gprefetch(n);
+		return;
+	}
 	switch(n->op) {
 	case OADDR:	/* volatile */
 		gins(ANOP, n, Z);
