@@ -182,6 +182,10 @@ regopt(Prog *p)
 		case ACMPB:
 		case ACMPL:
 		case ACMPW:
+		case APREFETCHT0:
+		case APREFETCHT1:
+		case APREFETCHT2:
+		case APREFETCHNTA:
 			for(z=0; z<BITS; z++)
 				r->use2.b[z] |= bit.b[z];
 			break;

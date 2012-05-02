@@ -1194,6 +1194,12 @@ gpseudo(int a, Sym *s, Node *n)
 		pc--;
 }
 
+void
+gprefetch(Node *n)
+{
+	// nothing
+}
+
 int
 sconst(Node *n)
 {

@@ -185,6 +185,10 @@ regopt(Prog *p)
 		case ACMPL:
 		case ACMPQ:
 		case ACMPW:
+		case APREFETCHT0:
+		case APREFETCHT1:
+		case APREFETCHT2:
+		case APREFETCHNTA:
 		case ACOMISS:
 		case ACOMISD:
 		case AUCOMISS:

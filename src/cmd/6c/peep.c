@@ -697,6 +697,11 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACMPB:
 	case ACMPQ:
 
+	case APREFETCHT0:
+	case APREFETCHT1:
+	case APREFETCHT2:
+	case APREFETCHNTA:
+
 	case ACOMISD:
 	case ACOMISS:
 	case AUCOMISD:

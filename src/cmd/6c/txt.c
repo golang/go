@@ -1502,6 +1502,18 @@ gpseudo(int a, Sym *s, Node *n)
 		pc--;
 }
 
+void
+gprefetch(Node *n)
+{
+	Node n1;
+	
+	regalloc(&n1, n, Z);
+	gmove(n, &n1);
+	n1.op = OINDREG;
+	gins(APREFETCHNTA, &n1, Z);
+	regfree(&n1);
+}
+
 int
 sconst(Node *n)
 {
