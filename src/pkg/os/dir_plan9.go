@@ -48,7 +48,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 		if m < syscall.STATFIXLEN {
 			return result, &PathError{"readdir", file.name, errShortStat}
 		}
-		dir, e := UnmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
+		dir, e := unmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
 		if e != nil {
 			return result, &PathError{"readdir", file.name, e}
 		}
@@ -73,12 +73,12 @@ func (file *File) readdirnames(n int) (names []string, err error) {
 	return
 }
 
-type Dir struct {
+type dir struct {
 	// system-modified data
 	Type uint16 // server type
 	Dev  uint32 // server subtype
 	// file data
-	Qid    Qid    // unique id from server
+	Qid    qid    // unique id from server
 	Mode   uint32 // permissions
 	Atime  uint32 // last read time
 	Mtime  uint32 // last write time
@@ -89,16 +89,16 @@ type Dir struct {
 	Muid   string // last modifier name
 }
 
-type Qid struct {
+type qid struct {
 	Path uint64 // the file server's unique identification for the file
 	Vers uint32 // version number for given Path
 	Type uint8  // the type of the file (syscall.QTDIR for example)
 }
 
-var nullDir = Dir{
+var nullDir = dir{
 	^uint16(0),
 	^uint32(0),
-	Qid{^uint64(0), ^uint32(0), ^uint8(0)},
+	qid{^uint64(0), ^uint32(0), ^uint8(0)},
 	^uint32(0),
 	^uint32(0),
 	^uint32(0),
@@ -111,12 +111,12 @@ var nullDir = Dir{
 
 // Null assigns members of d with special "don't care" values indicating
 // they should not be written by syscall.Wstat. 
-func (d *Dir) Null() {
+func (d *dir) Null() {
 	*d = nullDir
 }
 
 // pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
-func pdir(b []byte, d *Dir) []byte {
+func pdir(b []byte, d *dir) []byte {
 	n := len(b)
 	b = pbit16(b, 0) // length, filled in later	
 	b = pbit16(b, d.Type)
@@ -134,9 +134,9 @@ func pdir(b []byte, d *Dir) []byte {
 	return b
 }
 
-// UnmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
-// returning the corresponding Dir struct.
-func UnmarshalDir(b []byte) (d *Dir, err error) {
+// unmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
+// returning the corresponding dir struct.
+func unmarshalDir(b []byte) (d *dir, err error) {
 	n := uint16(0)
 	n, b = gbit16(b)
 
@@ -144,7 +144,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
 		return nil, errBadStat
 	}
 
-	d = new(Dir)
+	d = new(dir)
 	d.Type, b = gbit16(b)
 	d.Dev, b = gbit32(b)
 	d.Qid, b = gqid(b)
@@ -165,17 +165,17 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
 }
 
 // gqid reads the qid part of a 9P Stat message from a 9P protocol message stored in b,
-// returning the corresponding Qid struct and the remaining slice of b.
-func gqid(b []byte) (Qid, []byte) {
-	var q Qid
+// returning the corresponding qid struct and the remaining slice of b.
+func gqid(b []byte) (qid, []byte) {
+	var q qid
 	q.Path, b = gbit64(b)
 	q.Vers, b = gbit32(b)
 	q.Type, b = gbit8(b)
 	return q, b
 }
 
-// pqid appends a Qid struct q to a 9P message b.
-func pqid(b []byte, q Qid) []byte {
+// pqid appends a qid struct q to a 9P message b.
+func pqid(b []byte, q qid) []byte {
 	b = pbit64(b, q.Path)
 	b = pbit32(b, q.Vers)
 	b = pbit8(b, q.Type)
