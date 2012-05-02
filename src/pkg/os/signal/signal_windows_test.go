@@ -5,16 +5,16 @@
 package signal
 
 import (
-	"flag"
+	"bytes"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
 )
 
-var runCtrlBreakTest = flag.Bool("run_ctlbrk_test", false, "force to run Ctrl+Break test")
-
-func sendCtrlBreak(t *testing.T) {
+func sendCtrlBreak(t *testing.T, pid int) {
 	d, e := syscall.LoadDLL("kernel32.dll")
 	if e != nil {
 		t.Fatalf("LoadDLL: %v\n", e)
@@ -23,29 +23,74 @@ func sendCtrlBreak(t *testing.T) {
 	if e != nil {
 		t.Fatalf("FindProc: %v\n", e)
 	}
-	r, _, e := p.Call(0, 0)
+	r, _, e := p.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
 	if r == 0 {
 		t.Fatalf("GenerateConsoleCtrlEvent: %v\n", e)
 	}
 }
 
 func TestCtrlBreak(t *testing.T) {
-	if !*runCtrlBreakTest {
-		t.Logf("test disabled; use -run_ctlbrk_test to enable")
-		return
-	}
-	go func() {
-		time.Sleep(1 * time.Second)
-		sendCtrlBreak(t)
-	}()
+	// create source file
+	const source = `
+package main
+
+import (
+	"log"
+	"os"
+	"os/signal"
+	"time"
+)
+
+
+func main() {
 	c := make(chan os.Signal, 10)
-	Notify(c)
+	signal.Notify(c)
 	select {
 	case s := <-c:
 		if s != os.Interrupt {
-			t.Fatalf("Wrong signal received: got %q, want %q\n", s, os.Interrupt)
+			log.Fatalf("Wrong signal received: got %q, want %q\n", s, os.Interrupt)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatalf("Timeout waiting for Ctrl+Break\n")
+		log.Fatalf("Timeout waiting for Ctrl+Break\n")
+	}
+}
+`
+	name := filepath.Join(os.TempDir(), "ctlbreak")
+	src := name + ".go"
+	defer os.Remove(src)
+	f, err := os.Create(src)
+	if err != nil {
+		t.Fatalf("Failed to create %v: %v", src, err)
+	}
+	defer f.Close()
+	f.Write([]byte(source))
+
+	// compile it
+	exe := name + ".exe"
+	defer os.Remove(exe)
+	o, err := exec.Command("go", "build", "-o", exe, src).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
+	}
+
+	// run it
+	cmd := exec.Command(exe)
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
+	err = cmd.Start()
+	if err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		sendCtrlBreak(t, cmd.Process.Pid)
+	}()
+	err = cmd.Wait()
+	if err != nil {
+		t.Fatalf("Program exited with error: %v\n%v", err, string(b.Bytes()))
 	}
 }
