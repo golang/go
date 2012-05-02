@@ -1,0 +1,14 @@
+#!/bin/rc -e
+# Copyright 2012 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+eval `{go tool dist env -9}
+
+if(! test -x $GOTOOLDIR/dist){
+	echo 'cannot find $GOTOOLDIR/dist; nothing to clean' >[1=2]
+	exit noclean
+}
+
+$GOBIN/go clean -i std
+$GOTOOLDIR/dist clean

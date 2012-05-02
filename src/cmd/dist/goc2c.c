@@ -111,7 +111,7 @@ static struct {
 	{"int64",	8},
 	{"uint64",	8},
 
-	{nil},
+	{nil, 0},
 };
 
 /* Fixed structure alignment (non-gcc only) */
@@ -570,8 +570,9 @@ write_gcc_func_header(char *package, char *name, struct params *params,
 static void
 write_gcc_func_trailer(char *package, char *name, struct params *rets)
 {
-	if (rets == nil)
-		;
+	if (rets == nil) {
+		// nothing to do
+	}
 	else if (rets->next == nil)
 		bwritef(output, "return %s;\n", rets->name);
 	else {

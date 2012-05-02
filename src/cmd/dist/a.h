@@ -10,7 +10,9 @@ typedef long long Time;
 
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+#ifndef PLAN9
 #define USED(x) ((void)(x))
+#endif
 
 // A Buf is a byte buffer, like Go's []byte.
 typedef struct Buf Buf;
