@@ -68,17 +68,18 @@ func (ce colElem) ctype() ceType {
 // For normal collation elements, we assume that a collation element either has
 // a primary or non-default secondary value, not both.
 // Collation elements with a primary value are of the form
-// 010ppppp pppppppp pppppppp tttttttt, where
+// 000ppppp pppppppp pppppppp tttttttt, where
 //   - p* is primary collation value
 //   - t* is the tertiary collation value
 // Collation elements with a secondary value are of the form
-// 00000000 ssssssss ssssssss tttttttt, where
+// 01000000 ssssssss ssssssss tttttttt, where
 //   - s* is the secondary collation value
 //   - t* is the tertiary collation value
 func splitCE(ce colElem) weights {
+	const secondaryMask = 0x40000000
 	w := weights{}
 	w.tertiary = uint8(ce)
-	if ce&0x40000000 != 0 {
+	if ce&secondaryMask == 0 {
 		// primary weight form
 		w.primary = uint32((ce >> 8) & 0x1FFFFF)
 		w.secondary = defaultSecondary

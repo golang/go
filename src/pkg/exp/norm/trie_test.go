@@ -96,12 +96,16 @@ func TestLookup(t *testing.T) {
 	}
 	for i, tt := range tests {
 		v, sz := testdata.lookup(tt.bytes)
-		if int(v) != 0 {
+		if v != 0 {
 			t.Errorf("lookup of illegal rune, case %d: found value %#x, expected 0", i, v)
 		}
 		if sz != tt.size {
 			t.Errorf("lookup of illegal rune, case %d: found size %d, expected %d", i, sz, tt.size)
 		}
+	}
+	// Verify defaults.
+	if v, _ := testdata.lookup([]byte{0xC1, 0x8C}); v != 0 {
+		t.Errorf("lookup of non-existing rune should be 0; found %X", v)
 	}
 }
 
