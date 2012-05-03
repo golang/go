@@ -304,7 +304,7 @@ inst:
 /*
  * PLD
  */
-|	LTYPEPLD reg
+|	LTYPEPLD oreg
 	{
 		outcode($1, Always, &$2, NREG, &nullgen);
 	}

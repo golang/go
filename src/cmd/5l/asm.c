@@ -1429,9 +1429,14 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 			break;
 		o2 = oshr(p->from.reg, 0, REGTMP, p->scond);
 		break;
-	case 95:	/* PLD reg */
+	case 95:	/* PLD off(reg) */
 		o1 = 0xf5d0f000;
 		o1 |= p->from.reg << 16;
+		if(p->from.offset < 0) {
+			o1 &= ~(1 << 23);
+			o1 |= (-p->from.offset) & 0xfff;
+		} else
+			o1 |= p->from.offset & 0xfff;
 	}
 	
 	out[0] = o1;
