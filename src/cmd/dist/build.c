@@ -1285,6 +1285,15 @@ clean(void)
 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
 	}
 
+	// remove src/pkg/runtime/z* unconditionally
+	vreset(&dir);
+	bpathf(&path, "%s/src/pkg/runtime", goroot);
+	xreaddir(&dir, bstr(&path));
+	for(j=0; j<dir.len; j++) {
+		if(hasprefix(dir.p[j], "z"))
+			xremove(bpathf(&b, "%s/%s", bstr(&path), dir.p[j]));
+	}
+
 	if(rebuildall) {
 		// Remove object tree.
 		xremoveall(bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch));
