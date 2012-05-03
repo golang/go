@@ -1197,7 +1197,13 @@ gpseudo(int a, Sym *s, Node *n)
 void
 gprefetch(Node *n)
 {
-	// nothing
+	Node n1;
+
+	regalloc(&n1, n, Z);
+	gmove(n, &n1);
+	n1.op = OINDREG;
+	gins(APLD, &n1, Z);
+	regfree(&n1);
 }
 
 int

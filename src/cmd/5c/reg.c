@@ -191,6 +191,14 @@ regopt(Prog *p)
 			break;
 
 		/*
+		 * right side read
+		 */
+		case APLD:
+			for(z=0; z<BITS; z++)
+				r->use2.b[z] |= bit.b[z];
+			break;
+
+		/*
 		 * funny
 		 */
 		case ABL:

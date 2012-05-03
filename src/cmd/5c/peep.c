@@ -1067,6 +1067,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ABLT:
 	case ABGT:
 	case ABLE:
+	case APLD:
 		if(s != A) {
 			if(copysub(&p->from, v, s, 1))
 				return 1;
