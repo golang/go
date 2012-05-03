@@ -593,6 +593,11 @@ func (d *decodeState) literal(v reflect.Value) {
 // produce more helpful error messages.
 func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) {
 	// Check for unmarshaler.
+	if len(item) == 0 {
+		//Empty string given
+		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
+		return
+	}
 	wantptr := item[0] == 'n' // null
 	unmarshaler, pv := d.indirect(v, wantptr)
 	if unmarshaler != nil {
