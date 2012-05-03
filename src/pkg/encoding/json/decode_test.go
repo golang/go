@@ -646,3 +646,22 @@ func TestAnonymous(t *testing.T) {
 		t.Fatal("Unmarshal: did set T.Y")
 	}
 }
+
+// Test that the empty string doesn't panic decoding when ,string is specified
+// Issue 3450
+func TestEmptyString(t *testing.T) {
+	type T2 struct {
+		Number1 int `json:",string"`
+		Number2 int `json:",string"`
+	}
+	data := `{"Number1":"1", "Number2":""}`
+	dec := NewDecoder(strings.NewReader(data))
+	var t2 T2
+	err := dec.Decode(&t2)
+	if err == nil {
+		t.Fatal("Decode: did not return error")
+	}
+	if t2.Number1 != 1 {
+		t.Fatal("Decode: did not set Number1")
+	}
+}
