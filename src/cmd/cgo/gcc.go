@@ -730,13 +730,15 @@ func (p *Package) gccName() (ret string) {
 	return
 }
 
-// gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
+// gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
 func (p *Package) gccMachine() []string {
 	switch goarch {
 	case "amd64":
 		return []string{"-m64"}
 	case "386":
 		return []string{"-m32"}
+	case "arm":
+		return []string{"-marm"} // not thumb
 	}
 	return nil
 }
