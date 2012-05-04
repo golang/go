@@ -197,12 +197,14 @@ void
 runtime·int64tofloat64(Vlong y, double d)
 {
 	d = _v2d(y);
+	USED(&d); // FLUSH
 }
 
 void
 runtime·uint64tofloat64(Vlong y, double d)
 {
 	d = _ul2d(y.hi)*4294967296. + _ul2d(y.lo);
+	USED(&d); // FLUSH
 }
 
 static void
