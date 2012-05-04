@@ -293,6 +293,14 @@ TEXT runtime·sigaltstack(SB),7,$0
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
+	// this might be called in external code context,
+	// where g and m are not set.
+	// first save R0, becuase cgo_load_gm will clobber it
+	MOVW	R0, 4(R13)
+	MOVW	cgo_load_gm(SB), R0
+	CMP 	$0, R0
+	BL.NE	(R0)
+
 	// save g
 	MOVW	g, R3
 	MOVW	g, 20(R13)
@@ -301,7 +309,7 @@ TEXT runtime·sigtramp(SB),7,$24
 	MOVW	m_gsignal(m), g
 
 	// copy arguments for call to sighandler
-	MOVW	R0, 4(R13)
+	// R0 is already saved above
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
 	MOVW	R3, 16(R13)

@@ -75,6 +75,9 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		// old link register is more useful in the stack trace.
 		if(r->arm_pc != 0)
 			r->arm_lr = r->arm_pc;
+		// In case we are panicking from external C code
+		r->arm_r10 = (uintptr)gp;
+		r->arm_r9 = (uintptr)m;
 		r->arm_pc = (uintptr)runtime·sigpanic;
 		return;
 	}
