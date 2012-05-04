@@ -14,6 +14,9 @@ int32	runtime·sleep(int32 ms);
 int32	runtime·rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
 int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
 int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
+int32	runtime·notify(void (*fn)(void*, byte*));
+int32	runtime·noted(int32);
+void	runtime·gonote(void*, byte*);
 
 /* open */
 enum
@@ -43,6 +46,13 @@ enum
 	RFCFDG          = (1<<12),
 	RFREND          = (1<<13),
 	RFNOMNT         = (1<<14)
+};
+
+/* notify */
+enum
+{
+	NCONT	= 0,
+	NDFLT	= 1
 };
 
 typedef struct Tos Tos;

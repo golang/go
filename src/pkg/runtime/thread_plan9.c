@@ -7,6 +7,9 @@
 #include "arch_GOARCH.h"
 
 int8 *goos = "plan9";
+int8 *runtime·exitstatus;
+
+int32 runtime·postnote(int32, int8*);
 
 void
 runtime·minit(void)
@@ -36,10 +39,30 @@ getproccount(void)
 	return ncpu > 0 ? ncpu : 1;
 }
 
+static int32
+getpid(void)
+{
+	byte b[20], *c;
+	int32 fd, n;
+
+	runtime·memclr(b, sizeof(b));
+	fd = runtime·open((byte*)"#c/pid", 0);
+	if(fd >= 0) {
+		runtime·read(fd, b, sizeof(b));
+		runtime·close(fd);
+	}
+	c = b;
+	while(*c == ' ' || *c == '\t')
+		c++;
+	return runtime·atoi(c);
+}
+
 void
 runtime·osinit(void)
 {
 	runtime·ncpu = getproccount();
+	m->procid = getpid();
+	runtime·notify(runtime·gonote);
 }
 
 void
@@ -109,36 +132,122 @@ time·now(int64 sec, int32 nsec)
 	FLUSH(&nsec);
 }
 
-extern Tos *_tos;
 void
-runtime·exit(int32)
+runtime·itoa(int32 n, byte *p, uint32 len)
 {
-	int32 fd;
+	byte *q, c;
+	uint32 i;
+
+	if(len <= 1)
+		return;
+
+	runtime·memclr(p, len);
+	q = p;
+
+	if(n==0) {
+		*q++ = '0';
+		USED(q);
+		return;
+	}
+	if(n < 0) {
+		*q++ = '-';
+		p++;
+		n = -n;
+	}
+	for(i=0; n > 0 && i < len; i++) {
+		*q++ = '0' + (n%10);
+		n = n/10;
+	}
+	for(q--; q >= p; ) {
+		c = *p;
+		*p++ = *q;
+		*q-- = c;
+	}
+}
+
+void
+goexitsall(void)
+{
+	M *m;
+	int32 pid;
+
+	pid = getpid();
+	for(m=runtime·atomicloadp(&runtime·allm); m; m=m->alllink)
+		if(m->procid != pid)
+			runtime·postnote(m->procid, "gointr");
+}
+
+void
+runtime·gonote(void*, byte *s)
+{
+	uint8 buf[128];
+	int32 l;
+
+	l = runtime·findnull(s);
+	if(l > 4 && runtime·mcmp(s, (byte*)"sys:", 4) == 0) {
+		runtime·memclr(buf, sizeof buf);
+		runtime·memmove((void*)buf, (void*)s, runtime·findnull(s));
+		runtime·exitstatus = (int8*)buf;
+		goexitsall();
+		runtime·noted(NDFLT);
+	}
+
+	if(runtime·exitstatus)
+		runtime·exits(runtime·exitstatus);
+
+	if(runtime·strcmp(s, (byte*)"gointr") == 0)
+		runtime·noted(NCONT);
+
+	runtime·noted(NDFLT);
+}
+
+int32
+runtime·postnote(int32 pid, int8* msg)
+{
+	int32 fd, len;
 	uint8 buf[128];
 	uint8 tmp[16];
 	uint8 *p, *q;
-	int32 pid;
 
 	runtime·memclr(buf, sizeof buf);
-	runtime·memclr(tmp, sizeof tmp);
-	pid = _tos->pid;
 
-	/* build path string /proc/pid/notepg */
-	for(q=tmp; pid > 0;) {
-		*q++ = '0' + (pid%10);
-		pid = pid/10;
-	}
+	/* build path string /proc/pid/note */
+	q = tmp;
 	p = buf;
+	runtime·itoa(pid, tmp, sizeof tmp);
 	runtime·memmove((void*)p, (void*)"/proc/", 6);
-	p += 6;
-	for(q--; q >= tmp;)
-		*p++ = *q--;
-	runtime·memmove((void*)p, (void*)"/notepg", 7);
+	for(p += 6; *p++ = *q++; );
+	p--;
+	runtime·memmove((void*)p, (void*)"/note", 5);
 
-	/* post interrupt note */
 	fd = runtime·open(buf, OWRITE);
-	runtime·write(fd, "interrupt", 9);
-	runtime·exits(nil);
+	if(fd < 0)
+		return -1;
+
+	len = runtime·findnull((byte*)msg);
+	if(runtime·write(fd, msg, len) != len) {
+		runtime·close(fd);
+		return -1;
+	}
+	runtime·close(fd);
+	return 0;
+}
+
+void
+runtime·exit(int32 e)
+{
+	byte tmp[16];
+
+	if(e == 0)
+		runtime·exitstatus = "";
+	else {
+		/* build error string */
+		runtime·itoa(e, tmp, sizeof tmp);
+		runtime·exitstatus = (int8*)tmp;
+	}
+
+	goexitsall();
+	runtime·exits(runtime·exitstatus);
 }
 
 void
