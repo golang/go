@@ -289,7 +289,7 @@ TEXT	runtime·cgocallback(SB),7,$16
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	MOVW	m_g0(m), R3
 	MOVW	(g_sched+gobuf_sp)(R3), R4
-	MOVW.W	R4, -4(SP)
+	MOVW.W	R4, -4(R13)
 	MOVW	R13, (g_sched+gobuf_sp)(R3)
 
 	// Switch to m->curg stack and call runtime.cgocallbackg
