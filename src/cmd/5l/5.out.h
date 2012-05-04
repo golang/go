@@ -254,6 +254,12 @@ enum	as
 /* internal only */
 #define	D_SIZE		(D_NONE+40)
 #define	D_PCREL		(D_NONE+41)
+#define	D_GOTOFF	(D_NONE+42) // R_ARM_GOTOFF
+#define	D_PLT0		(D_NONE+43) // R_ARM_PLT32, 1st inst: add ip, pc, #0xNN00000
+#define	D_PLT1		(D_NONE+44) // R_ARM_PLT32, 2nd inst: add ip, ip, #0xNN000
+#define	D_PLT2		(D_NONE+45) // R_ARM_PLT32, 3rd inst: ldr pc, [ip, #0xNNN]!
+#define	D_PLT32 	(D_NONE+46) // R_ARM_PLT32, bl xxxxx
+#define	D_CALL		(D_NONE+47) // R_ARM_CALL, bl xxxxx
 
 /*
  * this is the ranlib header
