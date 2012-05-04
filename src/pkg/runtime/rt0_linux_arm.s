@@ -37,6 +37,10 @@ TEXT _rt0_arm_linux(SB),7,$-4
 	MOVW	$174, R7 // sys_sigaction
 	SWI	$0 // restore signal handler
 	ADD	$32, R13
+
+	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
+	BL	runtime·setup_auxv(SB)
+	ADD	$4, R13
 	B	_rt0_arm(SB)
 
 TEXT bad_abi<>(SB),7,$-4
