@@ -84,6 +84,11 @@
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
 
+// These two are only used by the architecture where TLS based storage isn't
+// the default for g and m (e.g., ARM)
+void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
+void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
+
 static void unlockm(void);
 static void unwindm(void);
 
@@ -229,6 +234,7 @@ unwindm(void)
 		runtime·throw("runtime: unwindm not implemented");
 	case '8':
 	case '6':
+	case '5':
 		m->g0->sched.sp = *(void**)m->g0->sched.sp;
 		break;
 	}

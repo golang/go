@@ -31,6 +31,12 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	R13, g_stackbase(g)
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
+	// if there is an initcgo, call it.
+	MOVW	initcgo(SB), R2
+	CMP	$0, R2
+	MOVW.NE	g, R0 // first argument of initcgo is g
+	BL.NE	(R2) // will clobber R0-R3
+
 	BL	runtime·check(SB)
 
 	// saved argc, argv
@@ -86,9 +92,12 @@ TEXT runtime·gosave(SB), 7, $-4
 // restore state from Gobuf; longjmp
 TEXT runtime·gogo(SB), 7, $-4
 	MOVW	0(FP), R1		// gobuf
-	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
+	MOVW	cgo_save_gm(SB), R2
+	CMP 	$0, R2 // if in Cgo, we have to save g and m
+	BL.NE	(R2) // this call will clobber R0
+	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_pc(R1), PC
 
@@ -97,13 +106,16 @@ TEXT runtime·gogo(SB), 7, $-4
 // (call fn, returning to state in Gobuf)
 // using frame size $-4 means do not save LR on stack.
 TEXT runtime·gogocall(SB), 7, $-4
-	MOVW	0(FP), R0		// gobuf
+	MOVW	0(FP), R3		// gobuf
 	MOVW	4(FP), R1		// fn
 	MOVW	8(FP), R2		// fp offset
-	MOVW	gobuf_g(R0), g
-	MOVW	0(g), R3		// make sure g != nil
-	MOVW	gobuf_sp(R0), SP	// restore SP
-	MOVW	gobuf_pc(R0), LR
+	MOVW	gobuf_g(R3), g
+	MOVW	0(g), R0		// make sure g != nil
+	MOVW	cgo_save_gm(SB), R0
+	CMP 	$0, R0 // if in Cgo, we have to save g and m
+	BL.NE	(R0) // this call will clobber R0
+	MOVW	gobuf_sp(R3), SP	// restore SP
+	MOVW	gobuf_pc(R3), LR
 	MOVW	R1, PC
 
 // void mcall(void (*fn)(G*))
@@ -224,11 +236,114 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
 	B		(R0)
 
-TEXT	runtime·asmcgocall(SB),7,$0
-	B	runtime·cgounimpl(SB)
+// Dummy function to use in saved gobuf.PC,
+// to match SP pointing at a return address.
+// The gobuf.PC is unused by the contortions here
+// but setting it to return will make the traceback code work.
+TEXT return<>(SB),7,$0
+	RET
 
-TEXT	runtime·cgocallback(SB),7,$0
-	B	runtime·cgounimpl(SB)
+// asmcgocall(void(*fn)(void*), void *arg)
+// Call fn(arg) on the scheduler stack,
+// aligned appropriately for the gcc ABI.
+// See cgocall.c for more details.
+TEXT	runtime·asmcgocall(SB),7,$0
+	MOVW	fn+0(FP), R1
+	MOVW	arg+4(FP), R0
+	MOVW	R13, R2
+	MOVW	g, R5
+
+	// Figure out if we need to switch to m->g0 stack.
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	MOVW	m_g0(m), R3
+	CMP	R3, g
+	BEQ	7(PC)
+	MOVW	R13, (g_sched + gobuf_sp)(g)
+	MOVW	$return<>(SB), R4
+	MOVW	R4, (g_sched+gobuf_pc)(g)
+	MOVW	g, (g_sched+gobuf_g)(g)
+	MOVW	R3, g
+	MOVW	(g_sched+gobuf_sp)(g), R13
+
+	// Now on a scheduling stack (a pthread-created stack).
+	SUB	$24, R13
+	BIC	$0x7, R13	// alignment for gcc ABI
+	MOVW	R5, 20(R13) // save old g
+	MOVW	R2, 16(R13)	// save old SP
+	// R0 already contains the first argument
+	BL	(R1)
+
+	// Restore registers, g, stack pointer.
+	MOVW	20(R13), g
+	MOVW	16(R13), R13
+	RET
+
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// See cgocall.c for more details.
+TEXT	runtime·cgocallback(SB),7,$16
+	MOVW	fn+0(FP), R0
+	MOVW	frame+4(FP), R1
+	MOVW	framesize+8(FP), R2
+
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	MOVW	m_g0(m), R3
+	MOVW	(g_sched+gobuf_sp)(R3), R4
+	MOVW.W	R4, -4(SP)
+	MOVW	R13, (g_sched+gobuf_sp)(R3)
+
+	// Switch to m->curg stack and call runtime.cgocallbackg
+	// with the three arguments.  Because we are taking over
+	// the execution of m->curg but *not* resuming what had
+	// been running, we need to save that information (m->curg->gobuf)
+	// so that we can restore it when we're done. 
+	// We can restore m->curg->gobuf.sp easily, because calling
+	// runtime.cgocallbackg leaves SP unchanged upon return.
+	// To save m->curg->gobuf.pc, we push it onto the stack.
+	// This has the added benefit that it looks to the traceback
+	// routine like cgocallbackg is going to return to that
+	// PC (because we defined cgocallbackg to have
+	// a frame size of 16, the same amount that we use below),
+	// so that the traceback will seamlessly trace back into
+	// the earlier calls.
+	MOVW	m_curg(m), g
+	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+
+	// Push gobuf.pc
+	MOVW	(g_sched+gobuf_pc)(g), R5
+	SUB	$4, R4
+	MOVW	R5, 0(R4)
+
+	// Push arguments to cgocallbackg.
+	// Frame size here must match the frame size above
+	// to trick traceback routines into doing the right thing.
+	SUB	$16, R4
+	MOVW	R0, 4(R4)
+	MOVW	R1, 8(R4)
+	MOVW	R2, 12(R4)
+	
+	// Switch stack and make the call.
+	MOVW	R4, R13
+	BL	runtime·cgocallbackg(SB)
+
+	// Restore g->gobuf (== m->curg->gobuf) from saved values.
+	MOVW	16(R13), R5
+	MOVW	R5, (g_sched+gobuf_pc)(g)
+	ADD	$(16+4), R13 // SP clobbered! It is ok!
+	MOVW	R13, (g_sched+gobuf_sp)(g)
+
+	// Switch back to m->g0's stack and restore m->g0->sched.sp.
+	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
+	// so we do not have to restore it.)
+	MOVW	m_g0(m), g
+	MOVW	(g_sched+gobuf_sp)(g), R13
+	// POP R6
+	MOVW	0(R13), R6
+	ADD	$4, R13
+	MOVW	R6, (g_sched+gobuf_sp)(g)
+
+	// Done!
+	RET
 
 TEXT runtime·memclr(SB),7,$20
 	MOVW	0(FP), R0
