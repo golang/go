@@ -1394,6 +1394,8 @@ func (b *builder) gccCmd(objdir string) []string {
 		a = append(a, "-m32")
 	case "6":
 		a = append(a, "-m64")
+	case "5":
+		a = append(a, "-marm") // not thumb
 	}
 	// gcc-4.5 and beyond require explicit "-pthread" flag
 	// for multithreading with pthread library.
@@ -1513,8 +1515,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		outObj = append(outObj, ofile)
 	}
 	dynobj := obj + "_cgo_.o"
+	if goarch == "arm" && goos == "linux" { // we need to use -pie for Linux/ARM to get accurate imported sym
+		cgoLDFLAGS = append(cgoLDFLAGS, "-pie")
+	}
 	if err := b.gccld(p, dynobj, cgoLDFLAGS, linkobj); err != nil {
 		return nil, nil, err
+	}
+	if goarch == "arm" && goos == "linux" { // but we don't need -pie for normal cgo programs
+		cgoLDFLAGS = cgoLDFLAGS[0 : len(cgoLDFLAGS)-1]
 	}
 
 	if _, ok := buildToolchain.(gccgcToolchain); ok {
