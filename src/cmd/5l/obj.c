@@ -106,6 +106,7 @@ main(int argc, char *argv[])
 		INITENTRY = EARGF(usage());
 		break;
 	case 'I':
+		debug['I'] = 1; // denote cmdline interpreter override
 		interpreter = EARGF(usage());
 		break;
 	case 'L':
