@@ -72,14 +72,63 @@ addloop1:
 TEXT ·AddUintptr(SB),7,$0
 	B	·AddUint32(SB)
 
-// The kernel provides no 64-bit compare-and-swap,
-// so use native ARM instructions, which will only work on
-// ARM 11 and later devices.
-TEXT ·CompareAndSwapInt64(SB),7,$0
-	B	·armCompareAndSwapUint64(SB)
+TEXT cas64<>(SB),7,$0
+	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
+
+TEXT kernelCAS64<>(SB),7,$0
+	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+	MOVW	valptr+0(FP), R2 // ptr
+	MOVW	$4(FP), R0 // oldval
+	MOVW	$12(FP), R1 // newval
+	BL		cas64<>(SB)
+	MOVW.CS	$1, R0 // C is set if the kernel has changed *ptr
+	MOVW.CC	$0, R0
+	MOVW	R0, 20(FP)
+	RET
+
+TEXT generalCAS64<>(SB),7,$20
+	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+	MOVW	valptr+0(FP), R0
+	MOVW	R0, 4(R13)
+	MOVW	$4(FP), R1 // oldval
+	MOVW	R1, 8(R13)
+	MOVW	newlo+12(FP), R2
+	MOVW	R2, 12(R13)
+	MOVW	newhi+16(FP), R3
+	MOVW	R3, 16(R13)
+	BL  	runtime·cas64(SB)
+	MOVW	R0, 20(FP)
+	RET
+
+GLOBL armCAS64(SB), $4
+
+TEXT setupAndCallCAS64<>(SB),7,$-4
+	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
+	MOVW	(R0), R0
+	// __kuser_cmpxchg64 only present if helper version >= 5
+	CMP 	$5, R0
+	MOVW.CS	$kernelCAS64<>(SB), R1
+	MOVW.CS	R1, armCAS64(SB)
+	MOVW.CS	R1, PC
+	MOVB	runtime·armArch(SB), R0
+	// LDREXD, STREXD only present on ARMv6K or higher
+	CMP		$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
+	MOVW.CS	$·armCompareAndSwapUint64(SB), R1
+	MOVW.CS	R1, armCAS64(SB)
+	MOVW.CS	R1, PC
+	// we are out of luck, can only use runtime's emulated 64-bit cas
+	MOVW	$generalCAS64<>(SB), R1
+	MOVW	R1, armCAS64(SB)
+	MOVW	R1, PC
+
+TEXT ·CompareAndSwapInt64(SB),7,$-4
+	MOVW	armCAS64(SB), R0
+	CMP 	$0, R0
+	MOVW.NE	R0, PC
+	B		setupAndCallCAS64<>(SB)
 
 TEXT ·CompareAndSwapUint64(SB),7,$0
-	B	·armCompareAndSwapUint64(SB)
+	B   	·CompareAndSwapInt64(SB)
 
 TEXT ·AddInt64(SB),7,$0
 	B	·armAddUint64(SB)
