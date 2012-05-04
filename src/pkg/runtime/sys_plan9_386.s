@@ -48,6 +48,16 @@ TEXT runtime·plan9_semacquire(SB),7,$0
 	MOVL	$37, AX
 	INT	$64
 	RET
+
+TEXT runtime·notify(SB),7,$0
+	MOVL	$28, AX
+	INT	$64
+	RET
+
+TEXT runtime·noted(SB),7,$0
+	MOVL	$29, AX
+	INT	$64
+	RET
 	
 TEXT runtime·plan9_semrelease(SB),7,$0
 	MOVL	$38, AX
