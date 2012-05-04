@@ -10,6 +10,14 @@ import (
 	"syscall"
 )
 
+// The only signal values guaranteed to be present on all systems
+// are Interrupt (send the process an interrupt) and Kill (force
+// the process to exit).
+var (
+	Interrupt Signal = syscall.SIGINT
+	Kill      Signal = syscall.SIGKILL
+)
+
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	// Double-check existence of the directory we want
 	// to chdir into.  We can make the error clearer this way.
