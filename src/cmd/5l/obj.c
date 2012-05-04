@@ -205,7 +205,9 @@ main(int argc, char *argv[])
 			INITRND = 1024;
 		break;
 	case Hlinux:	/* arm elf */
-		debug['d'] = 1;	// no dynamic linking
+		debug['d'] = 0;	// with dynamic linking
+		tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
+		                // this number is known to ../../pkg/runtime/cgo/gcc_linux_arm.c
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
@@ -263,6 +265,8 @@ main(int argc, char *argv[])
 	noops();
 	dostkcheck();
 	span();
+	addexport();
+	// textaddress() functionality is handled in span()
 	pclntab();
 	symtab();
 	dodata();

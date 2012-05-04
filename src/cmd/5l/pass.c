@@ -215,7 +215,7 @@ patch(void)
 				s = p->to.sym;
 				if(s->text == nil)
 					continue;
-				switch(s->type) {
+				switch(s->type&~SSUB) {
 				default:
 					diag("undefined: %s", s->name);
 					s->type = STEXT;
@@ -231,7 +231,7 @@ patch(void)
 			if(p->to.type != D_BRANCH)
 				continue;
 			c = p->to.offset;
-			for(q = textp->text; q != P;) {
+			for(q = cursym->text; q != P;) {
 				if(c == q->pc)
 					break;
 				if(q->forwd != P && c >= q->forwd->pc)

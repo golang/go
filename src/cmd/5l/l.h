@@ -303,6 +303,7 @@ EXTERN	int	version;
 EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
+EXTERN	int	tlsoffset;
 EXTERN	int	armsize;
 
 extern	char*	anames[];

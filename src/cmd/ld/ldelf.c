@@ -588,14 +588,18 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 					p += 4;
 				}
 			}
-			if(readsym(obj, info>>32, &sym) < 0)
-				goto bad;
-			if(sym.sym == nil) {
-				werrstr("%s#%d: reloc of invalid sym #%d %s shndx=%d type=%d",
-					sect->sym->name, j, (int)(info>>32), sym.name, sym.shndx, sym.type);
-				goto bad;
+			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
+				rp->sym = S;
+			} else {
+				if(readsym(obj, info>>32, &sym) < 0)
+					goto bad;
+				if(sym.sym == nil) {
+					werrstr("%s#%d: reloc of invalid sym #%d %s shndx=%d type=%d",
+						sect->sym->name, j, (int)(info>>32), sym.name, sym.shndx, sym.type);
+					goto bad;
+				}
+				rp->sym = sym.sym;
 			}
-			rp->sym = sym.sym;
 			rp->type = reltype(pn, (uint32)info, &rp->siz);
 			if(rela)
 				rp->add = add;
@@ -632,6 +636,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		}
 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
+			continue;
+		if(thechar == '5' && (strcmp(sym.name, "$a") == 0 || strcmp(sym.name, "$d") == 0)) // binutils for arm generate these mapping symbols, skip these
 			continue;
 		sect = obj->sect+sym.shndx;
 		if(sect->sym == nil) {
@@ -715,6 +721,9 @@ readsym(ElfObj *obj, int i, ElfSym *sym)
 		werrstr("invalid elf symbol index");
 		return -1;
 	}
+	if(i == 0) {
+		diag("readym: read null symbol!");
+	}
 
 	if(obj->is64) {
 		ElfSymBytes64 *b;
@@ -760,7 +769,8 @@ readsym(ElfObj *obj, int i, ElfSym *sym)
 			}
 			// fall through
 		case ElfSymBindLocal:
-			s = lookup(sym->name, version);
+			if(!(thechar == '5' && (strcmp(sym->name, "$a") == 0 || strcmp(sym->name, "$d") == 0))) // binutils for arm generate these mapping symbols, ignore these
+				s = lookup(sym->name, version);
 			break;
 		default:
 			werrstr("%s: invalid symbol binding %d", sym->name, sym->bind);
@@ -797,6 +807,15 @@ reltype(char *pn, int elftype, uchar *siz)
 	switch(R(thechar, elftype)) {
 	default:
 		diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype);
+	case R('5', R_ARM_ABS32):
+	case R('5', R_ARM_GOT32):
+	case R('5', R_ARM_PLT32):
+	case R('5', R_ARM_GOTOFF):
+	case R('5', R_ARM_GOTPC):
+	case R('5', R_ARM_THM_PC22):
+	case R('5', R_ARM_REL32):
+	case R('5', R_ARM_CALL):
+	case R('5', R_ARM_V4BX):
 	case R('6', R_X86_64_PC32):
 	case R('6', R_X86_64_PLT32):
 	case R('6', R_X86_64_GOTPCREL):

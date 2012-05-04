@@ -282,7 +282,7 @@ dynrelocsym(Sym *s)
 	}
 
 	for(r=s->r; r<s->r+s->nr; r++)
-		if(r->sym->type == SDYNIMPORT || r->type >= 256)
+		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
 			adddynrel(s, r);
 }
 

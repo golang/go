@@ -36,7 +36,7 @@
 
 static Prog *PP;
 
-char linuxdynld[] = "/lib/ld-linux.so.2";
+char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
 
 int32
 entryvalue(void)
@@ -73,6 +73,8 @@ enum {
 	ElfStrShstrtab,
 	ElfStrRelPlt,
 	ElfStrPlt,
+	ElfStrGnuVersion,
+	ElfStrGnuVersionR,
 	ElfStrNoteNetbsdIdent,
 	ElfStrNoPtrData,
 	ElfStrNoPtrBss,
@@ -103,34 +105,352 @@ needlib(char *name)
 
 int	nelfsym = 1;
 
-void
-adddynrel(Sym *s, Reloc *r)
+static void	addpltsym(Sym*);
+static void	addgotsym(Sym*);
+static void	addgotsyminternal(Sym*);
+
+// Preserve highest 8 bits of a, and do addition to lower 24-bit
+// of a and b; used to adjust ARM branch intruction's target
+static int32
+braddoff(int32 a, int32 b)
 {
-	USED(s);
-	USED(r);
-	diag("adddynrel: unsupported binary format");
+	return (((uint32)a) & 0xff000000U) | (0x00ffffffU & (uint32)(a + b));
 }
 
 void
-adddynsym(Sym *s)
+adddynrel(Sym *s, Reloc *r)
 {
-	USED(s);
-	diag("adddynsym: not implemented");
+	Sym *targ, *rel;
+
+	targ = r->sym;
+	cursym = s;
+
+	switch(r->type) {
+	default:
+		if(r->type >= 256) {
+			diag("unexpected relocation type %d", r->type);
+			return;
+		}
+		break;
+
+	// Handle relocations found in ELF object files.
+	case 256 + R_ARM_PLT32:
+		r->type = D_PLT32;
+		if(targ->dynimpname != nil && !targ->dynexport) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add = braddoff(r->add, targ->plt / 4);
+		}
+		return;
+
+	case 256 + R_ARM_THM_PC22: // R_ARM_THM_CALL
+		diag("R_ARM_THM_CALL, are you using -marm?");
+		errorexit();
+		return;
+
+	case 256 + R_ARM_GOT32: // R_ARM_GOT_BREL
+		if(targ->dynimpname == nil || targ->dynexport) {
+			addgotsyminternal(targ);
+		} else {
+			addgotsym(targ);
+		}
+		r->type = D_CONST;	// write r->add during relocsym
+		r->sym = S;
+		r->add += targ->got;
+		return;
+	
+	case 256 + R_ARM_GOTOFF: // R_ARM_GOTOFF32
+		r->type = D_GOTOFF;
+		return;
+	
+	case 256 + R_ARM_GOTPC: // R_ARM_BASE_PREL
+		r->type = D_PCREL;
+		r->sym = lookup(".got", 0);
+		r->add += 4;
+		return;
+
+	case 256 + R_ARM_CALL:
+		r->type = D_CALL;
+		r->add += 0;
+		return;
+
+	case 256 + R_ARM_REL32: // R_ARM_REL32
+		r->type = D_PCREL;
+		r->add += 4;
+		return;
+
+	case 256 + R_ARM_ABS32: 
+		if(targ->dynimpname != nil && !targ->dynexport)
+			diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ->name);
+		r->type = D_ADDR;
+		return;
+
+	case 256 + R_ARM_V4BX:
+		// we can just ignore this, because we are targeting ARM V5+ anyway
+		if(r->sym) {
+			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
+			r->sym->type = 0;
+		}
+		r->sym = S;
+		return;
+	}
+	
+	// Handle references to ELF symbols from our own object files.
+	if(targ->dynimpname == nil || targ->dynexport)
+		return;
+
+	switch(r->type) {
+	case D_PCREL:
+		addpltsym(targ);
+		r->sym = lookup(".plt", 0);
+		r->add = targ->plt;
+		return;
+	
+	case D_ADDR:
+		if(s->type != SDATA)
+			break;
+		if(iself) {
+			adddynsym(targ);
+			rel = lookup(".rel", 0);
+			addaddrplus(rel, s, r->off);
+			adduint32(rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a S + A dynmic reloc
+			r->type = D_CONST;	// write r->add during relocsym
+			r->sym = S;
+			return;
+		}
+		break;
+	}
+
+	cursym = s;
+	diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ->name, r->type, targ->type);
 }
 
 static void
 elfsetupplt(void)
 {
-	// TODO
+	Sym *plt, *got;
+	
+	plt = lookup(".plt", 0);
+	got = lookup(".got.plt", 0);
+	if(plt->size == 0) {
+		// str lr, [sp, #-4]!
+		adduint32(plt, 0xe52de004);
+		// ldr lr, [pc, #4]
+		adduint32(plt, 0xe59fe004);
+		// add lr, pc, lr
+		adduint32(plt, 0xe08fe00e);
+		// ldr pc, [lr, #8]!
+		adduint32(plt, 0xe5bef008);
+		// .word &GLOBAL_OFFSET_TABLE[0] - .
+		addpcrelplus(plt, got, 4);
+
+		// the first .plt entry requires 3 .plt.got entries
+		adduint32(got, 0);
+		adduint32(got, 0);
+		adduint32(got, 0);
+	}
 }
 
 int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
-	USED(r);
-	USED(s);
-	USED(val);
+	switch(r->type) {
+	case D_CONST:
+		*val = r->add;
+		return 0;
+	case D_GOTOFF:
+		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
+		return 0;
+	// The following three arch specific relocations are only for generation of 
+	// Linux/ARM ELF's PLT entry (3 assembler instruction)
+	case D_PLT0: // add ip, pc, #0xXX00000
+		if (symaddr(lookup(".got.plt", 0)) < symaddr(lookup(".plt", 0)))
+			diag(".got.plt should be placed after .plt section.");
+		*val = 0xe28fc600U +
+			(0xff & ((uint32)(symaddr(r->sym) - (symaddr(lookup(".plt", 0)) + r->off) + r->add) >> 20));
+		return 0;
+	case D_PLT1: // add ip, ip, #0xYY000
+		*val = 0xe28cca00U +
+			(0xff & ((uint32)(symaddr(r->sym) - (symaddr(lookup(".plt", 0)) + r->off) + r->add + 4) >> 12));
+		return 0;
+	case D_PLT2: // ldr pc, [ip, #0xZZZ]!
+		*val = 0xe5bcf000U +
+			(0xfff & (uint32)(symaddr(r->sym) - (symaddr(lookup(".plt", 0)) + r->off) + r->add + 8));
+		return 0;
+	case D_PLT32: // bl XXXXXX or b YYYYYY in R_ARM_PLT32
+		*val = (0xff000000U & (uint32)r->add) +
+			(0xffffff & (uint32)((symaddr(r->sym) + (0xffffffU & (uint32)r->add) * 4) - (s->value + r->off)) / 4);
+		return 0;
+	case D_CALL: // bl XXXXXX
+		*val = braddoff(0xeb000000U, (0xffffff & (uint32)((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));
+		return 0;
+	}
 	return -1;
+}
+
+static Reloc *
+addpltreloc(Sym *plt, Sym *got, Sym *sym, int typ)
+{
+	Reloc *r;
+	r = addrel(plt);
+	r->sym = got;
+	r->off = plt->size;
+	r->siz = 4;
+	r->type = typ;
+	r->add = sym->got - 8;
+
+	plt->reachable = 1;
+	plt->size += 4;
+	symgrow(plt, plt->size);
+
+	return r;
+}
+
+static void
+addpltsym(Sym *s)
+{
+	Sym *plt, *got, *rel;
+	
+	if(s->plt >= 0)
+		return;
+
+	adddynsym(s);
+	
+	if(iself) {
+		plt = lookup(".plt", 0);
+		got = lookup(".got.plt", 0);
+		rel = lookup(".rel", 0);
+		if(plt->size == 0)
+			elfsetupplt();
+		
+		// .got entry
+		s->got = got->size;
+		adduint32(got, 0);
+
+		// .plt entry, this depends on the .got entry
+		s->plt = plt->size;
+		addpltreloc(plt, got, s, D_PLT0); // add lr, pc, #0xXX00000
+		addpltreloc(plt, got, s, D_PLT1); // add lr, lr, #0xYY000
+		addpltreloc(plt, got, s, D_PLT2); // ldr pc, [lr, #0xZZZ]!
+
+		// rel
+		addaddrplus(rel, got, s->got);
+		adduint32(rel, ELF32_R_INFO(s->dynid, R_ARM_JUMP_SLOT));
+	} else {
+		diag("addpltsym: unsupported binary format");
+	}
+}
+
+static void
+addgotsyminternal(Sym *s)
+{
+	Sym *got;
+	
+	if(s->got >= 0)
+		return;
+
+	got = lookup(".got", 0);
+	s->got = got->size;
+
+	addaddrplus(got, s, 0);
+
+	if(iself) {
+		;
+	} else {
+		diag("addgotsyminternal: unsupported binary format");
+	}
+}
+
+static void
+addgotsym(Sym *s)
+{
+	Sym *got, *rel;
+	
+	if(s->got >= 0)
+		return;
+	
+	adddynsym(s);
+	got = lookup(".got", 0);
+	s->got = got->size;
+	adduint32(got, 0);
+	
+	if(iself) {
+		rel = lookup(".rel", 0);
+		addaddrplus(rel, got, s->got);
+		adduint32(rel, ELF32_R_INFO(s->dynid, R_ARM_GLOB_DAT));
+	} else {
+		diag("addgotsym: unsupported binary format");
+	}
+}
+
+void
+adddynsym(Sym *s)
+{
+	Sym *d;
+	int t;
+	char *name;
+
+	if(s->dynid >= 0)
+		return;
+
+	if(s->dynimpname == nil) {
+		s->dynimpname = s->name;
+		//diag("adddynsym: no dynamic name for %s", s->name);
+	}
+
+	if(iself) {
+		s->dynid = nelfsym++;
+
+		d = lookup(".dynsym", 0);
+
+		/* name */
+		name = s->dynimpname;
+		if(name == nil)
+			name = s->name;
+		adduint32(d, addstring(lookup(".dynstr", 0), name));
+
+		/* value */
+		if(s->type == SDYNIMPORT)
+			adduint32(d, 0);
+		else
+			addaddr(d, s);
+
+		/* size */
+		adduint32(d, 0);
+
+		/* type */
+		t = STB_GLOBAL << 4;
+		if(s->dynexport && s->type == STEXT)
+			t |= STT_FUNC;
+		else
+			t |= STT_OBJECT;
+		adduint8(d, t);
+		adduint8(d, 0);
+
+		/* shndx */
+		if(!s->dynexport && s->dynimpname != nil)
+			adduint16(d, SHN_UNDEF);
+		else {
+			switch(s->type) {
+			default:
+			case STEXT:
+				t = 11;
+				break;
+			case SRODATA:
+				t = 12;
+				break;
+			case SDATA:
+				t = 13;
+				break;
+			case SBSS:
+				t = 14;
+				break;
+			}
+			adduint16(d, t);
+		}
+	} else {
+		diag("adddynsym: unsupported binary format");
+	}
 }
 
 void
@@ -175,7 +495,7 @@ doelf(void)
 	addstring(shstrtab, ".rodata");
 	addstring(shstrtab, ".gosymtab");
 	addstring(shstrtab, ".gopclntab");
-	if(!debug['s']) {	
+	if(!debug['s']) {
 		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
 		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
 	}
@@ -192,17 +512,19 @@ doelf(void)
 		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
 		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
+		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
 		s->type = SELFROSECT;
 		s->reachable = 1;
-		s->value += ELF32SYMSIZE;
+		s->size += ELF32SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
-		s->type = SELFROSECT;
 		s->reachable = 1;
+		s->type = SELFROSECT;
 		if(s->size == 0)
 			addstring(s, "");
 		dynstr = s;
@@ -234,7 +556,15 @@ doelf(void)
 		s = lookup(".rel.plt", 0);
 		s->reachable = 1;
 		s->type = SELFROSECT;
-		
+
+		s = lookup(".gnu.version", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+
+		s = lookup(".gnu.version_r", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+
 		elfsetupplt();
 
 		/* define dynamic elf table */
@@ -259,8 +589,9 @@ doelf(void)
 		elfwritedynent(s, DT_PLTREL, DT_REL);
 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
+
 		elfwritedynent(s, DT_DEBUG, 0);
-		elfwritedynent(s, DT_NULL, 0);
+		// elfdynhash will finish it
 	}
 }
 
@@ -335,7 +666,7 @@ asmb(void)
 		/* !debug['d'] causes extra sections before the .text section */
 		elftextsh = 2;
 		if(!debug['d']) {
-			elftextsh += 10;
+			elftextsh += 9;
 			if(elfverneed)
 				elftextsh += 2;
 		}
@@ -520,12 +851,13 @@ asmb(void)
 		/* Dynamic linking sections */
 		if(!debug['d']) {	/* -d suppresses dynamic loader format */
 			/* S headers for dynamic linking */
-			sh = newElfShdr(elfstr[ElfStrGot]);
+			// ARM ELF needs .plt to be placed before .got
+			sh = newElfShdr(elfstr[ElfStrPlt]);
 			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 			sh->entsize = 4;
 			sh->addralign = 4;
-			shsym(sh, lookup(".got", 0));
+			shsym(sh, lookup(".plt", 0));
 
 			sh = newElfShdr(elfstr[ElfStrGotPlt]);
 			sh->type = SHT_PROGBITS;
@@ -533,6 +865,13 @@ asmb(void)
 			sh->entsize = 4;
 			sh->addralign = 4;
 			shsym(sh, lookup(".got.plt", 0));
+
+			sh = newElfShdr(elfstr[ElfStrGot]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 4;
+			sh->addralign = 4;
+			shsym(sh, lookup(".got", 0));
 
 			dynsym = eh->shnum;
 			sh = newElfShdr(elfstr[ElfStrDynsym]);
@@ -549,6 +888,24 @@ asmb(void)
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
+
+			if(elfverneed) {
+				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
+				sh->type = SHT_GNU_VERSYM;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 2;
+				sh->link = dynsym;
+				sh->entsize = 2;
+				shsym(sh, lookup(".gnu.version", 0));
+
+				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
+				sh->type = SHT_GNU_VERNEED;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 4;
+				sh->info = elfverneed;
+				sh->link = dynsym+1;  // dynstr
+				shsym(sh, lookup(".gnu.version_r", 0));
+			}
 
 			sh = newElfShdr(elfstr[ElfStrHash]);
 			sh->type = SHT_HASH;
@@ -574,14 +931,12 @@ asmb(void)
 			sh->addralign = 4;
 			sh->link = dynsym+1;	// dynstr
 			shsym(sh, lookup(".dynamic", 0));
-
 			ph = newElfPhdr();
 			ph->type = PT_DYNAMIC;
 			ph->flags = PF_R + PF_W;
 			phsh(ph, sh);
 
-			/*
-			 * Thread-local storage segment (really just size).
+			// .tbss (optional) and TLS phdr
 			if(tlsoffset != 0) {
 				ph = newElfPhdr();
 				ph->type = PT_TLS;
@@ -589,7 +944,6 @@ asmb(void)
 				ph->memsz = -tlsoffset;
 				ph->align = 4;
 			}
-			 */
 		}
 
 		ph = newElfPhdr();
@@ -1849,7 +2203,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		for(s=hash[h]; s!=S; s=s->hash) {
 			if(s->hide)
 				continue;
-			switch(s->type) {
+			switch(s->type&~SSUB) {
 			case SCONST:
 			case SRODATA:
 			case SDATA:
@@ -1882,6 +2236,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	}
 
 	for(s = textp; s != nil; s = s->next) {
+		if(s->text == nil)
+			continue;
+
 		/* filenames first */
 		for(a=s->autom; a; a=a->link)
 			if(a->type == D_FILE)
