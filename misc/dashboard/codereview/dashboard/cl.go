@@ -183,23 +183,19 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			// The current data does not have the subject/recipient information.
-			// TODO(dsymonds): Remove this if when all the CLs have subject lines.
-			if cl.Subject != "" {
-				msg := &mail.Message{
-					Sender: u.Email,
-					To:     []string{preferredEmail[rev]},
-					Cc:     cl.Recipients,
-					// Take care to match Rietveld's subject line
-					// so that Gmail will correctly thread mail.
-					Subject: cl.Subject + " (issue " + n + ")",
-					Body:    "R=" + rev + "\n\n(sent by gocodereview)",
-				}
-				// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
-				// when the appengine/mail package supports that.
-				if err := mail.Send(c, msg); err != nil {
-					c.Errorf("mail.Send: %v", err)
-				}
+			msg := &mail.Message{
+				Sender: u.Email,
+				To:     []string{preferredEmail[rev]},
+				Cc:     cl.Recipients,
+				// Take care to match Rietveld's subject line
+				// so that Gmail will correctly thread mail.
+				Subject: cl.Subject + " (issue " + n + ")",
+				Body:    "R=" + rev + "\n\n(sent by gocodereview)",
+			}
+			// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
+			// when the appengine/mail package supports that.
+			if err := mail.Send(c, msg); err != nil {
+				c.Errorf("mail.Send: %v", err)
 			}
 		}
 	}
