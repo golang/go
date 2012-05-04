@@ -11,6 +11,14 @@ import (
 	"time"
 )
 
+// The only signal values guaranteed to be present on all systems
+// are Interrupt (send the process an interrupt) and Kill (force
+// the process to exit).
+var (
+	Interrupt Signal = syscall.Note("interrupt")
+	Kill      Signal = syscall.Note("kill")
+)
+
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
@@ -30,35 +38,35 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	return newProcess(pid, h), nil
 }
 
-// Plan9Note implements the Signal interface on Plan 9.
-type Plan9Note string
-
-func (note Plan9Note) String() string {
-	return string(note)
+func (p *Process) writeProcFile(file string, data string) error {
+	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/"+file, O_WRONLY, 0)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	_, e = f.Write([]byte(data))
+	return e
 }
 
 func (p *Process) signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
-
-	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
-	if e != nil {
+	if sig == Kill {
+		// Special-case the kill signal since it doesn't use /proc/$pid/note.
+		return p.Kill()
+	}
+	if e := p.writeProcFile("note", sig.String()); e != nil {
 		return NewSyscallError("signal", e)
 	}
-	defer f.Close()
-	_, e = f.Write([]byte(sig.String()))
-	return e
+	return nil
 }
 
 func (p *Process) kill() error {
-	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
-	if e != nil {
+	if e := p.writeProcFile("ctl", "kill"); e != nil {
 		return NewSyscallError("kill", e)
 	}
-	defer f.Close()
-	_, e = f.Write([]byte("kill"))
-	return e
+	return nil
 }
 
 func (p *Process) wait() (ps *ProcessState, err error) {

@@ -23,6 +23,16 @@ func (e ErrorString) Error() string { return string(e) }
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) error { return ErrorString(s) }
 
+// A Note is a string describing a process note.
+// It implements the os.Signal interface.
+type Note string
+
+func (n Note) Signal() {}
+
+func (n Note) String() string {
+	return string(n)
+}
+
 var (
 	Stdin  = 0
 	Stdout = 1
@@ -320,14 +330,6 @@ func Getuid() (uid int)   { return -1 }
 
 func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
-}
-
-type Signal int
-
-func (s Signal) Signal() {}
-
-func (s Signal) String() string {
-	return ""
 }
 
 //sys	Dup(oldfd int, newfd int) (fd int, err error)

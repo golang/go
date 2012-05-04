@@ -24,9 +24,6 @@ const (
 	S_IFREG  = 0x8000
 	S_IFLNK  = 0xa000
 	S_IFSOCK = 0xc000
-
-	SIGINT  = Signal(0x2)
-	SIGKILL = Signal(0x9)
 )
 
 // Errors
