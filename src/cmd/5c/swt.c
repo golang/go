@@ -405,6 +405,10 @@ outcode(void)
 		Bprint(&outbuf, "\n$$  // dynexport\n");
 		for(i=0; i<ndynexp; i++)
 			Bprint(&outbuf, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+		Bprint(&outbuf, "\n$$  // dynlinker\n");
+		if(dynlinker != nil) {
+			Bprint(&outbuf, "dynlinker %s\n", dynlinker);
+		}
 		Bprint(&outbuf, "\n$$\n\n");
 	}
 	Bprint(&outbuf, "!\n");

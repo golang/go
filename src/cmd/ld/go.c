@@ -69,6 +69,7 @@ ilookup(char *name)
 static void loadpkgdata(char*, char*, char*, int);
 static void loaddynimport(char*, char*, char*, int);
 static void loaddynexport(char*, char*, char*, int);
+static void loaddynlinker(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
@@ -204,7 +205,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 	if(p0 != nil) {
 		p0 = strchr(p0+1, '\n');
 		if(p0 == nil) {
-			fprint(2, "%s: found $$ // dynexporg but no newline in %s\n", argv0, filename);
+			fprint(2, "%s: found $$ // dynexport but no newline in %s\n", argv0, filename);
 			if(debug['u'])
 				errorexit();
 			return;
@@ -213,12 +214,33 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		if(p1 == nil)
 			p1 = strstr(p0, "\n!\n");
 		if(p1 == nil) {
-			fprint(2, "%s: cannot find end of // dynexporg section in %s\n", argv0, filename);
+			fprint(2, "%s: cannot find end of // dynexport section in %s\n", argv0, filename);
 			if(debug['u'])
 				errorexit();
 			return;
 		}
 		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
+	}
+
+	p0 = strstr(p1, "\n$$  // dynlinker");
+	if(p0 != nil) {
+		p0 = strchr(p0+1, '\n');
+		if(p0 == nil) {
+			fprint(2, "%s: found $$ // dynlinker but no newline in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
+			return;
+		}
+		p1 = strstr(p0, "\n$$");
+		if(p1 == nil)
+			p1 = strstr(p0, "\n!\n");
+		if(p1 == nil) {
+			fprint(2, "%s: cannot find end of // dynlinker section in %s\n", argv0, filename);
+			if(debug['u'])
+				errorexit();
+			return;
+		}
+		loaddynlinker(filename, pkg, p0 + 1, p1 - (p0+1));
 	}
 }
 
@@ -548,6 +570,44 @@ loaddynexport(char *file, char *pkg, char *p, int n)
 
 err:
 	fprint(2, "%s: invalid dynexport line: %s\n", argv0, p0);
+	nerrors++;
+}
+
+static void
+loaddynlinker(char *file, char *pkg, char *p, int n)
+{
+	char *pend, *next, *dynlinker, *p0;
+
+	USED(file);
+	pend = p + n;
+	for(; p<pend; p=next) {
+		next = strchr(p, '\n');
+		if(next == nil)
+			next = "";
+		else
+			*next++ = '\0';
+		p0 = p;
+		if(strncmp(p, "dynlinker ", 10) != 0)
+			goto err;
+		p += 10;
+		dynlinker = p;
+
+		if(*dynlinker == '\0')
+			goto err;
+		if(!debug['I']) { // not overrided by cmdline
+			if(interpreter != nil && strcmp(interpreter, dynlinker) != 0) {
+				fprint(2, "%s: conflict dynlinker: %s and %s\n", argv0, interpreter, dynlinker);
+				nerrors++;
+				return;
+			}
+			free(interpreter);
+			interpreter = strdup(dynlinker);
+		}
+	}
+	return;
+
+err:
+	fprint(2, "%s: invalid dynlinker line: %s\n", argv0, p0);
 	nerrors++;
 }
 

@@ -751,6 +751,10 @@ macprag(void)
 		pragdynexport();
 		return;
 	}
+	if(s && strcmp(s->name, "dynlinker") == 0) {
+		pragdynlinker();
+		return;
+	}
 	while(getnsc() != '\n')
 		;
 	return;

@@ -774,6 +774,8 @@ void	pragtextflag(void);
 void	pragincomplete(void);
 void	pragdynimport(void);
 void	pragdynexport(void);
+void	pragdynlinker(void);
+EXTERN	char *dynlinker;
 
 /*
  * calls to machine depend part

@@ -114,6 +114,7 @@ main(int argc, char *argv[])
 		HEADTYPE = headtype(EARGF(usage()));
 		break;
 	case 'I':
+		debug['I'] = 1; // denote cmdline interpreter override
 		interpreter = EARGF(usage());
 		break;
 	case 'L':

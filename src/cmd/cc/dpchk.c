@@ -725,3 +725,20 @@ out:
 	while(getnsc() != '\n')
 		;
 }
+
+void
+pragdynlinker(void)
+{
+	dynlinker = getquoted();
+	if(dynlinker == nil)
+		goto err;
+
+	goto out;
+
+err:
+	yyerror("usage: #pragma dynlinker \"path\"");
+
+out:
+	while(getnsc() != '\n')
+		;
+}

@@ -128,6 +128,12 @@ func dynimport(obj string) {
 	}
 
 	if f, err := elf.Open(obj); err == nil {
+		if sec := f.Section(".interp"); sec != nil {
+			if data, err := sec.Data(); err == nil && len(data) > 1 {
+				// skip trailing \0 in data
+				fmt.Fprintf(stdout, "#pragma dynlinker %q\n", string(data[:len(data)-1]))
+			}
+		}
 		sym, err := f.ImportedSymbols()
 		if err != nil {
 			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
