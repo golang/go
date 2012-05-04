@@ -15,6 +15,7 @@ void twoSleep(int);
 import "C"
 
 import (
+	"runtime"
 	"testing"
 	"time"
 )
@@ -35,11 +36,17 @@ func BackgroundSleep(n int) {
 }
 
 func testParallelSleep(t *testing.T) {
+	sleepSec := 1
+	if runtime.GOARCH == "arm" {
+		// on ARM, the 1.3s deadline is frequently missed,
+		// so increase sleep time to 2s
+		sleepSec = 2
+	}
 	start := time.Now()
-	parallelSleep(1)
+	parallelSleep(sleepSec)
 	dt := time.Now().Sub(start)
-	// bug used to run sleeps in serial, producing a 2-second delay.
-	if dt >= 1300*time.Millisecond {
-		t.Fatalf("parallel 1-second sleeps slept for %f seconds", dt.Seconds())
+	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
+	if dt >= time.Duration(sleepSec)*1300*time.Millisecond {
+		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
 	}
 }
