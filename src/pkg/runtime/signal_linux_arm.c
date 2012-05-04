@@ -141,3 +141,60 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	sa.sa_handler = fn;
 	runtime·rt_sigaction(i, &sa, nil, 8);
 }
+
+#define AT_NULL		0
+#define AT_PLATFORM	15 // introduced in at least 2.6.11
+#define AT_HWCAP	16 // introduced in at least 2.6.11
+#define AT_RANDOM	25 // introduced in 2.6.29
+static uint32 runtime·randomNumber;
+uint32 runtime·hwcap;
+uint8 runtime·armArch = 6; // we default to ARMv6
+
+#pragma textflag 7
+void
+runtime·setup_auxv(int32 argc, void *argv_list)
+{
+	byte **argv = &argv_list;
+	byte **envp;
+	uint32 *auxv;
+	uint32 t;
+
+	// skip envp to get to ELF auxiliary vector.
+	for(envp = &argv[argc+1]; *envp != nil; envp++)
+		;
+	envp++;
+	
+	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
+		switch(auxv[0]) {
+		case AT_RANDOM: // kernel provided 16-byte worth of random data
+			if(auxv[1])
+				runtime·randomNumber = *(uint32*)(auxv[1] + 4);
+			break;
+		case AT_PLATFORM: // v5l, v6l, v7l
+			if(auxv[1]) {
+				t = *(uint8*)(auxv[1]+1);
+				if(t >= '5' && t <= '7')
+					runtime·armArch = t - '0';
+			}
+			break;
+		case AT_HWCAP: // CPU capability bit flags
+			runtime·hwcap = auxv[1];
+			break;
+		}
+	}
+}
+
+#pragma textflag 7
+int64
+runtime·cputicks() {
+	// copied from runtime.c:/^fastrand1
+	uint32 x;
+
+	x = runtime·randomNumber;
+	x += x;
+	if(x & 0x80000000L)
+		x ^= 0x88888eefUL;
+	runtime·randomNumber = x;
+
+	return ((int64)x) << 32 | x;
+}
