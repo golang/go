@@ -63,7 +63,7 @@ type convertTest struct {
 
 var convLargeTests = []convertTest{
 	{pCE(0xFB39), pCE(0xFB39), false},
-	{cjk(0x2F9B2), pqCE(0x7F4F2, 0x2F9B2), false},
+	{cjk(0x2F9B2), pqCE(0x4F4F2, 0x2F9B2), false},
 	{pCE(0xFB40), pCE(0), true},
 	{append(pCE(0xFB40), pCE(0)[0]), pCE(0), true},
 	{pCE(0xFFFE), pCE(illegalOffset), false},
