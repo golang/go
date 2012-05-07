@@ -154,17 +154,16 @@ const (
 // http://unicode.org/reports/tr10/#Implicit_Weights,
 // but preserve the resulting relative ordering of the runes.
 func implicitPrimary(r rune) int {
-
-	if r >= minUnified && r <= maxUnified {
-		// The most common case for CJK.
-		return int(r) + commonUnifiedOffset
-	}
-	if r >= minCompatibility && r <= maxCompatibility {
-		// This will never hit as long as we don't remove the characters
-		// that would match from the table.
-		return int(r) + commonUnifiedOffset
-	}
-	if unicode.Is(unicode.Unified_Ideograph, r) {
+	if unicode.Is(unicode.Ideographic, r) {
+		if r >= minUnified && r <= maxUnified {
+			// The most common case for CJK.
+			return int(r) + commonUnifiedOffset
+		}
+		if r >= minCompatibility && r <= maxCompatibility {
+			// This will typically not hit. The DUCET explicitly specifies mappings
+			// for all characters that do not decompose.
+			return int(r) + commonUnifiedOffset
+		}
 		return int(r) + rareUnifiedOffset
 	}
 	return int(r) + otherOffset
