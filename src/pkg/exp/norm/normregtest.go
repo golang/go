@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -39,7 +40,7 @@ func main() {
 const file = "NormalizationTest.txt"
 
 var url = flag.String("url",
-	"http://www.unicode.org/Public/6.0.0/ucd/"+file,
+	"http://www.unicode.org/Public/"+unicode.Version+"/ucd/"+file,
 	"URL of Unicode database directory")
 var localFiles = flag.Bool("local",
 	false,
@@ -48,7 +49,7 @@ var localFiles = flag.Bool("local",
 var logger = log.New(os.Stderr, "", log.Lshortfile)
 
 // This regression test runs the test set in NormalizationTest.txt
-// (taken from http://www.unicode.org/Public/6.0.0/ucd/).
+// (taken from http://www.unicode.org/Public/<unicode.Version>/ucd/).
 //
 // NormalizationTest.txt has form:
 // @Part0 # Specific cases
