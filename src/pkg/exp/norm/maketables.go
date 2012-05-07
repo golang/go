@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 }
 
 var url = flag.String("url",
-	"http://www.unicode.org/Public/6.0.0/ucd/",
+	"http://www.unicode.org/Public/"+unicode.Version+"/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
