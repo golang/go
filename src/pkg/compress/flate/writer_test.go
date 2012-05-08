@@ -10,16 +10,21 @@ import (
 	"testing"
 )
 
-func benchmarkEncoder(b *testing.B, level, n int) {
+func benchmarkEncoder(b *testing.B, testfile, level, n int) {
 	b.StopTimer()
 	b.SetBytes(int64(n))
-	buf0, err := ioutil.ReadFile("../testdata/e.txt")
+	buf0, err := ioutil.ReadFile(testfiles[testfile])
 	if err != nil {
 		b.Fatal(err)
 	}
-	buf0 = buf0[:10000]
+	if len(buf0) == 0 {
+		b.Fatalf("test file %q has no data", testfiles[testfile])
+	}
 	buf1 := make([]byte, n)
 	for i := 0; i < n; i += len(buf0) {
+		if len(buf0) > n-i {
+			buf0 = buf0[:n-i]
+		}
 		copy(buf1[i:], buf0)
 	}
 	buf0 = nil
@@ -35,38 +40,21 @@ func benchmarkEncoder(b *testing.B, level, n int) {
 	}
 }
 
-func BenchmarkEncoderBestSpeed1K(b *testing.B) {
-	benchmarkEncoder(b, BestSpeed, 1e4)
-}
-
-func BenchmarkEncoderBestSpeed10K(b *testing.B) {
-	benchmarkEncoder(b, BestSpeed, 1e5)
-}
-
-func BenchmarkEncoderBestSpeed100K(b *testing.B) {
-	benchmarkEncoder(b, BestSpeed, 1e6)
-}
-
-func BenchmarkEncoderDefaultCompression1K(b *testing.B) {
-	benchmarkEncoder(b, DefaultCompression, 1e4)
-}
-
-func BenchmarkEncoderDefaultCompression10K(b *testing.B) {
-	benchmarkEncoder(b, DefaultCompression, 1e5)
-}
-
-func BenchmarkEncoderDefaultCompression100K(b *testing.B) {
-	benchmarkEncoder(b, DefaultCompression, 1e6)
-}
-
-func BenchmarkEncoderBestCompression1K(b *testing.B) {
-	benchmarkEncoder(b, BestCompression, 1e4)
-}
-
-func BenchmarkEncoderBestCompression10K(b *testing.B) {
-	benchmarkEncoder(b, BestCompression, 1e5)
-}
-
-func BenchmarkEncoderBestCompression100K(b *testing.B) {
-	benchmarkEncoder(b, BestCompression, 1e6)
-}
+func BenchmarkEncodeDigitsSpeed1e4(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e4) }
+func BenchmarkEncodeDigitsSpeed1e5(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e5) }
+func BenchmarkEncodeDigitsSpeed1e6(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e6) }
+func BenchmarkEncodeDigitsDefault1e4(b *testing.B)  { benchmarkEncoder(b, digits, default_, 1e4) }
+func BenchmarkEncodeDigitsDefault1e5(b *testing.B)  { benchmarkEncoder(b, digits, default_, 1e5) }
+func BenchmarkEncodeDigitsDefault1e6(b *testing.B)  { benchmarkEncoder(b, digits, default_, 1e6) }
+func BenchmarkEncodeDigitsCompress1e4(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e4) }
+func BenchmarkEncodeDigitsCompress1e5(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e5) }
+func BenchmarkEncodeDigitsCompress1e6(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e6) }
+func BenchmarkEncodeTwainSpeed1e4(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e4) }
+func BenchmarkEncodeTwainSpeed1e5(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e5) }
+func BenchmarkEncodeTwainSpeed1e6(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e6) }
+func BenchmarkEncodeTwainDefault1e4(b *testing.B)   { benchmarkEncoder(b, twain, default_, 1e4) }
+func BenchmarkEncodeTwainDefault1e5(b *testing.B)   { benchmarkEncoder(b, twain, default_, 1e5) }
+func BenchmarkEncodeTwainDefault1e6(b *testing.B)   { benchmarkEncoder(b, twain, default_, 1e6) }
+func BenchmarkEncodeTwainCompress1e4(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e4) }
+func BenchmarkEncodeTwainCompress1e5(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e5) }
+func BenchmarkEncodeTwainCompress1e6(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e6) }
