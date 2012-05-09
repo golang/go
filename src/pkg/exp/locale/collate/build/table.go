@@ -72,6 +72,7 @@ func (t *table) print(w io.Writer, name string) (n, size int, err error) {
 	update(t.contractTries.printStruct(w, name))
 	p(",\n")
 	p("%sContractElem[:],\n", name)
+	p("%d,\n", t.maxContractLen)
 	p("}\n\n")
 
 	// Write arrays needed for the structure.
