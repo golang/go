@@ -21,14 +21,6 @@ var testfiles = []string{
 	// Digits is the digits of the irrational number e. Its decimal representation
 	// does not repeat, but there are only 10 posible digits, so it should be
 	// reasonably compressible.
-	//
-	// TODO(nigeltao): e.txt is only 10K long, so when benchmarking 100K or 1000K
-	// of input, the digits are just repeated from the beginning, and flate can
-	// trivially compress this as a length/distance copy operation. Thus,
-	// BenchmarkDecodeDigitsXxx1e6 is essentially just measuring the speed of the
-	// forwardCopy implementation, but isn't particularly representative of real
-	// usage. The TODO is to replace e.txt with 100K digits, not just 10K digits,
-	// since that's larger than the windowSize 1<<15 (= 32768).
 	digits: "../testdata/e.txt",
 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
 	twain: "../testdata/Mark.Twain-Tom.Sawyer.txt",
