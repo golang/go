@@ -92,10 +92,6 @@ func (c *Collator) SetVariableTop(r rune) {
 	// TODO: implement
 }
 
-var (
-	Root = Collator{}
-)
-
 // Buffer holds reusable buffers that can be used during collation.
 // Reusing a Buffer for the various calls that accept it may avoid
 // unnecessary memory allocations.

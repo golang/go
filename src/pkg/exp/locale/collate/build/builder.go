@@ -412,6 +412,9 @@ func (b *Builder) processContractions() {
 	cm := make(map[rune][]*entry)
 	for _, e := range b.entry {
 		if e.contraction() {
+			if len(e.str) > b.t.maxContractLen {
+				b.t.maxContractLen = len(e.str)
+			}
 			r := e.runes[0]
 			if _, ok := cm[r]; !ok {
 				starters = append(starters, r)
