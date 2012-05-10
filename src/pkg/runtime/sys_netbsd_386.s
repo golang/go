@@ -128,8 +128,27 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	DX, 4(DI)
 	RET
 
-TEXT runtime·sigaction(SB),7,$-4
-	MOVL	$46, AX			// sys_sigaction
+TEXT runtime·sigreturn_tramp(SB),7,$0
+	LEAL	140(SP), AX		// Load address of ucontext
+	MOVL	AX, 4(SP)
+	MOVL	$308, AX		// sys_setcontext
+	INT	$0x80
+	MOVL	$-1, 4(SP)		// Something failed...
+	MOVL	$1, AX			// sys_exit
+	INT	$0x80
+
+TEXT runtime·sigaction(SB),7,$24
+	LEAL	arg0+0(FP), SI
+	LEAL	4(SP), DI
+	CLD
+	MOVSL				// arg 1 - sig
+	MOVSL				// arg 2 - act
+	MOVSL				// arg 3 - oact
+	LEAL	runtime·sigreturn_tramp(SB), AX
+	STOSL				// arg 4 - tramp
+	MOVL	$3, AX
+	STOSL				// arg 5 - vers
+	MOVL	$340, AX		// sys___sigaction_sigtramp
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -259,7 +278,7 @@ TEXT runtime·rfork_thread(SB),7,$8
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$-8
-	MOVL	$288, AX		// sys_sigaltstack
+	MOVL	$281, AX		// sys___sigaltstack14
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
 	INT	$0x80
@@ -281,7 +300,7 @@ TEXT runtime·settls(SB),7,$16
 	ADDL	$8, CX
 	MOVL	CX, 0(CX)
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	$9, 4(SP)		// I386_SET_GSBASE (machine/sysarch.h)
+	MOVL	$16, 4(SP)		// X86_SET_GSBASE (x86/sysarch.h)
 	MOVL	CX, 8(SP)		// pointer to base
 	MOVL	$165, AX		// sys_sysarch
 	INT	$0x80

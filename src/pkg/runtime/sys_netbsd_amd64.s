@@ -163,11 +163,23 @@ TEXT runtime·nanotime(SB),7,$32
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·sigreturn_tramp(SB),7,$-8
+	MOVQ	R15, DI			// Load address of ucontext
+	MOVQ	$308, AX		// sys_setcontext
+	SYSCALL
+	MOVQ	$-1, DI			// Something failed...
+	MOVL	$1, AX			// sys_exit
+	SYSCALL
+
 TEXT runtime·sigaction(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - signum
 	MOVQ	16(SP), SI		// arg 2 - nsa
 	MOVQ	24(SP), DX		// arg 3 - osa
-	MOVL	$46, AX
+					// arg 4 - tramp
+	LEAQ	runtime·sigreturn_tramp(SB), R10
+	MOVQ	$3, R8			// arg 5 - version
+	MOVL	$340, AX		// sys___sigaction_sigtramp
+
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -232,7 +244,7 @@ TEXT runtime·munmap(SB),7,$0
 TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	new+8(SP), DI		// arg 1 - nss
 	MOVQ	old+16(SP), SI		// arg 2 - oss
-	MOVQ	$288, AX		// sys_sigaltstack
+	MOVQ	$281, AX		// sys___sigaltstack14
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
@@ -244,7 +256,7 @@ TEXT runtime·settls(SB),7,$8
 	ADDQ	$16, DI
 	MOVQ	DI, 0(SP)
 	MOVQ	SP, SI
-	MOVQ	$12, DI			// AMD64_SET_FSBASE (machine/sysarch.h)
+	MOVQ	$17, DI			// X86_64_SET_FSBASE (x86/sysarch.h)
 	MOVQ	$165, AX		// sys_sysarch
 	SYSCALL
 	JCC	2(PC)
