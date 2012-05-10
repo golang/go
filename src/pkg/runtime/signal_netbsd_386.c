@@ -11,10 +11,10 @@ extern void runtime·sigtramp(void);
 
 typedef struct sigaction {
 	union {
-		void    (*__sa_handler)(int32);
-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
-	} __sigaction_u;		/* signal handler */
-	uint32	sa_mask;		/* signal mask to apply */
+		void    (*_sa_handler)(int32);
+		void    (*_sa_sigaction)(int32, Siginfo*, void *);
+	} _sa_u;			/* signal handler */
+	uint32	sa_mask[4];		/* signal mask to apply */
 	int32	sa_flags;		/* see signal options below */
 } Sigaction;
 
@@ -124,9 +124,12 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
-	sa.sa_mask = ~0ULL;
+	sa.sa_mask[0] = ~0U;
+	sa.sa_mask[1] = ~0U;
+	sa.sa_mask[2] = ~0U;
+	sa.sa_mask[3] = ~0U;
 	if (fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+	sa._sa_u._sa_sigaction = (void*)fn;
 	runtime·sigaction(i, &sa, nil);
 }
