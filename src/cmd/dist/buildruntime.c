@@ -256,6 +256,7 @@ static char *runtimedefs[] = {
 	"iface.c",
 	"hashmap.c",
 	"chan.c",
+	"parfor.c",
 };
 
 // mkzruntimedefs writes zruntime_defs_$GOOS_$GOARCH.h,
