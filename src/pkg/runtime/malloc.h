@@ -125,7 +125,7 @@ enum
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine.  The garbage
 	// collector scales well to 4 cpus.
-	MaxGcproc = 16,
+	MaxGcproc = 4,
 };
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
