@@ -36,3 +36,28 @@ func lfstackpop2(head *uint64) *LFNode
 
 var LFStackPush = lfstackpush
 var LFStackPop = lfstackpop2
+
+type ParFor struct {
+	body    *byte
+	done    uint32
+	Nthr    uint32
+	nthrmax uint32
+	thrseq  uint32
+	Cnt     uint32
+	Ctx     *byte
+	wait    bool
+}
+
+func parforalloc2(nthrmax uint32) *ParFor
+func parforsetup2(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
+func parfordo(desc *ParFor)
+func parforiters(desc *ParFor, tid uintptr) (uintptr, uintptr)
+
+var NewParFor = parforalloc2
+var ParForSetup = parforsetup2
+var ParForDo = parfordo
+
+func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+	begin, end := parforiters(desc, uintptr(tid))
+	return uint32(begin), uint32(end)
+}

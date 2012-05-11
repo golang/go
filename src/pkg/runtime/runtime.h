@@ -73,6 +73,8 @@ typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
 typedef struct	GCStats		GCStats;
 typedef struct	LFNode		LFNode;
+typedef struct	ParFor		ParFor;
+typedef struct	ParForThread	ParForThread;
 
 /*
  * per-cpu declaration.
@@ -357,6 +359,27 @@ struct LFNode
 {
 	LFNode	*next;
 	uintptr	pushcnt;
+};
+
+// Parallel for descriptor.
+struct ParFor
+{
+	void (*body)(ParFor*, uint32);	// executed for each element
+	uint32 done;			// number of idle threads
+	uint32 nthr;			// total number of threads
+	uint32 nthrmax;			// maximum number of threads
+	uint32 thrseq;			// thread id sequencer
+	uint32 cnt;			// iteration space [0, cnt)
+	void *ctx;			// arbitrary user context
+	bool wait;			// if true, wait while all threads finish processing,
+					// otherwise parfor may return while other threads are still working
+	ParForThread *thr;		// array of thread descriptors
+	// stats
+	uint64 nsteal;
+	uint64 nstealcnt;
+	uint64 nprocyield;
+	uint64 nosyield;
+	uint64 nsleep;
 };
 
 /*
@@ -667,6 +690,18 @@ void	runtime·futexwakeup(uint32*, uint32);
  */
 void	runtime·lfstackpush(uint64 *head, LFNode *node);
 LFNode*	runtime·lfstackpop(uint64 *head);
+
+/*
+ * Parallel for over [0, n).
+ * body() is executed for each iteration.
+ * nthr - total number of worker threads.
+ * ctx - arbitrary user context.
+ * if wait=true, threads return from parfor() when all work is done;
+ * otherwise, threads can return while other threads are still finishing processing.
+ */
+ParFor*	runtime·parforalloc(uint32 nthrmax);
+void	runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32));
+void	runtime·parfordo(ParFor *desc);
 
 /*
  * This is consistent across Linux and BSD.
