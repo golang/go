@@ -38,6 +38,6 @@ func (o *Once) Do(f func()) {
 	defer o.m.Unlock()
 	if o.done == 0 {
 		f()
-		atomic.CompareAndSwapUint32(&o.done, 0, 1)
+		atomic.StoreUint32(&o.done, 1)
 	}
 }
