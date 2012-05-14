@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	netmail "net/mail"
 	"net/url"
 	"regexp"
 	"sort"
@@ -192,8 +193,11 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 				Subject: cl.Subject + " (issue " + n + ")",
 				Body:    "R=" + rev + "\n\n(sent by gocodereview)",
 			}
-			// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
-			// when the appengine/mail package supports that.
+			if cl.LastMessageID != "" {
+				msg.Headers = netmail.Header{
+					"In-Reply-To": []string{cl.LastMessageID},
+				}
+			}
 			if err := mail.Send(c, msg); err != nil {
 				c.Errorf("mail.Send: %v", err)
 			}
