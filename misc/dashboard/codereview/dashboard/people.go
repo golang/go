@@ -28,6 +28,7 @@ func init() {
 		"nigeltao",
 		"r",
 		"rsc",
+		"sameer",
 	}
 	for _, p := range gophers {
 		personList = append(personList, p)
