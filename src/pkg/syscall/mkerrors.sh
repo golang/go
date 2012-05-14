@@ -104,6 +104,9 @@ includes_NetBSD='
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/if_ether.h>
+
+// Needed since <sys/param.h> refers to it...
+const int schedppq = 1;
 '
 
 includes_OpenBSD='
