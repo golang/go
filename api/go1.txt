@@ -5484,6 +5484,7 @@ pkg regexp/syntax, const ErrMissingBracket ErrorCode
 pkg regexp/syntax, const ErrMissingParen ErrorCode
 pkg regexp/syntax, const ErrMissingRepeatArgument ErrorCode
 pkg regexp/syntax, const ErrTrailingBackslash ErrorCode
+pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
 pkg regexp/syntax, const FoldCase Flags
 pkg regexp/syntax, const InstAlt InstOp
 pkg regexp/syntax, const InstAltMatch InstOp
