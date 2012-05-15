@@ -83,13 +83,13 @@ TEXT runtime·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - exit status
 	MOVL	$1, AX			// sys_exit
 	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·exit1(SB),7,$-8
 	MOVL	$302, AX		// sys_threxit
 	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·write(SB),7,$-8
@@ -179,10 +179,9 @@ TEXT runtime·sigaction(SB),7,$-8
 	LEAQ	runtime·sigreturn_tramp(SB), R10
 	MOVQ	$3, R8			// arg 5 - version
 	MOVL	$340, AX		// sys___sigaction_sigtramp
-
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigtramp(SB),7,$64
@@ -238,7 +237,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX			// sys_munmap
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$-8
@@ -247,20 +246,17 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	$281, AX		// sys___sigaltstack14
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 // set tls base to DI
 TEXT runtime·settls(SB),7,$8
 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
-	ADDQ	$16, DI
-	MOVQ	DI, 0(SP)
-	MOVQ	SP, SI
-	MOVQ	$17, DI			// X86_64_SET_FSBASE (x86/sysarch.h)
-	MOVQ	$165, AX		// sys_sysarch
+	ADDQ	$16, DI			// arg 1 - ptr
+	MOVQ	$317, AX		// sys__lwp_setprivate
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sysctl(SB),7,$0
