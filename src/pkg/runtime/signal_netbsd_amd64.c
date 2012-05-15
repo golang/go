@@ -19,73 +19,73 @@ typedef struct sigaction {
 } Sigaction;
 
 void
-runtime·dumpregs(Sigcontext *r)
+runtime·dumpregs(McontextT *mc)
 {
-	runtime·printf("rax     %X\n", r->sc_rax);
-	runtime·printf("rbx     %X\n", r->sc_rbx);
-	runtime·printf("rcx     %X\n", r->sc_rcx);
-	runtime·printf("rdx     %X\n", r->sc_rdx);
-	runtime·printf("rdi     %X\n", r->sc_rdi);
-	runtime·printf("rsi     %X\n", r->sc_rsi);
-	runtime·printf("rbp     %X\n", r->sc_rbp);
-	runtime·printf("rsp     %X\n", r->sc_rsp);
-	runtime·printf("r8      %X\n", r->sc_r8);
-	runtime·printf("r9      %X\n", r->sc_r9);
-	runtime·printf("r10     %X\n", r->sc_r10);
-	runtime·printf("r11     %X\n", r->sc_r11);
-	runtime·printf("r12     %X\n", r->sc_r12);
-	runtime·printf("r13     %X\n", r->sc_r13);
-	runtime·printf("r14     %X\n", r->sc_r14);
-	runtime·printf("r15     %X\n", r->sc_r15);
-	runtime·printf("rip     %X\n", r->sc_rip);
-	runtime·printf("rflags  %X\n", r->sc_rflags);
-	runtime·printf("cs      %X\n", r->sc_cs);
-	runtime·printf("fs      %X\n", r->sc_fs);
-	runtime·printf("gs      %X\n", r->sc_gs);
+	runtime·printf("rax     %X\n", mc->__gregs[REG_RAX]);
+	runtime·printf("rbx     %X\n", mc->__gregs[REG_RBX]);
+	runtime·printf("rcx     %X\n", mc->__gregs[REG_RCX]);
+	runtime·printf("rdx     %X\n", mc->__gregs[REG_RDX]);
+	runtime·printf("rdi     %X\n", mc->__gregs[REG_RDI]);
+	runtime·printf("rsi     %X\n", mc->__gregs[REG_RSI]);
+	runtime·printf("rbp     %X\n", mc->__gregs[REG_RBP]);
+	runtime·printf("rsp     %X\n", mc->__gregs[REG_RSP]);
+	runtime·printf("r8      %X\n", mc->__gregs[REG_R8]);
+	runtime·printf("r9      %X\n", mc->__gregs[REG_R9]);
+	runtime·printf("r10     %X\n", mc->__gregs[REG_R10]);
+	runtime·printf("r11     %X\n", mc->__gregs[REG_R11]);
+	runtime·printf("r12     %X\n", mc->__gregs[REG_R12]);
+	runtime·printf("r13     %X\n", mc->__gregs[REG_R13]);
+	runtime·printf("r14     %X\n", mc->__gregs[REG_R14]);
+	runtime·printf("r15     %X\n", mc->__gregs[REG_R15]);
+	runtime·printf("rip     %X\n", mc->__gregs[REG_RIP]);
+	runtime·printf("rflags  %X\n", mc->__gregs[REG_RFLAGS]);
+	runtime·printf("cs      %X\n", mc->__gregs[REG_CS]);
+	runtime·printf("fs      %X\n", mc->__gregs[REG_FS]);
+	runtime·printf("gs      %X\n", mc->__gregs[REG_GS]);
 }
 
 void
 runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
-	Sigcontext *r = context;
+	UcontextT *uc = context;
+	McontextT *mc = &uc->uc_mcontext;
 	uintptr *sp;
 	SigTab *t;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((uint8*)r->sc_rip,
-			(uint8*)r->sc_rsp, nil, gp);
+		runtime·sigprof((uint8*)mc->__gregs[REG_RIP],
+			(uint8*)mc->__gregs[REG_RSP], nil, gp);
 		return;
 	}
 
 	t = &runtime·sigtab[sig];
-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+	if(info->_code != SI_USER && (t->flags & SigPanic)) {
 		if(gp == nil)
 			goto Throw;
 		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
+		// We need to pass arguments out of band since augmenting the
+		// stack frame would break the unwinding code.
 		gp->sig = sig;
-		gp->sigcode0 = info->si_code;
-		gp->sigcode1 = *(uintptr*)((byte*)info + 16); /* si_addr */
-		gp->sigpc = r->sc_rip;
+		gp->sigcode0 = info->_code;
+		gp->sigcode1 = *(uintptr*)&info->_reason[0]; /* _addr */
+		gp->sigpc = mc->__gregs[REG_RIP];
 
-		// Only push runtime·sigpanic if r->mc_rip != 0.
-		// If r->mc_rip == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to runtime·sigpanic instead.
-		// (Otherwise the trace will end at runtime·sigpanic and we
-		// won't get to see who faulted.)
-		if(r->sc_rip != 0) {
-			sp = (uintptr*)r->sc_rsp;
-			*--sp = r->sc_rip;
-			r->sc_rsp = (uintptr)sp;
+		// Only push runtime·sigpanic if __gregs[REG_RIP] != 0.
+		// If __gregs[REG_RIP] == 0, probably panicked because of a
+		// call to a nil func. Not pushing that onto sp will make the
+		// trace look like a call to runtime·sigpanic instead.
+		// (Otherwise the trace will end at runtime·sigpanic
+		// and we won't get to see who faulted.)
+		if(mc->__gregs[REG_RIP] != 0) {
+			sp = (uintptr*)mc->__gregs[REG_RSP];
+			*--sp = mc->__gregs[REG_RIP];
+			mc->__gregs[REG_RSP] = (uintptr)sp;
 		}
-		r->sc_rip = (uintptr)runtime·sigpanic;
+		mc->__gregs[REG_RIP] = (uintptr)runtime·sigpanic;
 		return;
 	}
 
-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+	if(info->_code == SI_USER || (t->flags & SigNotify))
 		if(runtime·sigsend(sig))
 			return;
 	if(t->flags & SigKill)
@@ -101,13 +101,14 @@ Throw:
 	else
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
-	runtime·printf("PC=%X\n", r->sc_rip);
+	runtime·printf("PC=%X\n", mc->__gregs[REG_RIP]);
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
-		runtime·traceback((void*)r->sc_rip, (void*)r->sc_rsp, 0, gp);
+		runtime·traceback((void*)mc->__gregs[REG_RIP],
+			(void*)mc->__gregs[REG_RSP], 0, gp);
 		runtime·tracebackothers(gp);
-		runtime·dumpregs(r);
+		runtime·dumpregs(mc);
 	}
 
 	runtime·exit(2);
@@ -118,7 +119,7 @@ runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
-	st.ss_sp = (int8*)p;
+	st.ss_sp = p;
 	st.ss_size = n;
 	st.ss_flags = 0;
 	runtime·sigaltstack(&st, nil);

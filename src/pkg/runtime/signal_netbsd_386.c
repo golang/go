@@ -19,64 +19,66 @@ typedef struct sigaction {
 } Sigaction;
 
 void
-runtime·dumpregs(Sigcontext *r)
+runtime·dumpregs(McontextT *mc)
 {
-	runtime·printf("eax     %x\n", r->sc_eax);
-	runtime·printf("ebx     %x\n", r->sc_ebx);
-	runtime·printf("ecx     %x\n", r->sc_ecx);
-	runtime·printf("edx     %x\n", r->sc_edx);
-	runtime·printf("edi     %x\n", r->sc_edi);
-	runtime·printf("esi     %x\n", r->sc_esi);
-	runtime·printf("ebp     %x\n", r->sc_ebp);
-	runtime·printf("esp     %x\n", r->sc_esp);
-	runtime·printf("eip     %x\n", r->sc_eip);
-	runtime·printf("eflags  %x\n", r->sc_eflags);
-	runtime·printf("cs      %x\n", r->sc_cs);
-	runtime·printf("fs      %x\n", r->sc_fs);
-	runtime·printf("gs      %x\n", r->sc_gs);
+	runtime·printf("eax     %x\n", mc->__gregs[REG_EAX]);
+	runtime·printf("ebx     %x\n", mc->__gregs[REG_EBX]);
+	runtime·printf("ecx     %x\n", mc->__gregs[REG_ECX]);
+	runtime·printf("edx     %x\n", mc->__gregs[REG_EDX]);
+	runtime·printf("edi     %x\n", mc->__gregs[REG_EDI]);
+	runtime·printf("esi     %x\n", mc->__gregs[REG_ESI]);
+	runtime·printf("ebp     %x\n", mc->__gregs[REG_EBP]);
+	runtime·printf("esp     %x\n", mc->__gregs[REG_ESP]);
+	runtime·printf("eip     %x\n", mc->__gregs[REG_EIP]);
+	runtime·printf("eflags  %x\n", mc->__gregs[REG_EFL]);
+	runtime·printf("cs      %x\n", mc->__gregs[REG_CS]);
+	runtime·printf("fs      %x\n", mc->__gregs[REG_FS]);
+	runtime·printf("gs      %x\n", mc->__gregs[REG_GS]);
 }
 
 void
 runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
-	Sigcontext *r = context;
+	UcontextT *uc = context;
+	McontextT *mc = &uc->uc_mcontext;
 	uintptr *sp;
 	SigTab *t;
 
 	if(sig == SIGPROF) {
-		runtime·sigprof((uint8*)r->sc_eip, (uint8*)r->sc_esp, nil, gp);
+		runtime·sigprof((uint8*)mc->__gregs[REG_EIP],
+			(uint8*)mc->__gregs[REG_ESP], nil, gp);
 		return;
 	}
 
 	t = &runtime·sigtab[sig];
-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+	if(info->_code != SI_USER && (t->flags & SigPanic)) {
 		if(gp == nil)
 			goto Throw;
 		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
+		// We need to pass arguments out of band since
 		// augmenting the stack frame would break
 		// the unwinding code.
 		gp->sig = sig;
-		gp->sigcode0 = info->si_code;
-		gp->sigcode1 = *(uintptr*)((byte*)info + 12); /* si_addr */
-		gp->sigpc = r->sc_eip;
+		gp->sigcode0 = info->_code;
+		gp->sigcode1 = *(uintptr*)&info->_reason[0]; /* _addr */
+		gp->sigpc = mc->__gregs[REG_EIP];
 
-		// Only push runtime·sigpanic if r->sc_eip != 0.
-		// If r->sc_eip == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
-		// make the trace look like a call to runtime·sigpanic instead.
-		// (Otherwise the trace will end at runtime·sigpanic and we
-		// won't get to see who faulted.)
-		if(r->sc_eip != 0) {
-			sp = (uintptr*)r->sc_esp;
-			*--sp = r->sc_eip;
-			r->sc_esp = (uintptr)sp;
+		// Only push runtime·sigpanic if __gregs[REG_EIP] != 0.
+		// If __gregs[REG_EIP] == 0, probably panicked because of a
+		// call to a nil func. Not pushing that onto sp will make the
+		// trace look like a call to runtime·sigpanic instead.
+		// (Otherwise the trace will end at runtime·sigpanic
+		// and we won't get to see who faulted.)
+		if(mc->__gregs[REG_EIP] != 0) {
+			sp = (uintptr*)mc->__gregs[REG_ESP];
+			*--sp = mc->__gregs[REG_EIP];
+			mc->__gregs[REG_ESP] = (uintptr)sp;
 		}
-		r->sc_eip = (uintptr)runtime·sigpanic;
+		mc->__gregs[REG_EIP] = (uintptr)runtime·sigpanic;
 		return;
 	}
 
-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+	if(info->_code == SI_USER || (t->flags & SigNotify))
 		if(runtime·sigsend(sig))
 			return;
 	if(t->flags & SigKill)
@@ -92,13 +94,14 @@ Throw:
 	else
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
-	runtime·printf("PC=%X\n", r->sc_eip);
+	runtime·printf("PC=%X\n", mc->__gregs[REG_EIP]);
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
-		runtime·traceback((void*)r->sc_eip, (void*)r->sc_esp, 0, gp);
+		runtime·traceback((void*)mc->__gregs[REG_EIP],
+			(void*)mc->__gregs[REG_ESP], 0, gp);
 		runtime·tracebackothers(gp);
-		runtime·dumpregs(r);
+		runtime·dumpregs(mc);
 	}
 
 	runtime·exit(2);
@@ -109,7 +112,7 @@ runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
-	st.ss_sp = (int8*)p;
+	st.ss_sp = p;
 	st.ss_size = n;
 	st.ss_flags = 0;
 	runtime·sigaltstack(&st, nil);
