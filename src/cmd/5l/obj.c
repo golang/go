@@ -296,16 +296,16 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	Sym *s;
 	Auto *u;
 
-	a->type = Bgetc(f);
-	a->reg = Bgetc(f);
-	c = Bgetc(f);
+	a->type = BGETC(f);
+	a->reg = BGETC(f);
+	c = BGETC(f);
 	if(c < 0 || c > NSYM){
 		print("sym out of range: %d\n", c);
 		Bputc(f, ALAST+1);
 		return;
 	}
 	a->sym = h[c];
-	a->name = Bgetc(f);
+	a->name = BGETC(f);
 
 	if((schar)a->reg < 0 || a->reg > NREG) {
 		print("register out of range %d\n", a->reg);
@@ -338,7 +338,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_REGREG:
-		a->offset = Bgetc(f);
+		a->offset = BGETC(f);
 		break;
 
 	case D_CONST2:
@@ -422,7 +422,7 @@ newloop:
 loop:
 	if(f->state == Bracteof || Boffset(f) >= eof)
 		goto eof;
-	o = Bgetc(f);
+	o = BGETC(f);
 	if(o == Beof)
 		goto eof;
 
@@ -435,8 +435,8 @@ loop:
 		sig = 0;
 		if(o == ASIGNAME)
 			sig = Bget4(f);
-		v = Bgetc(f); /* type */
-		o = Bgetc(f); /* sym */
+		v = BGETC(f); /* type */
+		o = BGETC(f); /* sym */
 		r = 0;
 		if(v == D_STATIC)
 			r = version;
@@ -486,8 +486,8 @@ loop:
 
 	p = mal(sizeof(Prog));
 	p->as = o;
-	p->scond = Bgetc(f);
-	p->reg = Bgetc(f);
+	p->scond = BGETC(f);
+	p->reg = BGETC(f);
 	p->line = Bget4(f);
 
 	zaddr(f, &p->from, h);
