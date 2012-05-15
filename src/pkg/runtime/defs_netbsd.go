@@ -7,18 +7,21 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
-GOARCH=386 cgo -cdefs defs.go >386/defs.h
+GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
+GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
 */
+
+// +godefs map __fpregset_t [644]byte
 
 package runtime
 
 /*
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <sys/time.h>
-#include <sys/unistd.h>
 #include <sys/signal.h>
+#include <sys/time.h>
+#include <sys/ucontext.h>
+#include <sys/unistd.h>
 #include <errno.h>
 #include <signal.h>
 */
@@ -95,8 +98,7 @@ const (
 
 type Sigaltstack C.struct_sigaltstack
 type Sigset C.sigset_t
-type Siginfo C.siginfo_t
-type Sigval C.union_sigval
+type Siginfo C.struct__ksiginfo
 
 type StackT C.stack_t
 
@@ -104,8 +106,5 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
 
-// This is a hack to avoid pulling in machine/fpu.h.
-type sfxsave64 struct{}
-type usavefpu struct{}
-
-type Sigcontext C.struct_sigcontext
+type McontextT C.mcontext_t
+type UcontextT C.ucontext_t
