@@ -16,7 +16,7 @@ TEXT runtime·exit(SB),7,$-4
 	RET
 
 TEXT runtime·exit1(SB),7,$-4
-	MOVL	$302, AX		// sys_threxit
+	MOVL	$310, AX		// sys__lwp_exit
 	INT	$0x80
 	JAE	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
@@ -41,17 +41,17 @@ TEXT runtime·usleep(SB),7,$20
 	LEAL	12(SP), AX
 	MOVL	AX, 4(SP)		// arg 1 - rqtp
 	MOVL	$0, 8(SP)		// arg 2 - rmtp
-	MOVL	$240, AX		// sys_nanosleep
+	MOVL	$430, AX		// sys_nanosleep
 	INT	$0x80
 	RET
 
 TEXT runtime·raisesigpipe(SB),7,$12
-	MOVL	$299, AX		// sys_getthrid
+	MOVL	$311, AX		// sys__lwp_self
 	INT	$0x80
 	MOVL	$0, 0(SP)
-	MOVL	AX, 4(SP)		// arg 1 - pid
-	MOVL	$13, 8(SP)		// arg 2 - signum == SIGPIPE
-	MOVL	$37, AX			// sys_kill
+	MOVL	AX, 4(SP)		// arg 1 - target
+	MOVL	$13, 8(SP)		// arg 2 - signo == SIGPIPE
+	MOVL	$318, AX		// sys__lwp_kill
 	INT	$0x80
 	RET
 
@@ -83,16 +83,16 @@ TEXT runtime·munmap(SB),7,$-4
 	RET
 
 TEXT runtime·setitimer(SB),7,$-4
-	MOVL	$83, AX
+	MOVL	$425, AX		// sys_setitimer
 	INT	$0x80
 	RET
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
-	MOVL	$116, AX
 	LEAL	12(SP), BX
-	MOVL	BX, 4(SP)
-	MOVL	$0, 8(SP)
+	MOVL	BX, 4(SP)		// arg 1 - tp
+	MOVL	$0, 8(SP)		// arg 2 - tzp
+	MOVL	$418, AX		// sys_gettimeofday
 	INT	$0x80
 	MOVL	12(SP), AX		// sec
 	MOVL	16(SP), BX		// usec
@@ -107,10 +107,10 @@ TEXT time·now(SB), 7, $32
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32
-	MOVL	$116, AX
 	LEAL	12(SP), BX
-	MOVL	BX, 4(SP)
-	MOVL	$0, 8(SP)
+	MOVL	BX, 4(SP)		// arg 1 - tp
+	MOVL	$0, 8(SP)		// arg 2 - tzp
+	MOVL	$418, AX		// sys_gettimeofday
 	INT	$0x80
 	MOVL	12(SP), AX		// sec
 	MOVL	16(SP), BX		// usec
@@ -307,7 +307,7 @@ TEXT runtime·settls(SB),7,$16
 	RET
 
 TEXT runtime·osyield(SB),7,$-4
-	MOVL	$298, AX		// sys_sched_yield
+	MOVL	$350, AX		// sys_sched_yield
 	INT	$0x80
 	RET
 

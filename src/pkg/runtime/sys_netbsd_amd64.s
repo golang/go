@@ -58,7 +58,7 @@ TEXT runtime·rfork_thread(SB),7,$0
 	JMP	-3(PC)			// keep exiting
 
 TEXT runtime·osyield(SB),7,$0
-	MOVL $298, AX			// sys_sched_yield
+	MOVL	$350, AX		// sys_sched_yield
 	SYSCALL
 	RET
 
@@ -87,7 +87,7 @@ TEXT runtime·exit(SB),7,$-8
 	RET
 
 TEXT runtime·exit1(SB),7,$-8
-	MOVL	$302, AX		// sys_threxit
+	MOVL	$310, AX		// sys__lwp_exit
 	SYSCALL
 	MOVL	$0xf1, 0xf1		// crash
 	RET
@@ -112,16 +112,16 @@ TEXT runtime·usleep(SB),7,$16
 
 	MOVQ	SP, DI			// arg 1 - rqtp
 	MOVQ	$0, SI			// arg 2 - rmtp
-	MOVL	$240, AX		// sys_nanosleep
+	MOVL	$430, AX		// sys_nanosleep
 	SYSCALL
 	RET
 
 TEXT runtime·raisesigpipe(SB),7,$16
-	MOVL	$299, AX		// sys_getthrid
+	MOVL	$311, AX		// sys__lwp_self
 	SYSCALL
-	MOVQ	AX, DI			// arg 1 - pid
-	MOVQ	$13, SI			// arg 2 - signum == SIGPIPE
-	MOVL	$37, AX			// sys_kill
+	MOVQ	AX, DI			// arg 1 - target
+	MOVQ	$13, SI			// arg 2 - signo == SIGPIPE
+	MOVL	$318, AX		// sys__lwp_kill
 	SYSCALL
 	RET
 
@@ -129,7 +129,7 @@ TEXT runtime·setitimer(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - which
 	MOVQ	16(SP), SI		// arg 2 - itv
 	MOVQ	24(SP), DX		// arg 3 - oitv
-	MOVL	$83, AX			// sys_setitimer
+	MOVL	$425, AX		// sys_setitimer
 	SYSCALL
 	RET
 
@@ -137,10 +137,10 @@ TEXT runtime·setitimer(SB),7,$-8
 TEXT time·now(SB), 7, $32
 	LEAQ	8(SP), DI		// arg 1 - tp
 	MOVQ	$0, SI			// arg 2 - tzp
-	MOVL	$116, AX		// sys_gettimeofday
+	MOVL	$418, AX		// sys_gettimeofday
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX	// usec
+	MOVL	16(SP), DX		// usec
 
 	// sec is in AX, usec in DX
 	MOVQ	AX, sec+0(FP)
@@ -151,10 +151,10 @@ TEXT time·now(SB), 7, $32
 TEXT runtime·nanotime(SB),7,$32
 	LEAQ	8(SP), DI		// arg 1 - tp
 	MOVQ	$0, SI			// arg 2 - tzp
-	MOVL	$116, AX		// sys_gettimeofday
+	MOVL	$418, AX		// sys_gettimeofday
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX	// usec
+	MOVL	16(SP), DX		// usec
 
 	// sec is in AX, usec in DX
 	// return nsec in AX
@@ -224,7 +224,7 @@ TEXT runtime·mmap(SB),7,$0
 	SUBQ	$16, SP
 	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
 	MOVQ	$0, R9			// arg 6 - pad
-	MOVL	$197, AX
+	MOVL	$197, AX		// sys_mmap
 	SYSCALL
 	JCC	2(PC)
 	NEGL	AX
