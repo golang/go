@@ -122,10 +122,24 @@ TEXT runtime·nanotime(SB),7,$32
 	IMULL	$1000, BX
 	ADDL	BX, AX
 	ADCL	$0, DX
-	
+
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
+	RET
+
+TEXT runtime·getcontext(SB),7,$-4
+	MOVL	$307, AX		// sys_getcontext
+	INT	$0x80
+	JAE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
+TEXT runtime·sigprocmask(SB),7,$-4
+	MOVL	$293, AX		// sys_sigprocmask
+	INT	$0x80
+	JAE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigreturn_tramp(SB),7,$0
@@ -166,7 +180,7 @@ TEXT runtime·sigtramp(SB),7,$44
 	// save g
 	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
@@ -186,14 +200,6 @@ TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
-	
-	// call sigreturn
-	MOVL	context+8(FP), AX
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	AX, 4(SP)		// arg 1 - sigcontext
-	MOVL	$103, AX		// sys_sigreturn
-	INT	$0x80
-	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
@@ -255,7 +261,7 @@ TEXT runtime·rfork_thread(SB),7,$8
 	CALL	runtime·settls(SB)
 	POPL	AX
 	POPAL
-	
+
 	// Now segment is established.  Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
