@@ -355,7 +355,7 @@ func Stack(b Slice, all bool) (n int32) {
 	if(all) {
 		m->gcing = 0;
 		runtime·semrelease(&runtime·worldsema);
-		runtime·starttheworld(false);
+		runtime·starttheworld();
 	}
 }
 
@@ -398,7 +398,7 @@ func GoroutineProfile(b Slice) (n int32, ok bool) {
 	
 		m->gcing = 0;
 		runtime·semrelease(&runtime·worldsema);
-		runtime·starttheworld(false);
+		runtime·starttheworld();
 	}
 }
 

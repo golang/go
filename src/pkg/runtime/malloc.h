@@ -414,7 +414,8 @@ enum
 void	runtime·MProf_Malloc(void*, uintptr);
 void	runtime·MProf_Free(void*, uintptr);
 void	runtime·MProf_GC(void);
-int32	runtime·helpgc(bool*);
+int32	runtime·gcprocs(void);
+void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 
 bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);

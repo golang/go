@@ -366,7 +366,6 @@ debug_scanblock(byte *b, int64 n)
 		if(s == nil)
 			continue;
 
-
 		p =  (byte*)((uintptr)s->start<<PageShift);
 		if(s->sizeclass == 0) {
 			obj = p;
@@ -692,7 +691,7 @@ handlespecial(byte *p, uintptr size)
 	int32 nret;
 	FinBlock *block;
 	Finalizer *f;
-	
+
 	if(!runtime·getfinalizer(p, true, &fn, &nret)) {
 		runtime·setblockspecial(p, false);
 		runtime·MProf_Free(p, size);
@@ -717,7 +716,7 @@ handlespecial(byte *p, uintptr size)
 	f->fn = fn;
 	f->nret = nret;
 	f->arg = p;
-	runtime·unlock(&finlock); 
+	runtime·unlock(&finlock);
 	return true;
 }
 
@@ -925,7 +924,6 @@ runtime·gc(int32 force)
 	int64 t0, t1, t2, t3;
 	uint64 heap0, heap1, obj0, obj1;
 	byte *p;
-	bool extra;
 	GCStats stats;
 
 	// The gc is turned off (via enablegc) until
@@ -966,18 +964,21 @@ runtime·gc(int32 force)
 	m->gcing = 1;
 	runtime·stoptheworld();
 
-	cachestats(nil);
-	heap0 = mstats.heap_alloc;
-	obj0 = mstats.nmalloc - mstats.nfree;
+	heap0 = 0;
+	obj0 = 0;
+	if(gctrace) {
+		cachestats(nil);
+		heap0 = mstats.heap_alloc;
+		obj0 = mstats.nmalloc - mstats.nfree;
+	}
 
 	runtime·lock(&work.markgate);
 	runtime·lock(&work.sweepgate);
 
-	extra = false;
-	work.nproc = 1;
-	if(runtime·gomaxprocs > 1 && runtime·ncpu > 1) {
+	work.nproc = runtime·gcprocs();
+	if(work.nproc > 1) {
 		runtime·noteclear(&work.alldone);
-		work.nproc += runtime·helpgc(&extra);
+		runtime·helpgc(work.nproc);
 	}
 	work.nwait = 0;
 	work.ndone = 0;
@@ -1036,15 +1037,7 @@ runtime·gc(int32 force)
 	
 	runtime·MProf_GC();
 	runtime·semrelease(&runtime·worldsema);
-
-	// If we could have used another helper proc, start one now,
-	// in the hope that it will be available next time.
-	// It would have been even better to start it before the collection,
-	// but doing so requires allocating memory, so it's tricky to
-	// coordinate.  This lazy approach works out in practice:
-	// we don't mind if the first couple gc rounds don't have quite
-	// the maximum number of procs.
-	runtime·starttheworld(extra);
+	runtime·starttheworld();
 
 	// give the queued finalizers, if any, a chance to run	
 	if(finq != nil)	
@@ -1068,7 +1061,7 @@ runtime·ReadMemStats(MStats *stats)
 	*stats = mstats;
 	m->gcing = 0;
 	runtime·semrelease(&runtime·worldsema);
-	runtime·starttheworld(false);
+	runtime·starttheworld();
 }
 
 static void
