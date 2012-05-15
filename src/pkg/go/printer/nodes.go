@@ -868,28 +868,32 @@ func (p *printer) expr(x ast.Expr) {
 // Print the statement list indented, but without a newline after the last statement.
 // Extra line breaks between statements in the source are respected but at most one
 // empty line is printed between statements.
-func (p *printer) stmtList(list []ast.Stmt, _indent int, nextIsRBrace bool) {
-	// TODO(gri): fix _indent code
-	if _indent > 0 {
+func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+	if nindent > 0 {
 		p.print(indent)
 	}
 	multiLine := false
-	for i, s := range list {
-		// _indent == 0 only for lists of switch/select case clauses;
-		// in those cases each clause is a new section
-		p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || _indent == 0 || multiLine)
-		p.stmt(s, nextIsRBrace && i == len(list)-1)
-		multiLine = p.isMultiLine(s)
+	i := 0
+	for _, s := range list {
+		// ignore empty statements (was issue 3466)
+		if _, isEmpty := s.(*ast.EmptyStmt); !isEmpty {
+			// _indent == 0 only for lists of switch/select case clauses;
+			// in those cases each clause is a new section
+			p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
+			p.stmt(s, nextIsRBrace && i == len(list)-1)
+			multiLine = p.isMultiLine(s)
+			i++
+		}
 	}
-	if _indent > 0 {
+	if nindent > 0 {
 		p.print(unindent)
 	}
 }
 
 // block prints an *ast.BlockStmt; it always spans at least two lines.
-func (p *printer) block(s *ast.BlockStmt, indent int) {
+func (p *printer) block(s *ast.BlockStmt, nindent int) {
 	p.print(s.Pos(), token.LBRACE)
-	p.stmtList(s.List, indent, true)
+	p.stmtList(s.List, nindent, true)
 	p.linebreak(p.lineFor(s.Rbrace), 1, ignore, true)
 	p.print(s.Rbrace, token.RBRACE)
 }
