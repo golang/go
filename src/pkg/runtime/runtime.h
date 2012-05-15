@@ -636,7 +636,7 @@ int64	runtime·cputicks(void);
 #pragma	varargck	type	"S"	String
 
 void	runtime·stoptheworld(void);
-void	runtime·starttheworld(bool);
+void	runtime·starttheworld(void);
 extern uint32 runtime·worldsema;
 
 /*

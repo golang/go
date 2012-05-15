@@ -646,35 +646,38 @@ top:
 }
 
 int32
-runtime·helpgc(bool *extra)
+runtime·gcprocs(void)
+{
+	int32 n;
+	
+	// Figure out how many CPUs to use during GC.
+	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+	n = runtime·gomaxprocs;
+	if(n > runtime·ncpu)
+		n = runtime·ncpu;
+	if(n > MaxGcproc)
+		n = MaxGcproc;
+	if(n > runtime·sched.mwait+1) // one M is currently running
+		n = runtime·sched.mwait+1;
+	return n;
+}
+
+void
+runtime·helpgc(int32 nproc)
 {
 	M *mp;
-	int32 n, max;
-
-	// Figure out how many CPUs to use.
-	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
-	max = runtime·gomaxprocs;
-	if(max > runtime·ncpu)
-		max = runtime·ncpu;
-	if(max > MaxGcproc)
-		max = MaxGcproc;
-
-	// We're going to use one CPU no matter what.
-	// Figure out the max number of additional CPUs.
-	max--;
+	int32 n;
 
 	runtime·lock(&runtime·sched);
-	n = 0;
-	while(n < max && (mp = mget(nil)) != nil) {
-		n++;
+	for(n = 1; n < nproc; n++) { // one M is currently running
+		mp = mget(nil);
+		if(mp == nil)
+			runtime·throw("runtime·gcprocs inconsistency");
 		mp->helpgc = 1;
 		mp->waitnextg = 0;
 		runtime·notewakeup(&mp->havenextg);
 	}
 	runtime·unlock(&runtime·sched);
-	if(extra)
-		*extra = n != max;
-	return n;
 }
 
 void
@@ -714,18 +717,30 @@ runtime·stoptheworld(void)
 }
 
 void
-runtime·starttheworld(bool extra)
+runtime·starttheworld(void)
 {
 	M *m;
+	int32 max;
+	
+	// Figure out how many CPUs GC could possibly use.
+	max = runtime·gomaxprocs;
+	if(max > runtime·ncpu)
+		max = runtime·ncpu;
+	if(max > MaxGcproc)
+		max = MaxGcproc;
 
 	schedlock();
 	runtime·gcwaiting = 0;
 	setmcpumax(runtime·gomaxprocs);
 	matchmg();
-	if(extra && canaddmcpu()) {
-		// Start a new m that will (we hope) be idle
-		// and so available to help when the next
-		// garbage collection happens.
+	if(runtime·gcprocs() < max && canaddmcpu()) {
+		// If GC could have used another helper proc, start one now,
+		// in the hope that it will be available next time.
+		// It would have been even better to start it before the collection,
+		// but doing so requires allocating memory, so it's tricky to
+		// coordinate.  This lazy approach works out in practice:
+		// we don't mind if the first couple gc rounds don't have quite
+		// the maximum number of procs.
 		// canaddmcpu above did mcpu++
 		// (necessary, because m will be doing various
 		// initialization work so is definitely running),
