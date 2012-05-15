@@ -163,6 +163,24 @@ TEXT runtime·nanotime(SB),7,$32
 	ADDQ	DX, AX
 	RET
 
+TEXT runtime·getcontext(SB),7,$-8
+	MOVQ	8(SP), DI		// arg 1 - context
+	MOVL	$307, AX		// sys_getcontext
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	8(SP), DI		// arg 1 - how
+	MOVQ	16(SP), SI		// arg 2 - set
+	MOVQ	24(SP), DX		// arg 3 - oset
+	MOVL	$293, AX		// sys_sigprocmask
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
 TEXT runtime·sigreturn_tramp(SB),7,$-8
 	MOVQ	R15, DI			// Load address of ucontext
 	MOVQ	$308, AX		// sys_setcontext
@@ -186,7 +204,7 @@ TEXT runtime·sigaction(SB),7,$-8
 
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
-	
+
 	// check that m exists
 	MOVQ	m(BX), BP
 	CMPQ	BP, $0
@@ -196,16 +214,16 @@ TEXT runtime·sigtramp(SB),7,$64
 	// save g
 	MOVQ	g(BX), R10
 	MOVQ	R10, 40(SP)
-	
+
 	// g = m->signal
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
-	
+
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
 	MOVQ	R10, 24(SP)
-	
+
 	CALL	runtime·sighandler(SB)
 
 	// restore g
