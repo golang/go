@@ -468,3 +468,27 @@ AVeryLongLabelThatShouldNotAffectFormatting:
 	// There should be a single empty line before this comment.
 	MoreCode()
 }
+
+
+// Formatting of empty statements.
+func _() {
+	;;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {;;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {;;;;;;;;;;;;;;;;;;;;;;;;;}
+
+func _() {
+f();;;;;;;;;;;;;;;;;;;;;;;;;
+}
+
+func _() {
+L:;;;;;;;;;;;;
+}
+
+func _() {
+L:;;;;;;;;;;;;
+	f()
+}
