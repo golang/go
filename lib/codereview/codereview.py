@@ -3343,6 +3343,10 @@ class FakeMercurialUI(object):
 		return self
 	def status(self, *args, **opts):
 		pass
+
+	def formatter(self, topic, opts):
+		from mercurial.formatter import plainformatter
+		return plainformatter(self, topic, opts)
 	
 	def readconfig(self, *args, **opts):
 		pass
