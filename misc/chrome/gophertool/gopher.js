@@ -12,7 +12,7 @@ function urlForInput(t) {
     }
 
     if (numericRE.test(t)) {
-        if (t < 1000000) {
+        if (t < 150000) {
             return "http://code.google.com/p/go/issues/detail?id=" + t;
         }
         return "http://codereview.appspot.com/" + t + "/";
