@@ -49,6 +49,11 @@ TEXT runtime·plan9_semacquire(SB),7,$0
 	INT	$64
 	RET
 
+TEXT runtime·plan9_tsemacquire(SB),7,$0
+	MOVL	$52, AX
+	INT	$64
+	RET
+
 TEXT runtime·notify(SB),7,$0
 	MOVL	$28, AX
 	INT	$64
