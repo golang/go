@@ -68,7 +68,7 @@ type Context struct {
 
 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
-	// If ReadDir is nil, Import uses io.ReadDir.
+	// If ReadDir is nil, Import uses ioutil.ReadDir.
 	ReadDir func(dir string) (fi []os.FileInfo, err error)
 
 	// OpenFile opens a file (not a directory) for reading.
@@ -340,7 +340,7 @@ func (e *NoGoError) Error() string {
 //	- files starting with _ or . (likely editor temporary files)
 //	- files with build constraints not satisfied by the context
 //
-// If an error occurs, Import returns a non-nil error also returns a non-nil
+// If an error occurs, Import returns a non-nil error and a non-nil
 // *Package containing partial information.
 //
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
