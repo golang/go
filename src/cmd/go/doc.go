@@ -546,7 +546,7 @@ in those files and ignoring any other files in the directory.
 
 Remote import path syntax
 
-An import path (see 'go help importpath') denotes a package
+An import path (see 'go help packages') denotes a package
 stored in the local file system.  Certain import paths also
 describe how to obtain the source code for the package using
 a revision control system.
