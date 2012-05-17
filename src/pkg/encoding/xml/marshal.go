@@ -57,8 +57,8 @@ const (
 //       if the field value is empty. The empty values are false, 0, any
 //       nil pointer or interface value, and any array, slice, map, or
 //       string of length zero.
-//     - a non-pointer anonymous struct field is handled as if the
-//       fields of its value were part of the outer struct.
+//     - an anonymous struct field is handled as if the fields of its
+//       value were part of the outer struct.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b.  Fields that appear next to each other that name
@@ -164,7 +164,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
 			xmlns, name = xmlname.xmlns, xmlname.name
-		} else if v, ok := val.FieldByIndex(xmlname.idx).Interface().(Name); ok && v.Local != "" {
+		} else if v, ok := xmlname.value(val).Interface().(Name); ok && v.Local != "" {
 			xmlns, name = v.Space, v.Local
 		}
 	}
@@ -195,7 +195,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		fv := val.FieldByIndex(finfo.idx)
+		fv := finfo.value(val)
 		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
 			continue
 		}
@@ -276,7 +276,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		if finfo.flags&(fAttr|fAny) != 0 {
 			continue
 		}
-		vf := val.FieldByIndex(finfo.idx)
+		vf := finfo.value(val)
 		switch finfo.flags & fMode {
 		case fCharData:
 			switch vf.Kind() {

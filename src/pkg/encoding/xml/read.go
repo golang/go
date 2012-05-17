@@ -81,8 +81,8 @@ import (
 //      of the above rules and the struct has a field with tag ",any",
 //      unmarshal maps the sub-element to that struct field.
 //
-//   * A non-pointer anonymous struct field is handled as if the
-//      fields of its value were part of the outer struct.
+//   * An anonymous struct field is handled as if the fields of its
+//      value were part of the outer struct.
 //
 //   * A struct field with tag "-" is never unmarshalled into.
 //
@@ -248,7 +248,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 				}
 				return UnmarshalError(e)
 			}
-			fv := sv.FieldByIndex(finfo.idx)
+			fv := finfo.value(sv)
 			if _, ok := fv.Interface().(Name); ok {
 				fv.Set(reflect.ValueOf(start.Name))
 			}
@@ -260,7 +260,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			finfo := &tinfo.fields[i]
 			switch finfo.flags & fMode {
 			case fAttr:
-				strv := sv.FieldByIndex(finfo.idx)
+				strv := finfo.value(sv)
 				// Look for attribute.
 				for _, a := range start.Attr {
 					if a.Name.Local == finfo.name {
@@ -271,22 +271,22 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 
 			case fCharData:
 				if !saveData.IsValid() {
-					saveData = sv.FieldByIndex(finfo.idx)
+					saveData = finfo.value(sv)
 				}
 
 			case fComment:
 				if !saveComment.IsValid() {
-					saveComment = sv.FieldByIndex(finfo.idx)
+					saveComment = finfo.value(sv)
 				}
 
 			case fAny:
 				if !saveAny.IsValid() {
-					saveAny = sv.FieldByIndex(finfo.idx)
+					saveAny = finfo.value(sv)
 				}
 
 			case fInnerXml:
 				if !saveXML.IsValid() {
-					saveXML = sv.FieldByIndex(finfo.idx)
+					saveXML = finfo.value(sv)
 					if p.saved == nil {
 						saveXMLIndex = 0
 						p.saved = new(bytes.Buffer)
@@ -461,7 +461,7 @@ Loop:
 		}
 		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
 			// It's a perfect match, unmarshal the field.
-			return true, p.unmarshal(sv.FieldByIndex(finfo.idx), start)
+			return true, p.unmarshal(finfo.value(sv), start)
 		}
 		if len(finfo.parents) > len(parents) && finfo.parents[len(parents)] == start.Name.Local {
 			// It's a prefix for the field. Break and recurse

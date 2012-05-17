@@ -108,7 +108,7 @@ type EmbedA struct {
 
 type EmbedB struct {
 	FieldB string
-	EmbedC
+	*EmbedC
 }
 
 type EmbedC struct {
@@ -493,7 +493,7 @@ var marshalTests = []struct {
 			},
 			EmbedB: EmbedB{
 				FieldB: "A.B.B",
-				EmbedC: EmbedC{
+				EmbedC: &EmbedC{
 					FieldA1: "A.B.C.A1",
 					FieldA2: "A.B.C.A2",
 					FieldB:  "", // Shadowed by A.B.B
