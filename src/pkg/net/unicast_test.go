@@ -544,6 +544,11 @@ func TestWildWildcardListener(t *testing.T) {
 		return
 	}
 
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+
 	defer func() {
 		if recover() != nil {
 			t.Fatalf("panicked")
