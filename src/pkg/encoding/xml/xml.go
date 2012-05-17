@@ -850,6 +850,8 @@ Input:
 			// Parsers are required to recognize lt, gt, amp, apos, and quot
 			// even if they have not been declared.  That's all we allow.
 			var i int
+			var semicolon bool
+			var valid bool
 			for i = 0; i < len(d.tmp); i++ {
 				var ok bool
 				d.tmp[i], ok = d.getc()
@@ -861,6 +863,8 @@ Input:
 				}
 				c := d.tmp[i]
 				if c == ';' {
+					semicolon = true
+					valid = i > 0
 					break
 				}
 				if 'a' <= c && c <= 'z' ||
@@ -873,14 +877,25 @@ Input:
 				break
 			}
 			s := string(d.tmp[0:i])
-			if i >= len(d.tmp) {
+			if !valid {
 				if !d.Strict {
 					b0, b1 = 0, 0
 					d.buf.WriteByte('&')
 					d.buf.Write(d.tmp[0:i])
+					if semicolon {
+						d.buf.WriteByte(';')
+					}
 					continue Input
 				}
-				d.err = d.syntaxError("character entity expression &" + s + "... too long")
+				semi := ";"
+				if !semicolon {
+					semi = " (no semicolon)"
+				}
+				if i < len(d.tmp) {
+					d.err = d.syntaxError("invalid character entity &" + s + semi)
+				} else {
+					d.err = d.syntaxError("invalid character entity &" + s + "... too long")
+				}
 				return nil
 			}
 			var haveText bool
@@ -910,6 +925,7 @@ Input:
 					b0, b1 = 0, 0
 					d.buf.WriteByte('&')
 					d.buf.Write(d.tmp[0:i])
+					d.buf.WriteByte(';')
 					continue Input
 				}
 				d.err = d.syntaxError("invalid character entity &" + s + ";")

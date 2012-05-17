@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -158,6 +159,39 @@ func TestRawToken(t *testing.T) {
 	testRawToken(t, d, rawTokens)
 }
 
+const nonStrictInput = `
+<tag>non&entity</tag>
+<tag>&unknown;entity</tag>
+<tag>&#123</tag>
+<tag>&#zzz;</tag>
+`
+
+var nonStrictTokens = []Token{
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("non&entity"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&unknown;entity"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&#123"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&#zzz;"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+}
+
+func TestNonStrictRawToken(t *testing.T) {
+	d := NewDecoder(strings.NewReader(nonStrictInput))
+	d.Strict = false
+	testRawToken(t, d, nonStrictTokens)
+}
+
 type downCaser struct {
 	t *testing.T
 	r io.ByteReader
@@ -219,7 +253,18 @@ func testRawToken(t *testing.T, d *Decoder, rawTokens []Token) {
 			t.Fatalf("token %d: unexpected error: %s", i, err)
 		}
 		if !reflect.DeepEqual(have, want) {
-			t.Errorf("token %d = %#v want %#v", i, have, want)
+			var shave, swant string
+			if _, ok := have.(CharData); ok {
+				shave = fmt.Sprintf("CharData(%q)", have)
+			} else {
+				shave = fmt.Sprintf("%#v", have)
+			}
+			if _, ok := want.(CharData); ok {
+				swant = fmt.Sprintf("CharData(%q)", want)
+			} else {
+				swant = fmt.Sprintf("%#v", want)
+			}
+			t.Errorf("token %d = %s, want %s", i, shave, swant)
 		}
 	}
 }
@@ -531,8 +576,8 @@ var characterTests = []struct {
 	{"\xef\xbf\xbe<doc/>", "illegal character code U+FFFE"},
 	{"<?xml version=\"1.0\"?><doc>\r\n<hiya/>\x07<toots/></doc>", "illegal character code U+0007"},
 	{"<?xml version=\"1.0\"?><doc \x12='value'>what's up</doc>", "expected attribute name in element"},
-	{"<doc>&\x01;</doc>", "invalid character entity &;"},
-	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity &;"},
+	{"<doc>&\x01;</doc>", "invalid character entity & (no semicolon)"},
+	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity & (no semicolon)"},
 }
 
 func TestDisallowedCharacters(t *testing.T) {
