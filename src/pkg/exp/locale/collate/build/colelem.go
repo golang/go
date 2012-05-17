@@ -153,7 +153,7 @@ const (
 	rareUnifiedOffset   = 0x1FB40
 	otherOffset         = 0x4FB40
 	illegalOffset       = otherOffset + unicode.MaxRune
-	maxPrimary          = illegalOffset + 2 // there are 2 illegal values.
+	maxPrimary          = illegalOffset + 1
 )
 
 // implicitPrimary returns the primary weight for the a rune

@@ -22,6 +22,7 @@ const (
 	defaultSecondary = 0x20
 	defaultTertiary  = 0x2
 	maxTertiary      = 0x1F
+	maxQuaternary    = 0x1FFFFF // 21 bits.
 )
 
 // colElem is a representation of a collation element.
@@ -145,7 +146,8 @@ const (
 	commonUnifiedOffset = 0xFB40
 	rareUnifiedOffset   = 0x1FB40
 	otherOffset         = 0x4FB40
-	maxPrimary          = otherOffset + unicode.MaxRune
+	illegalOffset       = otherOffset + unicode.MaxRune
+	maxPrimary          = illegalOffset + 1
 )
 
 // implicitPrimary returns the primary weight for the a rune

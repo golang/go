@@ -11,9 +11,7 @@ import (
 	"testing"
 )
 
-type Weights struct {
-	collate.Weights
-}
+type ColElems []collate.Weights
 
 type input struct {
 	str string
@@ -23,7 +21,7 @@ type input struct {
 type check struct {
 	in  string
 	n   int
-	out []Weights
+	out ColElems
 }
 
 type tableTest struct {
@@ -31,8 +29,8 @@ type tableTest struct {
 	chk []check
 }
 
-func w(ce ...int) Weights {
-	return Weights{collate.W(ce...)}
+func w(ce ...int) collate.Weights {
+	return collate.W(ce...)
 }
 
 var defaults = w(0)
@@ -46,7 +44,11 @@ func makeTable(in []input) (*collate.Collator, error) {
 	for _, r := range in {
 		b.Add([]rune(r.str), r.ces)
 	}
-	return b.Build("")
+	c, err := b.Build("")
+	if err == nil {
+		collate.InitCollator(c)
+	}
+	return c, err
 }
 
 // modSeq holds a seqeunce of modifiers in increasing order of CCC long enough
@@ -60,8 +62,8 @@ var modSeq = []rune{
 }
 
 var mods []input
-var modW = func() []Weights {
-	ws := []Weights{}
+var modW = func() ColElems {
+	ws := ColElems{}
 	for _, r := range modSeq {
 		rune := norm.NFC.PropertiesString(string(r))
 		ws = append(ws, w(0, int(rune.CCC())))
@@ -79,14 +81,14 @@ var appendNextTests = []tableTest{
 			{"ß", [][]int{{120}}},
 		},
 		[]check{
-			{"a", 1, []Weights{w(100)}},
-			{"b", 1, []Weights{w(105)}},
-			{"c", 1, []Weights{w(110)}},
-			{"d", 1, []Weights{w(0x4FBA4)}},
-			{"ab", 1, []Weights{w(100)}},
-			{"bc", 1, []Weights{w(105)}},
-			{"dd", 1, []Weights{w(0x4FBA4)}},
-			{"ß", 2, []Weights{w(120)}},
+			{"a", 1, ColElems{w(100)}},
+			{"b", 1, ColElems{w(105)}},
+			{"c", 1, ColElems{w(110)}},
+			{"d", 1, ColElems{w(0x4FBA4)}},
+			{"ab", 1, ColElems{w(100)}},
+			{"bc", 1, ColElems{w(105)}},
+			{"dd", 1, ColElems{w(0x4FBA4)}},
+			{"ß", 2, ColElems{w(120)}},
 		},
 	},
 	{ // test expansion
@@ -97,10 +99,10 @@ var appendNextTests = []tableTest{
 			{"W", [][]int{{100}, {0, 25}, {100}, {0, 25}}},
 		},
 		[]check{
-			{"u", 1, []Weights{w(100)}},
-			{"U", 1, []Weights{w(100), w(0, 25)}},
-			{"w", 1, []Weights{w(100), w(100)}},
-			{"W", 1, []Weights{w(100), w(0, 25), w(100), w(0, 25)}},
+			{"u", 1, ColElems{w(100)}},
+			{"U", 1, ColElems{w(100), w(0, 25)}},
+			{"w", 1, ColElems{w(100), w(100)}},
+			{"W", 1, ColElems{w(100), w(0, 25), w(100), w(0, 25)}},
 		},
 	},
 	{ // test decompose
@@ -111,7 +113,7 @@ var appendNextTests = []tableTest{
 			{"\u01C5", [][]int{pt(104, 9), pt(130, 4), {0, 40, 0x1F}}}, // ǅ = D+z+caron
 		},
 		[]check{
-			{"\u01C5", 2, []Weights{w(pt(104, 9)...), w(pt(130, 4)...), w(0, 40, 0x1F)}},
+			{"\u01C5", 2, ColElems{w(pt(104, 9)...), w(pt(130, 4)...), w(0, 40, 0x1F)}},
 		},
 	},
 	{ // test basic contraction
@@ -125,16 +127,16 @@ var appendNextTests = []tableTest{
 			{"d", [][]int{{400}}},
 		},
 		[]check{
-			{"a", 1, []Weights{w(100)}},
-			{"aa", 1, []Weights{w(100)}},
-			{"aac", 1, []Weights{w(100)}},
-			{"ab", 2, []Weights{w(101)}},
-			{"abb", 2, []Weights{w(101)}},
-			{"aab", 3, []Weights{w(101), w(101)}},
-			{"aaba", 3, []Weights{w(101), w(101)}},
-			{"abc", 3, []Weights{w(102)}},
-			{"abcd", 3, []Weights{w(102)}},
-			{"d", 1, []Weights{w(400)}},
+			{"a", 1, ColElems{w(100)}},
+			{"aa", 1, ColElems{w(100)}},
+			{"aac", 1, ColElems{w(100)}},
+			{"d", 1, ColElems{w(400)}},
+			{"ab", 2, ColElems{w(101)}},
+			{"abb", 2, ColElems{w(101)}},
+			{"aab", 3, ColElems{w(101), w(101)}},
+			{"aaba", 3, ColElems{w(101), w(101)}},
+			{"abc", 3, ColElems{w(102)}},
+			{"abcd", 3, ColElems{w(102)}},
 		},
 	},
 	{ // test discontinuous contraction
@@ -177,75 +179,75 @@ var appendNextTests = []tableTest{
 			{"\u302F\u18A9", [][]int{{0, 130}}},
 		}...),
 		[]check{
-			{"ab", 1, []Weights{w(100)}},                              // closing segment
-			{"a\u0316\u0300b", 5, []Weights{w(101), w(0, 220)}},       // closing segment
-			{"a\u0316\u0300", 5, []Weights{w(101), w(0, 220)}},        // no closing segment
-			{"a\u0316\u0300\u035Cb", 5, []Weights{w(101), w(0, 220)}}, // completes before segment end
-			{"a\u0316\u0300\u035C", 5, []Weights{w(101), w(0, 220)}},  // completes before segment end
+			{"ab", 1, ColElems{w(100)}},                              // closing segment
+			{"a\u0316\u0300b", 5, ColElems{w(101), w(0, 220)}},       // closing segment
+			{"a\u0316\u0300", 5, ColElems{w(101), w(0, 220)}},        // no closing segment
+			{"a\u0316\u0300\u035Cb", 5, ColElems{w(101), w(0, 220)}}, // completes before segment end
+			{"a\u0316\u0300\u035C", 5, ColElems{w(101), w(0, 220)}},  // completes before segment end
 
-			{"a\u0316\u0301b", 5, []Weights{w(102), w(0, 220)}},       // closing segment
-			{"a\u0316\u0301", 5, []Weights{w(102), w(0, 220)}},        // no closing segment
-			{"a\u0316\u0301\u035Cb", 5, []Weights{w(102), w(0, 220)}}, // completes before segment end
-			{"a\u0316\u0301\u035C", 5, []Weights{w(102), w(0, 220)}},  // completes before segment end
+			{"a\u0316\u0301b", 5, ColElems{w(102), w(0, 220)}},       // closing segment
+			{"a\u0316\u0301", 5, ColElems{w(102), w(0, 220)}},        // no closing segment
+			{"a\u0316\u0301\u035Cb", 5, ColElems{w(102), w(0, 220)}}, // completes before segment end
+			{"a\u0316\u0301\u035C", 5, ColElems{w(102), w(0, 220)}},  // completes before segment end
 
 			// match blocked by modifier with same ccc
-			{"a\u0301\u0315\u031A\u035Fb", 3, []Weights{w(102)}},
+			{"a\u0301\u0315\u031A\u035Fb", 3, ColElems{w(102)}},
 
 			// multiple gaps
-			{"a\u0301\u035Db", 6, []Weights{w(120)}},
-			{"a\u0301\u035F", 5, []Weights{w(121)}},
-			{"a\u0301\u035Fb", 6, []Weights{w(122)}},
-			{"a\u0316\u0301\u035F", 7, []Weights{w(121), w(0, 220)}},
-			{"a\u0301\u0315\u035Fb", 7, []Weights{w(121), w(0, 232)}},
-			{"a\u0316\u0301\u0315\u035Db", 5, []Weights{w(102), w(0, 220)}},
-			{"a\u0316\u0301\u0315\u035F", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
-			{"a\u0316\u0301\u0315\u035Fb", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
-			{"a\u0316\u0301\u0315\u035F\u035D", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
-			{"a\u0316\u0301\u0315\u035F\u035Db", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
+			{"a\u0301\u035Db", 6, ColElems{w(120)}},
+			{"a\u0301\u035F", 5, ColElems{w(121)}},
+			{"a\u0301\u035Fb", 6, ColElems{w(122)}},
+			{"a\u0316\u0301\u035F", 7, ColElems{w(121), w(0, 220)}},
+			{"a\u0301\u0315\u035Fb", 7, ColElems{w(121), w(0, 232)}},
+			{"a\u0316\u0301\u0315\u035Db", 5, ColElems{w(102), w(0, 220)}},
+			{"a\u0316\u0301\u0315\u035F", 9, ColElems{w(121), w(0, 220), w(0, 232)}},
+			{"a\u0316\u0301\u0315\u035Fb", 9, ColElems{w(121), w(0, 220), w(0, 232)}},
+			{"a\u0316\u0301\u0315\u035F\u035D", 9, ColElems{w(121), w(0, 220), w(0, 232)}},
+			{"a\u0316\u0301\u0315\u035F\u035Db", 9, ColElems{w(121), w(0, 220), w(0, 232)}},
 
 			// handling of segment overflow
 			{ // just fits within segment
 				"a" + string(modSeq[:30]) + "\u0301",
 				3 + len(string(modSeq[:30])),
-				append([]Weights{w(102)}, modW[:30]...),
+				append(ColElems{w(102)}, modW[:30]...),
 			},
-			{"a" + string(modSeq[:31]) + "\u0301", 1, []Weights{w(100)}}, // overflow
-			{"a" + string(modSeq) + "\u0301", 1, []Weights{w(100)}},
+			{"a" + string(modSeq[:31]) + "\u0301", 1, ColElems{w(100)}}, // overflow
+			{"a" + string(modSeq) + "\u0301", 1, ColElems{w(100)}},
 			{ // just fits within segment with two interstitial runes
 				"a" + string(modSeq[:28]) + "\u0301\u0315\u035F",
 				7 + len(string(modSeq[:28])),
-				append(append([]Weights{w(121)}, modW[:28]...), w(0, 232)),
+				append(append(ColElems{w(121)}, modW[:28]...), w(0, 232)),
 			},
 			{ // second half does not fit within segment
 				"a" + string(modSeq[:29]) + "\u0301\u0315\u035F",
 				3 + len(string(modSeq[:29])),
-				append([]Weights{w(102)}, modW[:29]...),
+				append(ColElems{w(102)}, modW[:29]...),
 			},
 
 			// discontinuity can only occur in last normalization segment
-			{"a\u035Eb\u035E", 6, []Weights{w(115)}},
-			{"a\u0316\u035Eb\u035E", 5, []Weights{w(110), w(0, 220)}},
-			{"a\u035Db\u035D", 6, []Weights{w(117)}},
-			{"a\u0316\u035Db\u035D", 1, []Weights{w(100)}},
-			{"a\u035Eb\u0316\u035E", 8, []Weights{w(115), w(0, 220)}},
-			{"a\u035Db\u0316\u035D", 8, []Weights{w(117), w(0, 220)}},
-			{"ac\u035Eaca\u035E", 9, []Weights{w(116)}},
-			{"a\u0316c\u035Eaca\u035E", 1, []Weights{w(100)}},
-			{"ac\u035Eac\u0316a\u035E", 1, []Weights{w(100)}},
+			{"a\u035Eb\u035E", 6, ColElems{w(115)}},
+			{"a\u0316\u035Eb\u035E", 5, ColElems{w(110), w(0, 220)}},
+			{"a\u035Db\u035D", 6, ColElems{w(117)}},
+			{"a\u0316\u035Db\u035D", 1, ColElems{w(100)}},
+			{"a\u035Eb\u0316\u035E", 8, ColElems{w(115), w(0, 220)}},
+			{"a\u035Db\u0316\u035D", 8, ColElems{w(117), w(0, 220)}},
+			{"ac\u035Eaca\u035E", 9, ColElems{w(116)}},
+			{"a\u0316c\u035Eaca\u035E", 1, ColElems{w(100)}},
+			{"ac\u035Eac\u0316a\u035E", 1, ColElems{w(100)}},
 
 			// expanding contraction
-			{"\u03B1\u0345", 4, []Weights{w(901), w(902)}},
+			{"\u03B1\u0345", 4, ColElems{w(901), w(902)}},
 
 			// Theoretical possibilities
 			// contraction within a gap
-			{"a\u302F\u18A9\u0301", 9, []Weights{w(102), w(0, 130)}},
+			{"a\u302F\u18A9\u0301", 9, ColElems{w(102), w(0, 130)}},
 			// expansion within a gap
-			{"a\u0317\u0301", 5, []Weights{w(102), w(0, 220), w(0, 220)}},
-			{"a\u302E\u18A9\u0301", 9, []Weights{w(102), w(0, 131), w(0, 132)}},
+			{"a\u0317\u0301", 5, ColElems{w(102), w(0, 220), w(0, 220)}},
+			{"a\u302E\u18A9\u0301", 9, ColElems{w(102), w(0, 131), w(0, 132)}},
 			{
 				"a\u0317\u302E\u18A9\u0301",
 				11,
-				[]Weights{w(102), w(0, 220), w(0, 220), w(0, 131), w(0, 132)},
+				ColElems{w(102), w(0, 220), w(0, 220), w(0, 131), w(0, 132)},
 			},
 		},
 	},
@@ -269,7 +271,7 @@ func TestAppendNext(t *testing.T) {
 				continue
 			}
 			for k, w := range ws {
-				if w != chk.out[k].Weights {
+				if w != chk.out[k] {
 					t.Errorf("%d:%d: Weights %d was %v; want %v", i, j, k, w, chk.out[k])
 				}
 			}
