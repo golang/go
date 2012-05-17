@@ -10,6 +10,11 @@ import (
 )
 
 func TestGcSys(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		// TODO(adg): remove this when precise gc is implemented
+		t.Logf("skipping on non-amd64 systems")
+		return
+	}
 	memstats := new(runtime.MemStats)
 	runtime.GC()
 	runtime.ReadMemStats(memstats)
