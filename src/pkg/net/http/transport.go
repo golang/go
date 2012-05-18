@@ -599,6 +599,10 @@ func (pc *persistConn) readLoop() {
 		// before we race and peek on the underlying bufio reader.
 		if waitForBodyRead != nil {
 			<-waitForBodyRead
+		} else if !alive {
+			// If waitForBodyRead is nil, and we're not alive, we
+			// must close the connection before we leave the loop.
+			pc.close()
 		}
 	}
 }
