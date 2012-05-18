@@ -228,4 +228,6 @@ type BpfInsn C.struct_bpf_insn
 
 type BpfHdr C.struct_bpf_hdr
 
+// Terminal handling
+
 type Termios C.struct_termios
