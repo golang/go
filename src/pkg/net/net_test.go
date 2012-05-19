@@ -16,15 +16,15 @@ func TestShutdown(t *testing.T) {
 		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
-	l, err := Listen("tcp", "127.0.0.1:0")
+	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		if l, err = Listen("tcp6", "[::1]:0"); err != nil {
+		if ln, err = Listen("tcp6", "[::1]:0"); err != nil {
 			t.Fatalf("ListenTCP on :0: %v", err)
 		}
 	}
 
 	go func() {
-		c, err := l.Accept()
+		c, err := ln.Accept()
 		if err != nil {
 			t.Fatalf("Accept: %v", err)
 		}
@@ -37,7 +37,7 @@ func TestShutdown(t *testing.T) {
 		c.Close()
 	}()
 
-	c, err := Dial("tcp", l.Addr().String())
+	c, err := Dial("tcp", ln.Addr().String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestTCPListenClose(t *testing.T) {
-	l, err := Listen("tcp", "127.0.0.1:0")
+	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
@@ -67,11 +67,12 @@ func TestTCPListenClose(t *testing.T) {
 	done := make(chan bool, 1)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		l.Close()
+		ln.Close()
 	}()
 	go func() {
-		_, err = l.Accept()
+		c, err := ln.Accept()
 		if err == nil {
+			c.Close()
 			t.Error("Accept succeeded")
 		} else {
 			t.Logf("Accept timeout error: %s (any error is fine)", err)
@@ -86,7 +87,7 @@ func TestTCPListenClose(t *testing.T) {
 }
 
 func TestUDPListenClose(t *testing.T) {
-	l, err := ListenPacket("udp", "127.0.0.1:0")
+	ln, err := ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
@@ -95,10 +96,10 @@ func TestUDPListenClose(t *testing.T) {
 	done := make(chan bool, 1)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		l.Close()
+		ln.Close()
 	}()
 	go func() {
-		_, _, err = l.ReadFrom(buf)
+		_, _, err = ln.ReadFrom(buf)
 		if err == nil {
 			t.Error("ReadFrom succeeded")
 		} else {
