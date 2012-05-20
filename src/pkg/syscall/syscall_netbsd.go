@@ -22,7 +22,7 @@ type SockaddrDatalink struct {
 	Nlen   uint8
 	Alen   uint8
 	Slen   uint8
-	Data   [24]int8
+	Data   [12]int8
 	raw    RawSockaddrDatalink
 }
 
