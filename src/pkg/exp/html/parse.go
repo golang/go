@@ -1401,10 +1401,6 @@ func inTableBodyIM(p *parser) bool {
 // Section 12.2.5.4.14.
 func inRowIM(p *parser) bool {
 	switch p.tok.Type {
-	case ErrorToken:
-		// TODO.
-	case TextToken:
-		// TODO.
 	case StartTagToken:
 		switch p.tok.Data {
 		case "td", "th":
@@ -1420,8 +1416,6 @@ func inRowIM(p *parser) bool {
 			}
 			// Ignore the token.
 			return true
-		default:
-			// TODO.
 		}
 	case EndTagToken:
 		switch p.tok.Data {
@@ -1440,20 +1434,18 @@ func inRowIM(p *parser) bool {
 			// Ignore the token.
 			return true
 		case "tbody", "tfoot", "thead":
-			// TODO.
+			if p.elementInScope(tableScope, p.tok.Data) {
+				p.parseImpliedToken(EndTagToken, "tr", nil)
+				return false
+			}
+			// Ignore the token.
+			return true
 		case "body", "caption", "col", "colgroup", "html", "td", "th":
 			// Ignore the token.
 			return true
-		default:
-			// TODO.
 		}
-	case CommentToken:
-		p.addChild(&Node{
-			Type: CommentNode,
-			Data: p.tok.Data,
-		})
-		return true
 	}
+
 	return inTableIM(p)
 }
 
