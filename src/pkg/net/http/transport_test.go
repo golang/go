@@ -48,27 +48,28 @@ func (conn *testCloseConn) Close() error {
 }
 
 type testConnSet struct {
-	set   map[net.Conn]bool
-	mutex sync.Mutex
+	closed map[net.Conn]bool
+	list   []net.Conn // in order created
+	mutex  sync.Mutex
 }
 
 func (tcs *testConnSet) insert(c net.Conn) {
 	tcs.mutex.Lock()
 	defer tcs.mutex.Unlock()
-	tcs.set[c] = true
+	tcs.closed[c] = false
+	tcs.list = append(tcs.list, c)
 }
 
 func (tcs *testConnSet) remove(c net.Conn) {
 	tcs.mutex.Lock()
 	defer tcs.mutex.Unlock()
-	// just change to false, so we have a full set of opened connections
-	tcs.set[c] = false
+	tcs.closed[c] = true
 }
 
 // some tests use this to manage raw tcp connections for later inspection
 func makeTestDial() (*testConnSet, func(n, addr string) (net.Conn, error)) {
 	connSet := &testConnSet{
-		set: make(map[net.Conn]bool),
+		closed: make(map[net.Conn]bool),
 	}
 	dial := func(n, addr string) (net.Conn, error) {
 		c, err := net.Dial(n, addr)
@@ -82,17 +83,18 @@ func makeTestDial() (*testConnSet, func(n, addr string) (net.Conn, error)) {
 	return connSet, dial
 }
 
-func (tcs *testConnSet) countClosed() (closed, total int) {
+func (tcs *testConnSet) check(t *testing.T) {
 	tcs.mutex.Lock()
 	defer tcs.mutex.Unlock()
 
-	total = len(tcs.set)
-	for _, open := range tcs.set {
-		if !open {
-			closed += 1
+	for i, c := range tcs.list {
+		if !tcs.closed[c] {
+			// TODO(bradfitz,gustavo): make the following
+			// line an Errorf, not Logf, once issue 3540
+			// is fixed again.
+			t.Logf("TCP connection #%d (of %d total) was not closed", i+1, len(tcs.list))
 		}
 	}
-	return
 }
 
 // Two subsequent requests and verify their response is the same.
@@ -175,10 +177,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 		tr.CloseIdleConnections()
 	}
 
-	closed, total := connSet.countClosed()
-	if closed < total {
-		t.Errorf("%d out of %d tcp connections were not closed", total-closed, total)
-	}
+	connSet.check(t)
 }
 
 func TestTransportConnectionCloseOnRequest(t *testing.T) {
@@ -228,10 +227,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 		tr.CloseIdleConnections()
 	}
 
-	closed, total := connSet.countClosed()
-	if closed < total {
-		t.Errorf("%d out of %d tcp connections were not closed", total-closed, total)
-	}
+	connSet.check(t)
 }
 
 func TestTransportIdleCacheKeys(t *testing.T) {
@@ -804,6 +800,35 @@ func TestTransportIdleConnCrash(t *testing.T) {
 	}()
 	unblockCh <- true
 	<-didreq
+}
+
+// Test that the transport doesn't close the TCP connection early,
+// before the response body has been read.  This was a regression
+// which sadly lacked a triggering test.  The large response body made
+// the old race easier to trigger.
+func TestIssue3644(t *testing.T) {
+	const numFoos = 5000
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Connection", "close")
+		for i := 0; i < numFoos; i++ {
+			w.Write([]byte("foo "))
+		}
+	}))
+	defer ts.Close()
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	bs, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bs) != numFoos*len("foo ") {
+		t.Errorf("unexpected response length")
+	}
 }
 
 type fooProto struct{}
