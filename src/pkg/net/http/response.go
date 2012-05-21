@@ -202,9 +202,12 @@ func (r *Response) Write(w io.Writer) error {
 			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
 	}
-	io.WriteString(w, "HTTP/"+strconv.Itoa(r.ProtoMajor)+".")
-	io.WriteString(w, strconv.Itoa(r.ProtoMinor)+" ")
-	io.WriteString(w, strconv.Itoa(r.StatusCode)+" "+text+"\r\n")
+	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
+	statusCode := strconv.Itoa(r.StatusCode) + " "
+	if strings.HasPrefix(text, statusCode) {
+		text = text[len(statusCode):]
+	}
+	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
 
 	// Process Body,ContentLength,Close,Trailer
 	tw, err := newTransferWriter(r)
