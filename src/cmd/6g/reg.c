@@ -164,7 +164,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
-		exregoffset = D_R13;	// R14,R15 are external
+		exregoffset = D_R15;
 		first = 0;
 	}
 
@@ -1577,7 +1577,7 @@ RtoB(int r)
 int
 BtoR(int32 b)
 {
-	b &= 0x3fffL;		// no R14 or R15
+	b &= 0xffffL;
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;
