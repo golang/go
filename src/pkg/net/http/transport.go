@@ -567,29 +567,29 @@ func (pc *persistConn) readLoop() {
 
 		hasBody := resp != nil && resp.ContentLength != 0
 		var waitForBodyRead chan bool
-		if alive {
-			if hasBody {
-				lastbody = resp.Body
-				waitForBodyRead = make(chan bool)
-				resp.Body.(*bodyEOFSignal).fn = func() {
-					if !pc.t.putIdleConn(pc) {
-						alive = false
-					}
-					waitForBodyRead <- true
-				}
-			} else {
-				// When there's no response body, we immediately
-				// reuse the TCP connection (putIdleConn), but
-				// we need to prevent ClientConn.Read from
-				// closing the Response.Body on the next
-				// loop, otherwise it might close the body
-				// before the client code has had a chance to
-				// read it (even though it'll just be 0, EOF).
-				lastbody = nil
-
-				if !pc.t.putIdleConn(pc) {
+		if hasBody {
+			lastbody = resp.Body
+			waitForBodyRead = make(chan bool)
+			resp.Body.(*bodyEOFSignal).fn = func() {
+				if alive && !pc.t.putIdleConn(pc) {
 					alive = false
 				}
+				waitForBodyRead <- true
+			}
+		}
+
+		if alive && !hasBody {
+			// When there's no response body, we immediately
+			// reuse the TCP connection (putIdleConn), but
+			// we need to prevent ClientConn.Read from
+			// closing the Response.Body on the next
+			// loop, otherwise it might close the body
+			// before the client code has had a chance to
+			// read it (even though it'll just be 0, EOF).
+			lastbody = nil
+
+			if !pc.t.putIdleConn(pc) {
+				alive = false
 			}
 		}
 
@@ -599,9 +599,9 @@ func (pc *persistConn) readLoop() {
 		// before we race and peek on the underlying bufio reader.
 		if waitForBodyRead != nil {
 			<-waitForBodyRead
-		} else if !alive {
-			// If waitForBodyRead is nil, and we're not alive, we
-			// must close the connection before we leave the loop.
+		}
+
+		if !alive {
 			pc.close()
 		}
 	}
