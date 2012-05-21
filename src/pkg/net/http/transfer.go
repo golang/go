@@ -71,7 +71,9 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 			}
 		}
 	case *Response:
-		t.Method = rr.Request.Method
+		if rr.Request != nil {
+			t.Method = rr.Request.Method
+		}
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
@@ -79,7 +81,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		t.TransferEncoding = rr.TransferEncoding
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-		t.ResponseToHEAD = noBodyExpected(rr.Request.Method)
+		t.ResponseToHEAD = noBodyExpected(t.Method)
 	}
 
 	// Sanitize Body,ContentLength,TransferEncoding
