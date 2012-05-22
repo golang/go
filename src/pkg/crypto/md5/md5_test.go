@@ -78,3 +78,28 @@ func ExampleNew() {
 	fmt.Printf("%x", h.Sum(nil))
 	// Output: e2c569be17396eca2a2e3c11578123ed
 }
+
+var bench = md5.New()
+var buf = makeBuf()
+
+func makeBuf() []byte {
+	b := make([]byte, 8<<10)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return b
+}
+
+func BenchmarkHash1K(b *testing.B) {
+	b.SetBytes(1024)
+	for i := 0; i < b.N; i++ {
+		bench.Write(buf[:1024])
+	}
+}
+
+func BenchmarkHash8K(b *testing.B) {
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		bench.Write(buf)
+	}
+}
