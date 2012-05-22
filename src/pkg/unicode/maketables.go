@@ -488,7 +488,7 @@ func printCategories() {
 			func(code rune) bool { return chars[code].category == name })
 	}
 	decl.Sort()
-	fmt.Println("// The following variables are of type *RangeTable:")
+	fmt.Println("// These variables have type *RangeTable.")
 	fmt.Println("var (")
 	for _, d := range decl {
 		fmt.Print(d)
@@ -771,7 +771,7 @@ func printScriptOrProperty(doProps bool) {
 		fmt.Print("}\n\n")
 	}
 	decl.Sort()
-	fmt.Println("// The following variables are of type *RangeTable:")
+	fmt.Println("// These variables have type *RangeTable.")
 	fmt.Println("var (")
 	for _, d := range decl {
 		fmt.Print(d)
