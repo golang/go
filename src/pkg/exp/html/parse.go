@@ -1451,15 +1451,18 @@ func inRowIM(p *parser) bool {
 
 // Section 12.2.5.4.15.
 func inCellIM(p *parser) bool {
-	var (
-		closeTheCellAndReprocess bool
-	)
 	switch p.tok.Type {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr":
-			// TODO: check for "td" or "th" in table scope.
-			closeTheCellAndReprocess = true
+			if p.popUntil(tableScope, "td", "th") {
+				// Close the cell and reprocess.
+				p.clearActiveFormattingElements()
+				p.im = inRowIM
+				return false
+			}
+			// Ignore the token.
+			return true
 		case "select":
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -1478,20 +1481,15 @@ func inCellIM(p *parser) bool {
 			p.im = inRowIM
 			return true
 		case "body", "caption", "col", "colgroup", "html":
-			// TODO.
+			// Ignore the token.
+			return true
 		case "table", "tbody", "tfoot", "thead", "tr":
-			// TODO: check for matching element in table scope.
-			closeTheCellAndReprocess = true
-		}
-	case CommentToken:
-		p.addChild(&Node{
-			Type: CommentNode,
-			Data: p.tok.Data,
-		})
-		return true
-	}
-	if closeTheCellAndReprocess {
-		if p.popUntil(tableScope, "td") || p.popUntil(tableScope, "th") {
+			if !p.elementInScope(tableScope, p.tok.Data) {
+				// Ignore the token.
+				return true
+			}
+			// Close the cell and reprocess.
+			p.popUntil(tableScope, "td", "th")
 			p.clearActiveFormattingElements()
 			p.im = inRowIM
 			return false
