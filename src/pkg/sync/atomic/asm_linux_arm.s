@@ -121,20 +121,20 @@ TEXT setupAndCallCAS64<>(SB),7,$-4
 	MOVW	R1, armCAS64(SB)
 	MOVW	R1, PC
 
-TEXT ·CompareAndSwapInt64(SB),7,$-4
+TEXT ·CompareAndSwapInt64(SB),7,$0
+	B   	·CompareAndSwapUint64(SB)
+
+TEXT ·CompareAndSwapUint64(SB),7,$-4
 	MOVW	armCAS64(SB), R0
 	CMP 	$0, R0
 	MOVW.NE	R0, PC
 	B		setupAndCallCAS64<>(SB)
 
-TEXT ·CompareAndSwapUint64(SB),7,$0
-	B   	·CompareAndSwapInt64(SB)
-
 TEXT ·AddInt64(SB),7,$0
-	B	·armAddUint64(SB)
+	B	·addUint64(SB)
 
 TEXT ·AddUint64(SB),7,$0
-	B	·armAddUint64(SB)
+	B	·addUint64(SB)
 
 TEXT ·LoadInt32(SB),7,$0
 	B	·LoadUint32(SB)
@@ -150,10 +150,10 @@ loadloop1:
 	RET
 
 TEXT ·LoadInt64(SB),7,$0
-	B	·armLoadUint64(SB)
+	B	·loadUint64(SB)
 
 TEXT ·LoadUint64(SB),7,$0
-	B	·armLoadUint64(SB)
+	B	·loadUint64(SB)
 
 TEXT ·LoadUintptr(SB),7,$0
 	B	·LoadUint32(SB)
@@ -174,10 +174,10 @@ storeloop1:
 	RET
 
 TEXT ·StoreInt64(SB),7,$0
-	B	·armStoreUint64(SB)
+	B	·storeUint64(SB)
 
 TEXT ·StoreUint64(SB),7,$0
-	B	·armStoreUint64(SB)
+	B	·storeUint64(SB)
 
 TEXT ·StoreUintptr(SB),7,$0
 	B	·StoreUint32(SB)
