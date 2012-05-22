@@ -300,6 +300,11 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 					rp->add = le64(rsect->base+rp->off);
 					break;
 			}
+			// ld -r could generate multiple section symbols for the
+			// same section but with different values, we have to take
+			// that into account
+			if (obj->pesym[symindex].name[0] == '.')
+					rp->add += obj->pesym[symindex].value;
 		}
 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
 		
