@@ -1167,7 +1167,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	for(s=allsym; s!=S; s=s->allsym) {
 		if(s->hide)
 			continue;
-		switch(s->type&~SSUB) {
+		switch(s->type&SMASK) {
 		case SCONST:
 		case SRODATA:
 		case SSYMTAB:

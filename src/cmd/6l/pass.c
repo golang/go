@@ -307,7 +307,7 @@ patch(void)
 			if(s) {
 				if(debug['c'])
 					Bprint(&bso, "%s calls %s\n", TNAME, s->name);
-				if((s->type&~SSUB) != STEXT) {
+				if((s->type&SMASK) != STEXT) {
 					/* diag prints TNAME first */
 					diag("undefined: %s", s->name);
 					s->type = STEXT;

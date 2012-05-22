@@ -61,7 +61,9 @@ enum
 	SDYNIMPORT,
 
 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
-	
+	SMASK = SSUB - 1,
+	SHIDDEN = 1<<9, // hidden or local symbol
+
 	NHASH = 100003,
 };
 
@@ -142,6 +144,7 @@ void	addhist(int32 line, int type);
 void	asmlc(void);
 void	histtoauto(void);
 void	collapsefrog(Sym *s);
+Sym*	newsym(char *symb, int v);
 Sym*	lookup(char *symb, int v);
 Sym*	rlookup(char *symb, int v);
 void	nuxiinit(void);

@@ -215,7 +215,7 @@ patch(void)
 				s = p->to.sym;
 				if(s->text == nil)
 					continue;
-				switch(s->type&~SSUB) {
+				switch(s->type&SMASK) {
 				default:
 					diag("undefined: %s", s->name);
 					s->type = STEXT;

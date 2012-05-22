@@ -548,6 +548,36 @@ eof:
 	free(pn);
 }
 
+Sym*
+newsym(char *symb, int v)
+{
+	Sym *s;
+	int l;
+
+	l = strlen(symb) + 1;
+	s = mal(sizeof(*s));
+	if(debug['v'] > 1)
+		Bprint(&bso, "newsym %s\n", symb);
+
+	s->dynid = -1;
+	s->plt = -1;
+	s->got = -1;
+	s->name = mal(l + 1);
+	memmove(s->name, symb, l);
+
+	s->type = 0;
+	s->version = v;
+	s->value = 0;
+	s->sig = 0;
+	s->size = 0;
+	nsymbol++;
+
+	s->allsym = allsym;
+	allsym = s;
+
+	return s;
+}
+
 static Sym*
 _lookup(char *symb, int v, int creat)
 {
@@ -569,27 +599,10 @@ _lookup(char *symb, int v, int creat)
 	if(!creat)
 		return nil;
 
-	s = mal(sizeof(*s));
-	if(debug['v'] > 1)
-		Bprint(&bso, "lookup %s\n", symb);
-
-	s->dynid = -1;
-	s->plt = -1;
-	s->got = -1;
-	s->name = mal(l + 1);
-	memmove(s->name, symb, l);
-
+	s = newsym(symb, v);
 	s->hash = hash[h];
-	s->type = 0;
-	s->version = v;
-	s->value = 0;
-	s->sig = 0;
-	s->size = 0;
 	hash[h] = s;
-	nsymbol++;
 
-	s->allsym = allsym;
-	allsym = s;
 	return s;
 }
 

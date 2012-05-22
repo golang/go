@@ -2203,7 +2203,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		for(s=hash[h]; s!=S; s=s->hash) {
 			if(s->hide)
 				continue;
-			switch(s->type&~SSUB) {
+			switch(s->type&SMASK) {
 			case SCONST:
 			case SRODATA:
 			case SDATA:
