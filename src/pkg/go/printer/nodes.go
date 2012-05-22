@@ -60,8 +60,8 @@ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (prin
 
 // setComment sets g as the next comment if g != nil and if node comments
 // are enabled - this mode is used when printing source code fragments such
-// as exports only. It assumes that there are no other pending comments to
-// intersperse.
+// as exports only. It assumes that there is no pending comment in p.comments
+// and at most one pending comment in the p.comment cache.
 func (p *printer) setComment(g *ast.CommentGroup) {
 	if g == nil || !p.useNodeComments {
 		return
@@ -74,10 +74,19 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 		// should never happen - handle gracefully and flush
 		// all comments up to g, ignore anything after that
 		p.flush(p.posFor(g.List[0].Pos()), token.ILLEGAL)
+		p.comments = p.comments[0:1]
+		// in debug mode, report error
+		p.internalError("setComment found pending comments")
 	}
 	p.comments[0] = g
 	p.cindex = 0
-	p.nextComment() // get comment ready for use
+	// don't overwrite any pending comment in the p.comment cache
+	// (there may be a pending comment when a line comment is
+	// immediately followed by a lead comment with no other
+	// tokens inbetween)
+	if p.commentOffset == infinity {
+		p.nextComment() // get comment ready for use
+	}
 }
 
 type exprListMode uint
