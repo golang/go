@@ -401,11 +401,12 @@ Error:
 }
 
 func parseAuthority(authority string) (user *Userinfo, host string, err error) {
-	if strings.Index(authority, "@") < 0 {
+	i := strings.LastIndex(authority, "@")
+	if i < 0 {
 		host = authority
 		return
 	}
-	userinfo, host := split(authority, '@', true)
+	userinfo, host := authority[:i], authority[i+1:]
 	if strings.Index(userinfo, ":") < 0 {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return
