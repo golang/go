@@ -69,6 +69,7 @@ const (
 	tableScope
 	tableRowScope
 	tableBodyScope
+	selectScope
 )
 
 // popUntil pops the stack of open elements at the highest element whose tag
@@ -121,6 +122,10 @@ func (p *parser) indexOfElementInScope(s scope, matchTags ...string) int {
 				}
 			case tableScope:
 				if tag == "html" || tag == "table" {
+					return -1
+				}
+			case selectScope:
+				if tag != "optgroup" && tag != "option" {
 					return -1
 				}
 			default:
@@ -1500,16 +1505,16 @@ func inCellIM(p *parser) bool {
 
 // Section 12.2.5.4.16.
 func inSelectIM(p *parser) bool {
-	endSelect := false
 	switch p.tok.Type {
 	case ErrorToken:
-		// TODO.
+		// Stop parsing.
+		return true
 	case TextToken:
-		p.addText(p.tok.Data)
+		p.addText(strings.Replace(p.tok.Data, "\x00", "", -1))
 	case StartTagToken:
 		switch p.tok.Data {
 		case "html":
-			// TODO.
+			return inBodyIM(p)
 		case "option":
 			if p.top().Data == "option" {
 				p.oe.pop()
@@ -1524,13 +1529,17 @@ func inSelectIM(p *parser) bool {
 			}
 			p.addElement(p.tok.Data, p.tok.Attr)
 		case "select":
-			endSelect = true
+			p.tok.Type = EndTagToken
+			return false
 		case "input", "keygen", "textarea":
-			// TODO.
-		case "script":
-			// TODO.
-		default:
+			if p.elementInScope(selectScope, "select") {
+				p.parseImpliedToken(EndTagToken, "select", nil)
+				return false
+			}
 			// Ignore the token.
+			return true
+		case "script":
+			return inHeadIM(p)
 		}
 	case EndTagToken:
 		switch p.tok.Data {
@@ -1547,19 +1556,20 @@ func inSelectIM(p *parser) bool {
 				p.oe = p.oe[:i]
 			}
 		case "select":
-			endSelect = true
-		default:
-			// Ignore the token.
+			if p.popUntil(selectScope, "select") {
+				p.resetInsertionMode()
+			}
 		}
 	case CommentToken:
 		p.doc.Add(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
+	case DoctypeToken:
+		// Ignore the token.
+		return true
 	}
-	if endSelect {
-		p.endSelect()
-	}
+
 	return true
 }
 
@@ -1570,7 +1580,7 @@ func inSelectInTableIM(p *parser) bool {
 		switch p.tok.Data {
 		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th":
 			if p.tok.Type == StartTagToken || p.elementInScope(tableScope, p.tok.Data) {
-				p.endSelect()
+				p.parseImpliedToken(EndTagToken, "select", nil)
 				return false
 			} else {
 				// Ignore the token.
@@ -1579,19 +1589,6 @@ func inSelectInTableIM(p *parser) bool {
 		}
 	}
 	return inSelectIM(p)
-}
-
-func (p *parser) endSelect() {
-	for i := len(p.oe) - 1; i >= 0; i-- {
-		switch p.oe[i].Data {
-		case "option", "optgroup":
-			continue
-		case "select":
-			p.oe = p.oe[:i]
-			p.resetInsertionMode()
-		}
-		return
-	}
 }
 
 // Section 12.2.5.4.18.
