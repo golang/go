@@ -120,10 +120,9 @@ static struct {
 	uint32	nproc;
 	volatile uint32	nwait;
 	volatile uint32	ndone;
+	volatile uint32 debugmarkdone;
 	Note	alldone;
-	Lock	markgate;
-	Lock	sweepgate;
-	uint32	spanidx;
+	ParFor	*sweepfor;
 
 	Lock;
 	byte	*chunk;
@@ -720,40 +719,10 @@ handlespecial(byte *p, uintptr size)
 	return true;
 }
 
-static void sweepspan(MSpan *s);
-
 // Sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 static void
-sweep(void)
-{
-	MSpan *s, **allspans;
-	int64 now;
-	uint32 spanidx, nspan;
-
-	now = runtime·nanotime();
-	nspan = runtime·mheap.nspan;
-	allspans = runtime·mheap.allspans;
-	for(;;) {
-		spanidx = runtime·xadd(&work.spanidx, 1) - 1;
-		if(spanidx >= nspan)
-			break;
-		s = allspans[spanidx];
-
-		// Stamp newly unused spans. The scavenger will use that
-		// info to potentially give back some pages to the OS.
-		if(s->state == MSpanFree && s->unusedsince == 0)
-			s->unusedsince = now;
-
-		if(s->state != MSpanInUse)
-			continue;
-
-		sweepspan(s);
-	}
-}
-
-static void
-sweepspan(MSpan *s)
+sweepspan(ParFor *desc, uint32 idx)
 {
 	int32 cl, n, npages;
 	uintptr size;
@@ -762,7 +731,16 @@ sweepspan(MSpan *s)
 	byte *arena_start;
 	MLink *start, *end;
 	int32 nfree;
+	MSpan *s;
 
+	USED(&desc);
+	s = runtime·mheap.allspans[idx];
+	// Stamp newly unused spans. The scavenger will use that
+	// info to potentially give back some pages to the OS.
+	if(s->state == MSpanFree && s->unusedsince == 0)
+		s->unusedsince = runtime·nanotime();
+	if(s->state != MSpanInUse)
+		return;
 	arena_start = runtime·mheap.arena_start;
 	p = (byte*)(s->start << PageShift);
 	cl = s->sizeclass;
@@ -847,16 +825,15 @@ sweepspan(MSpan *s)
 void
 runtime·gchelper(void)
 {
-	// Wait until main proc is ready for mark help.
-	runtime·lock(&work.markgate);
-	runtime·unlock(&work.markgate);
 	scanblock(nil, 0);
 
-	// Wait until main proc is ready for sweep help.
-	runtime·lock(&work.sweepgate);
-	runtime·unlock(&work.sweepgate);
-	sweep();
+	if(DebugMark) {
+		// wait while the main thread executes mark(debug_scanblock)
+		while(runtime·atomicload(&work.debugmarkdone) == 0)
+			runtime·usleep(10);
+	}
 
+	runtime·parfordo(work.sweepfor);
 	if(runtime·xadd(&work.ndone, +1) == work.nproc-1)
 		runtime·notewakeup(&work.alldone);
 }
@@ -972,32 +949,37 @@ runtime·gc(int32 force)
 		obj0 = mstats.nmalloc - mstats.nfree;
 	}
 
-	runtime·lock(&work.markgate);
-	runtime·lock(&work.sweepgate);
-
+	work.nwait = 0;
+	work.ndone = 0;
+	work.debugmarkdone = 0;
 	work.nproc = runtime·gcprocs();
+	if(work.sweepfor == nil)
+		work.sweepfor = runtime·parforalloc(MaxGcproc);
+	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
 	if(work.nproc > 1) {
 		runtime·noteclear(&work.alldone);
 		runtime·helpgc(work.nproc);
 	}
-	work.nwait = 0;
-	work.ndone = 0;
 
-	runtime·unlock(&work.markgate);  // let the helpers in
 	mark(scanblock);
-	if(DebugMark)
+	if(DebugMark) {
 		mark(debug_scanblock);
+		runtime·atomicstore(&work.debugmarkdone, 1);
+	}
 	t1 = runtime·nanotime();
 
-	work.spanidx = 0;
-	runtime·unlock(&work.sweepgate);  // let the helpers in
-	sweep();
-	if(work.nproc > 1)
-		runtime·notesleep(&work.alldone);
+	runtime·parfordo(work.sweepfor);
 	t2 = runtime·nanotime();
 
 	stealcache();
 	cachestats(&stats);
+
+	if(work.nproc > 1)
+		runtime·notesleep(&work.alldone);
+
+	stats.nprocyield += work.sweepfor->nprocyield;
+	stats.nosyield += work.sweepfor->nosyield;
+	stats.nsleep += work.sweepfor->nsleep;
 
 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
 	m->gcing = 0;
@@ -1027,20 +1009,21 @@ runtime·gc(int32 force)
 
 	if(gctrace) {
 		runtime·printf("gc%d(%d): %D+%D+%D ms, %D -> %D MB %D -> %D (%D-%D) objects,"
-				" %D(%D) handoff, %D/%D/%D yields\n",
+				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
 			mstats.numgc, work.nproc, (t1-t0)/1000000, (t2-t1)/1000000, (t3-t2)/1000000,
 			heap0>>20, heap1>>20, obj0, obj1,
 			mstats.nmalloc, mstats.nfree,
 			stats.nhandoff, stats.nhandoffcnt,
+			work.sweepfor->nsteal, work.sweepfor->nstealcnt,
 			stats.nprocyield, stats.nosyield, stats.nsleep);
 	}
-	
+
 	runtime·MProf_GC();
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
 
-	// give the queued finalizers, if any, a chance to run	
-	if(finq != nil)	
+	// give the queued finalizers, if any, a chance to run
+	if(finq != nil)
 		runtime·gosched();
 
 	if(gctrace > 1 && !force)
