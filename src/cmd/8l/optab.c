@@ -242,6 +242,11 @@ uchar	ypopl[] =
 	Ynone,	Ym,	Zo_m,	2,
 	0
 };
+uchar	ybswap[] =
+{
+	Ynone,	Yrl,	Z_rp,	1,
+	0,
+};
 uchar	yscond[] =
 {
 	Ynone,	Ymb,	Zo_m,	2,
@@ -770,6 +775,8 @@ Optab optab[] =
 	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
 	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
 	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+
+	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
 
 	0
 };
