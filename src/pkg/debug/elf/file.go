@@ -31,6 +31,7 @@ type FileHeader struct {
 	ByteOrder  binary.ByteOrder
 	Type       Type
 	Machine    Machine
+	Entry      uint64
 }
 
 // A File represents an open ELF file.
@@ -240,6 +241,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		f.Type = Type(hdr.Type)
 		f.Machine = Machine(hdr.Machine)
+		f.Entry = uint64(hdr.Entry)
 		if v := Version(hdr.Version); v != f.Version {
 			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
@@ -258,6 +260,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		f.Type = Type(hdr.Type)
 		f.Machine = Machine(hdr.Machine)
+		f.Entry = uint64(hdr.Entry)
 		if v := Version(hdr.Version); v != f.Version {
 			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
