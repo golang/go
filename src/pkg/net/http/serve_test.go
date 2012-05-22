@@ -618,6 +618,13 @@ type serverExpectTest struct {
 	expectedResponse string // expected substring in first line of http response
 }
 
+// forcedBadBody returns whether this test sends an unsolicited body
+// without asking the server's permission and which we know the server
+// will deny (possibly before we finish writing the body).
+func (t serverExpectTest) forcedBadBody() bool {
+	return t.contentLength > 0 && !t.readBody && strings.ToLower(t.expectation) != "100-continue"
+}
+
 var serverExpectTests = []serverExpectTest{
 	// Normal 100-continues, case-insensitive.
 	{100, "100-continue", true, "100 Continue"},
@@ -661,30 +668,47 @@ func TestServerExpect(t *testing.T) {
 			t.Fatalf("Dial: %v", err)
 		}
 		defer conn.Close()
-		sendf := func(format string, args ...interface{}) {
-			_, err := fmt.Fprintf(conn, format, args...)
-			if err != nil {
-				t.Fatalf("On test %#v, error writing %q: %v", test, format, err)
-			}
-		}
 		go func() {
-			sendf("POST /?readbody=%v HTTP/1.1\r\n"+
+			_, err := fmt.Fprintf(conn, "POST /?readbody=%v HTTP/1.1\r\n"+
 				"Connection: close\r\n"+
 				"Content-Length: %d\r\n"+
 				"Expect: %s\r\nHost: foo\r\n\r\n",
 				test.readBody, test.contentLength, test.expectation)
+			if err != nil {
+				t.Errorf("On test %#v, error writing request headers: %v", test, err)
+				return
+			}
+			// Only send the body immediately if we're acting like an HTTP client
+			// that doesn't send 100-continue expectations.
 			if test.contentLength > 0 && strings.ToLower(test.expectation) != "100-continue" {
 				body := strings.Repeat("A", test.contentLength)
-				sendf(body)
+				_, err = fmt.Fprint(conn, body)
+				if err != nil {
+					if test.forcedBadBody() {
+						// Server likely already hung up on us.
+						// See larger comment below.
+						t.Logf("On test %#v, acceptable error writing request body: %v", test, err)
+						return
+					}
+					t.Errorf("On test %#v, error writing request body: %v", test, err)
+				}
 			}
 		}()
 		bufr := bufio.NewReader(conn)
 		line, err := bufr.ReadString('\n')
 		if err != nil {
-			t.Fatalf("ReadString: %v", err)
+			if test.forcedBadBody() {
+				// This is an acceptable failure due to a possible TCP race:
+				// We were still writing data and the server hung up on us. A TCP
+				// implementation may send a RST if our request body data was known
+				// to be lost, which may trigger our reads to fail.
+				t.Logf("On test %#v, acceptable error from ReadString: %v", test, err)
+				return
+			}
+			t.Fatalf("On test %#v, ReadString: %v", test, err)
 		}
 		if !strings.Contains(line, test.expectedResponse) {
-			t.Errorf("for test %#v got first line=%q", test, line)
+			t.Errorf("On test %#v, got first line = %q; want %q", test, line, test.expectedResponse)
 		}
 	}
 
