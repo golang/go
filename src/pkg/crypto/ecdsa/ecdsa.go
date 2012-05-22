@@ -66,7 +66,9 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error)
 // hashToInt converts a hash value to an integer. There is some disagreement
 // about how this is done. [NSA] suggests that this is done in the obvious
 // manner, but [SECG] truncates the hash to the bit-length of the curve order
-// first. We follow [SECG] because that's what OpenSSL does.
+// first. We follow [SECG] because that's what OpenSSL does. Additionally,
+// OpenSSL right shifts excess bits from the number if the hash is too large
+// and we mirror that too.
 func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
 	orderBits := c.Params().N.BitLen()
 	orderBytes := (orderBits + 7) / 8
@@ -75,7 +77,7 @@ func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
 	}
 
 	ret := new(big.Int).SetBytes(hash)
-	excess := orderBytes*8 - orderBits
+	excess := len(hash)*8 - orderBits
 	if excess > 0 {
 		ret.Rsh(ret, uint(excess))
 	}
