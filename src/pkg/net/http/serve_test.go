@@ -370,7 +370,7 @@ func TestIdentityResponse(t *testing.T) {
 	})
 }
 
-func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
+func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 	s := httptest.NewServer(h)
 	defer s.Close()
 
@@ -410,21 +410,28 @@ func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
 
 // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
 func TestServeHTTP10Close(t *testing.T) {
-	testTcpConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/file")
+	}))
+}
+
+// TestClientCanClose verifies that clients can also force a connection to close.
+func TestClientCanClose(t *testing.T) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Nothing.
 	}))
 }
 
 // TestHandlersCanSetConnectionClose verifies that handlers can force a connection to close,
 // even for HTTP/1.1 requests.
 func TestHandlersCanSetConnectionClose11(t *testing.T) {
-	testTcpConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "close")
 	}))
 }
 
 func TestHandlersCanSetConnectionClose10(t *testing.T) {
-	testTcpConnectionCloses(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "close")
 	}))
 }
