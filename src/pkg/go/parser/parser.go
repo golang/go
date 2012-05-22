@@ -267,13 +267,13 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 
 // Consume a group of adjacent comments, add it to the parser's
 // comments list, and return it together with the line at which
-// the last comment in the group ends. An empty line or non-comment
-// token terminates a comment group.
+// the last comment in the group ends. A non-comment token or n
+// empty lines terminate a comment group.
 //
-func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
+func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline int) {
 	var list []*ast.Comment
 	endline = p.file.Line(p.pos)
-	for p.tok == token.COMMENT && endline+1 >= p.file.Line(p.pos) {
+	for p.tok == token.COMMENT && p.file.Line(p.pos) <= endline+n {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
@@ -314,7 +314,7 @@ func (p *parser) next() {
 		if p.file.Line(p.pos) == line {
 			// The comment is on same line as the previous token; it
 			// cannot be a lead comment but may be a line comment.
-			comment, endline = p.consumeCommentGroup()
+			comment, endline = p.consumeCommentGroup(0)
 			if p.file.Line(p.pos) != endline {
 				// The next token is on a different line, thus
 				// the last comment group is a line comment.
@@ -325,7 +325,7 @@ func (p *parser) next() {
 		// consume successor comments, if any
 		endline = -1
 		for p.tok == token.COMMENT {
-			comment, endline = p.consumeCommentGroup()
+			comment, endline = p.consumeCommentGroup(1)
 		}
 
 		if endline+1 == p.file.Line(p.pos) {
