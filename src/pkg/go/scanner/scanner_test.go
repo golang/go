@@ -43,6 +43,8 @@ var tokens = [...]elt{
 	// Special tokens
 	{token.COMMENT, "/* a comment */", special},
 	{token.COMMENT, "// a comment \n", special},
+	{token.COMMENT, "/*\r*/", special},
+	{token.COMMENT, "//\r\n", special},
 
 	// Identifiers and basic type literals
 	{token.IDENT, "foobar", literal},
@@ -214,8 +216,6 @@ func checkPos(t *testing.T, lit string, p token.Pos, expected token.Position) {
 
 // Verify that calling Scan() provides the correct results.
 func TestScan(t *testing.T) {
-	// make source
-	src_linecount := newlineCount(string(source))
 	whitespace_linecount := newlineCount(whitespace)
 
 	// error handler
@@ -226,59 +226,81 @@ func TestScan(t *testing.T) {
 	// verify scan
 	var s Scanner
 	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis)
-	index := 0
-	// epos is the expected position
+
+	// set up expected position
 	epos := token.Position{
 		Filename: "",
 		Offset:   0,
 		Line:     1,
 		Column:   1,
 	}
+
+	index := 0
 	for {
 		pos, tok, lit := s.Scan()
-		if lit == "" {
-			// no literal value for non-literal tokens
-			lit = tok.String()
-		}
-		e := elt{token.EOF, "", special}
-		if index < len(tokens) {
-			e = tokens[index]
-		}
+
+		// check position
 		if tok == token.EOF {
-			lit = "<EOF>"
-			epos.Line = src_linecount
+			// correction for EOF
+			epos.Line = newlineCount(string(source))
 			epos.Column = 2
 		}
 		checkPos(t, lit, pos, epos)
+
+		// check token
+		e := elt{token.EOF, "", special}
+		if index < len(tokens) {
+			e = tokens[index]
+			index++
+		}
 		if tok != e.tok {
 			t.Errorf("bad token for %q: got %s, expected %s", lit, tok, e.tok)
 		}
-		if e.tok.IsLiteral() {
-			// no CRs in raw string literals
-			elit := e.lit
-			if elit[0] == '`' {
-				elit = string(stripCR([]byte(elit)))
-				epos.Offset += len(e.lit) - len(lit) // correct position
-			}
-			if lit != elit {
-				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
-			}
-		}
+
+		// check token class
 		if tokenclass(tok) != e.class {
 			t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
 		}
-		epos.Offset += len(lit) + len(whitespace)
-		epos.Line += newlineCount(lit) + whitespace_linecount
-		if tok == token.COMMENT && lit[1] == '/' {
-			// correct for unaccounted '/n' in //-style comment
-			epos.Offset++
-			epos.Line++
+
+		// check literal
+		elit := ""
+		switch e.tok {
+		case token.COMMENT:
+			// no CRs in comments
+			elit = string(stripCR([]byte(e.lit)))
+			//-style comment literal doesn't contain newline
+			if elit[1] == '/' {
+				elit = elit[0 : len(elit)-1]
+			}
+		case token.IDENT:
+			elit = e.lit
+		case token.SEMICOLON:
+			elit = ";"
+		default:
+			if e.tok.IsLiteral() {
+				// no CRs in raw string literals
+				elit = e.lit
+				if elit[0] == '`' {
+					elit = string(stripCR([]byte(elit)))
+				}
+			} else if e.tok.IsKeyword() {
+				elit = e.lit
+			}
 		}
-		index++
+		if lit != elit {
+			t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
+		}
+
 		if tok == token.EOF {
 			break
 		}
+
+		// update position
+		epos.Offset += len(e.lit) + len(whitespace)
+		epos.Line += newlineCount(e.lit) + whitespace_linecount
+
 	}
+
 	if s.ErrorCount != 0 {
 		t.Errorf("found %d errors", s.ErrorCount)
 	}
