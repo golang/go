@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/dsa"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509/pkix"
@@ -106,6 +108,8 @@ type dsaSignature struct {
 	R, S *big.Int
 }
 
+type ecdsaSignature dsaSignature
+
 type validity struct {
 	NotBefore, NotAfter time.Time
 }
@@ -133,6 +137,10 @@ const (
 	SHA512WithRSA
 	DSAWithSHA1
 	DSAWithSHA256
+	ECDSAWithSHA1
+	ECDSAWithSHA256
+	ECDSAWithSHA384
+	ECDSAWithSHA512
 )
 
 type PublicKeyAlgorithm int
@@ -141,6 +149,7 @@ const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
 	DSA
+	ECDSA
 )
 
 // OIDs for signature algorithms
@@ -160,6 +169,12 @@ const (
 // dsaWithSha1 OBJECT IDENTIFIER ::= {
 //    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 } 
 //
+// RFC 3279 2.2.3 ECDSA Signature Algorithm
+// 
+// ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
+// 	  iso(1) member-body(2) us(840) ansi-x962(10045)
+//    signatures(4) ecdsa-with-SHA1(1)}
+//
 //
 // RFC 4055 5 PKCS #1 Version 1.5
 // 
@@ -176,15 +191,30 @@ const (
 //    joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
 //    csor(3) algorithms(4) id-dsa-with-sha2(3) 2}
 //
+// RFC 5758 3.2 ECDSA Signature Algorithm
+//
+// ecdsa-with-SHA256 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 2 }
+//
+// ecdsa-with-SHA384 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 3 }
+//
+// ecdsa-with-SHA512 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 4 }
+
 var (
-	oidSignatureMD2WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}
-	oidSignatureMD5WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 4}
-	oidSignatureSHA1WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}
-	oidSignatureSHA256WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
-	oidSignatureSHA384WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12}
-	oidSignatureSHA512WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13}
-	oidSignatureDSAWithSHA1   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 3}
-	oidSignatureDSAWithSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 4, 3, 2}
+	oidSignatureMD2WithRSA      = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}
+	oidSignatureMD5WithRSA      = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 4}
+	oidSignatureSHA1WithRSA     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}
+	oidSignatureSHA256WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
+	oidSignatureSHA384WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12}
+	oidSignatureSHA512WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13}
+	oidSignatureDSAWithSHA1     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 3}
+	oidSignatureDSAWithSHA256   = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 4, 3, 2}
+	oidSignatureECDSAWithSHA1   = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 1}
+	oidSignatureECDSAWithSHA256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
+	oidSignatureECDSAWithSHA384 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}
+	oidSignatureECDSAWithSHA512 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 4}
 )
 
 func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm {
@@ -205,6 +235,14 @@ func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm 
 		return DSAWithSHA1
 	case oid.Equal(oidSignatureDSAWithSHA256):
 		return DSAWithSHA256
+	case oid.Equal(oidSignatureECDSAWithSHA1):
+		return ECDSAWithSHA1
+	case oid.Equal(oidSignatureECDSAWithSHA256):
+		return ECDSAWithSHA256
+	case oid.Equal(oidSignatureECDSAWithSHA384):
+		return ECDSAWithSHA384
+	case oid.Equal(oidSignatureECDSAWithSHA512):
+		return ECDSAWithSHA512
 	}
 	return UnknownSignatureAlgorithm
 }
@@ -218,9 +256,15 @@ func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm 
 //
 // id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
 //    x9-57(10040) x9cm(4) 1 }
+//
+// RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
+//
+// id-ecPublicKey OBJECT IDENTIFIER ::= {
+//       iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
 var (
-	oidPublicKeyRsa = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
-	oidPublicKeyDsa = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+	oidPublicKeyRsa   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidPublicKeyDsa   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+	oidPublicKeyEcdsa = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 )
 
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
@@ -229,8 +273,47 @@ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm 
 		return RSA
 	case oid.Equal(oidPublicKeyDsa):
 		return DSA
+	case oid.Equal(oidPublicKeyEcdsa):
+		return ECDSA
 	}
 	return UnknownPublicKeyAlgorithm
+}
+
+// RFC 5480, 2.1.1.1. Named Curve
+//
+// secp224r1 OBJECT IDENTIFIER ::= {
+//   iso(1) identified-organization(3) certicom(132) curve(0) 33 }
+//
+// secp256r1 OBJECT IDENTIFIER ::= {
+//   iso(1) member-body(2) us(840) ansi-X9-62(10045) curves(3)
+//   prime(1) 7 }
+//
+// secp384r1 OBJECT IDENTIFIER ::= {
+//   iso(1) identified-organization(3) certicom(132) curve(0) 34 }
+//
+// secp521r1 OBJECT IDENTIFIER ::= {
+//   iso(1) identified-organization(3) certicom(132) curve(0) 35 }
+//
+// NB: secp256r1 is equivalent to prime256v1
+var (
+	oidNamedCurveP224 = asn1.ObjectIdentifier{1, 3, 132, 0, 33}
+	oidNamedCurveP256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 3, 1, 7}
+	oidNamedCurveP384 = asn1.ObjectIdentifier{1, 3, 132, 0, 34}
+	oidNamedCurveP521 = asn1.ObjectIdentifier{1, 3, 132, 0, 35}
+)
+
+func getNamedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
+	switch {
+	case oid.Equal(oidNamedCurveP224):
+		return elliptic.P224()
+	case oid.Equal(oidNamedCurveP256):
+		return elliptic.P256()
+	case oid.Equal(oidNamedCurveP384):
+		return elliptic.P384()
+	case oid.Equal(oidNamedCurveP521):
+		return elliptic.P521()
+	}
+	return nil
 }
 
 // KeyUsage represents the set of actions that are valid for a given key. It's
@@ -376,13 +459,13 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	var hashType crypto.Hash
 
 	switch algo {
-	case SHA1WithRSA, DSAWithSHA1:
+	case SHA1WithRSA, DSAWithSHA1, ECDSAWithSHA1:
 		hashType = crypto.SHA1
-	case SHA256WithRSA, DSAWithSHA256:
+	case SHA256WithRSA, DSAWithSHA256, ECDSAWithSHA256:
 		hashType = crypto.SHA256
-	case SHA384WithRSA:
+	case SHA384WithRSA, ECDSAWithSHA384:
 		hashType = crypto.SHA384
-	case SHA512WithRSA:
+	case SHA512WithRSA, ECDSAWithSHA512:
 		hashType = crypto.SHA512
 	default:
 		return ErrUnsupportedAlgorithm
@@ -409,6 +492,18 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 		}
 		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
 			return errors.New("DSA verification failure")
+		}
+		return
+	case *ecdsa.PublicKey:
+		ecdsaSig := new(ecdsaSignature)
+		if _, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
+			return err
+		}
+		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+			return errors.New("crypto/x509: ECDSA signature contained zero or negative values")
+		}
+		if !ecdsa.Verify(pub, digest, ecdsaSig.R, ecdsaSig.S) {
+			return errors.New("crypto/x509: ECDSA verification failure")
 		}
 		return
 	}
@@ -487,6 +582,27 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 				G: params.G,
 			},
 			Y: p,
+		}
+		return pub, nil
+	case ECDSA:
+		paramsData := keyData.Algorithm.Parameters.FullBytes
+		namedCurveOID := new(asn1.ObjectIdentifier)
+		_, err := asn1.Unmarshal(paramsData, namedCurveOID)
+		if err != nil {
+			return nil, err
+		}
+		namedCurve := getNamedCurveFromOID(*namedCurveOID)
+		if namedCurve == nil {
+			return nil, errors.New("crypto/x509: unsupported elliptic curve")
+		}
+		x, y := elliptic.Unmarshal(namedCurve, asn1Data)
+		if x == nil {
+			return nil, errors.New("crypto/x509: failed to unmarshal elliptic curve point")
+		}
+		pub := &ecdsa.PublicKey{
+			Curve: namedCurve,
+			X:     x,
+			Y:     y,
 		}
 		return pub, nil
 	default:
