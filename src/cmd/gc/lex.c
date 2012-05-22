@@ -1271,6 +1271,8 @@ tnum:
 				continue;
 			if(cp == lexbuf+2)
 				yyerror("malformed hex constant");
+			if(c == 'p')
+				goto casep;
 			goto ncu;
 		}
 	}

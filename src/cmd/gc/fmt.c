@@ -361,6 +361,8 @@ Vconv(Fmt *fp)
 
 	switch(v->ctype) {
 	case CTINT:
+		if((fp->flags & FmtSharp) || fmtmode == FExp)
+			return fmtprint(fp, "%#B", v->u.xval);
 		return fmtprint(fp, "%B", v->u.xval);
 	case CTRUNE:
 		x = mpgetfix(v->u.xval);
