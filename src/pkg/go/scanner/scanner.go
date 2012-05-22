@@ -157,11 +157,15 @@ func (s *Scanner) interpretLineComment(text []byte) {
 func (s *Scanner) scanComment() string {
 	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
 	offs := s.offset - 1 // position of initial '/'
+	hasCR := false
 
 	if s.ch == '/' {
 		//-style comment
 		s.next()
 		for s.ch != '\n' && s.ch >= 0 {
+			if s.ch == '\r' {
+				hasCR = true
+			}
 			s.next()
 		}
 		if offs == s.lineOffset {
@@ -175,6 +179,9 @@ func (s *Scanner) scanComment() string {
 	s.next()
 	for s.ch >= 0 {
 		ch := s.ch
+		if ch == '\r' {
+			hasCR = true
+		}
 		s.next()
 		if ch == '*' && s.ch == '/' {
 			s.next()
@@ -185,7 +192,12 @@ func (s *Scanner) scanComment() string {
 	s.error(offs, "comment not terminated")
 
 exit:
-	return string(s.src[offs:s.offset])
+	lit := s.src[offs:s.offset]
+	if hasCR {
+		lit = stripCR(lit)
+	}
+
+	return string(lit)
 }
 
 func (s *Scanner) findLineEnd() bool {
@@ -526,6 +538,8 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // If the returned token is a literal (token.IDENT, token.INT, token.FLOAT,
 // token.IMAG, token.CHAR, token.STRING) or token.COMMENT, the literal string
 // has the corresponding value.
+//
+// If the returned token is a keyword, the literal string is the keyword.
 //
 // If the returned token is token.SEMICOLON, the corresponding
 // literal string is ";" if the semicolon was present in the source,
