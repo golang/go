@@ -1347,19 +1347,5 @@ outhist(void)
 	}
 }
 
-void
-pragbldicks(void)
-{
-	while(getnsc() != '\n')
-		;
-}
-
-void
-praghjdicks(void)
-{
-	while(getnsc() != '\n')
-		;
-}
-
 #include "../cc/lexbody"
 #include "../cc/macbody"
