@@ -87,8 +87,12 @@ func stripTrailingWhitespace(s string) string {
 	return s[0:i]
 }
 
-// Text returns the text of the comment,
-// with the comment markers - //, /*, and */ - removed.
+// Text returns the text of the comment.
+// Comment markers (//, /*, and */), the first space of a line comment, and
+// leading and trailing empty lines are removed. Multiple empty lines are
+// reduced to one, and trailing space on lines is trimmed. Unless the result
+// is empty, it is newline-terminated.
+//
 func (g *CommentGroup) Text() string {
 	if g == nil {
 		return ""
@@ -104,11 +108,9 @@ func (g *CommentGroup) Text() string {
 		// The parser has given us exactly the comment text.
 		switch c[1] {
 		case '/':
-			//-style comment
+			//-style comment (no newline at the end)
 			c = c[2:]
-			// Remove leading space after //, if there is one.
-			// TODO(gri) This appears to be necessary in isolated
-			//           cases (bignum.RatFromString) - why?
+			// strip first space - required for Example tests
 			if len(c) > 0 && c[0] == ' ' {
 				c = c[1:]
 			}
