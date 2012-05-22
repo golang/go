@@ -520,6 +520,13 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 		}
 	}
 	if !value.Type().AssignableTo(typ) {
+		if value.Kind() == reflect.Interface && !value.IsNil() {
+			value = value.Elem()
+			if value.Type().AssignableTo(typ) {
+				return value
+			}
+			// fallthrough
+		}
 		// Does one dereference or indirection work? We could do more, as we
 		// do with method receivers, but that gets messy and method receivers
 		// are much more constrained, so it makes more sense there than here.
