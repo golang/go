@@ -743,6 +743,8 @@ enum	as
 	APREFETCHNTA,
 	
 	AMOVQL,
+	ABSWAPL,
+	ABSWAPQ,
 
 	ALAST
 };
