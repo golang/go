@@ -232,16 +232,78 @@ mppow10flt(Mpflt *a, int p)
 		mpmulcflt(a, 10);
 }
 
+static void
+mphextofix(Mpint *a, char *s, int n)
+{
+	char *hexdigitp, *end, c;
+	long d;
+	int bit;
+
+	while(*s == '0') {
+		s++;
+		n--;
+	}
+
+	// overflow
+	if(4*n > Mpscale*Mpprec) {
+		a->ovf = 1;
+		return;
+	}
+
+	end = s+n-1;
+	for(hexdigitp=end; hexdigitp>=s; hexdigitp--) {
+		c = *hexdigitp;
+		if(c >= '0' && c <= '9')
+			d = c-'0';
+		else if(c >= 'A' && c <= 'F')
+			d = c-'A'+10;
+		else
+			d = c-'a'+10;
+
+		bit = 4*(end - hexdigitp);
+		while(d > 0) {
+			if(d & 1)
+				a->a[bit/Mpscale] |= (long)1 << (bit%Mpscale);
+			bit++;
+			d = d >> 1;
+		}
+	}
+}
+
 //
 // floating point input
-// required syntax is [+-]d*[.]d*[e[+-]d*]
+// required syntax is [+-]d*[.]d*[e[+-]d*] or [+-]0xH*[e[+-]d*]
 //
 void
 mpatoflt(Mpflt *a, char *as)
 {
 	Mpflt b;
-	int dp, c, f, ef, ex, eb;
-	char *s;
+	int dp, c, f, ef, ex, eb, base;
+	char *s, *start;
+
+	while(*as == ' ' || *as == '\t')
+		as++;
+
+	/* determine base */
+	s = as;
+	base = -1;
+	while(base == -1) {
+		switch(c = *s++) {
+		case '-':
+		case '+':
+			break;
+
+		case '0':
+			if(*s == 'x')
+				base = 16;
+			else
+				base = 10;
+			break;
+
+		default:
+			base = 10;
+		}
+	}
 
 	s = as;
 	dp = 0;		/* digits after decimal point */
@@ -250,6 +312,37 @@ mpatoflt(Mpflt *a, char *as)
 	eb = 0;		/* binary point */
 
 	mpmovecflt(a, 0.0);
+	if(base == 16) {
+		start = nil;
+		for(;;) {
+			c = *s;
+			if(c == '-') {
+				f = 1;
+				s++;
+			}
+			else if(c == '+') {
+				s++;
+			}
+			else if(c == '0' && s[1] == 'x') {
+				s += 2;
+				start = s;
+			}
+			else if((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				s++;
+			}
+			else {
+				break;
+			}
+		}
+		if(start == nil)
+			goto bad;
+
+		mphextofix(&a->val, start, s-start);
+		if(a->val.ovf)
+			goto bad;
+		a->exp = 0;
+		mpnorm(a);
+	}
 	for(;;) {
 		switch(c = *s++) {
 		default:
@@ -259,11 +352,13 @@ mpatoflt(Mpflt *a, char *as)
 			f = 1;
 
 		case ' ':
-		case  '\t':
-		case  '+':
+		case '\t':
+		case '+':
 			continue;
 
 		case '.':
+			if(base == 16)
+				goto bad;
 			dp = 1;
 			continue;
 
@@ -355,7 +450,7 @@ void
 mpatofix(Mpint *a, char *as)
 {
 	int c, f;
-	char *s;
+	char *s, *s0;
 
 	s = as;
 	f = 0;
@@ -402,28 +497,19 @@ oct:
 	goto out;
 
 hex:
-	c = *s++;
+	s0 = s;
+	c = *s;
 	while(c) {
-		if(c >= '0' && c <= '9') {
-			mpmulcfix(a, 16);
-			mpaddcfix(a, c-'0');
-			c = *s++;
-			continue;
-		}
-		if(c >= 'a' && c <= 'f') {
-			mpmulcfix(a, 16);
-			mpaddcfix(a, c+10-'a');
-			c = *s++;
-			continue;
-		}
-		if(c >= 'A' && c <= 'F') {
-			mpmulcfix(a, 16);
-			mpaddcfix(a, c+10-'A');
-			c = *s++;
+		if((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			s++;
+			c = *s;
 			continue;
 		}
 		goto bad;
 	}
+	mphextofix(a, s0, s-s0);
+	if(a->ovf)
+		goto bad;
 
 out:
 	if(f)
@@ -439,8 +525,8 @@ int
 Bconv(Fmt *fp)
 {
 	char buf[500], *p;
-	Mpint *xval, q, r, ten;
-	int f;
+	Mpint *xval, q, r, ten, sixteen;
+	int f, digit;
 
 	xval = va_arg(fp->args, Mpint*);
 	mpmovefixfix(&q, xval);
@@ -449,15 +535,33 @@ Bconv(Fmt *fp)
 		f = 1;
 		mpnegfix(&q);
 	}
-	mpmovecfix(&ten, 10);
 
 	p = &buf[sizeof(buf)];
 	*--p = 0;
-	for(;;) {
-		mpdivmodfixfix(&q, &r, &q, &ten);
-		*--p = mpgetfix(&r) + '0';
-		if(mptestfix(&q) <= 0)
-			break;
+	if(fp->flags & FmtSharp) {
+		// Hexadecimal
+		mpmovecfix(&sixteen, 16);
+		for(;;) {
+			mpdivmodfixfix(&q, &r, &q, &sixteen);
+			digit = mpgetfix(&r);
+			if(digit < 10)
+				*--p = digit + '0';
+			else
+				*--p = digit - 10 + 'A';
+			if(mptestfix(&q) <= 0)
+				break;
+		}
+		*--p = 'x';
+		*--p = '0';
+	} else {
+		// Decimal
+		mpmovecfix(&ten, 10);
+		for(;;) {
+			mpdivmodfixfix(&q, &r, &q, &ten);
+			*--p = mpgetfix(&r) + '0';
+			if(mptestfix(&q) <= 0)
+				break;
+		}
 	}
 	if(f)
 		*--p = '-';
@@ -501,10 +605,10 @@ Fconv(Fmt *fp)
 	}
 
 	if(fv.exp >= 0) {
-		snprint(buf, sizeof(buf), "%Bp+%d", &fv.val, fv.exp);
+		snprint(buf, sizeof(buf), "%#Bp+%d", &fv.val, fv.exp);
 		goto out;
 	}
-	snprint(buf, sizeof(buf), "%Bp-%d", &fv.val, -fv.exp);
+	snprint(buf, sizeof(buf), "%#Bp-%d", &fv.val, -fv.exp);
 
 out:
 	return fmtstrcpy(fp, buf);

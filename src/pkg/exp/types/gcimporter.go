@@ -664,7 +664,7 @@ func (p *gcParser) parseInt() (sign, val string) {
 func (p *gcParser) parseNumber() Const {
 	// mantissa
 	sign, val := p.parseInt()
-	mant, ok := new(big.Int).SetString(sign+val, 10)
+	mant, ok := new(big.Int).SetString(sign+val, 0)
 	assert(ok)
 
 	if p.lit == "p" {
