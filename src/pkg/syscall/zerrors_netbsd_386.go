@@ -159,6 +159,7 @@ const (
 	CSUSP                             = 0x1a
 	CTL_MAXNAME                       = 0xc
 	CTL_NET                           = 0x4
+	CTL_QUERY                         = -0x2
 	DIOCBSFLUSH                       = 0x20006478
 	DLT_AIRONET_HEADER                = 0x78
 	DLT_APPLE_IP_OVER_IEEE1394        = 0x8a
@@ -984,6 +985,7 @@ const (
 	PARMRK                            = 0x8
 	PARODD                            = 0x2000
 	PENDIN                            = 0x20000000
+	PRI_IOFLUSH                       = 0x7c
 	RLIMIT_AS                         = 0xa
 	RLIMIT_CORE                       = 0x4
 	RLIMIT_CPU                        = 0x0
@@ -1163,6 +1165,10 @@ const (
 	SO_TIMESTAMP                      = 0x2000
 	SO_TYPE                           = 0x1008
 	SO_USELOOPBACK                    = 0x40
+	SYSCTL_VERSION                    = 0x1000000
+	SYSCTL_VERS_0                     = 0x0
+	SYSCTL_VERS_1                     = 0x1000000
+	SYSCTL_VERS_MASK                  = 0xff000000
 	S_ARCH1                           = 0x10000
 	S_ARCH2                           = 0x20000
 	S_BLKSIZE                         = 0x200

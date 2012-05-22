@@ -31,6 +31,7 @@ package syscall
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -210,3 +211,7 @@ type BpfInsn C.struct_bpf_insn
 type BpfHdr C.struct_bpf_hdr
 
 type BpfTimeval C.struct_bpf_timeval
+
+// Sysctl
+
+type Sysctlnode C.struct_sysctlnode
