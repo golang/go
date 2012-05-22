@@ -302,6 +302,11 @@ uchar	ypopl[] =
 	Ynone,	Ym,	Zo_m,	2,
 	0
 };
+uchar	ybswap[] =
+{
+	Ynone,	Yrl,	Z_rp,	2,
+	0,
+};
 uchar	yscond[] =
 {
 	Ynone,	Ymb,	Zo_m,	2,
@@ -641,6 +646,8 @@ Optab optab[] =
 	{ ABSRL,	yml_rl,	Pm, 0xbd },
 	{ ABSRQ,	yml_rl,	Pw, 0x0f,0xbd },
 	{ ABSRW,	yml_rl,	Pq, 0xbd },
+	{ ABSWAPL,	ybswap,	Px, 0x0f,0xc8 },
+	{ ABSWAPQ,	ybswap,	Pw, 0x0f,0xc8 },
 	{ ABTCL,	ybtl,	Pm, 0xba,(07),0xbb },
 	{ ABTCQ,	ybtl,	Pw, 0x0f,0xba,(07),0x0f,0xbb },
 	{ ABTCW,	ybtl,	Pq, 0xba,(07),0xbb },
