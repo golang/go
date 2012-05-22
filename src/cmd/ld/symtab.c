@@ -36,7 +36,7 @@
 
 static int maxelfstr;
 
-int
+static int
 putelfstr(char *s)
 {
 	int off, n;
@@ -57,14 +57,14 @@ putelfstr(char *s)
 	return off;
 }
 
-void
-putelfsyment(int off, vlong addr, vlong size, int info, int shndx)
+static void
+putelfsyment(int off, vlong addr, vlong size, int info, int shndx, int other)
 {
 	switch(thechar) {
 	case '6':
 		LPUT(off);
 		cput(info);
-		cput(0);
+		cput(other);
 		WPUT(shndx);
 		VPUT(addr);
 		VPUT(size);
@@ -75,14 +75,14 @@ putelfsyment(int off, vlong addr, vlong size, int info, int shndx)
 		LPUT(addr);
 		LPUT(size);
 		cput(info);
-		cput(0);
+		cput(other);
 		WPUT(shndx);
 		symsize += ELF32SYMSIZE;
 		break;
 	}
 }
 
-void
+static void
 putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int bind, type, shndx, off;
@@ -97,7 +97,7 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 		break;
 	case 'D':
 		type = STT_OBJECT;
-		if((x->type&~SSUB) == SRODATA)
+		if((x->type&SMASK) == SRODATA)
 			shndx = elftextsh + 1;
 		else
 			shndx = elftextsh + 2;
@@ -107,20 +107,22 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 		shndx = elftextsh + 3;
 		break;
 	}
-	bind = ver ? STB_LOCAL : STB_GLOBAL;
+	// TODO(minux): we need to place all STB_LOCAL precede all STB_GLOBAL and
+	// STB_WEAK symbols in the symbol table
+	bind = (ver || (x->type & SHIDDEN)) ? STB_LOCAL : STB_GLOBAL;
 	off = putelfstr(s);
-	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), shndx);
+	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), shndx, (x->type & SHIDDEN) ? 2 : 0);
 }
 
 void
 asmelfsym(void)
 {
 	// the first symbol entry is reserved
-	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0);
+	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
 	genasmsym(putelfsym);
 }
 
-void
+static void
 putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int i;
