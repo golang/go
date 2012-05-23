@@ -389,6 +389,11 @@ func (w *response) WriteHeader(code int) {
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
 	}
+
+	if w.closeAfterReply && !hasToken(w.header.Get("Connection"), "close") {
+		w.header.Set("Connection", "close")
+	}
+
 	proto := "HTTP/1.0"
 	if w.req.ProtoAtLeast(1, 1) {
 		proto = "HTTP/1.1"

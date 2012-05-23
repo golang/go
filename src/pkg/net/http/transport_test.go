@@ -37,17 +37,21 @@ var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
 	w.Write([]byte(r.RemoteAddr))
 })
 
+// testCloseConn is a net.Conn tracked by a testConnSet.
 type testCloseConn struct {
 	net.Conn
 	set *testConnSet
 }
 
-func (conn *testCloseConn) Close() error {
-	conn.set.remove(conn)
-	return conn.Conn.Close()
+func (c *testCloseConn) Close() error {
+	c.set.remove(c)
+	return c.Conn.Close()
 }
 
+// testConnSet tracks a set of TCP connections and whether they've
+// been closed.
 type testConnSet struct {
+	t      *testing.T
 	closed map[net.Conn]bool
 	list   []net.Conn // in order created
 	mutex  sync.Mutex
@@ -67,8 +71,9 @@ func (tcs *testConnSet) remove(c net.Conn) {
 }
 
 // some tests use this to manage raw tcp connections for later inspection
-func makeTestDial() (*testConnSet, func(n, addr string) (net.Conn, error)) {
+func makeTestDial(t *testing.T) (*testConnSet, func(n, addr string) (net.Conn, error)) {
 	connSet := &testConnSet{
+		t:      t,
 		closed: make(map[net.Conn]bool),
 	}
 	dial := func(n, addr string) (net.Conn, error) {
@@ -89,10 +94,7 @@ func (tcs *testConnSet) check(t *testing.T) {
 
 	for i, c := range tcs.list {
 		if !tcs.closed[c] {
-			// TODO(bradfitz,gustavo): make the following
-			// line an Errorf, not Logf, once issue 3540
-			// is fixed again.
-			t.Logf("TCP connection #%d (of %d total) was not closed", i+1, len(tcs.list))
+			t.Errorf("TCP connection #%d, %p (of %d total) was not closed", i+1, c, len(tcs.list))
 		}
 	}
 }
@@ -134,7 +136,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
-	connSet, testDial := makeTestDial()
+	connSet, testDial := makeTestDial(t)
 
 	for _, connectionClose := range []bool{false, true} {
 		tr := &Transport{
@@ -184,7 +186,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
-	connSet, testDial := makeTestDial()
+	connSet, testDial := makeTestDial(t)
 
 	for _, connectionClose := range []bool{false, true} {
 		tr := &Transport{

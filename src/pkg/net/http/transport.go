@@ -480,6 +480,7 @@ type persistConn struct {
 	t        *Transport
 	cacheKey string // its connectMethod.String()
 	conn     net.Conn
+	closed   bool                // whether conn has been closed
 	br       *bufio.Reader       // from conn
 	bw       *bufio.Writer       // to conn
 	reqch    chan requestAndChan // written by roundTrip(); read by readLoop()
@@ -573,6 +574,9 @@ func (pc *persistConn) readLoop() {
 			resp.Body.(*bodyEOFSignal).fn = func() {
 				if alive && !pc.t.putIdleConn(pc) {
 					alive = false
+				}
+				if !alive {
+					pc.close()
 				}
 				waitForBodyRead <- true
 			}
@@ -669,7 +673,10 @@ func (pc *persistConn) close() {
 
 func (pc *persistConn) closeLocked() {
 	pc.broken = true
-	pc.conn.Close()
+	if !pc.closed {
+		pc.conn.Close()
+		pc.closed = true
+	}
 	pc.mutateHeaderFunc = nil
 }
 
