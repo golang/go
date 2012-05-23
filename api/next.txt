@@ -420,9 +420,11 @@ pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
 pkg syscall (windows-386), func GetCurrentProcessId() uint32
+pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *byte, *int32) error
 pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
 pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
 pkg syscall (windows-amd64), func GetCurrentProcessId() uint32
+pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *byte, *int32) error
 pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32

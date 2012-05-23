@@ -103,11 +103,13 @@ var (
 	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
 	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
 	procsocket                           = modws2_32.NewProc("socket")
 	procsetsockopt                       = modws2_32.NewProc("setsockopt")
+	procgetsockopt                       = modws2_32.NewProc("getsockopt")
 	procbind                             = modws2_32.NewProc("bind")
 	procconnect                          = modws2_32.NewProc("connect")
 	procgetsockname                      = modws2_32.NewProc("getsockname")
@@ -142,7 +144,6 @@ var (
 	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
 	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
 	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
-	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
 )
 
 func GetLastError() (lasterr error) {
@@ -1180,6 +1181,12 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 	return
 }
 
+func GetCurrentProcessId() (pid uint32) {
+	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
+	pid = uint32(r0)
+	return
+}
+
 func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
 	if r0 != 0 {
@@ -1227,6 +1234,18 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, err error) {
 
 func Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) {
 	r1, _, e1 := Syscall6(procsetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
+	if int(r1) == -1 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int32) (err error) {
+	r1, _, e1 := Syscall6(procgetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(unsafe.Pointer(optlen)), 0)
 	if int(r1) == -1 {
 		if e1 != 0 {
 			err = error(e1)
@@ -1599,11 +1618,5 @@ func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
 			err = EINVAL
 		}
 	}
-	return
-}
-
-func GetCurrentProcessId() (pid uint32) {
-	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
-	pid = uint32(r0)
 	return
 }
