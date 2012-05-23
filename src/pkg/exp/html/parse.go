@@ -1597,6 +1597,12 @@ func afterBodyIM(p *parser) bool {
 	case ErrorToken:
 		// Stop parsing.
 		return true
+	case TextToken:
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) == 0 {
+			// It was all whitespace.
+			return inBodyIM(p)
+		}
 	case StartTagToken:
 		if p.tok.Data == "html" {
 			return inBodyIM(p)
@@ -1717,7 +1723,11 @@ func afterAfterBodyIM(p *parser) bool {
 		// Stop parsing.
 		return true
 	case TextToken:
-		// TODO.
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) == 0 {
+			// It was all whitespace.
+			return inBodyIM(p)
+		}
 	case StartTagToken:
 		if p.tok.Data == "html" {
 			return inBodyIM(p)
@@ -1728,6 +1738,8 @@ func afterAfterBodyIM(p *parser) bool {
 			Data: p.tok.Data,
 		})
 		return true
+	case DoctypeToken:
+		return inBodyIM(p)
 	}
 	p.im = inBodyIM
 	return false
@@ -1737,7 +1749,7 @@ func afterAfterBodyIM(p *parser) bool {
 func afterAfterFramesetIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
-		p.addChild(&Node{
+		p.doc.Add(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -1751,8 +1763,8 @@ func afterAfterFramesetIM(p *parser) bool {
 			return -1
 		}, p.tok.Data)
 		if s != "" {
-			p.reconstructActiveFormattingElements()
-			p.addText(s)
+			p.tok.Data = s
+			return inBodyIM(p)
 		}
 	case StartTagToken:
 		switch p.tok.Data {
@@ -1761,6 +1773,8 @@ func afterAfterFramesetIM(p *parser) bool {
 		case "noframes":
 			return inHeadIM(p)
 		}
+	case DoctypeToken:
+		return inBodyIM(p)
 	default:
 		// Ignore the token.
 	}
