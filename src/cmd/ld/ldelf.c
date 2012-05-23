@@ -575,6 +575,9 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		}
 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
 			continue;
+		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
+		if(sym.sym == S)
+			continue;
 		sect = obj->sect+sym.shndx;
 		if(sect->sym == nil) {
 			diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type);
