@@ -894,3 +894,19 @@ func (z *Int) GobDecode(buf []byte) error {
 	z.abs = z.abs.setBytes(buf[1:])
 	return nil
 }
+
+// MarshalJSON implements the json.Marshaler interface.
+func (x *Int) MarshalJSON() ([]byte, error) {
+	// TODO(gri): get rid of the []byte/string conversions
+	return []byte(x.String()), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (z *Int) UnmarshalJSON(x []byte) error {
+	// TODO(gri): get rid of the []byte/string conversions
+	_, ok := z.SetString(string(x), 0)
+	if !ok {
+		return fmt.Errorf("math/big: cannot unmarshal %s into a *big.Int", x)
+	}
+	return nil
+}
