@@ -56,7 +56,7 @@ type parser struct {
 	unresolved []*ast.Ident      // unresolved identifiers
 	imports    []*ast.ImportSpec // list of imports
 
-	// Label scope
+	// Label scopes
 	// (maintained by open/close LabelScope)
 	labelScope  *ast.Scope     // label scope for current function
 	targetStack [][]*ast.Ident // stack of unresolved labels
@@ -75,14 +75,6 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 
 	p.next()
-
-	// set up the pkgScope here (as opposed to in parseFile) because
-	// there are other parser entry points (ParseExpr, etc.)
-	p.openScope()
-	p.pkgScope = p.topScope
-
-	// for the same reason, set up a label scope
-	p.openLabelScope()
 }
 
 // ----------------------------------------------------------------------------
@@ -2297,11 +2289,12 @@ func (p *parser) parseFile() *ast.File {
 	}
 	p.expectSemi()
 
-	var decls []ast.Decl
-
 	// Don't bother parsing the rest if we had errors already.
 	// Likely not a Go source file at all.
 
+	p.openScope()
+	p.pkgScope = p.topScope
+	var decls []ast.Decl
 	if p.errors.Len() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
@@ -2315,8 +2308,9 @@ func (p *parser) parseFile() *ast.File {
 			}
 		}
 	}
-
-	assert(p.topScope == p.pkgScope, "imbalanced scopes")
+	p.closeScope()
+	assert(p.topScope == nil, "unbalanced scopes")
+	assert(p.labelScope == nil, "unbalanced label scopes")
 
 	// resolve global identifiers within the same file
 	i := 0
