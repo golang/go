@@ -441,6 +441,7 @@ func Chmod(path string, mode uint32) (err error) {
 //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==-1] = ws2_32.WSAIoctl
 //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
 //sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) [failretval==-1] = ws2_32.setsockopt
+//sys	Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int32) (err error) [failretval==-1] = ws2_32.getsockopt
 //sys	bind(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.bind
 //sys	connect(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.connect
 //sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==-1] = ws2_32.getsockname
@@ -657,9 +658,21 @@ func Recvfrom(fd Handle, p []byte, flags int) (n int, from Sockaddr, err error) 
 func Sendto(fd Handle, p []byte, flags int, to Sockaddr) (err error)       { return EWINDOWS }
 func SetsockoptTimeval(fd Handle, level, opt int, tv *Timeval) (err error) { return EWINDOWS }
 
+// The Linger struct is wrong but we only noticed after Go 1.
+// sysLinger is the real system call structure.
+
+// BUG(brainman): The definition of Linger is not appropriate for direct use
+// with Setsockopt and Getsockopt.
+// Use SetsockoptLinger instead.
+
 type Linger struct {
 	Onoff  int32
 	Linger int32
+}
+
+type sysLinger struct {
+	Onoff  uint16
+	Linger uint16
 }
 
 type IPMreq struct {
@@ -672,8 +685,13 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func GetsockoptInt(fd Handle, level, opt int) (int, error)              { return -1, EWINDOWS }
-func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
+func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
+
+func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
+	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&sys)), int32(unsafe.Sizeof(sys)))
+}
+
 func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
 }
