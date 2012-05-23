@@ -619,10 +619,10 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 
 	doc := p.leadComment
 
-	// fields
+	// FieldDecl
 	list, typ := p.parseVarList(false)
 
-	// optional tag
+	// Tag
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
 		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
@@ -637,7 +637,6 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	} else {
 		// ["*"] TypeName (AnonymousField)
 		typ = list[0] // we always have at least one element
-		p.resolve(typ)
 		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
 			pos := typ.Pos()
 			p.errorExpected(pos, "anonymous field")
@@ -649,6 +648,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 
 	field := &ast.Field{Doc: doc, Names: idents, Type: typ, Tag: tag, Comment: p.lineComment}
 	p.declare(field, nil, scope, ast.Var, idents...)
+	p.resolve(typ)
 
 	return field
 }
@@ -691,12 +691,15 @@ func (p *parser) parsePointerType() *ast.StarExpr {
 	return &ast.StarExpr{Star: star, X: base}
 }
 
+// If the result is an identifier, it is not resolved.
 func (p *parser) tryVarType(isParam bool) ast.Expr {
 	if isParam && p.tok == token.ELLIPSIS {
 		pos := p.pos
 		p.next()
 		typ := p.tryIdentOrType(isParam) // don't use parseType so we can provide better error message
-		if typ == nil {
+		if typ != nil {
+			p.resolve(typ)
+		} else {
 			p.error(pos, "'...' parameter is missing type")
 			typ = &ast.BadExpr{From: pos, To: p.pos}
 		}
@@ -705,6 +708,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 	return p.tryIdentOrType(false)
 }
 
+// If the result is an identifier, it is not resolved.
 func (p *parser) parseVarType(isParam bool) ast.Expr {
 	typ := p.tryVarType(isParam)
 	if typ == nil {
@@ -716,6 +720,7 @@ func (p *parser) parseVarType(isParam bool) ast.Expr {
 	return typ
 }
 
+// If any of the results are identifiers, they are not resolved.
 func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
 	if p.trace {
 		defer un(trace(p, "VarList"))
@@ -736,9 +741,7 @@ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
-	if typ = p.tryVarType(isParam); typ != nil {
-		p.resolve(typ)
-	}
+	typ = p.tryVarType(isParam)
 
 	return
 }
@@ -748,7 +751,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		defer un(trace(p, "ParameterList"))
 	}
 
+	// ParameterDecl
 	list, typ := p.parseVarList(ellipsisOk)
+
+	// analyze case
 	if typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list)
@@ -757,10 +763,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		// Go spec: The scope of an identifier denoting a function
 		// parameter or result variable is the function body.
 		p.declare(field, nil, scope, ast.Var, idents...)
+		p.resolve(typ)
 		if p.tok == token.COMMA {
 			p.next()
 		}
-
 		for p.tok != token.RPAREN && p.tok != token.EOF {
 			idents := p.parseIdentList()
 			typ := p.parseVarType(ellipsisOk)
@@ -769,18 +775,18 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			// Go spec: The scope of an identifier denoting a function
 			// parameter or result variable is the function body.
 			p.declare(field, nil, scope, ast.Var, idents...)
+			p.resolve(typ)
 			if !p.atComma("parameter list") {
 				break
 			}
 			p.next()
 		}
-
 	} else {
 		// Type { "," Type } (anonymous parameters)
 		params = make([]*ast.Field, len(list))
-		for i, x := range list {
-			p.resolve(x)
-			params[i] = &ast.Field{Type: x}
+		for i, typ := range list {
+			p.resolve(typ)
+			params[i] = &ast.Field{Type: typ}
 		}
 	}
 
