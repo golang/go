@@ -68,7 +68,7 @@ echo.
 if %FAIL%==1 goto fail
 
 echo # Checking API compatibility.
-go tool api -c ..\api\go1.txt
+go tool api -c ..\api\go1.txt -next ..\api\next.txt
 if errorlevel 1 goto fail
 echo.
 
