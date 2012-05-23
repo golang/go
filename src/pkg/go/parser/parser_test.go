@@ -135,6 +135,67 @@ func TestVarScope(t *testing.T) {
 	}
 }
 
+func TestUnresolved(t *testing.T) {
+	f, err := ParseFile(fset, "", `
+package p
+//
+func f1a(int)
+func f2a(byte, int, float)
+func f3a(a, b int, c float)
+func f4a(...complex)
+func f5a(a s1a, b ...complex)
+//
+func f1b(*int)
+func f2b([]byte, (int), *float)
+func f3b(a, b *int, c []float)
+func f4b(...*complex)
+func f5b(a s1a, b ...[]complex)
+//
+type s1a struct { int }
+type s2a struct { byte; int; s1a }
+type s3a struct { a, b int; c float }
+//
+type s1b struct { *int }
+type s2b struct { byte; int; *float }
+type s3b struct { a, b *s3b; c []float }
+`, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "int " + // f1a
+		"byte int float " + // f2a
+		"int float " + // f3a
+		"complex " + // f4a
+		"complex " + // f5a
+		//
+		"int " + // f1b
+		"byte int float " + // f2b
+		"int float " + // f3b
+		"complex " + // f4b
+		"complex " + // f5b
+		//
+		"int " + // s1a
+		"byte int " + // s2a
+		"int float " + // s3a
+		//
+		"int " + // s1a
+		"byte int float " + // s2a
+		"float " // s3a
+
+	// collect unresolved identifiers
+	var buf bytes.Buffer
+	for _, u := range f.Unresolved {
+		buf.WriteString(u.Name)
+		buf.WriteByte(' ')
+	}
+	got := buf.String()
+
+	if got != want {
+		t.Errorf("\ngot:  %s\nwant: %s", got, want)
+	}
+}
+
 var imports = map[string]bool{
 	`"a"`:        true,
 	"`a`":        true,
