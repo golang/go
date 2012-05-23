@@ -41,8 +41,11 @@ var (
 	allowNew  = flag.Bool("allow_new", true, "allow API additions")
 	nextFile  = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
 	verbose   = flag.Bool("v", false, "verbose debugging")
+	forceCtx  = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
 )
 
+// contexts are the default contexts which are scanned, unless
+// overridden by the -contexts flag.
 var contexts = []*build.Context{
 	{GOOS: "linux", GOARCH: "386", CgoEnabled: true},
 	{GOOS: "linux", GOARCH: "386"},
@@ -56,12 +59,6 @@ var contexts = []*build.Context{
 	{GOOS: "windows", GOARCH: "386"},
 }
 
-func init() {
-	for _, c := range contexts {
-		c.Compiler = build.Default.Compiler
-	}
-}
-
 func contextName(c *build.Context) string {
 	s := c.GOOS + "-" + c.GOARCH
 	if c.CgoEnabled {
@@ -70,8 +67,41 @@ func contextName(c *build.Context) string {
 	return s
 }
 
+func parseContext(c string) *build.Context {
+	parts := strings.Split(c, "-")
+	if len(parts) < 2 {
+		log.Fatalf("bad context: %q", c)
+	}
+	bc := &build.Context{
+		GOOS:   parts[0],
+		GOARCH: parts[1],
+	}
+	if len(parts) == 3 {
+		if parts[2] == "cgo" {
+			bc.CgoEnabled = true
+		} else {
+			log.Fatalf("bad context: %q", c)
+		}
+	}
+	return bc
+}
+
+func setContexts() {
+	contexts = []*build.Context{}
+	for _, c := range strings.Split(*forceCtx, ",") {
+		contexts = append(contexts, parseContext(c))
+	}
+}
+
 func main() {
 	flag.Parse()
+
+	if *forceCtx != "" {
+		setContexts()
+	}
+	for _, c := range contexts {
+		c.Compiler = build.Default.Compiler
+	}
 
 	var pkgs []string
 	if flag.NArg() > 0 {
