@@ -387,30 +387,19 @@ func TestRatGobEncoding(t *testing.T) {
 	var medium bytes.Buffer
 	enc := gob.NewEncoder(&medium)
 	dec := gob.NewDecoder(&medium)
-	for i, test := range gobEncodingTests {
-		for j := 0; j < 4; j++ {
-			medium.Reset() // empty buffer for each test case (in case of failures)
-			stest := test
-			if j&1 != 0 {
-				// negative numbers
-				stest = "-" + test
-			}
-			if j%2 != 0 {
-				// fractions
-				stest = stest + "." + test
-			}
-			var tx Rat
-			tx.SetString(stest)
-			if err := enc.Encode(&tx); err != nil {
-				t.Errorf("#%d%c: encoding failed: %s", i, 'a'+j, err)
-			}
-			var rx Rat
-			if err := dec.Decode(&rx); err != nil {
-				t.Errorf("#%d%c: decoding failed: %s", i, 'a'+j, err)
-			}
-			if rx.Cmp(&tx) != 0 {
-				t.Errorf("#%d%c: transmission failed: got %s want %s", i, 'a'+j, &rx, &tx)
-			}
+	for _, test := range encodingTests {
+		medium.Reset() // empty buffer for each test case (in case of failures)
+		var tx Rat
+		tx.SetString(test + ".14159265")
+		if err := enc.Encode(&tx); err != nil {
+			t.Errorf("encoding of %s failed: %s", &tx, err)
+		}
+		var rx Rat
+		if err := dec.Decode(&rx); err != nil {
+			t.Errorf("decoding of %s failed: %s", &tx, err)
+		}
+		if rx.Cmp(&tx) != 0 {
+			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
 		}
 	}
 }
