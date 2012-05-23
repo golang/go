@@ -106,7 +106,7 @@ time go run run.go
 
 echo
 echo '# Checking API compatibility.'
-go tool api -c $GOROOT/api/go1.txt
+go tool api -c $GOROOT/api/go1.txt -next $GOROOT/api/next.txt
 
 echo
 echo ALL TESTS PASSED
