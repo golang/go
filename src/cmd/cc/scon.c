@@ -175,7 +175,10 @@ evconst(Node *n)
 		break;
 
 	case OLSHR:
-		v = (uvlong)l->vconst >> r->vconst;
+		if(l->type->width != sizeof(uvlong))
+			v = ((uvlong)l->vconst & 0xffffffffULL) >> r->vconst;
+		else
+			v = (uvlong)l->vconst >> r->vconst;
 		break;
 
 	case OASHR:
