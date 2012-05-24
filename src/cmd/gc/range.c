@@ -145,7 +145,7 @@ walkrange(Node *n)
 		if(v2) {
 			hp = temp(ptrto(n->type->type));
 			tmp = nod(OINDEX, ha, nodintconst(0));
-			tmp->etype = 1;	// no bounds check
+			tmp->bounded = 1;
 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
 		}
 

@@ -71,7 +71,7 @@ void	cgen_proc(Node*, int);
 void	cgen_callret(Node*, Node*);
 void	cgen_div(int, Node*, Node*, Node*);
 void	cgen_bmul(int, Node*, Node*, Node*);
-void	cgen_shift(int, Node*, Node*, Node*);
+void	cgen_shift(int, int, Node*, Node*, Node*);
 void	cgen_dcl(Node*);
 int	needconvert(Type*, Type*);
 void	genconv(Type*, Type*);

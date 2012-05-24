@@ -2663,7 +2663,7 @@ genhash(Sym *sym, Type *t)
 		call->list = list(call->list, nh);
 		call->list = list(call->list, nodintconst(t->type->width));
 		nx = nod(OINDEX, np, ni);
-		nx->etype = 1;  // no bounds check
+		nx->bounded = 1;
 		na = nod(OADDR, nx, N);
 		na->etype = 1;  // no escape to heap
 		call->list = list(call->list, na);
@@ -2874,9 +2874,9 @@ geneq(Sym *sym, Type *t)
 		
 		// if p[i] != q[i] { *eq = false; return }
 		nx = nod(OINDEX, np, ni);
-		nx->etype = 1;  // no bounds check
+		nx->bounded = 1;
 		ny = nod(OINDEX, nq, ni);
-		ny->etype = 1;  // no bounds check
+		ny->bounded = 1;
 
 		nif = nod(OIF, N, N);
 		nif->ntest = nod(ONE, nx, ny);

@@ -234,6 +234,7 @@ struct	Node
 	uchar	addable;	// type of addressability - 0 is not addressable
 	uchar	trecur;		// to detect loops
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+	uchar	bounded;	// bounds check unnecessary
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
 	uchar	method;		// OCALLMETH name
 	uchar	embedded;	// ODCLFIELD embedded type
@@ -488,6 +489,7 @@ enum
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
+	OLROT,
 
 	OEND,
 };

@@ -630,7 +630,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
  *	res = nl >> nr
  */
 void
-cgen_shift(int op, Node *nl, Node *nr, Node *res)
+cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, nt, cx, oldcx, hi, lo;
 	int a, w;
@@ -651,7 +651,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		gmove(&n2, &n1);
 		sc = mpgetfix(nr->val.u.xval);
 		if(sc >= nl->type->width*8) {
-			// large shift gets 2 shifts by width
+			// large shift gets 2 shifts by width-1
 			gins(a, ncon(w-1), &n1);
 			gins(a, ncon(w-1), &n1);
 		} else
@@ -689,27 +689,37 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 
 	// test and fix up large shifts
-	if(nr->type->width > 4) {
-		// delayed reg alloc
-		nodreg(&n1, types[TUINT32], D_CX);
-		regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
-		split64(&nt, &lo, &hi);
-		gmove(&lo, &n1);
-		gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
-		p2 = gbranch(optoas(ONE, types[TUINT32]), T);
-		gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-		patch(p2, pc);
+	if(bounded) {
+		if(nr->type->width > 4) {
+			// delayed reg alloc
+			nodreg(&n1, types[TUINT32], D_CX);
+			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
+			split64(&nt, &lo, &hi);
+			gmove(&lo, &n1);
+		}
 	} else {
-		gins(optoas(OCMP, nr->type), &n1, ncon(w));
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		if(nr->type->width > 4) {
+			// delayed reg alloc
+			nodreg(&n1, types[TUINT32], D_CX);
+			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
+			split64(&nt, &lo, &hi);
+			gmove(&lo, &n1);
+			gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
+			p2 = gbranch(optoas(ONE, types[TUINT32]), T);
+			gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			patch(p2, pc);
+		} else {
+			gins(optoas(OCMP, nr->type), &n1, ncon(w));
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		}
+		if(op == ORSH && issigned[nl->type->etype]) {
+			gins(a, ncon(w-1), &n2);
+		} else {
+			gmove(ncon(0), &n2);
+		}
+		patch(p1, pc);
 	}
-	if(op == ORSH && issigned[nl->type->etype]) {
-		gins(a, ncon(w-1), &n2);
-	} else {
-		gmove(ncon(0), &n2);
-	}
-	patch(p1, pc);
 	gins(a, &n1, &n2);
 
 	if(oldcx.op != 0)

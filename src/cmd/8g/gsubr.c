@@ -572,6 +572,22 @@ optoas(int op, Type *t)
 		a = AXORL;
 		break;
 
+	case CASE(OLROT, TINT8):
+	case CASE(OLROT, TUINT8):
+		a = AROLB;
+		break;
+
+	case CASE(OLROT, TINT16):
+	case CASE(OLROT, TUINT16):
+		a = AROLW;
+		break;
+
+	case CASE(OLROT, TINT32):
+	case CASE(OLROT, TUINT32):
+	case CASE(OLROT, TPTR32):
+		a = AROLL;
+		break;
+
 	case CASE(OLSH, TINT8):
 	case CASE(OLSH, TUINT8):
 		a = ASHLB;

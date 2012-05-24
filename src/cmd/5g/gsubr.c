@@ -2032,7 +2032,7 @@ oindex_const:
 	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
 
-		if(!debug['B'] && !n->etype) {
+		if(!debug['B'] && !n->bounded) {
 			n1 = *reg;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
