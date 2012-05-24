@@ -26,3 +26,27 @@
 |         <svg svg>
 |           "foo"
 |     "bar"
+
+#data
+<table><tr><td><svg><desc><td></desc><circle>
+#errors
+7: Start tag seen without seeing a doctype first. Expected “<!DOCTYPE html>”.
+30: A table cell was implicitly closed, but there were open elements.
+26: Unclosed element “desc”.
+20: Unclosed element “svg”.
+37: Stray end tag “desc”.
+45: End of file seen and there were open elements.
+45: Unclosed element “circle”.
+7: Unclosed element “table”.
+#document
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <svg svg>
+|               <svg desc>
+|           <td>
+|             <circle>

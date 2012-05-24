@@ -173,7 +173,7 @@
 |     <ruby>
 |       <div>
 |         <span>
-|       <rp>
+|           <rp>
 
 #data
 <!doctype html><ruby><div><p><rp>
@@ -186,7 +186,7 @@
 |     <ruby>
 |       <div>
 |         <p>
-|       <rp>
+|         <rp>
 
 #data
 <!doctype html><ruby><p><rt>
@@ -211,7 +211,7 @@
 |     <ruby>
 |       <div>
 |         <span>
-|       <rt>
+|           <rt>
 
 #data
 <!doctype html><ruby><div><p><rt>
@@ -224,7 +224,7 @@
 |     <ruby>
 |       <div>
 |         <p>
-|       <rt>
+|         <rt>
 
 #data
 <!doctype html><math/><foo>
@@ -1218,3 +1218,20 @@
 |     <plaintext>
 |       <a>
 |         "b"
+
+#data
+<!DOCTYPE html><div>a<a></div>b<p>c</p>d
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       "a"
+|       <a>
+|     <a>
+|       "b"
+|       <p>
+|         "c"
+|       "d"

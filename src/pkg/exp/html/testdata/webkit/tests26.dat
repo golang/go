@@ -193,3 +193,121 @@
 |     <i>
 |       <nobr>
 |         "2"
+
+#data
+<p><code x</code></p>
+
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <code>
+|         code=""
+|         x<=""
+|     <code>
+|       code=""
+|       x<=""
+|       "
+"
+
+#data
+<!DOCTYPE html><svg><foreignObject><p><i></p>a
+#errors
+45: End tag “p” seen, but there were open elements.
+41: Unclosed element “i”.
+46: End of file seen and there were open elements.
+35: Unclosed element “foreignObject”.
+20: Unclosed element “svg”.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg foreignObject>
+|         <p>
+|           <i>
+|         <i>
+|           "a"
+
+#data
+<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a
+#errors
+56: End tag “p” seen, but there were open elements.
+52: Unclosed element “i”.
+57: End of file seen and there were open elements.
+46: Unclosed element “foreignObject”.
+31: Unclosed element “svg”.
+22: Unclosed element “table”.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <svg svg>
+|               <svg foreignObject>
+|                 <p>
+|                   <i>
+|                 <i>
+|                   "a"
+
+#data
+<!DOCTYPE html><math><mtext><p><i></p>a
+#errors
+38: End tag “p” seen, but there were open elements.
+34: Unclosed element “i”.
+39: End of file in a foreign namespace context.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mtext>
+|         <p>
+|           <i>
+|         <i>
+|           "a"
+
+#data
+<!DOCTYPE html><table><tr><td><math><mtext><p><i></p>a
+#errors
+53: End tag “p” seen, but there were open elements.
+49: Unclosed element “i”.
+54: End of file in a foreign namespace context.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+|       <tbody>
+|         <tr>
+|           <td>
+|             <math math>
+|               <math mtext>
+|                 <p>
+|                   <i>
+|                 <i>
+|                   "a"
+
+#data
+<!DOCTYPE html><body><div><!/div>a
+#errors
+29: Bogus comment.
+34: End of file seen and there were open elements.
+26: Unclosed element “div”.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <!-- /div -->
+|       "a"
