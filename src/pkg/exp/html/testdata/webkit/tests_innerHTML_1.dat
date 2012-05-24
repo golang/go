@@ -731,3 +731,11 @@ html
 frameset
 #document
 | <frame>
+
+#data
+#errors
+#document-fragment
+html
+#document
+| <head>
+| <body>

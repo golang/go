@@ -1076,6 +1076,28 @@ Line: 1 Col: 64 Unexpected end tag (textarea).
 |       "</textarea>"
 
 #data
+<!doctype html><textarea>&lt;</textarea>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <textarea>
+|       "<"
+
+#data
+<!doctype html><textarea>a&lt;b</textarea>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <textarea>
+|       "a<b"
+
+#data
 <!doctype html><iframe><!--<iframe></iframe>--></iframe>
 #errors
 Line: 1 Col: 56 Unexpected end tag (iframe).

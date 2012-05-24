@@ -289,8 +289,8 @@ console.log("FOO<span>BAR</span>BAZ");
 |   <body>
 |     <ruby>
 |       <div>
-|       <rp>
-|         "xx"
+|         <rp>
+|           "xx"
 
 #data
 <html><body><ruby><div><rt>xx</rt></div></ruby></body></html>
@@ -301,8 +301,8 @@ console.log("FOO<span>BAR</span>BAZ");
 |   <body>
 |     <ruby>
 |       <div>
-|       <rt>
-|         "xx"
+|         <rt>
+|           "xx"
 
 #data
 <html><frameset><!--1--><noframes>A</noframes><!--2--></frameset><!--3--><noframes>B</noframes><!--4--></html><!--5--><noframes>C</noframes><!--6-->
@@ -560,7 +560,8 @@ console.log("FOO<span>BAR</span>BAZ");
 |           <td>
 |             <svg svg>
 |               <svg desc>
-|               <svg circle>
+|           <td>
+|             <circle>
 
 #data
 <svg><tfoot></mi><td>
