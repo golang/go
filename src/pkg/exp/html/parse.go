@@ -1859,8 +1859,23 @@ func (p *parser) inForeignContent() bool {
 	if n.Namespace == "" {
 		return false
 	}
-	// TODO: MathML, HTML integration points.
-	// TODO: MathML's annotation-xml combining with SVG's svg.
+	if mathMLTextIntegrationPoint(n) {
+		if p.tok.Type == StartTagToken && p.tok.Data != "mglyph" && p.tok.Data != "malignmark" {
+			return false
+		}
+		if p.tok.Type == TextToken {
+			return false
+		}
+	}
+	if n.Namespace == "math" && n.Data == "annotation-xml" && p.tok.Type == StartTagToken && p.tok.Data == "svg" {
+		return false
+	}
+	if htmlIntegrationPoint(n) && (p.tok.Type == StartTagToken || p.tok.Type == TextToken) {
+		return false
+	}
+	if p.tok.Type == ErrorToken {
+		return false
+	}
 	return true
 }
 
