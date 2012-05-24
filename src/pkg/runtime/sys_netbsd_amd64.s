@@ -8,42 +8,25 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·rfork_thread(SB),7,$0
-	MOVL	flags+8(SP), DI
-	MOVQ	stack+16(SP), SI
+// int64 lwp_create(void *context, uintptr flags, void *lwpid)
+TEXT runtime·lwp_create(SB),7,$0
 
-	// Copy m, g, fn off parent stack for use by child.
-	MOVQ	mm+24(SP), R8
-	MOVQ	gg+32(SP), R9
-	MOVQ	fn+40(SP), R12
-
-	MOVL	$251, AX		// sys_rfork
+	MOVQ	context+0(FP), DI
+	MOVQ	flags+8(FP), SI
+	MOVQ	lwpid+16(FP), DX
+	MOVL	$309, AX		// sys__lwp_create
 	SYSCALL
-
-	// Return if rfork syscall failed
-	JCC	3(PC)
+	JCC	2(PC)
 	NEGL	AX
 	RET
 
-	// In parent, return.
-	CMPL	AX, $0
-	JEQ	2(PC)
-	RET
-
-	// In child, on new stack.
-	MOVQ	SI, SP
-
-	// Initialize m->procid to thread ID
-	MOVL	$299, AX		// sys_getthrid
-	SYSCALL
-	MOVQ	AX, m_procid(R8)
-
+TEXT runtime·lwp_tramp(SB),7,$0
+	
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
 
-	// In child, set up new stack
+	// Set up new stack.
 	get_tls(CX)
 	MOVQ	R8, m(CX)
 	MOVQ	R9, g(CX)
@@ -52,8 +35,8 @@ TEXT runtime·rfork_thread(SB),7,$0
 	// Call fn
 	CALL	R12
 
-	// It shouldn't return.  If it does, exit
-	MOVL	$302, AX		// sys_threxit
+	// It shouldn't return.  If it does, exit.
+	MOVL	$310, AX		// sys__lwp_exit
 	SYSCALL
 	JMP	-3(PC)			// keep exiting
 
@@ -62,19 +45,19 @@ TEXT runtime·osyield(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·thrsleep(SB),7,$0
-	MOVQ	8(SP), DI		// arg 1 - ident
-	MOVL	16(SP), SI		// arg 2 - clock_id
-	MOVQ	24(SP), DX		// arg 3 - tp
-	MOVQ	32(SP), R10		// arg 4 - lock
-	MOVL	$300, AX		// sys_thrsleep
+TEXT runtime·lwp_park(SB),7,$0
+	MOVQ	8(SP), DI		// arg 1 - abstime
+	MOVL	16(SP), SI		// arg 2 - unpark
+	MOVQ	24(SP), DX		// arg 3 - hint
+	MOVQ	32(SP), R10		// arg 4 - unparkhint
+	MOVL	$434, AX		// sys__lwp_park
 	SYSCALL
 	RET
 
-TEXT runtime·thrwakeup(SB),7,$0
-	MOVQ	8(SP), DI		// arg 1 - ident
-	MOVL	16(SP), SI		// arg 2 - n
-	MOVL	$301, AX		// sys_thrwakeup
+TEXT runtime·lwp_unpark(SB),7,$0
+	MOVQ	8(SP), DI		// arg 1 - lwp
+	MOVL	16(SP), SI		// arg 2 - hint
+	MOVL	$321, AX		// sys__lwp_unpark
 	SYSCALL
 	RET
 
