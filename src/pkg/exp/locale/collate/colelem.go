@@ -102,7 +102,7 @@ const (
 )
 
 func splitContractIndex(ce colElem) (index, n, offset int) {
-	h := uint16(ce)
+	h := ce & 0xffff
 	return int(h >> maxNBits), int(h & (1<<maxNBits - 1)), int(ce>>16) & (1<<maxContractOffsetBits - 1)
 }
 
