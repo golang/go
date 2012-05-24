@@ -177,7 +177,7 @@ var pkgDeps = map[string][]string{
 	},
 
 	// One of a kind.
-	"archive/tar":         {"L4", "OS"},
+	"archive/tar":         {"L4", "OS", "syscall"},
 	"archive/zip":         {"L4", "OS", "compress/flate"},
 	"compress/bzip2":      {"L4"},
 	"compress/flate":      {"L4"},

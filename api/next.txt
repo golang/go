@@ -1,3 +1,4 @@
+pkg archive/tar, func FileInfoHeader(os.FileInfo, string) (*Header, error)
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/x509, const ECDSA PublicKeyAlgorithm
