@@ -148,7 +148,7 @@ func init() {
 	// sanity check: if nKinds is too large, the SpotInfo
 	// accessor functions may need to be updated
 	if nKinds > 8 {
-		panic("nKinds > 8")
+		panic("internal error: nKinds > 8")
 	}
 }
 
@@ -457,12 +457,6 @@ func (x *Indexer) addSnippet(s *Snippet) int {
 	return index
 }
 
-func (x *Indexer) visitComment(c *ast.CommentGroup) {
-	if c != nil {
-		ast.Walk(x, c)
-	}
-}
-
 func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	if id != nil {
 		lists, found := x.words[id.Name]
@@ -486,20 +480,24 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	}
 }
 
-func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
+func (x *Indexer) visitFieldList(kind SpotKind, list *ast.FieldList) {
+	for _, f := range list.List {
+		x.decl = nil // no snippets for fields
+		for _, name := range f.Names {
+			x.visitIdent(kind, name)
+		}
+		ast.Walk(x, f.Type)
+		// ignore tag - not indexed at the moment
+	}
+}
+
+func (x *Indexer) visitSpec(kind SpotKind, spec ast.Spec) {
 	switch n := spec.(type) {
 	case *ast.ImportSpec:
-		x.visitComment(n.Doc)
 		x.visitIdent(ImportDecl, n.Name)
-		ast.Walk(x, n.Path)
-		x.visitComment(n.Comment)
+		// ignore path - not indexed at the moment
 
 	case *ast.ValueSpec:
-		x.visitComment(n.Doc)
-		kind := ConstDecl
-		if isVarDecl {
-			kind = VarDecl
-		}
 		for _, n := range n.Names {
 			x.visitIdent(kind, n)
 		}
@@ -507,57 +505,51 @@ func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 		for _, v := range n.Values {
 			ast.Walk(x, v)
 		}
-		x.visitComment(n.Comment)
 
 	case *ast.TypeSpec:
-		x.visitComment(n.Doc)
 		x.visitIdent(TypeDecl, n.Name)
 		ast.Walk(x, n.Type)
-		x.visitComment(n.Comment)
+	}
+}
+
+func (x *Indexer) visitGenDecl(decl *ast.GenDecl) {
+	kind := VarDecl
+	if decl.Tok == token.CONST {
+		kind = ConstDecl
+	}
+	x.decl = decl
+	for _, s := range decl.Specs {
+		x.visitSpec(kind, s)
 	}
 }
 
 func (x *Indexer) Visit(node ast.Node) ast.Visitor {
-	// TODO(gri): methods in interface types are categorized as VarDecl
 	switch n := node.(type) {
 	case nil:
-		return nil
+		// nothing to do
 
 	case *ast.Ident:
 		x.visitIdent(Use, n)
 
-	case *ast.Field:
-		x.decl = nil // no snippets for fields
-		x.visitComment(n.Doc)
-		for _, m := range n.Names {
-			x.visitIdent(VarDecl, m)
-		}
-		ast.Walk(x, n.Type)
-		ast.Walk(x, n.Tag)
-		x.visitComment(n.Comment)
+	case *ast.FieldList:
+		x.visitFieldList(VarDecl, n)
+
+	case *ast.InterfaceType:
+		x.visitFieldList(MethodDecl, n.Methods)
 
 	case *ast.DeclStmt:
+		// local declarations should only be *ast.GenDecls;
+		// ignore incorrect ASTs
 		if decl, ok := n.Decl.(*ast.GenDecl); ok {
-			// local declarations can only be *ast.GenDecls
 			x.decl = nil // no snippets for local declarations
-			x.visitComment(decl.Doc)
-			for _, s := range decl.Specs {
-				x.visitSpec(s, decl.Tok == token.VAR)
-			}
-		} else {
-			// handle error case gracefully
-			ast.Walk(x, n.Decl)
+			x.visitGenDecl(decl)
 		}
 
 	case *ast.GenDecl:
 		x.decl = n
-		x.visitComment(n.Doc)
-		for _, s := range n.Specs {
-			x.visitSpec(s, n.Tok == token.VAR)
-		}
+		x.visitGenDecl(n)
 
 	case *ast.FuncDecl:
-		x.visitComment(n.Doc)
 		kind := FuncDecl
 		if n.Recv != nil {
 			kind = MethodDecl
@@ -571,15 +563,11 @@ func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 		}
 
 	case *ast.File:
-		x.visitComment(n.Doc)
 		x.decl = nil
 		x.visitIdent(PackageClause, n.Name)
 		for _, d := range n.Decls {
 			ast.Walk(x, d)
 		}
-		// don't visit package level comments for now
-		// to avoid duplicate visiting from individual
-		// nodes
 
 	default:
 		return x
@@ -622,7 +610,7 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
 	// the file set implementation changed or we have another error.
 	base := x.fset.Base()
 	if x.sources.Len() != base {
-		panic("internal error - file base incorrect")
+		panic("internal error: file base incorrect")
 	}
 
 	// append file contents (src) to x.sources
