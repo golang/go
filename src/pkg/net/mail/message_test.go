@@ -95,6 +95,11 @@ func TestDateParsing(t *testing.T) {
 			"21 Nov 97 09:55:06 GMT",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
 		},
+		// Commonly found format not specified by RFC 5322.
+		{
+			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+		},
 	}
 	for _, test := range tests {
 		hdr := Header{
