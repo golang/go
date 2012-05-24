@@ -31,16 +31,20 @@ import (
 type quad struct { x, y, z, w int }
 
 const (
-	cj = 11
-	ci int = 12
-	ci32 int32 = 13
-	ci64 int64 = 14
+	cj = 100011
+	ci int = 100012
+	ci8 int8 = 115
+	ci16 int16 = 10016
+	ci32 int32 = 100013
+	ci64 int64 = 100014
 	ci64big int64 = 1<<31
 	ci64bigger int64 = 1<<32
 	chuge = 1<<100
 
 	cnj = -2
 	cni int = -3
+	cni8 int8 = -6
+	cni16 int16 = -7
 	cni32 int32 = -4
 	cni64 int64 = -5
 	cni64big int64 = -1<<31
@@ -48,16 +52,20 @@ const (
 	cnhuge = -1<<100
 )
 
-var j int = 20
-var i int = 21
-var i32 int32 = 22
-var i64 int64 = 23
+var j int = 100020
+var i int = 100021
+var i8 int8 = 126
+var i16 int16 = 10025
+var i32 int32 = 100022
+var i64 int64 = 100023
 var i64big int64 = 1<<31
 var i64bigger int64 = 1<<32
 var huge uint64 = 1<<64 - 1
 
 var nj int = -10
 var ni int = -11
+var ni8 int8 = -14
+var ni16 int16 = -15
 var ni32 int32 = -12
 var ni64 int64 = -13
 var ni64big int64 = -1<<31
@@ -72,6 +80,14 @@ var sq []quad = make([]quad, 10)
 var aq [10]quad
 var paq *[10]quad = &aq
 
+var sib []int = make([]int, 100000)
+var aib [100000]int
+var paib *[100000]int = &aib
+
+var sqb []quad = make([]quad, 100000)
+var aqb [100000]quad
+var paqb *[100000]quad = &aqb
+
 type T struct {
 	si []int
 	ai [10]int
@@ -79,11 +95,18 @@ type T struct {
 	sq []quad
 	aq [10]quad
 	paq *[10]quad
+
+	sib []int
+	aib [100000]int
+	paib *[100000]int
+	sqb []quad
+	aqb [100000]quad
+	paqb *[100000]quad
 }
 
-var t = T{si, ai, pai, sq, aq, paq}
+var t = T{si, ai, pai, sq, aq, paq, sib, aib, paib, sqb, aqb, paqb}
 
-var pt = &T{si, ai, pai, sq, aq, paq}
+var pt = &T{si, ai, pai, sq, aq, paq, sib, aib, paib, sqb, aqb, paqb}
 
 // test that f panics
 func test(f func(), s string) {
@@ -92,10 +115,24 @@ func test(f func(), s string) {
 			_, file, line, _ := runtime.Caller(2)
 			bug()
 			print(file, ":", line, ": ", s, " did not panic\n")
+		} else if !contains(err.(error).Error(), "out of range") {
+			_, file, line, _ := runtime.Caller(2)
+			bug()
+			print(file, ":", line, ": ", s, " unexpected panic: ", err.(error).Error(), "\n")
 		}
 	}()
 	f()
 }
+
+func contains(x, y string) bool {
+	for i := 0; i+len(y) <= len(x); i++ {
+		if x[i:i+len(y)] == y {
+			return true
+		}
+	}
+	return false
+}
+
 
 var X interface{}
 func use(y interface{}) {
@@ -147,10 +184,13 @@ func main() {
 		
 		// Array, pointer to array, slice.
 		[]string{"a", "pa", "s"},
-
+		
 		// Element is int, element is quad (struct).
 		// This controls whether we end up in gsubr.c (i) or cgen.c (q).
 		[]string{"i", "q"},
+
+		// Small or big len.
+		[]string{"", "b"},
 
 		// Variable or constant.
 		[]string{"", "c"},
@@ -159,11 +199,11 @@ func main() {
 		[]string{"", "n"},
 
 		// Size of index.
-		[]string{"j", "i", "i32", "i64", "i64big", "i64bigger", "huge"},
+		[]string{"j", "i", "i8", "i16", "i32", "i64", "i64big", "i64bigger", "huge"},
 	}
 	
 	forall(choices, func(x []string) {
-		p, a, e, c, n, i := x[0], x[1], x[2], x[3], x[4], x[5]
+		p, a, e, big, c, n, i := x[0], x[1], x[2], x[3], x[4], x[5], x[6]
 
 		// Pass: dynamic=0, static=1, 2.
 		// Which cases should be caught statically?
@@ -185,10 +225,15 @@ func main() {
 				thisPass = 2
 			}
 		}
+		
+		// If we're using the big-len data, positive int8 and int16 cannot overflow.
+		if big == "b" && n == "" && (i == "i8" || i == "i16") {
+			return
+		}
 
 		// Only print the test case if it is appropriate for this pass.
 		if thisPass == *pass {
-			pae := p+a+e
+			pae := p+a+e+big
 			cni := c+n+i
 			
 			// Index operation

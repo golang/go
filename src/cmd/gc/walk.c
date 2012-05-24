@@ -846,11 +846,13 @@ walkexpr(Node **np, NodeList **init)
 		// if range of type cannot exceed static array bound,
 		// disable bounds check
 		if(isfixedarray(n->left->type))
+		if(!issigned[n->right->type->etype])
 		if(n->right->type->width < 4)
 		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
 			n->etype = 1;
 
 		if(isconst(n->left, CTSTR))
+		if(!issigned[n->right->type->etype])
 		if(n->right->type->width < 4)
 		if((1<<(8*n->right->type->width)) <= n->left->val.u.sval->len)
 			n->etype = 1;
