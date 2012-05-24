@@ -34,6 +34,9 @@
 #include "opt.h"
 
 static void	conprop(Reg *r);
+static int prevl(Reg *r, int reg);
+static void pushback(Reg *r);
+static int regconsttyp(Adr*);
 
 // do we need the carry bit
 static int
@@ -125,7 +128,7 @@ peep(void)
 			p = p->link;
 		}
 	}
-
+	
 	// constant propagation
 	// find MOV $con,R followed by
 	// another MOV $con,R without
@@ -273,6 +276,104 @@ loop1:
 	}
 	if(t)
 		goto loop1;
+
+	// MOVLQZX removal.
+	// The MOVLQZX exists to avoid being confused for a
+	// MOVL that is just copying 32-bit data around during
+	// copyprop.  Now that copyprop is done, remov MOVLQZX R1, R2
+	// if it is dominated by an earlier ADDL/MOVL/etc into R1 that
+	// will have already cleared the high bits.
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		if(p->as == AMOVLQZX)
+		if(regtyp(&p->from))
+		if(p->from.type == p->to.type)
+		if(prevl(r, p->from.type))
+			excise(r);
+	}
+
+	// load pipelining
+	// push any load from memory as early as possible
+	// to give it time to complete before use.
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		switch(p->as) {
+		case AMOVB:
+		case AMOVW:
+		case AMOVL:
+		case AMOVQ:
+		case AMOVLQZX:
+			if(regtyp(&p->to) && !regconsttyp(&p->from))
+				pushback(r);
+		}
+	}
+}
+
+static void
+pushback(Reg *r0)
+{
+	Reg *r, *b;
+	Prog *p0, *p, t;
+	
+	b = R;
+	p0 = r0->prog;
+	for(r=uniqp(r0); r!=R && uniqs(r)!=R; r=uniqp(r)) {
+		p = r->prog;
+		if(p->as != ANOP) {
+			if(!regconsttyp(&p->from) || !regtyp(&p->to))
+				break;
+			if(copyu(p, &p0->to, A) || copyu(p0, &p->to, A))
+				break;
+		}
+		if(p->as == ACALL)
+			break;
+		b = r;
+	}
+	
+	if(b == R) {
+		if(debug['v']) {
+			print("no pushback: %P\n", r0->prog);
+			if(r)
+				print("\t%P [%d]\n", r->prog, uniqs(r)!=R);
+		}
+		return;
+	}
+
+	if(debug['v']) {
+		print("pushback\n");
+		for(r=b;; r=r->link) {
+			print("\t%P\n", r->prog);
+			if(r == r0)
+				break;
+		}
+	}
+
+	t = *r0->prog;
+	for(r=uniqp(r0);; r=uniqp(r)) {
+		p0 = r->link->prog;
+		p = r->prog;
+		p0->as = p->as;
+		p0->lineno = p->lineno;
+		p0->from = p->from;
+		p0->to = p->to;
+
+		if(r == b)
+			break;
+	}
+	p0 = r->prog;
+	p0->as = t.as;
+	p0->lineno = t.lineno;
+	p0->from = t.from;
+	p0->to = t.to;
+
+	if(debug['v']) {
+		print("\tafter\n");
+		for(r=b;; r=r->link) {
+			print("\t%P\n", r->prog);
+			if(r == r0)
+				break;
+		}
+	}
 }
 
 void
@@ -336,6 +437,60 @@ regtyp(Adr *a)
 	return 0;
 }
 
+int
+regconsttyp(Adr *a)
+{
+	if(regtyp(a))
+		return 1;
+	switch(a->type) {
+	case D_CONST:
+	case D_FCONST:
+	case D_SCONST:
+	case D_ADDR:
+		return 1;
+	}
+	return 0;
+}
+
+// is reg guaranteed to be truncated by a previous L instruction?
+static int
+prevl(Reg *r0, int reg)
+{
+	Prog *p;
+	Reg *r;
+
+	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
+		p = r->prog;
+		if(p->to.type == reg) {
+			switch(p->as) {
+			case AADDL:
+			case AANDL:
+			case ADECL:
+			case ADIVL:
+			case AIDIVL:
+			case AIMULL:
+			case AINCL:
+			case AMOVL:
+			case AMULL:
+			case AORL:
+			case ARCLL:
+			case ARCRL:
+			case AROLL:
+			case ARORL:
+			case ASALL:
+			case ASARL:
+			case ASHLL:
+			case ASHRL:
+			case ASUBL:
+			case AXORL:
+				return 1;
+			}
+			return 0;
+		}
+	}
+	return 0;
+}
+
 /*
  * the idea is to substitute
  * one register for another
@@ -379,20 +534,6 @@ subprop(Reg *r0)
 			if(p->to.type != D_NONE)
 				break;
 
-		case ADIVB:
-		case ADIVL:
-		case ADIVQ:
-		case ADIVW:
-		case AIDIVB:
-		case AIDIVL:
-		case AIDIVQ:
-		case AIDIVW:
-		case AIMULB:
-		case AMULB:
-		case AMULL:
-		case AMULQ:
-		case AMULW:
-
 		case ARCLB:
 		case ARCLL:
 		case ARCLQ:
@@ -425,6 +566,22 @@ subprop(Reg *r0)
 		case ASHRL:
 		case ASHRQ:
 		case ASHRW:
+			if(p->from.type == D_CONST)
+				break;
+
+		case ADIVB:
+		case ADIVL:
+		case ADIVQ:
+		case ADIVW:
+		case AIDIVB:
+		case AIDIVL:
+		case AIDIVQ:
+		case AIDIVW:
+		case AIMULB:
+		case AMULB:
+		case AMULL:
+		case AMULQ:
+		case AMULW:
 
 		case AREP:
 		case AREPN:

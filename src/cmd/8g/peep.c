@@ -357,17 +357,6 @@ subprop(Reg *r0)
 			if(p->to.type != D_NONE)
 				break;
 
-		case ADIVB:
-		case ADIVL:
-		case ADIVW:
-		case AIDIVB:
-		case AIDIVL:
-		case AIDIVW:
-		case AIMULB:
-		case AMULB:
-		case AMULL:
-		case AMULW:
-
 		case ARCLB:
 		case ARCLL:
 		case ARCLW:
@@ -392,6 +381,19 @@ subprop(Reg *r0)
 		case ASHRB:
 		case ASHRL:
 		case ASHRW:
+			if(p->from.type == D_CONST)
+				break;
+
+		case ADIVB:
+		case ADIVL:
+		case ADIVW:
+		case AIDIVB:
+		case AIDIVL:
+		case AIDIVW:
+		case AIMULB:
+		case AMULB:
+		case AMULL:
+		case AMULW:
 
 		case AREP:
 		case AREPN:
