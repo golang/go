@@ -160,6 +160,7 @@ cgen(Node *n, Node *res)
 		case OADD:
 		case OSUB:
 		case OMUL:
+		case OLROT:
 		case OLSH:
 		case ORSH:
 		case OAND:
@@ -360,20 +361,27 @@ cgen(Node *n, Node *res)
 
 	case OLSH:
 	case ORSH:
-		cgen_shift(n->op, nl, nr, res);
+	case OLROT:
+		cgen_shift(n->op, n->bounded, nl, nr, res);
 		break;
 	}
 	return;
 
 sbop:	// symmetric binary
-	if(nl->ullman < nr->ullman) {
+	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
 		r = nl;
 		nl = nr;
 		nr = r;
 	}
 
 abop:	// asymmetric binary
-	if(nl->ullman >= nr->ullman) {
+	if(smallintconst(nr)) {
+		regalloc(&n1, nr->type, res);
+		cgen(nl, &n1);
+		gins(a, nr, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
+	} else if(nl->ullman >= nr->ullman) {
 		tempname(&nt, nl->type);
 		cgen(nl, &nt);
 		mgen(nr, &n2, N);
@@ -580,7 +588,7 @@ agen(Node *n, Node *res)
 				fatal("constant string constant index");
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
-				if(!debug['B'] && !n->etype) {
+				if(!debug['B'] && !n->bounded) {
 					n1 = n3;
 					n1.op = OINDREG;
 					n1.type = types[tptr];
@@ -612,7 +620,7 @@ agen(Node *n, Node *res)
 		gmove(&n1, &n2);
 		regfree(&n1);
 
-		if(!debug['B'] && !n->etype) {
+		if(!debug['B'] && !n->bounded) {
 			// check bounds
 			if(isconst(nl, CTSTR))
 				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);

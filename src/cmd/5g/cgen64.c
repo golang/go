@@ -94,6 +94,7 @@ cgen64(Node *n, Node *res)
 	case OAND:
 	case OOR:
 	case OXOR:
+	case OLROT:
 		// binary operators.
 		// common setup below.
 		break;
@@ -195,6 +196,47 @@ cgen64(Node *n, Node *res)
 		regfree(&ch);
 		regfree(&cl);
 
+		break;
+
+	case OLROT:
+		// We only rotate by a constant c in [0,64).
+		// if c >= 32:
+		//	lo, hi = hi, lo
+		//	c -= 32
+		// if c == 0:
+		//	no-op
+		// else:
+		//	t = hi
+		//	shld hi:lo, c
+		//	shld lo:t, c
+		v = mpgetfix(r->val.u.xval);
+		regalloc(&bl, lo1.type, N);
+		regalloc(&bh, hi1.type, N);
+		if(v >= 32) {
+			// reverse during load to do the first 32 bits of rotate
+			v -= 32;
+			gins(AMOVW, &hi1, &bl);
+			gins(AMOVW, &lo1, &bh);
+		} else {
+			gins(AMOVW, &hi1, &bh);
+			gins(AMOVW, &lo1, &bl);
+		}
+		if(v == 0) {
+			gins(AMOVW, &bh, &ah);
+			gins(AMOVW, &bl, &al);
+		} else {
+			// rotate by 1 <= v <= 31
+			//	MOVW	bl<<v, al
+			//	MOVW	bh<<v, ah
+			//	OR		bl>>(32-v), ah
+			//	OR		bh>>(32-v), al
+			gshift(AMOVW, &bl, SHIFT_LL, v, &al);
+			gshift(AMOVW, &bh, SHIFT_LL, v, &ah);
+			gshift(AORR, &bl, SHIFT_LR, 32-v, &ah);
+			gshift(AORR, &bh, SHIFT_LR, 32-v, &al);
+		}
+		regfree(&bl);
+		regfree(&bh);
 		break;
 
 	case OLSH:

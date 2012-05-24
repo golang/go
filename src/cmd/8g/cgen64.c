@@ -49,6 +49,7 @@ cgen64(Node *n, Node *res)
 	case OADD:
 	case OSUB:
 	case OMUL:
+	case OLROT:
 	case OLSH:
 	case ORSH:
 	case OAND:
@@ -130,6 +131,40 @@ cgen64(Node *n, Node *res)
 
 		regfree(&ex);
 		regfree(&fx);
+		break;
+	
+	case OLROT:
+		// We only rotate by a constant c in [0,64).
+		// if c >= 32:
+		//	lo, hi = hi, lo
+		//	c -= 32
+		// if c == 0:
+		//	no-op
+		// else:
+		//	t = hi
+		//	shld hi:lo, c
+		//	shld lo:t, c
+		v = mpgetfix(r->val.u.xval);
+		if(v >= 32) {
+			// reverse during load to do the first 32 bits of rotate
+			v -= 32;
+			gins(AMOVL, &lo1, &dx);
+			gins(AMOVL, &hi1, &ax);
+		} else {
+			gins(AMOVL, &lo1, &ax);
+			gins(AMOVL, &hi1, &dx);
+		}
+		if(v == 0) {
+			// done
+		} else {
+			gins(AMOVL, &dx, &cx);
+			p1 = gins(ASHLL, ncon(v), &dx);
+			p1->from.index = D_AX;	// double-width shift
+			p1->from.scale = 0;
+			p1 = gins(ASHLL, ncon(v), &ax);
+			p1->from.index = D_CX;	// double-width shift
+			p1->from.scale = 0;
+		}
 		break;
 
 	case OLSH:

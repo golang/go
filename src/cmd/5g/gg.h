@@ -104,7 +104,7 @@ Prog*	gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs);
 Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
 void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
-void	cgen_shift(int, Node*, Node*, Node*);
+void	cgen_shift(int, int, Node*, Node*, Node*);
 
 /*
  * cgen64.c

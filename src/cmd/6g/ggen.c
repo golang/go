@@ -865,7 +865,7 @@ longmod:
  *	res = nl >> nr
  */
 void
-cgen_shift(int op, Node *nl, Node *nr, Node *res)
+cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3, n4, n5, cx, oldcx;
 	int a, rcx;
@@ -880,7 +880,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		cgen(nl, &n1);
 		sc = mpgetfix(nr->val.u.xval);
 		if(sc >= nl->type->width*8) {
-			// large shift gets 2 shifts by width
+			// large shift gets 2 shifts by width-1
 			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
 			gins(a, &n3, &n1);
 			gins(a, &n3, &n1);
@@ -939,17 +939,20 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	regfree(&n3);
 
 	// test and fix up large shifts
-	nodconst(&n3, tcount, nl->type->width*8);
-	gins(optoas(OCMP, tcount), &n1, &n3);
-	p1 = gbranch(optoas(OLT, tcount), T);
-	if(op == ORSH && issigned[nl->type->etype]) {
-		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
-		gins(a, &n3, &n2);
-	} else {
-		nodconst(&n3, nl->type, 0);
-		gmove(&n3, &n2);
+	if(!bounded) {
+		nodconst(&n3, tcount, nl->type->width*8);
+		gins(optoas(OCMP, tcount), &n1, &n3);
+		p1 = gbranch(optoas(OLT, tcount), T);
+		if(op == ORSH && issigned[nl->type->etype]) {
+			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+			gins(a, &n3, &n2);
+		} else {
+			nodconst(&n3, nl->type, 0);
+			gmove(&n3, &n2);
+		}
+		patch(p1, pc);
 	}
-	patch(p1, pc);
+
 	gins(a, &n1, &n2);
 
 	if(oldcx.op != 0) {

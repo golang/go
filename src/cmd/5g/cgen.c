@@ -156,6 +156,7 @@ cgen(Node *n, Node *res)
 		case OADD:
 		case OSUB:
 		case OMUL:
+		case OLROT:
 		case OLSH:
 		case ORSH:
 		case OAND:
@@ -241,9 +242,10 @@ cgen(Node *n, Node *res)
 		a = optoas(n->op, nl->type);
 		goto abop;
 
+	case OLROT:
 	case OLSH:
 	case ORSH:
-		cgen_shift(n->op, nl, nr, res);
+		cgen_shift(n->op, n->bounded, nl, nr, res);
 		break;
 
 	case OCONV:
@@ -620,7 +622,7 @@ agen(Node *n, Node *res)
 				fatal("constant string constant index");
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
-				if(!debug['B'] && !n->etype) {
+				if(!debug['B'] && !n->bounded) {
 					n1 = n3;
 					n1.op = OINDREG;
 					n1.type = types[tptr];
@@ -660,7 +662,7 @@ agen(Node *n, Node *res)
 		gmove(&n1, &n2);
 		regfree(&n1);
 
-		if(!debug['B'] && !n->etype) {
+		if(!debug['B'] && !n->bounded) {
 			// check bounds
 			regalloc(&n4, types[TUINT32], N);
 			if(isconst(nl, CTSTR)) {

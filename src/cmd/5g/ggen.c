@@ -469,10 +469,10 @@ samereg(Node *a, Node *b)
  *	res = nl >> nr
  */
 void
-cgen_shift(int op, Node *nl, Node *nr, Node *res)
+cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3, nt, t, lo, hi;
-	int w;
+	int w, v;
 	Prog *p1, *p2, *p3;
 	Type *tr;
 	uvlong sc;
@@ -481,6 +481,24 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		fatal("cgen_shift %T", nl->type);
 
 	w = nl->type->width * 8;
+
+	if(op == OLROT) {
+		v = mpgetfix(nr->val.u.xval);
+		regalloc(&n1, nl->type, res);
+		if(w == 32) {
+			cgen(nl, &n1);
+			gshift(AMOVW, &n1, SHIFT_RR, w-v, &n1);
+		} else {
+			regalloc(&n2, nl->type, N);
+			cgen(nl, &n2);
+			gshift(AMOVW, &n2, SHIFT_LL, v, &n1);
+			gshift(AORR, &n2, SHIFT_LR, w-v, &n1);
+			regfree(&n2);
+		}
+		gmove(&n1, res);
+		regfree(&n1);
+		return;
+	}
 
 	if(nr->op == OLITERAL) {
 		regalloc(&n1, nl->type, res);
@@ -549,6 +567,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	p3 = gbranch(ABEQ, T);
 
 	// test and fix up large shifts
+	// TODO: if(!bounded), don't emit some of this.
 	regalloc(&n3, tr, N);
 	nodconst(&t, types[TUINT32], w);
 	gmove(&t, &n3);

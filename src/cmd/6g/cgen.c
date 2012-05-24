@@ -240,6 +240,25 @@ cgen(Node *n, Node *res)
 		goto abop;
 
 	case OCONV:
+		if(n->type->width > nl->type->width) {
+			// If loading from memory, do conversion during load,
+			// so as to avoid use of 8-bit register in, say, int(*byteptr).
+			switch(nl->op) {
+			case ODOT:
+			case ODOTPTR:
+			case OINDEX:
+			case OIND:
+			case ONAME:
+				igen(nl, &n1, res);
+				regalloc(&n2, n->type, res);
+				gmove(&n1, &n2);
+				gmove(&n2, res);
+				regfree(&n2);
+				regfree(&n1);
+				goto ret;
+			}
+		}
+
 		regalloc(&n1, nl->type, res);
 		regalloc(&n2, n->type, &n1);
 		cgen(nl, &n1);
@@ -370,13 +389,14 @@ cgen(Node *n, Node *res)
 
 	case OLSH:
 	case ORSH:
-		cgen_shift(n->op, nl, nr, res);
+	case OLROT:
+		cgen_shift(n->op, n->bounded, nl, nr, res);
 		break;
 	}
 	goto ret;
 
 sbop:	// symmetric binary
-	if(nl->ullman < nr->ullman) {
+	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
 		r = nl;
 		nl = nr;
 		nr = r;
@@ -386,7 +406,13 @@ abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-
+	/*
+	 * This generates smaller code - it avoids a MOV - but it's
+	 * easily 10% slower due to not being able to
+	 * optimize/manipulate the move.
+	 * To see, run: go test -bench . crypto/md5
+	 * with and without.
+	 *
 		if(sudoaddable(a, nr, &addr)) {
 			p1 = gins(a, N, &n1);
 			p1->from = addr;
@@ -395,18 +421,30 @@ abop:	// asymmetric binary
 			regfree(&n1);
 			goto ret;
 		}
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
+	 *
+	 */
+
+		if(smallintconst(nr))
+			n2 = *nr;
+		else {
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+		}
 	} else {
-		regalloc(&n2, nr->type, res);
-		cgen(nr, &n2);
+		if(smallintconst(nr))
+			n2 = *nr;
+		else {
+			regalloc(&n2, nr->type, res);
+			cgen(nr, &n2);
+		}
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 	}
 	gins(a, &n2, &n1);
 	gmove(&n1, res);
 	regfree(&n1);
-	regfree(&n2);
+	if(n2.op != OLITERAL)
+		regfree(&n2);
 	goto ret;
 
 uop:	// unary
@@ -529,7 +567,7 @@ agen(Node *n, Node *res)
 				fatal("constant string constant index");	// front end should handle
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
-				if(!debug['B'] && !n->etype) {
+				if(!debug['B'] && !n->bounded) {
 					n1 = n3;
 					n1.op = OINDREG;
 					n1.type = types[tptr];
@@ -564,7 +602,7 @@ agen(Node *n, Node *res)
 		gmove(&n1, &n2);
 		regfree(&n1);
 
-		if(!debug['B'] && !n->etype) {
+		if(!debug['B'] && !n->bounded) {
 			// check bounds
 			n5.op = OXXX;
 			t = types[TUINT32];
@@ -692,6 +730,7 @@ igen(Node *n, Node *a, Node *res)
 {
 	Type *fp;
 	Iter flist;
+	Node n1, n2;
  
 	switch(n->op) {
 	case ONAME:
@@ -710,8 +749,29 @@ igen(Node *n, Node *a, Node *res)
 		a->xoffset = fp->width;
 		a->type = n->type;
 		return;
+	
+	case OINDEX:
+		// Index of fixed-size array by constant can
+		// put the offset in the addressing.
+		// Could do the same for slice except that we need
+		// to use the real index for the bounds checking.
+		if(isfixedarray(n->left->type) ||
+		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
+		if(isconst(n->right, CTINT)) {
+			nodconst(&n1, types[TINT64], 0);
+			n2 = *n;
+			n2.right = &n1;
+
+			regalloc(a, types[tptr], res);
+			agen(&n2, a);
+			a->op = OINDREG;
+			a->xoffset = mpgetfix(n->right->val.u.xval)*n->type->width;
+			a->type = n->type;
+			return;
+		}
+			
 	}
- 
+
 	regalloc(a, types[tptr], res);
 	agen(n, a);
 	a->op = OINDREG;

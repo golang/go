@@ -616,7 +616,7 @@ gmove(Node *f, Node *t)
 	Prog *p1, *p2;
 
 	if(debug['M'])
-		print("gmove %N -> %N\n", f, t);
+		print("gmove %lN -> %lN\n", f, t);
 
 	ft = simsimtype(f->type);
 	tt = simsimtype(t->type);
@@ -1050,7 +1050,9 @@ gins(int as, Node *f, Node *t)
 		w = 8;
 		break;
 	}
-	if(w != 0 && f != N && (af.width > w || at.width > w)) {
+	if(w != 0 && ((f != N && af.width < w) || (t != N && at.width > w))) {
+		dump("f", f);
+		dump("t", t);
 		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
 	}
 
@@ -1087,8 +1089,14 @@ naddr(Node *n, Addr *a, int canemitcode)
 	a->type = D_NONE;
 	a->gotype = S;
 	a->node = N;
+	a->width = 0;
 	if(n == N)
 		return;
+
+	if(n->type != T && n->type->etype != TIDEAL) {
+		dowidth(n->type);
+		a->width = n->type->width;
+	}
 
 	switch(n->op) {
 	default:
@@ -1140,10 +1148,8 @@ naddr(Node *n, Addr *a, int canemitcode)
 
 	case ONAME:
 		a->etype = 0;
-		a->width = 0;
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
-			a->width = n->type->width;
 			a->gotype = ngotype(n);
 		}
 		a->offset = n->xoffset;
@@ -1176,6 +1182,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		case PFUNC:
 			a->index = D_EXTERN;
 			a->type = D_ADDR;
+			a->width = widthptr;
 			break;
 		}
 		break;
@@ -1213,6 +1220,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 
 	case OADDR:
 		naddr(n->left, a, canemitcode);
+		a->width = widthptr;
 		if(a->type >= D_INDIR) {
 			a->type -= D_INDIR;
 			break;
@@ -1648,6 +1656,28 @@ optoas(int op, Type *t)
 		a = AXORQ;
 		break;
 
+	case CASE(OLROT, TINT8):
+	case CASE(OLROT, TUINT8):
+		a = AROLB;
+		break;
+
+	case CASE(OLROT, TINT16):
+	case CASE(OLROT, TUINT16):
+		a = AROLW;
+		break;
+
+	case CASE(OLROT, TINT32):
+	case CASE(OLROT, TUINT32):
+	case CASE(OLROT, TPTR32):
+		a = AROLL;
+		break;
+
+	case CASE(OLROT, TINT64):
+	case CASE(OLROT, TUINT64):
+	case CASE(OLROT, TPTR64):
+		a = AROLQ;
+		break;
+
 	case CASE(OLSH, TINT8):
 	case CASE(OLSH, TUINT8):
 		a = ASHLB;
@@ -2056,7 +2086,7 @@ oindex:
 	}
 
 	// check bounds
-	if(!debug['B'] && !n->etype) {
+	if(!debug['B'] && !n->bounded) {
 		// check bounds
 		n4.op = OXXX;
 		t = types[TUINT32];
@@ -2143,11 +2173,11 @@ oindex_const:
 	reg->op = OEMPTY;
 	reg1->op = OEMPTY;
 
-	regalloc(reg, types[tptr], N);
-	agen(l, reg);
-
 	if(o & ODynam) {
-		if(!debug['B'] && !n->etype) {
+		regalloc(reg, types[tptr], N);
+		agen(l, reg);
+	
+		if(!debug['B'] && !n->bounded) {
 			n1 = *reg;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
@@ -2165,14 +2195,24 @@ oindex_const:
 		n1.xoffset = Array_array;
 		gmove(&n1, reg);
 
+		n2 = *reg;
+		n2.op = OINDREG;
+		n2.xoffset = v*w;
+		a->type = D_NONE;
+		a->index = D_NONE;
+		naddr(&n2, a, 1);
+		goto yes;
 	}
-
-	n2 = *reg;
-	n2.op = OINDREG;
-	n2.xoffset = v*w;
+	
+	igen(l, &n1, N);
+	if(n1.op == OINDREG) {
+		*reg = n1;
+		reg->op = OREGISTER;
+	}
+	n1.xoffset += v*w;
 	a->type = D_NONE;
-	a->index = D_NONE;
-	naddr(&n2, a, 1);
+	a->index= D_NONE;
+	naddr(&n1, a, 1);
 	goto yes;
 
 oindex_const_sudo:
@@ -2183,7 +2223,7 @@ oindex_const_sudo:
 	}
 
 	// slice indexed by a constant
-	if(!debug['B'] && !n->etype) {
+	if(!debug['B'] && !n->bounded) {
 		a->offset += Array_nel;
 		nodconst(&n2, types[TUINT64], v);
 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
