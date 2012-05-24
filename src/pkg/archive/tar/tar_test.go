@@ -22,7 +22,7 @@ func TestFileInfoHeader(t *testing.T) {
 	if g, e := h.Name, "small.txt"; g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Mode, int64(0644|c_ISREG); g != e {
+	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISREG; g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(5); g != e {
