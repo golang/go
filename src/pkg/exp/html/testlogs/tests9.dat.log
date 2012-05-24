@@ -1,7 +1,7 @@
 PASS "<!DOCTYPE html><math></math>"
 PASS "<!DOCTYPE html><body><math></math>"
 PASS "<!DOCTYPE html><math><mi>"
-FAIL "<!DOCTYPE html><math><annotation-xml><svg><u>"
+PASS "<!DOCTYPE html><math><annotation-xml><svg><u>"
 PASS "<!DOCTYPE html><body><select><math></math></select>"
 PASS "<!DOCTYPE html><body><select><option><math></math></option></select>"
 PASS "<!DOCTYPE html><body><table><math></math></table>"

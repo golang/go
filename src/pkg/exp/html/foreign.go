@@ -37,13 +37,32 @@ func htmlIntegrationPoint(n *Node) bool {
 	}
 	switch n.Namespace {
 	case "math":
-		// TODO: annotation-xml elements whose start tags have "text/html" or
-		// "application/xhtml+xml" encodings.
+		if n.Data == "annotation-xml" {
+			for _, a := range n.Attr {
+				if a.Key == "encoding" {
+					val := strings.ToLower(a.Val)
+					if val == "text/html" || val == "application/xhtml+xml" {
+						return true
+					}
+				}
+			}
+		}
 	case "svg":
 		switch n.Data {
 		case "desc", "foreignObject", "title":
 			return true
 		}
+	}
+	return false
+}
+
+func mathMLTextIntegrationPoint(n *Node) bool {
+	if n.Namespace != "math" {
+		return false
+	}
+	switch n.Data {
+	case "mi", "mo", "mn", "ms", "mtext":
+		return true
 	}
 	return false
 }
