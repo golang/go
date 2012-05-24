@@ -88,10 +88,13 @@ func (client *Client) send(call *Call) {
 	err := client.codec.WriteRequest(&client.request, call.Args)
 	if err != nil {
 		client.mutex.Lock()
+		call = client.pending[seq]
 		delete(client.pending, seq)
 		client.mutex.Unlock()
-		call.Error = err
-		call.done()
+		if call != nil {
+			call.Error = err
+			call.done()
+		}
 	}
 }
 
@@ -113,22 +116,26 @@ func (client *Client) input() {
 		delete(client.pending, seq)
 		client.mutex.Unlock()
 
-		if response.Error == "" {
-			err = client.codec.ReadResponseBody(call.Reply)
-			if err != nil {
-				call.Error = errors.New("reading body " + err.Error())
-			}
-		} else {
+		if call == nil || response.Error != "" {
 			// We've got an error response. Give this to the request;
 			// any subsequent requests will get the ReadResponseBody
 			// error if there is one.
-			call.Error = ServerError(response.Error)
+			if call != nil {
+				call.Error = ServerError(response.Error)
+			}
 			err = client.codec.ReadResponseBody(nil)
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
+		} else if response.Error == "" {
+			err = client.codec.ReadResponseBody(call.Reply)
+			if err != nil {
+				call.Error = errors.New("reading body " + err.Error())
+			}
 		}
-		call.done()
+		if call != nil {
+			call.done()
+		}
 	}
 	// Terminate pending calls.
 	client.sending.Lock()
