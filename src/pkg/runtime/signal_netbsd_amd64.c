@@ -7,6 +7,7 @@
 #include "signals_GOOS.h"
 #include "os_GOOS.h"
 
+extern void runtime·lwp_tramp(void);
 extern void runtime·sigtramp(void);
 
 typedef struct sigaction {
@@ -142,4 +143,15 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 		fn = (void*)runtime·sigtramp;
 	sa._sa_u._sa_sigaction = (void*)fn;
 	runtime·sigaction(i, &sa, nil);
+}
+
+void
+runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *m, G *g, void (*fn)(void))
+{
+	// Machine dependent mcontext initialisation for LWP.
+	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
+	mc->__gregs[REG_RSP] = (uint64)stack;
+	mc->__gregs[REG_R8] = (uint64)m;
+	mc->__gregs[REG_R9] = (uint64)g;
+	mc->__gregs[REG_R12] = (uint64)fn;
 }
