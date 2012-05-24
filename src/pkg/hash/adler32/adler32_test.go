@@ -5,25 +5,23 @@
 package adler32
 
 import (
-	"io"
+	"strings"
 	"testing"
 )
 
-type _Adler32Test struct {
+var golden = []struct {
 	out uint32
 	in  string
-}
-
-var golden = []_Adler32Test{
-	{0x1, ""},
-	{0x620062, "a"},
-	{0x12600c4, "ab"},
-	{0x24d0127, "abc"},
-	{0x3d8018b, "abcd"},
-	{0x5c801f0, "abcde"},
-	{0x81e0256, "abcdef"},
-	{0xadb02bd, "abcdefg"},
-	{0xe000325, "abcdefgh"},
+}{
+	{0x00000001, ""},
+	{0x00620062, "a"},
+	{0x012600c4, "ab"},
+	{0x024d0127, "abc"},
+	{0x03d8018b, "abcd"},
+	{0x05c801f0, "abcde"},
+	{0x081e0256, "abcdef"},
+	{0x0adb02bd, "abcdefg"},
+	{0x0e000325, "abcdefgh"},
 	{0x118e038e, "abcdefghi"},
 	{0x158603f8, "abcdefghij"},
 	{0x3f090f02, "Discard medicine more than two years old."},
@@ -47,17 +45,44 @@ var golden = []_Adler32Test{
 	{0x91dd304f, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
 	{0x2e5d1316, "How can you write a big system without C++?  -Paul Glick"},
 	{0xd0201df6, "'Invariant assertions' is the most elegant programming technique!  -Tom Szymanski"},
+	{0x211297c8, strings.Repeat("\xff", 5548) + "8"},
+	{0xbaa198c8, strings.Repeat("\xff", 5549) + "9"},
+	{0x553499be, strings.Repeat("\xff", 5550) + "0"},
+	{0xf0c19abe, strings.Repeat("\xff", 5551) + "1"},
+	{0x8d5c9bbe, strings.Repeat("\xff", 5552) + "2"},
+	{0x2af69cbe, strings.Repeat("\xff", 5553) + "3"},
+	{0xc9809dbe, strings.Repeat("\xff", 5554) + "4"},
+	{0x69189ebe, strings.Repeat("\xff", 5555) + "5"},
+	{0x86af0001, strings.Repeat("\x00", 1e5)},
+	{0x79660b4d, strings.Repeat("a", 1e5)},
+	{0x110588ee, strings.Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1e4)},
+}
+
+// checksum is a slow but simple implementation of the Adler-32 checksum.
+// It is a straight port of the sample code in RFC 1950 section 9.
+func checksum(p []byte) uint32 {
+	s1, s2 := uint32(1), uint32(0)
+	for _, x := range p {
+		s1 = (s1 + uint32(x)) % mod
+		s2 = (s2 + s1) % mod
+	}
+	return s2<<16 | s1
 }
 
 func TestGolden(t *testing.T) {
-	for i := 0; i < len(golden); i++ {
-		g := golden[i]
-		c := New()
-		io.WriteString(c, g.in)
-		s := c.Sum32()
-		if s != g.out {
-			t.Errorf("adler32(%s) = 0x%x want 0x%x", g.in, s, g.out)
-			t.FailNow()
+	for _, g := range golden {
+		in := g.in
+		if len(in) > 220 {
+			in = in[:100] + "..." + in[len(in)-100:]
+		}
+		p := []byte(g.in)
+		if got := checksum(p); got != g.out {
+			t.Errorf("simple implementation: checksum(%q) = 0x%x want 0x%x", in, got, g.out)
+			continue
+		}
+		if got := Checksum(p); got != g.out {
+			t.Errorf("optimized implementation: Checksum(%q) = 0x%x want 0x%x", in, got, g.out)
+			continue
 		}
 	}
 }
