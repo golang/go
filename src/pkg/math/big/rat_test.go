@@ -443,3 +443,56 @@ func TestIssue2379(t *testing.T) {
 		t.Errorf("5) got %s want %s", x, q)
 	}
 }
+
+func TestIssue3521(t *testing.T) {
+	a := new(Int)
+	b := new(Int)
+	a.SetString("64375784358435883458348587", 0)
+	b.SetString("4789759874531", 0)
+
+	// 0) a raw zero value has 1 as denominator
+	zero := new(Rat)
+	one := NewInt(1)
+	if zero.Denom().Cmp(one) != 0 {
+		t.Errorf("0) got %s want %s", zero.Denom(), one)
+	}
+
+	// 1a) a zero value remains zero independent of denominator
+	x := new(Rat)
+	x.Denom().Set(new(Int).Neg(b))
+	if x.Cmp(zero) != 0 {
+		t.Errorf("1a) got %s want %s", x, zero)
+	}
+
+	// 1b) a zero value may have a denominator != 0 and != 1
+	x.Num().Set(a)
+	qab := new(Rat).SetFrac(a, b)
+	if x.Cmp(qab) != 0 {
+		t.Errorf("1b) got %s want %s", x, qab)
+	}
+
+	// 2a) an integral value becomes a fraction depending on denominator
+	x.SetFrac64(10, 2)
+	x.Denom().SetInt64(3)
+	q53 := NewRat(5, 3)
+	if x.Cmp(q53) != 0 {
+		t.Errorf("2a) got %s want %s", x, q53)
+	}
+
+	// 2b) an integral value becomes a fraction depending on denominator
+	x = NewRat(10, 2)
+	x.Denom().SetInt64(3)
+	if x.Cmp(q53) != 0 {
+		t.Errorf("2b) got %s want %s", x, q53)
+	}
+
+	// 3) changing the numerator/denominator of a Rat changes the Rat
+	x.SetFrac(a, b)
+	a = x.Num()
+	b = x.Denom()
+	a.SetInt64(5)
+	b.SetInt64(3)
+	if x.Cmp(q53) != 0 {
+		t.Errorf("3) got %s want %s", x, q53)
+	}
+}
