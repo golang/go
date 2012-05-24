@@ -4,13 +4,17 @@
 
 package strconv
 
-// FormatUint returns the string representation of i in the given base.
+// FormatUint returns the string representation of i in the given base,
+// for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
+// for digit values >= 10.
 func FormatUint(i uint64, base int) string {
 	_, s := formatBits(nil, i, base, false, false)
 	return s
 }
 
-// FormatInt returns the string representation of i in the given base.
+// FormatInt returns the string representation of i in the given base,
+// for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
+// for digit values >= 10.
 func FormatInt(i int64, base int) string {
 	_, s := formatBits(nil, uint64(i), base, i < 0, false)
 	return s
