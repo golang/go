@@ -82,7 +82,6 @@ var breakout = map[string]bool{
 	"dt":         true,
 	"em":         true,
 	"embed":      true,
-	"font":       true,
 	"h1":         true,
 	"h2":         true,
 	"h3":         true,

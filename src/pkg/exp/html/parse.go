@@ -1785,12 +1785,7 @@ func afterAfterFramesetIM(p *parser) bool {
 func parseForeignContent(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
-		// TODO: HTML integration points.
-		if p.top().Namespace == "" {
-			inBodyIM(p)
-			p.resetInsertionMode()
-			return true
-		}
+		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
 		if p.framesetOK {
 			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
 		}
@@ -1801,15 +1796,21 @@ func parseForeignContent(p *parser) bool {
 			Data: p.tok.Data,
 		})
 	case StartTagToken:
-		if htmlIntegrationPoint(p.top()) {
-			inBodyIM(p)
-			p.resetInsertionMode()
-			return true
+		b := breakout[p.tok.Data]
+		if p.tok.Data == "font" {
+		loop:
+			for _, attr := range p.tok.Attr {
+				switch attr.Key {
+				case "color", "face", "size":
+					b = true
+					break loop
+				}
+			}
 		}
-		if breakout[p.tok.Data] {
+		if b {
 			for i := len(p.oe) - 1; i >= 0; i-- {
-				// TODO: MathML integration points.
-				if p.oe[i].Namespace == "" || htmlIntegrationPoint(p.oe[i]) {
+				n := p.oe[i]
+				if n.Namespace == "" || htmlIntegrationPoint(n) || mathMLTextIntegrationPoint(n) {
 					p.oe = p.oe[:i+1]
 					break
 				}
@@ -1833,6 +1834,10 @@ func parseForeignContent(p *parser) bool {
 		namespace := p.top().Namespace
 		p.addElement(p.tok.Data, p.tok.Attr)
 		p.top().Namespace = namespace
+		if p.hasSelfClosingToken {
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
+		}
 	case EndTagToken:
 		for i := len(p.oe) - 1; i >= 0; i-- {
 			if p.oe[i].Namespace == "" {
