@@ -1601,33 +1601,6 @@ cgen64(Node *n, Node *nn)
 		prtree(n, "cgen64");
 		print("AX = %d\n", reg[D_AX]);
 	}
-
-	if(nn != Z && nn->complex >= FNX) {
-		// Evaluate nn address to register
-		// before we use registers for n.
-		// Otherwise the call during computation of nn
-		// will smash the registers.  See
-		// http://golang.org/issue/3501.
-
-		// If both n and nn want calls, refuse to compile.
-		if(n != Z && n->complex >= FNX)
-			diag(n, "cgen64 miscompile");
-
-		reglcgen(&nod1, nn, Z);
-		m = cgen64(n, &nod1);
-		regfree(&nod1);
-		
-		if(m == 0) {
-			// Now what?  We computed &nn, which involved a
-			// function call, and didn't use it.  The caller will recompute nn,
-			// calling the function a second time.
-			// We can figure out what to do later, if this actually happens.
-			diag(n, "cgen64 miscompile");
-		}
-
-		return m;
-	}
-
 	cmp = 0;
 	sh = 0;
 

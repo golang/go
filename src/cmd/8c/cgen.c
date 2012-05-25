@@ -1703,6 +1703,7 @@ copy:
 		}
 	}
 
+	v = w == 8;
 	if(n->complex >= FNX && nn != nil && nn->complex >= FNX) {
 		t = nn->type;
 		nn->type = types[TLONG];
@@ -1728,8 +1729,28 @@ copy:
 	}
 
 	x = 0;
-	v = w == 8;
 	if(v) {
+		if(nn != nil && nn->complex >= FNX) {
+			t = nn->type;
+			nn->type = types[TLONG];
+			regialloc(&nod2, nn, Z);
+			lcgen(nn, &nod2);
+			nn->type = t;
+			
+			nod2.type = typ(TIND, t);
+	
+			nod1 = nod2;
+			nod1.op = OIND;
+			nod1.left = &nod2;
+			nod1.right = Z;
+			nod1.complex = 1;
+			nod1.type = t;
+	
+			sugen(n, &nod1, w);
+			regfree(&nod2);
+			return;
+		}
+			
 		c = cursafe;
 		if(n->left != Z && n->left->complex >= FNX
 		&& n->right != Z && n->right->complex >= FNX) {
