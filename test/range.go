@@ -58,6 +58,17 @@ func testslice() {
 		println("wrong sum ranging over makeslice")
 		panic("fail")
 	}
+	
+	x := []int{10, 20}
+	y := []int{99}
+	i := 1
+	for i, x[i] = range y {
+		break
+	}
+	if i != 0 || x[0] != 10 || x[1] != 99 {
+		println("wrong parallel assignment", i, x[0], x[1])
+		panic("fail")
+	}
 }
 
 func testslice1() {
