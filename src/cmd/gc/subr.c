@@ -1950,6 +1950,12 @@ safeexpr(Node *n, NodeList **init)
 	if(n == N)
 		return N;
 
+	if(n->ninit) {
+		walkstmtlist(n->ninit);
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+	}
+
 	switch(n->op) {
 	case ONAME:
 	case OLITERAL:
