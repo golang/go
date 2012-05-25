@@ -98,13 +98,6 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -241,12 +234,28 @@ func (d *decoder) parsetRNS(length uint32) error {
 	return d.verifyChecksum()
 }
 
-// The Paeth filter function, as per the PNG specification.
+// paeth implements the Paeth filter function, as per the PNG specification.
 func paeth(a, b, c uint8) uint8 {
-	p := int(a) + int(b) - int(c)
-	pa := abs(p - int(a))
-	pb := abs(p - int(b))
-	pc := abs(p - int(c))
+	// This is an optimized version of the sample code in the PNG spec.
+	// For example, the sample code starts with:
+	//	p := int(a) + int(b) - int(c)
+	//	pa := abs(p - int(a))
+	// but the optimized form uses fewer arithmetic operations:
+	//	pa := int(b) - int(c)
+	//	pa = abs(pa)
+	pc := int(c)
+	pa := int(b) - pc
+	pb := int(a) - pc
+	pc = pa + pb
+	if pa < 0 {
+		pa = -pa
+	}
+	if pb < 0 {
+		pb = -pb
+	}
+	if pc < 0 {
+		pc = -pc
+	}
 	if pa <= pb && pa <= pc {
 		return a
 	} else if pb <= pc {
