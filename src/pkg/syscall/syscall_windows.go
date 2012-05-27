@@ -90,7 +90,9 @@ func (e Errno) Error() string {
 	b := make([]uint16, 300)
 	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
 	if err != nil {
-		return "error " + itoa(int(e)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
+		// TODO(brainman): Call FormatMessage again asking for "native" error message.
+		// http://code.google.com/p/go/issues/detail?id=3376 must be resolved first.
+		return "winapi error #" + itoa(int(e))
 	}
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
