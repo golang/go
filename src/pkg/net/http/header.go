@@ -5,7 +5,6 @@
 package http
 
 import (
-	"fmt"
 	"io"
 	"net/textproto"
 	"sort"
@@ -61,7 +60,7 @@ var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
 func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 	keys := make([]string, 0, len(h))
 	for k := range h {
-		if exclude == nil || !exclude[k] {
+		if !exclude[k] {
 			keys = append(keys, k)
 		}
 	}
@@ -70,8 +69,10 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 		for _, v := range h[k] {
 			v = headerNewlineToSpace.Replace(v)
 			v = strings.TrimSpace(v)
-			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
-				return err
+			for _, s := range []string{k, ": ", v, "\r\n"} {
+				if _, err := io.WriteString(w, s); err != nil {
+					return err
+				}
 			}
 		}
 	}

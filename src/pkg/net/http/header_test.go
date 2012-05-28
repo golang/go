@@ -122,3 +122,17 @@ func TestHasToken(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkHeaderWriteSubset(b *testing.B) {
+	h := Header(map[string][]string{
+		"Content-Length": {"123"},
+		"Content-Type":   {"text/plain"},
+		"Date":           {"some date at some time Z"},
+		"Server":         {"Go http package"},
+	})
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		h.WriteSubset(&buf, nil)
+	}
+}
