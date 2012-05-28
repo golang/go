@@ -76,3 +76,38 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 // the rest are converted to lowercase.  For example, the
 // canonical key for "accept-encoding" is "Accept-Encoding".
 func CanonicalHeaderKey(s string) string { return textproto.CanonicalMIMEHeaderKey(s) }
+
+// hasToken returns whether token appears with v, ASCII
+// case-insensitive, with space or comma boundaries.
+// token must be all lowercase.
+// v may contain mixed cased.
+func hasToken(v, token string) bool {
+	if len(token) > len(v) || token == "" {
+		return false
+	}
+	if v == token {
+		return true
+	}
+	for sp := 0; sp <= len(v)-len(token); sp++ {
+		// Check that first character is good.
+		if b := v[sp]; b != token[0] && b|0x20 != token[0] {
+			continue
+		}
+		// Check that start pos is on a valid token boundary.
+		if sp > 0 && !isTokenBoundary(v[sp-1]) {
+			continue
+		}
+		// Check that end pos is on a valid token boundary.
+		if endPos := sp + len(token); endPos != len(v) && !isTokenBoundary(v[endPos]) {
+			continue
+		}
+		if strings.EqualFold(v[sp:sp+len(token)], token) {
+			return true
+		}
+	}
+	return false
+}
+
+func isTokenBoundary(b byte) bool {
+	return b == ' ' || b == ',' || b == '\t'
+}
