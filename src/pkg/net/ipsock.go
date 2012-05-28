@@ -129,17 +129,10 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
 		}
 	}
 
-	p, i, ok := dtoi(port, 0)
-	if !ok || i != len(port) {
-		p, err = LookupPort(net, port)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-	if p < 0 || p > 0xFFFF {
-		return nil, 0, &AddrError{"invalid port", port}
+	p, err := parsePort(net, port)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return addr, p, nil
-
 }
