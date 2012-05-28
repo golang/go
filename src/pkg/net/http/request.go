@@ -745,11 +745,3 @@ func (r *Request) wantsHttp10KeepAlive() bool {
 func (r *Request) wantsClose() bool {
 	return hasToken(r.Header.Get("Connection"), "close")
 }
-
-func hasToken(s, token string) bool {
-	if s == "" {
-		return false
-	}
-	// TODO This is a poor implementation of the RFC. See http://golang.org/issue/3535
-	return strings.Contains(strings.ToLower(s), token)
-}
