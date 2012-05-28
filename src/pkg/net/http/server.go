@@ -840,8 +840,9 @@ func RedirectHandler(url string, code int) Handler {
 // redirecting any request containing . or .. elements to an
 // equivalent .- and ..-free URL.
 type ServeMux struct {
-	mu sync.RWMutex
-	m  map[string]muxEntry
+	mu    sync.RWMutex
+	m     map[string]muxEntry
+	hosts bool // whether any patterns contain hostnames
 }
 
 type muxEntry struct {
@@ -903,12 +904,14 @@ func (mux *ServeMux) match(path string) Handler {
 }
 
 // handler returns the handler to use for the request r.
-func (mux *ServeMux) handler(r *Request) Handler {
+func (mux *ServeMux) handler(r *Request) (h Handler) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
 	// Host-specific pattern takes precedence over generic ones
-	h := mux.match(r.Host + r.URL.Path)
+	if mux.hosts {
+		h = mux.match(r.Host + r.URL.Path)
+	}
 	if h == nil {
 		h = mux.match(r.URL.Path)
 	}
@@ -949,6 +952,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	}
 
 	mux.m[pattern] = muxEntry{explicit: true, h: handler}
+
+	if pattern[0] != '/' {
+		mux.hosts = true
+	}
 
 	// Helpful behavior:
 	// If pattern is /tree/, insert an implicit permanent redirect for /tree.
