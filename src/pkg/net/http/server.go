@@ -287,7 +287,7 @@ func (w *response) WriteHeader(code int) {
 	// Check for a explicit (and valid) Content-Length header.
 	var hasCL bool
 	var contentLength int64
-	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
+	if clenStr := w.header.get("Content-Length"); clenStr != "" {
 		var err error
 		contentLength, err = strconv.ParseInt(clenStr, 10, 64)
 		if err == nil {
@@ -307,7 +307,7 @@ func (w *response) WriteHeader(code int) {
 		w.closeAfterReply = true
 	}
 
-	if w.header.Get("Connection") == "close" {
+	if w.header.get("Connection") == "close" {
 		w.closeAfterReply = true
 	}
 
@@ -331,7 +331,7 @@ func (w *response) WriteHeader(code int) {
 	if code == StatusNotModified {
 		// Must not have body.
 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
-			if w.header.Get(header) != "" {
+			if w.header.get(header) != "" {
 				// TODO: return an error if WriteHeader gets a return parameter
 				// or set a flag on w to make future Writes() write an error page?
 				// for now just log and drop the header.
@@ -341,7 +341,7 @@ func (w *response) WriteHeader(code int) {
 		}
 	} else {
 		// If no content type, apply sniffing algorithm to body.
-		if w.header.Get("Content-Type") == "" && w.req.Method != "HEAD" {
+		if w.header.get("Content-Type") == "" && w.req.Method != "HEAD" {
 			w.needSniff = true
 		}
 	}
@@ -350,7 +350,7 @@ func (w *response) WriteHeader(code int) {
 		w.Header().Set("Date", time.Now().UTC().Format(TimeFormat))
 	}
 
-	te := w.header.Get("Transfer-Encoding")
+	te := w.header.get("Transfer-Encoding")
 	hasTE := te != ""
 	if hasCL && hasTE && te != "identity" {
 		// TODO: return an error if WriteHeader gets a return parameter
@@ -390,7 +390,7 @@ func (w *response) WriteHeader(code int) {
 		return
 	}
 
-	if w.closeAfterReply && !hasToken(w.header.Get("Connection"), "close") {
+	if w.closeAfterReply && !hasToken(w.header.get("Connection"), "close") {
 		w.header.Set("Connection", "close")
 	}
 
@@ -515,8 +515,8 @@ func (w *response) finishRequest() {
 	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
 	// back, we can make this a keep-alive response ...
 	if w.req.wantsHttp10KeepAlive() {
-		sentLength := w.header.Get("Content-Length") != ""
-		if sentLength && w.header.Get("Connection") == "keep-alive" {
+		sentLength := w.header.get("Content-Length") != ""
+		if sentLength && w.header.get("Connection") == "keep-alive" {
 			w.closeAfterReply = false
 		}
 	}
@@ -628,7 +628,7 @@ func (c *conn) serve() {
 				break
 			}
 			req.Header.Del("Expect")
-		} else if req.Header.Get("Expect") != "" {
+		} else if req.Header.get("Expect") != "" {
 			// TODO(bradfitz): let ServeHTTP handlers handle
 			// requests with non-standard expectation[s]? Seems
 			// theoretical at best, and doesn't fit into the

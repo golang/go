@@ -513,7 +513,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 	// the same.  In the second case, any Host line is ignored.
 	req.Host = req.URL.Host
 	if req.Host == "" {
-		req.Host = req.Header.Get("Host")
+		req.Host = req.Header.get("Host")
 	}
 	req.Header.Del("Host")
 
@@ -732,16 +732,16 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 }
 
 func (r *Request) expectsContinue() bool {
-	return hasToken(r.Header.Get("Expect"), "100-continue")
+	return hasToken(r.Header.get("Expect"), "100-continue")
 }
 
 func (r *Request) wantsHttp10KeepAlive() bool {
 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
 		return false
 	}
-	return hasToken(r.Header.Get("Connection"), "keep-alive")
+	return hasToken(r.Header.get("Connection"), "keep-alive")
 }
 
 func (r *Request) wantsClose() bool {
-	return hasToken(r.Header.Get("Connection"), "close")
+	return hasToken(r.Header.get("Connection"), "close")
 }
