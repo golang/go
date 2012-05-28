@@ -36,6 +36,14 @@ func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }
 
+// get is like Get, but key must already be in CanonicalHeaderKey form.
+func (h Header) get(key string) string {
+	if v := h[key]; len(v) > 0 {
+		return v[0]
+	}
+	return ""
+}
+
 // Del deletes the values associated with key.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
