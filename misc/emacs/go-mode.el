@@ -182,6 +182,10 @@ to and including character (1- go-mode-mark-comment-end)).")
 marked from the beginning up to this point.")
 (make-variable-buffer-local 'go-mode-mark-nesting-end)
 
+(defun go-mode-mark-clear-cs (b e l)
+  "An after-change-function that removes the go-mode-cs text property"
+  (remove-text-properties b e '(go-mode-cs)))
+
 (defun go-mode-mark-clear-cache (b e)
   "A before-change-function that clears the comment/string and
 nesting caches from the modified point on."
@@ -709,6 +713,7 @@ functions, and some types.  It also provides indentation that is
   (setq go-mode-mark-cs-end      1
         go-mode-mark-nesting-end 1)
   (add-hook 'before-change-functions #'go-mode-mark-clear-cache nil t)
+  (add-hook 'after-change-functions #'go-mode-mark-clear-cs nil t)
 
   ;; Indentation
   (set (make-local-variable 'indent-line-function)
