@@ -11,6 +11,11 @@ import (
 	"go/ast"
 )
 
+// Issue 3682: Correctly read dotted identifiers from export data.
+const init1 = 0
+
+func init() {}
+
 const (
 	C0 int = 0
 	C1     = 3.14159265
