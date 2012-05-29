@@ -99,6 +99,11 @@ func hasToken(v, token string) bool {
 	}
 	for sp := 0; sp <= len(v)-len(token); sp++ {
 		// Check that first character is good.
+		// The token is ASCII, so checking only a single byte
+		// is sufficient.  We skip this potential starting
+		// position if both the first byte and its potential
+		// ASCII uppercase equivalent (b|0x20) don't match.
+		// False positives ('^' => '~') are caught by EqualFold.
 		if b := v[sp]; b != token[0] && b|0x20 != token[0] {
 			continue
 		}
