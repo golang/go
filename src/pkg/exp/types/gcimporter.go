@@ -182,7 +182,7 @@ func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*
 func (p *gcParser) next() {
 	p.tok = p.scanner.Scan()
 	switch p.tok {
-	case scanner.Ident, scanner.Int, scanner.String:
+	case scanner.Ident, scanner.Int, scanner.String, '·':
 		p.lit = p.scanner.TokenText()
 	default:
 		p.lit = ""

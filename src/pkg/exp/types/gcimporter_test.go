@@ -92,13 +92,6 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 }
 
 func TestGcImport(t *testing.T) {
-	// Dies trying to read crypto/md5, which contains
-	//	const init1 = 0x...
-	// The importer believes init1 should be a function for some reason.
-	// golang.org/issue/3682.
-	t.Logf("broken; skipping")
-	return
-
 	// On cross-compile builds, the path will not exist.
 	// Need to use GOHOSTOS, which is not available.
 	if _, err := os.Stat(gcPath); err != nil {
