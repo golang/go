@@ -115,7 +115,7 @@ hash_init (Hmap *h, int32 datasize, int64 hint)
 
 	if(datasize < sizeof (void *))
 		datasize = sizeof (void *);
-	datasize = runtime·rnd(datasize, sizeof (void *));
+	datasize = ROUND(datasize, sizeof (void *));
 	init_sizes (hint, &init_power);
 	h->datasize = datasize;
 	assert (h->datasize == datasize);
@@ -273,7 +273,7 @@ hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
 	struct hash_entry *end_e;
 	void *key;
 	bool eq;
-	
+
 	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
 	hash &= ~HASH_MASK;
@@ -462,7 +462,7 @@ hash_insert (MapType *t, Hmap *h, void *data, void **pres)
 {
 	uintptr hash;
 	int32 rc;
-	
+
 	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
 	rc = hash_insert_internal (t, &h->st, 0, hash, h, data, pres);
@@ -618,7 +618,7 @@ hash_iter_init (MapType *t, Hmap *h, struct hash_iter *it)
 	it->subtable_state[0].e = h->st->entry;
 	it->subtable_state[0].start = h->st->entry;
 	it->subtable_state[0].last = h->st->last;
-	
+
 	// fastrand1 returns 31 useful bits.
 	// We don't care about not having a bottom bit but we
 	// do want top bits.
@@ -731,7 +731,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	Hmap *h;
 	Type *key, *val;
 	uintptr ksize, vsize;
-	
+
 	key = typ->key;
 	val = typ->elem;
 
@@ -744,8 +744,8 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	h = runtime·mal(sizeof(*h));
 	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
 
-	ksize = runtime·rnd(key->size, sizeof(void*));
-	vsize = runtime·rnd(val->size, sizeof(void*));
+	ksize = ROUND(key->size, sizeof(void*));
+	vsize = ROUND(val->size, sizeof(void*));
 	if(ksize > MaxData || vsize > MaxData || ksize+vsize > MaxData) {
 		// Either key is too big, or value is, or combined they are.
 		// Prefer to keep the key if possible, because we look at
@@ -829,7 +829,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 	bool pres;
 
 	ak = (byte*)(&h + 1);
-	av = ak + runtime·rnd(t->key->size, Structrnd);
+	av = ak + ROUND(t->key->size, Structrnd);
 
 	runtime·mapaccess(t, h, ak, av, &pres);
 
@@ -854,7 +854,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 	byte *ak, *av, *ap;
 
 	ak = (byte*)(&h + 1);
-	av = ak + runtime·rnd(t->key->size, Structrnd);
+	av = ak + ROUND(t->key->size, Structrnd);
 	ap = av + t->elem->size;
 
 	runtime·mapaccess(t, h, ak, av, ap);
@@ -952,7 +952,7 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 		runtime·panicstring("assignment to entry in nil map");
 
 	ak = (byte*)(&h + 1);
-	av = ak + runtime·rnd(t->key->size, t->elem->align);
+	av = ak + ROUND(t->key->size, t->elem->align);
 
 	runtime·mapassign(t, h, ak, av);
 }
@@ -1171,7 +1171,7 @@ runtime·mapiter2(struct hash_iter *it, ...)
 
 	t = it->t;
 	ak = (byte*)(&it + 1);
-	av = ak + runtime·rnd(t->key->size, t->elem->align);
+	av = ak + ROUND(t->key->size, t->elem->align);
 
 	res = it->data;
 	if(res == nil)

@@ -156,19 +156,6 @@ runtime·mchr(byte *p, byte c, byte *ep)
 	return nil;
 }
 
-uint32
-runtime·rnd(uint32 n, uint32 m)
-{
-	uint32 r;
-
-	if(m > maxround)
-		m = maxround;
-	r = n % m;
-	if(r)
-		n += m-r;
-	return n;
-}
-
 static int32	argc;
 static uint8**	argv;
 
