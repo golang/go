@@ -61,7 +61,8 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestShutdownUnix(t *testing.T) {
-	if runtime.GOOS == "plan9" {
+	switch runtime.GOOS {
+	case "windows", "plan9":
 		t.Logf("skipping test on %q", runtime.GOOS)
 		return
 	}
