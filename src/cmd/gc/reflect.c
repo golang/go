@@ -19,7 +19,7 @@ static int
 sigcmp(Sig *a, Sig *b)
 {
 	int i;
-	
+
 	i = strcmp(a->name, b->name);
 	if(i != 0)
 		return i;
@@ -262,12 +262,12 @@ imethods(Type *t)
 		else
 			last->link = a;
 		last = a;
-		
+
 		// Compiler can only refer to wrappers for
 		// named interface types.
 		if(t->sym == S)
 			continue;
-		
+
 		// NOTE(rsc): Perhaps an oversight that
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
@@ -287,7 +287,7 @@ dimportpath(Pkg *p)
 	static Pkg *gopkg;
 	char *nam;
 	Node *n;
-	
+
 	if(p->pathsym != S)
 		return;
 
@@ -303,7 +303,7 @@ dimportpath(Pkg *p)
 	n->class = PEXTERN;
 	n->xoffset = 0;
 	p->pathsym = n->sym;
-	
+
 	gdatastring(n, p->path);
 	ggloblsym(n->sym, types[TSTRING]->width, 1);
 }
@@ -319,7 +319,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 	// that imports this one directly defines the symbol.
 	if(pkg == localpkg) {
 		static Sym *ns;
-		
+
 		if(ns == nil)
 			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
 		return dsymptr(s, ot, ns, 0);
@@ -343,7 +343,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	m = methods(t);
 	if(t->sym == nil && m == nil)
 		return off;
-	
+
 	// fill in *extraType pointer in header
 	dsymptr(sym, ptroff, sym, off);
 
@@ -419,7 +419,7 @@ enum {
 	KindString,
 	KindStruct,
 	KindUnsafePointer,
-	
+
 	KindNoPointers = 1<<7,
 };
 
@@ -559,8 +559,16 @@ dcommontype(Sym *s, int ot, Type *t)
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
 	ot = duint8(s, ot, 0);	// unused
+
+	// runtime (and common sense) expects alignment to be a power of two.
+	i = t->align;
+	if(i == 0)
+		i = 1;
+	if((i&(i-1)) != 0)
+		fatal("invalid alignment %d for %T", t->align, t);
 	ot = duint8(s, ot, t->align);	// align
 	ot = duint8(s, ot, t->align);	// fieldAlign
+
 	i = kinds[t->etype];
 	if(t->etype == TARRAY && t->bound < 0)
 		i = KindSlice;
@@ -575,7 +583,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
 	free(p);
-	
+
 	// skip pointer to extraType,
 	// which follows the rest of this type structure.
 	// caller will fill in if needed.
@@ -678,7 +686,7 @@ dtypesym(Type *t)
 		tbase = t->type;
 	dupok = tbase->sym == S;
 
-	if(compiling_runtime && 
+	if(compiling_runtime &&
 			(tbase == types[tbase->etype] ||
 			tbase == bytetype ||
 			tbase == runetype ||
@@ -897,10 +905,10 @@ dumptypestructs(void)
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(ptrto(errortype));
-		dtypesym(functype(nil, 
+		dtypesym(functype(nil,
 			list1(nod(ODCLFIELD, N, typenod(errortype))),
 			list1(nod(ODCLFIELD, N, typenod(types[TSTRING])))));
-		
+
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(runtimepkg);
 		dimportpath(mkpkg(strlit("main")));

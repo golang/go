@@ -18,10 +18,10 @@ gwrite(void *v, int32 n)
 		runtime·write(2, v, n);
 		return;
 	}
-	
+
 	if(g->writenbuf == 0)
 		return;
-	
+
 	if(n > g->writenbuf)
 		n = g->writenbuf;
 	runtime·memmove(g->writebuf, v, n);
@@ -88,36 +88,36 @@ vprintf(int8 *s, byte *base)
 			break;
 		case 'd':	// 32-bit
 		case 'x':
-			arg = runtime·rnd(arg, 4);
+			arg = ROUND(arg, 4);
 			narg = arg + 4;
 			break;
 		case 'D':	// 64-bit
 		case 'U':
 		case 'X':
 		case 'f':
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + 8;
 			break;
 		case 'C':
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + 16;
 			break;
 		case 'p':	// pointer-sized
 		case 's':
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + sizeof(uintptr);
 			break;
 		case 'S':	// pointer-aligned but bigger
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + sizeof(String);
 			break;
 		case 'a':	// pointer-aligned but bigger
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + sizeof(Slice);
 			break;
 		case 'i':	// pointer-aligned but bigger
 		case 'e':
-			arg = runtime·rnd(arg, sizeof(uintptr));
+			arg = ROUND(arg, sizeof(uintptr));
 			narg = arg + sizeof(Eface);
 			break;
 		}
