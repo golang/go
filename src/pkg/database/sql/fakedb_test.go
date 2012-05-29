@@ -383,6 +383,9 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+	if len(s.placeholderConverter) == 0 {
+		return driver.DefaultParameterConverter
+	}
 	return s.placeholderConverter[idx]
 }
 
@@ -598,6 +601,28 @@ func (rc *rowsCursor) Next(dest []driver.Value) error {
 	return nil
 }
 
+// fakeDriverString is like driver.String, but indirects pointers like
+// DefaultValueConverter.
+//
+// This could be surprising behavior to retroactively apply to
+// driver.String now that Go1 is out, but this is convenient for
+// our TestPointerParamsAndScans.
+//
+type fakeDriverString struct{}
+
+func (fakeDriverString) ConvertValue(v interface{}) (driver.Value, error) {
+	switch c := v.(type) {
+	case string, []byte:
+		return v, nil
+	case *string:
+		if c == nil {
+			return nil, nil
+		}
+		return *c, nil
+	}
+	return fmt.Sprintf("%v", v), nil
+}
+
 func converterForType(typ string) driver.ValueConverter {
 	switch typ {
 	case "bool":
@@ -607,9 +632,9 @@ func converterForType(typ string) driver.ValueConverter {
 	case "int32":
 		return driver.Int32
 	case "string":
-		return driver.NotNull{Converter: driver.String}
+		return driver.NotNull{Converter: fakeDriverString{}}
 	case "nullstring":
-		return driver.Null{Converter: driver.String}
+		return driver.Null{Converter: fakeDriverString{}}
 	case "int64":
 		// TODO(coopernurse): add type-specific converter
 		return driver.NotNull{Converter: driver.DefaultParameterConverter}
