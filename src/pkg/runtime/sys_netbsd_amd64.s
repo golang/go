@@ -8,7 +8,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 lwp_create(void *context, uintptr flags, void *lwpid)
+// int32 lwp_create(void *context, uintptr flags, void *lwpid)
 TEXT runtime·lwp_create(SB),7,$0
 
 	MOVQ	context+0(FP), DI
