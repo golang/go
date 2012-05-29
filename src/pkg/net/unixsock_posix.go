@@ -207,6 +207,24 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 	return c.fd.WriteMsg(b, oob, nil)
 }
 
+// CloseRead shuts down the reading side of the Unix domain connection.
+// Most callers should just use Close.
+func (c *UnixConn) CloseRead() error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+	return c.fd.CloseRead()
+}
+
+// CloseWrite shuts down the writing side of the Unix domain connection.
+// Most callers should just use Close.
+func (c *UnixConn) CloseWrite() error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+	return c.fd.CloseWrite()
+}
+
 // DialUnix connects to the remote address raddr on the network net,
 // which must be "unix" or "unixgram".  If laddr is not nil, it is used
 // as the local address for the connection.
