@@ -1140,6 +1140,52 @@ func TestServerBufferedChunking(t *testing.T) {
 	}
 }
 
+// Tests that the server flushes its response headers out when it's
+// ignoring the response body and waits a bit before forcefully
+// closing the TCP connection, causing the client to get a RST.
+// See http://golang.org/issue/3595
+func TestServerGracefulClose(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		Error(w, "bye", StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	const bodySize = 5 << 20
+	req := []byte(fmt.Sprintf("POST / HTTP/1.1\r\nHost: foo.com\r\nContent-Length: %d\r\n\r\n", bodySize))
+	for i := 0; i < bodySize; i++ {
+		req = append(req, 'x')
+	}
+	writeErr := make(chan error)
+	go func() {
+		_, err := conn.Write(req)
+		writeErr <- err
+	}()
+	br := bufio.NewReader(conn)
+	lineNum := 0
+	for {
+		line, err := br.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("ReadLine: %v", err)
+		}
+		lineNum++
+		if lineNum == 1 && !strings.Contains(line, "401 Unauthorized") {
+			t.Errorf("Response line = %q; want a 401", line)
+		}
+	}
+	// Wait for write to finish. This is a broken pipe on both
+	// Darwin and Linux, but checking this isn't the point of
+	// the test.
+	<-writeErr
+}
+
 // goTimeout runs f, failing t if f takes more than ns to complete.
 func goTimeout(t *testing.T, d time.Duration, f func()) {
 	ch := make(chan bool, 2)
