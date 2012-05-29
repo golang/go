@@ -575,6 +575,7 @@ agen(Node *n, Node *res)
 					nodconst(&n2, types[TUINT32], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+					expecttaken(p1, 1);
 					ginscall(panicindex, 0);
 					patch(p1, pc);
 				}
@@ -625,6 +626,7 @@ agen(Node *n, Node *res)
 			}
 			gins(optoas(OCMP, t), &n2, &n1);
 			p1 = gbranch(optoas(OLT, t), T);
+			expecttaken(p1, 1);
 			if(n5.op != OXXX)
 				regfree(&n5);
 			ginscall(panicindex, 0);

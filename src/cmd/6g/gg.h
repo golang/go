@@ -104,6 +104,7 @@ int	componentgen(Node*, Node*);
 void	clearp(Prog*);
 void	proglist(void);
 Prog*	gbranch(int, Type*);
+void	expecttaken(Prog*, int);
 Prog*	prog(int);
 void	gaddoffset(Node*);
 void	gconv(int, int);

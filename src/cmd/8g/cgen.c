@@ -596,6 +596,7 @@ agen(Node *n, Node *res)
 					nodconst(&n2, types[TUINT32], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+					expecttaken(p1, 1);
 					ginscall(panicindex, 0);
 					patch(p1, pc);
 				}
@@ -633,6 +634,7 @@ agen(Node *n, Node *res)
 				nodconst(&n1, types[TUINT32], nl->type->bound);
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			expecttaken(p1, 1);
 			if(p2)
 				patch(p2, pc);
 			ginscall(panicindex, 0);

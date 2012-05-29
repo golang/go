@@ -896,12 +896,14 @@ cmpandthrow(Node *nl, Node *nr)
 		regfree(&n1);
 	if(throwpc == nil) {
 		p1 = gbranch(optoas(op, t), T);
+		expecttaken(p1, 1);
 		throwpc = pc;
 		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
 		p1 = gbranch(optoas(op, t), T);
+		expecttaken(p1, 0);
 		patch(p1, throwpc);
 	}
 }
