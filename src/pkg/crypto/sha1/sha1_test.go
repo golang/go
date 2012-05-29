@@ -79,3 +79,28 @@ func ExampleNew() {
 	fmt.Printf("% x", h.Sum(nil))
 	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
 }
+
+var bench = sha1.New()
+var buf = makeBuf()
+
+func makeBuf() []byte {
+	b := make([]byte, 8<<10)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return b
+}
+
+func BenchmarkHash1K(b *testing.B) {
+	b.SetBytes(1024)
+	for i := 0; i < b.N; i++ {
+		bench.Write(buf[:1024])
+	}
+}
+
+func BenchmarkHash8K(b *testing.B) {
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		bench.Write(buf)
+	}
+}

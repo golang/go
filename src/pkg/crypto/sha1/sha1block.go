@@ -15,12 +15,11 @@ const (
 	_K3 = 0xCA62C1D6
 )
 
-func _Block(dig *digest, p []byte) int {
+func block(dig *digest, p []byte) {
 	var w [80]uint32
 
-	n := 0
 	h0, h1, h2, h3, h4 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4]
-	for len(p) >= _Chunk {
+	for len(p) >= chunk {
 		// Can interlace the computation of w with the
 		// rounds below if needed for speed.
 		for i := 0; i < 16; i++ {
@@ -72,10 +71,8 @@ func _Block(dig *digest, p []byte) int {
 		h3 += d
 		h4 += e
 
-		p = p[_Chunk:]
-		n += _Chunk
+		p = p[chunk:]
 	}
 
 	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4] = h0, h1, h2, h3, h4
-	return n
 }

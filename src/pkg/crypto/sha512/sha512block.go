@@ -91,11 +91,10 @@ var _K = []uint64{
 	0x6c44198c4a475817,
 }
 
-func _Block(dig *digest, p []byte) int {
+func block(dig *digest, p []byte) {
 	var w [80]uint64
-	n := 0
 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
-	for len(p) >= _Chunk {
+	for len(p) >= chunk {
 		for i := 0; i < 16; i++ {
 			j := i * 8
 			w[i] = uint64(p[j])<<56 | uint64(p[j+1])<<48 | uint64(p[j+2])<<40 | uint64(p[j+3])<<32 |
@@ -135,10 +134,8 @@ func _Block(dig *digest, p []byte) int {
 		h6 += g
 		h7 += h
 
-		p = p[_Chunk:]
-		n += _Chunk
+		p = p[chunk:]
 	}
 
 	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7] = h0, h1, h2, h3, h4, h5, h6, h7
-	return n
 }
