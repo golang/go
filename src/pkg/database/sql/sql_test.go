@@ -306,8 +306,8 @@ func TestExec(t *testing.T) {
 		{[]interface{}{7, 9}, ""},
 
 		// Invalid conversions:
-		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting Exec argument #1's type: sql/driver: value 4294967295 overflows int32"},
-		{[]interface{}{"Brad", "strconv fail"}, "sql: converting Exec argument #1's type: sql/driver: value \"strconv fail\" can't be converted to int32"},
+		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument #1's type: sql/driver: value 4294967295 overflows int32"},
+		{[]interface{}{"Brad", "strconv fail"}, "sql: converting argument #1's type: sql/driver: value \"strconv fail\" can't be converted to int32"},
 
 		// Wrong number of args:
 		{[]interface{}{}, "sql: expected 2 arguments, got 0"},

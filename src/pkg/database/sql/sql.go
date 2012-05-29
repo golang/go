@@ -326,13 +326,10 @@ func (db *DB) prepare(query string) (stmt *Stmt, err error) {
 
 // Exec executes a query without returning any rows.
 func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
-	sargs, err := subsetTypeArgs(args)
-	if err != nil {
-		return nil, err
-	}
 	var res Result
+	var err error
 	for i := 0; i < 10; i++ {
-		res, err = db.exec(query, sargs)
+		res, err = db.exec(query, args)
 		if err != driver.ErrBadConn {
 			break
 		}
@@ -340,7 +337,7 @@ func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	return res, err
 }
 
-func (db *DB) exec(query string, sargs []driver.Value) (res Result, err error) {
+func (db *DB) exec(query string, args []interface{}) (res Result, err error) {
 	ci, err := db.conn()
 	if err != nil {
 		return nil, err
@@ -348,7 +345,11 @@ func (db *DB) exec(query string, sargs []driver.Value) (res Result, err error) {
 	defer db.putConn(ci, err)
 
 	if execer, ok := ci.(driver.Execer); ok {
-		resi, err := execer.Exec(query, sargs)
+		dargs, err := driverArgs(nil, args)
+		if err != nil {
+			return nil, err
+		}
+		resi, err := execer.Exec(query, dargs)
 		if err != driver.ErrSkip {
 			if err != nil {
 				return nil, err
@@ -363,7 +364,12 @@ func (db *DB) exec(query string, sargs []driver.Value) (res Result, err error) {
 	}
 	defer sti.Close()
 
-	resi, err := sti.Exec(sargs)
+	dargs, err := driverArgs(sti, args)
+	if err != nil {
+		return nil, err
+	}
+
+	resi, err := sti.Exec(dargs)
 	if err != nil {
 		return nil, err
 	}
@@ -577,13 +583,12 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	}
 	defer tx.releaseConn()
 
-	sargs, err := subsetTypeArgs(args)
-	if err != nil {
-		return nil, err
-	}
-
 	if execer, ok := ci.(driver.Execer); ok {
-		resi, err := execer.Exec(query, sargs)
+		dargs, err := driverArgs(nil, args)
+		if err != nil {
+			return nil, err
+		}
+		resi, err := execer.Exec(query, dargs)
 		if err == nil {
 			return result{resi}, nil
 		}
@@ -598,7 +603,12 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	}
 	defer sti.Close()
 
-	resi, err := sti.Exec(sargs)
+	dargs, err := driverArgs(sti, args)
+	if err != nil {
+		return nil, err
+	}
+
+	resi, err := sti.Exec(dargs)
 	if err != nil {
 		return nil, err
 	}
@@ -674,51 +684,12 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(args))
 	}
 
-	sargs := make([]driver.Value, len(args))
-
-	// Convert args to subset types.
-	if cc, ok := si.(driver.ColumnConverter); ok {
-		for n, arg := range args {
-			// First, see if the value itself knows how to convert
-			// itself to a driver type.  For example, a NullString
-			// struct changing into a string or nil.
-			if svi, ok := arg.(driver.Valuer); ok {
-				sv, err := svi.Value()
-				if err != nil {
-					return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
-				}
-				if !driver.IsValue(sv) {
-					return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from Value", n, sv)
-				}
-				arg = sv
-			}
-
-			// Second, ask the column to sanity check itself. For
-			// example, drivers might use this to make sure that
-			// an int64 values being inserted into a 16-bit
-			// integer field is in range (before getting
-			// truncated), or that a nil can't go into a NOT NULL
-			// column before going across the network to get the
-			// same error.
-			sargs[n], err = cc.ColumnConverter(n).ConvertValue(arg)
-			if err != nil {
-				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
-			}
-			if !driver.IsValue(sargs[n]) {
-				return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
-					arg, sargs[n])
-			}
-		}
-	} else {
-		for n, arg := range args {
-			sargs[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
-			if err != nil {
-				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
-			}
-		}
+	dargs, err := driverArgs(si, args)
+	if err != nil {
+		return nil, err
 	}
 
-	resi, err := si.Exec(sargs)
+	resi, err := si.Exec(dargs)
 	if err != nil {
 		return nil, err
 	}
@@ -805,11 +776,13 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	if want := si.NumInput(); want != -1 && len(args) != want {
 		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", si.NumInput(), len(args))
 	}
-	sargs, err := subsetTypeArgs(args)
+
+	dargs, err := driverArgs(si, args)
 	if err != nil {
 		return nil, err
 	}
-	rowsi, err := si.Query(sargs)
+
+	rowsi, err := si.Query(dargs)
 	if err != nil {
 		releaseConn(err)
 		return nil, err
