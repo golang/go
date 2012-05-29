@@ -61,50 +61,50 @@ type unmarshalTest struct {
 
 var unmarshalTests = []unmarshalTest{
 	// basic types
-	{`true`, new(bool), true, nil},
-	{`1`, new(int), 1, nil},
-	{`1.2`, new(float64), 1.2, nil},
-	{`-5`, new(int16), int16(-5), nil},
-	{`"a\u1234"`, new(string), "a\u1234", nil},
-	{`"http:\/\/"`, new(string), "http://", nil},
-	{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E", nil},
-	{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD", nil},
-	{"null", new(interface{}), nil, nil},
-	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.TypeOf("")}},
-	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+	{in: `true`, ptr: new(bool), out: true},
+	{in: `1`, ptr: new(int), out: 1},
+	{in: `1.2`, ptr: new(float64), out: 1.2},
+	{in: `-5`, ptr: new(int16), out: int16(-5)},
+	{in: `"a\u1234"`, ptr: new(string), out: "a\u1234"},
+	{in: `"http:\/\/"`, ptr: new(string), out: "http://"},
+	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
+	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
+	{in: "null", ptr: new(interface{}), out: nil},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf("")}},
+	{in: `{"x": 1}`, ptr: new(tx), out: tx{}, err: &UnmarshalFieldError{"x", txType, txType.Field(0)}},
 
 	// Z has a "-" tag.
-	{`{"Y": 1, "Z": 2}`, new(T), T{Y: 1}, nil},
+	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
 
-	{`{"alpha": "abc", "alphabet": "xyz"}`, new(U), U{Alphabet: "abc"}, nil},
-	{`{"alpha": "abc"}`, new(U), U{Alphabet: "abc"}, nil},
-	{`{"alphabet": "xyz"}`, new(U), U{}, nil},
+	{in: `{"alpha": "abc", "alphabet": "xyz"}`, ptr: new(U), out: U{Alphabet: "abc"}},
+	{in: `{"alpha": "abc"}`, ptr: new(U), out: U{Alphabet: "abc"}},
+	{in: `{"alphabet": "xyz"}`, ptr: new(U), out: U{}},
 
 	// syntax errors
-	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
-	{`[1, 2, 3+]`, nil, nil, &SyntaxError{"invalid character '+' after array element", 9}},
+	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
+	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 
 	// array tests
-	{`[1, 2, 3]`, new([3]int), [3]int{1, 2, 3}, nil},
-	{`[1, 2, 3]`, new([1]int), [1]int{1}, nil},
-	{`[1, 2, 3]`, new([5]int), [5]int{1, 2, 3, 0, 0}, nil},
+	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
+	{in: `[1, 2, 3]`, ptr: new([1]int), out: [1]int{1}},
+	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
 
 	// composite tests
-	{allValueIndent, new(All), allValue, nil},
-	{allValueCompact, new(All), allValue, nil},
-	{allValueIndent, new(*All), &allValue, nil},
-	{allValueCompact, new(*All), &allValue, nil},
-	{pallValueIndent, new(All), pallValue, nil},
-	{pallValueCompact, new(All), pallValue, nil},
-	{pallValueIndent, new(*All), &pallValue, nil},
-	{pallValueCompact, new(*All), &pallValue, nil},
+	{in: allValueIndent, ptr: new(All), out: allValue},
+	{in: allValueCompact, ptr: new(All), out: allValue},
+	{in: allValueIndent, ptr: new(*All), out: &allValue},
+	{in: allValueCompact, ptr: new(*All), out: &allValue},
+	{in: pallValueIndent, ptr: new(All), out: pallValue},
+	{in: pallValueCompact, ptr: new(All), out: pallValue},
+	{in: pallValueIndent, ptr: new(*All), out: &pallValue},
+	{in: pallValueCompact, ptr: new(*All), out: &pallValue},
 
 	// unmarshal interface test
-	{`{"T":false}`, &um0, umtrue, nil}, // use "false" so test will fail if custom unmarshaler is not called
-	{`{"T":false}`, &ump, &umtrue, nil},
-	{`[{"T":false}]`, &umslice, umslice, nil},
-	{`[{"T":false}]`, &umslicep, &umslice, nil},
-	{`{"M":{"T":false}}`, &umstruct, umstruct, nil},
+	{in: `{"T":false}`, ptr: &um0, out: umtrue}, // use "false" so test will fail if custom unmarshaler is not called
+	{in: `{"T":false}`, ptr: &ump, out: &umtrue},
+	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
+	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
+	{in: `{"M":{"T":false}}`, ptr: &umstruct, out: umstruct},
 }
 
 func TestMarshal(t *testing.T) {
@@ -169,6 +169,24 @@ func TestUnmarshal(t *testing.T) {
 			data, _ = Marshal(tt.out)
 			println(string(data))
 			continue
+		}
+
+		// Check round trip.
+		if tt.err == nil {
+			enc, err := Marshal(v.Interface())
+			if err != nil {
+				t.Errorf("#%d: error re-marshaling: %v", i, err)
+				continue
+			}
+			vv := reflect.New(reflect.TypeOf(tt.ptr).Elem())
+			if err := Unmarshal(enc, vv.Interface()); err != nil {
+				t.Errorf("#%d: error re-unmarshaling: %v", i, err)
+				continue
+			}
+			if !reflect.DeepEqual(v.Elem().Interface(), vv.Elem().Interface()) {
+				t.Errorf("#%d: mismatch\nhave: %#+v\nwant: %#+v", i, v.Elem().Interface(), vv.Elem().Interface())
+				continue
+			}
 		}
 	}
 }
