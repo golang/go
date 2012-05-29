@@ -6,6 +6,8 @@ package net
 
 import (
 	"io"
+	"io/ioutil"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -44,6 +46,59 @@ func TestShutdown(t *testing.T) {
 	defer c.Close()
 
 	err = c.(*TCPConn).CloseWrite()
+	if err != nil {
+		t.Fatalf("CloseWrite: %v", err)
+	}
+	var buf [10]byte
+	n, err := c.Read(buf[:])
+	if err != nil {
+		t.Fatalf("client Read: %d, %v", n, err)
+	}
+	got := string(buf[:n])
+	if got != "response" {
+		t.Errorf("read = %q, want \"response\"", got)
+	}
+}
+
+func TestShutdownUnix(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+	f, err := ioutil.TempFile("", "go_net_unixtest")
+	if err != nil {
+		t.Fatalf("TempFile: %s", err)
+	}
+	f.Close()
+	tmpname := f.Name()
+	os.Remove(tmpname)
+	ln, err := Listen("unix", tmpname)
+	if err != nil {
+		t.Fatalf("ListenUnix on %s: %s", tmpname, err)
+	}
+	defer os.Remove(tmpname)
+
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			t.Fatalf("Accept: %v", err)
+		}
+		var buf [10]byte
+		n, err := c.Read(buf[:])
+		if n != 0 || err != io.EOF {
+			t.Fatalf("server Read = %d, %v; want 0, io.EOF", n, err)
+		}
+		c.Write([]byte("response"))
+		c.Close()
+	}()
+
+	c, err := Dial("unix", tmpname)
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	err = c.(*UnixConn).CloseWrite()
 	if err != nil {
 		t.Fatalf("CloseWrite: %v", err)
 	}

@@ -72,6 +72,18 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	return
 }
 
+// CloseRead shuts down the reading side of the Unix domain connection.
+// Most callers should just use Close.
+func (c *UnixConn) CloseRead() error {
+	return syscall.EPLAN9
+}
+
+// CloseWrite shuts down the writing side of the Unix domain connection.
+// Most callers should just use Close.
+func (c *UnixConn) CloseWrite() error {
+	return syscall.EPLAN9
+}
+
 // DialUnix connects to the remote address raddr on the network net,
 // which must be "unix" or "unixgram".  If laddr is not nil, it is used
 // as the local address for the connection.
