@@ -129,7 +129,7 @@ type response struct {
 	// maxBytesReader hits its max size. It is checked in
 	// WriteHeader, to make sure we don't consume the the
 	// remaining request body to try to advance to the next HTTP
-	// request. Instead, when this is set, we stop doing
+	// request. Instead, when this is set, we stop reading
 	// subsequent requests on this connection and stop reading
 	// input from it.
 	requestBodyLimitHit bool
@@ -555,15 +555,28 @@ func (w *response) Flush() {
 	w.conn.buf.Flush()
 }
 
-// Close the connection.
-func (c *conn) close() {
+func (c *conn) finalFlush() {
 	if c.buf != nil {
 		c.buf.Flush()
 		c.buf = nil
 	}
+}
+
+// Close the connection.
+func (c *conn) close() {
+	c.finalFlush()
 	if c.rwc != nil {
 		c.rwc.Close()
 		c.rwc = nil
+	}
+}
+
+// closeWrite flushes any outstanding data and sends a FIN packet (if client
+// is connected via TCP), signalling that we're done.
+func (c *conn) closeWrite() {
+	c.finalFlush()
+	if tcp, ok := c.rwc.(*net.TCPConn); ok {
+		tcp.CloseWrite()
 	}
 }
 
@@ -663,6 +676,20 @@ func (c *conn) serve() {
 		}
 		w.finishRequest()
 		if w.closeAfterReply {
+			if w.requestBodyLimitHit {
+				// Flush our response and send a FIN packet and wait a bit
+				// before closing the connection, so the client has a chance
+				// to read our response before they possibly get a RST from
+				// our TCP stack from ignoring their unread body.
+				// See http://golang.org/issue/3595
+				c.closeWrite()
+				// Now wait a bit for our machine to send the FIN and the client's
+				// machine's HTTP client to read the request before we close
+				// the connection, which might send a RST (on BSDs, at least).
+				// 250ms is somewhat arbitrary (~latency around half the planet),
+				// but this doesn't need to be a full second probably.
+				time.Sleep(250 * time.Millisecond)
+			}
 			break
 		}
 	}
