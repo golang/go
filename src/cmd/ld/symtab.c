@@ -125,7 +125,7 @@ asmelfsym(void)
 static void
 putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
-	int i;
+	int i, l;
 
 	USED(go);
 	USED(ver);
@@ -144,6 +144,11 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 	case 'z':
 	case 'Z':
 	case 'm':
+		l = 4;
+		if(HEADTYPE == Hplan9x64 && !debug['8']) {
+			lputb(addr>>32);
+			l = 8;
+		}
 		lputb(addr);
 		cput(t+0x80); /* 0x80 is variable length */
 
@@ -164,7 +169,7 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 				cput(s[i]);
 			cput(0);
 		}
-		symsize += 4 + 1 + i + 1;
+		symsize += l + 1 + i + 1;
 		break;
 	default:
 		return;

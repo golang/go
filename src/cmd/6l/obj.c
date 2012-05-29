@@ -58,8 +58,8 @@ Header headers[] = {
 };
 
 /*
- *	-Hplan9x32 -T4136 -R4096	is plan9 64-bit format
- *	-Hplan9 -T4128 -R4096		is plan9 32-bit format
+ *	-Hplan9x32 -T4128 -R4096	is plan9 32-bit format
+ *	-Hplan9 -T0x200028 -R0x200000	is plan9 64-bit format
  *	-Helf -T0x80110000 -R4096	is ELF32
  *	-Hdarwin -Tx -Rx		is apple MH-exec
  *	-Hlinux -Tx -Rx			is linux elf-exec
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 		diag("unknown -H option");
 		errorexit();
 	case Hplan9x32:	/* plan 9 */
-		HEADR = 32L+8L;
+		HEADR = 32L;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
 		if(INITDAT == -1)
@@ -173,13 +173,13 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case Hplan9x64:	/* plan 9 */
-		HEADR = 32L;
+		HEADR = 32L + 8L;
 		if(INITTEXT == -1)
-			INITTEXT = 4096+32;
+			INITTEXT = 0x200000+HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 4096;
+			INITRND = 0x200000;
 		break;
 	case Helf:	/* elf32 executable */
 		HEADR = rnd(52L+3*32L, 16);
