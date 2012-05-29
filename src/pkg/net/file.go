@@ -88,10 +88,10 @@ func FileConn(f *os.File) (c Conn, err error) {
 }
 
 // FileListener returns a copy of the network listener corresponding
-// to the open file f.  It is the caller's responsibility to close ln
-// when finished.  Closing ln does not affect f, and closing f does not
-// affect ln.
-func FileListener(f *os.File) (ln Listener, err error) {
+// to the open file f.  It is the caller's responsibility to close l
+// when finished.  Closing c does not affect l, and closing l does not
+// affect c.
+func FileListener(f *os.File) (l Listener, err error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err
