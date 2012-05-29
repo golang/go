@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -104,6 +105,23 @@ func dumpIndent(w io.Writer, level int) {
 	}
 }
 
+type sortedAttributes []Attribute
+
+func (a sortedAttributes) Len() int {
+	return len(a)
+}
+
+func (a sortedAttributes) Less(i, j int) bool {
+	if a[i].Namespace != a[j].Namespace {
+		return a[i].Namespace < a[j].Namespace
+	}
+	return a[i].Key < a[j].Key
+}
+
+func (a sortedAttributes) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
 func dumpLevel(w io.Writer, n *Node, level int) error {
 	dumpIndent(w, level)
 	switch n.Type {
@@ -117,13 +135,8 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 		} else {
 			fmt.Fprintf(w, "<%s>", n.Data)
 		}
-		attr := n.Attr
-		if len(attr) == 2 && attr[0].Namespace == "xml" && attr[1].Namespace == "xlink" {
-			// Some of the test cases in tests10.dat change the order of adjusted
-			// foreign attributes, but that behavior is not in the spec, and could
-			// simply be an implementation detail of html5lib's python map ordering.
-			attr[0], attr[1] = attr[1], attr[0]
-		}
+		attr := sortedAttributes(n.Attr)
+		sort.Sort(attr)
 		for _, a := range attr {
 			io.WriteString(w, "\n")
 			dumpIndent(w, level+1)
