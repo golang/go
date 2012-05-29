@@ -118,6 +118,16 @@ gbranch(int as, Type *t)
 }
 
 /*
+ * mark branch as expected taken or not.
+ */
+void
+expecttaken(Prog *p, int taken)
+{
+	p->from.type = D_CONST;
+	p->from.offset = taken;
+}
+
+/*
  * patch previous branch to jump to to.
  */
 void
@@ -2120,6 +2130,7 @@ oindex:
 		}
 		gins(optoas(OCMP, t), reg1, &n2);
 		p1 = gbranch(optoas(OLT, t), T);
+		expecttaken(p1, 1);
 		if(n4.op != OXXX)
 			regfree(&n4);
 		ginscall(panicindex, 0);
@@ -2229,6 +2240,7 @@ oindex_const_sudo:
 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
 		p1->from = *a;
 		p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+		expecttaken(p1, 1);
 		ginscall(panicindex, 0);
 		patch(p1, pc);
 		a->offset -= Array_nel;

@@ -118,6 +118,13 @@ gbranch(int as, Type *t)
 	return p;
 }
 
+void
+expecttaken(Prog *p, int taken)
+{
+	p->from.type = D_CONST;
+	p->from.offset = taken;
+}
+
 /*
  * patch previous branch to jump to to.
  */

@@ -176,6 +176,11 @@ nonrel:
 		$$.from = nullgen;
 		$$.to = $1;
 	}
+|	imm ',' rel
+	{
+		$$.from = $1;
+		$$.to = $3;
+	}
 
 spec1:	/* DATA */
 	nam '/' con ',' imm

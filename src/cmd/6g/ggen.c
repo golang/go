@@ -508,6 +508,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 		nodconst(&n4, t, -1);
 		gins(optoas(OCMP, t), &n3, &n4);
 		p1 = gbranch(optoas(ONE, t), T);
+		expecttaken(p1, 1);
 		nodconst(&n4, t, -1LL<<(t->width*8-1));
 		if(t->width == 8) {
 			n5 = n4;
@@ -516,6 +517,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 		}
 		gins(optoas(OCMP, t), &ax, &n4);
 		p2 = gbranch(optoas(ONE, t), T);
+		expecttaken(p2, 1);
 		if(op == ODIV)
 			gmove(&n4, res);
 		if(t->width == 8)
@@ -943,6 +945,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 		nodconst(&n3, tcount, nl->type->width*8);
 		gins(optoas(OCMP, tcount), &n1, &n3);
 		p1 = gbranch(optoas(OLT, tcount), T);
+		expecttaken(p1, 1);
 		if(op == ORSH && issigned[nl->type->etype]) {
 			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
 			gins(a, &n3, &n2);
@@ -1158,12 +1161,14 @@ cmpandthrow(Node *nl, Node *nr)
 		regfree(&n1);
 	if(throwpc == nil) {
 		p1 = gbranch(optoas(op, t), T);
+		expecttaken(p1, 1);
 		throwpc = pc;
 		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
 		p1 = gbranch(optoas(op, t), T);
+		expecttaken(p1, 0);
 		patch(p1, throwpc);
 	}
 }
