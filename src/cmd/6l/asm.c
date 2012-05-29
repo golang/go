@@ -715,7 +715,8 @@ asmb(void)
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
 	Section *sect;
-	int o;
+	Sym *sym;
+	int i, o;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -763,6 +764,7 @@ asmb(void)
 	default:
 		diag("unknown header type %d", HEADTYPE);
 	case Hplan9x32:
+	case Hplan9x64:
 	case Helf:
 		break;
 	case Hdarwin:
@@ -798,7 +800,7 @@ asmb(void)
 		Bflush(&bso);
 		switch(HEADTYPE) {
 		default:
-		case Hplan9x32:
+		case Hplan9x64:
 		case Helf:
 			debug['s'] = 1;
 			symo = HEADR+segtext.len+segdata.filelen;
@@ -833,6 +835,19 @@ asmb(void)
 				dwarfemitdebugsections();
 			}
 			break;
+		case Hplan9x64:
+			asmplan9sym();
+			cflush();
+
+			sym = lookup("pclntab", 0);
+			if(sym != nil) {
+				lcsize = sym->np;
+				for(i=0; i < lcsize; i++)
+					cput(sym->p[i]);
+				
+				cflush();
+			}
+			break;
 		case Hwindows:
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
@@ -848,7 +863,7 @@ asmb(void)
 	cseek(0L);
 	switch(HEADTYPE) {
 	default:
-	case Hplan9x32:	/* plan9 */
+	case Hplan9x64:	/* plan9 */
 		magic = 4*26*26+7;
 		magic |= 0x00008000;		/* fat header */
 		lputb(magic);			/* magic */
@@ -862,7 +877,7 @@ asmb(void)
 		lputb(lcsize);			/* line offsets */
 		vputb(vl);			/* va of entry */
 		break;
-	case Hplan9x64:	/* plan9 */
+	case Hplan9x32:	/* plan9 */
 		magic = 4*26*26+7;
 		lputb(magic);			/* magic */
 		lputb(segtext.filelen);		/* sizes */
