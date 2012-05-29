@@ -288,8 +288,47 @@ func (p *parser) addElement(tag string, attr []Attribute) {
 // Section 12.2.3.3.
 func (p *parser) addFormattingElement(tag string, attr []Attribute) {
 	p.addElement(tag, attr)
+
+	// Implement the Noah's Ark clause, but with three per family instead of two.
+	identicalElements := 0
+findIdenticalElements:
+	for i := len(p.afe) - 1; i >= 0; i-- {
+		n := p.afe[i]
+		if n.Type == scopeMarkerNode {
+			break
+		}
+		if n.Type != ElementNode {
+			continue
+		}
+		if n.Namespace != "" {
+			continue
+		}
+		if n.Data != tag {
+			continue
+		}
+		if len(n.Attr) != len(attr) {
+			continue
+		}
+	compareAttributes:
+		for _, a := range n.Attr {
+			for _, b := range attr {
+				if a.Key == b.Key && a.Namespace == b.Namespace && a.Val == b.Val {
+					// Found a match for this attribute, continue with the next attribute.
+					continue compareAttributes
+				}
+			}
+			// If we get here, there is no attribute that matches a.
+			// Therefore the element is not identical to the new one.
+			continue findIdenticalElements
+		}
+
+		identicalElements++
+		if identicalElements >= 3 {
+			p.afe.remove(n)
+		}
+	}
+
 	p.afe = append(p.afe, p.top())
-	// TODO.
 }
 
 // Section 12.2.3.3.
