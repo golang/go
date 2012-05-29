@@ -734,10 +734,6 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		return false
 	}
 
-	if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
-		return wasString
-	}
-
 	// Some types can be done without reflection.
 	switch f := field.(type) {
 	case bool:
@@ -779,6 +775,10 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		p.fmtBytes(f, verb, goSyntax, depth)
 		wasString = verb == 's'
 	default:
+		// If the type is not simple, it might have methods.
+		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+			return wasString
+		}
 		// Need to use reflection
 		return p.printReflectValue(reflect.ValueOf(field), verb, plus, goSyntax, depth)
 	}

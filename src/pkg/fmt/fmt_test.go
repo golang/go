@@ -527,6 +527,14 @@ func BenchmarkSprintfFloat(b *testing.B) {
 	}
 }
 
+func BenchmarkManyArgs(b *testing.B) {
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprintf(&buf, "%2d/%2d/%2d %d:%d:%d %s %s\n", 3, 4, 5, 11, 12, 13, "hello", "world")
+	}
+}
+
 var mallocBuf bytes.Buffer
 
 var mallocTest = []struct {
