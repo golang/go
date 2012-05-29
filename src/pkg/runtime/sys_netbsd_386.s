@@ -202,57 +202,22 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	BX, g(CX)
 	RET
 
-// int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·rfork_thread(SB),7,$8
-	MOVL	flags+8(SP), AX
-	MOVL	stack+12(SP), CX
-
-	// Copy m, g, fn off parent stack for use by child.
-	SUBL	$16, CX
-	MOVL	mm+16(SP), SI
-	MOVL	SI, 0(CX)
-	MOVL	gg+20(SP), SI
-	MOVL	SI, 4(CX)
-	MOVL	fn+24(SP), SI
-	MOVL	SI, 8(CX)
-	MOVL	$1234, 12(CX)
-	MOVL	CX, SI
-
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	AX, 4(SP)		// arg 1 - flags
-	MOVL	$251, AX		// sys_rfork
+// int32 lwp_create(void *context, uintptr flags, void *lwpid);
+TEXT runtime·lwp_create(SB),7,$16
+	MOVL	$0, 0(SP)
+	MOVL	context+0(FP), AX
+	MOVL	AX, 4(SP)		// arg 1 - context
+	MOVL	flags+4(FP), AX
+	MOVL	AX, 8(SP)		// arg 2 - flags
+	MOVL	lwpid+8(FP), AX
+	MOVL	AX, 12(SP)		// arg 3 - lwpid
+	MOVL	$309, AX		// sys__lwp_create
 	INT	$0x80
-
-	// Return if rfork syscall failed
-	JCC	4(PC)
+	JCC	2(PC)
 	NEGL	AX
-	MOVL	AX, 48(SP)
 	RET
 
-	// In parent, return.
-	CMPL	AX, $0
-	JEQ	3(PC)
-	MOVL	AX, 48(SP)
-	RET
-
-	// In child, on new stack.
-	MOVL    SI, SP
-
-	// Paranoia: check that SP is as we expect.
-	MOVL	12(SP), BP
-	CMPL	BP, $1234
-	JEQ	2(PC)
-	INT	$3
-
-	// Reload registers
-	MOVL	0(SP), BX		// m
-	MOVL	4(SP), DX		// g
-	MOVL	8(SP), SI		// fn
-
-	// Initialize m->procid to thread ID
-	MOVL	$299, AX		// sys_getthrid
-	INT	$0x80
-	MOVL	AX, m_procid(BX)
+TEXT runtime·lwp_tramp(SB),7,$0
 
 	// Set FS to point at m->tls
 	LEAL	m_tls(BX), BP
@@ -317,13 +282,13 @@ TEXT runtime·osyield(SB),7,$-4
 	INT	$0x80
 	RET
 
-TEXT runtime·thrsleep(SB),7,$-4
-	MOVL	$300, AX		// sys_thrsleep
+TEXT runtime·lwp_park(SB),7,$-4
+	MOVL	$434, AX		// sys__lwp_park
 	INT	$0x80
 	RET
 
-TEXT runtime·thrwakeup(SB),7,$-4
-	MOVL	$301, AX		// sys_thrwakeup
+TEXT runtime·lwp_unpark(SB),7,$-4
+	MOVL	$321, AX		// sys__lwp_unpark
 	INT	$0x80
 	RET
 
