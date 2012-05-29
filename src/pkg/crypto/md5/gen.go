@@ -186,15 +186,14 @@ import (
 	}
 {{end}}
 
-func _Block(dig *digest, p []byte) int {
+func block(dig *digest, p []byte) {
 	a := dig.s[0]
 	b := dig.s[1]
 	c := dig.s[2]
 	d := dig.s[3]
-	n := 0
 	var X *[16]uint32
 	var xbuf [16]uint32
-	for len(p) >= _Chunk {
+	for len(p) >= chunk {
 		aa, bb, cc, dd := a, b, c, d
 
 		// This is a constant condition - it is not evaluated on each iteration.
@@ -288,14 +287,12 @@ func _Block(dig *digest, p []byte) int {
 		c += cc
 		d += dd
 
-		p = p[_Chunk:]
-		n += _Chunk
+		p = p[chunk:]
 	}
 
 	dig.s[0] = a
 	dig.s[1] = b
 	dig.s[2] = c
 	dig.s[3] = d
-	return n
 }
 `
