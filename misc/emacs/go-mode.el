@@ -250,8 +250,8 @@ comment or string."
 
   (unless pos
     (setq pos (point)))
-  (when (> pos go-mode-mark-cs-end)
-    (go-mode-mark-cs pos))
+  (when (>= pos go-mode-mark-cs-end)
+    (go-mode-mark-cs (1+ pos)))
   (get-text-property pos 'go-mode-cs))
 
 (defun go-mode-mark-cs (end)
@@ -597,7 +597,7 @@ indented one level."
       (cond
        ((and cs (save-excursion
                   (goto-char (car cs))
-                  (looking-at "\\s\"")))
+                  (looking-at "`")))
         ;; Inside a multi-line string.  Don't mess with indentation.
         nil)
        (cs
