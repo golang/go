@@ -993,3 +993,32 @@ chameneos 6000000
 	gccgo -O2 chameneosredux.go	7.73u 7.53s 15.30r
 	gc chameneosredux	6.51u 0.00s 6.53r # - 14%
 
+# After http://codereview.appspot.com/6248049, moving panicindex
+# calls out of line (putting the likely code into a single path and shortening
+# loops). Significant changes since the last run (note: some are slower for
+# unrelated and as yet undiagnosed reasons):
+
+nbody -n 50000000
+	gc nbody	19.10u 0.01s 19.19r # -12%
+	gc_B nbody	19.19u 0.00s 19.23r # -12%
+
+binary-tree 15 # too slow to use 20
+	gc binary-tree	1.49u 0.01s 1.51r # -19%
+	
+fannkuch 12
+	gc fannkuch	60.79u 0.00s 60.92r # -41%
+	gc fannkuch-parallel	183.51u 0.01s 51.75r # -14%
+	gc_B fannkuch	51.68u 0.00s 51.79r # -3%
+
+k-nucleotide 1000000
+	gc k-nucleotide	9.74u 0.04s 9.80r # +6%
+	gc k-nucleotide-parallel	9.89u 0.05s 3.59r # +1%
+	gc_B k-nucleotide	9.39u 0.02s 9.43r # +2%
+
+mandelbrot (much slower, due to unrelated http://codereview.appspot.com/6209077)
+	gc mandelbrot	100.98u 0.00s 101.20r # +65%
+	gc_B mandelbrot	100.90u 0.01s 101.17r # +65%
+
+meteor 2098
+	gc meteor-contest	0.13u 0.00s 0.13r # -13%
+	gc_B meteor-contest	0.13u 0.00s 0.13r # -7%
