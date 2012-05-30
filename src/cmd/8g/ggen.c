@@ -106,8 +106,11 @@ ginscall(Node *f, int proc)
 		break;
 
 	case 0:	// normal call
+	case -1:	// normal call but no return
 		p = gins(ACALL, N, f);
 		afunclit(&p->to);
+		if(proc == -1)
+			gins(AUNDEF, N, N);
 		break;
 
 	case 1:	// call in new proc (go)
@@ -125,7 +128,7 @@ ginscall(Node *f, int proc)
 		if(proc == 2) {
 			nodreg(&reg, types[TINT64], D_AX);
 			gins(ATESTL, &reg, &reg);
-			patch(gbranch(AJNE, T), retpc);
+			patch(gbranch(AJNE, T, -1), retpc);
 		}
 		break;
 	}
@@ -539,17 +542,17 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	if(check) {
 		nodconst(&n4, t, -1);
 		gins(optoas(OCMP, t), &n1, &n4);
-		p1 = gbranch(optoas(ONE, t), T);
+		p1 = gbranch(optoas(ONE, t), T, +1);
 		nodconst(&n4, t, -1LL<<(t->width*8-1));
 		gins(optoas(OCMP, t), ax, &n4);
-		p2 = gbranch(optoas(ONE, t), T);
+		p2 = gbranch(optoas(ONE, t), T, +1);
 		if(op == ODIV)
 			gmove(&n4, res);
 		if(op == OMOD) {
 			nodconst(&n4, t, 0);
 			gmove(&n4, res);
 		}
-		p3 = gbranch(AJMP, T);
+		p3 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 		patch(p2, pc);
 	}
@@ -705,13 +708,13 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 			split64(&nt, &lo, &hi);
 			gmove(&lo, &n1);
 			gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
-			p2 = gbranch(optoas(ONE, types[TUINT32]), T);
+			p2 = gbranch(optoas(ONE, types[TUINT32]), T, +1);
 			gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
-			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 			patch(p2, pc);
 		} else {
 			gins(optoas(OCMP, nr->type), &n1, ncon(w));
-			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		}
 		if(op == ORSH && issigned[nl->type->etype]) {
 			gins(a, ncon(w-1), &n2);
@@ -895,15 +898,13 @@ cmpandthrow(Node *nl, Node *nr)
 	if(n1.op != OXXX)
 		regfree(&n1);
 	if(throwpc == nil) {
-		p1 = gbranch(optoas(op, t), T);
-		expecttaken(p1, 1);
+		p1 = gbranch(optoas(op, t), T, +1);
 		throwpc = pc;
-		ginscall(panicslice, 0);
+		ginscall(panicslice, -1);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
-		p1 = gbranch(optoas(op, t), T);
-		expecttaken(p1, 0);
+		p1 = gbranch(optoas(op, t), T, -1);
 		patch(p1, throwpc);
 	}
 }

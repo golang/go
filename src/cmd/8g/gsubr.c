@@ -105,9 +105,13 @@ dumpdata(void)
 /*
  * generate a branch.
  * t is ignored.
+ * likely values are for branch prediction:
+ *	-1 unlikely
+ *	0 no opinion
+ *	+1 likely
  */
 Prog*
-gbranch(int as, Type *t)
+gbranch(int as, Type *t, int likely)
 {
 	Prog *p;
 
@@ -115,14 +119,11 @@ gbranch(int as, Type *t)
 	p = prog(as);
 	p->to.type = D_BRANCH;
 	p->to.branch = P;
+	if(likely != 0) {
+		p->from.type = D_CONST;
+		p->from.offset = likely > 0;
+	}
 	return p;
-}
-
-void
-expecttaken(Prog *p, int taken)
-{
-	p->from.type = D_CONST;
-	p->from.offset = taken;
 }
 
 /*
@@ -221,7 +222,7 @@ gjmp(Prog *to)
 {
 	Prog *p;
 
-	p = gbranch(AJMP, T);
+	p = gbranch(AJMP, T, 0);
 	if(to != P)
 		patch(p, to);
 	return p;
@@ -1452,10 +1453,10 @@ gmove(Node *f, Node *t)
 			fatal("gmove %T", t);
 		case TINT8:
 			gins(ACMPL, &t1, ncon(-0x80));
-			p1 = gbranch(optoas(OLT, types[TINT32]), T);
+			p1 = gbranch(optoas(OLT, types[TINT32]), T, -1);
 			gins(ACMPL, &t1, ncon(0x7f));
-			p2 = gbranch(optoas(OGT, types[TINT32]), T);
-			p3 = gbranch(AJMP, T);
+			p2 = gbranch(optoas(OGT, types[TINT32]), T, -1);
+			p3 = gbranch(AJMP, T, 0);
 			patch(p1, pc);
 			patch(p2, pc);
 			gmove(ncon(-0x80), &t1);
@@ -1464,14 +1465,14 @@ gmove(Node *f, Node *t)
 			break;
 		case TUINT8:
 			gins(ATESTL, ncon(0xffffff00), &t1);
-			p1 = gbranch(AJEQ, T);
+			p1 = gbranch(AJEQ, T, +1);
 			gins(AMOVL, ncon(0), &t1);
 			patch(p1, pc);
 			gmove(&t1, t);
 			break;
 		case TUINT16:
 			gins(ATESTL, ncon(0xffff0000), &t1);
-			p1 = gbranch(AJEQ, T);
+			p1 = gbranch(AJEQ, T, +1);
 			gins(AMOVL, ncon(0), &t1);
 			patch(p1, pc);
 			gmove(&t1, t);
@@ -1486,7 +1487,7 @@ gmove(Node *f, Node *t)
 		gmove(f, &t1);
 		split64(&t1, &tlo, &thi);
 		gins(ACMPL, &thi, ncon(0));
-		p1 = gbranch(AJEQ, T);
+		p1 = gbranch(AJEQ, T, +1);
 		gins(AMOVL, ncon(0), &tlo);
 		patch(p1, pc);
 		gmove(&tlo, t);
@@ -1505,18 +1506,18 @@ gmove(Node *f, Node *t)
 		// if 0 > v { answer = 0 }
 		gmove(&zerof, &f0);
 		gins(AFUCOMIP, &f0, &f1);
-		p1 = gbranch(optoas(OGT, types[tt]), T);
+		p1 = gbranch(optoas(OGT, types[tt]), T, 0);
 		// if 1<<64 <= v { answer = 0 too }
 		gmove(&two64f, &f0);
 		gins(AFUCOMIP, &f0, &f1);
-		p2 = gbranch(optoas(OGT, types[tt]), T);
+		p2 = gbranch(optoas(OGT, types[tt]), T, 0);
 		patch(p1, pc);
 		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
 		split64(t, &tlo, &thi);
 		gins(AMOVL, ncon(0), &tlo);
 		gins(AMOVL, ncon(0), &thi);
 		splitclean();
-		p1 = gbranch(AJMP, T);
+		p1 = gbranch(AJMP, T, 0);
 		patch(p2, pc);
 
 		// in range; algorithm is:
@@ -1533,9 +1534,9 @@ gmove(Node *f, Node *t)
 		// actual work
 		gmove(&two63f, &f0);
 		gins(AFUCOMIP, &f0, &f1);
-		p2 = gbranch(optoas(OLE, types[tt]), T);
+		p2 = gbranch(optoas(OLE, types[tt]), T, 0);
 		gins(AFMOVVP, &f0, t);
-		p3 = gbranch(AJMP, T);
+		p3 = gbranch(AJMP, T, 0);
 		patch(p2, pc);
 		gmove(&two63f, &f0);
 		gins(AFSUBDP, &f0, &f1);
@@ -1606,11 +1607,11 @@ gmove(Node *f, Node *t)
 		split64(&t1, &tlo, &thi);
 		gmove(f, &t1);
 		gins(ACMPL, &thi, ncon(0));
-		p1 = gbranch(AJLT, T);
+		p1 = gbranch(AJLT, T, 0);
 		// native
 		t1.type = types[TINT64];
 		gmove(&t1, t);
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		// simulated
 		patch(p1, pc);
 		gmove(&tlo, &ax);

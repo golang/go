@@ -909,7 +909,7 @@ Mpflt*	truncfltlit(Mpflt *oldv, Type *t);
  *	cplx.c
  */
 void	complexadd(int op, Node *nl, Node *nr, Node *res);
-void	complexbool(int op, Node *nl, Node *nr, int true, Prog *to);
+void	complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to);
 void	complexgen(Node *n, Node *res);
 void	complexminus(Node *nl, Node *res);
 void	complexmove(Node *f, Node *t);
@@ -1304,7 +1304,7 @@ EXTERN	Node*	nodfp;
 
 int	anyregalloc(void);
 void	betypeinit(void);
-void	bgen(Node *n, int true, Prog *to);
+void	bgen(Node *n, int true, int likely, Prog *to);
 void	cgen(Node*, Node*);
 void	cgen_asop(Node *n);
 void	cgen_call(Node *n, int proc);

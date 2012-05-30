@@ -103,9 +103,13 @@ dumpdata(void)
 /*
  * generate a branch.
  * t is ignored.
+ * likely values are for branch prediction:
+ *	-1 unlikely
+ *	0 no opinion
+ *	+1 likely
  */
 Prog*
-gbranch(int as, Type *t)
+gbranch(int as, Type *t, int likely)
 {
 	Prog *p;
 	
@@ -114,17 +118,11 @@ gbranch(int as, Type *t)
 	p = prog(as);
 	p->to.type = D_BRANCH;
 	p->to.branch = P;
+	if(as != AJMP && likely != 0) {
+		p->from.type = D_CONST;
+		p->from.offset = likely > 0;
+	}
 	return p;
-}
-
-/*
- * mark branch as expected taken or not.
- */
-void
-expecttaken(Prog *p, int taken)
-{
-	p->from.type = D_CONST;
-	p->from.offset = taken;
 }
 
 /*
@@ -223,7 +221,7 @@ gjmp(Prog *to)
 {
 	Prog *p;
 
-	p = gbranch(AJMP, T);
+	p = gbranch(AJMP, T, 0);
 	if(to != P)
 		patch(p, to);
 	return p;
@@ -845,9 +843,9 @@ gmove(Node *f, Node *t)
 		regalloc(&r4, types[tt], N);
 		gins(optoas(OAS, f->type), f, &r1);
 		gins(optoas(OCMP, f->type), &bigf, &r1);
-		p1 = gbranch(optoas(OLE, f->type), T);
+		p1 = gbranch(optoas(OLE, f->type), T, +1);
 		gins(a, &r1, &r2);
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 		gins(optoas(OAS, f->type), &bigf, &r3);
 		gins(optoas(OSUB, f->type), &r3, &r1);
@@ -916,9 +914,9 @@ gmove(Node *f, Node *t)
 		regalloc(&r4, f->type, N);
 		gmove(f, &r1);
 		gins(ACMPQ, &r1, &zero);
-		p1 = gbranch(AJLT, T);
+		p1 = gbranch(AJLT, T, +1);
 		gins(a, &r1, &r2);
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 		gmove(&r1, &r3);
 		gins(ASHRQ, &one, &r3);
@@ -2129,11 +2127,10 @@ oindex:
 			nodconst(&n2, types[TUINT64], l->type->bound);
 		}
 		gins(optoas(OCMP, t), reg1, &n2);
-		p1 = gbranch(optoas(OLT, t), T);
-		expecttaken(p1, 1);
+		p1 = gbranch(optoas(OLT, t), T, +1);
 		if(n4.op != OXXX)
 			regfree(&n4);
-		ginscall(panicindex, 0);
+		ginscall(panicindex, -1);
 		patch(p1, pc);
 	}
 
@@ -2195,8 +2192,8 @@ oindex_const:
 			n1.xoffset = Array_nel;
 			nodconst(&n2, types[TUINT64], v);
 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
-			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-			ginscall(panicindex, 0);
+			p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+			ginscall(panicindex, -1);
 			patch(p1, pc);
 		}
 
@@ -2239,9 +2236,8 @@ oindex_const_sudo:
 		nodconst(&n2, types[TUINT64], v);
 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
 		p1->from = *a;
-		p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-		expecttaken(p1, 1);
-		ginscall(panicindex, 0);
+		p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+		ginscall(panicindex, -1);
 		patch(p1, pc);
 		a->offset -= Array_nel;
 	}

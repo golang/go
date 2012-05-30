@@ -120,7 +120,7 @@ ginscall(Node *f, int proc)
 			nodconst(&con, types[TINT32], 0);
 			p = gins(ACMP, &con, N);
 			p->reg = 0;
-			patch(gbranch(ABNE, T), retpc);
+			patch(gbranch(ABNE, T, -1), retpc);
 		}
 		break;
 	}
@@ -564,7 +564,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 
 	// test for shift being 0
 	gins(ATST, &n1, N);
-	p3 = gbranch(ABEQ, T);
+	p3 = gbranch(ABEQ, T, -1);
 
 	// test and fix up large shifts
 	// TODO: if(!bounded), don't emit some of this.
@@ -632,7 +632,7 @@ clearfat(Node *nl)
 
 		p = gins(ACMP, &dst, N);
 		raddr(&end, p);
-		patch(gbranch(ABNE, T), pl);
+		patch(gbranch(ABNE, T, 0), pl);
 
 		regfree(&end);
 	} else
@@ -758,13 +758,13 @@ cmpandthrow(Node *nl, Node *nr)
 	if(nl == &n2)
 		regfree(&n2);
 	if(throwpc == nil) {
-		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		p1 = gbranch(optoas(op, types[TUINT32]), T, +1);
 		throwpc = pc;
 		ginscall(panicslice, 0);
 		patch(p1, pc);
 	} else {
 		op = brcom(op);
-		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		p1 = gbranch(optoas(op, types[TUINT32]), T, -1);
 		patch(p1, throwpc);
 	}
 }
