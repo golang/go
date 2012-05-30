@@ -208,6 +208,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 void
 runtime·minit(void)
 {
+	runtime·install_exception_handler();
 }
 
 int64

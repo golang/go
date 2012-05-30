@@ -227,6 +227,8 @@ ok:
 				aggr = "gobuf";
 			else if(streq(fields.p[1], "WinCall"))
 				aggr = "wincall";
+			else if(streq(fields.p[1], "SEH"))
+				aggr = "seh";
 		}
 		if(hasprefix(lines.p[i], "}"))
 			aggr = nil;

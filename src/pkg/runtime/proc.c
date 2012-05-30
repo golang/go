@@ -758,6 +758,11 @@ runtime·starttheworld(void)
 void
 runtime·mstart(void)
 {
+	// It is used by windows-386 only. Unfortunately, seh needs
+	// to be located on os stack, and mstart runs on os stack
+	// for both m0 and m.
+	SEH seh;
+
 	if(g != m->g0)
 		runtime·throw("bad runtime·mstart");
 
@@ -766,6 +771,7 @@ runtime·mstart(void)
 	// so other calls can reuse this stack space.
 	runtime·gosave(&m->g0->sched);
 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
+	m->seh = &seh;
 	runtime·asminit();
 	runtime·minit();
 
@@ -775,6 +781,10 @@ runtime·mstart(void)
 		runtime·initsig();
 
 	schedule(nil);
+
+	// TODO(brainman): This point is never reached, because scheduler
+	// does not release os threads at the moment. But once this path
+	// is enabled, we must remove our seh here.
 }
 
 // When running with cgo, we call libcgo_thread_start
