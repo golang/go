@@ -50,21 +50,21 @@ func main() {
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 
-	w := *n
-	h := *n
+	w := float64(*n)
+	h := float64(*n)
 	bit_num := 0
 	byte_acc := byte(0)
 	const Iter = 50
 	const Zero float64 = 0
 	const Limit = 2.0
 
-	fmt.Fprintf(out, "P4\n%d %d\n", w, h)
+	fmt.Fprintf(out, "P4\n%d %d\n", *n, *n)
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := 0.0; y < h; y++ {
+		for x := 0.0; x < w; x++ {
 			Zr, Zi, Tr, Ti := Zero, Zero, Zero, Zero
-			Cr := (2*float64(x)/float64(w) - 1.5)
-			Ci := (2*float64(y)/float64(h) - 1.0)
+			Cr := (2*x/w - 1.5)
+			Ci := (2*y/h - 1.0)
 
 			for i := 0; i < Iter && (Tr+Ti <= Limit*Limit); i++ {
 				Zi = 2*Zr*Zi + Ci
@@ -85,7 +85,7 @@ func main() {
 				byte_acc = 0
 				bit_num = 0
 			} else if x == w-1 {
-				byte_acc <<= uint(8 - w%8)
+				byte_acc <<= uint(8 - uint(*n)%8)
 				out.WriteByte(byte_acc)
 				byte_acc = 0
 				bit_num = 0
