@@ -60,6 +60,8 @@ The build flags are shared by the build, install, run, and test commands:
 	-x
 		print the commands.
 
+	-ccflags 'arg list'
+		arguments to pass on each 5c, 6c, or 8c compiler invocation
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc)
 	-gccgoflags 'arg list'
@@ -99,6 +101,7 @@ var buildX bool               // -x flag
 var buildO = cmdBuild.Flag.String("o", "", "output file")
 var buildWork bool           // -work flag
 var buildGcflags []string    // -gcflags flag
+var buildCcflags []string    // -ccflags flag
 var buildLdflags []string    // -ldflags flag
 var buildGccgoflags []string // -gccgoflags flag
 
@@ -146,6 +149,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
 	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
+	cmd.Flag.Var((*stringsFlag)(&buildCcflags), "ccflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
@@ -1277,9 +1281,8 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
-		"-I", objdir, "-I", inc, "-o", ofile,
-		"-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
+	args := stringList(tool(archChar+"c"), "-FVw", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
+	return b.run(p.Dir, p.ImportPath, args)
 }
 
 // The Gccgo toolchain.
