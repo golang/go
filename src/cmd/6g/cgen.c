@@ -396,7 +396,25 @@ cgen(Node *n, Node *res)
 	goto ret;
 
 sbop:	// symmetric binary
-	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
+	/*
+	 * put simplest on right - we'll generate into left
+	 * and then adjust it using the computation of right.
+	 * constants and variables have the same ullman
+	 * count, so look for constants specially.
+	 *
+	 * an integer constant we can use as an immediate
+	 * is simpler than a variable - we can use the immediate
+	 * in the adjustment instruction directly - so it goes
+	 * on the right.
+	 *
+	 * other constants, like big integers or floating point
+	 * constants, require a mov into a register, so those
+	 * might as well go on the left, so we can reuse that
+	 * register for the computation.
+	 */
+	if(nl->ullman < nr->ullman ||
+	   (nl->ullman == nr->ullman &&
+	    (smallintconst(nl) || (nr->op == OLITERAL && !smallintconst(nr))))) {
 		r = nl;
 		nl = nr;
 		nr = r;
