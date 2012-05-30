@@ -94,6 +94,50 @@ func TestDeflate(t *testing.T) {
 	}
 }
 
+// A sparseReader returns a stream consisting of 0s followed by 1<<16 1s.
+// This tests missing hash references in a very large input.
+type sparseReader struct {
+	l   int64
+	cur int64
+}
+
+func (r *sparseReader) Read(b []byte) (n int, err error) {
+	if r.cur >= r.l {
+		return 0, io.EOF
+	}
+	n = len(b)
+	cur := r.cur + int64(n)
+	if cur > r.l {
+		n -= int(cur - r.l)
+		cur = r.l
+	}
+	for i := range b[0:n] {
+		if r.cur+int64(i) >= r.l-1<<16 {
+			b[i] = 1
+		} else {
+			b[i] = 0
+		}
+	}
+	r.cur = cur
+	return
+}
+
+func TestVeryLongSparseChunk(t *testing.T) {
+	if testing.Short() {
+		t.Logf("skipping sparse chunk during short test")
+		return
+	}
+	w, err := NewWriter(ioutil.Discard, 1)
+	if err != nil {
+		t.Errorf("NewWriter: %v", err)
+		return
+	}
+	if _, err = io.Copy(w, &sparseReader{l: 23E8}); err != nil {
+		t.Errorf("Compress failed: %v", err)
+		return
+	}
+}
+
 type syncBuffer struct {
 	buf    bytes.Buffer
 	mu     sync.RWMutex
