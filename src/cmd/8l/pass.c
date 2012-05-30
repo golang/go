@@ -184,6 +184,10 @@ loop:
 		 * recurse to follow one path.
 		 * continue loop on the other.
 		 */
+		if((q = brchain(p->pcond)) != P)
+			p->pcond = q;
+		if((q = brchain(p->link)) != P)
+			p->link = q;
 		if(p->from.type == D_CONST) {
 			if(p->from.offset == 1) {
 				/*
@@ -196,8 +200,8 @@ loop:
 				p->pcond = q;
 			}
 		} else {
-			q = brchain(p->link);
-			if(q != P && q->mark)
+			q = p->link;
+			if(q->mark)
 			if(a != ALOOP) {
 				p->as = relinv(a);
 				p->link = p->pcond;
@@ -205,12 +209,9 @@ loop:
 			}
 		}
 		xfol(p->link, last);
-		q = brchain(p->pcond);
-		if(q->mark) {
-			p->pcond = q;
+		if(p->pcond->mark)
 			return;
-		}
-		p = q;
+		p = p->pcond;
 		goto loop;
 	}
 	p = p->link;
