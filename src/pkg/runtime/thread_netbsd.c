@@ -28,6 +28,7 @@ extern int32 runtime·lwp_create(UcontextT *context, uintptr flags, void *lwpid)
 extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *m, G *g, void (*fn)(void));
 extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
 extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
+extern int32 runtime·lwp_self(void);
 
 // From NetBSD's <sys/sysctl.h>
 #define	CTL_HW	6
@@ -181,9 +182,6 @@ void
 runtime·osinit(void)
 {
 	runtime·ncpu = getncpu();
-
-	// Main thread is always LWP 1.
-	m->procid = 1;
 }
 
 void
@@ -196,6 +194,8 @@ runtime·goenvs(void)
 void
 runtime·minit(void)
 {
+	m->procid = runtime·lwp_self();
+
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
