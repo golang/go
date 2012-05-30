@@ -16,6 +16,7 @@
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
+#include "malloc.h"
 
 extern byte pclntab[], epclntab[], symtab[], esymtab[];
 
@@ -27,6 +28,11 @@ struct Sym
 	byte *name;
 //	byte *gotype;
 };
+
+// A dynamically allocated string containing multiple substrings.
+// Individual strings are slices of hugestring.
+static String hugestring;
+static int32 hugestring_len;
 
 // Walk over symtab, calling fn(&s) for each symbol.
 static void
@@ -135,14 +141,15 @@ dofunc(Sym *sym)
 
 // put together the path name for a z entry.
 // the f entries have been accumulated into fname already.
-static void
+// returns the length of the path name.
+static int32
 makepath(byte *buf, int32 nbuf, byte *path)
 {
 	int32 n, len;
 	byte *p, *ep, *q;
 
 	if(nbuf <= 0)
-		return;
+		return 0;
 
 	p = buf;
 	ep = buf + nbuf;
@@ -163,6 +170,26 @@ makepath(byte *buf, int32 nbuf, byte *path)
 		runtime·memmove(p, q, len+1);
 		p += len;
 	}
+	return p - buf;
+}
+
+// appends p to hugestring
+static String
+gostringn(byte *p, int32 l)
+{
+	String s;
+
+	if(l == 0)
+		return runtime·emptystring;
+	if(hugestring.str == nil) {
+		hugestring_len += l;
+		return runtime·emptystring;
+	}
+	s.str = hugestring.str + hugestring.len;
+	s.len = l;
+	hugestring.len += s.len;
+	runtime·memmove(s.str, p, l);
+	return s;
 }
 
 // walk symtab accumulating path names for use by pc/ln table.
@@ -181,11 +208,13 @@ dosrcline(Sym *sym)
 	static int32 incstart;
 	static int32 nfunc, nfile, nhist;
 	Func *f;
-	int32 i;
+	int32 i, l;
 
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
+		if(hugestring.str == nil)
+			break;
 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
 		f = &func[nfunc++];
@@ -200,23 +229,23 @@ dosrcline(Sym *sym)
 	case 'z':
 		if(sym->value == 1) {
 			// entry for main source file for a new object.
-			makepath(srcbuf, sizeof srcbuf, sym->name+1);
+			l = makepath(srcbuf, sizeof srcbuf, sym->name+1);
 			nhist = 0;
 			nfile = 0;
 			if(nfile == nelem(files))
 				return;
-			files[nfile].srcstring = runtime·gostring(srcbuf);
+			files[nfile].srcstring = gostringn(srcbuf, l);
 			files[nfile].aline = 0;
 			files[nfile++].delta = 0;
 		} else {
 			// push or pop of included file.
-			makepath(srcbuf, sizeof srcbuf, sym->name+1);
+			l = makepath(srcbuf, sizeof srcbuf, sym->name+1);
 			if(srcbuf[0] != '\0') {
 				if(nhist++ == 0)
 					incstart = sym->value;
 				if(nhist == 0 && nfile < nelem(files)) {
 					// new top-level file
-					files[nfile].srcstring = runtime·gostring(srcbuf);
+					files[nfile].srcstring = gostringn(srcbuf, l);
 					files[nfile].aline = sym->value;
 					// this is "line 0"
 					files[nfile++].delta = sym->value - 1;
@@ -408,10 +437,12 @@ buildfuncs(void)
 	nfname = 0;
 	walksymtab(dofunc);
 
-	// initialize tables
-	func = runtime·mal((nfunc+1)*sizeof func[0]);
+	// Initialize tables.
+	// Can use FlagNoPointers - all pointers either point into sections of the executable
+	// or point into hugestring.
+	func = runtime·mallocgc((nfunc+1)*sizeof func[0], FlagNoPointers, 0, 1);
 	func[nfunc].entry = (uint64)etext;
-	fname = runtime·mal(nfname*sizeof fname[0]);
+	fname = runtime·mallocgc(nfname*sizeof fname[0], FlagNoPointers, 0, 1);
 	nfunc = 0;
 	walksymtab(dofunc);
 
@@ -419,7 +450,13 @@ buildfuncs(void)
 	splitpcln();
 
 	// record src file and line info for each func
-	walksymtab(dosrcline);
+	walksymtab(dosrcline);  // pass 1: determine hugestring_len
+	hugestring.str = runtime·mallocgc(hugestring_len, FlagNoPointers, 0, 0);
+	hugestring.len = 0;
+	walksymtab(dosrcline);  // pass 2: fill and use hugestring
+
+	if(hugestring.len != hugestring_len)
+		runtime·throw("buildfunc: problem in initialization procedure");
 
 	m->nomemprof--;
 }
