@@ -1294,6 +1294,8 @@ Optab optab[] =
 	
 	{ AMOVQL,	yrl_ml,	Px, 0x89 },
 
+	{ AUNDEF,		ynone,	Px, 0x0f, 0x0b },
+
 	{ AEND },
 	0
 };

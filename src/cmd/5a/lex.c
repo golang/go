@@ -405,6 +405,7 @@ struct
 	"MRC",		LTYPEJ, 1,
 
 	"PLD",		LTYPEPLD, APLD,
+	"UNDEF",	LTYPEE,	AUNDEF,
 	0
 };
 

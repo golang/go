@@ -119,7 +119,7 @@ loop:
 				i--;
 				continue;
 			}
-			if(a == AB || (a == ARET && q->scond == 14) || a == ARFE)
+			if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
 				goto copy;
 			if(q->cond == P || (q->cond->mark&FOLL))
 				continue;
@@ -140,7 +140,7 @@ loop:
 				}
 				(*last)->link = r;
 				*last = r;
-				if(a == AB || (a == ARET && q->scond == 14) || a == ARFE)
+				if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
 					return;
 				r->as = ABNE;
 				if(a == ABNE)
@@ -166,7 +166,7 @@ loop:
 	p->mark |= FOLL;
 	(*last)->link = p;
 	*last = p;
-	if(a == AB || (a == ARET && p->scond == 14) || a == ARFE){
+	if(a == AB || (a == ARET && p->scond == 14) || a == ARFE || a == AUNDEF){
 		return;
 	}
 	if(p->cond != P)

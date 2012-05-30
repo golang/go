@@ -779,6 +779,8 @@ Optab optab[] =
 	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
 
 	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
+	
+	{ AUNDEF,		ynone,	Px,	0x0f, 0x0b },
 
 	0
 };
