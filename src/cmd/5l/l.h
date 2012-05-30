@@ -36,7 +36,8 @@
 enum
 {
 	thechar = '5',
-	PtrSize = 4
+	PtrSize = 4,
+	FuncAlign = 4  // single-instruction alignment
 };
 
 #ifndef	EXTERN

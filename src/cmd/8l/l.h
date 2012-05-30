@@ -40,7 +40,8 @@
 enum
 {
 	thechar = '8',
-	PtrSize = 4
+	PtrSize = 4,
+	FuncAlign = 16
 };
 
 #define	P		((Prog*)0)

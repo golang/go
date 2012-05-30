@@ -1012,6 +1012,8 @@ textaddress(void)
 			continue;
 		if(sym->align != 0)
 			va = rnd(va, sym->align);
+		else if(sym->text != P)
+			va = rnd(va, FuncAlign);
 		sym->value = 0;
 		for(sub = sym; sub != S; sub = sub->sub) {
 			sub->value += va;
