@@ -1022,3 +1022,12 @@ mandelbrot (much slower, due to unrelated http://codereview.appspot.com/6209077)
 meteor 2098
 	gc meteor-contest	0.13u 0.00s 0.13r # -13%
 	gc_B meteor-contest	0.13u 0.00s 0.13r # -7%
+
+# After http://codereview.appspot.com/6261051, restoring old code generated
+# for floating-point constants. Mandelbrot is back to its previous numbers.
+
+mandelbrot 16000
+	gcc -O2 mandelbrot.c	36.07u 0.00s 36.16r
+	gccgo -O2 mandelbrot.go	41.72u 0.01s 41.90r
+	gc mandelbrot	60.62u 0.00s 60.76r
+	gc_B mandelbrot	60.68u 0.00s 60.82r
