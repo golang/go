@@ -746,39 +746,66 @@ Replace the current buffer on success; display errors on failure."
 
   (interactive)
   (let ((currconf (current-window-configuration)))
-    (let ((srcbuf (current-buffer)))
-      (with-temp-buffer
-        (let ((outbuf (current-buffer))
-              (errbuf (get-buffer-create "*Gofmt Errors*"))
+    (let ((srcbuf (current-buffer))
+          (filename buffer-file-name)
+          (patchbuf (get-buffer-create "*Gofmt patch*")))
+      (with-current-buffer patchbuf
+        (let ((errbuf (get-buffer-create "*Gofmt Errors*"))
               (coding-system-for-read 'utf-8)    ;; use utf-8 with subprocesses
               (coding-system-for-write 'utf-8))
-          (with-current-buffer errbuf (erase-buffer))
+          (with-current-buffer errbuf
+            (toggle-read-only 0)
+            (erase-buffer))
           (with-current-buffer srcbuf
             (save-restriction
               (let (deactivate-mark)
                 (widen)
-                (if (= 0 (shell-command-on-region (point-min) (point-max) "gofmt"
-                                                  outbuf nil errbuf))
-                    ;; restore window config
-                    ;; gofmt succeeded: replace the current buffer with outbuf,
-                    ;; restore the mark and point, and discard errbuf.
-                    (let ((old-mark (mark t))
-                          (old-point (point))
-                          (old-start (window-start)))
-                      (erase-buffer)
-                      (insert-buffer-substring outbuf)
-                      (set-window-configuration currconf)
-                      (set-window-start (selected-window) (min old-start (point-max)))
-                      (goto-char (min old-point (point-max)))
-                      (if old-mark (push-mark (min old-mark (point-max)) t))
-                      (kill-buffer errbuf))
+                (if (= 0 (shell-command-on-region (point-min) (point-max) "gofmt -d"
+                                                  patchbuf nil errbuf))
+                    ; gofmt succeeded: apply patch hunks.
+                    (progn
+                      (kill-buffer errbuf)
+                      (gofmt-apply-patch filename srcbuf patchbuf)
+                      (set-window-configuration currconf))
 
                   ;; gofmt failed: display the errors
-                  (display-buffer errbuf)))))
+                  (gofmt-process-errors filename errbuf)))))
 
           ;; Collapse any window opened on outbuf if shell-command-on-region
           ;; displayed it.
-          (delete-windows-on outbuf))))))
+          (delete-windows-on patchbuf)))
+      (kill-buffer patchbuf))))
+
+(defconst gofmt-stdin-tag "<standard input>")
+
+(defun gofmt-apply-patch (filename srcbuf patchbuf)
+  (require 'diff-mode)
+  ;; apply all the patch hunks and restore the mark and point
+  (let ((old-point (point))
+        (old-mark (mark t)))
+    (with-current-buffer patchbuf
+      (let ((filename (file-name-nondirectory filename))
+            (min (point-min)))
+        (replace-string gofmt-stdin-tag  filename nil min (point-max))
+        (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- /tmp/" filename)
+                        nil min (point-max)))
+      (condition-case nil
+          (while t
+            (diff-hunk-next)
+            (diff-apply-hunk))
+        ;; When there's no more hunks, diff-hunk-next signals an error, ignore it
+        (error nil)))
+    (goto-char (min old-point (point-max)))
+    (if old-mark (push-mark (min old-mark (point-max)) t))))
+
+(defun gofmt-process-errors (filename errbuf)
+  ;; Convert the gofmt stderr to something understood by the compilation mode.
+  (with-current-buffer errbuf
+    (beginning-of-buffer)
+    (insert "gofmt errors:\n")
+    (replace-string gofmt-stdin-tag (file-name-nondirectory filename) nil (point-min) (point-max))
+    (display-buffer errbuf)
+    (compilation-mode)))
 
 ;;;###autoload
 (defun gofmt-before-save ()
