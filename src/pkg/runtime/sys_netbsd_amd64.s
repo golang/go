@@ -61,6 +61,11 @@ TEXT runtime·lwp_unpark(SB),7,$0
 	SYSCALL
 	RET
 
+TEXT runtime·lwp_self(SB),7,$0
+	MOVL	$311, AX		// sys__lwp_self
+	SYSCALL
+	RET
+
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - exit status

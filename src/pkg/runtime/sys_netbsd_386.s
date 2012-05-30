@@ -292,6 +292,11 @@ TEXT runtime·lwp_unpark(SB),7,$-4
 	INT	$0x80
 	RET
 
+TEXT runtime·lwp_self(SB),7,$-4
+	MOVL	$311, AX		// sys__lwp_self
+	INT	$0x80
+	RET
+
 TEXT runtime·sysctl(SB),7,$28
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI
