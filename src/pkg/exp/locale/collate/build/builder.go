@@ -22,6 +22,7 @@ import (
 // - trie valueBlocks are currently 100K. There are a lot of sparse blocks
 //   and many consecutive values with the same stride. This can be further
 //   compacted.
+// - compress secondary weights into 8 bits.
 
 // entry is used to keep track of a single entry in the collation element table
 // during building. Examples of entries can be found in the Default Unicode
@@ -69,6 +70,7 @@ type Builder struct {
 	entry    []*entry
 	t        *table
 	err      error
+	built    bool
 }
 
 // NewBuilder returns a new Builder.
@@ -178,14 +180,16 @@ func (b *Builder) error(e error) {
 }
 
 func (b *Builder) build() (*table, error) {
-	b.t = &table{}
+	if !b.built {
+		b.built = true
+		b.t = &table{}
 
-	b.contractCJK()
-	b.simplify()            // requires contractCJK
-	b.processExpansions()   // requires simplify
-	b.processContractions() // requires simplify
-	b.buildTrie()           // requires process*
-
+		b.contractCJK()
+		b.simplify()            // requires contractCJK
+		b.processExpansions()   // requires simplify
+		b.processContractions() // requires simplify
+		b.buildTrie()           // requires process*
+	}
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -333,6 +337,9 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 		p := ce[0]
 		if p < firstLargePrimary {
 			continue
+		}
+		if p > 0xFFFF {
+			return elems, fmt.Errorf("found primary weight %X; should be <= 0xFFFF", p)
 		}
 		if p >= illegalPrimary {
 			ce[0] = illegalOffset + p - illegalPrimary
