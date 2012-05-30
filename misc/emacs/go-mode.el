@@ -33,8 +33,8 @@
     ;; Operators (punctuation)
     (modify-syntax-entry ?+  "." st)
     (modify-syntax-entry ?-  "." st)
-    (modify-syntax-entry ?*  ". 23" st)   ; also part of comments
-    (modify-syntax-entry ?/  ". 124b" st) ; ditto
+    (modify-syntax-entry ?*  ". 23" st)                                    ; also part of comments
+    (modify-syntax-entry ?/ (if (featurep 'xemacs) ". 1456" ". 124b") st)  ; ditto
     (modify-syntax-entry ?%  "." st)
     (modify-syntax-entry ?&  "." st)
     (modify-syntax-entry ?|  "." st)
@@ -442,7 +442,7 @@ if no further tokens of the type exist."
 		  (when (search-forward "\n" (cdr cs) t)
 		    (put-text-property
 		     (car cs) (cdr cs) 'font-lock-multline t))
-		  (set-match-data (list (car cs) (cdr cs) (current-buffer)))
+		  (set-match-data (list (car cs) (copy-marker (cdr cs))))
 		  (goto-char (cdr cs))
 		  (setq result t))
 	      ;; Wrong type.  Look for next comment/string after this one.
@@ -554,7 +554,7 @@ token on the line."
 (defun go-mode-whitespace-p (char)
   "Is newline, or char whitespace in the syntax table for go."
   (or (eq char ?\n)
-      (eq 32 (char-syntax char))))
+      (= (char-syntax char) ?\ )))
 
 (defun go-mode-backward-skip-comments ()
   "Skip backward over comments and whitespace."
