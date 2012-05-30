@@ -11,7 +11,7 @@
  * in order to write the code just once.  The 64-bit data structure is
  * written in the 32-bit format on the 32-bit machines.
  */
-#define	NSECT	32
+#define	NSECT	48
 
 int	iself;
 
