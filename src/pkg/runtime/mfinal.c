@@ -150,8 +150,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 	tab = TAB(p);
 	runtime·lock(tab);
 	if(f == nil) {
-		if(lookfintab(tab, p, true, nil))
-			runtime·setblockspecial(p, false);
+		lookfintab(tab, p, true, nil);
 		runtime·unlock(tab);
 		return true;
 	}

@@ -1042,7 +1042,6 @@ runfinq(void)
 					framecap = framesz;
 				}
 				*(void**)frame = f->arg;
-				runtime·setblockspecial(f->arg, false);
 				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
 				f->fn = nil;
 				f->arg = nil;
