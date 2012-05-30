@@ -192,7 +192,7 @@ func lower(b []byte) []byte {
 	return b
 }
 
-const escapedChars = `&'<>"`
+const escapedChars = "&'<>\"\r"
 
 func escape(w writer, s string) error {
 	i := strings.IndexAny(s, escapedChars)
@@ -214,6 +214,8 @@ func escape(w writer, s string) error {
 		case '"':
 			// "&#34;" is shorter than "&quot;".
 			esc = "&#34;"
+		case '\r':
+			esc = "&#13;"
 		default:
 			panic("unrecognized escape character")
 		}

@@ -696,6 +696,38 @@ func (z *Tokenizer) Raw() []byte {
 	return z.buf[z.raw.start:z.raw.end]
 }
 
+// convertNewlines converts "\r" and "\r\n" in s to "\n".
+// The conversion happens in place, but the resulting slice may be shorter.
+func convertNewlines(s []byte) []byte {
+	for i, c := range s {
+		if c != '\r' {
+			continue
+		}
+
+		src := i + 1
+		if src >= len(s) || s[src] != '\n' {
+			s[i] = '\n'
+			continue
+		}
+
+		dst := i
+		for src < len(s) {
+			if s[src] == '\r' {
+				if src+1 < len(s) && s[src+1] == '\n' {
+					src++
+				}
+				s[dst] = '\n'
+			} else {
+				s[dst] = s[src]
+			}
+			src++
+			dst++
+		}
+		return s[:dst]
+	}
+	return s
+}
+
 // Text returns the unescaped text of a text, comment or doctype token. The
 // contents of the returned slice may change on the next call to Next.
 func (z *Tokenizer) Text() []byte {
@@ -704,6 +736,7 @@ func (z *Tokenizer) Text() []byte {
 		s := z.buf[z.data.start:z.data.end]
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
+		s = convertNewlines(s)
 		if !z.textIsRaw {
 			s = unescape(s)
 		}
@@ -739,7 +772,7 @@ func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
 			z.nAttrReturned++
 			key = z.buf[x[0].start:x[0].end]
 			val = z.buf[x[1].start:x[1].end]
-			return lower(key), unescape(val), z.nAttrReturned < len(z.attr)
+			return lower(key), unescape(convertNewlines(val)), z.nAttrReturned < len(z.attr)
 		}
 	}
 	return nil, nil, false

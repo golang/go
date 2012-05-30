@@ -592,6 +592,33 @@ loop:
 	}
 }
 
+func TestConvertNewlines(t *testing.T) {
+	testCases := map[string]string{
+		"Mac\rDOS\r\nUnix\n":    "Mac\nDOS\nUnix\n",
+		"Unix\nMac\rDOS\r\n":    "Unix\nMac\nDOS\n",
+		"DOS\r\nDOS\r\nDOS\r\n": "DOS\nDOS\nDOS\n",
+		"":                      "",
+		"\n":                    "\n",
+		"\n\r":                  "\n\n",
+		"\r":                    "\n",
+		"\r\n":                  "\n",
+		"\r\n\n":                "\n\n",
+		"\r\n\r":                "\n\n",
+		"\r\n\r\n":              "\n\n",
+		"\r\r":                  "\n\n",
+		"\r\r\n":                "\n\n",
+		"\r\r\n\n":              "\n\n\n",
+		"\r\r\r\n":              "\n\n\n",
+		"\r \n":                 "\n \n",
+		"xyz":                   "xyz",
+	}
+	for in, want := range testCases {
+		if got := string(convertNewlines([]byte(in))); got != want {
+			t.Errorf("input %q: got %q, want %q", in, got, want)
+		}
+	}
+}
+
 const (
 	rawLevel = iota
 	lowLevel
