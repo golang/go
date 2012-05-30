@@ -114,7 +114,7 @@ runtime·minit(void)
 {
 	// Initialize signal handling.
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
-	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 
 	if(m->profilehz > 0)
 		runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);

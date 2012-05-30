@@ -539,7 +539,7 @@ addstackroots(G *gp)
 	byte *sp, *guard;
 
 	stk = (Stktop*)gp->stackbase;
-	guard = gp->stackguard;
+	guard = (byte*)gp->stackguard;
 
 	if(gp == g) {
 		// Scanning our own stack: start at &gp.
@@ -550,17 +550,17 @@ addstackroots(G *gp)
 	} else {
 		// Scanning another goroutine's stack.
 		// The goroutine is usually asleep (the world is stopped).
-		sp = gp->sched.sp;
+		sp = (byte*)gp->sched.sp;
 
 		// The exception is that if the goroutine is about to enter or might
 		// have just exited a system call, it may be executing code such
 		// as schedlock and may have needed to start a new stack segment.
 		// Use the stack segment and stack pointer at the time of
 		// the system call instead, since that won't change underfoot.
-		if(gp->gcstack != nil) {
+		if(gp->gcstack != (uintptr)nil) {
 			stk = (Stktop*)gp->gcstack;
-			sp = gp->gcsp;
-			guard = gp->gcguard;
+			sp = (byte*)gp->gcsp;
+			guard = (byte*)gp->gcguard;
 		}
 	}
 
@@ -571,7 +571,7 @@ addstackroots(G *gp)
 			runtime·throw("scanstack");
 		}
 		addroot(sp, (byte*)stk - sp);
-		sp = stk->gobuf.sp;
+		sp = (byte*)stk->gobuf.sp;
 		guard = stk->stackguard;
 		stk = (Stktop*)stk->stackbase;
 		n++;

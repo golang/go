@@ -392,7 +392,7 @@ func GoroutineProfile(b Slice) (n int32, ok bool) {
 			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
 				if(gp == g || gp->status == Gdead)
 					continue;
-				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
+				saveg(gp->sched.pc, (byte*)gp->sched.sp, gp, r++);
 			}
 		}
 	

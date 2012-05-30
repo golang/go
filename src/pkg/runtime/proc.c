@@ -318,7 +318,7 @@ runtime·tracebackothers(G *me)
 			continue;
 		runtime·printf("\n");
 		runtime·goroutineheader(g);
-		runtime·traceback(g->sched.pc, g->sched.sp, 0, g);
+		runtime·traceback(g->sched.pc, (byte*)g->sched.sp, 0, g);
 	}
 }
 
@@ -849,7 +849,7 @@ runtime·newm(void)
 			m->g0 = runtime·malg(-1);
 		else
 			m->g0 = runtime·malg(8192);
-		runtime·newosproc(m, m->g0, m->g0->stackbase, runtime·mstart);
+		runtime·newosproc(m, m->g0, (byte*)m->g0->stackbase, runtime·mstart);
 	}
 
 	return m;
@@ -1034,7 +1034,7 @@ runtime·exitsyscall(void)
 		g->status = Grunning;
 		// Garbage collector isn't running (since we are),
 		// so okay to clear gcstack.
-		g->gcstack = nil;
+		g->gcstack = (uintptr)nil;
 
 		if(m->profilehz > 0)
 			runtime·setprof(true);
@@ -1059,7 +1059,7 @@ runtime·exitsyscall(void)
 	// Must wait until now because until gosched returns
 	// we don't know for sure that the garbage collector
 	// is not running.
-	g->gcstack = nil;
+	g->gcstack = (uintptr)nil;
 }
 
 // Called from runtime·lessstack when returning from a function which
@@ -1090,9 +1090,9 @@ runtime·oldstack(void)
 	USED(goid);
 
 	if(old.free != 0)
-		runtime·stackfree(g1->stackguard - StackGuard, old.free);
-	g1->stackbase = old.stackbase;
-	g1->stackguard = old.stackguard;
+		runtime·stackfree((byte*)g1->stackguard - StackGuard, old.free);
+	g1->stackbase = (uintptr)old.stackbase;
+	g1->stackguard = (uintptr)old.stackguard;
 
 	cret = m->cret;
 	m->cret = 0;  // drop reference
@@ -1139,7 +1139,7 @@ runtime·newstack(void)
 		// the new Stktop* is necessary to unwind, but
 		// we don't need to create a new segment.
 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
-		stk = g1->stackguard - StackGuard;
+		stk = (byte*)g1->stackguard - StackGuard;
 		free = 0;
 	} else {
 		// allocate new segment.
@@ -1156,22 +1156,22 @@ runtime·newstack(void)
 //runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
 //framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
 
-	top->stackbase = g1->stackbase;
-	top->stackguard = g1->stackguard;
+	top->stackbase = (byte*)g1->stackbase;
+	top->stackguard = (byte*)g1->stackguard;
 	top->gobuf = m->morebuf;
 	top->argp = m->moreargp;
 	top->argsize = argsize;
 	top->free = free;
 	m->moreargp = nil;
 	m->morebuf.pc = nil;
-	m->morebuf.sp = nil;
+	m->morebuf.sp = (uintptr)nil;
 
 	// copy flag from panic
 	top->panic = g1->ispanic;
 	g1->ispanic = false;
 
-	g1->stackbase = (byte*)top;
-	g1->stackguard = stk + StackGuard;
+	g1->stackbase = (uintptr)top;
+	g1->stackguard = (uintptr)stk + StackGuard;
 
 	sp = (byte*)top;
 	if(argsize > 0) {
@@ -1186,7 +1186,7 @@ runtime·newstack(void)
 
 	// Continue as if lessstack had just called m->morepc
 	// (the PC that decided to grow the stack).
-	label.sp = sp;
+	label.sp = (uintptr)sp;
 	label.pc = (byte*)runtime·lessstack;
 	label.g = m->curg;
 	runtime·gogocall(&label, m->morepc);
@@ -1229,10 +1229,10 @@ runtime·malg(int32 stacksize)
 			stk = g->param;
 			g->param = nil;
 		}
-		newg->stack0 = stk;
-		newg->stackguard = stk + StackGuard;
-		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
-		runtime·memclr(newg->stackbase, sizeof(Stktop));
+		newg->stack0 = (uintptr)stk;
+		newg->stackguard = (uintptr)stk + StackGuard;
+		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
+		runtime·memclr((byte*)newg->stackbase, sizeof(Stktop));
 	}
 	return newg;
 }
@@ -1295,7 +1295,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->status = Gwaiting;
 	newg->waitreason = "new goroutine";
 
-	sp = newg->stackbase;
+	sp = (byte*)newg->stackbase;
 	sp -= siz;
 	runtime·memmove(sp, argp, narg);
 	if(thechar == '5') {
@@ -1304,7 +1304,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 		*(void**)sp = nil;
 	}
 
-	newg->sched.sp = sp;
+	newg->sched.sp = (uintptr)sp;
 	newg->sched.pc = (byte*)runtime·goexit;
 	newg->sched.g = newg;
 	newg->entry = fn;
@@ -1332,8 +1332,12 @@ uintptr
 runtime·deferproc(int32 siz, byte* fn, ...)
 {
 	Defer *d;
-
-	d = runtime·malloc(sizeof(*d) + siz - sizeof(d->args));
+	int32 mallocsiz;
+ 
+	mallocsiz = sizeof(*d);
+	if(siz > sizeof(d->args))
+		mallocsiz += siz - sizeof(d->args);
+	d = runtime·malloc(mallocsiz);
 	d->fn = fn;
 	d->siz = siz;
 	d->pc = runtime·getcallerpc(&siz);
@@ -1394,7 +1398,7 @@ rundefer(void)
 
 	while((d = g->defer) != nil) {
 		g->defer = d->link;
-		reflect·call(d->fn, d->args, d->siz);
+		reflect·call(d->fn, (byte*)d->args, d->siz);
 		if(!d->nofree)
 			runtime·free(d);
 	}
@@ -1413,16 +1417,16 @@ unwindstack(G *gp, byte *sp)
 		runtime·throw("unwindstack on self");
 
 	while((top = (Stktop*)gp->stackbase) != nil && top->stackbase != nil) {
-		stk = gp->stackguard - StackGuard;
-		if(stk <= sp && sp < gp->stackbase)
+		stk = (byte*)gp->stackguard - StackGuard;
+		if(stk <= sp && sp < (byte*)gp->stackbase)
 			break;
-		gp->stackbase = top->stackbase;
-		gp->stackguard = top->stackguard;
+		gp->stackbase = (uintptr)top->stackbase;
+		gp->stackguard = (uintptr)top->stackguard;
 		if(top->free != 0)
 			runtime·stackfree(stk, top->free);
 	}
 
-	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
+	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
 		runtime·printf("recover: %p not in [%p, %p]\n", sp, gp->stackguard - StackGuard, gp->stackbase);
 		runtime·throw("bad unwindstack");
 	}
@@ -1455,7 +1459,7 @@ runtime·panic(Eface e)
 	p = runtime·mal(sizeof *p);
 	p->arg = e;
 	p->link = g->panic;
-	p->stackbase = g->stackbase;
+	p->stackbase = (byte*)g->stackbase;
 	g->panic = p;
 
 	for(;;) {
@@ -1465,7 +1469,7 @@ runtime·panic(Eface e)
 		// take defer off list in case of recursive panic
 		g->defer = d->link;
 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
-		reflect·call(d->fn, d->args, d->siz);
+		reflect·call(d->fn, (byte*)d->args, d->siz);
 		if(p->recovered) {
 			g->panic = p->link;
 			if(g->panic == nil)	// must be done with signal
@@ -1513,9 +1517,9 @@ recovery(G *gp)
 	// before it tests the return value.)
 	// On the arm there are 2 saved LRs mixed in too.
 	if(thechar == '5')
-		gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
+		gp->sched.sp = (uintptr)d->argp - 4*sizeof(uintptr);
 	else
-		gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
+		gp->sched.sp = (uintptr)d->argp - 2*sizeof(uintptr);
 	gp->sched.pc = d->pc;
 	if(!d->nofree)
 		runtime·free(d);

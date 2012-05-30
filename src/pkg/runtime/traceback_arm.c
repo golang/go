@@ -57,7 +57,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		if(pc == (uintptr)runtime·lessstack) {
 			// Hit top of stack segment.  Unwind to next segment.
 			pc = (uintptr)stk->gobuf.pc;
-			sp = stk->gobuf.sp;
+			sp = (byte*)stk->gobuf.sp;
 			lr = 0;
 			fp = nil;
 			if(pcbuf == nil)
@@ -151,7 +151,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			pc = (uintptr)m->morepc;
 			sp = (byte*)m->moreargp - sizeof(void*);
 			lr = (uintptr)m->morebuf.pc;
-			fp = m->morebuf.sp;
+			fp = (byte*)m->morebuf.sp;
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
 			continue;
@@ -161,7 +161,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
-			sp = stk->gobuf.sp;
+			sp = (byte*)stk->gobuf.sp;
 			pc = (uintptr)stk->gobuf.pc;
 			fp = nil;
 			lr = 0;
