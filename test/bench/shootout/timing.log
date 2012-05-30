@@ -1023,6 +1023,7 @@ meteor 2098
 	gc meteor-contest	0.13u 0.00s 0.13r # -13%
 	gc_B meteor-contest	0.13u 0.00s 0.13r # -7%
 
+# May 30, 2012.
 # After http://codereview.appspot.com/6261051, restoring old code generated
 # for floating-point constants. Mandelbrot is back to its previous numbers.
 
@@ -1031,3 +1032,34 @@ mandelbrot 16000
 	gccgo -O2 mandelbrot.go	41.72u 0.01s 41.90r
 	gc mandelbrot	60.62u 0.00s 60.76r
 	gc_B mandelbrot	60.68u 0.00s 60.82r
+
+# May 30, 2012.
+# After http://codereview.appspot.com/6248068, better FP code
+# by avoiding MOVSD between registers.
+# Plus some other timing changes that have crept in from other speedups,
+# from garbage collection to Printf.
+
+fasta -n 25000000
+	gc fasta	1.76u 0.00s 1.76r # -12%
+	gc_B fasta	1.71u 0.00s 1.72r # -12%
+
+nbody -n 50000000
+	gc nbody	17.56u 0.00s 17.60r # -8%
+	gc_B nbody	17.30u 0.00s 17.34r # -10%
+
+fannkuch 12
+	gc fannkuch-parallel	155.92u 0.01s 44.05r # -15%
+
+k-nucleotide 1000000
+	gc k-nucleotide	9.22u 0.01s 9.26r # -5%
+	gc k-nucleotide-parallel	9.23u 0.03s 3.26r # -9%
+	gc_B k-nucleotide	9.22u 0.03s 9.28r # -2%
+
+mandelbrot 16000
+	gc mandelbrot	44.80u 0.00s 44.90r # -27%
+	gc_B mandelbrot	44.81u 0.00s 44.92r # -26%
+
+pidigits 10000
+	gc pidigits	3.51u 0.00s 3.52r # -6%
+	gc_B pidigits	3.51u 0.00s 3.52r # -6%
+
