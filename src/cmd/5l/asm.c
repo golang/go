@@ -1791,6 +1791,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 			o1 |= (-p->from.offset) & 0xfff;
 		} else
 			o1 |= p->from.offset & 0xfff;
+		break;
 	case 96:	/* UNDEF */
 		// This is supposed to be something that stops execution.
 		// It's not supposed to be reached, ever, but if it is, we'd
