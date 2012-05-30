@@ -271,7 +271,7 @@ complexgen(Node *n, Node *res)
 }
 
 void
-complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
+complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
 {
 	Node tnl, tnr;
 	Node n1, n2, n3, n4;
@@ -323,7 +323,7 @@ complexbool(int op, Node *nl, Node *nr, int true, Prog *to)
 	if(op == ONE)
 		true = !true;
 
-	bgen(&na, true, to);
+	bgen(&na, true, likely, to);
 }
 
 void

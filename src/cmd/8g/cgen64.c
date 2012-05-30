@@ -114,9 +114,9 @@ cgen64(Node *n, Node *res)
 		// if DX and EX are zero, use 32 x 32 -> 64 unsigned multiply.
 		gins(AMOVL, &dx, &fx);
 		gins(AORL, &ex, &fx);
-		p1 = gbranch(AJNE, T);
+		p1 = gbranch(AJNE, T, 0);
 		gins(AMULL, &cx, N);	// implicit &ax
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 
 		// full 64x64 -> 64, from 32x32 -> 64.
@@ -213,7 +213,7 @@ cgen64(Node *n, Node *res)
 		p1 = P;
 		if(is64(r->type)) {
 			gins(ACMPL, &hi2, ncon(0));
-			p1 = gbranch(AJNE, T);
+			p1 = gbranch(AJNE, T, +1);
 			gins(AMOVL, &lo2, &cx);
 		} else {
 			cx.type = types[TUINT32];
@@ -222,7 +222,7 @@ cgen64(Node *n, Node *res)
 
 		// if shift count is >=64, zero value
 		gins(ACMPL, &cx, ncon(64));
-		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
+		p2 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		if(p1 != P)
 			patch(p1, pc);
 		gins(AXORL, &dx, &dx);
@@ -231,11 +231,11 @@ cgen64(Node *n, Node *res)
 
 		// if shift count is >= 32, zero low.
 		gins(ACMPL, &cx, ncon(32));
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		gins(AMOVL, &ax, &dx);
 		gins(ASHLL, &cx, &dx);	// SHLL only uses bottom 5 bits of count
 		gins(AXORL, &ax, &ax);
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 
 		// general shift
@@ -302,7 +302,7 @@ cgen64(Node *n, Node *res)
 		p1 = P;
 		if(is64(r->type)) {
 			gins(ACMPL, &hi2, ncon(0));
-			p1 = gbranch(AJNE, T);
+			p1 = gbranch(AJNE, T, +1);
 			gins(AMOVL, &lo2, &cx);
 		} else {
 			cx.type = types[TUINT32];
@@ -311,7 +311,7 @@ cgen64(Node *n, Node *res)
 
 		// if shift count is >=64, zero or sign-extend value
 		gins(ACMPL, &cx, ncon(64));
-		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
+		p2 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		if(p1 != P)
 			patch(p1, pc);
 		if(hi1.type->etype == TINT32) {
@@ -325,7 +325,7 @@ cgen64(Node *n, Node *res)
 
 		// if shift count is >= 32, sign-extend hi.
 		gins(ACMPL, &cx, ncon(32));
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		gins(AMOVL, &dx, &ax);
 		if(hi1.type->etype == TINT32) {
 			gins(ASARL, &cx, &ax);	// SARL only uses bottom 5 bits of count
@@ -334,7 +334,7 @@ cgen64(Node *n, Node *res)
 			gins(ASHRL, &cx, &ax);
 			gins(AXORL, &dx, &dx);
 		}
-		p2 = gbranch(AJMP, T);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
 
 		// general shift
@@ -462,7 +462,7 @@ out:;
  * nl is memory; nr is constant or memory.
  */
 void
-cmp64(Node *nl, Node *nr, int op, Prog *to)
+cmp64(Node *nl, Node *nr, int op, int likely, Prog *to)
 {
 	Node lo1, hi1, lo2, hi2, rr;
 	Prog *br;
@@ -492,14 +492,14 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// jeq to
 		// L:
-		br = gbranch(AJNE, T);
+		br = gbranch(AJNE, T, -likely);
 		break;
 	case ONE:
 		// cmp hi
 		// jne to
 		// cmp lo
 		// jne to
-		patch(gbranch(AJNE, T), to);
+		patch(gbranch(AJNE, T, likely), to);
 		break;
 	case OGE:
 	case OGT:
@@ -509,8 +509,8 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// jge to (or jgt to)
 		// L:
-		patch(gbranch(optoas(OGT, t), T), to);
-		br = gbranch(optoas(OLT, t), T);
+		patch(gbranch(optoas(OGT, t), T, likely), to);
+		br = gbranch(optoas(OLT, t), T, -likely);
 		break;
 	case OLE:
 	case OLT:
@@ -520,8 +520,8 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// jle to (or jlt to)
 		// L:
-		patch(gbranch(optoas(OLT, t), T), to);
-		br = gbranch(optoas(OGT, t), T);
+		patch(gbranch(optoas(OLT, t), T, likely), to);
+		br = gbranch(optoas(OGT, t), T, -likely);
 		break;
 	}
 
@@ -537,7 +537,7 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 	}
 
 	// jump again
-	patch(gbranch(optoas(op, t), T), to);
+	patch(gbranch(optoas(op, t), T, likely), to);
 
 	// point first branch down here if appropriate
 	if(br != P)

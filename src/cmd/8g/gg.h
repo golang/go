@@ -98,7 +98,6 @@ void	agen(Node*, Node*);
 void	agenr(Node *n, Node *a, Node *res);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
-void	bgen(Node*, int, Prog*);
 void	sgen(Node*, Node*, int64);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
@@ -113,7 +112,7 @@ void	mfree(Node*);
 /*
  * cgen64.c
  */
-void	cmp64(Node*, Node*, int, Prog*);
+void	cmp64(Node*, Node*, int, int, Prog*);
 void	cgen64(Node*, Node*);
 
 /*
@@ -121,8 +120,7 @@ void	cgen64(Node*, Node*);
  */
 void	clearp(Prog*);
 void	proglist(void);
-Prog*	gbranch(int, Type*);
-void	expecttaken(Prog*, int);
+Prog*	gbranch(int, Type*, int);
 Prog*	prog(int);
 void	gaddoffset(Node*);
 void	gconv(int, int);
@@ -162,7 +160,6 @@ void	nswap(Node*, Node*);
 int	complexop(Node*, Node*);
 void	complexmove(Node*, Node*);
 void	complexgen(Node*, Node*);
-void	complexbool(int, Node*, Node*, int, Prog*);
 
 /*
  * list.c

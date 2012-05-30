@@ -394,7 +394,7 @@ gen(Node *n)
 		}
 		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
-		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
+		bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
 		genlist(n->nbody);				//		body
 		gjmp(continpc);
 		patch(breakpc, pc);			// done:
@@ -410,7 +410,7 @@ gen(Node *n)
 		p1 = gjmp(P);			//		goto test
 		p2 = gjmp(P);			// p2:		goto else
 		patch(p1, pc);				// test:
-		bgen(n->ntest, 0, p2);			//		if(!test) goto p2
+		bgen(n->ntest, 0, 0, p2);			//		if(!test) goto p2
 		genlist(n->nbody);				//		then
 		p3 = gjmp(P);			//		goto done
 		patch(p2, pc);				// else:

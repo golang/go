@@ -108,13 +108,18 @@ dumpdata(void)
 /*
  * generate a branch.
  * t is ignored.
+ * likely values are for branch prediction:
+ *	-1 unlikely
+ *	0 no opinion
+ *	+1 likely
  */
 Prog*
-gbranch(int as, Type *t)
+gbranch(int as, Type *t, int likely)
 {
 	Prog *p;
 
 	USED(t);
+	USED(likely);  // TODO: record this for linker
 
 	p = prog(as);
 	p->to.type = D_BRANCH;
@@ -220,7 +225,7 @@ clearstk(void)
 	p3 = p;
 	p = gins(ACMP, &dst, N);
 	raddr(&end, p);
-	patch(gbranch(ABNE, T), p3);
+	patch(gbranch(ABNE, T, 0), p3);
 
 	// continue with original code.
 	gins(ANOP, N, N)->link = p2;
@@ -238,7 +243,7 @@ gjmp(Prog *to)
 {
 	Prog *p;
 
-	p = gbranch(AB, T);
+	p = gbranch(AB, T, 0);
 	if(to != P)
 		patch(p, to);
 	return p;
@@ -1982,7 +1987,7 @@ oindex:
 		cgen(&n2, &n3);
 		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
 		regfree(&n3);
-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 		if(p2)
 			patch(p2, pc);
 		ginscall(panicindex, 0);
@@ -2045,7 +2050,7 @@ oindex_const:
 			gcmp(optoas(OCMP, types[TUINT32]), &n4, &n3);
 			regfree(&n4);
 			regfree(&n3);
-			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+			p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
 			ginscall(panicindex, 0);
 			patch(p1, pc);
 		}

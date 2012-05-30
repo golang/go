@@ -285,7 +285,7 @@ cgen64(Node *n, Node *res)
 			split64(r, &cl, &ch);
 			gmove(&ch, &s);
 			gins(ATST, &s, N);
-			p6 = gbranch(ABNE, T);
+			p6 = gbranch(ABNE, T, 0);
 			gmove(&cl, &s);
 			splitclean();
 		} else {
@@ -299,7 +299,7 @@ cgen64(Node *n, Node *res)
 		p1->scond = C_SCOND_EQ;
 		p1 = gins(AMOVW, &bh, &ah);
 		p1->scond = C_SCOND_EQ;
-		p2 = gbranch(ABEQ, T);
+		p2 = gbranch(ABEQ, T, 0);
 
 		// shift is < 32
 		nodconst(&n1, types[TUINT32], 32);
@@ -323,14 +323,14 @@ cgen64(Node *n, Node *res)
 		p1->scond = C_SCOND_LO;
 
 		//	BLO	end
-		p3 = gbranch(ABLO, T);
+		p3 = gbranch(ABLO, T, 0);
 
 		// shift == 32
 		p1 = gins(AEOR, &al, &al);
 		p1->scond = C_SCOND_EQ;
 		p1 = gins(AMOVW, &bl, &ah);
 		p1->scond = C_SCOND_EQ;
-		p4 = gbranch(ABEQ, T);
+		p4 = gbranch(ABEQ, T, 0);
 
 		// shift is < 64
 		nodconst(&n1, types[TUINT32], 64);
@@ -353,7 +353,7 @@ cgen64(Node *n, Node *res)
 		p1 = gregshift(AMOVW, &bl, SHIFT_LL, &s, &ah);
 		p1->scond = C_SCOND_LO;
 
-		p5 = gbranch(ABLO, T);
+		p5 = gbranch(ABLO, T, 0);
 
 		// shift >= 64
 		if (p6 != P) patch(p6, pc);
@@ -448,7 +448,7 @@ olsh_break:
 			else
 				p1 = gins(AEOR, &ah, &ah);
 			p1->scond = C_SCOND_NE;
-			p6 = gbranch(ABNE, T);
+			p6 = gbranch(ABNE, T, 0);
 			gmove(&cl, &s);
 			splitclean();
 		} else {
@@ -462,7 +462,7 @@ olsh_break:
 		p1->scond = C_SCOND_EQ;
 		p1 = gins(AMOVW, &bh, &ah);
 		p1->scond = C_SCOND_EQ;
-		p2 = gbranch(ABEQ, T);
+		p2 = gbranch(ABEQ, T, 0);
 
 		// check if shift is < 32
 		nodconst(&n1, types[TUINT32], 32);
@@ -491,7 +491,7 @@ olsh_break:
 		p1->scond = C_SCOND_LO;
 
 		//	BLO	end
-		p3 = gbranch(ABLO, T);
+		p3 = gbranch(ABLO, T, 0);
 
 		// shift == 32
 		p1 = gins(AMOVW, &bh, &al);
@@ -500,7 +500,7 @@ olsh_break:
 			gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
 		else
 			gins(AEOR, &ah, &ah);
-		p4 = gbranch(ABEQ, T);
+		p4 = gbranch(ABEQ, T, 0);
 
 		// check if shift is < 64
 		nodconst(&n1, types[TUINT32], 64);
@@ -526,7 +526,7 @@ olsh_break:
 		}
 
 		//	BLO	end
-		p5 = gbranch(ABLO, T);
+		p5 = gbranch(ABLO, T, 0);
 
 		// s >= 64
 		if(p6 != P)
@@ -675,7 +675,7 @@ orsh_break:
  * nl is memory; nr is constant or memory.
  */
 void
-cmp64(Node *nl, Node *nr, int op, Prog *to)
+cmp64(Node *nl, Node *nr, int op, int likely, Prog *to)
 {
 	Node lo1, hi1, lo2, hi2, r1, r2;
 	Prog *br;
@@ -705,14 +705,14 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// beq to
 		// L:
-		br = gbranch(ABNE, T);
+		br = gbranch(ABNE, T, -likely);
 		break;
 	case ONE:
 		// cmp hi
 		// bne to
 		// cmp lo
 		// bne to
-		patch(gbranch(ABNE, T), to);
+		patch(gbranch(ABNE, T, likely), to);
 		break;
 	case OGE:
 	case OGT:
@@ -722,8 +722,8 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// bge to (or bgt to)
 		// L:
-		patch(gbranch(optoas(OGT, t), T), to);
-		br = gbranch(optoas(OLT, t), T);
+		patch(gbranch(optoas(OGT, t), T, likely), to);
+		br = gbranch(optoas(OLT, t), T, -likely);
 		break;
 	case OLE:
 	case OLT:
@@ -733,8 +733,8 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 		// cmp lo
 		// ble to (or jlt to)
 		// L:
-		patch(gbranch(optoas(OLT, t), T), to);
-		br = gbranch(optoas(OGT, t), T);
+		patch(gbranch(optoas(OLT, t), T, likely), to);
+		br = gbranch(optoas(OGT, t), T, -likely);
 		break;
 	}
 
@@ -749,7 +749,7 @@ cmp64(Node *nl, Node *nr, int op, Prog *to)
 	regfree(&r2);
 
 	// jump again
-	patch(gbranch(optoas(op, t), T), to);
+	patch(gbranch(optoas(op, t), T, likely), to);
 
 	// point first branch down here if appropriate
 	if(br != P)
