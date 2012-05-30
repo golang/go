@@ -283,6 +283,12 @@ loop1:
 	// copyprop.  Now that copyprop is done, remov MOVLQZX R1, R2
 	// if it is dominated by an earlier ADDL/MOVL/etc into R1 that
 	// will have already cleared the high bits.
+	//
+	// MOVSD removal.
+	// We never use packed registers, so a MOVSD between registers
+	// can be replaced by MOVAPD, which moves the pair of float64s
+	// instead of just the lower one.  We only use the lower one, but
+	// the processor can do better if we do moves using both.
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		if(p->as == AMOVLQZX)
@@ -290,6 +296,11 @@ loop1:
 		if(p->from.type == p->to.type)
 		if(prevl(r, p->from.type))
 			excise(r);
+		
+		if(p->as == AMOVSD)
+		if(regtyp(&p->from))
+		if(regtyp(&p->to))
+			p->as = AMOVAPD;
 	}
 
 	// load pipelining
