@@ -328,7 +328,6 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	CALL	runtime·setstacklimits(SB)
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 	CALL	runtime·mstart(SB)
 
@@ -337,6 +336,10 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 
 // set tls base to DI
 TEXT runtime·settls(SB),7,$0
-	CALL	runtime·setstacklimits(SB)
 	MOVQ	DI, 0x28(GS)
+	RET
+
+// void install_exception_handler()
+TEXT runtime·install_exception_handler(SB),7,$0
+	CALL	runtime·setstacklimits(SB)
 	RET

@@ -69,6 +69,7 @@ typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	WinCall		WinCall;
+typedef	struct	SEH		SEH;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
 typedef struct	GCStats		GCStats;
@@ -262,6 +263,7 @@ struct	M
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 #endif
+	SEH*	seh;
 	uintptr	end[];
 };
 
@@ -315,6 +317,11 @@ struct	WinCall
 	uintptr	r1;	// return values
 	uintptr	r2;
 	uintptr	err;	// error number
+};
+struct	SEH
+{
+	void*	prev;
+	void*	handler;
 };
 
 #ifdef GOOS_windows
