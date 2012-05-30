@@ -7,6 +7,8 @@ package html
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -589,3 +591,66 @@ loop:
 		t.Errorf("TestBufAPI: want %q got %q", u, v)
 	}
 }
+
+const (
+	rawLevel = iota
+	lowLevel
+	highLevel
+)
+
+func benchmarkTokenizer(b *testing.B, level int) {
+	buf, err := ioutil.ReadFile("testdata/go1.html")
+	if err != nil {
+		b.Fatalf("could not read testdata/go1.html: %v", err)
+	}
+	b.SetBytes(int64(len(buf)))
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	mallocs := ms.Mallocs
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		z := NewTokenizer(bytes.NewBuffer(buf))
+		for {
+			tt := z.Next()
+			if tt == ErrorToken {
+				if err := z.Err(); err != nil && err != io.EOF {
+					b.Fatalf("tokenizer error: %v", err)
+				}
+				break
+			}
+			switch level {
+			case rawLevel:
+				// Calling z.Raw just returns the raw bytes of the token. It does
+				// not unescape &lt; to <, or lower-case tag names and attribute keys.
+				z.Raw()
+			case lowLevel:
+				// Caling z.Text, z.TagName and z.TagAttr returns []byte values
+				// whose contents may change on the next call to z.Next.
+				switch tt {
+				case TextToken, CommentToken, DoctypeToken:
+					z.Text()
+				case StartTagToken, SelfClosingTagToken:
+					_, more := z.TagName()
+					for more {
+						_, _, more = z.TagAttr()
+					}
+				case EndTagToken:
+					z.TagName()
+				}
+			case highLevel:
+				// Calling z.Token converts []byte values to strings whose validity
+				// extend beyond the next call to z.Next.
+				z.Token()
+			}
+		}
+	}
+	b.StopTimer()
+	runtime.ReadMemStats(&ms)
+	mallocs = ms.Mallocs - mallocs
+	b.Logf("%d iterations, %d mallocs per iteration\n", b.N, int(mallocs)/b.N)
+}
+
+func BenchmarkRawLevelTokenizer(b *testing.B)  { benchmarkTokenizer(b, rawLevel) }
+func BenchmarkLowLevelTokenizer(b *testing.B)  { benchmarkTokenizer(b, lowLevel) }
+func BenchmarkHighLevelTokenizer(b *testing.B) { benchmarkTokenizer(b, highLevel) }

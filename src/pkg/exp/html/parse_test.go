@@ -11,8 +11,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -385,4 +387,24 @@ var renderTestBlacklist = map[string]bool{
 	// A <plaintext> element is reparented, putting it before a table.
 	// A <plaintext> element can't have anything after it in HTML.
 	`<table><plaintext><td>`: true,
+}
+
+func BenchmarkParser(b *testing.B) {
+	buf, err := ioutil.ReadFile("testdata/go1.html")
+	if err != nil {
+		b.Fatalf("could not read testdata/go1.html: %v", err)
+	}
+	b.SetBytes(int64(len(buf)))
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	mallocs := ms.Mallocs
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Parse(bytes.NewBuffer(buf))
+	}
+	b.StopTimer()
+	runtime.ReadMemStats(&ms)
+	mallocs = ms.Mallocs - mallocs
+	b.Logf("%d iterations, %d mallocs per iteration\n", b.N, int(mallocs)/b.N)
 }
