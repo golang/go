@@ -167,7 +167,7 @@ struct	Slice
 struct	Gobuf
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
-	byte*	sp;
+	uintptr	sp;
 	byte*	pc;
 	G*	g;
 };
@@ -183,15 +183,15 @@ struct	GCStats
 };
 struct	G
 {
-	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
-	byte*	stackbase;	// cannot move - also known to libmach, runtime/cgo
+	uintptr	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
+	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
-	byte*	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
-	byte*	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
-	byte*	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
-	byte*	stack0;
+	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
+	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+	uintptr	stack0;
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
@@ -486,7 +486,7 @@ struct Defer
 	byte*	pc;
 	byte*	fn;
 	Defer*	link;
-	byte	args[8];	// padded to actual size
+	void*	args[1];	// padded to actual size
 };
 
 /*

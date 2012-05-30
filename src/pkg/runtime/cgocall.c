@@ -235,7 +235,7 @@ unwindm(void)
 	case '8':
 	case '6':
 	case '5':
-		m->g0->sched.sp = *(void**)m->g0->sched.sp;
+		m->g0->sched.sp = *(uintptr*)m->g0->sched.sp;
 		break;
 	}
 }

@@ -40,7 +40,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 	waspanic = false;
 	
 	// If the PC is goexit, the goroutine hasn't started yet.
-	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
+	if(pc0 == g->sched.pc && sp == (byte*)g->sched.sp && pc0 == (byte*)runtime·goexit) {
 		fp = sp;
 		lr = pc;
 		pc = (uintptr)g->entry;
@@ -74,7 +74,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		if(pc == (uintptr)runtime·lessstack) {
 			// Hit top of stack segment.  Unwind to next segment.
 			pc = (uintptr)stk->gobuf.pc;
-			sp = stk->gobuf.sp;
+			sp = (byte*)stk->gobuf.sp;
 			lr = 0;
 			fp = nil;
 			if(pcbuf == nil)
@@ -167,9 +167,9 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			// use it to keep unwinding the stack.
 			runtime·printf("----- morestack called from goroutine %d -----\n", m->curg->goid);
 			pc = (uintptr)m->morepc;
-			sp = m->morebuf.sp - sizeof(void*);
+			sp = (byte*)m->morebuf.sp - sizeof(void*);
 			lr = (uintptr)m->morebuf.pc;
-			fp = m->morebuf.sp;
+			fp = (byte*)m->morebuf.sp;
 			sawnewstack = 0;
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
@@ -181,7 +181,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
-			sp = stk->gobuf.sp;
+			sp = (byte*)stk->gobuf.sp;
 			pc = (uintptr)stk->gobuf.pc;
 			fp = nil;
 			lr = 0;
