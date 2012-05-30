@@ -847,6 +847,7 @@ buildop(void)
 		case ASTREXD:
 		case ATST:
 		case APLD:
+		case AUNDEF:
 			break;
 		}
 	}

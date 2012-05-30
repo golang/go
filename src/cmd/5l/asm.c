@@ -1791,6 +1791,15 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 			o1 |= (-p->from.offset) & 0xfff;
 		} else
 			o1 |= p->from.offset & 0xfff;
+	case 96:	/* UNDEF */
+		// This is supposed to be something that stops execution.
+		// It's not supposed to be reached, ever, but if it is, we'd
+		// like to be able to tell how we got there.  Assemble as
+		//	BL $0
+		v = (0 - pc) - 8;
+		o1 = opbra(ABL, C_SCOND_NONE);
+		o1 |= (v >> 2) & 0xffffff;
+		break;
 	}
 	
 	out[0] = o1;

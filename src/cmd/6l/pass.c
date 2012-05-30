@@ -79,6 +79,7 @@ nofollow(int a)
 	case ARETFL:
 	case ARETFQ:
 	case ARETFW:
+	case AUNDEF:
 		return 1;
 	}
 	return 0;

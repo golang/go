@@ -458,6 +458,8 @@ enum	as
 	APREFETCHNTA,
 	
 	ABSWAPL,
+	
+	AUNDEF,
 
 	ALAST
 };

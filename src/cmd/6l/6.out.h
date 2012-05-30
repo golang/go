@@ -745,6 +745,8 @@ enum	as
 	AMOVQL,
 	ABSWAPL,
 	ABSWAPQ,
+	
+	AUNDEF,
 
 	ALAST
 };

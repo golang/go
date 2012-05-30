@@ -75,6 +75,7 @@ nofollow(int a)
 	case ARET:
 	case AIRETL:
 	case AIRETW:
+	case AUNDEF:
 		return 1;
 	}
 	return 0;
