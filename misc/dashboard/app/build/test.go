@@ -43,14 +43,15 @@ var testPackages = []*Package{
 
 var tCommitTime = time.Now().Add(-time.Hour * 24 * 7)
 
-func tCommit(hash, parentHash string) *Commit {
+func tCommit(hash, parentHash, path string) *Commit {
 	tCommitTime.Add(time.Hour) // each commit should have a different time
 	return &Commit{
-		Hash:       hash,
-		ParentHash: parentHash,
-		Time:       tCommitTime,
-		User:       "adg",
-		Desc:       "change description",
+		PackagePath: path,
+		Hash:        hash,
+		ParentHash:  parentHash,
+		Time:        tCommitTime,
+		User:        "adg",
+		Desc:        "change description " + hash,
 	}
 }
 
@@ -64,9 +65,9 @@ var testRequests = []struct {
 	{"/packages?kind=subrepo", nil, nil, []*Package{testPackage}},
 
 	// Go repo
-	{"/commit", nil, tCommit("0001", "0000"), nil},
-	{"/commit", nil, tCommit("0002", "0001"), nil},
-	{"/commit", nil, tCommit("0003", "0002"), nil},
+	{"/commit", nil, tCommit("0001", "0000", ""), nil},
+	{"/commit", nil, tCommit("0002", "0001", ""), nil},
+	{"/commit", nil, tCommit("0003", "0002", ""), nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
@@ -81,12 +82,12 @@ var testRequests = []struct {
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0002"}}},
 
 	// branches
-	{"/commit", nil, tCommit("0004", "0003"), nil},
-	{"/commit", nil, tCommit("0005", "0002"), nil},
+	{"/commit", nil, tCommit("0004", "0003", ""), nil},
+	{"/commit", nil, tCommit("0005", "0002", ""), nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0004"}}},
-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: true}, nil},
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: false}, nil},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 
 	// logs
@@ -98,9 +99,9 @@ var testRequests = []struct {
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
 
 	// non-Go repos
-	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
-	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
-	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1003", ParentHash: "1002"}, nil},
+	{"/commit", nil, tCommit("1001", "1000", testPkg), nil},
+	{"/commit", nil, tCommit("1002", "1001", testPkg), nil},
+	{"/commit", nil, tCommit("1003", "1002", testPkg), nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1003", GoHash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1002"}}},
@@ -230,7 +231,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	fmt.Fprint(w, "PASS")
+	fmt.Fprint(w, "PASS\nYou should see only one mail notification (for 0003/linux-386) in the dev_appserver logs.")
 }
 
 func nukeEntities(c appengine.Context, kinds []string) error {
