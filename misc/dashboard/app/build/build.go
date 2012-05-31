@@ -168,15 +168,6 @@ func partsToHash(c *Commit, p []string) *Result {
 	}
 }
 
-// OK returns the Commit's build state for a specific builder and goHash.
-func (c *Commit) OK(builder, goHash string) (ok, present bool) {
-	r := c.Result(builder, goHash)
-	if r == nil {
-		return false, false
-	}
-	return r.OK, true
-}
-
 // A Result describes a build result for a Commit on an OS/architecture.
 //
 // Each Result entity is a descendant of its associated Commit entity.
