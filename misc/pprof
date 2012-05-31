@@ -3753,15 +3753,19 @@ sub ReadHeapProfile {
         } else {
           # Remote-heap version 1
           my $ratio;
-          $ratio = (($s1*1.0)/$n1)/($sample_adjustment);
-          if ($ratio < 1) {
-            $n1 /= $ratio;
-            $s1 /= $ratio;
+          if ($n1 > 0) {
+            $ratio = (($s1*1.0)/$n1)/($sample_adjustment);
+            if ($ratio < 1) {
+                $n1 /= $ratio;
+                $s1 /= $ratio;
+            }
           }
-          $ratio = (($s2*1.0)/$n2)/($sample_adjustment);
-          if ($ratio < 1) {
-            $n2 /= $ratio;
-            $s2 /= $ratio;
+          if ($n2 > 0) {
+            $ratio = (($s2*1.0)/$n2)/($sample_adjustment);
+            if ($ratio < 1) {
+                $n2 /= $ratio;
+                $s2 /= $ratio;
+            }
           }
         }
       }
