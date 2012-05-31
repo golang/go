@@ -6,6 +6,7 @@ package html
 
 import (
 	"bytes"
+	"exp/html/atom"
 	"io"
 	"strconv"
 	"strings"
@@ -791,13 +792,13 @@ func (z *Tokenizer) Token() Token {
 		for moreAttr {
 			var key, val []byte
 			key, val, moreAttr = z.TagAttr()
-			attr = append(attr, Attribute{"", string(key), string(val)})
+			attr = append(attr, Attribute{"", atom.String(key), string(val)})
 		}
-		t.Data = string(name)
+		t.Data = atom.String(name)
 		t.Attr = attr
 	case EndTagToken:
 		name, _ := z.TagName()
-		t.Data = string(name)
+		t.Data = atom.String(name)
 	}
 	return t
 }
