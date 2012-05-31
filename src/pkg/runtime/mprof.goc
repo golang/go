@@ -107,20 +107,26 @@ runtime·MProf_GC(void)
 
 // Map from pointer to Bucket* that allocated it.
 // Three levels:
-//	Linked-list hash table for top N-20 bits.
-//	Array index for next 13 bits.
-//	Linked list for next 7 bits.
+//	Linked-list hash table for top N-AddrHashShift bits.
+//	Array index for next AddrDenseBits bits.
+//	Linked list for next AddrHashShift-AddrDenseBits bits.
 // This is more efficient than using a general map,
 // because of the typical clustering of the pointer keys.
 
 typedef struct AddrHash AddrHash;
 typedef struct AddrEntry AddrEntry;
 
+enum {
+	AddrHashBits = 12,	// good for 4GB of used address space
+	AddrHashShift = 20,	// each AddrHash knows about 1MB of address space
+	AddrDenseBits = 8,	// good for a profiling rate of 4096 bytes
+};
+
 struct AddrHash
 {
 	AddrHash *next;	// next in top-level hash table linked list
 	uintptr addr;	// addr>>20
-	AddrEntry *dense[1<<13];
+	AddrEntry *dense[1<<AddrDenseBits];
 };
 
 struct AddrEntry
@@ -130,9 +136,6 @@ struct AddrEntry
 	Bucket *b;
 };
 
-enum {
-	AddrHashBits = 12	// 1MB per entry, so good for 4GB of used address space
-};
 static AddrHash *addrhash[1<<AddrHashBits];
 static AddrEntry *addrfree;
 static uintptr addrmem;
@@ -155,15 +158,15 @@ setaddrbucket(uintptr addr, Bucket *b)
 	AddrHash *ah;
 	AddrEntry *e;
 
-	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
 	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>20))
+		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 
 	ah = runtime·mallocgc(sizeof *ah, FlagNoProfiling, 0, 1);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
-	ah->addr = addr>>20;
+	ah->addr = addr>>AddrHashShift;
 	addrhash[h] = ah;
 
 found:
@@ -175,9 +178,9 @@ found:
 		e[63].next = nil;
 	}
 	addrfree = e->next;
-	e->addr = (uint32)~(addr & ((1<<20)-1));
+	e->addr = (uint32)~(addr & ((1<<AddrHashShift)-1));
 	e->b = b;
-	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
 	e->next = ah->dense[h];
 	ah->dense[h] = e;
 }
@@ -191,16 +194,16 @@ getaddrbucket(uintptr addr)
 	AddrEntry *e, **l;
 	Bucket *b;
 
-	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
+	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
 	for(ah=addrhash[h]; ah; ah=ah->next)
-		if(ah->addr == (addr>>20))
+		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 	return nil;
 
 found:
-	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
+	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
 	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
-		if(e->addr == (uint32)~(addr & ((1<<20)-1))) {
+		if(e->addr == (uint32)~(addr & ((1<<AddrHashShift)-1))) {
 			*l = e->next;
 			b = e->b;
 			e->next = addrfree;
