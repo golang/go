@@ -2,601 +2,921 @@ package atom
 
 const (
 	A                Atom = 1
-	Abbr             Atom = 2
-	Accept           Atom = 3
-	AcceptCharset    Atom = 4
-	Accesskey        Atom = 5
-	Action           Atom = 6
-	Address          Atom = 7
-	Align            Atom = 8
-	Alt              Atom = 9
-	Annotation       Atom = 10
-	Applet           Atom = 11
-	Area             Atom = 12
-	Article          Atom = 13
-	Aside            Atom = 14
-	Async            Atom = 15
-	Audio            Atom = 16
-	Autocomplete     Atom = 17
-	Autofocus        Atom = 18
-	Autoplay         Atom = 19
-	B                Atom = 20
-	Base             Atom = 21
-	Bdi              Atom = 22
-	Bdo              Atom = 23
-	Blockquote       Atom = 24
-	Body             Atom = 25
-	Border           Atom = 26
-	Br               Atom = 27
-	Button           Atom = 28
-	Canvas           Atom = 29
-	Caption          Atom = 30
-	Center           Atom = 31
-	Challenge        Atom = 32
-	Charset          Atom = 33
-	Checked          Atom = 34
-	Cite             Atom = 35
-	Class            Atom = 36
-	Code             Atom = 37
-	Col              Atom = 38
-	Colgroup         Atom = 39
-	Color            Atom = 40
-	Cols             Atom = 41
-	Colspan          Atom = 42
-	Command          Atom = 43
-	Content          Atom = 44
-	Contenteditable  Atom = 45
-	Contextmenu      Atom = 46
-	Controls         Atom = 47
-	Coords           Atom = 48
-	Crossorigin      Atom = 49
-	Data             Atom = 50
-	Datalist         Atom = 51
-	Datetime         Atom = 52
-	Dd               Atom = 53
-	Default          Atom = 54
-	Defer            Atom = 55
-	Del              Atom = 56
-	Details          Atom = 57
-	Dfn              Atom = 58
-	Dialog           Atom = 59
-	Dir              Atom = 60
-	Dirname          Atom = 61
-	Disabled         Atom = 62
-	Div              Atom = 63
-	Dl               Atom = 64
-	Download         Atom = 65
-	Draggable        Atom = 66
-	Dropzone         Atom = 67
-	Dt               Atom = 68
-	Em               Atom = 69
-	Embed            Atom = 70
-	Enctype          Atom = 71
-	Fieldset         Atom = 72
-	Figcaption       Atom = 73
-	Figure           Atom = 74
-	Font             Atom = 75
-	Footer           Atom = 76
-	For              Atom = 77
-	Form             Atom = 78
-	Formaction       Atom = 79
-	Formenctype      Atom = 80
-	Formmethod       Atom = 81
-	Formnovalidate   Atom = 82
-	Formtarget       Atom = 83
-	Frame            Atom = 84
-	Frameset         Atom = 85
-	H1               Atom = 86
-	H2               Atom = 87
-	H3               Atom = 88
-	H4               Atom = 89
-	H5               Atom = 90
-	H6               Atom = 91
-	Head             Atom = 92
-	Header           Atom = 93
-	Headers          Atom = 94
-	Height           Atom = 95
-	Hgroup           Atom = 96
-	Hidden           Atom = 97
-	High             Atom = 98
-	Hr               Atom = 99
-	Href             Atom = 100
-	Hreflang         Atom = 101
-	Html             Atom = 102
-	HttpEquiv        Atom = 103
-	I                Atom = 104
-	Icon             Atom = 105
-	Id               Atom = 106
-	Iframe           Atom = 107
-	Img              Atom = 108
-	Inert            Atom = 109
-	Input            Atom = 110
-	Ins              Atom = 111
-	Ismap            Atom = 112
-	Itemid           Atom = 113
-	Itemprop         Atom = 114
-	Itemref          Atom = 115
-	Itemscope        Atom = 116
-	Itemtype         Atom = 117
-	Kbd              Atom = 118
-	Keygen           Atom = 119
-	Keytype          Atom = 120
-	Kind             Atom = 121
-	Label            Atom = 122
-	Lang             Atom = 123
-	Legend           Atom = 124
-	Li               Atom = 125
-	Link             Atom = 126
-	List             Atom = 127
-	Loop             Atom = 128
-	Low              Atom = 129
-	Manifest         Atom = 130
-	Map              Atom = 131
-	Mark             Atom = 132
-	Max              Atom = 133
-	Maxlength        Atom = 134
-	Media            Atom = 135
-	Mediagroup       Atom = 136
-	Menu             Atom = 137
-	Meta             Atom = 138
-	Meter            Atom = 139
-	Method           Atom = 140
-	Min              Atom = 141
-	Multiple         Atom = 142
-	Muted            Atom = 143
-	Name             Atom = 144
-	Nav              Atom = 145
-	Nobr             Atom = 146
-	Noscript         Atom = 147
-	Novalidate       Atom = 148
-	Object           Atom = 149
-	Ol               Atom = 150
-	Onabort          Atom = 151
-	Onafterprint     Atom = 152
-	Onbeforeprint    Atom = 153
-	Onbeforeunload   Atom = 154
-	Onblur           Atom = 155
-	Oncancel         Atom = 156
-	Oncanplay        Atom = 157
-	Oncanplaythrough Atom = 158
-	Onchange         Atom = 159
-	Onclick          Atom = 160
-	Onclose          Atom = 161
-	Oncontextmenu    Atom = 162
-	Oncuechange      Atom = 163
-	Ondblclick       Atom = 164
-	Ondrag           Atom = 165
-	Ondragend        Atom = 166
-	Ondragenter      Atom = 167
-	Ondragleave      Atom = 168
-	Ondragover       Atom = 169
-	Ondragstart      Atom = 170
-	Ondrop           Atom = 171
-	Ondurationchange Atom = 172
-	Onemptied        Atom = 173
-	Onended          Atom = 174
-	Onerror          Atom = 175
-	Onfocus          Atom = 176
-	Onhashchange     Atom = 177
-	Oninput          Atom = 178
-	Oninvalid        Atom = 179
-	Onkeydown        Atom = 180
-	Onkeypress       Atom = 181
-	Onkeyup          Atom = 182
-	Onload           Atom = 183
-	Onloadeddata     Atom = 184
-	Onloadedmetadata Atom = 185
-	Onloadstart      Atom = 186
-	Onmessage        Atom = 187
-	Onmousedown      Atom = 188
-	Onmousemove      Atom = 189
-	Onmouseout       Atom = 190
-	Onmouseover      Atom = 191
-	Onmouseup        Atom = 192
-	Onmousewheel     Atom = 193
-	Onoffline        Atom = 194
-	Ononline         Atom = 195
-	Onpagehide       Atom = 196
-	Onpageshow       Atom = 197
-	Onpause          Atom = 198
-	Onplay           Atom = 199
-	Onplaying        Atom = 200
-	Onpopstate       Atom = 201
-	Onprogress       Atom = 202
-	Onratechange     Atom = 203
-	Onreset          Atom = 204
-	Onresize         Atom = 205
-	Onscroll         Atom = 206
-	Onseeked         Atom = 207
-	Onseeking        Atom = 208
-	Onselect         Atom = 209
-	Onshow           Atom = 210
-	Onstalled        Atom = 211
-	Onstorage        Atom = 212
-	Onsubmit         Atom = 213
-	Onsuspend        Atom = 214
-	Ontimeupdate     Atom = 215
-	Onunload         Atom = 216
-	Onvolumechange   Atom = 217
-	Onwaiting        Atom = 218
-	Open             Atom = 219
-	Optgroup         Atom = 220
-	Optimum          Atom = 221
-	Option           Atom = 222
-	Output           Atom = 223
-	P                Atom = 224
-	Param            Atom = 225
-	Pattern          Atom = 226
-	Ping             Atom = 227
-	Placeholder      Atom = 228
-	Poster           Atom = 229
-	Pre              Atom = 230
-	Preload          Atom = 231
-	Progress         Atom = 232
-	Q                Atom = 233
-	Radiogroup       Atom = 234
-	Readonly         Atom = 235
-	Rel              Atom = 236
-	Required         Atom = 237
-	Reversed         Atom = 238
-	Rows             Atom = 239
-	Rowspan          Atom = 240
-	Rp               Atom = 241
-	Rt               Atom = 242
-	Ruby             Atom = 243
-	S                Atom = 244
-	Samp             Atom = 245
-	Sandbox          Atom = 246
-	Scope            Atom = 247
-	Scoped           Atom = 248
-	Script           Atom = 249
-	Seamless         Atom = 250
-	Section          Atom = 251
-	Select           Atom = 252
-	Selected         Atom = 253
-	Shape            Atom = 254
-	Size             Atom = 255
-	Sizes            Atom = 256
-	Small            Atom = 257
-	Source           Atom = 258
-	Span             Atom = 259
-	Spellcheck       Atom = 260
-	Src              Atom = 261
-	Srcdoc           Atom = 262
-	Srclang          Atom = 263
-	Start            Atom = 264
-	Step             Atom = 265
-	Strong           Atom = 266
-	Style            Atom = 267
-	Sub              Atom = 268
-	Summary          Atom = 269
-	Sup              Atom = 270
-	Tabindex         Atom = 271
-	Table            Atom = 272
-	Target           Atom = 273
-	Tbody            Atom = 274
-	Td               Atom = 275
-	Textarea         Atom = 276
-	Tfoot            Atom = 277
-	Th               Atom = 278
-	Thead            Atom = 279
-	Time             Atom = 280
-	Title            Atom = 281
-	Tr               Atom = 282
-	Track            Atom = 283
-	Translate        Atom = 284
-	Type             Atom = 285
-	Typemustmatch    Atom = 286
-	U                Atom = 287
-	Ul               Atom = 288
-	Usemap           Atom = 289
-	Value            Atom = 290
-	Var              Atom = 291
-	Video            Atom = 292
-	Wbr              Atom = 293
-	Width            Atom = 294
-	Wrap             Atom = 295
+	Abbr             Atom = 58
+	Accept           Atom = 126
+	AcceptCharset    Atom = 288
+	Accesskey        Atom = 230
+	Action           Atom = 127
+	Address          Atom = 182
+	Align            Atom = 91
+	Alt              Atom = 32
+	Annotation       Atom = 251
+	Applet           Atom = 128
+	Area             Atom = 59
+	Article          Atom = 184
+	Aside            Atom = 92
+	Async            Atom = 93
+	Audio            Atom = 94
+	Autocomplete     Atom = 278
+	Autofocus        Atom = 243
+	Autoplay         Atom = 221
+	B                Atom = 2
+	Base             Atom = 56
+	Bdi              Atom = 30
+	Bdo              Atom = 31
+	Blockquote       Atom = 248
+	Body             Atom = 57
+	Border           Atom = 124
+	Br               Atom = 8
+	Button           Atom = 125
+	Canvas           Atom = 121
+	Caption          Atom = 160
+	Center           Atom = 122
+	Challenge        Atom = 242
+	Charset          Atom = 163
+	Checked          Atom = 164
+	Cite             Atom = 53
+	Class            Atom = 90
+	Code             Atom = 54
+	Col              Atom = 29
+	Colgroup         Atom = 193
+	Color            Atom = 89
+	Cols             Atom = 55
+	Colspan          Atom = 167
+	Command          Atom = 166
+	Content          Atom = 165
+	Contenteditable  Atom = 292
+	Contextmenu      Atom = 277
+	Controls         Atom = 192
+	Coords           Atom = 123
+	Crossorigin      Atom = 266
+	Data             Atom = 62
+	Datalist         Atom = 219
+	Datetime         Atom = 220
+	Dd               Atom = 10
+	Default          Atom = 188
+	Defer            Atom = 97
+	Del              Atom = 35
+	Details          Atom = 189
+	Dfn              Atom = 34
+	Dialog           Atom = 131
+	Dir              Atom = 36
+	Dirname          Atom = 190
+	Disabled         Atom = 216
+	Div              Atom = 37
+	Dl               Atom = 11
+	Download         Atom = 195
+	Draggable        Atom = 235
+	Dropzone         Atom = 202
+	Dt               Atom = 12
+	Em               Atom = 9
+	Embed            Atom = 96
+	Enctype          Atom = 183
+	Fieldset         Atom = 212
+	Figcaption       Atom = 247
+	Figure           Atom = 129
+	Font             Atom = 60
+	Footer           Atom = 130
+	For              Atom = 33
+	Form             Atom = 61
+	Formaction       Atom = 256
+	Formenctype      Atom = 273
+	Formmethod       Atom = 261
+	Formnovalidate   Atom = 289
+	Formtarget       Atom = 263
+	Frame            Atom = 95
+	Frameset         Atom = 198
+	H1               Atom = 13
+	H2               Atom = 14
+	H3               Atom = 15
+	H4               Atom = 16
+	H5               Atom = 17
+	H6               Atom = 18
+	Head             Atom = 65
+	Header           Atom = 136
+	Headers          Atom = 187
+	Height           Atom = 137
+	Hgroup           Atom = 135
+	Hidden           Atom = 138
+	High             Atom = 66
+	Hr               Atom = 20
+	Href             Atom = 67
+	Hreflang         Atom = 199
+	Html             Atom = 68
+	HttpEquiv        Atom = 254
+	I                Atom = 3
+	Icon             Atom = 64
+	Id               Atom = 19
+	Iframe           Atom = 133
+	Img              Atom = 40
+	Inert            Atom = 98
+	Input            Atom = 99
+	Ins              Atom = 39
+	Ismap            Atom = 100
+	Itemid           Atom = 134
+	Itemprop         Atom = 223
+	Itemref          Atom = 185
+	Itemscope        Atom = 240
+	Itemtype         Atom = 224
+	Kbd              Atom = 38
+	Keygen           Atom = 132
+	Keytype          Atom = 162
+	Kind             Atom = 63
+	Label            Atom = 104
+	Lang             Atom = 75
+	Legend           Atom = 149
+	Li               Atom = 22
+	Link             Atom = 76
+	List             Atom = 77
+	Loop             Atom = 78
+	Low              Atom = 45
+	Manifest         Atom = 213
+	Map              Atom = 42
+	Mark             Atom = 72
+	Max              Atom = 43
+	Maxlength        Atom = 245
+	Media            Atom = 101
+	Mediagroup       Atom = 257
+	Menu             Atom = 73
+	Meta             Atom = 74
+	Meter            Atom = 102
+	Method           Atom = 148
+	Min              Atom = 44
+	Multiple         Atom = 215
+	Muted            Atom = 103
+	Name             Atom = 70
+	Nav              Atom = 41
+	Nobr             Atom = 71
+	Noscript         Atom = 194
+	Novalidate       Atom = 262
+	Object           Atom = 139
+	Ol               Atom = 21
+	Onabort          Atom = 170
+	Onafterprint     Atom = 280
+	Onbeforeprint    Atom = 287
+	Onbeforeunload   Atom = 291
+	Onblur           Atom = 140
+	Oncancel         Atom = 196
+	Oncanplay        Atom = 227
+	Oncanplaythrough Atom = 295
+	Onchange         Atom = 197
+	Onclick          Atom = 168
+	Onclose          Atom = 169
+	Oncontextmenu    Atom = 286
+	Oncuechange      Atom = 267
+	Ondblclick       Atom = 255
+	Ondrag           Atom = 141
+	Ondragend        Atom = 246
+	Ondragenter      Atom = 270
+	Ondragleave      Atom = 269
+	Ondragover       Atom = 252
+	Ondragstart      Atom = 268
+	Ondrop           Atom = 142
+	Ondurationchange Atom = 293
+	Onemptied        Atom = 241
+	Onended          Atom = 172
+	Onerror          Atom = 173
+	Onfocus          Atom = 171
+	Onhashchange     Atom = 283
+	Oninput          Atom = 175
+	Oninvalid        Atom = 239
+	Onkeydown        Atom = 231
+	Onkeypress       Atom = 264
+	Onkeyup          Atom = 174
+	Onload           Atom = 143
+	Onloadeddata     Atom = 284
+	Onloadedmetadata Atom = 294
+	Onloadstart      Atom = 271
+	Onmessage        Atom = 236
+	Onmousedown      Atom = 274
+	Onmousemove      Atom = 275
+	Onmouseout       Atom = 250
+	Onmouseover      Atom = 276
+	Onmouseup        Atom = 237
+	Onmousewheel     Atom = 279
+	Onoffline        Atom = 228
+	Ononline         Atom = 201
+	Onpagehide       Atom = 259
+	Onpageshow       Atom = 258
+	Onpause          Atom = 177
+	Onplay           Atom = 145
+	Onplaying        Atom = 244
+	Onpopstate       Atom = 249
+	Onprogress       Atom = 253
+	Onratechange     Atom = 282
+	Onreset          Atom = 176
+	Onresize         Atom = 207
+	Onscroll         Atom = 203
+	Onseeked         Atom = 204
+	Onseeking        Atom = 229
+	Onselect         Atom = 205
+	Onshow           Atom = 144
+	Onstalled        Atom = 233
+	Onstorage        Atom = 234
+	Onsubmit         Atom = 206
+	Onsuspend        Atom = 232
+	Ontimeupdate     Atom = 281
+	Onunload         Atom = 208
+	Onvolumechange   Atom = 290
+	Onwaiting        Atom = 226
+	Open             Atom = 69
+	Optgroup         Atom = 225
+	Optimum          Atom = 179
+	Option           Atom = 146
+	Output           Atom = 147
+	P                Atom = 4
+	Param            Atom = 111
+	Pattern          Atom = 186
+	Ping             Atom = 85
+	Placeholder      Atom = 272
+	Poster           Atom = 156
+	Pre              Atom = 50
+	Preload          Atom = 191
+	Progress         Atom = 200
+	Q                Atom = 5
+	Radiogroup       Atom = 260
+	Readonly         Atom = 210
+	Rel              Atom = 49
+	Required         Atom = 217
+	Reversed         Atom = 218
+	Rows             Atom = 83
+	Rowspan          Atom = 181
+	Rp               Atom = 23
+	Rt               Atom = 24
+	Ruby             Atom = 84
+	S                Atom = 6
+	Samp             Atom = 79
+	Sandbox          Atom = 159
+	Scope            Atom = 105
+	Scoped           Atom = 150
+	Script           Atom = 151
+	Seamless         Atom = 211
+	Section          Atom = 161
+	Select           Atom = 152
+	Selected         Atom = 214
+	Shape            Atom = 107
+	Size             Atom = 80
+	Sizes            Atom = 106
+	Small            Atom = 108
+	Source           Atom = 153
+	Span             Atom = 81
+	Spellcheck       Atom = 265
+	Src              Atom = 46
+	Srcdoc           Atom = 154
+	Srclang          Atom = 178
+	Start            Atom = 109
+	Step             Atom = 82
+	Strong           Atom = 155
+	Style            Atom = 110
+	Sub              Atom = 47
+	Summary          Atom = 180
+	Sup              Atom = 48
+	Tabindex         Atom = 209
+	Table            Atom = 116
+	Target           Atom = 158
+	Tbody            Atom = 115
+	Td               Atom = 26
+	Textarea         Atom = 222
+	Tfoot            Atom = 117
+	Th               Atom = 27
+	Thead            Atom = 119
+	Time             Atom = 87
+	Title            Atom = 118
+	Tr               Atom = 28
+	Track            Atom = 120
+	Translate        Atom = 238
+	Type             Atom = 88
+	Typemustmatch    Atom = 285
+	U                Atom = 7
+	Ul               Atom = 25
+	Usemap           Atom = 157
+	Value            Atom = 113
+	Var              Atom = 52
+	Video            Atom = 114
+	Wbr              Atom = 51
+	Width            Atom = 112
+	Wrap             Atom = 86
 )
 
-const max Atom = 295
+const maxLen = 16
 
-var table = []string{
+var table = [...]string{
 	"",
 	"a",
-	"abbr",
-	"accept",
-	"accept-charset",
-	"accesskey",
-	"action",
-	"address",
-	"align",
-	"alt",
-	"annotation",
-	"applet",
-	"area",
-	"article",
-	"aside",
-	"async",
-	"audio",
-	"autocomplete",
-	"autofocus",
-	"autoplay",
 	"b",
-	"base",
-	"bdi",
-	"bdo",
-	"blockquote",
-	"body",
-	"border",
+	"i",
+	"p",
+	"q",
+	"s",
+	"u",
 	"br",
-	"button",
-	"canvas",
-	"caption",
-	"center",
-	"challenge",
-	"charset",
-	"checked",
-	"cite",
-	"class",
-	"code",
-	"col",
-	"colgroup",
-	"color",
-	"cols",
-	"colspan",
-	"command",
-	"content",
-	"contenteditable",
-	"contextmenu",
-	"controls",
-	"coords",
-	"crossorigin",
-	"data",
-	"datalist",
-	"datetime",
-	"dd",
-	"default",
-	"defer",
-	"del",
-	"details",
-	"dfn",
-	"dialog",
-	"dir",
-	"dirname",
-	"disabled",
-	"div",
-	"dl",
-	"download",
-	"draggable",
-	"dropzone",
-	"dt",
 	"em",
-	"embed",
-	"enctype",
-	"fieldset",
-	"figcaption",
-	"figure",
-	"font",
-	"footer",
-	"for",
-	"form",
-	"formaction",
-	"formenctype",
-	"formmethod",
-	"formnovalidate",
-	"formtarget",
-	"frame",
-	"frameset",
+	"dd",
+	"dl",
+	"dt",
 	"h1",
 	"h2",
 	"h3",
 	"h4",
 	"h5",
 	"h6",
-	"head",
-	"header",
-	"headers",
-	"height",
-	"hgroup",
-	"hidden",
-	"high",
-	"hr",
-	"href",
-	"hreflang",
-	"html",
-	"http-equiv",
-	"i",
-	"icon",
 	"id",
-	"iframe",
-	"img",
-	"inert",
-	"input",
-	"ins",
-	"ismap",
-	"itemid",
-	"itemprop",
-	"itemref",
-	"itemscope",
-	"itemtype",
-	"kbd",
-	"keygen",
-	"keytype",
-	"kind",
-	"label",
-	"lang",
-	"legend",
+	"hr",
+	"ol",
 	"li",
+	"rp",
+	"rt",
+	"ul",
+	"td",
+	"th",
+	"tr",
+	"col",
+	"bdi",
+	"bdo",
+	"alt",
+	"for",
+	"dfn",
+	"del",
+	"dir",
+	"div",
+	"kbd",
+	"ins",
+	"img",
+	"nav",
+	"map",
+	"max",
+	"min",
+	"low",
+	"src",
+	"sub",
+	"sup",
+	"rel",
+	"pre",
+	"wbr",
+	"var",
+	"cite",
+	"code",
+	"cols",
+	"base",
+	"body",
+	"abbr",
+	"area",
+	"font",
+	"form",
+	"data",
+	"kind",
+	"icon",
+	"head",
+	"high",
+	"href",
+	"html",
+	"open",
+	"name",
+	"nobr",
+	"mark",
+	"menu",
+	"meta",
+	"lang",
 	"link",
 	"list",
 	"loop",
-	"low",
-	"manifest",
-	"map",
-	"mark",
-	"max",
-	"maxlength",
+	"samp",
+	"size",
+	"span",
+	"step",
+	"rows",
+	"ruby",
+	"ping",
+	"wrap",
+	"time",
+	"type",
+	"color",
+	"class",
+	"align",
+	"aside",
+	"async",
+	"audio",
+	"frame",
+	"embed",
+	"defer",
+	"inert",
+	"input",
+	"ismap",
 	"media",
-	"mediagroup",
-	"menu",
-	"meta",
 	"meter",
-	"method",
-	"min",
-	"multiple",
 	"muted",
-	"name",
-	"nav",
-	"nobr",
-	"noscript",
-	"novalidate",
+	"label",
+	"scope",
+	"sizes",
+	"shape",
+	"small",
+	"start",
+	"style",
+	"param",
+	"width",
+	"value",
+	"video",
+	"tbody",
+	"table",
+	"tfoot",
+	"title",
+	"thead",
+	"track",
+	"canvas",
+	"center",
+	"coords",
+	"border",
+	"button",
+	"accept",
+	"action",
+	"applet",
+	"figure",
+	"footer",
+	"dialog",
+	"keygen",
+	"iframe",
+	"itemid",
+	"hgroup",
+	"header",
+	"height",
+	"hidden",
 	"object",
-	"ol",
-	"onabort",
-	"onafterprint",
-	"onbeforeprint",
-	"onbeforeunload",
 	"onblur",
-	"oncancel",
-	"oncanplay",
-	"oncanplaythrough",
-	"onchange",
-	"onclick",
-	"onclose",
-	"oncontextmenu",
-	"oncuechange",
-	"ondblclick",
 	"ondrag",
-	"ondragend",
-	"ondragenter",
-	"ondragleave",
-	"ondragover",
-	"ondragstart",
 	"ondrop",
-	"ondurationchange",
-	"onemptied",
-	"onended",
-	"onerror",
-	"onfocus",
-	"onhashchange",
-	"oninput",
-	"oninvalid",
-	"onkeydown",
-	"onkeypress",
-	"onkeyup",
 	"onload",
-	"onloadeddata",
-	"onloadedmetadata",
-	"onloadstart",
-	"onmessage",
-	"onmousedown",
-	"onmousemove",
-	"onmouseout",
-	"onmouseover",
-	"onmouseup",
-	"onmousewheel",
-	"onoffline",
-	"ononline",
-	"onpagehide",
-	"onpageshow",
-	"onpause",
-	"onplay",
-	"onplaying",
-	"onpopstate",
-	"onprogress",
-	"onratechange",
-	"onreset",
-	"onresize",
-	"onscroll",
-	"onseeked",
-	"onseeking",
-	"onselect",
 	"onshow",
-	"onstalled",
-	"onstorage",
-	"onsubmit",
-	"onsuspend",
-	"ontimeupdate",
-	"onunload",
-	"onvolumechange",
-	"onwaiting",
-	"open",
-	"optgroup",
-	"optimum",
+	"onplay",
 	"option",
 	"output",
-	"p",
-	"param",
-	"pattern",
-	"ping",
-	"placeholder",
-	"poster",
-	"pre",
-	"preload",
-	"progress",
-	"q",
-	"radiogroup",
-	"readonly",
-	"rel",
-	"required",
-	"reversed",
-	"rows",
-	"rowspan",
-	"rp",
-	"rt",
-	"ruby",
-	"s",
-	"samp",
-	"sandbox",
-	"scope",
+	"method",
+	"legend",
 	"scoped",
 	"script",
-	"seamless",
-	"section",
 	"select",
-	"selected",
-	"shape",
-	"size",
-	"sizes",
-	"small",
 	"source",
-	"span",
-	"spellcheck",
-	"src",
 	"srcdoc",
-	"srclang",
-	"start",
-	"step",
 	"strong",
-	"style",
-	"sub",
-	"summary",
-	"sup",
-	"tabindex",
-	"table",
-	"target",
-	"tbody",
-	"td",
-	"textarea",
-	"tfoot",
-	"th",
-	"thead",
-	"time",
-	"title",
-	"tr",
-	"track",
-	"translate",
-	"type",
-	"typemustmatch",
-	"u",
-	"ul",
+	"poster",
 	"usemap",
-	"value",
-	"var",
-	"video",
-	"wbr",
-	"width",
-	"wrap",
+	"target",
+	"sandbox",
+	"caption",
+	"section",
+	"keytype",
+	"charset",
+	"checked",
+	"content",
+	"command",
+	"colspan",
+	"onclick",
+	"onclose",
+	"onabort",
+	"onfocus",
+	"onended",
+	"onerror",
+	"onkeyup",
+	"oninput",
+	"onreset",
+	"onpause",
+	"srclang",
+	"optimum",
+	"summary",
+	"rowspan",
+	"address",
+	"enctype",
+	"article",
+	"itemref",
+	"pattern",
+	"headers",
+	"default",
+	"details",
+	"dirname",
+	"preload",
+	"controls",
+	"colgroup",
+	"noscript",
+	"download",
+	"oncancel",
+	"onchange",
+	"frameset",
+	"hreflang",
+	"progress",
+	"ononline",
+	"dropzone",
+	"onscroll",
+	"onseeked",
+	"onselect",
+	"onsubmit",
+	"onresize",
+	"onunload",
+	"tabindex",
+	"readonly",
+	"seamless",
+	"fieldset",
+	"manifest",
+	"selected",
+	"multiple",
+	"disabled",
+	"required",
+	"reversed",
+	"datalist",
+	"datetime",
+	"autoplay",
+	"textarea",
+	"itemprop",
+	"itemtype",
+	"optgroup",
+	"onwaiting",
+	"oncanplay",
+	"onoffline",
+	"onseeking",
+	"accesskey",
+	"onkeydown",
+	"onsuspend",
+	"onstalled",
+	"onstorage",
+	"draggable",
+	"onmessage",
+	"onmouseup",
+	"translate",
+	"oninvalid",
+	"itemscope",
+	"onemptied",
+	"challenge",
+	"autofocus",
+	"onplaying",
+	"maxlength",
+	"ondragend",
+	"figcaption",
+	"blockquote",
+	"onpopstate",
+	"onmouseout",
+	"annotation",
+	"ondragover",
+	"onprogress",
+	"http-equiv",
+	"ondblclick",
+	"formaction",
+	"mediagroup",
+	"onpageshow",
+	"onpagehide",
+	"radiogroup",
+	"formmethod",
+	"novalidate",
+	"formtarget",
+	"onkeypress",
+	"spellcheck",
+	"crossorigin",
+	"oncuechange",
+	"ondragstart",
+	"ondragleave",
+	"ondragenter",
+	"onloadstart",
+	"placeholder",
+	"formenctype",
+	"onmousedown",
+	"onmousemove",
+	"onmouseover",
+	"contextmenu",
+	"autocomplete",
+	"onmousewheel",
+	"onafterprint",
+	"ontimeupdate",
+	"onratechange",
+	"onhashchange",
+	"onloadeddata",
+	"typemustmatch",
+	"oncontextmenu",
+	"onbeforeprint",
+	"accept-charset",
+	"formnovalidate",
+	"onvolumechange",
+	"onbeforeunload",
+	"contenteditable",
+	"ondurationchange",
+	"onloadedmetadata",
+	"oncanplaythrough",
+}
+
+var hashes = [...]uint32{
+	0x00000000,
+	0x00000061,
+	0x00000062,
+	0x00000069,
+	0x00000070,
+	0x00000071,
+	0x00000073,
+	0x00000075,
+	0x00000c32,
+	0x00000ccd,
+	0x00000ce4,
+	0x00000cec,
+	0x00000cf4,
+	0x00000d31,
+	0x00000d32,
+	0x00000d33,
+	0x00000d34,
+	0x00000d35,
+	0x00000d36,
+	0x00000d44,
+	0x00000d72,
+	0x00000d8c,
+	0x00000de9,
+	0x00000e30,
+	0x00000e34,
+	0x00000ecc,
+	0x00000ee4,
+	0x00000ee8,
+	0x00000ef2,
+	0x0001818c,
+	0x000184e9,
+	0x000184ef,
+	0x000189f4,
+	0x00019592,
+	0x00019cae,
+	0x00019ccc,
+	0x00019d52,
+	0x00019d56,
+	0x0001a024,
+	0x0001a9b3,
+	0x0001a9c7,
+	0x0001b456,
+	0x0001b850,
+	0x0001b858,
+	0x0001b94e,
+	0x0001bd97,
+	0x0001c223,
+	0x0001c2c2,
+	0x0001c2d0,
+	0x0001c4cc,
+	0x0001ce25,
+	0x0001d032,
+	0x0001d452,
+	0x00302ae5,
+	0x003030e5,
+	0x003031f3,
+	0x00308a05,
+	0x0030b0f9,
+	0x00310432,
+	0x003144c1,
+	0x0032b1b4,
+	0x0032b22d,
+	0x00338ae1,
+	0x003429a4,
+	0x0035018e,
+	0x00359844,
+	0x0035a888,
+	0x0035c4c6,
+	0x0035ddcc,
+	0x00364cce,
+	0x003689c5,
+	0x0036b032,
+	0x00370a2b,
+	0x003719b5,
+	0x00371ae1,
+	0x003789a7,
+	0x0037a9ab,
+	0x0037aa14,
+	0x0037b190,
+	0x003809d0,
+	0x00382b25,
+	0x00384c4e,
+	0x00385cd0,
+	0x0038b293,
+	0x0038d839,
+	0x0039a9a7,
+	0x003a4450,
+	0x003ba9c5,
+	0x003bea65,
+	0x06063d92,
+	0x06078a13,
+	0x0627a88e,
+	0x062828e5,
+	0x062869a3,
+	0x062b1d4f,
+	0x065889c5,
+	0x066704c4,
+	0x067314d2,
+	0x06a69a34,
+	0x06a6ced4,
+	0x06a83850,
+	0x06e31d41,
+	0x06e35cd2,
+	0x06eb5cc4,
+	0x06f104cc,
+	0x07003265,
+	0x070564d3,
+	0x07058a65,
+	0x070709ec,
+	0x070b8a34,
+	0x070be9e5,
+	0x0731444d,
+	0x07451ee8,
+	0x07513ec5,
+	0x07551ccf,
+	0x0770b0f9,
+	0x077105e5,
+	0x0772b194,
+	0x07755de5,
+	0x07759844,
+	0x0778880b,
+	0xc026d453,
+	0xc066dcd2,
+	0xc0c644f3,
+	0xc2c89cd2,
+	0xc36bdd8e,
+	0xc4001a74,
+	0xc40ba98e,
+	0xc539bcd4,
+	0xcaa25a25,
+	0xcac65cd2,
+	0xcea13d87,
+	0xd06d10ce,
+	0xd45889c5,
+	0xd5733944,
+	0xd648b2d0,
+	0xd6611cd2,
+	0xd6651174,
+	0xd6a39cce,
+	0xd8149814,
+	0xd8d0bed2,
+	0xd8d3c447,
+	0xd8d3c590,
+	0xd8d7b044,
+	0xd8d82d97,
+	0xd8d9bc59,
+	0xd93ba98e,
+	0xd96bced4,
+	0xdc6bad84,
+	0xde6219a4,
+	0xe0064cc4,
+	0xe008aa74,
+	0xe0679814,
+	0xe0cb4405,
+	0xe1101d83,
+	0xe178b1a7,
+	0xe6c85cd2,
+	0xed033850,
+	0xee2890d4,
+	0x04d38584,
+	0x053ba996,
+	0x0c0ba992,
+	0x0dabea7f,
+	0x1628c0cc,
+	0x166020dc,
+	0x18db99ac,
+	0x18e709bc,
+	0x18f84c56,
+	0x1a07a810,
+	0x1a07b21e,
+	0x1a20b22f,
+	0x1a5602c8,
+	0x1a669cdf,
+	0x1a68c589,
+	0x1a836acb,
+	0x1aa6cecf,
+	0x1b1340cf,
+	0x1b315a1e,
+	0x220789bb,
+	0x27753ad6,
+	0x2ce70a25,
+	0x59484c52,
+	0x8e789a0b,
+	0x9a0bea7c,
+	0xa37501fd,
+	0xae6744dc,
+	0xc57b9a32,
+	0xcc239a29,
+	0xcc5159ed,
+	0xcd7129ea,
+	0xd51689dc,
+	0xe267b058,
+	0x1b78b2f0,
+	0x1e48b1d3,
+	0x2008a91f,
+	0x28d7b37f,
+	0x402683af,
+	0x40b137e6,
+	0x44e343f8,
+	0x4c578afb,
+	0x5848998f,
+	0x58d7aac6,
+	0x593cb299,
+	0x6008b28f,
+	0x606323a7,
+	0x60679b77,
+	0x6160ba37,
+	0x62682846,
+	0x6cd7b327,
+	0x82a69f60,
+	0x84763670,
+	0x84e79992,
+	0x8cf3c3fe,
+	0x9aa29964,
+	0x9e605f45,
+	0x9f754e90,
+	0xa020bffe,
+	0xa565474d,
+	0xaa68c34d,
+	0xae27a92c,
+	0xae6baafd,
+	0xaec9bf4c,
+	0xb7714778,
+	0xcce9c6c5,
+	0xccebe930,
+	0xee48b1b4,
+	0x04abc5ca,
+	0x04d9d031,
+	0x0a57c5ce,
+	0x0c6445cb,
+	0x0d0842d9,
+	0x0da3dee4,
+	0x2d09f5c8,
+	0x2e27d0a8,
+	0x2ec8e4e9,
+	0x8841626d,
+	0x8d0864ee,
+	0x996876bb,
+	0x9b07fd6d,
+	0x9b51512e,
+	0x9d0058dc,
+	0x9d3bc4ad,
+	0x9ef354dd,
+	0xd8566066,
+	0xde2d45cb,
+	0xde66fcfe,
+	0xe22275cd,
+	0x053703ae,
+	0x11271d85,
+	0x2706077e,
+	0x2d0ebfa7,
+	0x2e27e4e5,
+	0x444bd9ee,
+	0x5845178f,
+	0x5c642eea,
+	0x5e0a2533,
+	0x84070505,
+	0x844574ea,
+	0x8865a00f,
+	0x8868257d,
+	0x984690ea,
+	0x9c67010f,
+	0x9eae264d,
+	0xae243c5f,
+	0xb5351752,
+	0xde0b8b38,
+	0x18973dca,
+	0x81009434,
+	0x88ba2dbc,
+	0x8942ad2d,
+	0x89d77b5a,
+	0x8eba2554,
+	0x970a7ed3,
+	0x9b9e7b14,
+	0xa1d21ceb,
+	0xa1d69cc0,
+	0xa1d7fab7,
+	0xb6f6940c,
+	0x2c6d76e6,
+	0x3b705478,
+	0x950cec0d,
+	0x9b056094,
+	0xb687163c,
+	0xf6845607,
+	0xfa4666f0,
+	0x53ad92bb,
+	0x71f6940a,
+	0x8bbc6cd6,
+	0x1632b560,
+	0x561a2687,
+	0x5a00c22c,
+	0x7c4f1c15,
+	0x0ee8aacc,
+	0x2838bda9,
+	0x6f3c2ece,
+	0xf1d8d91d,
+}
+
+var loHi = [maxLen + 2]uint16{
+	0,
+	1,
+	8,
+	29,
+	53,
+	89,
+	121,
+	159,
+	192,
+	226,
+	247,
+	266,
+	278,
+	285,
+	288,
+	292,
+	293,
+	296,
 }
 
 var oneByteAtoms = [26]Atom{
