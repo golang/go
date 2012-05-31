@@ -37,12 +37,12 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 
 	p := &Package{Path: com.PackagePath}
 	var broken *Commit
-	ok, present := com.OK(builder, "")
-	if !present {
+	cr := com.Result(builder, "")
+	if cr == nil {
 		return fmt.Errorf("no result for %s/%s", com.Hash, builder)
 	}
 	q := datastore.NewQuery("Commit").Ancestor(p.Key(c))
-	if ok {
+	if cr.OK {
 		// This commit is OK. Notify if next Commit is broken.
 		next := new(Commit)
 		q.Filter("ParentHash=", com.Hash)
@@ -53,7 +53,9 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 			}
 			return err
 		}
-		if ok, present := next.OK(builder, ""); present && !ok {
+		if nr := next.Result(builder, ""); nr != nil && !nr.OK {
+			c.Debugf("commit ok: %#v\nresult: %#v", com, cr)
+			c.Debugf("next commit broken: %#v\nnext result:%#v", next, nr)
 			broken = next
 		}
 	} else {
@@ -68,7 +70,9 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 			}
 			return err
 		}
-		if ok, present := prev.OK(builder, ""); present && ok {
+		if pr := prev.Result(builder, ""); pr != nil && pr.OK {
+			c.Debugf("commit broken: %#v\nresult: %#v", com, cr)
+			c.Debugf("previous commit ok: %#v\nprevious result:%#v", prev, pr)
 			broken = com
 		}
 	}
