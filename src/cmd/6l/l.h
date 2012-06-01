@@ -41,6 +41,23 @@ enum
 {
 	thechar = '6',
 	PtrSize = 8,
+	
+	// Loop alignment constants:
+	// want to align loop entry to LoopAlign-byte boundary,
+	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
+	// We define a loop entry as the target of a backward jump.
+	//
+	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
+	// and it aligns all jump targets, not just backward jump targets.
+	//
+	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
+	// is very slight but negative, so the alignment is disabled by
+	// setting MaxLoopPad = 0. The code is here for reference and
+	// for future experiments.
+	// 
+	LoopAlign = 16,
+	MaxLoopPad = 0,
+
 	FuncAlign = 16
 };
 
