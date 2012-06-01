@@ -7,10 +7,12 @@ package dashboard
 // This file handles operations on the CL entity kind.
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"net/http"
 	netmail "net/mail"
 	"net/url"
@@ -256,6 +258,7 @@ func handleUpdateCL(w http.ResponseWriter, r *http.Request) {
 // updateCL updates a single CL. If a retryable failure occurs, an error is returned.
 func updateCL(c appengine.Context, n string) error {
 	c.Debugf("Updating CL %v", n)
+	key := datastore.NewKey(c, "CL", n, 0, nil)
 
 	url := codereviewBase + "/api/" + n + "?messages=true"
 	resp, err := urlfetch.Client(c).Get(url)
@@ -263,6 +266,20 @@ func updateCL(c appengine.Context, n string) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("Failed reading HTTP body: %v", err)
+	}
+
+	// Special case for abandoned CLs.
+	if resp.StatusCode == 404 && bytes.Contains(raw, []byte("No issue exists with that id")) {
+		// Don't bother checking for errors. The CL might never have been saved, for instance.
+		datastore.Delete(c, key)
+		c.Infof("Deleted abandoned CL %v", n)
+		return nil
+	}
+
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("Update: got HTTP response %d", resp.StatusCode)
 	}
@@ -281,7 +298,7 @@ func updateCL(c appengine.Context, n string) error {
 			Approval   bool     `json:"approval"`
 		} `json:"messages"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	if err := json.Unmarshal(raw, &apiResp); err != nil {
 		// probably can't be retried
 		c.Errorf("Malformed JSON from %v: %v", url, err)
 		return nil
@@ -341,7 +358,6 @@ func updateCL(c appengine.Context, n string) error {
 	sort.Strings(cl.LGTMs)
 	sort.Strings(cl.Recipients)
 
-	key := datastore.NewKey(c, "CL", n, 0, nil)
 	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
 		ocl := new(CL)
 		err := datastore.Get(c, key, ocl)
