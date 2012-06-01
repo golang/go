@@ -706,8 +706,12 @@ functions, and some types.  It also provides indentation that is
   ;; Remove stale text properties
   (save-restriction
     (widen)
-    (remove-text-properties 1 (point-max)
-                            '(go-mode-cs nil go-mode-nesting nil)))
+    (let ((modified (buffer-modified-p)))
+      (remove-text-properties 1 (point-max)
+                              '(go-mode-cs nil go-mode-nesting nil))
+      ;; remove-text-properties marks the buffer modified. undo that if it
+      ;; wasn't originally marked modified.
+      (set-buffer-modified-p modified)))
 
   ;; Reset the syntax mark caches
   (setq go-mode-mark-cs-end      1
