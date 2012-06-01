@@ -622,6 +622,7 @@ static Optable optab0F[256]=
 [0x15] =	{ RM,0,		"UNPCKH%s	%x,%X" },
 [0x16] =	{ RM,0,		"MOV[L]H%s	%x,%X" },	/* TO DO: L if source is XMM */
 [0x17] =	{ RM,0,		"MOVH%s	%X,%x" },
+[0x1F] =	{ RM,0,		"NOP%S	%e" },
 [0x20] =	{ RMR,0,		"MOVL	%C,%e" },
 [0x21] =	{ RMR,0,		"MOVL	%D,%e" },
 [0x22] =	{ RMR,0,		"MOVL	%e,%C" },

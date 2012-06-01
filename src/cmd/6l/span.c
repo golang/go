@@ -37,6 +37,37 @@ static int	rexflag;
 static int	asmode;
 static vlong	vaddr(Adr*, Reloc*);
 
+// single-instruction no-ops of various lengths.
+// constructed by hand and disassembled with gdb to verify.
+// see http://www.agner.org/optimize/optimizing_assembly.pdf for discussion.
+static uchar nop[][16] = {
+	{0x90},
+	{0x66, 0x90},
+	{0x0F, 0x1F, 0x00},
+	{0x0F, 0x1F, 0x40, 0x00},
+	{0x0F, 0x1F, 0x44, 0x00, 0x00},
+	{0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00},
+	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
+	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+	{0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+
+static void
+fillnop(uchar *p, int n)
+{
+	int m;
+
+	while(n > 0) {
+		m = n;
+		if(m > nelem(nop))
+			m = nelem(nop);
+		memmove(p, nop[m-1], m);
+		p += m;
+		n -= m;
+	}
+}
+
 void
 span1(Sym *s)
 {
@@ -52,8 +83,10 @@ span1(Sym *s)
 
 	for(p = s->text; p != P; p = p->link) {
 		p->back = 2;	// use short branches first time through
-		if((q = p->pcond) != P && (q->back & 2))
+		if((q = p->pcond) != P && (q->back & 2)) {
 			p->back |= 1;	// backward jump
+			q->back |= 4;   // loop head
+		}
 
 		if(p->as == AADJSP) {
 			p->to.type = D_SP;
@@ -78,6 +111,16 @@ span1(Sym *s)
 		s->np = 0;
 		c = 0;
 		for(p = s->text; p != P; p = p->link) {
+			if((p->back & 4) && (c&(LoopAlign-1)) != 0) {
+				// pad with NOPs
+				v = -c&(LoopAlign-1);
+				if(v <= MaxLoopPad) {
+					symgrow(s, c+v);
+					fillnop(s->p+c, v);
+					c += v;
+				}
+			}
+
 			p->pc = c;
 
 			// process forward jumps to p
