@@ -296,14 +296,14 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
 func (p *parser) next() {
 	p.leadComment = nil
 	p.lineComment = nil
-	line := p.file.Line(p.pos) // current line
+	prev := p.pos
 	p.next0()
 
 	if p.tok == token.COMMENT {
 		var comment *ast.CommentGroup
 		var endline int
 
-		if p.file.Line(p.pos) == line {
+		if p.file.Line(p.pos) == p.file.Line(prev) {
 			// The comment is on same line as the previous token; it
 			// cannot be a lead comment but may be a line comment.
 			comment, endline = p.consumeCommentGroup(0)
