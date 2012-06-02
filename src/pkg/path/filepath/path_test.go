@@ -874,3 +874,26 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 		t.Errorf("Results of EvalSymlinks do not match: %q and %q", flp, fup)
 	}
 }
+
+func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
+	root := os.Getenv("GOROOT")
+	lib := filepath.Join(root, "lib")
+	src := filepath.Join(root, "src")
+	seenSrc := false
+	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch pth {
+		case lib:
+			return filepath.SkipDir
+		case src:
+			seenSrc = true
+		}
+		return nil
+	})
+	if !seenSrc {
+		t.Fatalf("%q not seen", src)
+	}
+}

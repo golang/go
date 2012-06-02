@@ -320,8 +320,11 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 	}
 
 	for _, fileInfo := range list {
-		if err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn); err != nil {
-			return err
+		err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn)
+		if err != nil {
+			if !fileInfo.IsDir() || err != SkipDir {
+				return err
+			}
 		}
 	}
 	return nil
