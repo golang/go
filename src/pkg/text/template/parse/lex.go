@@ -195,15 +195,7 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 
 // nextItem returns the next item from the input.
 func (l *lexer) nextItem() item {
-	for {
-		select {
-		case item := <-l.items:
-			return item
-		default:
-			l.state = l.state(l)
-		}
-	}
-	panic("not reached")
+	return <-l.items
 }
 
 // lex creates a new scanner for the input string.
@@ -219,10 +211,17 @@ func lex(name, input, left, right string) *lexer {
 		input:      input,
 		leftDelim:  left,
 		rightDelim: right,
-		state:      lexText,
-		items:      make(chan item, 2), // Two items of buffering is sufficient for all state functions
+		items:      make(chan item),
 	}
+	go l.run()
 	return l
+}
+
+// run runs the state machine for the lexer.
+func (l *lexer) run() {
+	for l.state = lexText; l.state != nil; {
+		l.state = l.state(l)
+	}
 }
 
 // state functions
@@ -391,7 +390,7 @@ func (l *lexer) atTerminator() bool {
 }
 
 // lexChar scans a character constant. The initial quote is already
-// scanned.  Syntax checking is done by the parse.
+// scanned.  Syntax checking is done by the parser.
 func lexChar(l *lexer) stateFn {
 Loop:
 	for {
