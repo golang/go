@@ -406,6 +406,8 @@ struct
 
 	"PLD",		LTYPEPLD, APLD,
 	"UNDEF",	LTYPEE,	AUNDEF,
+	"CLZ",		LTYPE2, ACLZ,
+
 	0
 };
 

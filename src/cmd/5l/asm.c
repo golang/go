@@ -1801,6 +1801,11 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		o1 = opbra(ABL, C_SCOND_NONE);
 		o1 |= (v >> 2) & 0xffffff;
 		break;
+	case 97:	/* CLZ Rm, Rd */
+ 		o1 = oprrr(p->as, p->scond);
+ 		o1 |= p->to.reg << 12;
+ 		o1 |= p->from.reg;
+		break;
 	}
 	
 	out[0] = o1;
@@ -1958,6 +1963,10 @@ oprrr(int a, int sc)
 		return o | (0xe<<24) | (0x1<<20) | (0xb<<8) | (1<<4);
 	case ACMP+AEND:	// cmp imm
 		return o | (0x3<<24) | (0x5<<20);
+
+	case ACLZ:
+		// CLZ doesn't support .S
+		return (o & (0xf<<28)) | (0x16f<<16) | (0xf1<<4);
 	}
 	diag("bad rrr %d", a);
 	prasm(curp);

@@ -236,5 +236,7 @@ Optab	optab[] =
 	
 	{ AUNDEF,		C_NONE,	C_NONE,	C_NONE,		96, 4, 0 },
 
+	{ ACLZ,		C_REG,	C_NONE,	C_REG,		97, 4, 0 },
+
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };
