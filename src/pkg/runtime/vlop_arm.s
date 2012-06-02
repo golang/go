@@ -23,9 +23,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#define UMULL(Rs,Rm,Rhi,Rlo,S)  WORD	 $((14<<28)|(4<<21)|(S<<20)|(Rhi<<16)|(Rlo<<12)|(Rs<<8)|(9<<4)|Rm)
-#define UMLAL(Rs,Rm,Rhi,Rlo,S)  WORD	 $((14<<28)|(5<<21)|(S<<20)|(Rhi<<16)|(Rlo<<12)|(Rs<<8)|(9<<4)|Rm)
-#define MUL(Rs,Rm,Rd,S) WORD	 $((14<<28)|(0<<21)|(S<<20)|(Rd<<16)|(Rs<<8)|(9<<4)|Rm)
 arg=0
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
@@ -36,10 +33,10 @@ TEXT _mulv(SB), $0
 	MOVW	8(FP), R11	/* h0 */
 	MOVW	12(FP), R4	/* l1 */
 	MOVW	16(FP), R5	/* h1 */
-	UMULL(4, 2, 7, 6, 0)
-	MUL(11, 4, 8, 0)
+	MULLU	R4, R2, (R7,R6)
+	MUL	R11, R4, R8
 	ADD	R8, R7
-	MUL(2, 5, 8, 0)
+	MUL	R2, R5, R8
 	ADD	R8, R7
 	MOVW	R6, 0(R(arg))
 	MOVW	R7, 4(R(arg))
