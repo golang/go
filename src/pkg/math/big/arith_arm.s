@@ -314,7 +314,7 @@ TEXT ·mulWW(SB),7,$0
 // func bitLen(x Word) (n int)
 TEXT ·bitLen(SB),7,$0
 	MOVW	x+0(FP), R0
-	WORD	$0xe16f0f10 // CLZ R0, R0  (count leading zeros)
+	CLZ 	R0, R0
 	MOVW	$32, R1
 	SUB.S	R0, R1
 	MOVW	R1, n+4(FP)

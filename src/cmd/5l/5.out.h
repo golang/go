@@ -184,8 +184,10 @@ enum	as
 	ASTREXD,
 
 	APLD,
-	
+
 	AUNDEF,
+
+	ACLZ,
 
 	ALAST,
 };
