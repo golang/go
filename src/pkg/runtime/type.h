@@ -28,6 +28,7 @@ struct CommonType
 	uint8 fieldAlign;
 	uint8 kind;
 	Alg *alg;
+	void *gc;
 	String *string;
 	UncommonType *x;
 	Type *ptrto;

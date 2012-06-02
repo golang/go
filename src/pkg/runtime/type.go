@@ -21,7 +21,8 @@ type commonType struct {
 	align      uint8
 	fieldAlign uint8
 	kind       uint8
-	alg        *uintptr
+	alg        unsafe.Pointer
+	gc         unsafe.Pointer
 	string     *string
 	*uncommonType
 	ptrToThis *interface{}

@@ -244,6 +244,7 @@ type commonType struct {
 	fieldAlign    uint8        // alignment of struct field with this type
 	kind          uint8        // enumeration for C
 	alg           *uintptr     // algorithm table (../runtime/runtime.h:/Alg)
+	gc            uintptr      // garbage collection data
 	string        *string      // string form; unnecessary but undeniably useful
 	*uncommonType              // (relatively) uncommon fields
 	ptrToThis     *runtimeType // pointer to this type, if used in binary or has methods
