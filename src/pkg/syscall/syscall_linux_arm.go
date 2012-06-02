@@ -41,26 +41,28 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
 //sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
 
-//sys	Chown(path string, uid int, gid int) (err error)
-//sys	Fchown(fd int, uid int, gid int) (err error)
+// 64-bit file system and 32-bit uid calls
+// (16-bit uid calls are not always supported in newer kernels)
+//sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
+//sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error) = SYS_FSTATFS64
-//sysnb	Getegid() (egid int)
-//sysnb	Geteuid() (euid int)
-//sysnb	Getgid() (gid int)
-//sysnb	Getuid() (uid int)
-//sys	Lchown(path string, uid int, gid int) (err error)
+//sysnb	Getegid() (egid int) = SYS_GETEGID32
+//sysnb	Geteuid() (euid int) = SYS_GETEUID32
+//sysnb	Getgid() (gid int) = SYS_GETGID32
+//sysnb	Getuid() (uid int) = SYS_GETUID32
+//sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Listen(s int, n int) (err error)
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
-//sys	Setfsgid(gid int) (err error)
-//sys	Setfsuid(uid int) (err error)
-//sysnb	Setgid(gid int) (err error)
-//sysnb	Setregid(rgid int, egid int) (err error)
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
+//sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+//sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+//sysnb	Setgid(gid int) (err error) = SYS_SETGID32
+//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
+//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
+//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
+//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
