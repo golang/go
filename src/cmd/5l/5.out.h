@@ -49,12 +49,11 @@
 #define REGM        (REGEXT-1)
 /* compiler allocates external registers R10 down */
 #define	REGTMP		11
-#define	REGSB		12
 #define	REGSP		13
 #define	REGLINK		14
 #define	REGPC		15
 
-#define	NFREG		8
+#define	NFREG		16
 #define	FREGRET		0
 #define	FREGEXT		7
 #define	FREGTMP		15
