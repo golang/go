@@ -546,15 +546,17 @@ dcommontype(Sym *s, int ot, Type *t)
 	// ../../pkg/reflect/type.go:/^type.commonType
 	// actual type structure
 	//	type commonType struct {
-	//		size uintptr;
-	//		hash uint32;
-	//		alg uint8;
-	//		align uint8;
-	//		fieldAlign uint8;
-	//		kind uint8;
-	//		string *string;
-	//		*extraType;
-	//		ptrToThis *Type
+	//		size          uintptr
+	//		hash          uint32
+	//		_             uint8
+	//		align         uint8
+	//		fieldAlign    uint8
+	//		kind          uint8
+	//		alg           unsafe.Pointer
+	//		gc            unsafe.Pointer
+	//		string        *string
+	//		*extraType
+	//		ptrToThis     *Type
 	//	}
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
@@ -579,6 +581,7 @@ dcommontype(Sym *s, int ot, Type *t)
 		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
 		ot = dsymptr(s, ot, algsym, 0);
+	ot = duintptr(s, ot, 0);  // gc
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
