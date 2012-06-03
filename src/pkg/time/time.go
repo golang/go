@@ -257,6 +257,30 @@ func (t Time) abs() uint64 {
 	return uint64(sec + (unixToInternal + internalToAbsolute))
 }
 
+// locabs is a combination of the Zone and abs methods,
+// extracting both return values from a single zone lookup.
+func (t Time) locabs() (name string, offset int, abs uint64) {
+	l := t.loc
+	if l == nil {
+		l = &utcLoc
+	}
+	// Avoid function call if we hit the local time cache.
+	sec := t.sec + internalToUnix
+	if l != &utcLoc {
+		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+			name = l.cacheZone.name
+			offset = l.cacheZone.offset
+		} else {
+			name, offset, _, _, _ = l.lookup(sec)
+		}
+		sec += int64(offset)
+	} else {
+		name = "UTC"
+	}
+	abs = uint64(sec + (unixToInternal + internalToAbsolute))
+	return
+}
+
 // Date returns the year, month, and day in which t occurs.
 func (t Time) Date() (year int, month Month, day int) {
 	year, month, day, _ = t.date(true)
@@ -283,8 +307,13 @@ func (t Time) Day() int {
 
 // Weekday returns the day of the week specified by t.
 func (t Time) Weekday() Weekday {
+	return absWeekday(t.abs())
+}
+
+// absWeekday is like Weekday but operates on an absolute time.
+func absWeekday(abs uint64) Weekday {
 	// January 1 of the absolute year, like January 1 of 2001, was a Monday.
-	sec := (t.abs() + uint64(Monday)*secondsPerDay) % secondsPerWeek
+	sec := (abs + uint64(Monday)*secondsPerDay) % secondsPerWeek
 	return Weekday(int(sec) / secondsPerDay)
 }
 
@@ -349,7 +378,12 @@ func (t Time) ISOWeek() (year, week int) {
 
 // Clock returns the hour, minute, and second within the day specified by t.
 func (t Time) Clock() (hour, min, sec int) {
-	sec = int(t.abs() % secondsPerDay)
+	return absClock(t.abs())
+}
+
+// absClock is like clock but operates on an absolute time.
+func absClock(abs uint64) (hour, min, sec int) {
+	sec = int(abs % secondsPerDay)
 	hour = sec / secondsPerHour
 	sec -= hour * secondsPerHour
 	min = sec / secondsPerMinute
@@ -610,8 +644,13 @@ const (
 // date computes the year and, only when full=true,
 // the month and day in which t occurs.
 func (t Time) date(full bool) (year int, month Month, day int, yday int) {
+	return absDate(t.abs(), full)
+}
+
+// absDate is like date but operates on an absolute time.
+func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
 	// Split into time and day.
-	d := t.abs() / secondsPerDay
+	d := abs / secondsPerDay
 
 	// Account for 400 year cycles.
 	n := d / daysPer400Years

@@ -123,21 +123,23 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	// Not using sort.Search to avoid dependencies.
 	tx := l.tx
 	end = 1<<63 - 1
-	for len(tx) > 1 {
-		m := len(tx) / 2
+	lo := 0
+	hi := len(tx)
+	for hi-lo > 1 {
+		m := lo + (hi-lo)/2
 		lim := tx[m].when
 		if sec < lim {
 			end = lim
-			tx = tx[0:m]
+			hi = m
 		} else {
-			tx = tx[m:]
+			lo = m
 		}
 	}
-	zone := &l.zone[tx[0].index]
+	zone := &l.zone[tx[lo].index]
 	name = zone.name
 	offset = zone.offset
 	isDST = zone.isDST
-	start = tx[0].when
+	start = tx[lo].when
 	// end = maintained during the search
 	return
 }
