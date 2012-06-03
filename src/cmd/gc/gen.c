@@ -734,6 +734,66 @@ ret:
 	;
 }
 
+
+/*
+ * generate:
+ *	res = s[lo, hi];
+ * n->left is s
+ * n->list is (cap(s)-lo(TUINT32), hi-lo(TUINT32)[, lo*width(TUINTPTR)])
+ * caller (cgen) guarantees res is an addable ONAME.
+ *
+ */
+void
+cgen_slice(Node *n, Node *res)
+{
+	Node src, dst, *cap, *len, *offs, *add;
+
+//	print("cgen_slice: %N = %+N\n", res, n);
+
+	cap = n->list->n;
+	len = n->list->next->n;
+	offs = N;
+	if(n->list->next->next)
+		offs = n->list->next->next->n;
+
+	// dst.len = hi [ - lo ]
+	dst = *res;
+	dst.xoffset += Array_nel;
+	dst.type = types[TUINT32];
+	cgen(len, &dst);
+
+	if(n->op != OSLICESTR) {
+		// dst.cap = cap [ - lo ]
+		dst = *res;
+		dst.xoffset += Array_cap;
+		dst.type = types[TUINT32];
+		cgen(cap, &dst);
+	}
+
+	// dst.array = src.array  [ + lo *width ]
+	dst = *res;
+	dst.xoffset += Array_array;
+	dst.type = types[TUINTPTR];
+
+	if(n->op == OSLICEARR) {
+		if(!isptr[n->left->type->etype])
+			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+		checkref(n->left);
+	}
+
+	src = *n->left;
+	src.xoffset += Array_array;
+	src.type = types[TUINTPTR];
+
+	if(offs == N) {
+		cgen(&src, &dst);
+	} else {
+		add = nod(OADD, &src, offs);
+		typecheck(&add, Erv);
+		cgen(add, &dst);
+	}
+}
+
 /*
  * gather series of offsets
  * >=0 is direct addressed field

@@ -30,6 +30,19 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	switch(n->op) {
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICESTR:
+		if (res->op != ONAME || !res->addable) {
+			tempname(&n1, n->type);
+			cgen_slice(n, &n1);
+			cgen(&n1, res);
+		} else
+			cgen_slice(n, res);
+		return;
+	}
+
 	while(n->op == OCONVNOP)
 		n = n->left;
 
@@ -575,6 +588,14 @@ agen(Node *n, Node *res)
 	case OCALLINTER:
 		cgen_callinter(n, res, 0);
 		cgen_aret(n, res);
+		break;
+
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICESTR:
+		tempname(&n1, n->type);
+		cgen_slice(n, &n1);
+		agen(&n1, res);
 		break;
 
 	case OINDEX:

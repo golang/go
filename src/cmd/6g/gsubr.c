@@ -1029,6 +1029,25 @@ gins(int as, Node *f, Node *t)
 	return p;
 }
 
+// Generate an instruction referencing *n
+// to force segv on nil pointer dereference.
+void
+checkref(Node *n)
+{
+	Node m;
+
+	if(n->type->type->width < unmappedzero)
+		return;
+
+	regalloc(&m, types[TUINTPTR], n);
+	cgen(n, &m);
+	m.xoffset = 0;
+	m.op = OINDREG;
+	m.type = types[TUINT8];
+	gins(ATESTB, nodintconst(0), &m);
+	regfree(&m);
+}
+
 static void
 checkoffset(Addr *a, int canemitcode)
 {

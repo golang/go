@@ -1141,6 +1141,27 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 	return p;
 }
 
+// Generate an instruction referencing *n
+// to force segv on nil pointer dereference.
+bsdvoid
+checkref(Node *n)
+{
+	Node m1, m2;
+
+	if(n->type->type->width < unmappedzero)
+		return;
+
+	regalloc(&m1, types[TUINTPTR], n);
+	regalloc(&m2, types[TUINT8], n);
+	cgen(n, &m1);
+	m1.xoffset = 0;
+	m1.op = OINDREG;
+	m1.type = types[TUINT8];
+	gins(AMOVBU, &m1, &m2);
+	regfree(&m2);
+	regfree(&m1);
+}
+
 static void
 checkoffset(Addr *a, int canemitcode)
 {

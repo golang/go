@@ -21,6 +21,7 @@ static	NodeList*	reorder3(NodeList*);
 static	Node*	addstr(Node*, NodeList**);
 static	Node*	appendslice(Node*, NodeList**);
 static	Node*	append(Node*, NodeList**);
+static	Node*	sliceany(Node*, NodeList**);
 static	void	walkcompare(Node**, NodeList**);
 static	void	walkrotate(Node**);
 static	int	bounded(Node*, int64);
@@ -371,7 +372,7 @@ walkexpr(Node **np, NodeList **init)
 	NodeList *ll, *lr, *lpost;
 	Type *t;
 	int et;
-	int64 v, v1, v2, len;
+	int64 v;
 	int32 lno;
 	Node *n, *fn;
 	char buf[100], *p;
@@ -916,95 +917,29 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSLICE:
+		if(n->right != N && n->right->left == N && n->right->right == N) { // noop
+			walkexpr(&n->left, init);
+			n = n->left;
+			goto ret;
+		}
+		// fallthrough
 	case OSLICEARR:
+	case OSLICESTR:
+		if(n->right == N) // already processed
+			goto ret;
+
 		walkexpr(&n->left, init);
-		n->left = safeexpr(n->left, init);
+		// cgen_slice can't handle string literals as source
+		// TODO the OINDEX case is a bug elsewhere that needs to be traced.  it causes a crash on ([2][]int{ ... })[1][lo:hi]
+		if((n->op == OSLICESTR && n->left->op == OLITERAL) || (n->left->op == OINDEX))
+			n->left = copyexpr(n->left, n->left->type, init);
+		else
+			n->left = safeexpr(n->left, init);
 		walkexpr(&n->right->left, init);
 		n->right->left = safeexpr(n->right->left, init);
 		walkexpr(&n->right->right, init);
 		n->right->right = safeexpr(n->right->right, init);
-
-		len = 1LL<<60;
-		t = n->left->type;
-		if(t != T && isptr[t->etype])
-			t = t->type;
-		if(isfixedarray(t))
-			len = t->bound;
-
-		// check for static out of bounds
-		// NOTE: v > len not v >= len.
-		v1 = -1;
-		v2 = -1;
-		if(isconst(n->right->left, CTINT)) {
-			v1 = mpgetfix(n->right->left->val.u.xval);
-			if(v1 < 0 || v1 >= (1LL<<31) || v1 > len) {
-				yyerror("slice index out of bounds");
-				v1 = -1;
-			}
-		}
-		if(isconst(n->right->right, CTINT)) {
-			v2 = mpgetfix(n->right->right->val.u.xval);
-			if(v2 < 0 || v2 >= (1LL<<31) || v2 > len) {
-				yyerror("slice index out of bounds");
-				v2 = -1;
-			}
-		}
-		if(v1 >= 0 && v2 >= 0 && v1 > v2)
-			yyerror("inverted slice range");
-
-		if(n->op == OSLICEARR)
-			goto slicearray;
-
-		// dynamic slice
-		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
-		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
-		t = n->type;
-		et = n->bounded;
-		if(n->right->left == N)
-			l = nodintconst(0);
-		else
-			l = conv(n->right->left, types[TUINT64]);
-		if(n->right->right != N) {
-			fn = syslook("sliceslice", 1);
-			argtype(fn, t->type);			// any-1
-			argtype(fn, t->type);			// any-2
-			n = mkcall1(fn, t, init,
-				n->left,
-				l,
-				conv(n->right->right, types[TUINT64]),
-				nodintconst(t->type->width));
-		} else {
-			fn = syslook("sliceslice1", 1);
-			argtype(fn, t->type);			// any-1
-			argtype(fn, t->type);			// any-2
-			n = mkcall1(fn, t, init,
-				n->left,
-				l,
-				nodintconst(t->type->width));
-		}
-		n->bounded = et;	// preserve flag from OSLICE to the slice* call.
-		goto ret;
-
-	slicearray:
-		// static slice
-		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
-		t = n->type;
-		fn = syslook("slicearray", 1);
-		argtype(fn, n->left->type->type);	// any-1
-		argtype(fn, t->type);			// any-2
-		if(n->right->left == N)
-			l = nodintconst(0);
-		else
-			l = conv(n->right->left, types[TUINT64]);
-		if(n->right->right == N)
-			r = nodintconst(n->left->type->type->bound);
-		else
-			r = conv(n->right->right, types[TUINT64]);
-		n = mkcall1(fn, t, init,
-			n->left, nodintconst(n->left->type->type->bound),
-			l,
-			r,
-			nodintconst(t->type->width));
+		n = sliceany(n, init);  // chops n->right, sets n->list
 		goto ret;
 
 	case OADDR:
@@ -1082,25 +1017,7 @@ walkexpr(Node **np, NodeList **init)
 	case OADDSTR:
 		n = addstr(n, init);
 		goto ret;
-
-	case OSLICESTR:
-		// sys_slicestring(s, lb, hb)
-		if(n->right->left == N)
-			l = nodintconst(0);
-		else
-			l = conv(n->right->left, types[TINT]);
-		if(n->right->right) {
-			n = mkcall("slicestring", n->type, init,
-				conv(n->left, types[TSTRING]),
-				l,
-				conv(n->right->right, types[TINT]));
-		} else {
-			n = mkcall("slicestring1", n->type, init,
-				conv(n->left, types[TSTRING]),
-				l);
-		}
-		goto ret;
-
+	
 	case OAPPEND:
 		if(n->isddd) {
 			if(istype(n->type->type, TUINT8) && istype(n->list->next->n->type, TSTRING))
@@ -2431,6 +2348,155 @@ append(Node *n, NodeList **init)
 	walkstmtlist(l);
 	*init = concat(*init, l);
 	return ns;
+}
+
+
+// Generate frontend part for OSLICE[ARR|STR]
+// 
+static	Node*
+sliceany(Node* n, NodeList **init)
+{
+	int bounded;
+	Node *src, *lb, *hb, *bound, *chk, *chk1, *chk2;
+	int64 lbv, hbv, bv, w;
+	Type *bt;
+
+//	print("before sliceany: %+N\n", n);
+
+	src = n->left;
+	lb = n->right->left;
+	hb = n->right->right;
+
+	bounded = n->etype;
+	
+	if(n->op == OSLICESTR)
+		bound = nod(OLEN, src, N);
+	else
+		bound = nod(OCAP, src, N);
+
+	typecheck(&bound, Erv);
+	walkexpr(&bound, init);  // if src is an array, bound will be a const now.
+
+	// static checks if possible
+	bv = 1LL<<50;
+	if(isconst(bound, CTINT)) {
+		if(!smallintconst(bound))
+			yyerror("array len too large");
+		else
+			bv = mpgetfix(bound->val.u.xval);
+	}
+	lbv = -1;
+	hbv = -1;
+
+	if(isconst(hb, CTINT)) {
+		hbv = mpgetfix(hb->val.u.xval);
+		if(hbv < 0 || hbv > bv || !smallintconst(hb)) {
+			yyerror("slice index out of bounds");
+			hbv = -1;
+		}
+	}
+	if(isconst(lb, CTINT)) {
+		lbv = mpgetfix(lb->val.u.xval);
+		if(lbv < 0 || lbv > bv || !smallintconst(lb)) {
+			yyerror("slice index out of bounds");
+			lbv = -1;
+		}
+		if(lbv == 0)
+			lb = N;
+	}
+	if(lbv >= 0 && hbv >= 0 && lbv > hbv)
+		yyerror("inverted slice range");
+
+	// dynamic checks convert all bounds to unsigned to save us the bound < 0 comparison
+	// generate
+	//     if hb > bound || lb > hb { panicslice() }
+	chk = N;
+	chk1 = N;
+	chk2 = N;
+
+	bt = types[TUINT32];
+	if(hb != N && hb->type->width > 4)
+		bt = types[TUINT64];
+	if(lb != N && lb->type->width > 4)
+		bt = types[TUINT64];
+
+	bound = cheapexpr(conv(bound, bt), init);
+
+	if(hb != N) {
+		hb = cheapexpr(conv(hb, bt), init);
+		if(!bounded)
+			chk1 = nod(OLT, bound, hb);  
+	} else if(n->op == OSLICEARR) {
+		hb = bound;
+	} else {
+		hb = nod(OLEN, src, N);
+		typecheck(&hb, Erv);
+		walkexpr(&hb, init);
+		hb = cheapexpr(conv(hb, bt), init);
+	}
+
+	if(lb != N) {
+		lb = cheapexpr(conv(lb, bt), init);
+		if(!bounded)
+			chk2 = nod(OLT, hb, lb);  
+	}
+
+	if(chk1 != N || chk2 != N) {
+		chk = nod(OIF, N, N);
+		chk->nbody = list1(mkcall("panicslice", T, init));
+		if(chk1 != N)
+			chk->ntest = chk1;
+		if(chk2 != N) {
+			if(chk->ntest == N)
+				chk->ntest = chk2;
+			else
+				chk->ntest = nod(OOROR, chk->ntest, chk2);
+		}
+		typecheck(&chk, Etop);
+		walkstmt(&chk);
+		*init = concat(*init, chk->ninit);
+		chk->ninit = nil;
+		*init = list(*init, chk);
+	}
+	
+	// prepare new cap, len and offs for backend cgen_slice
+	// cap = bound [ - lo ]
+	n->right = N;
+	n->list = nil;
+	if(lb == N)
+		bound = conv(bound, types[TUINT32]);
+	else
+		bound = nod(OSUB, conv(bound, types[TUINT32]), conv(lb, types[TUINT32]));
+	typecheck(&bound, Erv);
+	walkexpr(&bound, init);
+	n->list = list(n->list, bound);
+
+	// len = hi [ - lo]
+	if(lb == N)
+		hb = conv(hb, types[TUINT32]);
+	else
+		hb = nod(OSUB, conv(hb, types[TUINT32]), conv(lb, types[TUINT32]));
+	typecheck(&hb, Erv);
+	walkexpr(&hb, init);
+	n->list = list(n->list, hb);
+
+	// offs = [width *] lo, but omit if zero
+	if(lb != N) {
+		if(n->op == OSLICESTR)
+			w = 1;
+		else
+			w = n->type->type->width;
+		lb = conv(lb, types[TUINTPTR]);
+		if(w > 1)
+			lb = nod(OMUL, nodintconst(w), lb);
+		typecheck(&lb, Erv);
+		walkexpr(&lb, init);
+		n->list = list(n->list, lb);
+	}
+
+//	print("after sliceany: %+N\n", n);
+
+	return n;
 }
 
 static Node*

@@ -117,9 +117,6 @@ func block()
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, n int64) (ary []any)
-func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
-func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
-func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
 
 func closure() // has args, but compiler fills in
 
