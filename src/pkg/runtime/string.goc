@@ -235,31 +235,6 @@ runtime·strstr(byte *s1, byte *s2)
 	return nil;
 }
 
-func slicestring(si String, lindex int32, hindex int32) (so String) {
-	int32 l;
-
-	if(lindex < 0 || lindex > si.len ||
-	   hindex < lindex || hindex > si.len) {
-	   	runtime·panicslice();
-	}
-
-	l = hindex-lindex;
-	so.str = si.str + lindex;
-	so.len = l;
-}
-
-func slicestring1(si String, lindex int32) (so String) {
-	int32 l;
-
-	if(lindex < 0 || lindex > si.len) {
-		runtime·panicslice();
-	}
-
-	l = si.len-lindex;
-	so.str = si.str + lindex;
-	so.len = l;
-}
-
 func intstring(v int64) (s String) {
 	s = gostringsize(8);
 	s.len = runtime·runetochar(s.str, v);

@@ -33,9 +33,18 @@ cgen(Node *n, Node *res)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
-	// inline slices
-	if(cgen_inline(n, res))
+	switch(n->op) {
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICESTR:
+		if (res->op != ONAME || !res->addable) {
+			tempname(&n1, n->type);
+			cgen_slice(n, &n1);
+			cgen(&n1, res);
+		} else
+			cgen_slice(n, res);
 		goto ret;
+	}
 
 	if(n->ullman >= UINF) {
 		if(n->op == OINDREG)
@@ -530,6 +539,14 @@ agen(Node *n, Node *res)
 	case OCALLFUNC:
 		cgen_call(n, 0);
 		cgen_aret(n, res);
+		break;
+
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICESTR:
+		tempname(&n1, n->type);
+		cgen_slice(n, &n1);
+		agen(&n1, res);
 		break;
 
 	case OINDEX:

@@ -78,7 +78,6 @@ void	cgen_callinter(Node*, Node*, int);
 void	cgen_proc(Node*, int);
 void	cgen_callret(Node*, Node*);
 void	cgen_dcl(Node*);
-int	cgen_inline(Node*, Node*);
 int	needconvert(Type*, Type*);
 void	genconv(Type*, Type*);
 void	allocparams(void);
