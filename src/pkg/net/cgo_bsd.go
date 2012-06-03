@@ -11,6 +11,6 @@ package net
 */
 import "C"
 
-func cgoAddrInfoMask() C.int {
-	return C.AI_MASK
+func cgoAddrInfoFlags() C.int {
+	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
 }

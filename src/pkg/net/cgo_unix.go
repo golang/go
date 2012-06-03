@@ -81,13 +81,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
 	var res *C.struct_addrinfo
 	var hints C.struct_addrinfo
 
-	// NOTE(rsc): In theory there are approximately balanced
-	// arguments for and against including AI_ADDRCONFIG
-	// in the flags (it includes IPv4 results only on IPv4 systems,
-	// and similarly for IPv6), but in practice setting it causes
-	// getaddrinfo to return the wrong canonical name on Linux.
-	// So definitely leave it out.
-	hints.ai_flags = (C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME) & cgoAddrInfoMask()
+	hints.ai_flags = cgoAddrInfoFlags()
 
 	h := C.CString(name)
 	defer C.free(unsafe.Pointer(h))
