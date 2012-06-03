@@ -935,9 +935,18 @@ func BenchmarkNow(b *testing.B) {
 }
 
 func BenchmarkFormat(b *testing.B) {
-	time := Unix(1265346057, 0)
+	t := Unix(1265346057, 0)
 	for i := 0; i < b.N; i++ {
-		time.Format("Mon Jan  2 15:04:05 2006")
+		t.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkFormatNow(b *testing.B) {
+	// Like BenchmarkFormat, but easier, because the time zone
+	// lookup cache is optimized for the present.
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.Format("Mon Jan  2 15:04:05 2006")
 	}
 }
 
