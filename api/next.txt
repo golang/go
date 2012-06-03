@@ -10,6 +10,8 @@ pkg debug/elf, type FileHeader struct, Entry uint64
 pkg go/doc, var IllegalPrefixes []string
 pkg math/big, method (*Int) MarshalJSON() ([]byte, error)
 pkg math/big, method (*Int) UnmarshalJSON([]byte) error
+pkg net, method (*UnixConn) CloseRead() error
+pkg net, method (*UnixConn) CloseWrite() error
 pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
 pkg syscall (darwin-386), const B0 ideal-int
 pkg syscall (darwin-386), const B110 ideal-int
