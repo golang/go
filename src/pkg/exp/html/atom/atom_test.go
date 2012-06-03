@@ -9,11 +9,22 @@ import (
 	"testing"
 )
 
+func TestKnown(t *testing.T) {
+	for _, s := range testAtomList {
+		if atom := Lookup([]byte(s)); atom.String() != s {
+			t.Errorf("Lookup(%q) = %#x (%q)", s, uint32(atom), atom.String())
+		}
+	}
+}
+
 func TestHits(t *testing.T) {
-	for i, s := range table {
-		got := Lookup([]byte(s))
-		if got != Atom(i) {
-			t.Errorf("Lookup(%q): got %d, want %d", s, got, i)
+	for _, a := range table {
+		if a == 0 {
+			continue
+		}
+		got := Lookup([]byte(a.String()))
+		if got != a {
+			t.Errorf("Lookup(%q) = %#x, want %#x", a.String(), uint32(got), uint32(a))
 		}
 	}
 }
@@ -55,8 +66,12 @@ func TestMisses(t *testing.T) {
 }
 
 func BenchmarkLookup(b *testing.B) {
-	sortedTable := make([]string, len(table))
-	copy(sortedTable, table[:])
+	sortedTable := make([]string, 0, len(table))
+	for _, a := range table {
+		if a != 0 {
+			sortedTable = append(sortedTable, a.String())
+		}
+	}
 	sort.Strings(sortedTable)
 
 	x := make([][]byte, 1000)
