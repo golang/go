@@ -338,6 +338,9 @@ func NsecToFiletime(nsec int64) (ft Filetime) {
 	return ft
 }
 
+// Win32finddata is an incorrect struct definition, preserved for
+// backwards compatibility. Use Win32finddata1 and the
+// FindFirstFile1 and FindNextFile1 functions instead.
 type Win32finddata struct {
 	FileAttributes    uint32
 	CreationTime      Filetime
@@ -349,6 +352,19 @@ type Win32finddata struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH - 1]uint16
 	AlternateFileName [13]uint16
+}
+
+type Win32finddata1 struct {
+	FileAttributes    uint32
+	CreationTime      Filetime
+	LastAccessTime    Filetime
+	LastWriteTime     Filetime
+	FileSizeHigh      uint32
+	FileSizeLow       uint32
+	Reserved0         uint32
+	Reserved1         uint32
+	FileName          [MAX_PATH]uint16
+	AlternateFileName [14]uint16
 }
 
 type ByHandleFileInformation struct {
