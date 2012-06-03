@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	errorspkg "errors"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -129,8 +130,8 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
-//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
-//sys	FindNextFile(handle Handle, data *Win32finddata) (err error) = FindNextFileW
+//sys	FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
+//sys	FindNextFile1(handle Handle, data *Win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
 //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
@@ -703,6 +704,14 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
 
 func Getpid() (pid int) { return int(GetCurrentProcessId()) }
+
+func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
+	return InvalidHandle, errorspkg.New("FindFirstFile is broken, use FindFirstFile1 instead")
+}
+
+func FindNextFile(handle Handle, data *Win32finddata) (err error) {
+	return errorspkg.New("FindNextFile is broken, use FindNextFile1 instead")
+}
 
 // TODO(brainman): fix all needed for os
 func Getppid() (ppid int) { return -1 }

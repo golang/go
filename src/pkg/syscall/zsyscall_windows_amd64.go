@@ -310,7 +310,7 @@ func GetStdHandle(stdhandle int) (handle Handle, err error) {
 	return
 }
 
-func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
+func FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) {
 	r0, _, e1 := Syscall(procFindFirstFileW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
 	handle = Handle(r0)
 	if handle == InvalidHandle {
@@ -323,7 +323,7 @@ func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error)
 	return
 }
 
-func FindNextFile(handle Handle, data *Win32finddata) (err error) {
+func FindNextFile1(handle Handle, data *Win32finddata1) (err error) {
 	r1, _, e1 := Syscall(procFindNextFileW.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
 	if int(r1) == 0 {
 		if e1 != 0 {
