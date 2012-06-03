@@ -1143,7 +1143,7 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 
 // Generate an instruction referencing *n
 // to force segv on nil pointer dereference.
-bsdvoid
+void
 checkref(Node *n)
 {
 	Node m1, m2;
