@@ -26,9 +26,8 @@ THE SOFTWARE.
 #include <u.h>
 #include <errno.h>
 #include <sys/stat.h>
+#define NOPLAN9DEFINES
 #include <libc.h>
-
-#undef getwd
 
 char*
 p9getwd(char *s, int ns)
