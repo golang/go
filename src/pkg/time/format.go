@@ -852,10 +852,24 @@ func Parse(layout, value string) (Time, error) {
 			// It's a valid format.
 			zoneName = p
 
-		case stdFracSecond0, stdFracSecond9:
+		case stdFracSecond0:
 			ndigit := std >> stdArgShift
 			nsec, rangeErrString, err = parseNanoseconds(value, 1+ndigit)
 			value = value[1+ndigit:]
+
+		case stdFracSecond9:
+			if len(value) < 2 || value[0] != '.' || value[1] < '0' || '9' < value[1] {
+				// Fractional second omitted.
+				break
+			}
+			// Take any number of digits, even more than asked for,
+			// because it is what the stdSecond case would do.
+			i := 0
+			for i < 9 && i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
+				i++
+			}
+			nsec, rangeErrString, err = parseNanoseconds(value, 1+i)
+			value = value[1+i:]
 		}
 		if rangeErrString != "" {
 			return Time{}, &ParseError{alayout, avalue, stdstr, value, ": " + rangeErrString + " out of range"}
