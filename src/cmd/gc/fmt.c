@@ -1154,7 +1154,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCLOSURE:
 		if(fmtmode == FErr)
 			return fmtstrcpy(f, "func literal");
-		return fmtprint(f, "%T { %H }", n->type, n->nbody);
+		if(n->nbody)
+			return fmtprint(f, "%T { %H }", n->type, n->nbody);
+		return fmtprint(f, "%T { %H }", n->type, n->closure->nbody);
 
 	case OCOMPLIT:
 		if(fmtmode == FErr)

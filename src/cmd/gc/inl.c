@@ -366,8 +366,8 @@ inlnode(Node **np)
 		}
 
 	case OCLOSURE:
-		// TODO do them here instead of in lex.c phase 6b, so escape analysis
-		// can avoid more heapmoves.
+		// TODO do them here (or earlier) instead of in walkcallclosure,
+		// so escape analysis can avoid more heapmoves.
 		return;
 	}
 

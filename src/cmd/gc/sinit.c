@@ -167,6 +167,9 @@ init2(Node *n, NodeList **out)
 	init2list(n->rlist, out);
 	init2list(n->nbody, out);
 	init2list(n->nelse, out);
+	
+	if(n->op == OCLOSURE)
+		init2list(n->closure->nbody, out);
 }
 
 static void
