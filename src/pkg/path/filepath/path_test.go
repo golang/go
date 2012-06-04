@@ -876,7 +876,10 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 }
 
 func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
-	root := os.Getenv("GOROOT")
+	root, err := filepath.EvalSymlinks(os.Getenv("GOROOT"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	lib := filepath.Join(root, "lib")
 	src := filepath.Join(root, "src")
 	seenSrc := false
