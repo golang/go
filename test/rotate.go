@@ -9,7 +9,7 @@
 // Generate test of shift and rotate by constants.
 // The output is compiled and run.
 //
-// The output takes around a minute or two to compile, link, and run
+// The output takes around a gigabyte of memory to compile, link, and run
 // but it is only done during ./run, not in normal builds using run.go.
 
 package main
@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -30,6 +31,9 @@ func main() {
 	fmt.Fprintf(b, "%s\n", prolog)
 
 	for logBits := uint(3); logBits <= 6; logBits++ {
+		typ := fmt.Sprintf("int%d", 1<<logBits)
+		fmt.Fprint(b, strings.Replace(checkFunc, "XXX", typ, -1))
+		fmt.Fprint(b, strings.Replace(checkFunc, "XXX", "u"+typ, -1))
 		for mode := 0; mode < 1<<2; mode++ {
 			gentest(b, 1<<logBits, mode&1 != 0, mode&2 != 0)
 		}
@@ -67,7 +71,16 @@ var (
 
 var nfail = 0
 
-func check(desc string, have, want interface{}) {
+func main() {
+	if nfail > 0 {
+		fmt.Printf("BUG\n")
+	}
+}
+
+`
+
+const checkFunc = `
+func check_XXX(desc string, have, want XXX) {
 	if have != want {
 		nfail++
 		fmt.Printf("%s = %T(%#x), want %T(%#x)\n", desc, have, have, want, want)
@@ -77,13 +90,6 @@ func check(desc string, have, want interface{}) {
 		}
 	}
 }
-
-func main() {
-	if nfail > 0 {
-		fmt.Printf("BUG\n")
-	}
-}
-
 `
 
 var (
@@ -144,8 +150,8 @@ func gentest(b *bufio.Writer, bits uint, unsigned, inverted bool) {
 					result = fmt.Sprintf("%#x", v)
 				}
 
-				fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr1, expr1, typ, result)
-				fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr2, expr2, typ, result)
+				fmt.Fprintf(b, "\tcheck_%s(%q, %s, %s(%s))\n", typ, expr1, expr1, typ, result)
+				fmt.Fprintf(b, "\tcheck_%s(%q, %s, %s(%s))\n", typ, expr2, expr2, typ, result)
 
 				// Chop test into multiple functions so that there's not one
 				// enormous function to compile/link.
