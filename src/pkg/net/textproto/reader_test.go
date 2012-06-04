@@ -6,6 +6,7 @@ package textproto
 
 import (
 	"bufio"
+	"bytes"
 	"io"
 	"reflect"
 	"strings"
@@ -236,6 +237,22 @@ func TestRFC959Lines(t *testing.T) {
 		}
 		if msg != tt.wantMsg {
 			t.Errorf("#%d: msg=%q, want %q", i, msg, tt.wantMsg)
+		}
+	}
+}
+
+func BenchmarkReadMIMEHeader(b *testing.B) {
+	var buf bytes.Buffer
+	br := bufio.NewReader(&buf)
+	r := NewReader(br)
+	for i := 0; i < b.N; i++ {
+		buf.WriteString("User-Agent: not mozilla\r\nContent-Length: 23452\r\nContent-Type: text/html; charset-utf8\r\nFoo-Bar: foobar\r\nfoo-bar: some more string\r\n\r\n")
+		h, err := r.ReadMIMEHeader()
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(h) != 4 {
+			b.Fatalf("want 4")
 		}
 	}
 }

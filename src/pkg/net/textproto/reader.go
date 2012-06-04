@@ -452,16 +452,18 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 
-		// Key ends at first colon; must not have spaces.
+		// Key ends at first colon; should not have spaces but
+		// they appear in the wild, violating specs, so we
+		// remove them if present.
 		i := bytes.IndexByte(kv, ':')
 		if i < 0 {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		key := string(kv[0:i])
-		if strings.Index(key, " ") >= 0 {
-			key = strings.TrimRight(key, " ")
+		endKey := i
+		for endKey > 0 && kv[endKey-1] == ' ' {
+			endKey--
 		}
-		key = CanonicalMIMEHeaderKey(key)
+		key := canonicalMIMEHeaderKey(kv[:endKey])
 
 		// Skip initial spaces in value.
 		i++ // skip colon
@@ -486,25 +488,28 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 // canonical key for "accept-encoding" is "Accept-Encoding".
 func CanonicalMIMEHeaderKey(s string) string {
 	// Quick check for canonical encoding.
-	needUpper := true
+	upper := true
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if needUpper && 'a' <= c && c <= 'z' {
-			goto MustRewrite
+		if upper && 'a' <= c && c <= 'z' {
+			return canonicalMIMEHeaderKey([]byte(s))
 		}
-		if !needUpper && 'A' <= c && c <= 'Z' {
-			goto MustRewrite
+		if !upper && 'A' <= c && c <= 'Z' {
+			return canonicalMIMEHeaderKey([]byte(s))
 		}
-		needUpper = c == '-'
+		upper = c == '-'
 	}
 	return s
+}
 
-MustRewrite:
+// canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
+// allowed to mutate the provided byte slice before returning the
+// string.
+func canonicalMIMEHeaderKey(a []byte) string {
 	// Canonicalize: first letter upper case
 	// and upper case after each dash.
 	// (Host, User-Agent, If-Modified-Since).
 	// MIME headers are ASCII only, so no Unicode issues.
-	a := []byte(s)
 	upper := true
 	for i, v := range a {
 		if v == ' ' {
