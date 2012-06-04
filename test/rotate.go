@@ -9,7 +9,7 @@
 // Generate test of shift and rotate by constants.
 // The output is compiled and run.
 //
-// The output takes around a minute to compile, link, and run
+// The output takes around a minute or two to compile, link, and run
 // but it is only done during ./run, not in normal builds using run.go.
 
 package main
@@ -86,6 +86,26 @@ func main() {
 
 `
 
+var (
+	uop = [2]func(x, y uint64) uint64{
+		func(x, y uint64) uint64 {
+			return x | y
+		},
+		func(x, y uint64) uint64 {
+			return x ^ y
+		},
+	}
+	iop = [2]func(x, y int64) int64{
+		func(x, y int64) int64 {
+			return x | y
+		},
+		func(x, y int64) int64 {
+			return x ^ y
+		},
+	}
+	cop = [2]byte{'|', '^'}
+)
+
 func gentest(b *bufio.Writer, bits uint, unsigned, inverted bool) {
 	fmt.Fprintf(b, "func init() {\n")
 	defer fmt.Fprintf(b, "}\n")
@@ -94,48 +114,49 @@ func gentest(b *bufio.Writer, bits uint, unsigned, inverted bool) {
 	// Generate tests for left/right and right/left.
 	for l := uint(0); l <= bits; l++ {
 		for r := uint(0); r <= bits; r++ {
-			typ := fmt.Sprintf("int%d", bits)
-			v := fmt.Sprintf("i%d", bits)
-			if unsigned {
-				typ = "u" + typ
-				v = "u" + v
-			}
-			v0 := int64(0x123456789abcdef0)
-			if inverted {
-				v = "n" + v
-				v0 = ^v0
-			}
-			expr1 := fmt.Sprintf("%s<<%d | %s>>%d", v, l, v, r)
-			expr2 := fmt.Sprintf("%s>>%d | %s<<%d", v, r, v, l)
-			
-			var result string
-			if unsigned {
-				v := uint64(v0) >> (64 - bits)
-				v = v<<l | v>>r
-				v <<= 64 - bits
-				v >>= 64 - bits
-				result = fmt.Sprintf("%#x", v)
-			} else {
-				v := int64(v0) >> (64 - bits)
-				v = v<<l | v>>r
-				v <<= 64 - bits
-				v >>= 64 - bits
-				result = fmt.Sprintf("%#x", v)
-			}
+			for o, op := range cop {
+				typ := fmt.Sprintf("int%d", bits)
+				v := fmt.Sprintf("i%d", bits)
+				if unsigned {
+					typ = "u" + typ
+					v = "u" + v
+				}
+				v0 := int64(0x123456789abcdef0)
+				if inverted {
+					v = "n" + v
+					v0 = ^v0
+				}
+				expr1 := fmt.Sprintf("%s<<%d %c %s>>%d", v, l, op, v, r)
+				expr2 := fmt.Sprintf("%s>>%d %c %s<<%d", v, r, op, v, l)
 
-			fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr1, expr1, typ, result)
-			fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr2, expr2, typ, result)
+				var result string
+				if unsigned {
+					v := uint64(v0) >> (64 - bits)
+					v = uop[o](v<<l, v>>r)
+					v <<= 64 - bits
+					v >>= 64 - bits
+					result = fmt.Sprintf("%#x", v)
+				} else {
+					v := int64(v0) >> (64 - bits)
+					v = iop[o](v<<l, v>>r)
+					v <<= 64 - bits
+					v >>= 64 - bits
+					result = fmt.Sprintf("%#x", v)
+				}
 
-			// Chop test into multiple functions so that there's not one
-			// enormous function to compile/link.
-			// All the functions are named init so we don't have to do
-			// anything special to call them.  ☺
-			if n++; n >= 100 {
-				fmt.Fprintf(b, "}\n")
-				fmt.Fprintf(b, "func init() {\n")
-				n = 0
+				fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr1, expr1, typ, result)
+				fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr2, expr2, typ, result)
+
+				// Chop test into multiple functions so that there's not one
+				// enormous function to compile/link.
+				// All the functions are named init so we don't have to do
+				// anything special to call them.  ☺
+				if n++; n >= 50 {
+					fmt.Fprintf(b, "}\n")
+					fmt.Fprintf(b, "func init() {\n")
+					n = 0
+				}
 			}
 		}
 	}
 }
-

@@ -468,7 +468,6 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAND:
-	case OXOR:
 	case OSUB:
 	case OMUL:
 	case OLT:
@@ -483,6 +482,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OOR:
+	case OXOR:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
 		walkrotate(&n);
@@ -2708,10 +2708,10 @@ walkrotate(Node **np)
 	
 	n = *np;
 
-	// Want << | >> or >> | << on unsigned value.
+	// Want << | >> or >> | << or << ^ >> or >> ^ << on unsigned value.
 	l = n->left;
 	r = n->right;
-	if(n->op != OOR ||
+	if((n->op != OOR && n->op != OXOR) ||
 	   (l->op != OLSH && l->op != ORSH) ||
 	   (r->op != OLSH && r->op != ORSH) ||
 	   n->type == T || issigned[n->type->etype] ||
