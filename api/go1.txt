@@ -4053,6 +4053,29 @@ pkg log/syslog (linux-amd64-cgo), method (*Writer) Warning(string) error
 pkg log/syslog (linux-amd64-cgo), method (*Writer) Write([]byte) (int, error)
 pkg log/syslog (linux-amd64-cgo), type Priority int
 pkg log/syslog (linux-amd64-cgo), type Writer struct
+pkg log/syslog (linux-arm), const LOG_ALERT Priority
+pkg log/syslog (linux-arm), const LOG_CRIT Priority
+pkg log/syslog (linux-arm), const LOG_DEBUG Priority
+pkg log/syslog (linux-arm), const LOG_EMERG Priority
+pkg log/syslog (linux-arm), const LOG_ERR Priority
+pkg log/syslog (linux-arm), const LOG_INFO Priority
+pkg log/syslog (linux-arm), const LOG_NOTICE Priority
+pkg log/syslog (linux-arm), const LOG_WARNING Priority
+pkg log/syslog (linux-arm), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-arm), func New(Priority, string) (*Writer, error)
+pkg log/syslog (linux-arm), func NewLogger(Priority, int) (*log.Logger, error)
+pkg log/syslog (linux-arm), method (*Writer) Alert(string) error
+pkg log/syslog (linux-arm), method (*Writer) Close() error
+pkg log/syslog (linux-arm), method (*Writer) Crit(string) error
+pkg log/syslog (linux-arm), method (*Writer) Debug(string) error
+pkg log/syslog (linux-arm), method (*Writer) Emerg(string) error
+pkg log/syslog (linux-arm), method (*Writer) Err(string) error
+pkg log/syslog (linux-arm), method (*Writer) Info(string) error
+pkg log/syslog (linux-arm), method (*Writer) Notice(string) error
+pkg log/syslog (linux-arm), method (*Writer) Warning(string) error
+pkg log/syslog (linux-arm), method (*Writer) Write([]byte) (int, error)
+pkg log/syslog (linux-arm), type Priority int
+pkg log/syslog (linux-arm), type Writer struct
 pkg math, const E ideal-float
 pkg math, const Ln10 ideal-float
 pkg math, const Ln2 ideal-float
@@ -7552,6 +7575,7 @@ pkg syscall (darwin-386), type Msghdr struct, Namelen uint32
 pkg syscall (darwin-386), type Radvisory_t struct
 pkg syscall (darwin-386), type Radvisory_t struct, Count int32
 pkg syscall (darwin-386), type Radvisory_t struct, Offset int64
+pkg syscall (darwin-386), type RawSockaddr struct, Data [14]int8
 pkg syscall (darwin-386), type RawSockaddr struct, Family uint8
 pkg syscall (darwin-386), type RawSockaddr struct, Len uint8
 pkg syscall (darwin-386), type RawSockaddrAny struct, Pad [92]int8
@@ -9370,6 +9394,7 @@ pkg syscall (darwin-386-cgo), type Msghdr struct, Namelen uint32
 pkg syscall (darwin-386-cgo), type Radvisory_t struct
 pkg syscall (darwin-386-cgo), type Radvisory_t struct, Count int32
 pkg syscall (darwin-386-cgo), type Radvisory_t struct, Offset int64
+pkg syscall (darwin-386-cgo), type RawSockaddr struct, Data [14]int8
 pkg syscall (darwin-386-cgo), type RawSockaddr struct, Family uint8
 pkg syscall (darwin-386-cgo), type RawSockaddr struct, Len uint8
 pkg syscall (darwin-386-cgo), type RawSockaddrAny struct, Pad [92]int8
@@ -11191,6 +11216,7 @@ pkg syscall (darwin-amd64), type Radvisory_t struct
 pkg syscall (darwin-amd64), type Radvisory_t struct, Count int32
 pkg syscall (darwin-amd64), type Radvisory_t struct, Offset int64
 pkg syscall (darwin-amd64), type Radvisory_t struct, Pad_cgo_0 [4]byte
+pkg syscall (darwin-amd64), type RawSockaddr struct, Data [14]int8
 pkg syscall (darwin-amd64), type RawSockaddr struct, Family uint8
 pkg syscall (darwin-amd64), type RawSockaddr struct, Len uint8
 pkg syscall (darwin-amd64), type RawSockaddrAny struct, Pad [92]int8
@@ -13016,6 +13042,7 @@ pkg syscall (darwin-amd64-cgo), type Radvisory_t struct
 pkg syscall (darwin-amd64-cgo), type Radvisory_t struct, Count int32
 pkg syscall (darwin-amd64-cgo), type Radvisory_t struct, Offset int64
 pkg syscall (darwin-amd64-cgo), type Radvisory_t struct, Pad_cgo_0 [4]byte
+pkg syscall (darwin-amd64-cgo), type RawSockaddr struct, Data [14]int8
 pkg syscall (darwin-amd64-cgo), type RawSockaddr struct, Family uint8
 pkg syscall (darwin-amd64-cgo), type RawSockaddr struct, Len uint8
 pkg syscall (darwin-amd64-cgo), type RawSockaddrAny struct, Pad [92]int8
@@ -14986,6 +15013,7 @@ pkg syscall (freebsd-386), type Msghdr struct, Iov *Iovec
 pkg syscall (freebsd-386), type Msghdr struct, Iovlen int32
 pkg syscall (freebsd-386), type Msghdr struct, Name *byte
 pkg syscall (freebsd-386), type Msghdr struct, Namelen uint32
+pkg syscall (freebsd-386), type RawSockaddr struct, Data [14]int8
 pkg syscall (freebsd-386), type RawSockaddr struct, Family uint8
 pkg syscall (freebsd-386), type RawSockaddr struct, Len uint8
 pkg syscall (freebsd-386), type RawSockaddrAny struct, Pad [92]int8
@@ -16961,6 +16989,7 @@ pkg syscall (freebsd-amd64), type Msghdr struct, Name *byte
 pkg syscall (freebsd-amd64), type Msghdr struct, Namelen uint32
 pkg syscall (freebsd-amd64), type Msghdr struct, Pad_cgo_0 [4]byte
 pkg syscall (freebsd-amd64), type Msghdr struct, Pad_cgo_1 [4]byte
+pkg syscall (freebsd-amd64), type RawSockaddr struct, Data [14]int8
 pkg syscall (freebsd-amd64), type RawSockaddr struct, Family uint8
 pkg syscall (freebsd-amd64), type RawSockaddr struct, Len uint8
 pkg syscall (freebsd-amd64), type RawSockaddrAny struct, Pad [92]int8
@@ -19081,6 +19110,7 @@ pkg syscall (linux-386), type PtraceRegs struct, Xes int32
 pkg syscall (linux-386), type PtraceRegs struct, Xfs int32
 pkg syscall (linux-386), type PtraceRegs struct, Xgs int32
 pkg syscall (linux-386), type PtraceRegs struct, Xss int32
+pkg syscall (linux-386), type RawSockaddr struct, Data [14]int8
 pkg syscall (linux-386), type RawSockaddr struct, Family uint16
 pkg syscall (linux-386), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (linux-386), type RawSockaddrInet4 struct, Family uint16
@@ -21266,6 +21296,7 @@ pkg syscall (linux-386-cgo), type PtraceRegs struct, Xes int32
 pkg syscall (linux-386-cgo), type PtraceRegs struct, Xfs int32
 pkg syscall (linux-386-cgo), type PtraceRegs struct, Xgs int32
 pkg syscall (linux-386-cgo), type PtraceRegs struct, Xss int32
+pkg syscall (linux-386-cgo), type RawSockaddr struct, Data [14]int8
 pkg syscall (linux-386-cgo), type RawSockaddr struct, Family uint16
 pkg syscall (linux-386-cgo), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (linux-386-cgo), type RawSockaddrInet4 struct, Family uint16
@@ -23429,6 +23460,7 @@ pkg syscall (linux-amd64), type PtraceRegs struct, Rip uint64
 pkg syscall (linux-amd64), type PtraceRegs struct, Rsi uint64
 pkg syscall (linux-amd64), type PtraceRegs struct, Rsp uint64
 pkg syscall (linux-amd64), type PtraceRegs struct, Ss uint64
+pkg syscall (linux-amd64), type RawSockaddr struct, Data [14]int8
 pkg syscall (linux-amd64), type RawSockaddr struct, Family uint16
 pkg syscall (linux-amd64), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (linux-amd64), type RawSockaddrInet4 struct, Family uint16
@@ -25596,6 +25628,7 @@ pkg syscall (linux-amd64-cgo), type PtraceRegs struct, Rip uint64
 pkg syscall (linux-amd64-cgo), type PtraceRegs struct, Rsi uint64
 pkg syscall (linux-amd64-cgo), type PtraceRegs struct, Rsp uint64
 pkg syscall (linux-amd64-cgo), type PtraceRegs struct, Ss uint64
+pkg syscall (linux-amd64-cgo), type RawSockaddr struct, Data [14]int8
 pkg syscall (linux-amd64-cgo), type RawSockaddr struct, Family uint16
 pkg syscall (linux-amd64-cgo), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (linux-amd64-cgo), type RawSockaddrInet4 struct, Family uint16
@@ -25809,6 +25842,2197 @@ pkg syscall (linux-amd64-cgo), type WaitStatus uint32
 pkg syscall (linux-amd64-cgo), var Stderr int
 pkg syscall (linux-amd64-cgo), var Stdin int
 pkg syscall (linux-amd64-cgo), var Stdout int
+pkg syscall (linux-arm), const AF_ALG ideal-int
+pkg syscall (linux-arm), const AF_APPLETALK ideal-int
+pkg syscall (linux-arm), const AF_ASH ideal-int
+pkg syscall (linux-arm), const AF_ATMPVC ideal-int
+pkg syscall (linux-arm), const AF_ATMSVC ideal-int
+pkg syscall (linux-arm), const AF_AX25 ideal-int
+pkg syscall (linux-arm), const AF_BLUETOOTH ideal-int
+pkg syscall (linux-arm), const AF_BRIDGE ideal-int
+pkg syscall (linux-arm), const AF_CAIF ideal-int
+pkg syscall (linux-arm), const AF_CAN ideal-int
+pkg syscall (linux-arm), const AF_DECnet ideal-int
+pkg syscall (linux-arm), const AF_ECONET ideal-int
+pkg syscall (linux-arm), const AF_FILE ideal-int
+pkg syscall (linux-arm), const AF_IEEE802154 ideal-int
+pkg syscall (linux-arm), const AF_IPX ideal-int
+pkg syscall (linux-arm), const AF_IRDA ideal-int
+pkg syscall (linux-arm), const AF_ISDN ideal-int
+pkg syscall (linux-arm), const AF_IUCV ideal-int
+pkg syscall (linux-arm), const AF_KEY ideal-int
+pkg syscall (linux-arm), const AF_LLC ideal-int
+pkg syscall (linux-arm), const AF_LOCAL ideal-int
+pkg syscall (linux-arm), const AF_MAX ideal-int
+pkg syscall (linux-arm), const AF_NETBEUI ideal-int
+pkg syscall (linux-arm), const AF_NETLINK ideal-int
+pkg syscall (linux-arm), const AF_NETROM ideal-int
+pkg syscall (linux-arm), const AF_PACKET ideal-int
+pkg syscall (linux-arm), const AF_PHONET ideal-int
+pkg syscall (linux-arm), const AF_PPPOX ideal-int
+pkg syscall (linux-arm), const AF_RDS ideal-int
+pkg syscall (linux-arm), const AF_ROSE ideal-int
+pkg syscall (linux-arm), const AF_ROUTE ideal-int
+pkg syscall (linux-arm), const AF_RXRPC ideal-int
+pkg syscall (linux-arm), const AF_SECURITY ideal-int
+pkg syscall (linux-arm), const AF_SNA ideal-int
+pkg syscall (linux-arm), const AF_TIPC ideal-int
+pkg syscall (linux-arm), const AF_WANPIPE ideal-int
+pkg syscall (linux-arm), const AF_X25 ideal-int
+pkg syscall (linux-arm), const ARPHRD_ADAPT ideal-int
+pkg syscall (linux-arm), const ARPHRD_APPLETLK ideal-int
+pkg syscall (linux-arm), const ARPHRD_ARCNET ideal-int
+pkg syscall (linux-arm), const ARPHRD_ASH ideal-int
+pkg syscall (linux-arm), const ARPHRD_ATM ideal-int
+pkg syscall (linux-arm), const ARPHRD_AX25 ideal-int
+pkg syscall (linux-arm), const ARPHRD_BIF ideal-int
+pkg syscall (linux-arm), const ARPHRD_CHAOS ideal-int
+pkg syscall (linux-arm), const ARPHRD_CISCO ideal-int
+pkg syscall (linux-arm), const ARPHRD_CSLIP ideal-int
+pkg syscall (linux-arm), const ARPHRD_CSLIP6 ideal-int
+pkg syscall (linux-arm), const ARPHRD_DDCMP ideal-int
+pkg syscall (linux-arm), const ARPHRD_DLCI ideal-int
+pkg syscall (linux-arm), const ARPHRD_ECONET ideal-int
+pkg syscall (linux-arm), const ARPHRD_EETHER ideal-int
+pkg syscall (linux-arm), const ARPHRD_ETHER ideal-int
+pkg syscall (linux-arm), const ARPHRD_EUI64 ideal-int
+pkg syscall (linux-arm), const ARPHRD_FCAL ideal-int
+pkg syscall (linux-arm), const ARPHRD_FCFABRIC ideal-int
+pkg syscall (linux-arm), const ARPHRD_FCPL ideal-int
+pkg syscall (linux-arm), const ARPHRD_FCPP ideal-int
+pkg syscall (linux-arm), const ARPHRD_FDDI ideal-int
+pkg syscall (linux-arm), const ARPHRD_FRAD ideal-int
+pkg syscall (linux-arm), const ARPHRD_HDLC ideal-int
+pkg syscall (linux-arm), const ARPHRD_HIPPI ideal-int
+pkg syscall (linux-arm), const ARPHRD_HWX25 ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE1394 ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE802 ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE80211 ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE80211_PRISM ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE80211_RADIOTAP ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE802154 ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE802154_PHY ideal-int
+pkg syscall (linux-arm), const ARPHRD_IEEE802_TR ideal-int
+pkg syscall (linux-arm), const ARPHRD_INFINIBAND ideal-int
+pkg syscall (linux-arm), const ARPHRD_IPDDP ideal-int
+pkg syscall (linux-arm), const ARPHRD_IPGRE ideal-int
+pkg syscall (linux-arm), const ARPHRD_IRDA ideal-int
+pkg syscall (linux-arm), const ARPHRD_LAPB ideal-int
+pkg syscall (linux-arm), const ARPHRD_LOCALTLK ideal-int
+pkg syscall (linux-arm), const ARPHRD_LOOPBACK ideal-int
+pkg syscall (linux-arm), const ARPHRD_METRICOM ideal-int
+pkg syscall (linux-arm), const ARPHRD_NETROM ideal-int
+pkg syscall (linux-arm), const ARPHRD_NONE ideal-int
+pkg syscall (linux-arm), const ARPHRD_PIMREG ideal-int
+pkg syscall (linux-arm), const ARPHRD_PPP ideal-int
+pkg syscall (linux-arm), const ARPHRD_PRONET ideal-int
+pkg syscall (linux-arm), const ARPHRD_RAWHDLC ideal-int
+pkg syscall (linux-arm), const ARPHRD_ROSE ideal-int
+pkg syscall (linux-arm), const ARPHRD_RSRVD ideal-int
+pkg syscall (linux-arm), const ARPHRD_SIT ideal-int
+pkg syscall (linux-arm), const ARPHRD_SKIP ideal-int
+pkg syscall (linux-arm), const ARPHRD_SLIP ideal-int
+pkg syscall (linux-arm), const ARPHRD_SLIP6 ideal-int
+pkg syscall (linux-arm), const ARPHRD_TUNNEL ideal-int
+pkg syscall (linux-arm), const ARPHRD_TUNNEL6 ideal-int
+pkg syscall (linux-arm), const ARPHRD_VOID ideal-int
+pkg syscall (linux-arm), const ARPHRD_X25 ideal-int
+pkg syscall (linux-arm), const B0 ideal-int
+pkg syscall (linux-arm), const B1000000 ideal-int
+pkg syscall (linux-arm), const B110 ideal-int
+pkg syscall (linux-arm), const B115200 ideal-int
+pkg syscall (linux-arm), const B1152000 ideal-int
+pkg syscall (linux-arm), const B1200 ideal-int
+pkg syscall (linux-arm), const B134 ideal-int
+pkg syscall (linux-arm), const B150 ideal-int
+pkg syscall (linux-arm), const B1500000 ideal-int
+pkg syscall (linux-arm), const B1800 ideal-int
+pkg syscall (linux-arm), const B19200 ideal-int
+pkg syscall (linux-arm), const B200 ideal-int
+pkg syscall (linux-arm), const B2000000 ideal-int
+pkg syscall (linux-arm), const B230400 ideal-int
+pkg syscall (linux-arm), const B2400 ideal-int
+pkg syscall (linux-arm), const B2500000 ideal-int
+pkg syscall (linux-arm), const B300 ideal-int
+pkg syscall (linux-arm), const B3000000 ideal-int
+pkg syscall (linux-arm), const B3500000 ideal-int
+pkg syscall (linux-arm), const B38400 ideal-int
+pkg syscall (linux-arm), const B4000000 ideal-int
+pkg syscall (linux-arm), const B460800 ideal-int
+pkg syscall (linux-arm), const B4800 ideal-int
+pkg syscall (linux-arm), const B50 ideal-int
+pkg syscall (linux-arm), const B500000 ideal-int
+pkg syscall (linux-arm), const B57600 ideal-int
+pkg syscall (linux-arm), const B576000 ideal-int
+pkg syscall (linux-arm), const B600 ideal-int
+pkg syscall (linux-arm), const B75 ideal-int
+pkg syscall (linux-arm), const B921600 ideal-int
+pkg syscall (linux-arm), const B9600 ideal-int
+pkg syscall (linux-arm), const BPF_A ideal-int
+pkg syscall (linux-arm), const BPF_ABS ideal-int
+pkg syscall (linux-arm), const BPF_ADD ideal-int
+pkg syscall (linux-arm), const BPF_ALU ideal-int
+pkg syscall (linux-arm), const BPF_AND ideal-int
+pkg syscall (linux-arm), const BPF_B ideal-int
+pkg syscall (linux-arm), const BPF_DIV ideal-int
+pkg syscall (linux-arm), const BPF_H ideal-int
+pkg syscall (linux-arm), const BPF_IMM ideal-int
+pkg syscall (linux-arm), const BPF_IND ideal-int
+pkg syscall (linux-arm), const BPF_JA ideal-int
+pkg syscall (linux-arm), const BPF_JEQ ideal-int
+pkg syscall (linux-arm), const BPF_JGE ideal-int
+pkg syscall (linux-arm), const BPF_JGT ideal-int
+pkg syscall (linux-arm), const BPF_JMP ideal-int
+pkg syscall (linux-arm), const BPF_JSET ideal-int
+pkg syscall (linux-arm), const BPF_K ideal-int
+pkg syscall (linux-arm), const BPF_LD ideal-int
+pkg syscall (linux-arm), const BPF_LDX ideal-int
+pkg syscall (linux-arm), const BPF_LEN ideal-int
+pkg syscall (linux-arm), const BPF_LSH ideal-int
+pkg syscall (linux-arm), const BPF_MAJOR_VERSION ideal-int
+pkg syscall (linux-arm), const BPF_MAXINSNS ideal-int
+pkg syscall (linux-arm), const BPF_MEM ideal-int
+pkg syscall (linux-arm), const BPF_MEMWORDS ideal-int
+pkg syscall (linux-arm), const BPF_MINOR_VERSION ideal-int
+pkg syscall (linux-arm), const BPF_MISC ideal-int
+pkg syscall (linux-arm), const BPF_MSH ideal-int
+pkg syscall (linux-arm), const BPF_MUL ideal-int
+pkg syscall (linux-arm), const BPF_NEG ideal-int
+pkg syscall (linux-arm), const BPF_OR ideal-int
+pkg syscall (linux-arm), const BPF_RET ideal-int
+pkg syscall (linux-arm), const BPF_RSH ideal-int
+pkg syscall (linux-arm), const BPF_ST ideal-int
+pkg syscall (linux-arm), const BPF_STX ideal-int
+pkg syscall (linux-arm), const BPF_SUB ideal-int
+pkg syscall (linux-arm), const BPF_TAX ideal-int
+pkg syscall (linux-arm), const BPF_TXA ideal-int
+pkg syscall (linux-arm), const BPF_W ideal-int
+pkg syscall (linux-arm), const BPF_X ideal-int
+pkg syscall (linux-arm), const BRKINT ideal-int
+pkg syscall (linux-arm), const CLOCAL ideal-int
+pkg syscall (linux-arm), const CREAD ideal-int
+pkg syscall (linux-arm), const CS5 ideal-int
+pkg syscall (linux-arm), const CS6 ideal-int
+pkg syscall (linux-arm), const CS7 ideal-int
+pkg syscall (linux-arm), const CS8 ideal-int
+pkg syscall (linux-arm), const CSIZE ideal-int
+pkg syscall (linux-arm), const CSTOPB ideal-int
+pkg syscall (linux-arm), const DT_BLK ideal-int
+pkg syscall (linux-arm), const DT_CHR ideal-int
+pkg syscall (linux-arm), const DT_DIR ideal-int
+pkg syscall (linux-arm), const DT_FIFO ideal-int
+pkg syscall (linux-arm), const DT_LNK ideal-int
+pkg syscall (linux-arm), const DT_REG ideal-int
+pkg syscall (linux-arm), const DT_SOCK ideal-int
+pkg syscall (linux-arm), const DT_UNKNOWN ideal-int
+pkg syscall (linux-arm), const DT_WHT ideal-int
+pkg syscall (linux-arm), const EADV Errno
+pkg syscall (linux-arm), const EBADE Errno
+pkg syscall (linux-arm), const EBADFD Errno
+pkg syscall (linux-arm), const EBADR Errno
+pkg syscall (linux-arm), const EBADRQC Errno
+pkg syscall (linux-arm), const EBADSLT Errno
+pkg syscall (linux-arm), const EBFONT Errno
+pkg syscall (linux-arm), const ECHO ideal-int
+pkg syscall (linux-arm), const ECHOCTL ideal-int
+pkg syscall (linux-arm), const ECHOE ideal-int
+pkg syscall (linux-arm), const ECHOK ideal-int
+pkg syscall (linux-arm), const ECHOKE ideal-int
+pkg syscall (linux-arm), const ECHONL ideal-int
+pkg syscall (linux-arm), const ECHOPRT ideal-int
+pkg syscall (linux-arm), const ECHRNG Errno
+pkg syscall (linux-arm), const ECOMM Errno
+pkg syscall (linux-arm), const EDEADLOCK Errno
+pkg syscall (linux-arm), const EDOTDOT Errno
+pkg syscall (linux-arm), const EHWPOISON Errno
+pkg syscall (linux-arm), const EISNAM Errno
+pkg syscall (linux-arm), const EKEYEXPIRED Errno
+pkg syscall (linux-arm), const EKEYREJECTED Errno
+pkg syscall (linux-arm), const EKEYREVOKED Errno
+pkg syscall (linux-arm), const EL2HLT Errno
+pkg syscall (linux-arm), const EL2NSYNC Errno
+pkg syscall (linux-arm), const EL3HLT Errno
+pkg syscall (linux-arm), const EL3RST Errno
+pkg syscall (linux-arm), const ELF_NGREG ideal-int
+pkg syscall (linux-arm), const ELF_PRARGSZ ideal-int
+pkg syscall (linux-arm), const ELIBACC Errno
+pkg syscall (linux-arm), const ELIBBAD Errno
+pkg syscall (linux-arm), const ELIBEXEC Errno
+pkg syscall (linux-arm), const ELIBMAX Errno
+pkg syscall (linux-arm), const ELIBSCN Errno
+pkg syscall (linux-arm), const ELNRNG Errno
+pkg syscall (linux-arm), const EMEDIUMTYPE Errno
+pkg syscall (linux-arm), const ENAVAIL Errno
+pkg syscall (linux-arm), const ENOANO Errno
+pkg syscall (linux-arm), const ENOCSI Errno
+pkg syscall (linux-arm), const ENODATA Errno
+pkg syscall (linux-arm), const ENOKEY Errno
+pkg syscall (linux-arm), const ENOMEDIUM Errno
+pkg syscall (linux-arm), const ENONET Errno
+pkg syscall (linux-arm), const ENOPKG Errno
+pkg syscall (linux-arm), const ENOSR Errno
+pkg syscall (linux-arm), const ENOSTR Errno
+pkg syscall (linux-arm), const ENOTNAM Errno
+pkg syscall (linux-arm), const ENOTRECOVERABLE Errno
+pkg syscall (linux-arm), const ENOTUNIQ Errno
+pkg syscall (linux-arm), const EOWNERDEAD Errno
+pkg syscall (linux-arm), const EPOLLERR ideal-int
+pkg syscall (linux-arm), const EPOLLET ideal-int
+pkg syscall (linux-arm), const EPOLLHUP ideal-int
+pkg syscall (linux-arm), const EPOLLIN ideal-int
+pkg syscall (linux-arm), const EPOLLMSG ideal-int
+pkg syscall (linux-arm), const EPOLLONESHOT ideal-int
+pkg syscall (linux-arm), const EPOLLOUT ideal-int
+pkg syscall (linux-arm), const EPOLLPRI ideal-int
+pkg syscall (linux-arm), const EPOLLRDBAND ideal-int
+pkg syscall (linux-arm), const EPOLLRDHUP ideal-int
+pkg syscall (linux-arm), const EPOLLRDNORM ideal-int
+pkg syscall (linux-arm), const EPOLLWRBAND ideal-int
+pkg syscall (linux-arm), const EPOLLWRNORM ideal-int
+pkg syscall (linux-arm), const EPOLL_CLOEXEC ideal-int
+pkg syscall (linux-arm), const EPOLL_CTL_ADD ideal-int
+pkg syscall (linux-arm), const EPOLL_CTL_DEL ideal-int
+pkg syscall (linux-arm), const EPOLL_CTL_MOD ideal-int
+pkg syscall (linux-arm), const EPOLL_NONBLOCK ideal-int
+pkg syscall (linux-arm), const EREMCHG Errno
+pkg syscall (linux-arm), const EREMOTEIO Errno
+pkg syscall (linux-arm), const ERESTART Errno
+pkg syscall (linux-arm), const ERFKILL Errno
+pkg syscall (linux-arm), const ESRMNT Errno
+pkg syscall (linux-arm), const ESTRPIPE Errno
+pkg syscall (linux-arm), const ETH_P_1588 ideal-int
+pkg syscall (linux-arm), const ETH_P_8021Q ideal-int
+pkg syscall (linux-arm), const ETH_P_802_2 ideal-int
+pkg syscall (linux-arm), const ETH_P_802_3 ideal-int
+pkg syscall (linux-arm), const ETH_P_AARP ideal-int
+pkg syscall (linux-arm), const ETH_P_ALL ideal-int
+pkg syscall (linux-arm), const ETH_P_AOE ideal-int
+pkg syscall (linux-arm), const ETH_P_ARCNET ideal-int
+pkg syscall (linux-arm), const ETH_P_ARP ideal-int
+pkg syscall (linux-arm), const ETH_P_ATALK ideal-int
+pkg syscall (linux-arm), const ETH_P_ATMFATE ideal-int
+pkg syscall (linux-arm), const ETH_P_ATMMPOA ideal-int
+pkg syscall (linux-arm), const ETH_P_AX25 ideal-int
+pkg syscall (linux-arm), const ETH_P_BPQ ideal-int
+pkg syscall (linux-arm), const ETH_P_CAIF ideal-int
+pkg syscall (linux-arm), const ETH_P_CAN ideal-int
+pkg syscall (linux-arm), const ETH_P_CONTROL ideal-int
+pkg syscall (linux-arm), const ETH_P_CUST ideal-int
+pkg syscall (linux-arm), const ETH_P_DDCMP ideal-int
+pkg syscall (linux-arm), const ETH_P_DEC ideal-int
+pkg syscall (linux-arm), const ETH_P_DIAG ideal-int
+pkg syscall (linux-arm), const ETH_P_DNA_DL ideal-int
+pkg syscall (linux-arm), const ETH_P_DNA_RC ideal-int
+pkg syscall (linux-arm), const ETH_P_DNA_RT ideal-int
+pkg syscall (linux-arm), const ETH_P_DSA ideal-int
+pkg syscall (linux-arm), const ETH_P_ECONET ideal-int
+pkg syscall (linux-arm), const ETH_P_EDSA ideal-int
+pkg syscall (linux-arm), const ETH_P_FCOE ideal-int
+pkg syscall (linux-arm), const ETH_P_FIP ideal-int
+pkg syscall (linux-arm), const ETH_P_HDLC ideal-int
+pkg syscall (linux-arm), const ETH_P_IEEE802154 ideal-int
+pkg syscall (linux-arm), const ETH_P_IEEEPUP ideal-int
+pkg syscall (linux-arm), const ETH_P_IEEEPUPAT ideal-int
+pkg syscall (linux-arm), const ETH_P_IP ideal-int
+pkg syscall (linux-arm), const ETH_P_IPV6 ideal-int
+pkg syscall (linux-arm), const ETH_P_IPX ideal-int
+pkg syscall (linux-arm), const ETH_P_IRDA ideal-int
+pkg syscall (linux-arm), const ETH_P_LAT ideal-int
+pkg syscall (linux-arm), const ETH_P_LINK_CTL ideal-int
+pkg syscall (linux-arm), const ETH_P_LOCALTALK ideal-int
+pkg syscall (linux-arm), const ETH_P_LOOP ideal-int
+pkg syscall (linux-arm), const ETH_P_MOBITEX ideal-int
+pkg syscall (linux-arm), const ETH_P_MPLS_MC ideal-int
+pkg syscall (linux-arm), const ETH_P_MPLS_UC ideal-int
+pkg syscall (linux-arm), const ETH_P_PAE ideal-int
+pkg syscall (linux-arm), const ETH_P_PAUSE ideal-int
+pkg syscall (linux-arm), const ETH_P_PHONET ideal-int
+pkg syscall (linux-arm), const ETH_P_PPPTALK ideal-int
+pkg syscall (linux-arm), const ETH_P_PPP_DISC ideal-int
+pkg syscall (linux-arm), const ETH_P_PPP_MP ideal-int
+pkg syscall (linux-arm), const ETH_P_PPP_SES ideal-int
+pkg syscall (linux-arm), const ETH_P_PUP ideal-int
+pkg syscall (linux-arm), const ETH_P_PUPAT ideal-int
+pkg syscall (linux-arm), const ETH_P_RARP ideal-int
+pkg syscall (linux-arm), const ETH_P_SCA ideal-int
+pkg syscall (linux-arm), const ETH_P_SLOW ideal-int
+pkg syscall (linux-arm), const ETH_P_SNAP ideal-int
+pkg syscall (linux-arm), const ETH_P_TEB ideal-int
+pkg syscall (linux-arm), const ETH_P_TIPC ideal-int
+pkg syscall (linux-arm), const ETH_P_TRAILER ideal-int
+pkg syscall (linux-arm), const ETH_P_TR_802_2 ideal-int
+pkg syscall (linux-arm), const ETH_P_WAN_PPP ideal-int
+pkg syscall (linux-arm), const ETH_P_WCCP ideal-int
+pkg syscall (linux-arm), const ETH_P_X25 ideal-int
+pkg syscall (linux-arm), const ETIME Errno
+pkg syscall (linux-arm), const EUCLEAN Errno
+pkg syscall (linux-arm), const EUNATCH Errno
+pkg syscall (linux-arm), const EXFULL Errno
+pkg syscall (linux-arm), const FD_CLOEXEC ideal-int
+pkg syscall (linux-arm), const FD_SETSIZE ideal-int
+pkg syscall (linux-arm), const FLUSHO ideal-int
+pkg syscall (linux-arm), const F_DUPFD ideal-int
+pkg syscall (linux-arm), const F_DUPFD_CLOEXEC ideal-int
+pkg syscall (linux-arm), const F_EXLCK ideal-int
+pkg syscall (linux-arm), const F_GETFD ideal-int
+pkg syscall (linux-arm), const F_GETFL ideal-int
+pkg syscall (linux-arm), const F_GETLEASE ideal-int
+pkg syscall (linux-arm), const F_GETLK ideal-int
+pkg syscall (linux-arm), const F_GETLK64 ideal-int
+pkg syscall (linux-arm), const F_GETOWN ideal-int
+pkg syscall (linux-arm), const F_GETOWN_EX ideal-int
+pkg syscall (linux-arm), const F_GETPIPE_SZ ideal-int
+pkg syscall (linux-arm), const F_GETSIG ideal-int
+pkg syscall (linux-arm), const F_LOCK ideal-int
+pkg syscall (linux-arm), const F_NOTIFY ideal-int
+pkg syscall (linux-arm), const F_OK ideal-int
+pkg syscall (linux-arm), const F_RDLCK ideal-int
+pkg syscall (linux-arm), const F_SETFD ideal-int
+pkg syscall (linux-arm), const F_SETFL ideal-int
+pkg syscall (linux-arm), const F_SETLEASE ideal-int
+pkg syscall (linux-arm), const F_SETLK ideal-int
+pkg syscall (linux-arm), const F_SETLK64 ideal-int
+pkg syscall (linux-arm), const F_SETLKW ideal-int
+pkg syscall (linux-arm), const F_SETLKW64 ideal-int
+pkg syscall (linux-arm), const F_SETOWN ideal-int
+pkg syscall (linux-arm), const F_SETOWN_EX ideal-int
+pkg syscall (linux-arm), const F_SETPIPE_SZ ideal-int
+pkg syscall (linux-arm), const F_SETSIG ideal-int
+pkg syscall (linux-arm), const F_SHLCK ideal-int
+pkg syscall (linux-arm), const F_TEST ideal-int
+pkg syscall (linux-arm), const F_TLOCK ideal-int
+pkg syscall (linux-arm), const F_ULOCK ideal-int
+pkg syscall (linux-arm), const F_UNLCK ideal-int
+pkg syscall (linux-arm), const F_WRLCK ideal-int
+pkg syscall (linux-arm), const HUPCL ideal-int
+pkg syscall (linux-arm), const ICANON ideal-int
+pkg syscall (linux-arm), const ICRNL ideal-int
+pkg syscall (linux-arm), const IEXTEN ideal-int
+pkg syscall (linux-arm), const IFA_ADDRESS ideal-int
+pkg syscall (linux-arm), const IFA_ANYCAST ideal-int
+pkg syscall (linux-arm), const IFA_BROADCAST ideal-int
+pkg syscall (linux-arm), const IFA_CACHEINFO ideal-int
+pkg syscall (linux-arm), const IFA_F_DADFAILED ideal-int
+pkg syscall (linux-arm), const IFA_F_DEPRECATED ideal-int
+pkg syscall (linux-arm), const IFA_F_HOMEADDRESS ideal-int
+pkg syscall (linux-arm), const IFA_F_NODAD ideal-int
+pkg syscall (linux-arm), const IFA_F_OPTIMISTIC ideal-int
+pkg syscall (linux-arm), const IFA_F_PERMANENT ideal-int
+pkg syscall (linux-arm), const IFA_F_SECONDARY ideal-int
+pkg syscall (linux-arm), const IFA_F_TEMPORARY ideal-int
+pkg syscall (linux-arm), const IFA_F_TENTATIVE ideal-int
+pkg syscall (linux-arm), const IFA_LABEL ideal-int
+pkg syscall (linux-arm), const IFA_LOCAL ideal-int
+pkg syscall (linux-arm), const IFA_MAX ideal-int
+pkg syscall (linux-arm), const IFA_MULTICAST ideal-int
+pkg syscall (linux-arm), const IFA_UNSPEC ideal-int
+pkg syscall (linux-arm), const IFF_ALLMULTI ideal-int
+pkg syscall (linux-arm), const IFF_AUTOMEDIA ideal-int
+pkg syscall (linux-arm), const IFF_DEBUG ideal-int
+pkg syscall (linux-arm), const IFF_DYNAMIC ideal-int
+pkg syscall (linux-arm), const IFF_MASTER ideal-int
+pkg syscall (linux-arm), const IFF_NOARP ideal-int
+pkg syscall (linux-arm), const IFF_NOTRAILERS ideal-int
+pkg syscall (linux-arm), const IFF_NO_PI ideal-int
+pkg syscall (linux-arm), const IFF_ONE_QUEUE ideal-int
+pkg syscall (linux-arm), const IFF_POINTOPOINT ideal-int
+pkg syscall (linux-arm), const IFF_PORTSEL ideal-int
+pkg syscall (linux-arm), const IFF_PROMISC ideal-int
+pkg syscall (linux-arm), const IFF_RUNNING ideal-int
+pkg syscall (linux-arm), const IFF_SLAVE ideal-int
+pkg syscall (linux-arm), const IFF_TAP ideal-int
+pkg syscall (linux-arm), const IFF_TUN ideal-int
+pkg syscall (linux-arm), const IFF_TUN_EXCL ideal-int
+pkg syscall (linux-arm), const IFF_VNET_HDR ideal-int
+pkg syscall (linux-arm), const IFLA_ADDRESS ideal-int
+pkg syscall (linux-arm), const IFLA_BROADCAST ideal-int
+pkg syscall (linux-arm), const IFLA_COST ideal-int
+pkg syscall (linux-arm), const IFLA_IFALIAS ideal-int
+pkg syscall (linux-arm), const IFLA_IFNAME ideal-int
+pkg syscall (linux-arm), const IFLA_LINK ideal-int
+pkg syscall (linux-arm), const IFLA_LINKINFO ideal-int
+pkg syscall (linux-arm), const IFLA_LINKMODE ideal-int
+pkg syscall (linux-arm), const IFLA_MAP ideal-int
+pkg syscall (linux-arm), const IFLA_MASTER ideal-int
+pkg syscall (linux-arm), const IFLA_MAX ideal-int
+pkg syscall (linux-arm), const IFLA_MTU ideal-int
+pkg syscall (linux-arm), const IFLA_NET_NS_PID ideal-int
+pkg syscall (linux-arm), const IFLA_OPERSTATE ideal-int
+pkg syscall (linux-arm), const IFLA_PRIORITY ideal-int
+pkg syscall (linux-arm), const IFLA_PROTINFO ideal-int
+pkg syscall (linux-arm), const IFLA_QDISC ideal-int
+pkg syscall (linux-arm), const IFLA_STATS ideal-int
+pkg syscall (linux-arm), const IFLA_TXQLEN ideal-int
+pkg syscall (linux-arm), const IFLA_UNSPEC ideal-int
+pkg syscall (linux-arm), const IFLA_WEIGHT ideal-int
+pkg syscall (linux-arm), const IFLA_WIRELESS ideal-int
+pkg syscall (linux-arm), const IFNAMSIZ ideal-int
+pkg syscall (linux-arm), const IGNBRK ideal-int
+pkg syscall (linux-arm), const IGNCR ideal-int
+pkg syscall (linux-arm), const IGNPAR ideal-int
+pkg syscall (linux-arm), const IMAXBEL ideal-int
+pkg syscall (linux-arm), const INLCR ideal-int
+pkg syscall (linux-arm), const INPCK ideal-int
+pkg syscall (linux-arm), const IN_ACCESS ideal-int
+pkg syscall (linux-arm), const IN_ALL_EVENTS ideal-int
+pkg syscall (linux-arm), const IN_ATTRIB ideal-int
+pkg syscall (linux-arm), const IN_CLASSA_HOST ideal-int
+pkg syscall (linux-arm), const IN_CLASSA_MAX ideal-int
+pkg syscall (linux-arm), const IN_CLASSA_NET ideal-int
+pkg syscall (linux-arm), const IN_CLASSA_NSHIFT ideal-int
+pkg syscall (linux-arm), const IN_CLASSB_HOST ideal-int
+pkg syscall (linux-arm), const IN_CLASSB_MAX ideal-int
+pkg syscall (linux-arm), const IN_CLASSB_NET ideal-int
+pkg syscall (linux-arm), const IN_CLASSB_NSHIFT ideal-int
+pkg syscall (linux-arm), const IN_CLASSC_HOST ideal-int
+pkg syscall (linux-arm), const IN_CLASSC_NET ideal-int
+pkg syscall (linux-arm), const IN_CLASSC_NSHIFT ideal-int
+pkg syscall (linux-arm), const IN_CLOEXEC ideal-int
+pkg syscall (linux-arm), const IN_CLOSE ideal-int
+pkg syscall (linux-arm), const IN_CLOSE_NOWRITE ideal-int
+pkg syscall (linux-arm), const IN_CLOSE_WRITE ideal-int
+pkg syscall (linux-arm), const IN_CREATE ideal-int
+pkg syscall (linux-arm), const IN_DELETE ideal-int
+pkg syscall (linux-arm), const IN_DELETE_SELF ideal-int
+pkg syscall (linux-arm), const IN_DONT_FOLLOW ideal-int
+pkg syscall (linux-arm), const IN_EXCL_UNLINK ideal-int
+pkg syscall (linux-arm), const IN_IGNORED ideal-int
+pkg syscall (linux-arm), const IN_ISDIR ideal-int
+pkg syscall (linux-arm), const IN_LOOPBACKNET ideal-int
+pkg syscall (linux-arm), const IN_MASK_ADD ideal-int
+pkg syscall (linux-arm), const IN_MODIFY ideal-int
+pkg syscall (linux-arm), const IN_MOVE ideal-int
+pkg syscall (linux-arm), const IN_MOVED_FROM ideal-int
+pkg syscall (linux-arm), const IN_MOVED_TO ideal-int
+pkg syscall (linux-arm), const IN_MOVE_SELF ideal-int
+pkg syscall (linux-arm), const IN_NONBLOCK ideal-int
+pkg syscall (linux-arm), const IN_ONESHOT ideal-int
+pkg syscall (linux-arm), const IN_ONLYDIR ideal-int
+pkg syscall (linux-arm), const IN_OPEN ideal-int
+pkg syscall (linux-arm), const IN_Q_OVERFLOW ideal-int
+pkg syscall (linux-arm), const IN_UNMOUNT ideal-int
+pkg syscall (linux-arm), const IPPROTO_AH ideal-int
+pkg syscall (linux-arm), const IPPROTO_COMP ideal-int
+pkg syscall (linux-arm), const IPPROTO_DCCP ideal-int
+pkg syscall (linux-arm), const IPPROTO_DSTOPTS ideal-int
+pkg syscall (linux-arm), const IPPROTO_EGP ideal-int
+pkg syscall (linux-arm), const IPPROTO_ENCAP ideal-int
+pkg syscall (linux-arm), const IPPROTO_ESP ideal-int
+pkg syscall (linux-arm), const IPPROTO_FRAGMENT ideal-int
+pkg syscall (linux-arm), const IPPROTO_GRE ideal-int
+pkg syscall (linux-arm), const IPPROTO_HOPOPTS ideal-int
+pkg syscall (linux-arm), const IPPROTO_ICMP ideal-int
+pkg syscall (linux-arm), const IPPROTO_ICMPV6 ideal-int
+pkg syscall (linux-arm), const IPPROTO_IDP ideal-int
+pkg syscall (linux-arm), const IPPROTO_IGMP ideal-int
+pkg syscall (linux-arm), const IPPROTO_IPIP ideal-int
+pkg syscall (linux-arm), const IPPROTO_MTP ideal-int
+pkg syscall (linux-arm), const IPPROTO_NONE ideal-int
+pkg syscall (linux-arm), const IPPROTO_PIM ideal-int
+pkg syscall (linux-arm), const IPPROTO_PUP ideal-int
+pkg syscall (linux-arm), const IPPROTO_RAW ideal-int
+pkg syscall (linux-arm), const IPPROTO_ROUTING ideal-int
+pkg syscall (linux-arm), const IPPROTO_RSVP ideal-int
+pkg syscall (linux-arm), const IPPROTO_SCTP ideal-int
+pkg syscall (linux-arm), const IPPROTO_TP ideal-int
+pkg syscall (linux-arm), const IPPROTO_UDPLITE ideal-int
+pkg syscall (linux-arm), const IPV6_2292DSTOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_2292HOPLIMIT ideal-int
+pkg syscall (linux-arm), const IPV6_2292HOPOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_2292PKTINFO ideal-int
+pkg syscall (linux-arm), const IPV6_2292PKTOPTIONS ideal-int
+pkg syscall (linux-arm), const IPV6_2292RTHDR ideal-int
+pkg syscall (linux-arm), const IPV6_ADDRFORM ideal-int
+pkg syscall (linux-arm), const IPV6_ADD_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const IPV6_AUTHHDR ideal-int
+pkg syscall (linux-arm), const IPV6_CHECKSUM ideal-int
+pkg syscall (linux-arm), const IPV6_DROP_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const IPV6_DSTOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_HOPLIMIT ideal-int
+pkg syscall (linux-arm), const IPV6_HOPOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_IPSEC_POLICY ideal-int
+pkg syscall (linux-arm), const IPV6_JOIN_ANYCAST ideal-int
+pkg syscall (linux-arm), const IPV6_LEAVE_ANYCAST ideal-int
+pkg syscall (linux-arm), const IPV6_MTU ideal-int
+pkg syscall (linux-arm), const IPV6_MTU_DISCOVER ideal-int
+pkg syscall (linux-arm), const IPV6_NEXTHOP ideal-int
+pkg syscall (linux-arm), const IPV6_PKTINFO ideal-int
+pkg syscall (linux-arm), const IPV6_PMTUDISC_DO ideal-int
+pkg syscall (linux-arm), const IPV6_PMTUDISC_DONT ideal-int
+pkg syscall (linux-arm), const IPV6_PMTUDISC_PROBE ideal-int
+pkg syscall (linux-arm), const IPV6_PMTUDISC_WANT ideal-int
+pkg syscall (linux-arm), const IPV6_RECVDSTOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_RECVERR ideal-int
+pkg syscall (linux-arm), const IPV6_RECVHOPLIMIT ideal-int
+pkg syscall (linux-arm), const IPV6_RECVHOPOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_RECVPKTINFO ideal-int
+pkg syscall (linux-arm), const IPV6_RECVRTHDR ideal-int
+pkg syscall (linux-arm), const IPV6_RECVTCLASS ideal-int
+pkg syscall (linux-arm), const IPV6_ROUTER_ALERT ideal-int
+pkg syscall (linux-arm), const IPV6_RTHDR ideal-int
+pkg syscall (linux-arm), const IPV6_RTHDRDSTOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_RTHDR_LOOSE ideal-int
+pkg syscall (linux-arm), const IPV6_RTHDR_STRICT ideal-int
+pkg syscall (linux-arm), const IPV6_RTHDR_TYPE_0 ideal-int
+pkg syscall (linux-arm), const IPV6_RXDSTOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_RXHOPOPTS ideal-int
+pkg syscall (linux-arm), const IPV6_TCLASS ideal-int
+pkg syscall (linux-arm), const IPV6_XFRM_POLICY ideal-int
+pkg syscall (linux-arm), const IP_ADD_SOURCE_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const IP_BLOCK_SOURCE ideal-int
+pkg syscall (linux-arm), const IP_DEFAULT_MULTICAST_LOOP ideal-int
+pkg syscall (linux-arm), const IP_DEFAULT_MULTICAST_TTL ideal-int
+pkg syscall (linux-arm), const IP_DF ideal-int
+pkg syscall (linux-arm), const IP_DROP_SOURCE_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const IP_FREEBIND ideal-int
+pkg syscall (linux-arm), const IP_HDRINCL ideal-int
+pkg syscall (linux-arm), const IP_IPSEC_POLICY ideal-int
+pkg syscall (linux-arm), const IP_MAXPACKET ideal-int
+pkg syscall (linux-arm), const IP_MAX_MEMBERSHIPS ideal-int
+pkg syscall (linux-arm), const IP_MF ideal-int
+pkg syscall (linux-arm), const IP_MINTTL ideal-int
+pkg syscall (linux-arm), const IP_MSFILTER ideal-int
+pkg syscall (linux-arm), const IP_MSS ideal-int
+pkg syscall (linux-arm), const IP_MTU ideal-int
+pkg syscall (linux-arm), const IP_MTU_DISCOVER ideal-int
+pkg syscall (linux-arm), const IP_OFFMASK ideal-int
+pkg syscall (linux-arm), const IP_OPTIONS ideal-int
+pkg syscall (linux-arm), const IP_ORIGDSTADDR ideal-int
+pkg syscall (linux-arm), const IP_PASSSEC ideal-int
+pkg syscall (linux-arm), const IP_PKTINFO ideal-int
+pkg syscall (linux-arm), const IP_PKTOPTIONS ideal-int
+pkg syscall (linux-arm), const IP_PMTUDISC ideal-int
+pkg syscall (linux-arm), const IP_PMTUDISC_DO ideal-int
+pkg syscall (linux-arm), const IP_PMTUDISC_DONT ideal-int
+pkg syscall (linux-arm), const IP_PMTUDISC_PROBE ideal-int
+pkg syscall (linux-arm), const IP_PMTUDISC_WANT ideal-int
+pkg syscall (linux-arm), const IP_RECVERR ideal-int
+pkg syscall (linux-arm), const IP_RECVOPTS ideal-int
+pkg syscall (linux-arm), const IP_RECVORIGDSTADDR ideal-int
+pkg syscall (linux-arm), const IP_RECVRETOPTS ideal-int
+pkg syscall (linux-arm), const IP_RECVTOS ideal-int
+pkg syscall (linux-arm), const IP_RECVTTL ideal-int
+pkg syscall (linux-arm), const IP_RETOPTS ideal-int
+pkg syscall (linux-arm), const IP_RF ideal-int
+pkg syscall (linux-arm), const IP_ROUTER_ALERT ideal-int
+pkg syscall (linux-arm), const IP_TRANSPARENT ideal-int
+pkg syscall (linux-arm), const IP_UNBLOCK_SOURCE ideal-int
+pkg syscall (linux-arm), const IP_XFRM_POLICY ideal-int
+pkg syscall (linux-arm), const ISIG ideal-int
+pkg syscall (linux-arm), const ISTRIP ideal-int
+pkg syscall (linux-arm), const IUCLC ideal-int
+pkg syscall (linux-arm), const IUTF8 ideal-int
+pkg syscall (linux-arm), const IXANY ideal-int
+pkg syscall (linux-arm), const IXOFF ideal-int
+pkg syscall (linux-arm), const IXON ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_CAD_OFF ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_CAD_ON ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_HALT ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_KEXEC ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_POWER_OFF ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_RESTART ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_RESTART2 ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_CMD_SW_SUSPEND ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_MAGIC1 ideal-int
+pkg syscall (linux-arm), const LINUX_REBOOT_MAGIC2 ideal-int
+pkg syscall (linux-arm), const LOCK_EX ideal-int
+pkg syscall (linux-arm), const LOCK_NB ideal-int
+pkg syscall (linux-arm), const LOCK_SH ideal-int
+pkg syscall (linux-arm), const LOCK_UN ideal-int
+pkg syscall (linux-arm), const MADV_DOFORK ideal-int
+pkg syscall (linux-arm), const MADV_DONTFORK ideal-int
+pkg syscall (linux-arm), const MADV_DONTNEED ideal-int
+pkg syscall (linux-arm), const MADV_HUGEPAGE ideal-int
+pkg syscall (linux-arm), const MADV_HWPOISON ideal-int
+pkg syscall (linux-arm), const MADV_MERGEABLE ideal-int
+pkg syscall (linux-arm), const MADV_NOHUGEPAGE ideal-int
+pkg syscall (linux-arm), const MADV_NORMAL ideal-int
+pkg syscall (linux-arm), const MADV_RANDOM ideal-int
+pkg syscall (linux-arm), const MADV_REMOVE ideal-int
+pkg syscall (linux-arm), const MADV_SEQUENTIAL ideal-int
+pkg syscall (linux-arm), const MADV_UNMERGEABLE ideal-int
+pkg syscall (linux-arm), const MADV_WILLNEED ideal-int
+pkg syscall (linux-arm), const MAP_ANON ideal-int
+pkg syscall (linux-arm), const MAP_ANONYMOUS ideal-int
+pkg syscall (linux-arm), const MAP_DENYWRITE ideal-int
+pkg syscall (linux-arm), const MAP_EXECUTABLE ideal-int
+pkg syscall (linux-arm), const MAP_FILE ideal-int
+pkg syscall (linux-arm), const MAP_FIXED ideal-int
+pkg syscall (linux-arm), const MAP_GROWSDOWN ideal-int
+pkg syscall (linux-arm), const MAP_LOCKED ideal-int
+pkg syscall (linux-arm), const MAP_NONBLOCK ideal-int
+pkg syscall (linux-arm), const MAP_NORESERVE ideal-int
+pkg syscall (linux-arm), const MAP_POPULATE ideal-int
+pkg syscall (linux-arm), const MAP_PRIVATE ideal-int
+pkg syscall (linux-arm), const MAP_SHARED ideal-int
+pkg syscall (linux-arm), const MAP_TYPE ideal-int
+pkg syscall (linux-arm), const MCL_CURRENT ideal-int
+pkg syscall (linux-arm), const MCL_FUTURE ideal-int
+pkg syscall (linux-arm), const MNT_DETACH ideal-int
+pkg syscall (linux-arm), const MNT_EXPIRE ideal-int
+pkg syscall (linux-arm), const MNT_FORCE ideal-int
+pkg syscall (linux-arm), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (linux-arm), const MSG_CONFIRM ideal-int
+pkg syscall (linux-arm), const MSG_CTRUNC ideal-int
+pkg syscall (linux-arm), const MSG_DONTROUTE ideal-int
+pkg syscall (linux-arm), const MSG_DONTWAIT ideal-int
+pkg syscall (linux-arm), const MSG_EOR ideal-int
+pkg syscall (linux-arm), const MSG_ERRQUEUE ideal-int
+pkg syscall (linux-arm), const MSG_FIN ideal-int
+pkg syscall (linux-arm), const MSG_MORE ideal-int
+pkg syscall (linux-arm), const MSG_NOSIGNAL ideal-int
+pkg syscall (linux-arm), const MSG_OOB ideal-int
+pkg syscall (linux-arm), const MSG_PEEK ideal-int
+pkg syscall (linux-arm), const MSG_PROXY ideal-int
+pkg syscall (linux-arm), const MSG_RST ideal-int
+pkg syscall (linux-arm), const MSG_SYN ideal-int
+pkg syscall (linux-arm), const MSG_TRUNC ideal-int
+pkg syscall (linux-arm), const MSG_TRYHARD ideal-int
+pkg syscall (linux-arm), const MSG_WAITALL ideal-int
+pkg syscall (linux-arm), const MSG_WAITFORONE ideal-int
+pkg syscall (linux-arm), const MS_ACTIVE ideal-int
+pkg syscall (linux-arm), const MS_ASYNC ideal-int
+pkg syscall (linux-arm), const MS_BIND ideal-int
+pkg syscall (linux-arm), const MS_DIRSYNC ideal-int
+pkg syscall (linux-arm), const MS_INVALIDATE ideal-int
+pkg syscall (linux-arm), const MS_I_VERSION ideal-int
+pkg syscall (linux-arm), const MS_KERNMOUNT ideal-int
+pkg syscall (linux-arm), const MS_MANDLOCK ideal-int
+pkg syscall (linux-arm), const MS_MGC_MSK ideal-int
+pkg syscall (linux-arm), const MS_MGC_VAL ideal-int
+pkg syscall (linux-arm), const MS_MOVE ideal-int
+pkg syscall (linux-arm), const MS_NOATIME ideal-int
+pkg syscall (linux-arm), const MS_NODEV ideal-int
+pkg syscall (linux-arm), const MS_NODIRATIME ideal-int
+pkg syscall (linux-arm), const MS_NOEXEC ideal-int
+pkg syscall (linux-arm), const MS_NOSUID ideal-int
+pkg syscall (linux-arm), const MS_NOUSER ideal-int
+pkg syscall (linux-arm), const MS_POSIXACL ideal-int
+pkg syscall (linux-arm), const MS_PRIVATE ideal-int
+pkg syscall (linux-arm), const MS_RDONLY ideal-int
+pkg syscall (linux-arm), const MS_REC ideal-int
+pkg syscall (linux-arm), const MS_RELATIME ideal-int
+pkg syscall (linux-arm), const MS_REMOUNT ideal-int
+pkg syscall (linux-arm), const MS_RMT_MASK ideal-int
+pkg syscall (linux-arm), const MS_SHARED ideal-int
+pkg syscall (linux-arm), const MS_SILENT ideal-int
+pkg syscall (linux-arm), const MS_SLAVE ideal-int
+pkg syscall (linux-arm), const MS_STRICTATIME ideal-int
+pkg syscall (linux-arm), const MS_SYNC ideal-int
+pkg syscall (linux-arm), const MS_SYNCHRONOUS ideal-int
+pkg syscall (linux-arm), const MS_UNBINDABLE ideal-int
+pkg syscall (linux-arm), const NAME_MAX ideal-int
+pkg syscall (linux-arm), const NETLINK_ADD_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const NETLINK_AUDIT ideal-int
+pkg syscall (linux-arm), const NETLINK_BROADCAST_ERROR ideal-int
+pkg syscall (linux-arm), const NETLINK_CONNECTOR ideal-int
+pkg syscall (linux-arm), const NETLINK_DNRTMSG ideal-int
+pkg syscall (linux-arm), const NETLINK_DROP_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const NETLINK_ECRYPTFS ideal-int
+pkg syscall (linux-arm), const NETLINK_FIB_LOOKUP ideal-int
+pkg syscall (linux-arm), const NETLINK_FIREWALL ideal-int
+pkg syscall (linux-arm), const NETLINK_GENERIC ideal-int
+pkg syscall (linux-arm), const NETLINK_INET_DIAG ideal-int
+pkg syscall (linux-arm), const NETLINK_IP6_FW ideal-int
+pkg syscall (linux-arm), const NETLINK_ISCSI ideal-int
+pkg syscall (linux-arm), const NETLINK_KOBJECT_UEVENT ideal-int
+pkg syscall (linux-arm), const NETLINK_NETFILTER ideal-int
+pkg syscall (linux-arm), const NETLINK_NFLOG ideal-int
+pkg syscall (linux-arm), const NETLINK_NO_ENOBUFS ideal-int
+pkg syscall (linux-arm), const NETLINK_PKTINFO ideal-int
+pkg syscall (linux-arm), const NETLINK_RDMA ideal-int
+pkg syscall (linux-arm), const NETLINK_ROUTE ideal-int
+pkg syscall (linux-arm), const NETLINK_SCSITRANSPORT ideal-int
+pkg syscall (linux-arm), const NETLINK_SELINUX ideal-int
+pkg syscall (linux-arm), const NETLINK_UNUSED ideal-int
+pkg syscall (linux-arm), const NETLINK_USERSOCK ideal-int
+pkg syscall (linux-arm), const NETLINK_XFRM ideal-int
+pkg syscall (linux-arm), const NLA_ALIGNTO ideal-int
+pkg syscall (linux-arm), const NLA_F_NESTED ideal-int
+pkg syscall (linux-arm), const NLA_F_NET_BYTEORDER ideal-int
+pkg syscall (linux-arm), const NLA_HDRLEN ideal-int
+pkg syscall (linux-arm), const NLMSG_ALIGNTO ideal-int
+pkg syscall (linux-arm), const NLMSG_DONE ideal-int
+pkg syscall (linux-arm), const NLMSG_ERROR ideal-int
+pkg syscall (linux-arm), const NLMSG_HDRLEN ideal-int
+pkg syscall (linux-arm), const NLMSG_MIN_TYPE ideal-int
+pkg syscall (linux-arm), const NLMSG_NOOP ideal-int
+pkg syscall (linux-arm), const NLMSG_OVERRUN ideal-int
+pkg syscall (linux-arm), const NLM_F_ACK ideal-int
+pkg syscall (linux-arm), const NLM_F_APPEND ideal-int
+pkg syscall (linux-arm), const NLM_F_ATOMIC ideal-int
+pkg syscall (linux-arm), const NLM_F_CREATE ideal-int
+pkg syscall (linux-arm), const NLM_F_DUMP ideal-int
+pkg syscall (linux-arm), const NLM_F_ECHO ideal-int
+pkg syscall (linux-arm), const NLM_F_EXCL ideal-int
+pkg syscall (linux-arm), const NLM_F_MATCH ideal-int
+pkg syscall (linux-arm), const NLM_F_MULTI ideal-int
+pkg syscall (linux-arm), const NLM_F_REPLACE ideal-int
+pkg syscall (linux-arm), const NLM_F_REQUEST ideal-int
+pkg syscall (linux-arm), const NLM_F_ROOT ideal-int
+pkg syscall (linux-arm), const NOFLSH ideal-int
+pkg syscall (linux-arm), const OCRNL ideal-int
+pkg syscall (linux-arm), const OFDEL ideal-int
+pkg syscall (linux-arm), const OFILL ideal-int
+pkg syscall (linux-arm), const OLCUC ideal-int
+pkg syscall (linux-arm), const ONLCR ideal-int
+pkg syscall (linux-arm), const ONLRET ideal-int
+pkg syscall (linux-arm), const ONOCR ideal-int
+pkg syscall (linux-arm), const OPOST ideal-int
+pkg syscall (linux-arm), const O_ACCMODE ideal-int
+pkg syscall (linux-arm), const O_DIRECT ideal-int
+pkg syscall (linux-arm), const O_DIRECTORY ideal-int
+pkg syscall (linux-arm), const O_DSYNC ideal-int
+pkg syscall (linux-arm), const O_FSYNC ideal-int
+pkg syscall (linux-arm), const O_LARGEFILE ideal-int
+pkg syscall (linux-arm), const O_NDELAY ideal-int
+pkg syscall (linux-arm), const O_NOATIME ideal-int
+pkg syscall (linux-arm), const O_NOFOLLOW ideal-int
+pkg syscall (linux-arm), const O_RSYNC ideal-int
+pkg syscall (linux-arm), const PACKET_ADD_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const PACKET_BROADCAST ideal-int
+pkg syscall (linux-arm), const PACKET_DROP_MEMBERSHIP ideal-int
+pkg syscall (linux-arm), const PACKET_FASTROUTE ideal-int
+pkg syscall (linux-arm), const PACKET_HOST ideal-int
+pkg syscall (linux-arm), const PACKET_LOOPBACK ideal-int
+pkg syscall (linux-arm), const PACKET_MR_ALLMULTI ideal-int
+pkg syscall (linux-arm), const PACKET_MR_MULTICAST ideal-int
+pkg syscall (linux-arm), const PACKET_MR_PROMISC ideal-int
+pkg syscall (linux-arm), const PACKET_MULTICAST ideal-int
+pkg syscall (linux-arm), const PACKET_OTHERHOST ideal-int
+pkg syscall (linux-arm), const PACKET_OUTGOING ideal-int
+pkg syscall (linux-arm), const PACKET_RECV_OUTPUT ideal-int
+pkg syscall (linux-arm), const PACKET_RX_RING ideal-int
+pkg syscall (linux-arm), const PACKET_STATISTICS ideal-int
+pkg syscall (linux-arm), const PARENB ideal-int
+pkg syscall (linux-arm), const PARMRK ideal-int
+pkg syscall (linux-arm), const PARODD ideal-int
+pkg syscall (linux-arm), const PENDIN ideal-int
+pkg syscall (linux-arm), const PROT_EXEC ideal-int
+pkg syscall (linux-arm), const PROT_GROWSDOWN ideal-int
+pkg syscall (linux-arm), const PROT_GROWSUP ideal-int
+pkg syscall (linux-arm), const PROT_NONE ideal-int
+pkg syscall (linux-arm), const PROT_READ ideal-int
+pkg syscall (linux-arm), const PROT_WRITE ideal-int
+pkg syscall (linux-arm), const PR_CAPBSET_DROP ideal-int
+pkg syscall (linux-arm), const PR_CAPBSET_READ ideal-int
+pkg syscall (linux-arm), const PR_CLEAR_SECCOMP_FILTER ideal-int
+pkg syscall (linux-arm), const PR_ENDIAN_BIG ideal-int
+pkg syscall (linux-arm), const PR_ENDIAN_LITTLE ideal-int
+pkg syscall (linux-arm), const PR_ENDIAN_PPC_LITTLE ideal-int
+pkg syscall (linux-arm), const PR_FPEMU_NOPRINT ideal-int
+pkg syscall (linux-arm), const PR_FPEMU_SIGFPE ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_ASYNC ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_DISABLED ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_DIV ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_INV ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_NONRECOV ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_OVF ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_PRECISE ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_RES ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_SW_ENABLE ideal-int
+pkg syscall (linux-arm), const PR_FP_EXC_UND ideal-int
+pkg syscall (linux-arm), const PR_GET_DUMPABLE ideal-int
+pkg syscall (linux-arm), const PR_GET_ENDIAN ideal-int
+pkg syscall (linux-arm), const PR_GET_FPEMU ideal-int
+pkg syscall (linux-arm), const PR_GET_FPEXC ideal-int
+pkg syscall (linux-arm), const PR_GET_KEEPCAPS ideal-int
+pkg syscall (linux-arm), const PR_GET_NAME ideal-int
+pkg syscall (linux-arm), const PR_GET_PDEATHSIG ideal-int
+pkg syscall (linux-arm), const PR_GET_SECCOMP ideal-int
+pkg syscall (linux-arm), const PR_GET_SECCOMP_FILTER ideal-int
+pkg syscall (linux-arm), const PR_GET_SECUREBITS ideal-int
+pkg syscall (linux-arm), const PR_GET_TIMERSLACK ideal-int
+pkg syscall (linux-arm), const PR_GET_TIMING ideal-int
+pkg syscall (linux-arm), const PR_GET_TSC ideal-int
+pkg syscall (linux-arm), const PR_GET_UNALIGN ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_CLEAR ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_DEFAULT ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_EARLY ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_GET ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_LATE ideal-int
+pkg syscall (linux-arm), const PR_MCE_KILL_SET ideal-int
+pkg syscall (linux-arm), const PR_SECCOMP_FILTER_EVENT ideal-int
+pkg syscall (linux-arm), const PR_SECCOMP_FILTER_SYSCALL ideal-int
+pkg syscall (linux-arm), const PR_SET_DUMPABLE ideal-int
+pkg syscall (linux-arm), const PR_SET_ENDIAN ideal-int
+pkg syscall (linux-arm), const PR_SET_FPEMU ideal-int
+pkg syscall (linux-arm), const PR_SET_FPEXC ideal-int
+pkg syscall (linux-arm), const PR_SET_KEEPCAPS ideal-int
+pkg syscall (linux-arm), const PR_SET_NAME ideal-int
+pkg syscall (linux-arm), const PR_SET_PDEATHSIG ideal-int
+pkg syscall (linux-arm), const PR_SET_PTRACER ideal-int
+pkg syscall (linux-arm), const PR_SET_SECCOMP ideal-int
+pkg syscall (linux-arm), const PR_SET_SECCOMP_FILTER ideal-int
+pkg syscall (linux-arm), const PR_SET_SECUREBITS ideal-int
+pkg syscall (linux-arm), const PR_SET_TIMERSLACK ideal-int
+pkg syscall (linux-arm), const PR_SET_TIMING ideal-int
+pkg syscall (linux-arm), const PR_SET_TSC ideal-int
+pkg syscall (linux-arm), const PR_SET_UNALIGN ideal-int
+pkg syscall (linux-arm), const PR_TASK_PERF_EVENTS_DISABLE ideal-int
+pkg syscall (linux-arm), const PR_TASK_PERF_EVENTS_ENABLE ideal-int
+pkg syscall (linux-arm), const PR_TIMING_STATISTICAL ideal-int
+pkg syscall (linux-arm), const PR_TIMING_TIMESTAMP ideal-int
+pkg syscall (linux-arm), const PR_TSC_ENABLE ideal-int
+pkg syscall (linux-arm), const PR_TSC_SIGSEGV ideal-int
+pkg syscall (linux-arm), const PR_UNALIGN_NOPRINT ideal-int
+pkg syscall (linux-arm), const PR_UNALIGN_SIGBUS ideal-int
+pkg syscall (linux-arm), const PTRACE_ATTACH ideal-int
+pkg syscall (linux-arm), const PTRACE_CONT ideal-int
+pkg syscall (linux-arm), const PTRACE_DETACH ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_CLONE ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_EXEC ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_EXIT ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_FORK ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_VFORK ideal-int
+pkg syscall (linux-arm), const PTRACE_EVENT_VFORK_DONE ideal-int
+pkg syscall (linux-arm), const PTRACE_GETCRUNCHREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GETEVENTMSG ideal-int
+pkg syscall (linux-arm), const PTRACE_GETFPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GETHBPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GETREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GETREGSET ideal-int
+pkg syscall (linux-arm), const PTRACE_GETSIGINFO ideal-int
+pkg syscall (linux-arm), const PTRACE_GETVFPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GETWMMXREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_GET_THREAD_AREA ideal-int
+pkg syscall (linux-arm), const PTRACE_KILL ideal-int
+pkg syscall (linux-arm), const PTRACE_OLDSETOPTIONS ideal-int
+pkg syscall (linux-arm), const PTRACE_O_MASK ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACECLONE ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACEEXEC ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACEEXIT ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACEFORK ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACESYSGOOD ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACEVFORK ideal-int
+pkg syscall (linux-arm), const PTRACE_O_TRACEVFORKDONE ideal-int
+pkg syscall (linux-arm), const PTRACE_PEEKDATA ideal-int
+pkg syscall (linux-arm), const PTRACE_PEEKTEXT ideal-int
+pkg syscall (linux-arm), const PTRACE_PEEKUSR ideal-int
+pkg syscall (linux-arm), const PTRACE_POKEDATA ideal-int
+pkg syscall (linux-arm), const PTRACE_POKETEXT ideal-int
+pkg syscall (linux-arm), const PTRACE_POKEUSR ideal-int
+pkg syscall (linux-arm), const PTRACE_SETCRUNCHREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETFPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETHBPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETOPTIONS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETREGSET ideal-int
+pkg syscall (linux-arm), const PTRACE_SETSIGINFO ideal-int
+pkg syscall (linux-arm), const PTRACE_SETVFPREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SETWMMXREGS ideal-int
+pkg syscall (linux-arm), const PTRACE_SET_SYSCALL ideal-int
+pkg syscall (linux-arm), const PTRACE_SINGLESTEP ideal-int
+pkg syscall (linux-arm), const PTRACE_SYSCALL ideal-int
+pkg syscall (linux-arm), const PTRACE_TRACEME ideal-int
+pkg syscall (linux-arm), const PT_DATA_ADDR ideal-int
+pkg syscall (linux-arm), const PT_TEXT_ADDR ideal-int
+pkg syscall (linux-arm), const PT_TEXT_END_ADDR ideal-int
+pkg syscall (linux-arm), const PathMax ideal-int
+pkg syscall (linux-arm), const RLIMIT_AS ideal-int
+pkg syscall (linux-arm), const RLIMIT_CORE ideal-int
+pkg syscall (linux-arm), const RLIMIT_CPU ideal-int
+pkg syscall (linux-arm), const RLIMIT_DATA ideal-int
+pkg syscall (linux-arm), const RLIMIT_FSIZE ideal-int
+pkg syscall (linux-arm), const RLIMIT_NOFILE ideal-int
+pkg syscall (linux-arm), const RLIMIT_STACK ideal-int
+pkg syscall (linux-arm), const RLIM_INFINITY ideal-int
+pkg syscall (linux-arm), const RTAX_ADVMSS ideal-int
+pkg syscall (linux-arm), const RTAX_CWND ideal-int
+pkg syscall (linux-arm), const RTAX_FEATURES ideal-int
+pkg syscall (linux-arm), const RTAX_FEATURE_ALLFRAG ideal-int
+pkg syscall (linux-arm), const RTAX_FEATURE_ECN ideal-int
+pkg syscall (linux-arm), const RTAX_FEATURE_SACK ideal-int
+pkg syscall (linux-arm), const RTAX_FEATURE_TIMESTAMP ideal-int
+pkg syscall (linux-arm), const RTAX_HOPLIMIT ideal-int
+pkg syscall (linux-arm), const RTAX_INITCWND ideal-int
+pkg syscall (linux-arm), const RTAX_INITRWND ideal-int
+pkg syscall (linux-arm), const RTAX_LOCK ideal-int
+pkg syscall (linux-arm), const RTAX_MAX ideal-int
+pkg syscall (linux-arm), const RTAX_MTU ideal-int
+pkg syscall (linux-arm), const RTAX_REORDERING ideal-int
+pkg syscall (linux-arm), const RTAX_RTO_MIN ideal-int
+pkg syscall (linux-arm), const RTAX_RTT ideal-int
+pkg syscall (linux-arm), const RTAX_RTTVAR ideal-int
+pkg syscall (linux-arm), const RTAX_SSTHRESH ideal-int
+pkg syscall (linux-arm), const RTAX_UNSPEC ideal-int
+pkg syscall (linux-arm), const RTAX_WINDOW ideal-int
+pkg syscall (linux-arm), const RTA_ALIGNTO ideal-int
+pkg syscall (linux-arm), const RTA_CACHEINFO ideal-int
+pkg syscall (linux-arm), const RTA_DST ideal-int
+pkg syscall (linux-arm), const RTA_FLOW ideal-int
+pkg syscall (linux-arm), const RTA_GATEWAY ideal-int
+pkg syscall (linux-arm), const RTA_IIF ideal-int
+pkg syscall (linux-arm), const RTA_MAX ideal-int
+pkg syscall (linux-arm), const RTA_METRICS ideal-int
+pkg syscall (linux-arm), const RTA_MULTIPATH ideal-int
+pkg syscall (linux-arm), const RTA_OIF ideal-int
+pkg syscall (linux-arm), const RTA_PREFSRC ideal-int
+pkg syscall (linux-arm), const RTA_PRIORITY ideal-int
+pkg syscall (linux-arm), const RTA_SRC ideal-int
+pkg syscall (linux-arm), const RTA_TABLE ideal-int
+pkg syscall (linux-arm), const RTA_UNSPEC ideal-int
+pkg syscall (linux-arm), const RTCF_DIRECTSRC ideal-int
+pkg syscall (linux-arm), const RTCF_DOREDIRECT ideal-int
+pkg syscall (linux-arm), const RTCF_LOG ideal-int
+pkg syscall (linux-arm), const RTCF_MASQ ideal-int
+pkg syscall (linux-arm), const RTCF_NAT ideal-int
+pkg syscall (linux-arm), const RTCF_VALVE ideal-int
+pkg syscall (linux-arm), const RTF_ADDRCLASSMASK ideal-int
+pkg syscall (linux-arm), const RTF_ADDRCONF ideal-int
+pkg syscall (linux-arm), const RTF_ALLONLINK ideal-int
+pkg syscall (linux-arm), const RTF_BROADCAST ideal-int
+pkg syscall (linux-arm), const RTF_CACHE ideal-int
+pkg syscall (linux-arm), const RTF_DEFAULT ideal-int
+pkg syscall (linux-arm), const RTF_DYNAMIC ideal-int
+pkg syscall (linux-arm), const RTF_FLOW ideal-int
+pkg syscall (linux-arm), const RTF_GATEWAY ideal-int
+pkg syscall (linux-arm), const RTF_HOST ideal-int
+pkg syscall (linux-arm), const RTF_INTERFACE ideal-int
+pkg syscall (linux-arm), const RTF_IRTT ideal-int
+pkg syscall (linux-arm), const RTF_LINKRT ideal-int
+pkg syscall (linux-arm), const RTF_LOCAL ideal-int
+pkg syscall (linux-arm), const RTF_MODIFIED ideal-int
+pkg syscall (linux-arm), const RTF_MSS ideal-int
+pkg syscall (linux-arm), const RTF_MTU ideal-int
+pkg syscall (linux-arm), const RTF_MULTICAST ideal-int
+pkg syscall (linux-arm), const RTF_NAT ideal-int
+pkg syscall (linux-arm), const RTF_NOFORWARD ideal-int
+pkg syscall (linux-arm), const RTF_NONEXTHOP ideal-int
+pkg syscall (linux-arm), const RTF_NOPMTUDISC ideal-int
+pkg syscall (linux-arm), const RTF_POLICY ideal-int
+pkg syscall (linux-arm), const RTF_REINSTATE ideal-int
+pkg syscall (linux-arm), const RTF_REJECT ideal-int
+pkg syscall (linux-arm), const RTF_STATIC ideal-int
+pkg syscall (linux-arm), const RTF_THROW ideal-int
+pkg syscall (linux-arm), const RTF_UP ideal-int
+pkg syscall (linux-arm), const RTF_WINDOW ideal-int
+pkg syscall (linux-arm), const RTF_XRESOLVE ideal-int
+pkg syscall (linux-arm), const RTM_BASE ideal-int
+pkg syscall (linux-arm), const RTM_DELACTION ideal-int
+pkg syscall (linux-arm), const RTM_DELADDR ideal-int
+pkg syscall (linux-arm), const RTM_DELADDRLABEL ideal-int
+pkg syscall (linux-arm), const RTM_DELLINK ideal-int
+pkg syscall (linux-arm), const RTM_DELNEIGH ideal-int
+pkg syscall (linux-arm), const RTM_DELQDISC ideal-int
+pkg syscall (linux-arm), const RTM_DELROUTE ideal-int
+pkg syscall (linux-arm), const RTM_DELRULE ideal-int
+pkg syscall (linux-arm), const RTM_DELTCLASS ideal-int
+pkg syscall (linux-arm), const RTM_DELTFILTER ideal-int
+pkg syscall (linux-arm), const RTM_F_CLONED ideal-int
+pkg syscall (linux-arm), const RTM_F_EQUALIZE ideal-int
+pkg syscall (linux-arm), const RTM_F_NOTIFY ideal-int
+pkg syscall (linux-arm), const RTM_F_PREFIX ideal-int
+pkg syscall (linux-arm), const RTM_GETACTION ideal-int
+pkg syscall (linux-arm), const RTM_GETADDR ideal-int
+pkg syscall (linux-arm), const RTM_GETADDRLABEL ideal-int
+pkg syscall (linux-arm), const RTM_GETANYCAST ideal-int
+pkg syscall (linux-arm), const RTM_GETDCB ideal-int
+pkg syscall (linux-arm), const RTM_GETLINK ideal-int
+pkg syscall (linux-arm), const RTM_GETMULTICAST ideal-int
+pkg syscall (linux-arm), const RTM_GETNEIGH ideal-int
+pkg syscall (linux-arm), const RTM_GETNEIGHTBL ideal-int
+pkg syscall (linux-arm), const RTM_GETQDISC ideal-int
+pkg syscall (linux-arm), const RTM_GETROUTE ideal-int
+pkg syscall (linux-arm), const RTM_GETRULE ideal-int
+pkg syscall (linux-arm), const RTM_GETTCLASS ideal-int
+pkg syscall (linux-arm), const RTM_GETTFILTER ideal-int
+pkg syscall (linux-arm), const RTM_MAX ideal-int
+pkg syscall (linux-arm), const RTM_NEWACTION ideal-int
+pkg syscall (linux-arm), const RTM_NEWADDR ideal-int
+pkg syscall (linux-arm), const RTM_NEWADDRLABEL ideal-int
+pkg syscall (linux-arm), const RTM_NEWLINK ideal-int
+pkg syscall (linux-arm), const RTM_NEWNDUSEROPT ideal-int
+pkg syscall (linux-arm), const RTM_NEWNEIGH ideal-int
+pkg syscall (linux-arm), const RTM_NEWNEIGHTBL ideal-int
+pkg syscall (linux-arm), const RTM_NEWPREFIX ideal-int
+pkg syscall (linux-arm), const RTM_NEWQDISC ideal-int
+pkg syscall (linux-arm), const RTM_NEWROUTE ideal-int
+pkg syscall (linux-arm), const RTM_NEWRULE ideal-int
+pkg syscall (linux-arm), const RTM_NEWTCLASS ideal-int
+pkg syscall (linux-arm), const RTM_NEWTFILTER ideal-int
+pkg syscall (linux-arm), const RTM_NR_FAMILIES ideal-int
+pkg syscall (linux-arm), const RTM_NR_MSGTYPES ideal-int
+pkg syscall (linux-arm), const RTM_SETDCB ideal-int
+pkg syscall (linux-arm), const RTM_SETLINK ideal-int
+pkg syscall (linux-arm), const RTM_SETNEIGHTBL ideal-int
+pkg syscall (linux-arm), const RTNH_ALIGNTO ideal-int
+pkg syscall (linux-arm), const RTNH_F_DEAD ideal-int
+pkg syscall (linux-arm), const RTNH_F_ONLINK ideal-int
+pkg syscall (linux-arm), const RTNH_F_PERVASIVE ideal-int
+pkg syscall (linux-arm), const RTN_ANYCAST ideal-int
+pkg syscall (linux-arm), const RTN_BLACKHOLE ideal-int
+pkg syscall (linux-arm), const RTN_BROADCAST ideal-int
+pkg syscall (linux-arm), const RTN_LOCAL ideal-int
+pkg syscall (linux-arm), const RTN_MAX ideal-int
+pkg syscall (linux-arm), const RTN_MULTICAST ideal-int
+pkg syscall (linux-arm), const RTN_NAT ideal-int
+pkg syscall (linux-arm), const RTN_PROHIBIT ideal-int
+pkg syscall (linux-arm), const RTN_THROW ideal-int
+pkg syscall (linux-arm), const RTN_UNICAST ideal-int
+pkg syscall (linux-arm), const RTN_UNREACHABLE ideal-int
+pkg syscall (linux-arm), const RTN_UNSPEC ideal-int
+pkg syscall (linux-arm), const RTN_XRESOLVE ideal-int
+pkg syscall (linux-arm), const RTPROT_BIRD ideal-int
+pkg syscall (linux-arm), const RTPROT_BOOT ideal-int
+pkg syscall (linux-arm), const RTPROT_DHCP ideal-int
+pkg syscall (linux-arm), const RTPROT_DNROUTED ideal-int
+pkg syscall (linux-arm), const RTPROT_GATED ideal-int
+pkg syscall (linux-arm), const RTPROT_KERNEL ideal-int
+pkg syscall (linux-arm), const RTPROT_MRT ideal-int
+pkg syscall (linux-arm), const RTPROT_NTK ideal-int
+pkg syscall (linux-arm), const RTPROT_RA ideal-int
+pkg syscall (linux-arm), const RTPROT_REDIRECT ideal-int
+pkg syscall (linux-arm), const RTPROT_STATIC ideal-int
+pkg syscall (linux-arm), const RTPROT_UNSPEC ideal-int
+pkg syscall (linux-arm), const RTPROT_XORP ideal-int
+pkg syscall (linux-arm), const RTPROT_ZEBRA ideal-int
+pkg syscall (linux-arm), const RT_CLASS_DEFAULT ideal-int
+pkg syscall (linux-arm), const RT_CLASS_LOCAL ideal-int
+pkg syscall (linux-arm), const RT_CLASS_MAIN ideal-int
+pkg syscall (linux-arm), const RT_CLASS_MAX ideal-int
+pkg syscall (linux-arm), const RT_CLASS_UNSPEC ideal-int
+pkg syscall (linux-arm), const RT_SCOPE_HOST ideal-int
+pkg syscall (linux-arm), const RT_SCOPE_LINK ideal-int
+pkg syscall (linux-arm), const RT_SCOPE_NOWHERE ideal-int
+pkg syscall (linux-arm), const RT_SCOPE_SITE ideal-int
+pkg syscall (linux-arm), const RT_SCOPE_UNIVERSE ideal-int
+pkg syscall (linux-arm), const RT_TABLE_COMPAT ideal-int
+pkg syscall (linux-arm), const RT_TABLE_DEFAULT ideal-int
+pkg syscall (linux-arm), const RT_TABLE_LOCAL ideal-int
+pkg syscall (linux-arm), const RT_TABLE_MAIN ideal-int
+pkg syscall (linux-arm), const RT_TABLE_MAX ideal-int
+pkg syscall (linux-arm), const RT_TABLE_UNSPEC ideal-int
+pkg syscall (linux-arm), const RUSAGE_CHILDREN ideal-int
+pkg syscall (linux-arm), const RUSAGE_SELF ideal-int
+pkg syscall (linux-arm), const RUSAGE_THREAD ideal-int
+pkg syscall (linux-arm), const SCM_CREDENTIALS ideal-int
+pkg syscall (linux-arm), const SCM_RIGHTS ideal-int
+pkg syscall (linux-arm), const SCM_TIMESTAMP ideal-int
+pkg syscall (linux-arm), const SCM_TIMESTAMPING ideal-int
+pkg syscall (linux-arm), const SCM_TIMESTAMPNS ideal-int
+pkg syscall (linux-arm), const SIGCHLD Signal
+pkg syscall (linux-arm), const SIGCLD Signal
+pkg syscall (linux-arm), const SIGCONT Signal
+pkg syscall (linux-arm), const SIGIO Signal
+pkg syscall (linux-arm), const SIGIOT Signal
+pkg syscall (linux-arm), const SIGPOLL Signal
+pkg syscall (linux-arm), const SIGPROF Signal
+pkg syscall (linux-arm), const SIGPWR Signal
+pkg syscall (linux-arm), const SIGSTKFLT Signal
+pkg syscall (linux-arm), const SIGSTOP Signal
+pkg syscall (linux-arm), const SIGSYS Signal
+pkg syscall (linux-arm), const SIGTSTP Signal
+pkg syscall (linux-arm), const SIGTTIN Signal
+pkg syscall (linux-arm), const SIGTTOU Signal
+pkg syscall (linux-arm), const SIGUNUSED Signal
+pkg syscall (linux-arm), const SIGURG Signal
+pkg syscall (linux-arm), const SIGUSR1 Signal
+pkg syscall (linux-arm), const SIGUSR2 Signal
+pkg syscall (linux-arm), const SIGVTALRM Signal
+pkg syscall (linux-arm), const SIGWINCH Signal
+pkg syscall (linux-arm), const SIGXCPU Signal
+pkg syscall (linux-arm), const SIGXFSZ Signal
+pkg syscall (linux-arm), const SIOCADDDLCI ideal-int
+pkg syscall (linux-arm), const SIOCADDMULTI ideal-int
+pkg syscall (linux-arm), const SIOCADDRT ideal-int
+pkg syscall (linux-arm), const SIOCATMARK ideal-int
+pkg syscall (linux-arm), const SIOCDARP ideal-int
+pkg syscall (linux-arm), const SIOCDELDLCI ideal-int
+pkg syscall (linux-arm), const SIOCDELMULTI ideal-int
+pkg syscall (linux-arm), const SIOCDELRT ideal-int
+pkg syscall (linux-arm), const SIOCDEVPRIVATE ideal-int
+pkg syscall (linux-arm), const SIOCDIFADDR ideal-int
+pkg syscall (linux-arm), const SIOCDRARP ideal-int
+pkg syscall (linux-arm), const SIOCGARP ideal-int
+pkg syscall (linux-arm), const SIOCGIFADDR ideal-int
+pkg syscall (linux-arm), const SIOCGIFBR ideal-int
+pkg syscall (linux-arm), const SIOCGIFBRDADDR ideal-int
+pkg syscall (linux-arm), const SIOCGIFCONF ideal-int
+pkg syscall (linux-arm), const SIOCGIFCOUNT ideal-int
+pkg syscall (linux-arm), const SIOCGIFDSTADDR ideal-int
+pkg syscall (linux-arm), const SIOCGIFENCAP ideal-int
+pkg syscall (linux-arm), const SIOCGIFFLAGS ideal-int
+pkg syscall (linux-arm), const SIOCGIFHWADDR ideal-int
+pkg syscall (linux-arm), const SIOCGIFINDEX ideal-int
+pkg syscall (linux-arm), const SIOCGIFMAP ideal-int
+pkg syscall (linux-arm), const SIOCGIFMEM ideal-int
+pkg syscall (linux-arm), const SIOCGIFMETRIC ideal-int
+pkg syscall (linux-arm), const SIOCGIFMTU ideal-int
+pkg syscall (linux-arm), const SIOCGIFNAME ideal-int
+pkg syscall (linux-arm), const SIOCGIFNETMASK ideal-int
+pkg syscall (linux-arm), const SIOCGIFPFLAGS ideal-int
+pkg syscall (linux-arm), const SIOCGIFSLAVE ideal-int
+pkg syscall (linux-arm), const SIOCGIFTXQLEN ideal-int
+pkg syscall (linux-arm), const SIOCGPGRP ideal-int
+pkg syscall (linux-arm), const SIOCGRARP ideal-int
+pkg syscall (linux-arm), const SIOCGSTAMP ideal-int
+pkg syscall (linux-arm), const SIOCGSTAMPNS ideal-int
+pkg syscall (linux-arm), const SIOCPROTOPRIVATE ideal-int
+pkg syscall (linux-arm), const SIOCRTMSG ideal-int
+pkg syscall (linux-arm), const SIOCSARP ideal-int
+pkg syscall (linux-arm), const SIOCSIFADDR ideal-int
+pkg syscall (linux-arm), const SIOCSIFBR ideal-int
+pkg syscall (linux-arm), const SIOCSIFBRDADDR ideal-int
+pkg syscall (linux-arm), const SIOCSIFDSTADDR ideal-int
+pkg syscall (linux-arm), const SIOCSIFENCAP ideal-int
+pkg syscall (linux-arm), const SIOCSIFFLAGS ideal-int
+pkg syscall (linux-arm), const SIOCSIFHWADDR ideal-int
+pkg syscall (linux-arm), const SIOCSIFHWBROADCAST ideal-int
+pkg syscall (linux-arm), const SIOCSIFLINK ideal-int
+pkg syscall (linux-arm), const SIOCSIFMAP ideal-int
+pkg syscall (linux-arm), const SIOCSIFMEM ideal-int
+pkg syscall (linux-arm), const SIOCSIFMETRIC ideal-int
+pkg syscall (linux-arm), const SIOCSIFMTU ideal-int
+pkg syscall (linux-arm), const SIOCSIFNAME ideal-int
+pkg syscall (linux-arm), const SIOCSIFNETMASK ideal-int
+pkg syscall (linux-arm), const SIOCSIFPFLAGS ideal-int
+pkg syscall (linux-arm), const SIOCSIFSLAVE ideal-int
+pkg syscall (linux-arm), const SIOCSIFTXQLEN ideal-int
+pkg syscall (linux-arm), const SIOCSPGRP ideal-int
+pkg syscall (linux-arm), const SIOCSRARP ideal-int
+pkg syscall (linux-arm), const SOCK_CLOEXEC ideal-int
+pkg syscall (linux-arm), const SOCK_DCCP ideal-int
+pkg syscall (linux-arm), const SOCK_NONBLOCK ideal-int
+pkg syscall (linux-arm), const SOCK_PACKET ideal-int
+pkg syscall (linux-arm), const SOCK_RDM ideal-int
+pkg syscall (linux-arm), const SOL_AAL ideal-int
+pkg syscall (linux-arm), const SOL_ATM ideal-int
+pkg syscall (linux-arm), const SOL_DECNET ideal-int
+pkg syscall (linux-arm), const SOL_ICMPV6 ideal-int
+pkg syscall (linux-arm), const SOL_IP ideal-int
+pkg syscall (linux-arm), const SOL_IPV6 ideal-int
+pkg syscall (linux-arm), const SOL_IRDA ideal-int
+pkg syscall (linux-arm), const SOL_PACKET ideal-int
+pkg syscall (linux-arm), const SOL_RAW ideal-int
+pkg syscall (linux-arm), const SOL_TCP ideal-int
+pkg syscall (linux-arm), const SOL_X25 ideal-int
+pkg syscall (linux-arm), const SO_ACCEPTCONN ideal-int
+pkg syscall (linux-arm), const SO_ATTACH_FILTER ideal-int
+pkg syscall (linux-arm), const SO_BINDTODEVICE ideal-int
+pkg syscall (linux-arm), const SO_BSDCOMPAT ideal-int
+pkg syscall (linux-arm), const SO_DEBUG ideal-int
+pkg syscall (linux-arm), const SO_DETACH_FILTER ideal-int
+pkg syscall (linux-arm), const SO_DOMAIN ideal-int
+pkg syscall (linux-arm), const SO_ERROR ideal-int
+pkg syscall (linux-arm), const SO_MARK ideal-int
+pkg syscall (linux-arm), const SO_NO_CHECK ideal-int
+pkg syscall (linux-arm), const SO_OOBINLINE ideal-int
+pkg syscall (linux-arm), const SO_PASSCRED ideal-int
+pkg syscall (linux-arm), const SO_PASSSEC ideal-int
+pkg syscall (linux-arm), const SO_PEERCRED ideal-int
+pkg syscall (linux-arm), const SO_PEERNAME ideal-int
+pkg syscall (linux-arm), const SO_PEERSEC ideal-int
+pkg syscall (linux-arm), const SO_PRIORITY ideal-int
+pkg syscall (linux-arm), const SO_PROTOCOL ideal-int
+pkg syscall (linux-arm), const SO_RCVBUFFORCE ideal-int
+pkg syscall (linux-arm), const SO_RCVLOWAT ideal-int
+pkg syscall (linux-arm), const SO_RCVTIMEO ideal-int
+pkg syscall (linux-arm), const SO_RXQ_OVFL ideal-int
+pkg syscall (linux-arm), const SO_SECURITY_AUTHENTICATION ideal-int
+pkg syscall (linux-arm), const SO_SECURITY_ENCRYPTION_NETWORK ideal-int
+pkg syscall (linux-arm), const SO_SECURITY_ENCRYPTION_TRANSPORT ideal-int
+pkg syscall (linux-arm), const SO_SNDBUFFORCE ideal-int
+pkg syscall (linux-arm), const SO_SNDLOWAT ideal-int
+pkg syscall (linux-arm), const SO_SNDTIMEO ideal-int
+pkg syscall (linux-arm), const SO_TIMESTAMP ideal-int
+pkg syscall (linux-arm), const SO_TIMESTAMPING ideal-int
+pkg syscall (linux-arm), const SO_TIMESTAMPNS ideal-int
+pkg syscall (linux-arm), const SO_TYPE ideal-int
+pkg syscall (linux-arm), const SYS_ACCEPT ideal-int
+pkg syscall (linux-arm), const SYS_ACCEPT4 ideal-int
+pkg syscall (linux-arm), const SYS_ACCESS ideal-int
+pkg syscall (linux-arm), const SYS_ACCT ideal-int
+pkg syscall (linux-arm), const SYS_ADD_KEY ideal-int
+pkg syscall (linux-arm), const SYS_ADJTIMEX ideal-int
+pkg syscall (linux-arm), const SYS_ALARM ideal-int
+pkg syscall (linux-arm), const SYS_ARM_FADVISE64_64 ideal-int
+pkg syscall (linux-arm), const SYS_ARM_SYNC_FILE_RANGE ideal-int
+pkg syscall (linux-arm), const SYS_BDFLUSH ideal-int
+pkg syscall (linux-arm), const SYS_BIND ideal-int
+pkg syscall (linux-arm), const SYS_BRK ideal-int
+pkg syscall (linux-arm), const SYS_CAPGET ideal-int
+pkg syscall (linux-arm), const SYS_CAPSET ideal-int
+pkg syscall (linux-arm), const SYS_CHDIR ideal-int
+pkg syscall (linux-arm), const SYS_CHMOD ideal-int
+pkg syscall (linux-arm), const SYS_CHOWN ideal-int
+pkg syscall (linux-arm), const SYS_CHOWN32 ideal-int
+pkg syscall (linux-arm), const SYS_CHROOT ideal-int
+pkg syscall (linux-arm), const SYS_CLOCK_ADJTIME ideal-int
+pkg syscall (linux-arm), const SYS_CLOCK_GETRES ideal-int
+pkg syscall (linux-arm), const SYS_CLOCK_GETTIME ideal-int
+pkg syscall (linux-arm), const SYS_CLOCK_NANOSLEEP ideal-int
+pkg syscall (linux-arm), const SYS_CLOCK_SETTIME ideal-int
+pkg syscall (linux-arm), const SYS_CLONE ideal-int
+pkg syscall (linux-arm), const SYS_CLOSE ideal-int
+pkg syscall (linux-arm), const SYS_CONNECT ideal-int
+pkg syscall (linux-arm), const SYS_CREAT ideal-int
+pkg syscall (linux-arm), const SYS_DELETE_MODULE ideal-int
+pkg syscall (linux-arm), const SYS_DUP ideal-int
+pkg syscall (linux-arm), const SYS_DUP2 ideal-int
+pkg syscall (linux-arm), const SYS_DUP3 ideal-int
+pkg syscall (linux-arm), const SYS_EPOLL_CREATE ideal-int
+pkg syscall (linux-arm), const SYS_EPOLL_CREATE1 ideal-int
+pkg syscall (linux-arm), const SYS_EPOLL_CTL ideal-int
+pkg syscall (linux-arm), const SYS_EPOLL_PWAIT ideal-int
+pkg syscall (linux-arm), const SYS_EPOLL_WAIT ideal-int
+pkg syscall (linux-arm), const SYS_EVENTFD ideal-int
+pkg syscall (linux-arm), const SYS_EVENTFD2 ideal-int
+pkg syscall (linux-arm), const SYS_EXECVE ideal-int
+pkg syscall (linux-arm), const SYS_EXIT ideal-int
+pkg syscall (linux-arm), const SYS_EXIT_GROUP ideal-int
+pkg syscall (linux-arm), const SYS_FACCESSAT ideal-int
+pkg syscall (linux-arm), const SYS_FALLOCATE ideal-int
+pkg syscall (linux-arm), const SYS_FANOTIFY_INIT ideal-int
+pkg syscall (linux-arm), const SYS_FANOTIFY_MARK ideal-int
+pkg syscall (linux-arm), const SYS_FCHDIR ideal-int
+pkg syscall (linux-arm), const SYS_FCHMOD ideal-int
+pkg syscall (linux-arm), const SYS_FCHMODAT ideal-int
+pkg syscall (linux-arm), const SYS_FCHOWN ideal-int
+pkg syscall (linux-arm), const SYS_FCHOWN32 ideal-int
+pkg syscall (linux-arm), const SYS_FCHOWNAT ideal-int
+pkg syscall (linux-arm), const SYS_FCNTL ideal-int
+pkg syscall (linux-arm), const SYS_FCNTL64 ideal-int
+pkg syscall (linux-arm), const SYS_FDATASYNC ideal-int
+pkg syscall (linux-arm), const SYS_FGETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_FLISTXATTR ideal-int
+pkg syscall (linux-arm), const SYS_FLOCK ideal-int
+pkg syscall (linux-arm), const SYS_FORK ideal-int
+pkg syscall (linux-arm), const SYS_FREMOVEXATTR ideal-int
+pkg syscall (linux-arm), const SYS_FSETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_FSTAT ideal-int
+pkg syscall (linux-arm), const SYS_FSTAT64 ideal-int
+pkg syscall (linux-arm), const SYS_FSTATAT64 ideal-int
+pkg syscall (linux-arm), const SYS_FSTATFS ideal-int
+pkg syscall (linux-arm), const SYS_FSTATFS64 ideal-int
+pkg syscall (linux-arm), const SYS_FSYNC ideal-int
+pkg syscall (linux-arm), const SYS_FTRUNCATE ideal-int
+pkg syscall (linux-arm), const SYS_FTRUNCATE64 ideal-int
+pkg syscall (linux-arm), const SYS_FUTEX ideal-int
+pkg syscall (linux-arm), const SYS_FUTIMESAT ideal-int
+pkg syscall (linux-arm), const SYS_GETCPU ideal-int
+pkg syscall (linux-arm), const SYS_GETCWD ideal-int
+pkg syscall (linux-arm), const SYS_GETDENTS ideal-int
+pkg syscall (linux-arm), const SYS_GETDENTS64 ideal-int
+pkg syscall (linux-arm), const SYS_GETEGID ideal-int
+pkg syscall (linux-arm), const SYS_GETEGID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETEUID ideal-int
+pkg syscall (linux-arm), const SYS_GETEUID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETGID ideal-int
+pkg syscall (linux-arm), const SYS_GETGID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETGROUPS ideal-int
+pkg syscall (linux-arm), const SYS_GETGROUPS32 ideal-int
+pkg syscall (linux-arm), const SYS_GETITIMER ideal-int
+pkg syscall (linux-arm), const SYS_GETPEERNAME ideal-int
+pkg syscall (linux-arm), const SYS_GETPGID ideal-int
+pkg syscall (linux-arm), const SYS_GETPGRP ideal-int
+pkg syscall (linux-arm), const SYS_GETPID ideal-int
+pkg syscall (linux-arm), const SYS_GETPPID ideal-int
+pkg syscall (linux-arm), const SYS_GETPRIORITY ideal-int
+pkg syscall (linux-arm), const SYS_GETRESGID ideal-int
+pkg syscall (linux-arm), const SYS_GETRESGID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETRESUID ideal-int
+pkg syscall (linux-arm), const SYS_GETRESUID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETRLIMIT ideal-int
+pkg syscall (linux-arm), const SYS_GETRUSAGE ideal-int
+pkg syscall (linux-arm), const SYS_GETSID ideal-int
+pkg syscall (linux-arm), const SYS_GETSOCKNAME ideal-int
+pkg syscall (linux-arm), const SYS_GETSOCKOPT ideal-int
+pkg syscall (linux-arm), const SYS_GETTID ideal-int
+pkg syscall (linux-arm), const SYS_GETTIMEOFDAY ideal-int
+pkg syscall (linux-arm), const SYS_GETUID ideal-int
+pkg syscall (linux-arm), const SYS_GETUID32 ideal-int
+pkg syscall (linux-arm), const SYS_GETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_GET_MEMPOLICY ideal-int
+pkg syscall (linux-arm), const SYS_GET_ROBUST_LIST ideal-int
+pkg syscall (linux-arm), const SYS_INIT_MODULE ideal-int
+pkg syscall (linux-arm), const SYS_INOTIFY_ADD_WATCH ideal-int
+pkg syscall (linux-arm), const SYS_INOTIFY_INIT ideal-int
+pkg syscall (linux-arm), const SYS_INOTIFY_INIT1 ideal-int
+pkg syscall (linux-arm), const SYS_INOTIFY_RM_WATCH ideal-int
+pkg syscall (linux-arm), const SYS_IOCTL ideal-int
+pkg syscall (linux-arm), const SYS_IOPRIO_GET ideal-int
+pkg syscall (linux-arm), const SYS_IOPRIO_SET ideal-int
+pkg syscall (linux-arm), const SYS_IO_CANCEL ideal-int
+pkg syscall (linux-arm), const SYS_IO_DESTROY ideal-int
+pkg syscall (linux-arm), const SYS_IO_GETEVENTS ideal-int
+pkg syscall (linux-arm), const SYS_IO_SETUP ideal-int
+pkg syscall (linux-arm), const SYS_IO_SUBMIT ideal-int
+pkg syscall (linux-arm), const SYS_IPC ideal-int
+pkg syscall (linux-arm), const SYS_KEXEC_LOAD ideal-int
+pkg syscall (linux-arm), const SYS_KEYCTL ideal-int
+pkg syscall (linux-arm), const SYS_KILL ideal-int
+pkg syscall (linux-arm), const SYS_LCHOWN ideal-int
+pkg syscall (linux-arm), const SYS_LCHOWN32 ideal-int
+pkg syscall (linux-arm), const SYS_LGETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_LINK ideal-int
+pkg syscall (linux-arm), const SYS_LINKAT ideal-int
+pkg syscall (linux-arm), const SYS_LISTEN ideal-int
+pkg syscall (linux-arm), const SYS_LISTXATTR ideal-int
+pkg syscall (linux-arm), const SYS_LLISTXATTR ideal-int
+pkg syscall (linux-arm), const SYS_LOOKUP_DCOOKIE ideal-int
+pkg syscall (linux-arm), const SYS_LREMOVEXATTR ideal-int
+pkg syscall (linux-arm), const SYS_LSEEK ideal-int
+pkg syscall (linux-arm), const SYS_LSETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_LSTAT ideal-int
+pkg syscall (linux-arm), const SYS_LSTAT64 ideal-int
+pkg syscall (linux-arm), const SYS_MADVISE ideal-int
+pkg syscall (linux-arm), const SYS_MBIND ideal-int
+pkg syscall (linux-arm), const SYS_MINCORE ideal-int
+pkg syscall (linux-arm), const SYS_MKDIR ideal-int
+pkg syscall (linux-arm), const SYS_MKDIRAT ideal-int
+pkg syscall (linux-arm), const SYS_MKNOD ideal-int
+pkg syscall (linux-arm), const SYS_MKNODAT ideal-int
+pkg syscall (linux-arm), const SYS_MLOCK ideal-int
+pkg syscall (linux-arm), const SYS_MLOCKALL ideal-int
+pkg syscall (linux-arm), const SYS_MMAP ideal-int
+pkg syscall (linux-arm), const SYS_MMAP2 ideal-int
+pkg syscall (linux-arm), const SYS_MOUNT ideal-int
+pkg syscall (linux-arm), const SYS_MOVE_PAGES ideal-int
+pkg syscall (linux-arm), const SYS_MPROTECT ideal-int
+pkg syscall (linux-arm), const SYS_MQ_GETSETATTR ideal-int
+pkg syscall (linux-arm), const SYS_MQ_NOTIFY ideal-int
+pkg syscall (linux-arm), const SYS_MQ_OPEN ideal-int
+pkg syscall (linux-arm), const SYS_MQ_TIMEDRECEIVE ideal-int
+pkg syscall (linux-arm), const SYS_MQ_TIMEDSEND ideal-int
+pkg syscall (linux-arm), const SYS_MQ_UNLINK ideal-int
+pkg syscall (linux-arm), const SYS_MREMAP ideal-int
+pkg syscall (linux-arm), const SYS_MSGCTL ideal-int
+pkg syscall (linux-arm), const SYS_MSGGET ideal-int
+pkg syscall (linux-arm), const SYS_MSGRCV ideal-int
+pkg syscall (linux-arm), const SYS_MSGSND ideal-int
+pkg syscall (linux-arm), const SYS_MSYNC ideal-int
+pkg syscall (linux-arm), const SYS_MUNLOCK ideal-int
+pkg syscall (linux-arm), const SYS_MUNLOCKALL ideal-int
+pkg syscall (linux-arm), const SYS_MUNMAP ideal-int
+pkg syscall (linux-arm), const SYS_NAME_TO_HANDLE_AT ideal-int
+pkg syscall (linux-arm), const SYS_NANOSLEEP ideal-int
+pkg syscall (linux-arm), const SYS_NFSSERVCTL ideal-int
+pkg syscall (linux-arm), const SYS_NICE ideal-int
+pkg syscall (linux-arm), const SYS_OABI_SYSCALL_BASE ideal-int
+pkg syscall (linux-arm), const SYS_OPEN ideal-int
+pkg syscall (linux-arm), const SYS_OPENAT ideal-int
+pkg syscall (linux-arm), const SYS_OPEN_BY_HANDLE_AT ideal-int
+pkg syscall (linux-arm), const SYS_PAUSE ideal-int
+pkg syscall (linux-arm), const SYS_PCICONFIG_IOBASE ideal-int
+pkg syscall (linux-arm), const SYS_PCICONFIG_READ ideal-int
+pkg syscall (linux-arm), const SYS_PCICONFIG_WRITE ideal-int
+pkg syscall (linux-arm), const SYS_PERF_EVENT_OPEN ideal-int
+pkg syscall (linux-arm), const SYS_PERSONALITY ideal-int
+pkg syscall (linux-arm), const SYS_PIPE ideal-int
+pkg syscall (linux-arm), const SYS_PIPE2 ideal-int
+pkg syscall (linux-arm), const SYS_PIVOT_ROOT ideal-int
+pkg syscall (linux-arm), const SYS_POLL ideal-int
+pkg syscall (linux-arm), const SYS_PPOLL ideal-int
+pkg syscall (linux-arm), const SYS_PRCTL ideal-int
+pkg syscall (linux-arm), const SYS_PREAD64 ideal-int
+pkg syscall (linux-arm), const SYS_PREADV ideal-int
+pkg syscall (linux-arm), const SYS_PRLIMIT64 ideal-int
+pkg syscall (linux-arm), const SYS_PROCESS_VM_READV ideal-int
+pkg syscall (linux-arm), const SYS_PROCESS_VM_WRITEV ideal-int
+pkg syscall (linux-arm), const SYS_PSELECT6 ideal-int
+pkg syscall (linux-arm), const SYS_PTRACE ideal-int
+pkg syscall (linux-arm), const SYS_PWRITE64 ideal-int
+pkg syscall (linux-arm), const SYS_PWRITEV ideal-int
+pkg syscall (linux-arm), const SYS_QUOTACTL ideal-int
+pkg syscall (linux-arm), const SYS_READ ideal-int
+pkg syscall (linux-arm), const SYS_READAHEAD ideal-int
+pkg syscall (linux-arm), const SYS_READDIR ideal-int
+pkg syscall (linux-arm), const SYS_READLINK ideal-int
+pkg syscall (linux-arm), const SYS_READLINKAT ideal-int
+pkg syscall (linux-arm), const SYS_READV ideal-int
+pkg syscall (linux-arm), const SYS_REBOOT ideal-int
+pkg syscall (linux-arm), const SYS_RECV ideal-int
+pkg syscall (linux-arm), const SYS_RECVFROM ideal-int
+pkg syscall (linux-arm), const SYS_RECVMMSG ideal-int
+pkg syscall (linux-arm), const SYS_RECVMSG ideal-int
+pkg syscall (linux-arm), const SYS_REMAP_FILE_PAGES ideal-int
+pkg syscall (linux-arm), const SYS_REMOVEXATTR ideal-int
+pkg syscall (linux-arm), const SYS_RENAME ideal-int
+pkg syscall (linux-arm), const SYS_RENAMEAT ideal-int
+pkg syscall (linux-arm), const SYS_REQUEST_KEY ideal-int
+pkg syscall (linux-arm), const SYS_RESTART_SYSCALL ideal-int
+pkg syscall (linux-arm), const SYS_RMDIR ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGACTION ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGPENDING ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGPROCMASK ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGQUEUEINFO ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGRETURN ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGSUSPEND ideal-int
+pkg syscall (linux-arm), const SYS_RT_SIGTIMEDWAIT ideal-int
+pkg syscall (linux-arm), const SYS_RT_TGSIGQUEUEINFO ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_GETAFFINITY ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_GETPARAM ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_GETSCHEDULER ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_GET_PRIORITY_MAX ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_GET_PRIORITY_MIN ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_RR_GET_INTERVAL ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_SETAFFINITY ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_SETPARAM ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_SETSCHEDULER ideal-int
+pkg syscall (linux-arm), const SYS_SCHED_YIELD ideal-int
+pkg syscall (linux-arm), const SYS_SELECT ideal-int
+pkg syscall (linux-arm), const SYS_SEMCTL ideal-int
+pkg syscall (linux-arm), const SYS_SEMGET ideal-int
+pkg syscall (linux-arm), const SYS_SEMOP ideal-int
+pkg syscall (linux-arm), const SYS_SEMTIMEDOP ideal-int
+pkg syscall (linux-arm), const SYS_SEND ideal-int
+pkg syscall (linux-arm), const SYS_SENDFILE ideal-int
+pkg syscall (linux-arm), const SYS_SENDFILE64 ideal-int
+pkg syscall (linux-arm), const SYS_SENDMMSG ideal-int
+pkg syscall (linux-arm), const SYS_SENDMSG ideal-int
+pkg syscall (linux-arm), const SYS_SENDTO ideal-int
+pkg syscall (linux-arm), const SYS_SETDOMAINNAME ideal-int
+pkg syscall (linux-arm), const SYS_SETFSGID ideal-int
+pkg syscall (linux-arm), const SYS_SETFSGID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETFSUID ideal-int
+pkg syscall (linux-arm), const SYS_SETFSUID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETGID ideal-int
+pkg syscall (linux-arm), const SYS_SETGID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETGROUPS ideal-int
+pkg syscall (linux-arm), const SYS_SETGROUPS32 ideal-int
+pkg syscall (linux-arm), const SYS_SETHOSTNAME ideal-int
+pkg syscall (linux-arm), const SYS_SETITIMER ideal-int
+pkg syscall (linux-arm), const SYS_SETNS ideal-int
+pkg syscall (linux-arm), const SYS_SETPGID ideal-int
+pkg syscall (linux-arm), const SYS_SETPRIORITY ideal-int
+pkg syscall (linux-arm), const SYS_SETREGID ideal-int
+pkg syscall (linux-arm), const SYS_SETREGID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETRESGID ideal-int
+pkg syscall (linux-arm), const SYS_SETRESGID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETRESUID ideal-int
+pkg syscall (linux-arm), const SYS_SETRESUID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETREUID ideal-int
+pkg syscall (linux-arm), const SYS_SETREUID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETRLIMIT ideal-int
+pkg syscall (linux-arm), const SYS_SETSID ideal-int
+pkg syscall (linux-arm), const SYS_SETSOCKOPT ideal-int
+pkg syscall (linux-arm), const SYS_SETTIMEOFDAY ideal-int
+pkg syscall (linux-arm), const SYS_SETUID ideal-int
+pkg syscall (linux-arm), const SYS_SETUID32 ideal-int
+pkg syscall (linux-arm), const SYS_SETXATTR ideal-int
+pkg syscall (linux-arm), const SYS_SET_MEMPOLICY ideal-int
+pkg syscall (linux-arm), const SYS_SET_ROBUST_LIST ideal-int
+pkg syscall (linux-arm), const SYS_SET_TID_ADDRESS ideal-int
+pkg syscall (linux-arm), const SYS_SHMAT ideal-int
+pkg syscall (linux-arm), const SYS_SHMCTL ideal-int
+pkg syscall (linux-arm), const SYS_SHMDT ideal-int
+pkg syscall (linux-arm), const SYS_SHMGET ideal-int
+pkg syscall (linux-arm), const SYS_SHUTDOWN ideal-int
+pkg syscall (linux-arm), const SYS_SIGACTION ideal-int
+pkg syscall (linux-arm), const SYS_SIGALTSTACK ideal-int
+pkg syscall (linux-arm), const SYS_SIGNALFD ideal-int
+pkg syscall (linux-arm), const SYS_SIGNALFD4 ideal-int
+pkg syscall (linux-arm), const SYS_SIGPENDING ideal-int
+pkg syscall (linux-arm), const SYS_SIGPROCMASK ideal-int
+pkg syscall (linux-arm), const SYS_SIGRETURN ideal-int
+pkg syscall (linux-arm), const SYS_SIGSUSPEND ideal-int
+pkg syscall (linux-arm), const SYS_SOCKET ideal-int
+pkg syscall (linux-arm), const SYS_SOCKETCALL ideal-int
+pkg syscall (linux-arm), const SYS_SOCKETPAIR ideal-int
+pkg syscall (linux-arm), const SYS_SPLICE ideal-int
+pkg syscall (linux-arm), const SYS_STAT ideal-int
+pkg syscall (linux-arm), const SYS_STAT64 ideal-int
+pkg syscall (linux-arm), const SYS_STATFS ideal-int
+pkg syscall (linux-arm), const SYS_STATFS64 ideal-int
+pkg syscall (linux-arm), const SYS_STIME ideal-int
+pkg syscall (linux-arm), const SYS_SWAPOFF ideal-int
+pkg syscall (linux-arm), const SYS_SWAPON ideal-int
+pkg syscall (linux-arm), const SYS_SYMLINK ideal-int
+pkg syscall (linux-arm), const SYS_SYMLINKAT ideal-int
+pkg syscall (linux-arm), const SYS_SYNC ideal-int
+pkg syscall (linux-arm), const SYS_SYNCFS ideal-int
+pkg syscall (linux-arm), const SYS_SYSCALL ideal-int
+pkg syscall (linux-arm), const SYS_SYSCALL_BASE ideal-int
+pkg syscall (linux-arm), const SYS_SYSFS ideal-int
+pkg syscall (linux-arm), const SYS_SYSINFO ideal-int
+pkg syscall (linux-arm), const SYS_SYSLOG ideal-int
+pkg syscall (linux-arm), const SYS_TEE ideal-int
+pkg syscall (linux-arm), const SYS_TGKILL ideal-int
+pkg syscall (linux-arm), const SYS_TIME ideal-int
+pkg syscall (linux-arm), const SYS_TIMERFD_CREATE ideal-int
+pkg syscall (linux-arm), const SYS_TIMERFD_GETTIME ideal-int
+pkg syscall (linux-arm), const SYS_TIMERFD_SETTIME ideal-int
+pkg syscall (linux-arm), const SYS_TIMER_CREATE ideal-int
+pkg syscall (linux-arm), const SYS_TIMER_DELETE ideal-int
+pkg syscall (linux-arm), const SYS_TIMER_GETOVERRUN ideal-int
+pkg syscall (linux-arm), const SYS_TIMER_GETTIME ideal-int
+pkg syscall (linux-arm), const SYS_TIMER_SETTIME ideal-int
+pkg syscall (linux-arm), const SYS_TIMES ideal-int
+pkg syscall (linux-arm), const SYS_TKILL ideal-int
+pkg syscall (linux-arm), const SYS_TRUNCATE ideal-int
+pkg syscall (linux-arm), const SYS_TRUNCATE64 ideal-int
+pkg syscall (linux-arm), const SYS_UGETRLIMIT ideal-int
+pkg syscall (linux-arm), const SYS_UMASK ideal-int
+pkg syscall (linux-arm), const SYS_UMOUNT ideal-int
+pkg syscall (linux-arm), const SYS_UMOUNT2 ideal-int
+pkg syscall (linux-arm), const SYS_UNAME ideal-int
+pkg syscall (linux-arm), const SYS_UNLINK ideal-int
+pkg syscall (linux-arm), const SYS_UNLINKAT ideal-int
+pkg syscall (linux-arm), const SYS_UNSHARE ideal-int
+pkg syscall (linux-arm), const SYS_USELIB ideal-int
+pkg syscall (linux-arm), const SYS_USTAT ideal-int
+pkg syscall (linux-arm), const SYS_UTIME ideal-int
+pkg syscall (linux-arm), const SYS_UTIMENSAT ideal-int
+pkg syscall (linux-arm), const SYS_UTIMES ideal-int
+pkg syscall (linux-arm), const SYS_VFORK ideal-int
+pkg syscall (linux-arm), const SYS_VHANGUP ideal-int
+pkg syscall (linux-arm), const SYS_VMSPLICE ideal-int
+pkg syscall (linux-arm), const SYS_VSERVER ideal-int
+pkg syscall (linux-arm), const SYS_WAIT4 ideal-int
+pkg syscall (linux-arm), const SYS_WAITID ideal-int
+pkg syscall (linux-arm), const SYS_WRITE ideal-int
+pkg syscall (linux-arm), const SYS_WRITEV ideal-int
+pkg syscall (linux-arm), const SYS__LLSEEK ideal-int
+pkg syscall (linux-arm), const SYS__NEWSELECT ideal-int
+pkg syscall (linux-arm), const SYS__SYSCTL ideal-int
+pkg syscall (linux-arm), const S_BLKSIZE ideal-int
+pkg syscall (linux-arm), const S_IEXEC ideal-int
+pkg syscall (linux-arm), const S_IREAD ideal-int
+pkg syscall (linux-arm), const S_IRGRP ideal-int
+pkg syscall (linux-arm), const S_IROTH ideal-int
+pkg syscall (linux-arm), const S_IRWXG ideal-int
+pkg syscall (linux-arm), const S_IRWXO ideal-int
+pkg syscall (linux-arm), const S_IRWXU ideal-int
+pkg syscall (linux-arm), const S_IWGRP ideal-int
+pkg syscall (linux-arm), const S_IWOTH ideal-int
+pkg syscall (linux-arm), const S_IWRITE ideal-int
+pkg syscall (linux-arm), const S_IXGRP ideal-int
+pkg syscall (linux-arm), const S_IXOTH ideal-int
+pkg syscall (linux-arm), const SizeofCmsghdr ideal-int
+pkg syscall (linux-arm), const SizeofIPMreq ideal-int
+pkg syscall (linux-arm), const SizeofIPMreqn ideal-int
+pkg syscall (linux-arm), const SizeofIPv6Mreq ideal-int
+pkg syscall (linux-arm), const SizeofIfAddrmsg ideal-int
+pkg syscall (linux-arm), const SizeofIfInfomsg ideal-int
+pkg syscall (linux-arm), const SizeofInet4Pktinfo ideal-int
+pkg syscall (linux-arm), const SizeofInet6Pktinfo ideal-int
+pkg syscall (linux-arm), const SizeofInotifyEvent ideal-int
+pkg syscall (linux-arm), const SizeofLinger ideal-int
+pkg syscall (linux-arm), const SizeofMsghdr ideal-int
+pkg syscall (linux-arm), const SizeofNlAttr ideal-int
+pkg syscall (linux-arm), const SizeofNlMsgerr ideal-int
+pkg syscall (linux-arm), const SizeofNlMsghdr ideal-int
+pkg syscall (linux-arm), const SizeofRtAttr ideal-int
+pkg syscall (linux-arm), const SizeofRtGenmsg ideal-int
+pkg syscall (linux-arm), const SizeofRtMsg ideal-int
+pkg syscall (linux-arm), const SizeofRtNexthop ideal-int
+pkg syscall (linux-arm), const SizeofSockFilter ideal-int
+pkg syscall (linux-arm), const SizeofSockFprog ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrAny ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrInet4 ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrInet6 ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrLinklayer ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrNetlink ideal-int
+pkg syscall (linux-arm), const SizeofSockaddrUnix ideal-int
+pkg syscall (linux-arm), const SizeofUcred ideal-int
+pkg syscall (linux-arm), const TCGETS ideal-int
+pkg syscall (linux-arm), const TCP_CONGESTION ideal-int
+pkg syscall (linux-arm), const TCP_CORK ideal-int
+pkg syscall (linux-arm), const TCP_DEFER_ACCEPT ideal-int
+pkg syscall (linux-arm), const TCP_INFO ideal-int
+pkg syscall (linux-arm), const TCP_KEEPCNT ideal-int
+pkg syscall (linux-arm), const TCP_KEEPIDLE ideal-int
+pkg syscall (linux-arm), const TCP_KEEPINTVL ideal-int
+pkg syscall (linux-arm), const TCP_LINGER2 ideal-int
+pkg syscall (linux-arm), const TCP_MAXSEG ideal-int
+pkg syscall (linux-arm), const TCP_MAXWIN ideal-int
+pkg syscall (linux-arm), const TCP_MAX_WINSHIFT ideal-int
+pkg syscall (linux-arm), const TCP_MD5SIG ideal-int
+pkg syscall (linux-arm), const TCP_MD5SIG_MAXKEYLEN ideal-int
+pkg syscall (linux-arm), const TCP_MSS ideal-int
+pkg syscall (linux-arm), const TCP_QUICKACK ideal-int
+pkg syscall (linux-arm), const TCP_SYNCNT ideal-int
+pkg syscall (linux-arm), const TCP_WINDOW_CLAMP ideal-int
+pkg syscall (linux-arm), const TCSETS ideal-int
+pkg syscall (linux-arm), const TIOCCBRK ideal-int
+pkg syscall (linux-arm), const TIOCCONS ideal-int
+pkg syscall (linux-arm), const TIOCEXCL ideal-int
+pkg syscall (linux-arm), const TIOCGDEV ideal-int
+pkg syscall (linux-arm), const TIOCGETD ideal-int
+pkg syscall (linux-arm), const TIOCGICOUNT ideal-int
+pkg syscall (linux-arm), const TIOCGLCKTRMIOS ideal-int
+pkg syscall (linux-arm), const TIOCGPGRP ideal-int
+pkg syscall (linux-arm), const TIOCGPTN ideal-int
+pkg syscall (linux-arm), const TIOCGRS485 ideal-int
+pkg syscall (linux-arm), const TIOCGSERIAL ideal-int
+pkg syscall (linux-arm), const TIOCGSID ideal-int
+pkg syscall (linux-arm), const TIOCGSOFTCAR ideal-int
+pkg syscall (linux-arm), const TIOCGWINSZ ideal-int
+pkg syscall (linux-arm), const TIOCINQ ideal-int
+pkg syscall (linux-arm), const TIOCLINUX ideal-int
+pkg syscall (linux-arm), const TIOCMBIC ideal-int
+pkg syscall (linux-arm), const TIOCMBIS ideal-int
+pkg syscall (linux-arm), const TIOCMGET ideal-int
+pkg syscall (linux-arm), const TIOCMIWAIT ideal-int
+pkg syscall (linux-arm), const TIOCMSET ideal-int
+pkg syscall (linux-arm), const TIOCM_CAR ideal-int
+pkg syscall (linux-arm), const TIOCM_CD ideal-int
+pkg syscall (linux-arm), const TIOCM_CTS ideal-int
+pkg syscall (linux-arm), const TIOCM_DSR ideal-int
+pkg syscall (linux-arm), const TIOCM_DTR ideal-int
+pkg syscall (linux-arm), const TIOCM_LE ideal-int
+pkg syscall (linux-arm), const TIOCM_RI ideal-int
+pkg syscall (linux-arm), const TIOCM_RNG ideal-int
+pkg syscall (linux-arm), const TIOCM_RTS ideal-int
+pkg syscall (linux-arm), const TIOCM_SR ideal-int
+pkg syscall (linux-arm), const TIOCM_ST ideal-int
+pkg syscall (linux-arm), const TIOCNOTTY ideal-int
+pkg syscall (linux-arm), const TIOCNXCL ideal-int
+pkg syscall (linux-arm), const TIOCOUTQ ideal-int
+pkg syscall (linux-arm), const TIOCPKT ideal-int
+pkg syscall (linux-arm), const TIOCPKT_DATA ideal-int
+pkg syscall (linux-arm), const TIOCPKT_DOSTOP ideal-int
+pkg syscall (linux-arm), const TIOCPKT_FLUSHREAD ideal-int
+pkg syscall (linux-arm), const TIOCPKT_FLUSHWRITE ideal-int
+pkg syscall (linux-arm), const TIOCPKT_IOCTL ideal-int
+pkg syscall (linux-arm), const TIOCPKT_NOSTOP ideal-int
+pkg syscall (linux-arm), const TIOCPKT_START ideal-int
+pkg syscall (linux-arm), const TIOCPKT_STOP ideal-int
+pkg syscall (linux-arm), const TIOCSBRK ideal-int
+pkg syscall (linux-arm), const TIOCSCTTY ideal-int
+pkg syscall (linux-arm), const TIOCSERCONFIG ideal-int
+pkg syscall (linux-arm), const TIOCSERGETLSR ideal-int
+pkg syscall (linux-arm), const TIOCSERGETMULTI ideal-int
+pkg syscall (linux-arm), const TIOCSERGSTRUCT ideal-int
+pkg syscall (linux-arm), const TIOCSERGWILD ideal-int
+pkg syscall (linux-arm), const TIOCSERSETMULTI ideal-int
+pkg syscall (linux-arm), const TIOCSERSWILD ideal-int
+pkg syscall (linux-arm), const TIOCSER_TEMT ideal-int
+pkg syscall (linux-arm), const TIOCSETD ideal-int
+pkg syscall (linux-arm), const TIOCSIG ideal-int
+pkg syscall (linux-arm), const TIOCSLCKTRMIOS ideal-int
+pkg syscall (linux-arm), const TIOCSPGRP ideal-int
+pkg syscall (linux-arm), const TIOCSPTLCK ideal-int
+pkg syscall (linux-arm), const TIOCSRS485 ideal-int
+pkg syscall (linux-arm), const TIOCSSERIAL ideal-int
+pkg syscall (linux-arm), const TIOCSSOFTCAR ideal-int
+pkg syscall (linux-arm), const TIOCSTI ideal-int
+pkg syscall (linux-arm), const TIOCSWINSZ ideal-int
+pkg syscall (linux-arm), const TIOCVHANGUP ideal-int
+pkg syscall (linux-arm), const TOSTOP ideal-int
+pkg syscall (linux-arm), const TUNATTACHFILTER ideal-int
+pkg syscall (linux-arm), const TUNDETACHFILTER ideal-int
+pkg syscall (linux-arm), const TUNGETFEATURES ideal-int
+pkg syscall (linux-arm), const TUNGETIFF ideal-int
+pkg syscall (linux-arm), const TUNGETSNDBUF ideal-int
+pkg syscall (linux-arm), const TUNGETVNETHDRSZ ideal-int
+pkg syscall (linux-arm), const TUNSETDEBUG ideal-int
+pkg syscall (linux-arm), const TUNSETGROUP ideal-int
+pkg syscall (linux-arm), const TUNSETIFF ideal-int
+pkg syscall (linux-arm), const TUNSETLINK ideal-int
+pkg syscall (linux-arm), const TUNSETNOCSUM ideal-int
+pkg syscall (linux-arm), const TUNSETOFFLOAD ideal-int
+pkg syscall (linux-arm), const TUNSETOWNER ideal-int
+pkg syscall (linux-arm), const TUNSETPERSIST ideal-int
+pkg syscall (linux-arm), const TUNSETSNDBUF ideal-int
+pkg syscall (linux-arm), const TUNSETTXFILTER ideal-int
+pkg syscall (linux-arm), const TUNSETVNETHDRSZ ideal-int
+pkg syscall (linux-arm), const VDISCARD ideal-int
+pkg syscall (linux-arm), const VEOF ideal-int
+pkg syscall (linux-arm), const VEOL ideal-int
+pkg syscall (linux-arm), const VEOL2 ideal-int
+pkg syscall (linux-arm), const VERASE ideal-int
+pkg syscall (linux-arm), const VINTR ideal-int
+pkg syscall (linux-arm), const VKILL ideal-int
+pkg syscall (linux-arm), const VLNEXT ideal-int
+pkg syscall (linux-arm), const VMIN ideal-int
+pkg syscall (linux-arm), const VQUIT ideal-int
+pkg syscall (linux-arm), const VREPRINT ideal-int
+pkg syscall (linux-arm), const VSTART ideal-int
+pkg syscall (linux-arm), const VSTOP ideal-int
+pkg syscall (linux-arm), const VSUSP ideal-int
+pkg syscall (linux-arm), const VSWTC ideal-int
+pkg syscall (linux-arm), const VTIME ideal-int
+pkg syscall (linux-arm), const VWERASE ideal-int
+pkg syscall (linux-arm), const WALL ideal-int
+pkg syscall (linux-arm), const WCLONE ideal-int
+pkg syscall (linux-arm), const WCONTINUED ideal-int
+pkg syscall (linux-arm), const WEXITED ideal-int
+pkg syscall (linux-arm), const WNOHANG ideal-int
+pkg syscall (linux-arm), const WNOTHREAD ideal-int
+pkg syscall (linux-arm), const WNOWAIT ideal-int
+pkg syscall (linux-arm), const WORDSIZE ideal-int
+pkg syscall (linux-arm), const WSTOPPED ideal-int
+pkg syscall (linux-arm), const WUNTRACED ideal-int
+pkg syscall (linux-arm), const XCASE ideal-int
+pkg syscall (linux-arm), func Accept(int) (int, Sockaddr, error)
+pkg syscall (linux-arm), func Access(string, uint32) error
+pkg syscall (linux-arm), func Acct(string) error
+pkg syscall (linux-arm), func Adjtimex(*Timex) (int, error)
+pkg syscall (linux-arm), func AttachLsf(int, []SockFilter) error
+pkg syscall (linux-arm), func Bind(int, Sockaddr) error
+pkg syscall (linux-arm), func BindToDevice(int, string) error
+pkg syscall (linux-arm), func Chroot(string) error
+pkg syscall (linux-arm), func Close(int) error
+pkg syscall (linux-arm), func CloseOnExec(int)
+pkg syscall (linux-arm), func CmsgLen(int) int
+pkg syscall (linux-arm), func CmsgSpace(int) int
+pkg syscall (linux-arm), func Connect(int, Sockaddr) error
+pkg syscall (linux-arm), func Creat(string, uint32) (int, error)
+pkg syscall (linux-arm), func DetachLsf(int) error
+pkg syscall (linux-arm), func Dup(int) (int, error)
+pkg syscall (linux-arm), func Dup2(int, int) error
+pkg syscall (linux-arm), func EpollCreate(int) (int, error)
+pkg syscall (linux-arm), func EpollCreate1(int) (int, error)
+pkg syscall (linux-arm), func EpollCtl(int, int, int, *EpollEvent) error
+pkg syscall (linux-arm), func EpollWait(int, []EpollEvent, int) (int, error)
+pkg syscall (linux-arm), func Faccessat(int, string, uint32, int) error
+pkg syscall (linux-arm), func Fallocate(int, uint32, int64, int64) error
+pkg syscall (linux-arm), func Fchdir(int) error
+pkg syscall (linux-arm), func Fchmod(int, uint32) error
+pkg syscall (linux-arm), func Fchmodat(int, string, uint32, int) error
+pkg syscall (linux-arm), func Fchown(int, int, int) error
+pkg syscall (linux-arm), func Fchownat(int, string, int, int, int) error
+pkg syscall (linux-arm), func Fdatasync(int) error
+pkg syscall (linux-arm), func Flock(int, int) error
+pkg syscall (linux-arm), func ForkExec(string, []string, *ProcAttr) (int, error)
+pkg syscall (linux-arm), func Fstat(int, *Stat_t) error
+pkg syscall (linux-arm), func Fstatfs(int, *Statfs_t) error
+pkg syscall (linux-arm), func Fsync(int) error
+pkg syscall (linux-arm), func Ftruncate(int, int64) error
+pkg syscall (linux-arm), func Futimes(int, []Timeval) error
+pkg syscall (linux-arm), func Futimesat(int, string, []Timeval) error
+pkg syscall (linux-arm), func Getcwd([]byte) (int, error)
+pkg syscall (linux-arm), func Getdents(int, []byte) (int, error)
+pkg syscall (linux-arm), func Getpeername(int) (Sockaddr, error)
+pkg syscall (linux-arm), func Getpgid(int) (int, error)
+pkg syscall (linux-arm), func Getpgrp() int
+pkg syscall (linux-arm), func Getrlimit(int, *Rlimit) error
+pkg syscall (linux-arm), func Getrusage(int, *Rusage) error
+pkg syscall (linux-arm), func Getsockname(int) (Sockaddr, error)
+pkg syscall (linux-arm), func GetsockoptIPMreq(int) (*IPMreq, error)
+pkg syscall (linux-arm), func GetsockoptIPMreqn(int) (*IPMreqn, error)
+pkg syscall (linux-arm), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
+pkg syscall (linux-arm), func GetsockoptInet4Addr(int) ([4]byte, error)
+pkg syscall (linux-arm), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-arm), func Gettid() int
+pkg syscall (linux-arm), func InotifyAddWatch(int, string, uint32) (int, error)
+pkg syscall (linux-arm), func InotifyInit() (int, error)
+pkg syscall (linux-arm), func InotifyInit1(int) (int, error)
+pkg syscall (linux-arm), func InotifyRmWatch(int, uint32) (int, error)
+pkg syscall (linux-arm), func Kill(int, Signal) error
+pkg syscall (linux-arm), func Klogctl(int, []byte) (int, error)
+pkg syscall (linux-arm), func Link(string, string) error
+pkg syscall (linux-arm), func Listen(int, int) error
+pkg syscall (linux-arm), func LsfJump(int) *SockFilter
+pkg syscall (linux-arm), func LsfSocket(int) (int, error)
+pkg syscall (linux-arm), func LsfStmt(int) *SockFilter
+pkg syscall (linux-arm), func Lstat(string, *Stat_t) error
+pkg syscall (linux-arm), func Madvise([]byte, int) error
+pkg syscall (linux-arm), func Mkdirat(int, string, uint32) error
+pkg syscall (linux-arm), func Mkfifo(string, uint32) error
+pkg syscall (linux-arm), func Mknod(string, uint32, int) error
+pkg syscall (linux-arm), func Mknodat(int, string, uint32, int) error
+pkg syscall (linux-arm), func Mlock([]byte) error
+pkg syscall (linux-arm), func Mlockall(int) error
+pkg syscall (linux-arm), func Mmap(int, int64, int, int, int) ([]byte, error)
+pkg syscall (linux-arm), func Mount(string, string, string, uintptr, string) error
+pkg syscall (linux-arm), func Mprotect([]byte, int) error
+pkg syscall (linux-arm), func Munlock([]byte) error
+pkg syscall (linux-arm), func Munlockall() error
+pkg syscall (linux-arm), func Munmap([]byte) error
+pkg syscall (linux-arm), func Nanosleep(*Timespec, *Timespec) error
+pkg syscall (linux-arm), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-arm), func NsecToTimespec(int64) Timespec
+pkg syscall (linux-arm), func Open(string, int, uint32) (int, error)
+pkg syscall (linux-arm), func Openat(int, string, int, uint32) (int, error)
+pkg syscall (linux-arm), func ParseDirent([]byte, int, []string) (int, int, []string)
+pkg syscall (linux-arm), func ParseNetlinkMessage([]byte) ([]NetlinkMessage, error)
+pkg syscall (linux-arm), func ParseNetlinkRouteAttr(*NetlinkMessage) ([]NetlinkRouteAttr, error)
+pkg syscall (linux-arm), func ParseSocketControlMessage([]byte) ([]SocketControlMessage, error)
+pkg syscall (linux-arm), func ParseUnixCredentials(*SocketControlMessage) (*Ucred, error)
+pkg syscall (linux-arm), func ParseUnixRights(*SocketControlMessage) ([]int, error)
+pkg syscall (linux-arm), func Pause() error
+pkg syscall (linux-arm), func Pipe([]int) error
+pkg syscall (linux-arm), func PivotRoot(string, string) error
+pkg syscall (linux-arm), func Pread(int, []byte, int64) (int, error)
+pkg syscall (linux-arm), func PtraceAttach(int) error
+pkg syscall (linux-arm), func PtraceCont(int, int) error
+pkg syscall (linux-arm), func PtraceDetach(int) error
+pkg syscall (linux-arm), func PtraceGetEventMsg(int) (uint, error)
+pkg syscall (linux-arm), func PtraceGetRegs(int, *PtraceRegs) error
+pkg syscall (linux-arm), func PtracePeekData(int, uintptr, []byte) (int, error)
+pkg syscall (linux-arm), func PtracePeekText(int, uintptr, []byte) (int, error)
+pkg syscall (linux-arm), func PtracePokeData(int, uintptr, []byte) (int, error)
+pkg syscall (linux-arm), func PtracePokeText(int, uintptr, []byte) (int, error)
+pkg syscall (linux-arm), func PtraceSetOptions(int, int) error
+pkg syscall (linux-arm), func PtraceSetRegs(int, *PtraceRegs) error
+pkg syscall (linux-arm), func PtraceSingleStep(int) error
+pkg syscall (linux-arm), func Pwrite(int, []byte, int64) (int, error)
+pkg syscall (linux-arm), func RawSyscall(uintptr) (uintptr, Errno)
+pkg syscall (linux-arm), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-arm), func Read(int, []byte) (int, error)
+pkg syscall (linux-arm), func ReadDirent(int, []byte) (int, error)
+pkg syscall (linux-arm), func Reboot(int) error
+pkg syscall (linux-arm), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
+pkg syscall (linux-arm), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
+pkg syscall (linux-arm), func Rename(string, string) error
+pkg syscall (linux-arm), func Renameat(int, string, int, string) error
+pkg syscall (linux-arm), func Seek(int, int64, int) (int64, error)
+pkg syscall (linux-arm), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
+pkg syscall (linux-arm), func Sendfile(int, int, *int64, int) (int, error)
+pkg syscall (linux-arm), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-arm), func Sendto(int, []byte, int, Sockaddr) error
+pkg syscall (linux-arm), func SetLsfPromisc(string, bool) error
+pkg syscall (linux-arm), func SetNonblock(int, bool) error
+pkg syscall (linux-arm), func Setdomainname([]byte) error
+pkg syscall (linux-arm), func Setfsgid(int) error
+pkg syscall (linux-arm), func Setfsuid(int) error
+pkg syscall (linux-arm), func Setgid(int) error
+pkg syscall (linux-arm), func Setgroups([]int) error
+pkg syscall (linux-arm), func Sethostname([]byte) error
+pkg syscall (linux-arm), func Setpgid(int, int) error
+pkg syscall (linux-arm), func Setregid(int, int) error
+pkg syscall (linux-arm), func Setresgid(int, int, int) error
+pkg syscall (linux-arm), func Setresuid(int, int, int) error
+pkg syscall (linux-arm), func Setreuid(int, int) error
+pkg syscall (linux-arm), func Setrlimit(int, *Rlimit) error
+pkg syscall (linux-arm), func Setsid() (int, error)
+pkg syscall (linux-arm), func SetsockoptIPMreq(int, *IPMreq) error
+pkg syscall (linux-arm), func SetsockoptIPMreqn(int, *IPMreqn) error
+pkg syscall (linux-arm), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
+pkg syscall (linux-arm), func SetsockoptInet4Addr(int, [4]byte) error
+pkg syscall (linux-arm), func SetsockoptInt(int, int) error
+pkg syscall (linux-arm), func SetsockoptLinger(int, *Linger) error
+pkg syscall (linux-arm), func SetsockoptString(int, string) error
+pkg syscall (linux-arm), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-arm), func Settimeofday(*Timeval) error
+pkg syscall (linux-arm), func Setuid(int) error
+pkg syscall (linux-arm), func Shutdown(int, int) error
+pkg syscall (linux-arm), func Socket(int) (int, error)
+pkg syscall (linux-arm), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-arm), func Splice(int, *int64, int, *int64, int, int) (int, error)
+pkg syscall (linux-arm), func Stat(string, *Stat_t) error
+pkg syscall (linux-arm), func Statfs(string, *Statfs_t) error
+pkg syscall (linux-arm), func StringSlicePtr([]string) []*byte
+pkg syscall (linux-arm), func Symlink(string, string) error
+pkg syscall (linux-arm), func Sync()
+pkg syscall (linux-arm), func Sysinfo(*Sysinfo_t) error
+pkg syscall (linux-arm), func Tee(int, int, int, int) (int64, error)
+pkg syscall (linux-arm), func Tgkill(int, int, Signal) error
+pkg syscall (linux-arm), func Time(*Time_t) (Time_t, error)
+pkg syscall (linux-arm), func Times(*Tms) (uintptr, error)
+pkg syscall (linux-arm), func TimespecToNsec(Timespec) int64
+pkg syscall (linux-arm), func Truncate(string, int64) error
+pkg syscall (linux-arm), func Umask(int) int
+pkg syscall (linux-arm), func Uname(*Utsname) error
+pkg syscall (linux-arm), func UnixCredentials(*Ucred) []byte
+pkg syscall (linux-arm), func UnixRights(...int) []byte
+pkg syscall (linux-arm), func Unlinkat(int, string) error
+pkg syscall (linux-arm), func Unmount(string, int) error
+pkg syscall (linux-arm), func Unshare(int) error
+pkg syscall (linux-arm), func Ustat(int, *Ustat_t) error
+pkg syscall (linux-arm), func Utime(string, *Utimbuf) error
+pkg syscall (linux-arm), func Wait4(int, *WaitStatus, int, *Rusage) (int, error)
+pkg syscall (linux-arm), func Write(int, []byte) (int, error)
+pkg syscall (linux-arm), method (*Cmsghdr) SetLen(int)
+pkg syscall (linux-arm), method (*Iovec) SetLen(int)
+pkg syscall (linux-arm), method (*Msghdr) SetControllen(int)
+pkg syscall (linux-arm), method (*PtraceRegs) PC() uint64
+pkg syscall (linux-arm), method (*PtraceRegs) SetPC(uint64)
+pkg syscall (linux-arm), type Cmsghdr struct
+pkg syscall (linux-arm), type Cmsghdr struct, Len uint32
+pkg syscall (linux-arm), type Cmsghdr struct, Level int32
+pkg syscall (linux-arm), type Cmsghdr struct, Type int32
+pkg syscall (linux-arm), type Cmsghdr struct, X__cmsg_data [0]uint8
+pkg syscall (linux-arm), type Credential struct
+pkg syscall (linux-arm), type Credential struct, Gid uint32
+pkg syscall (linux-arm), type Credential struct, Groups []uint32
+pkg syscall (linux-arm), type Credential struct, Uid uint32
+pkg syscall (linux-arm), type Dirent struct
+pkg syscall (linux-arm), type Dirent struct, Ino uint64
+pkg syscall (linux-arm), type Dirent struct, Name [256]uint8
+pkg syscall (linux-arm), type Dirent struct, Off int64
+pkg syscall (linux-arm), type Dirent struct, Pad_cgo_0 [5]byte
+pkg syscall (linux-arm), type Dirent struct, Reclen uint16
+pkg syscall (linux-arm), type Dirent struct, Type uint8
+pkg syscall (linux-arm), type EpollEvent struct
+pkg syscall (linux-arm), type EpollEvent struct, Events uint32
+pkg syscall (linux-arm), type EpollEvent struct, Fd int32
+pkg syscall (linux-arm), type EpollEvent struct, Pad int32
+pkg syscall (linux-arm), type EpollEvent struct, PadFd int32
+pkg syscall (linux-arm), type FdSet struct
+pkg syscall (linux-arm), type FdSet struct, Bits [32]int32
+pkg syscall (linux-arm), type Fsid struct
+pkg syscall (linux-arm), type Fsid struct, X__val [2]int32
+pkg syscall (linux-arm), type IPMreqn struct
+pkg syscall (linux-arm), type IPMreqn struct, Address [4]byte
+pkg syscall (linux-arm), type IPMreqn struct, Ifindex int32
+pkg syscall (linux-arm), type IPMreqn struct, Multiaddr [4]byte
+pkg syscall (linux-arm), type IfAddrmsg struct
+pkg syscall (linux-arm), type IfAddrmsg struct, Family uint8
+pkg syscall (linux-arm), type IfAddrmsg struct, Flags uint8
+pkg syscall (linux-arm), type IfAddrmsg struct, Index uint32
+pkg syscall (linux-arm), type IfAddrmsg struct, Prefixlen uint8
+pkg syscall (linux-arm), type IfAddrmsg struct, Scope uint8
+pkg syscall (linux-arm), type IfInfomsg struct
+pkg syscall (linux-arm), type IfInfomsg struct, Change uint32
+pkg syscall (linux-arm), type IfInfomsg struct, Family uint8
+pkg syscall (linux-arm), type IfInfomsg struct, Flags uint32
+pkg syscall (linux-arm), type IfInfomsg struct, Index int32
+pkg syscall (linux-arm), type IfInfomsg struct, Type uint16
+pkg syscall (linux-arm), type IfInfomsg struct, X__ifi_pad uint8
+pkg syscall (linux-arm), type Inet4Pktinfo struct
+pkg syscall (linux-arm), type Inet4Pktinfo struct, Addr [4]byte
+pkg syscall (linux-arm), type Inet4Pktinfo struct, Ifindex int32
+pkg syscall (linux-arm), type Inet4Pktinfo struct, Spec_dst [4]byte
+pkg syscall (linux-arm), type Inet6Pktinfo struct
+pkg syscall (linux-arm), type Inet6Pktinfo struct, Addr [16]byte
+pkg syscall (linux-arm), type Inet6Pktinfo struct, Ifindex uint32
+pkg syscall (linux-arm), type InotifyEvent struct
+pkg syscall (linux-arm), type InotifyEvent struct, Cookie uint32
+pkg syscall (linux-arm), type InotifyEvent struct, Len uint32
+pkg syscall (linux-arm), type InotifyEvent struct, Mask uint32
+pkg syscall (linux-arm), type InotifyEvent struct, Name [0]uint8
+pkg syscall (linux-arm), type InotifyEvent struct, Wd int32
+pkg syscall (linux-arm), type Iovec struct
+pkg syscall (linux-arm), type Iovec struct, Base *byte
+pkg syscall (linux-arm), type Iovec struct, Len uint32
+pkg syscall (linux-arm), type Msghdr struct
+pkg syscall (linux-arm), type Msghdr struct, Control *byte
+pkg syscall (linux-arm), type Msghdr struct, Controllen uint32
+pkg syscall (linux-arm), type Msghdr struct, Flags int32
+pkg syscall (linux-arm), type Msghdr struct, Iov *Iovec
+pkg syscall (linux-arm), type Msghdr struct, Iovlen uint32
+pkg syscall (linux-arm), type Msghdr struct, Name *byte
+pkg syscall (linux-arm), type Msghdr struct, Namelen uint32
+pkg syscall (linux-arm), type NetlinkMessage struct
+pkg syscall (linux-arm), type NetlinkMessage struct, Data []byte
+pkg syscall (linux-arm), type NetlinkMessage struct, Header NlMsghdr
+pkg syscall (linux-arm), type NetlinkRouteAttr struct
+pkg syscall (linux-arm), type NetlinkRouteAttr struct, Attr RtAttr
+pkg syscall (linux-arm), type NetlinkRouteAttr struct, Value []byte
+pkg syscall (linux-arm), type NetlinkRouteRequest struct
+pkg syscall (linux-arm), type NetlinkRouteRequest struct, Data RtGenmsg
+pkg syscall (linux-arm), type NetlinkRouteRequest struct, Header NlMsghdr
+pkg syscall (linux-arm), type NlAttr struct
+pkg syscall (linux-arm), type NlAttr struct, Len uint16
+pkg syscall (linux-arm), type NlAttr struct, Type uint16
+pkg syscall (linux-arm), type NlMsgerr struct
+pkg syscall (linux-arm), type NlMsgerr struct, Error int32
+pkg syscall (linux-arm), type NlMsgerr struct, Msg NlMsghdr
+pkg syscall (linux-arm), type NlMsghdr struct
+pkg syscall (linux-arm), type NlMsghdr struct, Flags uint16
+pkg syscall (linux-arm), type NlMsghdr struct, Len uint32
+pkg syscall (linux-arm), type NlMsghdr struct, Pid uint32
+pkg syscall (linux-arm), type NlMsghdr struct, Seq uint32
+pkg syscall (linux-arm), type NlMsghdr struct, Type uint16
+pkg syscall (linux-arm), type PtraceRegs struct
+pkg syscall (linux-arm), type PtraceRegs struct, Uregs [18]uint32
+pkg syscall (linux-arm), type RawSockaddr struct, Data [14]uint8
+pkg syscall (linux-arm), type RawSockaddr struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrAny struct, Pad [96]uint8
+pkg syscall (linux-arm), type RawSockaddrInet4 struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrInet4 struct, Zero [8]uint8
+pkg syscall (linux-arm), type RawSockaddrInet6 struct
+pkg syscall (linux-arm), type RawSockaddrInet6 struct, Addr [16]byte
+pkg syscall (linux-arm), type RawSockaddrInet6 struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrInet6 struct, Flowinfo uint32
+pkg syscall (linux-arm), type RawSockaddrInet6 struct, Port uint16
+pkg syscall (linux-arm), type RawSockaddrInet6 struct, Scope_id uint32
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Addr [8]uint8
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Halen uint8
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Hatype uint16
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Ifindex int32
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Pkttype uint8
+pkg syscall (linux-arm), type RawSockaddrLinklayer struct, Protocol uint16
+pkg syscall (linux-arm), type RawSockaddrNetlink struct
+pkg syscall (linux-arm), type RawSockaddrNetlink struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrNetlink struct, Groups uint32
+pkg syscall (linux-arm), type RawSockaddrNetlink struct, Pad uint16
+pkg syscall (linux-arm), type RawSockaddrNetlink struct, Pid uint32
+pkg syscall (linux-arm), type RawSockaddrUnix struct
+pkg syscall (linux-arm), type RawSockaddrUnix struct, Family uint16
+pkg syscall (linux-arm), type RawSockaddrUnix struct, Path [108]int8
+pkg syscall (linux-arm), type Rlimit struct
+pkg syscall (linux-arm), type Rlimit struct, Cur uint64
+pkg syscall (linux-arm), type Rlimit struct, Max uint64
+pkg syscall (linux-arm), type RtAttr struct
+pkg syscall (linux-arm), type RtAttr struct, Len uint16
+pkg syscall (linux-arm), type RtAttr struct, Type uint16
+pkg syscall (linux-arm), type RtGenmsg struct
+pkg syscall (linux-arm), type RtGenmsg struct, Family uint8
+pkg syscall (linux-arm), type RtMsg struct
+pkg syscall (linux-arm), type RtMsg struct, Dst_len uint8
+pkg syscall (linux-arm), type RtMsg struct, Family uint8
+pkg syscall (linux-arm), type RtMsg struct, Flags uint32
+pkg syscall (linux-arm), type RtMsg struct, Protocol uint8
+pkg syscall (linux-arm), type RtMsg struct, Scope uint8
+pkg syscall (linux-arm), type RtMsg struct, Src_len uint8
+pkg syscall (linux-arm), type RtMsg struct, Table uint8
+pkg syscall (linux-arm), type RtMsg struct, Tos uint8
+pkg syscall (linux-arm), type RtMsg struct, Type uint8
+pkg syscall (linux-arm), type RtNexthop struct
+pkg syscall (linux-arm), type RtNexthop struct, Flags uint8
+pkg syscall (linux-arm), type RtNexthop struct, Hops uint8
+pkg syscall (linux-arm), type RtNexthop struct, Ifindex int32
+pkg syscall (linux-arm), type RtNexthop struct, Len uint16
+pkg syscall (linux-arm), type Rusage struct, Idrss int32
+pkg syscall (linux-arm), type Rusage struct, Inblock int32
+pkg syscall (linux-arm), type Rusage struct, Isrss int32
+pkg syscall (linux-arm), type Rusage struct, Ixrss int32
+pkg syscall (linux-arm), type Rusage struct, Majflt int32
+pkg syscall (linux-arm), type Rusage struct, Maxrss int32
+pkg syscall (linux-arm), type Rusage struct, Minflt int32
+pkg syscall (linux-arm), type Rusage struct, Msgrcv int32
+pkg syscall (linux-arm), type Rusage struct, Msgsnd int32
+pkg syscall (linux-arm), type Rusage struct, Nivcsw int32
+pkg syscall (linux-arm), type Rusage struct, Nsignals int32
+pkg syscall (linux-arm), type Rusage struct, Nswap int32
+pkg syscall (linux-arm), type Rusage struct, Nvcsw int32
+pkg syscall (linux-arm), type Rusage struct, Oublock int32
+pkg syscall (linux-arm), type Rusage struct, Stime Timeval
+pkg syscall (linux-arm), type Rusage struct, Utime Timeval
+pkg syscall (linux-arm), type SockFilter struct
+pkg syscall (linux-arm), type SockFilter struct, Code uint16
+pkg syscall (linux-arm), type SockFilter struct, Jf uint8
+pkg syscall (linux-arm), type SockFilter struct, Jt uint8
+pkg syscall (linux-arm), type SockFilter struct, K uint32
+pkg syscall (linux-arm), type SockFprog struct
+pkg syscall (linux-arm), type SockFprog struct, Filter *SockFilter
+pkg syscall (linux-arm), type SockFprog struct, Len uint16
+pkg syscall (linux-arm), type SockFprog struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-arm), type SockaddrLinklayer struct
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Addr [8]byte
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Halen uint8
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Hatype uint16
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Ifindex int
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Pkttype uint8
+pkg syscall (linux-arm), type SockaddrLinklayer struct, Protocol uint16
+pkg syscall (linux-arm), type SockaddrNetlink struct
+pkg syscall (linux-arm), type SockaddrNetlink struct, Family uint16
+pkg syscall (linux-arm), type SockaddrNetlink struct, Groups uint32
+pkg syscall (linux-arm), type SockaddrNetlink struct, Pad uint16
+pkg syscall (linux-arm), type SockaddrNetlink struct, Pid uint32
+pkg syscall (linux-arm), type SocketControlMessage struct
+pkg syscall (linux-arm), type SocketControlMessage struct, Data []byte
+pkg syscall (linux-arm), type SocketControlMessage struct, Header Cmsghdr
+pkg syscall (linux-arm), type Stat_t struct
+pkg syscall (linux-arm), type Stat_t struct, Atim Timespec
+pkg syscall (linux-arm), type Stat_t struct, Blksize int32
+pkg syscall (linux-arm), type Stat_t struct, Blocks int64
+pkg syscall (linux-arm), type Stat_t struct, Ctim Timespec
+pkg syscall (linux-arm), type Stat_t struct, Dev uint64
+pkg syscall (linux-arm), type Stat_t struct, Gid uint32
+pkg syscall (linux-arm), type Stat_t struct, Ino uint64
+pkg syscall (linux-arm), type Stat_t struct, Mode uint32
+pkg syscall (linux-arm), type Stat_t struct, Mtim Timespec
+pkg syscall (linux-arm), type Stat_t struct, Nlink uint32
+pkg syscall (linux-arm), type Stat_t struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-arm), type Stat_t struct, Pad_cgo_1 [6]byte
+pkg syscall (linux-arm), type Stat_t struct, Pad_cgo_2 [4]byte
+pkg syscall (linux-arm), type Stat_t struct, Rdev uint64
+pkg syscall (linux-arm), type Stat_t struct, Size int64
+pkg syscall (linux-arm), type Stat_t struct, Uid uint32
+pkg syscall (linux-arm), type Stat_t struct, X__pad1 uint16
+pkg syscall (linux-arm), type Stat_t struct, X__pad2 uint16
+pkg syscall (linux-arm), type Stat_t struct, X__st_ino uint32
+pkg syscall (linux-arm), type Statfs_t struct
+pkg syscall (linux-arm), type Statfs_t struct, Bavail uint64
+pkg syscall (linux-arm), type Statfs_t struct, Bfree uint64
+pkg syscall (linux-arm), type Statfs_t struct, Blocks uint64
+pkg syscall (linux-arm), type Statfs_t struct, Bsize int32
+pkg syscall (linux-arm), type Statfs_t struct, Ffree uint64
+pkg syscall (linux-arm), type Statfs_t struct, Files uint64
+pkg syscall (linux-arm), type Statfs_t struct, Flags int32
+pkg syscall (linux-arm), type Statfs_t struct, Frsize int32
+pkg syscall (linux-arm), type Statfs_t struct, Fsid Fsid
+pkg syscall (linux-arm), type Statfs_t struct, Namelen int32
+pkg syscall (linux-arm), type Statfs_t struct, Pad_cgo_0 [4]byte
+pkg syscall (linux-arm), type Statfs_t struct, Spare [4]int32
+pkg syscall (linux-arm), type Statfs_t struct, Type int32
+pkg syscall (linux-arm), type SysProcAttr struct, Chroot string
+pkg syscall (linux-arm), type SysProcAttr struct, Credential *Credential
+pkg syscall (linux-arm), type SysProcAttr struct, Noctty bool
+pkg syscall (linux-arm), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (linux-arm), type SysProcAttr struct, Ptrace bool
+pkg syscall (linux-arm), type SysProcAttr struct, Setctty bool
+pkg syscall (linux-arm), type SysProcAttr struct, Setpgid bool
+pkg syscall (linux-arm), type SysProcAttr struct, Setsid bool
+pkg syscall (linux-arm), type Sysinfo_t struct
+pkg syscall (linux-arm), type Sysinfo_t struct, Bufferram uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Freehigh uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Freeram uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Freeswap uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Loads [3]uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Pad uint16
+pkg syscall (linux-arm), type Sysinfo_t struct, Procs uint16
+pkg syscall (linux-arm), type Sysinfo_t struct, Sharedram uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Totalhigh uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Totalram uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Totalswap uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Unit uint32
+pkg syscall (linux-arm), type Sysinfo_t struct, Uptime int32
+pkg syscall (linux-arm), type Sysinfo_t struct, X_f [8]uint8
+pkg syscall (linux-arm), type Termios struct
+pkg syscall (linux-arm), type Termios struct, Cc [32]uint8
+pkg syscall (linux-arm), type Termios struct, Cflag uint32
+pkg syscall (linux-arm), type Termios struct, Iflag uint32
+pkg syscall (linux-arm), type Termios struct, Ispeed uint32
+pkg syscall (linux-arm), type Termios struct, Lflag uint32
+pkg syscall (linux-arm), type Termios struct, Line uint8
+pkg syscall (linux-arm), type Termios struct, Oflag uint32
+pkg syscall (linux-arm), type Termios struct, Ospeed uint32
+pkg syscall (linux-arm), type Termios struct, Pad_cgo_0 [3]byte
+pkg syscall (linux-arm), type Time_t int32
+pkg syscall (linux-arm), type Timespec struct, Nsec int32
+pkg syscall (linux-arm), type Timespec struct, Sec int32
+pkg syscall (linux-arm), type Timeval struct, Sec int32
+pkg syscall (linux-arm), type Timeval struct, Usec int32
+pkg syscall (linux-arm), type Timex struct
+pkg syscall (linux-arm), type Timex struct, Calcnt int32
+pkg syscall (linux-arm), type Timex struct, Constant int32
+pkg syscall (linux-arm), type Timex struct, Errcnt int32
+pkg syscall (linux-arm), type Timex struct, Esterror int32
+pkg syscall (linux-arm), type Timex struct, Freq int32
+pkg syscall (linux-arm), type Timex struct, Jitcnt int32
+pkg syscall (linux-arm), type Timex struct, Jitter int32
+pkg syscall (linux-arm), type Timex struct, Maxerror int32
+pkg syscall (linux-arm), type Timex struct, Modes uint32
+pkg syscall (linux-arm), type Timex struct, Offset int32
+pkg syscall (linux-arm), type Timex struct, Pad_cgo_0 [44]byte
+pkg syscall (linux-arm), type Timex struct, Ppsfreq int32
+pkg syscall (linux-arm), type Timex struct, Precision int32
+pkg syscall (linux-arm), type Timex struct, Shift int32
+pkg syscall (linux-arm), type Timex struct, Stabil int32
+pkg syscall (linux-arm), type Timex struct, Status int32
+pkg syscall (linux-arm), type Timex struct, Stbcnt int32
+pkg syscall (linux-arm), type Timex struct, Tai int32
+pkg syscall (linux-arm), type Timex struct, Tick int32
+pkg syscall (linux-arm), type Timex struct, Time Timeval
+pkg syscall (linux-arm), type Timex struct, Tolerance int32
+pkg syscall (linux-arm), type Tms struct
+pkg syscall (linux-arm), type Tms struct, Cstime int32
+pkg syscall (linux-arm), type Tms struct, Cutime int32
+pkg syscall (linux-arm), type Tms struct, Stime int32
+pkg syscall (linux-arm), type Tms struct, Utime int32
+pkg syscall (linux-arm), type Ucred struct
+pkg syscall (linux-arm), type Ucred struct, Gid uint32
+pkg syscall (linux-arm), type Ucred struct, Pid int32
+pkg syscall (linux-arm), type Ucred struct, Uid uint32
+pkg syscall (linux-arm), type Ustat_t struct
+pkg syscall (linux-arm), type Ustat_t struct, Fname [6]uint8
+pkg syscall (linux-arm), type Ustat_t struct, Fpack [6]uint8
+pkg syscall (linux-arm), type Ustat_t struct, Tfree int32
+pkg syscall (linux-arm), type Ustat_t struct, Tinode uint32
+pkg syscall (linux-arm), type Utimbuf struct
+pkg syscall (linux-arm), type Utimbuf struct, Actime int32
+pkg syscall (linux-arm), type Utimbuf struct, Modtime int32
+pkg syscall (linux-arm), type Utsname struct
+pkg syscall (linux-arm), type Utsname struct, Domainname [65]uint8
+pkg syscall (linux-arm), type Utsname struct, Machine [65]uint8
+pkg syscall (linux-arm), type Utsname struct, Nodename [65]uint8
+pkg syscall (linux-arm), type Utsname struct, Release [65]uint8
+pkg syscall (linux-arm), type Utsname struct, Sysname [65]uint8
+pkg syscall (linux-arm), type Utsname struct, Version [65]uint8
+pkg syscall (linux-arm), type WaitStatus uint32
+pkg syscall (linux-arm), var Stderr int
+pkg syscall (linux-arm), var Stdin int
+pkg syscall (linux-arm), var Stdout int
 pkg syscall (windows-386), const AF_NETBIOS ideal-int
 pkg syscall (windows-386), const APPLICATION_ERROR ideal-int
 pkg syscall (windows-386), const AUTHTYPE_CLIENT ideal-int
@@ -26616,6 +28840,7 @@ pkg syscall (windows-386), type Protoent struct
 pkg syscall (windows-386), type Protoent struct, Aliases **byte
 pkg syscall (windows-386), type Protoent struct, Name *byte
 pkg syscall (windows-386), type Protoent struct, Proto uint16
+pkg syscall (windows-386), type RawSockaddr struct, Data [14]int8
 pkg syscall (windows-386), type RawSockaddr struct, Family uint16
 pkg syscall (windows-386), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (windows-386), type RawSockaddrInet4 struct, Family uint16
@@ -27541,6 +29766,7 @@ pkg syscall (windows-amd64), type Protoent struct
 pkg syscall (windows-amd64), type Protoent struct, Aliases **byte
 pkg syscall (windows-amd64), type Protoent struct, Name *byte
 pkg syscall (windows-amd64), type Protoent struct, Proto uint16
+pkg syscall (windows-amd64), type RawSockaddr struct, Data [14]int8
 pkg syscall (windows-amd64), type RawSockaddr struct, Family uint16
 pkg syscall (windows-amd64), type RawSockaddrAny struct, Pad [96]int8
 pkg syscall (windows-amd64), type RawSockaddrInet4 struct, Family uint16
@@ -27890,7 +30116,6 @@ pkg syscall, type ProcAttr struct, Env []string
 pkg syscall, type ProcAttr struct, Files []uintptr
 pkg syscall, type ProcAttr struct, Sys *SysProcAttr
 pkg syscall, type RawSockaddr struct
-pkg syscall, type RawSockaddr struct, Data [14]int8
 pkg syscall, type RawSockaddrAny struct
 pkg syscall, type RawSockaddrAny struct, Addr RawSockaddr
 pkg syscall, type RawSockaddrInet4 struct
