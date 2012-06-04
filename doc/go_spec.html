@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 24, 2012",
+	"Subtitle": "Version of June 4, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -684,6 +684,8 @@ consists of all methods with receiver type <code>T</code>.
 The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
+Further rules apply to structs containing anonymous fields, as described
+in the section on <a href="#Struct_types">struct types</a>.
 Any other type has an empty method set.
 In a method set, each method must have a
 <a href="#Uniqueness_of_identifiers">unique</a> <a href="#MethodName">method name</a>.
@@ -955,28 +957,39 @@ struct {
 </pre>
 
 <p>
-Fields and methods (§<a href="#Method_declarations">Method declarations</a>) of an anonymous field are
-promoted to be ordinary fields and methods of the struct (§<a href="#Selectors">Selectors</a>).
-The following rules apply for a struct type <code>S</code> and
-a type named <code>T</code>:
+A field or <a href="#Method_declarations">method</a> <code>f</code> of an
+anonymous field in a struct <code>x</code> is called <i>promoted</i> if
+<code>x.f</code> is a legal <a href="#Selectors">selector</a> that denotes
+that field or method <code>f</code>.
+</p>
+
+<p>
+Promoted fields act like ordinary fields
+of a struct except that they cannot be used as field names in
+<a href="#Composite_literals">composite literals</a> of the struct.
+</p>
+
+<p>
+Given a struct type <code>S</code> and a type named <code>T</code>,
+promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
-	<li>If <code>S</code> contains an anonymous field <code>T</code>, the
-	    <a href="#Method_sets">method set</a> of <code>S</code> includes the
-	    method set of <code>T</code>.
+	<li>
+	If <code>S</code> contains an anonymous field <code>T</code>,
+	the <a href="#Method_sets">method sets</a> of <code>S</code>
+	and <code>*S</code> both include promoted methods with receiver
+	<code>T</code>. The method set of <code>*S</code> also
+	includes promoted methods with receiver <code>*T</code>.
 	</li>
-
-	<li>If <code>S</code> contains an anonymous field <code>*T</code>, the
-	    method set of <code>S</code> includes the method set of <code>*T</code>
-	    (which itself includes the method set of <code>T</code>).
-	</li>
-
-	<li>If <code>S</code> contains an anonymous field <code>T</code> or
-	    <code>*T</code>, the method set of <code>*S</code> includes the
-	    method set of <code>*T</code> (which itself includes the method
-	    set of <code>T</code>).
+	
+	<li>
+	If <code>S</code> contains an anonymous field <code>*T</code>,
+	the method sets of <code>S</code> and <code>*S</code> both
+	include promoted methods with receiver <code>T</code> or
+	<code>*T</code>.
 	</li>
 </ul>
+
 <p>
 A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the fields in the corresponding
