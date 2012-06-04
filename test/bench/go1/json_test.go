@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	jsonbytes []byte
-	jsondata  JSONResponse
+	jsonbytes = makeJsonBytes()
+	jsondata  = makeJsonData()
 )
 
-func init() {
+func makeJsonBytes() []byte {
 	var r io.Reader
 	r = strings.NewReader(jsonbz2_base64)
 	r = base64.NewDecoder(base64.StdEncoding, r)
@@ -30,12 +30,15 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	jsonbytes = b
+	return b
+}
 
-	if err := json.Unmarshal(jsonbytes, &jsondata); err != nil {
+func makeJsonData() JSONResponse {
+	var v JSONResponse
+	if err := json.Unmarshal(jsonbytes, &v); err != nil {
 		panic(err)
 	}
-	gobinit()
+	return v
 }
 
 type JSONResponse struct {
