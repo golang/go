@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build netbsd
-
 package net
 
 /*
@@ -12,9 +10,5 @@ package net
 import "C"
 
 func cgoAddrInfoFlags() C.int {
-<<<<<<< local
 	return C.AI_CANONNAME
-=======
-	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
->>>>>>> other
 }
