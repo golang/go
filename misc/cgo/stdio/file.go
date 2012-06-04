@@ -23,9 +23,6 @@ import "unsafe"
 
 type File C.FILE
 
-var Stdout = (*File)(C.stdout)
-var Stderr = (*File)(C.stderr)
-
 // Test reference to library symbol.
 // Stdout and stderr are too special to be a reliable test.
 //var  = C.environ
