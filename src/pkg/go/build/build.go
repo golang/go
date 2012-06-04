@@ -213,11 +213,13 @@ var Default Context = defaultContext()
 var cgoEnabled = map[string]bool{
 	"darwin/386":    true,
 	"darwin/amd64":  true,
+	"freebsd/386":   true,
+	"freebsd/amd64": true,
 	"linux/386":     true,
 	"linux/amd64":   true,
 	"linux/arm":     true,
-	"freebsd/386":   true,
-	"freebsd/amd64": true,
+	"netbsd/386":    true,
+	"netbsd/amd64":  true,
 	"windows/386":   true,
 	"windows/amd64": true,
 }
