@@ -40,6 +40,11 @@ c_go_cgo="
 if [ "$goos" == "freebsd" ]; then
 	c_go_cgo="cgo3 cgo4"
 fi
+# cgo1 and cgo2 don't run on netbsd, srandom has a different signature
+# cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly
+if [ "$goos" == "netbsd" ]; then
+	c_go_cgo=""
+fi
 
 timeout="
 	timeout1
