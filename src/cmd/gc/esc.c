@@ -74,7 +74,7 @@ escapes(NodeList *all)
 
 	// flow-analyze functions
 	for(l=all; l; l=l->next)
-		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE)
+		if(l->n->op == ODCLFUNC)
 			escfunc(l->n);
 
 	// print("escapes: %d dsts, %d edges\n", dstcount, edgecount);
@@ -102,7 +102,7 @@ escapes(NodeList *all)
 static void
 escfunc(Node *func)
 {
-	Node *savefn, *n;
+	Node *savefn;
 	NodeList *ll;
 	int saveld;
 
@@ -128,23 +128,6 @@ escfunc(Node *func)
 			ll->n->escloopdepth = loopdepth;
 			break;
 		}
-	}
-
-	// walk will take the address of cvar->closure later and assign it to cvar.
-	// linking a fake oaddr node directly to the closure handles the case
-	// of the closure itself leaking.  Following the flow of the value to th
-	// paramref is done in escflow, because if we did that here, it would look
-	// like the original is assigned out of its loop depth, whereas it's just
-	// assigned to something in an inner function.  A paramref itself is never
-	// moved to the heap, only its original.
-	for(ll=curfn->cvars; ll; ll=ll->next) {
-		if(ll->n->op == OXXX)  // see dcl.c:398
-			continue;
-
-		n = nod(OADDR, ll->n->closure, N);
-		n->lineno = ll->n->lineno;
-		typecheck(&n, Erv);
-		escassign(curfn, n);
 	}
 
 	escloopdepthlist(curfn->nbody);
@@ -217,6 +200,7 @@ esc(Node *n)
 {
 	int lno;
 	NodeList *ll, *lr;
+	Node *a;
 
 	if(n == N)
 		return;
@@ -226,19 +210,16 @@ esc(Node *n)
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth++;
 
-	if(n->op == OCLOSURE) {
-		escfunc(n);
-	} else {
-		esc(n->left);
-		esc(n->right);
-		esc(n->ntest);
-		esc(n->nincr);
-		esclist(n->ninit);
-		esclist(n->nbody);
-		esclist(n->nelse);
-		esclist(n->list);
-		esclist(n->rlist);
-	}
+	esc(n->left);
+	esc(n->right);
+	esc(n->ntest);
+	esc(n->nincr);
+	esclist(n->ninit);
+	esclist(n->nbody);
+	esclist(n->nelse);
+	esclist(n->list);
+	esclist(n->rlist);
+
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth--;
 
@@ -388,6 +369,16 @@ esc(Node *n)
 		break;
 	
 	case OCLOSURE:
+		// Link addresses of captured variables to closure.
+		for(ll=n->cvars; ll; ll=ll->next) {
+			if(ll->n->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
+				continue;
+			a = nod(OADDR, ll->n->closure, N);
+			a->lineno = ll->n->lineno;
+			typecheck(&a, Erv);
+			escassign(n, a);
+		}
+		// fallthrough
 	case OADDR:
 	case OMAKECHAN:
 	case OMAKEMAP:
@@ -726,11 +717,9 @@ escwalk(int level, Node *dst, Node *src)
 			if(debug['m'])
 				warnl(src->lineno, "leaking param: %hN", src);
 		}
-		// handle the missing flow ref <- orig
-		// a paramref is automagically dereferenced, and taking its
-		// address produces the address of the original, so all we have to do here
-		// is keep track of the value flow, so level is unchanged.
-		// alternatively, we could have substituted PPARAMREFs with their ->closure in esc/escassign/flow,
+
+		// Treat a PPARAMREF closure variable as equivalent to the
+		// original variable.
 		if(src->class == PPARAMREF) {
 			if(leaks && debug['m'])
 				warnl(src->lineno, "leaking closure reference %hN", src);
