@@ -63,40 +63,133 @@ TEXT runtime·setitimer(SB),7,$0
 	INT	$0x80
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
-	LEAL	12(SP), AX	// must be non-nil, unused
-	MOVL	AX, 4(SP)
-	MOVL	$0, 8(SP)	// time zone pointer
-	MOVL	$116, AX
-	INT	$0x80
-	MOVL	DX, BX
+// OS X comm page time offsets
+// http://www.opensource.apple.com/source/xnu/xnu-1699.26.8/osfmk/i386/cpu_capabilities.h
+#define	cpu_capabilities	0x20
+#define	nt_tsc_base	0x50
+#define	nt_scale	0x58
+#define	nt_shift	0x5c
+#define	nt_ns_base	0x60
+#define	nt_generation	0x68
+#define	gtod_generation	0x6c
+#define	gtod_ns_base	0x70
+#define	gtod_sec_base	0x78
 
-	// sec is in AX, usec in BX
-	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
-	IMULL	$1000, BX
-	MOVL	BX, nsec+8(FP)
+// called from assembly
+// 64-bit unix nanoseconds returned in DX:AX.
+// I'd much rather write this in C but we need
+// assembly for the 96-bit multiply and RDTSC.
+TEXT runtime·now(SB),7,$40
+	MOVL	$0xffff0000, BP /* comm page base */
+	
+	// Test for slow CPU. If so, the math is completely
+	// different, and unimplemented here, so use the
+	// system call.
+	MOVL	cpu_capabilities(BP), AX
+	TESTL	$0x4000, AX
+	JNZ	systime
+
+	// Loop trying to take a consistent snapshot
+	// of the time parameters.
+timeloop:
+	MOVL	gtod_generation(BP), BX
+	TESTL	BX, BX
+	JZ	systime
+	MOVL	nt_generation(BP), CX
+	TESTL	CX, CX
+	JZ	timeloop
+	RDTSC
+	MOVL	nt_tsc_base(BP), SI
+	MOVL	(nt_tsc_base+4)(BP), DI
+	MOVL	SI, 0(SP)
+	MOVL	DI, 4(SP)
+	MOVL	nt_scale(BP), SI
+	MOVL	SI, 8(SP)
+	MOVL	nt_ns_base(BP), SI
+	MOVL	(nt_ns_base+4)(BP), DI
+	MOVL	SI, 12(SP)
+	MOVL	DI, 16(SP)
+	CMPL	nt_generation(BP), CX
+	JNE	timeloop
+	MOVL	gtod_ns_base(BP), SI
+	MOVL	(gtod_ns_base+4)(BP), DI
+	MOVL	SI, 20(SP)
+	MOVL	DI, 24(SP)
+	MOVL	gtod_sec_base(BP), SI
+	MOVL	(gtod_sec_base+4)(BP), DI
+	MOVL	SI, 28(SP)
+	MOVL	DI, 32(SP)
+	CMPL	gtod_generation(BP), BX
+	JNE	timeloop
+
+	// Gathered all the data we need. Compute time.
+	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base - gtod_ns_base + gtod_sec_base*1e9
+	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+	SUBL	0(SP), AX // DX:AX = (tsc - nt_tsc_base)
+	SBBL	4(SP), DX
+
+	// We have x = tsc - nt_tsc_base - DX:AX to be
+	// multiplied by y = nt_scale = 8(SP), keeping the top 64 bits of the 96-bit product.
+	// x*y = (x&0xffffffff)*y + (x&0xffffffff00000000)*y
+	// (x*y)>>32 = ((x&0xffffffff)*y)>>32 + (x>>32)*y
+	MOVL	DX, CX // SI = (x&0xffffffff)*y >> 32
+	MOVL	$0, DX
+	MULL	8(SP)
+	MOVL	DX, SI
+
+	MOVL	CX, AX // DX:AX = (x>>32)*y
+	MOVL	$0, DX
+	MULL	8(SP)
+
+	ADDL	SI, AX	// DX:AX += (x&0xffffffff)*y >> 32
+	ADCL	$0, DX
+	
+	// DX:AX is now ((tsc - nt_tsc_base) * nt_scale) >> 32.
+	ADDL	12(SP), AX	// DX:AX += nt_ns_base
+	ADCL	16(SP), DX
+	SUBL	20(SP), AX	// DX:AX -= gtod_ns_base
+	SBBL	24(SP), DX
+	MOVL	AX, SI	// DI:SI = DX:AX
+	MOVL	DX, DI
+	MOVL	28(SP), AX	// DX:AX = gtod_sec_base*1e9
+	MOVL	32(SP), DX
+	MOVL	$1000000000, CX
+	MULL	CX
+	ADDL	SI, AX	// DX:AX += DI:SI
+	ADCL	DI, DX
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB), 7, $32
+systime:
+	// Fall back to system call (usually first call in this thread)
 	LEAL	12(SP), AX	// must be non-nil, unused
 	MOVL	AX, 4(SP)
 	MOVL	$0, 8(SP)	// time zone pointer
 	MOVL	$116, AX
 	INT	$0x80
-	MOVL	DX, BX
-
-	// sec is in AX, usec in BX
+	// sec is in AX, usec in DX
 	// convert to DX:AX nsec
+	MOVL	DX, BX
 	MOVL	$1000000000, CX
 	MULL	CX
 	IMULL	$1000, BX
 	ADDL	BX, AX
 	ADCL	$0, DX
+	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),7,$0
+	CALL	runtime·now(SB)
+	MOVL	$1000000000, CX
+	DIVL	CX
+	MOVL	AX, sec+0(FP)
+	MOVL	$0, sec+4(FP)
+	MOVL	DX, nsec+8(FP)
+	RET
+
+// int64 nanotime(void) so really
+// void nanotime(int64 *nsec)
+TEXT runtime·nanotime(SB),7,$0
+	CALL	runtime·now(SB)
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
 	MOVL	DX, 4(DI)
