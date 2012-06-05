@@ -65,31 +65,84 @@ TEXT runtime·madvise(SB), 7, $0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
-	MOVQ	SP, DI	// must be non-nil, unused
-	MOVQ	$0, SI
-	MOVL	$(0x2000000+116), AX
-	SYSCALL
-
-	// sec is in AX, usec in DX
-	MOVQ	AX, sec+0(FP)
-	IMULQ	$1000, DX
-	MOVL	DX, nsec+8(FP)
-	RET
+// OS X comm page time offsets
+// http://www.opensource.apple.com/source/xnu/xnu-1699.26.8/osfmk/i386/cpu_capabilities.h
+#define	nt_tsc_base	0x50
+#define	nt_scale	0x58
+#define	nt_shift	0x5c
+#define	nt_ns_base	0x60
+#define	nt_generation	0x68
+#define	gtod_generation	0x6c
+#define	gtod_ns_base	0x70
+#define	gtod_sec_base	0x78
 
 // int64 nanotime(void)
 TEXT runtime·nanotime(SB), 7, $32
+	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+	// Loop trying to take a consistent snapshot
+	// of the time parameters.
+timeloop:
+	MOVL	gtod_generation(BP), R8
+	TESTL	R8, R8
+	JZ	systime
+	MOVL	nt_generation(BP), R9
+	TESTL	R9, R9
+	JZ	timeloop
+	RDTSC
+	MOVQ	nt_tsc_base(BP), R10
+	MOVL	nt_scale(BP), R11
+	MOVQ	nt_ns_base(BP), R12
+	CMPL	nt_generation(BP), R9
+	JNE	timeloop
+	MOVQ	gtod_ns_base(BP), R13
+	MOVQ	gtod_sec_base(BP), R14
+	CMPL	gtod_generation(BP), R8
+	JNE	timeloop
+
+	// Gathered all the data we need. Compute time.
+	//	((tsc - nt_tsc_base) * nt_scale) >> 32 + nt_ns_base - gtod_ns_base + gtod_sec_base*1e9
+	// The multiply and shift extracts the top 64 bits of the 96-bit product.
+	SHLQ	$32, DX
+	ADDQ	DX, AX
+	SUBQ	R10, AX
+	MULQ	R11
+	SHRQ	$32, AX:DX
+	ADDQ	R12, AX
+	SUBQ	R13, AX
+	IMULQ	$1000000000, R14
+	ADDQ	R14, AX
+	RET
+
+systime:
+	// Fall back to system call (usually first call in this thread).
 	MOVQ	SP, DI	// must be non-nil, unused
 	MOVQ	$0, SI
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
-
 	// sec is in AX, usec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
 	IMULQ	$1000, DX
 	ADDQ	DX, AX
+	RET
+
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB),7,$0
+	CALL	runtime·nanotime(SB)
+
+	// generated code for
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	// adapted to reduce duplication
+	MOVQ	AX, CX
+	MOVQ	$1360296554856532783, AX
+	MULQ	CX
+	ADDQ	CX, DX
+	RCRQ	$1, DX
+	SHRQ	$29, DX
+	MOVQ	DX, sec+0(FP)
+	IMULQ	$1000000000, DX
+	SUBQ	DX, CX
+	MOVL	CX, nsec+8(FP)
 	RET
 
 TEXT runtime·sigprocmask(SB),7,$0
