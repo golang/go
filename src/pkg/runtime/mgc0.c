@@ -148,7 +148,7 @@ static struct {
 // body.  Keeping an explicit work list is easier on the stack allocator and
 // more efficient.
 static void
-scanblock(byte *b, int64 n)
+scanblock(byte *b, uintptr n)
 {
 	byte *obj, *arena_start, *arena_used, *p;
 	void **vp;
@@ -159,8 +159,8 @@ scanblock(byte *b, int64 n)
 	Workbuf *wbuf;
 	bool keepworking;
 
-	if((int64)(uintptr)n != n || n < 0) {
-		runtime·printf("scanblock %p %D\n", b, n);
+	if((intptr)n < 0) {
+		runtime·printf("scanblock %p %D\n", b, (int64)n);
 		runtime·throw("scanblock");
 	}
 
@@ -191,7 +191,7 @@ scanblock(byte *b, int64 n)
 		// Each iteration scans the block b of length n, queueing pointers in
 		// the work buffer.
 		if(Debug > 1)
-			runtime·printf("scanblock %p %D\n", b, n);
+			runtime·printf("scanblock %p %D\n", b, (int64)n);
 
 		vp = (void**)b;
 		n >>= (2+PtrSize/8);  /* n /= PtrSize (4 or 8) */
@@ -339,7 +339,7 @@ scanblock(byte *b, int64 n)
 // it is simpler, slower, single-threaded, recursive,
 // and uses bitSpecial as the mark bit.
 static void
-debug_scanblock(byte *b, int64 n)
+debug_scanblock(byte *b, uintptr n)
 {
 	byte *obj, *p;
 	void **vp;
@@ -349,8 +349,8 @@ debug_scanblock(byte *b, int64 n)
 	if(!DebugMark)
 		runtime·throw("debug_scanblock without DebugMark");
 
-	if((int64)(uintptr)n != n || n < 0) {
-		runtime·printf("debug_scanblock %p %D\n", b, n);
+	if((intptr)n < 0) {
+		runtime·printf("debug_scanblock %p %D\n", b, (int64)n);
 		runtime·throw("debug_scanblock");
 	}
 
