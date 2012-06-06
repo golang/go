@@ -45,7 +45,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 	if cr.OK {
 		// This commit is OK. Notify if next Commit is broken.
 		next := new(Commit)
-		q.Filter("ParentHash=", com.Hash)
+		q = q.Filter("ParentHash=", com.Hash)
 		if err := firstMatch(c, q, next); err != nil {
 			if err == datastore.ErrNoSuchEntity {
 				// OK at tip, no notification necessary.
@@ -61,7 +61,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 	} else {
 		// This commit is broken. Notify if the previous Commit is OK.
 		prev := new(Commit)
-		q.Filter("Hash=", com.ParentHash)
+		q = q.Filter("Hash=", com.ParentHash)
 		if err := firstMatch(c, q, prev); err != nil {
 			if err == datastore.ErrNoSuchEntity {
 				// No previous result, let the backfill of
