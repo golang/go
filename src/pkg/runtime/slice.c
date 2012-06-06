@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "type.h"
+#include "typekind.h"
 #include "malloc.h"
 
 static	int32	debug	= 0;
