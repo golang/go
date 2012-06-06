@@ -27,15 +27,16 @@ TEXT runtime·write(SB),7,$-4
 	INT	$0x80
 	RET
 
-TEXT runtime·usleep(SB),7,$20
+TEXT runtime·usleep(SB),7,$24
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
 	DIVL	CX
-	MOVL	AX, 12(SP)		// tv_sec
+	MOVL	AX, 12(SP)		// tv_sec - l32
+	MOVL	$0, 16(SP)		// tv_sec - h32
 	MOVL	$1000, AX
 	MULL	DX
-	MOVL	AX, 16(SP)		// tv_nsec
+	MOVL	AX, 20(SP)		// tv_nsec
 
 	MOVL	$0, 0(SP)
 	LEAL	12(SP), AX
@@ -94,12 +95,13 @@ TEXT time·now(SB), 7, $32
 	MOVL	$0, 8(SP)		// arg 2 - tzp
 	MOVL	$418, AX		// sys_gettimeofday
 	INT	$0x80
-	MOVL	12(SP), AX		// sec
-	MOVL	16(SP), BX		// usec
 
-	// sec is in AX, usec in BX
+	MOVL	12(SP), AX		// sec - l32
 	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
+	MOVL	16(SP), AX		// sec - h32
+	MOVL	AX, sec+4(FP)
+
+	MOVL	20(SP), BX		// usec - should not exceed 999999
 	IMULL	$1000, BX
 	MOVL	BX, nsec+8(FP)
 	RET
@@ -112,16 +114,18 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	$0, 8(SP)		// arg 2 - tzp
 	MOVL	$418, AX		// sys_gettimeofday
 	INT	$0x80
-	MOVL	12(SP), AX		// sec
-	MOVL	16(SP), BX		// usec
 
-	// sec is in AX, usec in BX
-	// convert to DX:AX nsec
-	MOVL	$1000000000, CX
-	MULL	CX
+	MOVL	16(SP), CX		// sec - h32
+	IMULL	$1000000000, CX
+
+	MOVL	12(SP), AX		// sec - l32
+	MOVL	$1000000000, BX
+	MULL	BX			// result in dx:ax
+
+	MOVL	20(SP), BX		// usec
 	IMULL	$1000, BX
 	ADDL	BX, AX
-	ADCL	$0, DX
+	ADCL	CX, DX			// add high bits with carry
 
 	MOVL	ret+0(FP), DI
 	MOVL	AX, 0(DI)
