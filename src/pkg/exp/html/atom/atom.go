@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package atom provides integer codes (also known as atoms) for a fixed set of
-// frequently occurring HTML strings: lower-case tag names and attribute keys
-// such as "p" and "id".
+// frequently occurring HTML strings: tag names and attribute keys such as "p"
+// and "id".
 //
 // Sharing an atom's name between all elements with the same tag can result in
 // fewer string allocations when tokenizing and parsing HTML. Integer
@@ -56,7 +56,7 @@ func match(s string, t []byte) bool {
 }
 
 // Lookup returns the atom whose name is s. It returns zero if there is no
-// such atom.
+// such atom. The lookup is case sensitive.
 func Lookup(s []byte) Atom {
 	if len(s) == 0 || len(s) > maxAtomLen {
 		return 0
