@@ -12,5 +12,5 @@ package net
 import "C"
 
 func cgoAddrInfoFlags() C.int {
-	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
+	return (C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL) & C.AI_MASK
 }
