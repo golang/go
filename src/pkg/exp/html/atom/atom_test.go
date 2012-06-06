@@ -65,6 +65,27 @@ func TestMisses(t *testing.T) {
 	}
 }
 
+func TestForeignObject(t *testing.T) {
+	const (
+		afo = Foreignobject
+		afO = ForeignObject
+		sfo = "foreignobject"
+		sfO = "foreignObject"
+	)
+	if got := Lookup([]byte(sfo)); got != afo {
+		t.Errorf("Lookup(%q): got %#v, want %#v", sfo, got, afo)
+	}
+	if got := Lookup([]byte(sfO)); got != afO {
+		t.Errorf("Lookup(%q): got %#v, want %#v", sfO, got, afO)
+	}
+	if got := afo.String(); got != sfo {
+		t.Errorf("Atom(%#v).String(): got %q, want %q", afo, got, sfo)
+	}
+	if got := afO.String(); got != sfO {
+		t.Errorf("Atom(%#v).String(): got %q, want %q", afO, got, sfO)
+	}
+}
+
 func BenchmarkLookup(b *testing.B) {
 	sortedTable := make([]string, 0, len(table))
 	for _, a := range table {
