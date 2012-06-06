@@ -136,7 +136,7 @@
 	Fscanf and Fscanln read from a specified io.Reader; Sscan,
 	Sscanf and Sscanln read from an argument string.  Scanln,
 	Fscanln and Sscanln stop scanning at a newline and require that
-	the items be followed by one; Sscanf, Fscanf and Sscanf require
+	the items be followed by one; Scanf, Fscanf and Sscanf require
 	newlines in the input to match newlines in the format; the other
 	routines treat newlines as spaces.
 
