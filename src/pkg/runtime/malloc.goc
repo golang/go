@@ -13,6 +13,7 @@ package runtime
 #include "malloc.h"
 #include "defs_GOOS_GOARCH.h"
 #include "type.h"
+#include "typekind.h"
 
 #pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
 MHeap runtime·mheap;
