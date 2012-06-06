@@ -734,6 +734,19 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		return false
 	}
 
+	// Clear flags for base formatters.
+	// handleMethods needs them, so we must restore them later.
+	// We could call handleMethods here and avoid this work, but
+	// handleMethods is expensive enough to be worth delaying.
+	oldPlus := p.fmt.plus
+	oldSharp := p.fmt.sharp
+	if plus {
+		p.fmt.plus = false
+	}
+	if goSyntax {
+		p.fmt.sharp = false
+	}
+
 	// Some types can be done without reflection.
 	switch f := field.(type) {
 	case bool:
@@ -775,6 +788,9 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		p.fmtBytes(f, verb, goSyntax, depth)
 		wasString = verb == 's'
 	default:
+		// Restore flags in case handleMethods finds a Formatter.
+		p.fmt.plus = oldPlus
+		p.fmt.sharp = oldSharp
 		// If the type is not simple, it might have methods.
 		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
 			return wasString
