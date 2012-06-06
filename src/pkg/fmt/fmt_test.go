@@ -375,6 +375,7 @@ var fmttests = []struct {
 	{"%#v", &iarray, `&[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
 	{"%#v", map[int]byte(nil), `map[int]uint8(nil)`},
 	{"%#v", map[int]byte{}, `map[int]uint8{}`},
+	{"%#v", "foo", `"foo"`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
