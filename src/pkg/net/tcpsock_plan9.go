@@ -6,30 +6,12 @@
 
 package net
 
-import (
-	"syscall"
-	"time"
-)
+import "syscall"
 
 // TCPConn is an implementation of the Conn interface
 // for TCP network connections.
 type TCPConn struct {
 	plan9Conn
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *TCPConn) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *TCPConn) SetReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *TCPConn) SetWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
 }
 
 // CloseRead shuts down the reading side of the TCP connection.
@@ -74,6 +56,17 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
 // instead of assuming TCP.
 type TCPListener struct {
 	plan9Listener
+}
+
+func (l *TCPListener) Close() error {
+	if l == nil || l.ctl == nil {
+		return syscall.EINVAL
+	}
+	if _, err := l.ctl.WriteString("hangup"); err != nil {
+		l.ctl.Close()
+		return err
+	}
+	return l.ctl.Close()
 }
 
 // ListenTCP announces on the TCP address laddr and returns a TCP listener.

@@ -8,12 +8,7 @@
 
 package net
 
-import (
-	"errors"
-	"syscall"
-)
-
-var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
+import "syscall"
 
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {

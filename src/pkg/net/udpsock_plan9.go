@@ -10,28 +10,12 @@ import (
 	"errors"
 	"os"
 	"syscall"
-	"time"
 )
 
 // UDPConn is the implementation of the Conn and PacketConn
 // interfaces for UDP network connections.
 type UDPConn struct {
 	plan9Conn
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *UDPConn) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *UDPConn) SetReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *UDPConn) SetWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
 }
 
 // UDP-specific methods.

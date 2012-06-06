@@ -143,6 +143,11 @@ func TestTCPListenClose(t *testing.T) {
 }
 
 func TestUDPListenClose(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
 	ln, err := ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
