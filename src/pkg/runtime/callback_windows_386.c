@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "type.h"
+#include "typekind.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
 
