@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// /sys/include/ape/sys/socket.h:/SOMAXCONN
+var listenerBacklog = 5
+
 // probeIPv6Stack returns two boolean values.  If the first boolean value is
 // true, kernel supports basic IPv6 functionality.  If the second
 // boolean value is true, kernel supports IPv6 IPv4-mapping.
@@ -48,6 +51,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	if err != nil {
 		return
 	}
+	defer f.Close()
 	n, err := f.Read(buf[:])
 	if err != nil {
 		return
@@ -192,6 +196,7 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, 
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
+		f.Close()
 		return
 	}
 	return f, dest, proto, string(buf[:n]), nil
@@ -204,14 +209,17 @@ func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err error) {
 	}
 	_, err = f.WriteString("connect " + dest)
 	if err != nil {
+		f.Close()
 		return
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
+		f.Close()
 		return
 	}
 	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
 	if err != nil {
+		f.Close()
 		return
 	}
 	return newPlan9Conn(proto, name, f, laddr, raddr), nil
@@ -230,10 +238,12 @@ func listenPlan9(net string, laddr Addr) (l *plan9Listener, err error) {
 	}
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
+		f.Close()
 		return
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
+		f.Close()
 		return
 	}
 	l = new(plan9Listener)
@@ -257,15 +267,18 @@ func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err error) {
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
+		f.Close()
 		return
 	}
 	name := string(buf[:n])
 	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
 	if err != nil {
+		f.Close()
 		return
 	}
 	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
 	if err != nil {
+		f.Close()
 		return
 	}
 	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
@@ -287,3 +300,9 @@ func (l *plan9Listener) Close() error {
 }
 
 func (l *plan9Listener) Addr() Addr { return l.laddr }
+
+// SetDeadline sets the deadline associated with the listener.
+// A zero time value disables the deadline.
+func (l *plan9Listener) SetDeadline(t time.Time) error {
+	return syscall.EPLAN9
+}
