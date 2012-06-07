@@ -97,7 +97,7 @@ revcomp() {
 
 nbody() {
 	runonly echo 'nbody -n 50000000'
-	run 'gcc -O2 -lm nbody.c' a.out 50000000
+	run 'gcc -O2 nbody.c -lm' a.out 50000000
 	run 'gccgo -O2 nbody.go' a.out -n 50000000
 	run 'gc nbody' $O.out -n 50000000
 	run 'gc_B nbody' $O.out -n 50000000
@@ -147,7 +147,7 @@ knucleotide() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 1000000 > x  # should be using 25000000
 	runonly echo 'k-nucleotide 1000000'
-	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
+	run "gcc -O2 k-nucleotide.c $(pkg-config glib-2.0 --cflags --libs)" a.out <x
 	run 'gccgo -O2 k-nucleotide.go' a.out <x
 	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x
 	run 'gc k-nucleotide' $O.out <x

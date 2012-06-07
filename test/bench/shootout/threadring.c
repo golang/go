@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 * contributed by Premysl Hruby
 */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -57,7 +58,7 @@ static struct stack stacks[THREADS];
 
 static void* thread(void *num)
 {
-   int l = (int)num;
+   int l = (int)(uintptr_t)num;
    int r = (l+1) % THREADS;
    int token;
 
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
       pthread_mutex_lock(mutex + i);
 
       pthread_attr_setstack(&stack_attr, &stacks[i], sizeof(struct stack));
-      pthread_create(&cthread, &stack_attr, thread, (void*)i);
+      pthread_create(&cthread, &stack_attr, thread, (void*)(uintptr_t)i);
    }
 
    pthread_mutex_unlock(mutex + 0);

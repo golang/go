@@ -221,7 +221,7 @@ main ()
 
    free(s);
 
-   g_ptr_array_foreach(roots, free, NULL);
+   g_ptr_array_foreach(roots, (GFunc)free, NULL);
    g_ptr_array_free(roots, TRUE);
 
    return 0;
