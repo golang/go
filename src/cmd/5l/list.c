@@ -225,6 +225,12 @@ Dconv(Fmt *fp)
 			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
 		break;
 
+	case D_REGREG2:
+		snprint(str, sizeof str, "R%d,R%d", a->reg, (int)a->offset);
+		if(a->name != D_NONE || a->sym != S)
+			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+		break;
+
 	case D_FREG:
 		snprint(str, sizeof str, "F%d", a->reg);
 		if(a->name != D_NONE || a->sym != S)
@@ -438,6 +444,7 @@ cnames[] =
 	[C_RCON]	= "C_RCON",
 	[C_REG]		= "C_REG",
 	[C_REGREG]	= "C_REGREG",
+	[C_REGREG2]	= "C_REGREG2",
 	[C_ROREG]	= "C_ROREG",
 	[C_SAUTO]	= "C_SAUTO",
 	[C_SBRA]	= "C_SBRA",

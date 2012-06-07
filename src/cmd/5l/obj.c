@@ -338,6 +338,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_REGREG:
+	case D_REGREG2:
 		a->offset = BGETC(f);
 		break;
 

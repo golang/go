@@ -447,6 +447,9 @@ aclass(Adr *a)
 	case D_REGREG:
 		return C_REGREG;
 
+	case D_REGREG2:
+		return C_REGREG2;
+
 	case D_SHIFT:
 		return C_SHIFT;
 
@@ -835,12 +838,20 @@ buildop(void)
 			break;
 
 		case AMULL:
-			oprange[AMULA] = oprange[r];
 			oprange[AMULAL] = oprange[r];
 			oprange[AMULLU] = oprange[r];
 			oprange[AMULALU] = oprange[r];
 			break;
 
+		case AMULWT:
+			oprange[AMULWB] = oprange[r];
+			break;
+
+		case AMULAWT:
+			oprange[AMULAWB] = oprange[r];
+			break;
+
+		case AMULA:
 		case ALDREX:
 		case ASTREX:
 		case ALDREXD:

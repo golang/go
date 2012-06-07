@@ -874,6 +874,7 @@ mkvar(Reg *r, Adr *a)
 		goto onereg;
 
 	case D_REGREG:
+	case D_REGREG2:
 		bit = zbits;
 		if(a->offset != NREG)
 			bit.b[0] |= RtoB(a->offset);

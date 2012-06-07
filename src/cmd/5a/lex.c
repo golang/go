@@ -408,6 +408,11 @@ struct
 	"UNDEF",	LTYPEE,	AUNDEF,
 	"CLZ",		LTYPE2, ACLZ,
 
+	"MULWT",	LTYPE1, AMULWT,
+	"MULWB",	LTYPE1, AMULWB,
+	"MULAWT",	LTYPEN, AMULAWT,
+	"MULAWB",	LTYPEN, AMULAWB,
+
 	0
 };
 
@@ -511,6 +516,7 @@ zaddr(Gen *a, int s)
 		break;
 
 	case D_REGREG:
+	case D_REGREG2:
 		Bputc(&obuf, a->offset);
 		break;
 

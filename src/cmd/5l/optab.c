@@ -103,6 +103,7 @@ Optab	optab[] =
 	{ ADIV,		C_REG,	C_NONE,	C_REG,		16, 4, 0 },
 
 	{ AMULL,	C_REG,	C_REG,	C_REGREG,	17, 4, 0 },
+	{ AMULA,	C_REG,	C_REG,	C_REGREG2,	17, 4, 0 },
 
 	{ AMOVW,	C_REG,	C_NONE,	C_SAUTO,	20, 4, REGSP },
 	{ AMOVW,	C_REG,	C_NONE,	C_SOREG,	20, 4, 0 },
@@ -237,6 +238,9 @@ Optab	optab[] =
 	{ AUNDEF,		C_NONE,	C_NONE,	C_NONE,		96, 4, 0 },
 
 	{ ACLZ,		C_REG,	C_NONE,	C_REG,		97, 4, 0 },
+
+	{ AMULWT,	C_REG,	C_REG,	C_REG,		98, 4, 0 },
+	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };

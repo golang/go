@@ -147,6 +147,7 @@ zaddr(Biobuf *b, Addr *a, int s)
 		break;
 
 	case D_REGREG:
+	case D_REGREG2:
 		Bputc(b, a->offset);
 		break;
 

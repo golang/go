@@ -176,7 +176,7 @@ cgen64(Node *n, Node *res)
 		p1->from.type = D_REG;
 		p1->from.reg = bl.val.u.reg;
 		p1->reg = ch.val.u.reg;
-		p1->to.type = D_REGREG;
+		p1->to.type = D_REGREG2;
 		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
@@ -186,7 +186,7 @@ cgen64(Node *n, Node *res)
 		p1->from.type = D_REG;
 		p1->from.reg = bh.val.u.reg;
 		p1->reg = cl.val.u.reg;
-		p1->to.type = D_REGREG;
+		p1->to.type = D_REGREG2;
 		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);

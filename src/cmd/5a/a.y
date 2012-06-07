@@ -286,18 +286,19 @@ inst:
 		outcode(AWORD, Always, &nullgen, NREG, &g);
 	}
 /*
- * MULL hi,lo,r1,r2
+ * MULL r1,r2,(hi,lo)
  */
 |	LTYPEM cond reg ',' reg ',' regreg
 	{
 		outcode($1, $2, &$3, $5.reg, &$7);
 	}
 /*
- * MULA hi,lo,r1,r2
+ * MULA r1,r2,r3,r4: (r1*r2+r3) & 0xffffffff -> r4
+ * MULAW{T,B} r1,r2,r3,r4
  */
 |	LTYPEN cond reg ',' reg ',' reg ',' spreg
 	{
-		$7.type = D_REGREG;
+		$7.type = D_REGREG2;
 		$7.offset = $9;
 		outcode($1, $2, &$3, $5.reg, &$7);
 	}

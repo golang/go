@@ -153,6 +153,12 @@ Dconv(Fmt *fp)
 			sprint(str, "%M(R%d)(REG)", a, a->reg);
 		break;
 
+	case D_REGREG2:
+		sprint(str, "R%d,R%d", a->reg, (int)a->offset);
+		if(a->name != D_NONE || a->sym != S)
+			sprint(str, "%M(R%d)(REG)", a, a->reg);
+		break;
+
 	case D_FREG:
 		sprint(str, "F%d", a->reg);
 		if(a->name != D_NONE || a->sym != S)
