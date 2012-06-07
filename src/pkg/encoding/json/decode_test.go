@@ -683,3 +683,49 @@ func TestEmptyString(t *testing.T) {
 		t.Fatal("Decode: did not set Number1")
 	}
 }
+
+func intp(x int) *int {
+	p := new(int)
+	*p = x
+	return p
+}
+
+func intpp(x *int) **int {
+	pp := new(*int)
+	*pp = x
+	return pp
+}
+
+var interfaceSetTests = []struct {
+	pre  interface{}
+	json string
+	post interface{}
+}{
+	{"foo", `"bar"`, "bar"},
+	{"foo", `2`, 2.0},
+	{"foo", `true`, true},
+	{"foo", `null`, nil},
+
+	{nil, `null`, nil},
+	{new(int), `null`, nil},
+	{(*int)(nil), `null`, nil},
+	{new(*int), `null`, new(*int)},
+	{(**int)(nil), `null`, nil},
+	{intp(1), `null`, nil},
+	{intpp(nil), `null`, intpp(nil)},
+	{intpp(intp(1)), `null`, intpp(nil)},
+}
+
+func TestInterfaceSet(t *testing.T) {
+	for _, tt := range interfaceSetTests {
+		b := struct{ X interface{} }{tt.pre}
+		blob := `{"X":` + tt.json + `}`
+		if err := Unmarshal([]byte(blob), &b); err != nil {
+			t.Errorf("Unmarshal %#q: %v", blob, err)
+			continue
+		}
+		if !reflect.DeepEqual(b.X, tt.post) {
+			t.Errorf("Unmarshal %#q into %#v: X=%#v, want %#v", blob, tt.pre, b.X, tt.post)
+		}
+	}
+}
