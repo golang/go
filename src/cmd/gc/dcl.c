@@ -433,21 +433,6 @@ oldname(Sym *s)
 }
 
 /*
- * same for types
- */
-Type*
-newtype(Sym *s)
-{
-	Type *t;
-
-	t = typ(TFORW);
-	t->sym = s;
-	t->type = T;
-	return t;
-}
-
-
-/*
  * := declarations
  */
 
@@ -1311,7 +1296,7 @@ addmethod(Sym *sf, Type *t, int local)
 		}
 		// Should have picked off all the reasons above,
 		// but just in case, fall back to generic error.
-		yyerror("invalid receiver type %T", pa);
+		yyerror("invalid receiver type %T (%lT / %lT)", pa, pa, t);
 		return;
 	}
 

@@ -942,7 +942,6 @@ Node*	methodname(Node *n, Type *t);
 Node*	methodname1(Node *n, Node *t);
 Sym*	methodsym(Sym *nsym, Type *t0, int iface);
 Node*	newname(Sym *s);
-Type*	newtype(Sym *s);
 Node*	oldname(Sym *s);
 void	popdcl(void);
 void	poptodcl(void);
