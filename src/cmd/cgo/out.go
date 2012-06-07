@@ -71,7 +71,8 @@ func (p *Package) writeDefs() {
 	}
 
 	cVars := make(map[string]bool)
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.Kind != "var" {
 			continue
 		}
@@ -94,14 +95,16 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fc, "\n")
 
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.Const != "" {
 			fmt.Fprintf(fgo2, "const _Cconst_%s = %s\n", n.Go, n.Const)
 		}
 	}
 	fmt.Fprintf(fgo2, "\n")
 
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.FuncType != nil {
 			p.writeDefsFunc(fc, fgo2, n)
 		}
@@ -378,7 +381,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
 
-	for _, n := range f.Name {
+	for _, key := range nameKeys(f.Name) {
+		n := f.Name[key]
 		if n.FuncType != nil {
 			p.writeOutputFunc(fgcc, n)
 		}
