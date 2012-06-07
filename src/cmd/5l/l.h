@@ -212,6 +212,7 @@ enum
 	C_NONE		= 0,
 	C_REG,
 	C_REGREG,
+	C_REGREG2,
 	C_SHIFT,
 	C_FREG,
 	C_PSR,

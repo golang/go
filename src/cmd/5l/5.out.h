@@ -189,6 +189,11 @@ enum	as
 
 	ACLZ,
 
+	AMULWT,
+	AMULWB,
+	AMULAWT,
+	AMULAWB,
+
 	ALAST,
 };
 
@@ -242,11 +247,13 @@ enum	as
 
 #define	D_SHIFT		(D_NONE+19)
 #define	D_FPCR		(D_NONE+20)
-#define	D_REGREG	(D_NONE+21)
+#define	D_REGREG	(D_NONE+21) // (reg, reg)
 #define	D_ADDR		(D_NONE+22)
 
 #define	D_SBIG		(D_NONE+23)
 #define	D_CONST2	(D_NONE+24)
+
+#define	D_REGREG2	(D_NONE+25) // reg, reg
 
 /* name */
 #define	D_EXTERN	(D_NONE+3)

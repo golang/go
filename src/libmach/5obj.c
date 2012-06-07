@@ -124,6 +124,7 @@ addr(Biobuf *bp)
 	case D_FPCR:
 		break;
 	case D_REGREG:
+	case D_REGREG2:
 		Bgetc(bp);
 		break;
 	case D_CONST2:
