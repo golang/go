@@ -273,9 +273,14 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 			_, isUnmarshaler = v.Interface().(Unmarshaler)
 		}
 
+		// Load value from interface, but only if the result will be
+		// usefully addressable.
 		if iv := v; iv.Kind() == reflect.Interface && !iv.IsNil() {
-			v = iv.Elem()
-			continue
+			e := iv.Elem()
+			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
+				v = e
+				continue
+			}
 		}
 
 		pv := v
