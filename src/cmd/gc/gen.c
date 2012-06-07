@@ -647,6 +647,9 @@ cgen_as(Node *nl, Node *nr)
 		dump("cgen_as = ", nr);
 	}
 
+	while(nr != N && nr->op == OCONVNOP)
+		nr = nr->left;
+
 	if(nl == N || isblank(nl)) {
 		cgen_discard(nr);
 		return;
