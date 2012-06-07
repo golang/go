@@ -349,7 +349,6 @@ main(int argc, char *argv[])
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCL || l->n->op == OAS)
 			typecheck(&l->n, Etop);
-	resumetypecopy();
 	resumecheckwidth();
 
 	// Phase 3: Type check function bodies.
