@@ -4,8 +4,12 @@
 
 package html
 
+import (
+	"exp/html/atom"
+)
+
 // A NodeType is the type of a Node.
-type NodeType int
+type NodeType uint32
 
 const (
 	ErrorNode NodeType = iota
@@ -25,7 +29,8 @@ var scopeMarker = Node{Type: scopeMarkerNode}
 // A Node consists of a NodeType and some Data (tag name for element nodes,
 // content for text) and are part of a tree of Nodes. Element nodes may also
 // have a Namespace and contain a slice of Attributes. Data is unescaped, so
-// that it looks like "a<b" rather than "a&lt;b".
+// that it looks like "a<b" rather than "a&lt;b". For element nodes, DataAtom
+// is the atom for Data, or zero if Data is not a known tag name.
 //
 // An empty Namespace implies a "http://www.w3.org/1999/xhtml" namespace.
 // Similarly, "math" is short for "http://www.w3.org/1998/Math/MathML", and
@@ -34,6 +39,7 @@ type Node struct {
 	Parent    *Node
 	Child     []*Node
 	Type      NodeType
+	DataAtom  atom.Atom
 	Data      string
 	Namespace string
 	Attr      []Attribute
@@ -83,9 +89,10 @@ func reparentChildren(dst, src *Node) {
 // The clone has no parent and no children.
 func (n *Node) clone() *Node {
 	m := &Node{
-		Type: n.Type,
-		Data: n.Data,
-		Attr: make([]Attribute, len(n.Attr)),
+		Type:     n.Type,
+		DataAtom: n.DataAtom,
+		Data:     n.Data,
+		Attr:     make([]Attribute, len(n.Attr)),
 	}
 	copy(m.Attr, n.Attr)
 	return m

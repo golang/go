@@ -5,6 +5,7 @@
 package html
 
 import (
+	a "exp/html/atom"
 	"io"
 	"strings"
 )
@@ -280,7 +281,7 @@ func (p *parser) addText(text string) {
 func (p *parser) addElement(tag string, attr []Attribute) {
 	p.addChild(&Node{
 		Type: ElementNode,
-		Data: tag,
+		Data: tag, // TODO: also set DataAtom.
 		Attr: attr,
 	})
 }
@@ -310,9 +311,9 @@ findIdenticalElements:
 			continue
 		}
 	compareAttributes:
-		for _, a := range n.Attr {
-			for _, b := range attr {
-				if a.Key == b.Key && a.Namespace == b.Namespace && a.Val == b.Val {
+		for _, t0 := range n.Attr {
+			for _, t1 := range attr {
+				if t0.Key == t1.Key && t0.Namespace == t1.Namespace && t0.Val == t1.Val {
 					// Found a match for this attribute, continue with the next attribute.
 					continue compareAttributes
 				}
@@ -676,13 +677,13 @@ func copyAttributes(dst *Node, src Token) {
 		return
 	}
 	attr := map[string]string{}
-	for _, a := range dst.Attr {
-		attr[a.Key] = a.Val
+	for _, t := range dst.Attr {
+		attr[t.Key] = t.Val
 	}
-	for _, a := range src.Attr {
-		if _, ok := attr[a.Key]; !ok {
-			dst.Attr = append(dst.Attr, a)
-			attr[a.Key] = a.Val
+	for _, t := range src.Attr {
+		if _, ok := attr[t.Key]; !ok {
+			dst.Attr = append(dst.Attr, t)
+			attr[t.Key] = t.Val
 		}
 	}
 }
@@ -843,9 +844,9 @@ func inBodyIM(p *parser) bool {
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			if p.tok.Data == "input" {
-				for _, a := range p.tok.Attr {
-					if a.Key == "type" {
-						if strings.ToLower(a.Val) == "hidden" {
+				for _, t := range p.tok.Attr {
+					if t.Key == "type" {
+						if strings.ToLower(t.Val) == "hidden" {
 							// Skip setting framesetOK = false
 							return true
 						}
@@ -874,16 +875,16 @@ func inBodyIM(p *parser) bool {
 			action := ""
 			prompt := "This is a searchable index. Enter search keywords: "
 			attr := []Attribute{{Key: "name", Val: "isindex"}}
-			for _, a := range p.tok.Attr {
-				switch a.Key {
+			for _, t := range p.tok.Attr {
+				switch t.Key {
 				case "action":
-					action = a.Val
+					action = t.Val
 				case "name":
 					// Ignore the attribute.
 				case "prompt":
-					prompt = a.Val
+					prompt = t.Val
 				default:
-					attr = append(attr, a)
+					attr = append(attr, t)
 				}
 			}
 			p.acknowledgeSelfClosingTag()
@@ -1231,8 +1232,8 @@ func inTableIM(p *parser) bool {
 		case "style", "script":
 			return inHeadIM(p)
 		case "input":
-			for _, a := range p.tok.Attr {
-				if a.Key == "type" && strings.ToLower(a.Val) == "hidden" {
+			for _, t := range p.tok.Attr {
+				if t.Key == "type" && strings.ToLower(t.Val) == "hidden" {
 					p.addElement(p.tok.Data, p.tok.Attr)
 					p.oe.pop()
 					return true
@@ -1863,6 +1864,7 @@ func parseForeignContent(p *parser) bool {
 			// Adjust SVG tag names. The tokenizer lower-cases tag names, but
 			// SVG wants e.g. "foreignObject" with a capital second "O".
 			if x := svgTagNameAdjustments[p.tok.Data]; x != "" {
+				p.tok.DataAtom = a.Lookup([]byte(x))
 				p.tok.Data = x
 			}
 			adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
@@ -1929,7 +1931,7 @@ func (p *parser) parseImpliedToken(t TokenType, data string, attr []Attribute) {
 	realToken, selfClosing := p.tok, p.hasSelfClosingToken
 	p.tok = Token{
 		Type: t,
-		Data: data,
+		Data: data, // TODO: also set DataAtom.
 		Attr: attr,
 	}
 	p.hasSelfClosingToken = false
@@ -2014,7 +2016,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
 
 	root := &Node{
 		Type: ElementNode,
-		Data: "html",
+		Data: "html", // TODO: also set DataAtom.
 	}
 	p.doc.Add(root)
 	p.oe = nodeStack{root}

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"exp/html/atom"
 	"flag"
 	"fmt"
 	"io"
@@ -320,8 +321,9 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
 		}
 	} else {
 		contextNode := &Node{
-			Type: ElementNode,
-			Data: context,
+			Type:     ElementNode,
+			DataAtom: atom.Lookup([]byte(context)),
+			Data:     context,
 		}
 		nodes, err := ParseFragment(strings.NewReader(text), contextNode)
 		if err != nil {
