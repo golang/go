@@ -182,6 +182,9 @@ struct	Type
 
 	int32	maplineno;	// first use of TFORW as map key
 	int32	embedlineno;	// first use of TFORW as embedded type
+	
+	// for TFORW, where to copy the eventual value to
+	NodeList	*copyto;
 };
 #define	T	((Type*)0)
 
@@ -1250,9 +1253,7 @@ int	islvalue(Node *n);
 Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);
-void	resumetypecopy(void);
 void	copytype(Node *n, Type *t);
-void	defertypecopy(Node *n, Type *t);
 void	queuemethod(Node *n);
 
 /*

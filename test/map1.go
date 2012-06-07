@@ -41,4 +41,22 @@ var (
 	_ map[[]int]v       // ERROR "invalid map key"
 	_ map[func()]v      // ERROR "invalid map key"
 	_ map[map[int]int]v // ERROR "invalid map key"
+	_ map[T1]v    // ERROR "invalid map key"
+	_ map[T2]v    // ERROR "invalid map key"
+	_ map[T3]v    // ERROR "invalid map key"
+	_ map[T4]v    // ERROR "invalid map key"
+	_ map[T5]v
+	_ map[T6]v
+	_ map[T7]v
+	_ map[T8]v
 )
+
+type T1 []int
+type T2 struct { F T1 }
+type T3 []T4
+type T4 struct { F T3 }
+
+type T5 *int
+type T6 struct { F T5 }
+type T7 *T4
+type T8 struct { F *T7 }
