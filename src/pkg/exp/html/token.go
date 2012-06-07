@@ -13,7 +13,7 @@ import (
 )
 
 // A TokenType is the type of a Token.
-type TokenType int
+type TokenType uint32
 
 const (
 	// ErrorToken means that an error occurred during tokenization.
@@ -66,11 +66,13 @@ type Attribute struct {
 // A Token consists of a TokenType and some Data (tag name for start and end
 // tags, content for text, comments and doctypes). A tag Token may also contain
 // a slice of Attributes. Data is unescaped for all Tokens (it looks like "a<b"
-// rather than "a&lt;b").
+// rather than "a&lt;b"). For tag Tokens, DataAtom is the atom for Data, or
+// zero if Data is not a known tag name.
 type Token struct {
-	Type TokenType
-	Data string
-	Attr []Attribute
+	Type     TokenType
+	DataAtom atom.Atom
+	Data     string
+	Attr     []Attribute
 }
 
 // tagString returns a string representation of a tag Token's Data and Attr.
@@ -794,11 +796,19 @@ func (z *Tokenizer) Token() Token {
 			key, val, moreAttr = z.TagAttr()
 			attr = append(attr, Attribute{"", atom.String(key), string(val)})
 		}
-		t.Data = atom.String(name)
+		if a := atom.Lookup(name); a != 0 {
+			t.DataAtom, t.Data = a, a.String()
+		} else {
+			t.DataAtom, t.Data = 0, string(name)
+		}
 		t.Attr = attr
 	case EndTagToken:
 		name, _ := z.TagName()
-		t.Data = atom.String(name)
+		if a := atom.Lookup(name); a != 0 {
+			t.DataAtom, t.Data = a, a.String()
+		} else {
+			t.DataAtom, t.Data = 0, string(name)
+		}
 	}
 	return t
 }
