@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -33,9 +34,8 @@ type Package struct {
 	GccOptions  []string
 	CgoFlags    map[string]string // #cgo flags (CFLAGS, LDFLAGS)
 	Written     map[string]bool
-	Name        map[string]*Name    // accumulated Name from Files
-	Typedef     map[string]ast.Expr // accumulated Typedef from Files
-	ExpFunc     []*ExpFunc          // accumulated ExpFunc from Files
+	Name        map[string]*Name // accumulated Name from Files
+	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
 	Decl        []ast.Decl
 	GoFiles     []string // list of Go files
 	GccFiles    []string // list of gcc output files
@@ -51,7 +51,15 @@ type File struct {
 	Ref      []*Ref              // all references to C.xxx in AST
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
-	Typedef  map[string]ast.Expr // translations of all necessary types from C
+}
+
+func nameKeys(m map[string]*Name) []string {
+	var ks []string
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 // A Ref refers to an expression of the form C.xxx in the AST.
