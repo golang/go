@@ -640,6 +640,7 @@ typename(Type *t)
 		n->ullman = 1;
 		n->class = PEXTERN;
 		n->xoffset = 0;
+		n->typecheck = 1;
 		s->def = n;
 
 		signatlist = list(signatlist, typenod(t));
@@ -649,6 +650,7 @@ typename(Type *t)
 	n->type = ptrto(s->def->type);
 	n->addable = 1;
 	n->ullman = 2;
+	n->typecheck = 1;
 	return n;
 }
 
