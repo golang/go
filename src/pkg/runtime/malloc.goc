@@ -72,6 +72,14 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		// setup for mark sweep
 		runtime·markspan(v, 0, 0, true);
 	}
+
+	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
+		// purge cache stats to prevent overflow
+		runtime·lock(&runtime·mheap);
+		runtime·purgecachedstats(m);
+		runtime·unlock(&runtime·mheap);
+	}
+
 	if(!(flag & FlagNoGC))
 		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
 
@@ -170,6 +178,13 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	MSpan *s;
 
 	m->mcache->local_nlookup++;
+	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
+		// purge cache stats to prevent overflow
+		runtime·lock(&runtime·mheap);
+		runtime·purgecachedstats(m);
+		runtime·unlock(&runtime·mheap);
+	}
+
 	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
 	if(sp)
 		*sp = s;
