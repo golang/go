@@ -613,13 +613,22 @@ func TestModW(t *testing.T) {
 }
 
 func TestTrailingZeroBits(t *testing.T) {
-	var x Word
-	x--
-	for i := 0; i < _W; i++ {
-		if trailingZeroBits(x) != i {
-			t.Errorf("Failed at step %d: x: %x got: %d", i, x, trailingZeroBits(x))
+	x := Word(1)
+	for i := uint(0); i <= _W; i++ {
+		n := trailingZeroBits(x)
+		if n != i%_W {
+			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
 		}
 		x <<= 1
+	}
+
+	y := nat(nil).set(natOne)
+	for i := uint(0); i <= 3*_W; i++ {
+		n := y.trailingZeroBits()
+		if n != i {
+			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.string(lowercaseDigits[0:16]), n, i)
+		}
+		y = y.shl(y, 1)
 	}
 }
 
