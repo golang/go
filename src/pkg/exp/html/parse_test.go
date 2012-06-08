@@ -391,6 +391,19 @@ var renderTestBlacklist = map[string]bool{
 	`<table><plaintext><td>`: true,
 }
 
+func TestNodeConsistency(t *testing.T) {
+	// inconsistentNode is a Node whose DataAtom and Data do not agree.
+	inconsistentNode := &Node{
+		Type:     ElementNode,
+		DataAtom: atom.Frameset,
+		Data:     "table",
+	}
+	_, err := ParseFragment(strings.NewReader("<p>hello</p>"), inconsistentNode)
+	if err == nil {
+		t.Errorf("got nil error, want non-nil")
+	}
+}
+
 func BenchmarkParser(b *testing.B) {
 	buf, err := ioutil.ReadFile("testdata/go1.html")
 	if err != nil {
