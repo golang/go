@@ -740,7 +740,7 @@ func (x nat) string(charset string) string {
 	// convert power of two and non power of two bases separately
 	if b == b&-b {
 		// shift is base-b digit size in bits
-		shift := uint(trailingZeroBits(b)) // shift > 0 because b >= 2
+		shift := trailingZeroBits(b) // shift > 0 because b >= 2
 		mask := Word(1)<<shift - 1
 		w := x[0]
 		nbits := uint(_W) // number of unprocessed bits in w
@@ -993,10 +993,9 @@ var deBruijn64Lookup = []byte{
 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
 
-// trailingZeroBits returns the number of consecutive zero bits on the right
-// side of the given Word.
-// See Knuth, volume 4, section 7.3.1
-func trailingZeroBits(x Word) int {
+// trailingZeroBits returns the number of consecutive least significant zero
+// bits of x.
+func trailingZeroBits(x Word) uint {
 	// x & -x leaves only the right-most bit set in the word. Let k be the
 	// index of that bit. Since only a single bit is set, the value is two
 	// to the power of k. Multiplying by a power of two is equivalent to
@@ -1005,16 +1004,31 @@ func trailingZeroBits(x Word) int {
 	// Therefore, if we have a left shifted version of this constant we can
 	// find by how many bits it was shifted by looking at which six bit
 	// substring ended up at the top of the word.
+	// (Knuth, volume 4, section 7.3.1)
 	switch _W {
 	case 32:
-		return int(deBruijn32Lookup[((x&-x)*deBruijn32)>>27])
+		return uint(deBruijn32Lookup[((x&-x)*deBruijn32)>>27])
 	case 64:
-		return int(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
+		return uint(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
 	default:
 		panic("Unknown word size")
 	}
 
 	return 0
+}
+
+// trailingZeroBits returns the number of consecutive least significant zero
+// bits of x.
+func (x nat) trailingZeroBits() uint {
+	if len(x) == 0 {
+		return 0
+	}
+	var i uint
+	for x[i] == 0 {
+		i++
+	}
+	// x[i] != 0
+	return i*_W + trailingZeroBits(x[i])
 }
 
 // z = x << s
@@ -1169,29 +1183,6 @@ func (x nat) modW(d Word) (r Word) {
 	return divWVW(q, 0, x, d)
 }
 
-// powersOfTwoDecompose finds q and k with x = q * 1<<k and q is odd, or q and k are 0.
-func (x nat) powersOfTwoDecompose() (q nat, k int) {
-	if len(x) == 0 {
-		return x, 0
-	}
-
-	// One of the words must be non-zero by definition,
-	// so this loop will terminate with i < len(x), and
-	// i is the number of 0 words.
-	i := 0
-	for x[i] == 0 {
-		i++
-	}
-	n := trailingZeroBits(x[i]) // x[i] != 0
-
-	q = make(nat, len(x)-i)
-	shrVU(q, x[i:], uint(n))
-
-	q = q.norm()
-	k = i*_W + n
-	return
-}
-
 // random creates a random integer in [0..limit), using the space in z if
 // possible. n is the bit length of limit.
 func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
@@ -1343,8 +1334,9 @@ func (n nat) probablyPrime(reps int) bool {
 	}
 
 	nm1 := nat(nil).sub(n, natOne)
-	// 1<<k * q = nm1;
-	q, k := nm1.powersOfTwoDecompose()
+	// determine q, k such that nm1 = q << k
+	k := nm1.trailingZeroBits()
+	q := nat(nil).shr(nm1, k)
 
 	nm3 := nat(nil).sub(nm1, natTwo)
 	rand := rand.New(rand.NewSource(int64(n[0])))
@@ -1360,7 +1352,7 @@ NextRandom:
 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
-		for j := 1; j < k; j++ {
+		for j := uint(1); j < k; j++ {
 			y = y.mul(y, y)
 			quotient, y = quotient.div(y, y, n)
 			if y.cmp(nm1) == 0 {
