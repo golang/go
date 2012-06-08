@@ -422,38 +422,12 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]byte
 pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
-pkg syscall (windows-386), func FindFirstFile1(*uint16, *Win32finddata1) (Handle, error)
-pkg syscall (windows-386), func FindNextFile1(Handle, *Win32finddata1) error
 pkg syscall (windows-386), func GetCurrentProcessId() uint32
 pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *byte, *int32) error
 pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
-pkg syscall (windows-386), type Win32finddata1 struct
-pkg syscall (windows-386), type Win32finddata1 struct, AlternateFileName [14]uint16
-pkg syscall (windows-386), type Win32finddata1 struct, CreationTime Filetime
-pkg syscall (windows-386), type Win32finddata1 struct, FileAttributes uint32
-pkg syscall (windows-386), type Win32finddata1 struct, FileName [MAX_PATH]uint16
-pkg syscall (windows-386), type Win32finddata1 struct, FileSizeHigh uint32
-pkg syscall (windows-386), type Win32finddata1 struct, FileSizeLow uint32
-pkg syscall (windows-386), type Win32finddata1 struct, LastAccessTime Filetime
-pkg syscall (windows-386), type Win32finddata1 struct, LastWriteTime Filetime
-pkg syscall (windows-386), type Win32finddata1 struct, Reserved0 uint32
-pkg syscall (windows-386), type Win32finddata1 struct, Reserved1 uint32
 pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
-pkg syscall (windows-amd64), func FindFirstFile1(*uint16, *Win32finddata1) (Handle, error)
-pkg syscall (windows-amd64), func FindNextFile1(Handle, *Win32finddata1) error
 pkg syscall (windows-amd64), func GetCurrentProcessId() uint32
 pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *byte, *int32) error
 pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
-pkg syscall (windows-amd64), type Win32finddata1 struct
-pkg syscall (windows-amd64), type Win32finddata1 struct, AlternateFileName [14]uint16
-pkg syscall (windows-amd64), type Win32finddata1 struct, CreationTime Filetime
-pkg syscall (windows-amd64), type Win32finddata1 struct, FileAttributes uint32
-pkg syscall (windows-amd64), type Win32finddata1 struct, FileName [MAX_PATH]uint16
-pkg syscall (windows-amd64), type Win32finddata1 struct, FileSizeHigh uint32
-pkg syscall (windows-amd64), type Win32finddata1 struct, FileSizeLow uint32
-pkg syscall (windows-amd64), type Win32finddata1 struct, LastAccessTime Filetime
-pkg syscall (windows-amd64), type Win32finddata1 struct, LastWriteTime Filetime
-pkg syscall (windows-amd64), type Win32finddata1 struct, Reserved0 uint32
-pkg syscall (windows-amd64), type Win32finddata1 struct, Reserved1 uint32
