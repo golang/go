@@ -5,7 +5,9 @@
 package html
 
 import (
+	"errors"
 	a "exp/html/atom"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -2013,6 +2015,15 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
 	}
 
 	if context != nil {
+		if context.Type != ElementNode {
+			return nil, errors.New("html: ParseFragment of non-element Node")
+		}
+		// The next check isn't just context.DataAtom.String() == context.Data because
+		// it is valid to pass an element whose tag isn't a known atom. For example,
+		// DataAtom == 0 and Data = "tagfromthefuture" is perfectly consistent.
+		if context.DataAtom != a.Lookup([]byte(context.Data)) {
+			return nil, fmt.Errorf("html: inconsistent Node: DataAtom=%q, Data=%q", context.DataAtom, context.Data)
+		}
 		switch context.DataAtom {
 		case a.Iframe, a.Noembed, a.Noframes, a.Noscript, a.Plaintext, a.Script, a.Style, a.Title, a.Textarea, a.Xmp:
 			p.tokenizer.rawTag = context.DataAtom.String()
