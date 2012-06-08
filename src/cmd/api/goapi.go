@@ -28,6 +28,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -98,6 +99,13 @@ func setContexts() {
 
 func main() {
 	flag.Parse()
+
+	if !strings.Contains(runtime.Version(), "weekly") {
+		if *nextFile != "" {
+			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
+			*nextFile = ""
+		}
+	}
 
 	if *forceCtx != "" {
 		setContexts()
@@ -235,7 +243,11 @@ func fileFeatures(filename string) []string {
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
 	}
-	return strings.Split(strings.TrimSpace(string(bs)), "\n")
+	text := strings.TrimSpace(string(bs))
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n")
 }
 
 // pkgSymbol represents a symbol in a package
