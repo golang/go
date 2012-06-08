@@ -140,7 +140,7 @@ Dconv(Fmt *fp)
 {
 	char str[STRINGSZ];
 	Adr *a;
-	char *op;
+	const char *op;
 	int v;
 
 	a = va_arg(fp->args, Adr*);
