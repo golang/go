@@ -338,9 +338,6 @@ func NsecToFiletime(nsec int64) (ft Filetime) {
 	return ft
 }
 
-// Win32finddata is an incorrect struct definition, preserved for
-// backwards compatibility. Use Win32finddata1 and the
-// FindFirstFile1 and FindNextFile1 functions instead.
 type Win32finddata struct {
 	FileAttributes    uint32
 	CreationTime      Filetime
@@ -354,7 +351,9 @@ type Win32finddata struct {
 	AlternateFileName [13]uint16
 }
 
-type Win32finddata1 struct {
+// This is the actual system call structure.
+// Win32finddata is what we committed to in Go 1.
+type win32finddata1 struct {
 	FileAttributes    uint32
 	CreationTime      Filetime
 	LastAccessTime    Filetime
@@ -365,6 +364,23 @@ type Win32finddata1 struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH]uint16
 	AlternateFileName [14]uint16
+}
+
+func copyFindData(dst *Win32finddata, src *win32finddata1) {
+	dst.FileAttributes = src.FileAttributes
+	dst.CreationTime = src.CreationTime
+	dst.LastAccessTime = src.LastAccessTime
+	dst.LastWriteTime = src.LastWriteTime
+	dst.FileSizeHigh = src.FileSizeHigh
+	dst.FileSizeLow = src.FileSizeLow
+	dst.Reserved0 = src.Reserved0
+	dst.Reserved1 = src.Reserved1
+
+	// The src is 1 element shorter than dst. Zero that last one.
+	copy(dst.FileName[:], src.FileName[:])
+	dst.FileName[len(dst.FileName)-1] = 0
+	copy(dst.AlternateFileName[:], src.AlternateFileName[:])
+	src.AlternateFileName[len(dst.AlternateFileName)-1] = 0
 }
 
 type ByHandleFileInformation struct {

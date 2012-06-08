@@ -7,7 +7,6 @@
 package syscall
 
 import (
-	errorspkg "errors"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -130,8 +129,8 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
-//sys	FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
-//sys	FindNextFile1(handle Handle, data *Win32finddata1) (err error) = FindNextFileW
+//sys	findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
+//sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
 //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
@@ -706,11 +705,29 @@ func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
 func Getpid() (pid int) { return int(GetCurrentProcessId()) }
 
 func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
-	return InvalidHandle, errorspkg.New("FindFirstFile is broken, use FindFirstFile1 instead")
+	// NOTE(rsc): The Win32finddata struct is wrong for the system call:
+	// the two paths are each one uint16 short. Use the correct struct,
+	// a win32finddata1, and then copy the results out.
+	// There is no loss of expressivity here, because the final
+	// uint16, if it is used, is supposed to be a NUL, and Go doesn't need that.
+	// For Go 1.1, we might avoid the allocation of win32finddata1 here
+	// by adding a final Bug [2]uint16 field to the struct and then
+	// adjusting the fields in the result directly.
+	var data1 win32finddata1
+	handle, err = findFirstFile1(name, &data1)
+	if err == nil {
+		copyFindData(data, &data1)
+	}
+	return
 }
 
 func FindNextFile(handle Handle, data *Win32finddata) (err error) {
-	return errorspkg.New("FindNextFile is broken, use FindNextFile1 instead")
+	var data1 win32finddata1
+	err = findNextFile1(handle, &data1)
+	if err == nil {
+		copyFindData(data, &data1)
+	}
+	return
 }
 
 // TODO(brainman): fix all needed for os

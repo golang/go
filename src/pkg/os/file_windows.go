@@ -50,7 +50,7 @@ func NewFile(fd uintptr, name string) *File {
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	data     syscall.Win32finddata1
+	data     syscall.Win32finddata
 	needdata bool
 	path     string
 }
@@ -76,7 +76,7 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 
 func openDir(name string) (file *File, err error) {
 	d := new(dirInfo)
-	r, e := syscall.FindFirstFile1(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
+	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
 	if e != nil {
 		return nil, &PathError{"open", name, e}
 	}
@@ -159,7 +159,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	d := &file.dirinfo.data
 	for n != 0 {
 		if file.dirinfo.needdata {
-			e := syscall.FindNextFile1(syscall.Handle(file.fd), d)
+			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
 			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
