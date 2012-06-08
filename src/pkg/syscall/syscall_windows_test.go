@@ -27,7 +27,7 @@ func TestWin32finddata(t *testing.T) {
 	f.Close()
 
 	type X struct {
-		fd  syscall.Win32finddata1
+		fd  syscall.Win32finddata
 		got byte
 		pad [10]byte // to protect ourselves
 
@@ -35,7 +35,7 @@ func TestWin32finddata(t *testing.T) {
 	var want byte = 2 // it is unlikely to have this character in the filename
 	x := X{got: want}
 
-	h, err := syscall.FindFirstFile1(syscall.StringToUTF16Ptr(path), &(x.fd))
+	h, err := syscall.FindFirstFile(syscall.StringToUTF16Ptr(path), &(x.fd))
 	if err != nil {
 		t.Fatalf("FindFirstFile failed: %v", err)
 	}
