@@ -777,43 +777,59 @@ Replace the current buffer on success; display errors on failure."
             (save-restriction
               (let (deactivate-mark)
                 (widen)
-                (if (= 0 (shell-command-on-region (point-min) (point-max) "gofmt -d"
-                                                  patchbuf nil errbuf))
-                    ; gofmt succeeded: apply patch hunks.
-                    (progn
-                      (kill-buffer errbuf)
-                      (gofmt-apply-patch filename srcbuf patchbuf)
-                      (set-window-configuration currconf))
+                ; If this is a new file, diff-mode can't apply a
+                ; patch to a non-exisiting file, so replace the buffer
+                ; completely with the output of 'gofmt'.
+                ; If the file exists, patch it to keep the 'undo' list happy.
+                (let* ((newfile (not (file-exists-p filename)))
+                      (flag (if newfile "" " -d")))
+                  (if (= 0 (shell-command-on-region (point-min) (point-max)
+                                                    (concat "gofmt" flag)
+                                                    patchbuf nil errbuf))
+                      ; gofmt succeeded: replace buffer or apply patch hunks.
+                      (let ((old-point (point))
+                            (old-mark (mark t)))
+                        (kill-buffer errbuf)
+                        (if newfile
+                            ; New file, replace it (diff-mode won't work)
+                            (gofmt-replace-buffer srcbuf patchbuf)
+                          ; Existing file, patch it
+                          (gofmt-apply-patch filename srcbuf patchbuf))
+                        (goto-char (min old-point (point-max)))
+                        ;; Restore the mark and point
+                        (if old-mark (push-mark (min old-mark (point-max)) t))
+                        (set-window-configuration currconf))
 
                   ;; gofmt failed: display the errors
-                  (gofmt-process-errors filename errbuf)))))
+                  (gofmt-process-errors filename errbuf))))))
 
           ;; Collapse any window opened on outbuf if shell-command-on-region
           ;; displayed it.
           (delete-windows-on patchbuf)))
       (kill-buffer patchbuf))))
 
+(defun gofmt-replace-buffer (srcbuf patchbuf)
+  (with-current-buffer srcbuf
+    (erase-buffer)
+    (insert-buffer-substring patchbuf)))
+
 (defconst gofmt-stdin-tag "<standard input>")
 
 (defun gofmt-apply-patch (filename srcbuf patchbuf)
   (require 'diff-mode)
   ;; apply all the patch hunks and restore the mark and point
-  (let ((old-point (point))
-        (old-mark (mark t)))
-    (with-current-buffer patchbuf
-      (let ((filename (file-name-nondirectory filename))
-            (min (point-min)))
-        (replace-string gofmt-stdin-tag  filename nil min (point-max))
-        (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- /tmp/" filename)
-                        nil min (point-max)))
-      (condition-case nil
-          (while t
-            (diff-hunk-next)
-            (diff-apply-hunk))
-        ;; When there's no more hunks, diff-hunk-next signals an error, ignore it
-        (error nil)))
-    (goto-char (min old-point (point-max)))
-    (if old-mark (push-mark (min old-mark (point-max)) t))))
+  (with-current-buffer patchbuf
+    (let ((filename (file-name-nondirectory filename))
+          (min (point-min)))
+      (replace-string gofmt-stdin-tag  filename nil min (point-max))
+      (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- /tmp/" filename)
+                      nil min (point-max)))
+    (condition-case nil
+        (while t
+          (diff-hunk-next)
+          (diff-apply-hunk))
+      ;; When there's no more hunks, diff-hunk-next signals an error, ignore it
+      (error nil))))
 
 (defun gofmt-process-errors (filename errbuf)
   ;; Convert the gofmt stderr to something understood by the compilation mode.
