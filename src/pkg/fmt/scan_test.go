@@ -810,6 +810,33 @@ func TestMultiLine(t *testing.T) {
 	}
 }
 
+// simpleReader is a strings.Reader that implements only Read, not ReadRune.
+// Good for testing readahead.
+type simpleReader struct {
+	sr *strings.Reader
+}
+
+func (s *simpleReader) Read(b []byte) (n int, err error) {
+	return s.sr.Read(b)
+}
+
+// Test that Fscanf does not read past newline. Issue 3481.
+func TestLineByLineFscanf(t *testing.T) {
+	r := &simpleReader{strings.NewReader("1\n2\n")}
+	var i, j int
+	n, err := Fscanf(r, "%v\n", &i)
+	if n != 1 || err != nil {
+		t.Fatalf("first read: %d %q", n, err)
+	}
+	n, err = Fscanf(r, "%v\n", &j)
+	if n != 1 || err != nil {
+		t.Fatalf("second read: %d %q", n, err)
+	}
+	if i != 1 || j != 2 {
+		t.Errorf("wrong values; wanted 1 2 got %d %d", i, j)
+	}
+}
+
 // RecursiveInt accepts a string matching %d.%d.%d....
 // and parses it into a linked list.
 // It allows us to benchmark recursive descent style scanners.

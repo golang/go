@@ -1090,7 +1090,8 @@ func (s *ss) advance(format string) (i int) {
 			// There was space in the format, so there should be space (EOF)
 			// in the input.
 			inputc := s.getRune()
-			if inputc == eof {
+			if inputc == eof || inputc == '\n' {
+				// If we've reached a newline, stop now; don't read ahead.
 				return
 			}
 			if !isSpace(inputc) {
