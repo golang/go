@@ -89,10 +89,6 @@ func GcImportData(imports map[string]*ast.Object, filename, id string, data *buf
 		fmt.Printf("importing %s (%s)\n", id, filename)
 	}
 
-	if imports[id] != nil {
-		panic(fmt.Sprintf("package %s already imported", id))
-	}
-
 	// support for gcParser error handling
 	defer func() {
 		if r := recover(); r != nil {
@@ -128,9 +124,12 @@ func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err
 		return
 	}
 
-	if pkg = imports[id]; pkg != nil {
-		return // package was imported before
-	}
+	// Note: imports[id] may already contain a partially imported package.
+	//       We must continue doing the full import here since we don't
+	//       know if something is missing.
+	// TODO: There's no need to re-import a package if we know that we
+	//       have done a full import before. At the moment we cannot
+	//       tell from the available information in this function alone.
 
 	// open file
 	f, err := os.Open(filename)
@@ -294,9 +293,8 @@ func (p *gcParser) parsePkgId() *ast.Object {
 
 	pkg := p.imports[id]
 	if pkg == nil {
-		scope = ast.NewScope(nil)
 		pkg = ast.NewObj(ast.Pkg, "")
-		pkg.Data = scope
+		pkg.Data = ast.NewScope(nil)
 		p.imports[id] = pkg
 	}
 
@@ -867,10 +865,12 @@ func (p *gcParser) parseExport() *ast.Object {
 	}
 	p.expect('\n')
 
-	assert(p.imports[p.id] == nil)
-	pkg := ast.NewObj(ast.Pkg, name)
-	pkg.Data = ast.NewScope(nil)
-	p.imports[p.id] = pkg
+	pkg := p.imports[p.id]
+	if pkg == nil {
+		pkg = ast.NewObj(ast.Pkg, name)
+		pkg.Data = ast.NewScope(nil)
+		p.imports[p.id] = pkg
+	}
 
 	for p.tok != '$' && p.tok != scanner.EOF {
 		p.parseDecl()
