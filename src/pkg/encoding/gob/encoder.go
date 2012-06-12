@@ -218,6 +218,12 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
 // EncodeValue transmits the data item represented by the reflection value,
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) EncodeValue(value reflect.Value) error {
+	// Gobs contain values. They cannot represent nil pointers, which
+	// have no value to encode.
+	if value.Kind() == reflect.Ptr && value.IsNil() {
+		panic("gob: cannot encode nil pointer of type " + value.Type().String())
+	}
+
 	// Make sure we're single-threaded through here, so multiple
 	// goroutines can share an encoder.
 	enc.mutex.Lock()
