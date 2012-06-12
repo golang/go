@@ -426,6 +426,12 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp e
 // by the concrete value.  A nil value gets sent as the empty string for the name,
 // followed by no value.
 func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+	// Gobs can encode nil interface values but not typed interface
+	// values holding nil pointers, since nil pointers point to no value.
+	elem := iv.Elem()
+	if elem.Kind() == reflect.Ptr && elem.IsNil() {
+		errorf("gob: cannot encode nil pointer of type %s inside interface", iv.Elem().Type())
+	}
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
@@ -454,7 +460,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	enc.pushWriter(b)
 	data := new(bytes.Buffer)
 	data.Write(spaceForLength)
-	enc.encode(data, iv.Elem(), ut)
+	enc.encode(data, elem, ut)
 	if enc.err != nil {
 		error_(enc.err)
 	}

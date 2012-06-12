@@ -736,3 +736,47 @@ func TestPtrToMapOfMap(t *testing.T) {
 		t.Fatalf("expected %v got %v", data, newData)
 	}
 }
+
+// A top-level nil pointer generates a panic with a helpful string-valued message.
+func TestTopLevelNilPointer(t *testing.T) {
+	errMsg := topLevelNilPanic(t)
+	if errMsg == "" {
+		t.Fatal("top-level nil pointer did not panic")
+	}
+	if !strings.Contains(errMsg, "nil pointer") {
+		t.Fatal("expected nil pointer error, got:", errMsg)
+	}
+}
+
+func topLevelNilPanic(t *testing.T) (panicErr string) {
+	defer func() {
+		e := recover()
+		if err, ok := e.(string); ok {
+			panicErr = err
+		}
+	}()
+	var ip *int
+	buf := new(bytes.Buffer)
+	if err := NewEncoder(buf).Encode(ip); err != nil {
+		t.Fatal("error in encode:", err)
+	}
+	return
+}
+
+func TestNilPointerInsideInterface(t *testing.T) {
+	var ip *int
+	si := struct {
+		I interface{}
+	}{
+		I: ip,
+	}
+	buf := new(bytes.Buffer)
+	err := NewEncoder(buf).Encode(si)
+	if err == nil {
+		t.Fatal("expected error, got none")
+	}
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "nil pointer") || !strings.Contains(errMsg, "interface") {
+		t.Fatal("expected error about nil pointer and interface, got:", errMsg)
+	}
+}
