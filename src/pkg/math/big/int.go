@@ -697,6 +697,13 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 // Bit returns the value of the i'th bit of x. That is, it
 // returns (x>>i)&1. The bit index i must be >= 0.
 func (x *Int) Bit(i int) uint {
+	if i == 0 {
+		// optimization for common case: odd/even test of x
+		if len(x.abs) > 0 {
+			return uint(x.abs[0] & 1) // bit 0 is same for -x
+		}
+		return 0
+	}
 	if i < 0 {
 		panic("negative bit index")
 	}
