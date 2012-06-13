@@ -61,8 +61,11 @@ runtime·tsleep(int64 ns)
 {
 	Timer t;
 
-	if(ns <= 0)
+	if(ns <= 0) {
+		g->status = Grunning;
+		g->waitreason = nil;
 		return;
+	}
 
 	t.when = runtime·nanotime() + ns;
 	t.period = 0;

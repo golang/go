@@ -223,3 +223,25 @@ func TestTimerStopStress(t *testing.T) {
 	}
 	Sleep(3 * Second)
 }
+
+func TestSleepZeroDeadlock(t *testing.T) {
+	// Sleep(0) used to hang, the sequence of events was as follows.
+	// Sleep(0) sets G's status to Gwaiting, but then immediately returns leaving the status.
+	// Then the goroutine calls e.g. new and falls down into the scheduler due to pending GC.
+	// After the GC nobody wakes up the goroutine from Gwaiting status.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	c := make(chan bool)
+	go func() {
+		for i := 0; i < 100; i++ {
+			runtime.GC()
+		}
+		c <- true
+	}()
+	for i := 0; i < 100; i++ {
+		Sleep(0)
+		tmp := make(chan bool, 1)
+		tmp <- true
+		<-tmp
+	}
+	<-c
+}
