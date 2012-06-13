@@ -96,7 +96,7 @@ import (
 //
 // Channel, complex, and function values cannot be encoded in JSON.
 // Attempting to encode such a value causes Marshal to return
-// an InvalidTypeError.
+// an UnsupportedTypeError.
 //
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them.  Passing cyclic structures to Marshal will result in
@@ -157,6 +157,8 @@ type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
+// An UnsupportedTypeError is returned by Marshal when attempting
+// to encode an unsupported value type.
 type UnsupportedTypeError struct {
 	Type reflect.Type
 }
