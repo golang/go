@@ -704,9 +704,20 @@ func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
 		error_(err1)
 	}
 	if info.encoder == nil {
-		// mark this engine as underway before compiling to handle recursive types.
+		// Assign the encEngine now, so recursive types work correctly. But...
 		info.encoder = new(encEngine)
+		// ... if we fail to complete building the engine, don't cache the half-built machine.
+		// Doing this here means we won't cache a type that is itself OK but
+		// that contains a nested type that won't compile. The result is consistent
+		// error behavior when Encode is called multiple times on the top-level type.
+		ok := false
+		defer func() {
+			if !ok {
+				info.encoder = nil
+			}
+		}()
 		info.encoder = enc.compileEnc(ut)
+		ok = true
 	}
 	return info.encoder
 }

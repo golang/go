@@ -780,3 +780,36 @@ func TestNilPointerInsideInterface(t *testing.T) {
 		t.Fatal("expected error about nil pointer and interface, got:", errMsg)
 	}
 }
+
+type Bug4Public struct {
+	Name   string
+	Secret Bug4Secret
+}
+
+type Bug4Secret struct {
+	a int // error: no exported fields.
+}
+
+// Test that a failed compilation doesn't leave around an executable encoder.
+// Issue 3273.
+func TestMutipleEncodingsOfBadType(t *testing.T) {
+	x := Bug4Public{
+		Name:   "name",
+		Secret: Bug4Secret{1},
+	}
+	buf := new(bytes.Buffer)
+	enc := NewEncoder(buf)
+	err := enc.Encode(x)
+	if err == nil {
+		t.Fatal("first encoding: expected error")
+	}
+	buf.Reset()
+	enc = NewEncoder(buf)
+	err = enc.Encode(x)
+	if err == nil {
+		t.Fatal("second encoding: expected error")
+	}
+	if !strings.Contains(err.Error(), "no exported fields") {
+		t.Errorf("expected error about no exported fields; got %v", err)
+	}
+}
