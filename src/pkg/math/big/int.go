@@ -643,12 +643,13 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	return z
 }
 
-// binaryGCD sets z to the greatest common divisor of a and b, which must be
-// positive, and returns z.
+// binaryGCD sets z to the greatest common divisor of a and b, which both must
+// be > 0, and returns z.
 // See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
 func (z *Int) binaryGCD(a, b *Int) *Int {
 	u := z
 	v := new(Int)
+
 	// use one Euclidean iteration to ensure that u and v are approx. the same size
 	switch {
 	case len(a.abs) > len(b.abs):
@@ -661,6 +662,12 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 		u.Set(a)
 		v.Set(b)
 	}
+
+	// v might be 0 now
+	if len(v.abs) == 0 {
+		return u
+	}
+	// u > 0 && v > 0
 
 	// determine largest k such that u = u' << k, v = v' << k
 	k := u.abs.trailingZeroBits()
