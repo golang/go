@@ -818,14 +818,12 @@ func TestExp(t *testing.T) {
 }
 
 func checkGcd(aBytes, bBytes []byte) bool {
+	x := new(Int)
+	y := new(Int)
 	a := new(Int).SetBytes(aBytes)
 	b := new(Int).SetBytes(bBytes)
 
-	x := new(Int)
-	y := new(Int)
-	d := new(Int)
-
-	d.GCD(x, y, a, b)
+	d := new(Int).GCD(x, y, a, b)
 	x.Mul(x, a)
 	y.Mul(y, b)
 	x.Add(x, y)
@@ -834,39 +832,70 @@ func checkGcd(aBytes, bBytes []byte) bool {
 }
 
 var gcdTests = []struct {
-	a, b    int64
-	d, x, y int64
+	d, x, y, a, b string
 }{
-	{120, 23, 1, -9, 47},
+	// a <= 0 || b <= 0
+	{"0", "0", "0", "0", "0"},
+	{"0", "0", "0", "0", "7"},
+	{"0", "0", "0", "11", "0"},
+	{"0", "0", "0", "-77", "35"},
+	{"0", "0", "0", "64515", "-24310"},
+	{"0", "0", "0", "-64515", "-24310"},
+
+	{"1", "-9", "47", "120", "23"},
+	{"7", "1", "-2", "77", "35"},
+	{"935", "-3", "8", "64515", "24310"},
+	{"935000000000000000", "-3", "8", "64515000000000000000", "24310000000000000000"},
+	{"1", "-221", "22059940471369027483332068679400581064239780177629666810348940098015901108344", "98920366548084643601728869055592650835572950932266967461790948584315647051443", "991"},
+
+	// test early exit (after one Euclidean iteration) in binaryGCD
+	{"1", "", "", "1", "98920366548084643601728869055592650835572950932266967461790948584315647051443"},
+}
+
+func testGcd(t *testing.T, d, x, y, a, b *Int) {
+	var X *Int
+	if x != nil {
+		X = new(Int)
+	}
+	var Y *Int
+	if y != nil {
+		Y = new(Int)
+	}
+
+	D := new(Int).GCD(X, Y, a, b)
+	if D.Cmp(d) != 0 {
+		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
+	}
+
+	// binaryGCD requires a > 0 && b > 0
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return
+	}
+
+	D.binaryGCD(a, b)
+	if D.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+	}
 }
 
 func TestGcd(t *testing.T) {
-	for i, test := range gcdTests {
-		a := NewInt(test.a)
-		b := NewInt(test.b)
+	for _, test := range gcdTests {
+		d, _ := new(Int).SetString(test.d, 0)
+		x, _ := new(Int).SetString(test.x, 0)
+		y, _ := new(Int).SetString(test.y, 0)
+		a, _ := new(Int).SetString(test.a, 0)
+		b, _ := new(Int).SetString(test.b, 0)
 
-		x := new(Int)
-		y := new(Int)
-		d := new(Int)
-
-		expectedX := NewInt(test.x)
-		expectedY := NewInt(test.y)
-		expectedD := NewInt(test.d)
-
-		d.GCD(x, y, a, b)
-
-		if expectedX.Cmp(x) != 0 ||
-			expectedY.Cmp(y) != 0 ||
-			expectedD.Cmp(d) != 0 {
-			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
-		}
-
-		d.binaryGCD(a, b)
-
-		if expectedD.Cmp(d) != 0 {
-			t.Errorf("#%d got (%s) want (%s)", i, d, expectedD)
-		}
-
+		testGcd(t, d, nil, nil, a, b)
+		testGcd(t, d, x, nil, a, b)
+		testGcd(t, d, nil, y, a, b)
+		testGcd(t, d, x, y, a, b)
 	}
 
 	quick.Check(checkGcd, nil)
