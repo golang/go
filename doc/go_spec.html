@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 17, 2012",
+	"Subtitle": "Version of May 24, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3866,7 +3866,11 @@ x, _ = f()  // ignore second value returned by f()
 In the second form, the number of operands on the left must equal the number
 of expressions on the right, each of which must be single-valued, and the
 <i>n</i>th expression on the right is assigned to the <i>n</i>th
-operand on the left.  The assignment proceeds in two phases.
+operand on the left.
+</p>
+
+<p>
+The assignment proceeds in two phases.
 First, the operands of <a href="#Indexes">index expressions</a>
 and <a href="#Address_operators">pointer indirections</a>
 (including implicit pointer indirections in <a href="#Selectors">selectors</a>)
@@ -3885,13 +3889,20 @@ i, x[i] = 1, 2  // set i = 1, x[0] = 2
 i = 0
 x[i], i = 2, 1  // set x[0] = 2, i = 1
 
-x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] = 2 at end)
+x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] == 2 at end)
 
 x[1], x[3] = 4, 5  // set x[1] = 4, then panic setting x[3] = 5.
 
 type Point struct { x, y int }
 var p *Point
 x[2], p.x = 6, 7  // set x[2] = 6, then panic setting p.x = 7
+
+i = 2
+x = []int{3, 5, 7}
+for i, x[i] = range x {  // set i, x[2] = 0, x[0]
+	break
+}
+// after this loop, i == 0 and x == []int{3, 5, 3}
 </pre>
 
 <p>
