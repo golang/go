@@ -563,7 +563,7 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 		if len(d) < 4 {
 			return false
 		}
-		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2])
+		certLen := uint32(d[0])<<16 | uint32(d[1])<<8 | uint32(d[2])
 		if uint32(len(d)) < 3+certLen {
 			return false
 		}
@@ -575,7 +575,7 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 	m.certificates = make([][]byte, numCerts)
 	d = data[7:]
 	for i := 0; i < numCerts; i++ {
-		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2])
+		certLen := uint32(d[0])<<16 | uint32(d[1])<<8 | uint32(d[2])
 		m.certificates[i] = d[3 : 3+certLen]
 		d = d[3+certLen:]
 	}
