@@ -376,11 +376,9 @@ func copyFindData(dst *Win32finddata, src *win32finddata1) {
 	dst.Reserved0 = src.Reserved0
 	dst.Reserved1 = src.Reserved1
 
-	// The src is 1 element shorter than dst. Zero that last one.
+	// The src is 1 element bigger than dst, but it must be NUL.
 	copy(dst.FileName[:], src.FileName[:])
-	dst.FileName[len(dst.FileName)-1] = 0
 	copy(dst.AlternateFileName[:], src.AlternateFileName[:])
-	src.AlternateFileName[len(dst.AlternateFileName)-1] = 0
 }
 
 type ByHandleFileInformation struct {
