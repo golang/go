@@ -9,10 +9,10 @@
 #include "runtime.h"
 
 #define CPSR 14
-#define FLAGS_N (1 << 31)
-#define FLAGS_Z (1 << 30)
-#define FLAGS_C (1 << 29)
-#define FLAGS_V (1 << 28)
+#define FLAGS_N (1U << 31)
+#define FLAGS_Z (1U << 30)
+#define FLAGS_C (1U << 29)
+#define FLAGS_V (1U << 28)
 
 void	runtime·abort(void);
 void	math·sqrtC(uint64, uint64*);
@@ -86,12 +86,24 @@ fstatus(bool nan, int32 cmp)
 	return FLAGS_C;
 }
 
+// conditions array record the required CPSR cond field for the
+// first 5 pairs of conditional execution opcodes
+// higher 4 bits are must set, lower 4 bits are must clear
+static const uint8 conditions[10/2] = {
+	[0/2] = (FLAGS_Z >> 24) | 0, // 0: EQ (Z set), 1: NE (Z clear)
+	[2/2] = (FLAGS_C >> 24) | 0, // 2: CS/HS (C set), 3: CC/LO (C clear)
+	[4/2] = (FLAGS_N >> 24) | 0, // 4: MI (N set), 5: PL (N clear)
+	[6/2] = (FLAGS_V >> 24) | 0, // 6: VS (V set), 7: VC (V clear)
+	[8/2] = (FLAGS_C >> 24) | 
+	        (FLAGS_Z >> 28),     // 8: HI (C set and Z clear), 9: LS (C clear and Z set)
+};
+
 // returns number of words that the fp instruction
 // is occupying, 0 if next instruction isn't float.
 static uint32
 stepflt(uint32 *pc, uint32 *regs)
 {
-	uint32 i, regd, regm, regn;
+	uint32 i, opc, regd, regm, regn, cpsr;
 	int32 delta;
 	uint32 *addr;
 	uint64 uval;
@@ -102,8 +114,49 @@ stepflt(uint32 *pc, uint32 *regs)
 	i = *pc;
 
 	if(trace)
-		runtime·printf("stepflt %p %x\n", pc, i);
+		runtime·printf("stepflt %p %x (cpsr %x)\n", pc, i, regs[CPSR] >> 28);
 
+	opc = i >> 28;
+	if(opc == 14) // common case first
+		goto execute;
+	cpsr = regs[CPSR] >> 28;
+	switch(opc) {
+	case 0: case 1: case 2: case 3: case 4: 
+	case 5: case 6: case 7: case 8: case 9:
+		if(((cpsr & (conditions[opc/2] >> 4)) == (conditions[opc/2] >> 4)) &&
+		   ((cpsr & (conditions[opc/2] & 0xf)) == 0)) {
+			if(opc & 1) return 1;
+		} else {
+			if(!(opc & 1)) return 1;
+		}
+		break;
+	case 10: // GE (N == V)
+	case 11: // LT (N != V)
+		if((cpsr & (FLAGS_N >> 28)) == (cpsr & (FLAGS_V >> 28))) {
+			if(opc & 1) return 1;
+		} else {
+			if(!(opc & 1)) return 1;
+		}
+		break;
+	case 12: // GT (N == V and Z == 0)
+	case 13: // LE (N != V or Z == 1)
+		if((cpsr & (FLAGS_N >> 28)) == (cpsr & (FLAGS_V >> 28)) &&
+		   (cpsr & (FLAGS_Z >> 28)) == 0) {
+			if(opc & 1) return 1;
+		} else {
+			if(!(opc & 1)) return 1;
+		}
+		break;
+	case 14: // AL
+		break;
+	case 15: // shouldn't happen
+		return 0;
+	}
+	if(trace)
+		runtime·printf("conditional %x (cpsr %x) pass\n", opc, cpsr);
+	i = (0xeU << 28) | (i & 0xfffffff);
+
+execute:
 	// special cases
 	if((i&0xfffff000) == 0xe59fb000) {
 		// load r11 from pc-relative address.
