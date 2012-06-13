@@ -1,0 +1,428 @@
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/x509, const ECDSA PublicKeyAlgorithm
+pkg crypto/x509, const ECDSAWithSHA1 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA256 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA384 SignatureAlgorithm
+pkg crypto/x509, const ECDSAWithSHA512 SignatureAlgorithm
+pkg debug/elf, type FileHeader struct, Entry uint64
+pkg go/doc, var IllegalPrefixes []string
+pkg math/big, method (*Int) MarshalJSON() ([]byte, error)
+pkg math/big, method (*Int) UnmarshalJSON([]byte) error
+pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
+pkg syscall (darwin-386), const B0 ideal-int
+pkg syscall (darwin-386), const B110 ideal-int
+pkg syscall (darwin-386), const B115200 ideal-int
+pkg syscall (darwin-386), const B1200 ideal-int
+pkg syscall (darwin-386), const B134 ideal-int
+pkg syscall (darwin-386), const B14400 ideal-int
+pkg syscall (darwin-386), const B150 ideal-int
+pkg syscall (darwin-386), const B1800 ideal-int
+pkg syscall (darwin-386), const B19200 ideal-int
+pkg syscall (darwin-386), const B200 ideal-int
+pkg syscall (darwin-386), const B230400 ideal-int
+pkg syscall (darwin-386), const B2400 ideal-int
+pkg syscall (darwin-386), const B28800 ideal-int
+pkg syscall (darwin-386), const B300 ideal-int
+pkg syscall (darwin-386), const B38400 ideal-int
+pkg syscall (darwin-386), const B4800 ideal-int
+pkg syscall (darwin-386), const B50 ideal-int
+pkg syscall (darwin-386), const B57600 ideal-int
+pkg syscall (darwin-386), const B600 ideal-int
+pkg syscall (darwin-386), const B7200 ideal-int
+pkg syscall (darwin-386), const B75 ideal-int
+pkg syscall (darwin-386), const B76800 ideal-int
+pkg syscall (darwin-386), const B9600 ideal-int
+pkg syscall (darwin-386), const BRKINT ideal-int
+pkg syscall (darwin-386), const CFLUSH ideal-int
+pkg syscall (darwin-386), const CLOCAL ideal-int
+pkg syscall (darwin-386), const CREAD ideal-int
+pkg syscall (darwin-386), const CS5 ideal-int
+pkg syscall (darwin-386), const CS6 ideal-int
+pkg syscall (darwin-386), const CS7 ideal-int
+pkg syscall (darwin-386), const CS8 ideal-int
+pkg syscall (darwin-386), const CSIZE ideal-int
+pkg syscall (darwin-386), const CSTART ideal-int
+pkg syscall (darwin-386), const CSTATUS ideal-int
+pkg syscall (darwin-386), const CSTOP ideal-int
+pkg syscall (darwin-386), const CSTOPB ideal-int
+pkg syscall (darwin-386), const CSUSP ideal-int
+pkg syscall (darwin-386), const FLUSHO ideal-int
+pkg syscall (darwin-386), const HUPCL ideal-int
+pkg syscall (darwin-386), const ICANON ideal-int
+pkg syscall (darwin-386), const ICRNL ideal-int
+pkg syscall (darwin-386), const IEXTEN ideal-int
+pkg syscall (darwin-386), const IGNBRK ideal-int
+pkg syscall (darwin-386), const IGNCR ideal-int
+pkg syscall (darwin-386), const IGNPAR ideal-int
+pkg syscall (darwin-386), const IMAXBEL ideal-int
+pkg syscall (darwin-386), const INLCR ideal-int
+pkg syscall (darwin-386), const INPCK ideal-int
+pkg syscall (darwin-386), const ISIG ideal-int
+pkg syscall (darwin-386), const ISTRIP ideal-int
+pkg syscall (darwin-386), const IUTF8 ideal-int
+pkg syscall (darwin-386), const IXANY ideal-int
+pkg syscall (darwin-386), const IXOFF ideal-int
+pkg syscall (darwin-386), const IXON ideal-int
+pkg syscall (darwin-386), const NOFLSH ideal-int
+pkg syscall (darwin-386), const OCRNL ideal-int
+pkg syscall (darwin-386), const OFDEL ideal-int
+pkg syscall (darwin-386), const OFILL ideal-int
+pkg syscall (darwin-386), const ONLCR ideal-int
+pkg syscall (darwin-386), const ONLRET ideal-int
+pkg syscall (darwin-386), const ONOCR ideal-int
+pkg syscall (darwin-386), const ONOEOT ideal-int
+pkg syscall (darwin-386), const OPOST ideal-int
+pkg syscall (darwin-386), const PARENB ideal-int
+pkg syscall (darwin-386), const PARMRK ideal-int
+pkg syscall (darwin-386), const PARODD ideal-int
+pkg syscall (darwin-386), const PENDIN ideal-int
+pkg syscall (darwin-386), const TCIFLUSH ideal-int
+pkg syscall (darwin-386), const TCIOFLUSH ideal-int
+pkg syscall (darwin-386), const TCOFLUSH ideal-int
+pkg syscall (darwin-386), const TCSAFLUSH ideal-int
+pkg syscall (darwin-386), const TOSTOP ideal-int
+pkg syscall (darwin-386), const VDISCARD ideal-int
+pkg syscall (darwin-386), const VDSUSP ideal-int
+pkg syscall (darwin-386), const VEOF ideal-int
+pkg syscall (darwin-386), const VEOL ideal-int
+pkg syscall (darwin-386), const VEOL2 ideal-int
+pkg syscall (darwin-386), const VERASE ideal-int
+pkg syscall (darwin-386), const VINTR ideal-int
+pkg syscall (darwin-386), const VKILL ideal-int
+pkg syscall (darwin-386), const VLNEXT ideal-int
+pkg syscall (darwin-386), const VMIN ideal-int
+pkg syscall (darwin-386), const VQUIT ideal-int
+pkg syscall (darwin-386), const VREPRINT ideal-int
+pkg syscall (darwin-386), const VSTART ideal-int
+pkg syscall (darwin-386), const VSTATUS ideal-int
+pkg syscall (darwin-386), const VSTOP ideal-int
+pkg syscall (darwin-386), const VSUSP ideal-int
+pkg syscall (darwin-386), const VT0 ideal-int
+pkg syscall (darwin-386), const VT1 ideal-int
+pkg syscall (darwin-386), const VTDLY ideal-int
+pkg syscall (darwin-386), const VTIME ideal-int
+pkg syscall (darwin-386), const VWERASE ideal-int
+pkg syscall (darwin-386), type Termios struct
+pkg syscall (darwin-386), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-386), type Termios struct, Cflag uint32
+pkg syscall (darwin-386), type Termios struct, Iflag uint32
+pkg syscall (darwin-386), type Termios struct, Ispeed uint32
+pkg syscall (darwin-386), type Termios struct, Lflag uint32
+pkg syscall (darwin-386), type Termios struct, Oflag uint32
+pkg syscall (darwin-386), type Termios struct, Ospeed uint32
+pkg syscall (darwin-386-cgo), const B0 ideal-int
+pkg syscall (darwin-386-cgo), const B110 ideal-int
+pkg syscall (darwin-386-cgo), const B115200 ideal-int
+pkg syscall (darwin-386-cgo), const B1200 ideal-int
+pkg syscall (darwin-386-cgo), const B134 ideal-int
+pkg syscall (darwin-386-cgo), const B14400 ideal-int
+pkg syscall (darwin-386-cgo), const B150 ideal-int
+pkg syscall (darwin-386-cgo), const B1800 ideal-int
+pkg syscall (darwin-386-cgo), const B19200 ideal-int
+pkg syscall (darwin-386-cgo), const B200 ideal-int
+pkg syscall (darwin-386-cgo), const B230400 ideal-int
+pkg syscall (darwin-386-cgo), const B2400 ideal-int
+pkg syscall (darwin-386-cgo), const B28800 ideal-int
+pkg syscall (darwin-386-cgo), const B300 ideal-int
+pkg syscall (darwin-386-cgo), const B38400 ideal-int
+pkg syscall (darwin-386-cgo), const B4800 ideal-int
+pkg syscall (darwin-386-cgo), const B50 ideal-int
+pkg syscall (darwin-386-cgo), const B57600 ideal-int
+pkg syscall (darwin-386-cgo), const B600 ideal-int
+pkg syscall (darwin-386-cgo), const B7200 ideal-int
+pkg syscall (darwin-386-cgo), const B75 ideal-int
+pkg syscall (darwin-386-cgo), const B76800 ideal-int
+pkg syscall (darwin-386-cgo), const B9600 ideal-int
+pkg syscall (darwin-386-cgo), const BRKINT ideal-int
+pkg syscall (darwin-386-cgo), const CFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const CLOCAL ideal-int
+pkg syscall (darwin-386-cgo), const CREAD ideal-int
+pkg syscall (darwin-386-cgo), const CS5 ideal-int
+pkg syscall (darwin-386-cgo), const CS6 ideal-int
+pkg syscall (darwin-386-cgo), const CS7 ideal-int
+pkg syscall (darwin-386-cgo), const CS8 ideal-int
+pkg syscall (darwin-386-cgo), const CSIZE ideal-int
+pkg syscall (darwin-386-cgo), const CSTART ideal-int
+pkg syscall (darwin-386-cgo), const CSTATUS ideal-int
+pkg syscall (darwin-386-cgo), const CSTOP ideal-int
+pkg syscall (darwin-386-cgo), const CSTOPB ideal-int
+pkg syscall (darwin-386-cgo), const CSUSP ideal-int
+pkg syscall (darwin-386-cgo), const FLUSHO ideal-int
+pkg syscall (darwin-386-cgo), const HUPCL ideal-int
+pkg syscall (darwin-386-cgo), const ICANON ideal-int
+pkg syscall (darwin-386-cgo), const ICRNL ideal-int
+pkg syscall (darwin-386-cgo), const IEXTEN ideal-int
+pkg syscall (darwin-386-cgo), const IGNBRK ideal-int
+pkg syscall (darwin-386-cgo), const IGNCR ideal-int
+pkg syscall (darwin-386-cgo), const IGNPAR ideal-int
+pkg syscall (darwin-386-cgo), const IMAXBEL ideal-int
+pkg syscall (darwin-386-cgo), const INLCR ideal-int
+pkg syscall (darwin-386-cgo), const INPCK ideal-int
+pkg syscall (darwin-386-cgo), const ISIG ideal-int
+pkg syscall (darwin-386-cgo), const ISTRIP ideal-int
+pkg syscall (darwin-386-cgo), const IUTF8 ideal-int
+pkg syscall (darwin-386-cgo), const IXANY ideal-int
+pkg syscall (darwin-386-cgo), const IXOFF ideal-int
+pkg syscall (darwin-386-cgo), const IXON ideal-int
+pkg syscall (darwin-386-cgo), const NOFLSH ideal-int
+pkg syscall (darwin-386-cgo), const OCRNL ideal-int
+pkg syscall (darwin-386-cgo), const OFDEL ideal-int
+pkg syscall (darwin-386-cgo), const OFILL ideal-int
+pkg syscall (darwin-386-cgo), const ONLCR ideal-int
+pkg syscall (darwin-386-cgo), const ONLRET ideal-int
+pkg syscall (darwin-386-cgo), const ONOCR ideal-int
+pkg syscall (darwin-386-cgo), const ONOEOT ideal-int
+pkg syscall (darwin-386-cgo), const OPOST ideal-int
+pkg syscall (darwin-386-cgo), const PARENB ideal-int
+pkg syscall (darwin-386-cgo), const PARMRK ideal-int
+pkg syscall (darwin-386-cgo), const PARODD ideal-int
+pkg syscall (darwin-386-cgo), const PENDIN ideal-int
+pkg syscall (darwin-386-cgo), const TCIFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCIOFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCOFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TCSAFLUSH ideal-int
+pkg syscall (darwin-386-cgo), const TOSTOP ideal-int
+pkg syscall (darwin-386-cgo), const VDISCARD ideal-int
+pkg syscall (darwin-386-cgo), const VDSUSP ideal-int
+pkg syscall (darwin-386-cgo), const VEOF ideal-int
+pkg syscall (darwin-386-cgo), const VEOL ideal-int
+pkg syscall (darwin-386-cgo), const VEOL2 ideal-int
+pkg syscall (darwin-386-cgo), const VERASE ideal-int
+pkg syscall (darwin-386-cgo), const VINTR ideal-int
+pkg syscall (darwin-386-cgo), const VKILL ideal-int
+pkg syscall (darwin-386-cgo), const VLNEXT ideal-int
+pkg syscall (darwin-386-cgo), const VMIN ideal-int
+pkg syscall (darwin-386-cgo), const VQUIT ideal-int
+pkg syscall (darwin-386-cgo), const VREPRINT ideal-int
+pkg syscall (darwin-386-cgo), const VSTART ideal-int
+pkg syscall (darwin-386-cgo), const VSTATUS ideal-int
+pkg syscall (darwin-386-cgo), const VSTOP ideal-int
+pkg syscall (darwin-386-cgo), const VSUSP ideal-int
+pkg syscall (darwin-386-cgo), const VT0 ideal-int
+pkg syscall (darwin-386-cgo), const VT1 ideal-int
+pkg syscall (darwin-386-cgo), const VTDLY ideal-int
+pkg syscall (darwin-386-cgo), const VTIME ideal-int
+pkg syscall (darwin-386-cgo), const VWERASE ideal-int
+pkg syscall (darwin-386-cgo), type Termios struct
+pkg syscall (darwin-386-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-386-cgo), type Termios struct, Cflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Iflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Ispeed uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Lflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Oflag uint32
+pkg syscall (darwin-386-cgo), type Termios struct, Ospeed uint32
+pkg syscall (darwin-amd64), const B0 ideal-int
+pkg syscall (darwin-amd64), const B110 ideal-int
+pkg syscall (darwin-amd64), const B115200 ideal-int
+pkg syscall (darwin-amd64), const B1200 ideal-int
+pkg syscall (darwin-amd64), const B134 ideal-int
+pkg syscall (darwin-amd64), const B14400 ideal-int
+pkg syscall (darwin-amd64), const B150 ideal-int
+pkg syscall (darwin-amd64), const B1800 ideal-int
+pkg syscall (darwin-amd64), const B19200 ideal-int
+pkg syscall (darwin-amd64), const B200 ideal-int
+pkg syscall (darwin-amd64), const B230400 ideal-int
+pkg syscall (darwin-amd64), const B2400 ideal-int
+pkg syscall (darwin-amd64), const B28800 ideal-int
+pkg syscall (darwin-amd64), const B300 ideal-int
+pkg syscall (darwin-amd64), const B38400 ideal-int
+pkg syscall (darwin-amd64), const B4800 ideal-int
+pkg syscall (darwin-amd64), const B50 ideal-int
+pkg syscall (darwin-amd64), const B57600 ideal-int
+pkg syscall (darwin-amd64), const B600 ideal-int
+pkg syscall (darwin-amd64), const B7200 ideal-int
+pkg syscall (darwin-amd64), const B75 ideal-int
+pkg syscall (darwin-amd64), const B76800 ideal-int
+pkg syscall (darwin-amd64), const B9600 ideal-int
+pkg syscall (darwin-amd64), const BRKINT ideal-int
+pkg syscall (darwin-amd64), const CFLUSH ideal-int
+pkg syscall (darwin-amd64), const CLOCAL ideal-int
+pkg syscall (darwin-amd64), const CREAD ideal-int
+pkg syscall (darwin-amd64), const CS5 ideal-int
+pkg syscall (darwin-amd64), const CS6 ideal-int
+pkg syscall (darwin-amd64), const CS7 ideal-int
+pkg syscall (darwin-amd64), const CS8 ideal-int
+pkg syscall (darwin-amd64), const CSIZE ideal-int
+pkg syscall (darwin-amd64), const CSTART ideal-int
+pkg syscall (darwin-amd64), const CSTATUS ideal-int
+pkg syscall (darwin-amd64), const CSTOP ideal-int
+pkg syscall (darwin-amd64), const CSTOPB ideal-int
+pkg syscall (darwin-amd64), const CSUSP ideal-int
+pkg syscall (darwin-amd64), const FLUSHO ideal-int
+pkg syscall (darwin-amd64), const HUPCL ideal-int
+pkg syscall (darwin-amd64), const ICANON ideal-int
+pkg syscall (darwin-amd64), const ICRNL ideal-int
+pkg syscall (darwin-amd64), const IEXTEN ideal-int
+pkg syscall (darwin-amd64), const IGNBRK ideal-int
+pkg syscall (darwin-amd64), const IGNCR ideal-int
+pkg syscall (darwin-amd64), const IGNPAR ideal-int
+pkg syscall (darwin-amd64), const IMAXBEL ideal-int
+pkg syscall (darwin-amd64), const INLCR ideal-int
+pkg syscall (darwin-amd64), const INPCK ideal-int
+pkg syscall (darwin-amd64), const ISIG ideal-int
+pkg syscall (darwin-amd64), const ISTRIP ideal-int
+pkg syscall (darwin-amd64), const IUTF8 ideal-int
+pkg syscall (darwin-amd64), const IXANY ideal-int
+pkg syscall (darwin-amd64), const IXOFF ideal-int
+pkg syscall (darwin-amd64), const IXON ideal-int
+pkg syscall (darwin-amd64), const NOFLSH ideal-int
+pkg syscall (darwin-amd64), const OCRNL ideal-int
+pkg syscall (darwin-amd64), const OFDEL ideal-int
+pkg syscall (darwin-amd64), const OFILL ideal-int
+pkg syscall (darwin-amd64), const ONLCR ideal-int
+pkg syscall (darwin-amd64), const ONLRET ideal-int
+pkg syscall (darwin-amd64), const ONOCR ideal-int
+pkg syscall (darwin-amd64), const ONOEOT ideal-int
+pkg syscall (darwin-amd64), const OPOST ideal-int
+pkg syscall (darwin-amd64), const PARENB ideal-int
+pkg syscall (darwin-amd64), const PARMRK ideal-int
+pkg syscall (darwin-amd64), const PARODD ideal-int
+pkg syscall (darwin-amd64), const PENDIN ideal-int
+pkg syscall (darwin-amd64), const TCIFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCIOFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCOFLUSH ideal-int
+pkg syscall (darwin-amd64), const TCSAFLUSH ideal-int
+pkg syscall (darwin-amd64), const TOSTOP ideal-int
+pkg syscall (darwin-amd64), const VDISCARD ideal-int
+pkg syscall (darwin-amd64), const VDSUSP ideal-int
+pkg syscall (darwin-amd64), const VEOF ideal-int
+pkg syscall (darwin-amd64), const VEOL ideal-int
+pkg syscall (darwin-amd64), const VEOL2 ideal-int
+pkg syscall (darwin-amd64), const VERASE ideal-int
+pkg syscall (darwin-amd64), const VINTR ideal-int
+pkg syscall (darwin-amd64), const VKILL ideal-int
+pkg syscall (darwin-amd64), const VLNEXT ideal-int
+pkg syscall (darwin-amd64), const VMIN ideal-int
+pkg syscall (darwin-amd64), const VQUIT ideal-int
+pkg syscall (darwin-amd64), const VREPRINT ideal-int
+pkg syscall (darwin-amd64), const VSTART ideal-int
+pkg syscall (darwin-amd64), const VSTATUS ideal-int
+pkg syscall (darwin-amd64), const VSTOP ideal-int
+pkg syscall (darwin-amd64), const VSUSP ideal-int
+pkg syscall (darwin-amd64), const VT0 ideal-int
+pkg syscall (darwin-amd64), const VT1 ideal-int
+pkg syscall (darwin-amd64), const VTDLY ideal-int
+pkg syscall (darwin-amd64), const VTIME ideal-int
+pkg syscall (darwin-amd64), const VWERASE ideal-int
+pkg syscall (darwin-amd64), type Termios struct
+pkg syscall (darwin-amd64), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-amd64), type Termios struct, Cflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Iflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Ispeed uint64
+pkg syscall (darwin-amd64), type Termios struct, Lflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Oflag uint64
+pkg syscall (darwin-amd64), type Termios struct, Ospeed uint64
+pkg syscall (darwin-amd64), type Termios struct, Pad_cgo_0 [4]byte
+pkg syscall (darwin-amd64-cgo), const B0 ideal-int
+pkg syscall (darwin-amd64-cgo), const B110 ideal-int
+pkg syscall (darwin-amd64-cgo), const B115200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B1200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B134 ideal-int
+pkg syscall (darwin-amd64-cgo), const B14400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B150 ideal-int
+pkg syscall (darwin-amd64-cgo), const B1800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B19200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B230400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B2400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B28800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B300 ideal-int
+pkg syscall (darwin-amd64-cgo), const B38400 ideal-int
+pkg syscall (darwin-amd64-cgo), const B4800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B50 ideal-int
+pkg syscall (darwin-amd64-cgo), const B57600 ideal-int
+pkg syscall (darwin-amd64-cgo), const B600 ideal-int
+pkg syscall (darwin-amd64-cgo), const B7200 ideal-int
+pkg syscall (darwin-amd64-cgo), const B75 ideal-int
+pkg syscall (darwin-amd64-cgo), const B76800 ideal-int
+pkg syscall (darwin-amd64-cgo), const B9600 ideal-int
+pkg syscall (darwin-amd64-cgo), const BRKINT ideal-int
+pkg syscall (darwin-amd64-cgo), const CFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const CLOCAL ideal-int
+pkg syscall (darwin-amd64-cgo), const CREAD ideal-int
+pkg syscall (darwin-amd64-cgo), const CS5 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS6 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS7 ideal-int
+pkg syscall (darwin-amd64-cgo), const CS8 ideal-int
+pkg syscall (darwin-amd64-cgo), const CSIZE ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTART ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTATUS ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const CSTOPB ideal-int
+pkg syscall (darwin-amd64-cgo), const CSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const FLUSHO ideal-int
+pkg syscall (darwin-amd64-cgo), const HUPCL ideal-int
+pkg syscall (darwin-amd64-cgo), const ICANON ideal-int
+pkg syscall (darwin-amd64-cgo), const ICRNL ideal-int
+pkg syscall (darwin-amd64-cgo), const IEXTEN ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNBRK ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNCR ideal-int
+pkg syscall (darwin-amd64-cgo), const IGNPAR ideal-int
+pkg syscall (darwin-amd64-cgo), const IMAXBEL ideal-int
+pkg syscall (darwin-amd64-cgo), const INLCR ideal-int
+pkg syscall (darwin-amd64-cgo), const INPCK ideal-int
+pkg syscall (darwin-amd64-cgo), const ISIG ideal-int
+pkg syscall (darwin-amd64-cgo), const ISTRIP ideal-int
+pkg syscall (darwin-amd64-cgo), const IUTF8 ideal-int
+pkg syscall (darwin-amd64-cgo), const IXANY ideal-int
+pkg syscall (darwin-amd64-cgo), const IXOFF ideal-int
+pkg syscall (darwin-amd64-cgo), const IXON ideal-int
+pkg syscall (darwin-amd64-cgo), const NOFLSH ideal-int
+pkg syscall (darwin-amd64-cgo), const OCRNL ideal-int
+pkg syscall (darwin-amd64-cgo), const OFDEL ideal-int
+pkg syscall (darwin-amd64-cgo), const OFILL ideal-int
+pkg syscall (darwin-amd64-cgo), const ONLCR ideal-int
+pkg syscall (darwin-amd64-cgo), const ONLRET ideal-int
+pkg syscall (darwin-amd64-cgo), const ONOCR ideal-int
+pkg syscall (darwin-amd64-cgo), const ONOEOT ideal-int
+pkg syscall (darwin-amd64-cgo), const OPOST ideal-int
+pkg syscall (darwin-amd64-cgo), const PARENB ideal-int
+pkg syscall (darwin-amd64-cgo), const PARMRK ideal-int
+pkg syscall (darwin-amd64-cgo), const PARODD ideal-int
+pkg syscall (darwin-amd64-cgo), const PENDIN ideal-int
+pkg syscall (darwin-amd64-cgo), const TCIFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCIOFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCOFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TCSAFLUSH ideal-int
+pkg syscall (darwin-amd64-cgo), const TOSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const VDISCARD ideal-int
+pkg syscall (darwin-amd64-cgo), const VDSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOF ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOL ideal-int
+pkg syscall (darwin-amd64-cgo), const VEOL2 ideal-int
+pkg syscall (darwin-amd64-cgo), const VERASE ideal-int
+pkg syscall (darwin-amd64-cgo), const VINTR ideal-int
+pkg syscall (darwin-amd64-cgo), const VKILL ideal-int
+pkg syscall (darwin-amd64-cgo), const VLNEXT ideal-int
+pkg syscall (darwin-amd64-cgo), const VMIN ideal-int
+pkg syscall (darwin-amd64-cgo), const VQUIT ideal-int
+pkg syscall (darwin-amd64-cgo), const VREPRINT ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTART ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTATUS ideal-int
+pkg syscall (darwin-amd64-cgo), const VSTOP ideal-int
+pkg syscall (darwin-amd64-cgo), const VSUSP ideal-int
+pkg syscall (darwin-amd64-cgo), const VT0 ideal-int
+pkg syscall (darwin-amd64-cgo), const VT1 ideal-int
+pkg syscall (darwin-amd64-cgo), const VTDLY ideal-int
+pkg syscall (darwin-amd64-cgo), const VTIME ideal-int
+pkg syscall (darwin-amd64-cgo), const VWERASE ideal-int
+pkg syscall (darwin-amd64-cgo), type Termios struct
+pkg syscall (darwin-amd64-cgo), type Termios struct, Cc [20]uint8
+pkg syscall (darwin-amd64-cgo), type Termios struct, Cflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Iflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Ispeed uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Lflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Oflag uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Ospeed uint64
+pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]byte
+pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
+pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
+pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
+pkg syscall (windows-386), func GetCurrentProcessId() uint32
+pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
+pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
+pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
+pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
+pkg syscall (windows-amd64), func GetCurrentProcessId() uint32
+pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
