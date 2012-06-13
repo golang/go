@@ -512,7 +512,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 }
 
 // ReplaceAll returns a copy of src, replacing matches of the Regexp
-// with the replacement string repl.  Inside repl, $ signs are interpreted as
+// with the replacement text repl.  Inside repl, $ signs are interpreted as
 // in Expand, so for instance $1 represents the text of the first submatch.
 func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	n := 2
@@ -726,7 +726,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 // the submatch with the corresponding index; other names refer to
 // capturing parentheses named with the (?P<name>...) syntax.  A
 // reference to an out of range or unmatched index or a name that is not
-// present in the regular expression is replaced with an empty string.
+// present in the regular expression is replaced with an empty slice.
 // 
 // In the $name form, name is taken to be as long as possible: $1x is
 // equivalent to ${1x}, not ${1}x, and, $10 is equivalent to ${10}, not ${1}0.
