@@ -506,6 +506,19 @@ mkinlcall(Node **np, Node *fn)
 	mkinlcall1(np, fn);
 	safemode = save_safemode;
 }
+
+static Node*
+tinlvar(Type *t)
+{
+	if(t->nname && !isblank(t->nname)) {
+		if(!t->nname->inlvar)
+			fatal("missing inlvar for %N\n", t->nname);
+		return t->nname->inlvar;
+	}
+	typecheck(&nblank, Erv | Easgn);
+	return nblank;
+}
+
 // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
@@ -579,15 +592,12 @@ mkinlcall1(Node **np, Node *fn)
 				fatal("method call without receiver: %+N", n);
 			if(t == T)
 				fatal("method call unknown receiver type: %+N", n);
-			if(t->nname != N && !isblank(t->nname))
-				as = nod(OAS, t->nname->inlvar, n->left->left);
-			else
-				as = nod(OAS, temp(t->type), n->left->left);
+			as = nod(OAS, tinlvar(t), n->left->left);
 		} else {  // non-method call to method
-			if (!n->list)
+			if(!n->list)
 				fatal("non-method call to method without first arg: %+N", n);
-			if(t != T && t->nname != N && !isblank(t->nname))
-				as = nod(OAS, t->nname->inlvar, n->list->n);
+			if(t != T)
+				as = nod(OAS, tinlvar(t), n->list->n);
 		}
 
 		if(as != N) {
@@ -601,27 +611,16 @@ mkinlcall1(Node **np, Node *fn)
 		// TODO check that n->list->n is a call?
 		// TODO: non-method call to T.meth(f()) where f returns t, args...
 		as->rlist = n->list;
-		for(t = getinargx(fn->type)->type; t; t=t->down) {
-			if(t->nname && !isblank(t->nname)) {
-				if(!t->nname->inlvar)
-					fatal("missing inlvar for %N\n", t->nname);
-				as->list = list(as->list, t->nname->inlvar);
-			} else {
-				as->list = list(as->list, temp(t->type));
-			}
-		}		
+		for(t = getinargx(fn->type)->type; t; t=t->down)
+			as->list = list(as->list, tinlvar(t));		
 	} else {
 		ll = n->list;
 		if(fn->type->thistuple && n->left->op != ODOTMETH) // non method call to method
 			ll=ll->next;  // was handled above in if(thistuple)
 
 		for(t = getinargx(fn->type)->type; t && ll; t=t->down) {
-			if(t->nname && !isblank(t->nname)) {
-				if(!t->nname->inlvar)
-					fatal("missing inlvar for %N\n", t->nname);
-				as->list = list(as->list, t->nname->inlvar);
-				as->rlist = list(as->rlist, ll->n);
-			}
+			as->list = list(as->list, tinlvar(t));
+			as->rlist = list(as->rlist, ll->n);
 			ll=ll->next;
 		}
 		if(ll || t)
