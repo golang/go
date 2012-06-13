@@ -24,6 +24,11 @@ else
 	echo
 fi
 
+# we must unset GOROOT_FINAL before tests, because runtime/debug requires
+# correct access to source code, so if we have GOROOT_FINAL in effect,
+# at least runtime/debug test will fail.
+unset GOROOT_FINAL
+
 echo '# Testing packages.'
 time go test std -short -timeout=120s
 echo
