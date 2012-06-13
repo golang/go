@@ -695,8 +695,8 @@ brk:
 			}
 		}
 	}
-	if(r1 != R) {
-		r1->link = freer;
+	if(lastr != R) {
+		lastr->link = freer;
 		freer = firstr;
 	}
 
