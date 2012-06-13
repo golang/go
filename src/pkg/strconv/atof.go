@@ -411,33 +411,35 @@ func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
 	return
 }
 
-// If possible to convert decimal d to 32-bit float f exactly,
+// If possible to compute mantissa*10^exp to 32-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the machinery above.
-func (d *decimal) atof32() (f float32, ok bool) {
-	// Exact integers are <= 10^7.
-	// Exact powers of ten are <= 10^10.
-	if d.nd > 7 {
+func atof32exact(mantissa uint64, exp int, neg bool) (f float32, ok bool) {
+	if mantissa>>float32info.mantbits != 0 {
 		return
 	}
+	f = float32(mantissa)
+	if neg {
+		f = -f
+	}
 	switch {
-	case d.dp == d.nd: // int
-		f := d.atof32int()
+	case exp == 0:
 		return f, true
-
-	case d.dp > d.nd && d.dp <= 7+10: // int * 10^k
-		f := d.atof32int()
-		k := d.dp - d.nd
+	// Exact integers are <= 10^7.
+	// Exact powers of ten are <= 10^10.
+	case exp > 0 && exp <= 7+10: // int * 10^k
 		// If exponent is big but number of digits is not,
 		// can move a few zeros into the integer part.
-		if k > 10 {
-			f *= float32pow10[k-10]
-			k = 10
+		if exp > 10 {
+			f *= float32pow10[exp-10]
+			exp = 10
 		}
-		return f * float32pow10[k], true
-
-	case d.dp < d.nd && d.nd-d.dp <= 10: // int / 10^k
-		f := d.atof32int()
-		return f / float32pow10[d.nd-d.dp], true
+		if f > 1e7 || f < -1e7 {
+			// the exponent was really too large.
+			return
+		}
+		return f * float32pow10[exp], true
+	case exp < 0 && exp >= -10: // int / 10^k
+		return f / float32pow10[-exp], true
 	}
 	return
 }
@@ -449,14 +451,31 @@ func atof32(s string) (f float32, err error) {
 		return float32(val), nil
 	}
 
+	if optimize {
+		// Parse mantissa and exponent.
+		mantissa, exp, neg, trunc, ok := readFloat(s)
+		if ok {
+			// Try pure floating-point arithmetic conversion.
+			if !trunc {
+				if f, ok := atof32exact(mantissa, exp, neg); ok {
+					return f, nil
+				}
+			}
+			// Try another fast path.
+			ext := new(extFloat)
+			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float32info); ok {
+				b, ovf := ext.floatBits(&float32info)
+				f = math.Float32frombits(uint32(b))
+				if ovf {
+					err = rangeError(fnParseFloat, s)
+				}
+				return f, err
+			}
+		}
+	}
 	var d decimal
 	if !d.set(s) {
 		return 0, syntaxError(fnParseFloat, s)
-	}
-	if optimize {
-		if f, ok := d.atof32(); ok {
-			return f, nil
-		}
 	}
 	b, ovf := d.floatBits(&float32info)
 	f = math.Float32frombits(uint32(b))
@@ -483,8 +502,8 @@ func atof64(s string) (f float64, err error) {
 			}
 			// Try another fast path.
 			ext := new(extFloat)
-			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc); ok {
-				b, ovf := ext.floatBits()
+			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float64info); ok {
+				b, ovf := ext.floatBits(&float64info)
 				f = math.Float64frombits(b)
 				if ovf {
 					err = rangeError(fnParseFloat, s)

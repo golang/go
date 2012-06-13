@@ -134,6 +134,46 @@ var atoftests = []atofTest{
 	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},
 }
 
+var atof32tests = []atofTest{
+	// Exactly halfway between 1 and the next float32.
+	// Round to even (down).
+	{"1.000000059604644775390625", "1", nil},
+	// Slightly lower.
+	{"1.000000059604644775390624", "1", nil},
+	// Slightly higher.
+	{"1.000000059604644775390626", "1.0000001", nil},
+	// Slightly higher, but you have to read all the way to the end.
+	{"1.000000059604644775390625" + strings.Repeat("0", 10000) + "1", "1.0000001", nil},
+
+	// largest float32: (1<<128) * (1 - 2^-24)
+	{"340282346638528859811704183484516925440", "3.4028235e+38", nil},
+	{"-340282346638528859811704183484516925440", "-3.4028235e+38", nil},
+	// next float32 - too large
+	{"3.4028236e38", "+Inf", ErrRange},
+	{"-3.4028236e38", "-Inf", ErrRange},
+	// the border is 3.40282356779...e+38
+	// borderline - okay
+	{"3.402823567e38", "3.4028235e+38", nil},
+	{"-3.402823567e38", "-3.4028235e+38", nil},
+	// borderline - too large
+	{"3.4028235678e38", "+Inf", ErrRange},
+	{"-3.4028235678e38", "-Inf", ErrRange},
+
+	// Denormals: less than 2^-126
+	{"1e-38", "1e-38", nil},
+	{"1e-39", "1e-39", nil},
+	{"1e-40", "1e-40", nil},
+	{"1e-41", "1e-41", nil},
+	{"1e-42", "1e-42", nil},
+	{"1e-43", "1e-43", nil},
+	{"1e-44", "1e-44", nil},
+	{"6e-45", "6e-45", nil}, // 4p-149 = 5.6e-45
+	{"5e-45", "6e-45", nil},
+	// Smallest denormal
+	{"1e-45", "1e-45", nil}, // 1p-149 = 1.4e-45
+	{"2e-45", "1e-45", nil},
+}
+
 type atofSimpleTest struct {
 	x float64
 	s string
@@ -150,6 +190,12 @@ func init() {
 	// the error and the string.  Convert the table above.
 	for i := range atoftests {
 		test := &atoftests[i]
+		if test.err != nil {
+			test.err = &NumError{"ParseFloat", test.in, test.err}
+		}
+	}
+	for i := range atof32tests {
+		test := &atof32tests[i]
 		if test.err != nil {
 			test.err = &NumError{"ParseFloat", test.in, test.err}
 		}
@@ -204,6 +250,19 @@ func testAtof(t *testing.T, opt bool) {
 				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 					test.in, out32, err, test.out, test.err, out)
 			}
+		}
+	}
+	for _, test := range atof32tests {
+		out, err := ParseFloat(test.in, 32)
+		out32 := float32(out)
+		if float64(out32) != out {
+			t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
+			continue
+		}
+		outs := FormatFloat(float64(out32), 'g', -1, 32)
+		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+			t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
+				test.in, out32, err, test.out, test.err, out)
 		}
 	}
 	SetOptimize(oldopt)
@@ -264,6 +323,35 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+// TestRoundTrip32 tries a fraction of all finite positive float32 values.
+func TestRoundTrip32(t *testing.T) {
+	step := uint32(997)
+	if testing.Short() {
+		step = 99991
+	}
+	count := 0
+	for i := uint32(0); i < 0xff<<23; i += step {
+		f := math.Float32frombits(i)
+		if i&1 == 1 {
+			f = -f // negative
+		}
+		s := FormatFloat(float64(f), 'g', -1, 32)
+
+		parsed, err := ParseFloat(s, 32)
+		parsed32 := float32(parsed)
+		switch {
+		case err != nil:
+			t.Errorf("ParseFloat(%q, 32) gave error %s", s, err)
+		case float64(parsed32) != parsed:
+			t.Errorf("ParseFloat(%q, 32) = %v, not a float32 (nearest is %v)", s, parsed, parsed32)
+		case parsed32 != f:
+			t.Errorf("ParseFloat(%q, 32) = %b (expected %b)", s, parsed32, f)
+		}
+		count++
+	}
+	t.Logf("tested %d float32's", count)
+}
+
 func BenchmarkAtof64Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseFloat("33909", 64)
@@ -297,5 +385,37 @@ func BenchmarkAtof64RandomBits(b *testing.B) {
 func BenchmarkAtof64RandomFloats(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
+	}
+}
+
+func BenchmarkAtof32Decimal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseFloat("33909", 32)
+	}
+}
+
+func BenchmarkAtof32Float(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseFloat("339.778", 32)
+	}
+}
+
+func BenchmarkAtof32FloatExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ParseFloat("12.3456e32", 32)
+	}
+}
+
+var float32strings [4096]string
+
+func BenchmarkAtof32Random(b *testing.B) {
+	n := uint32(997)
+	for i := range float32strings {
+		n = (99991*n + 42) % (0xff << 23)
+		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ParseFloat(float32strings[i%4096], 32)
 	}
 }

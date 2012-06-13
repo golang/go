@@ -127,8 +127,7 @@ var powersOfTen = [...]extFloat{
 // floatBits returns the bits of the float64 that best approximates
 // the extFloat passed as receiver. Overflow is set to true if
 // the resulting float64 is ±Inf.
-func (f *extFloat) floatBits() (bits uint64, overflow bool) {
-	flt := &float64info
+func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
 	f.Normalize()
 
 	exp := f.exp + 63
@@ -140,7 +139,7 @@ func (f *extFloat) floatBits() (bits uint64, overflow bool) {
 		exp += n
 	}
 
-	// Extract 1+flt.mantbits bits.
+	// Extract 1+flt.mantbits bits from the 64-bit mantissa.
 	mant := f.mant >> (63 - flt.mantbits)
 	if f.mant&(1<<(62-flt.mantbits)) != 0 {
 		// Round up.
@@ -266,8 +265,9 @@ var uint64pow10 = [...]uint64{
 
 // AssignDecimal sets f to an approximate value mantissa*10^exp. It
 // returns true if the value represented by f is guaranteed to be the
-// best approximation of d after being rounded to a float64. 
-func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool) (ok bool) {
+// best approximation of d after being rounded to a float64 or
+// float32 depending on flt.
+func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
 	const uint64digits = 19
 	const errorscale = 8
 	errors := 0 // An upper bound for error, computed in errorscale*ulp.
@@ -315,10 +315,10 @@ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc boo
 	// The 64 bits mantissa is 1 + 52 bits for float64 + 11 extra bits.
 	//
 	// In many cases the approximation will be good enough.
-	const denormalExp = -1023 - 63
-	flt := &float64info
+	denormalExp := flt.bias - 63
 	var extrabits uint
 	if f.exp <= denormalExp {
+		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
 		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
 	} else {
 		extrabits = uint(63 - flt.mantbits)
