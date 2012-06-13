@@ -596,6 +596,9 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 		}
 		return z
 	}
+	if x == nil && y == nil {
+		return z.binaryGCD(a, b)
+	}
 
 	A := new(Int).Set(a)
 	B := new(Int).Set(b)
@@ -638,6 +641,56 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 
 	*z = *A
 	return z
+}
+
+// binaryGCD sets z to the greatest common divisor of a and b, which must be
+// positive, and returns z.
+// See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm B.
+func (z *Int) binaryGCD(a, b *Int) *Int {
+	u := z
+	v := new(Int)
+	// use one Euclidean iteration to ensure that u and v are approx. the same size
+	switch {
+	case len(a.abs) > len(b.abs):
+		u.Set(b)
+		v.Rem(a, b)
+	case len(a.abs) < len(b.abs):
+		u.Set(a)
+		v.Rem(b, a)
+	default:
+		u.Set(a)
+		v.Set(b)
+	}
+
+	// determine largest k such that u = u' << k, v = v' << k
+	k := u.abs.trailingZeroBits()
+	if vk := v.abs.trailingZeroBits(); vk < k {
+		k = vk
+	}
+	u.Rsh(u, k)
+	v.Rsh(v, k)
+
+	// determine t (we know that u > 0)
+	t := new(Int)
+	if u.abs[0]&1 != 0 {
+		// u is odd
+		t.Neg(v)
+	} else {
+		t.Set(u)
+	}
+
+	for len(t.abs) > 0 {
+		// reduce t
+		t.Rsh(t, t.abs.trailingZeroBits())
+		if t.neg {
+			v.Neg(t)
+		} else {
+			u.Set(t)
+		}
+		t.Sub(u, v)
+	}
+
+	return u.Lsh(u, k)
 }
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
