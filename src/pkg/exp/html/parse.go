@@ -279,21 +279,30 @@ func (p *parser) addText(text string) {
 	})
 }
 
-// addElement calls addChild with an element node.
-// TODO: tagAtom, tag and attr are almost always p.tok.DataAtom, p.tok.Data, p.tok.Attr.
-// The common case should be a no-arg addElement method.
-func (p *parser) addElement(tagAtom a.Atom, tag string, attr []Attribute) {
+// addElement adds a child element based on the current token.
+func (p *parser) addElement() {
+	p.addChild(&Node{
+		Type:     ElementNode,
+		DataAtom: p.tok.DataAtom,
+		Data:     p.tok.Data,
+		Attr:     p.tok.Attr,
+	})
+}
+
+// addSyntheticElement adds a child element with the given tag and attributes.
+func (p *parser) addSyntheticElement(tagAtom a.Atom, attr []Attribute) {
 	p.addChild(&Node{
 		Type:     ElementNode,
 		DataAtom: tagAtom,
-		Data:     tag,
+		Data:     tagAtom.String(),
 		Attr:     attr,
 	})
 }
 
 // Section 12.2.3.3.
-func (p *parser) addFormattingElement(tagAtom a.Atom, tag string, attr []Attribute) {
-	p.addElement(tagAtom, tag, attr)
+func (p *parser) addFormattingElement() {
+	tagAtom, attr := p.tok.DataAtom, p.tok.Attr
+	p.addElement()
 
 	// Implement the Noah's Ark clause, but with three per family instead of two.
 	identicalElements := 0
@@ -309,7 +318,7 @@ findIdenticalElements:
 		if n.Namespace != "" {
 			continue
 		}
-		if n.Data != tag {
+		if n.DataAtom != tagAtom {
 			continue
 		}
 		if len(n.Attr) != len(attr) {
@@ -489,14 +498,14 @@ func beforeHTMLIM(p *parser) bool {
 		}
 	case StartTagToken:
 		if p.tok.DataAtom == a.Html {
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = beforeHeadIM
 			return true
 		}
 	case EndTagToken:
 		switch p.tok.DataAtom {
 		case a.Head, a.Body, a.Html, a.Br:
-			p.parseImpliedToken(StartTagToken, a.Html, a.Html.String(), nil)
+			p.parseImpliedToken(StartTagToken, a.Html, a.Html.String())
 			return false
 		default:
 			// Ignore the token.
@@ -509,7 +518,7 @@ func beforeHTMLIM(p *parser) bool {
 		})
 		return true
 	}
-	p.parseImpliedToken(StartTagToken, a.Html, a.Html.String(), nil)
+	p.parseImpliedToken(StartTagToken, a.Html, a.Html.String())
 	return false
 }
 
@@ -525,7 +534,7 @@ func beforeHeadIM(p *parser) bool {
 	case StartTagToken:
 		switch p.tok.DataAtom {
 		case a.Head:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.head = p.top()
 			p.im = inHeadIM
 			return true
@@ -535,7 +544,7 @@ func beforeHeadIM(p *parser) bool {
 	case EndTagToken:
 		switch p.tok.DataAtom {
 		case a.Head, a.Body, a.Html, a.Br:
-			p.parseImpliedToken(StartTagToken, a.Head, a.Head.String(), nil)
+			p.parseImpliedToken(StartTagToken, a.Head, a.Head.String())
 			return false
 		default:
 			// Ignore the token.
@@ -552,7 +561,7 @@ func beforeHeadIM(p *parser) bool {
 		return true
 	}
 
-	p.parseImpliedToken(StartTagToken, a.Head, a.Head.String(), nil)
+	p.parseImpliedToken(StartTagToken, a.Head, a.Head.String())
 	return false
 }
 
@@ -574,12 +583,12 @@ func inHeadIM(p *parser) bool {
 		case a.Html:
 			return inBodyIM(p)
 		case a.Base, a.Basefont, a.Bgsound, a.Command, a.Link, a.Meta:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			return true
 		case a.Script, a.Title, a.Noscript, a.Noframes, a.Style:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.setOriginalIM()
 			p.im = textIM
 			return true
@@ -597,7 +606,7 @@ func inHeadIM(p *parser) bool {
 			p.im = afterHeadIM
 			return true
 		case a.Body, a.Html, a.Br:
-			p.parseImpliedToken(EndTagToken, a.Head, a.Head.String(), nil)
+			p.parseImpliedToken(EndTagToken, a.Head, a.Head.String())
 			return false
 		default:
 			// Ignore the token.
@@ -614,7 +623,7 @@ func inHeadIM(p *parser) bool {
 		return true
 	}
 
-	p.parseImpliedToken(EndTagToken, a.Head, a.Head.String(), nil)
+	p.parseImpliedToken(EndTagToken, a.Head, a.Head.String())
 	return false
 }
 
@@ -636,12 +645,12 @@ func afterHeadIM(p *parser) bool {
 		case a.Html:
 			return inBodyIM(p)
 		case a.Body:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 			p.im = inBodyIM
 			return true
 		case a.Frameset:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inFramesetIM
 			return true
 		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Title:
@@ -671,7 +680,7 @@ func afterHeadIM(p *parser) bool {
 		return true
 	}
 
-	p.parseImpliedToken(StartTagToken, a.Body, a.Body.String(), nil)
+	p.parseImpliedToken(StartTagToken, a.Body, a.Body.String())
 	p.framesetOK = true
 	return false
 }
@@ -741,28 +750,28 @@ func inBodyIM(p *parser) bool {
 				body.Parent.Remove(body)
 			}
 			p.oe = p.oe[:1]
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inFramesetIM
 			return true
 		case a.Address, a.Article, a.Aside, a.Blockquote, a.Center, a.Details, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Menu, a.Nav, a.Ol, a.P, a.Section, a.Summary, a.Ul:
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.H1, a.H2, a.H3, a.H4, a.H5, a.H6:
 			p.popUntil(buttonScope, a.P)
 			switch n := p.top(); n.DataAtom {
 			case a.H1, a.H2, a.H3, a.H4, a.H5, a.H6:
 				p.oe.pop()
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Pre, a.Listing:
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			// The newline, if any, will be dealt with by the TextToken case.
 			p.framesetOK = false
 		case a.Form:
 			if p.form == nil {
 				p.popUntil(buttonScope, a.P)
-				p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+				p.addElement()
 				p.form = p.top()
 			}
 		case a.Li:
@@ -782,7 +791,7 @@ func inBodyIM(p *parser) bool {
 				break
 			}
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Dd, a.Dt:
 			p.framesetOK = false
 			for i := len(p.oe) - 1; i >= 0; i-- {
@@ -800,14 +809,14 @@ func inBodyIM(p *parser) bool {
 				break
 			}
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Plaintext:
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Button:
 			p.popUntil(defaultScope, a.Button)
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 		case a.A:
 			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
@@ -819,33 +828,33 @@ func inBodyIM(p *parser) bool {
 				}
 			}
 			p.reconstructActiveFormattingElements()
-			p.addFormattingElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addFormattingElement()
 		case a.B, a.Big, a.Code, a.Em, a.Font, a.I, a.S, a.Small, a.Strike, a.Strong, a.Tt, a.U:
 			p.reconstructActiveFormattingElements()
-			p.addFormattingElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addFormattingElement()
 		case a.Nobr:
 			p.reconstructActiveFormattingElements()
 			if p.elementInScope(defaultScope, a.Nobr) {
 				p.inBodyEndTagFormatting(a.Nobr)
 				p.reconstructActiveFormattingElements()
 			}
-			p.addFormattingElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addFormattingElement()
 		case a.Applet, a.Marquee, a.Object:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.afe = append(p.afe, &scopeMarker)
 			p.framesetOK = false
 		case a.Table:
 			if !p.quirks {
 				p.popUntil(buttonScope, a.P)
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 			p.im = inTableIM
 			return true
 		case a.Area, a.Br, a.Embed, a.Img, a.Input, a.Keygen, a.Wbr:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			if p.tok.DataAtom == a.Input {
@@ -860,12 +869,12 @@ func inBodyIM(p *parser) bool {
 			}
 			p.framesetOK = false
 		case a.Param, a.Source, a.Track:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 		case a.Hr:
 			p.popUntil(buttonScope, a.P)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			p.framesetOK = false
@@ -895,24 +904,24 @@ func inBodyIM(p *parser) bool {
 			}
 			p.acknowledgeSelfClosingTag()
 			p.popUntil(buttonScope, a.P)
-			p.addElement(a.Form, a.Form.String(), nil)
+			p.addSyntheticElement(a.Form, nil)
 			p.form = p.top()
 			if action != "" {
 				p.form.Attr = []Attribute{{Key: "action", Val: action}}
 			}
-			p.addElement(a.Hr, a.Hr.String(), nil)
+			p.addSyntheticElement(a.Hr, nil)
 			p.oe.pop()
-			p.addElement(a.Label, a.Label.String(), nil)
+			p.addSyntheticElement(a.Label, nil)
 			p.addText(prompt)
-			p.addElement(a.Input, a.Input.String(), attr)
+			p.addSyntheticElement(a.Input, attr)
 			p.oe.pop()
 			p.oe.pop()
-			p.addElement(a.Hr, a.Hr.String(), nil)
+			p.addSyntheticElement(a.Hr, nil)
 			p.oe.pop()
 			p.oe.pop()
 			p.form = nil
 		case a.Textarea:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.setOriginalIM()
 			p.framesetOK = false
 			p.im = textIM
@@ -920,21 +929,21 @@ func inBodyIM(p *parser) bool {
 			p.popUntil(buttonScope, a.P)
 			p.reconstructActiveFormattingElements()
 			p.framesetOK = false
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.setOriginalIM()
 			p.im = textIM
 		case a.Iframe:
 			p.framesetOK = false
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.setOriginalIM()
 			p.im = textIM
 		case a.Noembed, a.Noscript:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.setOriginalIM()
 			p.im = textIM
 		case a.Select:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 			p.im = inSelectIM
 			return true
@@ -943,12 +952,12 @@ func inBodyIM(p *parser) bool {
 				p.oe.pop()
 			}
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Rp, a.Rt:
 			if p.elementInScope(defaultScope, a.Ruby) {
 				p.generateImpliedEndTags()
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Math, a.Svg:
 			p.reconstructActiveFormattingElements()
 			if p.tok.DataAtom == a.Math {
@@ -957,14 +966,14 @@ func inBodyIM(p *parser) bool {
 				adjustAttributeNames(p.tok.Attr, svgAttributeAdjustments)
 			}
 			adjustForeignAttributes(p.tok.Attr)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.top().Namespace = p.tok.Data
 			return true
 		case a.Caption, a.Col, a.Colgroup, a.Frame, a.Head, a.Tbody, a.Td, a.Tfoot, a.Th, a.Thead, a.Tr:
 			// Ignore the token.
 		default:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		}
 	case EndTagToken:
 		switch p.tok.DataAtom {
@@ -974,7 +983,7 @@ func inBodyIM(p *parser) bool {
 			}
 		case a.Html:
 			if p.elementInScope(defaultScope, a.Body) {
-				p.parseImpliedToken(EndTagToken, a.Body, a.Body.String(), nil)
+				p.parseImpliedToken(EndTagToken, a.Body, a.Body.String())
 				return false
 			}
 			return true
@@ -992,7 +1001,7 @@ func inBodyIM(p *parser) bool {
 			p.oe.remove(node)
 		case a.P:
 			if !p.elementInScope(buttonScope, a.P) {
-				p.addElement(a.P, a.P.String(), nil)
+				p.addSyntheticElement(a.P, nil)
 			}
 			p.popUntil(buttonScope, a.P)
 		case a.Li:
@@ -1209,24 +1218,24 @@ func inTableIM(p *parser) bool {
 		case a.Caption:
 			p.clearStackToContext(tableScope)
 			p.afe = append(p.afe, &scopeMarker)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inCaptionIM
 			return true
 		case a.Colgroup:
 			p.clearStackToContext(tableScope)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inColumnGroupIM
 			return true
 		case a.Col:
-			p.parseImpliedToken(StartTagToken, a.Colgroup, a.Colgroup.String(), nil)
+			p.parseImpliedToken(StartTagToken, a.Colgroup, a.Colgroup.String())
 			return false
 		case a.Tbody, a.Tfoot, a.Thead:
 			p.clearStackToContext(tableScope)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inTableBodyIM
 			return true
 		case a.Td, a.Th, a.Tr:
-			p.parseImpliedToken(StartTagToken, a.Tbody, a.Tbody.String(), nil)
+			p.parseImpliedToken(StartTagToken, a.Tbody, a.Tbody.String())
 			return false
 		case a.Table:
 			if p.popUntil(tableScope, a.Table) {
@@ -1240,7 +1249,7 @@ func inTableIM(p *parser) bool {
 		case a.Input:
 			for _, t := range p.tok.Attr {
 				if t.Key == "type" && strings.ToLower(t.Val) == "hidden" {
-					p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+					p.addElement()
 					p.oe.pop()
 					return true
 				}
@@ -1251,7 +1260,7 @@ func inTableIM(p *parser) bool {
 				// Ignore the token.
 				return true
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.form = p.oe.pop()
 		case a.Select:
 			p.reconstructActiveFormattingElements()
@@ -1259,7 +1268,7 @@ func inTableIM(p *parser) bool {
 			case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
 				p.fosterParenting = true
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.fosterParenting = false
 			p.framesetOK = false
 			p.im = inSelectInTableIM
@@ -1314,7 +1323,7 @@ func inCaptionIM(p *parser) bool {
 			}
 		case a.Select:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 			p.im = inSelectInTableIM
 			return true
@@ -1371,7 +1380,7 @@ func inColumnGroupIM(p *parser) bool {
 		case a.Html:
 			return inBodyIM(p)
 		case a.Col:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			return true
@@ -1404,11 +1413,11 @@ func inTableBodyIM(p *parser) bool {
 		switch p.tok.DataAtom {
 		case a.Tr:
 			p.clearStackToContext(tableBodyScope)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.im = inRowIM
 			return true
 		case a.Td, a.Th:
-			p.parseImpliedToken(StartTagToken, a.Tr, a.Tr.String(), nil)
+			p.parseImpliedToken(StartTagToken, a.Tr, a.Tr.String())
 			return false
 		case a.Caption, a.Col, a.Colgroup, a.Tbody, a.Tfoot, a.Thead:
 			if p.popUntil(tableScope, a.Tbody, a.Thead, a.Tfoot) {
@@ -1456,7 +1465,7 @@ func inRowIM(p *parser) bool {
 		switch p.tok.DataAtom {
 		case a.Td, a.Th:
 			p.clearStackToContext(tableRowScope)
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.afe = append(p.afe, &scopeMarker)
 			p.im = inCellIM
 			return true
@@ -1486,7 +1495,7 @@ func inRowIM(p *parser) bool {
 			return true
 		case a.Tbody, a.Tfoot, a.Thead:
 			if p.elementInScope(tableScope, p.tok.DataAtom) {
-				p.parseImpliedToken(EndTagToken, a.Tr, a.Tr.String(), nil)
+				p.parseImpliedToken(EndTagToken, a.Tr, a.Tr.String())
 				return false
 			}
 			// Ignore the token.
@@ -1516,7 +1525,7 @@ func inCellIM(p *parser) bool {
 			return true
 		case a.Select:
 			p.reconstructActiveFormattingElements()
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.framesetOK = false
 			p.im = inSelectInTableIM
 			return true
@@ -1565,7 +1574,7 @@ func inSelectIM(p *parser) bool {
 			if p.top().DataAtom == a.Option {
 				p.oe.pop()
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Optgroup:
 			if p.top().DataAtom == a.Option {
 				p.oe.pop()
@@ -1573,13 +1582,13 @@ func inSelectIM(p *parser) bool {
 			if p.top().DataAtom == a.Optgroup {
 				p.oe.pop()
 			}
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Select:
 			p.tok.Type = EndTagToken
 			return false
 		case a.Input, a.Keygen, a.Textarea:
 			if p.elementInScope(selectScope, a.Select) {
-				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String(), nil)
+				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String())
 				return false
 			}
 			// Ignore the token.
@@ -1626,7 +1635,7 @@ func inSelectInTableIM(p *parser) bool {
 		switch p.tok.DataAtom {
 		case a.Caption, a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr, a.Td, a.Th:
 			if p.tok.Type == StartTagToken || p.elementInScope(tableScope, p.tok.DataAtom) {
-				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String(), nil)
+				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String())
 				return false
 			} else {
 				// Ignore the token.
@@ -1698,9 +1707,9 @@ func inFramesetIM(p *parser) bool {
 		case a.Html:
 			return inBodyIM(p)
 		case a.Frameset:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 		case a.Frame:
-			p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 		case a.Noframes:
@@ -1879,7 +1888,7 @@ func parseForeignContent(p *parser) bool {
 		}
 		adjustForeignAttributes(p.tok.Attr)
 		namespace := p.top().Namespace
-		p.addElement(p.tok.DataAtom, p.tok.Data, p.tok.Attr)
+		p.addElement()
 		p.top().Namespace = namespace
 		if p.hasSelfClosingToken {
 			p.oe.pop()
@@ -1933,13 +1942,12 @@ func (p *parser) inForeignContent() bool {
 
 // parseImpliedToken parses a token as though it had appeared in the parser's
 // input.
-func (p *parser) parseImpliedToken(t TokenType, dataAtom a.Atom, data string, attr []Attribute) {
+func (p *parser) parseImpliedToken(t TokenType, dataAtom a.Atom, data string) {
 	realToken, selfClosing := p.tok, p.hasSelfClosingToken
 	p.tok = Token{
 		Type:     t,
 		DataAtom: dataAtom,
 		Data:     data,
-		Attr:     attr,
 	}
 	p.hasSelfClosingToken = false
 	p.parseCurrentToken()
@@ -1965,7 +1973,7 @@ func (p *parser) parseCurrentToken() {
 
 	if p.hasSelfClosingToken {
 		p.hasSelfClosingToken = false
-		p.parseImpliedToken(EndTagToken, p.tok.DataAtom, p.tok.Data, nil)
+		p.parseImpliedToken(EndTagToken, p.tok.DataAtom, p.tok.Data)
 	}
 }
 
