@@ -83,7 +83,7 @@ int
 Dconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	char *op;
+	const char *op;
 	Addr *a;
 	int i;
 	int32 v;

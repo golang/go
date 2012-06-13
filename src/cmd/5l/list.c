@@ -161,7 +161,7 @@ int
 Dconv(Fmt *fp)
 {
 	char str[STRINGSZ];
-	char *op;
+	const char *op;
 	Adr *a;
 	int32 v;
 
