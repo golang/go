@@ -729,7 +729,20 @@ functions, and some types.  It also provides indentation that is
   (set (make-local-variable 'comment-end)   "")
 
   ;; Go style
-  (setq indent-tabs-mode t))
+  (setq indent-tabs-mode t)
+
+  ;; Handle unit test failure output in compilation-mode
+  ;;
+  ;; Note the final t argument to add-to-list for append, ie put these at the
+  ;; *ends* of compilation-error-regexp-alist[-alist]. We want go-test to be
+  ;; handled first, otherwise other elements will match that don't work, and
+  ;; those alists are traversed in *reverse* order:
+  ;; http://lists.gnu.org/archive/html/bug-gnu-emacs/2001-12/msg00674.html
+  (when (and (boundp 'compilation-error-regexp-alist)
+           (boundp 'compilation-error-regexp-alist-alist))
+      (add-to-list 'compilation-error-regexp-alist 'go-test t)
+      (add-to-list 'compilation-error-regexp-alist-alist
+                   '(go-test . ("^\t+\\([^()\t\n]+\\):\\([0-9]+\\):? .*$" 1 2)) t)))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist (cons "\\.go$" #'go-mode))
