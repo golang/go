@@ -373,6 +373,7 @@ div#blog .read {
 .toggleVisible .expanded { display: block; }
 
 table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
+table.codetable td { padding-right: 10px; }
 hr { border-style: none; border-top: 1px solid black; }
 
 img.gopher {

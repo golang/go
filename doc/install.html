@@ -24,6 +24,32 @@ For information about installing <code>gccgo</code>, see
 <a href="/doc/install/gccgo">Setting up and using gccgo</a>.
 </p>
 
+<h2 id="requirements">System requirements</h2>
+<p>
+The <code>gc</code> compiler supports the following operating systems and
+architectures. Please ensure your system meets these requirements before
+proceeding. If your OS or architecture is not on the list, it's possible that
+<code>gccgo</code> might support your setup; see
+<a href="/doc/install/gccgo">Setting up and using gccgo</a> for details.
+</p>
+
+<table class="codetable" frame="border" summary="requirements">
+<tr>
+<th align="middle">Operating system</th>
+<th align="middle">Architectures</th>
+<th align="middle">Notes</th>
+</tr>
+<tr><td colspan="3"><hr></td></tr>
+<tr><td>FreeBSD 7 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</tr>
+<tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode</td></tr>
+<tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
+</table>
+
+<p>
+<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use <a href="/cmd/cgo">cgo</a>.
+</p>
+
 <h2 id="download">Download the Go tools</h2>
 
 <p>
