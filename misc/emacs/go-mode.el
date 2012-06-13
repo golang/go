@@ -817,13 +817,10 @@ Replace the current buffer on success; display errors on failure."
 
 (defun gofmt-apply-patch (filename srcbuf patchbuf)
   (require 'diff-mode)
-  ;; apply all the patch hunks and restore the mark and point
+  ;; apply all the patch hunks
   (with-current-buffer patchbuf
-    (let ((filename (file-name-nondirectory filename))
-          (min (point-min)))
-      (replace-string gofmt-stdin-tag  filename nil min (point-max))
-      (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- /tmp/" filename)
-                      nil min (point-max)))
+    (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- " filename)
+                      nil (point-min) (point-max))
     (condition-case nil
         (while t
           (diff-hunk-next)
