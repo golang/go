@@ -6,16 +6,23 @@
 #include "hashmap.h"
 #include "type.h"
 
+/* Hmap flag values */
+#define IndirectVal  (1<<0)	/* storing pointers to values */
+#define IndirectKey (1<<1)	/* storing pointers to keys */
+#define CanFreeTable (1<<2)	/* okay to free subtables */
+#define CanFreeKey (1<<3)	/* okay to free pointers to keys */
+
 struct Hmap {	   /* a hash table; initialize with hash_init() */
 	uint32 count;	  /* elements in table - must be first */
 	uint8 datasize;   /* amount of data to store in entry */
-	uint8 max_power;  /* max power of 2 to create sub-tables */
-	uint8 indirectval;	/* storing pointers to values */
+	uint8 flag;
 	uint8 valoff;	/* offset of value in key+value data block */
 	int32 changes;	      /* inc'ed whenever a subtable is created/grown */
 	uintptr hash0;      /* hash seed */
 	struct hash_subtable *st;    /* first-level table */
 };
+
+#define MaxData 255
 
 struct hash_entry {
 	hash_hash_t hash;     /* hash value of data */
@@ -54,6 +61,7 @@ struct hash_subtable {
 	  ((struct hash_entry *) (((byte *) (base)) + (byte_offset)))
 
 #define HASH_MAX_PROBES	15 /* max entries to probe before rehashing */
+#define HASH_MAX_POWER	12 /* max power of 2 to create sub-tables */
 
 /* return a hash layer with 2**power empty entries */
 static struct hash_subtable *
@@ -82,7 +90,7 @@ hash_subtable_new (Hmap *h, int32 power, int32 used)
 }
 
 static void
-init_sizes (int64 hint, int32 *init_power, int32 *max_power)
+init_sizes (int64 hint, int32 *init_power)
 {
 	int32 log = 0;
 	int32 i;
@@ -98,24 +106,20 @@ init_sizes (int64 hint, int32 *init_power, int32 *max_power)
 	} else {
 		*init_power = 12;
 	}
-	*max_power = 12;
 }
 
 static void
 hash_init (Hmap *h, int32 datasize, int64 hint)
 {
 	int32 init_power;
-	int32 max_power;
 
 	if(datasize < sizeof (void *))
 		datasize = sizeof (void *);
 	datasize = runtime·rnd(datasize, sizeof (void *));
-	init_sizes (hint, &init_power, &max_power);
+	init_sizes (hint, &init_power);
 	h->datasize = datasize;
-	h->max_power = max_power;
 	assert (h->datasize == datasize);
-	assert (h->max_power == max_power);
-	assert (sizeof (void *) <= h->datasize || h->max_power == 255);
+	assert (sizeof (void *) <= h->datasize);
 	h->count = 0;
 	h->changes = 0;
 	h->st = hash_subtable_new (h, init_power, 0);
@@ -253,7 +257,8 @@ hash_grow (MapType *t, Hmap *h, struct hash_subtable **pst, int32 flags)
 			used++;
 		}
 	}
-	free (old_st);
+	if (h->flag & CanFreeTable)
+		free (old_st);
 }
 
 static int32
@@ -266,6 +271,7 @@ hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
 	hash_hash_t e_hash;
 	struct hash_entry *e;
 	struct hash_entry *end_e;
+	void *key;
 	bool eq;
 	
 	hash = h->hash0;
@@ -290,7 +296,10 @@ hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
 		e = HASH_OFFSET (e, elemsize);
 	}
 	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
-		if (HASH_DATA_EQ (eq, t, h, data, e->data)) {    /* a match */
+		key = e->data;
+		if (h->flag & IndirectKey)
+			key = *(void**)e->data;
+		if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
 			*pres = e->data;
 			return (1);
 		}
@@ -312,6 +321,7 @@ hash_remove (MapType *t, Hmap *h, void *data)
 	struct hash_entry *e;
 	struct hash_entry *end_e;
 	bool eq;
+	void *key;
 
 	hash = h->hash0;
 	(*t->key->alg->hash) (&hash, t->key->size, data);
@@ -335,8 +345,20 @@ hash_remove (MapType *t, Hmap *h, void *data)
 		e = HASH_OFFSET (e, elemsize);
 	}
 	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
-		if (HASH_DATA_EQ (eq, t, h, data, e->data)) {    /* a match */
-			if (h->indirectval)
+		key = e->data;
+		if (h->flag & IndirectKey)
+			key = *(void**)e->data;
+		if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
+			// Free key if indirect, but only if reflect can't be
+			// holding a pointer to it.  Deletions are rare,
+			// indirect (large) keys are rare, reflect on maps
+			// is rare.  So in the rare, rare, rare case of deleting
+			// an indirect key from a map that has been reflected on,
+			// we leave the key for garbage collection instead of
+			// freeing it here.
+			if (h->flag & CanFreeKey)
+				free (key);
+			if (h->flag & IndirectVal)
 				free (*(void**)((byte*)e->data + h->valoff));
 			hash_remove_n (st, e, 1);
 			h->count--;
@@ -385,8 +407,12 @@ hash_insert_internal (MapType *t, struct hash_subtable **pst, int32 flags, hash_
 			struct hash_entry *ins_e = e;
 			int32 ins_i = i;
 			hash_hash_t ins_e_hash;
+			void *key;
 			while (ins_e != end_e && ((e_hash = ins_e->hash) ^ hash) < HASH_SUBHASH) {
-				if (HASH_DATA_EQ (eq, t, h, data, ins_e->data)) {    /* a match */
+				key = ins_e->data;
+				if (h->flag & IndirectKey)
+					key = *(void**)key;
+				if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
 					*pres = ins_e->data;
 					return (1);
 				}
@@ -423,7 +449,7 @@ hash_insert_internal (MapType *t, struct hash_subtable **pst, int32 flags, hash_
 			return (0);
 		}
 		h->changes++;
-		if (st->power < h->max_power) {
+		if (st->power < HASH_MAX_POWER) {
 			hash_grow (t, h, pst, flags);
 		} else {
 			hash_conv (t, h, st, flags, hash, start_e);
@@ -606,7 +632,7 @@ hash_iter_init (MapType *t, Hmap *h, struct hash_iter *it)
 }
 
 static void
-clean_st (struct hash_subtable *st, int32 *slots, int32 *used)
+clean_st (Hmap *h, struct hash_subtable *st, int32 *slots, int32 *used)
 {
 	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
 	struct hash_entry *e = st->entry;
@@ -617,13 +643,14 @@ clean_st (struct hash_subtable *st, int32 *slots, int32 *used)
 	while (e <= last) {
 		hash_hash_t hash = e->hash;
 		if ((hash & HASH_MASK) == HASH_SUBHASH) {
-			clean_st (*(struct hash_subtable **)e->data, slots, used);
+			clean_st (h, *(struct hash_subtable **)e->data, slots, used);
 		} else {
 			lused += (hash != HASH_NIL);
 		}
 		e = HASH_OFFSET (e, elemsize);
 	}
-	free (st);
+	if (h->flag & CanFreeTable)
+		free (st);
 	*slots += lslots;
 	*used += lused;
 }
@@ -634,7 +661,7 @@ hash_destroy (Hmap *h)
 	int32 slots = 0;
 	int32 used = 0;
 
-	clean_st (h->st, &slots, &used);
+	clean_st (h, h->st, &slots, &used);
 	free (h);
 }
 
@@ -677,20 +704,23 @@ hash_visit (Hmap *h, void (*data_visit) (void *arg, int32 level, void *data), vo
 /// interfaces to go runtime
 //
 
-// hash requires < 256 bytes of data (key+value) stored inline.
-// Only basic types can be key - biggest is complex128 (16 bytes).
-// Leave some room to grow, just in case.
-enum {
-	MaxValsize = 256 - 64
-};
-
 static void**
-hash_indirect(Hmap *h, void *p)
+hash_valptr(Hmap *h, void *p)
 {
-	if(h->indirectval)
+	p = (byte*)p + h->valoff;
+	if(h->flag & IndirectVal)
 		p = *(void**)p;
 	return p;
-}	
+}
+
+
+static void**
+hash_keyptr(Hmap *h, void *p)
+{
+	if(h->flag & IndirectKey)
+		p = *(void**)p;
+	return p;
+}
 
 static	int32	debug	= 0;
 
@@ -699,8 +729,8 @@ Hmap*
 runtime·makemap_c(MapType *typ, int64 hint)
 {
 	Hmap *h;
-	int32 valsize_in_hash;
 	Type *key, *val;
+	uintptr ksize, vsize;
 	
 	key = typ->key;
 	val = typ->elem;
@@ -712,19 +742,29 @@ runtime·makemap_c(MapType *typ, int64 hint)
 		runtime·throw("runtime.makemap: unsupported map key type");
 
 	h = runtime·mal(sizeof(*h));
+	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
 
-	valsize_in_hash = val->size;
-	if (val->size > MaxValsize) {
-		h->indirectval = 1;
-		valsize_in_hash = sizeof(void*);
-	} 
+	ksize = runtime·rnd(key->size, sizeof(void*));
+	vsize = runtime·rnd(val->size, sizeof(void*));
+	if(ksize > MaxData || vsize > MaxData || ksize+vsize > MaxData) {
+		// Either key is too big, or value is, or combined they are.
+		// Prefer to keep the key if possible, because we look at
+		// keys more often than values.
+		if(ksize > MaxData - sizeof(void*)) {
+			// No choice but to indirect the key.
+			h->flag |= IndirectKey;
+			h->flag |= CanFreeKey;  /* until reflect gets involved, free is okay */
+			ksize = sizeof(void*);
+		}
+		if(vsize > MaxData - ksize) {
+			// Have to indirect the value.
+			h->flag |= IndirectVal;
+			vsize = sizeof(void*);
+		}
+	}
 
-	// Align value inside data so that mark-sweep gc can find it.
-	h->valoff = key->size;
-	if(valsize_in_hash >= sizeof(void*))
-		h->valoff = runtime·rnd(key->size, sizeof(void*));
-
-	hash_init(h, h->valoff+valsize_in_hash, hint);
+	h->valoff = ksize;
+	hash_init(h, ksize+vsize, hint);
 
 	// these calculations are compiler dependent.
 	// figure out offsets of map call arguments.
@@ -773,7 +813,7 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
 	res = nil;
 	if(hash_lookup(t, h, ak, (void**)&res)) {
 		*pres = true;
-		elem->alg->copy(elem->size, av, hash_indirect(h, res+h->valoff));
+		elem->alg->copy(elem->size, av, hash_valptr(h, res));
 	} else {
 		*pres = false;
 		elem->alg->copy(elem->size, av, nil);
@@ -877,10 +917,14 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 
 	res = nil;
 	hit = hash_insert(t, h, ak, (void**)&res);
-	if(!hit && h->indirectval)
-		*(void**)(res+h->valoff) = runtime·mal(t->elem->size);
-	t->key->alg->copy(t->key->size, res, ak);
-	t->elem->alg->copy(t->elem->size, hash_indirect(h, res+h->valoff), av);
+	if(!hit) {
+		if(h->flag & IndirectKey)
+			*(void**)res = runtime·mal(t->key->size);
+		if(h->flag & IndirectVal)
+			*(void**)(res+h->valoff) = runtime·mal(t->elem->size);
+	}
+	t->key->alg->copy(t->key->size, hash_keyptr(h, res), ak);
+	t->elem->alg->copy(t->elem->size, hash_valptr(h, res), av);
 
 	if(debug) {
 		runtime·prints("mapassign: map=");
@@ -985,6 +1029,22 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 void
 reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 {
+	uint8 flag;
+
+	if(h != nil && t->key->size > sizeof(void*)) {
+		// reflect·mapiterkey returns pointers to key data,
+		// and reflect holds them, so we cannot free key data
+		// eagerly anymore.  Updating h->flag now is racy,
+		// but it's okay because this is the only possible store
+		// after creation.
+		flag = h->flag;
+		if(flag & IndirectKey)
+			flag &= ~CanFreeKey;
+		else
+			flag &= ~CanFreeTable;
+		h->flag = flag;
+	}
+
 	it = runtime·mal(sizeof *it);
 	FLUSH(&it);
 	runtime·mapiterinit(t, h, it);
@@ -1032,7 +1092,7 @@ runtime·mapiter1(struct hash_iter *it, ...)
 		runtime·throw("runtime.mapiter1: key:val nil pointer");
 
 	key = it->t->key;
-	key->alg->copy(key->size, ak, res);
+	key->alg->copy(key->size, ak, hash_keyptr(h, res));
 
 	if(debug) {
 		runtime·prints("mapiter2: iter=");
@@ -1053,7 +1113,7 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
 	if(res == nil)
 		return false;
 	key = it->t->key;
-	key->alg->copy(key->size, ak, res);
+	key->alg->copy(key->size, ak, hash_keyptr(it->h, res));
 	return true;
 }
 
@@ -1076,6 +1136,7 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
 	} else {
 		tkey = it->t->key;
 		key = 0;
+		res = (byte*)hash_keyptr(it->h, res);
 		if(tkey->size <= sizeof(key))
 			tkey->alg->copy(tkey->size, (byte*)&key, res);
 		else
@@ -1117,8 +1178,8 @@ runtime·mapiter2(struct hash_iter *it, ...)
 		runtime·throw("runtime.mapiter2: key:val nil pointer");
 
 	h = it->h;
-	t->key->alg->copy(t->key->size, ak, res);
-	t->elem->alg->copy(t->elem->size, av, hash_indirect(h, res+h->valoff));
+	t->key->alg->copy(t->key->size, ak, hash_keyptr(h, res));
+	t->elem->alg->copy(t->elem->size, av, hash_valptr(h, res));
 
 	if(debug) {
 		runtime·prints("mapiter2: iter=");
