@@ -199,6 +199,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
 //sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
+//sys	GetCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
 
 // syscall interface implementation for other packages
 
@@ -681,9 +682,9 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 }
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
 
-// TODO(brainman): fix all needed for os
+func Getpid() (pid int) { return int(GetCurrentProcessId()) }
 
-func Getpid() (pid int)   { return -1 }
+// TODO(brainman): fix all needed for os
 func Getppid() (ppid int) { return -1 }
 
 func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
