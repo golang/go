@@ -6,9 +6,11 @@ package base64
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"testing"
+	"time"
 )
 
 type testpair struct {
@@ -224,5 +226,52 @@ func TestNewLineCharacters(t *testing.T) {
 		if s := string(buf); s != expected {
 			t.Errorf("Decode(%q) = %q, want %q", e, s, expected)
 		}
+	}
+}
+
+type nextRead struct {
+	n   int   // bytes to return
+	err error // error to return
+}
+
+// faultInjectReader returns data from source, rate-limited
+// and with the errors as written to nextc.
+type faultInjectReader struct {
+	source string
+	nextc  <-chan nextRead
+}
+
+func (r *faultInjectReader) Read(p []byte) (int, error) {
+	nr := <-r.nextc
+	if len(p) > nr.n {
+		p = p[:nr.n]
+	}
+	n := copy(p, r.source)
+	r.source = r.source[n:]
+	return n, nr.err
+}
+
+// tests that we don't ignore errors from our underlying reader
+func TestDecoderIssue3577(t *testing.T) {
+	next := make(chan nextRead, 10)
+	wantErr := errors.New("my error")
+	next <- nextRead{5, nil}
+	next <- nextRead{10, wantErr}
+	d := NewDecoder(StdEncoding, &faultInjectReader{
+		source: "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==", // twas brillig...
+		nextc:  next,
+	})
+	errc := make(chan error)
+	go func() {
+		_, err := ioutil.ReadAll(d)
+		errc <- err
+	}()
+	select {
+	case err := <-errc:
+		if err != wantErr {
+			t.Errorf("got error %v; want %v", err, wantErr)
+		}
+	case <-time.After(5 * time.Second):
+		t.Errorf("timeout; Decoder blocked without returning an error")
 	}
 }
