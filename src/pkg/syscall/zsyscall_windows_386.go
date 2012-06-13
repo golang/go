@@ -142,7 +142,7 @@ var (
 	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
 	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
 	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
-	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+	procgetCurrentProcessId              = modkernel32.NewProc("getCurrentProcessId")
 )
 
 func GetLastError() (lasterr error) {
@@ -1602,8 +1602,8 @@ func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
 	return
 }
 
-func GetCurrentProcessId() (pid uint32) {
-	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
+func getCurrentProcessId() (pid uint32) {
+	r0, _, _ := Syscall(procgetCurrentProcessId.Addr(), 0, 0, 0, 0)
 	pid = uint32(r0)
 	return
 }
