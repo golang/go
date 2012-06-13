@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/printer"
 	"io"
 	"log"
 	"net/http"
@@ -424,20 +425,24 @@ func main() {
 		filter := func(s string) bool { return rx.MatchString(s) }
 		switch {
 		case info.PAst != nil:
+			cmap := ast.NewCommentMap(info.FSet, info.PAst)
 			ast.FilterFile(info.PAst, filter)
 			// Special case: Don't use templates for printing
 			// so we only get the filtered declarations without
 			// package clause or extra whitespace.
 			for i, d := range info.PAst.Decls {
+				// determine the comments associated with d only
+				comments := cmap.Filter(d).Comments()
+				cn := &printer.CommentedNode{Node: d, Comments: comments}
 				if i > 0 {
 					fmt.Println()
 				}
 				if *html {
 					var buf bytes.Buffer
-					writeNode(&buf, info.FSet, d)
+					writeNode(&buf, info.FSet, cn)
 					FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
 				} else {
-					writeNode(os.Stdout, info.FSet, d)
+					writeNode(os.Stdout, info.FSet, cn)
 				}
 				fmt.Println()
 			}

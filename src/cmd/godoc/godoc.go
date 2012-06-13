@@ -866,6 +866,19 @@ func inList(name string, list []string) bool {
 	return false
 }
 
+// packageExports is a local implementation of ast.PackageExports
+// which correctly updates each package file's comment list.
+// (The ast.PackageExports signature is frozen, hence the local
+// implementation).
+//
+func packageExports(fset *token.FileSet, pkg *ast.Package) {
+	for _, src := range pkg.Files {
+		cmap := ast.NewCommentMap(fset, src)
+		ast.FileExports(src)
+		src.Comments = cmap.Filter(src).Comments()
+	}
+}
+
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -1012,9 +1025,9 @@ func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoM
 			// TODO(gri) Consider eliminating export filtering in this mode,
 			//           or perhaps eliminating the mode altogether.
 			if mode&noFiltering == 0 {
-				ast.PackageExports(pkg)
+				packageExports(fset, pkg)
 			}
-			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
+			past = ast.MergePackageFiles(pkg, 0)
 		}
 	}
 
