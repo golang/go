@@ -49,6 +49,10 @@ func runRun(cmd *Command, args []string) {
 	if p.Error != nil {
 		fatalf("%s", p.Error)
 	}
+	for _, err := range p.DepsErrors {
+		errorf("%s", err)
+	}
+	exitIfErrors()
 	if p.Name != "main" {
 		fatalf("go run: cannot run non-main package")
 	}
