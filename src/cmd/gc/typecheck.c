@@ -1140,6 +1140,10 @@ reswitch:
 			goto error;
 		n->type = t;
 		if(!isslice(t)) {
+			if(isconst(args->n, CTNIL)) {
+				yyerror("first argument to append must be typed slice; have untyped nil", t);
+				goto error;
+			}
 			yyerror("first argument to append must be slice; have %lT", t);
 			goto error;
 		}
