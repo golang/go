@@ -278,6 +278,11 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 		return nil, err
 	}
 	req.Header.Set("Content-Type", bodyType)
+	if c.Jar != nil {
+		for _, cookie := range c.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
+	}
 	r, err = send(req, c.Transport)
 	if err == nil && c.Jar != nil {
 		c.Jar.SetCookies(req.URL, r.Cookies())

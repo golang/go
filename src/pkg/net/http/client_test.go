@@ -256,6 +256,31 @@ var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) 
 	}
 })
 
+func TestClientSendsCookieFromJar(t *testing.T) {
+	tr := &recordingTransport{}
+	client := &Client{Transport: tr}
+	client.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
+	us := "http://dummy.faketld/"
+	u, _ := url.Parse(us)
+	client.Jar.SetCookies(u, expectedCookies)
+
+	client.Get(us) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+
+	client.Head(us) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+
+	client.Post(us, "text/plain", strings.NewReader("body")) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+
+	client.PostForm(us, url.Values{}) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+
+	req, _ := NewRequest("GET", us, nil)
+	client.Do(req) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+}
+
 // Just enough correctness for our redirect tests. Uses the URL.Host as the
 // scope of all cookies.
 type TestJar struct {
