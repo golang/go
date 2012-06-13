@@ -31,7 +31,6 @@ static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
-static Type*	getforwtype(Node*);
 
 static	NodeList*	typecheckdefstack;
 
@@ -237,7 +236,7 @@ typecheck1(Node **np, int top)
 	Node *n, *l, *r;
 	NodeList *args;
 	int ok, ntop;
-	Type *t, *tp, *ft, *missing, *have, *badtype;
+	Type *t, *tp, *missing, *have, *badtype;
 	Val v;
 	char *why;
 	
@@ -248,10 +247,6 @@ typecheck1(Node **np, int top)
 			yyerror("use of builtin %S not in function call", n->sym);
 			goto error;
 		}
-
-		// a dance to handle forward-declared recursive pointer types.
-		if(n->op == OTYPE && (ft = getforwtype(n->ntype)) != T)
-			defertypecopy(n, ft);
 
 		typecheckdef(n);
 		n->realtype = n->type;
@@ -2616,26 +2611,6 @@ stringtoarraylit(Node **np)
 	*np = nn;
 }
 
-static Type*
-getforwtype(Node *n)
-{
-	Node *f1, *f2;
-
-	for(f2=n; ; n=n->ntype) {
-		if((n = resolve(n)) == N || n->op != OTYPE)
-			return T;
-
-		if(n->type != T && n->type->etype == TFORW)
-			return n->type;
-
-		// Check for ntype cycle.
-		if((f2 = resolve(f2)) != N && (f1 = resolve(f2->ntype)) != N) {
-			f2 = resolve(f1->ntype);
-			if(f1 == n || f2 == n)
-				return T;
-		}
-	}
-}
 
 static int ntypecheckdeftype;
 static NodeList *methodqueue;
@@ -2673,49 +2648,24 @@ domethod(Node *n)
 	checkwidth(n->type);
 }
 
-typedef struct NodeTypeList NodeTypeList;
-struct NodeTypeList {
-	Node *n;
-	Type *t;
-	NodeTypeList *next;
-};
-
-static	NodeTypeList	*dntq;
-static	NodeTypeList	*dntend;
-
-void
-defertypecopy(Node *n, Type *t)
-{
-	NodeTypeList *ntl;
-
-	if(n == N || t == T)
-		return;
-
-	ntl = mal(sizeof *ntl);
-	ntl->n = n;
-	ntl->t = t;
-	ntl->next = nil;
-
-	if(dntq == nil)
-		dntq = ntl;
-	else
-		dntend->next = ntl;
-
-	dntend = ntl;
-}
-
-void
-resumetypecopy(void)
-{
-	NodeTypeList *l;
-
-	for(l=dntq; l; l=l->next)
-		copytype(l->n, l->t);
-}
+static NodeList *mapqueue;
 
 void
 copytype(Node *n, Type *t)
 {
+	int maplineno, embedlineno, lno;
+	NodeList *l;
+
+	if(t->etype == TFORW) {
+		// This type isn't computed yet; when it is, update n.
+		t->copyto = list(t->copyto, n);
+		return;
+	}
+
+	maplineno = n->type->maplineno;
+	embedlineno = n->type->embedlineno;
+
+	l = n->type->copyto;
 	*n->type = *t;
 
 	t = n->type;
@@ -2728,12 +2678,32 @@ copytype(Node *n, Type *t)
 	t->nod = N;
 	t->printed = 0;
 	t->deferwidth = 0;
+	t->copyto = nil;
+	
+	// Update nodes waiting on this type.
+	for(; l; l=l->next)
+		copytype(l->n, t);
+
+	// Double-check use of type as embedded type.
+	lno = lineno;
+	if(embedlineno) {
+		lineno = embedlineno;
+		if(isptr[t->etype])
+			yyerror("embedded type cannot be a pointer");
+	}
+	lineno = lno;
+	
+	// Queue check for map until all the types are done settling.
+	if(maplineno) {
+		t->maplineno = maplineno;
+		mapqueue = list(mapqueue, n);
+	}
 }
 
 static void
 typecheckdeftype(Node *n)
 {
-	int maplineno, embedlineno, lno;
+	int lno;
 	Type *t;
 	NodeList *l;
 
@@ -2752,25 +2722,11 @@ typecheckdeftype(Node *n)
 		goto ret;
 	}
 
-	maplineno = n->type->maplineno;
-	embedlineno = n->type->embedlineno;
-
 	// copy new type and clear fields
 	// that don't come along.
 	// anything zeroed here must be zeroed in
 	// typedcl2 too.
 	copytype(n, t);
-
-	// double-check use of type as map key.
-	if(maplineno) {
-		lineno = maplineno;
-		maptype(n->type, types[TBOOL]);
-	}
-	if(embedlineno) {
-		lineno = embedlineno;
-		if(isptr[t->etype])
-			yyerror("embedded type cannot be a pointer");
-	}
 
 ret:
 	lineno = lno;
@@ -2784,6 +2740,11 @@ ret:
 			for(; l; l=l->next)
 				domethod(l->n);
 		}
+		for(l=mapqueue; l; l=l->next) {
+			lineno = l->n->type->maplineno;
+			maptype(l->n->type, types[TBOOL]);
+		}
+		lineno = lno;
 	}
 	ntypecheckdeftype--;
 }
