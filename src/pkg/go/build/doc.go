@@ -100,7 +100,7 @@
 // default functionality for other systems, which in this case would
 // carry the constraint:
 //
-//	// +build !linux !darwin !cgo
+//	// +build !linux,!darwin !cgo
 //
 // Naming a file dns_windows.go will cause it to be included only when
 // building the package for Windows; similarly, math_386.s will be included
