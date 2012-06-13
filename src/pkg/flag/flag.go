@@ -620,8 +620,9 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
 	flag := &Flag{name, usage, value, value.String()}
 	_, alreadythere := f.formal[name]
 	if alreadythere {
-		fmt.Fprintf(f.out(), "%s flag redefined: %s\n", f.name, name)
-		panic("flag redefinition") // Happens only if flags are declared with identical names
+		msg := fmt.Sprintf("%s flag redefined: %s", f.name, name)
+		fmt.Fprintln(f.out(), msg)
+		panic(msg) // Happens only if flags are declared with identical names
 	}
 	if f.formal == nil {
 		f.formal = make(map[string]*Flag)
