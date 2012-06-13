@@ -388,10 +388,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 		return ErrUnsupportedAlgorithm
 	}
 
-	h := hashType.New()
-	if h == nil {
+	if !hashType.Available() {
 		return ErrUnsupportedAlgorithm
 	}
+	h := hashType.New()
 
 	h.Write(signed)
 	digest := h.Sum(nil)
