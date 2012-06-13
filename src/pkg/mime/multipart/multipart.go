@@ -22,11 +22,6 @@ import (
 	"net/textproto"
 )
 
-// TODO(bradfitz): inline these once the compiler can inline them in
-// read-only situation (such as bytes.HasSuffix)
-var lf = []byte("\n")
-var crlf = []byte("\r\n")
-
 var emptyParams = make(map[string]string)
 
 // A Part represents a single part in a multipart body.
@@ -36,8 +31,9 @@ type Part struct {
 	// i.e. "foo-bar" changes case to "Foo-Bar"
 	Header textproto.MIMEHeader
 
-	buffer *bytes.Buffer
-	mr     *Reader
+	buffer    *bytes.Buffer
+	mr        *Reader
+	bytesRead int
 
 	disposition       string
 	dispositionParams map[string]string
@@ -113,14 +109,26 @@ func (bp *Part) populateHeaders() error {
 // Read reads the body of a part, after its headers and before the
 // next part (if any) begins.
 func (p *Part) Read(d []byte) (n int, err error) {
+	defer func() {
+		p.bytesRead += n
+	}()
 	if p.buffer.Len() >= len(d) {
 		// Internal buffer of unconsumed data is large enough for
 		// the read request.  No need to parse more at the moment.
 		return p.buffer.Read(d)
 	}
 	peek, err := p.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
-	unexpectedEof := err == io.EOF
-	if err != nil && !unexpectedEof {
+
+	// Look for an immediate empty part without a leading \r\n
+	// before the boundary separator.  Some MIME code makes empty
+	// parts like this. Most browsers, however, write the \r\n
+	// before the subsequent boundary even for empty parts and
+	// won't hit this path.
+	if p.bytesRead == 0 && p.mr.peekBufferIsEmptyPart(peek) {
+		return 0, io.EOF
+	}
+	unexpectedEOF := err == io.EOF
+	if err != nil && !unexpectedEOF {
 		return 0, fmt.Errorf("multipart: Part Read: %v", err)
 	}
 	if peek == nil {
@@ -138,7 +146,7 @@ func (p *Part) Read(d []byte) (n int, err error) {
 		foundBoundary = true
 	} else if safeCount := len(peek) - len(p.mr.nlDashBoundary); safeCount > 0 {
 		nCopy = safeCount
-	} else if unexpectedEof {
+	} else if unexpectedEOF {
 		// If we've run out of peek buffer and the boundary
 		// wasn't found (and can't possibly fit), we must have
 		// hit the end of the file unexpectedly.
@@ -172,7 +180,10 @@ type Reader struct {
 	currentPart *Part
 	partsRead   int
 
-	nl, nlDashBoundary, dashBoundaryDash, dashBoundary []byte
+	nl               []byte // "\r\n" or "\n" (set after seeing first boundary line)
+	nlDashBoundary   []byte // nl + "--boundary"
+	dashBoundaryDash []byte // "--boundary--"
+	dashBoundary     []byte // "--boundary"
 }
 
 // NextPart returns the next part in the multipart or an error.
@@ -185,7 +196,7 @@ func (r *Reader) NextPart() (*Part, error) {
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
-		if err == io.EOF && bytes.Equal(line, r.dashBoundaryDash) {
+		if err == io.EOF && r.isFinalBoundary(line) {
 			// If the buffer ends in "--boundary--" without the
 			// trailing "\r\n", ReadSlice will return an error
 			// (since it's missing the '\n'), but this is a valid
@@ -207,7 +218,7 @@ func (r *Reader) NextPart() (*Part, error) {
 			return bp, nil
 		}
 
-		if hasPrefixThenNewline(line, r.dashBoundaryDash) {
+		if r.isFinalBoundary(line) {
 			// Expected EOF
 			return nil, io.EOF
 		}
@@ -235,7 +246,19 @@ func (r *Reader) NextPart() (*Part, error) {
 	panic("unreachable")
 }
 
-func (mr *Reader) isBoundaryDelimiterLine(line []byte) bool {
+// isFinalBoundary returns whether line is the final boundary line
+// indiciating that all parts are over.
+// It matches `^--boundary--[ \t]*(\r\n)?$`
+func (mr *Reader) isFinalBoundary(line []byte) bool {
+	if !bytes.HasPrefix(line, mr.dashBoundaryDash) {
+		return false
+	}
+	rest := line[len(mr.dashBoundaryDash):]
+	rest = skipLWSPChar(rest)
+	return len(rest) == 0 || bytes.Equal(rest, mr.nl)
+}
+
+func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
 	// http://tools.ietf.org/html/rfc2046#section-5.1
 	//   The boundary delimiter line is then defined as a line
 	//   consisting entirely of two hyphen characters ("-",
@@ -245,32 +268,52 @@ func (mr *Reader) isBoundaryDelimiterLine(line []byte) bool {
 	if !bytes.HasPrefix(line, mr.dashBoundary) {
 		return false
 	}
-	if bytes.HasSuffix(line, mr.nl) {
-		return onlyHorizontalWhitespace(line[len(mr.dashBoundary) : len(line)-len(mr.nl)])
+	rest := line[len(mr.dashBoundary):]
+	rest = skipLWSPChar(rest)
+
+	// On the first part, see our lines are ending in \n instead of \r\n
+	// and switch into that mode if so.  This is a violation of the spec,
+	// but occurs in practice.
+	if mr.partsRead == 0 && len(rest) == 1 && rest[0] == '\n' {
+		mr.nl = mr.nl[1:]
+		mr.nlDashBoundary = mr.nlDashBoundary[1:]
 	}
-	// Violate the spec and also support newlines without the
-	// carriage return...
-	if mr.partsRead == 0 && bytes.HasSuffix(line, lf) {
-		if onlyHorizontalWhitespace(line[len(mr.dashBoundary) : len(line)-1]) {
-			mr.nl = mr.nl[1:]
-			mr.nlDashBoundary = mr.nlDashBoundary[1:]
-			return true
-		}
-	}
-	return false
+	return bytes.Equal(rest, mr.nl)
 }
 
-func onlyHorizontalWhitespace(s []byte) bool {
-	for _, b := range s {
-		if b != ' ' && b != '\t' {
-			return false
-		}
+// peekBufferIsEmptyPart returns whether the provided peek-ahead
+// buffer represents an empty part.  This is only called if we've not
+// already read any bytes in this part and checks for the case of MIME
+// software not writing the \r\n on empty parts. Some does, some
+// doesn't.
+//
+// This checks that what follows the "--boundary" is actually the end
+// ("--boundary--" with optional whitespace) or optional whitespace
+// and then a newline, so we don't catch "--boundaryFAKE", in which
+// case the whole line is part of the data.
+func (mr *Reader) peekBufferIsEmptyPart(peek []byte) bool {
+	// End of parts case.
+	// Test whether peek matches `^--boundary--[ \t]*(?:\r\n|$)`
+	if bytes.HasPrefix(peek, mr.dashBoundaryDash) {
+		rest := peek[len(mr.dashBoundaryDash):]
+		rest = skipLWSPChar(rest)
+		return bytes.HasPrefix(rest, mr.nl) || len(rest) == 0
 	}
-	return true
+	if !bytes.HasPrefix(peek, mr.dashBoundary) {
+		return false
+	}
+	// Test whether rest matches `^[ \t]*\r\n`)
+	rest := peek[len(mr.dashBoundary):]
+	rest = skipLWSPChar(rest)
+	return bytes.HasPrefix(rest, mr.nl)
 }
 
-func hasPrefixThenNewline(s, prefix []byte) bool {
-	return bytes.HasPrefix(s, prefix) &&
-		(len(s) == len(prefix)+1 && s[len(s)-1] == '\n' ||
-			len(s) == len(prefix)+2 && bytes.HasSuffix(s, crlf))
+// skipLWSPChar returns b with leading spaces and tabs removed.
+// RFC 822 defines:
+//    LWSP-char = SPACE / HTAB
+func skipLWSPChar(b []byte) []byte {
+	for len(b) > 0 && (b[0] == ' ' || b[0] == '\t') {
+		b = b[1:]
+	}
+	return b
 }
