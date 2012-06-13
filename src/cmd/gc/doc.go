@@ -47,7 +47,9 @@ Flags:
 	-N
 		disable optimizations
 	-S
-		write assembly language text to standard output
+		write assembly language text to standard output (code only)
+	-SS
+		write assembly language text to standard output (code and data)
 	-u
 		disallow importing packages not marked as safe
 	-V

@@ -244,7 +244,8 @@ dumpfuncs(void)
 		if(isblank(pl->name))
 			continue;
 
-		if(debug['S']) {
+		// -S prints code; -SS prints code and data
+		if(debug['S'] && (pl->name || debug['S']>1)) {
 			s = S;
 			if(pl->name != N)
 				s = pl->name->sym;
