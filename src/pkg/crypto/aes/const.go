@@ -11,11 +11,11 @@ package aes
 // http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 
 // AES is based on the mathematical behavior of binary polynomials
-// (polynomials over GF(2)) modulo the irreducible polynomial x⁸ + x⁴ + x² + x + 1.
+// (polynomials over GF(2)) modulo the irreducible polynomial x⁸ + x⁴ + x³ + x + 1.
 // Addition of these binary polynomials corresponds to binary xor.
 // Reducing mod poly corresponds to binary xor with poly every
 // time a 0x100 bit appears.
-const poly = 1<<8 | 1<<4 | 1<<3 | 1<<1 | 1<<0 // x⁸ + x⁴ + x² + x + 1
+const poly = 1<<8 | 1<<4 | 1<<3 | 1<<1 | 1<<0 // x⁸ + x⁴ + x³ + x + 1
 
 // Powers of x mod poly in GF(2).
 var powx = [16]byte{
