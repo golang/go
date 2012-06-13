@@ -5,6 +5,9 @@
 #include "runtime.h"
 #include "type.h"
 
+#define M0 (sizeof(uintptr)==4 ? 2860486313UL : 33054211828000289ULL)
+#define M1 (sizeof(uintptr)==4 ? 3267000013UL : 23344194077549503ULL)
+
 /*
  * map and chan helpers for
  * dealing with unknown types
@@ -16,19 +19,13 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
 	uintptr hash;
 
 	b = a;
-	if(sizeof(hash) == 4)
-		hash = 2860486313U;
-	else
-		hash = 33054211828000289ULL;
+	hash = M0;
 	while(s > 0) {
-		if(sizeof(hash) == 4)
-			hash = (hash ^ *b) * 3267000013UL;
-		else
-			hash = (hash ^ *b) * 23344194077549503ULL;
+		hash = (hash ^ *b) * M1;
 		b++;
 		s--;
 	}
-	*h ^= hash;
+	*h = (*h ^ hash) * M1;
 }
 
 void
@@ -252,7 +249,7 @@ runtime·f32hash(uintptr *h, uintptr s, void *a)
 		hash = runtime·fastrand1();  // any kind of NaN
 	else
 		hash = *(uint32*)a;
-	*h ^= (*h ^ hash ^ 2860486313U) * 3267000013U;
+	*h = (*h ^ hash ^ M0) * M1;
 }
 
 void
@@ -271,14 +268,11 @@ runtime·f64hash(uintptr *h, uintptr s, void *a)
 	else {
 		u = *(uint64*)a;
 		if(sizeof(uintptr) == 4)
-			hash = ((uint32)(u>>32) * 3267000013UL) ^ (uint32)u;
+			hash = ((uint32)(u>>32) * M1) ^ (uint32)u;
 		else
 			hash = u;
 	}
-	if(sizeof(uintptr) == 4)
-		*h = (*h ^ hash ^ 2860486313U) * 3267000013U;
-	else
-		*h = (*h ^ hash ^ 33054211828000289ULL) * 23344194077549503ULL;
+	*h = (*h ^ hash ^ M0) * M1;
 }
 
 void
@@ -357,7 +351,7 @@ void
 runtime·interhash(uintptr *h, uintptr s, void *a)
 {
 	USED(s);
-	*h ^= runtime·ifacehash(*(Iface*)a);
+	*h = (*h ^ runtime·ifacehash(*(Iface*)a)) * M1;
 }
 
 void
@@ -391,7 +385,7 @@ void
 runtime·nilinterhash(uintptr *h, uintptr s, void *a)
 {
 	USED(s);
-	*h ^= runtime·efacehash(*(Eface*)a);
+	*h = (*h ^ runtime·efacehash(*(Eface*)a)) * M1;
 }
 
 void
