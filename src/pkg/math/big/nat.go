@@ -493,14 +493,9 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	}
 
 	if len(v) == 1 {
-		var rprime Word
-		q, rprime = z.divW(u, v[0])
-		if rprime > 0 {
-			r = z2.make(1)
-			r[0] = rprime
-		} else {
-			r = z2.make(0)
-		}
+		var r2 Word
+		q, r2 = z.divW(u, v[0])
+		r = z2.setWord(r2)
 		return
 	}
 
@@ -1011,7 +1006,7 @@ func trailingZeroBits(x Word) uint {
 	case 64:
 		return uint(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
 	default:
-		panic("Unknown word size")
+		panic("unknown word size")
 	}
 
 	return 0
@@ -1198,17 +1193,19 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 	mask := Word((1 << bitLengthOfMSW) - 1)
 
 	for {
-		for i := range z {
-			switch _W {
-			case 32:
+		switch _W {
+		case 32:
+			for i := range z {
 				z[i] = Word(rand.Uint32())
-			case 64:
+			}
+		case 64:
+			for i := range z {
 				z[i] = Word(rand.Uint32()) | Word(rand.Uint32())<<32
 			}
+		default:
+			panic("unknown word size")
 		}
-
 		z[len(limit)-1] &= mask
-
 		if z.cmp(limit) < 0 {
 			break
 		}
