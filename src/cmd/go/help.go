@@ -61,7 +61,7 @@ var helpRemote = &Command{
 	Short:     "remote import path syntax",
 	Long: `
 
-An import path (see 'go help importpath') denotes a package
+An import path (see 'go help packages') denotes a package
 stored in the local file system.  Certain import paths also
 describe how to obtain the source code for the package using
 a revision control system.
