@@ -4,9 +4,14 @@
 
 package main
 
+func init() {
+	addBuildFlagsNX(cmdFmt)
+	addBuildFlagsNX(cmdDoc)
+}
+
 var cmdFmt = &Command{
 	Run:       runFmt,
-	UsageLine: "fmt [packages]",
+	UsageLine: "fmt [-n] [-x] [packages]",
 	Short:     "run gofmt on package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
@@ -14,6 +19,9 @@ by the import paths.  It prints the names of the files that are modified.
 
 For more about gofmt, see 'godoc gofmt'.
 For more about specifying packages, see 'go help packages'.
+
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
 
 To run gofmt with specific options, run gofmt itself.
 
@@ -32,7 +40,7 @@ func runFmt(cmd *Command, args []string) {
 
 var cmdDoc = &Command{
 	Run:       runDoc,
-	UsageLine: "doc [packages]",
+	UsageLine: "doc [-n] [-x] [packages]",
 	Short:     "run godoc on package sources",
 	Long: `
 Doc runs the godoc command on the packages named by the
@@ -40,6 +48,9 @@ import paths.
 
 For more about godoc, see 'godoc godoc'.
 For more about specifying packages, see 'go help packages'.
+
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
 
 To run godoc with specific options, run godoc itself.
 
@@ -53,6 +64,10 @@ func runDoc(cmd *Command, args []string) {
 			errorf("go doc: cannot use package file list")
 			continue
 		}
-		run("godoc", pkg.Dir)
+		if pkg.local {
+			run("godoc", pkg.Dir)
+		} else {
+			run("godoc", pkg.ImportPath)
+		}
 	}
 }

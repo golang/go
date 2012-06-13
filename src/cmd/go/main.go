@@ -144,8 +144,9 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Unknown command %#q\n\n", args[0])
-	usage()
+	fmt.Fprintf(os.Stderr, "go: unknown subcommand %#q\nRun 'go help' for usage.\n", args[0])
+	setExitStatus(2)
+	exit()
 }
 
 var usageTemplate = `Go is a tool for managing Go source code.
@@ -339,6 +340,13 @@ func exitIfErrors() {
 
 func run(cmdargs ...interface{}) {
 	cmdline := stringList(cmdargs...)
+	if buildN || buildV {
+		fmt.Printf("%s\n", strings.Join(cmdline, " "))
+		if buildN {
+			return
+		}
+	}
+
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

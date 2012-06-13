@@ -152,6 +152,11 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 }
 
+func addBuildFlagsNX(cmd *Command) {
+	cmd.Flag.BoolVar(&buildN, "n", false, "")
+	cmd.Flag.BoolVar(&buildX, "x", false, "")
+}
+
 type stringsFlag []string
 
 func (v *stringsFlag) Set(s string) error {
