@@ -581,12 +581,12 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	return z
 }
 
-// GCD sets z to the greatest common divisor of a and b, which must be
-// positive numbers, and returns z.
+// GCD sets z to the greatest common divisor of a and b, which both must
+// be > 0, and returns z.
 // If x and y are not nil, GCD sets x and y such that z = a*x + b*y.
-// If either a or b is not positive, GCD sets z = x = y = 0.
+// If either a or b is <= 0, GCD sets z = x = y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
-	if a.neg || b.neg {
+	if a.Sign() <= 0 || b.Sign() <= 0 {
 		z.SetInt64(0)
 		if x != nil {
 			x.SetInt64(0)
