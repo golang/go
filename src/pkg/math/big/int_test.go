@@ -860,6 +860,13 @@ func TestGcd(t *testing.T) {
 			expectedD.Cmp(d) != 0 {
 			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
 		}
+
+		d.binaryGCD(a, b)
+
+		if expectedD.Cmp(d) != 0 {
+			t.Errorf("#%d got (%s) want (%s)", i, d, expectedD)
+		}
+
 	}
 
 	quick.Check(checkGcd, nil)

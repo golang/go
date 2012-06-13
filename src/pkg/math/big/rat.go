@@ -145,20 +145,6 @@ func (x *Rat) Denom() *Int {
 	return &x.b
 }
 
-func gcd(x, y nat) nat {
-	// Euclidean algorithm.
-	var a, b nat
-	a = a.set(x)
-	b = b.set(y)
-	for len(b) != 0 {
-		var q, r nat
-		_, r = q.div(r, a, b)
-		a = b
-		b = r
-	}
-	return a
-}
-
 func (z *Rat) norm() *Rat {
 	switch {
 	case len(z.a.abs) == 0:
@@ -171,14 +157,18 @@ func (z *Rat) norm() *Rat {
 		// z is int - normalize denominator
 		z.b.abs = z.b.abs.make(0)
 	default:
-		if f := gcd(z.a.abs, z.b.abs); f.cmp(natOne) != 0 {
-			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f)
-			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f)
+		neg := z.a.neg
+		z.a.neg = false
+		z.b.neg = false
+		if f := NewInt(0).binaryGCD(&z.a, &z.b); f.Cmp(intOne) != 0 {
+			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
+			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
 			if z.b.abs.cmp(natOne) == 0 {
 				// z is int - normalize denominator
 				z.b.abs = z.b.abs.make(0)
 			}
 		}
+		z.a.neg = neg
 	}
 	return z
 }
