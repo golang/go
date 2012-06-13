@@ -16,8 +16,8 @@ p9ctime(long t)
 	tt = t;
 	tm = localtime(&tt);
 	snprint(buf, sizeof buf, "%3.3s %3.3s %02d %02d:%02d:%02d %3.3s %d\n",
-		"SunMonTueWedThuFriSat"+(tm->tm_wday*3),
-		"JanFebMarAprMayJunJulAugSepOctNovDec"+(tm->tm_mon*3),
+		&"SunMonTueWedThuFriSat"[tm->tm_wday*3],
+		&"JanFebMarAprMayJunJulAugSepOctNovDec"[tm->tm_mon*3],
 		tm->tm_mday,
 		tm->tm_hour,
 		tm->tm_min,
