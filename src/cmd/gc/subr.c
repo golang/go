@@ -2679,7 +2679,7 @@ genhash(Sym *sym, Type *t)
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
 			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
-				if(first == T)
+				if(first == T && !isblanksym(t1->sym))
 					first = t1;
 				continue;
 			}
@@ -2896,7 +2896,7 @@ geneq(Sym *sym, Type *t)
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
 			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
-				if(first == T)
+				if(first == T && !isblanksym(t1->sym))
 					first = t1;
 				continue;
 			}
