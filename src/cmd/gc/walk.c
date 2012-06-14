@@ -436,6 +436,11 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		goto ret;
 
+	case OEFACE:
+		walkexpr(&n->left, init);
+		walkexpr(&n->right, init);
+		goto ret;
+
 	case OITAB:
 		walkexpr(&n->left, init);
 		goto ret;
@@ -713,10 +718,22 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCONVIFACE:
+		walkexpr(&n->left, init);
+
+		// Optimize convT2E as a two-word copy when T is uintptr-shaped.
+		if(!isinter(n->left->type) && isnilinter(n->type) &&
+		   (n->left->type->width == widthptr) &&
+		   isint[simsimtype(n->left->type)]) {
+			l = nod(OEFACE, typename(n->left->type), n->left);
+			l->type = n->type;
+			l->typecheck = n->typecheck;
+			n = l;
+			goto ret;
+		}
+
 		// Build name of function: convI2E etc.
 		// Not all names are possible
 		// (e.g., we'll never generate convE2E or convE2I).
-		walkexpr(&n->left, init);
 		strcpy(buf, "conv");
 		p = buf+strlen(buf);
 		if(isnilinter(n->left->type))
