@@ -142,7 +142,7 @@ var (
 	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
 	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
 	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
-	procgetCurrentProcessId              = modkernel32.NewProc("getCurrentProcessId")
+	procgetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
 )
 
 func GetLastError() (lasterr error) {
