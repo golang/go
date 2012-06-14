@@ -20,14 +20,20 @@ var (
 	Big [2]*int
 )
 
-func BenchmarkConvT2E(b *testing.B) {
+func BenchmarkConvT2ESmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		I = 1
+		I = uint16(1)
+	}
+}
+
+func BenchmarkConvT2EUintptr(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		I = uintptr(1)
 	}
 }
 
 func BenchmarkConvT2EBig(b *testing.B) {
-	v := [2]*int{}
+	v := [2]uintptr{1, 2}
 	for i := 0; i < b.N; i++ {
 		I = v
 	}

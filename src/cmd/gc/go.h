@@ -488,6 +488,7 @@ enum
 	ODDD,
 	ODDDARG,
 	OINLCALL,	// intermediary representation of an inlined call
+	OEFACE,	// itable and data words of empty-interface value
 	OITAB,	// itable word of interface value
 
 	// for back ends
@@ -989,6 +990,7 @@ void	dumplist(char *s, NodeList *l);
 void	addrescapes(Node *n);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
+void	cgen_eface(Node* n, Node* res);
 void	cgen_slice(Node* n, Node* res);
 void	clearlabels(void);
 void	checklabels(void);

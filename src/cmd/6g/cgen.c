@@ -44,6 +44,14 @@ cgen(Node *n, Node *res)
 		} else
 			cgen_slice(n, res);
 		goto ret;
+	case OEFACE:
+		if (res->op != ONAME || !res->addable) {
+			tempname(&n1, n->type);
+			cgen_eface(n, &n1);
+			cgen(&n1, res);
+		} else
+			cgen_eface(n, res);
+		goto ret;
 	}
 
 	if(n->ullman >= UINF) {
@@ -546,6 +554,12 @@ agen(Node *n, Node *res)
 	case OSLICESTR:
 		tempname(&n1, n->type);
 		cgen_slice(n, &n1);
+		agen(&n1, res);
+		break;
+
+	case OEFACE:
+		tempname(&n1, n->type);
+		cgen_eface(n, &n1);
 		agen(&n1, res);
 		break;
 

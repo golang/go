@@ -737,6 +737,22 @@ ret:
 	;
 }
 
+/*
+ * generate:
+ *	res = iface{typ, data}
+ * n->left is typ
+ * n->right is data
+ */
+void
+cgen_eface(Node *n, Node *res)
+{
+	Node dst;
+	dst = *res;
+	dst.type = types[tptr];
+	cgen(n->left, &dst);
+	dst.xoffset += widthptr;
+	cgen(n->right, &dst);
+}
 
 /*
  * generate:
@@ -744,14 +760,11 @@ ret:
  * n->left is s
  * n->list is (cap(s)-lo(TUINT32), hi-lo(TUINT32)[, lo*width(TUINTPTR)])
  * caller (cgen) guarantees res is an addable ONAME.
- *
  */
 void
 cgen_slice(Node *n, Node *res)
 {
 	Node src, dst, *cap, *len, *offs, *add;
-
-//	print("cgen_slice: %N = %+N\n", res, n);
 
 	cap = n->list->n;
 	len = n->list->next->n;
