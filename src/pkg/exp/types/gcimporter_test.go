@@ -36,15 +36,18 @@ func init() {
 	gcPath = filepath.Join(build.ToolDir, gc)
 }
 
-func compile(t *testing.T, dirname, filename string) {
+func compile(t *testing.T, dirname, filename string) (outFn string) {
 	cmd := exec.Command(gcPath, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Errorf("%s %s failed: %s", gcPath, filename, err)
-		return
+		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
+		return ""
 	}
 	t.Logf("%s", string(out))
+	archCh, _ := build.ArchChar(runtime.GOARCH)
+	// filename should end with ".go"
+	return filepath.Join(dirname, filename[:len(filename)-2]+archCh)
 }
 
 // Use the same global imports map for all tests. The effect is
@@ -99,7 +102,9 @@ func TestGcImport(t *testing.T) {
 		return
 	}
 
-	compile(t, "testdata", "exports.go")
+	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
+		defer os.Remove(outFn)
+	}
 
 	nimports := 0
 	if testPath(t, "./testdata/exports") {
