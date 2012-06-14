@@ -370,7 +370,7 @@ func P384() Curve {
 	return p384
 }
 
-// P256 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
+// P521 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
 func P521() Curve {
 	initonce.Do(initAll)
 	return p521
