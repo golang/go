@@ -7,7 +7,9 @@
 package url
 
 import (
+	"bytes"
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -538,14 +540,24 @@ func (v Values) Encode() string {
 	if v == nil {
 		return ""
 	}
-	parts := make([]string, 0, len(v)) // will be large enough for most uses
-	for k, vs := range v {
+	var buf bytes.Buffer
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		vs := v[k]
 		prefix := QueryEscape(k) + "="
 		for _, v := range vs {
-			parts = append(parts, prefix+QueryEscape(v))
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(prefix)
+			buf.WriteString(QueryEscape(v))
 		}
 	}
-	return strings.Join(parts, "&")
+	return buf.String()
 }
 
 // resolvePath applies special path segments from refs and applies
