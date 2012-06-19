@@ -6,7 +6,12 @@
 
 package test0
 
-import "unsafe"
+import (
+	"unsafe"
+	// we can have multiple blank imports (was bug)
+	_ "math"
+	_ "net/rpc"
+)
 
 const pi = 3.1415
 
