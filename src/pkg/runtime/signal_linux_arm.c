@@ -139,7 +139,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.sa_handler = fn;
-	runtime·rt_sigaction(i, &sa, nil, 8);
+	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+		runtime·throw("rt_sigaction failure");
 }
 
 #define AT_NULL		0
