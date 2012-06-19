@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"strings"
 )
@@ -87,9 +88,13 @@ type readClose struct {
 // Do sends an HTTP request and returns an HTTP response, following
 // policy (e.g. redirects, cookies, auth) as configured on the client.
 //
-// A non-nil response always contains a non-nil resp.Body.
+// An error is returned if caused by client policy (such as
+// CheckRedirect), or if there was an HTTP protocol error.
+// A non-2xx response doesn't cause an error.
 //
-// Callers should close resp.Body when done reading from it. If
+// When err is nil, resp always contains a non-nil resp.Body.
+//
+// Callers should close res.Body when done reading from it. If
 // resp.Body is not closed, the Client's underlying RoundTripper
 // (typically Transport) may not be able to re-use a persistent TCP
 // connection to the server for a subsequent "keep-alive" request.
@@ -102,7 +107,8 @@ func (c *Client) Do(req *Request) (resp *Response, err error) {
 	return send(req, c.Transport)
 }
 
-// send issues an HTTP request.  Caller should close resp.Body when done reading from it.
+// send issues an HTTP request.
+// Caller should close resp.Body when done reading from it.
 func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	if t == nil {
 		t = DefaultTransport
@@ -130,7 +136,14 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	if u := req.URL.User; u != nil {
 		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(u.String())))
 	}
-	return t.RoundTrip(req)
+	resp, err = t.RoundTrip(req)
+	if err != nil {
+		if resp != nil {
+			log.Printf("RoundTripper returned a response & error; ignoring response")
+		}
+		return nil, err
+	}
+	return resp, nil
 }
 
 // True if the specified HTTP status code is one for which the Get utility should
@@ -151,10 +164,15 @@ func shouldRedirect(statusCode int) bool {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //
-// Caller should close r.Body when done reading from it.
+// An error is returned if there were too many redirects or if there
+// was an HTTP protocol error. A non-2xx response doesn't cause an
+// error.
+//
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
 //
 // Get is a wrapper around DefaultClient.Get.
-func Get(url string) (r *Response, err error) {
+func Get(url string) (resp *Response, err error) {
 	return DefaultClient.Get(url)
 }
 
@@ -167,8 +185,13 @@ func Get(url string) (r *Response, err error) {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //
-// Caller should close r.Body when done reading from it.
-func (c *Client) Get(url string) (r *Response, err error) {
+// An error is returned if the Client's CheckRedirect function fails
+// or if there was an HTTP protocol error. A non-2xx response doesn't
+// cause an error.
+//
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
+func (c *Client) Get(url string) (resp *Response, err error) {
 	req, err := NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -176,7 +199,7 @@ func (c *Client) Get(url string) (r *Response, err error) {
 	return c.doFollowingRedirects(req)
 }
 
-func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
+func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	var base *url.URL
@@ -224,17 +247,17 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 			req.AddCookie(cookie)
 		}
 		urlStr = req.URL.String()
-		if r, err = send(req, c.Transport); err != nil {
+		if resp, err = send(req, c.Transport); err != nil {
 			break
 		}
-		if c := r.Cookies(); len(c) > 0 {
+		if c := resp.Cookies(); len(c) > 0 {
 			jar.SetCookies(req.URL, c)
 		}
 
-		if shouldRedirect(r.StatusCode) {
-			r.Body.Close()
-			if urlStr = r.Header.Get("Location"); urlStr == "" {
-				err = errors.New(fmt.Sprintf("%d response missing Location header", r.StatusCode))
+		if shouldRedirect(resp.StatusCode) {
+			resp.Body.Close()
+			if urlStr = resp.Header.Get("Location"); urlStr == "" {
+				err = errors.New(fmt.Sprintf("%d response missing Location header", resp.StatusCode))
 				break
 			}
 			base = req.URL
@@ -244,13 +267,16 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 		return
 	}
 
+	if resp != nil {
+		resp.Body.Close()
+	}
+
 	method := ireq.Method
-	err = &url.Error{
+	return nil, &url.Error{
 		Op:  method[0:1] + strings.ToLower(method[1:]),
 		URL: urlStr,
 		Err: err,
 	}
-	return
 }
 
 func defaultCheckRedirect(req *Request, via []*Request) error {
@@ -262,17 +288,17 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 
 // Post issues a POST to the specified URL.
 //
-// Caller should close r.Body when done reading from it.
+// Caller should close resp.Body when done reading from it.
 //
 // Post is a wrapper around DefaultClient.Post
-func Post(url string, bodyType string, body io.Reader) (r *Response, err error) {
+func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	return DefaultClient.Post(url, bodyType, body)
 }
 
 // Post issues a POST to the specified URL.
 //
-// Caller should close r.Body when done reading from it.
-func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response, err error) {
+// Caller should close resp.Body when done reading from it.
+func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
@@ -283,28 +309,30 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 			req.AddCookie(cookie)
 		}
 	}
-	r, err = send(req, c.Transport)
+	resp, err = send(req, c.Transport)
 	if err == nil && c.Jar != nil {
-		c.Jar.SetCookies(req.URL, r.Cookies())
+		c.Jar.SetCookies(req.URL, resp.Cookies())
 	}
-	return r, err
+	return
 }
 
-// PostForm issues a POST to the specified URL, 
-// with data's keys and values urlencoded as the request body.
+// PostForm issues a POST to the specified URL, with data's keys and
+// values URL-encoded as the request body.
 //
-// Caller should close r.Body when done reading from it.
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
 //
 // PostForm is a wrapper around DefaultClient.PostForm
-func PostForm(url string, data url.Values) (r *Response, err error) {
+func PostForm(url string, data url.Values) (resp *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
 
 // PostForm issues a POST to the specified URL, 
 // with data's keys and values urlencoded as the request body.
 //
-// Caller should close r.Body when done reading from it.
-func (c *Client) PostForm(url string, data url.Values) (r *Response, err error) {
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
+func (c *Client) PostForm(url string, data url.Values) (resp *Response, err error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
@@ -318,7 +346,7 @@ func (c *Client) PostForm(url string, data url.Values) (r *Response, err error) 
 //    307 (Temporary Redirect)
 //
 // Head is a wrapper around DefaultClient.Head
-func Head(url string) (r *Response, err error) {
+func Head(url string) (resp *Response, err error) {
 	return DefaultClient.Head(url)
 }
 
@@ -330,7 +358,7 @@ func Head(url string) (r *Response, err error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
-func (c *Client) Head(url string) (r *Response, err error) {
+func (c *Client) Head(url string) (resp *Response, err error) {
 	req, err := NewRequest("HEAD", url, nil)
 	if err != nil {
 		return nil, err
