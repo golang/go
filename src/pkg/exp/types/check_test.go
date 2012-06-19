@@ -203,7 +203,7 @@ func check(t *testing.T, testname string, testfiles []string) {
 func TestCheck(t *testing.T) {
 	// For easy debugging w/o changing the testing code,
 	// if there is a local test file, only test that file.
-	const testfile = "test.go"
+	const testfile = "testdata/test.go"
 	if fi, err := os.Stat(testfile); err == nil && !fi.IsDir() {
 		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
 		check(t, testfile, []string{testfile})

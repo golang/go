@@ -136,7 +136,7 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 				for _, obj := range pkg.Data.(*Scope).Objects {
 					p.declare(fileScope, pkgScope, obj)
 				}
-			} else {
+			} else if name != "_" {
 				// declare imported package object in file scope
 				// (do not re-use pkg in the file scope but create
 				// a new object instead; the Decl field is different
