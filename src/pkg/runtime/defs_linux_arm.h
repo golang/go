@@ -143,6 +143,6 @@ struct Sigaction {
 	void *sa_handler;
 	uint32 sa_flags;
 	void *sa_restorer;
-	uint32 sa_mask;
+	uint64 sa_mask;
 };
 #pragma pack off
