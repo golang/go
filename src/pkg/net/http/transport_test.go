@@ -833,6 +833,30 @@ func TestIssue3644(t *testing.T) {
 	}
 }
 
+// Test that a client receives a server's reply, even if the server doesn't read
+// the entire request body.
+func TestIssue3595(t *testing.T) {
+	const deniedMsg = "sorry, denied."
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		Error(w, deniedMsg, StatusUnauthorized)
+	}))
+	defer ts.Close()
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+	res, err := c.Post(ts.URL, "application/octet-stream", neverEnding('a'))
+	if err != nil {
+		t.Errorf("Post: %v", err)
+		return
+	}
+	got, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("Body ReadAll: %v", err)
+	}
+	if !strings.Contains(string(got), deniedMsg) {
+		t.Errorf("Known bug: response %q does not contain %q", got, deniedMsg)
+	}
+}
+
 type fooProto struct{}
 
 func (fooProto) RoundTrip(req *Request) (*Response, error) {

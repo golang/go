@@ -323,6 +323,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 		cacheKey: cm.String(),
 		conn:     conn,
 		reqch:    make(chan requestAndChan, 50),
+		writech:  make(chan writeRequest, 50),
 	}
 
 	switch {
@@ -380,6 +381,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 	pconn.br = bufio.NewReader(pconn.conn)
 	pconn.bw = bufio.NewWriter(pconn.conn)
 	go pconn.readLoop()
+	go pconn.writeLoop()
 	return pconn, nil
 }
 
@@ -487,7 +489,8 @@ type persistConn struct {
 	closed   bool                // whether conn has been closed
 	br       *bufio.Reader       // from conn
 	bw       *bufio.Writer       // to conn
-	reqch    chan requestAndChan // written by roundTrip(); read by readLoop()
+	reqch    chan requestAndChan // written by roundTrip; read by readLoop
+	writech  chan writeRequest   // written by roundTrip; read by writeLoop
 	isProxy  bool
 
 	// mutateHeaderFunc is an optional func to modify extra
@@ -519,6 +522,7 @@ func remoteSideClosed(err error) bool {
 }
 
 func (pc *persistConn) readLoop() {
+	defer close(pc.writech)
 	alive := true
 	var lastbody io.ReadCloser // last response body, if any, read on this connection
 
@@ -579,7 +583,7 @@ func (pc *persistConn) readLoop() {
 				if alive && !pc.t.putIdleConn(pc) {
 					alive = false
 				}
-				if !alive {
+				if !alive || pc.isBroken() {
 					pc.close()
 				}
 				waitForBodyRead <- true
@@ -615,6 +619,23 @@ func (pc *persistConn) readLoop() {
 	}
 }
 
+func (pc *persistConn) writeLoop() {
+	for wr := range pc.writech {
+		if pc.isBroken() {
+			wr.ch <- errors.New("http: can't write HTTP request on broken connection")
+			continue
+		}
+		err := wr.req.Request.write(pc.bw, pc.isProxy, wr.req.extra)
+		if err == nil {
+			err = pc.bw.Flush()
+		}
+		if err != nil {
+			pc.markBroken()
+		}
+		wr.ch <- err
+	}
+}
+
 type responseAndError struct {
 	res *Response
 	err error
@@ -628,6 +649,15 @@ type requestAndChan struct {
 	// Accept-Encoding gzip header? only if it we set it do
 	// we transparently decode the gzip.
 	addedGzip bool
+}
+
+// A writeRequest is sent by the readLoop's goroutine to the
+// writeLoop's goroutine to write a request while the read loop
+// concurrently waits on both the write response and the server's
+// reply.
+type writeRequest struct {
+	req *transportRequest
+	ch  chan<- error
 }
 
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
@@ -652,21 +682,43 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	pc.numExpectedResponses++
 	pc.lk.Unlock()
 
-	err = req.Request.write(pc.bw, pc.isProxy, req.extra)
-	if err != nil {
-		pc.close()
-		return
-	}
-	pc.bw.Flush()
+	// Write the request concurrently with waiting for a response,
+	// in case the server decides to reply before reading our full
+	// request body.
+	writeErrCh := make(chan error, 1)
+	pc.writech <- writeRequest{req, writeErrCh}
 
-	ch := make(chan responseAndError, 1)
-	pc.reqch <- requestAndChan{req.Request, ch, requestedGzip}
-	re := <-ch
+	resc := make(chan responseAndError, 1)
+	pc.reqch <- requestAndChan{req.Request, resc, requestedGzip}
+
+	var re responseAndError
+WaitResponse:
+	for {
+		select {
+		case err := <-writeErrCh:
+			if err != nil {
+				re = responseAndError{nil, err}
+				break WaitResponse
+			}
+		case re = <-resc:
+			break WaitResponse
+		}
+	}
+
 	pc.lk.Lock()
 	pc.numExpectedResponses--
 	pc.lk.Unlock()
 
 	return re.res, re.err
+}
+
+// markBroken marks a connection as broken (so it's not reused).
+// It differs from close in that it doesn't close the underlying
+// connection for use when it's still being read.
+func (pc *persistConn) markBroken() {
+	pc.lk.Lock()
+	defer pc.lk.Unlock()
+	pc.broken = true
 }
 
 func (pc *persistConn) close() {
