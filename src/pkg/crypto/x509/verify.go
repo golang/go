@@ -27,6 +27,9 @@ const (
 	// TooManyIntermediates results when a path length constraint is
 	// violated.
 	TooManyIntermediates
+	// IncompatibleUsage results when the certificate's key usage indicates
+	// that it may only be used for a different purpose.
+	IncompatibleUsage
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -46,6 +49,8 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: a root or intermediate certificate is not authorized to sign in this domain"
 	case TooManyIntermediates:
 		return "x509: too many intermediates for path length constraint"
+	case IncompatibleUsage:
+		return "x509: certificate specifies an incompatible key usage"
 	}
 	return "x509: unknown error"
 }
@@ -84,6 +89,11 @@ type VerifyOptions struct {
 	Intermediates *CertPool
 	Roots         *CertPool // if nil, the system roots are used
 	CurrentTime   time.Time // if zero, the current time is used
+	// KeyUsage specifies which Extended Key Usage values are acceptable.
+	// An empty list means ExtKeyUsageServerAuth. Key usage is considered a
+	// constraint down the chain which mirrors Windows CryptoAPI behaviour,
+	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+	KeyUsages []ExtKeyUsage
 }
 
 const (
@@ -174,7 +184,35 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	return c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
+	candidateChains, err := c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
+	if err != nil {
+		return
+	}
+
+	keyUsages := opts.KeyUsages
+	if len(keyUsages) == 0 {
+		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	// If any key usage is acceptable then we're done.
+	for _, usage := range keyUsages {
+		if usage == ExtKeyUsageAny {
+			chains = candidateChains
+			return
+		}
+	}
+
+	for _, candidate := range candidateChains {
+		if checkChainForKeyUsage(candidate, keyUsages) {
+			chains = append(chains, candidate)
+		}
+	}
+
+	if len(chains) == 0 {
+		err = CertificateInvalidError{c, IncompatibleUsage}
+	}
+
+	return
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -299,4 +337,57 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	return HostnameError{c, h}
+}
+
+func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
+	usages := make([]ExtKeyUsage, len(keyUsages))
+	copy(usages, keyUsages)
+
+	if len(chain) == 0 {
+		return false
+	}
+
+	usagesRemaining := len(usages)
+
+	// We walk down the list and cross out any usages that aren't supported
+	// by each certificate. If we cross out all the usages, then the chain
+	// is unacceptable.
+
+	for i := len(chain) - 1; i >= 0; i-- {
+		cert := chain[i]
+		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
+			// The certificate doesn't have any extended key usage specified.
+			continue
+		}
+
+		for _, usage := range cert.ExtKeyUsage {
+			if usage == ExtKeyUsageAny {
+				// The certificate is explicitly good for any usage.
+				continue
+			}
+		}
+
+		const invalidUsage ExtKeyUsage = -1
+
+	NextRequestedUsage:
+		for i, requestedUsage := range usages {
+			if requestedUsage == invalidUsage {
+				continue
+			}
+
+			for _, usage := range cert.ExtKeyUsage {
+				if requestedUsage == usage {
+					continue NextRequestedUsage
+				}
+			}
+
+			usages[i] = invalidUsage
+			usagesRemaining--
+			if usagesRemaining == 0 {
+				return false
+			}
+		}
+	}
+
+	return true
 }
