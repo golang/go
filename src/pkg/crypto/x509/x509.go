@@ -350,6 +350,9 @@ var (
 	oidExtKeyUsageClientAuth      = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 2}
 	oidExtKeyUsageCodeSigning     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 3}
 	oidExtKeyUsageEmailProtection = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 4}
+	oidExtKeyUsageIPSECEndSystem  = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 5}
+	oidExtKeyUsageIPSECTunnel     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 6}
+	oidExtKeyUsageIPSECUser       = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 7}
 	oidExtKeyUsageTimeStamping    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
 	oidExtKeyUsageOCSPSigning     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 9}
 )
@@ -364,6 +367,9 @@ const (
 	ExtKeyUsageClientAuth
 	ExtKeyUsageCodeSigning
 	ExtKeyUsageEmailProtection
+	ExtKeyUsageIPSECEndSystem
+	ExtKeyUsageIPSECTunnel
+	ExtKeyUsageIPSECUser
 	ExtKeyUsageTimeStamping
 	ExtKeyUsageOCSPSigning
 )
@@ -806,6 +812,12 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageCodeSigning)
 					case u.Equal(oidExtKeyUsageEmailProtection):
 						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageEmailProtection)
+					case u.Equal(oidExtKeyUsageIPSECEndSystem):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECEndSystem)
+					case u.Equal(oidExtKeyUsageIPSECTunnel):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECTunnel)
+					case u.Equal(oidExtKeyUsageIPSECUser):
+						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECUser)
 					case u.Equal(oidExtKeyUsageTimeStamping):
 						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageTimeStamping)
 					case u.Equal(oidExtKeyUsageOCSPSigning):
