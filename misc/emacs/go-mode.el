@@ -819,8 +819,9 @@ Replace the current buffer on success; display errors on failure."
   (require 'diff-mode)
   ;; apply all the patch hunks
   (with-current-buffer patchbuf
-    (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- " filename)
-                      nil (point-min) (point-max))
+    (goto-char (point-min))
+    (if (re-search-forward "^--- \\(/tmp/gofmt[0-9]*\\)" nil t)
+      (replace-match filename nil nil nil 1))
     (condition-case nil
         (while t
           (diff-hunk-next)
@@ -831,9 +832,10 @@ Replace the current buffer on success; display errors on failure."
 (defun gofmt-process-errors (filename errbuf)
   ;; Convert the gofmt stderr to something understood by the compilation mode.
   (with-current-buffer errbuf
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (insert "gofmt errors:\n")
-    (replace-string gofmt-stdin-tag (file-name-nondirectory filename) nil (point-min) (point-max))
+    (if (search-forward gofmt-stdin-tag nil t)
+      (replace-match (file-name-nondirectory filename) nil t))
     (display-buffer errbuf)
     (compilation-mode)))
 
