@@ -55,7 +55,7 @@ import (
 // nil pointer or interface value, and any array, slice, map, or string of
 // length zero. The object's default key string is the struct field name
 // but can be specified in the struct field's tag value. The "json" key in
-// struct field's tag value is the key name, followed by an optional comma
+// the struct field's tag value is the key name, followed by an optional comma
 // and options. Examples:
 //
 //   // Field is ignored by this package.
