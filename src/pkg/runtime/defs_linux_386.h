@@ -132,7 +132,7 @@ struct Sigaction {
 	void	*k_sa_handler;
 	uint32	sa_flags;
 	void	*sa_restorer;
-	uint32	sa_mask;
+	uint64	sa_mask;
 };
 struct Siginfo {
 	int32	si_signo;
