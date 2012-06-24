@@ -416,8 +416,12 @@ hash_insert_internal (MapType *t, struct hash_subtable **pst, int32 flags, hash_
 					*pres = ins_e->data;
 					return (1);
 				}
-				assert (e_hash != hash || (flags & HASH_REHASH) == 0);
-				hash += (e_hash == hash);	   /* adjust hash if it collides */
+				if (e_hash == hash) {	   /* adjust hash if it collides */
+					assert ((flags & HASH_REHASH) == 0);
+					hash++;
+					if ((hash & HASH_MASK) == HASH_SUBHASH)
+						runtime·throw("runtime: map hash collision overflow");
+				}
 				ins_e = HASH_OFFSET (ins_e, elemsize);
 				ins_i++;
 				if (e_hash <= hash) {	       /* set e to insertion point */
