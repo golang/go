@@ -23,19 +23,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// TE or TS are spilled to the stack during bulk register moves.
 TS = 0
-TE = 1
-FROM = 2
-N = 3
-TMP = 3					/* N and TMP don't overlap */
-TMP1 = 4
+TE = 8
 
-// TODO(kaib): This can be done with the existing registers of LR is re-used. Same for memset.
-TEXT runtime·memmove(SB), 7, $8
-	// save g and m
-	MOVW	R9, 4(R13)
-	MOVW	R10, 8(R13)
+// Warning: the linker will use R11 to synthesize certain instructions. Please
+// take care and double check with objdump.
+FROM = 11
+N = 12
+TMP = 12				/* N and TMP don't overlap */
+TMP1 = 5
 
+RSHIFT = 5
+LSHIFT = 6
+OFFSET = 7
+
+BR0 = 0					/* shared with TS */
+BW0 = 1
+BR1 = 1
+BW1 = 2
+BR2 = 2
+BW2 = 3
+BR3 = 3
+BW3 = 4
+
+FW0 = 1
+FR0 = 2
+FW1 = 2
+FR1 = 3
+FW2 = 3
+FR2 = 4
+FW3 = 4
+FR3 = 8					/* shared with TE */
+
+TEXT runtime·memmove(SB), 7, $4
 _memmove:
 	MOVW	to+0(FP), R(TS)
 	MOVW	from+4(FP), R(FROM)
@@ -64,15 +85,17 @@ _b4aligned:				/* is source now aligned? */
 	BNE	_bunaligned
 
 	ADD	$31, R(TS), R(TMP)	/* do 32-byte chunks if possible */
+	MOVW	R(TS), savedts+4(SP)
 _b32loop:
 	CMP	R(TMP), R(TE)
 	BLS	_b4tail
 
-	MOVM.DB.W (R(FROM)), [R4-R11]
-	MOVM.DB.W [R4-R11], (R(TE))
+	MOVM.DB.W (R(FROM)), [R0-R7]
+	MOVM.DB.W [R0-R7], (R(TE))
 	B	_b32loop
 
 _b4tail:				/* do remaining words if possible */
+	MOVW	savedts+4(SP), R(TS)
 	ADD	$3, R(TS), R(TMP)
 _b4loop:
 	CMP	R(TMP), R(TE)
@@ -107,22 +130,24 @@ _f4aligned:				/* is source now aligned? */
 	BNE	_funaligned
 
 	SUB	$31, R(TE), R(TMP)	/* do 32-byte chunks if possible */
+	MOVW	R(TE), savedte+4(SP)
 _f32loop:
 	CMP	R(TMP), R(TS)
 	BHS	_f4tail
 
-	MOVM.IA.W (R(FROM)), [R4-R11] 
-	MOVM.IA.W [R4-R11], (R(TS))
+	MOVM.IA.W (R(FROM)), [R1-R8] 
+	MOVM.IA.W [R1-R8], (R(TS))
 	B	_f32loop
 
 _f4tail:
+	MOVW	savedte+4(SP), R(TE)
 	SUB	$3, R(TE), R(TMP)	/* do remaining words if possible */
 _f4loop:
 	CMP	R(TMP), R(TS)
 	BHS	_f1tail
 
 	MOVW.P	4(R(FROM)), R(TMP1)	/* implicit write back */
-	MOVW.P	R4, 4(R(TS))		/* implicit write back */
+	MOVW.P	R(TMP1), 4(R(TS))	/* implicit write back */
 	B	_f4loop
 
 _f1tail:
@@ -134,24 +159,8 @@ _f1tail:
 	B	_f1tail
 
 _return:
-	// restore g and m
-	MOVW	4(R13), R9
-	MOVW	8(R13), R10
 	MOVW	to+0(FP), R0
 	RET
-
-RSHIFT = 4
-LSHIFT = 5
-OFFSET = 6
-
-BR0 = 7
-BW0 = 8
-BR1 = 8
-BW1 = 9
-BR2 = 9
-BW2 = 10
-BR3 = 10
-BW3 = 11
 
 _bunaligned:
 	CMP	$2, R(TMP)		/* is R(TMP) < 2 ? */
@@ -172,7 +181,8 @@ _bunaligned:
 	CMP	R(TMP), R(TE)
 	BLS	_b1tail
 
-	AND	$~0x03, R(FROM)		/* align source */
+	BIC	$3, R(FROM)		/* align source */
+	MOVW	R(TS), savedts+4(SP)
 	MOVW	(R(FROM)), R(BR0)	/* prime first block register */
 
 _bu16loop:
@@ -196,17 +206,9 @@ _bu16loop:
 	B	_bu16loop
 
 _bu1tail:
+	MOVW	savedts+4(SP), R(TS)
 	ADD	R(OFFSET), R(FROM)
 	B	_b1tail
-
-FW0 = 7
-FR0 = 8
-FW1 = 8
-FR1 = 9
-FW2 = 9
-FR2 = 10
-FW3 = 10
-FR3 = 11
 
 _funaligned:
 	CMP	$2, R(TMP)
@@ -227,7 +229,8 @@ _funaligned:
 	CMP	R(TMP), R(TS)
 	BHS	_f1tail
 
-	AND	$~0x03, R(FROM)		/* align source */
+	BIC	$3, R(FROM)		/* align source */
+	MOVW	R(TE), savedte+4(SP)
 	MOVW.P	4(R(FROM)), R(FR3)	/* prime last block register, implicit write back */
 
 _fu16loop:
@@ -235,7 +238,7 @@ _fu16loop:
 	BHS	_fu1tail
 
 	MOVW	R(FR3)>>R(RSHIFT), R(FW0)
-	MOVM.IA.W (R(FROM)), [R(FR0)-R(FR3)]
+	MOVM.IA.W (R(FROM)), [R(FR0),R(FR1),R(FR2),R(FR3)]
 	ORR	R(FR0)<<R(LSHIFT), R(FW0)
 
 	MOVW	R(FR0)>>R(RSHIFT), R(FW1)
@@ -247,9 +250,10 @@ _fu16loop:
 	MOVW	R(FR2)>>R(RSHIFT), R(FW3)
 	ORR	R(FR3)<<R(LSHIFT), R(FW3)
 
-	MOVM.IA.W [R(FW0)-R(FW3)], (R(TS))
+	MOVM.IA.W [R(FW0),R(FW1),R(FW2),R(FW3)], (R(TS))
 	B	_fu16loop
 
 _fu1tail:
+	MOVW	savedte+4(SP), R(TE)
 	SUB	R(OFFSET), R(FROM)
 	B	_f1tail
