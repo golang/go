@@ -231,8 +231,8 @@ func TestRedirects(t *testing.T) {
 
 	checkErr = errors.New("no redirects allowed")
 	res, err = c.Get(ts.URL)
-	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
-		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
+	if urlError, ok := err.(*url.Error); !ok || urlError.Err != checkErr {
+		t.Errorf("with redirects forbidden, expected a *url.Error with our 'no redirects allowed' error inside; got %#v (%q)", err, err)
 	}
 }
 
