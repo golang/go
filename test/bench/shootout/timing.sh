@@ -126,7 +126,7 @@ regexdna() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 100000 > x
 	runonly echo 'regex-dna 100000'
-	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
+	runonly 'gcc -O2 regex-dna.c -lpcre' a.out <x
 	run 'gccgo -O2 regex-dna.go' a.out <x
 	run 'gccgo -O2 regex-dna-parallel.go' a.out <x
 	run 'gc regex-dna' $O.out <x
@@ -147,7 +147,9 @@ knucleotide() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 1000000 > x  # should be using 25000000
 	runonly echo 'k-nucleotide 1000000'
-	run "gcc -O2 k-nucleotide.c $(pkg-config glib-2.0 --cflags --libs)" a.out <x
+	if [ $mode = run ]; then
+		run "gcc -O2 k-nucleotide.c $(pkg-config glib-2.0 --cflags --libs)" a.out <x
+	fi
 	run 'gccgo -O2 k-nucleotide.go' a.out <x
 	run 'gccgo -O2 k-nucleotide-parallel.go' a.out <x
 	run 'gc k-nucleotide' $O.out <x
@@ -174,7 +176,7 @@ meteor() {
 
 pidigits() {
 	runonly echo 'pidigits 10000'
-	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+	runonly 'gcc -O2 pidigits.c -lgmp' a.out 10000
 	run 'gccgo -O2 pidigits.go' a.out -n 10000
 	run 'gc pidigits' $O.out -n 10000
 	run 'gc_B  pidigits' $O.out -n 10000
