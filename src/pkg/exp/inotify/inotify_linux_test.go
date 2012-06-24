@@ -9,6 +9,7 @@ package inotify
 import (
 	"io/ioutil"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -43,13 +44,13 @@ func TestInotifyEvents(t *testing.T) {
 
 	// Receive events on the event channel on a separate goroutine
 	eventstream := watcher.Event
-	var eventsReceived = 0
+	var eventsReceived int32 = 0
 	done := make(chan bool)
 	go func() {
 		for event := range eventstream {
 			// Only count relevant events
 			if event.Name == testFile {
-				eventsReceived++
+				atomic.AddInt32(&eventsReceived, 1)
 				t.Logf("event received: %s", event)
 			} else {
 				t.Logf("unexpected event received: %s", event)
@@ -67,7 +68,7 @@ func TestInotifyEvents(t *testing.T) {
 
 	// We expect this event to be received almost immediately, but let's wait 1 s to be sure
 	time.Sleep(1 * time.Second)
-	if eventsReceived == 0 {
+	if atomic.AddInt32(&eventsReceived, 0) == 0 {
 		t.Fatal("inotify event hasn't been received after 1 second")
 	}
 
