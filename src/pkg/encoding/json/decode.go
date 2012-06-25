@@ -265,47 +265,32 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
 		v = v.Addr()
 	}
 	for {
-		var isUnmarshaler bool
-		if v.Type().NumMethod() > 0 {
-			// Remember that this is an unmarshaler,
-			// but wait to return it until after allocating
-			// the pointer (if necessary).
-			_, isUnmarshaler = v.Interface().(Unmarshaler)
-		}
-
 		// Load value from interface, but only if the result will be
 		// usefully addressable.
-		if iv := v; iv.Kind() == reflect.Interface && !iv.IsNil() {
-			e := iv.Elem()
+		if v.Kind() == reflect.Interface && !v.IsNil() {
+			e := v.Elem()
 			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
 				v = e
 				continue
 			}
 		}
 
-		pv := v
-		if pv.Kind() != reflect.Ptr {
+		if v.Kind() != reflect.Ptr {
 			break
 		}
 
-		if pv.Elem().Kind() != reflect.Ptr && decodingNull && pv.CanSet() {
-			return nil, pv
+		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
+			break
 		}
-		if pv.IsNil() {
-			pv.Set(reflect.New(pv.Type().Elem()))
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
 		}
-		if isUnmarshaler {
-			// Using v.Interface().(Unmarshaler)
-			// here means that we have to use a pointer
-			// as the struct field.  We cannot use a value inside
-			// a pointer to a struct, because in that case
-			// v.Interface() is the value (x.f) not the pointer (&x.f).
-			// This is an unfortunate consequence of reflect.
-			// An alternative would be to look up the
-			// UnmarshalJSON method and return a FuncValue.
-			return v.Interface().(Unmarshaler), reflect.Value{}
+		if v.Type().NumMethod() > 0 {
+			if unmarshaler, ok := v.Interface().(Unmarshaler); ok {
+				return unmarshaler, reflect.Value{}
+			}
 		}
-		v = pv.Elem()
+		v = v.Elem()
 	}
 	return nil, v
 }
