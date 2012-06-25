@@ -345,13 +345,6 @@ TEXT	runtime·cgocallback(SB),7,$16
 	// Done!
 	RET
 
-TEXT runtime·memclr(SB),7,$0
-	MOVW	0(FP), R0
-	MOVW	$0, R1
-	MOVW	R1, 0(FP)
-	BL	runtime·memset(SB)
-	RET
-
 TEXT runtime·getcallerpc(SB),7,$-4
 	MOVW	0(SP), R0
 	RET

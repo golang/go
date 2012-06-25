@@ -28,10 +28,10 @@ TOE = 11
 N = 12
 TMP = 12				/* N and TMP don't overlap */
 
-TEXT runtime·memset(SB), $0
-	MOVW	R0, R(TO)
-	MOVW	data+4(FP), R(0)
-	MOVW	n+8(FP), R(N)
+TEXT runtime·memclr(SB),7,$0
+	MOVW	ptr+0(FP), R(TO)
+	MOVW	n+4(FP), R(N)
+	MOVW	$0, R(0)
 
 	ADD	R(N), R(TO), R(TOE)	/* to end pointer */
 
