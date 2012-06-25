@@ -237,24 +237,30 @@ func goLookupIP(name string) (addrs []IP, err error) {
 	}
 	var records []dnsRR
 	var cname string
-	cname, records, err = lookup(name, dnsTypeA)
-	if err != nil {
-		return
-	}
+	var err4, err6 error
+	cname, records, err4 = lookup(name, dnsTypeA)
 	addrs = convertRR_A(records)
 	if cname != "" {
 		name = cname
 	}
-	_, records, err = lookup(name, dnsTypeAAAA)
-	if err != nil && len(addrs) > 0 {
-		// Ignore error because A lookup succeeded.
-		err = nil
+	_, records, err6 = lookup(name, dnsTypeAAAA)
+	if err4 != nil && err6 == nil {
+		// Ignore A error because AAAA lookup succeeded.
+		err4 = nil
 	}
-	if err != nil {
-		return
+	if err6 != nil && len(addrs) > 0 {
+		// Ignore AAAA error because A lookup succeeded.
+		err6 = nil
 	}
+	if err4 != nil {
+		return nil, err4
+	}
+	if err6 != nil {
+		return nil, err6
+	}
+
 	addrs = append(addrs, convertRR_AAAA(records)...)
-	return
+	return addrs, nil
 }
 
 // goLookupCNAME is the native Go implementation of LookupCNAME.
