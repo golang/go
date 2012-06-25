@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -47,6 +48,7 @@ type watch struct {
 }
 
 type Watcher struct {
+	mu       sync.Mutex
 	fd       int               // File descriptor (as returned by the inotify_init() syscall)
 	watches  map[string]*watch // Map of inotify watches (key: path)
 	paths    map[int]string    // Map of watched paths (key: watch descriptor)
@@ -105,8 +107,12 @@ func (w *Watcher) AddWatch(path string, flags uint32) error {
 		watchEntry.flags |= flags
 		flags |= syscall.IN_MASK_ADD
 	}
+
+	w.mu.Lock() // synchronize with readEvents goroutine
+
 	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
 	if err != nil {
+		w.mu.Unlock()
 		return &os.PathError{
 			Op:   "inotify_add_watch",
 			Path: path,
@@ -118,6 +124,7 @@ func (w *Watcher) AddWatch(path string, flags uint32) error {
 		w.watches[path] = &watch{wd: uint32(wd), flags: flags}
 		w.paths[wd] = path
 	}
+	w.mu.Unlock()
 	return nil
 }
 
@@ -187,7 +194,9 @@ func (w *Watcher) readEvents() {
 			// doesn't append the filename to the event, but we would like to always fill the
 			// the "Name" field with a valid filename. We retrieve the path of the watch from
 			// the "paths" map.
+			w.mu.Lock()
 			event.Name = w.paths[int(raw.Wd)]
+			w.mu.Unlock()
 			if nameLen > 0 {
 				// Point "bytes" at the first byte of the filename
 				bytes := (*[syscall.PathMax]byte)(unsafe.Pointer(&buf[offset+syscall.SizeofInotifyEvent]))
