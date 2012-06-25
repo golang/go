@@ -36,7 +36,7 @@ import (
 //
 // Boolean values encode as JSON booleans.
 //
-// Floating point and integer values encode as JSON numbers.
+// Floating point, integer, and Number values encode as JSON numbers.
 //
 // String values encode as JSON strings, with each invalid UTF-8 sequence
 // replaced by the encoding of the Unicode replacement character U+FFFD.
@@ -312,6 +312,14 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 			e.Write(b)
 		}
 	case reflect.String:
+		if v.Type() == numberType {
+			numStr := v.String()
+			if numStr == "" {
+				numStr = "0" // Number's zero-val
+			}
+			e.WriteString(numStr)
+			break
+		}
 		if quoted {
 			sb, err := Marshal(v.String())
 			if err != nil {

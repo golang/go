@@ -22,6 +22,28 @@ type U struct {
 	Alphabet string `json:"alpha"`
 }
 
+type V struct {
+	F1 interface{}
+	F2 int32
+	F3 Number
+}
+
+// ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshalling with and
+// without UseNumber
+var ifaceNumAsFloat64 = map[string]interface{}{
+	"k1": float64(1),
+	"k2": "s",
+	"k3": []interface{}{float64(1), float64(2.0), float64(3e-3)},
+	"k4": map[string]interface{}{"kk1": "s", "kk2": float64(2)},
+}
+
+var ifaceNumAsNumber = map[string]interface{}{
+	"k1": Number("1"),
+	"k2": "s",
+	"k3": []interface{}{Number("1"), Number("2.0"), Number("3e-3")},
+	"k4": map[string]interface{}{"kk1": "s", "kk2": Number("2")},
+}
+
 type tx struct {
 	x int
 }
@@ -53,10 +75,11 @@ var (
 )
 
 type unmarshalTest struct {
-	in  string
-	ptr interface{}
-	out interface{}
-	err error
+	in        string
+	ptr       interface{}
+	out       interface{}
+	err       error
+	useNumber bool
 }
 
 var unmarshalTests = []unmarshalTest{
@@ -65,6 +88,10 @@ var unmarshalTests = []unmarshalTest{
 	{in: `1`, ptr: new(int), out: 1},
 	{in: `1.2`, ptr: new(float64), out: 1.2},
 	{in: `-5`, ptr: new(int16), out: int16(-5)},
+	{in: `2`, ptr: new(Number), out: Number("2"), useNumber: true},
+	{in: `2`, ptr: new(Number), out: Number("2")},
+	{in: `2`, ptr: new(interface{}), out: float64(2.0)},
+	{in: `2`, ptr: new(interface{}), out: Number("2"), useNumber: true},
 	{in: `"a\u1234"`, ptr: new(string), out: "a\u1234"},
 	{in: `"http:\/\/"`, ptr: new(string), out: "http://"},
 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
@@ -72,6 +99,10 @@ var unmarshalTests = []unmarshalTest{
 	{in: "null", ptr: new(interface{}), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf("")}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}, err: &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
+	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
+	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
+	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsNumber, useNumber: true},
 
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
@@ -83,6 +114,7 @@ var unmarshalTests = []unmarshalTest{
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
+	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
 
 	// array tests
 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
@@ -143,6 +175,18 @@ func TestMarshalBadUTF8(t *testing.T) {
 	}
 }
 
+func TestMarshalNumberZeroVal(t *testing.T) {
+	var n Number
+	out, err := Marshal(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outStr := string(out)
+	if outStr != "0" {
+		t.Fatalf("Invalid zero val for Number: %q", outStr)
+	}
+}
+
 func TestUnmarshal(t *testing.T) {
 	for i, tt := range unmarshalTests {
 		var scan scanner
@@ -158,7 +202,11 @@ func TestUnmarshal(t *testing.T) {
 		}
 		// v = new(right-type)
 		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
-		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
+		dec := NewDecoder(bytes.NewBuffer(in))
+		if tt.useNumber {
+			dec.UseNumber()
+		}
+		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue
 		}
@@ -179,7 +227,11 @@ func TestUnmarshal(t *testing.T) {
 				continue
 			}
 			vv := reflect.New(reflect.TypeOf(tt.ptr).Elem())
-			if err := Unmarshal(enc, vv.Interface()); err != nil {
+			dec = NewDecoder(bytes.NewBuffer(enc))
+			if tt.useNumber {
+				dec.UseNumber()
+			}
+			if err := dec.Decode(vv.Interface()); err != nil {
 				t.Errorf("#%d: error re-unmarshaling: %v", i, err)
 				continue
 			}
@@ -205,6 +257,38 @@ func TestUnmarshalMarshal(t *testing.T) {
 		t.Errorf("Marshal jsonBig")
 		diff(t, b, jsonBig)
 		return
+	}
+}
+
+var numberTests = []struct {
+	in       string
+	i        int64
+	intErr   string
+	f        float64
+	floatErr string
+}{
+	{in: "-1.23e1", intErr: "strconv.ParseInt: parsing \"-1.23e1\": invalid syntax", f: -1.23e1},
+	{in: "-12", i: -12, f: -12.0},
+	{in: "1e1000", intErr: "strconv.ParseInt: parsing \"1e1000\": invalid syntax", floatErr: "strconv.ParseFloat: parsing \"1e1000\": value out of range"},
+}
+
+// Independent of Decode, basic coverage of the accessors in Number
+func TestNumberAccessors(t *testing.T) {
+	for _, tt := range numberTests {
+		n := Number(tt.in)
+		if s := n.String(); s != tt.in {
+			t.Errorf("Number(%q).String() is %q", tt.in, s)
+		}
+		if i, err := n.Int64(); err == nil && tt.intErr == "" && i != tt.i {
+			t.Errorf("Number(%q).Int64() is %d", tt.in, i)
+		} else if (err == nil && tt.intErr != "") || (err != nil && err.Error() != tt.intErr) {
+			t.Errorf("Number(%q).Int64() wanted error %q but got: %v", tt.in, tt.intErr, err)
+		}
+		if f, err := n.Float64(); err == nil && tt.floatErr == "" && f != tt.f {
+			t.Errorf("Number(%q).Float64() is %g", tt.in, f)
+		} else if (err == nil && tt.floatErr != "") || (err != nil && err.Error() != tt.floatErr) {
+			t.Errorf("Number(%q).Float64() wanted error %q but got: %v", tt.in, tt.floatErr, err)
+		}
 	}
 }
 
