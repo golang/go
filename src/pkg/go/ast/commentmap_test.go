@@ -108,7 +108,7 @@ func TestCommentMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmap := NewCommentMap(fset, f)
+	cmap := NewCommentMap(fset, f, f.Comments)
 
 	// very correct association of comments
 	for n, list := range cmap {

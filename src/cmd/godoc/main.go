@@ -425,7 +425,7 @@ func main() {
 		filter := func(s string) bool { return rx.MatchString(s) }
 		switch {
 		case info.PAst != nil:
-			cmap := ast.NewCommentMap(info.FSet, info.PAst)
+			cmap := ast.NewCommentMap(info.FSet, info.PAst, info.PAst.Comments)
 			ast.FilterFile(info.PAst, filter)
 			// Special case: Don't use templates for printing
 			// so we only get the filtered declarations without
