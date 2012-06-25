@@ -55,22 +55,54 @@ func (h Header) Write(w io.Writer) error {
 
 var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
 
+type writeStringer interface {
+	WriteString(string) (int, error)
+}
+
+// stringWriter implements WriteString on a Writer.
+type stringWriter struct {
+	w io.Writer
+}
+
+func (w stringWriter) WriteString(s string) (n int, err error) {
+	return w.w.Write([]byte(s))
+}
+
+type keyValues struct {
+	key    string
+	values []string
+}
+
+type byKey []keyValues
+
+func (s byKey) Len() int           { return len(s) }
+func (s byKey) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s byKey) Less(i, j int) bool { return s[i].key < s[j].key }
+
+func (h Header) sortedKeyValues(exclude map[string]bool) []keyValues {
+	kvs := make([]keyValues, 0, len(h))
+	for k, vv := range h {
+		if !exclude[k] {
+			kvs = append(kvs, keyValues{k, vv})
+		}
+	}
+	sort.Sort(byKey(kvs))
+	return kvs
+}
+
 // WriteSubset writes a header in wire format.
 // If exclude is not nil, keys where exclude[key] == true are not written.
 func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
-	keys := make([]string, 0, len(h))
-	for k := range h {
-		if !exclude[k] {
-			keys = append(keys, k)
-		}
+	ws, ok := w.(writeStringer)
+	if !ok {
+		ws = stringWriter{w}
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		for _, v := range h[k] {
+	for _, kv := range h.sortedKeyValues(exclude) {
+		for _, v := range kv.values {
 			v = headerNewlineToSpace.Replace(v)
-			v = strings.TrimSpace(v)
-			for _, s := range []string{k, ": ", v, "\r\n"} {
-				if _, err := io.WriteString(w, s); err != nil {
+			v = textproto.TrimString(v)
+			for _, s := range []string{kv.key, ": ", v, "\r\n"} {
+				if _, err := ws.WriteString(s); err != nil {
 					return err
 				}
 			}
