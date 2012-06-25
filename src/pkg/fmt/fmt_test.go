@@ -851,3 +851,15 @@ func TestIsSpace(t *testing.T) {
 		}
 	}
 }
+
+func TestNilDoesNotBecomeTyped(t *testing.T) {
+	type A struct{}
+	type B struct{}
+	var a *A = nil
+	var b B = B{}
+	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil)
+	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
+	if got != expect {
+		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
+	}
+}
