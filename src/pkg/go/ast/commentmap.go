@@ -5,6 +5,8 @@
 package ast
 
 import (
+	"bytes"
+	"fmt"
 	"go/token"
 	"sort"
 )
@@ -123,8 +125,7 @@ func (s *nodeStack) pop(pos token.Pos) (top Node) {
 }
 
 // NewCommentMap creates a new comment map by associating comment groups
-// to nodes. The nodes are the nodes of the given AST f and the comments
-// are taken from f.Comments.
+// of the comments list with the nodes of the AST specified by node.
 //
 // A comment group g is associated with a node n if:
 //
@@ -139,22 +140,22 @@ func (s *nodeStack) pop(pos token.Pos) (top Node) {
 // trailing an assignment, the comment is associated with the entire
 // assignment rather than just the last operand in the assignment.
 //
-func NewCommentMap(fset *token.FileSet, f *File) CommentMap {
-	if len(f.Comments) == 0 {
+func NewCommentMap(fset *token.FileSet, node Node, comments []*CommentGroup) CommentMap {
+	if len(comments) == 0 {
 		return nil // no comments to map
 	}
 
 	cmap := make(CommentMap)
 
 	// set up comment reader r
-	comments := make([]*CommentGroup, len(f.Comments))
-	copy(comments, f.Comments) // don't change f.Comments
-	sortComments(comments)
-	r := commentListReader{fset: fset, list: comments} // !r.eol() because len(comments) > 0
+	tmp := make([]*CommentGroup, len(comments))
+	copy(tmp, comments) // don't change incomming comments
+	sortComments(tmp)
+	r := commentListReader{fset: fset, list: tmp} // !r.eol() because len(comments) > 0
 	r.next()
 
 	// create node list in lexical order
-	nodes := nodeList(f)
+	nodes := nodeList(node)
 	nodes = append(nodes, nil) // append sentinel
 
 	// set up iteration variables
@@ -238,20 +239,30 @@ func NewCommentMap(fset *token.FileSet, f *File) CommentMap {
 	return cmap
 }
 
+// Update replaces an old node in the comment map with the new node
+// and returns the new node. Comments that were associated with the
+// old node are associated with the new node.
+//
+func (cmap CommentMap) Update(old, new Node) Node {
+	if list := cmap[old]; len(list) > 0 {
+		delete(cmap, old)
+		cmap[new] = append(cmap[new], list...)
+	}
+	return new
+}
+
 // Filter returns a new comment map consisting of only those
 // entries of cmap for which a corresponding node exists in
-// any of the node trees provided.
+// the AST specified by node.
 //
-func (cmap CommentMap) Filter(nodes ...Node) CommentMap {
+func (cmap CommentMap) Filter(node Node) CommentMap {
 	umap := make(CommentMap)
-	for _, n := range nodes {
-		Inspect(n, func(n Node) bool {
-			if g := cmap[n]; len(g) > 0 {
-				umap[n] = g
-			}
-			return true
-		})
-	}
+	Inspect(node, func(n Node) bool {
+		if g := cmap[n]; len(g) > 0 {
+			umap[n] = g
+		}
+		return true
+	})
 	return umap
 }
 
@@ -265,4 +276,57 @@ func (cmap CommentMap) Comments() []*CommentGroup {
 	}
 	sortComments(list)
 	return list
+}
+
+func summary(list []*CommentGroup) string {
+	const maxLen = 40
+	var buf bytes.Buffer
+
+	// collect comments text
+loop:
+	for _, group := range list {
+		// Note: CommentGroup.Text() does too much work for what we
+		//       need and would only replace this innermost loop.
+		//       Just do it explicitly.
+		for _, comment := range group.List {
+			if buf.Len() >= maxLen {
+				break loop
+			}
+			buf.WriteString(comment.Text)
+		}
+	}
+
+	// truncate if too long
+	if buf.Len() > maxLen {
+		buf.Truncate(maxLen - 3)
+		buf.WriteString("...")
+	}
+
+	// replace any invisibles with blanks
+	bytes := buf.Bytes()
+	for i, b := range bytes {
+		switch b {
+		case '\t', '\n', '\r':
+			bytes[i] = ' '
+		}
+	}
+
+	return string(bytes)
+}
+
+func (cmap CommentMap) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, "CommentMap {")
+	for node, comment := range cmap {
+		// print name of identifiers; print node type for other nodes
+		var s string
+		if ident, ok := node.(*Ident); ok {
+			s = ident.Name
+		} else {
+			s = fmt.Sprintf("%T", node)
+		}
+		fmt.Fprintf(&buf, "\t%p  %20s:  %s\n", node, s, summary(comment))
+	}
+	fmt.Fprintln(&buf, "}")
+	return buf.String()
 }

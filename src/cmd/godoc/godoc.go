@@ -873,7 +873,7 @@ func inList(name string, list []string) bool {
 //
 func packageExports(fset *token.FileSet, pkg *ast.Package) {
 	for _, src := range pkg.Files {
-		cmap := ast.NewCommentMap(fset, src)
+		cmap := ast.NewCommentMap(fset, src, src.Comments)
 		ast.FileExports(src)
 		src.Comments = cmap.Filter(src).Comments()
 	}
