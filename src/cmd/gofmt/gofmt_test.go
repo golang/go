@@ -66,7 +66,6 @@ func runTest(t *testing.T, in, out, flags string) {
 	}
 }
 
-// TODO(gri) Add more test cases!
 var tests = []struct {
 	in, flags string
 }{
@@ -78,6 +77,7 @@ var tests = []struct {
 	{"testdata/rewrite2.input", "-r=int->bool"},
 	{"testdata/rewrite3.input", "-r=x->x"},
 	{"testdata/rewrite4.input", "-r=(x)->x"},
+	{"testdata/rewrite5.input", "-r=x+x->2*x"},
 	{"testdata/stdin*.input", "-stdin"},
 	{"testdata/comments.input", ""},
 	{"testdata/import.input", ""},

@@ -55,6 +55,7 @@ func dump(msg string, val reflect.Value) {
 
 // rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
 func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+	cmap := ast.NewCommentMap(fileSet, p, p.Comments)
 	m := make(map[string]reflect.Value)
 	pat := reflect.ValueOf(pattern)
 	repl := reflect.ValueOf(replace)
@@ -73,7 +74,9 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 		}
 		return val
 	}
-	return apply(f, reflect.ValueOf(p)).Interface().(*ast.File)
+	r := apply(f, reflect.ValueOf(p)).Interface().(*ast.File)
+	r.Comments = cmap.Filter(r).Comments() // recreate comments list
+	return r
 }
 
 // setValue is a wrapper for x.SetValue(y); it protects
