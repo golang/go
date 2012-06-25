@@ -26,6 +26,10 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
+// UseNumber causes the Decoder to unmarshal a number into an interface{} as a
+// Number instead of as a float64.
+func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
+
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //
