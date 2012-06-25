@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 4, 2012",
+	"Subtitle": "Version of June 22, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3184,6 +3184,9 @@ the value of the receive operation <code>&lt;-ch</code> is the value received
 from the channel <code>ch</code>. The type of the value is the element type of
 the channel. The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
+Receiving from a <a href="#Close">closed</a> channel always succeeds,
+immediately returning the element type's <a href="#The_zero_value">zero
+value</a>.
 </p>
 
 <pre>
@@ -3204,11 +3207,11 @@ var x, ok = &lt;-ch
 </pre>
 
 <p>
-yields an additional result.
-The boolean variable <code>ok</code> indicates whether
-the received value was sent on the channel (<code>true</code>)
-or is a <a href="#The_zero_value">zero value</a> returned
-because the channel is closed and empty (<code>false</code>).
+yields an additional result of type <code>bool</code> reporting whether the
+communication succeeded. The value of <code>ok</code> is <code>true</code>
+if the value received was delivered by a successful send operation to the
+channel, or <code>false</code> if it is a zero value generated because the
+channel is closed and empty.
 </p>
 
 <!--
