@@ -83,9 +83,7 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	enc := NewEncoder(&b)
 	enc.prefix = prefix
 	enc.indent = indent
-	err := enc.marshalValue(reflect.ValueOf(v), nil)
-	enc.Flush()
-	if err != nil {
+	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -107,8 +105,10 @@ func NewEncoder(w io.Writer) *Encoder {
 // of Go values to XML.
 func (enc *Encoder) Encode(v interface{}) error {
 	err := enc.marshalValue(reflect.ValueOf(v), nil)
-	enc.Flush()
-	return err
+	if err != nil {
+		return err
+	}
+	return enc.Flush()
 }
 
 type printer struct {
@@ -224,7 +224,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 	p.WriteString(name)
 	p.WriteByte('>')
 
-	return nil
+	return p.cachedWriteError()
 }
 
 var timeType = reflect.TypeOf(time.Time{})
@@ -260,15 +260,15 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
 	default:
 		return &UnsupportedTypeError{typ}
 	}
-	return nil
+	return p.cachedWriteError()
 }
 
 var ddBytes = []byte("--")
 
 func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	if val.Type() == timeType {
-		p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
-		return nil
+		_, err := p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
+		return err
 	}
 	s := parentStack{printer: p}
 	for i := range tinfo.fields {
@@ -353,7 +353,13 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		}
 	}
 	s.trim(nil)
-	return nil
+	return p.cachedWriteError()
+}
+
+// return the bufio Writer's cached write error
+func (p *printer) cachedWriteError() error {
+	_, err := p.Write(nil)
+	return err
 }
 
 func (p *printer) writeIndent(depthDelta int) {

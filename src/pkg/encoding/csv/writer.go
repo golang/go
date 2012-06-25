@@ -101,11 +101,10 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
 	for _, record := range records {
 		err = w.Write(record)
 		if err != nil {
-			break
+			return err
 		}
 	}
-	w.Flush()
-	return nil
+	return w.w.Flush()
 }
 
 // fieldNeedsQuotes returns true if our field must be enclosed in quotes.

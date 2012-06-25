@@ -5,6 +5,9 @@
 package xml
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -776,6 +779,55 @@ func TestUnmarshal(t *testing.T) {
 		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
 			t.Errorf("#%d: unmarshal(%q):\nhave %#v\nwant %#v", i, test.ExpectXML, got, want)
 		}
+	}
+}
+
+type limitedBytesWriter struct {
+	w      io.Writer
+	remain int // until writes fail
+}
+
+func (lw *limitedBytesWriter) Write(p []byte) (n int, err error) {
+	if lw.remain <= 0 {
+		println("error")
+		return 0, errors.New("write limit hit")
+	}
+	if len(p) > lw.remain {
+		p = p[:lw.remain]
+		n, _ = lw.w.Write(p)
+		lw.remain = 0
+		return n, errors.New("write limit hit")
+	}
+	n, err = lw.w.Write(p)
+	lw.remain -= n
+	return n, err
+}
+
+func TestMarshalWriteErrors(t *testing.T) {
+	var buf bytes.Buffer
+	const writeCap = 1024
+	w := &limitedBytesWriter{&buf, writeCap}
+	enc := NewEncoder(w)
+	var err error
+	var i int
+	const n = 4000
+	for i = 1; i <= n; i++ {
+		err = enc.Encode(&Passenger{
+			Name:   []string{"Alice", "Bob"},
+			Weight: 5,
+		})
+		if err != nil {
+			break
+		}
+	}
+	if err == nil {
+		t.Error("expected an error")
+	}
+	if i == n {
+		t.Errorf("expected to fail before the end")
+	}
+	if buf.Len() != writeCap {
+		t.Errorf("buf.Len() = %d; want %d", buf.Len(), writeCap)
 	}
 }
 
