@@ -905,12 +905,14 @@ runtime·gc(int32 force)
 	work.debugmarkdone = 0;
 	work.nproc = runtime·gcprocs();
 	addroots();
+	m->locks++;	// disable gc during mallocs in parforalloc
 	if(work.markfor == nil)
 		work.markfor = runtime·parforalloc(MaxGcproc);
 	runtime·parforsetup(work.markfor, work.nproc, work.nroot, nil, false, markroot);
 	if(work.sweepfor == nil)
 		work.sweepfor = runtime·parforalloc(MaxGcproc);
 	runtime·parforsetup(work.sweepfor, work.nproc, runtime·mheap.nspan, nil, true, sweepspan);
+	m->locks--;
 	if(work.nproc > 1) {
 		runtime·noteclear(&work.alldone);
 		runtime·helpgc(work.nproc);
