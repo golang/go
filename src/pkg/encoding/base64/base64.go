@@ -216,7 +216,6 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		var dbuf [4]byte
 		dlen := 4
 
-	dbufloop:
 		for j := 0; j < 4; {
 			if len(src) == 0 {
 				return n, false, CorruptInputError(len(osrc) - len(src) - j)
@@ -240,7 +239,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				}
 				dlen = j
 				end = true
-				break dbufloop
+				break
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
