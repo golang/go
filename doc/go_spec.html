@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 22, 2012",
+	"Subtitle": "Version of June 26, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -622,14 +622,15 @@ expressions</a>.
 
 <p>
 A type determines the set of values and operations specific to values of that
-type.  A type may be specified by a (possibly qualified) <i>type name</i>
-(§<a href="#Qualified_identifiers">Qualified identifier</a>, §<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
+type.  A type may be specified by a
+(possibly <a href="#Qualified_identifiers">qualified</a>) <i>type name</i>
+(§<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
 which composes a new type from previously declared types.
 </p>
 
 <pre class="ebnf">
 Type      = TypeName | TypeLit | "(" Type ")" .
-TypeName  = QualifiedIdent .
+TypeName  = identifier | QualifiedIdent .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 	    SliceType | MapType | ChannelType .
 </pre>
@@ -2026,25 +2027,33 @@ operators and functions to operands.
 <h3 id="Operands">Operands</h3>
 
 <p>
-Operands denote the elementary values in an expression.
+Operands denote the elementary values in an expression. An operand may be a
+literal, a (possibly <a href="#Qualified_identifiers">qualified</a>) identifier
+denoting a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Variable_declarations">variable</a>, or
+<a href="#Function_declarations">function</a>,
+a <a href="#Method_expressions">method expression</a> yielding a function,
+or a parenthesized expression.
 </p>
 
 <pre class="ebnf">
-Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
+Operand    = Literal | OperandName | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | imaginary_lit | char_lit | string_lit .
+OperandName = identifier | QualifiedIdent.
 </pre>
-
 
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is a non-<a href="#Blank_identifier">blank</a> identifier
-qualified by a package name prefix.
+A qualified identifier is an identifier qualified with a package name prefix.
+Both the package name and the identifier must not be
+<a href="#Blank_identifier">blank</a>.
 </p>
 
 <pre class="ebnf">
-QualifiedIdent = [ PackageName "." ] identifier .
+QualifiedIdent = PackageName "." identifier .
 </pre>
 
 <p>
