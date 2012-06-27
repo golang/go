@@ -5,6 +5,7 @@
 package path
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -67,6 +68,24 @@ func TestClean(t *testing.T) {
 		if s := Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
 		}
+		if s := Clean(test.result); s != test.result {
+			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
+		}
+	}
+
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	allocs := -ms.Mallocs
+	const rounds = 100
+	for i := 0; i < rounds; i++ {
+		for _, test := range cleantests {
+			Clean(test.result)
+		}
+	}
+	runtime.ReadMemStats(&ms)
+	allocs += ms.Mallocs
+	if allocs >= rounds {
+		t.Errorf("Clean cleaned paths: %d allocations per test round, want zero", allocs/rounds)
 	}
 }
 
