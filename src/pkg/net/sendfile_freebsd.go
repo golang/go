@@ -72,7 +72,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if int64(n) > remain {
 			n = int(remain)
 		}
-		n, err1 := syscall.Sendfile(dst, src, pos, n)
+		pos1 := pos
+		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
 		if n > 0 {
 			pos += int64(n)
 			written += int64(n)
