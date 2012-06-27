@@ -155,7 +155,9 @@ concatstring(int32 n, String *s)
 			out = s[i];
 		}
 	}
-	if(count <= 1) // zero or one non-empty string in concatenation
+	if(count == 0)
+		return runtime·emptystring;
+	if(count == 1) // zero or one non-empty string in concatenation
 		return out;
 	
 	out = gostringsize(l);
