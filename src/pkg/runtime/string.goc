@@ -141,15 +141,22 @@ runtime·catstring(String s1, String s2)
 static String
 concatstring(int32 n, String *s)
 {
-	int32 i, l;
+	int32 i, l, count;
 	String out;
 
 	l = 0;
+	count = 0;
 	for(i=0; i<n; i++) {
 		if(l + s[i].len < l)
 			runtime·throw("string concatenation too long");
 		l += s[i].len;
+		if(s[i].len > 0) {
+			count++;
+			out = s[i];
+		}
 	}
+	if(count <= 1) // zero or one non-empty string in concatenation
+		return out;
 	
 	out = gostringsize(l);
 	l = 0;
