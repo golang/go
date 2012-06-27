@@ -13,6 +13,43 @@ import (
 	"strings"
 )
 
+// A lazybuf is a lazily constructed path buffer.
+// It supports append, reading previously appended bytes,
+// and retrieving the final string. It does not allocate a buffer
+// to hold the output until that output diverges from s.
+type lazybuf struct {
+	s   string
+	buf []byte
+	w   int
+}
+
+func (b *lazybuf) index(i int) byte {
+	if b.buf != nil {
+		return b.buf[i]
+	}
+	return b.s[i]
+}
+
+func (b *lazybuf) append(c byte) {
+	if b.buf == nil {
+		if b.w < len(b.s) && b.s[b.w] == c {
+			b.w++
+			return
+		}
+		b.buf = make([]byte, len(b.s))
+		copy(b.buf, b.s[:b.w])
+	}
+	b.buf[b.w] = c
+	b.w++
+}
+
+func (b *lazybuf) string() string {
+	if b.buf == nil {
+		return b.s[:b.w]
+	}
+	return string(b.buf[:b.w])
+}
+
 const (
 	Separator     = os.PathSeparator
 	ListSeparator = os.PathListSeparator
@@ -57,11 +94,11 @@ func Clean(path string) string {
 	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
 	n := len(path)
-	buf := []byte(path)
-	r, w, dotdot := 0, 0, 0
+	out := lazybuf{s: path}
+	r, dotdot := 0, 0
 	if rooted {
-		buf[0] = Separator
-		r, w, dotdot = 1, 1, 1
+		out.append(Separator)
+		r, dotdot = 1, 1
 	}
 
 	for r < n {
@@ -76,46 +113,40 @@ func Clean(path string) string {
 			// .. element: remove to last separator
 			r += 2
 			switch {
-			case w > dotdot:
+			case out.w > dotdot:
 				// can backtrack
-				w--
-				for w > dotdot && !os.IsPathSeparator(buf[w]) {
-					w--
+				out.w--
+				for out.w > dotdot && !os.IsPathSeparator(out.index(out.w)) {
+					out.w--
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.
-				if w > 0 {
-					buf[w] = Separator
-					w++
+				if out.w > 0 {
+					out.append(Separator)
 				}
-				buf[w] = '.'
-				w++
-				buf[w] = '.'
-				w++
-				dotdot = w
+				out.append('.')
+				out.append('.')
+				dotdot = out.w
 			}
 		default:
 			// real path element.
 			// add slash if needed
-			if rooted && w != 1 || !rooted && w != 0 {
-				buf[w] = Separator
-				w++
+			if rooted && out.w != 1 || !rooted && out.w != 0 {
+				out.append(Separator)
 			}
 			// copy element
 			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
-				buf[w] = path[r]
-				w++
+				out.append(path[r])
 			}
 		}
 	}
 
 	// Turn empty string into "."
-	if w == 0 {
-		buf[w] = '.'
-		w++
+	if out.w == 0 {
+		out.append('.')
 	}
 
-	return FromSlash(vol + string(buf[0:w]))
+	return FromSlash(vol + out.string())
 }
 
 // ToSlash returns the result of replacing each separator character
