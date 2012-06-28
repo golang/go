@@ -20,7 +20,6 @@ type PathTest struct {
 
 var cleantests = []PathTest{
 	// Already clean
-	{"", "."},
 	{"abc", "abc"},
 	{"abc/def", "abc/def"},
 	{"a/b/c", "a/b/c"},
@@ -30,6 +29,9 @@ var cleantests = []PathTest{
 	{"../../abc", "../../abc"},
 	{"/abc", "/abc"},
 	{"/", "/"},
+
+	// Empty is current dir
+	{"", "."},
 
 	// Remove trailing slash
 	{"abc/", "abc"},
@@ -61,6 +63,7 @@ var cleantests = []PathTest{
 	{"abc/def/../../..", ".."},
 	{"/abc/def/../../..", "/"},
 	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
+	{"/../abc", "/abc"},
 
 	// Combinations
 	{"abc/./../def", "def"},
