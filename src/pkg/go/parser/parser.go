@@ -28,7 +28,7 @@ type parser struct {
 	// Tracing/debugging
 	mode   Mode // parsing mode
 	trace  bool // == (mode & Trace != 0)
-	indent uint // indentation used for tracing output
+	indent int  // indentation used for tracing output
 
 	// Comments
 	comments    []*ast.CommentGroup
@@ -191,15 +191,16 @@ func (p *parser) resolve(x ast.Expr) {
 // Parsing support
 
 func (p *parser) printTrace(a ...interface{}) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
-		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
-	const n = uint(len(dots))
+	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	const n = len(dots)
 	pos := p.file.Position(p.pos)
 	fmt.Printf("%5d:%3d: ", pos.Line, pos.Column)
 	i := 2 * p.indent
-	for ; i > n; i -= n {
+	for i > n {
 		fmt.Print(dots)
+		i -= n
 	}
+	// i <= n
 	fmt.Print(dots[0:i])
 	fmt.Println(a...)
 }
@@ -210,7 +211,7 @@ func trace(p *parser, msg string) *parser {
 	return p
 }
 
-// Usage pattern: defer un(trace(p, "..."));
+// Usage pattern: defer un(trace(p, "..."))
 func un(p *parser) {
 	p.indent--
 	p.printTrace(")")
