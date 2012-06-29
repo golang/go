@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -26,21 +28,28 @@ import (
 )
 
 const (
-	testFile       = "testdata/file"
-	testFileLength = 11
+	testFile    = "testdata/file"
+	testFileLen = 11
 )
 
+type wantRange struct {
+	start, end int64 // range [start,end)
+}
+
 var ServeFileRangeTests = []struct {
-	start, end int
-	r          string
-	code       int
+	r      string
+	code   int
+	ranges []wantRange
 }{
-	{0, testFileLength, "", StatusOK},
-	{0, 5, "0-4", StatusPartialContent},
-	{2, testFileLength, "2-", StatusPartialContent},
-	{testFileLength - 5, testFileLength, "-5", StatusPartialContent},
-	{3, 8, "3-7", StatusPartialContent},
-	{0, 0, "20-", StatusRequestedRangeNotSatisfiable},
+	{r: "", code: StatusOK},
+	{r: "bytes=0-4", code: StatusPartialContent, ranges: []wantRange{{0, 5}}},
+	{r: "bytes=2-", code: StatusPartialContent, ranges: []wantRange{{2, testFileLen}}},
+	{r: "bytes=-5", code: StatusPartialContent, ranges: []wantRange{{testFileLen - 5, testFileLen}}},
+	{r: "bytes=3-7", code: StatusPartialContent, ranges: []wantRange{{3, 8}}},
+	{r: "bytes=20-", code: StatusRequestedRangeNotSatisfiable},
+	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
+	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
+	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
 }
 
 func TestServeFile(t *testing.T) {
@@ -66,33 +75,81 @@ func TestServeFile(t *testing.T) {
 
 	// straight GET
 	_, body := getBody(t, "straight get", req)
-	if !equal(body, file) {
+	if !bytes.Equal(body, file) {
 		t.Fatalf("body mismatch: got %q, want %q", body, file)
 	}
 
 	// Range tests
-	for i, rt := range ServeFileRangeTests {
-		req.Header.Set("Range", "bytes="+rt.r)
-		if rt.r == "" {
-			req.Header["Range"] = nil
+	for _, rt := range ServeFileRangeTests {
+		if rt.r != "" {
+			req.Header.Set("Range", rt.r)
 		}
-		r, body := getBody(t, fmt.Sprintf("test %d", i), req)
-		if r.StatusCode != rt.code {
-			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, r.StatusCode, rt.code)
+		resp, body := getBody(t, fmt.Sprintf("range test %q", rt.r), req)
+		if resp.StatusCode != rt.code {
+			t.Errorf("range=%q: StatusCode=%d, want %d", rt.r, resp.StatusCode, rt.code)
 		}
 		if rt.code == StatusRequestedRangeNotSatisfiable {
 			continue
 		}
-		h := fmt.Sprintf("bytes %d-%d/%d", rt.start, rt.end-1, testFileLength)
-		if rt.r == "" {
-			h = ""
+		wantContentRange := ""
+		if len(rt.ranges) == 1 {
+			rng := rt.ranges[0]
+			wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
 		}
-		cr := r.Header.Get("Content-Range")
-		if cr != h {
-			t.Errorf("header mismatch: range=%q: got %q, want %q", rt.r, cr, h)
+		cr := resp.Header.Get("Content-Range")
+		if cr != wantContentRange {
+			t.Errorf("range=%q: Content-Range = %q, want %q", rt.r, cr, wantContentRange)
 		}
-		if !equal(body, file[rt.start:rt.end]) {
-			t.Errorf("body mismatch: range=%q: got %q, want %q", rt.r, body, file[rt.start:rt.end])
+		ct := resp.Header.Get("Content-Type")
+		if len(rt.ranges) == 1 {
+			rng := rt.ranges[0]
+			wantBody := file[rng.start:rng.end]
+			if !bytes.Equal(body, wantBody) {
+				t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
+			}
+			if strings.HasPrefix(ct, "multipart/byteranges") {
+				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r)
+			}
+		}
+		if len(rt.ranges) > 1 {
+			typ, params, err := mime.ParseMediaType(ct)
+			if err != nil {
+				t.Errorf("range=%q content-type = %q; %v", rt.r, ct, err)
+				continue
+			}
+			if typ != "multipart/byteranges" {
+				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r)
+				continue
+			}
+			if params["boundary"] == "" {
+				t.Errorf("range=%q content-type = %q; lacks boundary", rt.r, ct)
+			}
+			if g, w := resp.ContentLength, int64(len(body)); g != w {
+				t.Errorf("range=%q Content-Length = %d; want %d", rt.r, g, w)
+			}
+			mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+			for ri, rng := range rt.ranges {
+				part, err := mr.NextPart()
+				if err != nil {
+					t.Fatalf("range=%q, reading part index %d: %v", rt.r, ri, err)
+				}
+				body, err := ioutil.ReadAll(part)
+				if err != nil {
+					t.Fatalf("range=%q, reading part index %d body: %v", rt.r, ri, err)
+				}
+				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
+				wantBody := file[rng.start:rng.end]
+				if !bytes.Equal(body, wantBody) {
+					t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
+				}
+				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
+					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
+				}
+			}
+			_, err = mr.NextPart()
+			if err != io.EOF {
+				t.Errorf("range=%q; expected final error io.EOF; got %v", err)
+			}
 		}
 	}
 }
@@ -580,16 +637,4 @@ func TestLinuxSendfileChild(*testing.T) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func equal(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
