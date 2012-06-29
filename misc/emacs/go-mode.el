@@ -217,7 +217,7 @@ nesting caches from the modified point on."
 	(remove-text-properties
 	 b (min go-mode-mark-string-end (point-max)) '(go-mode-comment nil))
 	(setq go-mode-mark-comment-end b)))
-    
+
     (when (< b go-mode-mark-nesting-end)
       (remove-text-properties b (min go-mode-mark-nesting-end (point-max)) '(go-mode-nesting nil))
       (setq go-mode-mark-nesting-end b))))
@@ -264,7 +264,7 @@ directly; use `go-mode-cs'."
 	    ;; Back up to the last known state.
 	    (let ((last-cs
 		   (and (> go-mode-mark-cs-end 1)
-			(get-text-property (1- go-mode-mark-cs-end) 
+			(get-text-property (1- go-mode-mark-cs-end)
 					   'go-mode-cs))))
 	      (if last-cs
 		  (car last-cs)
@@ -332,7 +332,7 @@ comment or string."
 	    ;; Back up to the last known state.
 	    (let ((last-comment
 		   (and (> go-mode-mark-comment-end 1)
-			(get-text-property (1- go-mode-mark-comment-end) 
+			(get-text-property (1- go-mode-mark-comment-end)
 					   'go-mode-comment))))
 	      (if last-comment
 		  (car last-comment)
@@ -381,7 +381,7 @@ directly; use `go-mode-in-string'."
 	    ;; Back up to the last known state.
 	    (let ((last-cs
 		   (and (> go-mode-mark-string-end 1)
-			(get-text-property (1- go-mode-mark-string-end) 
+			(get-text-property (1- go-mode-mark-string-end)
 					   'go-mode-string))))
 	      (if last-cs
 		  (car last-cs)
@@ -389,7 +389,7 @@ directly; use `go-mode-in-string'."
        (while (< pos end)
 	 (goto-char pos)
 	 (let ((cs-end			; end of the text property
-		(cond 
+		(cond
 		 ((looking-at "\"")
 		  (goto-char (1+ pos))
 		  (if (looking-at "[^\"\n\\\\]*\\(\\\\.[^\"\n\\\\]*\\)*\"")
@@ -820,7 +820,10 @@ Replace the current buffer on success; display errors on failure."
   ;; apply all the patch hunks
   (with-current-buffer patchbuf
     (goto-char (point-min))
-    (if (re-search-forward "^--- \\(/tmp/gofmt[0-9]*\\)" nil t)
+    ;; The .* is for TMPDIR, but to avoid dealing with TMPDIR
+    ;; having a trailing / or not, it's easier to just search for .*
+    ;; especially as we're only replacing the first instance.
+    (if (re-search-forward "^--- \\(.*/gofmt[0-9]*\\)" nil t)
       (replace-match filename nil nil nil 1))
     (condition-case nil
         (while t
