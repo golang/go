@@ -20,9 +20,13 @@ import (
 	"net/url"
 )
 
+// httpClient is the default HTTP client, but a variable so it can be
+// changed by tests, without modifying http.DefaultClient.
+var httpClient = http.DefaultClient
+
 // httpGET returns the data from an HTTP GET request for the given URL.
 func httpGET(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -36,10 +40,6 @@ func httpGET(url string) ([]byte, error) {
 	}
 	return b, nil
 }
-
-// httpClient is the default HTTP client, but a variable so it can be
-// changed by tests, without modifying http.DefaultClient.
-var httpClient = http.DefaultClient
 
 // httpsOrHTTP returns the body of either the importPath's
 // https resource or, if unavailable, the http resource.
