@@ -50,6 +50,7 @@ var ServeFileRangeTests = []struct {
 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
 	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
+	{r: "bytes=0-,1-,2-,3-,4-", code: StatusOK}, // ignore wasteful range request
 }
 
 func TestServeFile(t *testing.T) {
