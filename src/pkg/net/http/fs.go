@@ -152,6 +152,13 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
+		if sumRangesSize(ranges) >= size {
+			// The total number of bytes in all the ranges
+			// is larger the the size of the file by
+			// itself, so this is probably an attack, or a
+			// dumb client.  Ignore the range request.
+			ranges = nil
+		}
 		switch {
 		case len(ranges) == 1:
 			// RFC 2616, Section 14.16:
@@ -444,5 +451,12 @@ func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (
 	}
 	mw.Close()
 	encSize += int64(w)
+	return
+}
+
+func sumRangesSize(ranges []httpRange) (size int64) {
+	for _, ra := range ranges {
+		size += ra.length
+	}
 	return
 }
