@@ -121,6 +121,22 @@ errstr(void)
 	return bstr(&b);  // leak but we're dying anyway
 }
 
+static void
+errprintf(char *fmt, ...) {
+	va_list arg;
+	char *p;
+	DWORD n, w;
+
+	va_start(arg, fmt);
+	n = vsnprintf(NULL, 0, fmt, arg);
+	p = xmalloc(n+1);
+	vsnprintf(p, n+1, fmt, arg);
+	va_end(arg);
+	w = 0;
+	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
+	xfree(p);
+}
+
 void
 xgetenv(Buf *b, char *name)
 {
@@ -709,7 +725,7 @@ fatal(char *msg, ...)
 	vsnprintf(buf1, sizeof buf1, msg, arg);
 	va_end(arg);
 
-	xprintf("go tool dist: %s\n", buf1);
+	errprintf("go tool dist: %s\n", buf1);
 	
 	bgwait();
 	ExitProcess(1);
