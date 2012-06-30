@@ -958,4 +958,5 @@ typedef struct { char *p; int n; } GoString;
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
+typedef struct { void *data; int len; int cap; } GoSlice;
 `
