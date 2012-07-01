@@ -71,7 +71,7 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32
 	MSpan *s;
 
 	runtime·lock(h);
-	runtime·purgecachedstats(m);
+	runtime·purgecachedstats(m->mcache);
 	s = MHeap_AllocLocked(h, npage, sizeclass);
 	if(s != nil) {
 		mstats.heap_inuse += npage<<PageShift;
@@ -271,7 +271,7 @@ void
 runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
 	runtime·lock(h);
-	runtime·purgecachedstats(m);
+	runtime·purgecachedstats(m->mcache);
 	mstats.heap_inuse -= s->npages<<PageShift;
 	if(acct) {
 		mstats.heap_alloc -= s->npages<<PageShift;

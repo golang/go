@@ -590,6 +590,7 @@ int32	runtime·funcline(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);
+void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
 bool	runtime·ifaceeq_c(Iface, Iface);
 bool	runtime·efaceeq_c(Eface, Eface);

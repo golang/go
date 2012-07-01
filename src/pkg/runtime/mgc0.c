@@ -823,7 +823,8 @@ cachestats(GCStats *stats)
 	stacks_inuse = 0;
 	stacks_sys = 0;
 	for(m=runtime·allm; m; m=m->alllink) {
-		runtime·purgecachedstats(m);
+		c = m->mcache;
+		runtime·purgecachedstats(c);
 		stacks_inuse += m->stackalloc->inuse;
 		stacks_sys += m->stackalloc->sys;
 		if(stats) {
@@ -833,7 +834,6 @@ cachestats(GCStats *stats)
 				dst[i] += src[i];
 			runtime·memclr((byte*)&m->gcstats, sizeof(m->gcstats));
 		}
-		c = m->mcache;
 		for(i=0; i<nelem(c->local_by_size); i++) {
 			mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
 			c->local_by_size[i].nmalloc = 0;
