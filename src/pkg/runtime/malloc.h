@@ -401,7 +401,7 @@ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 bool	runtime·blockspecial(void*);
 void	runtime·setblockspecial(void*, bool);
-void	runtime·purgecachedstats(M*);
+void	runtime·purgecachedstats(MCache*);
 
 enum
 {

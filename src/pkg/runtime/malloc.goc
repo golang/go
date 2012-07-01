@@ -76,7 +76,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 	if (sizeof(void*) == 4 && c->local_total_alloc >= (1<<30)) {
 		// purge cache stats to prevent overflow
 		runtime·lock(&runtime·mheap);
-		runtime·purgecachedstats(m);
+		runtime·purgecachedstats(c);
 		runtime·unlock(&runtime·mheap);
 	}
 
@@ -181,7 +181,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	if (sizeof(void*) == 4 && m->mcache->local_nlookup >= (1<<30)) {
 		// purge cache stats to prevent overflow
 		runtime·lock(&runtime·mheap);
-		runtime·purgecachedstats(m);
+		runtime·purgecachedstats(m->mcache);
 		runtime·unlock(&runtime·mheap);
 	}
 
@@ -234,6 +234,7 @@ runtime·allocmcache(void)
 	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
 	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
 	runtime·unlock(&runtime·mheap);
+	runtime·memclr((byte*)c, sizeof(*c));
 
 	// Set first allocation sample size.
 	rate = runtime·MemProfileRate;
@@ -246,12 +247,19 @@ runtime·allocmcache(void)
 }
 
 void
-runtime·purgecachedstats(M* m)
+runtime·freemcache(MCache *c)
 {
-	MCache *c;
+	runtime·MCache_ReleaseAll(c);
+	runtime·lock(&runtime·mheap);
+	runtime·purgecachedstats(c);
+	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+	runtime·unlock(&runtime·mheap);
+}
 
+void
+runtime·purgecachedstats(MCache *c)
+{
 	// Protected by either heap or GC lock.
-	c = m->mcache;
 	mstats.heap_alloc += c->local_cachealloc;
 	c->local_cachealloc = 0;
 	mstats.heap_objects += c->local_objects;
