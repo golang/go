@@ -81,6 +81,7 @@ func h() {
 func newfunc() func(int) int { return func(x int) int { return x } }
 
 func main() {
+	runtime.GOMAXPROCS(1)
 	var fail bool
 
 	go f()
