@@ -20,7 +20,7 @@ var (
 )
 
 // Uniform is an infinite-sized Image of uniform color.
-// It implements the color.Color, color.ColorModel, and Image interfaces.
+// It implements the color.Color, color.Model, and Image interfaces.
 type Uniform struct {
 	C color.Color
 }
