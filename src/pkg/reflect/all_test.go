@@ -1569,9 +1569,10 @@ func noAlloc(t *testing.T, n int, f func(int)) {
 	}
 	// A few allocs may happen in the testing package when GOMAXPROCS > 1, so don't
 	// require zero mallocs.
+	// A new thread, one of which will be created if GOMAXPROCS>1, does 6 allocations.
 	runtime.ReadMemStats(memstats)
 	mallocs := memstats.Mallocs - oldmallocs
-	if mallocs > 5 {
+	if mallocs > 10 {
 		t.Fatalf("%d mallocs after %d iterations", mallocs, n)
 	}
 }
