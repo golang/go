@@ -396,7 +396,7 @@ func (z nat) mul(x, y nat) nat {
 	}
 
 	// use basic multiplication if the numbers are small
-	if n < karatsubaThreshold || n < 2 {
+	if n < karatsubaThreshold {
 		z = z.make(m + n)
 		basicMul(z, x, y)
 		return z.norm()
