@@ -314,7 +314,7 @@ stringsym(char *s, int len)
 	}
 	off = duint8(sym, off, 0);  // terminating NUL for runtime
 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
-	ggloblsym(sym, off, 1);
+	ggloblsym(sym, off, 1, 1);
 
 	return sym;	
 }

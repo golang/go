@@ -41,7 +41,7 @@ char *runtimeimport =
 	"func @\"\".convI2E(@\"\".elem any) (@\"\".ret any)\n"
 	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
 	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
-	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".elem any) (@\"\".ret any)\n"
+	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".cache **byte, @\"\".elem any) (@\"\".ret any)\n"
 	"func @\"\".assertE2E(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
 	"func @\"\".assertE2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
 	"func @\"\".assertE2I(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"

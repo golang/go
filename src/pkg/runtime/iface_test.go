@@ -5,98 +5,134 @@
 package runtime_test
 
 import (
-	"bytes"
-	"io"
 	"testing"
 )
 
+type I1 interface {
+	Method1()
+}
+
+type I2 interface {
+	Method1()
+	Method2()
+}
+
+type TS uint16
+type TM uintptr
+type TL [2]uintptr
+
+func (TS) Method1() {}
+func (TS) Method2() {}
+func (TM) Method1() {}
+func (TM) Method2() {}
+func (TL) Method1() {}
+func (TL) Method2() {}
+
 var (
-	I   interface{}
-	J   int
-	B                 = new(bytes.Buffer)
-	W   io.Writer     = B
-	I2  interface{}   = B
-	R   io.ReadWriter = B
-	Big [2]*int
+	e  interface{}
+	e_ interface{}
+	i1 I1
+	i2 I2
+	ts TS
+	tm TM
+	tl TL
 )
 
 func BenchmarkConvT2ESmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		I = uint16(1)
+		e = ts
 	}
 }
 
 func BenchmarkConvT2EUintptr(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		I = uintptr(1)
+		e = tm
 	}
 }
 
-func BenchmarkConvT2EBig(b *testing.B) {
-	v := [2]uintptr{1, 2}
+func BenchmarkConvT2ELarge(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		I = v
+		e = tl
 	}
 }
 
-func BenchmarkConvT2I(b *testing.B) {
+func BenchmarkConvT2ISmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		W = B
+		i1 = ts
+	}
+}
+
+func BenchmarkConvT2IUintptr(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		i1 = tm
+	}
+}
+
+func BenchmarkConvT2ILarge(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		i1 = tl
 	}
 }
 
 func BenchmarkConvI2E(b *testing.B) {
+	i2 = tm
 	for i := 0; i < b.N; i++ {
-		I = W
+		e = i2
 	}
 }
 
 func BenchmarkConvI2I(b *testing.B) {
+	i2 = tm
 	for i := 0; i < b.N; i++ {
-		W = R
+		i1 = i2
 	}
 }
 
 func BenchmarkAssertE2T(b *testing.B) {
-	I = 1
+	e = tm
 	for i := 0; i < b.N; i++ {
-		J = I.(int)
+		tm = e.(TM)
 	}
 }
 
-func BenchmarkAssertE2TBig(b *testing.B) {
-	var v interface{} = [2]*int{}
+func BenchmarkAssertE2TLarge(b *testing.B) {
+	e = tl
 	for i := 0; i < b.N; i++ {
-		Big = v.([2]*int)
+		tl = e.(TL)
 	}
 }
 
 func BenchmarkAssertE2I(b *testing.B) {
+	e = tm
 	for i := 0; i < b.N; i++ {
-		W = I2.(io.Writer)
+		i1 = e.(I1)
 	}
 }
 
 func BenchmarkAssertI2T(b *testing.B) {
+	i1 = tm
 	for i := 0; i < b.N; i++ {
-		B = W.(*bytes.Buffer)
+		tm = i1.(TM)
 	}
 }
 
 func BenchmarkAssertI2I(b *testing.B) {
+	i1 = tm
 	for i := 0; i < b.N; i++ {
-		W = R.(io.Writer)
+		i2 = i1.(I2)
 	}
 }
 
 func BenchmarkAssertI2E(b *testing.B) {
+	i1 = tm
 	for i := 0; i < b.N; i++ {
-		I = R.(interface{})
+		e = i1.(interface{})
 	}
 }
 
 func BenchmarkAssertE2E(b *testing.B) {
+	e = tm
 	for i := 0; i < b.N; i++ {
-		I = I2.(interface{})
+		e_ = e
 	}
 }

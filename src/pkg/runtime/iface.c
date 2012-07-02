@@ -183,19 +183,25 @@ copyout(Type *t, void **src, void *dst)
 		alg->copy(size, dst, *src);
 }
 
-// func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
+// func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
 #pragma textflag 7
 void
-runtime·convT2I(Type *t, InterfaceType *inter, ...)
+runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
 {
 	byte *elem;
 	Iface *ret;
+	Itab *tab;
 	int32 wid;
 
-	elem = (byte*)(&inter+1);
+	elem = (byte*)(&cache+1);
 	wid = t->size;
 	ret = (Iface*)(elem + ROUND(wid, Structrnd));
-	ret->tab = itab(inter, t, 0);
+	tab = runtime·atomicloadp(cache);
+	if(!tab) {
+		tab = itab(inter, t, 0);
+		runtime·atomicstorep(cache, tab);
+	}
+	ret->tab = tab;
 	copyin(t, elem, &ret->data);
 }
 

@@ -305,7 +305,7 @@ dimportpath(Pkg *p)
 	p->pathsym = n->sym;
 
 	gdatastring(n, p->path);
-	ggloblsym(n->sym, types[TSTRING]->width, 1);
+	ggloblsym(n->sym, types[TSTRING]->width, 1, 1);
 }
 
 static int
@@ -857,7 +857,7 @@ ok:
 		break;
 	}
 	ot = dextratype(s, ot, t, xt);
-	ggloblsym(s, ot, dupok);
+	ggloblsym(s, ot, dupok, 1);
 	return s;
 }
 
@@ -955,7 +955,7 @@ dalgsym(Type *t)
 		break;
 	}
 
-	ggloblsym(s, ot, 1);
+	ggloblsym(s, ot, 1, 1);
 	return s;
 }
 
