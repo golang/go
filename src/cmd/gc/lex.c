@@ -204,6 +204,10 @@ main(int argc, char *argv[])
 	gostringpkg->name = "go.string";
 	gostringpkg->prefix = "go.string";	// not go%2estring
 
+	itabpkg = mkpkg(strlit("go.itab"));
+	itabpkg->name = "go.itab";
+	itabpkg->prefix = "go.itab";	// not go%2eitab
+
 	runtimepkg = mkpkg(strlit("runtime"));
 	runtimepkg->name = "runtime";
 

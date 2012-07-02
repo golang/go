@@ -767,6 +767,7 @@ EXTERN	Pkg*	importpkg;	// package being imported
 EXTERN	Pkg*	structpkg;	// package that declared struct, during import
 EXTERN	Pkg*	builtinpkg;	// fake package for builtins
 EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
+EXTERN	Pkg*	itabpkg;	// fake pkg for itab cache
 EXTERN	Pkg*	runtimepkg;	// package runtime
 EXTERN	Pkg*	stringpkg;	// fake package for C strings
 EXTERN	Pkg*	typepkg;	// fake package for runtime type info
@@ -1330,7 +1331,7 @@ void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
 void	genembedtramp(Type*, Type*, Sym*, int iface);
 void	ggloblnod(Node *nam, int32 width);
-void	ggloblsym(Sym *s, int32 width, int dupok);
+void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 int	isfat(Type*);

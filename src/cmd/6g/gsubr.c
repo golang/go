@@ -206,7 +206,7 @@ ggloblnod(Node *nam, int32 width)
 }
 
 void
-ggloblsym(Sym *s, int32 width, int dupok)
+ggloblsym(Sym *s, int32 width, int dupok, int rodata)
 {
 	Prog *p;
 
@@ -218,8 +218,9 @@ ggloblsym(Sym *s, int32 width, int dupok)
 	p->to.index = D_NONE;
 	p->to.offset = width;
 	if(dupok)
-		p->from.scale = DUPOK;
-	p->from.scale |= RODATA;
+		p->from.scale |= DUPOK;
+	if(rodata)
+		p->from.scale |= RODATA;
 }
 
 int

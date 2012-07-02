@@ -375,6 +375,7 @@ walkexpr(Node **np, NodeList **init)
 	int64 v;
 	int32 lno;
 	Node *n, *fn;
+	Sym *sym;
 	char buf[100], *p;
 
 	n = *np;
@@ -755,6 +756,22 @@ walkexpr(Node **np, NodeList **init)
 			ll = list(ll, typename(n->left->type));
 		if(!isnilinter(n->type))
 			ll = list(ll, typename(n->type));
+		if(!isinter(n->left->type) && !isnilinter(n->type)){
+			sym = pkglookup(smprint("%-T.%-T", n->left->type, n->type), itabpkg);
+			if(sym->def == N) {
+				l = nod(ONAME, N, N);
+				l->sym = sym;
+				l->type = ptrto(types[TUINT8]);
+				l->addable = 1;
+				l->class = PEXTERN;
+				l->xoffset = 0;
+				sym->def = l;
+				ggloblsym(sym, widthptr, 1, 0);
+			}
+			l = nod(OADDR, sym->def, N);
+			l->addable = 1;
+			ll = list(ll, l);
+		}
 		ll = list(ll, n->left);
 		argtype(fn, n->left->type);
 		argtype(fn, n->type);
