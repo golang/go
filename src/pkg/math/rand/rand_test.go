@@ -57,16 +57,13 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) error
 
 func getStatsResults(samples []float64) *statsResults {
 	res := new(statsResults)
-	var sum float64
-	for i := range samples {
-		sum += samples[i]
+	var sum, squaresum float64
+	for _, s := range samples {
+		sum += s
+		squaresum += s * s
 	}
 	res.mean = sum / float64(len(samples))
-	var devsum float64
-	for i := range samples {
-		devsum += math.Pow(samples[i]-res.mean, 2)
-	}
-	res.stddev = math.Sqrt(devsum / float64(len(samples)))
+	res.stddev = math.Sqrt(squaresum/float64(len(samples)) - res.mean*res.mean)
 	return res
 }
 
