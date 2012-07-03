@@ -4,6 +4,8 @@
 
 package syscall
 
+import "unsafe"
+
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -39,6 +41,18 @@ func (msghdr *Msghdr) SetControllen(length int) {
 
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
+}
+
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	var writtenOut uint64 = 0
+	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+
+	written = int(writtenOut)
+
+	if e1 != 0 {
+		err = e1
+	}
+	return
 }
 
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
