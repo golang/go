@@ -67,6 +67,69 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
 	return mmap2(addr, length, prot, flags, fd, page)
 }
 
+type rlimit32 struct {
+	Cur uint32
+	Max uint32
+}
+
+//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+
+const rlimInf32 = ^uint32(0)
+const rlimInf64 = ^uint64(0)
+
+func Getrlimit(resource int, rlim *Rlimit) (err error) {
+	err = Prlimit(0, resource, rlim, nil)
+	if err != ENOSYS {
+		return err
+	}
+
+	rl := rlimit32{}
+	err = getrlimit(resource, &rl)
+	if err != nil {
+		return
+	}
+
+	if rl.Cur == rlimInf32 {
+		rlim.Cur = rlimInf64
+	} else {
+		rlim.Cur = uint64(rl.Cur)
+	}
+
+	if rl.Max == rlimInf32 {
+		rlim.Max = rlimInf64
+	} else {
+		rlim.Max = uint64(rl.Max)
+	}
+	return
+}
+
+//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+
+func Setrlimit(resource int, rlim *Rlimit) (err error) {
+	err = Prlimit(0, resource, nil, rlim)
+	if err != ENOSYS {
+		return err
+	}
+
+	rl := rlimit32{}
+	if rlim.Cur == rlimInf64 {
+		rl.Cur = rlimInf32
+	} else if rlim.Cur < uint64(rlimInf32) {
+		rl.Cur = uint32(rlim.Cur)
+	} else {
+		return EINVAL
+	}
+	if rlim.Max == rlimInf64 {
+		rl.Max = rlimInf32
+	} else if rlim.Max < uint64(rlimInf32) {
+		rl.Max = uint32(rlim.Max)
+	} else {
+		return EINVAL
+	}
+
+	return setrlimit(resource, &rl)
+}
+
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
