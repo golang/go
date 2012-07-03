@@ -755,7 +755,7 @@ func Register(value interface{}) {
 	if rt.Name() == "" {
 		if pt := rt; pt.Kind() == reflect.Ptr {
 			star = "*"
-			rt = pt
+			rt = pt.Elem()
 		}
 	}
 	if rt.Name() != "" {
