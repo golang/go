@@ -81,6 +81,7 @@ func TestServeFile(t *testing.T) {
 	}
 
 	// Range tests
+Cases:
 	for _, rt := range ServeFileRangeTests {
 		if rt.r != "" {
 			req.Header.Set("Range", rt.r)
@@ -109,7 +110,7 @@ func TestServeFile(t *testing.T) {
 				t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
 			}
 			if strings.HasPrefix(ct, "multipart/byteranges") {
-				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r)
+				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r, ct)
 			}
 		}
 		if len(rt.ranges) > 1 {
@@ -119,37 +120,41 @@ func TestServeFile(t *testing.T) {
 				continue
 			}
 			if typ != "multipart/byteranges" {
-				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r)
+				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r, typ)
 				continue
 			}
 			if params["boundary"] == "" {
 				t.Errorf("range=%q content-type = %q; lacks boundary", rt.r, ct)
+				continue
 			}
 			if g, w := resp.ContentLength, int64(len(body)); g != w {
 				t.Errorf("range=%q Content-Length = %d; want %d", rt.r, g, w)
+				continue
 			}
 			mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
 			for ri, rng := range rt.ranges {
 				part, err := mr.NextPart()
 				if err != nil {
-					t.Fatalf("range=%q, reading part index %d: %v", rt.r, ri, err)
+					t.Errorf("range=%q, reading part index %d: %v", rt.r, ri, err)
+					continue Cases
+				}
+				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
+				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
+					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
 				}
 				body, err := ioutil.ReadAll(part)
 				if err != nil {
-					t.Fatalf("range=%q, reading part index %d body: %v", rt.r, ri, err)
+					t.Errorf("range=%q, reading part index %d body: %v", rt.r, ri, err)
+					continue Cases
 				}
-				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
 				wantBody := file[rng.start:rng.end]
 				if !bytes.Equal(body, wantBody) {
 					t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
 				}
-				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
-					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
-				}
 			}
 			_, err = mr.NextPart()
 			if err != io.EOF {
-				t.Errorf("range=%q; expected final error io.EOF; got %v", err)
+				t.Errorf("range=%q; expected final error io.EOF; got %v", rt.r, err)
 			}
 		}
 	}
