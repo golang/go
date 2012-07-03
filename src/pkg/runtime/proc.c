@@ -275,11 +275,11 @@ runtime·goexit(void)
 }
 
 void
-runtime·goroutineheader(G *g)
+runtime·goroutineheader(G *gp)
 {
 	int8 *status;
 
-	switch(g->status) {
+	switch(gp->status) {
 	case Gidle:
 		status = "idle";
 		break;
@@ -293,8 +293,8 @@ runtime·goroutineheader(G *g)
 		status = "syscall";
 		break;
 	case Gwaiting:
-		if(g->waitreason)
-			status = g->waitreason;
+		if(gp->waitreason)
+			status = gp->waitreason;
 		else
 			status = "waiting";
 		break;
@@ -305,20 +305,20 @@ runtime·goroutineheader(G *g)
 		status = "???";
 		break;
 	}
-	runtime·printf("goroutine %d [%s]:\n", g->goid, status);
+	runtime·printf("goroutine %d [%s]:\n", gp->goid, status);
 }
 
 void
 runtime·tracebackothers(G *me)
 {
-	G *g;
+	G *gp;
 
-	for(g = runtime·allg; g != nil; g = g->alllink) {
-		if(g == me || g->status == Gdead)
+	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+		if(gp == me || gp->status == Gdead)
 			continue;
 		runtime·printf("\n");
-		runtime·goroutineheader(g);
-		runtime·traceback(g->sched.pc, (byte*)g->sched.sp, 0, g);
+		runtime·goroutineheader(gp);
+		runtime·traceback(gp->sched.pc, (byte*)gp->sched.sp, 0, gp);
 	}
 }
 
@@ -335,24 +335,24 @@ runtime·idlegoroutine(void)
 }
 
 static void
-mcommoninit(M *m)
+mcommoninit(M *mp)
 {
-	m->id = runtime·sched.mcount++;
-	m->fastrand = 0x49f6428aUL + m->id + runtime·cputicks();
-	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
-	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
+	mp->id = runtime·sched.mcount++;
+	mp->fastrand = 0x49f6428aUL + mp->id + runtime·cputicks();
+	mp->stackalloc = runtime·malloc(sizeof(*mp->stackalloc));
+	runtime·FixAlloc_Init(mp->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
 
-	if(m->mcache == nil)
-		m->mcache = runtime·allocmcache();
+	if(mp->mcache == nil)
+		mp->mcache = runtime·allocmcache();
 
-	runtime·callers(1, m->createstack, nelem(m->createstack));
+	runtime·callers(1, mp->createstack, nelem(mp->createstack));
 
 	// Add to runtime·allm so garbage collector doesn't free m
 	// when it is just in a register or thread-local storage.
-	m->alllink = runtime·allm;
+	mp->alllink = runtime·allm;
 	// runtime·NumCgoCall() iterates over allm w/o schedlock,
 	// so we need to publish it safely.
-	runtime·atomicstorep(&runtime·allm, m);
+	runtime·atomicstorep(&runtime·allm, mp);
 }
 
 // Try to increment mcpu.  Report whether succeeded.
@@ -372,34 +372,34 @@ canaddmcpu(void)
 
 // Put on `g' queue.  Sched must be locked.
 static void
-gput(G *g)
+gput(G *gp)
 {
-	M *m;
+	M *mp;
 
 	// If g is wired, hand it off directly.
-	if((m = g->lockedm) != nil && canaddmcpu()) {
-		mnextg(m, g);
+	if((mp = gp->lockedm) != nil && canaddmcpu()) {
+		mnextg(mp, gp);
 		return;
 	}
 
 	// If g is the idle goroutine for an m, hand it off.
-	if(g->idlem != nil) {
-		if(g->idlem->idleg != nil) {
+	if(gp->idlem != nil) {
+		if(gp->idlem->idleg != nil) {
 			runtime·printf("m%d idle out of sync: g%d g%d\n",
-				g->idlem->id,
-				g->idlem->idleg->goid, g->goid);
+				gp->idlem->id,
+				gp->idlem->idleg->goid, gp->goid);
 			runtime·throw("runtime: double idle");
 		}
-		g->idlem->idleg = g;
+		gp->idlem->idleg = gp;
 		return;
 	}
 
-	g->schedlink = nil;
+	gp->schedlink = nil;
 	if(runtime·sched.ghead == nil)
-		runtime·sched.ghead = g;
+		runtime·sched.ghead = gp;
 	else
-		runtime·sched.gtail->schedlink = g;
-	runtime·sched.gtail = g;
+		runtime·sched.gtail->schedlink = gp;
+	runtime·sched.gtail = gp;
 
 	// increment gwait.
 	// if it transitions to nonzero, set atomic gwaiting bit.
@@ -418,11 +418,11 @@ haveg(void)
 static G*
 gget(void)
 {
-	G *g;
+	G *gp;
 
-	g = runtime·sched.ghead;
-	if(g){
-		runtime·sched.ghead = g->schedlink;
+	gp = runtime·sched.ghead;
+	if(gp) {
+		runtime·sched.ghead = gp->schedlink;
 		if(runtime·sched.ghead == nil)
 			runtime·sched.gtail = nil;
 		// decrement gwait.
@@ -430,45 +430,45 @@ gget(void)
 		if(--runtime·sched.gwait == 0)
 			runtime·xadd(&runtime·sched.atomic, -1<<gwaitingShift);
 	} else if(m->idleg != nil) {
-		g = m->idleg;
+		gp = m->idleg;
 		m->idleg = nil;
 	}
-	return g;
+	return gp;
 }
 
 // Put on `m' list.  Sched must be locked.
 static void
-mput(M *m)
+mput(M *mp)
 {
-	m->schedlink = runtime·sched.mhead;
-	runtime·sched.mhead = m;
+	mp->schedlink = runtime·sched.mhead;
+	runtime·sched.mhead = mp;
 	runtime·sched.mwait++;
 }
 
 // Get an `m' to run `g'.  Sched must be locked.
 static M*
-mget(G *g)
+mget(G *gp)
 {
-	M *m;
+	M *mp;
 
 	// if g has its own m, use it.
-	if(g && (m = g->lockedm) != nil)
-		return m;
+	if(gp && (mp = gp->lockedm) != nil)
+		return mp;
 
 	// otherwise use general m pool.
-	if((m = runtime·sched.mhead) != nil){
-		runtime·sched.mhead = m->schedlink;
+	if((mp = runtime·sched.mhead) != nil) {
+		runtime·sched.mhead = mp->schedlink;
 		runtime·sched.mwait--;
 	}
-	return m;
+	return mp;
 }
 
 // Mark g ready to run.
 void
-runtime·ready(G *g)
+runtime·ready(G *gp)
 {
 	schedlock();
-	readylocked(g);
+	readylocked(gp);
 	schedunlock();
 }
 
@@ -476,23 +476,23 @@ runtime·ready(G *g)
 // G might be running already and about to stop.
 // The sched lock protects g->status from changing underfoot.
 static void
-readylocked(G *g)
+readylocked(G *gp)
 {
-	if(g->m){
+	if(gp->m) {
 		// Running on another machine.
 		// Ready it when it stops.
-		g->readyonstop = 1;
+		gp->readyonstop = 1;
 		return;
 	}
 
 	// Mark runnable.
-	if(g->status == Grunnable || g->status == Grunning) {
-		runtime·printf("goroutine %d has status %d\n", g->goid, g->status);
+	if(gp->status == Grunnable || gp->status == Grunning) {
+		runtime·printf("goroutine %d has status %d\n", gp->goid, gp->status);
 		runtime·throw("bad g->status in ready");
 	}
-	g->status = Grunnable;
+	gp->status = Grunnable;
 
-	gput(g);
+	gput(gp);
 	matchmg();
 }
 
@@ -505,24 +505,24 @@ nop(void)
 // debuggers can set a breakpoint here and catch all
 // new goroutines.
 static void
-newprocreadylocked(G *g)
+newprocreadylocked(G *gp)
 {
 	nop();	// avoid inlining in 6l
-	readylocked(g);
+	readylocked(gp);
 }
 
 // Pass g to m for running.
 // Caller has already incremented mcpu.
 static void
-mnextg(M *m, G *g)
+mnextg(M *mp, G *gp)
 {
 	runtime·sched.grunning++;
-	m->nextg = g;
-	if(m->waitnextg) {
-		m->waitnextg = 0;
+	mp->nextg = gp;
+	if(mp->waitnextg) {
+		mp->waitnextg = 0;
 		if(mwakeup != nil)
 			runtime·notewakeup(&mwakeup->havenextg);
-		mwakeup = m;
+		mwakeup = mp;
 	}
 }
 
@@ -719,7 +719,7 @@ runtime·stoptheworld(void)
 void
 runtime·starttheworld(void)
 {
-	M *m;
+	M *mp;
 	int32 max;
 	
 	// Figure out how many CPUs GC could possibly use.
@@ -747,8 +747,8 @@ runtime·starttheworld(void)
 		// but m is not running a specific goroutine,
 		// so set the helpgc flag as a signal to m's
 		// first schedule(nil) to mcpu-- and grunning--.
-		m = runtime·newm();
-		m->helpgc = 1;
+		mp = runtime·newm();
+		mp->helpgc = 1;
 		runtime·sched.grunning++;
 	}
 	schedunlock();
@@ -827,10 +827,10 @@ matchmg(void)
 M*
 runtime·newm(void)
 {
-	M *m;
+	M *mp;
 
-	m = runtime·malloc(sizeof(M));
-	mcommoninit(m);
+	mp = runtime·malloc(sizeof(M));
+	mcommoninit(mp);
 
 	if(runtime·iscgo) {
 		CgoThreadStart ts;
@@ -838,21 +838,21 @@ runtime·newm(void)
 		if(libcgo_thread_start == nil)
 			runtime·throw("libcgo_thread_start missing");
 		// pthread_create will make us a stack.
-		m->g0 = runtime·malg(-1);
-		ts.m = m;
-		ts.g = m->g0;
+		mp->g0 = runtime·malg(-1);
+		ts.m = mp;
+		ts.g = mp->g0;
 		ts.fn = runtime·mstart;
 		runtime·asmcgocall(libcgo_thread_start, &ts);
 	} else {
 		if(Windows)
 			// windows will layout sched stack on os stack
-			m->g0 = runtime·malg(-1);
+			mp->g0 = runtime·malg(-1);
 		else
-			m->g0 = runtime·malg(8192);
-		runtime·newosproc(m, m->g0, (byte*)m->g0->stackbase, runtime·mstart);
+			mp->g0 = runtime·malg(8192);
+		runtime·newosproc(mp, mp->g0, (byte*)mp->g0->stackbase, runtime·mstart);
 	}
 
-	return m;
+	return mp;
 }
 
 // One round of scheduler: find a goroutine and run it.
@@ -876,7 +876,7 @@ schedule(G *gp)
 		if(atomic_mcpu(v) > maxgomaxprocs)
 			runtime·throw("negative mcpu in scheduler");
 
-		switch(gp->status){
+		switch(gp->status) {
 		case Grunnable:
 		case Gdead:
 			// Shouldn't have been running!
@@ -898,7 +898,7 @@ schedule(G *gp)
 				runtime·exit(0);
 			break;
 		}
-		if(gp->readyonstop){
+		if(gp->readyonstop) {
 			gp->readyonstop = 0;
 			readylocked(gp);
 		}
@@ -1281,7 +1281,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 
 	schedlock();
 
-	if((newg = gfget()) != nil){
+	if((newg = gfget()) != nil) {
 		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
@@ -1333,7 +1333,7 @@ runtime·deferproc(int32 siz, byte* fn, ...)
 {
 	Defer *d;
 	int32 mallocsiz;
- 
+
 	mallocsiz = sizeof(*d);
 	if(siz > sizeof(d->args))
 		mallocsiz += siz - sizeof(d->args);
@@ -1602,24 +1602,24 @@ nomatch:
 
 // Put on gfree list.  Sched must be locked.
 static void
-gfput(G *g)
+gfput(G *gp)
 {
-	if(g->stackguard - StackGuard != g->stack0)
+	if(gp->stackguard - StackGuard != gp->stack0)
 		runtime·throw("invalid stack in gfput");
-	g->schedlink = runtime·sched.gfree;
-	runtime·sched.gfree = g;
+	gp->schedlink = runtime·sched.gfree;
+	runtime·sched.gfree = gp;
 }
 
 // Get from gfree list.  Sched must be locked.
 static G*
 gfget(void)
 {
-	G *g;
+	G *gp;
 
-	g = runtime·sched.gfree;
-	if(g)
-		runtime·sched.gfree = g->schedlink;
-	return g;
+	gp = runtime·sched.gfree;
+	if(gp)
+		runtime·sched.gfree = gp->schedlink;
+	return gp;
 }
 
 void
