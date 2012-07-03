@@ -1713,10 +1713,11 @@ func ValueOf(i interface{}) Value {
 	return Value{typ, unsafe.Pointer(eface.word), fl}
 }
 
-// Zero returns a Value representing a zero value for the specified type.
+// Zero returns a Value representing the zero value for the specified type.
 // The result is different from the zero value of the Value struct,
 // which represents no value at all.
 // For example, Zero(TypeOf(42)) returns a Value with Kind Int and value 0.
+// The returned value is neither addressable nor settable.
 func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")
