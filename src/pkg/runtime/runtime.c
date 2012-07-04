@@ -3,15 +3,11 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "stack.h"
 #include "arch_GOARCH.h"
 
 enum {
 	maxround = sizeof(uintptr),
 };
-
-uint32	runtime·panicking;
-void	(*runtime·destroylock)(Lock*);
 
 /*
  * We assume that all architectures turn faults and the like
@@ -30,103 +26,6 @@ runtime·gotraceback(void)
 	if(p == nil || p[0] == '\0')
 		return 1;	// default is on
 	return runtime·atoi(p);
-}
-
-static Lock paniclk;
-
-void
-runtime·startpanic(void)
-{
-	if(m->dying) {
-		runtime·printf("panic during panic\n");
-		runtime·exit(3);
-	}
-	m->dying = 1;
-	runtime·xadd(&runtime·panicking, 1);
-	runtime·lock(&paniclk);
-}
-
-void
-runtime·dopanic(int32 unused)
-{
-	static bool didothers;
-
-	if(g->sig != 0)
-		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
-			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
-
-	if(runtime·gotraceback()){
-		if(g != m->g0) {
-			runtime·printf("\n");
-			runtime·goroutineheader(g);
-			runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
-		}
-		if(!didothers) {
-			didothers = true;
-			runtime·tracebackothers(g);
-		}
-	}
-	runtime·unlock(&paniclk);
-	if(runtime·xadd(&runtime·panicking, -1) != 0) {
-		// Some other m is panicking too.
-		// Let it print what it needs to print.
-		// Wait forever without chewing up cpu.
-		// It will exit when it's done.
-		static Lock deadlock;
-		runtime·lock(&deadlock);
-		runtime·lock(&deadlock);
-	}
-
-	runtime·exit(2);
-}
-
-void
-runtime·panicindex(void)
-{
-	runtime·panicstring("index out of range");
-}
-
-void
-runtime·panicslice(void)
-{
-	runtime·panicstring("slice bounds out of range");
-}
-
-void
-runtime·throwreturn(void)
-{
-	// can only happen if compiler is broken
-	runtime·throw("no return at end of a typed function - compiler is broken");
-}
-
-void
-runtime·throwinit(void)
-{
-	// can only happen with linker skew
-	runtime·throw("recursive call during initialization - linker skew");
-}
-
-void
-runtime·throw(int8 *s)
-{
-	runtime·startpanic();
-	runtime·printf("throw: %s\n", s);
-	runtime·dopanic(0);
-	*(int32*)0 = 0;	// not reached
-	runtime·exit(1);	// even more not reached
-}
-
-void
-runtime·panicstring(int8 *s)
-{
-	Eface err;
-
-	if(m->gcing) {
-		runtime·printf("panic: %s\n", s);
-		runtime·throw("panic during gc");
-	}
-	runtime·newErrorString(runtime·gostringnocopy((byte*)s), &err);
-	runtime·panic(err);
 }
 
 int32
@@ -232,6 +131,31 @@ runtime·getenv(int8 *s)
 	nomatch:;
 	}
 	return nil;
+}
+
+void (*libcgo_setenv)(byte**);
+
+// Update the C environment if cgo is loaded.
+// Called from syscall.Setenv.
+void
+syscall·setenv_c(String k, String v)
+{
+	byte *arg[2];
+
+	if(libcgo_setenv == nil)
+		return;
+
+	arg[0] = runtime·malloc(k.len + 1);
+	runtime·memmove(arg[0], k.str, k.len);
+	arg[0][k.len] = 0;
+
+	arg[1] = runtime·malloc(v.len + 1);
+	runtime·memmove(arg[1], v.str, v.len);
+	arg[1][v.len] = 0;
+
+	runtime·asmcgocall((void*)libcgo_setenv, arg);
+	runtime·free(arg[0]);
+	runtime·free(arg[1]);
 }
 
 void
