@@ -14,6 +14,7 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -57,7 +58,13 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
 
-	for name, def := range typedef {
+	typedefNames := make([]string, 0, len(typedef))
+	for name := range typedef {
+		typedefNames = append(typedefNames, name)
+	}
+	sort.Strings(typedefNames)
+	for _, name := range typedefNames {
+		def := typedef[name]
 		fmt.Fprintf(fgo2, "type %s ", name)
 		conf.Fprint(fgo2, fset, def.Go)
 		fmt.Fprintf(fgo2, "\n\n")
