@@ -121,22 +121,6 @@ errstr(void)
 	return bstr(&b);  // leak but we're dying anyway
 }
 
-static void
-errprintf(char *fmt, ...) {
-	va_list arg;
-	char *p;
-	DWORD n, w;
-
-	va_start(arg, fmt);
-	n = vsnprintf(NULL, 0, fmt, arg);
-	p = xmalloc(n+1);
-	vsnprintf(p, n+1, fmt, arg);
-	va_end(arg);
-	w = 0;
-	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
-	xfree(p);
-}
-
 void
 xgetenv(Buf *b, char *name)
 {
@@ -332,7 +316,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 		}
 	}
 	if(vflag > 1)
-		xprintf("%s\n", bstr(&cmd));
+		errprintf("%s\n", bstr(&cmd));
 
 	torune(&rcmd, bstr(&cmd));
 	rexe = nil;
@@ -547,7 +531,7 @@ readfile(Buf *b, char *file)
 	Rune *r;
 
 	if(vflag > 2)
-		xprintf("read %s\n", file);
+		errprintf("read %s\n", file);
 	torune(&r, file);
 	h = CreateFileW(r, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
 	if(h == INVALID_HANDLE_VALUE)
@@ -566,7 +550,7 @@ writefile(Buf *b, char *file, int exec)
 	USED(exec);
 
 	if(vflag > 2)
-		xprintf("write %s\n", file);
+		errprintf("write %s\n", file);
 	torune(&r, file);
 	h = CreateFileW(r, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, CREATE_ALWAYS, 0, 0);
 	if(h == INVALID_HANDLE_VALUE)
@@ -863,6 +847,22 @@ xprintf(char *fmt, ...)
 	va_end(arg);
 	w = 0;
 	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), p, n, &w, 0);
+	xfree(p);
+}
+
+void
+errprintf(char *fmt, ...) {
+	va_list arg;
+	char *p;
+	DWORD n, w;
+
+	va_start(arg, fmt);
+	n = vsnprintf(NULL, 0, fmt, arg);
+	p = xmalloc(n+1);
+	vsnprintf(p, n+1, fmt, arg);
+	va_end(arg);
+	w = 0;
+	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
 	xfree(p);
 }
 

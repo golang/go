@@ -147,7 +147,7 @@ static void
 rmworkdir(void)
 {
 	if(vflag > 1)
-		xprintf("rm -rf %s\n", workdir);
+		errprintf("rm -rf %s\n", workdir);
 	xremoveall(workdir);
 }
 
@@ -543,9 +543,9 @@ install(char *dir)
 
 	if(vflag) {
 		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
-			xprintf("%s (%s/%s)\n", dir, goos, goarch);
+			errprintf("%s (%s/%s)\n", dir, goos, goarch);
 		else
-			xprintf("%s\n", dir);
+			errprintf("%s\n", dir);
 	}
 
 	binit(&b);
@@ -575,7 +575,7 @@ install(char *dir)
 	// For release, cmd/prof and cmd/cov are not included.
 	if((streq(dir, "cmd/cov") || streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
 		if(vflag > 1)
-			xprintf("skipping %s - does not exist\n", dir);
+			errprintf("skipping %s - does not exist\n", dir);
 		goto out;
 	}
 
@@ -784,7 +784,7 @@ install(char *dir)
 		for(j=0; j<nelem(gentab); j++) {
 			if(hasprefix(elem, gentab[j].nameprefix)) {
 				if(vflag > 1)
-					xprintf("generate %s\n", p);
+					errprintf("generate %s\n", p);
 				gentab[j].gen(bstr(&path), p);
 				// Do not add generated file to clean list.
 				// In pkg/runtime, we want to be able to
@@ -829,7 +829,7 @@ install(char *dir)
 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
 		// We've generated the right files; the go command can do the build.
 		if(vflag > 1)
-			xprintf("skip build for cross-compile %s\n", dir);
+			errprintf("skip build for cross-compile %s\n", dir);
 		goto nobuild;
 	}
 
@@ -1112,7 +1112,7 @@ copy(char *dst, char *src, int exec)
 	Buf b;
 
 	if(vflag > 1)
-		xprintf("cp %s %s\n", src, dst);
+		errprintf("cp %s %s\n", src, dst);
 
 	binit(&b);
 	readfile(&b, src);

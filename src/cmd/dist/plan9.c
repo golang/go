@@ -177,7 +177,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 		bwritestr(&cmd, q);
 	}
 	if(vflag > 1)
-		xprintf("%s\n", bstr(&cmd));
+		errprintf("%s\n", bstr(&cmd));
 
 	if(b != nil) {
 		breset(b);
@@ -422,7 +422,7 @@ void
 xremove(char *p)
 {
 	if(vflag > 2)
-		xprintf("rm %s\n", p);
+		errprintf("rm %s\n", p);
 	remove(p);
 }
 
@@ -445,7 +445,7 @@ xremoveall(char *p)
 		}
 	}
 	if(vflag > 2)
-		xprintf("rm %s\n", p);
+		errprintf("rm %s\n", p);
 	remove(p);
 	
 	bfree(&b);
@@ -658,6 +658,17 @@ xprintf(char *fmt, ...)
 	
 	va_start(arg, fmt);
 	vprintf(fmt, arg);
+	va_end(arg);
+}
+
+// errprintf prints a message to standard output.
+void
+errprintf(char *fmt, ...)
+{
+	va_list arg;
+	
+	va_start(arg, fmt);
+	vfprintf(stderr, fmt, arg);
 	va_end(arg);
 }
 
