@@ -108,6 +108,7 @@ void	xmain(int argc, char **argv);
 
 // portability layer (plan9.c, unix.c, windows.c)
 bool	contains(char *p, char *sep);
+void	errprintf(char*, ...);
 void	fatal(char *msg, ...);
 bool	hasprefix(char *p, char *prefix);
 bool	hassuffix(char *p, char *suffix);
