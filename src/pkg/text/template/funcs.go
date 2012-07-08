@@ -154,7 +154,7 @@ func length(item interface{}) (int, error) {
 
 // Function invocation
 
-// call returns the result of evaluating the the first argument as a function.
+// call returns the result of evaluating the first argument as a function.
 // The function must return 1 result, or 2 results, the second of which is an error.
 func call(fn interface{}, args ...interface{}) (interface{}, error) {
 	v := reflect.ValueOf(fn)
