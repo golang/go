@@ -547,7 +547,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 }
 
 // NewWriter allocates and initializes a new tabwriter.Writer.
-// The parameters are the same as for the the Init function.
+// The parameters are the same as for the Init function.
 //
 func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)

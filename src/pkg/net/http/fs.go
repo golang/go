@@ -154,7 +154,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		}
 		if sumRangesSize(ranges) >= size {
 			// The total number of bytes in all the ranges
-			// is larger the the size of the file by
+			// is larger than the size of the file by
 			// itself, so this is probably an attack, or a
 			// dumb client.  Ignore the range request.
 			ranges = nil
