@@ -31,7 +31,7 @@ var _ = log.Printf
 //   INSERT|<tablename>|col=val,col2=val2,col3=?
 //   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
 //
-// When opening a a fakeDriver's database, it starts empty with no
+// When opening a fakeDriver's database, it starts empty with no
 // tables.  All tables and data are stored in memory only.
 type fakeDriver struct {
 	mu        sync.Mutex
@@ -234,7 +234,7 @@ func checkSubsetTypes(args []driver.Value) error {
 
 func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	// This is an optional interface, but it's implemented here
-	// just to check that all the args of of the proper types.
+	// just to check that all the args are of the proper types.
 	// ErrSkip is returned so the caller acts as if we didn't
 	// implement this at all.
 	err := checkSubsetTypes(args)
@@ -249,7 +249,7 @@ func errf(msg string, args ...interface{}) error {
 }
 
 // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
-// (note that where where columns must always contain ? marks,
+// (note that where columns must always contain ? marks,
 //  just a limitation for fakedb)
 func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
 	if len(parts) != 3 {

@@ -494,7 +494,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 	r.funcs = make(methodSet)
 
 	// sort package files before reading them so that the
-	// result result does not depend on map iteration order
+	// result does not depend on map iteration order
 	i := 0
 	for filename := range pkg.Files {
 		r.filenames[i] = filename

@@ -22,7 +22,7 @@ func isTokenChar(r rune) bool {
 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
 }
 
-// isToken returns true if s is a 'token' as as defined by RFC 1521
+// isToken returns true if s is a 'token' as defined by RFC 1521
 // and RFC 2045.
 func isToken(s string) bool {
 	if s == "" {
