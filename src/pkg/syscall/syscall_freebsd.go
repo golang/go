@@ -326,7 +326,6 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 // __pthread_canceled
 // __semwait_signal
 // Proc_info
-// Sendfile
 // Stat64_extended
 // Lstat64_extended
 // Fstat64_extended
