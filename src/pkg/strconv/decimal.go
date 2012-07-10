@@ -79,7 +79,7 @@ func trim(a *decimal) {
 
 // Assign v to a.
 func (a *decimal) Assign(v uint64) {
-	var buf [50]byte
+	var buf [24]byte
 
 	// Write reversed decimal in buf.
 	n := 0

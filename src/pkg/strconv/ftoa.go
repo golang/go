@@ -104,10 +104,10 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	d := new(decimal)
 	if shortest {
 		ok := false
-		if optimize && bitSize == 64 {
+		if optimize {
 			// Try Grisu3 algorithm.
 			f := new(extFloat)
-			lower, upper := f.AssignComputeBounds(val)
+			lower, upper := f.AssignComputeBounds(mant, exp, neg, flt)
 			ok = f.ShortestDecimal(d, &lower, &upper)
 		}
 		if !ok {
