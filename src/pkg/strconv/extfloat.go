@@ -190,29 +190,24 @@ func (f *extFloat) Assign(x float64) {
 	f.exp -= 64
 }
 
-// AssignComputeBounds sets f to the value of x and returns
+// AssignComputeBounds sets f to the floating point value
+// defined by mant, exp and precision given by flt. It returns
 // lower, upper such that any number in the closed interval
-// [lower, upper] is converted back to x.
-func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
-	// Special cases.
-	bits := math.Float64bits(x)
-	flt := &float64info
-	neg := bits>>(flt.expbits+flt.mantbits) != 0
-	expBiased := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
-	mant := bits & (uint64(1)<<flt.mantbits - 1)
-
-	if expBiased == 0 {
-		// denormalized.
-		f.mant = mant
-		f.exp = 1 + flt.bias - int(flt.mantbits)
-	} else {
-		f.mant = mant | 1<<flt.mantbits
-		f.exp = expBiased + flt.bias - int(flt.mantbits)
-	}
+// [lower, upper] is converted back to the same floating point number.
+func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floatInfo) (lower, upper extFloat) {
+	f.mant = mant
+	f.exp = exp - int(flt.mantbits)
 	f.neg = neg
+	if f.exp <= 0 && mant == (mant>>uint(-f.exp))<<uint(-f.exp) {
+		// An exact integer
+		f.mant >>= uint(-f.exp)
+		f.exp = 0
+		return *f, *f
+	}
+	expBiased := exp - flt.bias
 
 	upper = extFloat{mant: 2*f.mant + 1, exp: f.exp - 1, neg: f.neg}
-	if mant != 0 || expBiased == 1 {
+	if mant != 1<<flt.mantbits || expBiased == 1 {
 		lower = extFloat{mant: 2*f.mant - 1, exp: f.exp - 1, neg: f.neg}
 	} else {
 		lower = extFloat{mant: 4*f.mant - 1, exp: f.exp - 2, neg: f.neg}
@@ -222,20 +217,38 @@ func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
 
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
-func (f *extFloat) Normalize() uint {
-	if f.mant == 0 {
+func (f *extFloat) Normalize() (shift uint) {
+	mant, exp := f.mant, f.exp
+	if mant == 0 {
 		return 0
 	}
-	exp_before := f.exp
-	for f.mant < (1 << 55) {
-		f.mant <<= 8
-		f.exp -= 8
+	if mant>>(64-32) == 0 {
+		mant <<= 32
+		exp -= 32
 	}
-	for f.mant < (1 << 63) {
-		f.mant <<= 1
-		f.exp -= 1
+	if mant>>(64-16) == 0 {
+		mant <<= 16
+		exp -= 16
 	}
-	return uint(exp_before - f.exp)
+	if mant>>(64-8) == 0 {
+		mant <<= 8
+		exp -= 8
+	}
+	if mant>>(64-4) == 0 {
+		mant <<= 4
+		exp -= 4
+	}
+	if mant>>(64-2) == 0 {
+		mant <<= 2
+		exp -= 2
+	}
+	if mant>>(64-1) == 0 {
+		mant <<= 1
+		exp -= 1
+	}
+	shift = uint(f.exp - exp)
+	f.mant, f.exp = mant, exp
+	return
 }
 
 // Multiply sets f to the product f*g: the result is correctly rounded,
@@ -389,6 +402,12 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
 		d.nd = 1
 		d.dp = 0
 		d.neg = f.neg
+	}
+	if f.exp == 0 && *lower == *f && *lower == *upper {
+		// an exact integer.
+		d.Assign(f.mant)
+		d.neg = f.neg
+		return true
 	}
 	const minExp = -60
 	const maxExp = -32

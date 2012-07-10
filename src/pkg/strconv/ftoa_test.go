@@ -203,37 +203,23 @@ func BenchmarkFormatFloatBig(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendFloatDecimal(b *testing.B) {
-	dst := make([]byte, 0, 30)
+func benchmarkAppendFloat(b *testing.B, f float64, fmt byte, prec, bitSize int) {
+	dst := make([]byte, 30)
 	for i := 0; i < b.N; i++ {
-		AppendFloat(dst, 33909, 'g', -1, 64)
+		AppendFloat(dst[:0], f, fmt, prec, bitSize)
 	}
 }
 
-func BenchmarkAppendFloat(b *testing.B) {
-	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
-		AppendFloat(dst, 339.7784, 'g', -1, 64)
-	}
-}
-
-func BenchmarkAppendFloatExp(b *testing.B) {
-	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
-		AppendFloat(dst, -5.09e75, 'g', -1, 64)
-	}
-}
-
-func BenchmarkAppendFloatNegExp(b *testing.B) {
-	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
-		AppendFloat(dst, -5.11e-95, 'g', -1, 64)
-	}
-}
-
+func BenchmarkAppendFloatDecimal(b *testing.B) { benchmarkAppendFloat(b, 33909, 'g', -1, 64) }
+func BenchmarkAppendFloat(b *testing.B)        { benchmarkAppendFloat(b, 339.7784, 'g', -1, 64) }
+func BenchmarkAppendFloatExp(b *testing.B)     { benchmarkAppendFloat(b, -5.09e75, 'g', -1, 64) }
+func BenchmarkAppendFloatNegExp(b *testing.B)  { benchmarkAppendFloat(b, -5.11e-95, 'g', -1, 64) }
 func BenchmarkAppendFloatBig(b *testing.B) {
-	dst := make([]byte, 0, 30)
-	for i := 0; i < b.N; i++ {
-		AppendFloat(dst, 123456789123456789123456789, 'g', -1, 64)
-	}
+	benchmarkAppendFloat(b, 123456789123456789123456789, 'g', -1, 64)
 }
+
+func BenchmarkAppendFloat32Integer(b *testing.B)       { benchmarkAppendFloat(b, 33909, 'g', -1, 32) }
+func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b, 3.375, 'g', -1, 32) }
+func BenchmarkAppendFloat32Point(b *testing.B)         { benchmarkAppendFloat(b, 339.7784, 'g', -1, 32) }
+func BenchmarkAppendFloat32Exp(b *testing.B)           { benchmarkAppendFloat(b, -5.09e25, 'g', -1, 32) }
+func BenchmarkAppendFloat32NegExp(b *testing.B)        { benchmarkAppendFloat(b, -5.11e-25, 'g', -1, 32) }
