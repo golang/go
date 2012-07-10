@@ -251,7 +251,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
 			CommonName:   commonName,
-			Organization: []string{"Acme Co"},
+			Organization: []string{"Σ Acme Co"},
 		},
 		NotBefore: time.Unix(1000, 0),
 		NotAfter:  time.Unix(100000, 0),

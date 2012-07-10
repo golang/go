@@ -122,6 +122,7 @@ var marshalTests = []marshalTest{
 	{testSET([]int{10}), "310302010a"},
 	{omitEmptyTest{[]string{}}, "3000"},
 	{omitEmptyTest{[]string{"1"}}, "30053003130131"},
+	{"Σ", "0c02cea3"},
 }
 
 func TestMarshal(t *testing.T) {
@@ -135,5 +136,12 @@ func TestMarshal(t *testing.T) {
 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
 
 		}
+	}
+}
+
+func TestInvalidUTF8(t *testing.T) {
+	_, err := Marshal(string([]byte{0xff, 0xff}))
+	if err == nil {
+		t.Errorf("invalid UTF8 string was accepted")
 	}
 }
