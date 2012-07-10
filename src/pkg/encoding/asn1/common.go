@@ -98,6 +98,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			ret.stringType = tagIA5String
 		case part == "printable":
 			ret.stringType = tagPrintableString
+		case part == "utf8":
+			ret.stringType = tagUTF8String
 		case strings.HasPrefix(part, "default:"):
 			i, err := strconv.ParseInt(part[8:], 10, 64)
 			if err == nil {
