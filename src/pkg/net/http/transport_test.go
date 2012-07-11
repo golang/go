@@ -857,6 +857,50 @@ func TestIssue3595(t *testing.T) {
 	}
 }
 
+func TestTransportConcurrency(t *testing.T) {
+	const maxProcs = 16
+	const numReqs = 500
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%v", r.FormValue("echo"))
+	}))
+	defer ts.Close()
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+	reqs := make(chan string)
+	defer close(reqs)
+
+	var wg sync.WaitGroup
+	wg.Add(numReqs)
+	for i := 0; i < maxProcs*2; i++ {
+		go func() {
+			for req := range reqs {
+				res, err := c.Get(ts.URL + "/?echo=" + req)
+				if err != nil {
+					t.Errorf("error on req %s: %v", req, err)
+					wg.Done()
+					continue
+				}
+				all, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					t.Errorf("read error on req %s: %v", req, err)
+					wg.Done()
+					continue
+				}
+				if string(all) != req {
+					t.Errorf("body of req %s = %q; want %q", req, all, req)
+				}
+				wg.Done()
+				res.Body.Close()
+			}
+		}()
+	}
+	for i := 0; i < numReqs; i++ {
+		reqs <- fmt.Sprintf("request-%d", i)
+	}
+	wg.Wait()
+}
+
 type fooProto struct{}
 
 func (fooProto) RoundTrip(req *Request) (*Response, error) {
