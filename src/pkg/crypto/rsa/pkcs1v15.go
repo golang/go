@@ -25,10 +25,10 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 		return
 	}
 
-	// EM = 0x02 || PS || 0x00 || M
-	em := make([]byte, k-1)
-	em[0] = 2
-	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):]
+	// EM = 0x00 || 0x02 || PS || 0x00 || M
+	em := make([]byte, k)
+	em[1] = 2
+	ps, mm := em[2:len(em)-len(msg)-1], em[len(em)-len(msg):]
 	err = nonZeroRandomBytes(ps, rand)
 	if err != nil {
 		return
@@ -38,7 +38,9 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 
 	m := new(big.Int).SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out = c.Bytes()
+
+	copyWithLeftPad(em, c.Bytes())
+	out = em
 	return
 }
 
@@ -185,9 +187,12 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 
 	m := new(big.Int).SetBytes(em)
 	c, err := decrypt(rand, priv, m)
-	if err == nil {
-		s = c.Bytes()
+	if err != nil {
+		return
 	}
+
+	copyWithLeftPad(em, c.Bytes())
+	s = em
 	return
 }
 
@@ -240,4 +245,14 @@ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, 
 		return 0, nil, errors.New("crypto/rsa: unsupported hash function")
 	}
 	return
+}
+
+// copyWithLeftPad copies src to the end of dest, padding with zero bytes as
+// needed.
+func copyWithLeftPad(dest, src []byte) {
+	numPaddingBytes := len(dest) - len(src)
+	for i := 0; i < numPaddingBytes; i++ {
+		dest[i] = 0
+	}
+	copy(dest[numPaddingBytes:], src)
 }
