@@ -179,7 +179,7 @@ func allocBytes(f func()) uint64 {
 
 // TestMulUnbalanced tests that multiplying numbers of different lengths
 // does not cause deep recursion and in turn allocate too much memory.
-// test case for issue 3807
+// Test case for issue 3807.
 func TestMulUnbalanced(t *testing.T) {
 	x := rndNat(50000)
 	y := rndNat(40)
@@ -201,7 +201,7 @@ func rndNat(n int) nat {
 	for i := 0; i < n; i++ {
 		x[i] = Word(rnd.Int63()<<1 + rnd.Int63n(2))
 	}
-	return x
+	return x.norm()
 }
 
 func BenchmarkMul(b *testing.B) {
