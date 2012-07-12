@@ -562,6 +562,9 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl error) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
+		if state.b.Len() == 0 {
+			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+		}
 		up := unsafe.Pointer(p)
 		if elemIndir > 1 {
 			up = decIndirect(up, elemIndir)
@@ -652,9 +655,6 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 // Slices are encoded as an unsigned length followed by the elements.
 func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
 	nr := state.decodeUint()
-	if nr > uint64(state.b.Len()) {
-		errorf("length of slice exceeds input size (%d elements)", nr)
-	}
 	n := int(nr)
 	if indir > 0 {
 		up := unsafe.Pointer(p)

@@ -813,3 +813,32 @@ func TestMutipleEncodingsOfBadType(t *testing.T) {
 		t.Errorf("expected error about no exported fields; got %v", err)
 	}
 }
+
+// There was an error check comparing the length of the input with the
+// length of the slice being decoded. It was wrong because the next
+// thing in the input might be a type definition, which would lead to
+// an incorrect length check.  This test reproduces the corner case.
+
+type Z struct {
+}
+
+func Test29ElementSlice(t *testing.T) {
+	Register(Z{})
+	src := make([]interface{}, 100) // Size needs to be bigger than size of type definition.
+	for i := range src {
+		src[i] = Z{}
+	}
+	buf := new(bytes.Buffer)
+	err := NewEncoder(buf).Encode(src)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+		return
+	}
+
+	var dst []interface{}
+	err = NewDecoder(buf).Decode(&dst)
+	if err != nil {
+		t.Errorf("decode: %v", err)
+		return
+	}
+}
