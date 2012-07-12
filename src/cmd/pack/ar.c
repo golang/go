@@ -77,9 +77,7 @@ typedef struct	Armember	/* Temp file entry - one per archive member */
 
 typedef	struct Arfile		/* Temp file control block - one per tempfile */
 {
-	int	paged;		/* set when some data paged to disk */
 	char	*fname;		/* paging file name */
-	int	fd;		/* paging file descriptor */
 	vlong	size;
 	Armember *head;		/* head of member chain */
 	Armember *tail;		/* tail of member chain */
@@ -159,7 +157,6 @@ int	bamatch(char*, char*);
 int	duplicate(char*, char**);
 Armember *getdir(Biobuf*);
 void	getpkgdef(char**, int*);
-int	getspace(void);
 void	install(char*, Arfile*, Arfile*, Arfile*, int);
 void	loadpkgdata(char*, int);
 void	longt(Armember*);
@@ -169,7 +166,6 @@ Arfile	*newtempfile(char*);
 Armember *newmember(void);
 void	objsym(Sym*, void*);
 int	openar(char*, int, int);
-int	page(Arfile*);
 void	pmode(long);
 void	rl(int);
 void	scanobj(Biobuf*, Arfile*, long);
@@ -1534,24 +1530,8 @@ void
 arstream(int fd, Arfile *ap)
 {
 	Armember *bp;
-	int i;
-	char buf[8192];
 
-	if (ap->paged) {		/* copy from disk */
-		seek(ap->fd, 0, 0);
-		for (;;) {
-			i = read(ap->fd, buf, sizeof(buf));
-			if (i < 0)
-				rderr();
-			if (i == 0)
-				break;
-			if (write(fd, buf, i) != i)
-				wrerr();
-		}
-		close(ap->fd);
-		ap->paged = 0;
-	}
-		/* dump the in-core buffers */
+	/* dump the in-core buffers */
 	for (bp = ap->head; bp; bp = bp->next) {
 		if (!arwrite(fd, bp))
 			wrerr();
@@ -1574,35 +1554,6 @@ arwrite(int fd, Armember *bp)
 	if (write(fd, bp->member, len) != len)
 		return 0;
 	return 1;
-}
-
-/*
- *	Spill a member to a disk copy of a temp file
- */
-int
-page(Arfile *ap)
-{
-	USED(ap);
-
-	sysfatal("page");
-	return 1;
-}
-
-/*
- *	try to reclaim space by paging.  we try to spill the start, middle,
- *	and end files, in that order.  there is no particular reason for the
- *	ordering.
- */
-int
-getspace(void)
-{
-	if (astart && astart->head && page(astart))
-		return 1;
-	if (amiddle && amiddle->head && page(amiddle))
-		return 1;
-	if (aend && aend->head && page(aend))
-		return 1;
-	return 0;
 }
 
 void
@@ -1633,13 +1584,11 @@ armalloc(int n)
 	if(n&1)
 		n++;
 
-	do {
-		cp = malloc(n);
-		if (cp) {
-			memset(cp, 0, n);
-			return cp;
-		}
-	} while (getspace());
+	cp = malloc(n);
+	if (cp) {
+		memset(cp, 0, n);
+		return cp;
+	}
 	fprint(2, "pack: out of memory\n");
 	exits("malloc");
 	return 0;
