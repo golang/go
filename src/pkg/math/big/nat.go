@@ -438,8 +438,9 @@ func (z nat) mul(x, y nat) nat {
 
 		// add x0*y1*b
 		x0 := x0.norm()
-		y1 := y[k:] // y1 is normalized because y is
-		addAt(z, t.mul(x0, y1), k)
+		y1 := y[k:]       // y1 is normalized because y is
+		t = t.mul(x0, y1) // update t so we don't lose t's underlying array
+		addAt(z, t, k)
 
 		// add xi*y0<<i, xi*y1*b<<(i+k)
 		y0 := y0.norm()
@@ -449,8 +450,10 @@ func (z nat) mul(x, y nat) nat {
 				xi = xi[:k]
 			}
 			xi = xi.norm()
-			addAt(z, t.mul(xi, y0), i)
-			addAt(z, t.mul(xi, y1), i+k)
+			t = t.mul(xi, y0)
+			addAt(z, t, i)
+			t = t.mul(xi, y1)
+			addAt(z, t, i+k)
 		}
 	}
 
@@ -1232,7 +1235,7 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 // reuses the storage of z if possible.
 func (z nat) expNN(x, y, m nat) nat {
 	if alias(z, x) || alias(z, y) {
-		// We cannot allow in place modification of x or y.
+		// We cannot allow in-place modification of x or y.
 		z = nil
 	}
 
