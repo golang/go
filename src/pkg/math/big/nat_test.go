@@ -7,6 +7,7 @@ package big
 import (
 	"io"
 	"math/rand"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -63,6 +64,36 @@ var prodNN = []argNN{
 	{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
 	{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
 	{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
+	// 3^100 * 3^28 = 3^128
+	{
+		natFromString("11790184577738583171520872861412518665678211592275841109096961"),
+		natFromString("515377520732011331036461129765621272702107522001"),
+		natFromString("22876792454961"),
+	},
+	// z = 111....1 (70000 digits)
+	// x = 10^(99*700) + ... + 10^1400 + 10^700 + 1
+	// y = 111....1 (700 digits, larger than Karatsuba threshold on 32-bit and 64-bit)
+	{
+		natFromString(strings.Repeat("1", 70000)),
+		natFromString("1" + strings.Repeat(strings.Repeat("0", 699)+"1", 99)),
+		natFromString(strings.Repeat("1", 700)),
+	},
+	// z = 111....1 (20000 digits)
+	// x = 10^10000 + 1
+	// y = 111....1 (10000 digits)
+	{
+		natFromString(strings.Repeat("1", 20000)),
+		natFromString("1" + strings.Repeat("0", 9999) + "1"),
+		natFromString(strings.Repeat("1", 10000)),
+	},
+}
+
+func natFromString(s string) nat {
+	x, _, err := nat(nil).scan(strings.NewReader(s), 0)
+	if err != nil {
+		panic(err)
+	}
+	return x
 }
 
 func TestSet(t *testing.T) {
@@ -133,6 +164,31 @@ func TestMulRangeN(t *testing.T) {
 		if prod != r.prod {
 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
 		}
+	}
+}
+
+// allocBytes returns the number of bytes allocated by invoking f. 
+func allocBytes(f func()) uint64 {
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	t := stats.TotalAlloc
+	f()
+	runtime.ReadMemStats(&stats)
+	return stats.TotalAlloc - t
+}
+
+// TestMulUnbalanced tests that multiplying numbers of different lengths
+// does not cause deep recursion and in turn allocate too much memory.
+// test case for issue 3807
+func TestMulUnbalanced(t *testing.T) {
+	x := rndNat(50000)
+	y := rndNat(40)
+	allocSize := allocBytes(func() {
+		nat(nil).mul(x, y)
+	})
+	inputSize := uint64(len(x)+len(y)) * _S
+	if ratio := allocSize / uint64(inputSize); ratio > 10 {
+		t.Errorf("multiplication uses too much memory (%d > %d times the size of inputs)", allocSize, ratio)
 	}
 }
 
