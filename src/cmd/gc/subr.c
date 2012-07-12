@@ -1384,6 +1384,7 @@ assignconv(Node *n, Type *t, char *context)
 	r->type = t;
 	r->typecheck = 1;
 	r->implicit = 1;
+	r->orig = n;
 	return r;
 }
 
