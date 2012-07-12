@@ -236,7 +236,7 @@ func karatsubaSub(z, x nat, n int) {
 // Operands that are shorter than karatsubaThreshold are multiplied using
 // "grade school" multiplication; for longer operands the Karatsuba algorithm
 // is used.
-var karatsubaThreshold int = 32 // computed by calibrate.go
+var karatsubaThreshold int = 40 // computed by calibrate.go
 
 // karatsuba multiplies x and y and leaves the result in z.
 // Both x and y must have the same length n and n must be a
