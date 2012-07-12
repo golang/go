@@ -342,7 +342,7 @@ func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
-// addAt implements z += x*(1<<(_W*i)); z must be long enough.
+// addAt implements z += x<<(_W*i); z must be long enough.
 // (we don't use nat.add because we need z to stay the same
 // slice, and we don't need to normalize z after each addition)
 func addAt(z, x nat, i int) {
@@ -405,8 +405,8 @@ func (z nat) mul(x, y nat) nat {
 
 	// determine Karatsuba length k such that
 	//
-	//   x = x1*b + x0
-	//   y = y1*b + y0  (and k <= len(y), which implies k <= len(x))
+	//   x = xh*b + x0  (0 <= x0 < b)
+	//   y = yh*b + y0  (0 <= y0 < b)
 	//   b = 1<<(_W*k)  ("base" of digits xi, yi)
 	//
 	k := karatsubaLen(n)
@@ -417,27 +417,41 @@ func (z nat) mul(x, y nat) nat {
 	y0 := y[0:k]              // y0 is not normalized
 	z = z.make(max(6*k, m+n)) // enough space for karatsuba of x0*y0 and full result of x*y
 	karatsuba(z, x0, y0)
-	z = z[0 : m+n] // z has final length but may be incomplete, upper portion is garbage
+	z = z[0 : m+n]  // z has final length but may be incomplete
+	z[2*k:].clear() // upper portion of z is garbage (and 2*k <= m+n since k <= n <= m)
 
-	// If x1 and/or y1 are not 0, add missing terms to z explicitly:
-	//
-	//     m+n       2*k       0
-	//   z = [   ...   | x0*y0 ]
-	//     +   [ x1*y1 ]
-	//     +   [ x1*y0 ]
-	//     +   [ x0*y1 ]
+	// If xh != 0 or yh != 0, add the missing terms to z. For
+	// 
+	//   xh = xi*b^i + ... + x2*b^2 + x1*b (0 <= xi < b) 
+	//   yh =                         y1*b (0 <= y1 < b) 
+	// 
+	// the missing terms are 
+	// 
+	//   x0*y1*b and xi*y0*b^i, xi*y1*b^(i+1) for i > 0 
+	// 
+	// since all the yi for i > 1 are 0 by choice of k: If any of them 
+	// were > 0, then yh >= b^2 and thus y >= b^2. Then k' = k*2 would 
+	// be a larger valid threshold contradicting the assumption about k. 
 	//
 	if k < n || m != n {
-		x1 := x[k:] // x1 is normalized because x is
-		y1 := y[k:] // y1 is normalized because y is
 		var t nat
-		t = t.mul(x1, y1)
-		copy(z[2*k:], t)
-		z[2*k+len(t):].clear() // upper portion of z is garbage
-		t = t.mul(x1, y0.norm())
-		addAt(z, t, k)
-		t = t.mul(x0.norm(), y1)
-		addAt(z, t, k)
+
+		// add x0*y1*b
+		x0 := x0.norm()
+		y1 := y[k:] // y1 is normalized because y is
+		addAt(z, t.mul(x0, y1), k)
+
+		// add xi*y0<<i, xi*y1*b<<(i+k)
+		y0 := y0.norm()
+		for i := k; i < len(x); i += k {
+			xi := x[i:]
+			if len(xi) > k {
+				xi = xi[:k]
+			}
+			xi = xi.norm()
+			addAt(z, t.mul(xi, y0), i)
+			addAt(z, t.mul(xi, y1), i+k)
+		}
 	}
 
 	return z.norm()
