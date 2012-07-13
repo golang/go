@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"io"
 	"math/rand"
+	"runtime"
 	"testing"
 	"unicode/utf8"
 )
@@ -370,6 +371,37 @@ func TestReadBytes(t *testing.T) {
 		}
 		if err != test.err {
 			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+	}
+}
+
+func TestGrow(t *testing.T) {
+	x := []byte{'x'}
+	y := []byte{'y'}
+	tmp := make([]byte, 72)
+	for _, startLen := range []int{0, 100, 1000, 10000, 100000} {
+		xBytes := Repeat(x, startLen)
+		for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
+			buf := NewBuffer(xBytes)
+			// If we read, this affects buf.off, which is good to test.
+			readBytes, _ := buf.Read(tmp)
+			buf.Grow(growLen)
+			yBytes := Repeat(y, growLen)
+			// Check no allocation occurs in write, as long as we're single-threaded.
+			var m1, m2 runtime.MemStats
+			runtime.ReadMemStats(&m1)
+			buf.Write(yBytes)
+			runtime.ReadMemStats(&m2)
+			if runtime.GOMAXPROCS(-1) == 1 && m1.Mallocs != m2.Mallocs {
+				t.Errorf("allocation occurred during write")
+			}
+			// Check that buffer has correct data.
+			if !Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
+				t.Errorf("bad initial data at %d %d", startLen, growLen)
+			}
+			if !Equal(buf.Bytes()[startLen-readBytes:startLen-readBytes+growLen], yBytes) {
+				t.Errorf("bad written data at %d %d", startLen, growLen)
+			}
 		}
 	}
 }
