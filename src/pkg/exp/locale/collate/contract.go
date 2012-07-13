@@ -37,6 +37,11 @@ func (s *ctScanner) result() (i, p int) {
 	return s.index, s.pindex
 }
 
+const (
+	final   = 0
+	noIndex = 0xFF
+)
+
 // scan matches the longest suffix at the current location in the input
 // and returns the number of bytes consumed.
 func (s *ctScanner) scan(p int) int {
@@ -53,12 +58,12 @@ func (s *ctScanner) scan(p int) int {
 		if c >= e.l {
 			if e.l == c {
 				p++
-				if e.i != 0xFF {
+				if e.i != noIndex {
 					s.index = int(e.i)
 					s.pindex = p
 				}
-				if e.n != 0 {
-					i, states, n = 0, states[e.h:], int(e.n)
+				if e.n != final {
+					i, states, n = 0, states[int(e.h)+n:], int(e.n)
 					if p >= len(str) || utf8.RuneStart(str[p]) {
 						s.states, s.n, pr = states, n, p
 					}
@@ -67,7 +72,7 @@ func (s *ctScanner) scan(p int) int {
 					return p
 				}
 				continue
-			} else if e.n == 0 && c <= e.h {
+			} else if e.n == final && c <= e.h {
 				p++
 				s.done = true
 				s.index = int(c-e.l) + int(e.i)
