@@ -25,19 +25,29 @@ const (
 // For normal collation elements, we assume that a collation element either has
 // a primary or non-default secondary value, not both.
 // Collation elements with a primary value are of the form
-// 000ppppp pppppppp pppppppp tttttttt, where
+// 010ppppp pppppppp pppppppp ssssssss
 //   - p* is primary collation value
+//   - s* is the secondary collation value
+// or
+// 00pppppp pppppppp ppppppps sssttttt, where
+//   - p* is primary collation value
+//   - s* offset of secondary from default value.
 //   - t* is the tertiary collation value
 // Collation elements with a secondary value are of the form
-// 01000000 ssssssss ssssssss tttttttt, where
-//   - s* is the secondary collation value
-//   - t* is the tertiary collation value
+// 10000000 0000ssss ssssssss tttttttt, where
+//   - 16 BMP implicit -> weight
+//   - 8 bit s
+//   - default tertiary
 const (
-	maxPrimaryBits   = 21
-	maxSecondaryBits = 16
-	maxTertiaryBits  = 8
+	maxPrimaryBits          = 21
+	maxSecondaryBits        = 12
+	maxSecondaryCompactBits = 8
+	maxSecondaryDiffBits    = 4
+	maxTertiaryBits         = 8
+	maxTertiaryCompactBits  = 5
 
-	isSecondary = 0x40000000
+	isSecondary = 0x80000000
+	isPrimary   = 0x40000000
 )
 
 func makeCE(weights []int) (uint32, error) {
@@ -48,17 +58,28 @@ func makeCE(weights []int) (uint32, error) {
 		return 0, fmt.Errorf("makeCE: secondary weight out of bounds: %x >= %x", w, 1<<maxSecondaryBits)
 	}
 	if w := weights[2]; w >= 1<<maxTertiaryBits || w < 0 {
-		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %d >= %d", w, 1<<maxTertiaryBits)
+		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %x >= %x", w, 1<<maxTertiaryBits)
 	}
 	ce := uint32(0)
 	if weights[0] != 0 {
-		// primary weight form
-		if weights[1] != defaultSecondary {
-			return 0, fmt.Errorf("makeCE: non-default secondary weight for non-zero primary: %X", weights)
+		if weights[2] == defaultTertiary {
+			if weights[1] >= 1<<maxSecondaryCompactBits {
+				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
+			}
+			ce = uint32(weights[0]<<maxSecondaryCompactBits + weights[1])
+			ce |= isPrimary
+		} else {
+			d := weights[1] - defaultSecondary
+			if d >= 1<<maxSecondaryDiffBits || d < 0 {
+				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
+			}
+			if weights[2] >= 1<<maxTertiaryCompactBits {
+				return 0, fmt.Errorf("makeCE: tertiary weight with non-zero primary out of bounds: %x > %x (%X)", weights[2], 1<<maxTertiaryCompactBits, weights)
+			}
+			ce = uint32(weights[0]<<maxSecondaryDiffBits + d)
+			ce = ce<<maxTertiaryCompactBits + uint32(weights[2])
 		}
-		ce = uint32(weights[0]<<maxTertiaryBits + weights[2])
 	} else {
-		// secondary weight form
 		ce = uint32(weights[1]<<maxTertiaryBits + weights[2])
 		ce |= isSecondary
 	}
@@ -66,16 +87,16 @@ func makeCE(weights []int) (uint32, error) {
 }
 
 // For contractions, collation elements are of the form
-// 10bbbbbb bbbbbbbb iiiiiiii iiinnnnn, where
+// 110bbbbb bbbbbbbb iiiiiiii iiiinnnn, where
 //   - n* is the size of the first node in the contraction trie.
 //   - i* is the index of the first node in the contraction trie.
 //   - b* is the offset into the contraction collation element table.
 // See contract.go for details on the contraction trie.
 const (
-	contractID            = 0x80000000
-	maxNBits              = 5
-	maxTrieIndexBits      = 11
-	maxContractOffsetBits = 14
+	contractID            = 0xC0000000
+	maxNBits              = 4
+	maxTrieIndexBits      = 12
+	maxContractOffsetBits = 13
 )
 
 func makeContractIndex(h ctHandle, offset int) (uint32, error) {
@@ -86,26 +107,26 @@ func makeContractIndex(h ctHandle, offset int) (uint32, error) {
 		return 0, fmt.Errorf("size of contraction trie offset too large: %d >= %d", h.index, 1<<maxTrieIndexBits)
 	}
 	if offset >= 1<<maxContractOffsetBits {
-		return 0, fmt.Errorf("offset out of bounds: %x >= %x", offset, 1<<maxContractOffsetBits)
+		return 0, fmt.Errorf("contraction offset out of bounds: %x >= %x", offset, 1<<maxContractOffsetBits)
 	}
 	ce := uint32(contractID)
-	ce += uint32(offset << (maxTrieIndexBits + maxNBits))
+	ce += uint32(offset << (maxNBits + maxTrieIndexBits))
 	ce += uint32(h.index << maxNBits)
 	ce += uint32(h.n)
 	return ce, nil
 }
 
 // For expansions, collation elements are of the form
-// 110bbbbb bbbbbbbb bbbbbbbb bbbbbbbb,
+// 11100000 00000000 bbbbbbbb bbbbbbbb,
 // where b* is the index into the expansion sequence table.
 const (
-	expandID           = 0xC0000000
-	maxExpandIndexBits = 29
+	expandID           = 0xE0000000
+	maxExpandIndexBits = 16
 )
 
 func makeExpandIndex(index int) (uint32, error) {
 	if index >= 1<<maxExpandIndexBits {
-		return 0, fmt.Errorf("index out of bounds: %x >= %x", index, 1<<maxExpandIndexBits)
+		return 0, fmt.Errorf("expansion index out of bounds: %x >= %x", index, 1<<maxExpandIndexBits)
 	}
 	return expandID + uint32(index), nil
 }
@@ -120,13 +141,13 @@ func makeExpansionHeader(n int) (uint32, error) {
 // sequence of collation elements, we decompose the rune and lookup the collation
 // elements for each rune in the decomposition and modify the tertiary weights.
 // The collation element, in this case, is of the form
-// 11100000 00000000 wwwwwwww vvvvvvvv, where
+// 11110000 00000000 wwwwwwww vvvvvvvv, where
 //   - v* is the replacement tertiary weight for the first rune,
 //   - w* is the replacement tertiary weight for the second rune,
 // Tertiary weights of subsequent runes should be replaced with maxTertiary.
 // See http://www.unicode.org/reports/tr10/#Compatibility_Decompositions for more details.
 const (
-	decompID = 0xE0000000
+	decompID = 0xF0000000
 )
 
 func makeDecompose(t1, t2 int) (uint32, error) {
@@ -149,10 +170,10 @@ const (
 	maxRare               = 0x4DBF
 )
 const (
-	commonUnifiedOffset = 0xFB40
-	rareUnifiedOffset   = 0x1FB40
-	otherOffset         = 0x4FB40
-	illegalOffset       = otherOffset + unicode.MaxRune
+	commonUnifiedOffset = 0x10000
+	rareUnifiedOffset   = 0x20000 // largest rune in common is U+FAFF
+	otherOffset         = 0x50000 // largest rune in rare is U+2FA1D
+	illegalOffset       = otherOffset + int(unicode.MaxRune)
 	maxPrimary          = illegalOffset + 1
 )
 

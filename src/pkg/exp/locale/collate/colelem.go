@@ -33,12 +33,12 @@ const (
 type colElem uint32
 
 const (
-	maxCE       colElem = 0x7FFFFFFF
-	minContract         = 0x80000000
-	maxContract         = 0xBFFFFFFF
-	minExpand           = 0xC0000000
-	maxExpand           = 0xDFFFFFFF
-	minDecomp           = 0xE0000000
+	maxCE       colElem = 0x80FFFFFF
+	minContract         = 0xC0000000
+	maxContract         = 0xDFFFFFFF
+	minExpand           = 0xE0000000
+	maxExpand           = 0xEFFFFFFF
+	minDecomp           = 0xF0000000
 )
 
 type ceType int
@@ -69,66 +69,77 @@ func (ce colElem) ctype() ceType {
 // For normal collation elements, we assume that a collation element either has
 // a primary or non-default secondary value, not both.
 // Collation elements with a primary value are of the form
-// 000ppppp pppppppp pppppppp tttttttt, where
+// 010ppppp pppppppp pppppppp ssssssss
 //   - p* is primary collation value
+//   - s* is the secondary collation value
+// or
+// 00pppppp pppppppp ppppppps sssttttt, where
+//   - p* is primary collation value
+//   - s* offset of secondary from default value.
 //   - t* is the tertiary collation value
 // Collation elements with a secondary value are of the form
-// 01000000 ssssssss ssssssss tttttttt, where
-//   - s* is the secondary collation value
-//   - t* is the tertiary collation value
+// 10000000 0000ssss ssssssss tttttttt, where
+//   - 16 BMP implicit -> weight
+//   - 8 bit s
+//   - default tertiary
 func splitCE(ce colElem) weights {
-	const secondaryMask = 0x40000000
+	const primaryMask = 0x40000000
+	const secondaryMask = 0x80000000
 	w := weights{}
-	w.tertiary = uint8(ce)
-	if ce&secondaryMask == 0 {
-		// primary weight form
+	if ce&primaryMask != 0 {
+		w.tertiary = defaultTertiary
+		w.secondary = uint16(uint8(ce))
 		w.primary = uint32((ce >> 8) & 0x1FFFFF)
-		w.secondary = defaultSecondary
+	} else if ce&secondaryMask == 0 {
+		w.tertiary = uint8(ce & 0x1F)
+		ce >>= 5
+		w.secondary = defaultSecondary + uint16(ce&0xF)
+		ce >>= 4
+		w.primary = uint32(ce)
 	} else {
-		// secondary weight form
+		w.tertiary = uint8(ce)
 		w.secondary = uint16(ce >> 8)
 	}
 	return w
 }
 
-// For contractions, colElems are of the form 10bbbbbb bbbbbbbb hhhhhhhh hhhhhhhh, where
-//   - h* is the compTrieHandle.
+// For contractions, collation elements are of the form
+// 110bbbbb bbbbbbbb iiiiiiii iiiinnnn, where
+//   - n* is the size of the first node in the contraction trie.
+//   - i* is the index of the first node in the contraction trie.
 //   - b* is the offset into the contraction collation element table.
 // See contract.go for details on the contraction trie.
 const (
-	maxNBits              = 5
-	maxTrieIndexBits      = 11
-	maxContractOffsetBits = 14
+	maxNBits              = 4
+	maxTrieIndexBits      = 12
+	maxContractOffsetBits = 13
 )
 
 func splitContractIndex(ce colElem) (index, n, offset int) {
-	h := ce & 0xffff
-	return int(h >> maxNBits), int(h & (1<<maxNBits - 1)), int(ce>>16) & (1<<maxContractOffsetBits - 1)
+	n = int(ce & (1<<maxNBits - 1))
+	ce >>= maxNBits
+	index = int(ce & (1<<maxTrieIndexBits - 1))
+	ce >>= maxTrieIndexBits
+	offset = int(ce & (1<<maxContractOffsetBits - 1))
+	return
 }
 
-// For expansions, colElems are of the form 110bbbbb bbbbbbbb bbbbbbbb bbbbbbbb,
+// For expansions, colElems are of the form 11100000 00000000 bbbbbbbb bbbbbbbb,
 // where b* is the index into the expansion sequence table.
-const (
-	maxExpandIndexBits = 29
-)
+const maxExpandIndexBits = 16
 
 func splitExpandIndex(ce colElem) (index int) {
-	index = int(ce) & (1<<maxExpandIndexBits - 1)
-	return
+	return int(uint16(ce))
 }
 
 // Some runes can be expanded using NFKD decomposition. Instead of storing the full
 // sequence of collation elements, we decompose the rune and lookup the collation
 // elements for each rune in the decomposition and modify the tertiary weights.
-// The colElem, in this case, is of the form 11100000 00000000 wwwwwwww vvvvvvvv, where
+// The colElem, in this case, is of the form 11110000 00000000 wwwwwwww vvvvvvvv, where
 //   - v* is the replacement tertiary weight for the first rune,
 //   - w* is the replacement tertiary weight for the second rune,
 // Tertiary weights of subsequent runes should be replaced with maxTertiary.
 // See http://www.unicode.org/reports/tr10/#Compatibility_Decompositions for more details.
-const (
-	decompID = 0xE0000000
-)
-
 func splitDecompose(ce colElem) (t1, t2 uint8) {
 	return uint8(ce), uint8(ce >> 8)
 }
@@ -143,10 +154,10 @@ const (
 	maxRare               = 0x4DBF
 )
 const (
-	commonUnifiedOffset = 0xFB40
-	rareUnifiedOffset   = 0x1FB40
-	otherOffset         = 0x4FB40
-	illegalOffset       = otherOffset + unicode.MaxRune
+	commonUnifiedOffset = 0x10000
+	rareUnifiedOffset   = 0x20000 // largest rune in common is U+FAFF
+	otherOffset         = 0x50000 // largest rune in rare is U+2FA1D
+	illegalOffset       = otherOffset + int(unicode.MaxRune)
 	maxPrimary          = illegalOffset + 1
 )
 
