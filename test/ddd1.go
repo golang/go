@@ -22,6 +22,16 @@ var (
 	_ = sum([]int{1}) // ERROR "\[\]int literal.*as type int|incompatible"
 )
 
+func sum3(int, int, int) int { return 0 }
+func tuple() (int, int, int) { return 1, 2, 3 }
+
+var (
+	_ = sum(tuple())
+	_ = sum(tuple()...) // ERROR "multiple-value"
+	_ = sum3(tuple())
+	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
+)
+
 type T []T
 
 func funny(args ...T) int { return 0 }
