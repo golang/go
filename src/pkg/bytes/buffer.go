@@ -99,6 +99,19 @@ func (b *Buffer) grow(n int) int {
 	return b.off + m
 }
 
+// Grow grows the buffer's capacity, if necessary, to guarantee space for
+// another n bytes. After Grow(n), at least n bytes can be written to the
+// buffer without another allocation.
+// If n is negative, Grow will panic.
+// If the buffer can't grow it will panic with ErrTooLarge.
+func (b *Buffer) Grow(n int) {
+	if n < 0 {
+		panic("bytes.Buffer.Grow: negative count")
+	}
+	m := b.grow(n)
+	b.buf = b.buf[0:m]
+}
+
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
 // If the buffer becomes too large, Write will panic with
