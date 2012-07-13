@@ -63,7 +63,7 @@ type convertTest struct {
 
 var convLargeTests = []convertTest{
 	{pCE(0xFB39), pCE(0xFB39), false},
-	{cjk(0x2F9B2), pqCE(0x4F4F2, 0x2F9B2), false},
+	{cjk(0x2F9B2), pqCE(0x3F9B2, 0x2F9B2), false},
 	{pCE(0xFB40), pCE(0), true},
 	{append(pCE(0xFB40), pCE(0)[0]), pCE(0), true},
 	{pCE(0xFFFE), pCE(illegalOffset), false},
@@ -109,9 +109,9 @@ var simplifyTest = []ducetElem{
 }
 
 var genColTests = []ducetElem{
-	{"\uFA70", pqCE(0x1F5B0, 0xFA70)},
+	{"\uFA70", pqCE(0x1FA70, 0xFA70)},
 	{"A\u0300", append(ptCE(100, 8), sCE(30)...)},
-	{"A\u0300\uFA70", append(ptCE(100, 8), sCE(30)[0], pqCE(0x1F5B0, 0xFA70)[0])},
+	{"A\u0300\uFA70", append(ptCE(100, 8), sCE(30)[0], pqCE(0x1FA70, 0xFA70)[0])},
 	{"A\u0300A\u0300", append(ptCE(100, 8), sCE(30)[0], ptCE(100, 8)[0], sCE(30)[0])},
 }
 

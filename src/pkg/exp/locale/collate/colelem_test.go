@@ -17,14 +17,25 @@ type ceTest struct {
 // The make* funcs are simplified versions of the functions in build/colelem.go
 func makeCE(weights []int) colElem {
 	const (
-		maxPrimaryBits   = 21
-		maxSecondaryBits = 16
-		maxTertiaryBits  = 8
-		isSecondary      = 0x40000000
+		maxPrimaryBits          = 21
+		maxSecondaryBits        = 12
+		maxSecondaryCompactBits = 8
+		maxSecondaryDiffBits    = 4
+		maxTertiaryBits         = 8
+		maxTertiaryCompactBits  = 5
+		isSecondary             = 0x80000000
+		isPrimary               = 0x40000000
 	)
 	var ce colElem
 	if weights[0] != 0 {
-		ce = colElem(weights[0]<<maxTertiaryBits + weights[2])
+		if weights[2] == defaultTertiary {
+			ce = colElem(weights[0]<<maxSecondaryCompactBits + weights[1])
+			ce |= isPrimary
+		} else {
+			d := weights[1] - defaultSecondary
+			ce = colElem(weights[0]<<maxSecondaryDiffBits + d)
+			ce = ce<<maxTertiaryCompactBits + colElem(weights[2])
+		}
 	} else {
 		ce = colElem(weights[1]<<maxTertiaryBits + weights[2])
 		ce |= isSecondary
@@ -34,24 +45,25 @@ func makeCE(weights []int) colElem {
 
 func makeContractIndex(index, n, offset int) colElem {
 	const (
-		contractID       = 0x80000000
-		maxNBits         = 5
-		maxTrieIndexBits = 11
+		contractID            = 0xC0000000
+		maxNBits              = 4
+		maxTrieIndexBits      = 12
+		maxContractOffsetBits = 13
 	)
 	ce := colElem(contractID)
-	ce += colElem(offset << (maxTrieIndexBits + maxNBits))
+	ce += colElem(offset << (maxNBits + maxTrieIndexBits))
 	ce += colElem(index << maxNBits)
 	ce += colElem(n)
 	return ce
 }
 
 func makeExpandIndex(index int) colElem {
-	const expandID = 0xC0000000
+	const expandID = 0xE0000000
 	return expandID + colElem(index)
 }
 
 func makeDecompose(t1, t2 int) colElem {
-	const decompID = 0xE0000000
+	const decompID = 0xF0000000
 	return colElem(t2<<8+t1) + decompID
 }
 
@@ -119,7 +131,7 @@ func TestColElem(t *testing.T) {
 		}
 		for j, a := range tt.arg {
 			if inout[j] != a {
-				t.Errorf("%d: argument %d is %d; want %d", i, j, inout[j], a)
+				t.Errorf("%d: argument %d is %X; want %X", i, j, inout[j], a)
 			}
 		}
 	}
@@ -131,21 +143,21 @@ type implicitTest struct {
 }
 
 var implicitTests = []implicitTest{
-	{0x33FF, 0x52F3F},
-	{0x3400, 0x22F40},
-	{0x4DC0, 0x54900},
-	{0x4DFF, 0x5493F},
-	{0x4E00, 0x14940},
-	{0x9FCB, 0x19B0B},
-	{0xA000, 0x59B40},
-	{0xF8FF, 0x5F43F},
-	{0xF900, 0x1F440},
-	{0xFA23, 0x1F563},
-	{0xFAD9, 0x1F619},
-	{0xFB00, 0x5F640},
-	{0x20000, 0x3FB40},
-	{0x2B81C, 0x4B35C},
-	{unicode.MaxRune, 0x15FB3F}, // maximum primary value
+	{0x33FF, 0x533FF},
+	{0x3400, 0x23400},
+	{0x4DC0, 0x54DC0},
+	{0x4DFF, 0x54DFF},
+	{0x4E00, 0x14E00},
+	{0x9FCB, 0x19FCB},
+	{0xA000, 0x5A000},
+	{0xF8FF, 0x5F8FF},
+	{0xF900, 0x1F900},
+	{0xFA23, 0x1FA23},
+	{0xFAD9, 0x1FAD9},
+	{0xFB00, 0x5FB00},
+	{0x20000, 0x40000},
+	{0x2B81C, 0x4B81C},
+	{unicode.MaxRune, 0x15FFFF}, // maximum primary value
 }
 
 func TestImplicit(t *testing.T) {

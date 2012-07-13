@@ -111,6 +111,11 @@ func (b *Builder) Add(str []rune, colelems [][]int) error {
 			e.elems[i] = append(e.elems[i], ce[0])
 		}
 	}
+	elems, err := convertLargeWeights(e.elems)
+	if err != nil {
+		return err
+	}
+	e.elems = elems
 	b.entryMap[string(str)] = e
 	b.entry = append(b.entry, e)
 	return nil
@@ -184,8 +189,7 @@ func (b *Builder) build() (*table, error) {
 		b.built = true
 		b.t = &table{}
 
-		b.contractCJK()
-		b.simplify()            // requires contractCJK
+		b.simplify()
 		b.processExpansions()   // requires simplify
 		b.processContractions() // requires simplify
 		b.buildTrie()           // requires process*
@@ -231,6 +235,8 @@ func reproducibleFromNFKD(e *entry, exp, nfkd [][]int) bool {
 			return false
 		}
 		// Tertiary values should be equal to maxTertiary for third element onwards.
+		// TODO: there seem to be a lot of cases in CLDR (e.g. ㏭ in zh.xml) that can
+		// simply be dropped.  Try this out by dropping the following code.
 		if i >= 2 && ce[2] != maxTertiary {
 			return false
 		}
@@ -322,10 +328,16 @@ func (b *Builder) simplify() {
 // convertLargeWeights converts collation elements with large 
 // primaries (either double primaries or for illegal runes)
 // to our own representation.
+// A CJK character C is represented in the DUCET as
+//   [.FBxx.0020.0002.C][.BBBB.0000.0000.C]
+// We will rewrite these characters to a single CE.
+// We assume the CJK values start at 0x8000.
 // See http://unicode.org/reports/tr10/#Implicit_Weights
 func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 	const (
-		firstLargePrimary = 0xFB40
+		cjkPrimaryStart   = 0xFB40
+		rarePrimaryStart  = 0xFB80
+		otherPrimaryStart = 0xFBC0
 		illegalPrimary    = 0xFFFE
 		highBitsMask      = 0x3F
 		lowBitsMask       = 0x7FFF
@@ -335,7 +347,7 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 	for i := 0; i < len(elems); i++ {
 		ce := elems[i]
 		p := ce[0]
-		if p < firstLargePrimary {
+		if p < cjkPrimaryStart {
 			continue
 		}
 		if p > 0xFFFF {
@@ -350,8 +362,16 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 			if elems[i+1][0]&lowBitsFlag == 0 {
 				return elems, fmt.Errorf("malformed second part of double primary weight: %v", elems)
 			}
-			r := rune(((p & highBitsMask) << shiftBits) + elems[i+1][0]&lowBitsMask)
-			ce[0] = implicitPrimary(r)
+			np := ((p & highBitsMask) << shiftBits) + elems[i+1][0]&lowBitsMask
+			switch {
+			case p < rarePrimaryStart:
+				np += commonUnifiedOffset
+			case p < otherPrimaryStart:
+				np += rareUnifiedOffset
+			default:
+				p += otherOffset
+			}
+			ce[0] = np
 			for j := i + 1; j+1 < len(elems); j++ {
 				elems[j] = elems[j+1]
 			}
@@ -359,21 +379,6 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 		}
 	}
 	return elems, nil
-}
-
-// A CJK character C is represented in the DUCET as
-//   [.FBxx.0020.0002.C][.BBBB.0000.0000.C]
-// We will rewrite these characters to a single CE.
-// We assume the CJK values start at 0x8000.
-func (b *Builder) contractCJK() {
-	for _, e := range b.entry {
-		elms, err := convertLargeWeights(e.elems)
-		e.elems = elms
-		if err != nil {
-			err = fmt.Errorf("%U: %s", e.runes, err)
-		}
-		b.error(err)
-	}
 }
 
 // appendExpansion converts the given collation sequence to
@@ -479,7 +484,7 @@ func (b *Builder) processContractions() {
 				str := []byte(string(e.runes[1:]))
 				o, sn = t.contractTries.lookup(handle, str)
 				if sn != len(str) {
-					log.Fatalf("processContractions: unexpected length for '%X'; len=%d; want %d", []rune(string(str)), sn, len(str))
+					log.Fatalf("processContractions: unexpected length for '%X'; len=%d; want %d", e.runes, sn, len(str))
 				}
 			}
 			if es[o] != nil {
