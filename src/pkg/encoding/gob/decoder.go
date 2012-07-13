@@ -87,21 +87,38 @@ func (dec *Decoder) recvMessage() bool {
 
 // readMessage reads the next nbytes bytes from the input.
 func (dec *Decoder) readMessage(nbytes int) {
-	// Allocate the buffer.
-	if cap(dec.tmp) < nbytes {
-		dec.tmp = make([]byte, nbytes+100) // room to grow
+	// Allocate the dec.tmp buffer, up to 10KB.
+	const maxBuf = 10 * 1024
+	nTmp := nbytes
+	if nTmp > maxBuf {
+		nTmp = maxBuf
 	}
-	dec.tmp = dec.tmp[:nbytes]
+	if cap(dec.tmp) < nTmp {
+		nAlloc := nTmp + 100 // A little extra for growth.
+		if nAlloc > maxBuf {
+			nAlloc = maxBuf
+		}
+		dec.tmp = make([]byte, nAlloc)
+	}
+	dec.tmp = dec.tmp[:nTmp]
 
 	// Read the data
-	_, dec.err = io.ReadFull(dec.r, dec.tmp)
-	if dec.err != nil {
-		if dec.err == io.EOF {
-			dec.err = io.ErrUnexpectedEOF
+	dec.buf.Grow(nbytes)
+	for nbytes > 0 {
+		if nbytes < nTmp {
+			dec.tmp = dec.tmp[:nbytes]
 		}
-		return
+		var nRead int
+		nRead, dec.err = io.ReadFull(dec.r, dec.tmp)
+		if dec.err != nil {
+			if dec.err == io.EOF {
+				dec.err = io.ErrUnexpectedEOF
+			}
+			return
+		}
+		dec.buf.Write(dec.tmp)
+		nbytes -= nRead
 	}
-	dec.buf.Write(dec.tmp)
 }
 
 // toInt turns an encoded uint64 into an int, according to the marshaling rules.
