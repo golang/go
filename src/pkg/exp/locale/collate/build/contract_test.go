@@ -111,9 +111,9 @@ var genStateTests = []GenStateTest{
 	},
 		1,
 		contractTrieSet{
-			{'a', 1, 1, 0xFF},
-			{'b', 1, 1, 0xFF},
-			{'c', 'c', 0, 1},
+			{'a', 0, 1, noIndex},
+			{'b', 0, 1, noIndex},
+			{'c', 'c', final, 1},
 		},
 	},
 	{[]stridx{
@@ -123,9 +123,9 @@ var genStateTests = []GenStateTest{
 	},
 		1,
 		contractTrieSet{
-			{'a', 1, 1, 0xFF},
-			{'b', 1, 1, 0xFF},
-			{'c', 'e', 0, 1},
+			{'a', 0, 1, noIndex},
+			{'b', 0, 1, noIndex},
+			{'c', 'e', final, 1},
 		},
 	},
 	{[]stridx{
@@ -135,9 +135,9 @@ var genStateTests = []GenStateTest{
 	},
 		1,
 		contractTrieSet{
-			{'a', 1, 1, 3},
-			{'b', 1, 1, 2},
-			{'c', 'c', 0, 1},
+			{'a', 0, 1, 3},
+			{'b', 0, 1, 2},
+			{'c', 'c', final, 1},
 		},
 	},
 	{[]stridx{
@@ -150,11 +150,11 @@ var genStateTests = []GenStateTest{
 	},
 		2,
 		contractTrieSet{
-			{'b', 'b', 0, 6},
-			{'a', 2, 2, 5},
-			{'c', 'c', 0, 4},
-			{'b', 2, 1, 3},
-			{'c', 'd', 0, 1},
+			{'b', 'b', final, 6},
+			{'a', 0, 2, 5},
+			{'c', 'c', final, 4},
+			{'b', 0, 1, 3},
+			{'c', 'd', final, 1},
 		},
 	},
 	{[]stridx{
@@ -168,14 +168,14 @@ var genStateTests = []GenStateTest{
 	},
 		2,
 		contractTrieSet{
-			{'b', 5, 1, 0xFF},
-			{'a', 2, 1, 0xFF},
-			{'b', 1, 1, 6},
-			{'c', 1, 1, 4},
-			{'d', 'd', 0, 1},
-			{'c', 1, 1, 7},
-			{'d', 1, 1, 5},
-			{'e', 'f', 0, 2},
+			{'b', 3, 1, noIndex},
+			{'a', 0, 1, noIndex},
+			{'b', 0, 1, 6},
+			{'c', 0, 1, 4},
+			{'d', 'd', final, 1},
+			{'c', 0, 1, 7},
+			{'d', 0, 1, 5},
+			{'e', 'f', final, 2},
 		},
 	},
 }
@@ -251,13 +251,13 @@ func TestPrintContractionTrieSet(t *testing.T) {
 
 const contractTrieOutput = `// testCTEntries: 8 entries, 32 bytes
 var testCTEntries = [8]struct{l,h,n,i uint8}{
-	{0x62, 0x5, 1, 255},
-	{0x61, 0x2, 1, 255},
-	{0x62, 0x1, 1, 6},
-	{0x63, 0x1, 1, 4},
+	{0x62, 0x3, 1, 255},
+	{0x61, 0x0, 1, 255},
+	{0x62, 0x0, 1, 6},
+	{0x63, 0x0, 1, 4},
 	{0x64, 0x64, 0, 1},
-	{0x63, 0x1, 1, 7},
-	{0x64, 0x1, 1, 5},
+	{0x63, 0x0, 1, 7},
+	{0x64, 0x0, 1, 5},
 	{0x65, 0x66, 0, 2},
 }
 var testContractTrieSet = contractTrieSet( testCTEntries[:] )

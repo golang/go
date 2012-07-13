@@ -41,6 +41,11 @@ import (
 // also includes the length and offset to the next sequence of entries
 // to check in case of a match. 
 
+const (
+	final   = 0
+	noIndex = 0xFF
+)
+
 // ctEntry associates to a matching byte an offset and/or next sequence of 
 // bytes to check. A ctEntry c is called final if a match means that the
 // longest suffix has been found.  An entry c is final if c.n == 0.
@@ -50,24 +55,24 @@ import (
 // Examples:
 // The suffix strings "ab" and "ac" can be represented as:
 // []ctEntry{
-//     {'a', 1, 1, 0xFF},  // 'a' by itself does not match, so i is 0xFF.
+//     {'a', 1, 1, noIndex},  // 'a' by itself does not match, so i is 0xFF.
 //     {'b', 'c', 0, 1},   // "ab" -> 1, "ac" -> 2
 // }
 // 
 // The suffix strings "ab", "abc", "abd", and "abcd" can be represented as:
 // []ctEntry{
-//     {'a', 1, 1, 0xFF}, // 'a' must be followed by 'b'.
-//     {'b', 2, 2, 1},    // "ab" -> 1, may be followed by 'c' or 'd'.
-//     {'d', 'd', 0, 3},  // "abd" -> 3
+//     {'a', 1, 1, noIndex}, // 'a' must be followed by 'b'.
+//     {'b', 1, 2, 1},    // "ab" -> 1, may be followed by 'c' or 'd'.
+//     {'d', 'd', final, 3},  // "abd" -> 3
 //     {'c', 4, 1, 2},    // "abc" -> 2, may be followed by 'd'.
-//     {'d', 'd', 0, 4},  // "abcd" -> 4
+//     {'d', 'd', final, 4},  // "abcd" -> 4
 // }
 // See genStateTests in contract_test.go for more examples.
 type ctEntry struct {
 	l uint8 // non-final: byte value to match; final: lowest match in range.
 	h uint8 // non-final: relative index to next block; final: highest match in range.
-	n uint8 // non-final: length of next block; final: 0
-	i uint8 // result offset. Will be 0xFF if more bytes are needed to complete. 
+	n uint8 // non-final: length of next block; final: final
+	i uint8 // result offset. Will be noIndex if more bytes are needed to complete. 
 }
 
 // contractTrieSet holds a set of contraction tries. The tries are stored
@@ -124,7 +129,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
 				}
 			}
 			if !added {
-				*ct = append(*ct, ctEntry{l: c, i: 0xFF})
+				*ct = append(*ct, ctEntry{l: c, i: noIndex})
 			}
 		} else {
 			for j := len(*ct) - 1; j >= start; j-- {
@@ -140,7 +145,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
 				}
 			}
 			if !added {
-				*ct = append(*ct, ctEntry{l: c, h: c, i: uint8(si.index)})
+				*ct = append(*ct, ctEntry{l: c, h: c, n: final, i: uint8(si.index)})
 			}
 		}
 	}
@@ -150,7 +155,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
 	for i, end := start, len(*ct); i < end; i++ {
 		fe := (*ct)[i]
 		if fe.h == 0 { // uninitialized non-final
-			ln := len(*ct) - start
+			ln := len(*ct) - start - n
 			if ln > 0xFF {
 				return 0, fmt.Errorf("genStates: relative block offset too large: %d > 255", ln)
 			}
@@ -238,16 +243,16 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
 		if c >= e.l {
 			p++
 			if e.l == c {
-				if e.i != 0xFF {
+				if e.i != noIndex {
 					index, ns = int(e.i), p
 				}
-				if e.n != 0 {
+				if e.n != final {
 					// set to new state
-					i, states, n = 0, states[e.h:], int(e.n)
+					i, states, n = 0, states[int(e.h)+n:], int(e.n)
 				} else {
 					return
 				}
-			} else if e.n == 0 && c <= e.h {
+			} else if e.n == final && c <= e.h {
 				return int(c-e.l) + int(e.i), p
 			}
 		} else {
