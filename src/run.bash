@@ -39,11 +39,6 @@ echo
 
 echo '# sync -cpu=10'
 go test sync -short -timeout=120s -cpu=10
-echo
-
-echo '# GOMAXPROCS=32 go test runtime net/http crypto/tls encoding/base64'
-GOMAXPROCS=32 go test runtime net/http crypto/tls encoding/base64
-echo
 
 xcd() {
 	echo
