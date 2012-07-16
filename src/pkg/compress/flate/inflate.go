@@ -16,9 +16,10 @@ import (
 const (
 	maxCodeLen = 16    // max length of Huffman code
 	maxHist    = 32768 // max history required
-	maxLit     = 286
-	maxDist    = 32
-	numCodes   = 19 // number of codes in Huffman meta-code
+	// The next three numbers come from the RFC, section 3.2.7.
+	maxLit   = 286
+	maxDist  = 32
+	numCodes = 19 // number of codes in Huffman meta-code
 )
 
 // A CorruptInputError reports the presence of corrupt input at a given offset.
@@ -306,10 +307,15 @@ func (f *decompressor) readHuffman() error {
 		}
 	}
 	nlit := int(f.b&0x1F) + 257
+	if nlit > maxLit {
+		return CorruptInputError(f.roffset)
+	}
 	f.b >>= 5
 	ndist := int(f.b&0x1F) + 1
+	// maxDist is 32, so ndist is always valid.
 	f.b >>= 5
 	nclen := int(f.b&0xF) + 4
+	// numCodes is 19, so nclen is always valid.
 	f.b >>= 4
 	f.nb -= 5 + 5 + 4
 
