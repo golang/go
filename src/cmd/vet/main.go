@@ -23,6 +23,15 @@ import (
 var verbose = flag.Bool("v", false, "verbose")
 var exitCode = 0
 
+// Flags to control which checks to perform
+var (
+	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
+	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
+	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
+	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
+	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
+)
+
 // setExit sets the value for os.Exit when it is called, later.  It
 // remembers the highest value.
 func setExit(err int) {
@@ -49,6 +58,11 @@ type File struct {
 func main() {
 	flag.Usage = Usage
 	flag.Parse()
+
+	// If a check is named explicitly, turn off the 'all' flag.
+	if *vetMethods || *vetPrintf || *vetStructTags || *vetUntaggedLiteral {
+		*vetAll = false
+	}
 
 	if *printfuncs != "" {
 		for _, name := range strings.Split(*printfuncs, ",") {

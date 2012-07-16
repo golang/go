@@ -43,6 +43,9 @@ var printList = map[string]int{
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
 func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
+	if !*vetPrintf && !*vetAll {
+		return
+	}
 	name := strings.ToLower(Name)
 	if skip, ok := printfList[name]; ok {
 		f.checkPrintf(call, Name, skip)
@@ -288,17 +291,6 @@ func BadFunctionUsedInTests() {
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
-}
-
-type BadTypeUsedInTests struct {
-	X int "hello" // ERROR "struct field tag"
-}
-
-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
-}
-
-type BadInterfaceUsedInTests interface {
-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
 }
 
 // printf is used by the test.

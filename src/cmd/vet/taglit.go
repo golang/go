@@ -14,6 +14,9 @@ import (
 // checkUntaggedLiteral checks if a composite literal is an struct literal with
 // untagged fields.
 func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+	if !*vetUntaggedLiteral && !*vetAll {
+		return
+	}
 	// Check if the CompositeLit contains an untagged field.
 	allKeyValue := true
 	for _, e := range c.Elts {
@@ -118,4 +121,8 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"image/color.YCbCr":   true,
 	"image.Point":         true,
 	"image.Rectangle":     true,
+}
+
+type BadTag struct {
+	S string `this is a bad tag`
 }
