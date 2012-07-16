@@ -9,9 +9,12 @@ calls whose arguments do not align with the format string. Vet uses heuristics
 that do not guarantee all reports are genuine problems, but it can find errors
 not caught by the compilers.
 
+By default all checks are performed, but if explicit flags are provided, only
+those identified by the flags are performed.
+
 Available checks:
 
-1. Printf family
+1. Printf family, flag -printf
 
 Suspicious calls to functions in the Printf family, including any functions
 with these names:
@@ -28,7 +31,7 @@ complains about arguments that look like format descriptor strings.
 It also checks for errors such as using a Writer as the first argument of
 Printf.
 
-2. Methods
+2. Methods, flag -methods
 
 Non-standard signatures for methods with familiar names, including:
 	Format GobEncode GobDecode MarshalJSON MarshalXML
@@ -36,16 +39,21 @@ Non-standard signatures for methods with familiar names, including:
 	UnmarshalJSON UnreadByte UnreadRune WriteByte
 	WriteTo
 
-3. Struct tags
+3. Struct tags, flag -structtags
 
 Struct tags that do not follow the format understood by reflect.StructTag.Get.
+
+4. Untagged composite literals, flag -composites
+
+Composite struct literals that do not used the type-tagged syntax.
+
 
 Usage:
 
 	go tool vet [flag] [file.go ...]
 	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
 
-The flags are:
+The other flags are:
 	-v
 		Verbose mode
 	-printfuncs
