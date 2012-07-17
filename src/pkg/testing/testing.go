@@ -79,6 +79,7 @@
 package testing
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -128,37 +129,42 @@ func Short() bool {
 	return *short
 }
 
-// decorate inserts the final newline if needed and indentation tabs for formatting.
-// If addFileLine is true, it also prefixes the string with the file and line of the call site.
-func decorate(s string, addFileLine bool) string {
-	if addFileLine {
-		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
-		if ok {
-			// Truncate file name at last file name separator.
-			if index := strings.LastIndex(file, "/"); index >= 0 {
-				file = file[index+1:]
-			} else if index = strings.LastIndex(file, "\\"); index >= 0 {
-				file = file[index+1:]
-			}
-		} else {
-			file = "???"
-			line = 1
+// decorate prefixes the string with the file and line of the call site
+// and inserts the final newline if needed and indentation tabs for formatting.
+func decorate(s string) string {
+	_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
+	if ok {
+		// Truncate file name at last file name separator.
+		if index := strings.LastIndex(file, "/"); index >= 0 {
+			file = file[index+1:]
+		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
+			file = file[index+1:]
 		}
-		s = fmt.Sprintf("%s:%d: %s", file, line, s)
+	} else {
+		file = "???"
+		line = 1
 	}
-	s = "\t" + s // Every line is indented at least one tab.
-	n := len(s)
-	if n > 0 && s[n-1] != '\n' {
-		s += "\n"
-		n++
-	}
-	for i := 0; i < n-1; i++ { // -1 to avoid final newline
-		if s[i] == '\n' {
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "%s:%d: ", file, line)
+
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if i > 0 {
+			buf.WriteByte('\n')
+		}
+		// Every line is indented at least one tab.
+		buf.WriteByte('\t')
+		if i > 0 {
 			// Second and subsequent lines are indented an extra tab.
-			return s[0:i+1] + "\t" + decorate(s[i+1:n], false)
+			buf.WriteByte('\t')
 		}
+		buf.WriteString(line)
 	}
-	return s
+	if l := len(s); l > 0 && s[len(s)-1] != '\n' {
+		// Add final new line if needed.
+		buf.WriteByte('\n')
+	}
+	return buf.String()
 }
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
@@ -204,7 +210,7 @@ func (c *common) FailNow() {
 
 // log generates the output. It's always at the same stack depth.
 func (c *common) log(s string) {
-	c.output = append(c.output, decorate(s, true)...)
+	c.output = append(c.output, decorate(s)...)
 }
 
 // Log formats its arguments using default formatting, analogous to Println(),
