@@ -234,6 +234,12 @@ func TestRedirects(t *testing.T) {
 	if urlError, ok := err.(*url.Error); !ok || urlError.Err != checkErr {
 		t.Errorf("with redirects forbidden, expected a *url.Error with our 'no redirects allowed' error inside; got %#v (%q)", err, err)
 	}
+	if res == nil {
+		t.Fatalf("Expected a non-nil Response on CheckRedirect failure (http://golang.org/issue/3795)")
+	}
+	if res.Header.Get("Location") == "" {
+		t.Errorf("no Location header in Response")
+	}
 }
 
 var expectedCookies = []*Cookie{
