@@ -33,10 +33,11 @@ type Client struct {
 
 	// CheckRedirect specifies the policy for handling redirects.
 	// If CheckRedirect is not nil, the client calls it before
-	// following an HTTP redirect. The arguments req and via
-	// are the upcoming request and the requests made already,
-	// oldest first. If CheckRedirect returns an error, the client
-	// returns that error (wrapped in a url.Error) instead of
+	// following an HTTP redirect. The arguments req and via are
+	// the upcoming request and the requests made already, oldest
+	// first. If CheckRedirect returns an error, the Client's Get
+	// method returns both the previous Response and
+	// CheckRedirect's error (wrapped in a url.Error) instead of
 	// issuing the Request req.
 	//
 	// If CheckRedirect is nil, the Client uses its default policy,
@@ -221,6 +222,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error)
 
 	req := ireq
 	urlStr := "" // next relative or absolute URL to fetch (after first request)
+	redirectFailed := false
 	for redirect := 0; ; redirect++ {
 		if redirect != 0 {
 			req = new(Request)
@@ -239,6 +241,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error)
 
 				err = redirectChecker(req, via)
 				if err != nil {
+					redirectFailed = true
 					break
 				}
 			}
@@ -268,16 +271,24 @@ func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error)
 		return
 	}
 
-	if resp != nil {
-		resp.Body.Close()
-	}
-
 	method := ireq.Method
-	return nil, &url.Error{
+	urlErr := &url.Error{
 		Op:  method[0:1] + strings.ToLower(method[1:]),
 		URL: urlStr,
 		Err: err,
 	}
+
+	if redirectFailed {
+		// Special case for Go 1 compatibility: return both the response
+		// and an error if the CheckRedirect function failed.
+		// See http://golang.org/issue/3795
+		return resp, urlErr
+	}
+
+	if resp != nil {
+		resp.Body.Close()
+	}
+	return nil, urlErr
 }
 
 func defaultCheckRedirect(req *Request, via []*Request) error {
