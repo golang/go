@@ -50,7 +50,7 @@ func TestWaitGroup(t *testing.T) {
 func TestWaitGroupMisuse(t *testing.T) {
 	defer func() {
 		err := recover()
-		if err != "sync: negative WaitGroup count" {
+		if err != "sync: negative WaitGroup counter" {
 			t.Fatalf("Unexpected panic: %#v", err)
 		}
 	}()

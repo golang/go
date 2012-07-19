@@ -32,10 +32,11 @@ type WaitGroup struct {
 
 // Add adds delta, which may be negative, to the WaitGroup counter.
 // If the counter becomes zero, all goroutines blocked on Wait() are released.
+// If the counter goes negative, Add panics.
 func (wg *WaitGroup) Add(delta int) {
 	v := atomic.AddInt32(&wg.counter, int32(delta))
 	if v < 0 {
-		panic("sync: negative WaitGroup count")
+		panic("sync: negative WaitGroup counter")
 	}
 	if v > 0 || atomic.LoadInt32(&wg.waiters) == 0 {
 		return
