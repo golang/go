@@ -311,6 +311,11 @@ var validTests = []ValidTest{
 	{string([]byte{66, 250}), false},
 	{string([]byte{66, 250, 67}), false},
 	{"a\uFFFDb", true},
+	{string("\xF7\xBF\xBF\xBF"), true},      // U+1FFFFF
+	{string("\xFB\xBF\xBF\xBF\xBF"), false}, // 0x3FFFFFF; out of range
+	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
+	// TODO {string("\xed\xa0\x80"), false },	// U+D800 high surrogate (sic)
+	// TODO {string("\xed\xbf\xbf"), false },	// U+DFFF low surrogate (sic)
 }
 
 func TestValid(t *testing.T) {
