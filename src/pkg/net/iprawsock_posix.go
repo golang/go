@@ -60,7 +60,7 @@ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 
 // IP-specific methods.
 
-// ReadFromIP reads a IP packet from c, copying the payload into b.
+// ReadFromIP reads an IP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
 //
@@ -98,7 +98,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, uaddr.toAddr(), err
 }
 
-// WriteToIP writes a IP packet to addr via c, copying the payload from b.
+// WriteToIP writes an IP packet to addr via c, copying the payload from b.
 //
 // WriteToIP can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;

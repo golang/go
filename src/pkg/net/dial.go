@@ -173,7 +173,7 @@ func (a stringAddr) String() string  { return a.addr }
 
 // Listen announces on the local network address laddr.
 // The network string net must be a stream-oriented network:
-// "tcp", "tcp4", "tcp6", or "unix", or "unixpacket".
+// "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
 func Listen(net, laddr string) (Listener, error) {
 	afnet, a, err := resolveNetAddr("listen", net, laddr)
 	if err != nil {
