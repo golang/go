@@ -333,14 +333,15 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
 	return a[0:na]
 }
 
-// Join concatenates the elements of a to create a single byte array.   The separator
+// Join concatenates the elements of a to create a new byte array. The separator
 // sep is placed between elements in the resulting array.
 func Join(a [][]byte, sep []byte) []byte {
 	if len(a) == 0 {
 		return []byte{}
 	}
 	if len(a) == 1 {
-		return a[0]
+		// Just return a copy.
+		return append([]byte(nil), a[0]...)
 	}
 	n := len(sep) * (len(a) - 1)
 	for i := 0; i < len(a); i++ {
@@ -619,10 +620,8 @@ func Replace(s, old, new []byte, n int) []byte {
 		m = Count(s, old)
 	}
 	if m == 0 {
-		// Nothing to do. Just copy.
-		t := make([]byte, len(s))
-		copy(t, s)
-		return t
+		// Just return a copy.
+		return append([]byte(nil), s...)
 	}
 	if n < 0 || m < n {
 		n = m
