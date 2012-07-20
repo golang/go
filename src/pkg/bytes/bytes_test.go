@@ -490,6 +490,12 @@ func TestSplit(t *testing.T) {
 				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
+		if len(a) > 0 {
+			in, out := a[0], s
+			if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
+				t.Errorf("Join(%#v, %q) didn't copy", a, tt.sep)
+			}
+		}
 	}
 }
 
