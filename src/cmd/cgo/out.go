@@ -669,7 +669,21 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 		}
 		return '_'
 	}
-	gccgoSymbolPrefix := strings.Map(clean, *gccgoprefix)
+
+	var gccgoSymbolPrefix string
+	if *gccgopkgpath != "" {
+		gccgoSymbolPrefix = strings.Map(clean, *gccgopkgpath)
+	} else {
+		if *gccgoprefix == "" && p.PackageName == "main" {
+			gccgoSymbolPrefix = "main"
+		} else {
+			prefix := strings.Map(clean, *gccgoprefix)
+			if prefix == "" {
+				prefix = "go"
+			}
+			gccgoSymbolPrefix = prefix + "." + p.PackageName
+		}
+	}
 
 	for _, exp := range p.ExpFunc {
 		// TODO: support functions with receivers.
@@ -707,7 +721,7 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 
 		// The function name.
 		fmt.Fprintf(cdeclBuf, " "+exp.ExpName)
-		gccgoSymbol := fmt.Sprintf("%s.%s.%s", gccgoSymbolPrefix, p.PackageName, exp.Func.Name)
+		gccgoSymbol := fmt.Sprintf("%s.%s", gccgoSymbolPrefix, exp.Func.Name)
 		fmt.Fprintf(cdeclBuf, " (")
 		// Function parameters.
 		forFieldList(fntype.Params,
