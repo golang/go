@@ -123,7 +123,7 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 	panic("unreachable")
 }
 
-// ReadVarint reads an encoded unsigned integer from r and returns it as a uint64.
+// ReadVarint reads an encoded unsigned integer from r and returns it as an int64.
 func ReadVarint(r io.ByteReader) (int64, error) {
 	ux, err := ReadUvarint(r) // ok to continue in presence of error
 	x := int64(ux >> 1)
