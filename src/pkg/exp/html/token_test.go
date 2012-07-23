@@ -370,14 +370,11 @@ var tokenTests = []tokenTest{
 		`<a b="c&noSuchEntity;d">&lt;&alsoDoesntExist;&`,
 		`<a b="c&amp;noSuchEntity;d">$&lt;&amp;alsoDoesntExist;&amp;`,
 	},
-	/*
-		// TODO: re-enable this test when it works. This input/output matches html5lib's behavior.
-		{
-			"entity without semicolon",
-			`&notit;&notin;<a b="q=z&amp=5&notice=hello&not;=world">`,
-			`¬it;∉$<a b="q=z&amp;amp=5&amp;notice=hello¬=world">`,
-		},
-	*/
+	{
+		"entity without semicolon",
+		`&notit;&notin;<a b="q=z&amp=5&notice=hello&not;=world">`,
+		`¬it;∉$<a b="q=z&amp;amp=5&amp;notice=hello¬=world">`,
+	},
 	{
 		"entity with digits",
 		"&frac12;",

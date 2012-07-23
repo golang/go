@@ -163,14 +163,15 @@ func unescapeEntity(b []byte, dst, src int, attribute bool) (dst1, src1 int) {
 }
 
 // unescape unescapes b's entities in-place, so that "a&lt;b" becomes "a<b".
-func unescape(b []byte) []byte {
+// attribute should be true if parsing an attribute value.
+func unescape(b []byte, attribute bool) []byte {
 	for i, c := range b {
 		if c == '&' {
-			dst, src := unescapeEntity(b, i, i, false)
+			dst, src := unescapeEntity(b, i, i, attribute)
 			for src < len(b) {
 				c := b[src]
 				if c == '&' {
-					dst, src = unescapeEntity(b, dst, src, false)
+					dst, src = unescapeEntity(b, dst, src, attribute)
 				} else {
 					b[dst] = c
 					dst, src = dst+1, src+1
@@ -250,7 +251,7 @@ func EscapeString(s string) string {
 func UnescapeString(s string) string {
 	for _, c := range s {
 		if c == '&' {
-			return string(unescape([]byte(s)))
+			return string(unescape([]byte(s), false))
 		}
 	}
 	return s

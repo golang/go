@@ -741,7 +741,7 @@ func (z *Tokenizer) Text() []byte {
 		z.data.end = z.raw.end
 		s = convertNewlines(s)
 		if !z.textIsRaw {
-			s = unescape(s)
+			s = unescape(s, false)
 		}
 		return s
 	}
@@ -775,7 +775,7 @@ func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
 			z.nAttrReturned++
 			key = z.buf[x[0].start:x[0].end]
 			val = z.buf[x[1].start:x[1].end]
-			return lower(key), unescape(convertNewlines(val)), z.nAttrReturned < len(z.attr)
+			return lower(key), unescape(convertNewlines(val), true), z.nAttrReturned < len(z.attr)
 		}
 	}
 	return nil, nil, false
