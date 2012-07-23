@@ -30,6 +30,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	data := &frontPageData{
 		Reviewers: personList,
 		User:      user.Current(c).Email,
+		IsAdmin:   user.IsAdmin(c),
 	}
 	var currentPerson string
 	currentPerson, data.UserIsReviewer = emailToPerson[data.User]
@@ -136,6 +137,7 @@ type frontPageData struct {
 	UserIsReviewer bool
 
 	User, LogoutURL string
+	IsAdmin         bool
 }
 
 type clTable struct {
@@ -245,6 +247,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
       {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}{{end}}</span>
     </td>
     <td title="Last modified">{{.ModifiedAgo}}</td>
+    {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}
   </tr>
 {{end}}
 </table>
