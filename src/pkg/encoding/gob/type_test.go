@@ -159,3 +159,33 @@ func TestRegistration(t *testing.T) {
 	Register(new(T))
 	Register(new(T))
 }
+
+type N1 struct{}
+type N2 struct{}
+
+// See comment in type.go/Register.
+func TestRegistrationNaming(t *testing.T) {
+	testCases := []struct {
+		t    interface{}
+		name string
+	}{
+		{&N1{}, "*gob.N1"},
+		{N2{}, "encoding/gob.N2"},
+	}
+
+	for _, tc := range testCases {
+		Register(tc.t)
+
+		tct := reflect.TypeOf(tc.t)
+		if ct := nameToConcreteType[tc.name]; ct != tct {
+			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
+		}
+		// concreteTypeToName is keyed off the base type.
+		if tct.Kind() == reflect.Ptr {
+			tct = tct.Elem()
+		}
+		if n := concreteTypeToName[tct]; n != tc.name {
+			t.Errorf("concreteTypeToName[%v] got %v, want %v", tct, n, tc.name)
+		}
+	}
+}
