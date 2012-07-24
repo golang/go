@@ -46,7 +46,7 @@ func (c *conn) LocalAddr() Addr {
 	return c.fd.laddr
 }
 
-// RemoteAddr returns the remote network address, a *UDPAddr.
+// RemoteAddr returns the remote network address.
 func (c *conn) RemoteAddr() Addr {
 	if !c.ok() {
 		return nil
