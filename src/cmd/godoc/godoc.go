@@ -57,7 +57,6 @@ var (
 	// TODO(gri) consider the invariant that goroot always end in '/'
 	goroot  = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
-	pkgPath = flag.String("path", "", "additional package directories (colon-separated)")
 
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
@@ -83,16 +82,6 @@ var (
 )
 
 func initHandlers() {
-	// Add named directories in -path argument as
-	// subdirectories of src/pkg.
-	for _, p := range filepath.SplitList(*pkgPath) {
-		_, elem := filepath.Split(p)
-		if elem == "" {
-			log.Fatalf("invalid -path argument: %q has no final element", p)
-		}
-		fs.Bind("/src/pkg/"+elem, OS(p), "/", bindReplace)
-	}
-
 	fileServer = http.FileServer(&httpFS{fs})
 	cmdHandler = docServer{"/cmd/", "/src/cmd", false}
 	pkgHandler = docServer{"/pkg/", "/src/pkg", true}

@@ -67,8 +67,6 @@ The flags are:
 	-maxresults=10000
 		maximum number of full text search results shown
 		(no full text index is built if maxresults <= 0)
-	-path=""
-		additional package directories (colon-separated)
 	-html
 		print HTML in command-line mode
 	-goroot=$GOROOT
@@ -88,20 +86,8 @@ The flags are:
 		zip file providing the file system to serve; disabled if empty
 
 By default, godoc looks at the packages it finds via $GOROOT and $GOPATH (if set).
-Additional directories may be specified via the -path flag which accepts a list
-of colon-separated paths; unrooted paths are relative to the current working
-directory. Each path is considered as an additional root for packages in order
-of appearance. The last (absolute) path element is the prefix for the package
-path. For instance, given the flag value:
-
-	path=".:/home/bar:/public"
-
-for a godoc started in /home/user/godoc, absolute paths are mapped to package paths
-as follows:
-
-	/home/user/godoc/x -> godoc/x
-	/home/bar/x        -> bar/x
-	/public/x          -> public/x
+This behavior can be altered by providing an alternative $GOROOT with the -goroot
+flag.
 
 When godoc runs as a web server and -index is set, a search index is maintained.
 The index is created at startup.
