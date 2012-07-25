@@ -725,7 +725,10 @@ func inBodyIM(p *parser) bool {
 		}
 		p.reconstructActiveFormattingElements()
 		p.addText(d)
-		p.framesetOK = false
+		if p.framesetOK && strings.TrimLeft(d, whitespace) != "" {
+			// There were non-whitespace characters inserted.
+			p.framesetOK = false
+		}
 	case StartTagToken:
 		switch p.tok.DataAtom {
 		case a.Html:
