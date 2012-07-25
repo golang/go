@@ -474,6 +474,8 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
 
+	fmt.Fprintf(fgcc, "\nextern void crosscall2(void (*fn)(void *, int), void *, int);\n\n")
+
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
 
@@ -565,7 +567,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		s += ")"
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
-		fmt.Fprintf(fgcc, "extern _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t%s __attribute__((packed)) a;\n", ctype)
