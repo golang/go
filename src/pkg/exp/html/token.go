@@ -152,6 +152,9 @@ type Tokenizer struct {
 	rawTag string
 	// textIsRaw is whether the current text token's data is not escaped.
 	textIsRaw bool
+	// convertNUL is whether NUL bytes in the current token's data should
+	// be converted into \ufffd replacement characters.
+	convertNUL bool
 }
 
 // Err returns the error associated with the most recent ErrorToken token.
@@ -597,16 +600,19 @@ func (z *Tokenizer) Next() TokenType {
 			for z.err == nil {
 				z.readByte()
 			}
+			z.data.end = z.raw.end
 			z.textIsRaw = true
 		} else {
 			z.readRawOrRCDATA()
 		}
 		if z.data.end > z.data.start {
 			z.tt = TextToken
+			z.convertNUL = true
 			return z.tt
 		}
 	}
 	z.textIsRaw = false
+	z.convertNUL = false
 
 loop:
 	for {
@@ -731,6 +737,11 @@ func convertNewlines(s []byte) []byte {
 	return s
 }
 
+var (
+	nul         = []byte("\x00")
+	replacement = []byte("\ufffd")
+)
+
 // Text returns the unescaped text of a text, comment or doctype token. The
 // contents of the returned slice may change on the next call to Next.
 func (z *Tokenizer) Text() []byte {
@@ -740,6 +751,9 @@ func (z *Tokenizer) Text() []byte {
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
 		s = convertNewlines(s)
+		if z.convertNUL && bytes.Contains(s, nul) {
+			s = bytes.Replace(s, nul, replacement, -1)
+		}
 		if !z.textIsRaw {
 			s = unescape(s, false)
 		}
