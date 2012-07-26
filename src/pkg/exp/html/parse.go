@@ -267,6 +267,9 @@ func (p *parser) fosterParent(n *Node) {
 // addText adds text to the preceding node if it is a text node, or else it
 // calls addChild with a new text node.
 func (p *parser) addText(text string) {
+	if text == "" {
+		return
+	}
 	// TODO: distinguish whitespace text from others.
 	t := p.top()
 	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
