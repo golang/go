@@ -158,8 +158,8 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
 		return &Struct{Fields: fields, Tags: tags}
 
 	case *ast.FuncType:
-		params, _, _ := c.collectFields(token.FUNC, t.Params, true)
-		results, _, isVariadic := c.collectFields(token.FUNC, t.Results, true)
+		params, _, isVariadic := c.collectFields(token.FUNC, t.Params, true)
+		results, _, _ := c.collectFields(token.FUNC, t.Results, true)
 		return &Func{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
 
 	case *ast.InterfaceType:
@@ -200,7 +200,21 @@ func (c *checker) checkObj(obj *ast.Object, ref bool) {
 		// TODO(gri) complete this
 
 	case ast.Fun:
-		// TODO(gri) complete this
+		fdecl := obj.Decl.(*ast.FuncDecl)
+		ftyp := c.makeType(fdecl.Type, ref).(*Func)
+		obj.Type = ftyp
+		if fdecl.Recv != nil {
+			recvField := fdecl.Recv.List[0]
+			if len(recvField.Names) > 0 {
+				ftyp.Recv = recvField.Names[0].Obj
+			} else {
+				ftyp.Recv = ast.NewObj(ast.Var, "_")
+				ftyp.Recv.Decl = recvField
+			}
+			c.checkObj(ftyp.Recv, ref)
+			// TODO(axw) add method to a list in the receiver type.
+		}
+		// TODO(axw) check function body, if non-nil.
 
 	default:
 		panic("unreachable")
