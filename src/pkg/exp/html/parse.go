@@ -390,6 +390,10 @@ func (p *parser) reconstructActiveFormattingElements() {
 
 // read reads the next token from the tokenizer.
 func (p *parser) read() error {
+	// CDATA sections are allowed only in foreign content.
+	n := p.oe.top()
+	p.tokenizer.cdataOK = n != nil && n.Namespace != ""
+
 	p.tokenizer.Next()
 	p.tok = p.tokenizer.Token()
 	if p.tok.Type == ErrorToken {
