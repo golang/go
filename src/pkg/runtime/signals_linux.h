@@ -42,7 +42,7 @@ SigTab runtime·sigtab[] = {
 	/* 30 */	N, "SIGPWR: power failure restart",
 	/* 31 */	N, "SIGSYS: bad system call",
 	/* 32 */	N, "signal 32",
-	/* 33 */	N, "signal 33",
+	/* 33 */	0, "signal 33", /* SIGSETXID; see issue 3871 */
 	/* 34 */	N, "signal 34",
 	/* 35 */	N, "signal 35",
 	/* 36 */	N, "signal 36",
