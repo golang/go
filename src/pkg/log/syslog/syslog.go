@@ -138,7 +138,11 @@ func (w *Writer) Debug(m string) (err error) {
 }
 
 func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, b)
+	nl := ""
+	if len(b) == 0 || b[len(b)-1] != '\n' {
+		nl = "\n"
+	}
+	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, b, nl)
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +150,11 @@ func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
 }
 
 func (n netConn) writeString(p Priority, prefix string, s string) (int, error) {
-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, s)
+	nl := ""
+	if len(s) == 0 || s[len(s)-1] != '\n' {
+		nl = "\n"
+	}
+	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, s, nl)
 	if err != nil {
 		return 0, err
 	}
