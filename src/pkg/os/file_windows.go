@@ -25,7 +25,6 @@ type file struct {
 	fd      syscall.Handle
 	name    string
 	dirinfo *dirInfo   // nil unless directory being read
-	nepipe  int        // number of consecutive EPIPE in Write
 	l       sync.Mutex // used to implement windows pread/pwrite
 }
 
