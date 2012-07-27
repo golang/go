@@ -7,6 +7,7 @@
 package os
 
 import (
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -15,12 +16,11 @@ func sigpipe() // implemented in package runtime
 
 func epipecheck(file *File, e error) {
 	if e == syscall.EPIPE {
-		file.nepipe++
-		if file.nepipe >= 10 {
+		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
 			sigpipe()
 		}
 	} else {
-		file.nepipe = 0
+		atomic.StoreInt32(&file.nepipe, 0)
 	}
 }
 
