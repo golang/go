@@ -54,6 +54,9 @@ type dirInfo struct {
 	path     string
 }
 
+func epipecheck(file *File, e error) {
+}
+
 const DevNull = "NUL"
 
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
