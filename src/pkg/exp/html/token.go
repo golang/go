@@ -155,6 +155,8 @@ type Tokenizer struct {
 	// convertNUL is whether NUL bytes in the current token's data should
 	// be converted into \ufffd replacement characters.
 	convertNUL bool
+	// cdataOK is whether CDATA sections are allowed in the current context.
+	cdataOK bool
 }
 
 // Err returns the error associated with the most recent ErrorToken token.
@@ -347,8 +349,8 @@ func (z *Tokenizer) readUntilCloseAngle() {
 }
 
 // readMarkupDeclaration reads the next token starting with "<!". It might be
-// a "<!--comment-->", a "<!DOCTYPE foo>", or "<!a bogus comment". The opening
-// "<!" has already been consumed.
+// a "<!--comment-->", a "<!DOCTYPE foo>", a "<![CDATA[section]]>" or
+// "<!a bogus comment". The opening "<!" has already been consumed.
 func (z *Tokenizer) readMarkupDeclaration() TokenType {
 	z.data.start = z.raw.end
 	var c [2]byte
@@ -364,27 +366,81 @@ func (z *Tokenizer) readMarkupDeclaration() TokenType {
 		return CommentToken
 	}
 	z.raw.end -= 2
+	if z.readDoctype() {
+		return DoctypeToken
+	}
+	if z.cdataOK && z.readCDATA() {
+		z.convertNUL = true
+		return TextToken
+	}
+	// It's a bogus comment.
+	z.readUntilCloseAngle()
+	return CommentToken
+}
+
+// readDoctype attempts to read a doctype declaration and returns true if
+// successful. The opening "<!" has already been consumed.
+func (z *Tokenizer) readDoctype() bool {
 	const s = "DOCTYPE"
 	for i := 0; i < len(s); i++ {
 		c := z.readByte()
 		if z.err != nil {
 			z.data.end = z.raw.end
-			return CommentToken
+			return false
 		}
 		if c != s[i] && c != s[i]+('a'-'A') {
 			// Back up to read the fragment of "DOCTYPE" again.
 			z.raw.end = z.data.start
-			z.readUntilCloseAngle()
-			return CommentToken
+			return false
 		}
 	}
 	if z.skipWhiteSpace(); z.err != nil {
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
-		return DoctypeToken
+		return true
 	}
 	z.readUntilCloseAngle()
-	return DoctypeToken
+	return true
+}
+
+// readCDATA attempts to read a CDATA section and returns true if
+// successful. The opening "<!" has already been consumed.
+func (z *Tokenizer) readCDATA() bool {
+	const s = "[CDATA["
+	for i := 0; i < len(s); i++ {
+		c := z.readByte()
+		if z.err != nil {
+			z.data.end = z.raw.end
+			return false
+		}
+		if c != s[i] {
+			// Back up to read the fragment of "[CDATA[" again.
+			z.raw.end = z.data.start
+			return false
+		}
+	}
+	z.data.start = z.raw.end
+	brackets := 0
+	for {
+		c := z.readByte()
+		if z.err != nil {
+			z.data.end = z.raw.end
+			return true
+		}
+		switch c {
+		case ']':
+			brackets++
+		case '>':
+			if brackets >= 2 {
+				z.data.end = z.raw.end - len("]]>")
+				return true
+			}
+			brackets = 0
+		default:
+			brackets = 0
+		}
+	}
+	panic("unreachable")
 }
 
 // startTagIn returns whether the start tag in z.buf[z.data.start:z.data.end]
@@ -751,7 +807,7 @@ func (z *Tokenizer) Text() []byte {
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
 		s = convertNewlines(s)
-		if z.convertNUL && bytes.Contains(s, nul) {
+		if (z.convertNUL || z.tt == CommentToken) && bytes.Contains(s, nul) {
 			s = bytes.Replace(s, nul, replacement, -1)
 		}
 		if !z.textIsRaw {
