@@ -11,7 +11,6 @@ package cgotest
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <unistd.h>
 
 #define SHIFT(x, y)  ((x)<<(y))
 #define KILO SHIFT(1, 10)
@@ -58,7 +57,6 @@ import "C"
 import (
 	"syscall"
 	"testing"
-	"time"
 	"unsafe"
 )
 
@@ -124,20 +122,6 @@ func testMultipleAssign(t *testing.T) {
 		t.Fatal("Strtol x2: ", n, m)
 	}
 	C.free(unsafe.Pointer(p))
-}
-
-func testSetgid(t *testing.T) {
-	// Issue 3871.
-	c := make(chan bool)
-	go func() {
-		C.setgid(0)
-		c <- true
-	}()
-	select {
-	case <-c:
-	case <-time.After(5 * time.Second):
-		t.Error("setgid hung")
-	}
 }
 
 var (
