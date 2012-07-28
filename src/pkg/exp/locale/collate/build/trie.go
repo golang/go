@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"log"
 	"reflect"
 )
 
@@ -24,6 +23,11 @@ const (
 	blockOffset = 2 // Substract 2 blocks to compensate for the 0x80 added to continuation bytes.
 )
 
+type trieHandle struct {
+	lookupStart uint16 // offset in table for first byte
+	valueStart  uint16 // offset in table for first byte
+}
+
 type trie struct {
 	index  []uint16
 	values []uint32
@@ -31,181 +35,189 @@ type trie struct {
 
 // trieNode is the intermediate trie structure used for generating a trie.
 type trieNode struct {
-	table [256]*trieNode
-	value int64
+	index []*trieNode
+	value []uint32
 	b     byte
-	leaf  bool
+	ref   uint16
 }
 
 func newNode() *trieNode {
-	return new(trieNode)
+	return &trieNode{
+		index: make([]*trieNode, 64),
+		value: make([]uint32, 128), // root node size is 128 instead of 64
+	}
 }
 
 func (n *trieNode) isInternal() bool {
-	internal := true
-	for i := 0; i < 256; i++ {
-		if nn := n.table[i]; nn != nil {
-			if !internal && !nn.leaf {
-				log.Fatalf("trie:isInternal: node contains both leaf and non-leaf children (%v)", n)
-			}
-			internal = internal && !nn.leaf
-		}
-	}
-	return internal
+	return n.value != nil
 }
 
 func (n *trieNode) insert(r rune, value uint32) {
-	for _, b := range []byte(string(r)) {
-		if n.leaf {
-			log.Fatalf("trie:insert: node (%#v) should not be a leaf", n)
+	const maskx = 0x3F // mask out two most-significant bits
+	str := string(r)
+	if len(str) == 1 {
+		n.value[str[0]] = value
+		return
+	}
+	for i := 0; i < len(str)-1; i++ {
+		b := str[i] & maskx
+		if n.index == nil {
+			n.index = make([]*trieNode, blockSize)
 		}
-		nn := n.table[b]
+		nn := n.index[b]
 		if nn == nil {
-			nn = newNode()
+			nn = &trieNode{}
 			nn.b = b
-			n.table[b] = nn
+			n.index[b] = nn
 		}
 		n = nn
 	}
-	n.value = int64(value)
-	n.leaf = true
+	if n.value == nil {
+		n.value = make([]uint32, blockSize)
+	}
+	b := str[len(str)-1] & maskx
+	n.value[b] = value
 }
 
-type nodeIndex struct {
+type trieBuilder struct {
+	t *trie
+
+	roots []*trieHandle
+
 	lookupBlocks []*trieNode
 	valueBlocks  []*trieNode
 
-	lookupBlockIdx map[uint32]int64
-	valueBlockIdx  map[uint32]int64
+	lookupBlockIdx map[uint32]*trieNode
+	valueBlockIdx  map[uint32]*trieNode
 }
 
-func newIndex() *nodeIndex {
-	index := &nodeIndex{}
+func newTrieBuilder() *trieBuilder {
+	index := &trieBuilder{}
 	index.lookupBlocks = make([]*trieNode, 0)
 	index.valueBlocks = make([]*trieNode, 0)
-	index.lookupBlockIdx = make(map[uint32]int64)
-	index.valueBlockIdx = make(map[uint32]int64)
+	index.lookupBlockIdx = make(map[uint32]*trieNode)
+	index.valueBlockIdx = make(map[uint32]*trieNode)
+	// The third nil is the default null block.  The other two blocks
+	// are used to guarantee an offset of at least 3 for each block.
+	index.lookupBlocks = append(index.lookupBlocks, nil, nil, nil)
+	index.t = &trie{}
 	return index
 }
 
-func computeOffsets(index *nodeIndex, n *trieNode) int64 {
-	if n.leaf {
-		return n.value
-	}
+func (b *trieBuilder) computeOffsets(n *trieNode) *trieNode {
 	hasher := fnv.New32()
-	// We only index continuation bytes.
-	for i := 0; i < blockSize; i++ {
-		v := int64(0)
-		if nn := n.table[0x80+i]; nn != nil {
-			v = computeOffsets(index, nn)
+	if n.index != nil {
+		for i, nn := range n.index {
+			v := uint16(0)
+			if nn != nil {
+				nn = b.computeOffsets(nn)
+				n.index[i] = nn
+				v = nn.ref
+			}
+			hasher.Write([]byte{byte(v >> 8), byte(v)})
 		}
+		h := hasher.Sum32()
+		nn, ok := b.lookupBlockIdx[h]
+		if !ok {
+			n.ref = uint16(len(b.lookupBlocks)) - blockOffset
+			b.lookupBlocks = append(b.lookupBlocks, n)
+			b.lookupBlockIdx[h] = n
+		} else {
+			n = nn
+		}
+	} else {
+		for _, v := range n.value {
+			hasher.Write([]byte{byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)})
+		}
+		h := hasher.Sum32()
+		nn, ok := b.valueBlockIdx[h]
+		if !ok {
+			n.ref = uint16(len(b.valueBlocks)) - blockOffset
+			b.valueBlocks = append(b.valueBlocks, n)
+			b.valueBlockIdx[h] = n
+		} else {
+			n = nn
+		}
+	}
+	return n
+}
+
+func (b *trieBuilder) addStartValueBlock(n *trieNode) uint16 {
+	hasher := fnv.New32()
+	for _, v := range n.value[:2*blockSize] {
 		hasher.Write([]byte{byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)})
 	}
 	h := hasher.Sum32()
-	if n.isInternal() {
-		v, ok := index.lookupBlockIdx[h]
-		if !ok {
-			v = int64(len(index.lookupBlocks)) - blockOffset
-			index.lookupBlocks = append(index.lookupBlocks, n)
-			index.lookupBlockIdx[h] = v
-		}
-		n.value = v
+	nn, ok := b.valueBlockIdx[h]
+	if !ok {
+		n.ref = uint16(len(b.valueBlocks))
+		b.valueBlocks = append(b.valueBlocks, n)
+		// Add a dummy block to accommodate the double block size.
+		b.valueBlocks = append(b.valueBlocks, nil)
+		b.valueBlockIdx[h] = n
 	} else {
-		v, ok := index.valueBlockIdx[h]
-		if !ok {
-			v = int64(len(index.valueBlocks)) - blockOffset
-			index.valueBlocks = append(index.valueBlocks, n)
-			index.valueBlockIdx[h] = v
-		}
-		n.value = v
+		n = nn
 	}
-	return n.value
+	return n.ref
 }
 
-func genValueBlock(t *trie, n *trieNode, offset int) error {
-	for i := 0; i < blockSize; i++ {
-		v := int64(0)
-		if nn := n.table[i+offset]; nn != nil {
-			v = nn.value
+func genValueBlock(t *trie, n *trieNode) {
+	if n != nil {
+		for _, v := range n.value {
+			t.values = append(t.values, v)
 		}
-		if v >= 1<<32 {
-			return fmt.Errorf("value %d at index %d does not fit in uint32", v, len(t.values))
-		}
-		t.values = append(t.values, uint32(v))
 	}
-	return nil
 }
 
-func genLookupBlock(t *trie, n *trieNode, offset int) error {
-	for i := 0; i < blockSize; i++ {
-		v := int64(0)
-		if nn := n.table[i+offset]; nn != nil {
-			v = nn.value
+func genLookupBlock(t *trie, n *trieNode) {
+	for _, nn := range n.index {
+		v := uint16(0)
+		if nn != nil {
+			v = nn.ref
 		}
-		if v >= 1<<16 {
-			return fmt.Errorf("value %d at index %d does not fit in uint16", v, len(t.index))
-		}
-		t.index = append(t.index, uint16(v))
+		t.index = append(t.index, v)
 	}
-	return nil
+}
+
+func (b *trieBuilder) addTrie(n *trieNode) *trieHandle {
+	h := &trieHandle{}
+	b.roots = append(b.roots, h)
+	h.valueStart = b.addStartValueBlock(n)
+	if len(b.roots) == 1 {
+		// We insert a null block after the first start value block.
+		// This ensures that continuation bytes UTF-8 sequences of length
+		// greater than 2 will automatically hit a null block if there
+		// was an undefined entry.
+		b.valueBlocks = append(b.valueBlocks, nil)
+	}
+	n = b.computeOffsets(n)
+	// Offset by one extra block as the first byte starts at 0xC0 instead of 0x80.
+	h.lookupStart = n.ref - 1
+	return h
 }
 
 // generate generates and returns the trie for n.
-func (n *trieNode) generate() (t *trie, err error) {
-	seterr := func(e error) {
-		if err == nil {
-			err = e
-		}
+func (b *trieBuilder) generate() (t *trie, err error) {
+	t = b.t
+	if len(b.valueBlocks) >= 1<<16 {
+		return nil, fmt.Errorf("maximum number of value blocks exceeded (%d > %d)", len(b.valueBlocks), 1<<16)
 	}
-	index := newIndex()
-	// Values for 7-bit ASCII are stored in the first of two blocks, followed by a nil block.
-	index.valueBlocks = append(index.valueBlocks, nil, nil, nil)
-	// First byte of multi-byte UTF-8 codepoints are indexed in 4th block.
-	index.lookupBlocks = append(index.lookupBlocks, nil, nil, nil, nil)
-	// Index starter bytes of multi-byte UTF-8.
-	for i := 0xC0; i < 0x100; i++ {
-		if n.table[i] != nil {
-			computeOffsets(index, n.table[i])
-		}
+	if len(b.lookupBlocks) >= 1<<16 {
+		return nil, fmt.Errorf("maximum number of lookup blocks exceeded (%d > %d)", len(b.lookupBlocks), 1<<16)
 	}
-	t = &trie{}
-	seterr(genValueBlock(t, n, 0))
-	seterr(genValueBlock(t, n, 64))
-	seterr(genValueBlock(t, newNode(), 0))
-	for i := 3; i < len(index.valueBlocks); i++ {
-		seterr(genValueBlock(t, index.valueBlocks[i], 0x80))
+	genValueBlock(t, b.valueBlocks[0])
+	genValueBlock(t, &trieNode{value: make([]uint32, 64)})
+	for i := 2; i < len(b.valueBlocks); i++ {
+		genValueBlock(t, b.valueBlocks[i])
 	}
-	if len(index.valueBlocks) >= 1<<16 {
-		seterr(fmt.Errorf("maximum number of value blocks exceeded (%d > %d)", len(index.valueBlocks), 1<<16))
-		return
+	n := &trieNode{index: make([]*trieNode, 64)}
+	genLookupBlock(t, n)
+	genLookupBlock(t, n)
+	genLookupBlock(t, n)
+	for i := 3; i < len(b.lookupBlocks); i++ {
+		genLookupBlock(t, b.lookupBlocks[i])
 	}
-	seterr(genLookupBlock(t, newNode(), 0))
-	seterr(genLookupBlock(t, newNode(), 0))
-	seterr(genLookupBlock(t, newNode(), 0))
-	seterr(genLookupBlock(t, n, 0xC0))
-	for i := 4; i < len(index.lookupBlocks); i++ {
-		seterr(genLookupBlock(t, index.lookupBlocks[i], 0x80))
-	}
-	return
-}
-
-// print writes a compilable trie to w.  It returns the number of characters
-// printed and the size of the generated structure in bytes.
-func (t *trie) print(w io.Writer, name string) (n, size int, err error) {
-	update3 := func(nn, sz int, e error) {
-		n += nn
-		if err == nil {
-			err = e
-		}
-		size += sz
-	}
-	update2 := func(nn int, e error) { update3(nn, 0, e) }
-
-	update3(t.printArrays(w, name))
-	update2(fmt.Fprintf(w, "var %sTrie = ", name))
-	update3(t.printStruct(w, name))
-	update2(fmt.Fprintln(w))
-	return
+	return b.t, nil
 }
 
 func (t *trie) printArrays(w io.Writer, name string) (n, size int, err error) {
@@ -261,8 +273,9 @@ func (t *trie) printArrays(w io.Writer, name string) (n, size int, err error) {
 	return n, nv*4 + ni*2, err
 }
 
-func (t *trie) printStruct(w io.Writer, name string) (n, sz int, err error) {
-	n, err = fmt.Fprintf(w, "trie{ %sLookup[:], %sValues[:]}", name, name)
+func (t *trie) printStruct(w io.Writer, handle *trieHandle, name string) (n, sz int, err error) {
+	const msg = "trie{ %sLookup[%d:], %sValues[%d:], %sLookup[:], %sValues[:]}"
+	n, err = fmt.Fprintf(w, msg, name, handle.lookupStart*blockSize, name, handle.valueStart*blockSize, name, name)
 	sz += int(reflect.TypeOf(trie{}).Size())
 	return
 }

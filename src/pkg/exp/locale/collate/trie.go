@@ -14,8 +14,10 @@ package collate
 const blockSize = 64
 
 type trie struct {
-	index  []uint16
-	values []uint32
+	index0  []uint16 // index for first byte (0xC0-0xFF)
+	values0 []uint32 // index for first byte (0x00-0x7F)
+	index   []uint16
+	values  []uint32
 }
 
 const (
@@ -40,14 +42,14 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 	c0 := s[0]
 	switch {
 	case c0 < tx:
-		return colElem(t.values[c0]), 1
+		return colElem(t.values0[c0]), 1
 	case c0 < t2:
 		return 0, 1
 	case c0 < t3:
 		if len(s) < 2 {
 			return 0, 0
 		}
-		i := t.index[c0]
+		i := t.index0[c0]
 		c1 := s[1]
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
@@ -57,7 +59,7 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 		if len(s) < 3 {
 			return 0, 0
 		}
-		i := t.index[c0]
+		i := t.index0[c0]
 		c1 := s[1]
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
@@ -73,7 +75,7 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 		if len(s) < 4 {
 			return 0, 0
 		}
-		i := t.index[c0]
+		i := t.index0[c0]
 		c1 := s[1]
 		if c1 < tx || t2 <= c1 {
 			return 0, 1

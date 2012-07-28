@@ -14,6 +14,7 @@ import (
 // It implements the non-exported interface collate.tableInitializer
 type table struct {
 	index trie // main trie
+	root  *trieHandle
 
 	// expansion info
 	expandElem []uint32
@@ -30,6 +31,10 @@ func (t *table) TrieIndex() []uint16 {
 
 func (t *table) TrieValues() []uint32 {
 	return t.index.values
+}
+
+func (t *table) FirstBlockOffsets() (i, v uint16) {
+	return t.root.lookupStart, t.root.valueStart
 }
 
 func (t *table) ExpandElems() []uint32 {
@@ -51,7 +56,7 @@ func (t *table) MaxContractLen() int {
 // print writes the table as Go compilable code to w. It prefixes the
 // variable names with name. It returns the number of bytes written
 // and the size of the resulting table.
-func (t *table) print(w io.Writer, name string) (n, size int, err error) {
+func (t *table) fprint(w io.Writer, name string) (n, size int, err error) {
 	update := func(nn, sz int, e error) {
 		n += nn
 		if err == nil {
@@ -66,7 +71,7 @@ func (t *table) print(w io.Writer, name string) (n, size int, err error) {
 	// Write main table.
 	size += int(reflect.TypeOf(*t).Size())
 	p("var %sTable = table{\n", name)
-	update(t.index.printStruct(w, name))
+	update(t.index.printStruct(w, t.root, name))
 	p(",\n")
 	p("%sExpandElem[:],\n", name)
 	update(t.contractTries.printStruct(w, name))
