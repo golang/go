@@ -45,9 +45,10 @@ func makeTable(in []input) (*collate.Collator, error) {
 		b.Add([]rune(r.str), r.ces)
 	}
 	c, err := b.Build("")
-	if err == nil {
-		collate.InitCollator(c)
+	if c == nil {
+		return nil, err
 	}
+	collate.InitCollator(c)
 	return c, err
 }
 

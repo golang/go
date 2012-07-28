@@ -12,8 +12,11 @@ func Init(data interface{}) *Collator {
 		return nil
 	}
 	t := &table{}
+	loff, voff := init.FirstBlockOffsets()
 	t.index.index = init.TrieIndex()
+	t.index.index0 = t.index.index[blockSize*loff:]
 	t.index.values = init.TrieValues()
+	t.index.values0 = t.index.values[blockSize*voff:]
 	t.expandElem = init.ExpandElems()
 	t.contractTries = init.ContractTries()
 	t.contractElem = init.ContractElems()
@@ -24,6 +27,7 @@ func Init(data interface{}) *Collator {
 type tableInitializer interface {
 	TrieIndex() []uint16
 	TrieValues() []uint32
+	FirstBlockOffsets() (lookup, value uint16)
 	ExpandElems() []uint32
 	ContractTries() []struct{ l, h, n, i uint8 }
 	ContractElems() []uint32

@@ -66,6 +66,7 @@ func (e *entry) contractionStarter() bool {
 // tables using Add and AddTailoring before making any call to Build.  This allows
 // Builder to ensure that a root table can support tailorings for each locale.
 type Builder struct {
+	index    *trieBuilder
 	entryMap map[string]*entry
 	entry    []*entry
 	t        *table
@@ -76,6 +77,7 @@ type Builder struct {
 // NewBuilder returns a new Builder.
 func NewBuilder() *Builder {
 	b := &Builder{
+		index:    newTrieBuilder(),
 		entryMap: make(map[string]*entry),
 	}
 	return b
@@ -218,7 +220,7 @@ func (b *Builder) Print(w io.Writer) (int, error) {
 		return 0, err
 	}
 	// TODO: support multiple locales
-	n, _, err := t.print(w, "root")
+	n, _, err := t.fprint(w, "root")
 	return n, err
 }
 
@@ -510,7 +512,8 @@ func (b *Builder) buildTrie() {
 			t.insert(e.runes[0], ce)
 		}
 	}
-	i, err := t.generate()
+	b.t.root = b.index.addTrie(t)
+	i, err := b.index.generate()
 	b.t.index = *i
 	b.error(err)
 }

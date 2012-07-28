@@ -6,6 +6,7 @@ package build
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -24,7 +25,9 @@ func makeTestTrie(t *testing.T) trie {
 	for i, r := range testRunes {
 		n.insert(r, uint32(i))
 	}
-	tr, err := n.generate()
+	idx := newTrieBuilder()
+	idx.addTrie(n)
+	tr, err := idx.generate()
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -34,9 +37,11 @@ func makeTestTrie(t *testing.T) trie {
 func TestGenerateTrie(t *testing.T) {
 	testdata := makeTestTrie(t)
 	buf := &bytes.Buffer{}
-	testdata.print(buf, "test")
+	testdata.printArrays(buf, "test")
+	fmt.Fprintf(buf, "var testTrie = ")
+	testdata.printStruct(buf, &trieHandle{19, 0}, "test")
 	if output != buf.String() {
-		t.Errorf("output differs")
+		t.Error("output differs")
 	}
 }
 
@@ -79,25 +84,24 @@ var testLookup = [640]uint16 {
 	// Block 0x1, offset 0x40
 	// Block 0x2, offset 0x80
 	// Block 0x3, offset 0xc0
-	0x0c2:0x01, 0x0c4:0x02, 
-	0x0c8:0x03, 
-	0x0df:0x04, 
-	0x0e0:0x02, 
-	0x0ef:0x03, 
-	0x0f0:0x05, 0x0f4:0x07, 
+	0x0e0:0x05, 0x0e6:0x06, 
 	// Block 0x4, offset 0x100
-	0x120:0x05, 0x126:0x06, 
+	0x13f:0x07, 
 	// Block 0x5, offset 0x140
-	0x17f:0x07, 
+	0x140:0x08, 0x144:0x09, 
 	// Block 0x6, offset 0x180
-	0x180:0x08, 0x184:0x09, 
+	0x190:0x03, 
 	// Block 0x7, offset 0x1c0
-	0x1d0:0x04, 
+	0x1ff:0x0a, 
 	// Block 0x8, offset 0x200
-	0x23f:0x0a, 
+	0x20f:0x05, 
 	// Block 0x9, offset 0x240
-	0x24f:0x06, 
+	0x242:0x01, 0x244:0x02, 
+	0x248:0x03, 
+	0x25f:0x04, 
+	0x260:0x01, 
+	0x26f:0x02, 
+	0x270:0x04, 0x274:0x06, 
 }
 
-var testTrie = trie{ testLookup[:], testValues[:]}
-`
+var testTrie = trie{ testLookup[1216:], testValues[0:], testLookup[:], testValues[:]}`
