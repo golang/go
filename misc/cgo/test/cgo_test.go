@@ -27,6 +27,5 @@ func Test1328(t *testing.T)                { test1328(t) }
 func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
 func TestSetEnv(t *testing.T)              { testSetEnv(t) }
 func TestHelpers(t *testing.T)             { testHelpers(t) }
-func TestSetgid(t *testing.T)              { testSetgid(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
