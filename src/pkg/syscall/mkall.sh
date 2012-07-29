@@ -87,7 +87,8 @@ case "$1" in
 -syscalls)
 	for i in zsyscall*go
 	do
-		sed 1q $i | sed 's;^// ;;' | sh | gofmt >_$i && mv _$i $i
+		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+		rm _$i
 	done
 	exit 0
 	;;
