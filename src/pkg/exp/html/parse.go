@@ -1846,14 +1846,16 @@ func afterAfterFramesetIM(p *parser) bool {
 	return true
 }
 
+const whitespaceOrNUL = whitespace + "\x00"
+
 // Section 12.2.5.5.
 func parseForeignContent(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
-		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
 		if p.framesetOK {
-			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
+			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespaceOrNUL) == ""
 		}
+		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "\ufffd", -1)
 		p.addText(p.tok.Data)
 	case CommentToken:
 		p.addChild(&Node{
