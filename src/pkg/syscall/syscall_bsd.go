@@ -13,6 +13,7 @@
 package syscall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -303,7 +304,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	if err != nil {
 		return
 	}
-	if len == 0 {
+	if runtime.GOOS == "darwin" && len == 0 {
 		// Accepted socket has no address.
 		// This is likely due to a bug in xnu kernels,
 		// where instead of ECONNABORTED error socket
