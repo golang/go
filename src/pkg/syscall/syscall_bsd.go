@@ -303,6 +303,14 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	if err != nil {
 		return
 	}
+	if len == 0 {
+		// Accepted socket has no address.
+		// This is likely due to a bug in xnu kernels,
+		// where instead of ECONNABORTED error socket
+		// is accepted, but has no address.
+		Close(nfd)
+		return 0, nil, ECONNABORTED
+	}
 	sa, err = anyToSockaddr(&rsa)
 	if err != nil {
 		Close(nfd)
