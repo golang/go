@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 )
@@ -33,16 +34,17 @@ func mkEnv() []envVar {
 	b.init()
 
 	env := []envVar{
-		{"GOROOT", goroot},
-		{"GOBIN", gobin},
 		{"GOARCH", goarch},
+		{"GOBIN", gobin},
 		{"GOCHAR", archChar},
-		{"GOOS", goos},
 		{"GOEXE", exeSuffix},
+		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
+		{"GOOS", goos},
+		{"GOPATH", os.Getenv("GOPATH")},
+		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
-		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
 	}
 
 	if buildContext.CgoEnabled {
