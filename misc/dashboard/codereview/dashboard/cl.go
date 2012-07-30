@@ -294,12 +294,13 @@ func updateCL(c appengine.Context, n string) error {
 	}
 
 	var apiResp struct {
-		Description string `json:"description"`
-		Created     string `json:"created"`
-		OwnerEmail  string `json:"owner_email"`
-		Modified    string `json:"modified"`
-		Closed      bool   `json:"closed"`
-		Subject     string `json:"subject"`
+		Description string   `json:"description"`
+		Reviewers   []string `json:"reviewers"`
+		Created     string   `json:"created"`
+		OwnerEmail  string   `json:"owner_email"`
+		Modified    string   `json:"modified"`
+		Closed      bool     `json:"closed"`
+		Subject     string   `json:"subject"`
 		Messages    []struct {
 			Text       string   `json:"text"`
 			Sender     string   `json:"sender"`
@@ -334,6 +335,13 @@ func updateCL(c appengine.Context, n string) error {
 	if i := strings.Index(cl.FirstLine, "\n"); i >= 0 {
 		cl.FirstLine = cl.FirstLine[:i]
 	}
+	// Treat zero reviewers as a signal that the CL is completed.
+	// This could be after the CL has been submitted, but before the CL author has synced,
+	// but it could also be a CL manually edited to remove reviewers.
+	if len(apiResp.Reviewers) == 0 {
+		cl.Closed = true
+	}
+
 	lgtm := make(map[string]bool)
 	notLGTM := make(map[string]bool)
 	rcpt := make(map[string]bool)
