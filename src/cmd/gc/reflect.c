@@ -130,7 +130,12 @@ methodfunc(Type *f, Type *receiver)
 		out = list(out, d);
 	}
 
-	return functype(N, in, out);
+	t = functype(N, in, out);
+	if(f->nname) {
+		// Link to name of original method function.
+		t->nname = f->nname;
+	}
+	return t;
 }
 
 /*

@@ -36,6 +36,10 @@ init1(Node *n, NodeList **out)
 	init1(n->right, out);
 	for(l=n->list; l; l=l->next)
 		init1(l->n, out);
+	if(n->left && n->type && n->left->op == OTYPE && n->class == PFUNC) {
+		// Definitions for method expressions are stored in type->nname.
+		init1(n->type->nname, out);
+	}
 
 	if(n->op != ONAME)
 		return;
@@ -170,6 +174,8 @@ init2(Node *n, NodeList **out)
 	
 	if(n->op == OCLOSURE)
 		init2list(n->closure->nbody, out);
+	if(n->op == ODOTMETH)
+		init2(n->type->nname, out);
 }
 
 static void
