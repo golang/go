@@ -55,7 +55,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 
 	if data.UserIsReviewer {
 		tableFetch(0, func(tbl *clTable) error {
-			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(10)
+			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(50)
 			tbl.Title = "CLs assigned to you for review"
 			tbl.Assignable = true
 			_, err := q.GetAll(c, &tbl.CLs)
@@ -64,7 +64,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tableFetch(1, func(tbl *clTable) error {
-		q := activeCLs.Filter("Author =", currentPerson).Limit(10)
+		q := activeCLs.Filter("Author =", currentPerson).Limit(50)
 		tbl.Title = "CLs sent by you"
 		tbl.Assignable = true
 		_, err := q.GetAll(c, &tbl.CLs)
