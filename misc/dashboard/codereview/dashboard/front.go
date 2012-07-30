@@ -24,6 +24,9 @@ func init() {
 	http.HandleFunc("/favicon.ico", http.NotFound)
 }
 
+// maximum number of active CLs to show in person-specific tables.
+const maxCLs = 100
+
 func handleFront(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 
@@ -55,7 +58,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 
 	if data.UserIsReviewer {
 		tableFetch(0, func(tbl *clTable) error {
-			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(50)
+			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(maxCLs)
 			tbl.Title = "CLs assigned to you for review"
 			tbl.Assignable = true
 			_, err := q.GetAll(c, &tbl.CLs)
@@ -64,7 +67,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tableFetch(1, func(tbl *clTable) error {
-		q := activeCLs.Filter("Author =", currentPerson).Limit(50)
+		q := activeCLs.Filter("Author =", currentPerson).Limit(maxCLs)
 		tbl.Title = "CLs sent by you"
 		tbl.Assignable = true
 		_, err := q.GetAll(c, &tbl.CLs)
