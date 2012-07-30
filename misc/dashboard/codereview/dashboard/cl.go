@@ -49,6 +49,7 @@ type CL struct {
 	Description []byte `datastore:",noindex"`
 	FirstLine   string `datastore:",noindex"`
 	LGTMs       []string
+	NotLGTMs    []string
 
 	// Mail information.
 	Subject       string   `datastore:",noindex"`
@@ -78,9 +79,9 @@ func (cl *CL) FirstLineHTML() template.HTML {
 	return template.HTML(s)
 }
 
-func (cl *CL) LGTMHTML() template.HTML {
-	x := make([]string, len(cl.LGTMs))
-	for i, s := range cl.LGTMs {
+func formatEmails(e []string) template.HTML {
+	x := make([]string, len(e))
+	for i, s := range e {
 		s = template.HTMLEscapeString(s)
 		if !strings.Contains(s, "@") {
 			s = "<b>" + s + "</b>"
@@ -89,6 +90,14 @@ func (cl *CL) LGTMHTML() template.HTML {
 		x[i] = s
 	}
 	return template.HTML(strings.Join(x, ", "))
+}
+
+func (cl *CL) LGTMHTML() template.HTML {
+	return formatEmails(cl.LGTMs)
+}
+
+func (cl *CL) NotLGTMHTML() template.HTML {
+	return formatEmails(cl.NotLGTMs)
 }
 
 func (cl *CL) ModifiedAgo() string {
@@ -326,6 +335,7 @@ func updateCL(c appengine.Context, n string) error {
 		cl.FirstLine = cl.FirstLine[:i]
 	}
 	lgtm := make(map[string]bool)
+	notLGTM := make(map[string]bool)
 	rcpt := make(map[string]bool)
 	for _, msg := range apiResp.Messages {
 		s, rev := msg.Sender, false
@@ -343,6 +353,11 @@ func updateCL(c appengine.Context, n string) error {
 
 		if msg.Approval {
 			lgtm[s] = true
+			delete(notLGTM, s) // "LGTM" overrules previous "NOT LGTM"
+		}
+		if strings.Contains(msg.Text, "NOT LGTM") {
+			notLGTM[s] = true
+			delete(lgtm, s) // "NOT LGTM" overrules previous "LGTM"
 		}
 
 		for _, r := range msg.Recipients {
@@ -352,10 +367,14 @@ func updateCL(c appengine.Context, n string) error {
 	for l := range lgtm {
 		cl.LGTMs = append(cl.LGTMs, l)
 	}
+	for l := range notLGTM {
+		cl.NotLGTMs = append(cl.NotLGTMs, l)
+	}
 	for r := range rcpt {
 		cl.Recipients = append(cl.Recipients, r)
 	}
 	sort.Strings(cl.LGTMs)
+	sort.Strings(cl.NotLGTMs)
 	sort.Strings(cl.Recipients)
 
 	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
