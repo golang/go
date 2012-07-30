@@ -128,7 +128,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := user.Current(c)
-	if _, ok := emailToPerson[u.Email]; !ok {
+	person, ok := emailToPerson[u.Email]
+	if !ok {
 		http.Error(w, "Not allowed", http.StatusUnauthorized)
 		return
 	}
@@ -183,7 +184,7 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		if !found {
 			c.Infof("Adding %v as a reviewer of CL %v", rev, n)
 
-			url := fmt.Sprintf("%s?cl=%s&r=%s", gobotBase, n, rev)
+			url := fmt.Sprintf("%s?cl=%s&r=%s&obo=%s", gobotBase, n, rev, person)
 			resp, err := urlfetch.Client(c).Get(url)
 			if err != nil {
 				c.Errorf("Gobot GET failed: %v", err)
