@@ -13,8 +13,9 @@ import (
 
 // item represents a token or text string returned from the scanner.
 type item struct {
-	typ itemType
-	val string
+	typ itemType // The type of this item.
+	pos int      // The starting position, in bytes, of this item in the input string.
+	val string   // The value of this item.
 }
 
 func (i item) String() string {
@@ -127,6 +128,7 @@ type lexer struct {
 	pos        int       // current position in the input.
 	start      int       // start position of this item.
 	width      int       // width of last rune read from input.
+	lastPos    int       // position of nost recent item returned by nextItem
 	items      chan item // channel of scanned items.
 }
 
@@ -155,7 +157,7 @@ func (l *lexer) backup() {
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
-	l.items <- item{t, l.input[l.start:l.pos]}
+	l.items <- item{t, l.start, l.input[l.start:l.pos]}
 	l.start = l.pos
 }
 
@@ -180,22 +182,25 @@ func (l *lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-// lineNumber reports which line we're on. Doing it this way
+// lineNumber reports which line we're on, based on the position of
+// the previous item returned by nextItem. Doing it this way
 // means we don't have to worry about peek double counting.
 func (l *lexer) lineNumber() int {
-	return 1 + strings.Count(l.input[:l.pos], "\n")
+	return 1 + strings.Count(l.input[:l.lastPos], "\n")
 }
 
 // error returns an error token and terminates the scan by passing
 // back a nil pointer that will be the next state, terminating l.nextItem.
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.items <- item{itemError, fmt.Sprintf(format, args...)}
+	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
 	return nil
 }
 
 // nextItem returns the next item from the input.
 func (l *lexer) nextItem() item {
-	return <-l.items
+	item := <-l.items
+	l.lastPos = item.pos
+	return item
 }
 
 // lex creates a new scanner for the input string.
