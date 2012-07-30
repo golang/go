@@ -686,8 +686,9 @@ func (re *Regexp) FindStringIndex(s string) (loc []int) {
 
 // FindReaderIndex returns a two-element slice of integers defining the
 // location of the leftmost match of the regular expression in text read from
-// the RuneReader.  The match itself is at s[loc[0]:loc[1]].  A return
-// value of nil indicates no match.
+// the RuneReader.  The match text was found in the input stream at
+// byte offset loc[0] through loc[1]-1.
+// A return value of nil indicates no match.
 func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
 	a := re.doExecute(r, nil, "", 0, 2)
 	if a == nil {
