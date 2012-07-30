@@ -37,8 +37,8 @@ static void fixlbrace(int);
 // |sed 's/.*	//' |9 fmt -l1 |sort |9 fmt -l50 | sed 's/^/%xxx		/'
 
 %token	<val>	LLITERAL
-%token	<i>	LASOP
-%token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
+%token	<i>	LASOP LCOLAS
+%token	<sym>	LBREAK LCASE LCHAN LCONST LCONTINUE LDDD
 %token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
 %token	<sym>	LIF LIMPORT LINTERFACE LMAP LNAME
 %token	<sym>	LPACKAGE LRANGE LRETURN LSELECT LSTRUCT LSWITCH
@@ -437,7 +437,7 @@ simple_stmt:
 				$$->left = dclname($1->n->sym);  // it's a colas, so must not re-use an oldname.
 			break;
 		}
-		$$ = colas($1, $3);
+		$$ = colas($1, $3, $2);
 	}
 |	expr LINC
 	{
@@ -496,7 +496,7 @@ case:
 		// done in casebody()
 		markdcl();
 		$$ = nod(OXCASE, N, N);
-		$$->list = list1(colas($2, list1($4)));
+		$$->list = list1(colas($2, list1($4), $3));
 	}
 |	LDEFAULT ':'
 	{

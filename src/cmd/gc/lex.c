@@ -973,6 +973,7 @@ l0:
 		c1 = getc();
 		if(c1 == '=') {
 			c = LCOLAS;
+			yylval.i = lexlineno;
 			goto lx;
 		}
 		break;
