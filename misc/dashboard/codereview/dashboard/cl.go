@@ -49,6 +49,7 @@ type CL struct {
 	FirstLine   string `datastore:",noindex"`
 	LGTMs       []string
 	NotLGTMs    []string
+	LastUpdate  string
 
 	// Mail information.
 	Subject       string   `datastore:",noindex"`
