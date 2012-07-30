@@ -508,7 +508,12 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			fmt.Fprintf(&b, "\t0,\n")
 		}
 	}
-	fmt.Fprintf(&b, "\t0\n")
+	// for the last entry, we can not use 0, otherwise
+	// in case all __cgodebug_data is zero initialized,
+	// LLVM-based gcc will place the it in the __DATA.__common
+	// zero-filled section (our debug/macho doesn't support
+	// this)
+	fmt.Fprintf(&b, "\t1\n")
 	fmt.Fprintf(&b, "};\n")
 
 	d, bo, debugData := p.gccDebug(b.Bytes())
