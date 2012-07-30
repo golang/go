@@ -847,6 +847,7 @@ reltype(char *pn, int elftype, uchar *siz)
 	case R('5', R_ARM_REL32):
 	case R('5', R_ARM_CALL):
 	case R('5', R_ARM_V4BX):
+	case R('5', R_ARM_GOT_PREL):
 	case R('6', R_X86_64_PC32):
 	case R('6', R_X86_64_PLT32):
 	case R('6', R_X86_64_GOTPCREL):

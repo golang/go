@@ -158,11 +158,22 @@ adddynrel(Sym *s, Reloc *r)
 		r->sym = S;
 		r->add += targ->got;
 		return;
-	
+
+	case 256 + R_ARM_GOT_PREL: // GOT(S) + A - P
+		if(targ->dynimpname == nil || targ->dynexport) {
+			addgotsyminternal(targ);
+		} else {
+			addgotsym(targ);
+		}
+		r->type = D_PCREL;
+		r->sym = lookup(".got", 0);
+		r->add += targ->got + 4;
+		return;
+
 	case 256 + R_ARM_GOTOFF: // R_ARM_GOTOFF32
 		r->type = D_GOTOFF;
 		return;
-	
+
 	case 256 + R_ARM_GOTPC: // R_ARM_BASE_PREL
 		r->type = D_PCREL;
 		r->sym = lookup(".got", 0);
