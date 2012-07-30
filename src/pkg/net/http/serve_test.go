@@ -1188,6 +1188,22 @@ func TestServerGracefulClose(t *testing.T) {
 	<-writeErr
 }
 
+func TestCaseSensitiveMethod(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != "get" {
+			t.Errorf(`Got method %q; want "get"`, r.Method)
+		}
+	}))
+	defer ts.Close()
+	req, _ := NewRequest("get", ts.URL, nil)
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	res.Body.Close()
+}
+
 // goTimeout runs f, failing t if f takes more than ns to complete.
 func goTimeout(t *testing.T, d time.Duration, f func()) {
 	ch := make(chan bool, 2)

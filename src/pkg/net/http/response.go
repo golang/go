@@ -107,7 +107,6 @@ func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err error) {
 	resp = new(Response)
 
 	resp.Request = req
-	resp.Request.Method = strings.ToUpper(resp.Request.Method)
 
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
@@ -187,11 +186,6 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  Header, values for non-canonical keys will have unpredictable behavior
 //
 func (r *Response) Write(w io.Writer) error {
-
-	// RequestMethod should be upper-case
-	if r.Request != nil {
-		r.Request.Method = strings.ToUpper(r.Request.Method)
-	}
 
 	// Status line
 	text := r.Status
