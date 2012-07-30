@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -64,6 +65,47 @@ func TestReverseProxy(t *testing.T) {
 	}
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+func TestXForwardedFor(t *testing.T) {
+	const prevForwardedFor = "client ip"
+	const backendResponse = "I am the backend"
+	const backendStatus = 404
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-For") == "" {
+			t.Errorf("didn't get X-Forwarded-For header")
+		}
+		if !strings.Contains(r.Header.Get("X-Forwarded-For"), prevForwardedFor) {
+			t.Errorf("X-Forwarded-For didn't contain prior data")
+		}
+		w.WriteHeader(backendStatus)
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
+	getReq.Close = true
+	res, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
 	bodyBytes, _ := ioutil.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {

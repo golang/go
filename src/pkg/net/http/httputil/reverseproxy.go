@@ -106,8 +106,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Del("Connection")
 	}
 
-	if clientIp, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		outreq.Header.Set("X-Forwarded-For", clientIp)
+	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+		// If we aren't the first proxy retain prior
+		// X-Forwarded-For information as a comma+space
+		// separated list and fold multiple headers into one.
+		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
+			clientIP = strings.Join(prior, ", ") + ", " + clientIP
+		}
+		outreq.Header.Set("X-Forwarded-For", clientIP)
 	}
 
 	res, err := transport.RoundTrip(outreq)
