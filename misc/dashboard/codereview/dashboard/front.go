@@ -244,8 +244,8 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
     {{end}}
     <td>
       <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
-      {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}{{end}}</span>
-      {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}{{end}}</span>
+      {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}</span>{{end}}
+      {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}</span>{{end}}
     </td>
     <td title="Last modified">{{.ModifiedAgo}}</td>
     {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}
