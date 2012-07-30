@@ -928,7 +928,7 @@ void	nodfconst(Node *n, Type *t, Mpflt* fval);
 void	addmethod(Sym *sf, Type *t, int local);
 void	addvar(Node *n, Type *t, int ctxt);
 NodeList*	checkarglist(NodeList *all, int input);
-Node*	colas(NodeList *left, NodeList *right);
+Node*	colas(NodeList *left, NodeList *right, int32 lno);
 void	colasdefn(NodeList *left, Node *defn);
 NodeList*	constiter(NodeList *vl, Node *t, NodeList *cl);
 Node*	dclname(Sym *s);
