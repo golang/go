@@ -9,6 +9,13 @@ compile() {
 	$G $D/$F.go
 }
 
+compiledir() {
+	for gofile in $D/$F.dir/*.go
+	do
+		$G ${gofile} || return 1
+	done
+}
+
 build() {
 	$G $D/$F.go && $L $F.$A
 }
