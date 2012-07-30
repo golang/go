@@ -389,6 +389,23 @@ func TestServeIndexHtml(t *testing.T) {
 	}
 }
 
+func TestFileServerZeroByte(t *testing.T) {
+	ts := httptest.NewServer(FileServer(Dir(".")))
+	defer ts.Close()
+
+	res, err := Get(ts.URL + "/..\x00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("reading Body:", err)
+	}
+	if res.StatusCode == 200 {
+		t.Errorf("got status 200; want an error. Body is:\n%s", string(b))
+	}
+}
+
 type fakeFileInfo struct {
 	dir      bool
 	basename string
