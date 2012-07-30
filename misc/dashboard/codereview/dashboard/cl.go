@@ -14,7 +14,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	netmail "net/mail"
 	"net/url"
 	"regexp"
 	"sort"
@@ -23,7 +22,6 @@ import (
 
 	"appengine"
 	"appengine/datastore"
-	"appengine/mail"
 	"appengine/taskqueue"
 	"appengine/urlfetch"
 	"appengine/user"
@@ -35,6 +33,7 @@ func init() {
 }
 
 const codereviewBase = "http://codereview.appspot.com"
+const gobotBase = "http://research.swtch.com/gobot_codereview"
 
 var clRegexp = regexp.MustCompile(`\d+`)
 
@@ -184,34 +183,21 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		if !found {
 			c.Infof("Adding %v as a reviewer of CL %v", rev, n)
 
-			// We can't do this easily, as we need authentication to edit
-			// an issue on behalf of a user, which is non-trivial. For now,
-			// just send a mail with the body "R=<reviewer>", Cc'ing that person,
-			// and rely on social convention.
-			cl := new(CL)
-			err := datastore.Get(c, key, cl)
+			url := fmt.Sprintf("%s?cl=%s&r=%s", gobotBase, n, rev)
+			resp, err := urlfetch.Client(c).Get(url)
 			if err != nil {
-				c.Errorf("%s", err)
+				c.Errorf("Gobot GET failed: %v", err)
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			msg := &mail.Message{
-				Sender: u.Email,
-				To:     []string{preferredEmail[rev]},
-				Cc:     cl.Recipients,
-				// Take care to match Rietveld's subject line
-				// so that Gmail will correctly thread mail.
-				Subject: cl.Subject + " (issue " + n + ")",
-				Body:    "R=" + rev + "\n\n(sent by gocodereview)",
+			defer resp.Body.Close()
+			if resp.StatusCode != 200 {
+				c.Errorf("Gobot GET failed: got HTTP response %d", resp.StatusCode)
+				http.Error(w, "Failed contacting Gobot", 500)
+				return
 			}
-			if cl.LastMessageID != "" {
-				msg.Headers = netmail.Header{
-					"In-Reply-To": []string{cl.LastMessageID},
-				}
-			}
-			if err := mail.Send(c, msg); err != nil {
-				c.Errorf("mail.Send: %v", err)
-			}
+
+			c.Infof("Gobot said %q", resp.Status)
 		}
 	}
 
