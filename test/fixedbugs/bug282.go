@@ -1,4 +1,4 @@
-// $G $D/$F.dir/p1.go && $G $D/$F.dir/p2.go
+// compiledir
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

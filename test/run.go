@@ -216,6 +216,10 @@ func (t *test) goFileName() string {
 	return filepath.Join(t.dir, t.gofile)
 }
 
+func (t *test) goDirName() string {
+	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
+}
+
 // run runs a test.
 func (t *test) run() {
 	defer close(t.donec)
@@ -251,7 +255,7 @@ func (t *test) run() {
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
 		fallthrough
-	case "compile", "build", "run", "errorcheck", "runoutput":
+	case "compile", "compiledir", "build", "run", "errorcheck", "runoutput":
 		t.action = action
 	case "skip":
 		t.action = "skip"
@@ -299,6 +303,23 @@ func (t *test) run() {
 		out, err := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+
+	case "compiledir":
+		// Compile all files in the directory in lexicographic order.
+		longdir := filepath.Join(cwd, t.goDirName())
+		files, dirErr := ioutil.ReadDir(longdir)
+		if dirErr != nil {
+			t.err = dirErr
+			return
+		}
+		for _, gofile := range files {
+			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
+			out, err := runcmd("go", "tool", gc, "-e", "-o", afile, filepath.Join(longdir, gofile.Name()))
+			if err != nil {
+				t.err = fmt.Errorf("%s\n%s", err, out)
+				break
+			}
 		}
 
 	case "build":
