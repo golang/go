@@ -59,7 +59,7 @@ func TestMulticastListener(t *testing.T) {
 	}
 
 	for _, tt := range multicastListenerTests {
-		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
+		if tt.ipv6 && (!*testIPv6 || !supportsIPv6 || os.Getuid() != 0) {
 			continue
 		}
 		ifi, err := availMulticastInterface(t, tt.flags)
