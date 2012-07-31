@@ -20,9 +20,9 @@ enum E {
 	Enum2 = 2,
 };
 
-typedef unsigned char uuid_t[20];
+typedef unsigned char cgo_uuid_t[20];
 
-void uuid_generate(uuid_t x) {
+void uuid_generate(cgo_uuid_t x) {
 	x[0] = 0;
 }
 
@@ -65,7 +65,7 @@ const EINVAL = C.EINVAL /* test #define */
 var KILO = C.KILO
 
 func uuidgen() {
-	var uuid C.uuid_t
+	var uuid C.cgo_uuid_t
 	C.uuid_generate(&uuid[0])
 }
 
