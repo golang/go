@@ -468,28 +468,9 @@ loop:
 // readStartTag reads the next start tag token. The opening "<a" has already
 // been consumed, where 'a' means anything in [A-Za-z].
 func (z *Tokenizer) readStartTag() TokenType {
-	z.attr = z.attr[:0]
-	z.nAttrReturned = 0
-	// Read the tag name and attribute key/value pairs.
-	z.readTagName()
-	if z.skipWhiteSpace(); z.err != nil {
+	z.readTag()
+	if z.err != nil && len(z.attr) == 0 {
 		return ErrorToken
-	}
-	for {
-		c := z.readByte()
-		if z.err != nil || c == '>' {
-			break
-		}
-		z.raw.end--
-		z.readTagAttrKey()
-		z.readTagAttrVal()
-		// Save pendingAttr if it has a non-empty key.
-		if z.pendingAttr[0].start != z.pendingAttr[0].end {
-			z.attr = append(z.attr, z.pendingAttr)
-		}
-		if z.skipWhiteSpace(); z.err != nil {
-			break
-		}
 	}
 	// Several tags flag the tokenizer's next token as raw.
 	c, raw := z.buf[z.data.start], false
@@ -520,16 +501,30 @@ func (z *Tokenizer) readStartTag() TokenType {
 	return StartTagToken
 }
 
-// readEndTag reads the next end tag token. The opening "</a" has already
-// been consumed, where 'a' means anything in [A-Za-z].
-func (z *Tokenizer) readEndTag() {
+// readTag reads the next tag token. The opening "<a" or "</a" has already been
+// consumed, where 'a' means anything in [A-Za-z].
+func (z *Tokenizer) readTag() {
 	z.attr = z.attr[:0]
 	z.nAttrReturned = 0
+	// Read the tag name and attribute key/value pairs.
 	z.readTagName()
+	if z.skipWhiteSpace(); z.err != nil {
+		return
+	}
 	for {
 		c := z.readByte()
 		if z.err != nil || c == '>' {
-			return
+			break
+		}
+		z.raw.end--
+		z.readTagAttrKey()
+		z.readTagAttrVal()
+		// Save pendingAttr if it has a non-empty key.
+		if z.pendingAttr[0].start != z.pendingAttr[0].end {
+			z.attr = append(z.attr, z.pendingAttr)
+		}
+		if z.skipWhiteSpace(); z.err != nil {
+			break
 		}
 	}
 }
@@ -727,7 +722,7 @@ loop:
 				continue loop
 			}
 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
-				z.readEndTag()
+				z.readTag()
 				z.tt = EndTagToken
 				return z.tt
 			}
@@ -858,22 +853,18 @@ func (z *Tokenizer) Token() Token {
 	switch z.tt {
 	case TextToken, CommentToken, DoctypeToken:
 		t.Data = string(z.Text())
-	case StartTagToken, SelfClosingTagToken:
-		var attr []Attribute
+	case StartTagToken, SelfClosingTagToken, EndTagToken:
 		name, moreAttr := z.TagName()
-		for moreAttr {
-			var key, val []byte
-			key, val, moreAttr = z.TagAttr()
-			attr = append(attr, Attribute{"", atom.String(key), string(val)})
+		// Since end tags should not have attributes, the high-level tokenizer
+		// interface will not return attributes for an end tag token even if
+		// it looks like </br foo="bar">.
+		if z.tt != EndTagToken {
+			for moreAttr {
+				var key, val []byte
+				key, val, moreAttr = z.TagAttr()
+				t.Attr = append(t.Attr, Attribute{"", atom.String(key), string(val)})
+			}
 		}
-		if a := atom.Lookup(name); a != 0 {
-			t.DataAtom, t.Data = a, a.String()
-		} else {
-			t.DataAtom, t.Data = 0, string(name)
-		}
-		t.Attr = attr
-	case EndTagToken:
-		name, _ := z.TagName()
 		if a := atom.Lookup(name); a != 0 {
 			t.DataAtom, t.Data = a, a.String()
 		} else {
