@@ -964,7 +964,6 @@ static int opprec[] = {
 	[OPAREN] = 8,
 	[OPRINTN] = 8,
 	[OPRINT] = 8,
-	[ORECV] = 8,
 	[ORUNESTR] = 8,
 	[OSTRARRAYBYTE] = 8,
 	[OSTRARRAYRUNE] = 8,
@@ -996,6 +995,7 @@ static int opprec[] = {
 	[OMINUS] = 7,
 	[OADDR] = 7,
 	[OIND] = 7,
+	[ORECV] = 7,
 
 	[OMUL] = 6,
 	[ODIV] = 6,
