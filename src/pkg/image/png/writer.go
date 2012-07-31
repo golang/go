@@ -21,7 +21,7 @@ type encoder struct {
 	err    error
 	header [8]byte
 	footer [4]byte
-	tmp    [3 * 256]byte
+	tmp    [4 * 256]byte
 }
 
 // Big-endian.
@@ -70,7 +70,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 		e.err = UnsupportedError(name + " chunk is too large: " + strconv.Itoa(len(b)))
 		return
 	}
-	writeUint32(e.header[0:4], n)
+	writeUint32(e.header[:4], n)
 	e.header[4] = name[0]
 	e.header[5] = name[1]
 	e.header[6] = name[2]
@@ -78,9 +78,9 @@ func (e *encoder) writeChunk(b []byte, name string) {
 	crc := crc32.NewIEEE()
 	crc.Write(e.header[4:8])
 	crc.Write(b)
-	writeUint32(e.footer[0:4], crc.Sum32())
+	writeUint32(e.footer[:4], crc.Sum32())
 
-	_, e.err = e.w.Write(e.header[0:8])
+	_, e.err = e.w.Write(e.header[:8])
 	if e.err != nil {
 		return
 	}
@@ -88,7 +88,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
 	if e.err != nil {
 		return
 	}
-	_, e.err = e.w.Write(e.footer[0:4])
+	_, e.err = e.w.Write(e.footer[:4])
 }
 
 func (e *encoder) writeIHDR() {
@@ -122,36 +122,29 @@ func (e *encoder) writeIHDR() {
 	e.tmp[10] = 0 // default compression method
 	e.tmp[11] = 0 // default filter method
 	e.tmp[12] = 0 // non-interlaced
-	e.writeChunk(e.tmp[0:13], "IHDR")
+	e.writeChunk(e.tmp[:13], "IHDR")
 }
 
-func (e *encoder) writePLTE(p color.Palette) {
+func (e *encoder) writePLTEAndTRNS(p color.Palette) {
 	if len(p) < 1 || len(p) > 256 {
 		e.err = FormatError("bad palette length: " + strconv.Itoa(len(p)))
 		return
 	}
-	for i, c := range p {
-		r, g, b, _ := c.RGBA()
-		e.tmp[3*i+0] = uint8(r >> 8)
-		e.tmp[3*i+1] = uint8(g >> 8)
-		e.tmp[3*i+2] = uint8(b >> 8)
-	}
-	e.writeChunk(e.tmp[0:3*len(p)], "PLTE")
-}
-
-func (e *encoder) maybeWritetRNS(p color.Palette) {
 	last := -1
 	for i, c := range p {
-		_, _, _, a := c.RGBA()
-		if a != 0xffff {
+		c1 := color.NRGBAModel.Convert(c).(color.NRGBA)
+		e.tmp[3*i+0] = c1.R
+		e.tmp[3*i+1] = c1.G
+		e.tmp[3*i+2] = c1.B
+		if c1.A != 0xff {
 			last = i
 		}
-		e.tmp[i] = uint8(a >> 8)
+		e.tmp[3*256+i] = c1.A
 	}
-	if last == -1 {
-		return
+	e.writeChunk(e.tmp[:3*len(p)], "PLTE")
+	if last != -1 {
+		e.writeChunk(e.tmp[3*256:3*256+1+last], "tRNS")
 	}
-	e.writeChunk(e.tmp[:last+1], "tRNS")
 }
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
@@ -412,7 +405,7 @@ func (e *encoder) writeIDATs() {
 	e.err = bw.Flush()
 }
 
-func (e *encoder) writeIEND() { e.writeChunk(e.tmp[0:0], "IEND") }
+func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be encoded, but
 // images that are not image.NRGBA might be encoded lossily.
@@ -460,8 +453,7 @@ func Encode(w io.Writer, m image.Image) error {
 	_, e.err = io.WriteString(w, pngHeader)
 	e.writeIHDR()
 	if pal != nil {
-		e.writePLTE(pal)
-		e.maybeWritetRNS(pal)
+		e.writePLTEAndTRNS(pal)
 	}
 	e.writeIDATs()
 	e.writeIEND()

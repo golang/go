@@ -226,7 +226,7 @@ func (d *decoder) parsetRNS(length uint32) error {
 		}
 		for i := 0; i < n; i++ {
 			rgba := d.palette[i].(color.RGBA)
-			d.palette[i] = color.RGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+			d.palette[i] = color.NRGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
 		}
 	case cbGA8, cbGA16, cbTCA8, cbTCA16:
 		return FormatError("tRNS, color type mismatch")
