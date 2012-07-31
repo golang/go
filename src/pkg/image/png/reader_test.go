@@ -107,13 +107,18 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 		lastAlpha := -1
 		io.WriteString(w, "PLTE {\n")
 		for i, c := range cpm {
-			r, g, b, a := c.RGBA()
-			if a != 0xffff {
+			var r, g, b, a uint8
+			switch c := c.(type) {
+			case color.RGBA:
+				r, g, b, a = c.R, c.G, c.B, 0xff
+			case color.NRGBA:
+				r, g, b, a = c.R, c.G, c.B, c.A
+			default:
+				panic("unknown palette color type")
+			}
+			if a != 0xff {
 				lastAlpha = i
 			}
-			r >>= 8
-			g >>= 8
-			b >>= 8
 			fmt.Fprintf(w, "    (%3d,%3d,%3d)     # rgb = (0x%02x,0x%02x,0x%02x)\n", r, g, b, r, g, b)
 		}
 		io.WriteString(w, "}\n")
