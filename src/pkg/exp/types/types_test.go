@@ -13,55 +13,116 @@ import (
 	"testing"
 )
 
-func checkSource(t *testing.T, src string) *ast.Package {
+func makePkg(t *testing.T, src string) (*ast.Package, error) {
 	const filename = "<src>"
 	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	files := map[string]*ast.File{filename: file}
 	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	_, err = Check(fset, pkg)
-	if err != nil {
-		t.Fatal(err)
+	if _, err := Check(fset, pkg); err != nil {
+		return nil, err
 	}
-	return pkg
+	return pkg, nil
 }
 
-func TestVariadicFunctions(t *testing.T) {
-	pkg := checkSource(t, `
-package p
-func f1(arg ...int)
-func f2(arg1 string, arg2 ...int)
-func f3()
-func f4(arg int)
-	`)
-	f1 := pkg.Scope.Lookup("f1")
-	f2 := pkg.Scope.Lookup("f2")
-	for _, f := range [...](*ast.Object){f1, f2} {
-		ftype := f.Type.(*Func)
-		if !ftype.IsVariadic {
-			t.Errorf("expected %s to be variadic", f.Name)
-		}
-		param := ftype.Params[len(ftype.Params)-1]
-		if param.Type != Int {
-			t.Errorf("expected last parameter of %s to have type int, found %T", f.Name, param.Type)
-		}
-	}
+type testEntry struct {
+	src, str string
+}
 
-	f3 := pkg.Scope.Lookup("f3")
-	f4 := pkg.Scope.Lookup("f4")
-	for _, f := range [...](*ast.Object){f3, f4} {
-		ftype := f.Type.(*Func)
-		if ftype.IsVariadic {
-			t.Fatalf("expected %s to not be variadic", f.Name)
+// dup returns a testEntry where both src and str are the same.
+func dup(s string) testEntry {
+	return testEntry{s, s}
+}
+
+var testTypes = []testEntry{
+	// basic types
+	dup("int"),
+	dup("float32"),
+	dup("string"),
+
+	// arrays
+	{"[10]int", "[0]int"}, // TODO(gri) fix array length, add more array tests
+
+	// slices
+	dup("[]int"),
+	dup("[][]int"),
+
+	// structs
+	dup("struct{}"),
+	dup("struct{x int}"),
+	{`struct {
+		x, y int
+		z float32 "foo"
+	}`, `struct{x int; y int; z float32 "foo"}`},
+	{`struct {
+		string
+		elems []T
+	}`, `struct{string; elems []T}`},
+
+	// pointers
+	dup("*int"),
+	dup("***struct{}"),
+	dup("*struct{a int; b float32}"),
+
+	// functions
+	dup("func()"),
+	dup("func(x int)"),
+	{"func(x, y int)", "func(x int, y int)"},
+	{"func(x, y int, z string)", "func(x int, y int, z string)"},
+	dup("func(int)"),
+	dup("func(int, string, byte)"),
+
+	dup("func() int"),
+	{"func() (string)", "func() string"},
+	dup("func() (u int)"),
+	{"func() (u, v int, w string)", "func() (u int, v int, w string)"},
+
+	dup("func(int) string"),
+	dup("func(x int) string"),
+	dup("func(x int) (u string)"),
+	{"func(x, y int) (u string)", "func(x int, y int) (u string)"},
+
+	dup("func(...int) string"),
+	dup("func(x ...int) string"),
+	dup("func(x ...int) (u string)"),
+	{"func(x, y ...int) (u string)", "func(x int, y ...int) (u string)"},
+
+	// interfaces
+	dup("interface{}"),
+	dup("interface{m()}"),
+	{`interface{
+		m(int) float32
+		String() string
+	}`, `interface{String() string; m(int) float32}`}, // methods are sorted
+	// TODO(gri) add test for interface w/ anonymous field
+
+	// maps
+	dup("map[string]int"),
+	{"map[struct{x, y int}][]byte", "map[struct{x int; y int}][]byte"},
+
+	// channels
+	dup("chan int"),
+	dup("chan<- func()"),
+	dup("<-chan []func() int"),
+}
+
+func TestTypes(t *testing.T) {
+	for _, test := range testTypes {
+		src := "package p; type T " + test.src
+		pkg, err := makePkg(t, src)
+		if err != nil {
+			t.Errorf("%s: %s", src, err)
+			continue
+		}
+		typ := Underlying(pkg.Scope.Lookup("T").Type.(Type))
+		str := typ.String()
+		if str != test.str {
+			t.Errorf("%s: got %s, want %s", test.src, str, test.str)
 		}
 	}
-	// TODO(axw) replace this function's innards with table driven tests.
-	// We should have a helper function that prints a type signature. Then
-	// we can have a table of function declarations and expected type
-	// signatures which can be easily expanded.
 }
