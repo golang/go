@@ -172,7 +172,7 @@ type test struct {
 	donec       chan bool // closed when done
 
 	src    string
-	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput"
+	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput", "compiledir"
 
 	tempDir string
 	err     error
@@ -315,7 +315,7 @@ func (t *test) run() {
 		}
 		for _, gofile := range files {
 			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
-			out, err := runcmd("go", "tool", gc, "-e", "-o", afile, filepath.Join(longdir, gofile.Name()))
+			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
 			if err != nil {
 				t.err = fmt.Errorf("%s\n%s", err, out)
 				break
