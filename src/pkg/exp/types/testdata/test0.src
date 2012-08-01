@@ -44,15 +44,15 @@ type (
 type (
 	Pi pi /* ERROR "not a type" */
 
-	a /* DISABLED "illegal cycle" */ a
+	a /* ERROR "illegal cycle" */ a
 	a /* ERROR "redeclared" */ int
 
 	// where the cycle error appears depends on the
 	// order in which declarations are processed
 	// (which depends on the order in which a map
 	// is iterated through)
-	b c
-	c /* DISABLED "illegal cycle" */ d
+	b /* ERROR "illegal cycle" */ c
+	c d
 	d e
 	e b
 
@@ -79,13 +79,13 @@ type (
 	S3 struct {
 		x S2
 	}
-	S4/* DISABLED "illegal cycle" */ struct {
+	S4/* ERROR "illegal cycle" */ struct {
 		S4
 	}
-	S5 struct {
+	S5 /* ERROR "illegal cycle" */ struct {
 		S6
 	}
-	S6 /* DISABLED "illegal cycle" */ struct {
+	S6 struct {
 		field S7
 	}
 	S7 struct {
@@ -96,8 +96,8 @@ type (
 	L2 []int
 
 	A1 [10]int
-	A2 /* DISABLED "illegal cycle" */ [10]A2
-	A3 /* DISABLED "illegal cycle" */ [10]struct {
+	A2 /* ERROR "illegal cycle" */ [10]A2
+	A3 /* ERROR "illegal cycle" */ [10]struct {
 		x A4
 	}
 	A4 [10]A3
@@ -132,17 +132,21 @@ type (
 		I1
 		I1
 	}
-	I8 /* DISABLED "illegal cycle" */ interface {
+	I8 /* ERROR "illegal cycle" */ interface {
 		I8
 	}
-	I9 /* DISABLED "illegal cycle" */ interface {
+	// Use I09 (rather than I9) because it appears lexically before
+	// I10 so that we get the illegal cycle here rather then in the
+	// declaration of I10. If the implementation sorts by position
+	// rather than name, the error message will still be here.
+	I09 /* ERROR "illegal cycle" */ interface {
 		I10
 	}
 	I10 interface {
 		I11
 	}
 	I11 interface {
-		I9
+		I09
 	}
 
 	C1 chan int

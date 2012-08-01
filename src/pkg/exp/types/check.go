@@ -30,6 +30,7 @@ func (c *checker) errorf(pos token.Pos, format string, args ...interface{}) stri
 
 // collectFields collects struct fields tok = token.STRUCT), interface methods
 // (tok = token.INTERFACE), and function arguments/results (tok = token.FUNC).
+//
 func (c *checker) collectFields(tok token.Token, list *ast.FieldList, cycleOk bool) (fields ObjList, tags []string, isVariadic bool) {
 	if list != nil {
 		for _, field := range list.List {
@@ -104,7 +105,7 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
 		obj := t.Obj
 		if obj == nil {
 			// unresolved identifier (error has been reported before)
-			return &Bad{Msg: "unresolved identifier"}
+			return &Bad{Msg: fmt.Sprintf("%s is unresolved", t.Name)}
 		}
 		if obj.Kind != ast.Typ {
 			msg := c.errorf(t.Pos(), "%s is not a type", t.Name)
@@ -112,10 +113,7 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
 		}
 		c.checkObj(obj, cycleOk)
 		if !cycleOk && obj.Type.(*Name).Underlying == nil {
-			// TODO(gri) Enable this message again once its position
-			// is independent of the underlying map implementation.
-			// msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
-			msg := "illegal cycle"
+			msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
 			return &Bad{Msg: msg}
 		}
 		return obj.Type.(Type)
@@ -227,11 +225,25 @@ func (c *checker) checkObj(obj *ast.Object, ref bool) {
 // there are errors.
 //
 func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err error) {
+	// Sort objects so that we get reproducible error
+	// positions (this is only needed for testing).
+	// TODO(gri): Consider ast.Scope implementation that
+	// provides both a list and a map for fast lookup.
+	// Would permit the use of scopes instead of ObjMaps
+	// elsewhere.
+	list := make(ObjList, len(pkg.Scope.Objects))
+	i := 0
+	for _, obj := range pkg.Scope.Objects {
+		list[i] = obj
+		i++
+	}
+	list.Sort()
+
 	var c checker
 	c.fset = fset
 	c.types = make(map[ast.Expr]Type)
 
-	for _, obj := range pkg.Scope.Objects {
+	for _, obj := range list {
 		c.checkObj(obj, false)
 	}
 
