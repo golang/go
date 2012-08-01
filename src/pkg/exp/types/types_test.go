@@ -120,7 +120,7 @@ func TestTypes(t *testing.T) {
 			continue
 		}
 		typ := Underlying(pkg.Scope.Lookup("T").Type.(Type))
-		str := typ.String()
+		str := TypeString(typ)
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)
 		}
