@@ -389,6 +389,23 @@ var renderTestBlacklist = map[string]bool{
 	// A <plaintext> element is reparented, putting it before a table.
 	// A <plaintext> element can't have anything after it in HTML.
 	`<table><plaintext><td>`: true,
+	// A script that ends at EOF may escape its own closing tag when rendered.
+	`<!doctype html><script><!--<script `:          true,
+	`<!doctype html><script><!--<script <a`:        true,
+	`<!doctype html><script><!--<script </script`:  true,
+	`<!doctype html><script><!--<script </scripta`: true,
+	`<!doctype html><script><!--<script -`:         true,
+	`<!doctype html><script><!--<script -a`:        true,
+	`<!doctype html><script><!--<script --`:        true,
+	`<!doctype html><script><!--<script --a`:       true,
+	`<script><!--<script `:                         true,
+	`<script><!--<script <a`:                       true,
+	`<script><!--<script </script`:                 true,
+	`<script><!--<script </scripta`:                true,
+	`<script><!--<script -`:                        true,
+	`<script><!--<script -a`:                       true,
+	`<script><!--<script --`:                       true,
+	`<script><!--<script --a`:                      true,
 }
 
 func TestNodeConsistency(t *testing.T) {
