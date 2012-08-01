@@ -241,6 +241,12 @@ func (z *Tokenizer) skipWhiteSpace() {
 // readRawOrRCDATA reads until the next "</foo>", where "foo" is z.rawTag and
 // is typically something like "script" or "textarea".
 func (z *Tokenizer) readRawOrRCDATA() {
+	if z.rawTag == "script" {
+		z.readScript()
+		z.textIsRaw = true
+		z.rawTag = ""
+		return
+	}
 loop:
 	for {
 		c := z.readByte()
@@ -257,33 +263,250 @@ loop:
 		if c != '/' {
 			continue loop
 		}
-		for i := 0; i < len(z.rawTag); i++ {
-			c = z.readByte()
-			if z.err != nil {
-				break loop
-			}
-			if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
-				continue loop
-			}
-		}
-		c = z.readByte()
-		if z.err != nil {
+		if z.readRawEndTag() || z.err != nil {
 			break loop
-		}
-		switch c {
-		case ' ', '\n', '\r', '\t', '\f', '/', '>':
-			// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
-			z.raw.end -= 3 + len(z.rawTag)
-			break loop
-		case '<':
-			// Step back one, to catch "</foo</foo>".
-			z.raw.end--
 		}
 	}
 	z.data.end = z.raw.end
 	// A textarea's or title's RCDATA can contain escaped entities.
 	z.textIsRaw = z.rawTag != "textarea" && z.rawTag != "title"
 	z.rawTag = ""
+}
+
+// readRawEndTag attempts to read a tag like "</foo>", where "foo" is z.rawTag.
+// If it succeeds, it backs up the input position to reconsume the tag and 
+// returns true. Otherwise it returns false. The opening "</" has already been
+// consumed.
+func (z *Tokenizer) readRawEndTag() bool {
+	for i := 0; i < len(z.rawTag); i++ {
+		c := z.readByte()
+		if z.err != nil {
+			return false
+		}
+		if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
+			z.raw.end--
+			return false
+		}
+	}
+	c := z.readByte()
+	if z.err != nil {
+		return false
+	}
+	switch c {
+	case ' ', '\n', '\r', '\t', '\f', '/', '>':
+		// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
+		z.raw.end -= 3 + len(z.rawTag)
+		return true
+	}
+	z.raw.end--
+	return false
+}
+
+// readScript reads until the next </script> tag, following the byzantine
+// rules for escaping/hiding the closing tag.
+func (z *Tokenizer) readScript() {
+	defer func() {
+		z.data.end = z.raw.end
+	}()
+	var c byte
+
+scriptData:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c == '<' {
+		goto scriptDataLessThanSign
+	}
+	goto scriptData
+
+scriptDataLessThanSign:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '/':
+		goto scriptDataEndTagOpen
+	case '!':
+		goto scriptDataEscapeStart
+	}
+	z.raw.end--
+	goto scriptData
+
+scriptDataEndTagOpen:
+	if z.readRawEndTag() || z.err != nil {
+		return
+	}
+	goto scriptData
+
+scriptDataEscapeStart:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c == '-' {
+		goto scriptDataEscapeStartDash
+	}
+	z.raw.end--
+	goto scriptData
+
+scriptDataEscapeStartDash:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c == '-' {
+		goto scriptDataEscapedDashDash
+	}
+	z.raw.end--
+	goto scriptData
+
+scriptDataEscaped:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataEscapedDash
+	case '<':
+		goto scriptDataEscapedLessThanSign
+	}
+	goto scriptDataEscaped
+
+scriptDataEscapedDash:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataEscapedDashDash
+	case '<':
+		goto scriptDataEscapedLessThanSign
+	}
+	goto scriptDataEscaped
+
+scriptDataEscapedDashDash:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataEscapedDashDash
+	case '<':
+		goto scriptDataEscapedLessThanSign
+	case '>':
+		goto scriptData
+	}
+	goto scriptDataEscaped
+
+scriptDataEscapedLessThanSign:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c == '/' {
+		goto scriptDataEscapedEndTagOpen
+	}
+	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+		goto scriptDataDoubleEscapeStart
+	}
+	z.raw.end--
+	goto scriptData
+
+scriptDataEscapedEndTagOpen:
+	if z.readRawEndTag() || z.err != nil {
+		return
+	}
+	goto scriptDataEscaped
+
+scriptDataDoubleEscapeStart:
+	z.raw.end--
+	for i := 0; i < len("script"); i++ {
+		c = z.readByte()
+		if z.err != nil {
+			return
+		}
+		if c != "script"[i] && c != "SCRIPT"[i] {
+			z.raw.end--
+			goto scriptDataEscaped
+		}
+	}
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case ' ', '\n', '\r', '\t', '\f', '/', '>':
+		goto scriptDataDoubleEscaped
+	}
+	z.raw.end--
+	goto scriptDataEscaped
+
+scriptDataDoubleEscaped:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataDoubleEscapedDash
+	case '<':
+		goto scriptDataDoubleEscapedLessThanSign
+	}
+	goto scriptDataDoubleEscaped
+
+scriptDataDoubleEscapedDash:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataDoubleEscapedDashDash
+	case '<':
+		goto scriptDataDoubleEscapedLessThanSign
+	}
+	goto scriptDataDoubleEscaped
+
+scriptDataDoubleEscapedDashDash:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch c {
+	case '-':
+		goto scriptDataDoubleEscapedDashDash
+	case '<':
+		goto scriptDataDoubleEscapedLessThanSign
+	case '>':
+		goto scriptData
+	}
+	goto scriptDataDoubleEscaped
+
+scriptDataDoubleEscapedLessThanSign:
+	c = z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c == '/' {
+		goto scriptDataDoubleEscapeEnd
+	}
+	z.raw.end--
+	goto scriptDataDoubleEscaped
+
+scriptDataDoubleEscapeEnd:
+	if z.readRawEndTag() {
+		z.raw.end += len("</script>")
+		goto scriptDataEscaped
+	}
+	if z.err != nil {
+		return
+	}
+	goto scriptDataDoubleEscaped
 }
 
 // readComment reads the next comment token starting with "<!--". The opening
