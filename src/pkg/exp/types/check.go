@@ -168,7 +168,7 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
 		return &Interface{Methods: methods}
 
 	case *ast.MapType:
-		return &Map{Key: c.makeType(t.Key, true), Elt: c.makeType(t.Key, true)}
+		return &Map{Key: c.makeType(t.Key, true), Elt: c.makeType(t.Value, true)}
 
 	case *ast.ChanType:
 		return &Chan{Dir: t.Dir, Elt: c.makeType(t.Value, true)}
