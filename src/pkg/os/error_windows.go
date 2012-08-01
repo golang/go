@@ -10,6 +10,9 @@ func isExist(err error) bool {
 	if pe, ok := err.(*PathError); ok {
 		err = pe.Err
 	}
+	if pe, ok := err.(*LinkError); ok {
+		err = pe.Err
+	}
 	return err == syscall.ERROR_ALREADY_EXISTS ||
 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
 }
