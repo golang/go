@@ -691,7 +691,7 @@ loop:
 // readStartTag reads the next start tag token. The opening "<a" has already
 // been consumed, where 'a' means anything in [A-Za-z].
 func (z *Tokenizer) readStartTag() TokenType {
-	z.readTag()
+	z.readTag(true)
 	if z.err != nil && len(z.attr) == 0 {
 		return ErrorToken
 	}
@@ -724,9 +724,11 @@ func (z *Tokenizer) readStartTag() TokenType {
 	return StartTagToken
 }
 
-// readTag reads the next tag token. The opening "<a" or "</a" has already been
-// consumed, where 'a' means anything in [A-Za-z].
-func (z *Tokenizer) readTag() {
+// readTag reads the next tag token and its attributes. If saveAttr, those
+// attributes are saved in z.attr, otherwise z.attr is set to an empty slice.
+// The opening "<a" or "</a" has already been consumed, where 'a' means anything
+// in [A-Za-z].
+func (z *Tokenizer) readTag(saveAttr bool) {
 	z.attr = z.attr[:0]
 	z.nAttrReturned = 0
 	// Read the tag name and attribute key/value pairs.
@@ -742,8 +744,8 @@ func (z *Tokenizer) readTag() {
 		z.raw.end--
 		z.readTagAttrKey()
 		z.readTagAttrVal()
-		// Save pendingAttr if it has a non-empty key.
-		if z.pendingAttr[0].start != z.pendingAttr[0].end {
+		// Save pendingAttr if saveAttr and that attribute has a non-empty key.
+		if saveAttr && z.pendingAttr[0].start != z.pendingAttr[0].end {
 			z.attr = append(z.attr, z.pendingAttr)
 		}
 		if z.skipWhiteSpace(); z.err != nil {
@@ -945,7 +947,7 @@ loop:
 				continue loop
 			}
 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
-				z.readTag()
+				z.readTag(false)
 				z.tt = EndTagToken
 				return z.tt
 			}
@@ -1078,15 +1080,10 @@ func (z *Tokenizer) Token() Token {
 		t.Data = string(z.Text())
 	case StartTagToken, SelfClosingTagToken, EndTagToken:
 		name, moreAttr := z.TagName()
-		// Since end tags should not have attributes, the high-level tokenizer
-		// interface will not return attributes for an end tag token even if
-		// it looks like </br foo="bar">.
-		if z.tt != EndTagToken {
-			for moreAttr {
-				var key, val []byte
-				key, val, moreAttr = z.TagAttr()
-				t.Attr = append(t.Attr, Attribute{"", atom.String(key), string(val)})
-			}
+		for moreAttr {
+			var key, val []byte
+			key, val, moreAttr = z.TagAttr()
+			t.Attr = append(t.Attr, Attribute{"", atom.String(key), string(val)})
 		}
 		if a := atom.Lookup(name); a != 0 {
 			t.DataAtom, t.Data = a, a.String()
