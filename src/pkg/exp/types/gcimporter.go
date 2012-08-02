@@ -510,11 +510,12 @@ func (p *gcParser) parseSignature() *Func {
 // MethodOrEmbedSpec = Name [ Signature ] .
 //
 func (p *gcParser) parseMethodOrEmbedSpec() *ast.Object {
-	p.parseName()
+	name := p.parseName()
 	if p.tok == '(' {
-		p.parseSignature()
-		// TODO(gri) compute method object
-		return ast.NewObj(ast.Fun, "_")
+		typ := p.parseSignature()
+		obj := ast.NewObj(ast.Fun, name)
+		obj.Type = typ
+		return obj
 	}
 	// TODO lookup name and return that type
 	return ast.NewObj(ast.Typ, "_")
