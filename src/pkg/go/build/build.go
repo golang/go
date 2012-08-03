@@ -539,7 +539,7 @@ Found:
 			return p, err
 		}
 
-		pkg := string(pf.Name.Name)
+		pkg := pf.Name.Name
 		if pkg == "documentation" {
 			continue
 		}
@@ -573,7 +573,7 @@ Found:
 				if !ok {
 					continue
 				}
-				quoted := string(spec.Path.Value)
+				quoted := spec.Path.Value
 				path, err := strconv.Unquote(quoted)
 				if err != nil {
 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
