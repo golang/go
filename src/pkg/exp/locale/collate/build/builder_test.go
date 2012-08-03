@@ -48,7 +48,7 @@ type ducetElem struct {
 func newBuilder(t *testing.T, ducet []ducetElem) *Builder {
 	b := NewBuilder()
 	for _, e := range ducet {
-		if err := b.Add([]rune(e.str), e.ces); err != nil {
+		if err := b.Add([]rune(e.str), e.ces, nil); err != nil {
 			t.Errorf(err.Error())
 		}
 	}

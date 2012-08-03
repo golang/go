@@ -7,7 +7,6 @@ package collate
 // Export for testing.
 
 import (
-	"exp/norm"
 	"fmt"
 )
 
@@ -63,18 +62,14 @@ func (t *Table) AppendNext(s []byte) ([]Weights, int) {
 }
 
 func SetTop(c *Collator, top int) {
-	c.variableTop = uint32(top)
-}
-
-func InitCollator(c *Collator) {
-	c.Strength = Quaternary
-	c.f = norm.NFD
-	c.t.maxContractLen = 30
+	if c.t == nil {
+		c.t = &table{}
+	}
+	c.t.variableTop = uint32(top)
 }
 
 func GetColElems(c *Collator, buf *Buffer, str []byte) []Weights {
 	buf.ResetKeys()
-	InitCollator(c)
 	c.getColElems(buf, str)
 	return convertToWeights(buf.ce)
 }

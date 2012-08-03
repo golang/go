@@ -20,6 +20,7 @@ type table struct {
 	contractTries  contractTrieSet
 	contractElem   []uint32
 	maxContractLen int
+	variableTop    uint32
 }
 
 // appendNext appends the weights corresponding to the next rune or 

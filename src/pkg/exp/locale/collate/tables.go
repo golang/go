@@ -8,10 +8,9 @@ package collate
 import "exp/norm"
 
 var _Root = Collator{
-	Strength:    3,
-	variableTop: 0x1560,
-	f:           norm.NFD,
-	t:           &rootTable,
+	Strength: 3,
+	f:        norm.NFD,
+	t:        &rootTable,
 }
 
 var (
@@ -24,6 +23,7 @@ var rootTable = table{
 	contractTrieSet(rootCTEntries[:]),
 	rootContractElem[:],
 	9,
+	0x1560,
 }
 
 // rootExpandElem: 4630 entries, 18520 bytes
