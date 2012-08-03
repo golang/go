@@ -45,6 +45,17 @@ func bad() {
 	case f1: // ERROR "can only compare func f to nil|func can only be compared to nil"
 	default:
 	}
+
+	var ar, ar1 [4]func()
+	switch ar { // ERROR "cannot switch on"
+	case ar1:
+	default:
+	}
+
+	var st, st1 struct{ f func() }
+	switch st { // ERROR "cannot switch on"
+	case st1:
+	}
 }
 
 func good() {
