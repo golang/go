@@ -55,9 +55,6 @@ const (
 // Collator provides functionality for comparing strings for a given
 // collation order.
 type Collator struct {
-	// See SetVariableTop.
-	variableTop uint32
-
 	// Strength sets the maximum level to use in comparison.
 	Strength Level
 
@@ -178,7 +175,7 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
 }
 
 func (c *Collator) key(buf *Buffer, w []weights) []byte {
-	processWeights(c.Alternate, c.variableTop, w)
+	processWeights(c.Alternate, c.t.variableTop, w)
 	kn := len(buf.key)
 	c.keyFromElems(buf, w)
 	return buf.key[kn:]

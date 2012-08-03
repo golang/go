@@ -23,6 +23,7 @@ type table struct {
 	contractTries  contractTrieSet
 	contractElem   []uint32
 	maxContractLen int
+	variableTop    uint32
 }
 
 func (t *table) TrieIndex() []uint16 {
@@ -53,6 +54,10 @@ func (t *table) MaxContractLen() int {
 	return t.maxContractLen
 }
 
+func (t *table) VariableTop() uint32 {
+	return t.variableTop
+}
+
 // print writes the table as Go compilable code to w. It prefixes the
 // variable names with name. It returns the number of bytes written
 // and the size of the resulting table.
@@ -78,6 +83,7 @@ func (t *table) fprint(w io.Writer, name string) (n, size int, err error) {
 	p(",\n")
 	p("%sContractElem[:],\n", name)
 	p("%d,\n", t.maxContractLen)
+	p("0x%X,\n", t.variableTop)
 	p("}\n\n")
 
 	// Write arrays needed for the structure.

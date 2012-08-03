@@ -42,14 +42,9 @@ func pt(p, t int) []int {
 func makeTable(in []input) (*collate.Collator, error) {
 	b := build.NewBuilder()
 	for _, r := range in {
-		b.Add([]rune(r.str), r.ces)
+		b.Add([]rune(r.str), r.ces, nil)
 	}
-	c, err := b.Build("")
-	if c == nil {
-		return nil, err
-	}
-	collate.InitCollator(c)
-	return c, err
+	return b.Build()
 }
 
 // modSeq holds a seqeunce of modifiers in increasing order of CCC long enough
