@@ -1082,6 +1082,11 @@ asmb(void)
 		ph->type = PT_GNU_STACK;
 		ph->flags = PF_W+PF_R;
 		ph->align = 8;
+		
+		ph = newElfPhdr();
+		ph->type = PT_PAX_FLAGS;
+		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+		ph->align = 8;
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
 		sh->type = SHT_STRTAB;

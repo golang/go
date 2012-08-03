@@ -1127,6 +1127,11 @@ asmb(void)
 		ph->flags = PF_W+PF_R;
 		ph->align = 4;
 
+		ph = newElfPhdr();
+		ph->type = PT_PAX_FLAGS;
+		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+		ph->align = 4;
+
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
 		sh->type = SHT_STRTAB;
 		sh->addralign = 1;
