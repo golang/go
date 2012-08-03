@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	_ "crypto/sha256"
@@ -240,65 +241,83 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	random := rand.Reader
 
 	block, _ := pem.Decode([]byte(pemPrivateKey))
-	priv, err := ParsePKCS1PrivateKey(block.Bytes)
+	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		t.Errorf("Failed to parse private key: %s", err)
-		return
+		t.Fatalf("Failed to parse private key: %s", err)
 	}
 
-	commonName := "test.example.com"
-	template := Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName:   commonName,
-			Organization: []string{"Σ Acme Co"},
-		},
-		NotBefore: time.Unix(1000, 0),
-		NotAfter:  time.Unix(100000, 0),
-
-		SubjectKeyId: []byte{1, 2, 3, 4},
-		KeyUsage:     KeyUsageCertSign,
-
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		DNSNames:              []string{"test.example.com"},
-
-		PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
-		PermittedDNSDomains: []string{".example.com", "example.com"},
-	}
-
-	derBytes, err := CreateCertificate(random, &template, &template, &priv.PublicKey, priv)
+	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		t.Errorf("Failed to create certificate: %s", err)
-		return
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
 
-	cert, err := ParseCertificate(derBytes)
-	if err != nil {
-		t.Errorf("Failed to parse certificate: %s", err)
-		return
+	tests := []struct {
+		name      string
+		pub, priv interface{}
+		checkSig  bool
+	}{
+		{"RSA/RSA", &rsaPriv.PublicKey, rsaPriv, true},
+		{"RSA/ECDSA", &rsaPriv.PublicKey, ecdsaPriv, false},
+		{"ECDSA/RSA", &ecdsaPriv.PublicKey, rsaPriv, false},
+		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true},
 	}
 
-	if len(cert.PolicyIdentifiers) != 1 || !cert.PolicyIdentifiers[0].Equal(template.PolicyIdentifiers[0]) {
-		t.Errorf("Failed to parse policy identifiers: got:%#v want:%#v", cert.PolicyIdentifiers, template.PolicyIdentifiers)
-	}
+	for _, test := range tests {
+		commonName := "test.example.com"
+		template := Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject: pkix.Name{
+				CommonName:   commonName,
+				Organization: []string{"Σ Acme Co"},
+			},
+			NotBefore: time.Unix(1000, 0),
+			NotAfter:  time.Unix(100000, 0),
 
-	if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
-		t.Errorf("Failed to parse name constraints: %#v", cert.PermittedDNSDomains)
-	}
+			SubjectKeyId: []byte{1, 2, 3, 4},
+			KeyUsage:     KeyUsageCertSign,
 
-	if cert.Subject.CommonName != commonName {
-		t.Errorf("Subject wasn't correctly copied from the template. Got %s, want %s", cert.Subject.CommonName, commonName)
-	}
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+			DNSNames:              []string{"test.example.com"},
 
-	if cert.Issuer.CommonName != commonName {
-		t.Errorf("Issuer wasn't correctly copied from the template. Got %s, want %s", cert.Issuer.CommonName, commonName)
-	}
+			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			PermittedDNSDomains: []string{".example.com", "example.com"},
+		}
 
-	err = cert.CheckSignatureFrom(cert)
-	if err != nil {
-		t.Errorf("Signature verification failed: %s", err)
-		return
+		derBytes, err := CreateCertificate(random, &template, &template, test.pub, test.priv)
+		if err != nil {
+			t.Errorf("%s: failed to create certificate: %s", test.name, err)
+			continue
+		}
+
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Errorf("%s: failed to parse certificate: %s", test.name, err)
+			continue
+		}
+
+		if len(cert.PolicyIdentifiers) != 1 || !cert.PolicyIdentifiers[0].Equal(template.PolicyIdentifiers[0]) {
+			t.Errorf("%s: failed to parse policy identifiers: got:%#v want:%#v", test.name, cert.PolicyIdentifiers, template.PolicyIdentifiers)
+		}
+
+		if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
+			t.Errorf("%s: failed to parse name constraints: %#v", test.name, cert.PermittedDNSDomains)
+		}
+
+		if cert.Subject.CommonName != commonName {
+			t.Errorf("%s: subject wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Subject.CommonName, commonName)
+		}
+
+		if cert.Issuer.CommonName != commonName {
+			t.Errorf("%s: issuer wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Issuer.CommonName, commonName)
+		}
+
+		if test.checkSig {
+			err = cert.CheckSignatureFrom(cert)
+			if err != nil {
+				t.Errorf("%s: signature verification failed: %s", test.name, err)
+			}
+		}
 	}
 }
 
