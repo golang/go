@@ -819,6 +819,8 @@ buildop(void)
 			oprange[ASQRTD] = oprange[r];
 			oprange[AMOVFD] = oprange[r];
 			oprange[AMOVDF] = oprange[r];
+			oprange[AABSF] = oprange[r];
+			oprange[AABSD] = oprange[r];
 			break;
 
 		case ACMPF:
