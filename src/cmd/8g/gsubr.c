@@ -1853,6 +1853,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->width = 0;
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
+			dowidth(n->type);
 			a->width = n->type->width;
 			a->gotype = ngotype(n);
 		}
