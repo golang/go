@@ -1493,7 +1493,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		r = p->reg;
 		if(r == NREG) {
 			r = rt;
-			if(p->as == AMOVF || p->as == AMOVD || p->as == ASQRTF || p->as == ASQRTD)
+			if(p->as == AMOVF || p->as == AMOVD || p->as == ASQRTF || p->as == ASQRTD || p->as == AABSF || p->as == AABSD)
 				r = 0;
 		}
 		o1 |= rf | (r<<16) | (rt<<12);
@@ -1948,6 +1948,8 @@ oprrr(int a, int sc)
 	case ADIVF:	return o | (0xe<<24) | (0x8<<20) | (0xa<<8) | (0<<4);
 	case ASQRTD:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xb<<8) | (0xc<<4);
 	case ASQRTF:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xa<<8) | (0xc<<4);
+	case AABSD: return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xb<<8) | (0xc<<4);
+	case AABSF: return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xa<<8) | (0xc<<4);
 	case ACMPD:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xb<<8) | (0xc<<4);
 	case ACMPF:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xa<<8) | (0xc<<4);
 

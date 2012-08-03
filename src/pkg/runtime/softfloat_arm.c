@@ -420,6 +420,23 @@ stage3:	// regd, regm are 4bit variables
 				regd, regm, m->freghi[regd], m->freglo[regd]);
 		break;
 
+	case 0xeeb00bc0:	// D[regd] = abs D[regm]
+		m->freglo[regd] = m->freglo[regm];
+		m->freghi[regd] = m->freghi[regm] & ((1<<31)-1);
+
+		if(trace)
+			runtime·printf("*** D[%d] = abs D[%d] %x-%x\n",
+					regd, regm, m->freghi[regd], m->freglo[regd]);
+		break;
+
+	case 0xeeb00ac0:	// F[regd] = abs F[regm]
+		m->freglo[regd] = m->freglo[regm] & ((1<<31)-1);
+
+		if(trace)
+			runtime·printf("*** F[%d] = abs F[%d] %x\n",
+					regd, regm, m->freglo[regd]);
+		break;
+
 	case 0xeeb40bc0:	// D[regd] :: D[regm] (CMPD)
 		runtime·fcmp64c(getd(regd), getd(regm), &cmp, &nan);
 		m->fflag = fstatus(nan, cmp);

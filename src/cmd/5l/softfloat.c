@@ -55,6 +55,8 @@ softfloat(void)
 			case ADIVD:
 			case ASQRTF:
 			case ASQRTD:
+			case AABSF:
+			case AABSD:
 				goto soft;
 
 			default:
