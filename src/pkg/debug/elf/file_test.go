@@ -19,6 +19,7 @@ type fileTest struct {
 	hdr      FileHeader
 	sections []SectionHeader
 	progs    []ProgHeader
+	needed   []string
 }
 
 var fileTests = []fileTest{
@@ -64,6 +65,7 @@ var fileTests = []fileTest{
 			{PT_LOAD, PF_R + PF_W, 0x5fc, 0x80495fc, 0x80495fc, 0xd8, 0xf8, 0x1000},
 			{PT_DYNAMIC, PF_R + PF_W, 0x60c, 0x804960c, 0x804960c, 0x98, 0x98, 0x4},
 		},
+		[]string{"libc.so.6"},
 	},
 	{
 		"testdata/gcc-amd64-linux-exec",
@@ -117,6 +119,7 @@ var fileTests = []fileTest{
 			{PT_LOOS + 0x474E550, PF_R, 0x5b8, 0x4005b8, 0x4005b8, 0x24, 0x24, 0x4},
 			{PT_LOOS + 0x474E551, PF_R + PF_W, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
 		},
+		[]string{"libc.so.6"},
 	},
 }
 
@@ -160,6 +163,14 @@ func TestOpen(t *testing.T) {
 		fn = len(f.Progs)
 		if tn != fn {
 			t.Errorf("open %s: len(Progs) = %d, want %d", tt.file, fn, tn)
+		}
+		tl := tt.needed
+		fl, err := f.ImportedLibraries()
+		if err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(tl, fl) {
+			t.Errorf("open %s: DT_NEEDED = %v, want %v", tt.file, tl, fl)
 		}
 	}
 }
