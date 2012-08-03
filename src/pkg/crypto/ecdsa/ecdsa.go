@@ -140,14 +140,16 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	w := new(big.Int).ModInverse(s, N)
 
 	u1 := e.Mul(e, w)
+	u1.Mod(u1, N)
 	u2 := w.Mul(r, w)
+	u2.Mod(u2, N)
 
 	x1, y1 := c.ScalarBaseMult(u1.Bytes())
 	x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
-	if x1.Cmp(x2) == 0 {
+	x, y := c.Add(x1, y1, x2, y2)
+	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}
-	x, _ := c.Add(x1, y1, x2, y2)
 	x.Mod(x, N)
 	return x.Cmp(r) == 0
 }

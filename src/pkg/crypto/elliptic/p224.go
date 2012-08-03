@@ -80,10 +80,14 @@ func (p224Curve) Add(bigX1, bigY1, bigX2, bigY2 *big.Int) (x, y *big.Int) {
 
 	p224FromBig(&x1, bigX1)
 	p224FromBig(&y1, bigY1)
-	z1[0] = 1
+	if bigX1.Sign() != 0 || bigY1.Sign() != 0 {
+		z1[0] = 1
+	}
 	p224FromBig(&x2, bigX2)
 	p224FromBig(&y2, bigY2)
-	z2[0] = 1
+	if bigX2.Sign() != 0 || bigY2.Sign() != 0 {
+		z2[0] = 1
+	}
 
 	p224AddJacobian(&x3, &y3, &z3, &x1, &y1, &z1, &x2, &y2, &z2)
 	return p224ToAffine(&x3, &y3, &z3)
@@ -131,6 +135,44 @@ func (curve p224Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
 // than we would really like. But it has the useful feature that we hit 2**224
 // exactly, making the reflections during a reduce much nicer.
 type p224FieldElement [8]uint32
+
+// p224P is the order of the field, represented as a p224FieldElement.
+var p224P = [8]uint32{1, 0, 0, 0xffff000, 0xfffffff, 0xfffffff, 0xfffffff, 0xfffffff}
+
+// p224IsZero returns 1 if a == 0 mod p and 0 otherwise.
+//
+// a[i] < 2**29
+func p224IsZero(a *p224FieldElement) uint32 {
+	// Since a p224FieldElement contains 224 bits there are two possible
+	// representations of 0: 0 and p.
+	var minimal p224FieldElement
+	p224Contract(&minimal, a)
+
+	var isZero, isP uint32
+	for i, v := range minimal {
+		isZero |= v
+		isP |= v - p224P[i]
+	}
+
+	// If either isZero or isP is 0, then we should return 1.
+	isZero |= isZero >> 16
+	isZero |= isZero >> 8
+	isZero |= isZero >> 4
+	isZero |= isZero >> 2
+	isZero |= isZero >> 1
+
+	isP |= isP >> 16
+	isP |= isP >> 8
+	isP |= isP >> 4
+	isP |= isP >> 2
+	isP |= isP >> 1
+
+	// For isZero and isP, the LSB is 0 iff all the bits are zero.
+	result := isZero & isP
+	result = (^result) & 1
+
+	return result
+}
 
 // p224Add computes *out = a+b
 //
@@ -406,7 +448,7 @@ func p224Contract(out, in *p224FieldElement) {
 	// true.
 	top4AllOnes := uint32(0xffffffff)
 	for i := 4; i < 8; i++ {
-		top4AllOnes &= (out[i] & bottom28Bits) - 1
+		top4AllOnes &= out[i]
 	}
 	top4AllOnes |= 0xf0000000
 	// Now we replicate any zero bits to all the bits in top4AllOnes.
@@ -441,7 +483,7 @@ func p224Contract(out, in *p224FieldElement) {
 	out3Equal = ^uint32(int32(out3Equal<<31) >> 31)
 
 	// If out[3] > 0xffff000 then n's MSB will be zero.
-	out3GT := ^uint32(int32(n<<31) >> 31)
+	out3GT := ^uint32(int32(n) >> 31)
 
 	mask := top4AllOnes & ((out3Equal & bottom3NonZero) | out3GT)
 	out[0] -= 1 & mask
@@ -463,6 +505,9 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
 	var z1z1, z2z2, u1, u2, s1, s2, h, i, j, r, v p224FieldElement
 	var c p224LargeFieldElement
 
+	z1IsZero := p224IsZero(z1)
+	z2IsZero := p224IsZero(z2)
+
 	// Z1Z1 = Z1²
 	p224Square(&z1z1, z1, &c)
 	// Z2Z2 = Z2²
@@ -480,6 +525,7 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
 	// H = U2-U1
 	p224Sub(&h, &u2, &u1)
 	p224Reduce(&h)
+	xEqual := p224IsZero(&h)
 	// I = (2*H)²
 	for j := 0; j < 8; j++ {
 		i[j] = h[j] << 1
@@ -491,6 +537,11 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
 	// r = 2*(S2-S1)
 	p224Sub(&r, &s2, &s1)
 	p224Reduce(&r)
+	yEqual := p224IsZero(&r)
+	if xEqual == 1 && yEqual == 1 && z1IsZero == 0 && z2IsZero == 0 {
+		p224DoubleJacobian(x3, y3, z3, x1, y1, z1)
+		return
+	}
 	for i := 0; i < 8; i++ {
 		r[i] <<= 1
 	}
@@ -524,6 +575,13 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
 	p224Mul(&z1z1, &z1z1, &r, &c)
 	p224Sub(y3, &z1z1, &s1)
 	p224Reduce(y3)
+
+	p224CopyConditional(x3, x2, z1IsZero)
+	p224CopyConditional(x3, x1, z2IsZero)
+	p224CopyConditional(y3, y2, z1IsZero)
+	p224CopyConditional(y3, y1, z2IsZero)
+	p224CopyConditional(z3, z2, z1IsZero)
+	p224CopyConditional(z3, z1, z2IsZero)
 }
 
 // p224DoubleJacobian computes *out = a+a.
@@ -593,22 +651,19 @@ func p224CopyConditional(out, in *p224FieldElement, control uint32) {
 func p224ScalarMult(outX, outY, outZ, inX, inY, inZ *p224FieldElement, scalar []byte) {
 	var xx, yy, zz p224FieldElement
 	for i := 0; i < 8; i++ {
+		outX[i] = 0
+		outY[i] = 0
 		outZ[i] = 0
 	}
 
-	firstBit := uint32(1)
 	for _, byte := range scalar {
 		for bitNum := uint(0); bitNum < 8; bitNum++ {
 			p224DoubleJacobian(outX, outY, outZ, outX, outY, outZ)
 			bit := uint32((byte >> (7 - bitNum)) & 1)
 			p224AddJacobian(&xx, &yy, &zz, inX, inY, inZ, outX, outY, outZ)
-			p224CopyConditional(outX, inX, firstBit&bit)
-			p224CopyConditional(outY, inY, firstBit&bit)
-			p224CopyConditional(outZ, inZ, firstBit&bit)
-			p224CopyConditional(outX, &xx, ^firstBit&bit)
-			p224CopyConditional(outY, &yy, ^firstBit&bit)
-			p224CopyConditional(outZ, &zz, ^firstBit&bit)
-			firstBit = firstBit & ^bit
+			p224CopyConditional(outX, &xx, bit)
+			p224CopyConditional(outY, &yy, bit)
+			p224CopyConditional(outZ, &zz, bit)
 		}
 	}
 }
@@ -618,16 +673,8 @@ func p224ToAffine(x, y, z *p224FieldElement) (*big.Int, *big.Int) {
 	var zinv, zinvsq, outx, outy p224FieldElement
 	var tmp p224LargeFieldElement
 
-	isPointAtInfinity := true
-	for i := 0; i < 8; i++ {
-		if z[i] != 0 {
-			isPointAtInfinity = false
-			break
-		}
-	}
-
-	if isPointAtInfinity {
-		return nil, nil
+	if isPointAtInfinity := p224IsZero(z); isPointAtInfinity == 1 {
+		return new(big.Int), new(big.Int)
 	}
 
 	p224Invert(&zinv, z)
