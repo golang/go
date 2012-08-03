@@ -251,6 +251,7 @@ typedef struct {
 #define PT_LOPROC	0x70000000	/* First processor-specific type. */
 #define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 #define PT_GNU_STACK	0x6474e551
+#define PT_PAX_FLAGS	0x65041580
 
 /* Values for p_flags. */
 #define PF_X		0x1		/* Executable. */
