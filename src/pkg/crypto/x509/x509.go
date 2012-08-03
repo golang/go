@@ -262,18 +262,18 @@ func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm 
 // id-ecPublicKey OBJECT IDENTIFIER ::= {
 //       iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
 var (
-	oidPublicKeyRsa   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
-	oidPublicKeyDsa   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
-	oidPublicKeyEcdsa = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
+	oidPublicKeyRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidPublicKeyDSA   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 )
 
 func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
 	switch {
-	case oid.Equal(oidPublicKeyRsa):
+	case oid.Equal(oidPublicKeyRSA):
 		return RSA
-	case oid.Equal(oidPublicKeyDsa):
+	case oid.Equal(oidPublicKeyDSA):
 		return DSA
-	case oid.Equal(oidPublicKeyEcdsa):
+	case oid.Equal(oidPublicKeyECDSA):
 		return ECDSA
 	}
 	return UnknownPublicKeyAlgorithm
@@ -302,7 +302,7 @@ var (
 	oidNamedCurveP521 = asn1.ObjectIdentifier{1, 3, 132, 0, 35}
 )
 
-func getNamedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
+func namedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
 	switch {
 	case oid.Equal(oidNamedCurveP224):
 		return elliptic.P224()
@@ -314,6 +314,21 @@ func getNamedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
 		return elliptic.P521()
 	}
 	return nil
+}
+
+func oidFromNamedCurve(curve elliptic.Curve) (asn1.ObjectIdentifier, bool) {
+	switch curve {
+	case elliptic.P224():
+		return oidNamedCurveP224, true
+	case elliptic.P256():
+		return oidNamedCurveP256, true
+	case elliptic.P384():
+		return oidNamedCurveP384, true
+	case elliptic.P521():
+		return oidNamedCurveP521, true
+	}
+
+	return nil, false
 }
 
 // KeyUsage represents the set of actions that are valid for a given key. It's
@@ -648,7 +663,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 		if err != nil {
 			return nil, err
 		}
-		namedCurve := getNamedCurveFromOID(*namedCurveOID)
+		namedCurve := namedCurveFromOID(*namedCurveOID)
 		if namedCurve == nil {
 			return nil, errors.New("crypto/x509: unsupported elliptic curve")
 		}
@@ -1069,11 +1084,6 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	return ret[0:n], nil
 }
 
-var (
-	oidSHA1WithRSA = []int{1, 2, 840, 113549, 1, 1, 5}
-	oidRSA         = []int{1, 2, 840, 113549, 1, 1, 1}
-)
-
 func subjectBytes(cert *Certificate) ([]byte, error) {
 	if len(cert.RawSubject) > 0 {
 		return cert.RawSubject, nil
@@ -1093,23 +1103,61 @@ func subjectBytes(cert *Certificate) ([]byte, error) {
 //
 // The returned slice is the certificate in DER encoding.
 //
-// The only supported key type is RSA (*rsa.PublicKey for pub, *rsa.PrivateKey
-// for priv).
+// The only supported key types are RSA and ECDSA (*rsa.PublicKey or
+// *ecdsa.PublicKey for pub, *rsa.PrivateKey or *ecdsa.PublicKey for priv).
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interface{}, priv interface{}) (cert []byte, err error) {
-	rsaPub, ok := pub.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.New("x509: non-RSA public keys not supported")
+	var publicKeyBytes []byte
+	var publicKeyAlgorithm pkix.AlgorithmIdentifier
+
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		publicKeyBytes, err = asn1.Marshal(rsaPublicKey{
+			N: pub.N,
+			E: pub.E,
+		})
+		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
+	case *ecdsa.PublicKey:
+		oid, ok := oidFromNamedCurve(pub.Curve)
+		if !ok {
+			return nil, errors.New("x509: unknown elliptic curve")
+		}
+		publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
+		var paramBytes []byte
+		paramBytes, err = asn1.Marshal(oid)
+		if err != nil {
+			return
+		}
+		publicKeyAlgorithm.Parameters.FullBytes = paramBytes
+		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
+	default:
+		return nil, errors.New("x509: only RSA and ECDSA public keys supported")
 	}
 
-	rsaPriv, ok := priv.(*rsa.PrivateKey)
-	if !ok {
-		return nil, errors.New("x509: non-RSA private keys not supported")
+	var signatureAlgorithm pkix.AlgorithmIdentifier
+	var hashFunc crypto.Hash
+
+	switch priv := priv.(type) {
+	case *rsa.PrivateKey:
+		signatureAlgorithm.Algorithm = oidSignatureSHA1WithRSA
+		hashFunc = crypto.SHA1
+	case *ecdsa.PrivateKey:
+		switch priv.Curve {
+		case elliptic.P224(), elliptic.P256():
+			hashFunc = crypto.SHA256
+			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA256
+		case elliptic.P384():
+			hashFunc = crypto.SHA384
+			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA384
+		case elliptic.P521():
+			hashFunc = crypto.SHA512
+			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA512
+		default:
+			return nil, errors.New("x509: unknown elliptic curve")
+		}
+	default:
+		return nil, errors.New("x509: only RSA and ECDSA private keys supported")
 	}
 
-	asn1PublicKey, err := asn1.Marshal(rsaPublicKey{
-		N: rsaPub.N,
-		E: rsaPub.E,
-	})
 	if err != nil {
 		return
 	}
@@ -1133,15 +1181,15 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 		return
 	}
 
-	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
+	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
 	c := tbsCertificate{
 		Version:            2,
 		SerialNumber:       template.SerialNumber,
-		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
+		SignatureAlgorithm: signatureAlgorithm,
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore, template.NotAfter},
 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
-		PublicKey:          publicKeyInfo{nil, pkix.AlgorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
+		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
 		Extensions:         extensions,
 	}
 
@@ -1152,11 +1200,24 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 
 	c.Raw = tbsCertContents
 
-	h := sha1.New()
+	h := hashFunc.New()
 	h.Write(tbsCertContents)
 	digest := h.Sum(nil)
 
-	signature, err := rsa.SignPKCS1v15(rand, rsaPriv, crypto.SHA1, digest)
+	var signature []byte
+
+	switch priv := priv.(type) {
+	case *rsa.PrivateKey:
+		signature, err = rsa.SignPKCS1v15(rand, priv, hashFunc, digest)
+	case *ecdsa.PrivateKey:
+		var r, s *big.Int
+		if r, s, err = ecdsa.Sign(rand, priv, digest); err == nil {
+			signature, err = asn1.Marshal(ecdsaSignature{r, s})
+		}
+	default:
+		panic("internal error")
+	}
+
 	if err != nil {
 		return
 	}
@@ -1164,7 +1225,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 	cert, err = asn1.Marshal(certificate{
 		nil,
 		c,
-		pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
+		signatureAlgorithm,
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
 	return
