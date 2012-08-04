@@ -34,6 +34,7 @@ source directories corresponding to the import paths:
 	DIR(.exe)        from go build
 	DIR.test(.exe)   from go test -c
 	MAINFILE(.exe)   from go build MAINFILE.go
+	*.so             from SWIG
 
 In the list, DIR represents the final path element of the
 directory, and MAINFILE is the base name of any Go source
@@ -93,11 +94,12 @@ var cleanFile = map[string]bool{
 }
 
 var cleanExt = map[string]bool{
-	".5": true,
-	".6": true,
-	".8": true,
-	".a": true,
-	".o": true,
+	".5":  true,
+	".6":  true,
+	".8":  true,
+	".a":  true,
+	".o":  true,
+	".so": true,
 }
 
 func clean(p *Package) {
@@ -188,6 +190,20 @@ func clean(p *Package) {
 		}
 		if !cleanN {
 			os.Remove(p.target)
+		}
+	}
+
+	if cleanI && p.usesSwig() {
+		for _, f := range stringList(p.SwigFiles, p.SwigCXXFiles) {
+			dir := p.swigDir(&buildContext)
+			soname := p.swigSoname(f)
+			target := filepath.Join(dir, soname)
+			if cleanN || cleanX {
+				b.showcmd("", "rm -f %s", target)
+			}
+			if !cleanN {
+				os.Remove(target)
+			}
 		}
 	}
 

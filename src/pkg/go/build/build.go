@@ -281,12 +281,14 @@ type Package struct {
 	PkgObj     string // installed .a file
 
 	// Source files
-	GoFiles   []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles  []string // .go source files that import "C"
-	CFiles    []string // .c source files
-	HFiles    []string // .h source files
-	SFiles    []string // .s source files
-	SysoFiles []string // .syso system object files to add to archive
+	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles     []string // .go source files that import "C"
+	CFiles       []string // .c source files
+	HFiles       []string // .h source files
+	SFiles       []string // .s source files
+	SysoFiles    []string // .syso system object files to add to archive
+	SwigFiles    []string // .swig files
+	SwigCXXFiles []string // .swigcxx files
 
 	// Cgo directives
 	CgoPkgConfig []string // Cgo pkg-config directives
@@ -489,7 +491,7 @@ Found:
 		}
 		ext := name[i:]
 		switch ext {
-		case ".go", ".c", ".s", ".h", ".S":
+		case ".go", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
 			// tentatively okay - read to make sure
 		case ".syso":
 			// binary objects to add to package archive
@@ -531,6 +533,12 @@ Found:
 			continue
 		case ".S":
 			Sfiles = append(Sfiles, name)
+			continue
+		case ".swig":
+			p.SwigFiles = append(p.SwigFiles, name)
+			continue
+		case ".swigcxx":
+			p.SwigCXXFiles = append(p.SwigCXXFiles, name)
 			continue
 		}
 
