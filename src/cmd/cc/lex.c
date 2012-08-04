@@ -377,10 +377,15 @@ lookup(void)
 		symb[1] = '"';
 	}
 
-	// turn · into .
 	for(r=w=symb; *r; r++) {
+		// turn · (U+00B7) into .
+		// turn ∕ (U+2215) into /
 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
 			*w++ = '.';
+			r++;
+		}else if((uchar)*r == 0xe2 && (uchar)*(r+1) == 0x88 && (uchar)*(r+2) == 0x95) {
+			*w++ = '/';
+			r++;
 			r++;
 		}else
 			*w++ = *r;
