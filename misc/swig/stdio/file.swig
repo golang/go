@@ -6,6 +6,19 @@
 
 %{
 #include <stdio.h>
+#include <stdlib.h>
 %}
 
-int puts(const char *);
+%typemap(gotype) const char * "string"
+%typemap(in) const char * %{
+	$1 = malloc($input.n + 1);
+	memcpy($1, $input.p, $input.n);
+	$1[$input.n] = '\0';
+%}
+%typemap(freearg) const char * %{
+	free($1);
+%}
+
+FILE *fopen(const char *name, const char *mode);
+int fclose(FILE *);
+int fgetc(FILE *);

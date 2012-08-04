@@ -36,12 +36,14 @@ type Package struct {
 	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
 
 	// Source files
-	GoFiles   []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles  []string `json:",omitempty"` // .go sources files that import "C"
-	CFiles    []string `json:",omitempty"` // .c source files
-	HFiles    []string `json:",omitempty"` // .h source files
-	SFiles    []string `json:",omitempty"` // .s source files
-	SysoFiles []string `json:",omitempty"` // .syso system object files added to package
+	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles     []string `json:",omitempty"` // .go sources files that import "C"
+	CFiles       []string `json:",omitempty"` // .c source files
+	HFiles       []string `json:",omitempty"` // .h source files
+	SFiles       []string `json:",omitempty"` // .s source files
+	SysoFiles    []string `json:",omitempty"` // .syso system object files added to package
+	SwigFiles    []string `json:",omitempty"` // .swig files
+	SwigCXXFiles []string `json:",omitempty"` // .swigcxx files
 
 	// Cgo directives
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
@@ -94,6 +96,8 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.HFiles = pp.HFiles
 	p.SFiles = pp.SFiles
 	p.SysoFiles = pp.SysoFiles
+	p.SwigFiles = pp.SwigFiles
+	p.SwigCXXFiles = pp.SwigCXXFiles
 	p.CgoCFLAGS = pp.CgoCFLAGS
 	p.CgoLDFLAGS = pp.CgoLDFLAGS
 	p.CgoPkgConfig = pp.CgoPkgConfig
@@ -408,6 +412,29 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	return p
 }
 
+// usesSwig returns whether the package needs to run SWIG.
+func (p *Package) usesSwig() bool {
+	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
+}
+
+// swigSoname returns the name of the shared library we create for a
+// SWIG input file.
+func (p *Package) swigSoname(file string) string {
+	return strings.Replace(p.ImportPath, "/", "-", -1) + "-" + strings.Replace(file, ".", "-", -1) + ".so"
+}
+
+// swigDir returns the name of the shared SWIG directory for a
+// package.
+func (p *Package) swigDir(ctxt *build.Context) string {
+	dir := p.build.PkgRoot
+	if ctxt.Compiler == "gccgo" {
+		dir = filepath.Join(dir, "gccgo")
+	} else {
+		dir = filepath.Join(dir, ctxt.GOOS+"_"+ctxt.GOARCH)
+	}
+	return filepath.Join(dir, "swig")
+}
+
 // packageList returns the list of packages in the dag rooted at roots
 // as visited in a depth-first post-order traversal.
 func packageList(roots []*Package) []*Package {
@@ -459,7 +486,7 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	// distributions of Go packages, although such binaries are
 	// only useful with the specific version of the toolchain that
 	// created them.
-	if len(p.gofiles) == 0 {
+	if len(p.gofiles) == 0 && !p.usesSwig() {
 		return false
 	}
 
@@ -518,6 +545,21 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
+			return true
+		}
+	}
+
+	for _, src := range stringList(p.SwigFiles, p.SwigCXXFiles) {
+		if olderThan(filepath.Join(p.Dir, src)) {
+			return true
+		}
+		soname := p.swigSoname(src)
+		fi, err := os.Stat(soname)
+		if err != nil {
+			return true
+		}
+		fiSrc, err := os.Stat(src)
+		if err != nil || fiSrc.ModTime().After(fi.ModTime()) {
 			return true
 		}
 	}
