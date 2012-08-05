@@ -101,37 +101,42 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	// Negative precision means "only as much as needed to be exact."
 	shortest := prec < 0
 
-	d := new(decimal)
+	var digs decimalSlice
 	if shortest {
 		ok := false
 		if optimize {
 			// Try Grisu3 algorithm.
 			f := new(extFloat)
 			lower, upper := f.AssignComputeBounds(mant, exp, neg, flt)
-			ok = f.ShortestDecimal(d, &lower, &upper)
+			var buf [32]byte
+			digs.d = buf[:]
+			ok = f.ShortestDecimal(&digs, &lower, &upper)
 		}
 		if !ok {
 			// Create exact decimal representation.
 			// The shift is exp - flt.mantbits because mant is a 1-bit integer
 			// followed by a flt.mantbits fraction, and we are treating it as
 			// a 1+flt.mantbits-bit integer.
+			d := new(decimal)
 			d.Assign(mant)
 			d.Shift(exp - int(flt.mantbits))
 			roundShortest(d, mant, exp, flt)
+			digs = decimalSlice{d: d.d[:], nd: d.nd, dp: d.dp}
 		}
 		// Precision for shortest representation mode.
 		if prec < 0 {
 			switch fmt {
 			case 'e', 'E':
-				prec = d.nd - 1
+				prec = digs.nd - 1
 			case 'f':
-				prec = max(d.nd-d.dp, 0)
+				prec = max(digs.nd-digs.dp, 0)
 			case 'g', 'G':
-				prec = d.nd
+				prec = digs.nd
 			}
 		}
 	} else {
 		// Create exact decimal representation.
+		d := new(decimal)
 		d.Assign(mant)
 		d.Shift(exp - int(flt.mantbits))
 		// Round appropriately.
@@ -146,18 +151,19 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 			}
 			d.Round(prec)
 		}
+		digs = decimalSlice{d: d.d[:], nd: d.nd, dp: d.dp}
 	}
 
 	switch fmt {
 	case 'e', 'E':
-		return fmtE(dst, neg, d, prec, fmt)
+		return fmtE(dst, neg, digs, prec, fmt)
 	case 'f':
-		return fmtF(dst, neg, d, prec)
+		return fmtF(dst, neg, digs, prec)
 	case 'g', 'G':
 		// trailing fractional zeros in 'e' form will be trimmed.
 		eprec := prec
-		if eprec > d.nd && d.nd >= d.dp {
-			eprec = d.nd
+		if eprec > digs.nd && digs.nd >= digs.dp {
+			eprec = digs.nd
 		}
 		// %e is used if the exponent from the conversion
 		// is less than -4 or greater than or equal to the precision.
@@ -165,17 +171,17 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		if shortest {
 			eprec = 6
 		}
-		exp := d.dp - 1
+		exp := digs.dp - 1
 		if exp < -4 || exp >= eprec {
-			if prec > d.nd {
-				prec = d.nd
+			if prec > digs.nd {
+				prec = digs.nd
 			}
-			return fmtE(dst, neg, d, prec-1, fmt+'e'-'g')
+			return fmtE(dst, neg, digs, prec-1, fmt+'e'-'g')
 		}
-		if prec > d.dp {
-			prec = d.nd
+		if prec > digs.dp {
+			prec = digs.nd
 		}
-		return fmtF(dst, neg, d, max(prec-d.dp, 0))
+		return fmtF(dst, neg, digs, max(prec-digs.dp, 0))
 	}
 
 	// unknown format
@@ -283,8 +289,14 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	}
 }
 
+type decimalSlice struct {
+	d      []byte
+	nd, dp int
+	neg    bool
+}
+
 // %e: -d.ddddde±dd
-func fmtE(dst []byte, neg bool, d *decimal, prec int, fmt byte) []byte {
+func fmtE(dst []byte, neg bool, d decimalSlice, prec int, fmt byte) []byte {
 	// sign
 	if neg {
 		dst = append(dst, '-')
@@ -345,7 +357,7 @@ func fmtE(dst []byte, neg bool, d *decimal, prec int, fmt byte) []byte {
 }
 
 // %f: -ddddddd.ddddd
-func fmtF(dst []byte, neg bool, d *decimal, prec int) []byte {
+func fmtF(dst []byte, neg bool, d decimalSlice, prec int) []byte {
 	// sign
 	if neg {
 		dst = append(dst, '-')

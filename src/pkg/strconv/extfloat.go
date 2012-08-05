@@ -396,7 +396,7 @@ func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
 // which belongs to the open interval (lower, upper), where f is supposed
 // to lie. It returns false whenever the result is unsure. The implementation
 // uses the Grisu3 algorithm.
-func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool {
 	if f.mant == 0 {
 		d.d[0] = '0'
 		d.nd = 1
@@ -405,7 +405,26 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
 	}
 	if f.exp == 0 && *lower == *f && *lower == *upper {
 		// an exact integer.
-		d.Assign(f.mant)
+		var buf [24]byte
+		n := len(buf) - 1
+		for v := f.mant; v > 0; {
+			v1 := v / 10
+			v -= 10 * v1
+			buf[n] = byte(v + '0')
+			n--
+			v = v1
+		}
+		nd := len(buf) - n - 1
+		for i := 0; i < nd; i++ {
+			d.d[i] = buf[n+1+i]
+		}
+		d.nd, d.dp = nd, nd
+		for d.nd > 0 && d.d[d.nd-1] == '0' {
+			d.nd--
+		}
+		if d.nd == 0 {
+			d.dp = 0
+		}
 		d.neg = f.neg
 		return true
 	}
@@ -491,7 +510,7 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
 // all data is known with a error estimate of ulpBinary*ε.
-func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
 		// Approximation is too wide.
 		return false
