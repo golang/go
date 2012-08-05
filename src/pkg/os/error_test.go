@@ -106,3 +106,27 @@ func TestIsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestErrPathNUL(t *testing.T) {
+	f, err := ioutil.TempFile("", "_Go_ErrPathNUL\x00")
+	if err == nil {
+		f.Close()
+		t.Fatal("TempFile should have failed")
+	}
+	f, err = ioutil.TempFile("", "_Go_ErrPathNUL")
+	if err != nil {
+		t.Fatalf("open ErrPathNUL tempfile: %s", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	f2, err := os.OpenFile(f.Name(), os.O_RDWR, 0600)
+	if err != nil {
+		t.Fatalf("open ErrPathNUL: %s", err)
+	}
+	f2.Close()
+	f2, err = os.OpenFile(f.Name()+"\x00", os.O_RDWR, 0600)
+	if err == nil {
+		f2.Close()
+		t.Fatal("Open should have failed")
+	}
+}

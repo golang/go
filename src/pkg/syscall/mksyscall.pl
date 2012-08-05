@@ -110,6 +110,16 @@ while(<>) {
 	my $out_decl = @out ? sprintf(" (%s)", join(', ', @out)) : "";
 	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out_decl;
 
+	# Check if err return available
+	my $errvar = "";
+	foreach my $p (@out) {
+		my ($name, $type) = parseparam($p);
+		if($type eq "error") {
+			$errvar = $name;
+			last;
+		}
+	}
+
 	# Prepare arguments to Syscall.
 	my @args = ();
 	my $n = 0;
@@ -117,8 +127,18 @@ while(<>) {
 		my ($name, $type) = parseparam($p);
 		if($type =~ /^\*/) {
 			push @args, "uintptr(unsafe.Pointer($name))";
+		} elsif($type eq "string" && $errvar ne "") {
+			$text .= "\tvar _p$n *byte\n";
+			$text .= "\t_p$n, $errvar = BytePtrFromString($name)\n";
+			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
+			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			$n++;
 		} elsif($type eq "string") {
-			push @args, "uintptr(unsafe.Pointer(StringBytePtr($name)))";
+			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
+			$text .= "\tvar _p$n *byte\n";
+			$text .= "\t_p$n, _ = BytePtrFromString($name)\n";
+			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			$n++;
 		} elsif($type =~ /^\[\](.*)/) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:

@@ -118,7 +118,8 @@ while(<>) {
 	}
 
 	# Decide which version of api is used: ascii or unicode.
-	my $strconvfunc = $sysname !~ /W$/ ? "StringBytePtr" : "StringToUTF16Ptr";
+	my $strconvfunc = $sysname !~ /W$/ ? "BytePtrFromString" : "UTF16PtrFromString";
+	my $strconvtype = $sysname !~ /W$/ ? "*byte" : "*uint16";
 
 	# Winapi proc address variable.
 	$vars .= "\t$sysvarname = $modvname.NewProc(\"$sysname\")\n";
@@ -133,6 +134,16 @@ while(<>) {
 	}
 	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out;
 
+	# Check if err return available
+	my $errvar = "";
+	foreach my $p (@out) {
+		my ($name, $type) = parseparam($p);
+		if($type eq "error") {
+			$errvar = $name;
+			last;
+		}
+	}
+
 	# Prepare arguments to Syscall.
 	my @args = ();
 	my $n = 0;
@@ -141,8 +152,18 @@ while(<>) {
 		my ($name, $type) = parseparam($p);
 		if($type =~ /^\*/) {
 			push @args, "uintptr(unsafe.Pointer($name))";
+		} elsif($type eq "string" && $errvar ne "") {
+			$text .= "\tvar _p$n $strconvtype\n";
+			$text .= "\t_p$n, $errvar = $strconvfunc($name)\n";
+			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
+			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			$n++;
 		} elsif($type eq "string") {
-			push @args, "uintptr(unsafe.Pointer($strconvfunc($name)))";
+			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
+			$text .= "\tvar _p$n $strconvtype\n";
+			$text .= "\t_p$n, _ = $strconvfunc($name)\n";
+			push @args, "uintptr(unsafe.Pointer(_p$n))";
+			$n++;
 		} elsif($type =~ /^\[\](.*)/) {
 			# Convert slice into pointer, length.
 			# Have to be careful not to take address of &a[0] if len == 0:

@@ -60,8 +60,9 @@ import (
 
 var ForkLock sync.RWMutex
 
-// Convert array of string to array
-// of NUL-terminated byte pointer.
+// StringSlicePtr is deprecated. Use SlicePtrFromStrings instead.
+// If any string contains a NUL byte this function panics instead
+// of returning an error.
 func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
@@ -69,6 +70,22 @@ func StringSlicePtr(ss []string) []*byte {
 	}
 	bb[len(ss)] = nil
 	return bb
+}
+
+// SlicePtrFromStrings converts a slice of strings to a slice of
+// pointers to NUL-terminated byte slices. If any string contains
+// a NUL byte, it returns (nil, EINVAL).
+func SlicePtrFromStrings(ss []string) ([]*byte, error) {
+	var err error
+	bb := make([]*byte, len(ss)+1)
+	for i := 0; i < len(ss); i++ {
+		bb[i], err = BytePtrFromString(ss[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	bb[len(ss)] = nil
+	return bb, nil
 }
 
 // gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
@@ -373,12 +390,21 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	p[1] = -1
 
 	// Convert args to C form.
-	argv0p := StringBytePtr(argv0)
-	argvp := StringSlicePtr(argv)
+	argv0p, err := BytePtrFromString(argv0)
+	if err != nil {
+		return 0, err
+	}
+	argvp, err := SlicePtrFromStrings(argv)
+	if err != nil {
+		return 0, err
+	}
 
 	var dir *byte
 	if attr.Dir != "" {
-		dir = StringBytePtr(attr.Dir)
+		dir, err = BytePtrFromString(attr.Dir)
+		if err != nil {
+			return 0, err
+		}
 	}
 	var envvParsed []envItem
 	if attr.Env != nil {
@@ -389,7 +415,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 				i++
 			}
 
-			envvParsed = append(envvParsed, envItem{StringBytePtr("/env/" + v[:i]), StringBytePtr(v[i+1:]), len(v) - i})
+			envname, err := BytePtrFromString("/env/" + v[:i])
+			if err != nil {
+				return 0, err
+			}
+			envvalue, err := BytePtrFromString(v[i+1:])
+			if err != nil {
+				return 0, err
+			}
+			envvParsed = append(envvParsed, envItem{envname, envvalue, len(v) - i})
 		}
 	}
 
@@ -511,9 +545,17 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 		}
 	}
 
+	argv0p, err := BytePtrFromString(argv0)
+	if err != nil {
+		return err
+	}
+	argvp, err := SlicePtrFromStrings(argv)
+	if err != nil {
+		return err
+	}
 	_, _, e1 := Syscall(SYS_EXEC,
-		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
-		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
+		uintptr(unsafe.Pointer(argv0p)),
+		uintptr(unsafe.Pointer(&argvp[0])),
 		0)
 
 	return e1

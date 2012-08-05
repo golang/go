@@ -52,7 +52,11 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	return futimesat(dirfd, StringBytePtr(path), (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	pathp, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 func Futimes(fd int, tv []Timeval) (err error) {
@@ -783,7 +787,11 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 	if data == "" {
 		return mount(source, target, fstype, flags, nil)
 	}
-	return mount(source, target, fstype, flags, StringBytePtr(data))
+	datap, err := BytePtrFromString(data)
+	if err != nil {
+		return err
+	}
+	return mount(source, target, fstype, flags, datap)
 }
 
 // Sendto

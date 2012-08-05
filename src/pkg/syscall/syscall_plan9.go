@@ -237,16 +237,24 @@ func Await(w *Waitmsg) (err error) {
 }
 
 func Unmount(name, old string) (err error) {
-	oldp := uintptr(unsafe.Pointer(StringBytePtr(old)))
+	oldp, err := BytePtrFromString(old)
+	if err != nil {
+		return err
+	}
+	oldptr := uintptr(unsafe.Pointer(oldp))
 
 	var r0 uintptr
 	var e ErrorString
 
 	// bind(2) man page: If name is zero, everything bound or mounted upon old is unbound or unmounted.
 	if name == "" {
-		r0, _, e = Syscall(SYS_UNMOUNT, _zero, oldp, 0)
+		r0, _, e = Syscall(SYS_UNMOUNT, _zero, oldptr, 0)
 	} else {
-		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(name))), oldp, 0)
+		namep, err := BytePtrFromString(name)
+		if err != nil {
+			return err
+		}
+		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(namep)), oldptr, 0)
 	}
 
 	if int(r0) == -1 {
