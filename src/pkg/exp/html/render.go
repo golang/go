@@ -209,7 +209,7 @@ func render1(w writer, n *Node) error {
 		}
 	case "textarea", "title":
 		for _, c := range n.Child {
-			if c.Type != TextNode {
+			if c.Type != TextNode && n.Namespace == "" {
 				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
 			}
 			if err := render1(w, c); err != nil {

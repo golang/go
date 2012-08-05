@@ -1902,6 +1902,11 @@ func parseForeignContent(p *parser) bool {
 		namespace := p.top().Namespace
 		p.addElement()
 		p.top().Namespace = namespace
+		if namespace != "" {
+			// Don't let the tokenizer go into raw text mode in foreign content
+			// (e.g. in an SVG <title> tag).
+			p.tokenizer.rawTag = ""
+		}
 		if p.hasSelfClosingToken {
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
