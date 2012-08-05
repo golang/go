@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,7 +37,13 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 		IsAdmin:   user.IsAdmin(c),
 	}
 	var currentPerson string
-	currentPerson, data.UserIsReviewer = emailToPerson[data.User]
+	u := data.User
+	you := "you"
+	if e := r.FormValue("email"); e != "" {
+		u = e
+		you = e
+	}
+	currentPerson, data.UserIsReviewer = emailToPerson[u]
 
 	var wg sync.WaitGroup
 	errc := make(chan error, 10)
@@ -59,7 +66,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	if data.UserIsReviewer {
 		tableFetch(0, func(tbl *clTable) error {
 			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(maxCLs)
-			tbl.Title = "CLs assigned to you for review"
+			tbl.Title = "CLs assigned to " + you + " for review"
 			tbl.Assignable = true
 			_, err := q.GetAll(c, &tbl.CLs)
 			return err
@@ -68,7 +75,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 
 	tableFetch(1, func(tbl *clTable) error {
 		q := activeCLs.Filter("Author =", currentPerson).Limit(maxCLs)
-		tbl.Title = "CLs sent by you"
+		tbl.Title = "CLs sent by " + you
 		tbl.Assignable = true
 		_, err := q.GetAll(c, &tbl.CLs)
 		return err
@@ -139,7 +146,7 @@ type frontPageData struct {
 	Reviewers      []string
 	UserIsReviewer bool
 
-	User, LogoutURL string
+	User, LogoutURL string // actual logged in user
 	IsAdmin         bool
 }
 
@@ -155,6 +162,12 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
 			return "selected"
 		}
 		return ""
+	},
+	"shortemail": func(s string) string {
+		if i := strings.Index(s, "@"); i >= 0 {
+			s = s[:i]
+		}
+		return s
 	},
 }).Parse(`
 <!doctype html>
@@ -175,8 +188,15 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
         color: #777;
 	margin-bottom: 0;
       }
+      table {
+        border-spacing: 0;
+      }
       td {
+        vertical-align: top;
         padding: 2px 5px;
+      }
+      tr.unreplied td.email {
+        border-left: 2px solid blue;
       }
       tr.pending td {
         background: #fc8;
@@ -209,15 +229,15 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
 <img id="gopherstamp" src="/static/gopherstamp.jpg" />
 <h1>Go code reviews</h1>
 
-{{range $tbl := .Tables}}
-<h3>{{$tbl.Title}}</h3>
-{{if .CLs}}
 <table class="cls">
+{{range $i, $tbl := .Tables}}
+<tr><td colspan="5"><h3>{{$tbl.Title}}</h3></td></tr>
+{{if .CLs}}
 {{range $cl := .CLs}}
-  <tr id="cl-{{$cl.Number}}">
+  <tr id="cl-{{$cl.Number}}" class="{{if not $i}}{{if not .Reviewed}}unreplied{{end}}{{end}}">
     <td class="email">{{$cl.DisplayOwner}}</td>
-    {{if $tbl.Assignable}}
     <td>
+    {{if $tbl.Assignable}}
     <select id="cl-rev-{{$cl.Number}}" {{if not $.UserIsReviewer}}disabled{{end}}>
       <option></option>
       {{range $.Reviewers}}
@@ -243,22 +263,23 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
       });
     });
     </script>
-    </td>
     {{end}}
+    </td>
     <td>
       <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
       {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}</span>{{end}}
       {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}</span>{{end}}
+      {{if .LastUpdateBy}}<br /><span style="font-size: smaller; color: #777777;">(<span title="{{.LastUpdateBy}}">{{.LastUpdateBy | shortemail}}</span>) {{.LastUpdate}}</span>{{end}}
     </td>
     <td title="Last modified">{{.ModifiedAgo}}</td>
-    {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}
+    <td>{{if $.IsAdmin}}<a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a>{{end}}</td>
   </tr>
 {{end}}
-</table>
 {{else}}
-<em>none</em>
+<tr><td colspan="5"><em>none</em></td></tr>
 {{end}}
 {{end}}
+</table>
 
 <hr />
 <address>
