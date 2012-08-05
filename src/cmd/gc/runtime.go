@@ -45,6 +45,7 @@ func appendslice(typ *byte, x any, y []any) any
 func appendstr(typ *byte, x []byte, y string) []byte
 
 func cmpstring(string, string) int
+func eqstring(string, string) bool
 func slicestring(string, int, int) string
 func slicestring1(string, int) string
 func intstring(int64) string

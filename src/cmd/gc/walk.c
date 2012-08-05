@@ -1021,27 +1021,34 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		}
 
-		// prepare for rewrite below
 		if(n->etype == OEQ || n->etype == ONE) {
+			// prepare for rewrite below
 			n->left = cheapexpr(n->left, init);
 			n->right = cheapexpr(n->right, init);
-		}
 
-		// sys_cmpstring(s1, s2) :: 0
-		r = mkcall("cmpstring", types[TINT], init,
-			conv(n->left, types[TSTRING]),
-			conv(n->right, types[TSTRING]));
-		r = nod(n->etype, r, nodintconst(0));
+			r = mkcall("eqstring", types[TBOOL], init,
+				conv(n->left, types[TSTRING]),
+				conv(n->right, types[TSTRING]));
 
-		// quick check of len before full compare for == or !=
-		if(n->etype == OEQ || n->etype == ONE) {
-			if(n->etype == OEQ)
+			// quick check of len before full compare for == or !=
+			if(n->etype == OEQ) {
+				// len(left) == len(right) && eqstring(left, right)
 				r = nod(OANDAND, nod(OEQ, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
-			else
+			} else {
+				// len(left) != len(right) || !eqstring(left, right)
+				r = nod(ONOT, r, N);
 				r = nod(OOROR, nod(ONE, nod(OLEN, n->left, N), nod(OLEN, n->right, N)), r);
+			}
 			typecheck(&r, Erv);
 			walkexpr(&r, nil);
+		} else {
+			// sys_cmpstring(s1, s2) :: 0
+			r = mkcall("cmpstring", types[TINT], init,
+				conv(n->left, types[TSTRING]),
+				conv(n->right, types[TSTRING]));
+			r = nod(n->etype, r, nodintconst(0));
 		}
+
 		typecheck(&r, Erv);
 		if(n->type->etype != TBOOL) fatal("cmp %T", n->type);
 		r->type = n->type;

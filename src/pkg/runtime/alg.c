@@ -324,6 +324,10 @@ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
 		*eq = false;
 		return;
 	}
+	if(((String*)a)->str == ((String*)b)->str) {
+		*eq = true;
+		return;
+	}
 	runtime·memequal(eq, alen, ((String*)a)->str, ((String*)b)->str);
 }
 

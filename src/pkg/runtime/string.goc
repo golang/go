@@ -204,6 +204,26 @@ func cmpstring(s1 String, s2 String) (v int32) {
 	v = cmpstring(s1, s2);
 }
 
+func eqstring(s1 String, s2 String) (v bool) {
+	uint32 i, l;
+
+	if(s1.len != s2.len) {
+		v = false;
+		return;
+	}
+	if(s1.str == s2.str) {
+		v = true;
+		return;
+	}
+	l = s1.len;
+	for(i=0; i<l; i++)
+		if(s1.str[i] != s2.str[i]) {
+			v = false;
+			return;
+		}
+	v = true;
+}
+
 int32
 runtime·strcmp(byte *s1, byte *s2)
 {

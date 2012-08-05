@@ -27,6 +27,7 @@ char *runtimeimport =
 	"func @\"\".appendslice(@\"\".typ *byte, @\"\".x any, @\"\".y []any) (? any)\n"
 	"func @\"\".appendstr(@\"\".typ *byte, @\"\".x []byte, @\"\".y string) (? []byte)\n"
 	"func @\"\".cmpstring(? string, ? string) (? int)\n"
+	"func @\"\".eqstring(? string, ? string) (? bool)\n"
 	"func @\"\".slicestring(? string, ? int, ? int) (? string)\n"
 	"func @\"\".slicestring1(? string, ? int) (? string)\n"
 	"func @\"\".intstring(? int64) (? string)\n"
