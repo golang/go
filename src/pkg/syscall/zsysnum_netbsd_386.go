@@ -271,4 +271,8 @@ const (
 	SYS_SYMLINKAT            = 470 // { int|sys||symlinkat(const char *path1, int fd, const char *path2); }
 	SYS_UNLINKAT             = 471 // { int|sys||unlinkat(int fd, const char *path, int flag); }
 	SYS_FUTIMENS             = 472 // { int|sys||futimens(int fd, const struct timespec *tptr); }
+	SYS___QUOTACTL           = 473 // { int|sys||__quotactl(const char *path, struct quotactl_args *args); }
+	SYS_POSIX_SPAWN          = 474 // { int|sys||posix_spawn(pid_t *pid, const char *path, const struct posix_spawn_file_actions *file_actions, const struct posix_spawnattr *attrp, char *const *argv, char *const *envp); }
+	SYS_RECVMMSG             = 475 // { int|sys||recvmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags, struct timespec *timeout); }
+	SYS_SENDMMSG             = 476 // { int|sys||sendmmsg(int s, struct mmsghdr *mmsg, unsigned int vlen, unsigned int flags); }
 )
