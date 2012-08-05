@@ -172,6 +172,14 @@ var atof32tests = []atofTest{
 	// Smallest denormal
 	{"1e-45", "1e-45", nil}, // 1p-149 = 1.4e-45
 	{"2e-45", "1e-45", nil},
+
+	// 2^92 = 8388608p+69 = 4951760157141521099596496896 (4.9517602e27)
+	// is an exact power of two that needs 8 decimal digits to be correctly
+	// parsed back.
+	// The float32 before is 16777215p+68 = 4.95175986e+27
+	// The halfway is 4.951760009. A bad algorithm that thinks the previous
+	// float32 is 8388607p+69 will shorten incorrectly to 4.95176e+27.
+	{"4951760157141521099596496896", "4.9517602e+27", nil},
 }
 
 type atofSimpleTest struct {
