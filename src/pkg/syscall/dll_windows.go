@@ -34,7 +34,11 @@ type DLL struct {
 
 // LoadDLL loads DLL file into memory.
 func LoadDLL(name string) (dll *DLL, err error) {
-	h, e := loadlibrary(StringToUTF16Ptr(name))
+	namep, err := UTF16PtrFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	h, e := loadlibrary(namep)
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,
@@ -61,7 +65,11 @@ func MustLoadDLL(name string) *DLL {
 // FindProc searches DLL d for procedure named name and returns *Proc
 // if found. It returns an error if search fails.
 func (d *DLL) FindProc(name string) (proc *Proc, err error) {
-	a, e := getprocaddress(uintptr(d.Handle), StringBytePtr(name))
+	namep, err := BytePtrFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	a, e := getprocaddress(uintptr(d.Handle), namep)
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,

@@ -306,7 +306,11 @@ func Fstatfs(fd int, buf *Statfs_t) (err error) {
 }
 
 func Statfs(path string, buf *Statfs_t) (err error) {
-	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+	pathp, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(pathp)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
 	if e != 0 {
 		err = e
 	}

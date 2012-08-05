@@ -112,9 +112,10 @@ func Test64BitReturnStdCall(t *testing.T) {
 
 func TestCDecl(t *testing.T) {
 	var buf [50]byte
+	fmtp, _ := syscall.BytePtrFromString("%d %d %d")
 	a, _, _ := GetDLL(t, "user32.dll").Proc("wsprintfA").Call(
 		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(unsafe.Pointer(syscall.StringBytePtr("%d %d %d"))),
+		uintptr(unsafe.Pointer(fmtp)),
 		1000, 2000, 3000)
 	if string(buf[:a]) != "1000 2000 3000" {
 		t.Error("cdecl USER32.wsprintfA returns", a, "buf=", buf[:a])

@@ -52,9 +52,28 @@ func main() {
 
 */
 
-// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
-// with a terminating NUL added.
-func StringToUTF16(s string) []uint16 { return utf16.Encode([]rune(s + "\x00")) }
+// StringToUTF16 is deprecated. Use UTF16FromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
+func StringToUTF16(s string) []uint16 {
+	a, err := UTF16FromString(s)
+	if err != nil {
+		panic("syscall: string with NUL passed to StringToUTF16")
+	}
+	return a
+}
+
+// UTF16FromString returns the UTF-16 encoding of the UTF-8 string
+// s, with a terminating NUL added. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func UTF16FromString(s string) ([]uint16, error) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0 {
+			return nil, EINVAL
+		}
+	}
+	return utf16.Encode([]rune(s + "\x00")), nil
+}
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
 // with a terminating NUL removed.
@@ -68,9 +87,21 @@ func UTF16ToString(s []uint16) string {
 	return string(utf16.Decode(s))
 }
 
-// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
-// the UTF-8 string s, with a terminating NUL added.
+// StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+
+// UTF16PtrFromString returns pointer to the UTF-16 encoding of
+// the UTF-8 string s, with a terminating NUL added. If s
+// contains a NUL byte at any location, it returns (nil, EINVAL).
+func UTF16PtrFromString(s string) (*uint16, error) {
+	a, err := UTF16FromString(s)
+	if err != nil {
+		return nil, err
+	}
+	return &a[0], nil
+}
 
 func Getpagesize() int { return 4096 }
 
@@ -218,6 +249,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	if len(path) == 0 {
 		return InvalidHandle, ERROR_FILE_NOT_FOUND
 	}
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return InvalidHandle, err
+	}
 	var access uint32
 	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
 	case O_RDONLY:
@@ -252,7 +287,7 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+	h, e := CreateFile(pathp, access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
 	return h, e
 }
 
@@ -330,24 +365,46 @@ func Getwd() (wd string, err error) {
 }
 
 func Chdir(path string) (err error) {
-	return SetCurrentDirectory(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return SetCurrentDirectory(pathp)
 }
 
 func Mkdir(path string, mode uint32) (err error) {
-	return CreateDirectory(&StringToUTF16(path)[0], nil)
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return CreateDirectory(pathp, nil)
 }
 
 func Rmdir(path string) (err error) {
-	return RemoveDirectory(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return RemoveDirectory(pathp)
 }
 
 func Unlink(path string) (err error) {
-	return DeleteFile(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return DeleteFile(pathp)
 }
 
 func Rename(oldpath, newpath string) (err error) {
-	from := &StringToUTF16(oldpath)[0]
-	to := &StringToUTF16(newpath)[0]
+	from, err := UTF16PtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	to, err := UTF16PtrFromString(newpath)
+	if err != nil {
+		return err
+	}
 	return MoveFile(from, to)
 }
 
@@ -403,7 +460,11 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	h, e := CreateFile(StringToUTF16Ptr(path),
+	pathp, e := UTF16PtrFromString(path)
+	if e != nil {
+		return e
+	}
+	h, e := CreateFile(pathp,
 		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
 	if e != nil {
@@ -423,7 +484,10 @@ func Chmod(path string, mode uint32) (err error) {
 	if mode == 0 {
 		return EINVAL
 	}
-	p := StringToUTF16Ptr(path)
+	p, e := UTF16PtrFromString(path)
+	if e != nil {
+		return e
+	}
 	attrs, e := GetFileAttributes(p)
 	if e != nil {
 		return e

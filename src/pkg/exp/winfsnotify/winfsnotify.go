@@ -156,7 +156,11 @@ func (w *Watcher) wakeupReader() error {
 }
 
 func getDir(pathname string) (dir string, err error) {
-	attr, e := syscall.GetFileAttributes(syscall.StringToUTF16Ptr(pathname))
+	pathnamep, e := syscall.UTF16PtrFromString(pathname)
+	if e != nil {
+		return "", e
+	}
+	attr, e := syscall.GetFileAttributes(pathnamep)
 	if e != nil {
 		return "", os.NewSyscallError("GetFileAttributes", e)
 	}
@@ -170,7 +174,11 @@ func getDir(pathname string) (dir string, err error) {
 }
 
 func getIno(path string) (ino *inode, err error) {
-	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(path),
+	pathp, e := syscall.UTF16PtrFromString(path)
+	if e != nil {
+		return nil, e
+	}
+	h, e := syscall.CreateFile(pathp,
 		syscall.FILE_LIST_DIRECTORY,
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
 		nil, syscall.OPEN_EXISTING,

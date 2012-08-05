@@ -14,17 +14,46 @@
 // On most systems, that error has type syscall.Errno.
 package syscall
 
-// StringByteSlice returns a NUL-terminated slice of bytes
-// containing the text of s.
+// StringByteSlice is deprecated. Use ByteSliceFromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
 func StringByteSlice(s string) []byte {
-	a := make([]byte, len(s)+1)
-	copy(a, s)
+	a, err := ByteSliceFromString(s)
+	if err != nil {
+		panic("syscall: string with NUL passed to StringByteSlice")
+	}
 	return a
 }
 
-// StringBytePtr returns a pointer to a NUL-terminated array of bytes
-// containing the text of s.
+// ByteSliceFromString returns a NUL-terminated slice of bytes
+// containing the text of s. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func ByteSliceFromString(s string) ([]byte, error) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0 {
+			return nil, EINVAL
+		}
+	}
+	a := make([]byte, len(s)+1)
+	copy(a, s)
+	return a, nil
+}
+
+// StringBytePtr is deprecated. Use BytePtrFromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+
+// BytePtrFromString returns a pointer to a NUL-terminated array of
+// bytes containing the text of s. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func BytePtrFromString(s string) (*byte, error) {
+	a, err := ByteSliceFromString(s)
+	if err != nil {
+		return nil, err
+	}
+	return &a[0], nil
+}
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.
 // See mksyscall.pl.

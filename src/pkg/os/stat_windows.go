@@ -48,7 +48,11 @@ func Stat(name string) (fi FileInfo, err error) {
 		return statDevNull()
 	}
 	var d syscall.Win32FileAttributeData
-	e := syscall.GetFileAttributesEx(syscall.StringToUTF16Ptr(name), syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
+	namep, e := syscall.UTF16PtrFromString(name)
+	if e != nil {
+		return nil, &PathError{"Stat", name, e}
+	}
+	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
 	if e != nil {
 		return nil, &PathError{"GetFileAttributesEx", name, e}
 	}
@@ -221,7 +225,11 @@ func (s *winSys) loadFileId() error {
 	}
 	s.Lock()
 	defer s.Unlock()
-	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(s.path), 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	pathp, e := syscall.UTF16PtrFromString(s.path)
+	if e != nil {
+		return e
+	}
+	h, e := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if e != nil {
 		return e
 	}

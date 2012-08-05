@@ -16,10 +16,16 @@ func lookupFullName(domain, username, domainAndUser string) (string, error) {
 		syscall.NameSamCompatible, syscall.NameDisplay, 50)
 	if e != nil {
 		// domain lookup failed, perhaps this pc is not part of domain
-		d := syscall.StringToUTF16Ptr(domain)
-		u := syscall.StringToUTF16Ptr(username)
+		d, e := syscall.UTF16PtrFromString(domain)
+		if e != nil {
+			return "", e
+		}
+		u, e := syscall.UTF16PtrFromString(username)
+		if e != nil {
+			return "", e
+		}
 		var p *byte
-		e := syscall.NetUserGetInfo(d, u, 10, &p)
+		e = syscall.NetUserGetInfo(d, u, 10, &p)
 		if e != nil {
 			return "", e
 		}

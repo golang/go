@@ -11,7 +11,8 @@ import (
 
 func initMime() {
 	var root syscall.Handle
-	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`),
+	rootpathp, _ := syscall.UTF16PtrFromString(`\`)
+	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, rootpathp,
 		0, syscall.KEY_READ, &root) != nil {
 		return
 	}
@@ -31,15 +32,17 @@ func initMime() {
 			continue
 		}
 		var h syscall.Handle
+		extpathp, _ := syscall.UTF16PtrFromString(`\` + ext)
 		if syscall.RegOpenKeyEx(
-			syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`+ext),
+			syscall.HKEY_CLASSES_ROOT, extpathp,
 			0, syscall.KEY_READ, &h) != nil {
 			continue
 		}
 		var typ uint32
 		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
+		contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
 		if syscall.RegQueryValueEx(
-			h, syscall.StringToUTF16Ptr("Content Type"),
+			h, contenttypep,
 			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {
 			syscall.RegCloseKey(h)
 			continue
