@@ -4,6 +4,6 @@ PASS "<html><body>\n<p><font size=\"7\">First paragraph.</p>\n<p>Second paragrap
 PASS "<html>\n<dl>\n<dt><b>Boo\n<dd>Goo?\n</dl>\n</html>"
 PASS "<html><body>\n<label><a><div>Hello<div>World</div></a></label>  \n</body></html>"
 PASS "<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>"
-FAIL "<table><tr><p><a><p>You should see this text."
+PASS "<table><tr><p><a><p>You should see this text."
 PASS "<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence."
 PASS "<html>\n<body>\n<b><nobr><div>This text is in a div inside a nobr</nobr>More text that should not be in the nobr, i.e., the\nnobr should have closed the div inside it implicitly. </b><pre>A pre tag outside everything else.</pre>\n</body>\n</html>"
