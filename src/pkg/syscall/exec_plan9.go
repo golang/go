@@ -419,11 +419,9 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 			if err != nil {
 				return 0, err
 			}
-			envvalue, err := BytePtrFromString(v[i+1:])
-			if err != nil {
-				return 0, err
-			}
-			envvParsed = append(envvParsed, envItem{envname, envvalue, len(v) - i})
+			envvalue := make([]byte, len(v)-i)
+			copy(envvalue, v[i+1:])
+			envvParsed = append(envvParsed, envItem{envname, &envvalue[0], len(v) - i})
 		}
 	}
 
