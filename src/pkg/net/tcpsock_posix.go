@@ -166,8 +166,17 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	// use the result.  See also:
 	//	http://golang.org/issue/2690
 	//	http://stackoverflow.com/questions/4949858/
-	for i := 0; i < 2 && err == nil && laddr == nil && selfConnect(fd); i++ {
-		fd.Close()
+	//
+	// The opposite can also happen: if we ask the kernel to pick an appropriate
+	// originating local address, sometimes it picks one that is already in use.
+	// So if the error is EADDRNOTAVAIL, we have to try again too, just for
+	// a different reason.
+	//
+	// The kernel socket code is no doubt enjoying watching us squirm.
+	for i := 0; i < 2 && (laddr == nil || laddr.Port == 0) && (selfConnect(fd, err) || spuriousENOTAVAIL(err)); i++ {
+		if err == nil {
+			fd.Close()
+		}
 		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 	}
 
@@ -177,7 +186,12 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	return newTCPConn(fd), nil
 }
 
-func selfConnect(fd *netFD) bool {
+func selfConnect(fd *netFD, err error) bool {
+	// If the connect failed, we clearly didn't connect to ourselves.
+	if err != nil {
+		return false
+	}
+
 	// The socket constructor can return an fd with raddr nil under certain
 	// unknown conditions. The errors in the calls there to Getpeername
 	// are discarded, but we can't catch the problem there because those
@@ -192,6 +206,11 @@ func selfConnect(fd *netFD) bool {
 	l := fd.laddr.(*TCPAddr)
 	r := fd.raddr.(*TCPAddr)
 	return l.Port == r.Port && l.IP.Equal(r.IP)
+}
+
+func spuriousENOTAVAIL(err error) bool {
+	e, ok := err.(*OpError)
+	return ok && e.Err == syscall.EADDRNOTAVAIL
 }
 
 // TCPListener is a TCP network listener.
