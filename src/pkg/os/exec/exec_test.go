@@ -203,6 +203,56 @@ func TestExtraFiles(t *testing.T) {
 	}
 }
 
+func TestExtraFilesRace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Logf("no operating system support; skipping")
+		return
+	}
+	listen := func() net.Listener {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ln
+	}
+	listenerFile := func(ln net.Listener) *os.File {
+		f, err := ln.(*net.TCPListener).File()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	runCommand := func(c *Cmd, out chan<- string) {
+		bout, err := c.CombinedOutput()
+		if err != nil {
+			out <- "ERROR:" + err.Error()
+		} else {
+			out <- string(bout)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		la := listen()
+		ca := helperCommand("describefiles")
+		ca.ExtraFiles = []*os.File{listenerFile(la)}
+		lb := listen()
+		cb := helperCommand("describefiles")
+		cb.ExtraFiles = []*os.File{listenerFile(lb)}
+		ares := make(chan string)
+		bres := make(chan string)
+		go runCommand(ca, ares)
+		go runCommand(cb, bres)
+		if got, want := <-ares, fmt.Sprintf("fd3: listener %s\n", la.Addr()); got != want {
+			t.Errorf("iteration %d, process A got:\n%s\nwant:\n%s\n", i, got, want)
+		}
+		if got, want := <-bres, fmt.Sprintf("fd3: listener %s\n", lb.Addr()); got != want {
+			t.Errorf("iteration %d, process B got:\n%s\nwant:\n%s\n", i, got, want)
+		}
+		la.Close()
+		lb.Close()
+	}
+}
+
 // TestHelperProcess isn't a real test. It's used as a helper process
 // for TestParameterRun.
 func TestHelperProcess(*testing.T) {
@@ -318,6 +368,16 @@ func TestHelperProcess(*testing.T) {
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
+	case "describefiles":
+		for fd := uintptr(3); fd < 25; fd++ {
+			f := os.NewFile(fd, fmt.Sprintf("fd-%d", fd))
+			ln, err := net.FileListener(f)
+			if err == nil {
+				fmt.Printf("fd%d: listener %s\n", fd, ln.Addr())
+				ln.Close()
+			}
+		}
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
