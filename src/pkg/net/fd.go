@@ -645,10 +645,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 }
 
 func (fd *netFD) dup() (f *os.File, err error) {
+	syscall.ForkLock.RLock()
 	ns, err := syscall.Dup(fd.sysfd)
 	if err != nil {
+		syscall.ForkLock.RUnlock()
 		return nil, &OpError{"dup", fd.net, fd.laddr, err}
 	}
+	syscall.CloseOnExec(ns)
+	syscall.ForkLock.RUnlock()
 
 	// We want blocking mode for the new fd, hence the double negative.
 	if err = syscall.SetNonblock(ns, false); err != nil {
