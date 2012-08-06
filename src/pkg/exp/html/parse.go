@@ -208,7 +208,15 @@ loop:
 // addChild adds a child node n to the top element, and pushes n onto the stack
 // of open elements if it is an element node.
 func (p *parser) addChild(n *Node) {
+	fp := false
 	if p.fosterParenting {
+		switch p.top().DataAtom {
+		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
+			fp = true
+		}
+	}
+
+	if fp {
 		p.fosterParent(n)
 	} else {
 		p.top().Add(n)
@@ -222,7 +230,6 @@ func (p *parser) addChild(n *Node) {
 // fosterParent adds a child node according to the foster parenting rules.
 // Section 12.2.5.3, "foster parenting".
 func (p *parser) fosterParent(n *Node) {
-	p.fosterParenting = false
 	var table, parent *Node
 	var i int
 	for i = len(p.oe) - 1; i >= 0; i-- {
@@ -1308,11 +1315,8 @@ func inTableIM(p *parser) bool {
 		return true
 	}
 
-	switch p.top().DataAtom {
-	case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
-		p.fosterParenting = true
-		defer func() { p.fosterParenting = false }()
-	}
+	p.fosterParenting = true
+	defer func() { p.fosterParenting = false }()
 
 	return inBodyIM(p)
 }
