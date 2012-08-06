@@ -314,6 +314,9 @@ func (t *test) run() {
 			return
 		}
 		for _, gofile := range files {
+			if filepath.Ext(gofile.Name()) != ".go" {
+				continue
+			}
 			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
 			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
 			if err != nil {
