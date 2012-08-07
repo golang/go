@@ -130,11 +130,23 @@ type ReadWriteSeeker interface {
 }
 
 // ReaderFrom is the interface that wraps the ReadFrom method.
+//
+// ReadFrom reads data from r until EOF. The return value n is the
+// number of bytes read. Any error except io.EOF encountered during
+// the read is also returned.
+//
+// The Copy function uses ReaderFrom if available.
 type ReaderFrom interface {
 	ReadFrom(r Reader) (n int64, err error)
 }
 
 // WriterTo is the interface that wraps the WriteTo method.
+//
+// WriteTo writes data to w until there's no more data to write or
+// when an error occurs. The return value n is the number of bytes
+// written. Any error encountered during the write is also returned.
+//
+// The Copy function uses WriterTo if available.
 type WriterTo interface {
 	WriteTo(w Writer) (n int64, err error)
 }
