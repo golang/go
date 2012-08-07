@@ -209,15 +209,15 @@ runtime·printfloat(float64 v)
 	int32 e, s, i, n;
 	float64 h;
 
-	if(runtime·isNaN(v)) {
+	if(ISNAN(v)) {
 		gwrite("NaN", 3);
 		return;
 	}
-	if(runtime·isInf(v, 1)) {
+	if(v == runtime·posinf) {
 		gwrite("+Inf", 4);
 		return;
 	}
-	if(runtime·isInf(v, -1)) {
+	if(v == runtime·neginf) {
 		gwrite("-Inf", 4);
 		return;
 	}
