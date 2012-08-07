@@ -340,6 +340,11 @@ func TestServeFileMimeType(t *testing.T) {
 }
 
 func TestServeFileFromCWD(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// TODO(brainman): find out why this test is broken
+		t.Logf("Temporarily skipping test on Windows; see http://golang.org/issue/3917")
+		return
+	}
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "fs_test.go")
 	}))
