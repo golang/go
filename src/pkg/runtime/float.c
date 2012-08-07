@@ -4,7 +4,7 @@
 
 #include "runtime.h"
 
-static	uint64	uvnan		= 0x7FF0000000000001ULL;
+static	uint64	uvnan		= 0x7FF8000000000001ULL;
 static	uint64	uvinf		= 0x7FF0000000000000ULL;
 static	uint64	uvneginf	= 0xFFF0000000000000ULL;
 

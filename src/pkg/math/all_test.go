@@ -1693,6 +1693,17 @@ func alike(a, b float64) bool {
 	return false
 }
 
+func TestNaN(t *testing.T) {
+	f64 := NaN()
+	if f64 == f64 {
+		t.Fatalf("NaN() returns %g, expected NaN", f64)
+	}
+	f32 := float32(f64)
+	if f32 == f32 {
+		t.Fatalf("float32(NaN()) is %g, expected NaN", f32)
+	}
+}
+
 func TestAcos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := vf[i] / 10
