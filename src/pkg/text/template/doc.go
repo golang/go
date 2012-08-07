@@ -198,7 +198,7 @@ If a "range" action initializes a variable, the variable is set to the
 successive elements of the iteration.  Also, a "range" may declare two
 variables, separated by a comma:
 
-	$index, $element := pipeline
+	range $index, $element := pipeline
 
 in which case $index and $element are set to the successive values of the
 array/slice index or map key and element, respectively.  Note that if there is
