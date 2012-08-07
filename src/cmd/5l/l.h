@@ -401,6 +401,9 @@ void	span(void);
 void	strnput(char*, int);
 int32	symaddr(Sym*);
 void	undef(void);
+void	vputb(uint64);
+void	vputl(uint64);
+void	wputb(uint16);
 void	wput(int32);
 void    wputl(ushort w);
 void	xdefine(char*, int, int32);
@@ -428,3 +431,9 @@ vlong		adduintxx(Sym *s, uint64 v, int wid);
 #define	VPUT(a)	abort()
 
 #endif
+
+/* Used by ../ld/dwarf.c */
+enum
+{
+	DWARFREGSP = 13
+};

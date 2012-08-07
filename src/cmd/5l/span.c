@@ -288,12 +288,20 @@ flushpool(Prog *p, int skip, int force)
 			q->to.type = D_BRANCH;
 			q->cond = p->link;
 			q->link = blitrl;
+			q->line = p->line;
 			blitrl = q;
 		}
 		else if(!force && (p->pc+pool.size-pool.start < 2048))
 			return 0;
 		elitrl->link = p->link;
 		p->link = blitrl;
+		// BUG(minux): how to correctly handle line number for constant pool entries?
+		// for now, we set line number to the last instruction preceding them at least
+		// this won't bloat the .debug_line tables
+		while(blitrl) {
+			blitrl->line = p->line;
+			blitrl = blitrl->link;
+		}
 		blitrl = 0;	/* BUG: should refer back to values until out-of-range */
 		elitrl = 0;
 		pool.size = 0;
