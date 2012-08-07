@@ -1299,7 +1299,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, tool("pack"), "grcP", b.work, mkAbs(objDir, afile), absOfiles)
 }
 
 func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
