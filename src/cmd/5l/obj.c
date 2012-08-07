@@ -34,6 +34,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/dwarf.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -481,6 +482,7 @@ loop:
 				histfrogp++;
 			} else
 				collapsefrog(s);
+			dwarfaddfrag(s->value, s->name);
 		}
 		goto loop;
 	}

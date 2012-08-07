@@ -76,6 +76,7 @@ softfloat(void)
 	 				p->to.type = D_BRANCH;
 					p->to.sym = symsfloat;
 					p->cond = psfloat;
+					p->line = next->line;
 	
 					p = next;
 					wasfloat = 1;

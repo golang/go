@@ -33,6 +33,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/dwarf.h"
 
 static Prog *PP;
 
@@ -509,6 +510,7 @@ doelf(void)
 	if(!debug['s']) {
 		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
 		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+		dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -723,12 +725,11 @@ asmb(void)
 			cflush();
 			cwrite(elfstrdat, elfstrsize);
 
-			// if(debug['v'])
-			// 	Bprint(&bso, "%5.2f dwarf\n", cputime());
-			// dwarfemitdebugsections();
+			if(debug['v'])
+				Bprint(&bso, "%5.2f dwarf\n", cputime());
+			dwarfemitdebugsections();
 		}
 		cflush();
-		
 	}
 
 	cursym = nil;
@@ -989,7 +990,7 @@ asmb(void)
 			sh->size = elfstrsize;
 			sh->addralign = 1;
 
-			// dwarfaddelfheaders();
+			dwarfaddelfheaders();
 		}
 
 		/* Main header */
@@ -2316,10 +2317,4 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
-}
-
-void
-setpersrc(Sym *s)
-{
-	USED(s);
 }
