@@ -49,12 +49,12 @@ xcd() {
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
-./test.bash
+go run $GOROOT/test/run.go - .
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/life
-./test.bash
+go run $GOROOT/test/run.go - .
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||

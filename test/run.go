@@ -77,16 +77,23 @@ func main() {
 	if flag.NArg() > 0 {
 		for _, arg := range flag.Args() {
 			if arg == "-" || arg == "--" {
-				// Permit running either:
+				// Permit running:
 				// $ go run run.go - env.go
 				// $ go run run.go -- env.go
+				// $ go run run.go - ./fixedbugs
+				// $ go run run.go -- ./fixedbugs
 				continue
 			}
-			if !strings.HasSuffix(arg, ".go") {
-				log.Fatalf("can't yet deal with non-go file %q", arg)
+			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
+				for _, baseGoFile := range goFiles(arg) {
+					tests = append(tests, startTest(arg, baseGoFile))
+				}
+			} else if strings.HasSuffix(arg, ".go") {
+				dir, file := filepath.Split(arg)
+				tests = append(tests, startTest(dir, file))
+			} else {
+				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
 			}
-			dir, file := filepath.Split(arg)
-			tests = append(tests, startTest(dir, file))
 		}
 	} else {
 		for _, dir := range dirs {
