@@ -476,7 +476,7 @@ runtime·equal(Type *t, ...)
 	uintptr ret;
 	
 	x = (byte*)(&t+1);
-	y = x + ROUND(t->size, t->align);
+	y = x + t->size;
 	ret = (uintptr)(y + t->size);
 	ret = ROUND(ret, Structrnd);
 	t->alg->equal((bool*)ret, t->size, x, y);
