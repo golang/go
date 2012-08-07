@@ -669,7 +669,7 @@ func afterHeadIM(p *parser) bool {
 			return true
 		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Title:
 			p.oe = append(p.oe, p.head)
-			defer p.oe.pop()
+			defer p.oe.remove(p.head)
 			return inHeadIM(p)
 		case a.Head:
 			// Ignore the token.
