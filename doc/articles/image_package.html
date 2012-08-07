@@ -45,7 +45,7 @@ classic algebra:
 dstr, dstg, dstb, dsta := dst.RGBA()
 srcr, srcg, srcb, srca := src.RGBA()
 _, _, _, m := mask.RGBA()
-const M = 1<<16 - 1
+const M = 1&lt;&lt;16 - 1
 // The resultant red value is a blend of dstr and srcr, and ranges in [0, M].
 // The calculation for green, blue and alpha is similar.
 dstr = (dstr*(M-m) + srcr*m) / M
@@ -130,7 +130,7 @@ much easier to type.
 A <code>Rectangle</code> is inclusive at the top-left and exclusive at the
 bottom-right. For a <code>Point p</code> and a <code>Rectangle r</code>,
 <code>p.In(r)</code> if and only if
-<code>r.Min.X <= p.X && p.X < r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
+<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
 a slice <code>s[i0:i1]</code> is inclusive at the low end and exclusive at the
 high end. (Unlike arrays and slices, a <code>Rectangle</code> often has a
 non-zero origin.)
@@ -193,8 +193,8 @@ way to iterate over an <code>Image</code> m's pixels looks like:
 
 <pre>
 b := m.Bounds()
-for y := b.Min.Y; y < b.Max.Y; y++ {
-	for x := b.Min.X; y < b.Max.X; x++ {
+for y := b.Min.Y; y &lt; b.Max.Y; y++ {
+	for x := b.Min.X; y &lt; b.Max.X; x++ {
 		doStuffWith(m.At(x, y))
 	}
 }
