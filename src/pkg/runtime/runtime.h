@@ -815,3 +815,12 @@ uintptr	runtime·memlimit(void);
 // is forced to deliver the signal to a thread that's actually running.
 // This is a no-op on other systems.
 void	runtime·setprof(bool);
+
+// float.c
+extern float64 runtime·nan;
+extern float64 runtime·posinf;
+extern float64 runtime·neginf;
+extern uint64 ·nan;
+extern uint64 ·posinf;
+extern uint64 ·neginf;
+#define ISNAN(f) ((f) != (f))
