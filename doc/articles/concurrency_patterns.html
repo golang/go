@@ -17,7 +17,7 @@ and launching a goroutine that sleeps before sending on the channel:
 We can then use a <code>select</code> statement to receive from either
 <code>ch</code> or <code>timeout</code>. If nothing arrives on <code>ch</code>
 after one second, the timeout case is selected and the attempt to read from
-<cde>ch</cde> is abandoned.
+<code>ch</code> is abandoned.
 </p>
 
 {{code "/doc/progs/timeout1.go" `/select {/` `/STOP/`}}
