@@ -208,15 +208,7 @@ loop:
 // addChild adds a child node n to the top element, and pushes n onto the stack
 // of open elements if it is an element node.
 func (p *parser) addChild(n *Node) {
-	fp := false
-	if p.fosterParenting {
-		switch p.top().DataAtom {
-		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
-			fp = true
-		}
-	}
-
-	if fp {
+	if p.shouldFosterParent() {
 		p.fosterParent(n)
 	} else {
 		p.top().Add(n)
@@ -225,6 +217,18 @@ func (p *parser) addChild(n *Node) {
 	if n.Type == ElementNode {
 		p.oe = append(p.oe, n)
 	}
+}
+
+// shouldFosterParent returns whether the next node to be added should be
+// foster parented.
+func (p *parser) shouldFosterParent() bool {
+	if p.fosterParenting {
+		switch p.top().DataAtom {
+		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
+			return true
+		}
+	}
+	return false
 }
 
 // fosterParent adds a child node according to the foster parenting rules.
@@ -277,7 +281,15 @@ func (p *parser) addText(text string) {
 	if text == "" {
 		return
 	}
-	// TODO: distinguish whitespace text from others.
+
+	if p.shouldFosterParent() {
+		p.fosterParent(&Node{
+			Type: TextNode,
+			Data: text,
+		})
+		return
+	}
+
 	t := p.top()
 	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
 		t.Child[i-1].Data += text
