@@ -3,6 +3,12 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
+<!--
+	Note: Static (i.e., not template-generated) href and id
+	attributes start with "pkg-" to make it impossible for
+	them to conflict with generated attributes (some of which
+	correspond to Go identifiers).
+-->
 {{with .PDoc}}
 	{{if $.IsPkg}}
 		<div id="short-nav">
@@ -10,18 +16,21 @@
 			<dd><code>import "{{html .ImportPath}}"</code></dd>
 			</dl>
 			<dl>
-			<dd><a href="#overview" class="overviewLink">Overview</a></dd>
-			<dd><a href="#index">Index</a></dd>
+			<dd><a href="#pkg-overview" class="overviewLink">Overview</a></dd>
+			<dd><a href="#pkg-index">Index</a></dd>
 			{{if $.Examples}}
-				<dd><a href="#examples">Examples</a></dd>
+				<dd><a href="#pkg-examples">Examples</a></dd>
+			{{end}}
+			{{if $.PList}}
+				<dd><a href="#pkg-other-packages">Other packages</a></dd>
 			{{end}}
 			{{if $.Dirs}}
-				<dd><a href="#subdirectories">Subdirectories</a></dd>
+				<dd><a href="#pkg-subdirectories">Subdirectories</a></dd>
 			{{end}}
 			</dl>
 		</div>
 		<!-- The package's Name is printed as title by the top-level template -->
-		<div id="overview" class="toggleVisible">
+		<div id="pkg-overview" class="toggleVisible">
 			<div class="collapsed">
 				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
 			</div>
@@ -32,15 +41,15 @@
 		</div>
 		{{example_html "" $.Examples $.FSet}}
 	
-		<h2 id="index">Index</h2>
+		<h2 id="pkg-index">Index</h2>
 		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
 		<div id="manual-nav">
 			<dl>
 			{{if .Consts}}
-				<dd><a href="#constants">Constants</a></dd>
+				<dd><a href="#pkg-constants">Constants</a></dd>
 			{{end}}
 			{{if .Vars}}
-				<dd><a href="#variables">Variables</a></dd>
+				<dd><a href="#pkg-variables">Variables</a></dd>
 			{{end}}
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
@@ -59,12 +68,12 @@
 				{{end}}
 			{{end}}
 			{{if .Bugs}}
-				<dd><a href="#bugs">Bugs</a></dd>
+				<dd><a href="#pkg-bugs">Bugs</a></dd>
 			{{end}}
 		</dl>
 
 		{{if $.Examples}}
-			<h4 id="examples">Examples</h4>
+			<h4 id="pkg-examples">Examples</h4>
 			<dl>
 			{{range $.Examples}}
 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
@@ -84,14 +93,14 @@
 		{{end}}
 	
 		{{with .Consts}}
-			<h2 id="constants">Constants</h2>
+			<h2 id="pkg-constants">Constants</h2>
 			{{range .}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{with .Vars}}
-			<h2 id="variables">Variables</h2>
+			<h2 id="pkg-variables">Variables</h2>
 			{{range .}}
 				<pre>{{node_html .Decl $.FSet}}</pre>
 				{{comment_html .Doc}}
@@ -147,7 +156,7 @@
 	{{end}}
 
 	{{with .Bugs}}
-		<h2 id="bugs">Bugs</h2>
+		<h2 id="pkg-bugs">Bugs</h2>
 		{{range .}}
 		{{comment_html .}}
 		{{end}}
@@ -159,7 +168,7 @@
 {{end}}
 
 {{with .PList}}
-	<h2>Other packages</h2>
+	<h2 id="pkg-other-packages">Other packages</h2>
 	<p>
 	{{/* PList entries are strings - no need for FSet */}}
 	{{range .}}
@@ -171,7 +180,7 @@
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
 	{{if $.PDoc}}
-		<h2 id="subdirectories">Subdirectories</h2>
+		<h2 id="pkg-subdirectories">Subdirectories</h2>
 	{{else}}
 		<div class="pkgGopher">
 			<img class="gopher" src="/doc/gopher/pkg.png"/>
