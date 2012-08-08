@@ -8,6 +8,12 @@ indexes:
 
 - kind: CL
   properties:
+  - name: Owner
+  - name: Modified
+    direction: desc
+
+- kind: CL
+  properties:
   - name: Closed
   - name: Modified
     direction: desc

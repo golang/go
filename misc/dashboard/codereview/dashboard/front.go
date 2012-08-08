@@ -39,11 +39,14 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	var currentPerson string
 	u := data.User
 	you := "you"
-	if e := r.FormValue("email"); e != "" {
+	if e := r.FormValue("user"); e != "" {
 		u = e
 		you = e
 	}
 	currentPerson, data.UserIsReviewer = emailToPerson[u]
+	if !data.UserIsReviewer {
+		currentPerson = u
+	}
 
 	var wg sync.WaitGroup
 	errc := make(chan error, 10)
@@ -63,10 +66,10 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
+	data.Tables[0].Title = "CLs assigned to " + you + " for review"
 	if data.UserIsReviewer {
 		tableFetch(0, func(tbl *clTable) error {
 			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(maxCLs)
-			tbl.Title = "CLs assigned to " + you + " for review"
 			tbl.Assignable = true
 			_, err := q.GetAll(c, &tbl.CLs)
 			return err
@@ -74,7 +77,13 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tableFetch(1, func(tbl *clTable) error {
-		q := activeCLs.Filter("Author =", currentPerson).Limit(maxCLs)
+		q := activeCLs
+		if data.UserIsReviewer {
+			q = q.Filter("Author =", currentPerson)
+		} else {
+			q = q.Filter("Owner =", currentPerson)
+		}
+		q = q.Limit(maxCLs)
 		tbl.Title = "CLs sent by " + you
 		tbl.Assignable = true
 		_, err := q.GetAll(c, &tbl.CLs)
@@ -89,14 +98,12 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		// filter
-		if data.UserIsReviewer {
-			for i := len(tbl.CLs) - 1; i >= 0; i-- {
-				cl := tbl.CLs[i]
-				if cl.Author == currentPerson || cl.Reviewer == currentPerson {
-					// Preserve order.
-					copy(tbl.CLs[i:], tbl.CLs[i+1:])
-					tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
-				}
+		for i := len(tbl.CLs) - 1; i >= 0; i-- {
+			cl := tbl.CLs[i]
+			if cl.Owner == currentPerson || cl.Author == currentPerson || cl.Reviewer == currentPerson {
+				// Preserve order.
+				copy(tbl.CLs[i:], tbl.CLs[i+1:])
+				tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
 			}
 		}
 		return nil
