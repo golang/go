@@ -56,6 +56,8 @@ var utf8map = []Utf8Map{
 	{0x07ff, "\xdf\xbf"},
 	{0x0800, "\xe0\xa0\x80"},
 	{0x0801, "\xe0\xa0\x81"},
+	{0xd7ff, "\xed\x9f\xbf"}, // last code point before surrogate half.
+	{0xe000, "\xee\x80\x80"}, // first code point after surrogate half.
 	{0xfffe, "\xef\xbf\xbe"},
 	{0xffff, "\xef\xbf\xbf"},
 	{0x10000, "\xf0\x90\x80\x80"},
@@ -63,6 +65,11 @@ var utf8map = []Utf8Map{
 	{0x10fffe, "\xf4\x8f\xbf\xbe"},
 	{0x10ffff, "\xf4\x8f\xbf\xbf"},
 	{0xFFFD, "\xef\xbf\xbd"},
+}
+
+var surrogateMap = []Utf8Map{
+	{0xd800, "\xed\xa0\x80"}, // surrogate min decodes to (RuneError, 1)
+	{0xdfff, "\xed bf bf"},   // surrogate max decodes to (RuneError, 1)
 }
 
 var testStrings = []string{
@@ -75,8 +82,7 @@ var testStrings = []string{
 }
 
 func TestFullRune(t *testing.T) {
-	for i := 0; i < len(utf8map); i++ {
-		m := utf8map[i]
+	for _, m := range utf8map {
 		b := []byte(m.str)
 		if !FullRune(b) {
 			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.r)
@@ -97,8 +103,7 @@ func TestFullRune(t *testing.T) {
 }
 
 func TestEncodeRune(t *testing.T) {
-	for i := 0; i < len(utf8map); i++ {
-		m := utf8map[i]
+	for _, m := range utf8map {
 		b := []byte(m.str)
 		var buf [10]byte
 		n := EncodeRune(buf[0:], m.r)
@@ -110,8 +115,7 @@ func TestEncodeRune(t *testing.T) {
 }
 
 func TestDecodeRune(t *testing.T) {
-	for i := 0; i < len(utf8map); i++ {
-		m := utf8map[i]
+	for _, m := range utf8map {
 		b := []byte(m.str)
 		r, size := DecodeRune(b)
 		if r != m.r || size != len(b) {
@@ -165,6 +169,21 @@ func TestDecodeRune(t *testing.T) {
 			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, RuneError, 1)
 		}
 
+	}
+}
+
+func TestDecodeSurrogateRune(t *testing.T) {
+	for _, m := range surrogateMap {
+		b := []byte(m.str)
+		r, size := DecodeRune(b)
+		if r != RuneError || size != 1 {
+			t.Errorf("DecodeRune(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
+		}
+		s := m.str
+		r, size = DecodeRuneInString(s)
+		if r != RuneError || size != 1 {
+			t.Errorf("DecodeRune(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
+		}
 	}
 }
 
@@ -284,13 +303,38 @@ var runecounttests = []RuneCountTest{
 }
 
 func TestRuneCount(t *testing.T) {
-	for i := 0; i < len(runecounttests); i++ {
-		tt := runecounttests[i]
+	for _, tt := range runecounttests {
 		if out := RuneCountInString(tt.in); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out)
 		}
 		if out := RuneCount([]byte(tt.in)); out != tt.out {
 			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out)
+		}
+	}
+}
+
+type RuneLenTest struct {
+	r    rune
+	size int
+}
+
+var runelentests = []RuneLenTest{
+	{0, 1},
+	{'e', 1},
+	{'é', 2},
+	{'☺', 3},
+	{RuneError, 3},
+	{MaxRune, 4},
+	{0xD800, -1},
+	{0xDFFF, -1},
+	{MaxRune + 1, -1},
+	{-1, -1},
+}
+
+func TestRuneLen(t *testing.T) {
+	for _, tt := range runelentests {
+		if size := RuneLen(tt.r); size != tt.size {
+			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, size, tt.size)
 		}
 	}
 }
@@ -314,17 +358,45 @@ var validTests = []ValidTest{
 	{string("\xF7\xBF\xBF\xBF"), true},      // U+1FFFFF
 	{string("\xFB\xBF\xBF\xBF\xBF"), false}, // 0x3FFFFFF; out of range
 	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
-	// TODO {string("\xed\xa0\x80"), false },	// U+D800 high surrogate (sic)
-	// TODO {string("\xed\xbf\xbf"), false },	// U+DFFF low surrogate (sic)
+	{string("\xed\xa0\x80"), false},         // U+D800 high surrogate (sic)
+	{string("\xed\xbf\xbf"), false},         // U+DFFF low surrogate (sic)
 }
 
 func TestValid(t *testing.T) {
-	for i, tt := range validTests {
+	for _, tt := range validTests {
 		if Valid([]byte(tt.in)) != tt.out {
-			t.Errorf("%d. Valid(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
+			t.Errorf("Valid(%q) = %v; want %v", tt.in, !tt.out, tt.out)
 		}
 		if ValidString(tt.in) != tt.out {
-			t.Errorf("%d. ValidString(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
+			t.Errorf("ValidString(%q) = %v; want %v", tt.in, !tt.out, tt.out)
+		}
+	}
+}
+
+type ValidRuneTest struct {
+	r  rune
+	ok bool
+}
+
+var validrunetests = []ValidRuneTest{
+	{0, true},
+	{'e', true},
+	{'é', true},
+	{'☺', true},
+	{RuneError, true},
+	{MaxRune, true},
+	{0xD7FF, true},
+	{0xD800, false},
+	{0xDFFF, false},
+	{0xE000, true},
+	{MaxRune + 1, false},
+	{-1, false},
+}
+
+func TestValidRune(t *testing.T) {
+	for _, tt := range validrunetests {
+		if ok := ValidRune(tt.r); ok != tt.ok {
+			t.Errorf("ValidRune(%#U) = %t, want %t", tt.r, ok, tt.ok)
 		}
 	}
 }
