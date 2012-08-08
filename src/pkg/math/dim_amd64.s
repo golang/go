@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #define PosInf 0x7FF0000000000000
-#define NaN    0x7FF0000000000001
+#define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 
 // func Dim(x, y float64) float64
