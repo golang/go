@@ -57,6 +57,13 @@ func main() {
 		ok = false
 	}
 
+	for _, c := range "a\xed\xa0\x80a" {
+		if c != 'a' && c != utf8.RuneError {
+			fmt.Printf("surrogate UTF-8 does not error: %U\n", c)
+			ok = false
+		}
+	}
+
 	if !ok {
 		fmt.Println("BUG: stringrange")
 		os.Exit(1)

@@ -18,6 +18,12 @@ const (
 	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
 )
 
+// Code points in the surrogate range are not valid for UTF-8.
+const (
+	surrogateMin = 0xD800
+	surrogateMax = 0xDFFF
+)
+
 const (
 	t1 = 0x00 // 0000 0000
 	tx = 0x80 // 1000 0000
@@ -34,7 +40,6 @@ const (
 	rune1Max = 1<<7 - 1
 	rune2Max = 1<<11 - 1
 	rune3Max = 1<<16 - 1
-	rune4Max = 1<<21 - 1
 )
 
 func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
@@ -85,6 +90,9 @@ func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
 	if c0 < t4 {
 		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
 		if r <= rune2Max {
+			return RuneError, 1, false
+		}
+		if surrogateMin <= r && r <= surrogateMax {
 			return RuneError, 1, false
 		}
 		return r, 3, false
@@ -160,6 +168,9 @@ func decodeRuneInStringInternal(s string) (r rune, size int, short bool) {
 	if c0 < t4 {
 		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
 		if r <= rune2Max {
+			return RuneError, 1, false
+		}
+		if surrogateMin <= r && r <= surrogateMax {
 			return RuneError, 1, false
 		}
 		return r, 3, false
@@ -295,15 +306,20 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 }
 
 // RuneLen returns the number of bytes required to encode the rune.
+// It returns -1 if the rune is not a valid value to encode in UTF-8.
 func RuneLen(r rune) int {
 	switch {
+	case r < 0:
+		return -1
 	case r <= rune1Max:
 		return 1
 	case r <= rune2Max:
 		return 2
+	case surrogateMin <= r && r <= surrogateMax:
+		return -1
 	case r <= rune3Max:
 		return 3
-	case r <= rune4Max:
+	case r <= MaxRune:
 		return 4
 	}
 	return -1
@@ -325,6 +341,10 @@ func EncodeRune(p []byte, r rune) int {
 	}
 
 	if uint32(r) > MaxRune {
+		r = RuneError
+	}
+
+	if surrogateMin <= r && r <= surrogateMax {
 		r = RuneError
 	}
 
@@ -404,6 +424,20 @@ func ValidString(s string) bool {
 				return false
 			}
 		}
+	}
+	return true
+}
+
+// ValidRune reports whether r can be legally encoded as UTF-8.
+// Code points that are out of range or a surrogate half are illegal.
+func ValidRune(r rune) bool {
+	switch {
+	case r < 0:
+		return false
+	case surrogateMin <= r && r <= surrogateMax:
+		return false
+	case r > MaxRune:
+		return false
 	}
 	return true
 }

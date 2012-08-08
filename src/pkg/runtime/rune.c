@@ -47,6 +47,9 @@ enum
 	Runeerror	= 0xFFFD,
 	Runeself	= 0x80,
 
+	SurrogateMin = 0xD800,
+	SurrogateMax = 0xDFFF,
+
 	Bad	= Runeerror,
 
 	Runemax	= 0x10FFFF,	/* maximum rune value */
@@ -128,6 +131,8 @@ runtime·charntorune(int32 *rune, uint8 *str, int32 length)
 		l = ((((c << Bitx) | c1) << Bitx) | c2) & Rune3;
 		if(l <= Rune2)
 			goto bad;
+		if (SurrogateMin <= l && l <= SurrogateMax)
+			goto bad;
 		*rune = l;
 		return 3;
 	}
@@ -193,12 +198,14 @@ runtime·runetochar(byte *str, int32 rune)  /* note: in original, arg2 was point
 	}
 
 	/*
-	 * If the Rune is out of range, convert it to the error rune.
+	 * If the Rune is out of range or a surrogate half, convert it to the error rune.
 	 * Do this test here because the error rune encodes to three bytes.
 	 * Doing it earlier would duplicate work, since an out of range
 	 * Rune wouldn't have fit in one or two bytes.
 	 */
 	if (c > Runemax)
+		c = Runeerror;
+	if (SurrogateMin <= c && c <= SurrogateMax)
 		c = Runeerror;
 
 	/*
