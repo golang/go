@@ -1618,6 +1618,8 @@ func inSelectIM(p *parser) bool {
 				return false
 			}
 			// Ignore the token.
+			// In order to properly ignore <textarea>, we need to change the tokenizer mode.
+			p.tokenizer.rawTag = ""
 			return true
 		case a.Script:
 			return inHeadIM(p)
