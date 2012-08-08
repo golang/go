@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define PosInf 0x7ff0000000000000
-#define NaN 0x7FF0000000000001
+#define PosInf 0x7FF0000000000000
+#define NaN 0x7FF8000000000001
 
 // func Hypot(x, y float64) float64
 TEXT ·Hypot(SB),7,$0
