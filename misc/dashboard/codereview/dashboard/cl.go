@@ -148,7 +148,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := user.Current(c)
-	if _, ok := emailToPerson[u.Email]; !ok {
+	person, ok := emailToPerson[u.Email]
+	if !ok {
 		http.Error(w, "Not allowed", http.StatusUnauthorized)
 		return
 	}
@@ -159,8 +160,7 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad CL", 400)
 		return
 	}
-	person, ok := preferredEmail[rev]
-	if !ok && rev != "" {
+	if _, ok := preferredEmail[rev]; !ok && rev != "" {
 		c.Errorf("Unknown reviewer %q", rev)
 		http.Error(w, "Unknown reviewer", 400)
 		return
