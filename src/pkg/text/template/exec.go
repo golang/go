@@ -327,6 +327,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		return reflect.ValueOf(word.True)
 	case *parse.DotNode:
 		return dot
+	case *parse.NilNode:
+		s.errorf("nil is not a command")
 	case *parse.NumberNode:
 		return s.idealConstant(word)
 	case *parse.StringNode:
@@ -507,17 +509,23 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
 	return result[0]
 }
 
+// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+func canBeNil(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return true
+	}
+	return false
+}
+
 // validateType guarantees that the value is valid and assignable to the type.
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
 	if !value.IsValid() {
-		switch typ.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Map, reflect.Slice, reflect.Func:
+		if canBeNil(typ) {
 			// An untyped nil interface{}. Accept as a proper nil value.
-			// TODO: Can we delete the other types in this list? Should we?
-			value = reflect.Zero(typ)
-		default:
-			s.errorf("invalid value; expected %s", typ)
+			return reflect.Zero(typ)
 		}
+		s.errorf("invalid value; expected %s", typ)
 	}
 	if !value.Type().AssignableTo(typ) {
 		if value.Kind() == reflect.Interface && !value.IsNil() {
@@ -547,6 +555,11 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	switch arg := n.(type) {
 	case *parse.DotNode:
 		return s.validateType(dot, typ)
+	case *parse.NilNode:
+		if canBeNil(typ) {
+			return reflect.Zero(typ)
+		}
+		s.errorf("cannot assign nil to %s", typ)
 	case *parse.FieldNode:
 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
 	case *parse.VariableNode:
@@ -644,6 +657,9 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 		return s.evalFieldNode(dot, n, nil, zero)
 	case *parse.IdentifierNode:
 		return s.evalFunction(dot, n.Ident, nil, zero)
+	case *parse.NilNode:
+		// NilNode is handled in evalArg, the only place that calls here.
+		s.errorf("evalEmptyInterface: nil (can't happen)")
 	case *parse.NumberNode:
 		return s.idealConstant(n)
 	case *parse.StringNode:
