@@ -36,7 +36,7 @@ func init() {
 	gcPath = filepath.Join(build.ToolDir, gc)
 }
 
-func compile(t *testing.T, dirname, filename string) (outFn string) {
+func compile(t *testing.T, dirname, filename string) string {
 	cmd := exec.Command(gcPath, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
@@ -112,4 +112,43 @@ func TestGcImport(t *testing.T) {
 	}
 	nimports += testDir(t, "", time.Now().Add(maxTime)) // installed packages
 	t.Logf("tested %d imports", nimports)
+}
+
+var importedObjectTests = []struct {
+	name string
+	kind ast.ObjKind
+	typ  string
+}{
+	{"unsafe.Pointer", ast.Typ, "Pointer"},
+	{"math.Pi", ast.Con, "basicType"}, // TODO(gri) need to complete BasicType
+	{"io.Reader", ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
+	{"io.ReadWriter", ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
+	{"math.Sin", ast.Fun, "func(x float64) (_ float64)"},
+	// TODO(gri) add more tests
+}
+
+func TestGcImportedTypes(t *testing.T) {
+	for _, test := range importedObjectTests {
+		s := strings.Split(test.name, ".")
+		if len(s) != 2 {
+			t.Fatal("inconsistent test data")
+		}
+		importPath := s[0]
+		objName := s[1]
+
+		pkg, err := GcImport(imports, importPath)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		obj := pkg.Data.(*ast.Scope).Lookup(objName)
+		if obj.Kind != test.kind {
+			t.Errorf("%s: got kind = %q; want %q", test.name, obj.Kind, test.kind)
+		}
+		typ := TypeString(Underlying(obj.Type.(Type)))
+		if typ != test.typ {
+			t.Errorf("%s: got type = %q; want %q", test.name, typ, test.typ)
+		}
+	}
 }
