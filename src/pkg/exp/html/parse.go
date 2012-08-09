@@ -42,6 +42,8 @@ type parser struct {
 	fosterParenting bool
 	// quirks is whether the parser is operating in "quirks mode."
 	quirks bool
+	// fragment is whether the parser is parsing an HTML fragment.
+	fragment bool
 	// context is the context element when parsing an HTML fragment
 	// (section 12.4).
 	context *Node
@@ -1692,7 +1694,9 @@ func afterBodyIM(p *parser) bool {
 		}
 	case EndTagToken:
 		if p.tok.DataAtom == a.Html {
-			p.im = afterAfterBodyIM
+			if !p.fragment {
+				p.im = afterAfterBodyIM
+			}
 			return true
 		}
 	case CommentToken:
@@ -2054,6 +2058,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
 			Type: DocumentNode,
 		},
 		scripting: true,
+		fragment:  true,
 		context:   context,
 	}
 
