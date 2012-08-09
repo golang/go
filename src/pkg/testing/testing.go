@@ -132,6 +132,11 @@ func Short() bool {
 	return *short
 }
 
+// Verbose reports whether the -test.v flag is set.
+func Verbose() bool {
+	return *chatty
+}
+
 // decorate prefixes the string with the file and line of the call site
 // and inserts the final newline if needed and indentation tabs for formatting.
 func decorate(s string) string {
