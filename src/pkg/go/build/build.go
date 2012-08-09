@@ -689,7 +689,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 		}
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 { // Blank line
-			end = cap(content) - cap(line) // &line[0] - &content[0]
+			end = len(content) - len(p)
 			continue
 		}
 		if !bytes.HasPrefix(line, slashslash) { // Not comment line
