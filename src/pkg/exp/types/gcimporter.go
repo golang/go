@@ -507,33 +507,21 @@ func (p *gcParser) parseSignature() *Func {
 	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
 }
 
-// MethodOrEmbedSpec = Name [ Signature ] .
+// InterfaceType = "interface" "{" [ MethodList ] "}" .
+// MethodList = Method { ";" Method } .
+// Method = Name Signature .
 //
-func (p *gcParser) parseMethodOrEmbedSpec() *ast.Object {
-	name := p.parseName()
-	if p.tok == '(' {
-		typ := p.parseSignature()
-		obj := ast.NewObj(ast.Fun, name)
-		obj.Type = typ
-		return obj
-	}
-	// TODO lookup name and return that type
-	return ast.NewObj(ast.Typ, "_")
-}
-
-// InterfaceType = "interface" "{" [ MethodOrEmbedList ] "}" .
-// MethodOrEmbedList = MethodOrEmbedSpec { ";" MethodOrEmbedSpec } .
+// (The methods of embedded interfaces are always "inlined"
+// by the compiler and thus embedded interfaces are never
+// visible in the export data.)
 //
 func (p *gcParser) parseInterfaceType() Type {
 	var methods ObjList
 
 	parseMethod := func() {
-		switch m := p.parseMethodOrEmbedSpec(); m.Kind {
-		case ast.Typ:
-			// TODO expand embedded methods
-		case ast.Fun:
-			methods = append(methods, m)
-		}
+		obj := ast.NewObj(ast.Fun, p.parseName())
+		obj.Type = p.parseSignature()
+		methods = append(methods, obj)
 	}
 
 	p.expectKeyword("interface")
