@@ -373,13 +373,11 @@ func main() {
 		}
 		mode |= showSource
 	}
-	// TODO(gri): Provide a mechanism (flag?) to select a package
-	//            if there are multiple packages in a directory.
 
 	// first, try as package unless forced as command
 	var info PageInfo
 	if !forceCmd {
-		info = pkgHandler.getPageInfo(abspath, relpath, "", mode)
+		info = pkgHandler.getPageInfo(abspath, relpath, mode)
 	}
 
 	// second, try as command unless the path is absolute
@@ -387,7 +385,7 @@ func main() {
 	var cinfo PageInfo
 	if !filepath.IsAbs(path) {
 		abspath = pathpkg.Join(cmdHandler.fsRoot, path)
-		cinfo = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+		cinfo = cmdHandler.getPageInfo(abspath, relpath, mode)
 	}
 
 	// determine what to use
