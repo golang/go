@@ -355,7 +355,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			}
 			return
 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
-			itemVariable, itemNumber, itemRawString, itemString:
+			itemNumber, itemNil, itemRawString, itemString, itemVariable:
 			t.backup()
 			pipe.append(t.command())
 		default:
@@ -470,6 +470,8 @@ Loop:
 			cmd.append(NewIdentifier(token.val))
 		case itemDot:
 			cmd.append(newDot())
+		case itemNil:
+			cmd.append(newNil())
 		case itemVariable:
 			cmd.append(t.useVar(token.val))
 		case itemField:

@@ -63,6 +63,7 @@ type T struct {
 	BinaryFunc      func(string, string) string
 	VariadicFunc    func(...string) string
 	VariadicFuncInt func(int, ...string) string
+	NilOKFunc       func(*int) bool
 	// Template to test evaluation of templates.
 	Tmpl *Template
 	// Unexported field; cannot be accessed by template.
@@ -127,6 +128,7 @@ var tVal = &T{
 	BinaryFunc:        func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
 	VariadicFuncInt:   func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
+	NilOKFunc:         func(s *int) bool { return s == nil },
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -222,6 +224,7 @@ var execTests = []execTest{
 	// Trivial cases.
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},
+	{"nil action", "{{nil}}", "", nil, false},
 
 	// Ideal constants.
 	{"ideal int", "{{typeOf 3}}", "int", 0, true},
@@ -230,6 +233,7 @@ var execTests = []execTest{
 	{"ideal complex", "{{typeOf 1i}}", "complex128", 0, true},
 	{"ideal int", "{{typeOf " + bigInt + "}}", "int", 0, true},
 	{"ideal too big", "{{typeOf " + bigUint + "}}", "", 0, false},
+	{"ideal nil without type", "{{nil}}", "", 0, false},
 
 	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
@@ -295,7 +299,8 @@ var execTests = []execTest{
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
-	{".Method3(nil)", "-{{.Method3 .MXI.unset}}-", "-Method3: <nil>-", tVal, true},
+	{".Method3(nil constant)", "-{{.Method3 nil}}-", "-Method3: <nil>-", tVal, true},
+	{".Method3(nil value)", "-{{.Method3 .MXI.unset}}-", "-Method3: <nil>-", tVal, true},
 	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
 	{"method on chained var",
 		"{{range .MSIone}}{{if $.U.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
@@ -306,6 +311,8 @@ var execTests = []execTest{
 	{"chained method on variable",
 		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
 		"true", tVal, true},
+	{".NilOKFunc not nil", "{{call .NilOKFunc .PI}}", "false", tVal, true},
+	{".NilOKFunc nil", "{{call .NilOKFunc nil}}", "true", tVal, true},
 
 	// Function call builtin.
 	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},
@@ -324,6 +331,7 @@ var execTests = []execTest{
 	{".VariadicFuncBad0", "{{call .VariadicFunc 3}}", "", tVal, false},
 	{".VariadicFuncIntBad0", "{{call .VariadicFuncInt}}", "", tVal, false},
 	{".VariadicFuncIntBad`", "{{call .VariadicFuncInt `x`}}", "", tVal, false},
+	{".VariadicFuncNilBad", "{{call .VariadicFunc nil}}", "", tVal, false},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
@@ -332,6 +340,7 @@ var execTests = []execTest{
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
+	{"if nil", "{{if nil}}TRUE{{end}}", "", tVal, false},
 	{"if 1", "{{if 1}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
 	{"if 0", "{{if 0}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
 	{"if 1.5", "{{if 1.5}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
@@ -351,7 +360,8 @@ var execTests = []execTest{
 
 	// Print etc.
 	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
-	{"print", `{{print 1 2 3}}`, "1 2 3", tVal, true},
+	{"print 123", `{{print 1 2 3}}`, "1 2 3", tVal, true},
+	{"print nil", `{{print nil}}`, "<nil>", tVal, true},
 	{"println", `{{println 1 2 3}}`, "1 2 3\n", tVal, true},
 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
@@ -391,6 +401,7 @@ var execTests = []execTest{
 	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
 	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
 	{"map[NO]", "{{index .MSI `XXX`}}", "0", tVal, true},
+	{"map[nil]", "{{index .MSI nil}}", "0", tVal, true},
 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
 

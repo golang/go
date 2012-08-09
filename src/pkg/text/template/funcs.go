@@ -122,6 +122,9 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 			}
 			v = v.Index(int(x))
 		case reflect.Map:
+			if !index.IsValid() {
+				index = reflect.Zero(v.Type().Key())
+			}
 			if !index.Type().AssignableTo(v.Type().Key()) {
 				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
 			}
@@ -187,10 +190,13 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 		} else {
 			argType = dddType
 		}
+		if !value.IsValid() && canBeNil(argType) {
+			value = reflect.Zero(argType)
+		}
 		if !value.Type().AssignableTo(argType) {
 			return nil, fmt.Errorf("arg %d has type %s; should be %s", i, value.Type(), argType)
 		}
-		argv[i] = reflect.ValueOf(arg)
+		argv[i] = value
 	}
 	result := v.Call(argv)
 	if len(result) == 2 {

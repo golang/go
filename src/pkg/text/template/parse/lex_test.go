@@ -85,6 +85,12 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"nil", "{{nil}}", []item{
+		tLeft,
+		{itemNil, 0, "nil"},
+		tRight,
+		tEOF,
+	}},
 	{"dots", "{{.x . .2 .x.y}}", []item{
 		tLeft,
 		{itemField, 0, ".x"},
