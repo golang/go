@@ -21,9 +21,6 @@
 			{{if $.Examples}}
 				<dd><a href="#pkg-examples">Examples</a></dd>
 			{{end}}
-			{{if $.PList}}
-				<dd><a href="#pkg-other-packages">Other packages</a></dd>
-			{{end}}
 			{{if $.Dirs}}
 				<dd><a href="#pkg-subdirectories">Subdirectories</a></dd>
 			{{end}}
@@ -165,16 +162,6 @@
 
 {{with .PAst}}
 	<pre>{{node_html . $.FSet}}</pre>
-{{end}}
-
-{{with .PList}}
-	<h2 id="pkg-other-packages">Other packages</h2>
-	<p>
-	{{/* PList entries are strings - no need for FSet */}}
-	{{range .}}
-	<a href="?p={{urlquery .}}">{{html .}}</a><br />
-	{{end}}
-	</p>
 {{end}}
 
 {{with .Dirs}}

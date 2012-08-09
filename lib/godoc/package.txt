@@ -65,15 +65,6 @@ BUGS
 
 ---------------------------------------
 
-*/}}{{with .PList}}
-OTHER PACKAGES
-
-{{range .}}
-{{.}}{{end}}
-{{end}}{{/*
-
----------------------------------------
-
 */}}{{with .Dirs}}
 SUBDIRECTORIES
 {{if $.DirFlat}}{{range .List}}{{if .HasPkg}}

@@ -810,7 +810,6 @@ func remoteSearchURL(query string, html bool) string {
 
 type PageInfo struct {
 	Dirname  string         // directory containing the package
-	PList    []string       // list of package names found
 	FSet     *token.FileSet // corresponding file set
 	PAst     *ast.File      // nil if no single AST with package exports
 	PDoc     *doc.Package   // nil if no single package documentation
@@ -876,27 +875,24 @@ func packageExports(fset *token.FileSet, pkg *ast.Package) {
 // directories, PageInfo.Dirs is nil. If a directory read error occurred,
 // PageInfo.Err is set to the respective error but the error is not logged.
 //
-func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
+func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) PageInfo {
 	var pkgFiles []string
 
-	// If we're showing the default package, restrict to the ones
+	// Restrict to the package files
 	// that would be used when building the package on this
 	// system.  This makes sure that if there are separate
 	// implementations for, say, Windows vs Unix, we don't
 	// jumble them all together.
-	if pkgname == "" {
-		// Note: Uses current binary's GOOS/GOARCH.
-		// To use different pair, such as if we allowed the user
-		// to choose, set ctxt.GOOS and ctxt.GOARCH before
-		// calling ctxt.ScanDir.
-		ctxt := build.Default
-		ctxt.IsAbsPath = pathpkg.IsAbs
-		ctxt.ReadDir = fsReadDir
-		ctxt.OpenFile = fsOpenFile
-		dir, err := ctxt.ImportDir(abspath, 0)
-		if err == nil {
-			pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
-		}
+	// Note: Uses current binary's GOOS/GOARCH.
+	// To use different pair, such as if we allowed the user
+	// to choose, set ctxt.GOOS and ctxt.GOARCH before
+	// calling ctxt.ScanDir.
+	ctxt := build.Default
+	ctxt.IsAbsPath = pathpkg.IsAbs
+	ctxt.ReadDir = fsReadDir
+	ctxt.OpenFile = fsOpenFile
+	if dir, err := ctxt.ImportDir(abspath, 0); err == nil {
+		pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
 	}
 
 	// filter function to select the desired .go files
@@ -917,15 +913,12 @@ func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoM
 	// get package ASTs
 	fset := token.NewFileSet()
 	pkgs, err := parseDir(fset, abspath, filter)
-	if err != nil && pkgs == nil {
-		// only report directory read errors, ignore parse errors
-		// (may be able to extract partial package information)
+	if err != nil {
 		return PageInfo{Dirname: abspath, Err: err}
 	}
 
 	// select package
 	var pkg *ast.Package // selected package
-	var plist []string   // list of other package (names), if any
 	if len(pkgs) == 1 {
 		// Exactly one package - select it.
 		for _, p := range pkgs {
@@ -933,49 +926,18 @@ func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoM
 		}
 
 	} else if len(pkgs) > 1 {
-		// Multiple packages - select the best matching package: The
-		// 1st choice is the package with pkgname, the 2nd choice is
-		// the package with dirname, and the 3rd choice is a package
-		// that is not called "main" if there is exactly one such
-		// package. Otherwise, don't select a package.
-		dirpath, dirname := pathpkg.Split(abspath)
-
-		// If the dirname is "go" we might be in a sub-directory for
-		// .go files - use the outer directory name instead for better
-		// results.
-		if dirname == "go" {
-			_, dirname = pathpkg.Split(pathpkg.Clean(dirpath))
-		}
-
-		var choice3 *ast.Package
-	loop:
+		// More than one package - report an error.
+		var buf bytes.Buffer
 		for _, p := range pkgs {
-			switch {
-			case p.Name == pkgname:
-				pkg = p
-				break loop // 1st choice; we are done
-			case p.Name == dirname:
-				pkg = p // 2nd choice
-			case p.Name != "main":
-				choice3 = p
+			if buf.Len() > 0 {
+				fmt.Fprintf(&buf, ", ")
 			}
+			fmt.Fprintf(&buf, p.Name)
 		}
-		if pkg == nil && len(pkgs) == 2 {
-			pkg = choice3
+		return PageInfo{
+			Dirname: abspath,
+			Err:     fmt.Errorf("%s contains more than one package: %s", abspath, buf.Bytes()),
 		}
-
-		// Compute the list of other packages
-		// (excluding the selected package, if any).
-		plist = make([]string, len(pkgs))
-		i := 0
-		for name := range pkgs {
-			if pkg == nil || name != pkg.Name {
-				plist[i] = name
-				i++
-			}
-		}
-		plist = plist[0:i]
-		sort.Strings(plist)
 	}
 
 	// get examples from *_test.go files
@@ -1041,7 +1003,6 @@ func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoM
 
 	return PageInfo{
 		Dirname:  abspath,
-		PList:    plist,
 		FSet:     fset,
 		PAst:     past,
 		PDoc:     pdoc,
@@ -1065,7 +1026,7 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if relpath == builtinPkgPath {
 		mode = noFiltering
 	}
-	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
+	info := h.getPageInfo(abspath, relpath, mode)
 	if info.Err != nil {
 		log.Print(info.Err)
 		serveError(w, r, relpath, info.Err)
