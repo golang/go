@@ -999,6 +999,10 @@ func inBodyIM(p *parser) bool {
 			adjustForeignAttributes(p.tok.Attr)
 			p.addElement()
 			p.top().Namespace = p.tok.Data
+			if p.hasSelfClosingToken {
+				p.oe.pop()
+				p.acknowledgeSelfClosingTag()
+			}
 			return true
 		case a.Caption, a.Col, a.Colgroup, a.Frame, a.Head, a.Tbody, a.Td, a.Tfoot, a.Th, a.Thead, a.Tr:
 			// Ignore the token.
@@ -2011,8 +2015,8 @@ func (p *parser) parseCurrentToken() {
 	}
 
 	if p.hasSelfClosingToken {
+		// This is a parse error, but ignore it.
 		p.hasSelfClosingToken = false
-		p.parseImpliedToken(EndTagToken, p.tok.DataAtom, p.tok.Data)
 	}
 }
 
