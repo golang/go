@@ -264,16 +264,17 @@ func lexText(l *lexer) stateFn {
 
 // lexLeftDelim scans the left delimiter, which is known to be present.
 func lexLeftDelim(l *lexer) stateFn {
-	if strings.HasPrefix(l.input[l.pos:], l.leftDelim+leftComment) {
+	l.pos += len(l.leftDelim)
+	if strings.HasPrefix(l.input[l.pos:], leftComment) {
 		return lexComment
 	}
-	l.pos += len(l.leftDelim)
 	l.emit(itemLeftDelim)
 	return lexInsideAction
 }
 
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
+	l.pos += len(leftComment)
 	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
 	if i < 0 {
 		return l.errorf("unclosed comment")
