@@ -34,6 +34,7 @@
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_select (SYS_BASE + 142) // newselect
 #define SYS_ugetrlimit (SYS_BASE + 191)
+#define SYS_sched_getaffinity (SYS_BASE + 242)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -391,5 +392,13 @@ TEXT runtime·casp(SB),7,$0
 
 TEXT runtime·osyield(SB),7,$0
 	MOVW	$SYS_sched_yield, R7
+	SWI	$0
+	RET
+
+TEXT runtime·sched_getaffinity(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
 	RET

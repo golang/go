@@ -423,3 +423,11 @@ TEXT runtime·osyield(SB),7,$0
 	MOVL	$158, AX
 	CALL	*runtime·_vdso(SB)
 	RET
+
+TEXT runtime·sched_getaffinity(SB),7,$0
+	MOVL	$242, AX		// syscall - sched_getaffinity
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	CALL	*runtime·_vdso(SB)
+	RET
