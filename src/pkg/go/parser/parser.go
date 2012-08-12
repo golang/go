@@ -2285,6 +2285,12 @@ func (p *parser) parseFile() *ast.File {
 		defer un(trace(p, "File"))
 	}
 
+	// Don't bother parsing the rest if we had errors scanning the first token.
+	// Likely not a Go source file at all.
+	if p.errors.Len() != 0 {
+		return nil
+	}
+
 	// package clause
 	doc := p.leadComment
 	pos := p.expect(token.PACKAGE)
@@ -2296,13 +2302,16 @@ func (p *parser) parseFile() *ast.File {
 	}
 	p.expectSemi()
 
-	// Don't bother parsing the rest if we had errors already.
+	// Don't bother parsing the rest if we had errors parsing the package clause.
 	// Likely not a Go source file at all.
+	if p.errors.Len() != 0 {
+		return nil
+	}
 
 	p.openScope()
 	p.pkgScope = p.topScope
 	var decls []ast.Decl
-	if p.errors.Len() == 0 && p.mode&PackageClauseOnly == 0 {
+	if p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
 			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))

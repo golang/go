@@ -90,6 +90,15 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	var p parser
 	p.init(fset, filename, text, mode)
 	f := p.parseFile()
+	if f == nil {
+		// source is not a valid Go source file - satisfy
+		// ParseFile API and return a valid (but) empty
+		// *ast.File
+		f = &ast.File{
+			Name:  new(ast.Ident),
+			Scope: ast.NewScope(nil),
+		}
+	}
 
 	// sort errors
 	if p.mode&SpuriousErrors == 0 {
