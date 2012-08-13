@@ -23,7 +23,7 @@ import (
 // BUG(rsc): A bug in the OS X Snow Leopard 64-bit kernel prevents
 // CPU profiling from giving accurate results on that system.
 
-// A Profile is a collection of stack traces showing the call sequences
+// Profile is a collection of stack traces showing the call sequences
 // that led to instances of a particular event, such as allocation.
 // Packages can create and maintain their own profiles; the most common
 // use is for tracking resources that must be explicitly closed, such as files
@@ -250,7 +250,7 @@ func (x stackProfile) Less(i, j int) bool {
 	return len(t) < len(u)
 }
 
-// A countProfile is a set of stack traces to be printed as counts
+// countProfile is a set of stack traces to be printed as counts
 // grouped by stack trace.  There are multiple implementations:
 // all that matters is that we can find out how many traces there are
 // and obtain each trace in turn.
@@ -356,7 +356,7 @@ func countHeap() int {
 	return n
 }
 
-// writeHeapProfile writes the current runtime heap profile to w.
+// writeHeap writes the current runtime heap profile to w.
 func writeHeap(w io.Writer, debug int) error {
 	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
