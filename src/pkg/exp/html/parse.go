@@ -19,9 +19,8 @@ type parser struct {
 	tokenizer *Tokenizer
 	// tok is the most recently read token.
 	tok Token
-	// Self-closing tags like <hr/> are re-interpreted as a two-token sequence:
-	// <hr> followed by </hr>. hasSelfClosingToken is true if we have just read
-	// the synthetic start tag and the next one due is the matching end tag.
+	// Self-closing tags like <hr/> are treated as start tags, except that
+	// hasSelfClosingToken is set while they are being processed.
 	hasSelfClosingToken bool
 	// doc is the document root element.
 	doc *Node
@@ -310,16 +309,6 @@ func (p *parser) addElement() {
 		DataAtom: p.tok.DataAtom,
 		Data:     p.tok.Data,
 		Attr:     p.tok.Attr,
-	})
-}
-
-// addSyntheticElement adds a child element with the given tag and attributes.
-func (p *parser) addSyntheticElement(tagAtom a.Atom, attr []Attribute) {
-	p.addChild(&Node{
-		Type:     ElementNode,
-		DataAtom: tagAtom,
-		Data:     tagAtom.String(),
-		Attr:     attr,
 	})
 }
 
@@ -935,22 +924,23 @@ func inBodyIM(p *parser) bool {
 			}
 			p.acknowledgeSelfClosingTag()
 			p.popUntil(buttonScope, a.P)
-			p.addSyntheticElement(a.Form, nil)
-			p.form = p.top()
+			p.parseImpliedToken(StartTagToken, a.Form, a.Form.String())
 			if action != "" {
 				p.form.Attr = []Attribute{{Key: "action", Val: action}}
 			}
-			p.addSyntheticElement(a.Hr, nil)
-			p.oe.pop()
-			p.addSyntheticElement(a.Label, nil)
+			p.parseImpliedToken(StartTagToken, a.Hr, a.Hr.String())
+			p.parseImpliedToken(StartTagToken, a.Label, a.Label.String())
 			p.addText(prompt)
-			p.addSyntheticElement(a.Input, attr)
+			p.addChild(&Node{
+				Type:     ElementNode,
+				DataAtom: a.Input,
+				Data:     a.Input.String(),
+				Attr:     attr,
+			})
 			p.oe.pop()
-			p.oe.pop()
-			p.addSyntheticElement(a.Hr, nil)
-			p.oe.pop()
-			p.oe.pop()
-			p.form = nil
+			p.parseImpliedToken(EndTagToken, a.Label, a.Label.String())
+			p.parseImpliedToken(StartTagToken, a.Hr, a.Hr.String())
+			p.parseImpliedToken(EndTagToken, a.Form, a.Form.String())
 		case a.Textarea:
 			p.addElement()
 			p.setOriginalIM()
@@ -1036,7 +1026,7 @@ func inBodyIM(p *parser) bool {
 			p.oe.remove(node)
 		case a.P:
 			if !p.elementInScope(buttonScope, a.P) {
-				p.addSyntheticElement(a.P, nil)
+				p.parseImpliedToken(StartTagToken, a.P, a.P.String())
 			}
 			p.popUntil(buttonScope, a.P)
 		case a.Li:
