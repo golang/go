@@ -49,32 +49,9 @@ type netFD struct {
 
 // A pollServer helps FDs determine when to retry a non-blocking
 // read or write after they get EAGAIN.  When an FD needs to wait,
-// send the fd on s.cr (for a read) or s.cw (for a write) to pass the
-// request to the poll server.  Then receive on fd.cr/fd.cw.
+// call s.WaitRead() or s.WaitWrite() to pass the request to the poll server.
 // When the pollServer finds that i/o on FD should be possible
-// again, it will send fd on fd.cr/fd.cw to wake any waiting processes.
-// This protocol is implemented as s.WaitRead() and s.WaitWrite().
-//
-// There is one subtlety: when sending on s.cr/s.cw, the
-// poll server is probably in a system call, waiting for an fd
-// to become ready.  It's not looking at the request channels.
-// To resolve this, the poll server waits not just on the FDs it has
-// been given but also its own pipe.  After sending on the
-// buffered channel s.cr/s.cw, WaitRead/WaitWrite writes a
-// byte to the pipe, causing the pollServer's poll system call to
-// return.  In response to the pipe being readable, the pollServer
-// re-polls its request channels.
-//
-// Note that the ordering is "send request" and then "wake up server".
-// If the operations were reversed, there would be a race: the poll
-// server might wake up and look at the request channel, see that it
-// was empty, and go back to sleep, all before the requester managed
-// to send the request.  Because the send must complete before the wakeup,
-// the request channel must be buffered.  A buffer of size 1 is sufficient
-// for any request load.  If many processes are trying to submit requests,
-// one will succeed, the pollServer will read the request, and then the
-// channel will be empty for the next process's request.  A larger buffer
-// might help batch requests.
+// again, it will send on fd.cr/fd.cw to wake any waiting goroutines.
 //
 // To avoid races in closing, all fd operations are locked and
 // refcounted. when netFD.Close() is called, it calls syscall.Shutdown
@@ -82,7 +59,6 @@ type netFD struct {
 // will the fd be closed.
 
 type pollServer struct {
-	cr, cw     chan *netFD // buffered >= 1
 	pr, pw     *os.File
 	poll       *pollster // low-level OS hooks
 	sync.Mutex           // controls pending and deadline

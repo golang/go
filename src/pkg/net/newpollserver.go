@@ -13,8 +13,6 @@ import (
 
 func newPollServer() (s *pollServer, err error) {
 	s = new(pollServer)
-	s.cr = make(chan *netFD, 1)
-	s.cw = make(chan *netFD, 1)
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
 		return nil, err
 	}
