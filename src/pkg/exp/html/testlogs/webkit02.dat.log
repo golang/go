@@ -1,7 +1,7 @@
 PASS "<foo bar=qux/>"
 PASS "<p id=\"status\"><noscript><strong>A</strong></noscript><span>B</span></p>"
 PASS "<div><sarcasm><div></div></sarcasm></div>"
-FAIL "<html><body><img src=\"\" border=\"0\" alt=\"><div>A</div></body></html>"
+PASS "<html><body><img src=\"\" border=\"0\" alt=\"><div>A</div></body></html>"
 PASS "<table><td></tbody>A"
 PASS "<table><td></thead>A"
 PASS "<table><td></tfoot>A"

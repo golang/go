@@ -128,7 +128,7 @@ var tokenTests = []tokenTest{
 	{
 		"tag name eof #4",
 		`<a x`,
-		`<a x="">`,
+		``,
 	},
 	// Some malformed tags that are missing a '>'.
 	{
@@ -144,12 +144,12 @@ var tokenTests = []tokenTest{
 	{
 		"malformed tag #2",
 		`<p id`,
-		`<p id="">`,
+		``,
 	},
 	{
 		"malformed tag #3",
 		`<p id=`,
-		`<p id="">`,
+		``,
 	},
 	{
 		"malformed tag #4",
@@ -159,7 +159,7 @@ var tokenTests = []tokenTest{
 	{
 		"malformed tag #5",
 		`<p id=0`,
-		`<p id="0">`,
+		``,
 	},
 	{
 		"malformed tag #6",
@@ -169,12 +169,17 @@ var tokenTests = []tokenTest{
 	{
 		"malformed tag #7",
 		`<p id="0</p>`,
-		`<p id="0&lt;/p&gt;">`,
+		``,
 	},
 	{
 		"malformed tag #8",
 		`<p id="0"</p>`,
 		`<p id="0" <="" p="">`,
+	},
+	{
+		"malformed tag #9",
+		`<p></p id`,
+		`<p>`,
 	},
 	// Raw text and RCDATA.
 	{
@@ -205,7 +210,7 @@ var tokenTests = []tokenTest{
 	{
 		"' ' completes script end tag",
 		"<SCRIPT>a</SCRipt ",
-		"<script>$a$</script>",
+		"<script>$a",
 	},
 	{
 		"'>' completes script end tag",

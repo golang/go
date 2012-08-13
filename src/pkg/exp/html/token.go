@@ -692,7 +692,7 @@ loop:
 // been consumed, where 'a' means anything in [A-Za-z].
 func (z *Tokenizer) readStartTag() TokenType {
 	z.readTag(true)
-	if z.err != nil && len(z.attr) == 0 {
+	if z.err != nil {
 		return ErrorToken
 	}
 	// Several tags flag the tokenizer's next token as raw.
@@ -948,7 +948,11 @@ loop:
 			}
 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
 				z.readTag(false)
-				z.tt = EndTagToken
+				if z.err != nil {
+					z.tt = ErrorToken
+				} else {
+					z.tt = EndTagToken
+				}
 				return z.tt
 			}
 			z.raw.end--
