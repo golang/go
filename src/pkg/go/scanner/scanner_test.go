@@ -6,6 +6,7 @@ package scanner
 
 import (
 	"go/token"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -705,8 +706,31 @@ func BenchmarkScan(b *testing.B) {
 	file := fset.AddFile("", fset.Base(), len(source))
 	var s Scanner
 	b.StartTimer()
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		s.Init(file, source, nil, ScanComments)
+		for {
+			_, tok, _ := s.Scan()
+			if tok == token.EOF {
+				break
+			}
+		}
+	}
+}
+
+func BenchmarkScanFile(b *testing.B) {
+	b.StopTimer()
+	const filename = "scanner.go"
+	src, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+	fset := token.NewFileSet()
+	file := fset.AddFile(filename, fset.Base(), len(src))
+	b.SetBytes(int64(len(src)))
+	var s Scanner
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		s.Init(file, src, nil, ScanComments)
 		for {
 			_, tok, _ := s.Scan()
 			if tok == token.EOF {
