@@ -195,26 +195,20 @@ func render1(w writer, n *Node) error {
 	switch n.Data {
 	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
 		for _, c := range n.Child {
-			if c.Type != TextNode {
-				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
-			}
-			if _, err := w.WriteString(c.Data); err != nil {
-				return err
+			if c.Type == TextNode {
+				if _, err := w.WriteString(c.Data); err != nil {
+					return err
+				}
+			} else {
+				if err := render1(w, c); err != nil {
+					return err
+				}
 			}
 		}
 		if n.Data == "plaintext" {
 			// Don't render anything else. <plaintext> must be the
 			// last element in the file, with no closing tag.
 			return plaintextAbort
-		}
-	case "textarea", "title":
-		for _, c := range n.Child {
-			if c.Type != TextNode && n.Namespace == "" {
-				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
-			}
-			if err := render1(w, c); err != nil {
-				return err
-			}
 		}
 	default:
 		for _, c := range n.Child {
