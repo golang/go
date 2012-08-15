@@ -1,7 +1,0 @@
-PASS "<!DOCTYPE html><html><body><xyz:abc></xyz:abc>"
-PASS "<!DOCTYPE html><html><body><xyz:abc></xyz:abc><span></span>"
-PASS "<!DOCTYPE html><html><html abc:def=gh><xyz:abc></xyz:abc>"
-PASS "<!DOCTYPE html><html xml:lang=bar><html xml:lang=foo>"
-PASS "<!DOCTYPE html><html 123=456>"
-PASS "<!DOCTYPE html><html 123=456><html 789=012>"
-PASS "<!DOCTYPE html><html><body 789=012>"

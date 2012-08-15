@@ -1,8 +1,0 @@
-PASS "<!DOCTYPE html>&NotEqualTilde;"
-PASS "<!DOCTYPE html>&NotEqualTilde;A"
-PASS "<!DOCTYPE html>&ThickSpace;"
-PASS "<!DOCTYPE html>&ThickSpace;A"
-PASS "<!DOCTYPE html>&NotSubset;"
-PASS "<!DOCTYPE html>&NotSubset;A"
-PASS "<!DOCTYPE html>&Gopf;"
-PASS "<!DOCTYPE html>&Gopf;A"

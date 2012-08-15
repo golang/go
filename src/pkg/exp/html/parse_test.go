@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"errors"
 	"exp/html/atom"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,8 +19,6 @@ import (
 	"strings"
 	"testing"
 )
-
-var updateLogs = flag.Bool("update-logs", false, "Update the log files that show the test results")
 
 // readParseTest reads a single test case from r.
 func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
@@ -202,32 +199,6 @@ func dump(n *Node) (string, error) {
 }
 
 const testDataDir = "testdata/webkit/"
-const testLogDir = "testlogs/"
-
-type parseTestResult int
-
-const (
-	// parseTestFailed indicates that an error occurred during parsing or that
-	// the parse tree did not match the expected result.
-	parseTestFailed parseTestResult = iota
-	// parseTestParseOnly indicates that the first stage of the test (parsing)
-	// passed, but rendering and re-parsing did not.
-	parseTestParseOnly
-	// parseTestPassed indicates that both stages of the test passed.
-	parseTestPassed
-)
-
-func (r parseTestResult) String() string {
-	switch r {
-	case parseTestFailed:
-		return "FAIL"
-	case parseTestParseOnly:
-		return "PARSE"
-	case parseTestPassed:
-		return "PASS"
-	}
-	return "invalid parseTestResult value"
-}
 
 func TestParser(t *testing.T) {
 	testFiles, err := filepath.Glob(testDataDir + "*.dat")
@@ -242,20 +213,6 @@ func TestParser(t *testing.T) {
 		defer f.Close()
 		r := bufio.NewReader(f)
 
-		logName := testLogDir + tf[len(testDataDir):] + ".log"
-		var lf *os.File
-		var lbr *bufio.Reader
-		if *updateLogs {
-			lf, err = os.Create(logName)
-		} else {
-			lf, err = os.Open(logName)
-			lbr = bufio.NewReader(lf)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer lf.Close()
-
 		for i := 0; ; i++ {
 			text, want, context, err := readParseTest(r)
 			if err == io.EOF {
@@ -265,46 +222,20 @@ func TestParser(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var expectedResult parseTestResult
-			if !*updateLogs {
-				var expectedText, expectedResultString string
-				_, err = fmt.Fscanf(lbr, "%s %q\n", &expectedResultString, &expectedText)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if expectedText != text {
-					t.Fatalf("Log does not match tests: log has %q, tests have %q", expectedText, text)
-				}
-				switch expectedResultString {
-				case "FAIL":
-					// Skip this test.
-					continue
-				case "PARSE":
-					expectedResult = parseTestParseOnly
-				case "PASS":
-					expectedResult = parseTestPassed
-				default:
-					t.Fatalf("Log has invalid test result: %q", expectedResultString)
-				}
-			}
+			err = testParseCase(text, want, context)
 
-			result, err := testParseCase(text, want, context)
-
-			if *updateLogs {
-				fmt.Fprintf(lf, "%s %q\n", result, text)
-			} else if result < expectedResult {
+			if err != nil {
 				t.Errorf("%s test #%d %q, %s", tf, i, text, err)
 			}
 		}
 	}
 }
 
-// testParseCase tests one test case from the test files. It returns a 
-// parseTestResult indicating how much of the test passed. If the result
-// is not parseTestPassed, it also returns an error that explains the failure.
+// testParseCase tests one test case from the test files. If the test does not
+// pass, it returns an error that explains the failure.
 // text is the HTML to be parsed, want is a dump of the correct parse tree,
 // and context is the name of the context node, if any.
-func testParseCase(text, want, context string) (result parseTestResult, err error) {
+func testParseCase(text, want, context string) (err error) {
 	defer func() {
 		if x := recover(); x != nil {
 			switch e := x.(type) {
@@ -320,7 +251,7 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
 	if context == "" {
 		doc, err = Parse(strings.NewReader(text))
 		if err != nil {
-			return parseTestFailed, err
+			return err
 		}
 	} else {
 		contextNode := &Node{
@@ -330,7 +261,7 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
 		}
 		nodes, err := ParseFragment(strings.NewReader(text), contextNode)
 		if err != nil {
-			return parseTestFailed, err
+			return err
 		}
 		doc = &Node{
 			Type: DocumentNode,
@@ -342,20 +273,16 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
 
 	got, err := dump(doc)
 	if err != nil {
-		return parseTestFailed, err
+		return err
 	}
 	// Compare the parsed tree to the #document section.
 	if got != want {
-		return parseTestFailed, fmt.Errorf("got vs want:\n----\n%s----\n%s----", got, want)
+		return fmt.Errorf("got vs want:\n----\n%s----\n%s----", got, want)
 	}
 
 	if renderTestBlacklist[text] || context != "" {
-		return parseTestPassed, nil
+		return nil
 	}
-
-	// Set result so that if a panic occurs during the render and re-parse
-	// the calling function will know that the parsing phase was successful.
-	result = parseTestParseOnly
 
 	// Check that rendering and re-parsing results in an identical tree.
 	pr, pw := io.Pipe()
@@ -364,17 +291,17 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
 	}()
 	doc1, err := Parse(pr)
 	if err != nil {
-		return parseTestParseOnly, err
+		return err
 	}
 	got1, err := dump(doc1)
 	if err != nil {
-		return parseTestParseOnly, err
+		return err
 	}
 	if got != got1 {
-		return parseTestParseOnly, fmt.Errorf("got vs got1:\n----\n%s----\n%s----", got, got1)
+		return fmt.Errorf("got vs got1:\n----\n%s----\n%s----", got, got1)
 	}
 
-	return parseTestPassed, nil
+	return nil
 }
 
 // Some test input result in parse trees are not 'well-formed' despite

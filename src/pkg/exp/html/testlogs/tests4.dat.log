@@ -1,7 +1,0 @@
-PASS "direct div content"
-PASS "direct textarea content"
-PASS "textarea content with <em>pseudo</em> <foo>markup"
-PASS "this is &#x0043;DATA inside a <style> element"
-PASS "</plaintext>"
-PASS "setting html's innerHTML"
-PASS "<title>setting head's innerHTML</title>"
