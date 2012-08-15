@@ -446,6 +446,9 @@ func TestError(t *testing.T) {
 	testError(t, `"\'"`, "1:3", "illegal char escape", String)
 
 	testError(t, `01238`, "1:6", "illegal octal number", Int)
+	testError(t, `01238123`, "1:9", "illegal octal number", Int)
+	testError(t, `0x`, "1:3", "illegal hexadecimal number", Int)
+	testError(t, `0xg`, "1:3", "illegal hexadecimal number", Int)
 	testError(t, `'aa'`, "1:4", "illegal char literal", Char)
 
 	testError(t, `'`, "1:2", "literal not terminated", Char)
