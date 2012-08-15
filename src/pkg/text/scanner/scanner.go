@@ -389,15 +389,20 @@ func (s *Scanner) scanNumber(ch rune) (rune, rune) {
 		if ch == 'x' || ch == 'X' {
 			// hexadecimal int
 			ch = s.next()
+			hasMantissa := false
 			for digitVal(ch) < 16 {
 				ch = s.next()
+				hasMantissa = true
+			}
+			if !hasMantissa {
+				s.error("illegal hexadecimal number")
 			}
 		} else {
 			// octal int or float
-			seenDecimalDigit := false
+			has8or9 := false
 			for isDecimal(ch) {
 				if ch > '7' {
-					seenDecimalDigit = true
+					has8or9 = true
 				}
 				ch = s.next()
 			}
@@ -408,7 +413,7 @@ func (s *Scanner) scanNumber(ch rune) (rune, rune) {
 				return Float, ch
 			}
 			// octal int
-			if seenDecimalDigit {
+			if has8or9 {
 				s.error("illegal octal number")
 			}
 		}
