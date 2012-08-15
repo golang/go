@@ -40,7 +40,7 @@ func main() {
 	// because i has an extra method
 	// that t does not, so i cannot contain a t.
 	i = t // ERROR "incompatible|missing M method"
-	t = i // ERROR "incompatible|need type assertion"
+	t = i // ERROR "incompatible|assignment$"
 
 	i = i2 // ok
 	i2 = i // ERROR "incompatible|missing N method"

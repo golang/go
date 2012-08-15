@@ -1219,7 +1219,7 @@ assignop(Type *src, Type *dst, char **why)
 		return 0;
 	}
 	if(src->etype == TINTER && dst->etype != TBLANK) {
-		if(why != nil)
+		if(why != nil && implements(dst, src, &missing, &have, &ptr))
 			*why = ": need type assertion";
 		return 0;
 	}
