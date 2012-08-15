@@ -337,6 +337,11 @@ func TestHelperProcess(*testing.T) {
 			// TODO(bradfitz): broken? Sometimes.
 			// http://golang.org/issue/2603
 			// Skip this additional part of the test for now.
+		case "netbsd":
+			// TODO(jsing): This currently fails on NetBSD due to
+			// the cloned file descriptors that result from opening
+			// /dev/urandom.
+			// http://golang.org/issue/3955
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
