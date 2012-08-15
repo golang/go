@@ -1954,8 +1954,8 @@ oprrr(int a, int sc)
 	case ADIVF:	return o | (0xe<<24) | (0x8<<20) | (0xa<<8) | (0<<4);
 	case ASQRTD:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xb<<8) | (0xc<<4);
 	case ASQRTF:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xa<<8) | (0xc<<4);
-	case AABSD: return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xb<<8) | (0xc<<4);
-	case AABSF: return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xa<<8) | (0xc<<4);
+	case AABSD:	return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xb<<8) | (0xc<<4);
+	case AABSF:	return o | (0xe<<24) | (0xb<<20) | (0<<16) | (0xa<<8) | (0xc<<4);
 	case ACMPD:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xb<<8) | (0xc<<4);
 	case ACMPF:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xa<<8) | (0xc<<4);
 
