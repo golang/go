@@ -1,4 +1,5 @@
 pkg archive/tar, func FileInfoHeader(os.FileInfo, string) (*Header, error)
+pkg bytes, method (*Buffer) Grow(int)
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/x509, const ECDSA PublicKeyAlgorithm
@@ -11,6 +12,7 @@ pkg crypto/x509, const ExtKeyUsageIPSECTunnel ExtKeyUsage
 pkg crypto/x509, const ExtKeyUsageIPSECUser ExtKeyUsage
 pkg crypto/x509, const IncompatibleUsage InvalidReason
 pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
+pkg debug/elf, method (*File) DynString(DynTag) ([]string, error)
 pkg debug/elf, type FileHeader struct, Entry uint64
 pkg encoding/json, method (*Decoder) UseNumber()
 pkg encoding/json, method (Number) Float64() (float64, error)
@@ -128,6 +130,7 @@ pkg syscall (darwin-386), const VT1 ideal-int
 pkg syscall (darwin-386), const VTDLY ideal-int
 pkg syscall (darwin-386), const VTIME ideal-int
 pkg syscall (darwin-386), const VWERASE ideal-int
+pkg syscall (darwin-386), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (darwin-386), type Termios struct
 pkg syscall (darwin-386), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-386), type Termios struct, Cflag uint32
@@ -229,6 +232,7 @@ pkg syscall (darwin-386-cgo), const VT1 ideal-int
 pkg syscall (darwin-386-cgo), const VTDLY ideal-int
 pkg syscall (darwin-386-cgo), const VTIME ideal-int
 pkg syscall (darwin-386-cgo), const VWERASE ideal-int
+pkg syscall (darwin-386-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (darwin-386-cgo), type Termios struct
 pkg syscall (darwin-386-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-386-cgo), type Termios struct, Cflag uint32
@@ -330,6 +334,7 @@ pkg syscall (darwin-amd64), const VT1 ideal-int
 pkg syscall (darwin-amd64), const VTDLY ideal-int
 pkg syscall (darwin-amd64), const VTIME ideal-int
 pkg syscall (darwin-amd64), const VWERASE ideal-int
+pkg syscall (darwin-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (darwin-amd64), type Termios struct
 pkg syscall (darwin-amd64), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-amd64), type Termios struct, Cflag uint64
@@ -432,6 +437,7 @@ pkg syscall (darwin-amd64-cgo), const VT1 ideal-int
 pkg syscall (darwin-amd64-cgo), const VTDLY ideal-int
 pkg syscall (darwin-amd64-cgo), const VTIME ideal-int
 pkg syscall (darwin-amd64-cgo), const VWERASE ideal-int
+pkg syscall (darwin-amd64-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (darwin-amd64-cgo), type Termios struct
 pkg syscall (darwin-amd64-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-amd64-cgo), type Termios struct, Cflag uint64
@@ -441,14 +447,34 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Lflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Oflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Ospeed uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]byte
+pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (freebsd-amd64), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (linux-386), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-amd64-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-arm), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
 pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+pkg syscall (windows-386), func UTF16FromString(string) ([]uint16, error)
+pkg syscall (windows-386), func UTF16PtrFromString(string) (*uint16, error)
 pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
 pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
 pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
 pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
 pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+pkg syscall (windows-amd64), func UTF16FromString(string) ([]uint16, error)
+pkg syscall (windows-amd64), func UTF16PtrFromString(string) (*uint16, error)
 pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
+pkg syscall, func BytePtrFromString(string) (*byte, error)
+pkg syscall, func ByteSliceFromString(string) ([]byte, error)
+pkg testing, func Verbose() bool
+pkg text/template/parse, const NodeNil NodeType
+pkg text/template/parse, method (*NilNode) Copy() Node
+pkg text/template/parse, method (*NilNode) String() string
+pkg text/template/parse, method (*NilNode) Type() NodeType
+pkg text/template/parse, type NilNode bool
+pkg unicode/utf8, func ValidRune(rune) bool
