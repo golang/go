@@ -385,6 +385,8 @@ var renderTestBlacklist = map[string]bool{
 	// The second <a> will be reparented to the first <table>'s parent. This
 	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
 	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
+	// The same thing with a <p>:
+	`<p><table></p>`: true,
 	// More cases of <a> being reparented:
 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
 	`<a><table><a></table><p><a><div><a>`:                                     true,
@@ -393,16 +395,26 @@ var renderTestBlacklist = map[string]bool{
 	`<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3`: true,
 	// A <plaintext> element is reparented, putting it before a table.
 	// A <plaintext> element can't have anything after it in HTML.
-	`<table><plaintext><td>`: true,
+	`<table><plaintext><td>`:                                   true,
+	`<!doctype html><table><plaintext></plaintext>`:            true,
+	`<!doctype html><table><tbody><plaintext></plaintext>`:     true,
+	`<!doctype html><table><tbody><tr><plaintext></plaintext>`: true,
+	// A form inside a table inside a form doesn't work either.
+	`<!doctype html><form><table></form><form></table></form>`: true,
 	// A script that ends at EOF may escape its own closing tag when rendered.
 	`<!doctype html><script><!--<script `:          true,
+	`<!doctype html><script><!--<script <`:         true,
 	`<!doctype html><script><!--<script <a`:        true,
+	`<!doctype html><script><!--<script </`:        true,
+	`<!doctype html><script><!--<script </s`:       true,
 	`<!doctype html><script><!--<script </script`:  true,
 	`<!doctype html><script><!--<script </scripta`: true,
 	`<!doctype html><script><!--<script -`:         true,
 	`<!doctype html><script><!--<script -a`:        true,
+	`<!doctype html><script><!--<script -<`:        true,
 	`<!doctype html><script><!--<script --`:        true,
 	`<!doctype html><script><!--<script --a`:       true,
+	`<!doctype html><script><!--<script --<`:       true,
 	`<script><!--<script `:                         true,
 	`<script><!--<script <a`:                       true,
 	`<script><!--<script </script`:                 true,
@@ -411,6 +423,12 @@ var renderTestBlacklist = map[string]bool{
 	`<script><!--<script -a`:                       true,
 	`<script><!--<script --`:                       true,
 	`<script><!--<script --a`:                      true,
+	`<script><!--<script <`:                        true,
+	`<script><!--<script </`:                       true,
+	`<script><!--<script </s`:                      true,
+	// Reconstructing the active formatting elements results in a <plaintext>
+	// element that contains an <a> element.
+	`<!doctype html><p><a><plaintext>b`: true,
 }
 
 func TestNodeConsistency(t *testing.T) {
