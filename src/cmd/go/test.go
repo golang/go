@@ -276,7 +276,9 @@ func runTest(cmd *Command, args []string) {
 
 		all := []string{}
 		for path := range deps {
-			all = append(all, path)
+			if !build.IsLocalImport(path) {
+				all = append(all, path)
+			}
 		}
 		sort.Strings(all)
 

@@ -76,6 +76,12 @@ if ! ./testgo test ./testdata/testimport; then
 	ok=false
 fi
 
+# Test installation with relative imports.
+if ! ./testgo test -i ./testdata/testimport; then
+    echo "go test -i ./testdata/testimport failed"
+    ok=false
+fi
+
 # Test tests with relative imports in packages synthesized
 # from Go files named on the command line.
 if ! ./testgo test ./testdata/testimport/*.go; then
