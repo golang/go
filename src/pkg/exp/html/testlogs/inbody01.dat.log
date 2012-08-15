@@ -1,4 +1,0 @@
-PASS "<button>1</foo>"
-PASS "<foo>1<p>2</foo>"
-PASS "<dd>1</foo>"
-PASS "<foo>1<dd>2</foo>"
