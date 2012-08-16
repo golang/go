@@ -1558,6 +1558,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	// gcc
 	var linkobj []string
+
+	var bareLDFLAGS []string
+	// filter out -lsomelib, and -framework X if on Darwin
+	for i := 0; i < len(cgoLDFLAGS); i++ {
+		f := cgoLDFLAGS[i]
+		if !strings.HasPrefix(f, "-l") {
+			if goos == "darwin" && f == "-framework" { // skip the -framework X
+				i += 1
+				continue
+			}
+			bareLDFLAGS = append(bareLDFLAGS, f)
+		}
+	}
+	staticLibs := []string{"-lgcc"}
+	if goos == "windows" {
+		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
+	}
+
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
 		if err := b.gcc(p, ofile, cgoCFLAGS, obj+cfile); err != nil {
@@ -1605,10 +1623,23 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		return nil, nil, err
 	}
 
+	ofile := obj + "_all.o"
+	var gccObjs, nonGccObjs []string
+	for _, f := range outObj {
+		if strings.HasSuffix(f, ".o") {
+			gccObjs = append(gccObjs, f)
+		} else {
+			nonGccObjs = append(nonGccObjs, f)
+		}
+	}
+	if err := b.gccld(p, ofile, stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs), gccObjs); err != nil {
+		return nil, nil, err
+	}
+
 	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
 	// must be processed before the gcc-generated objects.
 	// Put it first.  http://golang.org/issue/2601
-	outObj = append([]string{importObj}, outObj...)
+	outObj = stringList(importObj, nonGccObjs, ofile)
 
 	return outGo, outObj, nil
 }

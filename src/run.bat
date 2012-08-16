@@ -64,10 +64,16 @@ echo.
 ::echo.
 
 :: cgo tests
-:: TODO: Other cgo tests
 if x%CGO_ENABLED% == x0 goto nocgo
 echo # ..\misc\cgo\life
 go run %GOROOT%\test\run.go - ..\misc\cgo\life
+if errorlevel 1 goto fail
+echo.
+
+:: TODO ..\misc\cgo\stdio
+
+echo # ..\misc\cgo\test
+go test ..\misc\cgo\test
 if errorlevel 1 goto fail
 echo.
 :nocgo
