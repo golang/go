@@ -400,6 +400,9 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 	// 6g error messages continue onto additional lines with leading tabs.
 	// Split the output at the beginning of each line that doesn't begin with a tab.
 	for _, line := range strings.Split(outStr, "\n") {
+		if strings.HasSuffix(line, "\r") {	// remove '\r', output by compiler on windows
+			line = line[:len(line)-1]
+		}
 		if strings.HasPrefix(line, "\t") {
 			out[len(out)-1] += "\n" + line
 		} else {
