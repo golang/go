@@ -6,7 +6,6 @@
 
 package life
 
-// #cgo windows LDFLAGS: -lmsvcrt
 // #include "life.h"
 import "C"
 
