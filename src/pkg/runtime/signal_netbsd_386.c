@@ -29,7 +29,7 @@ runtime·dumpregs(McontextT *mc)
 	runtime·printf("edi     %x\n", mc->__gregs[REG_EDI]);
 	runtime·printf("esi     %x\n", mc->__gregs[REG_ESI]);
 	runtime·printf("ebp     %x\n", mc->__gregs[REG_EBP]);
-	runtime·printf("esp     %x\n", mc->__gregs[REG_ESP]);
+	runtime·printf("esp     %x\n", mc->__gregs[REG_UESP]);
 	runtime·printf("eip     %x\n", mc->__gregs[REG_EIP]);
 	runtime·printf("eflags  %x\n", mc->__gregs[REG_EFL]);
 	runtime·printf("cs      %x\n", mc->__gregs[REG_CS]);
@@ -47,7 +47,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 
 	if(sig == SIGPROF) {
 		runtime·sigprof((uint8*)mc->__gregs[REG_EIP],
-			(uint8*)mc->__gregs[REG_ESP], nil, gp);
+			(uint8*)mc->__gregs[REG_UESP], nil, gp);
 		return;
 	}
 
@@ -71,9 +71,9 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		// (Otherwise the trace will end at runtime·sigpanic
 		// and we won't get to see who faulted.)
 		if(mc->__gregs[REG_EIP] != 0) {
-			sp = (uintptr*)mc->__gregs[REG_ESP];
+			sp = (uintptr*)mc->__gregs[REG_UESP];
 			*--sp = mc->__gregs[REG_EIP];
-			mc->__gregs[REG_ESP] = (uintptr)sp;
+			mc->__gregs[REG_UESP] = (uintptr)sp;
 		}
 		mc->__gregs[REG_EIP] = (uintptr)runtime·sigpanic;
 		return;
@@ -100,7 +100,7 @@ Throw:
 
 	if(runtime·gotraceback()){
 		runtime·traceback((void*)mc->__gregs[REG_EIP],
-			(void*)mc->__gregs[REG_ESP], 0, gp);
+			(void*)mc->__gregs[REG_UESP], 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(mc);
 	}
