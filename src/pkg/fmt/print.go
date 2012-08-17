@@ -585,8 +585,12 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 }
 
 func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+	use0x64 := true
 	switch verb {
-	case 'p', 'v', 'b', 'd', 'o', 'x', 'X':
+	case 'p', 'v':
+		// ok
+	case 'b', 'd', 'o', 'x', 'X':
+		use0x64 = false
 		// ok
 	default:
 		p.badVerb(verb)
@@ -616,7 +620,11 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 	} else if verb == 'v' && u == 0 {
 		p.buf.Write(nilAngleBytes)
 	} else {
-		p.fmt0x64(uint64(u), !p.fmt.sharp)
+		if use0x64 {
+			p.fmt0x64(uint64(u), !p.fmt.sharp)
+		} else {
+			p.fmtUint64(uint64(u), verb, false)
+		}
 	}
 }
 
