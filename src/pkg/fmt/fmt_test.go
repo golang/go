@@ -442,6 +442,11 @@ var fmttests = []struct {
 	{"%v", (*int)(nil), "<nil>"},
 	{"%v", new(int), "0xPTR"},
 
+	// %d etc. pointers use specified base.
+	{"%d", new(int), "PTR_d"},
+	{"%o", new(int), "PTR_o"},
+	{"%x", new(int), "PTR_x"},
+
 	// %d on Stringer should give integer if possible
 	{"%s", time.Time{}.Month(), "January"},
 	{"%d", time.Time{}.Month(), "1"},
@@ -471,14 +476,26 @@ func TestSprintf(t *testing.T) {
 	for _, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val)
 		if i := strings.Index(tt.out, "PTR"); i >= 0 {
+			pattern := "PTR"
+			chars := "0123456789abcdefABCDEF"
+			switch {
+			case strings.HasPrefix(tt.out[i:], "PTR_d"):
+				pattern = "PTR_d"
+				chars = chars[:10]
+			case strings.HasPrefix(tt.out[i:], "PTR_o"):
+				pattern = "PTR_o"
+				chars = chars[:8]
+			case strings.HasPrefix(tt.out[i:], "PTR_x"):
+				pattern = "PTR_x"
+			}
 			j := i
 			for ; j < len(s); j++ {
 				c := s[j]
-				if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+				if !strings.ContainsRune(chars, rune(c)) {
 					break
 				}
 			}
-			s = s[0:i] + "PTR" + s[j:]
+			s = s[0:i] + pattern + s[j:]
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {
