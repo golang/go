@@ -211,6 +211,7 @@ FindCipherSuite:
 				Roots:         c.config.ClientCAs,
 				CurrentTime:   c.config.time(),
 				Intermediates: x509.NewCertPool(),
+				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			}
 
 			for i, cert := range certs {
