@@ -47,7 +47,7 @@ const toolWindowsExtension = ".exe"
 
 func tool(name string) string {
 	p := filepath.Join(toolDir, name)
-	if toolIsWindows {
+	if toolIsWindows && name != "pprof" {
 		p += toolWindowsExtension
 	}
 	return p
@@ -75,6 +75,16 @@ func runTool(cmd *Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
 		setExitStatus(3)
 		return
+	}
+	if toolIsWindows && toolName == "pprof" {
+		args = append([]string{"perl", toolPath}, args[1:]...)
+		var err error
+		toolPath, err = exec.LookPath("perl")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "go tool: perl not found\n")
+			setExitStatus(3)
+			return
+		}
 	}
 
 	if toolN {

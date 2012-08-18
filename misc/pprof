@@ -4599,6 +4599,7 @@ sub ConfigureObjTools {
     # in the same directory as pprof.
     $obj_tool_map{"nm_pdb"} = "nm-pdb";
     $obj_tool_map{"addr2line_pdb"} = "addr2line-pdb";
+    $obj_tool_map{"is_windows"} = "true";
   }
 
   if ($file_type =~ /Mach-O/) {
@@ -4806,16 +4807,13 @@ sub GetProcedureBoundaries {
                      " $image 2>/dev/null $cppfilt_flag",
                      "$nm -D -n $flatten_flag $demangle_flag" .
                      " $image 2>/dev/null $cppfilt_flag",
-                     # 6nm is for Go binaries
-                     "6nm $image 2>/dev/null | sort");
+                     # go tool nm is for Go binaries
+                     "go tool nm $image 2>/dev/null | sort");
 
-  # If the executable is an MS Windows PDB-format executable, we'll
-  # have set up obj_tool_map("nm_pdb").  In this case, we actually
-  # want to use both unix nm and windows-specific nm_pdb, since
-  # PDB-format executables can apparently include dwarf .o files.
-  if (exists $obj_tool_map{"nm_pdb"}) {
-    my $nm_pdb = $obj_tool_map{"nm_pdb"};
-    push(@nm_commands, "$nm_pdb --demangle $image 2>/dev/null");
+  # If the executable is an MS Windows Go executable, we'll
+  # have set up obj_tool_map("is_windows").
+  if (exists $obj_tool_map{"is_windows"}) {
+    @nm_commands = ("go tool nm $image 2>/dev/null | sort");
   }
 
   foreach my $nm_command (@nm_commands) {
