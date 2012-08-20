@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"exp/locale/collate"
+	"exp/locale/collate/build"
 	"flag"
 	"fmt"
 	"io"
@@ -40,9 +41,12 @@ import (
 // represented by rune sequence are in the file in sorted order, as
 // defined by the DUCET.
 
-var url = flag.String("url",
+var testdata = flag.String("testdata",
 	"http://www.unicode.org/Public/UCA/"+unicode.Version+"/CollationTest.zip",
 	"URL of Unicode collation tests zip file")
+var ducet = flag.String("ducet",
+	"http://unicode.org/Public/UCA/"+unicode.Version+"/allkeys.txt",
+	"URL of the Default Unicode Collation Element Table (DUCET).")
 var localFiles = flag.Bool("local",
 	false,
 	"data files have been copied to the current directory; for debugging only")
@@ -62,20 +66,90 @@ func Error(e error) {
 	}
 }
 
-func loadTestData() []Test {
+// openReader opens the url or file given by url and returns it as an io.ReadCloser
+// or nil on error.
+func openReader(url string) io.ReadCloser {
 	if *localFiles {
 		pwd, _ := os.Getwd()
-		*url = "file://" + path.Join(pwd, path.Base(*url))
+		url = "file://" + path.Join(pwd, path.Base(url))
 	}
 	t := &http.Transport{}
 	t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 	c := &http.Client{Transport: t}
-	resp, err := c.Get(*url)
+	resp, err := c.Get(url)
 	Error(err)
 	if resp.StatusCode != 200 {
-		log.Fatalf(`bad GET status for "%s": %s`, *url, resp.Status)
+		Error(fmt.Errorf(`bad GET status for "%s": %s`, url, resp.Status))
 	}
-	f := resp.Body
+	return resp.Body
+}
+
+// parseUCA parses a Default Unicode Collation Element Table of the format
+// specified in http://www.unicode.org/reports/tr10/#File_Format.
+// It returns the variable top.
+func parseUCA(builder *build.Builder) {
+	r := openReader(*ducet)
+	defer r.Close()
+	input := bufio.NewReader(r)
+	colelem := regexp.MustCompile(`\[([.*])([0-9A-F.]+)\]`)
+	for i := 1; true; i++ {
+		l, prefix, err := input.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		Error(err)
+		line := string(l)
+		if prefix {
+			log.Fatalf("%d: buffer overflow", i)
+		}
+		if len(line) == 0 || line[0] == '#' {
+			continue
+		}
+		if line[0] == '@' {
+			if strings.HasPrefix(line[1:], "version ") {
+				if v := strings.Split(line[1:], " ")[1]; v != unicode.Version {
+					log.Fatalf("incompatible version %s; want %s", v, unicode.Version)
+				}
+			}
+		} else {
+			// parse entries
+			part := strings.Split(line, " ; ")
+			if len(part) != 2 {
+				log.Fatalf("%d: production rule without ';': %v", i, line)
+			}
+			lhs := []rune{}
+			for _, v := range strings.Split(part[0], " ") {
+				if v != "" {
+					lhs = append(lhs, rune(convHex(i, v)))
+				}
+			}
+			vars := []int{}
+			rhs := [][]int{}
+			for i, m := range colelem.FindAllStringSubmatch(part[1], -1) {
+				if m[1] == "*" {
+					vars = append(vars, i)
+				}
+				elem := []int{}
+				for _, h := range strings.Split(m[2], ".") {
+					elem = append(elem, convHex(i, h))
+				}
+				rhs = append(rhs, elem)
+			}
+			builder.Add(lhs, rhs, vars)
+		}
+	}
+}
+
+func convHex(line int, s string) int {
+	r, e := strconv.ParseInt(s, 16, 32)
+	if e != nil {
+		log.Fatalf("%d: %v", line, e)
+	}
+	return int(r)
+}
+
+func loadTestData() []Test {
+	f := openReader(*testdata)
 	buffer, err := ioutil.ReadAll(f)
 	f.Close()
 	Error(err)
@@ -142,8 +216,12 @@ func runes(b []byte) []rune {
 }
 
 func doTest(t Test) {
-	c := collate.Root
+	bld := build.NewBuilder()
+	parseUCA(bld)
+	c, err := bld.Build()
+	Error(err)
 	c.Strength = collate.Tertiary
+	c.Alternate = collate.AltShifted
 	b := &collate.Buffer{}
 	if strings.Contains(t.name, "NON_IGNOR") {
 		c.Alternate = collate.AltNonIgnorable
