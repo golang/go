@@ -658,8 +658,11 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 					p += 4;
 				}
 			}
-			if(info & 0xffffffff == 0) // R_*_NONE relocation
+			if((info & 0xffffffff) == 0) { // skip R_*_NONE relocation
+				j--;
+				n--;
 				continue;
+			}
 			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
 				rp->sym = S;
 			} else {
