@@ -241,8 +241,8 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
 		e := states[i]
 		c := str[p]
 		if c >= e.l {
-			p++
 			if e.l == c {
+				p++
 				if e.i != noIndex {
 					index, ns = int(e.i), p
 				}
@@ -252,12 +252,13 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
 				} else {
 					return
 				}
+				continue
 			} else if e.n == final && c <= e.h {
+				p++
 				return int(c-e.l) + int(e.i), p
 			}
-		} else {
-			i++
 		}
+		i++
 	}
 	return
 }
