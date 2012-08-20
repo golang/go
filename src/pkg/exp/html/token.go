@@ -155,8 +155,54 @@ type Tokenizer struct {
 	// convertNUL is whether NUL bytes in the current token's data should
 	// be converted into \ufffd replacement characters.
 	convertNUL bool
-	// cdataOK is whether CDATA sections are allowed in the current context.
-	cdataOK bool
+	// allowCDATA is whether CDATA sections are allowed in the current context.
+	allowCDATA bool
+}
+
+// AllowCDATA sets whether or not the tokenizer recognizes <![CDATA[foo]]> as
+// the text "foo". The default value is false, which means to recognize it as
+// a bogus comment "<!-- [CDATA[foo]] -->" instead.
+//
+// Strictly speaking, an HTML5 compliant tokenizer should allow CDATA if and
+// only if tokenizing foreign content, such as MathML and SVG. However,
+// tracking foreign-contentness is difficult to do purely in the tokenizer,
+// as opposed to the parser, due to HTML integration points: an <svg> element
+// can contain a <foreignObject> that is foreign-to-SVG but not foreign-to-
+// HTML. For strict compliance with the HTML5 tokenization algorithm, it is the
+// responsibility of the user of a tokenizer to call AllowCDATA as appropriate.
+// In practice, if using the tokenizer without caring whether MathML or SVG
+// CDATA is text or comments, such as tokenizing HTML to find all the anchor
+// text, it is acceptable to ignore this responsibility.
+func (z *Tokenizer) AllowCDATA(allowCDATA bool) {
+	z.allowCDATA = allowCDATA
+}
+
+// NextIsNotRawText instructs the tokenizer that the next token should not be
+// considered as 'raw text'. Some elements, such as script and title elements,
+// normally require the next token after the opening tag to be 'raw text' that
+// has no child elements. For example, tokenizing "<title>a<b>c</b>d</title>"
+// yields a start tag token for "<title>", a text token for "a<b>c</b>d", and
+// an end tag token for "</title>". There are no distinct start tag or end tag
+// tokens for the "<b>" and "</b>".
+//
+// This tokenizer implementation will generally look for raw text at the right
+// times. Strictly speaking, an HTML5 compliant tokenizer should not look for
+// raw text if in foreign content: <title> generally needs raw text, but a
+// <title> inside an <svg> does not. Another example is that a <textarea>
+// generally needs raw text, but a <textarea> is not allowed as an immediate
+// child of a <select>; in normal parsing, a <textarea> implies </select>, but
+// one cannot close the implicit element when parsing a <select>'s InnerHTML.
+// Similarly to AllowCDATA, tracking the correct moment to override raw-text-
+// ness is difficult to do purely in the tokenizer, as opposed to the parser.
+// For strict compliance with the HTML5 tokenization algorithm, it is the
+// responsibility of the user of a tokenizer to call NextIsNotRawText as
+// appropriate. In practice, like AllowCDATA, it is acceptable to ignore this
+// responsibility for basic usage.
+//
+// Note that this 'raw text' concept is different from the one offered by the
+// Tokenizer.Raw method.
+func (z *Tokenizer) NextIsNotRawText() {
+	z.rawTag = ""
 }
 
 // Err returns the error associated with the most recent ErrorToken token.
@@ -592,7 +638,7 @@ func (z *Tokenizer) readMarkupDeclaration() TokenType {
 	if z.readDoctype() {
 		return DoctypeToken
 	}
-	if z.cdataOK && z.readCDATA() {
+	if z.allowCDATA && z.readCDATA() {
 		z.convertNUL = true
 		return TextToken
 	}
@@ -1101,8 +1147,27 @@ func (z *Tokenizer) Token() Token {
 // NewTokenizer returns a new HTML Tokenizer for the given Reader.
 // The input is assumed to be UTF-8 encoded.
 func NewTokenizer(r io.Reader) *Tokenizer {
-	return &Tokenizer{
+	return NewTokenizerFragment(r, "")
+}
+
+// NewTokenizerFragment returns a new HTML Tokenizer for the given Reader, for
+// tokenizing an exisitng element's InnerHTML fragment. contextTag is that
+// element's tag, such as "div" or "iframe".
+//
+// For example, how the InnerHTML "a<b" is tokenized depends on whether it is
+// for a <p> tag or a <script> tag.
+//
+// The input is assumed to be UTF-8 encoded.
+func NewTokenizerFragment(r io.Reader, contextTag string) *Tokenizer {
+	z := &Tokenizer{
 		r:   r,
 		buf: make([]byte, 0, 4096),
 	}
+	if contextTag != "" {
+		switch s := strings.ToLower(contextTag); s {
+		case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "title", "textarea", "xmp":
+			z.rawTag = s
+		}
+	}
+	return z
 }
