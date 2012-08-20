@@ -35,17 +35,17 @@ const (
 type AlternateHandling int
 
 const (
-	// AltShifted sets variables to be ignorable for levels one through three and
-	// adds a fourth level based on the values of the ignored levels.
-	AltShifted AlternateHandling = iota
-
 	// AltNonIgnorable turns off special handling of variables.
-	AltNonIgnorable
+	AltNonIgnorable AlternateHandling = iota
 
 	// AltBlanked sets variables and all subsequent primary ignorables to be
 	// ignorable at all levels. This is identical to removing all variables
 	// and subsequent primary ignorables from the input.
 	AltBlanked
+
+	// AltShifted sets variables to be ignorable for levels one through three and
+	// adds a fourth level based on the values of the ignored levels.
+	AltShifted
 
 	// AltShiftTrimmed is a slight variant of AltShifted that is used to
 	// emulate POSIX.

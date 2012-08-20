@@ -223,7 +223,7 @@ const sep = 0 // separator byte
 
 var keyFromElemTests = []keyFromElemTest{
 	{ // simple primary and secondary weights.
-		opts{},
+		opts{alt: collate.AltShifted},
 		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
@@ -232,7 +232,7 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // same as first, but with zero element that need to be removed
-		opts{},
+		opts{alt: collate.AltShifted},
 		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
@@ -241,7 +241,7 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // same as first, with large primary values
-		opts{},
+		opts{alt: collate.AltShifted},
 		ColElems{w(0x200), w(0x8000), w(0, 0x30), w(0x12345)},
 		[]byte{0x2, 0, 0x80, 0x80, 0x00, 0x81, 0x23, 0x45, // primary
 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
@@ -250,7 +250,7 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // same as first, but with the secondary level backwards
-		opts{backwards: true},
+		opts{alt: collate.AltShifted, backwards: true},
 		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, 0, defS, 0, 0x30, 0, defS, 0, defS, // secondary
@@ -259,7 +259,7 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // same as first, ignoring quaternary level
-		opts{lev: 3},
+		opts{alt: collate.AltShifted, lev: 3},
 		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
@@ -267,14 +267,14 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // same as first, ignoring tertiary level
-		opts{lev: 2},
+		opts{alt: collate.AltShifted, lev: 2},
 		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
 		},
 	},
 	{ // same as first, ignoring secondary level
-		opts{lev: 1},
+		opts{alt: collate.AltShifted, lev: 1},
 		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00},
 	},
@@ -288,7 +288,7 @@ var keyFromElemTests = []keyFromElemTest{
 		},
 	},
 	{ // as first, primary with case level enabled
-		opts{lev: 1, caseLevel: true},
+		opts{alt: collate.AltShifted, lev: 1, caseLevel: true},
 		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
 			sep, sep, // secondary
@@ -378,6 +378,7 @@ var keyTests = []keyTest{
 
 func TestKey(t *testing.T) {
 	c, _ := makeTable(appendNextTests[4].in)
+	c.Alternate = collate.AltShifted
 	buf := collate.Buffer{}
 	keys1 := [][]byte{}
 	keys2 := [][]byte{}
