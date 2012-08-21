@@ -49,7 +49,7 @@ func (p *Process) writeProcFile(file string, data string) error {
 }
 
 func (p *Process) signal(sig Signal) error {
-	if p.done {
+	if p.done() {
 		return errors.New("os: process already finished")
 	}
 	if sig == Kill {
@@ -84,7 +84,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		}
 
 		if waitmsg.Pid == p.Pid {
-			p.done = true
+			p.setDone()
 			break
 		}
 	}

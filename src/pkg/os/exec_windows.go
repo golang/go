@@ -32,7 +32,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if e != nil {
 		return nil, NewSyscallError("GetProcessTimes", e)
 	}
-	p.done = true
+	p.setDone()
 	// NOTE(brainman): It seems that sometimes process is not dead
 	// when WaitForSingleObject returns. But we do not know any
 	// other way to wait for it. Sleeping for a while seems to do
@@ -43,7 +43,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 }
 
 func (p *Process) signal(sig Signal) error {
-	if p.done {
+	if p.done() {
 		return errors.New("os: process already finished")
 	}
 	if sig == Kill {
