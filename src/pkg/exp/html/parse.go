@@ -398,20 +398,6 @@ func (p *parser) reconstructActiveFormattingElements() {
 	}
 }
 
-// read reads the next token from the tokenizer.
-func (p *parser) read() error {
-	// CDATA sections are allowed only in foreign content.
-	n := p.oe.top()
-	p.tokenizer.AllowCDATA(n != nil && n.Namespace != "")
-
-	p.tokenizer.Next()
-	p.tok = p.tokenizer.Token()
-	if p.tok.Type == ErrorToken {
-		return p.tokenizer.Err()
-	}
-	return nil
-}
-
 // Section 12.2.4.
 func (p *parser) acknowledgeSelfClosingTag() {
 	p.hasSelfClosingToken = false
@@ -2014,9 +2000,17 @@ func (p *parser) parse() error {
 	// Iterate until EOF. Any other error will cause an early return.
 	var err error
 	for err != io.EOF {
-		err = p.read()
-		if err != nil && err != io.EOF {
-			return err
+		// CDATA sections are allowed only in foreign content.
+		n := p.oe.top()
+		p.tokenizer.AllowCDATA(n != nil && n.Namespace != "")
+		// Read and parse the next token.
+		p.tokenizer.Next()
+		p.tok = p.tokenizer.Token()
+		if p.tok.Type == ErrorToken {
+			err = p.tokenizer.Err()
+			if err != nil && err != io.EOF {
+				return err
+			}
 		}
 		p.parseCurrentToken()
 	}
