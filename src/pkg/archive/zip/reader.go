@@ -103,7 +103,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		}
 		z.File = append(z.File, f)
 	}
-	if uint16(len(z.File)) != end.directoryRecords {
+	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
@@ -123,7 +123,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 	if err != nil {
 		return
 	}
-	size := int64(f.CompressedSize)
+	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	switch f.Method {
 	case Store: // (no compression)
@@ -220,6 +220,8 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	f.CRC32 = b.uint32()
 	f.CompressedSize = b.uint32()
 	f.UncompressedSize = b.uint32()
+	f.CompressedSize64 = uint64(f.CompressedSize)
+	f.UncompressedSize64 = uint64(f.UncompressedSize)
 	filenameLen := int(b.uint16())
 	extraLen := int(b.uint16())
 	commentLen := int(b.uint16())
@@ -233,6 +235,28 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	f.Name = string(d[:filenameLen])
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
+
+	if len(f.Extra) > 0 {
+		b := readBuf(f.Extra)
+		for len(b) > 0 {
+			tag := b.uint16()
+			size := b.uint16()
+			if tag == zip64ExtraId {
+				// update directory values from the zip64 extra block
+				eb := readBuf(b)
+				if len(eb) >= 8 {
+					f.UncompressedSize64 = eb.uint64()
+				}
+				if len(eb) >= 8 {
+					f.CompressedSize64 = eb.uint64()
+				}
+				if len(eb) >= 8 {
+					f.headerOffset = int64(eb.uint64())
+				}
+			}
+			b = b[size:]
+		}
+	}
 	return nil
 }
 
@@ -263,15 +287,23 @@ func readDataDescriptor(r io.Reader, f *File) error {
 		return err
 	}
 	b := readBuf(buf[:12])
-	f.CRC32 = b.uint32()
-	f.CompressedSize = b.uint32()
-	f.UncompressedSize = b.uint32()
+	if b.uint32() != f.CRC32 {
+		return ErrChecksum
+	}
+
+	// The two sizes that follow here can be either 32 bits or 64 bits
+	// but the spec is not very clear on this and different
+	// interpretations has been made causing incompatibilities. We
+	// already have the sizes from the central directory so we can
+	// just ignore these.
+
 	return nil
 }
 
 func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
 	// look for directoryEndSignature in the last 1k, then in the last 65k
 	var buf []byte
+	var directoryEndOffset int64
 	for i, bLen := range []int64{1024, 65 * 1024} {
 		if bLen > size {
 			bLen = size
@@ -282,6 +314,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 		}
 		if p := findSignatureInBlock(buf); p >= 0 {
 			buf = buf[p:]
+			directoryEndOffset = size - bLen + int64(p)
 			break
 		}
 		if i == 1 || bLen == size {
@@ -292,12 +325,12 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	// read header into struct
 	b := readBuf(buf[4:]) // skip signature
 	d := &directoryEnd{
-		diskNbr:            b.uint16(),
-		dirDiskNbr:         b.uint16(),
-		dirRecordsThisDisk: b.uint16(),
-		directoryRecords:   b.uint16(),
-		directorySize:      b.uint32(),
-		directoryOffset:    b.uint32(),
+		diskNbr:            uint32(b.uint16()),
+		dirDiskNbr:         uint32(b.uint16()),
+		dirRecordsThisDisk: uint64(b.uint16()),
+		directoryRecords:   uint64(b.uint16()),
+		directorySize:      uint64(b.uint32()),
+		directoryOffset:    uint64(b.uint32()),
 		commentLen:         b.uint16(),
 	}
 	l := int(d.commentLen)
@@ -305,7 +338,60 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 		return nil, errors.New("zip: invalid comment length")
 	}
 	d.comment = string(b[:l])
+
+	p, err := findDirectory64End(r, directoryEndOffset)
+	if err == nil && p >= 0 {
+		err = readDirectory64End(r, p, d)
+	}
+	if err != nil {
+		return nil, err
+	}
 	return d, nil
+}
+
+// findDirectory64End tries to read the zip64 locator just before the
+// directory end and returns the offset of the zip64 directory end if
+// found.
+func findDirectory64End(r io.ReaderAt, directoryEndOffset int64) (int64, error) {
+	locOffset := directoryEndOffset - directory64LocLen
+	if locOffset < 0 {
+		return -1, nil // no need to look for a header outside the file
+	}
+	buf := make([]byte, directory64LocLen)
+	if _, err := r.ReadAt(buf, locOffset); err != nil {
+		return -1, err
+	}
+	b := readBuf(buf)
+	if sig := b.uint32(); sig != directory64LocSignature {
+		return -1, nil
+	}
+	b = b[4:]       // skip number of the disk with the start of the zip64 end of central directory
+	p := b.uint64() // relative offset of the zip64 end of central directory record
+	return int64(p), nil
+}
+
+// readDirectory64End reads the zip64 directory end and updates the
+// directory end with the zip64 directory end values.
+func readDirectory64End(r io.ReaderAt, offset int64, d *directoryEnd) (err error) {
+	buf := make([]byte, directory64EndLen)
+	if _, err := r.ReadAt(buf, offset); err != nil {
+		return err
+	}
+
+	b := readBuf(buf)
+	if sig := b.uint32(); sig != directory64EndSignature {
+		return ErrFormat
+	}
+
+	b = b[12:]                        // skip dir size, version and version needed (uint64 + 2x uint16)
+	d.diskNbr = b.uint32()            // number of this disk
+	d.dirDiskNbr = b.uint32()         // number of the disk with the start of the central directory
+	d.dirRecordsThisDisk = b.uint64() // total number of entries in the central directory on this disk
+	d.directoryRecords = b.uint64()   // total number of entries in the central directory
+	d.directorySize = b.uint64()      // size of the central directory
+	d.directoryOffset = b.uint64()    // offset of start of central directory with respect to the starting disk number
+
+	return nil
 }
 
 func findSignatureInBlock(b []byte) int {
@@ -333,5 +419,11 @@ func (b *readBuf) uint16() uint16 {
 func (b *readBuf) uint32() uint32 {
 	v := binary.LittleEndian.Uint32(*b)
 	*b = (*b)[4:]
+	return v
+}
+
+func (b *readBuf) uint64() uint64 {
+	v := binary.LittleEndian.Uint64(*b)
+	*b = (*b)[8:]
 	return v
 }

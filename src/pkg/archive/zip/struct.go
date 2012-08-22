@@ -7,12 +7,19 @@ Package zip provides support for reading and writing ZIP archives.
 
 See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 
-This package does not support ZIP64 or disk spanning.
+This package does not support disk spanning.
+
+A note about ZIP64:
+
+To be backwards compatible the FileHeader has both 32 and 64 bit Size
+fields. The 64 bit fields will always contain the correct value and
+for normal archives both fields will be the same. For files requiring
+the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
+fields must be used instead.
 */
 package zip
 
 import (
-	"errors"
 	"os"
 	"time"
 )
@@ -27,11 +34,16 @@ const (
 	fileHeaderSignature      = 0x04034b50
 	directoryHeaderSignature = 0x02014b50
 	directoryEndSignature    = 0x06054b50
+	directory64LocSignature  = 0x07064b50
+	directory64EndSignature  = 0x06064b50
 	dataDescriptorSignature  = 0x08074b50 // de-facto standard; required by OS X Finder
 	fileHeaderLen            = 30         // + filename + extra
 	directoryHeaderLen       = 46         // + filename + extra + comment
 	directoryEndLen          = 22         // + comment
 	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
+	dataDescriptor64Len      = 24         // descriptor with 8 byte sizes
+	directory64LocLen        = 20         //
+	directory64EndLen        = 56         // + extra
 
 	// Constants for the first byte in CreatorVersion
 	creatorFAT    = 0
@@ -39,22 +51,35 @@ const (
 	creatorNTFS   = 11
 	creatorVFAT   = 14
 	creatorMacOSX = 19
+
+	// version numbers
+	zipVersion20 = 20 // 2.0
+	zipVersion45 = 45 // 4.5 (reads and writes zip64 archives)
+
+	// limits for non zip64 files
+	uint16max = (1 << 16) - 1
+	uint32max = (1 << 32) - 1
+
+	// extra header id's
+	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
 )
 
 type FileHeader struct {
-	Name             string
-	CreatorVersion   uint16
-	ReaderVersion    uint16
-	Flags            uint16
-	Method           uint16
-	ModifiedTime     uint16 // MS-DOS time
-	ModifiedDate     uint16 // MS-DOS date
-	CRC32            uint32
-	CompressedSize   uint32
-	UncompressedSize uint32
-	Extra            []byte
-	ExternalAttrs    uint32 // Meaning depends on CreatorVersion
-	Comment          string
+	Name               string
+	CreatorVersion     uint16
+	ReaderVersion      uint16
+	Flags              uint16
+	Method             uint16
+	ModifiedTime       uint16 // MS-DOS time
+	ModifiedDate       uint16 // MS-DOS date
+	CRC32              uint32
+	CompressedSize     uint32 // deprecated; use CompressedSize64
+	UncompressedSize   uint32 // deprecated; use UncompressedSize64
+	CompressedSize64   uint64
+	UncompressedSize64 uint64
+	Extra              []byte
+	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
+	Comment            string
 }
 
 // FileInfo returns an os.FileInfo for the FileHeader.
@@ -67,8 +92,13 @@ type headerFileInfo struct {
 	fh *FileHeader
 }
 
-func (fi headerFileInfo) Name() string       { return fi.fh.Name }
-func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) }
+func (fi headerFileInfo) Name() string { return fi.fh.Name }
+func (fi headerFileInfo) Size() int64 {
+	if fi.fh.UncompressedSize64 > 0 {
+		return int64(fi.fh.UncompressedSize64)
+	}
+	return int64(fi.fh.UncompressedSize)
+}
 func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
 func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
@@ -78,25 +108,27 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
 // os.FileInfo.
 func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
 	size := fi.Size()
-	if size > (1<<32 - 1) {
-		return nil, errors.New("zip: file over 4GB")
-	}
 	fh := &FileHeader{
-		Name:             fi.Name(),
-		UncompressedSize: uint32(size),
+		Name:               fi.Name(),
+		UncompressedSize64: uint64(size),
 	}
 	fh.SetModTime(fi.ModTime())
 	fh.SetMode(fi.Mode())
+	if fh.UncompressedSize64 > uint32max {
+		fh.UncompressedSize = uint32max
+	} else {
+		fh.UncompressedSize = uint32(fh.UncompressedSize64)
+	}
 	return fh, nil
 }
 
 type directoryEnd struct {
-	diskNbr            uint16 // unused
-	dirDiskNbr         uint16 // unused
-	dirRecordsThisDisk uint16 // unused
-	directoryRecords   uint16
-	directorySize      uint32
-	directoryOffset    uint32 // relative to file
+	diskNbr            uint32 // unused
+	dirDiskNbr         uint32 // unused
+	dirRecordsThisDisk uint64 // unused
+	directoryRecords   uint64
+	directorySize      uint64
+	directoryOffset    uint64 // relative to file
 	commentLen         uint16
 	comment            string
 }
@@ -188,6 +220,11 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
 	if mode&0200 == 0 {
 		h.ExternalAttrs |= msdosReadOnly
 	}
+}
+
+// isZip64 returns true if the file size exceeds the 32 bit limit
+func (fh *FileHeader) isZip64() bool {
+	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
 }
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {

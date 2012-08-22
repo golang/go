@@ -9,7 +9,8 @@ package zip
 import (
 	"bytes"
 	"fmt"
-	"reflect"
+	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -58,6 +59,33 @@ func TestModTime(t *testing.T) {
 	}
 }
 
+func testHeaderRoundTrip(fh *FileHeader, wantUncompressedSize uint32, wantUncompressedSize64 uint64, t *testing.T) {
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fh2.Name, fh.Name; got != want {
+		t.Errorf("Name: got %s, want %s\n", got, want)
+	}
+	if got, want := fh2.UncompressedSize, wantUncompressedSize; got != want {
+		t.Errorf("UncompressedSize: got %d, want %d\n", got, want)
+	}
+	if got, want := fh2.UncompressedSize64, wantUncompressedSize64; got != want {
+		t.Errorf("UncompressedSize64: got %d, want %d\n", got, want)
+	}
+	if got, want := fh2.ModifiedTime, fh.ModifiedTime; got != want {
+		t.Errorf("ModifiedTime: got %d, want %d\n", got, want)
+	}
+	if got, want := fh2.ModifiedDate, fh.ModifiedDate; got != want {
+		t.Errorf("ModifiedDate: got %d, want %d\n", got, want)
+	}
+
+	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
+		t.Errorf("Sys didn't return original *FileHeader")
+	}
+}
+
 func TestFileHeaderRoundTrip(t *testing.T) {
 	fh := &FileHeader{
 		Name:             "foo.txt",
@@ -65,17 +93,83 @@ func TestFileHeaderRoundTrip(t *testing.T) {
 		ModifiedTime:     1234,
 		ModifiedDate:     5678,
 	}
-	fi := fh.FileInfo()
-	fh2, err := FileInfoHeader(fi)
+	testHeaderRoundTrip(fh, fh.UncompressedSize, uint64(fh.UncompressedSize), t)
+}
 
-	// Ignore these fields:
-	fh2.CreatorVersion = 0
-	fh2.ExternalAttrs = 0
-
-	if !reflect.DeepEqual(fh, fh2) {
-		t.Errorf("mismatch\n input=%#v\noutput=%#v\nerr=%v", fh, fh2, err)
+func TestFileHeaderRoundTrip64(t *testing.T) {
+	fh := &FileHeader{
+		Name:               "foo.txt",
+		UncompressedSize64: 9876543210,
+		ModifiedTime:       1234,
+		ModifiedDate:       5678,
 	}
-	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
-		t.Errorf("Sys didn't return original *FileHeader")
+	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
+}
+
+func TestZip64(t *testing.T) {
+	if testing.Short() {
+		t.Logf("slow test; skipping")
+		return
+	}
+	// write 2^32 bytes plus "END\n" to a zip file
+	buf := new(bytes.Buffer)
+	w := NewWriter(buf)
+	f, err := w.Create("huge.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunk := make([]byte, 1024)
+	for i := range chunk {
+		chunk[i] = '.'
+	}
+	chunk[len(chunk)-1] = '\n'
+	end := []byte("END\n")
+	for i := 0; i < (1<<32)/1024; i++ {
+		_, err := f.Write(chunk)
+		if err != nil {
+			t.Fatal("write chunk:", err)
+		}
+	}
+	_, err = f.Write(end)
+	if err != nil {
+		t.Fatal("write end:", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// read back zip file and check that we get to the end of it
+	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal("reader:", err)
+	}
+	f0 := r.File[0]
+	rc, err := f0.Open()
+	if err != nil {
+		t.Fatal("opening:", err)
+	}
+	for i := 0; i < (1<<32)/1024; i++ {
+		_, err := io.ReadFull(rc, chunk)
+		if err != nil {
+			t.Fatal("read:", err)
+		}
+	}
+	gotEnd, err := ioutil.ReadAll(rc)
+	if err != nil {
+		t.Fatal("read end:", err)
+	}
+	if !bytes.Equal(gotEnd, end) {
+		t.Errorf("End of zip64 archive %q, want %q", gotEnd, end)
+	}
+	err = rc.Close()
+	if err != nil {
+		t.Fatal("closing:", err)
+	}
+	if got, want := f0.UncompressedSize, uint32(uint32max); got != want {
+		t.Errorf("UncompressedSize %d, want %d", got, want)
+	}
+
+	if got, want := f0.UncompressedSize64, (1<<32)+uint64(len(end)); got != want {
+		t.Errorf("UncompressedSize64 %d, want %d", got, want)
 	}
 }
