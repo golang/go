@@ -206,6 +206,17 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	{
+		Name: "zip64.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "README",
+				Content: []byte("This small file is in ZIP64 format.\n"),
+				Mtime:   "08-10-12 14:33:32",
+				Mode:    0644,
+			},
+		},
+	},
 }
 
 var crossPlatform = []ZipTestFile{
