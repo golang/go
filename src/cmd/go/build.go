@@ -1427,6 +1427,16 @@ func gccgoPrefix(p *Package) string {
 	return "go_" + p.ImportPath
 }
 
+// libgcc returns the filename for libgcc, as determined by invoking gcc with
+// the -print-libgcc-file-name option.
+func (b *builder) libgcc(p *Package) (string, error) {
+	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
+	if err != nil {
+		return "", nil
+	}
+	return strings.Trim(string(f), "\r\n"), nil
+}
+
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
 	cfile = mkAbs(p.Dir, cfile)
@@ -1571,7 +1581,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
 	}
-	staticLibs := []string{"-lgcc"}
+	libgcc, err := b.libgcc(p)
+	if err != nil {
+		return nil, nil, err
+	}
+	staticLibs := []string{libgcc}
 	if goos == "windows" {
 		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
 	}
