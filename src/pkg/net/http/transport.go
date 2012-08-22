@@ -379,7 +379,18 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 
 	if cm.targetScheme == "https" {
 		// Initiate TLS and check remote host name against certificate.
-		conn = tls.Client(conn, t.TLSClientConfig)
+		cfg := t.TLSClientConfig
+		if cfg == nil || cfg.ServerName == "" {
+			host, _, _ := net.SplitHostPort(cm.addr())
+			if cfg == nil {
+				cfg = &tls.Config{ServerName: host}
+			} else {
+				clone := *cfg // shallow clone
+				clone.ServerName = host
+				cfg = &clone
+			}
+		}
+		conn = tls.Client(conn, cfg)
 		if err = conn.(*tls.Conn).Handshake(); err != nil {
 			return nil, err
 		}
