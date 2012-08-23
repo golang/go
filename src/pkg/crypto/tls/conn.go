@@ -487,6 +487,16 @@ Again:
 		return err
 	}
 	typ := recordType(b.data[0])
+
+	// No valid TLS record has a type of 0x80, however SSLv2 handshakes
+	// start with a uint16 length where the MSB is set and the first record
+	// is always < 256 bytes long. Therefore typ == 0x80 strongly suggests
+	// an SSLv2 client.
+	if want == recordTypeHandshake && typ == 0x80 {
+		c.sendAlert(alertProtocolVersion)
+		return errors.New("tls: unsupported SSLv2 handshake received")
+	}
+
 	vers := uint16(b.data[1])<<8 | uint16(b.data[2])
 	n := int(b.data[3])<<8 | int(b.data[4])
 	if c.haveVers && vers != c.vers {
