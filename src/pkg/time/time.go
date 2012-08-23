@@ -412,6 +412,13 @@ func (t Time) Nanosecond() int {
 	return int(t.nsec)
 }
 
+// YearDay returns the day of the year specified by t, in the range [1, 365] for non-leap years,
+// and [1,366] in leap years.
+func (t Time) YearDay() int {
+	_, _, _, yday := t.date(false)
+	return yday + 1
+}
+
 // A Duration represents the elapsed time between two instants
 // as an int64 nanosecond count.  The representation limits the
 // largest representable duration to approximately 290 years.
@@ -641,7 +648,7 @@ const (
 	days1970To2001   = 31*365 + 8
 )
 
-// date computes the year and, only when full=true,
+// date computes the year, day of year, and when full=true,
 // the month and day in which t occurs.
 func (t Time) date(full bool) (year int, month Month, day int, yday int) {
 	return absDate(t.abs(), full)

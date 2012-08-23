@@ -611,6 +611,103 @@ func TestISOWeek(t *testing.T) {
 	}
 }
 
+type YearDayTest struct {
+	year, month, day int
+	yday             int
+}
+
+// Test YearDay in several different scenarios
+// and corner cases
+var yearDayTests = []YearDayTest{
+	// Non-leap-year tests
+	{2007, 1, 1, 1},
+	{2007, 1, 15, 15},
+	{2007, 2, 1, 32},
+	{2007, 2, 15, 46},
+	{2007, 3, 1, 60},
+	{2007, 3, 15, 74},
+	{2007, 4, 1, 91},
+	{2007, 12, 31, 365},
+
+	// Leap-year tests
+	{2008, 1, 1, 1},
+	{2008, 1, 15, 15},
+	{2008, 2, 1, 32},
+	{2008, 2, 15, 46},
+	{2008, 3, 1, 61},
+	{2008, 3, 15, 75},
+	{2008, 4, 1, 92},
+	{2008, 12, 31, 366},
+
+	// Looks like leap-year (but isn't) tests
+	{1900, 1, 1, 1},
+	{1900, 1, 15, 15},
+	{1900, 2, 1, 32},
+	{1900, 2, 15, 46},
+	{1900, 3, 1, 60},
+	{1900, 3, 15, 74},
+	{1900, 4, 1, 91},
+	{1900, 12, 31, 365},
+
+	// Year one tests (non-leap)
+	{1, 1, 1, 1},
+	{1, 1, 15, 15},
+	{1, 2, 1, 32},
+	{1, 2, 15, 46},
+	{1, 3, 1, 60},
+	{1, 3, 15, 74},
+	{1, 4, 1, 91},
+	{1, 12, 31, 365},
+
+	// Year minus one tests (non-leap)
+	{-1, 1, 1, 1},
+	{-1, 1, 15, 15},
+	{-1, 2, 1, 32},
+	{-1, 2, 15, 46},
+	{-1, 3, 1, 60},
+	{-1, 3, 15, 74},
+	{-1, 4, 1, 91},
+	{-1, 12, 31, 365},
+
+	// 400 BC tests (leap-year)
+	{-400, 1, 1, 1},
+	{-400, 1, 15, 15},
+	{-400, 2, 1, 32},
+	{-400, 2, 15, 46},
+	{-400, 3, 1, 61},
+	{-400, 3, 15, 75},
+	{-400, 4, 1, 92},
+	{-400, 12, 31, 366},
+
+	// Special Cases
+
+	// Gregorian calendar change (no effect)
+	{1582, 10, 4, 277},
+	{1582, 10, 15, 288},
+}
+
+// Check to see if YearDay is location sensitive
+var yearDayLocations = []*Location{
+	FixedZone("UTC-8", -8*60*60),
+	FixedZone("UTC-4", -4*60*60),
+	UTC,
+	FixedZone("UTC+4", 4*60*60),
+	FixedZone("UTC+8", 8*60*60),
+}
+
+func TestYearDay(t *testing.T) {
+	for _, loc := range yearDayLocations {
+		for _, ydt := range yearDayTests {
+			dt := Date(ydt.year, Month(ydt.month), ydt.day, 0, 0, 0, 0, loc)
+			yday := dt.YearDay()
+			if yday != ydt.yday {
+				t.Errorf("got %d, expected %d for %d-%02d-%02d in %v",
+					yday, ydt.yday, ydt.year, ydt.month, ydt.day, loc)
+			}
+		}
+	}
+}
+
 var durationTests = []struct {
 	str string
 	d   Duration
