@@ -412,7 +412,7 @@ func (t Time) Nanosecond() int {
 	return int(t.nsec)
 }
 
-// YearDay returns the day of the year specified by t, in the range [1, 365] for non-leap years,
+// YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
 // and [1,366] in leap years.
 func (t Time) YearDay() int {
 	_, _, _, yday := t.date(false)
