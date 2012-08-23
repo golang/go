@@ -392,13 +392,7 @@ sbop:	// symmetric binary
 	}
 
 abop:	// asymmetric binary
-	if(smallintconst(nr)) {
-		regalloc(&n1, nr->type, res);
-		cgen(nl, &n1);
-		gins(a, nr, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-	} else if(nl->ullman >= nr->ullman) {
+	if(nl->ullman >= nr->ullman) {
 		tempname(&nt, nl->type);
 		cgen(nl, &nt);
 		mgen(nr, &n2, N);
