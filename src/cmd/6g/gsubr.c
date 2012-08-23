@@ -796,9 +796,9 @@ gmove(Node *f, Node *t)
 		// algorithm is:
 		//	if small enough, use native float64 -> int64 conversion.
 		//	otherwise, subtract 2^63, convert, and add it back.
-		a = ACVTSS2SQ;
+		a = ACVTTSS2SQ;
 		if(ft == TFLOAT64)
-			a = ACVTSD2SQ;
+			a = ACVTTSD2SQ;
 		bignodes();
 		regalloc(&r1, types[ft], N);
 		regalloc(&r2, types[tt], t);
