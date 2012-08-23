@@ -25,8 +25,8 @@ func newFileFD(f *os.File) (*netFD, error) {
 
 	family := syscall.AF_UNSPEC
 	toAddr := sockaddrToTCP
-	sa, _ := syscall.Getsockname(fd)
-	switch sa.(type) {
+	lsa, _ := syscall.Getsockname(fd)
+	switch lsa.(type) {
 	default:
 		closesocket(fd)
 		return nil, syscall.EINVAL
@@ -53,16 +53,14 @@ func newFileFD(f *os.File) (*netFD, error) {
 			toAddr = sockaddrToUnixpacket
 		}
 	}
-	laddr := toAddr(sa)
-	sa, _ = syscall.Getpeername(fd)
-	raddr := toAddr(sa)
+	laddr := toAddr(lsa)
 
 	netfd, err := newFD(fd, family, sotype, laddr.Network())
 	if err != nil {
 		closesocket(fd)
 		return nil, err
 	}
-	netfd.setAddr(laddr, raddr)
+	netfd.setAddr(laddr, remoteSockname(netfd, toAddr))
 	return netfd, nil
 }
 
@@ -80,10 +78,10 @@ func FileConn(f *os.File) (c Conn, err error) {
 		return newTCPConn(fd), nil
 	case *UDPAddr:
 		return newUDPConn(fd), nil
-	case *UnixAddr:
-		return newUnixConn(fd), nil
 	case *IPAddr:
 		return newIPConn(fd), nil
+	case *UnixAddr:
+		return newUnixConn(fd), nil
 	}
 	fd.Close()
 	return nil, syscall.EINVAL

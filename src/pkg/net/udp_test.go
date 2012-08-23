@@ -9,6 +9,33 @@ import (
 	"testing"
 )
 
+var udpConnAddrStringTests = []struct {
+	net   string
+	laddr string
+	raddr string
+	ipv6  bool
+}{
+	{"udp", "127.0.0.1:0", "", false},
+	{"udp", "[::1]:0", "", true},
+}
+
+func TestUDPConnAddrString(t *testing.T) {
+	for i, tt := range udpConnAddrStringTests {
+		if tt.ipv6 && !supportsIPv6 {
+			continue
+		}
+		mode := "listen"
+		la, _ := ResolveUDPAddr(tt.net, tt.laddr)
+		c, err := ListenUDP(tt.net, la)
+		if err != nil {
+			t.Fatalf("ListenUDP(%q, %q) failed: %v", tt.net, la.String(), err)
+		}
+		t.Logf("%s-%v: LocalAddr: %q, %q", mode, i, c.LocalAddr(), c.LocalAddr().String())
+		t.Logf("%s-%v: RemoteAddr: %q, %q", mode, i, c.RemoteAddr(), c.RemoteAddr().String())
+		c.Close()
+	}
+}
+
 func TestWriteToUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
