@@ -6,7 +6,6 @@ package big
 
 import (
 	"io"
-	"math/rand"
 	"runtime"
 	"strings"
 	"testing"
@@ -192,19 +191,14 @@ func TestMulUnbalanced(t *testing.T) {
 	}
 }
 
-var rnd = rand.New(rand.NewSource(0x43de683f473542af))
-var mulx = rndNat(1e4)
-var muly = rndNat(1e4)
-
 func rndNat(n int) nat {
-	x := make(nat, n)
-	for i := 0; i < n; i++ {
-		x[i] = Word(rnd.Int63()<<1 + rnd.Int63n(2))
-	}
-	return x.norm()
+	return nat(rndV(n)).norm()
 }
 
 func BenchmarkMul(b *testing.B) {
+	mulx := rndNat(1e4)
+	muly := rndNat(1e4)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var z nat
 		z.mul(mulx, muly)

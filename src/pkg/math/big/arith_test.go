@@ -4,7 +4,10 @@
 
 package big
 
-import "testing"
+import (
+	"math/rand"
+	"testing"
+)
 
 type funWW func(x, y, c Word) (z1, z0 Word)
 type argWW struct {
@@ -99,6 +102,43 @@ func TestFunVV(t *testing.T) {
 		testFunVV(t, "subVV symmetric", subVV, arg)
 	}
 }
+
+// Always the same seed for reproducible results.
+var rnd = rand.New(rand.NewSource(0))
+
+func rndW() Word {
+	return Word(rnd.Int63()<<1 | rnd.Int63n(2))
+}
+
+func rndV(n int) []Word {
+	v := make([]Word, n)
+	for i := range v {
+		v[i] = rndW()
+	}
+	return v
+}
+
+func benchmarkFunVV(b *testing.B, f funVV, n int) {
+	x := rndV(n)
+	y := rndV(n)
+	z := make([]Word, n)
+	b.SetBytes(int64(n * _W))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		f(z, x, y)
+	}
+}
+
+func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, addVV, 1) }
+func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, addVV, 2) }
+func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, addVV, 3) }
+func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, addVV, 4) }
+func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, addVV, 5) }
+func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, addVV, 1e1) }
+func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, addVV, 1e2) }
+func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, addVV, 1e3) }
+func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, addVV, 1e4) }
+func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, addVV, 1e5) }
 
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
@@ -209,6 +249,28 @@ func TestFunVW(t *testing.T) {
 		testFunVW(t, "shrVU", shrVW, arg)
 	}
 }
+
+func benchmarkFunVW(b *testing.B, f funVW, n int) {
+	x := rndV(n)
+	y := rndW()
+	z := make([]Word, n)
+	b.SetBytes(int64(n * _W))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		f(z, x, y)
+	}
+}
+
+func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, addVW, 1) }
+func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, addVW, 2) }
+func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, addVW, 3) }
+func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, addVW, 4) }
+func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, addVW, 5) }
+func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, addVW, 1e1) }
+func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, addVW, 1e2) }
+func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, addVW, 1e3) }
+func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, addVW, 1e4) }
+func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, addVW, 1e5) }
 
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
@@ -333,6 +395,28 @@ func TestMulAddWWW(t *testing.T) {
 		}
 	}
 }
+
+func benchmarkAddMulVVW(b *testing.B, n int) {
+	x := rndV(n)
+	y := rndW()
+	z := make([]Word, n)
+	b.SetBytes(int64(n * _W))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		addMulVVW(z, x, y)
+	}
+}
+
+func BenchmarkAddMulVVW_1(b *testing.B)   { benchmarkAddMulVVW(b, 1) }
+func BenchmarkAddMulVVW_2(b *testing.B)   { benchmarkAddMulVVW(b, 2) }
+func BenchmarkAddMulVVW_3(b *testing.B)   { benchmarkAddMulVVW(b, 3) }
+func BenchmarkAddMulVVW_4(b *testing.B)   { benchmarkAddMulVVW(b, 4) }
+func BenchmarkAddMulVVW_5(b *testing.B)   { benchmarkAddMulVVW(b, 5) }
+func BenchmarkAddMulVVW_1e1(b *testing.B) { benchmarkAddMulVVW(b, 1e1) }
+func BenchmarkAddMulVVW_1e2(b *testing.B) { benchmarkAddMulVVW(b, 1e2) }
+func BenchmarkAddMulVVW_1e3(b *testing.B) { benchmarkAddMulVVW(b, 1e3) }
+func BenchmarkAddMulVVW_1e4(b *testing.B) { benchmarkAddMulVVW(b, 1e4) }
+func BenchmarkAddMulVVW_1e5(b *testing.B) { benchmarkAddMulVVW(b, 1e5) }
 
 func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
 	for i := 0; i <= _W; i++ {
