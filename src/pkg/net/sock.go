@@ -16,7 +16,7 @@ import (
 var listenerBacklog = maxListenerBacklog()
 
 // Generic socket creation.
-func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, err := syscall.Socket(f, t, p)
@@ -27,21 +27,18 @@ func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toA
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	err = setDefaultSockopts(s, f, t, ipv6only)
-	if err != nil {
+	if err = setDefaultSockopts(s, f, t, ipv6only); err != nil {
 		closesocket(s)
 		return nil, err
 	}
 
-	var bla syscall.Sockaddr
-	if la != nil {
-		bla, err = listenerSockaddr(s, f, la, toAddr)
-		if err != nil {
+	var blsa syscall.Sockaddr
+	if ulsa != nil {
+		if blsa, err = listenerSockaddr(s, f, ulsa, toAddr); err != nil {
 			closesocket(s)
 			return nil, err
 		}
-		err = syscall.Bind(s, bla)
-		if err != nil {
+		if err = syscall.Bind(s, blsa); err != nil {
 			closesocket(s)
 			return nil, err
 		}
@@ -52,8 +49,8 @@ func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toA
 		return nil, err
 	}
 
-	if ra != nil {
-		if err = fd.connect(ra); err != nil {
+	if ursa != nil {
+		if err = fd.connect(ursa); err != nil {
 			closesocket(s)
 			fd.Close()
 			return nil, err
@@ -61,17 +58,13 @@ func socket(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toA
 		fd.isConnected = true
 	}
 
-	sa, _ := syscall.Getsockname(s)
 	var laddr Addr
-	if la != nil && bla != la {
-		laddr = toAddr(la)
+	if ulsa != nil && blsa != ulsa {
+		laddr = toAddr(ulsa)
 	} else {
-		laddr = toAddr(sa)
+		laddr = localSockname(fd, toAddr)
 	}
-	sa, _ = syscall.Getpeername(s)
-	raddr := toAddr(sa)
-
-	fd.setAddr(laddr, raddr)
+	fd.setAddr(laddr, remoteSockname(fd, toAddr))
 	return fd, nil
 }
 
@@ -84,4 +77,40 @@ type writerOnly struct {
 func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
 	return io.Copy(writerOnly{w}, r)
+}
+
+func localSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
+	sa, _ := syscall.Getsockname(fd.sysfd)
+	if sa == nil {
+		return nullProtocolAddr(fd.family, fd.sotype)
+	}
+	return toAddr(sa)
+}
+
+func remoteSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
+	sa, _ := syscall.Getpeername(fd.sysfd)
+	if sa == nil {
+		return nullProtocolAddr(fd.family, fd.sotype)
+	}
+	return toAddr(sa)
+}
+
+func nullProtocolAddr(f, t int) Addr {
+	switch f {
+	case syscall.AF_INET, syscall.AF_INET6:
+		switch t {
+		case syscall.SOCK_STREAM:
+			return (*TCPAddr)(nil)
+		case syscall.SOCK_DGRAM:
+			return (*UDPAddr)(nil)
+		case syscall.SOCK_RAW:
+			return (*IPAddr)(nil)
+		}
+	case syscall.AF_UNIX:
+		switch t {
+		case syscall.SOCK_STREAM, syscall.SOCK_DGRAM, syscall.SOCK_SEQPACKET:
+			return (*UnixAddr)(nil)
+		}
+	}
+	panic("unreachable")
 }

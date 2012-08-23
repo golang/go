@@ -612,11 +612,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 	syscall.ForkLock.RUnlock()
 
 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
-		syscall.Close(s)
+		closesocket(s)
 		return nil, err
 	}
-	lsa, _ := syscall.Getsockname(netfd.sysfd)
-	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+	netfd.setAddr(localSockname(fd, toAddr), toAddr(rsa))
 	return netfd, nil
 }
 
