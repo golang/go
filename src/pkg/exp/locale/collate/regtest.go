@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // This regression test runs tests for the test files in CollationTest.zip
@@ -53,7 +54,7 @@ var localFiles = flag.Bool("local",
 
 type Test struct {
 	name    string
-	str     []string
+	str     [][]byte
 	comment []string
 }
 
@@ -186,14 +187,23 @@ func loadTestData() []Test {
 			if m == nil || len(m) < 3 {
 				log.Fatalf(`Failed to parse: "%s" result: %#v`, line, m)
 			}
-			str := ""
+			str := []byte{}
+			// In the regression test data (unpaired) surrogates are assigned a weight
+			// corresponding to their code point value.  However, utf8.DecodeRune,
+			// which is used to compute the implicit weight, assigns FFFD to surrogates.
+			// We therefore skip tests with surrogates.  This skips about 35 entries
+			// per test.
+			valid := true
 			for _, split := range strings.Split(m[1], " ") {
 				r, err := strconv.ParseUint(split, 16, 64)
 				Error(err)
-				str += string(rune(r))
+				valid = valid && utf8.ValidRune(rune(r))
+				str = append(str, string(rune(r))...)
 			}
-			test.str = append(test.str, str)
-			test.comment = append(test.comment, m[2])
+			if valid {
+				test.str = append(test.str, str)
+				test.comment = append(test.comment, m[2])
+			}
 		}
 		tests = append(tests, test)
 	}
@@ -227,13 +237,13 @@ func doTest(t Test) {
 		c.Alternate = collate.AltNonIgnorable
 	}
 
-	prev := []byte(t.str[0])
+	prev := t.str[0]
 	for i := 1; i < len(t.str); i++ {
-		s := []byte(t.str[i])
+		s := t.str[i]
 		ka := c.Key(b, prev)
 		kb := c.Key(b, s)
 		if r := bytes.Compare(ka, kb); r == 1 {
-			fail(t, "%d: Key(%.4X) < Key(%.4X) (%X < %X) == %d; want -1 or 0", i, runes(prev), runes(s), ka, kb, r)
+			fail(t, "%d: Key(%.4X) < Key(%.4X) (%X < %X) == %d; want -1 or 0", i, []rune(string(prev)), []rune(string(s)), ka, kb, r)
 			prev = s
 			continue
 		}
