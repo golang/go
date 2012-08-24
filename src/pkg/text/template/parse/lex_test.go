@@ -43,6 +43,16 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"parens", "{{((3))}}", []item{
+		tLeft,
+		{itemLeftParen, 0, "("},
+		{itemLeftParen, 0, "("},
+		{itemNumber, 0, "3"},
+		{itemRightParen, 0, ")"},
+		{itemRightParen, 0, ")"},
+		tRight,
+		tEOF,
+	}},
 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
@@ -188,6 +198,18 @@ var lexTests = []lexTest{
 	{"bad number", "{{3k}}", []item{
 		tLeft,
 		{itemError, 0, `bad number syntax: "3k"`},
+	}},
+	{"unclosed paren", "{{(3}}", []item{
+		tLeft,
+		{itemLeftParen, 0, "("},
+		{itemNumber, 0, "3"},
+		{itemError, 0, `unclosed left paren`},
+	}},
+	{"extra right paren", "{{3)}}", []item{
+		tLeft,
+		{itemNumber, 0, "3"},
+		{itemRightParen, 0, ")"},
+		{itemError, 0, `unexpected right paren U+0029 ')'`},
 	}},
 
 	// Fixed bugs

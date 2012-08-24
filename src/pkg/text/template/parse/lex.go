@@ -46,10 +46,12 @@ const (
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
 	itemLeftDelim  // left action delimiter
+	itemLeftParen  // '(' inside action
 	itemNumber     // simple number, including imaginary
 	itemPipe       // pipe symbol
 	itemRawString  // raw quoted string (includes quotes)
 	itemRightDelim // right action delimiter
+	itemRightParen // ')' inside action
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
@@ -78,12 +80,15 @@ var itemName = map[itemType]string{
 	itemField:        "field",
 	itemIdentifier:   "identifier",
 	itemLeftDelim:    "left delim",
+	itemLeftParen:    "(",
 	itemNumber:       "number",
 	itemPipe:         "pipe",
 	itemRawString:    "raw string",
 	itemRightDelim:   "right delim",
+	itemRightParen:   ")",
 	itemString:       "string",
 	itemVariable:     "variable",
+
 	// keywords
 	itemDot:      ".",
 	itemDefine:   "define",
@@ -133,6 +138,7 @@ type lexer struct {
 	width      int       // width of last rune read from input.
 	lastPos    int       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items.
+	parenDepth int       // nesting depth of ( ) exprs
 }
 
 // next returns the next rune in the input.
@@ -269,6 +275,7 @@ func lexLeftDelim(l *lexer) stateFn {
 		return lexComment
 	}
 	l.emit(itemLeftDelim)
+	l.parenDepth = 0
 	return lexInsideAction
 }
 
@@ -297,7 +304,10 @@ func lexInsideAction(l *lexer) stateFn {
 	// Spaces separate and are ignored.
 	// Pipe symbols separate and are emitted.
 	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
-		return lexRightDelim
+		if l.parenDepth == 0 {
+			return lexRightDelim
+		}
+		return l.errorf("unclosed left paren")
 	}
 	switch r := l.next(); {
 	case r == eof || r == '\n':
@@ -334,6 +344,17 @@ func lexInsideAction(l *lexer) stateFn {
 	case isAlphaNumeric(r):
 		l.backup()
 		return lexIdentifier
+	case r == '(':
+		l.emit(itemLeftParen)
+		l.parenDepth++
+		return lexInsideAction
+	case r == ')':
+		l.emit(itemRightParen)
+		l.parenDepth--
+		if l.parenDepth < 0 {
+			return l.errorf("unexpected right paren %#U", r)
+		}
+		return lexInsideAction
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
 		return lexInsideAction
@@ -386,7 +407,7 @@ func (l *lexer) atTerminator() bool {
 		return true
 	}
 	switch r {
-	case eof, ',', '|', ':':
+	case eof, ',', '|', ':', ')', '(':
 		return true
 	}
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will

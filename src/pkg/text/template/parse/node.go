@@ -209,6 +209,10 @@ func (c *CommandNode) String() string {
 		if i > 0 {
 			s += " "
 		}
+		if arg, ok := arg.(*PipeNode); ok {
+			s += "(" + arg.String() + ")"
+			continue
+		}
 		s += arg.String()
 	}
 	return s

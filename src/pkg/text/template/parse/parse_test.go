@@ -185,6 +185,8 @@ var parseTests = []parseTest{
 		`{{.X | .Y}}`},
 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
 		`{{$x := .X | .Y}}`},
+	{"nested pipeline", "{{.X (.Y .Z) (.A | .B .C) (.E)}}", noError,
+		`{{.X (.Y .Z) (.A | .B .C) (.E)}}`},
 	{"simple if", "{{if .X}}hello{{end}}", noError,
 		`{{if .X}}"hello"{{end}}`},
 	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
