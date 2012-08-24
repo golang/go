@@ -354,6 +354,12 @@ func lexInsideAction(l *lexer) stateFn {
 		if l.parenDepth < 0 {
 			return l.errorf("unexpected right paren %#U", r)
 		}
+		// Catch the mistake of (a).X, which will parse as two args.
+		// See issue 3999. TODO: Remove once arg parsing is
+		// better defined.
+		if l.peek() == '.' {
+			return l.errorf("cannot evaluate field of parenthesized expression")
+		}
 		return lexInsideAction
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
