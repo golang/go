@@ -34,9 +34,7 @@ TEXT ·addVV(SB),7,$0
 	MOVQ $0, CX		// c = 0
 	MOVQ $0, SI		// i = 0
 
-	// uncomment the next line to disable the unrolled loop
-	// JMP V1
-	
+	// s/JL/JMP/ below to disable the unrolled loop
 	SUBQ $4, DI		// n -= 4
 	JL V1			// if n < 0 goto V1
 
@@ -90,9 +88,7 @@ TEXT ·subVV(SB),7,$0
 	MOVQ $0, CX		// c = 0
 	MOVQ $0, SI		// i = 0
 
-	// uncomment the next line to disable the unrolled loop
-	// JMP V2
-	
+	// s/JL/JMP/ below to disable the unrolled loop
 	SUBQ $4, DI		// n -= 4
 	JL V2			// if n < 0 goto V2
 
@@ -144,9 +140,7 @@ TEXT ·addVW(SB),7,$0
 	
 	MOVQ $0, SI		// i = 0
 
-	// uncomment the next line to disable the unrolled loop
-	// JMP V3
-	
+	// s/JL/JMP/ below to disable the unrolled loop
 	SUBQ $4, DI		// n -= 4
 	JL V3			// if n < 4 goto V3
 
@@ -198,9 +192,7 @@ TEXT ·subVW(SB),7,$0
 	
 	MOVQ $0, SI		// i = 0
 
-	// uncomment the next line to disable the unrolled loop
-	// JMP V4
-	
+	// s/JL/JMP/ below to disable the unrolled loop
 	SUBQ $4, DI		// n -= 4
 	JL V4			// if n < 4 goto V4
 
@@ -389,7 +381,7 @@ E7:	SUBL $1, BX		// i--
 TEXT ·bitLen(SB),7,$0
 	BSRQ x+0(FP), AX
 	JZ Z1
-	INCL AX
+	ADDL $1, AX
 	MOVL AX, n+8(FP)
 	RET
 
