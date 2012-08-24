@@ -52,6 +52,8 @@ var tokens = [...]elt{
 	{token.IDENT, "a۰۱۸", literal},
 	{token.IDENT, "foo६४", literal},
 	{token.IDENT, "bar９８７６", literal},
+	{token.IDENT, "ŝ", literal},    // was bug (issue 4000)
+	{token.IDENT, "ŝfoo", literal}, // was bug (issue 4000)
 	{token.INT, "0", literal},
 	{token.INT, "1", literal},
 	{token.INT, "123456789012345678890", literal},
@@ -544,7 +546,7 @@ func TestLineComments(t *testing.T) {
 	}
 }
 
-// Verify that initializing the same scanner more then once works correctly.
+// Verify that initializing the same scanner more than once works correctly.
 func TestInit(t *testing.T) {
 	var s Scanner
 

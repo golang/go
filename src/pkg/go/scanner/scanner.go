@@ -572,8 +572,7 @@ scanAgain:
 	// determine token value
 	insertSemi := false
 	switch ch := s.ch; {
-	case 'a' <= ch && ch <= 'z':
-		// literals start with a lower-case letter
+	case isLetter(ch):
 		lit = s.scanIdentifier()
 		if len(lit) > 1 {
 			// keywords are longer than one letter - avoid lookup otherwise
@@ -586,10 +585,6 @@ scanAgain:
 			insertSemi = true
 			tok = token.IDENT
 		}
-	case 'A' <= ch && ch <= 'Z' || ch == '_':
-		insertSemi = true
-		tok = token.IDENT
-		lit = s.scanIdentifier()
 	case '0' <= ch && ch <= '9':
 		insertSemi = true
 		tok, lit = s.scanNumber(false)
@@ -715,17 +710,10 @@ scanAgain:
 		case '|':
 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
-			if isLetter(ch) {
-				// handle any letters we might have missed
-				insertSemi = true
-				tok = token.IDENT
-				s.scanIdentifier()
-			} else {
-				s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
-				insertSemi = s.insertSemi // preserve insertSemi info
-				tok = token.ILLEGAL
-				lit = string(ch)
-			}
+			s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
+			insertSemi = s.insertSemi // preserve insertSemi info
+			tok = token.ILLEGAL
+			lit = string(ch)
 		}
 	}
 	if s.mode&dontInsertSemis == 0 {
