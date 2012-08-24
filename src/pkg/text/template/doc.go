@@ -148,6 +148,8 @@ An argument is a simple value, denoted by one of the following.
 	  The result is the value of invoking the function, fun(). The return
 	  types and values behave as in methods. Functions and function
 	  names are described below.
+	- Parentheses may be used for grouping, as in
+		print (.F1 arg1) (.F2 arg2)
 
 Arguments may evaluate to any type; if they are pointers the implementation
 automatically indirects to the base type when required.
@@ -228,6 +230,8 @@ All produce the quoted word "output":
 	{{"output" | printf "%q"}}
 		A function call whose final argument comes from the previous
 		command.
+	{{printf "%q" (print "out" "put")}}
+		A parenthesized argument.
 	{{"put" | printf "%s%s" "out" | printf "%q"}}
 		A more elaborate call.
 	{{"output" | printf "%s" | printf "%q"}}

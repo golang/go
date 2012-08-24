@@ -337,6 +337,9 @@ var execTests = []execTest{
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
 	{"pipeline func", "-{{call .VariadicFunc `llo` | call .VariadicFunc `he` }}-", "-<he+<llo>>-", tVal, true},
 
+	// Parenthesized expressions
+	{"parens in pipeline", "{{printf `%d %d %d` (1) (2 | add 3) (add 4 (add 5 6))}}", "1 5 15", tVal, true},
+
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -524,6 +527,14 @@ func vfunc(V, *V) string {
 	return "vfunc"
 }
 
+func add(args ...int) int {
+	sum := 0
+	for _, x := range args {
+		sum += x
+	}
+	return sum
+}
+
 func stringer(s fmt.Stringer) string {
 	return s.String()
 }
@@ -531,6 +542,7 @@ func stringer(s fmt.Stringer) string {
 func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
+		"add":      add,
 		"count":    count,
 		"dddArg":   dddArg,
 		"oneArg":   oneArg,

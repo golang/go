@@ -349,9 +349,12 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	pipe = newPipeline(t.lex.lineNumber(), decl)
 	for {
 		switch token := t.next(); token.typ {
-		case itemRightDelim:
+		case itemRightDelim, itemRightParen:
 			if len(pipe.Cmds) == 0 {
 				t.errorf("missing value for %s", context)
+			}
+			if token.typ == itemRightParen {
+				t.backup()
 			}
 			return
 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
@@ -456,11 +459,17 @@ func (t *Tree) command() *CommandNode {
 Loop:
 	for {
 		switch token := t.next(); token.typ {
-		case itemRightDelim:
+		case itemRightDelim, itemRightParen:
 			t.backup()
 			break Loop
 		case itemPipe:
 			break Loop
+		case itemLeftParen:
+			p := t.pipeline("parenthesized expression")
+			if t.next().typ != itemRightParen {
+				t.errorf("missing right paren in parenthesized expression")
+			}
+			cmd.append(p)
 		case itemError:
 			t.errorf("%s", token.val)
 		case itemIdentifier:

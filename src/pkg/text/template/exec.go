@@ -564,6 +564,8 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
 	case *parse.VariableNode:
 		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
+	case *parse.PipeNode:
+		return s.validateType(s.evalPipeline(dot, arg), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -666,6 +668,8 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 		return reflect.ValueOf(n.Text)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, nil, zero)
+	case *parse.PipeNode:
+		return s.evalPipeline(dot, n)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
 	panic("not reached")
