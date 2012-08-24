@@ -32,45 +32,44 @@ TEXT ·addVV(SB),7,$0
 	MOVQ z+0(FP), R10
 
 	MOVQ $0, CX		// c = 0
-	MOVQ $0, SI	     // i = 0
+	MOVQ $0, SI		// i = 0
 
 	// uncomment the next line to disable the unrolled loop
 	// JMP V1
 	
-	CMPQ DI, $4
-	JL V1			// if n < 4 goto V1
+	SUBQ $4, DI		// n -= 4
+	JL V1			// if n < 0 goto V1
 
-U1:	// n >= 4
+U1:	// n >= 0
 	// regular loop body unrolled 4x
+	RCRQ $1, CX		// CF = c
 	MOVQ 0(R8)(SI*8), R11
 	MOVQ 8(R8)(SI*8), R12
 	MOVQ 16(R8)(SI*8), R13
 	MOVQ 24(R8)(SI*8), R14
-	RCRQ $1, CX		// restore CF
 	ADCQ 0(R9)(SI*8), R11
 	ADCQ 8(R9)(SI*8), R12
 	ADCQ 16(R9)(SI*8), R13
 	ADCQ 24(R9)(SI*8), R14
-	RCLQ $1, CX		// save CF
 	MOVQ R11, 0(R10)(SI*8)
 	MOVQ R12, 8(R10)(SI*8)
 	MOVQ R13, 16(R10)(SI*8)
 	MOVQ R14, 24(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
 
 	ADDQ $4, SI		// i += 4
 	SUBQ $4, DI		// n -= 4
-	CMPQ DI, $4
-	JGE U1			// if n >= 4 goto U1
+	JGE U1			// if n >= 0 goto U1
 
-V1:	CMPQ DI, $0
+V1:	ADDQ $4, DI		// n += 4
 	JLE E1			// if n <= 0 goto E1
 
 L1:	// n > 0
+	RCRQ $1, CX		// CF = c
 	MOVQ 0(R8)(SI*8), R11
-	RCRQ $1, CX		// restore CF
 	ADCQ 0(R9)(SI*8), R11
-	RCLQ $1, CX		// save CF
 	MOVQ R11, 0(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
 
 	ADDQ $1, SI		// i++
 	SUBQ $1, DI		// n--
@@ -94,40 +93,39 @@ TEXT ·subVV(SB),7,$0
 	// uncomment the next line to disable the unrolled loop
 	// JMP V2
 	
-	CMPQ DI, $4
-	JL V2			// if n < 4 goto V2
+	SUBQ $4, DI		// n -= 4
+	JL V2			// if n < 0 goto V2
 
-U2:	// n >= 4
+U2:	// n >= 0
 	// regular loop body unrolled 4x
+	RCRQ $1, CX		// CF = c
 	MOVQ 0(R8)(SI*8), R11
 	MOVQ 8(R8)(SI*8), R12
 	MOVQ 16(R8)(SI*8), R13
 	MOVQ 24(R8)(SI*8), R14
-	RCRQ $1, CX		// restore CF
 	SBBQ 0(R9)(SI*8), R11
 	SBBQ 8(R9)(SI*8), R12
 	SBBQ 16(R9)(SI*8), R13
 	SBBQ 24(R9)(SI*8), R14
-	RCLQ $1, CX		// save CF
 	MOVQ R11, 0(R10)(SI*8)
 	MOVQ R12, 8(R10)(SI*8)
 	MOVQ R13, 16(R10)(SI*8)
 	MOVQ R14, 24(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
 
 	ADDQ $4, SI		// i += 4
 	SUBQ $4, DI		// n -= 4
-	CMPQ DI, $4
-	JGE U2			// if n >= 4 goto U2
+	JGE U2			// if n >= 0 goto U2
 
-V2:	CMPQ DI, $0
+V2:	ADDQ $4, DI		// n += 4
 	JLE E2			// if n <= 0 goto E2
 
 L2:	// n > 0
+	RCRQ $1, CX		// CF = c
 	MOVQ 0(R8)(SI*8), R11
-	RCRQ $1, CX		// restore CF
 	SBBQ 0(R9)(SI*8), R11
-	RCLQ $1, CX		// save CF
 	MOVQ R11, 0(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
 
 	ADDQ $1, SI		// i++
 	SUBQ $1, DI		// n--
@@ -149,10 +147,10 @@ TEXT ·addVW(SB),7,$0
 	// uncomment the next line to disable the unrolled loop
 	// JMP V3
 	
-	CMPQ DI, $4
+	SUBQ $4, DI		// n -= 4
 	JL V3			// if n < 4 goto V3
 
-U3:	// n >= 4
+U3:	// n >= 0
 	// regular loop body unrolled 4x
 	MOVQ 0(R8)(SI*8), R11
 	MOVQ 8(R8)(SI*8), R12
@@ -162,25 +160,24 @@ U3:	// n >= 4
 	ADCQ $0, R12
 	ADCQ $0, R13
 	ADCQ $0, R14
-	RCLQ $1, CX
-	ANDQ $1, CX
 	MOVQ R11, 0(R10)(SI*8)
 	MOVQ R12, 8(R10)(SI*8)
 	MOVQ R13, 16(R10)(SI*8)
 	MOVQ R14, 24(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
+	ANDQ $1, CX
 
 	ADDQ $4, SI		// i += 4
 	SUBQ $4, DI		// n -= 4
-	CMPQ DI, $4
-	JGE U3			// if n >= 4 goto U3
+	JGE U3			// if n >= 0 goto U3
 
-V3:	CMPQ DI, $0
+V3:	ADDQ $4, DI		// n += 4
 	JLE E3			// if n <= 0 goto E3
 
 L3:	// n > 0
 	ADDQ 0(R8)(SI*8), CX
 	MOVQ CX, 0(R10)(SI*8)
-	RCLQ $1, CX
+	RCLQ $1, CX		// c = CF
 	ANDQ $1, CX
 
 	ADDQ $1, SI		// i++
@@ -204,10 +201,10 @@ TEXT ·subVW(SB),7,$0
 	// uncomment the next line to disable the unrolled loop
 	// JMP V4
 	
-	CMPQ DI, $4
+	SUBQ $4, DI		// n -= 4
 	JL V4			// if n < 4 goto V4
 
-U4:	// n >= 4
+U4:	// n >= 0
 	// regular loop body unrolled 4x
 	MOVQ 0(R8)(SI*8), R11
 	MOVQ 8(R8)(SI*8), R12
@@ -217,26 +214,25 @@ U4:	// n >= 4
 	SBBQ $0, R12
 	SBBQ $0, R13
 	SBBQ $0, R14
-	RCLQ $1, CX
-	ANDQ $1, CX
 	MOVQ R11, 0(R10)(SI*8)
 	MOVQ R12, 8(R10)(SI*8)
 	MOVQ R13, 16(R10)(SI*8)
 	MOVQ R14, 24(R10)(SI*8)
+	RCLQ $1, CX		// c = CF
+	ANDQ $1, CX
 
 	ADDQ $4, SI		// i += 4
 	SUBQ $4, DI		// n -= 4
-	CMPQ DI, $4
-	JGE U4			// if n >= 4 goto U4
+	JGE U4			// if n >= 0 goto U4
 
-V4:	CMPQ DI, $0
+V4:	ADDQ $4, DI		// n += 4
 	JLE E4			// if n <= 0 goto E4
 
 L4:	// n > 0
 	MOVQ 0(R8)(SI*8), R11
 	SUBQ CX, R11
 	MOVQ R11, 0(R10)(SI*8)
-	RCLQ $1, CX
+	RCLQ $1, CX		// c = CF
 	ANDQ $1, CX
 
 	ADDQ $1, SI		// i++
