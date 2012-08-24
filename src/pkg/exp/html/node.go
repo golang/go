@@ -146,16 +146,3 @@ func (s *nodeStack) remove(n *Node) {
 	(*s)[j] = nil
 	*s = (*s)[:j]
 }
-
-// TODO(nigeltao): forTag no longer used. Should it be deleted?
-
-// forTag returns the top-most element node with the given tag.
-func (s *nodeStack) forTag(tag string) *Node {
-	for i := len(*s) - 1; i >= 0; i-- {
-		n := (*s)[i]
-		if n.Type == ElementNode && n.Data == tag {
-			return n
-		}
-	}
-	return nil
-}
