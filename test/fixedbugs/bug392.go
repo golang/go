@@ -1,4 +1,4 @@
-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go && $G $D/$F.dir/three.go
+// compiledir
 
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

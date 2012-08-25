@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Use the functions in one.go so that the inlined
+// Use the functions in pkg2.go so that the inlined
 // forms get type-checked.
 
-package three
+package pkg3
 
-import "./two"
+import "./pkg2"
 
-var x = two.F()
-var v = two.V
+var x = pkg2.F()
+var v = pkg2.V

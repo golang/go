@@ -5,7 +5,7 @@
 // Use the functions in one.go so that the inlined
 // forms get type-checked.
 
-package two
+package pkg2
 
 import "./one"
 
