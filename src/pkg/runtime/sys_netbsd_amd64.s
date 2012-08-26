@@ -183,7 +183,7 @@ TEXT runtime·sigaction(SB),7,$-8
 	MOVQ	24(SP), DX		// arg 3 - osa
 					// arg 4 - tramp
 	LEAQ	runtime·sigreturn_tramp(SB), R10
-	MOVQ	$3, R8			// arg 5 - version
+	MOVQ	$2, R8			// arg 5 - vers
 	MOVL	$340, AX		// sys___sigaction_sigtramp
 	SYSCALL
 	JCC	2(PC)

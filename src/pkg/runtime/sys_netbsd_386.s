@@ -164,7 +164,7 @@ TEXT runtime·sigaction(SB),7,$24
 	MOVSL				// arg 3 - oact
 	LEAL	runtime·sigreturn_tramp(SB), AX
 	STOSL				// arg 4 - tramp
-	MOVL	$3, AX
+	MOVL	$2, AX
 	STOSL				// arg 5 - vers
 	MOVL	$340, AX		// sys___sigaction_sigtramp
 	INT	$0x80
