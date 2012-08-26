@@ -512,8 +512,16 @@ func (w *response) Write(data []byte) (n int, err error) {
 }
 
 func (w *response) finishRequest() {
-	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
-	// back, we can make this a keep-alive response ...
+	// If the handler never wrote any bytes and never sent a Content-Length
+	// response header, set the length explicitly to zero. This helps
+	// HTTP/1.0 clients keep their "keep-alive" connections alive, and for
+	// HTTP/1.1 clients is just as good as the alternative: sending a
+	// chunked response and immediately sending the zero-length EOF chunk.
+	if w.written == 0 && w.header.get("Content-Length") == "" {
+		w.header.Set("Content-Length", "0")
+	}
+	// If this was an HTTP/1.0 request with keep-alive and we sent a
+	// Content-Length back, we can make this a keep-alive response ...
 	if w.req.wantsHttp10KeepAlive() {
 		sentLength := w.header.get("Content-Length") != ""
 		if sentLength && w.header.get("Connection") == "keep-alive" {
