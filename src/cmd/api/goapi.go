@@ -100,7 +100,7 @@ func setContexts() {
 func main() {
 	flag.Parse()
 
-	if !strings.Contains(runtime.Version(), "weekly") {
+	if !strings.Contains(runtime.Version(), "weekly") && runtime.Version() != "devel" {
 		if *nextFile != "" {
 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
 			*nextFile = ""
