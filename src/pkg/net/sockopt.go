@@ -144,22 +144,6 @@ func setDeadline(fd *netFD, t time.Time) error {
 	return setWriteDeadline(fd, t)
 }
 
-func setReuseAddr(fd *netFD, reuse bool) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse)))
-}
-
-func setDontRoute(fd *netFD, dontroute bool) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute)))
-}
-
 func setKeepAlive(fd *netFD, keepalive bool) error {
 	if err := fd.incref(false); err != nil {
 		return err
