@@ -1063,3 +1063,9 @@ pidigits 10000
 	gc pidigits	3.51u 0.00s 3.52r # -6%
 	gc_B pidigits	3.51u 0.00s 3.52r # -6%
 
+# Aug 28, 2012
+# After some assembler work in package big.
+pidigits 10000
+	gc pidigits	2.85u 0.02s 2.88r # -22%
+	gc_B pidigits	2.88u 0.01s 2.90r # -21%
+
