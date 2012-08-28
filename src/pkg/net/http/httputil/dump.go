@@ -89,7 +89,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	t := &http.Transport{
 		Dial: func(net, addr string) (net.Conn, error) {
-			return &dumpConn{io.MultiWriter(pw, &buf), dr}, nil
+			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
 		},
 	}
 
