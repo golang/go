@@ -176,7 +176,7 @@ meteor() {
 
 pidigits() {
 	runonly echo 'pidigits 10000'
-	runonly 'gcc -O2 pidigits.c -lgmp' a.out 10000
+	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
 	run 'gccgo -O2 pidigits.go' a.out -n 10000
 	run 'gc pidigits' $O.out -n 10000
 	run 'gc_B  pidigits' $O.out -n 10000
