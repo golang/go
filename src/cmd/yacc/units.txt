@@ -215,58 +215,58 @@ lumen			cd sr
 lux			cd sr/m²
 
 / MONEY DATE
-/ Thu Sep 10 2009
+/ Wed Aug 29, 2012
 
-argentinapeso			1 | 0.2595 $
-australiadollar			1 | 0.8618 $
-boliviaboliviano		1 | 0.1425 $
-brazilreal			1 | 0.5522 $
-britainpound			1 | 1.6651 $
-canadadollar			1 | 0.9277 $
-chilepeso			1 | 0.0018 $
-chinayuan			1 | 0.1464 $
-colombiapeso			1 | 0.0005 $
-czechkoruna			1 | 0.0572 $
-denmarkkrone			1 | 0.1958 $
-dominicanpeso			1 | 0.0278 $
-egyptpound			1 | 0.181 $
-elsalvadorcolon			1 | 0.1143 $
-europeuro			1 | 1.4577 $
-guatemalaquetzal		1 | 0.121 $
-honduraslempira			1 | 0.0529 $
-hongkongdollar			1 | 0.129 $
-hungaryforint			1 | 0.0054 $
-indiarupee			1 | 0.0207 $
-indonesiarupiah			1 | 0.0001 $
-israelshekel			1 | 0.2643 $
-japanyen			1 | 0.0109 $
-kenyashilling			1 | 0.0132 $
-kuwaitdinar			1 | 3.4854 $
-lebanonpound			1 | 0.0007 $
-malaysiaringgit			1 | 0.286 $
-mexicopeso			1 | 0.0748 $
-newzealanddollar		1 | 0.7028 $
-nicaraguacordoba		1 | 0.0487 $
-norwaykrone			1 | 0.1681 $
-pakistanrupee			1 | 0.0121 $
-paraguayguarani			1 | 0.0002 $
-perunewsol			1 | 0.3384 $
-philippinespeso			1 | 0.0207 $
-polandzloty			1 | 0.352 $
-russiaruble			1 | 0.0324 $
-saudiarabiariyal		1 | 0.2666 $
-singaporedollar			1 | 0.7018 $
-slovakkoruna			1 | 0.0484 $
-southafricarand			1 | 0.132 $
-southkoreawon			1 | 0.0008 $
-swedenkrona			1 | 0.1429 $
-switzerlandfranc		1 | 0.9627 $
-taiwandollar			1 | 0.0306 $
-thailandbaht			1 | 0.0294 $
-turkeynewlira			1 | 0.6678 $
-uaedirham			1 | 0.2722 $
-uruguaynewpeso			1 | 0.0451 $
-vietnamdong			1 | 0.0001 $
+argentinapeso			$ 0.2160
+australiadollar			$ 1.0372
+boliviaboliviano		$ 0.1427
+brazilreal			$ 0.4872
+britainpound			$ 1.5843
+canadadollar			$ 1.0117
+chilepeso			$ 1 | 480.6
+chinayuan			$ 0.1574
+colombiapeso			$ 1 | 1834
+czechkoruna			$ 0.0506
+denmarkkrone			$ 0.1681
+dominicanpeso			$ 0.0256
+egyptpound			$ 0.1640
+elsalvadorcolon			$ 1 | 8.75
+europeuro			$ 1.2528
+guatemalaquetzal		$ 0.1290
+honduraslempira			$ 0.0511
+hongkongdollar			$ 0.1289
+hungaryforint			$ 1 | 226.5
+indiarupee			$ 0.0180
+indonesiarupiah			$ 1 | 9540
+israelshekel			$ 0.2479
+japanyen			$ 0.0127
+kenyashilling			$ 0.0119
+kuwaitdinar			$ 3.5456
+lebanonpound			$ 1 | 1505.5
+malaysiaringgit			$ 0.3204
+mexicopeso			$ 0.0754
+newzealanddollar		$ 0.8035
+nicaraguacordoba		$ 0.0421
+norwaykrone			$ 0.1717
+pakistanrupee			$ 0.0106
+paraguayguarani			$ 1 | 4415
+perunewsol			$ 0.3832
+philippinespeso			$ 0.0236
+polandzloty			$ 0.3001
+russiaruble			$ 0.0311
+saudiarabiariyal		$ 1 | 3.75
+singaporedollar			$ 0.7976
+slovakkoruna			1 | 30.126 europeuro
+southafricarand			$ 0.1188
+southkoreawon			$ 1 | 1135
+swedenkrona			$ 0.1502
+switzerlandfranc		$ 1.0431
+taiwandollar			$ 0.0334
+thailandbaht			$ 0.0319
+turkeynewlira			$ 0.5504
+uaedirham			$ 0.2723
+uruguaynewpeso			$ 0.0465
+vietnamdong			$ 1 | 20865
 
 / END MONEY
  
