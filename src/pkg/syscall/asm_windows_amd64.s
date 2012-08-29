@@ -3,5 +3,5 @@
 // license that can be found in the LICENSE file.
 
 //
-// System calls for amd64, Windows are implemented in ../runtime/windows/syscall.goc
+// System calls for amd64, Windows are implemented in ../runtime/syscall_windows.goc
 //

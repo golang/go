@@ -15,43 +15,6 @@ type Handle uintptr
 
 const InvalidHandle = ^Handle(0)
 
-/*
-
-small demo to detect version of windows you are running:
-
-package main
-
-import (
-	"syscall"
-)
-
-func abort(funcname string, err error) {
-	panic(funcname + " failed: " + err.Error())
-}
-
-func print_version(v uint32) {
-	major := byte(v)
-	minor := uint8(v >> 8)
-	build := uint16(v >> 16)
-	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
-}
-
-func main() {
-	h, err := syscall.LoadLibrary("kernel32.dll")
-	if err != nil {
-		abort("LoadLibrary", err)
-	}
-	defer syscall.FreeLibrary(h)
-	proc, err := syscall.GetProcAddress(h, "GetVersion")
-	if err != nil {
-		abort("GetProcAddress", err)
-	}
-	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0, 0)
-	print_version(uint32(r))
-}
-
-*/
-
 // StringToUTF16 is deprecated. Use UTF16FromString instead.
 // If s contains a NUL byte this function panics instead of
 // returning an error.
@@ -142,7 +105,7 @@ func (e Errno) Timeout() bool {
 // Converts a Go function to a function pointer conforming
 // to the stdcall calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.
-// Implemented in ../runtime/windows/syscall.goc
+// Implemented in ../runtime/syscall_windows.goc
 func NewCallback(fn interface{}) uintptr
 
 // windows api calls
