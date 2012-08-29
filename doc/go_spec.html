@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 17, 2012",
+	"Subtitle": "Version of August 29, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -88,7 +88,8 @@ Source code is Unicode text encoded in
 canonicalized, so a single accented code point is distinct from the
 same character constructed from combining an accent and a letter;
 those are treated as two code points.  For simplicity, this document
-will use the term <i>character</i> to refer to a Unicode code point.
+will use the unqualified term <i>character</i> to refer to a Unicode code point
+in the source text.
 </p>
 <p>
 Each code point is distinct; for instance, upper and lower case letters
@@ -197,7 +198,7 @@ token is
 	    <a href="#Integer_literals">integer</a>,
 	    <a href="#Floating-point_literals">floating-point</a>,
 	    <a href="#Imaginary_literals">imaginary</a>,
-	    <a href="#Character_literals">character</a>, or
+	    <a href="#Rune_literals">rune</a>, or
 	    <a href="#String_literals">string</a> literal
 	</li>
 
@@ -359,13 +360,15 @@ imaginary_lit = (decimals | float_lit) "i" .
 </pre>
 
 
-<h3 id="Character_literals">Character literals</h3>
+<h3 id="Rune_literals">Rune literals</h3>
 
 <p>
-A character literal represents a <a href="#Constants">character constant</a>,
-typically a Unicode code point, as one or more characters enclosed in single
-quotes.  Within the quotes, any character may appear except single
-quote and newline. A single quoted character represents itself,
+A rune literal represents a <a href="#Constants">rune constant</a>,
+an integer value identifying a Unicode code point.
+A rune literal is expressed as one or more characters enclosed in single quotes.
+Within the quotes, any character may appear except single
+quote and newline. A single quoted character represents the Unicode value
+of the character itself,
 while multi-character sequences beginning with a backslash encode
 values in various formats.
 </p>
@@ -379,7 +382,7 @@ a literal <code>a</code>, Unicode U+0061, value <code>0x61</code>, while
 a literal <code>a</code>-dieresis, U+00E4, value <code>0xe4</code>.
 </p>
 <p>
-Several backslash escapes allow arbitrary values to be represented
+Several backslash escapes allow arbitrary values to be encoded as
 as ASCII text.  There are four ways to represent the integer value
 as a numeric constant: <code>\x</code> followed by exactly two hexadecimal
 digits; <code>\u</code> followed by exactly four hexadecimal digits;
@@ -408,11 +411,11 @@ After a backslash, certain single-character escapes represent special values:
 \t   U+0009 horizontal tab
 \v   U+000b vertical tab
 \\   U+005c backslash
-\'   U+0027 single quote  (valid escape only within character literals)
+\'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
 <p>
-All other sequences starting with a backslash are illegal inside character literals.
+All other sequences starting with a backslash are illegal inside rune literals.
 </p>
 <pre class="ebnf">
 char_lit         = "'" ( unicode_value | byte_value ) "'" .
@@ -438,6 +441,11 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 '\xff'
 '\u12e4'
 '\U00101234'
+'aa'         // illegal: too many characters
+'\xa'        // illegal: too few hexadecimal digits
+'\0'         // illegal: too few octal digits
+'\uDFFF'     // illegal: surrogate half
+'\U00110000' // illegal: invalid Unicode code point
 </pre>
 
 
@@ -452,7 +460,8 @@ raw string literals and interpreted string literals.
 Raw string literals are character sequences between back quotes
 <code>``</code>.  Within the quotes, any character is legal except
 back quote. The value of a raw string literal is the
-string composed of the uninterpreted characters between the quotes;
+string composed of the uninterpreted (implicitly UTF-8-encoded) characters
+between the quotes;
 in particular, backslashes have no special meaning and the string may
 contain newlines.
 Carriage returns inside raw string literals
@@ -463,8 +472,9 @@ Interpreted string literals are character sequences between double
 quotes <code>&quot;&quot;</code>. The text between the quotes,
 which may not contain newlines, forms the
 value of the literal, with backslash escapes interpreted as they
-are in character literals (except that <code>\'</code> is illegal and
-<code>\"</code> is legal).  The three-digit octal (<code>\</code><i>nnn</i>)
+are in rune literals (except that <code>\'</code> is illegal and
+<code>\"</code> is legal), with the same restrictions.
+The three-digit octal (<code>\</code><i>nnn</i>)
 and two-digit hexadecimal (<code>\x</code><i>nn</i>) escapes represent individual
 <i>bytes</i> of the resulting string; all other escapes represent
 the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
@@ -491,6 +501,8 @@ interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
 "日本語"
 "\u65e5本\U00008a9e"
 "\xff\u00FF"
+"\uD800"       // illegal: surrogate half
+"\U00110000"   // illegal: invalid Unicode code point
 </pre>
 
 <p>
@@ -500,15 +512,15 @@ These examples all represent the same string:
 <pre>
 "日本語"                                 // UTF-8 input text
 `日本語`                                 // UTF-8 input text as a raw literal
-"\u65e5\u672c\u8a9e"                    // The explicit Unicode code points
-"\U000065e5\U0000672c\U00008a9e"        // The explicit Unicode code points
-"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
+"\u65e5\u672c\u8a9e"                    // the explicit Unicode code points
+"\U000065e5\U0000672c\U00008a9e"        // the explicit Unicode code points
+"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // the explicit UTF-8 bytes
 </pre>
 
 <p>
 If the source code represents a character as two code points, such as
 a combining form involving an accent and a letter, the result will be
-an error if placed in a character literal (it is not a single code
+an error if placed in a rune literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
 </p>
@@ -517,7 +529,7 @@ literal.
 <h2 id="Constants">Constants</h2>
 
 <p>There are <i>boolean constants</i>,
-<i>character constants</i>,
+<i>rune constants</i>,
 <i>integer constants</i>,
 <i>floating-point constants</i>, <i>complex constants</i>,
 and <i>string constants</i>. Character, integer, floating-point,
@@ -527,7 +539,7 @@ collectively called <i>numeric constants</i>.
 
 <p>
 A constant value is represented by a
-<a href="#Character_literals">character</a>,
+<a href="#Rune_literals">rune</a>,
 <a href="#Integer_literals">integer</a>,
 <a href="#Floating-point_literals">floating-point</a>,
 <a href="#Imaginary_literals">imaginary</a>,
@@ -2392,7 +2404,7 @@ In all other cases, <code>x.f</code> is illegal.
 If <code>x</code> is of pointer or interface type and has the value
 <code>nil</code>, assigning to, evaluating, or calling <code>x.f</code>
 causes a <a href="#Run_time_panics">run-time panic</a>.
-</i>
+</li>
 </ol>
 
 <p>
@@ -3586,7 +3598,7 @@ wherever it is legal to use an operand of boolean, numeric, or string type,
 respectively.
 Except for shift operations, if the operands of a binary operation are
 different kinds of untyped constants, the operation and, for non-boolean operations, the result use
-the kind that appears later in this list: integer, character, floating-point, complex.
+the kind that appears later in this list: integer, rune, floating-point, complex.
 For example, an untyped integer constant divided by an
 untyped complex constant yields an untyped complex constant.
 </p>
@@ -3614,7 +3626,7 @@ const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
 const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
 const h = "foo" &gt; "bar"    // h == true  (untyped boolean constant)
 const j = true             // j == true  (untyped boolean constant)
-const k = 'w' + 1          // k == 'x'   (untyped character constant)
+const k = 'w' + 1          // k == 'x'   (untyped rune constant)
 const l = "hi"             // l == "hi"  (untyped string constant)
 const m = string(k)        // m == "x"   (type string)
 const Σ = 1 - 0.707i       //            (untyped complex constant)
@@ -3624,7 +3636,7 @@ const Φ = iota*1i - 1/1i   //            (untyped complex constant)
 
 <p>
 Applying the built-in function <code>complex</code> to untyped
-integer, character, or floating-point constants yields
+integer, rune, or floating-point constants yields
 an untyped complex constant.
 </p>
 
@@ -3960,7 +3972,7 @@ is assigned to a variable of interface type, the constant is <a href="#Conversio
 to type <code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
 <code>complex128</code> or <code>string</code>
 respectively, depending on whether the value is a
-boolean, character, integer, floating-point, complex, or string constant.
+boolean, rune, integer, floating-point, complex, or string constant.
 </p>
 
 
@@ -5499,7 +5511,6 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
 </p>
-<p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 
