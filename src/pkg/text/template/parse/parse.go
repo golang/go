@@ -23,7 +23,7 @@ type Tree struct {
 	// Parsing only; cleared after parse.
 	funcs     []map[string]interface{}
 	lex       *lexer
-	token     [2]item // two-token lookahead for parser.
+	token     [3]item // three-token lookahead for parser.
 	peekCount int
 	vars      []string // variables defined at the moment.
 }
@@ -53,10 +53,19 @@ func (t *Tree) backup() {
 	t.peekCount++
 }
 
-// backup2 backs the input stream up two tokens
+// backup2 backs the input stream up two tokens.
+// The zeroth token is already there.
 func (t *Tree) backup2(t1 item) {
 	t.token[1] = t1
 	t.peekCount = 2
+}
+
+// backup3 backs the input stream up three tokens
+// The zeroth token is already there.
+func (t *Tree) backup3(t2, t1 item) { // Reverse order: we're pushing back.
+	t.token[1] = t1
+	t.token[2] = t2
+	t.peekCount = 3
 }
 
 // peek returns but does not consume the next token.
@@ -67,6 +76,29 @@ func (t *Tree) peek() item {
 	t.peekCount = 1
 	t.token[0] = t.lex.nextItem()
 	return t.token[0]
+}
+
+// nextNonSpace returns the next non-space token.
+func (t *Tree) nextNonSpace() (token item) {
+	for {
+		token = t.next()
+		if token.typ != itemSpace {
+			break
+		}
+	}
+	return token
+}
+
+// peekNonSpace returns but does not consume the next non-space token.
+func (t *Tree) peekNonSpace() (token item) {
+	for {
+		token = t.next()
+		if token.typ != itemSpace {
+			break
+		}
+	}
+	t.backup()
+	return token
 }
 
 // Parsing.
@@ -93,7 +125,7 @@ func (t *Tree) error(err error) {
 
 // expect consumes the next token and guarantees it has the required type.
 func (t *Tree) expect(expected itemType, context string) item {
-	token := t.next()
+	token := t.nextNonSpace()
 	if token.typ != expected {
 		t.errorf("expected %s in %s; got %s", expected, context, token)
 	}
@@ -102,7 +134,7 @@ func (t *Tree) expect(expected itemType, context string) item {
 
 // expectOneOf consumes the next token and guarantees it has one of the required types.
 func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
-	token := t.next()
+	token := t.nextNonSpace()
 	if token.typ != expected1 && token.typ != expected2 {
 		t.errorf("expected %s or %s in %s; got %s", expected1, expected2, context, token)
 	}
@@ -223,7 +255,7 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 	for t.peek().typ != itemEOF {
 		if t.peek().typ == itemLeftDelim {
 			delim := t.next()
-			if t.next().typ == itemDefine {
+			if t.nextNonSpace().typ == itemDefine {
 				newT := New("definition") // name will be updated once we know it.
 				newT.startParse(t.funcs, t.lex)
 				newT.parseDefinition(treeSet)
@@ -266,7 +298,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
 // Terminates at {{end}} or {{else}}, returned separately.
 func (t *Tree) itemList() (list *ListNode, next Node) {
 	list = newList()
-	for t.peek().typ != itemEOF {
+	for t.peekNonSpace().typ != itemEOF {
 		n := t.textOrAction()
 		switch n.Type() {
 		case nodeEnd, nodeElse:
@@ -281,7 +313,7 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
 // textOrAction:
 //	text | action
 func (t *Tree) textOrAction() Node {
-	switch token := t.next(); token.typ {
+	switch token := t.nextNonSpace(); token.typ {
 	case itemText:
 		return newText(token.val)
 	case itemLeftDelim:
@@ -298,7 +330,7 @@ func (t *Tree) textOrAction() Node {
 // Left delim is past. Now get actions.
 // First word could be a keyword such as range.
 func (t *Tree) action() (n Node) {
-	switch token := t.next(); token.typ {
+	switch token := t.nextNonSpace(); token.typ {
 	case itemElse:
 		return t.elseControl()
 	case itemEnd:
@@ -324,10 +356,15 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	var decl []*VariableNode
 	// Are there declarations?
 	for {
-		if v := t.peek(); v.typ == itemVariable {
+		if v := t.peekNonSpace(); v.typ == itemVariable {
 			t.next()
-			if next := t.peek(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
-				t.next()
+			// Since space is a token, we need 3-token look-ahead here in the worst case:
+			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
+			// argument variable rather than a declaration. So remember the token
+			// adjacent to the variable so we can push it back if necessary.
+			tokenAfterVariable := t.peek()
+			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
+				t.nextNonSpace()
 				variable := newVariable(v.val)
 				if len(variable.Ident) != 1 {
 					t.errorf("illegal variable in declaration: %s", v.val)
@@ -340,6 +377,8 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 					}
 					t.errorf("too many declarations in %s", context)
 				}
+			} else if tokenAfterVariable.typ == itemSpace {
+				t.backup3(v, tokenAfterVariable)
 			} else {
 				t.backup2(v)
 			}
@@ -348,7 +387,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	}
 	pipe = newPipeline(t.lex.lineNumber(), decl)
 	for {
-		switch token := t.next(); token.typ {
+		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:
 			if len(pipe.Cmds) == 0 {
 				t.errorf("missing value for %s", context)
@@ -432,7 +471,7 @@ func (t *Tree) elseControl() Node {
 // to a string.
 func (t *Tree) templateControl() Node {
 	var name string
-	switch token := t.next(); token.typ {
+	switch token := t.nextNonSpace(); token.typ {
 	case itemString, itemRawString:
 		s, err := strconv.Unquote(token.val)
 		if err != nil {
@@ -443,7 +482,7 @@ func (t *Tree) templateControl() Node {
 		t.unexpected(token, "template invocation")
 	}
 	var pipe *PipeNode
-	if t.next().typ != itemRightDelim {
+	if t.nextNonSpace().typ != itemRightDelim {
 		t.backup()
 		// Do not pop variables; they persist until "end".
 		pipe = t.pipeline("template")
@@ -458,7 +497,7 @@ func (t *Tree) command() *CommandNode {
 	cmd := newCommand()
 Loop:
 	for {
-		switch token := t.next(); token.typ {
+		switch token := t.nextNonSpace(); token.typ {
 		case itemRightDelim, itemRightParen:
 			t.backup()
 			break Loop
@@ -466,7 +505,7 @@ Loop:
 			break Loop
 		case itemLeftParen:
 			p := t.pipeline("parenthesized expression")
-			if t.next().typ != itemRightParen {
+			if t.nextNonSpace().typ != itemRightParen {
 				t.errorf("missing right paren in parenthesized expression")
 			}
 			cmd.append(p)
@@ -502,11 +541,23 @@ Loop:
 		default:
 			t.unexpected(token, "command")
 		}
+		t.terminate()
 	}
 	if len(cmd.Args) == 0 {
 		t.errorf("empty command")
 	}
 	return cmd
+}
+
+// terminate checks that the next token terminates an argument. This guarantees
+// that arguments are space-separated, for example that (2)3 does not parse.
+func (t *Tree) terminate() {
+	token := t.peek()
+	switch token.typ {
+	case itemChar, itemPipe, itemRightDelim, itemRightParen, itemSpace:
+		return
+	}
+	t.unexpected(token, "argument list (missing space?)")
 }
 
 // hasFunction reports if a function name exists in the Tree's maps.
