@@ -182,7 +182,7 @@ type Response struct {
 
 // Server represents an RPC Server.
 type Server struct {
-	mu         sync.Mutex // protects the serviceMap
+	mu         sync.RWMutex // protects the serviceMap
 	serviceMap map[string]*service
 	reqLock    sync.Mutex // protects freeReq
 	freeReq    *Request
@@ -539,9 +539,9 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 		return
 	}
 	// Look up the request.
-	server.mu.Lock()
+	server.mu.RLock()
 	service = server.serviceMap[serviceMethod[0]]
-	server.mu.Unlock()
+	server.mu.RUnlock()
 	if service == nil {
 		err = errors.New("rpc: can't find service " + req.ServiceMethod)
 		return
