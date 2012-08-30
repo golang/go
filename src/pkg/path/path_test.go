@@ -200,6 +200,7 @@ var dirtests = []PathTest{
 	{"x/", "x"},
 	{"abc", "."},
 	{"abc/def", "abc"},
+	{"abc////def", "abc"},
 	{"a/b/.x", "a/b"},
 	{"a/b/c.", "a/b"},
 	{"a/b/c.x", "a/b"},
