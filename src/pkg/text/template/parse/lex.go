@@ -52,6 +52,7 @@ const (
 	itemRawString  // raw quoted string (includes quotes)
 	itemRightDelim // right action delimiter
 	itemRightParen // ')' inside action
+	itemSpace      // run of spaces separating arguments
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
@@ -67,47 +68,6 @@ const (
 	itemTemplate // template keyword
 	itemWith     // with keyword
 )
-
-// Make the types prettyprint.
-var itemName = map[itemType]string{
-	itemError:        "error",
-	itemBool:         "bool",
-	itemChar:         "char",
-	itemCharConstant: "charconst",
-	itemComplex:      "complex",
-	itemColonEquals:  ":=",
-	itemEOF:          "EOF",
-	itemField:        "field",
-	itemIdentifier:   "identifier",
-	itemLeftDelim:    "left delim",
-	itemLeftParen:    "(",
-	itemNumber:       "number",
-	itemPipe:         "pipe",
-	itemRawString:    "raw string",
-	itemRightDelim:   "right delim",
-	itemRightParen:   ")",
-	itemString:       "string",
-	itemVariable:     "variable",
-
-	// keywords
-	itemDot:      ".",
-	itemDefine:   "define",
-	itemElse:     "else",
-	itemIf:       "if",
-	itemEnd:      "end",
-	itemNil:      "nil",
-	itemRange:    "range",
-	itemTemplate: "template",
-	itemWith:     "with",
-}
-
-func (i itemType) String() string {
-	s := itemName[i]
-	if s == "" {
-		return fmt.Sprintf("item%d", int(i))
-	}
-	return s
-}
 
 var key = map[string]itemType{
 	".":        itemDot,
@@ -301,7 +261,7 @@ func lexRightDelim(l *lexer) stateFn {
 // lexInsideAction scans the elements inside action delimiters.
 func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
-	// Spaces separate and are ignored.
+	// Spaces separate arguments; runs of spaces turn into itemSpace.
 	// Pipe symbols separate and are emitted.
 	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
 		if l.parenDepth == 0 {
@@ -310,10 +270,10 @@ func lexInsideAction(l *lexer) stateFn {
 		return l.errorf("unclosed left paren")
 	}
 	switch r := l.next(); {
-	case r == eof || r == '\n':
+	case r == eof || isEndOfLine(r):
 		return l.errorf("unclosed action")
 	case isSpace(r):
-		l.ignore()
+		return lexSpace
 	case r == ':':
 		if l.next() != '=' {
 			return l.errorf("expected :=")
@@ -354,12 +314,6 @@ func lexInsideAction(l *lexer) stateFn {
 		if l.parenDepth < 0 {
 			return l.errorf("unexpected right paren %#U", r)
 		}
-		// Catch the mistake of (a).X, which will parse as two args.
-		// See issue 3999. TODO: Remove once arg parsing is
-		// better defined.
-		if l.peek() == '.' {
-			return l.errorf("cannot evaluate field of parenthesized expression")
-		}
 		return lexInsideAction
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
@@ -367,6 +321,16 @@ func lexInsideAction(l *lexer) stateFn {
 	default:
 		return l.errorf("unrecognized character in action: %#U", r)
 	}
+	return lexInsideAction
+}
+
+// lexSpace scans a run of space characters.
+// One space has already been seen.
+func lexSpace(l *lexer) stateFn {
+	for isSpace(l.peek()) {
+		l.next()
+	}
+	l.emit(itemSpace)
 	return lexInsideAction
 }
 
@@ -409,7 +373,7 @@ Loop:
 // arithmetic.
 func (l *lexer) atTerminator() bool {
 	r := l.peek()
-	if isSpace(r) {
+	if isSpace(r) || isEndOfLine(r) {
 		return true
 	}
 	switch r {
@@ -529,11 +493,12 @@ Loop:
 
 // isSpace reports whether r is a space character.
 func isSpace(r rune) bool {
-	switch r {
-	case ' ', '\t', '\n', '\r':
-		return true
-	}
-	return false
+	return r == ' ' || r == '\t'
+}
+
+// isEndOfLine reports whether r is an end-of-line character
+func isEndOfLine(r rune) bool {
+	return r == '\r' || r == '\n'
 }
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.

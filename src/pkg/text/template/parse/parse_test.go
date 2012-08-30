@@ -232,9 +232,9 @@ var parseTests = []parseTest{
 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
-	// This one should work but doesn't. Caught as a parse error to avoid confusion.
-	// TODO: Update after issue 3999 is resolved.
 	{"dot applied to parentheses", "{{printf (printf .).}}", hasError, ""},
+	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
+	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
 	// Equals (and other chars) do not assignments make (yet).
 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},

@@ -5,8 +5,51 @@
 package parse
 
 import (
+	"fmt"
 	"testing"
 )
+
+// Make the types prettyprint.
+var itemName = map[itemType]string{
+	itemError:        "error",
+	itemBool:         "bool",
+	itemChar:         "char",
+	itemCharConstant: "charconst",
+	itemComplex:      "complex",
+	itemColonEquals:  ":=",
+	itemEOF:          "EOF",
+	itemField:        "field",
+	itemIdentifier:   "identifier",
+	itemLeftDelim:    "left delim",
+	itemLeftParen:    "(",
+	itemNumber:       "number",
+	itemPipe:         "pipe",
+	itemRawString:    "raw string",
+	itemRightDelim:   "right delim",
+	itemRightParen:   ")",
+	itemSpace:        "space",
+	itemString:       "string",
+	itemVariable:     "variable",
+
+	// keywords
+	itemDot:      ".",
+	itemDefine:   "define",
+	itemElse:     "else",
+	itemIf:       "if",
+	itemEnd:      "end",
+	itemNil:      "nil",
+	itemRange:    "range",
+	itemTemplate: "template",
+	itemWith:     "with",
+}
+
+func (i itemType) String() string {
+	s := itemName[i]
+	if s == "" {
+		return fmt.Sprintf("item%d", int(i))
+	}
+	return s
+}
 
 type lexTest struct {
 	name  string
@@ -16,12 +59,13 @@ type lexTest struct {
 
 var (
 	tEOF      = item{itemEOF, 0, ""}
-	tLeft     = item{itemLeftDelim, 0, "{{"}
-	tRight    = item{itemRightDelim, 0, "}}"}
-	tRange    = item{itemRange, 0, "range"}
-	tPipe     = item{itemPipe, 0, "|"}
 	tFor      = item{itemIdentifier, 0, "for"}
+	tLeft     = item{itemLeftDelim, 0, "{{"}
+	tPipe     = item{itemPipe, 0, "|"}
 	tQuote    = item{itemString, 0, `"abc \n\t\" "`}
+	tRange    = item{itemRange, 0, "range"}
+	tRight    = item{itemRightDelim, 0, "}}"}
+	tSpace    = item{itemSpace, 0, " "}
 	raw       = "`" + `abc\n\t\" ` + "`"
 	tRawQuote = item{itemRawString, 0, raw}
 )
@@ -35,11 +79,12 @@ var lexTests = []lexTest{
 		{itemText, 0, "-world"},
 		tEOF,
 	}},
-	{"punctuation", "{{,@%}}", []item{
+	{"punctuation", "{{,@% }}", []item{
 		tLeft,
 		{itemChar, 0, ","},
 		{itemChar, 0, "@"},
 		{itemChar, 0, "%"},
+		tSpace,
 		tRight,
 		tEOF,
 	}},
@@ -54,18 +99,25 @@ var lexTests = []lexTest{
 		tEOF,
 	}},
 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
-	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
+	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
 	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
 		tLeft,
 		{itemNumber, 0, "1"},
+		tSpace,
 		{itemNumber, 0, "02"},
+		tSpace,
 		{itemNumber, 0, "0x14"},
+		tSpace,
 		{itemNumber, 0, "-7.2i"},
+		tSpace,
 		{itemNumber, 0, "1e3"},
+		tSpace,
 		{itemNumber, 0, "+1.2e-4"},
+		tSpace,
 		{itemNumber, 0, "4.2i"},
+		tSpace,
 		{itemComplex, 0, "1+2i"},
 		tRight,
 		tEOF,
@@ -73,11 +125,17 @@ var lexTests = []lexTest{
 	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
 		tLeft,
 		{itemCharConstant, 0, `'a'`},
+		tSpace,
 		{itemCharConstant, 0, `'\n'`},
+		tSpace,
 		{itemCharConstant, 0, `'\''`},
+		tSpace,
 		{itemCharConstant, 0, `'\\'`},
+		tSpace,
 		{itemCharConstant, 0, `'\u00FF'`},
+		tSpace,
 		{itemCharConstant, 0, `'\xFF'`},
+		tSpace,
 		{itemCharConstant, 0, `'本'`},
 		tRight,
 		tEOF,
@@ -85,6 +143,7 @@ var lexTests = []lexTest{
 	{"bools", "{{true false}}", []item{
 		tLeft,
 		{itemBool, 0, "true"},
+		tSpace,
 		{itemBool, 0, "false"},
 		tRight,
 		tEOF,
@@ -104,8 +163,11 @@ var lexTests = []lexTest{
 	{"dots", "{{.x . .2 .x.y}}", []item{
 		tLeft,
 		{itemField, 0, ".x"},
+		tSpace,
 		{itemDot, 0, "."},
+		tSpace,
 		{itemNumber, 0, ".2"},
+		tSpace,
 		{itemField, 0, ".x.y"},
 		tRight,
 		tEOF,
@@ -113,9 +175,13 @@ var lexTests = []lexTest{
 	{"keywords", "{{range if else end with}}", []item{
 		tLeft,
 		{itemRange, 0, "range"},
+		tSpace,
 		{itemIf, 0, "if"},
+		tSpace,
 		{itemElse, 0, "else"},
+		tSpace,
 		{itemEnd, 0, "end"},
+		tSpace,
 		{itemWith, 0, "with"},
 		tRight,
 		tEOF,
@@ -123,14 +189,30 @@ var lexTests = []lexTest{
 	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
 		tLeft,
 		{itemVariable, 0, "$c"},
+		tSpace,
 		{itemColonEquals, 0, ":="},
+		tSpace,
 		{itemIdentifier, 0, "printf"},
+		tSpace,
 		{itemVariable, 0, "$"},
+		tSpace,
 		{itemVariable, 0, "$hello"},
+		tSpace,
 		{itemVariable, 0, "$23"},
+		tSpace,
 		{itemVariable, 0, "$"},
+		tSpace,
 		{itemVariable, 0, "$var.Field"},
+		tSpace,
 		{itemField, 0, ".Method"},
+		tRight,
+		tEOF,
+	}},
+	{"variable invocation ", "{{$x 23}}", []item{
+		tLeft,
+		{itemVariable, 0, "$x"},
+		tSpace,
+		{itemNumber, 0, "23"},
 		tRight,
 		tEOF,
 	}},
@@ -138,13 +220,18 @@ var lexTests = []lexTest{
 		{itemText, 0, "intro "},
 		tLeft,
 		{itemIdentifier, 0, "echo"},
+		tSpace,
 		{itemIdentifier, 0, "hi"},
+		tSpace,
 		{itemNumber, 0, "1.2"},
+		tSpace,
 		tPipe,
 		{itemIdentifier, 0, "noargs"},
 		tPipe,
 		{itemIdentifier, 0, "args"},
+		tSpace,
 		{itemNumber, 0, "1"},
+		tSpace,
 		{itemString, 0, `"hi"`},
 		tRight,
 		{itemText, 0, " outro"},
@@ -153,7 +240,9 @@ var lexTests = []lexTest{
 	{"declaration", "{{$v := 3}}", []item{
 		tLeft,
 		{itemVariable, 0, "$v"},
+		tSpace,
 		{itemColonEquals, 0, ":="},
+		tSpace,
 		{itemNumber, 0, "3"},
 		tRight,
 		tEOF,
@@ -161,9 +250,13 @@ var lexTests = []lexTest{
 	{"2 declarations", "{{$v , $w := 3}}", []item{
 		tLeft,
 		{itemVariable, 0, "$v"},
+		tSpace,
 		{itemChar, 0, ","},
+		tSpace,
 		{itemVariable, 0, "$w"},
+		tSpace,
 		{itemColonEquals, 0, ":="},
+		tSpace,
 		{itemNumber, 0, "3"},
 		tRight,
 		tEOF,
@@ -266,7 +359,7 @@ func TestLex(t *testing.T) {
 	for _, test := range lexTests {
 		items := collect(&test, "", "")
 		if !equal(items, test.items, false) {
-			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
+			t.Errorf("%s: got\n\t%+v\nexpected\n\t%v", test.name, items, test.items)
 		}
 	}
 }
@@ -286,7 +379,7 @@ var lexDelimTests = []lexTest{
 		tEOF,
 	}},
 	{"empty action", `$$@@`, []item{tLeftDelim, tRightDelim, tEOF}},
-	{"for", `$$for @@`, []item{tLeftDelim, tFor, tRightDelim, tEOF}},
+	{"for", `$$for@@`, []item{tLeftDelim, tFor, tRightDelim, tEOF}},
 	{"quote", `$$"abc \n\t\" "@@`, []item{tLeftDelim, tQuote, tRightDelim, tEOF}},
 	{"raw quote", "$$" + raw + "@@", []item{tLeftDelim, tRawQuote, tRightDelim, tEOF}},
 }
