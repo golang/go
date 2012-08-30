@@ -69,7 +69,7 @@ var utf8map = []Utf8Map{
 
 var surrogateMap = []Utf8Map{
 	{0xd800, "\xed\xa0\x80"}, // surrogate min decodes to (RuneError, 1)
-	{0xdfff, "\xed bf bf"},   // surrogate max decodes to (RuneError, 1)
+	{0xdfff, "\xed\xbf\xbf"}, // surrogate max decodes to (RuneError, 1)
 }
 
 var testStrings = []string{
@@ -355,7 +355,9 @@ var validTests = []ValidTest{
 	{string([]byte{66, 250}), false},
 	{string([]byte{66, 250, 67}), false},
 	{"a\uFFFDb", true},
-	{string("\xF7\xBF\xBF\xBF"), true},      // U+1FFFFF
+	{string("\xF4\x8F\xBF\xBF"), true},      // U+10FFFF
+	{string("\xF4\x90\x80\x80"), false},     // U+10FFFF+1; out of range
+	{string("\xF7\xBF\xBF\xBF"), false},     // 0x1FFFFF; out of range
 	{string("\xFB\xBF\xBF\xBF\xBF"), false}, // 0x3FFFFFF; out of range
 	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
 	{string("\xed\xa0\x80"), false},         // U+D800 high surrogate (sic)
