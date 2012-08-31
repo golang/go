@@ -4,4 +4,4 @@
 
 package syscall
 
-func Getpagesize() int { return 0x1000 }
+func Getpagesize() int { return 0x200000 }

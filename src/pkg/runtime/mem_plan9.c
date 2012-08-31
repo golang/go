@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "defs_GOOS_GOARCH.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "os_GOOS.h"
@@ -13,14 +14,14 @@ static Lock memlock;
 
 enum
 {
-	Round = 4095
+	Round = PAGESIZE-1
 };
 
 void*
 runtime·SysAlloc(uintptr nbytes)
 {
 	uintptr bl;
-	
+
 	runtime·lock(&memlock);
 	mstats.sys += nbytes;
 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c

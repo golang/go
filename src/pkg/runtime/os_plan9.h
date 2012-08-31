@@ -9,7 +9,7 @@ int32	runtime·pwrite(int32 fd, void *buf, int32 nbytes, int64 offset);
 int32	runtime·read(int32 fd, void *buf, int32 nbytes);
 int32	runtime·close(int32 fd);
 void	runtime·exits(int8* msg);
-int32	runtime·brk_(void*);
+intptr	runtime·brk_(void*);
 int32	runtime·sleep(int32 ms);
 int32	runtime·rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
 int32	runtime·plan9_semacquire(uint32 *addr, int32 block);

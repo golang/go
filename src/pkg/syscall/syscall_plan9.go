@@ -77,8 +77,6 @@ func errstr() string {
 	return cstring(buf[:])
 }
 
-func Getpagesize() int { return 4096 }
-
 // Implemented in assembly to import from runtime.
 func exit(int)
 
