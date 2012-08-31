@@ -584,6 +584,7 @@ func (d *Decoder) RawToken() (Token, error) {
 			if inquote == 0 && b == '>' && depth == 0 {
 				break
 			}
+		HandleB:
 			d.buf.WriteByte(b)
 			switch {
 			case b == inquote:
@@ -599,7 +600,35 @@ func (d *Decoder) RawToken() (Token, error) {
 				depth--
 
 			case b == '<' && inquote == 0:
-				depth++
+				// Look for <!-- to begin comment.
+				s := "!--"
+				for i := 0; i < len(s); i++ {
+					if b, ok = d.mustgetc(); !ok {
+						return nil, d.err
+					}
+					if b != s[i] {
+						for j := 0; j < i; j++ {
+							d.buf.WriteByte(s[j])
+						}
+						depth++
+						goto HandleB
+					}
+				}
+
+				// Remove < that was written above.
+				d.buf.Truncate(d.buf.Len() - 1)
+
+				// Look for terminator.
+				var b0, b1 byte
+				for {
+					if b, ok = d.mustgetc(); !ok {
+						return nil, d.err
+					}
+					if b0 == '-' && b1 == '-' && b == '>' {
+						break
+					}
+					b0, b1 = b1, b
+				}
 			}
 		}
 		return Directive(d.buf.Bytes()), nil

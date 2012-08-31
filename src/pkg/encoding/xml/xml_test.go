@@ -621,3 +621,36 @@ func TestProcInstEncoding(t *testing.T) {
 		}
 	}
 }
+
+// Ensure that directives with comments include the complete
+// text of any nested directives.
+
+var directivesWithCommentsInput = `
+<!DOCTYPE [<!-- a comment --><!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]>
+<!DOCTYPE [<!ENTITY go "Golang"><!-- a comment-->]>
+<!DOCTYPE <!-> <!> <!----> <!-->--> <!--->--> [<!ENTITY go "Golang"><!-- a comment-->]>
+`
+
+var directivesWithCommentsTokens = []Token{
+	CharData("\n"),
+	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
+	CharData("\n"),
+	Directive(`DOCTYPE [<!ENTITY go "Golang">]`),
+	CharData("\n"),
+	Directive(`DOCTYPE <!-> <!>    [<!ENTITY go "Golang">]`),
+	CharData("\n"),
+}
+
+func TestDirectivesWithComments(t *testing.T) {
+	d := NewDecoder(strings.NewReader(directivesWithCommentsInput))
+
+	for i, want := range directivesWithCommentsTokens {
+		have, err := d.Token()
+		if err != nil {
+			t.Fatalf("token %d: unexpected error: %s", i, err)
+		}
+		if !reflect.DeepEqual(have, want) {
+			t.Errorf("token %d = %#v want %#v", i, have, want)
+		}
+	}
+}
