@@ -35,16 +35,35 @@ func BackgroundSleep(n int) {
 	}()
 }
 
+// wasteCPU starts a background goroutine to waste CPU 
+// to cause the power management to raise the CPU frequency. 
+// On ARM this has the side effect of making sleep more accurate.
+func wasteCPU() chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+	// pause for a short amount of time to allow the
+	// power management to recognise load has risen.
+	<-time.After(300 * time.Millisecond)
+	return done
+}
+
 func testParallelSleep(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer close(wasteCPU())
+
 	sleepSec := 1
-	if runtime.GOARCH == "arm" {
-		// on ARM, the 1.3s deadline is frequently missed,
-		// so increase sleep time to 2s
-		sleepSec = 2
-	}
 	start := time.Now()
 	parallelSleep(sleepSec)
-	dt := time.Now().Sub(start)
+	dt := time.Since(start)
+	t.Logf("sleep(%d) slept for %v", sleepSec, dt)
 	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
 	if dt >= time.Duration(sleepSec)*1300*time.Millisecond {
 		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
