@@ -735,6 +735,10 @@ func PtraceCont(pid int, signal int) (err error) {
 	return ptrace(PTRACE_CONT, pid, 0, uintptr(signal))
 }
 
+func PtraceSyscall(pid int, signal int) (err error) {
+	return ptrace(PTRACE_SYSCALL, pid, 0, uintptr(signal))
+}
+
 func PtraceSingleStep(pid int) (err error) { return ptrace(PTRACE_SINGLESTEP, pid, 0, 0) }
 
 func PtraceAttach(pid int) (err error) { return ptrace(PTRACE_ATTACH, pid, 0, 0) }
