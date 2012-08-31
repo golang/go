@@ -61,11 +61,15 @@ static uint8**	argv;
 Slice os·Args;
 Slice syscall·envs;
 
+void (*runtime·sysargs)(int32, uint8**);
+
 void
 runtime·args(int32 c, uint8 **v)
 {
 	argc = c;
 	argv = v;
+	if(runtime·sysargs != nil)
+		runtime·sysargs(c, v);
 }
 
 int32 runtime·isplan9;

@@ -514,6 +514,7 @@ extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
 int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
+extern  void (*runtime·sysargs)(int32, uint8**);
 
 /*
  * common functions and data
