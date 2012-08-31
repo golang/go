@@ -73,7 +73,7 @@ func render1(w writer, n *Node) error {
 	case TextNode:
 		return escape(w, n.Data)
 	case DocumentNode:
-		for _, c := range n.Child {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			if err := render1(w, c); err != nil {
 				return err
 			}
@@ -171,7 +171,7 @@ func render1(w writer, n *Node) error {
 		}
 	}
 	if voidElements[n.Data] {
-		if len(n.Child) != 0 {
+		if n.FirstChild != nil {
 			return fmt.Errorf("html: void element <%s> has child nodes", n.Data)
 		}
 		_, err := w.WriteString("/>")
@@ -182,7 +182,7 @@ func render1(w writer, n *Node) error {
 	}
 
 	// Add initial newline where there is danger of a newline beging ignored.
-	if len(n.Child) > 0 && n.Child[0].Type == TextNode && strings.HasPrefix(n.Child[0].Data, "\n") {
+	if c := n.FirstChild; c != nil && c.Type == TextNode && strings.HasPrefix(c.Data, "\n") {
 		switch n.Data {
 		case "pre", "listing", "textarea":
 			if err := w.WriteByte('\n'); err != nil {
@@ -194,7 +194,7 @@ func render1(w writer, n *Node) error {
 	// Render any child nodes.
 	switch n.Data {
 	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
-		for _, c := range n.Child {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			if c.Type == TextNode {
 				if _, err := w.WriteString(c.Data); err != nil {
 					return err
@@ -211,7 +211,7 @@ func render1(w writer, n *Node) error {
 			return plaintextAbort
 		}
 	default:
-		for _, c := range n.Child {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			if err := render1(w, c); err != nil {
 				return err
 			}

@@ -177,7 +177,7 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 		return errors.New("unknown node type")
 	}
 	io.WriteString(w, "\n")
-	for _, c := range n.Child {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if err := dumpLevel(w, c, level+1); err != nil {
 			return err
 		}
@@ -186,12 +186,12 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 }
 
 func dump(n *Node) (string, error) {
-	if n == nil || len(n.Child) == 0 {
+	if n == nil || n.FirstChild == nil {
 		return "", nil
 	}
 	var b bytes.Buffer
-	for _, child := range n.Child {
-		if err := dumpLevel(&b, child, 0); err != nil {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if err := dumpLevel(&b, c, 0); err != nil {
 			return "", err
 		}
 	}
@@ -267,8 +267,12 @@ func testParseCase(text, want, context string) (err error) {
 			Type: DocumentNode,
 		}
 		for _, n := range nodes {
-			doc.Add(n)
+			doc.AppendChild(n)
 		}
+	}
+
+	if err := checkTreeConsistency(doc); err != nil {
+		return err
 	}
 
 	got, err := dump(doc)
