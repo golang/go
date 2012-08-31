@@ -173,6 +173,9 @@ var vtests = []struct {
 	{"http://someHost.com/someDir/apage", "someHost.com/someDir"},
 	{"http://otherHost.com/someDir/apage", "someDir"},
 	{"http://otherHost.com/aDir/apage", "Default"},
+	// redirections for trees
+	{"http://localhost/someDir", "/someDir/"},
+	{"http://someHost.com/someDir", "/someDir/"},
 }
 
 func TestHostHandlers(t *testing.T) {
@@ -204,9 +207,19 @@ func TestHostHandlers(t *testing.T) {
 			t.Errorf("reading response: %v", err)
 			continue
 		}
-		s := r.Header.Get("Result")
-		if s != vt.expected {
-			t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
+		switch r.StatusCode {
+		case StatusOK:
+			s := r.Header.Get("Result")
+			if s != vt.expected {
+				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
+			}
+		case StatusMovedPermanently:
+			s := r.Header.Get("Location")
+			if s != vt.expected {
+				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
+			}
+		default:
+			t.Errorf("Get(%q) unhandled status code %d", vt.url, r.StatusCode)
 		}
 	}
 }

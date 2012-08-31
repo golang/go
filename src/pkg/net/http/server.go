@@ -997,7 +997,15 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	// It can be overridden by an explicit registration.
 	n := len(pattern)
 	if n > 0 && pattern[n-1] == '/' && !mux.m[pattern[0:n-1]].explicit {
-		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(pattern, StatusMovedPermanently)}
+		// If pattern contains a host name, strip it and use remaining
+		// path for redirect.
+		path := pattern
+		if pattern[0] != '/' {
+			// In pattern, at least the last character is a '/', so
+			// strings.Index can't be -1.
+			path = pattern[strings.Index(pattern, "/"):]
+		}
+		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently)}
 	}
 }
 
