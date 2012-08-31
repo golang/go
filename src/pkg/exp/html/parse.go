@@ -212,7 +212,7 @@ func (p *parser) addChild(n *Node) {
 	if p.shouldFosterParent() {
 		p.fosterParent(n)
 	} else {
-		p.top().Add(n)
+		p.top().AppendChild(n)
 	}
 
 	if n.Type == ElementNode {
@@ -235,7 +235,7 @@ func (p *parser) shouldFosterParent() bool {
 // fosterParent adds a child node according to the foster parenting rules.
 // Section 12.2.5.3, "foster parenting".
 func (p *parser) fosterParent(n *Node) {
-	var table, parent *Node
+	var table, parent, prev *Node
 	var i int
 	for i = len(p.oe) - 1; i >= 0; i-- {
 		if p.oe[i].DataAtom == a.Table {
@@ -254,26 +254,17 @@ func (p *parser) fosterParent(n *Node) {
 		parent = p.oe[i-1]
 	}
 
-	var child *Node
-	for i, child = range parent.Child {
-		if child == table {
-			break
-		}
+	if table != nil {
+		prev = table.PrevSibling
+	} else {
+		prev = parent.LastChild
 	}
-
-	if i > 0 && parent.Child[i-1].Type == TextNode && n.Type == TextNode {
-		parent.Child[i-1].Data += n.Data
+	if prev != nil && prev.Type == TextNode && n.Type == TextNode {
+		prev.Data += n.Data
 		return
 	}
 
-	if i == len(parent.Child) {
-		parent.Add(n)
-	} else {
-		// Insert n into parent.Child at index i.
-		parent.Child = append(parent.Child[:i+1], parent.Child[i:]...)
-		parent.Child[i] = n
-		n.Parent = parent
-	}
+	parent.InsertBefore(n, table)
 }
 
 // addText adds text to the preceding node if it is a text node, or else it
@@ -292,8 +283,8 @@ func (p *parser) addText(text string) {
 	}
 
 	t := p.top()
-	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
-		t.Child[i-1].Data += text
+	if n := t.LastChild; n != nil && n.Type == TextNode {
+		n.Data += text
 		return
 	}
 	p.addChild(&Node{
@@ -470,14 +461,14 @@ func initialIM(p *parser) bool {
 			return true
 		}
 	case CommentToken:
-		p.doc.Add(&Node{
+		p.doc.AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
 		return true
 	case DoctypeToken:
 		n, quirks := parseDoctype(p.tok.Data)
-		p.doc.Add(n)
+		p.doc.AppendChild(n)
 		p.quirks = quirks
 		p.im = beforeHTMLIM
 		return true
@@ -515,7 +506,7 @@ func beforeHTMLIM(p *parser) bool {
 			return true
 		}
 	case CommentToken:
-		p.doc.Add(&Node{
+		p.doc.AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -712,7 +703,7 @@ func inBodyIM(p *parser) bool {
 		d := p.tok.Data
 		switch n := p.oe.top(); n.DataAtom {
 		case a.Pre, a.Listing:
-			if len(n.Child) == 0 {
+			if n.FirstChild == nil {
 				// Ignore a newline at the start of a <pre> block.
 				if d != "" && d[0] == '\r' {
 					d = d[1:]
@@ -753,7 +744,7 @@ func inBodyIM(p *parser) bool {
 			}
 			body := p.oe[1]
 			if body.Parent != nil {
-				body.Parent.Remove(body)
+				body.Parent.RemoveChild(body)
 			}
 			p.oe = p.oe[:1]
 			p.addElement()
@@ -1128,9 +1119,9 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) {
 			}
 			// Step 9.9.
 			if lastNode.Parent != nil {
-				lastNode.Parent.Remove(lastNode)
+				lastNode.Parent.RemoveChild(lastNode)
 			}
-			node.Add(lastNode)
+			node.AppendChild(lastNode)
 			// Step 9.10.
 			lastNode = node
 		}
@@ -1138,20 +1129,20 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) {
 		// Step 10. Reparent lastNode to the common ancestor,
 		// or for misnested table nodes, to the foster parent.
 		if lastNode.Parent != nil {
-			lastNode.Parent.Remove(lastNode)
+			lastNode.Parent.RemoveChild(lastNode)
 		}
 		switch commonAncestor.DataAtom {
 		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
 			p.fosterParent(lastNode)
 		default:
-			commonAncestor.Add(lastNode)
+			commonAncestor.AppendChild(lastNode)
 		}
 
 		// Steps 11-13. Reparent nodes from the furthest block's children
 		// to a clone of the formatting element.
 		clone := formattingElement.clone()
 		reparentChildren(clone, furthestBlock)
-		furthestBlock.Add(clone)
+		furthestBlock.AppendChild(clone)
 
 		// Step 14. Fix up the list of active formatting elements.
 		if oldLoc := p.afe.index(formattingElement); oldLoc != -1 && oldLoc < bookmark {
@@ -1187,7 +1178,7 @@ func textIM(p *parser) bool {
 		p.oe.pop()
 	case TextToken:
 		d := p.tok.Data
-		if n := p.oe.top(); n.DataAtom == a.Textarea && len(n.Child) == 0 {
+		if n := p.oe.top(); n.DataAtom == a.Textarea && n.FirstChild == nil {
 			// Ignore a newline at the start of a <textarea> block.
 			if d != "" && d[0] == '\r' {
 				d = d[1:]
@@ -1626,7 +1617,7 @@ func inSelectIM(p *parser) bool {
 			}
 		}
 	case CommentToken:
-		p.doc.Add(&Node{
+		p.doc.AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -1684,7 +1675,7 @@ func afterBodyIM(p *parser) bool {
 		if len(p.oe) < 1 || p.oe[0].DataAtom != a.Html {
 			panic("html: bad parser state: <html> element not found, in the after-body insertion mode")
 		}
-		p.oe[0].Add(&Node{
+		p.oe[0].AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -1800,7 +1791,7 @@ func afterAfterBodyIM(p *parser) bool {
 			return inBodyIM(p)
 		}
 	case CommentToken:
-		p.doc.Add(&Node{
+		p.doc.AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -1816,7 +1807,7 @@ func afterAfterBodyIM(p *parser) bool {
 func afterAfterFramesetIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
-		p.doc.Add(&Node{
+		p.doc.AppendChild(&Node{
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
@@ -2068,7 +2059,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
 		DataAtom: a.Html,
 		Data:     a.Html.String(),
 	}
-	p.doc.Add(root)
+	p.doc.AppendChild(root)
 	p.oe = nodeStack{root}
 	p.resetInsertionMode()
 
@@ -2089,10 +2080,12 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
 		parent = root
 	}
 
-	result := parent.Child
-	parent.Child = nil
-	for _, n := range result {
-		n.Parent = nil
+	var result []*Node
+	for c := parent.FirstChild; c != nil; {
+		next := c.NextSibling
+		parent.RemoveChild(c)
+		result = append(result, c)
+		c = next
 	}
 	return result, nil
 }
