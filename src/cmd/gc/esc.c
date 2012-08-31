@@ -543,6 +543,7 @@ esc(EscState *e, Node *n)
 				continue;
 			a = nod(OADDR, ll->n->closure, N);
 			a->lineno = ll->n->lineno;
+			a->escloopdepth = e->loopdepth;
 			typecheck(&a, Erv);
 			escassign(e, n, a);
 		}

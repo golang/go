@@ -18,15 +18,15 @@ var allptr = make([]*int, 0, 100)
 
 func noalias(p, q *int, s string) {
 	n := len(allptr)
-	*p = -(n+1)
-	*q = -(n+2)
-	allptr = allptr[0:n+2]
+	*p = -(n + 1)
+	*q = -(n + 2)
+	allptr = allptr[0 : n+2]
 	allptr[n] = p
 	allptr[n+1] = q
 	n += 2
 	for i := 0; i < n; i++ {
 		if allptr[i] != nil && *allptr[i] != -(i+1) {
-			println("aliased pointers", -(i+1), *allptr[i], "after", s)
+			println("aliased pointers", -(i + 1), *allptr[i], "after", s)
 			allptr[i] = nil
 			bad = true
 		}
@@ -141,15 +141,27 @@ func for_escapes2(x int, y int) (*int, *int) {
 	return p[0], p[1]
 }
 
+func for_escapes3(x int, y int) (*int, *int) {
+	var f [2]func() *int
+	n := 0
+	for i := x; n < 2; i = y {
+		p := new(int)
+		*p = i
+		f[n] = func() *int { return p }
+		n++
+	}
+	return f[0](), f[1]()
+}
+
 func out_escapes(i int) (x int, p *int) {
 	x = i
-	p = &x	// ERROR "address of out parameter"
+	p = &x // ERROR "address of out parameter"
 	return
 }
 
 func out_escapes_2(i int) (x int, p *int) {
 	x = i
-	return x, &x	// ERROR "address of out parameter"
+	return x, &x // ERROR "address of out parameter"
 }
 
 func defer1(i int) (x int) {
@@ -186,6 +198,9 @@ func main() {
 
 	p, q = for_escapes2(103, 104)
 	chkalias(p, q, 103, "for_escapes2")
+
+	p, q = for_escapes3(105, 106)
+	chk(p, q, 105, "for_escapes3")
 
 	_, p = out_escapes(15)
 	_, q = out_escapes(16)
