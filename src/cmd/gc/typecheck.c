@@ -2715,6 +2715,7 @@ typecheckdeftype(Node *n)
 	typecheck(&n->ntype, Etype);
 	if((t = n->ntype->type) == T) {
 		n->diag = 1;
+		n->type = T;
 		goto ret;
 	}
 	if(n->type == T) {
