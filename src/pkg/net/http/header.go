@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"sort"
 	"strings"
+	"time"
 )
 
 // A Header represents the key-value pairs in an HTTP header.
@@ -51,6 +52,25 @@ func (h Header) Del(key string) {
 // Write writes a header in wire format.
 func (h Header) Write(w io.Writer) error {
 	return h.WriteSubset(w, nil)
+}
+
+var timeFormats = []string{
+	TimeFormat,
+	time.RFC850,
+	time.ANSIC,
+}
+
+// ParseTime parses a time header (such as the Date: header),
+// trying each of the three formats allowed by HTTP/1.1:
+// TimeFormat, time.RFC850, and time.ANSIC.
+func ParseTime(text string) (t time.Time, err error) {
+	for _, layout := range timeFormats {
+		t, err = time.Parse(layout, text)
+		if err == nil {
+			return
+		}
+	}
+	return
 }
 
 var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
