@@ -15,6 +15,10 @@ type T struct {
 
 var t *T
 
+type X int
+
+func (x *X) M() {}
+
 type I interface {
 	M()
 }
@@ -65,6 +69,8 @@ type Int int
 func (Int) M(float64) {}
 
 var _ = m.(Int) // ERROR "impossible type assertion"
+
+var _ = m.(X) // ERROR "pointer receiver"
 
 var ii int
 var jj Int
