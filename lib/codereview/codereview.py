@@ -1247,24 +1247,8 @@ def MatchAt(ctx, pats=None, opts=None, globbed=False, default='relpath'):
 #######################################################################
 # Commands added by code review extension.
 
-# As of Mercurial 2.1 the commands are all required to return integer
-# exit codes, whereas earlier versions allowed returning arbitrary strings
-# to be printed as errors.  We wrap the old functions to make sure we
-# always return integer exit codes now.  Otherwise Mercurial dies
-# with a TypeError traceback (unsupported operand type(s) for &: 'str' and 'int').
-# Introduce a Python decorator to convert old functions to the new
-# stricter convention.
-
 def hgcommand(f):
-	def wrapped(ui, repo, *pats, **opts):
-		err = f(ui, repo, *pats, **opts)
-		if type(err) is int:
-			return err
-		if not err:
-			return 0
-		raise hg_util.Abort(err)
-	wrapped.__doc__ = f.__doc__
-	return wrapped
+	return f
 
 #######################################################################
 # hg change
@@ -1293,42 +1277,42 @@ def change(ui, repo, *pats, **opts):
 	"""
 
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 	
 	dirty = {}
 	if len(pats) > 0 and GoodCLName(pats[0]):
 		name = pats[0]
 		if len(pats) != 1:
-			return "cannot specify CL name and file patterns"
+			raise hg_util.Abort("cannot specify CL name and file patterns")
 		pats = pats[1:]
 		cl, err = LoadCL(ui, repo, name, web=True)
 		if err != '':
-			return err
+			raise hg_util.Abort(err)
 		if not cl.local and (opts["stdin"] or not opts["stdout"]):
-			return "cannot change non-local CL " + name
+			raise hg_util.Abort("cannot change non-local CL " + name)
 	else:
 		name = "new"
 		cl = CL("new")
 		if repo[None].branch() != "default":
-			return "cannot create CL outside default branch; switch with 'hg update default'"
+			raise hg_util.Abort("cannot create CL outside default branch; switch with 'hg update default'")
 		dirty[cl] = True
 		files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
 
 	if opts["delete"] or opts["deletelocal"]:
 		if opts["delete"] and opts["deletelocal"]:
-			return "cannot use -d and -D together"
+			raise hg_util.Abort("cannot use -d and -D together")
 		flag = "-d"
 		if opts["deletelocal"]:
 			flag = "-D"
 		if name == "new":
-			return "cannot use "+flag+" with file patterns"
+			raise hg_util.Abort("cannot use "+flag+" with file patterns")
 		if opts["stdin"] or opts["stdout"]:
-			return "cannot use "+flag+" with -i or -o"
+			raise hg_util.Abort("cannot use "+flag+" with -i or -o")
 		if not cl.local:
-			return "cannot change non-local CL " + name
+			raise hg_util.Abort("cannot change non-local CL " + name)
 		if opts["delete"]:
 			if cl.copied_from:
-				return "original author must delete CL; hg change -D will remove locally"
+				raise hg_util.Abort("original author must delete CL; hg change -D will remove locally")
 			PostMessage(ui, cl.name, "*** Abandoned ***", send_mail=cl.mailed)
 			EditDesc(cl.name, closed=True, private=cl.private)
 		cl.Delete(ui, repo)
@@ -1338,7 +1322,7 @@ def change(ui, repo, *pats, **opts):
 		s = sys.stdin.read()
 		clx, line, err = ParseCL(s, name)
 		if err != '':
-			return "error parsing change list: line %d: %s" % (line, err)
+			raise hg_util.Abort("error parsing change list: line %d: %s" % (line, err))
 		if clx.desc is not None:
 			cl.desc = clx.desc;
 			dirty[cl] = True
@@ -1360,7 +1344,7 @@ def change(ui, repo, *pats, **opts):
 			cl.files = files
 		err = EditCL(ui, repo, cl)
 		if err != "":
-			return err
+			raise hg_util.Abort(err)
 		dirty[cl] = True
 
 	for d, _ in dirty.items():
@@ -1391,7 +1375,7 @@ def code_login(ui, repo, **opts):
 	a file in your home directory.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	MySend(None)
 
@@ -1411,8 +1395,10 @@ def clpatch(ui, repo, clname, **opts):
 	name as the Author: line but add your own name to a Committer: line.
 	"""
 	if repo[None].branch() != "default":
-		return "cannot run hg clpatch outside default branch"
-	return clpatch_or_undo(ui, repo, clname, opts, mode="clpatch")
+		raise hg_util.Abort("cannot run hg clpatch outside default branch")
+	err = clpatch_or_undo(ui, repo, clname, opts, mode="clpatch")
+	if err:
+		raise hg_util.Abort(err)
 
 @hgcommand
 def undo(ui, repo, clname, **opts):
@@ -1423,8 +1409,10 @@ def undo(ui, repo, clname, **opts):
 	you can add the reason for the undo to the description.
 	"""
 	if repo[None].branch() != "default":
-		return "cannot run hg undo outside default branch"
-	return clpatch_or_undo(ui, repo, clname, opts, mode="undo")
+		raise hg_util.Abort("cannot run hg undo outside default branch")
+	err = clpatch_or_undo(ui, repo, clname, opts, mode="undo")
+	if err:
+		raise hg_util.Abort(err)
 
 @hgcommand
 def release_apply(ui, repo, clname, **opts):
@@ -1468,13 +1456,13 @@ def release_apply(ui, repo, clname, **opts):
 	"""
 	c = repo[None]
 	if not releaseBranch:
-		return "no active release branches"
+		raise hg_util.Abort("no active release branches")
 	if c.branch() != releaseBranch:
 		if c.modified() or c.added() or c.removed():
 			raise hg_util.Abort("uncommitted local changes - cannot switch branches")
 		err = hg_clean(repo, releaseBranch)
 		if err:
-			return err
+			raise hg_util.Abort(err)
 	try:
 		err = clpatch_or_undo(ui, repo, clname, opts, mode="backport")
 		if err:
@@ -1482,7 +1470,6 @@ def release_apply(ui, repo, clname, **opts):
 	except Exception, e:
 		hg_clean(repo, "default")
 		raise e
-	return None
 
 def rev2clname(rev):
 	# Extract CL name from revision description.
@@ -1687,7 +1674,7 @@ def download(ui, repo, clname, **opts):
 	followed by its diff, downloaded from the code review server.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	cl, vers, patch, err = DownloadCL(ui, repo, clname)
 	if err != "":
@@ -1709,7 +1696,7 @@ def file(ui, repo, clname, pat, *pats, **opts):
 	It does not edit them or remove them from the repository.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	pats = tuple([pat] + list(pats))
 	if not GoodCLName(clname):
@@ -1773,7 +1760,7 @@ def gofmt(ui, repo, *pats, **opts):
 	the given patterns.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	files = ChangedExistingFiles(ui, repo, pats, opts)
 	files = gofmt_required(files)
@@ -1807,7 +1794,7 @@ def mail(ui, repo, *pats, **opts):
 	to the reviewer and CC list asking for a review.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
@@ -1853,7 +1840,7 @@ def pending(ui, repo, *pats, **opts):
 	Lists pending changes followed by a list of unassigned but modified files.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	quick = opts.get('quick', False)
 	short = opts.get('short', False)
@@ -1890,7 +1877,7 @@ def submit(ui, repo, *pats, **opts):
 	Bails out if the local repository is not in sync with the remote one.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	# We already called this on startup but sometimes Mercurial forgets.
 	set_mercurial_encoding_to_utf8()
@@ -2023,7 +2010,7 @@ def sync(ui, repo, **opts):
 	into the local repository.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	if not opts["local"]:
 		err = hg_pull(ui, repo, update=True)
@@ -2076,7 +2063,7 @@ def upload(ui, repo, name, **opts):
 	Uploads the current modifications for a given change to the server.
 	"""
 	if codereview_disabled:
-		return codereview_disabled
+		raise hg_util.Abort(codereview_disabled)
 
 	repo.ui.quiet = True
 	cl, err = LoadCL(ui, repo, name, web=True)
