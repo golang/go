@@ -34,6 +34,7 @@
 #include "opt.h"
 
 static void	conprop(Reg *r);
+static void elimshortmov(Reg *r);
 static int prevl(Reg *r, int reg);
 static void pushback(Reg *r);
 static int regconsttyp(Adr*);
@@ -48,11 +49,17 @@ needc(Prog *p)
 		case AADCQ:
 		case ASBBL:
 		case ASBBQ:
+		case ARCRB:
+		case ARCRW:
 		case ARCRL:
 		case ARCRQ:
 			return 1;
+		case AADDB:
+		case AADDW:
 		case AADDL:
 		case AADDQ:
+		case ASUBB:
+		case ASUBW:
 		case ASUBL:
 		case ASUBQ:
 		case AJMP:
@@ -129,6 +136,9 @@ peep(void)
 		}
 	}
 	
+	// byte, word arithmetic elimination.
+	elimshortmov(r);
+
 	// constant propagation
 	// find MOV $con,R followed by
 	// another MOV $con,R without
@@ -446,6 +456,99 @@ regtyp(Adr *a)
 	if(t >= D_X0 && t <= D_X0+15)
 		return 1;
 	return 0;
+}
+
+// movb elimination.
+// movb is simulated by the linker
+// when a register other than ax, bx, cx, dx
+// is used, so rewrite to other instructions
+// when possible.  a movb into a register
+// can smash the entire 32-bit register without
+// causing any trouble.
+static void
+elimshortmov(Reg *r)
+{
+	Prog *p;
+
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		if(regtyp(&p->to)) {
+			switch(p->as) {
+			case AINCB:
+			case AINCW:
+				p->as = AINCQ;
+				break;
+			case ADECB:
+			case ADECW:
+				p->as = ADECQ;
+				break;
+			case ANEGB:
+			case ANEGW:
+				p->as = ANEGQ;
+				break;
+			case ANOTB:
+			case ANOTW:
+				p->as = ANOTQ;
+				break;
+			}
+			if(regtyp(&p->from) || p->from.type == D_CONST) {
+				// move or artihmetic into partial register.
+				// from another register or constant can be movl.
+				// we don't switch to 64-bit arithmetic if it can
+				// change how the carry bit is set (and the carry bit is needed).
+				switch(p->as) {
+				case AMOVB:
+				case AMOVW:
+					p->as = AMOVQ;
+					break;
+				case AADDB:
+				case AADDW:
+					if(!needc(p->link))
+						p->as = AADDQ;
+					break;
+				case ASUBB:
+				case ASUBW:
+					if(!needc(p->link))
+						p->as = ASUBQ;
+					break;
+				case AMULB:
+				case AMULW:
+					p->as = AMULQ;
+					break;
+				case AIMULB:
+				case AIMULW:
+					p->as = AIMULQ;
+					break;
+				case AANDB:
+				case AANDW:
+					p->as = AANDQ;
+					break;
+				case AORB:
+				case AORW:
+					p->as = AORQ;
+					break;
+				case AXORB:
+				case AXORW:
+					p->as = AXORQ;
+					break;
+				case ASHLB:
+				case ASHLW:
+					p->as = ASHLQ;
+					break;
+				}
+			} else {
+				// explicit zero extension
+				switch(p->as) {
+				case AMOVB:
+					p->as = AMOVBQZX;
+					break;
+				case AMOVW:
+					p->as = AMOVWQZX;
+					break;
+				}
+			}
+		}
+	}
 }
 
 int
