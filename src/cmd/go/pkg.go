@@ -250,7 +250,7 @@ func reusePackage(p *Package, stk *importStack) *Package {
 		if p.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
-				Err:         "import loop",
+				Err:         "import cycle not allowed",
 			}
 		}
 		p.Incomplete = true
