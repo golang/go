@@ -1,16 +1,16 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out
-// # switch above to 'run' when bug gets fixed.
-// # right now it only breaks on 8g
+// run
 
 // Test for 8g register move bug.  The optimizer gets confused
 // about 16- vs 32-bit moves during splitContractIndex.
+
+// Issue 3910.
 
 package main
 
 func main() {
 	const c = 0x12345678
 	index, n, offset := splitContractIndex(c)
-	if index != int((c&0xffff)>>5) || n != int(c & (1<<5-1)) || offset != (c>>16)&(1<<14-1) {
+	if index != int((c&0xffff)>>5) || n != int(c&(1<<5-1)) || offset != (c>>16)&(1<<14-1) {
 		println("BUG", index, n, offset)
 	}
 }

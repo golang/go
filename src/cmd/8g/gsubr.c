@@ -1582,8 +1582,9 @@ gmove(Node *f, Node *t)
 		p1 = gins(ASHRL, ncon(1), &ax);
 		p1->from.index = D_DX;	// double-width shift DX -> AX
 		p1->from.scale = 0;
+		gins(AMOVL, ncon(0), &cx);
 		gins(ASETCC, N, &cx);
-		gins(AORB, &cx, &ax);
+		gins(AORL, &cx, &ax);
 		gins(ASHRL, ncon(1), &dx);
 		gmove(&dx, &thi);
 		gmove(&ax, &tlo);
