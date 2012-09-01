@@ -4,8 +4,6 @@
 
 package strconv
 
-import "math"
-
 // An extFloat represents an extended floating-point number, with more
 // precision than a float64. It does not try to save bits: the
 // number represented by the structure is mant*(2^exp), with a negative
@@ -179,17 +177,6 @@ out:
 	return
 }
 
-// Assign sets f to the value of x.
-func (f *extFloat) Assign(x float64) {
-	if x < 0 {
-		x = -x
-		f.neg = true
-	}
-	x, f.exp = math.Frexp(x)
-	f.mant = uint64(x * float64(1<<64))
-	f.exp -= 64
-}
-
 // AssignComputeBounds sets f to the floating point value
 // defined by mant, exp and precision given by flt. It returns
 // lower, upper such that any number in the closed interval
@@ -354,16 +341,17 @@ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc boo
 // f by an approximate power of ten 10^-exp, and returns exp10, so
 // that f*10^exp10 has the same value as the old f, up to an ulp,
 // as well as the index of 10^-exp in the powersOfTen table.
-// The arguments expMin and expMax constrain the final value of the
-// binary exponent of f.
-func (f *extFloat) frexp10(expMin, expMax int) (exp10, index int) {
-	// it is illegal to call this function with a too restrictive exponent range.
-	if expMax-expMin <= 25 {
-		panic("strconv: invalid exponent range")
-	}
+func (f *extFloat) frexp10() (exp10, index int) {
+	// The constants expMin and expMax constrain the final value of the
+	// binary exponent of f. We want a small integral part in the result
+	// because finding digits of an integer requires divisions, whereas
+	// digits of the fractional part can be found by repeatedly multiplying
+	// by 10.
+	const expMin = -60
+	const expMax = -32
 	// Find power of ten such that x * 10^n has a binary exponent
-	// between expMin and expMax
-	approxExp10 := -(f.exp + 100) * 28 / 93 // log(10)/log(2) is close to 93/28.
+	// between expMin and expMax.
+	approxExp10 := ((expMin+expMax)/2 - f.exp) * 28 / 93 // log(10)/log(2) is close to 93/28.
 	i := (approxExp10 - firstPowerOfTen) / stepPowerOfTen
 Loop:
 	for {
@@ -385,11 +373,164 @@ Loop:
 }
 
 // frexp10Many applies a common shift by a power of ten to a, b, c.
-func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
-	exp10, i := c.frexp10(expMin, expMax)
+func frexp10Many(a, b, c *extFloat) (exp10 int) {
+	exp10, i := c.frexp10()
 	a.Multiply(powersOfTen[i])
 	b.Multiply(powersOfTen[i])
 	return
+}
+
+// FixedDecimal stores in d the first n significant digits
+// of the decimal representation of f. It returns false
+// if it cannot be sure of the answer.
+func (f *extFloat) FixedDecimal(d *decimalSlice, n int) bool {
+	if f.mant == 0 {
+		d.nd = 0
+		d.dp = 0
+		d.neg = f.neg
+		return true
+	}
+	if n == 0 {
+		panic("strconv: internal error: extFloat.FixedDecimal called with n == 0")
+	}
+	// Multiply by an appropriate power of ten to have a reasonable
+	// number to process. 
+	f.Normalize()
+	exp10, _ := f.frexp10()
+
+	shift := uint(-f.exp)
+	integer := uint32(f.mant >> shift)
+	fraction := f.mant - (uint64(integer) << shift)
+	ε := uint64(1) // ε is the uncertainty we have on the mantissa of f.
+
+	// Write exactly n digits to d.
+	needed := n        // how many digits are left to write.
+	integerDigits := 0 // the number of decimal digits of integer.
+	pow10 := uint64(1) // the power of ten by which f was scaled.
+	for i, pow := 0, uint64(1); i < 20; i++ {
+		if pow > uint64(integer) {
+			integerDigits = i
+			break
+		}
+		pow *= 10
+	}
+	rest := integer
+	if integerDigits > needed {
+		// the integral part is already large, trim the last digits.
+		pow10 = uint64pow10[integerDigits-needed]
+		integer /= uint32(pow10)
+		rest -= integer * uint32(pow10)
+	} else {
+		rest = 0
+	}
+
+	// Write the digits of integer: the digits of rest are omitted.
+	var buf [32]byte
+	pos := len(buf)
+	for v := integer; v > 0; {
+		v1 := v / 10
+		v -= 10 * v1
+		pos--
+		buf[pos] = byte(v + '0')
+		v = v1
+	}
+	for i := pos; i < len(buf); i++ {
+		d.d[i-pos] = buf[i]
+	}
+	nd := len(buf) - pos
+	d.nd = nd
+	d.dp = integerDigits + exp10
+	needed -= nd
+
+	if needed > 0 {
+		if rest != 0 || pow10 != 1 {
+			panic("strconv: internal error, rest != 0 but needed > 0")
+		}
+		// Emit digits for the fractional part. Each time, 10*fraction
+		// fits in a uint64 without overflow.
+		for needed > 0 {
+			fraction *= 10
+			ε *= 10 // the uncertainty scales as we multiply by ten.
+			if 2*ε > 1<<shift {
+				// the error is so large it could modify which digit to write, abort.
+				return false
+			}
+			digit := fraction >> shift
+			d.d[nd] = byte(digit + '0')
+			fraction -= digit << shift
+			nd++
+			needed--
+		}
+		d.nd = nd
+	}
+
+	// We have written a truncation of f (a numerator / 10^d.dp). The remaining part
+	// can be interpreted as a small number (< 1) to be added to the last digit of the
+	// numerator.
+	//
+	// If rest > 0, the amount is:
+	//    (rest<<shift | fraction) / (pow10 << shift)
+	//    fraction being known with a ±ε uncertainty.
+	//    The fact that n > 0 guarantees that pow10 << shift does not overflow a uint64.
+	//
+	// If rest = 0, pow10 == 1 and the amount is
+	//    fraction / (1 << shift)
+	//    fraction being known with a ±ε uncertainty.
+	//
+	// We pass this information to the rounding routine for adjustment.
+
+	ok := adjustLastDigitFixed(d, uint64(rest)<<shift|fraction, pow10, shift, ε)
+	if !ok {
+		return false
+	}
+	// Trim trailing zeros.
+	for i := d.nd - 1; i >= 0; i-- {
+		if d.d[i] != '0' {
+			d.nd = i + 1
+			break
+		}
+	}
+	return true
+}
+
+// adjustLastDigitFixed assumes d contains the representation of the integral part
+// of some number, whose fractional part is num / (den << shift). The numerator
+// num is only known up to an uncertainty of size ε, assumed to be less than
+// (den << shift)/2.
+//
+// It will increase the last digit by one to account for correct rounding, typically
+// when the fractional part is greater than 1/2, and will return false if ε is such
+// that no correct answer can be given.
+func adjustLastDigitFixed(d *decimalSlice, num, den uint64, shift uint, ε uint64) bool {
+	if num > den<<shift {
+		panic("strconv: num > den<<shift in adjustLastDigitFixed")
+	}
+	if 2*ε > den<<shift {
+		panic("strconv: ε > (den<<shift)/2")
+	}
+	if 2*(num+ε) < den<<shift {
+		return true
+	}
+	if 2*(num-ε) > den<<shift {
+		// increment d by 1.
+		i := d.nd - 1
+		for ; i >= 0; i-- {
+			if d.d[i] == '9' {
+				d.nd--
+			} else {
+				break
+			}
+		}
+		if i < 0 {
+			d.d[0] = '1'
+			d.nd = 1
+			d.dp++
+		} else {
+			d.d[i]++
+		}
+		return true
+	}
+	return false
 }
 
 // ShortestDecimal stores in d the shortest decimal representation of f
@@ -398,10 +539,10 @@ func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
 // uses the Grisu3 algorithm.
 func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool {
 	if f.mant == 0 {
-		d.d[0] = '0'
-		d.nd = 1
+		d.nd = 0
 		d.dp = 0
 		d.neg = f.neg
+		return true
 	}
 	if f.exp == 0 && *lower == *f && *lower == *upper {
 		// an exact integer.
@@ -428,8 +569,6 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 		d.neg = f.neg
 		return true
 	}
-	const minExp = -60
-	const maxExp = -32
 	upper.Normalize()
 	// Uniformize exponents.
 	if f.exp > upper.exp {
@@ -441,7 +580,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 		lower.exp = upper.exp
 	}
 
-	exp10 := frexp10Many(minExp, maxExp, lower, f, upper)
+	exp10 := frexp10Many(lower, f, upper)
 	// Take a safety margin due to rounding in frexp10Many, but we lose precision.
 	upper.mant++
 	lower.mant--
@@ -459,10 +598,12 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 
 	// Count integral digits: there are at most 10.
 	var integerDigits int
-	for i, pow := range uint64pow10 {
-		if uint64(integer) >= pow {
-			integerDigits = i + 1
+	for i, pow := 0, uint64(1); i < 20; i++ {
+		if pow > uint64(integer) {
+			integerDigits = i
+			break
 		}
+		pow *= 10
 	}
 	for i := 0; i < integerDigits; i++ {
 		pow := uint64pow10[integerDigits-i-1]

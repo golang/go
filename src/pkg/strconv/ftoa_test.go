@@ -163,9 +163,19 @@ func TestFtoaRandom(t *testing.T) {
 	for i := 0; i < N; i++ {
 		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
 		x := math.Float64frombits(bits)
+
 		shortFast := FormatFloat(x, 'g', -1, 64)
 		SetOptimize(false)
 		shortSlow := FormatFloat(x, 'g', -1, 64)
+		SetOptimize(true)
+		if shortSlow != shortFast {
+			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
+		}
+
+		prec := rand.Intn(12) + 5
+		shortFast = FormatFloat(x, 'e', prec, 64)
+		SetOptimize(false)
+		shortSlow = FormatFloat(x, 'e', prec, 64)
 		SetOptimize(true)
 		if shortSlow != shortFast {
 			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
@@ -223,3 +233,8 @@ func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b,
 func BenchmarkAppendFloat32Point(b *testing.B)         { benchmarkAppendFloat(b, 339.7784, 'g', -1, 32) }
 func BenchmarkAppendFloat32Exp(b *testing.B)           { benchmarkAppendFloat(b, -5.09e25, 'g', -1, 32) }
 func BenchmarkAppendFloat32NegExp(b *testing.B)        { benchmarkAppendFloat(b, -5.11e-25, 'g', -1, 32) }
+
+func BenchmarkAppendFloat64Fixed1(b *testing.B) { benchmarkAppendFloat(b, 123456, 'e', 3, 64) }
+func BenchmarkAppendFloat64Fixed2(b *testing.B) { benchmarkAppendFloat(b, 123.456, 'e', 3, 64) }
+func BenchmarkAppendFloat64Fixed3(b *testing.B) { benchmarkAppendFloat(b, 1.23456e+78, 'e', 3, 64) }
+func BenchmarkAppendFloat64Fixed4(b *testing.B) { benchmarkAppendFloat(b, 1.23456e-78, 'e', 3, 64) }
