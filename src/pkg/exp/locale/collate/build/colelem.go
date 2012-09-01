@@ -5,6 +5,7 @@
 package build
 
 import (
+	"exp/locale/collate"
 	"fmt"
 	"unicode"
 )
@@ -196,4 +197,53 @@ func implicitPrimary(r rune) int {
 		return int(r) + rareUnifiedOffset
 	}
 	return int(r) + otherOffset
+}
+
+// nextWeight computes the first possible collation weights following elems
+// for the given level.
+func nextWeight(level collate.Level, elems [][]int) [][]int {
+	nce := make([][]int, len(elems))
+	copy(nce, elems)
+
+	if level != collate.Identity {
+		nce[0] = make([]int, len(elems[0]))
+		copy(nce[0], elems[0])
+		nce[0][level]++
+		if level < collate.Secondary {
+			nce[0][collate.Secondary] = defaultSecondary
+		}
+		if level < collate.Tertiary {
+			nce[0][collate.Tertiary] = defaultTertiary
+		}
+	}
+	return nce
+}
+
+func nextVal(elems [][]int, i int, level collate.Level) (index, value int) {
+	for ; i < len(elems) && elems[i][level] == 0; i++ {
+	}
+	if i < len(elems) {
+		return i, elems[i][level]
+	}
+	return i, 0
+}
+
+// compareWeights returns -1 if a < b, 1 if a > b, or 0 otherwise.
+// It also returns the collation level at which the difference is found.
+func compareWeights(a, b [][]int) (result int, level collate.Level) {
+	for level := collate.Primary; level < collate.Identity; level++ {
+		var va, vb int
+		for ia, ib := 0, 0; ia < len(a) || ib < len(b); ia, ib = ia+1, ib+1 {
+			ia, va = nextVal(a, ia, level)
+			ib, vb = nextVal(b, ib, level)
+			if va != vb {
+				if va < vb {
+					return -1, level
+				} else {
+					return 1, level
+				}
+			}
+		}
+	}
+	return 0, collate.Identity
 }

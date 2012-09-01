@@ -4,7 +4,10 @@
 
 package build
 
-import "testing"
+import (
+	"exp/locale/collate"
+	"testing"
+)
 
 type ceTest struct {
 	f   func(in []int) (uint32, error)
@@ -79,5 +82,116 @@ func TestColElem(t *testing.T) {
 		if ce != tt.val {
 			t.Errorf("%d: colElem=%X; want %X", i, ce, tt.val)
 		}
+	}
+}
+
+type weightsTest struct {
+	a, b   [][]int
+	level  collate.Level
+	result int
+}
+
+var nextWeightTests = []weightsTest{
+	{
+		a:     [][]int{{100, 20, 5, 0}},
+		b:     [][]int{{101, defaultSecondary, defaultTertiary, 0}},
+		level: collate.Primary,
+	},
+	{
+		a:     [][]int{{100, 20, 5, 0}},
+		b:     [][]int{{100, 21, defaultTertiary, 0}},
+		level: collate.Secondary,
+	},
+	{
+		a:     [][]int{{100, 20, 5, 0}},
+		b:     [][]int{{100, 20, 6, 0}},
+		level: collate.Tertiary,
+	},
+	{
+		a:     [][]int{{100, 20, 5, 0}},
+		b:     [][]int{{100, 20, 5, 0}},
+		level: collate.Identity,
+	},
+}
+
+var extra = []int{200, 32, 8, 0}
+
+func TestNextWeight(t *testing.T) {
+	for i, tt := range nextWeightTests {
+		test := func(tt weightsTest, a, gold [][]int) {
+			res := nextWeight(tt.level, a)
+			if !equalCEArrays(gold, res) {
+				t.Errorf("%d: expected weights %d; found %d", i, tt.b, res)
+			}
+		}
+		test(tt, tt.a, tt.b)
+		test(tt, append(tt.a, extra), append(tt.b, extra))
+	}
+}
+
+var compareTests = []weightsTest{
+	{
+		[][]int{{100, 20, 5, 0}},
+		[][]int{{100, 20, 5, 0}},
+		collate.Identity,
+		0,
+	},
+	{
+		[][]int{{100, 20, 5, 0}, extra},
+		[][]int{{100, 20, 5, 1}},
+		collate.Primary,
+		1,
+	},
+	{
+		[][]int{{100, 20, 5, 0}},
+		[][]int{{101, 20, 5, 0}},
+		collate.Primary,
+		-1,
+	},
+	{
+		[][]int{{101, 20, 5, 0}},
+		[][]int{{100, 20, 5, 0}},
+		collate.Primary,
+		1,
+	},
+	{
+		[][]int{{100, 0, 0, 0}, {0, 20, 5, 0}},
+		[][]int{{0, 20, 5, 0}, {100, 0, 0, 0}},
+		collate.Identity,
+		0,
+	},
+	{
+		[][]int{{100, 20, 5, 0}},
+		[][]int{{100, 21, 5, 0}},
+		collate.Secondary,
+		-1,
+	},
+	{
+		[][]int{{100, 20, 5, 0}},
+		[][]int{{100, 20, 2, 0}},
+		collate.Tertiary,
+		1,
+	},
+	{
+		[][]int{{100, 20, 5, 1}},
+		[][]int{{100, 20, 5, 2}},
+		collate.Quaternary,
+		-1,
+	},
+}
+
+func TestCompareWeights(t *testing.T) {
+	for i, tt := range compareTests {
+		test := func(tt weightsTest, a, b [][]int) {
+			res, level := compareWeights(a, b)
+			if res != tt.result {
+				t.Errorf("%d: expected comparisson result %d; found %d", i, tt.result, res)
+			}
+			if level != tt.level {
+				t.Errorf("%d: expected level %d; found %d", i, tt.level, level)
+			}
+		}
+		test(tt, tt.a, tt.b)
+		test(tt, append(tt.a, extra), append(tt.b, extra))
 	}
 }

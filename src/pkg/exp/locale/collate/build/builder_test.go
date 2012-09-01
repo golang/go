@@ -53,6 +53,7 @@ func newBuilder(t *testing.T, ducet []ducetElem) *Builder {
 		}
 	}
 	b.t = &table{}
+	b.root.sort()
 	return b
 }
 
@@ -119,7 +120,7 @@ func TestGenColElems(t *testing.T) {
 	b := newBuilder(t, simplifyTest[:5])
 
 	for i, tt := range genColTests {
-		res := b.genColElems(tt.str)
+		res := b.root.genColElems(tt.str)
 		if !equalCEArrays(tt.ces, res) {
 			t.Errorf("%d: result %X; want %X", i, res, tt.ces)
 		}
@@ -142,22 +143,21 @@ var simplifyMarked = strArray{"\u01C5"}
 
 func TestSimplify(t *testing.T) {
 	b := newBuilder(t, simplifyTest)
+	o := b.root
 	b.simplify()
 
-	k := 0
 	for i, tt := range simplifyTest {
 		if simplifyRemoved.contains(tt.str) {
 			continue
 		}
-		e := b.entry[k]
-		k++
+		e := o.find(tt.str)
 		if e.str != tt.str || !equalCEArrays(e.elems, tt.ces) {
 			t.Errorf("%d: found element %s -> %X; want %s -> %X", i, e.str, e.elems, tt.str, tt.ces)
 			break
 		}
 	}
-	k = 0
-	for i, e := range b.entry {
+	var i, k int
+	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		gold := simplifyMarked.contains(e.str)
 		if gold {
 			k++
@@ -165,6 +165,7 @@ func TestSimplify(t *testing.T) {
 		if gold != e.decompose {
 			t.Errorf("%d: %s has decompose %v; want %v", i, e.str, e.decompose, gold)
 		}
+		i++
 	}
 	if k != len(simplifyMarked) {
 		t.Errorf(" an entry that should be marked as decompose was deleted")
@@ -184,10 +185,11 @@ func TestExpand(t *testing.T) {
 		totalElements   = 2 + 2 + 3 + totalExpansions
 	)
 	b := newBuilder(t, expandTest)
+	o := &b.root
 	b.processExpansions()
 
-	for i, tt := range expandTest {
-		e := b.entry[i]
+	e := o.front()
+	for _, tt := range expandTest {
 		exp := b.t.expandElem[e.expansionIndex:]
 		if int(exp[0]) != len(tt.ces) {
 			t.Errorf("%U: len(expansion)==%d; want %d", []rune(tt.str)[0], exp[0], len(tt.ces))
@@ -198,6 +200,7 @@ func TestExpand(t *testing.T) {
 				t.Errorf("%U: element %d is %X; want %X", []rune(tt.str)[0], j, exp[j], ce)
 			}
 		}
+		e, _ = e.nextIndexed()
 	}
 	// Verify uniquing.
 	if len(b.t.expandElem) != totalElements {
@@ -230,11 +233,12 @@ func TestContract(t *testing.T) {
 		totalElements = 5 + 5 + 4
 	)
 	b := newBuilder(t, contractTest)
+	o := &b.root
 	b.processContractions()
 
 	indexMap := make(map[int]bool)
 	handleMap := make(map[rune]*entry)
-	for _, e := range b.entry {
+	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if e.contractionHandle.n > 0 {
 			handleMap[e.runes[0]] = e
 			indexMap[e.contractionHandle.index] = true
