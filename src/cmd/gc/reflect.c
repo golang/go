@@ -680,6 +680,12 @@ dtypesym(Type *t)
 	Sig *a, *m;
 	Type *t1, *tbase, *t2;
 
+	// Replace byte, rune aliases with real type.
+	// They've been separate internally to make error messages
+	// better, but we have to merge them in the reflect tables.
+	if(t == bytetype || t == runetype)
+		t = types[t->etype];
+
 	if(isideal(t))
 		fatal("dtypesym %T", t);
 
