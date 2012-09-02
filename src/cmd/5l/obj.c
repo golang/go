@@ -76,6 +76,7 @@ main(int argc, char *argv[])
 {
 	int c;
 	char *p, *name, *val;
+	Sym *s;
 
 	Binit(&bso, 1, OWRITE);
 	listinit();
@@ -89,7 +90,11 @@ main(int argc, char *argv[])
 	nuxiinit();
 	
 	p = getenv("GOARM");
-	if(p != nil && strcmp(p, "5") == 0)
+	if(p != nil)
+		goarm = atoi(p);
+	else
+		goarm = 7;
+	if(goarm == 5)
 		debug['F'] = 1;
 
 	ARGBEGIN {
@@ -242,6 +247,11 @@ main(int argc, char *argv[])
 	version = 0;
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
+
+	// embed goarm to runtime.goarm
+	s = lookup("runtime.goarm", 0);
+	s->dupok = 1;
+	adduint8(s, goarm);
 
 	addlibpath("command line", "command line", argv[0], "main");
 	loadlib();

@@ -307,6 +307,7 @@ EXTERN	Prog	zprg;
 EXTERN	int	dtype;
 EXTERN	int	tlsoffset;
 EXTERN	int	armsize;
+EXTERN	int	goarm;
 
 extern	char*	anames[];
 extern	Optab	optab[];
