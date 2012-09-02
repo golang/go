@@ -25,3 +25,8 @@ all: $(RAWHTML)
 
 clean:
 	rm -f $(RAWHTML)
+
+compare:
+	for i in $(RAWHTML); do \
+		godoc -url /doc/$${i/.rawhtml/.html} | diff -u $$i -; \
+	done
