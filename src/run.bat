@@ -70,10 +70,11 @@ go run %GOROOT%\test\run.go - ..\misc\cgo\life
 if errorlevel 1 goto fail
 echo.
 
-echo # ..\misc\cgo\stdio
-go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
-if errorlevel 1 goto fail
-echo.
+:: TODO ..\misc\cgo\stdio
+::echo # ..\misc\cgo\stdio
+::go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
+::if errorlevel 1 goto fail
+::echo.
 
 :: TODO(brainman): disabled, because it fails with: mkdir C:\Users\ADMINI~1\AppData\Local\Temp\2.....\go\misc\cgo\: The filename or extension is too long.
 ::echo # ..\misc\cgo\test
