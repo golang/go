@@ -49,19 +49,25 @@ func TestCPUProfile(t *testing.T) {
 
 	// Convert []byte to []uintptr.
 	bytes := prof.Bytes()
+	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
-	val = val[:len(bytes)/int(unsafe.Sizeof(uintptr(0)))]
+	val = val[:l]
 
-	if len(val) < 10 {
+	if l < 13 {
 		t.Fatalf("profile too short: %#x", val)
 	}
-	if val[0] != 0 || val[1] != 3 || val[2] != 0 || val[3] != 1e6/100 || val[4] != 0 {
-		t.Fatalf("unexpected header %#x", val[:5])
+
+	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
+	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
+		t.Fatalf("unexpected header %#x", hd)
+	}
+
+	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
+		t.Fatalf("malformed end-of-data marker %#x", tl)
 	}
 
 	// Check that profile is well formed and contains ChecksumIEEE.
 	found := false
-	val = val[5:]
 	for len(val) > 0 {
 		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
 			t.Fatalf("malformed profile.  leftover: %#x", val)
