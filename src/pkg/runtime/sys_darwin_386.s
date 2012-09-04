@@ -213,8 +213,8 @@ TEXT runtime·sigaction(SB),7,$0
 // It is called with the following arguments on the stack:
 //	0(FP)	"return address" - ignored
 //	4(FP)	actual handler
-//	8(FP)	siginfo style - ignored
-//	12(FP)	signal number
+//	8(FP)	signal number
+//	12(FP)	siginfo style
 //	16(FP)	siginfo
 //	20(FP)	context
 TEXT runtime·sigtramp(SB),7,$40
@@ -223,8 +223,11 @@ TEXT runtime·sigtramp(SB),7,$40
 	// check that m exists
 	MOVL	m(CX), BP
 	CMPL	BP, $0
-	JNE	2(PC)
+	JNE	5(PC)
+	MOVL	sig+8(FP), BX
+	MOVL	BX, 0(SP)
 	CALL	runtime·badsignal(SB)
+	RET
 
 	// save g
 	MOVL	g(CX), DI

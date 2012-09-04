@@ -135,6 +135,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
 	sa.sa_mask = ~0ULL;
+	// TODO(adonovan): Linux manpage says "sa_restorer element is
+	// obsolete and should not be used".  Avoid it here, and test.
 	sa.sa_restorer = (void*)runtime·sigreturn;
 	if(fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;

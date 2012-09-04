@@ -296,7 +296,8 @@ TEXT runtime·sigaltstack(SB),7,$0
 TEXT runtime·sigtramp(SB),7,$24
 	// this might be called in external code context,
 	// where g and m are not set.
-	// first save R0, becuase cgo_load_gm will clobber it
+	// first save R0, because cgo_load_gm will clobber it
+	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
 	MOVW	R0, 4(R13)
 	MOVW	cgo_load_gm(SB), R0
 	CMP 	$0, R0

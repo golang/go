@@ -173,8 +173,10 @@ TEXT runtime·sigtramp(SB),7,$64
 	// check that m exists
 	MOVQ	m(BX), BP
 	CMPQ	BP, $0
-	JNE	2(PC)
+	JNE	4(PC)
+	MOVL	DX, 0(SP)
 	CALL	runtime·badsignal(SB)
+	RET
 
 	// save g
 	MOVQ	g(BX), R10

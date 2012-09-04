@@ -354,7 +354,7 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
 // This runs on a foreign stack, without an m or a g.  No stack split.
 #pragma textflag 7
 void
-runtime·badsignal(void)
+runtime·badsignal(int32 sig)
 {
 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
 }
