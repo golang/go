@@ -240,5 +240,5 @@ runtime·badsignal(int32 sig)
 		return;  // Ignore SIGPROFs intended for a non-Go thread.
 	}
 	runtime·write(2, badsignal, sizeof badsignal - 1);
-	runtime.exit(1)
+	runtime·exit(1);
 }
