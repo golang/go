@@ -399,104 +399,172 @@ struct	Hist
 };
 #define	H	((Hist*)0)
 
+// Node ops.
 enum
 {
 	OXXX,
 
 	// names
-	ONAME,
-	ONONAME,
-	OTYPE,
-	OPACK,
-	OLITERAL,
+	ONAME,	// var, const or func name
+	ONONAME,	// unnamed arg or return value: f(int, string) (int, error) { etc }
+	OTYPE,	// type name
+	OPACK,	// import
+	OLITERAL, // literal
 
-	// exprs
-	OADD, OSUB, OOR, OXOR, OADDSTR,
-	OADDR,
-	OANDAND,
-	OAPPEND,
-	OARRAYBYTESTR, OARRAYRUNESTR,
-	OSTRARRAYBYTE, OSTRARRAYRUNE,
-	OAS, OAS2, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE,
-	OASOP,
-	OBAD,
-	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
-	OCAP,
-	OCLOSE,
-	OCLOSURE,
-	OCMPIFACE, OCMPSTR,
-	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT, OPTRLIT,
-	OCONV, OCONVIFACE, OCONVNOP,
-	OCOPY,
-	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
-	ODELETE,
-	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
-	ODOTTYPE,
-	ODOTTYPE2,
-	OEQ, ONE, OLT, OLE, OGE, OGT,
-	OIND,
-	OINDEX, OINDEXMAP,
-	OKEY, OPARAM,
-	OLEN,
-	OMAKE, OMAKECHAN, OMAKEMAP, OMAKESLICE,
-	OHMUL, ORRC, OLRC,	// high-mul and rotate-carry
-	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
-	ONEW,
-	ONOT, OCOM, OPLUS, OMINUS,
-	OOROR,
-	OPANIC, OPRINT, OPRINTN,
-	OPAREN,
-	OSEND,
-	OSLICE, OSLICEARR, OSLICESTR,
-	ORECOVER,
-	ORECV,
-	ORUNESTR,
-	OSELRECV,
-	OSELRECV2,
-	OIOTA,
-	OREAL, OIMAG, OCOMPLEX,
+	// expressions
+	OADD,	// x + y
+	OSUB,	// x - y
+	OOR,	// x | y
+	OXOR,	// x ^ y
+	OADDSTR,	// s + "foo"
+	OADDR,	// &x
+	OANDAND,	// b0 && b1
+	OAPPEND,	// append
+	OARRAYBYTESTR,	// string(bytes)
+	OARRAYRUNESTR,	// string(runes)
+	OSTRARRAYBYTE,	// []byte(s)
+	OSTRARRAYRUNE,	// []rune(s)
+	OAS,	// x = y or x := y
+	OAS2,	// x, y, z = xx, yy, zz
+	OAS2FUNC,	// x, y = f()
+	OAS2RECV,	// x, ok = <-c
+	OAS2MAPR,	// x, ok = m["foo"]
+	OAS2DOTTYPE,	// x, ok = I.(int)
+	OASOP,	// x += y
+	OBAD,	// unused.
+	OCALL,	// function call, method call or type conversion, possibly preceded by defer or go.
+	OCALLFUNC,	// f()
+	OCALLMETH,	// t.Method()
+	OCALLINTER,	// err.Error()
+	OCAP,	// cap
+	OCLOSE,	// close
+	OCLOSURE,	// f = func() { etc }
+	OCMPIFACE,	// err1 == err2
+	OCMPSTR,	// s1 == s2
+	OCOMPLIT,	// composite literal, typechecking may convert to a more specific OXXXLIT.
+	OMAPLIT,	// M{"foo":3, "bar":4}
+	OSTRUCTLIT,	// T{x:3, y:4}
+	OARRAYLIT,	// [2]int{3, 4}
+	OPTRLIT,	// &T{x:3, y:4}
+	OCONV,	// var i int; var u uint; i = int(u)
+	OCONVIFACE,	// I(t)
+	OCONVNOP,	// type Int int; var i int; var j Int; i = int(j)
+	OCOPY,	// copy
+	ODCL,	// var x int
+	ODCLFUNC,	// func f() or func (r) f()
+	ODCLFIELD,	// struct field, interface field, or func/method argument/return value.
+	ODCLCONST,	// const pi = 3.14
+	ODCLTYPE,	// type Int int
+	ODELETE,	// delete
+	ODOT,	// t.x
+	ODOTPTR,	// p.x that is implicitly (*p).x
+	ODOTMETH,	// t.Method
+	ODOTINTER,	// err.Error
+	OXDOT,	// t.x, typechecking may convert to a more specific ODOTXXX.
+	ODOTTYPE,	// e = err.(MyErr)
+	ODOTTYPE2,	// e, ok = err.(MyErr)
+	OEQ,	// x == y
+	ONE,	// x != y
+	OLT,	// x < y
+	OLE,	// x <= y
+	OGE,	// x >= y
+	OGT,	// x > y
+	OIND,	// *p
+	OINDEX,	// a[i]
+	OINDEXMAP,	// m[s]
+	OKEY,	// The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
+	OPARAM,	// The on-stack copy of a parameter or return value that escapes.
+	OLEN,	// len
+	OMAKE,	// make, typechecking may convert to a more specfic OMAKEXXX.
+	OMAKECHAN,	// make(chan int)
+	OMAKEMAP,	// make(map[string]int)
+	OMAKESLICE,	// make([]int, 0)
 
-	// stmts
-	OBLOCK,
-	OBREAK,
-	OCASE, OXCASE,
-	OCONTINUE,
-	ODEFER,
-	OEMPTY,
-	OFALL, OXFALL,
-	OFOR,
-	OGOTO,
-	OIF,
-	OLABEL,
-	OPROC,
-	ORANGE,
-	ORETURN,
-	OSELECT,
-	OSWITCH,
-	OTYPESW,	// l = r.(type)
+	// TODO: move these to the "for back ends" section, like OLROT.
+	OHMUL, // high-mul. 386/amd64: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+	ORRC, // right rotate-carry. 386/amd64: ARCR.
+	OLRC, // unused.
+
+	OMUL,	// x * y
+	ODIV,	// x / y
+	OMOD,	// x % y
+	OLSH,	// x << u
+	ORSH,	// x >> u
+	OAND,	// x & y
+	OANDNOT,	// x &^ y
+	ONEW,	// new
+	ONOT,	// !b
+	OCOM,	// ^x
+	OPLUS,	// +x
+	OMINUS,	// -y
+	OOROR,	// b1 || b2
+	OPANIC,	// panic
+	OPRINT,	// print
+	OPRINTN,	// println
+	OPAREN,	// (x)
+	OSEND,	// c <- x
+	OSLICE,	// v[1:2], typechecking may convert to a more specfic OSLICEXXX.
+	OSLICEARR,	// a[1:2]
+	OSLICESTR,	// s[1:2]
+	ORECOVER,	// recover
+	ORECV,	// <-c
+	ORUNESTR,	// string(i)
+	OSELRECV,	// case x = <-c:
+	OSELRECV2,	// case x, ok = <-c:
+	OIOTA,	// iota
+	OREAL,	// real
+	OIMAG,	// imag
+	OCOMPLEX,	// complex
+
+	// statements
+	OBLOCK,	// block of code
+	OBREAK,	// break
+	OCASE,	// case, after being verified by swt.c's casebody.
+	OXCASE,	// case, before verification.
+	OCONTINUE,	// continue
+	ODEFER,	// defer
+	OEMPTY,	// no-op
+	OFALL,	// fallthrough, after being verified by swt.c's casebody.
+	OXFALL,	// fallthrough, before verification.
+	OFOR,	// for
+	OGOTO,	// goto
+	OIF,	// if
+	OLABEL,	// label:
+	OPROC,	// go
+	ORANGE,	// range
+	ORETURN,	// return
+	OSELECT,	// select
+	OSWITCH,	// switch x
+	OTYPESW,	// switch err.(type)
 
 	// types
-	OTCHAN,
-	OTMAP,
-	OTSTRUCT,
-	OTINTER,
-	OTFUNC,
-	OTARRAY,
-	OTPAREN,
+	OTCHAN,	// chan int
+	OTMAP,	// map[string]int
+	OTSTRUCT,	// struct{}
+	OTINTER,	// interface{}
+	OTFUNC,	// func()
+	OTARRAY,	// []int, [8]int, [N]int or [...]int
+	OTPAREN,	// (T)
 
 	// misc
-	ODDD,
-	ODDDARG,
-	OINLCALL,	// intermediary representation of an inlined call
-	OEFACE,	// itable and data words of empty-interface value
-	OITAB,	// itable word of interface value
+	ODDD,	// func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+	ODDDARG,	// func f(args ...int), introduced by escape analysis.
+	OINLCALL,	// intermediary representation of an inlined call.
+	OEFACE,	// itable and data words of an empty-interface value.
+	OITAB,	// itable word of an interface value.
 
 	// for back ends
-	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
-	OLROT,
+	OCMP,	// compare. 386/amd64: ACMP.
+	ODEC,	// decrement. 386/amd64: ADEC.
+	OEXTEND,	// extend. 386/amd64: ACWD/ACDQ/ACQO.
+	OINC,	// increment. 386/amd64: AINC.
+	OREGISTER,	// an arch-specific register.
+	OINDREG,	// offset plus indirect of a register, such as 8(SP).
+	OLROT,	// rotate left. 386/amd64: AROL.
 
 	OEND,
 };
+
 enum
 {
 	Txxx,			// 0
@@ -542,6 +610,7 @@ enum
 
 	NTYPE,
 };
+
 enum
 {
 	CTxxx,
