@@ -167,6 +167,18 @@ func TestExtraFiles(t *testing.T) {
 	}
 	defer ln.Close()
 
+	// Make sure duplicated fds don't leak to the child.
+	f, err := ln.(*net.TCPListener).File()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	ln2, err := net.FileListener(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln2.Close()
+
 	// Force TLS root certs to be loaded (which might involve
 	// cgo), to make sure none of that potential C code leaks fds.
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
