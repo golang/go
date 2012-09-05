@@ -1053,7 +1053,6 @@ func TestChan(t *testing.T) {
 	if l, m := cv.Len(), cv.Cap(); l != len(c) || m != cap(c) {
 		t.Errorf("Len/Cap = %d/%d want %d/%d", l, m, len(c), cap(c))
 	}
-
 }
 
 // Difficult test for function call because of
@@ -1225,7 +1224,7 @@ func TestAnonymousFields(t *testing.T) {
 	var t1 T1
 	type1 := TypeOf(t1)
 	if field, ok = type1.FieldByName("int"); !ok {
-		t.Error("no field 'int'")
+		t.Fatal("no field 'int'")
 	}
 	if field.Index[0] != 1 {
 		t.Error("field index should be 1; is", field.Index)
@@ -1282,6 +1281,47 @@ type S4 struct {
 	A int
 }
 
+// The X in S6 and S7 annihilate, but they also block the X in S8.S9.
+type S5 struct {
+	S6
+	S7
+	S8
+}
+
+type S6 struct {
+	X int
+}
+
+type S7 S6
+
+type S8 struct {
+	S9
+}
+
+type S9 struct {
+	X int
+	Y int
+}
+
+// The X in S11.S6 and S12.S6 annihilate, but they also block the X in S13.S8.S9.
+type S10 struct {
+	S11
+	S12
+	S13
+}
+
+type S11 struct {
+	S6
+}
+
+type S12 struct {
+	S6
+}
+
+type S13 struct {
+	S8
+}
+
 var fieldTests = []FTest{
 	{struct{}{}, "", nil, 0},
 	{struct{}{}, "Foo", nil, 0},
@@ -1303,6 +1343,10 @@ var fieldTests = []FTest{
 	{S3{E: 'e'}, "E", []int{3}, 'e'},
 	{S4{A: 'a'}, "A", []int{1}, 'a'},
 	{S4{}, "B", nil, 0},
+	{S5{}, "X", nil, 0},
+	{S5{}, "Y", []int{2, 0, 1}, 0},
+	{S10{}, "X", nil, 0},
+	{S10{}, "Y", []int{2, 0, 0, 1}, 0},
 }
 
 func TestFieldByIndex(t *testing.T) {
@@ -1346,7 +1390,7 @@ func TestFieldByName(t *testing.T) {
 			if test.index != nil {
 				// Verify field depth and index.
 				if len(f.Index) != len(test.index) {
-					t.Errorf("%s.%s depth %d; want %d", s.Name(), test.name, len(f.Index), len(test.index))
+					t.Errorf("%s.%s depth %d; want %d: %v vs %v", s.Name(), test.name, len(f.Index), len(test.index), f.Index, test.index)
 				} else {
 					for i, x := range f.Index {
 						if x != test.index[i] {
@@ -1782,5 +1826,110 @@ func TestAlias(t *testing.T) {
 
 	if oldvalue != "hello" || newvalue != "world" {
 		t.Errorf("aliasing: old=%q new=%q, want hello, world", oldvalue, newvalue)
+	}
+}
+
+type B1 struct {
+	X int
+	Y int
+	Z int
+}
+
+func BenchmarkFieldByName1(b *testing.B) {
+	t := TypeOf(B1{})
+	for i := 0; i < b.N; i++ {
+		t.FieldByName("Z")
+	}
+}
+
+func BenchmarkFieldByName2(b *testing.B) {
+	t := TypeOf(S3{})
+	for i := 0; i < b.N; i++ {
+		t.FieldByName("B")
+	}
+}
+
+type R0 struct {
+	*R1
+	*R2
+	*R3
+	*R4
+}
+
+type R1 struct {
+	*R5
+	*R6
+	*R7
+	*R8
+}
+
+type R2 R1
+type R3 R1
+type R4 R1
+
+type R5 struct {
+	*R9
+	*R10
+	*R11
+	*R12
+}
+
+type R6 R5
+type R7 R5
+type R8 R5
+
+type R9 struct {
+	*R13
+	*R14
+	*R15
+	*R16
+}
+
+type R10 R9
+type R11 R9
+type R12 R9
+
+type R13 struct {
+	*R17
+	*R18
+	*R19
+	*R20
+}
+
+type R14 R13
+type R15 R13
+type R16 R13
+
+type R17 struct {
+	*R21
+	*R22
+	*R23
+	*R24
+}
+
+type R18 R17
+type R19 R17
+type R20 R17
+
+type R21 struct {
+	X int
+}
+
+type R22 R21
+type R23 R21
+type R24 R21
+
+func TestEmbed(t *testing.T) {
+	typ := TypeOf(R0{})
+	f, ok := typ.FieldByName("X")
+	if ok {
+		t.Fatalf(`FieldByName("X") should fail, returned %v`, f.Index)
+	}
+}
+
+func BenchmarkFieldByName3(b *testing.B) {
+	t := TypeOf(R0{})
+	for i := 0; i < b.N; i++ {
+		t.FieldByName("X")
 	}
 }
