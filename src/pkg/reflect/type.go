@@ -837,92 +837,140 @@ func (t *structType) FieldByIndex(index []int) (f StructField) {
 	return
 }
 
-const inf = 1 << 30 // infinity - no struct has that many nesting levels
+// A fieldScan represents an item on the fieldByNameFunc scan work list.
+type fieldScan struct {
+	typ   *structType
+	index []int
+}
 
-func (t *structType) fieldByNameFunc(match func(string) bool, mark map[*structType]bool, depth int) (ff StructField, fd int) {
-	fd = inf // field depth
+// FieldByNameFunc returns the struct field with a name that satisfies the
+// match function and a boolean to indicate if the field was found.
+func (t *structType) FieldByNameFunc(match func(string) bool) (result StructField, ok bool) {
+	// This uses the same condition that the Go language does: there must be a unique instance
+	// of the match at a given depth level. If there are multiple instances of a match at the
+	// same depth, they annihilate each other and inhibit any possible match at a lower level.
+	// The algorithm is breadth first search, one depth level at a time.
 
-	if mark[t] {
-		// Struct already seen.
-		return
-	}
-	mark[t] = true
+	// The current and next slices are work queues:
+	// current lists the fields to visit on this depth level,
+	// and next lists the fields on the next lower level.
+	current := []fieldScan{}
+	next := []fieldScan{{typ: t}}
 
-	var fi int // field index
-	n := 0     // number of matching fields at depth fd
-L:
-	for i := range t.fields {
-		f := t.Field(i)
-		d := inf
-		switch {
-		case match(f.Name):
-			// Matching top-level field.
-			d = depth
-		case f.Anonymous:
-			ft := f.Type
-			if ft.Kind() == Ptr {
-				ft = ft.Elem()
+	// nextCount records the number of times an embedded type has been
+	// encountered and considered for queueing in the 'next' slice.
+	// We only queue the first one, but we increment the count on each.
+	// If a struct type T can be reached more than once at a given depth level,
+	// then it annihilates itself and need not be considered at all when we
+	// process that next depth level.
+	var nextCount map[*structType]int
+
+	// visited records the structs that have been considered already.
+	// Embedded pointer fields can create cycles in the graph of
+	// reachable embedded types; visited avoids following those cycles.
+	// It also avoids duplicated effort: if we didn't find the field in an
+	// embedded type T at level 2, we won't find it in one at level 4 either.
+	visited := map[*structType]bool{}
+
+	for len(next) > 0 {
+		current, next = next, current[:0]
+		count := nextCount
+		nextCount = nil
+
+		// Process all the fields at this depth, now listed in 'current'.
+		// The loop queues embedded fields found in 'next', for processing during the next
+		// iteration. The multiplicity of the 'current' field counts is recorded
+		// in 'count'; the multiplicity of the 'next' field counts is recorded in 'nextCount'.
+		for _, scan := range current {
+			t := scan.typ
+			if visited[t] {
+				// We've looked through this type before, at a higher level.
+				// That higher level would shadow the lower level we're now at,
+				// so this one can't be useful to us. Ignore it.
+				continue
 			}
-			switch {
-			case match(ft.Name()):
-				// Matching anonymous top-level field.
-				d = depth
-			case fd > depth:
-				// No top-level field yet; look inside nested structs.
-				if ft.Kind() == Struct {
-					st := (*structType)(unsafe.Pointer(ft.(*commonType)))
-					f, d = st.fieldByNameFunc(match, mark, depth+1)
+			visited[t] = true
+			for i := range t.fields {
+				f := &t.fields[i]
+				// Find name and type for field f.
+				var fname string
+				var ntyp *commonType
+				if f.name != nil {
+					fname = *f.name
+				} else {
+					// Anonymous field of type T or *T.
+					// Name taken from type.
+					ntyp = toCommonType(f.typ)
+					if ntyp.Kind() == Ptr {
+						ntyp = ntyp.Elem().common()
+					}
+					fname = ntyp.Name()
 				}
+
+				// Does it match?
+				if match(fname) {
+					// Potential match
+					if count[t] > 1 || ok {
+						// Name appeared multiple times at this level: annihilate.
+						return StructField{}, false
+					}
+					result = t.Field(i)
+					result.Index = nil
+					result.Index = append(result.Index, scan.index...)
+					result.Index = append(result.Index, i)
+					ok = true
+					continue
+				}
+
+				// Queue embedded struct fields for processing with next level,
+				// but only if we haven't seen a match yet at this level and only
+				// if the embedded types haven't alredy been queued.
+				if ok || ntyp == nil || ntyp.Kind() != Struct {
+					continue
+				}
+				styp := (*structType)(unsafe.Pointer(ntyp))
+				if nextCount[styp] > 0 {
+					nextCount[styp]++
+					continue
+				}
+				if nextCount == nil {
+					nextCount = map[*structType]int{}
+				}
+				nextCount[styp] = 1
+				var index []int
+				index = append(index, scan.index...)
+				index = append(index, i)
+				next = append(next, fieldScan{styp, index})
 			}
 		}
-
-		switch {
-		case d < fd:
-			// Found field at shallower depth.
-			ff, fi, fd = f, i, d
-			n = 1
-		case d == fd:
-			// More than one matching field at the same depth (or d, fd == inf).
-			// Same as no field found at this depth.
-			n++
-			if d == depth {
-				// Impossible to find a field at lower depth.
-				break L
-			}
+		if ok {
+			break
 		}
 	}
-
-	if n == 1 {
-		// Found matching field.
-		if depth >= len(ff.Index) {
-			ff.Index = make([]int, depth+1)
-		}
-		if len(ff.Index) > 1 {
-			ff.Index[depth] = fi
-		}
-	} else {
-		// None or more than one matching field found.
-		fd = inf
-	}
-
-	delete(mark, t)
 	return
 }
 
 // FieldByName returns the struct field with the given name
 // and a boolean to indicate if the field was found.
 func (t *structType) FieldByName(name string) (f StructField, present bool) {
-	return t.FieldByNameFunc(func(s string) bool { return s == name })
-}
-
-// FieldByNameFunc returns the struct field with a name that satisfies the
-// match function and a boolean to indicate if the field was found.
-func (t *structType) FieldByNameFunc(match func(string) bool) (f StructField, present bool) {
-	if ff, fd := t.fieldByNameFunc(match, make(map[*structType]bool), 0); fd < inf {
-		ff.Index = ff.Index[0 : fd+1]
-		f, present = ff, true
+	// Quick check for top-level name, or struct without anonymous fields.
+	hasAnon := false
+	if name != "" {
+		for i := range t.fields {
+			tf := &t.fields[i]
+			if tf.name == nil {
+				hasAnon = true
+				continue
+			}
+			if *tf.name == name {
+				return t.Field(i), true
+			}
+		}
 	}
-	return
+	if !hasAnon {
+		return
+	}
+	return t.FieldByNameFunc(func(s string) bool { return s == name })
 }
 
 // Convert runtime type to reflect type.
