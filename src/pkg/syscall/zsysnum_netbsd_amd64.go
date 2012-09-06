@@ -163,12 +163,6 @@ const (
 	SYS__LWP_SETNAME         = 323 // { int|sys||_lwp_setname(lwpid_t target, const char *name); }
 	SYS__LWP_GETNAME         = 324 // { int|sys||_lwp_getname(lwpid_t target, char *name, size_t len); }
 	SYS__LWP_CTL             = 325 // { int|sys||_lwp_ctl(int features, struct lwpctl **address); }
-	SYS_SA_REGISTER          = 330 // { int|sys||sa_register(sa_upcall_t new, sa_upcall_t *old, int flags, ssize_t stackinfo_offset); }
-	SYS_SA_STACKS            = 331 // { int|sys||sa_stacks(int num, stack_t *stacks); }
-	SYS_SA_ENABLE            = 332 // { int|sys||sa_enable(void); }
-	SYS_SA_SETCONCURRENCY    = 333 // { int|sys||sa_setconcurrency(int concurrency); }
-	SYS_SA_YIELD             = 334 // { int|sys||sa_yield(void); }
-	SYS_SA_PREEMPT           = 335 // { int|sys||sa_preempt(int sa_id); }
 	SYS___SIGACTION_SIGTRAMP = 340 // { int|sys||__sigaction_sigtramp(int signum, const struct sigaction *nsa, struct sigaction *osa, const void *tramp, int vers); }
 	SYS_PMC_GET_INFO         = 341 // { int|sys||pmc_get_info(int ctr, int op, void *args); }
 	SYS_PMC_CONTROL          = 342 // { int|sys||pmc_control(int ctr, int op, void *args); }
@@ -250,7 +244,6 @@ const (
 	SYS_WAIT4                = 449 // { int|sys|50|wait4(pid_t pid, int *status, int options, struct rusage *rusage); }
 	SYS_MKNOD                = 450 // { int|sys|50|mknod(const char *path, mode_t mode, dev_t dev); }
 	SYS_FHSTAT               = 451 // { int|sys|50|fhstat(const void *fhp, size_t fh_size, struct stat *sb); }
-	SYS_QUOTACTL             = 452 // { int|sys|50|quotactl(const char *path, struct plistref *pref); }
 	SYS_PIPE2                = 453 // { int|sys||pipe2(int *fildes, int flags); }
 	SYS_DUP3                 = 454 // { int|sys||dup3(int from, int to, int flags); }
 	SYS_KQUEUE1              = 455 // { int|sys||kqueue1(int flags); }
