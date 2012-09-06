@@ -74,7 +74,9 @@ const (
 	comMarker   = 0xfe // COMment.
 )
 
-// Maps from the zig-zag ordering to the natural ordering.
+// unzig maps from the zig-zag ordering to the natural ordering. For example,
+// unzig[3] is the column and row of the fourth element in zig-zag order. The
+// value is 16, which means first column (16%8 == 0) and third row (16/8 == 2).
 var unzig = [blockSize]int{
 	0, 1, 8, 16, 9, 2, 3, 10,
 	17, 24, 32, 25, 18, 11, 4, 5,
@@ -101,7 +103,7 @@ type decoder struct {
 	nComp         int
 	comp          [nColorComponent]component
 	huff          [maxTc + 1][maxTh + 1]huffman
-	quant         [maxTq + 1]block
+	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
 	b             bits
 	tmp           [1024]byte
 }
@@ -266,6 +268,7 @@ func (d *decoder) processSOS(n int) error {
 				for j := 0; j < d.comp[i].h*d.comp[i].v; j++ {
 					// TODO(nigeltao): make this a "var b block" once the compiler's escape
 					// analysis is good enough to allocate it on the stack, not the heap.
+					// b is in natural (not zig-zag) order.
 					b = block{}
 
 					// Decode the DC coefficient, as specified in section F.2.2.1.
@@ -284,7 +287,7 @@ func (d *decoder) processSOS(n int) error {
 					b[0] = dc[i] * qt[0]
 
 					// Decode the AC coefficients, as specified in section F.2.2.2.
-					for k := 1; k < blockSize; k++ {
+					for zig := 1; zig < blockSize; zig++ {
 						value, err := d.decodeHuffman(&d.huff[acTable][scan[i].ta])
 						if err != nil {
 							return err
@@ -292,20 +295,20 @@ func (d *decoder) processSOS(n int) error {
 						val0 := value >> 4
 						val1 := value & 0x0f
 						if val1 != 0 {
-							k += int(val0)
-							if k > blockSize {
+							zig += int(val0)
+							if zig > blockSize {
 								return FormatError("bad DCT index")
 							}
 							ac, err := d.receiveExtend(val1)
 							if err != nil {
 								return err
 							}
-							b[unzig[k]] = ac * qt[k]
+							b[unzig[zig]] = ac * qt[zig]
 						} else {
 							if val0 != 0x0f {
 								break
 							}
-							k += 0x0f
+							zig += 0x0f
 						}
 					}
 

@@ -56,26 +56,28 @@ const (
 	nQuantIndex
 )
 
-// unscaledQuant are the unscaled quantization tables. Each encoder copies and
-// scales the tables according to its quality parameter.
+// unscaledQuant are the unscaled quantization tables in zig-zag order. Each
+// encoder copies and scales the tables according to its quality parameter.
+// The values are derived from section K.1 after converting from natural to
+// zig-zag order.
 var unscaledQuant = [nQuantIndex][blockSize]byte{
 	// Luminance.
 	{
-		16, 11, 10, 16, 24, 40, 51, 61,
-		12, 12, 14, 19, 26, 58, 60, 55,
-		14, 13, 16, 24, 40, 57, 69, 56,
-		14, 17, 22, 29, 51, 87, 80, 62,
-		18, 22, 37, 56, 68, 109, 103, 77,
-		24, 35, 55, 64, 81, 104, 113, 92,
-		49, 64, 78, 87, 103, 121, 120, 101,
-		72, 92, 95, 98, 112, 100, 103, 99,
+		16, 11, 12, 14, 12, 10, 16, 14,
+		13, 14, 18, 17, 16, 19, 24, 40,
+		26, 24, 22, 22, 24, 49, 35, 37,
+		29, 40, 58, 51, 61, 60, 57, 51,
+		56, 55, 64, 72, 92, 78, 64, 68,
+		87, 69, 55, 56, 80, 109, 81, 87,
+		95, 98, 103, 104, 103, 62, 77, 113,
+		121, 112, 100, 120, 92, 101, 103, 99,
 	},
 	// Chrominance.
 	{
-		17, 18, 24, 47, 99, 99, 99, 99,
-		18, 21, 26, 66, 99, 99, 99, 99,
-		24, 26, 56, 99, 99, 99, 99, 99,
-		47, 66, 99, 99, 99, 99, 99, 99,
+		17, 18, 18, 24, 21, 24, 47, 26,
+		26, 47, 99, 66, 56, 66, 99, 99,
+		99, 99, 99, 99, 99, 99, 99, 99,
+		99, 99, 99, 99, 99, 99, 99, 99,
 		99, 99, 99, 99, 99, 99, 99, 99,
 		99, 99, 99, 99, 99, 99, 99, 99,
 		99, 99, 99, 99, 99, 99, 99, 99,
@@ -222,7 +224,7 @@ type encoder struct {
 	buf [16]byte
 	// bits and nBits are accumulated bits to write to w.
 	bits, nBits uint32
-	// quant is the scaled quantization tables.
+	// quant is the scaled quantization tables, in zig-zag order.
 	quant [nQuantIndex][blockSize]byte
 }
 
@@ -301,7 +303,7 @@ func (e *encoder) writeMarkerHeader(marker uint8, markerlen int) {
 
 // writeDQT writes the Define Quantization Table marker.
 func (e *encoder) writeDQT() {
-	markerlen := 2 + int(nQuantIndex)*(1+blockSize)
+	const markerlen = 2 + int(nQuantIndex)*(1+blockSize)
 	e.writeMarkerHeader(dqtMarker, markerlen)
 	for i := range e.quant {
 		e.writeByte(uint8(i))
@@ -311,7 +313,7 @@ func (e *encoder) writeDQT() {
 
 // writeSOF0 writes the Start Of Frame (Baseline) marker.
 func (e *encoder) writeSOF0(size image.Point) {
-	markerlen := 8 + 3*nColorComponent
+	const markerlen = 8 + 3*nColorComponent
 	e.writeMarkerHeader(sof0Marker, markerlen)
 	e.buf[0] = 8 // 8-bit color.
 	e.buf[1] = uint8(size.Y >> 8)
@@ -344,6 +346,7 @@ func (e *encoder) writeDHT() {
 
 // writeBlock writes a block of pixel data using the given quantization table,
 // returning the post-quantized DC value of the DCT-transformed block.
+// b is in natural (not zig-zag) order.
 func (e *encoder) writeBlock(b *block, q quantIndex, prevDC int) int {
 	fdct(b)
 	// Emit the DC delta.
@@ -351,8 +354,8 @@ func (e *encoder) writeBlock(b *block, q quantIndex, prevDC int) int {
 	e.emitHuffRLE(huffIndex(2*q+0), 0, dc-prevDC)
 	// Emit the AC components.
 	h, runLength := huffIndex(2*q+1), 0
-	for k := 1; k < blockSize; k++ {
-		ac := div(b[unzig[k]], (8 * int(e.quant[q][k])))
+	for zig := 1; zig < blockSize; zig++ {
+		ac := div(b[unzig[zig]], (8 * int(e.quant[q][zig])))
 		if ac == 0 {
 			runLength++
 		} else {
@@ -446,6 +449,7 @@ func (e *encoder) writeSOS(m image.Image) {
 	e.write(sosHeader)
 	var (
 		// Scratch buffers to hold the YCbCr values.
+		// The blocks are in natural (not zig-zag) order.
 		yBlock  block
 		cbBlock [4]block
 		crBlock [4]block
