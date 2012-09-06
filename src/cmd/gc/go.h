@@ -431,7 +431,6 @@ enum
 	OAS2MAPR,	// x, ok = m["foo"]
 	OAS2DOTTYPE,	// x, ok = I.(int)
 	OASOP,	// x += y
-	OBAD,	// unused.
 	OCALL,	// function call, method call or type conversion, possibly preceded by defer or go.
 	OCALLFUNC,	// f()
 	OCALLMETH,	// t.Method()
@@ -479,12 +478,6 @@ enum
 	OMAKECHAN,	// make(chan int)
 	OMAKEMAP,	// make(map[string]int)
 	OMAKESLICE,	// make([]int, 0)
-
-	// TODO: move these to the "for back ends" section, like OLROT.
-	OHMUL, // high-mul. 386/amd64: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
-	ORRC, // right rotate-carry. 386/amd64: ARCR.
-	OLRC, // unused.
-
 	OMUL,	// x * y
 	ODIV,	// x / y
 	OMOD,	// x % y
@@ -553,14 +546,18 @@ enum
 	OEFACE,	// itable and data words of an empty-interface value.
 	OITAB,	// itable word of an interface value.
 
-	// for back ends
-	OCMP,	// compare. 386/amd64: ACMP.
-	ODEC,	// decrement. 386/amd64: ADEC.
-	OEXTEND,	// extend. 386/amd64: ACWD/ACDQ/ACQO.
-	OINC,	// increment. 386/amd64: AINC.
-	OREGISTER,	// an arch-specific register.
+	// arch-specific registers
+	OREGISTER,	// a register, such as AX.
 	OINDREG,	// offset plus indirect of a register, such as 8(SP).
-	OLROT,	// rotate left. 386/amd64: AROL.
+
+	// 386/amd64-specific opcodes
+	OCMP,	// compare: ACMP.
+	ODEC,	// decrement: ADEC.
+	OINC,	// increment: AINC.
+	OEXTEND,	// extend: ACWD/ACDQ/ACQO.
+	OHMUL, // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+	OLROT,	// left rotate: AROL.
+	ORROTC, // right rotate-carry: ARCR.
 
 	OEND,
 };

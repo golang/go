@@ -1724,23 +1724,23 @@ optoas(int op, Type *t)
 		a = ASARQ;
 		break;
 
-	case CASE(ORRC, TINT8):
-	case CASE(ORRC, TUINT8):
+	case CASE(ORROTC, TINT8):
+	case CASE(ORROTC, TUINT8):
 		a = ARCRB;
 		break;
 
-	case CASE(ORRC, TINT16):
-	case CASE(ORRC, TUINT16):
+	case CASE(ORROTC, TINT16):
+	case CASE(ORROTC, TUINT16):
 		a = ARCRW;
 		break;
 
-	case CASE(ORRC, TINT32):
-	case CASE(ORRC, TUINT32):
+	case CASE(ORROTC, TINT32):
+	case CASE(ORROTC, TUINT32):
 		a = ARCRL;
 		break;
 
-	case CASE(ORRC, TINT64):
-	case CASE(ORRC, TUINT64):
+	case CASE(ORROTC, TINT64):
+	case CASE(ORROTC, TUINT64):
 		a = ARCRQ;
 		break;
 
