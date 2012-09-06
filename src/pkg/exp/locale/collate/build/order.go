@@ -21,7 +21,48 @@ const (
 	lastAnchor                = 1
 )
 
-// TODO: move type entry from builder.go to this file.
+// entry is used to keep track of a single entry in the collation element table
+// during building. Examples of entries can be found in the Default Unicode
+// Collation Element Table.
+// See http://www.unicode.org/Public/UCA/6.0.0/allkeys.txt.
+type entry struct {
+	runes []rune
+	elems [][]int // the collation elements for runes
+	str   string  // same as string(runes)
+
+	// prev, next, and level are used to keep track of tailorings.
+	prev, next *entry
+	level      collate.Level // next differs at this level
+
+	decompose bool // can use NFKD decomposition to generate elems
+	exclude   bool // do not include in table
+	logical   logicalAnchor
+
+	expansionIndex    int // used to store index into expansion table
+	contractionHandle ctHandle
+	contractionIndex  int // index into contraction elements
+}
+
+func (e *entry) String() string {
+	return fmt.Sprintf("%X -> %X (ch:%x; ci:%d, ei:%d)",
+		e.runes, e.elems, e.contractionHandle, e.contractionIndex, e.expansionIndex)
+}
+
+func (e *entry) skip() bool {
+	return e.contraction()
+}
+
+func (e *entry) expansion() bool {
+	return !e.decompose && len(e.elems) > 1
+}
+
+func (e *entry) contraction() bool {
+	return len(e.runes) > 1
+}
+
+func (e *entry) contractionStarter() bool {
+	return e.contractionHandle.n != 0
+}
 
 // nextIndexed gets the next entry that needs to be stored in the table.
 // It returns the entry and the collation level at which the next entry differs
@@ -70,6 +111,42 @@ func (e *entry) insertAfter(n *entry) {
 	n.prev = e
 	e.next.prev = n
 	e.next = n
+}
+
+func (e *entry) encodeBase() (ce uint32, err error) {
+	switch {
+	case e.expansion():
+		ce, err = makeExpandIndex(e.expansionIndex)
+	default:
+		if e.decompose {
+			log.Fatal("decompose should be handled elsewhere")
+		}
+		ce, err = makeCE(e.elems[0])
+	}
+	return
+}
+
+func (e *entry) encode() (ce uint32, err error) {
+	if e.skip() {
+		log.Fatal("cannot build colElem for entry that should be skipped")
+	}
+	switch {
+	case e.decompose:
+		t1 := e.elems[0][2]
+		t2 := 0
+		if len(e.elems) > 1 {
+			t2 = e.elems[1][2]
+		}
+		ce, err = makeDecompose(t1, t2)
+	case e.contractionStarter():
+		ce, err = makeContractIndex(e.contractionHandle, e.contractionIndex)
+	default:
+		if len(e.runes) > 1 {
+			log.Fatal("colElem: contractions are handled in contraction trie")
+		}
+		ce, err = e.encodeBase()
+	}
+	return
 }
 
 // entryLess returns true if a sorts before b and false otherwise.
