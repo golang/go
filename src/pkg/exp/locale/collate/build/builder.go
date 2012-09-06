@@ -29,49 +29,6 @@ import (
 //   could analyze and detect when using a context makes sense, there is no
 //   need to expose this construct in the API.
 
-// entry is used to keep track of a single entry in the collation element table
-// during building. Examples of entries can be found in the Default Unicode
-// Collation Element Table.
-// See http://www.unicode.org/Public/UCA/6.0.0/allkeys.txt.
-type entry struct {
-	runes []rune
-	elems [][]int // the collation elements for runes
-	str   string  // same as string(runes)
-
-	// prev, next, and level are used to keep track of tailorings.
-	prev, next *entry
-	level      collate.Level // next differs at this level
-
-	decompose bool // can use NFKD decomposition to generate elems
-	exclude   bool // do not include in table
-	logical   logicalAnchor
-
-	expansionIndex    int // used to store index into expansion table
-	contractionHandle ctHandle
-	contractionIndex  int // index into contraction elements
-}
-
-func (e *entry) String() string {
-	return fmt.Sprintf("%X -> %X (ch:%x; ci:%d, ei:%d)",
-		e.runes, e.elems, e.contractionHandle, e.contractionIndex, e.expansionIndex)
-}
-
-func (e *entry) skip() bool {
-	return e.contraction()
-}
-
-func (e *entry) expansion() bool {
-	return !e.decompose && len(e.elems) > 1
-}
-
-func (e *entry) contraction() bool {
-	return len(e.runes) > 1
-}
-
-func (e *entry) contractionStarter() bool {
-	return e.contractionHandle.n != 0
-}
-
 // A Builder builds a root collation table.  The user must specify the
 // collation elements for each entry.  A common use will be to base the weights
 // on those specified in the allkeys* file as provided by the UCA or CLDR.
@@ -231,52 +188,6 @@ func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
 	return nil
 }
 
-func (b *Builder) baseColElem(e *entry) uint32 {
-	ce := uint32(0)
-	var err error
-	switch {
-	case e.expansion():
-		ce, err = makeExpandIndex(e.expansionIndex)
-	default:
-		if e.decompose {
-			log.Fatal("decompose should be handled elsewhere")
-		}
-		ce, err = makeCE(e.elems[0])
-	}
-	if err != nil {
-		b.error(fmt.Errorf("%s: %X -> %X", err, e.runes, e.elems))
-	}
-	return ce
-}
-
-func (b *Builder) colElem(e *entry) uint32 {
-	if e.skip() {
-		log.Fatal("cannot build colElem for entry that should be skipped")
-	}
-	ce := uint32(0)
-	var err error
-	switch {
-	case e.decompose:
-		t1 := e.elems[0][2]
-		t2 := 0
-		if len(e.elems) > 1 {
-			t2 = e.elems[1][2]
-		}
-		ce, err = makeDecompose(t1, t2)
-	case e.contractionStarter():
-		ce, err = makeContractIndex(e.contractionHandle, e.contractionIndex)
-	default:
-		if len(e.runes) > 1 {
-			log.Fatal("colElem: contractions are handled in contraction trie")
-		}
-		ce = b.baseColElem(e)
-	}
-	if err != nil {
-		b.error(err)
-	}
-	return ce
-}
-
 func (b *Builder) error(e error) {
 	if e != nil {
 		b.err = e
@@ -352,30 +263,6 @@ func reproducibleFromNFKD(e *entry, exp, nfkd [][]int) bool {
 	return true
 }
 
-func equalCE(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < 3; i++ {
-		if b[i] != a[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func equalCEArrays(a, b [][]int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !equalCE(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func (b *Builder) simplify() {
 	// Runes that are a starter of a contraction should not be removed.
 	// (To date, there is only Kannada character 0CCA.)
@@ -410,62 +297,6 @@ func (b *Builder) simplify() {
 			e.decompose = true
 		}
 	}
-}
-
-// convertLargeWeights converts collation elements with large 
-// primaries (either double primaries or for illegal runes)
-// to our own representation.
-// A CJK character C is represented in the DUCET as
-//   [.FBxx.0020.0002.C][.BBBB.0000.0000.C]
-// We will rewrite these characters to a single CE.
-// We assume the CJK values start at 0x8000.
-// See http://unicode.org/reports/tr10/#Implicit_Weights
-func convertLargeWeights(elems [][]int) (res [][]int, err error) {
-	const (
-		cjkPrimaryStart   = 0xFB40
-		rarePrimaryStart  = 0xFB80
-		otherPrimaryStart = 0xFBC0
-		illegalPrimary    = 0xFFFE
-		highBitsMask      = 0x3F
-		lowBitsMask       = 0x7FFF
-		lowBitsFlag       = 0x8000
-		shiftBits         = 15
-	)
-	for i := 0; i < len(elems); i++ {
-		ce := elems[i]
-		p := ce[0]
-		if p < cjkPrimaryStart {
-			continue
-		}
-		if p > 0xFFFF {
-			return elems, fmt.Errorf("found primary weight %X; should be <= 0xFFFF", p)
-		}
-		if p >= illegalPrimary {
-			ce[0] = illegalOffset + p - illegalPrimary
-		} else {
-			if i+1 >= len(elems) {
-				return elems, fmt.Errorf("second part of double primary weight missing: %v", elems)
-			}
-			if elems[i+1][0]&lowBitsFlag == 0 {
-				return elems, fmt.Errorf("malformed second part of double primary weight: %v", elems)
-			}
-			np := ((p & highBitsMask) << shiftBits) + elems[i+1][0]&lowBitsMask
-			switch {
-			case p < rarePrimaryStart:
-				np += commonUnifiedOffset
-			case p < otherPrimaryStart:
-				np += rareUnifiedOffset
-			default:
-				p += otherOffset
-			}
-			ce[0] = np
-			for j := i + 1; j+1 < len(elems); j++ {
-				elems[j] = elems[j+1]
-			}
-			elems = elems[:len(elems)-1]
-		}
-	}
-	return elems, nil
 }
 
 // appendExpansion converts the given collation sequence to
@@ -586,7 +417,9 @@ func (b *Builder) processContractions() {
 		es[0].contractionHandle = handle
 		// Add collation elements for contractions.
 		for _, e := range es {
-			t.contractElem = append(t.contractElem, b.baseColElem(e))
+			ce, err := e.encodeBase()
+			b.error(err)
+			t.contractElem = append(t.contractElem, ce)
 		}
 	}
 }
@@ -596,7 +429,8 @@ func (b *Builder) buildTrie() {
 	o := b.root
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if !e.skip() {
-			ce := b.colElem(e)
+			ce, err := e.encode()
+			b.error(err)
 			t.insert(e.runes[0], ce)
 		}
 	}
