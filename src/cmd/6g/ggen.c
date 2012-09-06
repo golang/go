@@ -758,7 +758,7 @@ divbymul:
 			// need to add numerator accounting for overflow
 			gins(optoas(OADD, nl->type), &n1, &dx);
 			nodconst(&n2, nl->type, 1);
-			gins(optoas(ORRC, nl->type), &n2, &dx);
+			gins(optoas(ORROTC, nl->type), &n2, &dx);
 			nodconst(&n2, nl->type, m.s-1);
 			gins(optoas(ORSH, nl->type), &n2, &dx);
 		} else {
