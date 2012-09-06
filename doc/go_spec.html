@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 4, 2012",
+	"Subtitle": "Version of September 6, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -98,6 +98,12 @@ are different characters.
 <p>
 Implementation restriction: For compatibility with other tools, a
 compiler may disallow the NUL character (U+0000) in the source text.
+</p>
+<p>
+Implementation restriction: For compatibility with other tools, a
+compiler may ignore any UTF-8-encoded Unicode byte order mark
+(U+FEFF) in the source text outside of <a href="#String_literals">string</a>
+and <a href="#Rune_literals">rune</a> literals.
 </p>
 
 <h3 id="Characters">Characters</h3>
