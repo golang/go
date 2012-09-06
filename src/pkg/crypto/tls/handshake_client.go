@@ -306,8 +306,8 @@ func (c *Conn) clientHandshake() error {
 	serverHash := suite.mac(c.vers, serverMAC)
 	c.in.prepareCipherSpec(c.vers, serverCipher, serverHash)
 	c.readRecord(recordTypeChangeCipherSpec)
-	if c.err != nil {
-		return c.err
+	if err := c.error(); err != nil {
+		return err
 	}
 
 	msg, err = c.readHandshake()
