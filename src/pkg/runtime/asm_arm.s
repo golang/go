@@ -37,6 +37,7 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW.NE	g, R0 // first argument of initcgo is g
 	BL.NE	(R2) // will clobber R0-R3
 
+	BL	runtime·checkgoarm(SB)
 	BL	runtime·check(SB)
 
 	// saved argc, argv
