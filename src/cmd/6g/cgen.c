@@ -502,7 +502,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, tmp, n4, n5;
+	Node n1, n2, n3, tmp, tmp2, n4, n5, nlen;
 	Prog *p1;
 	uint32 w;
 	uint64 v;
@@ -565,6 +565,7 @@ agen(Node *n, Node *res)
 
 	case OINDEX:
 		w = n->type->width;
+		// Generate the non-addressable child first.
 		if(nr->addable)
 			goto irad;
 		if(nl->addable) {
@@ -574,18 +575,41 @@ agen(Node *n, Node *res)
 			}
 			if(!isconst(nl, CTSTR)) {
 				regalloc(&n3, types[tptr], res);
-				agen(nl, &n3);
+				if(isfixedarray(nl->type))
+					agen(nl, &n3);
+				else {
+					igen(nl, &nlen, res);
+					nlen.type = types[tptr];
+					nlen.xoffset += Array_array;
+					gmove(&nlen, &n3);
+					nlen.type = types[TUINT32];
+					nlen.xoffset += Array_nel-Array_array;
+				}
 			}
 			goto index;
 		}
 		tempname(&tmp, nr->type);
 		cgen(nr, &tmp);
 		nr = &tmp;
-
 	irad:
 		if(!isconst(nl, CTSTR)) {
 			regalloc(&n3, types[tptr], res);
-			agen(nl, &n3);
+			if(isfixedarray(nl->type))
+				agen(nl, &n3);
+			else {
+				if(!nl->addable) {
+					// igen will need an addressable node.
+					tempname(&tmp2, nl->type);
+					cgen(nl, &tmp2);
+					nl = &tmp2;
+				}
+				igen(nl, &nlen, res);
+				nlen.type = types[tptr];
+				nlen.xoffset += Array_array;
+				gmove(&nlen, &n3);
+				nlen.type = types[TUINT32];
+				nlen.xoffset += Array_nel-Array_array;
+			}
 		}
 		if(!isconst(nr, CTINT)) {
 			regalloc(&n1, nr->type, N);
@@ -596,6 +620,7 @@ agen(Node *n, Node *res)
 	index:
 		// &a is in &n3 (allocated in res)
 		// i is in &n1 (if not constant)
+		// len(a) is in nlen (if needed)
 		// w is width
 
 		// explicit check for nil if array is large enough
@@ -617,22 +642,13 @@ agen(Node *n, Node *res)
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				if(!debug['B'] && !n->bounded) {
-					n1 = n3;
-					n1.op = OINDREG;
-					n1.type = types[tptr];
-					n1.xoffset = Array_nel;
 					nodconst(&n2, types[TUINT32], v);
-					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+					gins(optoas(OCMP, types[TUINT32]), &nlen, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
 					ginscall(panicindex, -1);
 					patch(p1, pc);
 				}
-
-				n1 = n3;
-				n1.op = OINDREG;
-				n1.type = types[tptr];
-				n1.xoffset = Array_array;
-				gmove(&n1, &n3);
+				regfree(&nlen);
 			}
 
 			if (v*w != 0)
@@ -658,24 +674,19 @@ agen(Node *n, Node *res)
 			if(is64(nr->type))
 				t = types[TUINT64];
 			if(isconst(nl, CTSTR)) {
-				nodconst(&n1, t, nl->val.u.sval->len);
+				nodconst(&nlen, t, nl->val.u.sval->len);
 			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
-				n1 = n3;
-				n1.op = OINDREG;
-				n1.type = types[TUINT32];
-				n1.xoffset = Array_nel;
 				if(is64(nr->type)) {
 					regalloc(&n5, t, N);
-					gmove(&n1, &n5);
-					n1 = n5;
+					gmove(&nlen, &n5);
+					regfree(&nlen);
+					nlen = n5;
 				}
 			} else {
-				nodconst(&n1, t, nl->type->bound);
+				nodconst(&nlen, t, nl->type->bound);
 			}
-			gins(optoas(OCMP, t), &n2, &n1);
+			gins(optoas(OCMP, t), &n2, &nlen);
 			p1 = gbranch(optoas(OLT, t), T, +1);
-			if(n5.op != OXXX)
-				regfree(&n5);
 			ginscall(panicindex, -1);
 			patch(p1, pc);
 		}
@@ -687,14 +698,6 @@ agen(Node *n, Node *res)
 			p1->from.scale = 1;
 			p1->from.index = n2.val.u.reg;
 			goto indexdone;
-		}
-
-		if(isslice(nl->type) || nl->type->etype == TSTRING) {
-			n1 = n3;
-			n1.op = OINDREG;
-			n1.type = types[tptr];
-			n1.xoffset = Array_array;
-			gmove(&n1, &n3);
 		}
 
 		if(w == 0) {
@@ -713,6 +716,8 @@ agen(Node *n, Node *res)
 		gmove(&n3, res);
 		regfree(&n2);
 		regfree(&n3);
+		if(!isconst(nl, CTSTR) && !isfixedarray(nl->type))
+			regfree(&nlen);
 		break;
 
 	case ONAME:
