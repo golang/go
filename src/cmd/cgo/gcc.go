@@ -616,15 +616,16 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			n.FuncType = conv.FuncType(f, pos)
 		} else {
 			n.Type = conv.Type(types[i], pos)
-			if enums[i] != 0 && n.Type.EnumValues != nil {
+			// Prefer debug data over DWARF debug output, if we have it.
+			if n.Kind == "const" && i < len(enumVal) {
+				n.Const = fmt.Sprintf("%#x", enumVal[i])
+			} else if enums[i] != 0 && n.Type.EnumValues != nil {
 				k := fmt.Sprintf("__cgo_enum__%d", i)
 				n.Kind = "const"
 				n.Const = fmt.Sprintf("%#x", n.Type.EnumValues[k])
 				// Remove injected enum to ensure the value will deep-compare
 				// equally in future loads of the same constant.
 				delete(n.Type.EnumValues, k)
-			} else if n.Kind == "const" && i < len(enumVal) {
-				n.Const = fmt.Sprintf("%#x", enumVal[i])
 			}
 		}
 	}
@@ -802,16 +803,34 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 		return d, f.ByteOrder, data
 	}
 
-	// Can skip debug data block in ELF and PE for now.
-	// The DWARF information is complete.
-
 	if f, err := elf.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
 		if err != nil {
 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
 		}
-		return d, f.ByteOrder, nil
+		var data []byte
+		symtab, err := f.Symbols()
+		if err == nil {
+			for i := range symtab {
+				s := &symtab[i]
+				if s.Name == "__cgodebug_data" {
+					// Found it.  Now find data section.
+					if i := int(s.Section); 0 <= i && i < len(f.Sections) {
+						sect := f.Sections[i]
+						if sect.Addr <= s.Value && s.Value < sect.Addr+sect.Size {
+							if sdat, err := sect.Data(); err == nil {
+								data = sdat[s.Value-sect.Addr:]
+							}
+						}
+					}
+				}
+			}
+		}
+		return d, f.ByteOrder, data
 	}
+
+	// Can skip debug data block in PE for now.
+	// The DWARF information is complete.
 
 	if f, err := pe.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
