@@ -988,7 +988,7 @@ func gettok() int {
 
 func getword(c rune) {
 	tokname = ""
-	for isword(c) || isdigit(c) || c == '_' || c == '.' || c == '$' {
+	for isword(c) || isdigit(c) || c == '.' || c == '$' {
 		tokname += string(c)
 		c = getrune(finput)
 	}
@@ -1338,7 +1338,7 @@ loop:
 				if j >= max {
 					errorf("Illegal use of $%v", j)
 				}
-			} else if isword(c) || c == '_' || c == '.' {
+			} else if isword(c) || c == '.' {
 				// look for $name
 				ungetrune(finput, c)
 				if gettok() != IDENTIFIER {
@@ -3090,7 +3090,7 @@ var peekrune rune
 func isdigit(c rune) bool { return c >= '0' && c <= '9' }
 
 func isword(c rune) bool {
-	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func mktemp(t string) string { return t }
