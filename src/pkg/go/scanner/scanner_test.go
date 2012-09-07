@@ -346,6 +346,7 @@ var lines = []string{
 	// # indicates a semicolon present in the source
 	// $ indicates an automatically inserted semicolon
 	"",
+	"\ufeff#;", // first BOM is ignored
 	"#;",
 	"foo$\n",
 	"123$\n",
@@ -694,6 +695,7 @@ var errors = []struct {
 	{"0X", token.INT, 0, "illegal hexadecimal number"},
 	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
 	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
+	{"\ufeff\ufeff", token.ILLEGAL, 3, "illegal character U+FEFF"}, // only first BOM is ignored
 }
 
 func TestScanErrors(t *testing.T) {
