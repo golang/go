@@ -71,7 +71,7 @@ func (p *Part) parseContentDisposition() {
 	}
 }
 
-// NewReader creates a new multipart Reader reading from r using the
+// NewReader creates a new multipart Reader reading from reader using the
 // given MIME boundary.
 func NewReader(reader io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")

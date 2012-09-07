@@ -47,7 +47,8 @@ type Message struct {
 }
 
 // ReadMessage reads a message from r.
-// The headers are parsed, and the body of the message will be reading from r.
+// The headers are parsed, and the body of the message will be available
+// for reading from r.
 func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
