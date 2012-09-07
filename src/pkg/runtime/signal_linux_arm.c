@@ -147,9 +147,21 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 #define AT_PLATFORM	15 // introduced in at least 2.6.11
 #define AT_HWCAP	16 // introduced in at least 2.6.11
 #define AT_RANDOM	25 // introduced in 2.6.29
+#define HWCAP_VFP	(1 << 6)
 static uint32 runtime·randomNumber;
-uint32 runtime·hwcap;
-uint8 runtime·armArch = 6; // we default to ARMv6
+uint8  runtime·armArch = 6;	// we default to ARMv6
+uint32 runtime·hwcap;	// set by setup_auxv
+uint8  runtime·goarm;	// set by 5l
+
+void
+runtime·checkgoarm(void)
+{
+	if(runtime·goarm > 5 && !(runtime·hwcap & HWCAP_VFP)) {
+		runtime·printf("runtime: this CPU has no floating point hardware, so it cannot run\n");
+		runtime·printf("this GOARM=%d binary. Recompile using GOARM=5.\n", runtime·goarm);
+		runtime·exit(1);
+	}
+}
 
 #pragma textflag 7
 void
