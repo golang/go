@@ -78,7 +78,7 @@ var vflag bool
 
 %token	<vval>	VAL
 %token	<vvar>	VAR
-%token	<numb>	SUP
+%token	<numb>	_SUP // tests leading underscore in token name
 %%
 prog:
 	':' VAR expr
@@ -159,7 +159,7 @@ expr3:
 
 expr2:
 	expr1
-|	expr2 SUP
+|	expr2 _SUP
 	{
 		xpn(&$$, &$1, $2)
 	}
@@ -236,13 +236,13 @@ loop:
 		return '/'
 	case '¹', 'ⁱ':
 		yylval.numb = 1
-		return SUP
+		return _SUP
 	case '²', '⁲':
 		yylval.numb = 2
-		return SUP
+		return _SUP
 	case '³', '⁳':
 		yylval.numb = 3
-		return SUP
+		return _SUP
 	}
 	return int(c)
 
