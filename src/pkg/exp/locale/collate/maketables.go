@@ -33,9 +33,8 @@ import (
 )
 
 var (
-	// TODO: change default to "http://unicode.org/Public/UCA/"+unicode.Version+"/CollationAuxiliary.zip"
 	root = flag.String("root",
-		"http://unicode.org/Public/UCA/"+unicode.Version+"/allkeys.txt",
+		"http://unicode.org/Public/UCA/"+unicode.Version+"/CollationAuxiliary.zip",
 		`URL of the Default Unicode Collation Element Table (DUCET). This can be a zip
 file containing the file allkeys_CLDR.txt or an allkeys.txt file.`)
 	cldr = flag.String("cldr",
