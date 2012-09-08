@@ -5,7 +5,8 @@
 // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
 // It takes an io.Reader providing the source, which then can be tokenized
 // through repeated calls to the Scan function.  For compatibility with
-// existing tools, the NUL character is not allowed.
+// existing tools, the NUL character is not allowed. If the first character
+// in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
 //
 // By default, a Scanner skips white space and Go comments and recognizes all
 // literals as defined by the Go language specification.  It may be
@@ -208,11 +209,6 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 	return s
 }
 
-// TODO(gri): The code for next() and the internal scanner state could benefit
-//            from a rethink. While next() is optimized for the common ASCII
-//            case, the "corrections" needed for proper position tracking undo
-//            some of the attempts for fast-path optimization.
-
 // next reads and returns the next Unicode character. It is designed such
 // that only a minimal amount of work needs to be done in the common ASCII
 // case (one test to check for both ASCII and end-of-buffer, and one test
@@ -316,7 +312,11 @@ func (s *Scanner) Next() rune {
 // character of the source.
 func (s *Scanner) Peek() rune {
 	if s.ch < 0 {
+		// this code is only run for the very first character
 		s.ch = s.next()
+		if s.ch == '\uFEFF' {
+			s.ch = s.next() // ignore BOM
+		}
 	}
 	return s.ch
 }
