@@ -143,8 +143,8 @@ var simplifyMarked = strArray{"\u01C5"}
 
 func TestSimplify(t *testing.T) {
 	b := newBuilder(t, simplifyTest)
-	o := b.root
-	b.simplify()
+	o := &b.root
+	simplify(o)
 
 	for i, tt := range simplifyTest {
 		if simplifyRemoved.contains(tt.str) {
@@ -186,7 +186,7 @@ func TestExpand(t *testing.T) {
 	)
 	b := newBuilder(t, expandTest)
 	o := &b.root
-	b.processExpansions()
+	b.processExpansions(o)
 
 	e := o.front()
 	for _, tt := range expandTest {
@@ -234,7 +234,7 @@ func TestContract(t *testing.T) {
 	)
 	b := newBuilder(t, contractTest)
 	o := &b.root
-	b.processContractions()
+	b.processContractions(o)
 
 	indexMap := make(map[int]bool)
 	handleMap := make(map[rune]*entry)

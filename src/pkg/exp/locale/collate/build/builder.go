@@ -42,6 +42,11 @@ type Builder struct {
 
 	minNonVar int // lowest primary recorded for a variable
 	varTop    int // highest primary recorded for a non-variable
+
+	// indexes used for reusing expansions and contractions
+	expIndex map[string]int      // positions of expansions keyed by their string representation
+	ctHandle map[string]ctHandle // contraction handles keyed by a concatenation of the suffixes
+	ctElem   map[string]int      // contraction elements keyed by their string representation
 }
 
 // A Tailoring builds a collation table based on another collation table.
@@ -50,24 +55,30 @@ type Builder struct {
 // collation tables.  The CLDR contains pre-defined tailorings for a variety
 // of languages (See http://www.unicode.org/Public/cldr/2.0.1/core.zip.)
 type Tailoring struct {
-	id string
+	id      string
+	builder *Builder
+	index   *ordering
 	// TODO: implement.
 }
 
 // NewBuilder returns a new Builder.
 func NewBuilder() *Builder {
-	b := &Builder{
-		index: newTrieBuilder(),
-		root:  makeRootOrdering(),
+	return &Builder{
+		index:    newTrieBuilder(),
+		root:     makeRootOrdering(),
+		expIndex: make(map[string]int),
+		ctHandle: make(map[string]ctHandle),
+		ctElem:   make(map[string]int),
 	}
-	return b
 }
 
 // Tailoring returns a Tailoring for the given locale.  One should 
 // have completed all calls to Add before calling Tailoring.
 func (b *Builder) Tailoring(locale string) *Tailoring {
 	t := &Tailoring{
-		id: locale,
+		id:      locale,
+		builder: b,
+		index:   b.root.clone(),
 	}
 	b.locale = append(b.locale, t)
 	return t
@@ -194,24 +205,45 @@ func (b *Builder) error(e error) {
 	}
 }
 
-func (b *Builder) build() (*table, error) {
-	if !b.built {
-		b.built = true
-		b.t = &table{
-			maxContractLen: utf8.UTFMax,
-			variableTop:    uint32(b.varTop),
-		}
+func (b *Builder) buildOrdering(o *ordering) {
+	o.sort()
+	simplify(o)
+	b.processExpansions(o)   // requires simplify
+	b.processContractions(o) // requires simplify
 
-		b.root.sort()
-		b.simplify()
-		b.processExpansions()   // requires simplify
-		b.processContractions() // requires simplify
-		b.buildTrie()           // requires process*
+	t := newNode()
+	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
+		if !e.skip() {
+			ce, err := e.encode()
+			b.error(err)
+			t.insert(e.runes[0], ce)
+		}
 	}
-	if b.err != nil {
-		return nil, b.err
+	o.handle = b.index.addTrie(t)
+}
+
+func (b *Builder) build() (*table, error) {
+	if b.built {
+		return b.t, b.err
 	}
-	return b.t, nil
+	b.built = true
+	b.t = &table{
+		maxContractLen: utf8.UTFMax,
+		variableTop:    uint32(b.varTop),
+	}
+
+	b.buildOrdering(&b.root)
+	b.t.root = b.root.handle
+	for _, t := range b.locale {
+		b.buildOrdering(t.index)
+		if b.err != nil {
+			break
+		}
+	}
+	i, err := b.index.generate()
+	b.t.index = *i
+	b.error(err)
+	return b.t, b.err
 }
 
 // Build builds the root Collator.
@@ -263,12 +295,10 @@ func reproducibleFromNFKD(e *entry, exp, nfkd [][]int) bool {
 	return true
 }
 
-func (b *Builder) simplify() {
+func simplify(o *ordering) {
 	// Runes that are a starter of a contraction should not be removed.
 	// (To date, there is only Kannada character 0CCA.)
 	keep := make(map[rune]bool)
-	o := b.root
-
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if len(e.runes) > 1 {
 			keep[e.runes[0]] = true
@@ -320,27 +350,24 @@ func (b *Builder) appendExpansion(e *entry) int {
 
 // processExpansions extracts data necessary to generate
 // the extraction tables.
-func (b *Builder) processExpansions() {
-	eidx := make(map[string]int)
-	o := b.root
+func (b *Builder) processExpansions(o *ordering) {
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if !e.expansion() {
 			continue
 		}
 		key := fmt.Sprintf("%v", e.elems)
-		i, ok := eidx[key]
+		i, ok := b.expIndex[key]
 		if !ok {
 			i = b.appendExpansion(e)
-			eidx[key] = i
+			b.expIndex[key] = i
 		}
 		e.expansionIndex = i
 	}
 }
 
-func (b *Builder) processContractions() {
+func (b *Builder) processContractions(o *ordering) {
 	// Collate contractions per starter rune.
 	starters := []rune{}
-	o := b.root
 	cm := make(map[rune][]*entry)
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if e.contraction() {
@@ -365,7 +392,6 @@ func (b *Builder) processContractions() {
 	}
 	// Build the tries for the contractions.
 	t := b.t
-	handlemap := make(map[string]ctHandle)
 	for _, r := range starters {
 		l := cm[r]
 		// Compute suffix strings. There are 31 different contraction suffix
@@ -387,14 +413,14 @@ func (b *Builder) processContractions() {
 		// Unique the suffix set.
 		sort.Strings(sufx)
 		key := strings.Join(sufx, "\n")
-		handle, ok := handlemap[key]
+		handle, ok := b.ctHandle[key]
 		if !ok {
 			var err error
 			handle, err = t.contractTries.appendTrie(sufx)
 			if err != nil {
 				b.error(err)
 			}
-			handlemap[key] = handle
+			b.ctHandle[key] = handle
 		}
 		// Bucket sort entries in index order.
 		es := make([]*entry, len(l))
@@ -412,30 +438,22 @@ func (b *Builder) processContractions() {
 			}
 			es[o] = e
 		}
-		// Store info in entry for starter rune.
-		es[0].contractionIndex = len(t.contractElem)
-		es[0].contractionHandle = handle
-		// Add collation elements for contractions.
+		// Create collation elements for contractions.
+		elems := []uint32{}
 		for _, e := range es {
 			ce, err := e.encodeBase()
 			b.error(err)
-			t.contractElem = append(t.contractElem, ce)
+			elems = append(elems, ce)
 		}
-	}
-}
-
-func (b *Builder) buildTrie() {
-	t := newNode()
-	o := b.root
-	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
-		if !e.skip() {
-			ce, err := e.encode()
-			b.error(err)
-			t.insert(e.runes[0], ce)
+		key = fmt.Sprintf("%v", elems)
+		i, ok := b.ctElem[key]
+		if !ok {
+			i = len(t.contractElem)
+			b.ctElem[key] = i
+			t.contractElem = append(t.contractElem, elems...)
 		}
+		// Store info in entry for starter rune.
+		es[0].contractionIndex = i
+		es[0].contractionHandle = handle
 	}
-	b.t.root = b.index.addTrie(t)
-	i, err := b.index.generate()
-	b.t.index = *i
-	b.error(err)
 }

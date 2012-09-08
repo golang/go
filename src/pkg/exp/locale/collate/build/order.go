@@ -180,6 +180,7 @@ func (s sortedEntries) Less(i, j int) bool {
 type ordering struct {
 	entryMap map[string]*entry
 	ordered  []*entry
+	handle   *trieHandle
 }
 
 // insert inserts e into both entryMap and ordered.
@@ -264,6 +265,7 @@ func (o *ordering) clone() *ordering {
 			str:       e.str,
 			decompose: e.decompose,
 			exclude:   e.exclude,
+			logical:   e.logical,
 		}
 		oo.insert(ne)
 	}
