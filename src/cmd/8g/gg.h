@@ -107,6 +107,7 @@ void	cgen_aret(Node*, Node*);
 Node*	ncon(uint32);
 void	mgen(Node*, Node*, Node*);
 void	mfree(Node*);
+int	componentgen(Node*, Node*);
 
 /*
  * cgen64.c

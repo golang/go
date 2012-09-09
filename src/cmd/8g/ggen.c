@@ -59,6 +59,10 @@ clearfat(Node *nl)
 		dump("\nclearfat", nl);
 
 	w = nl->type->width;
+	if(w == 8 || w == 12)
+		if(componentgen(N, nl))
+			return;
+
 	c = w % 4;	// bytes
 	q = w / 4;	// quads
 
