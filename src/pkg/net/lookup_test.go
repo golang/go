@@ -9,6 +9,7 @@ package net
 
 import (
 	"flag"
+	"strings"
 	"testing"
 )
 
@@ -76,6 +77,17 @@ func TestGoogleDNSAddr(t *testing.T) {
 	}
 	if len(names) == 0 {
 		t.Errorf("no results")
+	}
+}
+
+func TestLookupIANACNAME(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+	cname, err := LookupCNAME("www.iana.org")
+	if !strings.HasSuffix(cname, ".icann.org.") || err != nil {
+		t.Errorf(`LookupCNAME("www.iana.org.") = %q, %v, want "*.icann.org.", nil`, cname, err)
 	}
 }
 
