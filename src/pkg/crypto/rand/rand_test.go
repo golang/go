@@ -38,6 +38,6 @@ func TestReadEmpty(t *testing.T) {
 	}
 	n, err = Reader.Read(nil)
 	if n != 0 || err != nil {
-		t.Fatalf("Read(make(nil) = %d, %v", n, err)
+		t.Fatalf("Read(nil) = %d, %v", n, err)
 	}
 }
