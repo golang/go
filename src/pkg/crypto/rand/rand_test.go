@@ -30,3 +30,14 @@ func TestRead(t *testing.T) {
 		t.Fatalf("Compressed %d -> %d", len(b), z.Len())
 	}
 }
+
+func TestReadEmpty(t *testing.T) {
+	n, err := Reader.Read(make([]byte, 0))
+	if n != 0 || err != nil {
+		t.Fatalf("Read(make([]byte, 0)) = %d, %v", n, err)
+	}
+	n, err = Reader.Read(nil)
+	if n != 0 || err != nil {
+		t.Fatalf("Read(make(nil) = %d, %v", n, err)
+	}
+}
