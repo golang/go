@@ -30,6 +30,8 @@ static void	addidir(char*);
 static int	getlinepragma(void);
 static char *goos, *goarch, *goroot;
 
+#define	BOM	0xFEFF
+
 // Compiler experiments.
 // These are controlled by the GOEXPERIMENT environment
 // variable recorded when the compiler is built.
@@ -318,6 +320,10 @@ main(int argc, char *argv[])
 		curio.peekc = 0;
 		curio.peekc1 = 0;
 		curio.nlsemi = 0;
+
+		// Skip initial BOM if present.
+		if(Bgetrune(curio.bin) != BOM)
+			Bungetrune(curio.bin);
 
 		block = 1;
 		iota = -1000000;
@@ -1200,7 +1206,7 @@ talph:
 			rune = getr();
 			// 0xb7 · is used for internal names
 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
-				yyerror("invalid identifier character 0x%ux", rune);
+				yyerror("invalid identifier character U+%04x", rune);
 			cp += runetochar(cp, &rune);
 		} else if(!yy_isalnum(c) && c != '_')
 			break;
@@ -1583,6 +1589,10 @@ loop:
 	if(!fullrune(str, i))
 		goto loop;
 	c = chartorune(&rune, str);
+	if(rune == BOM) {
+		lineno = lexlineno;
+		yyerror("Unicode (UTF-8) BOM in middle of file");
+	}
 	if(rune == Runeerror && c == 1) {
 		lineno = lexlineno;
 		yyerror("illegal UTF-8 sequence");
