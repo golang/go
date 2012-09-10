@@ -10,7 +10,6 @@ import (
 	"errors"
 	"os"
 	"runtime"
-	"syscall"
 	"testing"
 )
 
@@ -77,12 +76,6 @@ func TestMulticastListener(t *testing.T) {
 		}
 		checkMulticastListener(t, err, c2, tt.gaddr)
 		c2.Close()
-		switch c1.fd.family {
-		case syscall.AF_INET:
-			testIPv4MulticastSocketOptions(t, c1.fd, ifi)
-		case syscall.AF_INET6:
-			testIPv6MulticastSocketOptions(t, c1.fd, ifi)
-		}
 		c1.Close()
 	}
 }
@@ -175,62 +168,4 @@ func multicastRIBContains(t *testing.T, ip IP) bool {
 		}
 	}
 	return false
-}
-
-func testIPv4MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
-	_, err := ipv4MulticastInterface(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastInterface failed: %v", err)
-	}
-	if ifi != nil {
-		err = setIPv4MulticastInterface(fd, ifi)
-		if err != nil {
-			t.Fatalf("setIPv4MulticastInterface failed: %v", err)
-		}
-	}
-	_, err = ipv4MulticastTTL(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastTTL failed: %v", err)
-	}
-	err = setIPv4MulticastTTL(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv4MulticastTTL failed: %v", err)
-	}
-	_, err = ipv4MulticastLoopback(fd)
-	if err != nil {
-		t.Fatalf("ipv4MulticastLoopback failed: %v", err)
-	}
-	err = setIPv4MulticastLoopback(fd, false)
-	if err != nil {
-		t.Fatalf("setIPv4MulticastLoopback failed: %v", err)
-	}
-}
-
-func testIPv6MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
-	_, err := ipv6MulticastInterface(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastInterface failed: %v", err)
-	}
-	if ifi != nil {
-		err = setIPv6MulticastInterface(fd, ifi)
-		if err != nil {
-			t.Fatalf("setIPv6MulticastInterface failed: %v", err)
-		}
-	}
-	_, err = ipv6MulticastHopLimit(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastHopLimit failed: %v", err)
-	}
-	err = setIPv6MulticastHopLimit(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv6MulticastHopLimit failed: %v", err)
-	}
-	_, err = ipv6MulticastLoopback(fd)
-	if err != nil {
-		t.Fatalf("ipv6MulticastLoopback failed: %v", err)
-	}
-	err = setIPv6MulticastLoopback(fd, false)
-	if err != nil {
-		t.Fatalf("setIPv6MulticastLoopback failed: %v", err)
-	}
 }
