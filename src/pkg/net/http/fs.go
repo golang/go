@@ -100,6 +100,9 @@ func dirList(w ResponseWriter, f File) {
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
 //
+// If the caller has set w's ETag header, ServeContent uses it to
+// handle requests using If-Range and If-None-Match.
+//
 // Note that *os.File implements the io.ReadSeeker interface.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
 	size, err := content.Seek(0, os.SEEK_END)
@@ -120,6 +123,10 @@ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time
 // content must be seeked to the beginning of the file.
 func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, size int64, content io.ReadSeeker) {
 	if checkLastModified(w, r, modtime) {
+		return
+	}
+	rangeReq, done := checkETag(w, r)
+	if done {
 		return
 	}
 
@@ -148,7 +155,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	sendSize := size
 	var sendContent io.Reader = content
 	if size >= 0 {
-		ranges, err := parseRange(r.Header.Get("Range"), size)
+		ranges, err := parseRange(rangeReq, size)
 		if err != nil {
 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
@@ -240,11 +247,66 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
 	// The Date-Modified header truncates sub-second precision, so
 	// use mtime < t+1s instead of mtime <= t to check for unmodified.
 	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.Before(t.Add(1*time.Second)) {
+		h := w.Header()
+		delete(h, "Content-Type")
+		delete(h, "Content-Length")
 		w.WriteHeader(StatusNotModified)
 		return true
 	}
 	w.Header().Set("Last-Modified", modtime.UTC().Format(TimeFormat))
 	return false
+}
+
+// checkETag implements If-None-Match and If-Range checks.
+// The ETag must have been previously set in the ResponseWriter's headers.
+//
+// The return value is the effective request "Range" header to use and
+// whether this request is now considered done.
+func checkETag(w ResponseWriter, r *Request) (rangeReq string, done bool) {
+	etag := w.Header().get("Etag")
+	rangeReq = r.Header.get("Range")
+
+	// Invalidate the range request if the entity doesn't match the one
+	// the client was expecting.
+	// "If-Range: version" means "ignore the Range: header unless version matches the
+	// current file."
+	// We only support ETag versions.
+	// The caller must have set the ETag on the response already.
+	if ir := r.Header.get("If-Range"); ir != "" && ir != etag {
+		// TODO(bradfitz): handle If-Range requests with Last-Modified
+		// times instead of ETags? I'd rather not, at least for
+		// now. That seems like a bug/compromise in the RFC 2616, and
+		// I've never heard of anybody caring about that (yet).
+		rangeReq = ""
+	}
+
+	if inm := r.Header.get("If-None-Match"); inm != "" {
+		// Must know ETag.
+		if etag == "" {
+			return rangeReq, false
+		}
+
+		// TODO(bradfitz): non-GET/HEAD requests require more work:
+		// sending a different status code on matches, and
+		// also can't use weak cache validators (those with a "W/
+		// prefix).  But most users of ServeContent will be using
+		// it on GET or HEAD, so only support those for now.
+		if r.Method != "GET" && r.Method != "HEAD" {
+			return rangeReq, false
+		}
+
+		// TODO(bradfitz): deal with comma-separated or multiple-valued
+		// list of If-None-match values.  For now just handle the common
+		// case of a single item.
+		if inm == etag || inm == "*" {
+			h := w.Header()
+			delete(h, "Content-Type")
+			delete(h, "Content-Length")
+			w.WriteHeader(StatusNotModified)
+			return "", true
+		}
+	}
+	return rangeReq, false
 }
 
 // name is '/'-separated, not filepath.Separator.
