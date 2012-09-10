@@ -669,7 +669,6 @@ agen(Node *n, Node *res)
 
 		if(!debug['B'] && !n->bounded) {
 			// check bounds
-			n5.op = OXXX;
 			t = types[TUINT32];
 			if(is64(nr->type))
 				t = types[TUINT64];
