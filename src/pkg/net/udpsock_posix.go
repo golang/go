@@ -237,26 +237,10 @@ func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
 	return nil
 }
 
-func leaveIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	err := leaveIPv4Group(c.fd, ifi, ip)
-	if err != nil {
-		return &OpError{"leaveipv4group", c.fd.net, &IPAddr{ip}, err}
-	}
-	return nil
-}
-
 func joinIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
 	err := joinIPv6Group(c.fd, ifi, ip)
 	if err != nil {
 		return &OpError{"joinipv6group", c.fd.net, &IPAddr{ip}, err}
-	}
-	return nil
-}
-
-func leaveIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	err := leaveIPv6Group(c.fd, ifi, ip)
-	if err != nil {
-		return &OpError{"leaveipv6group", c.fd.net, &IPAddr{ip}, err}
 	}
 	return nil
 }

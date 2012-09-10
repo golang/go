@@ -61,13 +61,6 @@ func TestTCPListener(t *testing.T) {
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := Listen(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		fd := l1.(*TCPListener).fd
-		switch fd.family {
-		case syscall.AF_INET:
-			testIPv4UnicastSocketOptions(t, fd)
-		case syscall.AF_INET6:
-			testIPv6UnicastSocketOptions(t, fd)
-		}
 		l1.Close()
 	}
 }
@@ -106,13 +99,6 @@ func TestUDPListener(t *testing.T) {
 		checkFirstListener(t, tt.net, tt.laddr+":"+port, l1)
 		l2, err := ListenPacket(tt.net, tt.laddr+":"+port)
 		checkSecondListener(t, tt.net, tt.laddr+":"+port, err, l2)
-		fd := l1.(*UDPConn).fd
-		switch fd.family {
-		case syscall.AF_INET:
-			testIPv4UnicastSocketOptions(t, fd)
-		case syscall.AF_INET6:
-			testIPv6UnicastSocketOptions(t, fd)
-		}
 		l1.Close()
 	}
 }
@@ -467,44 +453,6 @@ func checkDualStackAddrFamily(t *testing.T, net, laddr string, fd *netFD) {
 		}
 	default:
 		t.Fatalf("Unexpected protocol address type: %T", a)
-	}
-}
-
-func testIPv4UnicastSocketOptions(t *testing.T, fd *netFD) {
-	_, err := ipv4TOS(fd)
-	if err != nil {
-		t.Fatalf("ipv4TOS failed: %v", err)
-	}
-	err = setIPv4TOS(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv4TOS failed: %v", err)
-	}
-	_, err = ipv4TTL(fd)
-	if err != nil {
-		t.Fatalf("ipv4TTL failed: %v", err)
-	}
-	err = setIPv4TTL(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv4TTL failed: %v", err)
-	}
-}
-
-func testIPv6UnicastSocketOptions(t *testing.T, fd *netFD) {
-	_, err := ipv6TrafficClass(fd)
-	if err != nil {
-		t.Fatalf("ipv6TrafficClass failed: %v", err)
-	}
-	err = setIPv6TrafficClass(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv6TrafficClass failed: %v", err)
-	}
-	_, err = ipv6HopLimit(fd)
-	if err != nil {
-		t.Fatalf("ipv6HopLimit failed: %v", err)
-	}
-	err = setIPv6HopLimit(fd, 1)
-	if err != nil {
-		t.Fatalf("setIPv6HopLimit failed: %v", err)
 	}
 }
 
