@@ -527,51 +527,140 @@ func TestDirectoryIfNotModified(t *testing.T) {
 	res.Body.Close()
 }
 
-func TestServeContent(t *testing.T) {
-	type req struct {
-		name    string
-		modtime time.Time
-		content io.ReadSeeker
+func mustStat(t *testing.T, fileName string) os.FileInfo {
+	fi, err := os.Stat(fileName)
+	if err != nil {
+		t.Fatal(err)
 	}
-	ch := make(chan req, 1)
+	return fi
+}
+
+func TestServeContent(t *testing.T) {
+	type serveParam struct {
+		name        string
+		modtime     time.Time
+		content     io.ReadSeeker
+		contentType string
+		etag        string
+	}
+	servec := make(chan serveParam, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		p := <-ch
+		p := <-servec
+		if p.etag != "" {
+			w.Header().Set("ETag", p.etag)
+		}
+		if p.contentType != "" {
+			w.Header().Set("Content-Type", p.contentType)
+		}
 		ServeContent(w, r, p.name, p.modtime, p.content)
 	}))
 	defer ts.Close()
 
-	css, err := os.Open("testdata/style.css")
-	if err != nil {
-		t.Fatal(err)
+	type testCase struct {
+		file             string
+		modtime          time.Time
+		serveETag        string // optional
+		serveContentType string // optional
+		reqHeader        map[string]string
+		wantLastMod      string
+		wantContentType  string
+		wantStatus       int
 	}
-	defer css.Close()
+	htmlModTime := mustStat(t, "testdata/index.html").ModTime()
+	tests := map[string]testCase{
+		"no_last_modified": {
+			file:            "testdata/style.css",
+			wantContentType: "text/css; charset=utf-8",
+			wantStatus:      200,
+		},
+		"with_last_modified": {
+			file:            "testdata/index.html",
+			wantContentType: "text/html; charset=utf-8",
+			modtime:         htmlModTime,
+			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
+			wantStatus:      200,
+		},
+		"not_modified_modtime": {
+			file:    "testdata/style.css",
+			modtime: htmlModTime,
+			reqHeader: map[string]string{
+				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
+			},
+			wantStatus: 304,
+		},
+		"not_modified_modtime_with_contenttype": {
+			file:             "testdata/style.css",
+			serveContentType: "text/css", // explicit content type
+			modtime:          htmlModTime,
+			reqHeader: map[string]string{
+				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
+			},
+			wantStatus: 304,
+		},
+		"not_modified_etag": {
+			file:      "testdata/style.css",
+			serveETag: `"foo"`,
+			reqHeader: map[string]string{
+				"If-None-Match": `"foo"`,
+			},
+			wantStatus: 304,
+		},
+		"range_good": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"Range": "bytes=0-4",
+			},
+			wantStatus:      StatusPartialContent,
+			wantContentType: "text/css; charset=utf-8",
+		},
+		// An If-Range resource for entity "A", but entity "B" is now current.
+		// The Range request should be ignored.
+		"range_no_match": {
+			file:      "testdata/style.css",
+			serveETag: `"A"`,
+			reqHeader: map[string]string{
+				"Range":    "bytes=0-4",
+				"If-Range": `"B"`,
+			},
+			wantStatus:      200,
+			wantContentType: "text/css; charset=utf-8",
+		},
+	}
+	for testName, tt := range tests {
+		f, err := os.Open(tt.file)
+		if err != nil {
+			t.Fatalf("test %q: %v", testName, err)
+		}
+		defer f.Close()
 
-	ch <- req{"style.css", time.Time{}, css}
-	res, err := Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g, e := res.Header.Get("Content-Type"), "text/css; charset=utf-8"; g != e {
-		t.Errorf("style.css: content type = %q, want %q", g, e)
-	}
-	if g := res.Header.Get("Last-Modified"); g != "" {
-		t.Errorf("want empty Last-Modified; got %q", g)
-	}
-
-	fi, err := css.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ch <- req{"style.html", fi.ModTime(), css}
-	res, err = Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g, e := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != e {
-		t.Errorf("style.html: content type = %q, want %q", g, e)
-	}
-	if g := res.Header.Get("Last-Modified"); g == "" {
-		t.Errorf("want non-empty last-modified")
+		servec <- serveParam{
+			name:        filepath.Base(tt.file),
+			content:     f,
+			modtime:     tt.modtime,
+			etag:        tt.serveETag,
+			contentType: tt.serveContentType,
+		}
+		req, err := NewRequest("GET", ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range tt.reqHeader {
+			req.Header.Set(k, v)
+		}
+		res, err := DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != tt.wantStatus {
+			t.Errorf("test %q: status = %d; want %d", testName, res.StatusCode, tt.wantStatus)
+		}
+		if g, e := res.Header.Get("Content-Type"), tt.wantContentType; g != e {
+			t.Errorf("test %q: content-type = %q, want %q", testName, g, e)
+		}
+		if g, e := res.Header.Get("Last-Modified"), tt.wantLastMod; g != e {
+			t.Errorf("test %q: last-modified = %q, want %q", testName, g, e)
+		}
 	}
 }
 
