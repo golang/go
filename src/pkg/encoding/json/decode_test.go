@@ -7,6 +7,7 @@ package json
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"reflect"
 	"strings"
 	"testing"
@@ -74,12 +75,112 @@ var (
 	umstruct = ustruct{unmarshaler{true}}
 )
 
+// Test data structures for anonymous fields.
+
+type Point struct {
+	Z int
+}
+
+type Top struct {
+	Level0 int
+	Embed0
+	*Embed0a
+	*Embed0b `json:"e,omitempty"` // treated as named
+	Embed0c  `json:"-"`           // ignored
+	Loop
+	Embed0p // has Point with X, Y, used
+	Embed0q // has Point with Z, used
+}
+
+type Embed0 struct {
+	Level1a int // overridden by Embed0a's Level1a with json tag
+	Level1b int // used because Embed0a's Level1b is renamed
+	Level1c int // used because Embed0a's Level1c is ignored
+	Level1d int // annihilated by Embed0a's Level1d
+	Level1e int `json:"x"` // annihilated by Embed0a.Level1e
+}
+
+type Embed0a struct {
+	Level1a int `json:"Level1a,omitempty"`
+	Level1b int `json:"LEVEL1B,omitempty"`
+	Level1c int `json:"-"`
+	Level1d int // annihilated by Embed0's Level1d
+	Level1f int `json:"x"` // annihilated by Embed0's Level1e
+}
+
+type Embed0b Embed0
+
+type Embed0c Embed0
+
+type Embed0p struct {
+	image.Point
+}
+
+type Embed0q struct {
+	Point
+}
+
+type Loop struct {
+	Loop1 int `json:",omitempty"`
+	Loop2 int `json:",omitempty"`
+	*Loop
+}
+
+// From reflect test:
+// The X in S6 and S7 annihilate, but they also block the X in S8.S9.
+type S5 struct {
+	S6
+	S7
+	S8
+}
+
+type S6 struct {
+	X int
+}
+
+type S7 S6
+
+type S8 struct {
+	S9
+}
+
+type S9 struct {
+	X int
+	Y int
+}
+
+// From reflect test:
+// The X in S11.S6 and S12.S6 annihilate, but they also block the X in S13.S8.S9.
+type S10 struct {
+	S11
+	S12
+	S13
+}
+
+type S11 struct {
+	S6
+}
+
+type S12 struct {
+	S6
+}
+
+type S13 struct {
+	S8
+}
+
 type unmarshalTest struct {
 	in        string
 	ptr       interface{}
 	out       interface{}
 	err       error
 	useNumber bool
+}
+
+type Ambig struct {
+	// Given "hello", the first match should win.
+	First  int `json:"HELLO"`
+	Second int `json:"Hello"`
 }
 
 var unmarshalTests = []unmarshalTest{
@@ -137,6 +238,74 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
 	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
 	{in: `{"M":{"T":false}}`, ptr: &umstruct, out: umstruct},
+
+	{
+		in: `{
+			"Level0": 1,
+			"Level1b": 2,
+			"Level1c": 3,
+			"x": 4,
+			"Level1a": 5,
+			"LEVEL1B": 6,
+			"e": {
+				"Level1a": 8,
+				"Level1b": 9,
+				"Level1c": 10,
+				"Level1d": 11,
+				"x": 12
+			},
+			"Loop1": 13,
+			"Loop2": 14,
+			"X": 15,
+			"Y": 16,
+			"Z": 17
+		}`,
+		ptr: new(Top),
+		out: Top{
+			Level0: 1,
+			Embed0: Embed0{
+				Level1b: 2,
+				Level1c: 3,
+			},
+			Embed0a: &Embed0a{
+				Level1a: 5,
+				Level1b: 6,
+			},
+			Embed0b: &Embed0b{
+				Level1a: 8,
+				Level1b: 9,
+				Level1c: 10,
+				Level1d: 11,
+				Level1e: 12,
+			},
+			Loop: Loop{
+				Loop1: 13,
+				Loop2: 14,
+			},
+			Embed0p: Embed0p{
+				Point: image.Point{X: 15, Y: 16},
+			},
+			Embed0q: Embed0q{
+				Point: Point{Z: 17},
+			},
+		},
+	},
+	{
+		in:  `{"hello": 1}`,
+		ptr: new(Ambig),
+		out: Ambig{First: 1},
+	},
+
+	{
+		in:  `{"X": 1,"Y":2}`,
+		ptr: new(S5),
+		out: S5{S8: S8{S9: S9{Y: 2}}},
+	},
+	{
+		in:  `{"X": 1,"Y":2}`,
+		ptr: new(S10),
+		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -717,35 +886,6 @@ func TestRefUnmarshal(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
-	}
-}
-
-// Test that anonymous fields are ignored.
-// We may assign meaning to them later.
-func TestAnonymous(t *testing.T) {
-	type S struct {
-		T
-		N int
-	}
-
-	data, err := Marshal(new(S))
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	want := `{"N":0}`
-	if string(data) != want {
-		t.Fatalf("Marshal = %#q, want %#q", string(data), want)
-	}
-
-	var s S
-	if err := Unmarshal([]byte(`{"T": 1, "T": {"Y": 1}, "N": 2}`), &s); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	if s.N != 2 {
-		t.Fatal("Unmarshal: did not set N")
-	}
-	if s.T.Y != 0 {
-		t.Fatal("Unmarshal: did set T.Y")
 	}
 }
 

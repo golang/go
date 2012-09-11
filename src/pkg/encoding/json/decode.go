@@ -493,56 +493,39 @@ func (d *decodeState) object(v reflect.Value) {
 			}
 			subv = mapElem
 		} else {
-			var f reflect.StructField
-			var ok bool
-			st := sv.Type()
-			for i := 0; i < sv.NumField(); i++ {
-				sf := st.Field(i)
-				tag := sf.Tag.Get("json")
-				if tag == "-" {
-					// Pretend this field doesn't exist.
-					continue
+			var f *field
+			fields := cachedTypeFields(sv.Type())
+			for i := range fields {
+				ff := &fields[i]
+				if ff.name == key {
+					f = ff
+					break
 				}
-				if sf.Anonymous {
-					// Pretend this field doesn't exist,
-					// so that we can do a good job with
-					// these in a later version.
-					continue
-				}
-				// First, tag match
-				tagName, _ := parseTag(tag)
-				if tagName != "" {
-					if tagName == key {
-						f = sf
-						ok = true
-						break // no better match possible
-					}
-					// There was a tag, but it didn't match.
-					// Ignore field names.
-					continue
-				}
-				// Second, exact field name match
-				if sf.Name == key {
-					f = sf
-					ok = true
-				}
-				// Third, case-insensitive field name match,
-				// but only if a better match hasn't already been seen
-				if !ok && strings.EqualFold(sf.Name, key) {
-					f = sf
-					ok = true
+				if f == nil && strings.EqualFold(ff.name, key) {
+					f = ff
 				}
 			}
-
-			// Extract value; name must be exported.
-			if ok {
-				if f.PkgPath != "" {
-					d.saveError(&UnmarshalFieldError{key, st, f})
-				} else {
-					subv = sv.FieldByIndex(f.Index)
+			if f != nil {
+				subv = sv
+				destring = f.quoted
+				for _, i := range f.index {
+					if subv.Kind() == reflect.Ptr {
+						if subv.IsNil() {
+							subv.Set(reflect.New(subv.Type().Elem()))
+						}
+						subv = subv.Elem()
+					}
+					subv = subv.Field(i)
 				}
-				_, opts := parseTag(f.Tag.Get("json"))
-				destring = opts.Contains("string")
+			} else {
+				// To give a good error, a quick scan for unexported fields in top level.
+				st := sv.Type()
+				for i := 0; i < st.NumField(); i++ {
+					f := st.Field(i)
+					if f.PkgPath != "" && strings.EqualFold(f.Name, key) {
+						d.saveError(&UnmarshalFieldError{key, st, f})
+					}
+				}
 			}
 		}
 
@@ -1005,11 +988,3 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	}
 	return b[0:w], true
 }
-
-// The following is issue 3069.
-
-// BUG(rsc): This package ignores anonymous (embedded) struct fields
-// during encoding and decoding.  A future version may assign meaning
-// to them.  To force an anonymous field to be ignored in all future
-// versions of this package, use an explicit `json:"-"` tag in the struct
-// definition.
