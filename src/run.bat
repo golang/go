@@ -65,10 +65,11 @@ echo.
 
 :: cgo tests
 if x%CGO_ENABLED% == x0 goto nocgo
-echo # ..\misc\cgo\life
-go run %GOROOT%\test\run.go - ..\misc\cgo\life
-if errorlevel 1 goto fail
-echo.
+:: TODO(brainman) disabled, because it is broken on go builder - http://golang.org/issue/4063
+::echo # ..\misc\cgo\life
+::go run %GOROOT%\test\run.go - ..\misc\cgo\life
+::if errorlevel 1 goto fail
+::echo.
 
 :: TODO ..\misc\cgo\stdio
 ::echo # ..\misc\cgo\stdio
