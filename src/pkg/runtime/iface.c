@@ -183,6 +183,18 @@ copyout(Type *t, void **src, void *dst)
 		alg->copy(size, dst, *src);
 }
 
+#pragma textflag 7
+void
+runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
+{
+	Itab *tab;
+
+	tab = itab(inter, t, 0);
+	runtime·atomicstorep(cache, tab);
+	ret = tab;
+	FLUSH(&ret);
+}
+
 // func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
 #pragma textflag 7
 void

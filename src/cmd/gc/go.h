@@ -257,6 +257,7 @@ struct	Node
 	uchar	implicit;
 	uchar	addrtaken;	// address taken, even if not moved to heap
 	uchar	dupok;	// duplicate definitions ok (for func)
+	schar	likely; // likeliness of if statement
 
 	// most nodes
 	Type*	type;

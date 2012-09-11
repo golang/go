@@ -410,7 +410,7 @@ gen(Node *n)
 		p1 = gjmp(P);			//		goto test
 		p2 = gjmp(P);			// p2:		goto else
 		patch(p1, pc);				// test:
-		bgen(n->ntest, 0, 0, p2);			//		if(!test) goto p2
+		bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
 		genlist(n->nbody);				//		then
 		p3 = gjmp(P);			//		goto done
 		patch(p2, pc);				// else:
@@ -746,12 +746,17 @@ ret:
 void
 cgen_eface(Node *n, Node *res)
 {
+	/* 
+	 * the right node of an eface may contain function calls that uses res as an argument,
+	 * so it's important that it is done first
+	 */
 	Node dst;
 	dst = *res;
 	dst.type = types[tptr];
-	cgen(n->left, &dst);
 	dst.xoffset += widthptr;
 	cgen(n->right, &dst);
+	dst.xoffset -= widthptr;
+	cgen(n->left, &dst);
 }
 
 /*
