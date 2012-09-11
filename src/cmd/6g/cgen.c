@@ -978,41 +978,35 @@ bgen(Node *n, int true, int likely, Prog *to)
 			nl = nr;
 			nr = r;
 		}
-		
+
 		if(isslice(nl->type)) {
-			// only valid to cmp darray to literal nil
+			// front end should only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
-				yyerror("illegal array comparison");
+				yyerror("illegal slice comparison");
 				break;
 			}
 			a = optoas(a, types[tptr]);
-			regalloc(&n1, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = Array_array;
-			n2.type = types[tptr];
+			igen(nl, &n1, N);
+			n1.xoffset += Array_array;
+			n1.type = types[tptr];
 			nodconst(&tmp, types[tptr], 0);
-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			gins(optoas(OCMP, types[tptr]), &n1, &tmp);
 			patch(gbranch(a, types[tptr], likely), to);
 			regfree(&n1);
 			break;
 		}
 
 		if(isinter(nl->type)) {
-			// front end shold only leave cmp to literal nil
+			// front end should only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
 				yyerror("illegal interface comparison");
 				break;
 			}
 			a = optoas(a, types[tptr]);
-			regalloc(&n1, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = 0;
+			igen(nl, &n1, N);
+			n1.type = types[tptr];
 			nodconst(&tmp, types[tptr], 0);
-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			gins(optoas(OCMP, types[tptr]), &n1, &tmp);
 			patch(gbranch(a, types[tptr], likely), to);
 			regfree(&n1);
 			break;
