@@ -59,6 +59,7 @@ func copy(to any, fr any, wid uint32) int
 func slicestringcopy(to any, fr any) int
 
 // interface conversions
+func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
 func convI2E(elem any) (ret any)
 func convI2I(typ *byte, elem any) (ret any)
 func convT2E(typ *byte, elem any) (ret any)

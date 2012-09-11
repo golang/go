@@ -374,7 +374,7 @@ walkexpr(Node **np, NodeList **init)
 	int et;
 	int64 v;
 	int32 lno;
-	Node *n, *fn;
+	Node *n, *fn, *n1, *n2;
 	Sym *sym;
 	char buf[100], *p;
 
@@ -771,6 +771,44 @@ walkexpr(Node **np, NodeList **init)
 			l = nod(OADDR, sym->def, N);
 			l->addable = 1;
 			ll = list(ll, l);
+
+			if(n->left->type->width == widthptr &&
+		   	   isint[simsimtype(n->left->type)]) {
+				/* For pointer types, we can make a special form of optimization
+				 *
+				 * These statements are put onto the expression init list:
+				 * 	Itab *tab = atomicloadtype(&cache);
+				 * 	if(tab == nil)
+				 * 		tab = typ2Itab(type, itype, &cache);
+				 *
+				 * The CONVIFACE expression is replaced with this:
+				 * 	OEFACE{tab, ptr};
+				 */
+				l = temp(ptrto(types[TUINT8]));
+
+				n1 = nod(OAS, l, sym->def);
+				typecheck(&n1, Etop);
+				*init = list(*init, n1);
+
+				fn = syslook("typ2Itab", 1);
+				n1 = nod(OCALL, fn, N);
+				n1->list = ll;
+				typecheck(&n1, Erv);
+				walkexpr(&n1, init);
+
+				n2 = nod(OIF, N, N);
+				n2->ntest = nod(OEQ, l, nodnil());
+				n2->nbody = list1(nod(OAS, l, n1));
+				n2->likely = -1;
+				typecheck(&n2, Etop);
+				*init = list(*init, n2);
+
+				l = nod(OEFACE, l, n->left);
+				l->typecheck = n->typecheck; 
+				l->type = n->type;
+				n = l;
+				goto ret;
+			}
 		}
 		ll = list(ll, n->left);
 		argtype(fn, n->left->type);
@@ -1168,7 +1206,7 @@ walkexpr(Node **np, NodeList **init)
 		else
 			r = nod(OOROR, nod(ONE, nod(OITAB, n->left, N), nod(OITAB, n->right, N)), r);
 		typecheck(&r, Erv);
-		walkexpr(&r, nil);
+		walkexpr(&r, init);
 		r->type = n->type;
 		n = r;
 		goto ret;
