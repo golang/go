@@ -146,7 +146,7 @@ void
 cgen_callinter(Node *n, Node *res, int proc)
 {
 	Node *i, *f;
-	Node tmpi, nodo, nodr, nodsp;
+	Node tmpi, nodi, nodo, nodr, nodsp;
 
 	i = n->left;
 	if(i->op != ODOTINTER)
@@ -166,23 +166,25 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	genlist(n->list);		// assign the args
 
-	// Can regalloc now; i is known to be addable,
-	// so the agen will be easy.
-	regalloc(&nodr, types[tptr], res);
-	regalloc(&nodo, types[tptr], &nodr);
-	nodo.op = OINDREG;
-
-	agen(i, &nodr);		// REG = &inter
+	// i is now addable, prepare an indirected
+	// register to hold its address.
+	igen(i, &nodi, res);		// REG = &inter
 
 	nodindreg(&nodsp, types[tptr], D_SP);
-	nodo.xoffset += widthptr;
-	cgen(&nodo, &nodsp);	// 0(SP) = 4(REG) -- i.data
+	nodi.type = types[tptr];
+	nodi.xoffset += widthptr;
+	cgen(&nodi, &nodsp);	// 0(SP) = 4(REG) -- i.data
 
-	nodo.xoffset -= widthptr;
-	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
+	regalloc(&nodo, types[tptr], res);
+	nodi.type = types[tptr];
+	nodi.xoffset -= widthptr;
+	cgen(&nodi, &nodo);	// REG = 0(REG) -- i.tab
+	regfree(&nodi);
 
+	regalloc(&nodr, types[tptr], &nodo);
 	if(n->left->xoffset == BADWIDTH)
 		fatal("cgen_callinter: badwidth");
+	nodo.op = OINDREG;
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
 	cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
 
