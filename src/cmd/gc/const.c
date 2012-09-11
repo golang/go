@@ -1207,6 +1207,7 @@ smallintconst(Node *n)
 	case TIDEAL:
 	case TINT64:
 	case TUINT64:
+	case TPTR64:
 		if(mpcmpfixfix(n->val.u.xval, minintval[TINT32]) < 0
 		|| mpcmpfixfix(n->val.u.xval, maxintval[TINT32]) > 0)
 			break;
