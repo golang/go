@@ -1339,9 +1339,6 @@ componentgen(Node *nr, Node *nl)
 
 	switch(nl->type->etype) {
 	case TARRAY:
-		if(!isslice(nl->type))
-			goto no;
-
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(nl->type->type);
 
@@ -1419,9 +1416,6 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		goto yes;
-
-	case TSTRUCT:
-		goto no;
 	}
 
 no:
