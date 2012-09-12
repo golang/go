@@ -42,3 +42,19 @@ func TestGcSys(t *testing.T) {
 func workthegc() []byte {
 	return make([]byte, 1029)
 }
+
+func TestGcDeepNesting(t *testing.T) {
+	type T [2][2][2][2][2][2][2][2][2][2]*int
+	a := new(T)
+
+	// Prevent the compiler from applying escape analysis.
+	// This makes sure new(T) is allocated on heap, not on the stack.
+	t.Logf("%p", a)
+
+	a[0][0][0][0][0][0][0][0][0][0] = new(int)
+	*a[0][0][0][0][0][0][0][0][0][0] = 13
+	runtime.GC()
+	if *a[0][0][0][0][0][0][0][0][0][0] != 13 {
+		t.Fail()
+	}
+}

@@ -5,6 +5,7 @@
 #include <u.h>
 #include <libc.h>
 #include "go.h"
+#include "../../pkg/runtime/mgc0.h"
 
 /*
  * runtime interface and reflection data structures
@@ -14,6 +15,7 @@ static	NodeList*	signatlist;
 static	Sym*	dtypesym(Type*);
 static	Sym*	weaktypesym(Type*);
 static	Sym*	dalgsym(Type*);
+static	Sym*	dgcsym(Type*);
 
 static int
 sigcmp(Sig *a, Sig *b)
@@ -586,7 +588,7 @@ dcommontype(Sym *s, int ot, Type *t)
 		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
 	else
 		ot = dsymptr(s, ot, algsym, 0);
-	ot = duintptr(s, ot, 0);  // gc
+	ot = dsymptr(s, ot, dgcsym(t), 0);  // gc
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
@@ -967,6 +969,180 @@ dalgsym(Type *t)
 	}
 
 	ggloblsym(s, ot, 1, 1);
+	return s;
+}
+
+static int
+dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
+{
+	Type *t1;
+	vlong o, off2, fieldoffset;
+
+	if(t->align > 0 && (*off % t->align) != 0)
+		fatal("dgcsym1: invalid initial alignment, %T", t);
+	
+	switch(t->etype) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TINT:
+	case TUINT:
+	case TUINTPTR:
+	case TBOOL:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TCOMPLEX64:
+	case TCOMPLEX128:
+		*off += t->width;
+		break;
+
+	case TPTR32:
+	case TPTR64:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		if(!haspointers(t->type) || t->type->etype == TUINT8) {
+			ot = duintptr(s, ot, GC_APTR);
+			ot = duintptr(s, ot, *off);
+		} else {
+			ot = duintptr(s, ot, GC_PTR);
+			ot = duintptr(s, ot, *off);
+			ot = dsymptr(s, ot, dgcsym(t->type), 0);
+		}
+		*off += t->width;
+		break;
+
+	case TCHAN:
+	case TUNSAFEPTR:
+	case TFUNC:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		ot = duintptr(s, ot, GC_APTR);
+		ot = duintptr(s, ot, *off);
+		*off += t->width;
+		break;
+
+	// struct Hmap*
+	case TMAP:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		ot = duintptr(s, ot, GC_MAP_PTR);
+		ot = duintptr(s, ot, *off);
+		ot = dsymptr(s, ot, dtypesym(t), 0);
+		*off += t->width;
+		break;
+
+	// struct { byte *str; int32 len; }
+	case TSTRING:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		ot = duintptr(s, ot, GC_STRING);
+		ot = duintptr(s, ot, *off);
+		*off += t->width;
+		break;
+
+	// struct { Itab* tab;  void* data; }
+	// struct { Type* type; void* data; }	// When isnilinter(t)==true
+	case TINTER:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		if(isnilinter(t)) {
+			ot = duintptr(s, ot, GC_EFACE);
+			ot = duintptr(s, ot, *off);
+		} else {
+			ot = duintptr(s, ot, GC_IFACE);
+			ot = duintptr(s, ot, *off);
+		}
+		*off += t->width;
+		break;
+
+	case TARRAY:
+		if(t->bound < -1)
+			fatal("dgcsym1: invalid bound, %T", t);
+		if(isslice(t)) {
+			// struct { byte* array; uint32 len; uint32 cap; }
+			if(*off % widthptr != 0)
+				fatal("dgcsym1: invalid alignment, %T", t);
+			if(t->type->width != 0) {
+				ot = duintptr(s, ot, GC_SLICE);
+				ot = duintptr(s, ot, *off);
+				ot = dsymptr(s, ot, dgcsym(t->type), 0);
+			} else {
+				ot = duintptr(s, ot, GC_APTR);
+				ot = duintptr(s, ot, *off);
+			}
+			*off += t->width;
+		} else {
+			if(t->bound < 1 || !haspointers(t->type)) {
+				*off += t->width;
+			} else if(t->bound == 1) {
+				ot = dgcsym1(s, ot, t->type, off, stack_size);  // recursive call of dgcsym1
+			} else {
+				if(stack_size < GC_STACK_CAPACITY) {
+					ot = duintptr(s, ot, GC_ARRAY_START);  // a stack push during GC
+					ot = duintptr(s, ot, *off);
+					ot = duintptr(s, ot, t->bound);
+					ot = duintptr(s, ot, t->type->width);
+					off2 = 0;
+					ot = dgcsym1(s, ot, t->type, &off2, stack_size+1);  // recursive call of dgcsym1
+					ot = duintptr(s, ot, GC_ARRAY_NEXT);  // a stack pop during GC
+				} else {
+					ot = duintptr(s, ot, GC_REGION);
+					ot = duintptr(s, ot, *off);
+					ot = duintptr(s, ot, t->width);
+					ot = dsymptr(s, ot, dgcsym(t), 0);
+				}
+				*off += t->width;
+			}
+		}
+		break;
+
+	case TSTRUCT:
+		o = 0;
+		for(t1=t->type; t1!=T; t1=t1->down) {
+			fieldoffset = t1->width;
+			*off += fieldoffset - o;
+			ot = dgcsym1(s, ot, t1->type, off, stack_size);  // recursive call of dgcsym1
+			o = fieldoffset + t1->type->width;
+		}
+		*off += t->width - o;
+		break;
+
+	default:
+		fatal("dgcsym1: unexpected type %T", t);
+	}
+
+	return ot;
+}
+
+static Sym*
+dgcsym(Type *t)
+{
+	int ot;
+	vlong off;
+	Sym *s;
+
+	s = typesymprefix(".gc", t);
+	if(s->flags & SymGcgen)
+		return s;
+	s->flags |= SymGcgen;
+
+	ot = 0;
+	off = 0;
+	ot = duintptr(s, ot, t->width);
+	ot = dgcsym1(s, ot, t, &off, 0);
+	ot = duintptr(s, ot, GC_END);
+	ggloblsym(s, ot, 1, 1);
+
+	if(t->align > 0)
+		off = rnd(off, t->align);
+	if(off != t->width)
+		fatal("dgcsym: off=%lld, size=%lld, type %T", off, t->width, t);
+
 	return s;
 }
 
