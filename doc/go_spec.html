@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 7, 2012",
+	"Subtitle": "Version of September 12, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -2874,8 +2874,8 @@ As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>
 <p>
 There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
-operators, comparison operators, <code>&amp;&amp;</code> (logical and),
-and finally <code>||</code> (logical or):
+operators, comparison operators, <code>&amp;&amp;</code> (logical AND),
+and finally <code>||</code> (logical OR):
 </p>
 
 <pre class="grammar">
@@ -2918,10 +2918,10 @@ to strings. All other arithmetic operators apply to integers only.
 /    quotient               integers, floats, complex values
 %    remainder              integers
 
-&amp;    bitwise and            integers
-|    bitwise or             integers
-^    bitwise xor            integers
-&amp;^   bit clear (and not)    integers
+&amp;    bitwise AND            integers
+|    bitwise OR             integers
+^    bitwise XOR            integers
+&amp;^   bit clear (AND NOT)    integers
 
 &lt;&lt;   left shift             integer &lt;&lt; unsigned integer
 &gt;&gt;   right shift            integer &gt;&gt; unsigned integer
@@ -2981,7 +2981,7 @@ int64    -9223372036854775808
 If the divisor is zero, a <a href="#Run_time_panics">run-time panic</a> occurs.
 If the dividend is positive and the divisor is a constant power of 2,
 the division may be replaced by a right shift, and computing the remainder may
-be replaced by a bitwise "and" operation:
+be replaced by a bitwise AND operation:
 </p>
 
 <pre>
@@ -3182,9 +3182,9 @@ The right operand is evaluated conditionally.
 </p>
 
 <pre class="grammar">
-&amp;&amp;    conditional and    p &amp;&amp; q  is  "if p then q else false"
-||    conditional or     p || q  is  "if p then true else q"
-!     not                !p      is  "not p"
+&amp;&amp;    conditional AND    p &amp;&amp; q  is  "if p then q else false"
+||    conditional OR     p || q  is  "if p then true else q"
+!     NOT                !p      is  "not p"
 </pre>
 
 
