@@ -9,7 +9,7 @@
 // implementation at address 0xffff0fc0.  Caller sets:
 //	R0 = old value
 //	R1 = new value
-//	R2 = valptr
+//	R2 = addr
 //	LR = return address
 // The function returns with CS true if the swap happened.
 // http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
@@ -27,7 +27,7 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
 
 // Implement using kernel cas for portability.
 TEXT ·CompareAndSwapUint32(SB),7,$0
-	MOVW	valptr+0(FP), R2
+	MOVW	addr+0(FP), R2
 	MOVW	old+4(FP), R0
 casagain:
 	MOVW	new+8(FP), R1
@@ -39,7 +39,7 @@ casret:
 	RET
 cascheck:
 	// Kernel lies; double-check.
-	MOVW	valptr+0(FP), R2
+	MOVW	addr+0(FP), R2
 	MOVW	old+4(FP), R0
 	MOVW	0(R2), R3
 	CMP	R0, R3
@@ -58,7 +58,7 @@ TEXT ·AddInt32(SB),7,$0
 
 // Implement using kernel cas for portability.
 TEXT ·AddUint32(SB),7,$0
-	MOVW	valptr+0(FP), R2
+	MOVW	addr+0(FP), R2
 	MOVW	delta+4(FP), R4
 addloop1:
 	MOVW	0(R2), R0
@@ -77,7 +77,7 @@ TEXT cas64<>(SB),7,$0
 
 TEXT kernelCAS64<>(SB),7,$0
 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
-	MOVW	valptr+0(FP), R2 // ptr
+	MOVW	addr+0(FP), R2 // ptr
 	MOVW	$4(FP), R0 // oldval
 	MOVW	$12(FP), R1 // newval
 	BL		cas64<>(SB)
@@ -88,7 +88,7 @@ TEXT kernelCAS64<>(SB),7,$0
 
 TEXT generalCAS64<>(SB),7,$20
 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
-	MOVW	valptr+0(FP), R0
+	MOVW	addr+0(FP), R0
 	MOVW	R0, 4(R13)
 	MOVW	$4(FP), R1 // oldval
 	MOVW	R1, 8(R13)
@@ -140,7 +140,7 @@ TEXT ·LoadInt32(SB),7,$0
 	B	·LoadUint32(SB)
 
 TEXT ·LoadUint32(SB),7,$0
-	MOVW	addrptr+0(FP), R2
+	MOVW	addr+0(FP), R2
 loadloop1:
 	MOVW	0(R2), R0
 	MOVW	R0, R1
@@ -165,7 +165,7 @@ TEXT ·StoreInt32(SB),7,$0
 	B	·StoreUint32(SB)
 
 TEXT ·StoreUint32(SB),7,$0
-	MOVW	addrptr+0(FP), R2
+	MOVW	addr+0(FP), R2
 	MOVW	val+4(FP), R1
 storeloop1:
 	MOVW	0(R2), R0
