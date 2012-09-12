@@ -347,6 +347,7 @@ enum
 	SymExported	= 1<<2,	// already written out by export
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
+	SymGcgen	= 1<<5,
 };
 
 struct	Sym
