@@ -6,7 +6,7 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
 	JMP	·CompareAndSwapUint32(SB)
 
 TEXT ·CompareAndSwapUint32(SB),7,$0
-	MOVQ	valptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVL	old+8(FP), AX
 	MOVL	new+12(FP), CX
 	LOCK
@@ -24,7 +24,7 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
 	JMP	·CompareAndSwapUint64(SB)
 
 TEXT ·CompareAndSwapUint64(SB),7,$0
-	MOVQ	valptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVQ	old+8(FP), AX
 	MOVQ	new+16(FP), CX
 	LOCK
@@ -36,7 +36,7 @@ TEXT ·AddInt32(SB),7,$0
 	JMP	·AddUint32(SB)
 
 TEXT ·AddUint32(SB),7,$0
-	MOVQ	valptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVL	delta+8(FP), AX
 	MOVL	AX, CX
 	LOCK
@@ -52,7 +52,7 @@ TEXT ·AddInt64(SB),7,$0
 	JMP	·AddUint64(SB)
 
 TEXT ·AddUint64(SB),7,$0
-	MOVQ	valptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVQ	delta+8(FP), AX
 	MOVQ	AX, CX
 	LOCK
@@ -65,7 +65,7 @@ TEXT ·LoadInt32(SB),7,$0
 	JMP	·LoadUint32(SB)
 
 TEXT ·LoadUint32(SB),7,$0
-	MOVQ	addrptr+0(FP), AX
+	MOVQ	addr+0(FP), AX
 	MOVL	0(AX), AX
 	MOVL	AX, ret+8(FP)
 	RET
@@ -74,7 +74,7 @@ TEXT ·LoadInt64(SB),7,$0
 	JMP	·LoadUint64(SB)
 
 TEXT ·LoadUint64(SB),7,$0
-	MOVQ	addrptr+0(FP), AX
+	MOVQ	addr+0(FP), AX
 	MOVQ	0(AX), AX
 	MOVQ	AX, ret+8(FP)
 	RET
@@ -83,7 +83,7 @@ TEXT ·LoadUintptr(SB),7,$0
 	JMP	·LoadPointer(SB)
 
 TEXT ·LoadPointer(SB),7,$0
-	MOVQ	addrptr+0(FP), AX
+	MOVQ	addr+0(FP), AX
 	MOVQ	0(AX), AX
 	MOVQ	AX, ret+8(FP)
 	RET
@@ -92,7 +92,7 @@ TEXT ·StoreInt32(SB),7,$0
 	JMP	·StoreUint32(SB)
 
 TEXT ·StoreUint32(SB),7,$0
-	MOVQ	addrptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVL	val+8(FP), AX
 	XCHGL	AX, 0(BP)
 	RET
@@ -101,7 +101,7 @@ TEXT ·StoreInt64(SB),7,$0
 	JMP	·StoreUint64(SB)
 
 TEXT ·StoreUint64(SB),7,$0
-	MOVQ	addrptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVQ	val+8(FP), AX
 	XCHGQ	AX, 0(BP)
 	RET
@@ -110,7 +110,7 @@ TEXT ·StoreUintptr(SB),7,$0
 	JMP	·StorePointer(SB)
 
 TEXT ·StorePointer(SB),7,$0
-	MOVQ	addrptr+0(FP), BP
+	MOVQ	addr+0(FP), BP
 	MOVQ	val+8(FP), AX
 	XCHGQ	AX, 0(BP)
 	RET
