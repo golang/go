@@ -477,6 +477,13 @@ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
 	return &value, err
 }
 
+func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
+	var value Ucred
+	vallen := _Socklen(SizeofUcred)
+	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	return &value, err
+}
+
 func SetsockoptInt(fd, level, opt int, value int) (err error) {
 	var n = int32(value)
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
