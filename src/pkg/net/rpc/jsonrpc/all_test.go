@@ -131,7 +131,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("Add: expected no error but got string %q", err.Error())
 	}
 	if reply.C != args.A+args.B {
-		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+		t.Errorf("Add: got %d expected %d", reply.C, args.A+args.B)
 	}
 
 	args = &Args{7, 8}
@@ -141,7 +141,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("Mul: expected no error but got string %q", err.Error())
 	}
 	if reply.C != args.A*args.B {
-		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
+		t.Errorf("Mul: got %d expected %d", reply.C, args.A*args.B)
 	}
 
 	// Out of order.
@@ -156,7 +156,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("Add: expected no error but got string %q", addCall.Error.Error())
 	}
 	if addReply.C != args.A+args.B {
-		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
+		t.Errorf("Add: got %d expected %d", addReply.C, args.A+args.B)
 	}
 
 	mulCall = <-mulCall.Done
@@ -164,7 +164,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("Mul: expected no error but got string %q", mulCall.Error.Error())
 	}
 	if mulReply.C != args.A*args.B {
-		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A*args.B)
+		t.Errorf("Mul: got %d expected %d", mulReply.C, args.A*args.B)
 	}
 
 	// Error test
