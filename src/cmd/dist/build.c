@@ -1352,7 +1352,7 @@ cmdenv(int argc, char **argv)
 		vflag++;
 		break;
 	case 'w':
-		format = "set %s=%s\n";
+		format = "set %s=%s\r\n";
 		break;
 	default:
 		usage();
