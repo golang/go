@@ -10,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // File represents an open file descriptor.
@@ -26,6 +27,10 @@ type file struct {
 	name    string
 	dirinfo *dirInfo   // nil unless directory being read
 	l       sync.Mutex // used to implement windows pread/pwrite
+
+	// only for console io
+	isConsole bool
+	lastbits  []byte // first few bytes of the last incomplete rune in last write
 }
 
 // Fd returns the Windows handle referencing the open file.
@@ -43,6 +48,10 @@ func NewFile(fd uintptr, name string) *File {
 		return nil
 	}
 	f := &File{&file{fd: h, name: name}}
+	var m uint32
+	if syscall.GetConsoleMode(f.fd, &m) == nil {
+		f.isConsole = true
+	}
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
@@ -230,11 +239,47 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 	return int(done), nil
 }
 
+// writeConsole writes len(b) bytes to the console File.
+// It returns the number of bytes written and an error, if any.
+func (f *File) writeConsole(b []byte) (n int, err error) {
+	n = len(b)
+	runes := make([]rune, 0, 256)
+	if len(f.lastbits) > 0 {
+		b = append(f.lastbits, b...)
+		f.lastbits = nil
+
+	}
+	for len(b) >= utf8.UTFMax || utf8.FullRune(b) {
+		r, l := utf8.DecodeRune(b)
+		runes = append(runes, r)
+		b = b[l:]
+	}
+	if len(b) > 0 {
+		f.lastbits = make([]byte, len(b))
+		copy(f.lastbits, b)
+	}
+	if len(runes) > 0 {
+		uint16s := utf16.Encode(runes)
+		for len(uint16s) > 0 {
+			var written uint32
+			err = syscall.WriteConsole(f.fd, &uint16s[0], uint32(len(uint16s)), &written, nil)
+			if err != nil {
+				return 0, nil
+			}
+			uint16s = uint16s[written:]
+		}
+	}
+	return n, nil
+}
+
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 func (f *File) write(b []byte) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
+	if f.isConsole {
+		return f.writeConsole(b)
+	}
 	return syscall.Write(f.fd, b)
 }
 

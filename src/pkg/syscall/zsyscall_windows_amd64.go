@@ -104,6 +104,8 @@ var (
 	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
 	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
+	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
@@ -1194,6 +1196,30 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 func getCurrentProcessId() (pid uint32) {
 	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
 	pid = uint32(r0)
+	return
+}
+
+func GetConsoleMode(console Handle, mode *uint32) (err error) {
+	r1, _, e1 := Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) {
+	r1, _, e1 := Syscall6(procWriteConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(towrite), uintptr(unsafe.Pointer(written)), uintptr(unsafe.Pointer(reserved)), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
 	return
 }
 

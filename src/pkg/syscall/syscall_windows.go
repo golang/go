@@ -196,6 +196,8 @@ func NewCallback(fn interface{}) uintptr
 //sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
 //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
+//sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
+//sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 
 // syscall interface implementation for other packages
 
