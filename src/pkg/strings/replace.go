@@ -33,47 +33,41 @@ func NewReplacer(oldnew ...string) *Replacer {
 		panic("strings.NewReplacer: odd argument count")
 	}
 
-	// Possible implementations.
-	var (
-		bb  byteReplacer
-		bs  byteStringReplacer
-		gen genericReplacer
-	)
-
-	allOldBytes, allNewBytes := true, true
-	for len(oldnew) > 0 {
-		old, new := oldnew[0], oldnew[1]
-		oldnew = oldnew[2:]
-		if len(old) != 1 {
-			allOldBytes = false
+	allNewBytes := true
+	for i := 0; i < len(oldnew); i += 2 {
+		if len(oldnew[i]) != 1 {
+			return &Replacer{r: makeGenericReplacer(oldnew)}
 		}
-		if len(new) != 1 {
+		if len(oldnew[i+1]) != 1 {
 			allNewBytes = false
 		}
+	}
 
-		// generic
-		gen.p = append(gen.p, pair{old, new})
-
-		// byte -> string
-		if allOldBytes {
-			bs.old.set(old[0])
-			bs.new[old[0]] = []byte(new)
+	if allNewBytes {
+		bb := &byteReplacer{}
+		for i := 0; i < len(oldnew); i += 2 {
+			o, n := oldnew[i][0], oldnew[i+1][0]
+			if bb.old[o>>5]&uint32(1<<(o&31)) != 0 {
+				// Later old->new maps do not override previous ones with the same old string.
+				continue
+			}
+			bb.old.set(o)
+			bb.new[o] = n
 		}
+		return &Replacer{r: bb}
+	}
 
-		// byte -> byte
-		if allOldBytes && allNewBytes {
-			bb.old.set(old[0])
-			bb.new[old[0]] = new[0]
+	bs := &byteStringReplacer{}
+	for i := 0; i < len(oldnew); i += 2 {
+		o, new := oldnew[i][0], oldnew[i+1]
+		if bs.old[o>>5]&uint32(1<<(o&31)) != 0 {
+			// Later old->new maps do not override previous ones with the same old string.
+			continue
 		}
+		bs.old.set(o)
+		bs.new[o] = []byte(new)
 	}
-
-	if allOldBytes && allNewBytes {
-		return &Replacer{r: &bb}
-	}
-	if allOldBytes {
-		return &Replacer{r: &bs}
-	}
-	return &Replacer{r: &gen}
+	return &Replacer{r: bs}
 }
 
 // Replace returns a copy of s with all replacements performed.
@@ -93,6 +87,16 @@ type genericReplacer struct {
 }
 
 type pair struct{ old, new string }
+
+func makeGenericReplacer(oldnew []string) *genericReplacer {
+	gen := &genericReplacer{
+		p: make([]pair, len(oldnew)/2),
+	}
+	for i := 0; i < len(oldnew); i += 2 {
+		gen.p[i/2] = pair{oldnew[i], oldnew[i+1]}
+	}
+	return gen
+}
 
 type appendSliceWriter struct {
 	b []byte

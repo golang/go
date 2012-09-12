@@ -70,7 +70,7 @@ func TestReplacer(t *testing.T) {
 		testCase{inc, "\x00\xff", "\x01\x00"},
 		testCase{inc, "", ""},
 
-		testCase{NewReplacer("a", "1", "a", "2"), "brad", "br2d"}, // TODO: should this be "br1d"?
+		testCase{NewReplacer("a", "1", "a", "2"), "brad", "br1d"},
 	)
 
 	// repeat maps "a"->"a", "b"->"bb", "c"->"ccc", ...
@@ -95,7 +95,7 @@ func TestReplacer(t *testing.T) {
 		testCase{repeat, "abba", "abbbba"},
 		testCase{repeat, "", ""},
 
-		testCase{NewReplacer("a", "11", "a", "22"), "brad", "br22d"}, // TODO: should this be "br11d"?
+		testCase{NewReplacer("a", "11", "a", "22"), "brad", "br11d"},
 	)
 
 	// The remaining test cases have variable length old strings.
@@ -246,6 +246,14 @@ func TestReplacer(t *testing.T) {
 		testCase{blankFoo, "", "X"},
 	)
 
+	// No-arg test cases.
+
+	nop := NewReplacer()
+	testCases = append(testCases,
+		testCase{nop, "abc", "abc"},
+		testCase{nop, "", ""},
+	)
+
 	// Run the test cases.
 
 	for i, tc := range testCases {
@@ -277,9 +285,10 @@ func TestPickAlgorithm(t *testing.T) {
 		want string
 	}{
 		{capitalLetters, "*strings.byteReplacer"},
+		{htmlEscaper, "*strings.byteStringReplacer"},
 		{NewReplacer("12", "123"), "*strings.genericReplacer"},
 		{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
-		{htmlEscaper, "*strings.byteStringReplacer"},
+		{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
 	}
 	for i, tc := range testCases {
 		got := fmt.Sprintf("%T", tc.r.Replacer())
