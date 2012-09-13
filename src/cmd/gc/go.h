@@ -365,6 +365,7 @@ struct	Sym
 	Label*	label;	// corresponding label (ephemeral)
 	int32	block;		// blocknumber to catch redeclaration
 	int32	lastlineno;	// last declaration for diagnostic
+	Pkg*	origpkg;	// original package for . import
 };
 #define	S	((Sym*)0)
 

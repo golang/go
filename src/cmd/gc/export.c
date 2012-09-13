@@ -349,8 +349,12 @@ dumpexport(void)
 Sym*
 importsym(Sym *s, int op)
 {
-	if(s->def != N && s->def->op != op)
-		redeclare(s, "during import");
+	char *pkgstr;
+
+	if(s->def != N && s->def->op != op) {
+		pkgstr = smprint("during import \"%Z\"", importpkg->path);
+		redeclare(s, pkgstr);
+	}
 
 	// mark the symbol so it is not reexported
 	if(s->def == N) {

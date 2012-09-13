@@ -150,11 +150,14 @@ testdclstack(void)
 void
 redeclare(Sym *s, char *where)
 {
-	if(s->lastlineno == 0)
+	Strlit *pkgstr;
+
+	if(s->lastlineno == 0) {
+		pkgstr = s->origpkg ? s->origpkg->path : s->pkg->path;
 		yyerror("%S redeclared %s\n"
-			"\tprevious declaration during import",
-			s, where);
-	else
+			"\tprevious declaration during import \"%Z\"",
+			s, where, pkgstr);
+	} else
 		yyerror("%S redeclared %s\n"
 			"\tprevious declaration at %L",
 			s, where, s->lastlineno);

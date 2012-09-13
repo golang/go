@@ -382,6 +382,7 @@ importdot(Pkg *opkg, Node *pack)
 	Sym *s, *s1;
 	uint32 h;
 	int n;
+	char *pkgerror;
 
 	n = 0;
 	for(h=0; h<NHASH; h++) {
@@ -394,12 +395,14 @@ importdot(Pkg *opkg, Node *pack)
 				continue;
 			s1 = lookup(s->name);
 			if(s1->def != N) {
-				redeclare(s1, "during import");
+				pkgerror = smprint("during import \"%Z\"", opkg->path);
+				redeclare(s1, pkgerror);
 				continue;
 			}
 			s1->def = s->def;
 			s1->block = s->block;
 			s1->def->pack = pack;
+			s1->origpkg = opkg;
 			n++;
 		}
 	}
