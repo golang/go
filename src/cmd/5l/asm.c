@@ -505,6 +505,8 @@ doelf(void)
 	if(HEADTYPE == Hnetbsd)
 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
 	addstring(shstrtab, ".rodata");
+	addstring(shstrtab, ".gcdata");
+	addstring(shstrtab, ".gcbss");
 	addstring(shstrtab, ".gosymtab");
 	addstring(shstrtab, ".gopclntab");
 	if(!debug['s']) {
@@ -661,7 +663,7 @@ asmb(void)
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 	codeblk(sect->vaddr, sect->len);
 
-	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
+	/* output read-only data in text segment (rodata, gosymtab, pclntab, ...) */
 	for(sect = sect->next; sect != nil; sect = sect->next) {
 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 		datblk(sect->vaddr, sect->len);
@@ -2274,6 +2276,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 			case SNOPTRDATA:
 			case SSYMTAB:
 			case SPCLNTAB:
+			case SGCDATA:
+			case SGCBSS:
 				if(!s->reachable)
 					continue;
 				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
