@@ -16,8 +16,8 @@ call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
 call run.bat --no-rebuild --no-local
 if %GOBUILDFAIL%==1 goto end
-set PATH=%OLDPATH%
 go tool dist banner
+set PATH=%OLDPATH%
 
 :end
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
