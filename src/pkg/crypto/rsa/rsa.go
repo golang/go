@@ -25,6 +25,30 @@ type PublicKey struct {
 	E int      // public exponent
 }
 
+var (
+	errPublicModulus       = errors.New("crypto/rsa: missing public modulus")
+	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
+	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
+)
+
+// checkPub sanity checks the public key before we use it.
+// We require pub.E to fit into a 32-bit integer so that we
+// do not have different behavior depending on whether
+// int is 32 or 64 bits. See also
+// http://www.imperialviolet.org/2012/03/16/rsae.html.
+func checkPub(pub *PublicKey) error {
+	if pub.N == nil {
+		return errPublicModulus
+	}
+	if pub.E < 2 {
+		return errPublicExponentSmall
+	}
+	if pub.E > 1<<31-1 {
+		return errPublicExponentLarge
+	}
+	return nil
+}
+
 // A PrivateKey represents an RSA key
 type PrivateKey struct {
 	PublicKey            // public part.
@@ -57,6 +81,10 @@ type CRTValue struct {
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an error describing a problem.
 func (priv *PrivateKey) Validate() error {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return err
+	}
+
 	// Check that the prime factors are actually prime. Note that this is
 	// just a sanity check. Since the random witnesses chosen by
 	// ProbablyPrime are deterministic, given the candidate number, it's
@@ -216,6 +244,9 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 // The message must be no longer than the length of the public modulus less
 // twice the hash length plus 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
+	if err := checkPub(pub); err != nil {
+		return nil, err
+	}
 	hash.Reset()
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-2*hash.Size()-2 {
@@ -402,6 +433,9 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
 // If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return nil, err
+	}
 	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {

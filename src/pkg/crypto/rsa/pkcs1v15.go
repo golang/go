@@ -19,6 +19,9 @@ import (
 // WARNING: use of this function to encrypt plaintexts other than session keys
 // is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
+	if err := checkPub(pub); err != nil {
+		return nil, err
+	}
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-11 {
 		err = ErrMessageTooLong
@@ -47,6 +50,9 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
 // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
 func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return nil, err
+	}
 	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext)
 	if err == nil && valid == 0 {
 		err = ErrDecryption
@@ -69,6 +75,9 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98).
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return err
+	}
 	k := (priv.N.BitLen() + 7) / 8
 	if k-(len(key)+3+8) < 0 {
 		err = ErrDecryption
