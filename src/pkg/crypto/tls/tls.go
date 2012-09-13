@@ -146,10 +146,16 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
 		return
 	}
 
-	keyDERBlock, _ := pem.Decode(keyPEMBlock)
-	if keyDERBlock == nil {
-		err = errors.New("crypto/tls: failed to parse key PEM data")
-		return
+	var keyDERBlock *pem.Block
+	for {
+		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
+		if keyDERBlock == nil {
+			err = errors.New("crypto/tls: failed to parse key PEM data")
+			return
+		}
+		if keyDERBlock.Type != "CERTIFICATE" {
+			break
+		}
 	}
 
 	// OpenSSL 0.9.8 generates PKCS#1 private keys by default, while
