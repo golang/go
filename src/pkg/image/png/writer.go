@@ -290,26 +290,42 @@ func writeImage(w io.Writer, m image.Image, cb int) error {
 	}
 	pr := make([]uint8, 1+bpp*b.Dx())
 
+	gray, _ := m.(*image.Gray)
+	rgba, _ := m.(*image.RGBA)
+	paletted, _ := m.(*image.Paletted)
+	nrgba, _ := m.(*image.NRGBA)
+
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		// Convert from colors to bytes.
 		i := 1
 		switch cb {
 		case cbG8:
-			for x := b.Min.X; x < b.Max.X; x++ {
-				c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
-				cr[0][i] = c.Y
-				i++
+			if gray != nil {
+				offset := (y - b.Min.Y) * gray.Stride
+				copy(cr[0][1:], gray.Pix[offset:offset+b.Dx()])
+			} else {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					c := color.GrayModel.Convert(m.At(x, y)).(color.Gray)
+					cr[0][i] = c.Y
+					i++
+				}
 			}
 		case cbTC8:
 			// We have previously verified that the alpha value is fully opaque.
 			cr0 := cr[0]
-			if rgba, _ := m.(*image.RGBA); rgba != nil {
-				j0 := (y - b.Min.Y) * rgba.Stride
+			stride, pix := 0, []byte(nil)
+			if rgba != nil {
+				stride, pix = rgba.Stride, rgba.Pix
+			} else if nrgba != nil {
+				stride, pix = nrgba.Stride, nrgba.Pix
+			}
+			if stride != 0 {
+				j0 := (y - b.Min.Y) * stride
 				j1 := j0 + b.Dx()*4
 				for j := j0; j < j1; j += 4 {
-					cr0[i+0] = rgba.Pix[j+0]
-					cr0[i+1] = rgba.Pix[j+1]
-					cr0[i+2] = rgba.Pix[j+2]
+					cr0[i+0] = pix[j+0]
+					cr0[i+1] = pix[j+1]
+					cr0[i+2] = pix[j+2]
 					i += 3
 				}
 			} else {
@@ -322,9 +338,9 @@ func writeImage(w io.Writer, m image.Image, cb int) error {
 				}
 			}
 		case cbP8:
-			if p, _ := m.(*image.Paletted); p != nil {
-				offset := (y - b.Min.Y) * p.Stride
-				copy(cr[0][1:], p.Pix[offset:offset+b.Dx()])
+			if paletted != nil {
+				offset := (y - b.Min.Y) * paletted.Stride
+				copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
 			} else {
 				pi := m.(image.PalettedImage)
 				for x := b.Min.X; x < b.Max.X; x++ {
@@ -333,14 +349,19 @@ func writeImage(w io.Writer, m image.Image, cb int) error {
 				}
 			}
 		case cbTCA8:
-			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
-			for x := b.Min.X; x < b.Max.X; x++ {
-				c := color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA)
-				cr[0][i+0] = c.R
-				cr[0][i+1] = c.G
-				cr[0][i+2] = c.B
-				cr[0][i+3] = c.A
-				i += 4
+			if nrgba != nil {
+				offset := (y - b.Min.Y) * nrgba.Stride
+				copy(cr[0][1:], nrgba.Pix[offset:offset+b.Dx()*4])
+			} else {
+				// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+				for x := b.Min.X; x < b.Max.X; x++ {
+					c := color.NRGBAModel.Convert(m.At(x, y)).(color.NRGBA)
+					cr[0][i+0] = c.R
+					cr[0][i+1] = c.G
+					cr[0][i+2] = c.B
+					cr[0][i+3] = c.A
+					i += 4
+				}
 			}
 		case cbG16:
 			for x := b.Min.X; x < b.Max.X; x++ {
