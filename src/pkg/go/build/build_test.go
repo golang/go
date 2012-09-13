@@ -61,6 +61,19 @@ func TestDotSlashImport(t *testing.T) {
 	}
 }
 
+func TestEmptyImport(t *testing.T) {
+	p, err := Import("", Default.GOROOT, FindOnly)
+	if err == nil {
+		t.Fatal(`Import("") returned nil error.`)
+	}
+	if p == nil {
+		t.Fatal(`Import("") returned nil package.`)
+	}
+	if p.ImportPath != "" {
+		t.Fatalf("ImportPath=%q, want %q.", p.ImportPath, "")
+	}
+}
+
 func TestLocalDirectory(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
