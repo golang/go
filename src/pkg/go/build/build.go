@@ -351,6 +351,9 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 	p := &Package{
 		ImportPath: path,
 	}
+	if path == "" {
+		return p, fmt.Errorf("import %q: invalid import path", path)
+	}
 
 	var pkga string
 	var pkgerr error
