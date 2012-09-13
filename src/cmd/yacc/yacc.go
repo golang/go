@@ -52,6 +52,7 @@ import (
 	"os"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // the following are adjustable
@@ -326,7 +327,6 @@ var resrv = []Resrv{
 var zznewstate = 0
 
 const EOF = -1
-const UTFmax = 0x3f
 
 func main() {
 
@@ -719,8 +719,8 @@ func moreprod() {
 }
 
 //
-// define s to be a terminal if t=0
-// or a nonterminal if t=1
+// define s to be a terminal if nt==0
+// or a nonterminal if nt==1
 //
 func defin(nt int, s string) int {
 	val := 0
@@ -753,56 +753,66 @@ func defin(nt int, s string) int {
 
 	// establish value for token
 	// single character literal
-	if s[0] == ' ' && len(s) == 1+1 {
-		val = int(s[1])
-	} else if s[0] == ' ' && s[1] == '\\' { // escape sequence
-		if len(s) == 2+1 {
-			// single character escape sequence
-			switch s[2] {
-			case '\'':
-				val = '\''
-			case '"':
-				val = '"'
-			case '\\':
-				val = '\\'
-			case 'a':
-				val = '\a'
-			case 'b':
-				val = '\b'
-			case 'n':
-				val = '\n'
-			case 'r':
-				val = '\r'
-			case 't':
-				val = '\t'
-			case 'v':
-				val = '\v'
-			default:
-				errorf("invalid escape %v", s[1:3])
-			}
-		} else if s[2] == 'u' && len(s) == 2+1+4 { // \unnnn sequence
-			val = 0
-			s = s[3:]
-			for s != "" {
-				c := int(s[0])
-				switch {
-				case c >= '0' && c <= '9':
-					c -= '0'
-				case c >= 'a' && c <= 'f':
-					c -= 'a' - 10
-				case c >= 'A' && c <= 'F':
-					c -= 'A' - 10
+	if s[0] == ' ' {
+		s = s[1:]
+		r, size := utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError && size == 1 {
+			errorf("invalid UTF-8 sequence %q", s)
+		}
+		val = int(r)
+		if val == '\\' { // escape sequence
+			switch {
+			case len(s) == 2:
+				// single character escape sequence
+				switch s[1] {
+				case '\'':
+					val = '\''
+				case '"':
+					val = '"'
+				case '\\':
+					val = '\\'
+				case 'a':
+					val = '\a'
+				case 'b':
+					val = '\b'
+				case 'f':
+					val = '\f'
+				case 'n':
+					val = '\n'
+				case 'r':
+					val = '\r'
+				case 't':
+					val = '\t'
+				case 'v':
+					val = '\v'
 				default:
-					errorf("illegal \\unnnn construction")
+					errorf("invalid escape %s", s)
 				}
-				val = val*16 + c
-				s = s[1:]
+			case s[1] == 'u' && len(s) == 2+4, // \unnnn sequence
+				s[1] == 'U' && len(s) == 2+8: // \Unnnnnnnn sequence
+				val = 0
+				s = s[2:]
+				for s != "" {
+					c := int(s[0])
+					switch {
+					case c >= '0' && c <= '9':
+						c -= '0'
+					case c >= 'a' && c <= 'f':
+						c -= 'a' - 10
+					case c >= 'A' && c <= 'F':
+						c -= 'A' - 10
+					default:
+						errorf(`illegal \u or \U construction`)
+					}
+					val = val*16 + c
+					s = s[1:]
+				}
+			default:
+				errorf("invalid escape %s", s)
 			}
-			if val == 0 {
-				errorf("'\\u0000' is illegal")
-			}
-		} else {
-			errorf("unknown escape")
+		}
+		if val == 0 {
+			errorf("token value 0 is illegal")
 		}
 	} else {
 		val = extval

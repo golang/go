@@ -76,7 +76,7 @@ var vflag bool
 
 %type	<node>	prog expr expr0 expr1 expr2 expr3 expr4
 
-%token	<vval>	VAL
+%token	<vval>	VÄL // dieresis to test UTF-8
 %token	<vvar>	VAR
 %token	<numb>	_SUP // tests leading underscore in token name
 %%
@@ -199,7 +199,7 @@ expr0:
 			$$ = $1.node
 		}
 	}
-|	VAL
+|	VÄL
 	{
 		$$ = one
 		$$.vval = $1
@@ -275,7 +275,7 @@ numb:
 		f = 0
 	}
 	yylval.vval = f
-	return VAL
+	return VÄL
 }
 
 func (UnitsLex) Error(s string) {
