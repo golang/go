@@ -39,6 +39,8 @@ enum
 	SSTRING,
 	SGOSTRING,
 	SRODATA,
+	SGCDATA,
+	SGCBSS,
 	SSYMTAB,
 	SPCLNTAB,
 	SELFROSECT,
@@ -186,14 +188,18 @@ void	savedata(Sym*, Prog*, char*);
 void	symgrow(Sym*, int32);
 void	addstrdata(char*, char*);
 vlong	addstring(Sym*, char*);
+vlong	adduint8(Sym*, uint8);
+vlong	adduint16(Sym*, uint16);
 vlong	adduint32(Sym*, uint32);
 vlong	adduint64(Sym*, uint64);
 vlong	addaddr(Sym*, Sym*);
 vlong	addaddrplus(Sym*, Sym*, int32);
 vlong	addpcrelplus(Sym*, Sym*, int32);
 vlong	addsize(Sym*, Sym*);
-vlong	adduint8(Sym*, uint8);
-vlong	adduint16(Sym*, uint16);
+void	setuint8(Sym*, vlong, uint8);
+void	setuint16(Sym*, vlong, uint16);
+void	setuint32(Sym*, vlong, uint32);
+void	setuint64(Sym*, vlong, uint64);
 void	asmsym(void);
 void	asmelfsym(void);
 void	asmplan9sym(void);
@@ -315,3 +321,23 @@ void	cseek(vlong);
 void	cwrite(void*, int);
 void	importcycles(void);
 int	Zconv(Fmt*);
+
+uint8	decodetype_kind(Sym*);
+vlong	decodetype_size(Sym*);
+Sym*	decodetype_gc(Sym*);
+Sym*	decodetype_arrayelem(Sym*);
+vlong	decodetype_arraylen(Sym*);
+Sym*	decodetype_ptrelem(Sym*);
+Sym*	decodetype_mapkey(Sym*);
+Sym*	decodetype_mapvalue(Sym*);
+Sym*	decodetype_chanelem(Sym*);
+int	decodetype_funcdotdotdot(Sym*);
+int	decodetype_funcincount(Sym*);
+int	decodetype_funcoutcount(Sym*);
+Sym*	decodetype_funcintype(Sym*, int);
+Sym*	decodetype_funcouttype(Sym*, int);
+int	decodetype_structfieldcount(Sym*);
+char*	decodetype_structfieldname(Sym*, int);
+Sym*	decodetype_structfieldtype(Sym*, int);
+vlong	decodetype_structfieldoffs(Sym*, int);
+vlong	decodetype_ifacemethodcount(Sym*);

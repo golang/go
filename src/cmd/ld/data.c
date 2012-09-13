@@ -34,6 +34,7 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/pe.h"
+#include	"../../pkg/runtime/mgc0.h"
 
 void	dynreloc(void);
 static vlong addaddrplus4(Sym *s, Sym *t, int32 add);
@@ -628,41 +629,51 @@ addstring(Sym *s, char *str)
 }
 
 vlong
-adduintxx(Sym *s, uint64 v, int wid)
+setuintxx(Sym *s, vlong off, uint64 v, int wid)
 {
-	int32 i, r, fl;
+	int32 i, fl;
 	vlong o;
 	uchar *cast;
 
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
-	r = s->size;
-	s->size += wid;
-	symgrow(s, s->size);
-	assert(r+wid <= s->size);
+	if(s->size < off+wid) {
+		s->size = off+wid;
+		symgrow(s, s->size);
+	}
 	fl = v;
 	cast = (uchar*)&fl;
 	switch(wid) {
 	case 1:
-		s->p[r] = cast[inuxi1[0]];
+		s->p[off] = cast[inuxi1[0]];
 		break;
 	case 2:
 		for(i=0; i<2; i++)
-			s->p[r+i] = cast[inuxi2[i]];
+			s->p[off+i] = cast[inuxi2[i]];
 		break;
 	case 4:
 		for(i=0; i<4; i++)
-			s->p[r+i] = cast[inuxi4[i]];
+			s->p[off+i] = cast[inuxi4[i]];
 		break;
 	case 8:
 		o = v;
 		cast = (uchar*)&o;
 		for(i=0; i<8; i++)
-			s->p[r+i] = cast[inuxi8[i]];
+			s->p[off+i] = cast[inuxi8[i]];
 		break;
 	}
-	return r;
+	return off;
+}
+
+vlong
+adduintxx(Sym *s, uint64 v, int wid)
+{
+	int32 off;
+
+	off = s->size;
+	setuintxx(s, off, v, wid);
+	return off;
 }
 
 vlong
@@ -687,6 +698,30 @@ vlong
 adduint64(Sym *s, uint64 v)
 {
 	return adduintxx(s, v, 8);
+}
+
+void
+setuint8(Sym *s, vlong r, uint8 v)
+{
+	setuintxx(s, r, v, 1);
+}
+
+void
+setuint16(Sym *s, vlong r, uint16 v)
+{
+	setuintxx(s, r, v, 2);
+}
+
+void
+setuint32(Sym *s, vlong r, uint32 v)
+{
+	setuintxx(s, r, v, 4);
+}
+
+void
+setuint64(Sym *s, vlong r, uint64 v)
+{
+	setuintxx(s, r, v, 8);
 }
 
 vlong
@@ -793,16 +828,86 @@ dosymtype(void)
 	}
 }
 
+static int32
+alignsymsize(int32 s)
+{
+	if(s >= PtrSize)
+		s = rnd(s, PtrSize);
+	else if(s > 2)
+		s = rnd(s, 4);
+	return s;
+}
+
+static int32
+aligndatsize(int32 datsize, Sym *s)
+{
+	int32 t;
+
+	if(s->align != 0) {
+		datsize = rnd(datsize, s->align);
+	} else {
+		t = alignsymsize(s->size);
+		if(t & 1) {
+			;
+		} else if(t & 2)
+			datsize = rnd(datsize, 2);
+		else if(t & 4)
+			datsize = rnd(datsize, 4);
+		else
+			datsize = rnd(datsize, 8);
+	}
+	return datsize;
+}
+
+static void
+gcaddsym(Sym *gc, Sym *s, int32 off)
+{
+	int32 a;
+	Sym *gotype;
+
+	if(s->size < PtrSize)
+		return;
+	if(strcmp(s->name, ".string") == 0)
+		return;
+
+	gotype = s->gotype;
+	if(gotype != nil) {
+		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
+		adduintxx(gc, GC_CALL, PtrSize);
+		adduintxx(gc, off, PtrSize);
+		addaddrplus(gc, decodetype_gc(gotype), 1*PtrSize);
+	} else {
+		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
+		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
+			adduintxx(gc, GC_APTR, PtrSize);
+			adduintxx(gc, off+a, PtrSize);
+		}
+	}
+}
+
 void
 dodata(void)
 {
 	int32 t, datsize;
-	Section *sect, *noptr;
+	Section *sect;
 	Sym *s, *last, **l;
+	Sym *gcdata1, *gcbss1;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f dodata\n", cputime());
 	Bflush(&bso);
+
+	// define garbage collection symbols
+	gcdata1 = lookup("gcdata1", 0);
+	gcdata1->type = SGCDATA;
+	gcdata1->reachable = 1;
+	gcbss1 = lookup("gcbss1", 0);
+	gcbss1->type = SGCBSS;
+	gcbss1->reachable = 1;
+
+	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
+	adduintxx(gcdata1, 0, PtrSize);
+	adduintxx(gcbss1, 0, PtrSize);
 
 	last = nil;
 	datap = nil;
@@ -847,16 +952,102 @@ dodata(void)
 	datap = datsort(datap);
 
 	/*
-	 * allocate data sections.  list is sorted by type,
+	 * allocate sections.  list is sorted by type,
 	 * so we can just walk it for each piece we want to emit.
+	 * segdata is processed before segtext, because we need
+	 * to see all symbols in the .data and .bss sections in order
+	 * to generate garbage collection information.
 	 */
+
+	/* begin segdata */
+
+	/* skip symbols belonging to segtext */
+	s = datap;
+	for(; s != nil && s->type < SELFSECT; s = s->next);
+
+	/* writable ELF sections */
+	datsize = 0;
+	for(; s != nil && s->type < SNOPTRDATA; s = s->next) {
+		sect = addsection(&segdata, s->name, 06);
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
+		sect->vaddr = datsize;
+		s->type = SDATA;
+		s->value = datsize;
+		datsize += rnd(s->size, PtrSize);
+		sect->len = datsize - sect->vaddr;
+	}
+
+	/* pointer-free data */
+	sect = addsection(&segdata, ".noptrdata", 06);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type < SDATA; s = s->next) {
+		s->type = SDATA;
+		t = alignsymsize(s->size);
+		datsize = aligndatsize(datsize, s);
+		s->value = datsize;
+		datsize += t;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+
+	/* data */
+	sect = addsection(&segdata, ".data", 06);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type < SBSS; s = s->next) {
+		s->type = SDATA;
+		t = alignsymsize(s->size);
+		datsize = aligndatsize(datsize, s);
+		s->value = datsize;
+		gcaddsym(gcdata1, s, datsize - sect->vaddr);  // gc
+		datsize += t;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+
+	adduintxx(gcdata1, GC_END, PtrSize);
+	setuintxx(gcdata1, 0, sect->len, PtrSize);
+
+	/* bss */
+	sect = addsection(&segdata, ".bss", 06);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type < SNOPTRBSS; s = s->next) {
+		t = alignsymsize(s->size);
+		datsize = aligndatsize(datsize, s);
+		s->value = datsize;
+		gcaddsym(gcbss1, s, datsize - sect->vaddr);  // gc
+		datsize += t;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+
+	adduintxx(gcbss1, GC_END, PtrSize);
+	setuintxx(gcbss1, 0, sect->len, PtrSize);
+
+	/* pointer-free bss */
+	sect = addsection(&segdata, ".noptrbss", 06);
+	sect->vaddr = datsize;
+	for(; s != nil; s = s->next) {
+		if(s->type > SNOPTRBSS) {
+			cursym = s;
+			diag("unexpected symbol type %d", s->type);
+		}
+		t = alignsymsize(s->size);
+		datsize = aligndatsize(datsize, s);
+		s->value = datsize;
+		datsize += t;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+
+	/* we finished segdata, begin segtext */
 
 	/* read-only data */
 	sect = addsection(&segtext, ".rodata", 04);
 	sect->vaddr = 0;
 	datsize = 0;
 	s = datap;
-	for(; s != nil && s->type < SSYMTAB; s = s->next) {
+	for(; s != nil && s->type < SGCDATA; s = s->next) {
 		if(s->align != 0)
 			datsize = rnd(datsize, s->align);
 		s->type = SRODATA;
@@ -864,6 +1055,28 @@ dodata(void)
 		datsize += rnd(s->size, PtrSize);
 	}
 	sect->len = datsize - sect->vaddr;
+
+	/* gcdata */
+	sect = addsection(&segtext, ".gcdata", 04);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type == SGCDATA; s = s->next) {
+		s->type = SRODATA;
+		s->value = datsize;
+		datsize += s->size;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+
+	/* gcbss */
+	sect = addsection(&segtext, ".gcbss", 04);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type == SGCBSS; s = s->next) {
+		s->type = SRODATA;
+		s->value = datsize;
+		datsize += s->size;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
 
 	/* gosymtab */
 	sect = addsection(&segtext, ".gosymtab", 04);
@@ -897,96 +1110,6 @@ dodata(void)
 		s->value = datsize;
 		datsize += rnd(s->size, PtrSize);
 		sect->len = datsize - sect->vaddr;
-	}
-
-	/* writable ELF sections */
-	datsize = 0;
-	for(; s != nil && s->type < SNOPTRDATA; s = s->next) {
-		sect = addsection(&segdata, s->name, 06);
-		if(s->align != 0)
-			datsize = rnd(datsize, s->align);
-		sect->vaddr = datsize;
-		s->type = SDATA;
-		s->value = datsize;
-		datsize += rnd(s->size, PtrSize);
-		sect->len = datsize - sect->vaddr;
-	}
-	
-	/* pointer-free data, then data */
-	sect = addsection(&segdata, ".noptrdata", 06);
-	sect->vaddr = datsize;
-	noptr = sect;
-	for(; ; s = s->next) {
-		if((s == nil || s->type >= SDATA) && sect == noptr) {
-			// finish noptrdata, start data
-			datsize = rnd(datsize, 8);
-			sect->len = datsize - sect->vaddr;
-			sect = addsection(&segdata, ".data", 06);
-			sect->vaddr = datsize;
-		}
-		if(s == nil || s->type >= SBSS) {
-			// finish data
-			sect->len = datsize - sect->vaddr;
-			break;
-		}
-		s->type = SDATA;
-		t = s->size;
-		if(t >= PtrSize)
-			t = rnd(t, PtrSize);
-		else if(t > 2)
-			t = rnd(t, 4);
-		if(s->align != 0)
-			datsize = rnd(datsize, s->align);
-		else if(t & 1) {
-			;
-		} else if(t & 2)
-			datsize = rnd(datsize, 2);
-		else if(t & 4)
-			datsize = rnd(datsize, 4);
-		else
-			datsize = rnd(datsize, 8);
-		s->value = datsize;
-		datsize += t;
-	}
-
-	/* bss, then pointer-free bss */
-	noptr = nil;
-	sect = addsection(&segdata, ".bss", 06);
-	sect->vaddr = datsize;
-	for(; ; s = s->next) {
-		if((s == nil || s->type >= SNOPTRBSS) && noptr == nil) {
-			// finish bss, start noptrbss
-			datsize = rnd(datsize, 8);
-			sect->len = datsize - sect->vaddr;
-			sect = addsection(&segdata, ".noptrbss", 06);
-			sect->vaddr = datsize;
-			noptr = sect;
-		}
-		if(s == nil) {
-			sect->len = datsize - sect->vaddr;
-			break;
-		}
-		if(s->type > SNOPTRBSS) {
-			cursym = s;
-			diag("unexpected symbol type %d", s->type);
-		}
-		t = s->size;
-		if(t >= PtrSize)
-			t = rnd(t, PtrSize);
-		else if(t > 2)
-			t = rnd(t, 4);
-		if(s->align != 0)
-			datsize = rnd(datsize, s->align);
-		else if(t & 1) {
-			;
-		} else if(t & 2)
-			datsize = rnd(datsize, 2);
-		else if(t & 4)
-			datsize = rnd(datsize, 4);
-		else
-			datsize = rnd(datsize, 8);
-		s->value = datsize;
-		datsize += t;
 	}
 }
 
@@ -1038,6 +1161,7 @@ void
 address(void)
 {
 	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
+	Section *gcdata, *gcbss;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -1084,7 +1208,9 @@ address(void)
 
 	text = segtext.sect;
 	rodata = text->next;
-	symtab = rodata->next;
+	gcdata = rodata->next;
+	gcbss = gcdata->next;
+	symtab = gcbss->next;
 	pclntab = symtab->next;
 
 	for(sym = datap; sym != nil; sym = sym->next) {
@@ -1101,6 +1227,10 @@ address(void)
 	xdefine("etext", STEXT, text->vaddr + text->len);
 	xdefine("rodata", SRODATA, rodata->vaddr);
 	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
+	xdefine("gcdata", SGCDATA, gcdata->vaddr);
+	xdefine("egcdata", SGCDATA, gcdata->vaddr + gcdata->len);
+	xdefine("gcbss", SGCBSS, gcbss->vaddr);
+	xdefine("egcbss", SGCBSS, gcbss->vaddr + gcbss->len);
 	xdefine("symtab", SRODATA, symtab->vaddr);
 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
 	xdefine("pclntab", SRODATA, pclntab->vaddr);
