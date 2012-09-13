@@ -111,7 +111,7 @@ char	*opt =		"uvnbailogS";
 char	artemp[] =	"/tmp/vXXXXX";
 char	movtemp[] =	"/tmp/v1XXXXX";
 char	tailtemp[] =	"/tmp/v2XXXXX";
-char	symdef[] =	"__.SYMDEF";
+char	symdef[] =	"__.GOSYMDEF";
 char	pkgdef[] =	"__.PKGDEF";
 
 int	aflag;				/* command line flags */

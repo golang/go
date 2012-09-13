@@ -366,7 +366,7 @@ objfile(char *file, char *pkg)
 		return;
 	}
 	
-	/* skip over __.SYMDEF */
+	/* skip over __.GOSYMDEF */
 	off = Boffset(f);
 	if((l = nextar(f, off, &arhdr)) <= 0) {
 		diag("%s: short read on archive file symbol header", file);
@@ -402,7 +402,7 @@ objfile(char *file, char *pkg)
 	 * the individual symbols that are unused.
 	 *
 	 * loading every object will also make it possible to
-	 * load foreign objects not referenced by __.SYMDEF.
+	 * load foreign objects not referenced by __.GOSYMDEF.
 	 */
 	for(;;) {
 		l = nextar(f, off, &arhdr);

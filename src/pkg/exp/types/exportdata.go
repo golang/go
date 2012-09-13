@@ -52,13 +52,14 @@ func FindGcExportData(r *bufio.Reader) (err error) {
 		var name string
 		var size int
 
-		// First entry should be __.SYMDEF.
+		// First entry should be __.GOSYMDEF.
+		// Older archives used __.SYMDEF, so allow that too.
 		// Read and discard.
 		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
-		if name != "__.SYMDEF" {
-			err = errors.New("go archive does not begin with __.SYMDEF")
+		if name != "__.SYMDEF" && name != "__.GOSYMDEF" {
+			err = errors.New("go archive does not begin with __.SYMDEF or __.GOSYMDEF")
 			return
 		}
 		const block = 4096
