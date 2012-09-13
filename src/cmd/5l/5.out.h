@@ -276,7 +276,7 @@ enum	as
 /*
  * this is the ranlib header
  */
-#define	SYMDEF	"__.SYMDEF"
+#define	SYMDEF	"__.GOSYMDEF"
 
 /*
  * this is the simulated IEEE floating point

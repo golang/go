@@ -480,7 +480,7 @@ skiptopkgdef(Biobuf *b)
 	if(memcmp(p, "!<arch>\n", 8) != 0)
 		return 0;
 	/* symbol table is first; skip it */
-	sz = arsize(b, "__.SYMDEF");
+	sz = arsize(b, "__.GOSYMDEF");
 	if(sz < 0)
 		return 0;
 	Bseek(b, sz, 1);

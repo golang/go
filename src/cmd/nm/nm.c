@@ -43,7 +43,7 @@ enum{
 
 char	*errs;			/* exit status */
 char	*filename;		/* current file */
-char	symname[]="__.SYMDEF";	/* table of contents file name */
+char	symname[]="__.GOSYMDEF";	/* table of contents file name */
 int	multifile;		/* processing multiple files */
 int	aflag;
 int	gflag;
