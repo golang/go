@@ -132,24 +132,6 @@ div#topbar {
 	height: 64px;
 }
 
-/* always show topbar for large screens */
-@media screen and (min-width: 130ex) and (min-height: 900px) {
-       /* 130ex -> wide enough so that title isn't below buttons */
-
-	div#topbar {
-		position: fixed;
-		z-index: 1;
-		top: 0;
-		width: 100%;
-		height: 63px;
-		border-bottom: 1px solid #B0BBC5;
-	}
-
-	div#page {
-       		margin-top: 84px; /* 64+20 to match topbar+H1 */
-	}
-}
-
 body {
 	text-align: center;
 }
