@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 12, 2012",
+	"Subtitle": "Version of September 13, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -781,19 +781,21 @@ particular architecture.
 
 <p>
 A <i>string type</i> represents the set of string values.
-Strings behave like slices of bytes but are immutable: once created,
+A string value is a (possibly empty) sequence of bytes.
+Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>.
+</p>
 
 <p>
-The elements of strings have type <code>byte</code> and may be
-accessed using the usual <a href="#Indexes">indexing operations</a>.  It is
-illegal to take the address of such an element; if
-<code>s[i]</code> is the <i>i</i>th byte of a
-string, <code>&amp;s[i]</code> is invalid.  The length of string
-<code>s</code> can be discovered using the built-in function
-<code>len</code>. The length is a compile-time constant if <code>s</code>
-is a string literal.
+The length of a string <code>s</code> (its size in bytes) can be discovered using
+the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
+The length is a compile-time constant if the string is a constant.
+A string's bytes can be accessed by integer indices 0 through
+<code>len(s)-1</code> (§<a href="#Indexes">Indexes</a>).
+It is illegal to take the address of such an element; if
+<code>s[i]</code> is the <code>i</code>'th byte of a
+string, <code>&amp;s[i]</code> is invalid.
 </p>
 
 
@@ -816,7 +818,7 @@ ElementType = Type .
 The length is part of the array's type and must be a
 <a href="#Constant_expressions">constant expression</a> that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
-using the built-in function <a href="#Length_and_capacity"><code>len(a)</code></a>.
+using the built-in function <a href="#Length_and_capacity"><code>len</code></a>.
 The elements can be indexed by integer
 indices 0 through <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
 Array types are always one-dimensional but may be composed to form
@@ -847,7 +849,7 @@ SliceType = "[" "]" ElementType .
 <p>
 Like arrays, slices are indexable and have a length.  The length of a
 slice <code>s</code> can be discovered by the built-in function
-<a href="#Length_and_capacity"><code>len(s)</code></a>; unlike with arrays it may change during
+<a href="#Length_and_capacity"><code>len</code></a>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer indices 0
 through <code>len(s)-1</code> (§<a href="#Indexes">Indexes</a>).  The slice index of a
 given element may be less than the index of the same element in the
@@ -1249,7 +1251,7 @@ map[string]interface{}
 <p>
 The number of map elements is called its length.
 For a map <code>m</code>, it can be discovered using the
-built-in function <a href="#Length_and_capacity"><code>len(m)</code></a>
+built-in function <a href="#Length_and_capacity"><code>len</code></a>
 and may change during execution. Elements may be added during execution
 using <a href="#Assignments">assignments</a> and retrieved with
 <a href="#Indexes">index</a> expressions; they may be removed with the
