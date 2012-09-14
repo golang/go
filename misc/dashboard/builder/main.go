@@ -46,7 +46,7 @@ type Builder struct {
 }
 
 var (
-	buildroot     = flag.String("buildroot", filepath.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
+	buildroot     = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
 	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
 	dashboard     = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
@@ -666,6 +666,19 @@ func defaultSuffix() string {
 		return ".bat"
 	}
 	return ".bash"
+}
+
+// defaultBuildRoot returns default buildroot directory.
+func defaultBuildRoot() string {
+	var d string
+	if runtime.GOOS == "windows" {
+		// will use c:\, otherwise absolute paths become too long
+		// during builder run, see http://golang.org/issue/3358.
+		d = `c:\`
+	} else {
+		d = os.TempDir()
+	}
+	return filepath.Join(d, "gobuilder")
 }
 
 func getenvOk(k string) (v string, ok bool) {
