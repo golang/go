@@ -18,8 +18,9 @@ import (
 
 // Tree is the representation of a single parsed template.
 type Tree struct {
-	Name string    // name of the template represented by the tree.
-	Root *ListNode // top-level root of the tree.
+	Name      string    // name of the template represented by the tree.
+	ParseName string    // name of the top-level template during parsing, for error messages.
+	Root      *ListNode // top-level root of the tree.
 	// Parsing only; cleared after parse.
 	funcs     []map[string]interface{}
 	lex       *lexer
@@ -114,7 +115,7 @@ func New(name string, funcs ...map[string]interface{}) *Tree {
 // errorf formats the error and terminates processing.
 func (t *Tree) errorf(format string, args ...interface{}) {
 	t.Root = nil
-	format = fmt.Sprintf("template: %s:%d: %s", t.Name, t.lex.lineNumber(), format)
+	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.lex.lineNumber(), format)
 	panic(fmt.Errorf(format, args...))
 }
 
@@ -203,6 +204,7 @@ func (t *Tree) atEOF() bool {
 // the treeSet map.
 func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
+	t.ParseName = t.Name
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
 	t.parse(treeSet)
 	t.add(treeSet)
@@ -257,6 +259,7 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 			delim := t.next()
 			if t.nextNonSpace().typ == itemDefine {
 				newT := New("definition") // name will be updated once we know it.
+				newT.ParseName = t.ParseName
 				newT.startParse(t.funcs, t.lex)
 				newT.parseDefinition(treeSet)
 				continue
@@ -289,8 +292,8 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
 	if end.Type() != nodeEnd {
 		t.errorf("unexpected %s in %s", end, context)
 	}
-	t.stopParse()
 	t.add(treeSet)
+	t.stopParse()
 }
 
 // itemList:
