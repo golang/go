@@ -7,10 +7,11 @@ package parse
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"testing"
 )
 
-var debug = flag.Bool("debug", false, "show the errors produced by the tests")
+var debug = flag.Bool("debug", false, "show the errors produced by the main tests")
 
 type numberTest struct {
 	text      string
@@ -318,6 +319,76 @@ func TestIsEmpty(t *testing.T) {
 		}
 		if empty := IsEmptyTree(tree.Root); empty != test.empty {
 			t.Errorf("%q: expected %t got %t", test.name, test.empty, empty)
+		}
+	}
+}
+
+// All failures, and the result is a string that must appear in the error message.
+var errorTests = []parseTest{
+	// Check line numbers are accurate.
+	{"unclosed1",
+		"line1\n{{",
+		hasError, `unclosed1:2: unexpected unclosed action in command`},
+	{"unclosed2",
+		"line1\n{{define `x`}}line2\n{{",
+		hasError, `unclosed2:3: unexpected unclosed action in command`},
+	// Specific errors.
+	{"function",
+		"{{foo}}",
+		hasError, `function "foo" not defined`},
+	{"comment",
+		"{{/*}}",
+		hasError, `unclosed comment`},
+	{"lparen",
+		"{{.X (1 2 3}}",
+		hasError, `unclosed left paren`},
+	{"rparen",
+		"{{.X 1 2 3)}}",
+		hasError, `unexpected ")"`},
+	{"space",
+		"{{`x`3}}",
+		hasError, `missing space?`},
+	{"idchar",
+		"{{a#}}",
+		hasError, `'#'`},
+	{"charconst",
+		"{{'a}}",
+		hasError, `unterminated character constant`},
+	{"stringconst",
+		`{{"a}}`,
+		hasError, `unterminated quoted string`},
+	{"rawstringconst",
+		"{{`a}}",
+		hasError, `unterminated raw quoted string`},
+	{"number",
+		"{{0xi}}",
+		hasError, `number syntax`},
+	{"multidefine",
+		"{{define `a`}}a{{end}}{{define `a`}}b{{end}}",
+		hasError, `multiple definition of template`},
+	{"eof",
+		"{{range .X}}",
+		hasError, `unexpected EOF`},
+	{"variable",
+		"{{$a.b := 23}}",
+		hasError, `illegal variable in declaration`},
+	{"multidecl",
+		"{{$a,$b,$c := 23}}",
+		hasError, `too many declarations`},
+	{"undefvar",
+		"{{$a}}",
+		hasError, `undefined variable`},
+}
+
+func TestErrors(t *testing.T) {
+	for _, test := range errorTests {
+		_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
+		if err == nil {
+			t.Errorf("%q: expected error", test.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.result) {
+			t.Errorf("%q: error %q does not contain %q", test.name, err, test.result)
 		}
 	}
 }
