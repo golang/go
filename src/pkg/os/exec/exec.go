@@ -143,6 +143,9 @@ func (c *Cmd) argv() []string {
 func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
 		f, err = os.Open(os.DevNull)
+		if err != nil {
+			return
+		}
 		c.closeAfterStart = append(c.closeAfterStart, f)
 		return
 	}
@@ -182,6 +185,9 @@ func (c *Cmd) stderr() (f *os.File, err error) {
 func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 	if w == nil {
 		f, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		if err != nil {
+			return
+		}
 		c.closeAfterStart = append(c.closeAfterStart, f)
 		return
 	}
