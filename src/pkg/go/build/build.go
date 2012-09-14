@@ -512,7 +512,13 @@ Found:
 		if err != nil {
 			return p, err
 		}
-		data, err := ioutil.ReadAll(f)
+
+		var data []byte
+		if strings.HasSuffix(filename, ".go") {
+			data, err = readImports(f, false)
+		} else {
+			data, err = readComments(f)
+		}
 		f.Close()
 		if err != nil {
 			return p, fmt.Errorf("read %s: %v", filename, err)
