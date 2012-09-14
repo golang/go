@@ -85,6 +85,27 @@ type Collator struct {
 	t *table
 }
 
+// Locales returns the list of locales for which collating differs from its parent locale.
+func Locales() []string {
+	return availableLocales
+}
+
+// New returns a new Collator initialized for the given locale.
+func New(loc string) *Collator {
+	// TODO: handle locale selection according to spec.
+	t := &mainTable
+	if loc != "" {
+		if idx, ok := locales[loc]; ok {
+			t = mainTable.indexedTable(idx)
+		}
+	}
+	return &Collator{
+		Strength: Quaternary,
+		f:        norm.NFD,
+		t:        t,
+	}
+}
+
 // SetVariableTop sets all runes with primary strength less than the primary
 // strength of r to be variable and thus affected by alternate handling.
 func (c *Collator) SetVariableTop(r rune) {

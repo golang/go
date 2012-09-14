@@ -5,29 +5,330 @@
 
 package collate
 
-import "exp/norm"
+var availableLocales = []string{"af", "ar", "as", "az", "be", "bg", "bn", "ca", "cs", "cy", "da", "de", "dz", "el", "en_US_POSIX", "eo", "es", "et", "fa", "fi", "fil", "fo", "fr_CA", "gu", "ha", "haw", "he", "hi", "hr", "hu", "hy", "ig", "is", "ja", "kk", "kl", "km", "kn", "ko", "kok", "ln", "lt", "lv", "mk", "ml", "mr", "mt", "my", "nb", "nn", "nso", "om", "or", "pa", "pl", "ps", "ro", "root", "ru", "se", "si", "sk", "sl", "sq", "sr", "sv", "ta", "te", "th", "tn", "tr", "uk", "ur", "vi", "wae", "yo", "zh"}
 
-var _Root = Collator{
-	Strength: 3,
-	f:        norm.NFD,
-	t:        &rootTable,
+var locales = map[string]tableIndex{
+	"af": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ar": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"as": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"az": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"be": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"bg": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"bn": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ca": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"cs": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"cy": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"da": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"de": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"dz": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"el": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"en_US_POSIX": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"eo": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"es": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"et": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"fa": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"fi": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"fil": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"fo": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"fr_CA": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"gu": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ha": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"haw": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"he": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"hi": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"hr": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"hu": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"hy": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ig": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"is": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ja": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"kk": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"kl": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"km": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"kn": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ko": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"kok": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ln": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"lt": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"lv": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"mk": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ml": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"mr": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"mt": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"my": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"nb": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"nn": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"nso": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"om": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"or": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"pa": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"pl": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ps": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ro": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"root": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ru": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"se": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"si": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"sk": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"sl": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"sq": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"sr": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"sv": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ta": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"te": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"th": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"tn": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"tr": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"uk": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"ur": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"vi": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"wae": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"yo": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
+	"zh": tableIndex{
+		lookupOffset: 0x13,
+		valuesOffset: 0x0,
+	},
 }
 
-var (
-	Root = _Root
-)
-
-var rootTable = table{
-	trie{rootLookup[1216:], rootValues[0:], rootLookup[:], rootValues[:]},
-	rootExpandElem[:],
-	contractTrieSet(rootCTEntries[:]),
-	rootContractElem[:],
+var mainTable = table{
+	trie{mainLookup[1216:], mainValues[0:], mainLookup[:], mainValues[:]},
+	mainExpandElem[:],
+	contractTrieSet(mainCTEntries[:]),
+	mainContractElem[:],
 	9,
 	0x2ED,
 }
 
-// rootExpandElem: 4642 entries, 18568 bytes
-var rootExpandElem = [4642]uint32{
+// mainExpandElem: 4642 entries, 18568 bytes
+var mainExpandElem = [4642]uint32{
 	// Block 0, offset 0x0
 	0x00000002, 0x8000A31A, 0x8000AD1A, 0x00000002, 0x8000A51A, 0x8000AD1A,
 	0x00000002, 0x8000A718, 0x8000AD18, 0x00000002, 0x8000A71A, 0x8000AD1A,
@@ -901,8 +1202,8 @@ var rootExpandElem = [4642]uint32{
 	0x80015F1F, 0x00000002, 0x033F3804, 0x8001601F,
 }
 
-// rootContractElem: 799 entries, 3196 bytes
-var rootContractElem = [799]uint32{
+// mainContractElem: 799 entries, 3196 bytes
+var mainContractElem = [799]uint32{
 	// Block 0, offset 0x0
 	0x4016C420, 0xE0000789, 0xE0000789, 0x002D8808, 0xE000078F, 0xE000078F,
 	0x40194320, 0x40194720, 0x40194B20, 0x00328608, 0x00328E08, 0x00329608,
@@ -1056,9 +1357,9 @@ var rootContractElem = [799]uint32{
 	0x40283220,
 }
 
-// rootValues: 25408 entries, 101632 bytes
+// mainValues: 25408 entries, 101632 bytes
 // Block 2 is the null block.
-var rootValues = [25408]uint32{
+var mainValues = [25408]uint32{
 	// Block 0x0, offset 0x0
 	0x0000: 0x80000000, 0x0001: 0x80000000, 0x0002: 0x80000000, 0x0003: 0x80000000,
 	0x0004: 0x80000000, 0x0005: 0x80000000, 0x0006: 0x80000000, 0x0007: 0x80000000,
@@ -7047,9 +7348,9 @@ var rootValues = [25408]uint32{
 	0x632c: 0x80000000, 0x632d: 0x80000000, 0x632e: 0x80000000, 0x632f: 0x80000000,
 }
 
-// rootLookup: 1472 entries, 2944 bytes
+// mainLookup: 1472 entries, 2944 bytes
 // Block 0 is the null block.
-var rootLookup = [1472]uint16{
+var mainLookup = [1472]uint16{
 	// Block 0x0, offset 0x0
 	// Block 0x1, offset 0x40
 	// Block 0x2, offset 0x80
@@ -7144,8 +7445,8 @@ var rootLookup = [1472]uint16{
 	0x5b0: 0x11, 0x5b3: 0x13,
 }
 
-// rootCTEntries: 126 entries, 504 bytes
-var rootCTEntries = [126]struct{ l, h, n, i uint8 }{
+// mainCTEntries: 126 entries, 504 bytes
+var mainCTEntries = [126]struct{ l, h, n, i uint8 }{
 	{0xCE, 0x1, 1, 255},
 	{0xC2, 0x0, 1, 255},
 	{0xB7, 0xB7, 0, 1},
@@ -7274,4 +7575,4 @@ var rootCTEntries = [126]struct{ l, h, n, i uint8 }{
 	{0xB5, 0xB5, 0, 1},
 }
 
-// Total size of rootTable is 126988 bytes
+// Total size of mainTable is 126988 bytes

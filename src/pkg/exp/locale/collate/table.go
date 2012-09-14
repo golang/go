@@ -9,6 +9,13 @@ import (
 	"unicode/utf8"
 )
 
+// tableIndex holds information for constructing a table
+// for a certain locale based on the main table.
+type tableIndex struct {
+	lookupOffset uint32
+	valuesOffset uint32
+}
+
 // table holds all collation data for a given collation ordering.
 type table struct {
 	index trie // main trie
@@ -21,6 +28,13 @@ type table struct {
 	contractElem   []uint32
 	maxContractLen int
 	variableTop    uint32
+}
+
+func (t *table) indexedTable(idx tableIndex) *table {
+	nt := *t
+	nt.index.index0 = t.index.index[idx.lookupOffset*blockSize:]
+	nt.index.values0 = t.index.values[idx.valuesOffset*blockSize:]
+	return &nt
 }
 
 // appendNext appends the weights corresponding to the next rune or 

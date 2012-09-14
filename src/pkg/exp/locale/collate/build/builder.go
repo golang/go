@@ -263,14 +263,31 @@ func (t *Tailoring) Build() (*collate.Collator, error) {
 
 // Print prints the tables for b and all its Tailorings as a Go file
 // that can be included in the Collate package.
-func (b *Builder) Print(w io.Writer) (int, error) {
+func (b *Builder) Print(w io.Writer) (n int, err error) {
+	p := func(nn int, e error) {
+		n += nn
+		if err == nil {
+			err = e
+		}
+	}
 	t, err := b.build()
 	if err != nil {
 		return 0, err
 	}
-	// TODO: support multiple locales
-	n, _, err := t.fprint(w, "root")
-	return n, err
+	p(fmt.Fprintf(w, "var availableLocales = []string{"))
+	for _, loc := range b.locale {
+		p(fmt.Fprintf(w, "%q, ", loc.id))
+	}
+	p(fmt.Fprintln(w, "}\n"))
+	p(fmt.Fprintln(w, "var locales = map[string]tableIndex{"))
+	for _, loc := range b.locale {
+		p(fmt.Fprintf(w, "\t%q: ", loc.id))
+		p(t.fprintIndex(w, loc.index.handle))
+		p(fmt.Fprintln(w, ","))
+	}
+	p(fmt.Fprint(w, "}\n\n"))
+	n, _, err = t.fprint(w, "main")
+	return
 }
 
 // reproducibleFromNFKD checks whether the given expansion could be generated
