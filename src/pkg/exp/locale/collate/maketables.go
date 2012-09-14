@@ -658,7 +658,7 @@ func insertCollation(builder *build.Builder, locale string, c *Collation) {
 }
 
 func testCollator(c *collate.Collator) {
-	c0 := collate.Root
+	c0 := collate.New("")
 
 	// iterator over all characters for all locales and check
 	// whether Key is equal.
@@ -680,19 +680,6 @@ func testCollator(c *collate.Collator) {
 		buf.ResetKeys()
 	}
 	fmt.Println("PASS")
-}
-
-// TODO: move this functionality to exp/locale/collate/build.
-func printCollators(c *collate.Collator) {
-	const name = "Root"
-	fmt.Printf("var _%s = Collator{\n", name)
-	fmt.Printf("\tStrength: %v,\n", c.Strength)
-	fmt.Printf("\tf: norm.NFD,\n")
-	fmt.Printf("\tt: &%sTable,\n", strings.ToLower(name))
-	fmt.Printf("}\n\n")
-	fmt.Printf("var (\n")
-	fmt.Printf("\t%s = _%s\n", name, name)
-	fmt.Printf(")\n\n")
 }
 
 func main() {
@@ -725,9 +712,6 @@ func main() {
 		fmt.Printf("package %s\n", *pkg)
 		if tables.contains("collate") {
 			fmt.Println("")
-			fmt.Println(`import "exp/norm"`)
-			fmt.Println("")
-			printCollators(c)
 			_, err = b.Print(os.Stdout)
 			failOnError(err)
 		}
