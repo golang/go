@@ -319,7 +319,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			elem = full
 		}
 		p.target = filepath.Join(p.build.BinDir, elem)
-		if p.Goroot && (isGoTool[p.ImportPath] || hasPrefix(p.ImportPath, "exp/")) {
+		if p.Goroot && (isGoTool[p.ImportPath] || strings.HasPrefix(p.ImportPath, "exp/")) {
 			p.target = filepath.Join(gorootPkg, "tool", full)
 		}
 		if buildContext.GOOS == "windows" {
