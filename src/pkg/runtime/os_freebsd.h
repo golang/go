@@ -15,7 +15,7 @@ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 void	runtime·raisesigpipe(void);
 
 #define	NSIG 33
-#define	SI_USER	0
+#define	SI_USER	0x10001
 
 #define RLIMIT_AS 10
 typedef struct Rlimit Rlimit;
