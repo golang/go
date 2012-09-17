@@ -11,7 +11,6 @@
 
 enum {
 	Debug = 0,
-	PtrSize = sizeof(void*),
 	DebugMark = 0,  // run second pass to check mark
 	DataBlock = 8*1024,
 

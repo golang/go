@@ -118,6 +118,10 @@ enum
 	true	= 1,
 	false	= 0,
 };
+enum
+{
+	PtrSize = sizeof(void*),
+};
 
 /*
  * structures
