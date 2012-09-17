@@ -228,6 +228,12 @@ func (b *Build) Do() error {
 		err = makeTar(targ, work)
 		targs = append(targs, targ)
 	case "darwin":
+		// build tarball
+		targ := base + ".tar.gz"
+		err = makeTar(targ, work)
+		targs = append(targs, targ)
+
+		// build pkg
 		// arrange work so it's laid out as the dest filesystem
 		etc := filepath.Join(b.root, "misc/dist/darwin/etc")
 		_, err = b.run(work, "cp", "-r", etc, ".")
@@ -259,7 +265,7 @@ func (b *Build) Do() error {
 		if err != nil {
 			return err
 		}
-		targ := base + ".pkg"
+		targ = base + ".pkg"
 		_, err = b.run("", "productbuild",
 			"--distribution", filepath.Join(dist, "darwin/Distribution"),
 			"--resources", filepath.Join(dist, "darwin/Resources"),
@@ -408,35 +414,41 @@ func (b *Build) Upload(version string, filename string) error {
 	if arch != "" {
 		labels = append(labels, "Arch-"+b.Arch)
 	}
+	var opsys, ftype string // labels
 	switch b.OS {
 	case "linux":
 		os_ = "Linux"
-		labels = append(labels, "Type-Archive", "OpSys-Linux")
+		opsys = "Linux"
 	case "freebsd":
 		os_ = "FreeBSD"
-		labels = append(labels, "Type-Archive", "OpSys-FreeBSD")
+		opsys = "FreeBSD"
 	case "darwin":
 		os_ = "Mac OS X"
-		labels = append(labels, "Type-Installer", "OpSys-OSX")
+		opsys = "OSX"
 	case "windows":
 		os_ = "Windows"
-		labels = append(labels, "OpSys-Windows")
+		opsys = "Windows"
 	}
 	summary := fmt.Sprintf("%s %s (%s)", version, os_, arch)
-	if b.OS == "windows" {
-		switch {
-		case strings.HasSuffix(filename, ".msi"):
-			labels = append(labels, "Type-Installer")
-			summary += " MSI installer"
-		case strings.HasSuffix(filename, ".zip"):
-			labels = append(labels, "Type-Archive")
-			summary += " ZIP archive"
-		}
+	switch {
+	case strings.HasSuffix(filename, ".msi"):
+		ftype = "Installer"
+		summary += " MSI installer"
+	case strings.HasSuffix(filename, ".pkg"):
+		ftype = "Installer"
+		summary += " PKG installer"
+	case strings.HasSuffix(filename, ".zip"):
+		ftype = "Archive"
+		summary += " ZIP archive"
+	case strings.HasSuffix(filename, ".tar.gz"):
+		ftype = "Archive"
+		summary += " tarball"
 	}
 	if b.Source {
-		labels = append(labels, "Type-Source")
+		ftype = "Source"
 		summary = fmt.Sprintf("%s (source only)", version)
 	}
+	labels = append(labels, "OpSys-"+opsys, "Type-"+ftype)
 	if *addLabel != "" {
 		labels = append(labels, *addLabel)
 	}
