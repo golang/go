@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// PtrSize vs sizeof(void*): This file is also included from src/cmd/ld/...
+// which defines PtrSize to be different from sizeof(void*) when crosscompiling.
+
 enum {
 	KindBool = 1,
 	KindInt,
@@ -33,6 +36,6 @@ enum {
 	KindNoPointers = 1<<7,
 
 	// size of Type interface header + CommonType structure.
-	CommonSize = 2*sizeof(void*) + 6*sizeof(void*) + 8,
+	CommonSize = 2*PtrSize + 6*PtrSize + 8,
 };
 
