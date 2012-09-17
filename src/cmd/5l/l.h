@@ -316,6 +316,8 @@ void	addpool(Prog*, Adr*);
 EXTERN	Prog*	blitrl;
 EXTERN	Prog*	elitrl;
 
+EXTERN	int	goarm;
+
 void	initdiv(void);
 EXTERN	Prog*	prog_div;
 EXTERN	Prog*	prog_divu;
