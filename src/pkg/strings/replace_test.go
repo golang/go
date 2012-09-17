@@ -219,21 +219,29 @@ func TestReplacer(t *testing.T) {
 
 	blankToX1 := NewReplacer("", "X")
 	blankToX2 := NewReplacer("", "X", "", "")
-	blankToXOToO := NewReplacer("", "X", "o", "O")
+	blankHighPriority := NewReplacer("", "X", "o", "O")
+	blankLowPriority := NewReplacer("o", "O", "", "X")
 	blankNoOp1 := NewReplacer("", "")
 	blankNoOp2 := NewReplacer("", "", "", "A")
 	blankFoo := NewReplacer("", "X", "foobar", "R", "foobaz", "Z")
 	testCases = append(testCases,
-		testCase{blankToX1, "foo", "XfooX"}, // TODO: should this be "XfXoXoX"?
+		testCase{blankToX1, "foo", "XfXoXoX"},
 		testCase{blankToX1, "", "X"},
 
-		testCase{blankToX2, "foo", "XfooX"}, // TODO: should this be "XfXoXoX"?
+		testCase{blankToX2, "foo", "XfXoXoX"},
 		testCase{blankToX2, "", "X"},
 
-		testCase{blankToXOToO, "oo", "XOXOX"},
-		testCase{blankToXOToO, "ii", "XiiX"},       // TODO: should this be "XiXiX"?
-		testCase{blankToXOToO, "iooi", "XiOXOXiX"}, // TODO: should this be "XiXOXOXiX"?
-		testCase{blankToXOToO, "", "X"},
+		testCase{blankHighPriority, "oo", "XOXOX"},
+		testCase{blankHighPriority, "ii", "XiXiX"},
+		testCase{blankHighPriority, "oiio", "XOXiXiXOX"},
+		testCase{blankHighPriority, "iooi", "XiXOXOXiX"},
+		testCase{blankHighPriority, "", "X"},
+
+		testCase{blankLowPriority, "oo", "OOX"},
+		testCase{blankLowPriority, "ii", "XiXiX"},
+		testCase{blankLowPriority, "oiio", "OXiXiOX"},
+		testCase{blankLowPriority, "iooi", "XiOOXiX"},
+		testCase{blankLowPriority, "", "X"},
 
 		testCase{blankNoOp1, "foo", "foo"},
 		testCase{blankNoOp1, "", ""},
@@ -242,7 +250,7 @@ func TestReplacer(t *testing.T) {
 		testCase{blankNoOp2, "", ""},
 
 		testCase{blankFoo, "foobarfoobaz", "XRXZX"},
-		testCase{blankFoo, "foobar-foobaz", "XRX-ZX"}, // TODO: should this be "XRX-XZX"?
+		testCase{blankFoo, "foobar-foobaz", "XRX-XZX"},
 		testCase{blankFoo, "", "X"},
 	)
 
@@ -294,6 +302,78 @@ func TestPickAlgorithm(t *testing.T) {
 		got := fmt.Sprintf("%T", tc.r.Replacer())
 		if got != tc.want {
 			t.Errorf("%d. algorithm = %s, want %s", i, got, tc.want)
+		}
+	}
+}
+
+// TestGenericTrieBuilding verifies the structure of the generated trie. There
+// is one node per line, and the key ending with the current line is in the
+// trie if it ends with a "+".
+func TestGenericTrieBuilding(t *testing.T) {
+	testCases := []struct{ in, out string }{
+		{"abc;abdef;abdefgh;xx;xy;z", `-
+			a-
+			.b-
+			..c+
+			..d-
+			...ef+
+			.....gh+
+			x-
+			.x+
+			.y+
+			z+
+			`},
+		{"abracadabra;abracadabrakazam;abraham;abrasion", `-
+			a-
+			.bra-
+			....c-
+			.....adabra+
+			...........kazam+
+			....h-
+			.....am+
+			....s-
+			.....ion+
+			`},
+		{"aaa;aa;a;i;longerst;longer;long;xx;x;X;Y", `-
+			X+
+			Y+
+			a+
+			.a+
+			..a+
+			i+
+			l-
+			.ong+
+			....er+
+			......st+
+			x+
+			.x+
+			`},
+		{"foo;;foo;foo1", `+
+			f-
+			.oo+
+			...1+
+			`},
+	}
+
+	for _, tc := range testCases {
+		keys := Split(tc.in, ";")
+		args := make([]string, len(keys)*2)
+		for i, key := range keys {
+			args[i*2] = key
+		}
+
+		got := NewReplacer(args...).PrintTrie()
+		// Remove tabs from tc.out
+		wantbuf := make([]byte, 0, len(tc.out))
+		for i := 0; i < len(tc.out); i++ {
+			if tc.out[i] != '\t' {
+				wantbuf = append(wantbuf, tc.out[i])
+			}
+		}
+		want := string(wantbuf)
+
+		if got != want {
+			t.Errorf("PrintTrie(%q)\ngot\n%swant\n%s", tc.in, got, want)
 		}
 	}
 }
