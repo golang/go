@@ -360,7 +360,13 @@ func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
 	if err != nil {
-		return log, err
+		// 'go get -d' will fail for a subrepo because its top-level
+		// directory does not contain a go package. No matter, just
+		// check whether an hg directory exists and proceed.
+		hgDir := filepath.Join(goRoot, "src/pkg", pkg, ".hg")
+		if fi, e := os.Stat(hgDir); e != nil || !fi.IsDir() {
+			return log, err
+		}
 	}
 
 	// hg update to the specified hash
