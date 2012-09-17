@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 13, 2012",
+	"Subtitle": "Version of September 17, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -5487,8 +5487,9 @@ Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code
 a <code>Pointer</code> and vice versa.
 </p>
 <p>
-The function <code>Sizeof</code> takes an expression denoting a
-variable of any type and returns the size of the variable in bytes.
+The functions <code>Alignof</code> and <code>Sizeof</code> take an expression <code>x</code>
+of any type and return the alignment or size, respectively, of a hypothetical variable <code>v</code>
+as if <code>v</code> was declared via <code>var v = x</code>.
 </p>
 <p>
 The function <code>Offsetof</code> takes a selector (§<a href="#Selectors">Selectors</a>) denoting a struct
