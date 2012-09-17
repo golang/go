@@ -471,6 +471,7 @@ typestruct(Type *t)
 	// Otherwise it will use a nil type word but still be usable
 	// by package runtime (because we always use the memory
 	// after the interface value, not the interface value itself).
+	USED(t);
 	return pkglookup("*reflect.commonType", weaktypepkg);
 }
 

@@ -252,6 +252,7 @@ walkclosure(Node *func, NodeList **init)
 void
 walkcallclosure(Node *n, NodeList **init)
 {
+	USED(init);
 	if (n->op != OCALLFUNC || n->left->op != OCLOSURE) {
 		dump("walkcallclosure", n);
 		fatal("abuse of walkcallclosure");

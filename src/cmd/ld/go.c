@@ -579,6 +579,7 @@ loaddynlinker(char *file, char *pkg, char *p, int n)
 	char *pend, *next, *dynlinker, *p0;
 
 	USED(file);
+	USED(pkg);
 	pend = p + n;
 	for(; p<pend; p=next) {
 		next = strchr(p, '\n');
