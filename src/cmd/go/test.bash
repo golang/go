@@ -125,6 +125,17 @@ elif ! test -x testdata/bin1/helloworld; then
 	ok=false
 fi
 
+# Reject relative paths in GOPATH.
+if GOPATH=. ./testgo build testdata/src/go-cmd-test/helloworld.go; then
+    echo 'GOPATH="." go build should have failed, did not'
+    ok=false
+fi
+
+if GOPATH=:$(pwd)/testdata:. ./testgo build go-cmd-test; then
+    echo 'GOPATH=":$(pwd)/testdata:." go build should have failed, did not'
+    ok=false
+fi
+
 if $ok; then
 	echo PASS
 else
