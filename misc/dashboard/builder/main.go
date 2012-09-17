@@ -54,6 +54,8 @@ var (
 	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
 	failAll       = flag.Bool("fail", false, "fail all builds")
 	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
+	buildTimeout  = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
+	cmdTimeout    = flag.Duration("cmdTimeout", 2*time.Minute, "Maximum time to wait for an external command")
 	verbose       = flag.Bool("v", false, "verbose")
 )
 
@@ -220,7 +222,7 @@ func (b *Builder) build() bool {
 	// Look for hash locally before running hg pull.
 	if _, err := fullHash(goroot, hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
-		if err := run(nil, goroot, hgCmd("pull")...); err != nil {
+		if err := run(*cmdTimeout, nil, goroot, hgCmd("pull")...); err != nil {
 			log.Println("hg pull failed:", err)
 			return false
 		}
@@ -243,12 +245,12 @@ func (b *Builder) buildHash(hash string) error {
 	defer os.RemoveAll(workpath)
 
 	// clone repo
-	if err := run(nil, workpath, hgCmd("clone", goroot, "go")...); err != nil {
+	if err := run(*cmdTimeout, nil, workpath, hgCmd("clone", goroot, "go")...); err != nil {
 		return err
 	}
 
 	// update to specified revision
-	if err := run(nil, filepath.Join(workpath, "go"), hgCmd("update", hash)...); err != nil {
+	if err := run(*cmdTimeout, nil, filepath.Join(workpath, "go"), hgCmd("update", hash)...); err != nil {
 		return err
 	}
 
@@ -261,7 +263,7 @@ func (b *Builder) buildHash(hash string) error {
 		cmd = filepath.Join(srcDir, cmd)
 	}
 	startTime := time.Now()
-	buildLog, status, err := runLog(b.envv(), logfile, srcDir, cmd)
+	buildLog, status, err := runLog(*buildTimeout, b.envv(), logfile, srcDir, cmd)
 	runTime := time.Now().Sub(startTime)
 	if err != nil {
 		return fmt.Errorf("%s: %s", *buildCmd, err)
@@ -353,28 +355,22 @@ func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
 	}
 
 	// fetch package and dependencies
-	log, status, err := runLog(env, "", goRoot, goTool, "get", "-d", pkg)
+	log, status, err := runLog(*cmdTimeout, env, "", goRoot, goTool, "get", "-d", pkg)
 	if err == nil && status != 0 {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
 	if err != nil {
-		// 'go get -d' will fail for a subrepo because its top-level
-		// directory does not contain a go package. No matter, just
-		// check whether an hg directory exists and proceed.
-		hgDir := filepath.Join(goRoot, "src/pkg", pkg, ".hg")
-		if fi, e := os.Stat(hgDir); e != nil || !fi.IsDir() {
-			return log, err
-		}
+		return log, err
 	}
 
 	// hg update to the specified hash
 	pkgPath := filepath.Join(goRoot, "src/pkg", pkg)
-	if err := run(nil, pkgPath, hgCmd("update", hash)...); err != nil {
+	if err := run(*cmdTimeout, nil, pkgPath, hgCmd("update", hash)...); err != nil {
 		return "", err
 	}
 
 	// test the package
-	log, status, err = runLog(env, "", goRoot, goTool, "test", "-short", pkg+"/...")
+	log, status, err = runLog(*buildTimeout, env, "", goRoot, goTool, "test", "-short", pkg+"/...")
 	if err == nil && status != 0 {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
@@ -475,7 +471,7 @@ func commitWatcher() {
 }
 
 func hgClone(url, path string) error {
-	return run(nil, *buildroot, hgCmd("clone", url, path)...)
+	return run(*cmdTimeout, nil, *buildroot, hgCmd("clone", url, path)...)
 }
 
 func hgRepoExists(path string) bool {
@@ -532,14 +528,14 @@ func commitPoll(key, pkg string) {
 		}
 	}
 
-	if err := run(nil, pkgRoot, hgCmd("pull")...); err != nil {
+	if err := run(*cmdTimeout, nil, pkgRoot, hgCmd("pull")...); err != nil {
 		log.Printf("hg pull: %v", err)
 		return
 	}
 
 	const N = 50 // how many revisions to grab
 
-	data, _, err := runLog(nil, "", pkgRoot, hgCmd("log",
+	data, _, err := runLog(*cmdTimeout, nil, "", pkgRoot, hgCmd("log",
 		"--encoding=utf-8",
 		"--limit="+strconv.Itoa(N),
 		"--template="+xmlLogTemplate)...,
@@ -627,7 +623,7 @@ func addCommit(pkg, hash, key string) bool {
 
 // fullHash returns the full hash for the given Mercurial revision.
 func fullHash(root, rev string) (string, error) {
-	s, _, err := runLog(nil, "", root,
+	s, _, err := runLog(*cmdTimeout, nil, "", root,
 		hgCmd("log",
 			"--encoding=utf-8",
 			"--rev="+rev,
