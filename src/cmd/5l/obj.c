@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 	if(p != nil)
 		goarm = atoi(p);
 	else
-		goarm = 7;
+		goarm = 6;
 	if(goarm == 5)
 		debug['F'] = 1;
 

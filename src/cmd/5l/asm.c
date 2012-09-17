@@ -2213,7 +2213,8 @@ omvl(Prog *p, Adr *a, int dr)
 int
 chipzero(Ieee *e)
 {
-	if(e->l != 0 || e->h != 0)
+	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+	if(goarm < 7 || e->l != 0 || e->h != 0)
 		return -1;
 	return 0;
 }
@@ -2223,6 +2224,10 @@ chipfloat(Ieee *e)
 {
 	int n;
 	ulong h;
+
+	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+	if(goarm < 7)
+		goto no;
 
 	if(e->l != 0 || (e->h&0xffff) != 0)
 		goto no;
