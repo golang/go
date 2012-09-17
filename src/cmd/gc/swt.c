@@ -442,6 +442,10 @@ exprbsw(Case *c0, int ncase, int arg)
 			n = c0->node;
 			lno = setlineno(n);
 
+			if(assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
+			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE)
+				goto snorm;
+
 			switch(arg) {
 			case Strue:
 				a = nod(OIF, N, N);
@@ -457,6 +461,7 @@ exprbsw(Case *c0, int ncase, int arg)
 				break;
 
 			default:
+			snorm:
 				a = nod(OIF, N, N);
 				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
 				typecheck(&a->ntest, Erv);
@@ -520,6 +525,8 @@ exprswitch(Node *sw)
 		exprname = temp(sw->ntest->type);
 		cas = list1(nod(OAS, exprname, sw->ntest));
 		typechecklist(cas, Etop);
+	} else {
+		exprname = nodbool(arg == Strue);
 	}
 
 	c0 = mkcaselist(sw, arg);

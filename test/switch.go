@@ -294,6 +294,17 @@ func main() {
 		assert(false, `i should be "hello"`)
 	}
 
+	// switch on implicit bool converted to interface
+	// was broken: see issue 3980
+	switch i := interface{}(true); {
+	case i:
+		assert(true, "true")
+	case false:
+		assert(false, "i should be true")
+	default:
+		assert(false, "i should be true")
+	}
+
 	// switch on array.
 	switch ar := [3]int{1, 2, 3}; ar {
 	case [3]int{1,2,3}:
