@@ -147,7 +147,6 @@ regopt(Prog *firstp)
 		return;
 	}
 
-	r1 = R;
 	firstr = R;
 	lastr = R;
 	

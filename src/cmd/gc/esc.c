@@ -949,6 +949,7 @@ esctag(EscState *e, Node *func)
 	Node *savefn;
 	NodeList *ll;
 	
+	USED(e);
 	func->esc = EscFuncTagged;
 	
 	// External functions must be assumed unsafe.

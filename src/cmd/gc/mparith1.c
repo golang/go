@@ -288,7 +288,7 @@ mpatoflt(Mpflt *a, char *as)
 	s = as;
 	base = -1;
 	while(base == -1) {
-		switch(c = *s++) {
+		switch(*s++) {
 		case '-':
 		case '+':
 			break;

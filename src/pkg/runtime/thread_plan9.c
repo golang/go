@@ -356,5 +356,6 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
 void
 runtime·badsignal(int32 sig)
 {
+	USED(sig);
 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
 }
