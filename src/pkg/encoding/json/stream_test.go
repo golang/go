@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"net"
 	"reflect"
 	"testing"
 )
@@ -143,5 +144,26 @@ func TestNullRawMessage(t *testing.T) {
 	}
 	if string(b) != msg {
 		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+	}
+}
+
+var blockingTests = []string{
+	`{"x": 1}`,
+	`[1, 2, 3]`,
+}
+
+func TestBlocking(t *testing.T) {
+	for _, enc := range blockingTests {
+		r, w := net.Pipe()
+		go w.Write([]byte(enc))
+		var val interface{}
+
+		// If Decode reads beyond what w.Write writes above,
+		// it will block, and the test will deadlock.
+		if err := NewDecoder(r).Decode(&val); err != nil {
+			t.Errorf("decoding %s: %v", enc, err)
+		}
+		r.Close()
+		w.Close()
 	}
 }
