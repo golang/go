@@ -403,6 +403,15 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		if marker == eoiMarker { // End Of Image.
 			break
 		}
+		if rst0Marker <= marker && marker <= rst7Marker {
+			// Figures B.2 and B.16 of the specification suggest that restart markers should
+			// only occur between Entropy Coded Segments and not after the final ECS.
+			// However, some encoders may generate incorrect JPEGs with a final restart
+			// marker. That restart marker will be seen here instead of inside the processSOS
+			// method, and is ignored as a harmless error. Restart markers have no extra data,
+			// so we check for this before we read the 16-bit length of the segment.
+			continue
+		}
 
 		// Read the 16-bit length of the segment. The value includes the 2 bytes for the
 		// length itself, so we subtract 2 to get the number of remaining bytes.
@@ -431,7 +440,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 			err = d.processSOS(n)
 		case marker == driMarker: // Define Restart Interval.
 			err = d.processDRI(n)
-		case marker >= app0Marker && marker <= app15Marker || marker == comMarker: // APPlication specific, or COMment.
+		case app0Marker <= marker && marker <= app15Marker || marker == comMarker: // APPlication specific, or COMment.
 			err = d.ignore(n)
 		default:
 			err = UnsupportedError("unknown marker")
