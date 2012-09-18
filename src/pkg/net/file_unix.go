@@ -58,13 +58,15 @@ func newFileFD(f *os.File) (*netFD, error) {
 		}
 	}
 	laddr := toAddr(lsa)
+	rsa, _ := syscall.Getpeername(fd)
+	raddr := toAddr(rsa)
 
 	netfd, err := newFD(fd, family, sotype, laddr.Network())
 	if err != nil {
 		closesocket(fd)
 		return nil, err
 	}
-	netfd.setAddr(laddr, remoteSockname(netfd, toAddr))
+	netfd.setAddr(laddr, raddr)
 	return netfd, nil
 }
 
