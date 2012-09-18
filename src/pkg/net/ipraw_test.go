@@ -14,55 +14,6 @@ import (
 	"time"
 )
 
-var ipConnAddrStringTests = []struct {
-	net   string
-	laddr string
-	raddr string
-	ipv6  bool
-}{
-	{"ip:icmp", "127.0.0.1", "", false},
-	{"ip:icmp", "::1", "", true},
-	{"ip:icmp", "", "127.0.0.1", false},
-	{"ip:icmp", "", "::1", true},
-}
-
-func TestIPConnAddrString(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Logf("skipping test; must be root")
-		return
-	}
-
-	for i, tt := range ipConnAddrStringTests {
-		if tt.ipv6 && !supportsIPv6 {
-			continue
-		}
-		var (
-			err  error
-			c    *IPConn
-			mode string
-		)
-		if tt.raddr == "" {
-			mode = "listen"
-			la, _ := ResolveIPAddr(tt.net, tt.laddr)
-			c, err = ListenIP(tt.net, la)
-			if err != nil {
-				t.Fatalf("ListenIP(%q, %q) failed: %v", tt.net, la.String(), err)
-			}
-		} else {
-			mode = "dial"
-			la, _ := ResolveIPAddr(tt.net, tt.laddr)
-			ra, _ := ResolveIPAddr(tt.net, tt.raddr)
-			c, err = DialIP(tt.net, la, ra)
-			if err != nil {
-				t.Fatalf("DialIP(%q, %q) failed: %v", tt.net, ra.String(), err)
-			}
-		}
-		t.Logf("%s-%v: LocalAddr: %q, %q", mode, i, c.LocalAddr(), c.LocalAddr().String())
-		t.Logf("%s-%v: RemoteAddr: %q, %q", mode, i, c.RemoteAddr(), c.RemoteAddr().String())
-		c.Close()
-	}
-}
-
 var icmpTests = []struct {
 	net   string
 	laddr string

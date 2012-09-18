@@ -58,13 +58,16 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		fd.isConnected = true
 	}
 
+	lsa, _ := syscall.Getsockname(s)
 	var laddr Addr
 	if ulsa != nil && blsa != ulsa {
 		laddr = toAddr(ulsa)
 	} else {
-		laddr = localSockname(fd, toAddr)
+		laddr = toAddr(lsa)
 	}
-	fd.setAddr(laddr, remoteSockname(fd, toAddr))
+	rsa, _ := syscall.Getpeername(s)
+	raddr := toAddr(rsa)
+	fd.setAddr(laddr, raddr)
 	return fd, nil
 }
 
@@ -77,40 +80,4 @@ type writerOnly struct {
 func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
 	return io.Copy(writerOnly{w}, r)
-}
-
-func localSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
-	sa, _ := syscall.Getsockname(fd.sysfd)
-	if sa == nil {
-		return nullProtocolAddr(fd.family, fd.sotype)
-	}
-	return toAddr(sa)
-}
-
-func remoteSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
-	sa, _ := syscall.Getpeername(fd.sysfd)
-	if sa == nil {
-		return nullProtocolAddr(fd.family, fd.sotype)
-	}
-	return toAddr(sa)
-}
-
-func nullProtocolAddr(f, t int) Addr {
-	switch f {
-	case syscall.AF_INET, syscall.AF_INET6:
-		switch t {
-		case syscall.SOCK_STREAM:
-			return (*TCPAddr)(nil)
-		case syscall.SOCK_DGRAM:
-			return (*UDPAddr)(nil)
-		case syscall.SOCK_RAW:
-			return (*IPAddr)(nil)
-		}
-	case syscall.AF_UNIX:
-		switch t {
-		case syscall.SOCK_STREAM, syscall.SOCK_DGRAM, syscall.SOCK_SEQPACKET:
-			return (*UnixAddr)(nil)
-		}
-	}
-	panic("unreachable")
 }

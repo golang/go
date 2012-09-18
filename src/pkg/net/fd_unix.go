@@ -615,7 +615,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 		closesocket(s)
 		return nil, err
 	}
-	netfd.setAddr(localSockname(fd, toAddr), toAddr(rsa))
+	lsa, _ := syscall.Getsockname(netfd.sysfd)
+	netfd.setAddr(toAddr(lsa), toAddr(rsa))
 	return netfd, nil
 }
 
