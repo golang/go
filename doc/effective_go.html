@@ -714,6 +714,7 @@ func unhex(c byte) byte {
 <p>
 There is no automatic fall through, but cases can be presented
 in comma-separated lists.
+</p>
 <pre>
 func shouldEscape(c byte) bool {
     switch c {
@@ -727,6 +728,7 @@ func shouldEscape(c byte) bool {
 <p>
 Here's a comparison routine for byte arrays that uses two
 <code>switch</code> statements:
+</p>
 <pre>
 // Compare returns an integer comparing the two byte arrays,
 // lexicographically.
@@ -1180,6 +1182,7 @@ structure with length 10 and a capacity of 100 pointing at the first
 for more information.)
 In contrast, <code>new([]int)</code> returns a pointer to a newly allocated, zeroed slice
 structure, that is, a pointer to a <code>nil</code> slice value.
+</p>
 
 <p>
 These examples illustrate the difference between <code>new</code> and
@@ -1330,6 +1333,8 @@ func Append(slice, data[]byte) []byte {
 We must return the slice afterwards because, although <code>Append</code>
 can modify the elements of <code>slice</code>, the slice itself (the run-time data
 structure holding the pointer, length, and capacity) is passed by value.
+</p>
+
 <p>
 The idea of appending to a slice is so useful it's captured by the
 <code>append</code> built-in function.  To understand that function's
@@ -1545,6 +1550,7 @@ a space in the format (<code>%&nbsp;x</code>) it puts spaces between the bytes.
 </p>
 <p>
 Another handy format is <code>%T</code>, which prints the <em>type</em> of a value.
+</p>
 <pre>
 fmt.Printf(&quot;%T\n&quot;, timeZone)
 </pre>
@@ -1606,6 +1612,7 @@ func Println(v ...interface{}) {
 We write <code>...</code> after <code>v</code> in the nested call to <code>Sprintln</code> to tell the
 compiler to treat <code>v</code> as a list of arguments; otherwise it would just pass
 <code>v</code> as a single slice argument.
+</p>
 <p>
 There's even more to printing than we've covered here.  See the <code>godoc</code> documentation
 for package <code>fmt</code> for the details.
@@ -1783,6 +1790,7 @@ func init() {
 <p>
 Methods can be defined for any named type that is not a pointer or an interface;
 the receiver does not have to be a struct.
+</p>
 <p>
 In the discussion of slices above, we wrote an <code>Append</code>
 function.  We can define it as a method on slices instead.  To do
@@ -2012,6 +2020,7 @@ Those methods include the standard <code>Write</code> method, so an
 can be used.
 <code>Request</code> is a struct containing a parsed representation
 of the request from the client.
+</p>
 <p>
 For brevity, let's ignore POSTs and assume HTTP requests are always
 GETs; that simplification does not affect the way the handlers are
@@ -2034,6 +2043,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 (Keeping with our theme, note how <code>Fprintf</code> can print to an
 <code>http.ResponseWriter</code>.)
 For reference, here's how to attach such a server to a node on the URL tree.
+</p>
 <pre>
 import "net/http"
 ...
@@ -2187,6 +2197,7 @@ what a <code>Reader</code> does <em>and</em> what a <code>Writer</code>
 does; it is a union of the embedded interfaces (which must be disjoint
 sets of methods).
 Only interfaces can be embedded within interfaces.
+</p>
 <p>
 The same basic idea applies to structs, but with more far-reaching
 implications.  The <code>bufio</code> package has two struct types,
@@ -2378,10 +2389,11 @@ exits, silently.  (The effect is similar to the Unix shell's
 background.)
 </p>
 <pre>
-go list.Sort()  // run list.Sort concurrently; don't wait for it. 
+go list.Sort()  // run list.Sort concurrently; don't wait for it.
 </pre>
 <p>
 A function literal can be handy in a goroutine invocation.
+</p>
 <pre>
 func Announce(message string, delay time.Duration) {
     go func() {
@@ -2393,6 +2405,7 @@ func Announce(message string, delay time.Duration) {
 <p>
 In Go, function literals are closures: the implementation makes
 sure the variables referred to by the function survive as long as they are active.
+</p>
 <p>
 These examples aren't too practical because the functions have no way of signaling
 completion.  For that, we need channels.
@@ -2425,7 +2438,7 @@ c := make(chan int)  // Allocate a channel.
 // Start the sort in a goroutine; when it completes, signal on the channel.
 go func() {
     list.Sort()
-    c &lt;- 1  // Send a signal; value does not matter. 
+    c &lt;- 1  // Send a signal; value does not matter.
 }()
 doSomethingForAWhile()
 &lt;-c   // Wait for sort to finish; discard sent value.
@@ -2494,6 +2507,7 @@ One of the most important properties of Go is that
 a channel is a first-class value that can be allocated and passed
 around like any other.  A common use of this property is
 to implement safe, parallel demultiplexing.
+</p>
 <p>
 In the example in the previous section, <code>handle</code> was
 an idealized handler for a request but we didn't define the
@@ -3026,7 +3040,7 @@ TODO
 <pre>
 verifying implementation
 type Color uint32
-    
+
 // Check that Color implements image.Color and image.Image
 var _ image.Color = Black
 var _ image.Image = Black
