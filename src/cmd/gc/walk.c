@@ -1194,6 +1194,9 @@ walkexpr(Node **np, NodeList **init)
 			fn = syslook("efaceeq", 1);
 		else
 			fn = syslook("ifaceeq", 1);
+
+		n->right = cheapexpr(n->right, init);
+		n->left = cheapexpr(n->left, init);
 		argtype(fn, n->right->type);
 		argtype(fn, n->left->type);
 		r = mkcall1(fn, n->type, init, n->left, n->right);
