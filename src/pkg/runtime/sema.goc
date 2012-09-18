@@ -43,11 +43,13 @@ struct SemaRoot
 // Prime to not correlate with any user patterns.
 #define SEMTABLESZ 251
 
-static union
+union semtable
 {
 	SemaRoot;
 	uint8 pad[CacheLineSize];
-} semtable[SEMTABLESZ];
+};
+#pragma dataflag 16 /* mark semtable as 'no pointers', hiding from garbage collector */
+static union semtable semtable[SEMTABLESZ];
 
 static SemaRoot*
 semroot(uint32 *addr)
@@ -98,7 +100,7 @@ cansemacquire(uint32 *addr)
 void
 runtime·semacquire(uint32 volatile *addr)
 {
-	Sema s;
+	Sema s;	// Needs to be allocated on stack, otherwise garbage collector could deallocate it
 	SemaRoot *root;
 
 	// Easy case.
