@@ -951,6 +951,18 @@ runtime·gosched(void)
 	runtime·mcall(schedule);
 }
 
+// Puts the current goroutine into a waiting state and unlocks the lock.
+// The goroutine can be made runnable again by calling runtime·ready(gp).
+void
+runtime·park(void (*unlockf)(Lock*), Lock *lock, int8 *reason)
+{
+	g->status = Gwaiting;
+	g->waitreason = reason;
+	if(unlockf)
+		unlockf(lock);
+	runtime·gosched();
+}
+
 // The goroutine g is about to enter a system call.
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library and cgocall,

@@ -1027,9 +1027,7 @@ runfinq(void)
 		finq = nil;
 		if(fb == nil) {
 			fingwait = 1;
-			g->status = Gwaiting;
-			g->waitreason = "finalizer wait";
-			runtime·gosched();
+			runtime·park(nil, nil, "finalizer wait");
 			continue;
 		}
 		for(; fb; fb=next) {

@@ -23,14 +23,14 @@ static bool deltimer(Timer*);
 
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
-	g->status = Gwaiting;
-	g->waitreason = "sleep";
-	runtime·tsleep(ns);
+	runtime·tsleep(ns, "sleep");
 }
 
 // startTimer adds t to the timer heap.
 func startTimer(t *Timer) {
+	runtime·lock(&timers);
 	addtimer(t);
+	runtime·unlock(&timers);
 }
 
 // stopTimer removes t from the timer heap if it is there.
@@ -55,24 +55,21 @@ ready(int64 now, Eface e)
 }
 
 // Put the current goroutine to sleep for ns nanoseconds.
-// The caller must have set g->status and g->waitreason.
 void
-runtime·tsleep(int64 ns)
+runtime·tsleep(int64 ns, int8 *reason)
 {
 	Timer t;
 
-	if(ns <= 0) {
-		g->status = Grunning;
-		g->waitreason = nil;
+	if(ns <= 0)
 		return;
-	}
 
 	t.when = runtime·nanotime() + ns;
 	t.period = 0;
 	t.f = ready;
 	t.arg.data = g;
+	runtime·lock(&timers);
 	addtimer(&t);
-	runtime·gosched();
+	runtime·park(runtime·unlock, &timers, reason);
 }
 
 // Add a timer to the heap and start or kick the timer proc
@@ -83,7 +80,6 @@ addtimer(Timer *t)
 	int32 n;
 	Timer **nt;
 
-	runtime·lock(&timers);
 	if(timers.len >= timers.cap) {
 		// Grow slice.
 		n = 16;
@@ -111,7 +107,6 @@ addtimer(Timer *t)
 	}
 	if(timers.timerproc == nil)
 		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
-	runtime·unlock(&timers);
 }
 
 // Delete timer t from the heap.
@@ -191,10 +186,7 @@ timerproc(void)
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true;
-			g->status = Gwaiting;
-			g->waitreason = "timer goroutine (idle)";
-			runtime·unlock(&timers);
-			runtime·gosched();
+			runtime·park(runtime·unlock, &timers, "timer goroutine (idle)");
 			continue;
 		}
 		// At least one timer pending.  Sleep until then.

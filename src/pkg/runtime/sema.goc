@@ -125,10 +125,7 @@ runtime·semacquire(uint32 volatile *addr)
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		semqueue(root, addr, &s);
-		g->status = Gwaiting;
-		g->waitreason = "semacquire";
-		runtime·unlock(root);
-		runtime·gosched();
+		runtime·park(runtime·unlock, root, "semacquire");
 		if(cansemacquire(addr))
 			return;
 	}
