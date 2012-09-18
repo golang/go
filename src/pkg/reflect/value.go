@@ -490,9 +490,9 @@ func (v Value) call(method string, in []Value) []Value {
 	// TODO(rsc): revisit when reference counting happens.
 	// The values are holding up the in references for us,
 	// but something must be done for the out references.
-	// For now make everything look like a pointer by pretending
-	// to allocate a []*int.
-	args := make([]*int, size/ptrSize)
+	// For now make everything look like a pointer by allocating
+	// a []unsafe.Pointer.
+	args := make([]unsafe.Pointer, size/ptrSize)
 	ptr := uintptr(unsafe.Pointer(&args[0]))
 	off := uintptr(0)
 	if v.flag&flagMethod != 0 {
