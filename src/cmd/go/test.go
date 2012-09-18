@@ -207,6 +207,7 @@ func runTest(cmd *Command, args []string) {
 	var pkgArgs []string
 	pkgArgs, testArgs = testFlags(args)
 
+	raceInit()
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		fatalf("no packages to test")

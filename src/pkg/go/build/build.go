@@ -33,6 +33,7 @@ type Context struct {
 	GOPATH      string   // Go path
 	CgoEnabled  bool     // whether cgo can be used
 	BuildTags   []string // additional tags to recognize in +build lines
+	InstallTag  string   // package install directory suffix
 	UseAllFiles bool     // use files regardless of +build lines, file names
 	Compiler    string   // compiler to assume when computing target paths
 
@@ -362,7 +363,11 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		dir, elem := pathpkg.Split(p.ImportPath)
 		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
 	case "gc":
-		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + "/" + p.ImportPath + ".a"
+		tag := ""
+		if ctxt.InstallTag != "" {
+			tag = "_" + ctxt.InstallTag
+		}
+		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + tag + "/" + p.ImportPath + ".a"
 	default:
 		// Save error for end of function.
 		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)
