@@ -51,12 +51,16 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
-	fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
+	if *importSyscall {
+		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
+	}
 	if !*gccgo && *importRuntimeCgo {
 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	}
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
-	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
+	if *importSyscall {
+		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
+	}
 
 	typedefNames := make([]string, 0, len(typedef))
 	for name := range typedef {
