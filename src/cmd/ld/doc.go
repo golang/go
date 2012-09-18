@@ -56,5 +56,7 @@ Options new in this version:
 		Set the value of an otherwise uninitialized string variable.
 		The symbol name should be of the form importpath.name,
 		as displayed in the symbol table printed by "go tool nm".
+	-b
+		Link with race detection libraries.
 */
 package documentation

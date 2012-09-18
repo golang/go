@@ -72,6 +72,8 @@ Lflag(char *arg)
 void
 libinit(void)
 {
+	char *race;
+
 	fmtinstall('i', iconv);
 	fmtinstall('Y', Yconv);
 	fmtinstall('Z', Zconv);
@@ -80,7 +82,10 @@ libinit(void)
 		print("goarch is not known: %s\n", goarch);
 
 	// add goroot to the end of the libdir list.
-	Lflag(smprint("%s/pkg/%s_%s", goroot, goos, goarch));
+	race = "";
+	if(debug['b'])
+		race = "_race";
+	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
 
 	// Unix doesn't like it when we write to a running (or, sometimes,
 	// recently run) binary, so remove the output file before writing it.
@@ -281,6 +286,8 @@ loadlib(void)
 	loadinternal("runtime");
 	if(thechar == '5')
 		loadinternal("math");
+	if(debug['b'])
+		loadinternal("runtime/race");
 
 	for(i=0; i<libraryp; i++) {
 		if(debug['v'])
