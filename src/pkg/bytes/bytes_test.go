@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"math/rand"
 	"reflect"
 	"testing"
 	"unicode"
@@ -567,6 +568,14 @@ func TestFields(t *testing.T) {
 }
 
 func TestFieldsFunc(t *testing.T) {
+	for _, tt := range fieldstests {
+		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
+		result := arrayOfString(a)
+		if !eq(result, tt.a) {
+			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
+			continue
+		}
+	}
 	pred := func(c rune) bool { return c == 'X' }
 	var fieldsFuncTests = []FieldsTest{
 		{"", []string{}},
@@ -1012,5 +1021,41 @@ func TestEqualFold(t *testing.T) {
 		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
 			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
 		}
+	}
+}
+
+var makeFieldsInput = func() []byte {
+	x := make([]byte, 1<<20)
+	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space. 
+	for i := range x {
+		switch rand.Intn(10) {
+		case 0:
+			x[i] = ' '
+		case 1:
+			if i > 0 && x[i-1] == 'x' {
+				copy(x[i-1:], "χ")
+				break
+			}
+			fallthrough
+		default:
+			x[i] = 'x'
+		}
+	}
+	return x
+}
+
+var fieldsInput = makeFieldsInput()
+
+func BenchmarkFields(b *testing.B) {
+	b.SetBytes(int64(len(fieldsInput)))
+	for i := 0; i < b.N; i++ {
+		Fields(fieldsInput)
+	}
+}
+
+func BenchmarkFieldsFunc(b *testing.B) {
+	b.SetBytes(int64(len(fieldsInput)))
+	for i := 0; i < b.N; i++ {
+		FieldsFunc(fieldsInput, unicode.IsSpace)
 	}
 }
