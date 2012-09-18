@@ -155,9 +155,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 			*pres = false;
 			return;
 		}
-		g->status = Gwaiting;
-		g->waitreason = "chan send (nil chan)";
-		runtime·gosched();
+		runtime·park(nil, nil, "chan send (nil chan)");
 		return;  // not reached
 	}
 
@@ -202,11 +200,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 	mysg.g = g;
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
-	g->status = Gwaiting;
-	g->waitreason = "chan send";
 	enqueue(&c->sendq, &mysg);
-	runtime·unlock(c);
-	runtime·gosched();
+	runtime·park(runtime·unlock, c, "chan send");
 
 	if(g->param == nil) {
 		runtime·lock(c);
@@ -230,11 +225,8 @@ asynch:
 		mysg.g = g;
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
-		g->status = Gwaiting;
-		g->waitreason = "chan send";
 		enqueue(&c->sendq, &mysg);
-		runtime·unlock(c);
-		runtime·gosched();
+		runtime·park(runtime·unlock, c, "chan send");
 
 		runtime·lock(c);
 		goto asynch;
@@ -280,9 +272,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 			*selected = false;
 			return;
 		}
-		g->status = Gwaiting;
-		g->waitreason = "chan receive (nil chan)";
-		runtime·gosched();
+		runtime·park(nil, nil, "chan receive (nil chan)");
 		return;  // not reached
 	}
 
@@ -320,11 +310,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	mysg.g = g;
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
-	g->status = Gwaiting;
-	g->waitreason = "chan receive";
 	enqueue(&c->recvq, &mysg);
-	runtime·unlock(c);
-	runtime·gosched();
+	runtime·park(runtime·unlock, c, "chan receive");
 
 	if(g->param == nil) {
 		runtime·lock(c);
@@ -352,11 +339,8 @@ asynch:
 		mysg.g = g;
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
-		g->status = Gwaiting;
-		g->waitreason = "chan receive";
 		enqueue(&c->recvq, &mysg);
-		runtime·unlock(c);
-		runtime·gosched();
+		runtime·park(runtime·unlock, c, "chan receive");
 
 		runtime·lock(c);
 		goto asynch;
@@ -774,9 +758,7 @@ selunlock(Select *sel)
 void
 runtime·block(void)
 {
-	g->status = Gwaiting;	// forever
-	g->waitreason = "select (no cases)";
-	runtime·gosched();
+	runtime·park(nil, nil, "select (no cases)");	// forever
 }
 
 static void* selectgo(Select**);
@@ -907,10 +889,7 @@ loop:
 	}
 
 	g->param = nil;
-	g->status = Gwaiting;
-	g->waitreason = "select";
-	selunlock(sel);
-	runtime·gosched();
+	runtime·park((void(*)(Lock*))selunlock, (Lock*)sel, "select");
 
 	sellock(sel);
 	sg = g->param;
