@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 17, 2012",
+	"Subtitle": "Version of September 18, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3798,7 +3798,9 @@ Error: log.Panic("error encountered")
 <h3 id="Expression_statements">Expression statements</h3>
 
 <p>
-Function calls, method calls, and receive operations
+With the exception of specific built-in functions,
+function and method <a href="#Calls">calls</a> and
+<a href="#Receive_operator">receive operations</a>
 can appear in statement context. Such statements may be parenthesized.
 </p>
 
@@ -3806,11 +3808,21 @@ can appear in statement context. Such statements may be parenthesized.
 ExpressionStmt = Expression .
 </pre>
 
+<p>
+The following built-in functions are not permitted in statement context:
+</p>
+
+<pre>
+append cap complex imag len make new real
+unsafe.Alignof unsafe.Offsetof unsafe.Sizeof
+</pre>
+
 <pre>
 h(x+y)
 f.Close()
 &lt;-ch
 (&lt;-ch)
+len("foo")  // illegal if len is the built-in function
 </pre>
 
 
@@ -5492,8 +5504,8 @@ of any type and return the alignment or size, respectively, of a hypothetical va
 as if <code>v</code> was declared via <code>var v = x</code>.
 </p>
 <p>
-The function <code>Offsetof</code> takes a selector (§<a href="#Selectors">Selectors</a>) denoting a struct
-field of any type and returns the field offset in bytes relative to the
+The function <code>Offsetof</code> takes a (possibly parenthesized) <a href="#Selectors">selector</a>
+denoting a struct field of any type and returns the field offset in bytes relative to the
 struct's address.
 For a struct <code>s</code> with field <code>f</code>:
 </p>
