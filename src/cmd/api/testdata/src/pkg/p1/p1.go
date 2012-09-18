@@ -78,6 +78,16 @@ type I interface {
 	private()
 }
 
+type Public interface {
+	X()
+	Y()
+}
+
+type Private interface {
+	X()
+	y()
+}
+
 type Error interface {
 	error
 	Temporary() bool

@@ -2811,7 +2811,7 @@ pkg go/ast, type CompositeLit struct, Elts []Expr
 pkg go/ast, type CompositeLit struct, Lbrace token.Pos
 pkg go/ast, type CompositeLit struct, Rbrace token.Pos
 pkg go/ast, type CompositeLit struct, Type Expr
-pkg go/ast, type Decl interface { End, Pos }
+pkg go/ast, type Decl interface, unexported methods
 pkg go/ast, type Decl interface, End() token.Pos
 pkg go/ast, type Decl interface, Pos() token.Pos
 pkg go/ast, type DeclStmt struct
@@ -2824,7 +2824,7 @@ pkg go/ast, type Ellipsis struct, Ellipsis token.Pos
 pkg go/ast, type Ellipsis struct, Elt Expr
 pkg go/ast, type EmptyStmt struct
 pkg go/ast, type EmptyStmt struct, Semicolon token.Pos
-pkg go/ast, type Expr interface { End, Pos }
+pkg go/ast, type Expr interface, unexported methods
 pkg go/ast, type Expr interface, End() token.Pos
 pkg go/ast, type Expr interface, Pos() token.Pos
 pkg go/ast, type ExprStmt struct
@@ -2971,13 +2971,13 @@ pkg go/ast, type SliceExpr struct, Lbrack token.Pos
 pkg go/ast, type SliceExpr struct, Low Expr
 pkg go/ast, type SliceExpr struct, Rbrack token.Pos
 pkg go/ast, type SliceExpr struct, X Expr
-pkg go/ast, type Spec interface { End, Pos }
+pkg go/ast, type Spec interface, unexported methods
 pkg go/ast, type Spec interface, End() token.Pos
 pkg go/ast, type Spec interface, Pos() token.Pos
 pkg go/ast, type StarExpr struct
 pkg go/ast, type StarExpr struct, Star token.Pos
 pkg go/ast, type StarExpr struct, X Expr
-pkg go/ast, type Stmt interface { End, Pos }
+pkg go/ast, type Stmt interface, unexported methods
 pkg go/ast, type Stmt interface, End() token.Pos
 pkg go/ast, type Stmt interface, Pos() token.Pos
 pkg go/ast, type StructType struct
@@ -5458,7 +5458,7 @@ pkg reflect, type StructField struct, PkgPath string
 pkg reflect, type StructField struct, Tag StructTag
 pkg reflect, type StructField struct, Type Type
 pkg reflect, type StructTag string
-pkg reflect, type Type interface { Align, AssignableTo, Bits, ChanDir, Elem, Field, FieldAlign, FieldByIndex, FieldByName, FieldByNameFunc, Implements, In, IsVariadic, Key, Kind, Len, Method, MethodByName, Name, NumField, NumIn, NumMethod, NumOut, Out, PkgPath, Size, String }
+pkg reflect, type Type interface, unexported methods
 pkg reflect, type Type interface, Align() int
 pkg reflect, type Type interface, AssignableTo(Type) bool
 pkg reflect, type Type interface, Bits() int
@@ -7608,7 +7608,7 @@ pkg syscall (darwin-386), type Rlimit struct, Max uint64
 pkg syscall (darwin-386), type RouteMessage struct
 pkg syscall (darwin-386), type RouteMessage struct, Data []byte
 pkg syscall (darwin-386), type RouteMessage struct, Header RtMsghdr
-pkg syscall (darwin-386), type RoutingMessage interface {}
+pkg syscall (darwin-386), type RoutingMessage interface, unexported methods
 pkg syscall (darwin-386), type RtMetrics struct
 pkg syscall (darwin-386), type RtMetrics struct, Expire int32
 pkg syscall (darwin-386), type RtMetrics struct, Filler [4]uint32
@@ -9427,7 +9427,7 @@ pkg syscall (darwin-386-cgo), type Rlimit struct, Max uint64
 pkg syscall (darwin-386-cgo), type RouteMessage struct
 pkg syscall (darwin-386-cgo), type RouteMessage struct, Data []byte
 pkg syscall (darwin-386-cgo), type RouteMessage struct, Header RtMsghdr
-pkg syscall (darwin-386-cgo), type RoutingMessage interface {}
+pkg syscall (darwin-386-cgo), type RoutingMessage interface, unexported methods
 pkg syscall (darwin-386-cgo), type RtMetrics struct
 pkg syscall (darwin-386-cgo), type RtMetrics struct, Expire int32
 pkg syscall (darwin-386-cgo), type RtMetrics struct, Filler [4]uint32
@@ -11249,7 +11249,7 @@ pkg syscall (darwin-amd64), type Rlimit struct, Max uint64
 pkg syscall (darwin-amd64), type RouteMessage struct
 pkg syscall (darwin-amd64), type RouteMessage struct, Data []byte
 pkg syscall (darwin-amd64), type RouteMessage struct, Header RtMsghdr
-pkg syscall (darwin-amd64), type RoutingMessage interface {}
+pkg syscall (darwin-amd64), type RoutingMessage interface, unexported methods
 pkg syscall (darwin-amd64), type RtMetrics struct
 pkg syscall (darwin-amd64), type RtMetrics struct, Expire int32
 pkg syscall (darwin-amd64), type RtMetrics struct, Filler [4]uint32
@@ -13075,7 +13075,7 @@ pkg syscall (darwin-amd64-cgo), type Rlimit struct, Max uint64
 pkg syscall (darwin-amd64-cgo), type RouteMessage struct
 pkg syscall (darwin-amd64-cgo), type RouteMessage struct, Data []byte
 pkg syscall (darwin-amd64-cgo), type RouteMessage struct, Header RtMsghdr
-pkg syscall (darwin-amd64-cgo), type RoutingMessage interface {}
+pkg syscall (darwin-amd64-cgo), type RoutingMessage interface, unexported methods
 pkg syscall (darwin-amd64-cgo), type RtMetrics struct
 pkg syscall (darwin-amd64-cgo), type RtMetrics struct, Expire int32
 pkg syscall (darwin-amd64-cgo), type RtMetrics struct, Filler [4]uint32
@@ -15046,7 +15046,7 @@ pkg syscall (freebsd-386), type Rlimit struct, Max int64
 pkg syscall (freebsd-386), type RouteMessage struct
 pkg syscall (freebsd-386), type RouteMessage struct, Data []byte
 pkg syscall (freebsd-386), type RouteMessage struct, Header RtMsghdr
-pkg syscall (freebsd-386), type RoutingMessage interface {}
+pkg syscall (freebsd-386), type RoutingMessage interface, unexported methods
 pkg syscall (freebsd-386), type RtMetrics struct
 pkg syscall (freebsd-386), type RtMetrics struct, Expire uint32
 pkg syscall (freebsd-386), type RtMetrics struct, Filler [3]uint32
@@ -17022,7 +17022,7 @@ pkg syscall (freebsd-amd64), type Rlimit struct, Max int64
 pkg syscall (freebsd-amd64), type RouteMessage struct
 pkg syscall (freebsd-amd64), type RouteMessage struct, Data []byte
 pkg syscall (freebsd-amd64), type RouteMessage struct, Header RtMsghdr
-pkg syscall (freebsd-amd64), type RoutingMessage interface {}
+pkg syscall (freebsd-amd64), type RoutingMessage interface, unexported methods
 pkg syscall (freebsd-amd64), type RtMetrics struct
 pkg syscall (freebsd-amd64), type RtMetrics struct, Expire uint64
 pkg syscall (freebsd-amd64), type RtMetrics struct, Filler [3]uint64
@@ -30123,7 +30123,7 @@ pkg syscall, type RawSockaddrInet4 struct, Addr [4]byte
 pkg syscall, type RawSockaddrInet4 struct, Port uint16
 pkg syscall, type Rusage struct
 pkg syscall, type Signal int
-pkg syscall, type Sockaddr interface {}
+pkg syscall, type Sockaddr interface, unexported methods
 pkg syscall, type SockaddrInet4 struct
 pkg syscall, type SockaddrInet4 struct, Addr [4]byte
 pkg syscall, type SockaddrInet4 struct, Port int

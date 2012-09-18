@@ -892,15 +892,18 @@ type method struct {
 	sig  string // "([]byte) (int, error)", from funcSigString
 }
 
-// interfaceMethods returns the expanded list of methods for an interface.
+// interfaceMethods returns the expanded list of exported methods for an interface.
+// The boolean complete reports whether the list contains all methods (that is, the
+// interface has no unexported methods).
 // pkg is the complete package name ("net/http")
 // iname is the interface name.
-func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
+func (w *Walker) interfaceMethods(pkg, iname string) (methods []method, complete bool) {
 	t, ok := w.interfaces[pkgSymbol{pkg, iname}]
 	if !ok {
 		log.Fatalf("failed to find interface %s.%s", pkg, iname)
 	}
 
+	complete = true
 	for _, f := range t.Methods.List {
 		typ := f.Type
 		switch tv := typ.(type) {
@@ -912,6 +915,8 @@ func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
 						name: mname.Name,
 						sig:  w.funcSigString(ft),
 					})
+				} else {
+					complete = false
 				}
 			}
 		case *ast.Ident:
@@ -927,7 +932,9 @@ func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
 				log.Fatalf("unexported embedded interface %q in exported interface %s.%s; confused",
 					embedded, pkg, iname)
 			}
-			methods = append(methods, w.interfaceMethods(pkg, embedded)...)
+			m, c := w.interfaceMethods(pkg, embedded)
+			methods = append(methods, m...)
+			complete = complete && c
 		case *ast.SelectorExpr:
 			lhs := w.nodeString(tv.X)
 			rhs := w.nodeString(tv.Sel)
@@ -935,7 +942,9 @@ func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
 			if !ok {
 				log.Fatalf("can't resolve selector %q in interface %s.%s", lhs, pkg, iname)
 			}
-			methods = append(methods, w.interfaceMethods(fpkg, rhs)...)
+			m, c := w.interfaceMethods(fpkg, rhs)
+			methods = append(methods, m...)
+			complete = complete && c
 		default:
 			log.Fatalf("unknown type %T in interface field", typ)
 		}
@@ -945,13 +954,27 @@ func (w *Walker) interfaceMethods(pkg, iname string) (methods []method) {
 
 func (w *Walker) walkInterfaceType(name string, t *ast.InterfaceType) {
 	methNames := []string{}
-
 	pop := w.pushScope("type " + name + " interface")
-	for _, m := range w.interfaceMethods(w.curPackageName, name) {
+	methods, complete := w.interfaceMethods(w.curPackageName, name)
+	for _, m := range methods {
 		methNames = append(methNames, m.name)
 		w.emitFeature(fmt.Sprintf("%s%s", m.name, m.sig))
 	}
+	if !complete {
+		// The method set has unexported methods, so all the
+		// implementations are provided by the same package,
+		// so the method set can be extended. Instead of recording
+		// the full set of names (below), record only that there were
+		// unexported methods. (If the interface shrinks, we will notice
+		// because a method signature emitted during the last loop,
+		// will disappear.)
+		w.emitFeature("unexported methods")
+	}
 	pop()
+
+	if !complete {
+		return
+	}
 
 	sort.Strings(methNames)
 	if len(methNames) == 0 {
