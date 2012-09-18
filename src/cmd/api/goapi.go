@@ -1017,18 +1017,38 @@ func (w *Walker) walkFuncDecl(f *ast.FuncDecl) {
 
 func (w *Walker) funcSigString(ft *ast.FuncType) string {
 	var b bytes.Buffer
+	writeField := func(b *bytes.Buffer, f *ast.Field) {
+		if n := len(f.Names); n > 1 {
+			for i := 0; i < n; i++ {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(w.nodeString(w.namelessType(f.Type)))
+			}
+		} else {
+			b.WriteString(w.nodeString(w.namelessType(f.Type)))
+		}
+	}
 	b.WriteByte('(')
 	if ft.Params != nil {
 		for i, f := range ft.Params.List {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(w.nodeString(w.namelessType(f.Type)))
+			writeField(&b, f)
 		}
 	}
 	b.WriteByte(')')
 	if ft.Results != nil {
-		if nr := len(ft.Results.List); nr > 0 {
+		nr := 0
+		for _, f := range ft.Results.List {
+			if n := len(f.Names); n > 1 {
+				nr += n
+			} else {
+				nr++
+			}
+		}
+		if nr > 0 {
 			b.WriteByte(' ')
 			if nr > 1 {
 				b.WriteByte('(')
@@ -1037,7 +1057,7 @@ func (w *Walker) funcSigString(ft *ast.FuncType) string {
 				if i > 0 {
 					b.WriteString(", ")
 				}
-				b.WriteString(w.nodeString(w.namelessType(f.Type)))
+				writeField(&b, f)
 			}
 			if nr > 1 {
 				b.WriteByte(')')
