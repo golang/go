@@ -78,7 +78,7 @@ Input:
 			// scanEnd is delayed one byte.
 			// We might block trying to get that byte from src,
 			// so instead invent a space byte.
-			if v == scanEndObject && dec.scan.step(&dec.scan, ' ') == scanEnd {
+			if (v == scanEndObject || v == scanEndArray) && dec.scan.step(&dec.scan, ' ') == scanEnd {
 				scanp += i + 1
 				break Input
 			}
