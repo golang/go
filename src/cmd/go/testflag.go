@@ -71,6 +71,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "gccgoflags"},
 	{name: "tags"},
 	{name: "compiler"},
+	{name: "race", boolVar: &buildRace},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},
@@ -129,7 +130,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		switch f.name {
 		// bool flags.
-		case "a", "c", "i", "n", "x", "v", "work":
+		case "a", "c", "i", "n", "x", "v", "work", "race":
 			setBoolFlag(f.boolVar, value)
 		case "p":
 			setIntFlag(&buildP, value)

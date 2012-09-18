@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"flag"
 	"fmt"
 	"go/build"
 	"io"
@@ -59,6 +60,9 @@ The build flags are shared by the build, install, run, and test commands:
 		do not delete it when exiting.
 	-x
 		print the commands.
+	-race
+		enable data race detection.
+		Currently supported only on linux/amd64 and darwin/amd64.
 
 	-ccflags 'arg list'
 		arguments to pass on each 5c, 6c, or 8c compiler invocation
@@ -104,6 +108,7 @@ var buildGcflags []string    // -gcflags flag
 var buildCcflags []string    // -ccflags flag
 var buildLdflags []string    // -ldflags flag
 var buildGccgoflags []string // -gccgoflags flag
+var buildRace bool           // -race flag
 
 var buildContext = build.Default
 var buildToolchain toolchain = noToolchain{}
@@ -154,6 +159,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+	cmd.Flag.BoolVar(&buildRace, "race", false, "")
 }
 
 func addBuildFlagsNX(cmd *Command) {
@@ -173,6 +179,7 @@ func (v *stringsFlag) String() string {
 }
 
 func runBuild(cmd *Command, args []string) {
+	raceInit()
 	var b builder
 	b.init()
 
@@ -217,6 +224,7 @@ See also: go build, go get, go clean.
 }
 
 func runInstall(cmd *Command, args []string) {
+	raceInit()
 	pkgs := packagesForBuild(args)
 
 	for _, p := range pkgs {
@@ -441,7 +449,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	// using cgo, to make sure we do not overwrite the binary while
 	// a package is using it.  If this is a cross-build, then the cgo we
 	// are writing is not the cgo we need to use.
-	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
 		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
 			var stk importStack
 			p1 := loadPackage("cmd/cgo", &stk)
@@ -1547,6 +1555,10 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
+	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/cgo") {
+		cgoflags = append(cgoflags, "-import_syscall=false")
+	}
+
 	if _, ok := buildToolchain.(gccgcToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
 		if prefix := gccgoPrefix(p); prefix != "" {
@@ -1777,4 +1789,19 @@ func (q *actionQueue) push(a *action) {
 
 func (q *actionQueue) pop() *action {
 	return heap.Pop(q).(*action)
+}
+
+func raceInit() {
+	if !buildRace {
+		return
+	}
+	if goarch != "amd64" || goos != "linux" && goos != "darwin" {
+		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64 and darwin/amd64\n", flag.Args()[0])
+		os.Exit(2)
+	}
+	buildGcflags = append(buildGcflags, "-b")
+	buildLdflags = append(buildLdflags, "-b")
+	buildCcflags = append(buildCcflags, "-DRACE")
+	buildContext.InstallTag = "race"
+	buildContext.BuildTags = append(buildContext.BuildTags, "race")
 }

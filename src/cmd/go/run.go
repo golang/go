@@ -34,6 +34,7 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(cmd *Command, args []string) {
+	raceInit()
 	var b builder
 	b.init()
 	b.print = printStderr
