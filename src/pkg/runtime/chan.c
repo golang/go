@@ -999,11 +999,17 @@ syncsend:
 	runtime·ready(gp);
 
 retc:
-	// return to pc corresponding to chosen case
+	// return pc corresponding to chosen case.
+	// Set boolean passed during select creation
+	// (at offset selp + cas->so) to true.
+	// If cas->so == 0, this is a reflect-driven select and we
+	// don't need to update the boolean.
 	pc = cas->pc;
-	as = (byte*)selp + cas->so;
+	if(cas->so > 0) {
+		as = (byte*)selp + cas->so;
+		*as = true;
+	}
 	runtime·free(sel);
-	*as = true;
 	return pc;
 
 sclose:
@@ -1011,6 +1017,87 @@ sclose:
 	selunlock(sel);
 	runtime·panicstring("send on closed channel");
 	return nil;  // not reached
+}
+
+// This struct must match ../reflect/value.go:/runtimeSelect.
+typedef struct runtimeSelect runtimeSelect;
+struct runtimeSelect
+{
+	uintptr dir;
+	ChanType *typ;
+	Hchan *ch;
+	uintptr val;
+};
+
+// This enum must match ../reflect/value.go:/SelectDir.
+enum SelectDir {
+	SelectSend = 1,
+	SelectRecv,
+	SelectDefault,
+};
+
+// func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
+void
+reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
+{
+	int32 i;
+	Select *sel;
+	runtimeSelect* rcase, *rc;
+	void *elem;
+	void *recvptr;
+	uintptr maxsize;
+
+	chosen = -1;
+	word = 0;
+	recvOK = false;
+
+	maxsize = 0;
+	rcase = (runtimeSelect*)cases.array;
+	for(i=0; i<cases.len; i++) {
+		rc = &rcase[i];
+		if(rc->dir == SelectRecv && rc->ch != nil && maxsize < rc->typ->elem->size)
+			maxsize = rc->typ->elem->size;
+	}
+
+	recvptr = nil;
+	if(maxsize > sizeof(void*))
+		recvptr = runtime·mal(maxsize);
+
+	newselect(cases.len, &sel);
+	for(i=0; i<cases.len; i++) {
+		rc = &rcase[i];
+		switch(rc->dir) {
+		case SelectDefault:
+			selectdefault(sel, (void*)i, 0);
+			break;
+		case SelectSend:
+			if(rc->ch == nil)
+				break;
+			if(rc->typ->elem->size > sizeof(void*))
+				elem = (void*)rc->val;
+			else
+				elem = (void*)&rc->val;
+			selectsend(sel, rc->ch, (void*)i, elem, 0);
+			break;
+		case SelectRecv:
+			if(rc->ch == nil)
+				break;
+			if(rc->typ->elem->size > sizeof(void*))
+				elem = recvptr;
+			else
+				elem = &word;
+			selectrecv(sel, rc->ch, (void*)i, elem, &recvOK, 0);
+			break;
+		}
+	}
+
+	chosen = (int32)(uintptr)selectgo(&sel);
+	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
+		word = (uintptr)recvptr;
+
+	FLUSH(&chosen);
+	FLUSH(&word);
+	FLUSH(&recvOK);
 }
 
 // closechan(sel *byte);

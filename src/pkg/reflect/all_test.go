@@ -9,10 +9,13 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	. "reflect"
 	"runtime"
+	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -1055,6 +1058,336 @@ func TestChan(t *testing.T) {
 	}
 }
 
+// caseInfo describes a single case in a select test.
+type caseInfo struct {
+	desc      string
+	canSelect bool
+	recv      Value
+	closed    bool
+	helper    func()
+	panic     bool
+}
+
+func TestSelect(t *testing.T) {
+	selectWatch.once.Do(func() { go selectWatcher() })
+
+	var x exhaustive
+	nch := 0
+	newop := func(n int, cap int) (ch, val Value) {
+		nch++
+		if nch%101%2 == 1 {
+			c := make(chan int, cap)
+			ch = ValueOf(c)
+			val = ValueOf(n)
+		} else {
+			c := make(chan string, cap)
+			ch = ValueOf(c)
+			val = ValueOf(fmt.Sprint(n))
+		}
+		return
+	}
+
+	for n := 0; x.Next(); n++ {
+		if testing.Short() && n >= 1000 {
+			break
+		}
+		if n%100000 == 0 && testing.Verbose() {
+			println("TestSelect", n)
+		}
+		var cases []SelectCase
+		var info []caseInfo
+
+		// Ready send.
+		if x.Maybe() {
+			ch, val := newop(len(cases), 1)
+			cases = append(cases, SelectCase{
+				Dir:  SelectSend,
+				Chan: ch,
+				Send: val,
+			})
+			info = append(info, caseInfo{desc: "ready send", canSelect: true})
+		}
+
+		// Ready recv.
+		if x.Maybe() {
+			ch, val := newop(len(cases), 1)
+			ch.Send(val)
+			cases = append(cases, SelectCase{
+				Dir:  SelectRecv,
+				Chan: ch,
+			})
+			info = append(info, caseInfo{desc: "ready recv", canSelect: true, recv: val})
+		}
+
+		// Blocking send.
+		if x.Maybe() {
+			ch, val := newop(len(cases), 0)
+			cases = append(cases, SelectCase{
+				Dir:  SelectSend,
+				Chan: ch,
+				Send: val,
+			})
+			// Let it execute?
+			if x.Maybe() {
+				f := func() { ch.Recv() }
+				info = append(info, caseInfo{desc: "blocking send", helper: f})
+			} else {
+				info = append(info, caseInfo{desc: "blocking send"})
+			}
+		}
+
+		// Blocking recv.
+		if x.Maybe() {
+			ch, val := newop(len(cases), 0)
+			cases = append(cases, SelectCase{
+				Dir:  SelectRecv,
+				Chan: ch,
+			})
+			// Let it execute?
+			if x.Maybe() {
+				f := func() { ch.Send(val) }
+				info = append(info, caseInfo{desc: "blocking recv", recv: val, helper: f})
+			} else {
+				info = append(info, caseInfo{desc: "blocking recv"})
+			}
+		}
+
+		// Zero Chan send.
+		if x.Maybe() {
+			// Maybe include value to send.
+			var val Value
+			if x.Maybe() {
+				val = ValueOf(100)
+			}
+			cases = append(cases, SelectCase{
+				Dir:  SelectSend,
+				Send: val,
+			})
+			info = append(info, caseInfo{desc: "zero Chan send"})
+		}
+
+		// Zero Chan receive.
+		if x.Maybe() {
+			cases = append(cases, SelectCase{
+				Dir: SelectRecv,
+			})
+			info = append(info, caseInfo{desc: "zero Chan recv"})
+		}
+
+		// nil Chan send.
+		if x.Maybe() {
+			cases = append(cases, SelectCase{
+				Dir:  SelectSend,
+				Chan: ValueOf((chan int)(nil)),
+				Send: ValueOf(101),
+			})
+			info = append(info, caseInfo{desc: "nil Chan send"})
+		}
+
+		// nil Chan recv.
+		if x.Maybe() {
+			cases = append(cases, SelectCase{
+				Dir:  SelectRecv,
+				Chan: ValueOf((chan int)(nil)),
+			})
+			info = append(info, caseInfo{desc: "nil Chan recv"})
+		}
+
+		// closed Chan send.
+		if x.Maybe() {
+			ch := make(chan int)
+			close(ch)
+			cases = append(cases, SelectCase{
+				Dir:  SelectSend,
+				Chan: ValueOf(ch),
+				Send: ValueOf(101),
+			})
+			info = append(info, caseInfo{desc: "closed Chan send", canSelect: true, panic: true})
+		}
+
+		// closed Chan recv.
+		if x.Maybe() {
+			ch, val := newop(len(cases), 0)
+			ch.Close()
+			val = Zero(val.Type())
+			cases = append(cases, SelectCase{
+				Dir:  SelectRecv,
+				Chan: ch,
+			})
+			info = append(info, caseInfo{desc: "closed Chan recv", canSelect: true, closed: true, recv: val})
+		}
+
+		var helper func() // goroutine to help the select complete
+
+		// Add default? Must be last case here, but will permute.
+		// Add the default if the select would otherwise
+		// block forever, and maybe add it anyway.
+		numCanSelect := 0
+		canProceed := false
+		canBlock := true
+		canPanic := false
+		helpers := []int{}
+		for i, c := range info {
+			if c.canSelect {
+				canProceed = true
+				canBlock = false
+				numCanSelect++
+				if c.panic {
+					canPanic = true
+				}
+			} else if c.helper != nil {
+				canProceed = true
+				helpers = append(helpers, i)
+			}
+		}
+		if !canProceed || x.Maybe() {
+			cases = append(cases, SelectCase{
+				Dir: SelectDefault,
+			})
+			info = append(info, caseInfo{desc: "default", canSelect: canBlock})
+			numCanSelect++
+		} else if canBlock {
+			// Select needs to communicate with another goroutine.
+			cas := &info[helpers[x.Choose(len(helpers))]]
+			helper = cas.helper
+			cas.canSelect = true
+			numCanSelect++
+		}
+
+		// Permute cases and case info.
+		// Doing too much here makes the exhaustive loop
+		// too exhausting, so just do two swaps.
+		for loop := 0; loop < 2; loop++ {
+			i := x.Choose(len(cases))
+			j := x.Choose(len(cases))
+			cases[i], cases[j] = cases[j], cases[i]
+			info[i], info[j] = info[j], info[i]
+		}
+
+		if helper != nil {
+			// We wait before kicking off a goroutine to satisfy a blocked select.
+			// The pause needs to be big enough to let the select block before
+			// we run the helper, but if we lose that race once in a while it's okay: the
+			// select will just proceed immediately. Not a big deal.
+			// For short tests we can grow [sic] the timeout a bit without fear of taking too long
+			pause := 10 * time.Microsecond
+			if testing.Short() {
+				pause = 100 * time.Microsecond
+			}
+			time.AfterFunc(pause, helper)
+		}
+
+		// Run select.
+		i, recv, recvOK, panicErr := runSelect(cases, info)
+		if panicErr != nil && !canPanic {
+			t.Fatalf("%s\npanicked unexpectedly: %v", fmtSelect(info), panicErr)
+		}
+		if panicErr == nil && canPanic && numCanSelect == 1 {
+			t.Fatalf("%s\nselected #%d incorrectly (should panic)", fmtSelect(info), i)
+		}
+		if panicErr != nil {
+			continue
+		}
+
+		cas := info[i]
+		if !cas.canSelect {
+			recvStr := ""
+			if recv.IsValid() {
+				recvStr = fmt.Sprintf(", received %v, %v", recv.Interface(), recvOK)
+			}
+			t.Fatalf("%s\nselected #%d incorrectly%s", fmtSelect(info), i, recvStr)
+			continue
+		}
+		if cas.panic {
+			t.Fatalf("%s\nselected #%d incorrectly (case should panic)", fmtSelect(info), i)
+			continue
+		}
+
+		if cases[i].Dir == SelectRecv {
+			if !recv.IsValid() {
+				t.Fatalf("%s\nselected #%d but got %v, %v, want %v, %v", fmtSelect(info), i, recv, recvOK, cas.recv.Interface(), !cas.closed)
+			}
+			if !cas.recv.IsValid() {
+				t.Fatalf("%s\nselected #%d but internal error: missing recv value", fmtSelect(info), i)
+			}
+			if recv.Interface() != cas.recv.Interface() || recvOK != !cas.closed {
+				if recv.Interface() == cas.recv.Interface() && recvOK == !cas.closed {
+					t.Fatalf("%s\nselected #%d, got %#v, %v, and DeepEqual is broken on %T", fmtSelect(info), i, recv.Interface(), recvOK, recv.Interface())
+				}
+				t.Fatalf("%s\nselected #%d but got %#v, %v, want %#v, %v", fmtSelect(info), i, recv.Interface(), recvOK, cas.recv.Interface(), !cas.closed)
+			}
+		} else {
+			if recv.IsValid() || recvOK {
+				t.Fatalf("%s\nselected #%d but got %v, %v, want %v, %v", fmtSelect(info), i, recv, recvOK, Value{}, false)
+			}
+		}
+	}
+}
+
+// selectWatch and the selectWatcher are a watchdog mechanism for running Select.
+// If the selectWatcher notices that the select has been blocked for >1 second, it prints
+// an error describing the select and panics the entire test binary. 
+var selectWatch struct {
+	sync.Mutex
+	once sync.Once
+	now  time.Time
+	info []caseInfo
+}
+
+func selectWatcher() {
+	for {
+		time.Sleep(1 * time.Second)
+		selectWatch.Lock()
+		if selectWatch.info != nil && time.Since(selectWatch.now) > 1*time.Second {
+			fmt.Fprintf(os.Stderr, "TestSelect:\n%s blocked indefinitely\n", fmtSelect(selectWatch.info))
+			panic("select stuck")
+		}
+		selectWatch.Unlock()
+	}
+}
+
+// runSelect runs a single select test.
+// It returns the values returned by Select but also returns
+// a panic value if the Select panics.
+func runSelect(cases []SelectCase, info []caseInfo) (chosen int, recv Value, recvOK bool, panicErr interface{}) {
+	defer func() {
+		panicErr = recover()
+
+		selectWatch.Lock()
+		selectWatch.info = nil
+		selectWatch.Unlock()
+	}()
+
+	selectWatch.Lock()
+	selectWatch.now = time.Now()
+	selectWatch.info = info
+	selectWatch.Unlock()
+
+	chosen, recv, recvOK = Select(cases)
+	return
+}
+
+// fmtSelect formats the information about a single select test.
+func fmtSelect(info []caseInfo) string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "\nselect {\n")
+	for i, cas := range info {
+		fmt.Fprintf(&buf, "%d: %s", i, cas.desc)
+		if cas.recv.IsValid() {
+			fmt.Fprintf(&buf, " val=%#v", cas.recv.Interface())
+		}
+		if cas.canSelect {
+			fmt.Fprintf(&buf, " canselect")
+		}
+		if cas.panic {
+			fmt.Fprintf(&buf, " panic")
+		}
+		fmt.Fprintf(&buf, "\n")
+	}
+	fmt.Fprintf(&buf, "}")
+	return buf.String()
+}
+
 // Difficult test for function call because of
 // implicit padding between arguments.
 func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
@@ -1932,4 +2265,95 @@ func BenchmarkFieldByName3(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		t.FieldByName("X")
 	}
+}
+
+// An exhaustive is a mechanism for writing exhaustive or stochastic tests.
+// The basic usage is:
+//
+//	for x.Next() {
+//		... code using x.Maybe() or x.Choice(n) to create test cases ...
+//	}
+//
+// Each iteration of the loop returns a different set of results, until all
+// possible result sets have been explored. It is okay for different code paths
+// to make different method call sequences on x, but there must be no
+// other source of non-determinism in the call sequences.
+//
+// When faced with a new decision, x chooses randomly. Future explorations
+// of that path will choose successive values for the result. Thus, stopping
+// the loop after a fixed number of iterations gives somewhat stochastic
+// testing.
+//
+// Example:
+//
+//	for x.Next() {
+//		v := make([]bool, x.Choose(4))
+//		for i := range v {
+//			v[i] = x.Maybe()
+//		}
+//		fmt.Println(v)
+//	}
+//
+// prints (in some order):
+//
+//	[]
+//	[false]
+//	[true]
+//	[false false]
+//	[false true]
+//	...
+//	[true true]
+//	[false false false]
+//	...
+//	[true true true]
+//	[false false false false]
+//	...
+//	[true true true true]
+//
+type exhaustive struct {
+	r    *rand.Rand
+	pos  int
+	last []choice
+}
+
+type choice struct {
+	off int
+	n   int
+	max int
+}
+
+func (x *exhaustive) Next() bool {
+	if x.r == nil {
+		x.r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+	x.pos = 0
+	if x.last == nil {
+		x.last = []choice{}
+		return true
+	}
+	for i := len(x.last) - 1; i >= 0; i-- {
+		c := &x.last[i]
+		if c.n+1 < c.max {
+			c.n++
+			x.last = x.last[:i+1]
+			return true
+		}
+	}
+	return false
+}
+
+func (x *exhaustive) Choose(max int) int {
+	if x.pos >= len(x.last) {
+		x.last = append(x.last, choice{x.r.Intn(max), 0, max})
+	}
+	c := &x.last[x.pos]
+	x.pos++
+	if c.max != max {
+		panic("inconsistent use of exhaustive tester")
+	}
+	return (c.n + c.off) % max
+}
+
+func (x *exhaustive) Maybe() bool {
+	return x.Choose(2) == 1
 }

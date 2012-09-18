@@ -186,6 +186,12 @@ type Type interface {
 	uncommon() *uncommonType
 }
 
+/*
+ * These data structures are known to the compiler (../../cmd/gc/reflect.c).
+ * A few are known to ../runtime/type.go to convey to debuggers.
+ * They are also known to ../runtime/type.h.
+ */
+
 // A Kind represents the specific kind of type that a Type represents.
 // The zero Kind is not a valid kind.
 type Kind uint
@@ -219,11 +225,6 @@ const (
 	Struct
 	UnsafePointer
 )
-
-/*
- * These data structures are known to the compiler (../../cmd/gc/reflect.c).
- * A few are known to ../runtime/type.go to convey to debuggers.
- */
 
 // The compiler can only construct empty interface values at
 // compile time; non-empty interface values get created
