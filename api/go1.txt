@@ -133,22 +133,22 @@ pkg bufio, var ErrInvalidUnreadByte error
 pkg bufio, var ErrInvalidUnreadRune error
 pkg bufio, var ErrNegativeCount error
 pkg bytes, const MinRead ideal-int
-pkg bytes, func Compare([]byte) int
-pkg bytes, func Contains([]byte) bool
-pkg bytes, func Count([]byte) int
-pkg bytes, func Equal([]byte) bool
-pkg bytes, func EqualFold([]byte) bool
+pkg bytes, func Compare([]byte, []byte) int
+pkg bytes, func Contains([]byte, []byte) bool
+pkg bytes, func Count([]byte, []byte) int
+pkg bytes, func Equal([]byte, []byte) bool
+pkg bytes, func EqualFold([]byte, []byte) bool
 pkg bytes, func Fields([]byte) [][]byte
 pkg bytes, func FieldsFunc([]byte, func(rune) bool) [][]byte
-pkg bytes, func HasPrefix([]byte) bool
-pkg bytes, func HasSuffix([]byte) bool
-pkg bytes, func Index([]byte) int
+pkg bytes, func HasPrefix([]byte, []byte) bool
+pkg bytes, func HasSuffix([]byte, []byte) bool
+pkg bytes, func Index([]byte, []byte) int
 pkg bytes, func IndexAny([]byte, string) int
 pkg bytes, func IndexByte([]byte, byte) int
 pkg bytes, func IndexFunc([]byte, func(rune) bool) int
 pkg bytes, func IndexRune([]byte, rune) int
 pkg bytes, func Join([][]byte, []byte) []byte
-pkg bytes, func LastIndex([]byte) int
+pkg bytes, func LastIndex([]byte, []byte) int
 pkg bytes, func LastIndexAny([]byte, string) int
 pkg bytes, func LastIndexFunc([]byte, func(rune) bool) int
 pkg bytes, func Map(func(rune) rune, []byte) []byte
@@ -156,12 +156,12 @@ pkg bytes, func NewBuffer([]byte) *Buffer
 pkg bytes, func NewBufferString(string) *Buffer
 pkg bytes, func NewReader([]byte) *Reader
 pkg bytes, func Repeat([]byte, int) []byte
-pkg bytes, func Replace([]byte, int) []byte
+pkg bytes, func Replace([]byte, []byte, []byte, int) []byte
 pkg bytes, func Runes([]byte) []rune
-pkg bytes, func Split([]byte) [][]byte
-pkg bytes, func SplitAfter([]byte) [][]byte
-pkg bytes, func SplitAfterN([]byte, int) [][]byte
-pkg bytes, func SplitN([]byte, int) [][]byte
+pkg bytes, func Split([]byte, []byte) [][]byte
+pkg bytes, func SplitAfter([]byte, []byte) [][]byte
+pkg bytes, func SplitAfterN([]byte, []byte, int) [][]byte
+pkg bytes, func SplitN([]byte, []byte, int) [][]byte
 pkg bytes, func Title([]byte) []byte
 pkg bytes, func ToLower([]byte) []byte
 pkg bytes, func ToLowerSpecial(unicode.SpecialCase, []byte) []byte
@@ -286,10 +286,10 @@ pkg container/heap, func Push(Interface, interface{})
 pkg container/heap, func Remove(Interface, int) interface{}
 pkg container/heap, type Interface interface { Len, Less, Pop, Push, Swap }
 pkg container/heap, type Interface interface, Len() int
-pkg container/heap, type Interface interface, Less(int) bool
+pkg container/heap, type Interface interface, Less(int, int) bool
 pkg container/heap, type Interface interface, Pop() interface{}
 pkg container/heap, type Interface interface, Push(interface{})
-pkg container/heap, type Interface interface, Swap(int)
+pkg container/heap, type Interface interface, Swap(int, int)
 pkg container/list, func New() *List
 pkg container/list, method (*Element) Next() *Element
 pkg container/list, method (*Element) Prev() *Element
@@ -349,13 +349,13 @@ pkg crypto/cipher, method (StreamWriter) Close() error
 pkg crypto/cipher, method (StreamWriter) Write([]byte) (int, error)
 pkg crypto/cipher, type Block interface { BlockSize, Decrypt, Encrypt }
 pkg crypto/cipher, type Block interface, BlockSize() int
-pkg crypto/cipher, type Block interface, Decrypt([]byte)
-pkg crypto/cipher, type Block interface, Encrypt([]byte)
+pkg crypto/cipher, type Block interface, Decrypt([]byte, []byte)
+pkg crypto/cipher, type Block interface, Encrypt([]byte, []byte)
 pkg crypto/cipher, type BlockMode interface { BlockSize, CryptBlocks }
 pkg crypto/cipher, type BlockMode interface, BlockSize() int
-pkg crypto/cipher, type BlockMode interface, CryptBlocks([]byte)
+pkg crypto/cipher, type BlockMode interface, CryptBlocks([]byte, []byte)
 pkg crypto/cipher, type Stream interface { XORKeyStream }
-pkg crypto/cipher, type Stream interface, XORKeyStream([]byte)
+pkg crypto/cipher, type Stream interface, XORKeyStream([]byte, []byte)
 pkg crypto/cipher, type StreamReader struct
 pkg crypto/cipher, type StreamReader struct, R io.Reader
 pkg crypto/cipher, type StreamReader struct, S Stream
@@ -374,8 +374,8 @@ pkg crypto/dsa, const L2048N256 ParameterSizes
 pkg crypto/dsa, const L3072N256 ParameterSizes
 pkg crypto/dsa, func GenerateKey(*PrivateKey, io.Reader) error
 pkg crypto/dsa, func GenerateParameters(*Parameters, io.Reader, ParameterSizes) error
-pkg crypto/dsa, func Sign(io.Reader, *PrivateKey, []byte) (*big.Int, error)
-pkg crypto/dsa, func Verify(*PublicKey, []byte, *big.Int) bool
+pkg crypto/dsa, func Sign(io.Reader, *PrivateKey, []byte) (*big.Int, *big.Int, error)
+pkg crypto/dsa, func Verify(*PublicKey, []byte, *big.Int, *big.Int) bool
 pkg crypto/dsa, type ParameterSizes int
 pkg crypto/dsa, type Parameters struct
 pkg crypto/dsa, type Parameters struct, G *big.Int
@@ -389,8 +389,8 @@ pkg crypto/dsa, type PublicKey struct, Y *big.Int
 pkg crypto/dsa, type PublicKey struct, embedded Parameters
 pkg crypto/dsa, var ErrInvalidPublicKey error
 pkg crypto/ecdsa, func GenerateKey(elliptic.Curve, io.Reader) (*PrivateKey, error)
-pkg crypto/ecdsa, func Sign(io.Reader, *PrivateKey, []byte) (*big.Int, error)
-pkg crypto/ecdsa, func Verify(*PublicKey, []byte, *big.Int) bool
+pkg crypto/ecdsa, func Sign(io.Reader, *PrivateKey, []byte) (*big.Int, *big.Int, error)
+pkg crypto/ecdsa, func Verify(*PublicKey, []byte, *big.Int, *big.Int) bool
 pkg crypto/ecdsa, type PrivateKey struct
 pkg crypto/ecdsa, type PrivateKey struct, D *big.Int
 pkg crypto/ecdsa, type PrivateKey struct, embedded PublicKey
@@ -398,26 +398,26 @@ pkg crypto/ecdsa, type PublicKey struct
 pkg crypto/ecdsa, type PublicKey struct, X *big.Int
 pkg crypto/ecdsa, type PublicKey struct, Y *big.Int
 pkg crypto/ecdsa, type PublicKey struct, embedded elliptic.Curve
-pkg crypto/elliptic, func GenerateKey(Curve, io.Reader) ([]byte, *big.Int, error)
-pkg crypto/elliptic, func Marshal(Curve, *big.Int) []byte
+pkg crypto/elliptic, func GenerateKey(Curve, io.Reader) ([]byte, *big.Int, *big.Int, error)
+pkg crypto/elliptic, func Marshal(Curve, *big.Int, *big.Int) []byte
 pkg crypto/elliptic, func P224() Curve
 pkg crypto/elliptic, func P256() Curve
 pkg crypto/elliptic, func P384() Curve
 pkg crypto/elliptic, func P521() Curve
-pkg crypto/elliptic, func Unmarshal(Curve, []byte) *big.Int
-pkg crypto/elliptic, method (*CurveParams) Add(*big.Int) (*big.Int, *big.Int)
-pkg crypto/elliptic, method (*CurveParams) Double(*big.Int) (*big.Int, *big.Int)
-pkg crypto/elliptic, method (*CurveParams) IsOnCurve(*big.Int) bool
+pkg crypto/elliptic, func Unmarshal(Curve, []byte) (*big.Int, *big.Int)
+pkg crypto/elliptic, method (*CurveParams) Add(*big.Int, *big.Int, *big.Int, *big.Int) (*big.Int, *big.Int)
+pkg crypto/elliptic, method (*CurveParams) Double(*big.Int, *big.Int) (*big.Int, *big.Int)
+pkg crypto/elliptic, method (*CurveParams) IsOnCurve(*big.Int, *big.Int) bool
 pkg crypto/elliptic, method (*CurveParams) Params() *CurveParams
 pkg crypto/elliptic, method (*CurveParams) ScalarBaseMult([]byte) (*big.Int, *big.Int)
-pkg crypto/elliptic, method (*CurveParams) ScalarMult(*big.Int, []byte) (*big.Int, *big.Int)
+pkg crypto/elliptic, method (*CurveParams) ScalarMult(*big.Int, *big.Int, []byte) (*big.Int, *big.Int)
 pkg crypto/elliptic, type Curve interface { Add, Double, IsOnCurve, Params, ScalarBaseMult, ScalarMult }
-pkg crypto/elliptic, type Curve interface, Add(*big.Int) *big.Int
-pkg crypto/elliptic, type Curve interface, Double(*big.Int) *big.Int
-pkg crypto/elliptic, type Curve interface, IsOnCurve(*big.Int) bool
+pkg crypto/elliptic, type Curve interface, Add(*big.Int, *big.Int, *big.Int, *big.Int) (*big.Int, *big.Int)
+pkg crypto/elliptic, type Curve interface, Double(*big.Int, *big.Int) (*big.Int, *big.Int)
+pkg crypto/elliptic, type Curve interface, IsOnCurve(*big.Int, *big.Int) bool
 pkg crypto/elliptic, type Curve interface, Params() *CurveParams
-pkg crypto/elliptic, type Curve interface, ScalarBaseMult([]byte) *big.Int
-pkg crypto/elliptic, type Curve interface, ScalarMult(*big.Int, []byte) *big.Int
+pkg crypto/elliptic, type Curve interface, ScalarBaseMult([]byte) (*big.Int, *big.Int)
+pkg crypto/elliptic, type Curve interface, ScalarMult(*big.Int, *big.Int, []byte) (*big.Int, *big.Int)
 pkg crypto/elliptic, type CurveParams struct
 pkg crypto/elliptic, type CurveParams struct, B *big.Int
 pkg crypto/elliptic, type CurveParams struct, BitSize int
@@ -435,7 +435,7 @@ pkg crypto/rand, func Read([]byte) (int, error)
 pkg crypto/rand, var Reader io.Reader
 pkg crypto/rc4, func NewCipher([]byte) (*Cipher, error)
 pkg crypto/rc4, method (*Cipher) Reset()
-pkg crypto/rc4, method (*Cipher) XORKeyStream([]byte)
+pkg crypto/rc4, method (*Cipher) XORKeyStream([]byte, []byte)
 pkg crypto/rc4, method (KeySizeError) Error() string
 pkg crypto/rc4, type Cipher struct
 pkg crypto/rc4, type KeySizeError int
@@ -483,11 +483,11 @@ pkg crypto/sha512, const Size ideal-int
 pkg crypto/sha512, const Size384 ideal-int
 pkg crypto/sha512, func New() hash.Hash
 pkg crypto/sha512, func New384() hash.Hash
-pkg crypto/subtle, func ConstantTimeByteEq(uint8) int
-pkg crypto/subtle, func ConstantTimeCompare([]byte) int
-pkg crypto/subtle, func ConstantTimeCopy(int, []byte)
-pkg crypto/subtle, func ConstantTimeEq(int32) int
-pkg crypto/subtle, func ConstantTimeSelect(int) int
+pkg crypto/subtle, func ConstantTimeByteEq(uint8, uint8) int
+pkg crypto/subtle, func ConstantTimeCompare([]byte, []byte) int
+pkg crypto/subtle, func ConstantTimeCopy(int, []byte, []byte)
+pkg crypto/subtle, func ConstantTimeEq(int32, int32) int
+pkg crypto/subtle, func ConstantTimeSelect(int, int, int) int
 pkg crypto/tls, const NoClientCert ClientAuthType
 pkg crypto/tls, const RequestClientCert ClientAuthType
 pkg crypto/tls, const RequireAndVerifyClientCert ClientAuthType
@@ -500,12 +500,12 @@ pkg crypto/tls, const TLS_RSA_WITH_AES_128_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_RC4_128_SHA uint16
 pkg crypto/tls, const VerifyClientCertIfGiven ClientAuthType
 pkg crypto/tls, func Client(net.Conn, *Config) *Conn
-pkg crypto/tls, func Dial(string, *Config) (*Conn, error)
-pkg crypto/tls, func Listen(string, *Config) (net.Listener, error)
-pkg crypto/tls, func LoadX509KeyPair(string) (Certificate, error)
+pkg crypto/tls, func Dial(string, string, *Config) (*Conn, error)
+pkg crypto/tls, func Listen(string, string, *Config) (net.Listener, error)
+pkg crypto/tls, func LoadX509KeyPair(string, string) (Certificate, error)
 pkg crypto/tls, func NewListener(net.Listener, *Config) net.Listener
 pkg crypto/tls, func Server(net.Conn, *Config) *Conn
-pkg crypto/tls, func X509KeyPair([]byte) (Certificate, error)
+pkg crypto/tls, func X509KeyPair([]byte, []byte) (Certificate, error)
 pkg crypto/tls, method (*Config) BuildNameToCertificate()
 pkg crypto/tls, method (*Conn) Close() error
 pkg crypto/tls, method (*Conn) ConnectionState() ConnectionState
@@ -578,7 +578,7 @@ pkg crypto/x509, const SHA512WithRSA SignatureAlgorithm
 pkg crypto/x509, const TooManyIntermediates InvalidReason
 pkg crypto/x509, const UnknownPublicKeyAlgorithm PublicKeyAlgorithm
 pkg crypto/x509, const UnknownSignatureAlgorithm SignatureAlgorithm
-pkg crypto/x509, func CreateCertificate(io.Reader, *Certificate, interface{}, interface{}) ([]byte, error)
+pkg crypto/x509, func CreateCertificate(io.Reader, *Certificate, *Certificate, interface{}, interface{}) ([]byte, error)
 pkg crypto/x509, func MarshalPKCS1PrivateKey(*rsa.PrivateKey) []byte
 pkg crypto/x509, func MarshalPKIXPublicKey(interface{}) ([]byte, error)
 pkg crypto/x509, func NewCertPool() *CertPool
@@ -593,9 +593,9 @@ pkg crypto/x509, method (*CertPool) AddCert(*Certificate)
 pkg crypto/x509, method (*CertPool) AppendCertsFromPEM([]byte) bool
 pkg crypto/x509, method (*CertPool) Subjects() [][]byte
 pkg crypto/x509, method (*Certificate) CheckCRLSignature(*pkix.CertificateList) error
-pkg crypto/x509, method (*Certificate) CheckSignature(SignatureAlgorithm, []byte) error
+pkg crypto/x509, method (*Certificate) CheckSignature(SignatureAlgorithm, []byte, []byte) error
 pkg crypto/x509, method (*Certificate) CheckSignatureFrom(*Certificate) error
-pkg crypto/x509, method (*Certificate) CreateCRL(io.Reader, interface{}, []pkix.RevokedCertificate, time.Time) ([]byte, error)
+pkg crypto/x509, method (*Certificate) CreateCRL(io.Reader, interface{}, []pkix.RevokedCertificate, time.Time, time.Time) ([]byte, error)
 pkg crypto/x509, method (*Certificate) Equal(*Certificate) bool
 pkg crypto/x509, method (*Certificate) Verify(VerifyOptions) ([][]*Certificate, error)
 pkg crypto/x509, method (*Certificate) VerifyHostname(string) error
@@ -697,7 +697,7 @@ pkg crypto/x509/pkix, type TBSCertificateList struct, RevokedCertificates []Revo
 pkg crypto/x509/pkix, type TBSCertificateList struct, Signature AlgorithmIdentifier
 pkg crypto/x509/pkix, type TBSCertificateList struct, ThisUpdate time.Time
 pkg crypto/x509/pkix, type TBSCertificateList struct, Version int
-pkg database/sql, func Open(string) (*DB, error)
+pkg database/sql, func Open(string, string) (*DB, error)
 pkg database/sql, func Register(string, driver.Driver)
 pkg database/sql, method (*DB) Begin() (*Tx, error)
 pkg database/sql, method (*DB) Close() error
@@ -932,7 +932,7 @@ pkg debug/dwarf, const TagVariant Tag
 pkg debug/dwarf, const TagVariantPart Tag
 pkg debug/dwarf, const TagVolatileType Tag
 pkg debug/dwarf, const TagWithStmt Tag
-pkg debug/dwarf, func New([]byte) (*Data, error)
+pkg debug/dwarf, func New([]byte, []byte, []byte, []byte, []byte, []byte, []byte, []byte) (*Data, error)
 pkg debug/dwarf, method (*AddrType) Basic() *BasicType
 pkg debug/dwarf, method (*AddrType) Common() *CommonType
 pkg debug/dwarf, method (*AddrType) Size() int64
@@ -1579,8 +1579,8 @@ pkg debug/elf, const Sym32Size ideal-int
 pkg debug/elf, const Sym64Size ideal-int
 pkg debug/elf, func NewFile(io.ReaderAt) (*File, error)
 pkg debug/elf, func Open(string) (*File, error)
-pkg debug/elf, func R_INFO(uint32) uint64
-pkg debug/elf, func R_INFO32(uint32) uint32
+pkg debug/elf, func R_INFO(uint32, uint32) uint64
+pkg debug/elf, func R_INFO32(uint32, uint32) uint32
 pkg debug/elf, func R_SYM32(uint32) uint32
 pkg debug/elf, func R_SYM64(uint64) uint32
 pkg debug/elf, func R_TYPE32(uint32) uint32
@@ -2197,8 +2197,8 @@ pkg debug/pe, type SectionHeader32 struct, PointerToRelocations uint32
 pkg debug/pe, type SectionHeader32 struct, SizeOfRawData uint32
 pkg debug/pe, type SectionHeader32 struct, VirtualAddress uint32
 pkg debug/pe, type SectionHeader32 struct, VirtualSize uint32
-pkg encoding/ascii85, func Decode([]byte, bool) (int, error)
-pkg encoding/ascii85, func Encode([]byte) int
+pkg encoding/ascii85, func Decode([]byte, []byte, bool) (int, int, error)
+pkg encoding/ascii85, func Encode([]byte, []byte) int
 pkg encoding/ascii85, func MaxEncodedLen(int) int
 pkg encoding/ascii85, func NewDecoder(io.Reader) io.Reader
 pkg encoding/ascii85, func NewEncoder(io.Writer) io.WriteCloser
@@ -2232,10 +2232,10 @@ pkg encoding/asn1, type SyntaxError struct, Msg string
 pkg encoding/base32, func NewDecoder(*Encoding, io.Reader) io.Reader
 pkg encoding/base32, func NewEncoder(*Encoding, io.Writer) io.WriteCloser
 pkg encoding/base32, func NewEncoding(string) *Encoding
-pkg encoding/base32, method (*Encoding) Decode([]byte) (int, error)
+pkg encoding/base32, method (*Encoding) Decode([]byte, []byte) (int, error)
 pkg encoding/base32, method (*Encoding) DecodeString(string) ([]byte, error)
 pkg encoding/base32, method (*Encoding) DecodedLen(int) int
-pkg encoding/base32, method (*Encoding) Encode([]byte)
+pkg encoding/base32, method (*Encoding) Encode([]byte, []byte)
 pkg encoding/base32, method (*Encoding) EncodeToString([]byte) string
 pkg encoding/base32, method (*Encoding) EncodedLen(int) int
 pkg encoding/base32, method (CorruptInputError) Error() string
@@ -2246,10 +2246,10 @@ pkg encoding/base32, var StdEncoding *Encoding
 pkg encoding/base64, func NewDecoder(*Encoding, io.Reader) io.Reader
 pkg encoding/base64, func NewEncoder(*Encoding, io.Writer) io.WriteCloser
 pkg encoding/base64, func NewEncoding(string) *Encoding
-pkg encoding/base64, method (*Encoding) Decode([]byte) (int, error)
+pkg encoding/base64, method (*Encoding) Decode([]byte, []byte) (int, error)
 pkg encoding/base64, method (*Encoding) DecodeString(string) ([]byte, error)
 pkg encoding/base64, method (*Encoding) DecodedLen(int) int
-pkg encoding/base64, method (*Encoding) Encode([]byte)
+pkg encoding/base64, method (*Encoding) Encode([]byte, []byte)
 pkg encoding/base64, method (*Encoding) EncodeToString([]byte) string
 pkg encoding/base64, method (*Encoding) EncodedLen(int) int
 pkg encoding/base64, method (CorruptInputError) Error() string
@@ -2322,12 +2322,12 @@ pkg encoding/gob, type GobDecoder interface { GobDecode }
 pkg encoding/gob, type GobDecoder interface, GobDecode([]byte) error
 pkg encoding/gob, type GobEncoder interface { GobEncode }
 pkg encoding/gob, type GobEncoder interface, GobEncode() ([]byte, error)
-pkg encoding/hex, func Decode([]byte) (int, error)
+pkg encoding/hex, func Decode([]byte, []byte) (int, error)
 pkg encoding/hex, func DecodeString(string) ([]byte, error)
 pkg encoding/hex, func DecodedLen(int) int
 pkg encoding/hex, func Dump([]byte) string
 pkg encoding/hex, func Dumper(io.Writer) io.WriteCloser
-pkg encoding/hex, func Encode([]byte) int
+pkg encoding/hex, func Encode([]byte, []byte) int
 pkg encoding/hex, func EncodeToString([]byte) string
 pkg encoding/hex, func EncodedLen(int) int
 pkg encoding/hex, method (InvalidByteError) Error() string
@@ -2335,9 +2335,9 @@ pkg encoding/hex, type InvalidByteError byte
 pkg encoding/hex, var ErrLength error
 pkg encoding/json, func Compact(*bytes.Buffer, []byte) error
 pkg encoding/json, func HTMLEscape(*bytes.Buffer, []byte)
-pkg encoding/json, func Indent(*bytes.Buffer, []byte, string) error
+pkg encoding/json, func Indent(*bytes.Buffer, []byte, string, string) error
 pkg encoding/json, func Marshal(interface{}) ([]byte, error)
-pkg encoding/json, func MarshalIndent(interface{}, string) ([]byte, error)
+pkg encoding/json, func MarshalIndent(interface{}, string, string) ([]byte, error)
 pkg encoding/json, func NewDecoder(io.Reader) *Decoder
 pkg encoding/json, func NewEncoder(io.Writer) *Encoder
 pkg encoding/json, func Unmarshal([]byte, interface{}) error
@@ -2392,7 +2392,7 @@ pkg encoding/xml, const Header ideal-string
 pkg encoding/xml, func CopyToken(Token) Token
 pkg encoding/xml, func Escape(io.Writer, []byte)
 pkg encoding/xml, func Marshal(interface{}) ([]byte, error)
-pkg encoding/xml, func MarshalIndent(interface{}, string) ([]byte, error)
+pkg encoding/xml, func MarshalIndent(interface{}, string, string) ([]byte, error)
 pkg encoding/xml, func NewDecoder(io.Reader) *Decoder
 pkg encoding/xml, func NewEncoder(io.Writer) *Encoder
 pkg encoding/xml, func Unmarshal([]byte, interface{}) error
@@ -2505,7 +2505,7 @@ pkg flag, func NewFlagSet(string, ErrorHandling) *FlagSet
 pkg flag, func Parse()
 pkg flag, func Parsed() bool
 pkg flag, func PrintDefaults()
-pkg flag, func Set(string) error
+pkg flag, func Set(string, string) error
 pkg flag, func String(string, string, string) *string
 pkg flag, func StringVar(*string, string, string, string)
 pkg flag, func Uint(string, uint, string) *uint
@@ -2534,7 +2534,7 @@ pkg flag, method (*FlagSet) NFlag() int
 pkg flag, method (*FlagSet) Parse([]string) error
 pkg flag, method (*FlagSet) Parsed() bool
 pkg flag, method (*FlagSet) PrintDefaults()
-pkg flag, method (*FlagSet) Set(string) error
+pkg flag, method (*FlagSet) Set(string, string) error
 pkg flag, method (*FlagSet) SetOutput(io.Writer)
 pkg flag, method (*FlagSet) String(string, string, string) *string
 pkg flag, method (*FlagSet) StringVar(*string, string, string, string)
@@ -2811,9 +2811,9 @@ pkg go/ast, type CompositeLit struct, Elts []Expr
 pkg go/ast, type CompositeLit struct, Lbrace token.Pos
 pkg go/ast, type CompositeLit struct, Rbrace token.Pos
 pkg go/ast, type CompositeLit struct, Type Expr
-pkg go/ast, type Decl interface, unexported methods
 pkg go/ast, type Decl interface, End() token.Pos
 pkg go/ast, type Decl interface, Pos() token.Pos
+pkg go/ast, type Decl interface, unexported methods
 pkg go/ast, type DeclStmt struct
 pkg go/ast, type DeclStmt struct, Decl Decl
 pkg go/ast, type DeferStmt struct
@@ -2824,9 +2824,9 @@ pkg go/ast, type Ellipsis struct, Ellipsis token.Pos
 pkg go/ast, type Ellipsis struct, Elt Expr
 pkg go/ast, type EmptyStmt struct
 pkg go/ast, type EmptyStmt struct, Semicolon token.Pos
-pkg go/ast, type Expr interface, unexported methods
 pkg go/ast, type Expr interface, End() token.Pos
 pkg go/ast, type Expr interface, Pos() token.Pos
+pkg go/ast, type Expr interface, unexported methods
 pkg go/ast, type ExprStmt struct
 pkg go/ast, type ExprStmt struct, X Expr
 pkg go/ast, type Field struct
@@ -2971,15 +2971,15 @@ pkg go/ast, type SliceExpr struct, Lbrack token.Pos
 pkg go/ast, type SliceExpr struct, Low Expr
 pkg go/ast, type SliceExpr struct, Rbrack token.Pos
 pkg go/ast, type SliceExpr struct, X Expr
-pkg go/ast, type Spec interface, unexported methods
 pkg go/ast, type Spec interface, End() token.Pos
 pkg go/ast, type Spec interface, Pos() token.Pos
+pkg go/ast, type Spec interface, unexported methods
 pkg go/ast, type StarExpr struct
 pkg go/ast, type StarExpr struct, Star token.Pos
 pkg go/ast, type StarExpr struct, X Expr
-pkg go/ast, type Stmt interface, unexported methods
 pkg go/ast, type Stmt interface, End() token.Pos
 pkg go/ast, type Stmt interface, Pos() token.Pos
+pkg go/ast, type Stmt interface, unexported methods
 pkg go/ast, type StructType struct
 pkg go/ast, type StructType struct, Fields *FieldList
 pkg go/ast, type StructType struct, Incomplete bool
@@ -3017,7 +3017,7 @@ pkg go/ast, type Visitor interface, Visit(Node) Visitor
 pkg go/build, const AllowBinary ImportMode
 pkg go/build, const FindOnly ImportMode
 pkg go/build, func ArchChar(string) (string, error)
-pkg go/build, func Import(string, ImportMode) (*Package, error)
+pkg go/build, func Import(string, string, ImportMode) (*Package, error)
 pkg go/build, func ImportDir(string, ImportMode) (*Package, error)
 pkg go/build, func IsLocalImport(string) bool
 pkg go/build, method (*Context) Import(string, string, ImportMode) (*Package, error)
@@ -3080,7 +3080,7 @@ pkg go/doc, func Examples(...*ast.File) []*Example
 pkg go/doc, func New(*ast.Package, string, Mode) *Package
 pkg go/doc, func Synopsis(string) string
 pkg go/doc, func ToHTML(io.Writer, string, map[string]string)
-pkg go/doc, func ToText(io.Writer, string, string, int)
+pkg go/doc, func ToText(io.Writer, string, string, string, int)
 pkg go/doc, method (*Package) Filter(Filter)
 pkg go/doc, type Example struct
 pkg go/doc, type Example struct, Code ast.Node
@@ -3154,9 +3154,9 @@ pkg go/scanner, method (Error) Error() string
 pkg go/scanner, method (ErrorList) Err() error
 pkg go/scanner, method (ErrorList) Error() string
 pkg go/scanner, method (ErrorList) Len() int
-pkg go/scanner, method (ErrorList) Less(int) bool
+pkg go/scanner, method (ErrorList) Less(int, int) bool
 pkg go/scanner, method (ErrorList) Sort()
-pkg go/scanner, method (ErrorList) Swap(int)
+pkg go/scanner, method (ErrorList) Swap(int, int)
 pkg go/scanner, type Error struct
 pkg go/scanner, type Error struct, Msg string
 pkg go/scanner, type Error struct, Pos token.Position
@@ -3264,7 +3264,7 @@ pkg go/token, method (*File) Position(Pos) Position
 pkg go/token, method (*File) SetLines([]int) bool
 pkg go/token, method (*File) SetLinesForContent([]byte)
 pkg go/token, method (*File) Size() int
-pkg go/token, method (*FileSet) AddFile(string, int) *File
+pkg go/token, method (*FileSet) AddFile(string, int, int) *File
 pkg go/token, method (*FileSet) Base() int
 pkg go/token, method (*FileSet) File(Pos) *File
 pkg go/token, method (*FileSet) Iterate(func(*File) bool)
@@ -3362,7 +3362,7 @@ pkg html/template, func URLQueryEscaper(...interface{}) string
 pkg html/template, method (*Error) Error() string
 pkg html/template, method (*Template) AddParseTree(string, *parse.Tree) (*Template, error)
 pkg html/template, method (*Template) Clone() (*Template, error)
-pkg html/template, method (*Template) Delims(string) *Template
+pkg html/template, method (*Template) Delims(string, string) *Template
 pkg html/template, method (*Template) Execute(io.Writer, interface{}) error
 pkg html/template, method (*Template) ExecuteTemplate(io.Writer, string, interface{}) error
 pkg html/template, method (*Template) Funcs(FuncMap) *Template
@@ -3403,95 +3403,95 @@ pkg image, func NewRGBA(Rectangle) *RGBA
 pkg image, func NewRGBA64(Rectangle) *RGBA64
 pkg image, func NewUniform(color.Color) *Uniform
 pkg image, func NewYCbCr(Rectangle, YCbCrSubsampleRatio) *YCbCr
-pkg image, func Pt(int) Point
-pkg image, func Rect(int) Rectangle
-pkg image, func RegisterFormat(string, func(io.Reader) (Image, error), func(io.Reader) (Config, error))
-pkg image, method (*Alpha) At(int) color.Color
+pkg image, func Pt(int, int) Point
+pkg image, func Rect(int, int, int, int) Rectangle
+pkg image, func RegisterFormat(string, string, func(io.Reader) (Image, error), func(io.Reader) (Config, error))
+pkg image, method (*Alpha) At(int, int) color.Color
 pkg image, method (*Alpha) Bounds() Rectangle
 pkg image, method (*Alpha) ColorModel() color.Model
 pkg image, method (*Alpha) Opaque() bool
-pkg image, method (*Alpha) PixOffset(int) int
-pkg image, method (*Alpha) Set(int, color.Color)
-pkg image, method (*Alpha) SetAlpha(int, color.Alpha)
+pkg image, method (*Alpha) PixOffset(int, int) int
+pkg image, method (*Alpha) Set(int, int, color.Color)
+pkg image, method (*Alpha) SetAlpha(int, int, color.Alpha)
 pkg image, method (*Alpha) SubImage(Rectangle) Image
-pkg image, method (*Alpha16) At(int) color.Color
+pkg image, method (*Alpha16) At(int, int) color.Color
 pkg image, method (*Alpha16) Bounds() Rectangle
 pkg image, method (*Alpha16) ColorModel() color.Model
 pkg image, method (*Alpha16) Opaque() bool
-pkg image, method (*Alpha16) PixOffset(int) int
-pkg image, method (*Alpha16) Set(int, color.Color)
-pkg image, method (*Alpha16) SetAlpha16(int, color.Alpha16)
+pkg image, method (*Alpha16) PixOffset(int, int) int
+pkg image, method (*Alpha16) Set(int, int, color.Color)
+pkg image, method (*Alpha16) SetAlpha16(int, int, color.Alpha16)
 pkg image, method (*Alpha16) SubImage(Rectangle) Image
-pkg image, method (*Gray) At(int) color.Color
+pkg image, method (*Gray) At(int, int) color.Color
 pkg image, method (*Gray) Bounds() Rectangle
 pkg image, method (*Gray) ColorModel() color.Model
 pkg image, method (*Gray) Opaque() bool
-pkg image, method (*Gray) PixOffset(int) int
-pkg image, method (*Gray) Set(int, color.Color)
-pkg image, method (*Gray) SetGray(int, color.Gray)
+pkg image, method (*Gray) PixOffset(int, int) int
+pkg image, method (*Gray) Set(int, int, color.Color)
+pkg image, method (*Gray) SetGray(int, int, color.Gray)
 pkg image, method (*Gray) SubImage(Rectangle) Image
-pkg image, method (*Gray16) At(int) color.Color
+pkg image, method (*Gray16) At(int, int) color.Color
 pkg image, method (*Gray16) Bounds() Rectangle
 pkg image, method (*Gray16) ColorModel() color.Model
 pkg image, method (*Gray16) Opaque() bool
-pkg image, method (*Gray16) PixOffset(int) int
-pkg image, method (*Gray16) Set(int, color.Color)
-pkg image, method (*Gray16) SetGray16(int, color.Gray16)
+pkg image, method (*Gray16) PixOffset(int, int) int
+pkg image, method (*Gray16) Set(int, int, color.Color)
+pkg image, method (*Gray16) SetGray16(int, int, color.Gray16)
 pkg image, method (*Gray16) SubImage(Rectangle) Image
-pkg image, method (*NRGBA) At(int) color.Color
+pkg image, method (*NRGBA) At(int, int) color.Color
 pkg image, method (*NRGBA) Bounds() Rectangle
 pkg image, method (*NRGBA) ColorModel() color.Model
 pkg image, method (*NRGBA) Opaque() bool
-pkg image, method (*NRGBA) PixOffset(int) int
-pkg image, method (*NRGBA) Set(int, color.Color)
-pkg image, method (*NRGBA) SetNRGBA(int, color.NRGBA)
+pkg image, method (*NRGBA) PixOffset(int, int) int
+pkg image, method (*NRGBA) Set(int, int, color.Color)
+pkg image, method (*NRGBA) SetNRGBA(int, int, color.NRGBA)
 pkg image, method (*NRGBA) SubImage(Rectangle) Image
-pkg image, method (*NRGBA64) At(int) color.Color
+pkg image, method (*NRGBA64) At(int, int) color.Color
 pkg image, method (*NRGBA64) Bounds() Rectangle
 pkg image, method (*NRGBA64) ColorModel() color.Model
 pkg image, method (*NRGBA64) Opaque() bool
-pkg image, method (*NRGBA64) PixOffset(int) int
-pkg image, method (*NRGBA64) Set(int, color.Color)
-pkg image, method (*NRGBA64) SetNRGBA64(int, color.NRGBA64)
+pkg image, method (*NRGBA64) PixOffset(int, int) int
+pkg image, method (*NRGBA64) Set(int, int, color.Color)
+pkg image, method (*NRGBA64) SetNRGBA64(int, int, color.NRGBA64)
 pkg image, method (*NRGBA64) SubImage(Rectangle) Image
-pkg image, method (*Paletted) At(int) color.Color
+pkg image, method (*Paletted) At(int, int) color.Color
 pkg image, method (*Paletted) Bounds() Rectangle
-pkg image, method (*Paletted) ColorIndexAt(int) uint8
+pkg image, method (*Paletted) ColorIndexAt(int, int) uint8
 pkg image, method (*Paletted) ColorModel() color.Model
 pkg image, method (*Paletted) Opaque() bool
-pkg image, method (*Paletted) PixOffset(int) int
-pkg image, method (*Paletted) Set(int, color.Color)
-pkg image, method (*Paletted) SetColorIndex(int, uint8)
+pkg image, method (*Paletted) PixOffset(int, int) int
+pkg image, method (*Paletted) Set(int, int, color.Color)
+pkg image, method (*Paletted) SetColorIndex(int, int, uint8)
 pkg image, method (*Paletted) SubImage(Rectangle) Image
-pkg image, method (*RGBA) At(int) color.Color
+pkg image, method (*RGBA) At(int, int) color.Color
 pkg image, method (*RGBA) Bounds() Rectangle
 pkg image, method (*RGBA) ColorModel() color.Model
 pkg image, method (*RGBA) Opaque() bool
-pkg image, method (*RGBA) PixOffset(int) int
-pkg image, method (*RGBA) Set(int, color.Color)
-pkg image, method (*RGBA) SetRGBA(int, color.RGBA)
+pkg image, method (*RGBA) PixOffset(int, int) int
+pkg image, method (*RGBA) Set(int, int, color.Color)
+pkg image, method (*RGBA) SetRGBA(int, int, color.RGBA)
 pkg image, method (*RGBA) SubImage(Rectangle) Image
-pkg image, method (*RGBA64) At(int) color.Color
+pkg image, method (*RGBA64) At(int, int) color.Color
 pkg image, method (*RGBA64) Bounds() Rectangle
 pkg image, method (*RGBA64) ColorModel() color.Model
 pkg image, method (*RGBA64) Opaque() bool
-pkg image, method (*RGBA64) PixOffset(int) int
-pkg image, method (*RGBA64) Set(int, color.Color)
-pkg image, method (*RGBA64) SetRGBA64(int, color.RGBA64)
+pkg image, method (*RGBA64) PixOffset(int, int) int
+pkg image, method (*RGBA64) Set(int, int, color.Color)
+pkg image, method (*RGBA64) SetRGBA64(int, int, color.RGBA64)
 pkg image, method (*RGBA64) SubImage(Rectangle) Image
-pkg image, method (*Uniform) At(int) color.Color
+pkg image, method (*Uniform) At(int, int) color.Color
 pkg image, method (*Uniform) Bounds() Rectangle
 pkg image, method (*Uniform) ColorModel() color.Model
 pkg image, method (*Uniform) Convert(color.Color) color.Color
 pkg image, method (*Uniform) Opaque() bool
-pkg image, method (*Uniform) RGBA() uint32
-pkg image, method (*YCbCr) At(int) color.Color
+pkg image, method (*Uniform) RGBA() (uint32, uint32, uint32, uint32)
+pkg image, method (*YCbCr) At(int, int) color.Color
 pkg image, method (*YCbCr) Bounds() Rectangle
-pkg image, method (*YCbCr) COffset(int) int
+pkg image, method (*YCbCr) COffset(int, int) int
 pkg image, method (*YCbCr) ColorModel() color.Model
 pkg image, method (*YCbCr) Opaque() bool
 pkg image, method (*YCbCr) SubImage(Rectangle) Image
-pkg image, method (*YCbCr) YOffset(int) int
+pkg image, method (*YCbCr) YOffset(int, int) int
 pkg image, method (Point) Add(Point) Point
 pkg image, method (Point) Div(int) Point
 pkg image, method (Point) Eq(Point) bool
@@ -3536,7 +3536,7 @@ pkg image, type Gray16 struct, Pix []uint8
 pkg image, type Gray16 struct, Rect Rectangle
 pkg image, type Gray16 struct, Stride int
 pkg image, type Image interface { At, Bounds, ColorModel }
-pkg image, type Image interface, At(int) color.Color
+pkg image, type Image interface, At(int, int) color.Color
 pkg image, type Image interface, Bounds() Rectangle
 pkg image, type Image interface, ColorModel() color.Model
 pkg image, type NRGBA struct
@@ -3553,9 +3553,9 @@ pkg image, type Paletted struct, Pix []uint8
 pkg image, type Paletted struct, Rect Rectangle
 pkg image, type Paletted struct, Stride int
 pkg image, type PalettedImage interface { At, Bounds, ColorIndexAt, ColorModel }
-pkg image, type PalettedImage interface, At(int) color.Color
+pkg image, type PalettedImage interface, At(int, int) color.Color
 pkg image, type PalettedImage interface, Bounds() Rectangle
-pkg image, type PalettedImage interface, ColorIndexAt(int) uint8
+pkg image, type PalettedImage interface, ColorIndexAt(int, int) uint8
 pkg image, type PalettedImage interface, ColorModel() color.Model
 pkg image, type Point struct
 pkg image, type Point struct, X int
@@ -3590,25 +3590,25 @@ pkg image, var White *Uniform
 pkg image, var ZP Point
 pkg image, var ZR Rectangle
 pkg image/color, func ModelFunc(func(Color) Color) Model
-pkg image/color, func RGBToYCbCr(uint8) (uint8, uint8, uint8)
-pkg image/color, func YCbCrToRGB(uint8) (uint8, uint8, uint8)
-pkg image/color, method (Alpha) RGBA() uint32
-pkg image/color, method (Alpha16) RGBA() uint32
-pkg image/color, method (Gray) RGBA() uint32
-pkg image/color, method (Gray16) RGBA() uint32
-pkg image/color, method (NRGBA) RGBA() uint32
-pkg image/color, method (NRGBA64) RGBA() uint32
+pkg image/color, func RGBToYCbCr(uint8, uint8, uint8) (uint8, uint8, uint8)
+pkg image/color, func YCbCrToRGB(uint8, uint8, uint8) (uint8, uint8, uint8)
+pkg image/color, method (Alpha) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (Alpha16) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (Gray) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (Gray16) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (NRGBA) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (NRGBA64) RGBA() (uint32, uint32, uint32, uint32)
 pkg image/color, method (Palette) Convert(Color) Color
 pkg image/color, method (Palette) Index(Color) int
-pkg image/color, method (RGBA) RGBA() uint32
-pkg image/color, method (RGBA64) RGBA() uint32
+pkg image/color, method (RGBA) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, method (RGBA64) RGBA() (uint32, uint32, uint32, uint32)
 pkg image/color, method (YCbCr) RGBA() (uint32, uint32, uint32, uint32)
 pkg image/color, type Alpha struct
 pkg image/color, type Alpha struct, A uint8
 pkg image/color, type Alpha16 struct
 pkg image/color, type Alpha16 struct, A uint16
 pkg image/color, type Color interface { RGBA }
-pkg image/color, type Color interface, RGBA() uint32
+pkg image/color, type Color interface, RGBA() (uint32, uint32, uint32, uint32)
 pkg image/color, type Gray struct
 pkg image/color, type Gray struct, Y uint8
 pkg image/color, type Gray16 struct
@@ -3658,10 +3658,10 @@ pkg image/draw, const Src Op
 pkg image/draw, func Draw(Image, image.Rectangle, image.Image, image.Point, Op)
 pkg image/draw, func DrawMask(Image, image.Rectangle, image.Image, image.Point, image.Image, image.Point, Op)
 pkg image/draw, type Image interface { At, Bounds, ColorModel, Set }
-pkg image/draw, type Image interface, At(int) color.Color
+pkg image/draw, type Image interface, At(int, int) color.Color
 pkg image/draw, type Image interface, Bounds() Rectangle
 pkg image/draw, type Image interface, ColorModel() color.Model
-pkg image/draw, type Image interface, Set(int, color.Color)
+pkg image/draw, type Image interface, Set(int, int, color.Color)
 pkg image/draw, type Op int
 pkg image/gif, func Decode(io.Reader) (image.Image, error)
 pkg image/gif, func DecodeAll(io.Reader) (*GIF, error)
@@ -3783,8 +3783,8 @@ pkg io/ioutil, func NopCloser(io.Reader) io.ReadCloser
 pkg io/ioutil, func ReadAll(io.Reader) ([]byte, error)
 pkg io/ioutil, func ReadDir(string) ([]os.FileInfo, error)
 pkg io/ioutil, func ReadFile(string) ([]byte, error)
-pkg io/ioutil, func TempDir(string) (string, error)
-pkg io/ioutil, func TempFile(string) (*os.File, error)
+pkg io/ioutil, func TempDir(string, string) (string, error)
+pkg io/ioutil, func TempFile(string, string) (*os.File, error)
 pkg io/ioutil, func WriteFile(string, []byte, os.FileMode) error
 pkg io/ioutil, var Discard io.Writer
 pkg log, const Ldate ideal-int
@@ -3831,7 +3831,7 @@ pkg log/syslog (darwin-386), const LOG_ERR Priority
 pkg log/syslog (darwin-386), const LOG_INFO Priority
 pkg log/syslog (darwin-386), const LOG_NOTICE Priority
 pkg log/syslog (darwin-386), const LOG_WARNING Priority
-pkg log/syslog (darwin-386), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (darwin-386), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (darwin-386), func New(Priority, string) (*Writer, error)
 pkg log/syslog (darwin-386), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (darwin-386), method (*Writer) Alert(string) error
@@ -3854,7 +3854,7 @@ pkg log/syslog (darwin-386-cgo), const LOG_ERR Priority
 pkg log/syslog (darwin-386-cgo), const LOG_INFO Priority
 pkg log/syslog (darwin-386-cgo), const LOG_NOTICE Priority
 pkg log/syslog (darwin-386-cgo), const LOG_WARNING Priority
-pkg log/syslog (darwin-386-cgo), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (darwin-386-cgo), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (darwin-386-cgo), func New(Priority, string) (*Writer, error)
 pkg log/syslog (darwin-386-cgo), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (darwin-386-cgo), method (*Writer) Alert(string) error
@@ -3877,7 +3877,7 @@ pkg log/syslog (darwin-amd64), const LOG_ERR Priority
 pkg log/syslog (darwin-amd64), const LOG_INFO Priority
 pkg log/syslog (darwin-amd64), const LOG_NOTICE Priority
 pkg log/syslog (darwin-amd64), const LOG_WARNING Priority
-pkg log/syslog (darwin-amd64), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (darwin-amd64), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (darwin-amd64), func New(Priority, string) (*Writer, error)
 pkg log/syslog (darwin-amd64), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (darwin-amd64), method (*Writer) Alert(string) error
@@ -3900,7 +3900,7 @@ pkg log/syslog (darwin-amd64-cgo), const LOG_ERR Priority
 pkg log/syslog (darwin-amd64-cgo), const LOG_INFO Priority
 pkg log/syslog (darwin-amd64-cgo), const LOG_NOTICE Priority
 pkg log/syslog (darwin-amd64-cgo), const LOG_WARNING Priority
-pkg log/syslog (darwin-amd64-cgo), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (darwin-amd64-cgo), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (darwin-amd64-cgo), func New(Priority, string) (*Writer, error)
 pkg log/syslog (darwin-amd64-cgo), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (darwin-amd64-cgo), method (*Writer) Alert(string) error
@@ -3923,7 +3923,7 @@ pkg log/syslog (freebsd-386), const LOG_ERR Priority
 pkg log/syslog (freebsd-386), const LOG_INFO Priority
 pkg log/syslog (freebsd-386), const LOG_NOTICE Priority
 pkg log/syslog (freebsd-386), const LOG_WARNING Priority
-pkg log/syslog (freebsd-386), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (freebsd-386), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (freebsd-386), func New(Priority, string) (*Writer, error)
 pkg log/syslog (freebsd-386), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (freebsd-386), method (*Writer) Alert(string) error
@@ -3946,7 +3946,7 @@ pkg log/syslog (freebsd-amd64), const LOG_ERR Priority
 pkg log/syslog (freebsd-amd64), const LOG_INFO Priority
 pkg log/syslog (freebsd-amd64), const LOG_NOTICE Priority
 pkg log/syslog (freebsd-amd64), const LOG_WARNING Priority
-pkg log/syslog (freebsd-amd64), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (freebsd-amd64), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (freebsd-amd64), func New(Priority, string) (*Writer, error)
 pkg log/syslog (freebsd-amd64), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (freebsd-amd64), method (*Writer) Alert(string) error
@@ -3969,7 +3969,7 @@ pkg log/syslog (linux-386), const LOG_ERR Priority
 pkg log/syslog (linux-386), const LOG_INFO Priority
 pkg log/syslog (linux-386), const LOG_NOTICE Priority
 pkg log/syslog (linux-386), const LOG_WARNING Priority
-pkg log/syslog (linux-386), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-386), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (linux-386), func New(Priority, string) (*Writer, error)
 pkg log/syslog (linux-386), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (linux-386), method (*Writer) Alert(string) error
@@ -3992,7 +3992,7 @@ pkg log/syslog (linux-386-cgo), const LOG_ERR Priority
 pkg log/syslog (linux-386-cgo), const LOG_INFO Priority
 pkg log/syslog (linux-386-cgo), const LOG_NOTICE Priority
 pkg log/syslog (linux-386-cgo), const LOG_WARNING Priority
-pkg log/syslog (linux-386-cgo), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-386-cgo), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (linux-386-cgo), func New(Priority, string) (*Writer, error)
 pkg log/syslog (linux-386-cgo), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (linux-386-cgo), method (*Writer) Alert(string) error
@@ -4015,7 +4015,7 @@ pkg log/syslog (linux-amd64), const LOG_ERR Priority
 pkg log/syslog (linux-amd64), const LOG_INFO Priority
 pkg log/syslog (linux-amd64), const LOG_NOTICE Priority
 pkg log/syslog (linux-amd64), const LOG_WARNING Priority
-pkg log/syslog (linux-amd64), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-amd64), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (linux-amd64), func New(Priority, string) (*Writer, error)
 pkg log/syslog (linux-amd64), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (linux-amd64), method (*Writer) Alert(string) error
@@ -4038,7 +4038,7 @@ pkg log/syslog (linux-amd64-cgo), const LOG_ERR Priority
 pkg log/syslog (linux-amd64-cgo), const LOG_INFO Priority
 pkg log/syslog (linux-amd64-cgo), const LOG_NOTICE Priority
 pkg log/syslog (linux-amd64-cgo), const LOG_WARNING Priority
-pkg log/syslog (linux-amd64-cgo), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-amd64-cgo), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (linux-amd64-cgo), func New(Priority, string) (*Writer, error)
 pkg log/syslog (linux-amd64-cgo), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (linux-amd64-cgo), method (*Writer) Alert(string) error
@@ -4061,7 +4061,7 @@ pkg log/syslog (linux-arm), const LOG_ERR Priority
 pkg log/syslog (linux-arm), const LOG_INFO Priority
 pkg log/syslog (linux-arm), const LOG_NOTICE Priority
 pkg log/syslog (linux-arm), const LOG_WARNING Priority
-pkg log/syslog (linux-arm), func Dial(string, Priority, string) (*Writer, error)
+pkg log/syslog (linux-arm), func Dial(string, string, Priority, string) (*Writer, error)
 pkg log/syslog (linux-arm), func New(Priority, string) (*Writer, error)
 pkg log/syslog (linux-arm), func NewLogger(Priority, int) (*log.Logger, error)
 pkg log/syslog (linux-arm), method (*Writer) Alert(string) error
@@ -4109,14 +4109,14 @@ pkg math, func Acosh(float64) float64
 pkg math, func Asin(float64) float64
 pkg math, func Asinh(float64) float64
 pkg math, func Atan(float64) float64
-pkg math, func Atan2(float64) float64
+pkg math, func Atan2(float64, float64) float64
 pkg math, func Atanh(float64) float64
 pkg math, func Cbrt(float64) float64
 pkg math, func Ceil(float64) float64
-pkg math, func Copysign(float64) float64
+pkg math, func Copysign(float64, float64) float64
 pkg math, func Cos(float64) float64
 pkg math, func Cosh(float64) float64
-pkg math, func Dim(float64) float64
+pkg math, func Dim(float64, float64) float64
 pkg math, func Erf(float64) float64
 pkg math, func Erfc(float64) float64
 pkg math, func Exp(float64) float64
@@ -4129,7 +4129,7 @@ pkg math, func Float64frombits(uint64) float64
 pkg math, func Floor(float64) float64
 pkg math, func Frexp(float64) (float64, int)
 pkg math, func Gamma(float64) float64
-pkg math, func Hypot(float64) float64
+pkg math, func Hypot(float64, float64) float64
 pkg math, func Ilogb(float64) int
 pkg math, func Inf(int) float64
 pkg math, func IsInf(float64, int) bool
@@ -4144,18 +4144,18 @@ pkg math, func Log10(float64) float64
 pkg math, func Log1p(float64) float64
 pkg math, func Log2(float64) float64
 pkg math, func Logb(float64) float64
-pkg math, func Max(float64) float64
-pkg math, func Min(float64) float64
-pkg math, func Mod(float64) float64
+pkg math, func Max(float64, float64) float64
+pkg math, func Min(float64, float64) float64
+pkg math, func Mod(float64, float64) float64
 pkg math, func Modf(float64) (float64, float64)
 pkg math, func NaN() float64
-pkg math, func Nextafter(float64) float64
-pkg math, func Pow(float64) float64
+pkg math, func Nextafter(float64, float64) float64
+pkg math, func Pow(float64, float64) float64
 pkg math, func Pow10(int) float64
-pkg math, func Remainder(float64) float64
+pkg math, func Remainder(float64, float64) float64
 pkg math, func Signbit(float64) bool
 pkg math, func Sin(float64) float64
-pkg math, func Sincos(float64) float64
+pkg math, func Sincos(float64) (float64, float64)
 pkg math, func Sinh(float64) float64
 pkg math, func Sqrt(float64) float64
 pkg math, func Tan(float64) float64
@@ -4166,38 +4166,38 @@ pkg math, func Y1(float64) float64
 pkg math, func Yn(int, float64) float64
 pkg math/big, const MaxBase ideal-int
 pkg math/big, func NewInt(int64) *Int
-pkg math/big, func NewRat(int64) *Rat
+pkg math/big, func NewRat(int64, int64) *Rat
 pkg math/big, method (*Int) Abs(*Int) *Int
-pkg math/big, method (*Int) Add(*Int) *Int
-pkg math/big, method (*Int) And(*Int) *Int
-pkg math/big, method (*Int) AndNot(*Int) *Int
-pkg math/big, method (*Int) Binomial(int64) *Int
+pkg math/big, method (*Int) Add(*Int, *Int) *Int
+pkg math/big, method (*Int) And(*Int, *Int) *Int
+pkg math/big, method (*Int) AndNot(*Int, *Int) *Int
+pkg math/big, method (*Int) Binomial(int64, int64) *Int
 pkg math/big, method (*Int) Bit(int) uint
 pkg math/big, method (*Int) BitLen() int
 pkg math/big, method (*Int) Bits() []Word
 pkg math/big, method (*Int) Bytes() []byte
 pkg math/big, method (*Int) Cmp(*Int) int
-pkg math/big, method (*Int) Div(*Int) *Int
-pkg math/big, method (*Int) DivMod(*Int) (*Int, *Int)
-pkg math/big, method (*Int) Exp(*Int) *Int
+pkg math/big, method (*Int) Div(*Int, *Int) *Int
+pkg math/big, method (*Int) DivMod(*Int, *Int, *Int) (*Int, *Int)
+pkg math/big, method (*Int) Exp(*Int, *Int, *Int) *Int
 pkg math/big, method (*Int) Format(fmt.State, rune)
-pkg math/big, method (*Int) GCD(*Int) *Int
+pkg math/big, method (*Int) GCD(*Int, *Int, *Int, *Int) *Int
 pkg math/big, method (*Int) GobDecode([]byte) error
 pkg math/big, method (*Int) GobEncode() ([]byte, error)
 pkg math/big, method (*Int) Int64() int64
 pkg math/big, method (*Int) Lsh(*Int, uint) *Int
-pkg math/big, method (*Int) Mod(*Int) *Int
-pkg math/big, method (*Int) ModInverse(*Int) *Int
-pkg math/big, method (*Int) Mul(*Int) *Int
-pkg math/big, method (*Int) MulRange(int64) *Int
+pkg math/big, method (*Int) Mod(*Int, *Int) *Int
+pkg math/big, method (*Int) ModInverse(*Int, *Int) *Int
+pkg math/big, method (*Int) Mul(*Int, *Int) *Int
+pkg math/big, method (*Int) MulRange(int64, int64) *Int
 pkg math/big, method (*Int) Neg(*Int) *Int
 pkg math/big, method (*Int) Not(*Int) *Int
-pkg math/big, method (*Int) Or(*Int) *Int
+pkg math/big, method (*Int) Or(*Int, *Int) *Int
 pkg math/big, method (*Int) ProbablyPrime(int) bool
-pkg math/big, method (*Int) Quo(*Int) *Int
-pkg math/big, method (*Int) QuoRem(*Int) (*Int, *Int)
+pkg math/big, method (*Int) Quo(*Int, *Int) *Int
+pkg math/big, method (*Int) QuoRem(*Int, *Int, *Int) (*Int, *Int)
 pkg math/big, method (*Int) Rand(*rand.Rand, *Int) *Int
-pkg math/big, method (*Int) Rem(*Int) *Int
+pkg math/big, method (*Int) Rem(*Int, *Int) *Int
 pkg math/big, method (*Int) Rsh(*Int, uint) *Int
 pkg math/big, method (*Int) Scan(fmt.ScanState, rune) error
 pkg math/big, method (*Int) Set(*Int) *Int
@@ -4208,10 +4208,10 @@ pkg math/big, method (*Int) SetInt64(int64) *Int
 pkg math/big, method (*Int) SetString(string, int) (*Int, bool)
 pkg math/big, method (*Int) Sign() int
 pkg math/big, method (*Int) String() string
-pkg math/big, method (*Int) Sub(*Int) *Int
-pkg math/big, method (*Int) Xor(*Int) *Int
+pkg math/big, method (*Int) Sub(*Int, *Int) *Int
+pkg math/big, method (*Int) Xor(*Int, *Int) *Int
 pkg math/big, method (*Rat) Abs(*Rat) *Rat
-pkg math/big, method (*Rat) Add(*Rat) *Rat
+pkg math/big, method (*Rat) Add(*Rat, *Rat) *Rat
 pkg math/big, method (*Rat) Cmp(*Rat) int
 pkg math/big, method (*Rat) Denom() *Int
 pkg math/big, method (*Rat) FloatString(int) string
@@ -4219,21 +4219,21 @@ pkg math/big, method (*Rat) GobDecode([]byte) error
 pkg math/big, method (*Rat) GobEncode() ([]byte, error)
 pkg math/big, method (*Rat) Inv(*Rat) *Rat
 pkg math/big, method (*Rat) IsInt() bool
-pkg math/big, method (*Rat) Mul(*Rat) *Rat
+pkg math/big, method (*Rat) Mul(*Rat, *Rat) *Rat
 pkg math/big, method (*Rat) Neg(*Rat) *Rat
 pkg math/big, method (*Rat) Num() *Int
-pkg math/big, method (*Rat) Quo(*Rat) *Rat
+pkg math/big, method (*Rat) Quo(*Rat, *Rat) *Rat
 pkg math/big, method (*Rat) RatString() string
 pkg math/big, method (*Rat) Scan(fmt.ScanState, rune) error
 pkg math/big, method (*Rat) Set(*Rat) *Rat
-pkg math/big, method (*Rat) SetFrac(*Int) *Rat
-pkg math/big, method (*Rat) SetFrac64(int64) *Rat
+pkg math/big, method (*Rat) SetFrac(*Int, *Int) *Rat
+pkg math/big, method (*Rat) SetFrac64(int64, int64) *Rat
 pkg math/big, method (*Rat) SetInt(*Int) *Rat
 pkg math/big, method (*Rat) SetInt64(int64) *Rat
 pkg math/big, method (*Rat) SetString(string) (*Rat, bool)
 pkg math/big, method (*Rat) Sign() int
 pkg math/big, method (*Rat) String() string
-pkg math/big, method (*Rat) Sub(*Rat) *Rat
+pkg math/big, method (*Rat) Sub(*Rat, *Rat) *Rat
 pkg math/big, type Int struct
 pkg math/big, type Rat struct
 pkg math/big, type Word uintptr
@@ -4256,9 +4256,9 @@ pkg math/cmplx, func Log(complex128) complex128
 pkg math/cmplx, func Log10(complex128) complex128
 pkg math/cmplx, func NaN() complex128
 pkg math/cmplx, func Phase(complex128) float64
-pkg math/cmplx, func Polar(complex128) float64
-pkg math/cmplx, func Pow(complex128) complex128
-pkg math/cmplx, func Rect(float64) complex128
+pkg math/cmplx, func Polar(complex128) (float64, float64)
+pkg math/cmplx, func Pow(complex128, complex128) complex128
+pkg math/cmplx, func Rect(float64, float64) complex128
 pkg math/cmplx, func Sin(complex128) complex128
 pkg math/cmplx, func Sinh(complex128) complex128
 pkg math/cmplx, func Sqrt(complex128) complex128
@@ -4299,7 +4299,7 @@ pkg math/rand, type Source interface { Int63, Seed }
 pkg math/rand, type Source interface, Int63() int64
 pkg math/rand, type Source interface, Seed(int64)
 pkg math/rand, type Zipf struct
-pkg mime, func AddExtensionType(string) error
+pkg mime, func AddExtensionType(string, string) error
 pkg mime, func FormatMediaType(string, map[string]string) string
 pkg mime, func ParseMediaType(string) (string, map[string]string, error)
 pkg mime, func TypeByExtension(string) string
@@ -4316,10 +4316,10 @@ pkg mime/multipart, method (*Reader) ReadForm(int64) (*Form, error)
 pkg mime/multipart, method (*Writer) Boundary() string
 pkg mime/multipart, method (*Writer) Close() error
 pkg mime/multipart, method (*Writer) CreateFormField(string) (io.Writer, error)
-pkg mime/multipart, method (*Writer) CreateFormFile(string) (io.Writer, error)
+pkg mime/multipart, method (*Writer) CreateFormFile(string, string) (io.Writer, error)
 pkg mime/multipart, method (*Writer) CreatePart(textproto.MIMEHeader) (io.Writer, error)
 pkg mime/multipart, method (*Writer) FormDataContentType() string
-pkg mime/multipart, method (*Writer) WriteField(string) error
+pkg mime/multipart, method (*Writer) WriteField(string, string) error
 pkg mime/multipart, type File interface { Close, Read, ReadAt, Seek }
 pkg mime/multipart, type File interface, Close() error
 pkg mime/multipart, type File interface, Read([]byte) (int, error)
@@ -4342,27 +4342,27 @@ pkg net, const FlagPointToPoint Flags
 pkg net, const FlagUp Flags
 pkg net, const IPv4len ideal-int
 pkg net, const IPv6len ideal-int
-pkg net, func CIDRMask(int) IPMask
-pkg net, func Dial(string) (Conn, error)
-pkg net, func DialIP(string, *IPAddr) (*IPConn, error)
-pkg net, func DialTCP(string, *TCPAddr) (*TCPConn, error)
-pkg net, func DialTimeout(string, time.Duration) (Conn, error)
-pkg net, func DialUDP(string, *UDPAddr) (*UDPConn, error)
-pkg net, func DialUnix(string, *UnixAddr) (*UnixConn, error)
+pkg net, func CIDRMask(int, int) IPMask
+pkg net, func Dial(string, string) (Conn, error)
+pkg net, func DialIP(string, *IPAddr, *IPAddr) (*IPConn, error)
+pkg net, func DialTCP(string, *TCPAddr, *TCPAddr) (*TCPConn, error)
+pkg net, func DialTimeout(string, string, time.Duration) (Conn, error)
+pkg net, func DialUDP(string, *UDPAddr, *UDPAddr) (*UDPConn, error)
+pkg net, func DialUnix(string, *UnixAddr, *UnixAddr) (*UnixConn, error)
 pkg net, func FileConn(*os.File) (Conn, error)
 pkg net, func FileListener(*os.File) (Listener, error)
 pkg net, func FilePacketConn(*os.File) (PacketConn, error)
-pkg net, func IPv4(byte) IP
-pkg net, func IPv4Mask(byte) IPMask
+pkg net, func IPv4(byte, byte, byte, byte) IP
+pkg net, func IPv4Mask(byte, byte, byte, byte) IPMask
 pkg net, func InterfaceAddrs() ([]Addr, error)
 pkg net, func InterfaceByIndex(int) (*Interface, error)
 pkg net, func InterfaceByName(string) (*Interface, error)
 pkg net, func Interfaces() ([]Interface, error)
-pkg net, func JoinHostPort(string) string
-pkg net, func Listen(string) (Listener, error)
+pkg net, func JoinHostPort(string, string) string
+pkg net, func Listen(string, string) (Listener, error)
 pkg net, func ListenIP(string, *IPAddr) (*IPConn, error)
 pkg net, func ListenMulticastUDP(string, *Interface, *UDPAddr) (*UDPConn, error)
-pkg net, func ListenPacket(string) (PacketConn, error)
+pkg net, func ListenPacket(string, string) (PacketConn, error)
 pkg net, func ListenTCP(string, *TCPAddr) (*TCPListener, error)
 pkg net, func ListenUDP(string, *UDPAddr) (*UDPConn, error)
 pkg net, func ListenUnix(string, *UnixAddr) (*UnixListener, error)
@@ -4372,18 +4372,18 @@ pkg net, func LookupCNAME(string) (string, error)
 pkg net, func LookupHost(string) ([]string, error)
 pkg net, func LookupIP(string) ([]IP, error)
 pkg net, func LookupMX(string) ([]*MX, error)
-pkg net, func LookupPort(string) (int, error)
-pkg net, func LookupSRV(string) (string, []*SRV, error)
+pkg net, func LookupPort(string, string) (int, error)
+pkg net, func LookupSRV(string, string, string) (string, []*SRV, error)
 pkg net, func LookupTXT(string) ([]string, error)
 pkg net, func ParseCIDR(string) (IP, *IPNet, error)
 pkg net, func ParseIP(string) IP
 pkg net, func ParseMAC(string) (HardwareAddr, error)
 pkg net, func Pipe() (Conn, Conn)
-pkg net, func ResolveIPAddr(string) (*IPAddr, error)
-pkg net, func ResolveTCPAddr(string) (*TCPAddr, error)
-pkg net, func ResolveUDPAddr(string) (*UDPAddr, error)
-pkg net, func ResolveUnixAddr(string) (*UnixAddr, error)
-pkg net, func SplitHostPort(string) (string, error)
+pkg net, func ResolveIPAddr(string, string) (*IPAddr, error)
+pkg net, func ResolveTCPAddr(string, string) (*TCPAddr, error)
+pkg net, func ResolveUDPAddr(string, string) (*UDPAddr, error)
+pkg net, func ResolveUnixAddr(string, string) (*UnixAddr, error)
+pkg net, func SplitHostPort(string) (string, string, error)
 pkg net, method (*AddrError) Error() string
 pkg net, method (*AddrError) Temporary() bool
 pkg net, method (*AddrError) Timeout() bool
@@ -4469,7 +4469,7 @@ pkg net, method (*UnixConn) LocalAddr() Addr
 pkg net, method (*UnixConn) Read([]byte) (int, error)
 pkg net, method (*UnixConn) ReadFrom([]byte) (int, Addr, error)
 pkg net, method (*UnixConn) ReadFromUnix([]byte) (int, *UnixAddr, error)
-pkg net, method (*UnixConn) ReadMsgUnix([]byte) (int, *UnixAddr, error)
+pkg net, method (*UnixConn) ReadMsgUnix([]byte, []byte) (int, int, int, *UnixAddr, error)
 pkg net, method (*UnixConn) RemoteAddr() Addr
 pkg net, method (*UnixConn) SetDeadline(time.Time) error
 pkg net, method (*UnixConn) SetReadBuffer(int) error
@@ -4477,7 +4477,7 @@ pkg net, method (*UnixConn) SetReadDeadline(time.Time) error
 pkg net, method (*UnixConn) SetWriteBuffer(int) error
 pkg net, method (*UnixConn) SetWriteDeadline(time.Time) error
 pkg net, method (*UnixConn) Write([]byte) (int, error)
-pkg net, method (*UnixConn) WriteMsgUnix([]byte, *UnixAddr) (int, error)
+pkg net, method (*UnixConn) WriteMsgUnix([]byte, []byte, *UnixAddr) (int, int, error)
 pkg net, method (*UnixConn) WriteTo([]byte, Addr) (int, error)
 pkg net, method (*UnixConn) WriteToUnix([]byte, *UnixAddr) (int, error)
 pkg net, method (*UnixListener) Accept() (Conn, error)
@@ -4501,7 +4501,7 @@ pkg net, method (IP) Mask(IPMask) IP
 pkg net, method (IP) String() string
 pkg net, method (IP) To16() IP
 pkg net, method (IP) To4() IP
-pkg net, method (IPMask) Size() int
+pkg net, method (IPMask) Size() (int, int)
 pkg net, method (IPMask) String() string
 pkg net, method (InvalidAddrError) Error() string
 pkg net, method (InvalidAddrError) Temporary() bool
@@ -4662,11 +4662,11 @@ pkg net/http, func ListenAndServe(string, Handler) error
 pkg net/http, func ListenAndServeTLS(string, string, string, Handler) error
 pkg net/http, func MaxBytesReader(ResponseWriter, io.ReadCloser, int64) io.ReadCloser
 pkg net/http, func NewFileTransport(FileSystem) RoundTripper
-pkg net/http, func NewRequest(string, io.Reader) (*Request, error)
+pkg net/http, func NewRequest(string, string, io.Reader) (*Request, error)
 pkg net/http, func NewServeMux() *ServeMux
 pkg net/http, func NotFound(ResponseWriter, *Request)
 pkg net/http, func NotFoundHandler() Handler
-pkg net/http, func ParseHTTPVersion(string) (int, bool)
+pkg net/http, func ParseHTTPVersion(string) (int, int, bool)
 pkg net/http, func Post(string, string, io.Reader) (*Response, error)
 pkg net/http, func PostForm(string, url.Values) (*Response, error)
 pkg net/http, func ProxyFromEnvironment(*Request) (*url.URL, error)
@@ -4697,31 +4697,31 @@ pkg net/http, method (*Request) FormValue(string) string
 pkg net/http, method (*Request) MultipartReader() (*multipart.Reader, error)
 pkg net/http, method (*Request) ParseForm() error
 pkg net/http, method (*Request) ParseMultipartForm(int64) error
-pkg net/http, method (*Request) ProtoAtLeast(int) bool
+pkg net/http, method (*Request) ProtoAtLeast(int, int) bool
 pkg net/http, method (*Request) Referer() string
-pkg net/http, method (*Request) SetBasicAuth(string)
+pkg net/http, method (*Request) SetBasicAuth(string, string)
 pkg net/http, method (*Request) UserAgent() string
 pkg net/http, method (*Request) Write(io.Writer) error
 pkg net/http, method (*Request) WriteProxy(io.Writer) error
 pkg net/http, method (*Response) Cookies() []*Cookie
 pkg net/http, method (*Response) Location() (*url.URL, error)
-pkg net/http, method (*Response) ProtoAtLeast(int) bool
+pkg net/http, method (*Response) ProtoAtLeast(int, int) bool
 pkg net/http, method (*Response) Write(io.Writer) error
 pkg net/http, method (*ServeMux) Handle(string, Handler)
 pkg net/http, method (*ServeMux) HandleFunc(string, func(ResponseWriter, *Request))
 pkg net/http, method (*ServeMux) ServeHTTP(ResponseWriter, *Request)
 pkg net/http, method (*Server) ListenAndServe() error
-pkg net/http, method (*Server) ListenAndServeTLS(string) error
+pkg net/http, method (*Server) ListenAndServeTLS(string, string) error
 pkg net/http, method (*Server) Serve(net.Listener) error
 pkg net/http, method (*Transport) CloseIdleConnections()
 pkg net/http, method (*Transport) RegisterProtocol(string, RoundTripper)
 pkg net/http, method (*Transport) RoundTrip(*Request) (*Response, error)
 pkg net/http, method (Dir) Open(string) (File, error)
 pkg net/http, method (HandlerFunc) ServeHTTP(ResponseWriter, *Request)
-pkg net/http, method (Header) Add(string)
+pkg net/http, method (Header) Add(string, string)
 pkg net/http, method (Header) Del(string)
 pkg net/http, method (Header) Get(string) string
-pkg net/http, method (Header) Set(string)
+pkg net/http, method (Header) Set(string, string)
 pkg net/http, method (Header) Write(io.Writer) error
 pkg net/http, method (Header) WriteSubset(io.Writer, map[string]bool) error
 pkg net/http, type Client struct
@@ -4923,9 +4923,9 @@ pkg net/mail, var ErrHeaderNotPresent error
 pkg net/rpc, const DefaultDebugPath ideal-string
 pkg net/rpc, const DefaultRPCPath ideal-string
 pkg net/rpc, func Accept(net.Listener)
-pkg net/rpc, func Dial(string) (*Client, error)
-pkg net/rpc, func DialHTTP(string) (*Client, error)
-pkg net/rpc, func DialHTTPPath(string) (*Client, error)
+pkg net/rpc, func Dial(string, string) (*Client, error)
+pkg net/rpc, func DialHTTP(string, string) (*Client, error)
+pkg net/rpc, func DialHTTPPath(string, string, string) (*Client, error)
 pkg net/rpc, func HandleHTTP()
 pkg net/rpc, func NewClient(io.ReadWriteCloser) *Client
 pkg net/rpc, func NewClientWithCodec(ClientCodec) *Client
@@ -4939,7 +4939,7 @@ pkg net/rpc, method (*Client) Call(string, interface{}, interface{}) error
 pkg net/rpc, method (*Client) Close() error
 pkg net/rpc, method (*Client) Go(string, interface{}, interface{}, chan *Call) *Call
 pkg net/rpc, method (*Server) Accept(net.Listener)
-pkg net/rpc, method (*Server) HandleHTTP(string)
+pkg net/rpc, method (*Server) HandleHTTP(string, string)
 pkg net/rpc, method (*Server) Register(interface{}) error
 pkg net/rpc, method (*Server) RegisterName(string, interface{}) error
 pkg net/rpc, method (*Server) ServeCodec(ServerCodec)
@@ -4975,15 +4975,15 @@ pkg net/rpc, type ServerCodec interface, WriteResponse(*Response, interface{}) e
 pkg net/rpc, type ServerError string
 pkg net/rpc, var DefaultServer *Server
 pkg net/rpc, var ErrShutdown error
-pkg net/rpc/jsonrpc, func Dial(string) (*rpc.Client, error)
+pkg net/rpc/jsonrpc, func Dial(string, string) (*rpc.Client, error)
 pkg net/rpc/jsonrpc, func NewClient(io.ReadWriteCloser) *rpc.Client
 pkg net/rpc/jsonrpc, func NewClientCodec(io.ReadWriteCloser) rpc.ClientCodec
 pkg net/rpc/jsonrpc, func NewServerCodec(io.ReadWriteCloser) rpc.ServerCodec
 pkg net/rpc/jsonrpc, func ServeConn(io.ReadWriteCloser)
-pkg net/smtp, func CRAMMD5Auth(string) Auth
+pkg net/smtp, func CRAMMD5Auth(string, string) Auth
 pkg net/smtp, func Dial(string) (*Client, error)
 pkg net/smtp, func NewClient(net.Conn, string) (*Client, error)
-pkg net/smtp, func PlainAuth(string) Auth
+pkg net/smtp, func PlainAuth(string, string, string, string) Auth
 pkg net/smtp, func SendMail(string, Auth, string, []string, []byte) error
 pkg net/smtp, method (*Client) Auth(Auth) error
 pkg net/smtp, method (*Client) Data() (io.WriteCloser, error)
@@ -5004,7 +5004,7 @@ pkg net/smtp, type ServerInfo struct, Auth []string
 pkg net/smtp, type ServerInfo struct, Name string
 pkg net/smtp, type ServerInfo struct, TLS bool
 pkg net/textproto, func CanonicalMIMEHeaderKey(string) string
-pkg net/textproto, func Dial(string) (*Conn, error)
+pkg net/textproto, func Dial(string, string) (*Conn, error)
 pkg net/textproto, func NewConn(io.ReadWriteCloser) *Conn
 pkg net/textproto, func NewReader(*bufio.Reader) *Reader
 pkg net/textproto, func NewWriter(*bufio.Writer) *Writer
@@ -5045,10 +5045,10 @@ pkg net/textproto, method (*Reader) ReadMIMEHeader() (MIMEHeader, error)
 pkg net/textproto, method (*Reader) ReadResponse(int) (int, string, error)
 pkg net/textproto, method (*Writer) DotWriter() io.WriteCloser
 pkg net/textproto, method (*Writer) PrintfLine(string, ...interface{}) error
-pkg net/textproto, method (MIMEHeader) Add(string)
+pkg net/textproto, method (MIMEHeader) Add(string, string)
 pkg net/textproto, method (MIMEHeader) Del(string)
 pkg net/textproto, method (MIMEHeader) Get(string) string
-pkg net/textproto, method (MIMEHeader) Set(string)
+pkg net/textproto, method (MIMEHeader) Set(string, string)
 pkg net/textproto, method (ProtocolError) Error() string
 pkg net/textproto, type Conn struct
 pkg net/textproto, type Conn struct, embedded Pipeline
@@ -5070,7 +5070,7 @@ pkg net/url, func ParseRequestURI(string) (*URL, error)
 pkg net/url, func QueryEscape(string) string
 pkg net/url, func QueryUnescape(string) (string, error)
 pkg net/url, func User(string) *Userinfo
-pkg net/url, func UserPassword(string) *Userinfo
+pkg net/url, func UserPassword(string, string) *Userinfo
 pkg net/url, method (*Error) Error() string
 pkg net/url, method (*URL) IsAbs() bool
 pkg net/url, method (*URL) Parse(string) (*URL, error)
@@ -5082,11 +5082,11 @@ pkg net/url, method (*Userinfo) Password() (string, bool)
 pkg net/url, method (*Userinfo) String() string
 pkg net/url, method (*Userinfo) Username() string
 pkg net/url, method (EscapeError) Error() string
-pkg net/url, method (Values) Add(string)
+pkg net/url, method (Values) Add(string, string)
 pkg net/url, method (Values) Del(string)
 pkg net/url, method (Values) Encode() string
 pkg net/url, method (Values) Get(string) string
-pkg net/url, method (Values) Set(string)
+pkg net/url, method (Values) Set(string, string)
 pkg net/url, type Error struct
 pkg net/url, type Error struct, Err error
 pkg net/url, type Error struct, Op string
@@ -5132,7 +5132,7 @@ pkg os, const SEEK_END int
 pkg os, const SEEK_SET int
 pkg os, func Chdir(string) error
 pkg os, func Chmod(string, FileMode) error
-pkg os, func Chown(string, int) error
+pkg os, func Chown(string, int, int) error
 pkg os, func Chtimes(string, time.Time, time.Time) error
 pkg os, func Clearenv()
 pkg os, func Create(string) (*File, error)
@@ -5156,8 +5156,8 @@ pkg os, func IsExist(error) bool
 pkg os, func IsNotExist(error) bool
 pkg os, func IsPathSeparator(uint8) bool
 pkg os, func IsPermission(error) bool
-pkg os, func Lchown(string, int) error
-pkg os, func Link(string) error
+pkg os, func Lchown(string, int, int) error
+pkg os, func Link(string, string) error
 pkg os, func Lstat(string) (FileInfo, error)
 pkg os, func Mkdir(string, FileMode) error
 pkg os, func MkdirAll(string, FileMode) error
@@ -5169,17 +5169,17 @@ pkg os, func Pipe() (*File, *File, error)
 pkg os, func Readlink(string) (string, error)
 pkg os, func Remove(string) error
 pkg os, func RemoveAll(string) error
-pkg os, func Rename(string) error
-pkg os, func SameFile(FileInfo) bool
-pkg os, func Setenv(string) error
+pkg os, func Rename(string, string) error
+pkg os, func SameFile(FileInfo, FileInfo) bool
+pkg os, func Setenv(string, string) error
 pkg os, func StartProcess(string, []string, *ProcAttr) (*Process, error)
 pkg os, func Stat(string) (FileInfo, error)
-pkg os, func Symlink(string) error
+pkg os, func Symlink(string, string) error
 pkg os, func TempDir() string
 pkg os, func Truncate(string, int64) error
 pkg os, method (*File) Chdir() error
 pkg os, method (*File) Chmod(FileMode) error
-pkg os, method (*File) Chown(int) error
+pkg os, method (*File) Chown(int, int) error
 pkg os, method (*File) Close() error
 pkg os, method (*File) Fd() uintptr
 pkg os, method (*File) Name() string
@@ -5304,8 +5304,8 @@ pkg path, func Dir(string) string
 pkg path, func Ext(string) string
 pkg path, func IsAbs(string) bool
 pkg path, func Join(...string) string
-pkg path, func Match(string) (bool, error)
-pkg path, func Split(string) string
+pkg path, func Match(string, string) (bool, error)
+pkg path, func Split(string) (string, string)
 pkg path, var ErrBadPattern error
 pkg path/filepath, const ListSeparator ideal-char
 pkg path/filepath, const Separator ideal-char
@@ -5317,12 +5317,12 @@ pkg path/filepath, func EvalSymlinks(string) (string, error)
 pkg path/filepath, func Ext(string) string
 pkg path/filepath, func FromSlash(string) string
 pkg path/filepath, func Glob(string) ([]string, error)
-pkg path/filepath, func HasPrefix(string) bool
+pkg path/filepath, func HasPrefix(string, string) bool
 pkg path/filepath, func IsAbs(string) bool
 pkg path/filepath, func Join(...string) string
-pkg path/filepath, func Match(string) (bool, error)
-pkg path/filepath, func Rel(string) (string, error)
-pkg path/filepath, func Split(string) string
+pkg path/filepath, func Match(string, string) (bool, error)
+pkg path/filepath, func Rel(string, string) (string, error)
+pkg path/filepath, func Split(string) (string, string)
 pkg path/filepath, func SplitList(string) []string
 pkg path/filepath, func ToSlash(string) string
 pkg path/filepath, func VolumeName(string) string
@@ -5361,13 +5361,13 @@ pkg reflect, const Uint8 Kind
 pkg reflect, const Uintptr Kind
 pkg reflect, const UnsafePointer Kind
 pkg reflect, func Append(Value, ...Value) Value
-pkg reflect, func AppendSlice(Value) Value
-pkg reflect, func Copy(Value) int
-pkg reflect, func DeepEqual(interface{}) bool
+pkg reflect, func AppendSlice(Value, Value) Value
+pkg reflect, func Copy(Value, Value) int
+pkg reflect, func DeepEqual(interface{}, interface{}) bool
 pkg reflect, func Indirect(Value) Value
 pkg reflect, func MakeChan(Type, int) Value
 pkg reflect, func MakeMap(Type) Value
-pkg reflect, func MakeSlice(Type, int) Value
+pkg reflect, func MakeSlice(Type, int, int) Value
 pkg reflect, func New(Type) Value
 pkg reflect, func NewAt(Type, unsafe.Pointer) Value
 pkg reflect, func PtrTo(Type) Type
@@ -5423,11 +5423,11 @@ pkg reflect, method (Value) SetComplex(complex128)
 pkg reflect, method (Value) SetFloat(float64)
 pkg reflect, method (Value) SetInt(int64)
 pkg reflect, method (Value) SetLen(int)
-pkg reflect, method (Value) SetMapIndex(Value)
+pkg reflect, method (Value) SetMapIndex(Value, Value)
 pkg reflect, method (Value) SetPointer(unsafe.Pointer)
 pkg reflect, method (Value) SetString(string)
 pkg reflect, method (Value) SetUint(uint64)
-pkg reflect, method (Value) Slice(int) Value
+pkg reflect, method (Value) Slice(int, int) Value
 pkg reflect, method (Value) String() string
 pkg reflect, method (Value) TryRecv() (Value, bool)
 pkg reflect, method (Value) TrySend(Value) bool
@@ -5458,7 +5458,6 @@ pkg reflect, type StructField struct, PkgPath string
 pkg reflect, type StructField struct, Tag StructTag
 pkg reflect, type StructField struct, Type Type
 pkg reflect, type StructTag string
-pkg reflect, type Type interface, unexported methods
 pkg reflect, type Type interface, Align() int
 pkg reflect, type Type interface, AssignableTo(Type) bool
 pkg reflect, type Type interface, Bits() int
@@ -5486,6 +5485,7 @@ pkg reflect, type Type interface, Out(int) Type
 pkg reflect, type Type interface, PkgPath() string
 pkg reflect, type Type interface, Size() uintptr
 pkg reflect, type Type interface, String() string
+pkg reflect, type Type interface, unexported methods
 pkg reflect, type Value struct
 pkg reflect, type ValueError struct
 pkg reflect, type ValueError struct, Kind Kind
@@ -5523,11 +5523,11 @@ pkg regexp, method (*Regexp) Match([]byte) bool
 pkg regexp, method (*Regexp) MatchReader(io.RuneReader) bool
 pkg regexp, method (*Regexp) MatchString(string) bool
 pkg regexp, method (*Regexp) NumSubexp() int
-pkg regexp, method (*Regexp) ReplaceAll([]byte) []byte
+pkg regexp, method (*Regexp) ReplaceAll([]byte, []byte) []byte
 pkg regexp, method (*Regexp) ReplaceAllFunc([]byte, func([]byte) []byte) []byte
-pkg regexp, method (*Regexp) ReplaceAllLiteral([]byte) []byte
-pkg regexp, method (*Regexp) ReplaceAllLiteralString(string) string
-pkg regexp, method (*Regexp) ReplaceAllString(string) string
+pkg regexp, method (*Regexp) ReplaceAllLiteral([]byte, []byte) []byte
+pkg regexp, method (*Regexp) ReplaceAllLiteralString(string, string) string
+pkg regexp, method (*Regexp) ReplaceAllString(string, string) string
 pkg regexp, method (*Regexp) ReplaceAllStringFunc(string, func(string) string) string
 pkg regexp, method (*Regexp) String() string
 pkg regexp, method (*Regexp) SubexpNames() []string
@@ -5595,7 +5595,7 @@ pkg regexp/syntax, const Simple Flags
 pkg regexp/syntax, const UnicodeGroups Flags
 pkg regexp/syntax, const WasDollar Flags
 pkg regexp/syntax, func Compile(*Regexp) (*Prog, error)
-pkg regexp/syntax, func EmptyOpContext(rune) EmptyOp
+pkg regexp/syntax, func EmptyOpContext(rune, rune) EmptyOp
 pkg regexp/syntax, func IsWordChar(rune) bool
 pkg regexp/syntax, func Parse(string, Flags) (*Regexp, error)
 pkg regexp/syntax, method (*Error) Error() string
@@ -5660,7 +5660,7 @@ pkg runtime, func NumCgoCall() int64
 pkg runtime, func NumGoroutine() int
 pkg runtime, func ReadMemStats(*MemStats)
 pkg runtime, func SetCPUProfileRate(int)
-pkg runtime, func SetFinalizer(interface{})
+pkg runtime, func SetFinalizer(interface{}, interface{})
 pkg runtime, func Stack([]byte, bool) int
 pkg runtime, func ThreadCreateProfile([]StackRecord) (int, bool)
 pkg runtime, func UnlockOSThread()
@@ -5742,26 +5742,26 @@ pkg sort, func Sort(Interface)
 pkg sort, func Strings([]string)
 pkg sort, func StringsAreSorted([]string) bool
 pkg sort, method (Float64Slice) Len() int
-pkg sort, method (Float64Slice) Less(int) bool
+pkg sort, method (Float64Slice) Less(int, int) bool
 pkg sort, method (Float64Slice) Search(float64) int
 pkg sort, method (Float64Slice) Sort()
-pkg sort, method (Float64Slice) Swap(int)
+pkg sort, method (Float64Slice) Swap(int, int)
 pkg sort, method (IntSlice) Len() int
-pkg sort, method (IntSlice) Less(int) bool
+pkg sort, method (IntSlice) Less(int, int) bool
 pkg sort, method (IntSlice) Search(int) int
 pkg sort, method (IntSlice) Sort()
-pkg sort, method (IntSlice) Swap(int)
+pkg sort, method (IntSlice) Swap(int, int)
 pkg sort, method (StringSlice) Len() int
-pkg sort, method (StringSlice) Less(int) bool
+pkg sort, method (StringSlice) Less(int, int) bool
 pkg sort, method (StringSlice) Search(string) int
 pkg sort, method (StringSlice) Sort()
-pkg sort, method (StringSlice) Swap(int)
+pkg sort, method (StringSlice) Swap(int, int)
 pkg sort, type Float64Slice []float64
 pkg sort, type IntSlice []int
 pkg sort, type Interface interface { Len, Less, Swap }
 pkg sort, type Interface interface, Len() int
-pkg sort, type Interface interface, Less(int) bool
-pkg sort, type Interface interface, Swap(int)
+pkg sort, type Interface interface, Less(int, int) bool
+pkg sort, type Interface interface, Swap(int, int)
 pkg sort, type StringSlice []string
 pkg strconv, const IntSize ideal-int
 pkg strconv, func AppendBool([]byte, bool) []byte
@@ -5775,7 +5775,7 @@ pkg strconv, func AppendUint([]byte, uint64, int) []byte
 pkg strconv, func Atoi(string) (int, error)
 pkg strconv, func CanBackquote(string) bool
 pkg strconv, func FormatBool(bool) string
-pkg strconv, func FormatFloat(float64, byte, int) string
+pkg strconv, func FormatFloat(float64, byte, int, int) string
 pkg strconv, func FormatInt(int64, int) string
 pkg strconv, func FormatUint(uint64, int) string
 pkg strconv, func IsPrint(rune) bool
@@ -5797,32 +5797,32 @@ pkg strconv, type NumError struct, Func string
 pkg strconv, type NumError struct, Num string
 pkg strconv, var ErrRange error
 pkg strconv, var ErrSyntax error
-pkg strings, func Contains(string) bool
-pkg strings, func ContainsAny(string) bool
+pkg strings, func Contains(string, string) bool
+pkg strings, func ContainsAny(string, string) bool
 pkg strings, func ContainsRune(string, rune) bool
-pkg strings, func Count(string) int
-pkg strings, func EqualFold(string) bool
+pkg strings, func Count(string, string) int
+pkg strings, func EqualFold(string, string) bool
 pkg strings, func Fields(string) []string
 pkg strings, func FieldsFunc(string, func(rune) bool) []string
-pkg strings, func HasPrefix(string) bool
-pkg strings, func HasSuffix(string) bool
-pkg strings, func Index(string) int
-pkg strings, func IndexAny(string) int
+pkg strings, func HasPrefix(string, string) bool
+pkg strings, func HasSuffix(string, string) bool
+pkg strings, func Index(string, string) int
+pkg strings, func IndexAny(string, string) int
 pkg strings, func IndexFunc(string, func(rune) bool) int
 pkg strings, func IndexRune(string, rune) int
 pkg strings, func Join([]string, string) string
-pkg strings, func LastIndex(string) int
-pkg strings, func LastIndexAny(string) int
+pkg strings, func LastIndex(string, string) int
+pkg strings, func LastIndexAny(string, string) int
 pkg strings, func LastIndexFunc(string, func(rune) bool) int
 pkg strings, func Map(func(rune) rune, string) string
 pkg strings, func NewReader(string) *Reader
 pkg strings, func NewReplacer(...string) *Replacer
 pkg strings, func Repeat(string, int) string
-pkg strings, func Replace(string, int) string
-pkg strings, func Split(string) []string
-pkg strings, func SplitAfter(string) []string
-pkg strings, func SplitAfterN(string, int) []string
-pkg strings, func SplitN(string, int) []string
+pkg strings, func Replace(string, string, string, int) string
+pkg strings, func Split(string, string) []string
+pkg strings, func SplitAfter(string, string) []string
+pkg strings, func SplitAfterN(string, string, int) []string
+pkg strings, func SplitN(string, string, int) []string
 pkg strings, func Title(string) string
 pkg strings, func ToLower(string) string
 pkg strings, func ToLowerSpecial(unicode.SpecialCase, string) string
@@ -5878,12 +5878,12 @@ pkg sync/atomic, func AddInt64(*int64, int64) int64
 pkg sync/atomic, func AddUint32(*uint32, uint32) uint32
 pkg sync/atomic, func AddUint64(*uint64, uint64) uint64
 pkg sync/atomic, func AddUintptr(*uintptr, uintptr) uintptr
-pkg sync/atomic, func CompareAndSwapInt32(*int32, int32) bool
-pkg sync/atomic, func CompareAndSwapInt64(*int64, int64) bool
-pkg sync/atomic, func CompareAndSwapPointer(*unsafe.Pointer, unsafe.Pointer) bool
-pkg sync/atomic, func CompareAndSwapUint32(*uint32, uint32) bool
-pkg sync/atomic, func CompareAndSwapUint64(*uint64, uint64) bool
-pkg sync/atomic, func CompareAndSwapUintptr(*uintptr, uintptr) bool
+pkg sync/atomic, func CompareAndSwapInt32(*int32, int32, int32) bool
+pkg sync/atomic, func CompareAndSwapInt64(*int64, int64, int64) bool
+pkg sync/atomic, func CompareAndSwapPointer(*unsafe.Pointer, unsafe.Pointer, unsafe.Pointer) bool
+pkg sync/atomic, func CompareAndSwapUint32(*uint32, uint32, uint32) bool
+pkg sync/atomic, func CompareAndSwapUint64(*uint64, uint64, uint64) bool
+pkg sync/atomic, func CompareAndSwapUintptr(*uintptr, uintptr, uintptr) bool
 pkg sync/atomic, func LoadInt32(*int32) int32
 pkg sync/atomic, func LoadInt64(*int64) int64
 pkg sync/atomic, func LoadPointer(*unsafe.Pointer) unsafe.Pointer
@@ -7280,9 +7280,9 @@ pkg syscall (darwin-386), func BpfBuflen(int) (int, error)
 pkg syscall (darwin-386), func BpfDatalink(int) (int, error)
 pkg syscall (darwin-386), func BpfHeadercmpl(int) (int, error)
 pkg syscall (darwin-386), func BpfInterface(int, string) (string, error)
-pkg syscall (darwin-386), func BpfJump(int) *BpfInsn
+pkg syscall (darwin-386), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (darwin-386), func BpfStats(int) (*BpfStat, error)
-pkg syscall (darwin-386), func BpfStmt(int) *BpfInsn
+pkg syscall (darwin-386), func BpfStmt(int, int) *BpfInsn
 pkg syscall (darwin-386), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (darwin-386), func CheckBpfVersion(int) error
 pkg syscall (darwin-386), func Chflags(string, int) error
@@ -7319,16 +7319,15 @@ pkg syscall (darwin-386), func Getrlimit(int, *Rlimit) error
 pkg syscall (darwin-386), func Getrusage(int, *Rusage) error
 pkg syscall (darwin-386), func Getsid(int) (int, error)
 pkg syscall (darwin-386), func Getsockname(int) (Sockaddr, error)
-pkg syscall (darwin-386), func GetsockoptByte(int) (byte, error)
-pkg syscall (darwin-386), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (darwin-386), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (darwin-386), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (darwin-386), func GetsockoptInt(int) (int, error)
+pkg syscall (darwin-386), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (darwin-386), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (darwin-386), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (darwin-386), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (darwin-386), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (darwin-386), func Issetugid() bool
-pkg syscall (darwin-386), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (darwin-386), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (darwin-386), func Kill(int, Signal) error
 pkg syscall (darwin-386), func Kqueue() (int, error)
-pkg syscall (darwin-386), func Link(string, string) error
 pkg syscall (darwin-386), func Listen(int, int) error
 pkg syscall (darwin-386), func Lstat(string, *Stat_t) error
 pkg syscall (darwin-386), func Mkfifo(string, uint32) error
@@ -7348,29 +7347,28 @@ pkg syscall (darwin-386), func Pread(int, []byte, int64) (int, error)
 pkg syscall (darwin-386), func PtraceAttach(int) error
 pkg syscall (darwin-386), func PtraceDetach(int) error
 pkg syscall (darwin-386), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (darwin-386), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (darwin-386), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (darwin-386), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-386), func Read(int, []byte) (int, error)
 pkg syscall (darwin-386), func ReadDirent(int, []byte) (int, error)
 pkg syscall (darwin-386), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (darwin-386), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (darwin-386), func Rename(string, string) error
+pkg syscall (darwin-386), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (darwin-386), func Revoke(string) error
-pkg syscall (darwin-386), func RouteRIB(int) ([]byte, error)
+pkg syscall (darwin-386), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (darwin-386), func Seek(int, int64, int) (int64, error)
 pkg syscall (darwin-386), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (darwin-386), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (darwin-386), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (darwin-386), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (darwin-386), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (darwin-386), func SetBpf(int, []BpfInsn) error
-pkg syscall (darwin-386), func SetBpfBuflen(int) (int, error)
-pkg syscall (darwin-386), func SetBpfDatalink(int) (int, error)
-pkg syscall (darwin-386), func SetBpfHeadercmpl(int) error
-pkg syscall (darwin-386), func SetBpfImmediate(int) error
+pkg syscall (darwin-386), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (darwin-386), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (darwin-386), func SetBpfHeadercmpl(int, int) error
+pkg syscall (darwin-386), func SetBpfImmediate(int, int) error
 pkg syscall (darwin-386), func SetBpfInterface(int, string) error
-pkg syscall (darwin-386), func SetBpfPromisc(int) error
+pkg syscall (darwin-386), func SetBpfPromisc(int, int) error
 pkg syscall (darwin-386), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (darwin-386), func SetKevent(*Kevent_t, int)
+pkg syscall (darwin-386), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (darwin-386), func SetNonblock(int, bool) error
 pkg syscall (darwin-386), func Setegid(int) error
 pkg syscall (darwin-386), func Seteuid(int) error
@@ -7384,25 +7382,26 @@ pkg syscall (darwin-386), func Setregid(int, int) error
 pkg syscall (darwin-386), func Setreuid(int, int) error
 pkg syscall (darwin-386), func Setrlimit(int, *Rlimit) error
 pkg syscall (darwin-386), func Setsid() (int, error)
-pkg syscall (darwin-386), func SetsockoptByte(int, byte) error
-pkg syscall (darwin-386), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (darwin-386), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (darwin-386), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (darwin-386), func SetsockoptInt(int, int) error
-pkg syscall (darwin-386), func SetsockoptLinger(int, *Linger) error
-pkg syscall (darwin-386), func SetsockoptString(int, string) error
-pkg syscall (darwin-386), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (darwin-386), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (darwin-386), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (darwin-386), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (darwin-386), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (darwin-386), func SetsockoptInt(int, int, int, int) error
+pkg syscall (darwin-386), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (darwin-386), func SetsockoptString(int, int, int, string) error
+pkg syscall (darwin-386), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (darwin-386), func Settimeofday(*Timeval) error
 pkg syscall (darwin-386), func Setuid(int) error
 pkg syscall (darwin-386), func Shutdown(int, int) error
-pkg syscall (darwin-386), func Socket(int) (int, error)
-pkg syscall (darwin-386), func Socketpair(int) ([2]int, error)
+pkg syscall (darwin-386), func Socket(int, int, int) (int, error)
+pkg syscall (darwin-386), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (darwin-386), func Stat(string, *Stat_t) error
 pkg syscall (darwin-386), func Statfs(string, *Statfs_t) error
 pkg syscall (darwin-386), func StringSlicePtr([]string) []*byte
-pkg syscall (darwin-386), func Symlink(string, string) error
 pkg syscall (darwin-386), func Sync() error
-pkg syscall (darwin-386), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (darwin-386), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-386), func Sysctl(string) (string, error)
 pkg syscall (darwin-386), func SysctlUint32(string) (uint32, error)
 pkg syscall (darwin-386), func TimespecToNsec(Timespec) int64
@@ -9099,9 +9098,9 @@ pkg syscall (darwin-386-cgo), func BpfBuflen(int) (int, error)
 pkg syscall (darwin-386-cgo), func BpfDatalink(int) (int, error)
 pkg syscall (darwin-386-cgo), func BpfHeadercmpl(int) (int, error)
 pkg syscall (darwin-386-cgo), func BpfInterface(int, string) (string, error)
-pkg syscall (darwin-386-cgo), func BpfJump(int) *BpfInsn
+pkg syscall (darwin-386-cgo), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (darwin-386-cgo), func BpfStats(int) (*BpfStat, error)
-pkg syscall (darwin-386-cgo), func BpfStmt(int) *BpfInsn
+pkg syscall (darwin-386-cgo), func BpfStmt(int, int) *BpfInsn
 pkg syscall (darwin-386-cgo), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (darwin-386-cgo), func CheckBpfVersion(int) error
 pkg syscall (darwin-386-cgo), func Chflags(string, int) error
@@ -9138,16 +9137,15 @@ pkg syscall (darwin-386-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (darwin-386-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (darwin-386-cgo), func Getsid(int) (int, error)
 pkg syscall (darwin-386-cgo), func Getsockname(int) (Sockaddr, error)
-pkg syscall (darwin-386-cgo), func GetsockoptByte(int) (byte, error)
-pkg syscall (darwin-386-cgo), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (darwin-386-cgo), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (darwin-386-cgo), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (darwin-386-cgo), func GetsockoptInt(int) (int, error)
+pkg syscall (darwin-386-cgo), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (darwin-386-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (darwin-386-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (darwin-386-cgo), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (darwin-386-cgo), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (darwin-386-cgo), func Issetugid() bool
-pkg syscall (darwin-386-cgo), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (darwin-386-cgo), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (darwin-386-cgo), func Kill(int, Signal) error
 pkg syscall (darwin-386-cgo), func Kqueue() (int, error)
-pkg syscall (darwin-386-cgo), func Link(string, string) error
 pkg syscall (darwin-386-cgo), func Listen(int, int) error
 pkg syscall (darwin-386-cgo), func Lstat(string, *Stat_t) error
 pkg syscall (darwin-386-cgo), func Mkfifo(string, uint32) error
@@ -9167,29 +9165,28 @@ pkg syscall (darwin-386-cgo), func Pread(int, []byte, int64) (int, error)
 pkg syscall (darwin-386-cgo), func PtraceAttach(int) error
 pkg syscall (darwin-386-cgo), func PtraceDetach(int) error
 pkg syscall (darwin-386-cgo), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (darwin-386-cgo), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (darwin-386-cgo), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (darwin-386-cgo), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386-cgo), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-386-cgo), func Read(int, []byte) (int, error)
 pkg syscall (darwin-386-cgo), func ReadDirent(int, []byte) (int, error)
 pkg syscall (darwin-386-cgo), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (darwin-386-cgo), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (darwin-386-cgo), func Rename(string, string) error
+pkg syscall (darwin-386-cgo), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (darwin-386-cgo), func Revoke(string) error
-pkg syscall (darwin-386-cgo), func RouteRIB(int) ([]byte, error)
+pkg syscall (darwin-386-cgo), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (darwin-386-cgo), func Seek(int, int64, int) (int64, error)
 pkg syscall (darwin-386-cgo), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (darwin-386-cgo), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (darwin-386-cgo), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (darwin-386-cgo), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (darwin-386-cgo), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (darwin-386-cgo), func SetBpf(int, []BpfInsn) error
-pkg syscall (darwin-386-cgo), func SetBpfBuflen(int) (int, error)
-pkg syscall (darwin-386-cgo), func SetBpfDatalink(int) (int, error)
-pkg syscall (darwin-386-cgo), func SetBpfHeadercmpl(int) error
-pkg syscall (darwin-386-cgo), func SetBpfImmediate(int) error
+pkg syscall (darwin-386-cgo), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (darwin-386-cgo), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (darwin-386-cgo), func SetBpfHeadercmpl(int, int) error
+pkg syscall (darwin-386-cgo), func SetBpfImmediate(int, int) error
 pkg syscall (darwin-386-cgo), func SetBpfInterface(int, string) error
-pkg syscall (darwin-386-cgo), func SetBpfPromisc(int) error
+pkg syscall (darwin-386-cgo), func SetBpfPromisc(int, int) error
 pkg syscall (darwin-386-cgo), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (darwin-386-cgo), func SetKevent(*Kevent_t, int)
+pkg syscall (darwin-386-cgo), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (darwin-386-cgo), func SetNonblock(int, bool) error
 pkg syscall (darwin-386-cgo), func Setegid(int) error
 pkg syscall (darwin-386-cgo), func Seteuid(int) error
@@ -9203,25 +9200,26 @@ pkg syscall (darwin-386-cgo), func Setregid(int, int) error
 pkg syscall (darwin-386-cgo), func Setreuid(int, int) error
 pkg syscall (darwin-386-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (darwin-386-cgo), func Setsid() (int, error)
-pkg syscall (darwin-386-cgo), func SetsockoptByte(int, byte) error
-pkg syscall (darwin-386-cgo), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (darwin-386-cgo), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (darwin-386-cgo), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (darwin-386-cgo), func SetsockoptInt(int, int) error
-pkg syscall (darwin-386-cgo), func SetsockoptLinger(int, *Linger) error
-pkg syscall (darwin-386-cgo), func SetsockoptString(int, string) error
-pkg syscall (darwin-386-cgo), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (darwin-386-cgo), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (darwin-386-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (darwin-386-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (darwin-386-cgo), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (darwin-386-cgo), func SetsockoptInt(int, int, int, int) error
+pkg syscall (darwin-386-cgo), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (darwin-386-cgo), func SetsockoptString(int, int, int, string) error
+pkg syscall (darwin-386-cgo), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (darwin-386-cgo), func Settimeofday(*Timeval) error
 pkg syscall (darwin-386-cgo), func Setuid(int) error
 pkg syscall (darwin-386-cgo), func Shutdown(int, int) error
-pkg syscall (darwin-386-cgo), func Socket(int) (int, error)
-pkg syscall (darwin-386-cgo), func Socketpair(int) ([2]int, error)
+pkg syscall (darwin-386-cgo), func Socket(int, int, int) (int, error)
+pkg syscall (darwin-386-cgo), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (darwin-386-cgo), func Stat(string, *Stat_t) error
 pkg syscall (darwin-386-cgo), func Statfs(string, *Statfs_t) error
 pkg syscall (darwin-386-cgo), func StringSlicePtr([]string) []*byte
-pkg syscall (darwin-386-cgo), func Symlink(string, string) error
 pkg syscall (darwin-386-cgo), func Sync() error
-pkg syscall (darwin-386-cgo), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (darwin-386-cgo), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386-cgo), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-386-cgo), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-386-cgo), func Sysctl(string) (string, error)
 pkg syscall (darwin-386-cgo), func SysctlUint32(string) (uint32, error)
 pkg syscall (darwin-386-cgo), func TimespecToNsec(Timespec) int64
@@ -10918,9 +10916,9 @@ pkg syscall (darwin-amd64), func BpfBuflen(int) (int, error)
 pkg syscall (darwin-amd64), func BpfDatalink(int) (int, error)
 pkg syscall (darwin-amd64), func BpfHeadercmpl(int) (int, error)
 pkg syscall (darwin-amd64), func BpfInterface(int, string) (string, error)
-pkg syscall (darwin-amd64), func BpfJump(int) *BpfInsn
+pkg syscall (darwin-amd64), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (darwin-amd64), func BpfStats(int) (*BpfStat, error)
-pkg syscall (darwin-amd64), func BpfStmt(int) *BpfInsn
+pkg syscall (darwin-amd64), func BpfStmt(int, int) *BpfInsn
 pkg syscall (darwin-amd64), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (darwin-amd64), func CheckBpfVersion(int) error
 pkg syscall (darwin-amd64), func Chflags(string, int) error
@@ -10957,16 +10955,15 @@ pkg syscall (darwin-amd64), func Getrlimit(int, *Rlimit) error
 pkg syscall (darwin-amd64), func Getrusage(int, *Rusage) error
 pkg syscall (darwin-amd64), func Getsid(int) (int, error)
 pkg syscall (darwin-amd64), func Getsockname(int) (Sockaddr, error)
-pkg syscall (darwin-amd64), func GetsockoptByte(int) (byte, error)
-pkg syscall (darwin-amd64), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (darwin-amd64), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (darwin-amd64), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (darwin-amd64), func GetsockoptInt(int) (int, error)
+pkg syscall (darwin-amd64), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (darwin-amd64), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (darwin-amd64), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (darwin-amd64), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (darwin-amd64), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (darwin-amd64), func Issetugid() bool
-pkg syscall (darwin-amd64), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (darwin-amd64), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (darwin-amd64), func Kill(int, Signal) error
 pkg syscall (darwin-amd64), func Kqueue() (int, error)
-pkg syscall (darwin-amd64), func Link(string, string) error
 pkg syscall (darwin-amd64), func Listen(int, int) error
 pkg syscall (darwin-amd64), func Lstat(string, *Stat_t) error
 pkg syscall (darwin-amd64), func Mkfifo(string, uint32) error
@@ -10986,29 +10983,28 @@ pkg syscall (darwin-amd64), func Pread(int, []byte, int64) (int, error)
 pkg syscall (darwin-amd64), func PtraceAttach(int) error
 pkg syscall (darwin-amd64), func PtraceDetach(int) error
 pkg syscall (darwin-amd64), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (darwin-amd64), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (darwin-amd64), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (darwin-amd64), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-amd64), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-amd64), func Read(int, []byte) (int, error)
 pkg syscall (darwin-amd64), func ReadDirent(int, []byte) (int, error)
 pkg syscall (darwin-amd64), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (darwin-amd64), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (darwin-amd64), func Rename(string, string) error
+pkg syscall (darwin-amd64), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (darwin-amd64), func Revoke(string) error
-pkg syscall (darwin-amd64), func RouteRIB(int) ([]byte, error)
+pkg syscall (darwin-amd64), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (darwin-amd64), func Seek(int, int64, int) (int64, error)
 pkg syscall (darwin-amd64), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (darwin-amd64), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (darwin-amd64), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (darwin-amd64), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (darwin-amd64), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (darwin-amd64), func SetBpf(int, []BpfInsn) error
-pkg syscall (darwin-amd64), func SetBpfBuflen(int) (int, error)
-pkg syscall (darwin-amd64), func SetBpfDatalink(int) (int, error)
-pkg syscall (darwin-amd64), func SetBpfHeadercmpl(int) error
-pkg syscall (darwin-amd64), func SetBpfImmediate(int) error
+pkg syscall (darwin-amd64), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (darwin-amd64), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (darwin-amd64), func SetBpfHeadercmpl(int, int) error
+pkg syscall (darwin-amd64), func SetBpfImmediate(int, int) error
 pkg syscall (darwin-amd64), func SetBpfInterface(int, string) error
-pkg syscall (darwin-amd64), func SetBpfPromisc(int) error
+pkg syscall (darwin-amd64), func SetBpfPromisc(int, int) error
 pkg syscall (darwin-amd64), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (darwin-amd64), func SetKevent(*Kevent_t, int)
+pkg syscall (darwin-amd64), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (darwin-amd64), func SetNonblock(int, bool) error
 pkg syscall (darwin-amd64), func Setegid(int) error
 pkg syscall (darwin-amd64), func Seteuid(int) error
@@ -11022,24 +11018,25 @@ pkg syscall (darwin-amd64), func Setregid(int, int) error
 pkg syscall (darwin-amd64), func Setreuid(int, int) error
 pkg syscall (darwin-amd64), func Setrlimit(int, *Rlimit) error
 pkg syscall (darwin-amd64), func Setsid() (int, error)
-pkg syscall (darwin-amd64), func SetsockoptByte(int, byte) error
-pkg syscall (darwin-amd64), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (darwin-amd64), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (darwin-amd64), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (darwin-amd64), func SetsockoptInt(int, int) error
-pkg syscall (darwin-amd64), func SetsockoptLinger(int, *Linger) error
-pkg syscall (darwin-amd64), func SetsockoptString(int, string) error
-pkg syscall (darwin-amd64), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (darwin-amd64), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (darwin-amd64), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (darwin-amd64), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (darwin-amd64), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (darwin-amd64), func SetsockoptInt(int, int, int, int) error
+pkg syscall (darwin-amd64), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (darwin-amd64), func SetsockoptString(int, int, int, string) error
+pkg syscall (darwin-amd64), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (darwin-amd64), func Settimeofday(*Timeval) error
 pkg syscall (darwin-amd64), func Setuid(int) error
 pkg syscall (darwin-amd64), func Shutdown(int, int) error
-pkg syscall (darwin-amd64), func Socket(int) (int, error)
-pkg syscall (darwin-amd64), func Socketpair(int) ([2]int, error)
+pkg syscall (darwin-amd64), func Socket(int, int, int) (int, error)
+pkg syscall (darwin-amd64), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (darwin-amd64), func Stat(string, *Stat_t) error
 pkg syscall (darwin-amd64), func Statfs(string, *Statfs_t) error
 pkg syscall (darwin-amd64), func StringSlicePtr([]string) []*byte
-pkg syscall (darwin-amd64), func Symlink(string, string) error
 pkg syscall (darwin-amd64), func Sync() error
+pkg syscall (darwin-amd64), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-amd64), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-amd64), func Sysctl(string) (string, error)
 pkg syscall (darwin-amd64), func SysctlUint32(string) (uint32, error)
 pkg syscall (darwin-amd64), func TimespecToNsec(Timespec) int64
@@ -12744,9 +12741,9 @@ pkg syscall (darwin-amd64-cgo), func BpfBuflen(int) (int, error)
 pkg syscall (darwin-amd64-cgo), func BpfDatalink(int) (int, error)
 pkg syscall (darwin-amd64-cgo), func BpfHeadercmpl(int) (int, error)
 pkg syscall (darwin-amd64-cgo), func BpfInterface(int, string) (string, error)
-pkg syscall (darwin-amd64-cgo), func BpfJump(int) *BpfInsn
+pkg syscall (darwin-amd64-cgo), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (darwin-amd64-cgo), func BpfStats(int) (*BpfStat, error)
-pkg syscall (darwin-amd64-cgo), func BpfStmt(int) *BpfInsn
+pkg syscall (darwin-amd64-cgo), func BpfStmt(int, int) *BpfInsn
 pkg syscall (darwin-amd64-cgo), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (darwin-amd64-cgo), func CheckBpfVersion(int) error
 pkg syscall (darwin-amd64-cgo), func Chflags(string, int) error
@@ -12783,16 +12780,15 @@ pkg syscall (darwin-amd64-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (darwin-amd64-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (darwin-amd64-cgo), func Getsid(int) (int, error)
 pkg syscall (darwin-amd64-cgo), func Getsockname(int) (Sockaddr, error)
-pkg syscall (darwin-amd64-cgo), func GetsockoptByte(int) (byte, error)
-pkg syscall (darwin-amd64-cgo), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (darwin-amd64-cgo), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (darwin-amd64-cgo), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (darwin-amd64-cgo), func GetsockoptInt(int) (int, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (darwin-amd64-cgo), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (darwin-amd64-cgo), func Issetugid() bool
-pkg syscall (darwin-amd64-cgo), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (darwin-amd64-cgo), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (darwin-amd64-cgo), func Kill(int, Signal) error
 pkg syscall (darwin-amd64-cgo), func Kqueue() (int, error)
-pkg syscall (darwin-amd64-cgo), func Link(string, string) error
 pkg syscall (darwin-amd64-cgo), func Listen(int, int) error
 pkg syscall (darwin-amd64-cgo), func Lstat(string, *Stat_t) error
 pkg syscall (darwin-amd64-cgo), func Mkfifo(string, uint32) error
@@ -12812,29 +12808,28 @@ pkg syscall (darwin-amd64-cgo), func Pread(int, []byte, int64) (int, error)
 pkg syscall (darwin-amd64-cgo), func PtraceAttach(int) error
 pkg syscall (darwin-amd64-cgo), func PtraceDetach(int) error
 pkg syscall (darwin-amd64-cgo), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (darwin-amd64-cgo), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (darwin-amd64-cgo), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (darwin-amd64-cgo), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-amd64-cgo), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-amd64-cgo), func Read(int, []byte) (int, error)
 pkg syscall (darwin-amd64-cgo), func ReadDirent(int, []byte) (int, error)
 pkg syscall (darwin-amd64-cgo), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (darwin-amd64-cgo), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (darwin-amd64-cgo), func Rename(string, string) error
+pkg syscall (darwin-amd64-cgo), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (darwin-amd64-cgo), func Revoke(string) error
-pkg syscall (darwin-amd64-cgo), func RouteRIB(int) ([]byte, error)
+pkg syscall (darwin-amd64-cgo), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (darwin-amd64-cgo), func Seek(int, int64, int) (int64, error)
 pkg syscall (darwin-amd64-cgo), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (darwin-amd64-cgo), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (darwin-amd64-cgo), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (darwin-amd64-cgo), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (darwin-amd64-cgo), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (darwin-amd64-cgo), func SetBpf(int, []BpfInsn) error
-pkg syscall (darwin-amd64-cgo), func SetBpfBuflen(int) (int, error)
-pkg syscall (darwin-amd64-cgo), func SetBpfDatalink(int) (int, error)
-pkg syscall (darwin-amd64-cgo), func SetBpfHeadercmpl(int) error
-pkg syscall (darwin-amd64-cgo), func SetBpfImmediate(int) error
+pkg syscall (darwin-amd64-cgo), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (darwin-amd64-cgo), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (darwin-amd64-cgo), func SetBpfHeadercmpl(int, int) error
+pkg syscall (darwin-amd64-cgo), func SetBpfImmediate(int, int) error
 pkg syscall (darwin-amd64-cgo), func SetBpfInterface(int, string) error
-pkg syscall (darwin-amd64-cgo), func SetBpfPromisc(int) error
+pkg syscall (darwin-amd64-cgo), func SetBpfPromisc(int, int) error
 pkg syscall (darwin-amd64-cgo), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (darwin-amd64-cgo), func SetKevent(*Kevent_t, int)
+pkg syscall (darwin-amd64-cgo), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (darwin-amd64-cgo), func SetNonblock(int, bool) error
 pkg syscall (darwin-amd64-cgo), func Setegid(int) error
 pkg syscall (darwin-amd64-cgo), func Seteuid(int) error
@@ -12848,24 +12843,25 @@ pkg syscall (darwin-amd64-cgo), func Setregid(int, int) error
 pkg syscall (darwin-amd64-cgo), func Setreuid(int, int) error
 pkg syscall (darwin-amd64-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (darwin-amd64-cgo), func Setsid() (int, error)
-pkg syscall (darwin-amd64-cgo), func SetsockoptByte(int, byte) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptInt(int, int) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptLinger(int, *Linger) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptString(int, string) error
-pkg syscall (darwin-amd64-cgo), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptInt(int, int, int, int) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptString(int, int, int, string) error
+pkg syscall (darwin-amd64-cgo), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (darwin-amd64-cgo), func Settimeofday(*Timeval) error
 pkg syscall (darwin-amd64-cgo), func Setuid(int) error
 pkg syscall (darwin-amd64-cgo), func Shutdown(int, int) error
-pkg syscall (darwin-amd64-cgo), func Socket(int) (int, error)
-pkg syscall (darwin-amd64-cgo), func Socketpair(int) ([2]int, error)
+pkg syscall (darwin-amd64-cgo), func Socket(int, int, int) (int, error)
+pkg syscall (darwin-amd64-cgo), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (darwin-amd64-cgo), func Stat(string, *Stat_t) error
 pkg syscall (darwin-amd64-cgo), func Statfs(string, *Statfs_t) error
 pkg syscall (darwin-amd64-cgo), func StringSlicePtr([]string) []*byte
-pkg syscall (darwin-amd64-cgo), func Symlink(string, string) error
 pkg syscall (darwin-amd64-cgo), func Sync() error
+pkg syscall (darwin-amd64-cgo), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (darwin-amd64-cgo), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (darwin-amd64-cgo), func Sysctl(string) (string, error)
 pkg syscall (darwin-amd64-cgo), func SysctlUint32(string) (uint32, error)
 pkg syscall (darwin-amd64-cgo), func TimespecToNsec(Timespec) int64
@@ -14737,9 +14733,9 @@ pkg syscall (freebsd-386), func BpfBuflen(int) (int, error)
 pkg syscall (freebsd-386), func BpfDatalink(int) (int, error)
 pkg syscall (freebsd-386), func BpfHeadercmpl(int) (int, error)
 pkg syscall (freebsd-386), func BpfInterface(int, string) (string, error)
-pkg syscall (freebsd-386), func BpfJump(int) *BpfInsn
+pkg syscall (freebsd-386), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (freebsd-386), func BpfStats(int) (*BpfStat, error)
-pkg syscall (freebsd-386), func BpfStmt(int) *BpfInsn
+pkg syscall (freebsd-386), func BpfStmt(int, int) *BpfInsn
 pkg syscall (freebsd-386), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (freebsd-386), func CheckBpfVersion(int) error
 pkg syscall (freebsd-386), func Chflags(string, int) error
@@ -14775,17 +14771,16 @@ pkg syscall (freebsd-386), func Getrlimit(int, *Rlimit) error
 pkg syscall (freebsd-386), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-386), func Getsid(int) (int, error)
 pkg syscall (freebsd-386), func Getsockname(int) (Sockaddr, error)
-pkg syscall (freebsd-386), func GetsockoptByte(int) (byte, error)
-pkg syscall (freebsd-386), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (freebsd-386), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (freebsd-386), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (freebsd-386), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (freebsd-386), func GetsockoptInt(int) (int, error)
+pkg syscall (freebsd-386), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (freebsd-386), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (freebsd-386), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-386), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (freebsd-386), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (freebsd-386), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (freebsd-386), func Issetugid() bool
-pkg syscall (freebsd-386), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (freebsd-386), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (freebsd-386), func Kill(int, Signal) error
 pkg syscall (freebsd-386), func Kqueue() (int, error)
-pkg syscall (freebsd-386), func Link(string, string) error
 pkg syscall (freebsd-386), func Listen(int, int) error
 pkg syscall (freebsd-386), func Lstat(string, *Stat_t) error
 pkg syscall (freebsd-386), func Mkfifo(string, uint32) error
@@ -14804,29 +14799,28 @@ pkg syscall (freebsd-386), func Pathconf(string, int) (int, error)
 pkg syscall (freebsd-386), func Pipe([]int) error
 pkg syscall (freebsd-386), func Pread(int, []byte, int64) (int, error)
 pkg syscall (freebsd-386), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (freebsd-386), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (freebsd-386), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (freebsd-386), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-386), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (freebsd-386), func Read(int, []byte) (int, error)
 pkg syscall (freebsd-386), func ReadDirent(int, []byte) (int, error)
 pkg syscall (freebsd-386), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (freebsd-386), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (freebsd-386), func Rename(string, string) error
+pkg syscall (freebsd-386), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (freebsd-386), func Revoke(string) error
-pkg syscall (freebsd-386), func RouteRIB(int) ([]byte, error)
+pkg syscall (freebsd-386), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (freebsd-386), func Seek(int, int64, int) (int64, error)
 pkg syscall (freebsd-386), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (freebsd-386), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (freebsd-386), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (freebsd-386), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (freebsd-386), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (freebsd-386), func SetBpf(int, []BpfInsn) error
-pkg syscall (freebsd-386), func SetBpfBuflen(int) (int, error)
-pkg syscall (freebsd-386), func SetBpfDatalink(int) (int, error)
-pkg syscall (freebsd-386), func SetBpfHeadercmpl(int) error
-pkg syscall (freebsd-386), func SetBpfImmediate(int) error
+pkg syscall (freebsd-386), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (freebsd-386), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (freebsd-386), func SetBpfHeadercmpl(int, int) error
+pkg syscall (freebsd-386), func SetBpfImmediate(int, int) error
 pkg syscall (freebsd-386), func SetBpfInterface(int, string) error
-pkg syscall (freebsd-386), func SetBpfPromisc(int) error
+pkg syscall (freebsd-386), func SetBpfPromisc(int, int) error
 pkg syscall (freebsd-386), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (freebsd-386), func SetKevent(*Kevent_t, int)
+pkg syscall (freebsd-386), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (freebsd-386), func SetNonblock(int, bool) error
 pkg syscall (freebsd-386), func Setegid(int) error
 pkg syscall (freebsd-386), func Seteuid(int) error
@@ -14839,26 +14833,27 @@ pkg syscall (freebsd-386), func Setregid(int, int) error
 pkg syscall (freebsd-386), func Setreuid(int, int) error
 pkg syscall (freebsd-386), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-386), func Setsid() (int, error)
-pkg syscall (freebsd-386), func SetsockoptByte(int, byte) error
-pkg syscall (freebsd-386), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (freebsd-386), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (freebsd-386), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (freebsd-386), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (freebsd-386), func SetsockoptInt(int, int) error
-pkg syscall (freebsd-386), func SetsockoptLinger(int, *Linger) error
-pkg syscall (freebsd-386), func SetsockoptString(int, string) error
-pkg syscall (freebsd-386), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (freebsd-386), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (freebsd-386), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (freebsd-386), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (freebsd-386), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (freebsd-386), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (freebsd-386), func SetsockoptInt(int, int, int, int) error
+pkg syscall (freebsd-386), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (freebsd-386), func SetsockoptString(int, int, int, string) error
+pkg syscall (freebsd-386), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (freebsd-386), func Settimeofday(*Timeval) error
 pkg syscall (freebsd-386), func Setuid(int) error
 pkg syscall (freebsd-386), func Shutdown(int, int) error
-pkg syscall (freebsd-386), func Socket(int) (int, error)
-pkg syscall (freebsd-386), func Socketpair(int) ([2]int, error)
+pkg syscall (freebsd-386), func Socket(int, int, int) (int, error)
+pkg syscall (freebsd-386), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (freebsd-386), func Stat(string, *Stat_t) error
 pkg syscall (freebsd-386), func Statfs(string, *Statfs_t) error
 pkg syscall (freebsd-386), func StringSlicePtr([]string) []*byte
-pkg syscall (freebsd-386), func Symlink(string, string) error
 pkg syscall (freebsd-386), func Sync() error
-pkg syscall (freebsd-386), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (freebsd-386), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-386), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-386), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (freebsd-386), func Sysctl(string) (string, error)
 pkg syscall (freebsd-386), func SysctlUint32(string) (uint32, error)
 pkg syscall (freebsd-386), func TimespecToNsec(Timespec) int64
@@ -16710,9 +16705,9 @@ pkg syscall (freebsd-amd64), func BpfBuflen(int) (int, error)
 pkg syscall (freebsd-amd64), func BpfDatalink(int) (int, error)
 pkg syscall (freebsd-amd64), func BpfHeadercmpl(int) (int, error)
 pkg syscall (freebsd-amd64), func BpfInterface(int, string) (string, error)
-pkg syscall (freebsd-amd64), func BpfJump(int) *BpfInsn
+pkg syscall (freebsd-amd64), func BpfJump(int, int, int, int) *BpfInsn
 pkg syscall (freebsd-amd64), func BpfStats(int) (*BpfStat, error)
-pkg syscall (freebsd-amd64), func BpfStmt(int) *BpfInsn
+pkg syscall (freebsd-amd64), func BpfStmt(int, int) *BpfInsn
 pkg syscall (freebsd-amd64), func BpfTimeout(int) (*Timeval, error)
 pkg syscall (freebsd-amd64), func CheckBpfVersion(int) error
 pkg syscall (freebsd-amd64), func Chflags(string, int) error
@@ -16748,17 +16743,16 @@ pkg syscall (freebsd-amd64), func Getrlimit(int, *Rlimit) error
 pkg syscall (freebsd-amd64), func Getrusage(int, *Rusage) error
 pkg syscall (freebsd-amd64), func Getsid(int) (int, error)
 pkg syscall (freebsd-amd64), func Getsockname(int) (Sockaddr, error)
-pkg syscall (freebsd-amd64), func GetsockoptByte(int) (byte, error)
-pkg syscall (freebsd-amd64), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (freebsd-amd64), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (freebsd-amd64), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (freebsd-amd64), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (freebsd-amd64), func GetsockoptInt(int) (int, error)
+pkg syscall (freebsd-amd64), func GetsockoptByte(int, int, int) (byte, error)
+pkg syscall (freebsd-amd64), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (freebsd-amd64), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (freebsd-amd64), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (freebsd-amd64), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (freebsd-amd64), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (freebsd-amd64), func Issetugid() bool
-pkg syscall (freebsd-amd64), func Kevent(int, []Kevent_t, *Timespec) (int, error)
+pkg syscall (freebsd-amd64), func Kevent(int, []Kevent_t, []Kevent_t, *Timespec) (int, error)
 pkg syscall (freebsd-amd64), func Kill(int, Signal) error
 pkg syscall (freebsd-amd64), func Kqueue() (int, error)
-pkg syscall (freebsd-amd64), func Link(string, string) error
 pkg syscall (freebsd-amd64), func Listen(int, int) error
 pkg syscall (freebsd-amd64), func Lstat(string, *Stat_t) error
 pkg syscall (freebsd-amd64), func Mkfifo(string, uint32) error
@@ -16777,29 +16771,28 @@ pkg syscall (freebsd-amd64), func Pathconf(string, int) (int, error)
 pkg syscall (freebsd-amd64), func Pipe([]int) error
 pkg syscall (freebsd-amd64), func Pread(int, []byte, int64) (int, error)
 pkg syscall (freebsd-amd64), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (freebsd-amd64), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (freebsd-amd64), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (freebsd-amd64), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-amd64), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (freebsd-amd64), func Read(int, []byte) (int, error)
 pkg syscall (freebsd-amd64), func ReadDirent(int, []byte) (int, error)
 pkg syscall (freebsd-amd64), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (freebsd-amd64), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (freebsd-amd64), func Rename(string, string) error
+pkg syscall (freebsd-amd64), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (freebsd-amd64), func Revoke(string) error
-pkg syscall (freebsd-amd64), func RouteRIB(int) ([]byte, error)
+pkg syscall (freebsd-amd64), func RouteRIB(int, int) ([]byte, error)
 pkg syscall (freebsd-amd64), func Seek(int, int64, int) (int64, error)
 pkg syscall (freebsd-amd64), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) error
 pkg syscall (freebsd-amd64), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (freebsd-amd64), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (freebsd-amd64), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (freebsd-amd64), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (freebsd-amd64), func SetBpf(int, []BpfInsn) error
-pkg syscall (freebsd-amd64), func SetBpfBuflen(int) (int, error)
-pkg syscall (freebsd-amd64), func SetBpfDatalink(int) (int, error)
-pkg syscall (freebsd-amd64), func SetBpfHeadercmpl(int) error
-pkg syscall (freebsd-amd64), func SetBpfImmediate(int) error
+pkg syscall (freebsd-amd64), func SetBpfBuflen(int, int) (int, error)
+pkg syscall (freebsd-amd64), func SetBpfDatalink(int, int) (int, error)
+pkg syscall (freebsd-amd64), func SetBpfHeadercmpl(int, int) error
+pkg syscall (freebsd-amd64), func SetBpfImmediate(int, int) error
 pkg syscall (freebsd-amd64), func SetBpfInterface(int, string) error
-pkg syscall (freebsd-amd64), func SetBpfPromisc(int) error
+pkg syscall (freebsd-amd64), func SetBpfPromisc(int, int) error
 pkg syscall (freebsd-amd64), func SetBpfTimeout(int, *Timeval) error
-pkg syscall (freebsd-amd64), func SetKevent(*Kevent_t, int)
+pkg syscall (freebsd-amd64), func SetKevent(*Kevent_t, int, int, int)
 pkg syscall (freebsd-amd64), func SetNonblock(int, bool) error
 pkg syscall (freebsd-amd64), func Setegid(int) error
 pkg syscall (freebsd-amd64), func Seteuid(int) error
@@ -16812,25 +16805,26 @@ pkg syscall (freebsd-amd64), func Setregid(int, int) error
 pkg syscall (freebsd-amd64), func Setreuid(int, int) error
 pkg syscall (freebsd-amd64), func Setrlimit(int, *Rlimit) error
 pkg syscall (freebsd-amd64), func Setsid() (int, error)
-pkg syscall (freebsd-amd64), func SetsockoptByte(int, byte) error
-pkg syscall (freebsd-amd64), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (freebsd-amd64), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (freebsd-amd64), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (freebsd-amd64), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (freebsd-amd64), func SetsockoptInt(int, int) error
-pkg syscall (freebsd-amd64), func SetsockoptLinger(int, *Linger) error
-pkg syscall (freebsd-amd64), func SetsockoptString(int, string) error
-pkg syscall (freebsd-amd64), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (freebsd-amd64), func SetsockoptByte(int, int, int, byte) error
+pkg syscall (freebsd-amd64), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (freebsd-amd64), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (freebsd-amd64), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (freebsd-amd64), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (freebsd-amd64), func SetsockoptInt(int, int, int, int) error
+pkg syscall (freebsd-amd64), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (freebsd-amd64), func SetsockoptString(int, int, int, string) error
+pkg syscall (freebsd-amd64), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (freebsd-amd64), func Settimeofday(*Timeval) error
 pkg syscall (freebsd-amd64), func Setuid(int) error
 pkg syscall (freebsd-amd64), func Shutdown(int, int) error
-pkg syscall (freebsd-amd64), func Socket(int) (int, error)
-pkg syscall (freebsd-amd64), func Socketpair(int) ([2]int, error)
+pkg syscall (freebsd-amd64), func Socket(int, int, int) (int, error)
+pkg syscall (freebsd-amd64), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (freebsd-amd64), func Stat(string, *Stat_t) error
 pkg syscall (freebsd-amd64), func Statfs(string, *Statfs_t) error
 pkg syscall (freebsd-amd64), func StringSlicePtr([]string) []*byte
-pkg syscall (freebsd-amd64), func Symlink(string, string) error
 pkg syscall (freebsd-amd64), func Sync() error
+pkg syscall (freebsd-amd64), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-amd64), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (freebsd-amd64), func Sysctl(string) (string, error)
 pkg syscall (freebsd-amd64), func SysctlUint32(string) (uint32, error)
 pkg syscall (freebsd-amd64), func TimespecToNsec(Timespec) int64
@@ -18872,11 +18866,11 @@ pkg syscall (linux-386), func Getpgrp() int
 pkg syscall (linux-386), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-386), func Getrusage(int, *Rusage) error
 pkg syscall (linux-386), func Getsockname(int) (Sockaddr, error)
-pkg syscall (linux-386), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (linux-386), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (linux-386), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (linux-386), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (linux-386), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-386), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (linux-386), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-386), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (linux-386), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (linux-386), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (linux-386), func Gettid() int
 pkg syscall (linux-386), func InotifyAddWatch(int, string, uint32) (int, error)
 pkg syscall (linux-386), func InotifyInit() (int, error)
@@ -18886,11 +18880,10 @@ pkg syscall (linux-386), func Ioperm(int, int, int) error
 pkg syscall (linux-386), func Iopl(int) error
 pkg syscall (linux-386), func Kill(int, Signal) error
 pkg syscall (linux-386), func Klogctl(int, []byte) (int, error)
-pkg syscall (linux-386), func Link(string, string) error
 pkg syscall (linux-386), func Listen(int, int) error
-pkg syscall (linux-386), func LsfJump(int) *SockFilter
-pkg syscall (linux-386), func LsfSocket(int) (int, error)
-pkg syscall (linux-386), func LsfStmt(int) *SockFilter
+pkg syscall (linux-386), func LsfJump(int, int, int, int) *SockFilter
+pkg syscall (linux-386), func LsfSocket(int, int) (int, error)
+pkg syscall (linux-386), func LsfStmt(int, int) *SockFilter
 pkg syscall (linux-386), func Lstat(string, *Stat_t) error
 pkg syscall (linux-386), func Madvise([]byte, int) error
 pkg syscall (linux-386), func Mkdirat(int, string, uint32) error
@@ -18906,7 +18899,7 @@ pkg syscall (linux-386), func Munlock([]byte) error
 pkg syscall (linux-386), func Munlockall() error
 pkg syscall (linux-386), func Munmap([]byte) error
 pkg syscall (linux-386), func Nanosleep(*Timespec, *Timespec) error
-pkg syscall (linux-386), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-386), func NetlinkRIB(int, int) ([]byte, error)
 pkg syscall (linux-386), func NsecToTimespec(int64) Timespec
 pkg syscall (linux-386), func Open(string, int, uint32) (int, error)
 pkg syscall (linux-386), func Openat(int, string, int, uint32) (int, error)
@@ -18933,19 +18926,18 @@ pkg syscall (linux-386), func PtraceSetOptions(int, int) error
 pkg syscall (linux-386), func PtraceSetRegs(int, *PtraceRegs) error
 pkg syscall (linux-386), func PtraceSingleStep(int) error
 pkg syscall (linux-386), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (linux-386), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (linux-386), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-386), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-386), func Read(int, []byte) (int, error)
 pkg syscall (linux-386), func ReadDirent(int, []byte) (int, error)
 pkg syscall (linux-386), func Reboot(int) error
 pkg syscall (linux-386), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (linux-386), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (linux-386), func Rename(string, string) error
+pkg syscall (linux-386), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (linux-386), func Renameat(int, string, int, string) error
 pkg syscall (linux-386), func Seek(int, int64, int) (int64, error)
 pkg syscall (linux-386), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
 pkg syscall (linux-386), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (linux-386), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-386), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (linux-386), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (linux-386), func SetLsfPromisc(string, bool) error
 pkg syscall (linux-386), func SetNonblock(int, bool) error
@@ -18962,26 +18954,27 @@ pkg syscall (linux-386), func Setresuid(int, int, int) error
 pkg syscall (linux-386), func Setreuid(int, int) error
 pkg syscall (linux-386), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-386), func Setsid() (int, error)
-pkg syscall (linux-386), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (linux-386), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (linux-386), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (linux-386), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (linux-386), func SetsockoptInt(int, int) error
-pkg syscall (linux-386), func SetsockoptLinger(int, *Linger) error
-pkg syscall (linux-386), func SetsockoptString(int, string) error
-pkg syscall (linux-386), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-386), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (linux-386), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (linux-386), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (linux-386), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (linux-386), func SetsockoptInt(int, int, int, int) error
+pkg syscall (linux-386), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (linux-386), func SetsockoptString(int, int, int, string) error
+pkg syscall (linux-386), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (linux-386), func Settimeofday(*Timeval) error
 pkg syscall (linux-386), func Setuid(int) error
-pkg syscall (linux-386), func Shutdown(int) error
-pkg syscall (linux-386), func Socket(int) (int, error)
-pkg syscall (linux-386), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-386), func Shutdown(int, int) error
+pkg syscall (linux-386), func Socket(int, int, int) (int, error)
+pkg syscall (linux-386), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (linux-386), func Splice(int, *int64, int, *int64, int, int) (int, error)
 pkg syscall (linux-386), func Stat(string, *Stat_t) error
 pkg syscall (linux-386), func Statfs(string, *Statfs_t) error
 pkg syscall (linux-386), func StringSlicePtr([]string) []*byte
-pkg syscall (linux-386), func Symlink(string, string) error
 pkg syscall (linux-386), func Sync()
 pkg syscall (linux-386), func SyncFileRange(int, int64, int64, int) error
+pkg syscall (linux-386), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-386), func Sysinfo(*Sysinfo_t) error
 pkg syscall (linux-386), func Tee(int, int, int, int) (int64, error)
 pkg syscall (linux-386), func Tgkill(int, int, Signal) error
@@ -21058,11 +21051,11 @@ pkg syscall (linux-386-cgo), func Getpgrp() int
 pkg syscall (linux-386-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-386-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (linux-386-cgo), func Getsockname(int) (Sockaddr, error)
-pkg syscall (linux-386-cgo), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (linux-386-cgo), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (linux-386-cgo), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (linux-386-cgo), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (linux-386-cgo), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-386-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (linux-386-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-386-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (linux-386-cgo), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (linux-386-cgo), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (linux-386-cgo), func Gettid() int
 pkg syscall (linux-386-cgo), func InotifyAddWatch(int, string, uint32) (int, error)
 pkg syscall (linux-386-cgo), func InotifyInit() (int, error)
@@ -21072,11 +21065,10 @@ pkg syscall (linux-386-cgo), func Ioperm(int, int, int) error
 pkg syscall (linux-386-cgo), func Iopl(int) error
 pkg syscall (linux-386-cgo), func Kill(int, Signal) error
 pkg syscall (linux-386-cgo), func Klogctl(int, []byte) (int, error)
-pkg syscall (linux-386-cgo), func Link(string, string) error
 pkg syscall (linux-386-cgo), func Listen(int, int) error
-pkg syscall (linux-386-cgo), func LsfJump(int) *SockFilter
-pkg syscall (linux-386-cgo), func LsfSocket(int) (int, error)
-pkg syscall (linux-386-cgo), func LsfStmt(int) *SockFilter
+pkg syscall (linux-386-cgo), func LsfJump(int, int, int, int) *SockFilter
+pkg syscall (linux-386-cgo), func LsfSocket(int, int) (int, error)
+pkg syscall (linux-386-cgo), func LsfStmt(int, int) *SockFilter
 pkg syscall (linux-386-cgo), func Lstat(string, *Stat_t) error
 pkg syscall (linux-386-cgo), func Madvise([]byte, int) error
 pkg syscall (linux-386-cgo), func Mkdirat(int, string, uint32) error
@@ -21092,7 +21084,7 @@ pkg syscall (linux-386-cgo), func Munlock([]byte) error
 pkg syscall (linux-386-cgo), func Munlockall() error
 pkg syscall (linux-386-cgo), func Munmap([]byte) error
 pkg syscall (linux-386-cgo), func Nanosleep(*Timespec, *Timespec) error
-pkg syscall (linux-386-cgo), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-386-cgo), func NetlinkRIB(int, int) ([]byte, error)
 pkg syscall (linux-386-cgo), func NsecToTimespec(int64) Timespec
 pkg syscall (linux-386-cgo), func Open(string, int, uint32) (int, error)
 pkg syscall (linux-386-cgo), func Openat(int, string, int, uint32) (int, error)
@@ -21119,19 +21111,18 @@ pkg syscall (linux-386-cgo), func PtraceSetOptions(int, int) error
 pkg syscall (linux-386-cgo), func PtraceSetRegs(int, *PtraceRegs) error
 pkg syscall (linux-386-cgo), func PtraceSingleStep(int) error
 pkg syscall (linux-386-cgo), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (linux-386-cgo), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (linux-386-cgo), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-386-cgo), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-386-cgo), func Read(int, []byte) (int, error)
 pkg syscall (linux-386-cgo), func ReadDirent(int, []byte) (int, error)
 pkg syscall (linux-386-cgo), func Reboot(int) error
 pkg syscall (linux-386-cgo), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (linux-386-cgo), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (linux-386-cgo), func Rename(string, string) error
+pkg syscall (linux-386-cgo), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (linux-386-cgo), func Renameat(int, string, int, string) error
 pkg syscall (linux-386-cgo), func Seek(int, int64, int) (int64, error)
 pkg syscall (linux-386-cgo), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
 pkg syscall (linux-386-cgo), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (linux-386-cgo), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-386-cgo), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (linux-386-cgo), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (linux-386-cgo), func SetLsfPromisc(string, bool) error
 pkg syscall (linux-386-cgo), func SetNonblock(int, bool) error
@@ -21148,26 +21139,27 @@ pkg syscall (linux-386-cgo), func Setresuid(int, int, int) error
 pkg syscall (linux-386-cgo), func Setreuid(int, int) error
 pkg syscall (linux-386-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-386-cgo), func Setsid() (int, error)
-pkg syscall (linux-386-cgo), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (linux-386-cgo), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (linux-386-cgo), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (linux-386-cgo), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (linux-386-cgo), func SetsockoptInt(int, int) error
-pkg syscall (linux-386-cgo), func SetsockoptLinger(int, *Linger) error
-pkg syscall (linux-386-cgo), func SetsockoptString(int, string) error
-pkg syscall (linux-386-cgo), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-386-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (linux-386-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (linux-386-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (linux-386-cgo), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (linux-386-cgo), func SetsockoptInt(int, int, int, int) error
+pkg syscall (linux-386-cgo), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (linux-386-cgo), func SetsockoptString(int, int, int, string) error
+pkg syscall (linux-386-cgo), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (linux-386-cgo), func Settimeofday(*Timeval) error
 pkg syscall (linux-386-cgo), func Setuid(int) error
-pkg syscall (linux-386-cgo), func Shutdown(int) error
-pkg syscall (linux-386-cgo), func Socket(int) (int, error)
-pkg syscall (linux-386-cgo), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-386-cgo), func Shutdown(int, int) error
+pkg syscall (linux-386-cgo), func Socket(int, int, int) (int, error)
+pkg syscall (linux-386-cgo), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (linux-386-cgo), func Splice(int, *int64, int, *int64, int, int) (int, error)
 pkg syscall (linux-386-cgo), func Stat(string, *Stat_t) error
 pkg syscall (linux-386-cgo), func Statfs(string, *Statfs_t) error
 pkg syscall (linux-386-cgo), func StringSlicePtr([]string) []*byte
-pkg syscall (linux-386-cgo), func Symlink(string, string) error
 pkg syscall (linux-386-cgo), func Sync()
 pkg syscall (linux-386-cgo), func SyncFileRange(int, int64, int64, int) error
+pkg syscall (linux-386-cgo), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386-cgo), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-386-cgo), func Sysinfo(*Sysinfo_t) error
 pkg syscall (linux-386-cgo), func Tee(int, int, int, int) (int64, error)
 pkg syscall (linux-386-cgo), func Tgkill(int, int, Signal) error
@@ -23210,11 +23202,11 @@ pkg syscall (linux-amd64), func Getpgrp() int
 pkg syscall (linux-amd64), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-amd64), func Getrusage(int, *Rusage) error
 pkg syscall (linux-amd64), func Getsockname(int) (Sockaddr, error)
-pkg syscall (linux-amd64), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (linux-amd64), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (linux-amd64), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (linux-amd64), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (linux-amd64), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-amd64), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (linux-amd64), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-amd64), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (linux-amd64), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (linux-amd64), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (linux-amd64), func Gettid() int
 pkg syscall (linux-amd64), func InotifyAddWatch(int, string, uint32) (int, error)
 pkg syscall (linux-amd64), func InotifyInit() (int, error)
@@ -23224,11 +23216,10 @@ pkg syscall (linux-amd64), func Ioperm(int, int, int) error
 pkg syscall (linux-amd64), func Iopl(int) error
 pkg syscall (linux-amd64), func Kill(int, Signal) error
 pkg syscall (linux-amd64), func Klogctl(int, []byte) (int, error)
-pkg syscall (linux-amd64), func Link(string, string) error
 pkg syscall (linux-amd64), func Listen(int, int) error
-pkg syscall (linux-amd64), func LsfJump(int) *SockFilter
-pkg syscall (linux-amd64), func LsfSocket(int) (int, error)
-pkg syscall (linux-amd64), func LsfStmt(int) *SockFilter
+pkg syscall (linux-amd64), func LsfJump(int, int, int, int) *SockFilter
+pkg syscall (linux-amd64), func LsfSocket(int, int) (int, error)
+pkg syscall (linux-amd64), func LsfStmt(int, int) *SockFilter
 pkg syscall (linux-amd64), func Lstat(string, *Stat_t) error
 pkg syscall (linux-amd64), func Madvise([]byte, int) error
 pkg syscall (linux-amd64), func Mkdirat(int, string, uint32) error
@@ -23244,7 +23235,7 @@ pkg syscall (linux-amd64), func Munlock([]byte) error
 pkg syscall (linux-amd64), func Munlockall() error
 pkg syscall (linux-amd64), func Munmap([]byte) error
 pkg syscall (linux-amd64), func Nanosleep(*Timespec, *Timespec) error
-pkg syscall (linux-amd64), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-amd64), func NetlinkRIB(int, int) ([]byte, error)
 pkg syscall (linux-amd64), func NsecToTimespec(int64) Timespec
 pkg syscall (linux-amd64), func Open(string, int, uint32) (int, error)
 pkg syscall (linux-amd64), func Openat(int, string, int, uint32) (int, error)
@@ -23271,19 +23262,18 @@ pkg syscall (linux-amd64), func PtraceSetOptions(int, int) error
 pkg syscall (linux-amd64), func PtraceSetRegs(int, *PtraceRegs) error
 pkg syscall (linux-amd64), func PtraceSingleStep(int) error
 pkg syscall (linux-amd64), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (linux-amd64), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (linux-amd64), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-amd64), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-amd64), func Read(int, []byte) (int, error)
 pkg syscall (linux-amd64), func ReadDirent(int, []byte) (int, error)
 pkg syscall (linux-amd64), func Reboot(int) error
 pkg syscall (linux-amd64), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (linux-amd64), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (linux-amd64), func Rename(string, string) error
+pkg syscall (linux-amd64), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (linux-amd64), func Renameat(int, string, int, string) error
 pkg syscall (linux-amd64), func Seek(int, int64, int) (int64, error)
 pkg syscall (linux-amd64), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
 pkg syscall (linux-amd64), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (linux-amd64), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-amd64), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (linux-amd64), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (linux-amd64), func SetLsfPromisc(string, bool) error
 pkg syscall (linux-amd64), func SetNonblock(int, bool) error
@@ -23300,26 +23290,27 @@ pkg syscall (linux-amd64), func Setresuid(int, int, int) error
 pkg syscall (linux-amd64), func Setreuid(int, int) error
 pkg syscall (linux-amd64), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-amd64), func Setsid() (int, error)
-pkg syscall (linux-amd64), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (linux-amd64), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (linux-amd64), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (linux-amd64), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (linux-amd64), func SetsockoptInt(int, int) error
-pkg syscall (linux-amd64), func SetsockoptLinger(int, *Linger) error
-pkg syscall (linux-amd64), func SetsockoptString(int, string) error
-pkg syscall (linux-amd64), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-amd64), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (linux-amd64), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (linux-amd64), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (linux-amd64), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (linux-amd64), func SetsockoptInt(int, int, int, int) error
+pkg syscall (linux-amd64), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (linux-amd64), func SetsockoptString(int, int, int, string) error
+pkg syscall (linux-amd64), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (linux-amd64), func Settimeofday(*Timeval) error
 pkg syscall (linux-amd64), func Setuid(int) error
 pkg syscall (linux-amd64), func Shutdown(int, int) error
-pkg syscall (linux-amd64), func Socket(int) (int, error)
-pkg syscall (linux-amd64), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-amd64), func Socket(int, int, int) (int, error)
+pkg syscall (linux-amd64), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (linux-amd64), func Splice(int, *int64, int, *int64, int, int) (int64, error)
 pkg syscall (linux-amd64), func Stat(string, *Stat_t) error
 pkg syscall (linux-amd64), func Statfs(string, *Statfs_t) error
 pkg syscall (linux-amd64), func StringSlicePtr([]string) []*byte
-pkg syscall (linux-amd64), func Symlink(string, string) error
 pkg syscall (linux-amd64), func Sync()
 pkg syscall (linux-amd64), func SyncFileRange(int, int64, int64, int) error
+pkg syscall (linux-amd64), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-amd64), func Sysinfo(*Sysinfo_t) error
 pkg syscall (linux-amd64), func Tee(int, int, int, int) (int64, error)
 pkg syscall (linux-amd64), func Tgkill(int, int, Signal) error
@@ -25378,11 +25369,11 @@ pkg syscall (linux-amd64-cgo), func Getpgrp() int
 pkg syscall (linux-amd64-cgo), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-amd64-cgo), func Getrusage(int, *Rusage) error
 pkg syscall (linux-amd64-cgo), func Getsockname(int) (Sockaddr, error)
-pkg syscall (linux-amd64-cgo), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (linux-amd64-cgo), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (linux-amd64-cgo), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (linux-amd64-cgo), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (linux-amd64-cgo), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (linux-amd64-cgo), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (linux-amd64-cgo), func Gettid() int
 pkg syscall (linux-amd64-cgo), func InotifyAddWatch(int, string, uint32) (int, error)
 pkg syscall (linux-amd64-cgo), func InotifyInit() (int, error)
@@ -25392,11 +25383,10 @@ pkg syscall (linux-amd64-cgo), func Ioperm(int, int, int) error
 pkg syscall (linux-amd64-cgo), func Iopl(int) error
 pkg syscall (linux-amd64-cgo), func Kill(int, Signal) error
 pkg syscall (linux-amd64-cgo), func Klogctl(int, []byte) (int, error)
-pkg syscall (linux-amd64-cgo), func Link(string, string) error
 pkg syscall (linux-amd64-cgo), func Listen(int, int) error
-pkg syscall (linux-amd64-cgo), func LsfJump(int) *SockFilter
-pkg syscall (linux-amd64-cgo), func LsfSocket(int) (int, error)
-pkg syscall (linux-amd64-cgo), func LsfStmt(int) *SockFilter
+pkg syscall (linux-amd64-cgo), func LsfJump(int, int, int, int) *SockFilter
+pkg syscall (linux-amd64-cgo), func LsfSocket(int, int) (int, error)
+pkg syscall (linux-amd64-cgo), func LsfStmt(int, int) *SockFilter
 pkg syscall (linux-amd64-cgo), func Lstat(string, *Stat_t) error
 pkg syscall (linux-amd64-cgo), func Madvise([]byte, int) error
 pkg syscall (linux-amd64-cgo), func Mkdirat(int, string, uint32) error
@@ -25412,7 +25402,7 @@ pkg syscall (linux-amd64-cgo), func Munlock([]byte) error
 pkg syscall (linux-amd64-cgo), func Munlockall() error
 pkg syscall (linux-amd64-cgo), func Munmap([]byte) error
 pkg syscall (linux-amd64-cgo), func Nanosleep(*Timespec, *Timespec) error
-pkg syscall (linux-amd64-cgo), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-amd64-cgo), func NetlinkRIB(int, int) ([]byte, error)
 pkg syscall (linux-amd64-cgo), func NsecToTimespec(int64) Timespec
 pkg syscall (linux-amd64-cgo), func Open(string, int, uint32) (int, error)
 pkg syscall (linux-amd64-cgo), func Openat(int, string, int, uint32) (int, error)
@@ -25439,19 +25429,18 @@ pkg syscall (linux-amd64-cgo), func PtraceSetOptions(int, int) error
 pkg syscall (linux-amd64-cgo), func PtraceSetRegs(int, *PtraceRegs) error
 pkg syscall (linux-amd64-cgo), func PtraceSingleStep(int) error
 pkg syscall (linux-amd64-cgo), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (linux-amd64-cgo), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (linux-amd64-cgo), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-amd64-cgo), func Read(int, []byte) (int, error)
 pkg syscall (linux-amd64-cgo), func ReadDirent(int, []byte) (int, error)
 pkg syscall (linux-amd64-cgo), func Reboot(int) error
 pkg syscall (linux-amd64-cgo), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (linux-amd64-cgo), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (linux-amd64-cgo), func Rename(string, string) error
+pkg syscall (linux-amd64-cgo), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (linux-amd64-cgo), func Renameat(int, string, int, string) error
 pkg syscall (linux-amd64-cgo), func Seek(int, int64, int) (int64, error)
 pkg syscall (linux-amd64-cgo), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
 pkg syscall (linux-amd64-cgo), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (linux-amd64-cgo), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-amd64-cgo), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (linux-amd64-cgo), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (linux-amd64-cgo), func SetLsfPromisc(string, bool) error
 pkg syscall (linux-amd64-cgo), func SetNonblock(int, bool) error
@@ -25468,26 +25457,27 @@ pkg syscall (linux-amd64-cgo), func Setresuid(int, int, int) error
 pkg syscall (linux-amd64-cgo), func Setreuid(int, int) error
 pkg syscall (linux-amd64-cgo), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-amd64-cgo), func Setsid() (int, error)
-pkg syscall (linux-amd64-cgo), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (linux-amd64-cgo), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (linux-amd64-cgo), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (linux-amd64-cgo), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (linux-amd64-cgo), func SetsockoptInt(int, int) error
-pkg syscall (linux-amd64-cgo), func SetsockoptLinger(int, *Linger) error
-pkg syscall (linux-amd64-cgo), func SetsockoptString(int, string) error
-pkg syscall (linux-amd64-cgo), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-amd64-cgo), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (linux-amd64-cgo), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (linux-amd64-cgo), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (linux-amd64-cgo), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (linux-amd64-cgo), func SetsockoptInt(int, int, int, int) error
+pkg syscall (linux-amd64-cgo), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (linux-amd64-cgo), func SetsockoptString(int, int, int, string) error
+pkg syscall (linux-amd64-cgo), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (linux-amd64-cgo), func Settimeofday(*Timeval) error
 pkg syscall (linux-amd64-cgo), func Setuid(int) error
 pkg syscall (linux-amd64-cgo), func Shutdown(int, int) error
-pkg syscall (linux-amd64-cgo), func Socket(int) (int, error)
-pkg syscall (linux-amd64-cgo), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-amd64-cgo), func Socket(int, int, int) (int, error)
+pkg syscall (linux-amd64-cgo), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (linux-amd64-cgo), func Splice(int, *int64, int, *int64, int, int) (int64, error)
 pkg syscall (linux-amd64-cgo), func Stat(string, *Stat_t) error
 pkg syscall (linux-amd64-cgo), func Statfs(string, *Statfs_t) error
 pkg syscall (linux-amd64-cgo), func StringSlicePtr([]string) []*byte
-pkg syscall (linux-amd64-cgo), func Symlink(string, string) error
 pkg syscall (linux-amd64-cgo), func Sync()
 pkg syscall (linux-amd64-cgo), func SyncFileRange(int, int64, int64, int) error
+pkg syscall (linux-amd64-cgo), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-amd64-cgo), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-amd64-cgo), func Sysinfo(*Sysinfo_t) error
 pkg syscall (linux-amd64-cgo), func Tee(int, int, int, int) (int64, error)
 pkg syscall (linux-amd64-cgo), func Tgkill(int, int, Signal) error
@@ -27602,11 +27592,11 @@ pkg syscall (linux-arm), func Getpgrp() int
 pkg syscall (linux-arm), func Getrlimit(int, *Rlimit) error
 pkg syscall (linux-arm), func Getrusage(int, *Rusage) error
 pkg syscall (linux-arm), func Getsockname(int) (Sockaddr, error)
-pkg syscall (linux-arm), func GetsockoptIPMreq(int) (*IPMreq, error)
-pkg syscall (linux-arm), func GetsockoptIPMreqn(int) (*IPMreqn, error)
-pkg syscall (linux-arm), func GetsockoptIPv6Mreq(int) (*IPv6Mreq, error)
-pkg syscall (linux-arm), func GetsockoptInet4Addr(int) ([4]byte, error)
-pkg syscall (linux-arm), func GetsockoptInt(int) (int, error)
+pkg syscall (linux-arm), func GetsockoptIPMreq(int, int, int) (*IPMreq, error)
+pkg syscall (linux-arm), func GetsockoptIPMreqn(int, int, int) (*IPMreqn, error)
+pkg syscall (linux-arm), func GetsockoptIPv6Mreq(int, int, int) (*IPv6Mreq, error)
+pkg syscall (linux-arm), func GetsockoptInet4Addr(int, int, int) ([4]byte, error)
+pkg syscall (linux-arm), func GetsockoptInt(int, int, int) (int, error)
 pkg syscall (linux-arm), func Gettid() int
 pkg syscall (linux-arm), func InotifyAddWatch(int, string, uint32) (int, error)
 pkg syscall (linux-arm), func InotifyInit() (int, error)
@@ -27614,11 +27604,10 @@ pkg syscall (linux-arm), func InotifyInit1(int) (int, error)
 pkg syscall (linux-arm), func InotifyRmWatch(int, uint32) (int, error)
 pkg syscall (linux-arm), func Kill(int, Signal) error
 pkg syscall (linux-arm), func Klogctl(int, []byte) (int, error)
-pkg syscall (linux-arm), func Link(string, string) error
 pkg syscall (linux-arm), func Listen(int, int) error
-pkg syscall (linux-arm), func LsfJump(int) *SockFilter
-pkg syscall (linux-arm), func LsfSocket(int) (int, error)
-pkg syscall (linux-arm), func LsfStmt(int) *SockFilter
+pkg syscall (linux-arm), func LsfJump(int, int, int, int) *SockFilter
+pkg syscall (linux-arm), func LsfSocket(int, int) (int, error)
+pkg syscall (linux-arm), func LsfStmt(int, int) *SockFilter
 pkg syscall (linux-arm), func Lstat(string, *Stat_t) error
 pkg syscall (linux-arm), func Madvise([]byte, int) error
 pkg syscall (linux-arm), func Mkdirat(int, string, uint32) error
@@ -27634,7 +27623,7 @@ pkg syscall (linux-arm), func Munlock([]byte) error
 pkg syscall (linux-arm), func Munlockall() error
 pkg syscall (linux-arm), func Munmap([]byte) error
 pkg syscall (linux-arm), func Nanosleep(*Timespec, *Timespec) error
-pkg syscall (linux-arm), func NetlinkRIB(int) ([]byte, error)
+pkg syscall (linux-arm), func NetlinkRIB(int, int) ([]byte, error)
 pkg syscall (linux-arm), func NsecToTimespec(int64) Timespec
 pkg syscall (linux-arm), func Open(string, int, uint32) (int, error)
 pkg syscall (linux-arm), func Openat(int, string, int, uint32) (int, error)
@@ -27661,19 +27650,18 @@ pkg syscall (linux-arm), func PtraceSetOptions(int, int) error
 pkg syscall (linux-arm), func PtraceSetRegs(int, *PtraceRegs) error
 pkg syscall (linux-arm), func PtraceSingleStep(int) error
 pkg syscall (linux-arm), func Pwrite(int, []byte, int64) (int, error)
-pkg syscall (linux-arm), func RawSyscall(uintptr) (uintptr, Errno)
-pkg syscall (linux-arm), func RawSyscall6(uintptr) (uintptr, Errno)
+pkg syscall (linux-arm), func RawSyscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func RawSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-arm), func Read(int, []byte) (int, error)
 pkg syscall (linux-arm), func ReadDirent(int, []byte) (int, error)
 pkg syscall (linux-arm), func Reboot(int) error
 pkg syscall (linux-arm), func Recvfrom(int, []byte, int) (int, Sockaddr, error)
-pkg syscall (linux-arm), func Recvmsg(int, []byte, int) (int, int, Sockaddr, error)
-pkg syscall (linux-arm), func Rename(string, string) error
+pkg syscall (linux-arm), func Recvmsg(int, []byte, []byte, int) (int, int, int, Sockaddr, error)
 pkg syscall (linux-arm), func Renameat(int, string, int, string) error
 pkg syscall (linux-arm), func Seek(int, int64, int) (int64, error)
 pkg syscall (linux-arm), func Select(int, *FdSet, *FdSet, *FdSet, *Timeval) (int, error)
 pkg syscall (linux-arm), func Sendfile(int, int, *int64, int) (int, error)
-pkg syscall (linux-arm), func Sendmsg(int, []byte, Sockaddr, int) error
+pkg syscall (linux-arm), func Sendmsg(int, []byte, []byte, Sockaddr, int) error
 pkg syscall (linux-arm), func Sendto(int, []byte, int, Sockaddr) error
 pkg syscall (linux-arm), func SetLsfPromisc(string, bool) error
 pkg syscall (linux-arm), func SetNonblock(int, bool) error
@@ -27690,25 +27678,26 @@ pkg syscall (linux-arm), func Setresuid(int, int, int) error
 pkg syscall (linux-arm), func Setreuid(int, int) error
 pkg syscall (linux-arm), func Setrlimit(int, *Rlimit) error
 pkg syscall (linux-arm), func Setsid() (int, error)
-pkg syscall (linux-arm), func SetsockoptIPMreq(int, *IPMreq) error
-pkg syscall (linux-arm), func SetsockoptIPMreqn(int, *IPMreqn) error
-pkg syscall (linux-arm), func SetsockoptIPv6Mreq(int, *IPv6Mreq) error
-pkg syscall (linux-arm), func SetsockoptInet4Addr(int, [4]byte) error
-pkg syscall (linux-arm), func SetsockoptInt(int, int) error
-pkg syscall (linux-arm), func SetsockoptLinger(int, *Linger) error
-pkg syscall (linux-arm), func SetsockoptString(int, string) error
-pkg syscall (linux-arm), func SetsockoptTimeval(int, *Timeval) error
+pkg syscall (linux-arm), func SetsockoptIPMreq(int, int, int, *IPMreq) error
+pkg syscall (linux-arm), func SetsockoptIPMreqn(int, int, int, *IPMreqn) error
+pkg syscall (linux-arm), func SetsockoptIPv6Mreq(int, int, int, *IPv6Mreq) error
+pkg syscall (linux-arm), func SetsockoptInet4Addr(int, int, int, [4]byte) error
+pkg syscall (linux-arm), func SetsockoptInt(int, int, int, int) error
+pkg syscall (linux-arm), func SetsockoptLinger(int, int, int, *Linger) error
+pkg syscall (linux-arm), func SetsockoptString(int, int, int, string) error
+pkg syscall (linux-arm), func SetsockoptTimeval(int, int, int, *Timeval) error
 pkg syscall (linux-arm), func Settimeofday(*Timeval) error
 pkg syscall (linux-arm), func Setuid(int) error
 pkg syscall (linux-arm), func Shutdown(int, int) error
-pkg syscall (linux-arm), func Socket(int) (int, error)
-pkg syscall (linux-arm), func Socketpair(int) ([2]int, error)
+pkg syscall (linux-arm), func Socket(int, int, int) (int, error)
+pkg syscall (linux-arm), func Socketpair(int, int, int) ([2]int, error)
 pkg syscall (linux-arm), func Splice(int, *int64, int, *int64, int, int) (int, error)
 pkg syscall (linux-arm), func Stat(string, *Stat_t) error
 pkg syscall (linux-arm), func Statfs(string, *Statfs_t) error
 pkg syscall (linux-arm), func StringSlicePtr([]string) []*byte
-pkg syscall (linux-arm), func Symlink(string, string) error
 pkg syscall (linux-arm), func Sync()
+pkg syscall (linux-arm), func Syscall(uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-arm), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-arm), func Sysinfo(*Sysinfo_t) error
 pkg syscall (linux-arm), func Tee(int, int, int, int) (int64, error)
 pkg syscall (linux-arm), func Tgkill(int, int, Signal) error
@@ -28535,15 +28524,14 @@ pkg syscall (windows-386), func GetUserProfileDirectory(Token, *uint16, *uint32)
 pkg syscall (windows-386), func GetVersion() (uint32, error)
 pkg syscall (windows-386), func Getpeername(Handle) (Sockaddr, error)
 pkg syscall (windows-386), func Getsockname(Handle) (Sockaddr, error)
-pkg syscall (windows-386), func GetsockoptInt(Handle, int) (int, error)
-pkg syscall (windows-386), func Link(string) error
+pkg syscall (windows-386), func GetsockoptInt(Handle, int, int) (int, error)
 pkg syscall (windows-386), func Listen(Handle, int) error
 pkg syscall (windows-386), func LoadDLL(string) (*DLL, error)
 pkg syscall (windows-386), func LoadLibrary(string) (Handle, error)
 pkg syscall (windows-386), func LocalFree(Handle) (Handle, error)
 pkg syscall (windows-386), func LookupAccountName(*uint16, *uint16, *SID, *uint32, *uint16, *uint32, *uint32) error
 pkg syscall (windows-386), func LookupAccountSid(*uint16, *SID, *uint16, *uint32, *uint16, *uint32, *uint32) error
-pkg syscall (windows-386), func LookupSID(string) (*SID, string, uint32, error)
+pkg syscall (windows-386), func LookupSID(string, string) (*SID, string, uint32, error)
 pkg syscall (windows-386), func MapViewOfFile(Handle, uint32, uint32, uint32, uintptr) (uintptr, error)
 pkg syscall (windows-386), func MoveFile(*uint16, *uint16) error
 pkg syscall (windows-386), func MustLoadDLL(string) *DLL
@@ -28569,7 +28557,6 @@ pkg syscall (windows-386), func RegOpenKeyEx(Handle, *uint16, uint32, uint32, *H
 pkg syscall (windows-386), func RegQueryInfoKey(Handle, *uint16, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *Filetime) error
 pkg syscall (windows-386), func RegQueryValueEx(Handle, *uint16, *uint32, *uint32, *byte, *uint32) error
 pkg syscall (windows-386), func RemoveDirectory(*uint16) error
-pkg syscall (windows-386), func Rename(string) error
 pkg syscall (windows-386), func Seek(Handle, int64, int) (int64, error)
 pkg syscall (windows-386), func Sendto(Handle, []byte, int, Sockaddr) error
 pkg syscall (windows-386), func SetCurrentDirectory(*uint16) error
@@ -28581,23 +28568,24 @@ pkg syscall (windows-386), func SetFileTime(Handle, *Filetime, *Filetime, *Filet
 pkg syscall (windows-386), func SetHandleInformation(Handle, uint32, uint32) error
 pkg syscall (windows-386), func SetNonblock(Handle, bool) error
 pkg syscall (windows-386), func Setsockopt(Handle, int32, int32, *byte, int32) error
-pkg syscall (windows-386), func SetsockoptIPMreq(Handle, int, *IPMreq) error
-pkg syscall (windows-386), func SetsockoptIPv6Mreq(Handle, int, *IPv6Mreq) error
-pkg syscall (windows-386), func SetsockoptInet4Addr(Handle, int, [4]byte) error
-pkg syscall (windows-386), func SetsockoptInt(Handle, int, int) error
-pkg syscall (windows-386), func SetsockoptLinger(Handle, int, *Linger) error
-pkg syscall (windows-386), func SetsockoptTimeval(Handle, int, *Timeval) error
+pkg syscall (windows-386), func SetsockoptIPMreq(Handle, int, int, *IPMreq) error
+pkg syscall (windows-386), func SetsockoptIPv6Mreq(Handle, int, int, *IPv6Mreq) error
+pkg syscall (windows-386), func SetsockoptInet4Addr(Handle, int, int, [4]byte) error
+pkg syscall (windows-386), func SetsockoptInt(Handle, int, int, int) error
+pkg syscall (windows-386), func SetsockoptLinger(Handle, int, int, *Linger) error
+pkg syscall (windows-386), func SetsockoptTimeval(Handle, int, int, *Timeval) error
 pkg syscall (windows-386), func Shutdown(Handle, int) error
-pkg syscall (windows-386), func Socket(int) (Handle, error)
+pkg syscall (windows-386), func Socket(int, int, int) (Handle, error)
 pkg syscall (windows-386), func StringToSid(string) (*SID, error)
 pkg syscall (windows-386), func StringToUTF16(string) []uint16
 pkg syscall (windows-386), func StringToUTF16Ptr(string) *uint16
-pkg syscall (windows-386), func Symlink(string) error
-pkg syscall (windows-386), func Syscall12(uintptr) (uintptr, Errno)
-pkg syscall (windows-386), func Syscall15(uintptr) (uintptr, Errno)
-pkg syscall (windows-386), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (windows-386), func Syscall(uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-386), func Syscall12(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-386), func Syscall15(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-386), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-386), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (windows-386), func TerminateProcess(Handle, uint32) error
-pkg syscall (windows-386), func TranslateAccountName(string, uint32, int) (string, error)
+pkg syscall (windows-386), func TranslateAccountName(string, uint32, uint32, int) (string, error)
 pkg syscall (windows-386), func TranslateName(*uint16, uint32, uint32, *uint16, *uint32) error
 pkg syscall (windows-386), func TransmitFile(Handle, Handle, uint32, uint32, *Overlapped, *TransmitFileBuffers, uint32) error
 pkg syscall (windows-386), func UTF16ToString([]uint16) string
@@ -28624,14 +28612,14 @@ pkg syscall (windows-386), method (*LazyDLL) Handle() uintptr
 pkg syscall (windows-386), method (*LazyDLL) Load() error
 pkg syscall (windows-386), method (*LazyDLL) NewProc(string) *LazyProc
 pkg syscall (windows-386), method (*LazyProc) Addr() uintptr
-pkg syscall (windows-386), method (*LazyProc) Call(...uintptr) (uintptr, error)
+pkg syscall (windows-386), method (*LazyProc) Call(...uintptr) (uintptr, uintptr, error)
 pkg syscall (windows-386), method (*LazyProc) Find() error
 pkg syscall (windows-386), method (*Proc) Addr() uintptr
-pkg syscall (windows-386), method (*Proc) Call(...uintptr) (uintptr, error)
+pkg syscall (windows-386), method (*Proc) Call(...uintptr) (uintptr, uintptr, error)
 pkg syscall (windows-386), method (*RawSockaddrAny) Sockaddr() (Sockaddr, error)
 pkg syscall (windows-386), method (*SID) Copy() (*SID, error)
 pkg syscall (windows-386), method (*SID) Len() int
-pkg syscall (windows-386), method (*SID) LookupAccount(string) (string, uint32, error)
+pkg syscall (windows-386), method (*SID) LookupAccount(string) (string, string, uint32, error)
 pkg syscall (windows-386), method (*SID) String() (string, error)
 pkg syscall (windows-386), method (*Timeval) Nanoseconds() int64
 pkg syscall (windows-386), method (Token) Close() error
@@ -29461,15 +29449,14 @@ pkg syscall (windows-amd64), func GetUserProfileDirectory(Token, *uint16, *uint3
 pkg syscall (windows-amd64), func GetVersion() (uint32, error)
 pkg syscall (windows-amd64), func Getpeername(Handle) (Sockaddr, error)
 pkg syscall (windows-amd64), func Getsockname(Handle) (Sockaddr, error)
-pkg syscall (windows-amd64), func GetsockoptInt(Handle, int) (int, error)
-pkg syscall (windows-amd64), func Link(string) error
+pkg syscall (windows-amd64), func GetsockoptInt(Handle, int, int) (int, error)
 pkg syscall (windows-amd64), func Listen(Handle, int) error
 pkg syscall (windows-amd64), func LoadDLL(string) (*DLL, error)
 pkg syscall (windows-amd64), func LoadLibrary(string) (Handle, error)
 pkg syscall (windows-amd64), func LocalFree(Handle) (Handle, error)
 pkg syscall (windows-amd64), func LookupAccountName(*uint16, *uint16, *SID, *uint32, *uint16, *uint32, *uint32) error
 pkg syscall (windows-amd64), func LookupAccountSid(*uint16, *SID, *uint16, *uint32, *uint16, *uint32, *uint32) error
-pkg syscall (windows-amd64), func LookupSID(string) (*SID, string, uint32, error)
+pkg syscall (windows-amd64), func LookupSID(string, string) (*SID, string, uint32, error)
 pkg syscall (windows-amd64), func MapViewOfFile(Handle, uint32, uint32, uint32, uintptr) (uintptr, error)
 pkg syscall (windows-amd64), func MoveFile(*uint16, *uint16) error
 pkg syscall (windows-amd64), func MustLoadDLL(string) *DLL
@@ -29495,7 +29482,6 @@ pkg syscall (windows-amd64), func RegOpenKeyEx(Handle, *uint16, uint32, uint32, 
 pkg syscall (windows-amd64), func RegQueryInfoKey(Handle, *uint16, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *uint32, *Filetime) error
 pkg syscall (windows-amd64), func RegQueryValueEx(Handle, *uint16, *uint32, *uint32, *byte, *uint32) error
 pkg syscall (windows-amd64), func RemoveDirectory(*uint16) error
-pkg syscall (windows-amd64), func Rename(string) error
 pkg syscall (windows-amd64), func Seek(Handle, int64, int) (int64, error)
 pkg syscall (windows-amd64), func Sendto(Handle, []byte, int, Sockaddr) error
 pkg syscall (windows-amd64), func SetCurrentDirectory(*uint16) error
@@ -29507,23 +29493,24 @@ pkg syscall (windows-amd64), func SetFileTime(Handle, *Filetime, *Filetime, *Fil
 pkg syscall (windows-amd64), func SetHandleInformation(Handle, uint32, uint32) error
 pkg syscall (windows-amd64), func SetNonblock(Handle, bool) error
 pkg syscall (windows-amd64), func Setsockopt(Handle, int32, int32, *byte, int32) error
-pkg syscall (windows-amd64), func SetsockoptIPMreq(Handle, int, *IPMreq) error
-pkg syscall (windows-amd64), func SetsockoptIPv6Mreq(Handle, int, *IPv6Mreq) error
-pkg syscall (windows-amd64), func SetsockoptInet4Addr(Handle, int, [4]byte) error
-pkg syscall (windows-amd64), func SetsockoptInt(Handle, int, int) error
-pkg syscall (windows-amd64), func SetsockoptLinger(Handle, int, *Linger) error
-pkg syscall (windows-amd64), func SetsockoptTimeval(Handle, int, *Timeval) error
+pkg syscall (windows-amd64), func SetsockoptIPMreq(Handle, int, int, *IPMreq) error
+pkg syscall (windows-amd64), func SetsockoptIPv6Mreq(Handle, int, int, *IPv6Mreq) error
+pkg syscall (windows-amd64), func SetsockoptInet4Addr(Handle, int, int, [4]byte) error
+pkg syscall (windows-amd64), func SetsockoptInt(Handle, int, int, int) error
+pkg syscall (windows-amd64), func SetsockoptLinger(Handle, int, int, *Linger) error
+pkg syscall (windows-amd64), func SetsockoptTimeval(Handle, int, int, *Timeval) error
 pkg syscall (windows-amd64), func Shutdown(Handle, int) error
-pkg syscall (windows-amd64), func Socket(int) (Handle, error)
+pkg syscall (windows-amd64), func Socket(int, int, int) (Handle, error)
 pkg syscall (windows-amd64), func StringToSid(string) (*SID, error)
 pkg syscall (windows-amd64), func StringToUTF16(string) []uint16
 pkg syscall (windows-amd64), func StringToUTF16Ptr(string) *uint16
-pkg syscall (windows-amd64), func Symlink(string) error
-pkg syscall (windows-amd64), func Syscall12(uintptr) (uintptr, Errno)
-pkg syscall (windows-amd64), func Syscall15(uintptr) (uintptr, Errno)
-pkg syscall (windows-amd64), func Syscall9(uintptr) (uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall(uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall12(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall15(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (windows-amd64), func TerminateProcess(Handle, uint32) error
-pkg syscall (windows-amd64), func TranslateAccountName(string, uint32, int) (string, error)
+pkg syscall (windows-amd64), func TranslateAccountName(string, uint32, uint32, int) (string, error)
 pkg syscall (windows-amd64), func TranslateName(*uint16, uint32, uint32, *uint16, *uint32) error
 pkg syscall (windows-amd64), func TransmitFile(Handle, Handle, uint32, uint32, *Overlapped, *TransmitFileBuffers, uint32) error
 pkg syscall (windows-amd64), func UTF16ToString([]uint16) string
@@ -29550,14 +29537,14 @@ pkg syscall (windows-amd64), method (*LazyDLL) Handle() uintptr
 pkg syscall (windows-amd64), method (*LazyDLL) Load() error
 pkg syscall (windows-amd64), method (*LazyDLL) NewProc(string) *LazyProc
 pkg syscall (windows-amd64), method (*LazyProc) Addr() uintptr
-pkg syscall (windows-amd64), method (*LazyProc) Call(...uintptr) (uintptr, error)
+pkg syscall (windows-amd64), method (*LazyProc) Call(...uintptr) (uintptr, uintptr, error)
 pkg syscall (windows-amd64), method (*LazyProc) Find() error
 pkg syscall (windows-amd64), method (*Proc) Addr() uintptr
-pkg syscall (windows-amd64), method (*Proc) Call(...uintptr) (uintptr, error)
+pkg syscall (windows-amd64), method (*Proc) Call(...uintptr) (uintptr, uintptr, error)
 pkg syscall (windows-amd64), method (*RawSockaddrAny) Sockaddr() (Sockaddr, error)
 pkg syscall (windows-amd64), method (*SID) Copy() (*SID, error)
 pkg syscall (windows-amd64), method (*SID) Len() int
-pkg syscall (windows-amd64), method (*SID) LookupAccount(string) (string, uint32, error)
+pkg syscall (windows-amd64), method (*SID) LookupAccount(string) (string, string, uint32, error)
 pkg syscall (windows-amd64), method (*SID) String() (string, error)
 pkg syscall (windows-amd64), method (*Timeval) Nanoseconds() int64
 pkg syscall (windows-amd64), method (Token) Close() error
@@ -30070,16 +30057,17 @@ pkg syscall, func Gettimeofday(*Timeval) error
 pkg syscall, func Getuid() int
 pkg syscall, func Getwd() (string, error)
 pkg syscall, func Lchown(string, int, int) error
+pkg syscall, func Link(string, string) error
 pkg syscall, func Mkdir(string, uint32) error
 pkg syscall, func NsecToTimeval(int64) Timeval
 pkg syscall, func Readlink(string, []byte) (int, error)
+pkg syscall, func Rename(string, string) error
 pkg syscall, func Rmdir(string) error
-pkg syscall, func Setenv(string) error
+pkg syscall, func Setenv(string, string) error
 pkg syscall, func StartProcess(string, []string, *ProcAttr) (int, uintptr, error)
 pkg syscall, func StringBytePtr(string) *byte
 pkg syscall, func StringByteSlice(string) []byte
-pkg syscall, func Syscall(uintptr) (uintptr, Errno)
-pkg syscall, func Syscall6(uintptr) (uintptr, Errno)
+pkg syscall, func Symlink(string, string) error
 pkg syscall, func Unlink(string) error
 pkg syscall, func Utimes(string, []Timeval) error
 pkg syscall, method (*Timespec) Nano() int64
@@ -30195,7 +30183,7 @@ pkg testing/iotest, func TimeoutReader(io.Reader) io.Reader
 pkg testing/iotest, func TruncateWriter(io.Writer, int64) io.Writer
 pkg testing/iotest, var ErrTimeout error
 pkg testing/quick, func Check(interface{}, *Config) error
-pkg testing/quick, func CheckEqual(interface{}, *Config) error
+pkg testing/quick, func CheckEqual(interface{}, interface{}, *Config) error
 pkg testing/quick, func Value(reflect.Type, *rand.Rand) (reflect.Value, bool)
 pkg testing/quick, method (*CheckEqualError) Error() string
 pkg testing/quick, method (*CheckError) Error() string
@@ -30262,9 +30250,9 @@ pkg text/tabwriter, const Escape ideal-char
 pkg text/tabwriter, const FilterHTML uint
 pkg text/tabwriter, const StripEscape uint
 pkg text/tabwriter, const TabIndent uint
-pkg text/tabwriter, func NewWriter(io.Writer, int, byte, uint) *Writer
+pkg text/tabwriter, func NewWriter(io.Writer, int, int, int, byte, uint) *Writer
 pkg text/tabwriter, method (*Writer) Flush() error
-pkg text/tabwriter, method (*Writer) Init(io.Writer, int, byte, uint) *Writer
+pkg text/tabwriter, method (*Writer) Init(io.Writer, int, int, int, byte, uint) *Writer
 pkg text/tabwriter, method (*Writer) Write([]byte) (int, error)
 pkg text/tabwriter, type Writer struct
 pkg text/template, func HTMLEscape(io.Writer, []byte)
@@ -30280,7 +30268,7 @@ pkg text/template, func ParseGlob(string) (*Template, error)
 pkg text/template, func URLQueryEscaper(...interface{}) string
 pkg text/template, method (*Template) AddParseTree(string, *parse.Tree) (*Template, error)
 pkg text/template, method (*Template) Clone() (*Template, error)
-pkg text/template, method (*Template) Delims(string) *Template
+pkg text/template, method (*Template) Delims(string, string) *Template
 pkg text/template, method (*Template) Execute(io.Writer, interface{}) error
 pkg text/template, method (*Template) ExecuteTemplate(io.Writer, string, interface{}) error
 pkg text/template, method (*Template) Funcs(FuncMap) *Template
@@ -30313,7 +30301,7 @@ pkg text/template/parse, const NodeWith NodeType
 pkg text/template/parse, func IsEmptyTree(Node) bool
 pkg text/template/parse, func New(string, ...map[string]interface{}) *Tree
 pkg text/template/parse, func NewIdentifier(string) *IdentifierNode
-pkg text/template/parse, func Parse(string, ...map[string]interface{}) (map[string]*Tree, error)
+pkg text/template/parse, func Parse(string, string, string, string, ...map[string]interface{}) (map[string]*Tree, error)
 pkg text/template/parse, method (*ActionNode) Copy() Node
 pkg text/template/parse, method (*ActionNode) String() string
 pkg text/template/parse, method (*BoolNode) Copy() Node
@@ -30346,7 +30334,7 @@ pkg text/template/parse, method (*TemplateNode) Copy() Node
 pkg text/template/parse, method (*TemplateNode) String() string
 pkg text/template/parse, method (*TextNode) Copy() Node
 pkg text/template/parse, method (*TextNode) String() string
-pkg text/template/parse, method (*Tree) Parse(string, map[string]*Tree, ...map[string]interface{}) (*Tree, error)
+pkg text/template/parse, method (*Tree) Parse(string, string, string, map[string]*Tree, ...map[string]interface{}) (*Tree, error)
 pkg text/template/parse, method (*VariableNode) Copy() Node
 pkg text/template/parse, method (*VariableNode) String() string
 pkg text/template/parse, method (*WithNode) Copy() Node
@@ -30481,13 +30469,13 @@ pkg time, const UnixDate ideal-string
 pkg time, const Wednesday Weekday
 pkg time, func After(Duration) <-chan Time
 pkg time, func AfterFunc(Duration, func()) *Timer
-pkg time, func Date(int, Month, int, *Location) Time
+pkg time, func Date(int, Month, int, int, int, int, int, *Location) Time
 pkg time, func FixedZone(string, int) *Location
 pkg time, func LoadLocation(string) (*Location, error)
 pkg time, func NewTicker(Duration) *Ticker
 pkg time, func NewTimer(Duration) *Timer
 pkg time, func Now() Time
-pkg time, func Parse(string) (Time, error)
+pkg time, func Parse(string, string) (Time, error)
 pkg time, func ParseDuration(string) (Duration, error)
 pkg time, func Since(Time) Duration
 pkg time, func Sleep(Duration)
@@ -30509,14 +30497,14 @@ pkg time, method (Time) Add(Duration) Time
 pkg time, method (Time) AddDate(int, int, int) Time
 pkg time, method (Time) After(Time) bool
 pkg time, method (Time) Before(Time) bool
-pkg time, method (Time) Clock() int
+pkg time, method (Time) Clock() (int, int, int)
 pkg time, method (Time) Date() (int, Month, int)
 pkg time, method (Time) Day() int
 pkg time, method (Time) Equal(Time) bool
 pkg time, method (Time) Format(string) string
 pkg time, method (Time) GobEncode() ([]byte, error)
 pkg time, method (Time) Hour() int
-pkg time, method (Time) ISOWeek() int
+pkg time, method (Time) ISOWeek() (int, int)
 pkg time, method (Time) In(*Location) Time
 pkg time, method (Time) IsZero() bool
 pkg time, method (Time) Local() Time
@@ -30786,9 +30774,9 @@ pkg unicode, var Zl *RangeTable
 pkg unicode, var Zp *RangeTable
 pkg unicode, var Zs *RangeTable
 pkg unicode/utf16, func Decode([]uint16) []rune
-pkg unicode/utf16, func DecodeRune(rune) rune
+pkg unicode/utf16, func DecodeRune(rune, rune) rune
 pkg unicode/utf16, func Encode([]rune) []uint16
-pkg unicode/utf16, func EncodeRune(rune) rune
+pkg unicode/utf16, func EncodeRune(rune) (rune, rune)
 pkg unicode/utf16, func IsSurrogate(rune) bool
 pkg unicode/utf8, const MaxRune ideal-char
 pkg unicode/utf8, const RuneError ideal-char
