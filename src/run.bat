@@ -70,11 +70,10 @@ if x%CGO_ENABLED% == x0 goto nocgo
 ::if errorlevel 1 goto fail
 ::echo.
 
-:: TODO ..\misc\cgo\stdio
-::echo # ..\misc\cgo\stdio
-::go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
-::if errorlevel 1 goto fail
-::echo.
+echo # ..\misc\cgo\stdio
+go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
+if errorlevel 1 goto fail
+echo.
 
 echo # ..\misc\cgo\test
 go test ..\misc\cgo\test
