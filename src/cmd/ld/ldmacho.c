@@ -440,7 +440,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	Reloc *r, *rp;
 	char *name;
 
-	USED(pkg);
 	version++;
 	base = Boffset(f);
 	if(Bread(f, hdr, sizeof hdr) != sizeof hdr)
@@ -566,7 +565,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		if(strcmp(sect->name, "__eh_frame") == 0)
 			continue;
-		name = smprint("%s(%s/%s)", pn, sect->segname, sect->name);
+		name = smprint("%s(%s/%s)", pkg, sect->segname, sect->name);
 		s = lookup(name, version);
 		if(s->type != 0) {
 			werrstr("duplicate %s/%s", sect->segname, sect->name);
