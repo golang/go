@@ -81,6 +81,7 @@ var tests = []struct {
 	{"testdata/stdin*.input", "-stdin"},
 	{"testdata/comments.input", ""},
 	{"testdata/import.input", ""},
+	{"testdata/crlf.input", ""}, // test case for issue 3961; see also TestCRLF
 }
 
 func TestRewrite(t *testing.T) {
@@ -101,5 +102,26 @@ func TestRewrite(t *testing.T) {
 				runTest(t, out, out, test.flags)
 			}
 		}
+	}
+}
+
+func TestCRLF(t *testing.T) {
+	const input = "testdata/crlf.input"   // must contain CR/LF's
+	const golden = "testdata/crlf.golden" // must not contain any CR's
+
+	data, err := ioutil.ReadFile(input)
+	if err != nil {
+		t.Error(err)
+	}
+	if bytes.Index(data, []byte("\r\n")) < 0 {
+		t.Errorf("%s contains no CR/LF's", input)
+	}
+
+	data, err = ioutil.ReadFile(golden)
+	if err != nil {
+		t.Error(err)
+	}
+	if bytes.Index(data, []byte("\r")) >= 0 {
+		t.Errorf("%s contains CR's", golden)
 	}
 }
