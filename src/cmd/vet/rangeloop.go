@@ -53,8 +53,12 @@ func checkRangeLoop(f *File, n *ast.RangeStmt) {
 		return
 	}
 	ast.Inspect(lit.Body, func(n ast.Node) bool {
-		if n, ok := n.(*ast.Ident); ok && n.Obj != nil && (n.Obj == key.Obj || n.Obj == val.Obj) {
-			f.Warn(n.Pos(), "range variable", n.Name, "enclosed by function")
+		id, ok := n.(*ast.Ident)
+		if !ok || id.Obj == nil {
+			return true
+		}
+		if key != nil && id.Obj == key.Obj || val != nil && id.Obj == val.Obj {
+			f.Warn(id.Pos(), "range variable", id.Name, "enclosed by function")
 		}
 		return true
 	})
@@ -99,6 +103,15 @@ func BadRangeLoopsUsedInTests() {
 		i, v := i, v
 		go func() {
 			println(i, v)
+		}()
+	}
+	// If the key of the range statement is not an identifier
+	// the code should not panic (it used to).
+	var x [2]int
+	var f int
+	for x[0], f = range s {
+		go func() {
+			_ = f // ERROR "range variable f enclosed by function"
 		}()
 	}
 }
