@@ -331,7 +331,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 
 	symbols = nil;
 
-	USED(pkg);
 	if(debug['v'])
 		Bprint(&bso, "%5.2f ldelf %s\n", cputime(), pn);
 
@@ -519,7 +518,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(sect->type != ElfSectNobits && map(obj, sect) < 0)
 			goto bad;
 		
-		name = smprint("%s(%s)", pn, sect->name);
+		name = smprint("%s(%s)", pkg, sect->name);
 		s = lookup(name, version);
 		free(name);
 		switch((int)sect->flags&(ElfSectFlagAlloc|ElfSectFlagWrite|ElfSectFlagExec)) {
