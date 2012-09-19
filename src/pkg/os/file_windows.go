@@ -258,8 +258,18 @@ func (f *File) writeConsole(b []byte) (n int, err error) {
 		f.lastbits = make([]byte, len(b))
 		copy(f.lastbits, b)
 	}
-	if len(runes) > 0 {
-		uint16s := utf16.Encode(runes)
+	// syscall.WriteConsole seems to fail, if given large buffer.
+	// So limit the buffer to 16000 characters. This number was
+	// discovered by experimenting with syscall.WriteConsole.
+	const maxWrite = 16000
+	for len(runes) > 0 {
+		m := len(runes)
+		if m > maxWrite {
+			m = maxWrite
+		}
+		chunk := runes[:m]
+		runes = runes[m:]
+		uint16s := utf16.Encode(chunk)
 		for len(uint16s) > 0 {
 			var written uint32
 			err = syscall.WriteConsole(f.fd, &uint16s[0], uint32(len(uint16s)), &written, nil)

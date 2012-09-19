@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1064,5 +1065,33 @@ func TestDevNullFile(t *testing.T) {
 	}
 	if fi.Size() != 0 {
 		t.Fatalf("wrong file size have %d want 0", fi.Size())
+	}
+}
+
+var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
+
+func TestLargeWriteToConsole(t *testing.T) {
+	if !*testLargeWrite {
+		t.Logf("skipping console-flooding test; enable with -large_write")
+		return
+	}
+	b := make([]byte, 32000)
+	for i := range b {
+		b[i] = '.'
+	}
+	b[len(b)-1] = '\n'
+	n, err := Stdout.Write(b)
+	if err != nil {
+		t.Fatalf("Write to os.Stdout failed: %v", err)
+	}
+	if n != len(b) {
+		t.Errorf("Write to os.Stdout should return %d; got %d", len(b), n)
+	}
+	n, err = Stderr.Write(b)
+	if err != nil {
+		t.Fatalf("Write to os.Stderr failed: %v", err)
+	}
+	if n != len(b) {
+		t.Errorf("Write to os.Stderr should return %d; got %d", len(b), n)
 	}
 }
