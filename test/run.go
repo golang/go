@@ -344,7 +344,7 @@ func (t *test) run() {
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}
-		if string(out) != t.expectedOutput() {
+		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
 			t.err = fmt.Errorf("incorrect output\n%s", out)
 		}
 
