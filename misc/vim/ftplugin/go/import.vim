@@ -96,7 +96,7 @@ function! s:SwitchImport(enabled, localname, path)
                 let linestr = getline(line)
                 let m = matchlist(getline(line), '^\()\|\(\s\+\)\(\S*\s*\)"\(.\+\)"\)')
                 if empty(m)
-                    if siteprefix == ""
+                    if siteprefix == "" && a:enabled
                         " must be in the first group
                         break
                     endif
