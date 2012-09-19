@@ -16,8 +16,11 @@ call make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
 call run.bat --no-rebuild --no-local
 if %GOBUILDFAIL%==1 goto end
-go tool dist banner
+:: we must restore %PATH% before running "dist banner" so that the latter
+:: can get the original %PATH% and give suggestion to add %GOROOT%/bin
+:: to %PATH% if necessary.
 set PATH=%OLDPATH%
+%GOTOOLDIR%/dist banner
 
 :end
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
