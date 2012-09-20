@@ -196,6 +196,11 @@ exit:
 	runtime·xadd64(&desc->nprocyield, me->nprocyield);
 	runtime·xadd64(&desc->nosyield, me->nosyield);
 	runtime·xadd64(&desc->nsleep, me->nsleep);
+	me->nsteal = 0;
+	me->nstealcnt = 0;
+	me->nprocyield = 0;
+	me->nosyield = 0;
+	me->nsleep = 0;
 }
 
 // For testing from Go
