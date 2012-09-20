@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -262,6 +263,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true},
 	}
 
+	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
+	testUnknownExtKeyUsage := []asn1.ObjectIdentifier{[]int{1, 2, 3}, []int{3, 2, 1}}
+
 	for _, test := range tests {
 		commonName := "test.example.com"
 		template := Certificate{
@@ -275,6 +279,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 			SubjectKeyId: []byte{1, 2, 3, 4},
 			KeyUsage:     KeyUsageCertSign,
+
+			ExtKeyUsage:        testExtKeyUsage,
+			UnknownExtKeyUsage: testUnknownExtKeyUsage,
 
 			BasicConstraintsValid: true,
 			IsCA:                  true,
@@ -310,6 +317,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if cert.Issuer.CommonName != commonName {
 			t.Errorf("%s: issuer wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Issuer.CommonName, commonName)
+		}
+
+		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {
+			t.Errorf("%s: extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.ExtKeyUsage, testExtKeyUsage)
+		}
+
+		if !reflect.DeepEqual(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage) {
+			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
 		}
 
 		if test.checkSig {

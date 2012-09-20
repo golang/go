@@ -389,6 +389,41 @@ const (
 	ExtKeyUsageOCSPSigning
 )
 
+// extKeyUsageOIDs contains the mapping between an ExtKeyUsage and its OID.
+var extKeyUsageOIDs = []struct {
+	extKeyUsage ExtKeyUsage
+	oid         asn1.ObjectIdentifier
+}{
+	{ExtKeyUsageAny, oidExtKeyUsageAny},
+	{ExtKeyUsageServerAuth, oidExtKeyUsageServerAuth},
+	{ExtKeyUsageClientAuth, oidExtKeyUsageClientAuth},
+	{ExtKeyUsageCodeSigning, oidExtKeyUsageCodeSigning},
+	{ExtKeyUsageEmailProtection, oidExtKeyUsageEmailProtection},
+	{ExtKeyUsageIPSECEndSystem, oidExtKeyUsageIPSECEndSystem},
+	{ExtKeyUsageIPSECTunnel, oidExtKeyUsageIPSECTunnel},
+	{ExtKeyUsageIPSECUser, oidExtKeyUsageIPSECUser},
+	{ExtKeyUsageTimeStamping, oidExtKeyUsageTimeStamping},
+	{ExtKeyUsageOCSPSigning, oidExtKeyUsageOCSPSigning},
+}
+
+func extKeyUsageFromOID(oid asn1.ObjectIdentifier) (eku ExtKeyUsage, ok bool) {
+	for _, pair := range extKeyUsageOIDs {
+		if oid.Equal(pair.oid) {
+			return pair.extKeyUsage, true
+		}
+	}
+	return
+}
+
+func oidFromExtKeyUsage(eku ExtKeyUsage) (oid asn1.ObjectIdentifier, ok bool) {
+	for _, pair := range extKeyUsageOIDs {
+		if eku == pair.extKeyUsage {
+			return pair.oid, true
+		}
+	}
+	return
+}
+
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
 	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
@@ -865,28 +900,9 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				}
 
 				for _, u := range keyUsage {
-					switch {
-					case u.Equal(oidExtKeyUsageAny):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageAny)
-					case u.Equal(oidExtKeyUsageServerAuth):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageServerAuth)
-					case u.Equal(oidExtKeyUsageClientAuth):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageClientAuth)
-					case u.Equal(oidExtKeyUsageCodeSigning):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageCodeSigning)
-					case u.Equal(oidExtKeyUsageEmailProtection):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageEmailProtection)
-					case u.Equal(oidExtKeyUsageIPSECEndSystem):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECEndSystem)
-					case u.Equal(oidExtKeyUsageIPSECTunnel):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECTunnel)
-					case u.Equal(oidExtKeyUsageIPSECUser):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageIPSECUser)
-					case u.Equal(oidExtKeyUsageTimeStamping):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageTimeStamping)
-					case u.Equal(oidExtKeyUsageOCSPSigning):
-						out.ExtKeyUsage = append(out.ExtKeyUsage, ExtKeyUsageOCSPSigning)
-					default:
+					if extKeyUsage, ok := extKeyUsageFromOID(u); ok {
+						out.ExtKeyUsage = append(out.ExtKeyUsage, extKeyUsage)
+					} else {
 						out.UnknownExtKeyUsage = append(out.UnknownExtKeyUsage, u)
 					}
 				}
@@ -975,6 +991,7 @@ func reverseBitsInAByte(in byte) byte {
 var (
 	oidExtensionSubjectKeyId        = []int{2, 5, 29, 14}
 	oidExtensionKeyUsage            = []int{2, 5, 29, 15}
+	oidExtensionExtendedKeyUsage    = []int{2, 5, 29, 37}
 	oidExtensionAuthorityKeyId      = []int{2, 5, 29, 35}
 	oidExtensionBasicConstraints    = []int{2, 5, 29, 19}
 	oidExtensionSubjectAltName      = []int{2, 5, 29, 17}
@@ -983,7 +1000,7 @@ var (
 )
 
 func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
-	ret = make([]pkix.Extension, 7 /* maximum number of elements. */)
+	ret = make([]pkix.Extension, 8 /* maximum number of elements. */)
 	n := 0
 
 	if template.KeyUsage != 0 {
@@ -1000,6 +1017,27 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		}
 
 		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	if len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0 {
+		ret[n].Id = oidExtensionExtendedKeyUsage
+
+		var oids []asn1.ObjectIdentifier
+		for _, u := range template.ExtKeyUsage {
+			if oid, ok := oidFromExtKeyUsage(u); ok {
+				oids = append(oids, oid)
+			} else {
+				panic("internal error")
+			}
+		}
+
+		oids = append(oids, template.UnknownExtKeyUsage...)
+
+		ret[n].Value, err = asn1.Marshal(oids)
 		if err != nil {
 			return
 		}
@@ -1092,8 +1130,9 @@ func subjectBytes(cert *Certificate) ([]byte, error) {
 
 // CreateCertificate creates a new certificate based on a template. The
 // following members of template are used: SerialNumber, Subject, NotBefore,
-// NotAfter, KeyUsage, BasicConstraintsValid, IsCA, MaxPathLen, SubjectKeyId,
-// DNSNames, PermittedDNSDomainsCritical, PermittedDNSDomains.
+// NotAfter, KeyUsage, ExtKeyUsage, UnknownExtKeyUsage, BasicConstraintsValid,
+// IsCA, MaxPathLen, SubjectKeyId, DNSNames, PermittedDNSDomainsCritical,
+// PermittedDNSDomains.
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
