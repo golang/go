@@ -613,8 +613,6 @@ type nameConstraints struct {
 
 type generalSubtree struct {
 	Name string `asn1:"tag:2,optional,ia5"`
-	Min  int    `asn1:"optional,tag:0"`
-	Max  int    `asn1:"optional,tag:1"`
 }
 
 func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
@@ -831,7 +829,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				}
 
 				for _, subtree := range constraints.Permitted {
-					if subtree.Min > 0 || subtree.Max > 0 || len(subtree.Name) == 0 {
+					if len(subtree.Name) == 0 {
 						if e.Critical {
 							return out, UnhandledCriticalExtension{}
 						}
