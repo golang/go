@@ -16,6 +16,7 @@ func TestEnum(t *testing.T)                { testEnum(t) }
 func TestAtol(t *testing.T)                { testAtol(t) }
 func TestErrno(t *testing.T)               { testErrno(t) }
 func TestMultipleAssign(t *testing.T)      { testMultipleAssign(t) }
+func TestUnsignedInt(t *testing.T)         { testUnsignedInt(t) }
 func TestCallback(t *testing.T)            { testCallback(t) }
 func TestCallbackGC(t *testing.T)          { testCallbackGC(t) }
 func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }

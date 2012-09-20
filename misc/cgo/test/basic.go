@@ -14,6 +14,7 @@ package cgotest
 
 #define SHIFT(x, y)  ((x)<<(y))
 #define KILO SHIFT(1, 10)
+#define UINT32VAL 0xc008427bU
 
 enum E {
 	Enum1 = 1,
@@ -139,5 +140,14 @@ func benchCgoCall(b *testing.B) {
 	const y = C.int(3)
 	for i := 0; i < b.N; i++ {
 		C.add(x, y)
+	}
+}
+
+// Issue 2470.
+func testUnsignedInt(t *testing.T) {
+	a := (int64)(C.UINT32VAL)
+	b := (int64)(0xc008427b)
+	if a != b {
+		t.Errorf("Incorrect unsigned int - got %x, want %x", a, b)
 	}
 }
