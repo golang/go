@@ -582,7 +582,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 	}
 	defer fd.decref()
 
-	// See ../syscall/exec.go for description of ForkLock.
+	// See ../syscall/exec_unix.go for description of ForkLock.
 	// It is okay to hold the lock across syscall.Accept
 	// because we have put fd.sysfd into non-blocking mode.
 	var s int
