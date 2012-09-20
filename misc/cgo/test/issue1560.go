@@ -56,8 +56,12 @@ func wasteCPU() chan struct{} {
 }
 
 func testParallelSleep(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-	defer close(wasteCPU())
+	if runtime.GOARCH == "arm" {
+		// on ARM, the 1.3s deadline is frequently missed,
+		// and burning cpu seems to help
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+		defer close(wasteCPU())
+	}
 
 	sleepSec := 1
 	start := time.Now()
