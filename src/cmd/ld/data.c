@@ -1038,7 +1038,6 @@ dodata(void)
 		datsize += t;
 	}
 	sect->len = datsize - sect->vaddr;
-	datsize = rnd(datsize, PtrSize);
 
 	/* we finished segdata, begin segtext */
 
