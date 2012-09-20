@@ -81,7 +81,7 @@ func resolveNetAddr(op, net, addr string) (afnet string, a Addr, err error) {
 //	Dial("tcp", "google.com:80")
 //	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
 //
-// For IP networks, addr must be "ip", "ip4" or "ip6" followed
+// For IP networks, net must be "ip", "ip4" or "ip6" followed
 // by a colon and a protocol number or name.
 //
 // Examples:

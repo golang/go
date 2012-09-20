@@ -524,7 +524,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	defer fd.decref()
 
 	// Get new socket.
-	// See ../syscall/exec.go for description of ForkLock.
+	// See ../syscall/exec_unix.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, err := syscall.Socket(fd.family, fd.sotype, 0)
 	if err != nil {
