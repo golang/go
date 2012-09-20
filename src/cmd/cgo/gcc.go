@@ -616,16 +616,17 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			n.FuncType = conv.FuncType(f, pos)
 		} else {
 			n.Type = conv.Type(types[i], pos)
-			// Prefer debug data over DWARF debug output, if we have it.
-			if n.Kind == "const" && i < len(enumVal) {
-				n.Const = fmt.Sprintf("%#x", enumVal[i])
-			} else if enums[i] != 0 && n.Type.EnumValues != nil {
+			if enums[i] != 0 && n.Type.EnumValues != nil {
 				k := fmt.Sprintf("__cgo_enum__%d", i)
 				n.Kind = "const"
 				n.Const = fmt.Sprintf("%#x", n.Type.EnumValues[k])
 				// Remove injected enum to ensure the value will deep-compare
 				// equally in future loads of the same constant.
 				delete(n.Type.EnumValues, k)
+			}
+			// Prefer debug data over DWARF debug output, if we have it.
+			if n.Kind == "const" && i < len(enumVal) {
+				n.Const = fmt.Sprintf("%#x", enumVal[i])
 			}
 		}
 	}
