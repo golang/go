@@ -60,7 +60,7 @@ func urlProcessor(norm bool, args ...interface{}) string {
 		c := s[i]
 		switch c {
 		// Single quote and parens are sub-delims in RFC 3986, but we
-		// escape them so the output can be embedded in in single
+		// escape them so the output can be embedded in single
 		// quoted attributes and unquoted CSS url(...) constructs.
 		// Single quotes are reserved in URLs, but are only used in
 		// the obsolete "mark" rule in an appendix in RFC 3986

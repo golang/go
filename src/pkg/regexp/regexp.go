@@ -441,7 +441,7 @@ func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
 }
 
 // ReplaceAllStringFunc returns a copy of src in which all matches of the
-// Regexp have been replaced by the return value of of function repl applied
+// Regexp have been replaced by the return value of function repl applied
 // to the matched substring.  The replacement returned by repl is substituted
 // directly, without using Expand.
 func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
@@ -539,7 +539,7 @@ func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
 }
 
 // ReplaceAllFunc returns a copy of src in which all matches of the
-// Regexp have been replaced by the return value of of function repl applied
+// Regexp have been replaced by the return value of function repl applied
 // to the matched byte slice.  The replacement returned by repl is substituted
 // directly, without using Expand.
 func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {

@@ -39,7 +39,7 @@ type CertificateInvalidError struct {
 func (e CertificateInvalidError) Error() string {
 	switch e.Reason {
 	case NotAuthorizedToSign:
-		return "x509: certificate is not authorized to sign other other certificates"
+		return "x509: certificate is not authorized to sign other certificates"
 	case Expired:
 		return "x509: certificate has expired or is not yet valid"
 	case CANotAuthorizedForThisName:
