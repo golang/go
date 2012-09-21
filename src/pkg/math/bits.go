@@ -5,7 +5,7 @@
 package math
 
 const (
-	uvnan    = 0x7FF0000000000001
+	uvnan    = 0x7FF8000000000001
 	uvinf    = 0x7FF0000000000000
 	uvneginf = 0xFFF0000000000000
 	mask     = 0x7FF
