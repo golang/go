@@ -48,7 +48,7 @@ not_finite:
 	ANDL    $0x7fffffff, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     is_inf
-	MOVL    $0x7ff00000, rh+20(FP)  // return NaN = 0x7FF0000000000001
+	MOVL    $0x7ff80000, rh+20(FP)  // return NaN = 0x7FF8000000000001
 	MOVL    $0x00000001, rl+16(FP)
 	RET
 is_inf:
