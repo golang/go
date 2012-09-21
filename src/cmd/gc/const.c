@@ -1012,12 +1012,13 @@ defaultlit(Node **np, Type *t)
 		}
 		n->type = t;
 		return;
+	case OCOM:
 	case ONOT:
 		defaultlit(&n->left, t);
 		n->type = n->left->type;
 		return;
 	default:
-		if(n->left == N) {
+		if(n->left == N || n->right == N) {
 			dump("defaultlit", n);
 			fatal("defaultlit");
 		}
