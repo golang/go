@@ -18,7 +18,7 @@ ulimit -c 0
 # We need at least 256 files and ~300 MB of bss.
 # On OS X ulimit -S -n rejects 'unlimited'.
 [ "$(ulimit -H -n)" == "unlimited" ] || ulimit -S -n $(ulimit -H -n)
-[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -n $(ulimit -H -d)
+[ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -d $(ulimit -H -d)
 
 # allow all.bash to avoid double-build of everything
 rebuild=true
