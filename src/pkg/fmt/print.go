@@ -712,6 +712,9 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
 }
 
 func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
+	p.field = field
+	p.value = reflect.Value{}
+
 	if field == nil {
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
@@ -721,8 +724,6 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		return false
 	}
 
-	p.field = field
-	p.value = reflect.Value{}
 	// Special processing considerations.
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
