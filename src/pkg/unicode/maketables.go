@@ -503,6 +503,7 @@ const format = "\t\t{0x%04x, 0x%04x, %d},\n"
 func dumpRange(header string, inCategory Op) {
 	fmt.Print(header)
 	next := rune(0)
+	latinOffset := 0
 	fmt.Print("\tR16: []Range16{\n")
 	// one Range for each iteration
 	count := &range16Count
@@ -546,11 +547,17 @@ func dumpRange(header string, inCategory Op) {
 				break
 			}
 		}
+		if uint32(hi) <= unicode.MaxLatin1 {
+			latinOffset++
+		}
 		size, count = printRange(uint32(lo), uint32(hi), uint32(stride), size, count)
 		// next range: start looking where this range ends
 		next = hi + 1
 	}
 	fmt.Print("\t},\n")
+	if latinOffset > 0 {
+		fmt.Printf("\tLatinOffset: %d,\n", latinOffset)
+	}
 	fmt.Print("}\n\n")
 }
 
@@ -760,14 +767,17 @@ func printScriptOrProperty(doProps bool) {
 		}
 		ndecl++
 		fmt.Printf("var _%s = &RangeTable {\n", name)
-		fmt.Print("\tR16: []Range16{\n")
 		ranges := foldAdjacent(table[name])
+		fmt.Print("\tR16: []Range16{\n")
 		size := 16
 		count := &range16Count
 		for _, s := range ranges {
 			size, count = printRange(s.Lo, s.Hi, s.Stride, size, count)
 		}
 		fmt.Print("\t},\n")
+		if off := findLatinOffset(ranges); off > 0 {
+			fmt.Printf("\tLatinOffset: %d,\n", off)
+		}
 		fmt.Print("}\n\n")
 	}
 	decl.Sort()
@@ -777,6 +787,14 @@ func printScriptOrProperty(doProps bool) {
 		fmt.Print(d)
 	}
 	fmt.Print(")\n\n")
+}
+
+func findLatinOffset(ranges []unicode.Range32) int {
+	i := 0
+	for i < len(ranges) && ranges[i].Hi <= unicode.MaxLatin1 {
+		i++
+	}
+	return i
 }
 
 const (

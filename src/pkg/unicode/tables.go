@@ -71,6 +71,7 @@ var _C = &RangeTable{
 		{0xf0000, 0xffffd, 1},
 		{0x100000, 0x10fffd, 1},
 	},
+	LatinOffset: 2,
 }
 
 var _Cc = &RangeTable{
@@ -78,6 +79,7 @@ var _Cc = &RangeTable{
 		{0x0001, 0x001f, 1},
 		{0x007f, 0x009f, 1},
 	},
+	LatinOffset: 2,
 }
 
 var _Cf = &RangeTable{
@@ -536,6 +538,7 @@ var _L = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2f800, 0x2fa1d, 1},
 	},
+	LatinOffset: 6,
 }
 
 var _Ll = &RangeTable{
@@ -682,6 +685,7 @@ var _Ll = &RangeTable{
 		{0x1d7c4, 0x1d7c9, 1},
 		{0x1d7cb, 0x1d7cb, 1},
 	},
+	LatinOffset: 5,
 }
 
 var _Lm = &RangeTable{
@@ -1186,6 +1190,7 @@ var _Lu = &RangeTable{
 		{0x1d790, 0x1d7a8, 1},
 		{0x1d7ca, 0x1d7ca, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _M = &RangeTable{
@@ -1769,6 +1774,7 @@ var _N = &RangeTable{
 		{0x1d7ce, 0x1d7ff, 1},
 		{0x1f100, 0x1f10a, 1},
 	},
+	LatinOffset: 4,
 }
 
 var _Nd = &RangeTable{
@@ -1814,6 +1820,7 @@ var _Nd = &RangeTable{
 		{0x11066, 0x1106f, 1},
 		{0x1d7ce, 0x1d7ff, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Nl = &RangeTable{
@@ -1879,6 +1886,7 @@ var _No = &RangeTable{
 		{0x1d360, 0x1d371, 1},
 		{0x1f100, 0x1f10a, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _P = &RangeTable{
@@ -2003,6 +2011,7 @@ var _P = &RangeTable{
 		{0x110be, 0x110c1, 1},
 		{0x12470, 0x12473, 1},
 	},
+	LatinOffset: 10,
 }
 
 var _Pc = &RangeTable{
@@ -2053,6 +2062,7 @@ var _Pe = &RangeTable{
 		{0xff09, 0xff3d, 52},
 		{0xff5d, 0xff63, 3},
 	},
+	LatinOffset: 1,
 }
 
 var _Pf = &RangeTable{
@@ -2194,6 +2204,7 @@ var _Po = &RangeTable{
 		{0x110be, 0x110c1, 1},
 		{0x12470, 0x12473, 1},
 	},
+	LatinOffset: 7,
 }
 
 var _Ps = &RangeTable{
@@ -2222,6 +2233,7 @@ var _Ps = &RangeTable{
 		{0xff5b, 0xff5f, 4},
 		{0xff62, 0xff62, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _S = &RangeTable{
@@ -2409,6 +2421,7 @@ var _S = &RangeTable{
 		{0x1f680, 0x1f6c5, 1},
 		{0x1f700, 0x1f773, 1},
 	},
+	LatinOffset: 9,
 }
 
 var _Sc = &RangeTable{
@@ -2425,6 +2438,7 @@ var _Sc = &RangeTable{
 		{0xffe0, 0xffe1, 1},
 		{0xffe5, 0xffe6, 1},
 	},
+	LatinOffset: 2,
 }
 
 var _Sk = &RangeTable{
@@ -2452,6 +2466,7 @@ var _Sk = &RangeTable{
 		{0xff3e, 0xff40, 2},
 		{0xffe3, 0xffe3, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Sm = &RangeTable{
@@ -2510,6 +2525,7 @@ var _Sm = &RangeTable{
 		{0x1d76f, 0x1d789, 26},
 		{0x1d7a9, 0x1d7c3, 26},
 	},
+	LatinOffset: 5,
 }
 
 var _So = &RangeTable{
@@ -2666,6 +2682,7 @@ var _So = &RangeTable{
 		{0x1f680, 0x1f6c5, 1},
 		{0x1f700, 0x1f773, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Z = &RangeTable{
@@ -2677,6 +2694,7 @@ var _Z = &RangeTable{
 		{0x202f, 0x205f, 48},
 		{0x3000, 0x3000, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Zl = &RangeTable{
@@ -2699,6 +2717,7 @@ var _Zs = &RangeTable{
 		{0x202f, 0x205f, 48},
 		{0x3000, 0x3000, 1},
 	},
+	LatinOffset: 1,
 }
 
 // These variables have type *RangeTable.
@@ -3179,6 +3198,7 @@ var _Common = &RangeTable{
 		{0xe0001, 0xe0001, 1},
 		{0xe0020, 0xe007f, 1},
 	},
+	LatinOffset: 7,
 }
 
 var _Coptic = &RangeTable{
@@ -3649,6 +3669,7 @@ var _Latin = &RangeTable{
 		{0xff21, 0xff3a, 1},
 		{0xff41, 0xff5a, 1},
 	},
+	LatinOffset: 6,
 }
 
 var _Lepcha = &RangeTable{
@@ -4199,6 +4220,7 @@ var _ASCII_Hex_Digit = &RangeTable{
 		{0x0041, 0x0046, 1},
 		{0x0061, 0x0066, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Bidi_Control = &RangeTable{
@@ -4230,6 +4252,7 @@ var _Dash = &RangeTable{
 		{0xfe63, 0xfe63, 1},
 		{0xff0d, 0xff0d, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Deprecated = &RangeTable{
@@ -4370,6 +4393,7 @@ var _Diacritic = &RangeTable{
 		{0x1d185, 0x1d18b, 1},
 		{0x1d1aa, 0x1d1ad, 1},
 	},
+	LatinOffset: 6,
 }
 
 var _Extender = &RangeTable{
@@ -4395,6 +4419,7 @@ var _Extender = &RangeTable{
 		{0xaadd, 0xaadd, 1},
 		{0xff70, 0xff70, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Hex_Digit = &RangeTable{
@@ -4406,6 +4431,7 @@ var _Hex_Digit = &RangeTable{
 		{0xff21, 0xff26, 1},
 		{0xff41, 0xff46, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Hyphen = &RangeTable{
@@ -4421,6 +4447,7 @@ var _Hyphen = &RangeTable{
 		{0xff0d, 0xff0d, 1},
 		{0xff65, 0xff65, 1},
 	},
+	LatinOffset: 2,
 }
 
 var _IDS_Binary_Operator = &RangeTable{
@@ -4695,6 +4722,7 @@ var _Other_ID_Continue = &RangeTable{
 		{0x1369, 0x1371, 1},
 		{0x19da, 0x19da, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Other_ID_Start = &RangeTable{
@@ -4828,6 +4856,7 @@ var _Other_Math = &RangeTable{
 		{0x1d7c4, 0x1d7cb, 1},
 		{0x1d7ce, 0x1d7ff, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Other_Uppercase = &RangeTable{
@@ -4868,6 +4897,7 @@ var _Pattern_Syntax = &RangeTable{
 		{0xfd3e, 0xfd3f, 1},
 		{0xfe45, 0xfe46, 1},
 	},
+	LatinOffset: 15,
 }
 
 var _Pattern_White_Space = &RangeTable{
@@ -4878,6 +4908,7 @@ var _Pattern_White_Space = &RangeTable{
 		{0x200e, 0x200f, 1},
 		{0x2028, 0x2029, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Quotation_Mark = &RangeTable{
@@ -4895,6 +4926,7 @@ var _Quotation_Mark = &RangeTable{
 		{0xff07, 0xff07, 1},
 		{0xff62, 0xff63, 1},
 	},
+	LatinOffset: 4,
 }
 
 var _Radical = &RangeTable{
@@ -4957,6 +4989,7 @@ var _STerm = &RangeTable{
 		{0x11047, 0x11048, 1},
 		{0x110be, 0x110c1, 1},
 	},
+	LatinOffset: 3,
 }
 
 var _Soft_Dotted = &RangeTable{
@@ -4995,6 +5028,7 @@ var _Soft_Dotted = &RangeTable{
 		{0x1d65e, 0x1d65f, 1},
 		{0x1d692, 0x1d693, 1},
 	},
+	LatinOffset: 1,
 }
 
 var _Terminal_Punctuation = &RangeTable{
@@ -5069,6 +5103,7 @@ var _Terminal_Punctuation = &RangeTable{
 		{0x110be, 0x110c1, 1},
 		{0x12470, 0x12473, 1},
 	},
+	LatinOffset: 5,
 }
 
 var _Unified_Ideograph = &RangeTable{
@@ -5114,6 +5149,7 @@ var _White_Space = &RangeTable{
 		{0x205f, 0x205f, 1},
 		{0x3000, 0x3000, 1},
 	},
+	LatinOffset: 4,
 }
 
 // These variables have type *RangeTable.
@@ -5887,6 +5923,7 @@ var foldLl = &RangeTable{
 	R32: []Range32{
 		{0x10400, 0x10427, 1},
 	},
+	LatinOffset: 3,
 }
 
 var foldLt = &RangeTable{
@@ -6001,6 +6038,7 @@ var foldLu = &RangeTable{
 	R32: []Range32{
 		{0x10428, 0x1044f, 1},
 	},
+	LatinOffset: 4,
 }
 
 var foldM = &RangeTable{

@@ -78,13 +78,13 @@ func IsLetter(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&(pLu|pLl) != 0
 	}
-	return Is(Letter, r)
+	return isExcludingLatin(Letter, r)
 }
 
 // IsMark reports whether the rune is a mark character (category M).
 func IsMark(r rune) bool {
 	// There are no mark characters in Latin-1.
-	return Is(Mark, r)
+	return isExcludingLatin(Mark, r)
 }
 
 // IsNumber reports whether the rune is a number (category N).
@@ -92,7 +92,7 @@ func IsNumber(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pN != 0
 	}
-	return Is(Number, r)
+	return isExcludingLatin(Number, r)
 }
 
 // IsPunct reports whether the rune is a Unicode punctuation character
@@ -119,7 +119,7 @@ func IsSpace(r rune) bool {
 		}
 		return false
 	}
-	return Is(White_Space, r)
+	return isExcludingLatin(White_Space, r)
 }
 
 // IsSymbol reports whether the rune is a symbolic character.
@@ -127,5 +127,5 @@ func IsSymbol(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pS != 0
 	}
-	return Is(Symbol, r)
+	return isExcludingLatin(Symbol, r)
 }

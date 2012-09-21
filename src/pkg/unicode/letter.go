@@ -19,8 +19,9 @@ const (
 // The two slices must be in sorted order and non-overlapping.
 // Also, R32 should contain only values >= 0x10000 (1<<16).
 type RangeTable struct {
-	R16 []Range16
-	R32 []Range32
+	R16         []Range16
+	R32         []Range32
+	LatinOffset int // number of entries in R16 with Hi <= MaxLatin1
 }
 
 // Range16 represents of a range of 16-bit Unicode code points.  The range runs from Lo to Hi
@@ -80,14 +81,31 @@ const (
 	UpperLower = MaxRune + 1 // (Cannot be a valid delta.)
 )
 
-// is16 uses binary search to test whether rune is in the specified slice of 16-bit ranges.
+// linearMax is the maximum size table for linear search for non-Latin1 rune.
+// Derived by running 'go test -calibrate'.
+const linearMax = 18
+
+// is16 reports whether r is in the sorted slice of 16-bit ranges.
 func is16(ranges []Range16, r uint16) bool {
+	if len(ranges) <= linearMax || r <= MaxLatin1 {
+		for i := range ranges {
+			range_ := &ranges[i]
+			if r < range_.Lo {
+				return false
+			}
+			if r <= range_.Hi {
+				return (r-range_.Lo)%range_.Stride == 0
+			}
+		}
+		return false
+	}
+
 	// binary search over ranges
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
 		m := lo + (hi-lo)/2
-		range_ := ranges[m]
+		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return (r-range_.Lo)%range_.Stride == 0
 		}
@@ -100,8 +118,21 @@ func is16(ranges []Range16, r uint16) bool {
 	return false
 }
 
-// is32 uses binary search to test whether rune is in the specified slice of 32-bit ranges.
+// is32 reports whether r is in the sorted slice of 32-bit ranges.
 func is32(ranges []Range32, r uint32) bool {
+	if len(ranges) <= linearMax {
+		for i := range ranges {
+			range_ := &ranges[i]
+			if r < range_.Lo {
+				return false
+			}
+			if r <= range_.Hi {
+				return (r-range_.Lo)%range_.Stride == 0
+			}
+		}
+		return false
+	}
+
 	// binary search over ranges
 	lo := 0
 	hi := len(ranges)
@@ -122,24 +153,21 @@ func is32(ranges []Range32, r uint32) bool {
 
 // Is tests whether rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, r rune) bool {
-	// common case: rune is ASCII or Latin-1.
-	if uint32(r) <= MaxLatin1 {
-		// Only need to check R16, since R32 is always >= 1<<16.
-		r16 := uint16(r)
-		for _, r := range rangeTab.R16 {
-			if r16 > r.Hi {
-				continue
-			}
-			if r16 < r.Lo {
-				return false
-			}
-			return (r16-r.Lo)%r.Stride == 0
-		}
-		return false
-	}
 	r16 := rangeTab.R16
 	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
 		return is16(r16, uint16(r))
+	}
+	r32 := rangeTab.R32
+	if len(r32) > 0 && r >= rune(r32[0].Lo) {
+		return is32(r32, uint32(r))
+	}
+	return false
+}
+
+func isExcludingLatin(rangeTab *RangeTable, r rune) bool {
+	r16 := rangeTab.R16
+	if off := rangeTab.LatinOffset; len(r16) > off && r <= rune(r16[len(r16)-1].Hi) {
+		return is16(r16[off:], uint16(r))
 	}
 	r32 := rangeTab.R32
 	if len(r32) > 0 && r >= rune(r32[0].Lo) {
@@ -154,7 +182,7 @@ func IsUpper(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pLu != 0
 	}
-	return Is(Upper, r)
+	return isExcludingLatin(Upper, r)
 }
 
 // IsLower reports whether the rune is a lower case letter.
@@ -163,7 +191,7 @@ func IsLower(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pLl != 0
 	}
-	return Is(Lower, r)
+	return isExcludingLatin(Lower, r)
 }
 
 // IsTitle reports whether the rune is a title case letter.
@@ -171,7 +199,7 @@ func IsTitle(r rune) bool {
 	if r <= MaxLatin1 {
 		return false
 	}
-	return Is(Title, r)
+	return isExcludingLatin(Title, r)
 }
 
 // to maps the rune using the specified case mapping.

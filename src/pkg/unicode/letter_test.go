@@ -5,6 +5,10 @@
 package unicode_test
 
 import (
+	"flag"
+	"fmt"
+	"runtime"
+	"sort"
 	"testing"
 	. "unicode"
 )
@@ -424,6 +428,120 @@ func TestSimpleFold(t *testing.T) {
 				t.Errorf("SimpleFold(%#U) = %#U, want %#U", r, r, out)
 			}
 			r = out
+		}
+	}
+}
+
+// Running 'go test -calibrate' runs the calibration to find a plausible
+// cutoff point for linear search of a range list vs. binary search.
+// We create a fake table and then time how long it takes to do a
+// sequence of searches within that table, for all possible inputs 
+// relative to the ranges (something before all, in each, between each, after all).
+// This assumes that all possible runes are equally likely.
+// In practice most runes are ASCII so this is a conservative estimate
+// of an effective cutoff value. In practice we could probably set it higher
+// than what this function recommends.
+
+var calibrate = flag.Bool("calibrate", false, "compute crossover for linear vs. binary search")
+
+func TestCalibrate(t *testing.T) {
+	if !*calibrate {
+		return
+	}
+
+	if runtime.GOARCH == "amd64" {
+		fmt.Printf("warning: running calibration on %s\n", runtime.GOARCH)
+	}
+
+	// Find the point where binary search wins by more than 10%.
+	// The 10% bias gives linear search an edge when they're close,
+	// because on predominantly ASCII inputs linear search is even
+	// better than our benchmarks measure.
+	n := sort.Search(64, func(n int) bool {
+		tab := fakeTable(n)
+		blinear := func(b *testing.B) {
+			tab := tab
+			max := n*5 + 20
+			for i := 0; i < b.N; i++ {
+				for j := 0; j <= max; j++ {
+					linear(tab, uint16(j))
+				}
+			}
+		}
+		bbinary := func(b *testing.B) {
+			tab := tab
+			max := n*5 + 20
+			for i := 0; i < b.N; i++ {
+				for j := 0; j <= max; j++ {
+					binary(tab, uint16(j))
+				}
+			}
+		}
+		bmlinear := testing.Benchmark(blinear)
+		bmbinary := testing.Benchmark(bbinary)
+		fmt.Printf("n=%d: linear=%d binary=%d\n", n, bmlinear.NsPerOp(), bmbinary.NsPerOp())
+		return bmlinear.NsPerOp()*100 > bmbinary.NsPerOp()*110
+	})
+	fmt.Printf("calibration: linear cutoff = %d\n", n)
+}
+
+func fakeTable(n int) []Range16 {
+	var r16 []Range16
+	for i := 0; i < n; i++ {
+		r16 = append(r16, Range16{uint16(i*5 + 10), uint16(i*5 + 12), 1})
+	}
+	return r16
+}
+
+func linear(ranges []Range16, r uint16) bool {
+	for i := range ranges {
+		range_ := &ranges[i]
+		if r < range_.Lo {
+			return false
+		}
+		if r <= range_.Hi {
+			return (r-range_.Lo)%range_.Stride == 0
+		}
+	}
+	return false
+}
+
+func binary(ranges []Range16, r uint16) bool {
+	// binary search over ranges
+	lo := 0
+	hi := len(ranges)
+	for lo < hi {
+		m := lo + (hi-lo)/2
+		range_ := &ranges[m]
+		if range_.Lo <= r && r <= range_.Hi {
+			return (r-range_.Lo)%range_.Stride == 0
+		}
+		if r < range_.Lo {
+			hi = m
+		} else {
+			lo = m + 1
+		}
+	}
+	return false
+}
+
+func TestLatinOffset(t *testing.T) {
+	var maps = []map[string]*RangeTable{
+		Categories,
+		FoldCategory,
+		FoldScript,
+		Properties,
+		Scripts,
+	}
+	for _, m := range maps {
+		for name, tab := range m {
+			i := 0
+			for i < len(tab.R16) && tab.R16[i].Hi <= MaxLatin1 {
+				i++
+			}
+			if tab.LatinOffset != i {
+				t.Errorf("%s: LatinOffset=%d, want %d", name, tab.LatinOffset, i)
+			}
 		}
 	}
 }
