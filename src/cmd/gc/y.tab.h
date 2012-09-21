@@ -39,10 +39,10 @@
    enum yytokentype {
      LLITERAL = 258,
      LASOP = 259,
-     LBREAK = 260,
-     LCASE = 261,
-     LCHAN = 262,
-     LCOLAS = 263,
+     LCOLAS = 260,
+     LBREAK = 261,
+     LCASE = 262,
+     LCHAN = 263,
      LCONST = 264,
      LCONTINUE = 265,
      LDDD = 266,
@@ -91,10 +91,10 @@
 /* Tokens.  */
 #define LLITERAL 258
 #define LASOP 259
-#define LBREAK 260
-#define LCASE 261
-#define LCHAN 262
-#define LCOLAS 263
+#define LCOLAS 260
+#define LBREAK 261
+#define LCASE 262
+#define LCHAN 263
 #define LCONST 264
 #define LCONTINUE 265
 #define LDDD 266

@@ -464,7 +464,7 @@ colasdefn(NodeList *left, Node *defn)
 		if(isblank(n))
 			continue;
 		if(!colasname(n)) {
-			yyerror("non-name %N on left side of :=", n);
+			yyerrorl(defn->lineno, "non-name %N on left side of :=", n);
 			nerr++;
 			continue;
 		}
@@ -479,11 +479,11 @@ colasdefn(NodeList *left, Node *defn)
 		l->n = n;
 	}
 	if(nnew == 0 && nerr == 0)
-		yyerror("no new variables on left side of :=");
+		yyerrorl(defn->lineno, "no new variables on left side of :=");
 }
 
 Node*
-colas(NodeList *left, NodeList *right)
+colas(NodeList *left, NodeList *right, int32 lno)
 {
 	Node *as;
 
@@ -491,6 +491,7 @@ colas(NodeList *left, NodeList *right)
 	as->list = left;
 	as->rlist = right;
 	as->colas = 1;
+	as->lineno = lno;
 	colasdefn(left, as);
 
 	// make the tree prettier; not necessary
