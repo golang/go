@@ -120,7 +120,7 @@ func PrintError(w io.Writer, err error) {
 		for _, e := range list {
 			fmt.Fprintf(w, "%s\n", e)
 		}
-	} else {
+	} else if err != nil {
 		fmt.Fprintf(w, "%s\n", err)
 	}
 }
