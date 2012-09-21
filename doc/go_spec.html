@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 26, 2012",
+	"Subtitle": "Version of June 27, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -15,7 +15,6 @@ TODO
 [ ] need explicit language about the result type of operations
 [ ] should probably write something about evaluation order of statements even
 	though obvious
-[ ] review language on implicit dereferencing
 -->
 
 
@@ -2324,7 +2323,6 @@ Point{1, 2}
 m["foo"]
 s[i : j + 1]
 obj.color
-math.Sin
 f.p[i].x()
 </pre>
 
@@ -2332,7 +2330,9 @@ f.p[i].x()
 <h3 id="Selectors">Selectors</h3>
 
 <p>
-A primary expression of the form
+For a <a href="#Primary_expressions">primary expression</a> <code>x</code>
+that is not a <a href="#Package_clause">package name</a>, the
+<i>selector expression</i>
 </p>
 
 <pre>
@@ -2340,17 +2340,20 @@ x.f
 </pre>
 
 <p>
-denotes the field or method <code>f</code> of the value denoted by <code>x</code>
-(or sometimes <code>*x</code>; see below). The identifier <code>f</code>
-is called the (field or method)
-<i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>.
-The type of the expression is the type of <code>f</code>.
+denotes the field or method <code>f</code> of the value <code>x</code>
+(or sometimes <code>*x</code>; see below).
+The identifier <code>f</code> is called the (field or method) <i>selector</i>;
+it must not be the <a href="#Blank_identifier">blank identifier</a>.
+The type of the selector expression is the type of <code>f</code>.
+If <code>x</code> is a package name, see the section on
+<a href="#Qualified_identifiers">qualified identifiers</a>.
 </p>
+
 <p>
 A selector <code>f</code> may denote a field or method <code>f</code> of
 a type <code>T</code>, or it may refer
-to a field or method <code>f</code> of a nested anonymous field of
-<code>T</code>.
+to a field or method <code>f</code> of a nested
+<a href="#Struct_types">anonymous field</a> of <code>T</code>.
 The number of anonymous fields traversed
 to reach <code>f</code> is called its <i>depth</i> in <code>T</code>.
 The depth of a field or method <code>f</code>
@@ -2359,9 +2362,11 @@ The depth of a field or method <code>f</code> declared in
 an anonymous field <code>A</code> in <code>T</code> is the
 depth of <code>f</code> in <code>A</code> plus one.
 </p>
+
 <p>
 The following rules apply to selectors:
 </p>
+
 <ol>
 <li>
 For a value <code>x</code> of type <code>T</code> or <code>*T</code>
@@ -2373,18 +2378,26 @@ If there is not exactly <a href="#Uniqueness_of_identifiers">one <code>f</code><
 with shallowest depth, the selector expression is illegal.
 </li>
 <li>
-For a variable <code>x</code> of type <code>I</code>
-where <code>I</code> is an interface type,
-<code>x.f</code> denotes the actual method with name <code>f</code> of the value assigned
-to <code>x</code> if there is such a method.
-If no value or <code>nil</code> was assigned to <code>x</code>, <code>x.f</code> is illegal.
+For a variable <code>x</code> of type <code>I</code> where <code>I</code>
+is an interface type, <code>x.f</code> denotes the actual method with name
+<code>f</code> of the value assigned to <code>x</code>.
+If there is no method with name <code>f</code> in the
+<a href="#Method_sets">method set</a> of <code>I</code>, the selector
+expression is illegal.
 </li>
 <li>
 In all other cases, <code>x.f</code> is illegal.
 </li>
+<li>
+If <code>x</code> is of pointer or interface type and has the value
+<code>nil</code>, assigning to, evaluating, or calling <code>x.f</code>
+causes a <a href="#Run_time_panics">run-time panic</a>.
+</i>
 </ol>
+
 <p>
-Selectors automatically dereference pointers to structs.
+Selectors automatically <a href="#Address_operators">dereference</a>
+pointers to structs.
 If <code>x</code> is a pointer to a struct, <code>x.y</code>
 is shorthand for <code>(*x).y</code>; if the field <code>y</code>
 is also a pointer to a struct, <code>x.y.z</code> is shorthand
@@ -2393,6 +2406,7 @@ If <code>x</code> contains an anonymous field of type <code>*A</code>,
 where <code>A</code> is also a struct type,
 <code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
 </p>
+
 <p>
 For example, given the declarations:
 </p>
