@@ -385,6 +385,35 @@ func (t *t) foo(a, b, c int) int {
 	}
 }
 
+// TestFuncType tests that an ast.FuncType with a nil Params field
+// can be printed (per go/ast specification). Test case for issue 3870.
+func TestFuncType(t *testing.T) {
+	src := &ast.File{
+		Name: &ast.Ident{Name: "p"},
+		Decls: []ast.Decl{
+			&ast.FuncDecl{
+				Name: &ast.Ident{Name: "f"},
+				Type: &ast.FuncType{},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := Fprint(&buf, fset, src); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+
+	const want = `package p
+
+func f()
+`
+
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
 // TextX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {

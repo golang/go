@@ -325,9 +325,14 @@ func (p *printer) parameters(fields *ast.FieldList) {
 }
 
 func (p *printer) signature(params, result *ast.FieldList) {
-	p.parameters(params)
+	if params != nil {
+		p.parameters(params)
+	} else {
+		p.print(token.LPAREN, token.RPAREN)
+	}
 	n := result.NumFields()
 	if n > 0 {
+		// result != nil
 		p.print(blank)
 		if n == 1 && result.List[0].Names == nil {
 			// single anonymous result; no ()'s
