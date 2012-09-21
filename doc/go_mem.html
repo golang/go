@@ -270,8 +270,8 @@ before the <code>print</code>.
 <p>
 If the channel were buffered (e.g., <code>c = make(chan int, 1)</code>)
 then the program would not be guaranteed to print
-<code>"hello, world"</code>.  (It might print the empty string;
-it cannot print <code>"goodbye, universe"</code>, nor can it crash.)
+<code>"hello, world"</code>.  (It might print the empty string,
+crash, or do something else.)
 </p>
 
 <h3>Locks</h3>
