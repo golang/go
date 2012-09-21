@@ -34,7 +34,8 @@ func NotNilFilter(_ string, v reflect.Value) bool {
 //
 // A non-nil FieldFilter f may be provided to control the output:
 // struct fields for which f(fieldname, fieldvalue) is true are
-// are printed; all others are filtered from the output.
+// are printed; all others are filtered from the output. Unexported
+// struct fields are never printed.
 //
 func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
 	// setup printer
@@ -145,15 +146,18 @@ func (p *printer) print(x reflect.Value) {
 		p.print(x.Elem())
 
 	case reflect.Map:
-		p.printf("%s (len = %d) {\n", x.Type(), x.Len())
-		p.indent++
-		for _, key := range x.MapKeys() {
-			p.print(key)
-			p.printf(": ")
-			p.print(x.MapIndex(key))
+		p.printf("%s (len = %d) {", x.Type(), x.Len())
+		if x.Len() > 0 {
+			p.indent++
 			p.printf("\n")
+			for _, key := range x.MapKeys() {
+				p.print(key)
+				p.printf(": ")
+				p.print(x.MapIndex(key))
+				p.printf("\n")
+			}
+			p.indent--
 		}
-		p.indent--
 		p.printf("}")
 
 	case reflect.Ptr:
@@ -169,32 +173,57 @@ func (p *printer) print(x reflect.Value) {
 			p.print(x.Elem())
 		}
 
+	case reflect.Array:
+		p.printf("%s {", x.Type())
+		if x.Len() > 0 {
+			p.indent++
+			p.printf("\n")
+			for i, n := 0, x.Len(); i < n; i++ {
+				p.printf("%d: ", i)
+				p.print(x.Index(i))
+				p.printf("\n")
+			}
+			p.indent--
+		}
+		p.printf("}")
+
 	case reflect.Slice:
 		if s, ok := x.Interface().([]byte); ok {
 			p.printf("%#q", s)
 			return
 		}
-		p.printf("%s (len = %d) {\n", x.Type(), x.Len())
-		p.indent++
-		for i, n := 0, x.Len(); i < n; i++ {
-			p.printf("%d: ", i)
-			p.print(x.Index(i))
+		p.printf("%s (len = %d) {", x.Type(), x.Len())
+		if x.Len() > 0 {
+			p.indent++
 			p.printf("\n")
+			for i, n := 0, x.Len(); i < n; i++ {
+				p.printf("%d: ", i)
+				p.print(x.Index(i))
+				p.printf("\n")
+			}
+			p.indent--
 		}
-		p.indent--
 		p.printf("}")
 
 	case reflect.Struct:
-		p.printf("%s {\n", x.Type())
-		p.indent++
 		t := x.Type()
+		p.printf("%s {", t)
+		p.indent++
+		first := true
 		for i, n := 0, t.NumField(); i < n; i++ {
-			name := t.Field(i).Name
-			value := x.Field(i)
-			if p.filter == nil || p.filter(name, value) {
-				p.printf("%s: ", name)
-				p.print(value)
-				p.printf("\n")
+			// exclude non-exported fields because their
+			// values cannot be accessed via reflection
+			if name := t.Field(i).Name; IsExported(name) {
+				value := x.Field(i)
+				if p.filter == nil || p.filter(name, value) {
+					if first {
+						p.printf("\n")
+						first = false
+					}
+					p.printf("%s: ", name)
+					p.print(value)
+					p.printf("\n")
+				}
 			}
 		}
 		p.indent--
