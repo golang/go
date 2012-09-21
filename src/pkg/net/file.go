@@ -17,8 +17,9 @@ func newFileFD(f *os.File) (*netFD, error) {
 		return nil, os.NewSyscallError("dup", err)
 	}
 
-	proto, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
+		closesocket(fd)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
 
@@ -31,24 +32,24 @@ func newFileFD(f *os.File) (*netFD, error) {
 		return nil, syscall.EINVAL
 	case *syscall.SockaddrInet4:
 		family = syscall.AF_INET
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
-		} else if proto == syscall.SOCK_RAW {
+		} else if sotype == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrInet6:
 		family = syscall.AF_INET6
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
-		} else if proto == syscall.SOCK_RAW {
+		} else if sotype == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrUnix:
 		family = syscall.AF_UNIX
 		toAddr = sockaddrToUnix
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUnixgram
-		} else if proto == syscall.SOCK_SEQPACKET {
+		} else if sotype == syscall.SOCK_SEQPACKET {
 			toAddr = sockaddrToUnixpacket
 		}
 	}
@@ -56,8 +57,9 @@ func newFileFD(f *os.File) (*netFD, error) {
 	sa, _ = syscall.Getpeername(fd)
 	raddr := toAddr(sa)
 
-	netfd, err := newFD(fd, family, proto, laddr.Network())
+	netfd, err := newFD(fd, family, sotype, laddr.Network())
 	if err != nil {
+		closesocket(fd)
 		return nil, err
 	}
 	netfd.setAddr(laddr, raddr)
