@@ -1601,7 +1601,7 @@ int
 BtoF(int32 b)
 {
 
-	b &= 0xFF0000L;
+	b &= 0xFFFF0000L;
 	if(b == 0)
 		return 0;
 	return bitno(b) - 16 + FREGMIN;
