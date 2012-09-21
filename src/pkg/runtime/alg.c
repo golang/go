@@ -469,10 +469,11 @@ void
 runtime·equal(Type *t, ...)
 {
 	byte *x, *y;
-	bool *ret;
+	uintptr ret;
 	
 	x = (byte*)(&t+1);
-	y = x + t->size;
-	ret = (bool*)(y + t->size);
-	t->alg->equal(ret, t->size, x, y);
+	y = x + ROUND(t->size, t->align);
+	ret = (uintptr)(y + t->size);
+	ret = ROUND(ret, Structrnd);
+	t->alg->equal((bool*)ret, t->size, x, y);
 }
