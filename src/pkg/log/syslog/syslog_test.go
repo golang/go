@@ -98,20 +98,32 @@ func TestUDPDial(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	done := make(chan string)
-	startServer(done)
-	l, err := Dial("udp", serverAddr, LOG_ERR, "syslog_test")
-	if err != nil {
-		t.Fatalf("syslog.Dial() failed: %s", err)
+	tests := []struct {
+		pri Priority
+		pre string
+		msg string
+		exp string
+	}{
+		{LOG_ERR, "syslog_test", "", "<3>syslog_test: \n"},
+		{LOG_ERR, "syslog_test", "write test", "<3>syslog_test: write test\n"},
+		// Write should not add \n if there already is one
+		{LOG_ERR, "syslog_test", "write test 2\n", "<3>syslog_test: write test 2\n"},
 	}
-	msg := "write test"
-	_, err = io.WriteString(l, msg)
-	if err != nil {
-		t.Fatalf("WriteString() failed: %s", err)
-	}
-	expected := "<3>syslog_test: write test\n"
-	rcvd := <-done
-	if rcvd != expected {
-		t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, expected)
+
+	for _, test := range tests {
+		done := make(chan string)
+		startServer(done)
+		l, err := Dial("udp", serverAddr, test.pri, test.pre)
+		if err != nil {
+			t.Fatalf("syslog.Dial() failed: %s", err)
+		}
+		_, err = io.WriteString(l, test.msg)
+		if err != nil {
+			t.Fatalf("WriteString() failed: %s", err)
+		}
+		rcvd := <-done
+		if rcvd != test.exp {
+			t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, test.exp)
+		}
 	}
 }
