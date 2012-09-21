@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 9, 2012",
+	"Subtitle": "Version of August 17, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -2999,10 +2999,10 @@ follows:
 </pre>
 
 <p>
-For floating-point numbers,
+For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
-The result of a floating-point division by zero is not specified beyond the
+The result of a floating-point or complex division by zero is not specified beyond the
 IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
