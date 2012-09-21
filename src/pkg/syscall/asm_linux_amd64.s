@@ -108,7 +108,7 @@ ok2:
 TEXT ·Gettimeofday(SB),7,$0
 	MOVQ	8(SP), DI
 	MOVQ	$0, SI
-	MOVQ	$0xffffffffff600000, AX
+	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
 	CALL	AX
 
 	CMPQ	AX, $0xfffffffffffff001
@@ -122,7 +122,7 @@ ok7:
 
 TEXT ·Time(SB),7,$0
 	MOVQ	8(SP), DI
-	MOVQ	$0xffffffffff600400, AX
+	MOVQ	runtime·__vdso_time_sym(SB), AX
 	CALL	AX
 	MOVQ	AX, 16(SP)  // tt
 	MOVQ	$0, 24(SP)  // errno
