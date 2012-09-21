@@ -241,10 +241,10 @@ func (t Time) IsZero() bool {
 // It is called when computing a presentation property like Month or Hour.
 func (t Time) abs() uint64 {
 	l := t.loc
-	if l == nil {
-		l = &utcLoc
+	// Avoid function calls when possible.
+	if l == nil || l == &localLoc {
+		l = l.get()
 	}
-	// Avoid function call if we hit the local time cache.
 	sec := t.sec + internalToUnix
 	if l != &utcLoc {
 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
