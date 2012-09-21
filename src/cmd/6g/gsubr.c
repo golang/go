@@ -271,7 +271,7 @@ ginit(void)
 		reg[i] = 1;
 	for(i=D_AX; i<=D_R15; i++)
 		reg[i] = 0;
-	for(i=D_X0; i<=D_X7; i++)
+	for(i=D_X0; i<=D_X15; i++)
 		reg[i] = 0;
 
 	for(i=0; i<nelem(resvd); i++)
@@ -289,7 +289,7 @@ gclean(void)
 	for(i=D_AX; i<=D_R15; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated\n", i);
-	for(i=D_X0; i<=D_X7; i++)
+	for(i=D_X0; i<=D_X15; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated\n", i);
 }
@@ -359,10 +359,10 @@ regalloc(Node *n, Type *t, Node *o)
 	case TFLOAT64:
 		if(o != N && o->op == OREGISTER) {
 			i = o->val.u.reg;
-			if(i >= D_X0 && i <= D_X7)
+			if(i >= D_X0 && i <= D_X15)
 				goto out;
 		}
-		for(i=D_X0; i<=D_X7; i++)
+		for(i=D_X0; i<=D_X15; i++)
 			if(reg[i] == 0)
 				goto out;
 		fatal("out of floating registers");

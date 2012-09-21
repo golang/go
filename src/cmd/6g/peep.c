@@ -627,19 +627,34 @@ subprop(Reg *r0)
 	Reg *r;
 	int t;
 
+	if(debug['P'] && debug['v'])
+		print("subprop %P\n", r0->prog);
 	p = r0->prog;
 	v1 = &p->from;
-	if(!regtyp(v1))
+	if(!regtyp(v1)) {
+		if(debug['P'] && debug['v'])
+			print("\tnot regtype %D; return 0\n", v1);
 		return 0;
+	}
 	v2 = &p->to;
-	if(!regtyp(v2))
+	if(!regtyp(v2)) {
+		if(debug['P'] && debug['v'])
+			print("\tnot regtype %D; return 0\n", v2);
 		return 0;
+	}
 	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
-		if(uniqs(r) == R)
+		if(debug['P'] && debug['v'])
+			print("\t? %P\n", r->prog);
+		if(uniqs(r) == R) {
+			if(debug['P'] && debug['v'])
+				print("\tno unique successor\n");
 			break;
+		}
 		p = r->prog;
 		switch(p->as) {
 		case ACALL:
+			if(debug['P'] && debug['v'])
+				print("\tfound %P; return 0\n", p);
 			return 0;
 
 		case AIMULL:
@@ -710,21 +725,33 @@ subprop(Reg *r0)
 		case AMOVSB:
 		case AMOVSL:
 		case AMOVSQ:
+			if(debug['P'] && debug['v'])
+				print("\tfound %P; return 0\n", p);
 			return 0;
 
 		case AMOVL:
 		case AMOVQ:
+		case AMOVSS:
+		case AMOVSD:
 			if(p->to.type == v1->type)
 				goto gotit;
 			break;
 		}
 		if(copyau(&p->from, v2) ||
-		   copyau(&p->to, v2))
+		   copyau(&p->to, v2)) {
+		   	if(debug['P'] && debug['v'])
+		   		print("\tcopyau %D failed\n", v2);
 			break;
+		}
 		if(copysub(&p->from, v1, v2, 0) ||
-		   copysub(&p->to, v1, v2, 0))
+		   copysub(&p->to, v1, v2, 0)) {
+		   	if(debug['P'] && debug['v'])
+		   		print("\tcopysub failed\n");
 			break;
+		}
 	}
+	if(debug['P'] && debug['v'])
+		print("\tran off end; return 0\n", p);
 	return 0;
 
 gotit:
@@ -769,6 +796,8 @@ copyprop(Reg *r0)
 	Adr *v1, *v2;
 	Reg *r;
 
+	if(debug['P'] && debug['v'])
+		print("copyprop %P\n", r0->prog);
 	p = r0->prog;
 	v1 = &p->from;
 	v2 = &p->to;
@@ -1180,13 +1209,22 @@ int
 copyau(Adr *a, Adr *v)
 {
 
-	if(copyas(a, v))
+	if(copyas(a, v)) {
+		if(debug['P'] && debug['v'])
+			print("\tcopyau: copyas returned 1\n");
 		return 1;
+	}
 	if(regtyp(v)) {
-		if(a->type-D_INDIR == v->type)
+		if(a->type-D_INDIR == v->type) {
+			if(debug['P'] && debug['v'])
+				print("\tcopyau: found indir use - return 1\n");
 			return 1;
-		if(a->index == v->type)
+		}
+		if(a->index == v->type) {
+			if(debug['P'] && debug['v'])
+				print("\tcopyau: found index use - return 1\n");
 			return 1;
+		}
 	}
 	return 0;
 }
