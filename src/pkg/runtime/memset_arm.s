@@ -23,17 +23,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-TO = 1
-TOE = 2
-N = 3
-TMP = 3					/* N and TMP don't overlap */
+TO = 8
+TOE = 11
+N = 12
+TMP = 12				/* N and TMP don't overlap */
 
-// TODO(kaib): memset clobbers R9 and R10 (m and g). This makes the
-// registers unpredictable if (when) memset SIGSEGV's. Fix it by
-// moving the R4-R11 register bank.
 TEXT runtime·memset(SB), $0
 	MOVW	R0, R(TO)
-	MOVW	data+4(FP), R(4)
+	MOVW	data+4(FP), R(0)
 	MOVW	n+8(FP), R(N)
 
 	ADD	R(N), R(TO), R(TOE)	/* to end pointer */
@@ -41,17 +38,17 @@ TEXT runtime·memset(SB), $0
 	CMP	$4, R(N)		/* need at least 4 bytes to copy */
 	BLT	_1tail
 
-	AND	$0xFF, R(4)		/* it's a byte */
-	SLL	$8, R(4), R(TMP)	/* replicate to a word */
-	ORR	R(TMP), R(4)
-	SLL	$16, R(4), R(TMP)
-	ORR	R(TMP), R(4)
+	AND	$0xFF, R(0)		/* it's a byte */
+	SLL	$8, R(0), R(TMP)	/* replicate to a word */
+	ORR	R(TMP), R(0)
+	SLL	$16, R(0), R(TMP)
+	ORR	R(TMP), R(0)
 
 _4align:				/* align on 4 */
 	AND.S	$3, R(TO), R(TMP)
 	BEQ	_4aligned
 
-	MOVBU.P	R(4), 1(R(TO))		/* implicit write back */
+	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
 	B	_4align
 
 _4aligned:
@@ -59,19 +56,19 @@ _4aligned:
 	CMP	R(TMP), R(TO)
 	BHS	_4tail
 
-	MOVW	R4, R5			/* replicate */
-	MOVW	R4, R6
-	MOVW	R4, R7
-	MOVW	R4, R8
-	MOVW	R4, R9
-	MOVW	R4, R10
-	MOVW	R4, R11
+	MOVW	R0, R1			/* replicate */
+	MOVW	R0, R2
+	MOVW	R0, R3
+	MOVW	R0, R4
+	MOVW	R0, R5
+	MOVW	R0, R6
+	MOVW	R0, R7
 
 _f32loop:
 	CMP	R(TMP), R(TO)
 	BHS	_4tail
 
-	MOVM.IA.W [R4-R11], (R(TO))
+	MOVM.IA.W [R0-R7], (R(TO))
 	B	_f32loop
 
 _4tail:
@@ -80,14 +77,14 @@ _4loop:
 	CMP	R(TMP), R(TO)
 	BHS	_1tail
 
-	MOVW.P	R(4), 4(R(TO))		/* implicit write back */
+	MOVW.P	R(0), 4(R(TO))		/* implicit write back */
 	B	_4loop
 
 _1tail:
 	CMP	R(TO), R(TOE)
 	BEQ	_return
 
-	MOVBU.P	R(4), 1(R(TO))		/* implicit write back */
+	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
 	B	_1tail
 
 _return:

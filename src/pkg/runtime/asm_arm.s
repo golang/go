@@ -239,17 +239,11 @@ TEXT	runtime·asmcgocall(SB),7,$0
 TEXT	runtime·cgocallback(SB),7,$0
 	B	runtime·cgounimpl(SB)
 
-TEXT runtime·memclr(SB),7,$20
+TEXT runtime·memclr(SB),7,$0
 	MOVW	0(FP), R0
-	MOVW	$0, R1		// c = 0
-	MOVW	R1, -16(SP)
-	MOVW	4(FP), R1	// n
-	MOVW	R1, -12(SP)
-	MOVW	m, -8(SP)	// Save m and g
-	MOVW	g, -4(SP)
+	MOVW	$0, R1
+	MOVW	R1, 0(FP)
 	BL	runtime·memset(SB)
-	MOVW	-8(SP), m	// Restore m and g, memset clobbers them
-	MOVW	-4(SP), g
 	RET
 
 TEXT runtime·getcallerpc(SB),7,$-4
