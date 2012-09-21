@@ -198,6 +198,10 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"text with bad comment", "hello-{{/*/}}-world", []item{
+		{itemText, "hello-"},
+		{itemError, `unclosed comment`},
+	}},
 }
 
 // collect gathers the emitted items into a slice.
