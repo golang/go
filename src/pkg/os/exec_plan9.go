@@ -38,7 +38,7 @@ func (note Plan9Note) String() string {
 }
 
 func (p *Process) signal(sig Signal) error {
-	if p.done {
+	if p.done() {
 		return errors.New("os: process already finished")
 	}
 
@@ -76,7 +76,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		}
 
 		if waitmsg.Pid == p.Pid {
-			p.done = true
+			p.setDone()
 			break
 		}
 	}
