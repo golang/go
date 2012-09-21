@@ -284,6 +284,38 @@ func main() {
 	default:
 	}
 
+	// switch on interface.
+	switch i := interface{}("hello"); i {
+	case 42:
+		assert(false, `i should be "hello"`)
+	case "hello":
+		assert(true, "hello")
+	default:
+		assert(false, `i should be "hello"`)
+	}
+
+	// switch on array.
+	switch ar := [3]int{1, 2, 3}; ar {
+	case [3]int{1,2,3}:
+		assert(true, "[1 2 3]")
+	case [3]int{4,5,6}:
+		assert(false, "ar should be [1 2 3]")
+	default:
+		assert(false, "ar should be [1 2 3]")
+	}
+
+	// switch on channel
+	switch c1, c2 := make(chan int), make(chan int); c1 {
+	case nil:
+		assert(false, "c1 did not match itself")
+	case c2:
+		assert(false, "c1 did not match itself")
+	case c1:
+		assert(true, "chan")
+	default:
+		assert(false, "c1 did not match itself")
+	}
+
 	i := 0
 	switch x := 5; {
 		case i < x:
