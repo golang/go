@@ -243,7 +243,7 @@ slice itself) of a re-slice modifies the elements of the original slice:
 d := []byte{'r', 'o', 'a', 'd'}
 e := d[2:] 
 // e == []byte{'a', 'd'}
-e[1] == 'm'
+e[1] = 'm'
 // e == []byte{'a', 'm'}
 // d == []byte{'r', 'o', 'a', 'm'}
 </pre>
