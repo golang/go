@@ -735,14 +735,20 @@ reswitch:
 		}
 		if(n->type != T && n->type->etype != TINTER)
 		if(!implements(n->type, t, &missing, &have, &ptr)) {
-			if(have)
-				yyerror("impossible type assertion: %lN cannot have dynamic type %T"
-					" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",
-					l, n->type, missing->sym, have->sym, have->type,
-					missing->sym, missing->type);
+			if(have && have->sym == missing->sym)
+				yyerror("impossible type assertion:\n\t%T does not implement %T (wrong type for %S method)\n"
+					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
+					have->sym, have->type, missing->sym, missing->type);
+			else if(ptr)
+				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method requires pointer receiver)",
+					n->type, t, missing->sym);
+			else if(have)
+				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)\n"
+					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
+					have->sym, have->type, missing->sym, missing->type);
 			else
-				yyerror("impossible type assertion: %lN cannot have dynamic type %T"
-					" (missing %S method)", l, n->type, missing->sym);
+				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)",
+					n->type, t, missing->sym);
 			goto error;
 		}
 		goto ret;
