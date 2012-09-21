@@ -36,7 +36,8 @@ type Client struct {
 	// following an HTTP redirect. The arguments req and via
 	// are the upcoming request and the requests made already,
 	// oldest first. If CheckRedirect returns an error, the client
-	// returns that error instead of issue the Request req.
+	// returns that error (wrapped in a url.Error) instead of
+	// issuing the Request req.
 	//
 	// If CheckRedirect is nil, the Client uses its default policy,
 	// which is to stop after 10 consecutive requests.
