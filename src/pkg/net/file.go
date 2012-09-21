@@ -12,10 +12,14 @@ import (
 )
 
 func newFileFD(f *os.File) (*netFD, error) {
+	syscall.ForkLock.RLock()
 	fd, err := syscall.Dup(int(f.Fd()))
 	if err != nil {
+		syscall.ForkLock.RUnlock()
 		return nil, os.NewSyscallError("dup", err)
 	}
+	syscall.CloseOnExec(fd)
+	syscall.ForkLock.RUnlock()
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
