@@ -929,7 +929,7 @@ reswitch:
 			goto doconv;
 		}
 
-		if(count(n->list) == 1)
+		if(count(n->list) == 1 && !n->isddd)
 			typecheck(&n->list->n, Erv | Efnstruct);
 		else
 			typechecklist(n->list, Erv);
