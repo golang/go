@@ -24,12 +24,13 @@
 
 	where T, T1 and T2 can be marshaled by encoding/gob.
 	These requirements apply even if a different codec is used.
-	(In future, these requirements may soften for custom codecs.)
+	(In the future, these requirements may soften for custom codecs.)
 
 	The method's first argument represents the arguments provided by the caller; the
 	second argument represents the result parameters to be returned to the caller.
 	The method's return value, if non-nil, is passed back as a string that the client
-	sees as if created by errors.New.
+	sees as if created by errors.New.  If an error is returned, the reply parameter
+	will not be sent back to the client.
 
 	The server may handle requests on a single connection by calling ServeConn.  More
 	typically it will create a network listener and call Accept or, for an HTTP
