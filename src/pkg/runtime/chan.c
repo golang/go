@@ -86,7 +86,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	Hchan *c;
 	int32 n;
 	Type *elem;
-	
+
 	elem = t->elem;
 
 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
@@ -180,7 +180,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 	sg = dequeue(&c->recvq);
 	if(sg != nil) {
 		runtime·unlock(c);
-		
+
 		gp = sg->g;
 		gp->param = sg;
 		if(sg->elem != nil)
@@ -446,7 +446,7 @@ runtime·selectnbsend(ChanType *t, Hchan *c, ...)
 	byte *ae, *ap;
 
 	ae = (byte*)(&c + 1);
-	ap = ae + runtime·rnd(t->elem->size, Structrnd);
+	ap = ae + ROUND(t->elem->size, Structrnd);
 	runtime·chansend(t, c, ae, ap);
 }
 
@@ -474,7 +474,7 @@ void
 runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 {
 	runtime·chanrecv(t, c, v, &selected, nil);
-}	
+}
 
 // func selectnbrecv2(elem *any, ok *bool, c chan any) bool
 //
@@ -500,7 +500,7 @@ void
 runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
 {
 	runtime·chanrecv(t, c, v, &selected, received);
-}	
+}
 
 // For reflect:
 //	func chansend(c chan, val iword, nb bool) (selected bool)
@@ -514,7 +514,7 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 {
 	bool *sp;
 	byte *vp;
-	
+
 	if(nb) {
 		selected = false;
 		sp = (bool*)&selected;
@@ -571,7 +571,7 @@ runtime·newselect(int32 size, ...)
 	int32 o;
 	Select **selp;
 
-	o = runtime·rnd(sizeof(size), Structrnd);
+	o = ROUND(sizeof(size), Structrnd);
 	selp = (Select**)((byte*)&size + o);
 	newselect(size, selp);
 }
@@ -619,7 +619,7 @@ runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
 	// nil cases do not compete
 	if(c == nil)
 		return;
-	
+
 	selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
 }
 
@@ -628,7 +628,7 @@ selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so)
 {
 	int32 i;
 	Scase *cas;
-	
+
 	i = sel->ncase;
 	if(i >= sel->tcase)
 		runtime·throw("selectsend: too many cases");
@@ -899,7 +899,7 @@ loop:
 		case CaseRecv:
 			enqueue(&c->recvq, sg);
 			break;
-		
+
 		case CaseSend:
 			enqueue(&c->sendq, sg);
 			break;
