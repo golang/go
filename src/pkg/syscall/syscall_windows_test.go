@@ -35,7 +35,7 @@ func TestWin32finddata(t *testing.T) {
 	var want byte = 2 // it is unlikely to have this character in the filename
 	x := X{got: want}
 
-	pathp, _ := syscall.utf16PtrFromString(path)
+	pathp := syscall.StringToUTF16Ptr(path)
 	h, err := syscall.FindFirstFile(pathp, &(x.fd))
 	if err != nil {
 		t.Fatalf("FindFirstFile failed: %v", err)
