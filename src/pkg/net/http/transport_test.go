@@ -161,10 +161,10 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
 			}
 			body, err := ioutil.ReadAll(res.Body)
-			defer res.Body.Close()
 			if err != nil {
 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
 			}
+			defer res.Body.Close()
 			return string(body)
 		}
 
