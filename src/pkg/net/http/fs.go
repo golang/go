@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
+	"net/textproto"
 	"os"
 	"path"
 	"path/filepath"
@@ -123,8 +125,9 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	code := StatusOK
 
 	// If Content-Type isn't set, use the file's extension to find it.
-	if w.Header().Get("Content-Type") == "" {
-		ctype := mime.TypeByExtension(filepath.Ext(name))
+	ctype := w.Header().Get("Content-Type")
+	if ctype == "" {
+		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
 			var buf [1024]byte
@@ -141,18 +144,27 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	}
 
 	// handle Content-Range header.
-	// TODO(adg): handle multiple ranges
 	sendSize := size
+	var sendContent io.Reader = content
 	if size >= 0 {
 		ranges, err := parseRange(r.Header.Get("Range"), size)
-		if err == nil && len(ranges) > 1 {
-			err = errors.New("multiple ranges not supported")
-		}
 		if err != nil {
 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
-		if len(ranges) == 1 {
+		switch {
+		case len(ranges) == 1:
+			// RFC 2616, Section 14.16:
+			// "When an HTTP message includes the content of a single
+			// range (for example, a response to a request for a
+			// single range, or to a request for a set of ranges
+			// that overlap without any holes), this content is
+			// transmitted with a Content-Range header, and a
+			// Content-Length header showing the number of bytes
+			// actually transferred.
+			// ...
+			// A response to a request for a single range MUST NOT
+			// be sent using the multipart/byteranges media type."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -160,7 +172,41 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			}
 			sendSize = ra.length
 			code = StatusPartialContent
-			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, size))
+			w.Header().Set("Content-Range", ra.contentRange(size))
+		case len(ranges) > 1:
+			for _, ra := range ranges {
+				if ra.start > size {
+					Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+					return
+				}
+			}
+			sendSize = rangesMIMESize(ranges, ctype, size)
+			code = StatusPartialContent
+
+			pr, pw := io.Pipe()
+			mw := multipart.NewWriter(pw)
+			w.Header().Set("Content-Type", "multipart/byteranges; boundary="+mw.Boundary())
+			sendContent = pr
+			defer pr.Close() // cause writing goroutine to fail and exit if CopyN doesn't finish.
+			go func() {
+				for _, ra := range ranges {
+					part, err := mw.CreatePart(ra.mimeHeader(ctype, size))
+					if err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+					if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+					if _, err := io.CopyN(part, content, ra.length); err != nil {
+						pw.CloseWithError(err)
+						return
+					}
+				}
+				mw.Close()
+				pw.Close()
+			}()
 		}
 
 		w.Header().Set("Accept-Ranges", "bytes")
@@ -172,11 +218,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	w.WriteHeader(code)
 
 	if r.Method != "HEAD" {
-		if sendSize == -1 {
-			io.Copy(w, content)
-		} else {
-			io.CopyN(w, content, sendSize)
-		}
+		io.CopyN(w, sendContent, sendSize)
 	}
 }
 
@@ -314,6 +356,17 @@ type httpRange struct {
 	start, length int64
 }
 
+func (r httpRange) contentRange(size int64) string {
+	return fmt.Sprintf("bytes %d-%d/%d", r.start, r.start+r.length-1, size)
+}
+
+func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHeader {
+	return textproto.MIMEHeader{
+		"Content-Range": {r.contentRange(size)},
+		"Content-Type":  {contentType},
+	}
+}
+
 // parseRange parses a Range header string as per RFC 2616.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {
@@ -325,11 +378,15 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 	var ranges []httpRange
 	for _, ra := range strings.Split(s[len(b):], ",") {
+		ra = strings.TrimSpace(ra)
+		if ra == "" {
+			continue
+		}
 		i := strings.Index(ra, "-")
 		if i < 0 {
 			return nil, errors.New("invalid range")
 		}
-		start, end := ra[:i], ra[i+1:]
+		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
 		var r httpRange
 		if start == "" {
 			// If no start is specified, end specifies the
@@ -366,4 +423,26 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		ranges = append(ranges, r)
 	}
 	return ranges, nil
+}
+
+// countingWriter counts how many bytes have been written to it.
+type countingWriter int64
+
+func (w *countingWriter) Write(p []byte) (n int, err error) {
+	*w += countingWriter(len(p))
+	return len(p), nil
+}
+
+// rangesMIMESize returns the nunber of bytes it takes to encode the
+// provided ranges as a multipart response.
+func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
+	var w countingWriter
+	mw := multipart.NewWriter(&w)
+	for _, ra := range ranges {
+		mw.CreatePart(ra.mimeHeader(contentType, contentSize))
+		encSize += ra.length
+	}
+	mw.Close()
+	encSize += int64(w)
+	return
 }
