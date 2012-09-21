@@ -5,7 +5,7 @@
 package error2
 
 type I0 interface {
-	// When embedded, the the locally declared error interface
+	// When embedded, the locally-declared error interface
 	// is only visible if all declarations are shown.
 	error
 }
