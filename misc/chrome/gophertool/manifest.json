@@ -8,7 +8,7 @@
   },
   "browser_action": {
     "default_icon": "gopher.png",
-    "popup": "popup.html"
+    "default_popup": "popup.html"
   },
   "omnibox": { "keyword": "golang" },
   "icons": {
