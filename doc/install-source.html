@@ -86,8 +86,14 @@ To build it, you need a C compiler installed.
 </p>
 
 <p>
-On OS X, a C compiler can be installed as part of
-<a href="http://developer.apple.com/Xcode/">Xcode</a>. 
+On OS X, a C compiler is bundled in the command line tools for
+<a href="http://developer.apple.com/Xcode/">Xcode</a>,
+and you don't need to install the whole Xcode to compile Go.
+If you have already installed Xcode 4.3+, you can install command
+line tools from the Components tab of the Downloads preferences panel.
+To verify you have a working compiler, just invoke <code>gcc</code>
+in a freshly created Terminal window, unless you see the
+"<code>gcc: command not found</code>" error, you are ready to go.
 </p>
 
 <p>

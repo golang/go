@@ -42,12 +42,17 @@ proceeding. If your OS or architecture is not on the list, it's possible that
 <tr><td colspan="3"><hr></td></tr>
 <tr><td>FreeBSD 7 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
 <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
-<tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode</td></tr>
+<tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
 <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
 </table>
 
 <p>
-<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use <a href="/cmd/cgo">cgo</a>.
+<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use
+<a href="/cmd/cgo">cgo</a>.<br/>
+<sup>&#8225;</sup>You only need to install the command line tools for
+<a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already
+installed Xcode 4.3+, you can install it from the Components tab of the
+Downloads preferences panel.
 </p>
 
 <h2 id="download">Download the Go tools</h2>
