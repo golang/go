@@ -573,9 +573,14 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			goto bad;
 		}
 		free(name);
-		s->p = dat + sect->addr - c->seg.vmaddr;
+
 		s->np = sect->size;
 		s->size = s->np;
+		if((sect->flags & 0xff) == 1) // S_ZEROFILL
+			s->p = mal(s->size);
+		else {
+			s->p = dat + sect->addr - c->seg.vmaddr;
+		}
 		
 		if(strcmp(sect->segname, "__TEXT") == 0) {
 			if(strcmp(sect->name, "__text") == 0)
