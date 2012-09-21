@@ -9,5 +9,5 @@ func IsDigit(r rune) bool {
 	if r <= MaxLatin1 {
 		return '0' <= r && r <= '9'
 	}
-	return Is(Digit, r)
+	return isExcludingLatin(Digit, r)
 }
