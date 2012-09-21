@@ -976,6 +976,8 @@ int	elfinterp(ElfShdr*, uint64, uint64, char*);
 int	elfwriteinterp(vlong);
 int	elfnetbsdsig(ElfShdr*, uint64, uint64);
 int	elfwritenetbsdsig(vlong);
+int	elfopenbsdsig(ElfShdr*, uint64, uint64);
+int	elfwriteopenbsdsig(vlong);
 void	elfdynhash(void);
 ElfPhdr* elfphload(Segment*);
 ElfShdr* elfshbits(Section*);
