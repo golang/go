@@ -680,19 +680,28 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 				int k;
 				MachoSect *ks;
 
-				if(thechar != '8')
+				if(thechar != '8') {
+					// mach-o only uses scattered relocation on 32-bit platforms
 					diag("unexpected scattered relocation");
+					continue;
+				}
 
-				// on 386, rewrite scattered 4/1 relocation into
-				// the pseudo-pc-relative reference that it is.
+				// on 386, rewrite scattered 4/1 relocation and some
+				// scattered 2/1 relocation into the pseudo-pc-relative
+				// reference that it is.
 				// assume that the second in the pair is in this section
 				// and use that as the pc-relative base.
-				if(thechar != '8' || rel->type != 4 || j+1 >= sect->nreloc ||
-						!(rel+1)->scattered || (rel+1)->type != 1 ||
-						(rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
+				if(j+1 >= sect->nreloc) {
+					werrstr("unsupported scattered relocation %d", (int)rel->type);
+					goto bad;
+				}
+				if(!(rel+1)->scattered || (rel+1)->type != 1 ||
+				   (rel->type != 4 && rel->type != 2) ||
+				   (rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
 					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)(rel+1)->type);
 					goto bad;
 				}
+
 				rp->siz = rel->length;
 				rp->off = rel->addr;
 				
