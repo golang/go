@@ -36,7 +36,7 @@ TEXT ·divWW(SB),7,$0
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),7,$0
-	MOVL n+8(FP), DI
+	MOVL z+8(FP), DI
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), R9
 	MOVQ z+0(FP), R10
@@ -90,7 +90,7 @@ E1:	MOVQ CX, c+48(FP)	// return c
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBBQ instead of ADCQ and label names)
 TEXT ·subVV(SB),7,$0
-	MOVL n+8(FP), DI
+	MOVL z+8(FP), DI
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), R9
 	MOVQ z+0(FP), R10
@@ -143,7 +143,7 @@ E2:	MOVQ CX, c+48(FP)	// return c
 
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),7,$0
-	MOVL n+8(FP), DI
+	MOVL z+8(FP), DI
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -195,7 +195,7 @@ E3:	MOVQ CX, c+40(FP)	// return c
 // func subVW(z, x []Word, y Word) (c Word)
 // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
 TEXT ·subVW(SB),7,$0
-	MOVL n+8(FP), DI
+	MOVL z+8(FP), DI
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -247,7 +247,7 @@ E4:	MOVQ CX, c+40(FP)	// return c
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),7,$0
-	MOVL n+8(FP), BX	// i = n
+	MOVL z+8(FP), BX	// i = z
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
 
@@ -282,7 +282,7 @@ X8b:	MOVQ $0, c+40(FP)
 
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),7,$0
-	MOVL n+8(FP), R11
+	MOVL z+8(FP), R11
 	SUBL $1, R11		// n--
 	JL X9b			// n < 0	(n <= 0)
 
@@ -323,7 +323,7 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), R9
 	MOVQ r+40(FP), CX	// c = r
-	MOVL n+8(FP), R11
+	MOVL z+8(FP), R11
 	MOVQ $0, BX		// i = 0
 	JMP E5
 
@@ -347,7 +347,7 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+16(FP), R8
 	MOVQ y+32(FP), R9
-	MOVL n+8(FP), R11
+	MOVL z+8(FP), R11
 	MOVQ $0, BX		// i = 0
 	MOVQ $0, CX		// c = 0
 	JMP E6
@@ -374,7 +374,7 @@ TEXT ·divWVW(SB),7,$0
 	MOVQ xn+16(FP), DX	// r = xn
 	MOVQ x+24(FP), R8
 	MOVQ y+40(FP), R9
-	MOVL n+8(FP), BX	// i = n
+	MOVL z+8(FP), BX	// i = z
 	JMP E7
 
 L7:	MOVQ (R8)(BX*8), AX

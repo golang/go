@@ -11,7 +11,7 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
 	MOVL	new+12(FP), CX
 	LOCK
 	CMPXCHGL	CX, 0(BP)
-	SETEQ	ret+16(FP)
+	SETEQ	swapped+16(FP)
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),7,$0
@@ -29,7 +29,7 @@ TEXT ·CompareAndSwapUint64(SB),7,$0
 	MOVQ	new+16(FP), CX
 	LOCK
 	CMPXCHGQ	CX, 0(BP)
-	SETEQ	ret+24(FP)
+	SETEQ	swapped+24(FP)
 	RET
 
 TEXT ·AddInt32(SB),7,$0
@@ -42,7 +42,7 @@ TEXT ·AddUint32(SB),7,$0
 	LOCK
 	XADDL	AX, 0(BP)
 	ADDL	AX, CX
-	MOVL	CX, ret+16(FP)
+	MOVL	CX, new+16(FP)
 	RET
 
 TEXT ·AddUintptr(SB),7,$0
@@ -58,7 +58,7 @@ TEXT ·AddUint64(SB),7,$0
 	LOCK
 	XADDQ	AX, 0(BP)
 	ADDQ	AX, CX
-	MOVQ	CX, ret+16(FP)
+	MOVQ	CX, new+16(FP)
 	RET
 
 TEXT ·LoadInt32(SB),7,$0
@@ -67,7 +67,7 @@ TEXT ·LoadInt32(SB),7,$0
 TEXT ·LoadUint32(SB),7,$0
 	MOVQ	addr+0(FP), AX
 	MOVL	0(AX), AX
-	MOVL	AX, ret+8(FP)
+	MOVL	AX, val+8(FP)
 	RET
 
 TEXT ·LoadInt64(SB),7,$0
@@ -76,7 +76,7 @@ TEXT ·LoadInt64(SB),7,$0
 TEXT ·LoadUint64(SB),7,$0
 	MOVQ	addr+0(FP), AX
 	MOVQ	0(AX), AX
-	MOVQ	AX, ret+8(FP)
+	MOVQ	AX, val+8(FP)
 	RET
 
 TEXT ·LoadUintptr(SB),7,$0
@@ -85,7 +85,7 @@ TEXT ·LoadUintptr(SB),7,$0
 TEXT ·LoadPointer(SB),7,$0
 	MOVQ	addr+0(FP), AX
 	MOVQ	0(AX), AX
-	MOVQ	AX, ret+8(FP)
+	MOVQ	AX, val+8(FP)
 	RET
 
 TEXT ·StoreInt32(SB),7,$0

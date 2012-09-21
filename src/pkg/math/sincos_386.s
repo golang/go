@@ -9,8 +9,8 @@ TEXT ·Sincos(SB),7,$0
 	FSTSW   AX           // AX=status word
 	ANDW    $0x0400, AX
 	JNE     4(PC)        // jump if x outside range
-	FMOVDP  F0, c+16(FP) // F0=sin(x)
-	FMOVDP  F0, s+8(FP)
+	FMOVDP  F0, cos+16(FP) // F0=sin(x)
+	FMOVDP  F0, sin+8(FP)
 	RET
 	FLDPI                // F0=Pi, F1=x
 	FADDD   F0, F0       // F0=2*Pi, F1=x
@@ -21,6 +21,6 @@ TEXT ·Sincos(SB),7,$0
 	JNE     -3(PC)       // jump if reduction incomplete
 	FMOVDP  F0, F1       // F0=reduced_x
 	FSINCOS              // F0=cos(reduced_x), F1=sin(reduced_x)
-	FMOVDP  F0, c+16(FP) // F0=sin(reduced_x)
-	FMOVDP  F0, s+8(FP)
+	FMOVDP  F0, cos+16(FP) // F0=sin(reduced_x)
+	FMOVDP  F0, sin+8(FP)
 	RET

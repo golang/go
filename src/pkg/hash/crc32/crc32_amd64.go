@@ -13,7 +13,7 @@ func haveSSE42() bool
 
 // castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
 // instruction.
-func castagnoliSSE42(uint32, []byte) uint32
+func castagnoliSSE42(crc uint32, p []byte) uint32
 
 var sse42 = haveSSE42()
 

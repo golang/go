@@ -12,7 +12,7 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
 	// CMPXCHGL was introduced on the 486.
 	LOCK
 	CMPXCHGL	CX, 0(BP)
-	SETEQ	ret+12(FP)
+	SETEQ	swapped+12(FP)
 	RET
 
 TEXT ·CompareAndSwapUintptr(SB),7,$0
@@ -26,14 +26,14 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
 
 TEXT ·CompareAndSwapUint64(SB),7,$0
 	MOVL	addr+0(FP), BP
-	MOVL	oldlo+4(FP), AX
-	MOVL	oldhi+8(FP), DX
-	MOVL	newlo+12(FP), BX
-	MOVL	newhi+16(FP), CX
+	MOVL	old+4(FP), AX
+	MOVL	old+8(FP), DX
+	MOVL	new+12(FP), BX
+	MOVL	new+16(FP), CX
 	// CMPXCHG8B was introduced on the Pentium.
 	LOCK
 	CMPXCHG8B	0(BP)
-	SETEQ	ret+20(FP)
+	SETEQ	swapped+20(FP)
 	RET
 
 TEXT ·AddInt32(SB),7,$0
@@ -47,7 +47,7 @@ TEXT ·AddUint32(SB),7,$0
 	LOCK
 	XADDL	AX, 0(BP)
 	ADDL	AX, CX
-	MOVL	CX, ret+8(FP)
+	MOVL	CX, new+8(FP)
 	RET
 
 TEXT ·AddUintptr(SB),7,$0
@@ -60,8 +60,8 @@ TEXT ·AddUint64(SB),7,$0
 	// no XADDQ so use CMPXCHG8B loop
 	MOVL	addr+0(FP), BP
 	// DI:SI = delta
-	MOVL	deltalo+4(FP), SI
-	MOVL	deltahi+8(FP), DI
+	MOVL	delta+4(FP), SI
+	MOVL	delta+8(FP), DI
 	// DX:AX = *addr
 	MOVL	0(BP), AX
 	MOVL	4(BP), DX
@@ -85,8 +85,8 @@ addloop:
 
 	// success
 	// return CX:BX
-	MOVL	BX, retlo+12(FP)
-	MOVL	CX, rethi+16(FP)
+	MOVL	BX, new+12(FP)
+	MOVL	CX, new+16(FP)
 	RET
 
 TEXT ·LoadInt32(SB),7,$0
@@ -95,7 +95,7 @@ TEXT ·LoadInt32(SB),7,$0
 TEXT ·LoadUint32(SB),7,$0
 	MOVL	addr+0(FP), AX
 	MOVL	0(AX), AX
-	MOVL	AX, ret+4(FP)
+	MOVL	AX, val+4(FP)
 	RET
 
 TEXT ·LoadInt64(SB),7,$0
