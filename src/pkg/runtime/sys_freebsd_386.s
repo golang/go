@@ -89,7 +89,7 @@ TEXT runtime·mmap(SB),7,$32
 	MOVSL
 	MOVSL
 	MOVSL
-	MOVL	$0, AX	// top 64 bits of file offset
+	MOVL	$0, AX	// top 32 bits of file offset
 	STOSL
 	MOVL	$477, AX
 	INT	$0x80

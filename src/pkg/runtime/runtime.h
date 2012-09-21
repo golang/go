@@ -728,6 +728,9 @@ void	runtime·parfordo(ParFor *desc);
 /*
  * low level C-called
  */
+// for mmap, we only pass the lower 32 bits of file offset to the 
+// assembly routine; the higher bits (if required), should be provided
+// by the assembly routine as 0.
 uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
 void	runtime·munmap(byte*, uintptr);
 void	runtime·madvise(byte*, uintptr, int32);
