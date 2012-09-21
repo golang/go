@@ -743,6 +743,9 @@ loop2:
 brk:
 	qsort(region, nregion, sizeof(region[0]), rcmp);
 
+	if(debug['R'] && debug['v'])
+		dumpit("pass5", firstr);
+
 	/*
 	 * pass 6
 	 * determine used registers (paint2)
@@ -753,8 +756,16 @@ brk:
 		bit = blsh(rgp->varno);
 		vreg = paint2(rgp->enter, rgp->varno);
 		vreg = allreg(vreg, rgp);
-		if(rgp->regno != 0)
+		if(rgp->regno != 0) {
+			if(debug['R'] && debug['v']) {
+				Var *v;
+
+				v = var + rgp->varno;
+				print("registerize %N+%d (bit=%2d et=%2E) in %R\n",
+						v->node, v->offset, rgp->varno, v->etype, rgp->regno);
+			}
 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
+		}
 		rgp++;
 	}
 
@@ -1027,7 +1038,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d %#N %D\n", i, et, w, node, a);
+		print("bit=%2d et=%2E w=%d %#N %D\n", i, et, w, node, a);
 	ostats.nvar++;
 
 	bit = blsh(i);
