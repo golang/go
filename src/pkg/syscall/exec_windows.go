@@ -132,7 +132,10 @@ func SetNonblock(fd Handle, nonblocking bool) (err error) {
 // getFullPath retrieves the full path of the specified file.
 // Just a wrapper for Windows GetFullPathName api.
 func getFullPath(name string) (path string, err error) {
-	p := StringToUTF16Ptr(name)
+	p, err := utf16PtrFromString(name)
+	if err != nil {
+		return "", err
+	}
 	buf := make([]uint16, 100)
 	n, err := GetFullPathName(p, uint32(len(buf)), &buf[0], nil)
 	if err != nil {
@@ -261,7 +264,10 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			return 0, 0, err
 		}
 	}
-	argv0p := StringToUTF16Ptr(argv0)
+	argv0p, err := utf16PtrFromString(argv0)
+	if err != nil {
+		return 0, 0, err
+	}
 
 	var cmdline string
 	// Windows CreateProcess takes the command line as a single string:
@@ -275,12 +281,18 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	var argvp *uint16
 	if len(cmdline) != 0 {
-		argvp = StringToUTF16Ptr(cmdline)
+		argvp, err = utf16PtrFromString(cmdline)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	var dirp *uint16
 	if len(attr.Dir) != 0 {
-		dirp = StringToUTF16Ptr(attr.Dir)
+		dirp, err = utf16PtrFromString(attr.Dir)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	// Acquire the fork lock so that no other threads
