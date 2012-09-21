@@ -311,7 +311,10 @@ func (db *DB) prepare(query string) (stmt *Stmt, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.putConn(ci, err)
+	defer func() {
+		db.putConn(ci, err)
+	}()
+
 	si, err := ci.Prepare(query)
 	if err != nil {
 		return nil, err
@@ -345,7 +348,9 @@ func (db *DB) exec(query string, sargs []driver.Value) (res Result, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.putConn(ci, err)
+	defer func() {
+		db.putConn(ci, err)
+	}()
 
 	if execer, ok := ci.(driver.Execer); ok {
 		resi, err := execer.Exec(query, sargs)
