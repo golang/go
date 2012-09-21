@@ -143,7 +143,7 @@ struct hash_iter {
    Remove all sub-tables associated with *h.
    This undoes the effects of hash_init().
    If other memory pointed to by user data must be freed, the caller is
-   responsible for doiing do by iterating over *h first; see
+   responsible for doing so by iterating over *h first; see
    hash_iter_init()/hash_next().  */
 // void hash_destroy (struct hash *h);
 
@@ -152,7 +152,7 @@ struct hash_iter {
 /* Initialize *it from *h. */
 // void hash_iter_init (struct hash *h, struct hash_iter *it);
 
-/* Return the next used entry in the table which which *it was initialized. */
+/* Return the next used entry in the table with which *it was initialized. */
 // void *hash_next (struct hash_iter *it);
 
 /*---- test interface ----*/
