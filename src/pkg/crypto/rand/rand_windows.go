@@ -35,6 +35,10 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
 		}
 	}
 	r.mu.Unlock()
+
+	if len(b) == 0 {
+		return 0, nil
+	}
 	err = syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
 	if err != nil {
 		return 0, os.NewSyscallError("CryptGenRandom", err)
