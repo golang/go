@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 TEXT ·IndexByte(SB),7,$0
-	MOVW	base+0(FP), R0
-	MOVW	len+4(FP), R1
+	MOVW	s+0(FP), R0
+	MOVW	s+4(FP), R1
 	MOVBU	c+12(FP), R2	// byte to find
 	MOVW	R0, R4		// store base for later
 	ADD	R0, R1		// end 
@@ -18,23 +18,23 @@ _loop:
 
 	SUB	$1, R0		// R0 will be one beyond the position we want
 	SUB	R4, R0		// remove base
-	MOVW    R0, index+16(FP) 
+	MOVW    R0, r+16(FP) 
 	RET
 
 _notfound:
 	MOVW	$-1, R0
-	MOVW	R0, index+16(FP)
+	MOVW	R0, r+16(FP)
 	RET
 
 TEXT ·Equal(SB),7,$0
-	MOVW	alen+4(FP), R1
-	MOVW	blen+16(FP), R3
+	MOVW	a+4(FP), R1
+	MOVW	b+16(FP), R3
 	
 	CMP	R1, R3		// unequal lengths are not equal
 	B.NE	_notequal
 
-	MOVW	aptr+0(FP), R0
-	MOVW	bptr+12(FP), R2
+	MOVW	a+0(FP), R0
+	MOVW	b+12(FP), R2
 	ADD	R0, R1		// end
 
 _next:
@@ -47,10 +47,10 @@ _next:
 
 _notequal:
 	MOVW	$0, R0
-	MOVW	R0, equal+24(FP)
+	MOVBU	R0, r+24(FP)
 	RET
 
 _equal:
 	MOVW	$1, R0
-	MOVW	R0, equal+24(FP)
+	MOVBU	R0, r+24(FP)
 	RET

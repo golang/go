@@ -47,7 +47,7 @@ cleanup:
 
 done:
 	NOTL AX
-	MOVL AX, ret+24(FP)
+	MOVL AX, r+24(FP)
 	RET
 
 // func haveSSE42() bool
@@ -57,6 +57,6 @@ TEXT ·haveSSE42(SB),7,$0
 	CPUID
 	SHRQ $20, CX
 	ANDQ $1, CX
-	MOVB CX, ret+0(FP)
+	MOVB CX, r+0(FP)
 	RET
 

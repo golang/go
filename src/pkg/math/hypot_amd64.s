@@ -5,14 +5,14 @@
 #define PosInf 0x7FF0000000000000
 #define NaN 0x7FF8000000000001
 
-// func Hypot(x, y float64) float64
+// func Hypot(p, q float64) float64
 TEXT ·Hypot(SB),7,$0
 	// test bits for special cases
-	MOVQ    x+0(FP), BX
+	MOVQ    p+0(FP), BX
 	MOVQ    $~(1<<63), AX
-	ANDQ    AX, BX // x = |x|
-	MOVQ    y+8(FP), CX
-	ANDQ    AX, CX // y = |y|
+	ANDQ    AX, BX // p = |p|
+	MOVQ    q+8(FP), CX
+	ANDQ    AX, CX // q = |q|
 	MOVQ    $PosInf, AX
 	CMPQ    AX, BX
 	JLE     isInfOrNaN

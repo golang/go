@@ -3,9 +3,9 @@
 // license that can be found in the LICENSE file.
 
 TEXT ·IndexByte(SB),7,$0
-	MOVQ p+0(FP), SI
-	MOVL len+8(FP), BX
-	MOVB b+16(FP), AL
+	MOVQ s+0(FP), SI
+	MOVL s+8(FP), BX
+	MOVB c+16(FP), AL
 	MOVQ SI, DI
 
 	CMPL BX, $16
@@ -63,7 +63,7 @@ condition:
 	JZ success
 
 failure:
-	MOVL $-1, ret+24(FP)
+	MOVL $-1, r+24(FP)
 	RET
 
 // handle for lengths < 16
@@ -71,7 +71,7 @@ small:
 	MOVL BX, CX
 	REPN; SCASB
 	JZ success
-	MOVL $-1, ret+24(FP)
+	MOVL $-1, r+24(FP)
 	RET
 
 // we've found the chunk containing the byte
@@ -81,28 +81,28 @@ ssesuccess:
 	BSFW DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX
-	MOVL DX, ret+24(FP)
+	MOVL DX, r+24(FP)
 	RET
 
 success:
 	SUBQ SI, DI
 	SUBL $1, DI
-	MOVL DI, ret+24(FP)
+	MOVL DI, r+24(FP)
 	RET
 
 TEXT ·Equal(SB),7,$0
-	MOVL	len+8(FP), BX
-	MOVL	len1+24(FP), CX
+	MOVL	a+8(FP), BX
+	MOVL	b+24(FP), CX
 	MOVL	$0, AX
 	CMPL	BX, CX
 	JNE	eqret
-	MOVQ	p+0(FP), SI
-	MOVQ	q+16(FP), DI
+	MOVQ	a+0(FP), SI
+	MOVQ	b+16(FP), DI
 	CLD
 	REP; CMPSB
 	MOVL	$1, DX
 	CMOVLEQ	DX, AX
 eqret:
-	MOVB	AX, ret+32(FP)
+	MOVB	AX, r+32(FP)
 	RET
 
