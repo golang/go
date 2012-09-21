@@ -351,10 +351,48 @@ elfwriteinterp(vlong stridx)
 	return sh->size;
 }
 
-// Defined in NetBSD's sys/exec_elf.h
-#define ELF_NOTE_TYPE_NETBSD_TAG	1
+int
+elfnote(ElfShdr *sh, uint64 startva, uint64 resoff, int sz)
+{
+	uint64 n;
+
+	n = sizeof(Elf_Note) + sz + resoff % 4;
+
+	sh->type = SHT_NOTE;
+	sh->flags = SHF_ALLOC;
+	sh->addralign = 4;
+	sh->addr = startva + resoff - n;
+	sh->off = resoff - n;
+	sh->size = n;
+
+	return n;
+}
+
+ElfShdr *
+elfwritenotehdr(vlong stridx, uint32 namesz, uint32 descsz, uint32 tag)
+{
+	ElfShdr *sh = nil;
+	int i;
+
+	for(i = 0; i < hdr.shnum; i++)
+		if(shdr[i]->name == stridx)
+			sh = shdr[i];
+	if(sh == nil)
+		return nil;
+
+	// Write Elf_Note header.
+	cseek(sh->off);
+	LPUT(namesz);
+	LPUT(descsz);
+	LPUT(tag);
+
+	return sh;
+}
+
+// NetBSD Signature (as per sys/exec_elf.h)
 #define ELF_NOTE_NETBSD_NAMESZ		7
 #define ELF_NOTE_NETBSD_DESCSZ		4
+#define ELF_NOTE_NETBSD_TAG		1
 #define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
 #define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
 
@@ -363,33 +401,56 @@ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
 {
 	int n;
 
-	n = sizeof(Elf_Note) + ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
-	n += resoff % 4;
-	sh->addr = startva + resoff - n;
-	sh->off = resoff - n;
-	sh->size = n;
-
-	return n;
+	n = ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
+	return elfnote(sh, startva, resoff, n);
 }
 
 int
-elfwritenetbsdsig(vlong stridx) {
-	ElfShdr *sh = nil;
-	int i;
+elfwritenetbsdsig(vlong stridx)
+{
+	ElfShdr *sh;
 
-	for(i = 0; i < hdr.shnum; i++)
-		if(shdr[i]->name == stridx)
-			sh = shdr[i];
+	// Write Elf_Note header.
+	sh = elfwritenotehdr(stridx, ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG);
 	if(sh == nil)
 		return 0;
 
-	// Write Elf_Note header followed by NetBSD string.
-	cseek(sh->off);
-	LPUT(ELF_NOTE_NETBSD_NAMESZ);
-	LPUT(ELF_NOTE_NETBSD_DESCSZ);
-	LPUT(ELF_NOTE_TYPE_NETBSD_TAG);
-	cwrite(ELF_NOTE_NETBSD_NAME, 8);
+	// Followed by NetBSD string and version.
+	cwrite(ELF_NOTE_NETBSD_NAME, ELF_NOTE_NETBSD_NAMESZ + 1);
 	LPUT(ELF_NOTE_NETBSD_VERSION);
+
+	return sh->size;
+}
+
+// OpenBSD Signature
+#define ELF_NOTE_OPENBSD_NAMESZ		8
+#define ELF_NOTE_OPENBSD_DESCSZ		4
+#define ELF_NOTE_OPENBSD_TAG		1
+#define ELF_NOTE_OPENBSD_NAME		"OpenBSD\0"
+#define ELF_NOTE_OPENBSD_VERSION	0
+
+int
+elfopenbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+{
+	int n;
+
+	n = ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ;
+	return elfnote(sh, startva, resoff, n);
+}
+
+int
+elfwriteopenbsdsig(vlong stridx)
+{
+	ElfShdr *sh;
+
+	// Write Elf_Note header.
+	sh = elfwritenotehdr(stridx, ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG);
+	if(sh == nil)
+		return 0;
+
+	// Followed by OpenBSD string and version.
+	cwrite(ELF_NOTE_OPENBSD_NAME, ELF_NOTE_OPENBSD_NAMESZ);
+	LPUT(ELF_NOTE_OPENBSD_VERSION);
 
 	return sh->size;
 }

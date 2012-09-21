@@ -91,6 +91,7 @@ enum {
 	ElfStrGnuVersion,
 	ElfStrGnuVersionR,
 	ElfStrNoteNetbsdIdent,
+	ElfStrNoteOpenbsdIdent,
 	ElfStrNoPtrData,
 	ElfStrNoPtrBss,
 	NElfStr
@@ -534,6 +535,8 @@ doelf(void)
 	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
 	if(HEADTYPE == Hnetbsd)
 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+	if(HEADTYPE == Hopenbsd)
+		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
 	addstring(shstrtab, ".elfdata");
 	addstring(shstrtab, ".rodata");
 	addstring(shstrtab, ".gcdata");
@@ -723,7 +726,7 @@ asmb(void)
 			if(elfverneed)
 				elftextsh += 2;
 		}
-		if(HEADTYPE == Hnetbsd)
+		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
 			elftextsh += 1;
 	}
 
@@ -997,12 +1000,18 @@ asmb(void)
 			phsh(ph, sh);
 		}
 
-		if(HEADTYPE == Hnetbsd) {
-			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
-			sh->type = SHT_NOTE;
-			sh->flags = SHF_ALLOC;
-			sh->addralign = 4;
-			resoff -= elfnetbsdsig(sh, startva, resoff);
+		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
+			sh = nil;
+			switch(HEADTYPE) {
+			case Hnetbsd:
+				sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
+				resoff -= elfnetbsdsig(sh, startva, resoff);
+				break;
+			case Hopenbsd:
+				sh = newElfShdr(elfstr[ElfStrNoteOpenbsdIdent]);
+				resoff -= elfopenbsdsig(sh, startva, resoff);
+				break;
+			}
 
 			ph = newElfPhdr();
 			ph->type = PT_NOTE;
@@ -1202,6 +1211,8 @@ asmb(void)
 		a += elfwriteinterp(elfstr[ElfStrInterp]);
 		if(HEADTYPE == Hnetbsd)
 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+		if(HEADTYPE == Hopenbsd)
+			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
 		if(a > ELFRESERVE)	
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
