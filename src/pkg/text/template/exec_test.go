@@ -387,7 +387,7 @@ var execTests = []execTest{
 	{"slice[WRONG]", "{{index .SI `hello`}}", "", tVal, false},
 	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
 	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
-	{"map[NO]", "{{index .MSI `XXX`}}", "", tVal, true},
+	{"map[NO]", "{{index .MSI `XXX`}}", "0", tVal, true},
 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
 
