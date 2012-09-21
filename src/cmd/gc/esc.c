@@ -143,6 +143,9 @@ escfunc(Node *func)
 
 		n = nod(OADDR, ll->n->closure, N);
 		n->lineno = ll->n->lineno;
+               // n belongs to the outer scope.
+               n->escloopdepth = saveld;
+               n->curfn = savefn;
 		typecheck(&n, Erv);
 		escassign(curfn, n);
 	}

@@ -540,6 +540,19 @@ func foo74() {
 	}
 }
 
+// issue 3975
+func foo74b() {
+	var array [3]func()
+	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+	for i, v := range s {
+		vv := v // ERROR "moved to heap: vv"
+		// actually just escapes its scope
+		array[i] = func() { // ERROR "func literal escapes to heap"
+			println(vv) // ERROR "&vv escapes to heap"
+		}
+	}
+}
+
 func myprint(y *int, x ...interface{}) *int { // ERROR "x does not escape" "leaking param: y"
 	return y
 }
