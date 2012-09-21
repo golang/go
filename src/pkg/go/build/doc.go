@@ -60,7 +60,7 @@
 // A build constraint is a line comment beginning with the directive +build
 // that lists the conditions under which a file should be included in the package.
 // Constraints may appear in any kind of source file (not just Go), but
-// they must be appear near the top of the file, preceded
+// they must appear near the top of the file, preceded
 // only by blank lines and other line comments.
 //
 // A build constraint is evaluated as the OR of space-separated options;
