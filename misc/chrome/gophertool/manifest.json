@@ -1,8 +1,11 @@
 {
   "name": "Hacking Gopher",
   "version": "1.0",
+  "manifest_version": 2,
   "description": "Go Hacking utility",
-  "background_page": "background.html",
+  "background": {
+    "page": "background.html"
+  },
   "browser_action": {
     "default_icon": "gopher.png",
     "popup": "popup.html"
