@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -323,6 +324,122 @@ func TestServeIndexHtml(t *testing.T) {
 		}
 		res.Body.Close()
 	}
+}
+
+type fakeFileInfo struct {
+	dir      bool
+	basename string
+	modtime  time.Time
+	ents     []*fakeFileInfo
+	contents string
+}
+
+func (f *fakeFileInfo) Name() string       { return f.basename }
+func (f *fakeFileInfo) Sys() interface{}   { return nil }
+func (f *fakeFileInfo) ModTime() time.Time { return f.modtime }
+func (f *fakeFileInfo) IsDir() bool        { return f.dir }
+func (f *fakeFileInfo) Size() int64        { return int64(len(f.contents)) }
+func (f *fakeFileInfo) Mode() os.FileMode {
+	if f.dir {
+		return 0755 | os.ModeDir
+	}
+	return 0644
+}
+
+type fakeFile struct {
+	io.ReadSeeker
+	fi   *fakeFileInfo
+	path string // as opened
+}
+
+func (f *fakeFile) Close() error               { return nil }
+func (f *fakeFile) Stat() (os.FileInfo, error) { return f.fi, nil }
+func (f *fakeFile) Readdir(count int) ([]os.FileInfo, error) {
+	if !f.fi.dir {
+		return nil, os.ErrInvalid
+	}
+	var fis []os.FileInfo
+	for _, fi := range f.fi.ents {
+		fis = append(fis, fi)
+	}
+	return fis, nil
+}
+
+type fakeFS map[string]*fakeFileInfo
+
+func (fs fakeFS) Open(name string) (File, error) {
+	name = path.Clean(name)
+	f, ok := fs[name]
+	if !ok {
+		println("fake filesystem didn't find file", name)
+		return nil, os.ErrNotExist
+	}
+	return &fakeFile{ReadSeeker: strings.NewReader(f.contents), fi: f, path: name}, nil
+}
+
+func TestDirectoryIfNotModified(t *testing.T) {
+	const indexContents = "I am a fake index.html file"
+	fileMod := time.Unix(1000000000, 0).UTC()
+	fileModStr := fileMod.Format(TimeFormat)
+	dirMod := time.Unix(123, 0).UTC()
+	indexFile := &fakeFileInfo{
+		basename: "index.html",
+		modtime:  fileMod,
+		contents: indexContents,
+	}
+	fs := fakeFS{
+		"/": &fakeFileInfo{
+			dir:     true,
+			modtime: dirMod,
+			ents:    []*fakeFileInfo{indexFile},
+		},
+		"/index.html": indexFile,
+	}
+
+	ts := httptest.NewServer(FileServer(fs))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != indexContents {
+		t.Fatalf("Got body %q; want %q", b, indexContents)
+	}
+	res.Body.Close()
+
+	lastMod := res.Header.Get("Last-Modified")
+	if lastMod != fileModStr {
+		t.Fatalf("initial Last-Modified = %q; want %q", lastMod, fileModStr)
+	}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req.Header.Set("If-Modified-Since", lastMod)
+
+	res, err = DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 304 {
+		t.Fatalf("Code after If-Modified-Since request = %v; want 304", res.StatusCode)
+	}
+	res.Body.Close()
+
+	// Advance the index.html file's modtime, but not the directory's.
+	indexFile.modtime = indexFile.modtime.Add(1 * time.Hour)
+
+	res, err = DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Fatalf("Code after second If-Modified-Since request = %v; want 200; res is %#v", res.StatusCode, res)
+	}
+	res.Body.Close()
 }
 
 func TestServeContent(t *testing.T) {

@@ -243,9 +243,6 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	// use contents of index.html for directory, if present
 	if d.IsDir() {
-		if checkLastModified(w, r, d.ModTime()) {
-			return
-		}
 		index := name + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -259,11 +256,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
+	// Still a directory? (we didn't find an index.html file)
 	if d.IsDir() {
+		if checkLastModified(w, r, d.ModTime()) {
+			return
+		}
 		dirList(w, f)
 		return
 	}
 
+	// serverContent will check modification time
 	serveContent(w, r, d.Name(), d.ModTime(), d.Size(), f)
 }
 
