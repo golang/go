@@ -1190,11 +1190,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		t.Go = name // publish before recursive calls
 		goIdent[name.Name] = name
 		switch dt.Kind {
-		case "union", "class":
+		case "class", "union":
 			t.Go = c.Opaque(t.Size)
 			if t.C.Empty() {
 				t.C.Set("typeof(unsigned char[%d])", t.Size)
 			}
+			t.Align = 1 // TODO: should probably base this on field alignment.
 			typedef[name.Name] = t
 		case "struct":
 			g, csyntax, align := c.Struct(dt, pos)
