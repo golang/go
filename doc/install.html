@@ -103,10 +103,10 @@ Windows users should read the section about <a href="#windows_env">setting
 environment variables under Windows</a>.
 </p>
 
-<h3 id="freebsd_linux">FreeBSD and Linux</h3>
+<h3 id="freebsd_linux">FreeBSD, Linux, and Mac OS X tarballs</h3>
 
 <p>
-On FreeBSD and Linux, if you are upgrading from an older version of Go you must
+If you are upgrading from an older version of Go you must
 first remove the existing version from <code>/usr/local/go</code>:
 </p>
 
@@ -115,12 +115,12 @@ rm -r /usr/local/go
 </pre>
 
 <p>
-Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux">the archive</a>
+Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+AND+Type-Archive">the archive</a>
 into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>:
 </p>
 
 <pre>
-tar -C /usr/local -xzf go.release.go1.tar.gz
+tar -C /usr/local -xzf go1.0.2.linux-amd64.tar.gz
 </pre>
 
 <p>
@@ -137,10 +137,10 @@ variable. You can do this by adding this line to your <code>/etc/profile</code>
 export PATH=$PATH:/usr/local/go/bin
 </pre>
 
-<h3 id="osx">Mac OS X</h3>
+<h3 id="osx">Mac OS X package installer</h3>
 
 <p>
-Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Darwin">package file</a>
+Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Darwin+AND+Type-Installer">package file</a>
 and follow the prompts to install the Go tools.
 The package installs the Go distribution to <code>/usr/local/go</code>.
 </p>
