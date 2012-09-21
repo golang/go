@@ -72,7 +72,7 @@ function! s:Godoc(...)
   if !len(word)
     let word = expand('<cword>')
   endif
-  let word = substitute(word, '[^a-zA-Z0-9\/]', '', 'g')
+  let word = substitute(word, '[^a-zA-Z0-9\\/._~-]', '', 'g')
   if !len(word)
     return
   endif
