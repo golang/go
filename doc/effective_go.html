@@ -2992,11 +2992,11 @@ server; it blocks while the server runs.
 executes the template on the data in the form value named <code>s</code>.
 </p>
 <p>
-The template package is powerful;
+The template package <code>html/template</code> is powerful;
 this program just touches on its capabilities.
-In essence, it rewrites a piece of text on the fly by substituting elements derived
+In essence, it rewrites a piece of HTML text on the fly by substituting elements derived
 from data items passed to <code>templ.Execute</code>, in this case the
-form value.  
+form value.
 Within the template text (<code>templateStr</code>),
 double-brace-delimited pieces denote template actions.
 The piece from <code>{{html "{{if .}}"}}</code>
@@ -3005,13 +3005,14 @@ is non-empty.
 That is, when the string is empty, this piece of the template is suppressed.
 </p>
 <p>
-The snippet <code>{{html "{{urlquery .}}"}}</code> says to process the data with the function
-<code>urlquery</code>, which sanitizes the query string
-for safe display on the web page.
+The two snippets <code>{{html "{{.}}"}}</code> say to show the data presented to
+the template—the query string—on the web page.
+The HTML template package automatically provides appropriate escaping so the
+text is safe to display.
 </p>
 <p>
 The rest of the template string is just the HTML to show when the page loads.
-If this is too quick an explanation, see the <a href="/pkg/text/template/">documentation</a>
+If this is too quick an explanation, see the <a href="/pkg/html/template/">documentation</a>
 for the template package for a more thorough discussion.
 </p>
 <p>
