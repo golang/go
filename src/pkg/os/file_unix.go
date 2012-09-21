@@ -8,6 +8,7 @@ package os
 
 import (
 	"runtime"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -51,6 +52,16 @@ type dirInfo struct {
 	buf  []byte // buffer for directory I/O
 	nbuf int    // length of buf; return value from Getdirentries
 	bufp int    // location of next record in buf.
+}
+
+func epipecheck(file *File, e error) {
+	if e == syscall.EPIPE {
+		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
+			sigpipe()
+		}
+	} else {
+		atomic.StoreInt32(&file.nepipe, 0)
+	}
 }
 
 // DevNull is the name of the operating system's ``null device.''
