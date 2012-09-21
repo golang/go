@@ -80,33 +80,23 @@ runtime·futexwakeup(uint32 *addr, uint32 cnt)
 	*(int32*)0x1006 = 0x1006;
 }
 
+extern runtime·sched_getaffinity(uintptr pid, uintptr len, uintptr *buf);
 static int32
 getproccount(void)
 {
-	int32 fd, rd, cnt, cpustrlen;
-	byte *cpustr, *pos, *bufpos;
-	byte buf[256];
+	uintptr buf[16], t;
+	int32 r, cnt, i;
 
-	fd = runtime·open((byte*)"/proc/stat", O_RDONLY|O_CLOEXEC, 0);
-	if(fd == -1)
-		return 1;
 	cnt = 0;
-	bufpos = buf;
-	cpustr = (byte*)"\ncpu";
-	cpustrlen = runtime·findnull(cpustr);
-	for(;;) {
-		rd = runtime·read(fd, bufpos, sizeof(buf)-cpustrlen);
-		if(rd == -1)
-			break;
-		bufpos[rd] = 0;
-		for(pos=buf; pos=runtime·strstr(pos, cpustr); cnt++, pos++) {
-		}
-		if(rd < cpustrlen)
-			break;
-		runtime·memmove(buf, bufpos+rd-cpustrlen+1, cpustrlen-1);
-		bufpos = buf+cpustrlen-1;
+	r = runtime·sched_getaffinity(0, sizeof(buf), buf);
+	if(r > 0)
+	for(i = 0; i < r/sizeof(buf[0]); i++) {
+		t = buf[i];
+		t = t - ((t >> 1) & 0x5555555555555555ULL);
+		t = (t & 0x3333333333333333ULL) + ((t >> 2) & 0x3333333333333333ULL);
+		cnt += (int32)((((t + (t >> 4)) & 0xF0F0F0F0F0F0F0FULL) * 0x101010101010101ULL) >> 56);
 	}
-	runtime·close(fd);
+
 	return cnt ? cnt : 1;
 }
 

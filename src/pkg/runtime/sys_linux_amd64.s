@@ -310,3 +310,11 @@ TEXT runtime·osyield(SB),7,$0
 	MOVL	$24, AX
 	SYSCALL
 	RET
+
+TEXT runtime·sched_getaffinity(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVL	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVL	$204, AX			// syscall entry
+	SYSCALL
+	RET
