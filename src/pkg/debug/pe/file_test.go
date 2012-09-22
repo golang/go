@@ -13,6 +13,7 @@ type fileTest struct {
 	file     string
 	hdr      FileHeader
 	sections []*SectionHeader
+	symbols  []*Symbol
 }
 
 var fileTests = []fileTest{
@@ -32,6 +33,24 @@ var fileTests = []fileTest{
 			{".debug_pubnames", 0, 0, 27, 1343, 1570, 0, 1, 0, 1108344832},
 			{".debug_pubtypes", 0, 0, 38, 1370, 1580, 0, 1, 0, 1108344832},
 			{".debug_aranges", 0, 0, 32, 1408, 1590, 0, 2, 0, 1108344832},
+		},
+		[]*Symbol{
+			{".file", 0x0, -2, 0x0, 0x67},
+			{"_main", 0x0, 1, 0x20, 0x2},
+			{".text", 0x0, 1, 0x0, 0x3},
+			{".data", 0x0, 2, 0x0, 0x3},
+			{".bss", 0x0, 3, 0x0, 0x3},
+			{".debug_abbrev", 0x0, 4, 0x0, 0x3},
+			{".debug_info", 0x0, 5, 0x0, 0x3},
+			{".debug_line", 0x0, 6, 0x0, 0x3},
+			{".rdata", 0x0, 7, 0x0, 0x3},
+			{".debug_frame", 0x0, 8, 0x0, 0x3},
+			{".debug_loc", 0x0, 9, 0x0, 0x3},
+			{".debug_pubnames", 0x0, 10, 0x0, 0x3},
+			{".debug_pubtypes", 0x0, 11, 0x0, 0x3},
+			{".debug_aranges", 0x0, 12, 0x0, 0x3},
+			{"___main", 0x0, 0, 0x20, 0x2},
+			{"_puts", 0x0, 0, 0x20, 0x2},
 		},
 	},
 	{
@@ -54,6 +73,7 @@ var fileTests = []fileTest{
 			{Name: ".debug_frame", VirtualSize: 0x34, VirtualAddress: 0xe000, Size: 0x200, Offset: 0x3800, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42300000},
 			{Name: ".debug_loc", VirtualSize: 0x38, VirtualAddress: 0xf000, Size: 0x200, Offset: 0x3a00, PointerToRelocations: 0x0, PointerToLineNumbers: 0x0, NumberOfRelocations: 0x0, NumberOfLineNumbers: 0x0, Characteristics: 0x42100000},
 		},
+		[]*Symbol{},
 	},
 }
 
@@ -86,7 +106,15 @@ func TestOpen(t *testing.T) {
 		if tn != fn {
 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 		}
-
+		for i, have := range f.Symbols {
+			if i >= len(tt.symbols) {
+				break
+			}
+			want := tt.symbols[i]
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("open %s, symbol %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+			}
+		}
 	}
 }
 

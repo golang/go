@@ -27,6 +27,17 @@ type SectionHeader32 struct {
 	Characteristics      uint32
 }
 
+const COFFSymbolSize = 18
+
+type COFFSymbol struct {
+	Name               [8]uint8
+	Value              uint32
+	SectionNumber      int16
+	Type               uint16
+	StorageClass       uint8
+	NumberOfAuxSymbols uint8
+}
+
 const (
 	IMAGE_FILE_MACHINE_UNKNOWN   = 0x0
 	IMAGE_FILE_MACHINE_AM33      = 0x1d3
