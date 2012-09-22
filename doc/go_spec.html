@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 18, 2012",
+	"Subtitle": "Version of September 22, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -5177,7 +5177,7 @@ An implementation may require that all source files for a package inhabit the sa
 An import declaration states that the source file containing the declaration
 depends on functionality of the <i>imported</i> package
 (<a href="#Program_initialization_and_execution">§Program initialization and execution</a>)
-and it enables access to <a href="#Exported_identifiers">exported</a> identifiers
+and enables access to <a href="#Exported_identifiers">exported</a> identifiers
 of that package.
 The import names an identifier (PackageName) to be used for access and an ImportPath
 that specifies the package to be imported.
@@ -5231,7 +5231,7 @@ various types of import declaration.
 Import declaration          Local name of Sin
 
 import   "lib/math"         math.Sin
-import M "lib/math"         M.Sin
+import m "lib/math"         m.Sin
 import . "lib/math"         Sin
 </pre>
 
