@@ -92,6 +92,9 @@ type Type interface {
 	// AssignableTo returns true if a value of the type is assignable to type u.
 	AssignableTo(u Type) bool
 
+	// ConvertibleTo returns true if a value of the type is convertible to type u.
+	ConvertibleTo(u Type) bool
+
 	// Methods applicable only to some types, depending on Kind.
 	// The methods allowed for each kind are:
 	//
@@ -1096,6 +1099,14 @@ func (t *commonType) AssignableTo(u Type) bool {
 	return directlyAssignable(uu, t) || implements(uu, t)
 }
 
+func (t *commonType) ConvertibleTo(u Type) bool {
+	if u == nil {
+		panic("reflect: nil type passed to Type.AssignableTo")
+	}
+	uu := u.(*commonType)
+	return convertOp(uu, t) != nil
+}
+
 // implements returns true if the type V implements the interface type T.
 func implements(T, V *commonType) bool {
 	if T.Kind() != Interface {
@@ -1167,10 +1178,28 @@ func directlyAssignable(T, V *commonType) bool {
 		return false
 	}
 
-	// x's type T and V have identical underlying types.
-	// Since at least one is unnamed, only the composite types
-	// need to be considered.
-	switch T.Kind() {
+	// x's type T and V must  have identical underlying types.
+	return haveIdenticalUnderlyingType(T, V)
+}
+
+func haveIdenticalUnderlyingType(T, V *commonType) bool {
+	if T == V {
+		return true
+	}
+
+	kind := T.Kind()
+	if kind != V.Kind() {
+		return false
+	}
+
+	// Non-composite types of equal kind have same underlying type
+	// (the predefined instance of the type).
+	if Bool <= kind && kind <= Complex128 || kind == String || kind == UnsafePointer {
+		return true
+	}
+
+	// Composite types.
+	switch kind {
 	case Array:
 		return T.Elem() == V.Elem() && T.Len() == V.Len()
 
