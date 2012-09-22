@@ -1536,9 +1536,7 @@ ret:
 		}
 	}
 
-	// TODO(rsc): should not need to check importpkg,
-	// but reflect mentions unsafe.Pointer.
-	if(safemode && !incannedimport && !importpkg && t && t->etype == TUNSAFEPTR)
+	if(safemode && !incannedimport && !importpkg && !compiling_wrappers && t && t->etype == TUNSAFEPTR)
 		yyerror("cannot use unsafe.Pointer");
 
 	evconst(n);

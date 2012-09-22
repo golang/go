@@ -919,6 +919,7 @@ EXTERN	int32	thunk;
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
+EXTERN	int	compiling_wrappers;
 
 /*
  *	y.tab.c

@@ -210,22 +210,26 @@ methods(Type *t)
 				// but we can generate more efficient code
 				// using genembedtramp if all that is necessary
 				// is a pointer adjustment and a JMP.
+				compiling_wrappers = 1;
 				if(isptr[it->etype] && isptr[this->etype]
 				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(it, f, a->isym, 1);
 				else
 					genwrapper(it, f, a->isym, 1);
+				compiling_wrappers = 0;
 			}
 		}
 
 		if(!(a->tsym->flags & SymSiggen)) {
 			a->tsym->flags |= SymSiggen;
 			if(!eqtype(this, t)) {
+				compiling_wrappers = 1;
 				if(isptr[t->etype] && isptr[this->etype]
 				&& f->embedded && !isifacemethod(f->type))
 					genembedtramp(t, f, a->tsym, 0);
 				else
 					genwrapper(t, f, a->tsym, 0);
+				compiling_wrappers = 0;
 			}
 		}
 	}
