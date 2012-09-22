@@ -1199,6 +1199,11 @@ naddr(Node *n, Addr *a, int canemitcode)
 	if(n == N)
 		return;
 
+	if(n->type != T && n->type->etype != TIDEAL) {
+		dowidth(n->type);
+		a->width = n->type->width;
+	}
+
 	switch(n->op) {
 	default:
 		fatal("naddr: bad %O %D", n->op, a);
@@ -1378,6 +1383,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 			fatal("naddr: OADDR %d\n", a->type);
 		}
 	}
+	
+	if(a->width < 0)
+		fatal("naddr: bad width for %N -> %D", n, a);
 }
 
 /*
