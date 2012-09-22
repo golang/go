@@ -474,8 +474,9 @@ regopt(Prog *firstp)
 				addrs.b[z] |= bit.b[z];
 		}
 
-//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
-//			i, v->addr, v->etype, v->width, v->sym, v->offset);
+		if(debug['R'] && debug['v'])
+			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
+				i, v->addr, v->etype, v->width, v->node, v->offset);
 	}
 
 	if(debug['R'] && debug['v'])
@@ -864,6 +865,8 @@ mkvar(Reg *r, Adr *a)
 	et = a->etype;
 	o = a->offset;
 	w = a->width;
+	if(w < 0)
+		fatal("bad width %d for %D", w, a);
 
 	flag = 0;
 	for(i=0; i<nvar; i++) {

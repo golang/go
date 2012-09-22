@@ -416,9 +416,13 @@ regopt(Prog *firstp)
 				addrs.b[z] |= bit.b[z];
 		}
 
-//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
-//			i, v->addr, v->etype, v->width, v->sym, v->offset);
+		if(debug['R'] && debug['v'])
+			print("bit=%2d addr=%d et=%-6E w=%-2d s=%N + %lld\n",
+				i, v->addr, v->etype, v->width, v->node, v->offset);
 	}
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass1", firstr);
 
 	/*
 	 * pass 2
@@ -448,6 +452,9 @@ regopt(Prog *firstp)
 		print("	addr = %Q\n", addrs);
 	}
 
+	if(debug['R'] && debug['v'])
+		dumpit("pass2", firstr);
+
 	/*
 	 * pass 2.5
 	 * find looping structure
@@ -456,6 +463,9 @@ regopt(Prog *firstp)
 		r->active = 0;
 	change = 0;
 	loopit(firstr, nr);
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass2.5", firstr);
 
 	/*
 	 * pass 3
@@ -484,6 +494,9 @@ loop11:
 	if(change)
 		goto loop1;
 
+	if(debug['R'] && debug['v'])
+		dumpit("pass3", firstr);
+
 
 	/*
 	 * pass 4
@@ -499,6 +512,9 @@ loop2:
 		goto loop2;
 
 	addsplits();
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass4", firstr);
 
 	if(debug['R'] > 1) {
 		print("\nprop structure:\n");
@@ -550,6 +566,9 @@ loop2:
 		r->regdiff.b[0] &= ~REGBITS;
 		r->act.b[0] &= ~REGBITS;
 	}
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass4.5", firstr);
 
 	/*
 	 * pass 5
@@ -613,6 +632,9 @@ loop2:
 brk:
 	qsort(region, nregion, sizeof(region[0]), rcmp);
 
+	if(debug['R'] && debug['v'])
+		dumpit("pass5", firstr);
+
 	/*
 	 * pass 6
 	 * determine used registers (paint2)
@@ -641,6 +663,10 @@ brk:
 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
 		rgp++;
 	}
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass6", firstr);
+
 	/*
 	 * pass 7
 	 * peep-hole on basic block
@@ -648,6 +674,9 @@ brk:
 	if(!debug['R'] || debug['P']) {
 		peep();
 	}
+
+	if(debug['R'] && debug['v'])
+		dumpit("pass7", firstr);
 
 	/*
 	 * last pass
@@ -935,6 +964,8 @@ mkvar(Reg *r, Adr *a)
 	et = a->etype;
 	o = a->offset;
 	w = a->width;
+	if(w < 0)
+		fatal("bad width %d for %D", w, a);
 
 	for(i=0; i<nvar; i++) {
 		v = var+i;
@@ -1705,7 +1736,7 @@ fixjmp(Prog *firstp)
 	}
 	if(debug['R'] && debug['v'])
 		print("\n");
-
+	
 	// pass 2: mark all reachable code alive
 	mark(firstp);
 	
