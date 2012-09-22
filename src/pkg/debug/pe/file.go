@@ -19,6 +19,7 @@ import (
 type File struct {
 	FileHeader
 	Sections []*Section
+	Symbols  []*Symbol
 
 	closer io.Closer
 }
@@ -47,6 +48,14 @@ type Section struct {
 	// with other clients.
 	io.ReaderAt
 	sr *io.SectionReader
+}
+
+type Symbol struct {
+	Name          string
+	Value         uint32
+	SectionNumber int16
+	Type          uint16
+	StorageClass  uint8
 }
 
 type ImportDirectory struct {
@@ -138,16 +147,49 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if f.FileHeader.Machine != IMAGE_FILE_MACHINE_UNKNOWN && f.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 && f.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 {
 		return nil, errors.New("Invalid PE File Format.")
 	}
-	// get symbol string table
-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
+
+	// Get COFF string table, which is located at the end of the COFF symbol table.
+	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
 	var l uint32
 	if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
 		return nil, err
 	}
 	ss := make([]byte, l)
-	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols)); err != nil {
+	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
 		return nil, err
 	}
+
+	// Process COFF symbol table.
+	sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
+	aux := uint8(0)
+	for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
+		cs := new(COFFSymbol)
+		if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
+			return nil, err
+		}
+		if aux > 0 {
+			aux--
+			continue
+		}
+		var name string
+		if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
+			si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
+			name, _ = getString(ss, si)
+		} else {
+			name = cstring(cs.Name[:])
+		}
+		aux = cs.NumberOfAuxSymbols
+		s := &Symbol{
+			Name:          name,
+			Value:         cs.Value,
+			SectionNumber: cs.SectionNumber,
+			Type:          cs.Type,
+			StorageClass:  cs.StorageClass,
+		}
+		f.Symbols = append(f.Symbols, s)
+	}
+
+	// Process sections.
 	sr.Seek(base, os.SEEK_SET)
 	binary.Read(sr, binary.LittleEndian, &f.FileHeader)
 	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), os.SEEK_CUR) //Skip OptionalHeader
