@@ -830,15 +830,25 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 		return d, f.ByteOrder, data
 	}
 
-	// Can skip debug data block in PE for now.
-	// The DWARF information is complete.
-
 	if f, err := pe.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
 		if err != nil {
 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
 		}
-		return d, binary.LittleEndian, nil
+		var data []byte
+		for _, s := range f.Symbols {
+			if s.Name == "_"+"__cgodebug_data" {
+				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
+					sect := f.Sections[i]
+					if s.Value < sect.Size {
+						if sdat, err := sect.Data(); err == nil {
+							data = sdat[s.Value:]
+						}
+					}
+				}
+			}
+		}
+		return d, binary.LittleEndian, data
 	}
 
 	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE object", gccTmp())
