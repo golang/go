@@ -1,4 +1,4 @@
-// errchk -0 $G -m -l $D/$F.go
+// errorcheck -0 -m -l
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style

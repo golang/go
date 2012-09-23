@@ -48,7 +48,12 @@ cmpout() {
 }
 
 errorcheck() {
-	errchk $G -e $D/$F.go
+	zero=""
+	if [ "$1" = "-0" ]; then
+		zero="-0"
+		shift
+	fi
+	errchk $zero $G -e $* $D/$F.go
 }
 
 skip() {
