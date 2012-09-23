@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -109,14 +110,16 @@ func main() {
 		<-test.donec
 		_, isSkip := test.err.(skipError)
 		errStr := "pass"
-		if isSkip {
-			errStr = "skip"
-		}
 		if test.err != nil {
 			errStr = test.err.Error()
 			if !isSkip {
 				failed = true
 			}
+		}
+		if isSkip && !skipOkay[path.Join(test.dir, test.gofile)] {
+			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
+			isSkip = false
+			failed = true
 		}
 		resCount[errStr]++
 		if isSkip && !*verbose && !*showSkips {
@@ -251,7 +254,8 @@ func (t *test) run() {
 		action = action[2:]
 	}
 
-	var args []string
+	var args, flags []string
+	wantError := false
 	f := strings.Fields(action)
 	if len(f) > 0 {
 		action = f[0]
@@ -262,8 +266,19 @@ func (t *test) run() {
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
 		fallthrough
-	case "compile", "compiledir", "build", "run", "errorcheck", "runoutput":
+	case "compile", "compiledir", "build", "run", "runoutput":
 		t.action = action
+	case "errorcheck":
+		t.action = action
+		wantError = true
+		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+			if args[0] == "-0" {
+				wantError = false
+			} else {
+				flags = append(flags, args[0])
+			}
+			args = args[1:]
+		}
 	case "skip":
 		t.action = "skip"
 		return
@@ -302,7 +317,21 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "errorcheck":
-		out, _ := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
+		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, long)
+		out, err := runcmd(cmdline...)
+		if wantError {
+			if err == nil {
+				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+		} else {
+			if err != nil {
+				t.err = fmt.Errorf("%s\n%s", err, out)
+				return
+			}
+		}
 		t.err = t.errorCheck(string(out), long, t.gofile)
 		return
 
@@ -400,7 +429,7 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 	// 6g error messages continue onto additional lines with leading tabs.
 	// Split the output at the beginning of each line that doesn't begin with a tab.
 	for _, line := range strings.Split(outStr, "\n") {
-		if strings.HasSuffix(line, "\r") {	// remove '\r', output by compiler on windows
+		if strings.HasSuffix(line, "\r") { // remove '\r', output by compiler on windows
 			line = line[:len(line)-1]
 		}
 		if strings.HasPrefix(line, "\t") {
@@ -516,4 +545,63 @@ func (t *test) wantedErrors() (errs []wantedError) {
 	}
 
 	return
+}
+
+var skipOkay = map[string]bool{
+	"args.go":                 true,
+	"ddd3.go":                 true,
+	"import3.go":              true,
+	"import4.go":              true,
+	"index.go":                true,
+	"linkx.go":                true,
+	"method4.go":              true,
+	"nul1.go":                 true,
+	"rotate.go":               true,
+	"sigchld.go":              true,
+	"sinit.go":                true,
+	"interface/embed1.go":     true,
+	"interface/private.go":    true,
+	"interface/recursive2.go": true,
+	"dwarf/main.go":           true,
+	"dwarf/z1.go":             true,
+	"dwarf/z10.go":            true,
+	"dwarf/z11.go":            true,
+	"dwarf/z12.go":            true,
+	"dwarf/z13.go":            true,
+	"dwarf/z14.go":            true,
+	"dwarf/z15.go":            true,
+	"dwarf/z16.go":            true,
+	"dwarf/z17.go":            true,
+	"dwarf/z18.go":            true,
+	"dwarf/z19.go":            true,
+	"dwarf/z2.go":             true,
+	"dwarf/z20.go":            true,
+	"dwarf/z3.go":             true,
+	"dwarf/z4.go":             true,
+	"dwarf/z5.go":             true,
+	"dwarf/z6.go":             true,
+	"dwarf/z7.go":             true,
+	"dwarf/z8.go":             true,
+	"dwarf/z9.go":             true,
+	"fixedbugs/bug083.go":     true,
+	"fixedbugs/bug133.go":     true,
+	"fixedbugs/bug160.go":     true,
+	"fixedbugs/bug191.go":     true,
+	"fixedbugs/bug248.go":     true,
+	"fixedbugs/bug302.go":     true,
+	"fixedbugs/bug313.go":     true,
+	"fixedbugs/bug322.go":     true,
+	"fixedbugs/bug324.go":     true,
+	"fixedbugs/bug345.go":     true,
+	"fixedbugs/bug367.go":     true,
+	"fixedbugs/bug369.go":     true,
+	"fixedbugs/bug382.go":     true,
+	"fixedbugs/bug385_32.go":  true,
+	"fixedbugs/bug385_64.go":  true,
+	"fixedbugs/bug414.go":     true,
+	"fixedbugs/bug424.go":     true,
+	"fixedbugs/bug429.go":     true,
+	"fixedbugs/bug437.go":     true,
+	"bugs/bug395.go":          true,
+	"bugs/bug434.go":          true,
 }
