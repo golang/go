@@ -1732,6 +1732,12 @@ gins(int as, Node *f, Node *t)
 	case AMOVL:
 		if(f != N && t != N && samaddr(f, t))
 			return nil;
+		break;
+	
+	case ALEAL:
+		if(f != N && isconst(f, CTNIL))
+			fatal("gins LEAQ nil %T", f->type);
+		break;
 	}
 
 	memset(&af, 0, sizeof af);

@@ -509,6 +509,20 @@ agen(Node *n, Node *res)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
+	if(isconst(n, CTNIL) && n->type->width > widthptr) {
+		// Use of a nil interface or nil slice.
+		// Create a temporary we can take the address of and read.
+		// The generated code is just going to panic, so it need not
+		// be terribly efficient. See issue 3670.
+		tempname(&n1, n->type);
+		clearfat(&n1);
+		regalloc(&n2, types[tptr], res);
+		gins(ALEAL, &n1, &n2);
+		gmove(&n2, res);
+		regfree(&n2);
+		return;
+	}
+		
 	// addressable var is easy
 	if(n->addable) {
 		if(n->op == OREGISTER)
