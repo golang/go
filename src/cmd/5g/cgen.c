@@ -562,7 +562,7 @@ agen(Node *n, Node *res)
 		tempname(&n1, n->type);
 		clearfat(&n1);
 		regalloc(&n2, types[tptr], res);
-		gins(ALEAQ, &n1, &n2);
+		gins(AMOVW, &n1, &n2);
 		gmove(&n2, res);
 		regfree(&n2);
 		goto ret;
