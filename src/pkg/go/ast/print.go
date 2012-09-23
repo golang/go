@@ -108,8 +108,10 @@ func (p *printer) Write(data []byte) (n int, err error) {
 		}
 		p.last = b
 	}
-	m, err = p.output.Write(data[n:])
-	n += m
+	if len(data) > n {
+		m, err = p.output.Write(data[n:])
+		n += m
+	}
 	return
 }
 
