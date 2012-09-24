@@ -111,10 +111,8 @@ typecheckinl(Node *fn)
 	lineno = lno;
 }
 
-// Caninl determines whether fn is inlineable. Currently that means:
-// fn is exactly 1 statement, either a return or an assignment, and
-// some temporary constraints marked TODO.  If fn is inlineable, saves
-// fn->nbody in fn->inl and substitutes it with a copy.
+// Caninl determines whether fn is inlineable.
+// If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
 void
 caninl(Node *fn)
 {
