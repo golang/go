@@ -353,8 +353,7 @@ func (t *Tree) action() (n Node) {
 }
 
 // Pipeline:
-//	field or command
-//	pipeline "|" pipeline
+//	declarations? command ('|' command)*
 func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 	var decl []*VariableNode
 	// Are there declarations?
@@ -369,9 +368,6 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
 				t.nextNonSpace()
 				variable := newVariable(v.val)
-				if len(variable.Ident) != 1 {
-					t.errorf("illegal variable in declaration: %s", v.val)
-				}
 				decl = append(decl, variable)
 				t.vars = append(t.vars, v.val)
 				if next.typ == itemChar && next.val == "," {
@@ -400,7 +396,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			}
 			return
 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
-			itemNumber, itemNil, itemRawString, itemString, itemVariable:
+			itemNumber, itemNil, itemRawString, itemString, itemVariable, itemLeftParen:
 			t.backup()
 			pipe.append(t.command())
 		default:
@@ -494,57 +490,29 @@ func (t *Tree) templateControl() Node {
 }
 
 // command:
+//	operand (space operand)*
 // space-separated arguments up to a pipeline character or right delimiter.
 // we consume the pipe character but leave the right delim to terminate the action.
 func (t *Tree) command() *CommandNode {
 	cmd := newCommand()
-Loop:
 	for {
-		switch token := t.nextNonSpace(); token.typ {
-		case itemRightDelim, itemRightParen:
-			t.backup()
-			break Loop
-		case itemPipe:
-			break Loop
-		case itemLeftParen:
-			p := t.pipeline("parenthesized expression")
-			if t.nextNonSpace().typ != itemRightParen {
-				t.errorf("missing right paren in parenthesized expression")
-			}
-			cmd.append(p)
+		t.peekNonSpace() // skip leading spaces.
+		operand := t.operand()
+		if operand != nil {
+			cmd.append(operand)
+		}
+		switch token := t.next(); token.typ {
+		case itemSpace:
+			continue
 		case itemError:
 			t.errorf("%s", token.val)
-		case itemIdentifier:
-			if !t.hasFunction(token.val) {
-				t.errorf("function %q not defined", token.val)
-			}
-			cmd.append(NewIdentifier(token.val))
-		case itemDot:
-			cmd.append(newDot())
-		case itemNil:
-			cmd.append(newNil())
-		case itemVariable:
-			cmd.append(t.useVar(token.val))
-		case itemField:
-			cmd.append(newField(token.val))
-		case itemBool:
-			cmd.append(newBool(token.val == "true"))
-		case itemCharConstant, itemComplex, itemNumber:
-			number, err := newNumber(token.val, token.typ)
-			if err != nil {
-				t.error(err)
-			}
-			cmd.append(number)
-		case itemString, itemRawString:
-			s, err := strconv.Unquote(token.val)
-			if err != nil {
-				t.error(err)
-			}
-			cmd.append(newString(token.val, s))
+		case itemRightDelim, itemRightParen:
+			t.backup()
+		case itemPipe:
 		default:
-			t.unexpected(token, "command")
+			t.errorf("unexpected %s in operand; missing space?", token)
 		}
-		t.terminate()
+		break
 	}
 	if len(cmd.Args) == 0 {
 		t.errorf("empty command")
@@ -552,15 +520,86 @@ Loop:
 	return cmd
 }
 
-// terminate checks that the next token terminates an argument. This guarantees
-// that arguments are space-separated, for example that (2)3 does not parse.
-func (t *Tree) terminate() {
-	token := t.peek()
-	switch token.typ {
-	case itemChar, itemPipe, itemRightDelim, itemRightParen, itemSpace:
-		return
+// operand:
+//	term .Field*
+// An operand is a space-separated component of a command,
+// a term possibly followed by field accesses.
+// A nil return means the next item is not an operand.
+func (t *Tree) operand() Node {
+	node := t.term()
+	if node == nil {
+		return nil
 	}
-	t.unexpected(token, "argument list (missing space?)")
+	if t.peek().typ == itemField {
+		chain := newChain(node)
+		for t.peek().typ == itemField {
+			chain.Add(t.next().val)
+		}
+		// Compatibility with original API: If the term is of type NodeField
+		// or NodeVariable, just put more fields on the original.
+		// Otherwise, keep the Chain node.
+		// TODO: Switch to Chains always when we can.
+		switch node.Type() {
+		case NodeField:
+			node = newField(chain.String())
+		case NodeVariable:
+			node = newVariable(chain.String())
+		default:
+			node = chain
+		}
+	}
+	return node
+}
+
+// term:
+//	literal (number, string, nil, boolean)
+//	function (identifier)
+//	.
+//	.Field
+//	$
+//	'(' pipeline ')'
+// A term is a simple "expression".
+// A nil return means the next item is not a term.
+func (t *Tree) term() Node {
+	switch token := t.nextNonSpace(); token.typ {
+	case itemError:
+		t.errorf("%s", token.val)
+	case itemIdentifier:
+		if !t.hasFunction(token.val) {
+			t.errorf("function %q not defined", token.val)
+		}
+		return NewIdentifier(token.val)
+	case itemDot:
+		return newDot()
+	case itemNil:
+		return newNil()
+	case itemVariable:
+		return t.useVar(token.val)
+	case itemField:
+		return newField(token.val)
+	case itemBool:
+		return newBool(token.val == "true")
+	case itemCharConstant, itemComplex, itemNumber:
+		number, err := newNumber(token.val, token.typ)
+		if err != nil {
+			t.error(err)
+		}
+		return number
+	case itemLeftParen:
+		pipe := t.pipeline("parenthesized pipeline")
+		if token := t.next(); token.typ != itemRightParen {
+			t.errorf("unclosed right paren: unexpected %s", token)
+		}
+		return pipe
+	case itemString, itemRawString:
+		s, err := strconv.Unquote(token.val)
+		if err != nil {
+			t.error(err)
+		}
+		return newString(token.val, s)
+	}
+	t.backup()
+	return nil
 }
 
 // hasFunction reports if a function name exists in the Tree's maps.

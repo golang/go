@@ -340,6 +340,12 @@ var execTests = []execTest{
 	// Parenthesized expressions
 	{"parens in pipeline", "{{printf `%d %d %d` (1) (2 | add 3) (add 4 (add 5 6))}}", "1 5 15", tVal, true},
 
+	// Parenthesized expressions with field accesses
+	{"parens: $ in paren", "{{($).X}}", "x", tVal, true},
+	{"parens: $.GetU in paren", "{{($.GetU).V}}", "v", tVal, true},
+	{"parens: $ in paren in pipe", "{{($ | echo).X}}", "x", tVal, true},
+	{"parens: spaces and args", `{{(makemap "up" "down" "left" "right").left}}`, "right", tVal, true},
+
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -535,6 +541,21 @@ func add(args ...int) int {
 	return sum
 }
 
+func echo(arg interface{}) interface{} {
+	return arg
+}
+
+func makemap(arg ...string) map[string]string {
+	if len(arg)%2 != 0 {
+		panic("bad makemap")
+	}
+	m := make(map[string]string)
+	for i := 0; i < len(arg); i += 2 {
+		m[arg[i]] = arg[i+1]
+	}
+	return m
+}
+
 func stringer(s fmt.Stringer) string {
 	return s.String()
 }
@@ -545,6 +566,8 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"add":      add,
 		"count":    count,
 		"dddArg":   dddArg,
+		"echo":     echo,
+		"makemap":  makemap,
 		"oneArg":   oneArg,
 		"typeOf":   typeOf,
 		"vfunc":    vfunc,

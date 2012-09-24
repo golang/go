@@ -34,8 +34,9 @@ func (t NodeType) Type() NodeType {
 
 const (
 	NodeText       NodeType = iota // Plain text.
-	NodeAction                     // A simple action such as field evaluation.
+	NodeAction                     // A non-control action such as a field evaluation.
 	NodeBool                       // A boolean constant.
+	NodeChain                      // A sequence of field accesses.
 	NodeCommand                    // An element of a pipeline.
 	NodeDot                        // The cursor, dot.
 	nodeElse                       // An else action. Not added to tree.
@@ -168,7 +169,7 @@ func (p *PipeNode) Copy() Node {
 
 // ActionNode holds an action (something bounded by delimiters).
 // Control actions have their own nodes; ActionNode represents simple
-// ones such as field evaluations.
+// ones such as field evaluations and parenthesized pipelines.
 type ActionNode struct {
 	NodeType
 	Line int       // The line number in the input.
@@ -248,11 +249,11 @@ func (i *IdentifierNode) Copy() Node {
 	return NewIdentifier(i.Ident)
 }
 
-// VariableNode holds a list of variable names. The dollar sign is
-// part of the name.
+// VariableNode holds a list of variable names, possibly with chained field
+// accesses. The dollar sign is part of the (first) name.
 type VariableNode struct {
 	NodeType
-	Ident []string // Variable names in lexical order.
+	Ident []string // Variable name and fields in lexical order.
 }
 
 func newVariable(ident string) *VariableNode {
@@ -335,6 +336,46 @@ func (f *FieldNode) String() string {
 
 func (f *FieldNode) Copy() Node {
 	return &FieldNode{NodeType: NodeField, Ident: append([]string{}, f.Ident...)}
+}
+
+// ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
+// The names may be chained ('.x.y').
+// The periods are dropped from each ident.
+type ChainNode struct {
+	NodeType
+	Node  Node
+	Field []string // The identifiers in lexical order.
+}
+
+func newChain(node Node) *ChainNode {
+	return &ChainNode{NodeType: NodeChain, Node: node}
+}
+
+// Add adds the named field (which should start with a period) to the end of the chain.
+func (c *ChainNode) Add(field string) {
+	if len(field) == 0 || field[0] != '.' {
+		panic("no dot in field")
+	}
+	field = field[1:] // Remove leading dot.
+	if field == "" {
+		panic("empty field")
+	}
+	c.Field = append(c.Field, field)
+}
+
+func (c *ChainNode) String() string {
+	s := c.Node.String()
+	if _, ok := c.Node.(*PipeNode); ok {
+		s = "(" + s + ")"
+	}
+	for _, field := range c.Field {
+		s += "." + field
+	}
+	return s
+}
+
+func (c *ChainNode) Copy() Node {
+	return &ChainNode{NodeType: NodeChain, Node: c.Node, Field: append([]string{}, c.Field...)}
 }
 
 // BoolNode holds a boolean constant.

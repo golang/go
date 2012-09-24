@@ -148,8 +148,10 @@ An argument is a simple value, denoted by one of the following.
 	  The result is the value of invoking the function, fun(). The return
 	  types and values behave as in methods. Functions and function
 	  names are described below.
-	- Parentheses may be used for grouping, as in
+	- A parenthesized instance of one the above, for grouping. The result
+	  may be accessed by a field or map key invocation.
 		print (.F1 arg1) (.F2 arg2)
+		(.StructValuedMethod "arg").Field
 
 Arguments may evaluate to any type; if they are pointers the implementation
 automatically indirects to the base type when required.
