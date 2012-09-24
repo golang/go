@@ -315,9 +315,15 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 	switch n := firstWord.(type) {
 	case *parse.FieldNode:
 		return s.evalFieldNode(dot, n, cmd.Args, final)
+	case *parse.ChainNode:
+		return s.evalChainNode(dot, n, cmd.Args, final)
 	case *parse.IdentifierNode:
 		// Must be a function.
 		return s.evalFunction(dot, n.Ident, cmd.Args, final)
+	case *parse.PipeNode:
+		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
+		// TODO: is this right?
+		return s.evalPipeline(dot, n)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, cmd.Args, final)
 	}
@@ -365,6 +371,15 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 
 func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
 	return s.evalFieldChain(dot, dot, field.Ident, args, final)
+}
+
+func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
+	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
+	pipe := s.evalArg(dot, nil, chain.Node)
+	if len(chain.Field) == 0 {
+		s.errorf("internal error: no fields in evalChainNode")
+	}
+	return s.evalFieldChain(dot, pipe, chain.Field, args, final)
 }
 
 func (s *state) evalVariableNode(dot reflect.Value, v *parse.VariableNode, args []parse.Node, final reflect.Value) reflect.Value {
@@ -521,13 +536,13 @@ func canBeNil(typ reflect.Type) bool {
 // validateType guarantees that the value is valid and assignable to the type.
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
 	if !value.IsValid() {
-		if canBeNil(typ) {
+		if typ == nil || canBeNil(typ) {
 			// An untyped nil interface{}. Accept as a proper nil value.
 			return reflect.Zero(typ)
 		}
 		s.errorf("invalid value; expected %s", typ)
 	}
-	if !value.Type().AssignableTo(typ) {
+	if typ != nil && !value.Type().AssignableTo(typ) {
 		if value.Kind() == reflect.Interface && !value.IsNil() {
 			value = value.Elem()
 			if value.Type().AssignableTo(typ) {

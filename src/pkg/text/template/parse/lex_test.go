@@ -61,10 +61,12 @@ var (
 	tEOF      = item{itemEOF, 0, ""}
 	tFor      = item{itemIdentifier, 0, "for"}
 	tLeft     = item{itemLeftDelim, 0, "{{"}
+	tLpar     = item{itemLeftParen, 0, "("}
 	tPipe     = item{itemPipe, 0, "|"}
 	tQuote    = item{itemString, 0, `"abc \n\t\" "`}
 	tRange    = item{itemRange, 0, "range"}
 	tRight    = item{itemRightDelim, 0, "}}"}
+	tRpar     = item{itemRightParen, 0, ")"}
 	tSpace    = item{itemSpace, 0, " "}
 	raw       = "`" + `abc\n\t\" ` + "`"
 	tRawQuote = item{itemRawString, 0, raw}
@@ -90,11 +92,11 @@ var lexTests = []lexTest{
 	}},
 	{"parens", "{{((3))}}", []item{
 		tLeft,
-		{itemLeftParen, 0, "("},
-		{itemLeftParen, 0, "("},
+		tLpar,
+		tLpar,
 		{itemNumber, 0, "3"},
-		{itemRightParen, 0, ")"},
-		{itemRightParen, 0, ")"},
+		tRpar,
+		tRpar,
 		tRight,
 		tEOF,
 	}},
@@ -160,7 +162,7 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
-	{"dots", "{{.x . .2 .x.y}}", []item{
+	{"dots", "{{.x . .2 .x.y.z}}", []item{
 		tLeft,
 		{itemField, 0, ".x"},
 		tSpace,
@@ -168,7 +170,9 @@ var lexTests = []lexTest{
 		tSpace,
 		{itemNumber, 0, ".2"},
 		tSpace,
-		{itemField, 0, ".x.y"},
+		{itemField, 0, ".x"},
+		{itemField, 0, ".y"},
+		{itemField, 0, ".z"},
 		tRight,
 		tEOF,
 	}},
@@ -202,13 +206,14 @@ var lexTests = []lexTest{
 		tSpace,
 		{itemVariable, 0, "$"},
 		tSpace,
-		{itemVariable, 0, "$var.Field"},
+		{itemVariable, 0, "$var"},
+		{itemField, 0, ".Field"},
 		tSpace,
 		{itemField, 0, ".Method"},
 		tRight,
 		tEOF,
 	}},
-	{"variable invocation ", "{{$x 23}}", []item{
+	{"variable invocation", "{{$x 23}}", []item{
 		tLeft,
 		{itemVariable, 0, "$x"},
 		tSpace,
@@ -261,6 +266,15 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"field of parenthesized expression", "{{(.X).Y}}", []item{
+		tLeft,
+		tLpar,
+		{itemField, 0, ".X"},
+		tRpar,
+		{itemField, 0, ".Y"},
+		tRight,
+		tEOF,
+	}},
 	// errors
 	{"badchar", "#{{\x01}}", []item{
 		{itemText, 0, "#"},
@@ -294,14 +308,14 @@ var lexTests = []lexTest{
 	}},
 	{"unclosed paren", "{{(3}}", []item{
 		tLeft,
-		{itemLeftParen, 0, "("},
+		tLpar,
 		{itemNumber, 0, "3"},
 		{itemError, 0, `unclosed left paren`},
 	}},
 	{"extra right paren", "{{3)}}", []item{
 		tLeft,
 		{itemNumber, 0, "3"},
-		{itemRightParen, 0, ")"},
+		tRpar,
 		{itemError, 0, `unexpected right paren U+0029 ')'`},
 	}},
 

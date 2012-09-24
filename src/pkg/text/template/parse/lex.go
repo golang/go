@@ -43,8 +43,8 @@ const (
 	itemComplex                      // complex constant (1+2i); imaginary is just a number
 	itemColonEquals                  // colon-equals (':=') introducing a declaration
 	itemEOF
-	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
-	itemIdentifier // alphanumeric identifier
+	itemField      // alphanumeric identifier starting with '.'
+	itemIdentifier // alphanumeric identifier not starting with '.'
 	itemLeftDelim  // left action delimiter
 	itemLeftParen  // '(' inside action
 	itemNumber     // simple number, including imaginary
@@ -286,7 +286,7 @@ func lexInsideAction(l *lexer) stateFn {
 	case r == '`':
 		return lexRawQuote
 	case r == '$':
-		return lexIdentifier
+		return lexVariable
 	case r == '\'':
 		return lexChar
 	case r == '.':
@@ -294,7 +294,7 @@ func lexInsideAction(l *lexer) stateFn {
 		if l.pos < len(l.input) {
 			r := l.input[l.pos]
 			if r < '0' || '9' < r {
-				return lexIdentifier // itemDot comes from the keyword table.
+				return lexField
 			}
 		}
 		fallthrough // '.' can start a number.
@@ -334,15 +334,13 @@ func lexSpace(l *lexer) stateFn {
 	return lexInsideAction
 }
 
-// lexIdentifier scans an alphanumeric or field.
+// lexIdentifier scans an alphanumeric.
 func lexIdentifier(l *lexer) stateFn {
 Loop:
 	for {
 		switch r := l.next(); {
 		case isAlphaNumeric(r):
 			// absorb.
-		case r == '.' && (l.input[l.start] == '.' || l.input[l.start] == '$'):
-			// field chaining; absorb into one token.
 		default:
 			l.backup()
 			word := l.input[l.start:l.pos]
@@ -354,8 +352,6 @@ Loop:
 				l.emit(key[word])
 			case word[0] == '.':
 				l.emit(itemField)
-			case word[0] == '$':
-				l.emit(itemVariable)
 			case word == "true", word == "false":
 				l.emit(itemBool)
 			default:
@@ -367,17 +363,59 @@ Loop:
 	return lexInsideAction
 }
 
+// lexField scans a field: .Alphanumeric.
+// The . has been scanned.
+func lexField(l *lexer) stateFn {
+	return lexFieldOrVariable(l, itemField)
+}
+
+// lexVariable scans a Variable: $Alphanumeric.
+// The $ has been scanned.
+func lexVariable(l *lexer) stateFn {
+	if l.atTerminator() { // Nothing interesting follows -> "$".
+		l.emit(itemVariable)
+		return lexInsideAction
+	}
+	return lexFieldOrVariable(l, itemVariable)
+}
+
+// lexVariable scans a field or variable: [.$]Alphanumeric.
+// The . or $ has been scanned.
+func lexFieldOrVariable(l *lexer, typ itemType) stateFn {
+	if l.atTerminator() { // Nothing interesting follows -> "." or "$".
+		if typ == itemVariable {
+			l.emit(itemVariable)
+		} else {
+			l.emit(itemDot)
+		}
+		return lexInsideAction
+	}
+	var r rune
+	for {
+		r = l.next()
+		if !isAlphaNumeric(r) {
+			l.backup()
+			break
+		}
+	}
+	if !l.atTerminator() {
+		return l.errorf("bad character %#U", r)
+	}
+	l.emit(typ)
+	return lexInsideAction
+}
+
 // atTerminator reports whether the input is at valid termination character to
-// appear after an identifier. Mostly to catch cases like "$x+2" not being
-// acceptable without a space, in case we decide one day to implement
-// arithmetic.
+// appear after an identifier. Breaks .X.Y into two pieces. Also catches cases
+// like "$x+2" not being acceptable without a space, in case we decide one
+// day to implement arithmetic.
 func (l *lexer) atTerminator() bool {
 	r := l.peek()
 	if isSpace(r) || isEndOfLine(r) {
 		return true
 	}
 	switch r {
-	case eof, ',', '|', ':', ')', '(':
+	case eof, '.', ',', '|', ':', ')', '(':
 		return true
 	}
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
