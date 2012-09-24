@@ -8,14 +8,14 @@
 
 package main
 
-import "unsafe"
-
 var bug = false
 
 var minus1 = -1
 var big int64 = 10 | 1<<32
 
-var g1 []int
+type block [1<<19]byte
+
+var g1 []block
 
 func shouldfail(f func(), desc string) {
 	defer func() { recover() }()
@@ -28,55 +28,47 @@ func shouldfail(f func(), desc string) {
 }
 
 func badlen() {
-	g1 = make([]int, minus1)
+	g1 = make([]block, minus1)
 }
 
 func biglen() {
-	g1 = make([]int, big)
+	g1 = make([]block, big)
 }
 
 func badcap() {
-	g1 = make([]int, 10, minus1)
+	g1 = make([]block, 10, minus1)
 }
 
 func badcap1() {
-	g1 = make([]int, 10, 5)
+	g1 = make([]block, 10, 5)
 }
 
 func bigcap() {
-	g1 = make([]int, 10, big)
+	g1 = make([]block, 10, big)
 }
 
-var g3 map[int]int
+var g3 map[block]block
 func badmapcap() {
-	g3 = make(map[int]int, minus1)
+	g3 = make(map[block]block, minus1)
 }
 
 func bigmapcap() {
-	g3 = make(map[int]int, big)
+	g3 = make(map[block]block, big)
 }
 
-var g4 chan int
+type cblock [1<<16-1]byte
+
+var g4 chan cblock
 func badchancap() {
-	g4 = make(chan int, minus1)
+	g4 = make(chan cblock, minus1)
 }
 
 func bigchancap() {
-	g4 = make(chan int, big)
+	g4 = make(chan cblock, big)
 }
 
-const addrBits = unsafe.Sizeof((*byte)(nil))
-
-var g5 chan [1<<15]byte
 func overflowchan() {
-	if addrBits == 32 {
-		g5 = make(chan [1<<15]byte, 1<<20)
-	} else {
-		// cannot overflow on 64-bit, because
-		// int is 32 bits and max chan value size
-		// in the implementation is 64 kB.
-		panic(1)
-	}
+	g4 = make(chan cblock, 1<<30)
 }
 
 func main() {

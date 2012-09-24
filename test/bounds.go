@@ -247,10 +247,8 @@ func main() {
 	use(s[ui/1e6])
 	use(a1[ui/1e6])
 	use(a1k[ui/1e6])
-	use(a100k[ui/1e6])  // ERROR "index bounds check elided"
 	use(p1[ui/1e6])
 	use(p1k[ui/1e6])
-	use(p100k[ui/1e6])  // ERROR "index bounds check elided"
 
 	use(s[i/1e7])
 	use(a1[i/1e7])
@@ -262,12 +260,7 @@ func main() {
 
 	use(s[ui/1e7])
 	use(a1[ui/1e7])
-	use(a1k[ui/1e7])  // ERROR "index bounds check elided"
-	use(a100k[ui/1e7])  // ERROR "index bounds check elided"
 	use(p1[ui/1e7])
-	use(p1k[ui/1e7])  // ERROR "index bounds check elided"
-	use(p100k[ui/1e7])  // ERROR "index bounds check elided"
-
 }
 
 var sum int 
