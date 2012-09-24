@@ -41,6 +41,7 @@ enum
 {
 	thechar = '8',
 	PtrSize = 4,
+	IntSize = 4,
 	FuncAlign = 16
 };
 
