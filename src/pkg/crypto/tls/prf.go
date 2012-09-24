@@ -106,10 +106,9 @@ var keyExpansionLabel = []byte("key expansion")
 var clientFinishedLabel = []byte("client finished")
 var serverFinishedLabel = []byte("server finished")
 
-// keysFromPreMasterSecret generates the connection keys from the pre master
-// secret, given the lengths of the MAC key, cipher key and IV, as defined in
-// RFC 2246, section 6.3.
-func keysFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
+// masterFromPreMasterSecret generates the master secret from the pre-master
+// secret. See http://tools.ietf.org/html/rfc5246#section-8.1
+func masterFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte) []byte {
 	prf := pRF10
 	if version == versionSSL30 {
 		prf = pRF30
@@ -118,9 +117,21 @@ func keysFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serv
 	var seed [tlsRandomLength * 2]byte
 	copy(seed[0:len(clientRandom)], clientRandom)
 	copy(seed[len(clientRandom):], serverRandom)
-	masterSecret = make([]byte, masterSecretLength)
+	masterSecret := make([]byte, masterSecretLength)
 	prf(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+	return masterSecret
+}
 
+// keysFromMasterSecret generates the connection keys from the master
+// secret, given the lengths of the MAC key, cipher key and IV, as defined in
+// RFC 2246, section 6.3.
+func keysFromMasterSecret(version uint16, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
+	prf := pRF10
+	if version == versionSSL30 {
+		prf = pRF30
+	}
+
+	var seed [tlsRandomLength * 2]byte
 	copy(seed[0:len(clientRandom)], serverRandom)
 	copy(seed[len(serverRandom):], clientRandom)
 

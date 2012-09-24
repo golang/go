@@ -31,6 +31,7 @@ type Conn struct {
 	haveVers          bool       // version has been negotiated
 	config            *Config    // configuration passed to constructor
 	handshakeComplete bool
+	didResume         bool // whether this connection was a session resumption
 	cipherSuite       uint16
 	ocspResponse      []byte // stapled OCSP response
 	peerCertificates  []*x509.Certificate
@@ -830,6 +831,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 	state.HandshakeComplete = c.handshakeComplete
 	if c.handshakeComplete {
 		state.NegotiatedProtocol = c.clientProtocol
+		state.DidResume = c.didResume
 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
 		state.CipherSuite = c.cipherSuite
 		state.PeerCertificates = c.peerCertificates

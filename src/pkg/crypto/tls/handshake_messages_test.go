@@ -22,6 +22,8 @@ var tests = []interface{}{
 	&certificateStatusMsg{},
 	&clientKeyExchangeMsg{},
 	&nextProtoMsg{},
+	&newSessionTicketMsg{},
+	&sessionState{},
 }
 
 type testMessage interface {
@@ -206,4 +208,23 @@ func (*nextProtoMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &nextProtoMsg{}
 	m.proto = randomString(rand.Intn(255), rand)
 	return reflect.ValueOf(m)
+}
+
+func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &newSessionTicketMsg{}
+	m.ticket = randomBytes(rand.Intn(4), rand)
+	return reflect.ValueOf(m)
+}
+
+func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
+	s := &sessionState{}
+	s.vers = uint16(rand.Intn(10000))
+	s.cipherSuite = uint16(rand.Intn(10000))
+	s.masterSecret = randomBytes(rand.Intn(100), rand)
+	numCerts := rand.Intn(20)
+	s.certificates = make([][]byte, numCerts)
+	for i := 0; i < numCerts; i++ {
+		s.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
+	}
+	return reflect.ValueOf(s)
 }
