@@ -46,7 +46,7 @@ package syscall
 //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error)
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (err error)
 //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
-//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int) (err error)
+//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)

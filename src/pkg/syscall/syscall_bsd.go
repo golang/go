@@ -362,10 +362,15 @@ func Socket(domain, typ, proto int) (fd int, err error) {
 	return
 }
 
-//sysnb socketpair(domain int, typ int, proto int, fd *[2]int) (err error)
+//sysnb socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
 
 func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
-	err = socketpair(domain, typ, proto, &fd)
+	var fdx [2]int32
+	err = socketpair(domain, typ, proto, &fdx)
+	if err == nil {
+		fd[0] = int(fdx[0])
+		fd[1] = int(fdx[1])
+	}
 	return
 }
 
