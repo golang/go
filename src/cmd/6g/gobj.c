@@ -312,8 +312,8 @@ datastring(char *s, int len, Addr *a)
 	a->type = D_EXTERN;
 	a->sym = sym;
 	a->node = sym->def;
-	a->offset = widthptr+4;  // skip header
-	a->etype = TINT32;
+	a->offset = widthptr+widthint;  // skip header
+	a->etype = simtype[TINT];
 }
 
 /*
@@ -324,7 +324,7 @@ void
 datagostring(Strlit *sval, Addr *a)
 {
 	Sym *sym;
-	
+
 	sym = stringsym(sval->s, sval->len);
 	a->type = D_EXTERN;
 	a->sym = sym;
@@ -386,10 +386,10 @@ gdatastring(Node *nam, Strlit *sval)
 	p->to.type = D_ADDR;
 //print("%P\n", p);
 
-	nodconst(&nod1, types[TINT32], sval->len);
+	nodconst(&nod1, types[TINT], sval->len);
 	p = gins(ADATA, nam, &nod1);
-	p->from.scale = types[TINT32]->width;
-	p->from.offset += types[tptr]->width;
+	p->from.scale = widthint;
+	p->from.offset += widthptr;
 }
 
 int
@@ -408,7 +408,7 @@ dstringptr(Sym *s, int off, char *str)
 	datastring(str, strlen(str)+1, &p->to);
 	p->to.index = p->to.type;
 	p->to.type = D_ADDR;
-	p->to.etype = TINT32;
+	p->to.etype = simtype[TINT];
 	off += widthptr;
 
 	return off;
@@ -432,7 +432,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 	datagostring(lit, &p->to);
 	p->to.index = p->to.type;
 	p->to.type = D_ADDR;
-	p->to.etype = TINT32;
+	p->to.etype = simtype[TINT];
 	off += widthptr;
 
 	return off;

@@ -615,12 +615,12 @@ typeinit(void)
 	}
 
 	Array_array = rnd(0, widthptr);
-	Array_nel = rnd(Array_array+widthptr, types[TUINT32]->width);
-	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
-	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, widthptr);
+	Array_nel = rnd(Array_array+widthptr, widthint);
+	Array_cap = rnd(Array_nel+widthint, widthint);
+	sizeof_Array = rnd(Array_cap+widthint, widthptr);
 
 	// string is same as slice wo the cap
-	sizeof_String = rnd(Array_nel+types[TUINT32]->width, widthptr);
+	sizeof_String = rnd(Array_nel+widthint, widthptr);
 
 	dowidth(types[TSTRING]);
 	dowidth(idealstring);

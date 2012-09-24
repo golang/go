@@ -945,7 +945,8 @@ Bits
 mkvar(Reg *r, Adr *a)
 {
 	Var *v;
-	int i, t, n, et, z, w, flag;
+	int i, t, n, et, z, flag;
+	int64 w;
 	uint32 regu;
 	int32 o;
 	Bits bit;
@@ -998,7 +999,7 @@ mkvar(Reg *r, Adr *a)
 	o = a->offset;
 	w = a->width;
 	if(w < 0)
-		fatal("bad width %d for %D", w, a);
+		fatal("bad width %lld for %D", w, a);
 
 	flag = 0;
 	for(i=0; i<nvar; i++) {

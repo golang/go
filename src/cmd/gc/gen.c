@@ -763,7 +763,7 @@ cgen_eface(Node *n, Node *res)
  * generate:
  *	res = s[lo, hi];
  * n->left is s
- * n->list is (cap(s)-lo(TUINT32), hi-lo(TUINT32)[, lo*width(TUINTPTR)])
+ * n->list is (cap(s)-lo(TUINT), hi-lo(TUINT)[, lo*width(TUINTPTR)])
  * caller (cgen) guarantees res is an addable ONAME.
  */
 void
@@ -780,14 +780,14 @@ cgen_slice(Node *n, Node *res)
 	// dst.len = hi [ - lo ]
 	dst = *res;
 	dst.xoffset += Array_nel;
-	dst.type = types[TUINT32];
+	dst.type = types[simtype[TUINT]];
 	cgen(len, &dst);
 
 	if(n->op != OSLICESTR) {
 		// dst.cap = cap [ - lo ]
 		dst = *res;
 		dst.xoffset += Array_cap;
-		dst.type = types[TUINT32];
+		dst.type = types[simtype[TUINT]];
 		cgen(cap, &dst);
 	}
 

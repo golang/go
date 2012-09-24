@@ -302,8 +302,8 @@ stringsym(char *s, int len)
 	off = 0;
 	
 	// string header
-	off = dsymptr(sym, off, sym, widthptr+4);
-	off = duint32(sym, off, len);
+	off = dsymptr(sym, off, sym, widthptr+widthint);
+	off = duintxx(sym, off, len, widthint);
 	
 	// string data
 	for(n=0; n<len; n+=m) {
