@@ -77,15 +77,15 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 
 // parseInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
-func parseInt(bytes []byte) (int, error) {
+func parseInt32(bytes []byte) (int32, error) {
 	ret64, err := parseInt64(bytes)
 	if err != nil {
 		return 0, err
 	}
-	if ret64 != int64(int(ret64)) {
+	if ret64 != int64(int32(ret64)) {
 		return 0, StructuralError{"integer too large"}
 	}
-	return int(ret64), nil
+	return int32(ret64), nil
 }
 
 var bigOne = big.NewInt(1)
@@ -670,7 +670,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = err1
 		return
 	case enumeratedType:
-		parsedInt, err1 := parseInt(innerBytes)
+		parsedInt, err1 := parseInt32(innerBytes)
 		if err1 == nil {
 			v.SetInt(int64(parsedInt))
 		}
@@ -692,19 +692,20 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		err = err1
 		return
-	case reflect.Int, reflect.Int32:
-		parsedInt, err1 := parseInt(innerBytes)
-		if err1 == nil {
-			val.SetInt(int64(parsedInt))
+	case reflect.Int, reflect.Int32, reflect.Int64:
+		if val.Type().Size() == 4 {
+			parsedInt, err1 := parseInt32(innerBytes)
+			if err1 == nil {
+				val.SetInt(int64(parsedInt))
+			}
+			err = err1
+		} else {
+			parsedInt, err1 := parseInt64(innerBytes)
+			if err1 == nil {
+				val.SetInt(parsedInt)
+			}
+			err = err1
 		}
-		err = err1
-		return
-	case reflect.Int64:
-		parsedInt, err1 := parseInt64(innerBytes)
-		if err1 == nil {
-			val.SetInt(parsedInt)
-		}
-		err = err1
 		return
 	// TODO(dfc) Add support for the remaining integer types
 	case reflect.Struct:

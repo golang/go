@@ -64,7 +64,7 @@ var int32TestData = []int32Test{
 
 func TestParseInt32(t *testing.T) {
 	for i, test := range int32TestData {
-		ret, err := parseInt(test.in)
+		ret, err := parseInt32(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
