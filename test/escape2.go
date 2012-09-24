@@ -1211,3 +1211,21 @@ func foo137() {
 		}()
 	}()
 }
+
+func foo138() *byte {
+	type T struct {
+		x [1]byte
+	}
+	t := new(T) // ERROR "new.T. escapes to heap"
+	return &t.x[0] // ERROR "&t.x.0. escapes to heap"
+}
+
+func foo139() *byte {
+	type T struct {
+		x struct {
+			y byte
+		}
+	}
+	t := new(T) // ERROR "new.T. escapes to heap"
+	return &t.x.y // ERROR "&t.x.y escapes to heap"
+}

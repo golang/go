@@ -926,9 +926,15 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 		}
 		break;
 
+	case ODOT:
+		escwalk(e, level, dst, src->left);
+		break;
+
 	case OINDEX:
-		if(isfixedarray(src->type))
+		if(isfixedarray(src->left->type)) {
+			escwalk(e, level, dst, src->left);
 			break;
+		}
 		// fall through
 	case OSLICE:
 	case ODOTPTR:

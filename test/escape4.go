@@ -37,3 +37,21 @@ func f2() {} // ERROR "can inline f2"
 // No inline for panic, recover.
 func f3() { panic(1) }
 func f4() { recover() }
+
+func f5() *byte {
+	type T struct {
+		x [1]byte
+	}
+	t := new(T) // ERROR "new.T. escapes to heap"
+	return &t.x[0] // ERROR "&t.x.0. escapes to heap"
+}
+
+func f6() *byte {
+	type T struct {
+		x struct {
+			y byte
+		}
+	}
+	t := new(T) // ERROR "new.T. escapes to heap"
+	return &t.x.y // ERROR "&t.x.y escapes to heap"
+}
