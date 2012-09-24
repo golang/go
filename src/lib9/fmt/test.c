@@ -1,3 +1,5 @@
+// +build ignore
+
 /*
  * The authors of this software are Rob Pike and Ken Thompson,
  * with contributions from Mike Burrows and Sean Dorward.
