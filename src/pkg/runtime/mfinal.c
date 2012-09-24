@@ -12,7 +12,7 @@ typedef struct Fin Fin;
 struct Fin
 {
 	void (*fn)(void*);
-	int32 nret;
+	uintptr nret;
 };
 
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
@@ -42,7 +42,7 @@ static struct {
 } fintab[TABSZ];
 
 static void
-addfintab(Fintab *t, void *k, void (*fn)(void*), int32 nret)
+addfintab(Fintab *t, void *k, void (*fn)(void*), uintptr nret)
 {
 	int32 i, j;
 
@@ -137,7 +137,7 @@ resizefintab(Fintab *tab)
 }
 
 bool
-runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
 {
 	Fintab *tab;
 	byte *base;
@@ -175,7 +175,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
 // get finalizer; if del, delete finalizer.
 // caller is responsible for updating RefHasFinalizer (special) bit.
 bool
-runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret)
+runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret)
 {
 	Fintab *tab;
 	bool res;

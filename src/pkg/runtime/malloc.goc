@@ -20,7 +20,7 @@ MHeap runtime·mheap;
 
 extern MStats mstats;	// defined in extern.go
 
-extern volatile int32 runtime·MemProfileRate;
+extern volatile intgo runtime·MemProfileRate;
 
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
@@ -28,7 +28,8 @@ extern volatile int32 runtime·MemProfileRate;
 void*
 runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 {
-	int32 sizeclass, rate;
+	int32 sizeclass;
+	intgo rate;
 	MCache *c;
 	uintptr npages;
 	MSpan *s;
@@ -226,7 +227,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 MCache*
 runtime·allocmcache(void)
 {
-	int32 rate;
+	intgo rate;
 	MCache *c;
 
 	runtime·lock(&runtime·mheap);
@@ -507,7 +508,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
 	byte *base;
 	uintptr size;
 	FuncType *ft;
-	int32 i, nret;
+	int32 i;
+	uintptr nret;
 	Type *t;
 
 	if(obj.type == nil) {

@@ -33,10 +33,10 @@ runtime·findnullw(uint16 *s)
 	return l;
 }
 
-uint32 runtime·maxstring = 256;
+uint32 runtime·maxstring = 256; // a hint for print
 
 static String
-gostringsize(int32 l)
+gostringsize(intgo l)
 {
 	String s;
 	uint32 ms;
@@ -58,7 +58,7 @@ gostringsize(int32 l)
 String
 runtime·gostring(byte *str)
 {
-	int32 l;
+	intgo l;
 	String s;
 
 	l = runtime·findnull(str);
@@ -68,7 +68,7 @@ runtime·gostring(byte *str)
 }
 
 String
-runtime·gostringn(byte *str, int32 l)
+runtime·gostringn(byte *str, intgo l)
 {
 	String s;
 
@@ -78,7 +78,7 @@ runtime·gostringn(byte *str, int32 l)
 }
 
 Slice
-runtime·gobytes(byte *p, int32 n)
+runtime·gobytes(byte *p, intgo n)
 {
 	Slice sl;
 
@@ -102,7 +102,7 @@ runtime·gostringnocopy(byte *str)
 String
 runtime·gostringw(uint16 *str)
 {
-	int32 n1, n2, i;
+	intgo n1, n2, i;
 	byte buf[8];
 	String s;
 
@@ -139,9 +139,9 @@ runtime·catstring(String s1, String s2)
 }
 
 static String
-concatstring(int32 n, String *s)
+concatstring(intgo n, String *s)
 {
-	int32 i, l, count;
+	intgo i, l, count;
 	String out;
 
 	l = 0;
@@ -172,14 +172,14 @@ concatstring(int32 n, String *s)
 #pragma textflag 7
 // s1 is the first of n strings.
 // the output string follows.
-func concatstring(n int32, s1 String) {
+func concatstring(n int, s1 String) {
 	(&s1)[n] = concatstring(n, &s1);
 }
 
 static int32
 cmpstring(String s1, String s2)
 {
-	uint32 i, l;
+	uintgo i, l;
 	byte c1, c2;
 
 	l = s1.len;
@@ -200,12 +200,12 @@ cmpstring(String s1, String s2)
 	return 0;
 }
 
-func cmpstring(s1 String, s2 String) (v int32) {
+func cmpstring(s1 String, s2 String) (v int) {
 	v = cmpstring(s1, s2);
 }
 
 func eqstring(s1 String, s2 String) (v bool) {
-	uint32 i, l;
+	uintgo i, l;
 
 	if(s1.len != s2.len) {
 		v = false;
@@ -227,7 +227,7 @@ func eqstring(s1 String, s2 String) (v bool) {
 int32
 runtime·strcmp(byte *s1, byte *s2)
 {
-	uint32 i;
+	uintptr i;
 	byte c1, c2;
 
 	for(i=0;; i++) {
@@ -283,7 +283,7 @@ func stringtoslicebyte(s String) (b Slice) {
 }
 
 func slicerunetostring(b Slice) (s String) {
-	int32 siz1, siz2, i;
+	intgo siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
 
@@ -306,7 +306,7 @@ func slicerunetostring(b Slice) (s String) {
 }
 
 func stringtoslicerune(s String) (b Slice) {
-	int32 n;
+	intgo n;
 	int32 dum, *r;
 	uint8 *p, *ep;
 
@@ -334,7 +334,7 @@ enum
 	Runeself	= 0x80,
 };
 
-func stringiter(s String, k int32) (retk int32) {
+func stringiter(s String, k int) (retk int) {
 	int32 l;
 
 	if(k >= s.len) {
@@ -355,7 +355,7 @@ func stringiter(s String, k int32) (retk int32) {
 out:
 }
 
-func stringiter2(s String, k int32) (retk int32, retv int32) {
+func stringiter2(s String, k int) (retk int, retv int32) {
 	if(k >= s.len) {
 		// retk=0 is end of iteration
 		retk = 0;

@@ -5,10 +5,10 @@
 package runtime
 #include "runtime.h"
 
-func GOMAXPROCS(n int32) (ret int32) {
+func GOMAXPROCS(n int) (ret int) {
 	ret = runtime·gomaxprocsfunc(n);
 }
 
-func NumCPU() (ret int32) {
+func NumCPU() (ret int) {
 	ret = runtime·ncpu;
 }

@@ -930,9 +930,9 @@ func (v Value) Len() int {
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
 		return int(tt.len)
 	case Chan:
-		return int(chanlen(v.iword()))
+		return chanlen(v.iword())
 	case Map:
-		return int(maplen(v.iword()))
+		return maplen(v.iword())
 	case Slice:
 		// Slice is bigger than a word; assume flagIndir.
 		return (*SliceHeader)(v.val).Len
@@ -989,7 +989,7 @@ func (v Value) MapKeys() []Value {
 	}
 
 	m := v.iword()
-	mlen := int32(0)
+	mlen := int(0)
 	if m != nil {
 		mlen = maplen(m)
 	}
@@ -1821,7 +1821,7 @@ func MakeChan(typ Type, buffer int) Value {
 	if typ.ChanDir() != BothDir {
 		panic("reflect.MakeChan: unidirectional channel type")
 	}
-	ch := makechan(typ.runtimeType(), uint32(buffer))
+	ch := makechan(typ.runtimeType(), uint64(buffer))
 	return Value{typ.common(), unsafe.Pointer(ch), flag(Chan) << flagKindShift}
 }
 
@@ -2235,20 +2235,20 @@ func cvtI2I(v Value, typ Type) Value {
 }
 
 // implemented in ../pkg/runtime
-func chancap(ch iword) int32
+func chancap(ch iword) int
 func chanclose(ch iword)
-func chanlen(ch iword) int32
+func chanlen(ch iword) int
 func chanrecv(t *runtimeType, ch iword, nb bool) (val iword, selected, received bool)
 func chansend(t *runtimeType, ch iword, val iword, nb bool) bool
 
-func makechan(typ *runtimeType, size uint32) (ch iword)
+func makechan(typ *runtimeType, size uint64) (ch iword)
 func makemap(t *runtimeType) (m iword)
 func mapaccess(t *runtimeType, m iword, key iword) (val iword, ok bool)
 func mapassign(t *runtimeType, m iword, key, val iword, ok bool)
 func mapiterinit(t *runtimeType, m iword) *byte
 func mapiterkey(it *byte) (key iword, ok bool)
 func mapiternext(it *byte)
-func maplen(m iword) int32
+func maplen(m iword) int
 
 func call(fn, arg unsafe.Pointer, n uint32)
 func ifaceE2I(t *runtimeType, src interface{}, dst unsafe.Pointer)

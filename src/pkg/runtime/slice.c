@@ -8,20 +8,21 @@
 #include "typekind.h"
 #include "malloc.h"
 
-static	int32	debug	= 0;
+static	bool	debug	= 0;
 
-static	void	makeslice1(SliceType*, int32, int32, Slice*);
-static	void	growslice1(SliceType*, Slice, int32, Slice *);
-	void	runtime·copy(Slice to, Slice fm, uintptr width, int32 ret);
+static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
+static	void	growslice1(SliceType*, Slice, intgo, Slice *);
+	void	runtime·copy(Slice to, Slice fm, uintptr width, intgo ret);
 
 // see also unsafe·NewArray
 // makeslice(typ *Type, len, cap int64) (ary []any);
 void
 runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 {
-	if(len < 0 || (int32)len != len)
+	if(len < 0 || (intgo)len != len)
 		runtime·panicstring("makeslice: len out of range");
-	if(cap < len || (int32)cap != cap || t->elem->size > 0 && cap > ((uintptr)-1) / t->elem->size)
+	
+	if(cap < len || (intgo)cap != cap || t->elem->size > 0 && cap > MaxMem / t->elem->size)
 		runtime·panicstring("makeslice: cap out of range");
 
 	makeslice1(t, len, cap, &ret);
@@ -39,7 +40,7 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 static uintptr zerobase;
 
 static void
-makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
 {
 	uintptr size;
 
@@ -60,7 +61,7 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 void
 runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 {
-	int32 m;
+	intgo m;
 	uintptr w;
 
 	m = x.len+y.len;
@@ -84,7 +85,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 void
 runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 {
-	int32 m;
+	intgo m;
 
 	m = x.len+y.len;
 
@@ -113,7 +114,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 
 	cap = old.cap + n;
 
-	if((int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
+	if((intgo)cap != cap || cap < old.cap || cap > MaxMem / t->elem->size)
 		runtime·panicstring("growslice: cap out of range");
 
 	growslice1(t, old, cap, &ret);
@@ -129,12 +130,17 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 }
 
 static void
-growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
+growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 {
-	int32 m;
+	intgo m;
 
 	m = x.cap;
-	if(m == 0)
+	
+	// Using newcap directly for m+m < newcap handles
+	// both the case where m == 0 and also the case where
+	// m+m/4 wraps around, in which case the loop
+	// below might never terminate.
+	if(m+m < newcap)
 		m = newcap;
 	else {
 		do {
@@ -148,9 +154,9 @@ growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
 	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
 }
 
-// copy(to any, fr any, wid uint32) int
+// copy(to any, fr any, wid uintptr) int
 void
-runtime·copy(Slice to, Slice fm, uintptr width, int32 ret)
+runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 {
 	if(fm.len == 0 || to.len == 0 || width == 0) {
 		ret = 0;
@@ -184,7 +190,7 @@ out:
 }
 
 void
-runtime·slicestringcopy(Slice to, String fm, int32 ret)
+runtime·slicestringcopy(Slice to, String fm, intgo ret)
 {
 	if(fm.len == 0 || to.len == 0) {
 		ret = 0;

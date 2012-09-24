@@ -343,7 +343,7 @@ runtime·printstring(String v)
 	extern uint32 runtime·maxstring;
 
 	if(v.len > runtime·maxstring) {
-		gwrite("[invalid string]", 16);
+		gwrite("[string too long]", 17);
 		return;
 	}
 	if(v.len > 0)

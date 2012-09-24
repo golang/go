@@ -121,7 +121,7 @@ static void LostProfileData(void) {
 // SetCPUProfileRate sets the CPU profiling rate.
 // The user documentation is in debug.go.
 void
-runtime·SetCPUProfileRate(int32 hz)
+runtime·SetCPUProfileRate(intgo hz)
 {
 	uintptr *p;
 	uintptr n;

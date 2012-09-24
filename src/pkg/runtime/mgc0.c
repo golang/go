@@ -82,7 +82,7 @@ struct Finalizer
 {
 	void (*fn)(void*);
 	void *arg;
-	int32 nret;
+	uintptr nret;
 };
 
 typedef struct FinBlock FinBlock;
@@ -633,7 +633,7 @@ static bool
 handlespecial(byte *p, uintptr size)
 {
 	void (*fn)(void*);
-	int32 nret;
+	uintptr nret;
 	FinBlock *block;
 	Finalizer *f;
 

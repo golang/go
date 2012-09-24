@@ -3,7 +3,9 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch_GOARCH.h"
 #include "type.h"
+#include "malloc.h"
 
 #define	MAXALIGN	7
 #define	NOSELGEN	1
@@ -31,14 +33,14 @@ struct	WaitQ
 
 struct	Hchan
 {
-	uint32	qcount;			// total data in the q
-	uint32	dataqsiz;		// size of the circular q
+	uintgo	qcount;			// total data in the q
+	uintgo	dataqsiz;		// size of the circular q
 	uint16	elemsize;
 	bool	closed;
 	uint8	elemalign;
 	Alg*	elemalg;		// interface for element type
-	uint32	sendx;			// send index
-	uint32	recvx;			// receive index
+	uintgo	sendx;			// send index
+	uintgo	recvx;			// receive index
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
 	Lock;
@@ -84,12 +86,16 @@ Hchan*
 runtime·makechan_c(ChanType *t, int64 hint)
 {
 	Hchan *c;
-	int32 n;
+	uintptr n;
 	Type *elem;
 
 	elem = t->elem;
 
-	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
+	// compiler checks this but be safe.
+	if(elem->size >= (1<<16))
+		runtime·throw("makechan: invalid channel element type");
+
+	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
 		runtime·panicstring("makechan: size out of range");
 
 	// calculate rounded size of Hchan
@@ -105,16 +111,16 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	c->dataqsiz = hint;
 
 	if(debug)
-		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%d\n",
-			c, (int64)elem->size, elem->alg, elem->align, c->dataqsiz);
+		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%D\n",
+			c, (int64)elem->size, elem->alg, elem->align, (int64)c->dataqsiz);
 
 	return c;
 }
 
 // For reflect
-//	func makechan(typ *ChanType, size uint32) (chan)
+//	func makechan(typ *ChanType, size uint64) (chan)
 void
-reflect·makechan(ChanType *t, uint32 size, Hchan *c)
+reflect·makechan(ChanType *t, uint64 size, Hchan *c)
 {
 	c = runtime·makechan_c(t, size);
 	FLUSH(&c);
@@ -1038,7 +1044,7 @@ enum SelectDir {
 
 // func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
 void
-reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
+reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
 {
 	int32 i;
 	Select *sel;
@@ -1091,7 +1097,7 @@ reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
 		}
 	}
 
-	chosen = (int32)(uintptr)selectgo(&sel);
+	chosen = (intgo)(uintptr)selectgo(&sel);
 	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
 		word = (uintptr)recvptr;
 
@@ -1153,9 +1159,9 @@ reflect·chanclose(Hchan *c)
 }
 
 // For reflect
-//	func chanlen(c chan) (len int32)
+//	func chanlen(c chan) (len int)
 void
-reflect·chanlen(Hchan *c, int32 len)
+reflect·chanlen(Hchan *c, intgo len)
 {
 	if(c == nil)
 		len = 0;
@@ -1165,9 +1171,9 @@ reflect·chanlen(Hchan *c, int32 len)
 }
 
 // For reflect
-//	func chancap(c chan) (cap int32)
+//	func chancap(c chan) int
 void
-reflect·chancap(Hchan *c, int32 cap)
+reflect·chancap(Hchan *c, intgo cap)
 {
 	if(c == nil)
 		cap = 0;
