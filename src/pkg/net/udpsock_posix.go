@@ -87,6 +87,26 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, uaddr.toAddr(), err
 }
 
+// ReadMsgUDP reads a packet from c, copying the payload into b and
+// the associdated out-of-band data into oob.  It returns the number
+// of bytes copied into b, the number of bytes copied into oob, the
+// flags that were set on the packet and the source address of the
+// packet.
+func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+	if !c.ok() {
+		return 0, 0, 0, nil, syscall.EINVAL
+	}
+	var sa syscall.Sockaddr
+	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
+	switch sa := sa.(type) {
+	case *syscall.SockaddrInet4:
+		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+	case *syscall.SockaddrInet6:
+		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+	}
+	return
+}
+
 // WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
 //
 // WriteToUDP can be made to time out and return
@@ -117,6 +137,23 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
 	}
 	return c.WriteToUDP(b, a)
+}
+
+// WriteMsgUDP writes a packet to addr via c, copying the payload from
+// b and the associated out-of-band data from oob.  It returns the
+// number of payload and out-of-band bytes written.
+func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+	if !c.ok() {
+		return 0, 0, syscall.EINVAL
+	}
+	if c.fd.isConnected {
+		return 0, 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
+	}
+	sa, err := addr.sockaddr(c.fd.family)
+	if err != nil {
+		return 0, 0, &OpError{"write", c.fd.net, addr, err}
+	}
+	return c.fd.WriteMsg(b, oob, sa)
 }
 
 // DialUDP connects to the remote address raddr on the network net,
