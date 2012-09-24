@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	if *importSyscall {
-		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
+		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int32) { *dst = syscall.Errno(x) }\n")
 	}
 
 	typedefNames := make([]string, 0, len(typedef))
@@ -473,7 +473,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
+	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
@@ -664,7 +664,7 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
-	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
+	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
 	fmt.Fprintf(fm, "#include \"_cgo_export.h\"\n")
 
 	clean := func(r rune) rune {
@@ -775,8 +775,8 @@ func c(repr string, args ...interface{}) *TypeRepr {
 var goTypes = map[string]*Type{
 	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
 	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
-	"int":        {Size: 4, Align: 4, C: c("GoInt")},
-	"uint":       {Size: 4, Align: 4, C: c("GoUint")},
+	"int":        {Size: 0, Align: 0, C: c("GoInt")},
+	"uint":       {Size: 0, Align: 0, C: c("GoUint")},
 	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
 	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
 	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
@@ -837,12 +837,21 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoUintptr")}
 		}
 		if t.Name == "string" {
-			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
+			// The string data is 1 pointer + 1 int, but this always
+			// rounds to 2 pointers due to alignment.
+			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoString")}
 		}
 		if t.Name == "error" {
 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 		}
 		if r, ok := goTypes[t.Name]; ok {
+			if r.Size == 0 { // int or uint
+				rr := new(Type)
+				*rr = *r
+				rr.Size = p.IntSize
+				rr.Align = p.IntSize
+				r = rr
+			}
 			if r.Align > p.PtrSize {
 				r.Align = p.PtrSize
 			}
@@ -964,9 +973,11 @@ Slice GoBytes(char *p, int n) {
 }
 `
 
+func (p *Package) gccExportHeaderProlog() string {
+	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
+}
+
 const gccExportHeaderProlog = `
-typedef int GoInt;
-typedef unsigned int GoUint;
 typedef signed char GoInt8;
 typedef unsigned char GoUint8;
 typedef short GoInt16;
@@ -975,6 +986,8 @@ typedef int GoInt32;
 typedef unsigned int GoUint32;
 typedef long long GoInt64;
 typedef unsigned long long GoUint64;
+typedef GoIntGOINTBITS GoInt;
+typedef GoUintGOINTBITS GoUint;
 typedef __SIZE_TYPE__ GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;

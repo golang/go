@@ -31,6 +31,7 @@ type Package struct {
 	PackageName string // name of package
 	PackagePath string
 	PtrSize     int64
+	IntSize     int64
 	GccOptions  []string
 	CgoFlags    map[string]string // #cgo flags (CFLAGS, LDFLAGS)
 	Written     map[string]bool
@@ -126,6 +127,12 @@ func usage() {
 var ptrSizeMap = map[string]int64{
 	"386":   4,
 	"amd64": 8,
+	"arm":   4,
+}
+
+var intSizeMap = map[string]int64{
+	"386":   4,
+	"amd64": 4,
 	"arm":   4,
 }
 
@@ -289,7 +296,11 @@ func newPackage(args []string) *Package {
 	}
 	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
-		fatalf("unknown $GOARCH %q", goarch)
+		fatalf("unknown ptrSize for $GOARCH %q", goarch)
+	}
+	intSize := intSizeMap[goarch]
+	if intSize == 0 {
+		fatalf("unknown intSize for $GOARCH %q", goarch)
 	}
 
 	// Reset locale variables so gcc emits English errors [sic].
@@ -298,6 +309,7 @@ func newPackage(args []string) *Package {
 
 	p := &Package{
 		PtrSize:    ptrSize,
+		IntSize:    intSize,
 		GccOptions: gccOptions,
 		CgoFlags:   make(map[string]string),
 		Written:    make(map[string]bool),

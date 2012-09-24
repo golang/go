@@ -601,7 +601,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 
 	// Record types and typedef information.
 	var conv typeConv
-	conv.Init(p.PtrSize)
+	conv.Init(p.PtrSize, p.IntSize)
 	for i, n := range names {
 		if types[i] == nil {
 			continue
@@ -928,14 +928,16 @@ type typeConv struct {
 	string                                 ast.Expr
 
 	ptrSize int64
+	intSize int64
 }
 
 var tagGen int
 var typedef = make(map[string]*Type)
 var goIdent = make(map[string]*ast.Ident)
 
-func (c *typeConv) Init(ptrSize int64) {
+func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.ptrSize = ptrSize
+	c.intSize = intSize
 	c.m = make(map[dwarf.Type]*Type)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
