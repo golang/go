@@ -367,8 +367,6 @@ int	BtoF(int32);
 #define	D_HI	D_NONE
 #define	D_LO	D_NONE
 
-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
-
 /*
  * bound
  */
