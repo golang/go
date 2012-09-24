@@ -1091,31 +1091,43 @@ bgen(Node *n, int true, int likely, Prog *to)
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
-			tempname(&n1, nl->type);
-			tempname(&tmp, nr->type);
-			cgen(nl, &n1);
-			cgen(nr, &tmp);
+			if(!nl->addable) {
+				tempname(&n1, nl->type);
+				cgen(nl, &n1);
+				nl = &n1;
+			}
+			if(!nr->addable) {
+				tempname(&tmp, nr->type);
+				cgen(nr, &tmp);
+				nr = &tmp;
+			}
 			regalloc(&n2, nr->type, N);
-			cgen(&tmp, &n2);
+			cgen(nr, &n2);
 			goto cmp;
 		}
 
-		tempname(&n1, nl->type);
-		cgen(nl, &n1);
+		if(!nl->addable) {
+			tempname(&n1, nl->type);
+			cgen(nl, &n1);
+			nl = &n1;
+		}
 
 		if(smallintconst(nr)) {
-			gins(optoas(OCMP, nr->type), &n1, nr);
+			gins(optoas(OCMP, nr->type), nl, nr);
 			patch(gbranch(a, nr->type, likely), to);
 			break;
 		}
 
-		tempname(&tmp, nr->type);
-		cgen(nr, &tmp);
+		if(!nr->addable) {
+			tempname(&tmp, nr->type);
+			cgen(nr, &tmp);
+			nr = &tmp;
+		}
 		regalloc(&n2, nr->type, N);
-		gmove(&tmp, &n2);
+		gmove(nr, &n2);
 
 cmp:
-		gins(optoas(OCMP, nr->type), &n1, &n2);
+		gins(optoas(OCMP, nr->type), nl, &n2);
 		patch(gbranch(a, nr->type, likely), to);
 		regfree(&n2);
 		break;
