@@ -1101,7 +1101,7 @@ func (t *commonType) AssignableTo(u Type) bool {
 
 func (t *commonType) ConvertibleTo(u Type) bool {
 	if u == nil {
-		panic("reflect: nil type passed to Type.AssignableTo")
+		panic("reflect: nil type passed to Type.ConvertibleTo")
 	}
 	uu := u.(*commonType)
 	return convertOp(uu, t) != nil
