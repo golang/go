@@ -309,7 +309,7 @@ cgen(Node *n, Node *res)
 
 	case OLEN:
 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
-			// map and chan have len in the first 32-bit word.
+			// map and chan have len in the first int-sized word.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
@@ -320,7 +320,7 @@ cgen(Node *n, Node *res)
 
 			n2 = n1;
 			n2.op = OINDREG;
-			n2.type = types[TINT32];
+			n2.type = types[simtype[TINT]];
 			gmove(&n2, &n1);
 
 			patch(p1, pc);
@@ -333,7 +333,7 @@ cgen(Node *n, Node *res)
 			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
 			igen(nl, &n1, res);
-			n1.type = types[TUINT32];
+			n1.type = types[simtype[TUINT]];
 			n1.xoffset += Array_nel;
 			gmove(&n1, res);
 			regfree(&n1);
@@ -344,7 +344,7 @@ cgen(Node *n, Node *res)
 
 	case OCAP:
 		if(istype(nl->type, TCHAN)) {
-			// chan has cap in the second 32-bit word.
+			// chan has cap in the second int-sized word.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
@@ -355,8 +355,8 @@ cgen(Node *n, Node *res)
 
 			n2 = n1;
 			n2.op = OINDREG;
-			n2.xoffset = 4;
-			n2.type = types[TINT32];
+			n2.xoffset = widthint;
+			n2.type = types[simtype[TINT]];
 			gmove(&n2, &n1);
 
 			patch(p1, pc);
@@ -367,7 +367,7 @@ cgen(Node *n, Node *res)
 		}
 		if(isslice(nl->type)) {
 			igen(nl, &n1, res);
-			n1.type = types[TUINT32];
+			n1.type = types[simtype[TUINT]];
 			n1.xoffset += Array_cap;
 			gmove(&n1, res);
 			regfree(&n1);
@@ -596,7 +596,7 @@ agen(Node *n, Node *res)
 					nlen.type = types[tptr];
 					nlen.xoffset += Array_array;
 					gmove(&nlen, &n3);
-					nlen.type = types[TUINT32];
+					nlen.type = types[simtype[TUINT]];
 					nlen.xoffset += Array_nel-Array_array;
 				}
 			}
@@ -621,7 +621,7 @@ agen(Node *n, Node *res)
 				nlen.type = types[tptr];
 				nlen.xoffset += Array_array;
 				gmove(&nlen, &n3);
-				nlen.type = types[TUINT32];
+				nlen.type = types[simtype[TUINT]];
 				nlen.xoffset += Array_nel-Array_array;
 			}
 		}
@@ -656,9 +656,9 @@ agen(Node *n, Node *res)
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				if(!debug['B'] && !n->bounded) {
-					nodconst(&n2, types[TUINT32], v);
-					gins(optoas(OCMP, types[TUINT32]), &nlen, &n2);
-					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+					nodconst(&n2, types[simtype[TUINT]], v);
+					gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &n2);
+					p1 = gbranch(optoas(OGT, types[simtype[TUINT]]), T, +1);
 					ginscall(panicindex, -1);
 					patch(p1, pc);
 				}
@@ -683,7 +683,7 @@ agen(Node *n, Node *res)
 
 		if(!debug['B'] && !n->bounded) {
 			// check bounds
-			t = types[TUINT32];
+			t = types[simtype[TUINT]];
 			if(is64(nr->type))
 				t = types[TUINT64];
 			if(isconst(nl, CTSTR)) {
@@ -1350,7 +1350,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;
@@ -1360,7 +1360,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_cap-Array_nel;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_cap-Array_nel;
@@ -1383,7 +1383,7 @@ componentgen(Node *nr, Node *nl)
 		gmove(&nodr, &nodl);
 
 		nodl.xoffset += Array_nel-Array_array;
-		nodl.type = types[TUINT32];
+		nodl.type = types[simtype[TUINT]];
 
 		if(nr != N) {
 			nodr.xoffset += Array_nel-Array_array;

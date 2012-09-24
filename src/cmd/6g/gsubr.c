@@ -1247,9 +1247,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 		naddr(n->left, a, canemitcode);
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// len(nil)
-		a->etype = TUINT32;
+		a->etype = simtype[TUINT];
 		a->offset += Array_nel;
-		a->width = 4;
+		a->width = widthint;
 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
 			checkoffset(a, canemitcode);
 		break;
@@ -1259,9 +1259,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 		naddr(n->left, a, canemitcode);
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// cap(nil)
-		a->etype = TUINT32;
+		a->etype = simtype[TUINT];
 		a->offset += Array_cap;
-		a->width = 4;
+		a->width = widthint;
 		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
 			checkoffset(a, canemitcode);
 		break;
@@ -2086,12 +2086,12 @@ oindex:
 	if(!debug['B'] && !n->bounded) {
 		// check bounds
 		n4.op = OXXX;
-		t = types[TUINT32];
+		t = types[simtype[TUINT]];
 		if(o & ODynam) {
 			if(o & OAddable) {
 				n2 = *l;
 				n2.xoffset += Array_nel;
-				n2.type = types[TUINT32];
+				n2.type = types[simtype[TUINT]];
 				if(is64(r->type)) {
 					t = types[TUINT64];
 					regalloc(&n4, t, N);
@@ -2102,7 +2102,7 @@ oindex:
 				n2 = *reg;
 				n2.xoffset = Array_nel;
 				n2.op = OINDREG;
-				n2.type = types[TUINT32];
+				n2.type = types[simtype[TUINT]];
 				if(is64(r->type)) {
 					t = types[TUINT64];
 					regalloc(&n4, t, N);
@@ -2180,8 +2180,8 @@ oindex_const:
 			n1.type = types[tptr];
 			n1.xoffset = Array_nel;
 			nodconst(&n2, types[TUINT64], v);
-			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
-			p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+			gins(optoas(OCMP, types[simtype[TUINT]]), &n1, &n2);
+			p1 = gbranch(optoas(OGT, types[simtype[TUINT]]), T, +1);
 			ginscall(panicindex, -1);
 			patch(p1, pc);
 		}
@@ -2223,9 +2223,9 @@ oindex_const_sudo:
 	if(!debug['B'] && !n->bounded) {
 		a->offset += Array_nel;
 		nodconst(&n2, types[TUINT64], v);
-		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
+		p1 = gins(optoas(OCMP, types[simtype[TUINT]]), N, &n2);
 		p1->from = *a;
-		p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+		p1 = gbranch(optoas(OGT, types[simtype[TUINT]]), T, +1);
 		ginscall(panicindex, -1);
 		patch(p1, pc);
 		a->offset -= Array_nel;

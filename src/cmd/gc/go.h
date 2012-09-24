@@ -905,6 +905,7 @@ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
 EXTERN	Node*	curfn;
 
 EXTERN	int	widthptr;
+EXTERN	int	widthint;
 
 EXTERN	Node*	typesw;
 EXTERN	Node*	nblank;

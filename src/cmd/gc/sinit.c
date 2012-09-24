@@ -300,9 +300,9 @@ staticcopy(Node *l, Node *r, NodeList **out)
 			n1.xoffset = l->xoffset + Array_array;
 			gdata(&n1, nod(OADDR, a, N), widthptr);
 			n1.xoffset = l->xoffset + Array_nel;
-			gdata(&n1, r->right, 4);
+			gdata(&n1, r->right, widthint);
 			n1.xoffset = l->xoffset + Array_cap;
-			gdata(&n1, r->right, 4);
+			gdata(&n1, r->right, widthint);
 			return 1;
 		}
 		// fall through
@@ -403,9 +403,9 @@ staticassign(Node *l, Node *r, NodeList **out)
 			n1.xoffset = l->xoffset + Array_array;
 			gdata(&n1, nod(OADDR, a, N), widthptr);
 			n1.xoffset = l->xoffset + Array_nel;
-			gdata(&n1, r->right, 4);
+			gdata(&n1, r->right, widthint);
 			n1.xoffset = l->xoffset + Array_cap;
-			gdata(&n1, r->right, 4);
+			gdata(&n1, r->right, widthint);
 			// Fall through to init underlying array.
 			l = a;
 		}
@@ -1232,11 +1232,11 @@ slice:
 	gdata(&nam, nl, types[tptr]->width);
 
 	nam.xoffset += Array_nel-Array_array;
-	nodconst(&nod1, types[TINT32], nr->type->bound);
-	gdata(&nam, &nod1, types[TINT32]->width);
+	nodconst(&nod1, types[TINT], nr->type->bound);
+	gdata(&nam, &nod1, widthint);
 
 	nam.xoffset += Array_cap-Array_nel;
-	gdata(&nam, &nod1, types[TINT32]->width);
+	gdata(&nam, &nod1, widthint);
 
 	goto yes;
 

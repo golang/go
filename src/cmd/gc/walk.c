@@ -2496,7 +2496,7 @@ sliceany(Node* n, NodeList **init)
 	chk1 = N;
 	chk2 = N;
 
-	bt = types[TUINT32];
+	bt = types[simtype[TUINT]];
 	if(hb != N && hb->type->width > 4)
 		bt = types[TUINT64];
 	if(lb != N && lb->type->width > 4)
@@ -2546,18 +2546,18 @@ sliceany(Node* n, NodeList **init)
 	n->right = N;
 	n->list = nil;
 	if(lb == N)
-		bound = conv(bound, types[TUINT32]);
+		bound = conv(bound, types[simtype[TUINT]]);
 	else
-		bound = nod(OSUB, conv(bound, types[TUINT32]), conv(lb, types[TUINT32]));
+		bound = nod(OSUB, conv(bound, types[simtype[TUINT]]), conv(lb, types[simtype[TUINT]]));
 	typecheck(&bound, Erv);
 	walkexpr(&bound, init);
 	n->list = list(n->list, bound);
 
 	// len = hi [ - lo]
 	if(lb == N)
-		hb = conv(hb, types[TUINT32]);
+		hb = conv(hb, types[simtype[TUINT]]);
 	else
-		hb = nod(OSUB, conv(hb, types[TUINT32]), conv(lb, types[TUINT32]));
+		hb = nod(OSUB, conv(hb, types[simtype[TUINT]]), conv(lb, types[simtype[TUINT]]));
 	typecheck(&hb, Erv);
 	walkexpr(&hb, init);
 	n->list = list(n->list, hb);

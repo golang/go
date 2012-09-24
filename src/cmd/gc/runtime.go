@@ -46,8 +46,6 @@ func appendstr(typ *byte, x []byte, y string) []byte
 
 func cmpstring(string, string) int
 func eqstring(string, string) bool
-func slicestring(string, int, int) string
-func slicestring1(string, int) string
 func intstring(int64) string
 func slicebytetostring([]byte) string
 func slicerunetostring([]rune) string
@@ -55,7 +53,7 @@ func stringtoslicebyte(string) []byte
 func stringtoslicerune(string) []rune
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv rune)
-func copy(to any, fr any, wid uint32) int
+func copy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
 
 // interface conversions
@@ -109,7 +107,7 @@ func selectnbsend(chanType *byte, hchan chan<- any, elem any) bool
 func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
 func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
 
-func newselect(size int) (sel *byte)
+func newselect(size int32) (sel *byte)
 func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
 func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
 func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
