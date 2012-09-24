@@ -19,9 +19,13 @@ typedef	double			float64;
 #ifdef _64BIT
 typedef	uint64		uintptr;
 typedef	int64		intptr;
+typedef	int32		intgo; // Go's int
+typedef	uint32		uintgo; // Go's uint
 #else
 typedef	uint32		uintptr;
-typedef int32		intptr;
+typedef	int32		intptr;
+typedef	int32		intgo; // Go's int
+typedef	uint32		uintgo; // Go's uint
 #endif
 
 /*
@@ -139,7 +143,7 @@ union	Note
 struct String
 {
 	byte*	str;
-	int32	len;
+	intgo	len;
 };
 struct Iface
 {
@@ -165,8 +169,8 @@ struct Complex128
 struct	Slice
 {				// must not move anything
 	byte*	array;		// actual data
-	uint32	len;		// number of elements
-	uint32	cap;		// allocated number of elements
+	uintgo	len;		// number of elements
+	uintgo	cap;		// allocated number of elements
 };
 struct	Gobuf
 {
@@ -518,7 +522,8 @@ extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
 int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
-extern  void (*runtime·sysargs)(int32, uint8**);
+extern 	void	(*runtime·sysargs)(int32, uint8**);
+extern	uint32	runtime·maxstring;
 
 /*
  * common functions and data
@@ -554,8 +559,8 @@ void	runtime·memmove(void*, void*, uint32);
 void*	runtime·mal(uintptr);
 String	runtime·catstring(String, String);
 String	runtime·gostring(byte*);
-String  runtime·gostringn(byte*, int32);
-Slice	runtime·gobytes(byte*, int32);
+String  runtime·gostringn(byte*, intgo);
+Slice	runtime·gobytes(byte*, intgo);
 String	runtime·gostringnocopy(byte*);
 String	runtime·gostringw(uint16*);
 void	runtime·initsig(void);
@@ -603,7 +608,7 @@ uintptr	runtime·ifacehash(Iface);
 uintptr	runtime·efacehash(Eface);
 void*	runtime·malloc(uintptr size);
 void	runtime·free(void *v);
-bool	runtime·addfinalizer(void*, void(*fn)(void*), int32);
+bool	runtime·addfinalizer(void*, void(*fn)(void*), uintptr);
 void	runtime·runpanic(Panic*);
 void*	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
@@ -807,8 +812,6 @@ Hmap*	runtime·makemap_c(MapType*, int64);
 Hchan*	runtime·makechan_c(ChanType*, int64);
 void	runtime·chansend(ChanType*, Hchan*, byte*, bool*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
-int32	runtime·chanlen(Hchan*);
-int32	runtime·chancap(Hchan*);
 bool	runtime·showframe(Func*);
 
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);

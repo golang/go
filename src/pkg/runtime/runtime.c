@@ -290,7 +290,7 @@ runtime·check(void)
 }
 
 void
-runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
+runtime·Caller(intgo skip, uintptr retpc, String retfile, intgo retline, bool retbool)
 {
 	Func *f, *g;
 	uintptr pc;
@@ -327,7 +327,7 @@ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool r
 }
 
 void
-runtime·Callers(int32 skip, Slice pc, int32 retn)
+runtime·Callers(intgo skip, Slice pc, intgo retn)
 {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace.  Pick off 0-length pc here

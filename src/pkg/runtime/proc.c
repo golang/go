@@ -1451,7 +1451,7 @@ runtime·mid(uint32 ret)
 }
 
 void
-runtime·NumGoroutine(int32 ret)
+runtime·NumGoroutine(intgo ret)
 {
 	ret = runtime·sched.gcount;
 	FLUSH(&ret);

@@ -128,6 +128,15 @@ enum
 	MaxGcproc = 8,
 };
 
+// Maximum memory allocation size, a hint for callers.
+// This must be a #define instead of an enum because it
+// is so large.
+#ifdef _64BIT
+#define	MaxMem	(16ULL<<30)	/* 16 GB */
+#else
+#define	MaxMem	((uintptr)-1)
+#endif
+
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
 struct MLink
 {
@@ -418,5 +427,5 @@ int32	runtime·gcprocs(void);
 void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 
-bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
+bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret);
 void	runtime·walkfintab(void (*fn)(void*));

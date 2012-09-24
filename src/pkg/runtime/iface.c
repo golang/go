@@ -703,7 +703,7 @@ reflect·unsafe_New(Eface typ, void *ret)
 }
 
 void
-reflect·unsafe_NewArray(Eface typ, uint32 n, void *ret)
+reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
 {
 	uint64 size;
 	Type *t;

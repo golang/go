@@ -316,7 +316,7 @@ runtime·strhash(uintptr *h, uintptr s, void *a)
 void
 runtime·strequal(bool *eq, uintptr s, void *a, void *b)
 {
-	int32 alen;
+	intgo alen;
 
 	USED(s);
 	alen = ((String*)a)->len;

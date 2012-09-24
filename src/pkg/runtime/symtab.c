@@ -411,7 +411,7 @@ runtime·funcline(Func *f, uintptr targetpc)
 }
 
 void
-runtime·funcline_go(Func *f, uintptr targetpc, String retfile, int32 retline)
+runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
 {
 	retfile = f->src;
 	retline = runtime·funcline(f, targetpc);

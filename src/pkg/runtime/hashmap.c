@@ -13,7 +13,7 @@
 #define CanFreeKey (1<<3)	/* okay to free pointers to keys */
 
 struct Hmap {	   /* a hash table; initialize with hash_init() */
-	uint32 count;	  /* elements in table - must be first */
+	uintgo count;	  /* elements in table - must be first */
 	uint8 datasize;   /* amount of data to store in entry */
 	uint8 flag;
 	uint8 valoff;	/* offset of value in key+value data block */
@@ -728,7 +728,6 @@ hash_keyptr(Hmap *h, void *p)
 
 static	int32	debug	= 0;
 
-// makemap(typ *Type, hint uint32) (hmap *map[any]any);
 Hmap*
 runtime·makemap_c(MapType *typ, int64 hint)
 {
@@ -1152,10 +1151,10 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
 }
 
 // For reflect:
-//	func maplen(h map) (len int32)
+//	func maplen(h map) (len int)
 // Like len(m) in the actual language, we treat the nil map as length 0.
 void
-reflect·maplen(Hmap *h, int32 len)
+reflect·maplen(Hmap *h, intgo len)
 {
 	if(h == nil)
 		len = 0;

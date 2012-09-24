@@ -284,7 +284,7 @@ record(Record *r, Bucket *b)
 		r->stk[i] = 0;
 }
 
-func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
+func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 	Bucket *b;
 	Record *r;
 
@@ -310,7 +310,7 @@ struct TRecord {
 	uintptr stk[32];
 };
 
-func ThreadCreateProfile(p Slice) (n int32, ok bool) {
+func ThreadCreateProfile(p Slice) (n int, ok bool) {
 	TRecord *r;
 	M *first, *m;
 	
@@ -329,7 +329,7 @@ func ThreadCreateProfile(p Slice) (n int32, ok bool) {
 	}
 }
 
-func Stack(b Slice, all bool) (n int32) {
+func Stack(b Slice, all bool) (n int) {
 	byte *pc, *sp;
 	
 	sp = runtime·getcallersp(&b);
@@ -372,7 +372,7 @@ saveg(byte *pc, byte *sp, G *g, TRecord *r)
 		r->stk[n] = 0;
 }
 
-func GoroutineProfile(b Slice) (n int32, ok bool) {
+func GoroutineProfile(b Slice) (n int, ok bool) {
 	byte *pc, *sp;
 	TRecord *r;
 	G *gp;

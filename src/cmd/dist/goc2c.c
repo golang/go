@@ -26,6 +26,11 @@ static char *input;
 static Buf *output;
 #define EOF -1
 
+enum
+{
+	use64bitint = 0,
+};
+
 static int
 xgetchar(void)
 {
@@ -86,13 +91,16 @@ static struct {
 	char *name;
 	int size;
 } type_table[] = {
-	/* variable sized first, for easy replacement */
-	/* order matches enum above */
-	/* default is 32-bit architecture sizes */
-	{"bool",		1},
+	/* 
+	 * variable sized first, for easy replacement.
+	 * order matches enum above.
+	 * default is 32-bit architecture sizes.
+	 * spelling as in package runtime, so intgo/uintgo not int/uint.
+	 */
+	{"bool",	1},
 	{"float",	4},
-	{"int",		4},
-	{"uint",		4},
+	{"intgo",		4},
+	{"uintgo",	4},
 	{"uintptr",	4},
 	{"String",	8},
 	{"Slice",	12},
@@ -101,12 +109,13 @@ static struct {
 	/* fixed size */
 	{"float32",	4},
 	{"float64",	8},
-	{"byte",		1},
-	{"int8",		1},
+	{"byte",	1},
+	{"int8",	1},
 	{"uint8",	1},
 	{"int16",	2},
 	{"uint16",	2},
 	{"int32",	4},
+	{"rune",	4},
 	{"uint32",	4},
 	{"int64",	8},
 	{"uint64",	8},
@@ -328,7 +337,7 @@ read_type(void)
 	unsigned int len;
 
 	p = read_token_no_eof();
-	if (*p != '*')
+	if (*p != '*' && !streq(p, "int") && !streq(p, "uint"))
 		return p;
 	op = p;
 	pointer_count = 0;
@@ -337,13 +346,18 @@ read_type(void)
 		++p;
 	}
 	len = xstrlen(p);
-	q = xmalloc(len + pointer_count + 1);
+	q = xmalloc(len + 2 + pointer_count + 1);
 	xmemmove(q, p, len);
-	while (pointer_count > 0) {
-		q[len] = '*';
-		++len;
-		--pointer_count;
+
+	// Turn int/uint into intgo/uintgo.
+	if((len == 3 && xmemcmp(q, "int", 3) == 0) || (len == 4 && xmemcmp(q, "uint", 4) == 0)) {
+		q[len++] = 'g';
+		q[len++] = 'o';
 	}
+
+	while (pointer_count-- > 0)
+		q[len++] = '*';
+	
 	q[len] = '\0';
 	xfree(op);
 	return q;
@@ -713,15 +727,25 @@ goc2c(char *goc, char *c)
 	if(!gcc) {
 		if(streq(goarch, "amd64")) {
 			type_table[Uintptr].size = 8;
-			type_table[String].size = 16;
-			type_table[Slice].size = 8+4+4;
 			type_table[Eface].size = 8+8;
+			type_table[String].size = 16;
+			if(use64bitint) {
+				type_table[Int].size = 8;
+				type_table[Uint].size = 8;
+			}
+			type_table[Slice].size = 8+2*type_table[Int].size;
 			structround = 8;
 		} else {
+			// NOTE: These are set in the initializer,
+			// but they might have been changed by a
+			// previous invocation of goc2c, so we have
+			// to restore them.
 			type_table[Uintptr].size = 4;
 			type_table[String].size = 8;
 			type_table[Slice].size = 16;
 			type_table[Eface].size = 4+4;
+			type_table[Int].size = 4;
+			type_table[Uint].size = 4;
 			structround = 4;
 		}
 	}
