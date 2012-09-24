@@ -145,6 +145,12 @@ static struct {
 		"#define	g(r) 0(r)\n"
 		"#define	m(r) 8(r)\n"
 	},
+	{"amd64", "plan9",
+		"#define	get_tls(r)\n"
+		"#define	g(r) 0(GS)\n"
+		"#define	m(r) 8(GS)\n"
+		"#define	procid(r) 16(GS)\n"
+	},
 	{"amd64", "",
 		"// The offsets 0 and 8 are known to:\n"
 		"//	../../cmd/6l/pass.c:/D_GS\n"

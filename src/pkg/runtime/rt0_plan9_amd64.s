@@ -3,11 +3,9 @@
 // license that can be found in the LICENSE file.
 
 TEXT _rt0_amd64_plan9(SB),7, $0
-	MOVQ	AX, _tos(SB)
 	MOVQ	$_rt0_amd64(SB), AX
 	MOVQ	SP, DI
 	JMP	AX
 
 DATA runtime·isplan9(SB)/4, $1
 GLOBL runtime·isplan9(SB), $4
-GLOBL _tos(SB), $8
