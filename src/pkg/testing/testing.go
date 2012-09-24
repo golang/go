@@ -13,7 +13,7 @@
 // Functions of the form
 //     func BenchmarkXxx(*testing.B)
 // are considered benchmarks, and are executed by the "go test" command when
-// the -test.bench flag is provided.
+// the -test.bench flag is provided. Benchmarks are run sequentially.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
