@@ -48,18 +48,23 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 		in, _ := hex.DecodeString(test.preMasterSecret)
 		clientRandom, _ := hex.DecodeString(test.clientRandom)
 		serverRandom, _ := hex.DecodeString(test.serverRandom)
-		master, clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromPreMasterSecret(test.version, in, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
-		masterString := hex.EncodeToString(master)
+
+		masterSecret := masterFromPreMasterSecret(test.version, in, clientRandom, serverRandom)
+		if s := hex.EncodeToString(masterSecret); s != test.masterSecret {
+			t.Errorf("#%d: bad master secret %s, want %s", s, test.masterSecret)
+			continue
+		}
+
+		clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromMasterSecret(test.version, masterSecret, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
 		clientMACString := hex.EncodeToString(clientMAC)
 		serverMACString := hex.EncodeToString(serverMAC)
 		clientKeyString := hex.EncodeToString(clientKey)
 		serverKeyString := hex.EncodeToString(serverKey)
-		if masterString != test.masterSecret ||
-			clientMACString != test.clientMAC ||
+		if clientMACString != test.clientMAC ||
 			serverMACString != test.serverMAC ||
 			clientKeyString != test.clientKey ||
 			serverKeyString != test.serverKey {
-			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s, %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverKeyString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
+			t.Errorf("#%d: got: (%s, %s, %s, %s) want: (%s, %s, %s, %s)", i, clientMACString, serverMACString, clientKeyString, serverKeyString, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
 		}
 	}
 }
