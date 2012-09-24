@@ -11,7 +11,7 @@
 
 package main
 func main() {  // ERROR "stack frame too large"
-	var arr [1000200030]int
+	var arr [1000200030]int32
 	arr_bkup := arr
 	_ = arr_bkup
 }
