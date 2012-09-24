@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package syntax parses regular expressions into parse trees and compiles
-// parse trees into programs. Most clients of regular expressions will use
-// the facilities of package regexp (such as Compile and Match) instead of
-// this package.
 package syntax
 
 import (
