@@ -1011,7 +1011,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = node;
 	
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 
 	bit = blsh(i);
 	if(n == D_EXTERN || n == D_STATIC)

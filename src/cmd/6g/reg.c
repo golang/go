@@ -860,7 +860,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	p1->as = AMOVL;
 	switch(v->etype) {
 	default:
-		fatal("unknown type\n");
+		fatal("unknown type %E", v->etype);
 	case TINT8:
 	case TUINT8:
 	case TBOOL:
@@ -1042,7 +1042,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 
 	ostats.nvar++;
 
