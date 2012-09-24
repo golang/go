@@ -798,12 +798,45 @@ igen(Node *n, Node *a, Node *res)
 	Type *fp;
 	Iter flist;
 	Node n1, n2;
- 
+
 	switch(n->op) {
 	case ONAME:
 		if((n->class&PHEAP) || n->class == PPARAMREF)
 			break;
 		*a = *n;
+		return;
+
+	case OINDREG:
+		// Increase the refcount of the register so that igen's caller
+		// has to call regfree.
+		if(n->val.u.reg != D_SP)
+			reg[n->val.u.reg]++;
+		*a = *n;
+		return;
+
+	case ODOT:
+		igen(n->left, a, res);
+		a->xoffset += n->xoffset;
+		a->type = n->type;
+		return;
+
+	case ODOTPTR:
+		regalloc(a, types[tptr], res);
+		cgen(n->left, a);
+		if(n->xoffset != 0) {
+			// explicit check for nil if struct is large enough
+			// that we might derive too big a pointer.
+			if(n->left->type->type->width >= unmappedzero) {
+				n1 = *a;
+				n1.op = OINDREG;
+				n1.type = types[TUINT8];
+				n1.xoffset = 0;
+				gins(ATESTB, nodintconst(0), &n1);
+			}
+		}
+		a->op = OINDREG;
+		a->xoffset += n->xoffset;
+		a->type = n->type;
 		return;
 
 	case OCALLFUNC:

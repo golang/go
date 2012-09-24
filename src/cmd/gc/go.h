@@ -170,11 +170,11 @@ struct	Type
 	vlong	argwid;
 
 	// most nodes
-	Type*	type;
-	vlong	width;		// offset in TFIELD, width in all others
+	Type*	type;   	// actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
+	vlong	width;  	// offset in TFIELD, width in all others
 
 	// TFIELD
-	Type*	down;		// also used in TMAP
+	Type*	down;		// next struct field, also key type in TMAP
 	Strlit*	note;		// literal string annotation
 
 	// TARRAY
