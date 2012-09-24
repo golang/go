@@ -766,7 +766,7 @@ ginit(void)
 
 	for(i=0; i<nelem(reg); i++)
 		reg[i] = 1;
-	for(i=D_AL; i<=D_DI; i++)
+	for(i=D_AX; i<=D_DI; i++)
 		reg[i] = 0;
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]++;
@@ -782,7 +782,7 @@ gclean(void)
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]--;
 
-	for(i=D_AL; i<=D_DI; i++)
+	for(i=D_AX; i<=D_DI; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated at %ux", i, regpc[i]);
 }
@@ -792,7 +792,7 @@ anyregalloc(void)
 {
 	int i, j;
 
-	for(i=D_AL; i<=D_DI; i++) {
+	for(i=D_AX; i<=D_DI; i++) {
 		if(reg[i] == 0)
 			goto ok;
 		for(j=0; j<nelem(resvd); j++)
