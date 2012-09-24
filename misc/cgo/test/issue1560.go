@@ -28,7 +28,7 @@ func parallelSleep(n int) {
 }
 
 //export BackgroundSleep
-func BackgroundSleep(n int) {
+func BackgroundSleep(n int32) {
 	go func() {
 		C.sleep(C.uint(n))
 		sleepDone <- true

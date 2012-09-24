@@ -11,8 +11,8 @@ import "C"
 
 import "unsafe"
 
-func Run(gen, x, y int, a []int) {
-	n := make([]int, x*y)
+func Run(gen, x, y int, a []int32) {
+	n := make([]int32, x*y)
 	for i := 0; i < gen; i++ {
 		C.Step(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&a[0])), (*C.int)(unsafe.Pointer(&n[0])))
 		copy(a, n)
