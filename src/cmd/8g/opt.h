@@ -47,12 +47,16 @@
 typedef	struct	Reg	Reg;
 typedef	struct	Rgn	Rgn;
 
+// A Reg is a wrapper around a single Prog (one instruction) that holds
+// register optimization information while the optimizer runs.
+// r->prog is the instruction.
+// r->prog->regp points back to r.
 struct	Reg
 {
 
-	Bits	set;
-	Bits	use1;
-	Bits	use2;
+	Bits	set;  		// variables written by this instruction.
+	Bits	use1; 		// variables read by prog->from.
+	Bits	use2; 		// variables read by prog->to.
 
 	Bits	refbehind;
 	Bits	refahead;
@@ -68,13 +72,13 @@ struct	Reg
 	uint16	loop;		// x5 for every loop
 	uchar	refset;		// diagnostic generated
 
-	Reg*	p1;
-	Reg*	p2;
+	Reg*	p1;     	// predecessors of this instruction: p1,
+	Reg*	p2;     	// and then p2 linked though p2link.
 	Reg*	p2link;
-	Reg*	s1;
+	Reg*	s1;     	// successors of this instruction (at most two: s1 and s2).
 	Reg*	s2;
-	Reg*	link;
-	Prog*	prog;
+	Reg*	link;   	// next instruction in function code
+	Prog*	prog;   	// actual instruction
 };
 #define	R	((Reg*)0)
 
