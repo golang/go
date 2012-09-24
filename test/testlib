@@ -12,7 +12,7 @@ compile() {
 compiledir() {
 	for gofile in $D/$F.dir/*.go
 	do
-		$G ${gofile} || return 1
+		$G -I. "$gofile" || return 1
 	done
 }
 
