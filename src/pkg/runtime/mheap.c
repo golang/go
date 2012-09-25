@@ -143,6 +143,8 @@ HaveSpan:
 	// Record span info, because gc needs to be
 	// able to map interior pointer to containing span.
 	s->sizeclass = sizeclass;
+	s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
+	s->types.compression = MTypes_Empty;
 	p = s->start;
 	if(sizeof(void*) == 8)
 		p -= ((uintptr)h->arena_start>>PageShift);
@@ -288,6 +290,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	MSpan *t;
 	PageID p;
 
+	if(s->types.sysalloc)
+		runtime·settype_sysfree(s);
+	s->types.compression = MTypes_Empty;
+
 	if(s->state != MSpanInUse || s->ref != 0) {
 		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
 		runtime·throw("MHeap_FreeLocked - invalid free");
@@ -426,9 +432,11 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
 	span->freelist = nil;
 	span->ref = 0;
 	span->sizeclass = 0;
+	span->elemsize = 0;
 	span->state = 0;
 	span->unusedsince = 0;
 	span->npreleased = 0;
+	span->types.compression = MTypes_Empty;
 }
 
 // Initialize an empty doubly-linked list.

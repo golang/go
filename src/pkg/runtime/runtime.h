@@ -268,6 +268,9 @@ struct	M
 	uint32	waitsemalock;
 	GCStats	gcstats;
 
+	uintptr	settype_buf[1024];
+	uintptr	settype_bufsize;
+
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 #endif
@@ -836,3 +839,8 @@ extern uint64 ·nan;
 extern uint64 ·posinf;
 extern uint64 ·neginf;
 #define ISNAN(f) ((f) != (f))
+
+enum
+{
+	UseSpanType = 1,
+};

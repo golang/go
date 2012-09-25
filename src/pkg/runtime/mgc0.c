@@ -596,12 +596,31 @@ addroots(void)
 	G *gp;
 	FinBlock *fb;
 	byte *p;
+	MSpan *s, **allspans;
+	uint32 spanidx;
 
 	work.nroot = 0;
 
 	// mark data+bss.
 	for(p=data; p<ebss; p+=DataBlock)
 		addroot(p, p+DataBlock < ebss ? DataBlock : ebss-p);
+
+	// MSpan.types
+	allspans = runtime·mheap.allspans;
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+		s = allspans[spanidx];
+		if(s->state == MSpanInUse) {
+			switch(s->types.compression) {
+			case MTypes_Empty:
+			case MTypes_Single:
+				break;
+			case MTypes_Words:
+			case MTypes_Bytes:
+				addroot((byte*)&s->types.data, sizeof(void*));
+				break;
+			}
+		}
+	}
 
 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {
 		switch(gp->status){
@@ -675,8 +694,11 @@ sweepspan(ParFor *desc, uint32 idx)
 	byte *p;
 	MCache *c;
 	byte *arena_start;
-	MLink *start, *end;
+	MLink head, *end;
 	int32 nfree;
+	byte *type_data;
+	byte compression;
+	uintptr type_data_inc;
 	MSpan *s;
 
 	USED(&desc);
@@ -690,23 +712,32 @@ sweepspan(ParFor *desc, uint32 idx)
 	arena_start = runtime·mheap.arena_start;
 	p = (byte*)(s->start << PageShift);
 	cl = s->sizeclass;
+	size = s->elemsize;
 	if(cl == 0) {
-		size = s->npages<<PageShift;
 		n = 1;
 	} else {
 		// Chunk full of small blocks.
-		size = runtime·class_to_size[cl];
 		npages = runtime·class_to_allocnpages[cl];
 		n = (npages << PageShift) / size;
 	}
 	nfree = 0;
-	start = end = nil;
+	end = &head;
 	c = m->mcache;
+	
+	type_data = (byte*)s->types.data;
+	type_data_inc = sizeof(uintptr);
+	compression = s->types.compression;
+	switch(compression) {
+	case MTypes_Bytes:
+		type_data += 8*sizeof(uintptr);
+		type_data_inc = 1;
+		break;
+	}
 
 	// Sweep through n objects of given size starting at p.
 	// This thread owns the span now, so it can manipulate
 	// the block bitmap without atomic operations.
-	for(; n > 0; n--, p += size) {
+	for(; n > 0; n--, p += size, type_data+=type_data_inc) {
 		uintptr off, *bitp, shift, bits;
 
 		off = (uintptr*)p - (uintptr*)arena_start;
@@ -738,7 +769,7 @@ sweepspan(ParFor *desc, uint32 idx)
 		// Mark freed; restore block boundary bit.
 		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
 
-		if(s->sizeclass == 0) {
+		if(cl == 0) {
 			// Free large span.
 			runtime·unmarkspan(p, 1<<PageShift);
 			*(uintptr*)p = 1;	// needs zeroing
@@ -747,24 +778,30 @@ sweepspan(ParFor *desc, uint32 idx)
 			c->local_nfree++;
 		} else {
 			// Free small object.
+			switch(compression) {
+			case MTypes_Words:
+				*(uintptr*)type_data = 0;
+				break;
+			case MTypes_Bytes:
+				*(byte*)type_data = 0;
+				break;
+			}
 			if(size > sizeof(uintptr))
 				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
-			if(nfree)
-				end->next = (MLink*)p;
-			else
-				start = (MLink*)p;
+			
+			end->next = (MLink*)p;
 			end = (MLink*)p;
 			nfree++;
 		}
 	}
 
 	if(nfree) {
-		c->local_by_size[s->sizeclass].nfree += nfree;
+		c->local_by_size[cl].nfree += nfree;
 		c->local_alloc -= size * nfree;
 		c->local_nfree += nfree;
 		c->local_cachealloc -= nfree * size;
 		c->local_objects -= nfree;
-		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, start, end);
+		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
 	}
 }
 
@@ -851,6 +888,7 @@ runtime·gc(int32 force)
 	uint64 heap0, heap1, obj0, obj1;
 	byte *p;
 	GCStats stats;
+	M *m1;
 	uint32 i;
 
 	// The gc is turned off (via enablegc) until
@@ -890,6 +928,9 @@ runtime·gc(int32 force)
 
 	m->gcing = 1;
 	runtime·stoptheworld();
+
+	for(m1=runtime·allm; m1; m1=m1->alllink)
+		runtime·settype_flush(m1, false);
 
 	heap0 = 0;
 	obj0 = 0;
