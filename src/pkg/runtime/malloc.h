@@ -85,6 +85,7 @@ typedef struct MHeap	MHeap;
 typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
+typedef struct MTypes	MTypes;
 
 enum
 {
@@ -303,6 +304,44 @@ void*	runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zero
 void	runtime·MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
 void	runtime·MCache_ReleaseAll(MCache *c);
 
+// MTypes describes the types of blocks allocated within a span.
+// The compression field describes the layout of the data.
+//
+// MTypes_Empty:
+//     All blocks are free, or no type information is available for
+//     allocated blocks.
+//     The data field has no meaning.
+// MTypes_Single:
+//     The span contains just one block.
+//     The data field holds the type information.
+//     The sysalloc field has no meaning.
+// MTypes_Words:
+//     The span contains multiple blocks.
+//     The data field points to an array of type [NumBlocks]uintptr,
+//     and each element of the array holds the type of the corresponding
+//     block.
+// MTypes_Bytes:
+//     The span contains at most seven different types of blocks.
+//     The data field points to the following structure:
+//         struct {
+//             type  [8]uintptr       // type[0] is always 0
+//             index [NumBlocks]byte
+//         }
+//     The type of the i-th block is: data.type[data.index[i]]
+enum
+{
+	MTypes_Empty = 0,
+	MTypes_Single = 1,
+	MTypes_Words = 2,
+	MTypes_Bytes = 3,
+};
+struct MTypes
+{
+	byte	compression;	// one of MTypes_*
+	bool	sysalloc;	// whether (void*)data is from runtime·SysAlloc
+	uintptr	data;
+};
+
 // An MSpan is a run of pages.
 enum
 {
@@ -320,10 +359,12 @@ struct MSpan
 	MLink	*freelist;	// list of free objects
 	uint32	ref;		// number of allocated objects in this span
 	uint32	sizeclass;	// size class
+	uintptr	elemsize;	// computed from sizeclass or from npages
 	uint32	state;		// MSpanInUse etc
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
 	uintptr npreleased;	// number of pages released to the OS
 	byte	*limit;		// end of data in span
+	MTypes	types;		// types of allocated objects in this span
 };
 
 void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
@@ -412,6 +453,11 @@ bool	runtime·blockspecial(void*);
 void	runtime·setblockspecial(void*, bool);
 void	runtime·purgecachedstats(MCache*);
 
+void	runtime·settype(void*, uintptr);
+void	runtime·settype_flush(M*, bool);
+void	runtime·settype_sysfree(MSpan*);
+uintptr	runtime·gettype(void*);
+
 enum
 {
 	// flags to malloc
@@ -429,3 +475,13 @@ void	runtime·gchelper(void);
 
 bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret);
 void	runtime·walkfintab(void (*fn)(void*));
+
+enum
+{
+	TypeInfo_SingleObject = 0,
+	TypeInfo_Array = 1,
+	TypeInfo_Map = 2,
+
+	// Enables type information at the end of blocks allocated from heap	
+	DebugTypeAtBlockEnd = 0,
+};

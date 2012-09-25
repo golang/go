@@ -43,6 +43,9 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 	if(size == 0)
 		size = 1;
 
+	if(DebugTypeAtBlockEnd)
+		size += sizeof(uintptr);
+
 	c = m->mcache;
 	c->local_nmalloc++;
 	if(size <= MaxSmallSize) {
@@ -83,6 +86,9 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 
 	if(!(flag & FlagNoGC))
 		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
+
+	if(DebugTypeAtBlockEnd)
+		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = 0;
 
 	m->mallocing = 0;
 
@@ -213,7 +219,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 		return 0;
 	}
 
-	n = runtime·class_to_size[s->sizeclass];
+	n = s->elemsize;
 	if(base) {
 		i = ((byte*)v - p)/n;
 		*base = p + i*n;
@@ -450,6 +456,220 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 	return p;
 }
 
+static Lock settype_lock;
+
+void
+runtime·settype_flush(M *m, bool sysalloc)
+{
+	uintptr *buf, *endbuf;
+	uintptr size, ofs, j, t;
+	uintptr ntypes, nbytes2, nbytes3;
+	uintptr *data2;
+	byte *data3;
+	bool sysalloc3;
+	void *v;
+	uintptr typ, p;
+	MSpan *s;
+
+	buf = m->settype_buf;
+	endbuf = buf + m->settype_bufsize;
+
+	runtime·lock(&settype_lock);
+	while(buf < endbuf) {
+		v = (void*)*buf;
+		*buf = 0;
+		buf++;
+		typ = *buf;
+		buf++;
+
+		// (Manually inlined copy of runtime·MHeap_Lookup)
+		p = (uintptr)v>>PageShift;
+		if(sizeof(void*) == 8)
+			p -= (uintptr)runtime·mheap.arena_start >> PageShift;
+		s = runtime·mheap.map[p];
+
+		if(s->sizeclass == 0) {
+			s->types.compression = MTypes_Single;
+			s->types.data = typ;
+			continue;
+		}
+
+		size = s->elemsize;
+		ofs = ((uintptr)v - (s->start<<PageShift)) / size;
+
+		switch(s->types.compression) {
+		case MTypes_Empty:
+			ntypes = (s->npages << PageShift) / size;
+			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+
+			if(!sysalloc) {
+				data3 = runtime·mallocgc(nbytes3, FlagNoPointers, 0, 1);
+			} else {
+				data3 = runtime·SysAlloc(nbytes3);
+				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
+			}
+
+			s->types.compression = MTypes_Bytes;
+			s->types.sysalloc = sysalloc;
+			s->types.data = (uintptr)data3;
+
+			((uintptr*)data3)[1] = typ;
+			data3[8*sizeof(uintptr) + ofs] = 1;
+			break;
+
+		case MTypes_Words:
+			((uintptr*)s->types.data)[ofs] = typ;
+			break;
+
+		case MTypes_Bytes:
+			data3 = (byte*)s->types.data;
+			for(j=1; j<8; j++) {
+				if(((uintptr*)data3)[j] == typ) {
+					break;
+				}
+				if(((uintptr*)data3)[j] == 0) {
+					((uintptr*)data3)[j] = typ;
+					break;
+				}
+			}
+			if(j < 8) {
+				data3[8*sizeof(uintptr) + ofs] = j;
+			} else {
+				ntypes = (s->npages << PageShift) / size;
+				nbytes2 = ntypes * sizeof(uintptr);
+
+				if(!sysalloc) {
+					data2 = runtime·mallocgc(nbytes2, FlagNoPointers, 0, 1);
+				} else {
+					data2 = runtime·SysAlloc(nbytes2);
+					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
+				}
+
+				sysalloc3 = s->types.sysalloc;
+
+				s->types.compression = MTypes_Words;
+				s->types.sysalloc = sysalloc;
+				s->types.data = (uintptr)data2;
+
+				// Move the contents of data3 to data2. Then deallocate data3.
+				for(j=0; j<ntypes; j++) {
+					t = data3[8*sizeof(uintptr) + j];
+					t = ((uintptr*)data3)[t];
+					data2[j] = t;
+				}
+				if(sysalloc3) {
+					nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+					if(0) runtime·printf("settype.(3->2): SysFree(%p,%x)\n", data3, (uint32)nbytes3);
+					runtime·SysFree(data3, nbytes3);
+				}
+
+				data2[ofs] = typ;
+			}
+			break;
+		}
+	}
+	runtime·unlock(&settype_lock);
+
+	m->settype_bufsize = 0;
+}
+
+// It is forbidden to use this function if it is possible that
+// explicit deallocation via calling runtime·free(v) may happen.
+void
+runtime·settype(void *v, uintptr t)
+{
+	M *m1;
+	uintptr *buf;
+	uintptr i;
+	MSpan *s;
+
+	if(t == 0)
+		runtime·throw("settype: zero type");
+
+	m1 = m;
+	buf = m1->settype_buf;
+	i = m1->settype_bufsize;
+	buf[i+0] = (uintptr)v;
+	buf[i+1] = t;
+	i += 2;
+	m1->settype_bufsize = i;
+
+	if(i == nelem(m1->settype_buf)) {
+		runtime·settype_flush(m1, false);
+	}
+
+	if(DebugTypeAtBlockEnd) {
+		s = runtime·MHeap_Lookup(&runtime·mheap, v);
+		*(uintptr*)((uintptr)v+s->elemsize-sizeof(uintptr)) = t;
+	}
+}
+
+void
+runtime·settype_sysfree(MSpan *s)
+{
+	uintptr ntypes, nbytes;
+
+	if(!s->types.sysalloc)
+		return;
+
+	nbytes = (uintptr)-1;
+
+	switch (s->types.compression) {
+	case MTypes_Words:
+		ntypes = (s->npages << PageShift) / s->elemsize;
+		nbytes = ntypes * sizeof(uintptr);
+		break;
+	case MTypes_Bytes:
+		ntypes = (s->npages << PageShift) / s->elemsize;
+		nbytes = 8*sizeof(uintptr) + 1*ntypes;
+		break;
+	}
+
+	if(nbytes != (uintptr)-1) {
+		if(0) runtime·printf("settype: SysFree(%p,%x)\n", (void*)s->types.data, (uint32)nbytes);
+		runtime·SysFree((void*)s->types.data, nbytes);
+	}
+}
+
+uintptr
+runtime·gettype(void *v)
+{
+	MSpan *s;
+	uintptr t, ofs;
+	byte *data;
+
+	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
+	if(s != nil) {
+		t = 0;
+		switch(s->types.compression) {
+		case MTypes_Empty:
+			break;
+		case MTypes_Single:
+			t = s->types.data;
+			break;
+		case MTypes_Words:
+			ofs = (uintptr)v - (s->start<<PageShift);
+			t = ((uintptr*)s->types.data)[ofs/s->elemsize];
+			break;
+		case MTypes_Bytes:
+			ofs = (uintptr)v - (s->start<<PageShift);
+			data = (byte*)s->types.data;
+			t = data[8*sizeof(uintptr) + ofs/s->elemsize];
+			t = ((uintptr*)data)[t];
+			break;
+		default:
+			runtime·throw("runtime·gettype: invalid compression kind");
+		}
+		if(0) {
+			runtime·lock(&settype_lock);
+			runtime·printf("%p -> %d,%X\n", v, (int32)s->types.compression, (int64)t);
+			runtime·unlock(&settype_lock);
+		}
+		return t;
+	}
+	return 0;
+}
+
 // Runtime stubs.
 
 void*
@@ -461,6 +681,14 @@ runtime·mal(uintptr n)
 func new(typ *Type) (ret *uint8) {
 	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+
+	if(UseSpanType && !flag) {
+		if(false) {
+			runtime·printf("new %S: %p\n", *typ->string, ret);
+		}
+		runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+	}
+
 	FLUSH(&ret);
 }
 
