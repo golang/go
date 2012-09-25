@@ -207,7 +207,7 @@ findgoversion(void)
 	chomp(&branch);
 
 	// What are the tags along the current branch?
-	tag = "";
+	tag = "devel";
 	rev = ".";
 	run(&b, goroot, CheckExit, "hg", "log", "-b", bstr(&branch), "-r", ".:0", "--template", "{tags} + ", nil);
 	splitfields(&tags, bstr(&b));
@@ -216,7 +216,9 @@ findgoversion(void)
 		p = tags.p[i];
 		if(streq(p, "+"))
 			nrev++;
-		if(hasprefix(p, "release.") || hasprefix(p, "weekly.") || hasprefix(p, "go")) {
+		// NOTE: Can reenable the /* */ code when we want to
+		// start reporting versions named 'weekly' again.
+		if(/*hasprefix(p, "weekly.") ||*/ hasprefix(p, "go")) {
 			tag = xstrdup(p);
 			// If this tag matches the current checkout
 			// exactly (no "+" yet), don't show extra
@@ -236,7 +238,7 @@ findgoversion(void)
 	if(rev[0]) {
 		// Tag is before the revision we're building.
 		// Add extra information.
-		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short}", "-r", rev, nil);
+		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short} {date|date}", "-r", rev, nil);
 		chomp(&bmore);
 	}
 
