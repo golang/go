@@ -19,8 +19,8 @@ typedef	double			float64;
 #ifdef _64BIT
 typedef	uint64		uintptr;
 typedef	int64		intptr;
-typedef	int32		intgo; // Go's int
-typedef	uint32		uintgo; // Go's uint
+typedef	int64		intgo; // Go's int
+typedef	uint64		uintgo; // Go's uint
 #else
 typedef	uint32		uintptr;
 typedef	int32		intptr;

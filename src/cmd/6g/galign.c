@@ -17,8 +17,8 @@ vlong MAXWIDTH = 1LL<<50;
  */
 Typedef	typedefs[] =
 {
-	"int",		TINT,		TINT32,
-	"uint",		TUINT,		TUINT32,
+	"int",		TINT,		TINT64,
+	"uint",		TUINT,		TUINT64,
 	"uintptr",	TUINTPTR,	TUINT64,
 	0
 };
@@ -27,7 +27,7 @@ void
 betypeinit(void)
 {
 	widthptr = 8;
-	widthint = 4;
+	widthint = 8;
 
 	zprog.link = P;
 	zprog.as = AGOK;

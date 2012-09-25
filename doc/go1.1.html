@@ -1,0 +1,65 @@
+<!--{
+	"Title": "Go 1.1 Release Notes",
+	"Path":  "/doc/go1.1"
+	"Template": true
+}-->
+
+<h2 id="introduction">Introduction to Go 1.1</h2>
+
+TODO
+ - overview
+ - link back to Go 1 and also Go 1 Compatibility docs.
+
+<h2 id="language">Changes to the language</h2>
+
+TODO
+
+<h2 id="impl">Changes to the implementations and tools</h2>
+
+TODO: more
+
+<h3 id="int">Size of int on 64-bit platforms</h3>
+
+<p>
+The language allows the implementation to choose whether the <code>int</code> type and <code>uint</code> types are 32 or 64 bits. Previous Go implementations made <code>int</code> and <code>uint</code> 32 bits on all systems. Both the gc and gccgo implementations (TODO: check that gccgo does) <a href="http://golang.org/issue/2188">now make <code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64</a>.
+Among other things, this enables the allocation of slices with
+more than 2 billion elements on 64-bit platforms.
+</p>
+
+<p>
+<em>Updating</em>:
+Most programs will be unaffected by this change.
+Because Go does not allow implicit conversions between distinct
+<a href="/ref/spec#Numeric_types">numeric types</a>,
+no programs will stop compiling due to this change.
+However, programs that contain implicit assumptions
+that <code>int</code> is only 32 bits may change behavior.
+For example, this code prints a positive number on 64-bit systems and
+a negative one on 32-bit systems:
+
+<pre>
+x := ^uint32(0) // x is 0xffffffff
+i := int(x)     // i is -1 on 32-bit systems, 0xffffffff on 64-bit
+fmt.Println(i)
+</pre>
+
+<p>Portable code intending 32-bit sign extension (yielding -1 on all systems)
+would instead say:
+</p>
+
+<pre>
+i := int(int32(x))
+</pre>
+
+<h3 id="asm">Assembler</h3>
+
+<p>
+Due to the <a href="#int">int</a> and TODO: OTHER changes,
+the placement of function arguments on the stack has changed.
+Functions written in assembly will need to be revised at least
+to adjust frame pointer offsets.
+</p>
+
+<h2 id="library">Changes to the standard library</h2>
+
+TODO

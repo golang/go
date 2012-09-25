@@ -41,7 +41,7 @@ enum
 {
 	thechar = '6',
 	PtrSize = 8,
-	IntSize = 4,
+	IntSize = 8,
 	
 	// Loop alignment constants:
 	// want to align loop entry to LoopAlign-byte boundary,

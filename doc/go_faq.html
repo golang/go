@@ -1,5 +1,6 @@
 <!--{
-	"Title": "FAQ"
+	"Title": "FAQ",
+	"Path": "/doc/faq"
 }-->
 
 <h2 id="Origins">Origins</h2>
@@ -1052,9 +1053,11 @@ Why is <code>int</code> 32 bits on 64 bit machines?</h3>
 <p>
 The sizes of <code>int</code> and <code>uint</code> are implementation-specific
 but the same as each other on a given platform.
-The 64 bit Go compilers (both gc and gccgo) use a 32 bit representation for
-<code>int</code>.  Code that relies on a particular
+For portability, code that relies on a particular
 size of value should use an explicitly sized type, like <code>int64</code>.
+Prior to Go 1.1, the 64-bit Go compilers (both gc and gccgo) used
+a 32-bit representation for <code>int</code>. As of Go 1.1 they use
+a 64-bit representation.
 On the other hand, floating-point scalars and complex
 numbers are always sized: <code>float32</code>, <code>complex64</code>,
 etc., because programmers should be aware of precision when using
