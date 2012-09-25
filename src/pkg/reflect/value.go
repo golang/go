@@ -547,6 +547,82 @@ func (v Value) call(method string, in []Value) []Value {
 	return ret
 }
 
+// callReflect is the call implementation used by a function
+// returned by MakeFunc. In many ways it is the opposite of the
+// method Value.call above. The method above converts a call using Values
+// into a call of a function with a concrete argument frame, while
+// callReflect converts a call of a function with a concrete argument
+// frame into a call using Values.
+// It is in this file so that it can be next to the call method above.
+// The remainder of the MakeFunc implementation is in makefunc.go.
+func callReflect(ftyp *funcType, f func([]Value) []Value, frame unsafe.Pointer) {
+	// Copy argument frame into Values.
+	ptr := frame
+	off := uintptr(0)
+	in := make([]Value, 0, len(ftyp.in))
+	for _, arg := range ftyp.in {
+		typ := toCommonType(arg)
+		off += -off & uintptr(typ.align-1)
+		v := Value{typ, nil, flag(typ.Kind()) << flagKindShift}
+		if typ.size <= ptrSize {
+			// value fits in word.
+			v.val = unsafe.Pointer(loadIword(unsafe.Pointer(uintptr(ptr)+off), typ.size))
+		} else {
+			// value does not fit in word.
+			// Must make a copy, because f might keep a reference to it,
+			// and we cannot let f keep a reference to the stack frame
+			// after this function returns, not even a read-only reference.
+			v.val = unsafe_New(typ)
+			memmove(v.val, unsafe.Pointer(uintptr(ptr)+off), typ.size)
+			v.flag |= flagIndir
+		}
+		in = append(in, v)
+		off += typ.size
+	}
+
+	// Call underlying function.
+	out := f(in)
+	if len(out) != len(ftyp.out) {
+		panic("reflect: wrong return count from function created by MakeFunc")
+	}
+
+	// Copy results back into argument frame.
+	if len(ftyp.out) > 0 {
+		off += -off & (ptrSize - 1)
+		for i, arg := range ftyp.out {
+			typ := toCommonType(arg)
+			v := out[i]
+			if v.typ != typ {
+				panic("reflect: function created by MakeFunc using " + funcName(f) +
+					" returned wrong type: have " +
+					out[i].typ.String() + " for " + typ.String())
+			}
+			if v.flag&flagRO != 0 {
+				panic("reflect: function created by MakeFunc using " + funcName(f) +
+					" returned value obtained from unexported field")
+			}
+			off += -off & uintptr(typ.align-1)
+			addr := unsafe.Pointer(uintptr(ptr) + off)
+			if v.flag&flagIndir == 0 {
+				storeIword(addr, iword(v.val), typ.size)
+			} else {
+				memmove(addr, v.val, typ.size)
+			}
+			off += typ.size
+		}
+	}
+}
+
+// funcName returns the name of f, for use in error messages.
+func funcName(f func([]Value) []Value) string {
+	pc := *(*uintptr)(unsafe.Pointer(&f))
+	rf := runtime.FuncForPC(pc)
+	if rf != nil {
+		return rf.Name()
+	}
+	return "closure"
+}
+
 // Cap returns v's capacity.
 // It panics if v's Kind is not Array, Chan, or Slice.
 func (v Value) Cap() int {

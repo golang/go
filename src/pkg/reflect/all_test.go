@@ -1394,23 +1394,56 @@ func fmtSelect(info []caseInfo) string {
 	return buf.String()
 }
 
+type two [2]uintptr
+
 // Difficult test for function call because of
 // implicit padding between arguments.
-func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
-	return b, c, d
+func dummy(b byte, c int, d byte, e two, f byte, g float32, h byte) (i byte, j int, k byte, l two, m byte, n float32, o byte) {
+	return b, c, d, e, f, g, h
 }
 
 func TestFunc(t *testing.T) {
-	ret := ValueOf(dummy).Call([]Value{ValueOf(byte(10)), ValueOf(20), ValueOf(byte(30))})
-	if len(ret) != 3 {
-		t.Fatalf("Call returned %d values, want 3", len(ret))
+	ret := ValueOf(dummy).Call([]Value{
+		ValueOf(byte(10)),
+		ValueOf(20),
+		ValueOf(byte(30)),
+		ValueOf(two{40, 50}),
+		ValueOf(byte(60)),
+		ValueOf(float32(70)),
+		ValueOf(byte(80)),
+	})
+	if len(ret) != 7 {
+		t.Fatalf("Call returned %d values, want 7", len(ret))
 	}
 
 	i := byte(ret[0].Uint())
 	j := int(ret[1].Int())
 	k := byte(ret[2].Uint())
-	if i != 10 || j != 20 || k != 30 {
-		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k)
+	l := ret[3].Interface().(two)
+	m := byte(ret[4].Uint())
+	n := float32(ret[5].Float())
+	o := byte(ret[6].Uint())
+
+	if i != 10 || j != 20 || k != 30 || l != (two{40, 50}) || m != 60 || n != 70 || o != 80 {
+		t.Errorf("Call returned %d, %d, %d, %v, %d, %g, %d; want 10, 20, 30, [40, 50], 60, 70, 80", i, j, k, l, m, n, o)
+	}
+}
+
+func TestMakeFunc(t *testing.T) {
+	f := dummy
+	fv := MakeFunc(TypeOf(f), func(in []Value) []Value { return in })
+	ValueOf(&f).Elem().Set(fv)
+
+	// Call g with small arguments so that there is
+	// something predictable (and different from the
+	// correct results) in those positions on the stack.
+	g := dummy
+	g(1, 2, 3, two{4, 5}, 6, 7, 8)
+
+	// Call constructed function f.
+	i, j, k, l, m, n, o := f(10, 20, 30, two{40, 50}, 60, 70, 80)
+	if i != 10 || j != 20 || k != 30 || l != (two{40, 50}) || m != 60 || n != 70 || o != 80 {
+		t.Errorf("Call returned %d, %d, %d, %v, %d, %g, %d; want 10, 20, 30, [40, 50], 60, 70, 80", i, j, k, l, m, n, o)
 	}
 }
 
