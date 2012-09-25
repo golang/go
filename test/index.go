@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 )
 
 const prolog = `
@@ -224,6 +225,10 @@ func main() {
 				// the next pass from running.
 				// So run it as a separate check.
 				thisPass = 1
+			} else if i == "i64big" || i == "i64bigger" && runtime.GOARCH == "amd64" {
+				// On amd64, these huge numbers do fit in an int, so they are not
+				// rejected at compile time.
+				thisPass = 0
 			} else {
 				thisPass = 2
 			}

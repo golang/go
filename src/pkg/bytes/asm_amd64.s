@@ -4,11 +4,11 @@
 
 TEXT ·IndexByte(SB),7,$0
 	MOVQ s+0(FP), SI
-	MOVL s+8(FP), BX
-	MOVB c+16(FP), AL
+	MOVQ s+8(FP), BX
+	MOVB c+24(FP), AL
 	MOVQ SI, DI
 
-	CMPL BX, $16
+	CMPQ BX, $16
 	JLT small
 
 	// round up to first 16-byte boundary
@@ -63,15 +63,15 @@ condition:
 	JZ success
 
 failure:
-	MOVL $-1, r+24(FP)
+	MOVQ $-1, r+32(FP)
 	RET
 
 // handle for lengths < 16
 small:
-	MOVL BX, CX
+	MOVQ BX, CX
 	REPN; SCASB
 	JZ success
-	MOVL $-1, r+24(FP)
+	MOVQ $-1, r+32(FP)
 	RET
 
 // we've found the chunk containing the byte
@@ -81,28 +81,28 @@ ssesuccess:
 	BSFW DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX
-	MOVL DX, r+24(FP)
+	MOVQ DX, r+32(FP)
 	RET
 
 success:
 	SUBQ SI, DI
 	SUBL $1, DI
-	MOVL DI, r+24(FP)
+	MOVQ DI, r+32(FP)
 	RET
 
 TEXT ·Equal(SB),7,$0
-	MOVL	a+8(FP), BX
-	MOVL	b+24(FP), CX
+	MOVQ	a+8(FP), BX
+	MOVQ	b+32(FP), CX
 	MOVL	$0, AX
-	CMPL	BX, CX
+	CMPQ	BX, CX
 	JNE	eqret
 	MOVQ	a+0(FP), SI
-	MOVQ	b+16(FP), DI
+	MOVQ	b+24(FP), DI
 	CLD
 	REP; CMPSB
 	MOVL	$1, DX
 	CMOVLEQ	DX, AX
 eqret:
-	MOVB	AX, r+32(FP)
+	MOVB	AX, r+48(FP)
 	RET
 

@@ -28,7 +28,7 @@ static Buf *output;
 
 enum
 {
-	use64bitint = 0,
+	use64bitint = 1,
 };
 
 static int
