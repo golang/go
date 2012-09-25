@@ -381,7 +381,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 		// Initiate TLS and check remote host name against certificate.
 		cfg := t.TLSClientConfig
 		if cfg == nil || cfg.ServerName == "" {
-			host, _, _ := net.SplitHostPort(cm.addr())
+			host := cm.tlsHost()
 			if cfg == nil {
 				cfg = &tls.Config{ServerName: host}
 			} else {
