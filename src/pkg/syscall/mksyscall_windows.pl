@@ -266,7 +266,7 @@ while(<>) {
 				$failexpr = "!$name";
 			} elsif($name eq "err") {
 				$ret[$i] = "r1";
-				$failexpr = "int(r1) $failcond";
+				$failexpr = "r1 $failcond";
 			} else {
 				$failexpr = "$name $failcond";
 			}
