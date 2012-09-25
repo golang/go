@@ -126,7 +126,7 @@ regexdna() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 100000 > x
 	runonly echo 'regex-dna 100000'
-	runonly 'gcc -O2 regex-dna.c -lpcre' a.out <x
+	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
 	run 'gccgo -O2 regex-dna.go' a.out <x
 	run 'gccgo -O2 regex-dna-parallel.go' a.out <x
 	run 'gc regex-dna' $O.out <x
