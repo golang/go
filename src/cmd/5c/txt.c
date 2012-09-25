@@ -1176,17 +1176,15 @@ patch(Prog *op, int32 pc)
 void
 gpseudo(int a, Sym *s, Node *n)
 {
-
 	nextpc();
 	p->as = a;
 	p->from.type = D_OREG;
 	p->from.sym = s;
 	p->from.name = D_EXTERN;
-	if(a == ATEXT) {
+	if(a == ATEXT || a == AGLOBL) {
 		p->reg = textflag;
 		textflag = 0;
-	} else if(a == AGLOBL)
-		p->reg = 0;
+	}
 	if(s->class == CSTATIC)
 		p->from.name = D_STATIC;
 	naddr(n, &p->to);
