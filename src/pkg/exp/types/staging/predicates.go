@@ -79,23 +79,6 @@ func isComparable(typ Type) bool {
 	return false
 }
 
-// underlying returns the underlying type of typ.
-func underlying(typ Type) Type {
-	// Basic types are representing themselves directly even though they are named.
-	if typ, ok := typ.(*NamedType); ok {
-		return typ.Underlying // underlying types are never NamedTypes
-	}
-	return typ
-}
-
-// deref returns a pointer's base type; otherwise it returns typ.
-func deref(typ Type) Type {
-	if typ, ok := underlying(typ).(*Pointer); ok {
-		return typ.Base
-	}
-	return typ
-}
-
 // identical returns true if x and y are identical.
 func isIdentical(x, y Type) bool {
 	if x == y {
@@ -207,4 +190,47 @@ func identicalTypes(a, b ObjList) bool {
 		return true
 	}
 	return false
+}
+
+// underlying returns the underlying type of typ.
+func underlying(typ Type) Type {
+	// Basic types are representing themselves directly even though they are named.
+	if typ, ok := typ.(*NamedType); ok {
+		return typ.Underlying // underlying types are never NamedTypes
+	}
+	return typ
+}
+
+// deref returns a pointer's base type; otherwise it returns typ.
+func deref(typ Type) Type {
+	if typ, ok := underlying(typ).(*Pointer); ok {
+		return typ.Base
+	}
+	return typ
+}
+
+// defaultType returns the default "typed" type for an "untyped" type;
+// it returns the argument typ for all other types.
+func defaultType(typ Type) Type {
+	if t, ok := typ.(*Basic); ok {
+		var k BasicKind
+		switch t.Kind {
+		case UntypedBool:
+			k = Bool
+		case UntypedRune:
+			k = Rune
+		case UntypedInt:
+			k = Int
+		case UntypedFloat:
+			k = Float64
+		case UntypedComplex:
+			k = Complex128
+		case UntypedString:
+			k = String
+		default:
+			unreachable()
+		}
+		typ = Typ[k]
+	}
+	return typ
 }
