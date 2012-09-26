@@ -221,7 +221,10 @@ L:
 		if tt.dec != nil {
 			dec = make([]uint32, len(tt.dec))
 		}
-		expandKey(tt.key, enc, dec)
+		// This test could only test Go version of expandKey because asm
+		// version might use different memory layout for expanded keys
+		// This is OK because we don't expose expanded keys to the outside
+		expandKeyGo(tt.key, enc, dec)
 		for j, v := range enc {
 			if v != tt.enc[j] {
 				t.Errorf("key %d: enc[%d] = %#x, want %#x", i, j, v, tt.enc[j])
