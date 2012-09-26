@@ -978,48 +978,37 @@ ret:
 /*
  * generate byte multiply:
  *	res = nl * nr
- * no 2-operand byte multiply instruction so have to do
- * 16-bit multiply and take bottom half.
+ * there is no 2-operand byte multiply instruction so
+ * we do a full-width multiplication and truncate afterwards.
  */
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1b, n2b, n1w, n2w;
+	Node n1, n2, *tmp;
 	Type *t;
 	int a;
 
-	if(nl->ullman >= nr->ullman) {
-		regalloc(&n1b, nl->type, res);
-		cgen(nl, &n1b);
-		regalloc(&n2b, nr->type, N);
-		cgen(nr, &n2b);
-	} else {
-		regalloc(&n2b, nr->type, N);
-		cgen(nr, &n2b);
-		regalloc(&n1b, nl->type, res);
-		cgen(nl, &n1b);
+	// copy from byte to full registers
+	t = types[TUINT64];
+	if(issigned[nl->type->etype])
+		t = types[TINT64];
+
+	// largest ullman on left.
+	if(nl->ullman < nr->ullman) {
+		tmp = nl;
+		nl = nr;
+		nr = tmp;
 	}
 
-	// copy from byte to short registers
-	t = types[TUINT16];
-	if(issigned[nl->type->etype])
-		t = types[TINT16];
-
-	regalloc(&n2w, t, &n2b);
-	cgen(&n2b, &n2w);
-
-	regalloc(&n1w, t, &n1b);
-	cgen(&n1b, &n1w);
-
+	regalloc(&n1, t, res);
+	cgen(nl, &n1);
+	regalloc(&n2, t, N);
+	cgen(nr, &n2);
 	a = optoas(op, t);
-	gins(a, &n2w, &n1w);
-	cgen(&n1w, &n1b);
-	cgen(&n1b, res);
-
-	regfree(&n1w);
-	regfree(&n2w);
-	regfree(&n1b);
-	regfree(&n2b);
+	gins(a, &n2, &n1);
+	regfree(&n2);
+	gmove(&n1, res);
+	regfree(&n1);
 }
 
 void
