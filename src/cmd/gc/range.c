@@ -71,6 +71,11 @@ typecheckrange(Node *n)
 	v2 = N;
 	if(n->list->next)
 		v2 = n->list->next->n;
+	
+	if(isblank(v2)) {
+		n->list = list1(v1);
+		v2 = N;
+	}
 
 	if(v1->defn == n)
 		v1->type = t1;
