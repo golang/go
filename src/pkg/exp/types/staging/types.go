@@ -29,8 +29,7 @@ import (
 // the expression appears in the AST.
 //
 func Check(fset *token.FileSet, pkg *ast.Package, types map[ast.Expr]Type) error {
-	// return check(fset, pkg, types) // commented out for now to make it compile
-	return nil
+	return check(fset, pkg, types)
 }
 
 // All types implement the Type interface.
@@ -101,6 +100,7 @@ type Basic struct {
 	implementsType
 	Kind BasicKind
 	Info BasicInfo
+	Size int64 // > 0 if valid
 	Name string
 }
 
@@ -188,10 +188,11 @@ const (
 // A builtin represents the type of a built-in function.
 type builtin struct {
 	implementsType
-	id         builtinId
-	name       string
-	nargs      int // number of arguments (minimum if variadic)
-	isVariadic bool
+	id          builtinId
+	name        string
+	nargs       int // number of arguments (minimum if variadic)
+	isVariadic  bool
+	isStatement bool // true if the built-in is valid as an expression statement
 }
 
 // An Interface represents an interface type interface{...}.
