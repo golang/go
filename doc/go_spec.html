@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 22, 2012",
+	"Subtitle": "Version of September 26, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3390,7 +3390,7 @@ that can be converted to type <code>T</code>.
 </p>
 
 <pre class="ebnf">
-Conversion = Type "(" Expression ")" .
+Conversion = Type "(" Expression [ "," ] ")" .
 </pre>
 
 <p>
@@ -3464,12 +3464,11 @@ in any of these cases:
 	<code>x</code>'s type and <code>T</code> are both complex types.
 	</li>
 	<li>
-	<code>x</code> is an integer or has type <code>[]byte</code> or
-	<code>[]rune</code> and <code>T</code> is a string type.
+	<code>x</code> is an integer or a slice of bytes or runes
+	and <code>T</code> is a string type.
 	</li>
 	<li>
-	<code>x</code> is a string and <code>T</code> is <code>[]byte</code> or
-	<code>[]rune</code>.
+	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 </ul>
 
