@@ -521,14 +521,19 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 	// As a courtesy to developers installing new versions of the compiler
 	// frequently, define that packages are stale if they are
 	// older than the compiler, and commands if they are older than
-	// the linker.  This heuristic will not work if the binaries are back-dated,
-	// as some binary distributions may do, but it does handle a very
-	// common case.  See issue 3036.
-	if olderThan(buildToolchain.compiler()) {
-		return true
-	}
-	if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
-		return true
+	// the linker.  This heuristic will not work if the binaries are
+	// back-dated, as some binary distributions may do, but it does handle
+	// a very common case.
+	// See issue 3036.
+	// Assume code in $GOROOT is up to date, since it may not be writeable.
+	// See issue 4106.
+	if p.Root != goroot {
+		if olderThan(buildToolchain.compiler()) {
+			return true
+		}
+		if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
+			return true
+		}
 	}
 
 	// Have installed copy, probably built using current compilers,
