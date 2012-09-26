@@ -148,6 +148,9 @@ peinit(void)
 	PESECTHEADR = rnd(PEFILEHEADR, PESECTALIGN);
 	nextsectoff = PESECTHEADR;
 	nextfileoff = PEFILEHEADR;
+
+	// some mingw libs depend on this symbol, for example, FindPESectionByName
+	xdefine("__image_base__", SDATA, PEBASE);
 }
 
 static void
