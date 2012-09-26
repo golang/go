@@ -1597,9 +1597,12 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	if err != nil {
 		return nil, nil, err
 	}
-	staticLibs := []string{libgcc}
+	var staticLibs []string
 	if goos == "windows" {
-		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
+		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
+		staticLibs = []string{"-lmingwex", "-lmingw32", libgcc}
+	} else {
+		staticLibs = []string{libgcc}
 	}
 
 	for _, cfile := range cfiles {
