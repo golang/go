@@ -17,9 +17,9 @@ import (
 // /sys/include/ape/sys/socket.h:/SOMAXCONN
 var listenerBacklog = 5
 
-// probeIPv6Stack returns two boolean values.  If the first boolean value is
-// true, kernel supports basic IPv6 functionality.  If the second
-// boolean value is true, kernel supports IPv6 IPv4-mapping.
+// probeIPv6Stack returns two boolean values.  If the first boolean
+// value is true, kernel supports basic IPv6 functionality.  If the
+// second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	return false, false
 }
@@ -166,6 +166,25 @@ func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
 	return syscall.EPLAN9
 }
 
+// SetReadBuffer sets the size of the operating system's receive
+// buffer associated with the connection.
+func (c *plan9Conn) SetReadBuffer(bytes int) error {
+	return syscall.EPLAN9
+}
+
+// SetWriteBuffer sets the size of the operating system's transmit
+// buffer associated with the connection.
+func (c *plan9Conn) SetWriteBuffer(bytes int) error {
+	return syscall.EPLAN9
+}
+
+// File returns a copy of the underlying os.File, set to blocking
+// mode.  It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (c *plan9Conn) File() (f *os.File, err error) {
+	return nil, syscall.EPLAN9
+}
+
 func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
 	var (
 		ip   IP
@@ -305,4 +324,11 @@ func (l *plan9Listener) Addr() Addr { return l.laddr }
 // A zero time value disables the deadline.
 func (l *plan9Listener) SetDeadline(t time.Time) error {
 	return syscall.EPLAN9
+}
+
+// File returns a copy of the underlying os.File, set to blocking
+// mode.  It is the caller's responsibility to close f when finished.
+// Closing l does not affect f, and closing f does not affect l.
+func (l *plan9Listener) File() (f *os.File, err error) {
+	return nil, syscall.EPLAN9
 }
