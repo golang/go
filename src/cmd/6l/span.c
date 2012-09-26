@@ -1247,7 +1247,8 @@ found:
 		break;
 
 	case Zibm_r:
-		*andptr++ = op;
+		while ((op = o->op[z++]) != 0)
+			*andptr++ = op;
 		asmand(&p->from, &p->to);
 		*andptr++ = p->to.offset;
 		break;
