@@ -1772,7 +1772,7 @@ def gofmt(ui, repo, *pats, **opts):
 		cmd = ["gofmt", "-l"]
 		if not opts["list"]:
 			cmd += ["-w"]
-		if os.spawnvp(os.P_WAIT, "gofmt", cmd + files) != 0:
+		if subprocess.call(cmd + files) != 0:
 			raise hg_util.Abort("gofmt did not exit cleanly")
 	except hg_error.Abort, e:
 		raise
