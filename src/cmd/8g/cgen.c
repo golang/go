@@ -825,8 +825,20 @@ igen(Node *n, Node *a, Node *res)
 		return;
 
 	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+		switch(n->op) {
+		case OCALLFUNC:
+			cgen_call(n, 0);
+			break;
+		case OCALLMETH:
+			cgen_callmeth(n, 0);
+			break;
+		case OCALLINTER:
+			cgen_callinter(n, N, 0);
+			break;
+		}
 		fp = structfirst(&flist, getoutarg(n->left->type));
-		cgen_call(n, 0);
 		memset(a, 0, sizeof *a);
 		a->op = OINDREG;
 		a->val.u.reg = D_SP;
