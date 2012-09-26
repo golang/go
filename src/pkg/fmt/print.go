@@ -569,16 +569,15 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 		}
 		return
 	}
-	s := string(v)
 	switch verb {
 	case 's':
-		p.fmt.fmt_s(s)
+		p.fmt.fmt_s(string(v))
 	case 'x':
-		p.fmt.fmt_sx(s, ldigits)
+		p.fmt.fmt_bx(v, ldigits)
 	case 'X':
-		p.fmt.fmt_sx(s, udigits)
+		p.fmt.fmt_bx(v, udigits)
 	case 'q':
-		p.fmt.fmt_q(s)
+		p.fmt.fmt_q(string(v))
 	default:
 		p.badVerb(verb)
 	}

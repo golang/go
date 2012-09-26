@@ -127,6 +127,10 @@ var fmttests = []struct {
 	{"%s", []byte("abc"), "abc"},
 	{"%x", []byte("abc"), "616263"},
 	{"% x", []byte("abc\xff"), "61 62 63 ff"},
+	{"%#x", []byte("abc\xff"), "0x610x620x630xff"},
+	{"%#X", []byte("abc\xff"), "0X610X620X630XFF"},
+	{"%# x", []byte("abc\xff"), "0x61 0x62 0x63 0xff"},
+	{"%# X", []byte("abc\xff"), "0X61 0X62 0X63 0XFF"},
 	{"% X", []byte("abc\xff"), "61 62 63 FF"},
 	{"%x", []byte("xyz"), "78797a"},
 	{"%X", []byte("xyz"), "78797A"},
@@ -350,10 +354,12 @@ var fmttests = []struct {
 	{"%+v", B{1, 2}, `{I:<1> j:2}`},
 	{"%+v", C{1, B{2, 3}}, `{i:1 B:{I:<2> j:3}}`},
 
-	// q on Stringable items
+	// other formats on Stringable items
 	{"%s", I(23), `<23>`},
 	{"%q", I(23), `"<23>"`},
 	{"%x", I(23), `3c32333e`},
+	{"%#x", I(23), `0x3c0x320x330x3e`},
+	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
 	{"%d", I(23), `23`}, // Stringer applies only to string formats.
 
 	// go syntax
