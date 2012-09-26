@@ -125,6 +125,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
 // DeepEqual tests for deep equality. It uses normal == equality where possible
 // but will scan members of arrays, slices, maps, and fields of structs. It correctly
 // handles recursive types. Functions are equal only if they are both nil.
+// Note: unlike regular ==, DeepEqual distinguishes an empty slice from a nil slice.
 func DeepEqual(a1, a2 interface{}) bool {
 	if a1 == nil || a2 == nil {
 		return a1 == a2
