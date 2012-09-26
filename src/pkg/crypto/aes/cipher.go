@@ -45,6 +45,10 @@ func NewCipher(key []byte) (cipher.Block, error) {
 
 func (c *aesCipher) BlockSize() int { return BlockSize }
 
-func (c *aesCipher) Encrypt(dst, src []byte) { encryptBlock(c.enc, dst, src) }
+func (c *aesCipher) Encrypt(dst, src []byte) {
+	encryptBlock(c.enc, dst, src)
+}
 
-func (c *aesCipher) Decrypt(dst, src []byte) { decryptBlock(c.dec, dst, src) }
+func (c *aesCipher) Decrypt(dst, src []byte) {
+	decryptBlock(c.dec, dst, src)
+}
