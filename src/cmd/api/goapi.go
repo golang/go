@@ -228,13 +228,14 @@ func main() {
 		}
 	}
 
+	// In next file, but not in API.
 	var missing []string
 	for feature := range optional {
 		missing = append(missing, feature)
 	}
 	sort.Strings(missing)
 	for _, feature := range missing {
-		fmt.Fprintf(bw, "(in next file, but not in API) -%s\n", feature)
+		fmt.Fprintf(bw, "±%s\n", feature)
 	}
 }
 
