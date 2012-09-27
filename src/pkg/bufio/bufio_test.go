@@ -762,3 +762,107 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 		}
 	}
 }
+
+func TestReaderWriteTo(t *testing.T) {
+	input := make([]byte, 8192)
+	for i := range input {
+		// 101 and 251 are arbitrary prime numbers.
+		// The idea is to create an input sequence
+		// which doesn't repeat too frequently.
+		input[i] = byte(i % 251)
+		if i%101 == 0 {
+			input[i] ^= byte(i / 101)
+		}
+	}
+	r := NewReader(bytes.NewBuffer(input))
+	w := new(bytes.Buffer)
+	if n, err := r.WriteTo(w); err != nil || n != int64(len(input)) {
+		t.Fatalf("r.WriteTo(w) = %d, %v, want %d, nil", n, err, len(input))
+	}
+
+	for i, val := range w.Bytes() {
+		if val != input[i] {
+			t.Errorf("after write: out[%d] = %#x, want %#x", i, val, input[i])
+		}
+	}
+}
+
+type errorWriterToTest struct {
+	rn, wn     int
+	rerr, werr error
+	expected   error
+}
+
+func (r errorWriterToTest) Read(p []byte) (int, error) {
+	return len(p) * r.rn, r.rerr
+}
+
+func (w errorWriterToTest) Write(p []byte) (int, error) {
+	return len(p) * w.wn, w.werr
+}
+
+var errorWriterToTests = []errorWriterToTest{
+	{1, 0, nil, io.ErrClosedPipe, io.ErrClosedPipe},
+	{0, 1, io.ErrClosedPipe, nil, io.ErrClosedPipe},
+	{0, 0, io.ErrUnexpectedEOF, io.ErrClosedPipe, io.ErrClosedPipe},
+	{0, 1, io.EOF, nil, nil},
+}
+
+func TestReaderWriteToErrors(t *testing.T) {
+	for i, rw := range errorWriterToTests {
+		r := NewReader(rw)
+		if _, err := r.WriteTo(rw); err != rw.expected {
+			t.Errorf("r.WriteTo(errorWriterToTests[%d]) = _, %v, want _,%v", i, err, rw.expected)
+		}
+	}
+}
+
+// An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
+type onlyReader struct {
+	r io.Reader
+}
+
+func (r *onlyReader) Read(b []byte) (int, error) {
+	return r.r.Read(b)
+}
+
+// An onlyWriter only implements io.Writer, no matter what other methods the underlying implementation may have.
+type onlyWriter struct {
+	w io.Writer
+}
+
+func (w *onlyWriter) Write(b []byte) (int, error) {
+	return w.w.Write(b)
+}
+
+func BenchmarkReaderCopyOptimal(b *testing.B) {
+	// Optimal case is where the underlying reader implements io.WriterTo
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := NewReader(bytes.NewBuffer(make([]byte, 8192)))
+		dst := &onlyWriter{new(bytes.Buffer)}
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkReaderCopyUnoptimal(b *testing.B) {
+	// Unoptimal case is where the underlying reader doesn't implement io.WriterTo
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := NewReader(&onlyReader{bytes.NewBuffer(make([]byte, 8192))})
+		dst := &onlyWriter{new(bytes.Buffer)}
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := &onlyReader{NewReader(bytes.NewBuffer(make([]byte, 8192)))}
+		dst := &onlyWriter{new(bytes.Buffer)}
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
