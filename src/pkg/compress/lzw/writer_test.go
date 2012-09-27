@@ -96,6 +96,14 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func TestWriterReturnValues(t *testing.T) {
+	w := NewWriter(ioutil.Discard, LSB, 8)
+	n, err := w.Write([]byte("asdf"))
+	if n != 4 || err != nil {
+		t.Errorf("got %d, %v, want 4, nil", n, err)
+	}
+}
+
 func benchmarkEncoder(b *testing.B, n int) {
 	b.StopTimer()
 	b.SetBytes(int64(n))
