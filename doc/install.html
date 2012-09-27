@@ -116,12 +116,18 @@ rm -r /usr/local/go
 
 <p>
 Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+Type-Archive">the archive</a>
-into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>:
+into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>.
+For example:
 </p>
 
 <pre>
-tar -C /usr/local -xzf go1.0.2.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.0.3.linux-amd64.tar.gz
 </pre>
+
+<p>
+The name of the archive may differ, depending on the version of Go you are
+installing and your system's operating system and processor architecture.
+</p>
 
 <p>
 (Typically these commands must be run as root or through <code>sudo</code>.)
