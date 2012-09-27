@@ -38,7 +38,7 @@ type itemType int
 const (
 	itemError        itemType = iota // error occurred; value is text of error
 	itemBool                         // boolean constant
-	itemChar                         // printable ASCII character; grab bag for comma etc.
+	itemChar                         // printable ASCII character; grab bag for comma etc
 	itemCharConstant                 // character constant
 	itemComplex                      // complex constant (1+2i); imaginary is just a number
 	itemColonEquals                  // colon-equals (':=') introducing a declaration
@@ -55,10 +55,10 @@ const (
 	itemSpace      // run of spaces separating arguments
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
-	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
+	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'
 	// Keywords appear after all the rest.
 	itemKeyword  // used only to delimit the keywords
-	itemDot      // the cursor, spelled '.'.
+	itemDot      // the cursor, spelled '.'
 	itemDefine   // define keyword
 	itemElse     // else keyword
 	itemEnd      // end keyword
@@ -88,16 +88,16 @@ type stateFn func(*lexer) stateFn
 
 // lexer holds the state of the scanner.
 type lexer struct {
-	name       string    // the name of the input; used only for error reports.
-	input      string    // the string being scanned.
-	leftDelim  string    // start of action.
-	rightDelim string    // end of action.
-	state      stateFn   // the next lexing function to enter.
-	pos        int       // current position in the input.
-	start      int       // start position of this item.
-	width      int       // width of last rune read from input.
+	name       string    // the name of the input; used only for error reports
+	input      string    // the string being scanned
+	leftDelim  string    // start of action
+	rightDelim string    // end of action
+	state      stateFn   // the next lexing function to enter
+	pos        int       // current position in the input
+	start      int       // start position of this item
+	width      int       // width of last rune read from input
 	lastPos    int       // position of most recent item returned by nextItem
-	items      chan item // channel of scanned items.
+	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 }
 
@@ -158,7 +158,7 @@ func (l *lexer) lineNumber() int {
 	return 1 + strings.Count(l.input[:l.lastPos], "\n")
 }
 
-// error returns an error token and terminates the scan by passing
+// errorf returns an error token and terminates the scan by passing
 // back a nil pointer that will be the next state, terminating l.nextItem.
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
@@ -428,7 +428,7 @@ func (l *lexer) atTerminator() bool {
 }
 
 // lexChar scans a character constant. The initial quote is already
-// scanned.  Syntax checking is done by the parser.
+// scanned. Syntax checking is done by the parser.
 func lexChar(l *lexer) stateFn {
 Loop:
 	for {
@@ -448,7 +448,7 @@ Loop:
 	return lexInsideAction
 }
 
-// lexNumber scans a number: decimal, octal, hex, float, or imaginary.  This
+// lexNumber scans a number: decimal, octal, hex, float, or imaginary. This
 // isn't a perfect number scanner - for instance it accepts "." and "0x0.2"
 // and "089" - but when it's wrong the input is invalid and the parser (via
 // strconv) will notice.
@@ -457,7 +457,7 @@ func lexNumber(l *lexer) stateFn {
 		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
 	if sign := l.peek(); sign == '+' || sign == '-' {
-		// Complex: 1+2i.  No spaces, must end in 'i'.
+		// Complex: 1+2i. No spaces, must end in 'i'.
 		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
 			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 		}
@@ -534,7 +534,7 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
 }
 
-// isEndOfLine reports whether r is an end-of-line character
+// isEndOfLine reports whether r is an end-of-line character.
 func isEndOfLine(r rune) bool {
 	return r == '\r' || r == '\n'
 }
