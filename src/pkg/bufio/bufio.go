@@ -375,6 +375,41 @@ func (b *Reader) ReadString(delim byte) (line string, err error) {
 	return string(bytes), e
 }
 
+// WriteTo implements io.WriterTo.
+func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	n, err = b.writeBuf(w)
+	if err != nil {
+		return
+	}
+
+	if r, ok := b.rd.(io.WriterTo); ok {
+		m, err := r.WriteTo(w)
+		n += m
+		return n, err
+	}
+
+	for b.fill(); b.r < b.w; b.fill() {
+		m, err := b.writeBuf(w)
+		n += m
+		if err != nil {
+			return n, err
+		}
+	}
+
+	if b.err == io.EOF {
+		b.err = nil
+	}
+
+	return n, b.readErr()
+}
+
+// writeBuf writes the Reader's buffer to the writer.
+func (b *Reader) writeBuf(w io.Writer) (int64, error) {
+	n, err := w.Write(b.buf[b.r:b.w])
+	b.r += n
+	return int64(n), err
+}
+
 // buffered output
 
 // Writer implements buffering for an io.Writer object.
