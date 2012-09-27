@@ -122,14 +122,11 @@ void	clearp(Prog*);
 void	proglist(void);
 Prog*	gbranch(int, Type*, int);
 Prog*	prog(int);
-void	gaddoffset(Node*);
 void	gconv(int, int);
 int	conv2pt(Type*);
 vlong	convvtox(vlong, int);
 void	fnparam(Type*, int, int);
 Prog*	gop(int, Node*, Node*, Node*);
-void	setconst(Addr*, vlong);
-void	setaddr(Addr*, Node*);
 int	optoas(int, Type*);
 int	foptoas(int, Type*, int);
 void	ginit(void);
@@ -141,8 +138,6 @@ void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
 void	nodconst(Node*, Type*, int64);
 void	gconreg(int, vlong, int);
-void	datagostring(Strlit*, Addr*);
-void	datastring(char*, int, Addr*);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
@@ -160,6 +155,12 @@ void	nswap(Node*, Node*);
 int	complexop(Node*, Node*);
 void	complexmove(Node*, Node*);
 void	complexgen(Node*, Node*);
+
+/*
+ * gobj.c
+ */
+void	datastring(char*, int, Addr*);
+void	datagostring(Strlit*, Addr*);
 
 /*
  * list.c
