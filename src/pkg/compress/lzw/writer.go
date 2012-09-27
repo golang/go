@@ -131,13 +131,14 @@ func (e *encoder) incHi() error {
 }
 
 // Write writes a compressed representation of p to e's underlying writer.
-func (e *encoder) Write(p []byte) (int, error) {
+func (e *encoder) Write(p []byte) (n int, err error) {
 	if e.err != nil {
 		return 0, e.err
 	}
 	if len(p) == 0 {
 		return 0, nil
 	}
+	n = len(p)
 	litMask := uint32(1<<e.litWidth - 1)
 	code := e.savedCode
 	if code == invalidCode {
@@ -167,11 +168,11 @@ loop:
 		code = literal
 		// Increment e.hi, the next implied code. If we run out of codes, reset
 		// the encoder state (including clearing the hash table) and continue.
-		if err := e.incHi(); err != nil {
-			if err == errOutOfCodes {
+		if err1 := e.incHi(); err1 != nil {
+			if err1 == errOutOfCodes {
 				continue
 			}
-			e.err = err
+			e.err = err1
 			return 0, e.err
 		}
 		// Otherwise, insert key -> e.hi into the map that e.table represents.
@@ -184,7 +185,7 @@ loop:
 		}
 	}
 	e.savedCode = code
-	return len(p), nil
+	return n, nil
 }
 
 // Close closes the encoder, flushing any pending output. It does not close or
