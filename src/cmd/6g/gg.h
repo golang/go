@@ -58,7 +58,7 @@ EXTERN	Node*	throwreturn;
 extern	vlong	unmappedzero;
 
 /*
- * gen.c
+ * ggen.c
  */
 void	compile(Node*);
 void	proglist(void);
@@ -81,7 +81,7 @@ void	ginscall(Node*, int);
 int	gen_as_init(Node*);
 
 /*
- * cgen
+ * cgen.c
  */
 void	agen(Node*, Node*);
 void	igen(Node*, Node*, Node*);
@@ -103,7 +103,6 @@ void	clearp(Prog*);
 void	proglist(void);
 Prog*	gbranch(int, Type*, int);
 Prog*	prog(int);
-void	gaddoffset(Node*);
 void	gconv(int, int);
 int	conv2pt(Type*);
 vlong	convvtox(vlong, int);
@@ -125,7 +124,6 @@ int	isfat(Type*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
-void	datagostring(Strlit*, Addr*);
 void	nodfconst(Node*, Type*, Mpflt*);
 
 /*
@@ -139,6 +137,7 @@ void	complexgen(Node*, Node*);
  * gobj.c
  */
 void	datastring(char*, int, Addr*);
+void	datagostring(Strlit*, Addr*);
 
 /*
  * list.c
