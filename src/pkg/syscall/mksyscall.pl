@@ -257,7 +257,7 @@ while(<>) {
 	$text .= $body;
 	
 	if ($plan9 && $ret[2] eq "e1") {
-		$text .= "\tif int(r0) == -1 {\n";
+		$text .= "\tif int32(r0) == -1 {\n";
 		$text .= "\t\terr = e1\n";
 		$text .= "\t}\n";
 	} elsif ($do_errno) {
