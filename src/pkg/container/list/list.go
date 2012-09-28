@@ -83,8 +83,7 @@ func (l *List) Back() *Element {
 // lazyInit lazily initializes a zero List value.
 func (l *List) lazyInit() {
 	if l.root.next == nil {
-		l.root.next = &l.root
-		l.root.prev = &l.root
+		l.Init()
 	}
 }
 
@@ -98,6 +97,11 @@ func (l *List) insert(e, at *Element) *Element {
 	e.list = l
 	l.len++
 	return e
+}
+
+// insertValue is a convenience wrapper for insert(&Element{Value: v}, at).
+func (l *List) insertValue(v interface{}, at *Element) *Element {
+	return l.insert(&Element{Value: v}, at)
 }
 
 // remove removes e from its list, decrements l.len, and returns e.
@@ -123,13 +127,13 @@ func (l *List) Remove(e *Element) interface{} {
 // Pushfront inserts a new element e with value v at the front of list l and returns e.
 func (l *List) PushFront(v interface{}) *Element {
 	l.lazyInit()
-	return l.insert(&Element{Value: v}, &l.root)
+	return l.insertValue(v, &l.root)
 }
 
 // PushBack inserts a new element e with value v at the back of list l and returns e.
 func (l *List) PushBack(v interface{}) *Element {
 	l.lazyInit()
-	return l.insert(&Element{Value: v}, l.root.prev)
+	return l.insertValue(v, l.root.prev)
 }
 
 // InsertBefore inserts a new element e with value v immediately before mark and returns e.
@@ -139,17 +143,17 @@ func (l *List) InsertBefore(v interface{}, mark *Element) *Element {
 		return nil
 	}
 	// see comment in List.Remove about initialization of l
-	return l.insert(&Element{Value: v}, mark.prev)
+	return l.insertValue(v, mark.prev)
 }
 
 // InsertAfter inserts a new element e with value v immediately after mark and returns e.
 // If mark is not an element of l, the list is not modified.
-func (l *List) InsertAfter(value interface{}, mark *Element) *Element {
+func (l *List) InsertAfter(v interface{}, mark *Element) *Element {
 	if mark.list != l {
 		return nil
 	}
 	// see comment in List.Remove about initialization of l
-	return l.insert(&Element{Value: value}, mark)
+	return l.insertValue(v, mark)
 }
 
 // MoveToFront moves element e to the front of list l.
@@ -177,7 +181,7 @@ func (l *List) MoveToBack(e *Element) {
 func (l *List) PushBackList(other *List) {
 	l.lazyInit()
 	for i, e := other.Len(), other.Front(); i > 0; i, e = i-1, e.Next() {
-		l.insert(&Element{Value: e.Value}, l.root.prev)
+		l.insertValue(e.Value, l.root.prev)
 	}
 }
 
@@ -186,6 +190,6 @@ func (l *List) PushBackList(other *List) {
 func (l *List) PushFrontList(other *List) {
 	l.lazyInit()
 	for i, e := other.Len(), other.Back(); i > 0; i, e = i-1, e.Prev() {
-		l.insert(&Element{Value: e.Value}, &l.root)
+		l.insertValue(e.Value, &l.root)
 	}
 }
