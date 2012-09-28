@@ -254,6 +254,17 @@ func TestReplacer(t *testing.T) {
 		testCase{blankFoo, "", "X"},
 	)
 
+	// single string replacer
+
+	abcMatcher := NewReplacer("abc", "[match]")
+
+	testCases = append(testCases,
+		testCase{abcMatcher, "", ""},
+		testCase{abcMatcher, "ab", "ab"},
+		testCase{abcMatcher, "abcd", "[match]d"},
+		testCase{abcMatcher, "cabcabcdabca", "c[match][match]d[match]a"},
+	)
+
 	// No-arg test cases.
 
 	nop := NewReplacer()
@@ -294,8 +305,9 @@ func TestPickAlgorithm(t *testing.T) {
 	}{
 		{capitalLetters, "*strings.byteReplacer"},
 		{htmlEscaper, "*strings.byteStringReplacer"},
-		{NewReplacer("12", "123"), "*strings.genericReplacer"},
+		{NewReplacer("12", "123"), "*strings.singleStringReplacer"},
 		{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
+		{NewReplacer("", "X"), "*strings.genericReplacer"},
 		{NewReplacer("a", "1", "b", "12", "cde", "123"), "*strings.genericReplacer"},
 	}
 	for i, tc := range testCases {
@@ -399,6 +411,27 @@ func BenchmarkGenericMatch2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		htmlUnescaper.Replace(str)
 	}
+}
+
+func benchmarkSingleString(b *testing.B, pattern, text string) {
+	r := NewReplacer(pattern, "[match]")
+	b.SetBytes(int64(len(text)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Replace(text)
+	}
+}
+
+func BenchmarkSingleMaxSkipping(b *testing.B) {
+	benchmarkSingleString(b, Repeat("b", 25), Repeat("a", 10000))
+}
+
+func BenchmarkSingleLongSuffixFail(b *testing.B) {
+	benchmarkSingleString(b, "b"+Repeat("a", 500), Repeat("a", 1002))
+}
+
+func BenchmarkSingleMatch(b *testing.B) {
+	benchmarkSingleString(b, "abcdef", Repeat("abcdefghijklmno", 1000))
 }
 
 func BenchmarkByteByteNoMatch(b *testing.B) {

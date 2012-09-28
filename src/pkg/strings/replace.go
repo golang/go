@@ -33,6 +33,10 @@ func NewReplacer(oldnew ...string) *Replacer {
 		panic("strings.NewReplacer: odd argument count")
 	}
 
+	if len(oldnew) == 2 && len(oldnew[0]) > 1 {
+		return &Replacer{r: makeSingleStringReplacer(oldnew[0], oldnew[1])}
+	}
+
 	allNewBytes := true
 	for i := 0; i < len(oldnew); i += 2 {
 		if len(oldnew[i]) != 1 {
@@ -288,12 +292,24 @@ func (w *appendSliceWriter) WriteString(s string) (int, error) {
 	return len(s), nil
 }
 
+type stringWriterIface interface {
+	WriteString(string) (int, error)
+}
+
 type stringWriter struct {
 	w io.Writer
 }
 
 func (w stringWriter) WriteString(s string) (int, error) {
 	return w.w.Write([]byte(s))
+}
+
+func getStringWriter(w io.Writer) stringWriterIface {
+	sw, ok := w.(stringWriterIface)
+	if !ok {
+		sw = stringWriter{w}
+	}
+	return sw
 }
 
 func (r *genericReplacer) Replace(s string) string {
@@ -303,13 +319,7 @@ func (r *genericReplacer) Replace(s string) string {
 }
 
 func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) {
-	sw, ok := w.(interface {
-		WriteString(string) (int, error)
-	})
-	if !ok {
-		sw = stringWriter{w}
-	}
-
+	sw := getStringWriter(w)
 	var last, wn int
 	var prevMatchEmpty bool
 	for i := 0; i <= len(s); {
@@ -337,6 +347,62 @@ func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) 
 		wn, err = sw.WriteString(s[last:])
 		n += wn
 	}
+	return
+}
+
+// singleStringReplacer is the implementation that's used when there is only
+// one string to replace (and that string has more than one byte).
+type singleStringReplacer struct {
+	finder *stringFinder
+	// value is the new string that replaces that pattern when it's found.
+	value string
+}
+
+func makeSingleStringReplacer(pattern string, value string) *singleStringReplacer {
+	return &singleStringReplacer{finder: makeStringFinder(pattern), value: value}
+}
+
+func (r *singleStringReplacer) Replace(s string) string {
+	var buf []byte
+	i := 0
+	for {
+		match := r.finder.next(s[i:])
+		if match == -1 {
+			break
+		}
+		buf = append(buf, s[i:i+match]...)
+		buf = append(buf, r.value...)
+		i += match + len(r.finder.pattern)
+	}
+	if buf == nil {
+		return s
+	}
+	buf = append(buf, s[i:]...)
+	return string(buf)
+}
+
+func (r *singleStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+	sw := getStringWriter(w)
+	var i, wn int
+	for {
+		match := r.finder.next(s[i:])
+		if match == -1 {
+			break
+		}
+		wn, err = sw.WriteString(s[i : i+match])
+		n += wn
+		if err != nil {
+			return
+		}
+		wn, err = sw.WriteString(r.value)
+		n += wn
+		if err != nil {
+			return
+		}
+		i += match + len(r.finder.pattern)
+	}
+	wn, err = sw.WriteString(s[i:])
+	n += wn
 	return
 }
 
