@@ -10,4 +10,4 @@ type T struct {
 	X int
 }
 
-func (t *T) X() {} // ERROR "type T has both field and method named X"
+func (t *T) X() {} // ERROR "type T has both field and method named X|redeclares struct field name"

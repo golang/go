@@ -41,8 +41,9 @@ func main() {
 	{
 		// multiline no new variables
 		i := f1
-		i := func() int { // ERROR "redeclared|no new|incompatible"
+		i := func() { // ERROR "redeclared|no new|incompatible"
 		}
+		_ = i
 	}
 	{
 		// single redeclaration

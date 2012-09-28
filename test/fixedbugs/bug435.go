@@ -12,4 +12,4 @@
 package main
 
 func foo() {
-	bar(1, // ERROR "unexpected"
+	bar(1, // ERROR "unexpected|missing|undefined"
