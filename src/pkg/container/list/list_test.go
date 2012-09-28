@@ -4,65 +4,75 @@
 
 package list
 
-import (
-	"testing"
-)
+import "testing"
+
+func checkListLen(t *testing.T, l *List, len int) bool {
+	if n := l.Len(); n != len {
+		t.Errorf("l.Len() = %d, want %d", n, len)
+		return false
+	}
+	return true
+}
 
 func checkListPointers(t *testing.T, l *List, es []*Element) {
-	if len(es) == 0 {
-		if l.front != nil || l.back != nil {
-			t.Errorf("l.front/l.back = %v/%v should be nil/nil", l.front, l.back)
-		}
+	root := &l.root
+
+	if !checkListLen(t, l, len(es)) {
 		return
 	}
 
-	if l.front != es[0] {
-		t.Errorf("l.front = %v, want %v", l.front, es[0])
+	// zero length lists must be the zero value or properly initialized (sentinel circle)
+	if len(es) == 0 {
+		if l.root.next != nil && l.root.next != root || l.root.prev != nil && l.root.prev != root {
+			t.Errorf("l.root.next = %p, l.root.prev = %p; both should both be nil or %p", l.root.next, l.root.prev, root)
+		}
+		return
 	}
-	if last := es[len(es)-1]; l.back != last {
-		t.Errorf("l.back = %v, want %v", l.back, last)
-	}
+	// len(es) > 0
 
+	// check internal and external prev/next connections
 	for i, e := range es {
-		var e_prev, e_next *Element = nil, nil
+		prev := root
+		Prev := (*Element)(nil)
 		if i > 0 {
-			e_prev = es[i-1]
+			prev = es[i-1]
+			Prev = prev
 		}
-		if i < len(es)-1 {
-			e_next = es[i+1]
+		if p := e.prev; p != prev {
+			t.Errorf("elt[%d](%p).prev = %p, want %p", i, e, p, prev)
 		}
-		if e.prev != e_prev {
-			t.Errorf("elt #%d (%v) has prev=%v, want %v", i, e, e.prev, e_prev)
+		if p := e.Prev(); p != Prev {
+			t.Errorf("elt[%d](%p).Prev() = %p, want %p", i, e, p, Prev)
 		}
-		if e.next != e_next {
-			t.Errorf("elt #%d (%v) has next=%v, want %v", i, e, e.next, e_next)
-		}
-	}
-}
 
-func checkListLen(t *testing.T, l *List, n int) {
-	if an := l.Len(); an != n {
-		t.Errorf("l.Len() = %d, want %d", an, n)
+		next := root
+		Next := (*Element)(nil)
+		if i < len(es)-1 {
+			next = es[i+1]
+			Next = next
+		}
+		if n := e.next; n != next {
+			t.Errorf("elt[%d](%p).next = %p, want %p", i, e, n, next)
+		}
+		if n := e.Next(); n != Next {
+			t.Errorf("elt[%d](%p).Next() = %p, want %p", i, e, n, Next)
+		}
 	}
 }
 
 func TestList(t *testing.T) {
 	l := New()
 	checkListPointers(t, l, []*Element{})
-	checkListLen(t, l, 0)
 
 	// Single element list
 	e := l.PushFront("a")
-	checkListLen(t, l, 1)
 	checkListPointers(t, l, []*Element{e})
 	l.MoveToFront(e)
 	checkListPointers(t, l, []*Element{e})
 	l.MoveToBack(e)
 	checkListPointers(t, l, []*Element{e})
-	checkListLen(t, l, 1)
 	l.Remove(e)
 	checkListPointers(t, l, []*Element{})
-	checkListLen(t, l, 0)
 
 	// Bigger list
 	e2 := l.PushFront(2)
@@ -70,11 +80,9 @@ func TestList(t *testing.T) {
 	e3 := l.PushBack(3)
 	e4 := l.PushBack("banana")
 	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
-	checkListLen(t, l, 4)
 
 	l.Remove(e2)
 	checkListPointers(t, l, []*Element{e1, e3, e4})
-	checkListLen(t, l, 3)
 
 	l.MoveToFront(e3) // move from middle
 	checkListPointers(t, l, []*Element{e3, e1, e4})
@@ -121,7 +129,7 @@ func TestList(t *testing.T) {
 		}
 	}
 	if sum != 4 {
-		t.Errorf("sum over l.Iter() = %d, want 4", sum)
+		t.Errorf("sum over l = %d, want 4", sum)
 	}
 
 	// Clear all elements by iterating
@@ -131,19 +139,18 @@ func TestList(t *testing.T) {
 		l.Remove(e)
 	}
 	checkListPointers(t, l, []*Element{})
-	checkListLen(t, l, 0)
 }
 
 func checkList(t *testing.T, l *List, es []interface{}) {
-	if l.Len() != len(es) {
-		t.Errorf("list has len=%v, want %v", l.Len(), len(es))
+	if !checkListLen(t, l, len(es)) {
 		return
 	}
+
 	i := 0
 	for e := l.Front(); e != nil; e = e.Next() {
 		le := e.Value.(int)
 		if le != es[i] {
-			t.Errorf("elt #%d has value=%v, want %v", i, le, es[i])
+			t.Errorf("elt[%d].Value = %v, want %v", i, le, es[i])
 		}
 		i++
 	}
@@ -202,8 +209,27 @@ func TestRemove(t *testing.T) {
 	e := l.Front()
 	l.Remove(e)
 	checkListPointers(t, l, []*Element{e2})
-	checkListLen(t, l, 1)
 	l.Remove(e)
 	checkListPointers(t, l, []*Element{e2})
-	checkListLen(t, l, 1)
+}
+
+func TestIssue4103(t *testing.T) {
+	l1 := New()
+	l1.PushBack(1)
+	l1.PushBack(2)
+
+	l2 := New()
+	l2.PushBack(3)
+	l2.PushBack(4)
+
+	e := l1.Front()
+	l2.Remove(e) // l2 should not change because e is not an element of l2
+	if n := l2.Len(); n != 2 {
+		t.Errorf("l2.Len() = %d, want 2", n)
+	}
+
+	l1.InsertBefore(8, e)
+	if n := l1.Len(); n != 3 {
+		t.Errorf("l1.Len() = %d, want 3", n)
+	}
 }
