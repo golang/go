@@ -256,7 +256,7 @@ func (r BenchmarkResult) String() string {
 }
 
 func (r BenchmarkResult) MemString() string {
-	return fmt.Sprintf("\t%8d B/op\t%8d allocs/op",
+	return fmt.Sprintf("%8d B/op\t%8d allocs/op",
 		r.AllocedBytesPerOp(), r.AllocsPerOp())
 }
 
