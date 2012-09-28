@@ -108,7 +108,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 			break
 		}
 		// determine the kind of segment change
-		if index == len(selections)-1 {
+		if lw != nil && index == len(selections)-1 {
 			// we have a link segment change:
 			// format the previous selection segment, write the
 			// link tag and start a new selection segment
