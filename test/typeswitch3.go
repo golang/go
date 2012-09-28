@@ -36,7 +36,7 @@ func main(){
 	}
 	
 	// Issue 2827.
-	switch _ := r.(type) {  // ERROR "invalid variable name _"
+	switch _ := r.(type) {  // ERROR "invalid variable name _|no new variables"
 	}
 }
 

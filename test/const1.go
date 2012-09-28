@@ -66,7 +66,7 @@ var (
 	c3 float64 = float64(Big) * Big // ERROR "overflow"
 	c4         = Big * Big          // ERROR "overflow"
 	c5         = Big / 0            // ERROR "division by zero"
-	c6         = 1000 % 1e3         // ERROR "floating-point % operation"
+	c6         = 1000 % 1e3         // ERROR "floating-point % operation|expected integer type"
 )
 
 func f(int)

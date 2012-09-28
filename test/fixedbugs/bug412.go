@@ -7,10 +7,10 @@
 package p
 
 type t struct {
-	x int  // ERROR "duplicate field x"
+	x int  // ERROR "duplicate field x|duplicate field name .x."
 	x int
 }
 
 func f(t *t) int {
-	return t.x  // ERROR "ambiguous selector t.x"
+	return t.x  // GC_ERROR "ambiguous selector t.x"
 }

@@ -8,4 +8,4 @@ package p
 
 func f(i int) int { return i }
 
-var i = func() int {a := f(i); return a}()  // ERROR "initialization loop"
+var i = func() int {a := f(i); return a}()  // ERROR "initialization loop|depends upon itself"

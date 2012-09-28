@@ -18,4 +18,4 @@ func f() {
 	}
 }
 
-var m = map[string]F{"f": f} // ERROR "initialization loop"
+var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself"
