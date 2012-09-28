@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 26, 2012",
+	"Subtitle": "Version of September 28, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4903,7 +4903,10 @@ m := make(map[string]int, 100)  // map with initial space for 100 elements
 <h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
 
 <p>
-Two built-in functions assist in common slice operations.
+The built-in functions <code>append</code> and <code>copy</code> assist in
+common slice operations.
+For both functions, the result is independent of whether the memory referenced
+by the arguments overlaps.
 </p>
 
 <p>
@@ -4934,21 +4937,22 @@ slice may refer to a different underlying array.
 
 <pre>
 s0 := []int{0, 0}
-s1 := append(s0, 2)        // append a single element     s1 == []int{0, 0, 2}
-s2 := append(s1, 3, 5, 7)  // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
-s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
+s1 := append(s0, 2)                // append a single element     s1 == []int{0, 0, 2}
+s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
+s3 := append(s2, s0...)            // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
+s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 == []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
 
 var t []interface{}
-t = append(t, 42, 3.1415, "foo")                          t == []interface{}{42, 3.1415, "foo"}
+t = append(t, 42, 3.1415, "foo")                                  t == []interface{}{42, 3.1415, "foo"}
 
 var b []byte
-b = append(b, "bar"...)  // append string contents      b == []byte{'b', 'a', 'r' }
+b = append(b, "bar"...)            // append string contents      b == []byte{'b', 'a', 'r' }
 </pre>
 
 <p>
 The function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
-number of elements copied. Source and destination may overlap.
+number of elements copied.
 Both arguments must have <a href="#Type_identity">identical</a> element type <code>T</code> and must be
 <a href="#Assignability">assignable</a> to a slice of type <code>[]T</code>.
 The number of elements copied is the minimum of
