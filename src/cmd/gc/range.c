@@ -71,7 +71,11 @@ typecheckrange(Node *n)
 	v2 = N;
 	if(n->list->next)
 		v2 = n->list->next->n;
-	
+
+	// this is not only a optimization but also a requirement in the spec.
+	// "if the second iteration variable is the blank identifier, the range
+	// clause is equivalent to the same clause with only the first variable
+	// present."
 	if(isblank(v2)) {
 		n->list = list1(v1);
 		v2 = N;
