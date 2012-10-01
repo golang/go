@@ -255,7 +255,7 @@ func Unmount(name, old string) (err error) {
 		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(namep)), oldptr, 0)
 	}
 
-	if int(r0) == -1 {
+	if int32(r0) == -1 {
 		err = e
 	}
 	return
