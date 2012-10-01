@@ -27,7 +27,7 @@ var (
 //
 // Example:
 //	tw := tar.NewWriter(w)
-//	hdr := new(Header)
+//	hdr := new(tar.Header)
 //	hdr.Size = length of data in bytes
 //	// populate other hdr fields as desired
 //	if err := tw.WriteHeader(hdr); err != nil {
