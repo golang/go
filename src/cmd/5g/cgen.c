@@ -439,18 +439,43 @@ abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
+		switch(n->op) {
+		case OADD:
+		case OSUB:
+		case OAND:
+		case OOR:
+		case OXOR:
+			if(smallintconst(nr)) {
+				n2 = *nr;
+				break;
+			}
+		default:
+			regalloc(&n2, nr->type, N);
+			cgen(nr, &n2);
+		}
 	} else {
-		regalloc(&n2, nr->type, res);
-		cgen(nr, &n2);
+		switch(n->op) {
+		case OADD:
+		case OSUB:
+		case OAND:
+		case OOR:
+		case OXOR:
+			if(smallintconst(nr)) {
+				n2 = *nr;
+				break;
+			}
+		default:
+			regalloc(&n2, nr->type, res);
+			cgen(nr, &n2);
+		}
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
 	}
 	gins(a, &n2, &n1);
 	gmove(&n1, res);
 	regfree(&n1);
-	regfree(&n2);
+	if(n2.op != OLITERAL)
+		regfree(&n2);
 	goto ret;
 
 flt:	// floating-point.
