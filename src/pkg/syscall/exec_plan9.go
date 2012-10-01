@@ -207,7 +207,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	r1, _, _ = RawSyscall(SYS_RFORK, uintptr(RFPROC|RFFDG|RFREND|clearenv|rflag), 0, 0)
 
 	if r1 != 0 {
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			return 0, NewError(errstr())
 		}
 		// parent; return PID
@@ -219,7 +219,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	// Close fds we don't need.
 	for i = 0; i < len(fdsToClose); i++ {
 		r1, _, _ = RawSyscall(SYS_CLOSE, uintptr(fdsToClose[i]), 0, 0)
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			goto childerror
 		}
 	}
@@ -229,7 +229,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		for i = 0; i < len(envv); i++ {
 			r1, _, _ = RawSyscall(SYS_CREATE, uintptr(unsafe.Pointer(envv[i].name)), uintptr(O_WRONLY), uintptr(0666))
 
-			if int(r1) == -1 {
+			if int32(r1) == -1 {
 				goto childerror
 			}
 
@@ -238,13 +238,13 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 			r1, _, _ = RawSyscall6(SYS_PWRITE, uintptr(envfd), uintptr(unsafe.Pointer(envv[i].value)), uintptr(envv[i].nvalue),
 				^uintptr(0), ^uintptr(0), 0)
 
-			if int(r1) == -1 || int(r1) != envv[i].nvalue {
+			if int32(r1) == -1 || int(r1) != envv[i].nvalue {
 				goto childerror
 			}
 
 			r1, _, _ = RawSyscall(SYS_CLOSE, uintptr(envfd), 0, 0)
 
-			if int(r1) == -1 {
+			if int32(r1) == -1 {
 				goto childerror
 			}
 		}
@@ -253,7 +253,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	// Chdir
 	if dir != nil {
 		r1, _, _ = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			goto childerror
 		}
 	}
@@ -263,7 +263,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	nextfd = int(len(fd))
 	if pipe < nextfd {
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(pipe), uintptr(nextfd), 0)
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			goto childerror
 		}
 		pipe = nextfd
@@ -272,7 +272,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] < int(i) {
 			r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(nextfd), 0)
-			if int(r1) == -1 {
+			if int32(r1) == -1 {
 				goto childerror
 			}
 
@@ -294,7 +294,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 			continue
 		}
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			goto childerror
 		}
 	}
@@ -519,7 +519,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 func Exec(argv0 string, argv []string, envv []string) (err error) {
 	if envv != nil {
 		r1, _, _ := RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
-		if int(r1) == -1 {
+		if int32(r1) == -1 {
 			return NewError(errstr())
 		}
 
