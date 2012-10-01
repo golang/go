@@ -1264,15 +1264,21 @@ func (z nat) expNN(x, y, m nat) nat {
 	// we also multiply by x, thus adding one to the power.
 
 	w := _W - int(shift)
+	// zz and r are used to avoid allocating in mul and div as
+	// otherwise the arguments would alias.
+	var zz, r nat
 	for j := 0; j < w; j++ {
-		z = z.mul(z, z)
+		zz = zz.mul(z, z)
+		zz, z = z, zz
 
 		if v&mask != 0 {
-			z = z.mul(z, x)
+			zz = zz.mul(z, x)
+			zz, z = z, zz
 		}
 
 		if m != nil {
-			q, z = q.div(z, z, m)
+			zz, r = zz.div(r, z, m)
+			zz, r, q, z = q, z, zz, r
 		}
 
 		v <<= 1
@@ -1282,14 +1288,17 @@ func (z nat) expNN(x, y, m nat) nat {
 		v = y[i]
 
 		for j := 0; j < _W; j++ {
-			z = z.mul(z, z)
+			zz = zz.mul(z, z)
+			zz, z = z, zz
 
 			if v&mask != 0 {
-				z = z.mul(z, x)
+				zz = zz.mul(z, x)
+				zz, z = z, zz
 			}
 
 			if m != nil {
-				q, z = q.div(z, z, m)
+				zz, r = zz.div(r, z, m)
+				zz, r, q, z = q, z, zz, r
 			}
 
 			v <<= 1
