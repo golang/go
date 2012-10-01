@@ -416,6 +416,7 @@ esc(EscState *e, Node *n)
 		//	fatal("escape anaylysis missed or messed up a label: %+N", n);
 
 		n->left->sym->label = nil;
+		break;
 
 	case ORANGE:
 		// Everything but fixed array is a dereference.
