@@ -61,7 +61,7 @@ func Examples(files ...*ast.File) []*Example {
 				Code:     f.Body,
 				Play:     playExample(file, f.Body),
 				Comments: file.Comments,
-				Output:   exampleOutput(f, file.Comments),
+				Output:   exampleOutput(f.Body, file.Comments),
 			})
 		}
 		if !hasTests && numDecl > 1 && len(flist) == 1 {
@@ -78,14 +78,14 @@ func Examples(files ...*ast.File) []*Example {
 
 var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
 
-func exampleOutput(fun *ast.FuncDecl, comments []*ast.CommentGroup) string {
+func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
 	// find the last comment in the function
 	var last *ast.CommentGroup
 	for _, cg := range comments {
-		if cg.Pos() < fun.Pos() {
+		if cg.Pos() < b.Pos() {
 			continue
 		}
-		if cg.End() > fun.End() {
+		if cg.End() > b.End() {
 			break
 		}
 		last = cg
@@ -163,8 +163,6 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		}
 	}
 
-	// TODO(adg): look for other unresolved identifiers and, if found, give up.
-
 	// Synthesize new imports.
 	importDecl := &ast.GenDecl{
 		Tok:    token.IMPORT,
@@ -179,12 +177,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		importDecl.Specs = append(importDecl.Specs, s)
 	}
 
-	// Synthesize main function.
-	funcDecl := &ast.FuncDecl{
-		Name: ast.NewIdent("main"),
-		Type: &ast.FuncType{},
-		Body: body,
-	}
+	// TODO(adg): look for other unresolved identifiers and, if found, give up.
 
 	// Filter out comments that are outside the function body.
 	var comments []*ast.CommentGroup
@@ -193,6 +186,27 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 			continue
 		}
 		comments = append(comments, c)
+	}
+
+	// Strip "Output:" commment and adjust body end position.
+	if len(comments) > 0 {
+		last := comments[len(comments)-1]
+		if outputPrefix.MatchString(last.Text()) {
+			comments = comments[:len(comments)-1]
+			// Copy body, as the original may be used elsewhere.
+			body = &ast.BlockStmt{
+				Lbrace: body.Pos(),
+				List:   body.List,
+				Rbrace: last.Pos(),
+			}
+		}
+	}
+
+	// Synthesize main function.
+	funcDecl := &ast.FuncDecl{
+		Name: ast.NewIdent("main"),
+		Type: &ast.FuncType{},
+		Body: body,
 	}
 
 	// Synthesize file.
