@@ -1039,11 +1039,7 @@ old_message = """
 The code review extension requires Mercurial """+hg_required+""" or newer.
 You are using Mercurial """+hgversion+""".
 
-To install a new Mercurial, use
-
-	sudo easy_install mercurial=="""+hg_suggested+"""
-
-or visit http://mercurial.selenic.com/downloads/.
+To install a new Mercurial, visit http://mercurial.selenic.com/downloads/.
 """
 
 linux_message = """
