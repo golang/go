@@ -456,23 +456,30 @@ flt2:	// binary
 }
 
 /*
- * generate array index into res.
- * n might be any size; res is 32-bit.
+ * generate an addressable node in res, containing the value of n.
+ * n is an array index, and might be any size; res width is <= 32-bit.
  * returns Prog* to patch to panic call.
  */
 Prog*
-cgenindex(Node *n, Node *res)
+igenindex(Node *n, Node *res)
 {
 	Node tmp, lo, hi, zero;
 
 	if(!is64(n->type)) {
-		cgen(n, res);
+		if(n->addable) {
+			// nothing to do.
+			*res = *n;
+		} else {
+			tempname(res, types[TUINT32]);
+			cgen(n, res);
+		}
 		return nil;
 	}
 
 	tempname(&tmp, types[TINT64]);
 	cgen(n, &tmp);
 	split64(&tmp, &lo, &hi);
+	tempname(res, types[TUINT32]);
 	gmove(&lo, res);
 	if(debug['B']) {
 		splitclean();
@@ -492,7 +499,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, n4, tmp;
+	Node n1, n2, n3, n4, tmp, nlen;
 	Type *t;
 	uint32 w;
 	uint64 v;
@@ -574,109 +581,117 @@ agen(Node *n, Node *res)
 		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
 		if(nr->addable) {
-			if(!isconst(nr, CTINT))
-				tempname(&tmp, types[TINT32]);
+			// Generate &nl first, and move nr into register.
 			if(!isconst(nl, CTSTR))
-				agenr(nl, &n3, res);
+				igen(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				p2 = cgenindex(nr, &tmp);
+				p2 = igenindex(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
 		} else if(nl->addable) {
+			// Generate nr first, and move &nl into register.
 			if(!isconst(nr, CTINT)) {
-				tempname(&tmp, types[TINT32]);
-				p2 = cgenindex(nr, &tmp);
+				p2 = igenindex(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
-			if(!isconst(nl, CTSTR)) {
-				regalloc(&n3, types[tptr], res);
-				agen(nl, &n3);
-			}
+			if(!isconst(nl, CTSTR))
+				igen(nl, &n3, res);
 		} else {
-			tempname(&tmp, types[TINT32]);
-			p2 = cgenindex(nr, &tmp);
+			p2 = igenindex(nr, &tmp);
 			nr = &tmp;
 			if(!isconst(nl, CTSTR))
-				agenr(nl, &n3, res);
+				igen(nl, &n3, res);
 			regalloc(&n1, tmp.type, N);
 			gins(optoas(OAS, tmp.type), &tmp, &n1);
 		}
 
-		// &a is in &n3 (allocated in res)
-		// i is in &n1 (if not constant)
+		// For fixed array we really want the pointer in n3.
+		if(isfixedarray(nl->type)) {
+			regalloc(&n2, types[tptr], &n3);
+			agen(&n3, &n2);
+			regfree(&n3);
+			n3 = n2;
+		}
+
+		// &a[0] is in n3 (allocated in res)
+		// i is in n1 (if not constant)
+		// len(a) is in nlen (if needed)
 		// w is width
 
 		// explicit check for nil if array is large enough
 		// that we might derive too big a pointer.
 		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
-			regalloc(&n4, types[tptr], &n3);
-			gmove(&n3, &n4);
+			n4 = n3;
 			n4.op = OINDREG;
 			n4.type = types[TUINT8];
 			n4.xoffset = 0;
 			gins(ATESTB, nodintconst(0), &n4);
-			regfree(&n4);
 		}
 
 		// constant index
 		if(isconst(nr, CTINT)) {
 			if(isconst(nl, CTSTR))
-				fatal("constant string constant index");
+				fatal("constant string constant index");  // front end should handle
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				if(!debug['B'] && !n->bounded) {
-					n1 = n3;
-					n1.op = OINDREG;
-					n1.type = types[tptr];
-					n1.xoffset = Array_nel;
+					nlen = n3;
+					nlen.type = types[TUINT32];
+					nlen.xoffset += Array_nel;
 					nodconst(&n2, types[TUINT32], v);
-					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+					gins(optoas(OCMP, types[TUINT32]), &nlen, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
 					ginscall(panicindex, -1);
 					patch(p1, pc);
 				}
-
-				n1 = n3;
-				n1.op = OINDREG;
-				n1.type = types[tptr];
-				n1.xoffset = Array_array;
-				gmove(&n1, &n3);
 			}
 
-			if (v*w != 0) {
-				nodconst(&n2, types[tptr], v*w);
-				gins(optoas(OADD, types[tptr]), &n2, &n3);
-			}
-			gmove(&n3, res);
+			// Load base pointer in n2 = n3.
+			regalloc(&n2, types[tptr], &n3);
+			n3.type = types[tptr];
+			n3.xoffset += Array_array;
+			gmove(&n3, &n2);
 			regfree(&n3);
+			if (v*w != 0) {
+				nodconst(&n1, types[tptr], v*w);
+				gins(optoas(OADD, types[tptr]), &n1, &n2);
+			}
+			gmove(&n2, res);
+			regfree(&n2);
 			break;
 		}
 
-		regalloc(&n2, types[TINT32], &n1);			// i
+		// i is in register n1, extend to 32 bits.
+		t = types[TUINT32];
+		if(issigned[n1.type->etype])
+			t = types[TINT32];
+
+		regalloc(&n2, t, &n1);			// i
 		gmove(&n1, &n2);
 		regfree(&n1);
 
 		if(!debug['B'] && !n->bounded) {
 			// check bounds
-			if(isconst(nl, CTSTR))
-				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
-			else if(isslice(nl->type) || nl->type->etype == TSTRING) {
-				n1 = n3;
-				n1.op = OINDREG;
-				n1.type = types[tptr];
-				n1.xoffset = Array_nel;
-			} else
-				nodconst(&n1, types[TUINT32], nl->type->bound);
-			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
-			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
+			t = types[TUINT32];
+			if(isconst(nl, CTSTR)) {
+				nodconst(&nlen, t, nl->val.u.sval->len);
+			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+				nlen = n3;
+				nlen.type = t;
+				nlen.xoffset += Array_nel;
+			} else {
+				nodconst(&nlen, t, nl->type->bound);
+			}
+			gins(optoas(OCMP, t), &n2, &nlen);
+			p1 = gbranch(optoas(OLT, t), T, +1);
 			if(p2)
 				patch(p2, pc);
 			ginscall(panicindex, -1);
 			patch(p1, pc);
 		}
-		
+
 		if(isconst(nl, CTSTR)) {
 			regalloc(&n3, types[tptr], res);
 			p1 = gins(ALEAL, N, &n3);
@@ -686,24 +701,27 @@ agen(Node *n, Node *res)
 			goto indexdone;
 		}
 
+		// Load base pointer in n3.
+		regalloc(&tmp, types[tptr], &n3);
 		if(isslice(nl->type) || nl->type->etype == TSTRING) {
-			n1 = n3;
-			n1.op = OINDREG;
-			n1.type = types[tptr];
-			n1.xoffset = Array_array;
-			gmove(&n1, &n3);
+			n3.type = types[tptr];
+			n3.xoffset += Array_array;
+			gmove(&n3, &tmp);
 		}
+		regfree(&n3);
+		n3 = tmp;
 
 		if(w == 0) {
 			// nothing to do
 		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+			// LEAL (n3)(n2*w), n3
 			p1 = gins(ALEAL, &n2, &n3);
 			p1->from.scale = w;
 			p1->from.index = p1->from.type;
 			p1->from.type = p1->to.type + D_INDIR;
 		} else {
-			nodconst(&n1, types[TUINT32], w);
-			gins(optoas(OMUL, types[TUINT32]), &n1, &n2);
+			nodconst(&tmp, types[TUINT32], w);
+			gins(optoas(OMUL, types[TUINT32]), &tmp, &n2);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
 		}
 
@@ -859,23 +877,6 @@ igen(Node *n, Node *a, Node *res)
 	gmove(&n1, a);
 	a->op = OINDREG;
 	a->type = n->type;
-}
-
-/*
- * generate:
- *	newreg = &n;
- *
- * caller must regfree(a).
- */
-void
-agenr(Node *n, Node *a, Node *res)
-{
-	Node n1;
-
-	tempname(&n1, types[tptr]);
-	agen(n, &n1);
-	regalloc(a, types[tptr], res);
-	gmove(&n1, a);
 }
 
 /*

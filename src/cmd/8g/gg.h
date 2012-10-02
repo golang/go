@@ -95,7 +95,6 @@ void	ginscall(Node*, int);
  * cgen.c
  */
 void	agen(Node*, Node*);
-void	agenr(Node *n, Node *a, Node *res);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	sgen(Node*, Node*, int64);
