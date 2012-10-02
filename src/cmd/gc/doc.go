@@ -54,6 +54,8 @@ Flags:
 		disallow importing packages not marked as safe
 	-V
 		print the compiler version
+	-b
+		compile with race detection enabled
 
 There are also a number of debugging flags; run the command with no arguments
 to get a usage message.

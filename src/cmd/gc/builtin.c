@@ -104,6 +104,10 @@ char *runtimeimport =
 	"func @\"\".int64tofloat64(? int64) (? float64)\n"
 	"func @\"\".uint64tofloat64(? uint64) (? float64)\n"
 	"func @\"\".complex128div(@\"\".num complex128, @\"\".den complex128) (@\"\".quo complex128)\n"
+	"func @\"\".racefuncenter()\n"
+	"func @\"\".racefuncexit()\n"
+	"func @\"\".raceread(? uintptr)\n"
+	"func @\"\".racewrite(? uintptr)\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =

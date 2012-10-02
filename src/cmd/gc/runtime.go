@@ -138,3 +138,9 @@ func int64tofloat64(int64) float64
 func uint64tofloat64(uint64) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
+
+// race detection
+func racefuncenter()
+func racefuncexit()
+func raceread(uintptr)
+func racewrite(uintptr)
