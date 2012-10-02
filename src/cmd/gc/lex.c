@@ -264,7 +264,12 @@ main(int argc, char *argv[])
 		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
 		exits(0);
 	} ARGEND
-	
+
+	if(debug['b']) {
+		racepkg = mkpkg(strlit("runtime/race"));
+		racepkg->name = "race";
+	}
+
 	// enable inlining.  for now:
 	//	default: inlining on.  (debug['l'] == 1)
 	//	-l: inlining off  (debug['l'] == 0)
@@ -530,7 +535,7 @@ static int
 findpkg(Strlit *name)
 {
 	Idir *p;
-	char *q;
+	char *q, *race;
 
 	if(islocalname(name)) {
 		if(safemode)
@@ -568,10 +573,13 @@ findpkg(Strlit *name)
 			return 1;
 	}
 	if(goroot != nil) {
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.a", goroot, goos, goarch, name);
+		race = "";
+		if(debug['b'])
+			race = "_race";
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.a", goroot, goos, goarch, race, name);
 		if(access(namebuf, 0) >= 0)
 			return 1;
-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.%c", goroot, goos, goarch, name, thechar);
+		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.%c", goroot, goos, goarch, race, name, thechar);
 		if(access(namebuf, 0) >= 0)
 			return 1;
 	}

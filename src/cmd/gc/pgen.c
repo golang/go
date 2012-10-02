@@ -63,6 +63,10 @@ compile(Node *fn)
 	walk(curfn);
 	if(nerrors != 0)
 		goto ret;
+	if(debug['b'])
+		racewalk(curfn);
+	if(nerrors != 0)
+		goto ret;
 
 	continpc = P;
 	breakpc = P;

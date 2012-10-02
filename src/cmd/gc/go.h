@@ -838,6 +838,7 @@ EXTERN	Pkg*	builtinpkg;	// fake package for builtins
 EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
 EXTERN	Pkg*	itabpkg;	// fake pkg for itab cache
 EXTERN	Pkg*	runtimepkg;	// package runtime
+EXTERN	Pkg*	racepkg;	// package runtime/race
 EXTERN	Pkg*	stringpkg;	// fake package for C strings
 EXTERN	Pkg*	typepkg;	// fake package for runtime type info
 EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
@@ -1442,3 +1443,8 @@ void	zname(Biobuf *b, Sym *s, int t);
 #pragma	varargck	type	"V"	Val*
 #pragma	varargck	type	"Y"	char*
 #pragma	varargck	type	"Z"	Strlit*
+
+/*
+ *	racewalk.c
+ */
+void	racewalk(Node *fn);
