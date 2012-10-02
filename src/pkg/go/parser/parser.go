@@ -1399,13 +1399,50 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 		// channel type or receive expression
 		pos := p.pos
 		p.next()
-		if p.tok == token.CHAN {
-			p.next()
-			value := p.parseType()
-			return &ast.ChanType{Begin: pos, Dir: ast.RECV, Value: value}
-		}
+
+		// If the next token is token.CHAN we still don't know if it
+		// is a channel type or a receive operation - we only know
+		// once we have found the end of the unary expression. There
+		// are two cases:
+		//
+		//   <- type  => (<-type) must be channel type
+		//   <- expr  => <-(expr) is a receive from an expression
+		//
+		// In the first case, the arrow must be re-associated with
+		// the channel type parsed already:
+		//
+		//   <- (chan type)    =>  (<-chan type)
+		//   <- (chan<- type)  =>  (<-chan (<-type))
 
 		x := p.parseUnaryExpr(false)
+
+		// determine which case we have
+		if typ, ok := x.(*ast.ChanType); ok {
+			// (<-type)
+
+			// re-associate position info and <-
+			arrow := true
+			for ok && arrow {
+				begin := typ.Begin
+				if typ.Dir == ast.RECV {
+					// error: (<-type) is (<-(<-chan T))
+					p.errorExpected(begin, "'chan'")
+				}
+				arrow = typ.Dir == ast.SEND
+				typ.Begin = pos
+				typ.Dir = ast.RECV
+				typ, ok = typ.Value.(*ast.ChanType)
+				// TODO(gri) ast.ChanType should store exact <- position
+				pos = begin // estimate (we don't have the exact position of <- for send channels)
+			}
+			if arrow {
+				p.errorExpected(pos, "'chan'")
+			}
+
+			return x
+		}
+
+		// <-(expr)
 		return &ast.UnaryExpr{OpPos: pos, Op: token.ARROW, X: p.checkExpr(x)}
 
 	case token.MUL:
