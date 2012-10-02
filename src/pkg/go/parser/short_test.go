@@ -13,8 +13,10 @@ var valids = []string{
 	`package p;`,
 	`package p; import "fmt"; func f() { fmt.Println("Hello, World!") };`,
 	`package p; func f() { if f(T{}) {} };`,
-	`package p; func f() { _ = (<-chan int)(x) };`,
-	`package p; func f() { _ = (<-chan <-chan int)(x) };`,
+	`package p; func f() { _ = <-chan int(nil) };`,
+	`package p; func f() { _ = (<-chan int)(nil) };`,
+	`package p; func f() { _ = (<-chan <-chan int)(nil) };`,
+	`package p; func f() { _ = <-chan <-chan <-chan <-chan <-int(nil) };`,
 	`package p; func f(func() func() func());`,
 	`package p; func f(...T);`,
 	`package p; func f(float, ...int);`,
@@ -64,8 +66,10 @@ var invalids = []string{
 	`package p; var a = []int{[ /* ERROR "expected expression" */ ]int};`,
 	`package p; var a = ( /* ERROR "expected expression" */ []int);`,
 	`package p; var a = a[[ /* ERROR "expected expression" */ ]int:[]int];`,
-	`package p; var a = <-  /* ERROR "expected expression" */ chan int;`,
-	`package p; func f() { select { case _ <- chan  /* ERROR "expected expression" */ int: } };`,
+	`package p; var a = <- /* ERROR "expected expression" */ chan int;`,
+	`package p; func f() { select { case _ <- chan /* ERROR "expected expression" */ int: } };`,
+	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
+	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan /* ERROR "expected 'chan'" */ <-int)(nil) };`,
 }
 
 func TestInvalid(t *testing.T) {
