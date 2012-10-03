@@ -322,7 +322,7 @@ func resultHandler(r *http.Request) (interface{}, error) {
 // logHandler displays log text for a given hash.
 // It handles paths like "/log/hash".
 func logHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-type", "text/plain")
+	w.Header().Set("Content-type", "text/plain; charset=utf-8")
 	c := appengine.NewContext(r)
 	hash := r.URL.Path[len("/log/"):]
 	key := datastore.NewKey(c, "Log", hash, 0, nil)
