@@ -138,7 +138,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 
 	// Remove predeclared identifiers from unresolved list.
 	for n := range unresolved {
-		if n == "nil" || predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
+		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
 			delete(unresolved, n)
 		}
 	}

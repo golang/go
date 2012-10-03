@@ -751,7 +751,7 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 }
 
 // ----------------------------------------------------------------------------
-// Predeclared identifiers (minus "nil")
+// Predeclared identifiers
 
 var predeclaredTypes = map[string]bool{
 	"bool":       true,
@@ -795,7 +795,8 @@ var predeclaredFuncs = map[string]bool{
 }
 
 var predeclaredConstants = map[string]bool{
-	"iota":  true,
-	"true":  true,
 	"false": true,
+	"iota":  true,
+	"nil":   true,
+	"true":  true,
 }
