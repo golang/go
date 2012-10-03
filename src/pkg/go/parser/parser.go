@@ -924,20 +924,22 @@ func (p *parser) parseChanType() *ast.ChanType {
 
 	pos := p.pos
 	dir := ast.SEND | ast.RECV
+	var arrow token.Pos
 	if p.tok == token.CHAN {
 		p.next()
 		if p.tok == token.ARROW {
+			arrow = p.pos
 			p.next()
 			dir = ast.SEND
 		}
 	} else {
-		p.expect(token.ARROW)
+		arrow = p.expect(token.ARROW)
 		p.expect(token.CHAN)
 		dir = ast.RECV
 	}
 	value := p.parseType()
 
-	return &ast.ChanType{Begin: pos, Dir: dir, Value: value}
+	return &ast.ChanType{Begin: pos, Arrow: arrow, Dir: dir, Value: value}
 }
 
 // If the result is an identifier, it is not resolved.
@@ -1397,7 +1399,7 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 
 	case token.ARROW:
 		// channel type or receive expression
-		pos := p.pos
+		arrow := p.pos
 		p.next()
 
 		// If the next token is token.CHAN we still don't know if it
@@ -1421,29 +1423,25 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 			// (<-type)
 
 			// re-associate position info and <-
-			arrow := true
-			for ok && arrow {
-				begin := typ.Begin
+			dir := ast.SEND
+			for ok && dir == ast.SEND {
 				if typ.Dir == ast.RECV {
 					// error: (<-type) is (<-(<-chan T))
-					p.errorExpected(begin, "'chan'")
+					p.errorExpected(typ.Arrow, "'chan'")
 				}
-				arrow = typ.Dir == ast.SEND
-				typ.Begin = pos
-				typ.Dir = ast.RECV
+				arrow, typ.Begin, typ.Arrow = typ.Arrow, arrow, arrow
+				dir, typ.Dir = typ.Dir, ast.RECV
 				typ, ok = typ.Value.(*ast.ChanType)
-				// TODO(gri) ast.ChanType should store exact <- position
-				pos = begin // estimate (we don't have the exact position of <- for send channels)
 			}
-			if arrow {
-				p.errorExpected(pos, "'chan'")
+			if dir == ast.SEND {
+				p.errorExpected(arrow, "channel type")
 			}
 
 			return x
 		}
 
 		// <-(expr)
-		return &ast.UnaryExpr{OpPos: pos, Op: token.ARROW, X: p.checkExpr(x)}
+		return &ast.UnaryExpr{OpPos: arrow, Op: token.ARROW, X: p.checkExpr(x)}
 
 	case token.MUL:
 		// pointer type or unary "*" expression
