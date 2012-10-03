@@ -14,7 +14,7 @@ import (
 // item represents a token or text string returned from the scanner.
 type item struct {
 	typ itemType // The type of this item.
-	pos int      // The starting position, in bytes, of this item in the input string.
+	pos Pos      // The starting position, in bytes, of this item in the input string.
 	val string   // The value of this item.
 }
 
@@ -38,7 +38,7 @@ type itemType int
 const (
 	itemError        itemType = iota // error occurred; value is text of error
 	itemBool                         // boolean constant
-	itemChar                         // printable ASCII character; grab bag for comma etc
+	itemChar                         // printable ASCII character; grab bag for comma etc.
 	itemCharConstant                 // character constant
 	itemComplex                      // complex constant (1+2i); imaginary is just a number
 	itemColonEquals                  // colon-equals (':=') introducing a declaration
@@ -93,21 +93,22 @@ type lexer struct {
 	leftDelim  string    // start of action
 	rightDelim string    // end of action
 	state      stateFn   // the next lexing function to enter
-	pos        int       // current position in the input
-	start      int       // start position of this item
-	width      int       // width of last rune read from input
-	lastPos    int       // position of most recent item returned by nextItem
+	pos        Pos       // current position in the input
+	start      Pos       // start position of this item
+	width      Pos       // width of last rune read from input
+	lastPos    Pos       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items
 	parenDepth int       // nesting depth of ( ) exprs
 }
 
 // next returns the next rune in the input.
-func (l *lexer) next() (r rune) {
-	if l.pos >= len(l.input) {
+func (l *lexer) next() rune {
+	if int(l.pos) >= len(l.input) {
 		l.width = 0
 		return eof
 	}
-	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
+	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
+	l.width = Pos(w)
 	l.pos += l.width
 	return r
 }
@@ -230,7 +231,7 @@ func lexText(l *lexer) stateFn {
 
 // lexLeftDelim scans the left delimiter, which is known to be present.
 func lexLeftDelim(l *lexer) stateFn {
-	l.pos += len(l.leftDelim)
+	l.pos += Pos(len(l.leftDelim))
 	if strings.HasPrefix(l.input[l.pos:], leftComment) {
 		return lexComment
 	}
@@ -241,19 +242,19 @@ func lexLeftDelim(l *lexer) stateFn {
 
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
-	l.pos += len(leftComment)
+	l.pos += Pos(len(leftComment))
 	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
 	if i < 0 {
 		return l.errorf("unclosed comment")
 	}
-	l.pos += i + len(rightComment) + len(l.rightDelim)
+	l.pos += Pos(i + len(rightComment) + len(l.rightDelim))
 	l.ignore()
 	return lexText
 }
 
 // lexRightDelim scans the right delimiter, which is known to be present.
 func lexRightDelim(l *lexer) stateFn {
-	l.pos += len(l.rightDelim)
+	l.pos += Pos(len(l.rightDelim))
 	l.emit(itemRightDelim)
 	return lexText
 }
@@ -291,7 +292,7 @@ func lexInsideAction(l *lexer) stateFn {
 		return lexChar
 	case r == '.':
 		// special look-ahead for ".field" so we don't break l.backup().
-		if l.pos < len(l.input) {
+		if l.pos < Pos(len(l.input)) {
 			r := l.input[l.pos]
 			if r < '0' || '9' < r {
 				return lexField

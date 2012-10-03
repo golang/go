@@ -85,7 +85,7 @@ func TestNumberParse(t *testing.T) {
 				typ = itemComplex
 			}
 		}
-		n, err := newNumber(test.text, typ)
+		n, err := newNumber(0, test.text, typ)
 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
 		if ok && err != nil {
 			t.Errorf("unexpected error for %q: %s", test.text, err)

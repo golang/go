@@ -54,7 +54,7 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 			panic("value for " + name + " not a function")
 		}
 		if !goodFunc(v.Type()) {
-			panic(fmt.Errorf("can't handle multiple results from method/function %q", name))
+			panic(fmt.Errorf("can't install method/function %q with %d results", name, v.Type().NumOut()))
 		}
 		out[name] = v
 	}
@@ -107,7 +107,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("index of nil pointer")
 		}
 		switch v.Kind() {
-		case reflect.Array, reflect.Slice:
+		case reflect.Array, reflect.Slice, reflect.String:
 			var x int64
 			switch index.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -134,7 +134,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 				v = reflect.Zero(v.Type().Elem())
 			}
 		default:
-			return nil, fmt.Errorf("can't index item of type %s", index.Type())
+			return nil, fmt.Errorf("can't index item of type %s", v.Type())
 		}
 	}
 	return v.Interface(), nil

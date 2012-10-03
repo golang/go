@@ -242,10 +242,11 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	copy(newCmds, p.Cmds)
 	// Merge existing identifier commands with the sanitizers needed.
 	for _, id := range idents {
+		pos := id.Args[0].Position()
 		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
 		if i != -1 {
 			for _, name := range s[:i] {
-				newCmds = appendCmd(newCmds, newIdentCmd(name))
+				newCmds = appendCmd(newCmds, newIdentCmd(name, pos))
 			}
 			s = s[i+1:]
 		}
@@ -253,7 +254,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	// Create any remaining sanitizers.
 	for _, name := range s {
-		newCmds = appendCmd(newCmds, newIdentCmd(name))
+		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
 	}
 	p.Cmds = newCmds
 }
@@ -315,10 +316,10 @@ func escFnsEq(a, b string) bool {
 }
 
 // newIdentCmd produces a command containing a single identifier node.
-func newIdentCmd(identifier string) *parse.CommandNode {
+func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	return &parse.CommandNode{
 		NodeType: parse.NodeCommand,
-		Args:     []parse.Node{parse.NewIdentifier(identifier)},
+		Args:     []parse.Node{parse.NewIdentifier(identifier).SetPos(pos)},
 	}
 }
 
