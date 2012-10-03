@@ -675,6 +675,32 @@ func TestExecuteError(t *testing.T) {
 	}
 }
 
+const execErrorText = `line 1
+line 2
+line 3
+{{template "one" .}}
+{{define "one"}}{{template "two" .}}{{end}}
+{{define "two"}}{{template "three" .}}{{end}}
+{{define "three"}}{{index "hi" $}}{{end}}`
+
+// Check that an error from a nested template contains all the relevant information.
+func TestExecError(t *testing.T) {
+	tmpl, err := New("top").Parse(execErrorText)
+	if err != nil {
+		t.Fatal("parse error:", err)
+	}
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, 5) // 5 is out of range indexing "hi"
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	const want = `template: top:7:20: executing "three" at <index "hi" $>: error calling index: index out of range: 5`
+	got := err.Error()
+	if got != want {
+		t.Errorf("expected\n%q\ngot\n%q", want, got)
+	}
+}
+
 func TestJSEscaping(t *testing.T) {
 	testCases := []struct {
 		in, exp string
