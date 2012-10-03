@@ -853,9 +853,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		case ast.SEND | ast.RECV:
 			p.print(token.CHAN)
 		case ast.RECV:
-			p.print(token.ARROW, token.CHAN)
+			p.print(token.ARROW, token.CHAN) // x.Arrow and x.Pos() are the same
 		case ast.SEND:
-			p.print(token.CHAN, token.ARROW)
+			p.print(token.CHAN, x.Arrow, token.ARROW)
 		}
 		p.print(blank)
 		p.expr(x.Value)

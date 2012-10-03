@@ -69,7 +69,7 @@ var invalids = []string{
 	`package p; var a = <- /* ERROR "expected expression" */ chan int;`,
 	`package p; func f() { select { case _ <- chan /* ERROR "expected expression" */ int: } };`,
 	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
-	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan /* ERROR "expected 'chan'" */ <-int)(nil) };`,
+	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan<- /* ERROR "expected channel type" */ int)(nil) };`,
 }
 
 func TestInvalid(t *testing.T) {
