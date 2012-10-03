@@ -27,7 +27,9 @@ func lookupFullName(domain, username, domainAndUser string) (string, error) {
 		var p *byte
 		e = syscall.NetUserGetInfo(d, u, 10, &p)
 		if e != nil {
-			return "", e
+			// path executed when a domain user is disconnected from the domain
+			// pretend username is fullname
+			return username, nil
 		}
 		defer syscall.NetApiBufferFree(p)
 		i := (*syscall.UserInfo10)(unsafe.Pointer(p))
