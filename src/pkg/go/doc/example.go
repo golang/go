@@ -69,6 +69,7 @@ func Examples(files ...*ast.File) []*Example {
 			// other top-level declarations, and no tests or
 			// benchmarks, use the whole file as the example.
 			flist[0].Code = file
+			flist[0].Play = playExampleFile(file)
 		}
 		list = append(list, flist...)
 	}
@@ -79,18 +80,7 @@ func Examples(files ...*ast.File) []*Example {
 var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
 
 func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
-	// find the last comment in the function
-	var last *ast.CommentGroup
-	for _, cg := range comments {
-		if cg.Pos() < b.Pos() {
-			continue
-		}
-		if cg.End() > b.End() {
-			break
-		}
-		last = cg
-	}
-	if last != nil {
+	if _, last := lastComment(b, comments); last != nil {
 		// test that it begins with the correct prefix
 		text := last.Text()
 		if loc := outputPrefix.FindStringIndex(text); loc != nil {
@@ -129,18 +119,33 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		return nil
 	}
 
-	// Determine the imports we need based on unresolved identifiers.
-	// This is a heuristic that presumes package names match base import paths.
-	// (Should be good enough most of the time.)
-	var unresolved []*ast.Ident
+	// Find unresolved identifiers 
+	unresolved := make(map[string]bool)
 	ast.Inspect(body, func(n ast.Node) bool {
+		// For an expression like fmt.Println, only add "fmt" to the
+		// set of unresolved names.
 		if e, ok := n.(*ast.SelectorExpr); ok {
 			if id, ok := e.X.(*ast.Ident); ok && id.Obj == nil {
-				unresolved = append(unresolved, id)
+				unresolved[id.Name] = true
 			}
+			return false
+		}
+		if id, ok := n.(*ast.Ident); ok && id.Obj == nil {
+			unresolved[id.Name] = true
 		}
 		return true
 	})
+
+	// Remove predeclared identifiers from unresolved list.
+	for n := range unresolved {
+		if n == "nil" || predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
+			delete(unresolved, n)
+		}
+	}
+
+	// Use unresolved identifiers to determine the imports used by this
+	// example. The heuristic assumes package names match base import
+	// paths. (Should be good enough most of the time.)
 	imports := make(map[string]string) // [name]path
 	for _, s := range file.Imports {
 		p, err := strconv.Unquote(s.Path.Value)
@@ -155,15 +160,31 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 			}
 			n = s.Name.Name
 		}
-		for _, id := range unresolved {
-			if n == id.Name {
-				imports[n] = p
-				break
-			}
+		if unresolved[n] {
+			imports[n] = p
+			delete(unresolved, n)
 		}
 	}
 
-	// Synthesize new imports.
+	// If there are other unresolved identifiers, give up because this
+	// synthesized file is not going to build.
+	if len(unresolved) > 0 {
+		return nil
+	}
+
+	// Filter out comments that are outside the function body.
+	var comments []*ast.CommentGroup
+	for _, c := range file.Comments {
+		if c.Pos() < body.Pos() || c.Pos() >= body.End() {
+			continue
+		}
+		comments = append(comments, c)
+	}
+
+	// Strip "Output:" commment and adjust body end position.
+	body, comments = stripOutputComment(body, comments)
+
+	// Synthesize import declaration.
 	importDecl := &ast.GenDecl{
 		Tok:    token.IMPORT,
 		Lparen: 1, // Need non-zero Lparen and Rparen so that printer
@@ -177,31 +198,6 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		importDecl.Specs = append(importDecl.Specs, s)
 	}
 
-	// TODO(adg): look for other unresolved identifiers and, if found, give up.
-
-	// Filter out comments that are outside the function body.
-	var comments []*ast.CommentGroup
-	for _, c := range file.Comments {
-		if c.Pos() < body.Pos() || c.Pos() >= body.End() {
-			continue
-		}
-		comments = append(comments, c)
-	}
-
-	// Strip "Output:" commment and adjust body end position.
-	if len(comments) > 0 {
-		last := comments[len(comments)-1]
-		if outputPrefix.MatchString(last.Text()) {
-			comments = comments[:len(comments)-1]
-			// Copy body, as the original may be used elsewhere.
-			body = &ast.BlockStmt{
-				Lbrace: body.Pos(),
-				List:   body.List,
-				Rbrace: last.Pos(),
-			}
-		}
-	}
-
 	// Synthesize main function.
 	funcDecl := &ast.FuncDecl{
 		Name: ast.NewIdent("main"),
@@ -210,14 +206,75 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	}
 
 	// Synthesize file.
-	f := &ast.File{
+	return &ast.File{
 		Name:     ast.NewIdent("main"),
 		Decls:    []ast.Decl{importDecl, funcDecl},
 		Comments: comments,
 	}
+}
 
-	// TODO(adg): look for resolved identifiers declared outside function scope
-	// and include their declarations in the new file.
+// playExample takes a whole file example and synthesizes a new *ast.File
+// such that the example is function main in package main.
+func playExampleFile(file *ast.File) *ast.File {
+	// Strip copyright comment if present.
+	comments := file.Comments
+	if len(comments) > 0 && strings.HasPrefix(comments[0].Text(), "Copyright") {
+		comments = comments[1:]
+	}
 
-	return f
+	// Copy declaration slice, rewriting the ExampleX function to main.
+	var decls []ast.Decl
+	for _, d := range file.Decls {
+		if f, ok := d.(*ast.FuncDecl); ok && isTest(f.Name.Name, "Example") {
+			// Copy the FuncDecl, as it may be used elsewhere.
+			newF := *f
+			newF.Name = ast.NewIdent("main")
+			newF.Body, comments = stripOutputComment(f.Body, comments)
+			d = &newF
+		}
+		decls = append(decls, d)
+	}
+
+	// Copy the File, as it may be used elsewhere.
+	f := *file
+	f.Name = ast.NewIdent("main")
+	f.Decls = decls
+	f.Comments = comments
+	return &f
+}
+
+// stripOutputComment finds and removes an "Output:" commment from body 
+// and comments, and adjusts the body block's end position.
+func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
+	// Do nothing if no "Output:" comment found.
+	i, last := lastComment(body, comments)
+	if last == nil || !outputPrefix.MatchString(last.Text()) {
+		return body, comments
+	}
+
+	// Copy body and comments, as the originals may be used elsewhere.
+	newBody := &ast.BlockStmt{
+		Lbrace: body.Lbrace,
+		List:   body.List,
+		Rbrace: last.Pos(),
+	}
+	newComments := make([]*ast.CommentGroup, len(comments)-1)
+	copy(newComments, comments[:i])
+	copy(newComments[i:], comments[i+1:])
+	return newBody, newComments
+}
+
+// lastComment returns the last comment inside the provided block.
+func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	pos, end := b.Pos(), b.End()
+	for j, cg := range c {
+		if cg.Pos() < pos {
+			continue
+		}
+		if cg.End() > end {
+			break
+		}
+		i, last = j, cg
+	}
+	return
 }
