@@ -94,6 +94,9 @@ directory containing the package sources, has its own flags:
 	    Run benchmarks matching the regular expression.
 	    By default, no benchmarks run.
 
+	-test.benchmem
+	    Print memory allocation statistics for benchmarks.
+
 	-test.cpuprofile cpu.out
 	    Write a CPU profile to the specified file before exiting.
 
