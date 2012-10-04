@@ -38,11 +38,12 @@ import (
 var (
 	// TODO(bradfitz): once Go 1.1 comes out, allow the -c flag to take a comma-separated
 	// list of files, rather than just one.
-	checkFile = flag.String("c", "", "optional filename to check API against")
-	allowNew  = flag.Bool("allow_new", true, "allow API additions")
-	nextFile  = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
-	verbose   = flag.Bool("v", false, "verbose debugging")
-	forceCtx  = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+	checkFile  = flag.String("c", "", "optional filename to check API against")
+	allowNew   = flag.Bool("allow_new", true, "allow API additions")
+	exceptFile = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
+	nextFile   = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
+	verbose    = flag.Bool("v", false, "verbose debugging")
+	forceCtx   = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
 )
 
 // contexts are the default contexts which are scanned, unless
@@ -198,6 +199,13 @@ func main() {
 		}
 	}
 
+	var exception = make(map[string]bool) // exception => true
+	if *exceptFile != "" {
+		for _, feature := range fileFeatures(*exceptFile) {
+			exception[feature] = true
+		}
+	}
+
 	take := func(sl *[]string) string {
 		s := (*sl)[0]
 		*sl = (*sl)[1:]
@@ -207,8 +215,13 @@ func main() {
 	for len(required) > 0 || len(features) > 0 {
 		switch {
 		case len(features) == 0 || required[0] < features[0]:
-			fmt.Fprintf(bw, "-%s\n", take(&required))
-			fail = true // broke compatibility
+			feature := take(&required)
+			if exception[feature] {
+				fmt.Fprintf(bw, "~%s\n", feature)
+			} else {
+				fmt.Fprintf(bw, "-%s\n", feature)
+				fail = true // broke compatibility
+			}
 		case len(required) == 0 || required[0] > features[0]:
 			newFeature := take(&features)
 			if optional[newFeature] {
