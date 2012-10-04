@@ -62,6 +62,7 @@ var (
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+	showPlayground = flag.Bool("play", false, "enable playground in web interface")
 
 	// search index
 	indexEnabled = flag.Bool("index", false, "enable search index")
@@ -320,8 +321,8 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 	for _, eg := range examples {
 		name := eg.Name
 
-		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name
-		// while keeping uppercase Braz in Foo_Braz
+		// Strip lowercase braz in Foo_braz or Foo_Bar_braz from name
+		// while keeping uppercase Braz in Foo_Braz.
 		if i := strings.LastIndex(name, "_"); i != -1 {
 			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
 				name = name[:i]
@@ -336,9 +337,11 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
 		code := node_htmlFunc(cnode, fset)
 		out := eg.Output
+		wholeFile := true
 
-		// additional formatting if this is a function body
+		// Additional formatting if this is a function body.
 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
+			wholeFile = false
 			// remove surrounding braces
 			code = code[1 : n-1]
 			// unindent
@@ -347,14 +350,29 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
 				code = strings.TrimSpace(code[:loc[0]])
 			}
-		} else {
-			// drop output, as the output comment will appear in the code
+		}
+
+		// Write out the playground code in standard Go style
+		// (use tabs, no comment highlight, etc).
+		play := ""
+		if eg.Play != nil && *showPlayground {
+			var buf bytes.Buffer
+			err := (&printer.Config{Mode: printer.TabIndent, Tabwidth: 8}).Fprint(&buf, fset, eg.Play)
+			if err != nil {
+				log.Print(err)
+			} else {
+				play = buf.String()
+			}
+		}
+
+		// Drop output, as the output comment will appear in the code.
+		if wholeFile && play == "" {
 			out = ""
 		}
 
 		err := exampleHTML.Execute(&buf, struct {
-			Name, Doc, Code, Output string
-		}{eg.Name, eg.Doc, code, out})
+			Name, Doc, Code, Play, Output string
+		}{eg.Name, eg.Doc, code, play, out})
 		if err != nil {
 			log.Print(err)
 		}

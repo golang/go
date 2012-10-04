@@ -161,6 +161,7 @@ div#footer {
 div#menu > a,
 div#menu > input,
 div#learn .buttons a,
+div.play .buttons a,
 div#blog .read a {
 	padding: 10px;
 
@@ -181,6 +182,7 @@ div#menu > a {
 }
 a#start,
 div#learn .buttons a,
+div.play .buttons a,
 div#blog .read a {
 	color: #222;
 	border: 1px solid #375EAB;
@@ -391,3 +393,79 @@ img.gopher {
 	margin-bottom: -120px;
 }
 h2 { clear: right; }
+
+div.play {
+	padding: 0 20px 40px 20px;
+}
+div.play pre,
+div.play textarea,
+div.play .lines {
+	padding: 0;
+	margin: 0;
+	font-family: Menlo, monospace;
+	font-size: 14px;
+}
+div.play .input {
+	padding: 10px;
+	margin-top: 10px;
+
+	-webkit-border-top-left-radius: 5px;
+	-webkit-border-top-right-radius: 5px;
+	-moz-border-radius-topleft: 5px;
+	-moz-border-radius-topright: 5px;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+
+	overflow: hidden;
+}
+div.play .input textarea {
+	width: 100%;
+	height: 100%;
+	border: none;
+	outline: none;
+	resize: none;
+
+	overflow: hidden;
+}
+div.play .output {
+	border-top: none !important;
+
+	padding: 10px;
+	max-height: 200px;
+	overflow: auto;
+
+	-webkit-border-bottom-right-radius: 5px;
+	-webkit-border-bottom-left-radius: 5px;
+	-moz-border-radius-bottomright: 5px;
+	-moz-border-radius-bottomleft: 5px;
+	border-bottom-right-radius: 5px;
+	border-bottom-left-radius: 5px;
+}
+div.play .output pre {
+	padding: 0;
+
+	-webkit-border-radius: 0;
+	-moz-border-radius: 0;
+	border-radius: 0;
+}
+div.play .input,
+div.play .input textarea,
+div.play .output,
+div.play .output pre {
+	background: #FFFFD8;
+}
+div.play .input,
+div.play .output {
+	border: 1px solid #375EAB;
+}
+div.play .buttons {
+	float: right;
+	padding: 20px 0 10px 0;
+	text-align: right;
+}
+div.play .buttons a {
+	height: 16px;
+	margin-left: 5px;
+	padding: 10px;
+	cursor: pointer;
+}

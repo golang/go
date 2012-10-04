@@ -222,3 +222,45 @@
 	<p>Need more packages? Take a look at the <a href="http://godashboard.appspot.com/">Go Project Dashboard</a>.</p>
 	{{end}}
 {{end}}
+
+{{if $.Examples}}
+<script type="text/javascript" src="/doc/play/playground.js"></script>
+<script>
+$(document).ready(function() {
+	'use strict';
+	// Set up playground when each element is toggled.
+	$('div.play').each(function (i, el) {
+		var built = false;
+		$(el).closest('.toggle').click(function() {
+			// Only set up playground once.
+			if (built) {
+				return;
+			}
+			built = true;
+
+			// Set up playground.
+			var code = $('.code', el);
+			playground({
+				'codeEl':   code,
+				'outputEl': $('.output', el),
+				'runEl':    $('.run', el),
+				'fmtEl':    $('.fmt', el),
+				'shareEl':  $('.share', el),
+				'shareRedirect': 'http://play.golang.org/p/'
+			});
+
+			// Make the code textarea resize to fit content.
+			var resize = function() {
+				code.height(0);
+				var h = code[0].scrollHeight;
+				code.height(h+20); // minimize bouncing
+				code.closest('.input').height(h);
+			};
+			code.on('keydown', resize);
+			code.on('keyup', resize);
+			code.keyup(); // resize now.
+		});
+	});
+});
+</script>
+{{end}}
