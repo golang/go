@@ -1,0 +1,2 @@
+pkg text/template/parse, type DotNode bool
+pkg text/template/parse, type Node interface { Copy, String, Type }
