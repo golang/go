@@ -208,6 +208,8 @@ function godocs_onload() {
   godocs_bindToggles("toggleVisible");
   godocs_bindToggleLinks("exampleLink", "example_");
   godocs_bindToggleLinks("overviewLink", "");
+  godocs_bindToggleLinks("examplesLink", "");
+  godocs_bindToggleLinks("indexLink", "");
 }
 
 bindEvent(window, 'load', godocs_onload);
