@@ -25,6 +25,7 @@ var usageMessage = `Usage of go test:
 
   // These flags can be passed with or without a "test." prefix: -v or -test.v.
   -bench="": passes -test.bench to test
+  -benchmem=false: print memory allocation statistics for benchmarks
   -benchtime=1: passes -test.benchtime to test
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
@@ -75,6 +76,7 @@ var testFlagDefn = []*testFlagSpec{
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},
+	{name: "benchmem", boolVar: new(bool), passToTest: true},
 	{name: "benchtime", passToTest: true},
 	{name: "cpu", passToTest: true},
 	{name: "cpuprofile", passToTest: true},
