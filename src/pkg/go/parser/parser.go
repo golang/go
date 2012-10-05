@@ -2040,7 +2040,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(p *parser, doc *ast.CommentGroup, iota int) ast.Spec
+type parseSpecFunction func(p *parser, doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
 
 func isValidImport(lit string) bool {
 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
@@ -2053,7 +2053,7 @@ func isValidImport(lit string) bool {
 	return s != ""
 }
 
-func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
 	}
@@ -2091,15 +2091,15 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	return spec
 }
 
-func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
+func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
 	if p.trace {
-		defer un(trace(p, "ConstSpec"))
+		defer un(trace(p, keyword.String()+"Spec"))
 	}
 
 	idents := p.parseIdentList()
 	typ := p.tryType()
 	var values []ast.Expr
-	if typ != nil || p.tok == token.ASSIGN || iota == 0 {
+	if p.tok == token.ASSIGN || keyword == token.CONST && (typ != nil || iota == 0) || keyword == token.VAR && typ == nil {
 		p.expect(token.ASSIGN)
 		values = p.parseRhsList()
 	}
@@ -2121,7 +2121,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
 	return spec
 }
 
-func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"))
 	}
@@ -2142,36 +2142,6 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	return spec
 }
 
-func parseVarSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
-	if p.trace {
-		defer un(trace(p, "VarSpec"))
-	}
-
-	idents := p.parseIdentList()
-	typ := p.tryType()
-	var values []ast.Expr
-	if typ == nil || p.tok == token.ASSIGN {
-		p.expect(token.ASSIGN)
-		values = p.parseRhsList()
-	}
-	p.expectSemi() // call before accessing p.linecomment
-
-	// Go spec: The scope of a constant or variable identifier declared inside
-	// a function begins at the end of the ConstSpec or VarSpec and ends at
-	// the end of the innermost containing block.
-	// (Global identifiers are resolved in a separate phase after parsing.)
-	spec := &ast.ValueSpec{
-		Doc:     doc,
-		Names:   idents,
-		Type:    typ,
-		Values:  values,
-		Comment: p.lineComment,
-	}
-	p.declare(spec, nil, p.topScope, ast.Var, idents...)
-
-	return spec
-}
-
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
 	if p.trace {
 		defer un(trace(p, "GenDecl("+keyword.String()+")"))
@@ -2185,12 +2155,12 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 		lparen = p.pos
 		p.next()
 		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
-			list = append(list, f(p, p.leadComment, iota))
+			list = append(list, f(p, p.leadComment, keyword, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list = append(list, f(p, nil, 0))
+		list = append(list, f(p, nil, keyword, 0))
 	}
 
 	return &ast.GenDecl{
@@ -2290,14 +2260,11 @@ func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 
 	var f parseSpecFunction
 	switch p.tok {
-	case token.CONST:
-		f = parseConstSpec
+	case token.CONST, token.VAR:
+		f = (*parser).parseValueSpec
 
 	case token.TYPE:
-		f = parseTypeSpec
-
-	case token.VAR:
-		f = parseVarSpec
+		f = (*parser).parseTypeSpec
 
 	case token.FUNC:
 		return p.parseFuncDecl()
@@ -2349,7 +2316,7 @@ func (p *parser) parseFile() *ast.File {
 	if p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
-			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))
+			decls = append(decls, p.parseGenDecl(token.IMPORT, (*parser).parseImportSpec))
 		}
 
 		if p.mode&ImportsOnly == 0 {
