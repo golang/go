@@ -791,7 +791,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if len(x.Args) > 1 {
 			depth++
 		}
-		p.expr1(x.Fun, token.HighestPrec, depth)
+		if _, ok := x.Fun.(*ast.FuncType); ok {
+			// conversions to literal function types require parentheses around the type
+			p.print(token.LPAREN)
+			p.expr1(x.Fun, token.HighestPrec, depth)
+			p.print(token.RPAREN)
+		} else {
+			p.expr1(x.Fun, token.HighestPrec, depth)
+		}
 		p.print(x.Lparen, token.LPAREN)
 		if x.Ellipsis.IsValid() {
 			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis)
