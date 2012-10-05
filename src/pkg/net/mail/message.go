@@ -127,7 +127,7 @@ func (h Header) AddressList(key string) ([]*Address, error) {
 	if hdr == "" {
 		return nil, ErrHeaderNotPresent
 	}
-	return newAddrParser(hdr).parseAddressList()
+	return ParseAddressList(hdr)
 }
 
 // Address represents a single mail address.
@@ -136,6 +136,16 @@ func (h Header) AddressList(key string) ([]*Address, error) {
 type Address struct {
 	Name    string // Proper name; may be empty.
 	Address string // user@domain
+}
+
+// Parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
+func ParseAddress(address string) (*Address, error) {
+	return newAddrParser(address).parseAddress()
+}
+
+// ParseAddressList parses the given string as a list of addresses.
+func ParseAddressList(list string) ([]*Address, error) {
+	return newAddrParser(list).parseAddressList()
 }
 
 // String formats the address as a valid RFC 5322 address.
