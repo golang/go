@@ -110,3 +110,7 @@ TEXT runtime·rfork(SB),7,$0
 	CALL	SI	// fn()
 	CALL	runtime·exit(SB)
 	RET
+
+// Only used by the 64-bit runtime.
+TEXT runtime·setfpmasks(SB),7,$0
+	RET

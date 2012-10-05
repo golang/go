@@ -18,6 +18,7 @@ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
 int32	runtime·notify(void (*fn)(void*, byte*));
 int32	runtime·noted(int32);
 void	runtime·gonote(void*, byte*);
+void	runtime·setfpmasks(void);
 
 /* open */
 enum
