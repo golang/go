@@ -654,6 +654,35 @@ var _ = map[int]int{
 	abcde:	a,	// align with previous line
 }
 
+// alignment of map composite entries: test cases from issue 3965
+// aligned
+var _ = T1{
+	a:			x,
+	b:			y,
+	cccccccccccccccccccc:	z,
+}
+
+// not aligned
+var _ = T2{
+	a:	x,
+	b:	y,
+	ccccccccccccccccccccc:	z,
+}
+
+// aligned
+var _ = T3{
+	aaaaaaaaaaaaaaaaaaaa:	x,
+	b:			y,
+	c:			z,
+}
+
+// not aligned
+var _ = T4{
+	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:	x,
+	b:	y,
+	c:	z,
+}
+
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma

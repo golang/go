@@ -203,7 +203,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 			} else {
 				const r = 4 // threshold
 				ratio := float64(size) / float64(prevSize)
-				useFF = ratio <= 1/r || r <= ratio
+				useFF = ratio <= 1.0/r || r <= ratio
 			}
 		}
 
