@@ -676,3 +676,18 @@ func _() {
 		a...,
 	)
 }
+
+// Literal function types in conversions must be parenthesized;
+// for now go/parser accepts the unparenthesized form where it
+// is non-ambiguous.
+func _() {
+	// these conversions should be rewritten to look
+	// the same as the parenthesized conversions below
+	_ = func()()(nil)
+	_ = func(x int)(float)(nil)
+	_ = func() func() func()()(nil)
+
+	_ = (func()())(nil)
+	_ = (func(x int)(float))(nil)
+	_ = (func() func() func()())(nil)
+}

@@ -1494,7 +1494,7 @@ func TestMethod(t *testing.T) {
 	}
 
 	// Curried method of value.
-	tfunc := TypeOf(func(int) int(nil))
+	tfunc := TypeOf((func(int) int)(nil))
 	v := ValueOf(p).Method(1)
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
