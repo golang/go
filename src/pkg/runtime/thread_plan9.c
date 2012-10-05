@@ -14,6 +14,9 @@ int32 runtime·postnote(int32, int8*);
 void
 runtime·minit(void)
 {
+	// Mask all SSE floating-point exceptions
+	// when running on the 64-bit kernel.
+	runtime·setfpmasks();
 }
 
 static int32

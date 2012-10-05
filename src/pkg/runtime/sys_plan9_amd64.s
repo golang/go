@@ -121,3 +121,12 @@ TEXT runtime·rfork(SB),7,$0
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),7,$0
 	RET
+
+TEXT runtime·setfpmasks(SB),7,$8
+	STMXCSR	0(SP)
+	MOVL	0(SP), AX
+	ANDL	$~0x3F, AX
+	ORL	$(0x3F<<7), AX
+	MOVL	AX, 0(SP)
+	LDMXCSR	0(SP)
+	RET
