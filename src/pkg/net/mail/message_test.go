@@ -227,13 +227,24 @@ func TestAddressParsing(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		addrs, err := newAddrParser(test.addrsStr).parseAddressList()
+		if len(test.exp) == 1 {
+			addr, err := ParseAddress(test.addrsStr)
+			if err != nil {
+				t.Errorf("Failed parsing (single) %q: %v", test.addrsStr, err)
+				continue
+			}
+			if !reflect.DeepEqual([]*Address{addr}, test.exp) {
+				t.Errorf("Parse (single) of %q: got %+v, want %+v", test.addrsStr, addr, test.exp)
+			}
+		}
+
+		addrs, err := ParseAddressList(test.addrsStr)
 		if err != nil {
-			t.Errorf("Failed parsing %q: %v", test.addrsStr, err)
+			t.Errorf("Failed parsing (list) %q: %v", test.addrsStr, err)
 			continue
 		}
 		if !reflect.DeepEqual(addrs, test.exp) {
-			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
 		}
 	}
 }
