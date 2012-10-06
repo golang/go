@@ -169,3 +169,25 @@ func ChainUNoAssert(u *U) *U {
 		Child(0).
 		Child(0).(*U)
 }
+
+// Chains of divisions. See issue 4201.
+
+func ChainDiv(a, b int) int {
+	return a / b / a / b / a / b / a / b /
+		a / b / a / b / a / b / a / b /
+		a / b / a / b / a / b / a / b
+}
+
+func ChainDivRight(a, b int) int {
+	return a / (b / (a / (b /
+            (a / (b / (a / (b /
+            (a / (b / (a / (b /
+            (a / (b / (a / (b /
+            (a / (b / (a / b))))))))))))))))))
+}
+
+func ChainDivConst(a int) int {
+	return a / 17 / 17 / 17 /
+		17 / 17 / 17 / 17 /
+		17 / 17 / 17 / 17
+}
