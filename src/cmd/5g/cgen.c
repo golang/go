@@ -733,11 +733,7 @@ agen(Node *n, Node *res)
 			}
 
 			nodconst(&n2, types[tptr], v*w);
-			regalloc(&n4, n2.type, N);
-			gmove(&n2, &n4);
-			gins(optoas(OADD, types[tptr]), &n4, &n3);
-			regfree(&n4);
-
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
 			gmove(&n3, res);
 			regfree(&n3);
 			break;
