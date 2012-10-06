@@ -15,8 +15,8 @@
 
 static int defercalc;
 
-uint32
-rnd(uint32 o, uint32 r)
+vlong
+rnd(vlong o, vlong r)
 {
 	if(r < 1 || r > 8 || (r&(r-1)) != 0)
 		fatal("rnd");

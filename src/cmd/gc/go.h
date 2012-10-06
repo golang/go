@@ -936,7 +936,7 @@ void	checkwidth(Type *t);
 void	defercheckwidth(void);
 void	dowidth(Type *t);
 void	resumecheckwidth(void);
-uint32	rnd(uint32 o, uint32 r);
+vlong	rnd(vlong o, vlong r);
 void	typeinit(void);
 
 /*
