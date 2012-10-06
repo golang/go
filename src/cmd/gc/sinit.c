@@ -36,7 +36,9 @@ init1(Node *n, NodeList **out)
 	init1(n->right, out);
 	for(l=n->list; l; l=l->next)
 		init1(l->n, out);
+
 	if(n->left && n->type && n->left->op == OTYPE && n->class == PFUNC) {
+		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
 		init1(n->type->nname, out);
 	}

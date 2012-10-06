@@ -509,22 +509,24 @@ ret:
 void
 cgen_callmeth(Node *n, int proc)
 {
+	Node n2;
 	Node *l;
 
-	// generate a rewrite for method call
+	// generate a rewrite in n2 for the method call
 	// (p.f)(...) goes to (f)(p,...)
 
 	l = n->left;
 	if(l->op != ODOTMETH)
 		fatal("cgen_callmeth: not dotmethod: %N");
 
-	n->op = OCALLFUNC;
-	n->left = n->left->right;
-	n->left->type = l->type;
+	n2 = *n;
+	n2.op = OCALLFUNC;
+	n2.left = l->right;
+	n2.left->type = l->type;
 
-	if(n->left->op == ONAME)
-		n->left->class = PFUNC;
-	cgen_call(n, proc);
+	if(n2.left->op == ONAME)
+		n2.left->class = PFUNC;
+	cgen_call(&n2, proc);
 }
 
 /*
