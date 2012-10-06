@@ -13,7 +13,9 @@ import (
 	"strings"
 )
 
-// A node is an element in the parse tree. The interface is trivial.
+// A Node is an element in the parse tree. The interface is trivial.
+// The interface contains an unexported method so that only
+// types local to this package can satisfy it.
 type Node interface {
 	Type() NodeType
 	String() string
@@ -22,6 +24,8 @@ type Node interface {
 	// CopyXxx methods that return *XxxNode.
 	Copy() Node
 	Position() Pos // byte position of start of node in full original input string
+	// Make sure only functions in this package can create Nodes.
+	unexported()
 }
 
 // NodeType identifies the type of a parse tree node.
@@ -33,6 +37,11 @@ type Pos int
 
 func (p Pos) Position() Pos {
 	return p
+}
+
+// unexported keeps Node implementations local to the package.
+// All implementations embed Pos, so this takes care of it.
+func (Pos) unexported() {
 }
 
 // Type returns itself and provides an easy default implementation
