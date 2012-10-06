@@ -358,3 +358,40 @@ runtime·fastrand1(void)
 	m->fastrand = x;
 	return x;
 }
+
+static Lock ticksLock;
+static int64 ticks;
+
+int64
+runtime·tickspersecond(void)
+{
+	int64 res, t0, t1, c0, c1;
+
+	res = (int64)runtime·atomicload64((uint64*)&ticks);
+	if(res != 0)
+		return ticks;
+	runtime·lock(&ticksLock);
+	res = ticks;
+	if(res == 0) {
+		t0 = runtime·nanotime();
+		c0 = runtime·cputicks();
+		runtime·usleep(100*1000);
+		t1 = runtime·nanotime();
+		c1 = runtime·cputicks();
+		if(t1 == t0)
+			t1++;
+		res = (c1-c0)*1000*1000*1000/(t1-t0);
+		if(res == 0)
+			res++;
+		runtime·atomicstore64((uint64*)&ticks, res);
+	}
+	runtime·unlock(&ticksLock);
+	return res;
+}
+
+void
+runtime∕pprof·runtime_cyclesPerSecond(int64 res)
+{
+	res = runtime·tickspersecond();
+	FLUSH(&res);
+}

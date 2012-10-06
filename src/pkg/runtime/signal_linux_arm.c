@@ -206,14 +206,8 @@ runtime·setup_auxv(int32 argc, void *argv_list)
 #pragma textflag 7
 int64
 runtime·cputicks() {
-	// copied from runtime.c:/^fastrand1
-	uint32 x;
-
-	x = runtime·randomNumber;
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	runtime·randomNumber = x;
-
-	return ((int64)x) << 32 | x;
+	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+	// runtime·randomNumber provides better seeding of fastrand1.
+	return runtime·nanotime() + runtime·randomNumber;
 }
