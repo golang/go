@@ -402,7 +402,23 @@ cgen(Node *n, Node *res)
 			a = optoas(n->op, nl->type);
 			goto abop;
 		}
-		cgen_div(n->op, nl, nr, res);
+
+		if(nl->ullman >= nr->ullman) {
+			regalloc(&n1, nl->type, res);
+			cgen(nl, &n1);
+			cgen_div(n->op, &n1, nr, res);
+			regfree(&n1);
+		} else {
+			if(!smallintconst(nr)) {
+				regalloc(&n2, nr->type, res);
+				cgen(nr, &n2);
+			} else {
+				n2 = *nr;
+			}
+			cgen_div(n->op, nl, &n2, res);
+			if(n2.op != OLITERAL)
+				regfree(&n2);
+		}
 		break;
 
 	case OLSH:
