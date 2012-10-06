@@ -188,10 +188,10 @@ printtypename(Type *t)
 
 	switch(t->etype) {
 	case TINT:
-		Bprint(&outbuf, "int");
+		Bprint(&outbuf, "int32");
 		break;
 	case TUINT:
-		Bprint(&outbuf, "uint");
+		Bprint(&outbuf, "uint32");
 		break;
 	case TCHAR:
 		Bprint(&outbuf, "int8");
