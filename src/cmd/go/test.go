@@ -112,6 +112,18 @@ directory containing the package sources, has its own flags:
 	    garbage collector, provided the test can run in the available
 	    memory without garbage collection.
 
+	-test.blockprofile block.out
+	    Write a goroutine blocking profile to the specified file
+	    when all tests are complete.
+
+	-test.blockprofilerate n
+	    Control the detail provided in goroutine blocking profiles by setting
+	    runtime.BlockProfileRate to n.  See 'godoc runtime BlockProfileRate'.
+	    The profiler aims to sample, on average, one blocking event every
+	    n nanoseconds the program spends blocked.  By default,
+	    if -test.blockprofile is set without this flag, all blocking events
+	    are recorded, equivalent to -test.blockprofilerate=1.
+
 	-test.parallel n
 	    Allow parallel execution of test functions that call t.Parallel.
 	    The value of this flag is the maximum number of tests to run

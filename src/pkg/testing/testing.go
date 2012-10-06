@@ -102,14 +102,16 @@ var (
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
 	// Report as tests are run; default is silent for success.
-	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
-	match          = flag.String("test.run", "", "regular expression to select tests and examples to run")
-	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
-	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
-	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
-	timeout        = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
-	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
-	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
+	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
+	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
+	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
 
 	haveExamples bool // are there examples?
 
@@ -420,7 +422,9 @@ func before() {
 		}
 		// Could save f so after can call f.Close; not worth the effort.
 	}
-
+	if *blockProfile != "" && *blockProfileRate >= 0 {
+		runtime.SetBlockProfileRate(*blockProfileRate)
+	}
 }
 
 // after runs after all testing.
@@ -436,6 +440,17 @@ func after() {
 		}
 		if err = pprof.WriteHeapProfile(f); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
+		}
+		f.Close()
+	}
+	if *blockProfile != "" && *blockProfileRate >= 0 {
+		f, err := os.Create(*blockProfile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: %s", err)
+			return
+		}
+		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *blockProfile, err)
 		}
 		f.Close()
 	}

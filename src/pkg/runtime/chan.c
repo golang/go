@@ -22,6 +22,7 @@ struct	SudoG
 	G*	g;		// g and selgen constitute
 	uint32	selgen;		// a weak pointer to g
 	SudoG*	link;
+	int64	releasetime;
 	byte*	elem;		// data element
 };
 
@@ -154,6 +155,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 	SudoG *sg;
 	SudoG mysg;
 	G* gp;
+	int64 t0;
 
 	if(c == nil) {
 		USED(t);
@@ -174,6 +176,13 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 		runtime·prints("\n");
 	}
 
+	t0 = 0;
+	mysg.releasetime = 0;
+	if(runtime·blockprofilerate > 0) {
+		t0 = runtime·cputicks();
+		mysg.releasetime = -1;
+	}
+
 	runtime·lock(c);
 	if(c->closed)
 		goto closed;
@@ -189,6 +198,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 		gp->param = sg;
 		if(sg->elem != nil)
 			c->elemalg->copy(c->elemsize, sg->elem, ep);
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 
 		if(pres != nil)
@@ -215,6 +226,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 			runtime·throw("chansend: spurious wakeup");
 		goto closed;
 	}
+
+	if(mysg.releasetime > 0)
+		runtime·blockevent(mysg.releasetime - t0, 2);
 
 	return;
 
@@ -246,11 +260,15 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		runtime·unlock(c);
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else
 		runtime·unlock(c);
 	if(pres != nil)
 		*pres = true;
+	if(mysg.releasetime > 0)
+		runtime·blockevent(mysg.releasetime - t0, 2);
 	return;
 
 closed:
@@ -265,6 +283,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	SudoG *sg;
 	SudoG mysg;
 	G *gp;
+	int64 t0;
 
 	if(runtime·gcwaiting)
 		runtime·gosched();
@@ -282,6 +301,13 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 		return;  // not reached
 	}
 
+	t0 = 0;
+	mysg.releasetime = 0;
+	if(runtime·blockprofilerate > 0) {
+		t0 = runtime·cputicks();
+		mysg.releasetime = -1;
+	}
+
 	runtime·lock(c);
 	if(c->dataqsiz > 0)
 		goto asynch;
@@ -297,6 +323,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 			c->elemalg->copy(c->elemsize, ep, sg->elem);
 		gp = sg->g;
 		gp->param = sg;
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 
 		if(selected != nil)
@@ -328,6 +356,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 
 	if(received != nil)
 		*received = true;
+	if(mysg.releasetime > 0)
+		runtime·blockevent(mysg.releasetime - t0, 2);
 	return;
 
 asynch:
@@ -362,6 +392,8 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		runtime·unlock(c);
+		if(sg->releasetime)
+			sg->releasetime = runtime·cputicks();
 		runtime·ready(gp);
 	} else
 		runtime·unlock(c);
@@ -370,6 +402,8 @@ asynch:
 		*selected = true;
 	if(received != nil)
 		*received = true;
+	if(mysg.releasetime > 0)
+		runtime·blockevent(mysg.releasetime - t0, 2);
 	return;
 
 closed:
@@ -380,6 +414,8 @@ closed:
 	if(received != nil)
 		*received = false;
 	runtime·unlock(c);
+	if(mysg.releasetime > 0)
+		runtime·blockevent(mysg.releasetime - t0, 2);
 }
 
 // chansend1(hchan *chan any, elem any);
