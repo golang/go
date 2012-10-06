@@ -117,6 +117,9 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 // Templates returns a slice of the templates associated with t, including t
 // itself.
 func (t *Template) Templates() []*Template {
+	if t.common == nil {
+		return nil
+	}
 	// Return a slice so we don't expose the map.
 	m := make([]*Template, 0, len(t.tmpl))
 	for _, v := range t.tmpl {

@@ -811,3 +811,8 @@ func TestTree(t *testing.T) {
 		t.Errorf("expected %q got %q", expect, result)
 	}
 }
+
+func TestExecuteOnNewTemplate(t *testing.T) {
+	// This is issue 3872.
+	_ = New("Name").Templates()
+}
