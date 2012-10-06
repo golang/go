@@ -114,7 +114,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 
 	cap = old.cap + n;
 
-	if((intgo)cap != cap || cap < old.cap || cap > MaxMem / t->elem->size)
+	if((intgo)cap != cap || cap < old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
 		runtime·panicstring("growslice: cap out of range");
 
 	growslice1(t, old, cap, &ret);
