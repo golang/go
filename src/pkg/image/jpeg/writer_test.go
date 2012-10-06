@@ -171,6 +171,23 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func BenchmarkDecodeRGBOpaque(b *testing.B) {
+	b.StopTimer()
+	data, err := ioutil.ReadFile("../testdata/video-001.jpeg")
+	if err != nil {
+		b.Fatal(err)
+	}
+	cfg, err := DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(cfg.Width * cfg.Height * 4))
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		Decode(bytes.NewReader(data))
+	}
+}
+
 func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))

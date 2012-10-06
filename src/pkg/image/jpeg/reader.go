@@ -35,11 +35,7 @@ type component struct {
 	tq uint8 // Quantization table destination selector.
 }
 
-type block [blockSize]int
-
 const (
-	blockSize = 64 // A DCT block is 8x8.
-
 	dcTable = 0
 	acTable = 1
 	maxTc   = 1
