@@ -16,6 +16,46 @@ compiledir() {
 	done
 }
 
+errorcheckdir() {
+	lastzero=""
+	if [ "$1" = "-0" ]; then
+		lastzero="-0"
+	fi
+	files=($D/$F.dir/*.go)
+	for gofile in ${files[@]}
+	do
+		zero="-0"
+		if [ ${files[${#files[@]}-1]} = $gofile ]; then
+			zero=$lastzero
+		fi
+		errchk $zero $G -D. -I. -e $gofile
+	done
+}
+
+rundir() {
+	lastfile=""
+	for gofile in $D/$F.dir/*.go
+	do
+		name=$(basename ${gofile/\.go/} )
+		$G -D. -I. -e "$gofile" || return 1
+		lastfile=$name
+	done
+	$L -o $A.out -L. $lastfile.$A
+	./$A.out
+}
+
+rundircmpout() {
+	lastfile=""
+	for gofile in $D/$F.dir/*.go
+	do
+		name=$(basename ${gofile/\.go/} )
+		$G -D. -I. -e "$gofile" || return 1
+		lastfile=$name
+	done
+	$L -o $A.out -L. $lastfile.$A
+	./$A.out | cmp - $D/$F.out
+}
+
 build() {
 	$G $D/$F.go && $L $F.$A
 }

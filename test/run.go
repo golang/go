@@ -165,6 +165,22 @@ func goFiles(dir string) []string {
 	return names
 }
 
+type runCmd func(...string) ([]byte, error)
+
+func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
+	return runcmd("go", "tool", gc, "-e", longname)
+}
+
+func compileInDir(runcmd runCmd, dir, name string) (out []byte, err error) {
+	return runcmd("go", "tool", gc, "-e", "-D.", "-I.", filepath.Join(dir, name))
+}
+
+func linkFile(runcmd runCmd, goname string) (err error) {
+	pfile := strings.Replace(goname, ".go", "."+letter, -1)
+	_, err = runcmd("go", "tool", ld, "-o", "run.out", "-L", ".", pfile)
+	return
+}
+
 // skipError describes why a test was skipped.
 type skipError string
 
@@ -230,6 +246,19 @@ func (t *test) goDirName() string {
 	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
 }
 
+func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
+	files, dirErr := ioutil.ReadDir(longdir)
+	if dirErr != nil {
+		return nil, dirErr
+	}
+	for _, gofile := range files {
+		if filepath.Ext(gofile.Name()) == ".go" {
+			filter = append(filter, gofile)
+		}
+	}
+	return
+}
+
 // run runs a test.
 func (t *test) run() {
 	defer close(t.donec)
@@ -263,12 +292,15 @@ func (t *test) run() {
 	}
 
 	switch action {
+	case "rundircmpout":
+		action = "rundir"
+		t.action = "rundir"
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
 		fallthrough
-	case "compile", "compiledir", "build", "run", "runoutput":
+	case "compile", "compiledir", "build", "run", "runoutput", "rundir":
 		t.action = action
-	case "errorcheck":
+	case "errorcheck", "errorcheckdir":
 		t.action = action
 		wantError = true
 		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
@@ -308,6 +340,9 @@ func (t *test) run() {
 			cmd.Dir = t.tempDir
 		}
 		err := cmd.Run()
+		if err != nil {
+			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
+		}
 		return buf.Bytes(), err
 	}
 
@@ -328,7 +363,7 @@ func (t *test) run() {
 			}
 		} else {
 			if err != nil {
-				t.err = fmt.Errorf("%s\n%s", err, out)
+				t.err = err
 				return
 			}
 		}
@@ -336,42 +371,95 @@ func (t *test) run() {
 		return
 
 	case "compile":
-		out, err := runcmd("go", "tool", gc, "-e", "-o", "a."+letter, long)
-		if err != nil {
-			t.err = fmt.Errorf("%s\n%s", err, out)
-		}
+		_, t.err = compileFile(runcmd, long)
 
 	case "compiledir":
 		// Compile all files in the directory in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
-		files, dirErr := ioutil.ReadDir(longdir)
-		if dirErr != nil {
-			t.err = dirErr
+		files, err := goDirFiles(longdir)
+		if err != nil {
+			t.err = err
 			return
 		}
 		for _, gofile := range files {
-			if filepath.Ext(gofile.Name()) != ".go" {
-				continue
+			_, t.err = compileInDir(runcmd, longdir, gofile.Name())
+			if t.err != nil {
+				return
 			}
-			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
-			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
-			if err != nil {
-				t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+
+	case "errorcheckdir":
+		// errorcheck all files in lexicographic order
+		// useful for finding importing errors
+		longdir := filepath.Join(cwd, t.goDirName())
+		files, err := goDirFiles(longdir)
+		if err != nil {
+			t.err = err
+			return
+		}
+		for i, gofile := range files {
+			out, err := compileInDir(runcmd, longdir, gofile.Name())
+			if i == len(files)-1 {
+				if wantError && err == nil {
+					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+					return
+				} else if !wantError && err != nil {
+					t.err = err
+					return
+				}
+			} else if err != nil {
+				t.err = err
+				return
+			}
+			longname := filepath.Join(longdir, gofile.Name())
+			t.err = t.errorCheck(string(out), longname, gofile.Name())
+			if t.err != nil {
 				break
 			}
 		}
 
-	case "build":
-		out, err := runcmd("go", "build", "-o", "a.exe", long)
+	case "rundir":
+		// Compile all files in the directory in lexicographic order.
+		// then link as if the last file is the main package and run it
+		longdir := filepath.Join(cwd, t.goDirName())
+		files, err := goDirFiles(longdir)
 		if err != nil {
-			t.err = fmt.Errorf("%s\n%s", err, out)
+			t.err = err
+			return
+		}
+		var gofile os.FileInfo
+		for _, gofile = range files {
+			_, err := compileInDir(runcmd, longdir, gofile.Name())
+			if err != nil {
+				t.err = err
+				return
+			}
+		}
+		err = linkFile(runcmd, gofile.Name())
+		if err != nil {
+			t.err = err
+			return
+		}
+		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "run.out")}, args...)...)
+		if err != nil {
+			t.err = err
+			return
+		}
+		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
+		}
+
+	case "build":
+		_, err := runcmd("go", "build", "-o", "a.exe", long)
+		if err != nil {
+			t.err = err
 		}
 
 	case "run":
 		useTmp = false
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
 		if err != nil {
-			t.err = fmt.Errorf("%s\n%s", err, out)
+			t.err = err
 		}
 		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
 			t.err = fmt.Errorf("incorrect output\n%s", out)
@@ -381,7 +469,7 @@ func (t *test) run() {
 		useTmp = false
 		out, err := runcmd("go", "run", t.goFileName())
 		if err != nil {
-			t.err = fmt.Errorf("%s\n%s", err, out)
+			t.err = err
 		}
 		tfile := filepath.Join(t.tempDir, "tmp__.go")
 		err = ioutil.WriteFile(tfile, out, 0666)
@@ -391,7 +479,7 @@ func (t *test) run() {
 		}
 		out, err = runcmd("go", "run", tfile)
 		if err != nil {
-			t.err = fmt.Errorf("%s\n%s", err, out)
+			t.err = err
 		}
 		if string(out) != t.expectedOutput() {
 			t.err = fmt.Errorf("incorrect output\n%s", out)
@@ -444,7 +532,7 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 		out[i] = strings.Replace(out[i], full, short, -1)
 	}
 
-	for _, we := range t.wantedErrors() {
+	for _, we := range t.wantedErrors(full, short) {
 		var errmsgs []string
 		errmsgs, out = partitionStrings(we.filterRe, out)
 		if len(errmsgs) == 0 {
@@ -505,8 +593,9 @@ var (
 	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
 )
 
-func (t *test) wantedErrors() (errs []wantedError) {
-	for i, line := range strings.Split(t.src, "\n") {
+func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+	src, _ := ioutil.ReadFile(file)
+	for i, line := range strings.Split(string(src), "\n") {
 		lineNum := i + 1
 		if strings.Contains(line, "////") {
 			// double comment disables ERROR
@@ -531,15 +620,15 @@ func (t *test) wantedErrors() (errs []wantedError) {
 					delta, _ := strconv.Atoi(m[5:])
 					n -= delta
 				}
-				return fmt.Sprintf("%s:%d", t.gofile, n)
+				return fmt.Sprintf("%s:%d", short, n)
 			})
-			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, t.gofile, lineNum)
+			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, short, lineNum)
 			errs = append(errs, wantedError{
 				reStr:    rx,
 				re:       regexp.MustCompile(rx),
 				filterRe: regexp.MustCompile(filterPattern),
 				lineNum:  lineNum,
-				file:     t.gofile,
+				file:     short,
 			})
 		}
 	}
