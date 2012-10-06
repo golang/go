@@ -371,14 +371,19 @@ cgen_asop(Node *n)
 	case OOR:
 		a = optoas(n->etype, nl->type);
 		if(nl->addable) {
-			regalloc(&n3, nr->type, N);
-			cgen(nr, &n3);
+			if(smallintconst(nr))
+				n3 = *nr;
+			else {
+				regalloc(&n3, nr->type, N);
+				cgen(nr, &n3);
+			}
 			regalloc(&n2, nl->type, N);
 			cgen(nl, &n2);
 			gins(a, &n3, &n2);
 			cgen(&n2, nl);
 			regfree(&n2);
-			regfree(&n3);
+			if(n3.op != OLITERAL)
+				regfree(&n3);
 			goto ret;
 		}
 		if(nr->ullman < UINF)
