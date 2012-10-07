@@ -564,6 +564,7 @@ typedef struct {
 #define	R_ARM_GOT32		26	/* Add PC-relative GOT offset. */
 #define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
 #define	R_ARM_CALL		28
+#define	R_ARM_JUMP24	29
 #define	R_ARM_V4BX		40
 #define	R_ARM_GOT_PREL		96
 #define	R_ARM_GNU_VTENTRY	100
@@ -575,7 +576,7 @@ typedef struct {
 #define	R_ARM_RPC24		254
 #define	R_ARM_RBASE		255
 
-#define	R_ARM_COUNT		33	/* Count of defined relocation types. */
+#define	R_ARM_COUNT		37	/* Count of defined relocation types. */
 
 
 #define	R_386_NONE	0	/* No relocation. */

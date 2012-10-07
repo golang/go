@@ -137,7 +137,7 @@ adddynrel(Sym *s, Reloc *r)
 
 	// Handle relocations found in ELF object files.
 	case 256 + R_ARM_PLT32:
-		r->type = D_PLT32;
+		r->type = D_CALL;
 		if(targ->dynimpname != nil && !targ->dynexport) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
@@ -184,7 +184,11 @@ adddynrel(Sym *s, Reloc *r)
 
 	case 256 + R_ARM_CALL:
 		r->type = D_CALL;
-		r->add += 0;
+		if(targ->dynimpname != nil && !targ->dynexport) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add = braddoff(r->add, targ->plt / 4);
+		}
 		return;
 
 	case 256 + R_ARM_REL32: // R_ARM_REL32
@@ -205,6 +209,16 @@ adddynrel(Sym *s, Reloc *r)
 			r->sym->type = 0;
 		}
 		r->sym = S;
+		return;
+
+	case 256 + R_ARM_PC24:
+	case 256 + R_ARM_JUMP24:
+		r->type = D_CALL;
+		if(targ->dynimpname != nil && !targ->dynexport) {
+			addpltsym(targ);
+			r->sym = lookup(".plt", 0);
+			r->add = braddoff(r->add, targ->plt / 4);
+		}
 		return;
 	}
 	
@@ -290,21 +304,19 @@ archreloc(Reloc *r, Sym *s, vlong *val)
 		*val = 0xe5bcf000U +
 			(0xfff & (uint32)(symaddr(r->sym) - (symaddr(lookup(".plt", 0)) + r->off) + r->add + 8));
 		return 0;
-	case D_PLT32: // bl XXXXXX or b YYYYYY in R_ARM_PLT32
-		*val = (0xff000000U & (uint32)r->add) +
-			(0xffffff & (uint32)((symaddr(r->sym) + (0xffffffU & (uint32)r->add) * 4) - (s->value + r->off)) / 4);
-		return 0;
-	case D_CALL: // bl XXXXXX
-		*val = braddoff(0xeb000000U, (0xffffff & (uint32)((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));
-		return 0;
-	}
-	return -1;
+	case D_CALL: // bl XXXXXX or b YYYYYY
+		*val = braddoff((0xff000000U & (uint32)r->add), 
+		                (0xffffff & (uint32)
+		                   ((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));
+	return 0;
+}
+return -1;
 }
 
 static Reloc *
 addpltreloc(Sym *plt, Sym *got, Sym *sym, int typ)
 {
-	Reloc *r;
+Reloc *r;
 	r = addrel(plt);
 	r->sym = got;
 	r->off = plt->size;
