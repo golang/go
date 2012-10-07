@@ -10,6 +10,14 @@ O=$GOCHAR
 GC="go tool ${O}g"
 LD="go tool ${O}l"
 
+gccm=""
+case "$O" in
+8)
+	gccm=-m32;;
+6)
+	gccm=-m64;;
+esac
+
 PATH=.:$PATH
 
 havegccgo=false
@@ -78,7 +86,7 @@ run() {
 
 fasta() {
 	runonly echo 'fasta -n 25000000'
-	run 'gcc -O2 fasta.c' a.out 25000000
+	run "gcc $gccm -O2 fasta.c" a.out 25000000
 	run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
 	run 'gc fasta' $O.out -n 25000000
 	run 'gc_B fasta' $O.out -n 25000000
@@ -88,7 +96,7 @@ revcomp() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 25000000 > x
 	runonly echo 'reverse-complement < output-of-fasta-25000000'
-	run 'gcc -O2 reverse-complement.c' a.out < x
+	run "gcc $gccm -O2 reverse-complement.c" a.out < x
 	run 'gccgo -O2 reverse-complement.go' a.out < x
 	run 'gc reverse-complement' $O.out < x
 	run 'gc_B reverse-complement' $O.out < x
@@ -97,7 +105,7 @@ revcomp() {
 
 nbody() {
 	runonly echo 'nbody -n 50000000'
-	run 'gcc -O2 nbody.c -lm' a.out 50000000
+	run "gcc $gccm -O2 nbody.c -lm" a.out 50000000
 	run 'gccgo -O2 nbody.go' a.out -n 50000000
 	run 'gc nbody' $O.out -n 50000000
 	run 'gc_B nbody' $O.out -n 50000000
@@ -105,7 +113,7 @@ nbody() {
 
 binarytree() {
 	runonly echo 'binary-tree 15 # too slow to use 20'
-	run 'gcc -O2 binary-tree.c -lm' a.out 15
+	run "gcc $gccm -O2 binary-tree.c -lm" a.out 15
 	run 'gccgo -O2 binary-tree.go' a.out -n 15
 	run 'gccgo -O2 binary-tree-freelist.go' a.out -n 15
 	run 'gc binary-tree' $O.out -n 15
@@ -114,7 +122,7 @@ binarytree() {
 
 fannkuch() {
 	runonly echo 'fannkuch 12'
-	run 'gcc -O2 fannkuch.c' a.out 12
+	run "gcc $gccm -O2 fannkuch.c" a.out 12
 	run 'gccgo -O2 fannkuch.go' a.out -n 12
 	run 'gccgo -O2 fannkuch-parallel.go' a.out -n 12
 	run 'gc fannkuch' $O.out -n 12
@@ -126,7 +134,7 @@ regexdna() {
 	runonly gcc -O2 fasta.c
 	runonly a.out 100000 > x
 	runonly echo 'regex-dna 100000'
-	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
+	run "gcc $gccm -O2 regex-dna.c -lpcre" a.out <x
 	run 'gccgo -O2 regex-dna.go' a.out <x
 	run 'gccgo -O2 regex-dna-parallel.go' a.out <x
 	run 'gc regex-dna' $O.out <x
@@ -137,7 +145,7 @@ regexdna() {
 
 spectralnorm() {
 	runonly echo 'spectral-norm 5500'
-	run 'gcc -O2 spectral-norm.c -lm' a.out 5500
+	run "gcc $gccm -O2 spectral-norm.c -lm" a.out 5500
 	run 'gccgo -O2 spectral-norm.go' a.out -n 5500
 	run 'gc spectral-norm' $O.out -n 5500
 	run 'gc_B spectral-norm' $O.out -n 5500
@@ -160,7 +168,7 @@ knucleotide() {
 
 mandelbrot() {
 	runonly echo 'mandelbrot 16000'
-	run 'gcc -O2 mandelbrot.c' a.out 16000
+	run "gcc $gccm -O2 mandelbrot.c" a.out 16000
 	run 'gccgo -O2 mandelbrot.go' a.out -n 16000
 	run 'gc mandelbrot' $O.out -n 16000
 	run 'gc_B mandelbrot' $O.out -n 16000
@@ -168,7 +176,7 @@ mandelbrot() {
 
 meteor() {
 	runonly echo 'meteor 2098'
-	run 'gcc -O2 meteor-contest.c' a.out 2098
+	run "gcc $gccm -O2 meteor-contest.c" a.out 2098
 	run 'gccgo -O2 meteor-contest.go' a.out -n 2098
 	run 'gc meteor-contest' $O.out -n 2098
 	run 'gc_B  meteor-contest' $O.out -n 2098
@@ -176,7 +184,7 @@ meteor() {
 
 pidigits() {
 	runonly echo 'pidigits 10000'
-	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+	run "gcc $gccm -O2 pidigits.c -lgmp" a.out 10000
 	run 'gccgo -O2 pidigits.go' a.out -n 10000
 	run 'gc pidigits' $O.out -n 10000
 	run 'gc_B  pidigits' $O.out -n 10000
@@ -184,14 +192,14 @@ pidigits() {
 
 threadring() {
 	runonly echo 'threadring 50000000'
-	run 'gcc -O2 threadring.c -lpthread' a.out 50000000
+	run "gcc $gccm -O2 threadring.c -lpthread" a.out 50000000
 	run 'gccgo -O2 threadring.go' a.out -n 50000000
 	run 'gc threadring' $O.out -n 50000000
 }
 
 chameneos() {
 	runonly echo 'chameneos 6000000'
-	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
+	run "gcc $gccm -O2 chameneosredux.c -lpthread" a.out 6000000
 	run 'gccgo -O2 chameneosredux.go' a.out 6000000
 	run 'gc chameneosredux' $O.out 6000000
 }
