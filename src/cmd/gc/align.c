@@ -607,7 +607,7 @@ typeinit(void)
 			fatal("typeinit: %s already defined", s->name);
 
 		t = typ(etype);
-		t->sym = s;
+		t->sym = s1;
 
 		dowidth(t);
 		types[etype] = t;
