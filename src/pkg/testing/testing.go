@@ -160,6 +160,9 @@ func decorate(s string) string {
 	fmt.Fprintf(buf, "%s:%d: ", file, line)
 
 	lines := strings.Split(s, "\n")
+	if l := len(lines); l > 1 && lines[l-1] == "" {
+		lines = lines[:l-1]
+	}
 	for i, line := range lines {
 		if i > 0 {
 			buf.WriteByte('\n')
@@ -172,10 +175,7 @@ func decorate(s string) string {
 		}
 		buf.WriteString(line)
 	}
-	if l := len(s); l > 0 && s[len(s)-1] != '\n' {
-		// Add final new line if needed.
-		buf.WriteByte('\n')
-	}
+	buf.WriteByte('\n')
 	return buf.String()
 }
 
