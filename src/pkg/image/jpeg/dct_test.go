@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func BenchmarkFDCT(b *testing.B) {
+func benchmarkDCT(b *testing.B, f func(*block)) {
 	b.StopTimer()
 	blocks := make([]block, 0, b.N*len(testBlocks))
 	for i := 0; i < b.N; i++ {
@@ -20,21 +20,16 @@ func BenchmarkFDCT(b *testing.B) {
 	}
 	b.StartTimer()
 	for i := range blocks {
-		fdct(&blocks[i])
+		f(&blocks[i])
 	}
 }
 
+func BenchmarkFDCT(b *testing.B) {
+	benchmarkDCT(b, fdct)
+}
+
 func BenchmarkIDCT(b *testing.B) {
-	b.StopTimer()
-	dummy := make([]byte, 64)
-	blocks := make([]block, 0, b.N*len(testBlocks))
-	for i := 0; i < b.N; i++ {
-		blocks = append(blocks, testBlocks[:]...)
-	}
-	b.StartTimer()
-	for i := range blocks {
-		idct(dummy, 8, &blocks[i])
-	}
+	benchmarkDCT(b, idct)
 }
 
 func TestDCT(t *testing.T) {
@@ -85,10 +80,9 @@ func TestDCT(t *testing.T) {
 	}
 
 	// Check that the optimized and slow IDCT implementations agree.
-	dummy := make([]byte, 64)
 	for i, b := range blocks {
 		got, want := b, b
-		idct(dummy, 8, &got)
+		idct(&got)
 		slowIDCT(&want)
 		if differ(&got, &want) {
 			t.Errorf("i=%d: IDCT\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, &b, &got, &want)

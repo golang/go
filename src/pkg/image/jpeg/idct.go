@@ -59,9 +59,7 @@ const (
 	r2 = 181 // 256/sqrt(2)
 )
 
-// idct performs a 2-D Inverse Discrete Cosine Transformation, followed by a
-// +128 level shift and a clip to [0, 255], writing the results to dst.
-// stride is the number of elements between successive rows of dst.
+// idct performs a 2-D Inverse Discrete Cosine Transformation.
 //
 // The input coefficients should already have been multiplied by the
 // appropriate quantization table. We use fixed-point computation, with the
@@ -71,7 +69,7 @@ const (
 // For more on the actual algorithm, see Z. Wang, "Fast algorithms for the
 // discrete W transform and for the discrete Fourier transform", IEEE Trans. on
 // ASSP, Vol. ASSP- 32, pp. 803-816, Aug. 1984.
-func idct(dst []byte, stride int, src *block) {
+func idct(src *block) {
 	// Horizontal 1-D IDCT.
 	for y := 0; y < 8; y++ {
 		y8 := y * 8
@@ -190,22 +188,5 @@ func idct(dst []byte, stride int, src *block) {
 		src[8*5+x] = (y0 - y4) >> 14
 		src[8*6+x] = (y3 - y2) >> 14
 		src[8*7+x] = (y7 - y1) >> 14
-	}
-
-	// Level shift by +128, clip to [0, 255], and write to dst.
-	for y := 0; y < 8; y++ {
-		y8 := y * 8
-		yStride := y * stride
-		for x := 0; x < 8; x++ {
-			c := src[y8+x]
-			if c < -128 {
-				c = 0
-			} else if c > 127 {
-				c = 255
-			} else {
-				c += 128
-			}
-			dst[yStride+x] = uint8(c)
-		}
 	}
 }
