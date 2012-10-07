@@ -657,6 +657,13 @@ loop:
 	case AFDIVRF:
 	case AFCOMF:
 	case AFCOMFP:
+	case AMOVSS:
+	case AADDSS:
+	case ASUBSS:
+	case AMULSS:
+	case ADIVSS:
+	case ACOMISS:
+	case AUCOMISS:
 		if(skip)
 			goto casdef;
 		if(p->from.type == D_FCONST) {
@@ -683,6 +690,13 @@ loop:
 	case AFDIVRD:
 	case AFCOMD:
 	case AFCOMDP:
+	case AMOVSD:
+	case AADDSD:
+	case ASUBSD:
+	case AMULSD:
+	case ADIVSD:
+	case ACOMISD:
+	case AUCOMISD:
 		if(skip)
 			goto casdef;
 		if(p->from.type == D_FCONST) {
