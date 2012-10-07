@@ -1831,16 +1831,16 @@ lexinit(void)
 		if(etype != Txxx) {
 			if(etype < 0 || etype >= nelem(types))
 				fatal("lexinit: %s bad etype", s->name);
+			s1 = pkglookup(syms[i].name, builtinpkg);
 			t = types[etype];
 			if(t == T) {
 				t = typ(etype);
-				t->sym = s;
+				t->sym = s1;
 
 				if(etype != TANY && etype != TSTRING)
 					dowidth(t);
 				types[etype] = t;
 			}
-			s1 = pkglookup(syms[i].name, builtinpkg);
 			s1->lexical = LNAME;
 			s1->def = typenod(t);
 			continue;

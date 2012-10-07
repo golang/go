@@ -982,7 +982,7 @@ embedded(Sym *s)
 		*utfrune(name, CenterDot) = 0;
 	}
 
-	if(exportname(name) || s->pkg == builtinpkg)  // old behaviour, tests pass, but is it correct?
+	if(exportname(name))
 		n = newname(lookup(name));
 	else
 		n = newname(pkglookup(name, s->pkg));

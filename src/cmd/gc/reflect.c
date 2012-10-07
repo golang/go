@@ -866,7 +866,10 @@ ok:
 					ot = dgopkgpath(s, ot, t1->sym->pkg);
 			} else {
 				ot = dgostringptr(s, ot, nil);
-				ot = dgostringptr(s, ot, nil);
+				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
+					ot = dgopkgpath(s, ot, localpkg);
+				else
+					ot = dgostringptr(s, ot, nil);
 			}
 			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
 			ot = dgostrlitptr(s, ot, t1->note);

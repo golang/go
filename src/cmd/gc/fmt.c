@@ -1181,7 +1181,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 					t = l->n->left->type->type;
 					if(t->sym == S)
 						t = t->type;
-					fmtprint(f, " %T:%N", t, l->n->right);
+					fmtprint(f, " %hhS:%N", t->sym, l->n->right);
 				} else
 					fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
 
