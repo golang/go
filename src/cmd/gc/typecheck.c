@@ -2136,7 +2136,7 @@ typecheckcomplit(Node **np)
 	Node *l, *n, *r, **hash;
 	NodeList *ll;
 	Type *t, *f;
-	Sym *s;
+	Sym *s, *s1;
 	int32 lno;
 	ulong nhash;
 	Node *autohash[101];
@@ -2302,9 +2302,11 @@ typecheckcomplit(Node **np)
 				// Sym might have resolved to name in other top-level
 				// package, because of import dot.  Redirect to correct sym
 				// before we do the lookup.
-				if(s->pkg != localpkg && exportname(s->name))
-					s = lookup(s->name);
-
+				if(s->pkg != localpkg && exportname(s->name)) {
+					s1 = lookup(s->name);
+					if(s1->origpkg == s->pkg)
+						s = s1;
+				}
 				f = lookdot1(nil, s, t, t->type, 0);
 				if(f == nil) {
 					yyerror("unknown %T field '%S' in struct literal", t, s);
