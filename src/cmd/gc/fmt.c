@@ -1086,9 +1086,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OLITERAL:  // this is a bit of a mess
 		if(fmtmode == FErr && n->sym != S)
 			return fmtprint(f, "%S", n->sym);
-		if(n->val.ctype == CTNIL)
+		if(n->val.ctype == CTNIL && n->orig != N)
 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
-		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
+		if(n->type != T && n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))
