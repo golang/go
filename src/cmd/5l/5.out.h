@@ -270,8 +270,7 @@ enum	as
 #define	D_PLT0		(D_NONE+43) // R_ARM_PLT32, 1st inst: add ip, pc, #0xNN00000
 #define	D_PLT1		(D_NONE+44) // R_ARM_PLT32, 2nd inst: add ip, ip, #0xNN000
 #define	D_PLT2		(D_NONE+45) // R_ARM_PLT32, 3rd inst: ldr pc, [ip, #0xNNN]!
-#define	D_PLT32 	(D_NONE+46) // R_ARM_PLT32, bl xxxxx
-#define	D_CALL		(D_NONE+47) // R_ARM_CALL, bl xxxxx
+#define	D_CALL		(D_NONE+46) // R_ARM_PLT32/R_ARM_CALL/R_ARM_JUMP24, bl xxxxx or b yyyyy
 
 /*
  * this is the ranlib header
