@@ -309,8 +309,10 @@ func (d *decoder) processSOS(n int) error {
 					}
 
 					// Perform the inverse DCT and store the MCU component to the image.
+					idct(&b)
+					dst, stride := []byte(nil), 0
 					if d.nComp == nGrayComponent {
-						idct(d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride, &b)
+						dst, stride = d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride
 					} else {
 						switch i {
 						case 0:
@@ -321,11 +323,27 @@ func (d *decoder) processSOS(n int) error {
 								mx0 += j % 2
 								my0 += j / 2
 							}
-							idct(d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride, &b)
+							dst, stride = d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride
 						case 1:
-							idct(d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
+							dst, stride = d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride
 						case 2:
-							idct(d.img3.Cr[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
+							dst, stride = d.img3.Cr[8*(my*d.img3.CStride+mx):], d.img3.CStride
+						}
+					}
+					// Level shift by +128, clip to [0, 255], and write to dst.
+					for y := 0; y < 8; y++ {
+						y8 := y * 8
+						yStride := y * stride
+						for x := 0; x < 8; x++ {
+							c := b[y8+x]
+							if c < -128 {
+								c = 0
+							} else if c > 127 {
+								c = 255
+							} else {
+								c += 128
+							}
+							dst[yStride+x] = uint8(c)
 						}
 					}
 				} // for j
