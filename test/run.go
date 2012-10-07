@@ -177,7 +177,7 @@ func compileInDir(runcmd runCmd, dir, name string) (out []byte, err error) {
 
 func linkFile(runcmd runCmd, goname string) (err error) {
 	pfile := strings.Replace(goname, ".go", "."+letter, -1)
-	_, err = runcmd("go", "tool", ld, "-o", "run.out", "-L", ".", pfile)
+	_, err = runcmd("go", "tool", ld, "-o", "a.exe", "-L", ".", pfile)
 	return
 }
 
@@ -440,7 +440,7 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
-		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "run.out")}, args...)...)
+		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
 		if err != nil {
 			t.err = err
 			return
