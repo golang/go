@@ -203,6 +203,8 @@ enum
 	Ycr0,	Ycr1,	Ycr2,	Ycr3,	Ycr4,	Ycr5,	Ycr6,	Ycr7,
 	Ydr0,	Ydr1,	Ydr2,	Ydr3,	Ydr4,	Ydr5,	Ydr6,	Ydr7,
 	Ytr0,	Ytr1,	Ytr2,	Ytr3,	Ytr4,	Ytr5,	Ytr6,	Ytr7,
+	Ymr, Ymm,
+	Yxr, Yxm,
 	Ymax,
 
 	Zxxx		= 0,
@@ -224,10 +226,14 @@ enum
 	Zloop,
 	Zm_o,
 	Zm_r,
+	Zm_r_xm,
+	Zm_r_i_xm,
 	Zaut_r,
 	Zo_m,
 	Zpseudo,
 	Zr_m,
+	Zr_m_xm,
+	Zr_m_i_xm,
 	Zrp_,
 	Z_ib,
 	Z_il,
@@ -245,6 +251,8 @@ enum
 	Pm		= 0x0f,	/* 2byte opcode escape */
 	Pq		= 0xff,	/* both escape */
 	Pb		= 0xfe,	/* byte operands */
+	Pf2		= 0xf2,	/* xmm escape 1 */
+	Pf3		= 0xf3,	/* xmm escape 2 */
 };
 
 #pragma	varargck	type	"A"	int

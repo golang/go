@@ -356,6 +356,79 @@ uchar	ysvrs[] =
 	Ym,	Ynone,	Zm_o,	2,
 	0
 };
+uchar	yxm[] = 
+{
+	Yxm,	Yxr,	Zm_r_xm,	1,
+	0
+};
+uchar	yxcvm1[] = 
+{
+	Yxm,	Yxr,	Zm_r_xm,	2,
+	Yxm,	Ymr,	Zm_r_xm,	2,
+	0
+};
+uchar	yxcvm2[] =
+{
+	Yxm,	Yxr,	Zm_r_xm,	2,
+	Ymm,	Yxr,	Zm_r_xm,	2,
+	0
+};
+uchar	yxmq[] = 
+{
+	Yxm,	Yxr,	Zm_r_xm,	2,
+	0
+};
+uchar	yxr[] = 
+{
+	Yxr,	Yxr,	Zm_r_xm,	1,
+	0
+};
+uchar	yxr_ml[] =
+{
+	Yxr,	Yml,	Zr_m_xm,	1,
+	0
+};
+uchar	yxcmp[] =
+{
+	Yxm,	Yxr, Zm_r_xm,	1,
+	0
+};
+uchar	yxcmpi[] =
+{
+	Yxm,	Yxr, Zm_r_i_xm,	2,
+	0
+};
+uchar	yxmov[] =
+{
+	Yxm,	Yxr,	Zm_r_xm,	1,
+	Yxr,	Yxm,	Zr_m_xm,	1,
+	0
+};
+uchar	yxcvfl[] = 
+{
+	Yxm,	Yrl,	Zm_r_xm,	1,
+	0
+};
+uchar	yxcvlf[] =
+{
+	Yml,	Yxr,	Zm_r_xm,	1,
+	0
+};
+uchar	yxcvfq[] = 
+{
+	Yxm,	Yrl,	Zm_r_xm,	2,
+	0
+};
+uchar	yxcvqf[] =
+{
+	Yml,	Yxr,	Zm_r_xm,	2,
+	0
+};
+uchar	yxrrl[] =
+{
+	Yxr,	Yrl,	Zm_r,	1,
+	0
+};
 uchar	yprefetch[] =
 {
 	Ym,	Ynone,	Zm_o,	2,
@@ -781,6 +854,111 @@ Optab optab[] =
 	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
 	
 	{ AUNDEF,		ynone,	Px,	0x0f, 0x0b },
+
+	{ AADDPD,	yxm,	Pq, 0x58 },
+	{ AADDPS,	yxm,	Pm, 0x58 },
+	{ AADDSD,	yxm,	Pf2, 0x58 },
+	{ AADDSS,	yxm,	Pf3, 0x58 },
+	{ AANDNPD,	yxm,	Pq, 0x55 },
+	{ AANDNPS,	yxm,	Pm, 0x55 },
+	{ AANDPD,	yxm,	Pq, 0x54 },
+	{ AANDPS,	yxm,	Pq, 0x54 },
+	{ ACMPPD,	yxcmpi,	Px, Pe,0xc2 },
+	{ ACMPPS,	yxcmpi,	Pm, 0xc2,0 },
+	{ ACMPSD,	yxcmpi,	Px, Pf2,0xc2 },
+	{ ACMPSS,	yxcmpi,	Px, Pf3,0xc2 },
+	{ ACOMISD,	yxcmp,	Pe, 0x2f },
+	{ ACOMISS,	yxcmp,	Pm, 0x2f },
+	{ ACVTPL2PD,	yxcvm2,	Px, Pf3,0xe6,Pe,0x2a },
+	{ ACVTPL2PS,	yxcvm2,	Pm, 0x5b,0,0x2a,0, },
+	{ ACVTPD2PL,	yxcvm1,	Px, Pf2,0xe6,Pe,0x2d },
+	{ ACVTPD2PS,	yxm,	Pe, 0x5a },
+	{ ACVTPS2PL,	yxcvm1, Px, Pe,0x5b,Pm,0x2d },
+	{ ACVTPS2PD,	yxm,	Pm, 0x5a },
+	{ ACVTSD2SL,	yxcvfl, Pf2, 0x2d },
+ 	{ ACVTSD2SS,	yxm,	Pf2, 0x5a },
+	{ ACVTSL2SD,	yxcvlf, Pf2, 0x2a },
+	{ ACVTSL2SS,	yxcvlf, Pf3, 0x2a },
+	{ ACVTSS2SD,	yxm,	Pf3, 0x5a },
+	{ ACVTSS2SL,	yxcvfl, Pf3, 0x2d },
+	{ ACVTTPD2PL,	yxcvm1,	Px, Pe,0xe6,Pe,0x2c },
+	{ ACVTTPS2PL,	yxcvm1,	Px, Pf3,0x5b,Pm,0x2c },
+	{ ACVTTSD2SL,	yxcvfl, Pf2, 0x2c },
+	{ ACVTTSS2SL,	yxcvfl,	Pf3, 0x2c },
+	{ ADIVPD,	yxm,	Pe, 0x5e },
+	{ ADIVPS,	yxm,	Pm, 0x5e },
+	{ ADIVSD,	yxm,	Pf2, 0x5e },
+	{ ADIVSS,	yxm,	Pf3, 0x5e },
+	{ AMASKMOVOU,	yxr,	Pe, 0xf7 },
+	{ AMAXPD,	yxm,	Pe, 0x5f },
+	{ AMAXPS,	yxm,	Pm, 0x5f },
+	{ AMAXSD,	yxm,	Pf2, 0x5f },
+	{ AMAXSS,	yxm,	Pf3, 0x5f },
+	{ AMINPD,	yxm,	Pe, 0x5d },
+	{ AMINPS,	yxm,	Pm, 0x5d },
+	{ AMINSD,	yxm,	Pf2, 0x5d },
+	{ AMINSS,	yxm,	Pf3, 0x5d },
+	{ AMOVAPD,	yxmov,	Pe, 0x28,0x29 },
+	{ AMOVAPS,	yxmov,	Pm, 0x28,0x29 },
+	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
+	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
+	{ AMOVHLPS,	yxr,	Pm, 0x12 },
+	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
+	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
+	{ AMOVLHPS,	yxr,	Pm, 0x16 },
+	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
+	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
+	{ AMOVMSKPD,	yxrrl,	Pq, 0x50 },
+	{ AMOVMSKPS,	yxrrl,	Pm, 0x50 },
+	{ AMOVNTO,	yxr_ml,	Pe, 0xe7 },
+	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
+	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
+	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
+	{ AMOVSS,	yxmov,	Pf3, 0x10,0x11 },
+	{ AMOVUPD,	yxmov,	Pe, 0x10,0x11 },
+	{ AMOVUPS,	yxmov,	Pm, 0x10,0x11 },
+	{ AMULPD,	yxm,	Pe, 0x59 },
+	{ AMULPS,	yxm,	Ym, 0x59 },
+	{ AMULSD,	yxm,	Pf2, 0x59 },
+	{ AMULSS,	yxm,	Pf3, 0x59 },
+	{ AORPD,	yxm,	Pq, 0x56 },
+	{ AORPS,	yxm,	Pm, 0x56 },
+	{ APADDQ,	yxm,	Pe, 0xd4 },
+	{ APMAXSW,	yxm,	Pe, 0xee },
+	{ APMAXUB,	yxm,	Pe, 0xde },
+	{ APMINSW,	yxm,	Pe, 0xea },
+	{ APMINUB,	yxm,	Pe, 0xda },
+	{ APSADBW,	yxm,	Pq, 0xf6 },
+	{ APSUBB,	yxm,	Pe, 0xf8 },
+	{ APSUBL,	yxm,	Pe, 0xfa },
+	{ APSUBQ,	yxm,	Pe, 0xfb },
+	{ APSUBSB,	yxm,	Pe, 0xe8 },
+	{ APSUBSW,	yxm,	Pe, 0xe9 },
+	{ APSUBUSB,	yxm,	Pe, 0xd8 },
+	{ APSUBUSW,	yxm,	Pe, 0xd9 },
+	{ APSUBW,	yxm,	Pe, 0xf9 },
+	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
+	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
+	{ ARCPPS,	yxm,	Pm, 0x53 },
+	{ ARCPSS,	yxm,	Pf3, 0x53 },
+	{ ARSQRTPS,	yxm,	Pm, 0x52 },
+	{ ARSQRTSS,	yxm,	Pf3, 0x52 },
+	{ ASQRTPD,	yxm,	Pe, 0x51 },
+	{ ASQRTPS,	yxm,	Pm, 0x51 },
+	{ ASQRTSD,	yxm,	Pf2, 0x51 },
+	{ ASQRTSS,	yxm,	Pf3, 0x51 },
+	{ ASUBPD,	yxm,	Pe, 0x5c },
+	{ ASUBPS,	yxm,	Pm, 0x5c },
+	{ ASUBSD,	yxm,	Pf2, 0x5c },
+	{ ASUBSS,	yxm,	Pf3, 0x5c },
+	{ AUCOMISD,	yxcmp,	Pe, 0x2e },
+	{ AUCOMISS,	yxcmp,	Pm, 0x2e },
+	{ AUNPCKHPD,	yxm,	Pe, 0x15 },
+	{ AUNPCKHPS,	yxm,	Pm, 0x15 },
+	{ AUNPCKLPD,	yxm,	Pe, 0x14 },
+	{ AUNPCKLPS,	yxm,	Pm, 0x14 },
+	{ AXORPD,	yxm,	Pe, 0x57 },
+	{ AXORPS,	yxm,	Pm, 0x57 },
 
 	0
 };

@@ -194,7 +194,7 @@ instinit(void)
 
 	for(i=1; optab[i].as; i++)
 		if(i != optab[i].as) {
-			diag("phase error in optab: %d", i);
+			diag("phase error in optab: at %A found %A", i, optab[i].as);
 			errorexit();
 		}
 	maxop = i;
@@ -238,6 +238,16 @@ instinit(void)
 	ycover[Yrl*Ymax + Yml] = 1;
 	ycover[Ym*Ymax + Yml] = 1;
 
+	ycover[Yax*Ymax + Ymm] = 1;
+	ycover[Ycx*Ymax + Ymm] = 1;
+	ycover[Yrx*Ymax + Ymm] = 1;
+	ycover[Yrl*Ymax + Ymm] = 1;
+	ycover[Ym*Ymax + Ymm] = 1;
+	ycover[Ymr*Ymax + Ymm] = 1;
+
+	ycover[Ym*Ymax + Yxm] = 1;
+	ycover[Yxr*Ymax + Yxm] = 1;
+
 	for(i=0; i<D_NONE; i++) {
 		reg[i] = -1;
 		if(i >= D_AL && i <= D_BH)
@@ -246,6 +256,8 @@ instinit(void)
 			reg[i] = (i-D_AX) & 7;
 		if(i >= D_F0 && i <= D_F0+7)
 			reg[i] = (i-D_F0) & 7;
+		if(i >= D_X0 && i <= D_X0+7)
+			reg[i] = (i-D_X0) & 7;
 	}
 }
 
@@ -332,6 +344,16 @@ oclass(Adr *a)
 	case D_F0+6:
 	case D_F0+7:
 		return	Yrf;
+
+	case D_X0+0:
+	case D_X0+1:
+	case D_X0+2:
+	case D_X0+3:
+	case D_X0+4:
+	case D_X0+5:
+	case D_X0+6:
+	case D_X0+7:
+		return	Yxr;
 
 	case D_NONE:
 		return Ynone;
@@ -585,7 +607,7 @@ asmand(Adr *a, int r)
 		asmidx(a->scale, a->index, t);
 		goto putrelv;
 	}
-	if(t >= D_AL && t <= D_F0+7) {
+	if(t >= D_AL && t <= D_F7 || t >= D_X0 && t <= D_X7) {
 		if(v)
 			goto bad;
 		*andptr++ = (3 << 6) | (reg[t] << 0) | (r << 3);
@@ -827,6 +849,30 @@ subreg(Prog *p, int from, int to)
 		print("%P\n", p);
 }
 
+static int
+mediaop(Optab *o, int op, int osize, int z)
+{
+	switch(op){
+	case Pm:
+	case Pe:
+	case Pf2:
+	case Pf3:
+		if(osize != 1){
+			if(op != Pm)
+				*andptr++ = op;
+			*andptr++ = Pm;
+			op = o->op[++z];
+			break;
+		}
+	default:
+		if(andptr == and || andptr[-1] != Pm)
+			*andptr++ = Pm;
+		break;
+	}
+	*andptr++ = op;
+	return z;
+}
+
 void
 doasm(Prog *p)
 {
@@ -873,6 +919,12 @@ found:
 		*andptr++ = Pm;
 		break;
 
+	case Pf2:	/* xmm opcode escape */
+	case Pf3:
+		*andptr++ = o->prefix;
+		*andptr++ = Pm;
+		break;
+
 	case Pm:	/* opcode escape */
 		*andptr++ = Pm;
 		break;
@@ -904,6 +956,17 @@ found:
 		asmand(&p->from, reg[p->to.type]);
 		break;
 
+	case Zm_r_xm:
+		mediaop(o, op, t[3], z);
+		asmand(&p->from, reg[p->to.type]);
+		break;
+
+	case Zm_r_i_xm:
+		mediaop(o, op, t[3], z);
+		asmand(&p->from, reg[p->to.type]);
+		*andptr++ = p->to.offset;
+		break;
+
 	case Zaut_r:
 		*andptr++ = 0x8d;	/* leal */
 		if(p->from.type != D_ADDR)
@@ -925,6 +988,17 @@ found:
 	case Zr_m:
 		*andptr++ = op;
 		asmand(&p->to, reg[p->from.type]);
+		break;
+
+	case Zr_m_xm:
+		mediaop(o, op, t[3], z);
+		asmand(&p->to, reg[p->from.type]);
+		break;
+
+	case Zr_m_i_xm:
+		mediaop(o, op, t[3], z);
+		asmand(&p->to, reg[p->from.type]);
+		*andptr++ = p->from.offset;
 		break;
 
 	case Zo_m:
