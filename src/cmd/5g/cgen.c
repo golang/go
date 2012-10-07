@@ -573,7 +573,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, n4, n5, tmp;
+	Node n1, n2, n3, n4, tmp;
 	Prog *p1, *p2;
 	uint32 w;
 	uint64 v;
@@ -715,11 +715,8 @@ agen(Node *n, Node *res)
 					regalloc(&n4, n1.type, N);
 					cgen(&n1, &n4);
 					nodconst(&n2, types[TUINT32], v);
-					regalloc(&n5, n2.type, N);
-					gmove(&n2, &n5);
-					gcmp(optoas(OCMP, types[TUINT32]), &n4, &n5);
+					gcmp(optoas(OCMP, types[TUINT32]), &n4, &n2);
 					regfree(&n4);
-					regfree(&n5);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
 					ginscall(panicindex, 0);
 					patch(p1, pc);
