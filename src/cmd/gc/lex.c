@@ -2190,7 +2190,7 @@ mkpackage(char* pkgname)
 {
 	Sym *s;
 	int32 h;
-	char *p;
+	char *p, *q;
 
 	if(localpkg->name == nil) {
 		if(strcmp(pkgname, "_") == 0)
@@ -2230,6 +2230,11 @@ mkpackage(char* pkgname)
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');
+		if(windows) {
+			q = strrchr(infile, '\\');
+			if(q > p)
+				p = q;
+		}
 		if(p == nil)
 			p = infile;
 		else
