@@ -4,6 +4,8 @@
 
 package syscall
 
+import "unsafe"
+
 func Getpagesize() int { return 4096 }
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
@@ -46,7 +48,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 //sys	Chown(path string, uid int, gid int) (err error) = SYS_CHOWN32
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
-//sys	Fstatfs(fd int, buf *Statfs_t) (err error) = SYS_FSTATFS64
 //sysnb	Getegid() (egid int) = SYS_GETEGID32
 //sysnb	Geteuid() (euid int) = SYS_GETEUID32
 //sysnb	Getgid() (gid int) = SYS_GETGID32
@@ -66,7 +67,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
-//sys	Statfs(path string, buf *Statfs_t) (err error) = SYS_STATFS64
 
 // Vsyscalls on amd64.
 //sysnb	Gettimeofday(tv *Timeval) (err error)
@@ -78,6 +78,26 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
 
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
+
+func Fstatfs(fd int, buf *Statfs_t) (err error) {
+	_, _, e := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+	if e != 0 {
+		err = e
+	}
+	return
+}
+
+func Statfs(path string, buf *Statfs_t) (err error) {
+	pathp, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(pathp)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+	if e != 0 {
+		err = e
+	}
+	return
+}
 
 func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {
 	page := uintptr(offset / 4096)
