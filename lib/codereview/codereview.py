@@ -1794,7 +1794,7 @@ def mail(ui, repo, *pats, **opts):
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
-		return err
+		raise hg_util.Abort(err)
 	cl.Upload(ui, repo, gofmt_just_warn=True)
 	if not cl.reviewer:
 		# If no reviewer is listed, assign the review to defaultcc.
@@ -1802,15 +1802,15 @@ def mail(ui, repo, *pats, **opts):
 		# codereview.appspot.com/user/defaultcc
 		# page, so that it doesn't get dropped on the floor.
 		if not defaultcc:
-			return "no reviewers listed in CL"
+			raise hg_util.Abort("no reviewers listed in CL")
 		cl.cc = Sub(cl.cc, defaultcc)
 		cl.reviewer = defaultcc
 		cl.Flush(ui, repo)
 
 	if cl.files == []:
-		return "no changed files, not sending mail"
+			raise hg_util.Abort("no changed files, not sending mail")
 
-	cl.Mail(ui, repo)		
+	cl.Mail(ui, repo)
 
 #######################################################################
 # hg p / hg pq / hg ps / hg pending
@@ -1851,7 +1851,7 @@ def pending(ui, repo, *pats, **opts):
 			ui.write(cl.PendingText(quick=quick) + "\n")
 
 	if short:
-		return
+		return 0
 	files = DefaultFiles(ui, repo, [])
 	if len(files) > 0:
 		s = "Changed files not in any CL:\n"
@@ -1883,7 +1883,7 @@ def submit(ui, repo, *pats, **opts):
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
-		return err
+		raise hg_util.Abort(err)
 
 	user = None
 	if cl.copied_from:
@@ -1902,10 +1902,10 @@ def submit(ui, repo, *pats, **opts):
 		about += "CC=" + JoinComma([CutDomain(s) for s in cl.cc]) + "\n"
 
 	if not cl.reviewer:
-		return "no reviewers listed in CL"
+		raise hg_util.Abort("no reviewers listed in CL")
 
 	if not cl.local:
-		return "cannot submit non-local CL"
+		raise hg_util.Abort("cannot submit non-local CL")
 
 	# upload, to sync current patch and also get change number if CL is new.
 	if not cl.copied_from:
@@ -1940,7 +1940,7 @@ def submit(ui, repo, *pats, **opts):
 	ret = hg_commit(ui, repo, *['path:'+f for f in cl.files], message=message, user=userline)
 	commit_okay = False
 	if ret:
-		return "nothing changed"
+		raise hg_util.Abort("nothing changed")
 	node = repo["-1"].node()
 	# push to remote; if it fails for any reason, roll back
 	try:
@@ -1993,7 +1993,7 @@ def submit(ui, repo, *pats, **opts):
 		err = hg_clean(repo, "default")
 		if err:
 			return err
-	return None
+	return 0
 
 #######################################################################
 # hg sync
@@ -2047,7 +2047,7 @@ def sync_changes(ui, repo):
 				ui.warn("CL %s has no files; delete (abandon) with hg change -d %s\n" % (cl.name, cl.name))
 			else:
 				ui.warn("CL %s has no files; delete locally with hg change -D %s\n" % (cl.name, cl.name))
-	return
+	return 0
 
 #######################################################################
 # hg upload
@@ -2064,12 +2064,12 @@ def upload(ui, repo, name, **opts):
 	repo.ui.quiet = True
 	cl, err = LoadCL(ui, repo, name, web=True)
 	if err != "":
-		return err
+		raise hg_util.Abort(err)
 	if not cl.local:
-		return "cannot upload non-local change"
+		raise hg_util.Abort("cannot upload non-local change")
 	cl.Upload(ui, repo)
 	print "%s%s\n" % (server_url_base, cl.name)
-	return
+	return 0
 
 #######################################################################
 # Table of commands, supplied to Mercurial for installation.
