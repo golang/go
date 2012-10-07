@@ -14,6 +14,7 @@ package runtime
 #include "defs_GOOS_GOARCH.h"
 #include "type.h"
 #include "typekind.h"
+#include "race.h"
 
 #pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
 MHeap runtime·mheap;
@@ -111,6 +112,11 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 
 	if(dogc && mstats.heap_alloc >= mstats.next_gc)
 		runtime·gc(0);
+
+	if(raceenabled) {
+		runtime·racemalloc(v, size, m->racepc);
+		m->racepc = nil;
+	}
 	return v;
 }
 
@@ -145,6 +151,9 @@ runtime·free(void *v)
 		runtime·throw("free runtime·mlookup");
 	}
 	prof = runtime·blockspecial(v);
+
+	if(raceenabled)
+		runtime·racefree(v);
 
 	// Find size class for v.
 	sizeclass = s->sizeclass;
@@ -678,8 +687,14 @@ runtime·mal(uintptr n)
 	return runtime·mallocgc(n, 0, 1, 1);
 }
 
-func new(typ *Type) (ret *uint8) {
-	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+#pragma textflag 7
+void
+runtime·new(Type *typ, uint8 *ret)
+{
+	uint32 flag;
+
+	m->racepc = runtime·getcallerpc(&typ);
+	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
 
 	if(UseSpanType && !flag) {

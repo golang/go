@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "type.h"
+#include "race.h"
 #include "malloc.h"
 
 #define	MAXALIGN	7
@@ -82,6 +83,7 @@ static	void	dequeueg(WaitQ*);
 static	SudoG*	dequeue(WaitQ*);
 static	void	enqueue(WaitQ*, SudoG*);
 static	void	destroychan(Hchan*);
+static	void	racesync(Hchan*, SudoG*);
 
 Hchan*
 runtime·makechan_c(ChanType *t, int64 hint)
@@ -150,7 +152,7 @@ runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
  * the operation; we'll see that it's now closed.
  */
 void
-runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 {
 	SudoG *sg;
 	SudoG mysg;
@@ -184,6 +186,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 	}
 
 	runtime·lock(c);
+	// TODO(dvyukov): add similar instrumentation to select.
+	if(raceenabled)
+		runtime·racereadpc(c, pc);
 	if(c->closed)
 		goto closed;
 
@@ -192,6 +197,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 
 	sg = dequeue(&c->recvq);
 	if(sg != nil) {
+		if(raceenabled)
+			racesync(c, sg);
 		runtime·unlock(c);
 
 		gp = sg->g;
@@ -251,6 +258,10 @@ asynch:
 		runtime·lock(c);
 		goto asynch;
 	}
+
+	if(raceenabled)
+		runtime·racerelease(chanbuf(c, c->sendx));
+
 	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
@@ -317,6 +328,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 
 	sg = dequeue(&c->sendq);
 	if(sg != nil) {
+		if(raceenabled)
+			racesync(c, sg);
 		runtime·unlock(c);
 
 		if(ep != nil)
@@ -381,6 +394,10 @@ asynch:
 		runtime·lock(c);
 		goto asynch;
 	}
+
+	if(raceenabled)
+		runtime·raceacquire(chanbuf(c, c->recvx));
+
 	if(ep != nil)
 		c->elemalg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
 	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
@@ -413,6 +430,8 @@ closed:
 		*selected = true;
 	if(received != nil)
 		*received = false;
+	if(raceenabled)
+		runtime·raceacquire(c);
 	runtime·unlock(c);
 	if(mysg.releasetime > 0)
 		runtime·blockevent(mysg.releasetime - t0, 2);
@@ -423,7 +442,7 @@ closed:
 void
 runtime·chansend1(ChanType *t, Hchan* c, ...)
 {
-	runtime·chansend(t, c, (byte*)(&c+1), nil);
+	runtime·chansend(t, c, (byte*)(&c+1), nil, runtime·getcallerpc(&t));
 }
 
 // chanrecv1(hchan *chan any) (elem any);
@@ -473,7 +492,7 @@ runtime·selectnbsend(ChanType *t, Hchan *c, ...)
 
 	ae = (byte*)(&c + 1);
 	ap = ae + ROUND(t->elem->size, Structrnd);
-	runtime·chansend(t, c, ae, ap);
+	runtime·chansend(t, c, ae, ap, runtime·getcallerpc(&t));
 }
 
 // func selectnbrecv(elem *any, c chan any) bool
@@ -535,6 +554,7 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
 //
 // The "uintptr selected" is really "bool selected" but saying
 // uintptr gets us the right alignment for the output parameter block.
+#pragma textflag 7
 void
 reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 {
@@ -553,7 +573,7 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 		vp = (byte*)&val;
 	else
 		vp = (byte*)val;
-	runtime·chansend(t, c, vp, sp);
+	runtime·chansend(t, c, vp, sp, runtime·getcallerpc(&t));
 }
 
 // For reflect:
@@ -972,6 +992,8 @@ loop:
 
 asyncrecv:
 	// can receive from buffer
+	if(raceenabled)
+		runtime·raceacquire(chanbuf(c, c->recvx));
 	if(cas->receivedp != nil)
 		*cas->receivedp = true;
 	if(cas->sg.elem != nil)
@@ -992,6 +1014,8 @@ asyncrecv:
 
 asyncsend:
 	// can send to buffer
+	if(raceenabled)
+		runtime·racerelease(chanbuf(c, c->sendx));
 	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
@@ -1008,6 +1032,8 @@ asyncsend:
 
 syncrecv:
 	// can receive from sleeping sender (sg)
+	if(raceenabled)
+		racesync(c, sg);
 	selunlock(sel);
 	if(debug)
 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
@@ -1027,10 +1053,14 @@ rclose:
 		*cas->receivedp = false;
 	if(cas->sg.elem != nil)
 		c->elemalg->copy(c->elemsize, cas->sg.elem, nil);
+	if(raceenabled)
+		runtime·raceacquire(c);
 	goto retc;
 
 syncsend:
 	// can send to sleeping receiver (sg)
+	if(raceenabled)
+		racesync(c, sg);
 	selunlock(sel);
 	if(debug)
 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
@@ -1143,6 +1173,7 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
 }
 
 // closechan(sel *byte);
+#pragma textflag 7
 void
 runtime·closechan(Hchan *c)
 {
@@ -1159,6 +1190,11 @@ runtime·closechan(Hchan *c)
 	if(c->closed) {
 		runtime·unlock(c);
 		runtime·panicstring("close of closed channel");
+	}
+
+	if(raceenabled) {
+		runtime·racewritepc(c, runtime·getcallerpc(&c));
+		runtime·racerelease(c);
 	}
 
 	c->closed = true;
@@ -1267,4 +1303,13 @@ enqueue(WaitQ *q, SudoG *sgp)
 	}
 	q->last->link = sgp;
 	q->last = sgp;
+}
+
+static void
+racesync(Hchan *c, SudoG *sg)
+{
+	runtime·racerelease(chanbuf(c, 0));
+	runtime·raceacquireg(sg->g, chanbuf(c, 0));
+	runtime·racereleaseg(sg->g, chanbuf(c, 0));
+	runtime·raceacquire(chanbuf(c, 0));
 }

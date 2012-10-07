@@ -8,6 +8,7 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 #include "stack.h"
+#include "race.h"
 
 enum {
 	Debug = 0,
@@ -1054,6 +1055,9 @@ runfinq(void)
 	FinBlock *fb, *next;
 	byte *frame;
 	uint32 framesz, framecap, i;
+
+	if(raceenabled)
+		runtime·racefingo();
 
 	frame = nil;
 	framecap = 0;

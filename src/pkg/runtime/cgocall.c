@@ -6,6 +6,7 @@
 #include "arch_GOARCH.h"
 #include "stack.h"
 #include "cgocall.h"
+#include "race.h"
 
 // Cgo call and callback support.
 //
@@ -83,6 +84,7 @@
 // callee-save registers for gcc and returns to GoF, which returns to f.
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+static int64 cgosync;  /* represents possible synchronization in C code */
 
 // These two are only used by the architecture where TLS based storage isn't
 // the default for g and m (e.g., ARM)
@@ -99,11 +101,19 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 {
 	Defer d;
 
+	if(m->racecall) {
+		runtime·asmcgocall(fn, arg);
+		return;
+	}
+
 	if(!runtime·iscgo && !Windows)
 		runtime·throw("cgocall unavailable");
 
 	if(fn == 0)
 		runtime·throw("cgocall nil");
+
+	if(raceenabled)
+		runtime·racereleasemerge(&cgosync);
 
 	m->ncgocall++;
 
@@ -146,6 +156,9 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		g->defer = d.link;
 		unlockm();
 	}
+
+	if(raceenabled)
+		runtime·raceacquire(&cgosync);
 }
 
 static void
@@ -198,6 +211,11 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 {
 	Defer d;
 
+	if(m->racecall) {
+		reflect·call((byte*)fn, arg, argsize);
+		return;
+	}
+
 	if(g != m->curg)
 		runtime·throw("runtime: bad g in cgocallback");
 
@@ -211,8 +229,14 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 	d.nofree = true;
 	g->defer = &d;
 
+	if(raceenabled)
+		runtime·raceacquire(&cgosync);
+
 	// Invoke callback.
 	reflect·call((byte*)fn, arg, argsize);
+
+	if(raceenabled)
+		runtime·racereleasemerge(&cgosync);
 
 	// Pop defer.
 	// Do not unwind m->g0->sched.sp.
