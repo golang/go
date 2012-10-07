@@ -53,7 +53,7 @@ rundircmpout() {
 		lastfile=$name
 	done
 	$L -o $A.out -L. $lastfile.$A
-	./$A.out | cmp - $D/$F.out
+	./$A.out 2>&1 | cmp - $D/$F.out
 }
 
 build() {
