@@ -146,7 +146,7 @@ struct	Type
 	uchar	copyany;
 	uchar	local;		// created in this file
 	uchar	deferwidth;
-	uchar	broke;
+	uchar	broke;  	// broken type definition.
 	uchar	isddd;		// TFIELD is ... argument
 	uchar	align;
 

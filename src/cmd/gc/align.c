@@ -54,8 +54,11 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
-		if(f->type == T)
-			break;
+		if(f->type == T) {
+			// broken field, just skip it so that other valid fields
+			// get a width.
+			continue;
+		}
 		dowidth(f->type);
 		if(f->type->align > maxalign)
 			maxalign = f->type->align;
