@@ -639,11 +639,8 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 var skipOkay = map[string]bool{
 	"args.go":                 true,
 	"ddd3.go":                 true,
-	"import3.go":              true,
-	"import4.go":              true,
 	"index.go":                true,
 	"linkx.go":                true,
-	"method4.go":              true,
 	"nul1.go":                 true,
 	"rotate.go":               true,
 	"sigchld.go":              true,
@@ -672,16 +669,13 @@ var skipOkay = map[string]bool{
 	"dwarf/z7.go":             true,
 	"dwarf/z8.go":             true,
 	"dwarf/z9.go":             true,
-	"fixedbugs/bug191.go":     true,
 	"fixedbugs/bug248.go":     true, // combines errorcheckdir and rundir in the same dir.
 	"fixedbugs/bug302.go":     true, // tests both .$O and .a imports.
 	"fixedbugs/bug313.go":     true, // errorcheckdir with failures in the middle.
 	"fixedbugs/bug345.go":     true, // needs the appropriate flags in gc invocation.
-	"fixedbugs/bug369.go":     true,
-	"fixedbugs/bug382.go":     true,
-	"fixedbugs/bug385_32.go":  true,
-	"fixedbugs/bug385_64.go":  true,
-	"fixedbugs/bug424.go":     true,
+	"fixedbugs/bug369.go":     true, // needs compiler flags.
+	"fixedbugs/bug385_32.go":  true, // arch-specific errors.
+	"fixedbugs/bug385_64.go":  true, // arch-specific errors.
 	"fixedbugs/bug429.go":     true,
 	"fixedbugs/bug437.go":     true,
 	"bugs/bug395.go":          true,
