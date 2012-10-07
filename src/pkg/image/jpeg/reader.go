@@ -92,6 +92,7 @@ type Reader interface {
 
 type decoder struct {
 	r             Reader
+	b             bits
 	width, height int
 	img1          *image.Gray
 	img3          *image.YCbCr
@@ -100,7 +101,6 @@ type decoder struct {
 	comp          [nColorComponent]component
 	huff          [maxTc + 1][maxTh + 1]huffman
 	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
-	b             bits
 	tmp           [1024]byte
 }
 
