@@ -328,10 +328,7 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 
 			nodconst(&n2, types[tptr], 0);
-			regalloc(&n3, n2.type, N);
-			gmove(&n2, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n1, &n3);
-			regfree(&n3);
+			gcmp(optoas(OCMP, types[tptr]), &n1, &n2);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T, -1);
 
 			n2 = n1;
@@ -370,10 +367,7 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 
 			nodconst(&n2, types[tptr], 0);
-			regalloc(&n3, n2.type, N);
-			gmove(&n2, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n1, &n3);
-			regfree(&n3);
+			gcmp(optoas(OCMP, types[tptr]), &n1, &n2);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T, -1);
 
 			n2 = n1;
