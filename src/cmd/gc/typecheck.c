@@ -106,6 +106,27 @@ typekind(Type *t)
 }
 
 /*
+ * sprint_depchain prints a dependency chain
+ * of nodes into fmt.
+ * It is used by typecheck in the case of OLITERAL nodes
+ * to print constant definition loops.
+ */
+static void
+sprint_depchain(Fmt *fmt, NodeList *stack, Node *cur, Node *first)
+{
+	NodeList *l;
+
+	for(l = stack; l; l=l->next) {
+		if(l->n->op == cur->op) {
+			if(l->n != first)
+				sprint_depchain(fmt, l->next, l->n, first);
+			fmtprint(fmt, "\n\t%L: %N uses %N", l->n->lineno, l->n, cur);
+			return;
+		}
+	}
+}
+
+/*
  * type check node *np.
  * replaces *np with a new pointer in some cases.
  * returns the final value of *np as a convenience.
@@ -155,6 +176,24 @@ typecheck(Node **np, int top)
 	}
 
 	if(n->typecheck == 2) {
+		// Typechecking loop. Trying printing a meaningful message,
+		// otherwise a stack trace of typechecking.
+		switch(n->op) {
+		case ONAME:
+			// We can already diagnose variables used as types.
+			if((top & (Erv|Etype)) == Etype)
+				yyerror("%N is not a type", n);
+			break;
+		case OLITERAL:
+			if((top & (Erv|Etype)) == Etype) {
+				yyerror("%N is not a type", n);
+				break;
+			}
+			fmtstrinit(&fmt);
+			sprint_depchain(&fmt, tcstack, n, n);
+			yyerrorl(n->lineno, "constant definition loop%s", fmtstrflush(&fmt));
+			break;
+		}
 		if(nsavederrors+nerrors == 0) {
 			fmtstrinit(&fmt);
 			for(l=tcstack; l; l=l->next)
@@ -165,7 +204,7 @@ typecheck(Node **np, int top)
 		return n;
 	}
 	n->typecheck = 2;
-	
+
 	if(tcfree != nil) {
 		l = tcfree;
 		tcfree = l->next;
