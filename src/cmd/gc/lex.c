@@ -1532,7 +1532,7 @@ yylex(void)
 static int
 getc(void)
 {
-	int c;
+	int c, c1, c2;
 
 	c = curio.peekc;
 	if(c != 0) {
@@ -1545,8 +1545,20 @@ getc(void)
 		c = *curio.cp & 0xff;
 		if(c != 0)
 			curio.cp++;
-	} else
+	} else {
+	loop:
 		c = Bgetc(curio.bin);
+		if(c == 0xef) {
+			c1 = Bgetc(curio.bin);
+			c2 = Bgetc(curio.bin);
+			if(c1 == 0xbb && c2 == 0xbf) {
+				yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file");
+				goto loop;
+			}
+			Bungetc(curio.bin);
+			Bungetc(curio.bin);
+		}
+	}
 
 check:
 	switch(c) {
@@ -1597,10 +1609,6 @@ loop:
 	if(!fullrune(str, i))
 		goto loop;
 	c = chartorune(&rune, str);
-	if(rune == BOM) {
-		lineno = lexlineno;
-		yyerror("Unicode (UTF-8) BOM in middle of file");
-	}
 	if(rune == Runeerror && c == 1) {
 		lineno = lexlineno;
 		yyerror("illegal UTF-8 sequence");
