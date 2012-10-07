@@ -10,7 +10,10 @@
 // Values containing the types defined in this package should not be copied.
 package sync
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+	"unsafe"
+)
 
 // A Mutex is a mutual exclusion lock.
 // Mutexes can be created as part of other structures;
@@ -38,6 +41,9 @@ const (
 func (m *Mutex) Lock() {
 	// Fast path: grab unlocked mutex.
 	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
+		if raceenabled {
+			raceAcquire(unsafe.Pointer(m))
+		}
 		return
 	}
 
@@ -61,6 +67,10 @@ func (m *Mutex) Lock() {
 			awoke = true
 		}
 	}
+
+	if raceenabled {
+		raceAcquire(unsafe.Pointer(m))
+	}
 }
 
 // Unlock unlocks m.
@@ -70,6 +80,10 @@ func (m *Mutex) Lock() {
 // It is allowed for one goroutine to lock a Mutex and then
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
+	if raceenabled {
+		raceRelease(unsafe.Pointer(m))
+	}
+
 	// Fast path: drop lock bit.
 	new := atomic.AddInt32(&m.state, -mutexLocked)
 	if (new+mutexLocked)&mutexLocked == 0 {
