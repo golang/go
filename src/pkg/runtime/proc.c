@@ -8,6 +8,7 @@
 #include "malloc.h"
 #include "os_GOOS.h"
 #include "stack.h"
+#include "race.h"
 
 bool	runtime·iscgo;
 
@@ -210,6 +211,9 @@ runtime·schedinit(void)
 
 	mstats.enablegc = 1;
 	m->nomemprof--;
+
+	if(raceenabled)
+		runtime·raceinit();
 }
 
 extern void main·init(void);
@@ -241,6 +245,8 @@ runtime·main(void)
 	runtime·gosched();
 
 	main·main();
+	if(raceenabled)
+		runtime·racefini();
 	runtime·exit(0);
 	for(;;)
 		*(int32*)runtime·main = 0;
@@ -885,6 +891,8 @@ schedule(G *gp)
 			gput(gp);
 			break;
 		case Gmoribund:
+			if(raceenabled)
+				runtime·racegoend(gp->goid);
 			gp->status = Gdead;
 			if(gp->lockedm) {
 				gp->lockedm = nil;
@@ -1278,6 +1286,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	byte *sp;
 	G *newg;
 	int32 siz;
+	int32 goid;
 
 //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
 	siz = narg + nret;
@@ -1289,6 +1298,10 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	// Not worth it: this is almost always an error.
 	if(siz > StackMin - 1024)
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+
+	goid = runtime·xadd((uint32*)&runtime·sched.goidgen, 1);
+	if(raceenabled)
+		runtime·racegostart(goid, callerpc);
 
 	schedlock();
 
@@ -1322,8 +1335,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->gopc = (uintptr)callerpc;
 
 	runtime·sched.gcount++;
-	runtime·sched.goidgen++;
-	newg->goid = runtime·sched.goidgen;
+	newg->goid = goid;
 
 	newprocreadylocked(newg);
 	schedunlock();

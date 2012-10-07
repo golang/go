@@ -11,6 +11,7 @@ package time
 #include "os_GOOS.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "race.h"
 
 static Timers timers;
 static void addtimer(Timer*);
@@ -28,6 +29,8 @@ func Sleep(ns int64) {
 
 // startTimer adds t to the timer heap.
 func startTimer(t *Timer) {
+	if(raceenabled)
+		runtime·racerelease(t);
 	runtime·lock(&timers);
 	addtimer(t);
 	runtime·unlock(&timers);
@@ -180,6 +183,8 @@ timerproc(void)
 			f = t->f;
 			arg = t->arg;
 			runtime·unlock(&timers);
+			if(raceenabled)
+				runtime·raceacquire(t);
 			f(now, arg);
 			runtime·lock(&timers);
 		}

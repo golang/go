@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "hashmap.h"
 #include "type.h"
+#include "race.h"
 
 /* Hmap flag values */
 #define IndirectVal  (1<<0)	/* storing pointers to values */
@@ -831,6 +832,9 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 	byte *ak, *av;
 	bool pres;
 
+	if(raceenabled && h != nil)
+		runtime·racereadpc(h, runtime·getcallerpc(&t));
+
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, Structrnd);
 
@@ -855,6 +859,9 @@ void
 runtime·mapaccess2(MapType *t, Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
+
+	if(raceenabled && h != nil)
+		runtime·racereadpc(h, runtime·getcallerpc(&t));
 
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, Structrnd);
@@ -883,6 +890,9 @@ void
 reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 {
 	byte *ak, *av;
+
+	if(raceenabled && h != nil)
+		runtime·racereadpc(h, runtime·getcallerpc(&t));
 
 	if(t->key->size <= sizeof(key))
 		ak = (byte*)&key;
@@ -954,6 +964,8 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 
+	if(raceenabled)
+		runtime·racewritepc(h, runtime·getcallerpc(&t));
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, t->elem->align);
 
@@ -970,6 +982,8 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
 	if(h == nil)
 		runtime·panicstring("deletion of entry in nil map");
 
+	if(raceenabled)
+		runtime·racewritepc(h, runtime·getcallerpc(&t));
 	ak = (byte*)(&h + 1);
 	runtime·mapassign(t, h, ak, nil);
 
@@ -993,6 +1007,8 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
+	if(raceenabled)
+		runtime·racewritepc(h, runtime·getcallerpc(&t));
 	if(t->key->size <= sizeof(key))
 		ak = (byte*)&key;
 	else
@@ -1014,6 +1030,8 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 		it->data = nil;
 		return;
 	}
+	if(raceenabled)
+		runtime·racereadpc(h, runtime·getcallerpc(&t));
 	hash_iter_init(t, h, it);
 	it->data = hash_next(it);
 	if(debug) {
@@ -1057,6 +1075,8 @@ reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 void
 runtime·mapiternext(struct hash_iter *it)
 {
+	if(raceenabled)
+		runtime·racereadpc(it->h, runtime·getcallerpc(&it));
 	if(runtime·gcwaiting)
 		runtime·gosched();
 
@@ -1158,8 +1178,11 @@ reflect·maplen(Hmap *h, intgo len)
 {
 	if(h == nil)
 		len = 0;
-	else
+	else {
 		len = h->count;
+		if(raceenabled)
+			runtime·racereadpc(h, runtime·getcallerpc(&h));
+	}
 	FLUSH(&len);
 }
 

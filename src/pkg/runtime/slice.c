@@ -7,6 +7,7 @@
 #include "type.h"
 #include "typekind.h"
 #include "malloc.h"
+#include "race.h"
 
 static	bool	debug	= 0;
 
@@ -58,16 +59,26 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
 }
 
 // appendslice(type *Type, x, y, []T) []T
+#pragma textflag 7
 void
 runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 {
-	intgo m;
+	intgo m, i;
 	uintptr w;
+	void *pc;
 
 	m = x.len+y.len;
 
 	if(m < x.len)
 		runtime·throw("append: slice overflow");
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&t);
+		for(i=0; i<x.len; i++)
+			runtime·racereadpc(x.array + i*t->elem->size, pc);
+		for(i=x.len; i<x.cap; i++)
+			runtime·racewritepc(x.array + i*t->elem->size, pc);
+	}
 
 	if(m > x.cap)
 		growslice1(t, x, m, &ret);
@@ -82,15 +93,25 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 
 
 // appendstr([]byte, string) []byte
+#pragma textflag 7
 void
 runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 {
-	intgo m;
+	intgo m, i;
+	void *pc;
 
 	m = x.len+y.len;
 
 	if(m < x.len)
 		runtime·throw("append: slice overflow");
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&t);
+		for(i=0; i<x.len; i++)
+			runtime·racereadpc(x.array + i*t->elem->size, pc);
+		for(i=x.len; i<x.cap; i++)
+			runtime·racewritepc(x.array + i*t->elem->size, pc);
+	}
 
 	if(m > x.cap)
 		growslice1(t, x, m, &ret);
@@ -108,6 +129,8 @@ void
 runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 {
 	int64 cap;
+	void *pc;
+	int32 i;
 
 	if(n < 1)
 		runtime·panicstring("growslice: invalid n");
@@ -116,6 +139,12 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 
 	if((intgo)cap != cap || cap < old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
 		runtime·panicstring("growslice: cap out of range");
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&t);
+		for(i=0; i<old.len; i++)
+			runtime·racewritepc(old.array + i*t->elem->size, pc);
+	}
 
 	growslice1(t, old, cap, &ret);
 
@@ -155,9 +184,13 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
 }
 
 // copy(to any, fr any, wid uintptr) int
+#pragma textflag 7
 void
 runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 {
+	void *pc;
+	int32 i;
+
 	if(fm.len == 0 || to.len == 0 || width == 0) {
 		ret = 0;
 		goto out;
@@ -166,6 +199,14 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 	ret = fm.len;
 	if(to.len < ret)
 		ret = to.len;
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&to);
+		for(i=0; i<ret; i++) {
+			runtime·racewritepc(to.array + i*width, pc);
+			runtime·racereadpc(fm.array + i*width, pc);
+		}
+	}
 
 	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
 		*to.array = *fm.array;	// known to be a byte pointer
@@ -189,9 +230,13 @@ out:
 	}
 }
 
+#pragma textflag 7
 void
 runtime·slicestringcopy(Slice to, String fm, intgo ret)
 {
+	void *pc;
+	int32 i;
+
 	if(fm.len == 0 || to.len == 0) {
 		ret = 0;
 		goto out;
@@ -200,6 +245,13 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
 	ret = fm.len;
 	if(to.len < ret)
 		ret = to.len;
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&to);
+		for(i=0; i<ret; i++) {
+			runtime·racewritepc(to.array + i, pc);
+		}
+	}
 
 	runtime·memmove(to.array, fm.str, ret);
 

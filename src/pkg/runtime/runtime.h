@@ -210,6 +210,7 @@ struct	G
 	G*	schedlink;
 	bool	readyonstop;
 	bool	ispanic;
+	int8	raceignore; // ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
 	M*	idlem;
@@ -267,6 +268,8 @@ struct	M
 	uint32	waitsemacount;
 	uint32	waitsemalock;
 	GCStats	gcstats;
+	bool	racecall;
+	void*	racepc;
 
 	uintptr	settype_buf[1024];
 	uintptr	settype_bufsize;
@@ -816,7 +819,7 @@ void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
 Hmap*	runtime·makemap_c(MapType*, int64);
 
 Hchan*	runtime·makechan_c(ChanType*, int64);
-void	runtime·chansend(ChanType*, Hchan*, byte*, bool*);
+void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
 bool	runtime·showframe(Func*);
 
