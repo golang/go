@@ -1103,7 +1103,7 @@ gcmp(int as, Node *lhs, Node *rhs)
 {
 	Prog *p;
 
-	if(lhs->op != OREGISTER || rhs->op != OREGISTER)
+	if(lhs->op != OREGISTER)
 		fatal("bad operands to gcmp: %O %O", lhs->op, rhs->op);
 
 	p = gins(as, rhs, N);
