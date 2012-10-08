@@ -1,0 +1,43 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// shifts
+
+package expr3
+
+var (
+	i0 int
+	u0 uint
+)
+
+var (
+	v0 = 1<<0
+	v1 = 1<<i0 /* ERROR "must be unsigned" */
+	v2 = 1<<u0
+	v3 = 1<<"foo" /* ERROR "must be unsigned" */
+	v4 = 1<<- /* ERROR "stupid shift" */ 1
+	v5 = 1<<1025 /* ERROR "stupid shift" */
+	v6 = 1 /* ERROR "overflows" */ <<100
+
+	v10 uint = 1 << 0
+	v11 uint = 1 << u0
+	v12 float32 = 1 /* ERROR "must be integer" */ << u0
+)
+
+// TODO(gri) enable commented out tests below.
+
+// from the spec
+var (
+	s uint = 33
+	i = 1<<s           // 1 has type int
+	j int32 = 1<<s     // 1 has type int32; j == 0
+	k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
+	m int = 1.0<<s     // 1.0 has type int
+//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+	o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
+//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+	u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
+	v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
+	w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
+)

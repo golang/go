@@ -1,0 +1,42 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// statements
+
+package stmt0
+
+func _() {
+	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
+	b = i /* ERROR "cannot assign" */
+	i = f /* ERROR "cannot assign" */
+	f = c /* ERROR "cannot assign" */
+	c = s /* ERROR "cannot assign" */
+	s = b /* ERROR "cannot assign" */
+
+	v0 /* ERROR "mismatch" */, v1, v2 := 1, 2, 3, 4
+
+	b = true
+
+	i += 1
+	i += "foo" /* ERROR "cannot convert.*int" */
+
+	f -= 1
+	f -= "foo" /* ERROR "cannot convert.*float64" */
+
+	c *= 1
+	c /= 0 /* ERROR "division by zero" */
+
+	s += "bar"
+	s += 1 /* ERROR "cannot convert.*string" */
+}
+
+func _sends() {
+	var ch chan int
+	var rch <-chan int
+	var x int
+	x /* ERROR "cannot send" */ <- x
+	rch /* ERROR "cannot send" */ <- x
+	ch /* ERROR "cannot send" */ <- "foo"
+	ch <- x
+}
