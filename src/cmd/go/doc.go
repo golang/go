@@ -708,8 +708,8 @@ directory containing the package sources, has its own flags:
 	-test.timeout t
 		If a test runs longer than t, panic.
 
-	-test.benchtime n
-		Run enough iterations of each benchmark to take n seconds.
+	-test.benchtime t
+		Run enough iterations of each benchmark to take t.
 		The default is 1 second.
 
 	-test.cpu 1,2,4

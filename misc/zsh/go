@@ -88,7 +88,7 @@ __go_tool_complete() {
         "-cpu[values of GOMAXPROCS to use]:number list" \
         "-run[run tests and examples matching regexp]:regexp" \
         "-bench[run benchmarks matching regexp]:regexp" \
-        "-benchtime[run each benchmark during n seconds]:duration" \
+        "-benchtime[run each benchmark until taking this long]:duration" \
         "-timeout[kill test after that duration]:duration" \
         "-cpuprofile[write CPU profile to file]:file:_files" \
         "-memprofile[write heap profile to file]:file:_files" \

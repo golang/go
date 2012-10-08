@@ -26,7 +26,7 @@ var usageMessage = `Usage of go test:
   // These flags can be passed with or without a "test." prefix: -v or -test.v.
   -bench="": passes -test.bench to test
   -benchmem=false: print memory allocation statistics for benchmarks
-  -benchtime=1: passes -test.benchtime to test
+  -benchtime=1s: passes -test.benchtime to test
   -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
   -memprofile="": passes -test.memprofile to test
