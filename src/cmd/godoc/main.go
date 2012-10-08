@@ -282,14 +282,7 @@ func main() {
 		}
 
 		registerPublicHandlers(http.DefaultServeMux)
-
-		playHandler := disabledHandler
-		if *showPlayground {
-			playHandler = bounceToPlayground
-		}
-		http.HandleFunc("/compile", playHandler)
-		http.HandleFunc("/share", playHandler)
-		http.HandleFunc("/fmt", playHandler)
+		registerPlaygroundHandlers(http.DefaultServeMux)
 
 		// Initialize default directory tree with corresponding timestamp.
 		// (Do it in a goroutine so that launch is quick.)
@@ -469,25 +462,3 @@ type httpWriter struct {
 
 func (w *httpWriter) Header() http.Header  { return w.h }
 func (w *httpWriter) WriteHeader(code int) { w.code = code }
-
-// bounceToPlayground forwards the request to play.golang.org.
-// TODO(adg): implement this stuff locally.
-func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
-	req.URL.Scheme = "http"
-	req.URL.Host = "play.golang.org"
-	resp, err := http.Post(req.URL.String(), req.Header.Get("Content-type"), req.Body)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-	resp.Body.Close()
-}
-
-// disabledHandler serves a 501 "Not Implemented" response.
-func disabledHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-	fmt.Fprint(w, "This functionality is not available via local godoc.")
-}
