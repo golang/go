@@ -40,7 +40,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
 	switch {
 	default:
 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
-		bp, _ := build.Import(path, srcDir, build.FindOnly)
+		// Don't require the source files to be present.
+		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
 			return
 		}

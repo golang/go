@@ -17,6 +17,7 @@ import (
 const debug = false
 const trace = false
 
+// TODO(gri) eventually assert and unimplemented should disappear.
 func assert(p bool) {
 	if !p {
 		panic("assertion failed")
@@ -33,34 +34,7 @@ func unreachable() {
 	panic("unreachable")
 }
 
-// dump is only needed for debugging
-func (check *checker) dump(format string, args ...interface{}) {
-	if n := len(format); n > 0 && format[n-1] != '\n' {
-		format += "\n"
-	}
-	check.convertArgs(args)
-	fmt.Printf(format, args...)
-}
-
-func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	check.convertArgs(args)
-	msg := fmt.Sprintf(format, args...)
-	check.errors.Add(check.fset.Position(pos), msg)
-}
-
-func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid AST: "+format, args...)
-}
-
-func (check *checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid argument: "+format, args...)
-}
-
-func (check *checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
-	check.errorf(pos, "invalid operation: "+format, args...)
-}
-
-func (check *checker) convertArgs(args []interface{}) {
+func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case token.Pos:
@@ -73,6 +47,35 @@ func (check *checker) convertArgs(args []interface{}) {
 			panic("internal error: should always pass *operand")
 		}
 	}
+	return fmt.Sprintf(format, args...)
+}
+
+// dump is only needed for debugging
+func (check *checker) dump(format string, args ...interface{}) {
+	fmt.Println(check.formatMsg(format, args))
+}
+
+func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
+	msg := check.formatMsg(format, args)
+	if check.firsterr == nil {
+		check.firsterr = fmt.Errorf("%s: %s", check.fset.Position(pos), msg)
+	}
+	if check.errh == nil {
+		panic(bailout{}) // report only first error
+	}
+	check.errh(pos, msg)
+}
+
+func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
+	check.errorf(pos, "invalid AST: "+format, args...)
+}
+
+func (check *checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
+	check.errorf(pos, "invalid argument: "+format, args...)
+}
+
+func (check *checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
+	check.errorf(pos, "invalid operation: "+format, args...)
 }
 
 // exprString returns a (simplified) string representation for an expression.
