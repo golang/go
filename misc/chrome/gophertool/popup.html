@@ -6,49 +6,14 @@
 -->
 <head>
 <script src="gopher.js"></script>
-<script>
-    
-function focusinput() {
-  document.getElementById("inputbox").focus();
-}
-
-function navigate() {
-  var box = document.getElementById("inputbox");
-  box.focus();
-
-  var t = box.value;
-  if (t == "") {
-    return false;
-  }
-
-  var success = function(url) {
-    console.log("matched " + t + " to: " + url)
-    box.value = "";
-    openURL(url);
-    return false;  // cancel form submission
-  };
-
-  var url = urlForInput(t);
-  if (url) {
-    return success(url);
-  }
-
-  console.log("no match for text: " + t)
-  return false;
-}
-
-function openURL(url) {
-  chrome.tabs.create({ "url": url })
-}
-
-</script>
+<script src="popup.js"></script>
 </head>
-<body onload="focusinput()" style='margin: 0.5em; font-family: sans;'>
+<body style='margin: 0.5em; font-family: sans;'>
 <small><a href="#" onclick="openURL('http://code.google.com/p/go/issues/list')">issue</a>,
 <a href="#" onclick="openURL('http://codereview.appspot.com/')">codereview</a>,
 <a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
 <a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
-<form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
-<small>Also: <a href="#" onclick="openURL('http://build.golang.org/')">buildbots</small>
+<form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+<small>Also: <a href="#" id='buildbotslink'>buildbots</small>
 </body>
 </html>
