@@ -15,21 +15,16 @@ import (
 	"sort"
 )
 
-// Check typechecks the given package pkg and augments the AST by
-// assigning types to all ast.Objects. Check can be used in two
-// different modes:
+// Check typechecks a package pkg. It returns the first error, or nil.
 //
-// 1) If a nil types map is provided, Check typechecks the entire
-// package. If no error is returned, the package source code has
-// no type errors. 
+// Check augments the AST by assigning types to ast.Objects. It
+// calls err with the error position and message for each error.
+// It calls f with each valid AST expression and corresponding
+// type. If err == nil, Check terminates as soon as the first error
+// is found. If f is nil, it is not invoked.
 //
-// 2) If a non-nil types map is provided, Check operates like in
-// mode 1) but also records the types for all expressions in the
-// map. Pre-existing expression types in the map are replaced if
-// the expression appears in the AST.
-//
-func Check(fset *token.FileSet, pkg *ast.Package, types map[ast.Expr]Type) error {
-	return check(fset, pkg, types)
+func Check(fset *token.FileSet, pkg *ast.Package, err func(token.Pos, string), f func(ast.Expr, Type)) error {
+	return check(fset, pkg, err, f)
 }
 
 // All types implement the Type interface.

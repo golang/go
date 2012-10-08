@@ -41,10 +41,9 @@ func compile(t *testing.T, dirname, filename string) string {
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		t.Logf("%s", out)
 		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
-		return ""
 	}
-	t.Logf("%s", string(out))
 	archCh, _ := build.ArchChar(runtime.GOARCH)
 	// filename should end with ".go"
 	return filepath.Join(dirname, filename[:len(filename)-2]+archCh)
