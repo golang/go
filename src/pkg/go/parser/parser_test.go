@@ -135,6 +135,53 @@ func TestVarScope(t *testing.T) {
 	}
 }
 
+func TestObjects(t *testing.T) {
+	const src = `
+package p
+import fmt "fmt"
+const pi = 3.14
+type T struct{}
+var x int
+func f() { L: }
+`
+
+	f, err := ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	objects := map[string]ast.ObjKind{
+		"p":   ast.Bad, // not in a scope
+		"fmt": ast.Bad, // not resolved yet
+		"pi":  ast.Con,
+		"T":   ast.Typ,
+		"x":   ast.Var,
+		"int": ast.Bad, // not resolved yet
+		"f":   ast.Fun,
+		"L":   ast.Lbl,
+	}
+
+	ast.Inspect(f, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok {
+			obj := ident.Obj
+			if obj == nil {
+				if objects[ident.Name] != ast.Bad {
+					t.Errorf("no object for %s", ident.Name)
+				}
+				return true
+			}
+			if obj.Name != ident.Name {
+				t.Errorf("names don't match: obj.Name = %s, ident.Name = %s", obj.Name, ident.Name)
+			}
+			kind := objects[ident.Name]
+			if obj.Kind != kind {
+				t.Errorf("%s: obj.Kind = %s; want %s", ident.Name, obj.Kind, kind)
+			}
+		}
+		return true
+	})
+}
+
 func TestUnresolved(t *testing.T) {
 	f, err := ParseFile(fset, "", `
 package p
