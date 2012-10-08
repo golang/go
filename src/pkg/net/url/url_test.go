@@ -7,6 +7,7 @@ package url
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -777,5 +778,15 @@ func TestRequestURI(t *testing.T) {
 		if s != tt.out {
 			t.Errorf("%#v.RequestURI() == %q (expected %q)", tt.url, s, tt.out)
 		}
+	}
+}
+
+func TestParseFailure(t *testing.T) {
+	// Test that the first parse error is returned.
+	const url = "%gh&%ij"
+	_, err := ParseQuery(url)
+	errStr := fmt.Sprint(err)
+	if !strings.Contains(errStr, "%gh") {
+		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
 	}
 }

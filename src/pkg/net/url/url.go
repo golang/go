@@ -521,12 +521,16 @@ func parseQuery(m Values, query string) (err error) {
 		}
 		key, err1 := QueryUnescape(key)
 		if err1 != nil {
-			err = err1
+			if err == nil {
+				err = err1
+			}
 			continue
 		}
 		value, err1 = QueryUnescape(value)
 		if err1 != nil {
-			err = err1
+			if err == nil {
+				err = err1
+			}
 			continue
 		}
 		m[key] = append(m[key], value)
