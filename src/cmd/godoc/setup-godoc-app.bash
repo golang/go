@@ -4,13 +4,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# This script creates the .zip, index, and configuration files for running
-# godoc on app-engine.
+# This script creates a complete godoc app in $APPDIR.
+# It copies the cmd/godoc and src/pkg/go/... sources from GOROOT,
+# synthesizes an app.yaml file, and creates the .zip, index, and
+# configuration files.
 #
 # If an argument is provided it is assumed to be the app-engine godoc directory.
-# Without an argument, $APPDIR is used instead. If GOROOT is not set, the
-# current working directory is assumed to be $GOROOT. Various sanity checks
-# prevent accidents.
+# Without an argument, $APPDIR is used instead. If GOROOT is not set, "go env"
+# is consulted to find the $GOROOT.
 #
 # The script creates a .zip file representing the $GOROOT file system
 # and computes the correspondig search index files. These files are then
@@ -29,8 +30,8 @@ error() {
 
 getArgs() {
 	if [ -z $GOROOT ]; then
-		GOROOT=$(pwd)
-		echo "GOROOT not set, using cwd instead"
+		GOROOT=$(go env GOROOT)
+		echo "GOROOT not set explicitly, using $GOROOT instead"
 	fi
 	if [ -z $APPDIR ]; then
 		if [ $# == 0 ]; then
@@ -47,14 +48,8 @@ getArgs() {
 	if [ ! -x $GOROOT/bin/godoc ]; then
 		error "$GOROOT/bin/godoc does not exist or is not executable"
 	fi
-	if [ ! -d $APPDIR ]; then
-		error "$APPDIR is not a directory"
-	fi
-	if [ ! -e $APPDIR/app.yaml ]; then
-		error "$APPDIR is not an app-engine directory; missing file app.yaml"
-	fi
-	if [ ! -d $APPDIR/godoc ]; then
-		error "$APPDIR is missing directory godoc"
+	if [ -e $APPDIR ]; then
+		error "$APPDIR exists; check and remove it before trying again"
 	fi
 
 	# reporting
@@ -62,12 +57,32 @@ getArgs() {
 	echo "APPDIR = $APPDIR"
 }
 
-cleanup() {
-	echo "*** cleanup $APPDIR"
-	rm $APPDIR/$ZIPFILE
-	rm $APPDIR/$INDEXFILE
-	rm $APPDIR/$SPLITFILES*
-	rm $APPDIR/$CONFIGFILE
+copyGodoc() {
+	echo "*** copy $GOROOT/src/cmd/godoc to $APPDIR/godoc"
+	cp -r $GOROOT/src/cmd/godoc $APPDIR/godoc
+}
+
+copyGoPackages() {
+	echo "*** copy $GOROOT/src/pkg/go to $APPDIR/newgo and rewrite imports"
+	cp -r $GOROOT/src/pkg/go $APPDIR/newgo
+	find $APPDIR/newgo -type d -name testdata | xargs rm -r
+	gofiles=$(find $APPDIR -name '*.go')
+	sed -i '' 's_^\(."\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
+	sed -i '' 's_^\(import "\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
+}
+
+makeAppYaml() {
+	echo "*** make $APPDIR/app.yaml"
+	cat > $APPDIR/app.yaml <<EOF
+application: godoc
+version: 1
+runtime: go
+api_version: go1
+
+handlers:
+- url: /.*
+  script: _go_app
+EOF
 }
 
 makeZipfile() {
@@ -112,7 +127,11 @@ EOF
 }
 
 getArgs "$@"
-cleanup
+set -e
+mkdir $APPDIR
+copyGodoc
+copyGoPackages
+makeAppYaml
 makeZipfile
 makeIndexfile
 splitIndexfile

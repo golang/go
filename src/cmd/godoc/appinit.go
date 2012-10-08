@@ -37,6 +37,7 @@ func init() {
 	*indexFiles = indexFilenames
 	*maxResults = 100    // reduce latency by limiting the number of fulltext search results
 	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
+	*showPlayground = true
 
 	// read .zip file and set up file systems
 	const zipfile = zipFilename
@@ -51,6 +52,7 @@ func init() {
 	readTemplates()
 	initHandlers()
 	registerPublicHandlers(http.DefaultServeMux)
+	registerPlaygroundHandlers(http.DefaultServeMux)
 
 	// initialize default directory tree with corresponding timestamp.
 	initFSTree()
