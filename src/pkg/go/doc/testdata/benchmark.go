@@ -13,7 +13,7 @@ import (
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
-var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
+var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of go test.
@@ -151,7 +151,7 @@ func (b *B) launch() {
 
 	b.runN(n)
 	// Run the benchmark for at least the specified amount of time.
-	d := time.Duration(*benchTime * float64(time.Second))
+	d := *benchTime
 	for !b.failed && b.duration < d && n < 1e9 {
 		last := n
 		// Predict iterations/sec.

@@ -45,7 +45,7 @@ VARIABLES
 	)
 
 	// 
-	var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
+	var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
 
 	// 
 	var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")

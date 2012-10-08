@@ -1378,7 +1378,7 @@ func benchmarkClientServerParallel(b *testing.B, conc int) {
 //
 // For use like:
 //   $ go test -c
-//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15 -test.cpuprofile=http.prof
+//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15s -test.cpuprofile=http.prof
 //   $ go tool pprof http.test http.prof
 //   (pprof) web
 func BenchmarkServer(b *testing.B) {

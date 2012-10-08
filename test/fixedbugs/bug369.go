@@ -38,9 +38,9 @@ func BenchmarkSlowNonASCII(b *testing.B) {
 }
 
 func main() {
-	os.Args = []string{os.Args[0], "-test.benchtime=0.1"}
+	os.Args = []string{os.Args[0], "-test.benchtime=100ms"}
 	flag.Parse()
-	
+
 	rslow := testing.Benchmark(BenchmarkSlowNonASCII)
 	rfast := testing.Benchmark(BenchmarkFastNonASCII)
 	tslow := rslow.NsPerOp()
