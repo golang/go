@@ -2116,7 +2116,11 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 		Values:  values,
 		Comment: p.lineComment,
 	}
-	p.declare(spec, iota, p.topScope, ast.Con, idents...)
+	kind := ast.Con
+	if keyword == token.VAR {
+		kind = ast.Var
+	}
+	p.declare(spec, iota, p.topScope, kind, idents...)
 
 	return spec
 }
