@@ -212,7 +212,7 @@ func (o *ordering) find(str string) *entry {
 		r := []rune(str)
 		if len(r) == 1 {
 			e = o.newEntry(string(r[0]), [][]int{
-				[]int{
+				{
 					implicitPrimary(r[0]),
 					defaultSecondary,
 					defaultTertiary,

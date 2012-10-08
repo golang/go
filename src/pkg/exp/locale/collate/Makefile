@@ -9,7 +9,7 @@ maketables: maketables.go
 
 tables:	maketables
 	./maketables > tables.go
-	gofmt -w tables.go
+	gofmt -w -s tables.go
 
 # Build (but do not run) maketables during testing,
 # just to make sure it still compiles.

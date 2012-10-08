@@ -562,7 +562,7 @@ func parseCollation(b *build.Builder) {
 				if c.Alt != "" && skipAlt(c.Alt) {
 					continue
 				}
-				for j, _ := range c.Rules.Any {
+				for j := range c.Rules.Any {
 					c.Rules.Any[j].rewrite()
 				}
 				locale := lang
