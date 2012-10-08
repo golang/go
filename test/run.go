@@ -522,7 +522,9 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 		}
 		if strings.HasPrefix(line, "\t") {
 			out[len(out)-1] += "\n" + line
-		} else {
+		} else if strings.HasPrefix(line, "go tool") {
+			continue
+		} else if strings.TrimSpace(line) != "" {
 			out = append(out, line)
 		}
 	}
@@ -550,6 +552,13 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 		if !matched {
 			errs = append(errs, fmt.Errorf("%s:%d: no match for %q in%s", we.file, we.lineNum, we.reStr, strings.Join(out, "\n")))
 			continue
+		}
+	}
+
+	if len(out) > 0 {
+		errs = append(errs, fmt.Errorf("Unmatched Errors:"))
+		for _, errLine := range out {
+			errs = append(errs, fmt.Errorf("%s", errLine))
 		}
 	}
 
