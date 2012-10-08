@@ -8,311 +8,311 @@ package collate
 var availableLocales = []string{"af", "ar", "as", "az", "be", "bg", "bn", "ca", "cs", "cy", "da", "de", "dz", "el", "en_US_POSIX", "eo", "es", "et", "fa", "fi", "fil", "fo", "fr_CA", "gu", "ha", "haw", "he", "hi", "hr", "hu", "hy", "ig", "is", "ja", "kk", "kl", "km", "kn", "ko", "kok", "ln", "lt", "lv", "mk", "ml", "mr", "mt", "my", "nb", "nn", "nso", "om", "or", "pa", "pl", "ps", "ro", "root", "ru", "se", "si", "sk", "sl", "sq", "sr", "sv", "ta", "te", "th", "tn", "tr", "uk", "ur", "vi", "wae", "yo", "zh"}
 
 var locales = map[string]tableIndex{
-	"af": tableIndex{
+	"af": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ar": tableIndex{
+	"ar": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"as": tableIndex{
+	"as": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"az": tableIndex{
+	"az": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"be": tableIndex{
+	"be": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"bg": tableIndex{
+	"bg": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"bn": tableIndex{
+	"bn": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ca": tableIndex{
+	"ca": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"cs": tableIndex{
+	"cs": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"cy": tableIndex{
+	"cy": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"da": tableIndex{
+	"da": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"de": tableIndex{
+	"de": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"dz": tableIndex{
+	"dz": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"el": tableIndex{
+	"el": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"en_US_POSIX": tableIndex{
+	"en_US_POSIX": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"eo": tableIndex{
+	"eo": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"es": tableIndex{
+	"es": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"et": tableIndex{
+	"et": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"fa": tableIndex{
+	"fa": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"fi": tableIndex{
+	"fi": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"fil": tableIndex{
+	"fil": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"fo": tableIndex{
+	"fo": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"fr_CA": tableIndex{
+	"fr_CA": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"gu": tableIndex{
+	"gu": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ha": tableIndex{
+	"ha": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"haw": tableIndex{
+	"haw": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"he": tableIndex{
+	"he": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"hi": tableIndex{
+	"hi": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"hr": tableIndex{
+	"hr": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"hu": tableIndex{
+	"hu": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"hy": tableIndex{
+	"hy": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ig": tableIndex{
+	"ig": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"is": tableIndex{
+	"is": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ja": tableIndex{
+	"ja": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"kk": tableIndex{
+	"kk": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"kl": tableIndex{
+	"kl": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"km": tableIndex{
+	"km": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"kn": tableIndex{
+	"kn": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ko": tableIndex{
+	"ko": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"kok": tableIndex{
+	"kok": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ln": tableIndex{
+	"ln": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"lt": tableIndex{
+	"lt": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"lv": tableIndex{
+	"lv": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"mk": tableIndex{
+	"mk": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ml": tableIndex{
+	"ml": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"mr": tableIndex{
+	"mr": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"mt": tableIndex{
+	"mt": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"my": tableIndex{
+	"my": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"nb": tableIndex{
+	"nb": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"nn": tableIndex{
+	"nn": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"nso": tableIndex{
+	"nso": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"om": tableIndex{
+	"om": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"or": tableIndex{
+	"or": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"pa": tableIndex{
+	"pa": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"pl": tableIndex{
+	"pl": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ps": tableIndex{
+	"ps": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ro": tableIndex{
+	"ro": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"root": tableIndex{
+	"root": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ru": tableIndex{
+	"ru": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"se": tableIndex{
+	"se": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"si": tableIndex{
+	"si": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"sk": tableIndex{
+	"sk": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"sl": tableIndex{
+	"sl": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"sq": tableIndex{
+	"sq": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"sr": tableIndex{
+	"sr": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"sv": tableIndex{
+	"sv": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ta": tableIndex{
+	"ta": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"te": tableIndex{
+	"te": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"th": tableIndex{
+	"th": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"tn": tableIndex{
+	"tn": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"tr": tableIndex{
+	"tr": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"uk": tableIndex{
+	"uk": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"ur": tableIndex{
+	"ur": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"vi": tableIndex{
+	"vi": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"wae": tableIndex{
+	"wae": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"yo": tableIndex{
+	"yo": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},
-	"zh": tableIndex{
+	"zh": {
 		lookupOffset: 0x13,
 		valuesOffset: 0x0,
 	},

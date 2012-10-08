@@ -4,4 +4,4 @@
 
 chars:
 	go run ../maketables.go -tables=chars -package=main > chars.go
-	gofmt -w chars.go
+	gofmt -w -s chars.go

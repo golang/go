@@ -14,29 +14,29 @@ func cjk(r rune) [][]int {
 	// Any base value will work for the test, so we pick the common value of FB40.
 	const base = 0xFB40
 	return [][]int{
-		[]int{base + int(r>>15), defaultSecondary, defaultTertiary, int(r)},
-		[]int{int(r&0x7FFF) | 0x8000, 0, 0, int(r)},
+		{base + int(r>>15), defaultSecondary, defaultTertiary, int(r)},
+		{int(r&0x7FFF) | 0x8000, 0, 0, int(r)},
 	}
 }
 
 func pCE(p int) [][]int {
-	return [][]int{[]int{p, defaultSecondary, defaultTertiary, 0}}
+	return [][]int{{p, defaultSecondary, defaultTertiary, 0}}
 }
 
 func pqCE(p, q int) [][]int {
-	return [][]int{[]int{p, defaultSecondary, defaultTertiary, q}}
+	return [][]int{{p, defaultSecondary, defaultTertiary, q}}
 }
 
 func ptCE(p, t int) [][]int {
-	return [][]int{[]int{p, defaultSecondary, t, 0}}
+	return [][]int{{p, defaultSecondary, t, 0}}
 }
 
 func sCE(s int) [][]int {
-	return [][]int{[]int{0, s, defaultTertiary, 0}}
+	return [][]int{{0, s, defaultTertiary, 0}}
 }
 
 func stCE(s, t int) [][]int {
-	return [][]int{[]int{0, s, t, 0}}
+	return [][]int{{0, s, t, 0}}
 }
 
 // ducetElem is used to define test data that is used to generate a table.

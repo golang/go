@@ -20,7 +20,7 @@ var largetosmall = []stridx{
 }
 
 var offsetSortTests = [][]stridx{
-	[]stridx{
+	{
 		{"bcde", 1},
 		{"bc", 5},
 		{"ab", 4},
@@ -79,7 +79,7 @@ func TestGenIdxSort(t *testing.T) {
 }
 
 var entrySortTests = []contractTrieSet{
-	contractTrieSet{
+	{
 		{10, 0, 1, 3},
 		{99, 0, 1, 0},
 		{20, 50, 0, 2},
