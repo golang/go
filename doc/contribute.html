@@ -110,14 +110,13 @@ command.
 
 <pre>
 [extensions]
-codereview = YOUR_GO_ROOT/lib/codereview/codereview.py
+codereview = $GOROOT/lib/codereview/codereview.py
 
 [ui]
 username = Your Name &lt;you@server.dom&gt;
 </pre>
 
-<p>Replace YOUR_GO_ROOT with the value of <code>$GOROOT</code>.
-The Mercurial configuration file format does not allow environment variable substitution.
+<p>
 The <code>username</code> information will not be used unless
 you are a committer (see below), but Mercurial complains if it is missing.
 </p>
