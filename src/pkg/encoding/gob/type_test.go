@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -190,5 +191,32 @@ func TestRegistrationNaming(t *testing.T) {
 		if n := concreteTypeToName[tct]; n != tc.name {
 			t.Errorf("concreteTypeToName[%v] got %v, want %v", tct, n, tc.name)
 		}
+	}
+}
+
+func TestStressParallel(t *testing.T) {
+	type T2 struct{ A int }
+	c := make(chan bool)
+	const N = 10
+	for i := 0; i < N; i++ {
+		go func() {
+			p := new(T2)
+			Register(p)
+			b := new(bytes.Buffer)
+			enc := NewEncoder(b)
+			err := enc.Encode(p)
+			if err != nil {
+				t.Error("encoder fail:", err)
+			}
+			dec := NewDecoder(b)
+			err = dec.Decode(p)
+			if err != nil {
+				t.Error("decoder fail:", err)
+			}
+			c <- true
+		}()
+	}
+	for i := 0; i < N; i++ {
+		<-c
 	}
 }
