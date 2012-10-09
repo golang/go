@@ -267,10 +267,16 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
+	if raceenabled {
+		raceAcquire(unsafe.Pointer(&ioSync))
+	}
 	return int(done), nil
 }
 
 func Write(fd Handle, p []byte) (n int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
@@ -278,6 +284,8 @@ func Write(fd Handle, p []byte) (n int, err error) {
 	}
 	return int(done), nil
 }
+
+var ioSync int64
 
 func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	var w uint32

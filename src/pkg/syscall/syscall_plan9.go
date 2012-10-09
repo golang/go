@@ -115,12 +115,21 @@ func Getppid() (ppid int) {
 }
 
 func Read(fd int, p []byte) (n int, err error) {
-	return Pread(fd, p, -1)
+	n, err = Pread(fd, p, -1)
+	if raceenabled && err == nil {
+		raceAcquire(unsafe.Pointer(&ioSync))
+	}
+	return
 }
 
 func Write(fd int, p []byte) (n int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
 	return Pwrite(fd, p, -1)
 }
+
+var ioSync int64
 
 func Getwd() (wd string, err error) {
 	fd, e := Open(".", O_RDONLY)
