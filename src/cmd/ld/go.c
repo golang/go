@@ -932,3 +932,28 @@ importcycles(void)
 	for(p=pkgall; p; p=p->all)
 		cycle(p);
 }
+
+static int
+scmp(const void *p1, const void *p2)
+{
+	Sym *s1, *s2;
+
+	s1 = *(Sym**)p1;
+	s2 = *(Sym**)p2;
+	return strcmp(s1->dynimpname, s2->dynimpname);
+}
+void
+sortdynexp(void)
+{
+	int i;
+
+	// On Mac OS X Mountain Lion, we must sort exported symbols
+	// So we sort them here and pre-allocate dynid for them
+	// See http://golang.org/issue/4029
+	if(HEADTYPE != Hdarwin)
+		return;
+	qsort(dynexp, ndynexp, sizeof dynexp[0], scmp);
+	for(i=0; i<ndynexp; i++) {
+		dynexp[i]->dynid = -i-100; // also known to [68]l/asm.c:^adddynsym
+	}
+}

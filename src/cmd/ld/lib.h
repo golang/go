@@ -196,6 +196,8 @@ vlong	addaddr(Sym*, Sym*);
 vlong	addaddrplus(Sym*, Sym*, int32);
 vlong	addpcrelplus(Sym*, Sym*, int32);
 vlong	addsize(Sym*, Sym*);
+vlong	setaddrplus(Sym*, vlong, Sym*, int32);
+vlong	setaddr(Sym*, vlong, Sym*);
 void	setuint8(Sym*, vlong, uint8);
 void	setuint16(Sym*, vlong, uint16);
 void	setuint32(Sym*, vlong, uint32);
@@ -341,3 +343,5 @@ char*	decodetype_structfieldname(Sym*, int);
 Sym*	decodetype_structfieldtype(Sym*, int);
 vlong	decodetype_structfieldoffs(Sym*, int);
 vlong	decodetype_ifacemethodcount(Sym*);
+
+void	sortdynexp(void);

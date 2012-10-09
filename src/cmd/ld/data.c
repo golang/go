@@ -794,6 +794,33 @@ addaddr(Sym *s, Sym *t)
 }
 
 vlong
+setaddrplus(Sym *s, vlong off, Sym *t, int32 add)
+{
+	Reloc *r;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	if(off+PtrSize > s->size) {
+		s->size = off + PtrSize;
+		symgrow(s, s->size);
+	}
+	r = addrel(s);
+	r->sym = t;
+	r->off = off;
+	r->siz = PtrSize;
+	r->type = D_ADDR;
+	r->add = add;
+	return off;
+}
+
+vlong
+setaddr(Sym *s, vlong off, Sym *t)
+{
+	return setaddrplus(s, off, t, 0);
+}
+
+vlong
 addsize(Sym *s, Sym *t)
 {
 	vlong i;
