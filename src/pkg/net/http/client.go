@@ -96,7 +96,7 @@ type readClose struct {
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 //
-// Callers should close res.Body when done reading from it. If
+// Callers should close resp.Body when done reading from it. If
 // resp.Body is not closed, the Client's underlying RoundTripper
 // (typically Transport) may not be able to re-use a persistent TCP
 // connection to the server for a subsequent "keep-alive" request.
