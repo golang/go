@@ -712,6 +712,7 @@ type GobDecoder interface {
 }
 
 var (
+	registerLock       sync.RWMutex
 	nameToConcreteType = make(map[string]reflect.Type)
 	concreteTypeToName = make(map[reflect.Type]string)
 )
@@ -723,6 +724,8 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
+	registerLock.Lock()
+	defer registerLock.Unlock()
 	ut := userType(reflect.TypeOf(value))
 	// Check for incompatible duplicates. The name must refer to the
 	// same user type, and vice versa.
