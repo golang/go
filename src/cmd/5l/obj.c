@@ -52,6 +52,7 @@ Header headers[] = {
    "ixp1200", Hixp1200,
    "ipaq", Hipaq,
    "linux", Hlinux,
+   "freebsd", Hfreebsd,
    0, 0
 };
 
@@ -152,7 +153,7 @@ main(int argc, char *argv[])
 	libinit();
 
 	if(HEADTYPE == -1)
-		HEADTYPE = Hlinux;
+		HEADTYPE = headtype(goos);
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
@@ -212,6 +213,7 @@ main(int argc, char *argv[])
 			INITRND = 1024;
 		break;
 	case Hlinux:	/* arm elf */
+	case Hfreebsd:
 		debug['d'] = 0;	// with dynamic linking
 		tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
 		                // this number is known to ../../pkg/runtime/cgo/gcc_linux_arm.c
