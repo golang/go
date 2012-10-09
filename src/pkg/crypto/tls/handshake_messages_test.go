@@ -129,6 +129,12 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	for i := range m.supportedCurves {
 		m.supportedCurves[i] = uint16(rand.Intn(30000))
 	}
+	if rand.Intn(10) > 5 {
+		m.ticketSupported = true
+		if rand.Intn(10) > 5 {
+			m.sessionTicket = randomBytes(rand.Intn(300), rand)
+		}
+	}
 
 	return reflect.ValueOf(m)
 }
@@ -149,6 +155,13 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		for i := 0; i < n; i++ {
 			m.nextProtos[i] = randomString(20, rand)
 		}
+	}
+
+	if rand.Intn(10) > 5 {
+		m.ocspStapling = true
+	}
+	if rand.Intn(10) > 5 {
+		m.ticketSupported = true
 	}
 
 	return reflect.ValueOf(m)
