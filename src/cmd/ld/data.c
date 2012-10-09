@@ -831,7 +831,9 @@ dosymtype(void)
 static int32
 alignsymsize(int32 s)
 {
-	if(s >= PtrSize)
+	if(s >= 8)
+		s = rnd(s, 8);
+	else if(s >= PtrSize)
 		s = rnd(s, PtrSize);
 	else if(s > 2)
 		s = rnd(s, 4);
@@ -1054,6 +1056,7 @@ dodata(void)
 		datsize += rnd(s->size, PtrSize);
 	}
 	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
 
 	/* gcdata */
 	sect = addsection(&segtext, ".gcdata", 04);

@@ -892,6 +892,12 @@ runtime·gc(int32 force)
 	M *m1;
 	uint32 i;
 
+	// The atomic operations are not atomic if the uint64s
+	// are not aligned on uint64 boundaries. This has been
+	// a problem in the past.
+	if((((uintptr)&work.empty) & 7) != 0)
+		runtime·throw("runtime: gc work buffer is misaligned");
+
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.
 	// Also, malloc gets called in the guts
