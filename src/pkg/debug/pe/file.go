@@ -131,12 +131,13 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	var base int64
 	if dosheader[0] == 'M' && dosheader[1] == 'Z' {
+		signoff := int64(binary.LittleEndian.Uint32(dosheader[0x3c:]))
 		var sign [4]byte
-		r.ReadAt(sign[0:], int64(dosheader[0x3c]))
+		r.ReadAt(sign[:], signoff)
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
 			return nil, errors.New("Invalid PE File Format.")
 		}
-		base = int64(dosheader[0x3c]) + 4
+		base = signoff + 4
 	} else {
 		base = int64(0)
 	}
@@ -148,45 +149,48 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, errors.New("Invalid PE File Format.")
 	}
 
-	// Get COFF string table, which is located at the end of the COFF symbol table.
-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
-	var l uint32
-	if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
-		return nil, err
-	}
-	ss := make([]byte, l)
-	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
-		return nil, err
-	}
-
-	// Process COFF symbol table.
-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
-	aux := uint8(0)
-	for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
-		cs := new(COFFSymbol)
-		if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
+	var ss []byte
+	if f.FileHeader.NumberOfSymbols > 0 {
+		// Get COFF string table, which is located at the end of the COFF symbol table.
+		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
+		var l uint32
+		if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
 			return nil, err
 		}
-		if aux > 0 {
-			aux--
-			continue
+		ss = make([]byte, l)
+		if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
+			return nil, err
 		}
-		var name string
-		if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
-			si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
-			name, _ = getString(ss, si)
-		} else {
-			name = cstring(cs.Name[:])
+
+		// Process COFF symbol table.
+		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
+		aux := uint8(0)
+		for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
+			cs := new(COFFSymbol)
+			if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
+				return nil, err
+			}
+			if aux > 0 {
+				aux--
+				continue
+			}
+			var name string
+			if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
+				si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
+				name, _ = getString(ss, si)
+			} else {
+				name = cstring(cs.Name[:])
+			}
+			aux = cs.NumberOfAuxSymbols
+			s := &Symbol{
+				Name:          name,
+				Value:         cs.Value,
+				SectionNumber: cs.SectionNumber,
+				Type:          cs.Type,
+				StorageClass:  cs.StorageClass,
+			}
+			f.Symbols = append(f.Symbols, s)
 		}
-		aux = cs.NumberOfAuxSymbols
-		s := &Symbol{
-			Name:          name,
-			Value:         cs.Value,
-			SectionNumber: cs.SectionNumber,
-			Type:          cs.Type,
-			StorageClass:  cs.StorageClass,
-		}
-		f.Symbols = append(f.Symbols, s)
 	}
 
 	// Process sections.
