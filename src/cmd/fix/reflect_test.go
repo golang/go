@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file
 
+// Too slow under race detector.
+// +build !race
+
 package main
 
 import (
