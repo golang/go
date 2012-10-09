@@ -247,6 +247,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	m.nextProtoNeg = false
 	m.serverName = ""
 	m.ocspStapling = false
+	m.ticketSupported = false
+	m.sessionTicket = nil
 
 	if len(data) == 0 {
 		// ClientHello is optionally followed by extension data
@@ -478,6 +480,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 	m.nextProtoNeg = false
 	m.nextProtos = nil
 	m.ocspStapling = false
+	m.ticketSupported = false
 
 	if len(data) == 0 {
 		// ServerHello is optionally followed by extension data
@@ -507,14 +510,14 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		switch extension {
 		case extensionNextProtoNeg:
 			m.nextProtoNeg = true
-			d := data
+			d := data[:length]
 			for len(d) > 0 {
 				l := int(d[0])
 				d = d[1:]
 				if l == 0 || l > len(d) {
 					return false
 				}
-				m.nextProtos = append(m.nextProtos, string(d[0:l]))
+				m.nextProtos = append(m.nextProtos, string(d[:l]))
 				d = d[l:]
 			}
 		case extensionStatusRequest:
