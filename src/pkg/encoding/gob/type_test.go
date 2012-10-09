@@ -177,7 +177,10 @@ func TestRegistrationNaming(t *testing.T) {
 		Register(tc.t)
 
 		tct := reflect.TypeOf(tc.t)
-		if ct := nameToConcreteType[tc.name]; ct != tct {
+		registerLock.RLock()
+		ct := nameToConcreteType[tc.name]
+		registerLock.RUnlock()
+		if ct != tct {
 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
 		}
 		// concreteTypeToName is keyed off the base type.

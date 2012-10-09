@@ -441,7 +441,9 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	}
 
 	ut := userType(iv.Elem().Type())
+	registerLock.RLock()
 	name, ok := concreteTypeToName[ut.base]
+	registerLock.RUnlock()
 	if !ok {
 		errorf("type not registered for interface: %s", ut.base)
 	}

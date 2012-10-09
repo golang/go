@@ -717,7 +717,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 		errorf("name too long (%d bytes): %.20q...", len(name), name)
 	}
 	// The concrete type must be registered.
+	registerLock.RLock()
 	typ, ok := nameToConcreteType[name]
+	registerLock.RUnlock()
 	if !ok {
 		errorf("name not registered for interface: %q", name)
 	}
