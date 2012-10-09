@@ -58,5 +58,8 @@ Options new in this version:
 		as displayed in the symbol table printed by "go tool nm".
 	-b
 		Link with race detection libraries.
+	-B value
+		Add a NT_GNU_BUILD_ID note when using ELF.  The value
+		should start with 0x and be an even number of hex digits.
 */
 package documentation

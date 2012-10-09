@@ -143,6 +143,10 @@ main(int argc, char *argv[])
 		val = EARGF(usage());
 		addstrdata(name, val);
 		break;
+	case 'B':
+		val = EARGF(usage());
+		addbuildinfo(val);
+		break;
 	} ARGEND
 
 	USED(argc);

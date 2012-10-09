@@ -979,6 +979,9 @@ int	elfnetbsdsig(ElfShdr*, uint64, uint64);
 int	elfwritenetbsdsig(vlong);
 int	elfopenbsdsig(ElfShdr*, uint64, uint64);
 int	elfwriteopenbsdsig(vlong);
+void	addbuildinfo(char*);
+int	elfbuildinfo(ElfShdr*, uint64, uint64);
+int	elfwritebuildinfo(vlong);
 void	elfdynhash(void);
 ElfPhdr* elfphload(Segment*);
 ElfShdr* elfshbits(Section*);
@@ -988,6 +991,7 @@ void	elfaddverneed(Sym*);
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;
 EXTERN	int	elftextsh;
+EXTERN	int	buildinfolen;
 
 /*
  * Total amount of space to reserve at the start of the file

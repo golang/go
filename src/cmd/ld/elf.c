@@ -31,6 +31,8 @@ struct Elfstring
 static Elfstring elfstr[100];
 static int nelfstr;
 
+static char buildinfo[32];
+
 /*
  Initialize the global variable that describes the ELF header. It will be updated as
  we write section and prog headers.
@@ -451,6 +453,77 @@ elfwriteopenbsdsig(vlong stridx)
 	// Followed by OpenBSD string and version.
 	cwrite(ELF_NOTE_OPENBSD_NAME, ELF_NOTE_OPENBSD_NAMESZ);
 	LPUT(ELF_NOTE_OPENBSD_VERSION);
+
+	return sh->size;
+}
+
+void
+addbuildinfo(char *val)
+{
+	char *ov;
+	int i, b, j;
+
+	if(val[0] != '0' || val[1] != 'x') {
+		fprint(2, "%s: -B argument must start with 0x: %s\n", argv0, val);
+		exits("usage");
+	}
+	ov = val;
+	val += 2;
+	i = 0;
+	while(*val != '\0') {
+		if(val[1] == '\0') {
+			fprint(2, "%s: -B argument must have even number of digits: %s\n", argv0, ov);
+			exits("usage");
+		}
+		b = 0;
+		for(j = 0; j < 2; j++, val++) {
+			b *= 16;
+		  	if(*val >= '0' && *val <= '9')
+				b += *val - '0';
+			else if(*val >= 'a' && *val <= 'f')
+				b += *val - 'a' + 10;
+			else if(*val >= 'A' && *val <= 'F')
+				b += *val - 'A' + 10;
+			else {
+				fprint(2, "%s: -B argument contains invalid hex digit %c: %s\n", argv0, *val, ov);
+				exits("usage");
+			}
+		}
+		if(i >= nelem(buildinfo)) {
+			fprint(2, "%s: -B option too long (max %d digits): %s\n", argv0, (int)nelem(buildinfo), ov);
+			exits("usage");
+		}
+		buildinfo[i++] = b;
+	}
+	buildinfolen = i;
+}
+
+// Build info note
+#define ELF_NOTE_BUILDINFO_NAMESZ	4
+#define ELF_NOTE_BUILDINFO_TAG		3
+#define ELF_NOTE_BUILDINFO_NAME		"GNU\0"
+
+int
+elfbuildinfo(ElfShdr *sh, uint64 startva, uint64 resoff)
+{
+	int n;
+
+	n = ELF_NOTE_BUILDINFO_NAMESZ + rnd(buildinfolen, 4);
+	return elfnote(sh, startva, resoff, n);
+}
+
+int
+elfwritebuildinfo(vlong stridx)
+{
+	ElfShdr *sh;
+
+	sh = elfwritenotehdr(stridx, ELF_NOTE_BUILDINFO_NAMESZ, buildinfolen, ELF_NOTE_BUILDINFO_TAG);
+	if(sh == nil)
+		return 0;
+
+	cwrite(ELF_NOTE_BUILDINFO_NAME, ELF_NOTE_BUILDINFO_NAMESZ);
+	cwrite(buildinfo, buildinfolen);
+	cwrite("\0\0\0", rnd(buildinfolen, 4) - buildinfolen);
 
 	return sh->size;
 }
