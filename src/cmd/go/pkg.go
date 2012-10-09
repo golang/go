@@ -602,7 +602,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 		}
 		stk.push(arg)
 		defer stk.pop()
-		bp, err := build.ImportDir(filepath.Join(gorootSrc, arg), 0)
+		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
 		bp.ImportPath = arg
 		bp.Goroot = true
 		bp.BinDir = gorootBin
@@ -630,7 +630,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 	// referring to io/ioutil rather than a hypothetical import of
 	// "./ioutil".
 	if build.IsLocalImport(arg) {
-		bp, _ := build.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+		bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
 		if bp.ImportPath != "" && bp.ImportPath != "." {
 			arg = bp.ImportPath
 		}
