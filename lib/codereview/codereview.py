@@ -2738,7 +2738,9 @@ class ClientLoginError(urllib2.HTTPError):
 	def __init__(self, url, code, msg, headers, args):
 		urllib2.HTTPError.__init__(self, url, code, msg, headers, None)
 		self.args = args
-		self.reason = args["Error"]
+		# .reason is now a read-only property based on .msg
+		# this means we ignore 'msg', but that seems to work fine.
+		self.msg = args["Error"] 
 
 
 class AbstractRpcServer(object):
@@ -2871,31 +2873,31 @@ class AbstractRpcServer(object):
 			try:
 				auth_token = self._GetAuthToken(credentials[0], credentials[1])
 			except ClientLoginError, e:
-				if e.reason == "BadAuthentication":
+				if e.msg == "BadAuthentication":
 					print >>sys.stderr, "Invalid username or password."
 					continue
-				if e.reason == "CaptchaRequired":
+				if e.msg == "CaptchaRequired":
 					print >>sys.stderr, (
 						"Please go to\n"
 						"https://www.google.com/accounts/DisplayUnlockCaptcha\n"
 						"and verify you are a human.  Then try again.")
 					break
-				if e.reason == "NotVerified":
+				if e.msg == "NotVerified":
 					print >>sys.stderr, "Account not verified."
 					break
-				if e.reason == "TermsNotAgreed":
+				if e.msg == "TermsNotAgreed":
 					print >>sys.stderr, "User has not agreed to TOS."
 					break
-				if e.reason == "AccountDeleted":
+				if e.msg == "AccountDeleted":
 					print >>sys.stderr, "The user account has been deleted."
 					break
-				if e.reason == "AccountDisabled":
+				if e.msg == "AccountDisabled":
 					print >>sys.stderr, "The user account has been disabled."
 					break
-				if e.reason == "ServiceDisabled":
+				if e.msg == "ServiceDisabled":
 					print >>sys.stderr, "The user's access to the service has been disabled."
 					break
-				if e.reason == "ServiceUnavailable":
+				if e.msg == "ServiceUnavailable":
 					print >>sys.stderr, "The service is not available; try again later."
 					break
 				raise
