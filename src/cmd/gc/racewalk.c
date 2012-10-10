@@ -17,12 +17,12 @@
 #include "go.h"
 #include "opnames.h"
 
-//TODO: do not instrument initialization as writes:
+// TODO(dvyukov): do not instrument initialization as writes:
 // a := make([]int, 10)
 
 static void racewalklist(NodeList *l, NodeList **init);
 static void racewalknode(Node **np, NodeList **init, int wr, int skip);
-static void callinstr(Node *n, NodeList **init, int wr, int skip);
+static int callinstr(Node *n, NodeList **init, int wr, int skip);
 static Node* uintptraddr(Node *n);
 static Node* basenod(Node *n);
 
@@ -42,6 +42,9 @@ racewalk(Node *fn)
 		}
 	}
 
+	// TODO(dvyukov): ideally this should be:
+	// racefuncenter(getreturnaddress())
+	// because it's much more costly to obtain from runtime library.
 	nd = mkcall("racefuncenter", T, nil);
 	fn->enter = list(fn->enter, nd);
 	nd = mkcall("racefuncexit", T, nil);
@@ -200,7 +203,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		if(istype(n->left->type, TMAP)) {
 			// crashes on len(m[0]) or len(f())
-			USED(&n1);
+			USED(n1);
 			/*
 			n1 = nod(OADDR, n->left, N);
 			n1 = conv(n1, types[TUNSAFEPTR]);
@@ -350,41 +353,44 @@ ret:
 	*np = n;
 }
 
-static void
+static int
 callinstr(Node *n, NodeList **init, int wr, int skip)
 {
 	Node *f, *b;
 	Type *t, *t1;
-	int class;
+	int class, res;
 
 	//print("callinstr for %N [ %s ] etype=%d class=%d\n",
 	//	  n, opnames[n->op], n->type ? n->type->etype : -1, n->class);
 
 	if(skip || n->type == T || n->type->etype >= TIDEAL)
-		return;
+		return 0;
 	t = n->type;
 	if(n->op == ONAME) {
 		if(n->sym != S) {
 			if(n->sym->name != nil) {
 				if(strncmp(n->sym->name, "_", sizeof("_")-1) == 0)
-					return;
+					return 0;
 				if(strncmp(n->sym->name, "autotmp_", sizeof("autotmp_")-1) == 0)
-					return;
+					return 0;
 				if(strncmp(n->sym->name, "statictmp_", sizeof("statictmp_")-1) == 0)
-					return;
+					return 0;
 			}
 		}
 	}
-	if (t->etype == TSTRUCT) {
+	if(t->etype == TSTRUCT) {
+		res = 0;
 		for(t1=t->type; t1; t1=t1->down) {
 			if(t1->sym && strncmp(t1->sym->name, "_", sizeof("_")-1)) {
 				n = treecopy(n);
 				f = nod(OXDOT, n, newname(t1->sym));
-				typecheck(&f, Erv);
-				callinstr(f, init, wr, 0);
+				if(callinstr(f, init, wr, 0)) {
+					typecheck(&f, Erv);
+					res = 1;
+				}
 			}
 		}
-		return;
+		return res;
 	}
 
 	b = basenod(n);
@@ -399,7 +405,9 @@ callinstr(Node *n, NodeList **init, int wr, int skip)
 		f = mkcall(wr ? "racewrite" : "raceread", T, nil, uintptraddr(n));
 		//typecheck(&f, Etop);
 		*init = list(*init, f);
+		return 1;
 	}
+	return 0;
 }
 
 static Node*
