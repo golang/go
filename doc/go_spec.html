@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 3, 2012",
+	"Subtitle": "Version of October 10, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4726,7 +4726,8 @@ and saved anew but the
 actual function is not invoked.
 Instead, deferred calls are executed in LIFO order
 immediately before the surrounding function returns,
-after the return values, if any, have been evaluated, but before they
+after the return values, if any, have been evaluated and assigned
+to the result parameters, but before they
 are returned to the caller. For instance, if the deferred function is
 a <a href="#Function_literals">function literal</a> and the surrounding
 function has <a href="#Function_types">named result parameters</a> that
