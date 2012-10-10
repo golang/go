@@ -58,6 +58,8 @@ function generateTOC() {
   var toc_items = [];
   $(nav).nextAll('h2, h3').each(function() {
     var node = this;
+    if (node.id == '')
+      node.id = 'tmp_' + toc_items.length;
     var link = $('<a/>').attr('href', '#' + node.id).text($(node).text());
     var item;
     if ($(node).is('h2')) {
