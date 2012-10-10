@@ -647,16 +647,12 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 
 var skipOkay = map[string]bool{
 	"args.go":                 true,
-	"ddd3.go":                 true,
 	"index.go":                true,
 	"linkx.go":                true,
 	"nul1.go":                 true,
 	"rotate.go":               true,
 	"sigchld.go":              true,
 	"sinit.go":                true,
-	"interface/embed1.go":     true,
-	"interface/private.go":    true,
-	"interface/recursive2.go": true,
 	"dwarf/main.go":           true,
 	"dwarf/z1.go":             true,
 	"dwarf/z10.go":            true,
@@ -686,7 +682,6 @@ var skipOkay = map[string]bool{
 	"fixedbugs/bug385_32.go":  true, // arch-specific errors.
 	"fixedbugs/bug385_64.go":  true, // arch-specific errors.
 	"fixedbugs/bug429.go":     true,
-	"fixedbugs/bug437.go":     true,
 	"bugs/bug395.go":          true,
 	"bugs/bug434.go":          true,
 }
