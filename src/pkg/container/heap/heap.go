@@ -79,7 +79,7 @@ func Remove(h Interface, i int) interface{} {
 func up(h Interface, j int) {
 	for {
 		i := (j - 1) / 2 // parent
-		if i == j || h.Less(i, j) {
+		if i == j || !h.Less(j, i) {
 			break
 		}
 		h.Swap(i, j)
@@ -97,7 +97,7 @@ func down(h Interface, i, n int) {
 		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
 			j = j2 // = 2*i + 2  // right child
 		}
-		if h.Less(i, j) {
+		if !h.Less(j, i) {
 			break
 		}
 		h.Swap(i, j)
