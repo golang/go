@@ -163,7 +163,6 @@
 				{{example_html $name $.Examples $.FSet}}
 			{{end}}
 		{{end}}
-		</div>
 	{{else}}  {{/* not a package; is a command */}}
 		{{comment_html .Doc}}
 	{{end}}
@@ -224,7 +223,6 @@
 {{end}}
 
 {{if $.Examples}}
-<script type="text/javascript" src="/doc/play/playground.js"></script>
 <script>
 $(document).ready(function() {
 	'use strict';

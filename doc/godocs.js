@@ -130,6 +130,37 @@ function bindToggleLinks(selector, prefix) {
   });
 }
 
+function setupDropdownPlayground() {
+  if (!$('#page').is('.wide')) {
+    return; // don't show on front page
+  }
+  var button = $('#playgroundButton');
+  var div = $('#playground');
+  var setup = false;
+  button.toggle(function() {
+    button.addClass('active');
+    div.show();
+    if (setup) {
+      return;
+    }
+    setup = true;
+    playground({
+      'codeEl': $('.code', div),
+      'outputEl': $('.output', div),
+      'runEl': $('.run', div),
+      'fmtEl': $('.fmt', div),
+      'shareEl': $('.share', div),
+      'shareRedirect': 'http://play.golang.org/p/'
+    });
+  },
+  function() {
+    button.removeClass('active');
+    div.hide();
+  });
+  button.show();
+  $('#menu').css('min-width', '+=60');
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -139,6 +170,7 @@ $(document).ready(function() {
   bindToggleLinks(".overviewLink", "");
   bindToggleLinks(".examplesLink", "");
   bindToggleLinks(".indexLink", "");
+  setupDropdownPlayground();
 });
 
 })();
