@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 
 // opts is an object with these keys
-// 	codeEl - code editor element
-// 	outputEl - program output element
+//	codeEl - code editor element
+//	outputEl - program output element
 //	runEl - run button element
-// 	fmtEl - fmt button element (optional)
-// 	shareEl - share button element (optional)
-// 	shareURLEl - share URL text input element (optional)
-// 	shareRedirect - base URL to redirect to on share (optional)
+//	fmtEl - fmt button element (optional)
+//	shareEl - share button element (optional)
+//	shareURLEl - share URL text input element (optional)
+//	shareRedirect - base URL to redirect to on share (optional)
+//	toysEl - toys select element (optional)
 //	enableHistory - enable using HTML5 history API (optional)
 function playground(opts) {
 	var code = $(opts['codeEl']);
@@ -222,6 +223,23 @@ function playground(opts) {
 							pushedEmpty = false;
 						}
 					}
+				}
+			});
+		});
+	}
+
+	if (opts['toysEl'] != null) {
+		$(opts['toysEl']).bind('change', function() {
+			var toy = $(this).val();
+			$.ajax("/doc/play/"+toy, {
+				processData: false,
+				type: "GET",
+				complete: function(xhr) {
+					if (xhr.status != 200) {
+						alert("Server error; try again.")
+						return;
+					}
+					setBody(xhr.responseText);
 				}
 			});
 		});
