@@ -554,8 +554,9 @@ type Page struct {
 	Body     []byte
 
 	// filled in by servePage
-	SearchBox bool
-	Version   string
+	SearchBox  bool
+	Playground bool
+	Version    string
 }
 
 func servePage(w http.ResponseWriter, page Page) {
@@ -563,6 +564,7 @@ func servePage(w http.ResponseWriter, page Page) {
 		page.Tabtitle = page.Title
 	}
 	page.SearchBox = *indexEnabled
+	page.Playground = *showPlayground
 	page.Version = runtime.Version()
 	if err := godocHTML.Execute(w, page); err != nil {
 		log.Printf("godocHTML.Execute: %s", err)

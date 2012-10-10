@@ -130,22 +130,22 @@ div#heading a {
 div#topbar {
 	background: #E0EBF5;
 	height: 64px;
+	overflow: hidden;
 }
 
 body {
 	text-align: center;
 }
-div#page,
+div#page > .container,
 div#topbar > .container {
-	clear: both;
 	text-align: left;
 	margin-left: auto;
 	margin-right: auto;
 	padding: 0 20px;
 	width: 900px;
 }
-div#page.wide,
-div#topbar > .wide {
+div#page.wide > .container,
+div#topbar.wide > .container {
 	width: auto;
 }
 div#plusone {
@@ -153,6 +153,7 @@ div#plusone {
 }
 
 div#footer {
+	text-align: center;
 	color: #666;
 	font-size: 14px;
 	margin: 40px 0;
@@ -172,13 +173,19 @@ div#blog .read a {
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 }
+div#playground .buttons a,
 div#menu > a,
 div#menu > input {
 	border: 1px solid #375EAB;
 }
+div#playground .buttons a,
 div#menu > a {
 	color: white;
 	background: #375EAB;
+}
+#playgroundButton.active {
+	background: white;
+	color: #375EAB;
 }
 a#start,
 div#learn .buttons a,
@@ -214,9 +221,11 @@ div#menu > input.inactive {
 
 div.left {
 	float: left;
+	clear: left;
 }
 div.right {
 	float: right;
+	clear: right;
 }
 div.left,
 div.right {
@@ -394,6 +403,7 @@ img.gopher {
 }
 h2 { clear: right; }
 
+/* example and drop-down playground */
 div.play {
 	padding: 0 20px 40px 20px;
 }
@@ -426,6 +436,10 @@ div.play .input textarea {
 	resize: none;
 
 	overflow: hidden;
+}
+div#playground .input textarea {
+	overflow: auto;
+	resize: auto;
 }
 div.play .output {
 	border-top: none !important;
@@ -469,3 +483,60 @@ div.play .buttons a {
 	padding: 10px;
 	cursor: pointer;
 }
+
+/* drop-down playground */
+#playgroundButton,
+div#playground {
+	/* start hidden; revealed by javascript */
+	display: none;
+}
+div#playground {
+	position: absolute;
+	top: 63px;
+	right: 20px;
+	padding: 0 10px 10px 10px;
+	z-index: 1;
+	text-align: left;
+	background: #E0EBF5;
+
+	border: 1px solid #B0BBC5;
+	border-top: none;
+
+	-webkit-border-bottom-left-radius: 5px;
+	-webkit-border-bottom-right-radius: 5px;
+	-moz-border-radius-bottomleft: 5px;
+	-moz-border-radius-bottomright: 5px;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+}
+div#playground .code {
+	width: 520px;
+	height: 200px;
+}
+div#playground .output {
+	height: 100px;
+}
+
+/* always show topbar for large screens */
+@media screen and (min-width: 130ex) and (min-height: 300px) {
+       /* 130ex -> wide enough so that title isn't below buttons */
+
+	div#topbar.wide {
+		position: fixed;
+		z-index: 1;
+		top: 0;
+		width: 100%;
+		height: 63px;
+		border-bottom: 1px solid #B0BBC5;
+	}
+
+	div#page.wide {
+		position: fixed;
+		top: 64px; /* to match topbar */
+		bottom: 0px;
+		overflow: auto;
+		margin-left: auto;
+		margin-right: auto;
+	}
+}
+
