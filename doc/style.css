@@ -136,6 +136,9 @@ div#topbar {
 body {
 	text-align: center;
 }
+div#page {
+	width: 100%;
+}
 div#page > .container,
 div#topbar > .container {
 	text-align: left;
