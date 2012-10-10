@@ -92,8 +92,11 @@ runtime·racefuncexit(void)
 void
 runtime·racemalloc(void *p, uintptr sz, void *pc)
 {
+	// use m->curg because runtime·stackalloc() is called from g0
+	if(m->curg == nil)
+		return;
 	m->racecall = true;
-	runtime∕race·Malloc(g->goid-1, p, sz, pc);
+	runtime∕race·Malloc(m->curg->goid-1, p, sz, pc);
 	m->racecall = false;
 }
 
