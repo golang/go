@@ -848,7 +848,7 @@ var gobTests = []Time{
 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
 	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
-	Time{},                              // nil location
+	{}, // nil location
 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
 }

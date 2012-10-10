@@ -1758,10 +1758,10 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj
 
 	// create shared library
 	osldflags := map[string][]string{
-		"darwin":  []string{"-dynamiclib", "-Wl,-undefined,dynamic_lookup"},
-		"freebsd": []string{"-shared", "-lpthread", "-lm"},
-		"linux":   []string{"-shared", "-lpthread", "-lm"},
-		"windows": []string{"-shared", "-lm", "-mthreads"},
+		"darwin":  {"-dynamiclib", "-Wl,-undefined,dynamic_lookup"},
+		"freebsd": {"-shared", "-lpthread", "-lm"},
+		"linux":   {"-shared", "-lpthread", "-lm"},
+		"windows": {"-shared", "-lm", "-mthreads"},
 	}
 	var cxxlib []string
 	if cxx {

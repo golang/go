@@ -284,8 +284,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			UnknownExtKeyUsage: testUnknownExtKeyUsage,
 
 			BasicConstraintsValid: true,
-			IsCA:                  true,
-			DNSNames:              []string{"test.example.com"},
+			IsCA:     true,
+			DNSNames: []string{"test.example.com"},
 
 			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
 			PermittedDNSDomains: []string{".example.com", "example.com"},
