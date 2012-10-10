@@ -170,7 +170,9 @@ func clean(p *Package) {
 						continue
 					}
 				}
-				os.RemoveAll(filepath.Join(p.Dir, name))
+				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+					errorf("go clean: %v", err)
+				}
 			}
 			continue
 		}
@@ -180,7 +182,7 @@ func clean(p *Package) {
 		}
 
 		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
-			os.Remove(filepath.Join(p.Dir, name))
+			removeFile(filepath.Join(p.Dir, name))
 		}
 	}
 
@@ -189,7 +191,7 @@ func clean(p *Package) {
 			b.showcmd("", "rm -f %s", p.target)
 		}
 		if !cleanN {
-			os.Remove(p.target)
+			removeFile(p.target)
 		}
 	}
 
@@ -202,7 +204,7 @@ func clean(p *Package) {
 				b.showcmd("", "rm -f %s", target)
 			}
 			if !cleanN {
-				os.Remove(target)
+				removeFile(target)
 			}
 		}
 	}
@@ -211,5 +213,13 @@ func clean(p *Package) {
 		for _, p1 := range p.imports {
 			clean(p1)
 		}
+	}
+}
+
+// removeFile tries to remove file f, if error other than file doesn't exist
+// occurs, it will report the error.
+func removeFile(f string) {
+	if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+		errorf("go clean: %v", err)
 	}
 }
