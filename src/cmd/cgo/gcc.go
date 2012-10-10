@@ -764,8 +764,8 @@ func (p *Package) gccCmd() []string {
 		"-o" + gccTmp(),                     // write object to tmp
 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
-		"-c",                                // do not link
-		"-xc",                               // input language is C
+		"-c",  // do not link
+		"-xc", // input language is C
 	}
 	c = append(c, p.GccOptions...)
 	c = append(c, p.gccMachine()...)
