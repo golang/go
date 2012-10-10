@@ -13,16 +13,16 @@ import (
 	"unicode/utf8"
 )
 
-const N = 10000  // make this bigger for a larger (and slower) test
-var data string  // test data for write tests
-var bytes []byte // test data; same as data but as a slice.
+const N = 10000      // make this bigger for a larger (and slower) test
+var data string      // test data for write tests
+var testBytes []byte // test data; same as data but as a slice.
 
 func init() {
-	bytes = make([]byte, N)
+	testBytes = make([]byte, N)
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a' + byte(i%26)
+		testBytes[i] = 'a' + byte(i%26)
 	}
-	data = string(bytes)
+	data = string(testBytes)
 }
 
 // Verify that contents of buf match the string s.
@@ -85,7 +85,7 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 }
 
 func TestNewBuffer(t *testing.T) {
-	buf := NewBuffer(bytes)
+	buf := NewBuffer(testBytes)
 	check(t, "NewBuffer", buf, data)
 }
 
@@ -188,7 +188,7 @@ func TestLargeByteWrites(t *testing.T) {
 		limit = 9
 	}
 	for i := 3; i < limit; i += 3 {
-		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes)
+		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, testBytes)
 		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i))
 	}
 	check(t, "TestLargeByteWrites (3)", &buf, "")
@@ -206,7 +206,7 @@ func TestLargeStringReads(t *testing.T) {
 func TestLargeByteReads(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)))
 	}
 	check(t, "TestLargeByteReads (3)", &buf, "")
@@ -220,7 +220,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 		if i%2 == 0 {
 			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen])
 		} else {
-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen])
+			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, testBytes[0:wlen])
 		}
 
 		rlen := rand.Intn(len(data))
@@ -241,7 +241,7 @@ func TestNil(t *testing.T) {
 func TestReadFrom(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		var b Buffer
 		b.ReadFrom(&buf)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
@@ -251,7 +251,7 @@ func TestReadFrom(t *testing.T) {
 func TestWriteTo(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i])
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		var b Buffer
 		buf.WriteTo(&b)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
