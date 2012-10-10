@@ -449,11 +449,17 @@ func commonPrefix(a, b string) string {
 	return a[0:i]
 }
 
+// stripCommonPrefix removes a common prefix from /*-style comment lines (unless no
+// comment line is indented, all but the first line have some form of space prefix).
+// The prefix is computed using heuristics such that is is likely that the comment
+// contents are nicely laid out after re-printing each line using the printer's
+// current indentation.
+//
 func stripCommonPrefix(lines []string) {
-	if len(lines) < 2 {
+	if len(lines) <= 1 {
 		return // at most one line - nothing to do
 	}
-	// len(lines) >= 2
+	// len(lines) > 1
 
 	// The heuristic in this function tries to handle a few
 	// common patterns of /*-style comments: Comments where
@@ -479,7 +485,7 @@ func stripCommonPrefix(lines []string) {
 		for i, line := range lines[1 : len(lines)-1] {
 			switch {
 			case isBlank(line):
-				lines[1+i] = "" // range starts at line 1
+				lines[1+i] = "" // range starts with lines[1]
 			case first:
 				prefix = commonPrefix(line, line)
 				first = false
@@ -570,9 +576,9 @@ func stripCommonPrefix(lines []string) {
 	}
 
 	// Remove the common prefix from all but the first and empty lines.
-	for i, line := range lines[1:] {
-		if len(line) != 0 {
-			lines[1+i] = line[len(prefix):] // range starts at line 1
+	for i, line := range lines {
+		if i > 0 && line != "" {
+			lines[i] = line[len(prefix):]
 		}
 	}
 }
@@ -612,6 +618,19 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	// for /*-style comments, print line by line and let the
 	// write function take care of the proper indentation
 	lines := split(text)
+
+	// The comment started in the first column but is going
+	// to be indented. For an idempotent result, add indentation
+	// to all lines such that they look like they were indented
+	// before - this will make sure the common prefix computation
+	// is the same independent of how many times formatting is
+	// applied (was issue 1835).
+	if pos.IsValid() && pos.Column == 1 && p.indent > 0 {
+		for i, line := range lines[1:] {
+			lines[1+i] = "   " + line
+		}
+	}
+
 	stripCommonPrefix(lines)
 
 	// write comment lines, separated by formfeed,
@@ -1140,7 +1159,7 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 // ----------------------------------------------------------------------------
 // Public interface
 
-// A Mode value is a set of flags (or 0). They coontrol printing. 
+// A Mode value is a set of flags (or 0). They control printing. 
 type Mode uint
 
 const (

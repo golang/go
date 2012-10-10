@@ -6,7 +6,9 @@ package printer
 
 import (
 	"bytes"
+	"errors"
 	"flag"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -25,33 +27,28 @@ var update = flag.Bool("update", false, "update golden files")
 
 var fset = token.NewFileSet()
 
-func lineString(text []byte, i int) string {
-	i0 := i
-	for i < len(text) && text[i] != '\n' {
-		i++
-	}
-	return string(text[i0:i])
-}
-
 type checkMode uint
 
 const (
 	export checkMode = 1 << iota
 	rawFormat
+	idempotent
 )
 
-func runcheck(t *testing.T, source, golden string, mode checkMode) {
-	// parse source
-	prog, err := parser.ParseFile(fset, source, nil, parser.ParseComments)
+// format parses src, prints the corresponding AST, verifies the resulting
+// src is syntactically correct, and returns the resulting src or an error
+// if any.
+func format(src []byte, mode checkMode) ([]byte, error) {
+	// parse src
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
-		t.Error(err)
-		return
+		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
 
 	// filter exports if necessary
 	if mode&export != 0 {
-		ast.FileExports(prog) // ignore result
-		prog.Comments = nil   // don't print comments that are not in AST
+		ast.FileExports(f) // ignore result
+		f.Comments = nil   // don't print comments that are not in AST
 	}
 
 	// determine printer configuration
@@ -60,17 +57,72 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 		cfg.Mode |= RawFormat
 	}
 
-	// format source
+	// print AST
 	var buf bytes.Buffer
-	if err := cfg.Fprint(&buf, fset, prog); err != nil {
-		t.Error(err)
+	if err := cfg.Fprint(&buf, fset, f); err != nil {
+		return nil, fmt.Errorf("print: %s", err)
 	}
-	res := buf.Bytes()
 
-	// formatted source must be valid
+	// make sure formated output is syntactically correct
+	res := buf.Bytes()
 	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
+	}
+
+	return res, nil
+}
+
+// lineAt returns the line in text starting at offset offs.
+func lineAt(text []byte, offs int) []byte {
+	i := offs
+	for i < len(text) && text[i] != '\n' {
+		i++
+	}
+	return text[offs:i]
+}
+
+// diff compares a and b.
+func diff(aname, bname string, a, b []byte) error {
+	var buf bytes.Buffer // holding long error message
+
+	// compare lengths
+	if len(a) != len(b) {
+		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
+	}
+
+	// compare contents
+	line := 1
+	offs := 1
+	for i := 0; i < len(a) && i < len(b); i++ {
+		ch := a[i]
+		if ch != b[i] {
+			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", aname, line, i-offs+1, lineAt(a, offs))
+			fmt.Fprintf(&buf, "\n%s:%d:%d: %s", bname, line, i-offs+1, lineAt(b, offs))
+			fmt.Fprintf(&buf, "\n\n")
+			break
+		}
+		if ch == '\n' {
+			line++
+			offs = i + 1
+		}
+	}
+
+	if buf.Len() > 0 {
+		return errors.New(buf.String())
+	}
+	return nil
+}
+
+func runcheck(t *testing.T, source, golden string, mode checkMode) {
+	src, err := ioutil.ReadFile(source)
+	if err != nil {
 		t.Error(err)
-		t.Logf("\n%s", res)
+		return
+	}
+
+	res, err := format(src, mode)
+	if err != nil {
+		t.Error(err)
 		return
 	}
 
@@ -89,23 +141,19 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 		return
 	}
 
-	// compare lengths
-	if len(res) != len(gld) {
-		t.Errorf("len = %d, expected %d (= len(%s))", len(res), len(gld), golden)
+	// formatted source and golden must be the same
+	if err := diff(source, golden, res, gld); err != nil {
+		t.Error(err)
+		return
 	}
 
-	// compare contents
-	for i, line, offs := 0, 1, 0; i < len(res) && i < len(gld); i++ {
-		ch := res[i]
-		if ch != gld[i] {
-			t.Errorf("%s:%d:%d: %s", source, line, i-offs+1, lineString(res, offs))
-			t.Errorf("%s:%d:%d: %s", golden, line, i-offs+1, lineString(gld, offs))
-			t.Error()
-			return
-		}
-		if ch == '\n' {
-			line++
-			offs = i + 1
+	if mode&idempotent != 0 {
+		// formatting golden must be idempotent
+		// (This is very difficult to achieve in general and for now
+		// it is only checked for files explicitly marked as such.)
+		res, err = format(gld, mode)
+		if err := diff(golden, fmt.Sprintf("format(%s)", golden), gld, res); err != nil {
+			t.Errorf("golden is not idempotent: %s", err)
 		}
 	}
 }
@@ -142,15 +190,16 @@ type entry struct {
 
 // Use go test -update to create/update the respective golden files.
 var data = []entry{
-	{"empty.input", "empty.golden", 0},
+	{"empty.input", "empty.golden", idempotent},
 	{"comments.input", "comments.golden", 0},
 	{"comments.input", "comments.x", export},
-	{"linebreaks.input", "linebreaks.golden", 0},
-	{"expressions.input", "expressions.golden", 0},
-	{"expressions.input", "expressions.raw", rawFormat},
+	{"comments2.input", "comments2.golden", idempotent},
+	{"linebreaks.input", "linebreaks.golden", idempotent},
+	{"expressions.input", "expressions.golden", idempotent},
+	{"expressions.input", "expressions.raw", rawFormat | idempotent},
 	{"declarations.input", "declarations.golden", 0},
 	{"statements.input", "statements.golden", 0},
-	{"slow.input", "slow.golden", 0},
+	{"slow.input", "slow.golden", idempotent},
 }
 
 func TestFiles(t *testing.T) {
@@ -248,7 +297,7 @@ func testComment(t *testing.T, f *ast.File, srclen int, comment *ast.Comment) {
 	}
 }
 
-// Verify that the printer produces always produces a correct program
+// Verify that the printer produces a correct program
 // even if the position information of comments introducing newlines
 // is incorrect.
 func TestBadComments(t *testing.T) {
@@ -421,21 +470,8 @@ func TestX(t *testing.T) {
 package p
 func _() {}
 `
-	// parse original
-	f, err := parser.ParseFile(fset, "src", src, parser.ParseComments)
+	_, err := format([]byte(src), 0)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-
-	// pretty-print original
-	var buf bytes.Buffer
-	if err = (&Config{Mode: UseSpaces, Tabwidth: 8}).Fprint(&buf, fset, f); err != nil {
-		t.Fatal(err)
-	}
-
-	// parse pretty printed original
-	if _, err := parser.ParseFile(fset, "", buf.Bytes(), 0); err != nil {
-		t.Fatalf("%s\n%s", err, buf.Bytes())
-	}
-
 }
