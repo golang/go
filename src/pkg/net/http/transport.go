@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -816,13 +817,13 @@ func responseIsKeepAlive(res *Response) bool {
 type bodyEOFSignal struct {
 	body     io.ReadCloser
 	fn       func()
-	isClosed bool
+	isClosed uint32 // atomic bool, non-zero if true
 	once     sync.Once
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	n, err = es.body.Read(p)
-	if es.isClosed && n > 0 {
+	if es.closed() && n > 0 {
 		panic("http: unexpected bodyEOFSignal Read after Close; see issue 1725")
 	}
 	if err == io.EOF {
@@ -832,10 +833,10 @@ func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 }
 
 func (es *bodyEOFSignal) Close() (err error) {
-	if es.isClosed {
+	if !es.setClosed() {
+		// already closed
 		return nil
 	}
-	es.isClosed = true
 	err = es.body.Close()
 	if err == nil {
 		es.condfn()
@@ -847,6 +848,14 @@ func (es *bodyEOFSignal) condfn() {
 	if es.fn != nil {
 		es.once.Do(es.fn)
 	}
+}
+
+func (es *bodyEOFSignal) closed() bool {
+	return atomic.LoadUint32(&es.isClosed) != 0
+}
+
+func (es *bodyEOFSignal) setClosed() bool {
+	return atomic.CompareAndSwapUint32(&es.isClosed, 0, 1)
 }
 
 type readFirstCloseBoth struct {
