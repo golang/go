@@ -46,23 +46,12 @@ tree to make sure the changes don't break other packages or programs:
 
 <pre>
 cd $GOROOT/src
-./all.bash
+./all.bash    # On Windows, run all.bat
 </pre>
 
 <p>
-The final line printed by <code>make all</code> should be of the form:
+After running for a while, the command should print "<code>ALL TESTS PASSED</code>".
 </p>
-
-<pre>
-<i>N</i> known bugs; 0 unexpected bugs
-</pre>
-
-<p>
-The value of <i>N</i> varies over time, but the line must
-say &ldquo;<code>0 unexpected bugs</code>&rdquo; and must not
-add &ldquo;<code>test output differs</code>.&rdquo;
-</p>
-
 
 <h2 id="Code_review">Code review</h2>
 
@@ -133,6 +122,8 @@ will be recorded in the <a href="http://code.google.com/p/go/source/list">Mercur
 and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file.
 You can <a href="https://www.google.com/accounts/NewAccount">create a Google Account</a>
 associated with any address where you receive email.
+If you've enabled the two-step verification feature, don't forget to generate an
+application-specific password and use that when prompted for a password.
 </p>
 
 <pre>
@@ -285,8 +276,10 @@ CL created: http://codereview.appspot.com/99999
 </pre>
 
 <p>
-If you need to re-edit the change description,
-run <code>hg change 99999</code>.
+If you need to re-edit the change description, or change the files included in the CL,
+run <code>hg change 99999</code>. Alternatively, you can use <code>hg file 99999 somefile</code>
+to add <code>somefile</code> to CL 99999, and use <code>hg file -d 99999 somefile</code> to remove
+<code>somefile</code> from the CL.
 </p>
 
 <p>
