@@ -249,18 +249,23 @@ var pkgDeps = map[string][]string{
 	"net/mail":      {"L4", "NET", "OS"},
 	"net/textproto": {"L4", "OS", "net"},
 
+	// Support libraries for crypto that aren't L2.
+	"CRYPTO-SUPPORT": {
+		"crypto/subtle",
+	},
+
 	// Core crypto.
 	"crypto/aes":    {"L3"},
 	"crypto/des":    {"L3"},
-	"crypto/hmac":   {"L3"},
+	"crypto/hmac":   {"L3", "CRYPTO-SUPPORT"},
 	"crypto/md5":    {"L3"},
 	"crypto/rc4":    {"L3"},
 	"crypto/sha1":   {"L3"},
 	"crypto/sha256": {"L3"},
 	"crypto/sha512": {"L3"},
-	"crypto/subtle": {"L3"},
 
 	"CRYPTO": {
+		"CRYPTO-SUPPORT",
 		"crypto/aes",
 		"crypto/des",
 		"crypto/hmac",
@@ -269,7 +274,6 @@ var pkgDeps = map[string][]string{
 		"crypto/sha1",
 		"crypto/sha256",
 		"crypto/sha512",
-		"crypto/subtle",
 	},
 
 	// Random byte, number generation.

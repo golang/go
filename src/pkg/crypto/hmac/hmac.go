@@ -2,13 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package hmac implements the Keyed-Hash Message Authentication Code (HMAC) as
-// defined in U.S. Federal Information Processing Standards Publication 198.
-// An HMAC is a cryptographic hash that uses a key to sign a message.
-// The receiver verifies the hash by recomputing it using the same key.
+/*
+Package hmac implements the Keyed-Hash Message Authentication Code (HMAC) as
+defined in U.S. Federal Information Processing Standards Publication 198.
+An HMAC is a cryptographic hash that uses a key to sign a message.
+The receiver verifies the hash by recomputing it using the same key.
+
+Receivers should be careful to use Equal to compare MACs in order to avoid
+timing side-channels:
+
+	// CheckMAC returns true if messageMAC is a valid HMAC tag for message.
+	func CheckMAC(message, messageMAC, key []byte) bool {
+		mac := hmac.New(sha256.New, key)
+		mac.Write(message)
+		expectedMAC := mac.Sum(nil)
+		return hmac.Equal(messageMAC, expectedMAC)
+	}
+*/
 package hmac
 
 import (
+	"crypto/subtle"
 	"hash"
 )
 
@@ -57,7 +71,7 @@ func (h *hmac) BlockSize() int { return h.blocksize }
 func (h *hmac) Reset() {
 	h.inner.Reset()
 	h.tmpPad(0x36)
-	h.inner.Write(h.tmp[0:h.blocksize])
+	h.inner.Write(h.tmp[:h.blocksize])
 }
 
 // New returns a new HMAC hash using the given hash.Hash type and key.
@@ -77,4 +91,12 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 	copy(hm.key, key)
 	hm.Reset()
 	return hm
+}
+
+// Equal compares two MACs for equality without leaking timing information.
+func Equal(mac1, mac2 []byte) bool {
+	// We don't have to be constant time if the lengths of the MACs are
+	// different as that suggests that a completely different hash function
+	// was used.
+	return len(mac1) == len(mac2) && subtle.ConstantTimeCompare(mac1, mac2) == 1
 }
