@@ -1099,6 +1099,22 @@ analysis</em> recognizes some cases when such variables will not
 live past the return from the function and can reside on the stack.
 </p>
 
+<h3 id="Why_does_my_Go_process_use_so_much_virtual_memory">
+Why does my Go process use so much virtual memory?</h3>
+
+<p>
+The Go memory allocator reserves a large region of virtual memory as an arena
+for allocations. This virtual memory is local to the specific Go process; the
+reservation does not deprive other processes of memory.
+</p>
+
+<p>
+To find the amount of actual memory allocated to a Go process, use the Unix
+<code>top</code> command and consult the <code>RES</code> (Linux) or
+<code>RSIZE</code> (Mac OS X) columns.
+<!-- TODO(adg): find out how this works on Windows -->
+</p>
+
 <h2 id="Concurrency">Concurrency</h2>
 
 <h3 id="What_operations_are_atomic_What_about_mutexes">
