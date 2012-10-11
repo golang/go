@@ -491,3 +491,22 @@ func TestHMAC(t *testing.T) {
 		}
 	}
 }
+
+func TestEqual(t *testing.T) {
+	a := []byte("test")
+	b := []byte("test1")
+	c := []byte("test2")
+
+	if !Equal(b, b) {
+		t.Error("Equal failed with equal arguments")
+	}
+	if Equal(a, b) {
+		t.Error("Equal accepted a prefix of the second argument")
+	}
+	if Equal(b, a) {
+		t.Error("Equal accepted a prefix of the first argument")
+	}
+	if Equal(b, c) {
+		t.Error("Equal accepted unequal slices")
+	}
+}
