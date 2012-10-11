@@ -46,7 +46,7 @@ $ cd gowiki
 </pre>
 
 <p>
-Create a file named <code>wiki.go</code>, open it in your favorite editor, and 
+Create a file named <code>wiki.go</code>, open it in your favorite editor, and
 add the following lines:
 </p>
 
@@ -60,8 +60,8 @@ import (
 </pre>
 
 <p>
-We import the <code>fmt</code> and <code>ioutil</code> packages from the Go 
-standard library. Later, as we implement additional functionality, we will 
+We import the <code>fmt</code> and <code>ioutil</code> packages from the Go
+standard library. Later, as we implement additional functionality, we will
 add more packages to this <code>import</code> declaration.
 </p>
 
@@ -77,7 +77,7 @@ the title and body.
 {{code "doc/articles/wiki/part1.go" `/^type Page/` `/}/`}}
 
 <p>
-The type <code>[]byte</code> means "a <code>byte</code> slice". 
+The type <code>[]byte</code> means "a <code>byte</code> slice".
 (See <a href="/doc/articles/slices_usage_and_internals.html">Slices: usage and
 internals</a> for more on slices.)
 The <code>Body</code> element is a <code>[]byte</code> rather than
@@ -86,8 +86,8 @@ libraries we will use, as you'll see below.
 </p>
 
 <p>
-The <code>Page</code> struct describes how page data will be stored in memory. 
-But what about persistent storage? We can address that by creating a 
+The <code>Page</code> struct describes how page data will be stored in memory.
+But what about persistent storage? We can address that by creating a
 <code>save</code> method on <code>Page</code>:
 </p>
 
@@ -96,11 +96,11 @@ But what about persistent storage? We can address that by creating a
 <p>
 This method's signature reads: "This is a method named <code>save</code> that
 takes as its receiver <code>p</code>, a pointer to <code>Page</code> . It takes
-no parameters, and returns a value of type <code>error</code>." 
+no parameters, and returns a value of type <code>error</code>."
 </p>
 
 <p>
-This method will save the <code>Page</code>'s <code>Body</code> to a text 
+This method will save the <code>Page</code>'s <code>Body</code> to a text
 file. For simplicity, we will use the <code>Title</code> as the file name.
 </p>
 
@@ -110,35 +110,37 @@ that is the return type of <code>WriteFile</code> (a standard library function
 that writes a byte slice to a file).  The <code>save</code> method returns the
 error value, to let the application handle it should anything go wrong while
 writing the file.  If all goes well, <code>Page.save()</code> will return
-<code>nil</code> (the zero-value for pointers, interfaces, and some other 
+<code>nil</code> (the zero-value for pointers, interfaces, and some other
 types).
 </p>
 
 <p>
-The octal integer constant <code>0600</code>, passed as the third parameter to
+The octal integer literal <code>0600</code>, passed as the third parameter to
 <code>WriteFile</code>, indicates that the file should be created with
 read-write permissions for the current user only. (See the Unix man page
 <code>open(2)</code> for details.)
 </p>
 
 <p>
-We will want to load pages, too:
+In addition to saving pages, we will want to load pages, too:
 </p>
 
 {{code "doc/articles/wiki/part1-noerror.go" `/^func loadPage/` `/^}/`}}
 
 <p>
 The function <code>loadPage</code> constructs the file name from
-<code>Title</code>, reads the file's contents into a new
-<code>Page</code>, and returns a pointer to that new <code>page</code>.
+the title parameter, reads the file's contents into a new
+variable <code>body</code>, and returns two values: a pointer to a
+<code>Page</code> literal constructed with the proper title and body
+values and <code>nil</code> for the error value.
 </p>
 
 <p>
-Functions can return multiple values. The standard library function 
-<code>io.ReadFile</code> returns <code>[]byte</code> and <code>error</code>. 
+Functions can return multiple values. The standard library function
+<code>io.ReadFile</code> returns <code>[]byte</code> and <code>error</code>.
 In <code>loadPage</code>, error isn't being handled yet; the "blank identifier"
 represented by the underscore (<code>_</code>) symbol is used to throw away the
-error return value (in essence, assigning the value to nothing). 
+error return value (in essence, assigning the value to nothing).
 </p>
 
 <p>
@@ -152,7 +154,7 @@ function to return <code>*Page</code> and <code>error</code>.
 <p>
 Callers of this function can now check the second parameter; if it is
 <code>nil</code> then it has successfully loaded a Page. If not, it will be an
-<code>error</code> that can be handled by the caller (see the 
+<code>error</code> that can be handled by the caller (see the
 <a href="/ref/spec#Errors">language specification</a> for details).
 </p>
 
@@ -172,7 +174,7 @@ printed to the screen.
 </p>
 
 <p>
-You can compile and run the program like this: 
+You can compile and run the program like this:
 </p>
 
 <pre>
@@ -182,7 +184,7 @@ This is a sample page.
 </pre>
 
 <p>
-(If you're using Windows you must type "<code>wiki</code>" without the 
+(If you're using Windows you must type "<code>wiki</code>" without the
 "<code>./</code>" to run the program.)
 </p>
 
@@ -199,10 +201,10 @@ Here's a full working example of a simple web server:
 {{code "doc/articles/wiki/http-sample.go"}}
 
 <p>
-The <code>main</code> function begins with a call to 
-<code>http.HandleFunc</code>, which tells the <code>http</code> package to 
-handle all requests to the web root (<code>"/"</code>) with 
-<code>handler</code>. 
+The <code>main</code> function begins with a call to
+<code>http.HandleFunc</code>, which tells the <code>http</code> package to
+handle all requests to the web root (<code>"/"</code>) with
+<code>handler</code>.
 </p>
 
 <p>
@@ -219,20 +221,20 @@ its arguments.
 </p>
 
 <p>
-An <code>http.ResponseWriter</code> value assembles the HTTP server's response; by writing 
+An <code>http.ResponseWriter</code> value assembles the HTTP server's response; by writing
 to it, we send data to the HTTP client.
 </p>
 
 <p>
 An <code>http.Request</code> is a data structure that represents the client
-HTTP request.  The string <code>r.URL.Path</code> is the path component
-of the request URL.  The trailing <code>[1:]</code> means
-"create a sub-slice of <code>Path</code> from the 1st character to the end." 
+HTTP request. <code>r.URL.Path</code> is the path component
+of the request URL. The trailing <code>[1:]</code> means
+"create a sub-slice of <code>Path</code> from the 1st character to the end."
 This drops the leading "/" from the path name.
 </p>
 
 <p>
-If you run this program and access the URL: 
+If you run this program and access the URL:
 </p>
 <pre>http://localhost:8080/monkeys</pre>
 <p>
@@ -249,13 +251,14 @@ To use the <code>net/http</code> package, it must be imported:
 <pre>
 import (
 	"fmt"
-	<b>"net/http"</b>
 	"io/ioutil"
+	<b>"net/http"</b>
 )
 </pre>
 
 <p>
-Let's create a handler to view a wiki page: 
+Let's create a handler, <code>viewHandler</code> that will allow users to
+view a wiki page. It will handle URLs prefixed with "/view/".
 </p>
 
 {{code "doc/articles/wiki/part2.go" `/^const lenPath/`}}
@@ -264,28 +267,28 @@ Let's create a handler to view a wiki page:
 
 <p>
 First, this function extracts the page title from <code>r.URL.Path</code>,
-the path component of the request URL. The global constant 
+the path component of the request URL. The global constant
 <code>lenPath</code> is the length of the leading <code>"/view/"</code>
 component of the request path.
-The <code>Path</code> is re-sliced with <code>[lenPath:]</code> to drop the 
-first 6 characters of the string. This is because the path will invariably 
-begin with <code>"/view/"</code>, which is not part of the page title.
+The <code>Path</code> is re-sliced with <code>[lenPath:]</code> to drop the
+first 6 characters of the string. This is because the path will invariably
+begin with <code>"/view/"</code>, which is not part of the page's title.
 </p>
 
 <p>
-The function then loads the page data, formats the page with a string of simple 
-HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>. 
+The function then loads the page data, formats the page with a string of simple
+HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
 </p>
 
 <p>
-Again, note the use of <code>_</code> to ignore the <code>error</code> 
+Again, note the use of <code>_</code> to ignore the <code>error</code>
 return value from <code>loadPage</code>. This is done here for simplicity
 and generally considered bad practice. We will attend to this later.
 </p>
 
 <p>
-To use this handler, we create a <code>main</code> function that
-initializes <code>http</code> using the <code>viewHandler</code> to handle
+To use this handler, we rewrite our <code>main</code> function to
+initialize <code>http</code> using the <code>viewHandler</code> to handle
 any requests under the path <code>/view/</code>.
 </p>
 
@@ -311,6 +314,11 @@ $ ./wiki
 </pre>
 
 <p>
+(If you're using Windows you must type "<code>wiki</code>" without the
+"<code>./</code>" to run the program.)
+</p>
+
+<p>
 With this web server running, a visit to <code><a
 href="http://localhost:8080/view/test">http://localhost:8080/view/test</a></code>
 should show a page titled "test" containing the words "Hello world".
@@ -326,14 +334,14 @@ form.
 </p>
 
 <p>
-First, we add them to <code>main()</code>: 
+First, we add them to <code>main()</code>:
 </p>
 
 {{code "doc/articles/wiki/final-noclosure.go" `/^func main/` `/^}/`}}
 
 <p>
-The function <code>editHandler</code> loads the page 
-(or, if it doesn't exist, create an empty <code>Page</code> struct), 
+The function <code>editHandler</code> loads the page
+(or, if it doesn't exist, create an empty <code>Page</code> struct),
 and displays an HTML form.
 </p>
 
@@ -343,7 +351,7 @@ and displays an HTML form.
 This function will work fine, but all that hard-coded HTML is ugly.
 Of course, there is a better way.
 </p>
- 
+
 <h2>The <code>html/template</code> package</h2>
 
 <p>
@@ -354,20 +362,20 @@ underlying Go code.
 </p>
 
 <p>
-First, we must add <code>html/template</code> to the list of imports:
+First, we must add <code>html/template</code> to the list of imports. We
+also won't be using <code>fmt</code> anymore, so we have to remove that.
 </p>
 
 <pre>
 import (
 	<b>"html/template"</b>
-	"http"
 	"io/ioutil"
-	"os"
+	"net/http"
 )
 </pre>
 
 <p>
-Let's create a template file containing the HTML form. 
+Let's create a template file containing the HTML form.
 Open a new file named <code>edit.html</code>, and add the following lines:
 </p>
 
@@ -381,8 +389,8 @@ HTML:
 {{code "doc/articles/wiki/final-noerror.go" `/^func editHandler/` `/^}/`}}
 
 <p>
-The function <code>template.ParseFiles</code> will read the contents of 
-<code>edit.html</code> and return a <code>*template.Template</code>. 
+The function <code>template.ParseFiles</code> will read the contents of
+<code>edit.html</code> and return a <code>*template.Template</code>.
 </p>
 
 <p>
@@ -405,12 +413,7 @@ HTML.
 </p>
 
 <p>
-Now that we've removed the <code>fmt.Fprintf</code> statement, we can remove
-<code>"fmt"</code> from the <code>import</code> list.
-</p>
-
-<p>
-While we're working with templates, let's create a template for our
+Since we're working with templates now, let's create a template for our
 <code>viewHandler</code> called <code>view.html</code>:
 </p>
 
@@ -428,28 +431,31 @@ handlers. Let's remove this duplication by moving the templating code
 to its own function:
 </p>
 
+{{code "doc/articles/wiki/final-template.go" `/^func renderTemplate/` `/^}/`}}
 {{code "doc/articles/wiki/final-template.go" `/^func viewHandler/` `/^}/`}}
 {{code "doc/articles/wiki/final-template.go" `/^func editHandler/` `/^}/`}}
-{{code "doc/articles/wiki/final-template.go" `/^func renderTemplate/` `/^}/`}}
 
 <p>
-The handlers are now shorter and simpler. 
+If we comment out the registration of our unimplemented save handler in
+<code>main</code>, we can once again build and test our program.
+<a href="part3.go">Click here to view the code we've written so far.</a>
 </p>
 
 <h2>Handling non-existent pages</h2>
 
 <p>
 What if you visit <a href="http://localhost:8080/view/APageThatDoesntExist">
-<code>/view/APageThatDoesntExist</code></a>? The program will crash. This is 
-because it ignores the error return value from <code>loadPage</code>. Instead,
-if the requested Page doesn't exist, it should redirect the client to the edit
-Page so the content may be created:
+<code>/view/APageThatDoesntExist</code></a>? You'll see a page containing
+HTML. This is because it ignores the error return value from
+<code>loadPage</code> and continues to try and fill out the template
+with no data. Instead, if the requested Page doesn't exist, it should
+redirect the client to the edit Page so the content may be created:
 </p>
 
-{{code "doc/articles/wiki/final-noclosure.go" `/^func viewHandler/` `/^}/`}}
+{{code "doc/articles/wiki/part3-errorhandling.go" `/^func viewHandler/` `/^}/`}}
 
 <p>
-The <code>http.Redirect</code> function adds an HTTP status code of 
+The <code>http.Redirect</code> function adds an HTTP status code of
 <code>http.StatusFound</code> (302) and a <code>Location</code>
 header to the HTTP response.
 </p>
@@ -457,22 +463,24 @@ header to the HTTP response.
 <h2>Saving Pages</h2>
 
 <p>
-The function <code>saveHandler</code> will handle the form submission. 
+The function <code>saveHandler</code> will handle the submission of forms
+located on the edit pages. After uncommenting the related line in
+<code>main</code>, let's implement the the handler:
 </p>
 
 {{code "doc/articles/wiki/final-template.go" `/^func saveHandler/` `/^}/`}}
 
 <p>
-The page title (provided in the URL) and the form's only field, 
-<code>Body</code>, are stored in a new <code>Page</code>. 
+The page title (provided in the URL) and the form's only field,
+<code>Body</code>, are stored in a new <code>Page</code>.
 The <code>save()</code> method is then called to write the data to a file,
 and the client is redirected to the <code>/view/</code> page.
 </p>
 
 <p>
 The value returned by <code>FormValue</code> is of type <code>string</code>.
-We must convert that value to <code>[]byte</code> before it will fit into 
-the <code>Page</code> struct.  We use <code>[]byte(body)</code> to perform
+We must convert that value to <code>[]byte</code> before it will fit into
+the <code>Page</code> struct. We use <code>[]byte(body)</code> to perform
 the conversion.
 </p>
 
@@ -481,9 +489,9 @@ the conversion.
 <p>
 There are several places in our program where errors are being ignored.  This
 is bad practice, not least because when an error does occur the program will
-crash.  A better solution is to handle the errors and return an error message
-to the user. That way if something does go wrong, the server will continue to
-function and the user will be notified.
+have unintended behavior. A better solution is to handle the errors and return
+an error message to the user. That way if something does go wrong, the server
+will function exactly how we want and the user can be notified.
 </p>
 
 <p>
@@ -493,7 +501,7 @@ First, let's handle the errors in <code>renderTemplate</code>:
 {{code "doc/articles/wiki/final-parsetemplate.go" `/^func renderTemplate/` `/^}/`}}
 
 <p>
-The <code>http.Error</code> function sends a specified HTTP response code 
+The <code>http.Error</code> function sends a specified HTTP response code
 (in this case "Internal Server Error") and error message.
 Already the decision to put this in a separate function is paying off.
 </p>
@@ -502,18 +510,18 @@ Already the decision to put this in a separate function is paying off.
 Now let's fix up <code>saveHandler</code>:
 </p>
 
-{{code "doc/articles/wiki/final-noclosure.go" `/^func saveHandler/` `/^}/`}}
+{{code "doc/articles/wiki/part3-errorhandling.go" `/^func saveHandler/` `/^}/`}}
 
 <p>
-Any errors that occur during <code>p.save()</code> will be reported 
+Any errors that occur during <code>p.save()</code> will be reported
 to the user.
 </p>
 
 <h2>Template caching</h2>
 
 <p>
-There is an inefficiency in this code: <code>renderTemplate</code> calls 
-<code>ParseFiles</code> every time a page is rendered. 
+There is an inefficiency in this code: <code>renderTemplate</code> calls
+<code>ParseFiles</code> every time a page is rendered.
 A better approach would be to call <code>ParseFiles</code> once at program
 initialization, parsing all templates into a single <code>*Template</code>.
 Then we can use the
@@ -536,10 +544,10 @@ can't be loaded the only sensible thing to do is exit the program.
 </p>
 
 <p>
-A <code>for</code> loop is used with a <code>range</code> statement to iterate 
-over an array constant containing the names of the templates we want parsed.
-If we were to add more templates to our program, we would add their names to 
-that array.
+A <code>for</code> loop is used with a <code>range</code> statement
+to iterate over an array constant containing the names of the templates we want
+parsed. If we were to add more templates to our program, we would add their
+names to that array.
 </p>
 
 <p>
@@ -571,25 +579,27 @@ Then we can create a global variable to store our validation regexp:
 {{code "doc/articles/wiki/final-noclosure.go" `/^var titleValidator/`}}
 
 <p>
-The function <code>regexp.MustCompile</code> will parse and compile the 
-regular expression, and return a <code>regexp.Regexp</code>. 
+The function <code>regexp.MustCompile</code> will parse and compile the
+regular expression, and return a <code>regexp.Regexp</code>.
 <code>MustCompile</code> is distinct from <code>Compile</code> in that it will
 panic if the expression compilation fails, while <code>Compile</code> returns
-an <code>error</code> as a second parameter. 
+an <code>error</code> as a second parameter.
 </p>
 
 <p>
-Now, let's write a function that extracts the title string from the request 
-URL, and tests it against our <code>TitleValidator</code> expression:
+Now, let's write a function, <code>getTitle</code>, that extracts the title
+string from the request URL, and tests it against our
+<code>TitleValidator</code> expression:
 </p>
 
 {{code "doc/articles/wiki/final-noclosure.go" `/func getTitle/` `/^}/`}}
 
 <p>
 If the title is valid, it will be returned along with a <code>nil</code>
-error value.  If the title is invalid, the function will write a 
-"404 Not Found" error to the HTTP connection, and return an error to the 
-handler. 
+error value. If the title is invalid, the function will write a
+"404 Not Found" error to the HTTP connection, and return an error to the
+handler. To create a new error, we have to import the <code>errors</code>
+package.
 </p>
 
 <p>
@@ -604,10 +614,10 @@ Let's put a call to <code>getTitle</code> in each of the handlers:
 
 <p>
 Catching the error condition in each handler introduces a lot of repeated code.
-What if we could wrap each of the handlers in a function that does this 
-validation and error checking? Go's 
-<a href="/ref/spec#Function_declarations">function 
-literals</a> provide a powerful means of abstracting functionality 
+What if we could wrap each of the handlers in a function that does this
+validation and error checking? Go's
+<a href="/ref/spec#Function_declarations">function
+literals</a> provide a powerful means of abstracting functionality
 that can help us here.
 </p>
 
@@ -654,19 +664,19 @@ Now we can take the code from <code>getTitle</code> and use it here
 <p>
 The closure returned by <code>makeHandler</code> is a function that takes
 an <code>http.ResponseWriter</code> and <code>http.Request</code> (in other
-words, an <code>http.HandlerFunc</code>). 
+words, an <code>http.HandlerFunc</code>).
 The closure extracts the <code>title</code> from the request path, and
 validates it with the <code>TitleValidator</code> regexp. If the
 <code>title</code> is invalid, an error will be written to the
-<code>ResponseWriter</code> using the <code>http.NotFound</code> function. 
+<code>ResponseWriter</code> using the <code>http.NotFound</code> function.
 If the <code>title</code> is valid, the enclosed handler function
 <code>fn</code> will be called with the <code>ResponseWriter</code>,
 <code>Request</code>, and <code>title</code> as arguments.
 </p>
 
 <p>
-Now we can wrap the handler functions with <code>makeHandler</code> in 
-<code>main</code>, before they are registered with the <code>http</code> 
+Now we can wrap the handler functions with <code>makeHandler</code> in
+<code>main</code>, before they are registered with the <code>http</code>
 package:
 </p>
 
@@ -698,7 +708,7 @@ $ ./wiki
 
 <p>
 Visiting <a href="http://localhost:8080/view/ANewPage">http://localhost:8080/view/ANewPage</a>
-should present you with the page edit form. You should then be able to 
+should present you with the page edit form. You should then be able to
 enter some text, click 'Save', and be redirected to the newly created page.
 </p>
 
@@ -710,11 +720,11 @@ Here are some simple tasks you might want to tackle on your own:
 
 <ul>
 <li>Store templates in <code>tmpl/</code> and page data in <code>data/</code>.
-<li>Add a handler to make the web root redirect to 
+<li>Add a handler to make the web root redirect to
 	<code>/view/FrontPage</code>.</li>
 <li>Spruce up the page templates by making them valid HTML and adding some
 	CSS rules.</li>
-<li>Implement inter-page linking by converting instances of 
+<li>Implement inter-page linking by converting instances of
 	<code>[PageName]</code> to <br>
 	<code>&lt;a href="/view/PageName"&gt;PageName&lt;/a&gt;</code>.
 	(hint: you could use <code>regexp.ReplaceAllFunc</code> to do this)
