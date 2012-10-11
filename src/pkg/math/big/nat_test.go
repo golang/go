@@ -409,10 +409,46 @@ func TestScanPi(t *testing.T) {
 	}
 }
 
+func TestScanPiParallel(t *testing.T) {
+	const n = 2
+	c := make(chan int)
+	for i := 0; i < n; i++ {
+		go func() {
+			TestScanPi(t)
+			c <- 0
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-c
+	}
+}
+
 func BenchmarkScanPi(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x nat
 		x.scan(strings.NewReader(pi), 10)
+	}
+}
+
+func BenchmarkStringPiParallel(b *testing.B) {
+	var x nat
+	x, _, _ = x.scan(strings.NewReader(pi), 0)
+	if x.decimalString() != pi {
+		panic("benchmark incorrect: conversion failed")
+	}
+	n := runtime.GOMAXPROCS(0)
+	m := b.N / n // n*m <= b.N due to flooring, but the error is neglibible (n is not very large)
+	c := make(chan int, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			for j := 0; j < m; j++ {
+				x.decimalString()
+			}
+			c <- 0
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-c
 	}
 }
 
@@ -516,7 +552,7 @@ func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
 func LeafSizeHelper(b *testing.B, base Word, size int) {
 	b.StopTimer()
 	originalLeafSize := leafSize
-	resetTable(cacheBase10[:])
+	resetTable(cacheBase10.table[:])
 	leafSize = size
 	b.StartTimer()
 
@@ -533,7 +569,7 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
 	}
 
 	b.StopTimer()
-	resetTable(cacheBase10[:])
+	resetTable(cacheBase10.table[:])
 	leafSize = originalLeafSize
 	b.StartTimer()
 }

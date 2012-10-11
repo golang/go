@@ -920,8 +920,10 @@ type divisor struct {
 	ndigits int // digit length of divisor in terms of output base digits
 }
 
-var cacheBase10 [64]divisor // cached divisors for base 10
-var cacheLock sync.Mutex    // protects cacheBase10
+var cacheBase10 struct {
+	sync.Mutex
+	table [64]divisor // cached divisors for base 10
+}
 
 // expWW computes x**y
 func (z nat) expWW(x, y Word) nat {
@@ -937,34 +939,28 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 
 	// determine k where (bb**leafSize)**(2**k) >= sqrt(x)
 	k := 1
-	for words := leafSize; words < m>>1 && k < len(cacheBase10); words <<= 1 {
+	for words := leafSize; words < m>>1 && k < len(cacheBase10.table); words <<= 1 {
 		k++
 	}
 
-	// create new table of divisors or extend and reuse existing table as appropriate
-	var table []divisor
-	var cached bool
-	switch b {
-	case 10:
-		table = cacheBase10[0:k] // reuse old table for this conversion
-		cached = true
-	default:
-		table = make([]divisor, k) // new table for this conversion
+	// reuse and extend existing table of divisors or create new table as appropriate
+	var table []divisor // for b == 10, table overlaps with cacheBase10.table
+	if b == 10 {
+		cacheBase10.Lock()
+		table = cacheBase10.table[0:k] // reuse old table for this conversion
+	} else {
+		table = make([]divisor, k) // create new table for this conversion
 	}
 
 	// extend table
 	if table[k-1].ndigits == 0 {
-		if cached {
-			cacheLock.Lock() // begin critical section
-		}
-
 		// add new entries as needed
 		var larger nat
 		for i := 0; i < k; i++ {
 			if table[i].ndigits == 0 {
 				if i == 0 {
-					table[i].bbb = nat(nil).expWW(bb, Word(leafSize))
-					table[i].ndigits = ndigits * leafSize
+					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
+					table[0].ndigits = ndigits * leafSize
 				} else {
 					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
 					table[i].ndigits = 2 * table[i-1].ndigits
@@ -980,10 +976,10 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 				table[i].nbits = table[i].bbb.bitLen()
 			}
 		}
+	}
 
-		if cached {
-			cacheLock.Unlock() // end critical section
-		}
+	if b == 10 {
+		cacheBase10.Unlock()
 	}
 
 	return table
