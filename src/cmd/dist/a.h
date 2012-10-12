@@ -150,3 +150,4 @@ int	xstrlen(char*);
 char*	xstrrchr(char*, int);
 char*	xstrstr(char*, char*);
 char*	xworkdir(void);
+int	xsamefile(char*, char*);

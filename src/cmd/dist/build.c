@@ -1564,7 +1564,7 @@ cmdbanner(int argc, char **argv)
 				"Read and run ./sudo.bash to install the debuggers.\n");
 	}
 
-	if(!streq(goroot_final, goroot)) {
+	if(!xsamefile(goroot_final, goroot)) {
 		xprintf("\n"
 			"The binaries expect %s to be copied or moved to %s\n",
 			goroot, goroot_final);
