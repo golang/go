@@ -5,6 +5,7 @@
 package strings_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -83,6 +84,28 @@ func TestReaderAt(t *testing.T) {
 		}
 		if fmt.Sprintf("%v", err) != fmt.Sprintf("%v", tt.wanterr) {
 			t.Errorf("%d. got error = %v; want %v", i, err, tt.wanterr)
+		}
+	}
+}
+
+func TestWriteTo(t *testing.T) {
+	const str = "0123456789"
+	for i := 0; i < len(str); i++ {
+		s := str[i:]
+		r := strings.NewReader(s)
+		var b bytes.Buffer
+		n, err := r.WriteTo(&b)
+		if expect := int64(len(s)); n != expect {
+			t.Errorf("got %v; want %v", n, expect)
+		}
+		if err != nil {
+			t.Errorf("got error = %v; want nil", err)
+		}
+		if b.String() != s {
+			t.Errorf("got string %q; want %q", b.String(), s)
+		}
+		if r.Len() != 0 {
+			t.Errorf("reader contains %v bytes; want 0", r.Len())
 		}
 	}
 }
