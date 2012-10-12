@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the io.Reader, io.ReaderAt, io.Seeker,
+// A Reader implements the io.Reader, io.ReaderAt, io.WriterTo, io.Seeker,
 // io.ByteScanner, and io.RuneScanner interfaces by reading from
 // a byte slice.
 // Unlike a Buffer, a Reader is read-only and supports seeking.
@@ -119,6 +119,25 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	}
 	r.i = int(abs)
 	return abs, nil
+}
+
+// WriteTo implements the io.WriterTo interface.
+func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	r.prevRune = -1
+	if r.i >= len(r.s) {
+		return 0, io.EOF
+	}
+	b := r.s[r.i:]
+	m, err := w.Write(b)
+	if m > len(b) {
+		panic("bytes.Reader.WriteTo: invalid Write count")
+	}
+	r.i += m
+	n = int64(m)
+	if m != len(b) && err == nil {
+		err = io.ErrShortWrite
+	}
+	return
 }
 
 // NewReader returns a new Reader reading from b.

@@ -86,3 +86,24 @@ func TestReaderAt(t *testing.T) {
 		}
 	}
 }
+
+func TestReaderWriteTo(t *testing.T) {
+	for i := 3; i < 30; i += 3 {
+		s := data[:len(data)/i]
+		r := NewReader(testBytes[:len(testBytes)/i])
+		var b Buffer
+		n, err := r.WriteTo(&b)
+		if expect := int64(len(s)); n != expect {
+			t.Errorf("got %v; want %v", n, expect)
+		}
+		if err != nil {
+			t.Errorf("got error = %v; want nil", err)
+		}
+		if b.String() != s {
+			t.Errorf("got string %q; want %q", b.String(), s)
+		}
+		if r.Len() != 0 {
+			t.Errorf("reader contains %v bytes; want 0", r.Len())
+		}
+	}
+}

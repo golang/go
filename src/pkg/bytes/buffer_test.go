@@ -251,10 +251,10 @@ func TestReadFrom(t *testing.T) {
 func TestWriteTo(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
+		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
 		var b Buffer
 		buf.WriteTo(&b)
-		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)))
+		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(data)))
 	}
 }
 
