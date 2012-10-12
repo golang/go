@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// A Ticker holds a synchronous channel that delivers `ticks' of a clock
+// A Ticker holds a channel that delivers `ticks' of a clock
 // at intervals.
 type Ticker struct {
 	C <-chan Time // The channel on which the ticks are delivered.
