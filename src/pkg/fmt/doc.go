@@ -56,9 +56,12 @@
 	character '*', causing their values to be obtained from the next
 	operand, which must be of type int.
 
-	For numeric values, width sets the width of the field and precision
-	sets the number of places after the decimal, if appropriate.  For
-	example, the format %6.2f prints 123.45.
+	For numeric values, width sets the minimum width of the field and
+	precision sets the number of places after the decimal, if appropriate,
+	except that for %g/%G it sets the total number of digits. For example,
+	given 123.45 the format %6.2f prints 123.45 while %.4g prints 123.5.
+	The default precision for %e and %f is 6; for %g it is the smallest
+	number of digits necessary to identify the value uniquely.
 
 	For strings, width is the minimum number of characters to output,
 	padding with spaces if necessary, and precision is the maximum
@@ -152,6 +155,7 @@
 		%T is not implemented
 		%e %E %f %F %g %G are all equivalent and scan any floating point or complex value
 		%s and %v on strings scan a space-delimited token
+		Flags # and + are not implemented.
 
 	The familiar base-setting prefixes 0 (octal) and 0x
 	(hexadecimal) are accepted when scanning integers without a
