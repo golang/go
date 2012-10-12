@@ -132,6 +132,12 @@ freebsd_amd64)
 	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
+freebsd_arm)
+	mkerrors="$mkerrors"
+	mksyscall="./mksyscall.pl -l32 -arm"
+	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 linux_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
