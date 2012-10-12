@@ -74,13 +74,12 @@ struct	Adr
 		char*	u0sbig;
 	} u0;
 	Sym*	sym;
+	Sym*	gotype;
+	int32	offset2; // argsize
 	char	type;
-	uchar	index; // not used on arm, required by ld/go.c
 	char	reg;
 	char	name;
-	int32	offset2; // argsize
 	char	class;
-	Sym*	gotype;
 };
 
 #define	offset	u0.u0offset
