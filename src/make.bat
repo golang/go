@@ -68,6 +68,9 @@ call env.bat
 del env.bat
 echo.
 
+if x%1==x--dist-tool goto copydist
+if x%2==x--dist-tool goto copydist
+
 echo # Building compilers and Go bootstrap tool.
 set buildall=-a
 if x%1==x--no-clean set buildall=
@@ -103,6 +106,11 @@ if x%1==x--no-banner goto nobanner
 "%GOTOOLDIR%\dist" banner
 :nobanner
 
+goto end
+
+:copydist
+mkdir %GOTOOLDIR% 2>NUL
+copy cmd\dist\dist.exe %GOTOOLDIR%\
 goto end
 
 :fail

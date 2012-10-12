@@ -925,4 +925,41 @@ xstrrchr(char *p, int c)
 	return nil;
 }
 
+// xsamefile returns whether f1 and f2 are the same file (or dir)
+int
+xsamefile(char *f1, char *f2)
+{
+	Rune *ru;
+	HANDLE fd1, fd2;
+	BY_HANDLE_FILE_INFORMATION fi1, fi2;
+	int r;
+
+	// trivial case
+	if(streq(f1, f2))
+		return 1;
+	
+	torune(&ru, f1);
+	// refer to ../../pkg/os/stat_windows.go:/sameFile
+	fd1 = CreateFileW(ru, 0, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+	xfree(ru);
+	if(fd1 == INVALID_HANDLE_VALUE)
+		return 0;
+	torune(&ru, f2);
+	fd2 = CreateFileW(ru, 0, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+	xfree(ru);
+	if(fd2 == INVALID_HANDLE_VALUE) {
+		CloseHandle(fd1);
+		return 0;
+	}
+	r = GetFileInformationByHandle(fd1, &fi1) != 0 && GetFileInformationByHandle(fd2, &fi2) != 0;
+	CloseHandle(fd2);
+	CloseHandle(fd1);
+	if(r != 0 &&
+	   fi1.dwVolumeSerialNumber == fi2.dwVolumeSerialNumber &&
+	   fi1.nFileIndexHigh == fi2.nFileIndexHigh &&
+	   fi1.nFileIndexLow == fi2.nFileIndexLow)
+	   	return 1;
+	return 0;
+}
+
 #endif // __WINDOWS__
