@@ -323,7 +323,8 @@ func atoi(s string) (x int, err error) {
 		neg = true
 		s = s[1:]
 	}
-	x, rem, err := leadingInt(s)
+	q, rem, err := leadingInt(s)
+	x = int(q)
 	if err != nil || rem != "" {
 		return 0, atoiError
 	}
@@ -954,18 +955,18 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
 
 // leadingInt consumes the leading [0-9]* from s.
-func leadingInt(s string) (x int, rem string, err error) {
+func leadingInt(s string) (x int64, rem string, err error) {
 	i := 0
 	for ; i < len(s); i++ {
 		c := s[i]
 		if c < '0' || c > '9' {
 			break
 		}
-		if x >= (1<<31-10)/10 {
+		if x >= (1<<63-10)/10 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
-		x = x*10 + int(c) - '0'
+		x = x*10 + int64(c) - '0'
 	}
 	return x, s[i:], nil
 }
@@ -1010,7 +1011,7 @@ func ParseDuration(s string) (Duration, error) {
 	for s != "" {
 		g := float64(0) // this element of the sequence
 
-		var x int
+		var x int64
 		var err error
 
 		// The next character must be [0-9.]

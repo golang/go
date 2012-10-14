@@ -999,6 +999,8 @@ var parseDurationTests = []struct {
 	{"-2m3.4s", true, -(2*Minute + 3*Second + 400*Millisecond)},
 	{"1h2m3s4ms5us6ns", true, 1*Hour + 2*Minute + 3*Second + 4*Millisecond + 5*Microsecond + 6*Nanosecond},
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
+	// large value
+	{"52763797000ns", true, 52763797000 * Nanosecond},
 
 	// errors
 	{"", false, 0},
