@@ -693,7 +693,8 @@ runtime·new(Type *typ, uint8 *ret)
 {
 	uint32 flag;
 
-	m->racepc = runtime·getcallerpc(&typ);
+	if(raceenabled)
+		m->racepc = runtime·getcallerpc(&typ);
 	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
 
