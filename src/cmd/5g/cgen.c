@@ -313,7 +313,7 @@ cgen(Node *n, Node *res)
 		regalloc(&n2, n->type, &n1);
 		n1.op = OINDREG;
 		n1.type = n->type;
-		n1.xoffset = 0;
+		n1.xoffset += 0;
 		gmove(&n1, &n2);
 		gmove(&n2, res);
 		regfree(&n1);
@@ -349,7 +349,7 @@ cgen(Node *n, Node *res)
 			regalloc(&n2, types[TUINT32], &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
-			n1.xoffset = Array_nel;
+			n1.xoffset += Array_nel;
 			gmove(&n1, &n2);
 			gmove(&n2, res);
 			regfree(&n1);
@@ -405,7 +405,7 @@ cgen(Node *n, Node *res)
 		// Pick it up again after the call.
 		rg = -1;
 		if(n->ullman >= UINF) {
-			if(res->op == OREGISTER || res->op == OINDREG) {
+			if(res != N && (res->op == OREGISTER || res->op == OINDREG)) {
 				rg = res->val.u.reg;
 				reg[rg]--;
 			}
@@ -890,6 +890,83 @@ ret:
 void
 igen(Node *n, Node *a, Node *res)
 {
+	Node n1;
+	Prog *p1;
+	int r;
+
+	if(debug['g']) {
+		dump("\nigen-n", n);
+	}
+	switch(n->op) {
+	case ODOT:
+		igen(n->left, a, res);
+		a->xoffset += n->xoffset;
+		a->type = n->type;
+		return;
+
+	case ODOTPTR:
+		if(n->left->addable
+			|| n->left->op == OCALLFUNC
+			|| n->left->op == OCALLMETH
+			|| n->left->op == OCALLINTER) {
+			// igen-able nodes.
+			igen(n->left, &n1, res);
+			regalloc(a, types[tptr], &n1);
+			gmove(&n1, a);
+			regfree(&n1);
+		} else {
+			regalloc(a, types[tptr], res);
+			cgen(n->left, a);
+		}
+		if(n->xoffset != 0) {
+			// explicit check for nil if struct is large enough
+			// that we might derive too big a pointer.
+			if(n->left->type->type->width >= unmappedzero) {
+				regalloc(&n1, types[tptr], N);
+				gmove(a, &n1);
+				p1 = gins(AMOVW, &n1, &n1);
+				p1->from.type = D_OREG;
+				p1->from.offset = 0;
+				regfree(&n1);
+			}
+		}
+		a->op = OINDREG;
+		a->xoffset = n->xoffset;
+		a->type = n->type;
+		return;
+
+	case OCALLMETH:
+	case OCALLFUNC:
+	case OCALLINTER:
+		// Release res so that it is available for cgen_call.
+		// Pick it up again after the call.
+		r = -1;
+		if(n->ullman >= UINF) {
+			if(res != N && (res->op == OREGISTER || res->op == OINDREG)) {
+				r = res->val.u.reg;
+				reg[r]--;
+			}
+		}
+		switch(n->op) {
+		case OCALLMETH:
+			cgen_callmeth(n, 0);
+			break;
+		case OCALLFUNC:
+			cgen_call(n, 0);
+			break;
+		case OCALLINTER:
+			cgen_callinter(n, N, 0);
+			break;
+		}
+		if(r >= 0)
+			reg[r]++;
+		regalloc(a, types[tptr], res);
+		cgen_aret(n, a);
+		a->op = OINDREG;
+		a->type = n->type;
+		return;
+	}
+
 	regalloc(a, types[tptr], res);
 	agen(n, a);
 	a->op = OINDREG;
@@ -905,8 +982,12 @@ igen(Node *n, Node *a, Node *res)
 void
 agenr(Node *n, Node *a, Node *res)
 {
-	regalloc(a, types[tptr], res);
-	agen(n, a);
+	Node n1;
+
+	igen(n, &n1, res);
+	regalloc(a, types[tptr], N);
+	agen(&n1, a);
+	regfree(&n1);
 }
 
 void

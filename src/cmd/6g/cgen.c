@@ -605,13 +605,14 @@ agen(Node *n, Node *res)
 				cgen(nr, &n1);
 			}
 			if(!isconst(nl, CTSTR)) {
-				regalloc(&n3, types[tptr], res);
-				if(isfixedarray(nl->type))
+				if(isfixedarray(nl->type)) {
+					regalloc(&n3, types[tptr], res);
 					agen(nl, &n3);
-				else {
+				} else {
 					igen(nl, &nlen, res);
 					nlen.type = types[tptr];
 					nlen.xoffset += Array_array;
+					regalloc(&n3, types[tptr], res);
 					gmove(&nlen, &n3);
 					nlen.type = types[simtype[TUINT]];
 					nlen.xoffset += Array_nel-Array_array;
@@ -624,10 +625,10 @@ agen(Node *n, Node *res)
 		nr = &tmp;
 	irad:
 		if(!isconst(nl, CTSTR)) {
-			regalloc(&n3, types[tptr], res);
-			if(isfixedarray(nl->type))
+			if(isfixedarray(nl->type)) {
+				regalloc(&n3, types[tptr], res);
 				agen(nl, &n3);
-			else {
+			} else {
 				if(!nl->addable) {
 					// igen will need an addressable node.
 					tempname(&tmp2, nl->type);
@@ -637,6 +638,7 @@ agen(Node *n, Node *res)
 				igen(nl, &nlen, res);
 				nlen.type = types[tptr];
 				nlen.xoffset += Array_array;
+				regalloc(&n3, types[tptr], res);
 				gmove(&nlen, &n3);
 				nlen.type = types[simtype[TUINT]];
 				nlen.xoffset += Array_nel-Array_array;
@@ -814,8 +816,11 @@ igen(Node *n, Node *a, Node *res)
 {
 	Type *fp;
 	Iter flist;
-	Node n1, n2;
+	Node n1;
 
+	if(debug['g']) {
+		dump("\nigen-n", n);
+	}
 	switch(n->op) {
 	case ONAME:
 		if((n->class&PHEAP) || n->class == PPARAMREF)
@@ -838,8 +843,19 @@ igen(Node *n, Node *a, Node *res)
 		return;
 
 	case ODOTPTR:
-		regalloc(a, types[tptr], res);
-		cgen(n->left, a);
+		if(n->left->addable
+			|| n->left->op == OCALLFUNC
+			|| n->left->op == OCALLMETH
+			|| n->left->op == OCALLINTER) {
+			// igen-able nodes.
+			igen(n->left, &n1, res);
+			regalloc(a, types[tptr], &n1);
+			gmove(&n1, a);
+			regfree(&n1);
+		} else {
+			regalloc(a, types[tptr], res);
+			cgen(n->left, a);
+		}
 		if(n->xoffset != 0) {
 			// explicit check for nil if struct is large enough
 			// that we might derive too big a pointer.
@@ -878,7 +894,7 @@ igen(Node *n, Node *a, Node *res)
 		a->xoffset = fp->width;
 		a->type = n->type;
 		return;
-	
+
 	case OINDEX:
 		// Index of fixed-size array by constant can
 		// put the offset in the addressing.
@@ -887,18 +903,22 @@ igen(Node *n, Node *a, Node *res)
 		if(isfixedarray(n->left->type) ||
 		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
 		if(isconst(n->right, CTINT)) {
-			nodconst(&n1, types[TINT64], 0);
-			n2 = *n;
-			n2.right = &n1;
+			// Compute &a.
+			if(!isptr[n->left->type->etype])
+				igen(n->left, a, res);
+			else {
+				igen(n->left, &n1, res);
+				regalloc(a, types[tptr], res);
+				gmove(&n1, a);
+				regfree(&n1);
+				a->op = OINDREG;
+			}
 
-			regalloc(a, types[tptr], res);
-			agen(&n2, a);
-			a->op = OINDREG;
-			a->xoffset = mpgetfix(n->right->val.u.xval)*n->type->width;
+			// Compute &a[i] as &a + i*width.
 			a->type = n->type;
+			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
 			return;
 		}
-			
 	}
 
 	regalloc(a, types[tptr], res);
