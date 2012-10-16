@@ -604,9 +604,11 @@ Again:
 // sendAlert sends a TLS alert message.
 // c.out.Mutex <= L.
 func (c *Conn) sendAlertLocked(err alert) error {
-	c.tmp[0] = alertLevelError
-	if err == alertNoRenegotiation {
+	switch err {
+	case alertNoRenegotiation, alertCloseNotify:
 		c.tmp[0] = alertLevelWarning
+	default:
+		c.tmp[0] = alertLevelError
 	}
 	c.tmp[1] = byte(err)
 	c.writeRecord(recordTypeAlert, c.tmp[0:2])
