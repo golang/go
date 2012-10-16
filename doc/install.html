@@ -44,6 +44,7 @@ proceeding. If your OS or architecture is not on the list, it's possible that
 <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
 <tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
 <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
+<tr><td>NetBSD 6 or later</td> <td>amd64, 386</td> <td></td></tr>
 </table>
 
 <p>
@@ -66,7 +67,7 @@ your operating system and processor architecture.
 
 <p>
 Official binary distributions are available
-for the FreeBSD, Linux, Mac OS X (Snow Leopard/Lion), and Windows operating systems
+for the FreeBSD, Linux, Mac OS X (Snow Leopard/Lion), NetBSD, and Windows operating systems
 and the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>)
 x86 processor architectures.
 </p>
@@ -103,7 +104,7 @@ Windows users should read the section about <a href="#windows_env">setting
 environment variables under Windows</a>.
 </p>
 
-<h3 id="freebsd_linux">FreeBSD, Linux, and Mac OS X tarballs</h3>
+<h3 id="bsd_linux">FreeBSD, Linux, Mac OS X and NetBSD tarballs</h3>
 
 <p>
 If you are upgrading from an older version of Go you must
@@ -115,7 +116,7 @@ rm -r /usr/local/go
 </pre>
 
 <p>
-Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+Type-Archive">the archive</a>
+Extract <a href="http://code.google.com/p/go/downloads/list?q=OpSys-FreeBSD+OR+OpSys-Linux+OR+OpSys-OSX+OR+OpSys-NetBSD+Type-Archive">the archive</a>
 into <code>/usr/local</code>, creating a Go tree in <code>/usr/local/go</code>.
 For example:
 </p>
