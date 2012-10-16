@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This is a tool for packaging binary releases.
-// It supports FreeBSD, Linux, OS X, and Windows.
+// It supports FreeBSD, Linux, NetBSD, OS X, and Windows.
 package main
 
 import (
@@ -215,7 +215,7 @@ func (b *Build) Do() error {
 	}
 	var targs []string
 	switch b.OS {
-	case "linux", "freebsd", "":
+	case "linux", "freebsd", "netbsd", "":
 		// build tarball
 		targ := base
 		if b.Source {
@@ -425,6 +425,9 @@ func (b *Build) Upload(version string, filename string) error {
 	case "darwin":
 		os_ = "Mac OS X"
 		opsys = "OSX"
+	case "netbsd":
+		os_ = "NetBSD"
+		opsys = "NetBSD"
 	case "windows":
 		os_ = "Windows"
 		opsys = "Windows"
