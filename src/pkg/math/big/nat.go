@@ -1227,8 +1227,8 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 	return z.norm()
 }
 
-// If m != nil, expNN calculates x**y mod m. Otherwise it calculates x**y. It
-// reuses the storage of z if possible.
+// If m != 0 (i.e., len(m) != 0), expNN sets z to x**y mod m;
+// otherwise it sets z to x**y. The result is the value of z.
 func (z nat) expNN(x, y, m nat) nat {
 	if alias(z, x) || alias(z, y) {
 		// We cannot allow in-place modification of x or y.
@@ -1240,15 +1240,15 @@ func (z nat) expNN(x, y, m nat) nat {
 		z[0] = 1
 		return z
 	}
+	// y > 0
 
-	if m != nil {
+	if len(m) != 0 {
 		// We likely end up being as long as the modulus.
 		z = z.make(len(m))
 	}
 	z = z.set(x)
-	v := y[len(y)-1]
-	// It's invalid for the most significant word to be zero, therefore we
-	// will find a one bit.
+
+	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
 	shift := leadingZeros(v) + 1
 	v <<= shift
 	var q nat
@@ -1272,7 +1272,7 @@ func (z nat) expNN(x, y, m nat) nat {
 			zz, z = z, zz
 		}
 
-		if m != nil {
+		if len(m) != 0 {
 			zz, r = zz.div(r, z, m)
 			zz, r, q, z = q, z, zz, r
 		}
@@ -1292,7 +1292,7 @@ func (z nat) expNN(x, y, m nat) nat {
 				zz, z = z, zz
 			}
 
-			if m != nil {
+			if len(m) != 0 {
 				zz, r = zz.div(r, z, m)
 				zz, r, q, z = q, z, zz, r
 			}
