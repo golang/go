@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// shifts
+// various expressions
 
 package expr3
 
+// TODO(gri) Move the code below into function "shifts" once we check
+//           declarations with initilizations inside functions.
 var (
 	i0 int
 	u0 uint
@@ -41,3 +43,73 @@ var (
 	v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
 	w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
 )
+
+// TODO(gri) The error messages below depond on adjusting the spec
+//           to reflect what gc is doing at the moment (the spec
+//           asks for run-time errors at the moment - see issue 4231).
+//
+func indexes() {
+	_ = 1 /* ERROR "cannot index" */ [0]
+	_ = indexes /* ERROR "cannot index" */ [0]
+	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
+
+	var a [10]int
+	_ = a[true /* ERROR "must be integer" */ ]
+	_ = a["foo" /* ERROR "must be integer" */ ]
+	_ = a[1.1 /* ERROR "must be integer" */ ]
+	_ = a[1.0]
+	_ = a[- /* ERROR "index .* negative" */ 1]
+	_ = a[- /* ERROR "index .* negative" */ 1 :]
+	_ = a[: - /* ERROR "index .* negative" */ 1]
+	var a0 int
+	a0 = a[0]
+	var a1 int32
+	a1 = a /* ERROR "cannot assign" */ [1] 
+	_ = a[9]
+	_ = a[10 /* ERROR "index .* out of bounds" */ ]
+	_ = a[10:]
+	_ = a[:10]
+	_ = a[10:10]
+	_ = a[11 /* ERROR "index .* out of bounds" */ :]
+	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
+
+	var b [0]int
+	_ = b[0 /* ERROR "index .* out of bounds" */ ]
+	_ = b[:]
+	_ = b[0:]
+	_ = b[:0]
+	_ = b[0:0]
+
+	var s []int
+	_ = s[- /* ERROR "index .* negative" */ 1]
+	_ = s[- /* ERROR "index .* negative" */ 1 :]
+	_ = s[: - /* ERROR "index .* negative" */ 1]
+	_ = s[0]
+	_ = s[1 : 2]
+	_ = s[2 /* ERROR "inverted slice range" */ : 1]
+	_ = s[2 :]
+
+	var t string
+	_ = t[- /* ERROR "index .* negative" */ 1]
+	_ = t[- /* ERROR "index .* negative" */ 1 :]
+	_ = t[: - /* ERROR "index .* negative" */ 1]
+	var t0 byte
+	t0 = t[0]
+	var t1 rune
+	t1 = t /* ERROR "cannot assign" */ [2]
+	_ = ("foo" + "bar")[5]
+	_ = ("foo" + "bar")[6 /* ERROR "index .* out of bounds" */ ]
+
+	const c = "foo"
+	_ = c[- /* ERROR "index .* negative" */ 1]
+	_ = c[- /* ERROR "index .* negative" */ 1 :]
+	_ = c[: - /* ERROR "index .* negative" */ 1]
+	var c0 byte
+	c0 = c[0]
+	var c2 float32
+	c2 = c /* ERROR "cannot assign" */ [2]
+	_ = c[3 /* ERROR "index .* out of bounds" */ ]
+	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
+
+	_ = s[1<<30] // no compile-time error here
+}

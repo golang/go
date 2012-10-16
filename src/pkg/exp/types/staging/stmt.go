@@ -108,6 +108,15 @@ func (check *checker) assignment(lhs ast.Expr, x *operand, decl bool) {
 }
 
 func (check *checker) assign1to1(lhs, rhs ast.Expr, decl bool, iota int) {
+	ident, _ := lhs.(*ast.Ident)
+
+	if ident != nil && ident.Name == "_" {
+		// anything can be assigned to a blank identifier - check rhs only
+		var x operand
+		check.expr(&x, rhs, nil, iota)
+		return
+	}
+
 	if !decl {
 		// regular assignment - start with lhs[0] to obtain a type hint
 		var z operand
@@ -127,8 +136,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, decl bool, iota int) {
 	}
 
 	// declaration - rhs may or may not be typed yet
-	ident, ok := lhs.(*ast.Ident)
-	if !ok {
+	if ident == nil {
 		check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		return
 	}
