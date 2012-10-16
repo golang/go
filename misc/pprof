@@ -634,7 +634,7 @@ sub Main() {
       # (only matters when --heapcheck is given but we must be
       # compatible with old branches that did not pass --heapcheck always):
       if ($total != 0) {
-        printf("Total: %s %s\n", Unparse($total), Units());
+        Infof("Total: %s %s\n", Unparse($total), Units());
       }
       PrintText($symbols, $flat, $cumulative, $total, -1);
     } elsif ($main::opt_raw) {
@@ -931,7 +931,7 @@ sub ProcessProfile {
   if ($focus ne '') {
     $profile = FocusProfile($symbols, $profile, $focus);
     my $focus_count = TotalProfile($profile);
-    printf("After focusing on '%s': %s %s of %s (%0.1f%%)\n",
+    Infof("After focusing on '%s': %s %s of %s (%0.1f%%)\n",
            $focus,
            Unparse($focus_count), Units(),
            Unparse($total_count), ($focus_count*100.0) / $total_count);
@@ -939,7 +939,7 @@ sub ProcessProfile {
   if ($ignore ne '') {
     $profile = IgnoreProfile($symbols, $profile, $ignore);
     my $ignore_count = TotalProfile($profile);
-    printf("After ignoring '%s': %s %s of %s (%0.1f%%)\n",
+    Infof("After ignoring '%s': %s %s of %s (%0.1f%%)\n",
            $ignore,
            Unparse($ignore_count), Units(),
            Unparse($total_count),
@@ -1113,6 +1113,15 @@ sub PrintSymbolizedProfile {
     # dump a cpu-format profile to standard out
     PrintProfileData($profile);
   }
+}
+
+# Print information conditionally filtered out depending on the output
+# format.
+sub Infof {
+  my $format = shift;
+  my @args = @_;
+  return if $main::opt_svg;
+  printf($format, @args);
 }
 
 # Print text output
@@ -2638,6 +2647,8 @@ sub RemoveUninterestingFrames {
                       'runtime.makemap_c',
                       'runtime.makeslice',
                       'runtime.mal',
+                      'runtime.settype',
+                      'runtime.settype_flush',
                       'runtime.slicebytetostring',
                       'runtime.sliceinttostring',
                       'runtime.stringtoslicebyte',
