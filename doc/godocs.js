@@ -163,6 +163,22 @@ function setupDropdownPlayground() {
   $('#menu').css('min-width', '+=60');
 }
 
+// fixFocus tries to put focus to div#page so that keyboard navigation works.
+function fixFocus() {
+  var page = $('div#page');
+  var topbar = $('div#topbar');
+  page.css('outline', 0); // disable outline when focused
+  page.attr('tabindex', -1); // and set tabindex so that it is focusable
+  $(window).resize(function (evt) {
+    // only focus page when the topbar is at fixed position (that is, it's in
+    // front of page, and keyboard event will go to the former by default.)
+    // by focusing page, keyboard event will go to page so that up/down arrow,
+    // space, etc. will work as expected.
+    if (topbar.css('position') == "fixed")
+      page.focus();
+  }).resize();
+}
+
 $(document).ready(function() {
   bindSearchEvents();
   generateTOC();
@@ -173,6 +189,7 @@ $(document).ready(function() {
   bindToggleLinks(".examplesLink", "");
   bindToggleLinks(".indexLink", "");
   setupDropdownPlayground();
+  fixFocus();
 });
 
 })();
