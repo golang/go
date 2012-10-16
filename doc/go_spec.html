@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 10, 2012",
+	"Subtitle": "Version of October 12, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4735,6 +4735,9 @@ are in scope within the literal, the deferred function may access and modify
 the result parameters before they are returned.
 If the deferred function has any return values, they are discarded when
 the function completes.
+(See also the section on <a href="#Handling_panics">handling panics</a>.)
+</p>
+
 </p>
 
 <pre>
@@ -5069,10 +5072,13 @@ func recover() interface{}
 When a function <code>F</code> calls <code>panic</code>, normal
 execution of <code>F</code> stops immediately.  Any functions whose
 execution was <a href="#Defer_statements">deferred</a> by the
-invocation of <code>F</code> are run in the usual way, and then
-<code>F</code> returns to its caller.  To the caller, <code>F</code>
+invocation of <code>F</code> are immediately run in the usual way,
+but with the current values of any result parameters, and then
+<code>F</code> returns to its caller without executing the rest of
+the function.  To the caller, <code>F</code>
 then behaves like a call to <code>panic</code>, terminating its own
-execution and running deferred functions.  This continues until all
+execution and running deferred functions in the same manner.
+This continues until all
 functions in the goroutine have ceased execution, in reverse order.
 At that point, the program is
 terminated and the error condition is reported, including the value of
