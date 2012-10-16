@@ -802,6 +802,9 @@ igen(Node *n, Node *a, Node *res)
 	Iter flist;
 	Node n1;
 
+	if(debug['g']) {
+		dump("\nigen-n", n);
+	}
 	switch(n->op) {
 	case ONAME:
 		if((n->class&PHEAP) || n->class == PPARAMREF)
@@ -824,8 +827,19 @@ igen(Node *n, Node *a, Node *res)
 		return;
 
 	case ODOTPTR:
-		regalloc(a, types[tptr], res);
-		cgen(n->left, a);
+		if(n->left->addable
+			|| n->left->op == OCALLFUNC
+			|| n->left->op == OCALLMETH
+			|| n->left->op == OCALLINTER) {
+			// igen-able nodes.
+			igen(n->left, &n1, res);
+			regalloc(a, types[tptr], &n1);
+			gmove(&n1, a);
+			regfree(&n1);
+		} else {
+			regalloc(a, types[tptr], res);
+			cgen(n->left, a);
+		}
 		if(n->xoffset != 0) {
 			// explicit check for nil if struct is large enough
 			// that we might derive too big a pointer.

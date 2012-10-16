@@ -170,6 +170,74 @@ func ChainUNoAssert(u *U) *U {
 		Child(0).(*U)
 }
 
+// Type assertions and slice indexing. See issue 4207.
+func ChainAssertIndex(u *U) J {
+	return u.
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0].(*U).
+		Children[0]
+}
+
+type UArr struct {
+	Children [2]J
+}
+
+func (u *UArr) Child(n int) J { return u.Children[n] }
+
+func ChainAssertArrayIndex(u *UArr) J {
+	return u.
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		// Children[0].(*UArr).
+		// Children[0].(*UArr).
+		// Children[0].(*UArr).
+		// Children[0].(*UArr).
+		// Children[0].(*UArr).
+		// Children[0].(*UArr).
+		Children[0]
+}
+
+type UArrPtr struct {
+	Children *[2]J
+}
+
+func (u *UArrPtr) Child(n int) J { return u.Children[n] }
+
+func ChainAssertArrayptrIndex(u *UArrPtr) J {
+	// TODO: don't crash on longer chains.
+	return u.
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		// Children[0].(*UArrPtr).
+		Children[0]
+}
+
 // Chains of divisions. See issue 4201.
 
 func ChainDiv(a, b int) int {
@@ -180,10 +248,10 @@ func ChainDiv(a, b int) int {
 
 func ChainDivRight(a, b int) int {
 	return a / (b / (a / (b /
-            (a / (b / (a / (b /
-            (a / (b / (a / (b /
-            (a / (b / (a / (b /
-            (a / (b / (a / b))))))))))))))))))
+		(a / (b / (a / (b /
+			(a / (b / (a / (b /
+				(a / (b / (a / (b /
+					(a / (b / (a / b))))))))))))))))))
 }
 
 func ChainDivConst(a int) int {
