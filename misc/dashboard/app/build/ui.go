@@ -211,6 +211,9 @@ func builderArch(s string) string {
 
 // builderArchShort returns a short arch tag for a builder string
 func builderArchShort(s string) string {
+	if s == "linux-amd64-race" {
+		return "race"
+	}
 	arch := builderArch(s)
 	switch arch {
 	case "amd64":
