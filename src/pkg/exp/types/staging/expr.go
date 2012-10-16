@@ -397,11 +397,39 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
 	// x.typ is unchanged
 }
 
-func (check *checker) index(x *operand, e ast.Expr, iota int) {
-	check.expr(x, e, nil, iota)
-	if !isInteger(x.typ) {
-		check.errorf(x.pos(), "array index %s must be integer", x)
+// index checks an index expression for validity. If length >= 0, it is the upper
+// bound for the index. The result is a valid constant index >= 0, or a negative
+// value.
+//
+func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+	var x operand
+	var i int64 // index value, valid if >= 0
+
+	check.expr(&x, index, nil, iota)
+	if !x.isInteger() {
+		check.errorf(x.pos(), "index %s must be integer", &x)
+		return -1
 	}
+	if x.mode != constant {
+		return -1 // we cannot check more
+	}
+	// x.mode == constant and the index value must be >= 0
+	if isNegConst(x.val) {
+		check.errorf(x.pos(), "index %s must not be negative", &x)
+		return -1
+	}
+	var ok bool
+	if i, ok = x.val.(int64); !ok {
+		// index value doesn't fit into an int64
+		i = length // trigger out of bounds check below if we know length (>= 0)
+	}
+
+	if length >= 0 && i >= length {
+		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
+		return -1
+	}
+
+	return i
 }
 
 func (check *checker) callRecord(x *operand) {
@@ -553,20 +581,34 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
 		goto Error
 
 	case *ast.IndexExpr:
-		var index operand
 		check.expr(x, e.X, hint, iota)
+
+		valid := false
+		length := int64(-1) // valid if >= 0
 		switch typ := underlying(x.typ).(type) {
-		case *Array:
-			check.index(&index, e.Index, iota)
-			if x.mode == constant {
-				// TODO(gri) range check
+		case *Basic:
+			if isString(typ) {
+				valid = true
+				if x.mode == constant {
+					length = int64(len(x.val.(string)))
+				}
+				// an indexed string always yields a byte value
+				// (not a constant) even if the string and the
+				// index are constant
+				x.mode = value
+				x.typ = Typ[Byte]
 			}
-			// TODO(gri) only variable if array is variable
-			x.mode = variable
+
+		case *Array:
+			valid = true
+			length = typ.Len
+			if x.mode != variable {
+				x.mode = value
+			}
 			x.typ = typ.Elt
 
 		case *Slice:
-			check.index(&index, e.Index, iota)
+			valid = true
 			x.mode = variable
 			x.typ = typ.Elt
 
@@ -574,43 +616,75 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
 			// TODO(gri) check index type
 			x.mode = variable
 			x.typ = typ.Elt
+			return
+		}
 
-		default:
-			check.invalidOp(e.Pos(), "cannot index %s", x.typ)
+		if !valid {
+			check.invalidOp(x.pos(), "cannot index %s", x)
 			goto Error
 		}
+
+		if e.Index == nil {
+			check.invalidAST(e.Pos(), "missing index expression for %s", x)
+			return
+		}
+
+		check.index(e.Index, length, iota)
+		// ok to continue
 
 	case *ast.SliceExpr:
-		var lo, hi operand
 		check.expr(x, e.X, hint, iota)
-		if e.Low != nil {
-			check.index(&lo, e.Low, iota)
-		} else {
-			lo.mode = constant
-			lo.expr = nil // TODO(gri) should not use nil here
-			lo.typ = Typ[UntypedInt]
-			lo.val = zeroConst
-		}
-		if e.High != nil {
-			check.index(&hi, e.High, iota)
-		} else {
-			unimplemented()
-		}
-		switch typ := x.typ.(type) {
-		case *Array:
-			unimplemented()
-		case *Slice:
-			assert(x.mode == variable)
-			// x.typ does not change
-		case *Pointer:
-			if typ, ok := underlying(typ.Base).(*Array); ok {
-				// TODO(gri) array slice
-				_ = typ
+
+		valid := false
+		length := int64(-1) // valid if >= 0
+		switch typ := underlying(x.typ).(type) {
+		case *Basic:
+			if isString(typ) {
+				valid = true
+				if x.mode == constant {
+					length = int64(len(x.val.(string))) + 1 // +1 for slice
+				}
+				// a sliced string always yields a string value
+				// of the same type as the original string (not
+				// a constant) even if the string and the indexes
+				// are constant
+				x.mode = value
+				// x.typ doesn't change
 			}
-			unimplemented()
-		default:
-			check.invalidOp(e.Pos(), "cannot slice %s", x.typ)
+
+		case *Array:
+			valid = true
+			length = typ.Len + 1 // +1 for slice
+			if x.mode != variable {
+				check.invalidOp(x.pos(), "cannot slice %s (value not addressable)", x)
+				goto Error
+			}
+			x.typ = &Slice{Elt: typ.Elt}
+
+		case *Slice:
+			valid = true
+			x.mode = variable
+			// x.typ doesn't change
+		}
+
+		if !valid {
+			check.invalidOp(x.pos(), "cannot slice %s", x)
 			goto Error
+		}
+
+		var lo int64
+		if e.Low != nil {
+			lo = check.index(e.Low, length, iota)
+		}
+
+		var hi int64 = length
+		if e.High != nil {
+			hi = check.index(e.High, length, iota)
+		}
+
+		if hi >= 0 && lo > hi {
+			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
+			// ok to continue
 		}
 
 	case *ast.TypeAssertExpr:

@@ -165,6 +165,22 @@ func isZeroConst(x interface{}) bool {
 	return ok && i == 0
 }
 
+// isNegConst reports whether the value of constant x is < 0.
+// x must be a non-complex numeric value.
+//
+func isNegConst(x interface{}) bool {
+	switch x := x.(type) {
+	case int64:
+		return x < 0
+	case *big.Int:
+		return x.Sign() < 0
+	case *big.Rat:
+		return x.Sign() < 0
+	}
+	unreachable()
+	return false
+}
+
 // isRepresentableConst reports whether the value of constant x can
 // be represented as a value of the basic type Typ[as] without loss
 // of precision.

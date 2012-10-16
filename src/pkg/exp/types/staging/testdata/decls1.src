@@ -37,7 +37,7 @@ var (
 	s4 = s + t
 	s5 = s /* ERROR "invalid operation" */ / t
 	s6 = array[t1]
-	s7 = array[x /* ERROR "array index" */]
+	s7 = array[x /* ERROR "index" */]
 	s8 = &a
 	s10 = &42 /* ERROR "cannot take address" */
 	s11 = &v
@@ -56,7 +56,7 @@ var (
 	t4 string = s + t
 	t5 string = s /* ERROR "invalid operation" */ / t
 	t6 byte = array[t1]
-	t7 byte = array[x /* ERROR "array index" */]
+	t7 byte = array[x /* ERROR "index" */]
 	t8 *int = & /* ERROR "cannot assign" */ a
 	t10 *int = &42 /* ERROR "cannot take address" */
 	t11 *complex64 = &v
