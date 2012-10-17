@@ -379,7 +379,7 @@ Vconv(Fmt *fp)
 		return fmtprint(fp, "%#F", v->u.fval);
 	case CTCPLX:
 		if((fp->flags & FmtSharp) || fmtmode == FExp)
-			return fmtprint(fp, "(%F+%F)", &v->u.cval->real, &v->u.cval->imag);
+			return fmtprint(fp, "(%F+%Fi)", &v->u.cval->real, &v->u.cval->imag);
 		return fmtprint(fp, "(%#F + %#Fi)", &v->u.cval->real, &v->u.cval->imag);
 	case CTSTR:
 		return fmtprint(fp, "\"%Z\"", v->u.sval);
