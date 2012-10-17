@@ -23,7 +23,7 @@ type ctr struct {
 // counter mode. The length of iv must be the same as the Block's block size.
 func NewCTR(block Block, iv []byte) Stream {
 	if len(iv) != block.BlockSize() {
-		panic("cipher.NewCTR: iv length must equal block size")
+		panic("cipher.NewCTR: IV length must equal block size")
 	}
 
 	return &ctr{
