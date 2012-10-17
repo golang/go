@@ -33,6 +33,9 @@ type cbcEncrypter cbc
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size.
 func NewCBCEncrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+	}
 	return (*cbcEncrypter)(newCBC(b, iv))
 }
 
@@ -58,6 +61,9 @@ type cbcDecrypter cbc
 // mode, using the given Block. The length of iv must be the same as the
 // Block's block size and must match the iv used to encrypt the data.
 func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+	if len(iv) != b.BlockSize() {
+		panic("cipher.NewCBCDecrypter: IV length must equal block size")
+	}
 	return (*cbcDecrypter)(newCBC(b, iv))
 }
 
