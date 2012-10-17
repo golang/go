@@ -84,7 +84,7 @@ example, to process each anchor node in depth-first order:
 		if n.Type == html.ElementNode && n.Data == "a" {
 			// Do something with n...
 		}
-		for _, c := range n.Child {
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c)
 		}
 	}
