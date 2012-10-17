@@ -1248,6 +1248,15 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 	z = z.set(x)
 
+	// If the base is non-trivial and the exponent is large, we use
+	// 4-bit, windowed exponentiation. This involves precomputing 14 values
+	// (x^2...x^15) but then reduces the number of multiply-reduces by a
+	// third. Even for a 32-bit exponent, this reduces the number of
+	// operations.
+	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+		return z.expNNWindowed(x, y, m)
+	}
+
 	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
 	shift := leadingZeros(v) + 1
 	v <<= shift
@@ -1298,6 +1307,69 @@ func (z nat) expNN(x, y, m nat) nat {
 			}
 
 			v <<= 1
+		}
+	}
+
+	return z.norm()
+}
+
+// expNNWindowed calculates x**y mod m using a fixed, 4-bit window.
+func (z nat) expNNWindowed(x, y, m nat) nat {
+	// zz and r are used to avoid allocating in mul and div as otherwise
+	// the arguments would alias.
+	var zz, r nat
+
+	const n = 4
+	// powers[i] contains x^i.
+	var powers [1 << n]nat
+	powers[0] = natOne
+	powers[1] = x
+	for i := 2; i < 1<<n; i += 2 {
+		p2, p, p1 := &powers[i/2], &powers[i], &powers[i+1]
+		*p = p.mul(*p2, *p2)
+		zz, r = zz.div(r, *p, m)
+		*p, r = r, *p
+		*p1 = p1.mul(*p, x)
+		zz, r = zz.div(r, *p1, m)
+		*p1, r = r, *p1
+	}
+
+	z = z.setWord(1)
+
+	for i := len(y) - 1; i >= 0; i-- {
+		yi := y[i]
+		for j := 0; j < _W; j += n {
+			if i != len(y)-1 || j != 0 {
+				// Unrolled loop for significant performance
+				// gain.  Use go test -bench=".*" in crypto/rsa
+				// to check performance before making changes.
+				zz = zz.mul(z, z)
+				zz, z = z, zz
+				zz, r = zz.div(r, z, m)
+				z, r = r, z
+
+				zz = zz.mul(z, z)
+				zz, z = z, zz
+				zz, r = zz.div(r, z, m)
+				z, r = r, z
+
+				zz = zz.mul(z, z)
+				zz, z = z, zz
+				zz, r = zz.div(r, z, m)
+				z, r = r, z
+
+				zz = zz.mul(z, z)
+				zz, z = z, zz
+				zz, r = zz.div(r, z, m)
+				z, r = r, z
+			}
+
+			zz = zz.mul(z, powers[yi>>(_W-n)])
+			zz, z = z, zz
+			zz, r = zz.div(r, z, m)
+			z, r = r, z
+
+			yi <<= n
 		}
 	}
 
