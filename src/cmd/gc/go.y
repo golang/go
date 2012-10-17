@@ -2039,6 +2039,8 @@ hidden_constant:
 			mpaddfixfix($2->val.u.xval, $4->val.u.xval, 0);
 			break;
 		}
+		$4->val.u.cval->real = $4->val.u.cval->imag;
+		mpmovecflt(&$4->val.u.cval->imag, 0.0);
 		$$ = nodcplxlit($2->val, $4->val);
 	}
 

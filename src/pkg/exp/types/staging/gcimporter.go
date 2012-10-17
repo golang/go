@@ -687,7 +687,7 @@ func (p *gcParser) parseNumber() (x operand) {
 // ConstDecl   = "const" ExportedName [ Type ] "=" Literal .
 // Literal     = bool_lit | int_lit | float_lit | complex_lit | rune_lit | string_lit .
 // bool_lit    = "true" | "false" .
-// complex_lit = "(" float_lit "+" float_lit ")" .
+// complex_lit = "(" float_lit "+" float_lit "i" ")" .
 // rune_lit = "(" int_lit "+" int_lit ")" .
 // string_lit  = `"` { unicode_char } `"` .
 //
@@ -728,6 +728,7 @@ func (p *gcParser) parseConstDecl() {
 		re := p.parseNumber()
 		p.expect('+')
 		im := p.parseNumber()
+		p.expectKeyword("i")
 		p.expect(')')
 		x.typ = Typ[UntypedComplex]
 		// TODO(gri) fix this
