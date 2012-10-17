@@ -136,6 +136,12 @@ if GOPATH=:$(pwd)/testdata:. ./testgo build go-cmd-test; then
     ok=false
 fi
 
+# issue 4104
+if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
+    echo 'go test fmt fmt fmt fmt fmt tested the same package multiple times'
+    ok=false
+fi
+
 if $ok; then
 	echo PASS
 else
