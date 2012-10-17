@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 12, 2012",
+	"Subtitle": "Version of October 17, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -663,7 +663,7 @@ type literals.
 The <i>static type</i> (or just <i>type</i>) of a variable is the
 type defined by its declaration.  Variables of interface type
 also have a distinct <i>dynamic type</i>, which
-is the actual type of the value stored in the variable at run-time.
+is the actual type of the value stored in the variable at run time.
 The dynamic type may vary during execution but is always
 <a href="#Assignability">assignable</a>
 to the static type of the interface variable.  For non-interface
@@ -2495,15 +2495,29 @@ rules apply:
 
 <p>
 For <code>a</code> of type <code>A</code> or <code>*A</code>
-where <code>A</code> is an <a href="#Array_types">array type</a>,
-or for <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Slice_types">slice type</a>:
+where <code>A</code> is an <a href="#Array_types">array type</a>:
 </p>
 <ul>
-	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
+	<li><code>x</code> must be an integer value; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
+	    otherwise it is <i>out of range</i></li>
+	<li>a <a href="#Constants">constant</a> index must be in range</li>
+	<li>if <code>a</code> is <code>nil</code> or if <code>x</code> is out of range at run time,
+	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
 	  <code>a[x]</code> is the element type of <code>A</code></li>
-	<li>if <code>a</code> is <code>nil</code> or if the index <code>x</code> is out of range,
-	a <a href="#Run_time_panics">run-time panic</a> occurs</li>
+</ul>
+
+<p>
+For <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Slice_types">slice type</a>:
+</p>
+<ul>
+	<li><code>x</code> must be an integer value; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
+	    otherwise it is <i>out of range</i></li>
+	<li>a <a href="#Constants">constant</a> index must not be negative</li>
+	<li>if the slice is <code>nil</code> or if <code>x</code> is out of range at run time,
+	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
+	<li><code>a[x]</code> is the slice element at index <code>x</code> and the type of
+	  <code>a[x]</code> is the element type of <code>S</code></li>
 </ul>
 
 <p>
@@ -2511,12 +2525,15 @@ For <code>a</code> of type <code>T</code>
 where <code>T</code> is a <a href="#String_types">string type</a>:
 </p>
 <ul>
-	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
+	<li><code>x</code> must be an integer value; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
+	    otherwise it is <i>out of range</i></li>
+	<li>a <a href="#Constants">constant</a> index must not be negative, and it must be in range
+	    if the string <code>a</code> is also constant</li>
+	<li>if <code>x</code> is out of range at run time,
+	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
 	  <code>a[x]</code> is <code>byte</code></li>
 	<li><code>a[x]</code> may not be assigned to</li>
-	<li>if the index <code>x</code> is out of range,
-	a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 </ul>
 
 <p>
@@ -2577,7 +2594,7 @@ a[low : high]
 <p>
 constructs a substring or slice. The index expressions <code>low</code> and
 <code>high</code> select which elements appear in the result. The result has
-indexes starting at 0 and length equal to
+indices starting at 0 and length equal to
 <code>high</code>&nbsp;-&nbsp;<code>low</code>.
 After slicing the array <code>a</code>
 </p>
@@ -2610,9 +2627,13 @@ a[:]   // same as a[0 : len(a)]
 </pre>
 
 <p>
-For arrays or strings, the indexes <code>low</code> and <code>high</code> must
-satisfy 0 &lt;= <code>low</code> &lt;= <code>high</code> &lt;= length; for
-slices, the upper bound is the capacity rather than the length.
+For arrays or strings, the indices <code>low</code> and <code>high</code> are
+<i>in range</i> if <code>0 &lt;= <code>low</code> &lt;= <code>high</code> &lt;= len(a)</code>,
+otherwise they are <i>out of range</i>.
+For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
+A <a href="#Constant_expressions">constant</a> index must not be negative, and if both indices
+are constant, they must satisfy <code>low &lt;= high</code>. If <code>a</code> is <code>nil</code>
+or if the indices are out of range at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <p>
@@ -2651,7 +2672,7 @@ If the type assertion holds, the value of the expression is the value
 stored in <code>x</code> and its type is <code>T</code>. If the type assertion is false,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 In other words, even though the dynamic type of <code>x</code>
-is known only at run-time, the type of <code>x.(T)</code> is
+is known only at run time, the type of <code>x.(T)</code> is
 known to be <code>T</code> in a correct program.
 </p>
 <p>
@@ -3604,7 +3625,7 @@ MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
 
 <p>
 Constant expressions may contain only <a href="#Constants">constant</a>
-operands and are evaluated at compile-time.
+operands and are evaluated at compile time.
 </p>
 
 <p>
