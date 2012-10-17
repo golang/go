@@ -325,13 +325,18 @@ func Rel(basepath, targpath string) (string, error) {
 var SkipDir = errors.New("skip this directory")
 
 // WalkFunc is the type of the function called for each file or directory
-// visited by Walk.  If there was a problem walking to the file or directory
-// named by path, the incoming error will describe the problem and the
-// function can decide how to handle that error (and Walk will not descend
-// into that directory).  If an error is returned, processing stops.  The
-// sole exception is that if path is a directory and the function returns the
-// special value SkipDir, the contents of the directory are skipped
-// and processing continues as usual on the next file.
+// visited by Walk. The path argument contains the argument to Walk as a
+// prefix; that is, if Walk is called with "dir", which is a directory
+// containing the file "a", the walk function will be called with argument
+// "dir/a". The info argument is the os.FileInfo for the named path.
+// 
+// If there was a problem walking to the file or directory named by path, the
+// incoming error will describe the problem and the function can decide how
+// to handle that error (and Walk will not descend into that directory). If
+// an error is returned, processing stops. The sole exception is that if path
+// is a directory and the function returns the special value SkipDir, the
+// contents of the directory are skipped and processing continues as usual on
+// the next file.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
 // walk recursively descends path, calling w.
