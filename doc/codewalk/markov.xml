@@ -58,7 +58,7 @@ Prefix               Map key
 	this data.
 </step>
 
-<step title="The NewChain constructor function" src="doc/codewalk/markov.go:/func New/,/}/">
+<step title="The NewChain constructor function" src="doc/codewalk/markov.go:/func New/,/\n}/">
 	The <code>Chain</code> struct has two unexported fields (those that
 	do not begin with an upper case character), and so we write a
 	<code>NewChain</code> constructor function that initializes the
