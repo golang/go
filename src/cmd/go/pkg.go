@@ -671,7 +671,12 @@ func packagesAndErrors(args []string) []*Package {
 	args = importPaths(args)
 	var pkgs []*Package
 	var stk importStack
+	var set = make(map[string]bool)
+
 	for _, arg := range args {
+		set[arg] = true
+	}
+	for arg := range set {
 		pkgs = append(pkgs, loadPackage(arg, &stk))
 	}
 
