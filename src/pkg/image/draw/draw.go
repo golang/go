@@ -81,8 +81,9 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					drawNRGBAOver(dst0, r, src0, sp)
 					return
 				case *image.YCbCr:
-					drawYCbCr(dst0, r, src0, sp)
-					return
+					if drawYCbCr(dst0, r, src0, sp) {
+						return
+					}
 				}
 			} else if mask0, ok := mask.(*image.Alpha); ok {
 				switch src0 := src.(type) {
@@ -104,8 +105,9 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 					drawNRGBASrc(dst0, r, src0, sp)
 					return
 				case *image.YCbCr:
-					drawYCbCr(dst0, r, src0, sp)
-					return
+					if drawYCbCr(dst0, r, src0, sp) {
+						return
+					}
 				}
 			}
 		}
@@ -345,7 +347,7 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 	}
 }
 
-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) {
+func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
 	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
 	// (i.e. fully opaque) then the op is effectively always Src.
 	x0 := (r.Min.X - dst.Rect.Min.X) * 4
@@ -353,6 +355,19 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 	y0 := r.Min.Y - dst.Rect.Min.Y
 	y1 := r.Max.Y - dst.Rect.Min.Y
 	switch src.SubsampleRatio {
+	case image.YCbCrSubsampleRatio444:
+		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride:]
+			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
+				dpix[x+0] = rr
+				dpix[x+1] = gg
+				dpix[x+2] = bb
+				dpix[x+3] = 255
+			}
+		}
 	case image.YCbCrSubsampleRatio422:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
@@ -381,12 +396,11 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				dpix[x+3] = 255
 			}
 		}
-	default:
-		// Default to 4:4:4 subsampling.
+	case image.YCbCrSubsampleRatio440:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
 			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
-			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
 				dpix[x+0] = rr
@@ -395,7 +409,10 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				dpix[x+3] = 255
 			}
 		}
+	default:
+		return false
 	}
+	return true
 }
 
 func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask *image.Alpha, mp image.Point) {
