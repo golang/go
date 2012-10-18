@@ -52,6 +52,20 @@ func TestGmailMX(t *testing.T) {
 	}
 }
 
+func TestGmailNS(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+	ns, err := LookupNS("gmail.com")
+	if err != nil {
+		t.Errorf("failed: %s", err)
+	}
+	if len(ns) == 0 {
+		t.Errorf("no results")
+	}
+}
+
 func TestGmailTXT(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Logf("skipping test to avoid external network")

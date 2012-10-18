@@ -47,6 +47,11 @@ func LookupMX(name string) (mx []*MX, err error) {
 	return lookupMX(name)
 }
 
+// LookupNS returns the DNS NS records for the given domain name.
+func LookupNS(name string) (ns []*NS, err error) {
+	return lookupNS(name)
+}
+
 // LookupTXT returns the DNS TXT records for the given domain name.
 func LookupTXT(name string) (txt []string, err error) {
 	return lookupTXT(name)

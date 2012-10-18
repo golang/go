@@ -119,6 +119,19 @@ func lookupMX(name string) (mx []*MX, err error) {
 	return
 }
 
+func lookupNS(name string) (ns []*NS, err error) {
+	_, records, err := lookup(name, dnsTypeNS)
+	if err != nil {
+		return
+	}
+	ns = make([]*NS, len(records))
+	for i, r := range records {
+		r := r.(*dnsRR_NS)
+		ns[i] = &NS{r.Ns}
+	}
+	return
+}
+
 func lookupTXT(name string) (txt []string, err error) {
 	_, records, err := lookup(name, dnsTypeTXT)
 	if err != nil {
