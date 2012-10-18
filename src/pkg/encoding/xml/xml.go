@@ -964,7 +964,16 @@ Input:
 			b0, b1 = 0, 0
 			continue Input
 		}
-		d.buf.WriteByte(b)
+
+		// We must rewrite unescaped \r and \r\n into \n.
+		if b == '\r' {
+			d.buf.WriteByte('\n')
+		} else if b1 == '\r' && b == '\n' {
+			// Skip \r\n--we already wrote \n.
+		} else {
+			d.buf.WriteByte(b)
+		}
+
 		b0, b1 = b1, b
 	}
 	data := d.buf.Bytes()
@@ -985,20 +994,7 @@ Input:
 		}
 	}
 
-	// Must rewrite \r and \r\n into \n.
-	w := 0
-	for r := 0; r < len(data); r++ {
-		b := data[r]
-		if b == '\r' {
-			if r+1 < len(data) && data[r+1] == '\n' {
-				continue
-			}
-			b = '\n'
-		}
-		data[w] = b
-		w++
-	}
-	return data[0:w]
+	return data
 }
 
 // Decide whether the given rune is in the XML Character Range, per
@@ -1689,6 +1685,9 @@ var (
 	esc_amp  = []byte("&amp;")
 	esc_lt   = []byte("&lt;")
 	esc_gt   = []byte("&gt;")
+	esc_tab  = []byte("&#x9;")
+	esc_nl   = []byte("&#xA;")
+	esc_cr   = []byte("&#xD;")
 )
 
 // Escape writes to w the properly escaped XML equivalent
@@ -1708,6 +1707,12 @@ func Escape(w io.Writer, s []byte) {
 			esc = esc_lt
 		case '>':
 			esc = esc_gt
+		case '\t':
+			esc = esc_tab
+		case '\n':
+			esc = esc_nl
+		case '\r':
+			esc = esc_cr
 		default:
 			continue
 		}

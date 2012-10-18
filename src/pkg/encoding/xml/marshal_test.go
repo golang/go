@@ -687,6 +687,27 @@ var marshalTests = []struct {
 		Value:         &IgnoreTest{},
 		UnmarshalOnly: true,
 	},
+
+	// Test escaping.
+	{
+		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested></a>`,
+		Value: &AnyTest{
+			Nested: `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
+		},
+	},
+	{
+		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested></a>`,
+		Value: &AnyTest{
+			Nested: "newline: \n; cr: \r; tab: \t;",
+		},
+	},
+	{
+		ExpectXML: "<a><nested><value>1\r2\r\n3\n\r4\n5</value></nested></a>",
+		Value: &AnyTest{
+			Nested: "1\n2\n3\n\n4\n5",
+		},
+		UnmarshalOnly: true,
+	},
 }
 
 func TestMarshal(t *testing.T) {
