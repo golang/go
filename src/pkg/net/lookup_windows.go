@@ -129,6 +129,21 @@ func lookupMX(name string) (mx []*MX, err error) {
 	return mx, nil
 }
 
+func lookupNS(name string) (ns []*NS, err error) {
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
+	if e != nil {
+		return nil, os.NewSyscallError("LookupNS", e)
+	}
+	defer syscall.DnsRecordListFree(r, 1)
+	ns = make([]*NS, 0, 10)
+	for p := r; p != nil && p.Type == syscall.DNS_TYPE_NS; p = p.Next {
+		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+		ns = append(ns, &NS{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]) + "."})
+	}
+	return ns, nil
+}
+
 func lookupTXT(name string) (txt []string, err error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)

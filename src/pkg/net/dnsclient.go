@@ -244,3 +244,8 @@ func (s byPref) sort() {
 	}
 	sort.Sort(s)
 }
+
+// An NS represents a single DNS NS record.
+type NS struct {
+	Host string
+}

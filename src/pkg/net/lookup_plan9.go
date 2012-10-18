@@ -201,6 +201,21 @@ func lookupMX(name string) (mx []*MX, err error) {
 	return
 }
 
+func lookupNS(name string) (ns []*NS, err error) {
+	lines, err := queryDNS(name, "ns")
+	if err != nil {
+		return
+	}
+	for _, line := range lines {
+		f := getFields(line)
+		if len(f) < 4 {
+			continue
+		}
+		ns = append(ns, &NS{f[3]})
+	}
+	return
+}
+
 func lookupTXT(name string) (txt []string, err error) {
 	lines, err := queryDNS(name, "txt")
 	if err != nil {
