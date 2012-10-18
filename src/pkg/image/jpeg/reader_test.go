@@ -21,6 +21,7 @@ func TestDecodeProgressive(t *testing.T) {
 		"../testdata/video-001",
 		"../testdata/video-001.q50.420",
 		"../testdata/video-001.q50.422",
+		"../testdata/video-001.q50.440",
 		"../testdata/video-001.q50.444",
 		"../testdata/video-005.gray.q50",
 	}
