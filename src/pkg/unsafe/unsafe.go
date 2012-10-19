@@ -11,7 +11,7 @@ package unsafe
 // part of the unsafe package.  It represents the type of an arbitrary Go expression.
 type ArbitraryType int
 
-// Pointer represents a pointer to an arbitrary type.  There are three special operations
+// Pointer represents a pointer to an arbitrary type.  There are four special operations
 // available for type Pointer that are not available for other types.
 //	1) A pointer value of any type can be converted to a Pointer.
 //	2) A Pointer can be converted to a pointer value of any type.
