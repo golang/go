@@ -3001,7 +3001,8 @@ int64    -9223372036854775808
 </pre>
 
 <p>
-If the divisor is zero, a <a href="#Run_time_panics">run-time panic</a> occurs.
+If the divisor is a <a href="#Constants">constant</a>, it must not be zero.
+If the divisor is zero at run time, a <a href="#Run_time_panics">run-time panic</a> occurs.
 If the dividend is positive and the divisor is a constant power of 2,
 the division may be replaced by a right shift, and computing the remainder may
 be replaced by a bitwise AND operation:
@@ -3690,6 +3691,14 @@ by any predeclared type in the language. The following are legal declarations:
 <pre>
 const Huge = 1 &lt;&lt; 100
 const Four int8 = Huge &gt;&gt; 98
+</pre>
+
+<p>
+The divisor of a constant division or remainder operation must not be zero:
+</p>
+
+<pre>
+3.14 / 0.0   // illegal: division by zero
 </pre>
 
 <p>
@@ -4757,8 +4766,6 @@ the result parameters before they are returned.
 If the deferred function has any return values, they are discarded when
 the function completes.
 (See also the section on <a href="#Handling_panics">handling panics</a>.)
-</p>
-
 </p>
 
 <pre>
