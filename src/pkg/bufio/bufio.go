@@ -567,6 +567,35 @@ func (b *Writer) WriteString(s string) (int, error) {
 	return nn, nil
 }
 
+// ReadFrom implements io.ReaderFrom.
+func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
+	if err = b.Flush(); err != nil {
+		return 0, err
+	}
+	if w, ok := b.wr.(io.ReaderFrom); ok {
+		return w.ReadFrom(r)
+	}
+	var m int
+	for {
+		m, err = r.Read(b.buf[b.n:])
+		if m == 0 {
+			break
+		}
+		b.n += m
+		n += int64(m)
+		if err1 := b.Flush(); err1 != nil {
+			return n, err1
+		}
+		if err != nil {
+			break
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return n, err
+}
+
 // buffered input and output
 
 // ReadWriter stores pointers to a Reader and a Writer.

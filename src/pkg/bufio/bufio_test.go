@@ -763,8 +763,8 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 	}
 }
 
-func TestReaderWriteTo(t *testing.T) {
-	input := make([]byte, 8192)
+func createTestInput(n int) []byte {
+	input := make([]byte, n)
 	for i := range input {
 		// 101 and 251 are arbitrary prime numbers.
 		// The idea is to create an input sequence
@@ -774,7 +774,12 @@ func TestReaderWriteTo(t *testing.T) {
 			input[i] ^= byte(i / 101)
 		}
 	}
-	r := NewReader(bytes.NewBuffer(input))
+	return input
+}
+
+func TestReaderWriteTo(t *testing.T) {
+	input := createTestInput(8192)
+	r := NewReader(&onlyReader{bytes.NewBuffer(input)})
 	w := new(bytes.Buffer)
 	if n, err := r.WriteTo(w); err != nil || n != int64(len(input)) {
 		t.Fatalf("r.WriteTo(w) = %d, %v, want %d, nil", n, err, len(input))
@@ -813,6 +818,65 @@ func TestReaderWriteToErrors(t *testing.T) {
 		r := NewReader(rw)
 		if _, err := r.WriteTo(rw); err != rw.expected {
 			t.Errorf("r.WriteTo(errorWriterToTests[%d]) = _, %v, want _,%v", i, err, rw.expected)
+		}
+	}
+}
+
+func TestWriterReadFrom(t *testing.T) {
+	ws := []func(io.Writer) io.Writer{
+		func(w io.Writer) io.Writer { return &onlyWriter{w} },
+		func(w io.Writer) io.Writer { return w },
+	}
+
+	rs := []func(io.Reader) io.Reader{
+		iotest.DataErrReader,
+		func(r io.Reader) io.Reader { return r },
+	}
+
+	for ri, rfunc := range rs {
+		for wi, wfunc := range ws {
+			input := createTestInput(8192)
+			b := new(bytes.Buffer)
+			w := NewWriter(wfunc(b))
+			r := rfunc(bytes.NewBuffer(input))
+			if n, err := w.ReadFrom(r); err != nil || n != int64(len(input)) {
+				t.Errorf("ws[%d],rs[%d]: w.ReadFrom(r) = %d, %v, want %d, nil", wi, ri, n, err, len(input))
+				continue
+			}
+			if got, want := b.String(), string(input); got != want {
+				t.Errorf("ws[%d], rs[%d]:\ngot  %q\nwant %q\n", wi, ri, got, want)
+			}
+		}
+	}
+}
+
+type errorReaderFromTest struct {
+	rn, wn     int
+	rerr, werr error
+	expected   error
+}
+
+func (r errorReaderFromTest) Read(p []byte) (int, error) {
+	return len(p) * r.rn, r.rerr
+}
+
+func (w errorReaderFromTest) Write(p []byte) (int, error) {
+	return len(p) * w.wn, w.werr
+}
+
+var errorReaderFromTests = []errorReaderFromTest{
+	{0, 1, io.EOF, nil, nil},
+	{1, 1, io.EOF, nil, nil},
+	{0, 1, io.ErrClosedPipe, nil, io.ErrClosedPipe},
+	{0, 0, io.ErrClosedPipe, io.ErrShortWrite, io.ErrClosedPipe},
+	{1, 0, nil, io.ErrShortWrite, io.ErrShortWrite},
+}
+
+func TestWriterReadFromErrors(t *testing.T) {
+	for i, rw := range errorReaderFromTests {
+		w := NewWriter(rw)
+		if _, err := w.ReadFrom(rw); err != rw.expected {
+			t.Errorf("w.ReadFrom(errorReaderFromTests[%d]) = _, %v, want _,%v", i, err, rw.expected)
 		}
 	}
 }
@@ -862,6 +926,37 @@ func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
 		b.StopTimer()
 		src := &onlyReader{NewReader(bytes.NewBuffer(make([]byte, 8192)))}
 		dst := &onlyWriter{new(bytes.Buffer)}
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkWriterCopyOptimal(b *testing.B) {
+	// Optimal case is where the underlying writer implements io.ReaderFrom
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		dst := NewWriter(new(bytes.Buffer))
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkWriterCopyUnoptimal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		dst := NewWriter(&onlyWriter{new(bytes.Buffer)})
+		b.StartTimer()
+		io.Copy(dst, src)
+	}
+}
+
+func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		dst := &onlyWriter{NewWriter(new(bytes.Buffer))}
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
