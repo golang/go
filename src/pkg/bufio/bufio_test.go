@@ -881,6 +881,64 @@ func TestWriterReadFromErrors(t *testing.T) {
 	}
 }
 
+// TestWriterReadFromCounts tests that using io.Copy to copy into a
+// bufio.Writer does not prematurely flush the buffer. For example, when
+// buffering writes to a network socket, excessive network writes should be
+// avoided.
+func TestWriterReadFromCounts(t *testing.T) {
+	var w0 writeCountingDiscard
+	b0 := NewWriterSize(&w0, 1234)
+	b0.WriteString(strings.Repeat("x", 1000))
+	if w0 != 0 {
+		t.Fatalf("write 1000 'x's: got %d writes, want 0", w0)
+	}
+	b0.WriteString(strings.Repeat("x", 200))
+	if w0 != 0 {
+		t.Fatalf("write 1200 'x's: got %d writes, want 0", w0)
+	}
+	io.Copy(b0, &onlyReader{strings.NewReader(strings.Repeat("x", 30))})
+	if w0 != 0 {
+		t.Fatalf("write 1230 'x's: got %d writes, want 0", w0)
+	}
+	io.Copy(b0, &onlyReader{strings.NewReader(strings.Repeat("x", 9))})
+	if w0 != 1 {
+		t.Fatalf("write 1239 'x's: got %d writes, want 1", w0)
+	}
+
+	var w1 writeCountingDiscard
+	b1 := NewWriterSize(&w1, 1234)
+	b1.WriteString(strings.Repeat("x", 1200))
+	b1.Flush()
+	if w1 != 1 {
+		t.Fatalf("flush 1200 'x's: got %d writes, want 1", w1)
+	}
+	b1.WriteString(strings.Repeat("x", 89))
+	if w1 != 1 {
+		t.Fatalf("write 1200 + 89 'x's: got %d writes, want 1", w1)
+	}
+	io.Copy(b1, &onlyReader{strings.NewReader(strings.Repeat("x", 700))})
+	if w1 != 1 {
+		t.Fatalf("write 1200 + 789 'x's: got %d writes, want 1", w1)
+	}
+	io.Copy(b1, &onlyReader{strings.NewReader(strings.Repeat("x", 600))})
+	if w1 != 2 {
+		t.Fatalf("write 1200 + 1389 'x's: got %d writes, want 2", w1)
+	}
+	b1.Flush()
+	if w1 != 3 {
+		t.Fatalf("flush 1200 + 1389 'x's: got %d writes, want 3", w1)
+	}
+}
+
+// A writeCountingDiscard is like ioutil.Discard and counts the number of times
+// Write is called on it.
+type writeCountingDiscard int
+
+func (w *writeCountingDiscard) Write(p []byte) (int, error) {
+	*w++
+	return len(p), nil
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	r io.Reader

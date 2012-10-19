@@ -569,11 +569,10 @@ func (b *Writer) WriteString(s string) (int, error) {
 
 // ReadFrom implements io.ReaderFrom.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
-	if err = b.Flush(); err != nil {
-		return 0, err
-	}
-	if w, ok := b.wr.(io.ReaderFrom); ok {
-		return w.ReadFrom(r)
+	if b.Buffered() == 0 {
+		if w, ok := b.wr.(io.ReaderFrom); ok {
+			return w.ReadFrom(r)
+		}
 	}
 	var m int
 	for {
@@ -583,8 +582,10 @@ func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		b.n += m
 		n += int64(m)
-		if err1 := b.Flush(); err1 != nil {
-			return n, err1
+		if b.Available() == 0 {
+			if err1 := b.Flush(); err1 != nil {
+				return n, err1
+			}
 		}
 		if err != nil {
 			break
