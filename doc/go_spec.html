@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 17, 2012",
+	"Subtitle": "Version of October 19, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4920,15 +4920,18 @@ make(T, n)       channel    asynchronous channel of type T, buffer size n
 
 
 <p>
-The arguments <code>n</code> and <code>m</code> must be of integer type.
-A <a href="#Run_time_panics">run-time panic</a> occurs if <code>n</code>
-is negative or larger than <code>m</code>, or if <code>n</code> or
-<code>m</code> cannot be represented by an <code>int</code>.
+The size arguments <code>n</code> and <code>m</code> must be integer values.
+A <a href="#Constants">constant</a> size argument must not be negative, and
+if both <code>n</code> and <code>m</code> are provided and are constant, then
+<code>n</code> must be no larger than <code>m</code>.
+If <code>n</code> is negative or larger than <code>m</code> at run time,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <pre>
 s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
-s := make([]int, 10)            // slice with len(s) == cap(s) == 10
+s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
+s := make([]int, 10, 0)	        // illegal: len(s) > cap(s)
 c := make(chan int, 10)         // channel with a buffer size of 10
 m := make(map[string]int, 100)  // map with initial space for 100 elements
 </pre>
