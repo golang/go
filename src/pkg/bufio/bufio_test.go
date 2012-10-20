@@ -779,7 +779,7 @@ func createTestInput(n int) []byte {
 
 func TestReaderWriteTo(t *testing.T) {
 	input := createTestInput(8192)
-	r := NewReader(&onlyReader{bytes.NewBuffer(input)})
+	r := NewReader(onlyReader{bytes.NewBuffer(input)})
 	w := new(bytes.Buffer)
 	if n, err := r.WriteTo(w); err != nil || n != int64(len(input)) {
 		t.Fatalf("r.WriteTo(w) = %d, %v, want %d, nil", n, err, len(input))
@@ -824,7 +824,7 @@ func TestReaderWriteToErrors(t *testing.T) {
 
 func TestWriterReadFrom(t *testing.T) {
 	ws := []func(io.Writer) io.Writer{
-		func(w io.Writer) io.Writer { return &onlyWriter{w} },
+		func(w io.Writer) io.Writer { return onlyWriter{w} },
 		func(w io.Writer) io.Writer { return w },
 	}
 
@@ -896,11 +896,11 @@ func TestWriterReadFromCounts(t *testing.T) {
 	if w0 != 0 {
 		t.Fatalf("write 1200 'x's: got %d writes, want 0", w0)
 	}
-	io.Copy(b0, &onlyReader{strings.NewReader(strings.Repeat("x", 30))})
+	io.Copy(b0, onlyReader{strings.NewReader(strings.Repeat("x", 30))})
 	if w0 != 0 {
 		t.Fatalf("write 1230 'x's: got %d writes, want 0", w0)
 	}
-	io.Copy(b0, &onlyReader{strings.NewReader(strings.Repeat("x", 9))})
+	io.Copy(b0, onlyReader{strings.NewReader(strings.Repeat("x", 9))})
 	if w0 != 1 {
 		t.Fatalf("write 1239 'x's: got %d writes, want 1", w0)
 	}
@@ -916,11 +916,11 @@ func TestWriterReadFromCounts(t *testing.T) {
 	if w1 != 1 {
 		t.Fatalf("write 1200 + 89 'x's: got %d writes, want 1", w1)
 	}
-	io.Copy(b1, &onlyReader{strings.NewReader(strings.Repeat("x", 700))})
+	io.Copy(b1, onlyReader{strings.NewReader(strings.Repeat("x", 700))})
 	if w1 != 1 {
 		t.Fatalf("write 1200 + 789 'x's: got %d writes, want 1", w1)
 	}
-	io.Copy(b1, &onlyReader{strings.NewReader(strings.Repeat("x", 600))})
+	io.Copy(b1, onlyReader{strings.NewReader(strings.Repeat("x", 600))})
 	if w1 != 2 {
 		t.Fatalf("write 1200 + 1389 'x's: got %d writes, want 2", w1)
 	}
@@ -944,7 +944,7 @@ type onlyReader struct {
 	r io.Reader
 }
 
-func (r *onlyReader) Read(b []byte) (int, error) {
+func (r onlyReader) Read(b []byte) (int, error) {
 	return r.r.Read(b)
 }
 
@@ -953,7 +953,7 @@ type onlyWriter struct {
 	w io.Writer
 }
 
-func (w *onlyWriter) Write(b []byte) (int, error) {
+func (w onlyWriter) Write(b []byte) (int, error) {
 	return w.w.Write(b)
 }
 
@@ -962,7 +962,7 @@ func BenchmarkReaderCopyOptimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		src := NewReader(bytes.NewBuffer(make([]byte, 8192)))
-		dst := &onlyWriter{new(bytes.Buffer)}
+		dst := onlyWriter{new(bytes.Buffer)}
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
@@ -972,8 +972,8 @@ func BenchmarkReaderCopyUnoptimal(b *testing.B) {
 	// Unoptimal case is where the underlying reader doesn't implement io.WriterTo
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		src := NewReader(&onlyReader{bytes.NewBuffer(make([]byte, 8192))})
-		dst := &onlyWriter{new(bytes.Buffer)}
+		src := NewReader(onlyReader{bytes.NewBuffer(make([]byte, 8192))})
+		dst := onlyWriter{new(bytes.Buffer)}
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
@@ -982,8 +982,8 @@ func BenchmarkReaderCopyUnoptimal(b *testing.B) {
 func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		src := &onlyReader{NewReader(bytes.NewBuffer(make([]byte, 8192)))}
-		dst := &onlyWriter{new(bytes.Buffer)}
+		src := onlyReader{NewReader(bytes.NewBuffer(make([]byte, 8192)))}
+		dst := onlyWriter{new(bytes.Buffer)}
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
@@ -993,7 +993,7 @@ func BenchmarkWriterCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying writer implements io.ReaderFrom
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
 		dst := NewWriter(new(bytes.Buffer))
 		b.StartTimer()
 		io.Copy(dst, src)
@@ -1003,8 +1003,8 @@ func BenchmarkWriterCopyOptimal(b *testing.B) {
 func BenchmarkWriterCopyUnoptimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
-		dst := NewWriter(&onlyWriter{new(bytes.Buffer)})
+		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		dst := NewWriter(onlyWriter{new(bytes.Buffer)})
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
@@ -1013,8 +1013,8 @@ func BenchmarkWriterCopyUnoptimal(b *testing.B) {
 func BenchmarkWriterCopyNoReadFrom(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		src := &onlyReader{bytes.NewBuffer(make([]byte, 8192))}
-		dst := &onlyWriter{NewWriter(new(bytes.Buffer))}
+		src := onlyReader{bytes.NewBuffer(make([]byte, 8192))}
+		dst := onlyWriter{NewWriter(new(bytes.Buffer))}
 		b.StartTimer()
 		io.Copy(dst, src)
 	}
