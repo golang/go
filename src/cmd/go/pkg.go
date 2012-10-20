@@ -674,12 +674,11 @@ func packagesAndErrors(args []string) []*Package {
 	var set = make(map[string]bool)
 
 	for _, arg := range args {
-		set[arg] = true
+		if !set[arg] {
+			pkgs = append(pkgs, loadPackage(arg, &stk))
+			set[arg] = true
+		}
 	}
-	for arg := range set {
-		pkgs = append(pkgs, loadPackage(arg, &stk))
-	}
-
 	computeStale(pkgs...)
 
 	return pkgs
