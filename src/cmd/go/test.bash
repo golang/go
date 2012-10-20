@@ -142,6 +142,18 @@ if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
     ok=false
 fi
 
+# ensure that output of 'go list' is consistent between runs
+./testgo list std > test_std.list
+if ! ./testgo list std | cmp -s test_std.list - ; then
+	echo "go list std ordering is inconsistent"
+	ok=false
+fi
+rm -f test_std.list
+
+# clean up
+rm -rf testdata/bin testdata/bin1
+rm -f testgo
+
 if $ok; then
 	echo PASS
 else
