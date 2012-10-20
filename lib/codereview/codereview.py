@@ -1951,7 +1951,8 @@ def submit(ui, repo, *pats, **opts):
 
 		# Push changes to remote.  If it works, we're committed.  If not, roll back.
 		try:
-			hg_push(ui, repo)
+			if hg_push(ui, repo):
+				raise hg_util.Abort("push error")
 		except hg_error.Abort, e:
 			if e.message.find("push creates new heads") >= 0:
 				# Remote repository had changes we missed.
