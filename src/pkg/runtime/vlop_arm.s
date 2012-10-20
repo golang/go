@@ -42,127 +42,6 @@ TEXT _mulv(SB), $0
 	MOVW	R7, 4(R(arg))
 	RET
 
-
-Q	= 0
-N	= 1
-D	= 2
-CC	= 3
-TMP	= 11
-
-TEXT save<>(SB), 7, $0
-	MOVW	R(Q), 0(FP)
-	MOVW	R(N), 4(FP)
-	MOVW	R(D), 8(FP)
-	MOVW	R(CC), 12(FP)
-
-	MOVW	R(TMP), R(Q)		/* numerator */
-	MOVW	20(FP), R(D)		/* denominator */
-	CMP	$0, R(D)
-	BNE	s1
-	BL	runtime·panicdivide(SB)
-/*	  MOVW	-1(R(D)), R(TMP)	/* divide by zero fault */
-s1:	 RET
-
-TEXT rest<>(SB), 7, $0
-	MOVW	0(FP), R(Q)
-	MOVW	4(FP), R(N)
-	MOVW	8(FP), R(D)
-	MOVW	12(FP), R(CC)
-/*
- * return to caller
- * of rest<>
- */
-	MOVW	0(R13), R14
-	ADD	$20, R13
-	B	(R14)
-
-TEXT div<>(SB), 7, $0
-	MOVW	$32, R(CC)
-/*
- * skip zeros 8-at-a-time
- */
-e1:
-	AND.S	$(0xff<<24),R(Q), R(N)
-	BNE	e2
-	SLL	$8, R(Q)
-	SUB.S	$8, R(CC)
-	BNE	e1
-	RET
-e2:
-	MOVW	$0, R(N)
-
-loop:
-/*
- * shift R(N||Q) left one
- */
-	SLL	$1, R(N)
-	CMP	$0, R(Q)
-	ORR.LT  $1, R(N)
-	SLL	$1, R(Q)
-
-/*
- * compare numerator to denominator
- * if less, subtract and set quotient bit
- */
-	CMP	R(D), R(N)
-	ORR.HS  $1, R(Q)
-	SUB.HS  R(D), R(N)
-	SUB.S	$1, R(CC)
-	BNE	loop
-	RET
-
-TEXT _div(SB), 7, $16
-	BL	save<>(SB)
-	CMP	$0, R(Q)
-	BGE	d1
-	RSB	$0, R(Q), R(Q)
-	CMP	$0, R(D)
-	BGE	d2
-	RSB	$0, R(D), R(D)
-d0:
-	BL	div<>(SB)			/* none/both neg */
-	MOVW	R(Q), R(TMP)
-	B	out
-d1:
-	CMP	$0, R(D)
-	BGE	d0
-	RSB	$0, R(D), R(D)
-d2:
-	BL	div<>(SB)			/* one neg */
-	RSB	$0, R(Q), R(TMP)
-	B	out
-
-TEXT _mod(SB), 7, $16
-	BL	save<>(SB)
-	CMP	$0, R(D)
-	RSB.LT	$0, R(D), R(D)
-	CMP	$0, R(Q)
-	BGE	m1
-	RSB	$0, R(Q), R(Q)
-	BL	div<>(SB)			/* neg numerator */
-	RSB	$0, R(N), R(TMP)
-	B	out
-m1:
-	BL	div<>(SB)			/* pos numerator */
-	MOVW	R(N), R(TMP)
-	B	out
-
-TEXT _divu(SB), 7, $16
-	BL	save<>(SB)
-	BL	div<>(SB)
-	MOVW	R(Q), R(TMP)
-	B	out
-
-TEXT _modu(SB), 7, $16
-	BL	save<>(SB)
-	BL	div<>(SB)
-	MOVW	R(N), R(TMP)
-	B	out
-
-out:
-	BL	rest<>(SB)
-	B	out
-
 // trampoline for _sfloat2. passes LR as arg0 and
 // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
 // be changed by _sfloat2.
@@ -183,5 +62,189 @@ TEXT _sfloat(SB), 7, $64 // 4 arg + 14*4 saved regs + cpsr
 	MOVM.IA.W	(R0), [R1-R12]
 	MOVW	8(R13), R0
 	RET
-			
 
+// func udiv(n, d uint32) (q, r uint32)
+// Reference: 
+// Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
+// Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
+q = 0 // input d, output q
+r = 1 // input n, output r
+s = 2 // three temporary variables
+m = 3
+a = 11
+// Please be careful when changing this, it is pretty fragile:
+// 1, don't use unconditional branch as the linker is free to reorder the blocks;
+// 2. if a == 11, beware that the linker will use R11 if you use certain instructions.
+TEXT udiv<>(SB),7,$-4
+	CLZ 	R(q), R(s) // find normalizing shift
+	MOVW.S	R(q)<<R(s), R(a)
+	ADD 	R(a)>>25, PC, R(a) // most significant 7 bits of divisor
+	MOVBU.NE	(4*36-64)(R(a)), R(a) // 36 == number of inst. between fast_udiv_tab and begin
+
+begin:
+	SUB.S	$7, R(s)
+	RSB 	$0, R(q), R(m) // m = -q
+	MOVW.PL	R(a)<<R(s), R(q)
+
+	// 1st Newton iteration
+	MUL.PL	R(m), R(q), R(a) // a = -q*d
+	BMI 	udiv_by_large_d
+	MULAWT	R(a), R(q), R(q), R(q) // q approx q-(q*q*d>>32)
+	TEQ 	R(m)->1, R(m) // check for d=0 or d=1
+
+	// 2nd Newton iteration
+	MUL.NE	R(m), R(q), R(a)
+	MOVW.NE	$0, R(s)
+	MULAL.NE R(q), R(a), (R(q),R(s))
+	BEQ 	udiv_by_0_or_1
+
+	// q now accurate enough for a remainder r, 0<=r<3*d
+	MULLU	R(q), R(r), (R(q),R(s)) // q = (r * q) >> 32	
+	ADD 	R(m), R(r), R(r) // r = n - d
+	MULA	R(m), R(q), R(r), R(r) // r = n - (q+1)*d
+
+	// since 0 <= n-q*d < 3*d; thus -d <= r < 2*d
+	CMN 	R(m), R(r) // t = r-d
+	SUB.CS	R(m), R(r), R(r) // if (t<-d || t>=0) r=r+d
+	ADD.CC	$1, R(q)
+	ADD.PL	R(m)<<1, R(r)
+	ADD.PL	$2, R(q)
+
+	// return, can't use RET here or fast_udiv_tab will be dropped during linking
+	MOVW	R14, R15
+
+udiv_by_large_d:
+	// at this point we know d>=2^(31-6)=2^25
+	SUB 	$4, R(a), R(a)
+	RSB 	$0, R(s), R(s)
+	MOVW	R(a)>>R(s), R(q)
+	MULLU	R(q), R(r), (R(q),R(s))
+	MULA	R(m), R(q), R(r), R(r)
+
+	// q now accurate enough for a remainder r, 0<=r<4*d
+	CMN 	R(r)>>1, R(m) // if(r/2 >= d)
+	ADD.CS	R(m)<<1, R(r)
+	ADD.CS	$2, R(q)
+	CMN 	R(r), R(m)
+	ADD.CS	R(m), R(r)
+	ADD.CS	$1, R(q)
+
+	// return, can't use RET here or fast_udiv_tab will be dropped during linking
+	MOVW	R14, R15
+
+udiv_by_0_or_1:
+	// carry set if d==1, carry clear if d==0
+	MOVW.CS	R(r), R(q)
+	MOVW.CS	$0, R(r)
+	BL.CC 	runtime·panicdivide(SB) // no way back
+
+	// return, can't use RET here or fast_udiv_tab will be dropped during linking
+	MOVW	R14, R15
+
+fast_udiv_tab:
+	// var tab [64]byte
+	// tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
+	// laid out here as little-endian uint32s
+	WORD $0xf4f8fcff
+	WORD $0xe6eaedf0
+	WORD $0xdadde0e3
+	WORD $0xcfd2d4d7
+	WORD $0xc5c7cacc
+	WORD $0xbcbec0c3
+	WORD $0xb4b6b8ba
+	WORD $0xacaeb0b2
+	WORD $0xa5a7a8aa
+	WORD $0x9fa0a2a3
+	WORD $0x999a9c9d
+	WORD $0x93949697
+	WORD $0x8e8f9092
+	WORD $0x898a8c8d
+	WORD $0x85868788
+	WORD $0x81828384
+
+// The linker will pass numerator in R(TMP), and it also
+// expects the result in R(TMP)
+TMP = 11
+
+TEXT _divu(SB), 7, $16
+	MOVW	R(q), 4(R13)
+	MOVW	R(r), 8(R13)
+	MOVW	R(s), 12(R13)
+	MOVW	R(m), 16(R13)
+
+	MOVW	R(TMP), R(r)		/* numerator */
+	MOVW	0(FP), R(q) 		/* denominator */
+	BL  	udiv<>(SB)
+	MOVW	R(q), R(TMP)
+	MOVW	4(R13), R(q)
+	MOVW	8(R13), R(r)
+	MOVW	12(R13), R(s)
+	MOVW	16(R13), R(m)
+	RET
+
+TEXT _modu(SB), 7, $16
+	MOVW	R(q), 4(R13)
+	MOVW	R(r), 8(R13)
+	MOVW	R(s), 12(R13)
+	MOVW	R(m), 16(R13)
+
+	MOVW	R(TMP), R(r)		/* numerator */
+	MOVW	0(FP), R(q) 		/* denominator */
+	BL  	udiv<>(SB)
+	MOVW	R(r), R(TMP)
+	MOVW	4(R13), R(q)
+	MOVW	8(R13), R(r)
+	MOVW	12(R13), R(s)
+	MOVW	16(R13), R(m)
+	RET
+
+TEXT _div(SB),7,$16
+	MOVW	R(q), 4(R13)
+	MOVW	R(r), 8(R13)
+	MOVW	R(s), 12(R13)
+	MOVW	R(m), 16(R13)
+	MOVW	R(TMP), R(r)		/* numerator */
+	MOVW	0(FP), R(q) 		/* denominator */
+	CMP 	$0, R(r)
+	BGE 	d1
+	RSB 	$0, R(r), R(r)
+	CMP 	$0, R(q)
+	BGE 	d2
+	RSB 	$0, R(q), R(q)
+d0:
+	BL  	udiv<>(SB)  		/* none/both neg */
+	MOVW	R(q), R(TMP)
+	B		out
+d1:
+	CMP 	$0, R(q)
+	BGE 	d0
+	RSB 	$0, R(q), R(q)
+d2:
+	BL  	udiv<>(SB)  		/* one neg */
+	RSB		$0, R(q), R(TMP)
+	B   	out
+
+TEXT _mod(SB),7,$16
+	MOVW	R(q), 4(R13)
+	MOVW	R(r), 8(R13)
+	MOVW	R(s), 12(R13)
+	MOVW	R(m), 16(R13)
+	MOVW	R(TMP), R(r)		/* numerator */
+	MOVW	0(FP), R(q) 		/* denominator */
+	CMP 	$0, R(q)
+	RSB.LT	$0, R(q), R(q)
+	CMP 	$0, R(r)
+	BGE 	m1
+	RSB 	$0, R(r), R(r)
+	BL  	udiv<>(SB)  		/* neg numerator */
+	RSB 	$0, R(r), R(TMP)
+	B   	out
+m1:
+	BL  	udiv<>(SB)  		/* pos numerator */
+	MOVW	R(r), R(TMP)
+out:
+	MOVW	4(R13), R(q)
+	MOVW	8(R13), R(r)
+	MOVW	12(R13), R(s)
+	MOVW	16(R13), R(m)
+	RET
