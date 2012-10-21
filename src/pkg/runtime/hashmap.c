@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
 #include "hashmap.h"
 #include "type.h"
 #include "race.h"
@@ -747,6 +749,13 @@ runtime·makemap_c(MapType *typ, int64 hint)
 
 	h = runtime·mal(sizeof(*h));
 	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
+
+	if(UseSpanType) {
+		if(false) {
+			runtime·printf("makemap %S: %p\n", *typ->string, h);
+		}
+		runtime·settype(h, (uintptr)typ | TypeInfo_Map);
+	}
 
 	ksize = ROUND(key->size, sizeof(void*));
 	vsize = ROUND(val->size, sizeof(void*));
