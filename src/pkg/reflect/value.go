@@ -810,8 +810,10 @@ func (v Value) Float() float64 {
 	panic(&ValueError{"reflect.Value.Float", k})
 }
 
+var uint8Type = TypeOf(uint8(0)).(*commonType)
+
 // Index returns v's i'th element.
-// It panics if v's Kind is not Array or Slice or i is out of range.
+// It panics if v's Kind is not Array, Slice, or String or i is out of range.
 func (v Value) Index(i int) Value {
 	k := v.kind()
 	switch k {
@@ -852,6 +854,15 @@ func (v Value) Index(i int) Value {
 		fl |= flag(typ.Kind()) << flagKindShift
 		val := unsafe.Pointer(s.Data + uintptr(i)*typ.size)
 		return Value{typ, val, fl}
+
+	case String:
+		fl := v.flag&flagRO | flag(Uint8<<flagKindShift)
+		s := (*StringHeader)(v.val)
+		if i < 0 || i >= s.Len {
+			panic("reflect: string index out of range")
+		}
+		val := *(*byte)(unsafe.Pointer(s.Data + uintptr(i)))
+		return Value{uint8Type, unsafe.Pointer(uintptr(val)), fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", k})
 }
@@ -1437,7 +1448,7 @@ func (v Value) SetString(x string) {
 }
 
 // Slice returns a slice of v.
-// It panics if v's Kind is not Array or Slice.
+// It panics if v's Kind is not Array, Slice, or String.
 func (v Value) Slice(beg, end int) Value {
 	var (
 		cap  int
@@ -1447,6 +1458,7 @@ func (v Value) Slice(beg, end int) Value {
 	switch k := v.kind(); k {
 	default:
 		panic(&ValueError{"reflect.Value.Slice", k})
+
 	case Array:
 		if v.flag&flagAddr == 0 {
 			panic("reflect.Value.Slice: slice of unaddressable array")
@@ -1455,13 +1467,25 @@ func (v Value) Slice(beg, end int) Value {
 		cap = int(tt.len)
 		typ = (*sliceType)(unsafe.Pointer(toCommonType(tt.slice)))
 		base = v.val
+
 	case Slice:
 		typ = (*sliceType)(unsafe.Pointer(v.typ))
 		s := (*SliceHeader)(v.val)
 		base = unsafe.Pointer(s.Data)
 		cap = s.Cap
 
+	case String:
+		s := (*StringHeader)(v.val)
+		if beg < 0 || end < beg || end > s.Len {
+			panic("reflect.Value.Slice: string slice index out of bounds")
+		}
+		var x string
+		val := (*StringHeader)(unsafe.Pointer(&x))
+		val.Data = s.Data + uintptr(beg)
+		val.Len = end - beg
+		return Value{v.typ, unsafe.Pointer(&x), v.flag}
 	}
+
 	if beg < 0 || end < beg || end > cap {
 		panic("reflect.Value.Slice: slice index out of bounds")
 	}
