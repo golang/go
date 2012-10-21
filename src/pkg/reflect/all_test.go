@@ -2036,6 +2036,24 @@ func TestSmallNegativeInt(t *testing.T) {
 	}
 }
 
+func TestIndex(t *testing.T) {
+	xs := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	v := ValueOf(xs).Index(3).Interface().(byte)
+	if v != xs[3] {
+		t.Errorf("xs.Index(3) = %v; expected %v", v, xs[3])
+	}
+	xa := [8]byte{10, 20, 30, 40, 50, 60, 70, 80}
+	v = ValueOf(xa).Index(2).Interface().(byte)
+	if v != xa[2] {
+		t.Errorf("xa.Index(2) = %v; expected %v", v, xa[2])
+	}
+	s := "0123456789"
+	v = ValueOf(s).Index(3).Interface().(byte)
+	if v != s[3] {
+		t.Errorf("s.Index(3) = %v; expected %v", v, s[3])
+	}
+}
+
 func TestSlice(t *testing.T) {
 	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
 	v := ValueOf(xs).Slice(3, 5).Interface().([]int)
@@ -2048,7 +2066,6 @@ func TestSlice(t *testing.T) {
 	if !DeepEqual(v[0:5], xs[3:]) {
 		t.Errorf("xs.Slice(3, 5)[0:5] = %v", v[0:5])
 	}
-
 	xa := [8]int{10, 20, 30, 40, 50, 60, 70, 80}
 	v = ValueOf(&xa).Elem().Slice(2, 5).Interface().([]int)
 	if len(v) != 3 {
@@ -2059,6 +2076,11 @@ func TestSlice(t *testing.T) {
 	}
 	if !DeepEqual(v[0:6], xa[2:]) {
 		t.Errorf("xs.Slice(2, 5)[0:6] = %v", v[0:6])
+	}
+	s := "0123456789"
+	vs := ValueOf(s).Slice(3, 5).Interface().(string)
+	if vs != s[3:5] {
+		t.Errorf("s.Slice(3, 5) = %q; expected %q", vs, s[3:5])
 	}
 }
 
