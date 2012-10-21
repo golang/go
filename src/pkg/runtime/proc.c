@@ -9,6 +9,7 @@
 #include "os_GOOS.h"
 #include "stack.h"
 #include "race.h"
+#include "type.h"
 
 bool	runtime·iscgo;
 
@@ -833,8 +834,15 @@ M*
 runtime·newm(void)
 {
 	M *mp;
+	static Type *mtype;  // The Go type M
 
-	mp = runtime·malloc(sizeof(M));
+	if(mtype == nil) {
+		Eface e;
+		runtime·gc_m_ptr(&e);
+		mtype = ((PtrType*)e.type)->elem;
+	}
+
+	mp = runtime·cnew(mtype);
 	mcommoninit(mp);
 
 	if(runtime·iscgo) {

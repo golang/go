@@ -517,6 +517,7 @@ struct Panic
  * external data
  */
 extern	String	runtime·emptystring;
+extern	uintptr runtime·zerobase;
 G*	runtime·allg;
 G*	runtime·lastg;
 M*	runtime·allm;

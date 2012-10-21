@@ -18,6 +18,7 @@ typedef struct Method Method;
 typedef struct IMethod IMethod;
 typedef struct SliceType SliceType;
 typedef struct FuncType FuncType;
+typedef struct PtrType PtrType;
 
 // Needs to be in sync with typekind.h/CommonSize
 struct CommonType
@@ -100,4 +101,10 @@ struct FuncType
 	bool dotdotdot;
 	Slice in;
 	Slice out;
+};
+
+struct PtrType
+{
+	Type;
+	Type *elem;
 };

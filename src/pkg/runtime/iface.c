@@ -688,6 +688,7 @@ void
 reflect·unsafe_New(Eface typ, void *ret)
 {
 	Type *t;
+	uint32 flag;
 
 	// Reflect library has reinterpreted typ
 	// as its own kind of type structure.
@@ -695,10 +696,16 @@ reflect·unsafe_New(Eface typ, void *ret)
 	// type structure sits before the data pointer.
 	t = (Type*)((Eface*)typ.data-1);
 
-	if(t->kind&KindNoPointers)
-		ret = runtime·mallocgc(t->size, FlagNoPointers, 1, 1);
-	else
-		ret = runtime·mal(t->size);
+	flag = t->kind&KindNoPointers ? FlagNoPointers : 0;
+	ret = runtime·mallocgc(t->size, flag, 1, 1);
+
+	if(UseSpanType && !flag) {
+		if(false) {
+			runtime·printf("unsafe_New %S: %p\n", *t->string, ret);
+		}
+		runtime·settype(ret, (uintptr)t | TypeInfo_SingleObject);
+	}
+
 	FLUSH(&ret);
 }
 
@@ -715,9 +722,20 @@ reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
 	t = (Type*)((Eface*)typ.data-1);
 
 	size = n*t->size;
-	if(t->kind&KindNoPointers)
+	if(size == 0)
+		ret = (byte*)&runtime·zerobase;
+	else if(t->kind&KindNoPointers)
 		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
-	else
-		ret = runtime·mal(size);
+	else {
+		ret = runtime·mallocgc(size, 0, 1, 1);
+
+		if(UseSpanType) {
+			if(false) {
+				runtime·printf("unsafe_NewArray [%D]%S: %p\n", (int64)n, *t->string, ret);
+			}
+			runtime·settype(ret, (uintptr)t | TypeInfo_Array);
+		}
+	}
+
 	FLUSH(&ret);
 }
