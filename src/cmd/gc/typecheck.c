@@ -390,8 +390,10 @@ reswitch:
 			if(t->bound < 0) {
 				yyerror("array bound must be non-negative");
 				goto error;
-			} else
-				overflow(v, types[TINT]);
+			} else if(doesoverflow(v, types[TINT])) {
+				yyerror("array bound is too large"); 
+				goto error;
+			}
 		}
 		typecheck(&r, Etype);
 		if(r->type == T)
