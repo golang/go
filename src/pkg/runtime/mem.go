@@ -6,6 +6,9 @@ package runtime
 
 import "unsafe"
 
+// Note: the MemStats struct should be kept in sync with 
+// struct MStats in malloc.h
+
 // A MemStats records statistics about the memory allocator.
 type MemStats struct {
 	// General statistics.
@@ -39,7 +42,7 @@ type MemStats struct {
 	NextGC       uint64 // next run in HeapAlloc time (bytes)
 	LastGC       uint64 // last run in absolute time (ns)
 	PauseTotalNs uint64
-	PauseNs      [256]uint64 // most recent GC pause times
+	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
 	NumGC        uint32
 	EnableGC     bool
 	DebugGC      bool

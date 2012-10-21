@@ -198,7 +198,7 @@ void	runtime·FixAlloc_Free(FixAlloc *f, void *p);
 
 
 // Statistics.
-// Shared with Go: if you edit this structure, also edit extern.go.
+// Shared with Go: if you edit this structure, also edit type MemStats in mem.go.
 struct MStats
 {
 	// General statistics.
