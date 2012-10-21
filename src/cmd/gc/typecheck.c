@@ -476,7 +476,7 @@ reswitch:
 			n->left = N;
 			goto ret;
 		}
-		if(!isptr[t->etype]) {
+		if((top & Erv) && !isptr[t->etype]) {
 			yyerror("invalid indirect of %lN", n->left);
 			goto error;
 		}
