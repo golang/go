@@ -348,13 +348,9 @@ toint(Val v)
 	return v;
 }
 
-void
-overflow(Val v, Type *t)
+int
+doesoverflow(Val v, Type *t)
 {
-	// v has already been converted
-	// to appropriate form for t.
-	if(t == T || t->etype == TIDEAL)
-		return;
 	switch(v.ctype) {
 	case CTINT:
 	case CTRUNE:
@@ -362,14 +358,14 @@ overflow(Val v, Type *t)
 			fatal("overflow: %T integer constant", t);
 		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0 ||
 		   mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
-			yyerror("constant %B overflows %T", v.u.xval, t);
+			return 1;
 		break;
 	case CTFLT:
 		if(!isfloat[t->etype])
 			fatal("overflow: %T floating-point constant", t);
 		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0 ||
 		   mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
-			yyerror("constant %#F overflows %T", v.u.fval, t);
+			return 1;
 		break;
 	case CTCPLX:
 		if(!iscomplex[t->etype])
@@ -378,7 +374,33 @@ overflow(Val v, Type *t)
 		   mpcmpfltflt(&v.u.cval->real, maxfltval[t->etype]) >= 0 ||
 		   mpcmpfltflt(&v.u.cval->imag, minfltval[t->etype]) <= 0 ||
 		   mpcmpfltflt(&v.u.cval->imag, maxfltval[t->etype]) >= 0)
-			yyerror("constant %#F overflows %T", v.u.fval, t);
+			return 1;
+		break;
+	}
+	return 0;
+}
+
+void
+overflow(Val v, Type *t)
+{
+	// v has already been converted
+	// to appropriate form for t.
+	if(t == T || t->etype == TIDEAL)
+		return;
+
+	if(!doesoverflow(v, t))
+		return;
+
+	switch(v.ctype) {
+	case CTINT:
+	case CTRUNE:
+		yyerror("constant %B overflows %T", v.u.xval, t);
+		break;
+	case CTFLT:
+		yyerror("constant %#F overflows %T", v.u.fval, t);
+		break;
+	case CTCPLX:
+		yyerror("constant %#F overflows %T", v.u.fval, t);
 		break;
 	}
 }

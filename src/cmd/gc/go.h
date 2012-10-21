@@ -178,7 +178,7 @@ struct	Type
 	Strlit*	note;		// literal string annotation
 
 	// TARRAY
-	int32	bound;		// negative is dynamic array
+	vlong	bound;		// negative is dynamic array
 
 	int32	maplineno;	// first use of TFORW as map key
 	int32	embedlineno;	// first use of TFORW as embedded type
@@ -977,6 +977,7 @@ int	isconst(Node *n, int ct);
 Node*	nodcplxlit(Val r, Val i);
 Node*	nodlit(Val v);
 long	nonnegconst(Node *n);
+int	doesoverflow(Val v, Type *t);
 void	overflow(Val v, Type *t);
 int	smallintconst(Node *n);
 Val	toint(Val v);
