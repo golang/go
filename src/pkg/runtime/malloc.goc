@@ -19,7 +19,7 @@ package runtime
 #pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
 MHeap runtime·mheap;
 
-extern MStats mstats;	// defined in extern.go
+extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
 
 extern volatile intgo runtime·MemProfileRate;
 
