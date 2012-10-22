@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"text/template"
 )
 
@@ -24,10 +25,10 @@ The default output shows the package import path:
     code.google.com/p/goauth2/oauth
     code.google.com/p/sqlite
 
-The -f flag specifies an alternate format for the list,
-using the syntax of package template.  The default output
-is equivalent to -f '{{.ImportPath}}'.  The struct
-being passed to the template is:
+The -f flag specifies an alternate format for the list, using the
+syntax of package template.  The default output is equivalent to -f
+'{{.ImportPath}}'.  One extra template function is available, "join",
+which calls strings.Join. The struct being passed to the template is:
 
     type Package struct {
         Dir        string // directory containing package sources
@@ -113,7 +114,7 @@ func runList(cmd *Command, args []string) {
 			out.Write(nl)
 		}
 	} else {
-		tmpl, err := template.New("main").Parse(*listFmt)
+		tmpl, err := template.New("main").Funcs(template.FuncMap{"join": strings.Join}).Parse(*listFmt)
 		if err != nil {
 			fatalf("%s", err)
 		}
