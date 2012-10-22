@@ -62,7 +62,7 @@ typecheckselect(Node *sel)
 
 			case OAS2RECV:
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
-				if(n->right->op != ORECV) {
+				if(n->rlist->n->op != ORECV) {
 					yyerror("select assignment must have receive on right hand side");
 					break;
 				}
@@ -70,6 +70,7 @@ typecheckselect(Node *sel)
 				n->left = n->list->n;
 				n->ntest = n->list->next->n;
 				n->right = n->rlist->n;
+				n->rlist = nil;
 				break;
 
 			case ORECV:
@@ -146,7 +147,7 @@ walkselect(Node *sel)
 				
 				a = nod(OAS2, N, N);
 				a->list = n->list;
-				a->rlist = n->rlist;
+				a->rlist = list1(n->right);
 				n = a;
 				typecheck(&n, Etop);
 				break;
