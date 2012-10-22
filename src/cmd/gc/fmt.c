@@ -518,6 +518,8 @@ symfmt(Fmt *fp, Sym *s)
 				return fmtprint(fp, "%s.%s", s->pkg->name, s->name);	// dcommontype, typehash
 			return fmtprint(fp, "%s.%s", s->pkg->prefix, s->name);	// (methodsym), typesym, weaksym
 		case FExp:
+			if(s->name && s->name[0] == '.')
+				fatal("exporting synthetic symbol %s", s->name);
 			if(s->pkg != builtinpkg)
 				return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, s->name);
 		}
@@ -713,9 +715,13 @@ typefmt(Fmt *fp, Type *t)
 	case TFIELD:
 		if(!(fp->flags&FmtShort)) {
 			s = t->sym;
+
 			// Take the name from the original, lest we substituted it with .anon%d
-			if (t->nname && (fmtmode == FErr || fmtmode == FExp))
-				s = t->nname->orig->sym;
+			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N)
+				if(t->nname->orig != N)
+					s = t->nname->orig->sym;
+				else 
+					s = S;
 			
 			if(s != S && !t->embedded) {
 				if(fp->flags&FmtLong)

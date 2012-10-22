@@ -596,25 +596,38 @@ funcargs(Node *nt)
 	}
 
 	// declare the out arguments.
-	gen = 0;
+	gen = count(nt->list);
+	int i = 0;
 	for(l=nt->rlist; l; l=l->next) {
 		n = l->n;
+
 		if(n->op != ODCLFIELD)
 			fatal("funcargs out %O", n->op);
-		if(n->left != N) {
-			n->left->op = ONAME;
-			n->left->ntype = n->right;
-			if(isblank(n->left)) {
-				// Give it a name so we can assign to it during return.
-				// preserve the original in ->orig
-				nn = nod(OXXX, N, N);
-				*nn = *n->left;
-				n->left = nn;
-				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
-				n->left->sym = lookup(namebuf);
-			}
-			declare(n->left, PPARAMOUT);
+
+		if(n->left == N) {
+			// give it a name so escape analysis has nodes to work with
+			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+			n->left = newname(lookup(namebuf));
+			n->left->orig = N;  // signal that the original was absent
+
+		} 
+
+		n->left->op = ONAME;
+
+		if(isblank(n->left)) {
+			// Give it a name so we can assign to it during return.
+			// preserve the original in ->orig
+			nn = nod(OXXX, N, N);
+			*nn = *n->left;
+			n->left = nn;
+			
+			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+			n->left->sym = lookup(namebuf);
 		}
+
+		n->left->ntype = n->right;
+		declare(n->left, PPARAMOUT);
+		n->left->vargen = i++;
 	}
 }
 
@@ -769,7 +782,7 @@ structfield(Node *n)
 		break;
 	}
 
-	if(n->left && n->left->op == ONAME) {
+	if(n->left && n->left->op == ONAME && n->left->orig != N) {
 		f->nname = n->left;
 		f->embedded = n->embedded;
 		f->sym = f->nname->sym;
@@ -1145,7 +1158,7 @@ functype(Node *this, NodeList *in, NodeList *out)
 		t->thistuple = 1;
 	t->outtuple = count(out);
 	t->intuple = count(in);
-	t->outnamed = t->outtuple > 0 && out->n->left != N;
+	t->outnamed = t->outtuple > 0 && out->n->left != N && out->n->left->orig != N;
 
 	return t;
 }
