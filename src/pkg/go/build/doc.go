@@ -74,6 +74,16 @@
 //
 //	(linux AND 386) OR (darwin AND (NOT cgo))
 //
+// A file may have multiple build constraints. The overall constraint is the AND
+// of the individual constraints. That is, the build constraints:
+//
+//	// +build linux darwin
+//	// +build 386
+//
+// corresponds to the boolean formula:
+//
+//	(linux OR darwin) AND 386
+//
 // During a particular build, the following words are satisfied:
 //
 //	- the target operating system, as spelled by runtime.GOOS
