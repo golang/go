@@ -89,7 +89,7 @@ func Hostname() (name string, err error) {
 }
 
 // Readdir reads the contents of the directory associated with file and
-// returns an array of up to n FileInfo values, as would be returned
+// returns a slice of up to n FileInfo values, as would be returned
 // by Lstat, in directory order. Subsequent calls on the same file will yield
 // further FileInfos.
 //

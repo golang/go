@@ -185,7 +185,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 }
 
 // WriteString is like Write, but writes the contents of string s rather than
-// an array of bytes.
+// a slice of bytes.
 func (f *File) WriteString(s string) (ret int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
