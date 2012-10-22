@@ -60,7 +60,7 @@ echo # Building C bootstrap tool.
 echo cmd/dist
 if not exist ..\bin\tool mkdir ..\bin\tool
 :: Windows has no glob expansion, so spell out cmd/dist/*.c.
-gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c
+gcc -O2 -Wall -Werror -o cmd/dist/dist.exe -Icmd/dist %DEFGOROOT% cmd/dist/buf.c cmd/dist/build.c cmd/dist/buildgc.c cmd/dist/buildruntime.c cmd/dist/goc2c.c cmd/dist/main.c cmd/dist/windows.c cmd/dist/arm.c
 if errorlevel 1 goto fail
 .\cmd\dist\dist env -wp >env.bat
 if errorlevel 1 goto fail

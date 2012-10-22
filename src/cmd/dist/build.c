@@ -16,6 +16,7 @@ char *gohostarch;
 char *gohostchar;
 char *gohostos;
 char *goos;
+char *goarm;
 char *goroot = GOROOT_FINAL;
 char *goroot_final = GOROOT_FINAL;
 char *workdir;
@@ -96,6 +97,11 @@ init(void)
 	if(find(goos, okgoos, nelem(okgoos)) < 0)
 		fatal("unknown $GOOS %s", goos);
 
+	xgetenv(&b, "GOARM");
+	if(b.len == 0)
+		bwritestr(&b, xgetgoarm());
+	goarm = btake(&b);
+
 	p = bpathf(&b, "%s/include/u.h", goroot);
 	if(!isfile(p)) {
 		fatal("$GOROOT is not set correctly or not exported\n"
@@ -126,6 +132,7 @@ init(void)
 	xsetenv("GOROOT", goroot);
 	xsetenv("GOARCH", goarch);
 	xsetenv("GOOS", goos);
+	xsetenv("GOARM", goarm);
 
 	// Make the environment more predictable.
 	xsetenv("LANG", "C");
@@ -883,6 +890,7 @@ install(char *dir)
 				bsubst(&b1, "\\", "\\\\");  // turn into C string
 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
+				vadd(&compile, bprintf(&b, "-DGOARM=\"%s\"", goarm));
 			}
 
 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
@@ -1371,6 +1379,8 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOHOSTOS", gohostos);
 	xprintf(format, "GOTOOLDIR", tooldir);
 	xprintf(format, "GOCHAR", gochar);
+	if(streq(goarch, "arm"))
+		xprintf(format, "GOARM", goarm);
 
 	if(pflag) {
 		sep = ":";

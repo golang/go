@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 // bprintf replaces the buffer with the result of the printf formatting
 // and returns a pointer to the NUL-terminated buffer contents.
@@ -732,6 +733,32 @@ int
 xsamefile(char *f1, char *f2)
 {
 	return streq(f1, f2); // suffice for now
+}
+
+sigjmp_buf sigill_jmpbuf;
+static void sigillhand(int);
+// xtryexecfunc tries to execute function f, if any illegal instruction
+// signal received in the course of executing that function, it will
+// return 0, otherwise it will return 1.
+int
+xtryexecfunc(void (*f)(void))
+{
+	int r;
+	r = 0;
+	signal(SIGILL, sigillhand);
+	if(sigsetjmp(sigill_jmpbuf, 1) == 0) {
+		f();
+		r = 1;
+	}
+	signal(SIGILL, SIG_DFL);
+	return r;
+}
+// SIGILL handler helper
+static void
+sigillhand(int signum)
+{
+	USED(signum);
+	siglongjmp(sigill_jmpbuf, 1);
 }
 
 #endif // PLAN9

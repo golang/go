@@ -39,3 +39,9 @@ getgoversion(void)
 {
 	return GOVERSION;
 }
+
+char*
+getgoarm(void)
+{
+	return defgetenv("GOARM", GOARM);
+}

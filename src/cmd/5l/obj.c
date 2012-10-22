@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 	INITENTRY = 0;
 	nuxiinit();
 	
-	p = getenv("GOARM");
+	p = getgoarm();
 	if(p != nil)
 		goarm = atoi(p);
 	else
