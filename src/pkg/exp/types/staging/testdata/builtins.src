@@ -68,11 +68,11 @@ func _imag() {
 	var f64 float64
 	var c64 complex64
 	var c128 complex128
-	_0 := imag /* ERROR "argument" */ ()
-	_1 := imag /* ERROR "argument" */ (1, 2)
-	_2 := imag(10 /* ERROR "must be a complex number" */)
-	_3 := imag(2.7182818 /* ERROR "must be a complex number" */)
-	_4 := imag("foo" /* ERROR "must be a complex number" */)
+	_ = imag /* ERROR "argument" */ ()
+	_ = imag /* ERROR "argument" */ (1, 2)
+	_ = imag(10 /* ERROR "must be a complex number" */)
+	_ = imag(2.7182818 /* ERROR "must be a complex number" */)
+	_ = imag("foo" /* ERROR "must be a complex number" */)
 	const _5 = imag(1 + 2i)
 	assert(_5 == 2)
 	f32 = _5
@@ -92,16 +92,16 @@ func _len() {
 	var p *[20]int
 	var s []int
 	var m map[string]complex128
-	_0 := len /* ERROR "argument" */ ()
-	_1 := len /* ERROR "argument" */ (1, 2)
-	_2 := len(42 /* ERROR "invalid" */)
+	_ = len /* ERROR "argument" */ ()
+	_ = len /* ERROR "argument" */ (1, 2)
+	_ = len(42 /* ERROR "invalid" */)
 	const _3 = len(c)
 	assert(_3 == 6)
 	const _4 = len(a)
 	assert(_4 == 10)
 	const _5 = len(p)
 	assert(_5 == 20)
-	_6 := len(m)
+	_ = len(m)
 	len /* ERROR "not used" */ (c)
 
 	// esoteric case
@@ -111,54 +111,59 @@ func _len() {
 	assert /* ERROR "failed" */ (n == 10)
 	var ch <-chan int
 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
-	_7 := nn // TODO(gri) remove this once unused constants get type-checked
+	_ = nn // TODO(gri) remove this once unused constants get type-checked
 }
 
 func _make() {
 	n := 0
 
-	_0 := make /* ERROR "argument" */ ()
-	_1 := make(1 /* ERROR "not a type" */)
-	_2 := make(int /* ERROR "cannot make" */)
+	_ = make /* ERROR "argument" */ ()
+	_ = make(1 /* ERROR "not a type" */)
+	_ = make(int /* ERROR "cannot make" */)
 
 	// slices
-	_3 := make/* ERROR "arguments" */ ([]int)
-	_4 := make/* ERROR "arguments" */ ([]int, 2, 3, 4)
-	_5 := make([]int, int /* ERROR "not an expression" */)
-	_6 := make([]int, 10, float32 /* ERROR "not an expression" */)
-	_7 := make([]int, "foo" /* ERROR "must be an integer" */)
-	_8 := make([]int, 10, 2.3 /* ERROR "must be an integer" */)
-	_9 := make([]int, 5, 10.0)
-	_10 := make([]int, 0i)
-	_11 := make([]int, -1, 1<<100) // out-of-range constants lead to run-time errors
+	_ = make/* ERROR "arguments" */ ([]int)
+	_ = make/* ERROR "arguments" */ ([]int, 2, 3, 4)
+	_ = make([]int, int /* ERROR "not an expression" */)
+	_ = make([]int, 10, float32 /* ERROR "not an expression" */)
+	_ = make([]int, "foo" /* ERROR "must be an integer" */)
+	_ = make([]int, 10, 2.3 /* ERROR "must be an integer" */)
+	_ = make([]int, 5, 10.0)
+	_ = make([]int, 0i)
+	_ = make([]int, - /* ERROR "must not be negative" */ 1, 10)
+	_ = make([]int, 0, - /* ERROR "must not be negative" */ 1)
+	_ = make([]int, - /* ERROR "must not be negative" */ 1, - /* ERROR "must not be negative" */ 1)
+	_ = make([]int, 1<<100, 1<<100)  // run-time panic
+	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100 + 1, 1<<100)
+	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100, 12345)
 
 	// maps
-	_12 := make /* ERROR "arguments" */ (map[int]string, 10, 20)
-	_13 := make(map[int]float32, int /* ERROR "not an expression" */)
-	_14 := make(map[int]float32, "foo" /* ERROR "must be an integer" */)
-	_15 := make(map[int]float32, 10)
-	_16 := make(map[int]float32, n)
-	_17 := make(map[int]float32, int64(n))
+	_ = make /* ERROR "arguments" */ (map[int]string, 10, 20)
+	_ = make(map[int]float32, int /* ERROR "not an expression" */)
+	_ = make(map[int]float32, "foo" /* ERROR "must be an integer" */)
+	_ = make(map[int]float32, 10)
+	_ = make(map[int]float32, n)
+	_ = make(map[int]float32, int64(n))
 
 	// channels
-	_22 := make /* ERROR "arguments" */ (chan int, 10, 20)
-	_23 := make(chan int, int /* ERROR "not an expression" */)
-	_24 := make(chan<- int, "foo" /* ERROR "must be an integer" */)
-	_25 := make(<-chan float64, 10)
-	_26 := make(chan chan int, n)
-	_27 := make(chan string, int64(n))
+	_ = make /* ERROR "arguments" */ (chan int, 10, 20)
+	_ = make(chan int, int /* ERROR "not an expression" */)
+	_ = make(chan<- int, "foo" /* ERROR "must be an integer" */)
+	_ = make(<-chan float64, 10)
+	_ = make(chan chan int, n)
+	_ = make(chan string, int64(n))
 
 	make /* ERROR "not used" */ ([]int, 10)
 }
 
 func _new() {
-	_0 := new /* ERROR "argument" */ ()
-	_1 := new /* ERROR "argument" */ (1, 2)
-	_3 := new("foo" /* ERROR "not a type" */)
-	_4 := new(float64)
-	_5 := new(struct{ x, y int })
-	_6 := new(*float64)
-	_7 := *_4 == **_6
+	_ = new /* ERROR "argument" */ ()
+	_ = new /* ERROR "argument" */ (1, 2)
+	_ = new("foo" /* ERROR "not a type" */)
+	p := new(float64)
+	_ = new(struct{ x, y int })
+	q := new(*float64)
+	_ = *p == **q
 	new /* ERROR "not used" */ (int)
 }
 
@@ -167,11 +172,11 @@ func _real() {
 	var f64 float64
 	var c64 complex64
 	var c128 complex128
-	_0 := real /* ERROR "argument" */ ()
-	_1 := real /* ERROR "argument" */ (1, 2)
-	_2 := real(10 /* ERROR "must be a complex number" */)
-	_3 := real(2.7182818 /* ERROR "must be a complex number" */)
-	_4 := real("foo" /* ERROR "must be a complex number" */)
+	_ = real /* ERROR "argument" */ ()
+	_ = real /* ERROR "argument" */ (1, 2)
+	_ = real(10 /* ERROR "must be a complex number" */)
+	_ = real(2.7182818 /* ERROR "must be a complex number" */)
+	_ = real("foo" /* ERROR "must be a complex number" */)
 	const _5 = real(1 + 2i)
 	assert(_5 == 1)
 	f32 = _5
@@ -186,40 +191,40 @@ func _real() {
 }
 
 func _recover() {
-	_0 := recover()
-	_1 := recover /* ERROR "argument" */ (10)
+	_ = recover()
+	_ = recover /* ERROR "argument" */ (10)
 	recover()
 }
 
 func _Alignof() {
 	var x int
-	_0 := unsafe /* ERROR "argument" */ .Alignof()
-	_1 := unsafe /* ERROR "argument" */ .Alignof(1, 2)
-	_3 := unsafe.Alignof(int /* ERROR "not an expression" */)
-	_4 := unsafe.Alignof(42)
-	_5 := unsafe.Alignof(new(struct{}))
+	_ = unsafe /* ERROR "argument" */ .Alignof()
+	_ = unsafe /* ERROR "argument" */ .Alignof(1, 2)
+	_ = unsafe.Alignof(int /* ERROR "not an expression" */)
+	_ = unsafe.Alignof(42)
+	_ = unsafe.Alignof(new(struct{}))
 	unsafe /* ERROR "not used" */ .Alignof(x)
 }
 
 func _Offsetof() {
 	var x struct{ f int }
-	_0 := unsafe /* ERROR "argument" */ .Offsetof()
-	_1 := unsafe /* ERROR "argument" */ .Offsetof(1, 2)
-	_2 := unsafe.Offsetof(int /* ERROR "not an expression" */)
-	_3 := unsafe.Offsetof(x /* ERROR "not a selector" */)
-	_4 := unsafe.Offsetof(x.f)
-	_5 := unsafe.Offsetof((x.f))
-	_6 := unsafe.Offsetof((((((((x))).f)))))
+	_ = unsafe /* ERROR "argument" */ .Offsetof()
+	_ = unsafe /* ERROR "argument" */ .Offsetof(1, 2)
+	_ = unsafe.Offsetof(int /* ERROR "not an expression" */)
+	_ = unsafe.Offsetof(x /* ERROR "not a selector" */)
+	_ = unsafe.Offsetof(x.f)
+	_ = unsafe.Offsetof((x.f))
+	_ = unsafe.Offsetof((((((((x))).f)))))
 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
 }
 
 func _Sizeof() {
 	var x int
-	_0 := unsafe /* ERROR "argument" */ .Sizeof()
-	_1 := unsafe /* ERROR "argument" */ .Sizeof(1, 2)
-	_2 := unsafe.Sizeof(int /* ERROR "not an expression" */)
-	_3 := unsafe.Sizeof(42)
-	_4 := unsafe.Sizeof(new(complex128))
+	_ = unsafe /* ERROR "argument" */ .Sizeof()
+	_ = unsafe /* ERROR "argument" */ .Sizeof(1, 2)
+	_ = unsafe.Sizeof(int /* ERROR "not an expression" */)
+	_ = unsafe.Sizeof(42)
+	_ = unsafe.Sizeof(new(complex128))
 	unsafe /* ERROR "not used" */ .Sizeof(x)
 
 	// basic types have size guarantees
@@ -252,7 +257,7 @@ func _assert() {
 // self-testing only
 func _trace() {
 	// Uncomment the code below to test trace - will produce console output
-	// _0 := trace /* ERROR "no value" */ ()
-	// _1 := trace(1)
-	// _2 := trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
+	// _ = trace /* ERROR "no value" */ ()
+	// _ = trace(1)
+	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
 }

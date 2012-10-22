@@ -179,7 +179,8 @@ func (check *checker) ident(name *ast.Ident, cycleOk bool) {
 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
 		obj.Type = ftyp
 		if fdecl.Recv != nil {
-			// TODO(gri) handle method receiver
+			// TODO(gri) is this good enough for the receiver?
+			check.collectFields(token.FUNC, fdecl.Recv, true)
 		}
 		check.stmt(fdecl.Body)
 

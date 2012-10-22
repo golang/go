@@ -88,6 +88,11 @@ func indexes() {
 	_ = s[1 : 2]
 	_ = s[2 /* ERROR "inverted slice range" */ : 1]
 	_ = s[2 :]
+	_ = s[: 1<<100]
+	_ = s[1<<100 :]
+	_ = s[1<<100 : 1<<100]
+	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 1<<100]
+	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 10]
 
 	var t string
 	_ = t[- /* ERROR "index .* negative" */ 1]

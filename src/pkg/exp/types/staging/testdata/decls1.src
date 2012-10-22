@@ -26,7 +26,7 @@ var (
 	array []byte
 	iface interface{}
 	
-	blank _ /* ERROR "cannot use _" */ /* ERROR "not a type" */
+	blank _ /* ERROR "cannot use _" */
 )
 
 // Global variables with initialization
@@ -63,8 +63,8 @@ var (
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
 	t14 int = i << j /* ERROR "must be unsigned" */ 
-	t15 math /* ERROR "not in selector" */ /* ERROR "not a type" */
-	t16 math /* ERROR "not a type" */ .xxx /* ERROR "unexported" */
+	t15 math /* ERROR "not in selector" */
+	t16 math.xxx /* ERROR "unexported" */
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()

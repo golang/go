@@ -16,7 +16,7 @@ import (
 const pi = 3.1415
 
 type (
-	N undeclared /* ERROR "undeclared" */ /* ERROR "not a type" */
+	N undeclared /* ERROR "undeclared" */
 	B bool
 	I int32
 	A [10]P
@@ -41,7 +41,7 @@ type (
 
 
 type (
-	p1 pi /* ERROR "no field or method foo" */ /* ERROR "not a type" */ .foo
+	p1 pi /* ERROR "no field or method foo" */ .foo
 	p2 unsafe.Pointer
 )
 
