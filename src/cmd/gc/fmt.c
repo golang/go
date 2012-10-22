@@ -1161,7 +1161,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCOMPLIT:
 		if(fmtmode == FErr)
 			return fmtstrcpy(f, "composite literal");
-		return fmtprint(f, "%N{ %,H }", n->right, n->list);
+		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
 
 	case OPTRLIT:
 		if(fmtmode == FExp && n->left->implicit)
@@ -1172,8 +1172,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 		if(fmtmode == FExp) {   // requires special handling of field names
 			if(n->implicit)
 				fmtstrcpy(f, "{");
-			else 
-				fmtprint(f, "%T{", n->type);
+			else
+				fmtprint(f, "(%T{", n->type);
 			for(l=n->list; l; l=l->next) {
 				// another special case: if n->left is an embedded field of builtin type,
 				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
@@ -1190,6 +1190,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 				else
 					fmtstrcpy(f, " ");
 			}
+			if(!n->implicit)
+				return fmtstrcpy(f, "})");
 			return fmtstrcpy(f, "}");
 		}
 		// fallthrough
@@ -1200,7 +1202,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 			return fmtprint(f, "%T literal", n->type);
 		if(fmtmode == FExp && n->implicit)
 			return fmtprint(f, "{ %,H }", n->list);
-		return fmtprint(f, "%T{ %,H }", n->type, n->list);
+		return fmtprint(f, "(%T{ %,H })", n->type, n->list);
 
 	case OKEY:
 		if(n->left && n->right)
