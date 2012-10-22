@@ -293,6 +293,7 @@ extern	char*	getgoos(void);
 extern	char*	getgoarch(void);
 extern	char*	getgoroot(void);
 extern	char*	getgoversion(void);
+extern	char*	getgoarm(void);
 
 #ifdef _WIN32
 

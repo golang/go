@@ -962,4 +962,13 @@ xsamefile(char *f1, char *f2)
 	return 0;
 }
 
+// xtryexecfunc tries to execute function f, if any illegal instruction
+// signal received in the course of executing that function, it will
+// return 0, otherwise it will return 1.
+int
+xtryexecfunc(void (*f)(void))
+{
+	return 0; // suffice for now
+}
+
 #endif // __WINDOWS__
