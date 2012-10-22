@@ -204,12 +204,26 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			check.errorf(call.Pos(), "%s expects %d or %d arguments; found %d", call, min, min+1, n)
 			goto Error
 		}
+		var sizes []interface{} // constant integer arguments, if any
 		for _, arg := range args[1:] {
 			check.expr(x, arg, nil, iota)
-			if !x.isInteger() {
+			if x.isInteger() {
+				if x.mode == constant {
+					if isNegConst(x.val) {
+						check.invalidArg(x.pos(), "%s must not be negative", x)
+						// safe to continue
+					} else {
+						sizes = append(sizes, x.val) // x.val >= 0
+					}
+				}
+			} else {
 				check.invalidArg(x.pos(), "%s must be an integer", x)
 				// safe to continue
 			}
+		}
+		if len(sizes) == 2 && compareConst(sizes[0], sizes[1], token.GTR) {
+			check.invalidArg(args[1].Pos(), "length and capacity swapped")
+			// safe to continue
 		}
 		x.mode = variable
 		x.typ = typ0

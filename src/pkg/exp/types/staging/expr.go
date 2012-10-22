@@ -398,38 +398,31 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
 }
 
 // index checks an index expression for validity. If length >= 0, it is the upper
-// bound for the index. The result is a valid constant index >= 0, or a negative
-// value.
+// bound for the index. The result is a valid integer constant, or nil.
 //
-func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+func (check *checker) index(index ast.Expr, length int64, iota int) interface{} {
 	var x operand
-	var i int64 // index value, valid if >= 0
 
 	check.expr(&x, index, nil, iota)
 	if !x.isInteger() {
 		check.errorf(x.pos(), "index %s must be integer", &x)
-		return -1
+		return nil
 	}
 	if x.mode != constant {
-		return -1 // we cannot check more
+		return nil // we cannot check more
 	}
 	// x.mode == constant and the index value must be >= 0
 	if isNegConst(x.val) {
 		check.errorf(x.pos(), "index %s must not be negative", &x)
-		return -1
+		return nil
 	}
-	var ok bool
-	if i, ok = x.val.(int64); !ok {
-		// index value doesn't fit into an int64
-		i = length // trigger out of bounds check below if we know length (>= 0)
-	}
-
-	if length >= 0 && i >= length {
+	// x.val >= 0
+	if length >= 0 && compareConst(x.val, length, token.GEQ) {
 		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
-		return -1
+		return nil
 	}
 
-	return i
+	return x.val
 }
 
 func (check *checker) callRecord(x *operand) {
@@ -672,18 +665,20 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
 			goto Error
 		}
 
-		var lo int64
+		var lo interface{} = zeroConst
 		if e.Low != nil {
 			lo = check.index(e.Low, length, iota)
 		}
 
-		var hi int64 = length
+		var hi interface{}
 		if e.High != nil {
 			hi = check.index(e.High, length, iota)
+		} else if length >= 0 {
+			hi = length
 		}
 
-		if hi >= 0 && lo > hi {
-			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
+		if lo != nil && hi != nil && compareConst(lo, hi, token.GTR) {
+			check.errorf(e.Low.Pos(), "inverted slice range: %v > %v", lo, hi)
 			// ok to continue
 		}
 
@@ -747,6 +742,8 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
 	case *ast.StarExpr:
 		check.exprOrType(x, e.X, hint, iota, true)
 		switch x.mode {
+		case invalid:
+			// ignore - error reported before
 		case novalue:
 			check.errorf(x.pos(), "%s used as value or type", x)
 			goto Error
@@ -840,13 +837,16 @@ Error:
 func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
 	check.exprOrType(x, e, hint, iota, false)
 	switch x.mode {
+	case invalid:
+		// ignore - error reported before
 	case novalue:
 		check.errorf(x.pos(), "%s used as value", x)
-		x.mode = invalid
 	case typexpr:
 		check.errorf(x.pos(), "%s is not an expression", x)
-		x.mode = invalid
+	default:
+		return
 	}
+	x.mode = invalid
 }
 
 // typ is like exprOrType but also checks that e represents a type (rather than a value).
@@ -855,13 +855,15 @@ func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
 func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
 	var x operand
 	check.exprOrType(&x, e, nil, -1, cycleOk)
-	switch {
-	case x.mode == novalue:
+	switch x.mode {
+	case invalid:
+		// ignore - error reported before
+	case novalue:
 		check.errorf(x.pos(), "%s used as type", &x)
-		x.typ = Typ[Invalid]
-	case x.mode != typexpr:
+	case typexpr:
+		return x.typ
+	default:
 		check.errorf(x.pos(), "%s is not a type", &x)
-		x.typ = Typ[Invalid]
 	}
-	return x.typ
+	return Typ[Invalid]
 }
