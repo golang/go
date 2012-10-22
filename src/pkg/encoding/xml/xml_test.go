@@ -19,6 +19,7 @@ const testInput = `
 <body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" ` +
 	"\r\n\t" + `  >
   <hello lang="en">World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔</hello>
+  <query>&何; &is-it;</query>
   <goodbye />
   <outer foo:attr="value" xmlns:tag="ns4">
     <inner/>
@@ -27,6 +28,8 @@ const testInput = `
     <![CDATA[Some text here.]]>
   </tag:name>
 </body><!-- missing final newline -->`
+
+var testEntity = map[string]string{"何": "What", "is-it": "is it?"}
 
 var rawTokens = []Token{
 	CharData("\n"),
@@ -40,6 +43,10 @@ var rawTokens = []Token{
 	StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
 	CharData("World <>'\" 白鵬翔"),
 	EndElement{Name{"", "hello"}},
+	CharData("\n  "),
+	StartElement{Name{"", "query"}, []Attr{}},
+	CharData("What is it?"),
+	EndElement{Name{"", "query"}},
 	CharData("\n  "),
 	StartElement{Name{"", "goodbye"}, []Attr{}},
 	EndElement{Name{"", "goodbye"}},
@@ -73,6 +80,10 @@ var cookedTokens = []Token{
 	StartElement{Name{"ns2", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
 	CharData("World <>'\" 白鵬翔"),
 	EndElement{Name{"ns2", "hello"}},
+	CharData("\n  "),
+	StartElement{Name{"ns2", "query"}, []Attr{}},
+	CharData("What is it?"),
+	EndElement{Name{"ns2", "query"}},
 	CharData("\n  "),
 	StartElement{Name{"ns2", "goodbye"}, []Attr{}},
 	EndElement{Name{"ns2", "goodbye"}},
@@ -156,6 +167,7 @@ var xmlInput = []string{
 
 func TestRawToken(t *testing.T) {
 	d := NewDecoder(strings.NewReader(testInput))
+	d.Entity = testEntity
 	testRawToken(t, d, rawTokens)
 }
 
@@ -164,7 +176,13 @@ const nonStrictInput = `
 <tag>&unknown;entity</tag>
 <tag>&#123</tag>
 <tag>&#zzz;</tag>
+<tag>&なまえ3;</tag>
+<tag>&lt-gt;</tag>
+<tag>&;</tag>
+<tag>&0a;</tag>
 `
+
+var nonStringEntity = map[string]string{"": "oops!", "0a": "oops!"}
 
 var nonStrictTokens = []Token{
 	CharData("\n"),
@@ -182,6 +200,22 @@ var nonStrictTokens = []Token{
 	CharData("\n"),
 	StartElement{Name{"", "tag"}, []Attr{}},
 	CharData("&#zzz;"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&なまえ3;"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&lt-gt;"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&;"),
+	EndElement{Name{"", "tag"}},
+	CharData("\n"),
+	StartElement{Name{"", "tag"}, []Attr{}},
+	CharData("&0a;"),
 	EndElement{Name{"", "tag"}},
 	CharData("\n"),
 }
@@ -317,6 +351,7 @@ func TestNestedDirectives(t *testing.T) {
 
 func TestToken(t *testing.T) {
 	d := NewDecoder(strings.NewReader(testInput))
+	d.Entity = testEntity
 
 	for i, want := range cookedTokens {
 		have, err := d.Token()
