@@ -358,7 +358,7 @@ struct MSpan
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
 	uint32	ref;		// number of allocated objects in this span
-	uint32	sizeclass;	// size class
+	int32	sizeclass;	// size class
 	uintptr	elemsize;	// computed from sizeclass or from npages
 	uint32	state;		// MSpanInUse etc
 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
