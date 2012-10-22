@@ -13,7 +13,7 @@
 void
 closurehdr(Node *ntype)
 {
-	Node *n, *name, *a;
+	Node *n, *name, *a, *orig;
 	NodeList *l;
 
 	n = nod(OCLOSURE, N, N);
@@ -43,8 +43,11 @@ closurehdr(Node *ntype)
 	}
 	for(l=n->rlist; l; l=l->next) {
 		name = l->n->left;
-		if(name)
+		if(name) {
+			orig = name->orig;  // preserve the meaning of orig == N (anonymous PPARAMOUT)
 			name = newname(name->sym);
+			name->orig = orig;
+		}
 		ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, name, l->n->right));
 	}
 }
