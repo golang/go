@@ -215,7 +215,10 @@ enum
 	EscHeap,
 	EscScope,
 	EscNone,
+	EscReturn,
 	EscNever,
+	EscBits = 4,
+	EscMask = (1<<EscBits) - 1,
 };
 
 struct	Node

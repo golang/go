@@ -211,7 +211,48 @@ struct EscState {
 	NodeList*	noesc;	// list of possible non-escaping nodes, for printing
 };
 
-static Strlit*	safetag;	// gets slapped on safe parameters' field types for export
+static Strlit *tags[16] = { nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil };
+
+static Strlit*
+mktag(int mask)
+{
+	Strlit *s;
+	char buf[40];
+
+	switch(mask&EscMask) {
+	case EscNone:
+	case EscReturn:
+		break;
+	default:
+		fatal("escape mktag");
+	}
+
+	mask >>= EscBits;
+
+	if(mask < nelem(tags) && tags[mask] != nil)
+		return tags[mask];
+
+	snprint(buf, sizeof buf, "esc:%#x", mask);
+	s = strlit(buf);
+	if(mask < nelem(tags))
+		tags[mask] = s;
+	return s;
+}
+
+static int
+parsetag(Strlit *note)
+{
+	int em;
+
+	if(note == nil)
+		return EscUnknown;
+	if(strncmp(note->s, "esc:", 4) != 0)
+		return EscUnknown;
+	em = atoi(note->s + 4);
+	if (em == 0)
+		return EscNone;
+	return EscReturn | (em << EscBits);
+}
 
 static void
 analyze(NodeList *all, int recursive)
@@ -228,9 +269,6 @@ analyze(NodeList *all, int recursive)
 	e->theSink.class = PEXTERN;
 	e->theSink.sym = lookup(".sink");
 	e->theSink.escloopdepth = -1;
-
-	if(safetag == nil)
-		safetag = strlit("noescape");
 
 	for(l=all; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
@@ -284,16 +322,15 @@ escfunc(EscState *e, Node *func)
 			continue;
 		switch (ll->n->class) {
 		case PPARAMOUT:
-			// output parameters flow to the sink
-			escflows(e, &e->theSink, ll->n);
-			ll->n->escloopdepth = e->loopdepth;
+			// out params are in a loopdepth between the sink and all local variables
+			ll->n->escloopdepth = 0;
 			break;
 		case PPARAM:
 			if(ll->n->type && !haspointers(ll->n->type))
 				break;
 			ll->n->esc = EscNone;	// prime for escflood later
 			e->noesc = list(e->noesc, ll->n);
-			ll->n->escloopdepth = e->loopdepth;
+			ll->n->escloopdepth = 1; 
 			break;
 		}
 	}
@@ -470,8 +507,20 @@ esc(EscState *e, Node *n)
 		break;
 
 	case ORETURN:
-		for(ll=n->list; ll; ll=ll->next)
-			escassign(e, &e->theSink, ll->n);
+		if(count(n->list) == 1 && curfn->type->outtuple > 1) {
+			// OAS2FUNC in disguise
+			break;
+		}
+
+		ll=n->list;
+		for(lr = curfn->dcl; lr && ll; lr=lr->next) {
+			if (lr->n->op != ONAME || lr->n->class != PPARAMOUT)
+				continue;
+			escassign(e, lr->n, ll->n);
+			ll = ll->next;
+		}
+		if (ll != nil)
+			fatal("esc return list");
 		break;
 
 	case OPANIC:
@@ -699,8 +748,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	lineno = lno;
 }
 
-
-// This is a bit messier than fortunate, pulled out of escassign's big
+// This is a bit messier than fortunate, pulled out of esc's big
 // switch for clarity.	We either have the paramnodes, which may be
 // connected to other things throug flows or we have the parameter type
 // nodes, which may be marked "noescape". Navigating the ast is slightly
@@ -781,7 +829,7 @@ esccall(EscState *e, Node *n)
 	// Imported or completely analyzed function.  Use the escape tags.
 	if(n->op != OCALLFUNC) {
 		t = getthisx(fntype)->type;
-		if(!t->note || strcmp(t->note->s, safetag->s) != 0)
+		if(parsetag(t->note) != EscNone)
 			escassign(e, &e->theSink, n->left->left);
 	}
 	for(t=getinargx(fntype)->type; ll; ll=ll->next) {
@@ -795,7 +843,7 @@ esccall(EscState *e, Node *n)
 			e->noesc = list(e->noesc, src);
 			n->right = src;
 		}
-		if(!t->note || strcmp(t->note->s, safetag->s) != 0)
+		if(parsetag(t->note) != EscNone)
 			escassign(e, &e->theSink, src);
 		if(src != ll->n)
 			break;
@@ -879,6 +927,20 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 
 	e->pdepth++;
 
+	// Input parameter flowing to output parameter?
+	if(dst->op == ONAME && dst->class == PPARAMOUT && dst->vargen < 20) {
+		if(src->op == ONAME && src->class == PPARAM && level == 0 && src->curfn == dst->curfn) {
+			if(src->esc != EscScope && src->esc != EscHeap) {
+				if(debug['m'])
+					warnl(src->lineno, "leaking param: %hN to result %S", src, dst->sym);
+				if((src->esc&EscMask) != EscReturn)
+					src->esc = EscReturn;
+				src->esc |= 1<<(dst->vargen + EscBits);
+			}
+			goto recurse;
+		}
+	}
+
 	leaks = (level <= 0) && (dst->escloopdepth < src->escloopdepth);
 
 	switch(src->op) {
@@ -944,6 +1006,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 		escwalk(e, level+1, dst, src->left);
 	}
 
+recurse:
 	for(ll=src->escflowsrc; ll; ll=ll->next)
 		escwalk(e, level, dst, ll->n);
 
@@ -970,10 +1033,12 @@ esctag(EscState *e, Node *func)
 		if(ll->n->op != ONAME || ll->n->class != PPARAM)
 			continue;
 
-		switch (ll->n->esc) {
+		switch (ll->n->esc&EscMask) {
 		case EscNone:	// not touched by escflood
+		case EscReturn:	
 			if(haspointers(ll->n->type)) // don't bother tagging for scalars
-				ll->n->paramfld->note = safetag;
+				ll->n->paramfld->note = mktag(ll->n->esc);
+			break;
 		case EscHeap:	// touched by escflood, moved to heap
 		case EscScope:	// touched by escflood, value leaves scope
 			break;
