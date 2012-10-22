@@ -2574,7 +2574,6 @@ typecheckas2(Node *n)
 			goto common;
 		case ORECV:
 			n->op = OAS2RECV;
-			n->right = n->rlist->n;
 			goto common;
 		case ODOTTYPE:
 			n->op = OAS2DOTTYPE;
