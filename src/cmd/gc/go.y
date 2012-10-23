@@ -1030,10 +1030,16 @@ sym:
 hidden_importsym:
 	'@' LLITERAL '.' LNAME
 	{
+		Pkg *p;
+
 		if($2.u.sval->len == 0)
-			$$ = pkglookup($4->name, importpkg);
-		else
-			$$ = pkglookup($4->name, mkpkg($2.u.sval));
+			p = importpkg;
+		else {
+			if(isbadimport($2.u.sval))
+				errorexit();
+			p = mkpkg($2.u.sval);
+		}
+		$$ = pkglookup($4->name, p);
 	}
 
 name:
