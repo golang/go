@@ -3572,9 +3572,6 @@ mkpkg(Strlit *path)
 	Pkg *p;
 	int h;
 
-	if(isbadimport(path))
-		errorexit();
-	
 	h = stringhash(path->s) & (nelem(phash)-1);
 	for(p=phash[h]; p; p=p->link)
 		if(p->path->len == path->len && memcmp(path->s, p->path->s, path->len) == 0)
@@ -3623,15 +3620,28 @@ addinit(Node **np, NodeList *init)
 	n->ullman = UINF;
 }
 
+static char* reservedimports[] = {
+	"go",
+	"type",
+};
+
 int
 isbadimport(Strlit *path)
 {
+	int i;
 	char *s;
 	Rune r;
 
 	if(strlen(path->s) != path->len) {
 		yyerror("import path contains NUL");
 		return 1;
+	}
+	
+	for(i=0; i<nelem(reservedimports); i++) {
+		if(strcmp(path->s, reservedimports[i]) == 0) {
+			yyerror("import path \"%s\" is reserved and cannot be used", path->s);
+			return 1;
+		}
 	}
 
 	s = path->s;

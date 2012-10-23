@@ -643,7 +643,7 @@ mark(Sym *s)
 
 	if(s == S || s->reachable)
 		return;
-	if(strncmp(s->name, "weak.", 5) == 0)
+	if(strncmp(s->name, "go.weak.", 8) == 0)
 		return;
 	s->reachable = 1;
 	if(s->text)
@@ -751,7 +751,7 @@ deadcode(void)
 		last->next = nil;
 	
 	for(s = allsym; s != S; s = s->allsym)
-		if(strncmp(s->name, "weak.", 5) == 0) {
+		if(strncmp(s->name, "go.weak.", 8) == 0) {
 			s->special = 1;  // do not lay out in data segment
 			s->reachable = 1;
 			s->hide = 1;
@@ -766,8 +766,8 @@ doweak(void)
 	// resolve weak references only if
 	// target symbol will be in binary anyway.
 	for(s = allsym; s != S; s = s->allsym) {
-		if(strncmp(s->name, "weak.", 5) == 0) {
-			t = rlookup(s->name+5, s->version);
+		if(strncmp(s->name, "go.weak.", 8) == 0) {
+			t = rlookup(s->name+8, s->version);
 			if(t && t->type != 0 && t->reachable) {
 				s->value = t->value;
 				s->type = t->type;

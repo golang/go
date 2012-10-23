@@ -216,9 +216,9 @@ main(int argc, char *argv[])
 	typepkg = mkpkg(strlit("type"));
 	typepkg->name = "type";
 
-	weaktypepkg = mkpkg(strlit("weak.type"));
-	weaktypepkg->name = "weak.type";
-	weaktypepkg->prefix = "weak.type";  // not weak%2etype
+	weaktypepkg = mkpkg(strlit("go.weak.type"));
+	weaktypepkg->name = "go.weak.type";
+	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
 
 	unsafepkg = mkpkg(strlit("unsafe"));
 	unsafepkg->name = "unsafe";
@@ -664,6 +664,11 @@ importfile(Val *f, int line)
 		strcat(cleanbuf, path->s);
 		cleanname(cleanbuf);
 		path = strlit(cleanbuf);
+		
+		if(isbadimport(path)) {
+			fakeimport();
+			return;
+		}
 	}
 
 	if(!findpkg(path)) {

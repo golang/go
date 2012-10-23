@@ -393,6 +393,8 @@ importimport(Sym *s, Strlit *z)
 	// human-readable messages.
 	Pkg *p;
 
+	if(isbadimport(z))
+		errorexit();
 	p = mkpkg(z);
 	if(p->name == nil) {
 		p->name = s->name;
