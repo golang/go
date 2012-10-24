@@ -399,7 +399,7 @@ var cmdRegress = &Command{
 }
 
 const failedKeyCompare = `
-%d: incorrect comparison result for input:
+%s:%d: incorrect comparison result for input:
     a:   %q (%.4X)
     key: %s
     b:   %q (%.4X)
@@ -412,7 +412,7 @@ const failedKeyCompare = `
 `
 
 const failedCompare = `
-%d: incorrect comparison result for input:
+%s:%d: incorrect comparison result for input:
     a:   %q (%.4X)
     b:   %q (%.4X)
     Compare(a, b) = %d; want %d.
@@ -453,12 +453,12 @@ func runRegress(ctxt *Context, args []string) {
 				count++
 				a := string(ia.UTF8)
 				b := string(ib.UTF8)
-				fmt.Printf(failedKeyCompare, i-1, a, []rune(a), keyStr(ia.key), b, []rune(b), keyStr(ib.key), cmp, goldCmp, keyStr(gold.Key(ia)), keyStr(gold.Key(ib)))
+				fmt.Printf(failedKeyCompare, t.Locale, i-1, a, []rune(a), keyStr(ia.key), b, []rune(b), keyStr(ib.key), cmp, goldCmp, keyStr(gold.Key(ia)), keyStr(gold.Key(ib)))
 			} else if cmp := t.Col.Compare(ia, ib); cmp != goldCmp {
 				count++
 				a := string(ia.UTF8)
 				b := string(ib.UTF8)
-				fmt.Printf(failedKeyCompare, i-1, a, []rune(a), b, []rune(b), cmp, goldCmp)
+				fmt.Printf(failedCompare, t.Locale, i-1, a, []rune(a), b, []rune(b), cmp, goldCmp)
 			}
 		}
 		if count > 0 {
