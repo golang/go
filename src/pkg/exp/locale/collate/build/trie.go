@@ -35,10 +35,11 @@ type trie struct {
 
 // trieNode is the intermediate trie structure used for generating a trie.
 type trieNode struct {
-	index []*trieNode
-	value []uint32
-	b     byte
-	ref   uint16
+	index    []*trieNode
+	value    []uint32
+	b        byte
+	refValue uint16
+	refIndex uint16
 }
 
 func newNode() *trieNode {
@@ -108,18 +109,20 @@ func (b *trieBuilder) computeOffsets(n *trieNode) *trieNode {
 	hasher := fnv.New32()
 	if n.index != nil {
 		for i, nn := range n.index {
-			v := uint16(0)
+			var vi, vv uint16
 			if nn != nil {
 				nn = b.computeOffsets(nn)
 				n.index[i] = nn
-				v = nn.ref
+				vi = nn.refIndex
+				vv = nn.refValue
 			}
-			hasher.Write([]byte{byte(v >> 8), byte(v)})
+			hasher.Write([]byte{byte(vi >> 8), byte(vi)})
+			hasher.Write([]byte{byte(vv >> 8), byte(vv)})
 		}
 		h := hasher.Sum32()
 		nn, ok := b.lookupBlockIdx[h]
 		if !ok {
-			n.ref = uint16(len(b.lookupBlocks)) - blockOffset
+			n.refIndex = uint16(len(b.lookupBlocks)) - blockOffset
 			b.lookupBlocks = append(b.lookupBlocks, n)
 			b.lookupBlockIdx[h] = n
 		} else {
@@ -132,7 +135,8 @@ func (b *trieBuilder) computeOffsets(n *trieNode) *trieNode {
 		h := hasher.Sum32()
 		nn, ok := b.valueBlockIdx[h]
 		if !ok {
-			n.ref = uint16(len(b.valueBlocks)) - blockOffset
+			n.refValue = uint16(len(b.valueBlocks)) - blockOffset
+			n.refIndex = n.refValue
 			b.valueBlocks = append(b.valueBlocks, n)
 			b.valueBlockIdx[h] = n
 		} else {
@@ -150,7 +154,8 @@ func (b *trieBuilder) addStartValueBlock(n *trieNode) uint16 {
 	h := hasher.Sum32()
 	nn, ok := b.valueBlockIdx[h]
 	if !ok {
-		n.ref = uint16(len(b.valueBlocks))
+		n.refValue = uint16(len(b.valueBlocks))
+		n.refIndex = n.refValue
 		b.valueBlocks = append(b.valueBlocks, n)
 		// Add a dummy block to accommodate the double block size.
 		b.valueBlocks = append(b.valueBlocks, nil)
@@ -158,7 +163,7 @@ func (b *trieBuilder) addStartValueBlock(n *trieNode) uint16 {
 	} else {
 		n = nn
 	}
-	return n.ref
+	return n.refValue
 }
 
 func genValueBlock(t *trie, n *trieNode) {
@@ -173,7 +178,11 @@ func genLookupBlock(t *trie, n *trieNode) {
 	for _, nn := range n.index {
 		v := uint16(0)
 		if nn != nil {
-			v = nn.ref
+			if n.index != nil {
+				v = nn.refIndex
+			} else {
+				v = nn.refValue
+			}
 		}
 		t.index = append(t.index, v)
 	}
@@ -192,7 +201,7 @@ func (b *trieBuilder) addTrie(n *trieNode) *trieHandle {
 	}
 	n = b.computeOffsets(n)
 	// Offset by one extra block as the first byte starts at 0xC0 instead of 0x80.
-	h.lookupStart = n.ref - 1
+	h.lookupStart = n.refIndex - 1
 	return h
 }
 
