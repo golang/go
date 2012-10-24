@@ -86,6 +86,7 @@ type Collator struct {
 }
 
 // Locales returns the list of locales for which collating differs from its parent locale.
+// The returned value should not be modified.
 func Locales() []string {
 	return availableLocales
 }
