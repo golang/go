@@ -170,10 +170,9 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
 	return setrlimit(resource, &rl)
 }
 
-// TODO(kaib): add support for tracing
-func (r *PtraceRegs) PC() uint64 { return 0 }
+func (r *PtraceRegs) PC() uint64 { return uint64(r.Uregs[15]) }
 
-func (r *PtraceRegs) SetPC(pc uint64) {}
+func (r *PtraceRegs) SetPC(pc uint64) { r.Uregs[15] = uint32(pc) }
 
 func (iov *Iovec) SetLen(length int) {
 	iov.Len = uint32(length)
