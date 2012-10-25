@@ -34,10 +34,10 @@ func decompCE(in []int) (ce uint32, err error) {
 var ceTests = []ceTest{
 	{normalCE, []int{0, 0, 0}, 0x80000000},
 	{normalCE, []int{0, 0x28, 3}, 0x80002803},
-	{normalCE, []int{100, defaultSecondary, 3}, 0x0000C803},
+	{normalCE, []int{100, defaultSecondary, 3}, 0x0000C883},
 	// non-ignorable primary with non-default secondary
 	{normalCE, []int{100, 0x28, defaultTertiary}, 0x40006428},
-	{normalCE, []int{100, defaultSecondary + 8, 3}, 0x0000C903},
+	{normalCE, []int{100, defaultSecondary + 8, 3}, 0x0000C983},
 	{normalCE, []int{100, 0, 3}, 0xFFFF}, // non-ignorable primary with non-supported secondary
 	{normalCE, []int{100, 1, 3}, 0xFFFF},
 	{normalCE, []int{1 << maxPrimaryBits, defaultSecondary, 0}, 0xFFFF},
@@ -114,18 +114,24 @@ var nextWeightTests = []weightsTest{
 	},
 }
 
-var extra = []int{200, 32, 8, 0}
+var extra = [][]int{{200, 32, 8, 0}, {0, 32, 8, 0}, {0, 0, 8, 0}, {0, 0, 0, 0}}
 
 func TestNextWeight(t *testing.T) {
 	for i, tt := range nextWeightTests {
-		test := func(tt weightsTest, a, gold [][]int) {
+		test := func(l collate.Level, tt weightsTest, a, gold [][]int) {
 			res := nextWeight(tt.level, a)
 			if !equalCEArrays(gold, res) {
-				t.Errorf("%d: expected weights %d; found %d", i, tt.b, res)
+				t.Errorf("%d:%d: expected weights %d; found %d", i, l, gold, res)
 			}
 		}
-		test(tt, tt.a, tt.b)
-		test(tt, append(tt.a, extra), append(tt.b, extra))
+		test(-1, tt, tt.a, tt.b)
+		for l := collate.Primary; l <= collate.Tertiary; l++ {
+			if tt.level <= l {
+				test(l, tt, append(tt.a, extra[l]), tt.b)
+			} else {
+				test(l, tt, append(tt.a, extra[l]), append(tt.b, extra[l]))
+			}
+		}
 	}
 }
 
@@ -137,7 +143,7 @@ var compareTests = []weightsTest{
 		0,
 	},
 	{
-		[][]int{{100, 20, 5, 0}, extra},
+		[][]int{{100, 20, 5, 0}, extra[0]},
 		[][]int{{100, 20, 5, 1}},
 		collate.Primary,
 		1,
@@ -192,6 +198,6 @@ func TestCompareWeights(t *testing.T) {
 			}
 		}
 		test(tt, tt.a, tt.b)
-		test(tt, append(tt.a, extra), append(tt.b, extra))
+		test(tt, append(tt.a, extra[0]), append(tt.b, extra[0]))
 	}
 }
