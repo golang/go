@@ -984,14 +984,9 @@ ret:
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, *tmp;
+	Node n1, n2, n1b, n2b, *tmp;
 	Type *t;
 	int a;
-
-	// copy from byte to full registers
-	t = types[TUINT64];
-	if(issigned[nl->type->etype])
-		t = types[TINT64];
 
 	// largest ullman on left.
 	if(nl->ullman < nr->ullman) {
@@ -1000,15 +995,25 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 		nr = tmp;
 	}
 
-	regalloc(&n1, t, res);
-	cgen(nl, &n1);
-	regalloc(&n2, t, N);
-	cgen(nr, &n2);
+	// generate operands in "8-bit" registers.
+	regalloc(&n1b, nl->type, res);
+	cgen(nl, &n1b);
+	regalloc(&n2b, nr->type, N);
+	cgen(nr, &n2b);
+
+	// perform full-width multiplication.
+	t = types[TUINT64];
+	if(issigned[nl->type->etype])
+		t = types[TINT64];
+	nodreg(&n1, t, n1b.val.u.reg);
+	nodreg(&n2, t, n2b.val.u.reg);
 	a = optoas(op, t);
 	gins(a, &n2, &n1);
-	regfree(&n2);
+
+	// truncate.
 	gmove(&n1, res);
-	regfree(&n1);
+	regfree(&n1b);
+	regfree(&n2b);
 }
 
 void
