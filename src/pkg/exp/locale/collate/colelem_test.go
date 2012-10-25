@@ -32,7 +32,7 @@ func makeCE(weights []int) colElem {
 			ce = colElem(weights[0]<<maxSecondaryCompactBits + weights[1])
 			ce |= isPrimary
 		} else {
-			d := weights[1] - defaultSecondary
+			d := weights[1] - defaultSecondary + 4
 			ce = colElem(weights[0]<<maxSecondaryDiffBits + d)
 			ce = ce<<maxTertiaryCompactBits + colElem(weights[2])
 		}

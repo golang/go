@@ -70,7 +70,7 @@ func makeCE(weights []int) (uint32, error) {
 			ce = uint32(weights[0]<<maxSecondaryCompactBits + weights[1])
 			ce |= isPrimary
 		} else {
-			d := weights[1] - defaultSecondary
+			d := weights[1] - defaultSecondary + 4
 			if d >= 1<<maxSecondaryDiffBits || d < 0 {
 				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
 			}
@@ -258,21 +258,31 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 // nextWeight computes the first possible collation weights following elems
 // for the given level.
 func nextWeight(level collate.Level, elems [][]int) [][]int {
-	nce := make([][]int, len(elems))
-	copy(nce, elems)
-
-	if level != collate.Identity {
-		nce[0] = make([]int, len(elems[0]))
-		copy(nce[0], elems[0])
-		nce[0][level]++
-		if level < collate.Secondary {
-			nce[0][collate.Secondary] = defaultSecondary
+	if level == collate.Identity {
+		next := make([][]int, len(elems))
+		copy(next, elems)
+		return next
+	}
+	next := [][]int{make([]int, len(elems[0]))}
+	copy(next[0], elems[0])
+	next[0][level]++
+	if level < collate.Secondary {
+		next[0][collate.Secondary] = defaultSecondary
+	}
+	if level < collate.Tertiary {
+		next[0][collate.Tertiary] = defaultTertiary
+	}
+	// Filter entries that cannot influence ordering.
+	for _, ce := range elems[1:] {
+		skip := true
+		for i := collate.Primary; i < level; i++ {
+			skip = skip && ce[i] == 0
 		}
-		if level < collate.Tertiary {
-			nce[0][collate.Tertiary] = defaultTertiary
+		if !skip {
+			next = append(next, ce)
 		}
 	}
-	return nce
+	return next
 }
 
 func nextVal(elems [][]int, i int, level collate.Level) (index, value int) {

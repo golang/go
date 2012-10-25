@@ -93,7 +93,7 @@ func splitCE(ce colElem) weights {
 	} else if ce&secondaryMask == 0 {
 		w.tertiary = uint8(ce & 0x1F)
 		ce >>= 5
-		w.secondary = defaultSecondary + uint16(ce&0xF)
+		w.secondary = defaultSecondary + uint16(ce&0xF) - 4
 		ce >>= 4
 		w.primary = uint32(ce)
 	} else {
