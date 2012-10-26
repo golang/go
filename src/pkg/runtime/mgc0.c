@@ -567,7 +567,7 @@ addstackroots(G *gp)
 	n = 0;
 	while(stk) {
 		if(sp < guard-StackGuard || (byte*)stk < sp) {
-			runtime·printf("scanstack inconsistent: g%d#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+			runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
 			runtime·throw("scanstack");
 		}
 		addroot(sp, (byte*)stk - sp);

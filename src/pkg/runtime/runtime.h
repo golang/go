@@ -203,7 +203,7 @@ struct	G
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
-	int32	goid;
+	int64	goid;
 	uint32	selgen;		// valid sudog pointer
 	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;

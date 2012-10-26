@@ -147,7 +147,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
 		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && g == m->g0) {
-			runtime·printf("----- newstack called from goroutine %d -----\n", m->curg->goid);
+			runtime·printf("----- newstack called from goroutine %D -----\n", m->curg->goid);
 			pc = (uintptr)m->morepc;
 			sp = (byte*)m->moreargp - sizeof(void*);
 			lr = (uintptr)m->morebuf.pc;
@@ -158,7 +158,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		}
 		
 		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
-			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
+			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
 			sp = (byte*)stk->gobuf.sp;
