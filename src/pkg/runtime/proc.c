@@ -55,7 +55,7 @@ struct Sched {
 	Lock;
 
 	G *gfree;	// available g's (status == Gdead)
-	int32 goidgen;
+	int64 goidgen;
 
 	G *ghead;	// g's waiting to run
 	G *gtail;
@@ -311,7 +311,7 @@ runtime·goroutineheader(G *gp)
 		status = "???";
 		break;
 	}
-	runtime·printf("goroutine %d [%s]:\n", gp->goid, status);
+	runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
 }
 
 void
@@ -391,7 +391,7 @@ gput(G *gp)
 	// If g is the idle goroutine for an m, hand it off.
 	if(gp->idlem != nil) {
 		if(gp->idlem->idleg != nil) {
-			runtime·printf("m%d idle out of sync: g%d g%d\n",
+			runtime·printf("m%d idle out of sync: g%D g%D\n",
 				gp->idlem->id,
 				gp->idlem->idleg->goid, gp->goid);
 			runtime·throw("runtime: double idle");
@@ -493,7 +493,7 @@ readylocked(G *gp)
 
 	// Mark runnable.
 	if(gp->status == Grunnable || gp->status == Grunning) {
-		runtime·printf("goroutine %d has status %d\n", gp->goid, gp->status);
+		runtime·printf("goroutine %D has status %d\n", gp->goid, gp->status);
 		runtime·throw("bad g->status in ready");
 	}
 	gp->status = Grunnable;
@@ -1100,7 +1100,7 @@ runtime·oldstack(void)
 	uintptr cret;
 	byte *sp;
 	G *g1;
-	int32 goid;
+	int64 goid;
 
 //printf("oldstack m->cret=%p\n", m->cret);
 
@@ -1294,7 +1294,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	byte *sp;
 	G *newg;
 	int32 siz;
-	int32 goid;
+	int64 goid;
 
 //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
 	siz = narg + nret;
@@ -1307,7 +1307,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	if(siz > StackMin - 1024)
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
-	goid = runtime·xadd((uint32*)&runtime·sched.goidgen, 1);
+	goid = runtime·xadd64((uint64*)&runtime·sched.goidgen, 1);
 	if(raceenabled)
 		runtime·racegostart(goid, callerpc);
 

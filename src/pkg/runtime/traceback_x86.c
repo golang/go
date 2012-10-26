@@ -165,7 +165,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			// The fact that we saw newstack means that morestack
 			// has managed to record its information in m, so we can
 			// use it to keep unwinding the stack.
-			runtime·printf("----- morestack called from goroutine %d -----\n", m->curg->goid);
+			runtime·printf("----- morestack called from goroutine %D -----\n", m->curg->goid);
 			pc = (uintptr)m->morepc;
 			sp = (byte*)m->morebuf.sp - sizeof(void*);
 			lr = (uintptr)m->morebuf.pc;
@@ -178,7 +178,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 
 		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
 			// Lessstack is running on scheduler stack.  Switch to original goroutine.
-			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
+			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
 			g = m->curg;
 			stk = (Stktop*)g->stackbase;
 			sp = (byte*)stk->gobuf.sp;
