@@ -31,14 +31,18 @@ func TestSCMCredentials(t *testing.T) {
 		t.Fatalf("SetsockoptInt: %v", err)
 	}
 
-	srv, err := net.FileConn(os.NewFile(uintptr(fds[0]), ""))
+	srvFile := os.NewFile(uintptr(fds[0]), "server")
+	defer srvFile.Close()
+	srv, err := net.FileConn(srvFile)
 	if err != nil {
 		t.Errorf("FileConn: %v", err)
 		return
 	}
 	defer srv.Close()
 
-	cli, err := net.FileConn(os.NewFile(uintptr(fds[1]), ""))
+	cliFile := os.NewFile(uintptr(fds[1]), "client")
+	defer cliFile.Close()
+	cli, err := net.FileConn(cliFile)
 	if err != nil {
 		t.Errorf("FileConn: %v", err)
 		return
