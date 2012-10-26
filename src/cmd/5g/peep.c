@@ -133,26 +133,24 @@ loop1:
 	if(t)
 		goto loop1;
 
-return;
 
-#ifdef	NOTDEF
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
-//		case AEOR:
-//			/*
-//			 * EOR -1,x,y => MVN x,y
-//			 */
-//			if(isdconst(&p->from) && p->from.offset == -1) {
-//				p->as = AMVN;
-//				p->from.type = D_REG;
-//				if(p->reg != NREG)
-//					p->from.reg = p->reg;
-//				else
-//					p->from.reg = p->to.reg;
-//				p->reg = NREG;
-//			}
-//			break;
+		case AEOR:
+			/*
+			 * EOR -1,x,y => MVN x,y
+			 */
+			if(isdconst(&p->from) && p->from.offset == -1) {
+				p->as = AMVN;
+				p->from.type = D_REG;
+				if(p->reg != NREG)
+					p->from.reg = p->reg;
+				else
+					p->from.reg = p->to.reg;
+				p->reg = NREG;
+			}
+			break;
 
 		case AMOVH:
 		case AMOVHU:
@@ -161,6 +159,7 @@ return;
 			/*
 			 * look for MOVB x,R; MOVB R,R
 			 */
+			r1 = r->link;
 			if(p->to.type != D_REG)
 				break;
 			if(r1 == R)
@@ -175,8 +174,8 @@ return;
 			excise(r1);
 			break;
 		}
-		r1 = r->link;
 	}
+#ifdef	NOTDEF
 
 //	for(r=firstr; r!=R; r=r->link) {
 //		p = r->prog;
