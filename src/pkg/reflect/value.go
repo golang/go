@@ -1179,7 +1179,7 @@ func overflowFloat32(x float64) bool {
 	if x < 0 {
 		x = -x
 	}
-	return math.MaxFloat32 <= x && x <= math.MaxFloat64
+	return math.MaxFloat32 < x && x <= math.MaxFloat64
 }
 
 // OverflowInt returns true if the int64 x cannot be represented by v's type.
