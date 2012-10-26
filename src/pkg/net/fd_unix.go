@@ -312,14 +312,18 @@ func newFD(fd, family, sotype int, net string) (*netFD, error) {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
+	fd.sysfile = os.NewFile(uintptr(fd.sysfd), fd.net)
+}
+
+func (fd *netFD) name() string {
 	var ls, rs string
-	if laddr != nil {
-		ls = laddr.String()
+	if fd.laddr != nil {
+		ls = fd.laddr.String()
 	}
-	if raddr != nil {
-		rs = raddr.String()
+	if fd.raddr != nil {
+		rs = fd.raddr.String()
 	}
-	fd.sysfile = os.NewFile(uintptr(fd.sysfd), fd.net+":"+ls+"->"+rs)
+	return fd.net + ":" + ls + "->" + rs
 }
 
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
@@ -660,7 +664,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
 		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
 	}
 
-	return os.NewFile(uintptr(ns), fd.sysfile.Name()), nil
+	return os.NewFile(uintptr(ns), fd.name()), nil
 }
 
 func closesocket(s int) error {
