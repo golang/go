@@ -87,7 +87,7 @@ func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-// SearchStrings searches for x slice a sorted slice of strings and returns the index
+// SearchStrings searches for x in a sorted slice of strings and returns the index
 // as specified by Search. The slice must be sorted in ascending order.
 // 
 func SearchStrings(a []string, x string) int {
