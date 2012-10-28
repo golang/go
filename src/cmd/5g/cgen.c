@@ -307,17 +307,11 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OITAB:
-		// itable of interface value
+		// interface table is first word of interface value
 		igen(nl, &n1, res);
-		n1.op = OREGISTER;	// was OINDREG
-		regalloc(&n2, n->type, &n1);
-		n1.op = OINDREG;
 		n1.type = n->type;
-		n1.xoffset += 0;
-		gmove(&n1, &n2);
-		gmove(&n2, res);
+		gmove(&n1, res);
 		regfree(&n1);
-		regfree(&n2);
 		break;
 
 	case OLEN:
@@ -345,15 +339,10 @@ cgen(Node *n, Node *res)
 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
 			// both slice and string have len one pointer into the struct.
 			igen(nl, &n1, res);
-			n1.op = OREGISTER;	// was OINDREG
-			regalloc(&n2, types[TUINT32], &n1);
-			n1.op = OINDREG;
 			n1.type = types[TUINT32];
 			n1.xoffset += Array_nel;
-			gmove(&n1, &n2);
-			gmove(&n2, res);
+			gmove(&n1, res);
 			regfree(&n1);
-			regfree(&n2);
 			break;
 		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
@@ -383,11 +372,9 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		if(isslice(nl->type)) {
-			regalloc(&n1, types[tptr], res);
-			agen(nl, &n1);
-			n1.op = OINDREG;
+			igen(nl, &n1, res);
 			n1.type = types[TUINT32];
-			n1.xoffset = Array_cap;
+			n1.xoffset += Array_cap;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -898,6 +885,20 @@ igen(Node *n, Node *a, Node *res)
 		dump("\nigen-n", n);
 	}
 	switch(n->op) {
+	case ONAME:
+		if((n->class&PHEAP) || n->class == PPARAMREF)
+			break;
+		*a = *n;
+		return;
+
+	case OINDREG:
+		// Increase the refcount of the register so that igen's caller
+		// has to call regfree.
+		if(n->val.u.reg != REGSP)
+			reg[n->val.u.reg]++;
+		*a = *n;
+		return;
+
 	case ODOT:
 		igen(n->left, a, res);
 		a->xoffset += n->xoffset;
@@ -1150,34 +1151,12 @@ bgen(Node *n, int true, int likely, Prog *to)
 				break;
 			}
 
-			regalloc(&n1, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = Array_array;
-			gencmp0(&n2, types[tptr], a, likely, to);
+			igen(nl, &n1, N);
+			n1.xoffset += Array_array;
+			n1.type = types[tptr];
+			gencmp0(&n1, types[tptr], a, likely, to);
 			regfree(&n1);
 			break;
-
-#ifdef	NOTDEF
-			a = optoas(a, types[tptr]);
-			regalloc(&n1, types[tptr], N);
-			regalloc(&n3, types[tptr], N);
-			regalloc(&n4, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = Array_array;
-			gmove(&n2, &n4);
-			nodconst(&tmp, types[tptr], 0);
-			gmove(&tmp, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n4, &n3);
-			patch(gbranch(a, types[tptr], likely), to);
-			regfree(&n4);
-			regfree(&n3);
-			regfree(&n1);
-			break;
-#endif
 		}
 
 		if(isinter(nl->type)) {
@@ -1187,34 +1166,12 @@ bgen(Node *n, int true, int likely, Prog *to)
 				break;
 			}
 
-			regalloc(&n1, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = 0;
-			gencmp0(&n2, types[tptr], a, likely, to);
+			igen(nl, &n1, N);
+			n1.type = types[tptr];
+			n1.xoffset += 0;
+			gencmp0(&n1, types[tptr], a, likely, to);
 			regfree(&n1);
 			break;
-
-#ifdef	NOTDEF
-			a = optoas(a, types[tptr]);
-			regalloc(&n1, types[tptr], N);
-			regalloc(&n3, types[tptr], N);
-			regalloc(&n4, types[tptr], N);
-			agen(nl, &n1);
-			n2 = n1;
-			n2.op = OINDREG;
-			n2.xoffset = 0;
-			gmove(&n2, &n4);
-			nodconst(&tmp, types[tptr], 0);
-			gmove(&tmp, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n4, &n3);
-			patch(gbranch(a, types[tptr], likely), to);
-			regfree(&n1);
-			regfree(&n3);
-			regfree(&n4);
-			break;
-#endif
 		}
 
 		if(iscomplex[nl->type->etype]) {
@@ -1399,6 +1356,10 @@ sgen(Node *n, Node *res, int64 w)
 		return;
 	}
 
+	if(w == 8 || w == 12)
+		if(componentgen(n, res))
+			return;
+	
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
 	// smaller operations for less aligned types.
@@ -1515,4 +1476,157 @@ sgen(Node *n, Node *res, int64 w)
 	regfree(&dst);
 	regfree(&src);
 	regfree(&tmp);
+}
+
+static int
+cadable(Node *n)
+{
+	if(!n->addable) {
+		// dont know how it happens,
+		// but it does
+		return 0;
+	}
+
+	switch(n->op) {
+	case ONAME:
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * copy a structure component by component
+ * return 1 if can do, 0 if cant.
+ * nr is N for copy zero
+ */
+int
+componentgen(Node *nr, Node *nl)
+{
+	Node nodl, nodr, tmp;
+	int freel, freer;
+
+	freel = 0;
+	freer = 0;
+
+	switch(nl->type->etype) {
+	default:
+		goto no;
+
+	case TARRAY:
+		if(!isslice(nl->type))
+			goto no;
+	case TSTRING:
+	case TINTER:
+		break;
+	}
+
+	nodl = *nl;
+	if(!cadable(nl)) {
+		if(nr == N || !cadable(nr))
+			goto no;
+		igen(nl, &nodl, N);
+		freel = 1;
+	}
+
+	if(nr != N) {
+		nodr = *nr;
+		if(!cadable(nr)) {
+			igen(nr, &nodr, N);
+			freer = 1;
+		}
+	} else {
+		// When zeroing, prepare a register containing zero.
+		nodconst(&tmp, nl->type, 0);
+		regalloc(&nodr, types[TUINT], N);
+		gmove(&tmp, &nodr);
+		freer = 1;
+	}
+
+	switch(nl->type->etype) {
+	case TARRAY:
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(nl->type->type);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = types[simtype[TUINT]];
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_cap-Array_nel;
+		nodl.type = types[simtype[TUINT]];
+
+		if(nr != N) {
+			nodr.xoffset += Array_cap-Array_nel;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		goto yes;
+
+	case TSTRING:
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = types[simtype[TUINT]];
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		goto yes;
+
+	case TINTER:
+		nodl.xoffset += Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		nodl.xoffset += Array_nel-Array_array;
+		nodl.type = ptrto(types[TUINT8]);
+
+		if(nr != N) {
+			nodr.xoffset += Array_nel-Array_array;
+			nodr.type = nodl.type;
+		}
+		gmove(&nodr, &nodl);
+
+		goto yes;
+	}
+
+no:
+	if(freer)
+		regfree(&nodr);
+	if(freel)
+		regfree(&nodl);
+	return 0;
+
+yes:
+	if(freer)
+		regfree(&nodr);
+	if(freel)
+		regfree(&nodl);
+	return 1;
 }

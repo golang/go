@@ -103,6 +103,7 @@ Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
 void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
 void	cgen_shift(int, int, Node*, Node*, Node*);
+int	componentgen(Node*, Node*);
 
 /*
  * cgen64.c
