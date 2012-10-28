@@ -95,7 +95,7 @@ setoutvar(void)
 			ovar.b[z] |= bit.b[z];
 		t = structnext(&save);
 	}
-//if(bany(ovar))
+//if(bany(&ovar))
 //print("ovar = %Q\n", ovar);
 }
 
@@ -987,8 +987,6 @@ mkvar(Reg *r, Adr *a)
 	switch(et) {
 	case 0:
 	case TFUNC:
-	case TARRAY:
-	case TSTRING:
 		goto none;
 	}
 

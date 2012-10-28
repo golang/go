@@ -255,8 +255,9 @@ afunclit(Addr *a)
 
 static	int	resvd[] =
 {
-	9,	// reserved for m
-	10,	// reserved for g
+	9,     // reserved for m
+	10,    // reserved for g
+	REGSP, // reserved for SP
 };
 
 void
@@ -400,15 +401,17 @@ regfree(Node *n)
 		print("regalloc fix %d float %d\n", fixfree, floatfree);
 	}
 
-	if(n->op == ONAME && iscomplex[n->type->etype])
+	if(n->op == ONAME)
 		return;
 	if(n->op != OREGISTER && n->op != OINDREG)
 		fatal("regfree: not a register");
 	i = n->val.u.reg;
+	if(i == REGSP)
+		return;
 	if(i < 0 || i >= nelem(reg) || i >= nelem(regpc))
 		fatal("regfree: reg out of range");
 	if(reg[i] <= 0)
-		fatal("regfree: reg not allocated");
+		fatal("regfree: reg %R not allocated", i);
 	reg[i]--;
 	if(reg[i] == 0)
 		regpc[i] = 0;
