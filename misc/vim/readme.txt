@@ -72,5 +72,4 @@ To install godoc plugin:
   1. Same as 1 above.
   2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
      syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
-     ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
      and autoload/go/complete.vim to $HOME/.vim/autoload/go/complete.vim.

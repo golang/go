@@ -32,7 +32,7 @@
 " The backslash is the default maplocalleader, so it is possible that
 " your vim is set to use a different character (:help maplocalleader).
 "
-if exists("b:did_ftplugin")
+if exists("b:did_ftplugin_go_import")
     finish
 endif
 
@@ -227,5 +227,7 @@ endfunction
 function! s:Error(s)
     echohl Error | echo a:s | echohl None
 endfunction
+
+let b:did_ftplugin_go_import = 1
 
 " vim:ts=4:sw=4:et
