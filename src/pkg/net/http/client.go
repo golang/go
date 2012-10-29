@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // HTTP client. See RFC 2616.
-// 
+//
 // This is the high-level Client interface.
 // The low-level implementation is in transport.go.
 
@@ -44,8 +44,8 @@ type Client struct {
 	// which is to stop after 10 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
 
-	// Jar specifies the cookie jar. 
-	// If Jar is nil, cookies are not sent in requests and ignored 
+	// Jar specifies the cookie jar.
+	// If Jar is nil, cookies are not sent in requests and ignored
 	// in responses.
 	Jar CookieJar
 }
@@ -87,6 +87,22 @@ type readClose struct {
 	io.Closer
 }
 
+func (c *Client) send(req *Request) (*Response, error) {
+	if c.Jar != nil {
+		for _, cookie := range c.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
+	}
+	resp, err := send(req, c.Transport)
+	if err != nil {
+		return nil, err
+	}
+	if c.Jar != nil {
+		c.Jar.SetCookies(req.URL, resp.Cookies())
+	}
+	return resp, err
+}
+
 // Do sends an HTTP request and returns an HTTP response, following
 // policy (e.g. redirects, cookies, auth) as configured on the client.
 //
@@ -106,7 +122,7 @@ func (c *Client) Do(req *Request) (resp *Response, err error) {
 	if req.Method == "GET" || req.Method == "HEAD" {
 		return c.doFollowingRedirects(req)
 	}
-	return send(req, c.Transport)
+	return c.send(req)
 }
 
 // send issues an HTTP request.
@@ -215,11 +231,6 @@ func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error)
 		return nil, errors.New("http: nil Request.URL")
 	}
 
-	jar := c.Jar
-	if jar == nil {
-		jar = blackHoleJar{}
-	}
-
 	req := ireq
 	urlStr := "" // next relative or absolute URL to fetch (after first request)
 	redirectFailed := false
@@ -247,15 +258,9 @@ func (c *Client) doFollowingRedirects(ireq *Request) (resp *Response, err error)
 			}
 		}
 
-		for _, cookie := range jar.Cookies(req.URL) {
-			req.AddCookie(cookie)
-		}
 		urlStr = req.URL.String()
-		if resp, err = send(req, c.Transport); err != nil {
+		if resp, err = c.send(req); err != nil {
 			break
-		}
-		if c := resp.Cookies(); len(c) > 0 {
-			jar.SetCookies(req.URL, c)
 		}
 
 		if shouldRedirect(resp.StatusCode) {
@@ -316,16 +321,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Respon
 		return nil, err
 	}
 	req.Header.Set("Content-Type", bodyType)
-	if c.Jar != nil {
-		for _, cookie := range c.Jar.Cookies(req.URL) {
-			req.AddCookie(cookie)
-		}
-	}
-	resp, err = send(req, c.Transport)
-	if err == nil && c.Jar != nil {
-		c.Jar.SetCookies(req.URL, resp.Cookies())
-	}
-	return
+	return c.send(req)
 }
 
 // PostForm issues a POST to the specified URL, with data's keys and
@@ -339,7 +335,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
 
-// PostForm issues a POST to the specified URL, 
+// PostForm issues a POST to the specified URL,
 // with data's keys and values urlencoded as the request body.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
