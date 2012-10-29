@@ -67,8 +67,8 @@ func Unmarshal(data []byte, v interface{}) error {
 
 // Unmarshaler is the interface implemented by objects
 // that can unmarshal a JSON description of themselves.
-// The input can be assumed to be a valid JSON object
-// encoding.  UnmarshalJSON must copy the JSON data
+// The input can be assumed to be a valid encoding of
+// a JSON value. UnmarshalJSON must copy the JSON data
 // if it wishes to retain the data after returning.
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
