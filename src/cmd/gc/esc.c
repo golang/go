@@ -209,9 +209,10 @@ struct EscState {
 	int	pdepth;		// for debug printing in recursions.
 	int	dstcount, edgecount;	// diagnostic
 	NodeList*	noesc;	// list of possible non-escaping nodes, for printing
+	int	recursive;	// recursive function or group of mutually recursive functions.
 };
 
-static Strlit *tags[16] = { nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil };
+static Strlit *tags[16];
 
 static Strlit*
 mktag(int mask)
@@ -260,8 +261,6 @@ analyze(NodeList *all, int recursive)
 	NodeList *l;
 	EscState es, *e;
 	
-	USED(recursive);
-
 	memset(&es, 0, sizeof es);
 	e = &es;
 	e->theSink.op = ONAME;
@@ -269,6 +268,7 @@ analyze(NodeList *all, int recursive)
 	e->theSink.class = PEXTERN;
 	e->theSink.sym = lookup(".sink");
 	e->theSink.escloopdepth = -1;
+	e->recursive = recursive;
 
 	for(l=all; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
@@ -308,6 +308,8 @@ escfunc(EscState *e, Node *func)
 	NodeList *ll;
 	int saveld;
 
+//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
+
 	if(func->esc != 1)
 		fatal("repeat escfunc %N", func->nname);
 	func->esc = EscFuncStarted;
@@ -334,6 +336,12 @@ escfunc(EscState *e, Node *func)
 			break;
 		}
 	}
+
+	// in a mutually recursive group we lose track of the return values
+	if(e->recursive)
+		for(ll=curfn->dcl; ll; ll=ll->next)
+			if(ll->n->op == ONAME && ll->n->class == PPARAMOUT)
+				escflows(e, &e->theSink, ll->n);
 
 	escloopdepthlist(e, curfn->nbody);
 	esclist(e, curfn->nbody);
@@ -450,7 +458,7 @@ esc(EscState *e, Node *n)
 		}
 		// See case OLABEL in escloopdepth above
 		// else if(n->left->sym->label == nil)
-		//	fatal("escape anaylysis missed or messed up a label: %+N", n);
+		//	fatal("escape analysis missed or messed up a label: %+N", n);
 
 		n->left->sym->label = nil;
 		break;
@@ -506,13 +514,30 @@ esc(EscState *e, Node *n)
 			escassign(e, &e->theSink, ll->n);
 		break;
 
+	case OCALLMETH:
+	case OCALLFUNC:
+	case OCALLINTER:
+		esccall(e, n);
+		break;
+
+	case OAS2FUNC:	// x,y = f()
+		// esccall already done on n->rlist->n. tie it's escretval to n->list
+		lr=n->rlist->n->escretval;
+		for(ll=n->list; lr && ll; lr=lr->next, ll=ll->next)
+			escassign(e, ll->n, lr->n);
+		if(lr || ll)
+			fatal("esc oas2func");
+		break;
+
 	case ORETURN:
+		ll=n->list;
 		if(count(n->list) == 1 && curfn->type->outtuple > 1) {
 			// OAS2FUNC in disguise
-			break;
+			// esccall already done on n->list->n
+			// tie n->list->n->escretval to curfn->dcl PPARAMOUT's
+			ll = n->list->n->escretval;
 		}
 
-		ll=n->list;
 		for(lr = curfn->dcl; lr && ll; lr=lr->next) {
 			if (lr->n->op != ONAME || lr->n->class != PPARAMOUT)
 				continue;
@@ -532,12 +557,6 @@ esc(EscState *e, Node *n)
 		if(!n->isddd)
 			for(ll=n->list->next; ll; ll=ll->next)
 				escassign(e, &e->theSink, ll->n);  // lose track of assign to dereference
-		break;
-
-	case OCALLMETH:
-	case OCALLFUNC:
-	case OCALLINTER:
-		esccall(e, n);
 		break;
 
 	case OCONV:
@@ -693,6 +712,14 @@ escassign(EscState *e, Node *dst, Node *src)
 		escflows(e, dst, src);
 		break;
 
+	case OCALLMETH:
+	case OCALLFUNC:
+	case OCALLINTER:
+		if(count(src->escretval) != 1)
+			fatal("escassign from call %+N", src);
+		escflows(e, dst, src->escretval->n);
+		break;
+
 	case ODOT:
 		// A non-pointer escaping from a struct does not concern us.
 		if(src->type && !haspointers(src->type))
@@ -748,6 +775,26 @@ escassign(EscState *e, Node *dst, Node *src)
 	lineno = lno;
 }
 
+static void
+escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
+{
+	int em;
+	
+	em = parsetag(note);
+	
+	if(em == EscUnknown) {
+		escassign(e, &e->theSink, src);
+		return;
+	}
+		
+	for(em >>= EscBits; em && dsts; em >>= 1, dsts=dsts->next)
+		if(em & 1)
+			escassign(e, dsts->n, src);
+
+	if (em != 0 && dsts == nil)
+		fatal("corrupt esc tag %Z or messed up escretval list\n", note);
+}
+
 // This is a bit messier than fortunate, pulled out of esc's big
 // switch for clarity.	We either have the paramnodes, which may be
 // connected to other things throug flows or we have the parameter type
@@ -760,6 +807,8 @@ esccall(EscState *e, Node *n)
 	NodeList *ll, *lr;
 	Node *a, *fn, *src;
 	Type *t, *fntype;
+	char buf[40];
+	int i;
 
 	fn = N;
 	switch(n->op) {
@@ -787,18 +836,19 @@ esccall(EscState *e, Node *n)
 	ll = n->list;
 	if(n->list != nil && n->list->next == nil) {
 		a = n->list->n;
-		if(a->type->etype == TSTRUCT && a->type->funarg) {
-			// f(g()).
-			// Since f's arguments are g's results and
-			// all function results escape, we're done.
-			ll = nil;
-		}
+		if(a->type->etype == TSTRUCT && a->type->funarg) // f(g()).
+			ll = a->escretval;
 	}
 			
 	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody && fn->ntype && fn->defn->esc < EscFuncTagged) {
-		// Local function in this round.  Incorporate into flow graph.
-		if(fn->defn->esc == EscFuncUnknown)
+		// function in same mutually recursive group.  Incorporate into flow graph.
+//		print("esc local fn: %N\n", fn->ntype);
+		if(fn->defn->esc == EscFuncUnknown || n->escretval != nil)
 			fatal("graph inconsistency");
+
+		// set up out list on this call node
+		for(lr=fn->ntype->rlist; lr; lr=lr->next)
+			n->escretval = list(n->escretval, lr->n->left);  // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
 
 		// Receiver.
 		if(n->op != OCALLFUNC)
@@ -823,15 +873,35 @@ esccall(EscState *e, Node *n)
 		// "..." arguments are untracked
 		for(; ll; ll=ll->next)
 			escassign(e, &e->theSink, ll->n);
+
 		return;
 	}
 
 	// Imported or completely analyzed function.  Use the escape tags.
-	if(n->op != OCALLFUNC) {
-		t = getthisx(fntype)->type;
-		if(parsetag(t->note) != EscNone)
-			escassign(e, &e->theSink, n->left->left);
+	if(n->escretval != nil)
+		fatal("esc already decorated call %+N\n", n);
+
+	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
+	i = 0;
+	for(t=getoutargx(fntype)->type; t; t=t->down) {
+		src = nod(ONAME, N, N);
+		snprint(buf, sizeof buf, ".dum%d", i++);
+		src->sym = lookup(buf);
+		src->type = t->type;
+		src->class = PAUTO;
+		src->curfn = curfn;
+		src->escloopdepth = e->loopdepth;
+		src->used = 1;
+		src->lineno = n->lineno;
+		n->escretval = list(n->escretval, src); 
 	}
+
+//	print("esc analyzed fn: %#N (%+T) returning (%+H)\n", fn, fntype, n->escretval);
+
+	// Receiver.
+	if(n->op != OCALLFUNC)
+		escassignfromtag(e, getthisx(fntype)->type->note, n->escretval, n->left->left);
+	
 	for(t=getinargx(fntype)->type; ll; ll=ll->next) {
 		src = ll->n;
 		if(t->isddd && !n->isddd) {
@@ -843,8 +913,7 @@ esccall(EscState *e, Node *n)
 			e->noesc = list(e->noesc, src);
 			n->right = src;
 		}
-		if(parsetag(t->note) != EscNone)
-			escassign(e, &e->theSink, src);
+		escassignfromtag(e, t->note, n->escretval, src);
 		if(src != ll->n)
 			break;
 		t = t->down;
