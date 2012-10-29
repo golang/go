@@ -285,6 +285,10 @@ func TestClientSendsCookieFromJar(t *testing.T) {
 	req, _ := NewRequest("GET", us, nil)
 	client.Do(req) // Note: doesn't hit network
 	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
+
+	req, _ = NewRequest("POST", us, nil)
+	client.Do(req) // Note: doesn't hit network
+	matchReturnedCookies(t, expectedCookies, tr.req.Cookies())
 }
 
 // Just enough correctness for our redirect tests. Uses the URL.Host as the
