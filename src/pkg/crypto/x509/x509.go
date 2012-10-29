@@ -1224,7 +1224,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 		SerialNumber:       template.SerialNumber,
 		SignatureAlgorithm: signatureAlgorithm,
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
-		Validity:           validity{template.NotBefore, template.NotAfter},
+		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
 		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
 		Extensions:         extensions,
@@ -1314,8 +1314,8 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts [
 			Algorithm: oidSignatureSHA1WithRSA,
 		},
 		Issuer:              c.Subject.ToRDNSequence(),
-		ThisUpdate:          now,
-		NextUpdate:          expiry,
+		ThisUpdate:          now.UTC(),
+		NextUpdate:          expiry.UTC(),
 		RevokedCertificates: revokedCerts,
 	}
 
