@@ -561,12 +561,21 @@ func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "y does not esca
 	return &x[0] // ERROR "&x.0. escapes to heap"
 }
 
-func foo75(z *int) { // ERROR "leaking param: z"
+func foo75(z *int) { // ERROR "z does not escape"
 	myprint(z, 1, 2, 3) // ERROR "[.][.][.] argument does not escape"
 }
 
 func foo75a(z *int) { // ERROR "z does not escape"
-	myprint1(z, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
+	myprint1(z, 1, 2, 3) // ERROR "[.][.][.] argument does not escape"
+}
+
+func foo75esc(z *int) { // ERROR "leaking param: z"
+	gxx = myprint(z, 1, 2, 3) // ERROR "[.][.][.] argument does not escape"
+}
+
+func foo75aesc(z *int) { // ERROR "z does not escape"
+	var ppi **interface{}   // assignments to pointer dereferences lose track
+	*ppi = myprint1(z, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
 }
 
 func foo76(z *int) { // ERROR "leaking param: z"
@@ -574,7 +583,7 @@ func foo76(z *int) { // ERROR "leaking param: z"
 }
 
 func foo76a(z *int) { // ERROR "leaking param: z"
-	myprint1(nil, z) // ERROR "[.][.][.] argument escapes to heap"
+	myprint1(nil, z) // ERROR "[.][.][.] argument does not escape"
 }
 
 func foo76b() {
@@ -582,7 +591,7 @@ func foo76b() {
 }
 
 func foo76c() {
-	myprint1(nil, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
+	myprint1(nil, 1, 2, 3) // ERROR "[.][.][.] argument does not escape"
 }
 
 func foo76d() {
@@ -590,7 +599,7 @@ func foo76d() {
 }
 
 func foo76e() {
-	defer myprint1(nil, 1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
+	defer myprint1(nil, 1, 2, 3) // ERROR "[.][.][.] argument does not escape"
 }
 
 func foo76f() {
@@ -610,8 +619,13 @@ func foo77(z []interface{}) { // ERROR "z does not escape"
 	myprint(nil, z...) // z does not escape
 }
 
-func foo77a(z []interface{}) { // ERROR "leaking param: z"
+func foo77a(z []interface{}) { // ERROR "z does not escape"
 	myprint1(nil, z...)
+}
+
+func foo77b(z []interface{}) { // ERROR "leaking param: z"
+	var ppi **interface{}
+	*ppi = myprint1(nil, z...)
 }
 
 func foo78(z int) *int { // ERROR "moved to heap: z"

@@ -306,7 +306,8 @@ struct	Node
 
 	// Escape analysis.
 	NodeList* escflowsrc;	// flow(this, src)
-	int	escloopdepth;	// -1: global, 0: not set, function top level:1, increased inside function for every loop or label to mark scopes
+	NodeList* escretval;	// on OCALLxxx, list of dummy return values
+	int	escloopdepth;	// -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
