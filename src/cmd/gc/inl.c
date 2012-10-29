@@ -82,20 +82,18 @@ typecheckinl(Node *fn)
 	Pkg *pkg;
 	int save_safemode, lno;
 
-	if(fn->typecheck)
-		return;
-
 	lno = setlineno(fn);
+
+	// typecheckinl is only for imported functions;
+	// their bodies may refer to unsafe as long as the package
+	// was marked safe during import (which was checked then).
+	// the ->inl of a local function has been typechecked before caninl copied it.
+	pkg = fnpkg(fn);
+	if (pkg == localpkg || pkg == nil)
+		return; // typecheckinl on local function
 
 	if (debug['m']>2)
 		print("typecheck import [%S] %lN { %#H }\n", fn->sym, fn, fn->inl);
-
-	// typecheckinl is only used for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	pkg = fnpkg(fn);
-	if (pkg == localpkg || pkg == nil)
-		fatal("typecheckinl on local function %lN", fn);
 
 	save_safemode = safemode;
 	safemode = 0;
@@ -103,7 +101,6 @@ typecheckinl(Node *fn)
 	savefn = curfn;
 	curfn = fn;
 	typechecklist(fn->inl, Etop);
-	fn->typecheck = 1;
 	curfn = savefn;
 
 	safemode = save_safemode;
@@ -113,6 +110,7 @@ typecheckinl(Node *fn)
 
 // Caninl determines whether fn is inlineable.
 // If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
+// fn and ->nbody will already have been typechecked.
 void
 caninl(Node *fn)
 {
@@ -129,6 +127,9 @@ caninl(Node *fn)
 	if(fn->nbody == nil)
 		return;
 
+	if(fn->typecheck == 0)
+		fatal("caninl on non-typechecked function %N", fn);
+
 	// can't handle ... args yet
 	for(t=fn->type->type->down->down->type; t; t=t->down)
 		if(t->isddd)
@@ -143,8 +144,6 @@ caninl(Node *fn)
 
 	fn->nname->inl = fn->nbody;
 	fn->nbody = inlcopylist(fn->nname->inl);
-	// nbody will have been typechecked, so we can set this:
-	fn->typecheck = 1;
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
@@ -193,18 +192,10 @@ ishairy(Node *n, int *budget)
 	case OSWITCH:
 	case OPROC:
 	case ODEFER:
-	case ODCL:	// declares locals as globals b/c of @"". qualification
 	case ODCLTYPE:  // can't print yet
 	case ODCLCONST:  // can't print yet
 		return 1;
 
-		break;
-	case OAS:
-		// x = <N> zero initializing assignments aren't representible in export yet.
-		// alternatively we may just skip them in printing and hope their DCL printed
-		// as a var will regenerate it
-		if(n->right == N)
-			return 1;
 		break;
 	}
 

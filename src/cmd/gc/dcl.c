@@ -172,6 +172,9 @@ declare(Node *n, int ctxt)
 	Sym *s;
 	int gen;
 	static int typegen, vargen;
+	
+	if(ctxt == PDISCARD)
+		return;
 
 	if(isblank(n))
 		return;
@@ -240,7 +243,7 @@ variter(NodeList *vl, Node *t, NodeList *el)
 
 	init = nil;
 	doexpr = el != nil;
-	
+
 	if(count(el) == 1 && count(vl) > 1) {
 		e = el->n;
 		as2 = nod(OAS2, N, N);

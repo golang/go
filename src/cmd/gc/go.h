@@ -649,6 +649,8 @@ enum
 	PPARAMREF,	// param passed by reference
 	PFUNC,
 
+	PDISCARD,	// discard during parse of duplicate import
+
 	PHEAP = 1<<7,
 };
 
