@@ -813,6 +813,12 @@ stmtfmt(Fmt *f, Node *n)
 		break;
 
 	case OAS:
+		// Don't export "v = <N>" initializing statements, hope they're always 
+		// preceded by the DCL which will be re-parsed and typecheck to reproduce
+		// the "v = <N>" again.
+		if(fmtmode == FExp && n->right == N)
+			break;
+
 		if(n->colas && !complexinit)
 			fmtprint(f, "%N := %N", n->left, n->right);
 		else
@@ -1431,6 +1437,10 @@ nodedump(Fmt *fp, Node *n)
 			fmtprint(fp, "%O-%S%J", n->op, n->sym, n);
 		else
 			fmtprint(fp, "%O%J", n->op, n);
+		if(recur && n->type == T && n->ntype) {
+			indent(fp);
+			fmtprint(fp, "%O-ntype%N", n->op, n->ntype);
+		}
 		break;
 	case OASOP:
 		fmtprint(fp, "%O-%O%J", n->op, n->etype, n);

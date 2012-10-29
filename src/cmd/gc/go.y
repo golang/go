@@ -1293,8 +1293,10 @@ hidden_fndcl:
 
 		importsym(s, ONAME);
 		if(s->def != N && s->def->op == ONAME) {
-			if(eqtype(t, s->def->type))
+			if(eqtype(t, s->def->type)) {
+				dclcontext = PDISCARD;  // since we skip funchdr below
 				break;
+			}
 			yyerror("inconsistent definition for func %S during import\n\t%T\n\t%T", s, s->def->type, t);
 		}
 
@@ -1824,8 +1826,10 @@ hidden_import:
 	}
 |	LFUNC hidden_fndcl fnbody ';'
 	{
-		if($2 == N)
+		if($2 == N) {
+			dclcontext = PEXTERN;  // since we skip the funcbody below
 			break;
+		}
 
 		$2->inl = $3;
 
@@ -1834,7 +1838,7 @@ hidden_import:
 
 		if(debug['E']) {
 			print("import [%Z] func %lN \n", importpkg->path, $2);
-			if(debug['l'] > 2 && $2->inl)
+			if(debug['m'] > 2 && $2->inl)
 				print("inl body:%+H\n", $2->inl);
 		}
 	}
