@@ -143,4 +143,11 @@ func Write(fd int, p []byte) (n int, err error) {
 	return write(fd, p)
 }
 
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
 var ioSync int64
