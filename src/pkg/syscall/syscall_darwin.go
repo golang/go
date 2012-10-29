@@ -97,7 +97,7 @@ func Pipe(p []int) (err error) {
 }
 
 // TODO
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
 }
 
@@ -334,7 +334,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 // __pthread_canceled
 // __semwait_signal
 // Proc_info
-// Sendfile
+// sendfile
 // Stat64_extended
 // Lstat64_extended
 // Fstat64_extended

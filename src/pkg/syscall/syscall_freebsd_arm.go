@@ -43,7 +43,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	var writtenOut uint64 = 0
 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
 
