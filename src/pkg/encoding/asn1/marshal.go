@@ -296,8 +296,7 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
 }
 
 func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
-	utc := t.UTC()
-	year, month, day := utc.Date()
+	year, month, day := t.Date()
 
 	switch {
 	case 1950 <= year && year < 2000:
@@ -321,7 +320,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 		return
 	}
 
-	hour, min, sec := utc.Clock()
+	hour, min, sec := t.Clock()
 
 	err = marshalTwoDigits(out, hour)
 	if err != nil {
