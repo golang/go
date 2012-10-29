@@ -389,7 +389,7 @@ func updateCL(c appengine.Context, n string) error {
 			lgtm[s] = true
 			delete(notLGTM, s) // "LGTM" overrules previous "NOT LGTM"
 		}
-		if strings.Contains(msg.Text, "NOT LGTM") {
+		if strings.Contains(line, "NOT LGTM") {
 			notLGTM[s] = true
 			delete(lgtm, s) // "NOT LGTM" overrules previous "LGTM"
 		}
