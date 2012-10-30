@@ -56,8 +56,10 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	defer r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad http response: %v", r.Status)
+	}
 	body := new(bytes.Buffer)
 	if _, err := body.ReadFrom(r.Body); err != nil {
 		return err
