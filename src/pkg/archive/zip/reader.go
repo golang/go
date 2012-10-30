@@ -241,6 +241,9 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 		for len(b) > 0 {
 			tag := b.uint16()
 			size := b.uint16()
+			if int(size) > len(b) {
+				return ErrFormat
+			}
 			if tag == zip64ExtraId {
 				// update directory values from the zip64 extra block
 				eb := readBuf(b)

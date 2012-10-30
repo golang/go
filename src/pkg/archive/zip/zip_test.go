@@ -173,3 +173,37 @@ func TestZip64(t *testing.T) {
 		t.Errorf("UncompressedSize64 %d, want %d", got, want)
 	}
 }
+
+// Issue 4302.
+func TestInvalidExtraHedaer(t *testing.T) {
+	const timeFormat = "20060102T150405.000.txt"
+
+	var buf bytes.Buffer
+	z := NewWriter(&buf)
+
+	ts := time.Now()
+	filename := ts.Format(timeFormat)
+
+	h := FileHeader{
+		Name:   filename,
+		Method: Deflate,
+		Extra:  []byte(ts.Format(time.RFC3339Nano)), // missing tag and len
+	}
+	h.SetModTime(ts)
+
+	fh, err := z.CreateHeader(&h)
+	if err != nil {
+		t.Fatalf("error creating header: %v", err)
+	}
+	if _, err := fh.Write([]byte("hi")); err != nil {
+		t.Fatalf("error writing content: %v", err)
+	}
+	if err := z.Close(); err != nil {
+		t.Fatal("error closing zip writer: %v", err)
+	}
+
+	b := buf.Bytes()
+	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err == nil {
+		t.Fatal("expected ErrFormat")
+	}
+}
