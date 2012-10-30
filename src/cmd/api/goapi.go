@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -192,17 +193,29 @@ func main() {
 	fail = !compareAPI(bw, features, required, optional, exception)
 }
 
+func set(items []string) map[string]bool {
+	s := make(map[string]bool)
+	for _, v := range items {
+		s[v] = true
+	}
+	return s
+}
+
+var spaceParensRx = regexp.MustCompile(` \(\S+?\)`)
+
+func featureWithoutContext(f string) string {
+	if !strings.Contains(f, "(") {
+		return f
+	}
+	return spaceParensRx.ReplaceAllString(f, "")
+}
+
 func compareAPI(w io.Writer, features, required, optional, exception []string) (ok bool) {
 	ok = true
 
-	var optionalSet = make(map[string]bool)  // feature => true
-	var exceptionSet = make(map[string]bool) // exception => true
-	for _, f := range optional {
-		optionalSet[f] = true
-	}
-	for _, f := range exception {
-		exceptionSet[f] = true
-	}
+	optionalSet := set(optional)
+	exceptionSet := set(exception)
+	featureSet := set(features)
 
 	sort.Strings(features)
 	sort.Strings(required)
@@ -215,15 +228,17 @@ func compareAPI(w io.Writer, features, required, optional, exception []string) (
 
 	for len(required) > 0 || len(features) > 0 {
 		switch {
-		case len(features) == 0 || required[0] < features[0]:
+		case len(features) == 0 || (len(required) > 0 && required[0] < features[0]):
 			feature := take(&required)
 			if exceptionSet[feature] {
 				fmt.Fprintf(w, "~%s\n", feature)
+			} else if featureSet[featureWithoutContext(feature)] {
+				// okay.
 			} else {
 				fmt.Fprintf(w, "-%s\n", feature)
 				ok = false // broke compatibility
 			}
-		case len(required) == 0 || required[0] > features[0]:
+		case len(required) == 0 || (len(features) > 0 && required[0] > features[0]):
 			newFeature := take(&features)
 			if optionalSet[newFeature] {
 				// Known added feature to the upcoming release.

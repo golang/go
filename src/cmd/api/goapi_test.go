@@ -84,10 +84,10 @@ func TestCompareAPI(t *testing.T) {
 	}{
 		{
 			name:     "feature added",
-			features: []string{"C", "A", "B"},
-			required: []string{"A", "C"},
+			features: []string{"A", "B", "C", "D", "E", "F"},
+			required: []string{"B", "D"},
 			ok:       true,
-			out:      "+B\n",
+			out:      "+A\n+C\n+E\n+F\n",
 		},
 		{
 			name:     "feature removed",
@@ -111,6 +111,21 @@ func TestCompareAPI(t *testing.T) {
 			exception: []string{"B"},
 			ok:        true,
 			out:       "~B\n",
+		},
+		{
+			// http://golang.org/issue/4303
+			name: "contexts reconverging",
+			required: []string{
+				"A",
+				"pkg syscall (darwin-386), type RawSockaddrInet6 struct",
+				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
+			},
+			features: []string{
+				"A",
+				"pkg syscall, type RawSockaddrInet6 struct",
+			},
+			ok:  true,
+			out: "+pkg syscall, type RawSockaddrInet6 struct\n",
 		},
 	}
 	for _, tt := range tests {
