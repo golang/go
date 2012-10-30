@@ -35,10 +35,12 @@ var tests = []struct {
 
 	// directories
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/ast"), "ast"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/build"), "build"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/doc"), "doc"},
-	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner"},
-	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/printer"), "printer"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "token"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/exp/types"), "types"},
 }
 
