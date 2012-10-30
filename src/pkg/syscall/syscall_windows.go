@@ -142,6 +142,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
 //sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error)
 //sys	CancelIo(s Handle) (err error)
+//sys	CancelIoEx(s Handle, o *Overlapped) (err error)
 //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
 //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
@@ -472,6 +473,10 @@ func Chmod(path string, mode uint32) (err error) {
 		attrs |= FILE_ATTRIBUTE_READONLY
 	}
 	return SetFileAttributes(p, attrs)
+}
+
+func LoadCancelIoEx() error {
+	return procCancelIoEx.Find()
 }
 
 // net api calls
