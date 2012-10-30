@@ -17,7 +17,7 @@ import (
 //
 // The fact that it is partial is very important: the input is
 // an AST and a description of some type information to
-// assume about one or more packages, but not all the 
+// assume about one or more packages, but not all the
 // packages that the program imports.  The checker is
 // expected to do as much as it can with what it has been
 // given.  There is not enough information supplied to do

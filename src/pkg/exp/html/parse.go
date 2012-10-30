@@ -2027,7 +2027,7 @@ func Parse(r io.Reader) (*Node, error) {
 	return p.doc, nil
 }
 
-// ParseFragment parses a fragment of HTML and returns the nodes that were 
+// ParseFragment parses a fragment of HTML and returns the nodes that were
 // found. If the fragment is the InnerHTML for an existing element, pass that
 // element in context.
 func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {

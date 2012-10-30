@@ -1120,7 +1120,7 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
 		// not worry about other processes inheriting the fd accidentally.
 		// The answer is that running a command is fork and exec.
 		// A child forked while the cgo fd is open inherits that fd.
-		// Until the child has called exec, it holds the fd open and the 
+		// Until the child has called exec, it holds the fd open and the
 		// kernel will not let us run cgo.  Even if the child were to close
 		// the fd explicitly, it would still be open from the time of the fork
 		// until the time of the explicit close, and the race would remain.

@@ -4,7 +4,7 @@
 
 // The trie in this file is used to associate the first full character
 // in an UTF-8 string to a collation element.
-// All but the last byte in a UTF-8 byte sequence are 
+// All but the last byte in a UTF-8 byte sequence are
 // used to lookup offsets in the index table to be used for the next byte.
 // The last byte is used to index into a table of collation elements.
 // For a full description, see exp/locale/collate/build/trie.go.

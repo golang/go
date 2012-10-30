@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-// pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See 
+// pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
 // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn.
 type pkcs8 struct {
 	Version    int

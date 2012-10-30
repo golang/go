@@ -20,7 +20,7 @@ type bitReader struct {
 	err  error
 }
 
-// newBitReader returns a new bitReader reading from r. If r is not 
+// newBitReader returns a new bitReader reading from r. If r is not
 // already an io.ByteReader, it will be converted via a bufio.Reader.
 func newBitReader(r io.Reader) bitReader {
 	byter, ok := r.(io.ByteReader)

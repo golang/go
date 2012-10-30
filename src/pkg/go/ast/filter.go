@@ -414,7 +414,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 				if path := imp.Path.Value; !seen[path] {
 					// TODO: consider handling cases where:
 					// - 2 imports exist with the same import path but
-					//   have different local names (one should probably 
+					//   have different local names (one should probably
 					//   keep both of them)
 					// - 2 imports exist but only one has a comment
 					// - 2 imports exist and they both have (possibly

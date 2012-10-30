@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-// Note: the MemStats struct should be kept in sync with 
+// Note: the MemStats struct should be kept in sync with
 // struct MStats in malloc.h
 
 // A MemStats records statistics about the memory allocator.

@@ -55,7 +55,7 @@ func TestDialTimeout(t *testing.T) {
 		// on our 386 builder, this Dial succeeds, connecting
 		// to an IIS web server somewhere.  The data center
 		// or VM or firewall must be stealing the TCP connection.
-		// 
+		//
 		// IANA Service Name and Transport Protocol Port Number Registry
 		// <http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml>
 		go func() {

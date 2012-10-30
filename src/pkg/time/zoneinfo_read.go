@@ -284,7 +284,7 @@ func loadZoneZip(zipfile, name string) (l *Location, err error) {
 		//	42	off[4]
 		//	46	name[namelen]
 		//	46+namelen+xlen+fclen - next header
-		//		
+		//
 		if get4(buf) != zcheader {
 			break
 		}

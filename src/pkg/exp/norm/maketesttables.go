@@ -16,7 +16,7 @@ func main() {
 	printTestTables()
 }
 
-// We take the smallest, largest and an arbitrary value for each 
+// We take the smallest, largest and an arbitrary value for each
 // of the UTF-8 sequence lengths.
 var testRunes = []rune{
 	0x01, 0x0C, 0x7F, // 1-byte sequences

@@ -25,7 +25,7 @@ import (
 //   compacted.
 // - Compress secondary weights into 8 bits.
 // - Some LDML specs specify a context element. Currently we simply concatenate
-//   those.  Context can be implemented using the contraction trie. If Builder 
+//   those.  Context can be implemented using the contraction trie. If Builder
 //   could analyze and detect when using a context makes sense, there is no
 //   need to expose this construct in the API.
 
@@ -72,7 +72,7 @@ func NewBuilder() *Builder {
 	}
 }
 
-// Tailoring returns a Tailoring for the given locale.  One should 
+// Tailoring returns a Tailoring for the given locale.  One should
 // have completed all calls to Add before calling Tailoring.
 func (b *Builder) Tailoring(locale string) *Tailoring {
 	t := &Tailoring{
@@ -84,7 +84,7 @@ func (b *Builder) Tailoring(locale string) *Tailoring {
 	return t
 }
 
-// Add adds an entry to the collation element table, mapping 
+// Add adds an entry to the collation element table, mapping
 // a slice of runes to a sequence of collation elements.
 // A collation element is specified as list of weights: []int{primary, secondary, ...}.
 // The entries are typically obtained from a collation element table
@@ -171,7 +171,7 @@ func (t *Tailoring) SetAnchorBefore(anchor string) error {
 // See http://www.unicode.org/reports/tr10/#Tailoring_Example for details
 // on parametric tailoring and http://unicode.org/reports/tr35/#Collation_Elements
 // for full details on LDML.
-// 
+//
 // Examples: create a tailoring for Swedish, where "ä" is ordered after "z"
 // at the primary sorting level:
 //      t := b.Tailoring("se")

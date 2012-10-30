@@ -23,12 +23,12 @@
 // As in the Go tree, each target operating system and
 // architecture pair has its own subdirectory of pkg
 // (pkg/GOOS_GOARCH).
-// 
+//
 // If DIR is a directory listed in the Go path, a package with
 // source in DIR/src/foo/bar can be imported as "foo/bar" and
 // has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a"
 // (or, for gccgo, "DIR/pkg/gccgo/foo/libbar.a").
-// 
+//
 // The bin/ directory holds compiled commands.
 // Each command is named for its source directory, but only
 // using the final element, not the entire path.  That is, the
@@ -36,11 +36,11 @@
 // DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
 // so that you can add DIR/bin to your PATH to get at the
 // installed commands.
-// 
+//
 // Here's an example directory layout:
-// 
+//
 //	GOPATH=/home/user/gocode
-// 
+//
 //	/home/user/gocode/
 //	    src/
 //	        foo/

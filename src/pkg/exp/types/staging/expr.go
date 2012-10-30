@@ -559,7 +559,7 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
 		switch typ := x.typ.(type) {
 		case *Struct:
 			if fld := lookupField(typ, e.Sel.Name); fld != nil {
-				// TODO(gri) only variable if struct is variable 
+				// TODO(gri) only variable if struct is variable
 				x.mode = variable
 				x.expr = e
 				x.typ = fld.Type

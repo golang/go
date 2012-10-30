@@ -35,7 +35,7 @@ Printf.
 
 Non-standard signatures for methods with familiar names, including:
 	Format GobEncode GobDecode MarshalJSON MarshalXML
-	Peek ReadByte ReadFrom ReadRune Scan Seek 
+	Peek ReadByte ReadFrom ReadRune Scan Seek
 	UnmarshalJSON UnreadByte UnreadRune WriteByte
 	WriteTo
 

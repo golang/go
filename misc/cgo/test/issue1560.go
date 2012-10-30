@@ -35,8 +35,8 @@ func BackgroundSleep(n int32) {
 	}()
 }
 
-// wasteCPU starts a background goroutine to waste CPU 
-// to cause the power management to raise the CPU frequency. 
+// wasteCPU starts a background goroutine to waste CPU
+// to cause the power management to raise the CPU frequency.
 // On ARM this has the side effect of making sleep more accurate.
 func wasteCPU() chan struct{} {
 	done := make(chan struct{})

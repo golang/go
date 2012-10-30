@@ -37,7 +37,7 @@ type Cmd struct {
 
 	// Args holds command line arguments, including the command as Args[0].
 	// If the Args field is empty or nil, Run uses {Path}.
-	// 
+	//
 	// In typical use, both Path and Args are set by calling Command.
 	Args []string
 

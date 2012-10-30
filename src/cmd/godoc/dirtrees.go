@@ -264,7 +264,7 @@ type DirEntry struct {
 	Height   int    // = DirList.MaxHeight - Depth, > 0
 	Path     string // directory path; includes Name, relative to DirList root
 	Name     string // directory name
-	HasPkg   bool   // true if the directory contains at least one package 
+	HasPkg   bool   // true if the directory contains at least one package
 	Synopsis string // package documentation, if any
 }
 

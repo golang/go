@@ -86,7 +86,7 @@ const (
 // Quick Check properties of runes allow us to quickly
 // determine whether a rune may occur in a normal form.
 // For a given normal form, a rune may be guaranteed to occur
-// verbatim (QC=Yes), may or may not combine with another 
+// verbatim (QC=Yes), may or may not combine with another
 // rune (QC=Maybe), or may not occur (QC=No).
 type QCResult int
 

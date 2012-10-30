@@ -9,7 +9,7 @@ import (
 )
 
 // parseDoctype parses the data from a DoctypeToken into a name,
-// public identifier, and system identifier. It returns a Node whose Type 
+// public identifier, and system identifier. It returns a Node whose Type
 // is DoctypeNode, whose Data is the name, and which has attributes
 // named "system" and "public" for the two identifiers if they were present.
 // quirks is whether the document should be parsed in "quirks mode".

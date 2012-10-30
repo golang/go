@@ -76,7 +76,7 @@ func init() {
 // We do not distinguish between boundaries for NFC, NFD, etc. to avoid
 // unexpected behavior for the user.  For example, in NFD, there is a boundary
 // after 'a'.  However, 'a' might combine with modifiers, so from the application's
-// perspective it is not a good boundary. We will therefore always use the 
+// perspective it is not a good boundary. We will therefore always use the
 // boundaries for the combining variants.
 
 // BoundaryBefore returns true if this rune starts a new segment and
@@ -101,7 +101,7 @@ func (p Properties) BoundaryAfter() bool {
 //   0:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
 //   1..2: NFC_QC Yes(00), No (10), or Maybe (11)
 //   3:    Combines forward  (0 == false, 1 == true)
-// 
+//
 // When all 4 bits are zero, the character is inert, meaning it is never
 // influenced by normalization.
 type qcInfo uint8

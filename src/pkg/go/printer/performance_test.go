@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file implements a simple printer performance benchmark:
-// go test -bench=BenchmarkPrint 
+// go test -bench=BenchmarkPrint
 
 package printer
 

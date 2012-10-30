@@ -171,9 +171,9 @@ var dualStackListenerTests = []struct {
 	// Test cases and expected results for the attemping 2nd listen on the same port
 	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
 	// ------------------------------------------------------------------------------------
-	// "tcp"  ""                 "tcp"  ""                    -        -       -       - 
-	// "tcp"  ""                 "tcp"  "0.0.0.0"             -        -       -       - 
-	// "tcp"  "0.0.0.0"          "tcp"  ""                    -        -       -       - 
+	// "tcp"  ""                 "tcp"  ""                    -        -       -       -
+	// "tcp"  ""                 "tcp"  "0.0.0.0"             -        -       -       -
+	// "tcp"  "0.0.0.0"          "tcp"  ""                    -        -       -       -
 	// ------------------------------------------------------------------------------------
 	// "tcp"  ""                 "tcp"  "[::]"                -        -       -       ok
 	// "tcp"  "[::]"             "tcp"  ""                    -        -       -       ok

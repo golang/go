@@ -57,7 +57,7 @@ func resolve(scope *Scope, ident *Ident) bool {
 // An Importer must determine the canonical import path and
 // check the map to see if it is already present in the imports map.
 // If so, the Importer can return the map entry.  Otherwise, the
-// Importer should load the package data for the given path into 
+// Importer should load the package data for the given path into
 // a new *Object (pkg), record pkg in the imports map, and then
 // return pkg.
 type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)

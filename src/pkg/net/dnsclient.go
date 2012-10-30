@@ -183,7 +183,7 @@ func (s byPriorityWeight) Less(i, j int) bool {
 }
 
 // shuffleByWeight shuffles SRV records by weight using the algorithm
-// described in RFC 2782.  
+// described in RFC 2782.
 func (addrs byPriorityWeight) shuffleByWeight() {
 	sum := 0
 	for _, addr := range addrs {

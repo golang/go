@@ -29,7 +29,7 @@ func run(timeout time.Duration, envv []string, dir string, argv ...string) error
 	return waitWithTimeout(timeout, cmd)
 }
 
-// runLog runs a process and returns the combined stdout/stderr, 
+// runLog runs a process and returns the combined stdout/stderr,
 // as well as writing it to logfile (if specified). It returns
 // process combined stdout and stderr output, exit status and error.
 // The error returned is nil, if process is started successfully,

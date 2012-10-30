@@ -132,7 +132,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
 	return true
 }
 
-// sendType sends the type info to the other side, if necessary. 
+// sendType sends the type info to the other side, if necessary.
 func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
 	ut := userType(origt)
 	if ut.isGobEncoder {

@@ -46,7 +46,7 @@ func (mset methodSet) set(f *ast.FuncDecl) {
 		// since it has documentation, assume f is simply another
 		// implementation and ignore it. This does not happen if the
 		// caller is using go/build.ScanDir to determine the list of
-		// files implementing a package. 
+		// files implementing a package.
 		return
 	}
 	// function doesn't exist or has no documentation; use f
@@ -597,7 +597,7 @@ func (r *reader) computeMethodSets() {
 // types that have no declaration. Instead, these functions and methods
 // are shown at the package level. It also removes types with missing
 // declarations or which are not visible.
-// 
+//
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
 		visible := r.isVisible(t.name)

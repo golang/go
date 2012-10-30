@@ -38,7 +38,7 @@ func fileInfoFromStat(d *dir) FileInfo {
 	return fs
 }
 
-// arg is an open *File or a path string. 
+// arg is an open *File or a path string.
 func dirstat(arg interface{}) (d *dir, err error) {
 	var name string
 

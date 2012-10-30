@@ -124,7 +124,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		f, value, extraWord := testFlag(args, i)
 		if f == nil {
 			// This is a flag we do not know; we must assume
-			// that any args we see after this might be flag 
+			// that any args we see after this might be flag
 			// arguments, not package names.
 			inPkg = false
 			if packageNames == nil {

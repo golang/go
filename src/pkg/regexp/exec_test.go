@@ -405,14 +405,14 @@ Reading:
 		//   implementation. If the first character is not [BEASKLP] then the
 		//   specification is a global control line. One or more of [BEASKLP] may be
 		//   specified; the test will be repeated for each mode.
-		// 
+		//
 		//     B 	basic			BRE	(grep, ed, sed)
 		//     E 	REG_EXTENDED		ERE	(egrep)
 		//     A	REG_AUGMENTED		ARE	(egrep with negation)
 		//     S	REG_SHELL		SRE	(sh glob)
 		//     K	REG_SHELL|REG_AUGMENTED	KRE	(ksh glob)
 		//     L	REG_LITERAL		LRE	(fgrep)
-		// 
+		//
 		//     a	REG_LEFT|REG_RIGHT	implicit ^...$
 		//     b	REG_NOTBOL		lhs does not match ^
 		//     c	REG_COMMENT		ignore space and #...\n
@@ -442,23 +442,23 @@ Reading:
 		//     $	                        expand C \c escapes in fields 2 and 3
 		//     /	                        field 2 is a regsubcomp() expression
 		//     =	                        field 3 is a regdecomp() expression
-		// 
+		//
 		//   Field 1 control lines:
-		// 
+		//
 		//     C		set LC_COLLATE and LC_CTYPE to locale in field 2
-		// 
+		//
 		//     ?test ...	output field 5 if passed and != EXPECTED, silent otherwise
 		//     &test ...	output field 5 if current and previous passed
 		//     |test ...	output field 5 if current passed and previous failed
 		//     ; ...	output field 2 if previous failed
 		//     {test ...	skip if failed until }
 		//     }		end of skip
-		// 
+		//
 		//     : comment		comment copied as output NOTE
 		//     :comment:test	:comment: ignored
 		//     N[OTE] comment	comment copied as output NOTE
 		//     T[EST] comment	comment
-		// 
+		//
 		//     number		use number for nmatch (20 by default)
 		flag := field[0]
 		switch flag[0] {
@@ -501,7 +501,7 @@ Reading:
 
 		//   Field 2: the regular expression pattern; SAME uses the pattern from
 		//     the previous specification.
-		// 
+		//
 		if field[1] == "SAME" {
 			field[1] = lastRegexp
 		}

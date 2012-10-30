@@ -85,7 +85,7 @@ func TestImplicitMapConversion(t *testing.T) {
 		}
 	}
 	{
-		// convert channel direction	
+		// convert channel direction
 		m := make(map[<-chan int]chan int)
 		mv := ValueOf(m)
 		c1 := make(chan int)

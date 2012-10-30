@@ -4,15 +4,15 @@
 
 /*
 
-Go Builder is a continuous build client for the Go project. 
+Go Builder is a continuous build client for the Go project.
 It integrates with the Go Dashboard AppEngine application.
 
 Go Builder is intended to run continuously as a background process.
 
-It periodically pulls updates from the Go Mercurial repository. 
+It periodically pulls updates from the Go Mercurial repository.
 
 When a newer revision is found, Go Builder creates a clone of the repository,
-runs all.bash, and reports build success or failure to the Go Dashboard. 
+runs all.bash, and reports build success or failure to the Go Dashboard.
 
 For a release revision (a change description that matches "release.YYYY-MM-DD"),
 Go Builder will create a tar.gz archive of the GOROOT and deliver it to the
@@ -22,7 +22,7 @@ Usage:
 
   gobuilder goos-goarch...
 
-  Several goos-goarch combinations can be provided, and the builder will 
+  Several goos-goarch combinations can be provided, and the builder will
   build them in serial.
 
 Optional flags:

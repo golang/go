@@ -25,7 +25,7 @@ var UseProxyTests = []struct {
 	{"[::2]", true}, // not a loopback address
 
 	{"barbaz.net", false},     // match as .barbaz.net
-	{"foobar.com", false},     // have a port but match 
+	{"foobar.com", false},     // have a port but match
 	{"foofoobar.com", true},   // not match as a part of foobar.com
 	{"baz.com", true},         // not match as a part of barbaz.com
 	{"localhost.net", true},   // not match as suffix of address

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Issue 3590. netFd.AddFD should return an error 
+// Issue 3590. netFd.AddFD should return an error
 // from the underlying pollster rather than panicing.
 func TestAddFDReturnsError(t *testing.T) {
 	l, err := Listen("tcp", "127.0.0.1:0")

@@ -47,25 +47,25 @@ Josie
 
 	// Output:
 	// Dear Aunt Mildred,
-	// 
+	//
 	// It was a pleasure to see you at the wedding.
 	// Thank you for the lovely bone china tea set.
-	// 
+	//
 	// Best wishes,
 	// Josie
-	// 
+	//
 	// Dear Uncle John,
-	// 
+	//
 	// It is a shame you couldn't make it to the wedding.
 	// Thank you for the lovely moleskin pants.
-	// 
+	//
 	// Best wishes,
 	// Josie
-	// 
+	//
 	// Dear Cousin Rodney,
-	// 
+	//
 	// It is a shame you couldn't make it to the wedding.
-	// 
+	//
 	// Best wishes,
 	// Josie
 }

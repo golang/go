@@ -91,7 +91,7 @@ func isCreateFlag(flag ast.Expr) bool {
 		case "O_TRUNC":
 			foundTrunc = true
 		case "O_RDONLY", "O_WRONLY", "O_RDWR":
-			// okay 
+			// okay
 		default:
 			// Unexpected flag, like O_APPEND or O_EXCL.
 			// Be conservative and do not rewrite.

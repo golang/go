@@ -15,9 +15,9 @@ import (
 // BUG(brainman,rsc): On Windows, the operating system does not provide complete
 // time zone information.
 // The implementation assumes that this year's rules for daylight savings
-// time apply to all previous and future years as well. 
+// time apply to all previous and future years as well.
 // Also, time zone abbreviations are unavailable.  The implementation constructs
-// them using the capital letters from a longer time zone description.	
+// them using the capital letters from a longer time zone description.
 
 // abbrev returns the abbreviation to use for the given zone name.
 func abbrev(name []uint16) string {

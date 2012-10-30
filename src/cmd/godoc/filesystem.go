@@ -41,7 +41,7 @@ import (
 // paths can assume they are slash-separated and should be using
 // package path (often imported as pathpkg) to manipulate them,
 // even on Windows.
-// 
+//
 var fs = nameSpace{} // the underlying file system for godoc
 
 // Setting debugNS = true will enable debugging prints about
@@ -138,7 +138,7 @@ func hasPathPrefix(x, y string) bool {
 // but we want to be able to mount multiple file systems on a single
 // mount point and have the system behave as if the union of those
 // file systems were present at the mount point.
-// For example, if the OS file system has a Go installation in 
+// For example, if the OS file system has a Go installation in
 // c:\Go and additional Go path trees in  d:\Work1 and d:\Work2, then
 // this name space creates the view we want for the godoc server:
 //
@@ -179,7 +179,7 @@ func hasPathPrefix(x, y string) bool {
 //	OS(`d:\Work1').ReadDir("/src/code")
 //	OS(`d:\Work2').ReadDir("/src/code")
 //
-// Note that the "/src/pkg" in "/src/pkg/code" has been replaced by 
+// Note that the "/src/pkg" in "/src/pkg/code" has been replaced by
 // just "/src" in the final two calls.
 //
 // OS is itself an implementation of a file system: it implements

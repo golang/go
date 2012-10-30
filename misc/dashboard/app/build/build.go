@@ -183,7 +183,7 @@ type Result struct {
 	Log     string `datastore:"-"`        // for JSON unmarshaling only
 	LogHash string `datastore:",noindex"` // Key to the Log record.
 
-	RunTime int64 // time to build+test in nanoseconds 
+	RunTime int64 // time to build+test in nanoseconds
 }
 
 func (r *Result) Key(c appengine.Context) *datastore.Key {

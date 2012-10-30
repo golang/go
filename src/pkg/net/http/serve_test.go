@@ -314,7 +314,7 @@ func TestServerTimeouts(t *testing.T) {
 	l.Close()
 }
 
-// TestIdentityResponse verifies that a handler can unset 
+// TestIdentityResponse verifies that a handler can unset
 func TestIdentityResponse(t *testing.T) {
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
 		rw.Header().Set("Content-Length", "3")
