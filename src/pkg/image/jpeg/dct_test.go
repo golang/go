@@ -42,7 +42,7 @@ func TestDCT(t *testing.T) {
 		b := block{}
 		n := r.Int() % 64
 		for j := 0; j < n; j++ {
-			b[r.Int()%len(b)] = r.Int() % 256
+			b[r.Int()%len(b)] = r.Int31() % 256
 		}
 		blocks = append(blocks, b)
 	}
@@ -144,9 +144,9 @@ func slowFDCT(b *block) {
 			dst[8*v+u] = sum / 8
 		}
 	}
-	// Convert from float64 to int.
+	// Convert from float64 to int32.
 	for i := range dst {
-		b[i] = int(dst[i] + 0.5)
+		b[i] = int32(dst[i] + 0.5)
 	}
 }
 
@@ -174,9 +174,9 @@ func slowIDCT(b *block) {
 			dst[8*y+x] = sum / 8
 		}
 	}
-	// Convert from float64 to int.
+	// Convert from float64 to int32.
 	for i := range dst {
-		b[i] = int(dst[i] + 0.5)
+		b[i] = int32(dst[i] + 0.5)
 	}
 }
 

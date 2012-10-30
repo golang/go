@@ -21,7 +21,7 @@ func min(x, y int) int {
 }
 
 // div returns a/b rounded to the nearest integer, instead of rounded to zero.
-func div(a int, b int) int {
+func div(a, b int32) int32 {
 	if a >= 0 {
 		return (a + (b >> 1)) / b
 	}
@@ -268,14 +268,14 @@ func (e *encoder) emit(bits, nBits uint32) {
 }
 
 // emitHuff emits the given value with the given Huffman encoder.
-func (e *encoder) emitHuff(h huffIndex, value int) {
+func (e *encoder) emitHuff(h huffIndex, value int32) {
 	x := theHuffmanLUT[h][value]
 	e.emit(x&(1<<24-1), x>>24)
 }
 
 // emitHuffRLE emits a run of runLength copies of value encoded with the given
 // Huffman encoder.
-func (e *encoder) emitHuffRLE(h huffIndex, runLength, value int) {
+func (e *encoder) emitHuffRLE(h huffIndex, runLength, value int32) {
 	a, b := value, value
 	if a < 0 {
 		a, b = -value, value-1
@@ -286,7 +286,7 @@ func (e *encoder) emitHuffRLE(h huffIndex, runLength, value int) {
 	} else {
 		nBits = 8 + uint32(bitCount[a>>8])
 	}
-	e.emitHuff(h, runLength<<4|int(nBits))
+	e.emitHuff(h, runLength<<4|int32(nBits))
 	if nBits > 0 {
 		e.emit(uint32(b)&(1<<nBits-1), nBits)
 	}
@@ -347,15 +347,15 @@ func (e *encoder) writeDHT() {
 // writeBlock writes a block of pixel data using the given quantization table,
 // returning the post-quantized DC value of the DCT-transformed block.
 // b is in natural (not zig-zag) order.
-func (e *encoder) writeBlock(b *block, q quantIndex, prevDC int) int {
+func (e *encoder) writeBlock(b *block, q quantIndex, prevDC int32) int32 {
 	fdct(b)
 	// Emit the DC delta.
-	dc := div(b[0], (8 * int(e.quant[q][0])))
+	dc := div(b[0], 8*int32(e.quant[q][0]))
 	e.emitHuffRLE(huffIndex(2*q+0), 0, dc-prevDC)
 	// Emit the AC components.
-	h, runLength := huffIndex(2*q+1), 0
+	h, runLength := huffIndex(2*q+1), int32(0)
 	for zig := 1; zig < blockSize; zig++ {
-		ac := div(b[unzig[zig]], (8 * int(e.quant[q][zig])))
+		ac := div(b[unzig[zig]], 8*int32(e.quant[q][zig]))
 		if ac == 0 {
 			runLength++
 		} else {
@@ -383,9 +383,9 @@ func toYCbCr(m image.Image, p image.Point, yBlock, cbBlock, crBlock *block) {
 		for i := 0; i < 8; i++ {
 			r, g, b, _ := m.At(min(p.X+i, xmax), min(p.Y+j, ymax)).RGBA()
 			yy, cb, cr := color.RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
-			yBlock[8*j+i] = int(yy)
-			cbBlock[8*j+i] = int(cb)
-			crBlock[8*j+i] = int(cr)
+			yBlock[8*j+i] = int32(yy)
+			cbBlock[8*j+i] = int32(cb)
+			crBlock[8*j+i] = int32(cr)
 		}
 	}
 }
@@ -408,9 +408,9 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block) 
 			}
 			pix := m.Pix[offset+sx*4:]
 			yy, cb, cr := color.RGBToYCbCr(pix[0], pix[1], pix[2])
-			yBlock[8*j+i] = int(yy)
-			cbBlock[8*j+i] = int(cb)
-			crBlock[8*j+i] = int(cr)
+			yBlock[8*j+i] = int32(yy)
+			cbBlock[8*j+i] = int32(cb)
+			crBlock[8*j+i] = int32(cr)
 		}
 	}
 }
@@ -450,12 +450,10 @@ func (e *encoder) writeSOS(m image.Image) {
 	var (
 		// Scratch buffers to hold the YCbCr values.
 		// The blocks are in natural (not zig-zag) order.
-		yBlock  block
-		cbBlock [4]block
-		crBlock [4]block
-		cBlock  block
+		b      block
+		cb, cr [4]block
 		// DC components are delta-encoded.
-		prevDCY, prevDCCb, prevDCCr int
+		prevDCY, prevDCCb, prevDCCr int32
 	)
 	bounds := m.Bounds()
 	rgba, _ := m.(*image.RGBA)
@@ -466,16 +464,16 @@ func (e *encoder) writeSOS(m image.Image) {
 				yOff := (i & 2) * 4
 				p := image.Pt(x+xOff, y+yOff)
 				if rgba != nil {
-					rgbaToYCbCr(rgba, p, &yBlock, &cbBlock[i], &crBlock[i])
+					rgbaToYCbCr(rgba, p, &b, &cb[i], &cr[i])
 				} else {
-					toYCbCr(m, p, &yBlock, &cbBlock[i], &crBlock[i])
+					toYCbCr(m, p, &b, &cb[i], &cr[i])
 				}
-				prevDCY = e.writeBlock(&yBlock, 0, prevDCY)
+				prevDCY = e.writeBlock(&b, 0, prevDCY)
 			}
-			scale(&cBlock, &cbBlock)
-			prevDCCb = e.writeBlock(&cBlock, 1, prevDCCb)
-			scale(&cBlock, &crBlock)
-			prevDCCr = e.writeBlock(&cBlock, 1, prevDCCr)
+			scale(&b, &cb)
+			prevDCCb = e.writeBlock(&b, 1, prevDCCb)
+			scale(&b, &cr)
+			prevDCCr = e.writeBlock(&b, 1, prevDCCr)
 		}
 	}
 	// Pad the last byte with 1's.

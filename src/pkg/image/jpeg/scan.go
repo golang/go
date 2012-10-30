@@ -86,12 +86,12 @@ func (d *decoder) processSOS(n int) error {
 	// significant bit.
 	//
 	// For baseline JPEGs, these parameters are hard-coded to 0/63/0/0.
-	zigStart, zigEnd, ah, al := 0, blockSize-1, uint(0), uint(0)
+	zigStart, zigEnd, ah, al := int32(0), int32(blockSize-1), uint32(0), uint32(0)
 	if d.progressive {
-		zigStart = int(d.tmp[1+2*nComp])
-		zigEnd = int(d.tmp[2+2*nComp])
-		ah = uint(d.tmp[3+2*nComp] >> 4)
-		al = uint(d.tmp[3+2*nComp] & 0x0f)
+		zigStart = int32(d.tmp[1+2*nComp])
+		zigEnd = int32(d.tmp[2+2*nComp])
+		ah = uint32(d.tmp[3+2*nComp] >> 4)
+		al = uint32(d.tmp[3+2*nComp] & 0x0f)
 		if (zigStart == 0 && zigEnd != 0) || zigStart > zigEnd || blockSize <= zigEnd {
 			return FormatError("bad spectral selection bounds")
 		}
@@ -122,7 +122,7 @@ func (d *decoder) processSOS(n int) error {
 	var (
 		// b is the decoded coefficients, in natural (not zig-zag) order.
 		b  block
-		dc [nColorComponent]int
+		dc [nColorComponent]int32
 		// mx0 and my0 are the location of the current (in terms of 8x8 blocks).
 		// For example, with 4:2:0 chroma subsampling, the block whose top left
 		// pixel co-ordinates are (16, 8) is the third block in the first row:
@@ -218,7 +218,7 @@ func (d *decoder) processSOS(n int) error {
 								val0 := value >> 4
 								val1 := value & 0x0f
 								if val1 != 0 {
-									zig += int(val0)
+									zig += int32(val0)
 									if zig > zigEnd {
 										break
 									}
@@ -315,7 +315,7 @@ func (d *decoder) processSOS(n int) error {
 				// Reset the Huffman decoder.
 				d.b = bits{}
 				// Reset the DC components, as per section F.2.1.3.1.
-				dc = [nColorComponent]int{}
+				dc = [nColorComponent]int32{}
 				// Reset the progressive decoder state, as per section G.1.2.2.
 				d.eobRun = 0
 			}
@@ -327,7 +327,7 @@ func (d *decoder) processSOS(n int) error {
 
 // refine decodes a successive approximation refinement block, as specified in
 // section G.1.2.
-func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int) error {
+func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int32) error {
 	// Refining a DC component is trivial.
 	if zigStart == 0 {
 		if zigEnd != 0 {
@@ -348,7 +348,7 @@ func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int) erro
 	if d.eobRun == 0 {
 	loop:
 		for ; zig <= zigEnd; zig++ {
-			z := 0
+			z := int32(0)
 			value, err := d.decodeHuffman(h)
 			if err != nil {
 				return err
@@ -382,7 +382,7 @@ func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int) erro
 				return FormatError("unexpected Huffman code")
 			}
 
-			zig, err = d.refineNonZeroes(b, zig, zigEnd, int(val0), delta)
+			zig, err = d.refineNonZeroes(b, zig, zigEnd, int32(val0), delta)
 			if err != nil {
 				return err
 			}
@@ -405,7 +405,7 @@ func (d *decoder) refine(b *block, h *huffman, zigStart, zigEnd, delta int) erro
 
 // refineNonZeroes refines non-zero entries of b in zig-zag order. If nz >= 0,
 // the first nz zero entries are skipped over.
-func (d *decoder) refineNonZeroes(b *block, zig, zigEnd, nz, delta int) (int, error) {
+func (d *decoder) refineNonZeroes(b *block, zig, zigEnd, nz, delta int32) (int32, error) {
 	for ; zig <= zigEnd; zig++ {
 		u := unzig[zig]
 		if b[u] == 0 {
