@@ -807,6 +807,13 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 					s->type = SHIDDEN;
 				}
 			break;
+		case ElfSymBindWeak:
+			if(needSym) {
+				s = newsym(sym->name, 0);
+				if(sym->other == 2)
+					s->type = SHIDDEN;
+			}
+			break;
 		default:
 			werrstr("%s: invalid symbol binding %d", sym->name, sym->bind);
 			return -1;
