@@ -119,3 +119,30 @@ func TestDeadlineReset(t *testing.T) {
 		t.Errorf("unexpected return from Accept; err=%v", err)
 	}
 }
+
+func TestTimeoutAccept(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+	ln, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	tl := ln.(*TCPListener)
+	tl.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	errc := make(chan error, 1)
+	go func() {
+		_, err := ln.Accept()
+		errc <- err
+	}()
+	select {
+	case <-time.After(1 * time.Second):
+		// Accept shouldn't block indefinitely
+		t.Errorf("Accept didn't return in an expected time")
+	case <-errc:
+		// Pass.
+	}
+}

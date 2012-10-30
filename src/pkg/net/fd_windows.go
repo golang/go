@@ -544,7 +544,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	var o acceptOp
 	o.Init(fd, 'r')
 	o.newsock = s
-	_, err = iosrv.ExecIO(&o, 0)
+	_, err = iosrv.ExecIO(&o, fd.rdeadline)
 	if err != nil {
 		closesocket(s)
 		return nil, err
