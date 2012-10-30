@@ -17,19 +17,32 @@ import (
 
 var initErr error
 
+// CancelIo Windows API cancels all outstanding IO for a particular
+// socket on current thread. To overcome that limitation, we run
+// special goroutine, locked to OS single thread, that both starts
+// and cancels IO. It means, there are 2 unavoidable thread switches
+// for every IO.
+// Some newer versions of Windows has new CancelIoEx API, that does
+// not have that limitation and can be used from any thread. This
+// package uses CancelIoEx API, if present, otherwise it fallback
+// to CancelIo.
+
+var canCancelIO bool // determines if CancelIoEx API is present
+
 func init() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
 		initErr = os.NewSyscallError("WSAStartup", e)
 	}
+	canCancelIO = syscall.LoadCancelIoEx() == nil
 }
 
 func closesocket(s syscall.Handle) error {
 	return syscall.Closesocket(s)
 }
 
-// Interface for all io operations.
+// Interface for all IO operations.
 type anOpIface interface {
 	Op() *anOp
 	Name() string
@@ -42,7 +55,7 @@ type ioResult struct {
 	err error
 }
 
-// anOp implements functionality common to all io operations.
+// anOp implements functionality common to all IO operations.
 type anOp struct {
 	// Used by IOCP interface, it must be first field
 	// of the struct, as our code rely on it.
@@ -75,7 +88,7 @@ func (o *anOp) Op() *anOp {
 	return o
 }
 
-// bufOp is used by io operations that read / write
+// bufOp is used by IO operations that read / write
 // data from / to client buffer.
 type bufOp struct {
 	anOp
@@ -92,7 +105,7 @@ func (o *bufOp) Init(fd *netFD, buf []byte, mode int) {
 	}
 }
 
-// resultSrv will retrieve all io completion results from
+// resultSrv will retrieve all IO completion results from
 // iocp and send them to the correspondent waiting client
 // goroutine via channel supplied in the request.
 type resultSrv struct {
@@ -107,7 +120,7 @@ func (s *resultSrv) Run() {
 		r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, syscall.INFINITE)
 		switch {
 		case r.err == nil:
-			// Dequeued successfully completed io packet.
+			// Dequeued successfully completed IO packet.
 		case r.err == syscall.Errno(syscall.WAIT_TIMEOUT) && o == nil:
 			// Wait has timed out (should not happen now, but might be used in the future).
 			panic("GetQueuedCompletionStatus timed out")
@@ -115,22 +128,23 @@ func (s *resultSrv) Run() {
 			// Failed to dequeue anything -> report the error.
 			panic("GetQueuedCompletionStatus failed " + r.err.Error())
 		default:
-			// Dequeued failed io packet.
+			// Dequeued failed IO packet.
 		}
 		(*anOp)(unsafe.Pointer(o)).resultc <- r
 	}
 }
 
-// ioSrv executes net io requests.
+// ioSrv executes net IO requests.
 type ioSrv struct {
-	submchan chan anOpIface // submit io requests
-	canchan  chan anOpIface // cancel io requests
+	submchan chan anOpIface // submit IO requests
+	canchan  chan anOpIface // cancel IO requests
 }
 
-// ProcessRemoteIO will execute submit io requests on behalf
+// ProcessRemoteIO will execute submit IO requests on behalf
 // of other goroutines, all on a single os thread, so it can
 // cancel them later. Results of all operations will be sent
 // back to their requesters via channel supplied in request.
+// It is used only when the CancelIoEx API is unavailable.
 func (s *ioSrv) ProcessRemoteIO() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -144,20 +158,21 @@ func (s *ioSrv) ProcessRemoteIO() {
 	}
 }
 
-// ExecIO executes a single io operation. It either executes it
-// inline, or, if a deadline is employed, passes the request onto
+// ExecIO executes a single IO operation oi. It submits and cancels
+// IO in the current thread for systems where Windows CancelIoEx API
+// is available. Alternatively, it passes the request onto
 // a special goroutine and waits for completion or cancels request.
 // deadline is unix nanos.
 func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	var err error
 	o := oi.Op()
-	if deadline != 0 {
+	if canCancelIO {
+		err = oi.Submit()
+	} else {
 		// Send request to a special dedicated thread,
-		// so it can stop the io with CancelIO later.
+		// so it can stop the IO with CancelIO later.
 		s.submchan <- oi
 		err = <-o.errnoc
-	} else {
-		err = oi.Submit()
 	}
 	switch err {
 	case nil:
@@ -168,27 +183,45 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	default:
 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
 	}
-	// Wait for our request to complete.
-	var r ioResult
+	// Setup timer, if deadline is given.
+	var timer <-chan time.Time
 	if deadline != 0 {
 		dt := deadline - time.Now().UnixNano()
 		if dt < 1 {
 			dt = 1
 		}
-		timer := time.NewTimer(time.Duration(dt) * time.Nanosecond)
-		defer timer.Stop()
-		select {
-		case r = <-o.resultc:
-		case <-timer.C:
+		t := time.NewTimer(time.Duration(dt) * time.Nanosecond)
+		defer t.Stop()
+		timer = t.C
+	}
+	// Wait for our request to complete.
+	var r ioResult
+	var cancelled bool
+	select {
+	case r = <-o.resultc:
+	case <-timer:
+		cancelled = true
+	case <-o.fd.closec:
+		cancelled = true
+	}
+	if cancelled {
+		// Cancel it.
+		if canCancelIO {
+			err := syscall.CancelIoEx(syscall.Handle(o.Op().fd.sysfd), &o.o)
+			// Assuming ERROR_NOT_FOUND is returned, if IO is completed.
+			if err != nil && err != syscall.ERROR_NOT_FOUND {
+				// TODO(brainman): maybe do something else, but panic.
+				panic(err)
+			}
+		} else {
 			s.canchan <- oi
 			<-o.errnoc
-			r = <-o.resultc
-			if r.err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
-				r.err = syscall.EWOULDBLOCK
-			}
 		}
-	} else {
+		// Wait for IO to be canceled or complete successfully.
 		r = <-o.resultc
+		if r.err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
+			r.err = syscall.EWOULDBLOCK
+		}
 	}
 	if r.err != nil {
 		err = &OpError{oi.Name(), o.fd.net, o.fd.laddr, r.err}
@@ -211,9 +244,13 @@ func startServer() {
 	go resultsrv.Run()
 
 	iosrv = new(ioSrv)
-	iosrv.submchan = make(chan anOpIface)
-	iosrv.canchan = make(chan anOpIface)
-	go iosrv.ProcessRemoteIO()
+	if !canCancelIO {
+		// Only CancelIo API is available. Lets start special goroutine
+		// locked to an OS thread, that both starts and cancels IO.
+		iosrv.submchan = make(chan anOpIface)
+		iosrv.canchan = make(chan anOpIface)
+		go iosrv.ProcessRemoteIO()
+	}
 }
 
 // Network file descriptor.
@@ -233,6 +270,7 @@ type netFD struct {
 	raddr       Addr
 	resultc     [2]chan ioResult // read/write completion results
 	errnoc      [2]chan error    // read/write submit or cancel operation errors
+	closec      chan bool        // used by Close to cancel pending IO
 
 	// owned by client
 	rdeadline int64
@@ -247,6 +285,7 @@ func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
 		family: family,
 		sotype: sotype,
 		net:    net,
+		closec: make(chan bool),
 	}
 	runtime.SetFinalizer(netfd, (*netFD).Close)
 	return netfd
@@ -299,24 +338,12 @@ func (fd *netFD) incref(closing bool) error {
 // Remove a reference to this FD and close if we've been asked to do so (and
 // there are no references left.
 func (fd *netFD) decref() {
+	if fd == nil {
+		return
+	}
 	fd.sysmu.Lock()
 	fd.sysref--
-	// NOTE(rsc): On Unix we check fd.sysref == 0 here before closing,
-	// but on Windows we have no way to wake up the blocked I/O other
-	// than closing the socket (or calling Shutdown, which breaks other
-	// programs that might have a reference to the socket).  So there is
-	// a small race here that we might close fd.sysfd and then some other
-	// goroutine might start a read of fd.sysfd (having read it before we
-	// write InvalidHandle to it), which might refer to some other file
-	// if the specific handle value gets reused.  I think handle values on
-	// Windows are not reused as aggressively as file descriptors on Unix,
-	// so this might be tolerable.
-	if fd.closing && fd.sysfd != syscall.InvalidHandle {
-		// In case the user has set linger, switch to blocking mode so
-		// the close blocks.  As long as this doesn't happen often, we
-		// can handle the extra OS processes.  Otherwise we'll need to
-		// use the resultsrv for Close too.  Sigh.
-		syscall.SetNonblock(fd.sysfd, false)
+	if fd.closing && fd.sysref == 0 && fd.sysfd != syscall.InvalidHandle {
 		closesocket(fd.sysfd)
 		fd.sysfd = syscall.InvalidHandle
 		// no need for a finalizer anymore
@@ -329,7 +356,14 @@ func (fd *netFD) Close() error {
 	if err := fd.incref(true); err != nil {
 		return err
 	}
-	fd.decref()
+	defer fd.decref()
+	// unblock pending reader and writer
+	close(fd.closec)
+	// wait for both reader and writer to exit
+	fd.rio.Lock()
+	defer fd.rio.Unlock()
+	fd.wio.Lock()
+	defer fd.wio.Unlock()
 	return nil
 }
 
@@ -368,18 +402,12 @@ func (o *readOp) Name() string {
 }
 
 func (fd *netFD) Read(buf []byte) (int, error) {
-	if fd == nil {
-		return 0, syscall.EINVAL
-	}
-	fd.rio.Lock()
-	defer fd.rio.Unlock()
 	if err := fd.incref(false); err != nil {
 		return 0, err
 	}
 	defer fd.decref()
-	if fd.sysfd == syscall.InvalidHandle {
-		return 0, syscall.EINVAL
-	}
+	fd.rio.Lock()
+	defer fd.rio.Unlock()
 	var o readOp
 	o.Init(fd, buf, 'r')
 	n, err := iosrv.ExecIO(&o, fd.rdeadline)
@@ -407,18 +435,15 @@ func (o *readFromOp) Name() string {
 }
 
 func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
-	if fd == nil {
-		return 0, nil, syscall.EINVAL
-	}
 	if len(buf) == 0 {
 		return 0, nil, nil
 	}
-	fd.rio.Lock()
-	defer fd.rio.Unlock()
 	if err := fd.incref(false); err != nil {
 		return 0, nil, err
 	}
 	defer fd.decref()
+	fd.rio.Lock()
+	defer fd.rio.Unlock()
 	var o readFromOp
 	o.Init(fd, buf, 'r')
 	o.rsan = int32(unsafe.Sizeof(o.rsa))
@@ -446,15 +471,12 @@ func (o *writeOp) Name() string {
 }
 
 func (fd *netFD) Write(buf []byte) (int, error) {
-	if fd == nil {
-		return 0, syscall.EINVAL
-	}
-	fd.wio.Lock()
-	defer fd.wio.Unlock()
 	if err := fd.incref(false); err != nil {
 		return 0, err
 	}
 	defer fd.decref()
+	fd.wio.Lock()
+	defer fd.wio.Unlock()
 	var o writeOp
 	o.Init(fd, buf, 'w')
 	return iosrv.ExecIO(&o, fd.wdeadline)
@@ -477,21 +499,15 @@ func (o *writeToOp) Name() string {
 }
 
 func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
-	if fd == nil {
-		return 0, syscall.EINVAL
-	}
 	if len(buf) == 0 {
 		return 0, nil
 	}
-	fd.wio.Lock()
-	defer fd.wio.Unlock()
 	if err := fd.incref(false); err != nil {
 		return 0, err
 	}
 	defer fd.decref()
-	if fd.sysfd == syscall.InvalidHandle {
-		return 0, syscall.EINVAL
-	}
+	fd.wio.Lock()
+	defer fd.wio.Unlock()
 	var o writeToOp
 	o.Init(fd, buf, 'w')
 	o.sa = sa

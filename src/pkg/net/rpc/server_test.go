@@ -499,6 +499,27 @@ func TestClientWriteError(t *testing.T) {
 	w.done <- true
 }
 
+func TestTCPClose(t *testing.T) {
+	once.Do(startServer)
+
+	client, err := dialHTTP()
+	if err != nil {
+		t.Fatalf("dialing: %v", err)
+	}
+	defer client.Close()
+
+	args := Args{17, 8}
+	var reply Reply
+	err = client.Call("Arith.Mul", args, &reply)
+	if err != nil {
+		t.Fatal("arith error:", err)
+	}
+	t.Logf("Arith: %d*%d=%d\n", args.A, args.B, reply)
+	if reply.C != args.A*args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A*args.B)
+	}
+}
+
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	b.StopTimer()
 	once.Do(startServer)

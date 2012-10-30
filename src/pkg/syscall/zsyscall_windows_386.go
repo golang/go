@@ -49,6 +49,7 @@ var (
 	procGetQueuedCompletionStatus        = modkernel32.NewProc("GetQueuedCompletionStatus")
 	procPostQueuedCompletionStatus       = modkernel32.NewProc("PostQueuedCompletionStatus")
 	procCancelIo                         = modkernel32.NewProc("CancelIo")
+	procCancelIoEx                       = modkernel32.NewProc("CancelIoEx")
 	procCreateProcessW                   = modkernel32.NewProc("CreateProcessW")
 	procOpenProcess                      = modkernel32.NewProc("OpenProcess")
 	procTerminateProcess                 = modkernel32.NewProc("TerminateProcess")
@@ -525,6 +526,18 @@ func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlap
 
 func CancelIo(s Handle) (err error) {
 	r1, _, e1 := Syscall(procCancelIo.Addr(), 1, uintptr(s), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func CancelIoEx(s Handle, o *Overlapped) (err error) {
+	r1, _, e1 := Syscall(procCancelIoEx.Addr(), 2, uintptr(s), uintptr(unsafe.Pointer(o)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)

@@ -174,3 +174,42 @@ func TestUDPListenClose(t *testing.T) {
 		t.Fatal("timeout waiting for UDP close")
 	}
 }
+
+func TestTCPClose(t *testing.T) {
+	l, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	read := func(r io.Reader) error {
+		var m [1]byte
+		_, err := r.Read(m[:])
+		return err
+	}
+
+	go func() {
+		c, err := Dial("tcp", l.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		go read(c)
+
+		time.Sleep(10 * time.Millisecond)
+		c.Close()
+	}()
+
+	c, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	for err == nil {
+		err = read(c)
+	}
+	if err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+}

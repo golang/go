@@ -20,6 +20,7 @@ const (
 	ERROR_ENVVAR_NOT_FOUND    Errno = 203
 	ERROR_OPERATION_ABORTED   Errno = 995
 	ERROR_IO_PENDING          Errno = 997
+	ERROR_NOT_FOUND           Errno = 1168
 )
 
 const (
