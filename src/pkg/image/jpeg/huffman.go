@@ -62,9 +62,10 @@ func (d *decoder) ensureNBits(n int) error {
 
 // The composition of RECEIVE and EXTEND, specified in section F.2.2.1.
 func (d *decoder) receiveExtend(t uint8) (int32, error) {
-	err := d.ensureNBits(int(t))
-	if err != nil {
-		return 0, err
+	if d.b.n < int(t) {
+		if err := d.ensureNBits(int(t)); err != nil {
+			return 0, err
+		}
 	}
 	d.b.n -= int(t)
 	d.b.m >>= t
@@ -168,9 +169,10 @@ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
 		return 0, FormatError("uninitialized Huffman table")
 	}
 	for i, code := 0, 0; i < maxCodeLength; i++ {
-		err := d.ensureNBits(1)
-		if err != nil {
-			return 0, err
+		if d.b.n == 0 {
+			if err := d.ensureNBits(1); err != nil {
+				return 0, err
+			}
 		}
 		if d.b.a&d.b.m != 0 {
 			code |= 1
@@ -187,8 +189,7 @@ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
 
 func (d *decoder) decodeBit() (bool, error) {
 	if d.b.n == 0 {
-		err := d.ensureNBits(1)
-		if err != nil {
+		if err := d.ensureNBits(1); err != nil {
 			return false, err
 		}
 	}
@@ -199,9 +200,10 @@ func (d *decoder) decodeBit() (bool, error) {
 }
 
 func (d *decoder) decodeBits(n int) (uint32, error) {
-	err := d.ensureNBits(n)
-	if err != nil {
-		return 0, err
+	if d.b.n < n {
+		if err := d.ensureNBits(n); err != nil {
+			return 0, err
+		}
 	}
 	ret := d.b.a >> uint(d.b.n-n)
 	ret &= (1 << uint(n)) - 1
