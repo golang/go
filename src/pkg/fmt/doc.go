@@ -31,8 +31,8 @@
 		%X	base 16, with upper-case letters for A-F
 		%U	Unicode format: U+1234; same as "U+%04X"
 	Floating-point and complex constituents:
-		%b	decimalless scientific notation with exponent a power of two, 
-			in the manner of strconv.FormatFloat with the 'b' format, 
+		%b	decimalless scientific notation with exponent a power of two,
+			in the manner of strconv.FormatFloat with the 'b' format,
 			e.g. -123456p-78
 		%e	scientific notation, e.g. -1234.456e+78
 		%E	scientific notation, e.g. -1234.456E+78

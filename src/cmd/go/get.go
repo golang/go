@@ -105,7 +105,7 @@ func downloadPaths(args []string) []string {
 		if strings.Contains(a, "...") {
 			var expand []string
 			// Use matchPackagesInFS to avoid printing
-			// warnings.  They will be printed by the 
+			// warnings.  They will be printed by the
 			// eventual call to importPaths instead.
 			if build.IsLocalImport(a) {
 				expand = matchPackagesInFS(a)

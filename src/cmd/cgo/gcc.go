@@ -1562,7 +1562,7 @@ func godefsFields(fld []*ast.Field) {
 }
 
 // fieldPrefix returns the prefix that should be removed from all the
-// field names when generating the C or Go code.  For generated 
+// field names when generating the C or Go code.  For generated
 // C, we leave the names as is (tv_sec, tv_usec), since that's what
 // people are used to seeing in C.  For generated Go code, such as
 // package syscall's data structures, we drop a common prefix
@@ -1579,7 +1579,7 @@ func fieldPrefix(fld []*ast.Field) string {
 			// named, say, _pad in an otherwise prefixed header.
 			// If the struct has 3 fields tv_sec, tv_usec, _pad1, then we
 			// still want to remove the tv_ prefix.
-			// The check for "orig_" here handles orig_eax in the 
+			// The check for "orig_" here handles orig_eax in the
 			// x86 ptrace register sets, which otherwise have all fields
 			// with reg_ prefixes.
 			if strings.HasPrefix(n.Name, "orig_") || strings.HasPrefix(n.Name, "_") {

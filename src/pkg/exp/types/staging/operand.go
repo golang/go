@@ -80,7 +80,7 @@ func (x *operand) String() string {
 	return buf.String()
 }
 
-// setConst sets x to the untyped constant for literal lit. 
+// setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(tok token.Token, lit string) {
 	x.mode = invalid
 

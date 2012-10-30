@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Template support for writing HTML documents.
-// Documents that include Template: true in their 
+// Documents that include Template: true in their
 // metadata are executed as input to text/template.
 //
 // This file defines functions for those templates to invoke.

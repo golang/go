@@ -57,7 +57,7 @@ var logger = log.New(os.Stderr, "", log.Lshortfile)
 // 1E0A;1E0A;0044 0307;1E0A;0044 0307; # (Ḋ; Ḋ; D◌̇; Ḋ; D◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE
 // 1E0C;1E0C;0044 0323;1E0C;0044 0323; # (Ḍ; Ḍ; D◌̣; Ḍ; D◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW
 //
-// Each test has 5 columns (c1, c2, c3, c4, c5), where 
+// Each test has 5 columns (c1, c2, c3, c4, c5), where
 // (c1, c2, c3, c4, c5) == (c1, NFC(c1), NFD(c1), NFKC(c1), NFKD(c1))
 //
 // CONFORMANCE:

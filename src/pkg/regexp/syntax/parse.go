@@ -466,7 +466,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 			// Construct factored form: prefix(suffix1|suffix2|...)
 			prefix := first
 			for j := start; j < i; j++ {
-				reuse := j != start // prefix came from sub[start] 
+				reuse := j != start // prefix came from sub[start]
 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
 			}
 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse

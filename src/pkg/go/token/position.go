@@ -76,7 +76,7 @@ type Pos int
 // associated with it, and NoPos().IsValid() is false. NoPos is always
 // smaller than any other Pos value. The corresponding Position value
 // for NoPos is the zero value for Position.
-// 
+//
 const NoPos Pos = 0
 
 // IsValid returns true if the position is valid.
@@ -347,7 +347,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 
 // Iterate calls f for the files in the file set in the order they were added
 // until f returns false.
-// 
+//
 func (s *FileSet) Iterate(f func(*File) bool) {
 	for i := 0; ; i++ {
 		var file *File

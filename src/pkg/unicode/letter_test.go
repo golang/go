@@ -435,7 +435,7 @@ func TestSimpleFold(t *testing.T) {
 // Running 'go test -calibrate' runs the calibration to find a plausible
 // cutoff point for linear search of a range list vs. binary search.
 // We create a fake table and then time how long it takes to do a
-// sequence of searches within that table, for all possible inputs 
+// sequence of searches within that table, for all possible inputs
 // relative to the ranges (something before all, in each, between each, after all).
 // This assumes that all possible runes are equally likely.
 // In practice most runes are ASCII so this is a conservative estimate

@@ -30,7 +30,7 @@ type (
 	HTMLAttr string
 
 	// JS encapsulates a known safe EcmaScript5 Expression, for example,
-	// `(x + y * z())`. 
+	// `(x + y * z())`.
 	// Template authors are responsible for ensuring that typed expressions
 	// do not break the intended precedence and that there is no
 	// statement/expression ambiguity as when passing an expression like

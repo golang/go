@@ -12,10 +12,10 @@ import (
 	"unsafe"
 )
 
-// RaceDisable disables handling of race events in the current goroutine. 
+// RaceDisable disables handling of race events in the current goroutine.
 func RaceDisable()
 
-// RaceEnable re-enables handling of race events in the current goroutine. 
+// RaceEnable re-enables handling of race events in the current goroutine.
 func RaceEnable()
 
 func RaceAcquire(addr unsafe.Pointer)

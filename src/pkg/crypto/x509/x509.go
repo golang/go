@@ -156,8 +156,8 @@ const (
 //
 // pkcs-1 OBJECT IDENTIFIER ::= {
 //    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1 }
-// 
-// 
+//
+//
 // RFC 3279 2.2.1 RSA Signature Algorithms
 //
 // md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
@@ -165,19 +165,19 @@ const (
 // md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
 //
 // sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
-// 
+//
 // dsaWithSha1 OBJECT IDENTIFIER ::= {
-//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 } 
+//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 }
 //
 // RFC 3279 2.2.3 ECDSA Signature Algorithm
-// 
+//
 // ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
 // 	  iso(1) member-body(2) us(840) ansi-x962(10045)
 //    signatures(4) ecdsa-with-SHA1(1)}
 //
 //
 // RFC 4055 5 PKCS #1 Version 1.5
-// 
+//
 // sha256WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 11 }
 //
 // sha384WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 12 }

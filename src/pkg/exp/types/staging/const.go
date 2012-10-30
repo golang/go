@@ -29,7 +29,7 @@ import (
 // required to represent the constant, independent of actual
 // type. Non-numeric constants are always normalized.
 
-// Representation of complex numbers. 
+// Representation of complex numbers.
 type complex struct {
 	re, im *big.Rat
 }
@@ -313,7 +313,7 @@ func complexity(x interface{}) int {
 // matchConst returns the matching representation (same type) with the
 // smallest complexity for two constant values x and y. They must be
 // of the same "kind" (boolean, numeric, string, or nilType).
-// 
+//
 func matchConst(x, y interface{}) (_, _ interface{}) {
 	if complexity(x) > complexity(y) {
 		y, x = matchConst(y, x)

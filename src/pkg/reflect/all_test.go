@@ -1332,7 +1332,7 @@ func TestSelect(t *testing.T) {
 
 // selectWatch and the selectWatcher are a watchdog mechanism for running Select.
 // If the selectWatcher notices that the select has been blocked for >1 second, it prints
-// an error describing the select and panics the entire test binary. 
+// an error describing the select and panics the entire test binary.
 var selectWatch struct {
 	sync.Mutex
 	once sync.Once

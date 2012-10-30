@@ -163,7 +163,7 @@ func (client *expClient) run() {
 				// all messages <=N have been seen by the recipient.  We check anyway.
 				expLog("sequence out of order:", client.ackNum, hdr.SeqNum)
 			}
-			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count. 
+			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count.
 				client.ackNum = hdr.SeqNum
 			}
 			client.mu.Unlock()

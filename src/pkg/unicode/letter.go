@@ -316,7 +316,7 @@ type foldPair struct {
 // SimpleFold iterates over Unicode code points equivalent under
 // the Unicode-defined simple case folding.  Among the code points
 // equivalent to rune (including rune itself), SimpleFold returns the
-// smallest rune >= r if one exists, or else the smallest rune >= 0. 
+// smallest rune >= r if one exists, or else the smallest rune >= 0.
 //
 // For example:
 //	SimpleFold('A') = 'a'

@@ -166,7 +166,7 @@ func TestMulRangeN(t *testing.T) {
 	}
 }
 
-// allocBytes returns the number of bytes allocated by invoking f. 
+// allocBytes returns the number of bytes allocated by invoking f.
 func allocBytes(f func()) uint64 {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
@@ -546,7 +546,7 @@ func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
 func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
 func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
 func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths 
+func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
 func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
 
 func LeafSizeHelper(b *testing.B, base Word, size int) {

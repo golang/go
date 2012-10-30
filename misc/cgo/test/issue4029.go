@@ -7,7 +7,7 @@
 package cgotest
 
 /*
-#include <dlfcn.h> 
+#include <dlfcn.h>
 #cgo linux LDFLAGS: -ldl
 */
 import "C"

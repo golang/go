@@ -132,7 +132,7 @@ func makeExpandIndex(index int) (uint32, error) {
 	return expandID + uint32(index), nil
 }
 
-// Each list of collation elements corresponding to an expansion starts with 
+// Each list of collation elements corresponding to an expansion starts with
 // a header indicating the length of the sequence.
 func makeExpansionHeader(n int) (uint32, error) {
 	return uint32(n), nil
@@ -199,7 +199,7 @@ func implicitPrimary(r rune) int {
 	return int(r) + otherOffset
 }
 
-// convertLargeWeights converts collation elements with large 
+// convertLargeWeights converts collation elements with large
 // primaries (either double primaries or for illegal runes)
 // to our own representation.
 // A CJK character C is represented in the DUCET as

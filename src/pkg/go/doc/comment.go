@@ -174,7 +174,7 @@ func unindent(block []string) {
 }
 
 // heading returns the trimmed line if it passes as a section heading;
-// otherwise it returns the empty string. 
+// otherwise it returns the empty string.
 func heading(line string) string {
 	line = strings.TrimSpace(line)
 	if len(line) == 0 {

@@ -313,7 +313,7 @@ func DecodeBintime(b []byte) (nsec int64, err error) {
 }
 
 func Gettimeofday(tv *Timeval) (err error) {
-	// TODO(paulzhol): 
+	// TODO(paulzhol):
 	// avoid reopening a file descriptor for /dev/bintime on each call,
 	// use lower-level calls to avoid allocation.
 

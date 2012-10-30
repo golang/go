@@ -329,7 +329,7 @@ var SkipDir = errors.New("skip this directory")
 // prefix; that is, if Walk is called with "dir", which is a directory
 // containing the file "a", the walk function will be called with argument
 // "dir/a". The info argument is the os.FileInfo for the named path.
-// 
+//
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
 // to handle that error (and Walk will not descend into that directory). If
@@ -457,7 +457,7 @@ func Dir(path string) string {
 	return vol + dir
 }
 
-// VolumeName returns leading volume name.  
+// VolumeName returns leading volume name.
 // Given "C:\foo\bar" it returns "C:" under windows.
 // Given "\\host\share\foo" it returns "\\host\share".
 // On other platforms it returns "".

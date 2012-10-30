@@ -119,7 +119,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		return nil
 	}
 
-	// Find unresolved identifiers 
+	// Find unresolved identifiers
 	unresolved := make(map[string]bool)
 	ast.Inspect(body, func(n ast.Node) bool {
 		// For an expression like fmt.Println, only add "fmt" to the
@@ -243,7 +243,7 @@ func playExampleFile(file *ast.File) *ast.File {
 	return &f
 }
 
-// stripOutputComment finds and removes an "Output:" commment from body 
+// stripOutputComment finds and removes an "Output:" commment from body
 // and comments, and adjusts the body block's end position.
 func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
 	// Do nothing if no "Output:" comment found.

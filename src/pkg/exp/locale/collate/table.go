@@ -37,9 +37,9 @@ func (t *table) indexedTable(idx tableIndex) *table {
 	return &nt
 }
 
-// appendNext appends the weights corresponding to the next rune or 
+// appendNext appends the weights corresponding to the next rune or
 // contraction in s.  If a contraction is matched to a discontinuous
-// sequence of runes, the weights for the interstitial runes are 
+// sequence of runes, the weights for the interstitial runes are
 // appended as well.  It returns a new slice that includes the appended
 // weights and the number of bytes consumed from s.
 func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {

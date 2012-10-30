@@ -217,7 +217,7 @@ var readCookiesTests = []struct {
 
 func TestReadCookies(t *testing.T) {
 	for i, tt := range readCookiesTests {
-		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
+		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input
 			c := readCookies(tt.Header, tt.Filter)
 			if !reflect.DeepEqual(c, tt.Cookies) {
 				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))

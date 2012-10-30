@@ -15,7 +15,7 @@ import (
 // This file contains code for detecting contractions and generating
 // the necessary tables.
 // Any Unicode Collation Algorithm (UCA) table entry that has more than
-// one rune one the left-hand side is called a contraction.  
+// one rune one the left-hand side is called a contraction.
 // See http://www.unicode.org/reports/tr10/#Contractions for more details.
 //
 // We define the following terms:
@@ -27,7 +27,7 @@ import (
 // A rune may be both a initial and a non-initial and may be so in
 // many contractions.  An initial may typically also appear by itself.
 // In case of ambiguities, the UCA requires we match the longest
-// contraction.  
+// contraction.
 //
 // Many contraction rules share the same set of possible suffixes.
 // We store sets of suffixes in a trie that associates an index with
@@ -39,14 +39,14 @@ import (
 // is represented as a subsequence of ctEntries, where each entry corresponds to
 // a possible match of a next character in the search string.  An entry
 // also includes the length and offset to the next sequence of entries
-// to check in case of a match. 
+// to check in case of a match.
 
 const (
 	final   = 0
 	noIndex = 0xFF
 )
 
-// ctEntry associates to a matching byte an offset and/or next sequence of 
+// ctEntry associates to a matching byte an offset and/or next sequence of
 // bytes to check. A ctEntry c is called final if a match means that the
 // longest suffix has been found.  An entry c is final if c.n == 0.
 // A single final entry can match a range of characters to an offset.
@@ -58,7 +58,7 @@ const (
 //     {'a', 1, 1, noIndex},  // 'a' by itself does not match, so i is 0xFF.
 //     {'b', 'c', 0, 1},   // "ab" -> 1, "ac" -> 2
 // }
-// 
+//
 // The suffix strings "ab", "abc", "abd", and "abcd" can be represented as:
 // []ctEntry{
 //     {'a', 1, 1, noIndex}, // 'a' must be followed by 'b'.
@@ -72,7 +72,7 @@ type ctEntry struct {
 	l uint8 // non-final: byte value to match; final: lowest match in range.
 	h uint8 // non-final: relative index to next block; final: highest match in range.
 	n uint8 // non-final: length of next block; final: final
-	i uint8 // result offset. Will be noIndex if more bytes are needed to complete. 
+	i uint8 // result offset. Will be noIndex if more bytes are needed to complete.
 }
 
 // contractTrieSet holds a set of contraction tries. The tries are stored

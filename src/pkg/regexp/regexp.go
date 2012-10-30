@@ -720,7 +720,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 // append, Expand replaces variables in the template with corresponding
 // matches drawn from src.  The match slice should have been returned by
 // FindSubmatchIndex.
-// 
+//
 // In the template, a variable is denoted by a substring of the form
 // $name or ${name}, where name is a non-empty sequence of letters,
 // digits, and underscores.  A purely numeric name like $1 refers to
@@ -728,10 +728,10 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 // capturing parentheses named with the (?P<name>...) syntax.  A
 // reference to an out of range or unmatched index or a name that is not
 // present in the regular expression is replaced with an empty slice.
-// 
+//
 // In the $name form, name is taken to be as long as possible: $1x is
 // equivalent to ${1x}, not ${1}x, and, $10 is equivalent to ${10}, not ${1}0.
-// 
+//
 // To insert a literal $ in the output, use $$ in the template.
 func (re *Regexp) Expand(dst []byte, template []byte, src []byte, match []int) []byte {
 	return re.expand(dst, string(template), src, "", match)

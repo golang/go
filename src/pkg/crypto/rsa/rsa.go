@@ -61,7 +61,7 @@ type PrivateKey struct {
 }
 
 type PrecomputedValues struct {
-	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1) 
+	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1)
 	Qinv   *big.Int // Q^-1 mod Q
 
 	// CRTValues is used for the 3rd and subsequent primes. Due to a

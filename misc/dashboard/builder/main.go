@@ -208,7 +208,7 @@ func NewBuilder(builder string) (*Builder, error) {
 }
 
 // build checks for a new commit for this builder
-// and builds it if one is found. 
+// and builds it if one is found.
 // It returns true if a build was attempted.
 func (b *Builder) build() bool {
 	hash, err := b.todo("build-go-commit", "", "")
@@ -286,7 +286,7 @@ func (b *Builder) buildHash(hash string) error {
 }
 
 // failBuild checks for a new commit for this builder
-// and fails it if one is found. 
+// and fails it if one is found.
 // It returns true if a build was "attempted".
 func (b *Builder) failBuild() bool {
 	hash, err := b.todo("build-go-commit", "", "")

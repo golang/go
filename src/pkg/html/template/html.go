@@ -106,7 +106,7 @@ var htmlNospaceReplacementTable = []string{
 	'<':  "&lt;",
 	'=':  "&#61;",
 	'>':  "&gt;",
-	// A parse error in the attribute value (unquoted) and 
+	// A parse error in the attribute value (unquoted) and
 	// before attribute value states.
 	// Treated as a quoting character by IE.
 	'`': "&#96;",
@@ -128,7 +128,7 @@ var htmlNospaceNormReplacementTable = []string{
 	'<':  "&lt;",
 	'=':  "&#61;",
 	'>':  "&gt;",
-	// A parse error in the attribute value (unquoted) and 
+	// A parse error in the attribute value (unquoted) and
 	// before attribute value states.
 	// Treated as a quoting character by IE.
 	'`': "&#96;",
@@ -143,7 +143,7 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 			if repl := replacementTable[r]; len(repl) != 0 {
 				b.WriteString(s[written:i])
 				b.WriteString(repl)
-				// Valid as long as replacementTable doesn't 
+				// Valid as long as replacementTable doesn't
 				// include anything above 0x7f.
 				written = i + utf8.RuneLen(r)
 			}

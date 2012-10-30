@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test stack split logic by calling functions of every frame size 
+// Test stack split logic by calling functions of every frame size
 // from near 0 up to and beyond the default segment size (4k).
 // Each of those functions reports its SP + stack limit, and then
 // the test (the caller) checks that those make sense.  By not

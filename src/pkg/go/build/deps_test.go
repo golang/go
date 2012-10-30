@@ -24,7 +24,7 @@ import (
 // be used as dependencies by other rules.
 //
 // DO NOT CHANGE THIS DATA TO FIX BUILDS.
-// 
+//
 var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
 	"errors":      {},

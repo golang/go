@@ -412,7 +412,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	if precisionSet {
 		switch {
 		case len(digits) < precision:
-			zeroes = precision - len(digits) // count of zero padding 
+			zeroes = precision - len(digits) // count of zero padding
 		case digits == "0" && precision == 0:
 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
 		}

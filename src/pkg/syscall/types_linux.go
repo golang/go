@@ -73,7 +73,7 @@ struct sockaddr_any {
 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
 };
 
-// copied from /usr/include/linux/un.h 
+// copied from /usr/include/linux/un.h
 struct my_sockaddr_un {
 	sa_family_t sun_family;
 #ifdef __ARM_EABI__

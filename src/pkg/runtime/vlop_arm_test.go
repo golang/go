@@ -6,7 +6,7 @@ package runtime_test
 
 import "testing"
 
-// arm soft division benchmarks adapted from 
+// arm soft division benchmarks adapted from
 // http://ridiculousfish.com/files/division_benchmarks.tar.gz
 
 const numeratorsSize = 1 << 21

@@ -102,7 +102,7 @@ const (
 	//
 	//   {{define "main"}} <script>{{template "helper"}}</script> {{end}}
 	//   {{define "helper"}} document.write(' <div title=" ') {{end}}
-	// 
+	//
 	//   "helper" does not produce a valid document fragment, so should
 	//   not be Executed directly.
 	ErrEndContext
@@ -161,7 +161,7 @@ const (
 	//   In the example, there is missing a quote, so it is not clear
 	//   whether {{.}} is meant to be inside a JS string or in a JS value
 	//   context.  The second iteration would produce something like
-	// 
+	//
 	//     <script>var x = ['firstValue,'secondValue]</script>
 	ErrRangeLoopReentry
 

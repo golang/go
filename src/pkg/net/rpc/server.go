@@ -227,7 +227,7 @@ func (server *Server) Register(rcvr interface{}) error {
 	return server.register(rcvr, "", false)
 }
 
-// RegisterName is like Register but uses the provided name for the type 
+// RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
 func (server *Server) RegisterName(name string, rcvr interface{}) error {
 	return server.register(rcvr, name, true)
@@ -569,7 +569,7 @@ func (server *Server) Accept(lis net.Listener) {
 // Register publishes the receiver's methods in the DefaultServer.
 func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
-// RegisterName is like Register but uses the provided name for the type 
+// RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
 func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
@@ -612,7 +612,7 @@ func ServeRequest(codec ServerCodec) error {
 }
 
 // Accept accepts connections on the listener and serves requests
-// to DefaultServer for each incoming connection.  
+// to DefaultServer for each incoming connection.
 // Accept blocks; the caller typically invokes it in a go statement.
 func Accept(lis net.Listener) { DefaultServer.Accept(lis) }
 

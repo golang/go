@@ -7,7 +7,7 @@
 package sort
 
 // Search uses binary search to find and return the smallest index i
-// in [0, n) at which f(i) is true, assuming that on the range [0, n), 
+// in [0, n) at which f(i) is true, assuming that on the range [0, n),
 // f(i) == true implies f(i+1) == true.  That is, Search requires that
 // f is false for some (possibly empty) prefix of the input range [0, n)
 // and then true for the (possibly empty) remainder; Search returns
@@ -82,14 +82,14 @@ func SearchInts(a []int, x int) int {
 
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
 // as specified by Search. The slice must be sorted in ascending order.
-// 
+//
 func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 // SearchStrings searches for x in a sorted slice of strings and returns the index
 // as specified by Search. The slice must be sorted in ascending order.
-// 
+//
 func SearchStrings(a []string, x string) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }

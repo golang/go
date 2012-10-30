@@ -158,7 +158,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 
 // ParseExpr is a convenience function for obtaining the AST of an expression x.
 // The position information recorded in the AST is undefined.
-// 
+//
 func ParseExpr(x string) (ast.Expr, error) {
 	// parse x within the context of a complete package for correct scopes;
 	// use //line directive for correct positions in error messages and put

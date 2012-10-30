@@ -121,7 +121,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 		} else {
 			// we have a selection change:
 			// format the previous selection segment, determine
-			// the new selection bitset and start a new segment 
+			// the new selection bitset and start a new segment
 			segment(offs)
 			lastOffs = offs
 			mask := 1 << uint(index)

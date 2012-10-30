@@ -110,7 +110,7 @@ func testZeroArgCallback(t *testing.T) {
 func goFoo() {
 	x := 1
 	for i := 0; i < 10000; i++ {
-		// variadic call mallocs + writes to 
+		// variadic call mallocs + writes to
 		variadic(x, x, x)
 		if x != 1 {
 			panic("bad x")

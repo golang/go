@@ -461,7 +461,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		}
 	}
 
-	// Allocate child status pipe close on exec.	
+	// Allocate child status pipe close on exec.
 	e = cexecPipe(p[:])
 
 	if e != nil {

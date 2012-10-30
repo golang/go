@@ -44,7 +44,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(*httpListen, nil))
 }
 
-// FrontPage is an HTTP handler that renders the goplay interface. 
+// FrontPage is an HTTP handler that renders the goplay interface.
 // If a filename is supplied in the path component of the URI,
 // its contents will be put in the interface's text area.
 // Otherwise, the default "hello, world" program is displayed.

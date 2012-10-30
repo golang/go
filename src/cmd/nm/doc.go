@@ -11,7 +11,7 @@ Nm is a version of the Plan 9 nm command.  The original is documented at
 It prints the name list (symbol table) for programs compiled by gc as well as the
 Plan 9 C compiler.
 
-This implementation adds the flag -S, which prints each symbol's size 
+This implementation adds the flag -S, which prints each symbol's size
 in decimal after its address.
 
 Usage:

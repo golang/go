@@ -86,7 +86,7 @@ import (
 //
 // Anonymous struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules.
-// An anonymous struct field with a name given in its JSON tag is treated as 
+// An anonymous struct field with a name given in its JSON tag is treated as
 // having that name instead of as anonymous.
 //
 // Handling of anonymous struct fields is new in Go 1.1.

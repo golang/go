@@ -106,7 +106,7 @@ type U4 struct {
 	*u5
 }
 
-// U4.M should appear as method of U4. 
+// U4.M should appear as method of U4.
 func (*U4) M() {}
 
 type u5 struct {

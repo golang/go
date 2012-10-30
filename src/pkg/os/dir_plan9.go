@@ -110,7 +110,7 @@ var nullDir = dir{
 }
 
 // Null assigns members of d with special "don't care" values indicating
-// they should not be written by syscall.Wstat. 
+// they should not be written by syscall.Wstat.
 func (d *dir) Null() {
 	*d = nullDir
 }
@@ -118,7 +118,7 @@ func (d *dir) Null() {
 // pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
 func pdir(b []byte, d *dir) []byte {
 	n := len(b)
-	b = pbit16(b, 0) // length, filled in later	
+	b = pbit16(b, 0) // length, filled in later
 	b = pbit16(b, d.Type)
 	b = pbit32(b, d.Dev)
 	b = pqid(b, d.Qid)

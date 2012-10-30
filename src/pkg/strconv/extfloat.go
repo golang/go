@@ -394,7 +394,7 @@ func (f *extFloat) FixedDecimal(d *decimalSlice, n int) bool {
 		panic("strconv: internal error: extFloat.FixedDecimal called with n == 0")
 	}
 	// Multiply by an appropriate power of ten to have a reasonable
-	// number to process. 
+	// number to process.
 	f.Normalize()
 	exp10, _ := f.frexp10()
 
@@ -647,7 +647,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 	return false
 }
 
-// adjustLastDigit modifies d = x-currentDiff*ε, to get closest to 
+// adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
 // all data is known with a error estimate of ulpBinary*ε.

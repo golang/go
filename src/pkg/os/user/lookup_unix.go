@@ -29,7 +29,7 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
 */
 import "C"
 
-// Current returns the current user. 
+// Current returns the current user.
 func Current() (*User, error) {
 	return lookup(syscall.Getuid(), "", false)
 }

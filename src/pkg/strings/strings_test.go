@@ -995,7 +995,7 @@ func TestEqualFold(t *testing.T) {
 
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
-	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space. 
+	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
 	for i := range x {
 		switch rand.Intn(10) {
 		case 0:

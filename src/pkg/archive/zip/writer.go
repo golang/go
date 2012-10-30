@@ -174,7 +174,7 @@ func (w *Writer) Create(name string) (io.Writer, error) {
 }
 
 // CreateHeader adds a file to the zip file using the provided FileHeader
-// for the file metadata. 
+// for the file metadata.
 // It returns a Writer to which the file contents should be written.
 // The file's contents must be written to the io.Writer before the next
 // call to Create, CreateHeader, or Close.

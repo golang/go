@@ -9,7 +9,7 @@
 // if a call that takes a file name fails, such as Open or Stat, the error
 // will include the failing file name when printed and will be of type
 // *PathError, which may be unpacked for more information.
-// 
+//
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
 //

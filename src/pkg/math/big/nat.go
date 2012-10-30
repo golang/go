@@ -421,17 +421,17 @@ func (z nat) mul(x, y nat) nat {
 	z[2*k:].clear() // upper portion of z is garbage (and 2*k <= m+n since k <= n <= m)
 
 	// If xh != 0 or yh != 0, add the missing terms to z. For
-	// 
-	//   xh = xi*b^i + ... + x2*b^2 + x1*b (0 <= xi < b) 
-	//   yh =                         y1*b (0 <= y1 < b) 
-	// 
-	// the missing terms are 
-	// 
-	//   x0*y1*b and xi*y0*b^i, xi*y1*b^(i+1) for i > 0 
-	// 
-	// since all the yi for i > 1 are 0 by choice of k: If any of them 
-	// were > 0, then yh >= b^2 and thus y >= b^2. Then k' = k*2 would 
-	// be a larger valid threshold contradicting the assumption about k. 
+	//
+	//   xh = xi*b^i + ... + x2*b^2 + x1*b (0 <= xi < b)
+	//   yh =                         y1*b (0 <= y1 < b)
+	//
+	// the missing terms are
+	//
+	//   x0*y1*b and xi*y0*b^i, xi*y1*b^(i+1) for i > 0
+	//
+	// since all the yi for i > 1 are 0 by choice of k: If any of them
+	// were > 0, then yh >= b^2 and thus y >= b^2. Then k' = k*2 would
+	// be a larger valid threshold contradicting the assumption about k.
 	//
 	if k < n || m != n {
 		var t nat
@@ -828,16 +828,16 @@ func (x nat) string(charset string) string {
 // by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
 // repeated nat/Word divison.
 //
-// The iterative method processes n Words by n divW() calls, each of which visits every Word in the 
-// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s. 
-// Recursive conversion divides q by its approximate square root, yielding two parts, each half 
+// The iterative method processes n Words by n divW() calls, each of which visits every Word in the
+// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.
+// Recursive conversion divides q by its approximate square root, yielding two parts, each half
 // the size of q. Using the iterative method on both halves means 2 * (n/2)(n/2 + 1)/2 divW()'s
 // plus the expensive long div(). Asymptotically, the ratio is favorable at 1/2 the divW()'s, and
-// is made better by splitting the subblocks recursively. Best is to split blocks until one more 
-// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the 
-// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the 
-// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and 
-// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for 
+// is made better by splitting the subblocks recursively. Best is to split blocks until one more
+// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the
+// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the
+// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
+// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
 // specific hardware.
 //
 func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {

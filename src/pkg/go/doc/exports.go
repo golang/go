@@ -107,7 +107,7 @@ func (r *reader) filterParamList(fields *ast.FieldList) {
 
 // filterType strips any unexported struct fields or method types from typ
 // in place. If fields (or methods) have been removed, the corresponding
-// struct or interface type has the Incomplete field set to true. 
+// struct or interface type has the Incomplete field set to true.
 //
 func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	switch t := typ.(type) {

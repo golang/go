@@ -42,7 +42,7 @@ http://codereview.appspot.com/4433066
 //
 // If z is an ordinary variable name and x is not subsequently assigned to,
 // references to x can be replaced by z and the assignment deleted.
-// We only bother if x and z are the same name.  
+// We only bother if x and z are the same name.
 // If y is not subsequently assigned to and neither is x, references to
 // y can be replaced by its expression.  We only bother when there is
 // just one use or when the use appears in an if clause.
@@ -76,14 +76,14 @@ http://codereview.appspot.com/4433066
 //
 // Because the type check assignment includes a type assertion in its
 // syntax and the rewrite traversal is bottom up, we must do a pass to
-// rewrite the type check assignments and then a separate pass to 
+// rewrite the type check assignments and then a separate pass to
 // rewrite the type assertions.
 //
 // The same process applies to the API changes for reflect.Value.
 //
 // For both cases, but especially Value, the code needs to be aware
 // of the type of a receiver when rewriting a method call.   For example,
-// x.(*reflect.ArrayValue).Elem(i) becomes x.Index(i) while 
+// x.(*reflect.ArrayValue).Elem(i) becomes x.Index(i) while
 // x.(*reflect.MapValue).Elem(v) becomes x.MapIndex(v).
 // In general, reflectFn needs to know the type of the receiver expression.
 // In most cases (and in all the cases in the Go source tree), the toy

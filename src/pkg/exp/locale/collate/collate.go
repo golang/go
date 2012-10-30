@@ -30,7 +30,7 @@ const (
 
 // AlternateHandling identifies the various ways in which variables are handled.
 // A rune with a primary weight lower than the variable top is considered a
-// variable. 
+// variable.
 // See http://www.unicode.org/reports/tr10/#Variable_Weighting for details.
 type AlternateHandling int
 

@@ -320,7 +320,7 @@ loop:
 }
 
 // readRawEndTag attempts to read a tag like "</foo>", where "foo" is z.rawTag.
-// If it succeeds, it backs up the input position to reconsume the tag and 
+// If it succeeds, it backs up the input position to reconsume the tag and
 // returns true. Otherwise it returns false. The opening "</" has already been
 // consumed.
 func (z *Tokenizer) readRawEndTag() bool {

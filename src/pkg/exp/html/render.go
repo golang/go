@@ -35,7 +35,7 @@ type writer interface {
 // children; the <a> is reparented to the <table>'s parent. However, calling
 // Parse on "<a><table><a>" does not return an error, but the result has an <a>
 // element with an <a> child, and is therefore not 'well-formed'.
-// 
+//
 // Programmatically constructed trees are typically also 'well-formed', but it
 // is possible to construct a tree that looks innocuous but, when rendered and
 // re-parsed, results in a different tree. A simple example is that a solitary
@@ -53,7 +53,7 @@ func Render(w io.Writer, n *Node) error {
 	return buf.Flush()
 }
 
-// plaintextAbort is returned from render1 when a <plaintext> element 
+// plaintextAbort is returned from render1 when a <plaintext> element
 // has been rendered. No more end tags should be rendered after that.
 var plaintextAbort = errors.New("html: internal error (plaintext abort)")
 
