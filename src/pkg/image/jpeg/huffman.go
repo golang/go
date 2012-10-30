@@ -61,15 +61,15 @@ func (d *decoder) ensureNBits(n int) error {
 }
 
 // The composition of RECEIVE and EXTEND, specified in section F.2.2.1.
-func (d *decoder) receiveExtend(t uint8) (int, error) {
+func (d *decoder) receiveExtend(t uint8) (int32, error) {
 	err := d.ensureNBits(int(t))
 	if err != nil {
 		return 0, err
 	}
 	d.b.n -= int(t)
 	d.b.m >>= t
-	s := 1 << t
-	x := int(d.b.a>>uint8(d.b.n)) & (s - 1)
+	s := int32(1) << t
+	x := int32(d.b.a>>uint8(d.b.n)) & (s - 1)
 	if x < s>>1 {
 		x += ((-1) << t) + 1
 	}

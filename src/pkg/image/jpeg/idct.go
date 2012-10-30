@@ -39,7 +39,7 @@ package jpeg
 
 const blockSize = 64 // A DCT block is 8x8.
 
-type block [blockSize]int
+type block [blockSize]int32
 
 const (
 	w1 = 2841 // 2048*sqrt(2)*cos(1*pi/16)

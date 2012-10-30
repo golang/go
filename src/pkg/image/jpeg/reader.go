@@ -187,7 +187,7 @@ func (d *decoder) processDQT(n int) error {
 			return FormatError("bad Tq value")
 		}
 		for i := range d.quant[tq] {
-			d.quant[tq][i] = int(d.tmp[i+1])
+			d.quant[tq][i] = int32(d.tmp[i+1])
 		}
 	}
 	if n != 0 {
