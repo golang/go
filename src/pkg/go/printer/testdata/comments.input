@@ -534,7 +534,7 @@ func _() {
 }
 
 func _() {
-	var a = []int{1, 2, // jasldf 
+	var a = []int{1, 2, // jasldf
 	}
 	_ = a
 }
@@ -630,5 +630,13 @@ var	vflag		string				// -v [y.output]	- y.output file
 var	lflag		bool				// -l			- disable line directives
 }
 
+// Trailing white space in comments should be trimmed
+func _() {
+// This comment has 4 blanks following that should be trimmed:    
+/* Each line of this comment has blanks or tabs following that should be trimmed:	
+   line 2:    
+   line 3:    			
+*/
+}
 
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */
