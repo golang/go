@@ -12,7 +12,7 @@ package main
 import (
 	"io/ioutil"	// GCCGO_ERROR "imported and not used"
 	"net/http"
-	"os"
+	"os"		// GCCGO_ERROR "imported and not used"
 )
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
