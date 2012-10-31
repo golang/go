@@ -8,16 +8,6 @@ import (
 	"unicode"
 )
 
-// weights holds the decoded weights per collation level.
-type weights struct {
-	primary   uint32
-	secondary uint16
-	tertiary  uint8
-	// TODO: compute quaternary on the fly or compress this value into 8 bits
-	// such that weights fit within 64bit.
-	quaternary uint32
-}
-
 const (
 	defaultSecondary = 0x20
 	defaultTertiary  = 0x2
@@ -69,7 +59,7 @@ func (ce colElem) ctype() ceType {
 // For normal collation elements, we assume that a collation element either has
 // a primary or non-default secondary value, not both.
 // Collation elements with a primary value are of the form
-// 010ppppp pppppppp pppppppp ssssssss
+// 01pppppp pppppppp ppppppp0 ssssssss
 //   - p* is primary collation value
 //   - s* is the secondary collation value
 // or
@@ -82,25 +72,87 @@ func (ce colElem) ctype() ceType {
 //   - 16 BMP implicit -> weight
 //   - 8 bit s
 //   - default tertiary
-func splitCE(ce colElem) weights {
-	const primaryMask = 0x40000000
-	const secondaryMask = 0x80000000
-	w := weights{}
-	if ce&primaryMask != 0 {
-		w.tertiary = defaultTertiary
-		w.secondary = uint16(uint8(ce))
-		w.primary = uint32((ce >> 8) & 0x1FFFFF)
-	} else if ce&secondaryMask == 0 {
-		w.tertiary = uint8(ce & 0x1F)
-		ce >>= 5
-		w.secondary = defaultSecondary + uint16(ce&0xF) - 4
-		ce >>= 4
-		w.primary = uint32(ce)
-	} else {
-		w.tertiary = uint8(ce)
-		w.secondary = uint16(ce >> 8)
+// 11qqqqqq qqqqqqqq qqqqqqq0 00000000
+//   - q* quaternary value
+const (
+	ceTypeMask            = 0xC0000000
+	ceType1               = 0x40000000
+	ceType2               = 0x00000000
+	ceType3               = 0x80000000
+	ceTypeQ               = 0xC0000000
+	ceIgnore              = ceType3
+	firstNonPrimary       = 0x80000000
+	secondaryMask         = 0x80000000
+	hasTertiaryMask       = 0x40000000
+	primaryValueMask      = 0x3FFFFE00
+	primaryShift          = 9
+	compactSecondaryShift = 5
+	minCompactSecondary   = defaultSecondary - 4
+)
+
+func makeImplicitCE(primary int) colElem {
+	return ceType1 | colElem(primary<<primaryShift) | defaultSecondary
+}
+
+func makeQuaternary(primary int) colElem {
+	return ceTypeQ | colElem(primary<<primaryShift)
+}
+
+func (ce colElem) primary() int {
+	if ce >= firstNonPrimary {
+		return 0
 	}
-	return w
+	return int(ce&primaryValueMask) >> primaryShift
+}
+
+func (ce colElem) secondary() int {
+	switch ce & ceTypeMask {
+	case ceType1:
+		return int(uint8(ce))
+	case ceType2:
+		return minCompactSecondary + int((ce>>compactSecondaryShift)&0xF)
+	case ceType3:
+		return int(uint16(ce >> 8))
+	case ceTypeQ:
+		return 0
+	}
+	panic("should not reach here")
+}
+
+func (ce colElem) tertiary() uint8 {
+	if ce&hasTertiaryMask == 0 {
+		if ce&ceType3 == 0 {
+			return uint8(ce & 0x1F)
+		}
+		return uint8(ce)
+	} else if ce&ceTypeMask == ceType1 {
+		return defaultTertiary
+	}
+	// ce is a quaternary value. 
+	return 0
+}
+
+func (ce colElem) updateTertiary(t uint8) colElem {
+	if ce&ceTypeMask == ceType1 {
+		nce := ce & primaryValueMask
+		nce |= colElem(uint8(ce)-minCompactSecondary) << compactSecondaryShift
+		ce = nce
+	} else {
+		ce &= ^colElem(maxTertiary)
+	}
+	return ce | colElem(t)
+}
+
+// quaternary returns the quaternary value if explicitly specified,
+// 0 if ce == ceIgnore, or maxQuaternary otherwise.
+// Quaternary values are used only for shifted variants.
+func (ce colElem) quaternary() int {
+	if ce&ceTypeMask == ceTypeQ {
+		return int(ce&primaryValueMask) >> primaryShift
+	} else if ce == ceIgnore {
+		return 0
+	}
+	return maxQuaternary
 }
 
 // For contractions, collation elements are of the form

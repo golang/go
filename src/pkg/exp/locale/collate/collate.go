@@ -120,9 +120,9 @@ type Buffer struct {
 	// TODO: try various parameters and techniques, such as using
 	// a chan of buffers for a pool.
 	ba  [4096]byte
-	wa  [512]weights
+	wa  [512]colElem
 	key []byte
-	ce  []weights
+	ce  []colElem
 }
 
 func (b *Buffer) init() {
@@ -196,7 +196,7 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
 	return c.key(buf, buf.ce)
 }
 
-func (c *Collator) key(buf *Buffer, w []weights) []byte {
+func (c *Collator) key(buf *Buffer, w []colElem) []byte {
 	processWeights(c.Alternate, c.t.variableTop, w)
 	kn := len(buf.key)
 	c.keyFromElems(buf, w)
@@ -239,7 +239,7 @@ func (i *iter) done() bool {
 	return i._done
 }
 
-func (i *iter) next(ce []weights) []weights {
+func (i *iter) next(ce []colElem) []colElem {
 	if !i.eof && len(i.buf)-i.p < i.minBufSize {
 		// replenish buffer
 		n := copy(i.buf, i.buf[i.p:])
@@ -257,7 +257,7 @@ func (i *iter) next(ce []weights) []weights {
 	return ce
 }
 
-func appendPrimary(key []byte, p uint32) []byte {
+func appendPrimary(key []byte, p int) []byte {
 	// Convert to variable length encoding; supports up to 23 bits.
 	if p <= 0x7FFF {
 		key = append(key, uint8(p>>8), uint8(p))
@@ -269,9 +269,9 @@ func appendPrimary(key []byte, p uint32) []byte {
 
 // keyFromElems converts the weights ws to a compact sequence of bytes.
 // The result will be appended to the byte buffer in buf.
-func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
+func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
 	for _, v := range ws {
-		if w := v.primary; w > 0 {
+		if w := v.primary(); w > 0 {
 			buf.key = appendPrimary(buf.key, w)
 		}
 	}
@@ -280,13 +280,13 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
 		// TODO: we can use one 0 if we can guarantee that all non-zero weights are > 0xFF.
 		if !c.Backwards {
 			for _, v := range ws {
-				if w := v.secondary; w > 0 {
+				if w := v.secondary(); w > 0 {
 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
 				}
 			}
 		} else {
 			for i := len(ws) - 1; i >= 0; i-- {
-				if w := ws[i].secondary; w > 0 {
+				if w := ws[i].secondary(); w > 0 {
 					buf.key = append(buf.key, uint8(w>>8), uint8(w))
 				}
 			}
@@ -297,20 +297,20 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
 	if Tertiary <= c.Strength || c.CaseLevel {
 		buf.key = append(buf.key, 0, 0)
 		for _, v := range ws {
-			if w := v.tertiary; w > 0 {
-				buf.key = append(buf.key, w)
+			if w := v.tertiary(); w > 0 {
+				buf.key = append(buf.key, uint8(w))
 			}
 		}
 		// Derive the quaternary weights from the options and other levels.
 		// Note that we represent maxQuaternary as 0xFF. The first byte of the
 		// representation of a a primary weight is always smaller than 0xFF,
 		// so using this single byte value will compare correctly.
-		if Quaternary <= c.Strength {
+		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
 			if c.Alternate == AltShiftTrimmed {
 				lastNonFFFF := len(buf.key)
 				buf.key = append(buf.key, 0)
 				for _, v := range ws {
-					if w := v.quaternary; w == maxQuaternary {
+					if w := v.quaternary(); w == maxQuaternary {
 						buf.key = append(buf.key, 0xFF)
 					} else if w > 0 {
 						buf.key = appendPrimary(buf.key, w)
@@ -321,7 +321,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
 			} else {
 				buf.key = append(buf.key, 0)
 				for _, v := range ws {
-					if w := v.quaternary; w == maxQuaternary {
+					if w := v.quaternary(); w == maxQuaternary {
 						buf.key = append(buf.key, 0xFF)
 					} else if w > 0 {
 						buf.key = appendPrimary(buf.key, w)
@@ -332,29 +332,27 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []weights) {
 	}
 }
 
-func processWeights(vw AlternateHandling, top uint32, wa []weights) {
+func processWeights(vw AlternateHandling, top uint32, wa []colElem) {
 	ignore := false
+	vtop := int(top)
 	switch vw {
 	case AltShifted, AltShiftTrimmed:
 		for i := range wa {
-			if p := wa[i].primary; p <= top && p != 0 {
-				wa[i] = weights{quaternary: p}
+			if p := wa[i].primary(); p <= vtop && p != 0 {
+				wa[i] = makeQuaternary(p)
 				ignore = true
 			} else if p == 0 {
 				if ignore {
-					wa[i] = weights{}
-				} else if wa[i].tertiary != 0 {
-					wa[i].quaternary = maxQuaternary
+					wa[i] = ceIgnore
 				}
 			} else {
-				wa[i].quaternary = maxQuaternary
 				ignore = false
 			}
 		}
 	case AltBlanked:
 		for i := range wa {
-			if p := wa[i].primary; p <= top && (ignore || p != 0) {
-				wa[i] = weights{}
+			if p := wa[i].primary(); p <= vtop && (ignore || p != 0) {
+				wa[i] = ceIgnore
 				ignore = true
 			} else {
 				ignore = false
