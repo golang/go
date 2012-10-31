@@ -26,7 +26,7 @@ const (
 // For normal collation elements, we assume that a collation element either has
 // a primary or non-default secondary value, not both.
 // Collation elements with a primary value are of the form
-// 010ppppp pppppppp pppppppp ssssssss
+// 01pppppp pppppppp ppppppp0 ssssssss
 //   - p* is primary collation value
 //   - s* is the secondary collation value
 // or
@@ -67,7 +67,7 @@ func makeCE(weights []int) (uint32, error) {
 			if weights[1] >= 1<<maxSecondaryCompactBits {
 				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
 			}
-			ce = uint32(weights[0]<<maxSecondaryCompactBits + weights[1])
+			ce = uint32(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
 			ce |= isPrimary
 		} else {
 			d := weights[1] - defaultSecondary + 4

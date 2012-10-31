@@ -24,6 +24,8 @@ func W(ce ...int) Weights {
 	}
 	if len(ce) > 3 {
 		w.Quaternary = ce[3]
+	} else if w.Tertiary != 0 {
+		w.Quaternary = maxQuaternary
 	}
 	return w
 }
@@ -33,25 +35,27 @@ func (w Weights) String() string {
 
 type Table struct {
 	t *table
-	w []weights
 }
 
 func GetTable(c *Collator) *Table {
-	return &Table{c.t, nil}
+	return &Table{c.t}
 }
 
-func convertToWeights(ws []weights) []Weights {
+func convertToWeights(ws []colElem) []Weights {
 	out := make([]Weights, len(ws))
 	for i, w := range ws {
-		out[i] = Weights{int(w.primary), int(w.secondary), int(w.tertiary), int(w.quaternary)}
+		out[i] = Weights{int(w.primary()), int(w.secondary()), int(w.tertiary()), int(w.quaternary())}
 	}
 	return out
 }
 
-func convertFromWeights(ws []Weights) []weights {
-	out := make([]weights, len(ws))
+func convertFromWeights(ws []Weights) []colElem {
+	out := make([]colElem, len(ws))
 	for i, w := range ws {
-		out[i] = weights{uint32(w.Primary), uint16(w.Secondary), uint8(w.Tertiary), uint32(w.Quaternary)}
+		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary})
+		if out[i] == ceIgnore && w.Quaternary > 0 {
+			out[i] = makeQuaternary(w.Quaternary)
+		}
 	}
 	return out
 }

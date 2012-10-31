@@ -29,7 +29,7 @@ func makeCE(weights []int) colElem {
 	var ce colElem
 	if weights[0] != 0 {
 		if weights[2] == defaultTertiary {
-			ce = colElem(weights[0]<<maxSecondaryCompactBits + weights[1])
+			ce = colElem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
 			ce |= isPrimary
 		} else {
 			d := weights[1] - defaultSecondary + 4
@@ -68,10 +68,10 @@ func makeDecompose(t1, t2 int) colElem {
 }
 
 func normalCE(inout []int) (ce colElem, t ceType) {
-	w := splitCE(makeCE(inout))
-	inout[0] = int(w.primary)
-	inout[1] = int(w.secondary)
-	inout[2] = int(w.tertiary)
+	w := makeCE(inout)
+	inout[0] = w.primary()
+	inout[1] = w.secondary()
+	inout[2] = int(w.tertiary())
 	return ce, ceNormal
 }
 
@@ -164,6 +164,23 @@ func TestImplicit(t *testing.T) {
 	for _, tt := range implicitTests {
 		if p := implicitPrimary(tt.r); p != tt.p {
 			t.Errorf("%U: was %X; want %X", tt.r, p, tt.p)
+		}
+	}
+}
+
+func TestUpdateTertiary(t *testing.T) {
+	tests := []struct {
+		in, out colElem
+		t       uint8
+	}{
+		{0x4000FE20, 0x0000FE8A, 0x0A},
+		{0x4000FE21, 0x0000FEAA, 0x0A},
+		{0x0000FE8B, 0x0000FE83, 0x03},
+		{0x8000CC02, 0x8000CC1B, 0x1B},
+	}
+	for i, tt := range tests {
+		if out := tt.in.updateTertiary(tt.t); out != tt.out {
+			t.Errorf("%d: was %X; want %X", i, out, tt.out)
 		}
 	}
 }

@@ -36,7 +36,7 @@ var ceTests = []ceTest{
 	{normalCE, []int{0, 0x28, 3}, 0x80002803},
 	{normalCE, []int{100, defaultSecondary, 3}, 0x0000C883},
 	// non-ignorable primary with non-default secondary
-	{normalCE, []int{100, 0x28, defaultTertiary}, 0x40006428},
+	{normalCE, []int{100, 0x28, defaultTertiary}, 0x4000C828},
 	{normalCE, []int{100, defaultSecondary + 8, 3}, 0x0000C983},
 	{normalCE, []int{100, 0, 3}, 0xFFFF}, // non-ignorable primary with non-supported secondary
 	{normalCE, []int{100, 1, 3}, 0xFFFF},

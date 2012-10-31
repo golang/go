@@ -42,12 +42,16 @@ func (t *table) indexedTable(idx tableIndex) *table {
 // sequence of runes, the weights for the interstitial runes are
 // appended as well.  It returns a new slice that includes the appended
 // weights and the number of bytes consumed from s.
-func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
+func (t *table) appendNext(w []colElem, s []byte) ([]colElem, int) {
 	v, sz := t.index.lookup(s)
 	ce := colElem(v)
 	tp := ce.ctype()
 	if tp == ceNormal {
-		w = append(w, getWeights(ce, s))
+		if ce == 0 {
+			r, _ := utf8.DecodeRune(s)
+			ce = makeImplicitCE(implicitPrimary(r))
+		}
+		w = append(w, ce)
 	} else if tp == ceExpansionIndex {
 		w = t.appendExpansion(w, ce)
 	} else if tp == ceContractionIndex {
@@ -62,40 +66,28 @@ func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
 		for p := 0; len(nfkd) > 0; nfkd = nfkd[p:] {
 			w, p = t.appendNext(w, nfkd)
 		}
-		w[i].tertiary = t1
+		w[i] = w[i].updateTertiary(t1)
 		if i++; i < len(w) {
-			w[i].tertiary = t2
+			w[i] = w[i].updateTertiary(t2)
 			for i++; i < len(w); i++ {
-				w[i].tertiary = maxTertiary
+				w[i] = w[i].updateTertiary(maxTertiary)
 			}
 		}
 	}
 	return w, sz
 }
 
-func getWeights(ce colElem, s []byte) weights {
-	if ce == 0 { // implicit
-		r, _ := utf8.DecodeRune(s)
-		return weights{
-			primary:   uint32(implicitPrimary(r)),
-			secondary: defaultSecondary,
-			tertiary:  defaultTertiary,
-		}
-	}
-	return splitCE(ce)
-}
-
-func (t *table) appendExpansion(w []weights, ce colElem) []weights {
+func (t *table) appendExpansion(w []colElem, ce colElem) []colElem {
 	i := splitExpandIndex(ce)
 	n := int(t.expandElem[i])
 	i++
 	for _, ce := range t.expandElem[i : i+n] {
-		w = append(w, splitCE(colElem(ce)))
+		w = append(w, colElem(ce))
 	}
 	return w
 }
 
-func (t *table) matchContraction(w []weights, ce colElem, suffix []byte) ([]weights, int) {
+func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colElem, int) {
 	index, n, offset := splitContractIndex(ce)
 
 	scan := t.contractTries.scanner(index, n, suffix)
@@ -138,7 +130,7 @@ func (t *table) matchContraction(w []weights, ce colElem, suffix []byte) ([]weig
 	i, n := scan.result()
 	ce = colElem(t.contractElem[i+offset])
 	if ce.ctype() == ceNormal {
-		w = append(w, splitCE(ce))
+		w = append(w, ce)
 	} else {
 		w = t.appendExpansion(w, ce)
 	}
