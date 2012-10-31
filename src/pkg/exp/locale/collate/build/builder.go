@@ -58,7 +58,9 @@ type Tailoring struct {
 	id      string
 	builder *Builder
 	index   *ordering
-	// TODO: implement.
+
+	anchor *entry
+	before bool
 }
 
 // NewBuilder returns a new Builder.
@@ -80,6 +82,7 @@ func (b *Builder) Tailoring(locale string) *Tailoring {
 		builder: b,
 		index:   b.root.clone(),
 	}
+	t.index.id = t.id
 	b.locale = append(b.locale, t)
 	return t
 }
@@ -95,7 +98,6 @@ func (b *Builder) Tailoring(locale string) *Tailoring {
 // a value for each colelem that is a variable. (See the reference above.)
 func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 	str := string(runes)
-
 	elems := make([][]int, len(colelems))
 	for i, ce := range colelems {
 		elems[i] = append(elems[i], ce...)
@@ -144,6 +146,21 @@ func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 	return nil
 }
 
+func (t *Tailoring) setAnchor(anchor string) error {
+	anchor = norm.NFD.String(anchor)
+	a := t.index.find(anchor)
+	if a == nil {
+		a = t.index.newEntry(anchor, nil)
+		a.implicit = true
+		for _, r := range []rune(anchor) {
+			e := t.index.find(string(r))
+			e.lock = true
+		}
+	}
+	t.anchor = a
+	return nil
+}
+
 // SetAnchor sets the point after which elements passed in subsequent calls to
 // Insert will be inserted.  It is equivalent to the reset directive in an LDML
 // specification.  See Insert for an example.
@@ -151,14 +168,20 @@ func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 // <first_tertiary_ignorable/>, <last_teriary_ignorable/>, <first_primary_ignorable/>,
 // and <last_non_ignorable/>.
 func (t *Tailoring) SetAnchor(anchor string) error {
-	// TODO: implement.
+	if err := t.setAnchor(anchor); err != nil {
+		return err
+	}
+	t.before = false
 	return nil
 }
 
 // SetAnchorBefore is similar to SetAnchor, except that subsequent calls to
 // Insert will insert entries before the anchor.
 func (t *Tailoring) SetAnchorBefore(anchor string) error {
-	// TODO: implement.
+	if err := t.setAnchor(anchor); err != nil {
+		return err
+	}
+	t.before = true
 	return nil
 }
 
@@ -195,7 +218,112 @@ func (t *Tailoring) SetAnchorBefore(anchor string) error {
 //      t.SetAnchor("<last_primary_ignorable/>")
 //      t.Insert(collate.Primary, "0", "")
 func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
-	// TODO: implement.
+	if t.anchor == nil {
+		return fmt.Errorf("%s:Insert: no anchor point set for tailoring of %s", t.id, str)
+	}
+	str = norm.NFD.String(str)
+	e := t.index.find(str)
+	if e == nil {
+		e = t.index.newEntry(str, nil)
+	} else if e.logical != noAnchor {
+		return fmt.Errorf("%s:Insert: cannot reinsert logical reset position %q", t.id, e.str)
+	}
+	if e.lock {
+		return fmt.Errorf("%s:Insert: cannot reinsert element %q", t.id, e.str)
+	}
+	a := t.anchor
+	// Find the first element after the anchor which differs at a level smaller or
+	// equal to the given level.  Then insert at this position.
+	// See http://unicode.org/reports/tr35/#Collation_Elements, Section 5.14.5 for details.
+	e.before = t.before
+	if t.before {
+		t.before = false
+		if a.prev == nil {
+			a.insertBefore(e)
+		} else {
+			for a = a.prev; a.level > level; a = a.prev {
+			}
+			a.insertAfter(e)
+		}
+		e.level = level
+	} else {
+		for ; a.level > level; a = a.next {
+		}
+		e.level = a.level
+		if a != e {
+			a.insertAfter(e)
+			a.level = level
+		} else {
+			// We don't set a to prev itself. This has the effect of the entry
+			// getting new collation elements that are an increment of itself.
+			// This is intentional.
+			a.prev.level = level
+		}
+	}
+	e.extend = norm.NFD.String(extend)
+	e.exclude = false
+	e.elems = nil
+	t.anchor = e
+	return nil
+}
+
+func (o *ordering) getWeight(e *entry) [][]int {
+	if len(e.elems) == 0 && e.logical == noAnchor {
+		if e.implicit {
+			for _, r := range e.runes {
+				e.elems = append(e.elems, o.getWeight(o.find(string(r)))...)
+			}
+		} else if e.before {
+			count := [collate.Identity + 1]int{}
+			a := e
+			for ; a.elems == nil && !a.implicit; a = a.next {
+				count[a.level]++
+			}
+			e.elems = append([][]int(nil), make([]int, len(a.elems[0])))
+			copy(e.elems[0], a.elems[0])
+			for i := collate.Primary; i < collate.Quaternary; i++ {
+				if count[i] != 0 {
+					e.elems[0][i] -= count[i]
+					break
+				}
+			}
+			if e.prev != nil {
+				o.verifyWeights(e.prev, e, e.prev.level)
+			}
+		} else {
+			prev := e.prev
+			e.elems = nextWeight(prev.level, o.getWeight(prev))
+			o.verifyWeights(e, e.next, e.level)
+		}
+	}
+	return e.elems
+}
+
+func (o *ordering) addExtension(e *entry) {
+	if ex := o.find(e.extend); ex != nil {
+		e.elems = append(e.elems, ex.elems...)
+	} else {
+		for _, r := range []rune(e.extend) {
+			e.elems = append(e.elems, o.find(string(r)).elems...)
+		}
+	}
+	e.extend = ""
+}
+
+func (o *ordering) verifyWeights(a, b *entry, level collate.Level) error {
+	if level == collate.Identity || b == nil || b.elems == nil || a.elems == nil {
+		return nil
+	}
+	for i := collate.Primary; i < level; i++ {
+		if a.elems[0][i] < b.elems[0][i] {
+			return nil
+		}
+	}
+	if a.elems[0][level] >= b.elems[0][level] {
+		err := fmt.Errorf("%s:overflow: collation elements of %q (%X) overflows those of %q (%X) at level %d (%X >= %X)", o.id, a.str, a.runes, b.str, b.runes, level, a.elems, b.elems)
+		log.Println(err)
+		// TODO: return the error instead, or better, fix the conflicting entry by making room.
+	}
 	return nil
 }
 
@@ -205,7 +333,19 @@ func (b *Builder) error(e error) {
 	}
 }
 
+func (b *Builder) errorID(locale string, e error) {
+	if e != nil {
+		b.err = fmt.Errorf("%s:%v", locale, e)
+	}
+}
+
 func (b *Builder) buildOrdering(o *ordering) {
+	for _, e := range o.ordered {
+		o.getWeight(e)
+	}
+	for _, e := range o.ordered {
+		o.addExtension(e)
+	}
 	o.sort()
 	simplify(o)
 	b.processExpansions(o)   // requires simplify
@@ -215,7 +355,7 @@ func (b *Builder) buildOrdering(o *ordering) {
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		if !e.skip() {
 			ce, err := e.encode()
-			b.error(err)
+			b.errorID(o.id, err)
 			t.insert(e.runes[0], ce)
 		}
 	}
@@ -252,7 +392,11 @@ func (b *Builder) Build() (*collate.Collator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return collate.Init(t), nil
+	c := collate.Init(t)
+	if c == nil {
+		panic("generated table of incompatible type")
+	}
+	return c, nil
 }
 
 // Build builds a Collator for Tailoring t.
@@ -308,6 +452,10 @@ func reproducibleFromNFKD(e *entry, exp, nfkd [][]int) bool {
 		if i >= 2 && ce[2] != maxTertiary {
 			return false
 		}
+		if _, err := makeCE(ce); err != nil {
+			// Simply return false. The error will be caught elsewhere.
+			return false
+		}
 	}
 	return true
 }
@@ -332,12 +480,11 @@ func simplify(o *ordering) {
 			e.remove()
 		}
 	}
-
 	// Tag entries for which the runes NFKD decompose to identical values.
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		s := e.str
 		nfkd := norm.NFKD.String(s)
-		if len(e.runes) > 1 || keep[e.runes[0]] || nfkd == s {
+		if e.decompose || len(e.runes) > 1 || len(e.elems) == 1 || keep[e.runes[0]] || nfkd == s {
 			continue
 		}
 		if reproducibleFromNFKD(e, e.elems, o.genColElems(nfkd)) {
@@ -459,7 +606,7 @@ func (b *Builder) processContractions(o *ordering) {
 		elems := []uint32{}
 		for _, e := range es {
 			ce, err := e.encodeBase()
-			b.error(err)
+			b.errorID(o.id, err)
 			elems = append(elems, ce)
 		}
 		key = fmt.Sprintf("%v", elems)
