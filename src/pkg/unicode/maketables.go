@@ -41,7 +41,7 @@ func main() {
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var casefoldingURL = flag.String("casefolding", "", "full URL for CaseFolding.txt; defaults to --url/CaseFolding.txt")
 var url = flag.String("url",
-	"http://www.unicode.org/Public/6.0.0/ucd/",
+	"http://www.unicode.org/Public/6.2.0/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
@@ -367,7 +367,7 @@ func loadCasefold() {
 			}
 			logger.Fatal(err)
 		}
-		if line[0] == '#' {
+		if line[0] == '#' || len(strings.TrimSpace(line)) == 0 {
 			continue
 		}
 		field := strings.Split(line, "; ")
@@ -1040,6 +1040,8 @@ func printLatinProperties() {
 			property = "0"
 		case "Ll":
 			property = "pLl | pp"
+		case "Lo":
+			property = "pLo | pp"
 		case "Lu":
 			property = "pLu | pp"
 		case "Nd", "No":

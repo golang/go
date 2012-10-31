@@ -14,7 +14,7 @@ type T struct {
 	script string
 }
 
-// Hand-chosen tests from Unicode 5.1.0 & 6.0..0, mostly to discover when new
+// Hand-chosen tests from Unicode 5.1.0, 6.0.0 and 6.2.0 mostly to discover when new
 // scripts and categories arise.
 var inTest = []T{
 	{0x06e2, "Arabic"},
@@ -31,6 +31,7 @@ var inTest = []T{
 	{0x11011, "Brahmi"},
 	{0x156d, "Canadian_Aboriginal"},
 	{0x102a9, "Carian"},
+	{0x11111, "Chakma"},
 	{0xaa4d, "Cham"},
 	{0x13c2, "Cherokee"},
 	{0x0020, "Common"},
@@ -76,6 +77,9 @@ var inTest = []T{
 	{0x0d42, "Malayalam"},
 	{0x0843, "Mandaic"},
 	{0xabd0, "Meetei_Mayek"},
+	{0x1099f, "Meroitic_Hieroglyphs"},
+	{0x109a0, "Meroitic_Cursive"},
+	{0x16f00, "Miao"},
 	{0x1822, "Mongolian"},
 	{0x104c, "Myanmar"},
 	{0x19c3, "New_Tai_Lue"},
@@ -94,8 +98,10 @@ var inTest = []T{
 	{0x16c0, "Runic"},
 	{0x081d, "Samaritan"},
 	{0xa892, "Saurashtra"},
+	{0x111a0, "Sharada"},
 	{0x10463, "Shavian"},
 	{0x0dbd, "Sinhala"},
+	{0x110d0, "Sora_Sompeng"},
 	{0x1ba3, "Sundanese"},
 	{0xa803, "Syloti_Nagri"},
 	{0x070f, "Syriac"},
@@ -104,6 +110,7 @@ var inTest = []T{
 	{0x1972, "Tai_Le"},
 	{0x1a62, "Tai_Tham"},
 	{0xaadc, "Tai_Viet"},
+	{0x116c9, "Takri"},
 	{0x0bbf, "Tamil"},
 	{0x0c55, "Telugu"},
 	{0x07a7, "Thaana"},
@@ -121,7 +128,7 @@ var outTest = []T{ // not really worth being thorough
 
 var inCategoryTest = []T{
 	{0x0081, "Cc"},
-	{0x17b4, "Cf"},
+	{0x200B, "Cf"},
 	{0xf0000, "Co"},
 	{0xdb80, "Cs"},
 	{0x0236, "Ll"},
