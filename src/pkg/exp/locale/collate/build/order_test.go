@@ -128,10 +128,41 @@ func TestInsertAfter(t *testing.T) {
 			last.insertAfter(es[i])
 			last = es[i]
 		}
+		for _, e := range es {
+			e.elems = es[0].elems
+		}
 		e := es[0]
 		for _, i := range perm {
 			e, _ = e.nextIndexed()
 			if e.runes[0] != orig[i].runes[0] {
+				t.Errorf("%d:%d: expected entry %X; found %X", perm, i, orig[i].runes, e.runes)
+				break
+			}
+		}
+	}
+}
+
+func TestInsertBefore(t *testing.T) {
+	const n = 5
+	orig := makeList(n)
+	perm := make([]int, n)
+	for i := range perm {
+		perm[i] = i + 1
+	}
+	for ok := true; ok; ok = nextPerm(perm) {
+		es := makeList(n)
+		last := es[len(es)-1]
+		for _, i := range perm {
+			last.insertBefore(es[i])
+			last = es[i]
+		}
+		for _, e := range es {
+			e.elems = es[0].elems
+		}
+		e := es[0]
+		for i := n - 1; i >= 0; i-- {
+			e, _ = e.nextIndexed()
+			if e.runes[0] != rune(perm[i]) {
 				t.Errorf("%d:%d: expected entry %X; found %X", perm, i, orig[i].runes, e.runes)
 				break
 			}
