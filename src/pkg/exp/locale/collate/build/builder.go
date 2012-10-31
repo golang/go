@@ -129,7 +129,7 @@ func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 			if ce[0] > b.varTop {
 				b.varTop = ce[0]
 			}
-		} else if ce[0] > 0 {
+		} else if ce[0] > 1 { // 1 is a special primary value reserved for FFFE
 			if ce[0] <= b.varTop {
 				return fmt.Errorf("primary value %X of non-variable is smaller than the highest variable %X", ce[0], b.varTop)
 			}

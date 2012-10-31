@@ -6,15 +6,17 @@ package unicode
 
 // Bit masks for each code point under U+0100, for fast lookup.
 const (
-	pC  = 1 << iota // a control character.
-	pP              // a punctuation character.
-	pN              // a numeral.
-	pS              // a symbolic character.
-	pZ              // a spacing character.
-	pLu             // an upper-case letter.
-	pLl             // a lower-case letter.
-	pp              // a printable character according to Go's definition.
-	pg  = pp | pZ   // a graphical character according to the Unicode definition.
+	pC     = 1 << iota // a control character.
+	pP                 // a punctuation character.
+	pN                 // a numeral.
+	pS                 // a symbolic character.
+	pZ                 // a spacing character.
+	pLu                // an upper-case letter.
+	pLl                // a lower-case letter.
+	pp                 // a printable character according to Go's definition.
+	pg     = pp | pZ   // a graphical character according to the Unicode definition.
+	pLo    = pLl | pLu // a letter that is neither upper nor lower case.
+	pLmask = pLo
 )
 
 // GraphicRanges defines the set of graphic characters according to Unicode.
@@ -76,7 +78,7 @@ func IsControl(r rune) bool {
 // IsLetter reports whether the rune is a letter (category L).
 func IsLetter(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
-		return properties[uint8(r)]&(pLu|pLl) != 0
+		return properties[uint8(r)]&(pLmask) != 0
 	}
 	return isExcludingLatin(Letter, r)
 }
