@@ -72,6 +72,8 @@ var tests = []struct {
 	{"gofmt.go", ""},
 	{"gofmt_test.go", ""},
 	{"testdata/composites.input", "-s"},
+	{"testdata/slices1.input", "-s"},
+	{"testdata/slices2.input", "-s"},
 	{"testdata/old.input", ""},
 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
 	{"testdata/rewrite2.input", "-r=int->bool"},
