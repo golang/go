@@ -2128,18 +2128,18 @@ For struct literals the following rules apply:
 <ul>
 	<li>A key must be a field name declared in the LiteralType.
 	</li>
-	<li>A literal that does not contain any keys must
+	<li>An element list that does not contain any keys must
 	    list an element for each struct field in the
 	    order in which the fields are declared.
 	</li>
 	<li>If any element has a key, every element must have a key.
 	</li>
-	<li>A literal that contains keys does not need to
+	<li>An element list that contains keys does not need to
 	    have an element for each struct field. Omitted fields
 	    get the zero value for that field.
 	</li>
 	<li>A literal may omit the element list; such a literal evaluates
-		to the zero value for its type.
+	    to the zero value for its type.
 	</li>
 	<li>It is an error to specify an element for a non-exported
 	    field of a struct belonging to a different package.
