@@ -607,7 +607,7 @@ func insertTailoring(t *build.Tailoring, r RuleElem, context, extend string) {
 			if *test {
 				testInput.add(str)
 			}
-			err := t.Insert(lmap[l[0]], str, extend)
+			err := t.Insert(lmap[l[0]], str, context+extend)
 			failOnError(err)
 		}
 	case "pc", "sc", "tc", "ic":
@@ -617,7 +617,7 @@ func insertTailoring(t *build.Tailoring, r RuleElem, context, extend string) {
 			if *test {
 				testInput.add(str)
 			}
-			err := t.Insert(level, str, extend)
+			err := t.Insert(level, str, context+extend)
 			failOnError(err)
 		}
 	default:
