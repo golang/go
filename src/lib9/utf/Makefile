@@ -15,13 +15,13 @@ UnicodeData-%.txt:
 mkrunetype: mkrunetype.c
 	cc -I../../../include -o mkrunetype -L$(GOROOT)/pkg/obj/$(GOOS)_$(GOARCH)/ mkrunetype.c -l9
 
-runetypebody-%.c: mkrunetype UnicodeData-%.txt
+runetypebody-%.h: mkrunetype UnicodeData-%.txt
 	mkrunetype -p UnicodeData-$*.txt >_$@
 	mv _$@ $@
 
 CLEANFILES+=UnicodeData.txt
 
-UNICODE_VERSION=6.0.0
+UNICODE_VERSION=6.2.0
 
 test: mkrunetype UnicodeData-$(UNICODE_VERSION).txt
 	mkrunetype -c UnicodeData-$(UNICODE_VERSION).txt
