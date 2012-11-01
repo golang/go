@@ -43,13 +43,6 @@ racewalk(Node *fn)
 		}
 	}
 
-<<<<<<< local
-	// TODO(dvyukov): ideally this should be:
-	// racefuncenter(getreturnaddress())
-	// because it's much more costly to obtain from runtime library.
-	nd = mkcall("racefuncenter", T, nil);
-	fn->enter = concat(list1(nd), fn->enter);
-=======
 	// nodpc is the PC of the caller as extracted by
 	// getcallerpc. We use -widthptr(FP) for x86.
 	// BUG: this will not work on arm.
@@ -58,8 +51,7 @@ racewalk(Node *fn)
 	nodpc->type = types[TUINTPTR];
 	nodpc->xoffset = -widthptr;
 	nd = mkcall("racefuncenter", T, nil, nodpc);
-	fn->enter = list(fn->enter, nd);
->>>>>>> other
+	fn->enter = concat(list1(nd), fn->enter);
 	nd = mkcall("racefuncexit", T, nil);
 	fn->exit = list(fn->exit, nd);
 	racewalklist(curfn->nbody, nil);
