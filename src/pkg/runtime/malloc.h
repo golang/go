@@ -489,3 +489,5 @@ enum
 
 // defined in mgc0.go
 void	runtime·gc_m_ptr(Eface*);
+
+void	runtime·memorydump(void);
