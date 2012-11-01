@@ -193,10 +193,18 @@ func (d *decoder) parsePLTE(length uint32) error {
 	d.crc.Write(d.tmp[:n])
 	switch d.cb {
 	case cbP1, cbP2, cbP4, cbP8:
-		d.palette = color.Palette(make([]color.Color, np))
+		d.palette = make(color.Palette, 256)
 		for i := 0; i < np; i++ {
 			d.palette[i] = color.RGBA{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
+		for i := np; i < 256; i++ {
+			// Initialize the rest of the palette to opaque black. The spec isn't
+			// clear whether palette index values outside of those defined by the PLTE
+			// chunk is an error: libpng 1.5.13 falls back to opaque black, the
+			// same as we do here, ImageMagick 6.5.7 returns an error.
+			d.palette[i] = color.RGBA{0x00, 0x00, 0x00, 0xff}
+		}
+		d.palette = d.palette[:np]
 	case cbTC8, cbTCA8, cbTC16, cbTCA16:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
@@ -221,8 +229,8 @@ func (d *decoder) parsetRNS(length uint32) error {
 	case cbTC8, cbTC16:
 		return UnsupportedError("truecolor transparency")
 	case cbP1, cbP2, cbP4, cbP8:
-		if n > len(d.palette) {
-			return FormatError("bad tRNS length")
+		if len(d.palette) < n {
+			d.palette = d.palette[:n]
 		}
 		for i := 0; i < n; i++ {
 			rgba := d.palette[i].(color.RGBA)
@@ -279,7 +287,6 @@ func (d *decoder) decode() (image.Image, error) {
 	}
 	defer r.Close()
 	bitsPerPixel := 0
-	maxPalette := uint8(0)
 	pixOffset := 0
 	var (
 		gray     *image.Gray
@@ -308,7 +315,6 @@ func (d *decoder) decode() (image.Image, error) {
 		bitsPerPixel = d.depth
 		paletted = image.NewPaletted(image.Rect(0, 0, d.width, d.height), d.palette)
 		img = paletted
-		maxPalette = uint8(len(d.palette) - 1)
 	case cbTCA8:
 		bitsPerPixel = 32
 		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
@@ -421,8 +427,8 @@ func (d *decoder) decode() (image.Image, error) {
 				b := cdat[x/8]
 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
 					idx := b >> 7
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 1
@@ -433,8 +439,8 @@ func (d *decoder) decode() (image.Image, error) {
 				b := cdat[x/4]
 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
 					idx := b >> 6
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 2
@@ -445,18 +451,18 @@ func (d *decoder) decode() (image.Image, error) {
 				b := cdat[x/2]
 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
 					idx := b >> 4
-					if idx > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(idx) {
+						paletted.Palette = paletted.Palette[:int(idx)+1]
 					}
 					paletted.SetColorIndex(x+x2, y, idx)
 					b <<= 4
 				}
 			}
 		case cbP8:
-			if maxPalette != 255 {
+			if len(paletted.Palette) != 255 {
 				for x := 0; x < d.width; x++ {
-					if cdat[x] > maxPalette {
-						return nil, FormatError("palette index out of range")
+					if len(paletted.Palette) <= int(cdat[x]) {
+						paletted.Palette = paletted.Palette[:int(cdat[x])+1]
 					}
 				}
 			}
