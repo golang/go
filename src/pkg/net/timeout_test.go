@@ -201,7 +201,7 @@ func TestReadWriteDeadline(t *testing.T) {
 
 	go func() {
 		var buf [10]byte
-		_, err = c.Read(buf[:])
+		_, err := c.Read(buf[:])
 		if err == nil {
 			t.Errorf("Read should not succeed")
 		}
@@ -212,7 +212,7 @@ func TestReadWriteDeadline(t *testing.T) {
 	go func() {
 		var buf [10000]byte
 		for {
-			_, err = c.Write(buf[:])
+			_, err := c.Write(buf[:])
 			if err != nil {
 				break
 			}
