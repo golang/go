@@ -817,9 +817,18 @@ reswitch:
 
 		case TARRAY:
 			defaultlit(&n->right, T);
-			if(n->right->type != T && !isint[n->right->type->etype])
-				yyerror("non-integer array index %N", n->right);
 			n->type = t->type;
+			if(n->right->type != T && !isint[n->right->type->etype]) {
+				yyerror("non-integer array index %N", n->right);
+				break;
+			}
+			if(n->right->op == OLITERAL) {
+			       	if(mpgetfix(n->right->val.u.xval) < 0) {
+					why = isfixedarray(t) ? "array" : "slice";
+					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
+				} else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
+					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
+			}
 			break;
 
 		case TMAP:
@@ -912,6 +921,8 @@ reswitch:
 				yyerror("invalid slice index %N (type %T)", n->right->left, t);
 				goto error;
 			}
+			if(n->right->left->op == OLITERAL && mpgetfix(n->right->left->val.u.xval) < 0)
+				yyerror("invalid slice index %N (index must be non-negative)", n->right->left);
 		}
 		if(n->right->right != N) {
 			if((t = n->right->right->type) == T)
@@ -920,6 +931,8 @@ reswitch:
 				yyerror("invalid slice index %N (type %T)", n->right->right, t);
 				goto error;
 			}
+			if(n->right->right->op == OLITERAL && mpgetfix(n->right->right->val.u.xval) < 0)
+				yyerror("invalid slice index %N (index must be non-negative)", n->right->right);
 		}
 		l = n->left;
 		if((t = l->type) == T)
