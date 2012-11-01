@@ -208,8 +208,8 @@ type decompressor struct {
 	h1, h2 huffmanDecoder
 
 	// Length arrays used to define Huffman codes.
-	bits     [maxLit + maxDist]int
-	codebits [numCodes]int
+	bits     *[maxLit + maxDist]int
+	codebits *[numCodes]int
 
 	// Output history, buffer.
 	hist  *[maxHist]byte
@@ -692,6 +692,8 @@ func makeReader(r io.Reader) Reader {
 // finished reading.
 func NewReader(r io.Reader) io.ReadCloser {
 	var f decompressor
+	f.bits = new([maxLit + maxDist]int)
+	f.codebits = new([numCodes]int)
 	f.r = makeReader(r)
 	f.hist = new([maxHist]byte)
 	f.step = (*decompressor).nextBlock
@@ -707,6 +709,8 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	var f decompressor
 	f.r = makeReader(r)
 	f.hist = new([maxHist]byte)
+	f.bits = new([maxLit + maxDist]int)
+	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
 	f.setDict(dict)
 	return &f
