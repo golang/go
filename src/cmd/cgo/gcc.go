@@ -644,7 +644,14 @@ func (p *Package) rewriteRef(f *File) {
 			n.Kind = "var"
 		}
 		if n.Mangle == "" {
-			n.Mangle = "_C" + n.Kind + "_" + n.Go
+			// When using gccgo variables have to be
+			// exported so that they become global symbols
+			// that the C code can refer to.
+			prefix := "_C"
+			if *gccgo && n.Kind == "var" {
+				prefix = "C"
+			}
+			n.Mangle = prefix + n.Kind + "_" + n.Go
 		}
 	}
 
