@@ -806,6 +806,81 @@ sweepspan(ParFor *desc, uint32 idx)
 	}
 }
 
+static void
+dumpspan(uint32 idx)
+{
+	int32 sizeclass, n, npages, i, column;
+	uintptr size;
+	byte *p;
+	byte *arena_start;
+	MSpan *s;
+	bool allocated, special;
+
+	s = runtime·mheap.allspans[idx];
+	if(s->state != MSpanInUse)
+		return;
+	arena_start = runtime·mheap.arena_start;
+	p = (byte*)(s->start << PageShift);
+	sizeclass = s->sizeclass;
+	size = s->elemsize;
+	if(sizeclass == 0) {
+		n = 1;
+	} else {
+		npages = runtime·class_to_allocnpages[sizeclass];
+		n = (npages << PageShift) / size;
+	}
+	
+	runtime·printf("%p .. %p:\n", p, p+n*size);
+	column = 0;
+	for(; n>0; n--, p+=size) {
+		uintptr off, *bitp, shift, bits;
+
+		off = (uintptr*)p - (uintptr*)arena_start;
+		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+		shift = off % wordsPerBitmapWord;
+		bits = *bitp>>shift;
+
+		allocated = ((bits & bitAllocated) != 0);
+		special = ((bits & bitSpecial) != 0);
+
+		for(i=0; i<size; i+=sizeof(void*)) {
+			if(column == 0) {
+				runtime·printf("\t");
+			}
+			if(i == 0) {
+				runtime·printf(allocated ? "(" : "[");
+				runtime·printf(special ? "@" : "");
+				runtime·printf("%p: ", p+i);
+			} else {
+				runtime·printf(" ");
+			}
+
+			runtime·printf("%p", *(void**)(p+i));
+
+			if(i+sizeof(void*) >= size) {
+				runtime·printf(allocated ? ") " : "] ");
+			}
+
+			column++;
+			if(column == 8) {
+				runtime·printf("\n");
+				column = 0;
+			}
+		}
+	}
+	runtime·printf("\n");
+}
+
+// A debugging function to dump the contents of memory
+void
+runtime·memorydump(void)
+{
+	uint32 spanidx;
+
+	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
+		dumpspan(spanidx);
+	}
+}
 void
 runtime·gchelper(void)
 {
