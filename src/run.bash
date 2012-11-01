@@ -46,6 +46,14 @@ echo
 echo '# sync -cpu=10'
 go test sync -short -timeout=120s -cpu=10
 
+case "$GOHOSTOS-$GOOS-$GOARCH" in
+linux-linux-amd64 | darwin-darwin-amd64)
+	echo
+	echo '# Testing race detector.'
+	go test -race -i flag
+	go test -race -short flag
+esac
+
 xcd() {
 	echo
 	echo '#' $1
