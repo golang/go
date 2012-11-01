@@ -1276,10 +1276,9 @@ sgen(Node *n, Node *res, int64 w)
 		return;
 	}
 
-	if (w == 8 || w == 12) {
-		if(componentgen(n, res))
-			return;
-	}
+	// Avoid taking the address for simple enough types.
+	if(componentgen(n, res))
+		return;
 
 	// offset on the stack
 	osrc = stkof(n);
@@ -1381,9 +1380,10 @@ cadable(Node *n)
 }
 
 /*
- * copy a structure component by component
+ * copy a composite value by moving its individual components.
+ * Slices, strings and interfaces are supported.
+ * nr is N when assigning a zero value.
  * return 1 if can do, 0 if cant.
- * nr is N for copy zero
  */
 int
 componentgen(Node *nr, Node *nl)
