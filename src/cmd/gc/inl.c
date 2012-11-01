@@ -556,6 +556,8 @@ mkinlcall1(Node **np, Node *fn)
 	for(ll = dcl; ll; ll=ll->next)
 		if(ll->n->op == ONAME) {
 			ll->n->inlvar = inlvar(ll->n);
+			// Typecheck because inlvar is not necessarily a function parameter.
+			typecheck(&ll->n->inlvar, Erv);
 			ninit = list(ninit, nod(ODCL, ll->n->inlvar, N));  // otherwise gen won't emit the allocations for heapallocs
 			if (ll->n->class == PPARAMOUT)  // we rely on the order being correct here
 				inlretvars = list(inlretvars, ll->n->inlvar);
