@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 31, 2012",
+	"Subtitle": "Version of November 1, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4540,8 +4540,10 @@ select {}  // block forever
 <h3 id="Return_statements">Return statements</h3>
 
 <p>
-A "return" statement terminates execution of the containing function
-and optionally provides a result value or values to the caller.
+A "return" statement in a function <code>F</code> terminates the execution
+of <code>F</code>, and optionally provides one or more result values.
+Any functions <a href="#Defer_statements">deferred</a> by <code>F</code>
+are executed before <code>F</code> returns to its caller.
 </p>
 
 <pre class="ebnf">
@@ -4611,7 +4613,10 @@ func (devnull) Write(p []byte) (n int, _ error) {
 </ol>
 
 <p>
-Regardless of how they are declared, all the result values are initialized to the zero values for their type (§<a href="#The_zero_value">The zero value</a>) upon entry to the function.
+Regardless of how they are declared, all the result values are initialized to the zero
+values for their type (§<a href="#The_zero_value">The zero value</a>) upon entry to the
+function. A "return" statement that specifies results sets the result parameters before
+any deferred functions are executed.
 </p>
 
 <!--
@@ -4637,7 +4642,8 @@ BreakStmt = "break" [ Label ] .
 If there is a label, it must be that of an enclosing
 "for", "switch" or "select" statement, and that is the one whose execution
 terminates
-(§<a href="#For_statements">For statements</a>, §<a href="#Switch_statements">Switch statements</a>, §<a href="#Select_statements">Select statements</a>).
+(§<a href="#For_statements">For statements</a>, §<a href="#Switch_statements">Switch statements</a>,
+§<a href="#Select_statements">Select statements</a>).
 </p>
 
 <pre>
@@ -4739,8 +4745,11 @@ FallthroughStmt = "fallthrough" .
 <h3 id="Defer_statements">Defer statements</h3>
 
 <p>
-A "defer" statement invokes a function whose execution is deferred to the moment
-the surrounding function returns.
+A "defer" statement invokes a function whose execution is deferred
+to the moment the surrounding function returns, either because the
+surrounding function executed a <a href="#Return_statements">return statement</a>,
+reached the end of its <a href="#Function_declarations">function body</a>,
+or because the corresponding goroutine is <a href="#Handling_panics">panicking</a>.
 </p>
 
 <pre class="ebnf">
@@ -4752,13 +4761,14 @@ The expression must be a function or method call.
 Each time the "defer" statement
 executes, the function value and parameters to the call are
 <a href="#Calls">evaluated as usual</a>
-and saved anew but the
-actual function is not invoked.
-Instead, deferred calls are executed in LIFO order
-immediately before the surrounding function returns,
-after the return values, if any, have been evaluated and assigned
-to the result parameters, but before they
-are returned to the caller. For instance, if the deferred function is
+and saved anew but the actual function body is not executed.
+Instead, deferred functions are executed immediately before
+the surrounding function returns, in the reverse order
+they were deferred.
+</p>
+
+<p>
+For instance, if the deferred function is
 a <a href="#Function_literals">function literal</a> and the surrounding
 function has <a href="#Function_types">named result parameters</a> that
 are in scope within the literal, the deferred function may access and modify
@@ -5100,21 +5110,16 @@ func recover() interface{}
 </pre>
 
 <p>
-When a function <code>F</code> calls <code>panic</code>, normal
-execution of <code>F</code> stops immediately.  Any functions whose
-execution was <a href="#Defer_statements">deferred</a> by the
-invocation of <code>F</code> are immediately run in the usual way,
-but with the current values of any result parameters, and then
-<code>F</code> returns to its caller without executing the rest of
-the function.  To the caller, <code>F</code>
-then behaves like a call to <code>panic</code>, terminating its own
-execution and running deferred functions in the same manner.
-This continues until all
-functions in the goroutine have ceased execution, in reverse order.
-At that point, the program is
-terminated and the error condition is reported, including the value of
-the argument to <code>panic</code>.  This termination sequence is
-called <i>panicking</i>.
+A <code>panic</code> call in a function <code>F</code> terminates the execution
+of <code>F</code>.
+Any functions <a href="#Defer_statements">deferred</a> by <code>F</code>
+are executed before <code>F</code> returns to its caller. To the caller,
+the call of <code>F</code> then behaves itself like a call to <code>panic</code>,
+terminating its own execution and running deferred functions in the same manner.
+This continues until all functions in the goroutine have ceased execution,
+in reverse order. At that point, the program is terminated and the error
+condition is reported, including the value of the argument to <code>panic</code>.
+This termination sequence is called <i>panicking</i>.
 </p>
 
 <pre>
