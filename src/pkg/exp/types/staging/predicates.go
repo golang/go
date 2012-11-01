@@ -59,11 +59,16 @@ func isOrdered(typ Type) bool {
 	return ok && t.Info&IsOrdered != 0
 }
 
+func isConstType(typ Type) bool {
+	t, ok := underlying(typ).(*Basic)
+	return ok && t.Info&IsConstType != 0
+}
+
 func isComparable(typ Type) bool {
 	switch t := underlying(typ).(type) {
 	case *Basic:
-		return t.Kind != Invalid
-	case *Pointer, *Chan, *Interface:
+		return t.Kind != Invalid && t.Kind != UntypedNil
+	case *Pointer, *Interface, *Chan:
 		// assumes types are equal for pointers and channels
 		return true
 	case *Struct:
@@ -75,6 +80,14 @@ func isComparable(typ Type) bool {
 		return true
 	case *Array:
 		return isComparable(t.Elt)
+	}
+	return false
+}
+
+func hasNil(typ Type) bool {
+	switch underlying(typ).(type) {
+	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+		return true
 	}
 	return false
 }

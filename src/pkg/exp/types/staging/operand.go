@@ -69,7 +69,11 @@ func (x *operand) String() string {
 	}
 	buf.WriteString(operandModeString[x.mode])
 	if x.mode == constant {
-		fmt.Fprintf(&buf, " %v", x.val)
+		format := " %v"
+		if isString(x.typ) {
+			format = " %q"
+		}
+		fmt.Fprintf(&buf, format, x.val)
 	}
 	if x.mode != novalue && (x.mode != constant || !isUntyped(x.typ)) {
 		fmt.Fprintf(&buf, " of type %s", typeString(x.typ))
@@ -125,6 +129,11 @@ func (x *operand) implements(T *Interface) bool {
 	return true
 }
 
+// isNil reports whether x is the predeclared nil constant.
+func (x *operand) isNil() bool {
+	return x.mode == constant && x.val == nilConst
+}
+
 // isAssignable reports whether x is assignable to a variable of type T.
 func (x *operand) isAssignable(T Type) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
@@ -163,7 +172,7 @@ func (x *operand) isAssignable(T Type) bool {
 
 	// x is the predeclared identifier nil and T is a pointer,
 	// function, slice, map, channel, or interface type
-	if x.typ == Typ[UntypedNil] {
+	if x.isNil() {
 		switch Tu.(type) {
 		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
 			return true
@@ -185,17 +194,135 @@ func (x *operand) isInteger() bool {
 		x.mode == constant && isRepresentableConst(x.val, UntypedInt)
 }
 
-// lookupField returns the struct field with the given name in typ.
-// If no such field exists, the result is nil.
-// TODO(gri) should this be a method of Struct?
-//
-func lookupField(typ *Struct, name string) *StructField {
-	// TODO(gri) deal with embedding and conflicts - this is
-	//           a very basic version to get going for now.
-	for _, f := range typ.Fields {
-		if f.Name == name {
-			return f
+type lookupResult struct {
+	mode operandMode
+	typ  Type
+}
+
+// lookupFieldRecursive is similar to FieldByNameFunc in reflect/type.go
+// TODO(gri): FieldByNameFunc seems more complex - what are we missing?
+func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+	// visited records the types that have been searched already
+	visited := make(map[Type]bool)
+
+	// embedded types of the next lower level
+	var next []*NamedType
+
+	potentialMatch := func(mode operandMode, typ Type) bool {
+		if res.mode != invalid {
+			// name appeared multiple times at this level - annihilate
+			res.mode = invalid
+			return false
+		}
+		res.mode = mode
+		res.typ = typ
+		return true
+	}
+
+	// look for name in all types of this level
+	for len(list) > 0 {
+		assert(res.mode == invalid)
+		for _, typ := range list {
+			if visited[typ] {
+				// We have seen this type before, at a higher level.
+				// That higher level shadows the lower level we are
+				// at now, and either we would have found or not
+				// found the field before. Ignore this type now.
+				continue
+			}
+			visited[typ] = true
+
+			// look for a matching attached method
+			if data := typ.Obj.Data; data != nil {
+				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+					assert(obj.Type != nil)
+					if !potentialMatch(value, obj.Type.(Type)) {
+						return // name collision
+					}
+				}
+			}
+
+			switch typ := underlying(typ).(type) {
+			case *Struct:
+				// look for a matching fieldm and collect embedded types
+				for _, f := range typ.Fields {
+					if f.Name == name {
+						assert(f.Type != nil)
+						if !potentialMatch(variable, f.Type) {
+							return // name collision
+						}
+						continue
+					}
+					// Collect embedded struct fields for searching the next
+					// lower level, but only if we have not seen a match yet.
+					// Embedded fields are always of the form T or *T where
+					// T is a named type.
+					if f.IsAnonymous && res.mode == invalid {
+						next = append(next, deref(f.Type).(*NamedType))
+					}
+				}
+
+			case *Interface:
+				// look for a matching method
+				for _, obj := range typ.Methods {
+					if obj.Name == name {
+						assert(obj.Type != nil)
+						if !potentialMatch(value, obj.Type.(Type)) {
+							return // name collision
+						}
+					}
+				}
+			}
+		}
+
+		if res.mode != invalid {
+			// we found a match on this level
+			return
+		}
+
+		// search the next level
+		list = append(list[:0], next...) // don't waste underlying arrays
+		next = next[:0]
+	}
+	return
+}
+
+func lookupField(typ Type, name string) (operandMode, Type) {
+	typ = deref(typ)
+
+	if typ, ok := typ.(*NamedType); ok {
+		if data := typ.Obj.Data; data != nil {
+			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+				assert(obj.Type != nil)
+				return value, obj.Type.(Type)
+			}
 		}
 	}
-	return nil
+
+	switch typ := underlying(typ).(type) {
+	case *Struct:
+		var list []*NamedType
+		for _, f := range typ.Fields {
+			if f.Name == name {
+				return variable, f.Type
+			}
+			if f.IsAnonymous {
+				list = append(list, deref(f.Type).(*NamedType))
+			}
+		}
+		if len(list) > 0 {
+			res := lookupFieldRecursive(list, name)
+			return res.mode, res.typ
+		}
+
+	case *Interface:
+		for _, obj := range typ.Methods {
+			if obj.Name == name {
+				return value, obj.Type.(Type)
+			}
+		}
+	}
+
+	// not found
+	return invalid, nil
 }

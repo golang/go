@@ -29,7 +29,9 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 	}
 
 	// TODO(gri) fix this - implement all checks and constant evaluation
-	x.mode = value
+	if x.mode != constant {
+		x.mode = value
+	}
 	x.expr = conv
 	x.typ = typ
 	return

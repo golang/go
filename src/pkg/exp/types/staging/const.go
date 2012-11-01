@@ -54,7 +54,7 @@ var (
 	zeroConst     = int64(0)
 	oneConst      = int64(1)
 	minusOneConst = int64(-1)
-	nilConst      = new(nilType)
+	nilConst      = nilType{}
 )
 
 // int64 bounds

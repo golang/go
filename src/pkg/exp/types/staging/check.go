@@ -13,6 +13,9 @@ import (
 	"sort"
 )
 
+// enable for debugging
+const trace = false
+
 type checker struct {
 	fset *token.FileSet
 	pkg  *ast.Package
@@ -23,6 +26,8 @@ type checker struct {
 	firsterr  error
 	filenames []string                      // sorted list of package file names for reproducible iteration order
 	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
+	functypes []*Signature                  // stack of function signatures; actively typechecked function on top
+	pos       []token.Pos                   // stack of expr positions; debugging support, used if trace is set
 }
 
 // declare declares an object of the given kind and name (ident) in scope;
@@ -57,17 +62,19 @@ func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident
 		return
 	}
 
+	// determine type for all of lhs, if any
+	// (but only set it for the object we typecheck!)
 	var t Type
 	if typ != nil {
 		t = check.typ(typ, false)
 	}
 
-	// len(lhs) >= 1
+	// len(lhs) > 0
 	if len(lhs) == len(rhs) {
-		// check only corresponding lhs and rhs
+		// check only lhs and rhs corresponding to obj
 		var l, r ast.Expr
-		for i, ident := range lhs {
-			if ident.Obj == obj {
+		for i, name := range lhs {
+			if name.Obj == obj {
 				l = lhs[i]
 				r = rhs[i]
 				break
@@ -75,14 +82,17 @@ func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident
 		}
 		assert(l != nil)
 		obj.Type = t
-		// check rhs
-		var x operand
-		check.expr(&x, r, t, iota)
-		// assign to lhs
-		check.assignment(l, &x, true)
+		check.assign1to1(l, r, nil, true, iota)
 		return
 	}
 
+	// there must be a type or initialization expressions
+	if t == nil && len(rhs) == 0 {
+		check.invalidAST(pos, "missing type or initialization expression")
+		t = Typ[Invalid]
+	}
+
+	// if we have a type, mark all of lhs
 	if t != nil {
 		for _, name := range lhs {
 			name.Obj.Type = t
@@ -100,18 +110,18 @@ func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident
 	}
 }
 
-// ident type checks an identifier.
-func (check *checker) ident(name *ast.Ident, cycleOk bool) {
-	obj := name.Obj
-	if obj == nil {
-		check.invalidAST(name.Pos(), "missing object for %s", name.Name)
-		return
-	}
+func (check *checker) function(typ *Signature, body *ast.BlockStmt) {
+	check.functypes = append(check.functypes, typ)
+	check.stmt(body)
+	check.functypes = check.functypes[0 : len(check.functypes)-1]
+}
 
-	if obj.Type != nil {
-		// object has already been type checked
-		return
-	}
+// object typechecks an object by assigning it a type; obj.Type must be nil.
+// Callers must check obj.Type before calling object; this eliminates a call
+// for each identifier that has been typechecked already, a common scenario.
+//
+func (check *checker) object(obj *ast.Object, cycleOk bool) {
+	assert(obj.Type == nil)
 
 	switch obj.Kind {
 	case ast.Bad, ast.Pkg:
@@ -128,6 +138,7 @@ func (check *checker) ident(name *ast.Ident, cycleOk bool) {
 		// Data == nil  =>  the object's expression is being evaluated
 		if obj.Data == nil {
 			check.errorf(obj.Pos(), "illegal cycle in initialization of %s", obj.Name)
+			obj.Type = Typ[Invalid]
 			return
 		}
 		spec := obj.Decl.(*ast.ValueSpec)
@@ -144,45 +155,47 @@ func (check *checker) ident(name *ast.Ident, cycleOk bool) {
 		typ := &NamedType{Obj: obj}
 		obj.Type = typ // "mark" object so recursion terminates
 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
-		// collect associated methods, if any
+		// typecheck associated method signatures
 		if obj.Data != nil {
 			scope := obj.Data.(*ast.Scope)
-			// struct fields must not conflict with methods
-			if t, ok := typ.Underlying.(*Struct); ok {
+			switch t := typ.Underlying.(type) {
+			case *Struct:
+				// struct fields must not conflict with methods
 				for _, f := range t.Fields {
 					if m := scope.Lookup(f.Name); m != nil {
 						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.Name, f.Name)
 					}
 				}
-			}
-			// collect methods
-			methods := make(ObjList, len(scope.Objects))
-			i := 0
-			for _, m := range scope.Objects {
-				methods[i] = m
-				i++
-			}
-			methods.Sort()
-			typ.Methods = methods
-			// methods cannot be associated with an interface type
-			// (do this check after sorting for reproducible error positions - needed for testing)
-			if _, ok := typ.Underlying.(*Interface); ok {
-				for _, m := range methods {
+				// ok to continue
+			case *Interface:
+				// methods cannot be associated with an interface type
+				for _, m := range scope.Objects {
 					recv := m.Decl.(*ast.FuncDecl).Recv.List[0].Type
 					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
 				}
+				// ok to continue
+			}
+			// typecheck method signatures
+			for _, m := range scope.Objects {
+				mdecl := m.Decl.(*ast.FuncDecl)
+				// TODO(gri) At the moment, the receiver is type-checked when checking
+				// the method body. Also, we don't properly track if the receiver is
+				// a pointer (i.e., currently, method sets are too large). FIX THIS.
+				mtyp := check.typ(mdecl.Type, cycleOk).(*Signature)
+				m.Type = mtyp
 			}
 		}
 
 	case ast.Fun:
 		fdecl := obj.Decl.(*ast.FuncDecl)
-		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
-		obj.Type = ftyp
 		if fdecl.Recv != nil {
-			// TODO(gri) is this good enough for the receiver?
+			// This will ensure that the method base type is
+			// type-checked
 			check.collectFields(token.FUNC, fdecl.Recv, true)
 		}
-		check.stmt(fdecl.Body)
+		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
+		obj.Type = ftyp
+		check.function(ftyp, fdecl.Body)
 
 	default:
 		panic("unreachable")
@@ -283,20 +296,28 @@ func (check *checker) decl(decl ast.Decl) {
 				// nothing to do (handled by ast.NewPackage)
 			case *ast.ValueSpec:
 				for _, name := range s.Names {
-					if name.Name == "_" {
-						// TODO(gri) why is _ special here?
-					} else {
-						check.ident(name, false)
+					if obj := name.Obj; obj.Type == nil {
+						check.object(obj, false)
 					}
 				}
 			case *ast.TypeSpec:
-				check.ident(s.Name, false)
+				if obj := s.Name.Obj; obj.Type == nil {
+					check.object(obj, false)
+				}
 			default:
 				check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
 			}
 		}
 	case *ast.FuncDecl:
-		check.ident(d.Name, false)
+		if d.Name.Name == "init" {
+			// initialization function
+			// TODO(gri) ignore for now (has no object associated with it)
+			// (should probably collect in a first phase and properly initialize)
+			return
+		}
+		if obj := d.Name.Obj; obj.Type == nil {
+			check.object(obj, false)
+		}
 	default:
 		check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
 	}
