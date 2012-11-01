@@ -62,6 +62,7 @@ typedef	struct	MCache		MCache;
 typedef	struct	FixAlloc	FixAlloc;
 typedef	struct	Iface		Iface;
 typedef	struct	Itab		Itab;
+typedef	struct	InterfaceType	InterfaceType;
 typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
 typedef	struct	ChanType		ChanType;
@@ -320,6 +321,17 @@ struct	Func
 	int32	frame;	// stack frame size
 	int32	args;	// number of 32-bit in/out args
 	int32	locals;	// number of 32-bit locals
+};
+
+// layout of Itab known to compilers
+struct	Itab
+{
+	InterfaceType*	inter;
+	Type*	type;
+	Itab*	link;
+	int32	bad;
+	int32	unused;
+	void	(*fun[])(void);
 };
 
 struct	WinCall
@@ -823,7 +835,7 @@ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
 bool	runtime·showframe(Func*);
 
-void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
 
 uintptr	runtime·memlimit(void);
 
