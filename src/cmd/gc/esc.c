@@ -233,7 +233,7 @@ mktag(int mask)
 	if(mask < nelem(tags) && tags[mask] != nil)
 		return tags[mask];
 
-	snprint(buf, sizeof buf, "esc:%#x", mask);
+	snprint(buf, sizeof buf, "esc:0x%x", mask);
 	s = strlit(buf);
 	if(mask < nelem(tags))
 		tags[mask] = s;
