@@ -87,7 +87,7 @@ echo.
 
 :: TODO: The other tests in run.bash.
 
-echo # test
+echo # ..\test
 cd ..\test
 set FAIL=0
 go run run.go
