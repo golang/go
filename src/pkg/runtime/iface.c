@@ -20,19 +20,6 @@ runtime·printeface(Eface e)
 	runtime·printf("(%p,%p)", e.type, e.data);
 }
 
-/*
- * layout of Itab known to compilers
- */
-struct Itab
-{
-	InterfaceType*	inter;
-	Type*	type;
-	Itab*	link;
-	int32	bad;
-	int32	unused;
-	void	(*fun[])(void);
-};
-
 static	Itab*	hash[1009];
 static	Lock	ifacelock;
 
