@@ -120,17 +120,13 @@ func testWrite(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
 	checkResult(t, "Write", order, err, buf.Bytes(), b)
 }
 
-func TestBigEndianRead(t *testing.T) { testRead(t, BigEndian, big, s) }
-
-func TestLittleEndianRead(t *testing.T) { testRead(t, LittleEndian, little, s) }
-
-func TestBigEndianWrite(t *testing.T) { testWrite(t, BigEndian, big, s) }
-
-func TestLittleEndianWrite(t *testing.T) { testWrite(t, LittleEndian, little, s) }
-
-func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
-
+func TestLittleEndianRead(t *testing.T)     { testRead(t, LittleEndian, little, s) }
+func TestLittleEndianWrite(t *testing.T)    { testWrite(t, LittleEndian, little, s) }
 func TestLittleEndianPtrWrite(t *testing.T) { testWrite(t, LittleEndian, little, &s) }
+
+func TestBigEndianRead(t *testing.T)     { testRead(t, BigEndian, big, s) }
+func TestBigEndianWrite(t *testing.T)    { testWrite(t, BigEndian, big, s) }
+func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
 
 func TestReadSlice(t *testing.T) {
 	slice := make([]int32, 2)
@@ -147,17 +143,72 @@ func TestWriteSlice(t *testing.T) {
 func TestWriteT(t *testing.T) {
 	buf := new(bytes.Buffer)
 	ts := T{}
-	err := Write(buf, BigEndian, ts)
-	if err == nil {
-		t.Errorf("WriteT: have nil, want non-nil")
+	if err := Write(buf, BigEndian, ts); err == nil {
+		t.Errorf("WriteT: have err == nil, want non-nil")
 	}
 
 	tv := reflect.Indirect(reflect.ValueOf(ts))
 	for i, n := 0, tv.NumField(); i < n; i++ {
-		err = Write(buf, BigEndian, tv.Field(i).Interface())
-		if err == nil {
-			t.Errorf("WriteT.%v: have nil, want non-nil", tv.Field(i).Type())
+		if err := Write(buf, BigEndian, tv.Field(i).Interface()); err == nil {
+			t.Errorf("WriteT.%v: have err == nil, want non-nil", tv.Field(i).Type())
 		}
+	}
+}
+
+type BlankFields struct {
+	A uint32
+	_ int32
+	B float64
+	_ [4]int16
+	C byte
+	_ [7]byte
+	_ struct {
+		f [8]float32
+	}
+}
+
+type BlankFieldsProbe struct {
+	A  uint32
+	P0 int32
+	B  float64
+	P1 [4]int16
+	C  byte
+	P2 [7]byte
+	P3 struct {
+		F [8]float32
+	}
+}
+
+func TestBlankFields(t *testing.T) {
+	buf := new(bytes.Buffer)
+	b1 := BlankFields{A: 1234567890, B: 2.718281828, C: 42}
+	if err := Write(buf, LittleEndian, &b1); err != nil {
+		t.Error(err)
+	}
+
+	// zero values must have been written for blank fields
+	var p BlankFieldsProbe
+	if err := Read(buf, LittleEndian, &p); err != nil {
+		t.Error(err)
+	}
+
+	// quick test: only check first value of slices
+	if p.P0 != 0 || p.P1[0] != 0 || p.P2[0] != 0 || p.P3.F[0] != 0 {
+		t.Errorf("non-zero values for originally blank fields: %#v", p)
+	}
+
+	// write p and see if we can probe only some fields
+	if err := Write(buf, LittleEndian, &p); err != nil {
+		t.Error(err)
+	}
+
+	// read should ignore blank fields in b2
+	var b2 BlankFields
+	if err := Read(buf, LittleEndian, &b2); err != nil {
+		t.Error(err)
+	}
+	if b1.A != b2.A || b1.B != b2.B || b1.C != b2.C {
+		t.Errorf("%#v != %#v", b1, b2)
 	}
 }
 
