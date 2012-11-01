@@ -849,6 +849,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Getppid() (ppid int)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Gettid() (tid int)
+//sys	Getxattr(path string, attr string, dest []byte) (sz int, err error)
 //sys	InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, err error)
 //sysnb	InotifyInit() (fd int, err error)
 //sysnb	InotifyInit1(flags int) (fd int, err error)
@@ -856,6 +857,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Kill(pid int, sig Signal) (err error)
 //sys	Klogctl(typ int, buf []byte) (n int, err error) = SYS_SYSLOG
 //sys	Link(oldpath string, newpath string) (err error)
+//sys	Listxattr(path string, dest []byte) (sz int, err error)
 //sys	Mkdir(path string, mode uint32) (err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknod(path string, mode uint32, dev int) (err error)
@@ -866,6 +868,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb prlimit(pid int, resource int, old *Rlimit, newlimit *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
+//sys	Removexattr(path string, attr string) (err error)
 //sys	Rename(oldpath string, newpath string) (err error)
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Rmdir(path string) (err error)
@@ -875,6 +878,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
+//sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys	Symlink(oldpath string, newpath string) (err error)
 //sys	Sync()
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
@@ -954,7 +958,6 @@ func Munmap(b []byte) (err error) {
 // Getitimer
 // Getpmsg
 // Getpriority
-// Getxattr
 // IoCancel
 // IoDestroy
 // IoGetevents
@@ -966,7 +969,6 @@ func Munmap(b []byte) (err error) {
 // KexecLoad
 // Keyctl
 // Lgetxattr
-// Listxattr
 // Llistxattr
 // LookupDcookie
 // Lremovexattr
@@ -1004,7 +1006,6 @@ func Munmap(b []byte) (err error) {
 // Readahead
 // Readv
 // RemapFilePages
-// Removexattr
 // RequestKey
 // RestartSyscall
 // RtSigaction
@@ -1033,7 +1034,6 @@ func Munmap(b []byte) (err error) {
 // SetThreadArea
 // SetTidAddress
 // Setpriority
-// Setxattr
 // Shmat
 // Shmctl
 // Shmdt
@@ -1059,5 +1059,4 @@ func Munmap(b []byte) (err error) {
 // Vmsplice
 // Vserver
 // Waitid
-// Writev
 // _Sysctl
