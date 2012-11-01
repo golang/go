@@ -70,11 +70,13 @@ runtime·raceread(uintptr addr)
 
 // Called from instrumented code.
 void
-runtime·racefuncenter(void)
+runtime·racefuncenter(uintptr pc)
 {
-	uintptr pc;
+	// If the caller PC is lessstack, use slower runtime·callers
+	// to walk across the stack split to find the real caller.
+	if(pc == (uintptr)runtime·lessstack)
+		runtime·callers(2, &pc, 1);
 
-	runtime·callers(2, &pc, 1);
 	m->racecall = true;
 	runtime∕race·FuncEnter(g->goid-1, (void*)pc);
 	m->racecall = false;
