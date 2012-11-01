@@ -125,6 +125,9 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // of fixed-size values.
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
+// When reading into structs, the field data for fields with
+// blank (_) field names is skipped; i.e., blank field names
+// may be used for padding.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types.
 	if n := intDestSize(data); n != 0 {
@@ -154,7 +157,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 		return nil
 	}
 
-	// Fallback to reflect-based.
+	// Fallback to reflect-based decoding.
 	var v reflect.Value
 	switch d := reflect.ValueOf(data); d.Kind() {
 	case reflect.Ptr:
@@ -181,6 +184,8 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 // values, or a pointer to such data.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
+// When writing structs, zero values are are written for fields
+// with blank (_) field names.
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	// Fast path for basic types.
 	var b [8]byte
@@ -239,6 +244,8 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		_, err := w.Write(bs)
 		return err
 	}
+
+	// Fallback to reflect-based encoding.
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
@@ -300,15 +307,13 @@ func sizeof(t reflect.Type) int {
 	return -1
 }
 
-type decoder struct {
+type coder struct {
 	order ByteOrder
 	buf   []byte
 }
 
-type encoder struct {
-	order ByteOrder
-	buf   []byte
-}
+type decoder coder
+type encoder coder
 
 func (d *decoder) uint8() uint8 {
 	x := d.buf[0]
@@ -379,9 +384,19 @@ func (d *decoder) value(v reflect.Value) {
 		}
 
 	case reflect.Struct:
+		t := v.Type()
 		l := v.NumField()
 		for i := 0; i < l; i++ {
-			d.value(v.Field(i))
+			// Note: Calling v.CanSet() below is an optimization.
+			// It would be sufficient to check the field name,
+			// but creating the StructField info for each field is
+			// costly (run "go test -bench=ReadStruct" and compare
+			// results when making changes to this code).
+			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
+				d.value(v)
+			} else {
+				d.skip(v)
+			}
 		}
 
 	case reflect.Slice:
@@ -435,9 +450,15 @@ func (e *encoder) value(v reflect.Value) {
 		}
 
 	case reflect.Struct:
+		t := v.Type()
 		l := v.NumField()
 		for i := 0; i < l; i++ {
-			e.value(v.Field(i))
+			// see comment for corresponding code in decoder.value()
+			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
+				e.value(v)
+			} else {
+				e.skip(v)
+			}
 		}
 
 	case reflect.Slice:
@@ -490,6 +511,18 @@ func (e *encoder) value(v reflect.Value) {
 			e.uint64(math.Float64bits(imag(x)))
 		}
 	}
+}
+
+func (d *decoder) skip(v reflect.Value) {
+	d.buf = d.buf[dataSize(v):]
+}
+
+func (e *encoder) skip(v reflect.Value) {
+	n := dataSize(v)
+	for i := range e.buf[0:n] {
+		e.buf[i] = 0
+	}
+	e.buf = e.buf[n:]
 }
 
 // intDestSize returns the size of the integer that ptrType points to,
