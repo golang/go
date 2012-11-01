@@ -86,8 +86,9 @@ const (
 	IsString
 	IsUntyped
 
-	IsOrdered = IsInteger | IsFloat | IsString
-	IsNumeric = IsInteger | IsFloat | IsComplex
+	IsOrdered   = IsInteger | IsFloat | IsString
+	IsNumeric   = IsInteger | IsFloat | IsComplex
+	IsConstType = IsBoolean | IsNumeric | IsString
 )
 
 // A Basic represents a basic type.
@@ -212,9 +213,8 @@ type Chan struct {
 // A NamedType represents a named type as declared in a type declaration.
 type NamedType struct {
 	implementsType
-	Obj        *ast.Object // corresponding declared object
-	Underlying Type        // nil if not fully declared yet, never a *NamedType
-	Methods    ObjList     // associated methods; or nil
+	Obj        *ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
+	Underlying Type        // nil if not fully declared yet; never a *NamedType
 }
 
 // An ObjList represents an ordered (in some fashion) list of objects.

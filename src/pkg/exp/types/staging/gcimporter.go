@@ -84,10 +84,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // in error messages.
 //
 func GcImportData(imports map[string]*ast.Object, filename, id string, data *bufio.Reader) (pkg *ast.Object, err error) {
-	if trace {
-		fmt.Printf("importing %s (%s)\n", id, filename)
-	}
-
 	// support for gcParser error handling
 	defer func() {
 		if r := recover(); r != nil {
@@ -185,7 +181,8 @@ func (p *gcParser) next() {
 	default:
 		p.lit = ""
 	}
-	if trace {
+	// leave for debugging
+	if false {
 		fmt.Printf("%s: %q -> %q\n", scanner.TokenString(p.tok), p.scanner.TokenText(), p.lit)
 	}
 }
@@ -202,7 +199,7 @@ func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast
 	// otherwise create a new object and insert it into the package scope
 	obj := ast.NewObj(kind, name)
 	if scope.Insert(obj) != nil {
-		p.errorf("already declared: %v %s", kind, obj.Name)
+		unreachable() // Lookup should have found it
 	}
 
 	// if the new type object is a named type it may be referred
@@ -397,6 +394,7 @@ func (p *gcParser) parseField() *StructField {
 		// anonymous field - typ must be T or *T and T must be a type name
 		if typ, ok := deref(f.Type).(*NamedType); ok && typ.Obj != nil {
 			f.Name = typ.Obj.Name
+			f.IsAnonymous = true
 		} else {
 			p.errorf("anonymous field expected")
 		}
@@ -442,7 +440,7 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	ptyp := p.parseType()
 	// ignore argument tag (e.g. "noescape")
 	if p.tok == scanner.String {
-		p.expect(scanner.String)
+		p.next()
 	}
 	par = ast.NewObj(ast.Var, name)
 	par.Type = ptyp
@@ -504,12 +502,12 @@ func (p *gcParser) parseSignature() *Signature {
 }
 
 // InterfaceType = "interface" "{" [ MethodList ] "}" .
-// MethodList = Method { ";" Method } .
-// Method = Name Signature .
+// MethodList    = Method { ";" Method } .
+// Method        = Name Signature .
 //
-// (The methods of embedded interfaces are always "inlined"
+// The methods of embedded interfaces are always "inlined"
 // by the compiler and thus embedded interfaces are never
-// visible in the export data.)
+// visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
 	var methods ObjList
@@ -558,11 +556,12 @@ func (p *gcParser) parseChanType() Type {
 //	BasicType | TypeName | ArrayType | SliceType | StructType |
 //      PointerType | FuncType | InterfaceType | MapType | ChanType |
 //      "(" Type ")" .
-// BasicType = ident .
-// TypeName = ExportedName .
-// SliceType = "[" "]" Type .
+//
+// BasicType   = ident .
+// TypeName    = ExportedName .
+// SliceType   = "[" "]" Type .
 // PointerType = "*" Type .
-// FuncType = "func" Signature .
+// FuncType    = "func" Signature .
 //
 func (p *gcParser) parseType() Type {
 	switch p.tok {
@@ -688,7 +687,7 @@ func (p *gcParser) parseNumber() (x operand) {
 // Literal     = bool_lit | int_lit | float_lit | complex_lit | rune_lit | string_lit .
 // bool_lit    = "true" | "false" .
 // complex_lit = "(" float_lit "+" float_lit "i" ")" .
-// rune_lit = "(" int_lit "+" int_lit ")" .
+// rune_lit    = "(" int_lit "+" int_lit ")" .
 // string_lit  = `"` { unicode_char } `"` .
 //
 func (p *gcParser) parseConstDecl() {
@@ -783,45 +782,61 @@ func (p *gcParser) parseVarDecl() {
 	obj.Type = p.parseType()
 }
 
-// FuncBody = "{" ... "}" .
+// Func = Signature [ Body ] .
+// Body = "{" ... "}" .
 //
-func (p *gcParser) parseFuncBody() {
-	p.expect('{')
-	for i := 1; i > 0; p.next() {
-		switch p.tok {
-		case '{':
-			i++
-		case '}':
-			i--
+func (p *gcParser) parseFunc(scope *ast.Scope, name string) {
+	obj := p.declare(scope, ast.Fun, name)
+	obj.Type = p.parseSignature()
+	if p.tok == '{' {
+		p.next()
+		for i := 1; i > 0; p.next() {
+			switch p.tok {
+			case '{':
+				i++
+			case '}':
+				i--
+			}
 		}
 	}
 }
 
-// FuncDecl = "func" ExportedName Signature [ FuncBody ] .
-//
-func (p *gcParser) parseFuncDecl() {
-	// "func" already consumed
-	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Fun, name)
-	obj.Type = p.parseSignature()
-	if p.tok == '{' {
-		p.parseFuncBody()
-	}
-}
-
-// MethodDecl = "func" Receiver Name Signature .
-// Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" [ FuncBody ].
+// MethodDecl = "func" Receiver Name Func .
+// Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" .
 //
 func (p *gcParser) parseMethodDecl() {
 	// "func" already consumed
 	p.expect('(')
-	p.parseParameter() // receiver
+	recv, _ := p.parseParameter() // receiver
 	p.expect(')')
-	p.parseName() // unexported method names in imports are qualified with their package.
-	p.parseSignature()
-	if p.tok == '{' {
-		p.parseFuncBody()
+
+	// determine receiver base type object
+	typ := recv.Type.(Type)
+	if ptr, ok := typ.(*Pointer); ok {
+		typ = ptr.Base
 	}
+	obj := typ.(*NamedType).Obj
+
+	// determine base type scope
+	var scope *ast.Scope
+	if obj.Data != nil {
+		scope = obj.Data.(*ast.Scope)
+	} else {
+		scope = ast.NewScope(nil)
+		obj.Data = scope
+	}
+
+	// declare method in base type scope
+	name := p.parseName() // unexported method names in imports are qualified with their package.
+	p.parseFunc(scope, name)
+}
+
+// FuncDecl = "func" ExportedName Func .
+//
+func (p *gcParser) parseFuncDecl() {
+	// "func" already consumed
+	pkg, name := p.parseExportedName()
+	p.parseFunc(pkg.Data.(*ast.Scope), name)
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .

@@ -118,3 +118,17 @@ func indexes() {
 
 	_ = s[1<<30] // no compile-time error here
 }
+
+type T struct {
+	x int
+}
+
+func (*T) m() {}
+
+func method_expressions() {
+	_ = T /* ERROR "no field or method" */ .a
+	_ = T /* ERROR "has no method" */ .x
+	_ = T.m
+	var f func(*T) = (*T).m
+	var g func(*T) = ( /* ERROR "cannot assign" */ T).m
+}

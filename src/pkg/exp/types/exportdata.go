@@ -22,7 +22,8 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 	if err != nil {
 		return
 	}
-	if trace {
+	// leave for debugging
+	if false {
 		fmt.Printf("header: %s", hdr)
 	}
 	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))

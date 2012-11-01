@@ -44,7 +44,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		switch id {
 		case _Make, _New:
 			// argument must be a type
-			typ0 = underlying(check.typ(arg0, false))
+			typ0 = check.typ(arg0, false)
 			if typ0 == Typ[Invalid] {
 				goto Error
 			}
@@ -191,7 +191,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Make:
 		var min int // minimum number of arguments
-		switch typ0.(type) {
+		switch underlying(typ0).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -301,7 +301,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		var t operand
 		x1 := x
 		for _, arg := range args {
-			check.exprOrType(x1, arg, nil, iota, true) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(x1, arg, nil, iota, true) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%s: %s", x1.pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}

@@ -141,11 +141,11 @@ var testExprs = []testEntry{
 
 	// arbitrary expressions
 	dup("&x"),
-	dup("*x"),
+	dup("*&x"),
 	dup("(x)"),
 	dup("x + y"),
 	dup("x + y * 10"),
-	dup("s.foo"),
+	dup("t.foo"),
 	dup("s[0]"),
 	dup("s[x:y]"),
 	dup("s[:y]"),
@@ -158,12 +158,12 @@ var testExprs = []testEntry{
 	{"func(a, b int) []int {}()[x]", "(func literal)()[x]"},
 	{"[]int{1, 2, 3}", "(composite literal)"},
 	{"[]int{1, 2, 3}[x:]", "(composite literal)[x:]"},
-	{"x.([]string)", "x.(...)"},
+	{"i.([]string)", "i.(...)"},
 }
 
 func TestExprs(t *testing.T) {
 	for _, test := range testExprs {
-		src := "package p; var _ = " + test.src + "; var (x, y int; s []string; f func(int, float32))"
+		src := "package p; var _ = " + test.src + "; var (x, y int; s []string; f func(int, float32) int; i interface{}; t interface { foo() })"
 		pkg, err := makePkg(t, src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)

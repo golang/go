@@ -20,7 +20,7 @@ var (
 	b9 = *b0 /* ERROR "cannot indirect" */
 	b10 = &true /* ERROR "cannot take address" */
 	b11 = &b0
-	b12 = <-b0 /* ERROR "not defined" */
+	b12 = <-b0 /* ERROR "cannot receive" */
 
 	// int
 	i0 = 1
@@ -41,7 +41,7 @@ var (
 	i15 = *i0 /* ERROR "cannot indirect" */
 	i16 = &i0
 	i17 = *i16
-	i18 = <-i16 /* ERROR "not defined" */
+	i18 = <-i16 /* ERROR "cannot receive" */
 
 	// uint
 	u0 = uint(1)
@@ -62,7 +62,7 @@ var (
 	u15 = *u0 /* ERROR "cannot indirect" */
 	u16 = &u0
 	u17 = *u16
-	u18 = <-u16 /* ERROR "not defined" */
+	u18 = <-u16 /* ERROR "cannot receive" */
 
 	// float64
 	f0 = float64(1)
@@ -83,7 +83,7 @@ var (
 	f15 = *f0 /* ERROR "cannot indirect" */
 	f16 = &f0
 	f17 = *u16
-	f18 = <-u16 /* ERROR "not defined" */
+	f18 = <-u16 /* ERROR "cannot receive" */
 
 	// complex128
 	c0 = complex128(1)
@@ -104,7 +104,7 @@ var (
 	c15 = *c0 /* ERROR "cannot indirect" */
 	c16 = &c0
 	c17 = *u16
-	c18 = <-u16 /* ERROR "not defined" */
+	c18 = <-u16 /* ERROR "cannot receive" */
 
 	// string
 	s0 = "foo"
@@ -115,7 +115,7 @@ var (
 	s5 = *s4 /* ERROR "cannot indirect" */
 	s6 = &s4
 	s7 = *s6
-	s8 = <-s7  /* ERROR "not defined" */
+	s8 = <-s7  /* ERROR "cannot receive" */
 
 	// channel
 	ch chan int
@@ -130,6 +130,6 @@ var (
 	ch6 = *ch5
 	ch7 = <-ch
 	ch8 = <-rc
-	ch9 = <-sc /* ERROR "not defined" */
+	ch9 = <-sc /* ERROR "cannot receive" */
 
 )

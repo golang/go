@@ -31,6 +31,22 @@ func _() {
 	s += 1 /* ERROR "cannot convert.*string" */
 }
 
+func _incdecs() {
+	const c = 3.14
+	c /* ERROR "cannot assign" */ ++
+	s := "foo"
+	s /* ERROR "cannot convert" */ --
+	3.14 /* ERROR "cannot assign" */ ++
+	var (
+		x int
+		y float32
+		z complex128
+	)
+	x++
+	y--
+	z++
+}
+
 func _sends() {
 	var ch chan int
 	var rch <-chan int
@@ -39,4 +55,20 @@ func _sends() {
 	rch /* ERROR "cannot send" */ <- x
 	ch /* ERROR "cannot send" */ <- "foo"
 	ch <- x
+}
+
+func _selects() {
+	select {}
+	var (
+		ch chan int
+		sc chan <- bool
+		x int
+	)
+	select {
+	case <-ch:
+		ch <- x
+	case t, ok := <-ch:
+		x = t
+	case <-sc /* ERROR "cannot receive from send-only channel" */ :
+	}
 }

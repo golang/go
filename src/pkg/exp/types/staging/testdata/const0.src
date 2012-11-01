@@ -207,3 +207,9 @@ const (
 	_b0 = iota
 	_b1 = assert(iota + iota2 == 5)
 )
+
+// special cases
+const (
+	_n0 = nil /* ERROR "invalid constant type" */
+	_n1 = [ /* ERROR "not constant" */ ]int{}
+)

@@ -13,10 +13,6 @@ import (
 	"go/token"
 )
 
-// debugging flags
-const debug = false
-const trace = false
-
 // TODO(gri) eventually assert and unimplemented should disappear.
 func assert(p bool) {
 	if !p {
@@ -25,13 +21,38 @@ func assert(p bool) {
 }
 
 func unimplemented() {
-	if debug {
-		panic("unimplemented")
-	}
+	// enable for debugging
+	// panic("unimplemented")
 }
 
 func unreachable() {
 	panic("unreachable")
+}
+
+func (check *checker) printTrace(format string, args []interface{}) {
+	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	n := len(check.pos) - 1
+	i := 2 * n
+	for i > len(dots) {
+		fmt.Print(dots)
+		i -= len(dots)
+	}
+	// i <= len(dots)
+	fmt.Printf("%s: ", check.fset.Position(check.pos[n]))
+	fmt.Print(dots[0:i])
+	fmt.Println(check.formatMsg(format, args))
+}
+
+func (check *checker) trace(pos token.Pos, format string, args ...interface{}) {
+	check.pos = append(check.pos, pos)
+	check.printTrace(format, args)
+}
+
+func (check *checker) untrace(format string, args ...interface{}) {
+	if len(format) > 0 {
+		check.printTrace(format, args)
+	}
+	check.pos = check.pos[:len(check.pos)-1]
 }
 
 func (check *checker) formatMsg(format string, args []interface{}) string {

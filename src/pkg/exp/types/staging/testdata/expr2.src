@@ -5,3 +5,8 @@
 // comparisons
 
 package expr2
+
+// corner cases
+var (
+	v0 = nil /* ERROR "cannot compare" */ == nil
+)
