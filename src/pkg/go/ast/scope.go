@@ -76,6 +76,7 @@ func (s *Scope) String() string {
 //	Pkg	*Scope       package scope
 //	Con     int          iota for the respective declaration
 //	Con     != nil       constant value
+//	Typ     *Scope       method scope; nil if no methods
 //
 type Object struct {
 	Kind ObjKind
