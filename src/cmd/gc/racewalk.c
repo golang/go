@@ -89,6 +89,8 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 			opnames[n->op], n->left, n->right, n->right ? n->right->type : nil, n->type, n->class);
 	setlineno(n);
 
+	racewalklist(n->ninit, nil);
+
 	switch(n->op) {
 	default:
 		fatal("racewalk: unknown node type %O", n->op);
@@ -100,7 +102,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OAS2RECV:
 	case OAS2FUNC:
 	case OAS2MAPR:
-		racewalklist(n->ninit, init);
 		racewalknode(&n->left, init, 1, 0);
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
@@ -115,7 +116,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OFOR:
-		racewalklist(n->ninit, nil);
 		if(n->ntest != N)
 			racewalklist(n->ntest->ninit, nil);
 		racewalknode(&n->nincr, init, wr, 0);
@@ -123,7 +123,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OIF:
-		racewalklist(n->ninit, nil);
 		racewalknode(&n->ntest, &n->ninit, wr, 0);
 		racewalklist(n->nbody, nil);
 		racewalklist(n->nelse, nil);
@@ -140,7 +139,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case OCALLFUNC:
 		racewalknode(&n->left, init, 0, 0);
-		racewalklist(n->ninit, init);
 		racewalklist(n->list, init);
 		goto ret;
 
@@ -159,7 +157,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OSWITCH:
-		racewalklist(n->ninit, nil);
 		if(n->ntest->op == OTYPESW)
 			// don't bother, we have static typization
 			return;
@@ -168,7 +165,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OEMPTY:
-		racewalklist(n->ninit, nil);
 		goto ret;
 
 	case ONOT:
@@ -274,7 +270,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OSLICE:
 	case OSLICEARR:
 		// Seems to only lead to double instrumentation.
-		//racewalklist(n->ninit, init);
 		//racewalknode(&n->left, init, 0, 0);
 		//racewalklist(n->list, init);
 		goto ret;
