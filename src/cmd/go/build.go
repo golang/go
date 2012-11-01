@@ -745,8 +745,13 @@ func (b *builder) build(a *action) (err error) {
 		}
 	}
 
+	objExt := archChar
+	if _, ok := buildToolchain.(gccgcToolchain); ok {
+		objExt = "o"
+	}
+
 	for _, file := range cfiles {
-		out := file[:len(file)-len(".c")] + "." + archChar
+		out := file[:len(file)-len(".c")] + "." + objExt
 		if err := buildToolchain.cc(b, a.p, obj, obj+out, file); err != nil {
 			return err
 		}
@@ -755,7 +760,7 @@ func (b *builder) build(a *action) (err error) {
 
 	// Assemble .s files.
 	for _, file := range sfiles {
-		out := file[:len(file)-len(".s")] + "." + archChar
+		out := file[:len(file)-len(".s")] + "." + objExt
 		if err := buildToolchain.asm(b, a.p, obj, obj+out, file); err != nil {
 			return err
 		}
@@ -1355,8 +1360,11 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 	out := p.Name + ".o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
-	if prefix := gccgoPrefix(p); prefix != "" {
-		gcargs = append(gcargs, "-fgo-prefix="+gccgoPrefix(p))
+	if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+		gcargs = append(gcargs, "-fgo-pkgpath="+pkgpath)
+	}
+	if p.localPrefix != "" {
+		gcargs = append(gcargs, "-fgo-relative-import-path="+p.localPrefix)
 	}
 	args := stringList("gccgo", importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
 	for _, f := range gofiles {
@@ -1367,7 +1375,11 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 
 func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
+	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
+	}
+	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
 }
 
 func (gccgcToolchain) pkgpath(basedir string, p *Package) string {
@@ -1392,6 +1404,7 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 	sfiles := make(map[*Package][]string)
 	ldflags := []string{}
 	cgoldflags := []string{}
+	usesCgo := false
 	for _, a := range allactions {
 		if a.p != nil {
 			if !a.p.Standard {
@@ -1400,12 +1413,16 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 				}
 			}
 			cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
+			if len(a.p.CgoFiles) > 0 {
+				usesCgo = true
+			}
 			if a.p.usesSwig() {
 				sd := a.p.swigDir(&buildContext)
 				for _, f := range stringList(a.p.SwigFiles, a.p.SwigCXXFiles) {
 					soname := a.p.swigSoname(f)
 					sfiles[a.p] = append(sfiles[a.p], filepath.Join(sd, soname))
 				}
+				usesCgo = true
 			}
 		}
 	}
@@ -1416,25 +1433,40 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 		ldflags = append(ldflags, sfiles...)
 	}
 	ldflags = append(ldflags, cgoldflags...)
+	if usesCgo && goos == "linux" {
+		ldflags = append(ldflags, "-Wl,-E")
+	}
 	return b.run(".", p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
 }
 
 func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
+	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
+	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
+	}
 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
-		"-I", objdir, "-I", inc, "-o", ofile,
-		"-DGOOS_"+goos, "-DGOARCH_"+goarch, "-c", cfile)
+		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
 }
 
-func gccgoPrefix(p *Package) string {
-	switch {
-	case p.build.IsCommand() && !p.forceLibrary:
+func gccgoPkgpath(p *Package) string {
+	if p.build.IsCommand() && !p.forceLibrary {
 		return ""
-	case p.fake:
-		return "fake_" + p.ImportPath
 	}
-	return "go_" + p.ImportPath
+	return p.ImportPath
+}
+
+func gccgoCleanPkgpath(p *Package) string {
+	clean := func(r rune) rune {
+		switch {
+		case 'A' <= r && r <= 'Z', 'a' <= r && r <= 'z',
+			'0' <= r && r <= '9':
+			return r
+		}
+		return '_'
+	}
+	return strings.Map(clean, gccgoPkgpath(p))
 }
 
 // libgcc returns the filename for libgcc, as determined by invoking gcc with
@@ -1563,8 +1595,8 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	if _, ok := buildToolchain.(gccgcToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
-		if prefix := gccgoPrefix(p); prefix != "" {
-			cgoflags = append(cgoflags, "-gccgoprefix="+gccgoPrefix(p))
+		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
 		}
 		objExt = "o"
 	}
