@@ -6,7 +6,7 @@ package main
 
 import (
 	"errors"
-	"exp/types/staging"
+	"exp/types"
 	"flag"
 	"fmt"
 	"go/ast"
