@@ -119,6 +119,17 @@ reexportdep(Node *n)
 		}
 		break;
 
+	case ODCL:
+		// Local variables in the bodies need their type.
+		t = n->left->type;
+		if(t != types[t->etype] && t != idealbool && t != idealstring) {
+			if(isptr[t->etype])
+				t = t->type;
+			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+				exportlist = list(exportlist, t->sym->def);
+			}
+		}
+		break;
 
 	case OLITERAL:
 		t = n->type;
