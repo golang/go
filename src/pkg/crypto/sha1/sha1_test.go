@@ -81,26 +81,26 @@ func ExampleNew() {
 }
 
 var bench = sha1.New()
-var buf = makeBuf()
+var buf = make([]byte, 8192)
 
-func makeBuf() []byte {
-	b := make([]byte, 8<<10)
-	for i := range b {
-		b[i] = byte(i)
+func benchmarkSize(b *testing.B, size int) {
+	b.SetBytes(int64(size))
+	sum := make([]byte, bench.Size())
+	for i := 0; i < b.N; i++ {
+		bench.Reset()
+		bench.Write(buf[:size])
+		bench.Sum(sum[:0])
 	}
-	return b
+}
+
+func BenchmarkHash8Bytes(b *testing.B) {
+	benchmarkSize(b, 8)
 }
 
 func BenchmarkHash1K(b *testing.B) {
-	b.SetBytes(1024)
-	for i := 0; i < b.N; i++ {
-		bench.Write(buf[:1024])
-	}
+	benchmarkSize(b, 1024)
 }
 
 func BenchmarkHash8K(b *testing.B) {
-	b.SetBytes(int64(len(buf)))
-	for i := 0; i < b.N; i++ {
-		bench.Write(buf)
-	}
+	benchmarkSize(b, 8192)
 }
