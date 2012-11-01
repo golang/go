@@ -1028,9 +1028,9 @@ clearfat(Node *nl)
 
 
 	w = nl->type->width;
-	if(w == 16)
-		if(componentgen(N, nl))
-			return;
+	// Avoid taking the address for simple enough types.
+	if(componentgen(N, nl))
+		return;
 
 	c = w % 8;	// bytes
 	q = w / 8;	// quads

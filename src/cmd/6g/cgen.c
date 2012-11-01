@@ -1254,9 +1254,9 @@ sgen(Node *n, Node *ns, int64 w)
 	if(w < 0)
 		fatal("sgen copy %lld", w);
 
-	if(w == 16)
-		if(componentgen(n, ns))
-			return;
+	// Avoid taking the address for simple enough types.
+	if(componentgen(n, ns))
+		return;
 	
 	if(w == 0) {
 		// evaluate side effects only
@@ -1378,9 +1378,10 @@ cadable(Node *n)
 }
 
 /*
- * copy a structure component by component
+ * copy a composite value by moving its individual components.
+ * Slices, strings and interfaces are supported.
+ * nr is N when assigning a zero value.
  * return 1 if can do, 0 if cant.
- * nr is N for copy zero
  */
 int
 componentgen(Node *nr, Node *nl)
