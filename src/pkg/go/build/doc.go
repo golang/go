@@ -88,6 +88,7 @@
 //
 //	- the target operating system, as spelled by runtime.GOOS
 //	- the target architecture, as spelled by runtime.GOARCH
+//	- the compiler being used, currently either "gc" or "gccgo"
 //	- "cgo", if ctxt.CgoEnabled is true
 //	- any additional words listed in ctxt.BuildTags
 //
