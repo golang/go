@@ -43,6 +43,13 @@ racewalk(Node *fn)
 		}
 	}
 
+<<<<<<< local
+	// TODO(dvyukov): ideally this should be:
+	// racefuncenter(getreturnaddress())
+	// because it's much more costly to obtain from runtime library.
+	nd = mkcall("racefuncenter", T, nil);
+	fn->enter = concat(list1(nd), fn->enter);
+=======
 	// nodpc is the PC of the caller as extracted by
 	// getcallerpc. We use -widthptr(FP) for x86.
 	// BUG: this will not work on arm.
@@ -52,13 +59,18 @@ racewalk(Node *fn)
 	nodpc->xoffset = -widthptr;
 	nd = mkcall("racefuncenter", T, nil, nodpc);
 	fn->enter = list(fn->enter, nd);
+>>>>>>> other
 	nd = mkcall("racefuncexit", T, nil);
-	fn->exit = list(fn->exit, nd); // works fine if (!fn->exit)
+	fn->exit = list(fn->exit, nd);
 	racewalklist(curfn->nbody, nil);
 
 	if(debug['W']) {
 		snprint(s, sizeof(s), "after racewalk %S", curfn->nname->sym);
 		dumplist(s, curfn->nbody);
+		snprint(s, sizeof(s), "after walk %S", curfn->nname->sym);
+		dumplist(s, curfn->nbody);
+		snprint(s, sizeof(s), "enter %S", curfn->nname->sym);
+		dumplist(s, curfn->enter);
 	}
 }
 
@@ -163,7 +175,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case OSWITCH:
 		if(n->ntest->op == OTYPESW)
-			// don't bother, we have static typization
+			// TODO(dvyukov): the expression can contain calls or reads.
 			return;
 		racewalknode(&n->ntest, &n->ninit, 0, 0);
 		racewalklist(n->nbody, nil);
@@ -369,7 +381,7 @@ callinstr(Node *n, NodeList **init, int wr, int skip)
 	if(n->op == ONAME) {
 		if(n->sym != S) {
 			if(n->sym->name != nil) {
-				if(strncmp(n->sym->name, "_", sizeof("_")-1) == 0)
+				if(strcmp(n->sym->name, "_") == 0)
 					return 0;
 				if(strncmp(n->sym->name, "autotmp_", sizeof("autotmp_")-1) == 0)
 					return 0;
@@ -381,7 +393,7 @@ callinstr(Node *n, NodeList **init, int wr, int skip)
 	if(t->etype == TSTRUCT) {
 		res = 0;
 		for(t1=t->type; t1; t1=t1->down) {
-			if(t1->sym && strncmp(t1->sym->name, "_", sizeof("_")-1)) {
+			if(t1->sym && strcmp(t1->sym->name, "_")) {
 				n = treecopy(n);
 				f = nod(OXDOT, n, newname(t1->sym));
 				if(callinstr(f, init, wr, 0)) {
