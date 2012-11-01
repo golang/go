@@ -33,6 +33,7 @@ racewalk(Node *fn)
 {
 	int i;
 	Node *nd;
+	Node *nodpc;
 	char s[1024];
 
 	if(myimportpath) {
@@ -42,10 +43,14 @@ racewalk(Node *fn)
 		}
 	}
 
-	// TODO(dvyukov): ideally this should be:
-	// racefuncenter(getreturnaddress())
-	// because it's much more costly to obtain from runtime library.
-	nd = mkcall("racefuncenter", T, nil);
+	// nodpc is the PC of the caller as extracted by
+	// getcallerpc. We use -widthptr(FP) for x86.
+	// BUG: this will not work on arm.
+	nodpc = nod(OXXX, nil, nil);
+	*nodpc = *nodfp;
+	nodpc->type = types[TUINTPTR];
+	nodpc->xoffset = -widthptr;
+	nd = mkcall("racefuncenter", T, nil, nodpc);
 	fn->enter = list(fn->enter, nd);
 	nd = mkcall("racefuncexit", T, nil);
 	fn->exit = list(fn->exit, nd); // works fine if (!fn->exit)
