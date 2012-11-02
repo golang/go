@@ -1426,6 +1426,7 @@ nodedump(Fmt *fp, Node *n)
 		fmtprint(fp, "%O%J", n->op, n);
 		break;
 	case OREGISTER:
+	case OINDREG:
 		fmtprint(fp, "%O-%R%J", n->op, n->val.u.reg, n);
 		break;
 	case OLITERAL:

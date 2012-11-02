@@ -1816,6 +1816,9 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
 		goto odot;
 
 	case OINDEX:
+		return 0;
+		// disabled: OINDEX case is now covered by agenr
+		// for a more suitable register allocation pattern.
 		if(n->left->type->etype == TSTRING)
 			return 0;
 		cleani += 2;

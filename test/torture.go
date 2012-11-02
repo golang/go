@@ -116,6 +116,23 @@ func determinantByte(m [4][4]byte) byte {
 		m[0][3]*m[1][2]*m[2][1]*m[3][0]
 }
 
+type A []A
+
+// A sequence of constant indexings.
+func IndexChain1(s A) A {
+	return s[0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0]
+}
+
+// A sequence of non-constant indexings.
+func IndexChain2(s A, i int) A {
+	return s[i][i][i][i][i][i][i][i][i][i][i][i][i][i][i][i]
+}
+
+// Another sequence of indexings.
+func IndexChain3(s []int) int {
+	return s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[0]]]]]]]]]]]]]]]]]]]]]
+}
+
 // A right-leaning tree of byte multiplications.
 func righttree(a, b, c, d uint8) uint8 {
 	return a * (b * (c * (d *

@@ -1960,6 +1960,9 @@ sudoaddable(int as, Node *n, Addr *a)
 		goto odot;
 
 	case OINDEX:
+		return 0;
+		// disabled: OINDEX case is now covered by agenr
+		// for a more suitable register allocation pattern.
 		if(n->left->type->etype == TSTRING)
 			return 0;
 		goto oindex;
@@ -2103,23 +2106,11 @@ oindex:
 				n2 = *l;
 				n2.xoffset += Array_nel;
 				n2.type = types[simtype[TUINT]];
-				if(is64(r->type)) {
-					t = types[TUINT64];
-					regalloc(&n4, t, N);
-					gmove(&n2, &n4);
-					n2 = n4;
-				}
 			} else {
 				n2 = *reg;
 				n2.xoffset = Array_nel;
 				n2.op = OINDREG;
 				n2.type = types[simtype[TUINT]];
-				if(is64(r->type)) {
-					t = types[TUINT64];
-					regalloc(&n4, t, N);
-					gmove(&n2, &n4);
-					n2 = n4;
-				}
 			}
 		} else {
 			if(is64(r->type))

@@ -512,102 +512,79 @@ ret:
 }
 
 /*
- * generate:
- *	res = &n;
+ * allocate a register in res and generate
+ *  newreg = &n
+ * The caller must call regfree(a).
  */
 void
-agen(Node *n, Node *res)
+cgenr(Node *n, Node *a, Node *res)
+{
+	Node n1;
+
+	if(debug['g'])
+		dump("cgenr-n", n);
+
+	if(isfat(n->type))
+		fatal("cgenr on fat node");
+
+	if(n->addable) {
+		regalloc(a, types[tptr], res);
+		gmove(n, a);
+		return;
+	}
+
+	switch(n->op) {
+	case ONAME:
+	case ODOT:
+	case ODOTPTR:
+	case OINDEX:
+	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+		igen(n, &n1, res);
+		regalloc(a, types[tptr], &n1);
+		gmove(&n1, a);
+		regfree(&n1);
+		break;
+	default:
+		regalloc(a, n->type, res);
+		cgen(n, a);
+		break;
+	}
+}
+
+/*
+ * allocate a register in res and generate
+ * res = &n
+ */
+void
+agenr(Node *n, Node *a, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, tmp, tmp2, n4, n5, nlen;
+	Node n1, n2, n3, n4, n5, tmp, tmp2, nlen;
 	Prog *p1;
+	Type *t;
 	uint32 w;
 	uint64 v;
-	Type *t;
 
 	if(debug['g']) {
-		dump("\nagen-res", res);
-		dump("agen-r", n);
-	}
-	if(n == N || n->type == T)
-		return;
-
-	while(n->op == OCONVNOP)
-		n = n->left;
-
-	if(isconst(n, CTNIL) && n->type->width > widthptr) {
-		// Use of a nil interface or nil slice.
-		// Create a temporary we can take the address of and read.
-		// The generated code is just going to panic, so it need not
-		// be terribly efficient. See issue 3670.
-		tempname(&n1, n->type);
-		clearfat(&n1);
-		regalloc(&n2, types[tptr], res);
-		gins(ALEAQ, &n1, &n2);
-		gmove(&n2, res);
-		regfree(&n2);
-		goto ret;
-	}
-		
-	if(n->addable) {
-		regalloc(&n1, types[tptr], res);
-		gins(ALEAQ, n, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-		goto ret;
+		dump("\nagenr-n", n);
 	}
 
 	nl = n->left;
 	nr = n->right;
 
 	switch(n->op) {
-	default:
-		fatal("agen: unknown op %N", n);
-		break;
-
-	case OCALLMETH:
-		cgen_callmeth(n, 0);
-		cgen_aret(n, res);
-		break;
-
-	case OCALLINTER:
-		cgen_callinter(n, res, 0);
-		cgen_aret(n, res);
-		break;
-
-	case OCALLFUNC:
-		cgen_call(n, 0);
-		cgen_aret(n, res);
-		break;
-
-	case OSLICE:
-	case OSLICEARR:
-	case OSLICESTR:
-		tempname(&n1, n->type);
-		cgen_slice(n, &n1);
-		agen(&n1, res);
-		break;
-
-	case OEFACE:
-		tempname(&n1, n->type);
-		cgen_eface(n, &n1);
-		agen(&n1, res);
-		break;
-
 	case OINDEX:
 		w = n->type->width;
 		// Generate the non-addressable child first.
 		if(nr->addable)
 			goto irad;
 		if(nl->addable) {
-			if(!isconst(nr, CTINT)) {
-				regalloc(&n1, nr->type, N);
-				cgen(nr, &n1);
-			}
+			cgenr(nr, &n1, N);
 			if(!isconst(nl, CTSTR)) {
 				if(isfixedarray(nl->type)) {
-					regalloc(&n3, types[tptr], res);
-					agen(nl, &n3);
+					agenr(nl, &n3, res);
 				} else {
 					igen(nl, &nlen, res);
 					nlen.type = types[tptr];
@@ -626,8 +603,7 @@ agen(Node *n, Node *res)
 	irad:
 		if(!isconst(nl, CTSTR)) {
 			if(isfixedarray(nl->type)) {
-				regalloc(&n3, types[tptr], res);
-				agen(nl, &n3);
+				agenr(nl, &n3, res);
 			} else {
 				if(!nl->addable) {
 					// igen will need an addressable node.
@@ -645,8 +621,7 @@ agen(Node *n, Node *res)
 			}
 		}
 		if(!isconst(nr, CTINT)) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
+			cgenr(nr, &n1, N);
 		}
 		goto index;
 
@@ -686,8 +661,7 @@ agen(Node *n, Node *res)
 
 			if (v*w != 0)
 				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
-			gmove(&n3, res);
-			regfree(&n3);
+			*a = n3;
 			break;
 		}
 
@@ -745,11 +719,103 @@ agen(Node *n, Node *res)
 		}
 
 	indexdone:
-		gmove(&n3, res);
+		*a = n3;
 		regfree(&n2);
-		regfree(&n3);
 		if(!isconst(nl, CTSTR) && !isfixedarray(nl->type))
 			regfree(&nlen);
+		break;
+
+	default:
+		regalloc(a, types[tptr], res);
+		agen(n, a);
+		break;
+	}
+}
+
+/*
+ * generate:
+ *	res = &n;
+ */
+void
+agen(Node *n, Node *res)
+{
+	Node *nl, *nr;
+	Node n1, n2;
+
+	if(debug['g']) {
+		dump("\nagen-res", res);
+		dump("agen-r", n);
+	}
+	if(n == N || n->type == T)
+		return;
+
+	while(n->op == OCONVNOP)
+		n = n->left;
+
+	if(isconst(n, CTNIL) && n->type->width > widthptr) {
+		// Use of a nil interface or nil slice.
+		// Create a temporary we can take the address of and read.
+		// The generated code is just going to panic, so it need not
+		// be terribly efficient. See issue 3670.
+		tempname(&n1, n->type);
+		clearfat(&n1);
+		regalloc(&n2, types[tptr], res);
+		gins(ALEAQ, &n1, &n2);
+		gmove(&n2, res);
+		regfree(&n2);
+		goto ret;
+	}
+		
+	if(n->addable) {
+		regalloc(&n1, types[tptr], res);
+		gins(ALEAQ, n, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
+		goto ret;
+	}
+
+	nl = n->left;
+	nr = n->right;
+	USED(nr);
+
+	switch(n->op) {
+	default:
+		fatal("agen: unknown op %N", n);
+		break;
+
+	case OCALLMETH:
+		cgen_callmeth(n, 0);
+		cgen_aret(n, res);
+		break;
+
+	case OCALLINTER:
+		cgen_callinter(n, res, 0);
+		cgen_aret(n, res);
+		break;
+
+	case OCALLFUNC:
+		cgen_call(n, 0);
+		cgen_aret(n, res);
+		break;
+
+	case OSLICE:
+	case OSLICEARR:
+	case OSLICESTR:
+		tempname(&n1, n->type);
+		cgen_slice(n, &n1);
+		agen(&n1, res);
+		break;
+
+	case OEFACE:
+		tempname(&n1, n->type);
+		cgen_eface(n, &n1);
+		agen(&n1, res);
+		break;
+
+	case OINDEX:
+		agenr(n, &n1, res);
+		gmove(&n1, res);
+		regfree(&n1);
 		break;
 
 	case ONAME:
@@ -843,19 +909,7 @@ igen(Node *n, Node *a, Node *res)
 		return;
 
 	case ODOTPTR:
-		if(n->left->addable
-			|| n->left->op == OCALLFUNC
-			|| n->left->op == OCALLMETH
-			|| n->left->op == OCALLINTER) {
-			// igen-able nodes.
-			igen(n->left, &n1, res);
-			regalloc(a, types[tptr], &n1);
-			gmove(&n1, a);
-			regfree(&n1);
-		} else {
-			regalloc(a, types[tptr], res);
-			cgen(n->left, a);
-		}
+		cgenr(n->left, a, res);
 		if(n->xoffset != 0) {
 			// explicit check for nil if struct is large enough
 			// that we might derive too big a pointer.
@@ -921,8 +975,7 @@ igen(Node *n, Node *a, Node *res)
 		}
 	}
 
-	regalloc(a, types[tptr], res);
-	agen(n, a);
+	agenr(n, a, res);
 	a->op = OINDREG;
 	a->type = n->type;
 }
