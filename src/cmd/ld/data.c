@@ -602,11 +602,15 @@ addstrdata(char *name, char *value)
 	addstring(sp, value);
 
 	s = lookup(name, 0);
+	s->size = 0;
 	s->dupok = 1;
 	addaddr(s, sp);
 	adduint32(s, strlen(value));
 	if(PtrSize == 8)
 		adduint32(s, 0);  // round struct to pointer width
+
+	// in case reachability has already been computed
+	sp->reachable = s->reachable;
 }
 
 vlong

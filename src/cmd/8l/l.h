@@ -143,6 +143,8 @@ struct	Sym
 	Sym*	sub;	// in sub list
 	Sym*	outer;	// container of sub
 	Sym*	gotype;
+	Sym*	reachparent;
+	Sym*	queue;
 	char*	file;
 	char*	dynimpname;
 	char*	dynimplib;

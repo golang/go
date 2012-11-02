@@ -158,6 +158,8 @@ struct	Sym
 	Sym*	next;	// in text or data list
 	Sym*	sub;	// in SSUB list
 	Sym*	outer;	// container of sub
+	Sym*	reachparent;
+	Sym*	queue;
 	vlong	value;
 	vlong	size;
 	Sym*	gotype;

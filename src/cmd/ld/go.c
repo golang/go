@@ -431,10 +431,16 @@ parsemethod(char **pp, char *ep, char **methp)
 	if(p == ep)
 		return 0;
 
+	// might be a comment about the method
+	if(p + 2 < ep && strncmp(p, "//", 2) == 0)
+		goto useline;
+	
 	// if it says "func (", it's a method
-	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
-		return 0;
+	if(p + 6 < ep && strncmp(p, "func (", 6) == 0)
+		goto useline;
+	return 0;
 
+useline:
 	// definition to end of line
 	*methp = p;
 	while(p < ep && *p != '\n')
@@ -612,50 +618,56 @@ err:
 	nerrors++;
 }
 
-static int markdepth;
+static Sym *markq;
+static Sym *emarkq;
 
 static void
-marktext(Sym *s)
+mark1(Sym *s, Sym *parent)
 {
-	Auto *a;
-	Prog *p;
-
-	if(s == S)
-		return;
-	markdepth++;
-	if(debug['v'] > 1)
-		Bprint(&bso, "%d marktext %s\n", markdepth, s->name);
-	for(a=s->autom; a; a=a->link)
-		mark(a->gotype);
-	for(p=s->text; p != P; p=p->link) {
-		if(p->from.sym)
-			mark(p->from.sym);
-		if(p->to.sym)
-			mark(p->to.sym);
-	}
-	markdepth--;
-}
-
-void
-mark(Sym *s)
-{
-	int i;
-
 	if(s == S || s->reachable)
 		return;
 	if(strncmp(s->name, "go.weak.", 8) == 0)
 		return;
 	s->reachable = 1;
-	if(s->text)
-		marktext(s);
-	for(i=0; i<s->nr; i++)
-		mark(s->r[i].sym);
-	if(s->gotype)
-		mark(s->gotype);
-	if(s->sub)
-		mark(s->sub);
-	if(s->outer)
-		mark(s->outer);
+	s->reachparent = parent;
+	if(markq == nil)
+		markq = s;
+	else
+		emarkq->queue = s;
+	emarkq = s;
+}
+
+void
+mark(Sym *s)
+{
+	mark1(s, nil);
+}
+
+static void
+markflood(void)
+{
+	Auto *a;
+	Prog *p;
+	Sym *s;
+	int i;
+	
+	for(s=markq; s!=S; s=s->queue) {
+		if(s->text) {
+			if(debug['v'] > 1)
+				Bprint(&bso, "marktext %s\n", s->name);
+			for(a=s->autom; a; a=a->link)
+				mark1(a->gotype, s);
+			for(p=s->text; p != P; p=p->link) {
+				mark1(p->from.sym, s);
+				mark1(p->to.sym, s);
+			}
+		}
+		for(i=0; i<s->nr; i++)
+			mark1(s->r[i].sym, s);
+		mark1(s->gotype, s);
+		mark1(s->sub, s);
+		mark1(s->outer, s);
+	}
 }
 
 static char*
@@ -712,8 +724,9 @@ void
 deadcode(void)
 {
 	int i;
-	Sym *s, *last;
+	Sym *s, *last, *p;
 	Auto *z;
+	Fmt fmt;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
@@ -724,6 +737,8 @@ deadcode(void)
 
 	for(i=0; i<ndynexp; i++)
 		mark(dynexp[i]);
+
+	markflood();
 	
 	// remove dead text but keep file information (z symbols).
 	last = nil;
@@ -756,6 +771,29 @@ deadcode(void)
 			s->reachable = 1;
 			s->hide = 1;
 		}
+
+	// record field tracking references
+	fmtstrinit(&fmt);
+	for(s = allsym; s != S; s = s->allsym) {
+		if(strncmp(s->name, "go.track.", 9) == 0) {
+			s->special = 1;  // do not lay out in data segment
+			s->hide = 1;
+			if(s->reachable) {
+				fmtprint(&fmt, "%s", s->name+9);
+				for(p=s->reachparent; p; p=p->reachparent)
+					fmtprint(&fmt, "\t%s", p->name);
+				fmtprint(&fmt, "\n");
+			}
+			s->type = SCONST;
+			s->value = 0;
+		}
+	}
+	if(tracksym == nil)
+		return;
+	s = lookup(tracksym, 0);
+	if(!s->reachable)
+		return;
+	addstrdata(tracksym, fmtstrflush(&fmt));
 }
 
 void

@@ -147,6 +147,7 @@ void	afunclit(Addr*);
 void	split64(Node*, Node*, Node*);
 void	splitclean(void);
 void	nswap(Node*, Node*);
+void	gtrack(Sym*);
 
 /*
  * cplx.c

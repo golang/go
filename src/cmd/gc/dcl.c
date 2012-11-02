@@ -1269,7 +1269,7 @@ methodname1(Node *n, Node *t)
  * n is fieldname, pa is base type, t is function type
  */
 void
-addmethod(Sym *sf, Type *t, int local)
+addmethod(Sym *sf, Type *t, int local, int nointerface)
 {
 	Type *f, *d, *pa;
 	Node *n;
@@ -1352,6 +1352,7 @@ addmethod(Sym *sf, Type *t, int local)
 	}
 
 	f = structfield(n);
+	f->nointerface = nointerface;
 
 	// during import unexported method names should be in the type's package
 	if(importpkg && f->sym && !exportname(f->sym->name) && f->sym->pkg != structpkg)

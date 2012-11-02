@@ -142,6 +142,7 @@ void	datagostring(Strlit*, Addr*);
 void	split64(Node*, Node*, Node*);
 void	splitclean(void);
 Node*	ncon(uint32 i);
+void	gtrack(Sym*);
 
 /*
  * obj.c

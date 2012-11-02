@@ -225,6 +225,17 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
 		p->reg |= RODATA;
 }
 
+void
+gtrack(Sym *s)
+{
+	Prog *p;
+	
+	p = gins(AUSEFIELD, N, N);
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
+	p->from.sym = s;
+}
+
 int
 isfat(Type *t)
 {

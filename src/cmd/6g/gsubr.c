@@ -206,6 +206,17 @@ ggloblnod(Node *nam, int32 width)
 }
 
 void
+gtrack(Sym *s)
+{
+	Prog *p;
+	
+	p = gins(AUSEFIELD, N, N);
+	p->from.type = D_EXTERN;
+	p->from.index = D_NONE;
+	p->from.sym = s;
+}
+
+void
 ggloblsym(Sym *s, int32 width, int dupok, int rodata)
 {
 	Prog *p;

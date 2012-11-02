@@ -1275,6 +1275,7 @@ fndcl:
 		$$->nname = methodname1($$->shortname, rcvr->right);
 		$$->nname->defn = $$;
 		$$->nname->ntype = t;
+		$$->nname->nointerface = nointerface;
 		declare($$->nname, PFUNC);
 
 		funchdr($$);
@@ -1312,7 +1313,8 @@ hidden_fndcl:
 		$$->type = functype($2->n, $6, $8);
 
 		checkwidth($$->type);
-		addmethod($4, $$->type, 0);
+		addmethod($4, $$->type, 0, nointerface);
+		nointerface = 0;
 		funchdr($$);
 		
 		// inl.c's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -1389,6 +1391,7 @@ xdcl_list:
 		$$ = concat($1, $2);
 		if(nsyntaxerrors == 0)
 			testdclstack();
+		nointerface = 0;
 	}
 
 vardcl_list:

@@ -756,6 +756,8 @@ enum	as
 	AAESKEYGENASSIST,
 
 	APSHUFD,
+	
+	AUSEFIELD,
 
 	ALAST
 };

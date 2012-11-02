@@ -812,6 +812,7 @@ buildop(void)
 		case AMOVM:
 		case ARFE:
 		case ATEXT:
+		case AUSEFIELD:
 		case ACASE:
 		case ABCASE:
 			break;

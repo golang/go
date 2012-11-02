@@ -1833,6 +1833,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 			fatal("lookdot badwidth %T %p", f1, f1);
 		n->xoffset = f1->width;
 		n->type = f1->type;
+		n->paramfld = f1;
 		if(t->etype == TINTER) {
 			if(isptr[n->left->type->etype]) {
 				n->left = nod(OIND, n->left, N);	// implicitstar
@@ -2637,7 +2638,7 @@ typecheckfunc(Node *n)
 	t->nname = n->nname;
 	rcvr = getthisx(t)->type;
 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
-		addmethod(n->shortname->sym, t, 1);
+		addmethod(n->shortname->sym, t, 1, n->nname->nointerface);
 }
 
 static void
