@@ -371,9 +371,10 @@ func (fd *netFD) Close() error {
 }
 
 func (fd *netFD) shutdown(how int) error {
-	if fd == nil || fd.sysfd == syscall.InvalidHandle {
-		return syscall.EINVAL
+	if err := fd.incref(false); err != nil {
+		return err
 	}
+	defer fd.decref()
 	err := syscall.Shutdown(fd.sysfd, how)
 	if err != nil {
 		return &OpError{"shutdown", fd.net, fd.laddr, err}
