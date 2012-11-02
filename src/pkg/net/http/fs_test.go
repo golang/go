@@ -648,6 +648,8 @@ func TestServeContent(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		io.Copy(ioutil.Discard, res.Body)
+		res.Body.Close()
 		if res.StatusCode != tt.wantStatus {
 			t.Errorf("test %q: status = %d; want %d", testName, res.StatusCode, tt.wantStatus)
 		}
