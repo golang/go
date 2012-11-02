@@ -198,10 +198,11 @@ func (d *decoder) parsePLTE(length uint32) error {
 			d.palette[i] = color.RGBA{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
 		for i := np; i < 256; i++ {
-			// Initialize the rest of the palette to opaque black. The spec isn't
-			// clear whether palette index values outside of those defined by the PLTE
-			// chunk is an error: libpng 1.5.13 falls back to opaque black, the
-			// same as we do here, ImageMagick 6.5.7 returns an error.
+			// Initialize the rest of the palette to opaque black. The spec (section
+			// 11.2.3) says that "any out-of-range pixel value found in the image data
+			// is an error", but some real-world PNG files have out-of-range pixel
+			// values. We fall back to opaque black, the same as libpng 1.5.13;
+			// ImageMagick 6.5.7 returns an error.
 			d.palette[i] = color.RGBA{0x00, 0x00, 0x00, 0xff}
 		}
 		d.palette = d.palette[:np]
