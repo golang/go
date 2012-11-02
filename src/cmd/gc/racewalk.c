@@ -88,6 +88,7 @@ static void
 racewalknode(Node **np, NodeList **init, int wr, int skip)
 {
 	Node *n, *n1;
+	NodeList *fini;
 
 	n = *np;
 
@@ -116,8 +117,28 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OBLOCK:
-		// leads to crashes.
-		//racewalklist(n->list, nil);
+		if(n->list == nil)
+			goto ret;
+
+		switch(n->list->n->op) {
+		case OCALLFUNC:
+		case OCALLMETH:
+		case OCALLINTER:
+			// Blocks are used for multiple return function calls.
+			// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
+			// We don't want to instrument between the statements because it will
+			// smash the results.
+			racewalknode(&n->list->n, &n->ninit, 0, 0);
+			fini = nil;
+			racewalklist(n->list->next, &fini);
+			n->list = concat(n->list, fini);
+			break;
+
+		default:
+			// Ordinary block, for loop initialization or inlined bodies.
+			racewalklist(n->list, nil);
+			break;
+		}
 		goto ret;
 
 	case ODEFER:
