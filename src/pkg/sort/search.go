@@ -12,6 +12,8 @@ package sort
 // f is false for some (possibly empty) prefix of the input range [0, n)
 // and then true for the (possibly empty) remainder; Search returns
 // the first true index.  If there is no such index, Search returns n.
+// (Note that the "not found" return value is n, the length of the input,
+// not -1 as in, for instance, strings.Index).
 // Search calls f(i) only for i in the range [0, n).
 //
 // A common use of Search is to find the index i for a value x in
@@ -74,21 +76,24 @@ func Search(n int, f func(int) bool) int {
 // Convenience wrappers for common cases.
 
 // SearchInts searches for x in a sorted slice of ints and returns the index
-// as specified by Search. The slice must be sorted in ascending order.
+// as specified by Search. The return value is len(a) if x is not present.
+// The slice must be sorted in ascending order.
 //
 func SearchInts(a []int, x int) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
-// as specified by Search. The slice must be sorted in ascending order.
+// as specified by Search.  The return value is len(a) if x is not present.
+// The slice must be sorted in ascending order.
 //
 func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 // SearchStrings searches for x in a sorted slice of strings and returns the index
-// as specified by Search. The slice must be sorted in ascending order.
+// as specified by Search.  The return value is len(a) if x is not present.
+// The slice must be sorted in ascending order.
 //
 func SearchStrings(a []string, x string) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
