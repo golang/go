@@ -221,6 +221,8 @@ func (e *timeoutError) Temporary() bool { return true }
 
 var errTimeout error = &timeoutError{}
 
+var errClosing = errors.New("use of closed network connection")
+
 type AddrError struct {
 	Err  string
 	Addr string

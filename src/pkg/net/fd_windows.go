@@ -196,11 +196,12 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	}
 	// Wait for our request to complete.
 	var r ioResult
-	var cancelled bool
+	var cancelled, timeout bool
 	select {
 	case r = <-o.resultc:
 	case <-timer:
 		cancelled = true
+		timeout = true
 	case <-o.fd.closec:
 		cancelled = true
 	}
@@ -220,7 +221,11 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 		// Wait for IO to be canceled or complete successfully.
 		r = <-o.resultc
 		if r.err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
-			r.err = syscall.EWOULDBLOCK
+			if timeout {
+				r.err = errTimeout
+			} else {
+				r.err = errClosing
+			}
 		}
 	}
 	if r.err != nil {
@@ -311,8 +316,6 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	return syscall.Connect(fd.sysfd, ra)
 }
-
-var errClosing = errors.New("use of closed network connection")
 
 // Add a reference to this fd.
 // If closing==true, mark the fd as closing.
