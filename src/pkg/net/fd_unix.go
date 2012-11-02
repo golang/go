@@ -7,7 +7,6 @@
 package net
 
 import (
-	"errors"
 	"io"
 	"os"
 	"runtime"
@@ -345,8 +344,6 @@ func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	}
 	return err
 }
-
-var errClosing = errors.New("use of closed network connection")
 
 // Add a reference to this fd.
 // If closing==true, pollserver must be locked; mark the fd as closing.
