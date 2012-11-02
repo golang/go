@@ -84,6 +84,7 @@ int	gen_as_init(Node*);
  * cgen.c
  */
 void	agen(Node*, Node*);
+void	agenr(Node*, Node*, Node*);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	sgen(Node*, Node*, int64);
