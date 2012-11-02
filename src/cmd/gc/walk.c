@@ -429,13 +429,18 @@ walkexpr(Node **np, NodeList **init)
 	case OCOM:
 	case OREAL:
 	case OIMAG:
-	case ODOT:
-	case ODOTPTR:
 	case ODOTMETH:
 	case ODOTINTER:
 	case OIND:
 		walkexpr(&n->left, init);
 		goto ret;
+
+	case ODOT:
+	case ODOTPTR:
+		usefield(n);
+		walkexpr(&n->left, init);
+		goto ret;
+		
 
 	case OEFACE:
 		walkexpr(&n->left, init);
@@ -2897,3 +2902,44 @@ bounded(Node *n, int64 max)
 	
 	return 0;
 }
+
+void
+usefield(Node *n)
+{
+	Type *field, *l;
+
+	if(!fieldtrack_enabled)
+		return;
+
+	switch(n->op) {
+	default:
+		fatal("usefield %O", n->op);
+	case ODOT:
+	case ODOTPTR:
+		break;
+	}
+	
+	field = n->paramfld;
+	if(field == T)
+		fatal("usefield %T %S without paramfld", n->left->type, n->right->sym);
+	if(field->note == nil || strstr(field->note->s, "go:\"track\"") == nil)
+		return;
+
+	// dedup on list
+	if(field->lastfn == curfn)
+		return;
+	field->lastfn = curfn;
+	field->outer = n->left->type;
+	if(isptr[field->outer->etype])
+		field->outer = field->outer->type;
+	if(field->outer->sym == S)
+		yyerror("tracked field must be in named struct type");
+	if(!exportname(field->sym->name))
+		yyerror("tracked field must be exported (upper case)");
+
+	l = typ(0);
+	l->type = field;
+	l->down = curfn->paramfld;
+	curfn->paramfld = l;
+}
+

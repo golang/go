@@ -1315,6 +1315,8 @@ Optab optab[] =
 
 	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
 
+	{ AUSEFIELD,	ynop,	Px, 0,0 },
+
 	{ AEND },
 	0
 };

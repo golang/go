@@ -147,6 +147,9 @@ main(int argc, char *argv[])
 		val = EARGF(usage());
 		addbuildinfo(val);
 		break;
+	case 'k':
+		tracksym = EARGF(usage());
+		break;
 	} ARGEND
 
 	USED(argc);

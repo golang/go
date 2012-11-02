@@ -278,6 +278,8 @@ dumpexporttype(Type *t)
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if(debug['l'] < 2)
 				typecheckinl(f->type->nname);
+			if(f->nointerface)
+				Bprint(bout, "\t//go:nointerface\n");
 			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
 			reexportdeplist(f->type->nname->inl);
 		} else

@@ -40,6 +40,7 @@ static struct {
 	int *val;
 } exper[] = {
 //	{"rune32", &rune32},
+	{"fieldtrack", &fieldtrack_enabled},
 	{nil, nil},
 };
 
@@ -199,9 +200,19 @@ main(int argc, char *argv[])
 
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
-
+	
+	// pseudo-package, for scoping
 	builtinpkg = mkpkg(strlit("go.builtin"));
 
+	// pseudo-package, accessed by import "unsafe"
+	unsafepkg = mkpkg(strlit("unsafe"));
+	unsafepkg->name = "unsafe";
+
+	// real package, referred to by generated runtime calls
+	runtimepkg = mkpkg(strlit("runtime"));
+	runtimepkg->name = "runtime";
+
+	// pseudo-packages used in symbol tables
 	gostringpkg = mkpkg(strlit("go.string"));
 	gostringpkg->name = "go.string";
 	gostringpkg->prefix = "go.string";	// not go%2estring
@@ -210,18 +221,16 @@ main(int argc, char *argv[])
 	itabpkg->name = "go.itab";
 	itabpkg->prefix = "go.itab";	// not go%2eitab
 
-	runtimepkg = mkpkg(strlit("runtime"));
-	runtimepkg->name = "runtime";
-
-	typepkg = mkpkg(strlit("type"));
-	typepkg->name = "type";
-
 	weaktypepkg = mkpkg(strlit("go.weak.type"));
 	weaktypepkg->name = "go.weak.type";
 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
 
-	unsafepkg = mkpkg(strlit("unsafe"));
-	unsafepkg->name = "unsafe";
+	trackpkg = mkpkg(strlit("go.track"));
+	trackpkg->name = "go.track";
+	trackpkg->prefix = "go.track";  // not go%2etrack
+
+	typepkg = mkpkg(strlit("type"));
+	typepkg->name = "type";
 
 	goroot = getgoroot();
 	goos = getgoos();
@@ -1443,7 +1452,12 @@ getlinepragma(void)
 	char *cp, *ep, *linep;
 	Hist *h;
 
-	for(i=0; i<5; i++) {
+	c = getr();
+	if(c == 'g' && fieldtrack_enabled)
+		goto go;
+	if(c != 'l')	
+		goto out;
+	for(i=1; i<5; i++) {
 		c = getr();
 		if(c != "line "[i])
 			goto out;
@@ -1491,6 +1505,20 @@ getlinepragma(void)
 		}
 	}
 	linehist(strdup(lexbuf), n, 0);
+	goto out;
+
+go:
+	for(i=1; i<11; i++) {
+		c = getr();
+		if(c != "go:nointerface"[i])
+			goto out;
+	}
+	nointerface = 1;
+	for(;;) {
+		c = getr();
+		if(c == EOF || c == '\n')
+			break;
+	}
 
 out:
 	return c;

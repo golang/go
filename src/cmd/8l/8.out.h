@@ -566,6 +566,8 @@ enum	as
 	AUNPCKLPS,
 	AXORPD,
 	AXORPS,
+	
+	AUSEFIELD,
 
 	ALAST
 };

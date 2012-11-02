@@ -172,6 +172,8 @@ methods(Type *t)
 			fatal("non-method on %T method %S %T\n", mt, f->sym, f);
 		if (!getthisx(f->type)->type)
 			fatal("receiver with no type on %T method %S %T\n", mt, f->sym, f);
+		if(f->nointerface)
+			continue;
 
 		method = f->sym;
 		if(method == nil)
@@ -618,6 +620,18 @@ typesym(Type *t)
 	p = smprint("%-T", t);
 	s = pkglookup(p, typepkg);
 	//print("typesym: %s -> %+S\n", p, s);
+	free(p);
+	return s;
+}
+
+Sym*
+tracksym(Type *t)
+{
+	char *p;
+	Sym *s;
+
+	p = smprint("%-T.%s", t->outer, t->sym->name);
+	s = pkglookup(p, trackpkg);
 	free(p);
 	return s;
 }
@@ -1155,4 +1169,3 @@ dgcsym(Type *t)
 
 	return s;
 }
-

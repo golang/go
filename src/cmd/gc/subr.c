@@ -3040,7 +3040,7 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
 	for(im=iface->type; im; im=im->down) {
 		imtype = methodfunc(im->type, 0);
 		tm = ifacelookdot(im->sym, t, &followptr, 0);
-		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
+		if(tm == T || tm->nointerface || !eqtype(methodfunc(tm->type, 0), imtype)) {
 			if(tm == T)
 				tm = ifacelookdot(im->sym, t, &followptr, 1);
 			*m = im;

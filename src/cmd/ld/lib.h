@@ -132,6 +132,7 @@ EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
+EXTERN	char*	tracksym;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;

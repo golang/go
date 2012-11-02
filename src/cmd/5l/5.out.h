@@ -195,6 +195,8 @@ enum	as
 	AMULWB,
 	AMULAWT,
 	AMULAWB,
+	
+	AUSEFIELD,
 
 	ALAST,
 };

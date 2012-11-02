@@ -137,6 +137,7 @@ typedef	struct	Label	Label;
 struct	Type
 {
 	uchar	etype;
+	uchar	nointerface;
 	uchar	chan;
 	uchar	trecur;		// to detect loops
 	uchar	printed;
@@ -175,6 +176,7 @@ struct	Type
 
 	// TFIELD
 	Type*	down;		// next struct field, also key type in TMAP
+	Type*	outer;		// outer struct
 	Strlit*	note;		// literal string annotation
 
 	// TARRAY
@@ -185,6 +187,9 @@ struct	Type
 	
 	// for TFORW, where to copy the eventual value to
 	NodeList	*copyto;
+	
+	// for usefield
+	Node	*lastfn;
 };
 #define	T	((Type*)0)
 
@@ -236,6 +241,7 @@ struct	Node
 	NodeList*	rlist;
 
 	uchar	op;
+	uchar	nointerface;
 	uchar	ullman;		// sethi/ullman number
 	uchar	addable;	// type of addressability - 0 is not addressable
 	uchar	trecur;		// to detect loops
@@ -284,7 +290,7 @@ struct	Node
 	Node*	defn;	// ONAME: initializing assignment; OLABEL: labeled statement
 	Node*	pack;	// real package for import . names
 	Node*	curfn;	// function for local variables
-	Type*	paramfld; // TFIELD for this PPARAM
+	Type*	paramfld; // TFIELD for this PPARAM; also for ODOT, curfn
 
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
@@ -849,6 +855,7 @@ EXTERN	Pkg*	stringpkg;	// fake package for C strings
 EXTERN	Pkg*	typepkg;	// fake package for runtime type info
 EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
 EXTERN	Pkg*	unsafepkg;	// package unsafe
+EXTERN	Pkg*	trackpkg;	// fake package for field tracking
 EXTERN	Pkg*	phash[128];
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
@@ -929,6 +936,9 @@ EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
 
+EXTERN	int	nointerface;
+EXTERN	int	fieldtrack_enabled;
+
 /*
  *	y.tab.c
  */
@@ -1004,7 +1014,7 @@ void	nodfconst(Node *n, Type *t, Mpflt* fval);
 /*
  *	dcl.c
  */
-void	addmethod(Sym *sf, Type *t, int local);
+void	addmethod(Sym *sf, Type *t, int local, int nointerface);
 void	addvar(Node *n, Type *t, int ctxt);
 NodeList*	checkarglist(NodeList *all, int input);
 Node*	colas(NodeList *left, NodeList *right, int32 lno);
@@ -1200,8 +1210,10 @@ void	dumptypestructs(void);
 Type*	methodfunc(Type *f, Type*);
 Node*	typename(Type *t);
 Sym*	typesym(Type *t);
+Sym*	tracksym(Type *t);
 Sym*	typesymprefix(char *prefix, Type *t);
 int	haspointers(Type *t);
+void	usefield(Node*);
 
 /*
  *	select.c

@@ -242,5 +242,7 @@ Optab	optab[] =
 	{ AMULWT,	C_REG,	C_REG,	C_REG,		98, 4, 0 },
 	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
 
+	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
+
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };
