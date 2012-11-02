@@ -33,7 +33,7 @@ Options new in this version:
 		Write Apple Mach-O binaries (default when $GOOS is darwin)
 	-Hlinux
 		Write Linux ELF binaries (default when $GOOS is linux)
-	-Hfreebsd    (only in 6l/8l)
+	-Hfreebsd
 		Write FreeBSD ELF binaries (default when $GOOS is freebsd)
 	-Hnetbsd     (only in 6l/8l)
 		Write NetBSD ELF binaries (default when $GOOS is netbsd)

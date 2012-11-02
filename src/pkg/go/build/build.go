@@ -216,6 +216,7 @@ var cgoEnabled = map[string]bool{
 	"darwin/amd64":  true,
 	"freebsd/386":   true,
 	"freebsd/amd64": true,
+	"freebsd/arm":   true,
 	"linux/386":     true,
 	"linux/amd64":   true,
 	"linux/arm":     true,
