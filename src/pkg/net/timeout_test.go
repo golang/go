@@ -164,7 +164,7 @@ func TestReadWriteDeadline(t *testing.T) {
 	)
 	checkTimeout := func(command string, start time.Time, should time.Duration) {
 		is := time.Now().Sub(start)
-		d := should - is
+		d := is - should
 		if d < -30*time.Millisecond || !testing.Short() && 150*time.Millisecond < d {
 			t.Errorf("%s timeout test failed: is=%v should=%v\n", command, is, should)
 		}
