@@ -148,19 +148,24 @@ func TestTimeoutAccept(t *testing.T) {
 }
 
 func TestReadWriteDeadline(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
 	if !canCancelIO {
 		t.Logf("skipping test on this system")
 		return
 	}
 	const (
-		readTimeout  = 100 * time.Millisecond
-		writeTimeout = 200 * time.Millisecond
-		delta        = 40 * time.Millisecond
+		readTimeout  = 50 * time.Millisecond
+		writeTimeout = 250 * time.Millisecond
 	)
 	checkTimeout := func(command string, start time.Time, should time.Duration) {
 		is := time.Now().Sub(start)
 		d := should - is
-		if d < -delta || delta < d {
+		if d < -30*time.Millisecond || !testing.Short() && 150*time.Millisecond < d {
 			t.Errorf("%s timeout test failed: is=%v should=%v\n", command, is, should)
 		}
 	}
