@@ -59,7 +59,11 @@ func gofmt(body string) (string, error) {
 	}
 	ast.SortImports(fset, f)
 	var buf bytes.Buffer
-	err = printer.Fprint(&buf, fset, f)
+	config := printer.Config{
+		Mode:     printer.UseSpaces | printer.TabIndent,
+		Tabwidth: 8,
+	}
+	err = config.Fprint(&buf, fset, f)
 	if err != nil {
 		return "", err
 	}
