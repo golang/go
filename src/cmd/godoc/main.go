@@ -225,6 +225,8 @@ func main() {
 	// Print content that would be served at the URL *urlFlag.
 	if *urlFlag != "" {
 		registerPublicHandlers(http.DefaultServeMux)
+		initFSTree()
+		updateMetadata()
 		// Try up to 10 fetches, following redirects.
 		urlstr := *urlFlag
 		for i := 0; i < 10; i++ {
