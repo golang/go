@@ -47,6 +47,8 @@ runtime·racefini(void)
 }
 
 // Called from instrumented code.
+// If we split stack, getcallerpc() can return runtime·lessstack().
+#pragma textflag 7
 void
 runtime·racewrite(uintptr addr)
 {
@@ -58,6 +60,8 @@ runtime·racewrite(uintptr addr)
 }
 
 // Called from instrumented code.
+// If we split stack, getcallerpc() can return runtime·lessstack().
+#pragma textflag 7
 void
 runtime·raceread(uintptr addr)
 {
@@ -69,6 +73,7 @@ runtime·raceread(uintptr addr)
 }
 
 // Called from instrumented code.
+#pragma textflag 7
 void
 runtime·racefuncenter(uintptr pc)
 {
@@ -83,6 +88,7 @@ runtime·racefuncenter(uintptr pc)
 }
 
 // Called from instrumented code.
+#pragma textflag 7
 void
 runtime·racefuncexit(void)
 {
