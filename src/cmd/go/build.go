@@ -876,6 +876,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 				dir = filepath.Join(dir, "gccgo")
 			} else {
 				dir = filepath.Join(dir, goos+"_"+goarch)
+				if buildRace {
+					dir += "_race"
+				}
 			}
 			inc = append(inc, flag, dir)
 		}
