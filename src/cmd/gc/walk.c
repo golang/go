@@ -2477,14 +2477,14 @@ sliceany(Node* n, NodeList **init)
 
 	if(isconst(hb, CTINT)) {
 		hbv = mpgetfix(hb->val.u.xval);
-		if(hbv < 0 || hbv > bv || !smallintconst(hb)) {
+		if(hbv < 0 || hbv > bv) {
 			yyerror("slice index out of bounds");
 			hbv = -1;
 		}
 	}
 	if(isconst(lb, CTINT)) {
 		lbv = mpgetfix(lb->val.u.xval);
-		if(lbv < 0 || lbv > bv || !smallintconst(lb)) {
+		if(lbv < 0 || lbv > bv) {
 			yyerror("slice index out of bounds");
 			lbv = -1;
 		}
