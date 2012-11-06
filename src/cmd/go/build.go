@@ -1541,6 +1541,8 @@ func envList(key string) []string {
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
+var cgoLibGccFile string
+
 func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
 	if goos != toolGOOS {
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
@@ -1630,16 +1632,19 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
 	}
-	libgcc, err := b.libgcc(p)
-	if err != nil {
-		return nil, nil, err
+	if cgoLibGccFile == "" {
+		var err error
+		cgoLibGccFile, err = b.libgcc(p)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	var staticLibs []string
 	if goos == "windows" {
 		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
-		staticLibs = []string{"-lmingwex", "-lmingw32", libgcc}
+		staticLibs = []string{"-lmingwex", "-lmingw32", cgoLibGccFile}
 	} else {
-		staticLibs = []string{libgcc}
+		staticLibs = []string{cgoLibGccFile}
 	}
 
 	for _, cfile := range cfiles {
