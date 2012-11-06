@@ -109,14 +109,21 @@ func TestParForParallel(t *testing.T) {
 		data[i] = i
 	}
 	P := GOMAXPROCS(-1)
+	c := make(chan bool, P)
 	desc := NewParFor(uint32(P))
-	ParForSetup(desc, uint32(P), uint32(N), nil, true, func(desc *ParFor, i uint32) {
+	ParForSetup(desc, uint32(P), uint32(N), nil, false, func(desc *ParFor, i uint32) {
 		data[i] = data[i]*data[i] + 1
 	})
 	for p := 1; p < P; p++ {
-		go ParForDo(desc)
+		go func() {
+			ParForDo(desc)
+			c <- true
+		}()
 	}
 	ParForDo(desc)
+	for p := 1; p < P; p++ {
+		<-c
+	}
 	for i := uint64(0); i < N; i++ {
 		if data[i] != i*i+1 {
 			t.Fatalf("Wrong element %d: %d", i, data[i])
