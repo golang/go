@@ -278,6 +278,13 @@ runtime·assertI2T2(Type *t, Iface i, ...)
 	copyout(t, &i.data, ret);
 }
 
+void
+runtime·assertI2TOK(Type *t, Iface i, bool ok)
+{
+	ok = i.tab!=nil && i.tab->type==t;
+	FLUSH(&ok);
+}
+
 static void assertE2Tret(Type *t, Eface e, byte *ret);
 
 // func ifaceE2T(typ *byte, iface any) (ret any)
@@ -332,6 +339,13 @@ runtime·assertE2T2(Type *t, Eface e, ...)
 
 	*ok = true;
 	copyout(t, &e.data, ret);
+}
+
+void
+runtime·assertE2TOK(Type *t, Eface e, bool ok)
+{
+	ok = t==e.type;
+	FLUSH(&ok);
 }
 
 // func convI2E(elem any) (ret any)

@@ -54,6 +54,8 @@ char *runtimeimport =
 	"func @\"\".assertI2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
 	"func @\"\".assertI2T(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
 	"func @\"\".assertI2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+	"func @\"\".assertI2TOK(@\"\".typ *byte, @\"\".iface any) (@\"\".ok bool)\n"
+	"func @\"\".assertE2TOK(@\"\".typ *byte, @\"\".iface any) (@\"\".ok bool)\n"
 	"func @\"\".ifaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
 	"func @\"\".efaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
 	"func @\"\".ifacethash(@\"\".i1 any) (@\"\".ret uint32)\n"

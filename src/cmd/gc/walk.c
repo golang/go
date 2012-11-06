@@ -686,6 +686,31 @@ walkexpr(Node **np, NodeList **init)
 		n->ninit = nil;
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
+		if(isblank(n->list->n) && !isinter(r->type)) {
+			strcpy(buf, "assert");
+			p = buf+strlen(buf);
+			if(isnilinter(r->left->type))
+				*p++ = 'E';
+			else
+				*p++ = 'I';
+			*p++ = '2';
+			*p++ = 'T';
+			*p++ = 'O';
+			*p++ = 'K';
+			*p = '\0';
+			
+			fn = syslook(buf, 1);
+			ll = list1(typename(r->type));
+			ll = list(ll, r->left);
+			argtype(fn, r->left->type);
+			n1 = nod(OCALL, fn, N);
+			n1->list = ll;
+			n = nod(OAS, n->list->next->n, n1);
+			typecheck(&n, Etop);
+			walkexpr(&n, init);
+			goto ret;
+		}
+
 		r->op = ODOTTYPE2;
 		walkexpr(&r, init);
 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
