@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The race detector does not understand ParFor synchronization.
+// +build !race
+
 package runtime_test
 
 import (
