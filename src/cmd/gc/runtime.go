@@ -76,6 +76,8 @@ func assertI2I(typ *byte, iface any) (ret any)
 func assertI2I2(typ *byte, iface any) (ret any, ok bool)
 func assertI2T(typ *byte, iface any) (ret any)
 func assertI2T2(typ *byte, iface any) (ret any, ok bool)
+func assertI2TOK(typ *byte, iface any) (ok bool)
+func assertE2TOK(typ *byte, iface any) (ok bool)
 
 func ifaceeq(i1 any, i2 any) (ret bool)
 func efaceeq(i1 any, i2 any) (ret bool)
