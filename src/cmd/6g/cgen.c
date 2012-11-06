@@ -566,6 +566,7 @@ agenr(Node *n, Node *a, Node *res)
 	Type *t;
 	uint32 w;
 	uint64 v;
+	int freelen;
 
 	if(debug['g']) {
 		dump("\nagenr-n", n);
@@ -576,6 +577,7 @@ agenr(Node *n, Node *a, Node *res)
 
 	switch(n->op) {
 	case OINDEX:
+		freelen = 0;
 		w = n->type->width;
 		// Generate the non-addressable child first.
 		if(nr->addable)
@@ -587,6 +589,7 @@ agenr(Node *n, Node *a, Node *res)
 					agenr(nl, &n3, res);
 				} else {
 					igen(nl, &nlen, res);
+					freelen = 1;
 					nlen.type = types[tptr];
 					nlen.xoffset += Array_array;
 					regalloc(&n3, types[tptr], res);
@@ -612,6 +615,7 @@ agenr(Node *n, Node *a, Node *res)
 					nl = &tmp2;
 				}
 				igen(nl, &nlen, res);
+				freelen = 1;
 				nlen.type = types[tptr];
 				nlen.xoffset += Array_array;
 				regalloc(&n3, types[tptr], res);
@@ -651,7 +655,14 @@ agenr(Node *n, Node *a, Node *res)
 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				if(!debug['B'] && !n->bounded) {
 					nodconst(&n2, types[simtype[TUINT]], v);
-					gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &n2);
+					if(smallintconst(nr)) {
+						gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &n2);
+					} else {
+						regalloc(&tmp, types[simtype[TUINT]], N);
+						gmove(&n2, &tmp);
+						gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &tmp);
+						regfree(&tmp);
+					}
 					p1 = gbranch(optoas(OGT, types[simtype[TUINT]]), T, +1);
 					ginscall(panicindex, -1);
 					patch(p1, pc);
@@ -690,6 +701,12 @@ agenr(Node *n, Node *a, Node *res)
 				}
 			} else {
 				nodconst(&nlen, t, nl->type->bound);
+				if(!smallintconst(&nlen)) {
+					regalloc(&n5, t, N);
+					gmove(&nlen, &n5);
+					nlen = n5;
+					freelen = 1;
+				}
 			}
 			gins(optoas(OCMP, t), &n2, &nlen);
 			p1 = gbranch(optoas(OLT, t), T, +1);
@@ -721,7 +738,7 @@ agenr(Node *n, Node *a, Node *res)
 	indexdone:
 		*a = n3;
 		regfree(&n2);
-		if(!isconst(nl, CTSTR) && !isfixedarray(nl->type))
+		if(freelen)
 			regfree(&nlen);
 		break;
 
