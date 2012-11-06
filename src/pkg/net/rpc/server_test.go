@@ -349,6 +349,7 @@ func testServeRequest(t *testing.T, server *Server) {
 type ReplyNotPointer int
 type ArgNotPublic int
 type ReplyNotPublic int
+type NeedsPtrType int
 type local struct{}
 
 func (t *ReplyNotPointer) ReplyNotPointer(args *Args, reply Reply) error {
@@ -363,19 +364,29 @@ func (t *ReplyNotPublic) ReplyNotPublic(args *Args, reply *local) error {
 	return nil
 }
 
+func (t *NeedsPtrType) NeedsPtrType(args *Args, reply *Reply) error {
+	return nil
+}
+
 // Check that registration handles lots of bad methods and a type with no suitable methods.
 func TestRegistrationError(t *testing.T) {
 	err := Register(new(ReplyNotPointer))
 	if err == nil {
-		t.Errorf("expected error registering ReplyNotPointer")
+		t.Error("expected error registering ReplyNotPointer")
 	}
 	err = Register(new(ArgNotPublic))
 	if err == nil {
-		t.Errorf("expected error registering ArgNotPublic")
+		t.Error("expected error registering ArgNotPublic")
 	}
 	err = Register(new(ReplyNotPublic))
 	if err == nil {
-		t.Errorf("expected error registering ReplyNotPublic")
+		t.Error("expected error registering ReplyNotPublic")
+	}
+	err = Register(NeedsPtrType(0))
+	if err == nil {
+		t.Error("expected error registering NeedsPtrType")
+	} else if !strings.Contains(err.Error(), "pointer") {
+		t.Error("expected hint when registering NeedsPtrType")
 	}
 }
 

@@ -261,8 +261,30 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 	s.method = make(map[string]*methodType)
 
 	// Install the methods
-	for m := 0; m < s.typ.NumMethod(); m++ {
-		method := s.typ.Method(m)
+	s.method = suitableMethods(s.typ, true)
+
+	if len(s.method) == 0 {
+		str := ""
+		// To help the user, see if a pointer receiver would work.
+		method := suitableMethods(reflect.PtrTo(s.typ), false)
+		if len(method) != 0 {
+			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+		} else {
+			str = "rpc.Register: type " + sname + " has no exported methods of suitable type"
+		}
+		log.Print(str)
+		return errors.New(str)
+	}
+	server.serviceMap[s.name] = s
+	return nil
+}
+
+// suitableMethods returns suitable Rpc methods of typ, it will report
+// error using log if reportErr is true.
+func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
+	methods := make(map[string]*methodType)
+	for m := 0; m < typ.NumMethod(); m++ {
+		method := typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
 		// Method must be exported.
@@ -271,46 +293,51 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		if mtype.NumIn() != 3 {
-			log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+			if reportErr {
+				log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+			}
 			continue
 		}
 		// First arg need not be a pointer.
 		argType := mtype.In(1)
 		if !isExportedOrBuiltinType(argType) {
-			log.Println(mname, "argument type not exported:", argType)
+			if reportErr {
+				log.Println(mname, "argument type not exported:", argType)
+			}
 			continue
 		}
 		// Second arg must be a pointer.
 		replyType := mtype.In(2)
 		if replyType.Kind() != reflect.Ptr {
-			log.Println("method", mname, "reply type not a pointer:", replyType)
+			if reportErr {
+				log.Println("method", mname, "reply type not a pointer:", replyType)
+			}
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			log.Println("method", mname, "reply type not exported:", replyType)
+			if reportErr {
+				log.Println("method", mname, "reply type not exported:", replyType)
+			}
 			continue
 		}
 		// Method needs one out.
 		if mtype.NumOut() != 1 {
-			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+			if reportErr {
+				log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+			}
 			continue
 		}
 		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
-			log.Println("method", mname, "returns", returnType.String(), "not error")
+			if reportErr {
+				log.Println("method", mname, "returns", returnType.String(), "not error")
+			}
 			continue
 		}
-		s.method[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+		methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
 	}
-
-	if len(s.method) == 0 {
-		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
-		log.Print(s)
-		return errors.New(s)
-	}
-	server.serviceMap[s.name] = s
-	return nil
+	return methods
 }
 
 // A value sent as a placeholder for the server's response value when the server
