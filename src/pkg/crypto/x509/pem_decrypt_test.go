@@ -116,4 +116,19 @@ sv5Z/KwlX+3MDEpPQpUwGPlGGdLnjI3UZ+cjgqBcoMiNc6HfgbBgYJSU6aDSHuCk
 clCwByxWkBNgJ2GrkwNrF26v+bGJJJNR4SKouY1jQf0=
 -----END RSA PRIVATE KEY-----`),
 	},
+	{
+		// generated with:
+		// openssl genrsa -aes128 -passout pass:asdf -out server.orig.key 128
+		kind:     "AES-128-CBC",
+		password: []byte("asdf"),
+		pemData: []byte(`
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-128-CBC,74611ABC2571AF11B1BF9B69E62C89E7
+
+6ei/MlytjE0FFgZOGQ+jrwomKfpl8kdefeE0NSt/DMRrw8OacHAzBNi3pPEa0eX3
+eND9l7C9meCirWovjj9QWVHrXyugFuDIqgdhQ8iHTgCfF3lrmcttVrbIfMDw+smD
+hTP8O1mS/MHl92NE0nhv0w==
+-----END RSA PRIVATE KEY-----`),
+	},
 }

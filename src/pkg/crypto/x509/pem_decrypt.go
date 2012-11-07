@@ -25,6 +25,16 @@ type rfc1423Algo struct {
 	keySize    int
 }
 
+// rfc1423Algos is a mapping of encryption algorithm to an rfc1423Algo that can
+// create block ciphers for that mode.
+var rfc1423Algos = map[string]rfc1423Algo{
+	"DES-CBC":      {des.NewCipher, 8},
+	"DES-EDE3-CBC": {des.NewTripleDESCipher, 24},
+	"AES-128-CBC":  {aes.NewCipher, 16},
+	"AES-192-CBC":  {aes.NewCipher, 24},
+	"AES-256-CBC":  {aes.NewCipher, 32},
+}
+
 // deriveKey uses a key derivation function to stretch the password into a key
 // with the number of bits our cipher requires. This algorithm was derived from
 // the OpenSSL source.
@@ -43,16 +53,6 @@ func (c rfc1423Algo) deriveKey(password, salt []byte) []byte {
 	}
 
 	return out
-}
-
-// rfc1423Algos is a mapping of encryption algorithm to an rfc1423Algo that can
-// create block ciphers for that mode.
-var rfc1423Algos = map[string]rfc1423Algo{
-	"DES-CBC":      {des.NewCipher, 8},
-	"DES-EDE3-CBC": {des.NewTripleDESCipher, 24},
-	"AES-128-CBC":  {aes.NewCipher, 16},
-	"AES-192-CBC":  {aes.NewCipher, 24},
-	"AES-256-CBC":  {aes.NewCipher, 32},
 }
 
 // IsEncryptedPEMBlock returns if the PEM block is password encrypted.
@@ -81,17 +81,16 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	}
 
 	mode, hexIV := dek[:idx], dek[idx+1:]
+	ciph, ok := rfc1423Algos[mode]
+	if !ok {
+		return nil, errors.New("x509: unknown encryption mode")
+	}
 	iv, err := hex.DecodeString(hexIV)
 	if err != nil {
 		return nil, err
 	}
 	if len(iv) < 8 {
 		return nil, errors.New("x509: not enough bytes in IV")
-	}
-
-	ciph, ok := rfc1423Algos[mode]
-	if !ok {
-		return nil, errors.New("x509: unknown encryption mode")
 	}
 
 	// Based on the OpenSSL implementation. The salt is the first 8 bytes
@@ -107,27 +106,27 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	dec.CryptBlocks(data, b.Bytes)
 
 	// Blocks are padded using a scheme where the last n bytes of padding are all
-	// equal to n. It can pad from 1 to 8 bytes inclusive. See RFC 1423.
+	// equal to n. It can pad from 1 to blocksize bytes inclusive. See RFC 1423.
 	// For example:
 	//	[x y z 2 2]
 	//	[x y 7 7 7 7 7 7 7]
 	// If we detect a bad padding, we assume it is an invalid password.
 	dlen := len(data)
-	if dlen == 0 {
+	blockSize := block.BlockSize()
+	if dlen == 0 || dlen%blockSize != 0 {
 		return nil, errors.New("x509: invalid padding")
 	}
-	last := data[dlen-1]
-	if dlen < int(last) {
+	last := int(data[dlen-1])
+	if dlen < last {
 		return nil, IncorrectPasswordError
 	}
-	if last == 0 || last > 8 {
+	if last == 0 || last > blockSize {
 		return nil, IncorrectPasswordError
 	}
-	for _, val := range data[dlen-int(last):] {
-		if val != last {
+	for _, val := range data[dlen-last:] {
+		if int(val) != last {
 			return nil, IncorrectPasswordError
 		}
 	}
-
-	return data[:dlen-int(last)], nil
+	return data[:dlen-last], nil
 }
