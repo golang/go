@@ -11,6 +11,7 @@
 #include "race.h"
 
 void runtime∕race·Initialize(void);
+void runtime∕race·MapShadow(void *addr, uintptr size);
 void runtime∕race·Finalize(void);
 void runtime∕race·FinalizerGoroutine(int32);
 void runtime∕race·Read(int32 goid, void *addr, void *pc);
@@ -35,6 +36,7 @@ runtime·raceinit(void)
 {
 	m->racecall = true;
 	runtime∕race·Initialize();
+	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
 	m->racecall = false;
 }
 
@@ -43,6 +45,14 @@ runtime·racefini(void)
 {
 	m->racecall = true;
 	runtime∕race·Finalize();
+	m->racecall = false;
+}
+
+void
+runtime·racemapshadow(void *addr, uintptr size)
+{
+	m->racecall = true;
+	runtime∕race·MapShadow(addr, size);
 	m->racecall = false;
 }
 

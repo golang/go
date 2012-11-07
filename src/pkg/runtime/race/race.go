@@ -10,6 +10,7 @@ package race
 /*
 void __tsan_init(void);
 void __tsan_fini(void);
+void __tsan_map_shadow(void *addr, void *size);
 void __tsan_go_start(int pgoid, int chgoid, void *pc);
 void __tsan_go_end(int goid);
 void __tsan_read(int goid, void *addr, void *pc);
@@ -36,6 +37,10 @@ func Initialize() {
 
 func Finalize() {
 	C.__tsan_fini()
+}
+
+func MapShadow(addr, size uintptr) {
+	C.__tsan_map_shadow(unsafe.Pointer(addr), unsafe.Pointer(size))
 }
 
 func FinalizerGoroutine(goid int32) {
