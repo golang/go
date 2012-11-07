@@ -1,24 +1,16 @@
-// $G $D/$F.go && $L $F.$A &&
-// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1 &&
-// ./$A.out -pass 1 >tmp.go && errchk $G -e tmp.go &&
-// ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
-// rm -f tmp.go $A.out1
-
-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
-// To run this test you must use the ./run shell script.
+// skip
 
 // Copyright 2010 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Generate test of index and slice bounds checks.
-// The output is compiled and run.
+// The actual tests are index0.go, index1.go, index2.go.
 
 package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -155,14 +147,13 @@ func bug() {
 func main() {
 `
 
-// Passes:
+// pass variable set in index[012].go
 //	0 - dynamic checks
 //	1 - static checks of invalid constants (cannot assign to types)
 //	2 - static checks of array bounds
-var pass = flag.Int("pass", 0, "which test (0,1,2)")
 
 func testExpr(b *bufio.Writer, expr string) {
-	if *pass == 0 {
+	if pass == 0 {
 		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
 	} else {
 		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow\"\n", expr)
@@ -172,12 +163,10 @@ func testExpr(b *bufio.Writer, expr string) {
 func main() {
 	b := bufio.NewWriter(os.Stdout)
 
-	flag.Parse()
-	
-	if *pass == 0 {
-		fmt.Fprint(b, "// $G $D/$F.go && $L $F.$A && ./$A.out\n\n")
+	if pass == 0 {
+		fmt.Fprint(b, "// run\n\n")
 	} else {
-		fmt.Fprint(b, "// errchk $G -e $D/$F.go\n\n")
+		fmt.Fprint(b, "// errorcheck\n\n")
 	}
 	fmt.Fprint(b, prolog)
 	
@@ -240,7 +229,7 @@ func main() {
 		}
 
 		// Only print the test case if it is appropriate for this pass.
-		if thisPass == *pass {
+		if thisPass == pass {
 			pae := p+a+e+big
 			cni := c+n+i
 			
