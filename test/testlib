@@ -61,7 +61,7 @@ build() {
 }
 
 runoutput() {
-	go run "$D/$F.go" > tmp.go
+	go run "$D/$F.go" "$@" > tmp.go
 	go run tmp.go
 }
 
@@ -94,6 +94,16 @@ errorcheck() {
 		shift
 	fi
 	errchk $zero $G -e $* $D/$F.go
+}
+
+errorcheckoutput() {
+	zero=""
+	if [ "$1" = "-0" ]; then
+		zero="-0"
+		shift
+	fi
+	go run "$D/$F.go" "$@" > tmp.go
+	errchk $zero $G -e tmp.go
 }
 
 skip() {

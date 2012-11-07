@@ -128,7 +128,7 @@ func main() {
 		if !*verbose && test.err == nil {
 			continue
 		}
-		fmt.Printf("%-10s %-20s: %s\n", test.action, test.goFileName(), errStr)
+		fmt.Printf("%-20s %-20s: %s\n", test.action, test.goFileName(), errStr)
 	}
 
 	if *summary {
@@ -198,7 +198,7 @@ type test struct {
 	donec       chan bool // closed when done
 
 	src    string
-	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput", "compiledir"
+	action string // "compile", "build", etc.
 
 	tempDir string
 	err     error
@@ -300,7 +300,7 @@ func (t *test) run() {
 		fallthrough
 	case "compile", "compiledir", "build", "run", "runoutput", "rundir":
 		t.action = action
-	case "errorcheck", "errorcheckdir":
+	case "errorcheck", "errorcheckdir", "errorcheckoutput":
 		t.action = action
 		wantError = true
 		for len(args) > 0 && strings.HasPrefix(args[0], "-") {
@@ -467,7 +467,7 @@ func (t *test) run() {
 
 	case "runoutput":
 		useTmp = false
-		out, err := runcmd("go", "run", t.goFileName())
+		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
 		if err != nil {
 			t.err = err
 		}
@@ -484,6 +484,36 @@ func (t *test) run() {
 		if string(out) != t.expectedOutput() {
 			t.err = fmt.Errorf("incorrect output\n%s", out)
 		}
+
+	case "errorcheckoutput":
+		useTmp = false
+		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+		if err != nil {
+			t.err = err
+		}
+		tfile := filepath.Join(t.tempDir, "tmp__.go")
+		err = ioutil.WriteFile(tfile, out, 0666)
+		if err != nil {
+			t.err = fmt.Errorf("write tempfile:%s", err)
+			return
+		}
+		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, tfile)
+		out, err = runcmd(cmdline...)
+		if wantError {
+			if err == nil {
+				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+		} else {
+			if err != nil {
+				t.err = err
+				return
+			}
+		}
+		t.err = t.errorCheck(string(out), tfile, "tmp__.go")
+		return
 	}
 }
 
