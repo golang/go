@@ -89,7 +89,10 @@ runtime·racefuncenter(uintptr pc)
 {
 	// If the caller PC is lessstack, use slower runtime·callers
 	// to walk across the stack split to find the real caller.
-	if(pc == (uintptr)runtime·lessstack)
+	// Same thing if the PC is on the heap, which should be a
+	// closure trampoline.
+	if(pc == (uintptr)runtime·lessstack ||
+		(pc >= (uintptr)runtime·mheap.arena_start && pc < (uintptr)runtime·mheap.arena_used))
 		runtime·callers(2, &pc, 1);
 
 	m->racecall = true;
