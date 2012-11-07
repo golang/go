@@ -1840,8 +1840,8 @@ func raceInit() {
 	if !buildRace {
 		return
 	}
-	if goarch != "amd64" || goos != "linux" && goos != "darwin" {
-		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64 and darwin/amd64\n", flag.Args()[0])
+	if goarch != "amd64" || goos != "linux" && goos != "darwin" && goos != "windows" {
+		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
 	buildGcflags = append(buildGcflags, "-b")
