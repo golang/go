@@ -724,7 +724,9 @@ typefmt(Fmt *fp, Type *t)
 					s = S;
 			
 			if(s != S && !t->embedded) {
-				if(fp->flags&FmtLong)
+				if(t->funarg)
+					fmtprint(fp, "%N ", t->nname);
+				else if(fp->flags&FmtLong)
 					fmtprint(fp, "%hhS ", s);  // qualify non-exported names (used on structs, not on funarg)
 				else 
 					fmtprint(fp, "%S ", s);
@@ -802,6 +804,15 @@ stmtfmt(Fmt *f, Node *n)
 
 	switch(n->op){
 	case ODCL:
+		if(fmtmode == FExp) {
+			switch(n->left->class&~PHEAP) {
+			case PPARAM:
+			case PPARAMOUT:
+			case PAUTO:
+				fmtprint(f, "var %N %T", n->left, n->left->type);
+				goto ret;
+			}
+		}			
 		fmtprint(f, "var %S %T", n->left->sym, n->left->type);
 		break;
 
@@ -939,6 +950,7 @@ stmtfmt(Fmt *f, Node *n)
 		break;
 	  
 	}
+ret:
 
 	if(extrablock)
 		fmtstrcpy(f, "}");
@@ -1111,6 +1123,15 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%V", &n->val);
 
 	case ONAME:
+		// Special case: name used as local variable in export.
+		switch(n->class&~PHEAP){
+		case PAUTO:
+		case PPARAM:
+		case PPARAMOUT:
+			if(fmtmode == FExp && n->sym && !isblanksym(n->sym) && n->vargen > 0)
+				return fmtprint(f, "%S·%d", n->sym, n->vargen);
+		}
+
 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
