@@ -40,7 +40,9 @@ func lookupHost(name string) (addrs []string, err error) {
 	return
 }
 
-func lookupIP(name string) (addrs []IP, err error) {
+var lookupIP = oldLookupIP
+
+func oldLookupIP(name string) (addrs []IP, err error) {
 	hostentLock.Lock()
 	defer hostentLock.Unlock()
 	h, err := syscall.GetHostByName(name)
@@ -56,7 +58,36 @@ func lookupIP(name string) (addrs []IP, err error) {
 		}
 		addrs = addrs[0:i]
 	default: // TODO(vcc): Implement non IPv4 address lookups.
-		return nil, os.NewSyscallError("LookupHost", syscall.EWINDOWS)
+		return nil, os.NewSyscallError("LookupIP", syscall.EWINDOWS)
+	}
+	return addrs, nil
+}
+
+func newLookupIP(name string) (addrs []IP, err error) {
+	hints := syscall.AddrinfoW{
+		Family:   syscall.AF_UNSPEC,
+		Socktype: syscall.SOCK_STREAM,
+		Protocol: syscall.IPPROTO_IP,
+	}
+	var result *syscall.AddrinfoW
+	e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+	if e != nil {
+		return nil, os.NewSyscallError("GetAddrInfoW", e)
+	}
+	defer syscall.FreeAddrInfoW(result)
+	addrs = make([]IP, 0, 5)
+	for ; result != nil; result = result.Next {
+		addr := unsafe.Pointer(result.Addr)
+		switch result.Family {
+		case syscall.AF_INET:
+			a := (*syscall.RawSockaddrInet4)(addr).Addr
+			addrs = append(addrs, IPv4(a[0], a[1], a[2], a[3]))
+		case syscall.AF_INET6:
+			a := (*syscall.RawSockaddrInet6)(addr).Addr
+			addrs = append(addrs, IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]})
+		default:
+			return nil, os.NewSyscallError("LookupIP", syscall.EWINDOWS)
+		}
 	}
 	return addrs, nil
 }

@@ -924,3 +924,20 @@ const (
 	REG_DWORD = REG_DWORD_LITTLE_ENDIAN
 	REG_QWORD = REG_QWORD_LITTLE_ENDIAN
 )
+
+type AddrinfoW struct {
+	Flags     int32
+	Family    int32
+	Socktype  int32
+	Protocol  int32
+	Addrlen   uintptr
+	Canonname *uint16
+	Addr      uintptr
+	Next      *AddrinfoW
+}
+
+const (
+	AI_PASSIVE     = 1
+	AI_CANONNAME   = 2
+	AI_NUMERICHOST = 4
+)

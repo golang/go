@@ -132,6 +132,8 @@ var (
 	procgetprotobyname                   = modws2_32.NewProc("getprotobyname")
 	procDnsQuery_W                       = moddnsapi.NewProc("DnsQuery_W")
 	procDnsRecordListFree                = moddnsapi.NewProc("DnsRecordListFree")
+	procGetAddrInfoW                     = modws2_32.NewProc("GetAddrInfoW")
+	procFreeAddrInfoW                    = modws2_32.NewProc("FreeAddrInfoW")
 	procGetIfEntry                       = modiphlpapi.NewProc("GetIfEntry")
 	procGetAdaptersInfo                  = modiphlpapi.NewProc("GetAdaptersInfo")
 	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
@@ -1534,6 +1536,19 @@ func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSR
 
 func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
 	Syscall(procDnsRecordListFree.Addr(), 2, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
+	return
+}
+
+func GetAddrInfoW(nodename *uint16, servicename *uint16, hints *AddrinfoW, result **AddrinfoW) (sockerr error) {
+	r0, _, _ := Syscall6(procGetAddrInfoW.Addr(), 4, uintptr(unsafe.Pointer(nodename)), uintptr(unsafe.Pointer(servicename)), uintptr(unsafe.Pointer(hints)), uintptr(unsafe.Pointer(result)), 0, 0)
+	if r0 != 0 {
+		sockerr = Errno(r0)
+	}
+	return
+}
+
+func FreeAddrInfoW(addrinfo *AddrinfoW) {
+	Syscall(procFreeAddrInfoW.Addr(), 1, uintptr(unsafe.Pointer(addrinfo)), 0, 0)
 	return
 }
 

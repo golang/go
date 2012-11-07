@@ -29,13 +29,16 @@ var initErr error
 
 var canCancelIO bool // determines if CancelIoEx API is present
 
-func init() {
+func sysInit() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != nil {
 		initErr = os.NewSyscallError("WSAStartup", e)
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
+	if syscall.LoadGetAddrInfo() == nil {
+		lookupIP = newLookupIP
+	}
 }
 
 func closesocket(s syscall.Handle) error {
