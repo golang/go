@@ -443,7 +443,7 @@ reswitch:
 		ok |= Etype;
 		n->op = OTYPE;
 		n->type = tostruct(n->list);
-		if(n->type == T)
+		if(n->type == T || n->type->broke)
 			goto error;
 		n->list = nil;
 		break;
