@@ -1257,8 +1257,19 @@ func haveIdenticalUnderlyingType(T, V *commonType) bool {
 		for i := range t.fields {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
-			if tf.name != vf.name || tf.pkgPath != vf.pkgPath ||
-				tf.typ != vf.typ || tf.tag != vf.tag || tf.offset != vf.offset {
+			if tf.name != vf.name && (tf.name == nil || vf.name == nil || *tf.name != *vf.name) {
+				return false
+			}
+			if tf.pkgPath != vf.pkgPath && (tf.pkgPath == nil || vf.pkgPath == nil || *tf.pkgPath != *vf.pkgPath) {
+				return false
+			}
+			if tf.typ != vf.typ {
+				return false
+			}
+			if tf.tag != vf.tag && (tf.tag == nil || vf.tag == nil || *tf.tag != *vf.tag) {
+				return false
+			}
+			if tf.offset != vf.offset {
 				return false
 			}
 		}
