@@ -247,6 +247,16 @@ regopt(Prog *firstp)
 			}
 		}
 
+		// Addressing makes some registers used.
+		if(p->from.type >= D_INDIR)
+			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);
+		if(p->from.index != D_NONE)
+			r->use1.b[0] |= RtoB(p->from.index);
+		if(p->to.type >= D_INDIR)
+			r->use2.b[0] |= RtoB(p->to.type-D_INDIR);
+		if(p->to.index != D_NONE)
+			r->use2.b[0] |= RtoB(p->to.index);
+
 		bit = mkvar(r, &p->from);
 		if(bany(&bit))
 		switch(p->as) {
