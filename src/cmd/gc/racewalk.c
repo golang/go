@@ -21,9 +21,12 @@
 
 static void racewalklist(NodeList *l, NodeList **init);
 static void racewalknode(Node **np, NodeList **init, int wr, int skip);
-static int callinstr(Node *n, NodeList **init, int wr, int skip);
+static int callinstr(Node **n, NodeList **init, int wr, int skip);
 static Node* uintptraddr(Node *n);
 static Node* basenod(Node *n);
+static void foreach(Node *n, void(*f)(Node*, void*), void *c);
+static void hascallspred(Node *n, void *c);
+static Node* detachexpr(Node *n, NodeList **init);
 
 static const char *omitPkgs[] = {"runtime", "runtime/race", "sync", "sync/atomic"};
 
@@ -196,18 +199,18 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case ODOT:
-		callinstr(n, init, wr, skip);
 		racewalknode(&n->left, init, 0, 1);
+		callinstr(&n, init, wr, skip);
 		goto ret;
 
 	case ODOTPTR: // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
-		callinstr(n, init, wr, skip);
 		racewalknode(&n->left, init, 0, 0);
+		callinstr(&n, init, wr, skip);
 		goto ret;
 
 	case OIND: // *p
-		callinstr(n, init, wr, skip);
 		racewalknode(&n->left, init, 0, 0);
+		callinstr(&n, init, wr, skip);
 		goto ret;
 
 	case OLEN:
@@ -223,7 +226,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 			n1 = nod(OIND, n1, N);
 			n1 = nod(OIND, n1, N);
 			typecheck(&n1, Erv);
-			callinstr(n1, init, 0, skip);
+			callinstr(&n1, init, 0, skip);
 			*/
 		}
 		goto ret;
@@ -257,7 +260,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case ONAME:
-		callinstr(n, init, wr, skip);
+		callinstr(&n, init, wr, skip);
 		goto ret;
 
 	case OCONV:
@@ -276,11 +279,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OINDEX:
-		if(n->left->type->etype != TSTRING)
-			callinstr(n, init, wr, skip);
 		if(!isfixedarray(n->left->type))
 			racewalknode(&n->left, init, 0, 0);
 		racewalknode(&n->right, init, 0, 0);
+		if(n->left->type->etype != TSTRING)
+			callinstr(&n, init, wr, skip);
 		goto ret;
 
 	case OSLICE:
@@ -376,12 +379,13 @@ ret:
 }
 
 static int
-callinstr(Node *n, NodeList **init, int wr, int skip)
+callinstr(Node **np, NodeList **init, int wr, int skip)
 {
-	Node *f, *b;
+	Node *f, *b, *n;
 	Type *t, *t1;
-	int class, res;
+	int class, res, hascalls;
 
+	n = *np;
 	//print("callinstr for %N [ %s ] etype=%d class=%d\n",
 	//	  n, opnames[n->op], n->type ? n->type->etype : -1, n->class);
 
@@ -402,11 +406,17 @@ callinstr(Node *n, NodeList **init, int wr, int skip)
 	}
 	if(t->etype == TSTRUCT) {
 		res = 0;
+		hascalls = 0;
+		foreach(n, hascallspred, &hascalls);
+		if(hascalls) {
+			n = detachexpr(n, init);
+			*np = n;
+		}
 		for(t1=t->type; t1; t1=t1->down) {
 			if(t1->sym && strcmp(t1->sym->name, "_")) {
 				n = treecopy(n);
 				f = nod(OXDOT, n, newname(t1->sym));
-				if(callinstr(f, init, wr, 0)) {
+				if(callinstr(&f, init, wr, 0)) {
 					typecheck(&f, Erv);
 					res = 1;
 				}
@@ -423,6 +433,12 @@ callinstr(Node *n, NodeList **init, int wr, int skip)
 	// the heap or not is impossible to know at compile time
 	if((class&PHEAP) || class == PPARAMREF || class == PEXTERN
 		|| b->type->etype == TARRAY || b->op == ODOTPTR || b->op == OIND || b->op == OXDOT) {
+		hascalls = 0;
+		foreach(n, hascallspred, &hascalls);
+		if(hascalls) {
+			n = detachexpr(n, init);
+			*np = n;
+		}
 		n = treecopy(n);
 		f = mkcall(wr ? "racewrite" : "raceread", T, nil, uintptraddr(n));
 		//typecheck(&f, Etop);
@@ -458,4 +474,61 @@ basenod(Node *n)
 		break;
 	}
 	return n;
+}
+
+static Node*
+detachexpr(Node *n, NodeList **init)
+{
+	Node *addr, *as, *ind, *l;
+
+	addr = nod(OADDR, n, N);
+	l = temp(ptrto(n->type));
+	as = nod(OAS, l, addr);
+	typecheck(&as, Etop);
+	walkexpr(&as, init);
+	*init = list(*init, as);
+	ind = nod(OIND, l, N);
+	typecheck(&ind, Erv);
+	walkexpr(&ind, init);
+	return ind;
+}
+
+static void
+foreachnode(Node *n, void(*f)(Node*, void*), void *c)
+{
+	if(n)
+		f(n, c);
+}
+
+static void
+foreachlist(NodeList *l, void(*f)(Node*, void*), void *c)
+{
+	for(; l; l = l->next)
+		foreachnode(l->n, f, c);
+}
+
+static void
+foreach(Node *n, void(*f)(Node*, void*), void *c)
+{
+	foreachlist(n->ninit, f, c);
+	foreachnode(n->left, f, c);
+	foreachnode(n->right, f, c);
+	foreachlist(n->list, f, c);
+	foreachnode(n->ntest, f, c);
+	foreachnode(n->nincr, f, c);
+	foreachlist(n->nbody, f, c);
+	foreachlist(n->nelse, f, c);
+	foreachlist(n->rlist, f, c);
+}
+
+static void
+hascallspred(Node *n, void *c)
+{
+	switch(n->op) {
+	case OCALL:
+	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+		(*(int*)c)++;
+	}
 }
