@@ -163,6 +163,8 @@ redeclare(Sym *s, char *where)
 			s, where, s->lastlineno);
 }
 
+static int vargen;
+
 /*
  * declare individual names - var, typ, const
  */
@@ -171,7 +173,7 @@ declare(Node *n, int ctxt)
 {
 	Sym *s;
 	int gen;
-	static int typegen, vargen;
+	static int typegen;
 	
 	if(ctxt == PDISCARD)
 		return;
@@ -198,7 +200,7 @@ declare(Node *n, int ctxt)
 			curfn->dcl = list(curfn->dcl, n);
 		if(n->op == OTYPE)
 			gen = ++typegen;
-		else if(n->op == ONAME)
+		else if(n->op == ONAME && ctxt == PAUTO && strstr(s->name, "·") == nil)
 			gen = ++vargen;
 		pushdcl(s);
 		n->curfn = curfn;
@@ -522,7 +524,7 @@ ifacedcl(Node *n)
 	if(n->op != ODCLFIELD || n->right == N)
 		fatal("ifacedcl");
 
-	dclcontext = PAUTO;
+	dclcontext = PPARAM;
 	markdcl();
 	funcdepth++;
 	n->outer = curfn;
@@ -533,6 +535,7 @@ ifacedcl(Node *n)
 	// seen the body of a function but since an interface
 	// field declaration does not have a body, we must
 	// call it now to pop the current declaration context.
+	dclcontext = PAUTO;
 	funcbody(n);
 }
 
@@ -574,6 +577,11 @@ funcargs(Node *nt)
 	if(nt->op != OTFUNC)
 		fatal("funcargs %O", nt->op);
 
+	// re-start the variable generation number
+	// we want to use small numbers for the return variables,
+	// so let them have the chunk starting at 1.
+	vargen = count(nt->rlist);
+
 	// declare the receiver and in arguments.
 	// no n->defn because type checking of func header
 	// will not fill in the types until later
@@ -585,6 +593,8 @@ funcargs(Node *nt)
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
 			declare(n->left, PPARAM);
+			if(dclcontext == PAUTO)
+				n->left->vargen = ++vargen;
 		}
 	}
 	for(l=nt->list; l; l=l->next) {
@@ -595,6 +605,8 @@ funcargs(Node *nt)
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
 			declare(n->left, PPARAM);
+			if(dclcontext == PAUTO)
+				n->left->vargen = ++vargen;
 		}
 	}
 
@@ -630,7 +642,8 @@ funcargs(Node *nt)
 
 		n->left->ntype = n->right;
 		declare(n->left, PPARAMOUT);
-		n->left->vargen = i++;
+		if(dclcontext == PAUTO)
+			n->left->vargen = ++i;
 	}
 }
 

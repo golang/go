@@ -997,14 +997,14 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	e->pdepth++;
 
 	// Input parameter flowing to output parameter?
-	if(dst->op == ONAME && dst->class == PPARAMOUT && dst->vargen < 20) {
+	if(dst->op == ONAME && dst->class == PPARAMOUT && dst->vargen <= 20) {
 		if(src->op == ONAME && src->class == PPARAM && level == 0 && src->curfn == dst->curfn) {
 			if(src->esc != EscScope && src->esc != EscHeap) {
 				if(debug['m'])
 					warnl(src->lineno, "leaking param: %hN to result %S", src, dst->sym);
 				if((src->esc&EscMask) != EscReturn)
 					src->esc = EscReturn;
-				src->esc |= 1<<(dst->vargen + EscBits);
+				src->esc |= 1<<((dst->vargen-1) + EscBits);
 			}
 			goto recurse;
 		}

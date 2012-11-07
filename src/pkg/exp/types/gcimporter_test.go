@@ -122,7 +122,7 @@ var importedObjectTests = []struct {
 	{"math.Pi", ast.Con, "untyped float"},
 	{"io.Reader", ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
-	{"math.Sin", ast.Fun, "func(x float64) (_ float64)"},
+	{"math.Sin", ast.Fun, "func(x·2 float64) (_ float64)"},
 	// TODO(gri) add more tests
 }
 
