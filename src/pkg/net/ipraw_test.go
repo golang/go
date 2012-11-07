@@ -21,7 +21,7 @@ var icmpTests = []struct {
 	ipv6  bool // test with underlying AF_INET6 socket
 }{
 	{"ip4:icmp", "", "127.0.0.1", false},
-	{"ip6:icmp", "", "::1", true},
+	{"ip6:ipv6-icmp", "", "::1", true},
 }
 
 func TestICMP(t *testing.T) {
