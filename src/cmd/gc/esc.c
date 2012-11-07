@@ -1005,8 +1005,8 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 				if((src->esc&EscMask) != EscReturn)
 					src->esc = EscReturn;
 				src->esc |= 1<<((dst->vargen-1) + EscBits);
+				goto recurse;
 			}
-			goto recurse;
 		}
 	}
 
@@ -1014,7 +1014,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 
 	switch(src->op) {
 	case ONAME:
-		if(src->class == PPARAM && leaks && src->esc == EscNone) {
+		if(src->class == PPARAM && leaks && src->esc != EscHeap) {
 			src->esc = EscScope;
 			if(debug['m'])
 				warnl(src->lineno, "leaking param: %hN", src);
