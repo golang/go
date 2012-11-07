@@ -236,6 +236,14 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 			return nil, FormatError("missing 0xff marker start")
 		}
 		marker := d.tmp[1]
+		for marker == 0xff {
+			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
+			// number of fill bytes, which are bytes assigned code X'FF'".
+			marker, err = d.r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+		}
 		if marker == eoiMarker { // End Of Image.
 			break
 		}
