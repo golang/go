@@ -15,7 +15,6 @@
 #include <u.h>
 #include <libc.h>
 #include "go.h"
-#include "opnames.h"
 
 // TODO(dvyukov): do not instrument initialization as writes:
 // a := make([]int, 10)
@@ -88,16 +87,19 @@ static void
 racewalknode(Node **np, NodeList **init, int wr, int skip)
 {
 	Node *n, *n1;
+	NodeList *l;
 	NodeList *fini;
 
 	n = *np;
 
 	if(n == N)
 		return;
-	if(0)
-		print("op=%s, left=[ %N ], right=[ %N ], right's type=%T, n's type=%T, n's class=%d\n",
-			opnames[n->op], n->left, n->right, n->right ? n->right->type : nil, n->type, n->class);
+
+	if(debug['w'] > 1)
+		dump("racewalk-before", n);
 	setlineno(n);
+	if(init == nil || init == &n->ninit)
+		fatal("racewalk: bad init list");
 
 	racewalklist(n->ninit, nil);
 
@@ -146,16 +148,9 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		goto ret;
 
 	case OFOR:
-		if(n->ntest != N)
-			racewalklist(n->ntest->ninit, nil);
-		racewalknode(&n->nincr, init, wr, 0);
-		racewalklist(n->nbody, nil);
 		goto ret;
 
 	case OIF:
-		racewalknode(&n->ntest, &n->ninit, wr, 0);
-		racewalklist(n->nbody, nil);
-		racewalklist(n->nelse, nil);
 		goto ret;
 
 	case OPROC:
@@ -164,34 +159,25 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case OCALLINTER:
 		racewalknode(&n->left, init, 0, 0);
-		racewalklist(n->list, init);
 		goto ret;
 
 	case OCALLFUNC:
 		racewalknode(&n->left, init, 0, 0);
-		racewalklist(n->list, init);
 		goto ret;
 
 	case OCALLMETH:
-		racewalklist(n->list, init);
 		goto ret;
 
 	case ORETURN:
-		racewalklist(n->list, nil);
 		goto ret;
 
 	case OSELECT:
-		// n->nlist is nil by now because this code
-		// is running after walkselect
-		racewalklist(n->nbody, nil);
 		goto ret;
 
 	case OSWITCH:
 		if(n->ntest->op == OTYPESW)
 			// TODO(dvyukov): the expression can contain calls or reads.
 			return;
-		racewalknode(&n->ntest, &n->ninit, 0, 0);
-		racewalklist(n->nbody, nil);
 		goto ret;
 
 	case OEMPTY:
@@ -301,7 +287,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OSLICEARR:
 		// Seems to only lead to double instrumentation.
 		//racewalknode(&n->left, init, 0, 0);
-		//racewalklist(n->list, init);
 		goto ret;
 
 	case OADDR:
@@ -375,6 +360,18 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	}
 
 ret:
+	if(n->op != OBLOCK)  // OBLOCK is handled above in a special way.
+		racewalklist(n->list, init);
+	l = nil;
+	racewalknode(&n->ntest, &l, 0, 0);
+	n->ninit = concat(n->ninit, l);
+	l = nil;
+	racewalknode(&n->nincr, &l, 0, 0);
+	n->ninit = concat(n->ninit, l);
+	racewalklist(n->nbody, nil);
+	racewalklist(n->nelse, nil);
+	racewalklist(n->rlist, nil);
+
 	*np = n;
 }
 
