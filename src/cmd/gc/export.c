@@ -273,13 +273,13 @@ dumpexporttype(Type *t)
 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
 	for(i=0; i<n; i++) {
 		f = m[i];
+		if(f->nointerface)
+			Bprint(bout, "\t//go:nointerface\n");
 		if (f->type->nname && f->type->nname->inl) { // nname was set by caninl
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if(debug['l'] < 2)
 				typecheckinl(f->type->nname);
-			if(f->nointerface)
-				Bprint(bout, "\t//go:nointerface\n");
 			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
 			reexportdeplist(f->type->nname->inl);
 		} else
