@@ -219,6 +219,8 @@ warnl(int line, char *fmt, ...)
 	va_start(arg, fmt);
 	adderr(line, fmt, arg);
 	va_end(arg);
+	if(debug['m'])
+		flusherrors();
 }
 
 void
