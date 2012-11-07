@@ -508,6 +508,8 @@ const socket_error = uintptr(^uint32(0))
 //sys	GetProtoByName(name string) (p *Protoent, err error) [failretval==nil] = ws2_32.getprotobyname
 //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status error) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
+//sys	GetAddrInfoW(nodename *uint16, servicename *uint16, hints *AddrinfoW, result **AddrinfoW) (sockerr error) = ws2_32.GetAddrInfoW
+//sys	FreeAddrInfoW(addrinfo *AddrinfoW) = ws2_32.FreeAddrInfoW
 //sys	GetIfEntry(pIfRow *MibIfRow) (errcode error) = iphlpapi.GetIfEntry
 //sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) = iphlpapi.GetAdaptersInfo
 
@@ -520,6 +522,14 @@ type RawSockaddrInet4 struct {
 	Port   uint16
 	Addr   [4]byte /* in_addr */
 	Zero   [8]uint8
+}
+
+type RawSockaddrInet6 struct {
+	Family   uint16
+	Port     uint16
+	Flowinfo uint32
+	Addr     [16]byte /* in6_addr */
+	Scope_id uint32
 }
 
 type RawSockaddr struct {
@@ -560,11 +570,22 @@ type SockaddrInet6 struct {
 	Port   int
 	ZoneId uint32
 	Addr   [16]byte
+	raw    RawSockaddrInet6
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, int32, error) {
-	// TODO(brainman): implement SockaddrInet6.sockaddr()
-	return 0, 0, EWINDOWS
+	if sa.Port < 0 || sa.Port > 0xFFFF {
+		return 0, 0, EINVAL
+	}
+	sa.raw.Family = AF_INET6
+	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	sa.raw.Scope_id = sa.ZoneId
+	for i := 0; i < len(sa.Addr); i++ {
+		sa.raw.Addr[i] = sa.Addr[i]
+	}
+	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
 type SockaddrUnix struct {
@@ -592,7 +613,15 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 		return sa, nil
 
 	case AF_INET6:
-		return nil, EWINDOWS
+		pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa))
+		sa := new(SockaddrInet6)
+		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+		sa.Port = int(p[0])<<8 + int(p[1])
+		sa.ZoneId = pp.Scope_id
+		for i := 0; i < len(sa.Addr); i++ {
+			sa.Addr[i] = pp.Addr[i]
+		}
+		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
 }
@@ -657,6 +686,10 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 		return err
 	}
 	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
+}
+
+func LoadGetAddrInfo() error {
+	return procGetAddrInfoW.Find()
 }
 
 // Invented structures to support what package os expects.

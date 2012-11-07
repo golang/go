@@ -116,7 +116,12 @@ func TestDialGoogleIPv6(t *testing.T) {
 		return
 	}
 	// Only run tcp6 if the kernel will take it.
-	if !*testIPv6 || !supportsIPv6 {
+	if !supportsIPv6 {
+		t.Logf("skipping test; ipv6 is not supported")
+		return
+	}
+	if !*testIPv6 {
+		t.Logf("test disabled; use -ipv6 to enable")
 		return
 	}
 

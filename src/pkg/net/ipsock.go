@@ -6,7 +6,12 @@
 
 package net
 
-var supportsIPv6, supportsIPv4map = probeIPv6Stack()
+var supportsIPv6, supportsIPv4map bool
+
+func init() {
+	sysInit()
+	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+}
 
 func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
 	if filter == nil {
