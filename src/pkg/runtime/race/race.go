@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build race,linux,amd64 race,darwin,amd64
+// +build race,linux,amd64 race,darwin,amd64 race,windows,amd64
 
 // Package race provides low-level facilities for data race detection.
 package race

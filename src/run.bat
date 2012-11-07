@@ -52,6 +52,15 @@ go test sync -short -timeout=120s -cpu=10
 if errorlevel 1 goto fail
 echo.
 
+if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+echo # Testing race detector.
+go test -race -i flag
+if errorlevel 1 goto fail
+go test -race -short flag
+if errorlevel 1 goto fail
+echo.
+:norace
+
 echo # ..\misc\dashboard\builder ..\misc\goplay
 go build ..\misc\dashboard\builder ..\misc\goplay
 if errorlevel 1 goto fail
