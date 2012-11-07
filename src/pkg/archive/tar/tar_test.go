@@ -5,7 +5,10 @@
 package tar
 
 import (
+	"bytes"
+	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -54,3 +57,43 @@ func (symlink) Mode() os.FileMode  { return os.ModeSymlink }
 func (symlink) ModTime() time.Time { return time.Time{} }
 func (symlink) IsDir() bool        { return false }
 func (symlink) Sys() interface{}   { return nil }
+
+func TestRoundTrip(t *testing.T) {
+	data := []byte("some file contents")
+
+	var b bytes.Buffer
+	tw := NewWriter(&b)
+	hdr := &Header{
+		Name:    "file.txt",
+		Size:    int64(len(data)),
+		ModTime: time.Now(),
+	}
+	// tar only supports second precision.
+	hdr.ModTime = hdr.ModTime.Add(-time.Duration(hdr.ModTime.Nanosecond()) * time.Nanosecond)
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("tw.WriteHeader: %v", err)
+	}
+	if _, err := tw.Write(data); err != nil {
+		t.Fatalf("tw.Write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tw.Close: %v", err)
+	}
+
+	// Read it back.
+	tr := NewReader(&b)
+	rHdr, err := tr.Next()
+	if err != nil {
+		t.Fatalf("tr.Next: %v", err)
+	}
+	if !reflect.DeepEqual(rHdr, hdr) {
+		t.Errorf("Header mismatch.\n got %+v\nwant %+v", rHdr, hdr)
+	}
+	rData, err := ioutil.ReadAll(tr)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !bytes.Equal(rData, data) {
+		t.Errorf("Data mismatch.\n got %q\nwant %q", rData, data)
+	}
+}
