@@ -45,6 +45,10 @@ racewalk(Node *fn)
 		}
 	}
 
+	racewalklist(fn->nbody, nil);
+	// nothing interesting for race detector in fn->enter
+	racewalklist(fn->exit, nil);
+
 	// nodpc is the PC of the caller as extracted by
 	// getcallerpc. We use -widthptr(FP) for x86.
 	// BUG: this will not work on arm.
@@ -56,15 +60,14 @@ racewalk(Node *fn)
 	fn->enter = concat(list1(nd), fn->enter);
 	nd = mkcall("racefuncexit", T, nil);
 	fn->exit = list(fn->exit, nd);
-	racewalklist(curfn->nbody, nil);
 
 	if(debug['W']) {
-		snprint(s, sizeof(s), "after racewalk %S", curfn->nname->sym);
-		dumplist(s, curfn->nbody);
-		snprint(s, sizeof(s), "after walk %S", curfn->nname->sym);
-		dumplist(s, curfn->nbody);
-		snprint(s, sizeof(s), "enter %S", curfn->nname->sym);
-		dumplist(s, curfn->enter);
+		snprint(s, sizeof(s), "after racewalk %S", fn->nname->sym);
+		dumplist(s, fn->nbody);
+		snprint(s, sizeof(s), "enter %S", fn->nname->sym);
+		dumplist(s, fn->enter);
+		snprint(s, sizeof(s), "exit %S", fn->nname->sym);
+		dumplist(s, fn->exit);
 	}
 }
 
@@ -311,8 +314,9 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	// does not require instrumentation
 	case OINDEXMAP:  // implemented in runtime
-	case OPRINT:  // don't bother instrumenting it
-	case OPRINTN:  // don't bother instrumenting it
+	case OPRINT:     // don't bother instrumenting it
+	case OPRINTN:    // don't bother instrumenting it
+	case OPARAM:     // it appears only in fn->exit to copy heap params back
 		goto ret;
 
 	// unimplemented
