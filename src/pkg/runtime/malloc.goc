@@ -434,6 +434,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		runtime·SysMap(p, n);
 		h->arena_used += n;
 		runtime·MHeap_MapBits(h);
+		if(raceenabled)
+			runtime·racemapshadow(p, n);
 		return p;
 	}
 	
@@ -460,6 +462,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		if(h->arena_used > h->arena_end)
 			h->arena_end = h->arena_used;
 		runtime·MHeap_MapBits(h);
+		if(raceenabled)
+			runtime·racemapshadow(p, n);
 	}
 	
 	return p;

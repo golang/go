@@ -17,6 +17,14 @@ runtime·racefini(void)
 {
 }
 
+
+void
+runtime·racemapshadow(void *addr, uintptr size)
+{
+	USED(addr);
+	USED(size);
+}
+
 void
 runtime·racewritepc(void *addr, void *pc)
 {
