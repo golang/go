@@ -130,6 +130,10 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 // netProto, which must be "ip", "ip4", or "ip6" followed by a colon
 // and a protocol number or name.
 func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+	return dialIP(netProto, laddr, raddr, noDeadline)
+}
+
+func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
 	return nil, syscall.EPLAN9
 }
 

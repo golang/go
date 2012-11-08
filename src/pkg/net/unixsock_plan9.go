@@ -139,6 +139,10 @@ func (c *UnixConn) CloseWrite() error {
 // which must be "unix" or "unixgram".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+	return dialUnix(net, laddr, raddr, noDeadline)
+}
+
+func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }
 

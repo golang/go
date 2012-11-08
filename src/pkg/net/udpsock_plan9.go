@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"syscall"
+	"time"
 )
 
 // UDPConn is the implementation of the Conn and PacketConn
@@ -122,6 +123,13 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
+	return dialUDP(net, laddr, raddr, noDeadline)
+}
+
+func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (c *UDPConn, err error) {
+	if !deadline.IsZero() {
+		panic("net.dialUDP: deadline not implemented on Plan 9")
+	}
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:

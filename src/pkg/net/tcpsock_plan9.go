@@ -6,7 +6,10 @@
 
 package net
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
 // TCPConn is an implementation of the Conn interface for TCP network
 // connections.
@@ -36,6 +39,13 @@ func (c *TCPConn) CloseWrite() error {
 // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+	return dialTCP(net, laddr, raddr, noDeadline)
+}
+
+func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (c *TCPConn, err error) {
+	if !deadline.IsZero() {
+		panic("net.dialTCP: deadline not implemented on Plan 9")
+	}
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:

@@ -7,6 +7,8 @@ package net
 import (
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"runtime"
 	"testing"
@@ -221,4 +223,80 @@ func TestDialError(t *testing.T) {
 			t.Errorf("#%d: %q, duplicate error return from Dial", i, s)
 		}
 	}
+}
+
+func TestDialTimeoutFDLeak(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		// TODO(bradfitz): test on other platforms
+		t.Logf("skipping test on %s", runtime.GOOS)
+		return
+	}
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	type connErr struct {
+		conn Conn
+		err  error
+	}
+	dials := listenerBacklog + 100
+	maxGoodConnect := listenerBacklog + 5 // empirically 131 good ones (of 128). who knows?
+	resc := make(chan connErr)
+	for i := 0; i < dials; i++ {
+		go func() {
+			conn, err := DialTimeout("tcp", ln.Addr().String(), 500*time.Millisecond)
+			resc <- connErr{conn, err}
+		}()
+	}
+
+	var firstErr string
+	var ngood int
+	var toClose []io.Closer
+	for i := 0; i < dials; i++ {
+		ce := <-resc
+		if ce.err == nil {
+			ngood++
+			if ngood > maxGoodConnect {
+				t.Errorf("%d good connects; expected at most %d", ngood, maxGoodConnect)
+			}
+			toClose = append(toClose, ce.conn)
+			continue
+		}
+		err := ce.err
+		if firstErr == "" {
+			firstErr = err.Error()
+		} else if err.Error() != firstErr {
+			t.Fatalf("inconsistent error messages: first was %q, then later %q", firstErr, err)
+		}
+	}
+	for _, c := range toClose {
+		c.Close()
+	}
+	for i := 0; i < 100; i++ {
+		if got := numFD(); got < dials {
+			// Test passes.
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := numFD(); got >= dials {
+		t.Errorf("num fds after %d timeouts = %d; want <%d", dials, got, dials)
+	}
+}
+
+func numFD() int {
+	if runtime.GOOS == "linux" {
+		f, err := os.Open("/proc/self/fd")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		names, err := f.Readdirnames(0)
+		if err != nil {
+			panic(err)
+		}
+		return len(names)
+	}
+	// All tests using this should be skipped anyway, but:
+	panic("numFDs not implemented on " + runtime.GOOS)
 }

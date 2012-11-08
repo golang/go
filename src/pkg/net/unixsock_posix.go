@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err error) {
+func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.Time) (fd *netFD, err error) {
 	var sotype int
 	switch net {
 	default:
@@ -59,7 +59,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		f = sockaddrToUnixpacket
 	}
 
-	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, f)
+	fd, err = socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, deadline, f)
 	if err != nil {
 		goto Error
 	}
@@ -229,7 +229,11 @@ func (c *UnixConn) CloseWrite() error {
 // which must be "unix" or "unixgram".  If laddr is not nil, it is used
 // as the local address for the connection.
 func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
-	fd, err := unixSocket(net, laddr, raddr, "dial")
+	return dialUnix(net, laddr, raddr, noDeadline)
+}
+
+func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +257,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	if laddr != nil {
 		laddr = &UnixAddr{laddr.Name, net} // make our own copy
 	}
-	fd, err := unixSocket(net, laddr, nil, "listen")
+	fd, err := unixSocket(net, laddr, nil, "listen", noDeadline)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +348,7 @@ func ListenUnixgram(net string, laddr *UnixAddr) (*UDPConn, error) {
 	if laddr == nil {
 		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
-	fd, err := unixSocket(net, laddr, nil, "listen")
+	fd, err := unixSocket(net, laddr, nil, "listen", noDeadline)
 	if err != nil {
 		return nil, err
 	}

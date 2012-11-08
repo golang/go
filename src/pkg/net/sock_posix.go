@@ -11,12 +11,13 @@ package net
 import (
 	"io"
 	"syscall"
+	"time"
 )
 
 var listenerBacklog = maxListenerBacklog()
 
 // Generic socket creation.
-func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	// See ../syscall/exec_unix.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, err := syscall.Socket(f, t, p)
@@ -50,12 +51,16 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 	}
 
 	if ursa != nil {
+		if !deadline.IsZero() {
+			fd.wdeadline = deadline.UnixNano()
+		}
 		if err = fd.connect(ursa); err != nil {
 			closesocket(s)
 			fd.Close()
 			return nil, err
 		}
 		fd.isConnected = true
+		fd.wdeadline = 0
 	}
 
 	lsa, _ := syscall.Getsockname(s)

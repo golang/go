@@ -162,7 +162,7 @@ func (s *pollServer) CheckDeadlines() {
 	// TODO(rsc): This will need to be handled more efficiently,
 	// probably with a heap indexed by wakeup time.
 
-	var next_deadline int64
+	var nextDeadline int64
 	for key, fd := range s.pending {
 		var t int64
 		var mode int
@@ -187,12 +187,12 @@ func (s *pollServer) CheckDeadlines() {
 					fd.wdeadline = -1
 				}
 				s.WakeFD(fd, mode, nil)
-			} else if next_deadline == 0 || t < next_deadline {
-				next_deadline = t
+			} else if nextDeadline == 0 || t < nextDeadline {
+				nextDeadline = t
 			}
 		}
 	}
-	s.deadline = next_deadline
+	s.deadline = nextDeadline
 }
 
 func (s *pollServer) Run() {
@@ -332,9 +332,13 @@ func (fd *netFD) name() string {
 
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	err := syscall.Connect(fd.sysfd, ra)
+	hadTimeout := fd.wdeadline > 0
 	if err == syscall.EINPROGRESS {
 		if err = fd.pollServer.WaitWrite(fd); err != nil {
 			return err
+		}
+		if hadTimeout && fd.wdeadline < 0 {
+			return errTimeout
 		}
 		var e int
 		e, err = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
