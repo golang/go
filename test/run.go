@@ -676,10 +676,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 }
 
 var skipOkay = map[string]bool{
-	"args.go":                 true,
-	"index.go":                true,
 	"linkx.go":                true,
-	"nul1.go":                 true,
 	"rotate.go":               true,
 	"sigchld.go":              true,
 	"sinit.go":                true,
