@@ -161,3 +161,9 @@ func (common) OnBothTandBVal()  {}
 type EmbedSelector struct {
 	time.Time
 }
+
+const (
+	foo          = "foo"
+	foo2  string = "foo2"
+	truth        = foo == "foo" || foo2 == "foo2"
+)
