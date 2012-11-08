@@ -86,6 +86,8 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 			runtime·racereadpc(x.array + i*t->elem->size, pc);
 		for(i=x.len; i<x.cap; i++)
 			runtime·racewritepc(x.array + i*t->elem->size, pc);
+		for(i=0; i<y.len; i++)
+			runtime·racereadpc(y.array + i*t->elem->size, pc);
 	}
 
 	if(m > x.cap)
