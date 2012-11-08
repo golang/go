@@ -1,10 +1,4 @@
-// [ "$GORUN" == "" ] || exit 0  # Android runner gets confused by the NUL output 
-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
-// errchk $G -e tmp.go
-// rm -f tmp.go
-
-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
-// To run this test you must use the ./run shell script.
+// errorcheckoutput
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
