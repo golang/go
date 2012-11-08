@@ -65,6 +65,7 @@ func TestRoundTrip(t *testing.T) {
 	tw := NewWriter(&b)
 	hdr := &Header{
 		Name:    "file.txt",
+		Uid:     1 << 21, // too big for 8 octal digits
 		Size:    int64(len(data)),
 		ModTime: time.Now(),
 	}

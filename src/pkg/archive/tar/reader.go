@@ -72,6 +72,18 @@ func cString(b []byte) string {
 }
 
 func (tr *Reader) octal(b []byte) int64 {
+	// Check for binary format first.
+	if len(b) > 0 && b[0]&0x80 != 0 {
+		var x int64
+		for i, c := range b {
+			if i == 0 {
+				c &= 0x7f // ignore signal bit in first byte
+			}
+			x = x<<8 | int64(c)
+		}
+		return x
+	}
+
 	// Removing leading spaces.
 	for len(b) > 0 && b[0] == ' ' {
 		b = b[1:]
