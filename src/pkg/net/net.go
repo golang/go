@@ -204,6 +204,8 @@ func (e *OpError) Temporary() bool {
 	return ok && t.Temporary()
 }
 
+var noDeadline = time.Time{}
+
 type timeout interface {
 	Timeout() bool
 }

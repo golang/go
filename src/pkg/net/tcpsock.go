@@ -6,6 +6,8 @@
 
 package net
 
+import "time"
+
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
 	IP   IP
@@ -28,7 +30,11 @@ func (a *TCPAddr) String() string {
 // "tcp4" or "tcp6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
 func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
-	ip, port, err := hostPortToIP(net, addr)
+	return resolveTCPAddr(net, addr, noDeadline)
+}
+
+func resolveTCPAddr(net, addr string, deadline time.Time) (*TCPAddr, error) {
+	ip, port, err := hostPortToIP(net, addr, deadline)
 	if err != nil {
 		return nil, err
 	}

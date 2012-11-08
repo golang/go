@@ -10,6 +10,7 @@ package net
 
 import (
 	"syscall"
+	"time"
 )
 
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
@@ -163,6 +164,10 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 // DialIP connects to the remote address raddr on the network protocol netProto,
 // which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
 func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+	return dialIP(netProto, laddr, raddr, noDeadline)
+}
+
+func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
 	net, proto, err := parseDialNetwork(netProto)
 	if err != nil {
 		return nil, err
@@ -175,7 +180,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +201,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
 	if err != nil {
 		return nil, err
 	}
