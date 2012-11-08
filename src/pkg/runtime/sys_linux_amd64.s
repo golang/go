@@ -104,7 +104,7 @@ TEXT runtime·mincore(SB),7,$0-24
 TEXT time·now(SB), 7, $32
 	LEAQ	8(SP), DI
 	MOVQ	$0, SI
-	MOVQ	$0xffffffffff600000, AX
+	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
 	CALL	AX
 	MOVQ	8(SP), AX	// sec
 	MOVL	16(SP), DX	// usec
