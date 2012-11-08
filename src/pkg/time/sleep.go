@@ -36,6 +36,8 @@ type Timer struct {
 // Stop prevents the Timer from firing.
 // It returns true if the call stops the timer, false if the timer has already
 // expired or stopped.
+// Stop does not close the channel, to prevent a read from the channel succeeding
+// incorrectly.
 func (t *Timer) Stop() (ok bool) {
 	return stopTimer(&t.r)
 }
