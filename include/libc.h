@@ -85,16 +85,12 @@ extern	char*	p9getenv(char*);
 extern	int	p9putenv(char*, char*);
 extern	int	getfields(char*, char**, int, int, char*);
 extern	int	gettokens(char *, char **, int, char *);
-extern	char*	getuser(void);
 extern	char*	p9getwd(char*, int);
 extern	void	p9longjmp(p9jmp_buf, int);
-extern	char*	mktemp(char*);
-extern	int		opentemp(char*);
 extern	void	p9notejmp(void*, p9jmp_buf, int);
 extern	void	perror(const char*);
 extern	int	postnote(int, int, char *);
 extern	double	p9pow10(int);
-extern	char*	searchpath(char*);
 extern	char*	p9ctime(long);
 #define p9setjmp(b)	sigsetjmp((void*)(b), 1)
 
