@@ -152,6 +152,7 @@ reexportdep(Node *n)
 	case OCONVIFACE:
 	case OCONVNOP:
 	case ODOTTYPE:
+	case ODOTTYPE2:
 	case OSTRUCTLIT:
 	case OPTRLIT:
 		t = n->type;
