@@ -828,6 +828,10 @@ reswitch:
 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
 				} else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
+				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0) {
+					why = isfixedarray(t) ? "array" : "slice";
+					yyerror("invalid %s index %N (index too large)", why, n->right);
+				}
 			}
 			break;
 
@@ -947,6 +951,8 @@ reswitch:
 					yyerror("invalid slice index %N (index must be non-negative)", n->right->left);
 				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound)
 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->left, tp->bound);
+				else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0)
+					yyerror("invalid slice index %N (index too large)", n->right->left);
 			}
 		}
 		if(n->right->right != N) {
@@ -961,6 +967,8 @@ reswitch:
 					yyerror("invalid slice index %N (index must be non-negative)", n->right->right);
 				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound)
 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->right, tp->bound);
+				else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0)
+					yyerror("invalid slice index %N (index too large)", n->right->right);
 			}
 		}
 		goto ret;
