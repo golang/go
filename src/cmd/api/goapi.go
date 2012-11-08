@@ -331,20 +331,6 @@ const (
 	loaded
 )
 
-// hardCodedConstantType is a hack until the type checker is sufficient for our needs.
-// Rather than litter the code with unnecessary type annotations, we'll hard-code
-// the cases we can't handle yet.
-func (w *Walker) hardCodedConstantType(name string) (typ string, ok bool) {
-	switch w.scope[0] {
-	case "pkg syscall":
-		switch name {
-		case "darwinAMD64":
-			return "bool", true
-		}
-	}
-	return "", false
-}
-
 func (w *Walker) Features() (fs []string) {
 	for f := range w.features {
 		fs = append(fs, f)
@@ -596,6 +582,10 @@ func (w *Walker) constValueType(vi interface{}) (string, error) {
 		}
 		return constDepPrefix + v.Name, nil
 	case *ast.BinaryExpr:
+		switch v.Op {
+		case token.EQL, token.LSS, token.GTR, token.NOT, token.NEQ, token.LEQ, token.GEQ:
+			return "bool", nil
+		}
 		left, err := w.constValueType(v.X)
 		if err != nil {
 			return "", err
@@ -768,12 +758,7 @@ func (w *Walker) walkConst(vs *ast.ValueSpec) {
 				var err error
 				litType, err = w.constValueType(vs.Values[0])
 				if err != nil {
-					if t, ok := w.hardCodedConstantType(ident.Name); ok {
-						litType = t
-						err = nil
-					} else {
-						log.Fatalf("unknown kind in const %q (%T): %v", ident.Name, vs.Values[0], err)
-					}
+					log.Fatalf("unknown kind in const %q (%T): %v", ident.Name, vs.Values[0], err)
 				}
 			}
 		}
