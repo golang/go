@@ -38,7 +38,7 @@ import (
 //	threadcreate - stack traces that led to the creation of new OS threads
 //	block        - stack traces that led to blocking on synchronization primitives
 //
-// These predefine profiles maintain themselves and panic on an explicit
+// These predefined profiles maintain themselves and panic on an explicit
 // Add or Remove method call.
 //
 // The CPU profile is not available as a Profile.  It has a special API,
