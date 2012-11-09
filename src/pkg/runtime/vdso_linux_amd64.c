@@ -161,11 +161,13 @@ static version_key linux26 = { (byte*)"LINUX_2.6", 0x3ae75f6 };
 // initialize with vsyscall fallbacks
 void* runtime·__vdso_time_sym = (void*)0xffffffffff600400ULL;
 void* runtime·__vdso_gettimeofday_sym = (void*)0xffffffffff600000ULL;
+void* runtime·__vdso_clock_gettime_sym = (void*)0;
 
-#define SYM_KEYS_COUNT 2
+#define SYM_KEYS_COUNT 3
 static symbol_key sym_keys[] = {
 	{ (byte*)"__vdso_time", &runtime·__vdso_time_sym },
 	{ (byte*)"__vdso_gettimeofday", &runtime·__vdso_gettimeofday_sym },
+	{ (byte*)"__vdso_clock_gettime", &runtime·__vdso_clock_gettime_sym },
 };
 
 static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr) {
