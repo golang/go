@@ -430,7 +430,7 @@ func matchPackages(pattern string) []string {
 			return filepath.SkipDir
 		}
 
-		_, err = build.ImportDir(path, 0)
+		_, err = buildContext.ImportDir(path, 0)
 		if err != nil {
 			return nil
 		}
@@ -471,7 +471,7 @@ func matchPackages(pattern string) []string {
 			}
 			have[name] = true
 
-			_, err = build.ImportDir(path, 0)
+			_, err = buildContext.ImportDir(path, 0)
 			if err != nil && strings.Contains(err.Error(), "no Go source files") {
 				return nil
 			}
