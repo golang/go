@@ -102,31 +102,37 @@ TEXT runtime·mincore(SB),7,$0-24
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
+	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+	CMPQ	AX, $0
+	JEQ	fallback_gtod
+	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	8(SP), SI
+	CALL	AX
+	MOVQ	8(SP), AX	// sec
+	MOVQ	16(SP), DX	// nsec
+	MOVQ	AX, sec+0(FP)
+	MOVL	DX, nsec+8(FP)
+	RET
+fallback_gtod:
 	LEAQ	8(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
 	CALL	AX
 	MOVQ	8(SP), AX	// sec
 	MOVL	16(SP), DX	// usec
-
-	// sec is in AX, usec in DX
-	MOVQ	AX, sec+0(FP)
 	IMULQ	$1000, DX
+	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 
 TEXT runtime·nanotime(SB), 7, $32
-	LEAQ	8(SP), DI
-	MOVQ	$0, SI
-	MOVQ	$0xffffffffff600000, AX
-	CALL	AX
-	MOVQ	8(SP), AX	// sec
-	MOVL	16(SP), DX	// usec
+	CALL	time·now(SB)
+	MOVQ	0(SP), AX	// sec
+	MOVL	8(SP), DX	// nsec
 
 	// sec is in AX, usec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
-	IMULQ	$1000, DX
 	ADDQ	DX, AX
 	RET
 
