@@ -33,7 +33,13 @@
 static void
 _cgo_allocate_internal(uintptr len, byte *ret)
 {
+	CgoMal *c;
+
 	ret = runtime·mal(len);
+	c = runtime·mal(sizeof(*c));
+	c->next = m->cgomal;
+	c->alloc = ret;
+	m->cgomal = c;
 	FLUSH(&ret);
 }
 
