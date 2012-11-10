@@ -81,6 +81,7 @@ typedef struct	GCStats		GCStats;
 typedef struct	LFNode		LFNode;
 typedef struct	ParFor		ParFor;
 typedef struct	ParForThread	ParForThread;
+typedef struct	CgoMal		CgoMal;
 
 /*
  * Per-CPU declaration.
@@ -249,7 +250,9 @@ struct	M
 	int32	profilehz;
 	int32	helpgc;
 	uint32	fastrand;
-	uint64	ncgocall;
+	uint64	ncgocall;	// number of cgo calls in total
+	int32	ncgo;		// number of cgo calls currently in progress
+	CgoMal*	cgomal;
 	Note	havenextg;
 	G*	nextg;
 	M*	alllink;	// on allm
@@ -412,6 +415,14 @@ struct ParFor
 	uint64 nprocyield;
 	uint64 nosyield;
 	uint64 nsleep;
+};
+
+// Track memory allocated by code not written in Go during a cgo call,
+// so that the garbage collector can see them.
+struct CgoMal
+{
+	CgoMal	*next;
+	byte	*alloc;
 };
 
 /*

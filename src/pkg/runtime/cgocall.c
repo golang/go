@@ -135,6 +135,8 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		g->defer = &d;
 	}
 
+	m->ncgo++;
+
 	/*
 	 * Announce we are entering a system call
 	 * so that the scheduler knows to create another
@@ -149,6 +151,14 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	runtime·entersyscall();
 	runtime·asmcgocall(fn, arg);
 	runtime·exitsyscall();
+
+	m->ncgo--;
+	if(m->ncgo == 0) {
+		// We are going back to Go and are not in a recursive
+		// call.  Let the GC collect any memory allocated via
+		// _cgo_allocate that is no longer referenced.
+		m->cgomal = nil;
+	}
 
 	if(d.nofree) {
 		if(g->defer != &d || d.fn != (byte*)unlockm)
