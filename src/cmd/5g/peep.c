@@ -49,7 +49,6 @@ peep(void)
 	int t;
 
 	p1 = nil;
-	USED(p1);		// ... in unreachable code...
 /*
  * complete R structure
  */
@@ -120,7 +119,7 @@ loop1:
 			}
 			break;
 
-#ifdef	NOTDEF
+#ifdef NOTDEF
 			if(p->scond == C_SCOND_NONE)
 			if(regtyp(&p->to))
 			if(isdconst(&p->from)) {
@@ -175,22 +174,21 @@ loop1:
 			break;
 		}
 	}
-#ifdef	NOTDEF
 
-//	for(r=firstr; r!=R; r=r->link) {
-//		p = r->prog;
-//		switch(p->as) {
-//		case AMOVW:
-//		case AMOVB:
-//		case AMOVBU:
-//			if(p->from.type == D_OREG && p->from.offset == 0)
-//				xtramodes(r, &p->from);
-//			else
-//			if(p->to.type == D_OREG && p->to.offset == 0)
-//				xtramodes(r, &p->to);
-//			else
-//				continue;
-//			break;
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		switch(p->as) {
+		case AMOVW:
+		case AMOVB:
+		case AMOVBU:
+			if(p->from.type == D_OREG && p->from.offset == 0)
+				xtramodes(r, &p->from);
+			else
+			if(p->to.type == D_OREG && p->to.offset == 0)
+				xtramodes(r, &p->to);
+			else
+				continue;
+			break;
 //		case ACMP:
 //			/*
 //			 * elide CMP $0,x if calculation of x can set condition codes
@@ -258,13 +256,17 @@ loop1:
 //			r2->prog->as = t;
 //			excise(r);
 //			continue;
-//		}
-//	}
+		}
+	}
 
-	predicate();
-#endif
+//	predicate();
 }
 
+/*
+ * uniqp returns a "unique" predecessor to instruction r.
+ * If the instruction is the first one or has multiple
+ * predecessors due to jump, R is returned.
+ */
 Reg*
 uniqp(Reg *r)
 {
@@ -737,6 +739,11 @@ shiftprop(Reg *r)
 	return 1;
 }
 
+/*
+ * findpre returns the last instruction mentioning v
+ * before r. It must be a set, and there must be
+ * a unique path from that instruction to r.
+ */
 Reg*
 findpre(Reg *r, Adr *v)
 {
@@ -757,6 +764,10 @@ findpre(Reg *r, Adr *v)
 	return R;
 }
 
+/*
+ * findinc finds ADD instructions with a constant
+ * argument which falls within the immed_12 range.
+ */
 Reg*
 findinc(Reg *r, Reg *r2, Adr *v)
 {
@@ -847,6 +858,19 @@ finduse(Reg *r, Adr *v)
 	return findu1(r, v);
 }
 
+/*
+ * xtramodes enables the ARM post increment and
+ * shift offset addressing modes to transform
+ *   MOVW   0(R3),R1
+ *   ADD    $4,R3,R3
+ * into
+ *   MOVW.P 4(R3),R1
+ * and 
+ *   ADD    R0,R1
+ *   MOVBU  0(R1),R0
+ * into 
+ *   MOVBU  R0<<0(R1),R0
+ */
 int
 xtramodes(Reg *r, Adr *a)
 {
@@ -855,8 +879,6 @@ xtramodes(Reg *r, Adr *a)
 	Adr v;
 
 	p = r->prog;
-	if(debug['h'] && p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
-		return 0;
 	v = *a;
 	v.type = D_REG;
 	r1 = findpre(r, &v);
@@ -865,6 +887,9 @@ xtramodes(Reg *r, Adr *a)
 		if(p1->to.type == D_REG && p1->to.reg == v.reg)
 		switch(p1->as) {
 		case AADD:
+			if(p1->scond & C_SBIT)
+				// avoid altering ADD.S/ADC sequences.
+				break;
 			if(p1->from.type == D_REG ||
 			   (p1->from.type == D_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
 			    (p->as != AMOVB || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
