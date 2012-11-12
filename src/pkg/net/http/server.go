@@ -579,13 +579,27 @@ func (c *conn) close() {
 	}
 }
 
-// closeWrite flushes any outstanding data and sends a FIN packet (if client
-// is connected via TCP), signalling that we're done.
-func (c *conn) closeWrite() {
+// rstAvoidanceDelay is the amount of time we sleep after closing the
+// write side of a TCP connection before closing the entire socket.
+// By sleeping, we increase the chances that the client sees our FIN
+// and processes its final data before they process the subsequent RST
+// from closing a connection with known unread data.
+// This RST seems to occur mostly on BSD systems. (And Windows?)
+// This timeout is somewhat arbitrary (~latency around the planet).
+const rstAvoidanceDelay = 500 * time.Millisecond
+
+// closeWrite flushes any outstanding data and sends a FIN packet (if
+// client is connected via TCP), signalling that we're done.  We then
+// pause for a bit, hoping the client processes it before `any
+// subsequent RST.
+//
+// See http://golang.org/issue/3595
+func (c *conn) closeWriteAndWait() {
 	c.finalFlush()
 	if tcp, ok := c.rwc.(*net.TCPConn); ok {
 		tcp.CloseWrite()
 	}
+	time.Sleep(rstAvoidanceDelay)
 }
 
 // Serve a new connection.
@@ -618,20 +632,21 @@ func (c *conn) serve() {
 	for {
 		w, err := c.readRequest()
 		if err != nil {
-			msg := "400 Bad Request"
 			if err == errTooLarge {
 				// Their HTTP client may or may not be
 				// able to read this if we're
 				// responding to them and hanging up
 				// while they're still writing their
 				// request.  Undefined behavior.
-				msg = "413 Request Entity Too Large"
+				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\n\r\n")
+				c.closeWriteAndWait()
+				break
 			} else if err == io.EOF {
 				break // Don't reply
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				break // Don't reply
 			}
-			fmt.Fprintf(c.rwc, "HTTP/1.1 %s\r\n\r\n", msg)
+			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\n\r\n")
 			break
 		}
 
@@ -685,18 +700,7 @@ func (c *conn) serve() {
 		w.finishRequest()
 		if w.closeAfterReply {
 			if w.requestBodyLimitHit {
-				// Flush our response and send a FIN packet and wait a bit
-				// before closing the connection, so the client has a chance
-				// to read our response before they possibly get a RST from
-				// our TCP stack from ignoring their unread body.
-				// See http://golang.org/issue/3595
-				c.closeWrite()
-				// Now wait a bit for our machine to send the FIN and the client's
-				// machine's HTTP client to read the request before we close
-				// the connection, which might send a RST (on BSDs, at least).
-				// 250ms is somewhat arbitrary (~latency around half the planet),
-				// but this doesn't need to be a full second probably.
-				time.Sleep(250 * time.Millisecond)
+				c.closeWriteAndWait()
 			}
 			break
 		}
