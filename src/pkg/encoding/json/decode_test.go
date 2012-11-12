@@ -953,3 +953,50 @@ func TestInterfaceSet(t *testing.T) {
 		}
 	}
 }
+
+// JSON null values should be ignored for primitives and string values instead of resulting in an error.
+// Issue 2540
+func TestUnmarshalNulls(t *testing.T) {
+	jsonData := []byte(`{
+		"Bool"    : null, 
+		"Int"     : null, 
+		"Int8"    : null,
+		"Int16"   : null,
+		"Int32"   : null,
+		"Int64"   : null,
+		"Uint"    : null,
+		"Uint8"   : null,
+		"Uint16"  : null,
+		"Uint32"  : null,
+		"Uint64"  : null,
+		"Float32" : null,
+		"Float64" : null,
+		"String"  : null}`)
+
+	nulls := All{
+		Bool:    true,
+		Int:     2,
+		Int8:    3,
+		Int16:   4,
+		Int32:   5,
+		Int64:   6,
+		Uint:    7,
+		Uint8:   8,
+		Uint16:  9,
+		Uint32:  10,
+		Uint64:  11,
+		Float32: 12.1,
+		Float64: 13.1,
+		String:  "14"}
+
+	err := Unmarshal(jsonData, &nulls)
+	if err != nil {
+		t.Errorf("Unmarshal of null values failed: %v", err)
+	}
+	if !nulls.Bool || nulls.Int != 2 || nulls.Int8 != 3 || nulls.Int16 != 4 || nulls.Int32 != 5 || nulls.Int64 != 6 ||
+		nulls.Uint != 7 || nulls.Uint8 != 8 || nulls.Uint16 != 9 || nulls.Uint32 != 10 || nulls.Uint64 != 11 ||
+		nulls.Float32 != 12.1 || nulls.Float64 != 13.1 || nulls.String != "14" {
+
+		t.Errorf("Unmarshal of null values affected primitives")
+	}
+}
