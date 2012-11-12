@@ -617,12 +617,10 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	switch c := item[0]; c {
 	case 'n': // null
 		switch v.Kind() {
-		default:
-			d.saveError(&UnmarshalTypeError{"null", v.Type()})
 		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
 			v.Set(reflect.Zero(v.Type()))
+			// otherwise, ignore null for primitives/string
 		}
-
 	case 't', 'f': // true, false
 		value := c == 't'
 		switch v.Kind() {
