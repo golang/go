@@ -279,12 +279,12 @@ func ChainAssertArrayIndex(u *UArr) J {
 		Children[0].(*UArr).
 		Children[0].(*UArr).
 		Children[0].(*UArr).
-		// Children[0].(*UArr).
-		// Children[0].(*UArr).
-		// Children[0].(*UArr).
-		// Children[0].(*UArr).
-		// Children[0].(*UArr).
-		// Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
+		Children[0].(*UArr).
 		Children[0]
 }
 
@@ -295,21 +295,20 @@ type UArrPtr struct {
 func (u *UArrPtr) Child(n int) J { return u.Children[n] }
 
 func ChainAssertArrayptrIndex(u *UArrPtr) J {
-	// TODO: don't crash on longer chains.
 	return u.
 		Children[0].(*UArrPtr).
 		Children[0].(*UArrPtr).
 		Children[0].(*UArrPtr).
 		Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
-		// Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
+		Children[0].(*UArrPtr).
 		Children[0]
 }
 

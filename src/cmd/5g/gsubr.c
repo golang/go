@@ -361,6 +361,7 @@ regalloc(Node *n, Type *t, Node *o)
 				regpc[i] = (uintptr)getcallerpc(&n);
 				goto out;
 			}
+		print("registers allocated at\n");
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
 			print("%d %p\n", i, regpc[i]);
 		yyerror("out of fixed registers");
