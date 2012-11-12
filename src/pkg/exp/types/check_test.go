@@ -37,12 +37,6 @@ import (
 
 var listErrors = flag.Bool("list", false, "list errors")
 
-func init() {
-	// declare builtins for testing
-	def(ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
-	def(ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
-}
-
 // The test filenames do not end in .go so that they are invisible
 // to gofmt since they contain comments that must not change their
 // positions relative to surrounding tokens.
@@ -241,6 +235,12 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 }
 
 func TestCheck(t *testing.T) {
+	// Declare builtins for testing.
+	// Not done in an init func to avoid an init race with
+	// the construction of the Universe var.
+	def(ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
+	def(ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
+
 	// For easy debugging w/o changing the testing code,
 	// if there is a local test file, only test that file.
 	const testfile = "testdata/test.go"
