@@ -79,6 +79,7 @@ void	allocparams(void);
 void	checklabels();
 void	ginscall(Node*, int);
 int	gen_as_init(Node*);
+void	clearslim(Node*);
 
 /*
  * cgen.c

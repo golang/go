@@ -1458,6 +1458,8 @@ cadable(Node *n)
 /*
  * copy a composite value by moving its individual components.
  * Slices, strings and interfaces are supported.
+ * Small structs or arrays with elements of basic type are
+ * also supported.
  * nr is N when assigning a zero value.
  * return 1 if can do, 0 if cant.
  */
@@ -1465,7 +1467,10 @@ int
 componentgen(Node *nr, Node *nl)
 {
 	Node nodl, nodr;
+	Type *t;
 	int freel, freer;
+	vlong fldcount;
+	vlong loffset, roffset;
 
 	freel = 0;
 	freer = 0;
@@ -1475,8 +1480,33 @@ componentgen(Node *nr, Node *nl)
 		goto no;
 
 	case TARRAY:
-		if(!isslice(nl->type))
+		t = nl->type;
+
+		// Slices are ok.
+		if(isslice(t))
+			break;
+		// Small arrays are ok.
+		if(t->bound > 0 && t->bound <= 3 && !isfat(t->type))
+			break;
+
+		goto no;
+
+	case TSTRUCT:
+		// Small structs with non-fat types are ok.
+		// Zero-sized structs are treated separately elsewhere.
+		fldcount = 0;
+		for(t=nl->type->type; t; t=t->down) {
+			if(isfat(t->type))
+				goto no;
+			if(t->etype != TFIELD)
+				fatal("componentgen: not a TFIELD: %lT", t);
+			fldcount++;
+		}
+		if(fldcount == 0 || fldcount > 3)
 			goto no;
+
+		break;
+
 	case TSTRING:
 	case TINTER:
 		break;
@@ -1500,6 +1530,23 @@ componentgen(Node *nr, Node *nl)
 
 	switch(nl->type->etype) {
 	case TARRAY:
+		// componentgen for arrays.
+		t = nl->type;
+		if(!isslice(t)) {
+			nodl.type = t->type;
+			nodr.type = nodl.type;
+			for(fldcount=0; fldcount < t->bound; fldcount++) {
+				if(nr == N)
+					clearslim(&nodl);
+				else
+					gmove(&nodr, &nodl);
+				nodl.xoffset += t->type->width;
+				nodr.xoffset += t->type->width;
+			}
+			goto yes;
+		}
+
+		// componentgen for slices.
 		nodl.xoffset += Array_array;
 		nodl.type = ptrto(nl->type->type);
 
@@ -1576,6 +1623,23 @@ componentgen(Node *nr, Node *nl)
 			nodconst(&nodr, nodl.type, 0);
 		gmove(&nodr, &nodl);
 
+		goto yes;
+
+	case TSTRUCT:
+		loffset = nodl.xoffset;
+		roffset = nodr.xoffset;
+		for(t=nl->type->type; t; t=t->down) {
+			nodl.xoffset = loffset + t->width;
+			nodl.type = t->type;
+
+			if(nr == N)
+				clearslim(&nodl);
+			else {
+				nodr.xoffset = roffset + t->width;
+				nodr.type = nodl.type;
+				gmove(&nodr, &nodl);
+			}
+		}
 		goto yes;
 	}
 

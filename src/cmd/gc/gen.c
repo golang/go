@@ -633,6 +633,67 @@ cgen_discard(Node *nr)
 }
 
 /*
+ * clearslim generates code to zero a slim node.
+ */
+void
+clearslim(Node *n)
+{
+	Node z;
+	Mpflt zero;
+
+	memset(&z, 0, sizeof(z));
+	z.op = OLITERAL;
+	z.type = n->type;
+	z.addable = 1;
+
+	switch(simtype[n->type->etype]) {
+	case TCOMPLEX64:
+	case TCOMPLEX128:
+		z.val.u.cval = mal(sizeof(z.val.u.cval));
+		mpmovecflt(&z.val.u.cval->real, 0.0);
+		mpmovecflt(&z.val.u.cval->imag, 0.0);
+		break;
+
+	case TFLOAT32:
+	case TFLOAT64:
+		mpmovecflt(&zero, 0.0);
+		z.val.ctype = CTFLT;
+		z.val.u.fval = &zero;
+		break;
+
+	case TPTR32:
+	case TPTR64:
+	case TCHAN:
+	case TMAP:
+		z.val.ctype = CTNIL;
+		break;
+
+	case TBOOL:
+		z.val.ctype = CTBOOL;
+		break;
+
+	case TINT8:
+	case TINT16:
+	case TINT32:
+	case TINT64:
+	case TUINT8:
+	case TUINT16:
+	case TUINT32:
+	case TUINT64:
+		z.val.ctype = CTINT;
+		z.val.u.xval = mal(sizeof(z.val.u.xval));
+		mpmovecfix(z.val.u.xval, 0);
+		break;
+
+	default:
+		fatal("clearslim called on type %T", n->type);
+	}
+
+	ullmancalc(&z);
+	cgen(&z, n);
+}
+
+/*
  * generate assignment:
  *	nl = nr
  * nr == N means zero nl.
@@ -640,9 +701,7 @@ cgen_discard(Node *nr)
 void
 cgen_as(Node *nl, Node *nr)
 {
-	Node nc;
 	Type *tl;
-	int iszer;
 
 	if(debug['g']) {
 		dump("cgen_as", nl);
@@ -657,7 +716,6 @@ cgen_as(Node *nl, Node *nr)
 		return;
 	}
 
-	iszer = 0;
 	if(nr == N || isnil(nr)) {
 		// externals and heaps should already be clear
 		if(nr == N) {
@@ -672,59 +730,12 @@ cgen_as(Node *nl, Node *nr)
 			return;
 		if(isfat(tl)) {
 			clearfat(nl);
-			goto ret;
+			return;
 		}
-
-		/* invent a "zero" for the rhs */
-		iszer = 1;
-		nr = &nc;
-		memset(nr, 0, sizeof(*nr));
-		switch(simtype[tl->etype]) {
-		default:
-			fatal("cgen_as: tl %T", tl);
-			break;
-
-		case TINT8:
-		case TUINT8:
-		case TINT16:
-		case TUINT16:
-		case TINT32:
-		case TUINT32:
-		case TINT64:
-		case TUINT64:
-			nr->val.u.xval = mal(sizeof(*nr->val.u.xval));
-			mpmovecfix(nr->val.u.xval, 0);
-			nr->val.ctype = CTINT;
-			break;
-
-		case TFLOAT32:
-		case TFLOAT64:
-			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
-			mpmovecflt(nr->val.u.fval, 0.0);
-			nr->val.ctype = CTFLT;
-			break;
-
-		case TBOOL:
-			nr->val.u.bval = 0;
-			nr->val.ctype = CTBOOL;
-			break;
-
-		case TPTR32:
-		case TPTR64:
-			nr->val.ctype = CTNIL;
-			break;
-
-		case TCOMPLEX64:
-		case TCOMPLEX128:
-			nr->val.u.cval = mal(sizeof(*nr->val.u.cval));
-			mpmovecflt(&nr->val.u.cval->real, 0.0);
-			mpmovecflt(&nr->val.u.cval->imag, 0.0);
-			break;
-		}
-		nr->op = OLITERAL;
-		nr->type = tl;
-		nr->addable = 1;
-		ullmancalc(nr);
+		clearslim(nl);
+		if(nl->addable)
+			gused(nl);
+		return;
 	}
 
 	tl = nl->type;
@@ -732,11 +743,6 @@ cgen_as(Node *nl, Node *nr)
 		return;
 
 	cgen(nr, nl);
-	if(iszer && nl->addable)
-		gused(nl);
-
-ret:
-	;
 }
 
 /*
