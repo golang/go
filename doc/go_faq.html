@@ -1262,6 +1262,8 @@ each iteration of the loop uses the same instance of the variable <code>v</code>
 each closure shares that single variable. When the closure runs, it prints the 
 value of <code>v</code> at the time <code>fmt.Println</code> is executed,
 but <code>v</code> may have been modified since the goroutine was launched. 
+To help detect this and other problems before they happen, run
+<a href="http://golang.org/cmd/go/#Run_go_tool_vet_on_packages"><code>go vet</code></a>.
 </p>
 
 <p>
