@@ -576,6 +576,21 @@ agenr(Node *n, Node *a, Node *res)
 	nr = n->right;
 
 	switch(n->op) {
+	case ODOT:
+	case ODOTPTR:
+	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+		igen(n, &n1, res);
+		regalloc(a, types[tptr], &n1);
+		agen(&n1, a);
+		regfree(&n1);
+		break;
+
+	case OIND:
+		cgenr(n->left, a, res);
+		break;
+
 	case OINDEX:
 		freelen = 0;
 		w = n->type->width;
@@ -1309,7 +1324,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *ns, int64 w)
 {
-	Node nodl, nodr, oldl, oldr, cx, oldcx, tmp;
+	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
 	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
@@ -1353,22 +1368,18 @@ sgen(Node *n, Node *ns, int64 w)
 	}
 
 	if(n->ullman >= ns->ullman) {
-		savex(D_SI, &nodr, &oldr, N, types[tptr]);
-		agen(n, &nodr);
-
-		regalloc(&nodr, types[tptr], &nodr);	// mark nodr as live
-		savex(D_DI, &nodl, &oldl, N, types[tptr]);
-		agen(ns, &nodl);
-		regfree(&nodr);
+		agenr(n, &nodr, N);
+		agenr(ns, &nodl, N);
 	} else {
-		savex(D_DI, &nodl, &oldl, N, types[tptr]);
-		agen(ns, &nodl);
-
-		regalloc(&nodl, types[tptr], &nodl);	// mark nodl as live
-		savex(D_SI, &nodr, &oldr, N, types[tptr]);
-		agen(n, &nodr);
-		regfree(&nodl);
+		agenr(ns, &nodl, N);
+		agenr(n, &nodr, N);
 	}
+	nodreg(&noddi, types[tptr], D_DI);
+	nodreg(&nodsi, types[tptr], D_SI);
+	gmove(&nodl, &noddi);
+	gmove(&nodr, &nodsi);
+	regfree(&nodl);
+	regfree(&nodr);
 
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
@@ -1425,9 +1436,6 @@ sgen(Node *n, Node *ns, int64 w)
 		}
 	}
 
-
-	restx(&nodl, &oldl);
-	restx(&nodr, &oldr);
 	restx(&cx, &oldcx);
 }
 

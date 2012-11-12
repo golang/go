@@ -893,6 +893,21 @@ agenr(Node *n, Node *a, Node *res)
 	nr = n->right;
 
 	switch(n->op) {
+	case ODOT:
+	case ODOTPTR:
+	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+		igen(n, &n1, res);
+		regalloc(a, types[tptr], &n1);
+		agen(&n1, a);
+		regfree(&n1);
+		break;
+
+	case OIND:
+		cgenr(n->left, a, res);
+		break;
+
 	case OINDEX:
 		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
