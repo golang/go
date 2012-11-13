@@ -206,3 +206,33 @@ func parseICMPEchoReply(b []byte) (id, seqnum int) {
 	seqnum = int(b[6])<<8 | int(b[7])
 	return
 }
+
+var ipConnLocalNameTests = []struct {
+	net   string
+	laddr *IPAddr
+}{
+	{"ip4:icmp", &IPAddr{IP: IPv4(127, 0, 0, 1)}},
+	{"ip4:icmp", &IPAddr{}},
+	{"ip4:icmp", nil},
+}
+
+func TestIPConnLocalName(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Logf("skipping test; must be root")
+		return
+	}
+
+	for _, tt := range ipConnLocalNameTests {
+		c, err := ListenIP(tt.net, tt.laddr)
+		if err != nil {
+			t.Errorf("ListenIP failed: %v", err)
+			return
+		}
+		defer c.Close()
+		la := c.LocalAddr()
+		if la == nil {
+			t.Error("IPConn.LocalAddr failed")
+			return
+		}
+	}
+}
