@@ -175,7 +175,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 	switch net {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(netProto)
 	}
 	if raddr == nil {
 		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
@@ -199,7 +199,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	switch net {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(netProto)
 	}
 	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
 	if err != nil {

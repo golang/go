@@ -184,7 +184,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", net, nil, errMissingAddress}
+		laddr = &UDPAddr{}
 	}
 	l, err := listenPlan9(net, laddr)
 	if err != nil {

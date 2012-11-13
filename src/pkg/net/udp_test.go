@@ -87,3 +87,33 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
 		t.Fatal("Write should fail")
 	}
 }
+
+var udpConnLocalNameTests = []struct {
+	net   string
+	laddr *UDPAddr
+}{
+	{"udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)}},
+	{"udp4", &UDPAddr{}},
+	{"udp4", nil},
+}
+
+func TestUDPConnLocalName(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+
+	for _, tt := range udpConnLocalNameTests {
+		c, err := ListenUDP(tt.net, tt.laddr)
+		if err != nil {
+			t.Errorf("ListenUDP failed: %v", err)
+			return
+		}
+		defer c.Close()
+		la := c.LocalAddr()
+		if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
+			t.Errorf("got %v; expected a proper address with non-zero port number", la)
+			return
+		}
+	}
+}

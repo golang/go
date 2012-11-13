@@ -89,7 +89,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", net, nil, errMissingAddress}
+		laddr = &TCPAddr{}
 	}
 	l1, err := listenPlan9(net, laddr)
 	if err != nil {
