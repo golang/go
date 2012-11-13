@@ -40,6 +40,7 @@
 static	int	first	= 1;
 
 static	void	fixjmp(Prog*);
+static	void	fixtemp(Prog*);
 
 Reg*
 rega(void)
@@ -135,6 +136,7 @@ regopt(Prog *firstp)
 		first = 0;
 	}
 	
+	fixtemp(firstp);
 	fixjmp(firstp);
 
 	// count instructions
@@ -1690,5 +1692,124 @@ fixjmp(Prog *firstp)
 		for(p=firstp; p; p=p->link)
 			print("%P\n", p);
 		print("\n");
+	}
+}
+
+static uint32
+fnv1(Sym *sym)
+{
+	uint32 h;
+	char *s;
+
+	h = 2166136261U;
+	for(s=sym->name;*s;s++) {
+		h = (16777619 * h) ^ (uint32)(uint8)(*s);
+	}
+	return h;
+}
+
+static uint16
+hash32to16(uint32 h)
+{
+	return (h & 0xffff) ^ (h >> 16);
+}
+
+/*
+ * fixtemp eliminates sequences like:
+ *   MOV reg1, mem
+ *   OP mem, reg2
+ * when mem is a stack variable which is not mentioned
+ * anywhere else. The instructions are replaced by
+ *   OP reg1, reg2
+ * this reduces the number of variables that the register optimizer
+ * sees, which lets it do a better job and makes it less likely to turn
+ * itself off.
+ */
+void
+fixtemp(Prog *firstp)
+{
+	static uint8 counts[1<<16]; // A hash table to count variable occurences.
+	int i;
+	Prog *p, *p2;
+	uint32 h;
+
+	if(debug['R'] && debug['v'])
+		print("\nfixtemp\n");
+
+	// Count variable references. We actually use a hashtable so this
+	// is only approximate.
+	for(i=0; i<nelem(counts); i++)
+		counts[i] = 0;
+	for(p=firstp; p!=P; p=p->link) {
+		if(p->from.type == D_AUTO) {
+			h = hash32to16(fnv1(p->from.sym));
+			//print("seen %S hash %d\n", p->from.sym, hash32to16(h));
+			if(counts[h] < 10)
+				counts[h]++;
+		}
+		if(p->to.type == D_AUTO) {
+			h = hash32to16(fnv1(p->to.sym));
+			//print("seen %S hash %d\n", p->to.sym, hash32to16(h));
+			if(counts[h] < 10)
+				counts[h]++;
+		}
+	}
+
+	// Eliminate single-write, single-read stack variables.
+	for(p=firstp; p!=P; p=p->link) {
+		if(debug['R'] && debug['v'])
+			print("%P\n", p);
+		if(p->link == P
+			|| !RtoB(p->from.type)
+			|| p->to.type != D_AUTO
+			|| isfloat[p->to.etype])
+			continue;
+		switch(p->as) {
+		case AMOVB:
+			if(p->to.width == 1)
+				break;
+		case AMOVW:
+			if(p->to.width == 2)
+				break;
+		case AMOVL:
+			if(p->to.width == 4)
+				break;
+		default:
+			continue;
+		}
+		// p is a MOV reg, mem.
+		// and it is not a float.
+		p2 = p->link;
+		h = hash32to16(fnv1(p->to.sym));
+		if(counts[h] != 2) {
+			continue;
+		}
+		switch(p2->as) {
+		case ALEAL:
+		case AFMOVL: 
+		case AFMOVW:
+		case AFMOVV:
+			// funny
+			continue;
+		}
+		// p2 is OP mem, reg2
+		// and OP is not a funny instruction.
+		if(p2->from.sym == p->to.sym
+			&& p2->from.offset == p->to.offset
+			&& p2->from.type == p->to.type) {
+			if(debug['R'] && debug['v']) {
+				print(" ===elide== %D\n", &p->to);
+				print("%P", p2);
+			}
+			// p2 is OP mem, reg2.
+			// change to OP reg, reg2 and
+			// eliminate the mov.
+			p2->from = p->from;
+			*p = *p2;
+			p->link = p2->link;
+			if(debug['R'] && debug['v']) {
+				print(" ===change== %P\n", p);
+			}
+		}
 	}
 }
