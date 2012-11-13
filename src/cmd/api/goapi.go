@@ -290,10 +290,11 @@ type pkgSymbol struct {
 	symbol string // "RoundTripper"
 }
 
+var fset = token.NewFileSet()
+
 type Walker struct {
 	context         *build.Context
 	root            string
-	fset            *token.FileSet
 	scope           []string
 	features        map[string]bool // set
 	lastConstType   string
@@ -310,7 +311,6 @@ type Walker struct {
 
 func NewWalker() *Walker {
 	return &Walker{
-		fset:            token.NewFileSet(),
 		features:        make(map[string]bool),
 		packageState:    make(map[string]loadState),
 		interfaces:      make(map[pkgSymbol]*ast.InterfaceType),
@@ -386,7 +386,7 @@ func (w *Walker) WalkPackage(name string) {
 
 	files := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
 	for _, file := range files {
-		f, err := parser.ParseFile(w.fset, filepath.Join(dir, file), nil, 0)
+		f, err := parser.ParseFile(fset, filepath.Join(dir, file), nil, 0)
 		if err != nil {
 			log.Fatalf("error parsing package %s, file %s: %v", name, file, err)
 		}
@@ -521,7 +521,7 @@ func (w *Walker) walkFile(file *ast.File) {
 			// Ignore. Handled in subsequent pass, by go/doc.
 		default:
 			log.Printf("unhandled %T, %#v\n", di, di)
-			printer.Fprint(os.Stderr, w.fset, di)
+			printer.Fprint(os.Stderr, fset, di)
 			os.Stderr.Write([]byte("\n"))
 		}
 	}
@@ -835,7 +835,7 @@ func (w *Walker) nodeString(node interface{}) string {
 		return ""
 	}
 	var b bytes.Buffer
-	printer.Fprint(&b, w.fset, node)
+	printer.Fprint(&b, fset, node)
 	return b.String()
 }
 
@@ -844,7 +844,7 @@ func (w *Walker) nodeDebug(node interface{}) string {
 		return ""
 	}
 	var b bytes.Buffer
-	ast.Fprint(&b, w.fset, node, nil)
+	ast.Fprint(&b, fset, node, nil)
 	return b.String()
 }
 
