@@ -118,16 +118,29 @@ func TestSimpleMulticastListener(t *testing.T) {
 
 func checkMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
 	if !multicastRIBContains(t, gaddr.IP) {
-		t.Fatalf("%q not found in RIB", gaddr.String())
+		t.Errorf("%q not found in RIB", gaddr.String())
+		return
 	}
-	if c.LocalAddr().String() != gaddr.String() {
-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
+	la := c.LocalAddr()
+	if la == nil {
+		t.Error("LocalAddr failed")
+		return
+	}
+	if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
+		t.Errorf("got %v; expected a proper address with non-zero port number", la)
+		return
 	}
 }
 
 func checkSimpleMulticastListener(t *testing.T, err error, c *UDPConn, gaddr *UDPAddr) {
-	if c.LocalAddr().String() != gaddr.String() {
-		t.Fatalf("LocalAddr returns %q, expected %q", c.LocalAddr().String(), gaddr.String())
+	la := c.LocalAddr()
+	if la == nil {
+		t.Error("LocalAddr failed")
+		return
+	}
+	if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
+		t.Errorf("got %v; expected a proper address with non-zero port number", la)
+		return
 	}
 }
 
