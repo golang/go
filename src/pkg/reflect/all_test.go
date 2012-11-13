@@ -1694,6 +1694,20 @@ type S13 struct {
 	S8
 }
 
+// The X in S15.S11.S1 and S16.S11.S1 annihilate.
+type S14 struct {
+	S15
+	S16
+}
+
+type S15 struct {
+	S11
+}
+
+type S16 struct {
+	S11
+}
+
 var fieldTests = []FTest{
 	{struct{}{}, "", nil, 0},
 	{struct{}{}, "Foo", nil, 0},
@@ -1719,6 +1733,7 @@ var fieldTests = []FTest{
 	{S5{}, "Y", []int{2, 0, 1}, 0},
 	{S10{}, "X", nil, 0},
 	{S10{}, "Y", []int{2, 0, 0, 1}, 0},
+	{S14{}, "X", nil, 0},
 }
 
 func TestFieldByIndex(t *testing.T) {
