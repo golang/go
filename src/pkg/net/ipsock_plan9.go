@@ -8,10 +8,7 @@ package net
 
 import (
 	"errors"
-	"io"
 	"os"
-	"syscall"
-	"time"
 )
 
 // /sys/include/ape/sys/socket.h:/SOMAXCONN
@@ -22,11 +19,6 @@ var listenerBacklog = 5
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	return false, false
-}
-
-var canCancelIO = true // used for testing current package
-
-func sysInit() {
 }
 
 // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
@@ -76,120 +68,6 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	return addr, nil
 }
 
-type plan9Conn struct {
-	proto, name, dir string
-	ctl, data        *os.File
-	laddr, raddr     Addr
-}
-
-func newPlan9Conn(proto, name string, ctl *os.File, laddr, raddr Addr) *plan9Conn {
-	return &plan9Conn{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
-}
-
-func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
-
-// Implementation of the Conn interface - see Conn for documentation.
-
-// Read implements the Conn Read method.
-func (c *plan9Conn) Read(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
-	}
-	n, err = c.data.Read(b)
-	if c.proto == "udp" && err == io.EOF {
-		n = 0
-		err = nil
-	}
-	return
-}
-
-// Write implements the Conn Write method.
-func (c *plan9Conn) Write(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return c.data.Write(b)
-}
-
-// Close closes the connection.
-func (c *plan9Conn) Close() error {
-	if !c.ok() {
-		return syscall.EINVAL
-	}
-	err := c.ctl.Close()
-	if err != nil {
-		return err
-	}
-	if c.data != nil {
-		err = c.data.Close()
-	}
-	c.ctl = nil
-	c.data = nil
-	return err
-}
-
-// LocalAddr returns the local network address.
-func (c *plan9Conn) LocalAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.laddr
-}
-
-// RemoteAddr returns the remote network address.
-func (c *plan9Conn) RemoteAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.raddr
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *plan9Conn) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *plan9Conn) SetReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadBuffer sets the size of the operating system's receive
-// buffer associated with the connection.
-func (c *plan9Conn) SetReadBuffer(bytes int) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteBuffer sets the size of the operating system's transmit
-// buffer associated with the connection.
-func (c *plan9Conn) SetWriteBuffer(bytes int) error {
-	return syscall.EPLAN9
-}
-
-// File returns a copy of the underlying os.File, set to blocking
-// mode.  It is the caller's responsibility to close f when finished.
-// Closing c does not affect f, and closing f does not affect c.
-func (c *plan9Conn) File() (f *os.File, err error) {
-	return nil, syscall.EPLAN9
-}
-
 func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
 	var (
 		ip   IP
@@ -226,114 +104,72 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, 
 	return f, dest, proto, string(buf[:n]), nil
 }
 
-func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err error) {
+func dialPlan9(net string, laddr, raddr Addr) (*netFD, error) {
 	f, dest, proto, name, err := startPlan9(net, raddr)
 	if err != nil {
-		return
+		return nil, err
 	}
 	_, err = f.WriteString("connect " + dest)
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
 	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
-	return newPlan9Conn(proto, name, f, laddr, raddr), nil
+	return newFD(proto, name, f, laddr, raddr), nil
 }
 
-type plan9Listener struct {
-	proto, name, dir string
-	ctl              *os.File
-	laddr            Addr
-}
-
-func listenPlan9(net string, laddr Addr) (l *plan9Listener, err error) {
+func listenPlan9(net string, laddr Addr) (*netFD, error) {
 	f, dest, proto, name, err := startPlan9(net, laddr)
 	if err != nil {
-		return
+		return nil, err
 	}
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
-	l = new(plan9Listener)
-	l.proto = proto
-	l.name = name
-	l.dir = "/net/" + proto + "/" + name
-	l.ctl = f
-	l.laddr = laddr
-	return l, nil
+	return &netFD{proto: proto, name: name, dir: "/net/" + proto + "/" + name, ctl: f, laddr: laddr}, nil
 }
 
-func (l *plan9Listener) plan9Conn() *plan9Conn {
-	return newPlan9Conn(l.proto, l.name, l.ctl, l.laddr, nil)
+func (l *netFD) netFD() *netFD {
+	return newFD(l.proto, l.name, l.ctl, l.laddr, nil)
 }
 
-func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err error) {
+func (l *netFD) acceptPlan9() (*netFD, error) {
 	f, err := os.Open(l.dir + "/listen")
 	if err != nil {
-		return
+		return nil, err
 	}
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
 	name := string(buf[:n])
 	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
 	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
 	if err != nil {
 		f.Close()
-		return
+		return nil, err
 	}
-	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
-}
-
-func (l *plan9Listener) Accept() (c Conn, err error) {
-	c1, err := l.acceptPlan9()
-	if err != nil {
-		return
-	}
-	return c1, nil
-}
-
-func (l *plan9Listener) Close() error {
-	if l == nil || l.ctl == nil {
-		return syscall.EINVAL
-	}
-	return l.ctl.Close()
-}
-
-func (l *plan9Listener) Addr() Addr { return l.laddr }
-
-// SetDeadline sets the deadline associated with the listener.
-// A zero time value disables the deadline.
-func (l *plan9Listener) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// File returns a copy of the underlying os.File, set to blocking
-// mode.  It is the caller's responsibility to close f when finished.
-// Closing l does not affect f, and closing f does not affect l.
-func (l *plan9Listener) File() (f *os.File, err error) {
-	return nil, syscall.EPLAN9
+	return newFD(l.proto, name, f, laddr, raddr), nil
 }
