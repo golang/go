@@ -740,6 +740,12 @@ deadcode(void)
 
 	markflood();
 	
+	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+	for(s = allsym; s != S; s = s->allsym) {
+		if(strncmp(s->name, "go.typelink.", 12) == 0)
+			s->reachable = s->nr==1 && s->r[0].sym->reachable;
+	}
+
 	// remove dead text but keep file information (z symbols).
 	last = nil;
 	z = nil;
@@ -771,7 +777,7 @@ deadcode(void)
 			s->reachable = 1;
 			s->hide = 1;
 		}
-
+	
 	// record field tracking references
 	fmtstrinit(&fmt);
 	for(s = allsym; s != S; s = s->allsym) {

@@ -149,8 +149,8 @@ goobjfile.pretty_printers.extend([makematcher(k) for k in vars().values() if has
 
 #
 #  For reference, this is what we're trying to do:
-#  eface: p *(*(struct 'runtime.commonType'*)'main.e'->type_->data)->string
-#  iface: p *(*(struct 'runtime.commonType'*)'main.s'->tab->Type->data)->string
+#  eface: p *(*(struct 'runtime.rtype'*)'main.e'->type_->data)->string
+#  iface: p *(*(struct 'runtime.rtype'*)'main.s'->tab->Type->data)->string
 #
 # interface types can't be recognized by their name, instead we check
 # if they have the expected fields.  Unfortunately the mapping of
@@ -186,8 +186,7 @@ def lookup_type(name):
 	except:
 		pass
 
-_rctp_type = gdb.lookup_type("struct runtime.commonType").pointer()
-_rtp_type = gdb.lookup_type("struct runtime._type").pointer()
+_rctp_type = gdb.lookup_type("struct runtime.rtype").pointer()
 
 def iface_commontype(obj):
 	if is_iface(obj):
@@ -196,18 +195,13 @@ def iface_commontype(obj):
 		go_type_ptr = obj['_type']
 	else:
 		return
-
-	# sanity check: reflection type description ends in a loop.
-	tt = go_type_ptr['_type'].cast(_rtp_type).dereference()['_type']
-	if tt != tt.cast(_rtp_type).dereference()['_type']:
-		return
 	
-	return go_type_ptr['ptr'].cast(_rctp_type).dereference()
+	return go_type_ptr.cast(_rctp_type).dereference()
 	
 
 def iface_dtype(obj):
 	"Decode type of the data field of an eface or iface struct."
-	# known issue: dtype_name decoded from runtime.commonType is "nested.Foo"
+	# known issue: dtype_name decoded from runtime.rtype is "nested.Foo"
 	# but the dwarf table lists it as "full/path/to/nested.Foo"
 
 	dynamic_go_type = iface_commontype(obj)

@@ -5,13 +5,10 @@
 /*
  * Runtime type representation; master is type.go
  *
- * The *Types here correspond 1-1 to type.go's *Type's, but are
- * prefixed with an extra header of 2 pointers, corresponding to the
- * interface{} structure, which itself is called type Type again on
- * the Go side.
+ * The Type*s here correspond 1-1 to type.go's *rtype.
  */
 
-typedef struct CommonType CommonType;
+typedef struct Type Type;
 typedef struct UncommonType UncommonType;
 typedef struct InterfaceType InterfaceType;
 typedef struct Method Method;
@@ -21,7 +18,7 @@ typedef struct FuncType FuncType;
 typedef struct PtrType PtrType;
 
 // Needs to be in sync with typekind.h/CommonSize
-struct CommonType
+struct Type
 {
 	uintptr size;
 	uint32 hash;
@@ -52,13 +49,6 @@ struct UncommonType
 	String *pkgPath;
 	Slice mhdr;
 	Method m[];
-};
-
-struct Type
-{
-	void *type;	// interface{} value
-	void *ptr;
-	CommonType;
 };
 
 struct IMethod

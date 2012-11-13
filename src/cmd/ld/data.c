@@ -1079,7 +1079,7 @@ dodata(void)
 	sect->vaddr = 0;
 	datsize = 0;
 	s = datap;
-	for(; s != nil && s->type < SGCDATA; s = s->next) {
+	for(; s != nil && s->type < STYPELINK; s = s->next) {
 		if(s->align != 0)
 			datsize = rnd(datsize, s->align);
 		s->type = SRODATA;
@@ -1089,6 +1089,17 @@ dodata(void)
 	sect->len = datsize - sect->vaddr;
 	datsize = rnd(datsize, PtrSize);
 
+	/* type */
+	sect = addsection(&segtext, ".typelink", 04);
+	sect->vaddr = datsize;
+	for(; s != nil && s->type == STYPELINK; s = s->next) {
+		s->type = SRODATA;
+		s->value = datsize;
+		datsize += s->size;
+	}
+	sect->len = datsize - sect->vaddr;
+	datsize = rnd(datsize, PtrSize);
+	
 	/* gcdata */
 	sect = addsection(&segtext, ".gcdata", 04);
 	sect->vaddr = datsize;
@@ -1194,7 +1205,7 @@ void
 address(void)
 {
 	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
-	Section *gcdata, *gcbss;
+	Section *gcdata, *gcbss, *typelink;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -1241,7 +1252,8 @@ address(void)
 
 	text = segtext.sect;
 	rodata = text->next;
-	gcdata = rodata->next;
+	typelink = rodata->next;
+	gcdata = typelink->next;
 	gcbss = gcdata->next;
 	symtab = gcbss->next;
 	pclntab = symtab->next;
@@ -1260,6 +1272,8 @@ address(void)
 	xdefine("etext", STEXT, text->vaddr + text->len);
 	xdefine("rodata", SRODATA, rodata->vaddr);
 	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
+	xdefine("typelink", SRODATA, typelink->vaddr);
+	xdefine("etypelink", SRODATA, typelink->vaddr + typelink->len);
 	xdefine("gcdata", SGCDATA, gcdata->vaddr);
 	xdefine("egcdata", SGCDATA, gcdata->vaddr + gcdata->len);
 	xdefine("gcbss", SGCBSS, gcbss->vaddr);

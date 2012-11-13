@@ -686,16 +686,9 @@ reflect·unsafe_Typeof(Eface e, Eface ret)
 }
 
 void
-reflect·unsafe_New(Eface typ, void *ret)
+reflect·unsafe_New(Type *t, void *ret)
 {
-	Type *t;
 	uint32 flag;
-
-	// Reflect library has reinterpreted typ
-	// as its own kind of type structure.
-	// We know that the pointer to the original
-	// type structure sits before the data pointer.
-	t = (Type*)((Eface*)typ.data-1);
 
 	flag = t->kind&KindNoPointers ? FlagNoPointers : 0;
 	ret = runtime·mallocgc(t->size, flag, 1, 1);
@@ -711,16 +704,9 @@ reflect·unsafe_New(Eface typ, void *ret)
 }
 
 void
-reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
+reflect·unsafe_NewArray(Type *t, intgo n, void *ret)
 {
 	uint64 size;
-	Type *t;
-
-	// Reflect library has reinterpreted typ
-	// as its own kind of type structure.
-	// We know that the pointer to the original
-	// type structure sits before the data pointer.
-	t = (Type*)((Eface*)typ.data-1);
 
 	size = n*t->size;
 	if(size == 0)
@@ -738,5 +724,16 @@ reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
 		}
 	}
 
+	FLUSH(&ret);
+}
+
+void
+reflect·typelinks(Slice ret)
+{
+	extern Type *typelink[], *etypelink[];
+	static int32 first = 1;
+	ret.array = (byte*)typelink;
+	ret.len = etypelink - typelink;
+	ret.cap = ret.len;
 	FLUSH(&ret);
 }
