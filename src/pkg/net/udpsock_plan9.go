@@ -16,7 +16,7 @@ import (
 // UDPConn is the implementation of the Conn and PacketConn
 // interfaces for UDP network connections.
 type UDPConn struct {
-	plan9Conn
+	conn
 }
 
 // UDP-specific methods.
@@ -32,14 +32,14 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+	if c.fd.data == nil {
+		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
 		if err != nil {
 			return 0, nil, err
 		}
 	}
 	buf := make([]byte, udpHeaderSize+len(b))
-	m, err := c.data.Read(buf)
+	m, err := c.fd.data.Read(buf)
 	if err != nil {
 		return
 	}
@@ -81,23 +81,23 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-	if c.data == nil {
-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+	if c.fd.data == nil {
+		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
 		if err != nil {
 			return 0, err
 		}
 	}
 	h := new(udpHeader)
 	h.raddr = addr.IP.To16()
-	h.laddr = c.laddr.(*UDPAddr).IP.To16()
+	h.laddr = c.fd.laddr.(*UDPAddr).IP.To16()
 	h.ifcaddr = IPv6zero // ignored (receive only)
 	h.rport = uint16(addr.Port)
-	h.lport = uint16(c.laddr.(*UDPAddr).Port)
+	h.lport = uint16(c.fd.laddr.(*UDPAddr).Port)
 
 	buf := make([]byte, udpHeaderSize+len(b))
 	i := copy(buf, h.Bytes())
 	copy(buf[i:], b)
-	return c.data.Write(buf)
+	return c.fd.data.Write(buf)
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -107,7 +107,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	}
 	a, ok := addr.(*UDPAddr)
 	if !ok {
-		return 0, &OpError{"write", c.dir, addr, syscall.EINVAL}
+		return 0, &OpError{"write", c.fd.dir, addr, syscall.EINVAL}
 	}
 	return c.WriteToUDP(b, a)
 }
@@ -126,7 +126,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
 	return dialUDP(net, laddr, raddr, noDeadline)
 }
 
-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (c *UDPConn, err error) {
+func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
 	if !deadline.IsZero() {
 		panic("net.dialUDP: deadline not implemented on Plan 9")
 	}
@@ -138,11 +138,11 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (c *UDPConn,
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
-	c1, err := dialPlan9(net, laddr, raddr)
+	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
-		return
+		return nil, err
 	}
-	return &UDPConn{*c1}, nil
+	return &UDPConn{conn{fd}}, nil
 }
 
 const udpHeaderSize = 16*3 + 2*2
@@ -177,7 +177,7 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
 // address laddr.  The returned connection c's ReadFrom and WriteTo
 // methods can be used to receive and send UDP packets with per-packet
 // addressing.
-func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
@@ -188,13 +188,13 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 	}
 	l, err := listenPlan9(net, laddr)
 	if err != nil {
-		return
+		return nil, err
 	}
 	_, err = l.ctl.WriteString("headers")
 	if err != nil {
-		return
+		return nil, err
 	}
-	return &UDPConn{*l.plan9Conn()}, nil
+	return &UDPConn{conn{l.netFD()}}, nil
 }
 
 // ListenMulticastUDP listens for incoming multicast UDP packets
