@@ -852,7 +852,8 @@ EXTERN	Pkg*	itabpkg;	// fake pkg for itab cache
 EXTERN	Pkg*	runtimepkg;	// package runtime
 EXTERN	Pkg*	racepkg;	// package runtime/race
 EXTERN	Pkg*	stringpkg;	// fake package for C strings
-EXTERN	Pkg*	typepkg;	// fake package for runtime type info
+EXTERN	Pkg*	typepkg;	// fake package for runtime type info (headers)
+EXTERN	Pkg*	typelinkpkg;	// fake package for runtime type info (data)
 EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
 EXTERN	Pkg*	unsafepkg;	// package unsafe
 EXTERN	Pkg*	trackpkg;	// fake package for field tracking

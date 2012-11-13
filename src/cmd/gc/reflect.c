@@ -467,20 +467,6 @@ kinds[] =
 	[TUNSAFEPTR]	= KindUnsafePointer,
 };
 
-static Sym*
-typestruct(Type *t)
-{
-	// We use a weak reference to the reflect type
-	// to avoid requiring package reflect in every binary.
-	// If package reflect is available, the interface{} holding
-	// a runtime type will contain a *reflect.commonType.
-	// Otherwise it will use a nil type word but still be usable
-	// by package runtime (because we always use the memory
-	// after the interface value, not the interface value itself).
-	USED(t);
-	return pkglookup("*reflect.commonType", weaktypepkg);
-}
-
 int
 haspointers(Type *t)
 {
@@ -535,6 +521,9 @@ dcommontype(Sym *s, int ot, Type *t)
 	Sym *sptr, *algsym;
 	static Sym *algarray;
 	char *p;
+	
+	if(ot != 0)
+		fatal("dcommontype %d", ot);
 
 	sizeofAlg = 4*widthptr;
 	if(algarray == nil)
@@ -549,13 +538,6 @@ dcommontype(Sym *s, int ot, Type *t)
 		sptr = dtypesym(ptrto(t));
 	else
 		sptr = weaktypesym(ptrto(t));
-
-	// empty interface pointing at this type.
-	// all the references that we emit are *interface{};
-	// they point here.
-	ot = rnd(ot, widthptr);
-	ot = dsymptr(s, ot, typestruct(t), 0);
-	ot = dsymptr(s, ot, s, 2*widthptr);
 
 	// ../../pkg/reflect/type.go:/^type.commonType
 	// actual type structure
@@ -637,6 +619,27 @@ tracksym(Type *t)
 }
 
 Sym*
+typelinksym(Type *t)
+{
+	char *p;
+	Sym *s;
+
+	// %-uT is what the generated Type's string field says.
+	// It uses (ambiguous) package names instead of import paths.
+	// %-T is the complete, unambiguous type name.
+	// We want the types to end up sorted by string field,
+	// so use that first in the name, and then add :%-T to
+	// disambiguate. The names are a little long but they are
+	// discarded by the linker and do not end up in the symbol
+	// table of the final binary.
+	p = smprint("%-uT/%-T", t, t);
+	s = pkglookup(p, typelinkpkg);
+	//print("typelinksym: %s -> %+S\n", p, s);
+	free(p);
+	return s;
+}
+
+Sym*
 typesymprefix(char *prefix, Type *t)
 {
 	char *p;
@@ -697,7 +700,7 @@ static Sym*
 dtypesym(Type *t)
 {
 	int ot, xt, n, isddd, dupok;
-	Sym *s, *s1, *s2;
+	Sym *s, *s1, *s2, *slink;
 	Sig *a, *m;
 	Type *t1, *tbase, *t2;
 
@@ -893,6 +896,23 @@ ok:
 	}
 	ot = dextratype(s, ot, t, xt);
 	ggloblsym(s, ot, dupok, 1);
+
+	// generate typelink.foo pointing at s = type.foo.
+	// The linker will leave a table of all the typelinks for
+	// types in the binary, so reflect can find them.
+	// We only need the link for unnamed composites that
+	// we want be able to find.
+	if(t->sym == S) {
+		switch(t->etype) {
+		case TARRAY:
+		case TCHAN:
+		case TMAP:
+			slink = typelinksym(t);
+			dsymptr(slink, 0, s, 0);
+			ggloblsym(slink, widthptr, dupok, 1);
+		}
+	}
+
 	return s;
 }
 

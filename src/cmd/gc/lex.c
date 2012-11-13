@@ -224,6 +224,10 @@ main(int argc, char *argv[])
 	weaktypepkg = mkpkg(strlit("go.weak.type"));
 	weaktypepkg->name = "go.weak.type";
 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
+	
+	typelinkpkg = mkpkg(strlit("go.typelink"));
+	typelinkpkg->name = "go.typelink";
+	typelinkpkg->prefix = "go.typelink"; // not go%2etypelink
 
 	trackpkg = mkpkg(strlit("go.track"));
 	trackpkg->name = "go.track";

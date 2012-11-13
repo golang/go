@@ -35,7 +35,7 @@ enum {
 
 	KindNoPointers = 1<<7,
 
-	// size of Type interface header + CommonType structure.
-	CommonSize = 2*PtrSize + 6*PtrSize + 8,
+	// size of Type structure.
+	CommonSize = 6*PtrSize + 8,
 };
 

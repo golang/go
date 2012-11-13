@@ -337,6 +337,8 @@ symtab(void)
 	// data.c:/^address will provide the actual values.
 	xdefine("text", STEXT, 0);
 	xdefine("etext", STEXT, 0);
+	xdefine("typelink", SRODATA, 0);
+	xdefine("etypelink", SRODATA, 0);
 	xdefine("rodata", SRODATA, 0);
 	xdefine("erodata", SRODATA, 0);
 	xdefine("gcdata", SGCDATA, 0);
@@ -380,6 +382,10 @@ symtab(void)
 			continue;
 		if(strncmp(s->name, "type.", 5) == 0) {
 			s->type = STYPE;
+			s->hide = 1;
+		}
+		if(strncmp(s->name, "go.typelink.", 12) == 0) {
+			s->type = STYPELINK;
 			s->hide = 1;
 		}
 		if(strncmp(s->name, "go.string.", 10) == 0) {

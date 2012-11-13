@@ -17,7 +17,7 @@ type makeFuncImpl struct {
 	// References visible to the garbage collector.
 	// The code array below contains the same references
 	// embedded in the machine code.
-	typ *commonType
+	typ *rtype
 	fn  func([]Value) []Value
 
 	// code is the actual machine code invoked for the closure.

@@ -2703,6 +2703,88 @@ func TestOverflow(t *testing.T) {
 	}
 }
 
+func checkSameType(t *testing.T, x, y interface{}) {
+	if TypeOf(x) != TypeOf(y) {
+		t.Errorf("did not find preexisting type for %s (vs %s)", TypeOf(x), TypeOf(y))
+	}
+}
+
+func TestArrayOf(t *testing.T) {
+	// check construction and use of type not in binary
+	type T int
+	at := ArrayOf(10, TypeOf(T(1)))
+	v := New(at).Elem()
+	for i := 0; i < v.Len(); i++ {
+		v.Index(i).Set(ValueOf(T(i)))
+	}
+	s := fmt.Sprint(v.Interface())
+	want := "[0 1 2 3 4 5 6 7 8 9]"
+	if s != want {
+		t.Errorf("constructed array = %s, want %s", s, want)
+	}
+
+	// check that type already in binary is found
+	checkSameType(t, Zero(ArrayOf(5, TypeOf(T(1)))).Interface(), [5]T{})
+}
+
+func TestSliceOf(t *testing.T) {
+	// check construction and use of type not in binary
+	type T int
+	st := SliceOf(TypeOf(T(1)))
+	v := MakeSlice(st, 10, 10)
+	for i := 0; i < v.Len(); i++ {
+		v.Index(i).Set(ValueOf(T(i)))
+	}
+	s := fmt.Sprint(v.Interface())
+	want := "[0 1 2 3 4 5 6 7 8 9]"
+	if s != want {
+		t.Errorf("constructed slice = %s, want %s", s, want)
+	}
+
+	// check that type already in binary is found
+	type T1 int
+	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
+}
+
+func TestChanOf(t *testing.T) {
+	// check construction and use of type not in binary
+	type T string
+	ct := ChanOf(BothDir, TypeOf(T("")))
+	v := MakeChan(ct, 2)
+	v.Send(ValueOf(T("hello")))
+	v.Send(ValueOf(T("world")))
+
+	sv1, _ := v.Recv()
+	sv2, _ := v.Recv()
+	s1 := sv1.String()
+	s2 := sv2.String()
+	if s1 != "hello" || s2 != "world" {
+		t.Errorf("constructed chan: have %q, %q, want %q, %q", s1, s2, "hello", "world")
+	}
+
+	// check that type already in binary is found
+	type T1 int
+	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
+}
+
+func TestMapOf(t *testing.T) {
+	// check construction and use of type not in binary
+	type K string
+	type V float64
+
+	v := MakeMap(MapOf(TypeOf(K("")), TypeOf(V(0))))
+	v.SetMapIndex(ValueOf(K("a")), ValueOf(V(1)))
+
+	s := fmt.Sprint(v.Interface())
+	want := "map[a:1]"
+	if s != want {
+		t.Errorf("constructed map = %s, want %s", s, want)
+	}
+
+	// check that type already in binary is found
+	checkSameType(t, Zero(MapOf(TypeOf(V(0)), TypeOf(K("")))).Interface(), map[V]K(nil))
+}
+
 type B1 struct {
 	X int
 	Y int

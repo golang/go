@@ -71,21 +71,21 @@ decode_inuxi(uchar* p, int sz)
 uint8
 decodetype_kind(Sym *s)
 {
-	return s->p[3*PtrSize + 7] & ~KindNoPointers;	//  0x13 / 0x1f
+	return s->p[1*PtrSize + 7] & ~KindNoPointers;	//  0x13 / 0x1f
 }
 
 // Type.commonType.size
 vlong
 decodetype_size(Sym *s)
 {
-	return decode_inuxi(s->p + 2*PtrSize, PtrSize);	 // 0x8 / 0x10
+	return decode_inuxi(s->p, PtrSize);	 // 0x8 / 0x10
 }
 
 // Type.commonType.gc
 Sym*
 decodetype_gc(Sym *s)
 {
-	return decode_reloc_sym(s, 3*PtrSize + 8 + 1*PtrSize);
+	return decode_reloc_sym(s, 1*PtrSize + 8 + 1*PtrSize);
 }
 
 // Type.ArrayType.elem and Type.SliceType.Elem

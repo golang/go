@@ -14,7 +14,7 @@ package runtime
 
 import "unsafe"
 
-type commonType struct {
+type rtype struct {
 	size       uintptr
 	hash       uint32
 	_          uint8
@@ -25,14 +25,14 @@ type commonType struct {
 	gc         unsafe.Pointer
 	string     *string
 	*uncommonType
-	ptrToThis *interface{}
+	ptrToThis *rtype
 }
 
 type _method struct {
 	name    *string
 	pkgPath *string
-	mtyp    *interface{}
-	typ     *interface{}
+	mtyp    *rtype
+	typ     *rtype
 	ifn     unsafe.Pointer
 	tfn     unsafe.Pointer
 }
@@ -46,10 +46,10 @@ type uncommonType struct {
 type _imethod struct {
 	name    *string
 	pkgPath *string
-	typ     *interface{}
+	typ     *rtype
 }
 
 type interfaceType struct {
-	commonType
+	rtype
 	methods []_imethod
 }
