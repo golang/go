@@ -913,19 +913,22 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
 
 				// Queue embedded struct fields for processing with next level,
 				// but only if we haven't seen a match yet at this level and only
-				// if the embedded types haven't alredy been queued.
+				// if the embedded types haven't already been queued.
 				if ok || ntyp == nil || ntyp.Kind() != Struct {
 					continue
 				}
 				styp := (*structType)(unsafe.Pointer(ntyp))
 				if nextCount[styp] > 0 {
-					nextCount[styp]++
+					nextCount[styp] = 2 // exact multiple doesn't matter
 					continue
 				}
 				if nextCount == nil {
 					nextCount = map[*structType]int{}
 				}
 				nextCount[styp] = 1
+				if count[t] > 1 {
+					nextCount[styp] = 2 // exact multiple doesn't matter
+				}
 				var index []int
 				index = append(index, scan.index...)
 				index = append(index, i)
