@@ -11,6 +11,7 @@ const (
 	SYS_OPEN           = 5   // { int sys_open(const char *path, \
 	SYS_CLOSE          = 6   // { int sys_close(int fd); }
 	SYS_WAIT4          = 7   // { pid_t sys_wait4(pid_t pid, int *status, int options, \
+	SYS___TFORK        = 8   // { int sys___tfork(const struct __tfork *param, \
 	SYS_LINK           = 9   // { int sys_link(const char *path, const char *link); }
 	SYS_UNLINK         = 10  // { int sys_unlink(const char *path); }
 	SYS_CHDIR          = 12  // { int sys_chdir(const char *path); }
@@ -19,6 +20,7 @@ const (
 	SYS_CHMOD          = 15  // { int sys_chmod(const char *path, mode_t mode); }
 	SYS_CHOWN          = 16  // { int sys_chown(const char *path, uid_t uid, \
 	SYS_OBREAK         = 17  // { int sys_obreak(char *nsize); } break
+	SYS_GETDTABLECOUNT = 18  // { int sys_getdtablecount(void); }
 	SYS_GETPID         = 20  // { pid_t sys_getpid(void); }
 	SYS_MOUNT          = 21  // { int sys_mount(const char *type, const char *path, \
 	SYS_UNMOUNT        = 22  // { int sys_unmount(const char *path, int flags); }
@@ -111,10 +113,6 @@ const (
 	SYS_SETGID         = 181 // { int sys_setgid(gid_t gid); }
 	SYS_SETEGID        = 182 // { int sys_setegid(gid_t egid); }
 	SYS_SETEUID        = 183 // { int sys_seteuid(uid_t euid); }
-	LFS_BMAPV          = 184 // { int lfs_bmapv(fsid_t *fsidp, \
-	LFS_MARKV          = 185 // { int lfs_markv(fsid_t *fsidp, \
-	LFS_SEGCLEAN       = 186 // { int lfs_segclean(fsid_t *fsidp, u_long segment); }
-	LFS_SEGWAIT        = 187 // { int lfs_segwait(fsid_t *fsidp, struct timeval *tv); }
 	SYS_PATHCONF       = 191 // { long sys_pathconf(const char *path, int name); }
 	SYS_FPATHCONF      = 192 // { long sys_fpathconf(int fd, int name); }
 	SYS_SWAPCTL        = 193 // { int sys_swapctl(int cmd, const void *arg, int misc); }
@@ -129,7 +127,6 @@ const (
 	SYS_MUNLOCK        = 204 // { int sys_munlock(const void *addr, size_t len); }
 	SYS_FUTIMES        = 206 // { int sys_futimes(int fd, \
 	SYS_GETPGID        = 207 // { pid_t sys_getpgid(pid_t pid); }
-	SYS_NNPFSPIOCTL    = 208 // { int sys_nnpfspioctl(int operation, char *a_pathP, \
 	SYS_SEMGET         = 221 // { int sys_semget(key_t key, int nsems, int semflg); }
 	SYS_MSGGET         = 225 // { int sys_msgget(key_t key, int msgflg); }
 	SYS_MSGSND         = 226 // { int sys_msgsnd(int msqid, const void *msgp, size_t msgsz, \
@@ -141,7 +138,6 @@ const (
 	SYS_CLOCK_GETRES   = 234 // { int sys_clock_getres(clockid_t clock_id, \
 	SYS_NANOSLEEP      = 240 // { int sys_nanosleep(const struct timespec *rqtp, \
 	SYS_MINHERIT       = 250 // { int sys_minherit(void *addr, size_t len, \
-	SYS_RFORK          = 251 // { int sys_rfork(int flags); }
 	SYS_POLL           = 252 // { int sys_poll(struct pollfd *fds, \
 	SYS_ISSETUGID      = 253 // { int sys_issetugid(void); }
 	SYS_LCHOWN         = 254 // { int sys_lchown(const char *path, uid_t uid, gid_t gid); }
@@ -201,7 +197,6 @@ const (
 	SYS_UNLINKAT       = 325 // { int sys_unlinkat(int fd, const char *path, \
 	SYS_UTIMENSAT      = 326 // { int sys_utimensat(int fd, const char *path, \
 	SYS_FUTIMENS       = 327 // { int sys_futimens(int fd, \
-	SYS___TFORK        = 328 // { int sys___tfork(struct __tfork *param); }
 	SYS___SET_TCB      = 329 // { void sys___set_tcb(void *tcb); }
 	SYS___GET_TCB      = 330 // { void *sys___get_tcb(void); }
 )
