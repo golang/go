@@ -323,32 +323,30 @@ runtime·mallocinit(void)
 	// enough to hold 4 bits per allocated word.
 	if(sizeof(void*) == 8 && (limit == 0 || limit > (1<<30))) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
-		// 16 GB should be big enough for now.
+		// 128 GB (MaxMem) should be big enough for now.
 		//
 		// The code will work with the reservation at any address, but ask
-		// SysReserve to use 0x000000f800000000 if possible.
-		// Allocating a 16 GB region takes away 36 bits, and the amd64
+		// SysReserve to use 0x000000c000000000 if possible.
+		// Allocating a 128 GB region takes away 37 bits, and the amd64
 		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
-		// in the middle of 0x00f8 for us to choose.  Choosing 0x00f8 means
-		// that the valid memory addresses will begin 0x00f8, 0x00f9, 0x00fa, 0x00fb.
-		// None of the bytes f8 f9 fa fb can appear in valid UTF-8, and
-		// they are otherwise as far from ff (likely a common byte) as possible.
-		// Choosing 0x00 for the leading 6 bits was more arbitrary, but it
-		// is not a common ASCII code point either.  Using 0x11f8 instead
+		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
+		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x0x00df.
+		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
+		// UTF-8 sequences, and they are otherwise as far away from 
+		// ff (likely a common byte) as possible. An earlier attempt to use 0x11f8 
 		// caused out of memory errors on OS X during thread allocations.
 		// These choices are both for debuggability and to reduce the
 		// odds of the conservative garbage collector not collecting memory
 		// because some non-pointer block of memory had a bit pattern
 		// that matched a memory address.
 		//
-		// Actually we reserve 17 GB (because the bitmap ends up being 1 GB)
-		// but it hardly matters: fc is not valid UTF-8 either, and we have to
-		// allocate 15 GB before we get that far.
+		// Actually we reserve 136 GB (because the bitmap ends up being 8 GB)
+		// but it hardly matters: e0 00 is not valid UTF-8 either.
 		//
 		// If this fails we fall back to the 32 bit memory mechanism
-		arena_size = 16LL<<30;
+		arena_size = MaxMem;
 		bitmap_size = arena_size / (sizeof(void*)*8/4);
-		p = runtime·SysReserve((void*)(0x00f8ULL<<32), bitmap_size + arena_size);
+		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + arena_size);
 	}
 	if (p == nil) {
 		// On a 32-bit machine, we can't typically get away

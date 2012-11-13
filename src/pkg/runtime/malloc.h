@@ -114,12 +114,12 @@ enum
 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
 
 	// Number of bits in page to span calculations (4k pages).
-	// On 64-bit, we limit the arena to 16G, so 22 bits suffices.
-	// On 32-bit, we don't bother limiting anything: 20 bits for 4G.
+	// On 64-bit, we limit the arena to 128GB, or 37 bits.
+	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
 #ifdef _64BIT
-	MHeapMap_Bits = 22,
+	MHeapMap_Bits = 37 - PageShift,
 #else
-	MHeapMap_Bits = 20,
+	MHeapMap_Bits = 32 - PageShift,
 #endif
 
 	// Max number of threads to run garbage collection.
@@ -133,7 +133,7 @@ enum
 // This must be a #define instead of an enum because it
 // is so large.
 #ifdef _64BIT
-#define	MaxMem	(16ULL<<30)	/* 16 GB */
+#define	MaxMem	(1ULL<<(MHeapMap_Bits+PageShift))	/* 128 GB */
 #else
 #define	MaxMem	((uintptr)-1)
 #endif
