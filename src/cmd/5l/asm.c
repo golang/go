@@ -527,6 +527,7 @@ doelf(void)
 	if(buildinfolen > 0)
 		elfstr[ElfStrNoteBuildInfo] = addstring(shstrtab, ".note.gnu.build-id");
 	addstring(shstrtab, ".rodata");
+	addstring(shstrtab, ".typelink");
 	addstring(shstrtab, ".gcdata");
 	addstring(shstrtab, ".gcbss");
 	addstring(shstrtab, ".gosymtab");
