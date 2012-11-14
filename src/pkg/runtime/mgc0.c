@@ -1137,9 +1137,6 @@ runfinq(void)
 	byte *frame;
 	uint32 framesz, framecap, i;
 
-	if(raceenabled)
-		runtime·racefingo();
-
 	frame = nil;
 	framecap = 0;
 	for(;;) {
@@ -1156,6 +1153,8 @@ runfinq(void)
 			runtime·park(nil, nil, "finalizer wait");
 			continue;
 		}
+		if(raceenabled)
+			runtime·racefingo();
 		for(; fb; fb=next) {
 			next = fb->next;
 			for(i=0; i<fb->cnt; i++) {
