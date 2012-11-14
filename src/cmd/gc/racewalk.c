@@ -383,6 +383,27 @@ ret:
 }
 
 static int
+isartificial(Node *n)
+{
+	// compiler-emitted artificial things that we do not want to instrument,
+	// cant' possibly participate in a data race.
+	if(n->op == ONAME && n->sym != S && n->sym->name != nil) {
+		if(strcmp(n->sym->name, "_") == 0)
+			return 1;
+		// autotmp's are always local
+		if(strncmp(n->sym->name, "autotmp_", sizeof("autotmp_")-1) == 0)
+			return 1;
+		// statictmp's are read-only
+		if(strncmp(n->sym->name, "statictmp_", sizeof("statictmp_")-1) == 0)
+			return 1;
+		// go.itab is accessed only by the compiler and runtime (assume safe)
+		if(n->sym->pkg && n->sym->pkg->name && strcmp(n->sym->pkg->name, "go.itab") == 0)
+			return 1;
+	}
+	return 0;
+}
+
+static int
 callinstr(Node **np, NodeList **init, int wr, int skip)
 {
 	Node *f, *b, *n;
@@ -390,25 +411,18 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	int class, res, hascalls;
 
 	n = *np;
-	//print("callinstr for %N [ %s ] etype=%d class=%d\n",
-	//	  n, opnames[n->op], n->type ? n->type->etype : -1, n->class);
+	//print("callinstr for %+N [ %O ] etype=%d class=%d\n",
+	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
 
 	if(skip || n->type == T || n->type->etype >= TIDEAL)
 		return 0;
 	t = n->type;
-	if(n->op == ONAME) {
-		if(n->sym != S) {
-			if(n->sym->name != nil) {
-				if(strcmp(n->sym->name, "_") == 0)
-					return 0;
-				if(strncmp(n->sym->name, "autotmp_", sizeof("autotmp_")-1) == 0)
-					return 0;
-				if(strncmp(n->sym->name, "statictmp_", sizeof("statictmp_")-1) == 0)
-					return 0;
-			}
-		}
-	}
+	if(isartificial(n))
+		return 0;
 	if(t->etype == TSTRUCT) {
+		// PARAMs w/o PHEAP are not interesting.
+		if(n->class == PPARAM || n->class == PPARAMOUT)
+			return 0;
 		res = 0;
 		hascalls = 0;
 		foreach(n, hascallspred, &hascalls);
@@ -420,6 +434,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 			if(t1->sym && strcmp(t1->sym->name, "_")) {
 				n = treecopy(n);
 				f = nod(OXDOT, n, newname(t1->sym));
+				f->type = t1;
 				if(callinstr(&f, init, wr, 0)) {
 					typecheck(&f, Erv);
 					res = 1;
@@ -430,6 +445,9 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	}
 
 	b = basenod(n);
+	// it skips e.g. stores to ... parameter array
+	if(isartificial(b))
+		return 0;
 	class = b->class;
 	// BUG: we _may_ want to instrument PAUTO sometimes
 	// e.g. if we've got a local variable/method receiver
@@ -467,7 +485,7 @@ static Node*
 basenod(Node *n)
 {
 	for(;;) {
-		if(n->op == ODOT || n->op == OPAREN) {
+		if(n->op == ODOT || n->op == OXDOT || n->op == OCONVNOP || n->op == OCONV || n->op == OPAREN) {
 			n = n->left;
 			continue;
 		}
