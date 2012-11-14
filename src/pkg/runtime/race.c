@@ -254,6 +254,22 @@ void runtime·RaceSemrelease(uint32 *s)
 	runtime·semrelease(s);
 }
 
+// func RaceRead(addr unsafe.Pointer)
+#pragma textflag 7
+void
+runtime·RaceRead(void *addr)
+{
+	runtime·racereadpc(addr, runtime·getcallerpc(&addr));
+}
+
+// func RaceWrite(addr unsafe.Pointer)
+#pragma textflag 7
+void
+runtime·RaceWrite(void *addr)
+{
+	runtime·racewritepc(addr, runtime·getcallerpc(&addr));
+}
+
 // func RaceDisable()
 void runtime·RaceDisable(void)
 {
