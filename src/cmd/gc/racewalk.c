@@ -153,12 +153,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		goto ret;
 
-	case OFOR:
-		goto ret;
-
-	case OIF:
-		goto ret;
-
 	case OPROC:
 		racewalknode(&n->left, init, 0, 0);
 		goto ret;
@@ -171,22 +165,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		goto ret;
 
-	case OCALLMETH:
-		goto ret;
-
-	case ORETURN:
-		goto ret;
-
-	case OSELECT:
-		goto ret;
-
 	case OSWITCH:
 		if(n->ntest->op == OTYPESW)
 			// TODO(dvyukov): the expression can contain calls or reads.
 			return;
-		goto ret;
-
-	case OEMPTY:
 		goto ret;
 
 	case ONOT:
@@ -299,6 +281,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 1);
 		goto ret;
 
+	case OEFACE:
+		racewalknode(&n->left, init, 0, 0);
+		racewalknode(&n->right, init, 0, 0);
+		goto ret;
+
 	// should not appear in AST by now
 	case OSEND:
 	case ORECV:
@@ -309,7 +296,17 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCASE:
 	case OPANIC:
 	case ORECOVER:
+	case OCONVIFACE:
 		yyerror("racewalk: %O must be lowered by now", n->op);
+		goto ret;
+
+	// just do generic traversal
+	case OFOR:
+	case OIF:
+	case OCALLMETH:
+	case ORETURN:
+	case OSELECT:
+	case OEMPTY:
 		goto ret;
 
 	// does not require instrumentation
@@ -340,7 +337,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCLOSURE:
 	case ODOTTYPE:
 	case ODOTTYPE2:
-	case OCONVIFACE:
 	case OCALL:
 	case OBREAK:
 	case ODCL:
@@ -357,7 +353,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OINDREG:
 	case OCOM:
 	case ODOTMETH:
-	case OEFACE:
 	case OITAB:
 	case OEXTEND:
 	case OHMUL:
