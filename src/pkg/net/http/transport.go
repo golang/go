@@ -605,6 +605,9 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
+		// TODO(bradfitz): this hasBody conflicts with the defition
+		// above which excludes HEAD requests.  Is this one
+		// incomplete?
 		hasBody := resp != nil && resp.ContentLength != 0
 		var waitForBodyRead chan bool
 		if hasBody {
@@ -804,11 +807,6 @@ func canonicalAddr(url *url.URL) string {
 		return addr + ":" + portMap[url.Scheme]
 	}
 	return addr
-}
-
-func responseIsKeepAlive(res *Response) bool {
-	// TODO: implement.  for now just always shutting down the connection.
-	return false
 }
 
 // bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most

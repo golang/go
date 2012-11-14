@@ -219,6 +219,9 @@ func TestRedirects(t *testing.T) {
 		return checkErr
 	}}
 	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get error: %v", err)
+	}
 	finalUrl := res.Request.URL.String()
 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with custom client, expected error %q, got %q", e, g)
@@ -335,7 +338,10 @@ func TestRedirectCookiesJar(t *testing.T) {
 	c.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
 	u, _ := url.Parse(ts.URL)
 	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
-	resp, _ := c.Get(ts.URL)
+	resp, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
 	matchReturnedCookies(t, expectedCookies, resp.Cookies())
 }
 
