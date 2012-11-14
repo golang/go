@@ -417,10 +417,6 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		return nil, nil, errors.New("cannot load string table section")
 	}
 
-	// The first entry is all zeros.
-	var skip [Sym32Size]byte
-	symtab.Read(skip[0:])
-
 	symbols := make([]Symbol, symtab.Len()/Sym32Size)
 
 	i := 0
@@ -459,10 +455,6 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, errors.New("cannot load string table section")
 	}
-
-	// The first entry is all zeros.
-	var skip [Sym64Size]byte
-	symtab.Read(skip[0:])
 
 	symbols := make([]Symbol, symtab.Len()/Sym64Size)
 

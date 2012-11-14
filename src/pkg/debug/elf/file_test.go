@@ -175,23 +175,41 @@ func TestOpen(t *testing.T) {
 	}
 }
 
+type relocationTestEntry struct {
+	entryNumber int
+	entry       *dwarf.Entry
+}
+
 type relocationTest struct {
-	file       string
-	firstEntry *dwarf.Entry
+	file    string
+	entries []relocationTestEntry
 }
 
 var relocationTests = []relocationTest{
 	{
 		"testdata/go-relocation-test-gcc441-x86-64.obj",
-		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+		},
 	},
 	{
 		"testdata/go-relocation-test-gcc441-x86.obj",
-		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "t.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x5)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "t.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x5)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+		},
 	},
 	{
 		"testdata/go-relocation-test-gcc424-x86-64.obj",
-		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+		},
+	},
+	{
+		"testdata/gcc-amd64-openbsd-debug-with-rela.obj",
+		[]relocationTestEntry{
+			{203, &dwarf.Entry{Offset: 0xc62, Tag: dwarf.TagMember, Children: false, Field: []dwarf.Field{{Attr: dwarf.AttrName, Val: "it_interval"}, {Attr: dwarf.AttrDeclFile, Val: int64(7)}, {Attr: dwarf.AttrDeclLine, Val: int64(236)}, {Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f)}, {Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x0}}}}},
+			{204, &dwarf.Entry{Offset: 0xc70, Tag: dwarf.TagMember, Children: false, Field: []dwarf.Field{{Attr: dwarf.AttrName, Val: "it_value"}, {Attr: dwarf.AttrDeclFile, Val: int64(7)}, {Attr: dwarf.AttrDeclLine, Val: int64(237)}, {Attr: dwarf.AttrType, Val: dwarf.Offset(0xb7f)}, {Attr: dwarf.AttrDataMemberLoc, Val: []byte{0x23, 0x10}}}}},
+		},
 	},
 }
 
@@ -207,20 +225,24 @@ func TestDWARFRelocations(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		reader := dwarf.Reader()
-		// Checking only the first entry is sufficient since it has
-		// many different strings. If the relocation had failed, all
-		// the string offsets would be zero and all the strings would
-		// end up being the same.
-		firstEntry, err := reader.Next()
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		if !reflect.DeepEqual(test.firstEntry, firstEntry) {
-			t.Errorf("#%d: mismatch: got:%#v want:%#v", i, firstEntry, test.firstEntry)
-			continue
+		for _, testEntry := range test.entries {
+			reader := dwarf.Reader()
+			for j := 0; j < testEntry.entryNumber; j++ {
+				entry, err := reader.Next()
+				if entry == nil || err != nil {
+					t.Errorf("Failed to skip to entry %d: %v", testEntry.entryNumber, err)
+					continue
+				}
+			}
+			entry, err := reader.Next()
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			if !reflect.DeepEqual(testEntry.entry, entry) {
+				t.Errorf("#%d/%d: mismatch: got:%#v want:%#v", i, testEntry.entryNumber, entry, testEntry.entry)
+				continue
+			}
 		}
 	}
 }
