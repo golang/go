@@ -260,8 +260,8 @@ type FdSet struct {
 }
 
 const (
-	SizeofIfMsghdr  = 0xe4
-	SizeofIfData    = 0xcc
+	SizeofIfMsghdr  = 0xe8
+	SizeofIfData    = 0xd0
 	SizeofIfaMsghdr = 0x18
 	SizeofRtMsghdr  = 0x58
 	SizeofRtMetrics = 0x30
@@ -283,27 +283,28 @@ type IfMsghdr struct {
 }
 
 type IfData struct {
-	Type       uint8
-	Addrlen    uint8
-	Hdrlen     uint8
-	Link_state uint8
-	Mtu        uint32
-	Metric     uint32
-	Pad        uint32
-	Baudrate   uint64
-	Ipackets   uint64
-	Ierrors    uint64
-	Opackets   uint64
-	Oerrors    uint64
-	Collisions uint64
-	Ibytes     uint64
-	Obytes     uint64
-	Imcasts    uint64
-	Omcasts    uint64
-	Iqdrops    uint64
-	Noproto    uint64
-	Lastchange Timeval
-	Mclpool    [7]Mclpool
+	Type         uint8
+	Addrlen      uint8
+	Hdrlen       uint8
+	Link_state   uint8
+	Mtu          uint32
+	Metric       uint32
+	Pad          uint32
+	Baudrate     uint64
+	Ipackets     uint64
+	Ierrors      uint64
+	Opackets     uint64
+	Oerrors      uint64
+	Collisions   uint64
+	Ibytes       uint64
+	Obytes       uint64
+	Imcasts      uint64
+	Omcasts      uint64
+	Iqdrops      uint64
+	Noproto      uint64
+	Capabilities uint32
+	Lastchange   Timeval
+	Mclpool      [7]Mclpool
 }
 
 type IfaMsghdr struct {
