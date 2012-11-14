@@ -152,22 +152,14 @@ func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
 
 	// Infinities.
 	if exp-flt.bias >= 1<<flt.expbits-1 {
-		goto overflow
-	}
-
-	// Denormalized?
-	if mant&(1<<flt.mantbits) == 0 {
+		// ±Inf
+		mant = 0
+		exp = 1<<flt.expbits - 1 + flt.bias
+		overflow = true
+	} else if mant&(1<<flt.mantbits) == 0 {
+		// Denormalized?
 		exp = flt.bias
 	}
-	goto out
-
-overflow:
-	// ±Inf
-	mant = 0
-	exp = 1<<flt.expbits - 1 + flt.bias
-	overflow = true
-
-out:
 	// Assemble bits.
 	bits = mant & (uint64(1)<<flt.mantbits - 1)
 	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits
