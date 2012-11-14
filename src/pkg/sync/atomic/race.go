@@ -11,6 +11,13 @@ import (
 	"unsafe"
 )
 
+// We use runtime.RaceRead() inside of atomic operations to catch races
+// between atomic and non-atomic operations.  It will also catch races
+// between Mutex.Lock() and mutex overwrite (mu = Mutex{}).  Since we use
+// only RaceRead() we won't catch races with non-atomic loads.
+// Otherwise (if we use RaceWrite()) we will report races
+// between atomic operations (false positives).
+
 var mtx uint32 = 1 // same for all
 
 func CompareAndSwapInt32(val *int32, old, new int32) bool {
@@ -20,6 +27,7 @@ func CompareAndSwapInt32(val *int32, old, new int32) bool {
 func CompareAndSwapUint32(val *uint32, old, new uint32) (swapped bool) {
 	swapped = false
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	if *val == old {
 		*val = new
@@ -37,6 +45,7 @@ func CompareAndSwapInt64(val *int64, old, new int64) bool {
 func CompareAndSwapUint64(val *uint64, old, new uint64) (swapped bool) {
 	swapped = false
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	if *val == old {
 		*val = new
@@ -50,6 +59,7 @@ func CompareAndSwapUint64(val *uint64, old, new uint64) (swapped bool) {
 func CompareAndSwapPointer(val *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool) {
 	swapped = false
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	if *val == old {
 		*val = new
@@ -63,6 +73,7 @@ func CompareAndSwapPointer(val *unsafe.Pointer, old, new unsafe.Pointer) (swappe
 func CompareAndSwapUintptr(val *uintptr, old, new uintptr) (swapped bool) {
 	swapped = false
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	if *val == old {
 		*val = new
@@ -79,6 +90,7 @@ func AddInt32(val *int32, delta int32) int32 {
 
 func AddUint32(val *uint32, delta uint32) (new uint32) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	*val = *val + delta
 	new = *val
@@ -94,6 +106,7 @@ func AddInt64(val *int64, delta int64) int64 {
 
 func AddUint64(val *uint64, delta uint64) (new uint64) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	*val = *val + delta
 	new = *val
@@ -105,6 +118,7 @@ func AddUint64(val *uint64, delta uint64) (new uint64) {
 
 func AddUintptr(val *uintptr, delta uintptr) (new uintptr) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(val))
 	*val = *val + delta
 	new = *val
@@ -120,6 +134,7 @@ func LoadInt32(addr *int32) int32 {
 
 func LoadUint32(addr *uint32) (val uint32) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(addr))
 	runtime.RaceAcquire(unsafe.Pointer(addr))
 	val = *addr
 	runtime.RaceSemrelease(&mtx)
@@ -132,6 +147,7 @@ func LoadInt64(addr *int64) int64 {
 
 func LoadUint64(addr *uint64) (val uint64) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(addr))
 	runtime.RaceAcquire(unsafe.Pointer(addr))
 	val = *addr
 	runtime.RaceSemrelease(&mtx)
@@ -140,6 +156,7 @@ func LoadUint64(addr *uint64) (val uint64) {
 
 func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(addr))
 	runtime.RaceAcquire(unsafe.Pointer(addr))
 	val = *addr
 	runtime.RaceSemrelease(&mtx)
@@ -148,6 +165,7 @@ func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer) {
 
 func LoadUintptr(addr *uintptr) (val uintptr) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	runtime.RaceAcquire(unsafe.Pointer(addr))
 	val = *addr
 	runtime.RaceSemrelease(&mtx)
@@ -160,6 +178,7 @@ func StoreInt32(addr *int32, val int32) {
 
 func StoreUint32(addr *uint32, val uint32) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(addr))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)
@@ -171,6 +190,7 @@ func StoreInt64(addr *int64, val int64) {
 
 func StoreUint64(addr *uint64, val uint64) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(addr))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)
@@ -178,6 +198,7 @@ func StoreUint64(addr *uint64, val uint64) {
 
 func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)
@@ -185,6 +206,7 @@ func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer) {
 
 func StoreUintptr(addr *uintptr, val uintptr) {
 	runtime.RaceSemacquire(&mtx)
+	runtime.RaceRead(unsafe.Pointer(val))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)

@@ -22,5 +22,8 @@ func RaceAcquire(addr unsafe.Pointer)
 func RaceRelease(addr unsafe.Pointer)
 func RaceReleaseMerge(addr unsafe.Pointer)
 
+func RaceRead(addr unsafe.Pointer)
+func RaceWrite(addr unsafe.Pointer)
+
 func RaceSemacquire(s *uint32)
 func RaceSemrelease(s *uint32)
