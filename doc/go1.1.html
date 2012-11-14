@@ -62,4 +62,14 @@ to adjust frame pointer offsets.
 
 <h2 id="library">Changes to the standard library</h2>
 
+<h3 id="debug/elf">debug/elf</h3>
+<p>
+Previous versions of the debug/elf package intentionally skipped over the first
+symbol in the ELF symbol table, since it is always an empty symbol. This symbol
+is no longer skipped since indexes into the symbol table returned by debug/elf,
+will be different to indexes into the original ELF symbol table. Any code that
+calls the debug/elf functions Symbols or ImportedSymbols may need to be
+adjusted to account for the additional symbol and the change in symbol offsets.
+</p>
+
 TODO
