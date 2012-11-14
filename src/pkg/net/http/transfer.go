@@ -567,13 +567,21 @@ func seeUpcomingDoubleCRLF(r *bufio.Reader) bool {
 	return false
 }
 
+var errTrailerEOF = errors.New("http: unexpected EOF reading trailer")
+
 func (b *body) readTrailer() error {
 	// The common case, since nobody uses trailers.
-	buf, _ := b.r.Peek(2)
+	buf, err := b.r.Peek(2)
 	if bytes.Equal(buf, singleCRLF) {
 		b.r.ReadByte()
 		b.r.ReadByte()
 		return nil
+	}
+	if len(buf) < 2 {
+		return errTrailerEOF
+	}
+	if err != nil {
+		return err
 	}
 
 	// Make sure there's a header terminator coming up, to prevent
@@ -590,6 +598,9 @@ func (b *body) readTrailer() error {
 
 	hdr, err := textproto.NewReader(b.r).ReadMIMEHeader()
 	if err != nil {
+		if err == io.EOF {
+			return errTrailerEOF
+		}
 		return err
 	}
 	switch rr := b.hdr.(type) {
