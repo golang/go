@@ -165,7 +165,7 @@ func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer) {
 
 func LoadUintptr(addr *uintptr) (val uintptr) {
 	runtime.RaceSemacquire(&mtx)
-	runtime.RaceRead(unsafe.Pointer(val))
+	runtime.RaceRead(unsafe.Pointer(addr))
 	runtime.RaceAcquire(unsafe.Pointer(addr))
 	val = *addr
 	runtime.RaceSemrelease(&mtx)
@@ -198,7 +198,7 @@ func StoreUint64(addr *uint64, val uint64) {
 
 func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer) {
 	runtime.RaceSemacquire(&mtx)
-	runtime.RaceRead(unsafe.Pointer(val))
+	runtime.RaceRead(unsafe.Pointer(addr))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)
@@ -206,7 +206,7 @@ func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer) {
 
 func StoreUintptr(addr *uintptr, val uintptr) {
 	runtime.RaceSemacquire(&mtx)
-	runtime.RaceRead(unsafe.Pointer(val))
+	runtime.RaceRead(unsafe.Pointer(addr))
 	*addr = val
 	runtime.RaceRelease(unsafe.Pointer(addr))
 	runtime.RaceSemrelease(&mtx)
