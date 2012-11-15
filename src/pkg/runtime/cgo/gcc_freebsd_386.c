@@ -6,6 +6,7 @@
 #include <sys/signalvar.h>
 #include <pthread.h>
 #include <signal.h>
+#include <string.h>
 #include "libcgo.h"
 
 static void* threadentry(void*);
