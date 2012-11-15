@@ -300,7 +300,7 @@ var keyFromElemTests = []keyFromElemTest{
 func TestKeyFromElems(t *testing.T) {
 	buf := collate.Buffer{}
 	for i, tt := range keyFromElemTests {
-		buf.ResetKeys()
+		buf.Reset()
 		ws := collate.ProcessWeights(tt.opt.alt, tt.opt.top, tt.in)
 		res := collate.KeyFromElems(tt.opt.collator(), &buf, ws)
 		if len(res) != len(tt.out) {
@@ -325,7 +325,6 @@ func TestGetColElems(t *testing.T) {
 			// error is reported in TestAppendNext
 			continue
 		}
-		buf := collate.Buffer{}
 		// Create one large test per table
 		str := make([]byte, 0, 4000)
 		out := ColElems{}
@@ -336,7 +335,7 @@ func TestGetColElems(t *testing.T) {
 			}
 		}
 		for j, chk := range append(tt.chk, check{string(str), len(str), out}) {
-			ws := collate.GetColElems(c, &buf, []byte(chk.in)[:chk.n])
+			ws := collate.GetColElems(c, []byte(chk.in)[:chk.n])
 			if len(ws) != len(chk.out) {
 				t.Errorf("%d:%d: len(ws) was %d; want %d", i, j, len(ws), len(chk.out))
 				continue
@@ -404,19 +403,27 @@ type compareTest struct {
 
 var compareTests = []compareTest{
 	{"a\u0301", "a", 1},
+	{"a\u0301b", "ab", 1},
 	{"a", "a\u0301", -1},
+	{"ab", "a\u0301b", -1},
+	{"bc", "a\u0301c", 1},
+	{"ab", "aB", -1},
 	{"a\u0301", "a\u0301", 0},
 	{"a", "a", 0},
+	// Only clip prefixes of whole runes.
+	{"\u302E", "\u302F", 1},
+	// Don't clip prefixes when last rune of prefix may be part of contraction.
+	{"a\u035E", "a\u0301\u035F", -1},
+	{"a\u0301\u035Fb", "a\u0301\u035F", -1},
 }
 
 func TestCompare(t *testing.T) {
 	c, _ := makeTable(appendNextTests[4].in)
-	buf := collate.Buffer{}
 	for i, tt := range compareTests {
-		if res := c.Compare(&buf, []byte(tt.a), []byte(tt.b)); res != tt.res {
+		if res := c.Compare([]byte(tt.a), []byte(tt.b)); res != tt.res {
 			t.Errorf("%d: Compare(%q, %q) == %d; want %d", i, tt.a, tt.b, res, tt.res)
 		}
-		if res := c.CompareString(&buf, tt.a, tt.b); res != tt.res {
+		if res := c.CompareString(tt.a, tt.b); res != tt.res {
 			t.Errorf("%d: CompareString(%q, %q) == %d; want %d", i, tt.a, tt.b, res, tt.res)
 		}
 	}

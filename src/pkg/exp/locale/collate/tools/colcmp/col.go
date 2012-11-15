@@ -91,5 +91,5 @@ func (c *goCollator) Key(b Input) []byte {
 }
 
 func (c *goCollator) Compare(a, b Input) int {
-	return c.c.Compare(&c.buf, a.UTF8, b.UTF8)
+	return c.c.Compare(a.UTF8, b.UTF8)
 }

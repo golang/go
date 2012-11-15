@@ -180,7 +180,7 @@ func skipAlt(a string) bool {
 
 func failOnError(e error) {
 	if e != nil {
-		log.Fatal(e)
+		log.Panic(e)
 	}
 }
 
@@ -677,7 +677,7 @@ func testCollator(c *collate.Collator) {
 		if bytes.Compare(k0, k) != 0 {
 			failOnError(fmt.Errorf("test:%U: keys differ (%x vs %x)", []rune(str), k0, k))
 		}
-		buf.ResetKeys()
+		buf.Reset()
 	}
 	fmt.Println("PASS")
 }

@@ -141,7 +141,7 @@ var appendNextTests = []tableTest{
 			{"\u0316", [][]int{{0, 220}}},
 			{"\u0317", [][]int{{0, 220}, {0, 220}}},
 			{"\u302D", [][]int{{0, 222}}},
-			{"\u302E", [][]int{{0, 224}}}, // used as starter
+			{"\u302E", [][]int{{0, 225}}}, // used as starter
 			{"\u302F", [][]int{{0, 224}}}, // used as starter
 			{"\u18A9", [][]int{{0, 228}}},
 			{"\u0300", [][]int{{0, 230}}},
@@ -169,7 +169,7 @@ var appendNextTests = []tableTest{
 			{"a\u035Db\u035D", [][]int{{117}}},
 			{"a\u0301\u035Db", [][]int{{120}}},
 			{"a\u0301\u035F", [][]int{{121}}},
-			{"a\u0301\u035Fb", [][]int{{122}}},
+			{"a\u0301\u035Fb", [][]int{{119}}},
 			{"\u03B1\u0345", [][]int{{901}, {902}}},
 			{"\u302E\u18A9", [][]int{{0, 131}, {0, 132}}},
 			{"\u302F\u18A9", [][]int{{0, 130}}},
@@ -192,7 +192,7 @@ var appendNextTests = []tableTest{
 			// multiple gaps
 			{"a\u0301\u035Db", 6, ColElems{w(120)}},
 			{"a\u0301\u035F", 5, ColElems{w(121)}},
-			{"a\u0301\u035Fb", 6, ColElems{w(122)}},
+			{"a\u0301\u035Fb", 6, ColElems{w(119)}},
 			{"a\u0316\u0301\u035F", 7, ColElems{w(121), w(0, 220)}},
 			{"a\u0301\u0315\u035Fb", 7, ColElems{w(121), w(0, 232)}},
 			{"a\u0316\u0301\u0315\u035Db", 5, ColElems{w(102), w(0, 220)}},
