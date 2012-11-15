@@ -96,14 +96,21 @@ echo.
 
 :: TODO: The other tests in run.bash.
 
+
+set OLDGOMAXPROCS=%GOMAXPROCS%
+
 echo # ..\test
 cd ..\test
 set FAIL=0
+set GOMAXPROCS=
 go run run.go
 if errorlevel 1 set FAIL=1
 cd ..\src
 echo.
 if %FAIL%==1 goto fail
+
+set GOMAXPROCS=%OLDGOMAXPROCS%
+set OLDGOMAXPROCS=
 
 echo # Checking API compatibility.
 go tool api -c ..\api\go1.txt -next ..\api\next.txt -except ..\api\except.txt

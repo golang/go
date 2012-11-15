@@ -115,7 +115,7 @@ echo '#' ../test/bench/go1
 go test ../test/bench/go1
 
 (xcd ../test
-time go run run.go
+GOMAXPROCS= time go run run.go
 ) || exit $?
 
 echo
