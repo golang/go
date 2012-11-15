@@ -88,6 +88,12 @@ func (m FileMode) IsDir() bool {
 	return m&ModeDir != 0
 }
 
+// IsRegular reports whether m describes a regular file.
+// That is, it tests that no mode type bits are set.
+func (m FileMode) IsRegular() bool {
+	return m&ModeType == 0
+}
+
 // Perm returns the Unix permission bits in m.
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
