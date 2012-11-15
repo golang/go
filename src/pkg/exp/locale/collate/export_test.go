@@ -72,10 +72,9 @@ func SetTop(c *Collator, top int) {
 	c.t.variableTop = uint32(top)
 }
 
-func GetColElems(c *Collator, buf *Buffer, str []byte) []Weights {
-	buf.ResetKeys()
-	c.getColElems(buf, str)
-	return convertToWeights(buf.ce)
+func GetColElems(c *Collator, str []byte) []Weights {
+	ce := c.getColElems(str)
+	return convertToWeights(ce)
 }
 
 func ProcessWeights(h AlternateHandling, top int, w []Weights) []Weights {

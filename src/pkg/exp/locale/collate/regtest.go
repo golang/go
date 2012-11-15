@@ -236,9 +236,9 @@ func doTest(t Test) {
 	if strings.Contains(t.name, "NON_IGNOR") {
 		c.Alternate = collate.AltNonIgnorable
 	}
-
 	prev := t.str[0]
 	for i := 1; i < len(t.str); i++ {
+		b.Reset()
 		s := t.str[i]
 		ka := c.Key(b, prev)
 		kb := c.Key(b, s)
@@ -247,10 +247,10 @@ func doTest(t Test) {
 			prev = s
 			continue
 		}
-		if r := c.Compare(b, prev, s); r == 1 {
+		if r := c.Compare(prev, s); r == 1 {
 			fail(t, "%d: Compare(%.4X, %.4X) == %d; want -1 or 0", i, runes(prev), runes(s), r)
 		}
-		if r := c.Compare(b, s, prev); r == -1 {
+		if r := c.Compare(s, prev); r == -1 {
 			fail(t, "%d: Compare(%.4X, %.4X) == %d; want 1 or 0", i, runes(s), runes(prev), r)
 		}
 		prev = s

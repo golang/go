@@ -4,8 +4,6 @@
 
 package collate
 
-import "exp/norm"
-
 // Init is used by type Builder in exp/locale/collate/build/
 // to create Collator instances.  It is for internal use only.
 func Init(data interface{}) *Collator {
@@ -24,11 +22,7 @@ func Init(data interface{}) *Collator {
 	t.contractElem = init.ContractElems()
 	t.maxContractLen = init.MaxContractLen()
 	t.variableTop = init.VariableTop()
-	return &Collator{
-		Strength: Quaternary,
-		f:        norm.NFD,
-		t:        t,
-	}
+	return newCollator(t)
 }
 
 type tableInitializer interface {
