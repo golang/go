@@ -6,6 +6,8 @@ package syscall
 
 import (
 	"sync"
+	"sync/atomic"
+	"unsafe"
 )
 
 // DLLError describes reasons for DLL load failures.
@@ -166,7 +168,9 @@ type LazyDLL struct {
 // Load loads DLL file d.Name into memory. It returns an error if fails.
 // Load will not try to load DLL, if it is already loaded into memory.
 func (d *LazyDLL) Load() error {
-	if d.dll == nil {
+	// Non-racy version of:
+	// if d.dll == nil {
+	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll))) == nil {
 		d.mu.Lock()
 		defer d.mu.Unlock()
 		if d.dll == nil {
@@ -174,7 +178,9 @@ func (d *LazyDLL) Load() error {
 			if e != nil {
 				return e
 			}
-			d.dll = dll
+			// Non-racy version of:
+			// d.dll = dll
+			atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&d.dll)), unsafe.Pointer(dll))
 		}
 	}
 	return nil
@@ -217,7 +223,9 @@ type LazyProc struct {
 // an error if search fails. Find will not search procedure,
 // if it is already found and loaded into memory.
 func (p *LazyProc) Find() error {
-	if p.proc == nil {
+	// Non-racy version of:
+	// if p.proc == nil {
+	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&p.proc))) == nil {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		if p.proc == nil {
@@ -229,7 +237,9 @@ func (p *LazyProc) Find() error {
 			if e != nil {
 				return e
 			}
-			p.proc = proc
+			// Non-racy version of:
+			// p.proc = proc
+			atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&p.proc)), unsafe.Pointer(proc))
 		}
 	}
 	return nil
