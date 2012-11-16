@@ -34,9 +34,16 @@ static bool onstack(uintptr argp);
 void
 runtime·raceinit(void)
 {
+	uintptr sz;
+
 	m->racecall = true;
 	runtime∕race·Initialize();
-	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
+	sz = (byte*)&runtime·mheap - noptrdata;
+	if(sz)
+		runtime∕race·MapShadow(noptrdata, sz);
+	sz = enoptrbss - (byte*)(&runtime·mheap+1);
+	if(sz)
+		runtime∕race·MapShadow(&runtime·mheap+1, sz);
 	m->racecall = false;
 }
 
