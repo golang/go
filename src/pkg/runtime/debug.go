@@ -4,7 +4,7 @@
 
 package runtime
 
-// Breakpoint() executes a breakpoint trap.
+// Breakpoint executes a breakpoint trap.
 func Breakpoint()
 
 // LockOSThread wires the calling goroutine to its current operating system thread.
