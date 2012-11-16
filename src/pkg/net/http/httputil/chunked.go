@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 )
@@ -41,6 +42,7 @@ type chunkedReader struct {
 	r   *bufio.Reader
 	n   uint64 // unread bytes in chunk
 	err error
+	buf [2]byte
 }
 
 func (cr *chunkedReader) beginChunk() {
@@ -76,9 +78,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 	cr.n -= uint64(n)
 	if cr.n == 0 && cr.err == nil {
 		// end of chunk (CRLF)
-		b := make([]byte, 2)
-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
-			if b[0] != '\r' || b[1] != '\n' {
+		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
+			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
 				cr.err = errors.New("malformed chunked encoding")
 			}
 		}
@@ -149,9 +150,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
-
-	if _, err = io.WriteString(cw.Wire, head); err != nil {
+	if _, err = fmt.Fprintf(cw.Wire, "%x\r\n", len(data)); err != nil {
 		return 0, err
 	}
 	if n, err = cw.Wire.Write(data); err != nil {
