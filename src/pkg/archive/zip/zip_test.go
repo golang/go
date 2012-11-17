@@ -186,12 +186,12 @@ func testInvalidHeader(h *FileHeader, t *testing.T) {
 		t.Fatalf("error writing content: %v", err)
 	}
 	if err := z.Close(); err != nil {
-		t.Fatal("error closing zip writer: %v", err)
+		t.Fatalf("error closing zip writer: %v", err)
 	}
 
 	b := buf.Bytes()
 	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
-		t.Fatal("got %v, expected ErrFormat", err)
+		t.Fatalf("got %v, expected ErrFormat", err)
 	}
 }
 
