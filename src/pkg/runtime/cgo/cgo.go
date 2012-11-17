@@ -18,6 +18,8 @@ package cgo
 #cgo openbsd LDFLAGS: -lpthread
 #cgo windows LDFLAGS: -lm -mthreads
 
+#cgo CFLAGS: -Wall -Werror
+
 */
 import "C"
 
