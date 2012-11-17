@@ -4,9 +4,10 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <process.h>
 #include "libcgo.h"
 
-static void *threadentry(void*);
+static void threadentry(void*);
 
 /* 1MB is default stack size for 32-bit Windows.
    Allocation granularity on Windows is typically 64 KB.
@@ -28,7 +29,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
 	_beginthread(threadentry, 0, ts);
 }
 
-static void*
+static void
 threadentry(void *v)
 {
 	ThreadStart ts;
@@ -55,5 +56,4 @@ threadentry(void *v)
 	crosscall_386(ts.fn);
 	
 	LocalFree(tls0);
-	return nil;
 }
