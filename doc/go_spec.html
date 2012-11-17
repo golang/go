@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 1, 2012",
+	"Subtitle": "Version of November 17, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3656,7 +3656,8 @@ complex, or string constant).
 const a = 2 + 3.0          // a == 5.0   (untyped floating-point constant)
 const b = 15 / 4           // b == 3     (untyped integer constant)
 const c = 15 / 4.0         // c == 3.75  (untyped floating-point constant)
-const Θ float64 = 3/2      // Θ == 1.5   (type float64)
+const Θ float64 = 3/2      // Θ == 1.0   (type float64, 3/2 is integer division)
+const Π float64 = 3/2.     // Π == 1.5   (type float64, 3/2. is float division)
 const d = 1 &lt;&lt; 3.0         // d == 8     (untyped integer constant)
 const e = 1.0 &lt;&lt; 3         // e == 8     (untyped integer constant)
 const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
