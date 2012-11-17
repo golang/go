@@ -238,7 +238,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 
 	if len(f.Extra) > 0 {
 		b := readBuf(f.Extra)
-		for len(b) > 4 { // need at least tag and size
+		for len(b) >= 4 { // need at least tag and size
 			tag := b.uint16()
 			size := b.uint16()
 			if int(size) > len(b) {
