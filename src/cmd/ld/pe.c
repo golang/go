@@ -659,7 +659,7 @@ asmbpe(void)
 	// for other threads we specify stack size in runtime explicitly
 	// (runtime knows whether cgo is enabled or not).
 	// If you change stack reserve sizes here,
-	// change them in runtime/cgo/windows_386/amd64.c as well.
+	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
 	if(!iscgo) {
 		set(SizeOfStackReserve, 0x00010000);
 		set(SizeOfStackCommit, 0x0000ffff);
