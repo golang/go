@@ -203,6 +203,8 @@ func block(dig *digest, p []byte) {
 			// less code and run 1.3x faster if we take advantage of that.
 			// My apologies.
 			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
+		} else if uintptr(unsafe.Pointer(&p[0]))&(unsafe.Alignof(uint32(0))-1) == 0 {
+			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
 		} else {
 			X = &xbuf
 			j := 0
