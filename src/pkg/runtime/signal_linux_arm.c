@@ -173,10 +173,13 @@ runtime·checkgoarm(void)
 void
 runtime·setup_auxv(int32 argc, void *argv_list)
 {
-	byte **argv = &argv_list;
+	byte **argv;
 	byte **envp;
+	byte *rnd;
 	uint32 *auxv;
 	uint32 t;
+
+	argv = &argv_list;
 
 	// skip envp to get to ELF auxiliary vector.
 	for(envp = &argv[argc+1]; *envp != nil; envp++)
@@ -186,8 +189,10 @@ runtime·setup_auxv(int32 argc, void *argv_list)
 	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
 		switch(auxv[0]) {
 		case AT_RANDOM: // kernel provided 16-byte worth of random data
-			if(auxv[1])
-				runtime·randomNumber = *(uint32*)(auxv[1] + 4);
+			if(auxv[1]) {
+				rnd = (byte*)auxv[1];
+				runtime·randomNumber = rnd[4] | rnd[5]<<8 | rnd[6]<<16 | rnd[7]<<24;
+			}
 			break;
 		case AT_PLATFORM: // v5l, v6l, v7l
 			if(auxv[1]) {
