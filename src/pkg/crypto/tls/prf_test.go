@@ -51,7 +51,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 
 		masterSecret := masterFromPreMasterSecret(test.version, in, clientRandom, serverRandom)
 		if s := hex.EncodeToString(masterSecret); s != test.masterSecret {
-			t.Errorf("#%d: bad master secret %s, want %s", s, test.masterSecret)
+			t.Errorf("#%d: bad master secret %s, want %s", i, s, test.masterSecret)
 			continue
 		}
 
