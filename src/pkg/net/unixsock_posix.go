@@ -313,9 +313,7 @@ func (l *UnixListener) Close() error {
 	if l.path[0] != '@' {
 		syscall.Unlink(l.path)
 	}
-	err := l.fd.Close()
-	l.fd = nil
-	return err
+	return l.fd.Close()
 }
 
 // Addr returns the listener's network address.
