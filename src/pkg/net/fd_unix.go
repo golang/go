@@ -353,9 +353,6 @@ func (fd *netFD) connect(ra syscall.Sockaddr) error {
 // If closing==true, pollserver must be locked; mark the fd as closing.
 // Returns an error if the fd cannot be used.
 func (fd *netFD) incref(closing bool) error {
-	if fd == nil {
-		return errClosing
-	}
 	fd.sysmu.Lock()
 	if fd.closing {
 		fd.sysmu.Unlock()
@@ -372,9 +369,6 @@ func (fd *netFD) incref(closing bool) error {
 // Remove a reference to this FD and close if we've been asked to do so (and
 // there are no references left.
 func (fd *netFD) decref() {
-	if fd == nil {
-		return
-	}
 	fd.sysmu.Lock()
 	fd.sysref--
 	if fd.closing && fd.sysref == 0 && fd.sysfile != nil {
