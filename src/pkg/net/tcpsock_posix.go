@@ -231,7 +231,7 @@ type TCPListener struct {
 // AcceptTCP accepts the next incoming call and returns the new connection
 // and the remote address.
 func (l *TCPListener) AcceptTCP() (c *TCPConn, err error) {
-	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
+	if l == nil || l.fd == nil {
 		return nil, syscall.EINVAL
 	}
 	fd, err := l.fd.accept(sockaddrToTCP)
