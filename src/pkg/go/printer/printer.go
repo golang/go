@@ -221,21 +221,6 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 		// atLineBegin updates p.pos if there's indentation, but p.pos
 		// is the position of s.
 		p.pos = pos
-		// reset state if the file changed
-		// (used when printing merged ASTs of different files
-		// e.g., the result of ast.MergePackageFiles)
-		if p.last.IsValid() && p.last.Filename != pos.Filename {
-			// Note: Do not set p.indent to 0 - this seems to be a bad heuristic.
-			//       ASTs may be created by various tools and built from nodes of
-			//       different files. An incorrectly constructed AST will likely
-			//       not print at all, but a (structurally) correct AST with bad
-			//       position information should still print structurally correct.
-			//       If p.indent is reset, indentation may be off, and likely lead
-			//       to indentation underflow (to detect set: debug = true).
-			//       See also issue 4300 (11/16/2012).
-			p.mode = 0
-			p.wsbuf = p.wsbuf[0:0]
-		}
 	}
 
 	if isLit {
