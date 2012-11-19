@@ -167,3 +167,25 @@ const (
 	foo2  string = "foo2"
 	truth        = foo == "foo" || foo2 == "foo2"
 )
+
+func ellipsis(...string) {}
+
+var x = &S{
+	Public:     nil,
+	private:    nil,
+	publicTime: time.Now(),
+}
+
+var parenExpr = (1 + 5)
+
+var funcLit = func() {}
+
+var m map[string]int
+
+var chanVar chan int
+
+var ifaceVar interface{} = 5
+
+var assertVar = ifaceVar.(int)
+
+var indexVar = m["foo"]
