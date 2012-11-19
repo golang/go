@@ -18,9 +18,7 @@ go build -o final-test.bin final-test.go
 (./final-test.bin) &
 wiki_pid=$!
 
-sleep 1
-
-./get.bin http://$addr/edit/Test > test_edit.out
+./get.bin --wait_for_port=5s http://$addr/edit/Test > test_edit.out
 diff -u test_edit.out test_edit.good
 ./get.bin -post=body=some%20content http://$addr/save/Test
 diff -u Test.txt test_Test.txt.good

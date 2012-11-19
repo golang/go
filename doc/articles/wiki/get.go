@@ -13,11 +13,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
 	post = flag.String("post", "", "urlencoded form data to POST")
 	addr = flag.Bool("addr", false, "find open address and print to stdout")
+	wait = flag.Duration("wait_for_port", 0, "if non-zero, the amount of time to wait for the address to become available")
 )
 
 func main() {
@@ -37,11 +39,18 @@ func main() {
 	}
 	var r *http.Response
 	var err error
-	if *post != "" {
-		b := strings.NewReader(*post)
-		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
-	} else {
-		r, err = http.Get(url)
+	loopUntil := time.Now().Add(*wait)
+	for {
+		if *post != "" {
+			b := strings.NewReader(*post)
+			r, err = http.Post(url, "application/x-www-form-urlencoded", b)
+		} else {
+			r, err = http.Get(url)
+		}
+		if err == nil || *wait == 0 || time.Now().After(loopUntil) {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	if err != nil {
 		log.Fatal(err)
