@@ -8,6 +8,8 @@
 use strict;
 use Cwd;
 
+binmode STDOUT;
+
 my $q = MiniCGI->new;
 my $params = $q->Vars;
 
