@@ -353,6 +353,21 @@ func fileDeps(f *ast.File) (pkgs []string) {
 	return
 }
 
+var parsedFileCache = make(map[string]*ast.File)
+
+func parseFile(filename string) (*ast.File, error) {
+	f, ok := parsedFileCache[filename]
+	if !ok {
+		var err error
+		f, err = parser.ParseFile(fset, filename, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		parsedFileCache[filename] = f
+	}
+	return clone(f).(*ast.File), nil
+}
+
 // WalkPackage walks all files in package `name'.
 // WalkPackage does nothing if the package has already been loaded.
 func (w *Walker) WalkPackage(name string) {
@@ -386,7 +401,7 @@ func (w *Walker) WalkPackage(name string) {
 
 	files := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
 	for _, file := range files {
-		f, err := parser.ParseFile(fset, filepath.Join(dir, file), nil, 0)
+		f, err := parseFile(filepath.Join(dir, file))
 		if err != nil {
 			log.Fatalf("error parsing package %s, file %s: %v", name, file, err)
 		}
