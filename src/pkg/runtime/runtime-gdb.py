@@ -375,6 +375,7 @@ class GoroutineCmd(gdb.Command):
 
 	def invoke(self, arg, from_tty):
 		goid, cmd = arg.split(None, 1)
+		goid = gdb.parse_and_eval(goid)
 		pc, sp = find_goroutine(int(goid))
 		if not pc:
 			print "No such goroutine: ", goid
