@@ -10,6 +10,23 @@ use Cwd;
 
 binmode STDOUT;
 
+sub on_windows {
+    return $^O eq 'MSWin32' || $^O eq 'msys';
+}
+
+# normalize_windows_path normalizes the various Windows Perl path
+# formats into Go's format.
+sub normalize_windows_path {
+    my $dir = shift;
+    return $dir unless on_windows();
+    $dir =~ s!^[a-z]:!uc($&)!e;
+    if ($dir =~ s!^/([a-zA-Z])/!!) {
+        $dir = uc($1) . ":\\$dir";
+    }
+    $dir =~ s!/!\\!g;
+    return $dir;
+}
+
 my $q = MiniCGI->new;
 my $params = $q->Vars;
 
@@ -22,7 +39,7 @@ my $NL = "\r\n";
 $NL = "\n" if $params->{mode} eq "NL";
 
 my $p = sub {
-  print "$_[0]$NL";
+    print "$_[0]$NL";
 };
 
 # With carriage returns
@@ -41,28 +58,17 @@ if ($params->{"bigresponse"}) {
 print "test=Hello CGI\n";
 
 foreach my $k (sort keys %$params) {
-  print "param-$k=$params->{$k}\n";
+    print "param-$k=$params->{$k}\n";
 }
 
 foreach my $k (sort keys %ENV) {
-  my $clean_env = $ENV{$k};
-  $clean_env =~ s/[\n\r]//g;
-  print "env-$k=$clean_env\n";
+    my $clean_env = $ENV{$k};
+    $clean_env =~ s/[\n\r]//g;
+    print "env-$k=$clean_env\n";
 }
 
-# NOTE: don't call getcwd() for windows.
-# msys return /c/go/src/... not C:\go\...
-my $dir;
-if ($^O eq 'MSWin32' || $^O eq 'msys') {
-  my $cmd = $ENV{'COMSPEC'} || 'c:\\windows\\system32\\cmd.exe';
-  $cmd =~ s!\\!/!g;
-  $dir = `$cmd /c cd`;
-  chomp $dir;
-} else {
-  $dir = getcwd();
-}
+my $dir = normalize_windows_path(getcwd());
 print "cwd=$dir\n";
-
 
 # A minimal version of CGI.pm, for people without the perl-modules
 # package installed.  (CGI.pm used to be part of the Perl core, but
@@ -95,4 +101,25 @@ sub _urldecode {
     $v =~ tr/+/ /;
     $v =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
     return $v;
+}
+
+package Tests;
+
+sub test_normalize_windows_paths {
+    my @tests = (
+        {in => "C:\\foo\\bar", want => "C:\\foo\\bar"},
+        {in => "C:/foo/bar", want => "C:\\foo\\bar"},
+        {in => "c:/foo/bar", want => "C:\\foo\\bar"},
+        {in => "/c/foo/bar", want => "C:\\foo\\bar"},
+    );
+    foreach my $tt (@tests) {
+        my $got = ::normalize_windows_path($tt->{in});
+        unless ($got eq $tt->{want}) {
+            die "For path $tt->{in}, normalize = $got; want $tt->{want}\n";
+        }
+    }
+}
+
+BEGIN {
+    test_normalize_windows_paths() if ::on_windows();
 }
