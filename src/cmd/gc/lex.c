@@ -99,7 +99,7 @@ yy_isdigit(int c)
 static int
 yy_isspace(int c)
 {
-	return c >= 0 && c <= 0xFF && isspace(c);
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
 static int
@@ -790,12 +790,8 @@ static int
 isfrog(int c)
 {
 	// complain about possibly invisible control characters
-	if(c < 0)
-		return 1;
 	if(c < ' ') {
-		if(c == '\n' || c== '\r' || c == '\t')	// good white space
-			return 0;
-		return 1;
+		return !yy_isspace(c);	// exclude good white space
 	}
 	if(0x7f <= c && c <= 0xa0)	// DEL, unicode block including unbreakable space.
 		return 1;
