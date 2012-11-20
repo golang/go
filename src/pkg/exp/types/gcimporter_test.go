@@ -127,6 +127,10 @@ var importedObjectTests = []struct {
 }
 
 func TestGcImportedTypes(t *testing.T) {
+	// This package does not yet know how to read gccgo export data.
+	if runtime.Compiler == "gccgo" {
+		return
+	}
 	for _, test := range importedObjectTests {
 		s := strings.Split(test.name, ".")
 		if len(s) != 2 {
