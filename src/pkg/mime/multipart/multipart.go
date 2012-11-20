@@ -37,6 +37,11 @@ type Part struct {
 
 	disposition       string
 	dispositionParams map[string]string
+
+	// r is either a reader directly reading from mr, or it's a
+	// wrapper around such a reader, decoding the
+	// Content-Transfer-Encoding
+	r io.Reader
 }
 
 // FormName returns the name parameter if p has a Content-Disposition
@@ -94,6 +99,12 @@ func newPart(mr *Reader) (*Part, error) {
 	if err := bp.populateHeaders(); err != nil {
 		return nil, err
 	}
+	bp.r = partReader{bp}
+	const cte = "Content-Transfer-Encoding"
+	if bp.Header.Get(cte) == "quoted-printable" {
+		bp.Header.Del(cte)
+		bp.r = newQuotedPrintableReader(bp.r)
+	}
 	return bp, nil
 }
 
@@ -109,6 +120,17 @@ func (bp *Part) populateHeaders() error {
 // Read reads the body of a part, after its headers and before the
 // next part (if any) begins.
 func (p *Part) Read(d []byte) (n int, err error) {
+	return p.r.Read(d)
+}
+
+// partReader implements io.Reader by reading raw bytes directly from the
+// wrapped *Part, without doing any Transfer-Encoding decoding.
+type partReader struct {
+	p *Part
+}
+
+func (pr partReader) Read(d []byte) (n int, err error) {
+	p := pr.p
 	defer func() {
 		p.bytesRead += n
 	}()
