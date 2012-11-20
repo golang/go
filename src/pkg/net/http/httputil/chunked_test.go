@@ -44,6 +44,8 @@ func TestChunk(t *testing.T) {
 }
 
 func TestChunkReaderAllocs(t *testing.T) {
+	// temporarily set GOMAXPROCS to 1 as we are testing memory allocations
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	var buf bytes.Buffer
 	w := NewChunkedWriter(&buf)
 	a, b, c := []byte("aaaaaa"), []byte("bbbbbbbbbbbb"), []byte("cccccccccccccccccccccccc")
