@@ -163,7 +163,7 @@ func (d *decoder) processDHT(n int) error {
 
 // Returns the next Huffman-coded value from the bit stream, decoded according to h.
 // TODO(nigeltao): This decoding algorithm is simple, but slow. A lookahead table, instead of always
-// peeling off only 1 bit at at time, ought to be faster.
+// peeling off only 1 bit at time, ought to be faster.
 func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
 	if h.length == 0 {
 		return 0, FormatError("uninitialized Huffman table")

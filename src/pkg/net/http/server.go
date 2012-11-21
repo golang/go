@@ -127,7 +127,7 @@ type response struct {
 
 	// requestBodyLimitHit is set by requestTooLarge when
 	// maxBytesReader hits its max size. It is checked in
-	// WriteHeader, to make sure we don't consume the the
+	// WriteHeader, to make sure we don't consume the
 	// remaining request body to try to advance to the next HTTP
 	// request. Instead, when this is set, we stop reading
 	// subsequent requests on this connection and stop reading

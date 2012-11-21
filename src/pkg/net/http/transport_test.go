@@ -281,7 +281,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	c := &Client{Transport: tr}
 
 	// Start 3 outstanding requests and wait for the server to get them.
-	// Their responses will hang until we we write to resch, though.
+	// Their responses will hang until we write to resch, though.
 	donech := make(chan bool)
 	doReq := func() {
 		resp, err := c.Get(ts.URL)

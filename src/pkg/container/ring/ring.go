@@ -74,7 +74,7 @@ func New(n int) *Ring {
 	return r
 }
 
-// Link connects ring r with with ring s such that r.Next()
+// Link connects ring r with ring s such that r.Next()
 // becomes s and returns the original value for r.Next().
 // r must not be empty.
 //

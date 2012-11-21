@@ -452,7 +452,7 @@ func trimRight(s string) string {
 
 // stripCommonPrefix removes a common prefix from /*-style comment lines (unless no
 // comment line is indented, all but the first line have some form of space prefix).
-// The prefix is computed using heuristics such that is is likely that the comment
+// The prefix is computed using heuristics such that is likely that the comment
 // contents are nicely laid out after re-printing each line using the printer's
 // current indentation.
 //

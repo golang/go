@@ -1338,7 +1338,7 @@ func cachePut(k cacheKey, t *rtype) Type {
 	return t
 }
 
-// ChanOf returns the channel type with the given direction and and element type.
+// ChanOf returns the channel type with the given direction and element type.
 // For example, if t represents int, ChanOf(RecvDir, t) represents <-chan int.
 //
 // The gc runtime imposes a limit of 64 kB on channel element types.
