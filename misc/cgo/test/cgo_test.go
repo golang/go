@@ -32,5 +32,6 @@ func TestLibgcc(t *testing.T)              { testLibgcc(t) }
 func Test1635(t *testing.T)                { test1635(t) }
 func TestPrintf(t *testing.T)              { testPrintf(t) }
 func Test4029(t *testing.T)                { test4029(t) }
+func TestBoolAlign(t *testing.T)           { testBoolAlign(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
