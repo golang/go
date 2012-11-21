@@ -32,6 +32,7 @@ const (
 // These variables are copied from the gobuilder's environment
 // to the envv of its subprocesses.
 var extraEnv = []string{
+	"CC",
 	"GOARM",
 	"GOHOSTARCH",
 	"GOHOSTOS",
