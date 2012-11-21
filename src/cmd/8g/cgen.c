@@ -827,16 +827,19 @@ igen(Node *n, Node *a, Node *res)
 		return;
 
 	case ODOTPTR:
-		if(n->left->addable
-			|| n->left->op == OCALLFUNC
-			|| n->left->op == OCALLMETH
-			|| n->left->op == OCALLINTER) {
+		switch(n->left->op) {
+		case ODOT:
+		case ODOTPTR:
+		case OCALLFUNC:
+		case OCALLMETH:
+		case OCALLINTER:
 			// igen-able nodes.
 			igen(n->left, &n1, res);
 			regalloc(a, types[tptr], &n1);
 			gmove(&n1, a);
 			regfree(&n1);
-		} else {
+			break;
+		default:
 			regalloc(a, types[tptr], res);
 			cgen(n->left, a);
 		}
