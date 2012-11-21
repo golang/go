@@ -85,8 +85,7 @@ typedef struct Itimerval Itimerval;
 struct Tfork {
 	byte	*tf_tcb;
 	int32	*tf_tid;
-	int32	tf_flags;
-	byte	Pad_cgo_0[4];
+	byte	*tf_stack;
 };
 
 struct Sigaltstack {

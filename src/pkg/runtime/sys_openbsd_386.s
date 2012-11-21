@@ -190,12 +190,14 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// int32 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·tfork_thread(SB),7,$8
+// int32 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+TEXT runtime·tfork(SB),7,$12
 
-	// Copy m, g, fn off parent stack and onto the child stack.
-	MOVL	stack+8(FP), CX
+	// Copy m, g and fn from the parent stack onto the child stack.
+	MOVL	params+4(FP), AX
+	MOVL	8(AX), CX		// tf_stack
 	SUBL	$16, CX
+	MOVL	CX, 8(AX)
 	MOVL	mm+12(FP), SI
 	MOVL	SI, 0(CX)
 	MOVL	gg+16(FP), SI
@@ -203,12 +205,13 @@ TEXT runtime·tfork_thread(SB),7,$8
 	MOVL	fn+20(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
-	MOVL	CX, SI
 
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	params+4(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - param
-	MOVL	$328, AX		// sys___tfork
+	MOVL	psize+8(FP), AX
+	MOVL	AX, 8(SP)		// arg 2 - psize
+	MOVL	$8, AX			// sys___tfork
 	INT	$0x80
 
 	// Return if tfork syscall failed.
@@ -224,9 +227,6 @@ TEXT runtime·tfork_thread(SB),7,$8
 	MOVL	ret+0(FP), DX
 	MOVL	AX, 0(DX)
 	RET
-
-	// In child, switch to new stack.
-	MOVL    SI, SP
 
 	// Paranoia: check that SP is as we expect.
 	MOVL	12(SP), BP
@@ -278,22 +278,20 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	INT	$3
 	RET
 
-TEXT runtime·setldt(SB),7,$8
+TEXT runtime·setldt(SB),7,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
-	MOVL	16(SP), AX		// tls0
+	MOVL	tls0+4(FP), AX
 	MOVL	AX, 0(SP)
 	CALL	runtime·settls(SB)
 	RET
 
-TEXT runtime·settls(SB),7,$16
+TEXT runtime·settls(SB),7,$8
 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
-	MOVL	20(SP), CX
+	MOVL	tlsbase+0(FP), CX
 	ADDL	$8, CX
-	MOVL	CX, 0(CX)
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	$9, 4(SP)		// I386_SET_GSBASE (machine/sysarch.h)
-	MOVL	CX, 8(SP)		// pointer to base
-	MOVL	$165, AX		// sys_sysarch
+	MOVL	CX, 4(SP)		// arg 1 - tcb
+	MOVL	$329, AX		// sys___set_tcb
 	INT	$0x80
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash

@@ -23,7 +23,7 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_all = ~(Sigset)0;
 static Sigset sigset_none;
 
-extern int64 runtime·tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+extern int64 runtime·tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
@@ -139,10 +139,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	param.tf_tcb = (byte*)&m->tls[0];
 	param.tf_tid = (int32*)&m->procid;
-	param.tf_flags = (int32)0;
+	param.tf_stack = stk;
 
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
-	ret = runtime·tfork_thread((byte*)&param, stk, m, g, fn);
+	ret = runtime·tfork((byte*)&param, sizeof(param), m, g, fn);
 	runtime·sigprocmask(SIG_SETMASK, oset);
 
 	if(ret < 0) {
