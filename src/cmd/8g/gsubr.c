@@ -1747,7 +1747,7 @@ gins(int as, Node *f, Node *t)
 	
 	case ALEAL:
 		if(f != N && isconst(f, CTNIL))
-			fatal("gins LEAQ nil %T", f->type);
+			fatal("gins LEAL nil %T", f->type);
 		break;
 	}
 
