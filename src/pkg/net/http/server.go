@@ -11,7 +11,6 @@ package http
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -21,7 +20,7 @@ import (
 	"net"
 	"net/url"
 	"path"
-	"runtime/debug"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -610,10 +609,10 @@ func (c *conn) serve() {
 			return
 		}
 
-		var buf bytes.Buffer
-		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
-		buf.Write(debug.Stack())
-		log.Print(buf.String())
+		const size = 4096
+		buf := make([]byte, size)
+		buf = buf[:runtime.Stack(buf, false)]
+		log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
 
 		if c.rwc != nil { // may be nil if connection hijacked
 			c.rwc.Close()
