@@ -1078,7 +1078,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 
 	case *dwarf.BoolType:
 		t.Go = c.bool
-		t.Align = c.ptrSize
+		t.Align = 1
 
 	case *dwarf.CharType:
 		if t.Size != 1 {
