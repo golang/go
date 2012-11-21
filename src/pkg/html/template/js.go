@@ -14,7 +14,7 @@ import (
 )
 
 // nextJSCtx returns the context that determines whether a slash after the
-// given run of tokens tokens starts a regular expression instead of a division
+// given run of tokens starts a regular expression instead of a division
 // operator: / or /=.
 //
 // This assumes that the token run does not include any string tokens, comment

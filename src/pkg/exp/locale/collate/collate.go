@@ -450,7 +450,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
 		}
 		// Derive the quaternary weights from the options and other levels.
 		// Note that we represent maxQuaternary as 0xFF. The first byte of the
-		// representation of a a primary weight is always smaller than 0xFF,
+		// representation of a primary weight is always smaller than 0xFF,
 		// so using this single byte value will compare correctly.
 		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
 			if c.Alternate == AltShiftTrimmed {

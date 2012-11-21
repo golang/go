@@ -184,7 +184,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 // values, or a pointer to such data.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
-// When writing structs, zero values are are written for fields
+// When writing structs, zero values are written for fields
 // with blank (_) field names.
 func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	// Fast path for basic types.

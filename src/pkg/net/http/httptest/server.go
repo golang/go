@@ -21,7 +21,7 @@ import (
 type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
-	TLS      *tls.Config // nil if not using using TLS
+	TLS      *tls.Config // nil if not using TLS
 
 	// Config may be changed after calling NewUnstartedServer and
 	// before Start or StartTLS.
