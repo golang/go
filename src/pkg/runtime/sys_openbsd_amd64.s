@@ -8,17 +8,17 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·tfork_thread(SB),7,$32
+// int64 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+TEXT runtime·tfork(SB),7,$32
 
-	// Copy stack, m, g and fn off parent stack for use by child.
-	MOVQ	stack+8(FP), SI
+	// Copy m, g and fn off parent stack for use by child.
 	MOVQ	mm+16(FP), R8
 	MOVQ	gg+24(FP), R9
 	MOVQ	fn+32(FP), R12
 
 	MOVQ	param+0(FP), DI
-	MOVL	$328, AX		// sys___tfork
+	MOVQ	psize+8(FP), SI
+	MOVL	$8, AX			// sys___tfork
 	SYSCALL
 
 	// Return if tfork syscall failed.
@@ -30,9 +30,6 @@ TEXT runtime·tfork_thread(SB),7,$32
 	CMPL	AX, $0
 	JEQ	2(PC)
 	RET
-
-	// In child, switch to new stack.
-	MOVQ	SI, SP
 
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
@@ -54,7 +51,7 @@ TEXT runtime·tfork_thread(SB),7,$32
 	JMP	-3(PC)			// keep exiting
 
 TEXT runtime·osyield(SB),7,$0
-	MOVL $298, AX			// sys_sched_yield
+	MOVL	$298, AX		// sys_sched_yield
 	SYSCALL
 	RET
 
@@ -249,13 +246,10 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	RET
 
 // set tls base to DI
-TEXT runtime·settls(SB),7,$8
+TEXT runtime·settls(SB),7,$0
 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
 	ADDQ	$16, DI
-	MOVQ	DI, 0(SP)
-	MOVQ	SP, SI
-	MOVQ	$12, DI			// AMD64_SET_FSBASE (machine/sysarch.h)
-	MOVQ	$165, AX		// sys_sysarch
+	MOVQ	$329, AX		// sys___settcb
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
