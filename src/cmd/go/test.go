@@ -379,7 +379,11 @@ func runTest(cmd *Command, args []string) {
 		if args != "" {
 			args = " " + args
 		}
-		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i%s' will speed future tests.\n\n", args)
+		extraOpts := ""
+		if buildRace {
+			extraOpts = "-race "
+		}
+		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
 	}
 
 	b.do(root)
