@@ -1478,7 +1478,7 @@ func gccgoCleanPkgpath(p *Package) string {
 func (b *builder) libgcc(p *Package) (string, error) {
 	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
 	}
 	return strings.Trim(string(f), "\r\n"), nil
 }
@@ -1542,7 +1542,10 @@ func envList(key string) []string {
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-var cgoLibGccFile string
+var (
+	cgoLibGccFile     string
+	cgoLibGccFileOnce sync.Once
+)
 
 func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
 	if goos != toolGOOS {
@@ -1633,13 +1636,17 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
 	}
-	if cgoLibGccFile == "" {
-		var err error
+
+	cgoLibGccFileOnce.Do(func() {
 		cgoLibGccFile, err = b.libgcc(p)
-		if err != nil {
-			return nil, nil, err
+	})
+	if cgoLibGccFile == "" {
+		if err == nil {
+			err = errors.New("failed to get libgcc filename")
 		}
+		return nil, nil, err
 	}
+
 	var staticLibs []string
 	if goos == "windows" {
 		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
