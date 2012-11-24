@@ -93,7 +93,7 @@ func runGet(cmd *Command, args []string) {
 	runInstall(cmd, args)
 }
 
-// downloadPath prepares the list of paths to pass to download.
+// downloadPaths prepares the list of paths to pass to download.
 // It expands ... patterns that can be expanded.  If there is no match
 // for a particular pattern, downloadPaths leaves it in the result list,
 // in the hope that we can figure out the repository from the
