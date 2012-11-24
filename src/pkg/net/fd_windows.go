@@ -169,6 +169,15 @@ func (s *ioSrv) ProcessRemoteIO() {
 func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	var err error
 	o := oi.Op()
+	// Calculate timeout delta.
+	var delta int64
+	if deadline != 0 {
+		delta = deadline - time.Now().UnixNano()
+		if delta <= 0 {
+			return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, errTimeout}
+		}
+	}
+	// Start IO.
 	if canCancelIO {
 		err = oi.Submit()
 	} else {
@@ -188,12 +197,8 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
 	}
 	// Setup timer, if deadline is given.
 	var timer <-chan time.Time
-	if deadline != 0 {
-		dt := deadline - time.Now().UnixNano()
-		if dt < 1 {
-			dt = 1
-		}
-		t := time.NewTimer(time.Duration(dt) * time.Nanosecond)
+	if delta > 0 {
+		t := time.NewTimer(time.Duration(delta) * time.Nanosecond)
 		defer t.Stop()
 		timer = t.C
 	}
