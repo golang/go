@@ -71,7 +71,7 @@ type Transport struct {
 	DisableCompression bool
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
-	// (keep-alive) to keep to keep per-host.  If zero,
+	// (keep-alive) to keep per-host.  If zero,
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
 }
