@@ -36,13 +36,16 @@ type Server struct {
 // accepted.
 type historyListener struct {
 	net.Listener
-	history []net.Conn
+	sync.Mutex // protects history
+	history    []net.Conn
 }
 
 func (hs *historyListener) Accept() (c net.Conn, err error) {
 	c, err = hs.Listener.Accept()
 	if err == nil {
+		hs.Lock()
 		hs.history = append(hs.history, c)
+		hs.Unlock()
 	}
 	return
 }
@@ -96,7 +99,7 @@ func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
-	s.Listener = &historyListener{s.Listener, make([]net.Conn, 0)}
+	s.Listener = &historyListener{Listener: s.Listener}
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
@@ -122,7 +125,7 @@ func (s *Server) StartTLS() {
 	}
 	tlsListener := tls.NewListener(s.Listener, s.TLS)
 
-	s.Listener = &historyListener{tlsListener, make([]net.Conn, 0)}
+	s.Listener = &historyListener{Listener: tlsListener}
 	s.URL = "https://" + s.Listener.Addr().String()
 	s.wrapHandler()
 	go s.Config.Serve(s.Listener)
@@ -161,9 +164,11 @@ func (s *Server) CloseClientConnections() {
 	if !ok {
 		return
 	}
+	hl.Lock()
 	for _, conn := range hl.history {
 		conn.Close()
 	}
+	hl.Unlock()
 }
 
 // waitGroupHandler wraps a handler, incrementing and decrementing a
