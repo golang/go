@@ -184,6 +184,17 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVQ	$75, AX	// madvise
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	MOVL	$0xf1, 0xf1  // crash
+	RET
+	
 TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
