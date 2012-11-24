@@ -7,8 +7,9 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
-GOARCH=386 cgo -cdefs defs.go >386/defs.h
+GOARCH=amd64 go tool cgo -cdefs defs_freebsd.go >defs_freebsd_amd64.h
+GOARCH=386 go tool cgo -cdefs defs_freebsd.go >defs_freebsd_386.h
+GOARCH=arm go tool cgo -cdefs defs_freebsd.go >defs_freebsd_arm.h
 */
 
 package runtime
@@ -37,6 +38,8 @@ const (
 	MAP_ANON    = C.MAP_ANON
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
+
+	MADV_FREE = C.MADV_FREE
 
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART

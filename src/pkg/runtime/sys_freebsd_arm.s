@@ -187,6 +187,15 @@ TEXT runtime·munmap(SB),7,$0
 	MOVW.CS R9, (R9)
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVW 0(FP), R0		// arg 1 addr
+	MOVW 4(FP), R1		// arg 2 len
+	MOVW 8(FP), R2		// arg 3 flags
+	SWI $75
+	MOVW.CS $0, R9 // crash on syscall failure
+	MOVW.CS R9, (R9)
+	RET
+	
 TEXT runtime·sigaltstack(SB),7,$-8
 	MOVW new+0(FP), R0
 	MOVW old+4(FP), R1
