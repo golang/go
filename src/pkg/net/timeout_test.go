@@ -24,6 +24,151 @@ type copyRes struct {
 	d   time.Duration
 }
 
+func TestAcceptTimeout(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	ln := newLocalListener(t).(*TCPListener)
+	defer ln.Close()
+	ln.SetDeadline(time.Now().Add(-1 * time.Second))
+	if _, err := ln.Accept(); !isTimeout(err) {
+		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	if _, err := ln.Accept(); !isTimeout(err) {
+		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	if _, err := ln.Accept(); !isTimeout(err) {
+		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	if _, err := ln.Accept(); !isTimeout(err) {
+		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+	}
+	ln.SetDeadline(noDeadline)
+	errc := make(chan error)
+	go func() {
+		_, err := ln.Accept()
+		errc <- err
+	}()
+	time.Sleep(100 * time.Millisecond)
+	select {
+	case err := <-errc:
+		t.Fatalf("Expected Accept() to not return, but it returned with %v\n", err)
+	default:
+	}
+	ln.Close()
+	if err := <-errc; err.(*OpError).Err != errClosing {
+		t.Fatalf("Accept: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	}
+}
+
+func TestReadTimeout(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer c.Close()
+	c.SetDeadline(time.Now().Add(time.Hour))
+	c.SetReadDeadline(time.Now().Add(-1 * time.Second))
+	buf := make([]byte, 1)
+	if _, err = c.Read(buf); !isTimeout(err) {
+		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	if _, err = c.Read(buf); !isTimeout(err) {
+		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	if _, err = c.Read(buf); !isTimeout(err) {
+		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	if _, err = c.Read(buf); !isTimeout(err) {
+		t.Fatalf("Read: expected err %v, got %v", errTimeout, err)
+	}
+	c.SetReadDeadline(noDeadline)
+	c.SetWriteDeadline(time.Now().Add(-1 * time.Second))
+	errc := make(chan error)
+	go func() {
+		_, err := c.Read(buf)
+		errc <- err
+	}()
+	time.Sleep(100 * time.Millisecond)
+	select {
+	case err := <-errc:
+		t.Fatalf("Expected Read() to not return, but it returned with %v\n", err)
+	default:
+	}
+	c.Close()
+	if err := <-errc; err.(*OpError).Err != errClosing {
+		t.Fatalf("Read: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	}
+}
+
+func TestWriteTimeout(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer c.Close()
+	c.SetDeadline(time.Now().Add(time.Hour))
+	c.SetWriteDeadline(time.Now().Add(-1 * time.Second))
+	buf := make([]byte, 4096)
+	writeUntilTimeout := func() {
+		for {
+			_, err := c.Write(buf)
+			if err != nil {
+				if isTimeout(err) {
+					return
+				}
+				t.Fatalf("Write: expected err %v, got %v", errTimeout, err)
+			}
+		}
+	}
+	writeUntilTimeout()
+	c.SetDeadline(time.Now().Add(10 * time.Millisecond))
+	writeUntilTimeout()
+	writeUntilTimeout()
+	c.SetWriteDeadline(noDeadline)
+	c.SetReadDeadline(time.Now().Add(-1 * time.Second))
+	errc := make(chan error)
+	go func() {
+		for {
+			_, err := c.Write(buf)
+			if err != nil {
+				errc <- err
+			}
+		}
+	}()
+	time.Sleep(100 * time.Millisecond)
+	select {
+	case err := <-errc:
+		t.Fatalf("Expected Write() to not return, but it returned with %v\n", err)
+	default:
+	}
+	c.Close()
+	if err := <-errc; err.(*OpError).Err != errClosing {
+		t.Fatalf("Write: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	}
+}
+
 func testTimeout(t *testing.T, net, addr string, readFrom bool) {
 	c, err := Dial(net, addr)
 	if err != nil {
@@ -117,7 +262,7 @@ func TestDeadlineReset(t *testing.T) {
 	defer ln.Close()
 	tl := ln.(*TCPListener)
 	tl.SetDeadline(time.Now().Add(1 * time.Minute))
-	tl.SetDeadline(time.Time{}) // reset it
+	tl.SetDeadline(noDeadline) // reset it
 	errc := make(chan error, 1)
 	go func() {
 		_, err := ln.Accept()
