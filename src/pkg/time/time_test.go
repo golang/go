@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -1037,9 +1038,47 @@ func TestParseDurationRoundTrip(t *testing.T) {
 	}
 }
 
+var (
+	t Time
+	u int64
+)
+
+var mallocTest = []struct {
+	count int
+	desc  string
+	fn    func()
+}{
+	{0, `time.Now()`, func() { t = Now() }},
+	{0, `time.Now().UnixNano()`, func() { u = Now().UnixNano() }},
+}
+
+func TestCountMallocs(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	for _, mt := range mallocTest {
+		const N = 100
+		memstats := new(runtime.MemStats)
+		runtime.ReadMemStats(memstats)
+		mallocs := 0 - memstats.Mallocs
+		for i := 0; i < N; i++ {
+			mt.fn()
+		}
+		runtime.ReadMemStats(memstats)
+		mallocs += memstats.Mallocs
+		if mallocs/N > uint64(mt.count) {
+			t.Errorf("%s: expected %d mallocs, got %d", mt.desc, mt.count, mallocs/N)
+		}
+	}
+}
+
 func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Now()
+		t = Now()
+	}
+}
+
+func BenchmarkNowUnixNano(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		u = Now().UnixNano()
 	}
 }
 
