@@ -155,6 +155,10 @@ func NewTLSServer(handler http.Handler) *Server {
 func (s *Server) Close() {
 	s.Listener.Close()
 	s.wg.Wait()
+	s.CloseClientConnections()
+	if t, ok := http.DefaultTransport.(*http.Transport); ok {
+		t.CloseIdleConnections()
+	}
 }
 
 // CloseClientConnections closes any currently open HTTP connections
