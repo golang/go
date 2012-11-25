@@ -124,7 +124,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	r.prevRune = -1
 	if r.i >= len(r.s) {
-		return 0, io.EOF
+		return 0, nil
 	}
 	s := r.s[r.i:]
 	m, err := io.WriteString(w, s)

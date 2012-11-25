@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -88,16 +89,20 @@ func TestReaderAt(t *testing.T) {
 }
 
 func TestReaderWriteTo(t *testing.T) {
-	for i := 3; i < 30; i += 3 {
-		s := data[:len(data)/i]
-		r := NewReader(testBytes[:len(testBytes)/i])
+	for i := 0; i < 30; i += 3 {
+		var l int
+		if i > 0 {
+			l = len(data) / i
+		}
+		s := data[:l]
+		r := NewReader(testBytes[:l])
 		var b Buffer
 		n, err := r.WriteTo(&b)
 		if expect := int64(len(s)); n != expect {
 			t.Errorf("got %v; want %v", n, expect)
 		}
 		if err != nil {
-			t.Errorf("got error = %v; want nil", err)
+			t.Errorf("for length %d: got error = %v; want nil", l, err)
 		}
 		if b.String() != s {
 			t.Errorf("got string %q; want %q", b.String(), s)
@@ -105,5 +110,28 @@ func TestReaderWriteTo(t *testing.T) {
 		if r.Len() != 0 {
 			t.Errorf("reader contains %v bytes; want 0", r.Len())
 		}
+	}
+}
+
+// verify that copying from an empty reader always has the same results,
+// regardless of the presence of a WriteTo method.
+func TestReaderCopyNothing(t *testing.T) {
+	type nErr struct {
+		n   int64
+		err error
+	}
+	type justReader struct {
+		io.Reader
+	}
+	type justWriter struct {
+		io.Writer
+	}
+	discard := justWriter{ioutil.Discard} // hide ReadFrom
+
+	var with, withOut nErr
+	with.n, with.err = io.Copy(discard, NewReader(nil))
+	withOut.n, withOut.err = io.Copy(discard, justReader{NewReader(nil)})
+	if with != withOut {
+		t.Errorf("behavior differs: with = %#v; without: %#v", with, withOut)
 	}
 }
