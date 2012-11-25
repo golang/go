@@ -431,6 +431,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		}
 		n, err = syscall.Read(int(fd.sysfd), p)
 		if err == syscall.EAGAIN {
+			n = 0
 			err = errTimeout
 			if fd.rdeadline >= 0 {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
@@ -467,6 +468,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 		}
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
 		if err == syscall.EAGAIN {
+			n = 0
 			err = errTimeout
 			if fd.rdeadline >= 0 {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
@@ -501,6 +503,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 		}
 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
 		if err == syscall.EAGAIN {
+			n = 0
 			err = errTimeout
 			if fd.rdeadline >= 0 {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
