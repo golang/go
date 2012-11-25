@@ -90,7 +90,7 @@ func TestReaderAt(t *testing.T) {
 
 func TestWriteTo(t *testing.T) {
 	const str = "0123456789"
-	for i := 0; i < len(str); i++ {
+	for i := 0; i <= len(str); i++ {
 		s := str[i:]
 		r := strings.NewReader(s)
 		var b bytes.Buffer
@@ -99,7 +99,7 @@ func TestWriteTo(t *testing.T) {
 			t.Errorf("got %v; want %v", n, expect)
 		}
 		if err != nil {
-			t.Errorf("got error = %v; want nil", err)
+			t.Errorf("for length %d: got error = %v; want nil", len(s), err)
 		}
 		if b.String() != s {
 			t.Errorf("got string %q; want %q", b.String(), s)
