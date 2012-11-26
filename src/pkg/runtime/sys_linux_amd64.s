@@ -101,36 +101,59 @@ TEXT runtime·mincore(SB),7,$0-24
 	RET
 
 // func now() (sec int64, nsec int32)
-TEXT time·now(SB), 7, $32
+TEXT time·now(SB),7,$16
+	// Be careful. We're calling a function with gcc calling convention here.
+	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
+	// call uses another 8.
+	// That leaves 104 for the gettime code to use. Hope that's enough!
 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback_gtod
 	MOVL	$0, DI // CLOCK_REALTIME
-	LEAQ	8(SP), SI
+	LEAQ	0(SP), SI
 	CALL	AX
-	MOVQ	8(SP), AX	// sec
-	MOVQ	16(SP), DX	// nsec
+	MOVQ	0(SP), AX	// sec
+	MOVQ	8(SP), DX	// nsec
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 fallback_gtod:
-	LEAQ	8(SP), DI
+	LEAQ	0(SP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
 	CALL	AX
-	MOVQ	8(SP), AX	// sec
-	MOVL	16(SP), DX	// usec
+	MOVQ	0(SP), AX	// sec
+	MOVL	8(SP), DX	// usec
 	IMULQ	$1000, DX
 	MOVQ	AX, sec+0(FP)
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), 7, $32
-	CALL	time·now(SB)
+TEXT runtime·nanotime(SB),7,$16
+	// Duplicate time.now here to avoid using up precious stack space.
+	// See comment above in time.now.
+	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+	CMPQ	AX, $0
+	JEQ	fallback_gtod_nt
+	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	0(SP), SI
+	CALL	AX
 	MOVQ	0(SP), AX	// sec
-	MOVL	8(SP), DX	// nsec
-
-	// sec is in AX, usec in DX
+	MOVQ	8(SP), DX	// nsec
+	// sec is in AX, nsec in DX
+	// return nsec in AX
+	IMULQ	$1000000000, AX
+	ADDQ	DX, AX
+	RET
+fallback_gtod_nt:
+	LEAQ	0(SP), DI
+	MOVQ	$0, SI
+	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+	CALL	AX
+	MOVQ	0(SP), AX	// sec
+	MOVL	8(SP), DX	// usec
+	IMULQ	$1000, DX
+	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
 	ADDQ	DX, AX
