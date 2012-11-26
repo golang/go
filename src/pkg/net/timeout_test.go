@@ -576,3 +576,51 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 		t.Errorf("Write error = %v; want timeout", res.err)
 	}
 }
+
+// TestProlongTimeout tests concurrent deadline modification.
+// Known to cause data races in the past.
+func TestProlongTimeout(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	go func() {
+		s, err := ln.Accept()
+		if err != nil {
+			t.Fatalf("ln.Accept: %v", err)
+		}
+		defer s.Close()
+		s.SetDeadline(time.Now().Add(time.Hour))
+		go func() {
+			var buf [4096]byte
+			for {
+				_, err := s.Write(buf[:])
+				if err != nil {
+					break
+				}
+				s.SetDeadline(time.Now().Add(time.Hour))
+			}
+		}()
+		buf := make([]byte, 1)
+		for {
+			_, err := s.Read(buf)
+			if err != nil {
+				break
+			}
+			s.SetDeadline(time.Now().Add(time.Hour))
+		}
+	}()
+	c, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("DialTCP: %v", err)
+	}
+	defer c.Close()
+	for i := 0; i < 1024; i++ {
+		var buf [1]byte
+		c.Write(buf[:])
+	}
+}
