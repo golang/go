@@ -84,6 +84,11 @@ init1(Node *n, NodeList **out)
 	}
 	n->initorder = InitPending;
 	l = malloc(sizeof *l);
+	if(l == nil) {
+		flusherrors();
+		yyerror("out of memory");
+		errorexit();
+	}
 	l->next = initlist;
 	l->n = n;
 	l->end = nil;
