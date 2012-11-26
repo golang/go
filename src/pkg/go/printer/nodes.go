@@ -730,7 +730,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.FuncLit:
 		p.expr(x.Type)
-		p.funcBody(x.Body, p.distance(x.Type.Pos(), p.pos), true)
+		p.adjBlock(p.distanceFrom(x.Type.Pos()), blank, x.Body)
 
 	case *ast.ParenExpr:
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
@@ -916,11 +916,11 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 }
 
 // block prints an *ast.BlockStmt; it always spans at least two lines.
-func (p *printer) block(s *ast.BlockStmt, nindent int) {
-	p.print(s.Pos(), token.LBRACE)
-	p.stmtList(s.List, nindent, true)
-	p.linebreak(p.lineFor(s.Rbrace), 1, ignore, true)
-	p.print(s.Rbrace, token.RBRACE)
+func (p *printer) block(b *ast.BlockStmt, nindent int) {
+	p.print(b.Lbrace, token.LBRACE)
+	p.stmtList(b.List, nindent, true)
+	p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
+	p.print(b.Rbrace, token.RBRACE)
 }
 
 func isTypeName(x ast.Expr) bool {
@@ -1425,19 +1425,19 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	return
 }
 
-func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
+// bodySize is like nodeSize but it is specialized for *ast.BlockStmt's.
+func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 	pos1 := b.Pos()
 	pos2 := b.Rbrace
 	if pos1.IsValid() && pos2.IsValid() && p.lineFor(pos1) != p.lineFor(pos2) {
 		// opening and closing brace are on different lines - don't make it a one-liner
-		return false
+		return infinity
 	}
 	if len(b.List) > 5 || p.commentBefore(p.posFor(pos2)) {
 		// too many statements or there is a comment inside - don't make it a one-liner
-		return false
+		return infinity
 	}
 	// otherwise, estimate body size
-	const maxSize = 100
 	bodySize := 0
 	for i, s := range b.List {
 		if i > 0 {
@@ -1445,19 +1445,23 @@ func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
 		}
 		bodySize += p.nodeSize(s, maxSize)
 	}
-	return headerSize+bodySize <= maxSize
+	return bodySize
 }
 
-func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool) {
+// adjBlock prints an "adjacent" block (e.g., a for-loop or function body) following
+// a header (e.g., a for-loop control clause or function signature) of given headerSize.
+// If the header's and block's size are "small enough" and the block is "simple enough",
+// the block is printed on the current line, without line breaks, spaced from the header
+// by sep. Otherwise the block's opening "{" is printed on the current line, followed by
+// lines for the block's statements and its closing "}".
+//
+func (p *printer) adjBlock(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
 	if b == nil {
 		return
 	}
 
-	if p.isOneLineFunc(b, headerSize) {
-		sep := vtab
-		if isLit {
-			sep = blank
-		}
+	const maxSize = 100
+	if headerSize+p.bodySize(b, maxSize) <= maxSize {
 		p.print(sep, b.Lbrace, token.LBRACE)
 		if len(b.List) > 0 {
 			p.print(blank)
@@ -1473,17 +1477,20 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool) {
 		return
 	}
 
-	p.print(blank)
+	if sep != ignore {
+		p.print(blank) // always use blank
+	}
 	p.block(b, 1)
 }
 
-// distance returns the column difference between from and to if both
-// are on the same line; if they are on different lines (or unknown)
-// the result is infinity.
-func (p *printer) distance(from0 token.Pos, to token.Position) int {
-	from := p.posFor(from0)
-	if from.IsValid() && to.IsValid() && from.Line == to.Line {
-		return to.Column - from.Column
+// distanceFrom returns the column difference between from and p.pos (the current
+// estimated position) if both are on the same line; if they are on different lines
+// (or unknown) the result is infinity.
+func (p *printer) distanceFrom(from token.Pos) int {
+	if from.IsValid() && p.pos.IsValid() {
+		if f := p.posFor(from); f.Line == p.pos.Line {
+			return p.pos.Column - f.Column
+		}
 	}
 	return infinity
 }
@@ -1497,7 +1504,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	}
 	p.expr(d.Name)
 	p.signature(d.Type.Params, d.Type.Results)
-	p.funcBody(d.Body, p.distance(d.Pos(), p.pos), false)
+	p.adjBlock(p.distanceFrom(d.Pos()), vtab, d.Body)
 }
 
 func (p *printer) decl(decl ast.Decl) {
