@@ -2,7 +2,7 @@
 // express concurrent concepts, such as
 // this binary tree comparison.
 //
-// Trees may be of different shapes, 
+// Trees may be of different shapes,
 // but have the same contents. For example:
 //
 //        4               6
@@ -29,7 +29,7 @@ type Tree struct {
 	Right *Tree
 }
 
-// Walk traverses a tree depth-first, 
+// Walk traverses a tree depth-first,
 // sending each Value on a channel.
 func Walk(t *Tree, ch chan int) {
 	if t == nil {

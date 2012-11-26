@@ -28,7 +28,7 @@ var board = []rune(
 ...........
 `)
 
-// center is the position of the center hole if 
+// center is the position of the center hole if
 // there is a single one; otherwise it is -1.
 var center int
 
@@ -47,7 +47,7 @@ func init() {
 
 var moves int // number of times move is called
 
-// move tests if there is a peg at position pos that 
+// move tests if there is a peg at position pos that
 // can jump over another peg in direction dir. If the
 // move is valid, it is executed and move returns true.
 // Otherwise, move returns false.
@@ -69,11 +69,11 @@ func unmove(pos, dir int) {
 	board[pos+2*dir] = '○'
 }
 
-// solve tries to find a sequence of moves such that 
-// there is only one peg left at the end; if center is 
+// solve tries to find a sequence of moves such that
+// there is only one peg left at the end; if center is
 // >= 0, that last peg must be in the center position.
 // If a solution is found, solve prints the board after
-// each move in a backward fashion (i.e., the last 
+// each move in a backward fashion (i.e., the last
 // board position is printed first, all the way back to
 // the starting board position).
 func solve() bool {
@@ -89,7 +89,7 @@ func solve() bool {
 					// see if this new board has a solution
 					if solve() {
 						unmove(pos, dir)
-						println(string(board))
+						fmt.Println(string(board))
 						return true
 					}
 					unmove(pos, dir)
@@ -102,7 +102,7 @@ func solve() bool {
 	// tried each possible move
 	if n == 1 && (center < 0 || last == center) {
 		// there's only one peg left
-		println(string(board))
+		fmt.Println(string(board))
 		return true
 	}
 	// no solution found for this board
