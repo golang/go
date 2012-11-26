@@ -83,6 +83,13 @@ TEXT runtime·munmap(SB),7,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
+TEXT runtime·madvise(SB),7,$-4
+	MOVL	$75, AX			// sys_madvise
+	INT	$0x80
+	JAE	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
 TEXT runtime·setitimer(SB),7,$-4
 	MOVL	$425, AX		// sys_setitimer
 	INT	$0x80
@@ -180,7 +187,7 @@ TEXT runtime·sigtramp(SB),7,$44
 	CMPL	BX, $0
 	JNE	5(PC)
 	MOVL	signo+0(FP), BX
-	MOVL	BX, 0(SP)      
+	MOVL	BX, 0(SP)
 	CALL	runtime·badsignal(SB)
 	RET
 
