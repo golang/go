@@ -12,6 +12,7 @@ import "time"
 type TCPAddr struct {
 	IP   IP
 	Port int
+	Zone string // IPv6 scoped addressing zone
 }
 
 // Network returns the address's network name, "tcp".
@@ -38,5 +39,5 @@ func resolveTCPAddr(net, addr string, deadline time.Time) (*TCPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TCPAddr{ip, port}, nil
+	return &TCPAddr{IP: ip, Port: port}, nil
 }

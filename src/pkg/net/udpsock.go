@@ -17,6 +17,7 @@ var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
 type UDPAddr struct {
 	IP   IP
 	Port int
+	Zone string // IPv6 scoped addressing zone
 }
 
 // Network returns the address's network name, "udp".
@@ -43,5 +44,5 @@ func resolveUDPAddr(net, addr string, deadline time.Time) (*UDPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UDPAddr{ip, port}, nil
+	return &UDPAddr{IP: ip, Port: port}, nil
 }

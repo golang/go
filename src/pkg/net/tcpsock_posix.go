@@ -23,9 +23,9 @@ import (
 func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &TCPAddr{sa.Addr[0:], sa.Port}
+		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
-		return &TCPAddr{sa.Addr[0:], sa.Port}
+		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
 	default:
 		if sa != nil {
 			// Diagnose when we will turn a non-nil sockaddr into a nil.
@@ -53,7 +53,7 @@ func (a *TCPAddr) isWildcard() bool {
 }
 
 func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
-	return ipToSockaddr(family, a.IP, a.Port)
+	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
 func (a *TCPAddr) toAddr() sockaddr {

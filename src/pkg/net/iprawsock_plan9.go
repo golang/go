@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// (Raw) IP sockets stubs for Plan 9
+// Raw IP sockets for Plan 9
 
 package net
 
@@ -76,8 +76,6 @@ func (c *IPConn) File() (f *os.File, err error) {
 func (c *IPConn) Close() error {
 	return syscall.EPLAN9
 }
-
-// IP-specific methods.
 
 // ReadFromIP reads an IP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address

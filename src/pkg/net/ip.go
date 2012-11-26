@@ -36,6 +36,7 @@ type IPMask []byte
 type IPNet struct {
 	IP   IP     // network number
 	Mask IPMask // network mask
+	Zone string // IPv6 scoped addressing zone
 }
 
 // IPv4 returns the IP address (in 16-byte form) of the
@@ -645,5 +646,5 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{ip.Mask(m), m}, nil
+	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
 }

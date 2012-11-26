@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// IP sockets stubs for Plan 9
+// Internet protocol family sockets for Plan 9
 
 package net
 
@@ -59,9 +59,9 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	}
 	switch proto {
 	case "tcp":
-		addr = &TCPAddr{ip, port}
+		addr = &TCPAddr{IP: ip, Port: port}
 	case "udp":
-		addr = &UDPAddr{ip, port}
+		addr = &UDPAddr{IP: ip, Port: port}
 	default:
 		return nil, errors.New("unknown protocol " + proto)
 	}

@@ -4,7 +4,7 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// (Raw) IP sockets
+// Raw IP sockets for POSIX
 
 package net
 
@@ -16,9 +16,9 @@ import (
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &IPAddr{sa.Addr[0:]}
+		return &IPAddr{IP: sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
-		return &IPAddr{sa.Addr[0:]}
+		return &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func (a *IPAddr) isWildcard() bool {
 }
 
 func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
-	return ipToSockaddr(family, a.IP, 0)
+	return ipToSockaddr(family, a.IP, 0, a.Zone)
 }
 
 func (a *IPAddr) toAddr() sockaddr {
@@ -58,8 +58,6 @@ type IPConn struct {
 }
 
 func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
-
-// IP-specific methods.
 
 // ReadFromIP reads an IP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
@@ -78,14 +76,14 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &IPAddr{sa.Addr[0:]}
+		addr = &IPAddr{IP: sa.Addr[0:]}
 		if len(b) >= IPv4len { // discard ipv4 header
 			hsize := (int(b[0]) & 0xf) * 4
 			copy(b, b[hsize:])
 			n -= hsize
 		}
 	case *syscall.SockaddrInet6:
-		addr = &IPAddr{sa.Addr[0:]}
+		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return n, addr, err
 }
@@ -95,8 +93,8 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, uaddr, err := c.ReadFromIP(b)
-	return n, uaddr.toAddr(), err
+	n, addr, err := c.ReadFromIP(b)
+	return n, addr.toAddr(), err
 }
 
 // ReadMsgIP reads a packet from c, copying the payload into b and the
@@ -111,9 +109,9 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &IPAddr{sa.Addr[0:]}
+		addr = &IPAddr{IP: sa.Addr[0:]}
 	case *syscall.SockaddrInet6:
-		addr = &IPAddr{sa.Addr[0:]}
+		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return
 }

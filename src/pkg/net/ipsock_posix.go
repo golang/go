@@ -4,6 +4,8 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
+// Internet protocol family sockets for POSIX
+
 package net
 
 import (
@@ -155,7 +157,7 @@ Error:
 	return nil, &OpError{mode, net, addr, err}
 }
 
-func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
+func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
 	switch family {
 	case syscall.AF_INET:
 		if len(ip) == 0 {
@@ -164,12 +166,12 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
 		if ip = ip.To4(); ip == nil {
 			return nil, InvalidAddrError("non-IPv4 address")
 		}
-		s := new(syscall.SockaddrInet4)
+		sa := new(syscall.SockaddrInet4)
 		for i := 0; i < IPv4len; i++ {
-			s.Addr[i] = ip[i]
+			sa.Addr[i] = ip[i]
 		}
-		s.Port = port
-		return s, nil
+		sa.Port = port
+		return sa, nil
 	case syscall.AF_INET6:
 		if len(ip) == 0 {
 			ip = IPv6zero
@@ -183,12 +185,13 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
 		if ip = ip.To16(); ip == nil {
 			return nil, InvalidAddrError("non-IPv6 address")
 		}
-		s := new(syscall.SockaddrInet6)
+		sa := new(syscall.SockaddrInet6)
 		for i := 0; i < IPv6len; i++ {
-			s.Addr[i] = ip[i]
+			sa.Addr[i] = ip[i]
 		}
-		s.Port = port
-		return s, nil
+		sa.Port = port
+		sa.ZoneId = uint32(zoneToInt(zone))
+		return sa, nil
 	}
 	return nil, InvalidAddrError("unexpected socket family")
 }
