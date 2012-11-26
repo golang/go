@@ -474,6 +474,62 @@ samereg(Node *a, Node *b)
 }
 
 /*
+ * generate high multiply
+ *  res = (nl * nr) >> wordsize
+ */
+void
+cgen_hmul(Node *nl, Node *nr, Node *res)
+{
+	int w;
+	Node n1, n2, *tmp;
+	Type *t;
+	Prog *p;
+
+	if(nl->ullman < nr->ullman) {
+		tmp = nl;
+		nl = nr;
+		nr = tmp;
+	}
+	t = nl->type;
+	w = t->width * 8;
+	regalloc(&n1, t, res);
+	cgen(nl, &n1);
+	regalloc(&n2, t, N);
+	cgen(nr, &n2);
+	switch(simtype[t->etype]) {
+	case TINT8:
+	case TINT16:
+		gins(optoas(OMUL, t), &n2, &n1);
+		gshift(AMOVW, &n1, SHIFT_AR, w, &n1);
+		break;
+	case TUINT8:
+	case TUINT16:
+		gins(optoas(OMUL, t), &n2, &n1);
+		gshift(AMOVW, &n1, SHIFT_LR, w, &n1);
+		break;
+	case TINT32:
+	case TUINT32:
+		// perform a long multiplication.
+		if(issigned[t->etype])
+			p = gins(AMULL, &n2, N);
+		else
+			p = gins(AMULLU, &n2, N);
+		// n2 * n1 -> (n1 n2)
+		p->reg = n1.val.u.reg;
+		p->to.type = D_REGREG;
+		p->to.reg = n1.val.u.reg;
+		p->to.offset = n2.val.u.reg;
+		break;
+	default:
+		fatal("cgen_hmul %T", t);
+		break;
+	}
+	cgen(&n1, res);
+	regfree(&n1);
+	regfree(&n2);
+}
+
+/*
  * generate shift according to op, one of:
  *	res = nl << nr
  *	res = nl >> nr

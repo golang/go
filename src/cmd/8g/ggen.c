@@ -776,3 +776,39 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 	regfree(&n1);
 }
 
+/*
+ * generate high multiply:
+ *   res = (nl*nr) >> width
+ */
+void
+cgen_hmul(Node *nl, Node *nr, Node *res)
+{
+	Type *t;
+	int a;
+	Node n1, n2, ax, dx;
+
+	t = nl->type;
+	a = optoas(OHMUL, t);
+	// gen nl in n1.
+	tempname(&n1, t);
+	cgen(nl, &n1);
+	// gen nr in n2.
+	regalloc(&n2, t, res);
+	cgen(nr, &n2);
+
+	// multiply.
+	nodreg(&ax, t, D_AX);
+	gmove(&n2, &ax);
+	gins(a, &n1, N);
+	regfree(&n2);
+
+	if(t->width == 1) {
+		// byte multiply behaves differently.
+		nodreg(&ax, t, D_AH);
+		nodreg(&dx, t, D_DL);
+		gmove(&ax, &dx);
+	}
+	nodreg(&dx, t, D_DX);
+	gmove(&dx, res);
+}
+
