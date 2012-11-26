@@ -7,7 +7,14 @@
 
 package http
 
-import "time"
+import (
+	"net"
+	"time"
+)
+
+func NewLoggingConn(baseName string, c net.Conn) net.Conn {
+	return newLoggingConn(baseName, c)
+}
 
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
