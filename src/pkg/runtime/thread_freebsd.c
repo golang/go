@@ -94,12 +94,12 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	runtime·memclr((byte*)&param, sizeof param);
 
 	param.start_func = runtime·thr_start;
-	param.arg = m;
-	param.stack_base = (int8*)g->stackbase;
+	param.arg = (byte*)m;
+	param.stack_base = (void*)g->stackbase;
 	param.stack_size = (byte*)stk - (byte*)g->stackbase;
 	param.child_tid = (intptr*)&m->procid;
 	param.parent_tid = nil;
-	param.tls_base = (int8*)&m->tls[0];
+	param.tls_base = (void*)&m->tls[0];
 	param.tls_size = sizeof m->tls;
 
 	m->tls[0] = m->id;	// so 386 asm can find it
