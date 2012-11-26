@@ -165,15 +165,15 @@ func (p *printer) atLineBegin(pos token.Position) {
 	// write indentation
 	// use "hard" htabs - indentation columns
 	// must not be discarded by the tabwriter
-	for i := 0; i < p.indent; i++ {
+	n := p.Config.Indent + p.indent // include base indentation
+	for i := 0; i < n; i++ {
 		p.output = append(p.output, '\t')
 	}
 
 	// update positions
-	i := p.indent
-	p.pos.Offset += i
-	p.pos.Column += i
-	p.out.Column += i
+	p.pos.Offset += n
+	p.pos.Column += n
+	p.out.Column += n
 }
 
 // writeByte writes ch n times to p.output and updates p.pos.
@@ -1032,9 +1032,9 @@ func (p *printer) printNode(node interface{}) error {
 	case ast.Expr:
 		p.expr(n)
 	case ast.Stmt:
-		// A labeled statement will un-indent to position the
-		// label. Set indent to 1 so we don't get indent "underflow".
-		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
+		// A labeled statement will un-indent to position the label.
+		// Set p.indent to 1 so we don't get indent "underflow".
+		if _, ok := n.(*ast.LabeledStmt); ok {
 			p.indent = 1
 		}
 		p.stmt(n, false)
@@ -1042,6 +1042,17 @@ func (p *printer) printNode(node interface{}) error {
 		p.decl(n)
 	case ast.Spec:
 		p.spec(n, 1, false)
+	case []ast.Stmt:
+		// A labeled statement will un-indent to position the label.
+		// Set p.indent to 1 so we don't get indent "underflow".
+		for _, s := range n {
+			if _, ok := s.(*ast.LabeledStmt); ok {
+				p.indent = 1
+			}
+		}
+		p.stmtList(n, 0, false)
+	case []ast.Decl:
+		p.declList(n)
 	case *ast.File:
 		p.file(n)
 	default:
@@ -1174,6 +1185,7 @@ const (
 type Config struct {
 	Mode     Mode // default: 0
 	Tabwidth int  // default: 8
+	Indent   int  // default: 0 (all code is indented at least by this much)
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
@@ -1235,8 +1247,8 @@ type CommentedNode struct {
 
 // Fprint "pretty-prints" an AST node to output for a given configuration cfg.
 // Position information is interpreted relative to the file set fset.
-// The node type must be *ast.File, *CommentedNode, or assignment-compatible
-// to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
+// The node type must be *ast.File, *CommentedNode, []ast.Decl, []ast.Stmt,
+// or assignment-compatible to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
