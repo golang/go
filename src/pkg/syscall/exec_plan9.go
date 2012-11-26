@@ -88,19 +88,6 @@ func SlicePtrFromStrings(ss []string) ([]*byte, error) {
 	return bb, nil
 }
 
-// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
-// returning the value and the remaining slice of b.
-func gbit16(b []byte) (uint16, []byte) {
-	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
-}
-
-// gstring reads a string from a 9P protocol message stored in b,
-// returning the value as a Go string and the remaining slice of b.
-func gstring(b []byte) (string, []byte) {
-	n, b := gbit16(b)
-	return string(b[0:n]), b[n:]
-}
-
 // readdirnames returns the names of files inside the directory represented by dirfd.
 func readdirnames(dirfd int) (names []string, err error) {
 	names = make([]string, 0, 100)
@@ -119,10 +106,13 @@ func readdirnames(dirfd int) (names []string, err error) {
 			m += 2
 
 			if m < STATFIXLEN {
-				return nil, NewError("malformed stat buffer")
+				return nil, ErrBadStat
 			}
 
-			s, _ := gstring(buf[i+41:])
+			s, _, ok := gstring(buf[i+41:])
+			if !ok {
+				return nil, ErrBadStat
+			}
 			names = append(names, s)
 			i += int(m)
 		}
