@@ -10,7 +10,6 @@
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid)
 TEXT runtime·lwp_create(SB),7,$0
-
 	MOVQ	context+0(FP), DI
 	MOVQ	flags+8(FP), SI
 	MOVQ	lwpid+16(FP), DX
@@ -243,6 +242,17 @@ TEXT runtime·munmap(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 - addr
 	MOVQ	16(SP), SI		// arg 2 - len
 	MOVL	$73, AX			// sys_munmap
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
+
+TEXT runtime·madvise(SB),7,$0
+	MOVQ	addr+0(FP), DI		// arg 1 - addr
+	MOVQ	len+8(FP), SI		// arg 2 - len
+	MOVQ	behav+16(FP), DX	// arg 3 - behav
+	MOVQ	$75, AX			// sys_madvise
 	SYSCALL
 	JCC	2(PC)
 	MOVL	$0xf1, 0xf1		// crash
