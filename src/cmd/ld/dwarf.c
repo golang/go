@@ -1297,6 +1297,10 @@ decodez(char *s)
 		return 0;
 
 	r = malloc(len + 1);
+	if(r == nil) {
+		diag("out of memory");
+		errorexit();
+	}
 	rb = r;
 	re = rb + len + 1;
 
@@ -1475,6 +1479,10 @@ inithist(Auto *a)
 			continue;
 		if (linehist == 0 || linehist->absline != absline) {
 			Linehist* lh = malloc(sizeof *lh);
+			if(lh == nil) {
+				diag("out of memory");
+				errorexit();
+			}
 			lh->link = linehist;
 			lh->absline = absline;
 			linehist = lh;

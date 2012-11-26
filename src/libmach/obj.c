@@ -293,6 +293,8 @@ objlookup(int id, char *name, int type, uint sig)
 			}
 	}
 	sp = malloc(sizeof(Symtab));
+	if(sp == nil)
+		sysfatal("out of memory");
 	sp->s.name = name;
 	sp->s.type = type;
 	sp->s.sig = sig;
