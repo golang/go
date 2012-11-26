@@ -98,6 +98,8 @@ ran(uvlong pc, uvlong epc)
 		if(epc < oldepc) {
 			Range *n;
 			n = malloc(sizeof *n);
+			if(n == nil)
+				sysfatal("out of memory");
 			n->pc = epc;
 			n->epc = oldepc;
 			treeput(&breakpoints, n, n);
@@ -288,6 +290,8 @@ breakpoint(uvlong pc, uvlong epc)
 	Range *r;
 
 	r = malloc(sizeof *r);
+	if(r == nil)
+		sysfatal("out of memory");
 	r->pc = pc;
 	r->epc = epc;
 	treeput(&breakpoints, r, r);

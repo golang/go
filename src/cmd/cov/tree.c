@@ -52,6 +52,8 @@ rwTreeNode(TreeNode *p, int color, TreeNode *left, void *key, void *value, TreeN
 {
 	if(p == nil)
 		p = malloc(sizeof *p);
+	if(p == nil)
+		sysfatal("out of memory");
 	p->color = color;
 	p->left = left;
 	p->key = key;

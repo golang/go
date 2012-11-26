@@ -1058,6 +1058,10 @@ sigind(Type *t, Typetab *tt)
 			return p-a;
 	if((n&15) == 0){
 		na = malloc((n+16)*sizeof(Type*));
+		if(na == nil) {
+			print("%s: out of memory", argv0);
+			errorexit();
+		}
 		memmove(na, a, n*sizeof(Type*));
 		free(a);
 		a = tt->a = na;

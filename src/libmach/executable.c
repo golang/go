@@ -1091,12 +1091,21 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	}
 
 	cmdbuf = malloc(mp->sizeofcmds);
+	if(!cmdbuf) {
+		werrstr("out of memory");
+		return 0;
+	}
 	seek(fd, hdrsize, 0);
 	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
 		free(cmdbuf);
 		return 0;
 	}
 	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
+	if(!cmd) {
+		free(cmdbuf);
+		werrstr("out of memory");
+		return 0;
+	}
 	cmdp = cmdbuf;
 	textva = 0;
 	textoff = 0;

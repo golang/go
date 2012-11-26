@@ -399,6 +399,8 @@ addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
 		}
 	}
 	x = malloc(sizeof(PC));
+	if(x == nil)
+		sysfatal("out of memory");
 	x->pc = pc;
 	x->callerpc = callerpc;
 	x->count = 1;
@@ -617,6 +619,8 @@ findfunc(uvlong pc)
 			return f;
 
 	f = malloc(sizeof *f);
+	if(f == nil)
+		sysfatal("out of memory");
 	memset(f, 0, sizeof *f);
 	f->s = s;
 	f->next = func[h];
@@ -665,6 +669,8 @@ dumphistogram()
 
 	// build array
 	ff = malloc(nfunc*sizeof ff[0]);
+	if(ff == nil)
+		sysfatal("out of memory");
 	n = 0;
 	for(h = 0; h < nelem(func); h++)
 		for(f = func[h]; f != NULL; f = f->next)
@@ -715,6 +721,8 @@ dumppprof()
 		return;
 	// Allocate and link the traces together.
 	trace = malloc(ntrace * sizeof(Trace));
+	if(trace == nil)
+		sysfatal("out of memory");
 	tp = trace;
 	for(p = ppdata; p < e;) {
 		n = *p++;
