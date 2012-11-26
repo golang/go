@@ -12,6 +12,8 @@ enum {
 	MAP_PRIVATE	= 0x2,
 	MAP_FIXED	= 0x10,
 
+	MADV_FREE	= 0x6,
+
 	SA_SIGINFO	= 0x40,
 	SA_RESTART	= 0x2,
 	SA_ONSTACK	= 0x1,
