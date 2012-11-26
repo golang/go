@@ -643,16 +643,20 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 	return
 }
 
-// ParseForm parses the raw query from the URL.
+// ParseForm parses the raw query from the URL and updates r.Form.
 //
-// For POST or PUT requests, it also parses the request body as a form.
-// POST and PUT body parameters take precedence over URL query string values.
+// For POST or PUT requests, it also parses the request body as a form and
+// put the results into both r.PostForm and r.Form.
+// POST and PUT body parameters take precedence over URL query string values
+// in r.Form.
+//
 // If the request Body's size has not already been limited by MaxBytesReader,
 // the size is capped at 10MB.
 //
 // ParseMultipartForm calls ParseForm automatically.
 // It is idempotent.
-func (r *Request) ParseForm() (err error) {
+func (r *Request) ParseForm() error {
+	var err error
 	if r.PostForm == nil {
 		if r.Method == "POST" || r.Method == "PUT" {
 			r.PostForm, err = parsePostForm(r)
@@ -728,6 +732,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 // FormValue returns the first value for the named component of the query.
 // POST and PUT body parameters take precedence over URL query string values.
 // FormValue calls ParseMultipartForm and ParseForm if necessary.
+// To access multiple values of the same key use ParseForm.
 func (r *Request) FormValue(key string) string {
 	if r.Form == nil {
 		r.ParseMultipartForm(defaultMaxMemory)
