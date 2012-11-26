@@ -236,6 +236,16 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVQ	addr+0(FP), DI		// arg 1 - addr
+	MOVQ	len+8(FP), SI		// arg 2 - len
+	MOVQ	behav+16(FP), DX	// arg 3 - behav
+	MOVQ	$75, AX			// sys_madvise
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
 TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	new+8(SP), DI		// arg 1 - nss
 	MOVQ	old+16(SP), SI		// arg 2 - oss

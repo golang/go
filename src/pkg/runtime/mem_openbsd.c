@@ -28,9 +28,7 @@ runtime·SysAlloc(uintptr n)
 void
 runtime·SysUnused(void *v, uintptr n)
 {
-	USED(v);
-	USED(n);
-	// TODO(rsc): call madvise MADV_DONTNEED
+	runtime·madvise(v, n, MADV_FREE);
 }
 
 void
