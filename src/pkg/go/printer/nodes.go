@@ -900,7 +900,11 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
 		if _, isEmpty := s.(*ast.EmptyStmt); !isEmpty {
 			// _indent == 0 only for lists of switch/select case clauses;
 			// in those cases each clause is a new section
-			p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
+			if len(p.output) > 0 {
+				// only print line break if we are not at the beginning of the output
+				// (i.e., we are not printing only a partial program)
+				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
+			}
 			p.stmt(s, nextIsRBrace && i == len(list)-1)
 			multiLine = p.isMultiLine(s)
 			i++
@@ -1523,31 +1527,35 @@ func declToken(decl ast.Decl) (tok token.Token) {
 	return
 }
 
-func (p *printer) file(src *ast.File) {
-	p.setComment(src.Doc)
-	p.print(src.Pos(), token.PACKAGE, blank)
-	p.expr(src.Name)
-
-	if len(src.Decls) > 0 {
-		tok := token.ILLEGAL
-		for _, d := range src.Decls {
-			prev := tok
-			tok = declToken(d)
-			// if the declaration token changed (e.g., from CONST to TYPE)
-			// or the next declaration has documentation associated with it,
-			// print an empty line between top-level declarations
-			// (because p.linebreak is called with the position of d, which
-			// is past any documentation, the minimum requirement is satisfied
-			// even w/o the extra getDoc(d) nil-check - leave it in case the
-			// linebreak logic improves - there's already a TODO).
+func (p *printer) declList(list []ast.Decl) {
+	tok := token.ILLEGAL
+	for _, d := range list {
+		prev := tok
+		tok = declToken(d)
+		// If the declaration token changed (e.g., from CONST to TYPE)
+		// or the next declaration has documentation associated with it,
+		// print an empty line between top-level declarations.
+		// (because p.linebreak is called with the position of d, which
+		// is past any documentation, the minimum requirement is satisfied
+		// even w/o the extra getDoc(d) nil-check - leave it in case the
+		// linebreak logic improves - there's already a TODO).
+		if len(p.output) > 0 {
+			// only print line break if we are not at the beginning of the output
+			// (i.e., we are not printing only a partial program)
 			min := 1
 			if prev != tok || getDoc(d) != nil {
 				min = 2
 			}
 			p.linebreak(p.lineFor(d.Pos()), min, ignore, false)
-			p.decl(d)
 		}
+		p.decl(d)
 	}
+}
 
+func (p *printer) file(src *ast.File) {
+	p.setComment(src.Doc)
+	p.print(src.Pos(), token.PACKAGE, blank)
+	p.expr(src.Name)
+	p.declList(src.Decls)
 	p.print(newline)
 }

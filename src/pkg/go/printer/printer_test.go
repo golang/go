@@ -434,6 +434,98 @@ func (t *t) foo(a, b, c int) int {
 	}
 }
 
+var decls = []string{
+	`import "fmt"`,
+	"const pi = 3.1415\nconst e = 2.71828\n\nvar x = pi",
+	"func sum(x, y int) int\t{ return x + y }",
+}
+
+func TestDeclLists(t *testing.T) {
+	for _, src := range decls {
+		file, err := parser.ParseFile(fset, "", "package p;"+src, parser.ParseComments)
+		if err != nil {
+			panic(err) // error in test
+		}
+
+		var buf bytes.Buffer
+		err = Fprint(&buf, fset, file.Decls) // only print declarations
+		if err != nil {
+			panic(err) // error in test
+		}
+
+		out := buf.String()
+		if out != src {
+			t.Errorf("\ngot : %q\nwant: %q\n", out, src)
+		}
+	}
+}
+
+var stmts = []string{
+	"i := 0",
+	"select {}\nvar a, b = 1, 2\nreturn a + b",
+	"go f()\ndefer func() {}()",
+}
+
+func TestStmtLists(t *testing.T) {
+	for _, src := range stmts {
+		file, err := parser.ParseFile(fset, "", "package p; func _() {"+src+"}", parser.ParseComments)
+		if err != nil {
+			panic(err) // error in test
+		}
+
+		var buf bytes.Buffer
+		err = Fprint(&buf, fset, file.Decls[0].(*ast.FuncDecl).Body.List) // only print statements
+		if err != nil {
+			panic(err) // error in test
+		}
+
+		out := buf.String()
+		if out != src {
+			t.Errorf("\ngot : %q\nwant: %q\n", out, src)
+		}
+	}
+}
+
+func TestBaseIndent(t *testing.T) {
+	// The testfile must not contain multi-line raw strings since those
+	// are not indented (because their values must not change) and make
+	// this test fail.
+	const filename = "printer.go"
+	src, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err) // error in test
+	}
+
+	file, err := parser.ParseFile(fset, filename, src, 0)
+	if err != nil {
+		panic(err) // error in test
+	}
+
+	var buf bytes.Buffer
+	for indent := 0; indent < 4; indent++ {
+		buf.Reset()
+		(&Config{Tabwidth: tabwidth, Indent: indent}).Fprint(&buf, fset, file)
+		// all code must be indented by at least 'indent' tabs
+		lines := bytes.Split(buf.Bytes(), []byte{'\n'})
+		for i, line := range lines {
+			if len(line) == 0 {
+				continue // empty lines don't have indentation
+			}
+			n := 0
+			for j, b := range line {
+				if b != '\t' {
+					// end of indentation
+					n = j
+					break
+				}
+			}
+			if n < indent {
+				t.Errorf("line %d: got only %d tabs; want at least %d: %q", i, n, indent, line)
+			}
+		}
+	}
+}
+
 // TestFuncType tests that an ast.FuncType with a nil Params field
 // can be printed (per go/ast specification). Test case for issue 3870.
 func TestFuncType(t *testing.T) {
