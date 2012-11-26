@@ -41,7 +41,7 @@ type (
 
 
 type (
-	p1 pi /* ERROR "no field or method foo" */ .foo
+	p1 pi /* ERROR "no single field or method foo" */ .foo
 	p2 unsafe.Pointer
 )
 
@@ -131,7 +131,7 @@ type (
 		m1(I5)
 	}
 	I6 interface {
-		S0 /* ERROR "non-interface" */
+		S0 /* ERROR "not an interface" */
 	}
 	I7 interface {
 		I1

@@ -125,7 +125,16 @@ func (x *operand) implements(T *Interface) bool {
 		return true // avoid spurious errors
 	}
 
-	unimplemented()
+	// x implements T if it implements all methods of T.
+	// TODO(gri): distinguish pointer and non-pointer receivers
+	for _, m := range T.Methods {
+		mode, typ := lookupField(x.typ, m.Name)
+		if mode == invalid || !isIdentical(typ, m.Type.(Type)) {
+			// TODO(gri) should report which method is missing
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -133,6 +142,10 @@ func (x *operand) implements(T *Interface) bool {
 func (x *operand) isNil() bool {
 	return x.mode == constant && x.val == nilConst
 }
+
+// TODO(gri) The functions operand.isAssignable, checker.convertUntyped,
+//           checker.isRepresentable, and checker.assignOperand are
+//           overlapping in functionality. Need to simplify and clean up.
 
 // isAssignable reports whether x is assignable to a variable of type T.
 func (x *operand) isAssignable(T Type) bool {
@@ -181,8 +194,18 @@ func (x *operand) isAssignable(T Type) bool {
 	}
 
 	// x is an untyped constant representable by a value of type T
-	// - this is taken care of in the assignment check
-	// TODO(gri) double-check - isAssignable is used elsewhere
+	// TODO(gri) This is borrowing from checker.convertUntyped and
+	//           checker.isRepresentable. Need to clean up.
+	if isUntyped(Vu) {
+		switch t := Tu.(type) {
+		case *Basic:
+			return x.mode == constant && isRepresentableConst(x.val, t.Kind)
+		case *Interface:
+			return x.isNil() || len(t.Methods) == 0
+		case *Pointer, *Signature, *Slice, *Map, *Chan:
+			return x.isNil()
+		}
+	}
 
 	return false
 }
@@ -199,35 +222,50 @@ type lookupResult struct {
 	typ  Type
 }
 
-// lookupFieldRecursive is similar to FieldByNameFunc in reflect/type.go
-// TODO(gri): FieldByNameFunc seems more complex - what are we missing?
-func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
-	// visited records the types that have been searched already
-	visited := make(map[Type]bool)
+type embeddedType struct {
+	typ       *NamedType
+	multiples bool // if set, typ is embedded multiple times at the same level
+}
+
+// lookupFieldBreadthFirst searches all types in list for a single entry (field
+// or method) of the given name. If such a field is found, the result describes
+// the field mode and type; otherwise the result mode is invalid.
+// (This function is similar in structure to FieldByNameFunc in reflect/type.go)
+//
+func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult) {
+	// visited records the types that have been searched already.
+	visited := make(map[*NamedType]bool)
 
 	// embedded types of the next lower level
-	var next []*NamedType
+	var next []embeddedType
 
-	potentialMatch := func(mode operandMode, typ Type) bool {
-		if res.mode != invalid {
-			// name appeared multiple times at this level - annihilate
+	// potentialMatch is invoked every time a match is found.
+	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
+		if multiples || res.mode != invalid {
+			// name appeared already at this level - annihilate
 			res.mode = invalid
 			return false
 		}
+		// first appearance of name
 		res.mode = mode
 		res.typ = typ
 		return true
 	}
 
-	// look for name in all types of this level
+	// Search the current level if there is any work to do and collect
+	// embedded types of the next lower level in the next list.
 	for len(list) > 0 {
+		// The res.mode indicates whether we have found a match already
+		// on this level (mode != invalid), or not (mode == invalid).
 		assert(res.mode == invalid)
-		for _, typ := range list {
+
+		// start with empty next list (don't waste underlying array)
+		next = next[:0]
+
+		// look for name in all types at this level
+		for _, e := range list {
+			typ := e.typ
 			if visited[typ] {
-				// We have seen this type before, at a higher level.
-				// That higher level shadows the lower level we are
-				// at now, and either we would have found or not
-				// found the field before. Ignore this type now.
 				continue
 			}
 			visited[typ] = true
@@ -236,7 +274,7 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
 			if data := typ.Obj.Data; data != nil {
 				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
 					assert(obj.Type != nil)
-					if !potentialMatch(value, obj.Type.(Type)) {
+					if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
 						return // name collision
 					}
 				}
@@ -244,21 +282,26 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
 
 			switch typ := underlying(typ).(type) {
 			case *Struct:
-				// look for a matching fieldm and collect embedded types
+				// look for a matching field and collect embedded types
 				for _, f := range typ.Fields {
 					if f.Name == name {
 						assert(f.Type != nil)
-						if !potentialMatch(variable, f.Type) {
+						if !potentialMatch(e.multiples, variable, f.Type) {
 							return // name collision
 						}
 						continue
 					}
 					// Collect embedded struct fields for searching the next
-					// lower level, but only if we have not seen a match yet.
+					// lower level, but only if we have not seen a match yet
+					// (if we have a match it is either the desired field or
+					// we have a name collision on the same level; in either
+					// case we don't need to look further).
 					// Embedded fields are always of the form T or *T where
-					// T is a named type.
+					// T is a named type. If typ appeared multiple times at
+					// this level, f.Type appears multiple times at the next
+					// level.
 					if f.IsAnonymous && res.mode == invalid {
-						next = append(next, deref(f.Type).(*NamedType))
+						next = append(next, embeddedType{deref(f.Type).(*NamedType), e.multiples})
 					}
 				}
 
@@ -267,7 +310,7 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
 				for _, obj := range typ.Methods {
 					if obj.Name == name {
 						assert(obj.Type != nil)
-						if !potentialMatch(value, obj.Type.(Type)) {
+						if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
 							return // name collision
 						}
 					}
@@ -276,15 +319,39 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
 		}
 
 		if res.mode != invalid {
-			// we found a match on this level
+			// we found a single match on this level
 			return
 		}
 
-		// search the next level
-		list = append(list[:0], next...) // don't waste underlying arrays
-		next = next[:0]
+		// No match and no collision so far.
+		// Compute the list to search for the next level.
+		list = list[:0] // don't waste underlying array
+		for _, e := range next {
+			// Instead of adding the same type multiple times, look for
+			// it in the list and mark it as multiple if it was added
+			// before.
+			// We use a sequential search (instead of a map for next)
+			// because the lists tend to be small, can easily be reused,
+			// and explicit search appears to be faster in this case.
+			if alt := findType(list, e.typ); alt != nil {
+				alt.multiples = true
+			} else {
+				list = append(list, e)
+			}
+		}
+
 	}
+
 	return
+}
+
+func findType(list []embeddedType, typ *NamedType) *embeddedType {
+	for i := range list {
+		if p := &list[i]; p.typ == typ {
+			return p
+		}
+	}
+	return nil
 }
 
 func lookupField(typ Type, name string) (operandMode, Type) {
@@ -301,17 +368,20 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 
 	switch typ := underlying(typ).(type) {
 	case *Struct:
-		var list []*NamedType
+		var next []embeddedType
 		for _, f := range typ.Fields {
 			if f.Name == name {
 				return variable, f.Type
 			}
 			if f.IsAnonymous {
-				list = append(list, deref(f.Type).(*NamedType))
+				// Possible optimization: If the embedded type
+				// is a pointer to the current type we could
+				// ignore it.
+				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
 			}
 		}
-		if len(list) > 0 {
-			res := lookupFieldRecursive(list, name)
+		if len(next) > 0 {
+			res := lookupFieldBreadthFirst(next, name)
 			return res.mode, res.typ
 		}
 

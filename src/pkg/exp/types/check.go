@@ -36,7 +36,7 @@ type checker struct {
 //
 // TODO(gri) This is very similar to the declare function in go/parser; it
 // is only used to associate methods with their respective receiver base types.
-// In a future version, it might be simpler and cleaner do to all the resolution
+// In a future version, it might be simpler and cleaner to do all the resolution
 // in the type-checking phase. It would simplify the parser, AST, and also
 // reduce some amount of code duplication.
 //
@@ -188,11 +188,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 
 	case ast.Fun:
 		fdecl := obj.Decl.(*ast.FuncDecl)
-		if fdecl.Recv != nil {
-			// This will ensure that the method base type is
-			// type-checked
-			check.collectFields(token.FUNC, fdecl.Recv, true)
-		}
+		check.collectParams(fdecl.Recv) // ensure method base is type-checked
 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
 		obj.Type = ftyp
 		check.function(ftyp, fdecl.Body)
@@ -355,12 +351,19 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string), 
 	check.mapf = f
 	check.initexprs = make(map[*ast.ValueSpec][]ast.Expr)
 
-	// handle bailouts
+	// handle panics
 	defer func() {
-		if p := recover(); p != nil {
-			_ = p.(bailout) // re-panic if not a bailout
+		switch p := recover().(type) {
+		case nil:
+			// normal return - nothing to do
+		case bailout:
+			// early exit
+			err = check.firsterr
+		default:
+			// unexpected panic: don't crash clients
+			// panic(p) // enable for debugging
+			err = fmt.Errorf("types.check internal error: %v", p)
 		}
-		err = check.firsterr
 	}()
 
 	// determine missing constant initialization expressions

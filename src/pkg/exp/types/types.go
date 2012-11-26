@@ -126,6 +126,15 @@ type Struct struct {
 	Fields []*StructField
 }
 
+func (typ *Struct) fieldIndex(name string) int {
+	for i, f := range typ.Fields {
+		if f.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
 // A Pointer represents a pointer type *Base.
 type Pointer struct {
 	implementsType

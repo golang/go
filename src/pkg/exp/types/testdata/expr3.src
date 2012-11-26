@@ -126,9 +126,59 @@ type T struct {
 func (*T) m() {}
 
 func method_expressions() {
-	_ = T /* ERROR "no field or method" */ .a
+	_ = T /* ERROR "no single field or method" */ .a
 	_ = T /* ERROR "has no method" */ .x
 	_ = T.m
 	var f func(*T) = (*T).m
 	var g func(*T) = ( /* ERROR "cannot assign" */ T).m
+}
+
+func struct_literals() {
+	type T0 struct {
+		a, b, c int
+	}
+
+	type T1 struct {
+		T0
+		a, b int
+		u float64
+		s string
+	}
+
+	// keyed elements
+	_ = T1{}
+	_ = T1{a: 0, 1 /* ERROR "mixture of .* elements" */ }
+	_ = T1{aa /* ERROR "unknown field" */ : 0}
+	_ = T1{1 /* ERROR "invalid field name" */ : 0}
+	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
+	_ = T1{a: "foo" /* ERROR "cannot use" */ }
+	_ = T1{c /* ERROR "unknown field" */ : 0}
+	_ = T1{T0: { /* ERROR "missing type" */ }}
+	_ = T1{T0: T0{}}
+	_ = T1{T0 /* ERROR "invalid field name" */ .a: 0}
+
+	// unkeyed elements
+	_ = T0{1, 2, 3}
+	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
+	_ = T0{1, 2} /* ERROR "too few values" */
+	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
+	_ = T0{1, "foo" /* ERROR "cannot use" */, 3.4  /* ERROR "cannot use" */}
+}
+
+func array_literals() {
+	// TODO(gri)
+}
+
+func slice_literals() {
+	// TODO(gri)
+}
+
+func map_literals() {
+	type M0 map[string]int
+
+	_ = M0{}
+	_ = M0{1 /* ERROR "missing key" */ }
+	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
+	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
+	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
 }
