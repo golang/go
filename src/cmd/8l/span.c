@@ -1272,7 +1272,9 @@ bad:
 	pp = *p;
 	z = p->from.type;
 	if(z >= D_BP && z <= D_DI) {
-		if(isax(&p->to)) {
+		if(isax(&p->to) || p->to.type == D_NONE) {
+			// We certainly don't want to exchange
+			// with AX if the op is MUL or DIV.
 			*andptr++ = 0x87;			/* xchg lhs,bx */
 			asmand(&p->from, reg[D_BX]);
 			subreg(&pp, z, D_BX);
