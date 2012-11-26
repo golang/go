@@ -580,6 +580,16 @@ dostkoff(void)
 			p->spadj = autoffset;
 			if(q != P)
 				q->pcond = p;
+		} else {
+			// zero-byte stack adjustment.
+			// Insert a fake non-zero adjustment so that stkcheck can
+			// recognize the end of the stack-splitting prolog.
+			p = appendp(p);
+			p->as = ANOP;
+			p->spadj = -PtrSize;
+			p = appendp(p);
+			p->as = ANOP;
+			p->spadj = PtrSize;
 		}
 		deltasp = autoffset;
 		

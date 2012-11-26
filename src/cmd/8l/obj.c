@@ -308,6 +308,7 @@ main(int argc, char *argv[])
 	if(HEADTYPE == Hwindows)
 		dope();
 	dostkoff();
+	dostkcheck();
 	if(debug['p'])
 		if(debug['1'])
 			doprof1();
