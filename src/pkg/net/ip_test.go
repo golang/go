@@ -114,23 +114,23 @@ var parsecidrtests = []struct {
 	net *IPNet
 	err error
 }{
-	{"135.104.0.0/32", IPv4(135, 104, 0, 0), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255)}, nil},
-	{"0.0.0.0/24", IPv4(0, 0, 0, 0), &IPNet{IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
-	{"135.104.0.0/24", IPv4(135, 104, 0, 0), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
-	{"135.104.0.1/32", IPv4(135, 104, 0, 1), &IPNet{IPv4(135, 104, 0, 1), IPv4Mask(255, 255, 255, 255)}, nil},
-	{"135.104.0.1/24", IPv4(135, 104, 0, 1), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
-	{"::1/128", ParseIP("::1"), &IPNet{ParseIP("::1"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))}, nil},
-	{"abcd:2345::/127", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))}, nil},
-	{"abcd:2345::/65", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::"))}, nil},
-	{"abcd:2345::/64", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff::"))}, nil},
-	{"abcd:2345::/63", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:fffe::"))}, nil},
-	{"abcd:2345::/33", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:8000::"))}, nil},
-	{"abcd:2345::/32", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff::"))}, nil},
-	{"abcd:2344::/31", ParseIP("abcd:2344::"), &IPNet{ParseIP("abcd:2344::"), IPMask(ParseIP("ffff:fffe::"))}, nil},
-	{"abcd:2300::/24", ParseIP("abcd:2300::"), &IPNet{ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::"))}, nil},
-	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::"))}, nil},
-	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
-	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+	{"135.104.0.0/32", IPv4(135, 104, 0, 0), &IPNet{IP: IPv4(135, 104, 0, 0), Mask: IPv4Mask(255, 255, 255, 255)}, nil},
+	{"0.0.0.0/24", IPv4(0, 0, 0, 0), &IPNet{IP: IPv4(0, 0, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)}, nil},
+	{"135.104.0.0/24", IPv4(135, 104, 0, 0), &IPNet{IP: IPv4(135, 104, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)}, nil},
+	{"135.104.0.1/32", IPv4(135, 104, 0, 1), &IPNet{IP: IPv4(135, 104, 0, 1), Mask: IPv4Mask(255, 255, 255, 255)}, nil},
+	{"135.104.0.1/24", IPv4(135, 104, 0, 1), &IPNet{IP: IPv4(135, 104, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)}, nil},
+	{"::1/128", ParseIP("::1"), &IPNet{IP: ParseIP("::1"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))}, nil},
+	{"abcd:2345::/127", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))}, nil},
+	{"abcd:2345::/65", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::"))}, nil},
+	{"abcd:2345::/64", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff::"))}, nil},
+	{"abcd:2345::/63", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:fffe::"))}, nil},
+	{"abcd:2345::/33", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff:8000::"))}, nil},
+	{"abcd:2345::/32", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2345::"), Mask: IPMask(ParseIP("ffff:ffff::"))}, nil},
+	{"abcd:2344::/31", ParseIP("abcd:2344::"), &IPNet{IP: ParseIP("abcd:2344::"), Mask: IPMask(ParseIP("ffff:fffe::"))}, nil},
+	{"abcd:2300::/24", ParseIP("abcd:2300::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
+	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
+	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{"CIDR address", "192.168.1.1/255.255.255.0"}},
 	{"192.168.1.1/35", nil, nil, &ParseError{"CIDR address", "192.168.1.1/35"}},
 	{"2001:db8::1/-1", nil, nil, &ParseError{"CIDR address", "2001:db8::1/-1"}},
@@ -154,14 +154,14 @@ var ipnetcontainstests = []struct {
 	net *IPNet
 	ok  bool
 }{
-	{IPv4(172, 16, 1, 1), &IPNet{IPv4(172, 16, 0, 0), CIDRMask(12, 32)}, true},
-	{IPv4(172, 24, 0, 1), &IPNet{IPv4(172, 16, 0, 0), CIDRMask(13, 32)}, false},
-	{IPv4(192, 168, 0, 3), &IPNet{IPv4(192, 168, 0, 0), IPv4Mask(0, 0, 255, 252)}, true},
-	{IPv4(192, 168, 0, 4), &IPNet{IPv4(192, 168, 0, 0), IPv4Mask(0, 255, 0, 252)}, false},
-	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), CIDRMask(47, 128)}, true},
-	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:2::"), CIDRMask(47, 128)}, false},
-	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), IPMask(ParseIP("ffff:0:ffff::"))}, true},
-	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), IPMask(ParseIP("0:0:0:ffff::"))}, false},
+	{IPv4(172, 16, 1, 1), &IPNet{IP: IPv4(172, 16, 0, 0), Mask: CIDRMask(12, 32)}, true},
+	{IPv4(172, 24, 0, 1), &IPNet{IP: IPv4(172, 16, 0, 0), Mask: CIDRMask(13, 32)}, false},
+	{IPv4(192, 168, 0, 3), &IPNet{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(0, 0, 255, 252)}, true},
+	{IPv4(192, 168, 0, 4), &IPNet{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(0, 255, 0, 252)}, false},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{IP: ParseIP("2001:db8:1::"), Mask: CIDRMask(47, 128)}, true},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{IP: ParseIP("2001:db8:2::"), Mask: CIDRMask(47, 128)}, false},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{IP: ParseIP("2001:db8:1::"), Mask: IPMask(ParseIP("ffff:0:ffff::"))}, true},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{IP: ParseIP("2001:db8:1::"), Mask: IPMask(ParseIP("0:0:0:ffff::"))}, false},
 }
 
 func TestIPNetContains(t *testing.T) {
@@ -176,10 +176,10 @@ var ipnetstringtests = []struct {
 	in  *IPNet
 	out string
 }{
-	{&IPNet{IPv4(192, 168, 1, 0), CIDRMask(26, 32)}, "192.168.1.0/26"},
-	{&IPNet{IPv4(192, 168, 1, 0), IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
-	{&IPNet{ParseIP("2001:db8::"), CIDRMask(55, 128)}, "2001:db8::/55"},
-	{&IPNet{ParseIP("2001:db8::"), IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
+	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: CIDRMask(26, 32)}, "192.168.1.0/26"},
+	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
+	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
+	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
 }
 
 func TestIPNetString(t *testing.T) {
@@ -233,27 +233,27 @@ var networknumberandmasktests = []struct {
 	in  IPNet
 	out IPNet
 }{
-	{IPNet{v4addr, v4mask}, IPNet{v4addr, v4mask}},
-	{IPNet{v4addr, v4mappedv6mask}, IPNet{v4addr, v4mask}},
-	{IPNet{v4mappedv6addr, v4mappedv6mask}, IPNet{v4addr, v4mask}},
-	{IPNet{v4mappedv6addr, v6mask}, IPNet{v4addr, v4maskzero}},
-	{IPNet{v4addr, v6mask}, IPNet{v4addr, v4maskzero}},
-	{IPNet{v6addr, v6mask}, IPNet{v6addr, v6mask}},
-	{IPNet{v6addr, v4mappedv6mask}, IPNet{v6addr, v4mappedv6mask}},
-	{in: IPNet{v6addr, v4mask}},
-	{in: IPNet{v4addr, badmask}},
-	{in: IPNet{v4mappedv6addr, badmask}},
-	{in: IPNet{v6addr, badmask}},
-	{in: IPNet{badaddr, v4mask}},
-	{in: IPNet{badaddr, v4mappedv6mask}},
-	{in: IPNet{badaddr, v6mask}},
-	{in: IPNet{badaddr, badmask}},
+	{IPNet{IP: v4addr, Mask: v4mask}, IPNet{IP: v4addr, Mask: v4mask}},
+	{IPNet{IP: v4addr, Mask: v4mappedv6mask}, IPNet{IP: v4addr, Mask: v4mask}},
+	{IPNet{IP: v4mappedv6addr, Mask: v4mappedv6mask}, IPNet{IP: v4addr, Mask: v4mask}},
+	{IPNet{IP: v4mappedv6addr, Mask: v6mask}, IPNet{IP: v4addr, Mask: v4maskzero}},
+	{IPNet{IP: v4addr, Mask: v6mask}, IPNet{IP: v4addr, Mask: v4maskzero}},
+	{IPNet{IP: v6addr, Mask: v6mask}, IPNet{IP: v6addr, Mask: v6mask}},
+	{IPNet{IP: v6addr, Mask: v4mappedv6mask}, IPNet{IP: v6addr, Mask: v4mappedv6mask}},
+	{in: IPNet{IP: v6addr, Mask: v4mask}},
+	{in: IPNet{IP: v4addr, Mask: badmask}},
+	{in: IPNet{IP: v4mappedv6addr, Mask: badmask}},
+	{in: IPNet{IP: v6addr, Mask: badmask}},
+	{in: IPNet{IP: badaddr, Mask: v4mask}},
+	{in: IPNet{IP: badaddr, Mask: v4mappedv6mask}},
+	{in: IPNet{IP: badaddr, Mask: v6mask}},
+	{in: IPNet{IP: badaddr, Mask: badmask}},
 }
 
 func TestNetworkNumberAndMask(t *testing.T) {
 	for _, tt := range networknumberandmasktests {
 		ip, m := networkNumberAndMask(&tt.in)
-		out := &IPNet{ip, m}
+		out := &IPNet{IP: ip, Mask: m}
 		if !reflect.DeepEqual(&tt.out, out) {
 			t.Errorf("networkNumberAndMask(%v) = %v; want %v", tt.in, out, &tt.out)
 		}

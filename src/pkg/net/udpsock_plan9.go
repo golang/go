@@ -19,8 +19,6 @@ type UDPConn struct {
 	conn
 }
 
-// UDP-specific methods.
-
 // ReadFromUDP reads a UDP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
@@ -50,7 +48,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 
 	h, buf := unmarshalUDPHeader(buf)
 	n = copy(b, buf)
-	return n, &UDPAddr{h.raddr, int(h.rport)}, nil
+	return n, &UDPAddr{IP: h.raddr, Port: int(h.rport)}, nil
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.

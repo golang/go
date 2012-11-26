@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// IP sockets
+// Internet protocol family sockets
 
 package net
 
@@ -142,4 +142,25 @@ func hostPortToIP(net, hostport string, deadline time.Time) (ip IP, iport int, e
 	}
 
 	return addr, p, nil
+}
+
+func zoneToString(zone int) string {
+	if zone == 0 {
+		return ""
+	}
+	if ifi, err := InterfaceByIndex(zone); err == nil {
+		return ifi.Name
+	}
+	return itod(uint(zone))
+}
+
+func zoneToInt(zone string) int {
+	if zone == "" {
+		return 0
+	}
+	if ifi, err := InterfaceByName(zone); err == nil {
+		return ifi.Index
+	}
+	n, _, _ := dtoi(zone, 0)
+	return n
 }

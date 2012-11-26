@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// (Raw) IP sockets
+// Raw IP sockets
 
 package net
 
@@ -12,7 +12,8 @@ import (
 
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
-	IP IP
+	IP   IP
+	Zone string // IPv6 scoped addressing zone
 }
 
 // Network returns the address's network name, "ip".
@@ -38,7 +39,7 @@ func resolveIPAddr(net, addr string, deadline time.Time) (*IPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &IPAddr{ip}, nil
+	return &IPAddr{IP: ip}, nil
 }
 
 // Convert "host" into IP address.

@@ -4,7 +4,7 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// UDP sockets
+// UDP sockets for POSIX
 
 package net
 
@@ -16,9 +16,9 @@ import (
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &UDPAddr{sa.Addr[0:], sa.Port}
+		return &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
-		return &UDPAddr{sa.Addr[0:], sa.Port}
+		return &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func (a *UDPAddr) isWildcard() bool {
 }
 
 func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
-	return ipToSockaddr(family, a.IP, a.Port)
+	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
 }
 
 func (a *UDPAddr) toAddr() sockaddr {
@@ -59,8 +59,6 @@ type UDPConn struct {
 
 func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 
-// UDP-specific methods.
-
 // ReadFromUDP reads a UDP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
@@ -74,9 +72,9 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return
 }
@@ -86,8 +84,8 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, uaddr, err := c.ReadFromUDP(b)
-	return n, uaddr.toAddr(), err
+	n, addr, err := c.ReadFromUDP(b)
+	return n, addr.toAddr(), err
 }
 
 // ReadMsgUDP reads a packet from c, copying the payload into b and
@@ -103,9 +101,9 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 	n, oobn, flags, sa, err = c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
 	}
 	return
 }
@@ -276,7 +274,7 @@ func listenIPv6MulticastUDP(c *UDPConn, ifi *Interface, ip IP) error {
 func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
 	err := joinIPv4Group(c.fd, ifi, ip)
 	if err != nil {
-		return &OpError{"joinipv4group", c.fd.net, &IPAddr{ip}, err}
+		return &OpError{"joinipv4group", c.fd.net, &IPAddr{IP: ip}, err}
 	}
 	return nil
 }
@@ -284,7 +282,7 @@ func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
 func joinIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
 	err := joinIPv6Group(c.fd, ifi, ip)
 	if err != nil {
-		return &OpError{"joinipv6group", c.fd.net, &IPAddr{ip}, err}
+		return &OpError{"joinipv6group", c.fd.net, &IPAddr{IP: ip}, err}
 	}
 	return nil
 }
