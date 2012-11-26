@@ -125,6 +125,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool)
 // blocking until data is available.  If profiling is turned off and all the profile
 // data accumulated while it was on has been returned, CPUProfile returns nil.
 // The caller must save the returned data before calling CPUProfile again.
+//
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.cpuprofile flag instead of calling
 // CPUProfile directly.
@@ -133,6 +134,7 @@ func CPUProfile() []byte
 // SetCPUProfileRate sets the CPU profiling rate to hz samples per second.
 // If hz <= 0, SetCPUProfileRate turns off profiling.
 // If the profiler is on, the rate cannot be changed without first turning it off.
+//
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.cpuprofile flag instead of calling
 // SetCPUProfileRate directly.
