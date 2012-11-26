@@ -536,8 +536,10 @@ elimshortmov(Reg *r)
 					p->as = ASHLQ;
 					break;
 				}
-			} else {
-				// explicit zero extension
+			} else if(p->from.type >= D_NONE) {
+				// explicit zero extension, but don't
+				// do that if source is a byte register
+				// (only AH can occur and it's forbidden).
 				switch(p->as) {
 				case AMOVB:
 					p->as = AMOVBQZX;

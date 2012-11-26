@@ -611,20 +611,36 @@ optoas(int op, Type *t)
 		a = ASARL;
 		break;
 
+	case CASE(OHMUL, TINT8):
 	case CASE(OMUL, TINT8):
 	case CASE(OMUL, TUINT8):
 		a = AIMULB;
 		break;
 
+	case CASE(OHMUL, TINT16):
 	case CASE(OMUL, TINT16):
 	case CASE(OMUL, TUINT16):
 		a = AIMULW;
 		break;
 
+	case CASE(OHMUL, TINT32):
 	case CASE(OMUL, TINT32):
 	case CASE(OMUL, TUINT32):
 	case CASE(OMUL, TPTR32):
 		a = AIMULL;
+		break;
+
+	case CASE(OHMUL, TUINT8):
+		a = AMULB;
+		break;
+
+	case CASE(OHMUL, TUINT16):
+		a = AMULW;
+		break;
+
+	case CASE(OHMUL, TUINT32):
+	case CASE(OHMUL, TPTR32):
+		a = AMULL;
 		break;
 
 	case CASE(ODIV, TINT8):

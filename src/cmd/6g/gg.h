@@ -71,6 +71,7 @@ void	cgen_proc(Node*, int);
 void	cgen_callret(Node*, Node*);
 void	cgen_div(int, Node*, Node*, Node*);
 void	cgen_bmul(int, Node*, Node*, Node*);
+void	cgen_hmul(Node*, Node*, Node*);
 void	cgen_shift(int, int, Node*, Node*, Node*);
 void	cgen_dcl(Node*);
 int	needconvert(Type*, Type*);
@@ -86,6 +87,7 @@ void	clearslim(Node*);
  */
 void	agen(Node*, Node*);
 void	agenr(Node*, Node*, Node*);
+void	cgenr(Node*, Node*, Node*);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	sgen(Node*, Node*, int64);

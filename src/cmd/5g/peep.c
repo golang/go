@@ -1056,6 +1056,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 
 	case AMULLU:	/* read, read, write, write */
+	case AMULL:
 	case AMULA:
 	case AMVN:
 		return 2;

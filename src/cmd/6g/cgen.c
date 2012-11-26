@@ -257,6 +257,10 @@ cgen(Node *n, Node *res)
 		a = optoas(n->op, nl->type);
 		goto abop;
 
+	case OHMUL:
+		cgen_hmul(nl, nr, res);
+		break;
+
 	case OCONV:
 		if(n->type->width > nl->type->width) {
 			// If loading from memory, do conversion during load,
@@ -528,7 +532,7 @@ cgenr(Node *n, Node *a, Node *res)
 		fatal("cgenr on fat node");
 
 	if(n->addable) {
-		regalloc(a, types[tptr], res);
+		regalloc(a, n->type, res);
 		gmove(n, a);
 		return;
 	}

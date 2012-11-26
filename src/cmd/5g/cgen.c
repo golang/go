@@ -263,6 +263,10 @@ cgen(Node *n, Node *res)
 		a = optoas(n->op, nl->type);
 		goto abop;
 
+	case OHMUL:
+		cgen_hmul(nl, nr, res);
+		break;
+
 	case OLROT:
 	case OLSH:
 	case ORSH:
