@@ -1431,11 +1431,11 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
 	pos2 := b.Rbrace
 	if pos1.IsValid() && pos2.IsValid() && p.lineFor(pos1) != p.lineFor(pos2) {
 		// opening and closing brace are on different lines - don't make it a one-liner
-		return infinity
+		return maxSize + 1
 	}
 	if len(b.List) > 5 || p.commentBefore(p.posFor(pos2)) {
 		// too many statements or there is a comment inside - don't make it a one-liner
-		return infinity
+		return maxSize + 1
 	}
 	// otherwise, estimate body size
 	bodySize := 0
