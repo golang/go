@@ -1165,6 +1165,11 @@ l0:
 	case '[':
 		if(loophack || lstk != nil) {
 			h = malloc(sizeof *h);
+			if(h == nil) {
+				flusherrors();
+				yyerror("out of memory");
+				errorexit();
+			}
 			h->v = loophack;
 			h->next = lstk;
 			lstk = h;
