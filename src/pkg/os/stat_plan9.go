@@ -10,12 +10,12 @@ import (
 )
 
 func sameFile(sys1, sys2 interface{}) bool {
-	a := sys1.(*dir)
-	b := sys2.(*dir)
+	a := sys1.(*syscall.Dir)
+	b := sys2.(*syscall.Dir)
 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
 }
 
-func fileInfoFromStat(d *dir) FileInfo {
+func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
 		name:    d.Name,
 		size:    int64(d.Length),
@@ -39,7 +39,7 @@ func fileInfoFromStat(d *dir) FileInfo {
 }
 
 // arg is an open *File or a path string.
-func dirstat(arg interface{}) (d *dir, err error) {
+func dirstat(arg interface{}) (*syscall.Dir, error) {
 	var name string
 
 	// This is big enough for most stat messages
@@ -50,36 +50,40 @@ func dirstat(arg interface{}) (d *dir, err error) {
 		buf := make([]byte, size)
 
 		var n int
+		var err error
 		switch a := arg.(type) {
 		case *File:
 			name = a.name
 			n, err = syscall.Fstat(a.fd, buf)
 		case string:
 			name = a
-			n, err = syscall.Stat(name, buf)
+			n, err = syscall.Stat(a, buf)
+		default:
+			panic("phase error in dirstat")
 		}
 		if err != nil {
 			return nil, &PathError{"stat", name, err}
 		}
 		if n < syscall.STATFIXLEN {
-			return nil, &PathError{"stat", name, errShortStat}
+			return nil, &PathError{"stat", name, syscall.ErrShortStat}
 		}
 
 		// Pull the real size out of the stat message.
-		s, _ := gbit16(buf)
-		size = int(s)
+		size = int(uint16(buf[0]) | uint16(buf[1])<<8)
 
 		// If the stat message is larger than our buffer we will
 		// go around the loop and allocate one that is big enough.
-		if size <= n {
-			d, err = unmarshalDir(buf[:n])
-			if err != nil {
-				return nil, &PathError{"stat", name, err}
-			}
-			return
+		if size > n {
+			continue
 		}
+
+		d, err := syscall.UnmarshalDir(buf[:n])
+		if err != nil {
+			return nil, &PathError{"stat", name, err}
+		}
+		return d, nil
 	}
-	return nil, &PathError{"stat", name, errBadStat}
+	return nil, &PathError{"stat", name, syscall.ErrBadStat}
 }
 
 // Stat returns a FileInfo describing the named file.
@@ -102,5 +106,5 @@ func Lstat(name string) (fi FileInfo, err error) {
 
 // For testing.
 func atime(fi FileInfo) time.Time {
-	return time.Unix(int64(fi.Sys().(*dir).Atime), 0)
+	return time.Unix(int64(fi.Sys().(*syscall.Dir).Atime), 0)
 }
