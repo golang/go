@@ -430,11 +430,8 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 				n = treecopy(n);
 				f = nod(OXDOT, n, newname(t1->sym));
 				f->type = t1;
-<<<<<<< local
 				if(f->type->etype == TFIELD)
 					f->type = f->type->type;
-=======
->>>>>>> other
 				if(callinstr(&f, init, wr, 0)) {
 					typecheck(&f, Erv);
 					res = 1;
