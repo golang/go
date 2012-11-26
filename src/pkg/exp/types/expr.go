@@ -17,70 +17,98 @@ import (
 // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
 // - rethink error handling: should all callers check if x.mode == valid after making a call?
 
-func (check *checker) tag(field *ast.Field) string {
-	if t := field.Tag; t != nil {
-		assert(t.Kind == token.STRING)
-		if tag, err := strconv.Unquote(t.Value); err == nil {
-			return tag
+func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVariadic bool) {
+	if list == nil {
+		return
+	}
+	for _, field := range list.List {
+		ftype := field.Type
+		if t, ok := ftype.(*ast.Ellipsis); ok {
+			ftype = t.Elt
+			isVariadic = true
+		}
+		// the parser ensures that f.Tag is nil and we don't
+		// care if a constructed AST contains a non-nil tag
+		typ := check.typ(ftype, true)
+		if len(field.Names) > 0 {
+			// named parameter
+			for _, name := range field.Names {
+				obj := name.Obj
+				obj.Type = typ
+				params = append(params, obj)
+			}
+		} else {
+			// anonymous parameter
+			obj := ast.NewObj(ast.Var, "")
+			obj.Type = typ
+			params = append(params, obj)
+		}
+	}
+	return
+}
+
+func (check *checker) collectMethods(list *ast.FieldList) (methods ObjList) {
+	if list == nil {
+		return
+	}
+	for _, f := range list.List {
+		typ := check.typ(f.Type, len(f.Names) > 0) // cycles are not ok for embedded interfaces
+		// the parser ensures that f.Tag is nil and we don't
+		// care if a constructed AST contains a non-nil tag
+		if len(f.Names) > 0 {
+			// methods (the parser ensures that there's only one
+			// and we don't care if a constructed AST has more)
+			if _, ok := typ.(*Signature); !ok {
+				check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
+				continue
+			}
+			for _, name := range f.Names {
+				obj := name.Obj
+				obj.Type = typ
+				methods = append(methods, obj)
+			}
+		} else {
+			// embedded interface
+			utyp := underlying(typ)
+			if ityp, ok := utyp.(*Interface); ok {
+				methods = append(methods, ityp.Methods...)
+			} else if utyp != Typ[Invalid] {
+				// if utyp is invalid, don't complain (the root cause was reported before)
+				check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
+			}
+		}
+	}
+	// check for double declarations
+	methods.Sort()
+	prev := ""
+	for _, obj := range methods {
+		if obj.Name == prev {
+			check.errorf(list.Pos(), "multiple methods named %s", prev)
+			return // keep multiple entries, lookup will only return the first entry
+		}
+	}
+	return
+}
+
+func (check *checker) tag(t *ast.BasicLit) string {
+	if t != nil {
+		if t.Kind == token.STRING {
+			if val, err := strconv.Unquote(t.Value); err == nil {
+				return val
+			}
 		}
 		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }
 
-// collectFields collects interface methods (tok = token.INTERFACE), and function arguments/results (tok = token.FUNC).
-func (check *checker) collectFields(tok token.Token, list *ast.FieldList, cycleOk bool) (fields ObjList, tags []string, isVariadic bool) {
-	if list != nil {
-		for _, field := range list.List {
-			ftype := field.Type
-			if t, ok := ftype.(*ast.Ellipsis); ok {
-				ftype = t.Elt
-				isVariadic = true
-			}
-			typ := check.typ(ftype, cycleOk)
-			tag := check.tag(field)
-			if len(field.Names) > 0 {
-				// named fields
-				for _, name := range field.Names {
-					obj := name.Obj
-					obj.Type = typ
-					fields = append(fields, obj)
-					if tok == token.STRUCT {
-						tags = append(tags, tag)
-					}
-				}
-			} else {
-				// anonymous field
-				switch tok {
-				case token.FUNC:
-					obj := ast.NewObj(ast.Var, "")
-					obj.Type = typ
-					fields = append(fields, obj)
-				case token.INTERFACE:
-					utyp := underlying(typ)
-					if typ, ok := utyp.(*Interface); ok {
-						// TODO(gri) This is not good enough. Check for double declarations!
-						fields = append(fields, typ.Methods...)
-					} else if utyp != Typ[Invalid] {
-						// if utyp is invalid, don't complain (the root cause was reported before)
-						check.errorf(ftype.Pos(), "interface contains embedded non-interface type")
-					}
-				default:
-					panic("unreachable")
-				}
-			}
-		}
-	}
-	return
-}
-
-func (check *checker) collectStructFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
+func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
 	if list == nil {
 		return
 	}
 	for _, f := range list.List {
 		typ := check.typ(f.Type, cycleOk)
-		tag := check.tag(f)
+		tag := check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
@@ -115,9 +143,6 @@ var unaryOpPredicates = opPredicates{
 func (check *checker) op(m opPredicates, x *operand, op token.Token) bool {
 	if pred := m[op]; pred != nil {
 		if !pred(x.typ) {
-			// TODO(gri) better error message for <-x where x is a send-only channel
-			//           (<- is defined but not permitted). Special-case here or
-			//           handle higher up.
 			check.invalidOp(x.pos(), "operator %s not defined for %s", op, x)
 			return false
 		}
@@ -537,27 +562,155 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 
 	case *ast.FuncLit:
-		x.mode = value
-		x.typ = check.typ(e.Type, false)
-		// TODO(gri) handle errors (e.g. x.typ is not a *Signature)
-		check.function(x.typ.(*Signature), e.Body)
+		if typ, ok := check.typ(e.Type, false).(*Signature); ok {
+			x.mode = value
+			x.typ = typ
+			check.function(typ, e.Body)
+		} else {
+			check.invalidAST(e.Pos(), "invalid function literal %s", e)
+			goto Error
+		}
 
 	case *ast.CompositeLit:
-		// TODO(gri)
-		//	- determine element type if nil
-		//	- deal with map elements
-		var typ Type
+		typ := hint
 		if e.Type != nil {
-			// TODO(gri) Fix this - just to get going for now
 			typ = check.typ(e.Type, false)
 		}
-		for _, e := range e.Elts {
-			var x operand
-			check.expr(&x, e, hint, iota)
-			// TODO(gri) check assignment compatibility to element type
+		if typ == nil {
+			check.errorf(e.Pos(), "missing type in composite literal")
+			goto Error
 		}
-		// TODO(gri) this is not correct - leave for now to get going
-		x.mode = variable
+
+		// TODO(gri) try to factor code below better
+
+		switch utyp := underlying(deref(typ)).(type) {
+		case *Struct:
+			if len(e.Elts) == 0 {
+				break
+			}
+			fields := utyp.Fields
+			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
+				// all elements must have keys
+				visited := make([]bool, len(fields))
+				for _, e := range e.Elts {
+					kv, _ := e.(*ast.KeyValueExpr)
+					if kv == nil {
+						check.errorf(e.Pos(), "mixture of field:value and value elements in struct literal")
+						continue
+					}
+					key, _ := kv.Key.(*ast.Ident)
+					if key == nil {
+						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
+						continue
+					}
+					i := utyp.fieldIndex(key.Name)
+					if i < 0 {
+						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
+						continue
+					}
+					// 0 <= i < len(fields)
+					if visited[i] {
+						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
+						continue
+					}
+					visited[i] = true
+					check.expr(x, kv.Value, nil, iota)
+					etyp := fields[i].Type
+					if !x.isAssignable(etyp) {
+						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+						continue
+					}
+				}
+			} else {
+				// no element must have a key
+				for i, e := range e.Elts {
+					if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+						check.errorf(kv.Pos(), "mixture of field:value and value elements in struct literal")
+						continue
+					}
+					check.expr(x, e, nil, iota)
+					if i >= len(fields) {
+						check.errorf(x.pos(), "too many values in struct literal")
+						goto Error
+					}
+					etyp := fields[i].Type
+					if !x.isAssignable(etyp) {
+						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
+						continue
+					}
+				}
+				if len(e.Elts) < len(fields) {
+					check.errorf(e.Rbrace, "too few values in struct literal")
+					goto Error
+				}
+			}
+
+		case *Array:
+			var index int64
+			for _, e := range e.Elts {
+				eval := e
+				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+					check.index(kv.Key, -1, iota)
+					eval = kv.Value
+				}
+				// TODO(gri) missing index range & duplicate check
+				check.expr(x, eval, utyp.Elt, iota)
+				if !x.isAssignable(utyp.Elt) {
+					check.errorf(x.pos(), "cannot use %s as %s value in array literal", x, utyp.Elt)
+				}
+				index++
+			}
+
+		case *Slice:
+			var index int64
+			for _, e := range e.Elts {
+				eval := e
+				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+					// TODO(gri) check key
+					check.index(kv.Key, -1, iota)
+					eval = kv.Value
+				}
+				// TODO(gri) missing index range & duplicate check
+				check.expr(x, eval, utyp.Elt, iota)
+				if !x.isAssignable(utyp.Elt) {
+					check.errorf(x.pos(), "cannot use %s as %s value in slice literal", x, utyp.Elt)
+				}
+				index++
+			}
+
+		case *Map:
+			visited := make(map[interface{}]bool, len(e.Elts))
+			for _, e := range e.Elts {
+				kv, _ := e.(*ast.KeyValueExpr)
+				if kv == nil {
+					check.errorf(e.Pos(), "missing key in map literal")
+					continue
+				}
+				check.expr(x, kv.Key, nil, iota)
+				if !x.isAssignable(utyp.Key) {
+					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
+					continue
+				}
+				if x.mode == constant {
+					if visited[x.val] {
+						check.errorf(x.pos(), "duplicate key %s in map literal", x.val)
+						continue
+					}
+					visited[x.val] = true
+				}
+				check.expr(x, kv.Value, utyp.Elt, iota)
+				if !x.isAssignable(utyp.Elt) {
+					check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
+					continue
+				}
+			}
+
+		default:
+			check.errorf(e.Pos(), "%s is not a valid composite literal type", typ)
+			goto Error
+		}
+
+		x.mode = variable // TODO(gri) mode is really a value - keep for now to get going
 		x.typ = typ
 
 	case *ast.ParenExpr:
@@ -604,7 +757,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 		mode, typ := lookupField(x.typ, sel)
 		if mode == invalid {
-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
+			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
 		}
 		if x.mode == typexpr {
@@ -617,7 +770,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// the receiver type becomes the type of the first function
 			// argument of the method expression's function type
 			// TODO(gri) at the moment, method sets don't correctly track
-			// pointer vs non-pointer receivers -> typechecker is too lenient
+			// pointer vs non-pointer receivers => typechecker is too lenient
 			arg := ast.NewObj(ast.Var, "")
 			arg.Type = x.typ
 			x.mode = value
@@ -665,7 +818,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			x.typ = typ.Elt
 
 		case *Map:
-			// TODO(gri) check index type
+			var key operand
+			check.expr(&key, e.Index, nil, iota)
+			if key.mode == invalid || !key.isAssignable(typ.Key) {
+				check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
+				goto Error
+			}
 			x.mode = valueok
 			x.typ = typ.Elt
 			return
@@ -827,7 +985,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		check.binary(x, &y, e.Op, hint)
 
 	case *ast.KeyValueExpr:
-		unimplemented()
+		// key:value expressions are handled in composite literals
+		check.invalidAST(e.Pos(), "no key:value expected")
+		goto Error
 
 	case *ast.ArrayType:
 		if e.Len != nil {
@@ -862,19 +1022,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.StructType:
 		x.mode = typexpr
-		x.typ = &Struct{Fields: check.collectStructFields(e.Fields, cycleOk)}
+		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
 
 	case *ast.FuncType:
-		params, _, isVariadic := check.collectFields(token.FUNC, e.Params, true)
-		results, _, _ := check.collectFields(token.FUNC, e.Results, true)
+		params, isVariadic := check.collectParams(e.Params)
+		results, _ := check.collectParams(e.Results)
 		x.mode = typexpr
 		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
 
 	case *ast.InterfaceType:
-		methods, _, _ := check.collectFields(token.INTERFACE, e.Methods, cycleOk)
-		methods.Sort()
 		x.mode = typexpr
-		x.typ = &Interface{Methods: methods}
+		x.typ = &Interface{Methods: check.collectMethods(e.Methods)}
 
 	case *ast.MapType:
 		x.mode = typexpr
