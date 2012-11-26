@@ -7,6 +7,24 @@
 #include "signals_GOOS.h"
 #include "os_GOOS.h"
 
+#define r0	__gregs[0]
+#define r1	__gregs[1]
+#define r2	__gregs[2]
+#define r3	__gregs[3]
+#define r4	__gregs[4]
+#define r5	__gregs[5]
+#define r6	__gregs[6]
+#define r7	__gregs[7]
+#define r8	__gregs[8]
+#define r9	__gregs[9]
+#define r10	__gregs[10]
+#define r11	__gregs[11]
+#define r12	__gregs[12]
+#define r13	__gregs[13]
+#define r14	__gregs[14]
+#define r15	__gregs[15]
+#define cpsr	__gregs[16]
+
 void
 runtime·dumpregs(Mcontext *r)
 {
@@ -118,7 +136,7 @@ runtime·signalstack(byte *p, int32 n)
 {
 	Sigaltstack st;
 
-	st.ss_sp = (int8*)p;
+	st.ss_sp = (uint8*)p;
 	st.ss_size = n;
 	st.ss_flags = 0;
 	runtime·sigaltstack(&st, nil);
