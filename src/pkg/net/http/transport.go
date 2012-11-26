@@ -24,7 +24,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -613,14 +612,18 @@ func (pc *persistConn) readLoop() {
 		if hasBody {
 			lastbody = resp.Body
 			waitForBodyRead = make(chan bool, 1)
-			resp.Body.(*bodyEOFSignal).fn = func() {
-				if alive && !pc.t.putIdleConn(pc) {
-					alive = false
+			resp.Body.(*bodyEOFSignal).fn = func(err error) {
+				alive1 := alive
+				if err != nil {
+					alive1 = false
 				}
-				if !alive || pc.isBroken() {
+				if alive1 && !pc.t.putIdleConn(pc) {
+					alive1 = false
+				}
+				if !alive1 || pc.isBroken() {
 					pc.close()
 				}
-				waitForBodyRead <- true
+				waitForBodyRead <- alive1
 			}
 		}
 
@@ -644,7 +647,7 @@ func (pc *persistConn) readLoop() {
 		// Wait for the just-returned response body to be fully consumed
 		// before we race and peek on the underlying bufio reader.
 		if waitForBodyRead != nil {
-			<-waitForBodyRead
+			alive = <-waitForBodyRead
 		}
 
 		if !alive {
@@ -810,50 +813,61 @@ func canonicalAddr(url *url.URL) string {
 }
 
 // bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
-// once, right before the final Read() or Close() call returns, but after
-// EOF has been seen.
+// once, right before its final (error-producing) Read or Close call
+// returns.
 type bodyEOFSignal struct {
-	body     io.ReadCloser
-	fn       func()
-	isClosed uint32 // atomic bool, non-zero if true
-	once     sync.Once
+	body   io.ReadCloser
+	mu     sync.Mutex  // guards closed, rerr and fn
+	closed bool        // whether Close has been called
+	rerr   error       // sticky Read error
+	fn     func(error) // error will be nil on Read io.EOF
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
-	n, err = es.body.Read(p)
-	if es.closed() && n > 0 {
-		panic("http: unexpected bodyEOFSignal Read after Close; see issue 1725")
+	es.mu.Lock()
+	closed, rerr := es.closed, es.rerr
+	es.mu.Unlock()
+	if closed {
+		return 0, errors.New("http: read on closed response body")
 	}
-	if err == io.EOF {
-		es.condfn()
+	if rerr != nil {
+		return 0, rerr
+	}
+
+	n, err = es.body.Read(p)
+	if err != nil {
+		es.mu.Lock()
+		defer es.mu.Unlock()
+		if es.rerr == nil {
+			es.rerr = err
+		}
+		es.condfn(err)
 	}
 	return
 }
 
-func (es *bodyEOFSignal) Close() (err error) {
-	if !es.setClosed() {
-		// already closed
+func (es *bodyEOFSignal) Close() error {
+	es.mu.Lock()
+	defer es.mu.Unlock()
+	if es.closed {
 		return nil
 	}
-	err = es.body.Close()
-	if err == nil {
-		es.condfn()
+	es.closed = true
+	err := es.body.Close()
+	es.condfn(err)
+	return err
+}
+
+// caller must hold es.mu.
+func (es *bodyEOFSignal) condfn(err error) {
+	if es.fn == nil {
+		return
 	}
-	return
-}
-
-func (es *bodyEOFSignal) condfn() {
-	if es.fn != nil {
-		es.once.Do(es.fn)
+	if err == io.EOF {
+		err = nil
 	}
-}
-
-func (es *bodyEOFSignal) closed() bool {
-	return atomic.LoadUint32(&es.isClosed) != 0
-}
-
-func (es *bodyEOFSignal) setClosed() bool {
-	return atomic.CompareAndSwapUint32(&es.isClosed, 0, 1)
+	es.fn(err)
+	es.fn = nil
 }
 
 type readFirstCloseBoth struct {
