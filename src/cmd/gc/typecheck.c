@@ -614,7 +614,10 @@ reswitch:
 				n->left = l;
 				n->right = r;
 			}
-		}
+		// non-comparison operators on ideal bools should make them lose their ideal-ness
+		} else if(t == idealbool)
+			t = types[TBOOL];
+
 		if(et == TSTRING) {
 			if(iscmp[n->op]) {
 				n->etype = n->op;
