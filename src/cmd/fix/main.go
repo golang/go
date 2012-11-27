@@ -9,8 +9,8 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
-	"go/printer"
 	"go/scanner"
 	"go/token"
 	"io/ioutil"
@@ -97,23 +97,11 @@ func main() {
 	os.Exit(exitCode)
 }
 
-const (
-	tabWidth    = 8
-	parserMode  = parser.ParseComments
-	printerMode = printer.TabIndent | printer.UseSpaces
-)
-
-var printConfig = &printer.Config{
-	Mode:     printerMode,
-	Tabwidth: tabWidth,
-}
+const parserMode = parser.ParseComments
 
 func gofmtFile(f *ast.File) ([]byte, error) {
 	var buf bytes.Buffer
-
-	ast.SortImports(fset, f)
-	err := printConfig.Fprint(&buf, fset, f)
-	if err != nil {
+	if err := format.Node(&buf, fset, f); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -211,8 +199,7 @@ var gofmtBuf bytes.Buffer
 
 func gofmt(n interface{}) string {
 	gofmtBuf.Reset()
-	err := printConfig.Fprint(&gofmtBuf, fset, n)
-	if err != nil {
+	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"
 	}
 	return gofmtBuf.String()

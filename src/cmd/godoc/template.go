@@ -57,8 +57,8 @@ func contents(name string) string {
 	return string(file)
 }
 
-// format returns a textual representation of the arg, formatted according to its nature.
-func format(arg interface{}) string {
+// stringFor returns a textual representation of the arg, formatted according to its nature.
+func stringFor(arg interface{}) string {
 	switch arg := arg.(type) {
 	case int:
 		return fmt.Sprintf("%d", arg)
@@ -87,10 +87,10 @@ func code(file string, arg ...interface{}) (s string, err error) {
 		// text is already whole file.
 		command = fmt.Sprintf("code %q", file)
 	case 1:
-		command = fmt.Sprintf("code %q %s", file, format(arg[0]))
+		command = fmt.Sprintf("code %q %s", file, stringFor(arg[0]))
 		text = oneLine(file, text, arg[0])
 	case 2:
-		command = fmt.Sprintf("code %q %s %s", file, format(arg[0]), format(arg[1]))
+		command = fmt.Sprintf("code %q %s %s", file, stringFor(arg[0]), stringFor(arg[1]))
 		text = multipleLines(file, text, arg[0], arg[1])
 	default:
 		return "", fmt.Errorf("incorrect code invocation: code %q %q", file, arg)
