@@ -68,8 +68,7 @@ func newUser(usid *syscall.SID, gid, dir string) (*User, error) {
 	return u, nil
 }
 
-// Current returns the current user.
-func Current() (*User, error) {
+func current() (*User, error) {
 	t, e := syscall.OpenCurrentProcessToken()
 	if e != nil {
 		return nil, e
@@ -103,8 +102,7 @@ func newUserFromSid(usid *syscall.SID) (*User, error) {
 	return newUser(usid, gid, dir)
 }
 
-// Lookup looks up a user by username.
-func Lookup(username string) (*User, error) {
+func lookup(username string) (*User, error) {
 	sid, _, t, e := syscall.LookupSID("", username)
 	if e != nil {
 		return nil, e
@@ -115,8 +113,7 @@ func Lookup(username string) (*User, error) {
 	return newUserFromSid(sid)
 }
 
-// LookupId looks up a user by userid.
-func LookupId(uid string) (*User, error) {
+func lookupId(uid string) (*User, error) {
 	sid, e := syscall.StringToSid(uid)
 	if e != nil {
 		return nil, e

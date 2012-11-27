@@ -15,14 +15,14 @@ func init() {
 	implemented = false
 }
 
-func Current() (*User, error) {
+func current() (*User, error) {
 	return nil, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-func Lookup(username string) (*User, error) {
+func lookup(username string) (*User, error) {
 	return nil, fmt.Errorf("user: Lookup not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-func LookupId(string) (*User, error) {
+func lookupId(uid string) (*User, error) {
 	return nil, fmt.Errorf("user: LookupId not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
