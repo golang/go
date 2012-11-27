@@ -588,8 +588,10 @@ func TestProlongTimeout(t *testing.T) {
 
 	ln := newLocalListener(t)
 	defer ln.Close()
+	connected := make(chan bool)
 	go func() {
 		s, err := ln.Accept()
+		connected <- true
 		if err != nil {
 			t.Fatalf("ln.Accept: %v", err)
 		}
@@ -619,6 +621,7 @@ func TestProlongTimeout(t *testing.T) {
 		t.Fatalf("DialTCP: %v", err)
 	}
 	defer c.Close()
+	<-connected
 	for i := 0; i < 1024; i++ {
 		var buf [1]byte
 		c.Write(buf[:])
