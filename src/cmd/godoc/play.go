@@ -7,13 +7,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
+	"go/format"
 	"net/http"
 )
 
@@ -40,34 +36,13 @@ type fmtResponse struct {
 // standard gofmt formatting, and writes a fmtResponse as a JSON object.
 func fmtHandler(w http.ResponseWriter, r *http.Request) {
 	resp := new(fmtResponse)
-	body, err := gofmt(r.FormValue("body"))
+	body, err := format.Source([]byte(r.FormValue("body")))
 	if err != nil {
 		resp.Error = err.Error()
 	} else {
-		resp.Body = body
+		resp.Body = string(body)
 	}
 	json.NewEncoder(w).Encode(resp)
-}
-
-// gofmt takes a Go program, formats it using the standard Go formatting
-// rules, and returns it or an error.
-func gofmt(body string) (string, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "prog.go", body, parser.ParseComments)
-	if err != nil {
-		return "", err
-	}
-	ast.SortImports(fset, f)
-	var buf bytes.Buffer
-	config := printer.Config{
-		Mode:     printer.UseSpaces | printer.TabIndent,
-		Tabwidth: 8,
-	}
-	err = config.Fprint(&buf, fset, f)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }
 
 // disabledHandler serves a 501 "Not Implemented" response.
