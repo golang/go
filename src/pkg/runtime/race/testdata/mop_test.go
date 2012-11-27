@@ -1239,6 +1239,22 @@ func TestRaceSliceSlice2(t *testing.T) {
 	<-c
 }
 
+// http://golang.org/issue/4453
+func TestRaceFailingSliceStruct(t *testing.T) {
+	type X struct {
+		x, y int
+	}
+	c := make(chan bool, 1)
+	x := make([]X, 10)
+	go func() {
+		y := make([]X, 10)
+		copy(y, x)
+		c <- true
+	}()
+	x[1].y = 42
+	<-c
+}
+
 func TestRaceStructInd(t *testing.T) {
 	c := make(chan bool, 1)
 	type Item struct {
