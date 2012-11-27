@@ -13,27 +13,26 @@ import (
 // Issue 3590. netFd.AddFD should return an error
 // from the underlying pollster rather than panicing.
 func TestAddFDReturnsError(t *testing.T) {
-	l, err := Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-
+	ln := newLocalListener(t).(*TCPListener)
+	defer ln.Close()
+	connected := make(chan bool)
 	go func() {
 		for {
-			c, err := l.Accept()
+			c, err := ln.Accept()
 			if err != nil {
 				return
 			}
+			connected <- true
 			defer c.Close()
 		}
 	}()
 
-	c, err := Dial("tcp", l.Addr().String())
+	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
+	<-connected
 
 	// replace c's pollServer with a closed version.
 	ps, err := newPollServer()
@@ -41,7 +40,7 @@ func TestAddFDReturnsError(t *testing.T) {
 		t.Fatal(err)
 	}
 	ps.poll.Close()
-	c.(*TCPConn).conn.fd.pollServer = ps
+	c.conn.fd.pollServer = ps
 
 	var b [1]byte
 	_, err = c.Read(b[:])
@@ -56,5 +55,5 @@ func TestAddFDReturnsError(t *testing.T) {
 			}
 		}
 	}
-	t.Error(err)
+	t.Error("unexpected error:", err)
 }
