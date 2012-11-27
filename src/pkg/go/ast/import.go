@@ -20,7 +20,7 @@ func SortImports(fset *token.FileSet, f *File) {
 			break
 		}
 
-		if d.Lparen == token.NoPos {
+		if !d.Lparen.IsValid() {
 			// Not a block: sorted by default.
 			continue
 		}
