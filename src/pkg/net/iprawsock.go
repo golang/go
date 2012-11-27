@@ -37,5 +37,8 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 		return nil, UnknownNetworkError(net)
 	}
 	a, err := resolveInternetAddr(afnet, addr, noDeadline)
+	if err != nil {
+		return nil, err
+	}
 	return a.(*IPAddr), nil
 }
