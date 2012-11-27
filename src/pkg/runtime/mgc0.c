@@ -881,6 +881,7 @@ runtime·memorydump(void)
 		dumpspan(spanidx);
 	}
 }
+
 void
 runtime·gchelper(void)
 {
@@ -957,15 +958,20 @@ cachestats(GCStats *stats)
 	mstats.stacks_sys = stacks_sys;
 }
 
+// Structure of arguments passed to function gc().
+// This allows the arguments to be passed via reflect·call.
+struct gc_args
+{
+	int32 force;
+};
+
+static void gc(struct gc_args *args);
+
 void
 runtime·gc(int32 force)
 {
-	int64 t0, t1, t2, t3;
-	uint64 heap0, heap1, obj0, obj1;
 	byte *p;
-	GCStats stats;
-	M *m1;
-	uint32 i;
+	struct gc_args a, *ap;
 
 	// The atomic operations are not atomic if the uint64s
 	// are not aligned on uint64 boundaries. This has been
@@ -1000,8 +1006,30 @@ runtime·gc(int32 force)
 	if(gcpercent < 0)
 		return;
 
+	// Run gc on a bigger stack to eliminate
+	// a potentially large number of calls to runtime·morestack.
+	a.force = force;
+	ap = &a;
+	m->moreframesize_minalloc = StackBig;
+	reflect·call((byte*)gc, (byte*)&ap, sizeof(ap));
+
+	if(gctrace > 1 && !force) {
+		a.force = 1;
+		gc(&a);
+	}
+}
+
+static void
+gc(struct gc_args *args)
+{
+	int64 t0, t1, t2, t3;
+	uint64 heap0, heap1, obj0, obj1;
+	GCStats stats;
+	M *m1;
+	uint32 i;
+
 	runtime·semacquire(&runtime·worldsema);
-	if(!force && mstats.heap_alloc < mstats.next_gc) {
+	if(!args->force && mstats.heap_alloc < mstats.next_gc) {
 		runtime·semrelease(&runtime·worldsema);
 		return;
 	}
@@ -1107,9 +1135,6 @@ runtime·gc(int32 force)
 	// give the queued finalizers, if any, a chance to run
 	if(finq != nil)
 		runtime·gosched();
-
-	if(gctrace > 1 && !force)
-		runtime·gc(1);
 }
 
 void

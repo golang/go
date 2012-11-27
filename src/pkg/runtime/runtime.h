@@ -273,6 +273,7 @@ struct	M
 	GCStats	gcstats;
 	bool	racecall;
 	void*	racepc;
+	uint32	moreframesize_minalloc;
 
 	uintptr	settype_buf[1024];
 	uintptr	settype_bufsize;
