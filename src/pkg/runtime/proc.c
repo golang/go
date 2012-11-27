@@ -1134,7 +1134,7 @@ runtime·oldstack(void)
 void
 runtime·newstack(void)
 {
-	int32 framesize, argsize;
+	int32 framesize, minalloc, argsize;
 	Stktop *top;
 	byte *stk, *sp;
 	G *g1;
@@ -1143,8 +1143,11 @@ runtime·newstack(void)
 	uintptr free;
 
 	framesize = m->moreframesize;
+	minalloc = m->moreframesize_minalloc;
 	argsize = m->moreargsize;
 	g1 = m->curg;
+
+	m->moreframesize_minalloc = 0;
 
 	if(m->morebuf.sp < g1->stackguard - StackGuard) {
 		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, g1->stackguard - StackGuard);
@@ -1159,7 +1162,10 @@ runtime·newstack(void)
 	if(reflectcall)
 		framesize = 0;
 
-	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > g1->stackguard) {
+	if(framesize < minalloc)
+		framesize = minalloc;
+
+	if(reflectcall && minalloc == 0 && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > g1->stackguard) {
 		// special case: called from reflect.call (framesize==1)
 		// to call code with an arbitrary argument size,
 		// and we have enough space on the current stack.
@@ -1180,8 +1186,10 @@ runtime·newstack(void)
 		free = framesize;
 	}
 
-//runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
-//framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
+	if(0) {
+		runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
+			framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
+	}
 
 	top->stackbase = (byte*)g1->stackbase;
 	top->stackguard = (byte*)g1->stackguard;
