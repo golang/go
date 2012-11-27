@@ -4,9 +4,9 @@
 
 // +build !windows,!plan9
 
-// Package syslog provides a simple interface to the system log service. It
-// can send messages to the syslog daemon using UNIX domain sockets, UDP, or
-// TCP connections.
+// Package syslog provides a simple interface to the system log
+// service. It can send messages to the syslog daemon using UNIX
+// domain sockets, UDP, or TCP connections.
 package syslog
 
 import (
@@ -15,11 +15,21 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 )
 
+// The Priority is a combination of the syslog facility and
+// severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
+// message from the FTP facility. The default severity is LOG_EMERG;
+// the default facility is LOG_KERN.
 type Priority int
 
+const severityMask = 0x07
+const facilityMask = 0xf8
+
 const (
+	// Severity.
+
 	// From /usr/include/sys/syslog.h.
 	// These are the same on Linux, BSD, and OS X.
 	LOG_EMERG Priority = iota
@@ -32,16 +42,47 @@ const (
 	LOG_DEBUG
 )
 
+const (
+	// Facility.
+
+	// From /usr/include/sys/syslog.h.
+	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
+	LOG_KERN Priority = iota << 3
+	LOG_USER
+	LOG_MAIL
+	LOG_DAEMON
+	LOG_AUTH
+	LOG_SYSLOG
+	LOG_LPR
+	LOG_NEWS
+	LOG_UUCP
+	LOG_CRON
+	LOG_AUTHPRIV
+	LOG_FTP
+	_ // unused
+	_ // unused
+	_ // unused
+	_ // unused
+	LOG_LOCAL0
+	LOG_LOCAL1
+	LOG_LOCAL2
+	LOG_LOCAL3
+	LOG_LOCAL4
+	LOG_LOCAL5
+	LOG_LOCAL6
+	LOG_LOCAL7
+)
+
 // A Writer is a connection to a syslog server.
 type Writer struct {
 	priority Priority
-	prefix   string
+	tag      string
+	hostname string
 	conn     serverConn
 }
 
 type serverConn interface {
-	writeBytes(p Priority, prefix string, b []byte) (int, error)
-	writeString(p Priority, prefix string, s string) (int, error)
+	writeString(p Priority, hostname, tag, s string) (int, error)
 	close() error
 }
 
@@ -49,116 +90,130 @@ type netConn struct {
 	conn net.Conn
 }
 
-// New establishes a new connection to the system log daemon.
-// Each write to the returned writer sends a log message with
-// the given priority and prefix.
-func New(priority Priority, prefix string) (w *Writer, err error) {
-	return Dial("", "", priority, prefix)
+// New establishes a new connection to the system log daemon.  Each
+// write to the returned writer sends a log message with the given
+// priority and prefix.
+func New(priority Priority, tag string) (w *Writer, err error) {
+	return Dial("", "", priority, tag)
 }
 
-// Dial establishes a connection to a log daemon by connecting
-// to address raddr on the network net.
-// Each write to the returned writer sends a log message with
-// the given priority and prefix.
-func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, err error) {
-	if prefix == "" {
-		prefix = os.Args[0]
+// Dial establishes a connection to a log daemon by connecting to
+// address raddr on the network net.  Each write to the returned
+// writer sends a log message with the given facility, severity and
+// tag.
+func Dial(network, raddr string, priority Priority, tag string) (w *Writer, err error) {
+	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
+		return nil, errors.New("log/syslog: invalid priority")
 	}
+
+	if tag == "" {
+		tag = os.Args[0]
+	}
+
+	hostname, _ := os.Hostname()
+
 	var conn serverConn
 	if network == "" {
 		conn, err = unixSyslog()
+		if hostname == "" {
+			hostname = "localhost"
+		}
 	} else {
 		var c net.Conn
 		c, err = net.Dial(network, raddr)
 		conn = netConn{c}
+		if hostname == "" {
+			hostname = c.LocalAddr().String()
+		}
 	}
-	return &Writer{priority, prefix, conn}, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &Writer{priority: priority, tag: tag, hostname: hostname, conn: conn}, nil
 }
 
 // Write sends a log message to the syslog daemon.
 func (w *Writer) Write(b []byte) (int, error) {
-	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
-		return 0, errors.New("log/syslog: invalid priority")
-	}
-	return w.conn.writeBytes(w.priority, w.prefix, b)
-}
-
-func (w *Writer) writeString(p Priority, s string) (int, error) {
-	return w.conn.writeString(p, w.prefix, s)
+	return w.writeString(w.priority, string(b))
 }
 
 func (w *Writer) Close() error { return w.conn.close() }
 
-// Emerg logs a message using the LOG_EMERG priority.
+// Emerg logs a message with severity LOG_EMERG, ignoring the severity
+// passed to New.
 func (w *Writer) Emerg(m string) (err error) {
 	_, err = w.writeString(LOG_EMERG, m)
 	return err
 }
 
-// Alert logs a message using the LOG_ALERT priority.
+// Alert logs a message with severity LOG_ALERT, ignoring the severity
+// passed to New.
 func (w *Writer) Alert(m string) (err error) {
 	_, err = w.writeString(LOG_ALERT, m)
 	return err
 }
 
-// Crit logs a message using the LOG_CRIT priority.
+// Crit logs a message with severity LOG_CRIT, ignoring the severity
+// passed to New.
 func (w *Writer) Crit(m string) (err error) {
 	_, err = w.writeString(LOG_CRIT, m)
 	return err
 }
 
-// Err logs a message using the LOG_ERR priority.
+// Err logs a message with severity LOG_ERR, ignoring the severity
+// passed to New.
 func (w *Writer) Err(m string) (err error) {
 	_, err = w.writeString(LOG_ERR, m)
 	return err
 }
 
-// Warning logs a message using the LOG_WARNING priority.
+// Wanring logs a message with severity LOG_WARNING, ignoring the
+// severity passed to New.
 func (w *Writer) Warning(m string) (err error) {
 	_, err = w.writeString(LOG_WARNING, m)
 	return err
 }
 
-// Notice logs a message using the LOG_NOTICE priority.
+// Notice logs a message with severity LOG_NOTICE, ignoring the
+// severity passed to New.
 func (w *Writer) Notice(m string) (err error) {
 	_, err = w.writeString(LOG_NOTICE, m)
 	return err
 }
 
-// Info logs a message using the LOG_INFO priority.
+// Info logs a message with severity LOG_INFO, ignoring the severity
+// passed to New.
 func (w *Writer) Info(m string) (err error) {
 	_, err = w.writeString(LOG_INFO, m)
 	return err
 }
 
-// Debug logs a message using the LOG_DEBUG priority.
+// Debug logs a message with severity LOG_DEBUG, ignoring the severity
+// passed to New.
 func (w *Writer) Debug(m string) (err error) {
 	_, err = w.writeString(LOG_DEBUG, m)
 	return err
 }
 
-func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
-	nl := ""
-	if len(b) == 0 || b[len(b)-1] != '\n' {
-		nl = "\n"
-	}
-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, b, nl)
-	if err != nil {
-		return 0, err
-	}
-	return len(b), nil
+func (w *Writer) writeString(p Priority, s string) (int, error) {
+	return w.conn.writeString((w.priority&facilityMask)|(p&severityMask),
+		w.hostname, w.tag, s)
 }
 
-func (n netConn) writeString(p Priority, prefix string, s string) (int, error) {
+// writeString: generates and writes a syslog formatted string. The
+// format is as follows: <PRI>1 TIMESTAMP HOSTNAME TAG[PID]: MSG
+func (n netConn) writeString(p Priority, hostname, tag, msg string) (int, error) {
 	nl := ""
-	if len(s) == 0 || s[len(s)-1] != '\n' {
+	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		nl = "\n"
 	}
-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, s, nl)
-	if err != nil {
+	timestamp := time.Now().Format(time.RFC3339)
+	if _, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s[%d]: %s%s", p, timestamp, hostname,
+		tag, os.Getpid(), msg, nl); err != nil {
 		return 0, err
 	}
-	return len(s), nil
+	return len(msg), nil
 }
 
 func (n netConn) close() error {
