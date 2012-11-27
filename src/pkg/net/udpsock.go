@@ -6,10 +6,7 @@
 
 package net
 
-import (
-	"errors"
-	"time"
-)
+import "errors"
 
 var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
 
@@ -36,13 +33,14 @@ func (a *UDPAddr) String() string {
 // "udp4" or "udp6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
 func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
-	return resolveUDPAddr(net, addr, noDeadline)
-}
-
-func resolveUDPAddr(net, addr string, deadline time.Time) (*UDPAddr, error) {
-	ip, port, err := hostPortToIP(net, addr, deadline)
+	switch net {
+	case "udp", "udp4", "udp6":
+	default:
+		return nil, UnknownNetworkError(net)
+	}
+	a, err := resolveInternetAddr(net, addr, noDeadline)
 	if err != nil {
 		return nil, err
 	}
-	return &UDPAddr{IP: ip, Port: port}, nil
+	return a.(*UDPAddr), nil
 }

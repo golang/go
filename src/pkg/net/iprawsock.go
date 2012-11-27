@@ -6,10 +6,6 @@
 
 package net
 
-import (
-	"time"
-)
-
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
 	IP   IP
@@ -31,44 +27,15 @@ func (a *IPAddr) String() string {
 // "ip", "ip4" or "ip6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]".
 func ResolveIPAddr(net, addr string) (*IPAddr, error) {
-	return resolveIPAddr(net, addr, noDeadline)
-}
-
-func resolveIPAddr(net, addr string, deadline time.Time) (*IPAddr, error) {
-	ip, err := hostToIP(net, addr, deadline)
+	afnet, _, err := parseDialNetwork(net)
 	if err != nil {
 		return nil, err
 	}
-	return &IPAddr{IP: ip}, nil
-}
-
-// Convert "host" into IP address.
-func hostToIP(net, host string, deadline time.Time) (ip IP, err error) {
-	var addr IP
-	// Try as an IP address.
-	addr = ParseIP(host)
-	if addr == nil {
-		filter := anyaddr
-		if net != "" && net[len(net)-1] == '4' {
-			filter = ipv4only
-		}
-		if net != "" && net[len(net)-1] == '6' {
-			filter = ipv6only
-		}
-		// Not an IP address.  Try as a DNS name.
-		addrs, err1 := lookupHostDeadline(host, deadline)
-		if err1 != nil {
-			err = err1
-			goto Error
-		}
-		addr = firstFavoriteAddr(filter, addrs)
-		if addr == nil {
-			// should not happen
-			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
-			goto Error
-		}
+	switch afnet {
+	case "ip", "ip4", "ip6":
+	default:
+		return nil, UnknownNetworkError(net)
 	}
-	return addr, nil
-Error:
-	return nil, err
+	a, err := resolveInternetAddr(afnet, addr, noDeadline)
+	return a.(*IPAddr), nil
 }

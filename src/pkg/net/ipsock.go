@@ -72,15 +72,18 @@ func (e InvalidAddrError) Temporary() bool { return false }
 // "host:port" or "[host]:port" into host and port.
 // The latter form must be used when host contains a colon.
 func SplitHostPort(hostport string) (host, port string, err error) {
+	host, port, _, err = splitHostPort(hostport)
+	return
+}
+
+func splitHostPort(hostport string) (host, port, zone string, err error) {
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
 		err = &AddrError{"missing port in address", hostport}
 		return
 	}
-
-	host, port = hostport[0:i], hostport[i+1:]
-
+	host, port = hostport[:i], hostport[i+1:]
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
 		host = host[1 : len(host)-1]
@@ -104,44 +107,65 @@ func JoinHostPort(host, port string) string {
 	return host + ":" + port
 }
 
-// Convert "host:port" into IP address and port.
-func hostPortToIP(net, hostport string, deadline time.Time) (ip IP, iport int, err error) {
-	host, port, err := SplitHostPort(hostport)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var addr IP
-	if host != "" {
-		// Try as an IP address.
-		addr = ParseIP(host)
-		if addr == nil {
-			var filter func(IP) IP
-			if net != "" && net[len(net)-1] == '4' {
-				filter = ipv4only
+func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
+	var (
+		err              error
+		host, port, zone string
+		portnum          int
+	)
+	switch net {
+	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+		if addr != "" {
+			if host, port, zone, err = splitHostPort(addr); err != nil {
+				return nil, err
 			}
-			if net != "" && net[len(net)-1] == '6' {
-				filter = ipv6only
-			}
-			// Not an IP address.  Try as a DNS name.
-			addrs, err := lookupHostDeadline(host, deadline)
-			if err != nil {
-				return nil, 0, err
-			}
-			addr = firstFavoriteAddr(filter, addrs)
-			if addr == nil {
-				// should not happen
-				return nil, 0, &AddrError{"LookupHost returned no suitable address", addrs[0]}
+			if portnum, err = parsePort(net, port); err != nil {
+				return nil, err
 			}
 		}
+	case "ip", "ip4", "ip6":
+		if addr != "" {
+			host = addr
+		}
+	default:
+		return nil, UnknownNetworkError(net)
 	}
-
-	p, err := parsePort(net, port)
+	inetaddr := func(net string, ip IP, port int, zone string) Addr {
+		switch net {
+		case "tcp", "tcp4", "tcp6":
+			return &TCPAddr{IP: ip, Port: port, Zone: zone}
+		case "udp", "udp4", "udp6":
+			return &UDPAddr{IP: ip, Port: port, Zone: zone}
+		case "ip", "ip4", "ip6":
+			return &IPAddr{IP: ip, Zone: zone}
+		}
+		return nil
+	}
+	if host == "" {
+		return inetaddr(net, nil, portnum, zone), nil
+	}
+	// Try as an IP address.
+	if ip := ParseIP(host); ip != nil {
+		return inetaddr(net, ip, portnum, zone), nil
+	}
+	var filter func(IP) IP
+	if net != "" && net[len(net)-1] == '4' {
+		filter = ipv4only
+	}
+	if net != "" && net[len(net)-1] == '6' {
+		filter = ipv6only
+	}
+	// Try as a DNS name.
+	addrs, err := lookupHostDeadline(host, deadline)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-
-	return addr, p, nil
+	ip := firstFavoriteAddr(filter, addrs)
+	if ip == nil {
+		// should not happen
+		return nil, &AddrError{"LookupHost returned no suitable address", addrs[0]}
+	}
+	return inetaddr(net, ip, portnum, zone), nil
 }
 
 func zoneToString(zone int) string {

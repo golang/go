@@ -15,6 +15,7 @@ func parseDialNetwork(net string) (afnet string, proto int, err error) {
 		switch net {
 		case "tcp", "tcp4", "tcp6":
 		case "udp", "udp4", "udp6":
+		case "ip", "ip4", "ip6":
 		case "unix", "unixgram", "unixpacket":
 		default:
 			return "", 0, UnknownNetworkError(net)
@@ -54,12 +55,8 @@ func resolveAfnetAddr(afnet, addr string, deadline time.Time) (Addr, error) {
 		return nil, nil
 	}
 	switch afnet {
-	case "tcp", "tcp4", "tcp6":
-		return resolveTCPAddr(afnet, addr, deadline)
-	case "udp", "udp4", "udp6":
-		return resolveUDPAddr(afnet, addr, deadline)
-	case "ip", "ip4", "ip6":
-		return resolveIPAddr(afnet, addr, deadline)
+	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6", "ip", "ip4", "ip6":
+		return resolveInternetAddr(afnet, addr, deadline)
 	case "unix", "unixgram", "unixpacket":
 		return ResolveUnixAddr(afnet, addr)
 	}
@@ -218,8 +215,8 @@ func Listen(net, laddr string) (Listener, error) {
 // ListenPacket announces on the local network address laddr.
 // The network string net must be a packet-oriented network:
 // "udp", "udp4", "udp6", "ip", "ip4", "ip6" or "unixgram".
-func ListenPacket(net, addr string) (PacketConn, error) {
-	afnet, a, err := resolveNetAddr("listen", net, addr, noDeadline)
+func ListenPacket(net, laddr string) (PacketConn, error) {
+	afnet, a, err := resolveNetAddr("listen", net, laddr, noDeadline)
 	if err != nil {
 		return nil, err
 	}
