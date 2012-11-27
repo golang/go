@@ -521,7 +521,7 @@ ret:
  * returns Prog* to patch to panic call.
  */
 Prog*
-cgenindex(Node *n, Node *res)
+cgenindex(Node *n, Node *res, int bounded)
 {
 	Node tmp, lo, hi, zero, n1, n2;
 
@@ -534,7 +534,7 @@ cgenindex(Node *n, Node *res)
 	cgen(n, &tmp);
 	split64(&tmp, &lo, &hi);
 	gmove(&lo, res);
-	if(debug['B']) {
+	if(bounded) {
 		splitclean();
 		return nil;
 	}
@@ -889,6 +889,7 @@ agenr(Node *n, Node *a, Node *res)
 	Prog *p1, *p2;
 	uint32 w;
 	uint64 v;
+	int bounded;
 
 	if(debug['g'])
 		dump("agenr-n", n);
@@ -915,13 +916,14 @@ agenr(Node *n, Node *a, Node *res)
 	case OINDEX:
 		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
+		bounded = debug['B'] || n->bounded;
 		if(nr->addable) {
 			if(!isconst(nr, CTINT))
 				tempname(&tmp, types[TINT32]);
 			if(!isconst(nl, CTSTR))
 				agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				p2 = cgenindex(nr, &tmp);
+				p2 = cgenindex(nr, &tmp, bounded);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
@@ -929,7 +931,7 @@ agenr(Node *n, Node *a, Node *res)
 		if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
 				tempname(&tmp, types[TINT32]);
-				p2 = cgenindex(nr, &tmp);
+				p2 = cgenindex(nr, &tmp, bounded);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
@@ -938,7 +940,7 @@ agenr(Node *n, Node *a, Node *res)
 			}
 		} else {
 			tempname(&tmp, types[TINT32]);
-			p2 = cgenindex(nr, &tmp);
+			p2 = cgenindex(nr, &tmp, bounded);
 			nr = &tmp;
 			if(!isconst(nl, CTSTR))
 				agenr(nl, &n3, res);
