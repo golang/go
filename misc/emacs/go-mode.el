@@ -432,7 +432,7 @@ if no further tokens of the type exist."
       (if (or (>= (point) limit) (eobp))
 	  (setq result nil)
 	(setq cs (go-mode-cs))
-	(if cs
+	(if (and cs (>= (car cs) (point)))
 	    (if (eq (= (char-after (car cs)) ?/) comment)
 		;; If inside the expected comment/string, highlight it.
 		(progn
