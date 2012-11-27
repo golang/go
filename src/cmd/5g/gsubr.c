@@ -1937,7 +1937,7 @@ oindex:
 		t = types[TINT32];
 	regalloc(reg1, t, N);
 	regalloc(&n3, types[TINT32], reg1);
-	p2 = cgenindex(r, &n3);
+	p2 = cgenindex(r, &n3, debug['B'] || n->bounded);
 	gmove(&n3, reg1);
 	regfree(&n3);
 

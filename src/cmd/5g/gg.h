@@ -88,7 +88,7 @@ void	ginscall(Node*, int);
  * cgen
  */
 void	agen(Node*, Node*);
-Prog* cgenindex(Node *, Node *);
+Prog* cgenindex(Node *, Node *, int);
 void	igen(Node*, Node*, Node*);
 void agenr(Node *n, Node *a, Node *res);
 vlong	fieldoffset(Type*, Node*);

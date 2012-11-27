@@ -464,8 +464,8 @@ flt2:	// binary
  * n is an array index, and might be any size; res width is <= 32-bit.
  * returns Prog* to patch to panic call.
  */
-Prog*
-igenindex(Node *n, Node *res)
+static Prog*
+igenindex(Node *n, Node *res, int bounded)
 {
 	Node tmp, lo, hi, zero;
 
@@ -485,7 +485,7 @@ igenindex(Node *n, Node *res)
 	split64(&tmp, &lo, &hi);
 	tempname(res, types[TUINT32]);
 	gmove(&lo, res);
-	if(debug['B']) {
+	if(bounded) {
 		splitclean();
 		return nil;
 	}
@@ -508,6 +508,7 @@ agen(Node *n, Node *res)
 	uint32 w;
 	uint64 v;
 	Prog *p1, *p2;
+	int bounded;
 
 	if(debug['g']) {
 		dump("\nagen-res", res);
@@ -584,26 +585,27 @@ agen(Node *n, Node *res)
 	case OINDEX:
 		p2 = nil;  // to be patched to panicindex.
 		w = n->type->width;
+		bounded = debug['B'] || n->bounded;
 		if(nr->addable) {
 			// Generate &nl first, and move nr into register.
 			if(!isconst(nl, CTSTR))
 				igen(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				p2 = igenindex(nr, &tmp);
+				p2 = igenindex(nr, &tmp, bounded);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
 		} else if(nl->addable) {
 			// Generate nr first, and move &nl into register.
 			if(!isconst(nr, CTINT)) {
-				p2 = igenindex(nr, &tmp);
+				p2 = igenindex(nr, &tmp, bounded);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
 			}
 			if(!isconst(nl, CTSTR))
 				igen(nl, &n3, res);
 		} else {
-			p2 = igenindex(nr, &tmp);
+			p2 = igenindex(nr, &tmp, bounded);
 			nr = &tmp;
 			if(!isconst(nl, CTSTR))
 				igen(nl, &n3, res);
