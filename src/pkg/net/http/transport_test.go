@@ -996,9 +996,11 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 		req, _ := NewRequest("PUT", ts.URL+"/put", sres.Body)
 		_, err = client.Do(req)
 		if err == nil {
+			sres.Body.Close()
 			t.Errorf("Unexpected successful PUT")
 			break
 		}
+		sres.Body.Close()
 	}
 	if debug {
 		println("tests complete; waiting for handlers to finish")
