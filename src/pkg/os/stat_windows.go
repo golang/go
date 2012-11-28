@@ -190,7 +190,7 @@ func mkModTime(mtime syscall.Filetime) time.Time {
 
 func mkMode(fa uint32) (m FileMode) {
 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-		m |= ModeDir
+		m |= ModeDir | 0111
 	}
 	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
