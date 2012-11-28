@@ -181,12 +181,10 @@ func (s *pollServer) CheckDeadlines() {
 				delete(s.pending, key)
 				if mode == 'r' {
 					s.poll.DelFD(fd.sysfd, mode)
-					fd.rdeadline = -1
 				} else {
 					s.poll.DelFD(fd.sysfd, mode)
-					fd.wdeadline = -1
 				}
-				s.WakeFD(fd, mode, nil)
+				s.WakeFD(fd, mode, errTimeout)
 			} else if nextDeadline == 0 || t < nextDeadline {
 				nextDeadline = t
 			}
@@ -329,13 +327,9 @@ func (fd *netFD) name() string {
 
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	err := syscall.Connect(fd.sysfd, ra)
-	hadTimeout := fd.wdeadline > 0
 	if err == syscall.EINPROGRESS {
 		if err = fd.pollServer.WaitWrite(fd); err != nil {
 			return err
-		}
-		if hadTimeout && fd.wdeadline < 0 {
-			return errTimeout
 		}
 		var e int
 		e, err = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
@@ -430,20 +424,15 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 			}
 		}
 		n, err = syscall.Read(int(fd.sysfd), p)
-		if err == syscall.EAGAIN {
+		if err != nil {
 			n = 0
-			err = errTimeout
-			if fd.rdeadline >= 0 {
+			if err == syscall.EAGAIN {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
 					continue
 				}
 			}
 		}
-		if err != nil {
-			n = 0
-		} else if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM {
-			err = io.EOF
-		}
+		err = chkReadErr(n, err, fd)
 		break
 	}
 	if err != nil && err != io.EOF {
@@ -467,18 +456,15 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 			}
 		}
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
-		if err == syscall.EAGAIN {
+		if err != nil {
 			n = 0
-			err = errTimeout
-			if fd.rdeadline >= 0 {
+			if err == syscall.EAGAIN {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
 					continue
 				}
 			}
 		}
-		if err != nil {
-			n = 0
-		}
+		err = chkReadErr(n, err, fd)
 		break
 	}
 	if err != nil && err != io.EOF {
@@ -502,25 +488,28 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 			}
 		}
 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
-		if err == syscall.EAGAIN {
-			n = 0
-			err = errTimeout
-			if fd.rdeadline >= 0 {
+		if err != nil {
+			// TODO(dfc) should n and oobn be set to nil
+			if err == syscall.EAGAIN {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
 					continue
 				}
 			}
 		}
-		if err == nil && n == 0 {
-			err = io.EOF
-		}
+		err = chkReadErr(n, err, fd)
 		break
 	}
 	if err != nil && err != io.EOF {
 		err = &OpError{"read", fd.net, fd.laddr, err}
-		return
 	}
 	return
+}
+
+func chkReadErr(n int, err error, fd *netFD) error {
+	if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM && fd.sotype != syscall.SOCK_RAW {
+		return io.EOF
+	}
+	return err
 }
 
 func (fd *netFD) Write(p []byte) (int, error) {
@@ -548,11 +537,8 @@ func (fd *netFD) Write(p []byte) (int, error) {
 			break
 		}
 		if err == syscall.EAGAIN {
-			err = errTimeout
-			if fd.wdeadline >= 0 {
-				if err = fd.pollServer.WaitWrite(fd); err == nil {
-					continue
-				}
+			if err = fd.pollServer.WaitWrite(fd); err == nil {
+				continue
 			}
 		}
 		if err != nil {
@@ -586,11 +572,8 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 		}
 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
 		if err == syscall.EAGAIN {
-			err = errTimeout
-			if fd.wdeadline >= 0 {
-				if err = fd.pollServer.WaitWrite(fd); err == nil {
-					continue
-				}
+			if err = fd.pollServer.WaitWrite(fd); err == nil {
+				continue
 			}
 		}
 		break
@@ -619,11 +602,8 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 		}
 		err = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {
-			err = errTimeout
-			if fd.wdeadline >= 0 {
-				if err = fd.pollServer.WaitWrite(fd); err == nil {
-					continue
-				}
+			if err = fd.pollServer.WaitWrite(fd); err == nil {
+				continue
 			}
 		}
 		break
@@ -654,11 +634,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 		if err != nil {
 			syscall.ForkLock.RUnlock()
 			if err == syscall.EAGAIN {
-				err = errTimeout
-				if fd.rdeadline >= 0 {
-					if err = fd.pollServer.WaitRead(fd); err == nil {
-						continue
-					}
+				if err = fd.pollServer.WaitRead(fd); err == nil {
+					continue
 				}
 			} else if err == syscall.ECONNABORTED {
 				// This means that a socket on the listen queue was closed
