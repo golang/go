@@ -1095,3 +1095,15 @@ func TestLargeWriteToConsole(t *testing.T) {
 		t.Errorf("Write to os.Stderr should return %d; got %d", len(b), n)
 	}
 }
+
+func TestStatDirModeExec(t *testing.T) {
+	const mode = 0111
+	const path = "."
+	dir, err := Stat(path)
+	if err != nil {
+		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
+	}
+	if dir.Mode()&mode != mode {
+		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
+	}
+}
