@@ -9,6 +9,7 @@ package winfsnotify
 import (
 	"io/ioutil"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -105,14 +106,14 @@ func TestNotifyClose(t *testing.T) {
 	watcher, _ := NewWatcher()
 	watcher.Close()
 
-	done := false
+	var done int32
 	go func() {
 		watcher.Close()
-		done = true
+		atomic.StoreInt32(&done, 1)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
-	if !done {
+	if atomic.LoadInt32(&done) == 0 {
 		t.Fatal("double Close() test failed: second Close() call didn't return")
 	}
 
