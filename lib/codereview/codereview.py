@@ -1471,7 +1471,7 @@ def rev2clname(rev):
 	# Extract CL name from revision description.
 	# The last line in the description that is a codereview URL is the real one.
 	# Earlier lines might be part of the user-written description.
-	all = re.findall('(?m)^http://codereview.appspot.com/([0-9]+)$', rev.description())
+	all = re.findall('(?m)^https?://codereview.appspot.com/([0-9]+)$', rev.description())
 	if len(all) > 0:
 		return all[-1]
 	return ""
@@ -1969,11 +1969,11 @@ def submit(ui, repo, *pats, **opts):
 		"(^https?://([^@/]+@)?code\.google\.com/p/([^/.]+)(\.[^./]+)?/?)", url)
 	if m:
 		if m.group(1): # prj.googlecode.com/hg/ case
-			changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(3), changeURL)
+			changeURL = "https://code.google.com/p/%s/source/detail?r=%s" % (m.group(3), changeURL)
 		elif m.group(4) and m.group(7): # code.google.com/p/prj.subrepo/ case
-			changeURL = "http://code.google.com/p/%s/source/detail?r=%s&repo=%s" % (m.group(6), changeURL, m.group(7)[1:])
+			changeURL = "https://code.google.com/p/%s/source/detail?r=%s&repo=%s" % (m.group(6), changeURL, m.group(7)[1:])
 		elif m.group(4): # code.google.com/p/prj/ case
-			changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(6), changeURL)
+			changeURL = "https://code.google.com/p/%s/source/detail?r=%s" % (m.group(6), changeURL)
 		else:
 			print >>sys.stderr, "URL: ", url
 	else:
@@ -2021,7 +2021,7 @@ def sync_changes(ui, repo):
 	# Double-check them by looking at the Rietveld log.
 	for rev in hg_log(ui, repo, limit=100, template="{node}\n").split():
 		desc = repo[rev].description().strip()
-		for clname in re.findall('(?m)^http://(?:[^\n]+)/([0-9]+)$', desc):
+		for clname in re.findall('(?m)^https?://(?:[^\n]+)/([0-9]+)$', desc):
 			if IsLocalCL(ui, repo, clname) and IsRietveldSubmitted(ui, clname, repo[rev].hex()):
 				ui.warn("CL %s submitted as %s; closing\n" % (clname, repo[rev]))
 				cl, err = LoadCL(ui, repo, clname, web=False)
@@ -2452,7 +2452,7 @@ def MySend1(request_path, payload=None,
 		while True:
 			tries += 1
 			args = dict(kwargs)
-			url = "http://%s%s" % (self.host, request_path)
+			url = "https://%s%s" % (self.host, request_path)
 			if args:
 				url += "?" + urllib.urlencode(args)
 			req = self._CreateRequest(url=url, data=payload)
@@ -2564,7 +2564,7 @@ def RietveldSetup(ui, repo):
 	if x is not None:
 		email = x
 
-	server_url_base = "http://" + server + "/"
+	server_url_base = "https://" + server + "/"
 
 	testing = ui.config("codereview", "testing")
 	force_google_account = ui.configbool("codereview", "force_google_account", False)
@@ -2844,7 +2844,7 @@ class AbstractRpcServer(object):
 		# This is a dummy value to allow us to identify when we're successful.
 		continue_location = "http://localhost/"
 		args = {"continue": continue_location, "auth": auth_token}
-		req = self._CreateRequest("http://%s/_ah/login?%s" % (self.host, urllib.urlencode(args)))
+		req = self._CreateRequest("https://%s/_ah/login?%s" % (self.host, urllib.urlencode(args)))
 		try:
 			response = self.opener.open(req)
 		except urllib2.HTTPError, e:
@@ -2934,7 +2934,7 @@ class AbstractRpcServer(object):
 			while True:
 				tries += 1
 				args = dict(kwargs)
-				url = "http://%s%s" % (self.host, request_path)
+				url = "https://%s%s" % (self.host, request_path)
 				if args:
 					url += "?" + urllib.urlencode(args)
 				req = self._CreateRequest(url=url, data=payload)
