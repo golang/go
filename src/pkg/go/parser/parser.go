@@ -578,14 +578,15 @@ func (p *parser) parseTypeName() ast.Expr {
 	return ident
 }
 
-func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
+func (p *parser) parseArrayType() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "ArrayType"))
 	}
 
 	lbrack := p.expect(token.LBRACK)
 	var len ast.Expr
-	if ellipsisOk && p.tok == token.ELLIPSIS {
+	// always permit ellipsis for more fault-tolerant parsing
+	if p.tok == token.ELLIPSIS {
 		len = &ast.Ellipsis{Ellipsis: p.pos}
 		p.next()
 	} else if p.tok != token.RBRACK {
@@ -697,7 +698,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 	if isParam && p.tok == token.ELLIPSIS {
 		pos := p.pos
 		p.next()
-		typ := p.tryIdentOrType(isParam) // don't use parseType so we can provide better error message
+		typ := p.tryIdentOrType() // don't use parseType so we can provide better error message
 		if typ != nil {
 			p.resolve(typ)
 		} else {
@@ -706,7 +707,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 		}
 		return &ast.Ellipsis{Ellipsis: pos, Elt: typ}
 	}
-	return p.tryIdentOrType(false)
+	return p.tryIdentOrType()
 }
 
 // If the result is an identifier, it is not resolved.
@@ -943,12 +944,12 @@ func (p *parser) parseChanType() *ast.ChanType {
 }
 
 // If the result is an identifier, it is not resolved.
-func (p *parser) tryIdentOrType(ellipsisOk bool) ast.Expr {
+func (p *parser) tryIdentOrType() ast.Expr {
 	switch p.tok {
 	case token.IDENT:
 		return p.parseTypeName()
 	case token.LBRACK:
-		return p.parseArrayType(ellipsisOk)
+		return p.parseArrayType()
 	case token.STRUCT:
 		return p.parseStructType()
 	case token.MUL:
@@ -975,7 +976,7 @@ func (p *parser) tryIdentOrType(ellipsisOk bool) ast.Expr {
 }
 
 func (p *parser) tryType() ast.Expr {
-	typ := p.tryIdentOrType(false)
+	typ := p.tryIdentOrType()
 	if typ != nil {
 		p.resolve(typ)
 	}
@@ -1083,7 +1084,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 		return p.parseFuncTypeOrLit()
 	}
 
-	if typ := p.tryIdentOrType(true); typ != nil {
+	if typ := p.tryIdentOrType(); typ != nil {
 		// could be type for composite literal or conversion
 		_, isIdent := typ.(*ast.Ident)
 		assert(!isIdent, "type cannot be identifier")
