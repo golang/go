@@ -268,6 +268,7 @@ var splitjointests = []struct {
 	{"www.google.com", "80", "www.google.com:80"},
 	{"127.0.0.1", "1234", "127.0.0.1:1234"},
 	{"::1", "80", "[::1]:80"},
+	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
 }
 
 func TestSplitHostPort(t *testing.T) {
