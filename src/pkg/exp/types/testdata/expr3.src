@@ -6,43 +6,43 @@
 
 package expr3
 
-// TODO(gri) Move the code below into function "shifts" once we check
-//           declarations with initilizations inside functions.
-var (
-	i0 int
-	u0 uint
-)
+func shifts1() {
+	var (
+		i0 int
+		u0 uint
+	)
 
-var (
-	v0 = 1<<0
-	v1 = 1<<i0 /* ERROR "must be unsigned" */
-	v2 = 1<<u0
-	v3 = 1<<"foo" /* ERROR "must be unsigned" */
-	v4 = 1<<- /* ERROR "stupid shift" */ 1
-	v5 = 1<<1025 /* ERROR "stupid shift" */
-	v6 = 1 /* ERROR "overflows" */ <<100
+	var (
+		v0 = 1<<0
+		v1 = 1<<i0 /* ERROR "must be unsigned" */
+		v2 = 1<<u0
+		v3 = 1<<"foo" /* ERROR "must be unsigned" */
+		v4 = 1<<- /* ERROR "stupid shift" */ 1
+		v5 = 1<<1025 /* ERROR "stupid shift" */
+		v6 = 1 /* ERROR "overflows" */ <<100
 
-	v10 uint = 1 << 0
-	v11 uint = 1 << u0
-	v12 float32 = 1 /* ERROR "must be integer" */ << u0
-)
+		v10 uint = 1 << 0
+		v11 uint = 1 << u0
+		v12 float32 = 1 /* ERROR "must be integer" */ << u0
+	)
+}
 
-// TODO(gri) enable commented out tests below.
-
-// from the spec
-var (
-	s uint = 33
-	i = 1<<s           // 1 has type int
-	j int32 = 1<<s     // 1 has type int32; j == 0
-	k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
-	m int = 1.0<<s     // 1.0 has type int
-//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
-	o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
-//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
-	u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
-	v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
-	w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
-)
+func shifts2() {
+	// TODO(gri) enable commented out tests below.
+	var (
+		s uint = 33
+		i = 1<<s           // 1 has type int
+		j int32 = 1<<s     // 1 has type int32; j == 0
+		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
+		m int = 1.0<<s     // 1.0 has type int
+	//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
+	//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
+		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
+		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
+	)
+}
 
 // TODO(gri) The error messages below depond on adjusting the spec
 //           to reflect what gc is doing at the moment (the spec
@@ -67,11 +67,13 @@ func indexes() {
 	a1 = a /* ERROR "cannot assign" */ [1] 
 	_ = a[9]
 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
+	_ = a[1 /* ERROR "stupid index" */ <<100]
 	_ = a[10:]
 	_ = a[:10]
 	_ = a[10:10]
 	_ = a[11 /* ERROR "index .* out of bounds" */ :]
 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
+	_ = a[: 1 /* ERROR "stupid index" */ <<100]
 
 	var b [0]int
 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
@@ -88,11 +90,9 @@ func indexes() {
 	_ = s[1 : 2]
 	_ = s[2 /* ERROR "inverted slice range" */ : 1]
 	_ = s[2 :]
-	_ = s[: 1<<100]
-	_ = s[1<<100 :]
-	_ = s[1<<100 : 1<<100]
-	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 1<<100]
-	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 10]
+	_ = s[: 1 /* ERROR "stupid index" */ <<100]
+	_ = s[1 /* ERROR "stupid index" */ <<100 :]
+	_ = s[1 /* ERROR "stupid index" */ <<100 : 1 /* ERROR "stupid index" */ <<100]
 
 	var t string
 	_ = t[- /* ERROR "index .* negative" */ 1]
@@ -166,11 +166,66 @@ func struct_literals() {
 }
 
 func array_literals() {
-	// TODO(gri)
+	type A0 [0]int
+	_ = A0{}
+	_ = A0{0 /* ERROR "index .* out of bounds" */}
+	_ = A0{0 /* ERROR "index .* out of bounds" */ : 0}
+
+	type A1 [10]int
+	_ = A1{}
+	_ = A1{0, 1, 2}
+	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /* ERROR "index .* out of bounds" */ }
+	_ = A1{- /* ERROR "index .* negative" */ 1: 0}
+	_ = A1{8: 8, 9}
+	_ = A1{8: 8, 9, 10 /* ERROR "index .* out of bounds" */ }
+	_ = A1{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
+	_ = A1{5: 5, 6, 7, 3: 3, 4}
+	_ = A1{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
+	_ = A1{10 /* ERROR "index .* out of bounds" */ : 10, 10 /* ERROR "index .* out of bounds" */ : 10}
+	_ = A1{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
+	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
+	_ = A1{2.0}
+	_ = A1{2.1 /* ERROR "cannot use" */ }
+	_ = A1{"foo" /* ERROR "cannot use" */ }
+
+	a0 := [...]int{}
+	assert(len(a0) == 0)
+	
+	a1 := [...]int{0, 1, 2}
+	assert(len(a1) == 3)
+	var a13 [3]int
+	var a14 [4]int
+	a13 = a1
+	a14 = a1 /* ERROR "cannot assign" */
+	
+	a2 := [...]int{- /* ERROR "index .* negative" */ 1: 0}
+
+	a3 := [...]int{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
+	assert(len(a3) == 5) // somewhat arbitrary
+
+	a4 := [...]complex128{0, 1, 2, 1<<10-2: -1i, 1i, 400: 10, 12, 14}
+	assert(len(a4) == 1024)
 }
 
 func slice_literals() {
-	// TODO(gri)
+	type S0 []int
+	_ = S0{}
+	_ = S0{0, 1, 2}
+	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	_ = S0{- /* ERROR "index .* negative" */ 1: 0}
+	_ = S0{8: 8, 9}
+	_ = S0{8: 8, 9, 10}
+	_ = S0{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
+	_ = S0{5: 5, 6, 7, 3: 3, 4}
+	_ = S0{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
+	_ = S0{10: 10, 10 /* ERROR "duplicate index" */ : 10}
+	_ = S0{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
+	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
+	_ = S0{2.0}
+	_ = S0{2.1 /* ERROR "cannot use" */ }
+	_ = S0{"foo" /* ERROR "cannot use" */ }
 }
 
 func map_literals() {

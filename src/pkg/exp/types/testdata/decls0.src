@@ -40,6 +40,15 @@ type (
 )
 
 
+// invalid array types
+type (
+	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
+	iA1 [1 /* ERROR "invalid array length" */ <<100]int
+	iA2 [- /* ERROR "invalid array length" */ 1]complex128
+	iA3 ["foo" /* ERROR "invalid array length" */ ]string
+)
+
+
 type (
 	p1 pi /* ERROR "no single field or method foo" */ .foo
 	p2 unsafe.Pointer

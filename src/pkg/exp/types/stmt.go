@@ -226,6 +226,21 @@ func (check *checker) stmtList(list []ast.Stmt) {
 	}
 }
 
+func (check *checker) call(c ast.Expr) {
+	call, _ := c.(*ast.CallExpr)
+	if call == nil {
+		// For go/defer, the parser makes sure that we have a function call,
+		// so if we don't, the AST was created incorrectly elsewhere.
+		// TODO(gri) consider removing the checks from the parser.
+		check.invalidAST(c.Pos(), "%s is not a function call", c)
+		return
+	}
+	var x operand
+	check.rawExpr(&x, call, nil, -1, false) // don't check if value is used
+	// TODO(gri) If a builtin is called, the builtin must be valid in statement
+	//           context. However, the spec doesn't say that explicitly.
+}
+
 // stmt typechecks statement s.
 func (check *checker) stmt(s ast.Stmt) {
 	switch s := s.(type) {
@@ -347,10 +362,10 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 
 	case *ast.GoStmt:
-		unimplemented()
+		check.call(s.Call)
 
 	case *ast.DeferStmt:
-		unimplemented()
+		check.call(s.Call)
 
 	case *ast.ReturnStmt:
 		sig := check.functypes[len(check.functypes)-1]

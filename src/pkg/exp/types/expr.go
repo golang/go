@@ -449,31 +449,81 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
 }
 
 // index checks an index expression for validity. If length >= 0, it is the upper
-// bound for the index. The result is a valid integer constant, or nil.
+// bound for the index. The result is a valid index >= 0, or a negative value.
 //
-func (check *checker) index(index ast.Expr, length int64, iota int) interface{} {
+func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
 	var x operand
 
 	check.expr(&x, index, nil, iota)
 	if !x.isInteger() {
 		check.errorf(x.pos(), "index %s must be integer", &x)
-		return nil
+		return -1
 	}
 	if x.mode != constant {
-		return nil // we cannot check more
+		return -1 // we cannot check more
 	}
-	// x.mode == constant and the index value must be >= 0
-	if isNegConst(x.val) {
+	// The spec doesn't require int64 indices, but perhaps it should.
+	i, ok := x.val.(int64)
+	if !ok {
+		check.errorf(x.pos(), "stupid index %s", &x)
+		return -1
+	}
+	if i < 0 {
 		check.errorf(x.pos(), "index %s must not be negative", &x)
-		return nil
+		return -1
 	}
-	// x.val >= 0
-	if length >= 0 && compareConst(x.val, length, token.GEQ) {
+	if length >= 0 && i >= length {
 		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
-		return nil
+		return -1
 	}
 
-	return x.val
+	return i
+}
+
+// indexElts checks the elements (elts) of an array or slice composite literal
+// against the literals element type (typ), and the element indices against
+// the literal length if known (length >= 0). It returns the length of the
+// literal (maximum index value + 1).
+//
+func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota int) int64 {
+	visited := make(map[int64]bool, len(elts))
+	var index, max int64
+	for _, e := range elts {
+		// determine and check index
+		validIndex := false
+		eval := e
+		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+			if i := check.index(kv.Key, length, iota); i >= 0 {
+				index = i
+				validIndex = true
+			}
+			eval = kv.Value
+		} else if length >= 0 && index >= length {
+			check.errorf(e.Pos(), "index %d is out of bounds (>= %d)", index, length)
+		} else {
+			validIndex = true
+		}
+
+		// if we have a valid index, check for duplicate entries
+		if validIndex {
+			if visited[index] {
+				check.errorf(e.Pos(), "duplicate index %d in array or slice literal", index)
+			}
+			visited[index] = true
+		}
+		index++
+		if index > max {
+			max = index
+		}
+
+		// check element against composite literal element type
+		var x operand
+		check.expr(&x, eval, typ, iota)
+		if !x.isAssignable(typ) {
+			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
+		}
+	}
+	return max
 }
 
 func (check *checker) callRecord(x *operand) {
@@ -552,7 +602,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.typ = obj.Type.(Type)
 
 	case *ast.Ellipsis:
-		unimplemented()
+		// ellipses are handled explictly where they are legal
+		// (array composite literals and parameter lists)
+		check.errorf(e.Pos(), "invalid use of '...'")
+		goto Error
 
 	case *ast.BasicLit:
 		x.setConst(e.Kind, e.Value)
@@ -573,15 +626,28 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.CompositeLit:
 		typ := hint
+		openArray := false
 		if e.Type != nil {
-			typ = check.typ(e.Type, false)
+			// [...]T array types may only appear with composite literals.
+			// Check for them here so we don't have to handle ... in general.
+			typ = nil
+			if atyp, _ := e.Type.(*ast.ArrayType); atyp != nil && atyp.Len != nil {
+				if ellip, _ := atyp.Len.(*ast.Ellipsis); ellip != nil && ellip.Elt == nil {
+					// We have an "open" [...]T array type.
+					// Create a new ArrayType with unknown length (-1)
+					// and finish setting it up after analyzing the literal.
+					typ = &Array{Len: -1, Elt: check.typ(atyp.Elt, cycleOk)}
+					openArray = true
+				}
+			}
+			if typ == nil {
+				typ = check.typ(e.Type, false)
+			}
 		}
 		if typ == nil {
 			check.errorf(e.Pos(), "missing type in composite literal")
 			goto Error
 		}
-
-		// TODO(gri) try to factor code below better
 
 		switch utyp := underlying(deref(typ)).(type) {
 		case *Struct:
@@ -631,8 +697,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					check.expr(x, e, nil, iota)
 					if i >= len(fields) {
 						check.errorf(x.pos(), "too many values in struct literal")
-						goto Error
+						break // cannot continue
 					}
+					// i < len(fields)
 					etyp := fields[i].Type
 					if !x.isAssignable(etyp) {
 						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
@@ -641,42 +708,19 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				if len(e.Elts) < len(fields) {
 					check.errorf(e.Rbrace, "too few values in struct literal")
-					goto Error
+					// ok to continue
 				}
 			}
 
 		case *Array:
-			var index int64
-			for _, e := range e.Elts {
-				eval := e
-				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-					check.index(kv.Key, -1, iota)
-					eval = kv.Value
-				}
-				// TODO(gri) missing index range & duplicate check
-				check.expr(x, eval, utyp.Elt, iota)
-				if !x.isAssignable(utyp.Elt) {
-					check.errorf(x.pos(), "cannot use %s as %s value in array literal", x, utyp.Elt)
-				}
-				index++
+			n := check.indexedElts(e.Elts, utyp.Elt, utyp.Len, iota)
+			// if we have an "open" [...]T array, set the length now that we know it
+			if openArray {
+				utyp.Len = n
 			}
 
 		case *Slice:
-			var index int64
-			for _, e := range e.Elts {
-				eval := e
-				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-					// TODO(gri) check key
-					check.index(kv.Key, -1, iota)
-					eval = kv.Value
-				}
-				// TODO(gri) missing index range & duplicate check
-				check.expr(x, eval, utyp.Elt, iota)
-				if !x.isAssignable(utyp.Elt) {
-					check.errorf(x.pos(), "cannot use %s as %s value in slice literal", x, utyp.Elt)
-				}
-				index++
-			}
+			check.indexedElts(e.Elts, utyp.Elt, -1, iota)
 
 		case *Map:
 			visited := make(map[interface{}]bool, len(e.Elts))
@@ -856,7 +900,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				// a sliced string always yields a string value
 				// of the same type as the original string (not
-				// a constant) even if the string and the indexes
+				// a constant) even if the string and the indices
 				// are constant
 				x.mode = value
 				// x.typ doesn't change
@@ -882,20 +926,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		}
 
-		var lo interface{} = zeroConst
+		lo := int64(0)
 		if e.Low != nil {
 			lo = check.index(e.Low, length, iota)
 		}
 
-		var hi interface{}
+		hi := int64(-1)
 		if e.High != nil {
 			hi = check.index(e.High, length, iota)
 		} else if length >= 0 {
 			hi = length
 		}
 
-		if lo != nil && hi != nil && compareConst(lo, hi, token.GTR) {
-			check.errorf(e.Low.Pos(), "inverted slice range: %v > %v", lo, hi)
+		if lo >= 0 && hi >= 0 && lo > hi {
+			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
 			// ok to continue
 		}
 
@@ -991,28 +1035,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.ArrayType:
 		if e.Len != nil {
-			var n int64 = -1
-			if ellip, ok := e.Len.(*ast.Ellipsis); ok {
-				// TODO(gri) need to check somewhere that [...]T types are only used with composite literals
-				if ellip.Elt != nil {
-					check.invalidAST(ellip.Pos(), "ellipsis only expected")
-					// ok to continue
+			check.expr(x, e.Len, nil, iota)
+			if x.mode == invalid {
+				goto Error
+			}
+			if x.mode != constant {
+				if x.mode != invalid {
+					check.errorf(x.pos(), "array length %s must be constant", x)
 				}
-			} else {
-				check.expr(x, e.Len, nil, 0)
-				if x.mode == invalid {
-					goto Error
-				}
-				if x.mode == constant {
-					if i, ok := x.val.(int64); ok && i == int64(int(i)) {
-						n = i
-					}
-				}
-				if n < 0 {
-					check.errorf(e.Len.Pos(), "invalid array bound %s", e.Len)
-					// ok to continue
-					n = 0
-				}
+				goto Error
+			}
+			n, ok := x.val.(int64)
+			if !ok || n < 0 {
+				check.errorf(x.pos(), "invalid array length %s", x)
+				goto Error
 			}
 			x.typ = &Array{Len: n, Elt: check.typ(e.Elt, cycleOk)}
 		} else {
