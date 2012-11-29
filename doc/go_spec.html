@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 26, 2012",
+	"Subtitle": "Version of November 29, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -4431,7 +4431,7 @@ for w := range ch {
 <h3 id="Go_statements">Go statements</h3>
 
 <p>
-A "go" statement starts the execution of a function or method call
+A "go" statement starts the execution of a function call
 as an independent concurrent thread of control, or <i>goroutine</i>,
 within the same address space.
 </p>
@@ -4441,7 +4441,12 @@ GoStmt = "go" Expression .
 </pre>
 
 <p>
-The expression must be a call.
+The expression must be a function or method call; it cannot be parenthesized.
+Calls of built-in functions are restricted as for
+<a href="#Expression_statements">expression statements</a>.
+</p>
+
+<p>
 The function value and parameters are
 <a href="#Calls">evaluated as usual</a>
 in the calling goroutine, but
@@ -4758,7 +4763,12 @@ DeferStmt = "defer" Expression .
 </pre>
 
 <p>
-The expression must be a function or method call.
+The expression must be a function or method call; it cannot be parenthesized.
+Calls of built-in functions are restricted as for
+<a href="#Expression_statements">expression statements</a>.
+</p>
+
+<p>
 Each time the "defer" statement
 executes, the function value and parameters to the call are
 <a href="#Calls">evaluated as usual</a>
