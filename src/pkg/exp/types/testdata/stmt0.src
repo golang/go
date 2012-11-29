@@ -72,3 +72,19 @@ func _selects() {
 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
 	}
 }
+
+func _gos() {
+	go 1 /* ERROR "expected function/method call" */
+	go _gos()
+	var c chan int
+	go close(c)
+	go len(c) // TODO(gri) this should not be legal
+}
+
+func _defers() {
+	defer 1 /* ERROR "expected function/method call" */
+	defer _defers()
+	var c chan int
+	defer close(c)
+	defer len(c) // TODO(gri) this should not be legal
+}
