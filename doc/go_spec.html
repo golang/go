@@ -1065,8 +1065,11 @@ ParameterDecl  = [ IdentifierList ] [ "..." ] Type .
 <p>
 Within a list of parameters or results, the names (IdentifierList)
 must either all be present or all be absent. If present, each name
-stands for one item (parameter or result) of the specified type; if absent, each
-type stands for one item of that type.  Parameter and result
+stands for one item (parameter or result) of the specified type and
+all non-<a href="#Blank_identifier">blank</a> names in the signature
+must be <a href="#Uniqueness_of_identifiers">unique</a>.
+If absent, each type stands for one item of that type.
+Parameter and result
 lists are always parenthesized except that if there is exactly
 one unnamed result it may be written as an unparenthesized type.
 </p>
@@ -1532,8 +1535,8 @@ Go is lexically scoped using blocks:
 	<li>The scope of the package name of an imported package is the file block
 	    of the file containing the import declaration.</li>
 
-	<li>The scope of an identifier denoting a function parameter or
-	    result variable is the function body.</li>
+	<li>The scope of an identifier denoting a method receiver, function parameter,
+	    or result variable is the function body.</li>
 
 	<li>The scope of a constant or variable identifier declared
 	    inside a function begins at the end of the ConstSpec or VarSpec
@@ -1988,8 +1991,15 @@ is visible only within selectors for that type.
 </p>
 
 <p>
-For a base type, the non-<a href="#Blank_identifier">blank</a> names of
-methods bound to it must be <a href="#Uniqueness_of_identifiers">unique</a>.
+A non-<a href="#Blank_identifier">blank</a> receiver identifier must be
+<a href="#Uniqueness_of_identifiers">unique</a> in the method signature.
+If the receiver's value is not referenced inside the body of the method,
+its identifier may be omitted in the declaration. The same applies in
+general to parameters of functions and methods.
+</p>
+
+<p>
+For a base type, the non-blank names of methods bound to it must be unique.
 If the base type is a <a href="#Struct_types">struct type</a>,
 the non-blank method and field names must be distinct.
 </p>
@@ -2013,12 +2023,6 @@ func (p *Point) Scale(factor float64) {
 bind the methods <code>Length</code> and <code>Scale</code>,
 with receiver type <code>*Point</code>,
 to the base type <code>Point</code>.
-</p>
-
-<p>
-If the receiver's value is not referenced inside the body of the method,
-its identifier may be omitted in the declaration. The same applies in
-general to parameters of functions and methods.
 </p>
 
 <p>
@@ -4599,7 +4603,7 @@ func complexF2() (re float64, im float64) {
 </pre>
 	</li>
 	<li>The expression list may be empty if the function's result
-		type specifies names for its result parameters (§<a href="#Function_types">Function Types</a>).
+		type specifies names for its result parameters (§<a href="#Function_types">Function types</a>).
 		The result parameters act as ordinary local variables
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
