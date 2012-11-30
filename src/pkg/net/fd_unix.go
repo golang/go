@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -37,17 +38,42 @@ type netFD struct {
 	laddr       Addr
 	raddr       Addr
 
-	// owned by client
-	rdeadline int64
-	rio       sync.Mutex
-	wdeadline int64
-	wio       sync.Mutex
+	// serialize access to Read and Write methods
+	rio, wio sync.Mutex
+
+	// read and write deadlines
+	rdeadline, wdeadline deadline
 
 	// owned by fd wait server
 	ncr, ncw int
 
 	// wait server
 	pollServer *pollServer
+}
+
+// deadline is an atomically-accessed number of nanoseconds since 1970
+// or 0, if no deadline is set.
+type deadline int64
+
+func (d *deadline) expired() bool {
+	t := d.value()
+	return t > 0 && time.Now().UnixNano() >= t
+}
+
+func (d *deadline) value() int64 {
+	return atomic.LoadInt64((*int64)(d))
+}
+
+func (d *deadline) set(v int64) {
+	atomic.StoreInt64((*int64)(d), v)
+}
+
+func (d *deadline) setTime(t time.Time) {
+	if t.IsZero() {
+		d.set(0)
+	} else {
+		d.set(t.UnixNano())
+	}
 }
 
 // A pollServer helps FDs determine when to retry a non-blocking
@@ -82,11 +108,11 @@ func (s *pollServer) AddFD(fd *netFD, mode int) error {
 	key := intfd << 1
 	if mode == 'r' {
 		fd.ncr++
-		t = fd.rdeadline
+		t = fd.rdeadline.value()
 	} else {
 		fd.ncw++
 		key++
-		t = fd.wdeadline
+		t = fd.wdeadline.value()
 	}
 	s.pending[key] = fd
 	doWakeup := false
@@ -153,12 +179,8 @@ func (s *pollServer) WakeFD(fd *netFD, mode int, err error) {
 	}
 }
 
-func (s *pollServer) Now() int64 {
-	return time.Now().UnixNano()
-}
-
 func (s *pollServer) CheckDeadlines() {
-	now := s.Now()
+	now := time.Now().UnixNano()
 	// TODO(rsc): This will need to be handled more efficiently,
 	// probably with a heap indexed by wakeup time.
 
@@ -172,9 +194,9 @@ func (s *pollServer) CheckDeadlines() {
 			mode = 'w'
 		}
 		if mode == 'r' {
-			t = fd.rdeadline
+			t = fd.rdeadline.value()
 		} else {
-			t = fd.wdeadline
+			t = fd.wdeadline.value()
 		}
 		if t > 0 {
 			if t <= now {
@@ -198,15 +220,15 @@ func (s *pollServer) Run() {
 	s.Lock()
 	defer s.Unlock()
 	for {
-		var t = s.deadline
-		if t > 0 {
-			t = t - s.Now()
-			if t <= 0 {
+		var timeout int64 // nsec to wait for or 0 for none
+		if s.deadline > 0 {
+			timeout = s.deadline - time.Now().UnixNano()
+			if timeout <= 0 {
 				s.CheckDeadlines()
 				continue
 			}
 		}
-		fd, mode, err := s.poll.WaitFD(s, t)
+		fd, mode, err := s.poll.WaitFD(s, timeout)
 		if err != nil {
 			print("pollServer WaitFD: ", err.Error(), "\n")
 			return
@@ -417,11 +439,9 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 	}
 	defer fd.decref()
 	for {
-		if fd.rdeadline > 0 {
-			if time.Now().UnixNano() >= fd.rdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.rdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		n, err = syscall.Read(int(fd.sysfd), p)
 		if err != nil {
@@ -449,11 +469,9 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	}
 	defer fd.decref()
 	for {
-		if fd.rdeadline > 0 {
-			if time.Now().UnixNano() >= fd.rdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.rdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
 		if err != nil {
@@ -481,15 +499,13 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	}
 	defer fd.decref()
 	for {
-		if fd.rdeadline > 0 {
-			if time.Now().UnixNano() >= fd.rdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.rdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
 		if err != nil {
-			// TODO(dfc) should n and oobn be set to nil
+			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
 					continue
@@ -512,21 +528,17 @@ func chkReadErr(n int, err error, fd *netFD) error {
 	return err
 }
 
-func (fd *netFD) Write(p []byte) (int, error) {
+func (fd *netFD) Write(p []byte) (nn int, err error) {
 	fd.wio.Lock()
 	defer fd.wio.Unlock()
 	if err := fd.incref(false); err != nil {
 		return 0, err
 	}
 	defer fd.decref()
-	var err error
-	nn := 0
 	for {
-		if fd.wdeadline > 0 {
-			if time.Now().UnixNano() >= fd.wdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.wdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		var n int
 		n, err = syscall.Write(int(fd.sysfd), p[nn:])
@@ -564,11 +576,9 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	}
 	defer fd.decref()
 	for {
-		if fd.wdeadline > 0 {
-			if time.Now().UnixNano() >= fd.wdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.wdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
 		if err == syscall.EAGAIN {
@@ -594,11 +604,9 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	}
 	defer fd.decref()
 	for {
-		if fd.wdeadline > 0 {
-			if time.Now().UnixNano() >= fd.wdeadline {
-				err = errTimeout
-				break
-			}
+		if fd.wdeadline.expired() {
+			err = errTimeout
+			break
 		}
 		err = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {

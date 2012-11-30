@@ -119,29 +119,22 @@ func setWriteBuffer(fd *netFD, bytes int) error {
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes))
 }
 
+// TODO(dfc) these unused error returns could be removed
+
 func setReadDeadline(fd *netFD, t time.Time) error {
-	if t.IsZero() {
-		fd.rdeadline = 0
-	} else {
-		fd.rdeadline = t.UnixNano()
-	}
+	fd.rdeadline.setTime(t)
 	return nil
 }
 
 func setWriteDeadline(fd *netFD, t time.Time) error {
-	if t.IsZero() {
-		fd.wdeadline = 0
-	} else {
-		fd.wdeadline = t.UnixNano()
-	}
+	fd.wdeadline.setTime(t)
 	return nil
 }
 
 func setDeadline(fd *netFD, t time.Time) error {
-	if err := setReadDeadline(fd, t); err != nil {
-		return err
-	}
-	return setWriteDeadline(fd, t)
+	setReadDeadline(fd, t)
+	setWriteDeadline(fd, t)
+	return nil
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) error {
