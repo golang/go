@@ -28,26 +28,42 @@ static void foreach(Node *n, void(*f)(Node*, void*), void *c);
 static void hascallspred(Node *n, void *c);
 static Node* detachexpr(Node *n, NodeList **init);
 
-static const char *omitPkgs[] = {"runtime", "runtime/race", "sync", "sync/atomic"};
+// Do not instrument the following packages at all,
+// at best instrumentation would cause infinite recursion.
+static const char *omit_pkgs[] = {"runtime", "runtime/race"};
+// Only insert racefuncenter/racefuncexit into the following packages.
+// Memory accesses in the packages are either uninteresting or will cause false positives.
+static const char *noinst_pkgs[] = {"sync", "sync/atomic"};
+
+static int
+ispkgin(const char **pkgs, int n)
+{
+	int i;
+
+	if(myimportpath) {
+		for(i=0; i<n; i++) {
+			if(strcmp(myimportpath, pkgs[i]) == 0)
+				return 1;
+		}
+	}
+	return 0;
+}
 
 void
 racewalk(Node *fn)
 {
-	int i;
 	Node *nd;
 	Node *nodpc;
 	char s[1024];
 
-	if(myimportpath) {
-		for(i=0; i<nelem(omitPkgs); i++) {
-			if(strcmp(myimportpath, omitPkgs[i]) == 0)
-				return;
-		}
-	}
+	if(ispkgin(omit_pkgs, nelem(omit_pkgs)))
+		return;
 
-	racewalklist(fn->nbody, nil);
-	// nothing interesting for race detector in fn->enter
-	racewalklist(fn->exit, nil);
+	if(!ispkgin(noinst_pkgs, nelem(noinst_pkgs))) {
+		racewalklist(fn->nbody, nil);
+		// nothing interesting for race detector in fn->enter
+		racewalklist(fn->exit, nil);
+	}
 
 	// nodpc is the PC of the caller as extracted by
 	// getcallerpc. We use -widthptr(FP) for x86.
