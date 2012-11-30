@@ -26,16 +26,18 @@ runtime·racemapshadow(void *addr, uintptr size)
 }
 
 void
-runtime·racewritepc(void *addr, void *pc)
+runtime·racewritepc(void *addr, void *callpc, void *pc)
 {
 	USED(addr);
+	USED(callpc);
 	USED(pc);
 }
 
 void
-runtime·racereadpc(void *addr, void *pc)
+runtime·racereadpc(void *addr, void *callpc, void *pc)
 {
 	USED(addr);
+	USED(callpc);
 	USED(pc);
 }
 

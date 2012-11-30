@@ -152,24 +152,40 @@ runtime·racegoend(int32 goid)
 	m->racecall = false;
 }
 
-void
-runtime·racewritepc(void *addr, void *pc)
+static void
+memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
 {
+	int64 goid;
+
 	if(!onstack((uintptr)addr)) {
 		m->racecall = true;
-		runtime∕race·Write(g->goid-1, addr, pc);
+		goid = g->goid-1;
+		if(callpc) {
+			if(callpc == (uintptr)runtime·lessstack ||
+				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+				runtime·callers(3, &callpc, 1);
+			runtime∕race·FuncEnter(goid, (void*)callpc);
+		}
+		if(write)
+			runtime∕race·Write(goid, addr, (void*)pc);
+		else
+			runtime∕race·Read(goid, addr, (void*)pc);
+		if(callpc)
+			runtime∕race·FuncExit(goid);
 		m->racecall = false;
 	}
 }
 
 void
-runtime·racereadpc(void *addr, void *pc)
+runtime·racewritepc(void *addr, void *callpc, void *pc)
 {
-	if(!onstack((uintptr)addr)) {
-		m->racecall = true;
-		runtime∕race·Read(g->goid-1, addr, pc);
-		m->racecall = false;
-	}
+	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
+}
+
+void
+runtime·racereadpc(void *addr, void *callpc, void *pc)
+{
+	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
 }
 
 void
@@ -266,7 +282,7 @@ void runtime·RaceSemrelease(uint32 *s)
 void
 runtime·RaceRead(void *addr)
 {
-	runtime·racereadpc(addr, runtime·getcallerpc(&addr));
+	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), false);
 }
 
 // func RaceWrite(addr unsafe.Pointer)
@@ -274,7 +290,7 @@ runtime·RaceRead(void *addr)
 void
 runtime·RaceWrite(void *addr)
 {
-	runtime·racewritepc(addr, runtime·getcallerpc(&addr));
+	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), true);
 }
 
 // func RaceDisable()

@@ -188,7 +188,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
 	runtime·lock(c);
 	// TODO(dvyukov): add similar instrumentation to select.
 	if(raceenabled)
-		runtime·racereadpc(c, pc);
+		runtime·racereadpc(c, pc, runtime·chansend);
 	if(c->closed)
 		goto closed;
 
@@ -1193,7 +1193,7 @@ runtime·closechan(Hchan *c)
 	}
 
 	if(raceenabled) {
-		runtime·racewritepc(c, runtime·getcallerpc(&c));
+		runtime·racewritepc(c, runtime·getcallerpc(&c), runtime·closechan);
 		runtime·racerelease(c);
 	}
 

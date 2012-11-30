@@ -83,11 +83,11 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&t);
 		for(i=0; i<x.len; i++)
-			runtime·racereadpc(x.array + i*t->elem->size, pc);
+			runtime·racereadpc(x.array + i*t->elem->size, pc, runtime·appendslice);
 		for(i=x.len; i<x.cap; i++)
-			runtime·racewritepc(x.array + i*t->elem->size, pc);
+			runtime·racewritepc(x.array + i*t->elem->size, pc, runtime·appendslice);
 		for(i=0; i<y.len; i++)
-			runtime·racereadpc(y.array + i*t->elem->size, pc);
+			runtime·racereadpc(y.array + i*t->elem->size, pc, runtime·appendslice);
 	}
 
 	if(m > x.cap)
@@ -118,9 +118,9 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&t);
 		for(i=0; i<x.len; i++)
-			runtime·racereadpc(x.array + i*t->elem->size, pc);
+			runtime·racereadpc(x.array + i*t->elem->size, pc, runtime·appendstr);
 		for(i=x.len; i<x.cap; i++)
-			runtime·racewritepc(x.array + i*t->elem->size, pc);
+			runtime·racewritepc(x.array + i*t->elem->size, pc, runtime·appendstr);
 	}
 
 	if(m > x.cap)
@@ -153,7 +153,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&t);
 		for(i=0; i<old.len; i++)
-			runtime·racewritepc(old.array + i*t->elem->size, pc);
+			runtime·racewritepc(old.array + i*t->elem->size, pc, runtime·growslice);
 	}
 
 	growslice1(t, old, cap, &ret);
@@ -213,8 +213,8 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&to);
 		for(i=0; i<ret; i++) {
-			runtime·racewritepc(to.array + i*width, pc);
-			runtime·racereadpc(fm.array + i*width, pc);
+			runtime·racewritepc(to.array + i*width, pc, runtime·copy);
+			runtime·racereadpc(fm.array + i*width, pc, runtime·copy);
 		}
 	}
 
@@ -259,7 +259,7 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
 	if(raceenabled) {
 		pc = runtime·getcallerpc(&to);
 		for(i=0; i<ret; i++) {
-			runtime·racewritepc(to.array + i, pc);
+			runtime·racewritepc(to.array + i, pc, runtime·slicestringcopy);
 		}
 	}
 
