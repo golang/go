@@ -285,11 +285,39 @@ type netFD struct {
 	errnoc      [2]chan error    // read/write submit or cancel operation errors
 	closec      chan bool        // used by Close to cancel pending IO
 
-	// owned by client
-	rdeadline int64
-	rio       sync.Mutex
-	wdeadline int64
-	wio       sync.Mutex
+	// serialize access to Read and Write methods
+	rio, wio sync.Mutex
+
+	// read and write deadlines
+	rdeadline, wdeadline deadline
+}
+
+// deadline is a number of nanoseconds since 1970 or 0, if no deadline is set.
+// For compatability, deadline has the same method set as fd_unix.go, but
+// does not use atomic operations as it is not known if data races exist on
+// these values.
+// TODO(dfc,brainman) when we get a windows race builder, revisit this.
+type deadline int64
+
+func (d *deadline) expired() bool {
+	t := d.value()
+	return t > 0 && time.Now().UnixNano() >= t
+}
+
+func (d *deadline) value() int64 {
+	return int64(*d)
+}
+
+func (d *deadline) set(v int64) {
+	*d = deadline(v)
+}
+
+func (d *deadline) setTime(t time.Time) {
+	if t.IsZero() {
+		d.set(0)
+	} else {
+		d.set(t.UnixNano())
+	}
 }
 
 func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
@@ -422,7 +450,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	defer fd.rio.Unlock()
 	var o readOp
 	o.Init(fd, buf, 'r')
-	n, err := iosrv.ExecIO(&o, fd.rdeadline)
+	n, err := iosrv.ExecIO(&o, fd.rdeadline.value())
 	if err == nil && n == 0 {
 		err = io.EOF
 	}
@@ -459,7 +487,7 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	var o readFromOp
 	o.Init(fd, buf, 'r')
 	o.rsan = int32(unsafe.Sizeof(o.rsa))
-	n, err = iosrv.ExecIO(&o, fd.rdeadline)
+	n, err = iosrv.ExecIO(&o, fd.rdeadline.value())
 	if err != nil {
 		return 0, nil, err
 	}
@@ -491,7 +519,7 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 	defer fd.wio.Unlock()
 	var o writeOp
 	o.Init(fd, buf, 'w')
-	return iosrv.ExecIO(&o, fd.wdeadline)
+	return iosrv.ExecIO(&o, fd.wdeadline.value())
 }
 
 // WriteTo to network.
@@ -523,7 +551,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	var o writeToOp
 	o.Init(fd, buf, 'w')
 	o.sa = sa
-	return iosrv.ExecIO(&o, fd.wdeadline)
+	return iosrv.ExecIO(&o, fd.wdeadline.value())
 }
 
 // Accept new network connections.
@@ -572,7 +600,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	var o acceptOp
 	o.Init(fd, 'r')
 	o.newsock = s
-	_, err = iosrv.ExecIO(&o, fd.rdeadline)
+	_, err = iosrv.ExecIO(&o, fd.rdeadline.value())
 	if err != nil {
 		closesocket(s)
 		return nil, err
