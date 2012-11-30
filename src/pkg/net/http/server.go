@@ -369,6 +369,8 @@ func (w *response) WriteHeader(code int) {
 
 	if w.req.Method == "HEAD" || code == StatusNotModified {
 		// do nothing
+	} else if code == StatusNoContent {
+		w.header.Del("Transfer-Encoding")
 	} else if hasCL {
 		w.contentLength = contentLength
 		w.header.Del("Transfer-Encoding")
