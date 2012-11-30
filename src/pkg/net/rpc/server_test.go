@@ -446,6 +446,7 @@ func dialHTTP() (*Client, error) {
 }
 
 func countMallocs(dial func() (*Client, error), t *testing.T) uint64 {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {

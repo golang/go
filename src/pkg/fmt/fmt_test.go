@@ -581,6 +581,7 @@ var mallocTest = []struct {
 var _ bytes.Buffer
 
 func TestCountMallocs(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	for _, mt := range mallocTest {
 		const N = 100
 		memstats := new(runtime.MemStats)

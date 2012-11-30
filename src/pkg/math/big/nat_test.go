@@ -180,6 +180,7 @@ func allocBytes(f func()) uint64 {
 // does not cause deep recursion and in turn allocate too much memory.
 // Test case for issue 3807.
 func TestMulUnbalanced(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	x := rndNat(50000)
 	y := rndNat(40)
 	allocSize := allocBytes(func() {

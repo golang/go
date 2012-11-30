@@ -188,6 +188,7 @@ type errorfer interface {
 }
 
 func doHeaderWriteSubset(n int, t errorfer) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	h := Header(map[string][]string{
 		"Content-Length": {"123"},
 		"Content-Type":   {"text/plain"},
@@ -204,7 +205,7 @@ func doHeaderWriteSubset(n int, t errorfer) {
 	var m1 runtime.MemStats
 	runtime.ReadMemStats(&m1)
 	if mallocs := m1.Mallocs - m0.Mallocs; n >= 100 && mallocs >= uint64(n) {
-		// TODO(bradfitz,rsc): once we can sort with allocating,
+		// TODO(bradfitz,rsc): once we can sort without allocating,
 		// make this an error.  See http://golang.org/issue/3761
 		// t.Errorf("did %d mallocs (>= %d iterations); should have avoided mallocs", mallocs, n)
 	}
