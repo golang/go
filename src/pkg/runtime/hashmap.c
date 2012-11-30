@@ -842,7 +842,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 	bool pres;
 
 	if(raceenabled && h != nil)
-		runtime·racereadpc(h, runtime·getcallerpc(&t));
+		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
 
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, Structrnd);
@@ -870,7 +870,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 	byte *ak, *av, *ap;
 
 	if(raceenabled && h != nil)
-		runtime·racereadpc(h, runtime·getcallerpc(&t));
+		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
 
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, Structrnd);
@@ -901,7 +901,7 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 	byte *ak, *av;
 
 	if(raceenabled && h != nil)
-		runtime·racereadpc(h, runtime·getcallerpc(&t));
+		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
 
 	if(t->key->size <= sizeof(key))
 		ak = (byte*)&key;
@@ -974,7 +974,7 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 		runtime·panicstring("assignment to entry in nil map");
 
 	if(raceenabled)
-		runtime·racewritepc(h, runtime·getcallerpc(&t));
+		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
 	ak = (byte*)(&h + 1);
 	av = ak + ROUND(t->key->size, t->elem->align);
 
@@ -992,7 +992,7 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
 		runtime·panicstring("deletion of entry in nil map");
 
 	if(raceenabled)
-		runtime·racewritepc(h, runtime·getcallerpc(&t));
+		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
 	ak = (byte*)(&h + 1);
 	runtime·mapassign(t, h, ak, nil);
 
@@ -1017,7 +1017,7 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 	if(raceenabled)
-		runtime·racewritepc(h, runtime·getcallerpc(&t));
+		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
 	if(t->key->size <= sizeof(key))
 		ak = (byte*)&key;
 	else
@@ -1040,7 +1040,7 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 		return;
 	}
 	if(raceenabled)
-		runtime·racereadpc(h, runtime·getcallerpc(&t));
+		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapiterinit);
 	hash_iter_init(t, h, it);
 	it->data = hash_next(it);
 	if(debug) {
@@ -1085,7 +1085,7 @@ void
 runtime·mapiternext(struct hash_iter *it)
 {
 	if(raceenabled)
-		runtime·racereadpc(it->h, runtime·getcallerpc(&it));
+		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
 	if(runtime·gcwaiting)
 		runtime·gosched();
 
@@ -1190,7 +1190,7 @@ reflect·maplen(Hmap *h, intgo len)
 	else {
 		len = h->count;
 		if(raceenabled)
-			runtime·racereadpc(h, runtime·getcallerpc(&h));
+			runtime·racereadpc(h, runtime·getcallerpc(&h), reflect·maplen);
 	}
 	FLUSH(&len);
 }
