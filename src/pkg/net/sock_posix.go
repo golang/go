@@ -9,7 +9,6 @@
 package net
 
 import (
-	"io"
 	"syscall"
 	"time"
 )
@@ -75,15 +74,4 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 	raddr := toAddr(rsa)
 	fd.setAddr(laddr, raddr)
 	return fd, nil
-}
-
-type writerOnly struct {
-	io.Writer
-}
-
-// Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
-// applicable.
-func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
-	// Use wrapper to hide existing r.ReadFrom from io.Copy.
-	return io.Copy(writerOnly{w}, r)
 }

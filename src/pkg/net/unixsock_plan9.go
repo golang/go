@@ -14,67 +14,8 @@ import (
 
 // UnixConn is an implementation of the Conn interface for connections
 // to Unix domain sockets.
-type UnixConn bool
-
-// Implementation of the Conn interface - see Conn for documentation.
-
-// Read implements the Conn Read method.
-func (c *UnixConn) Read(b []byte) (int, error) {
-	return 0, syscall.EPLAN9
-}
-
-// Write implements the Conn Write method.
-func (c *UnixConn) Write(b []byte) (int, error) {
-	return 0, syscall.EPLAN9
-}
-
-// LocalAddr returns the local network address.
-func (c *UnixConn) LocalAddr() Addr {
-	return nil
-}
-
-// RemoteAddr returns the remote network address.
-func (c *UnixConn) RemoteAddr() Addr {
-	return nil
-}
-
-// SetDeadline implements the Conn SetDeadline method.
-func (c *UnixConn) SetDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadDeadline implements the Conn SetReadDeadline method.
-func (c *UnixConn) SetReadDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteDeadline implements the Conn SetWriteDeadline method.
-func (c *UnixConn) SetWriteDeadline(t time.Time) error {
-	return syscall.EPLAN9
-}
-
-// SetReadBuffer sets the size of the operating system's receive
-// buffer associated with the connection.
-func (c *UnixConn) SetReadBuffer(bytes int) error {
-	return syscall.EPLAN9
-}
-
-// SetWriteBuffer sets the size of the operating system's transmit
-// buffer associated with the connection.
-func (c *UnixConn) SetWriteBuffer(bytes int) error {
-	return syscall.EPLAN9
-}
-
-// File returns a copy of the underlying os.File, set to blocking
-// mode.  It is the caller's responsibility to close f when finished.
-// Closing c does not affect f, and closing f does not affect c.
-func (c *UnixConn) File() (f *os.File, err error) {
-	return nil, syscall.EPLAN9
-}
-
-// Close closes the Unix domain connection.
-func (c *UnixConn) Close() error {
-	return syscall.EPLAN9
+type UnixConn struct {
+	conn
 }
 
 // ReadFromUnix reads a packet from c, copying the payload into b.  It
@@ -149,7 +90,7 @@ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn
 // UnixListener is a Unix domain socket listener.  Clients should
 // typically use variables of type Listener instead of assuming Unix
 // domain sockets.
-type UnixListener bool
+type UnixListener struct{}
 
 // ListenUnix announces on the Unix domain socket laddr and returns a
 // Unix listener.  Net must be "unix" (stream sockets).
