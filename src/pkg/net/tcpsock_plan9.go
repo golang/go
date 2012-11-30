@@ -25,7 +25,7 @@ func newTCPConn(fd *netFD) *TCPConn {
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
 func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
-	return 0, syscall.EPLAN9
+	return genericReadFrom(c, r)
 }
 
 // CloseRead shuts down the reading side of the TCP connection.
@@ -78,7 +78,7 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 // DialTCP connects to the remote address raddr on the network net,
 // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
 // used as the local address for the connection.
-func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	return dialTCP(net, laddr, raddr, noDeadline)
 }
 
