@@ -10,6 +10,7 @@ import (
 )
 
 func TestGcSys(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	memstats := new(runtime.MemStats)
 	runtime.GC()
 	runtime.ReadMemStats(memstats)

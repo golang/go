@@ -64,6 +64,7 @@ var cleantests = []PathTest{
 }
 
 func TestClean(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	for _, test := range cleantests {
 		if s := Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)

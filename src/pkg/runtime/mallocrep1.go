@@ -39,6 +39,7 @@ func OkAmount(size, n uintptr) bool {
 }
 
 func AllocAndFree(size, count int) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	if *chatty {
 		fmt.Printf("size=%d count=%d ...\n", size, count)
 	}

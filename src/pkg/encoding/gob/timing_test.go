@@ -50,6 +50,7 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
@@ -69,6 +70,7 @@ func TestCountEncodeMallocs(t *testing.T) {
 }
 
 func TestCountDecodeMallocs(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
