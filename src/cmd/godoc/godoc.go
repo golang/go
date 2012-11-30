@@ -853,12 +853,12 @@ type docServer struct {
 
 // fsReadDir implements ReadDir for the go/build package.
 func fsReadDir(dir string) ([]os.FileInfo, error) {
-	return fs.ReadDir(dir)
+	return fs.ReadDir(filepath.ToSlash(dir))
 }
 
 // fsOpenFile implements OpenFile for the go/build package.
 func fsOpenFile(name string) (r io.ReadCloser, err error) {
-	data, err := ReadFile(fs, name)
+	data, err := ReadFile(fs, filepath.ToSlash(name))
 	if err != nil {
 		return nil, err
 	}
