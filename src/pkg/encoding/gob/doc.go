@@ -328,7 +328,7 @@ reserved).
 	01	// Add 1 to get field number 0: field[1].name
 	01	// 1 byte
 	59	// structType.field[1].name = "Y"
-	01	// Add 1 to get field number 1: field[0].id
+	01	// Add 1 to get field number 1: field[1].id
 	04	// struct.Type.field[1].typeId is 2 (signed int).
 	00	// End of structType.field[1]; end of structType.field.
 	00	// end of wireType.structType structure
