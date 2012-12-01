@@ -375,8 +375,8 @@ func (fd *netFD) decref() {
 
 func (fd *netFD) Close() error {
 	fd.pollServer.Lock() // needed for both fd.incref(true) and pollserver.Evict
-	defer fd.pollServer.Unlock()
 	if err := fd.incref(true); err != nil {
+		fd.pollServer.Unlock()
 		return err
 	}
 	// Unblock any I/O.  Once it all unblocks and returns,
@@ -385,6 +385,7 @@ func (fd *netFD) Close() error {
 	// fairly quickly, since all the I/O is non-blocking, and any
 	// attempts to block in the pollserver will return errClosing.
 	fd.pollServer.Evict(fd)
+	fd.pollServer.Unlock()
 	fd.decref()
 	return nil
 }
