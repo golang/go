@@ -33,6 +33,19 @@ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
 -----END RSA PRIVATE KEY-----
 `
 
+// keyPEM is the same as rsaKeyPEM, but declares itself as just
+// "PRIVATE KEY", not "RSA PRIVATE KEY".  http://golang.org/issue/4477
+var keyPEM = `-----BEGIN PRIVATE KEY-----
+MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
+MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
+SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
+xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
+D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+-----END PRIVATE KEY-----
+`
+
 var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
 EQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0
@@ -62,21 +75,22 @@ kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
 
 var keyPairTests = []struct {
 	algo string
-	cert *string
-	key  *string
+	cert string
+	key  string
 }{
-	{"ECDSA", &ecdsaCertPEM, &ecdsaKeyPEM},
-	{"RSA", &rsaCertPEM, &rsaKeyPEM},
+	{"ECDSA", ecdsaCertPEM, ecdsaKeyPEM},
+	{"RSA", rsaCertPEM, rsaKeyPEM},
+	{"RSA-untyped", rsaCertPEM, keyPEM}, // golang.org/issue/4477
 }
 
 func TestX509KeyPair(t *testing.T) {
 	var pem []byte
 	for _, test := range keyPairTests {
-		pem = []byte(*test.cert + *test.key)
+		pem = []byte(test.cert + test.key)
 		if _, err := X509KeyPair(pem, pem); err != nil {
 			t.Errorf("Failed to load %s cert followed by %s key: %s", test.algo, test.algo, err)
 		}
-		pem = []byte(*test.key + *test.cert)
+		pem = []byte(test.key + test.cert)
 		if _, err := X509KeyPair(pem, pem); err != nil {
 			t.Errorf("Failed to load %s key followed by %s cert: %s", test.algo, test.algo, err)
 		}
