@@ -24,9 +24,11 @@ func (a *IPAddr) String() string {
 
 // ResolveIPAddr parses addr as an IP address and resolves domain
 // names to numeric addresses on the network net, which must be
-// "ip", "ip4" or "ip6".  A literal IPv6 host address must be
-// enclosed in square brackets, as in "[::]".
+// "ip", "ip4" or "ip6".
 func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
+		net = "ip"
+	}
 	afnet, _, err := parseDialNetwork(net)
 	if err != nil {
 		return nil, err

@@ -31,6 +31,8 @@ func (a *TCPAddr) String() string {
 func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
+	case "": // a hint wildcard for Go 1.0 undocumented behavior
+		net = "tcp"
 	default:
 		return nil, UnknownNetworkError(net)
 	}

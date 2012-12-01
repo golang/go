@@ -35,6 +35,8 @@ func (a *UDPAddr) String() string {
 func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	switch net {
 	case "udp", "udp4", "udp6":
+	case "": // a hint wildcard for Go 1.0 undocumented behavior
+		net = "udp"
 	default:
 		return nil, UnknownNetworkError(net)
 	}
