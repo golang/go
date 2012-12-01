@@ -100,7 +100,7 @@ func (r *Rand) Perm(n int) []int {
 	for i := 0; i < n; i++ {
 		m[i] = i
 	}
-	for i := 0; i < n; i++ {
+	for i := 1; i < n; i++ {
 		j := r.Intn(i + 1)
 		m[i], m[j] = m[j], m[i]
 	}
