@@ -155,7 +155,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
 			err = errors.New("crypto/tls: failed to parse key PEM data")
 			return
 		}
-		if strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
+		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
 			break
 		}
 	}
