@@ -29,6 +29,9 @@ var resolveIPAddrTests = []struct {
 	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
 	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
 
+	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
+	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
+
 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
