@@ -299,7 +299,5 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 		closesocket(fd.sysfd)
 		return nil, &OpError{"listen", net, laddr, err}
 	}
-	l := new(TCPListener)
-	l.fd = fd
-	return l, nil
+	return &TCPListener{fd}, nil
 }
