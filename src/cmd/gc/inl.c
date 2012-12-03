@@ -516,6 +516,7 @@ static void
 mkinlcall1(Node **np, Node *fn)
 {
 	int i;
+	int chkargcount;
 	Node *n, *call, *saveinlfn, *as, *m;
 	NodeList *dcl, *ll, *ninit, *body;
 	Type *t;
@@ -571,52 +572,54 @@ mkinlcall1(Node **np, Node *fn)
 			inlretvars = list(inlretvars, m);
 		}
 
-	// assign arguments to the parameters' temp names
-	as = N;
-	if(fn->type->thistuple) {
+	// assign receiver.
+	if(fn->type->thistuple && n->left->op == ODOTMETH) {
+		// method call with a receiver.
 		t = getthisx(fn->type)->type;
 		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
 			fatal("missing inlvar for %N\n", t->nname);
-
-		if(n->left->op == ODOTMETH) {
-			if(!n->left->left)
-				fatal("method call without receiver: %+N", n);
-			if(t == T)
-				fatal("method call unknown receiver type: %+N", n);
-			as = nod(OAS, tinlvar(t), n->left->left);
-		} else {  // non-method call to method
-			if(!n->list)
-				fatal("non-method call to method without first arg: %+N", n);
-			if(t != T)
-				as = nod(OAS, tinlvar(t), n->list->n);
-		}
-
+		if(!n->left->left)
+			fatal("method call without receiver: %+N", n);
+		if(t == T)
+			fatal("method call unknown receiver type: %+N", n);
+		as = nod(OAS, tinlvar(t), n->left->left);
 		if(as != N) {
 			typecheck(&as, Etop);
 			ninit = list(ninit, as);
 		}
 	}
 
+	// assign arguments to the parameters' temp names
 	as = nod(OAS2, N, N);
-	if(fn->type->intuple > 1 && n->list && !n->list->next) {
-		// TODO check that n->list->n is a call?
-		// TODO: non-method call to T.meth(f()) where f returns t, args...
-		as->rlist = n->list;
-		for(t = getinargx(fn->type)->type; t; t=t->down)
-			as->list = list(as->list, tinlvar(t));		
-	} else {
-		ll = n->list;
-		if(fn->type->thistuple && n->left->op != ODOTMETH) // non method call to method
-			ll=ll->next;  // was handled above in if(thistuple)
+	as->rlist = n->list;
+	ll = n->list;
 
-		for(t = getinargx(fn->type)->type; t && ll; t=t->down) {
-			as->list = list(as->list, tinlvar(t));
-			as->rlist = list(as->rlist, ll->n);
+	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
+	if(fn->type->thistuple && n->left->op != ODOTMETH) {
+		// non-method call to method
+		if(!n->list)
+			fatal("non-method call to method without first arg: %+N", n);
+		// append receiver inlvar to LHS.
+		t = getthisx(fn->type)->type;
+		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
+			fatal("missing inlvar for %N\n", t->nname);
+		if(t == T)
+			fatal("method call unknown receiver type: %+N", n);
+		as->list = list(as->list, tinlvar(t));
+		ll = ll->next; // track argument count.
+	}
+
+	// append ordinary arguments to LHS.
+	chkargcount = n->list && n->list->next;
+	for(t = getinargx(fn->type)->type; t && (!chkargcount || ll); t=t->down) {
+		if(chkargcount && ll) {
+			// len(n->list) > 1, count arguments.
 			ll=ll->next;
 		}
-		if(ll || t)
-			fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
+		as->list = list(as->list, tinlvar(t));
 	}
+	if(chkargcount && (ll || t))
+		fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
 
 	if (as->rlist) {
 		typecheck(&as, Etop);
