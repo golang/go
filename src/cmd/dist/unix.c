@@ -670,6 +670,10 @@ main(int argc, char **argv)
 	gohostos = "linux";
 #elif defined(__FreeBSD__)
 	gohostos = "freebsd";
+#elif defined(__FreeBSD_kernel__)
+	// detect debian/kFreeBSD. 
+	// http://wiki.debian.org/Debian_GNU/kFreeBSD_FAQ#Q._How_do_I_detect_kfreebsd_with_preprocessor_directives_in_a_C_program.3F
+	gohostos = "freebsd";	
 #elif defined(__OpenBSD__)
 	gohostos = "openbsd";
 #elif defined(__NetBSD__)
