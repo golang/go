@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 29, 2012",
+	"Subtitle": "Version of December 3, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -3249,8 +3249,9 @@ will cause a <a href="#Run_time_panics">run-time panic</a>.
 <p>
 For an operand <code>ch</code> of <a href="#Channel_types">channel type</a>,
 the value of the receive operation <code>&lt;-ch</code> is the value received
-from the channel <code>ch</code>. The type of the value is the element type of
-the channel. The expression blocks until a value is available.
+from the channel <code>ch</code>. The channel direction must permit receive operations,
+and the type of the receive operation is the element type of the channel.
+The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
 Receiving from a <a href="#Close">closed</a> channel always succeeds,
 immediately returning the element type's <a href="#The_zero_value">zero
@@ -3873,8 +3874,9 @@ len("foo")  // illegal if len is the built-in function
 
 <p>
 A send statement sends a value on a channel.
-The channel expression must be of <a href="#Channel_types">channel type</a>
-and the type of the value must be <a href="#Assignability">assignable</a>
+The channel expression must be of <a href="#Channel_types">channel type</a>,
+the channel direction must permit send operations,
+and the type of the value to be sent must be <a href="#Assignability">assignable</a>
 to the channel's element type.
 </p>
 
@@ -4319,12 +4321,13 @@ RangeClause = Expression [ "," Expression ] ( "=" | ":=" ) "range" Expression .
 
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
-which may be an array, pointer to an array, slice, string, map, or channel.
+which may be an array, pointer to an array, slice, string, map, or channel permitting
+<a href="#Receive_operator">receive operations</a>.
 As with an assignment, the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
 denote the iteration variables. If the range expression is a channel, only
-one iteration variable is permitted, otherwise there may be one or two.
-If the second iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
+one iteration variable is permitted, otherwise there may be one or two. In the latter case,
+if the second iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause with only the first variable present.
 </p>
 
@@ -4342,7 +4345,7 @@ Range expression                          1st value          2nd value (if 2nd v
 array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E                 element  e  E
+channel         c  chan E, <-chan E       element  e  E
 </pre>
 
 <ol>
