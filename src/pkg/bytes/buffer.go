@@ -360,16 +360,24 @@ func (b *Buffer) UnreadByte() error {
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
+	slice, err := b.readSlice(delim)
+	// return a copy of slice. The buffer's backing array may
+	// be overwritten by later calls.
+	line = append(line, slice...)
+	return
+}
+
+// readSlice is like readBytes but returns a reference to internal buffer data.
+func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
 	i := IndexByte(b.buf[b.off:], delim)
-	size := i + 1
+	end := b.off + i + 1
 	if i < 0 {
-		size = len(b.buf) - b.off
+		end = len(b.buf)
 		err = io.EOF
 	}
-	line = make([]byte, size)
-	copy(line, b.buf[b.off:])
-	b.off += size
-	return
+	line = b.buf[b.off:end]
+	b.off = end
+	return line, err
 }
 
 // ReadString reads until the first occurrence of delim in the input,
@@ -379,8 +387,8 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end
 // in delim.
 func (b *Buffer) ReadString(delim byte) (line string, err error) {
-	bytes, err := b.ReadBytes(delim)
-	return string(bytes), err
+	slice, err := b.readSlice(delim)
+	return string(slice), err
 }
 
 // NewBuffer creates and initializes a new Buffer using buf as its initial

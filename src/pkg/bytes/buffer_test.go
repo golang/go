@@ -375,6 +375,41 @@ func TestReadBytes(t *testing.T) {
 	}
 }
 
+func TestReadString(t *testing.T) {
+	for _, test := range readBytesTests {
+		buf := NewBufferString(test.buffer)
+		var err error
+		for _, expected := range test.expected {
+			var s string
+			s, err = buf.ReadString(test.delim)
+			if s != expected {
+				t.Errorf("expected %q, got %q", expected, s)
+			}
+			if err != nil {
+				break
+			}
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+	}
+}
+
+func BenchmarkReadString(b *testing.B) {
+	const n = 32 << 10
+
+	data := make([]byte, n)
+	data[n-1] = 'x'
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		buf := NewBuffer(data)
+		_, err := buf.ReadString('x')
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestGrow(t *testing.T) {
 	x := []byte{'x'}
 	y := []byte{'y'}
