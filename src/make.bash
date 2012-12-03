@@ -77,6 +77,13 @@ do
 	fi
 done
 
+# Test for debian/kFreeBSD.
+# cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
+# disable cgo manually.
+if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
+        export CGO_ENABLED=0
+fi
+
 # Clean old generated file that will cause problems in the build.
 rm -f ./pkg/runtime/runtime_defs.go
 
