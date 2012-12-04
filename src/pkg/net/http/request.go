@@ -124,6 +124,7 @@ type Request struct {
 	// The host on which the URL is sought.
 	// Per RFC 2616, this is either the value of the Host: header
 	// or the host name given in the URL itself.
+	// It may be of the form "host:port".
 	Host string
 
 	// Form contains the parsed form data, including both the URL

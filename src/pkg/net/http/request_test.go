@@ -228,6 +228,16 @@ func TestReadRequestErrors(t *testing.T) {
 	}
 }
 
+func TestNewRequestHost(t *testing.T) {
+	req, err := NewRequest("GET", "http://localhost:1234/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Host != "localhost:1234" {
+		t.Errorf("Host = %q; want localhost:1234", req.Host)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
