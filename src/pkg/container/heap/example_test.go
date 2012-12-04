@@ -37,15 +37,10 @@ func (pq PriorityQueue) Swap(i, j int) {
 func (pq *PriorityQueue) Push(x interface{}) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
-	// To simplify indexing expressions in these methods, we save a copy of the
-	// slice object. We could instead write (*pq)[i].
-	a := *pq
-	n := len(a)
-	a = a[0 : n+1]
+	n := len(*pq)
 	item := x.(*Item)
 	item.index = n
-	a[n] = item
-	*pq = a
+	*pq = append(*pq, item)
 }
 
 func (pq *PriorityQueue) Pop() interface{} {
