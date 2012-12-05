@@ -557,7 +557,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	s, err := syscall.Socket(fd.family, fd.sotype, 0)
 	if err != nil {
 		syscall.ForkLock.RUnlock()
-		return nil, err
+		return nil, &OpError{"socket", fd.net, fd.laddr, err}
 	}
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
@@ -565,6 +565,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	// Associate our new socket with IOCP.
 	onceStartServer.Do(startServer)
 	if _, err := syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); err != nil {
+		closesocket(s)
 		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, err}
 	}
 
@@ -582,7 +583,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 	if err != nil {
 		closesocket(s)
-		return nil, err
+		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
 	}
 
 	// Get local and peer addr out of AcceptEx buffer.

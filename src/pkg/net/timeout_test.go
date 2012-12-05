@@ -332,6 +332,7 @@ func TestReadWriteDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListenTCP on :0: %v", err)
 	}
+	defer ln.Close()
 
 	lnquit := make(chan bool)
 
