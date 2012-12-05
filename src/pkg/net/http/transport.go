@@ -28,10 +28,10 @@ import (
 )
 
 // DefaultTransport is the default implementation of Transport and is
-// used by DefaultClient.  It establishes a new network connection for
-// each call to Do and uses HTTP proxies as directed by the
-// $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy)
-// environment variables.
+// used by DefaultClient. It establishes network connections as needed
+// and caches them for reuse by subsequent calls. It uses HTTP proxies
+// as directed by the $HTTP_PROXY and $NO_PROXY (or $http_proxy and
+// $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{Proxy: ProxyFromEnvironment}
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
