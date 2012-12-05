@@ -2517,8 +2517,6 @@ sliceany(Node* n, NodeList **init)
 		else
 			bv = mpgetfix(bound->val.u.xval);
 	}
-	lbv = -1;
-	hbv = -1;
 
 	if(isconst(hb, CTINT)) {
 		hbv = mpgetfix(hb->val.u.xval);
@@ -2536,8 +2534,6 @@ sliceany(Node* n, NodeList **init)
 		if(lbv == 0)
 			lb = N;
 	}
-	if(lbv >= 0 && hbv >= 0 && lbv > hbv)
-		yyerror("inverted slice range");
 
 	// dynamic checks convert all bounds to unsigned to save us the bound < 0 comparison
 	// generate

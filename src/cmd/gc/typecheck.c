@@ -950,12 +950,16 @@ reswitch:
 				goto error;
 			}
 			if(n->right->left->op == OLITERAL) {
-				if(mpgetfix(n->right->left->val.u.xval) < 0)
+				if(mpgetfix(n->right->left->val.u.xval) < 0) {
 					yyerror("invalid slice index %N (index must be non-negative)", n->right->left);
-				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound)
+					goto error;
+				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound) {
 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->left, tp->bound);
-				else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0)
+					goto error;
+				} else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0) {
 					yyerror("invalid slice index %N (index too large)", n->right->left);
+					goto error;
+				}
 			}
 		}
 		if(n->right->right != N) {
@@ -966,13 +970,25 @@ reswitch:
 				goto error;
 			}
 			if(n->right->right->op == OLITERAL) {
-				if(mpgetfix(n->right->right->val.u.xval) < 0)
+				if(mpgetfix(n->right->right->val.u.xval) < 0) {
 					yyerror("invalid slice index %N (index must be non-negative)", n->right->right);
-				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound)
+					goto error;
+				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound) {
 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->right, tp->bound);
-				else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0)
+					goto error;
+				} else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0) {
 					yyerror("invalid slice index %N (index too large)", n->right->right);
+					goto error;
+				}
 			}
+		}
+		if(n->right->left != N
+		   && n->right->right != N
+		   && n->right->left->op == OLITERAL
+		   && n->right->right->op == OLITERAL
+		   && mpcmpfixfix(n->right->left->val.u.xval, n->right->right->val.u.xval) > 0) {
+			yyerror("inverted slice index %N > %N", n->right->left, n->right->right);
+			goto error;
 		}
 		goto ret;
 
