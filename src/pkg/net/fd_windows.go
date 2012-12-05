@@ -300,7 +300,6 @@ func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
 		net:    net,
 		closec: make(chan bool),
 	}
-	runtime.SetFinalizer(netfd, (*netFD).Close)
 	return netfd
 }
 
@@ -319,6 +318,7 @@ func newFD(fd syscall.Handle, family, proto int, net string) (*netFD, error) {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
+	runtime.SetFinalizer(fd, (*netFD).closesocket)
 }
 
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
@@ -396,6 +396,10 @@ func (fd *netFD) CloseRead() error {
 
 func (fd *netFD) CloseWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
+}
+
+func (fd *netFD) closesocket() error {
+	return closesocket(fd.sysfd)
 }
 
 // Read from network.
