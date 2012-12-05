@@ -559,7 +559,6 @@ agen(Node *n, Node *res)
 {
 	Node *nl;
 	Node n1, n2, n3;
-	Prog *p1;
 	int r;
 
 	if(debug['g']) {
@@ -704,10 +703,13 @@ agen(Node *n, Node *res)
 			if(nl->type->type->width >= unmappedzero) {
 				regalloc(&n1, types[tptr], N);
 				gmove(res, &n1);
-				p1 = gins(AMOVW, &n1, &n1);
-				p1->from.type = D_OREG;
-				p1->from.offset = 0;
+				regalloc(&n2, types[TUINT8], &n1);
+				n1.op = OINDREG;
+				n1.type = types[TUINT8];
+				n1.xoffset = 0;
+				gmove(&n1, &n2);
 				regfree(&n1);
+				regfree(&n2);
 			}
 			nodconst(&n1, types[TINT32], n->xoffset);
 			regalloc(&n2, n1.type, N);
@@ -737,8 +739,7 @@ ret:
 void
 igen(Node *n, Node *a, Node *res)
 {
-	Node n1;
-	Prog *p1;
+	Node n1, n2;
 	int r;
 
 	if(debug['g']) {
@@ -785,10 +786,13 @@ igen(Node *n, Node *a, Node *res)
 			if(n->left->type->type->width >= unmappedzero) {
 				regalloc(&n1, types[tptr], N);
 				gmove(a, &n1);
-				p1 = gins(AMOVW, &n1, &n1);
-				p1->from.type = D_OREG;
-				p1->from.offset = 0;
+				regalloc(&n2, types[TUINT8], &n1);
+				n1.op = OINDREG;
+				n1.type = types[TUINT8];
+				n1.xoffset = 0;
+				gmove(&n1, &n2);
 				regfree(&n1);
+				regfree(&n2);
 			}
 		}
 		a->op = OINDREG;
@@ -957,10 +961,13 @@ agenr(Node *n, Node *a, Node *res)
 		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
 			regalloc(&n4, types[tptr], N);
 			gmove(&n3, &n4);
-			p1 = gins(AMOVW, &n4, &n4);
-			p1->from.type = D_OREG;
-			p1->from.offset = 0;
+			regalloc(&tmp, types[TUINT8], &n4);
+			n4.op = OINDREG;
+			n4.type = types[TUINT8];
+			n4.xoffset = 0;
+			gmove(&n4, &tmp);
 			regfree(&n4);
+			regfree(&tmp);
 		}
 
 		// constant index
