@@ -11,6 +11,7 @@ package main
 var bug = false
 
 var minus1 = -1
+var five = 5
 var big int64 = 10 | 1<<32
 
 type block [1<<19]byte
@@ -40,7 +41,7 @@ func badcap() {
 }
 
 func badcap1() {
-	g1 = make([]block, 10, 5)
+	g1 = make([]block, 10, five)
 }
 
 func bigcap() {
