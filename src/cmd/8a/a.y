@@ -55,7 +55,7 @@
 %token	<lval>	LTYPE0 LTYPE1 LTYPE2 LTYPE3 LTYPE4
 %token	<lval>	LTYPEC LTYPED LTYPEN LTYPER LTYPET LTYPES LTYPEM LTYPEI LTYPEG LTYPEXC
 %token	<lval>	LCONST LFP LPC LSB
-%token	<lval>	LBREG LLREG LSREG LFREG
+%token	<lval>	LBREG LLREG LSREG LFREG LXREG
 %token	<dval>	LFCONST
 %token	<sval>	LSCONST LSP
 %token	<sym>	LNAME LLAB LVAR
@@ -355,6 +355,11 @@ reg:
 		$$.type = $1;
 	}
 |	LLREG
+	{
+		$$ = nullgen;
+		$$.type = $1;
+	}
+|	LXREG
 	{
 		$$ = nullgen;
 		$$.type = $1;

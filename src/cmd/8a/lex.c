@@ -210,6 +210,15 @@ struct
 	"F6",		LFREG,	D_F0+6,
 	"F7",		LFREG,	D_F0+7,
 
+	"X0",		LXREG,	D_X0+0,
+	"X1",		LXREG,	D_X0+1,
+	"X2",		LXREG,	D_X0+2,
+	"X3",		LXREG,	D_X0+3,
+	"X4",		LXREG,	D_X0+4,
+	"X5",		LXREG,	D_X0+5,
+	"X6",		LXREG,	D_X0+6,
+	"X7",		LXREG,	D_X0+7,
+
 	"CS",		LSREG,	D_CS,
 	"SS",		LSREG,	D_SS,
 	"DS",		LSREG,	D_DS,
