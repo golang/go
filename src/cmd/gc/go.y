@@ -57,7 +57,7 @@ static void fixlbrace(int);
 %type	<node>	compound_stmt dotname embed expr complitexpr
 %type	<node>	expr_or_type
 %type	<node>	fndcl hidden_fndcl fnliteral
-%type	<node>	for_body for_header for_stmt if_header if_stmt else non_dcl_stmt
+%type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
 %type	<node>	interfacedcl keyval labelname name
 %type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr typedclname
@@ -70,7 +70,7 @@ static void fixlbrace(int);
 
 %type	<list>	xdcl fnbody fnres loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
-%type	<list>	oexpr_list caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
+%type	<list>	oexpr_list caseblock_list elseif elseif_list else stmt_list oarg_type_list_ocomma arg_type_list
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
@@ -661,25 +661,56 @@ if_stmt:
 	{
 		$3->nbody = $5;
 	}
-	else
+	elseif_list else
 	{
-		popdcl();
+		Node *n;
+		NodeList *nn;
+
 		$$ = $3;
-		if($7 != N)
-			$$->nelse = list1($7);
+		n = $3;
+		popdcl();
+		for(nn = concat($7, $8); nn; nn = nn->next) {
+			if(nn->n->op == OIF)
+				popdcl();
+			n->nelse = list1(nn->n);
+			n = nn->n;
+		}
+	}
+
+elseif:
+	LELSE LIF 
+	{
+		markdcl();
+	}
+	if_header loop_body
+	{
+		if($4->ntest == N)
+			yyerror("missing condition in if statement");
+		$4->nbody = $5;
+		$$ = list1($4);
+	}
+
+elseif_list:
+	{
+		$$ = nil;
+	}
+|	elseif_list elseif
+	{
+		$$ = concat($1, $2);
 	}
 
 else:
 	{
-		$$ = N;
-	}
-|	LELSE if_stmt
-	{
-		$$ = $2;
+		$$ = nil;
 	}
 |	LELSE compound_stmt
 	{
-		$$ = $2;
+		NodeList *node;
+		
+		node = mal(sizeof *node);
+		node->n = $2;
+		node->end = node;
+		$$ = node;
 	}
 
 switch_stmt:
