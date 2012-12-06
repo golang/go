@@ -71,6 +71,10 @@ func _selects() {
 		x = t
 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
 	}
+	select {
+	default:
+	default /* ERROR "multiple defaults" */ :
+	}
 }
 
 func _gos() {
@@ -87,4 +91,150 @@ func _defers() {
 	var c chan int
 	defer close(c)
 	defer len(c) // TODO(gri) this should not be legal
+}
+
+func _switches() {
+	var x int
+
+	switch x {
+	default:
+	default /* ERROR "multiple defaults" */ :
+	}
+
+	// TODO(gri) more tests
+}
+
+type I interface {
+	m()
+}
+
+type I2 interface {
+	m(int)
+}
+
+type T struct{}
+type T1 struct{}
+type T2 struct{}
+
+func (T) m() {}
+func (T2) m(int) {}
+
+func _typeswitches() {
+	var i int
+	var x interface{}
+
+	switch x.(type) {}
+	switch (x /* ERROR "outside type switch" */ .(type)) {}
+
+	switch x.(type) {
+	default:
+	default /* ERROR "multiple defaults" */ :
+	}
+
+	switch x := x.(type) {}
+
+	switch x := x.(type) {
+	case int:
+		var y int = x
+	}
+
+	switch x := i /* ERROR "not an interface" */ .(type) {}
+
+	switch t := x.(type) {
+	case nil:
+		var v bool = t /* ERROR "cannot assign" */
+	case int:
+		var v int = t
+	case float32, complex64:
+		var v float32 = t /* ERROR "cannot assign" */
+	default:
+		var v float32 = t /* ERROR "cannot assign" */
+	}
+
+	var t I
+	switch t.(type) {
+	case T:
+	case T1 /* ERROR "missing method m" */ :
+	case T2 /* ERROR "wrong type for method m" */ :
+	case I2 /* ERROR "wrong type for method m" */ :
+	}
+}
+
+func _rangeloops() {
+	var (
+		x int
+		a [10]float32
+		b []string
+		p *[10]complex128
+		pp **[10]complex128
+		s string
+		m map[int]bool
+		c chan int
+		sc chan<- int
+		rc <-chan int
+	)
+
+	for _ = range x /* ERROR "cannot range over" */ {}
+	for i := range x /* ERROR "cannot range over" */ {}
+
+	for i := range a {
+		var ii int
+		ii = i
+	}
+	for i, x := range a {
+		var ii int
+		ii = i
+		var xx float64
+		xx = x /* ERROR "cannot assign" */
+	}
+	var ii int
+	var xx float32
+	for ii, xx := range a {}
+
+	for i := range b {
+		var ii int
+		ii = i
+	}
+	for i, x := range b {
+		var ii int
+		ii = i
+		var xx string
+		xx = x
+	}
+
+	for i := range s {
+		var ii int
+		ii = i
+	}
+	for i, x := range s {
+		var ii int
+		ii = i
+		var xx rune
+		xx = x
+	}
+
+	for _, x := range p {
+		var xx complex128
+		xx = x
+	}
+
+	for _, x := range pp /* ERROR "cannot range over" */ {}
+
+	for k := range m {
+		var kk int32
+		kk = k /* ERROR "cannot assign" */
+	}
+	for k, v := range m {
+		var kk int
+		kk = k
+		if v {}
+	}
+
+	for _, _ /* ERROR "only one iteration variable" */ = range c {}
+	for e := range c {
+		var ee int
+		ee = e
+	}
+	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
+	for _ = range rc {}
 }

@@ -1803,7 +1803,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 				//
 				//	switch t := 0; t := x.(T) { ... }
 				//
-				// (this code is not valid Go because the first t will
+				// (this code is not valid Go because the first t
 				// cannot be accessed and thus is never used, the extra
 				// scope is needed for the correct error message).
 				//

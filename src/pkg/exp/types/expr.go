@@ -12,20 +12,36 @@ import (
 	"strconv"
 )
 
-// TODO(gri)
+// TODO(gri) Cleanups
 // - don't print error messages referring to invalid types (they are likely spurious errors)
 // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
 // - rethink error handling: should all callers check if x.mode == valid after making a call?
+// - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
 
-func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVariadic bool) {
+// TODO(gri) API issues
+// - clients need access to result type information (tuples)
+// - clients need access to constant values
+// - clients need access to built-in type information
+
+// TODO(gri) Bugs
+// - expression hints are (correctly) used untyped for composite literal components, but also
+//   in possibly overlapping use as hints for shift expressions - investigate
+
+func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params ObjList, isVariadic bool) {
 	if list == nil {
 		return
 	}
-	for _, field := range list.List {
+	var last *ast.Object
+	for i, field := range list.List {
 		ftype := field.Type
-		if t, ok := ftype.(*ast.Ellipsis); ok {
+		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
-			isVariadic = true
+			if variadicOk && i == len(list.List)-1 {
+				isVariadic = true
+			} else {
+				check.invalidAST(field.Pos(), "... not permitted")
+				// ok to continue
+			}
 		}
 		// the parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag
@@ -36,13 +52,25 @@ func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVari
 				obj := name.Obj
 				obj.Type = typ
 				params = append(params, obj)
+				last = obj
 			}
 		} else {
 			// anonymous parameter
 			obj := ast.NewObj(ast.Var, "")
 			obj.Type = typ
 			params = append(params, obj)
+			last = obj
 		}
+	}
+	// For a variadic function, change the last parameter's object type
+	// from T to []T (this is the type used inside the function), but
+	// keep a copy of the object with the original type T in the params
+	// list (this is the externally visible type).
+	if isVariadic {
+		// if isVariadic is set, last must exist and len(params) > 0
+		copy := *last
+		last.Type = &Slice{Elt: last.Type.(Type)}
+		params[len(params)-1] = &copy
 	}
 	return
 }
@@ -118,9 +146,9 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			// anonymous field
 			switch t := deref(typ).(type) {
 			case *Basic:
-				fields = append(fields, &StructField{t.Name, t, tag, true})
+				fields = append(fields, &StructField{t.Name, typ, tag, true})
 			case *NamedType:
-				fields = append(fields, &StructField{t.Obj.Name, t, tag, true})
+				fields = append(fields, &StructField{t.Obj.Name, typ, tag, true})
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -198,7 +226,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 		}
 		// Typed constants must be representable in
 		// their type after each constant operation.
-		check.isRepresentable(x, x.typ.(*Basic))
+		check.isRepresentable(x, underlying(x.typ).(*Basic))
 		return
 	}
 
@@ -526,7 +554,30 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 	return max
 }
 
-func (check *checker) callRecord(x *operand) {
+func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
+	var par *ast.Object
+	if n := len(sig.Params); i < n {
+		par = sig.Params[i]
+	} else if sig.IsVariadic {
+		par = sig.Params[n-1]
+	} else {
+		check.errorf(arg.Pos(), "too many arguments")
+		return
+	}
+
+	// TODO(gri) deal with ... last argument
+	var z, x operand
+	z.mode = variable
+	z.expr = nil            // TODO(gri) can we do better here?
+	z.typ = par.Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
+	check.expr(&x, arg, z.typ, -1)
+	if x.mode == invalid {
+		return // ignore this argument
+	}
+	check.assignOperand(&z, &x)
+}
+
+func (check *checker) recordType(x *operand) {
 	if x.mode != invalid {
 		check.mapf(x.expr, x.typ)
 	}
@@ -545,7 +596,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 	}
 
 	if check.mapf != nil {
-		defer check.callRecord(x)
+		defer check.recordType(x)
 	}
 
 	switch e := e.(type) {
@@ -856,6 +907,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 			x.typ = typ.Elt
 
+		case *Pointer:
+			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
+				valid = true
+				length = typ.Len
+				x.mode = variable
+				x.typ = typ.Elt
+			}
+
 		case *Slice:
 			valid = true
 			x.mode = variable
@@ -870,6 +929,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 			x.mode = valueok
 			x.typ = typ.Elt
+			x.expr = e
 			return
 		}
 
@@ -915,6 +975,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 			x.typ = &Slice{Elt: typ.Elt}
 
+		case *Pointer:
+			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
+				valid = true
+				length = typ.Len + 1 // +1 for slice
+				x.mode = variable
+				x.typ = &Slice{Elt: typ.Elt}
+			}
+
 		case *Slice:
 			valid = true
 			x.mode = variable
@@ -945,14 +1013,36 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.TypeAssertExpr:
 		check.expr(x, e.X, hint, iota)
-		if _, ok := underlying(x.typ).(*Interface); !ok {
-			check.invalidOp(e.X.Pos(), "non-interface type %s in type assertion", x.typ)
+		if x.mode == invalid {
+			goto Error
+		}
+		var T *Interface
+		if T, _ = underlying(x.typ).(*Interface); T == nil {
+			check.invalidOp(x.pos(), "%s is not an interface", x)
+			goto Error
+		}
+		// x.(type) expressions are handled explicitly in type switches
+		if e.Type == nil {
+			check.errorf(e.Pos(), "use of .(type) outside type switch")
+			goto Error
+		}
+		typ := check.typ(e.Type, false)
+		if typ == Typ[Invalid] {
+			goto Error
+		}
+		if method, wrongType := missingMethod(typ, T); method != nil {
+			var msg string
+			if wrongType {
+				msg = "%s cannot have dynamic type %s (wrong type for method %s)"
+			} else {
+				msg = "%s cannot have dynamic type %s (missing method %s)"
+			}
+			check.errorf(e.Type.Pos(), msg, x, typ, method.Name)
 			// ok to continue
 		}
-		// TODO(gri) some type asserts are compile-time decidable
 		x.mode = valueok
 		x.expr = e
-		x.typ = check.typ(e.Type, false)
+		x.typ = typ
 
 	case *ast.CallExpr:
 		check.exprOrType(x, e.Fun, nil, iota, false)
@@ -962,21 +1052,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.conversion(x, e, x.typ, iota)
 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
 			// check parameters
-			// TODO(gri) complete this
-			// - deal with various forms of calls
-			// - handle variadic calls
-			if len(sig.Params) == len(e.Args) {
-				var z, x operand
-				z.mode = variable
-				for i, arg := range e.Args {
-					z.expr = nil                      // TODO(gri) can we do better here?
-					z.typ = sig.Params[i].Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
-					check.expr(&x, arg, z.typ, iota)
-					if x.mode == invalid {
-						goto Error
-					}
-					check.assignOperand(&z, &x)
-				}
+			// TODO(gri)
+			// - deal with single multi-valued function arguments: f(g())
+			// - variadic functions only partially addressed
+			for i, arg := range e.Args {
+				check.argument(sig, i, arg)
 			}
 
 			// determine result
@@ -1061,8 +1141,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
 
 	case *ast.FuncType:
-		params, isVariadic := check.collectParams(e.Params)
-		results, _ := check.collectParams(e.Results)
+		params, isVariadic := check.collectParams(e.Params, true)
+		results, _ := check.collectParams(e.Results, false)
 		x.mode = typexpr
 		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
 
@@ -1114,10 +1194,7 @@ func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
 	}
 }
 
-// expr is like rawExpr but reports an error if e doesn't represents a type.
-// It returns e's type, or Typ[Invalid] if an error occured.
-//
-func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+func (check *checker) rawTyp(e ast.Expr, cycleOk, nilOk bool) Type {
 	var x operand
 	check.rawExpr(&x, e, nil, -1, cycleOk)
 	switch x.mode {
@@ -1127,8 +1204,27 @@ func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
 		check.errorf(x.pos(), "%s used as type", &x)
 	case typexpr:
 		return x.typ
+	case constant:
+		if nilOk && x.isNil() {
+			return nil
+		}
+		fallthrough
 	default:
 		check.errorf(x.pos(), "%s is not a type", &x)
 	}
 	return Typ[Invalid]
+}
+
+// typOrNil is like rawExpr but reports an error if e doesn't represents a type or the predeclared value nil.
+// It returns e's type, nil, or Typ[Invalid] if an error occured.
+//
+func (check *checker) typOrNil(e ast.Expr, cycleOk bool) Type {
+	return check.rawTyp(e, cycleOk, true)
+}
+
+// typ is like rawExpr but reports an error if e doesn't represents a type.
+// It returns e's type, or Typ[Invalid] if an error occured.
+//
+func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+	return check.rawTyp(e, cycleOk, false)
 }
