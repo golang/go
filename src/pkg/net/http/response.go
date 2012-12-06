@@ -49,7 +49,7 @@ type Response struct {
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content.  The
-	// value -1 indicates that the length is unknown.  Unless RequestMethod
+	// value -1 indicates that the length is unknown.  Unless Request.Method
 	// is "HEAD", values >= 0 indicate that the given number of bytes may
 	// be read from Body.
 	ContentLength int64
@@ -178,7 +178,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  StatusCode
 //  ProtoMajor
 //  ProtoMinor
-//  RequestMethod
+//  Request.Method
 //  TransferEncoding
 //  Trailer
 //  Body

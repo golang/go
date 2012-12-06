@@ -193,7 +193,7 @@ var respTests = []respTest{
 			Request:       dummyReq("HEAD"),
 			Header:        Header{},
 			Close:         true,
-			ContentLength: 0,
+			ContentLength: -1,
 		},
 
 		"",

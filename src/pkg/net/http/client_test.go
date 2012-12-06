@@ -527,3 +527,38 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 		t.Errorf("wanted error mentioning 127.0.0.1 and badserver; got error: %v", err)
 	}
 }
+
+// Verify Response.ContentLength is populated. http://golang.org/issue/4126
+func TestClientHeadContentLength(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if v := r.FormValue("cl"); v != "" {
+			w.Header().Set("Content-Length", v)
+		}
+	}))
+	defer ts.Close()
+	tests := []struct {
+		suffix string
+		want   int64
+	}{
+		{"/?cl=1234", 1234},
+		{"/?cl=0", 0},
+		{"", -1},
+	}
+	for _, tt := range tests {
+		req, _ := NewRequest("HEAD", ts.URL+tt.suffix, nil)
+		res, err := DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.ContentLength != tt.want {
+			t.Errorf("Content-Length = %d; want %d", res.ContentLength, tt.want)
+		}
+		bs, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bs) != 0 {
+			t.Errorf("Unexpected content: %q", bs)
+		}
+	}
+}

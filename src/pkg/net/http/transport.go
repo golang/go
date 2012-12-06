@@ -604,10 +604,7 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		// TODO(bradfitz): this hasBody conflicts with the defition
-		// above which excludes HEAD requests.  Is this one
-		// incomplete?
-		hasBody := resp != nil && resp.ContentLength != 0
+		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0
 		var waitForBodyRead chan bool
 		if hasBody {
 			lastbody = resp.Body
