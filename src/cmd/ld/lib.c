@@ -1493,6 +1493,8 @@ void
 cwrite(void *buf, int n)
 {
 	cflush();
+	if(n <= 0)
+		return;
 	if(write(cout, buf, n) != n) {
 		diag("write error: %r");
 		errorexit();
