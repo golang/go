@@ -120,6 +120,10 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 		}
 	}
 	expect := len(call.Args) - (skip + 1)
+	// Don't be too strict on dotdotdot.
+	if call.Ellipsis.IsValid() && numArgs >= expect {
+		return
+	}
 	if numArgs != expect {
 		f.Badf(call.Pos(), "wrong number of args in %s call: %d needed but %d args", name, numArgs, expect)
 	}
@@ -280,6 +284,7 @@ func BadFunctionUsedInTests() {
 	fmt.Printf("%s%%%d", "hi", 3)      // correct
 	fmt.Printf("%.*d", 3, 3)           // correct
 	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args in Printf call"
+	fmt.Printf("%q %q", multi()...)    // ok
 	printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("hi")                       // ok
@@ -295,5 +300,10 @@ func BadFunctionUsedInTests() {
 
 // printf is used by the test.
 func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// multi is used by the test.
+func multi() []interface{} {
 	panic("don't call - testing only")
 }
