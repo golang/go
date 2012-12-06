@@ -3316,7 +3316,7 @@ argument that is the receiver of the method.
 
 <pre class="ebnf">
 MethodExpr    = ReceiverType "." MethodName .
-ReceiverType  = TypeName | "(" "*" TypeName ")" .
+ReceiverType  = TypeName | "(" "*" TypeName ")" | "(" ReceiverType ")" .
 </pre>
 
 <p>
@@ -3353,13 +3353,15 @@ func(tv T, a int) int
 
 <p>
 That function may be called normally with an explicit receiver, so
-these three invocations are equivalent:
+these five invocations are equivalent:
 </p>
 
 <pre>
 t.Mv(7)
 T.Mv(t, 7)
-f := T.Mv; f(t, 7)
+(T).Mv(t, t)
+f1 := T.Mv; f1(t, 7)
+f2 := (T).Mv; f2(t, 7)
 </pre>
 
 <p>
