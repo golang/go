@@ -1068,6 +1068,9 @@ var proxyFromEnvTests = []struct {
 	wanterr error
 }{
 	{"127.0.0.1:8080", "http://127.0.0.1:8080", nil},
+	{"cache.corp.example.com:1234", "http://cache.corp.example.com:1234", nil},
+	{"cache.corp.example.com", "http://cache.corp.example.com", nil},
+	{"https://cache.corp.example.com", "https://cache.corp.example.com", nil},
 	{"http://127.0.0.1:8080", "http://127.0.0.1:8080", nil},
 	{"https://127.0.0.1:8080", "https://127.0.0.1:8080", nil},
 	{"", "<nil>", nil},
