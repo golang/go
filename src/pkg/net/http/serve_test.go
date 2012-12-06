@@ -1252,6 +1252,42 @@ func TestContentLengthZero(t *testing.T) {
 	}
 }
 
+func TestCloseNotifier(t *testing.T) {
+	gotReq := make(chan bool, 1)
+	sawClose := make(chan bool, 1)
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		gotReq <- true
+		cc := rw.(CloseNotifier).CloseNotify()
+		<-cc
+		sawClose <- true
+	}))
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("error dialing: %v", err)
+	}
+	diec := make(chan bool)
+	go func() {
+		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-diec
+		conn.Close()
+	}()
+For:
+	for {
+		select {
+		case <-gotReq:
+			diec <- true
+		case <-sawClose:
+			break For
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout")
+		}
+	}
+	ts.Close()
+}
+
 // goTimeout runs f, failing t if f takes more than ns to complete.
 func goTimeout(t *testing.T, d time.Duration, f func()) {
 	ch := make(chan bool, 2)
