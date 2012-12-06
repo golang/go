@@ -197,9 +197,13 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return setWriteBuffer(c.fd, bytes)
 }
 
-// File returns a copy of the underlying os.File, set to blocking mode.
+// File sets the underlying os.File to blocking mode and returns a copy.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
+//
+// The returned os.File's file descriptor is different from the connection's.
+// Attempting to change properties of the original using this duplicate
+// may or may not have the desired effect.
 func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
 
 // An Error represents a network error.
