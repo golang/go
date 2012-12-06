@@ -30,6 +30,8 @@
 
 #include "gc.h"
 
+static	void	fixjmp(Reg*);
+
 Reg*
 rega(void)
 {
@@ -441,6 +443,12 @@ regopt(Prog *p)
 		p = firstr->prog;
 		print("\n%L %D\n", p->lineno, &p->from);
 	}
+
+	/*
+	 * pass 2.1
+	 * fix jumps
+	 */
+	fixjmp(firstr);
 
 	/*
 	 * pass 2.5
@@ -1389,3 +1397,126 @@ BtoF(int32 b)
 		return 0;
 	return bitno(b) - 16 + FREGMIN;
 }
+
+/* what instruction does a JMP to p eventually land on? */
+static Reg*
+chasejmp(Reg *r, int *jmploop)
+{
+	int n;
+
+	n = 0;
+	for(; r; r=r->s2) {
+		if(r->prog->as != AJMP || r->prog->to.type != D_BRANCH)
+			break;
+		if(++n > 10) {
+			*jmploop = 1;
+			break;
+		}
+	}
+	return r;
+}
+
+/* mark all code reachable from firstp as alive */
+static void
+mark(Reg *firstr)
+{
+	Reg *r;
+	Prog *p;
+
+	for(r=firstr; r; r=r->link) {
+		if(r->active)
+			break;
+		r->active = 1;
+		p = r->prog;
+		if(p->as != ACALL && p->to.type == D_BRANCH)
+			mark(r->s2);
+		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+			break;
+	}
+}
+
+/*
+ * the code generator depends on being able to write out JMP
+ * instructions that it can jump to now but fill in later.
+ * the linker will resolve them nicely, but they make the code
+ * longer and more difficult to follow during debugging.
+ * remove them.
+ */
+static void
+fixjmp(Reg *firstr)
+{
+	int jmploop;
+	Reg *r;
+	Prog *p;
+
+	if(debug['R'] && debug['v'])
+		print("\nfixjmp\n");
+
+	// pass 1: resolve jump to AJMP, mark all code as dead.
+	jmploop = 0;
+	for(r=firstr; r; r=r->link) {
+		p = r->prog;
+		if(debug['R'] && debug['v'])
+			print("%04d %P\n", r->pc, p);
+		if(p->as != ACALL && p->to.type == D_BRANCH && r->s2 && r->s2->prog->as == AJMP) {
+			r->s2 = chasejmp(r->s2, &jmploop);
+			p->to.offset = r->s2->pc;
+			if(debug['R'] && debug['v'])
+				print("->%P\n", p);
+		}
+		r->active = 0;
+	}
+	if(debug['R'] && debug['v'])
+		print("\n");
+
+	// pass 2: mark all reachable code alive
+	mark(firstr);
+
+	// pass 3: delete dead code (mostly JMPs).
+	for(r=firstr; r; r=r->link) {
+		if(!r->active) {
+			p = r->prog;
+			if(p->link == P && p->as == ARET && r->p1 && r->p1->prog->as != ARET) {
+				// This is the final ARET, and the code so far doesn't have one.
+				// Let it stay.
+			} else {
+				if(debug['R'] && debug['v'])
+					print("del %04d %P\n", r->pc, p);
+				p->as = ANOP;
+			}
+		}
+	}
+
+	// pass 4: elide JMP to next instruction.
+	// only safe if there are no jumps to JMPs anymore.
+	if(!jmploop) {
+		for(r=firstr; r; r=r->link) {
+			p = r->prog;
+			if(p->as == AJMP && p->to.type == D_BRANCH && r->s2 == r->link) {
+				if(debug['R'] && debug['v'])
+					print("del %04d %P\n", r->pc, p);
+				p->as = ANOP;
+			}
+		}
+	}
+
+	// fix back pointers.
+	for(r=firstr; r; r=r->link) {
+		r->p2 = R;
+		r->p2link = R;
+	}
+	for(r=firstr; r; r=r->link) {
+		if(r->s2) {
+			r->p2link = r->s2->p2;
+			r->s2->p2 = r;
+		}
+	}
+
+	if(debug['R'] && debug['v']) {
+		print("\n");
+		for(r=firstr; r; r=r->link)
+			print("%04d %P\n", r->pc, r->prog);
+		print("\n");
+	}
+}
+

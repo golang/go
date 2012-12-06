@@ -151,7 +151,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		sprint(str, "%lld(PC)", a->offset-pc);
+		sprint(str, "%lld", a->offset);
 		break;
 
 	case D_EXTERN:
