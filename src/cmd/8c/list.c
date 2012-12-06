@@ -139,7 +139,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		sprint(str, "%d(PC)", a->offset-pc);
+		sprint(str, "%d", a->offset);
 		break;
 
 	case D_EXTERN:
@@ -263,6 +263,15 @@ char*	regstr[] =
 	"TR5",
 	"TR6",
 	"TR7",
+
+	"X0",	/*[D_X0]*/
+	"X1",
+	"X2",
+	"X3",
+	"X4",
+	"X5",
+	"X6",
+	"X7",
 
 	"NONE",	/*[D_NONE]*/
 };
