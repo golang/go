@@ -1193,7 +1193,7 @@ checkoffset(Addr *a, int canemitcode)
 	// reference with large offset.  instead, emit explicit
 	// test of 0(reg).
 	regalloc(&n1, types[TUINTPTR], N);
-	p = gins(AMOVW, N, &n1);
+	p = gins(AMOVB, N, &n1);
 	p->from = *a;
 	p->from.offset = 0;
 	regfree(&n1);
