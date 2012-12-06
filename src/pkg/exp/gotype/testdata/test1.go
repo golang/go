@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package p
+package test1
 
 func _() {
 	// the scope of a local type declaration starts immediately after the type name
