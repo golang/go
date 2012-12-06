@@ -614,7 +614,7 @@ func (w *response) finishRequest() {
 	// HTTP/1.0 clients keep their "keep-alive" connections alive, and for
 	// HTTP/1.1 clients is just as good as the alternative: sending a
 	// chunked response and immediately sending the zero-length EOF chunk.
-	if w.written == 0 && w.header.get("Content-Length") == "" {
+	if w.written == 0 && w.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
 		w.header.Set("Content-Length", "0")
 	}
 	// If this was an HTTP/1.0 request with keep-alive and we sent a

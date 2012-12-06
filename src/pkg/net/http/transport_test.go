@@ -464,7 +464,7 @@ func TestTransportHeadResponses(t *testing.T) {
 		if e, g := "123", res.Header.Get("Content-Length"); e != g {
 			t.Errorf("loop %d: expected Content-Length header of %q, got %q", i, e, g)
 		}
-		if e, g := int64(0), res.ContentLength; e != g {
+		if e, g := int64(123), res.ContentLength; e != g {
 			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", i, e, g)
 		}
 	}

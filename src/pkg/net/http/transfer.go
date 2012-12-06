@@ -294,9 +294,18 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		return err
 	}
 
-	t.ContentLength, err = fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
+	realLength, err := fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
 	if err != nil {
 		return err
+	}
+	if isResponse && t.RequestMethod == "HEAD" {
+		if n, err := parseContentLength(t.Header.get("Content-Length")); err != nil {
+			return err
+		} else {
+			t.ContentLength = n
+		}
+	} else {
+		t.ContentLength = realLength
 	}
 
 	// Trailer
@@ -310,7 +319,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// See RFC2616, section 4.4.
 	switch msg.(type) {
 	case *Response:
-		if t.ContentLength == -1 &&
+		if realLength == -1 &&
 			!chunked(t.TransferEncoding) &&
 			bodyAllowedForStatus(t.StatusCode) {
 			// Unbounded body.
@@ -323,11 +332,11 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	switch {
 	case chunked(t.TransferEncoding):
 		t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
-	case t.ContentLength >= 0:
+	case realLength >= 0:
 		// TODO: limit the Content-Length. This is an easy DoS vector.
-		t.Body = &body{Reader: io.LimitReader(r, t.ContentLength), closing: t.Close}
+		t.Body = &body{Reader: io.LimitReader(r, realLength), closing: t.Close}
 	default:
-		// t.ContentLength < 0, i.e. "Content-Length" not mentioned in header
+		// realLength < 0, i.e. "Content-Length" not mentioned in header
 		if t.Close {
 			// Close semantics (i.e. HTTP/1.0)
 			t.Body = &body{Reader: r, closing: t.Close}
@@ -434,9 +443,9 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	// Logic based on Content-Length
 	cl := strings.TrimSpace(header.get("Content-Length"))
 	if cl != "" {
-		n, err := strconv.ParseInt(cl, 10, 64)
-		if err != nil || n < 0 {
-			return -1, &badStringError{"bad Content-Length", cl}
+		n, err := parseContentLength(cl)
+		if err != nil {
+			return -1, err
 		}
 		return n, nil
 	} else {
@@ -640,4 +649,19 @@ func (b *body) Close() error {
 		return err
 	}
 	return nil
+}
+
+// parseContentLength trims whitespace from s and returns -1 if no value
+// is set, or the value if it's >= 0.
+func parseContentLength(cl string) (int64, error) {
+	cl = strings.TrimSpace(cl)
+	if cl == "" {
+		return -1, nil
+	}
+	n, err := strconv.ParseInt(cl, 10, 64)
+	if err != nil || n < 0 {
+		return 0, &badStringError{"bad Content-Length", cl}
+	}
+	return n, nil
+
 }
