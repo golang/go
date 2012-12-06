@@ -119,25 +119,6 @@ func (x *operand) setConst(tok token.Token, lit string) {
 	}
 }
 
-// implements reports whether x implements interface T.
-func (x *operand) implements(T *Interface) bool {
-	if x.mode == invalid {
-		return true // avoid spurious errors
-	}
-
-	// x implements T if it implements all methods of T.
-	// TODO(gri): distinguish pointer and non-pointer receivers
-	for _, m := range T.Methods {
-		mode, typ := lookupField(x.typ, m.Name)
-		if mode == invalid || !isIdentical(typ, m.Type.(Type)) {
-			// TODO(gri) should report which method is missing
-			return false
-		}
-	}
-
-	return true
-}
-
 // isNil reports whether x is the predeclared nil constant.
 func (x *operand) isNil() bool {
 	return x.mode == constant && x.val == nilConst
@@ -170,8 +151,10 @@ func (x *operand) isAssignable(T Type) bool {
 	}
 
 	// T is an interface type and x implements T
-	if Ti, ok := Tu.(*Interface); ok && x.implements(Ti) {
-		return true
+	if Ti, ok := Tu.(*Interface); ok {
+		if m, _ := missingMethod(x.typ, Ti); m == nil {
+			return true
+		}
 	}
 
 	// x is a bidirectional channel value, T is a channel

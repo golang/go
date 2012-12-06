@@ -188,10 +188,13 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 
 	case ast.Fun:
 		fdecl := obj.Decl.(*ast.FuncDecl)
-		check.collectParams(fdecl.Recv) // ensure method base is type-checked
+		check.collectParams(fdecl.Recv, false) // ensure method base is type-checked
 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
 		obj.Type = ftyp
-		check.function(ftyp, fdecl.Body)
+		// functions implemented elsewhere (say in assembly) have no body
+		if fdecl.Body != nil {
+			check.function(ftyp, fdecl.Body)
+		}
 
 	default:
 		panic("unreachable")

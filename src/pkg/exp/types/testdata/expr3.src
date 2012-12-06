@@ -75,6 +75,17 @@ func indexes() {
 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
 	_ = a[: 1 /* ERROR "stupid index" */ <<100]
 
+	pa := &a
+	_ = pa[9]
+	_ = pa[10 /* ERROR "index .* out of bounds" */ ]
+	_ = pa[1 /* ERROR "stupid index" */ <<100]
+	_ = pa[10:]
+	_ = pa[:10]
+	_ = pa[10:10]
+	_ = pa[11 /* ERROR "index .* out of bounds" */ :]
+	_ = pa[: 11 /* ERROR "index .* out of bounds" */ ]
+	_ = pa[: 1 /* ERROR "stupid index" */ <<100]
+
 	var b [0]int
 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
 	_ = b[:]
@@ -206,6 +217,15 @@ func array_literals() {
 
 	a4 := [...]complex128{0, 1, 2, 1<<10-2: -1i, 1i, 400: 10, 12, 14}
 	assert(len(a4) == 1024)
+
+	// from the spec
+	type Point struct { x, y float32 }
+	_ = [...]Point{Point{1.5, -3.5}, Point{0, 0}}
+	_ = [...]Point{{1.5, -3.5}, {0, 0}}
+	_ = [][]int{[]int{1, 2, 3}, []int{4, 5}}
+	_ = [][]int{{1, 2, 3}, {4, 5}}
+	_ = [...]*Point{&Point{1.5, -3.5}, &Point{0, 0}}
+	_ = [...]*Point{{1.5, -3.5}, {0, 0}}
 }
 
 func slice_literals() {
@@ -236,4 +256,33 @@ func map_literals() {
 	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
 	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+}
+
+type I interface {
+	m()
+}
+
+type I2 interface {
+	m(int)
+}
+
+type T1 struct{}
+type T2 struct{}
+
+func (T2) m(int) {}
+
+func type_asserts() {
+	var x int
+	_ = x /* ERROR "not an interface" */ .(int)
+
+	var e interface{}
+	var ok bool
+	x, ok = e.(int)
+
+	var t I
+	_ = t /* ERROR "use of .* outside type switch" */ .(type)
+	_ = t.(T)
+	_ = t.(T1 /* ERROR "missing method m" */ )
+	_ = t.(T2 /* ERROR "wrong type for method m" */ )
+	_ = t.(I2 /* ERROR "wrong type for method m" */ )
 }

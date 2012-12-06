@@ -116,10 +116,12 @@ func init() {
 
 	// error type
 	{
+		res := ast.NewObj(ast.Var, "")
+		res.Type = Typ[String]
+		err := ast.NewObj(ast.Fun, "Error")
+		err.Type = &Signature{Results: ObjList{res}}
 		obj := def(ast.Typ, "error")
-		// TODO(gri) set up correct interface type
-		typ := &NamedType{Underlying: &Interface{}, Obj: obj}
-		obj.Type = typ
+		obj.Type = &NamedType{Underlying: &Interface{Methods: ObjList{err}}, Obj: obj}
 	}
 
 	// predeclared constants

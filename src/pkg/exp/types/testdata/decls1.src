@@ -73,7 +73,7 @@ var (
 
 // Various more complex expressions
 var (
-	u1 = x /* ERROR "non-interface type" */ .(int)
+	u1 = x /* ERROR "not an interface" */ .(int)
 	u2 = iface.([]int)
 	u3 = iface.(a /* ERROR "not a type" */ )
 	u4, ok = iface.(int)

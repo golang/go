@@ -6,6 +6,8 @@
 
 package types
 
+import "go/ast"
+
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -246,4 +248,35 @@ func defaultType(typ Type) Type {
 		typ = Typ[k]
 	}
 	return typ
+}
+
+// missingMethod returns (nil, false) if typ implements T, otherwise
+// it returns the first missing method required by T and whether it
+// is missing or simply has the wrong type.
+//
+func missingMethod(typ Type, T *Interface) (method *ast.Object, wrongType bool) {
+	// TODO(gri): distinguish pointer and non-pointer receivers
+	// an interface type implements T if it has no methods with conflicting signatures
+	// Note: This is stronger than the current spec. Should the spec require this?
+	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
+		for _, m := range T.Methods {
+			mode, sig := lookupField(ityp, m.Name) // TODO(gri) no need to go via lookupField
+			if mode != invalid && !isIdentical(sig, m.Type.(Type)) {
+				return m, true
+			}
+		}
+		return
+	}
+
+	// a concrete type implements T if it implements all methods of T.
+	for _, m := range T.Methods {
+		mode, sig := lookupField(typ, m.Name)
+		if mode == invalid {
+			return m, false
+		}
+		if !isIdentical(sig, m.Type.(Type)) {
+			return m, true
+		}
+	}
+	return
 }

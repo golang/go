@@ -278,7 +278,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
 		return as == String || as == UntypedString
 
 	case nilType:
-		return as == UntypedNil
+		return as == UntypedNil || as == UnsafePointer
 
 	default:
 		unreachable()
