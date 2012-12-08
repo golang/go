@@ -40,7 +40,7 @@ func Example() {
 	show("NormFloat64", r.NormFloat64(), r.NormFloat64(), r.NormFloat64())
 
 	// Int31, Int63, and Uint32 generate values of the given width.
-	// The Int method (not shown) is like either Int31 or Int64
+	// The Int method (not shown) is like either Int31 or Int63
 	// depending on the size of 'int'.
 	show("Int31", r.Int31(), r.Int31(), r.Int31())
 	show("Int63", r.Int63(), r.Int63(), r.Int63())
