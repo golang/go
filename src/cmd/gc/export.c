@@ -22,22 +22,8 @@ exportsym(Node *n)
 	}
 	n->sym->flags |= SymExport;
 
-	exportlist = list(exportlist, n);
-}
-
-// Mark n's symbol as package-local
-static void
-packagesym(Node *n)
-{
-	if(n == N || n->sym == S)
-		return;
-	if(n->sym->flags & (SymExport|SymPackage)) {
-		if(n->sym->flags & SymExport)
-			yyerror("export/package mismatch: %S", n->sym);
-		return;
-	}
-	n->sym->flags |= SymPackage;
-
+	if(debug['E'])
+		print("export symbol %S\n", n->sym);
 	exportlist = list(exportlist, n);
 }
 
@@ -58,6 +44,18 @@ initname(char *s)
 	return strcmp(s, "init") == 0;
 }
 
+// exportedsym returns whether a symbol will be visible
+// to files that import our package.
+static int
+exportedsym(Sym *sym)
+{
+	// Builtins are visible everywhere.
+	if(sym->pkg == builtinpkg || sym->origpkg == builtinpkg)
+		return 1;
+
+	return sym->pkg == localpkg && exportname(sym->name);
+}
+
 void
 autoexport(Node *n, int ctxt)
 {
@@ -69,8 +67,6 @@ autoexport(Node *n, int ctxt)
 		return;
 	if(exportname(n->sym->name) || initname(n->sym->name))
 		exportsym(n);
-	else
-		packagesym(n);
 }
 
 static void
@@ -104,17 +100,17 @@ reexportdep(Node *n)
 	if(!n)
 		return;
 
-//	print("reexportdep %+hN\n", n);
+	//print("reexportdep %+hN\n", n);
 	switch(n->op) {
 	case ONAME:
 		switch(n->class&~PHEAP) {
 		case PFUNC:
 			// methods will be printed along with their type
-			if(!n->type || n->type->thistuple > 0)
+			if(n->left && n->left->op == OTYPE)
 				break;
 			// fallthrough
 		case PEXTERN:
-			if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
+			if(n->sym && !exportedsym(n->sym))
 				exportlist = list(exportlist, n);
 		}
 		break;
@@ -125,7 +121,7 @@ reexportdep(Node *n)
 		if(t != types[t->etype] && t != idealbool && t != idealstring) {
 			if(isptr[t->etype])
 				t = t->type;
-			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+			if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
 				exportlist = list(exportlist, t->sym->def);
 			}
 		}
@@ -136,15 +132,19 @@ reexportdep(Node *n)
 		if(t != types[n->type->etype] && t != idealbool && t != idealstring) {
 			if(isptr[t->etype])
 				t = t->type;
-			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
-//				print("reexport literal type %+hN\n", t->sym->def);
+			if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
+				if(debug['E'])
+					print("reexport literal type %S\n", t->sym);
 				exportlist = list(exportlist, t->sym->def);
 			}
 		}
 		// fallthrough
 	case OTYPE:
-		if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
+		if(n->sym && !exportedsym(n->sym)) {
+			if(debug['E'])
+				print("reexport literal/type %S\n", n->sym);
 			exportlist = list(exportlist, n);
+		}
 		break;
 
 	// for operations that need a type when rendered, put the type on the export list.
@@ -158,8 +158,9 @@ reexportdep(Node *n)
 		t = n->type;
 		if(!t->sym && t->type)
 			t = t->type;
-		if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
-//			print("reexport convnop %+hN\n", t->sym->def);
+		if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
+			if(debug['E'])
+				print("reexport type for convnop %S\n", t->sym);
 			exportlist = list(exportlist, t->sym->def);
 		}
 		break;
