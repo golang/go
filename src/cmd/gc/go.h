@@ -1211,6 +1211,7 @@ void	dumptypestructs(void);
 Type*	methodfunc(Type *f, Type*);
 Node*	typename(Type *t);
 Sym*	typesym(Type *t);
+Sym*	typenamesym(Type *t);
 Sym*	tracksym(Type *t);
 Sym*	typesymprefix(char *prefix, Type *t);
 int	haspointers(Type *t);

@@ -652,8 +652,8 @@ typesymprefix(char *prefix, Type *t)
 	return s;
 }
 
-Node*
-typename(Type *t)
+Sym*
+typenamesym(Type *t)
 {
 	Sym *s;
 	Node *n;
@@ -674,7 +674,16 @@ typename(Type *t)
 
 		signatlist = list(signatlist, typenod(t));
 	}
+	return s->def->sym;
+}
 
+Node*
+typename(Type *t)
+{
+	Sym *s;
+	Node *n;
+
+	s = typenamesym(t);
 	n = nod(OADDR, s->def, N);
 	n->type = ptrto(s->def->type);
 	n->addable = 1;
