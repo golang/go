@@ -121,6 +121,8 @@ setaddrs(Bits bit)
 
 static char* regname[] = { ".ax", ".cx", ".dx", ".bx", ".sp", ".bp", ".si", ".di" };
 
+static Node* regnodes[NREGVAR];
+
 void
 regopt(Prog *firstp)
 {
@@ -159,8 +161,11 @@ regopt(Prog *firstp)
 	 */
 	nvar = NREGVAR;
 	memset(var, 0, NREGVAR*sizeof var[0]);
-	for(i=0; i<NREGVAR; i++)
-		var[i].node = newname(lookup(regname[i]));
+	for(i=0; i<NREGVAR; i++) {
+		if(regnodes[i] == N)
+			regnodes[i] = newname(lookup(regname[i]));
+		var[i].node = regnodes[i];
+	}
 
 	regbits = RtoB(D_SP);
 	for(z=0; z<BITS; z++) {

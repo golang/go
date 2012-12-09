@@ -151,6 +151,8 @@ static char* regname[] = {
 	".X15",
 };
 
+static Node* regnodes[NREGVAR];
+
 static void fixjmp(Prog*);
 
 void
@@ -191,8 +193,11 @@ regopt(Prog *firstp)
 	 */
 	nvar = NREGVAR;
 	memset(var, 0, NREGVAR*sizeof var[0]);
-	for(i=0; i<NREGVAR; i++)
-		var[i].node = newname(lookup(regname[i]));
+	for(i=0; i<NREGVAR; i++) {
+		if(regnodes[i] == N)
+			regnodes[i] = newname(lookup(regname[i]));
+		var[i].node = regnodes[i];
+	}
 
 	regbits = RtoB(D_SP);
 	for(z=0; z<BITS; z++) {
