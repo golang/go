@@ -3517,7 +3517,7 @@ ngotype(Node *n)
 {
 	if(n->sym != S && n->realtype != T)
 	if(strncmp(n->sym->name, "autotmp_", 8) != 0)
-		return typename(n->realtype)->left->sym;
+		return typenamesym(n->realtype);
 
 	return S;
 }
