@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"runtime"
 	"strconv"
@@ -191,6 +192,184 @@ func TestNanosecondsToUTCAndBack(t *testing.T) {
 	if err := quick.Check(f, cfg); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// The time routines provide no way to get absolute time
+// (seconds since zero), but we need it to compute the right
+// answer for bizarre roundings like "to the nearest 3 ns".
+// Compute as t - year1 = (t - 1970) + (1970 - 2001) + (2001 - 1).
+// t - 1970 is returned by Unix and Nanosecond.
+// 1970 - 2001 is -(31*365+8)*86400 = -978307200 seconds.
+// 2001 - 1 is 2000*365.2425*86400 = 63113904000 seconds.
+const unixToZero = -978307200 + 63113904000
+
+// abs returns the absolute time stored in t, as seconds and nanoseconds.
+func abs(t Time) (sec, nsec int64) {
+	unix := t.Unix()
+	nano := t.Nanosecond()
+	return unix + unixToZero, int64(nano)
+}
+
+// absString returns abs as a decimal string.
+func absString(t Time) string {
+	sec, nsec := abs(t)
+	if sec < 0 {
+		sec = -sec
+		nsec = -nsec
+		if nsec < 0 {
+			nsec += 1e9
+			sec--
+		}
+		return fmt.Sprintf("-%d%09d", sec, nsec)
+	}
+	return fmt.Sprintf("%d%09d", sec, nsec)
+}
+
+var truncateRoundTests = []struct {
+	t Time
+	d Duration
+}{
+	{Date(-1, January, 1, 12, 15, 30, 5e8, UTC), 3},
+	{Date(-1, January, 1, 12, 15, 31, 5e8, UTC), 3},
+	{Date(2012, January, 1, 12, 15, 30, 5e8, UTC), Second},
+	{Date(2012, January, 1, 12, 15, 31, 5e8, UTC), Second},
+}
+
+func TestTruncateRound(t *testing.T) {
+	var (
+		bsec  = new(big.Int)
+		bnsec = new(big.Int)
+		bd    = new(big.Int)
+		bt    = new(big.Int)
+		br    = new(big.Int)
+		bq    = new(big.Int)
+		b1e9  = new(big.Int)
+	)
+
+	b1e9.SetInt64(1e9)
+
+	testOne := func(ti, tns, di int64) bool {
+		t0 := Unix(ti, int64(tns)).UTC()
+		d := Duration(di)
+		if d < 0 {
+			d = -d
+		}
+		if d <= 0 {
+			d = 1
+		}
+
+		// Compute bt = absolute nanoseconds.
+		sec, nsec := abs(t0)
+		bsec.SetInt64(sec)
+		bnsec.SetInt64(nsec)
+		bt.Mul(bsec, b1e9)
+		bt.Add(bt, bnsec)
+
+		// Compute quotient and remainder mod d.
+		bd.SetInt64(int64(d))
+		bq.DivMod(bt, bd, br)
+
+		// To truncate, subtract remainder.
+		// br is < d, so it fits in an int64.
+		r := br.Int64()
+		t1 := t0.Add(-Duration(r))
+
+		// Check that time.Truncate works.
+		if trunc := t0.Truncate(d); trunc != t1 {
+			t.Errorf("Time.Truncate(%s, %s) = %s, want %s\n"+
+				"%v trunc %v =\n%v want\n%v",
+				t0.Format(RFC3339Nano), d, trunc, t1.Format(RFC3339Nano),
+				absString(t0), int64(d), absString(trunc), absString(t1))
+			return false
+		}
+
+		// To round, add d back if remainder r > d/2 or r == exactly d/2.
+		// The commented out code would round half to even instead of up,
+		// but that makes it time-zone dependent, which is a bit strange.
+		if r > int64(d)/2 || r+r == int64(d) /*&& bq.Bit(0) == 1*/ {
+			t1 = t1.Add(Duration(d))
+		}
+
+		// Check that time.Round works.
+		if rnd := t0.Round(d); rnd != t1 {
+			t.Errorf("Time.Round(%s, %s) = %s, want %s\n"+
+				"%v round %v =\n%v want\n%v",
+				t0.Format(RFC3339Nano), d, rnd, t1.Format(RFC3339Nano),
+				absString(t0), int64(d), absString(rnd), absString(t1))
+			return false
+		}
+		return true
+	}
+
+	// manual test cases
+	for _, tt := range truncateRoundTests {
+		testOne(tt.t.Unix(), int64(tt.t.Nanosecond()), int64(tt.d))
+	}
+
+	// exhaustive near 0
+	for i := 0; i < 100; i++ {
+		for j := 1; j < 100; j++ {
+			testOne(unixToZero, int64(i), int64(j))
+			testOne(unixToZero, -int64(i), int64(j))
+			if t.Failed() {
+				return
+			}
+		}
+	}
+
+	if t.Failed() {
+		return
+	}
+
+	// randomly generated test cases
+	cfg := &quick.Config{MaxCount: 100000}
+	if testing.Short() {
+		cfg.MaxCount = 1000
+	}
+
+	// divisors of Second
+	f1 := func(ti int64, tns int32, logdi int32) bool {
+		d := Duration(1)
+		a, b := uint(logdi%9), (logdi>>16)%9
+		d <<= a
+		for i := 0; i < int(b); i++ {
+			d *= 5
+		}
+		return testOne(ti, int64(tns), int64(d))
+	}
+	quick.Check(f1, cfg)
+
+	// multiples of Second
+	f2 := func(ti int64, tns int32, di int32) bool {
+		d := Duration(di) * Second
+		if d < 0 {
+			d = -d
+		}
+		return testOne(ti, int64(tns), int64(d))
+	}
+	quick.Check(f2, cfg)
+
+	// halfway cases
+	f3 := func(tns, di int64) bool {
+		di &= 0xfffffffe
+		if di == 0 {
+			di = 2
+		}
+		tns -= tns % di
+		if tns < 0 {
+			tns += di / 2
+		} else {
+			tns -= di / 2
+		}
+		return testOne(0, tns, di)
+	}
+	quick.Check(f3, cfg)
+
+	// full generality
+	f4 := func(ti int64, tns int32, di int64) bool {
+		return testOne(ti, int64(tns), di)
+	}
+	quick.Check(f4, cfg)
 }
 
 type TimeFormatTest struct {
