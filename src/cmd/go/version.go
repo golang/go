@@ -21,5 +21,5 @@ func runVersion(cmd *Command, args []string) {
 		cmd.Usage()
 	}
 
-	fmt.Printf("go version %s\n", runtime.Version())
+	fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 }
