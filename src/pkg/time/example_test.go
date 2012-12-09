@@ -56,3 +56,58 @@ func ExampleDate() {
 	fmt.Printf("Go launched at %s\n", t.Local())
 	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
 }
+
+func ExampleTime_Round() {
+	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
+	round := []time.Duration{
+		time.Nanosecond,
+		time.Microsecond,
+		time.Millisecond,
+		time.Second,
+		2 * time.Second,
+		time.Minute,
+		10 * time.Minute,
+		time.Hour,
+	}
+
+	for _, d := range round {
+		fmt.Printf("t.Round(%6s) = %s\n", d, t.Round(d).Format("15:04:05.999999999"))
+	}
+	// Output:
+	// t.Round(   1ns) = 12:15:30.918273645
+	// t.Round(   1us) = 12:15:30.918274
+	// t.Round(   1ms) = 12:15:30.918
+	// t.Round(    1s) = 12:15:31
+	// t.Round(    2s) = 12:15:30
+	// t.Round(  1m0s) = 12:16:00
+	// t.Round( 10m0s) = 12:20:00
+	// t.Round(1h0m0s) = 12:00:00
+}
+
+func ExampleTime_Truncate() {
+	t, _ := time.Parse("2006 Jan 02 15:04:05", "2012 Dec 07 12:15:30.918273645")
+	trunc := []time.Duration{
+		time.Nanosecond,
+		time.Microsecond,
+		time.Millisecond,
+		time.Second,
+		2 * time.Second,
+		time.Minute,
+		10 * time.Minute,
+		time.Hour,
+	}
+
+	for _, d := range trunc {
+		fmt.Printf("t.Truncate(%6s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
+	}
+
+	// Output:
+	// t.Truncate(   1ns) = 12:15:30.918273645
+	// t.Truncate(   1us) = 12:15:30.918273
+	// t.Truncate(   1ms) = 12:15:30.918
+	// t.Truncate(    1s) = 12:15:30
+	// t.Truncate(    2s) = 12:15:30
+	// t.Truncate(  1m0s) = 12:15:00
+	// t.Truncate( 10m0s) = 12:10:00
+	// t.Truncate(1h0m0s) = 12:00:00
+}
