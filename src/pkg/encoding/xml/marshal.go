@@ -45,7 +45,7 @@ const (
 //     - a field with tag "name,attr" becomes an attribute with
 //       the given name in the XML element.
 //     - a field with tag ",attr" becomes an attribute with the
-//       field name in the in the XML element.
+//       field name in the XML element.
 //     - a field with tag ",chardata" is written as character data,
 //       not as an XML element.
 //     - a field with tag ",innerxml" is written verbatim, not subject
