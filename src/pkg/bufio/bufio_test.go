@@ -939,6 +939,29 @@ func (w *writeCountingDiscard) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+type negativeReader int
+
+func (r *negativeReader) Read([]byte) (int, error) { return -1, nil }
+
+func TestNegativeRead(t *testing.T) {
+	// should panic with a description pointing at the reader, not at itself.
+	// (should NOT panic with slice index error, for example.)
+	b := NewReader(new(negativeReader))
+	defer func() {
+		switch err := recover().(type) {
+		case nil:
+			t.Fatal("read did not panic")
+		case error:
+			if !strings.Contains(err.Error(), "reader returned negative count from Read") {
+				t.Fatal("wrong panic: %v", err)
+			}
+		default:
+			t.Fatalf("unexpected panic value: %T(%v)", err, err)
+		}
+	}()
+	b.Read(make([]byte, 100))
+}
+
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
 type onlyReader struct {
 	r io.Reader
