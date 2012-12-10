@@ -72,6 +72,19 @@ calls the debug/elf functions Symbols or ImportedSymbols may need to be
 adjusted to account for the additional symbol and the change in symbol offsets.
 </p>
 
+<h3 id="net">net</h3>
+
+<p>
+The protocol-specific resolvers were formerly
+lax about the network name passed in. For example, although the documentation was clear
+that the only valid networks for <code>ResolveTCPAddr</code> are <code>"tcp"</code>,
+<code>"tcp4"</code>, and <code>"tcp6"</code>, the Go 1.0 implementation silently accepted
+any string. The Go 1.1 implementation returns an error if the network is not one of those strings.
+The same is true of the other protocol-specific resolvers <code>ResolveIPAddr</code>, <code>ResolveUDPAddr</code>, and
+<code>ResolveUnixAddr</code>.
+</p>
+
+
 <h3 id="time">time</h3>
 <p>
 On Linux, previous versions of the time package returned times with
