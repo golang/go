@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +75,39 @@ func TestWriter(t *testing.T) {
 	part, err = r.NextPart()
 	if part != nil || err == nil {
 		t.Fatalf("expected end of parts; got %v, %v", part, err)
+	}
+}
+
+func TestWriterSetBoundary(t *testing.T) {
+	var b bytes.Buffer
+	w := NewWriter(&b)
+	tests := []struct {
+		b  string
+		ok bool
+	}{
+		{"abc", true},
+		{"", false},
+		{"ungültig", false},
+		{"!", false},
+		{strings.Repeat("x", 69), true},
+		{strings.Repeat("x", 70), false},
+		{"bad!ascii!", false},
+		{"my-separator", true},
+	}
+	for i, tt := range tests {
+		err := w.SetBoundary(tt.b)
+		got := err == nil
+		if got != tt.ok {
+			t.Errorf("%d. boundary %q = %v (%v); want %v", i, tt.b, got, err, tt.ok)
+		} else if tt.ok {
+			got := w.Boundary()
+			if got != tt.b {
+				t.Errorf("boundary = %q; want %q", got, tt.b)
+			}
+		}
+	}
+	w.Close()
+	if got := b.String(); !strings.Contains(got, "\r\n--my-separator--\r\n") {
+		t.Errorf("expected my-separator in output. got: %q", got)
 	}
 }
