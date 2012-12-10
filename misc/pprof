@@ -2982,32 +2982,32 @@ print STDERR "Read $url\n";
 
 sub IsProfileURL {
   my $profile_name = shift;
-  my ($host, $port, $prefix, $path) = ParseProfileURL($profile_name);
+  my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($profile_name);
   return defined($host) and defined($port) and defined($path);
 }
 
 sub ParseProfileURL {
   my $profile_name = shift;
   if (defined($profile_name) &&
-      $profile_name =~ m,^(http://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
+      $profile_name =~ m,^(?:(https?)://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
     # $7 is $PROFILE_PAGE/$HEAP_PAGE/etc.  $5 is *everything* after
     # the hostname, as long as that everything is the empty string,
     # a slash, or something ending in $PROFILE_PAGE/$HEAP_PAGE/etc.
     # So "$7 || $5" is $PROFILE_PAGE/etc if there, or else it's "/" or "".
-    return ($2, $3, $6, $7 || $5);
+    return ($1 || "http", $2, $3, $6, $7 || $5);
   }
   return ();
 }
 
 # We fetch symbols from the first profile argument.
 sub SymbolPageURL {
-  my ($host, $port, $prefix, $path) = ParseProfileURL($main::pfile_args[0]);
-  return "http://$host:$port$prefix$SYMBOL_PAGE";
+  my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($main::pfile_args[0]);
+  return "$scheme://$host:$port$prefix$SYMBOL_PAGE";
 }
 
 sub FetchProgramName() {
-  my ($host, $port, $prefix, $path) = ParseProfileURL($main::pfile_args[0]);
-  my $url = "http://$host:$port$prefix$PROGRAM_NAME_PAGE";
+  my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($main::pfile_args[0]);
+  my $url = "$scheme://$host:$port$prefix$PROGRAM_NAME_PAGE";
   my $command_line = "$CURL -s '$url'";
   open(CMDLINE, "$command_line |") or error($command_line);
   my $cmdline = <CMDLINE>;
@@ -3139,7 +3139,7 @@ sub BaseName {
 
 sub MakeProfileBaseName {
   my ($binary_name, $profile_name) = @_;
-  my ($host, $port, $prefix, $path) = ParseProfileURL($profile_name);
+  my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($profile_name);
   my $binary_shortname = BaseName($binary_name);
   return sprintf("%s.%s.%s-port%s",
                  $binary_shortname, $main::op_time, $host, $port);
@@ -3154,7 +3154,7 @@ sub FetchDynamicProfile {
   if (!IsProfileURL($profile_name)) {
     return $profile_name;
   } else {
-    my ($host, $port, $prefix, $path) = ParseProfileURL($profile_name);
+    my ($scheme, $host, $port, $prefix, $path) = ParseProfileURL($profile_name);
     if ($path eq "" || $path eq "/") {
       # Missing type specifier defaults to cpu-profile
       $path = $PROFILE_PAGE;
@@ -3166,7 +3166,7 @@ sub FetchDynamicProfile {
     my $curl_timeout;
     if (($path =~ m/$PROFILE_PAGE/) || ($path =~ m/$PMUPROFILE_PAGE/)) {
       if ($path =~ m/$PROFILE_PAGE/) {
-        $url = sprintf("http://$host:$port$prefix$path?seconds=%d",
+        $url = sprintf("$scheme://$host:$port$prefix$path?seconds=%d",
             $main::opt_seconds);
       } else {
         if ($profile_name =~ m/[?]/) {
@@ -3174,7 +3174,7 @@ sub FetchDynamicProfile {
         } else {
           $profile_name .= "?"
         }
-        $url = sprintf("http://$profile_name" . "seconds=%d",
+        $url = sprintf("$scheme://$profile_name" . "seconds=%d",
             $main::opt_seconds);
       }
       $curl_timeout = sprintf("--max-time %d",
@@ -3185,7 +3185,7 @@ sub FetchDynamicProfile {
       my $suffix = $path;
       $suffix =~ s,/,.,g;
       $profile_file .= "$suffix";
-      $url = "http://$host:$port$prefix$path";
+      $url = "$scheme://$host:$port$prefix$path";
       $curl_timeout = "";
     }
 
@@ -3212,6 +3212,10 @@ sub FetchDynamicProfile {
     }
 
     (system($cmd) == 0) || error("Failed to get profile: $cmd: $!\n");
+    open(TMPPROF, "$tmp_profile") || error("Cannot open $tmp_profile: $!\n");
+    my $line = <TMPPROF>;
+    close(TMPPROF);
+    $line !~ /^Could not enable CPU profiling/ || error($line);
     (system("mv $tmp_profile $real_profile") == 0) || error("Unable to rename profile\n");
     print STDERR "Wrote profile to $real_profile\n";
     $main::collected_profile = $real_profile;
