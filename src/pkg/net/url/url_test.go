@@ -277,7 +277,7 @@ func TestParse(t *testing.T) {
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
 
-var parseRequestUrlTests = []struct {
+var parseRequestURLTests = []struct {
 	url           string
 	expectedValid bool
 }{
@@ -289,10 +289,11 @@ var parseRequestUrlTests = []struct {
 	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
 	{"foo.html", false},
 	{"../dir/", false},
+	{"*", true},
 }
 
 func TestParseRequestURI(t *testing.T) {
-	for _, test := range parseRequestUrlTests {
+	for _, test := range parseRequestURLTests {
 		_, err := ParseRequestURI(test.url)
 		valid := err == nil
 		if valid != test.expectedValid {

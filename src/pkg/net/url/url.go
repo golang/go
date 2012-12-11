@@ -361,6 +361,11 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	}
 	url = new(URL)
 
+	if rawurl == "*" {
+		url.Path = "*"
+		return
+	}
+
 	// Split off possible leading "http:", "mailto:", etc.
 	// Cannot contain escaped characters.
 	if url.Scheme, rest, err = getscheme(rawurl); err != nil {

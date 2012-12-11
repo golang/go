@@ -247,6 +247,54 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
+
+	// SSDP Notify request. golang.org/issue/3692
+	{
+		"NOTIFY * HTTP/1.1\r\nServer: foo\r\n\r\n",
+		&Request{
+			Method: "NOTIFY",
+			URL: &url.URL{
+				Path: "*",
+			},
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header: Header{
+				"Server": []string{"foo"},
+			},
+			Close:         false,
+			ContentLength: 0,
+			RequestURI:    "*",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
+
+	// OPTIONS request. Similar to golang.org/issue/3692
+	{
+		"OPTIONS * HTTP/1.1\r\nServer: foo\r\n\r\n",
+		&Request{
+			Method: "OPTIONS",
+			URL: &url.URL{
+				Path: "*",
+			},
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header: Header{
+				"Server": []string{"foo"},
+			},
+			Close:         false,
+			ContentLength: 0,
+			RequestURI:    "*",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {
