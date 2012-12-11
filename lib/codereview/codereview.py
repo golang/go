@@ -807,7 +807,7 @@ def EditCL(ui, repo, cl):
 # For use by submit, etc. (NOT by change)
 # Get change list number or list of files from command line.
 # If files are given, make a new change list.
-def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
+def CommandLineCL(ui, repo, pats, opts, op="verb", defaultcc=None):
 	if len(pats) > 0 and GoodCLName(pats[0]):
 		if len(pats) != 1:
 			return None, "cannot specify change number and file names"
@@ -821,7 +821,7 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 		cl.local = True
 		cl.files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
 		if not cl.files:
-			return None, "no files changed"
+			return None, "no files changed (use hg %s <number> to use existing CL)" % op
 	if opts.get('reviewer'):
 		cl.reviewer = Add(cl.reviewer, SplitCommaSpace(opts.get('reviewer')))
 	if opts.get('cc'):
@@ -1792,7 +1792,7 @@ def mail(ui, repo, *pats, **opts):
 	if codereview_disabled:
 		raise hg_util.Abort(codereview_disabled)
 
-	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
+	cl, err = CommandLineCL(ui, repo, pats, opts, op="mail", defaultcc=defaultcc)
 	if err != "":
 		raise hg_util.Abort(err)
 	cl.Upload(ui, repo, gofmt_just_warn=True)
@@ -1881,7 +1881,7 @@ def submit(ui, repo, *pats, **opts):
 	if not opts["no_incoming"] and hg_incoming(ui, repo):
 		need_sync()
 
-	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
+	cl, err = CommandLineCL(ui, repo, pats, opts, op="submit", defaultcc=defaultcc)
 	if err != "":
 		raise hg_util.Abort(err)
 
