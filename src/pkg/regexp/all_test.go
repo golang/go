@@ -30,53 +30,52 @@ var good_re = []string{
 	`\!\\`,
 }
 
-/*
 type stringError struct {
 	re  string
-	err error
+	err string
 }
 
 var bad_re = []stringError{
-	{`*`, ErrBareClosure},
-	{`+`, ErrBareClosure},
-	{`?`, ErrBareClosure},
-	{`(abc`, ErrUnmatchedLpar},
-	{`abc)`, ErrUnmatchedRpar},
-	{`x[a-z`, ErrUnmatchedLbkt},
-	{`abc]`, ErrUnmatchedRbkt},
-	{`[z-a]`, ErrBadRange},
-	{`abc\`, ErrExtraneousBackslash},
-	{`a**`, ErrBadClosure},
-	{`a*+`, ErrBadClosure},
-	{`a??`, ErrBadClosure},
-	{`\x`, ErrBadBackslash},
+	{`*`, "missing argument to repetition operator: `*`"},
+	{`+`, "missing argument to repetition operator: `+`"},
+	{`?`, "missing argument to repetition operator: `?`"},
+	{`(abc`, "missing closing ): `(abc`"},
+	{`abc)`, "unexpected ): `abc)`"},
+	{`x[a-z`, "missing closing ]: `[a-z`"},
+	{`[z-a]`, "invalid character class range: `z-a`"},
+	{`abc\`, "trailing backslash at end of expression"},
+	{`a**`, "invalid nested repetition operator: `**`"},
+	{`a*+`, "invalid nested repetition operator: `*+`"},
+	{`\x`, "invalid escape sequence: `\\x`"},
 }
-*/
 
-func compileTest(t *testing.T, expr string, error error) *Regexp {
+func compileTest(t *testing.T, expr string, error string) *Regexp {
 	re, err := Compile(expr)
-	if err != error {
+	if error == "" && err != nil {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.Error())
+	}
+	if error != "" && err == nil {
+		t.Error("compiling `", expr, "`; missing error")
+	} else if error != "" && !strings.Contains(err.Error(), error) {
+		t.Error("compiling `", expr, "`; wrong error: ", err.Error(), "; want ", error)
 	}
 	return re
 }
 
 func TestGoodCompile(t *testing.T) {
 	for i := 0; i < len(good_re); i++ {
-		compileTest(t, good_re[i], nil)
+		compileTest(t, good_re[i], "")
 	}
 }
 
-/*
 func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
 		compileTest(t, bad_re[i].re, bad_re[i].err)
 	}
 }
-*/
 
 func matchTest(t *testing.T, test *FindTest) {
-	re := compileTest(t, test.pat, nil)
+	re := compileTest(t, test.pat, "")
 	if re == nil {
 		return
 	}
