@@ -1000,7 +1000,7 @@ promoted methods are included in the method set of the struct as follows:
 	<code>T</code>. The method set of <code>*S</code> also
 	includes promoted methods with receiver <code>*T</code>.
 	</li>
-	
+
 	<li>
 	If <code>S</code> contains an anonymous field <code>*T</code>,
 	the method sets of <code>S</code> and <code>*S</code> both
@@ -3359,7 +3359,7 @@ these five invocations are equivalent:
 <pre>
 t.Mv(7)
 T.Mv(t, 7)
-(T).Mv(t, t)
+(T).Mv(t, 7)
 f1 := T.Mv; f1(t, 7)
 f2 := (T).Mv; f2(t, 7)
 </pre>
