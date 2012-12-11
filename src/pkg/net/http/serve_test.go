@@ -1288,6 +1288,58 @@ For:
 	ts.Close()
 }
 
+func TestOptions(t *testing.T) {
+	uric := make(chan string, 2) // only expect 1, but leave space for 2
+	mux := NewServeMux()
+	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {
+		uric <- r.RequestURI
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// An OPTIONS * request should succeed.
+	_, err = conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	br := bufio.NewReader(conn)
+	res, err := ReadResponse(br, &Request{Method: "OPTIONS"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Errorf("Got non-200 response to OPTIONS *: %#v", res)
+	}
+
+	// A GET * request on a ServeMux should fail.
+	_, err = conn.Write([]byte("GET * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = ReadResponse(br, &Request{Method: "GET"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 400 {
+		t.Errorf("Got non-400 response to GET *: %#v", res)
+	}
+
+	res, err = Get(ts.URL + "/second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if got := <-uric; got != "/second" {
+		t.Errorf("Handler saw request for %q; want /second", got)
+	}
+}
+
 // goTimeout runs f, failing t if f takes more than ns to complete.
 func goTimeout(t *testing.T, d time.Duration, f func()) {
 	ch := make(chan bool, 2)

@@ -770,6 +770,9 @@ func (c *conn) serve() {
 		if handler == nil {
 			handler = DefaultServeMux
 		}
+		if req.RequestURI == "*" && req.Method == "OPTIONS" {
+			handler = globalOptionsHandler{}
+		}
 
 		// HTTP cannot have multiple simultaneous active requests.[*]
 		// Until the server replies to this request, it can't read another,
@@ -1085,6 +1088,11 @@ func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
 // ServeHTTP dispatches the request to the handler whose
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+	if r.RequestURI == "*" {
+		w.Header().Set("Connection", "close")
+		w.WriteHeader(StatusBadRequest)
+		return
+	}
 	h, _ := mux.Handler(r)
 	h.ServeHTTP(w, r)
 }
@@ -1406,6 +1414,22 @@ func (tw *timeoutWriter) WriteHeader(code int) {
 	tw.wroteHeader = true
 	tw.mu.Unlock()
 	tw.w.WriteHeader(code)
+}
+
+// globalOptionsHandler responds to "OPTIONS *" requests.
+type globalOptionsHandler struct{}
+
+func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
+	w.Header().Set("Content-Length", "0")
+	if r.ContentLength != 0 {
+		// Read up to 4KB of OPTIONS body (as mentioned in the
+		// spec as being reserved for future use), but anything
+		// over that is considered a waste of server resources
+		// (or an attack) and we abort and close the connection,
+		// courtesy of MaxBytesReader's EOF behavior.
+		mb := MaxBytesReader(w, r.Body, 4<<10)
+		io.Copy(ioutil.Discard, mb)
+	}
 }
 
 // loggingConn is used for debugging.
