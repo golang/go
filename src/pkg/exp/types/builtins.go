@@ -128,13 +128,50 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.mode = novalue
 
 	case _Complex:
+		if !check.complexArg(x) {
+			goto Error
+		}
+
 		var y operand
 		check.expr(&y, args[1], nil, iota)
 		if y.mode == invalid {
 			goto Error
 		}
-		// TODO(gri) handle complex(a, b) like (a + toImag(b))
-		unimplemented()
+		if !check.complexArg(&y) {
+			goto Error
+		}
+
+		check.convertUntyped(x, y.typ)
+		if x.mode == invalid {
+			goto Error
+		}
+		check.convertUntyped(&y, x.typ)
+		if y.mode == invalid {
+			goto Error
+		}
+
+		if !isIdentical(x.typ, y.typ) {
+			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+			goto Error
+		}
+
+		if x.mode == constant && y.mode == constant {
+			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, false)
+		} else {
+			x.mode = value
+		}
+
+		switch underlying(x.typ).(*Basic).Kind {
+		case Float32:
+			x.typ = Typ[Complex64]
+		case Float64:
+			x.typ = Typ[Complex128]
+		case UntypedInt, UntypedRune, UntypedFloat:
+			x.typ = Typ[UntypedComplex]
+		default:
+			check.invalidArg(x.pos(), "float32 or float64 arguments expected")
+			goto Error
+		}
 
 	case _Copy:
 		// TODO(gri) implements checks
@@ -360,4 +397,13 @@ func unparen(x ast.Expr) ast.Expr {
 		return unparen(p.X)
 	}
 	return x
+}
+
+func (check *checker) complexArg(x *operand) bool {
+	t, _ := underlying(x.typ).(*Basic)
+	if t != nil && (t.Info&IsFloat != 0 || t.Kind == UntypedInt || t.Kind == UntypedRune) {
+		return true
+	}
+	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
+	return false
 }
