@@ -92,8 +92,15 @@ func (w *Writer) Write(record []string) (err error) {
 }
 
 // Flush writes any buffered data to the underlying io.Writer.
+// To check if an error occured during the Flush, call Error.
 func (w *Writer) Flush() {
 	w.w.Flush()
+}
+
+// Error reports any error that has occurred during a previous Write or Flush.
+func (w *Writer) Error() error {
+	_, err := w.w.Write(nil)
+	return err
 }
 
 // WriteAll writes multiple CSV records to w using Write and then calls Flush.
