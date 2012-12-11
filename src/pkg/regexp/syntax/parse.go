@@ -42,10 +42,8 @@ const (
 	ErrMissingParen          ErrorCode = "missing closing )"
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
+	ErrUnexpectedParen       ErrorCode = "unexpected )"
 )
-
-// TODO: Export for Go 1.1.
-const errUnexpectedParen ErrorCode = "unexpected )"
 
 func (e ErrorCode) String() string {
 	return string(e)
@@ -1167,13 +1165,13 @@ func (p *parser) parseRightParen() error {
 
 	n := len(p.stack)
 	if n < 2 {
-		return &Error{errUnexpectedParen, p.wholeRegexp}
+		return &Error{ErrUnexpectedParen, p.wholeRegexp}
 	}
 	re1 := p.stack[n-1]
 	re2 := p.stack[n-2]
 	p.stack = p.stack[:n-2]
 	if re2.Op != opLeftParen {
-		return &Error{errUnexpectedParen, p.wholeRegexp}
+		return &Error{ErrUnexpectedParen, p.wholeRegexp}
 	}
 	// Restore flags at time of paren.
 	p.flags = re2.Flags
