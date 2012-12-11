@@ -82,10 +82,10 @@ Bjorn Tipling <bjorn.tipling@gmail.com>
 Blake Mizerany <blake.mizerany@gmail.com>
 Bobby Powers <bobbypowers@gmail.com>
 Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+Brendan O'Dea <bod@golang.org>
 Brian Dellisanti <briandellisanti@gmail.com>
 Brian Ketelsen <bketelsen@gmail.com>
 Brian Slesinsky <skybrian@google.com>
-Brendan O'Dea <bod@golang.org>
 Caine Tighe <arctanofyourface@gmail.com>
 Carl Mastrangelo <notcarl@google.com>
 Carlos Castillo <cookieo9@gmail.com>
@@ -241,8 +241,8 @@ Martin Neubauer <m.ne@gmx.net>
 Mateusz Czapliński <czapkofan@gmail.com>
 Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
 Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
-Matt Jones <mrjones@google.com>
 Matt Jibson <matt.jibson@gmail.com>
+Matt Jones <mrjones@google.com>
 Matthew Horsnell <matthew.horsnell@gmail.com>
 Maxim Pimenov <mpimenov@google.com>
 Maxim Ushakov <ushakov@google.com>
@@ -281,24 +281,24 @@ Patrick Gavlin <pgavlin@gmail.com>
 Patrick Higgins <patrick.allen.higgins@gmail.com>
 Patrick Mylund Nielsen <patrick@patrickmn.com>
 Patrick Smith <pat42smith@gmail.com>
-Pawel Szczur <filemon@google.com>
 Paul Borman <borman@google.com>
 Paul Chang <paulchang@google.com>
 Paul Lalonde <paul.a.lalonde@gmail.com>
 Paul Sbarra <Sbarra.Paul@gmail.com>
+Pawel Szczur <filemon@google.com>
 Petar Maymounkov <petarm@gmail.com>
 Peter Armitage <peter.armitage@gmail.com>
 Peter Froehlich <peter.hans.froehlich@gmail.com>
 Peter Kleiweg <pkleiweg@xs4all.nl>
 Peter McKenzie <petermck@google.com>
 Peter Mundy <go.peter.90@gmail.com>
+Péter Surányi <speter.go1@gmail.com>
+Péter Szabó <pts@google.com>
 Peter Waller <peter.waller@gmail.com>
 Peter Weinberger <pjw@golang.org>
 Peter Williams <pwil3058@gmail.com>
 Phil Pennock <pdp@golang.org>
 Pieter Droogendijk <pieter@binky.org.uk>
-Péter Surányi <speter.go1@gmail.com>
-Péter Szabó <pts@google.com>
 Quan Yong Zhai <qyzhai@gmail.com>
 Raif S. Naffah <go@naffah-raif.name>
 Raph Levien <raph@google.com>
@@ -318,6 +318,7 @@ Ross Light <rlight2@gmail.com>
 Russ Cox <rsc@golang.org>
 Ryan Barrett <ryanb@google.com>
 Ryan Hitchman <hitchmanr@gmail.com>
+Ryan Slade <ryanslade@gmail.com>
 Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
 Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>
 Sanjay Menakuru <balasanjay@gmail.com>
