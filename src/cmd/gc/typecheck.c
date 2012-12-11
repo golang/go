@@ -1791,8 +1791,6 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 		if(f1 == T)
 			return 0;
 
-		if(f1->width == BADWIDTH)
-			fatal("lookdot badwidth %T %p", f1, f1);
 		n->right = methodname(n->right, t);
 		n->xoffset = f1->width;
 		n->type = f1->type;
