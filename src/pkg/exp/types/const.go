@@ -157,6 +157,22 @@ func makeStringConst(lit string) interface{} {
 	return nil
 }
 
+// toImagConst returns the constant complex(0, x) for a non-complex x.
+func toImagConst(x interface{}) interface{} {
+	var im *big.Rat
+	switch x := x.(type) {
+	case int64:
+		im = big.NewRat(x, 1)
+	case *big.Int:
+		im = new(big.Rat).SetFrac(x, int1)
+	case *big.Rat:
+		im = x
+	default:
+		unreachable()
+	}
+	return complex{rat0, im}
+}
+
 // isZeroConst reports whether the value of constant x is 0.
 // x must be normalized.
 //

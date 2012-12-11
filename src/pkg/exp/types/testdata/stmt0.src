@@ -101,7 +101,31 @@ func _switches() {
 	default /* ERROR "multiple defaults" */ :
 	}
 
-	// TODO(gri) more tests
+	switch {
+	case 1  /* ERROR "cannot convert" */ :
+	}
+
+	switch int32(x) {
+	case 1, 2:
+	case x /* ERROR "cannot compare" */ :
+	}
+
+	switch x {
+	case 1 /* ERROR "overflows int" */ << 100:
+	}
+
+	switch x {
+	case 1:
+	case 1 /* ERROR "duplicate case" */ :
+	case 2, 3, 4:
+	case 1 /* ERROR "duplicate case" */ :
+	}
+
+	// TODO(gri) duplicate 64bit values that don't fit into an int64 are not yet detected
+	switch uint64(x) {
+	case 1<<64-1:
+	case 1<<64-1:
+	}
 }
 
 type I interface {

@@ -46,10 +46,33 @@ func _close() {
 }
 
 func _complex() {
-	_0 := complex /* ERROR "argument" */ ()
-	_1 := complex /* ERROR "argument" */ (1)
-	_2 := complex(1, 2)
-	// TODO(gri) add tests checking types
+	var i32 int32
+	var f32 float32
+	var f64 float64
+	var c64 complex64
+	_ = complex /* ERROR "argument" */ ()
+	_ = complex /* ERROR "argument" */ (1)
+	_ = complex(true /* ERROR "invalid argument" */ , 0)
+	_ = complex(i32 /* ERROR "invalid argument" */ , 0)
+	_ = complex("foo" /* ERROR "invalid argument" */ , 0)
+	_ = complex(c64 /* ERROR "invalid argument" */ , 0)
+	_ = complex(0, true /* ERROR "invalid argument" */ )
+	_ = complex(0, i32 /* ERROR "invalid argument" */ )
+	_ = complex(0, "foo" /* ERROR "invalid argument" */ )
+	_ = complex(0, c64 /* ERROR "invalid argument" */ )
+	_ = complex(f32, f32)
+	_ = complex(f32, 1)
+	_ = complex(f32, 1.0)
+	_ = complex(f32, 'a')
+	_ = complex(f64, f64)
+	_ = complex(f64, 1)
+	_ = complex(f64, 1.0)
+	_ = complex(f64, 'a')
+	_ = complex(f32 /* ERROR "mismatched types" */, f64)
+	_ = complex(f64 /* ERROR "mismatched types" */, f32)
+	_ = complex(1, 1)
+	_ = complex(1, 1.1)
+	_ = complex(1, 'a')
 	complex /* ERROR "not used" */ (1, 2)
 }
 

@@ -99,9 +99,9 @@ var tests = []string{
 	"encoding/asn1",
 	"encoding/base32",
 	"encoding/base64",
-	// "encoding/binary", // complex() doesn't work yet
+	"encoding/binary",
 	"encoding/csv",
-	// "encoding/gob", // complex() doesn't work yet
+	"encoding/gob",
 	"encoding/hex",
 	"encoding/json",
 	"encoding/pem",
@@ -146,7 +146,7 @@ var tests = []string{
 
 	"math",
 	// "math/big", // investigate
-	// "math/cmplx", // complex doesn't work yet
+	"math/cmplx",
 	"math/rand",
 
 	"mime",
