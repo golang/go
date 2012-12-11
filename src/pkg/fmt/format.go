@@ -428,6 +428,7 @@ func (f *fmt) fmt_fb32(v float32) { f.formatFloat(float64(v), 'b', 0, 32) }
 func (f *fmt) fmt_c64(v complex64, verb rune) {
 	f.buf.WriteByte('(')
 	r := real(v)
+	oldPlus := f.plus
 	for i := 0; ; i++ {
 		switch verb {
 		case 'e':
@@ -447,6 +448,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
 		f.plus = true
 		r = imag(v)
 	}
+	f.plus = oldPlus
 	f.buf.Write(irparenBytes)
 }
 
@@ -454,6 +456,7 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
 func (f *fmt) fmt_c128(v complex128, verb rune) {
 	f.buf.WriteByte('(')
 	r := real(v)
+	oldPlus := f.plus
 	for i := 0; ; i++ {
 		switch verb {
 		case 'e':
@@ -473,5 +476,6 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
 		f.plus = true
 		r = imag(v)
 	}
+	f.plus = oldPlus
 	f.buf.Write(irparenBytes)
 }
