@@ -51,6 +51,13 @@ func (z *Int) SetInt64(x int64) *Int {
 	return z
 }
 
+// SetUint64 sets z to x and returns z.
+func (z *Int) SetUint64(x uint64) *Int {
+	z.abs = z.abs.setUint64(uint64(x))
+	z.neg = false
+	return z
+}
+
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
 	return new(Int).SetInt64(x)
@@ -515,6 +522,19 @@ func (x *Int) Int64() int64 {
 	}
 	if x.neg {
 		v = -v
+	}
+	return v
+}
+
+// Uint64 returns the int64 representation of x.
+// If x cannot be represented in an uint64, the result is undefined.
+func (x *Int) Uint64() uint64 {
+	if len(x.abs) == 0 {
+		return 0
+	}
+	v := uint64(x.abs[0])
+	if _W == 32 && len(x.abs) > 1 {
+		v |= uint64(x.abs[1]) << 32
 	}
 	return v
 }

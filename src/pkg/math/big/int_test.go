@@ -1135,6 +1135,36 @@ func TestInt64(t *testing.T) {
 	}
 }
 
+var uint64Tests = []uint64{
+	0,
+	1,
+	4294967295,
+	4294967296,
+	8589934591,
+	8589934592,
+	9223372036854775807,
+	9223372036854775808,
+	18446744073709551615, // 1<<64 - 1
+}
+
+func TestUint64(t *testing.T) {
+	in := new(Int)
+	for i, testVal := range uint64Tests {
+		in.SetUint64(testVal)
+		out := in.Uint64()
+
+		if out != testVal {
+			t.Errorf("#%d got %d want %d", i, out, testVal)
+		}
+
+		str := fmt.Sprint(testVal)
+		strOut := in.String()
+		if strOut != str {
+			t.Errorf("#%d.String got %s want %s", i, strOut, str)
+		}
+	}
+}
+
 var bitwiseTests = []struct {
 	x, y                 string
 	and, or, xor, andNot string
