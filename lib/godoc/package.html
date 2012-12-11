@@ -17,10 +17,10 @@
 			</dl>
 			<dl>
 			<dd><a href="#pkg-overview" class="overviewLink">Overview</a></dd>
+			<dd><a href="#pkg-index" class="indexLink">Index</a></dd>
 			{{if $.Examples}}
 				<dd><a href="#pkg-examples" class="examplesLink">Examples</a></dd>
 			{{end}}
-			<dd><a href="#pkg-index" class="indexLink">Index</a></dd>
 			{{if $.Dirs}}
 				<dd><a href="#pkg-subdirectories">Subdirectories</a></dd>
 			{{end}}
@@ -38,22 +38,6 @@
 		</div>
 		{{example_html "" $.Examples $.FSet}}
 
-		{{if $.Examples}}
-		<div id="pkg-examples" class="toggleVisible">
-			<div class="collapsed">
-				<h2 class="toggleButton" title="Click to show Examples section">Examples ▹</h2>
-			</div>
-			<div class="expanded">
-				<h2 class="toggleButton" title="Click to hide Examples section">Examples ▾</h2>
-				<dl>
-				{{range $.Examples}}
-				<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
-				{{end}}
-				</dl>
-			</div>
-		</div>
-		{{end}}
-	
 		<div id="pkg-index" class="toggleVisible">
 		<div class="collapsed">
 			<h2 class="toggleButton" title="Click to show Index section">Index ▹</h2>
@@ -92,6 +76,17 @@
 			</dl>
 			</div><!-- #manual-nav -->
 
+		{{if $.Examples}}
+		<div id="pkg-examples">
+			<h4>Examples</h4>
+			<dl>
+			{{range $.Examples}}
+			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>
+			{{end}}
+			</dl>
+		</div>
+		{{end}}
+	
 		{{with .Filenames}}
 			<h4>Package files</h4>
 			<p>
