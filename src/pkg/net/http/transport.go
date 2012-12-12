@@ -144,6 +144,9 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 		}
 		return rt.RoundTrip(req)
 	}
+	if req.URL.Host == "" {
+		return nil, errors.New("http: no Host in request URL")
+	}
 	treq := &transportRequest{Request: req}
 	cm, err := t.connectMethodForRequest(treq)
 	if err != nil {

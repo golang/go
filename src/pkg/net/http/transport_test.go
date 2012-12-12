@@ -1062,6 +1062,20 @@ func TestTransportAltProto(t *testing.T) {
 	}
 }
 
+func TestTransportNoHost(t *testing.T) {
+	tr := &Transport{}
+	_, err := tr.RoundTrip(&Request{
+		Header: make(Header),
+		URL: &url.URL{
+			Scheme: "http",
+		},
+	})
+	want := "http: no Host in request URL"
+	if got := fmt.Sprint(err); got != want {
+		t.Errorf("error = %v; want %q", err, want)
+	}
+}
+
 var proxyFromEnvTests = []struct {
 	env     string
 	wanturl string
