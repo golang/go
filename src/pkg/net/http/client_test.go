@@ -7,6 +7,7 @@
 package http_test
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -243,6 +244,52 @@ func TestRedirects(t *testing.T) {
 	}
 	if res.Header.Get("Location") == "" {
 		t.Errorf("no Location header in Response")
+	}
+}
+
+func TestPostRedirects(t *testing.T) {
+	var log struct {
+		sync.Mutex
+		bytes.Buffer
+	}
+	var ts *httptest.Server
+	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		log.Lock()
+		fmt.Fprintf(&log.Buffer, "%s %s ", r.Method, r.RequestURI)
+		log.Unlock()
+		if v := r.URL.Query().Get("code"); v != "" {
+			code, _ := strconv.Atoi(v)
+			if code/100 == 3 {
+				w.Header().Set("Location", ts.URL)
+			}
+			w.WriteHeader(code)
+		}
+	}))
+	tests := []struct {
+		suffix string
+		want   int // response code
+	}{
+		{"/", 200},
+		{"/?code=301", 301},
+		{"/?code=302", 200},
+		{"/?code=303", 200},
+		{"/?code=404", 404},
+	}
+	for _, tt := range tests {
+		res, err := Post(ts.URL+tt.suffix, "text/plain", strings.NewReader("Some content"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != tt.want {
+			t.Errorf("POST %s: status code = %d; want %d", tt.suffix, res.StatusCode, tt.want)
+		}
+	}
+	log.Lock()
+	got := log.String()
+	log.Unlock()
+	want := "POST / POST /?code=301 POST /?code=302 GET / POST /?code=303 GET / POST /?code=404 "
+	if got != want {
+		t.Errorf("Log differs.\n Got: %q\nWant: %q", got, want)
 	}
 }
 
