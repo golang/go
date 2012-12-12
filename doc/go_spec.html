@@ -3706,8 +3706,8 @@ an untyped complex constant.
 </p>
 
 <pre>
-const ic = complex(0, c)   // ic == 3.75i (untyped complex constant)
-const iΘ = complex(0, Θ)   // iΘ == 1.5i  (type complex128)
+const ic = complex(0, c)   // ic == 3.75i  (untyped complex constant)
+const iΘ = complex(0, Θ)   // iΘ == 1.5i   (type complex128)
 </pre>
 
 <p>
@@ -3717,8 +3717,8 @@ by any predeclared type in the language. The following are legal declarations:
 </p>
 
 <pre>
-const Huge = 1 &lt;&lt; 100
-const Four int8 = Huge &gt;&gt; 98
+const Huge = 1 &lt;&lt; 100         // Huge == 1267650600228229401496703205376  (untyped integer constant)
+const Four int8 = Huge &gt;&gt; 98  // Four == 4                                (type int8)
 </pre>
 
 <p>
@@ -3737,9 +3737,9 @@ of the constant type. The following constant expressions are illegal:
 <pre>
 uint(-1)     // -1 cannot be represented as a uint
 int(3.14)    // 3.14 cannot be represented as an int
-int64(Huge)  // 1&lt;&lt;100 cannot be represented as an int64
-Four * 300   // 300 cannot be represented as an int8
-Four * 100   // 400 cannot be represented as an int8
+int64(Huge)  // 1267650600228229401496703205376 cannot be represented as an int64
+Four * 300   // operand 300 cannot be represented as an int8 (type of Four)
+Four * 100   // product 400 cannot be represented as an int8 (type of Four)
 </pre>
 
 <p>
@@ -3750,7 +3750,7 @@ and -1 for signed and untyped constants.
 
 <pre>
 ^1         // untyped integer constant, equal to -2
-uint8(^1)  // error, same as uint8(-2), out of range
+uint8(^1)  // illegal: same as uint8(-2), -2 cannot be represented as a uint8
 ^uint8(1)  // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
 int8(^1)   // same as int8(-2)
 ^int8(1)   // same as -1 ^ int8(1) = -2
