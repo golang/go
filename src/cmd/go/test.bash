@@ -150,6 +150,37 @@ if ! ./testgo list std | cmp -s test_std.list - ; then
 fi
 rm -f test_std.list
 
+# issue 4096. Validate the output of unsucessful go install foo/quxx 
+if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
+	echo 'go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of'
+	ok=false
+fi 
+# test GOROOT search failure is reported
+if [ $(./testgo install 'foo/quxx' 2>&1 | egrep -c 'foo/quxx \(from \$GOROOT\)$') -ne 1 ] ; then
+        echo 'go install foo/quxx expected error: .*foo/quxx (from $GOROOT)'
+        ok=false
+fi
+# test multiple GOPATH entries are reported separately
+if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/./src/foo/quxx') -ne 2 ] ; then
+        echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)\n.*testdata/b/src/foo/quxx'
+        ok=false
+fi
+# test (from $GOPATH) annotation is reported for the first GOPATH entry
+if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/a/src/foo/quxx \(from \$GOPATH\)$') -ne 1 ] ; then
+        echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)'
+        ok=false
+fi
+# but not on the second
+if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/b/src/foo/quxx$') -ne 1 ] ; then
+        echo 'go install foo/quxx expected error: .*testdata/b/src/foo/quxx'
+        ok=false
+fi
+# test missing GOPATH is reported
+if [ $(GOPATH= ./testgo install 'foo/quxx' 2>&1 | egrep -c '\(\$GOPATH not set\)$') -ne 1 ] ; then
+        echo 'go install foo/quxx expected error: ($GOPATH not set)'
+        ok=false
+fi
+
 # clean up
 rm -rf testdata/bin testdata/bin1
 rm -f testgo
