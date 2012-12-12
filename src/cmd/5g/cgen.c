@@ -15,7 +15,7 @@ void
 cgen(Node *n, Node *res)
 {
 	Node *nl, *nr, *r;
-	Node n1, n2, n3, f0, f1;
+	Node n1, n2, f0, f1;
 	int a, w, rg;
 	Prog *p1, *p2, *p3;
 	Addr addr;
@@ -240,13 +240,10 @@ cgen(Node *n, Node *res)
 	case OMINUS:
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);
-		nodconst(&n3, nl->type, 0);
-		regalloc(&n2, nl->type, res);
-		gmove(&n3, &n2);
-		gins(optoas(OSUB, nl->type), &n1, &n2);
-		gmove(&n2, res);
+		nodconst(&n2, nl->type, 0);
+		gins(optoas(OMINUS, nl->type), &n2, &n1);
+		gmove(&n1, res);
 		regfree(&n1);
-		regfree(&n2);
 		goto ret;
 
 	// symmetric binary
