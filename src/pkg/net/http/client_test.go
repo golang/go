@@ -351,6 +351,9 @@ type TestJar struct {
 func (j *TestJar) SetCookies(u *url.URL, cookies []*Cookie) {
 	j.m.Lock()
 	defer j.m.Unlock()
+	if j.perURL == nil {
+		j.perURL = make(map[string][]*Cookie)
+	}
 	j.perURL[u.Host] = cookies
 }
 
@@ -381,8 +384,9 @@ func TestRedirectCookiesJar(t *testing.T) {
 	var ts *httptest.Server
 	ts = httptest.NewServer(echoCookiesRedirectHandler)
 	defer ts.Close()
-	c := &Client{}
-	c.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
+	c := &Client{
+		Jar: new(TestJar),
+	}
 	u, _ := url.Parse(ts.URL)
 	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
 	resp, err := c.Get(ts.URL)
@@ -409,6 +413,61 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
 			t.Errorf("Missing cookie %v", ec)
 		}
 	}
+}
+
+func TestJarCalls(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		pathSuffix := r.RequestURI[1:]
+		SetCookie(w, &Cookie{Name: "name" + pathSuffix, Value: "val" + pathSuffix})
+		if r.RequestURI == "/" {
+			Redirect(w, r, "http://secondhost.fake/secondpath", 302)
+		}
+	}))
+	defer ts.Close()
+	jar := new(RecordingJar)
+	c := &Client{
+		Jar: jar,
+		Transport: &Transport{
+			Dial: func(_ string, _ string) (net.Conn, error) {
+				return net.Dial("tcp", ts.Listener.Addr().String())
+			},
+		},
+	}
+	_, err := c.Get("http://firsthost.fake/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := jar.log.String()
+	want := `Cookies("http://firsthost.fake/")
+SetCookie("http://firsthost.fake/", [name=val])
+Cookies("http://secondhost.fake/secondpath")
+SetCookie("http://secondhost.fake/secondpath", [namesecondpath=valsecondpath])
+`
+	if got != want {
+		t.Errorf("Got Jar calls:\n%s\nWant:\n%s", got, want)
+	}
+}
+
+// RecordingJar keeps a log of calls made to it, without
+// tracking any cookies.
+type RecordingJar struct {
+	mu  sync.Mutex
+	log bytes.Buffer
+}
+
+func (j *RecordingJar) SetCookies(u *url.URL, cookies []*Cookie) {
+	j.logf("SetCookie(%q, %v)\n", u, cookies)
+}
+
+func (j *RecordingJar) Cookies(u *url.URL) []*Cookie {
+	j.logf("Cookies(%q)\n", u)
+	return nil
+}
+
+func (j *RecordingJar) logf(format string, args ...interface{}) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	fmt.Fprintf(&j.log, format, args...)
 }
 
 func TestStreamingGet(t *testing.T) {

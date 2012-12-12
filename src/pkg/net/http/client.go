@@ -231,8 +231,6 @@ func (c *Client) Get(url string) (resp *Response, err error) {
 }
 
 func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bool) (resp *Response, err error) {
-	// TODO: if/when we add cookie support, the redirected request shouldn't
-	// necessarily supply the same cookies as the original.
 	var base *url.URL
 	redirectChecker := c.CheckRedirect
 	if redirectChecker == nil {
