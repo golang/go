@@ -54,7 +54,7 @@ static void fixlbrace(int);
 %type	<node>	stmt ntype
 %type	<node>	arg_type
 %type	<node>	case caseblock
-%type	<node>	compound_stmt dotname embed expr complitexpr
+%type	<node>	compound_stmt dotname embed expr complitexpr bare_complitexpr
 %type	<node>	expr_or_type
 %type	<node>	fndcl hidden_fndcl fnliteral
 %type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
@@ -974,6 +974,29 @@ keyval:
 		$$ = nod(OKEY, $1, $3);
 	}
 
+bare_complitexpr:
+	expr
+	{
+		// These nodes do not carry line numbers.
+		// Since a composite literal commonly spans several lines,
+		// the line number on errors may be misleading.
+		// Introduce a wrapper node to give the correct line.
+		$$ = $1;
+		switch($$->op) {
+		case ONAME:
+		case ONONAME:
+		case OTYPE:
+		case OPACK:
+		case OLITERAL:
+			$$ = nod(OPAREN, $$, N);
+		}
+	}
+|	'{' start_complit braced_keyval_list '}'
+	{
+		$$ = $2;
+		$$->list = $3;
+	}
+
 complitexpr:
 	expr
 |	'{' start_complit braced_keyval_list '}'
@@ -1761,7 +1784,7 @@ keyval_list:
 	{
 		$$ = list1($1);
 	}
-|	complitexpr
+|	bare_complitexpr
 	{
 		$$ = list1($1);
 	}
@@ -1769,7 +1792,7 @@ keyval_list:
 	{
 		$$ = list($1, $3);
 	}
-|	keyval_list ',' complitexpr
+|	keyval_list ',' bare_complitexpr
 	{
 		$$ = list($1, $3);
 	}
