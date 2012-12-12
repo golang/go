@@ -495,7 +495,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	int check;
 	Node n1, t1, t2, t3, t4, n4, nz;
 	Type *t, *t0;
-	Prog *p1, *p2, *p3;
+	Prog *p1, *p2;
 
 	// Have to be careful about handling
 	// most negative int divided by -1 correctly.
@@ -544,23 +544,22 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 		regalloc(&n1, t, N);
 	gmove(&t2, &n1);
 	gmove(&t1, ax);
-	p3 = P;
+	p2 = P;
 	if(check) {
 		nodconst(&n4, t, -1);
 		gins(optoas(OCMP, t), &n1, &n4);
 		p1 = gbranch(optoas(ONE, t), T, +1);
-		nodconst(&n4, t, -1LL<<(t->width*8-1));
-		gins(optoas(OCMP, t), ax, &n4);
-		p2 = gbranch(optoas(ONE, t), T, +1);
-		if(op == ODIV)
-			gmove(&n4, res);
-		if(op == OMOD) {
+		if(op == ODIV) {
+			// a / (-1) is -a.
+			gins(optoas(OMINUS, t), N, ax);
+			gmove(ax, res);
+		} else {
+			// a % (-1) is 0.
 			nodconst(&n4, t, 0);
 			gmove(&n4, res);
 		}
-		p3 = gbranch(AJMP, T, 0);
+		p2 = gbranch(AJMP, T, 0);
 		patch(p1, pc);
-		patch(p2, pc);
 	}
 	if(!issigned[t->etype]) {
 		nodconst(&nz, t, 0);
@@ -575,7 +574,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	else
 		gmove(dx, res);
 	if(check)
-		patch(p3, pc);
+		patch(p2, pc);
 }
 
 static void
