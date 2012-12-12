@@ -388,6 +388,7 @@ struct	Pkg
 	Sym*	pathsym;
 	char*	prefix;		// escaped path for use in symbol table
 	Pkg*	link;
+	uchar	imported;	// export data of this package was parsed
 	char	exported;	// import line written in export data
 	char	direct;	// imported directly
 };

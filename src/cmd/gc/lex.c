@@ -690,6 +690,16 @@ importfile(Val *f, int line)
 	}
 	importpkg = mkpkg(path);
 
+	// If we already saw that package, feed a dummy statement
+	// to the lexer to avoid parsing export data twice.
+	if(importpkg->imported) {
+		file = strdup(namebuf);
+		p = smprint("package %s\n$$\n", importpkg->name);
+		cannedimports(file, p);
+		return;
+	}
+	importpkg->imported = 1;
+
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil) {
 		yyerror("can't open import: \"%Z\": %r", f->u.sval);
