@@ -21,6 +21,13 @@ const (
 	domain     = "build.golang.org"
 )
 
+// failIgnore is a set of builders that we don't email about because
+// they're too flaky.
+var failIgnore = map[string]bool{
+	"netbsd-386-bsiegert":   true,
+	"netbsd-amd64-bsiegert": true,
+}
+
 // notifyOnFailure checks whether the supplied Commit or the subsequent
 // Commit (if present) breaks the build for this builder.
 // If either of those commits break the build an email notification is sent
@@ -30,6 +37,10 @@ const (
 // This must be run in a datastore transaction, and the provided *Commit must
 // have been retrieved from the datastore within that transaction.
 func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
+	if failIgnore[builder] {
+		return
+	}
+
 	// TODO(adg): implement notifications for packages
 	if com.PackagePath != "" {
 		return nil
