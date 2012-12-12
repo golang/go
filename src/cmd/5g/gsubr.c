@@ -1611,6 +1611,16 @@ optoas(int op, Type *t)
 		a = ASUBD;
 		break;
 
+	case CASE(OMINUS, TINT8):
+	case CASE(OMINUS, TUINT8):
+	case CASE(OMINUS, TINT16):
+	case CASE(OMINUS, TUINT16):
+	case CASE(OMINUS, TINT32):
+	case CASE(OMINUS, TUINT32):
+	case CASE(OMINUS, TPTR32):
+		a = ARSB;
+		break;
+
 	case CASE(OAND, TINT8):
 	case CASE(OAND, TUINT8):
 	case CASE(OAND, TINT16):
