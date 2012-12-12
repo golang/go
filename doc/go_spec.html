@@ -5104,9 +5104,8 @@ delete(m, k)  // remove element m[k] from map m
 </pre>
 
 <p>
-If the element <code>m[k]</code> does not exist, <code>delete</code> is
-a no-op. Calling <code>delete</code> with a nil map causes a
-<a href="#Run_time_panics">run-time panic</a>.
+If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
+does not exist, <code>delete</code> is a no-op.
 </p>
 
 
