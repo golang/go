@@ -468,6 +468,11 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 	off += s.base
 	if max := s.limit - off; int64(len(p)) > max {
 		p = p[0:max]
+		n, err = s.r.ReadAt(p, off)
+		if err == nil {
+			err = EOF
+		}
+		return n, err
 	}
 	return s.r.ReadAt(p, off)
 }

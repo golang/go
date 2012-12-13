@@ -203,3 +203,35 @@ func TestTeeReader(t *testing.T) {
 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
 	}
 }
+
+func TestSectionReader_ReadAt(tst *testing.T) {
+	dat := "a long sample data, 1234567890"
+	tests := []struct {
+		data   string
+		off    int
+		n      int
+		bufLen int
+		at     int
+		exp    string
+		err    error
+	}{
+		{data: "", off: 0, n: 10, bufLen: 2, at: 0, exp: "", err: EOF},
+		{data: dat, off: 0, n: len(dat), bufLen: 0, at: 0, exp: "", err: nil},
+		{data: dat, off: len(dat), n: 1, bufLen: 1, at: 0, exp: "", err: EOF},
+		{data: dat, off: 0, n: len(dat) + 2, bufLen: len(dat), at: 0, exp: dat, err: nil},
+		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 0, exp: dat[:len(dat)/2], err: nil},
+		{data: dat, off: 0, n: len(dat), bufLen: len(dat), at: 0, exp: dat, err: nil},
+		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[2 : 2+len(dat)/2], err: nil},
+		{data: dat, off: 3, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[5 : 5+len(dat)/2], err: nil},
+		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
+		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
+	}
+	for i, t := range tests {
+		r := strings.NewReader(t.data)
+		s := NewSectionReader(r, int64(t.off), int64(t.n))
+		buf := make([]byte, t.bufLen)
+		if n, err := s.ReadAt(buf, int64(t.at)); n != len(t.exp) || string(buf[:n]) != t.exp || err != t.err {
+			tst.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, t.at, buf[:n], err, t.exp, t.err)
+		}
+	}
+}
