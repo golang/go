@@ -426,7 +426,7 @@ func (db *DB) begin() (tx *Tx, err error) {
 	txi, err := ci.Begin()
 	if err != nil {
 		db.putConn(ci, err)
-		return nil, fmt.Errorf("sql: failed to Begin transaction: %v", err)
+		return nil, err
 	}
 	return &Tx{
 		db:  db,
