@@ -8,7 +8,7 @@
 		{{$output := .Output}}
 		{{with .Play}}
 			<div class="play">
-				<div class="input"><textarea class="code">{{.}}</textarea></div>
+				<div class="input"><textarea class="code">{{html .}}</textarea></div>
 				<div class="output"><pre>{{html $output}}</pre></div>
 				<div class="buttons">
 					<a class="run" title="Run this code [shift-enter]">Run</a>
