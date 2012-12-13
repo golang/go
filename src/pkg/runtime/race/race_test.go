@@ -146,7 +146,13 @@ func runTests() ([]byte, error) {
 	// The following flags turn off heuristics that suppress seemingly identical reports.
 	// It is required because the tests contain a lot of data races on the same addresses
 	// (the tests are simple and the memory is constantly reused).
-	cmd.Env = append(os.Environ(), `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0"`)
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "GOMAXPROCS=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, env)
+	}
+	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0"`)
 	ret, _ := cmd.CombinedOutput()
 	return ret, nil
 }
