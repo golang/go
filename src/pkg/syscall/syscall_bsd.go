@@ -609,6 +609,21 @@ func Utimes(path string, tv []Timeval) (err error) {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
+func UtimesNano(path string, ts []Timespec) error {
+	// TODO: The BSDs can do utimensat with SYS_UTIMENSAT but it
+	// isn't supported by darwin so this uses utimes instead
+	if len(ts) != 2 {
+		return EINVAL
+	}
+	// Not as efficient as it could be because Timespec and
+	// Timeval have different types in the different OSes
+	tv := [2]Timeval{
+		NsecToTimeval(TimespecToNsec(ts[0])),
+		NsecToTimeval(TimespecToNsec(ts[1])),
+	}
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+}
+
 //sys	futimes(fd int, timeval *[2]Timeval) (err error)
 func Futimes(fd int, tv []Timeval) (err error) {
 	if len(tv) != 2 {
