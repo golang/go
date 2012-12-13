@@ -989,7 +989,7 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
 	byte *ak;
 
 	if(h == nil)
-		runtime·panicstring("deletion of entry in nil map");
+		return;
 
 	if(raceenabled)
 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
