@@ -83,18 +83,73 @@ function playground(opts) {
 			'<div class="loading">Waiting for remote server...</div>'
 		);
 	}
-	function setOutput(text, error) {
+	var playbackTimeout;
+	function playback(pre, events) {
+		function show(msg) {
+			// ^L clears the screen.
+			var msgs = msg.split("\x0c");
+			if (msgs.length == 1) {
+				pre.text(pre.text() + msg);
+				return;
+			}
+			pre.text(msgs.pop());
+		}
+		function next() {
+			if (events.length == 0) {
+				var exit = $('<span class="exit"/>');
+				exit.text("\nProgram exited.");
+				exit.appendTo(pre);
+				return;
+			}
+			var e = events.shift();
+			if (e.Delay == 0) {
+				show(e.Message);
+				next();
+			} else {
+				playbackTimeout = setTimeout(function() {
+					show(e.Message);
+					next();
+				}, e.Delay / 1000000);
+			}
+		}
+		next();
+	}
+	function stopPlayback() {
+		clearTimeout(playbackTimeout);
+	}
+	function setOutput(events, error) {
+		stopPlayback();
 		output.empty();
 		$(".lineerror").removeClass("lineerror");
+
+		// Display errors.
 		if (error) {
 			output.addClass("error");
 			var regex = /prog.go:([0-9]+)/g;
 			var r;
-			while (r = regex.exec(text)) {
+			while (r = regex.exec(error)) {
 				$(".lines div").eq(r[1]-1).addClass("lineerror");
 			}
+			$("<pre/>").text(error).appendTo(output);
+			return;
 		}
-		$("<pre/>").text(text).appendTo(output);
+
+		// Display image output.
+		if (events.length > 0 && events[0].Message.indexOf("IMAGE:") == 0) {
+			var out = "";
+			for (var i = 0; i < events.length; i++) {
+				out += events[i].Message;
+			}
+			var url = "data:image/png;base64," + out.substr(6);
+			$("<img/>").attr("src", url).appendTo(output);
+			return;
+		}
+
+		// Play back events.
+		if (events !== null) {
+			var pre = $("<pre/>").appendTo(output);
+			playback(pre, events);
+		}
 	}
 
 	var pushedEmpty = (window.location.pathname == "/");
@@ -134,7 +189,10 @@ function playground(opts) {
 		loading();
 		seq++;
 		var cur = seq;
-		var data = {"body": body()};
+		var data = {
+			"version": 2,
+			"body": body()
+		};
 		$.ajax("/compile", {
 			data: data,
 			type: "POST",
@@ -146,20 +204,11 @@ function playground(opts) {
 				if (!data) {
 					return;
 				}
-				if (data.compile_errors != "") {
-					setOutput(data.compile_errors, true);
+				if (data.Errors) {
+					setOutput(null, data.Errors);
 					return;
 				}
-				var out = ""+data.output;
-				if (out.indexOf("IMAGE:") == 0) {
-					var img = $("<img/>");
-					var url = "data:image/png;base64,";
-					url += out.substr(6)
-					img.attr("src", url);
-					output.empty().append(img);
-					return;
-				}
-				setOutput(out, false);
+				setOutput(data.Events, false);
 			},
 			error: function() {
 				output.addClass("error").text(
@@ -178,11 +227,11 @@ function playground(opts) {
 			dataType: "json",
 			success: function(data) {
 				if (data.Error) {
-					setOutput(data.Error, true);
+					setOutput(null, data.Error);
 					return;
 				}
 				setBody(data.Body);
-				setOutput("", false);
+				setOutput(null);
 			}
 		});
 	});

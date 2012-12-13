@@ -486,6 +486,9 @@ div.play .buttons a {
 	padding: 10px;
 	cursor: pointer;
 }
+div.play .output .exit {
+	color: #999;
+}
 
 /* drop-down playground */
 #playgroundButton,
