@@ -20,7 +20,7 @@ Bus error
 
 /* expected scope hierarchy (outermost to innermost)
 
-universe scope (contains predeclared identifiers int, float, int32, len, etc.)
+universe scope (contains predeclared identifiers int, float32, int32, len, etc.)
 "solar" scope (just holds the package name P so it can be found but doesn't conflict)
 global scope (the package global scope)
 local scopes (function scopes)
