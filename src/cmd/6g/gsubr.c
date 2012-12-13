@@ -117,7 +117,7 @@ gbranch(int as, Type *t, int likely)
 
 	p = prog(as);
 	p->to.type = D_BRANCH;
-	p->to.branch = P;
+	p->to.u.branch = P;
 	if(as != AJMP && likely != 0) {
 		p->from.type = D_CONST;
 		p->from.offset = likely > 0;
@@ -133,7 +133,7 @@ patch(Prog *p, Prog *to)
 {
 	if(p->to.type != D_BRANCH)
 		fatal("patch: not a branch");
-	p->to.branch = to;
+	p->to.u.branch = to;
 	p->to.offset = to->loc;
 }
 
@@ -144,8 +144,8 @@ unpatch(Prog *p)
 
 	if(p->to.type != D_BRANCH)
 		fatal("unpatch: not a branch");
-	q = p->to.branch;
-	p->to.branch = P;
+	q = p->to.u.branch;
+	p->to.u.branch = P;
 	p->to.offset = 0;
 	return q;
 }
@@ -1202,7 +1202,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;
 		case CTFLT:
 			a->type = D_FCONST;
-			a->dval = mpgetflt(n->val.u.fval);
+			a->u.dval = mpgetflt(n->val.u.fval);
 			break;
 		case CTINT:
 		case CTRUNE:

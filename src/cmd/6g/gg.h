@@ -14,9 +14,13 @@ typedef	struct	Addr	Addr;
 struct	Addr
 {
 	vlong	offset;
-	double	dval;
-	Prog*	branch;
-	char	sval[NSNAME];
+	
+	union {
+		double	dval;
+		vlong	vval;
+		Prog*	branch;
+		char	sval[NSNAME];
+	} u;
 
 	Sym*	gotype;
 	Sym*	sym;
@@ -26,7 +30,6 @@ struct	Addr
 	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
-	uchar	pun;	/* dont register variable */
 };
 #define	A	((Addr*)0)
 

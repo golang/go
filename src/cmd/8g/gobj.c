@@ -94,9 +94,9 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 	switch(a->type) {
 
 	case D_BRANCH:
-		if(a->branch == nil)
+		if(a->u.branch == nil)
 			fatal("unpatched branch");
-		a->offset = a->branch->loc;
+		a->offset = a->u.branch->loc;
 
 	default:
 		t |= T_TYPE;
@@ -137,7 +137,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 	if(t & T_SYM)		/* implies sym */
 		Bputc(b, s);
 	if(t & T_FCONST) {
-		ieeedtod(&e, a->dval);
+		ieeedtod(&e, a->u.dval);
 		l = e;
 		Bputc(b, l);
 		Bputc(b, l>>8);
@@ -151,7 +151,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
 		return;
 	}
 	if(t & T_SCONST) {
-		n = a->sval;
+		n = a->u.sval;
 		for(i=0; i<NSNAME; i++) {
 			Bputc(b, *n);
 			n++;
@@ -293,7 +293,7 @@ dsname(Sym *s, int off, char *t, int n)
 	
 	p->to.type = D_SCONST;
 	p->to.index = D_NONE;
-	memmove(p->to.sval, t, n);
+	memmove(p->to.u.sval, t, n);
 	return off + n;
 }
 
@@ -373,13 +373,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
 	p = gins(ADATA, nam, N);
 	p->from.scale = w;
 	p->to.type = D_FCONST;
-	p->to.dval = mpgetflt(&cval->real);
+	p->to.u.dval = mpgetflt(&cval->real);
 
 	p = gins(ADATA, nam, N);
 	p->from.scale = w;
 	p->from.offset += w;
 	p->to.type = D_FCONST;
-	p->to.dval = mpgetflt(&cval->imag);
+	p->to.u.dval = mpgetflt(&cval->imag);
 }
 
 void

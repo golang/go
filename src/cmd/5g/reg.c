@@ -437,9 +437,9 @@ regopt(Prog *firstp)
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		if(p->to.type == D_BRANCH) {
-			if(p->to.branch == P)
+			if(p->to.u.branch == P)
 				fatal("pnil %P", p);
-			r1 = p->to.branch->regp;
+			r1 = p->to.u.branch->regp;
 			if(r1 == R)
 				fatal("rnil %P", p);
 			if(r1 == r) {
@@ -704,8 +704,8 @@ brk:
 		while(p->link != P && p->link->as == ANOP)
 			p->link = p->link->link;
 		if(p->to.type == D_BRANCH)
-			while(p->to.branch != P && p->to.branch->as == ANOP)
-				p->to.branch = p->to.branch->link;
+			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
+				p->to.u.branch = p->to.u.branch->link;
 		if(p->as == AMOVW && p->to.reg == 13) {
 			if(p->scond & C_WBIT) {
 				vreg = -p->to.offset;		// in adjust region
@@ -1687,7 +1687,7 @@ chasejmp(Prog *p, int *jmploop)
 			*jmploop = 1;
 			break;
 		}
-		p = p->to.branch;
+		p = p->to.u.branch;
 	}
 	return p;
 }
@@ -1709,8 +1709,8 @@ mark(Prog *firstp)
 		if(p->regp != dead)
 			break;
 		p->regp = alive;
-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch)
-			mark(p->to.branch);
+		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch)
+			mark(p->to.u.branch);
 		if(p->as == AB || p->as == ARET || (p->as == ABL && noreturn(p)))
 			break;
 	}
@@ -1730,8 +1730,8 @@ fixjmp(Prog *firstp)
 	for(p=firstp; p; p=p->link) {
 		if(debug['R'] && debug['v'])
 			print("%P\n", p);
-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch && p->to.branch->as == AB) {
-			p->to.branch = chasejmp(p->to.branch, &jmploop);
+		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AB) {
+			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
 			if(debug['R'] && debug['v'])
 				print("->%P\n", p);
 		}
@@ -1767,7 +1767,7 @@ fixjmp(Prog *firstp)
 	if(!jmploop) {
 		last = nil;
 		for(p=firstp; p; p=p->link) {
-			if(p->as == AB && p->to.type == D_BRANCH && p->to.branch == p->link) {
+			if(p->as == AB && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
 				if(debug['R'] && debug['v'])
 					print("del %P\n", p);
 				continue;

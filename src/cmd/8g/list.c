@@ -107,7 +107,7 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		snprint(str, sizeof(str), "%d", a->branch->loc);
+		snprint(str, sizeof(str), "%d", a->u.branch->loc);
 		break;
 
 	case D_EXTERN:
@@ -137,11 +137,11 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_FCONST:
-		snprint(str, sizeof(str), "$(%.17e)", a->dval);
+		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
 		break;
 
 	case D_SCONST:
-		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
+		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
 		break;
 
 	case D_ADDR:

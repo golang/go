@@ -1303,7 +1303,7 @@ loop:
 		if(p->from.node == p0->from.node)
 		if(p->from.offset == p0->from.offset)
 		if(p->from.scale == p0->from.scale)
-		if(p->from.dval == p0->from.dval)
+		if(p->from.u.vval == p0->from.u.vval)
 		if(p->from.index == p0->from.index) {
 			excise(r);
 			goto loop;
