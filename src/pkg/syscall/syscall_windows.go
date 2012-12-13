@@ -451,6 +451,26 @@ func Utimes(path string, tv []Timeval) (err error) {
 	return SetFileTime(h, nil, &a, &w)
 }
 
+func UtimesNano(path string, ts []Timespec) (err error) {
+	if len(ts) != 2 {
+		return EINVAL
+	}
+	pathp, e := UTF16PtrFromString(path)
+	if e != nil {
+		return e
+	}
+	h, e := CreateFile(pathp,
+		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+	if e != nil {
+		return e
+	}
+	defer Close(h)
+	a := NsecToFiletime(TimespecToNsec(ts[0]))
+	w := NsecToFiletime(TimespecToNsec(ts[1]))
+	return SetFileTime(h, nil, &a, &w)
+}
+
 func Fsync(fd Handle) (err error) {
 	return FlushFileBuffers(fd)
 }
@@ -727,6 +747,14 @@ func (w WaitStatus) TrapCause() int { return -1 }
 type Timespec struct {
 	Sec  int64
 	Nsec int64
+}
+
+func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+
+func NsecToTimespec(nsec int64) (ts Timespec) {
+	ts.Sec = nsec / 1e9
+	ts.Nsec = nsec % 1e9
+	return
 }
 
 // TODO(brainman): fix all needed for net

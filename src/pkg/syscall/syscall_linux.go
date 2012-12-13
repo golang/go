@@ -47,6 +47,25 @@ func Utimes(path string, tv []Timeval) (err error) {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
+//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+func UtimesNano(path string, ts []Timespec) (err error) {
+	if len(ts) != 2 {
+		return EINVAL
+	}
+	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])))
+	if err != ENOSYS {
+		return err
+	}
+	// If the utimensat syscall isn't available (utimensat was added to Linux
+	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
+	var tv [2]Timeval
+	for i := 0; i < 2; i++ {
+		tv[i].Sec = ts[i].Sec
+		tv[i].Usec = ts[i].Nsec / 1000
+	}
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+}
+
 //sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (err error)
 func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {

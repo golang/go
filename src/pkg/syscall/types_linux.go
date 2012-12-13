@@ -348,6 +348,10 @@ type Ustat_t C.struct_ustat
 
 type EpollEvent C.struct_my_epoll_event
 
+const (
+	_AT_FDCWD = C.AT_FDCWD
+)
+
 // Terminal handling
 
 type Termios C.struct_termios
