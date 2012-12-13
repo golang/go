@@ -241,7 +241,7 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 	}
 	dials := listenerBacklog + 100
 	// used to be listenerBacklog + 5, but was found to be unreliable, issue 4384.
-	maxGoodConnect := 150
+	maxGoodConnect := listenerBacklog + runtime.NumCPU()*10
 	resc := make(chan connErr)
 	for i := 0; i < dials; i++ {
 		go func() {
