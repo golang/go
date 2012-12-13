@@ -15,9 +15,13 @@ struct	Addr
 {
 	int32	offset;
 	int32	offset2;
-	double	dval;
-	Prog*	branch;
-	char	sval[NSNAME];
+
+	union {
+		double	dval;
+		vlong	vval;
+		Prog*	branch;
+		char	sval[NSNAME];
+	} u;
 
 	Sym*	sym;
 	Node*	node;
@@ -25,22 +29,21 @@ struct	Addr
 	uchar	type;
 	char	name;
 	uchar	reg;
-	char pun;
 	uchar	etype;
 };
 #define	A	((Addr*)0)
 
 struct	Prog
 {
-	short	as;		// opcode
 	uint32	loc;		// pc offset in this func
 	uint32	lineno;		// source line that generated this
-	Addr	from;		// src address
-	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
 	void*	regp;		// points to enclosing Reg struct
+	short	as;		// opcode
 	uchar	reg;		// doubles as width in DATA op
 	uchar	scond;
+	Addr	from;		// src address
+	Addr	to;		// dst address
 };
 
 #define TEXTFLAG reg
