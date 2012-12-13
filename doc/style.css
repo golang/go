@@ -354,6 +354,9 @@ div#learn .toys select {
 	border: 1px solid #375EAB;
 	margin: 0;
 }
+div#learn .output .exit {
+	display: none;
+}
 
 div#blog,
 div#video {
