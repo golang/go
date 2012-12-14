@@ -402,6 +402,39 @@ func TestTxQueryInvalid(t *testing.T) {
 	}
 }
 
+// Tests fix for issue 4433, that retries in Begin happen when
+// conn.Begin() returns ErrBadConn
+func TestTxErrBadConn(t *testing.T) {
+	db, err := Open("test", fakeDBName+";badConn")
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if _, err := db.Exec("WIPE"); err != nil {
+		t.Fatalf("exec wipe: %v", err)
+	}
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	defer stmt.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	txs := tx.Stmt(stmt)
+	defer txs.Close()
+	_, err = txs.Exec("Bobby", 7)
+	if err != nil {
+		t.Fatalf("Exec = %v", err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Fatalf("Commit = %v", err)
+	}
+}
+
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
