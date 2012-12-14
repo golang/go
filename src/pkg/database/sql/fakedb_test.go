@@ -42,9 +42,10 @@ type fakeDriver struct {
 type fakeDB struct {
 	name string
 
-	mu     sync.Mutex
-	free   []*fakeConn
-	tables map[string]*table
+	mu      sync.Mutex
+	free    []*fakeConn
+	tables  map[string]*table
+	badConn bool
 }
 
 type table struct {
@@ -83,6 +84,7 @@ type fakeConn struct {
 	stmtsMade   int
 	stmtsClosed int
 	numPrepare  int
+	bad         bool
 }
 
 func (c *fakeConn) incrStat(v *int) {
@@ -122,7 +124,9 @@ func init() {
 
 // Supports dsn forms:
 //    <dbname>
-//    <dbname>;<opts>  (no currently supported options)
+//    <dbname>;<opts>  (only currently supported option is `badConn`,
+//                      which causes driver.ErrBadConn to be returned on
+//                      every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	parts := strings.Split(dsn, ";")
 	if len(parts) < 1 {
@@ -135,7 +139,12 @@ func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
 	d.mu.Lock()
 	d.openCount++
 	d.mu.Unlock()
-	return &fakeConn{db: db}, nil
+	conn := &fakeConn{db: db}
+
+	if len(parts) >= 2 && parts[1] == "badConn" {
+		conn.bad = true
+	}
+	return conn, nil
 }
 
 func (d *fakeDriver) getDB(name string) *fakeDB {
@@ -199,7 +208,20 @@ func (db *fakeDB) columnType(table, column string) (typ string, ok bool) {
 	return "", false
 }
 
+func (c *fakeConn) isBad() bool {
+	// if not simulating bad conn, do nothing
+	if !c.bad {
+		return false
+	}
+	// alternate between bad conn and not bad conn
+	c.db.badConn = !c.db.badConn
+	return c.db.badConn
+}
+
 func (c *fakeConn) Begin() (driver.Tx, error) {
+	if c.isBad() {
+		return nil, driver.ErrBadConn
+	}
 	if c.currTx != nil {
 		return nil, errors.New("already in a transaction")
 	}
