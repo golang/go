@@ -548,7 +548,6 @@ func (b *builder) do(root *action) {
 	}
 
 	b.readySema = make(chan bool, len(all))
-	done := make(chan bool)
 
 	// Initialize per-action execution state.
 	for _, a := range all {
@@ -596,9 +595,10 @@ func (b *builder) do(root *action) {
 
 		if a == root {
 			close(b.readySema)
-			done <- true
 		}
 	}
+
+	var wg sync.WaitGroup
 
 	// Kick off goroutines according to parallelism.
 	// If we are using the -n flag (just printing commands)
@@ -609,19 +609,30 @@ func (b *builder) do(root *action) {
 		par = 1
 	}
 	for i := 0; i < par; i++ {
+		wg.Add(1)
 		go func() {
-			for _ = range b.readySema {
-				// Receiving a value from b.sema entitles
-				// us to take from the ready queue.
-				b.exec.Lock()
-				a := b.ready.pop()
-				b.exec.Unlock()
-				handle(a)
+			defer wg.Done()
+			for {
+				select {
+				case _, ok := <-b.readySema:
+					if !ok {
+						return
+					}
+					// Receiving a value from b.readySema entitles
+					// us to take from the ready queue.
+					b.exec.Lock()
+					a := b.ready.pop()
+					b.exec.Unlock()
+					handle(a)
+				case <-interrupted:
+					setExitStatus(1)
+					return
+				}
 			}
 		}()
 	}
 
-	<-done
+	wg.Wait()
 }
 
 // build is the action for building a single package or command.

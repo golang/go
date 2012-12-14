@@ -644,6 +644,7 @@ func (b *builder) runTest(a *action) error {
 	// running.
 	tick := time.NewTimer(testKillTimeout)
 	if err == nil {
+		startSigHandlers()
 		done := make(chan error)
 		go func() {
 			done <- cmd.Wait()
