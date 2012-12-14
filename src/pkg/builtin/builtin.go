@@ -124,8 +124,8 @@ func append(slice []Type, elems ...Type) []Type
 func copy(dst, src []Type) int
 
 // The delete built-in function deletes the element with the specified key
-// (m[key]) from the map. If there is no such element, delete is a no-op.
-// If m is nil, delete panics.
+// (m[key]) from the map. If m is nil or there is no such element, delete
+// is a no-op.
 func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
