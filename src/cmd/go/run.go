@@ -84,6 +84,7 @@ func runStdin(cmdargs ...interface{}) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	startSigHandlers()
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
