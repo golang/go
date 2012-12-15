@@ -1052,6 +1052,11 @@ defaultlit(Node **np, Type *t)
 		// When compiling x := 1<<i + 3.14, this means we try to push
 		// the float64 down into the 1<<i, producing the correct error
 		// (cannot shift float64).
+		//
+		// If t is an interface type, we want the default type for the
+		// value, so just do as if no type was given.
+		if(t && t->etype == TINTER)
+			t = T;
 		if(t == T && (n->right->op == OLSH || n->right->op == ORSH)) {
 			defaultlit(&n->left, T);
 			defaultlit(&n->right, n->left->type);
