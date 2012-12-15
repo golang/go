@@ -128,7 +128,7 @@ func (ce colElem) tertiary() uint8 {
 	} else if ce&ceTypeMask == ceType1 {
 		return defaultTertiary
 	}
-	// ce is a quaternary value. 
+	// ce is a quaternary value.
 	return 0
 }
 

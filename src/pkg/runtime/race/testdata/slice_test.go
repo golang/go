@@ -252,7 +252,7 @@ func TestRaceSliceRangeAppend(t *testing.T) {
 		s = append(s, 3)
 		c <- true
 	}()
-	for _, _ = range s {
+	for _ = range s {
 	}
 	<-c
 }
@@ -264,7 +264,7 @@ func TestNoRaceSliceRangeAppend(t *testing.T) {
 		_ = append(s, 3)
 		c <- true
 	}()
-	for _, _ = range s {
+	for _ = range s {
 	}
 	<-c
 }
@@ -295,7 +295,7 @@ func TestRaceSliceVarRange(t *testing.T) {
 	c := make(chan bool, 1)
 	s := make([]int, 10)
 	go func() {
-		for _, _ = range s {
+		for _ = range s {
 		}
 		c <- true
 	}()
