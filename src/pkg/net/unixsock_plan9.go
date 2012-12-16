@@ -64,21 +64,21 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 	return 0, 0, syscall.EPLAN9
 }
 
-// CloseRead shuts down the reading side of the Unix domain
-// connection.  Most callers should just use Close.
+// CloseRead shuts down the reading side of the Unix domain connection.
+// Most callers should just use Close.
 func (c *UnixConn) CloseRead() error {
 	return syscall.EPLAN9
 }
 
-// CloseWrite shuts down the writing side of the Unix domain
-// connection.  Most callers should just use Close.
+// CloseWrite shuts down the writing side of the Unix domain connection.
+// Most callers should just use Close.
 func (c *UnixConn) CloseWrite() error {
 	return syscall.EPLAN9
 }
 
 // DialUnix connects to the remote address raddr on the network net,
-// which must be "unix" or "unixgram".  If laddr is not nil, it is
-// used as the local address for the connection.
+// which must be "unix", "unixgram" or "unixpacket".  If laddr is not
+// nil, it is used as the local address for the connection.
 func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	return dialUnix(net, laddr, raddr, noDeadline)
 }
@@ -93,7 +93,8 @@ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn
 type UnixListener struct{}
 
 // ListenUnix announces on the Unix domain socket laddr and returns a
-// Unix listener.  Net must be "unix" (stream sockets).
+// Unix listener.  The network net must be "unix", "unixgram" or
+// "unixpacket".
 func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	return nil, syscall.EPLAN9
 }
@@ -134,8 +135,8 @@ func (l *UnixListener) File() (*os.File, error) {
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed
 // to the local address laddr.  The returned connection c's ReadFrom
-// and WriteTo methods can be used to receive and send UDP packets
-// with per-packet addressing.  The network net must be "unixgram".
-func ListenUnixgram(net string, laddr *UnixAddr) (*UDPConn, error) {
+// and WriteTo methods can be used to receive and send packets with
+// per-packet addressing.  The network net must be "unixgram".
+func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }

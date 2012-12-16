@@ -84,6 +84,13 @@ The same is true of the other protocol-specific resolvers <code>ResolveIPAddr</c
 <code>ResolveUnixAddr</code>.
 </p>
 
+<p>
+The previous <code>ListenUnixgram</code> returned <code>UDPConn</code> as
+arepresentation of the connection endpoint. The Go 1.1 implementation
+returns <code>UnixConn</code> to allow reading and writing
+with <code>ReadFrom</code> and <code>WriteTo</code> methods on
+the <code>UnixConn</code>.
+</p>
 
 <h3 id="time">time</h3>
 <p>

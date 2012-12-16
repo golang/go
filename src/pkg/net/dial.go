@@ -238,7 +238,7 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
 		if a != nil {
 			la = a.(*UnixAddr)
 		}
-		return DialUnix(net, la, nil)
+		return ListenUnixgram(net, la)
 	}
 	return nil, UnknownNetworkError(net)
 }
