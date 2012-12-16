@@ -263,9 +263,10 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 		return
 	}
 
-	p1, p2 := "/tmp/gotest.net1", "/tmp/gotest.net2"
+	p1, p2, p3 := "/tmp/gotest.net1", "/tmp/gotest.net2", "/tmp/gotest.net3"
 	os.Remove(p1)
 	os.Remove(p2)
+	os.Remove(p3)
 
 	a1, err := net.ResolveUnixAddr("unixgram", p1)
 	if err != nil {
@@ -305,9 +306,30 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	defer c2.Close()
 	defer os.Remove(p2)
 
+	a3, err := net.ResolveUnixAddr("unixgram", p3)
+	if err != nil {
+		t.Errorf("net.ResolveUnixAddr failed: %v", err)
+		return
+	}
+	c3, err := net.ListenUnixgram("unixgram", a3)
+	if err != nil {
+		t.Errorf("net.ListenUnixgram failed: %v", err)
+		return
+	}
+	c3.LocalAddr()
+	c3.RemoteAddr()
+	c3.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	c3.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	c3.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+	c3.SetReadBuffer(2048)
+	c3.SetWriteBuffer(2048)
+	defer c3.Close()
+	defer os.Remove(p3)
+
 	wb := []byte("UNIXCONN TEST")
 	rb1 := make([]byte, 128)
 	rb2 := make([]byte, 128)
+	rb3 := make([]byte, 128)
 	if _, _, err := c1.WriteMsgUnix(wb, nil, a2); err != nil {
 		t.Errorf("net.UnixConn.WriteMsgUnix failed: %v", err)
 		return
@@ -324,9 +346,22 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 		t.Errorf("net.UnixConn.ReadFromUnix failed: %v", err)
 		return
 	}
-
-	// TODO: http://golang.org/issue/3875
-	net.ListenUnixgram("unixgram", nil)
+	if _, err := c3.WriteToUnix(wb, a1); err != nil {
+		t.Errorf("net.UnixConn.WriteToUnix failed: %v", err)
+		return
+	}
+	if _, _, err := c1.ReadFromUnix(rb1); err != nil {
+		t.Errorf("net.UnixConn.ReadFromUnix failed: %v", err)
+		return
+	}
+	if _, err := c2.WriteToUnix(wb, a3); err != nil {
+		t.Errorf("net.UnixConn.WriteToUnix failed: %v", err)
+		return
+	}
+	if _, _, err := c3.ReadFromUnix(rb3); err != nil {
+		t.Errorf("net.UnixConn.ReadFromUnix failed: %v", err)
+		return
+	}
 
 	if f, err := c1.File(); err != nil {
 		t.Errorf("net.UnixConn.File failed: %v", err)
