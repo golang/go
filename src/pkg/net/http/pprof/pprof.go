@@ -34,9 +34,8 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
-// Or to view all available profiles:
-//
-//	go tool pprof http://localhost:6060/debug/pprof/
+// To view all available profiles, open http://localhost:6060/debug/pprof/
+// in your browser.
 //
 // For a study of the facility in action, visit
 //
