@@ -121,3 +121,9 @@ func TestNoRaceRpcChan(t *testing.T) {
 		t.Fatalf("makeChanCalls %d, expected 1\n", makeChanCalls)
 	}
 }
+
+func divInSlice() {
+	v := make([]int64, 10)
+	i := 1
+	_ = v[(i*4)/3]
+}

@@ -475,8 +475,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 			*np = n;
 		}
 		n = treecopy(n);
-		f = mkcall(wr ? "racewrite" : "raceread", T, nil, uintptraddr(n));
-		//typecheck(&f, Etop);
+		f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
 		*init = list(*init, f);
 		return 1;
 	}
