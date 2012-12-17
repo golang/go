@@ -69,13 +69,13 @@ func (f faker) SetReadDeadline(time.Time) error  { return nil }
 func (f faker) SetWriteDeadline(time.Time) error { return nil }
 
 func TestBasic(t *testing.T) {
-	basicServer = strings.Join(strings.Split(basicServer, "\n"), "\r\n")
-	basicClient = strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+	server := strings.Join(strings.Split(basicServer, "\n"), "\r\n")
+	client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 
 	var cmdbuf bytes.Buffer
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
-	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(basicServer)), bcmdbuf)
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
 	c := &Client{Text: textproto.NewConn(fake), localName: "localhost"}
 
 	if err := c.helo(); err != nil {
@@ -144,8 +144,8 @@ Goodbye.`
 
 	bcmdbuf.Flush()
 	actualcmds := cmdbuf.String()
-	if basicClient != actualcmds {
-		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, basicClient)
+	if client != actualcmds {
+		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
 	}
 }
 
@@ -188,8 +188,8 @@ QUIT
 `
 
 func TestNewClient(t *testing.T) {
-	newClientServer = strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
-	newClientClient = strings.Join(strings.Split(newClientClient, "\n"), "\r\n")
+	server := strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
+	client := strings.Join(strings.Split(newClientClient, "\n"), "\r\n")
 
 	var cmdbuf bytes.Buffer
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
@@ -198,7 +198,7 @@ func TestNewClient(t *testing.T) {
 		return cmdbuf.String()
 	}
 	var fake faker
-	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(newClientServer)), bcmdbuf)
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
 	c, err := NewClient(fake, "fake.host")
 	if err != nil {
 		t.Fatalf("NewClient: %v\n(after %v)", err, out())
@@ -214,8 +214,8 @@ func TestNewClient(t *testing.T) {
 	}
 
 	actualcmds := out()
-	if newClientClient != actualcmds {
-		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, newClientClient)
+	if client != actualcmds {
+		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
 	}
 }
 
@@ -232,13 +232,13 @@ QUIT
 `
 
 func TestNewClient2(t *testing.T) {
-	newClient2Server = strings.Join(strings.Split(newClient2Server, "\n"), "\r\n")
-	newClient2Client = strings.Join(strings.Split(newClient2Client, "\n"), "\r\n")
+	server := strings.Join(strings.Split(newClient2Server, "\n"), "\r\n")
+	client := strings.Join(strings.Split(newClient2Client, "\n"), "\r\n")
 
 	var cmdbuf bytes.Buffer
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
-	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(newClient2Server)), bcmdbuf)
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
 	c, err := NewClient(fake, "fake.host")
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -252,8 +252,8 @@ func TestNewClient2(t *testing.T) {
 
 	bcmdbuf.Flush()
 	actualcmds := cmdbuf.String()
-	if newClient2Client != actualcmds {
-		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, newClient2Client)
+	if client != actualcmds {
+		t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
 	}
 }
 
@@ -385,38 +385,44 @@ func TestSendMail(t *testing.T) {
 	}
 	defer l.Close()
 
-	go func(l net.Listener, data []string, w *bufio.Writer) {
-		i := 0
+	// prevent data race on bcmdbuf
+	var done = make(chan struct{})
+	go func(data []string) {
+
+		defer close(done)
+
 		conn, err := l.Accept()
 		if err != nil {
-			t.Log("Accept error: %v", err)
+			t.Errorf("Accept error: %v", err)
 			return
 		}
 		defer conn.Close()
 
 		tc := textproto.NewConn(conn)
-		for i < len(data) && data[i] != "" {
+		for i := 0; i < len(data) && data[i] != ""; i++ {
 			tc.PrintfLine(data[i])
 			for len(data[i]) >= 4 && data[i][3] == '-' {
 				i++
 				tc.PrintfLine(data[i])
 			}
+			if data[i] == "221 Goodbye" {
+				return
+			}
 			read := false
 			for !read || data[i] == "354 Go ahead" {
 				msg, err := tc.ReadLine()
-				w.Write([]byte(msg + "\r\n"))
+				bcmdbuf.Write([]byte(msg + "\r\n"))
 				read = true
 				if err != nil {
-					t.Log("Read error: %v", err)
+					t.Errorf("Read error: %v", err)
 					return
 				}
 				if data[i] == "354 Go ahead" && msg == "." {
 					break
 				}
 			}
-			i++
 		}
-	}(l, strings.Split(server, "\r\n"), bcmdbuf)
+	}(strings.Split(server, "\r\n"))
 
 	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
 To: other@example.com
@@ -429,6 +435,7 @@ SendMail is working for me.
 		t.Errorf("%v", err)
 	}
 
+	<-done
 	bcmdbuf.Flush()
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
