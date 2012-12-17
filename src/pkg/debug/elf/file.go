@@ -272,7 +272,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		shnum = int(hdr.Shnum)
 		shstrndx = int(hdr.Shstrndx)
 	}
-	if shstrndx < 0 || shstrndx >= shnum {
+
+	if shnum > 0 && shoff > 0 && (shstrndx < 0 || shstrndx >= shnum) {
 		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
 	}
 
@@ -365,6 +366,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size))
 		s.ReaderAt = s.sr
 		f.Sections[i] = s
+	}
+
+	if len(f.Sections) == 0 {
+		return f, nil
 	}
 
 	// Load section header string table.
