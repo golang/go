@@ -396,7 +396,7 @@ func (f *fmt) fmt_f64(v float64) { f.formatFloat(v, 'f', doPrec(f, 6), 64) }
 // fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
 func (f *fmt) fmt_g64(v float64) { f.formatFloat(v, 'g', doPrec(f, -1), 64) }
 
-// fmt_g64 formats a float64 in the 'f' or 'E' form according to size.
+// fmt_G64 formats a float64 in the 'f' or 'E' form according to size.
 func (f *fmt) fmt_G64(v float64) { f.formatFloat(v, 'G', doPrec(f, -1), 64) }
 
 // fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
