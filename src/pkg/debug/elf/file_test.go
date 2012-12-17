@@ -5,10 +5,14 @@
 package elf
 
 import (
+	"bytes"
+	"compress/gzip"
 	"debug/dwarf"
 	"encoding/binary"
+	"io"
 	"net"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"testing"
@@ -121,15 +125,49 @@ var fileTests = []fileTest{
 		},
 		[]string{"libc.so.6"},
 	},
+	{
+		"testdata/hello-world-core.gz",
+		FileHeader{ELFCLASS64, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE, 0x0, binary.LittleEndian, ET_CORE, EM_X86_64, 0x0},
+		[]SectionHeader{},
+		[]ProgHeader{
+			{Type: PT_NOTE, Flags: 0x0, Off: 0x3f8, Vaddr: 0x0, Paddr: 0x0, Filesz: 0x8ac, Memsz: 0x0, Align: 0x0},
+			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x1000, Vaddr: 0x400000, Paddr: 0x0, Filesz: 0x0, Memsz: 0x1000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_R, Off: 0x1000, Vaddr: 0x401000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x2000, Vaddr: 0x402000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x3000, Vaddr: 0x7f54078b8000, Paddr: 0x0, Filesz: 0x0, Memsz: 0x1b5000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: 0x0, Off: 0x3000, Vaddr: 0x7f5407a6d000, Paddr: 0x0, Filesz: 0x0, Memsz: 0x1ff000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_R, Off: 0x3000, Vaddr: 0x7f5407c6c000, Paddr: 0x0, Filesz: 0x4000, Memsz: 0x4000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x7000, Vaddr: 0x7f5407c70000, Paddr: 0x0, Filesz: 0x2000, Memsz: 0x2000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x9000, Vaddr: 0x7f5407c72000, Paddr: 0x0, Filesz: 0x5000, Memsz: 0x5000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0xe000, Vaddr: 0x7f5407c77000, Paddr: 0x0, Filesz: 0x0, Memsz: 0x22000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0xe000, Vaddr: 0x7f5407e81000, Paddr: 0x0, Filesz: 0x3000, Memsz: 0x3000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x11000, Vaddr: 0x7f5407e96000, Paddr: 0x0, Filesz: 0x3000, Memsz: 0x3000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_R, Off: 0x14000, Vaddr: 0x7f5407e99000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x15000, Vaddr: 0x7f5407e9a000, Paddr: 0x0, Filesz: 0x2000, Memsz: 0x2000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_W + PF_R, Off: 0x17000, Vaddr: 0x7fff79972000, Paddr: 0x0, Filesz: 0x23000, Memsz: 0x23000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x3a000, Vaddr: 0x7fff799f8000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
+			{Type: PT_LOAD, Flags: PF_X + PF_R, Off: 0x3b000, Vaddr: 0xffffffffff600000, Paddr: 0x0, Filesz: 0x1000, Memsz: 0x1000, Align: 0x1000},
+		},
+		nil,
+	},
 }
 
 func TestOpen(t *testing.T) {
 	for i := range fileTests {
 		tt := &fileTests[i]
 
-		f, err := Open(tt.file)
+		var f *File
+		var err error
+		if path.Ext(tt.file) == ".gz" {
+			var r io.ReaderAt
+			if r, err = decompress(tt.file); err == nil {
+				f, err = NewFile(r)
+			}
+		} else {
+			f, err = Open(tt.file)
+		}
 		if err != nil {
-			t.Error(err)
+			t.Errorf("cannot open file %s: %v", tt.file, err)
 			continue
 		}
 		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
@@ -173,6 +211,23 @@ func TestOpen(t *testing.T) {
 			t.Errorf("open %s: DT_NEEDED = %v, want %v", tt.file, tl, fl)
 		}
 	}
+}
+
+// elf.NewFile requires io.ReaderAt, which compress/gzip cannot
+// provide. Decompress the file to a bytes.Reader.
+func decompress(gz string) (io.ReaderAt, error) {
+	in, err := os.Open(gz)
+	if err != nil {
+		return nil, err
+	}
+	defer in.Close()
+	r, err := gzip.NewReader(in)
+	if err != nil {
+		return nil, err
+	}
+	var out bytes.Buffer
+	_, err = io.Copy(&out, r)
+	return bytes.NewReader(out.Bytes()), err
 }
 
 type relocationTestEntry struct {
