@@ -286,3 +286,64 @@ func type_asserts() {
 	_ = t.(T2 /* ERROR "wrong type for method m" */ )
 	_ = t.(I2 /* ERROR "wrong type for method m" */ )
 }
+
+func f0() {}
+func f1(x int) {}
+func f2(u float32, s string) {}
+func fs(s []byte) {}
+func fv(x ...int) {}
+func fi(x ... interface{}) {}
+
+func g0() {}
+func g1() int { return 0}
+func g2() (u float32, s string) { return }
+func gs() []byte { return nil }
+
+func _calls() {
+	var x int
+	var y float32
+	var s []int
+
+	f0()
+	_ = f0 /* ERROR "used as value" */ ()
+	f0(g0 /* ERROR "too many arguments" */ )
+
+	f1(0)
+	f1(x)
+	f1(10.0)
+	f1 /* ERROR "too few arguments" */ ()
+	f1(x, y /* ERROR "too many arguments" */ )
+	f1(s /* ERROR "cannot assign" */ )
+	f1(x ... /* ERROR "cannot use ..." */ )
+	f1(g0 /* ERROR "used as value" */ ())
+	f1(g1())
+	// f1(g2()) // TODO(gri) missing position in error message
+
+	f2 /* ERROR "too few arguments" */ ()
+	f2 /* ERROR "too few arguments" */ (3.14)
+	f2(3.14, "foo")
+	f2(x /* ERROR "cannot assign" */ , "foo")
+	f2(g0 /* ERROR "used as value" */ ())
+	f2 /* ERROR "too few arguments" */ (g1 /* ERROR "cannot assign" */ ())
+	f2(g2())
+
+	fs /* ERROR "too few arguments" */ ()
+	fs(g0 /* ERROR "used as value" */ ())
+	fs(g1 /* ERROR "cannot assign" */ ())
+	// fs(g2()) // TODO(gri) missing position in error message
+	fs(gs())
+
+	fv()
+	fv(1, 2.0, x)
+	fv(s /* ERROR "cannot assign" */ )
+	fv(s...)
+	fv(1, s /* ERROR "can only use ... with matching parameter" */ ...)
+	fv(gs /* ERROR "cannot assign" */ ())
+	fv(gs /* ERROR "cannot assign" */ ()...)
+
+	fi()
+	fi(1, 2.0, x, 3.14, "foo")
+	fi(g2())
+	fi(0, g2)
+	fi(0, g2 /* ERROR "2-valued expression" */ ())
+}

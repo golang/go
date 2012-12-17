@@ -225,25 +225,28 @@ func deref(typ Type) Type {
 }
 
 // defaultType returns the default "typed" type for an "untyped" type;
-// it returns the argument typ for all other types.
+// it returns the incoming type for all other types. If there is no
+// corresponding untyped type, the result is Typ[Invalid].
+//
 func defaultType(typ Type) Type {
 	if t, ok := typ.(*Basic); ok {
-		var k BasicKind
+		k := Invalid
 		switch t.Kind {
+		// case UntypedNil:
+		//      There is no default type for nil. For a good error message,
+		//      catch this case before calling this function.
 		case UntypedBool:
 			k = Bool
-		case UntypedRune:
-			k = Rune
 		case UntypedInt:
 			k = Int
+		case UntypedRune:
+			k = Rune
 		case UntypedFloat:
 			k = Float64
 		case UntypedComplex:
 			k = Complex128
 		case UntypedString:
 			k = String
-		default:
-			unreachable()
 		}
 		typ = Typ[k]
 	}

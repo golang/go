@@ -155,7 +155,7 @@ var testExprs = []testEntry{
 	dup("-f(10, 20)"),
 	dup("f(x + y, +3.1415)"),
 	{"func(a, b int) {}", "(func literal)"},
-	{"func(a, b int) []int {}()[x]", "(func literal)()[x]"},
+	{"func(a, b int) []int {}(1, 2)[x]", "(func literal)(1, 2)[x]"},
 	{"[]int{1, 2, 3}", "(composite literal)"},
 	{"[]int{1, 2, 3}[x:]", "(composite literal)[x:]"},
 	{"i.([]string)", "i.(...)"},
