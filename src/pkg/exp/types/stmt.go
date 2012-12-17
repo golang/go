@@ -12,9 +12,9 @@ import (
 )
 
 func (check *checker) assignOperand(z, x *operand) {
-	if t, ok := x.typ.(*tuple); ok {
+	if t, ok := x.typ.(*Result); ok {
 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
-		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.list), x)
+		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
 		x.mode = invalid
 		return
 	}
@@ -95,7 +95,12 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		if x.mode != invalid {
 			typ = x.typ
 			if obj.Kind == ast.Var && isUntyped(typ) {
-				typ = defaultType(typ)
+				if x.isNil() {
+					check.errorf(x.pos(), "use of untyped nil")
+					x.mode = invalid
+				} else {
+					typ = defaultType(typ)
+				}
 			}
 		}
 		obj.Type = typ
@@ -177,12 +182,12 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
 			return
 		}
 
-		if t, ok := x.typ.(*tuple); ok && len(lhs) == len(t.list) {
+		if t, ok := x.typ.(*Result); ok && len(lhs) == len(t.Values) {
 			// function result
 			x.mode = value
-			for i, typ := range t.list {
+			for i, obj := range t.Values {
 				x.expr = nil // TODO(gri) should do better here
-				x.typ = typ
+				x.typ = obj.Type.(Type)
 				check.assign1to1(lhs[i], nil, &x, decl, iota)
 			}
 			return
@@ -429,7 +434,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		var x operand
 		tag := s.Tag
 		if tag == nil {
-			// create true tag value and position it at the opening { of the switch
+			// use fake true tag value and position it at the opening { of the switch
 			tag = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true", Obj: Universe.Lookup("true")}
 		}
 		check.expr(&x, tag, nil, -1)
@@ -451,15 +456,15 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 					// If we have a constant case value, it must appear only
 					// once in the switch statement. Determine if there is a
-					// duplicate entry, but only report an error there are no
-					// other errors.
+					// duplicate entry, but only report an error if there are
+					// no other errors.
 					var dupl token.Pos
 					if y.mode == constant {
 						// TODO(gri) This code doesn't work correctly for
 						//           large integer, floating point, or
 						//           complex values - the respective struct
-						//           comparison is shallow. Need to use a
-						//           has function to index the seen map.
+						//           comparisons are shallow. Need to use a
+						//           hash function to index the map.
 						dupl = seen[y.val]
 						seen[y.val] = y.pos()
 					}
@@ -475,7 +480,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 					check.comparison(&y, &x, token.EQL)
 					if y.mode != invalid && dupl.IsValid() {
-						check.errorf(y.pos(), "%s is duplicate case in switch\n\tprevious case at %s",
+						check.errorf(y.pos(), "%s is duplicate case (previous at %s)",
 							&y, check.fset.Position(dupl))
 					}
 				}

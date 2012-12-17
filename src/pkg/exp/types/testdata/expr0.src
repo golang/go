@@ -63,6 +63,7 @@ var (
 	u16 = &u0
 	u17 = *u16
 	u18 = <-u16 /* ERROR "cannot receive" */
+	u19 = ^uint(0)
 
 	// float64
 	f0 = float64(1)
@@ -131,5 +132,4 @@ var (
 	ch7 = <-ch
 	ch8 = <-rc
 	ch9 = <-sc /* ERROR "cannot receive" */
-
 )

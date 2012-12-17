@@ -46,7 +46,7 @@ var (
 	s14 = i << j /* ERROR "must be unsigned" */ 
 	s18 = math.Pi * 10.0
 	s19 = s1 /* ERROR "cannot call" */ ()
- 	s20 = f0 /* ERROR "used as single value" */ ()
+ 	s20 = f0 /* ERROR "no value" */ ()
 	s21 = f6(1, s1, i)
 	s22 = f6(1, s1, uu /* ERROR "cannot assign" */ )
 	
@@ -68,7 +68,7 @@ var (
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()
-	t20 int = f0 /* ERROR "used as single value" */ ()
+	t20 int = f0 /* ERROR "no value" */ ()
 )
 
 // Various more complex expressions
@@ -94,6 +94,7 @@ var (
 	v10 byte = 1024 /* ERROR "overflows" */
 	v11 = xx/yy*yy - xx
 	v12 = true && false
+	v13 = nil /* ERROR "use of untyped nil" */
 )
 
 // Multiple assignment expressions

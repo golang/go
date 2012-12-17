@@ -19,7 +19,6 @@ import (
 // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
 
 // TODO(gri) API issues
-// - clients need access to result type information (tuples)
 // - clients need access to constant values
 // - clients need access to built-in type information
 
@@ -212,21 +211,11 @@ func (check *checker) unary(x *operand, op token.Token) {
 	}
 
 	if x.mode == constant {
-		switch op {
-		case token.ADD:
-			// nothing to do
-		case token.SUB:
-			x.val = binaryOpConst(zeroConst, x.val, token.SUB, false)
-		case token.XOR:
-			x.val = binaryOpConst(minusOneConst, x.val, token.XOR, false)
-		case token.NOT:
-			x.val = !x.val.(bool)
-		default:
-			unreachable() // operators where checked by check.op
-		}
+		typ := underlying(x.typ).(*Basic)
+		x.val = unaryOpConst(x.val, op, typ)
 		// Typed constants must be representable in
 		// their type after each constant operation.
-		check.isRepresentable(x, underlying(x.typ).(*Basic))
+		check.isRepresentable(x, typ)
 		return
 	}
 
@@ -304,6 +293,8 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 		if !x.isNil() {
 			goto Error
 		}
+	default:
+		unreachable()
 	}
 
 	x.typ = target
@@ -332,7 +323,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 	}
 
 	if !valid {
-		check.invalidOp(x.pos(), "cannot compare %s and %s", x, y)
+		check.invalidOp(x.pos(), "cannot compare %s %s %s", x, op, y)
 		x.mode = invalid
 		return
 	}
@@ -465,10 +456,11 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
 	}
 
 	if x.mode == constant && y.mode == constant {
-		x.val = binaryOpConst(x.val, y.val, op, isInteger(x.typ))
+		typ := underlying(x.typ).(*Basic)
+		x.val = binaryOpConst(x.val, y.val, op, typ)
 		// Typed constants must be representable in
 		// their type after each constant operation.
-		check.isRepresentable(x, underlying(x.typ).(*Basic))
+		check.isRepresentable(x, typ)
 		return
 	}
 
@@ -554,9 +546,15 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 	return max
 }
 
-func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
+// argument typechecks passing an argument arg (if arg != nil) or
+// x (if arg == nil) to the i'th parameter of the given signature.
+// If passSlice is set, the argument is followed by ... in the call.
+//
+func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
+	// determine parameter
 	var par *ast.Object
-	if n := len(sig.Params); i < n {
+	n := len(sig.Params)
+	if i < n {
 		par = sig.Params[i]
 	} else if sig.IsVariadic {
 		par = sig.Params[n-1]
@@ -565,16 +563,32 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
 		return
 	}
 
-	// TODO(gri) deal with ... last argument
-	var z, x operand
+	// determine argument
+	var z operand
 	z.mode = variable
-	z.expr = nil            // TODO(gri) can we do better here?
-	z.typ = par.Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
-	check.expr(&x, arg, z.typ, -1)
+	z.expr = nil // TODO(gri) can we do better here? (for good error messages)
+	z.typ = par.Type.(Type)
+
+	if arg != nil {
+		check.expr(x, arg, z.typ, -1)
+	}
 	if x.mode == invalid {
 		return // ignore this argument
 	}
-	check.assignOperand(&z, &x)
+
+	// check last argument of the form x...
+	if passSlice {
+		if i+1 != n {
+			check.errorf(x.pos(), "can only use ... with matching parameter")
+			return // ignore this argument
+		}
+		// spec: "If the final argument is assignable to a slice type []T,
+		// it may be passed unchanged as the value for a ...T parameter if
+		// the argument is followed by ..."
+		z.typ = &Slice{Elt: z.typ} // change final parameter type to []T
+	}
+
+	check.assignOperand(&z, x)
 }
 
 func (check *checker) recordType(x *operand) {
@@ -1052,25 +1066,79 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.conversion(x, e, x.typ, iota)
 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
 			// check parameters
-			// TODO(gri)
-			// - deal with single multi-valued function arguments: f(g())
-			// - variadic functions only partially addressed
-			for i, arg := range e.Args {
-				check.argument(sig, i, arg)
+
+			// If we have a trailing ... at the end of the parameter
+			// list, the last argument must match the parameter type
+			// []T of a variadic function parameter x ...T.
+			passSlice := false
+			if e.Ellipsis.IsValid() {
+				if sig.IsVariadic {
+					passSlice = true
+				} else {
+					check.errorf(e.Ellipsis, "cannot use ... in call to %s", e.Fun)
+					// ok to continue
+				}
+			}
+
+			// If we have a single argument that is a function call
+			// we need to handle it separately. Determine if this
+			// is the case without checking the argument.
+			var call *ast.CallExpr
+			if len(e.Args) == 1 {
+				call, _ = unparen(e.Args[0]).(*ast.CallExpr)
+			}
+
+			n := 0 // parameter count
+			if call != nil {
+				// We have a single argument that is a function call.
+				check.expr(x, call, nil, -1)
+				if x.mode == invalid {
+					goto Error // TODO(gri): we can do better
+				}
+				if t, _ := x.typ.(*Result); t != nil {
+					// multiple result values
+					n = len(t.Values)
+					for i, obj := range t.Values {
+						x.mode = value
+						x.expr = nil // TODO(gri) can we do better here? (for good error messages)
+						x.typ = obj.Type.(Type)
+						check.argument(sig, i, nil, x, passSlice && i+1 == n)
+					}
+				} else {
+					// single result value
+					n = 1
+					check.argument(sig, 0, nil, x, passSlice)
+				}
+
+			} else {
+				// We don't have a single argument or it is not a function call.
+				n = len(e.Args)
+				for i, arg := range e.Args {
+					check.argument(sig, i, arg, x, passSlice && i+1 == n)
+				}
+			}
+
+			// determine if we have enough arguments
+			if sig.IsVariadic {
+				// a variadic function accepts an "empty"
+				// last argument: count one extra
+				n++
+			}
+			if n < len(sig.Params) {
+				check.errorf(e.Fun.Pos(), "too few arguments in call to %s", e.Fun)
+				// ok to continue
 			}
 
 			// determine result
-			x.mode = value
-			if len(sig.Results) == 1 {
+			switch len(sig.Results) {
+			case 0:
+				x.mode = novalue
+			case 1:
+				x.mode = value
 				x.typ = sig.Results[0].Type.(Type)
-			} else {
-				// TODO(gri) change Signature representation to use tuples,
-				//           then this conversion is not required
-				list := make([]Type, len(sig.Results))
-				for i, obj := range sig.Results {
-					list[i] = obj.Type.(Type)
-				}
-				x.typ = &tuple{list: list}
+			default:
+				x.mode = value
+				x.typ = &Result{Values: sig.Results}
 			}
 
 		} else if bin, ok := x.typ.(*builtin); ok {

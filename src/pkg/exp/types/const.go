@@ -49,12 +49,17 @@ func (nilType) String() string {
 	return "nil"
 }
 
-// Frequently used constants.
+// Implementation-specific constants.
+// TODO(gri) These need to go elsewhere.
+const (
+	intBits = 32
+	ptrBits = 64
+)
+
+// Frequently used values.
 var (
-	zeroConst     = int64(0)
-	oneConst      = int64(1)
-	minusOneConst = int64(-1)
-	nilConst      = nilType{}
+	nilConst  = nilType{}
+	zeroConst = int64(0)
 )
 
 // int64 bounds
@@ -74,7 +79,7 @@ func normalizeIntConst(x *big.Int) interface{} {
 }
 
 // normalizeRatConst returns the smallest constant representation
-// for the specific value of x; either an int64, *big.Int value,
+// for the specific value of x; either an int64, *big.Int,
 // or *big.Rat value.
 //
 func normalizeRatConst(x *big.Rat) interface{} {
@@ -84,15 +89,15 @@ func normalizeRatConst(x *big.Rat) interface{} {
 	return x
 }
 
-// normalizeComplexConst returns the smallest constant representation
-// for the specific value of x; either an int64, *big.Int value, *big.Rat,
-// or complex value.
+// newComplex returns the smallest constant representation
+// for the specific value re + im*i; either an int64, *big.Int,
+// *big.Rat, or complex value.
 //
-func normalizeComplexConst(x complex) interface{} {
-	if x.im.Sign() == 0 {
-		return normalizeRatConst(x.re)
+func newComplex(re, im *big.Rat) interface{} {
+	if im.Sign() == 0 {
+		return normalizeRatConst(re)
 	}
-	return x
+	return complex{re, im}
 }
 
 // makeRuneConst returns the int64 code point for the rune literal
@@ -140,7 +145,7 @@ func makeComplexConst(lit string) interface{} {
 	n := len(lit)
 	if n > 0 && lit[n-1] == 'i' {
 		if im, ok := new(big.Rat).SetString(lit[0 : n-1]); ok {
-			return normalizeComplexConst(complex{big.NewRat(0, 1), im})
+			return newComplex(big.NewRat(0, 1), im)
 		}
 	}
 	return nil
@@ -202,9 +207,6 @@ func isNegConst(x interface{}) bool {
 // of precision.
 //
 func isRepresentableConst(x interface{}, as BasicKind) bool {
-	const intBits = 32 // TODO(gri) implementation-specific constant
-	const ptrBits = 64 // TODO(gri) implementation-specific constant
-
 	switch x := x.(type) {
 	case bool:
 		return as == Bool || as == UntypedBool
@@ -386,13 +388,71 @@ func is63bit(x int64) bool {
 	return -1<<62 <= x && x <= 1<<62-1
 }
 
+// unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
+func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
+	switch op {
+	case token.ADD:
+		return x // nothing to do
+	case token.SUB:
+		switch x := x.(type) {
+		case int64:
+			if z := -x; z != x {
+				return z // no overflow
+			}
+			// overflow - need to convert to big.Int
+			return normalizeIntConst(new(big.Int).Neg(big.NewInt(x)))
+		case *big.Int:
+			return normalizeIntConst(new(big.Int).Neg(x))
+		case *big.Rat:
+			return normalizeRatConst(new(big.Rat).Neg(x))
+		case complex:
+			return newComplex(new(big.Rat).Neg(x.re), new(big.Rat).Neg(x.im))
+		}
+	case token.XOR:
+		var z big.Int
+		switch x := x.(type) {
+		case int64:
+			z.Not(big.NewInt(x))
+		case *big.Int:
+			z.Not(x)
+		default:
+			unreachable()
+		}
+		// For unsigned types, the result will be negative and
+		// thus "too large": We must limit the result size to
+		// the type's size.
+		if typ.Info&IsUnsigned != 0 {
+			s := uint(typ.Size) * 8
+			if s == 0 {
+				// platform-specific type
+				// TODO(gri) this needs to be factored out
+				switch typ.Kind {
+				case Uint:
+					s = intBits
+				case Uintptr:
+					s = ptrBits
+				default:
+					unreachable()
+				}
+			}
+			// z &^= (-1)<<s
+			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s))
+		}
+		return normalizeIntConst(&z)
+	case token.NOT:
+		return !x.(bool)
+	}
+	unreachable()
+	return nil
+}
+
 // binaryOpConst returns the result of the constant evaluation x op y;
-// both operands must be of the same "kind" (boolean, numeric, or string).
-// If intDiv is true, division (op == token.QUO) is using integer division
+// both operands must be of the same constant "kind" (boolean, numeric, or string).
+// If typ is an integer type, division (op == token.QUO) is using integer division
 // (and the result is guaranteed to be integer) rather than floating-point
 // division. Division by zero leads to a run-time panic.
 //
-func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
 	x, y = matchConst(x, y)
 
 	switch x := x.(type) {
@@ -403,8 +463,6 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
 			return x && y
 		case token.LOR:
 			return x || y
-		default:
-			unreachable()
 		}
 
 	case int64:
@@ -431,7 +489,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
 		case token.REM:
 			return x % y
 		case token.QUO:
-			if intDiv {
+			if typ.Info&IsInteger != 0 {
 				return x / y
 			}
 			return normalizeRatConst(new(big.Rat).SetFrac(big.NewInt(x), big.NewInt(y)))
@@ -443,8 +501,6 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
 			return x ^ y
 		case token.AND_NOT:
 			return x &^ y
-		default:
-			unreachable()
 		}
 
 	case *big.Int:
@@ -460,7 +516,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
 		case token.REM:
 			z.Rem(x, y)
 		case token.QUO:
-			if intDiv {
+			if typ.Info&IsInteger != 0 {
 				z.Quo(x, y)
 			} else {
 				return normalizeRatConst(new(big.Rat).SetFrac(x, y))
@@ -533,7 +589,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
 		default:
 			unreachable()
 		}
-		return normalizeComplexConst(complex{&re, &im})
+		return newComplex(&re, &im)
 
 	case string:
 		if op == token.ADD {

@@ -50,7 +50,7 @@ var tests = []string{
 
 	// directories
 	// Note: packages that don't typecheck yet are commented out
-	// "archive/tar", // investigate
+	"archive/tar",
 	"archive/zip",
 
 	"bufio",
@@ -77,13 +77,13 @@ var tests = []string{
 	"crypto/md5",
 	"crypto/rand",
 	"crypto/rc4",
-	// "crypto/rsa", // investigate (GOARCH=386)
+	// "crypto/rsa", // src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
 	"crypto/sha1",
 	"crypto/sha256",
 	"crypto/sha512",
 	"crypto/subtle",
 	"crypto/tls",
-	// "crypto/x509", // investigate
+	// "crypto/x509", // src/pkg/crypto/x509/root.go:15:10: undeclared name: initSystemRoots
 	"crypto/x509/pkix",
 
 	"database/sql",
@@ -117,7 +117,7 @@ var tests = []string{
 
 	"go/ast",
 	"go/build",
-	// "go/doc", // variadic parameters don't work yet fully
+	"go/doc",
 	"go/format",
 	"go/parser",
 	"go/printer",
@@ -125,7 +125,7 @@ var tests = []string{
 	"go/token",
 
 	"hash/adler32",
-	// "hash/crc32", // investigate
+	"hash/crc32",
 	"hash/crc64",
 	"hash/fnv",
 
@@ -139,54 +139,54 @@ var tests = []string{
 	"index/suffixarray",
 
 	"io",
-	// "io/ioutil", // investigate
+	"io/ioutil",
 
 	"log",
 	"log/syslog",
 
 	"math",
-	// "math/big", // investigate
+	"math/big",
 	"math/cmplx",
 	"math/rand",
 
 	"mime",
 	"mime/multipart",
 
-	// "net", // depends on C files
+	// "net", // src/pkg/net/lookup_unix.go:56:20: undeclared name: cgoLookupHost
 	"net/http",
 	"net/http/cgi",
-	// "net/http/fcgi", // investigate
+	"net/http/fcgi",
 	"net/http/httptest",
 	"net/http/httputil",
-	// "net/http/pprof", // investigate
+	"net/http/pprof",
 	"net/mail",
-	// "net/rpc", // investigate
+	"net/rpc",
 	"net/rpc/jsonrpc",
 	"net/smtp",
 	"net/textproto",
 	"net/url",
 
-	// "path", // variadic parameters don't work yet fully
-	// "path/filepath", // investigate
+	"path",
+	"path/filepath",
 
-	// "reflect", // investigate
+	// "reflect", // unsafe.Sizeof must return size > 0 for pointer types
 
 	"regexp",
 	"regexp/syntax",
 
 	"runtime",
-	// "runtime/cgo", // import "C"
+	"runtime/cgo",
 	"runtime/debug",
 	"runtime/pprof",
 
 	"sort",
-	// "strconv", // investigate
+	// "strconv", // bug in switch case duplicate detection
 	"strings",
 
-	// "sync", // platform-specific files
-	// "sync/atomic", // platform-specific files
+	"sync",
+	"sync/atomic",
 
-	// "syscall", // platform-specific files
+	"syscall",
 
 	"testing",
 	"testing/iotest",
@@ -194,10 +194,10 @@ var tests = []string{
 
 	"text/scanner",
 	"text/tabwriter",
-	// "text/template", // variadic parameters don't work yet fully
-	// "text/template/parse", // variadic parameters don't work yet fully
+	"text/template",
+	"text/template/parse",
 
-	// "time", // platform-specific files
+	// "time", // local const decls without initialization expressions
 	"unicode",
 	"unicode/utf16",
 	"unicode/utf8",

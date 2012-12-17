@@ -155,13 +155,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
+		typ := underlying(x.typ).(*Basic)
 		if x.mode == constant && y.mode == constant {
-			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, false)
+			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, typ)
 		} else {
 			x.mode = value
 		}
 
-		switch underlying(x.typ).(*Basic).Kind {
+		switch typ.Kind {
 		case Float32:
 			x.typ = Typ[Complex64]
 		case Float64:

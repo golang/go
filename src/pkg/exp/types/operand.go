@@ -182,7 +182,14 @@ func (x *operand) isAssignable(T Type) bool {
 	if isUntyped(Vu) {
 		switch t := Tu.(type) {
 		case *Basic:
-			return x.mode == constant && isRepresentableConst(x.val, t.Kind)
+			if x.mode == constant {
+				return isRepresentableConst(x.val, t.Kind)
+			}
+			// The result of a comparison is an untyped boolean,
+			// but may not be a constant.
+			if Vb, _ := Vu.(*Basic); Vb != nil {
+				return Vb.Kind == UntypedBool && isBoolean(Tu)
+			}
 		case *Interface:
 			return x.isNil() || len(t.Methods) == 0
 		case *Pointer, *Signature, *Slice, *Map, *Chan:

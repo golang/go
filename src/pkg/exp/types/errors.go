@@ -266,15 +266,8 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		buf.WriteByte('*')
 		writeType(buf, t.Base)
 
-	case *tuple:
-		buf.WriteByte('(')
-		for i, typ := range t.list {
-			if i > 0 {
-				buf.WriteString("; ")
-			}
-			writeType(buf, typ)
-		}
-		buf.WriteByte(')')
+	case *Result:
+		writeParams(buf, t.Values, false)
 
 	case *Signature:
 		buf.WriteString("func")
