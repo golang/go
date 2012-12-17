@@ -337,7 +337,10 @@ func (r *readRune) readByte() (b byte, err error) {
 		r.pending--
 		return
 	}
-	_, err = r.reader.Read(r.pendBuf[0:1])
+	n, err := io.ReadFull(r.reader, r.pendBuf[0:1])
+	if n != 1 {
+		return 0, err
+	}
 	return r.pendBuf[0], err
 }
 
