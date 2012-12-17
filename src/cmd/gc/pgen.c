@@ -141,6 +141,9 @@ compile(Node *fn)
 	if(0)
 		frame(0);
 
+	if(zerostack_enabled)
+		clearstk();
+
 ret:
 	lineno = lno;
 }

@@ -174,6 +174,44 @@ newplist(void)
 }
 
 void
+clearstk(void)
+{
+	Plist *pl;
+	Prog *p1, *p2;
+	Node sp, di, cx, con, ax;
+
+	if(plast->firstpc->to.offset <= 0)
+		return;
+
+	// reestablish context for inserting code
+	// at beginning of function.
+	pl = plast;
+	p1 = pl->firstpc;
+	p2 = p1->link;
+	pc = mal(sizeof(*pc));
+	clearp(pc);
+	p1->link = pc;
+	
+	// zero stack frame
+	nodreg(&sp, types[tptr], D_SP);
+	nodreg(&di, types[tptr], D_DI);
+	nodreg(&cx, types[TUINT32], D_CX);
+	nodconst(&con, types[TUINT32], p1->to.offset / widthptr);
+	gins(ACLD, N, N);
+	gins(AMOVL, &sp, &di);
+	gins(AMOVL, &con, &cx);
+	nodconst(&con, types[TUINT32], 0);
+	nodreg(&ax, types[TUINT32], D_AX);
+	gins(AMOVL, &con, &ax);
+	gins(AREP, N, N);
+	gins(ASTOSL, N, N);
+
+	// continue with original code.
+	gins(ANOP, N, N)->link = p2;
+	pc = P;
+}	
+
+void
 gused(Node *n)
 {
 	gins(ANOP, n, N);	// used
