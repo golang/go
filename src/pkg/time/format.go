@@ -854,9 +854,15 @@ func Parse(layout, value string) (Time, error) {
 			zoneName = p
 
 		case stdFracSecond0:
-			ndigit := std >> stdArgShift
-			nsec, rangeErrString, err = parseNanoseconds(value, 1+ndigit)
-			value = value[1+ndigit:]
+			// stdFracSecond0 requires the exact number of digits as specified in
+			// the layout.
+			ndigit := 1 + (std >> stdArgShift)
+			if len(value) < ndigit {
+				err = errBad
+				break
+			}
+			nsec, rangeErrString, err = parseNanoseconds(value, ndigit)
+			value = value[ndigit:]
 
 		case stdFracSecond9:
 			if len(value) < 2 || value[0] != '.' || value[1] < '0' || '9' < value[1] {
@@ -934,8 +940,7 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 		err = errBad
 		return
 	}
-	ns, err = atoi(value[1:nbytes])
-	if err != nil {
+	if ns, err = atoi(value[1:nbytes]); err != nil {
 		return
 	}
 	if ns < 0 || 1e9 <= ns {
