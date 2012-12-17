@@ -27,6 +27,30 @@ TEXT runtime·pwrite(SB),7,$0
 	SYSCALL
 	RET
 
+// int32 _seek(int64*, int32, int64, int32)
+TEXT _seek<>(SB),7,$0
+	MOVQ	$0x8000, AX
+	MOVQ	$39, BP
+	SYSCALL
+	RET
+
+// int64 seek(int32, int64, int32)
+TEXT runtime·seek(SB),7,$56
+	LEAQ	new+48(SP), CX
+	MOVQ	CX, 0(SP)
+	MOVQ	fd+0(FP), CX
+	MOVQ	CX, 8(SP)
+	MOVQ	off+8(FP), CX
+	MOVQ	CX, 16(SP)
+	MOVQ	whence+16(FP), CX
+	MOVQ	CX, 24(SP)
+	CALL	_seek<>(SB)
+	CMPL	AX, $0
+	JGE	2(PC)
+	MOVQ	$-1, new+48(SP)
+	MOVQ	new+48(SP), AX
+	RET
+
 TEXT runtime·close(SB),7,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$4, BP

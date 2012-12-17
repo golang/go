@@ -24,9 +24,19 @@ TEXT runtime·pwrite(SB),7,$0
 	INT     $64
 	RET
 
+TEXT runtime·seek(SB),7,$0
+	MOVL	$39, AX
+	INT	$64
+	CMPL	AX, $-1
+	JNE	4(PC)
+	MOVL	a+0(FP), CX
+	MOVL	AX, 0(CX)
+	MOVL	AX, 4(CX)
+	RET
+
 TEXT runtime·close(SB),7,$0
 	MOVL	$4, AX
-	INT		$64
+	INT	$64
 	RET
 
 TEXT runtime·exits(SB),7,$0
