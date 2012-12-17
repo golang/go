@@ -469,7 +469,7 @@ type ParseTest struct {
 	value      string
 	hasTZ      bool // contains a time zone
 	hasWD      bool // contains a weekday
-	yearSign   int  // sign of year
+	yearSign   int  // sign of year, -1 indicates the year is not present in the format
 	fracDigits int  // number of digits of fractional second
 }
 
@@ -514,6 +514,13 @@ var parseTests = []ParseTest{
 	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
 	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
 	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
+
+	// issue 4502.
+	{"", StampNano, "Feb  4 21:00:57.012345678", false, false, -1, 9},
+	{"", "Jan _2 15:04:05.999", "Feb  4 21:00:57.012300000", false, false, -1, 4},
+	{"", "Jan _2 15:04:05.999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
+	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.0123", false, false, -1, 4},
+	{"", "Jan _2 15:04:05.999999999", "Feb  4 21:00:57.012345678", false, false, -1, 9},
 }
 
 func TestParse(t *testing.T) {
@@ -549,7 +556,7 @@ func TestRubyParse(t *testing.T) {
 
 func checkTime(time Time, test *ParseTest, t *testing.T) {
 	// The time should be Thu Feb  4 21:00:57 PST 2010
-	if test.yearSign*time.Year() != 2010 {
+	if test.yearSign >= 0 && test.yearSign*time.Year() != 2010 {
 		t.Errorf("%s: bad year: %d not %d", test.name, time.Year(), 2010)
 	}
 	if time.Month() != February {
@@ -630,6 +637,9 @@ var parseErrorTests = []ParseErrorTest{
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", "cannot parse"},
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", "cannot parse"},
 	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
+	// issue 4502. StampNano requires exactly 9 digits of precision.
+	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
+	{StampNano, "Dec  7 11:22:01.0000000000", "extra text: 0"},
 }
 
 func TestParseErrors(t *testing.T) {
