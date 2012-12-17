@@ -778,6 +778,45 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	}
 }
 
+// golang.org/issue/4531: Transport leaks goroutines when
+// request.ContentLength is explicitly short
+func TestTransportPersistConnLeakShortBody(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	n0 := runtime.NumGoroutine()
+	body := []byte("Hello")
+	for i := 0; i < 20; i++ {
+		req, err := NewRequest("POST", ts.URL, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.ContentLength = int64(len(body) - 2) // explicitly short
+		_, err = c.Do(req)
+		if err == nil {
+			t.Fatal("Expect an error from writing too long of a body.")
+		}
+	}
+	nhigh := runtime.NumGoroutine()
+	tr.CloseIdleConnections()
+	time.Sleep(50 * time.Millisecond)
+	runtime.GC()
+	nfinal := runtime.NumGoroutine()
+
+	growth := nfinal - n0
+
+	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
+	// Previously we were leaking one per numReq.
+	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
+	if int(growth) > 5 {
+		t.Error("too many new goroutines")
+	}
+}
+
 // This used to crash; http://golang.org/issue/3266
 func TestTransportIdleConnCrash(t *testing.T) {
 	tr := &Transport{}

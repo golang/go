@@ -742,6 +742,7 @@ WaitResponse:
 		case err := <-writeErrCh:
 			if err != nil {
 				re = responseAndError{nil, err}
+				pc.close()
 				break WaitResponse
 			}
 		case <-pconnDeadCh:
