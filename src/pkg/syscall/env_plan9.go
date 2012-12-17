@@ -12,14 +12,17 @@ import (
 )
 
 var (
-	// envOnce guards initialization by copyenv, which populates env.
+	// envOnce guards copyenv, which populates env.
 	envOnce sync.Once
 
 	// envLock guards env.
 	envLock sync.RWMutex
 
 	// env maps from an environment variable to its value.
-	env map[string]string
+	env = make(map[string]string)
+
+	errZeroLengthKey = errors.New("zero length key")
+	errShortWrite    = errors.New("i/o count too small")
 )
 
 func readenv(key string) (string, error) {
@@ -47,12 +50,18 @@ func writeenv(key, value string) error {
 		return err
 	}
 	defer Close(fd)
-	_, err = Write(fd, []byte(value))
-	return err
+	b := []byte(value)
+	n, err := Write(fd, b)
+	if err != nil {
+		return err
+	}
+	if n != len(b) {
+		return errShortWrite
+	}
+	return nil
 }
 
 func copyenv() {
-	env = make(map[string]string)
 	fd, err := Open("/env", O_RDONLY)
 	if err != nil {
 		return
@@ -72,7 +81,6 @@ func copyenv() {
 }
 
 func Getenv(key string) (value string, found bool) {
-	envOnce.Do(copyenv)
 	if len(key) == 0 {
 		return "", false
 	}
@@ -80,17 +88,20 @@ func Getenv(key string) (value string, found bool) {
 	envLock.RLock()
 	defer envLock.RUnlock()
 
-	v, ok := env[key]
-	if !ok {
+	if v, ok := env[key]; ok {
+		return v, true
+	}
+	v, err := readenv(key)
+	if err != nil {
 		return "", false
 	}
+	env[key] = v
 	return v, true
 }
 
 func Setenv(key, value string) error {
-	envOnce.Do(copyenv)
 	if len(key) == 0 {
-		return errors.New("zero length key")
+		return errZeroLengthKey
 	}
 
 	envLock.Lock()
@@ -105,8 +116,6 @@ func Setenv(key, value string) error {
 }
 
 func Clearenv() {
-	envOnce.Do(copyenv) // prevent copyenv in Getenv/Setenv
-
 	envLock.Lock()
 	defer envLock.Unlock()
 
@@ -115,9 +124,10 @@ func Clearenv() {
 }
 
 func Environ() []string {
-	envOnce.Do(copyenv)
 	envLock.RLock()
 	defer envLock.RUnlock()
+
+	envOnce.Do(copyenv)
 	a := make([]string, len(env))
 	i := 0
 	for k, v := range env {
