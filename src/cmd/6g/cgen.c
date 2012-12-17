@@ -1632,6 +1632,12 @@ componentgen(Node *nr, Node *nl)
 	case TSTRUCT:
 		loffset = nodl.xoffset;
 		roffset = nodr.xoffset;
+		// funarg structs may not begin at offset zero.
+		if(nl->type->etype == TSTRUCT && nl->type->funarg && nl->type->type)
+			loffset -= nl->type->type->width;
+		if(nr != N && nr->type->etype == TSTRUCT && nr->type->funarg && nr->type->type)
+			roffset -= nr->type->type->width;
+
 		for(t=nl->type->type; t; t=t->down) {
 			nodl.xoffset = loffset + t->width;
 			nodl.type = t->type;
