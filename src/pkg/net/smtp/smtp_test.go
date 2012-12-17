@@ -76,7 +76,7 @@ func TestBasic(t *testing.T) {
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(basicServer)), bcmdbuf)
-	c := &Client{Text: textproto.NewConn(fake)}
+	c := &Client{Text: textproto.NewConn(fake), localName: "localhost"}
 
 	if err := c.helo(); err != nil {
 		t.Fatalf("HELO failed: %s", err)
@@ -88,6 +88,7 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("Second EHLO failed: %s", err)
 	}
 
+	c.didHello = true
 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
 		t.Fatalf("Expected AUTH supported")
 	}
@@ -267,5 +268,194 @@ var newClient2Server = `220 hello world
 
 var newClient2Client = `EHLO localhost
 HELO localhost
+QUIT
+`
+
+func TestHello(t *testing.T) {
+
+	if len(helloServer) != len(helloClient) {
+		t.Fatalf("Hello server and client size mismatch")
+	}
+
+	for i := 0; i < len(helloServer); i++ {
+		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
+		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
+		var cmdbuf bytes.Buffer
+		bcmdbuf := bufio.NewWriter(&cmdbuf)
+		var fake faker
+		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+		c, err := NewClient(fake, "fake.host")
+		if err != nil {
+			t.Fatalf("NewClient: %v", err)
+		}
+		c.localName = "customhost"
+		err = nil
+
+		switch i {
+		case 0:
+			err = c.Hello("customhost")
+		case 1:
+			err = c.StartTLS(nil)
+			if err.Error() == "502 Not implemented" {
+				err = nil
+			}
+		case 2:
+			err = c.Verify("test@example.com")
+		case 3:
+			c.tls = true
+			c.serverName = "smtp.google.com"
+			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+		case 4:
+			err = c.Mail("test@example.com")
+		case 5:
+			ok, _ := c.Extension("feature")
+			if ok {
+				t.Errorf("Expected FEATURE not to be supported")
+			}
+		case 6:
+			err = c.Reset()
+		case 7:
+			err = c.Quit()
+		case 8:
+			err = c.Verify("test@example.com")
+			if err != nil {
+				err = c.Hello("customhost")
+				if err != nil {
+					t.Errorf("Want error, got none")
+				}
+			}
+		default:
+			t.Fatalf("Unhandled command")
+		}
+
+		if err != nil {
+			t.Errorf("Command %d failed: %v", i, err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		if client != actualcmds {
+			t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	}
+}
+
+var baseHelloServer = `220 hello world
+502 EH?
+250-mx.google.com at your service
+250 FEATURE
+`
+
+var helloServer = []string{
+	"",
+	"502 Not implemented\n",
+	"250 User is valid\n",
+	"235 Accepted\n",
+	"250 Sender ok\n",
+	"",
+	"250 Reset ok\n",
+	"221 Goodbye\n",
+	"250 Sender ok\n",
+}
+
+var baseHelloClient = `EHLO customhost
+HELO customhost
+`
+
+var helloClient = []string{
+	"",
+	"STARTTLS\n",
+	"VRFY test@example.com\n",
+	"AUTH PLAIN AHVzZXIAcGFzcw==\n",
+	"MAIL FROM:<test@example.com>\n",
+	"",
+	"RSET\n",
+	"QUIT\n",
+	"VRFY test@example.com\n",
+}
+
+func TestSendMail(t *testing.T) {
+	server := strings.Join(strings.Split(sendMailServer, "\n"), "\r\n")
+	client := strings.Join(strings.Split(sendMailClient, "\n"), "\r\n")
+	var cmdbuf bytes.Buffer
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Unable to to create listener: %v", err)
+	}
+	defer l.Close()
+
+	go func(l net.Listener, data []string, w *bufio.Writer) {
+		i := 0
+		conn, err := l.Accept()
+		if err != nil {
+			t.Log("Accept error: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		tc := textproto.NewConn(conn)
+		for i < len(data) && data[i] != "" {
+			tc.PrintfLine(data[i])
+			for len(data[i]) >= 4 && data[i][3] == '-' {
+				i++
+				tc.PrintfLine(data[i])
+			}
+			read := false
+			for !read || data[i] == "354 Go ahead" {
+				msg, err := tc.ReadLine()
+				w.Write([]byte(msg + "\r\n"))
+				read = true
+				if err != nil {
+					t.Log("Read error: %v", err)
+					return
+				}
+				if data[i] == "354 Go ahead" && msg == "." {
+					break
+				}
+			}
+			i++
+		}
+	}(l, strings.Split(server, "\r\n"), bcmdbuf)
+
+	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
+To: other@example.com
+Subject: SendMail test
+
+SendMail is working for me.
+`, "\n", "\r\n", -1)))
+
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	bcmdbuf.Flush()
+	actualcmds := cmdbuf.String()
+	if client != actualcmds {
+		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+	}
+}
+
+var sendMailServer = `220 hello world
+502 EH?
+250 mx.google.com at your service
+250 Sender ok
+250 Receiver ok
+354 Go ahead
+250 Data ok
+221 Goodbye
+`
+
+var sendMailClient = `EHLO localhost
+HELO localhost
+MAIL FROM:<test@example.com>
+RCPT TO:<other@example.com>
+DATA
+From: test@example.com
+To: other@example.com
+Subject: SendMail test
+
+SendMail is working for me.
+.
 QUIT
 `
