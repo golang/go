@@ -25,7 +25,9 @@ func runTest(t *testing.T, path string) {
 	} else {
 		// package directory
 		// TODO(gri) gotype should use the build package instead
-		pkg, err := build.Import(path, "", 0)
+		ctxt := build.Default
+		ctxt.CgoEnabled = false
+		pkg, err := ctxt.Import(path, "", 0)
 		if err != nil {
 			t.Errorf("build.Import error for path = %s: %s", path, err)
 			return
@@ -77,13 +79,13 @@ var tests = []string{
 	"crypto/md5",
 	"crypto/rand",
 	"crypto/rc4",
-	// "crypto/rsa", // src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
+	// "crypto/rsa", // intermittent failure: /home/gri/go2/src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
 	"crypto/sha1",
 	"crypto/sha256",
 	"crypto/sha512",
 	"crypto/subtle",
 	"crypto/tls",
-	// "crypto/x509", // src/pkg/crypto/x509/root.go:15:10: undeclared name: initSystemRoots
+	"crypto/x509",
 	"crypto/x509/pkix",
 
 	"database/sql",
@@ -152,7 +154,7 @@ var tests = []string{
 	"mime",
 	"mime/multipart",
 
-	// "net", // src/pkg/net/lookup_unix.go:56:20: undeclared name: cgoLookupHost
+	// "net", // c:\go\root\src\pkg\net\interface_windows.go:54:13: invalid operation: division by zero
 	"net/http",
 	"net/http/cgi",
 	"net/http/fcgi",
@@ -186,7 +188,7 @@ var tests = []string{
 	"sync",
 	"sync/atomic",
 
-	"syscall",
+	// "syscall", c:\go\root\src\pkg\syscall\syscall_windows.go:35:16: cannot convert EINVAL (constant 536870951) to error
 
 	"testing",
 	"testing/iotest",
