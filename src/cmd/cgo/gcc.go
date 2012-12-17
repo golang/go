@@ -676,9 +676,6 @@ func (p *Package) rewriteRef(f *File) {
 				break
 			}
 			if r.Context == "call2" {
-				if r.Name.FuncType.Result == nil {
-					error_(r.Pos(), "assignment count mismatch: 2 = 0")
-				}
 				// Invent new Name for the two-result function.
 				n := f.Name["2"+r.Name.Go]
 				if n == nil {
@@ -933,6 +930,7 @@ type typeConv struct {
 	void                                   ast.Expr
 	unsafePointer                          ast.Expr
 	string                                 ast.Expr
+	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
 
 	ptrSize int64
 	intSize int64
@@ -964,6 +962,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.unsafePointer = c.Ident("unsafe.Pointer")
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
+	c.goVoid = c.Ident("_Ctype_void")
 }
 
 // base strips away qualifiers and typedefs to get the underlying type
@@ -1292,8 +1291,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		}
 
 	case *dwarf.VoidType:
-		t.Go = c.void
+		t.Go = c.goVoid
 		t.C.Set("void")
+		t.Align = 1
 	}
 
 	switch dtype.(type) {
@@ -1381,7 +1381,9 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
 	}
 	var r *Type
 	var gr []*ast.Field
-	if _, ok := dtype.ReturnType.(*dwarf.VoidType); !ok && dtype.ReturnType != nil {
+	if _, ok := dtype.ReturnType.(*dwarf.VoidType); ok {
+		gr = []*ast.Field{{Type: c.goVoid}}
+	} else if dtype.ReturnType != nil {
 		r = c.Type(dtype.ReturnType, pos)
 		gr = []*ast.Field{{Type: r.Go}}
 	}
