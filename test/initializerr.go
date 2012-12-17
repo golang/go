@@ -26,3 +26,15 @@ var a5 = []byte { x: 2 }	// ERROR "index"
 
 var ok1 = S { }	// should be ok
 var ok2 = T { S: ok1 }	// should be ok
+
+// These keys can be computed at compile time but they are
+// not constants as defined by the spec, so they do not trigger
+// compile-time errors about duplicate key values.
+// See issue 4555.
+
+type Key struct {X, Y int}
+
+var _ = map[Key]string{
+	Key{1,2}: "hello",
+	Key{1,2}: "world",
+}
