@@ -110,58 +110,6 @@ runtime·goenvs_unix(void)
 	syscall·envs.cap = n;
 }
 
-byte*
-runtime·getenv(int8 *s)
-{
-	int32 i, j, len;
-	byte *v, *bs;
-	String* envv;
-	int32 envc;
-
-	bs = (byte*)s;
-	len = runtime·findnull(bs);
-	envv = (String*)syscall·envs.array;
-	envc = syscall·envs.len;
-	for(i=0; i<envc; i++){
-		if(envv[i].len <= len)
-			continue;
-		v = envv[i].str;
-		for(j=0; j<len; j++)
-			if(bs[j] != v[j])
-				goto nomatch;
-		if(v[len] != '=')
-			goto nomatch;
-		return v+len+1;
-	nomatch:;
-	}
-	return nil;
-}
-
-void (*libcgo_setenv)(byte**);
-
-// Update the C environment if cgo is loaded.
-// Called from syscall.Setenv.
-void
-syscall·setenv_c(String k, String v)
-{
-	byte *arg[2];
-
-	if(libcgo_setenv == nil)
-		return;
-
-	arg[0] = runtime·malloc(k.len + 1);
-	runtime·memmove(arg[0], k.str, k.len);
-	arg[0][k.len] = 0;
-
-	arg[1] = runtime·malloc(v.len + 1);
-	runtime·memmove(arg[1], v.str, v.len);
-	arg[1][v.len] = 0;
-
-	runtime·asmcgocall((void*)libcgo_setenv, arg);
-	runtime·free(arg[0]);
-	runtime·free(arg[1]);
-}
-
 void
 runtime·getgoroot(String out)
 {
