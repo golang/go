@@ -22,8 +22,16 @@ pkg crypto/x509, const ExtKeyUsageIPSECEndSystem ExtKeyUsage
 pkg crypto/x509, const ExtKeyUsageIPSECTunnel ExtKeyUsage
 pkg crypto/x509, const ExtKeyUsageIPSECUser ExtKeyUsage
 pkg crypto/x509, const IncompatibleUsage InvalidReason
+pkg crypto/x509, const PEMCipher3DES PEMCipher
+pkg crypto/x509, const PEMCipherAES128 PEMCipher
+pkg crypto/x509, const PEMCipherAES192 PEMCipher
+pkg crypto/x509, const PEMCipherAES256 PEMCipher
+pkg crypto/x509, const PEMCipherDES PEMCipher
 pkg crypto/x509, func DecryptPEMBlock(*pem.Block, []byte) ([]byte, error)
+pkg crypto/x509, func EncryptPEMBlock(io.Reader, string, []byte, []byte, PEMCipher) (*pem.Block, error)
 pkg crypto/x509, func IsEncryptedPEMBlock(*pem.Block) bool
+pkg crypto/x509, func ParseECPrivateKey([]byte) (*ecdsa.PrivateKey, error)
+pkg crypto/x509, type PEMCipher int
 pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
 pkg crypto/x509, var IncorrectPasswordError error
 pkg debug/elf, method (*File) DynString(DynTag) ([]string, error)
@@ -43,6 +51,7 @@ pkg debug/pe, type Symbol struct, SectionNumber int16
 pkg debug/pe, type Symbol struct, StorageClass uint8
 pkg debug/pe, type Symbol struct, Type uint16
 pkg debug/pe, type Symbol struct, Value uint32
+pkg encoding/csv, method (*Writer) Error() error
 pkg encoding/json, method (*Decoder) UseNumber()
 pkg encoding/json, method (Number) Float64() (float64, error)
 pkg encoding/json, method (Number) Int64() (int64, error)
@@ -60,11 +69,237 @@ pkg go/build, type Package struct, SwigCXXFiles []string
 pkg go/build, type Package struct, SwigFiles []string
 pkg go/doc, type Example struct, Play *ast.File
 pkg go/doc, var IllegalPrefixes []string
+pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
+pkg go/format, func Source([]byte) ([]byte, error)
+pkg go/printer, type Config struct, Indent int
 pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
 pkg io, type ByteWriter interface { WriteByte }
 pkg io, type ByteWriter interface, WriteByte(byte) error
+pkg log/syslog (darwin-386), const LOG_AUTH Priority
+pkg log/syslog (darwin-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-386), const LOG_CRON Priority
+pkg log/syslog (darwin-386), const LOG_DAEMON Priority
+pkg log/syslog (darwin-386), const LOG_FTP Priority
+pkg log/syslog (darwin-386), const LOG_KERN Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-386), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-386), const LOG_LPR Priority
+pkg log/syslog (darwin-386), const LOG_MAIL Priority
+pkg log/syslog (darwin-386), const LOG_NEWS Priority
+pkg log/syslog (darwin-386), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-386), const LOG_USER Priority
+pkg log/syslog (darwin-386), const LOG_UUCP Priority
+pkg log/syslog (darwin-386-cgo), const LOG_AUTH Priority
+pkg log/syslog (darwin-386-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-386-cgo), const LOG_CRON Priority
+pkg log/syslog (darwin-386-cgo), const LOG_DAEMON Priority
+pkg log/syslog (darwin-386-cgo), const LOG_FTP Priority
+pkg log/syslog (darwin-386-cgo), const LOG_KERN Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-386-cgo), const LOG_LPR Priority
+pkg log/syslog (darwin-386-cgo), const LOG_MAIL Priority
+pkg log/syslog (darwin-386-cgo), const LOG_NEWS Priority
+pkg log/syslog (darwin-386-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-386-cgo), const LOG_USER Priority
+pkg log/syslog (darwin-386-cgo), const LOG_UUCP Priority
+pkg log/syslog (darwin-amd64), const LOG_AUTH Priority
+pkg log/syslog (darwin-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-amd64), const LOG_CRON Priority
+pkg log/syslog (darwin-amd64), const LOG_DAEMON Priority
+pkg log/syslog (darwin-amd64), const LOG_FTP Priority
+pkg log/syslog (darwin-amd64), const LOG_KERN Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-amd64), const LOG_LPR Priority
+pkg log/syslog (darwin-amd64), const LOG_MAIL Priority
+pkg log/syslog (darwin-amd64), const LOG_NEWS Priority
+pkg log/syslog (darwin-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-amd64), const LOG_USER Priority
+pkg log/syslog (darwin-amd64), const LOG_UUCP Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_AUTH Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_CRON Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_DAEMON Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_FTP Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_KERN Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_LPR Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_MAIL Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_NEWS Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_USER Priority
+pkg log/syslog (darwin-amd64-cgo), const LOG_UUCP Priority
+pkg log/syslog (freebsd-386), const LOG_AUTH Priority
+pkg log/syslog (freebsd-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (freebsd-386), const LOG_CRON Priority
+pkg log/syslog (freebsd-386), const LOG_DAEMON Priority
+pkg log/syslog (freebsd-386), const LOG_FTP Priority
+pkg log/syslog (freebsd-386), const LOG_KERN Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL0 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL1 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL2 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL3 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL4 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL5 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL6 Priority
+pkg log/syslog (freebsd-386), const LOG_LOCAL7 Priority
+pkg log/syslog (freebsd-386), const LOG_LPR Priority
+pkg log/syslog (freebsd-386), const LOG_MAIL Priority
+pkg log/syslog (freebsd-386), const LOG_NEWS Priority
+pkg log/syslog (freebsd-386), const LOG_SYSLOG Priority
+pkg log/syslog (freebsd-386), const LOG_USER Priority
+pkg log/syslog (freebsd-386), const LOG_UUCP Priority
+pkg log/syslog (freebsd-amd64), const LOG_AUTH Priority
+pkg log/syslog (freebsd-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (freebsd-amd64), const LOG_CRON Priority
+pkg log/syslog (freebsd-amd64), const LOG_DAEMON Priority
+pkg log/syslog (freebsd-amd64), const LOG_FTP Priority
+pkg log/syslog (freebsd-amd64), const LOG_KERN Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (freebsd-amd64), const LOG_LPR Priority
+pkg log/syslog (freebsd-amd64), const LOG_MAIL Priority
+pkg log/syslog (freebsd-amd64), const LOG_NEWS Priority
+pkg log/syslog (freebsd-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (freebsd-amd64), const LOG_USER Priority
+pkg log/syslog (freebsd-amd64), const LOG_UUCP Priority
+pkg log/syslog (linux-386), const LOG_AUTH Priority
+pkg log/syslog (linux-386), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-386), const LOG_CRON Priority
+pkg log/syslog (linux-386), const LOG_DAEMON Priority
+pkg log/syslog (linux-386), const LOG_FTP Priority
+pkg log/syslog (linux-386), const LOG_KERN Priority
+pkg log/syslog (linux-386), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-386), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-386), const LOG_LPR Priority
+pkg log/syslog (linux-386), const LOG_MAIL Priority
+pkg log/syslog (linux-386), const LOG_NEWS Priority
+pkg log/syslog (linux-386), const LOG_SYSLOG Priority
+pkg log/syslog (linux-386), const LOG_USER Priority
+pkg log/syslog (linux-386), const LOG_UUCP Priority
+pkg log/syslog (linux-386-cgo), const LOG_AUTH Priority
+pkg log/syslog (linux-386-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-386-cgo), const LOG_CRON Priority
+pkg log/syslog (linux-386-cgo), const LOG_DAEMON Priority
+pkg log/syslog (linux-386-cgo), const LOG_FTP Priority
+pkg log/syslog (linux-386-cgo), const LOG_KERN Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-386-cgo), const LOG_LPR Priority
+pkg log/syslog (linux-386-cgo), const LOG_MAIL Priority
+pkg log/syslog (linux-386-cgo), const LOG_NEWS Priority
+pkg log/syslog (linux-386-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (linux-386-cgo), const LOG_USER Priority
+pkg log/syslog (linux-386-cgo), const LOG_UUCP Priority
+pkg log/syslog (linux-amd64), const LOG_AUTH Priority
+pkg log/syslog (linux-amd64), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-amd64), const LOG_CRON Priority
+pkg log/syslog (linux-amd64), const LOG_DAEMON Priority
+pkg log/syslog (linux-amd64), const LOG_FTP Priority
+pkg log/syslog (linux-amd64), const LOG_KERN Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-amd64), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-amd64), const LOG_LPR Priority
+pkg log/syslog (linux-amd64), const LOG_MAIL Priority
+pkg log/syslog (linux-amd64), const LOG_NEWS Priority
+pkg log/syslog (linux-amd64), const LOG_SYSLOG Priority
+pkg log/syslog (linux-amd64), const LOG_USER Priority
+pkg log/syslog (linux-amd64), const LOG_UUCP Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_AUTH Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_CRON Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_DAEMON Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_FTP Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_KERN Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_LPR Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_MAIL Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_NEWS Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_SYSLOG Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_USER Priority
+pkg log/syslog (linux-amd64-cgo), const LOG_UUCP Priority
+pkg log/syslog (linux-arm), const LOG_AUTH Priority
+pkg log/syslog (linux-arm), const LOG_AUTHPRIV Priority
+pkg log/syslog (linux-arm), const LOG_CRON Priority
+pkg log/syslog (linux-arm), const LOG_DAEMON Priority
+pkg log/syslog (linux-arm), const LOG_FTP Priority
+pkg log/syslog (linux-arm), const LOG_KERN Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL0 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL1 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL2 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL3 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL4 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL5 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL6 Priority
+pkg log/syslog (linux-arm), const LOG_LOCAL7 Priority
+pkg log/syslog (linux-arm), const LOG_LPR Priority
+pkg log/syslog (linux-arm), const LOG_MAIL Priority
+pkg log/syslog (linux-arm), const LOG_NEWS Priority
+pkg log/syslog (linux-arm), const LOG_SYSLOG Priority
+pkg log/syslog (linux-arm), const LOG_USER Priority
+pkg log/syslog (linux-arm), const LOG_UUCP Priority
 pkg math/big, method (*Int) MarshalJSON() ([]byte, error)
+pkg math/big, method (*Int) SetUint64(uint64) *Int
+pkg math/big, method (*Int) Uint64() uint64
 pkg math/big, method (*Int) UnmarshalJSON([]byte) error
+pkg mime/multipart, method (*Writer) SetBoundary(string) error
 pkg net, func LookupNS(string) ([]*NS, error)
 pkg net, method (*IPConn) ReadMsgIP([]byte, []byte) (int, int, int, *IPAddr, error)
 pkg net, method (*IPConn) WriteMsgIP([]byte, []byte, *IPAddr) (int, int, error)
@@ -72,21 +307,31 @@ pkg net, method (*UDPConn) ReadMsgUDP([]byte, []byte) (int, int, int, *UDPAddr, 
 pkg net, method (*UDPConn) WriteMsgUDP([]byte, []byte, *UDPAddr) (int, int, error)
 pkg net, method (*UnixConn) CloseRead() error
 pkg net, method (*UnixConn) CloseWrite() error
+pkg net, type IPAddr struct, Zone string
+pkg net, type IPNet struct, Zone string
 pkg net, type NS struct
 pkg net, type NS struct, Host string
+pkg net, type TCPAddr struct, Zone string
+pkg net, type UDPAddr struct, Zone string
 pkg net/http, func ParseTime(string) (time.Time, error)
 pkg net/http, method (*Request) PostFormValue(string) string
 pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
+pkg net/http, type CloseNotifier interface { CloseNotify }
+pkg net/http, type CloseNotifier interface, CloseNotify() <-chan bool
 pkg net/http, type Request struct, PostForm url.Values
 pkg net/mail, func ParseAddress(string) (*Address, error)
 pkg net/mail, func ParseAddressList(string) ([]*Address, error)
 pkg net/textproto, func TrimBytes([]byte) []byte
 pkg net/textproto, func TrimString(string) string
+pkg os, method (FileMode) IsRegular() bool
 pkg reflect, const SelectDefault SelectDir
 pkg reflect, const SelectRecv SelectDir
 pkg reflect, const SelectSend SelectDir
+pkg reflect, func ChanOf(ChanDir, Type) Type
 pkg reflect, func MakeFunc(Type, func([]Value) []Value) Value
+pkg reflect, func MapOf(Type, Type) Type
 pkg reflect, func Select([]SelectCase) (int, Value, bool)
+pkg reflect, func SliceOf(Type) Type
 pkg reflect, method (Value) Convert(Type) Value
 pkg reflect, type SelectCase struct
 pkg reflect, type SelectCase struct, Chan Value
@@ -94,6 +339,8 @@ pkg reflect, type SelectCase struct, Dir SelectDir
 pkg reflect, type SelectCase struct, Send Value
 pkg reflect, type SelectDir int
 pkg reflect, type Type interface, ConvertibleTo(Type) bool
+pkg regexp, method (*Regexp) Split(string, int) []string
+pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
 pkg runtime, func BlockProfile([]BlockProfileRecord) (int, bool)
 pkg runtime, func SetBlockProfileRate(int)
 pkg runtime, method (*BlockProfileRecord) Stack() []uintptr
@@ -551,6 +798,7 @@ pkg syscall (linux-386-cgo), func Removexattr(string, string) error
 pkg syscall (linux-386-cgo), func Setxattr(string, string, []byte, int) error
 pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (linux-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (linux-amd64), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-amd64), func Getxattr(string, string, []byte) (int, error)
 pkg syscall (linux-amd64), func Listxattr(string, []byte) (int, error)
@@ -559,6 +807,39 @@ pkg syscall (linux-amd64), func Removexattr(string, string) error
 pkg syscall (linux-amd64), func Setxattr(string, string, []byte, int) error
 pkg syscall (linux-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (linux-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (linux-amd64), type TCPInfo struct
+pkg syscall (linux-amd64), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Ato uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Lost uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Options uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-amd64), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Probes uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Rto uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-amd64), type TCPInfo struct, State uint8
+pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64-cgo), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-amd64-cgo), func Getxattr(string, string, []byte) (int, error)
 pkg syscall (linux-amd64-cgo), func Listxattr(string, []byte) (int, error)
@@ -567,6 +848,38 @@ pkg syscall (linux-amd64-cgo), func Removexattr(string, string) error
 pkg syscall (linux-amd64-cgo), func Setxattr(string, string, []byte, int) error
 pkg syscall (linux-amd64-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
 pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (linux-amd64-cgo), type TCPInfo struct
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Ato uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Lost uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Options uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Probes uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rto uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
 pkg syscall (linux-arm), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-arm), func Getxattr(string, string, []byte) (int, error)
 pkg syscall (linux-arm), func Listxattr(string, []byte) (int, error)
@@ -633,6 +946,9 @@ pkg syscall (windows-amd64), type RawSockaddrInet6 struct, Family uint16
 pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
 pkg syscall, func BytePtrFromString(string) (*byte, error)
 pkg syscall, func ByteSliceFromString(string) ([]byte, error)
+pkg syscall, func NsecToTimespec(int64) Timespec
+pkg syscall, func TimespecToNsec(Timespec) int64
+pkg syscall, func UtimesNano(string, []Timespec) error
 pkg syscall, type RawSockaddrInet6 struct
 pkg syscall, type RawSockaddrInet6 struct, Addr [16]byte
 pkg syscall, type RawSockaddrInet6 struct, Flowinfo uint32
@@ -701,6 +1017,8 @@ pkg text/template/parse, type TemplateNode struct, embedded Pos
 pkg text/template/parse, type TextNode struct, embedded Pos
 pkg text/template/parse, type Tree struct, ParseName string
 pkg text/template/parse, type VariableNode struct, embedded Pos
+pkg time, method (Time) Round(Duration) Time
+pkg time, method (Time) Truncate(Duration) Time
 pkg time, method (Time) YearDay() int
 pkg unicode, type RangeTable struct, LatinOffset int
 pkg unicode, var Chakma *RangeTable
