@@ -255,7 +255,7 @@ func (f *File) walkInterfaceType(t *ast.InterfaceType) {
 	}
 }
 
-// walkRangeStmt walks a range statment.
+// walkRangeStmt walks a range statement.
 func (f *File) walkRangeStmt(n *ast.RangeStmt) {
 	checkRangeLoop(f, n)
 }

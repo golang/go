@@ -255,7 +255,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 
 	// d = mant << (exp - mantbits)
 	// Next highest floating point number is mant+1 << exp-mantbits.
-	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
+	// Our upper bound is halfway between, mant*2+1 << exp-mantbits-1.
 	upper := new(decimal)
 	upper.Assign(mant*2 + 1)
 	upper.Shift(exp - int(flt.mantbits) - 1)
@@ -265,7 +265,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// unless mant-1 drops the significant bit and exp is not the minimum exp,
 	// in which case the next lowest is mant*2-1 << exp-mantbits-1.
 	// Either way, call it mantlo << explo-mantbits.
-	// Our lower bound is halfway inbetween, mantlo*2+1 << explo-mantbits-1.
+	// Our lower bound is halfway between, mantlo*2+1 << explo-mantbits-1.
 	var mantlo uint64
 	var explo int
 	if mant > 1<<flt.mantbits || exp == minexp {

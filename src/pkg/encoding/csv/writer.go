@@ -92,7 +92,7 @@ func (w *Writer) Write(record []string) (err error) {
 }
 
 // Flush writes any buffered data to the underlying io.Writer.
-// To check if an error occured during the Flush, call Error.
+// To check if an error occurred during the Flush, call Error.
 func (w *Writer) Flush() {
 	w.w.Flush()
 }

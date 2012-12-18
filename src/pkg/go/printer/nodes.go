@@ -83,7 +83,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
 	// don't overwrite any pending comment in the p.comment cache
 	// (there may be a pending comment when a line comment is
 	// immediately followed by a lead comment with no other
-	// tokens inbetween)
+	// tokens between)
 	if p.commentOffset == infinity {
 		p.nextComment() // get comment ready for use
 	}

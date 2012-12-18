@@ -179,7 +179,7 @@ doNorm:
 	i.rb.src.copySlice(out[outCopyStart:], inCopyStart, i.p)
 	if !i.rb.insertDecomposed(out[i.outStart:outp]) {
 		// Start over to prevent decompositions from crossing segment boundaries.
-		// This is a rare occurance.
+		// This is a rare occurrence.
 		i.p = i.inStart
 		i.info = i.rb.f.info(i.rb.src, i.p)
 	}

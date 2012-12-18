@@ -174,7 +174,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 		}
 	}
 
-	// Commited to succeed.
+	// Committed to succeed.
 	l = &Location{zone: zone, tx: tx}
 
 	// Fill in the cache with information about right now,

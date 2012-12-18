@@ -31,7 +31,7 @@ func runPosTests(t *testing.T, name string, f Form, fn positionFunc, tests []Pos
 		}
 		runes := []rune(test.buffer)
 		if rb.nrune != len(runes) {
-			t.Errorf("%s:%d: reorder buffer lenght is %d; want %d", name, i, rb.nrune, len(runes))
+			t.Errorf("%s:%d: reorder buffer length is %d; want %d", name, i, rb.nrune, len(runes))
 			continue
 		}
 		for j, want := range runes {

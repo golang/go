@@ -20,7 +20,7 @@ import (
 
 const (
 	blockSize   = 64
-	blockOffset = 2 // Substract 2 blocks to compensate for the 0x80 added to continuation bytes.
+	blockOffset = 2 // Subtract 2 blocks to compensate for the 0x80 added to continuation bytes.
 )
 
 type trieHandle struct {
