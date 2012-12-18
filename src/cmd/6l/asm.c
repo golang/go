@@ -455,7 +455,7 @@ adddynsym(Sym *s)
 		adduint32(d, addstring(lookup(".dynstr", 0), name));
 		/* type */
 		t = STB_GLOBAL << 4;
-		if(s->dynexport && s->type == STEXT)
+		if(s->dynexport && (s->type&SMASK) == STEXT)
 			t |= STT_FUNC;
 		else
 			t |= STT_OBJECT;
