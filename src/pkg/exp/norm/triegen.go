@@ -21,7 +21,7 @@ import (
 
 const (
 	blockSize        = 64
-	blockOffset      = 2 // Substract two blocks to compensate for the 0x80 added to continuation bytes.
+	blockOffset      = 2 // Subtract two blocks to compensate for the 0x80 added to continuation bytes.
 	maxSparseEntries = 16
 )
 

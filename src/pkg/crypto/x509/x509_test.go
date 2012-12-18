@@ -439,7 +439,7 @@ func TestECDSA(t *testing.T) {
 			t.Errorf("%d: public key algorithm is %v, want ECDSA", i, pka)
 		}
 		if err = cert.CheckSignatureFrom(cert); err != nil {
-			t.Errorf("%d: certificate verfication failed: %s", i, err)
+			t.Errorf("%d: certificate verification failed: %s", i, err)
 		}
 	}
 }
@@ -519,7 +519,7 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 	}
 	// test cert is self-signed
 	if err = cert.CheckSignatureFrom(cert); err != nil {
-		t.Fatalf("DSA Certificate verfication failed: %s", err)
+		t.Fatalf("DSA Certificate verification failed: %s", err)
 	}
 }
 

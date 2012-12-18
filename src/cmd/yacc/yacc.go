@@ -2893,7 +2893,7 @@ func others() {
 		j = tokset[i].value
 		if j >= 0 && j < 256 {
 			if temp1[j] != 0 {
-				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
+				fmt.Print("yacc bug -- cannot have 2 different Ts with same value\n")
 				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
 				nerrors++
 			}
@@ -2917,7 +2917,7 @@ func others() {
 		j = tokset[i].value - PRIVATE
 		if j >= 0 && j < 256 {
 			if temp1[j] != 0 {
-				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
+				fmt.Print("yacc bug -- cannot have 2 different Ts with same value\n")
 				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
 				nerrors++
 			}

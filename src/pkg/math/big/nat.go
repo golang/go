@@ -826,7 +826,7 @@ func (x nat) string(charset string) string {
 
 // Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
 // by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
-// repeated nat/Word divison.
+// repeated nat/Word division.
 //
 // The iterative method processes n Words by n divW() calls, each of which visits every Word in the
 // incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.

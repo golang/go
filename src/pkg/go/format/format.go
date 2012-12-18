@@ -46,7 +46,7 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 	// Sort imports if necessary.
 	if file != nil && hasUnsortedImports(file) {
 		// Make a copy of the AST because ast.SortImports is destructive.
-		// TODO(gri) Do this more efficently.
+		// TODO(gri) Do this more efficiently.
 		var buf bytes.Buffer
 		err := config.Fprint(&buf, fset, file)
 		if err != nil {

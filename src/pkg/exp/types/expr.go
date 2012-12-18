@@ -598,7 +598,7 @@ func (check *checker) recordType(x *operand) {
 }
 
 // rawExpr typechecks expression e and initializes x with the expression
-// value or type. If an error occured, x.mode is set to invalid.
+// value or type. If an error occurred, x.mode is set to invalid.
 // A hint != nil is used as operand type for untyped shifted operands;
 // iota >= 0 indicates that the expression is part of a constant declaration.
 // cycleOk indicates whether it is ok for a type expression to refer to itself.
@@ -667,7 +667,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.typ = obj.Type.(Type)
 
 	case *ast.Ellipsis:
-		// ellipses are handled explictly where they are legal
+		// ellipses are handled explicitly where they are legal
 		// (array composite literals and parameter lists)
 		check.errorf(e.Pos(), "invalid use of '...'")
 		goto Error
@@ -1284,14 +1284,14 @@ func (check *checker) rawTyp(e ast.Expr, cycleOk, nilOk bool) Type {
 }
 
 // typOrNil is like rawExpr but reports an error if e doesn't represents a type or the predeclared value nil.
-// It returns e's type, nil, or Typ[Invalid] if an error occured.
+// It returns e's type, nil, or Typ[Invalid] if an error occurred.
 //
 func (check *checker) typOrNil(e ast.Expr, cycleOk bool) Type {
 	return check.rawTyp(e, cycleOk, true)
 }
 
 // typ is like rawExpr but reports an error if e doesn't represents a type.
-// It returns e's type, or Typ[Invalid] if an error occured.
+// It returns e's type, or Typ[Invalid] if an error occurred.
 //
 func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
 	return check.rawTyp(e, cycleOk, false)
