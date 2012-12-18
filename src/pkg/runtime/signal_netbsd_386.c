@@ -139,11 +139,11 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 }
 
 void
-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *m, G *g, void (*fn)(void))
+runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
 {
 	mc->__gregs[REG_EIP] = (uint32)runtime·lwp_tramp;
 	mc->__gregs[REG_UESP] = (uint32)stack;
-	mc->__gregs[REG_EBX] = (uint32)m;
-	mc->__gregs[REG_EDX] = (uint32)g;
+	mc->__gregs[REG_EBX] = (uint32)mp;
+	mc->__gregs[REG_EDX] = (uint32)gp;
 	mc->__gregs[REG_ESI] = (uint32)fn;
 }

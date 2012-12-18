@@ -268,12 +268,12 @@ TEXT runtime·futex(SB),7,$0
 	SYSCALL
 	RET
 
-// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+// int64 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),7,$0
 	MOVL	flags+8(SP), DI
 	MOVQ	stack+16(SP), SI
 
-	// Copy m, g, fn off parent stack for use by child.
+	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers CX and R11.
 	MOVQ	mm+24(SP), R8
 	MOVQ	gg+32(SP), R9

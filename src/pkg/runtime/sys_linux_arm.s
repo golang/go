@@ -206,7 +206,7 @@ TEXT runtime·futex(SB),7,$0
 	RET
 
 
-// int32 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+// int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),7,$0
 	MOVW	flags+0(FP), R0
 	MOVW	stack+4(FP), R1
@@ -215,7 +215,7 @@ TEXT runtime·clone(SB),7,$0
 	MOVW	$0, R4	// child tid ptr
 	MOVW	$0, R5
 
-	// Copy m, g, fn off parent stack for use by child.
+	// Copy mp, gp, fn off parent stack for use by child.
 	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
 	MOVW	$-16(R1), R1
 	MOVW	mm+8(FP), R6

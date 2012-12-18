@@ -195,10 +195,10 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// int32 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·tfork(SB),7,$12
 
-	// Copy m, g and fn from the parent stack onto the child stack.
+	// Copy mp, gp and fn from the parent stack onto the child stack.
 	MOVL	params+4(FP), AX
 	MOVL	8(AX), CX		// tf_stack
 	SUBL	$16, CX

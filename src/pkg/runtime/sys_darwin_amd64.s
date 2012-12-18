@@ -254,7 +254,7 @@ TEXT runtime·usleep(SB),7,$16
 	SYSCALL
 	RET
 
-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
 TEXT runtime·bsdthread_create(SB),7,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback

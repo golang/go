@@ -42,7 +42,7 @@
 // know about packages).  The gcc-compiled C function f calls GoF.
 //
 // GoF calls crosscall2(_cgoexp_GoF, frame, framesize).  Crosscall2
-// (in cgo/$GOOS.S, a gcc-compiled assembly file) is a two-argument
+// (in cgo/gcc_$GOARCH.S, a gcc-compiled assembly file) is a two-argument
 // adapter from the gcc function call ABI to the 6c function call ABI.
 // It is called from gcc to call 6c functions.  In this case it calls
 // _cgoexp_GoF(frame, framesize), still running on m->g0's stack
@@ -181,11 +181,11 @@ unlockm(void)
 void
 runtime·NumCgoCall(int64 ret)
 {
-	M *m;
+	M *mp;
 
 	ret = 0;
-	for(m=runtime·atomicloadp(&runtime·allm); m; m=m->alllink)
-		ret += m->ncgocall;
+	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+		ret += mp->ncgocall;
 	FLUSH(&ret);
 }
 

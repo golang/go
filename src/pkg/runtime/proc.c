@@ -264,13 +264,13 @@ schedlock(void)
 static void
 schedunlock(void)
 {
-	M *m;
+	M *mp;
 
-	m = mwakeup;
+	mp = mwakeup;
 	mwakeup = nil;
 	runtime·unlock(&runtime·sched);
-	if(m != nil)
-		runtime·notewakeup(&m->havenextg);
+	if(mp != nil)
+		runtime·notewakeup(&mp->havenextg);
 }
 
 void
@@ -1099,13 +1099,13 @@ runtime·oldstack(void)
 	uint32 argsize;
 	uintptr cret;
 	byte *sp;
-	G *g1;
+	G *gp;
 	int64 goid;
 
 //printf("oldstack m->cret=%p\n", m->cret);
 
-	g1 = m->curg;
-	top = (Stktop*)g1->stackbase;
+	gp = m->curg;
+	top = (Stktop*)gp->stackbase;
 	sp = (byte*)top;
 	old = *top;
 	argsize = old.argsize;
@@ -1117,9 +1117,9 @@ runtime·oldstack(void)
 	USED(goid);
 
 	if(old.free != 0)
-		runtime·stackfree((byte*)g1->stackguard - StackGuard, old.free);
-	g1->stackbase = (uintptr)old.stackbase;
-	g1->stackguard = (uintptr)old.stackguard;
+		runtime·stackfree((byte*)gp->stackguard - StackGuard, old.free);
+	gp->stackbase = (uintptr)old.stackbase;
+	gp->stackguard = (uintptr)old.stackguard;
 
 	cret = m->cret;
 	m->cret = 0;  // drop reference
@@ -1137,7 +1137,7 @@ runtime·newstack(void)
 	int32 framesize, minalloc, argsize;
 	Stktop *top;
 	byte *stk, *sp;
-	G *g1;
+	G *gp;
 	Gobuf label;
 	bool reflectcall;
 	uintptr free;
@@ -1145,12 +1145,12 @@ runtime·newstack(void)
 	framesize = m->moreframesize;
 	minalloc = m->moreframesize_minalloc;
 	argsize = m->moreargsize;
-	g1 = m->curg;
+	gp = m->curg;
 
 	m->moreframesize_minalloc = 0;
 
-	if(m->morebuf.sp < g1->stackguard - StackGuard) {
-		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, g1->stackguard - StackGuard);
+	if(m->morebuf.sp < gp->stackguard - StackGuard) {
+		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, gp->stackguard - StackGuard);
 		runtime·throw("runtime: split stack overflow");
 	}
 	if(argsize % sizeof(uintptr) != 0) {
@@ -1165,14 +1165,14 @@ runtime·newstack(void)
 	if(framesize < minalloc)
 		framesize = minalloc;
 
-	if(reflectcall && minalloc == 0 && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > g1->stackguard) {
+	if(reflectcall && minalloc == 0 && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
 		// special case: called from reflect.call (framesize==1)
 		// to call code with an arbitrary argument size,
 		// and we have enough space on the current stack.
 		// the new Stktop* is necessary to unwind, but
 		// we don't need to create a new segment.
 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
-		stk = (byte*)g1->stackguard - StackGuard;
+		stk = (byte*)gp->stackguard - StackGuard;
 		free = 0;
 	} else {
 		// allocate new segment.
@@ -1188,11 +1188,11 @@ runtime·newstack(void)
 
 	if(0) {
 		runtime·printf("newstack framesize=%d argsize=%d morepc=%p moreargp=%p gobuf=%p, %p top=%p old=%p\n",
-			framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, g1->stackbase);
+			framesize, argsize, m->morepc, m->moreargp, m->morebuf.pc, m->morebuf.sp, top, gp->stackbase);
 	}
 
-	top->stackbase = (byte*)g1->stackbase;
-	top->stackguard = (byte*)g1->stackguard;
+	top->stackbase = (byte*)gp->stackbase;
+	top->stackguard = (byte*)gp->stackguard;
 	top->gobuf = m->morebuf;
 	top->argp = m->moreargp;
 	top->argsize = argsize;
@@ -1202,11 +1202,11 @@ runtime·newstack(void)
 	m->morebuf.sp = (uintptr)nil;
 
 	// copy flag from panic
-	top->panic = g1->ispanic;
-	g1->ispanic = false;
+	top->panic = gp->ispanic;
+	gp->ispanic = false;
 
-	g1->stackbase = (uintptr)top;
-	g1->stackguard = (uintptr)stk + StackGuard;
+	gp->stackbase = (uintptr)top;
+	gp->stackguard = (uintptr)stk + StackGuard;
 
 	sp = (byte*)top;
 	if(argsize > 0) {

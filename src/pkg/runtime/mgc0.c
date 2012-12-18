@@ -1160,16 +1160,16 @@ static int32 gcpercent = -2;
 static void
 stealcache(void)
 {
-	M *m;
+	M *mp;
 
-	for(m=runtime·allm; m; m=m->alllink)
-		runtime·MCache_ReleaseAll(m->mcache);
+	for(mp=runtime·allm; mp; mp=mp->alllink)
+		runtime·MCache_ReleaseAll(mp->mcache);
 }
 
 static void
 cachestats(GCStats *stats)
 {
-	M *m;
+	M *mp;
 	MCache *c;
 	int32 i;
 	uint64 stacks_inuse;
@@ -1180,17 +1180,17 @@ cachestats(GCStats *stats)
 		runtime·memclr((byte*)stats, sizeof(*stats));
 	stacks_inuse = 0;
 	stacks_sys = 0;
-	for(m=runtime·allm; m; m=m->alllink) {
-		c = m->mcache;
+	for(mp=runtime·allm; mp; mp=mp->alllink) {
+		c = mp->mcache;
 		runtime·purgecachedstats(c);
-		stacks_inuse += m->stackalloc->inuse;
-		stacks_sys += m->stackalloc->sys;
+		stacks_inuse += mp->stackalloc->inuse;
+		stacks_sys += mp->stackalloc->sys;
 		if(stats) {
-			src = (uint64*)&m->gcstats;
+			src = (uint64*)&mp->gcstats;
 			dst = (uint64*)stats;
 			for(i=0; i<sizeof(*stats)/sizeof(uint64); i++)
 				dst[i] += src[i];
-			runtime·memclr((byte*)&m->gcstats, sizeof(m->gcstats));
+			runtime·memclr((byte*)&mp->gcstats, sizeof(mp->gcstats));
 		}
 		for(i=0; i<nelem(c->local_by_size); i++) {
 			mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
@@ -1270,7 +1270,7 @@ gc(struct gc_args *args)
 	int64 t0, t1, t2, t3;
 	uint64 heap0, heap1, obj0, obj1;
 	GCStats stats;
-	M *m1;
+	M *mp;
 	uint32 i;
 
 	runtime·semacquire(&runtime·worldsema);
@@ -1284,8 +1284,8 @@ gc(struct gc_args *args)
 	m->gcing = 1;
 	runtime·stoptheworld();
 
-	for(m1=runtime·allm; m1; m1=m1->alllink)
-		runtime·settype_flush(m1, false);
+	for(mp=runtime·allm; mp; mp=mp->alllink)
+		runtime·settype_flush(mp, false);
 
 	heap0 = 0;
 	obj0 = 0;
