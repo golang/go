@@ -94,10 +94,10 @@ the <code>UnixConn</code>.
 
 <h3 id="time">time</h3>
 <p>
-On Linux, previous versions of the time package returned times with
-microsecond precision. The Go 1.1 implementation of time on Linux now returns times with
-nanosecond precision. Code may exist that expects to be able to store
-such a time in an external format with only microsecond precision,
+On FreeBSD, Linux, NetBSD, OS X and OpenBSD, previous versions of the time package
+returned times with microsecond precision. The Go 1.1 implementation of time on these
+systems now returns times with nanosecond precision. Code may exist that expects to be
+able to store such a time in an external format with only microsecond precision,
 read it back, and recover exactly the same time instant.
 In Go 1.1 the same time will not be recovered, since the external storage
 will have discarded nanoseconds.

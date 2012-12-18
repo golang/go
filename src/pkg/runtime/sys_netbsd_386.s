@@ -98,9 +98,9 @@ TEXT runtime·setitimer(SB),7,$-4
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
 	LEAL	12(SP), BX
-	MOVL	BX, 4(SP)		// arg 1 - tp
-	MOVL	$0, 8(SP)		// arg 2 - tzp
-	MOVL	$418, AX		// sys_gettimeofday
+	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	BX, 8(SP)		// arg 2 - tp
+	MOVL	$427, AX		// sys_clock_gettime
 	INT	$0x80
 
 	MOVL	12(SP), AX		// sec - l32
@@ -108,8 +108,7 @@ TEXT time·now(SB), 7, $32
 	MOVL	16(SP), AX		// sec - h32
 	MOVL	AX, sec+4(FP)
 
-	MOVL	20(SP), BX		// usec - should not exceed 999999
-	IMULL	$1000, BX
+	MOVL	20(SP), BX		// nsec
 	MOVL	BX, nsec+8(FP)
 	RET
 
@@ -117,9 +116,9 @@ TEXT time·now(SB), 7, $32
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32
 	LEAL	12(SP), BX
-	MOVL	BX, 4(SP)		// arg 1 - tp
-	MOVL	$0, 8(SP)		// arg 2 - tzp
-	MOVL	$418, AX		// sys_gettimeofday
+	MOVL	$0, 4(SP)		// arg 1 - clock_id
+	MOVL	BX, 8(SP)		// arg 2 - tp
+	MOVL	$427, AX		// sys_clock_gettime
 	INT	$0x80
 
 	MOVL	16(SP), CX		// sec - h32
@@ -129,8 +128,7 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	$1000000000, BX
 	MULL	BX			// result in dx:ax
 
-	MOVL	20(SP), BX		// usec
-	IMULL	$1000, BX
+	MOVL	20(SP), BX		// nsec
 	ADDL	BX, AX
 	ADCL	CX, DX			// add high bits with carry
 

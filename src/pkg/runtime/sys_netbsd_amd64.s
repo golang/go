@@ -122,31 +122,29 @@ TEXT runtime·setitimer(SB),7,$-8
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
-	LEAQ	8(SP), DI		// arg 1 - tp
-	MOVQ	$0, SI			// arg 2 - tzp
-	MOVL	$418, AX		// sys_gettimeofday
+	MOVQ	$0, DI			// arg 1 - clock_id
+	LEAQ	8(SP), SI		// arg 2 - tp
+	MOVL	$427, AX		// sys_clock_gettime
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX		// usec
+	MOVL	16(SP), DX		// nsec
 
-	// sec is in AX, usec in DX
+	// sec is in AX, nsec in DX
 	MOVQ	AX, sec+0(FP)
-	IMULQ	$1000, DX
 	MOVL	DX, nsec+8(FP)
 	RET
 
 TEXT runtime·nanotime(SB),7,$32
-	LEAQ	8(SP), DI		// arg 1 - tp
-	MOVQ	$0, SI			// arg 2 - tzp
-	MOVL	$418, AX		// sys_gettimeofday
+	MOVQ	$0, DI			// arg 1 - clock_id
+	LEAQ	8(SP), SI		// arg 2 - tp
+	MOVL	$427, AX		// sys_clock_gettime
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX		// usec
+	MOVL	16(SP), DX		// nsec
 
-	// sec is in AX, usec in DX
+	// sec is in AX, nsec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
-	IMULQ	$1000, DX
 	ADDQ	DX, AX
 	RET
 
