@@ -35,6 +35,7 @@
 #define SYS_select (SYS_BASE + 142) // newselect
 #define SYS_ugetrlimit (SYS_BASE + 191)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
+#define SYS_clock_gettime (SYS_BASE + 263)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -155,41 +156,37 @@ TEXT runtime·mincore(SB),7,$0
 	RET
 
 TEXT time·now(SB), 7, $32
-	MOVW	$8(R13), R0  // timeval
-	MOVW	$0, R1  // zone
-	MOVW	$SYS_gettimeofday, R7
+	MOVW	$0, R0  // CLOCK_REALTIME
+	MOVW	$8(R13), R1  // timespec
+	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
 	
 	MOVW	8(R13), R0  // sec
-	MOVW	12(R13), R2  // usec
+	MOVW	12(R13), R2  // nsec
 	
 	MOVW	R0, 0(FP)
 	MOVW	$0, R1
 	MOVW	R1, 4(FP)
-	MOVW	$1000, R3
-	MUL	R3, R2
 	MOVW	R2, 8(FP)
 	RET	
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32
-	MOVW	$8(R13), R0  // timeval
-	MOVW	$0, R1  // zone
-	MOVW	$SYS_gettimeofday, R7
+	MOVW	$0, R0  // CLOCK_REALTIME
+	MOVW	$8(R13), R1  // timespec
+	MOVW	$SYS_clock_gettime, R7
 	SWI	$0
 	
 	MOVW	8(R13), R0  // sec
-	MOVW	12(R13), R2  // usec
+	MOVW	12(R13), R2  // nsec
 	
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
-	MOVW	$1000, R3
 	MOVW	$0, R4
-	MUL	R3, R2
 	ADD.S	R2, R0
 	ADC	R4, R1
-	
+
 	MOVW	0(FP), R3
 	MOVW	R0, 0(R3)
 	MOVW	R1, 4(R3)

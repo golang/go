@@ -86,39 +86,36 @@ TEXT runtime·setitimer(SB), 7, $-8
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
-	MOVW $8(R13), R0
-	MOVW $0, R1
-	SWI $116 // gettimeofday
+	MOVW $0, R0 // CLOCK_REALTIME
+	MOVW $8(R13), R1
+	SWI $232 // clock_gettime
 
 	MOVW 8(R13), R0 // sec.low
-	MOVW 16(R13), R2 // usec
+	MOVW 12(R13), R1 // sec.high
+	MOVW 16(R13), R2 // nsec
 
 	MOVW R0, 0(FP)
-	MOVW $0, R1
 	MOVW R1, 4(FP)
-	MOVW $1000, R3
-	MUL R3, R2
 	MOVW R2, 8(FP)
 	RET
 
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB), 7, $32
-	MOVW $8(R13), R0
-	MOVW $0, R1
-	SWI $116 // gettimeofday
+	MOVW $0, R0 // CLOCK_REALTIME
+	MOVW $8(R13), R1
+	SWI $232 // clock_gettime
 
 	MOVW 8(R13), R0 // sec.low
-	MOVW 16(R13), R2 // usec
+	MOVW 12(R13), R4 // sec.high
+	MOVW 16(R13), R2 // nsec
 
 	MOVW $1000000000, R3
 	MULLU R0, R3, (R1, R0)
-	MOVW $1000, R3
-	MOVW $0, R4
-	MUL R3, R2
+	MUL R3, R4
 	ADD.S R2, R0
 	ADC R4, R1
-	
+
 	MOVW 0(FP), R3
 	MOVW R0, 0(R3)
 	MOVW R1, 4(R3)
