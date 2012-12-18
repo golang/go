@@ -12,7 +12,7 @@ int32	runtime·close(int32 fd);
 void	runtime·exits(int8* msg);
 intptr	runtime·brk_(void*);
 int32	runtime·sleep(int32 ms);
-int32	runtime·rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
+int32	runtime·rfork(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
 int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
 int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);

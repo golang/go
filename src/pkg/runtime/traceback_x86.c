@@ -23,7 +23,7 @@ void runtime·sigpanic(void);
 // A little clunky to merge the two but avoids duplicating
 // the code and all its subtlety.
 int32
-runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max)
 {
 	byte *p;
 	int32 i, n, iter, sawnewstack;
@@ -40,10 +40,10 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 	waspanic = false;
 	
 	// If the PC is goexit, the goroutine hasn't started yet.
-	if(pc0 == g->sched.pc && sp == (byte*)g->sched.sp && pc0 == (byte*)runtime·goexit) {
+	if(pc0 == gp->sched.pc && sp == (byte*)gp->sched.sp && pc0 == (byte*)runtime·goexit) {
 		fp = sp;
 		lr = pc;
-		pc = (uintptr)g->entry;
+		pc = (uintptr)gp->entry;
 	}
 	
 	// If the PC is zero, it's likely a nil function call.
@@ -62,7 +62,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 
 	n = 0;
 	sawnewstack = 0;
-	stk = (Stktop*)g->stackbase;
+	stk = (Stktop*)gp->stackbase;
 	for(iter = 0; iter < 100 && n < max; iter++) {	// iter avoids looping forever
 		// Typically:
 		//	pc is the PC of the running function.
@@ -161,7 +161,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		if(f->entry == (uintptr)runtime·newstack)
 			sawnewstack = 1;
 
-		if(pcbuf == nil && f->entry == (uintptr)runtime·morestack && g == m->g0 && sawnewstack) {
+		if(pcbuf == nil && f->entry == (uintptr)runtime·morestack && gp == m->g0 && sawnewstack) {
 			// The fact that we saw newstack means that morestack
 			// has managed to record its information in m, so we can
 			// use it to keep unwinding the stack.
@@ -171,16 +171,16 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			lr = (uintptr)m->morebuf.pc;
 			fp = (byte*)m->morebuf.sp;
 			sawnewstack = 0;
-			g = m->curg;
-			stk = (Stktop*)g->stackbase;
+			gp = m->curg;
+			stk = (Stktop*)gp->stackbase;
 			continue;
 		}
 
-		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
+		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
 			// Lessstack is running on scheduler stack.  Switch to original goroutine.
 			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
-			g = m->curg;
-			stk = (Stktop*)g->stackbase;
+			gp = m->curg;
+			stk = (Stktop*)gp->stackbase;
 			sp = (byte*)stk->gobuf.sp;
 			pc = (uintptr)stk->gobuf.pc;
 			fp = nil;
@@ -196,7 +196,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 	}
 	
 	// Show what created goroutine, except main goroutine (goid 1).
-	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && g->goid != 1) {
+	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
 		runtime·printf("created by %S\n", f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(n > 0 && pc > f->entry)
@@ -211,9 +211,9 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 }
 
 void
-runtime·traceback(byte *pc0, byte *sp, byte*, G *g)
+runtime·traceback(byte *pc0, byte *sp, byte*, G *gp)
 {
-	runtime·gentraceback(pc0, sp, nil, g, 0, nil, 100);
+	runtime·gentraceback(pc0, sp, nil, gp, 0, nil, 100);
 }
 
 int32

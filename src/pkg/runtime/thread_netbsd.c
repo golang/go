@@ -25,7 +25,7 @@ static Sigset sigset_none;
 
 extern void runtime·getcontext(UcontextT *context);
 extern int32 runtime·lwp_create(UcontextT *context, uintptr flags, void *lwpid);
-extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *m, G *g, void (*fn)(void));
+extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *mp, G *gp, void (*fn)(void));
 extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
 extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
 extern int32 runtime·lwp_self(void);
@@ -149,7 +149,7 @@ runtime·semawakeup(M *mp)
 #define _UC_CPU		0x04
 
 void
-runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 {
 	UcontextT uc;
 	int32 ret;
@@ -157,10 +157,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	if(0) {
 		runtime·printf(
 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, m, g, fn, m->id, m->tls[0], &m);
+			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
 	}
 
-	m->tls[0] = m->id;	// so 386 asm can find it
+	mp->tls[0] = mp->id;	// so 386 asm can find it
 
 	runtime·getcontext(&uc);
 	
@@ -168,9 +168,9 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	uc.uc_link = nil;
 	uc.uc_sigmask = sigset_all;
 
-	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, m, g, fn);
+	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, gp, fn);
 
-	ret = runtime·lwp_create(&uc, 0, &m->procid);
+	ret = runtime·lwp_create(&uc, 0, &mp->procid);
 
 	if(ret < 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);

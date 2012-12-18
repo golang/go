@@ -394,18 +394,18 @@ struct TRecord {
 
 func ThreadCreateProfile(p Slice) (n int, ok bool) {
 	TRecord *r;
-	M *first, *m;
+	M *first, *mp;
 	
 	first = runtime·atomicloadp(&runtime·allm);
 	n = 0;
-	for(m=first; m; m=m->alllink)
+	for(mp=first; mp; mp=mp->alllink)
 		n++;
 	ok = false;
 	if(n <= p.len) {
 		ok = true;
 		r = (TRecord*)p.array;
-		for(m=first; m; m=m->alllink) {
-			runtime·memmove(r->stk, m->createstack, sizeof r->stk);
+		for(mp=first; mp; mp=mp->alllink) {
+			runtime·memmove(r->stk, mp->createstack, sizeof r->stk);
 			r++;
 		}
 	}
@@ -445,11 +445,11 @@ func Stack(b Slice, all bool) (n int) {
 }
 
 static void
-saveg(byte *pc, byte *sp, G *g, TRecord *r)
+saveg(byte *pc, byte *sp, G *gp, TRecord *r)
 {
 	int32 n;
 	
-	n = runtime·gentraceback(pc, sp, 0, g, 0, r->stk, nelem(r->stk));
+	n = runtime·gentraceback(pc, sp, 0, gp, 0, r->stk, nelem(r->stk));
 	if(n < nelem(r->stk))
 		r->stk[n] = 0;
 }

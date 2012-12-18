@@ -470,7 +470,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 static Lock settype_lock;
 
 void
-runtime·settype_flush(M *m, bool sysalloc)
+runtime·settype_flush(M *mp, bool sysalloc)
 {
 	uintptr *buf, *endbuf;
 	uintptr size, ofs, j, t;
@@ -482,8 +482,8 @@ runtime·settype_flush(M *m, bool sysalloc)
 	uintptr typ, p;
 	MSpan *s;
 
-	buf = m->settype_buf;
-	endbuf = buf + m->settype_bufsize;
+	buf = mp->settype_buf;
+	endbuf = buf + mp->settype_bufsize;
 
 	runtime·lock(&settype_lock);
 	while(buf < endbuf) {
@@ -581,7 +581,7 @@ runtime·settype_flush(M *m, bool sysalloc)
 	}
 	runtime·unlock(&settype_lock);
 
-	m->settype_bufsize = 0;
+	mp->settype_bufsize = 0;
 }
 
 // It is forbidden to use this function if it is possible that
@@ -589,7 +589,7 @@ runtime·settype_flush(M *m, bool sysalloc)
 void
 runtime·settype(void *v, uintptr t)
 {
-	M *m1;
+	M *mp;
 	uintptr *buf;
 	uintptr i;
 	MSpan *s;
@@ -597,16 +597,16 @@ runtime·settype(void *v, uintptr t)
 	if(t == 0)
 		runtime·throw("settype: zero type");
 
-	m1 = m;
-	buf = m1->settype_buf;
-	i = m1->settype_bufsize;
+	mp = m;
+	buf = mp->settype_buf;
+	i = mp->settype_bufsize;
 	buf[i+0] = (uintptr)v;
 	buf[i+1] = t;
 	i += 2;
-	m1->settype_bufsize = i;
+	mp->settype_bufsize = i;
 
-	if(i == nelem(m1->settype_buf)) {
-		runtime·settype_flush(m1, false);
+	if(i == nelem(mp->settype_buf)) {
+		runtime·settype_flush(mp, false);
 	}
 
 	if(DebugTypeAtBlockEnd) {

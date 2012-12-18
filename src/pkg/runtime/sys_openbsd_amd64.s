@@ -8,10 +8,10 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+// int64 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·tfork(SB),7,$32
 
-	// Copy m, g and fn off parent stack for use by child.
+	// Copy mp, gp and fn off parent stack for use by child.
 	MOVQ	mm+16(FP), R8
 	MOVQ	gg+24(FP), R9
 	MOVQ	fn+32(FP), R12

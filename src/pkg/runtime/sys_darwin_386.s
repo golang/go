@@ -292,7 +292,7 @@ TEXT runtime·usleep(SB),7,$32
 	INT	$0x80
 	RET
 
-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+// void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
 // System call args are: func arg stack pthread flags.
 TEXT runtime·bsdthread_create(SB),7,$32
 	MOVL	$360, AX

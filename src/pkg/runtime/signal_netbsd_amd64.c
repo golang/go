@@ -146,12 +146,12 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 }
 
 void
-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *m, G *g, void (*fn)(void))
+runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
 {
 	// Machine dependent mcontext initialisation for LWP.
 	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
 	mc->__gregs[REG_RSP] = (uint64)stack;
-	mc->__gregs[REG_R8] = (uint64)m;
-	mc->__gregs[REG_R9] = (uint64)g;
+	mc->__gregs[REG_R8] = (uint64)mp;
+	mc->__gregs[REG_R9] = (uint64)gp;
 	mc->__gregs[REG_R12] = (uint64)fn;
 }

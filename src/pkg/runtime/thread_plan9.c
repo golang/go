@@ -171,13 +171,13 @@ runtime·itoa(int32 n, byte *p, uint32 len)
 void
 goexitsall(void)
 {
-	M *m;
+	M *mp;
 	int32 pid;
 
 	pid = getpid();
-	for(m=runtime·atomicloadp(&runtime·allm); m; m=m->alllink)
-		if(m->procid != pid)
-			runtime·postnote(m->procid, "gointr");
+	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+		if(mp->procid != pid)
+			runtime·postnote(mp->procid, "gointr");
 }
 
 void
@@ -254,15 +254,15 @@ runtime·exit(int32 e)
 }
 
 void
-runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 {
-	m->tls[0] = m->id;	// so 386 asm can find it
+	mp->tls[0] = mp->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
-			stk, m, g, fn, runtime·rfork, m->id, m->tls[0], &m);
+			stk, mp, gp, fn, runtime·rfork, mp->id, mp->tls[0], &mp);
 	}
 
-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, m, g, fn) < 0)
+	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, gp, fn) < 0)
 		runtime·throw("newosproc: rfork failed");
 }
 

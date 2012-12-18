@@ -259,7 +259,7 @@ TEXT runtime·futex(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-// int32 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+// int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),7,$0
 	MOVL	$120, AX	// clone
 	MOVL	flags+4(SP), BX
@@ -267,7 +267,7 @@ TEXT runtime·clone(SB),7,$0
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
-	// Copy m, g, fn off parent stack for use by child.
+	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
 	MOVL	mm+12(SP), SI
 	MOVL	SI, 0(CX)

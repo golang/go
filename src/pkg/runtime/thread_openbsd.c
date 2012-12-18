@@ -23,7 +23,7 @@ extern SigTab runtime·sigtab[];
 static Sigset sigset_all = ~(Sigset)0;
 static Sigset sigset_none;
 
-extern int64 runtime·tfork(void *param, uintptr psize, M *m, G *g, void (*fn)(void));
+extern int64 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
 extern int32 runtime·thrwakeup(void *ident, int32 n);
 
@@ -123,7 +123,7 @@ runtime·semawakeup(M *mp)
 }
 
 void
-runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 {
 	Tfork param;
 	Sigset oset;
@@ -132,17 +132,17 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	if(0) {
 		runtime·printf(
 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, m, g, fn, m->id, m->tls[0], &m);
+			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
 	}
 
-	m->tls[0] = m->id;	// so 386 asm can find it
+	mp->tls[0] = mp->id;	// so 386 asm can find it
 
-	param.tf_tcb = (byte*)&m->tls[0];
-	param.tf_tid = (int32*)&m->procid;
+	param.tf_tcb = (byte*)&mp->tls[0];
+	param.tf_tid = (int32*)&mp->procid;
 	param.tf_stack = stk;
 
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
-	ret = runtime·tfork((byte*)&param, sizeof(param), m, g, fn);
+	ret = runtime·tfork((byte*)&param, sizeof(param), mp, gp, fn);
 	runtime·sigprocmask(SIG_SETMASK, oset);
 
 	if(ret < 0) {
