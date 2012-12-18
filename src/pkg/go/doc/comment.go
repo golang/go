@@ -229,7 +229,8 @@ type block struct {
 var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
-	return nonAlphaNumRx.ReplaceAllString(line, "_")
+	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
+	return "hdr-" + nonAlphaNumRx.ReplaceAllString(line, "_")
 }
 
 // ToHTML converts comment text to formatted HTML.
