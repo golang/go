@@ -6,6 +6,8 @@ package token
 
 import (
 	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -178,4 +180,27 @@ func TestFiles(t *testing.T) {
 			t.Errorf("expected %d files; got %d", i+1, j)
 		}
 	}
+}
+
+// issue 4345. Test concurrent use of FileSet.Pos does not trigger a
+// race in the FileSet position cache.
+func TestFileSetRace(t *testing.T) {
+	fset := NewFileSet()
+	for i := 0; i < 100; i++ {
+		fset.AddFile(fmt.Sprintf("file-%d", i), fset.Base(), 1031)
+	}
+	max := int32(fset.Base())
+	var stop sync.WaitGroup
+	r := rand.New(rand.NewSource(7))
+	for i := 0; i < 2; i++ {
+		r := rand.New(rand.NewSource(r.Int63()))
+		stop.Add(1)
+		go func() {
+			for i := 0; i < 1000; i++ {
+				fset.Position(Pos(r.Int31n(max)))
+			}
+			stop.Done()
+		}()
+	}
+	stop.Wait()
 }
