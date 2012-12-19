@@ -716,6 +716,7 @@ func (c *conn) serve() {
 			c.rwc.Close()
 		}
 	}()
+	defer c.close()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
 		if err := tlsConn.Handshake(); err != nil {
@@ -791,7 +792,6 @@ func (c *conn) serve() {
 			break
 		}
 	}
-	c.close()
 }
 
 func (w *response) sendExpectationFailed() {

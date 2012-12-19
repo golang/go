@@ -918,15 +918,19 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
 	}
 }
 
+func TestHandlerPanicNil(t *testing.T) {
+	testHandlerPanic(t, false, nil)
+}
+
 func TestHandlerPanic(t *testing.T) {
-	testHandlerPanic(t, false)
+	testHandlerPanic(t, false, "intentional death for testing")
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {
-	testHandlerPanic(t, true)
+	testHandlerPanic(t, true, "intentional death for testing")
 }
 
-func testHandlerPanic(t *testing.T, withHijack bool) {
+func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
 	// Unlike the other tests that set the log output to ioutil.Discard
 	// to quiet the output, this test uses a pipe.  The pipe serves three
 	// purposes:
@@ -955,7 +959,7 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 			}
 			defer rwc.Close()
 		}
-		panic("intentional death for testing")
+		panic(panicValue)
 	}))
 	defer ts.Close()
 
@@ -968,7 +972,7 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 		_, err := pr.Read(buf)
 		pr.Close()
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 		done <- true
 	}()
@@ -976,6 +980,10 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 	_, err := Get(ts.URL)
 	if err == nil {
 		t.Logf("expected an error")
+	}
+
+	if panicValue == nil {
+		return
 	}
 
 	select {
