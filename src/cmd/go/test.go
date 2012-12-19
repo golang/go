@@ -175,8 +175,8 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
 
 	func BenchmarkXXX(b *testing.B) { ... }
 
-An example function is similar to a test function but, instead of using *testing.T
-to report success or failure, prints output to os.Stdout and os.Stderr.
+An example function is similar to a test function but, instead of using
+*testing.T to report success or failure, prints output to os.Stdout.
 That output is compared against the function's "Output:" comment, which
 must be the last comment in the function body (see example below). An
 example with no such comment, or with no text after "Output:" is compiled
