@@ -182,6 +182,32 @@ func TestFiles(t *testing.T) {
 	}
 }
 
+// FileSet.File should return nil if Pos is past the end of the FileSet.
+func TestFileSetPastEnd(t *testing.T) {
+	fset := NewFileSet()
+	for _, test := range tests {
+		fset.AddFile(test.filename, fset.Base(), test.size)
+	}
+	if f := fset.File(Pos(fset.Base())); f != nil {
+		t.Errorf("expected nil, got %v", f)
+	}
+}
+
+func TestFileSetCacheUnlikely(t *testing.T) {
+	fset := NewFileSet()
+	offsets := make(map[string]int)
+	for _, test := range tests {
+		offsets[test.filename] = fset.Base()
+		fset.AddFile(test.filename, fset.Base(), test.size)
+	}
+	for file, pos := range offsets {
+		f := fset.File(Pos(pos))
+		if f.Name() != file {
+			t.Errorf("expecting %q at position %d, got %q", file, pos, f.Name())
+		}
+	}
+}
+
 // issue 4345. Test concurrent use of FileSet.Pos does not trigger a
 // race in the FileSet position cache.
 func TestFileSetRace(t *testing.T) {
