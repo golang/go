@@ -295,9 +295,9 @@ type FileSet struct {
 
 // NewFileSet creates a new file set.
 func NewFileSet() *FileSet {
-	s := new(FileSet)
-	s.base = 1 // 0 == NoPos
-	return s
+	return &FileSet{
+		base: 1, // 0 == NoPos
+	}
 }
 
 // Base returns the minimum base offset that must be provided to
@@ -367,8 +367,10 @@ func searchFiles(a []*File, x int) int {
 }
 
 func (s *FileSet) file(p Pos) *File {
+	s.mutex.RLock()
 	// common case: p is in last file
 	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
+		s.mutex.RUnlock()
 		return f
 	}
 	// p is not in last file - search all files
@@ -376,10 +378,14 @@ func (s *FileSet) file(p Pos) *File {
 		f := s.files[i]
 		// f.base <= int(p) by definition of searchFiles
 		if int(p) <= f.base+f.size {
-			s.last = f
+			s.mutex.RUnlock()
+			s.mutex.Lock()
+			s.last = f // race is ok - s.last is only a cache
+			s.mutex.Unlock()
 			return f
 		}
 	}
+	s.mutex.RUnlock()
 	return nil
 }
 
@@ -389,9 +395,7 @@ func (s *FileSet) file(p Pos) *File {
 //
 func (s *FileSet) File(p Pos) (f *File) {
 	if p != NoPos {
-		s.mutex.RLock()
 		f = s.file(p)
-		s.mutex.RUnlock()
 	}
 	return
 }
@@ -399,11 +403,9 @@ func (s *FileSet) File(p Pos) (f *File) {
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
-		s.mutex.RLock()
 		if f := s.file(p); f != nil {
 			pos = f.position(p)
 		}
-		s.mutex.RUnlock()
 	}
 	return
 }
