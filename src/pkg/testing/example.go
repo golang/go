@@ -24,7 +24,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 
 	var eg InternalExample
 
-	stdout, stderr := os.Stdout, os.Stderr
+	stdout := os.Stdout
 
 	for _, eg = range examples {
 		matched, err := matchString(*match, eg.Name)
@@ -39,19 +39,19 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 			fmt.Printf("=== RUN: %s\n", eg.Name)
 		}
 
-		// capture stdout and stderr
+		// capture stdout
 		r, w, err := os.Pipe()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		os.Stdout, os.Stderr = w, w
+		os.Stdout = w
 		outC := make(chan string)
 		go func() {
 			buf := new(bytes.Buffer)
 			_, err := io.Copy(buf, r)
 			if err != nil {
-				fmt.Fprintf(stderr, "testing: copying pipe: %v\n", err)
+				fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
 				os.Exit(1)
 			}
 			outC <- buf.String()
@@ -62,9 +62,9 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 		eg.F()
 		dt := time.Now().Sub(t0)
 
-		// close pipe, restore stdout/stderr, get output
+		// close pipe, restore stdout, get output
 		w.Close()
-		os.Stdout, os.Stderr = stdout, stderr
+		os.Stdout = stdout
 		out := <-outC
 
 		// report any errors
