@@ -222,6 +222,8 @@ var cgoEnabled = map[string]bool{
 	"linux/arm":     true,
 	"netbsd/386":    true,
 	"netbsd/amd64":  true,
+	"openbsd/386":   true,
+	"openbsd/amd64": true,
 	"windows/386":   true,
 	"windows/amd64": true,
 }

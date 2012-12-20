@@ -56,6 +56,7 @@ int add(int x, int y) {
 */
 import "C"
 import (
+	"runtime"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -119,7 +120,12 @@ func testErrno(t *testing.T) {
 func testMultipleAssign(t *testing.T) {
 	p := C.CString("234")
 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
-	if n != 0 || m != 234 {
+	if runtime.GOOS == "openbsd" {
+		// Bug in OpenBSD strtol(3) - base > 36 succeeds.
+		if (n != 0 && n != 239089) || m != 234 {
+			t.Fatal("Strtol x2: ", n, m)
+		}
+	} else if n != 0 || m != 234 {
 		t.Fatal("Strtol x2: ", n, m)
 	}
 	C.free(unsafe.Pointer(p))
