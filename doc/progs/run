@@ -45,6 +45,10 @@ fi
 if [ "$goos" == "netbsd" ]; then
 	c_go_cgo=""
 fi
+# cgo3 and cgo4 don't run on openbsd, since cgo cannot handle stdout correctly
+if [ "$goos" == "openbsd" ]; then
+	c_go_cgo="cgo1 cgo2"
+fi
 
 timeout="
 	timeout1
