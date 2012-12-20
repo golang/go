@@ -418,6 +418,9 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
 func TestJarCalls(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		pathSuffix := r.RequestURI[1:]
+		if r.RequestURI == "/nosetcookie" {
+			return // dont set cookies for this path
+		}
 		SetCookie(w, &Cookie{Name: "name" + pathSuffix, Value: "val" + pathSuffix})
 		if r.RequestURI == "/" {
 			Redirect(w, r, "http://secondhost.fake/secondpath", 302)
@@ -437,11 +440,16 @@ func TestJarCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = c.Get("http://firsthost.fake/nosetcookie")
+	if err != nil {
+		t.Fatal(err)
+	}
 	got := jar.log.String()
 	want := `Cookies("http://firsthost.fake/")
 SetCookie("http://firsthost.fake/", [name=val])
 Cookies("http://secondhost.fake/secondpath")
 SetCookie("http://secondhost.fake/secondpath", [namesecondpath=valsecondpath])
+Cookies("http://firsthost.fake/nosetcookie")
 `
 	if got != want {
 		t.Errorf("Got Jar calls:\n%s\nWant:\n%s", got, want)

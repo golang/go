@@ -98,7 +98,9 @@ func (c *Client) send(req *Request) (*Response, error) {
 		return nil, err
 	}
 	if c.Jar != nil {
-		c.Jar.SetCookies(req.URL, resp.Cookies())
+		if rc := resp.Cookies(); len(rc) > 0 {
+			c.Jar.SetCookies(req.URL, rc)
+		}
 	}
 	return resp, err
 }
