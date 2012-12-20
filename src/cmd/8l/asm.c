@@ -1179,7 +1179,10 @@ asmb(void)
 			/*
 			 * Thread-local storage segment (really just size).
 			 */
-			if(tlsoffset != 0) {
+			// Do not emit PT_TLS for OpenBSD since ld.so(1) does
+			// not currently support it. This is handled
+			// appropriately in runtime/cgo.
+			if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
 				ph = newElfPhdr();
 				ph->type = PT_TLS;
 				ph->flags = PF_R;
