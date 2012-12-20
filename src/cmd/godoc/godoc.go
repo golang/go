@@ -658,6 +658,18 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	return
 }
 
+func redirectFile(w http.ResponseWriter, r *http.Request) (redirected bool) {
+	c := pathpkg.Clean(r.URL.Path)
+	for strings.HasSuffix("/", c) {
+		c = c[:len(c)-1]
+	}
+	if r.URL.Path != c {
+		http.Redirect(w, r, c, http.StatusMovedPermanently)
+		redirected = true
+	}
+	return
+}
+
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
 	src, err := ReadFile(fs, abspath)
 	if err != nil {
@@ -749,6 +761,9 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isTextFile(abspath) {
+		if redirectFile(w, r) {
+			return
+		}
 		serveTextFile(w, r, abspath, relpath, "Text file")
 		return
 	}
