@@ -639,6 +639,7 @@ static void
 escassign(EscState *e, Node *dst, Node *src)
 {
 	int lno;
+	NodeList *ll;
 
 	if(isblank(dst) || dst == N || src == N || src->op == ONONAME || src->op == OXXX)
 		return;
@@ -715,9 +716,10 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OCALLMETH:
 	case OCALLFUNC:
 	case OCALLINTER:
-		if(count(src->escretval) != 1)
-			fatal("escassign from call %+N", src);
-		escflows(e, dst, src->escretval->n);
+		// Flowing multiple returns to a single dst happens when
+		// analyzing "go f(g())": here g() flows to sink (issue 4529).
+		for(ll=src->escretval; ll; ll=ll->next)
+			escflows(e, dst, ll->n);
 		break;
 
 	case ODOT:
