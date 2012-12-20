@@ -119,8 +119,29 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		return nil
 	}
 
-	// Find unresolved identifiers
+	// Find top-level declarations in the file.
+	topDecls := make(map[*ast.Object]bool)
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			topDecls[d.Name.Obj] = true
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					topDecls[s.Name.Obj] = true
+				case *ast.ValueSpec:
+					for _, id := range s.Names {
+						topDecls[id.Obj] = true
+					}
+				}
+			}
+		}
+	}
+
+	// Find unresolved identifiers and uses of top-level declarations.
 	unresolved := make(map[string]bool)
+	usesTopDecl := false
 	ast.Inspect(body, func(n ast.Node) bool {
 		// For an expression like fmt.Println, only add "fmt" to the
 		// set of unresolved names.
@@ -130,11 +151,19 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 			}
 			return false
 		}
-		if id, ok := n.(*ast.Ident); ok && id.Obj == nil {
-			unresolved[id.Name] = true
+		if id, ok := n.(*ast.Ident); ok {
+			if id.Obj == nil {
+				unresolved[id.Name] = true
+			} else if topDecls[id.Obj] {
+				usesTopDecl = true
+			}
 		}
 		return true
 	})
+	if usesTopDecl {
+		// We don't support examples that are not self-contained (yet).
+		return nil
+	}
 
 	// Remove predeclared identifiers from unresolved list.
 	for n := range unresolved {
