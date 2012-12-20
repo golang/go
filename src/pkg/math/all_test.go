@@ -2281,6 +2281,13 @@ func TestLog2(t *testing.T) {
 			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
 		}
 	}
+	for i := -1074; i <= 1023; i++ {
+		f := Ldexp(1, i)
+		l := Log2(f)
+		if l != float64(i) {
+			t.Errorf("Log2(2**%d) = %g, want %d", i, l, i)
+		}
+	}
 }
 
 func TestModf(t *testing.T) {
