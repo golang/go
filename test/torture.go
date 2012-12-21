@@ -333,3 +333,7 @@ func ChainDivConst(a int) int {
 		17 / 17 / 17 / 17 /
 		17 / 17 / 17 / 17
 }
+
+func ChainMulBytes(a, b, c byte) byte {
+	return a*(a*(a*(a*(a*(a*(a*(a*(a*b+c)+c)+c)+c)+c)+c)+c)+c) + c
+}
