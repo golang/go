@@ -24,6 +24,15 @@ var packetConnTests = []struct {
 }
 
 func TestPacketConn(t *testing.T) {
+	closer := func(c net.PacketConn, net, addr1, addr2 string) {
+		c.Close()
+		switch net {
+		case "unixgram":
+			os.Remove(addr1)
+			os.Remove(addr2)
+		}
+	}
+
 	for _, tt := range packetConnTests {
 		var wb []byte
 		netstr := strings.Split(tt.net, ":")
@@ -39,7 +48,7 @@ func TestPacketConn(t *testing.T) {
 				continue
 			}
 			id := os.Getpid() & 0xffff
-			wb = newICMPEchoRequest(id, 1, 128, []byte("IP PACKETCONN TEST "))
+			wb = newICMPEchoRequest(id, 1, 128, []byte("IP PACKETCONN TEST"))
 		case "unixgram":
 			switch runtime.GOOS {
 			case "plan9", "windows":
@@ -60,7 +69,7 @@ func TestPacketConn(t *testing.T) {
 		c1.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-		defer c1.Close()
+		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
 
 		c2, err := net.ListenPacket(tt.net, tt.addr2)
 		if err != nil {
@@ -70,7 +79,7 @@ func TestPacketConn(t *testing.T) {
 		c2.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		c2.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-		defer c2.Close()
+		defer closer(c2, netstr[0], tt.addr1, tt.addr2)
 
 		if _, err := c1.WriteTo(wb, c2.LocalAddr()); err != nil {
 			t.Fatalf("net.PacketConn.WriteTo failed: %v", err)
@@ -85,12 +94,6 @@ func TestPacketConn(t *testing.T) {
 		rb1 := make([]byte, 128)
 		if _, _, err := c1.ReadFrom(rb1); err != nil {
 			t.Fatalf("net.PacketConn.ReadFrom failed: %v", err)
-		}
-
-		switch netstr[0] {
-		case "unixgram":
-			os.Remove(tt.addr1)
-			os.Remove(tt.addr2)
 		}
 	}
 }
