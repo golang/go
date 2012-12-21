@@ -748,7 +748,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, *tmp;
+	Node n1, n2, nt, *tmp;
 	Type *t;
 	int a;
 
@@ -764,10 +764,12 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 		nr = tmp;
 	}
 
+	tempname(&nt, nl->type);
+	cgen(nl, &nt);
 	regalloc(&n1, t, res);
-	cgen(nl, &n1);
+	cgen(nr, &n1);
 	regalloc(&n2, t, N);
-	cgen(nr, &n2);
+	gmove(&nt, &n2);
 	a = optoas(op, t);
 	gins(a, &n2, &n1);
 	regfree(&n2);
