@@ -555,7 +555,7 @@ type (
 
 	// A DeclStmt node represents a declaration in a statement list.
 	DeclStmt struct {
-		Decl Decl
+		Decl Decl // *GenDecl with CONST, TYPE, or VAR token
 	}
 
 	// An EmptyStmt node represents an empty statement.
