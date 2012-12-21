@@ -62,8 +62,7 @@ The build flags are shared by the build, install, run, and test commands:
 		print the commands.
 	-race
 		enable data race detection.
-		Currently supported only on linux/amd64,
-		darwin/amd64 and windows/amd64.
+		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
 
 	-ccflags 'arg list'
 		arguments to pass on each 5c, 6c, or 8c compiler invocation
