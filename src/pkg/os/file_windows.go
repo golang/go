@@ -75,13 +75,6 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if e != nil {
 		return nil, &PathError{"open", name, e}
 	}
-
-	// There's a race here with fork/exec, which we are
-	// content to live with.  See ../syscall/exec.go
-	if syscall.O_CLOEXEC == 0 { // O_CLOEXEC not supported
-		syscall.CloseOnExec(r)
-	}
-
 	return NewFile(uintptr(r), name), nil
 }
 
