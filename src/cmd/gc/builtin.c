@@ -65,7 +65,6 @@ char *runtimeimport =
 	"func @\"\".mapaccess1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) (@\"\".val any)\n"
 	"func @\"\".mapaccess2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) (@\"\".val any, @\"\".pres bool)\n"
 	"func @\"\".mapassign1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any)\n"
-	"func @\"\".mapassign2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any, @\"\".pres bool)\n"
 	"func @\"\".mapiterinit(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".hiter *any)\n"
 	"func @\"\".mapdelete(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any)\n"
 	"func @\"\".mapiternext(@\"\".hiter *any)\n"
