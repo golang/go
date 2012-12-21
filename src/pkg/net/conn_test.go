@@ -17,8 +17,8 @@ var connTests = []struct {
 	addr string
 }{
 	{"tcp", "127.0.0.1:0"},
-	{"unix", "/tmp/gotest.net"},
-	{"unixpacket", "/tmp/gotest.net"},
+	{"unix", "/tmp/gotest.net1"},
+	{"unixpacket", "/tmp/gotest.net2"},
 }
 
 func TestConnAndListener(t *testing.T) {
@@ -41,7 +41,13 @@ func TestConnAndListener(t *testing.T) {
 			return
 		}
 		ln.Addr()
-		defer ln.Close()
+		defer func(ln net.Listener, net, addr string) {
+			ln.Close()
+			switch net {
+			case "unix", "unixpacket":
+				os.Remove(addr)
+			}
+		}(ln, tt.net, tt.addr)
 
 		done := make(chan int)
 		go transponder(t, ln, done)
@@ -68,10 +74,6 @@ func TestConnAndListener(t *testing.T) {
 		}
 
 		<-done
-		switch tt.net {
-		case "unix", "unixpacket":
-			os.Remove(tt.addr)
-		}
 	}
 }
 
