@@ -702,25 +702,19 @@ func (c *conn) closeWriteAndWait() {
 // Serve a new connection.
 func (c *conn) serve() {
 	defer func() {
-		err := recover()
-		if err == nil {
-			return
+		if err := recover(); err != nil {
+			const size = 4096
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
 		}
-
-		const size = 4096
-		buf := make([]byte, size)
-		buf = buf[:runtime.Stack(buf, false)]
-		log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
-
-		if c.rwc != nil { // may be nil if connection hijacked
-			c.rwc.Close()
+		if !c.hijacked() {
+			c.close()
 		}
 	}()
-	defer c.close()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
 		if err := tlsConn.Handshake(); err != nil {
-			c.close()
 			return
 		}
 		c.tlsState = new(tls.ConnectionState)
