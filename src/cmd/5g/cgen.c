@@ -1007,22 +1007,21 @@ agenr(Node *n, Node *a, Node *res)
 
 		if(!debug['B'] && !n->bounded) {
 			// check bounds
-			regalloc(&n4, types[TUINT32], N);
 			if(isconst(nl, CTSTR)) {
-				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
-				gmove(&n1, &n4);
+				nodconst(&n4, types[TUINT32], nl->val.u.sval->len);
 			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
 				n1.xoffset = Array_nel;
+				regalloc(&n4, types[TUINT32], N);
 				gmove(&n1, &n4);
 			} else {
-				nodconst(&n1, types[TUINT32], nl->type->bound);
-				gmove(&n1, &n4);
+				nodconst(&n4, types[TUINT32], nl->type->bound);
 			}
 			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
-			regfree(&n4);
+			if(n4.op == OREGISTER)
+				regfree(&n4);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
 			if(p2)
 				patch(p2, pc);
