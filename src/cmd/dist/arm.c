@@ -29,8 +29,19 @@ useVFPv3(void)
 {
 	// try to run VFPv3-only "vmov.f64 d0, #112" instruction
 	// we can't use that instruction directly, because we
-	// might be compiling with a soft-float only toolchain
-	__asm__ __volatile__ (".word 0xeeb70b00");
+	// might be compiling with a soft-float only toolchain.
+	//
+	// some newer toolchains are configured to use thumb
+	// by default, so we need to do some mode changing magic
+	// here.
+	// We can use "bx pc; nop" here, but GNU as(1) insists
+	// on warning us
+	// "use of r15 in bx in ARM mode is not really useful"
+	// so we workaround that by using "bx r0"
+	__asm__ __volatile__ ("mov r0, pc");
+	__asm__ __volatile__ ("bx r0");
+	__asm__ __volatile__ (".word 0xeeb70b00"); // vmov.f64 d0, #112
+	__asm__ __volatile__ (".word 0xe12fff1e"); // bx lr
 }
 
 static void
@@ -39,7 +50,18 @@ useVFPv1(void)
 	// try to run "vmov.f64 d0, d0" instruction
 	// we can't use that instruction directly, because we
 	// might be compiling with a soft-float only toolchain
-	__asm__ __volatile__ (".word 0xeeb00b40");
+	//
+	// some newer toolchains are configured to use thumb
+	// by default, so we need to do some mode changing magic
+	// here.
+	// We can use "bx pc; nop" here, but GNU as(1) insists
+	// on warning us
+	// "use of r15 in bx in ARM mode is not really useful"
+	// so we workaround that by using "bx r0"
+	__asm__ __volatile__ ("mov r0, pc");
+	__asm__ __volatile__ ("bx r0");
+	__asm__ __volatile__ (".word 0xeeb00b40"); // vomv.f64 d0, d0
+	__asm__ __volatile__ (".word 0xe12fff1e"); // bx lr
 }
 
 #endif
