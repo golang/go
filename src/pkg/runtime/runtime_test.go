@@ -38,3 +38,44 @@ func BenchmarkIfaceCmpNil100(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkDefer(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer1()
+	}
+}
+
+func defer1() {
+	defer func(x, y, z int) {
+		if recover() != nil || x != 1 || y != 2 || z != 3 {
+			panic("bad recover")
+		}
+	}(1, 2, 3)
+	return
+}
+
+func BenchmarkDefer10(b *testing.B) {
+	for i := 0; i < b.N/10; i++ {
+		defer2()
+	}
+}
+
+func defer2() {
+	for i := 0; i < 10; i++ {
+		defer func(x, y, z int) {
+			if recover() != nil || x != 1 || y != 2 || z != 3 {
+				panic("bad recover")
+			}
+		}(1, 2, 3)
+	}
+}
+
+func BenchmarkDeferMany(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer func(x, y, z int) {
+			if recover() != nil || x != 1 || y != 2 || z != 3 {
+				panic("bad recover")
+			}
+		}(1, 2, 3)
+	}
+}
