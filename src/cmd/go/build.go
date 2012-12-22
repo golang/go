@@ -1311,8 +1311,6 @@ func (gcToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
-var rsc = flag.Bool("rsc", false, "rsc")
-
 func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
 	out := "_go_." + archChar
 	ofile = obj + out
