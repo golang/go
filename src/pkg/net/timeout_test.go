@@ -60,8 +60,15 @@ func TestAcceptTimeout(t *testing.T) {
 	default:
 	}
 	ln.Close()
-	if err := <-errc; err.(*OpError).Err != errClosing {
-		t.Fatalf("Accept: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	switch nerr := <-errc; err := nerr.(type) {
+	case *OpError:
+		if err.Err != errClosing {
+			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
+		}
+	default:
+		if err != errClosing {
+			t.Fatalf("Accept: expected err %v, got %v", errClosing, err)
+		}
 	}
 }
 
@@ -109,8 +116,15 @@ func TestReadTimeout(t *testing.T) {
 	default:
 	}
 	c.Close()
-	if err := <-errc; err.(*OpError).Err != errClosing {
-		t.Fatalf("Read: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	switch nerr := <-errc; err := nerr.(type) {
+	case *OpError:
+		if err.Err != errClosing {
+			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
+		}
+	default:
+		if err != errClosing {
+			t.Fatalf("Read: expected err %v, got %v", errClosing, err)
+		}
 	}
 }
 
@@ -164,8 +178,15 @@ func TestWriteTimeout(t *testing.T) {
 	default:
 	}
 	c.Close()
-	if err := <-errc; err.(*OpError).Err != errClosing {
-		t.Fatalf("Write: expected err %v, got %v", errClosing, err.(*OpError).Err)
+	switch nerr := <-errc; err := nerr.(type) {
+	case *OpError:
+		if err.Err != errClosing {
+			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
+		}
+	default:
+		if err != errClosing {
+			t.Fatalf("Write: expected err %v, got %v", errClosing, err)
+		}
 	}
 }
 
