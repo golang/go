@@ -273,7 +273,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	s := parentStack{printer: p}
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
-		if finfo.flags&(fAttr|fAny) != 0 {
+		if finfo.flags&(fAttr) != 0 {
 			continue
 		}
 		vf := finfo.value(val)
@@ -340,7 +340,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				continue
 			}
 
-		case fElement:
+		case fElement, fElement | fAny:
 			s.trim(finfo.parents)
 			if len(finfo.parents) > len(s.stack) {
 				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {

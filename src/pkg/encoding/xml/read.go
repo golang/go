@@ -279,7 +279,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 					saveComment = finfo.value(sv)
 				}
 
-			case fAny:
+			case fAny, fAny | fElement:
 				if !saveAny.IsValid() {
 					saveAny = finfo.value(sv)
 				}

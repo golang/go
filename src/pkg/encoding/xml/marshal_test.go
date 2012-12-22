@@ -188,6 +188,18 @@ type AnyTest struct {
 	AnyField AnyHolder `xml:",any"`
 }
 
+type AnyOmitTest struct {
+	XMLName  struct{}   `xml:"a"`
+	Nested   string     `xml:"nested>value"`
+	AnyField *AnyHolder `xml:",any,omitempty"`
+}
+
+type AnySliceTest struct {
+	XMLName  struct{}    `xml:"a"`
+	Nested   string      `xml:"nested>value"`
+	AnyField []AnyHolder `xml:",any"`
+}
+
 type AnyHolder struct {
 	XMLName Name
 	XML     string `xml:",innerxml"`
@@ -652,12 +664,43 @@ var marshalTests = []struct {
 				XML:     "<sub>unknown</sub>",
 			},
 		},
-		UnmarshalOnly: true,
 	},
 	{
-		Value:       &AnyTest{Nested: "known", AnyField: AnyHolder{XML: "<unknown/>"}},
-		ExpectXML:   `<a><nested><value>known</value></nested></a>`,
-		MarshalOnly: true,
+		Value: &AnyTest{Nested: "known",
+			AnyField: AnyHolder{
+				XML:     "<unknown/>",
+				XMLName: Name{Local: "AnyField"},
+			},
+		},
+		ExpectXML: `<a><nested><value>known</value></nested><AnyField><unknown/></AnyField></a>`,
+	},
+	{
+		ExpectXML: `<a><nested><value>b</value></nested></a>`,
+		Value: &AnyOmitTest{
+			Nested: "b",
+		},
+	},
+	{
+		ExpectXML: `<a><nested><value>b</value></nested><c><d>e</d></c><g xmlns="f"><h>i</h></g></a>`,
+		Value: &AnySliceTest{
+			Nested: "b",
+			AnyField: []AnyHolder{
+				{
+					XMLName: Name{Local: "c"},
+					XML:     "<d>e</d>",
+				},
+				{
+					XMLName: Name{Space: "f", Local: "g"},
+					XML:     "<h>i</h>",
+				},
+			},
+		},
+	},
+	{
+		ExpectXML: `<a><nested><value>b</value></nested></a>`,
+		Value: &AnySliceTest{
+			Nested: "b",
+		},
 	},
 
 	// Test recursive types.
@@ -690,15 +733,17 @@ var marshalTests = []struct {
 
 	// Test escaping.
 	{
-		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested></a>`,
+		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested><empty></empty></a>`,
 		Value: &AnyTest{
-			Nested: `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
+			Nested:   `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
+			AnyField: AnyHolder{XMLName: Name{Local: "empty"}},
 		},
 	},
 	{
-		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested></a>`,
+		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested><AnyField></AnyField></a>`,
 		Value: &AnyTest{
-			Nested: "newline: \n; cr: \r; tab: \t;",
+			Nested:   "newline: \n; cr: \r; tab: \t;",
+			AnyField: AnyHolder{XMLName: Name{Local: "AnyField"}},
 		},
 	},
 	{
