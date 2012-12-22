@@ -63,9 +63,10 @@
 	The default precision for %e and %f is 6; for %g it is the smallest
 	number of digits necessary to identify the value uniquely.
 
-	For strings, width is the minimum number of characters to output,
-	padding with spaces if necessary, and precision is the maximum
-	number of characters to output, truncating if necessary.
+	For most values, width is the minimum number of characters to output,
+	padding the formatted form with spaces if necessary.
+	For strings, precision is the maximum number of characters to output,
+	truncating if necessary.
 
 	Other flags:
 		+	always print a sign for numeric values;
@@ -77,7 +78,12 @@
 			write e.g. U+0078 'x' if the character is printable for %U (%#U).
 		' '	(space) leave a space for elided sign in numbers (% d);
 			put spaces between bytes printing strings or slices in hex (% x, % X)
-		0	pad with leading zeros rather than spaces
+		0	pad with leading zeros rather than spaces;
+			for numbers, this moves the padding after the sign
+
+	Flags are ignored by verbs that do not expect them.
+	For example there is no alternate decimal format, so %#d and %d
+	behave identically.
 
 	For each Printf-like function, there is also a Print function
 	that takes no format and is equivalent to saying %v for every
