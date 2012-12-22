@@ -937,6 +937,7 @@ EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
+EXTERN	int	pure_go;
 
 EXTERN	int	nointerface;
 EXTERN	int	fieldtrack_enabled;
