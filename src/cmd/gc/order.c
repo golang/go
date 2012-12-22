@@ -276,11 +276,11 @@ orderstmt(Node *n, NodeList **out)
 			case OSELRECV2:
 				orderexprinplace(&r->left);
 				orderexprinplace(&r->ntest);
-				orderexpr(&r->right->left, out);
+				orderexpr(&r->right->left, &l->n->ninit);
 				break;
 			case OSEND:
-				orderexpr(&r->left, out);
-				orderexpr(&r->right, out);
+				orderexpr(&r->left, &l->n->ninit);
+				orderexpr(&r->right, &l->n->ninit);
 				break;
 			}
 		}

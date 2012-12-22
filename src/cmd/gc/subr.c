@@ -2040,11 +2040,13 @@ cheapexpr(Node *n, NodeList **init)
 
 /*
  * return n in a local variable of type t if it is not already.
+ * the value is guaranteed not to change except by direct
+ * assignment to it.
  */
 Node*
 localexpr(Node *n, Type *t, NodeList **init)
 {
-	if(n->op == ONAME &&
+	if(n->op == ONAME && !n->addrtaken &&
 		(n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT) &&
 		convertop(n->type, t, nil) == OCONVNOP)
 		return n;
