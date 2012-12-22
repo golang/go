@@ -1781,7 +1781,7 @@ lookdot1(Node *errnode, Sym *s, Type *t, Type *f, int dostrcmp)
 static int
 looktypedot(Node *n, Type *t, int dostrcmp)
 {
-	Type *f1, *f2, *tt;
+	Type *f1, *f2;
 	Sym *s;
 	
 	s = n->right->sym;
@@ -1798,11 +1798,9 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 		return 1;
 	}
 
-	tt = t;
-	if(t->sym == S && isptr[t->etype])
-		tt = t->type;
-
-	f2 = methtype(tt, 0);
+	// Find the base type: methtype will fail if t
+	// is not of the form T or *T.
+	f2 = methtype(t, 0);
 	if(f2 == T)
 		return 0;
 
