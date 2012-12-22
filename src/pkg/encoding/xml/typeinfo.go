@@ -154,6 +154,9 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			// This will also catch multiple modes in a single field.
 			valid = false
 		}
+		if finfo.flags&fMode == fAny {
+			finfo.flags |= fElement
+		}
 		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {
 			valid = false
 		}
