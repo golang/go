@@ -121,7 +121,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	 * Lock g to m to ensure we stay on the same stack if we do a
 	 * cgo callback.
 	 */
-	d.nofree = false;
+	d.special = false;
 	if(m->lockedg == nil) {
 		m->lockedg = g;
 		g->lockedm = m;
@@ -131,7 +131,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		d.siz = 0;
 		d.link = g->defer;
 		d.argp = (void*)-1;  // unused because unlockm never recovers
-		d.nofree = true;
+		d.special = true;
 		g->defer = &d;
 	}
 
@@ -160,7 +160,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		m->cgomal = nil;
 	}
 
-	if(d.nofree) {
+	if(d.special) {
 		if(g->defer != &d || d.fn != (byte*)unlockm)
 			runtime·throw("runtime: bad defer entry in cgocallback");
 		g->defer = d.link;
@@ -236,7 +236,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 	d.siz = 0;
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unwindm never recovers
-	d.nofree = true;
+	d.special = true;
 	g->defer = &d;
 
 	if(raceenabled)
