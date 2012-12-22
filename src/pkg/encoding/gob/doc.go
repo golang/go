@@ -67,11 +67,13 @@ point values may be received into any floating point variable.  However,
 the destination variable must be able to represent the value or the decode
 operation will fail.
 
-Structs, arrays and slices are also supported.  Strings and arrays of bytes are
-supported with a special, efficient representation (see below).  When a slice is
-decoded, if the existing slice has capacity the slice will be extended in place;
-if not, a new array is allocated.  Regardless, the length of the resulting slice
-reports the number of elements decoded.
+Structs, arrays and slices are also supported.  Structs encode and
+decode only exported fields. Strings and arrays of bytes are supported
+with a special, efficient representation (see below).  When a slice
+is decoded, if the existing slice has capacity the slice will be
+extended in place; if not, a new array is allocated.  Regardless,
+the length of the resulting slice reports the number of elements
+decoded.
 
 Functions and channels cannot be sent in a gob.  Attempting
 to encode a value that contains one will fail.
