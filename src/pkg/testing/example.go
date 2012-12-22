@@ -50,6 +50,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 		go func() {
 			buf := new(bytes.Buffer)
 			_, err := io.Copy(buf, r)
+			r.Close()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
 				os.Exit(1)
