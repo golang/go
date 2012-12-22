@@ -188,8 +188,7 @@ TEXT runtime·madvise(SB),7,$0
 	MOVQ	24(SP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	// ignore failure - maybe pages are locked
 	RET
 	
 TEXT runtime·sigaltstack(SB),7,$-8

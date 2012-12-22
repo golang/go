@@ -189,8 +189,7 @@ TEXT runtime·madvise(SB),7,$0
 	MOVW 4(FP), R1		// arg 2 len
 	MOVW 8(FP), R2		// arg 3 flags
 	SWI $75
-	MOVW.CS $0, R9 // crash on syscall failure
-	MOVW.CS R9, (R9)
+	// ignore failure - maybe pages are locked
 	RET
 	
 TEXT runtime·sigaltstack(SB),7,$-8

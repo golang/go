@@ -61,8 +61,7 @@ TEXT runtime·madvise(SB), 7, $0
 	MOVL	24(SP), DX		// arg 3 advice
 	MOVL	$(0x2000000+75), AX	// syscall entry madvise
 	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	// ignore failure - maybe pages are locked
 	RET
 
 // OS X comm page time offsets

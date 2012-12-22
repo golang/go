@@ -86,8 +86,7 @@ TEXT runtime·munmap(SB),7,$-4
 TEXT runtime·madvise(SB),7,$-4
 	MOVL	$75, AX			// sys_madvise
 	INT	$0x80
-	JAE	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+	// ignore failure - maybe pages are locked
 	RET
 
 TEXT runtime·setitimer(SB),7,$-4
