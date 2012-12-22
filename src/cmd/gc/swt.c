@@ -259,9 +259,10 @@ casebody(Node *sw, Node *typeswvar)
 	Node *go, *br;
 	int32 lno, needvar;
 
-	lno = setlineno(sw);
 	if(sw->list == nil)
 		return;
+
+	lno = setlineno(sw);
 
 	cas = nil;	// cases
 	stat = nil;	// statements
@@ -270,7 +271,7 @@ casebody(Node *sw, Node *typeswvar)
 
 	for(l=sw->list; l; l=l->next) {
 		n = l->n;
-		lno = setlineno(n);
+		setlineno(n);
 		if(n->op != OXCASE)
 			fatal("casebody %O", n->op);
 		n->op = OCASE;
@@ -793,7 +794,6 @@ typeswitch(Node *sw)
 void
 walkswitch(Node *sw)
 {
-
 	/*
 	 * reorder the body into (OLIST, cases, statements)
 	 * cases have OGOTO into statements.
