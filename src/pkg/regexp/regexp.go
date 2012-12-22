@@ -767,7 +767,7 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
 		}
 		template = rest
 		if num >= 0 {
-			if 2*num+1 < len(match) {
+			if 2*num+1 < len(match) && match[2*num] >= 0 {
 				if bsrc != nil {
 					dst = append(dst, bsrc[match[2*num]:match[2*num+1]]...)
 				} else {
