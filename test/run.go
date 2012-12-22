@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Run runs tests in the test directory.
-// 
+//
 // TODO(bradfitz): docs of some sort, once we figure out how we're changing
 // headers of files
 package main
@@ -204,7 +204,7 @@ type test struct {
 	err     error
 }
 
-// startTest 
+// startTest
 func startTest(dir, gofile string) *test {
 	t := &test{
 		dir:    dir,
@@ -676,39 +676,38 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 }
 
 var skipOkay = map[string]bool{
-	"linkx.go":                true,
-	"rotate.go":               true,
-	"sigchld.go":              true,
-	"sinit.go":                true,
-	"dwarf/main.go":           true,
-	"dwarf/z1.go":             true,
-	"dwarf/z10.go":            true,
-	"dwarf/z11.go":            true,
-	"dwarf/z12.go":            true,
-	"dwarf/z13.go":            true,
-	"dwarf/z14.go":            true,
-	"dwarf/z15.go":            true,
-	"dwarf/z16.go":            true,
-	"dwarf/z17.go":            true,
-	"dwarf/z18.go":            true,
-	"dwarf/z19.go":            true,
-	"dwarf/z2.go":             true,
-	"dwarf/z20.go":            true,
-	"dwarf/z3.go":             true,
-	"dwarf/z4.go":             true,
-	"dwarf/z5.go":             true,
-	"dwarf/z6.go":             true,
-	"dwarf/z7.go":             true,
-	"dwarf/z8.go":             true,
-	"dwarf/z9.go":             true,
-	"fixedbugs/bug248.go":     true, // combines errorcheckdir and rundir in the same dir.
-	"fixedbugs/bug302.go":     true, // tests both .$O and .a imports.
-	"fixedbugs/bug313.go":     true, // errorcheckdir with failures in the middle.
-	"fixedbugs/bug345.go":     true, // needs the appropriate flags in gc invocation.
-	"fixedbugs/bug369.go":     true, // needs compiler flags.
-	"fixedbugs/bug385_32.go":  true, // arch-specific errors.
-	"fixedbugs/bug385_64.go":  true, // arch-specific errors.
-	"fixedbugs/bug429.go":     true,
-	"bugs/bug395.go":          true,
-	"bugs/bug434.go":          true,
+	"linkx.go":               true,
+	"rotate.go":              true,
+	"sigchld.go":             true,
+	"sinit.go":               true,
+	"dwarf/main.go":          true,
+	"dwarf/z1.go":            true,
+	"dwarf/z10.go":           true,
+	"dwarf/z11.go":           true,
+	"dwarf/z12.go":           true,
+	"dwarf/z13.go":           true,
+	"dwarf/z14.go":           true,
+	"dwarf/z15.go":           true,
+	"dwarf/z16.go":           true,
+	"dwarf/z17.go":           true,
+	"dwarf/z18.go":           true,
+	"dwarf/z19.go":           true,
+	"dwarf/z2.go":            true,
+	"dwarf/z20.go":           true,
+	"dwarf/z3.go":            true,
+	"dwarf/z4.go":            true,
+	"dwarf/z5.go":            true,
+	"dwarf/z6.go":            true,
+	"dwarf/z7.go":            true,
+	"dwarf/z8.go":            true,
+	"dwarf/z9.go":            true,
+	"fixedbugs/bug248.go":    true, // combines errorcheckdir and rundir in the same dir.
+	"fixedbugs/bug302.go":    true, // tests both .$O and .a imports.
+	"fixedbugs/bug313.go":    true, // errorcheckdir with failures in the middle.
+	"fixedbugs/bug345.go":    true, // needs the appropriate flags in gc invocation.
+	"fixedbugs/bug369.go":    true, // needs compiler flags.
+	"fixedbugs/bug385_32.go": true, // arch-specific errors.
+	"fixedbugs/bug385_64.go": true, // arch-specific errors.
+	"fixedbugs/bug429.go":    true,
+	"bugs/bug395.go":         true,
 }
