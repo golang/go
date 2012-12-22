@@ -208,6 +208,47 @@ func TestUserDefined(t *testing.T) {
 	}
 }
 
+// Declare a user-defined boolean flag type.
+type boolFlagVar struct {
+	count int
+}
+
+func (b *boolFlagVar) String() string {
+	return fmt.Sprintf("%d", b.count)
+}
+
+func (b *boolFlagVar) Set(value string) error {
+	if value == "true" {
+		b.count++
+	}
+	return nil
+}
+
+func (b *boolFlagVar) IsBoolFlag() bool {
+	return b.count < 4
+}
+
+func TestUserDefinedBool(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var b boolFlagVar
+	var err error
+	flags.Var(&b, "b", "usage")
+	if err = flags.Parse([]string{"-b", "-b", "-b", "-b=true", "-b=false", "-b", "barg", "-b"}); err != nil {
+		if b.count < 4 {
+			t.Error(err)
+		}
+	}
+
+	if b.count != 4 {
+		t.Errorf("want: %d; got: %d", 4, b.count)
+	}
+
+	if err == nil {
+		t.Error("expected error; got none")
+	}
+}
+
 func TestSetOutput(t *testing.T) {
 	var flags FlagSet
 	var buf bytes.Buffer
