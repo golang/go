@@ -188,6 +188,9 @@ declare(Node *n, int ctxt)
 	if(importpkg == nil && !typecheckok && s->pkg != localpkg)
 		yyerror("cannot declare name %S", s);
 
+	if(ctxt == PEXTERN && strcmp(s->name, "init") == 0)
+		yyerror("cannot declare init - must be func", s);
+
 	gen = 0;
 	if(ctxt == PEXTERN) {
 		externdcl = list(externdcl, n);
