@@ -11,6 +11,11 @@
 
 %{
 
+// This tag will end up in the generated y.go, so that forgetting
+// 'make clean' does not fail the next build.
+
+// +build ignore
+
 // units.y
 // example of a Go yacc program
 // usage is

@@ -3228,9 +3228,10 @@ type $$Lexer interface {
 const $$Flag = -1000
 
 func $$Tokname(c int) string {
-	if c > 0 && c <= len($$Toknames) {
-		if $$Toknames[c-1] != "" {
-			return $$Toknames[c-1]
+	// 4 is TOKSTART above
+	if c >= 4 && c-4 < len($$Toknames) {
+		if $$Toknames[c-4] != "" {
+			return $$Toknames[c-4]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
