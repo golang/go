@@ -60,6 +60,14 @@ type badCodeTag struct {
 	Z string `json:" !\"#&'()*+,."`
 }
 
+type spaceTag struct {
+	Q string `json:"With space"`
+}
+
+type unicodeTag struct {
+	W string `json:"Ελλάδα"`
+}
+
 var structTagObjectKeyTests = []struct {
 	raw   interface{}
 	value string
@@ -78,6 +86,8 @@ var structTagObjectKeyTests = []struct {
 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
 	{percentSlashTag{"brut"}, "brut", "text/html%"},
 	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
+	{spaceTag{"Perreddu"}, "Perreddu", "With space"},
+	{unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
 }
 
 func TestStructTagObjectKey(t *testing.T) {
