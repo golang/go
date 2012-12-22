@@ -593,6 +593,34 @@ dostkoff(void)
 		}
 		deltasp = autoffset;
 		
+		if(debug['Z'] && autoffset && !(cursym->text->from.scale&NOSPLIT)) {
+			// 8l -Z means zero the stack frame on entry.
+			// This slows down function calls but can help avoid
+			// false positives in garbage collection.
+			p = appendp(p);
+			p->as = AMOVL;
+			p->from.type = D_SP;
+			p->to.type = D_DI;
+			
+			p = appendp(p);
+			p->as = AMOVL;
+			p->from.type = D_CONST;
+			p->from.offset = autoffset/4;
+			p->to.type = D_CX;
+			
+			p = appendp(p);
+			p->as = AMOVL;
+			p->from.type = D_CONST;
+			p->from.offset = 0;
+			p->to.type = D_AX;
+			
+			p = appendp(p);
+			p->as = AREP;
+			
+			p = appendp(p);
+			p->as = ASTOSL;
+		}
+		
 		for(; p != P; p = p->link) {
 			a = p->from.type;
 			if(a == D_AUTO)
