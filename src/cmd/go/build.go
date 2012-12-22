@@ -1311,6 +1311,8 @@ func (gcToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
+var rsc = flag.Bool("rsc", false, "rsc")
+
 func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
 	out := "_go_." + archChar
 	ofile = obj + out
@@ -1319,6 +1321,21 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 		// runtime compiles with a special 6g flag to emit
 		// additional reflect type data.
 		gcargs = append(gcargs, "-+")
+	}
+
+	// If we're giving the compiler the entire package (no C etc files), tell it that,
+	// so that it can give good error messages about forward declarations.
+	// Exceptions: a few standard packages have forward declarations for
+	// pieces supplied behind-the-scenes by package runtime.
+	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+	if p.Standard {
+		switch p.ImportPath {
+		case "os", "runtime/pprof", "sync", "time":
+			extFiles++
+		}
+	}
+	if extFiles == 0 {
+		gcargs = append(gcargs, "-=")
 	}
 
 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)

@@ -293,8 +293,9 @@ main(int argc, char *argv[])
 	if(argc < 1)
 		usage();
 
-	// special flag to detect compilation of package runtime
-	compiling_runtime = debug['+'];
+	// special flags used during build.
+	compiling_runtime = debug['+']; // detect compilation of package runtime
+	pure_go = debug['=']; // package is completely go (no C or assembly)
 
 	pathname = mal(1000);
 	if(getwd(pathname, 999) == 0)

@@ -29,15 +29,18 @@ compile(Node *fn)
 		throwreturn = sysfunc("throwreturn");
 	}
 
-	if(fn->nbody == nil)
-		return;
+	lno = setlineno(fn);
+
+	if(fn->nbody == nil) {
+		if(pure_go || memcmp(fn->nname->sym->name, "init·", 6) == 0)
+			yyerror("missing function body", fn);
+		goto ret;
+	}
 
 	saveerrors();
 
 	// set up domain for labels
 	clearlabels();
-
-	lno = setlineno(fn);
 
 	curfn = fn;
 	dowidth(curfn->type);
