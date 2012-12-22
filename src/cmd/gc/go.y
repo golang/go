@@ -1020,6 +1020,7 @@ pexpr:
 		case OPACK:
 		case OTYPE:
 		case OLITERAL:
+		case OTYPESW:
 			$$ = nod(OPAREN, $$, N);
 		}
 	}
