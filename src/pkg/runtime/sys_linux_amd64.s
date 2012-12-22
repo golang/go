@@ -250,9 +250,7 @@ TEXT runtime·madvise(SB),7,$0
 	MOVQ	24(SP), DX
 	MOVQ	$28, AX	// madvise
 	SYSCALL
-	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	// ignore failure - maybe pages are locked
 	RET
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,

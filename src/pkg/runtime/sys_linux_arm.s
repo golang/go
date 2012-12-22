@@ -133,10 +133,7 @@ TEXT runtime·madvise(SB),7,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_madvise, R7
 	SWI	$0
-	MOVW	$0xfffff001, R6
-	CMP 	R6, R0
-	MOVW.HI	$0, R9  // crash on syscall failure
-	MOVW.HI	R9, (R9)
+	// ignore failure - maybe pages are locked
 	RET
 
 TEXT runtime·setitimer(SB),7,$0

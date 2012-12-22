@@ -241,9 +241,7 @@ TEXT runtime·madvise(SB),7,$0
 	MOVL	8(SP), CX
 	MOVL	12(SP), DX
 	CALL	*runtime·_vdso(SB)
-	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	INT $3
+	// ignore failure - maybe pages are locked
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
