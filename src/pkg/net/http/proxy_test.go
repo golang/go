@@ -31,7 +31,7 @@ var UseProxyTests = []struct {
 	{"localhost.net", true},   // not match as suffix of address
 	{"local.localhost", true}, // not match as prefix as address
 	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
-	{"www.foobar.com", true},  // not match because NO_PROXY is not .foobar.com
+	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
 }
 
 func TestUseProxy(t *testing.T) {
