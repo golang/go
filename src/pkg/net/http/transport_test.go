@@ -1115,18 +1115,43 @@ func TestTransportNoHost(t *testing.T) {
 	}
 }
 
-var proxyFromEnvTests = []struct {
+type proxyFromEnvTest struct {
+	req     string // URL to fetch; blank means "http://example.com"
 	env     string
-	wanturl string
+	noenv   string
+	want    string
 	wanterr error
-}{
-	{"127.0.0.1:8080", "http://127.0.0.1:8080", nil},
-	{"cache.corp.example.com:1234", "http://cache.corp.example.com:1234", nil},
-	{"cache.corp.example.com", "http://cache.corp.example.com", nil},
-	{"https://cache.corp.example.com", "https://cache.corp.example.com", nil},
-	{"http://127.0.0.1:8080", "http://127.0.0.1:8080", nil},
-	{"https://127.0.0.1:8080", "https://127.0.0.1:8080", nil},
-	{"", "<nil>", nil},
+}
+
+func (t proxyFromEnvTest) String() string {
+	var buf bytes.Buffer
+	if t.env != "" {
+		fmt.Fprintf(&buf, "http_proxy=%q", t.env)
+	}
+	if t.noenv != "" {
+		fmt.Fprintf(&buf, " no_proxy=%q", t.noenv)
+	}
+	req := "http://example.com"
+	if t.req != "" {
+		req = t.req
+	}
+	fmt.Fprintf(&buf, " req=%q", req)
+	return strings.TrimSpace(buf.String())
+}
+
+var proxyFromEnvTests = []proxyFromEnvTest{
+	{env: "127.0.0.1:8080", want: "http://127.0.0.1:8080"},
+	{env: "cache.corp.example.com:1234", want: "http://cache.corp.example.com:1234"},
+	{env: "cache.corp.example.com", want: "http://cache.corp.example.com"},
+	{env: "https://cache.corp.example.com", want: "https://cache.corp.example.com"},
+	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
+	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
+	{want: "<nil>"},
+	{noenv: "example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
+	{noenv: ".example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
+	{noenv: "ample.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
+	{noenv: "example.com", req: "http://foo.example.com/", env: "proxy", want: "<nil>"},
+	{noenv: ".foo.com", req: "http://example.com/", env: "proxy", want: "http://proxy"},
 }
 
 func TestProxyFromEnvironment(t *testing.T) {
@@ -1134,16 +1159,21 @@ func TestProxyFromEnvironment(t *testing.T) {
 	os.Setenv("http_proxy", "")
 	os.Setenv("NO_PROXY", "")
 	os.Setenv("no_proxy", "")
-	for i, tt := range proxyFromEnvTests {
+	for _, tt := range proxyFromEnvTests {
 		os.Setenv("HTTP_PROXY", tt.env)
-		req, _ := NewRequest("GET", "http://example.com", nil)
+		os.Setenv("NO_PROXY", tt.noenv)
+		reqURL := tt.req
+		if reqURL == "" {
+			reqURL = "http://example.com"
+		}
+		req, _ := NewRequest("GET", reqURL, nil)
 		url, err := ProxyFromEnvironment(req)
 		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
-			t.Errorf("%d. got error = %q, want %q", i, g, e)
+			t.Errorf("%v: got error = %q, want %q", tt, g, e)
 			continue
 		}
-		if got := fmt.Sprintf("%s", url); got != tt.wanturl {
-			t.Errorf("%d. got URL = %q, want %q", i, url, tt.wanturl)
+		if got := fmt.Sprintf("%s", url); got != tt.want {
+			t.Errorf("%v: got URL = %q, want %q", tt, url, tt.want)
 		}
 	}
 }
