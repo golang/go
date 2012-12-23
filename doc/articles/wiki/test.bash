@@ -20,7 +20,8 @@ wiki_pid=$!
 
 ./get.bin --wait_for_port=5s http://$addr/edit/Test > test_edit.out
 diff -u test_edit.out test_edit.good
-./get.bin -post=body=some%20content http://$addr/save/Test
+./get.bin -post=body=some%20content http://$addr/save/Test > test_save.out
+diff -u test_save.out test_view.good # should be the same as viewing
 diff -u Test.txt test_Test.txt.good
 ./get.bin http://$addr/view/Test > test_view.out
 diff -u test_view.out test_view.good
