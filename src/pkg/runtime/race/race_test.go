@@ -42,7 +42,7 @@ const (
 func TestRace(t *testing.T) {
 	testOutput, err := runTests()
 	if err != nil {
-		t.Fatalf("Failed to run tests: %v", err)
+		t.Fatalf("Failed to run tests: %v\n%v", err, string(testOutput))
 	}
 	reader := bufio.NewReader(bytes.NewBuffer(testOutput))
 
@@ -152,7 +152,6 @@ func runTests() ([]byte, error) {
 		}
 		cmd.Env = append(cmd.Env, env)
 	}
-	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0"`)
-	ret, _ := cmd.CombinedOutput()
-	return ret, nil
+	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0"`)
+	return cmd.CombinedOutput()
 }
