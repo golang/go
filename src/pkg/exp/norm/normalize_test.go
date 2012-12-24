@@ -6,6 +6,7 @@ package norm
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 )
@@ -504,12 +505,35 @@ func appendBench(f Form, in []byte) func() {
 }
 
 func iterBench(f Form, in []byte) func() {
-	buf := make([]byte, 4*len(in))
 	iter := Iter{}
 	return func() {
-		iter.SetInput(f, in)
+		iter.Init(f, in)
 		for !iter.Done() {
-			iter.Next(buf)
+			iter.Next()
+		}
+	}
+}
+
+func readerBench(f Form, in []byte) func() {
+	buf := make([]byte, 4*len(in))
+	return func() {
+		r := f.Reader(bytes.NewReader(in))
+		var err error
+		for err == nil {
+			_, err = r.Read(buf)
+		}
+		if err != io.EOF {
+			panic("")
+		}
+	}
+}
+
+func writerBench(f Form, in []byte) func() {
+	buf := make([]byte, 0, 4*len(in))
+	return func() {
+		r := f.Writer(bytes.NewBuffer(buf))
+		if _, err := r.Write(in); err != nil {
+			panic("")
 		}
 	}
 }
@@ -517,6 +541,8 @@ func iterBench(f Form, in []byte) func() {
 func appendBenchmarks(bm []func(), f Form, in []byte) []func() {
 	//bm = append(bm, appendBench(f, in))
 	bm = append(bm, iterBench(f, in))
+	//bm = append(bm, readerBench(f, in))
+	//bm = append(bm, writerBench(f, in))
 	return bm
 }
 
