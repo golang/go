@@ -282,6 +282,12 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OINDEX:
 		if(!isfixedarray(n->left->type))
 			racewalknode(&n->left, init, 0, 0);
+		else if(!islvalue(n->left)) {
+			// index of unaddressable array, like Map[k][i].
+			racewalknode(&n->left, init, wr, 0);
+			racewalknode(&n->right, init, 0, 0);
+			goto ret;
+		}
 		racewalknode(&n->right, init, 0, 0);
 		if(n->left->type->etype != TSTRING)
 			callinstr(&n, init, wr, skip);
@@ -422,7 +428,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	int class, res, hascalls;
 
 	n = *np;
-	//print("callinstr for %+N [ %O ] etype=%d class=%d\n",
+	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
 	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
 
 	if(skip || n->type == T || n->type->etype >= TIDEAL)
