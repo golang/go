@@ -6,6 +6,7 @@ package build
 
 import (
 	"exp/locale/collate"
+	"exp/norm"
 	"fmt"
 	"log"
 	"sort"
@@ -28,7 +29,7 @@ const (
 type entry struct {
 	str    string // same as string(runes)
 	runes  []rune
-	elems  [][]int // the collation elements
+	elems  []rawCE // the collation elements
 	extend string  // weights of extend to be appended to elems
 	before bool    // weights relative to next instead of previous.
 	lock   bool    // entry is used in extension and can no longer be moved.
@@ -41,6 +42,7 @@ type entry struct {
 	decompose bool // can use NFKD decomposition to generate elems
 	exclude   bool // do not include in table
 	implicit  bool // derived, is not included in the list
+	modified  bool // entry was modified in tailoring
 	logical   logicalAnchor
 
 	expansionIndex    int // used to store index into expansion table
@@ -162,10 +164,10 @@ func (e *entry) encode() (ce uint32, err error) {
 	}
 	switch {
 	case e.decompose:
-		t1 := e.elems[0][2]
+		t1 := e.elems[0].w[2]
 		t2 := 0
 		if len(e.elems) > 1 {
-			t2 = e.elems[1][2]
+			t2 = e.elems[1].w[2]
 		}
 		ce, err = makeDecompose(t1, t2)
 	case e.contractionStarter():
@@ -231,7 +233,7 @@ func (o *ordering) insert(e *entry) {
 
 // newEntry creates a new entry for the given info and inserts it into
 // the index.
-func (o *ordering) newEntry(s string, ces [][]int) *entry {
+func (o *ordering) newEntry(s string, ces []rawCE) *entry {
 	e := &entry{
 		runes: []rune(s),
 		elems: ces,
@@ -249,14 +251,29 @@ func (o *ordering) find(str string) *entry {
 	if e == nil {
 		r := []rune(str)
 		if len(r) == 1 {
-			e = o.newEntry(string(r[0]), [][]int{
-				{
-					implicitPrimary(r[0]),
-					defaultSecondary,
-					defaultTertiary,
-					int(r[0]),
-				},
-			})
+			const (
+				firstHangul = 0xAC00
+				lastHangul  = 0xD7A3
+			)
+			if r[0] >= firstHangul && r[0] <= lastHangul {
+				ce := []rawCE{}
+				nfd := norm.NFD.String(str)
+				for _, r := range nfd {
+					ce = append(ce, o.find(string(r)).elems...)
+				}
+				e = o.newEntry(nfd, ce)
+			} else {
+				e = o.newEntry(string(r[0]), []rawCE{
+					{w: []int{
+						implicitPrimary(r[0]),
+						defaultSecondary,
+						defaultTertiary,
+						int(r[0]),
+					},
+					},
+				})
+				e.modified = true
+			}
 			e.exclude = true // do not index implicits
 		}
 	}
@@ -275,7 +292,7 @@ func makeRootOrdering() ordering {
 	}
 	insert := func(typ logicalAnchor, s string, ce []int) {
 		e := &entry{
-			elems:   [][]int{ce},
+			elems:   []rawCE{{w: ce}},
 			str:     s,
 			exclude: true,
 			logical: typ,
@@ -362,10 +379,14 @@ func (o *ordering) sort() {
 
 // genColElems generates a collation element array from the runes in str. This
 // assumes that all collation elements have already been added to the Builder.
-func (o *ordering) genColElems(str string) [][]int {
-	elems := [][]int{}
+func (o *ordering) genColElems(str string) []rawCE {
+	elems := []rawCE{}
 	for _, r := range []rune(str) {
-		elems = append(elems, o.find(string(r)).elems...)
+		for _, ce := range o.find(string(r)).elems {
+			if ce.w[0] != 0 || ce.w[1] != 0 || ce.w[2] != 0 {
+				elems = append(elems, ce)
+			}
+		}
 	}
 	return elems
 }

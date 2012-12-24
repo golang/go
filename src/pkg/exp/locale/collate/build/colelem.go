@@ -16,6 +16,17 @@ const (
 	maxTertiary      = 0x1F
 )
 
+type rawCE struct {
+	w   []int
+	ccc uint8
+}
+
+func makeRawCE(w []int, ccc uint8) rawCE {
+	ce := rawCE{w: make([]int, 4), ccc: ccc}
+	copy(ce.w, w)
+	return ce
+}
+
 // A collation element is represented as an uint32.
 // In the typical case, a rune maps to a single collation element. If a rune
 // can be the start of a contraction or expands into multiple collation elements,
@@ -29,29 +40,36 @@ const (
 // 01pppppp pppppppp ppppppp0 ssssssss
 //   - p* is primary collation value
 //   - s* is the secondary collation value
-// or
 // 00pppppp pppppppp ppppppps sssttttt, where
 //   - p* is primary collation value
 //   - s* offset of secondary from default value.
 //   - t* is the tertiary collation value
+// 100ttttt cccccccc pppppppp pppppppp
+//   - t* is the tertiar collation value
+//   - c* is the cannonical combining class
+//   - p* is the primary collation value
 // Collation elements with a secondary value are of the form
-// 10000000 0000ssss ssssssss tttttttt, where
-//   - 16 BMP implicit -> weight
-//   - 8 bit s
-//   - default tertiary
+// 1010cccc ccccssss ssssssss tttttttt, where
+//   - c* is the canonical combining class
+//   - s* is the secondary collation value
+//   - t* is the tertiary collation value
 const (
 	maxPrimaryBits          = 21
+	maxPrimaryCompactBits   = 16
 	maxSecondaryBits        = 12
 	maxSecondaryCompactBits = 8
+	maxCCCBits              = 8
 	maxSecondaryDiffBits    = 4
 	maxTertiaryBits         = 8
 	maxTertiaryCompactBits  = 5
 
-	isSecondary = 0x80000000
-	isPrimary   = 0x40000000
+	isPrimary    = 0x40000000
+	isPrimaryCCC = 0x80000000
+	isSecondary  = 0xA0000000
 )
 
-func makeCE(weights []int) (uint32, error) {
+func makeCE(rce rawCE) (uint32, error) {
+	weights := rce.w
 	if w := weights[0]; w >= 1<<maxPrimaryBits || w < 0 {
 		return 0, fmt.Errorf("makeCE: primary weight out of bounds: %x >= %x", w, 1<<maxPrimaryBits)
 	}
@@ -63,14 +81,25 @@ func makeCE(weights []int) (uint32, error) {
 	}
 	ce := uint32(0)
 	if weights[0] != 0 {
-		if weights[2] == defaultTertiary {
+		if rce.ccc != 0 {
+			if weights[0] >= 1<<maxPrimaryCompactBits {
+				return 0, fmt.Errorf("makeCE: primary weight with non-zero CCC out of bounds: %x >= %x", weights[0], 1<<maxPrimaryCompactBits)
+			}
+			if weights[1] != defaultSecondary {
+				return 0, fmt.Errorf("makeCE: cannot combine non-default secondary value (%x) with non-zero CCC (%x)", weights[1], rce.ccc)
+			}
+			ce = uint32(weights[2] << (maxPrimaryCompactBits + maxCCCBits))
+			ce |= uint32(rce.ccc) << maxPrimaryCompactBits
+			ce |= uint32(weights[0])
+			ce |= isPrimaryCCC
+		} else if weights[2] == defaultTertiary {
 			if weights[1] >= 1<<maxSecondaryCompactBits {
 				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
 			}
 			ce = uint32(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
 			ce |= isPrimary
 		} else {
-			d := weights[1] - defaultSecondary + 4
+			d := weights[1] - defaultSecondary + maxSecondaryDiffBits
 			if d >= 1<<maxSecondaryDiffBits || d < 0 {
 				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
 			}
@@ -82,6 +111,7 @@ func makeCE(weights []int) (uint32, error) {
 		}
 	} else {
 		ce = uint32(weights[1]<<maxTertiaryBits + weights[2])
+		ce += uint32(rce.ccc) << (maxSecondaryBits + maxTertiaryBits)
 		ce |= isSecondary
 	}
 	return ce, nil
@@ -207,7 +237,7 @@ func implicitPrimary(r rune) int {
 // We will rewrite these characters to a single CE.
 // We assume the CJK values start at 0x8000.
 // See http://unicode.org/reports/tr10/#Implicit_Weights
-func convertLargeWeights(elems [][]int) (res [][]int, err error) {
+func convertLargeWeights(elems []rawCE) (res []rawCE, err error) {
 	const (
 		cjkPrimaryStart   = 0xFB40
 		rarePrimaryStart  = 0xFB80
@@ -219,7 +249,7 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 		shiftBits         = 15
 	)
 	for i := 0; i < len(elems); i++ {
-		ce := elems[i]
+		ce := elems[i].w
 		p := ce[0]
 		if p < cjkPrimaryStart {
 			continue
@@ -233,10 +263,10 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 			if i+1 >= len(elems) {
 				return elems, fmt.Errorf("second part of double primary weight missing: %v", elems)
 			}
-			if elems[i+1][0]&lowBitsFlag == 0 {
+			if elems[i+1].w[0]&lowBitsFlag == 0 {
 				return elems, fmt.Errorf("malformed second part of double primary weight: %v", elems)
 			}
-			np := ((p & highBitsMask) << shiftBits) + elems[i+1][0]&lowBitsMask
+			np := ((p & highBitsMask) << shiftBits) + elems[i+1].w[0]&lowBitsMask
 			switch {
 			case p < rarePrimaryStart:
 				np += commonUnifiedOffset
@@ -257,26 +287,25 @@ func convertLargeWeights(elems [][]int) (res [][]int, err error) {
 
 // nextWeight computes the first possible collation weights following elems
 // for the given level.
-func nextWeight(level collate.Level, elems [][]int) [][]int {
+func nextWeight(level collate.Level, elems []rawCE) []rawCE {
 	if level == collate.Identity {
-		next := make([][]int, len(elems))
+		next := make([]rawCE, len(elems))
 		copy(next, elems)
 		return next
 	}
-	next := [][]int{make([]int, len(elems[0]))}
-	copy(next[0], elems[0])
-	next[0][level]++
+	next := []rawCE{makeRawCE(elems[0].w, elems[0].ccc)}
+	next[0].w[level]++
 	if level < collate.Secondary {
-		next[0][collate.Secondary] = defaultSecondary
+		next[0].w[collate.Secondary] = defaultSecondary
 	}
 	if level < collate.Tertiary {
-		next[0][collate.Tertiary] = defaultTertiary
+		next[0].w[collate.Tertiary] = defaultTertiary
 	}
 	// Filter entries that cannot influence ordering.
 	for _, ce := range elems[1:] {
 		skip := true
 		for i := collate.Primary; i < level; i++ {
-			skip = skip && ce[i] == 0
+			skip = skip && ce.w[i] == 0
 		}
 		if !skip {
 			next = append(next, ce)
@@ -285,18 +314,18 @@ func nextWeight(level collate.Level, elems [][]int) [][]int {
 	return next
 }
 
-func nextVal(elems [][]int, i int, level collate.Level) (index, value int) {
-	for ; i < len(elems) && elems[i][level] == 0; i++ {
+func nextVal(elems []rawCE, i int, level collate.Level) (index, value int) {
+	for ; i < len(elems) && elems[i].w[level] == 0; i++ {
 	}
 	if i < len(elems) {
-		return i, elems[i][level]
+		return i, elems[i].w[level]
 	}
 	return i, 0
 }
 
 // compareWeights returns -1 if a < b, 1 if a > b, or 0 otherwise.
 // It also returns the collation level at which the difference is found.
-func compareWeights(a, b [][]int) (result int, level collate.Level) {
+func compareWeights(a, b []rawCE) (result int, level collate.Level) {
 	for level := collate.Primary; level < collate.Identity; level++ {
 		var va, vb int
 		for ia, ib := 0, 0; ia < len(a) || ib < len(b); ia, ib = ia+1, ib+1 {
@@ -314,19 +343,16 @@ func compareWeights(a, b [][]int) (result int, level collate.Level) {
 	return 0, collate.Identity
 }
 
-func equalCE(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
+func equalCE(a, b rawCE) bool {
 	for i := 0; i < 3; i++ {
-		if b[i] != a[i] {
+		if b.w[i] != a.w[i] {
 			return false
 		}
 	}
 	return true
 }
 
-func equalCEArrays(a, b [][]int) bool {
+func equalCEArrays(a, b []rawCE) bool {
 	if len(a) != len(b) {
 		return false
 	}

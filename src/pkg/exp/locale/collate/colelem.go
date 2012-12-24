@@ -23,7 +23,7 @@ const (
 type colElem uint32
 
 const (
-	maxCE       colElem = 0x80FFFFFF
+	maxCE       colElem = 0xAFFFFFFF
 	minContract         = 0xC0000000
 	maxContract         = 0xDFFFFFFF
 	minExpand           = 0xE0000000
@@ -62,30 +62,37 @@ func (ce colElem) ctype() ceType {
 // 01pppppp pppppppp ppppppp0 ssssssss
 //   - p* is primary collation value
 //   - s* is the secondary collation value
-// or
 // 00pppppp pppppppp ppppppps sssttttt, where
 //   - p* is primary collation value
 //   - s* offset of secondary from default value.
 //   - t* is the tertiary collation value
+// 100ttttt cccccccc pppppppp pppppppp
+//   - t* is the tertiar collation value
+//   - c* is the cannonical combining class
+//   - p* is the primary collation value
 // Collation elements with a secondary value are of the form
-// 10000000 0000ssss ssssssss tttttttt, where
-//   - 16 BMP implicit -> weight
-//   - 8 bit s
-//   - default tertiary
+// 1010cccc ccccssss ssssssss tttttttt, where
+//   - c* is the canonical combining class
+//   - s* is the secondary collation value
+//   - t* is the tertiary collation value
 // 11qqqqqq qqqqqqqq qqqqqqq0 00000000
 //   - q* quaternary value
 const (
 	ceTypeMask            = 0xC0000000
+	ceTypeMaskExt         = 0xE0000000
 	ceType1               = 0x40000000
 	ceType2               = 0x00000000
-	ceType3               = 0x80000000
+	ceType3or4            = 0x80000000
+	ceType4               = 0xA0000000
 	ceTypeQ               = 0xC0000000
-	ceIgnore              = ceType3
+	ceIgnore              = ceType4
 	firstNonPrimary       = 0x80000000
+	lastSpecialPrimary    = 0xA0000000
 	secondaryMask         = 0x80000000
 	hasTertiaryMask       = 0x40000000
 	primaryValueMask      = 0x3FFFFE00
 	primaryShift          = 9
+	compactPrimaryBits    = 16
 	compactSecondaryShift = 5
 	minCompactSecondary   = defaultSecondary - 4
 )
@@ -98,9 +105,22 @@ func makeQuaternary(primary int) colElem {
 	return ceTypeQ | colElem(primary<<primaryShift)
 }
 
+func (ce colElem) ccc() uint8 {
+	if ce&ceType3or4 != 0 {
+		if ce&ceType4 == ceType3or4 {
+			return uint8(ce >> 16)
+		}
+		return uint8(ce >> 20)
+	}
+	return 0
+}
+
 func (ce colElem) primary() int {
 	if ce >= firstNonPrimary {
-		return 0
+		if ce > lastSpecialPrimary {
+			return 0
+		}
+		return int(uint16(ce))
 	}
 	return int(ce&primaryValueMask) >> primaryShift
 }
@@ -111,8 +131,11 @@ func (ce colElem) secondary() int {
 		return int(uint8(ce))
 	case ceType2:
 		return minCompactSecondary + int((ce>>compactSecondaryShift)&0xF)
-	case ceType3:
-		return int(uint16(ce >> 8))
+	case ceType3or4:
+		if ce < ceType4 {
+			return defaultSecondary
+		}
+		return int(ce>>8) & 0xFFF
 	case ceTypeQ:
 		return 0
 	}
@@ -121,10 +144,13 @@ func (ce colElem) secondary() int {
 
 func (ce colElem) tertiary() uint8 {
 	if ce&hasTertiaryMask == 0 {
-		if ce&ceType3 == 0 {
+		if ce&ceType3or4 == 0 {
 			return uint8(ce & 0x1F)
 		}
-		return uint8(ce)
+		if ce&ceType4 == ceType4 {
+			return uint8(ce)
+		}
+		return uint8(ce>>24) & 0x1F // type 2
 	} else if ce&ceTypeMask == ceType1 {
 		return defaultTertiary
 	}
@@ -134,10 +160,15 @@ func (ce colElem) tertiary() uint8 {
 
 func (ce colElem) updateTertiary(t uint8) colElem {
 	if ce&ceTypeMask == ceType1 {
+		// convert to type 4
 		nce := ce & primaryValueMask
 		nce |= colElem(uint8(ce)-minCompactSecondary) << compactSecondaryShift
 		ce = nce
+	} else if ce&ceTypeMaskExt == ceType3or4 {
+		ce &= ^colElem(maxTertiary << 24)
+		return ce | (colElem(t) << 24)
 	} else {
+		// type 2 or 4
 		ce &= ^colElem(maxTertiary)
 	}
 	return ce | colElem(t)

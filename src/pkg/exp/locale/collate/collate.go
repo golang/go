@@ -10,6 +10,7 @@ package collate
 import (
 	"bytes"
 	"exp/norm"
+	"unicode/utf8"
 )
 
 // Level identifies the collation comparison level.
@@ -112,7 +113,7 @@ func New(loc string) *Collator {
 
 func newCollator(t *table) *Collator {
 	c := &Collator{
-		Strength: Quaternary,
+		Strength: Tertiary,
 		f:        norm.NFD,
 		t:        t,
 	}
@@ -269,8 +270,7 @@ func (c *Collator) key(buf *Buffer, w []colElem) []byte {
 func (c *Collator) getColElems(str []byte) []colElem {
 	i := c.iter(0)
 	i.setInput(c, str)
-	for !i.done() {
-		i.next()
+	for i.next() {
 	}
 	return i.ce
 }
@@ -278,88 +278,185 @@ func (c *Collator) getColElems(str []byte) []colElem {
 func (c *Collator) getColElemsString(str string) []colElem {
 	i := c.iter(0)
 	i.setInputString(c, str)
-	for !i.done() {
-		i.next()
+	for i.next() {
 	}
 	return i.ce
 }
 
+type source struct {
+	str   string
+	bytes []byte
+	buf   [16]byte // Used for decomposing Hangul.
+}
+
+func (src *source) done() bool {
+	return len(src.str) == 0 && len(src.bytes) == 0
+}
+
+func (src *source) tail(n int) (res source) {
+	if src.bytes == nil {
+		res.str = src.str[n:]
+	} else {
+		res.bytes = src.bytes[n:]
+	}
+	return res
+}
+
+func (src *source) nfd(end int) []byte {
+	if src.bytes == nil {
+		return norm.NFD.AppendString(src.buf[:0], src.str[:end])
+	}
+	return norm.NFD.Append(src.buf[:0], src.bytes[:end]...)
+}
+
+func (src *source) properties(f norm.Form) norm.Properties {
+	if src.bytes == nil {
+		return f.PropertiesString(src.str)
+	}
+	return f.Properties(src.bytes)
+}
+
+func (src *source) lookup(t *table) (ce colElem, sz int) {
+	if src.bytes == nil {
+		return t.index.lookupString(src.str)
+	}
+	return t.index.lookup(src.bytes)
+}
+
+func (src *source) rune() (r rune, sz int) {
+	if src.bytes == nil {
+		return utf8.DecodeRuneInString(src.str)
+	}
+	return utf8.DecodeRune(src.bytes)
+}
+
 type iter struct {
-	src        norm.Iter
-	norm       [1024]byte
-	buf        []byte
-	p          int
-	minBufSize int
+	src source
 
 	wa  [512]colElem
 	ce  []colElem
 	pce int
+	nce int // nce <= len(nce)
 
-	t          *table
-	_done, eof bool
+	prevCCC  uint8
+	pStarter int
+
+	t *table
 }
 
 func (i *iter) init(c *Collator) {
 	i.t = c.t
-	i.minBufSize = c.t.maxContractLen
 	i.ce = i.wa[:0]
-	i.buf = i.norm[:0]
 }
 
 func (i *iter) reset() {
 	i.ce = i.ce[:0]
-	i.buf = i.buf[:0]
-	i.p = 0
-	i.eof = i.src.Done()
-	i._done = i.eof
+	i.nce = 0
+	i.prevCCC = 0
+	i.pStarter = 0
 }
 
 func (i *iter) setInput(c *Collator, s []byte) *iter {
-	i.src.SetInput(c.f, s)
+	i.src.bytes = s
+	i.src.str = ""
 	i.reset()
 	return i
 }
 
 func (i *iter) setInputString(c *Collator, s string) *iter {
-	i.src.SetInputString(c.f, s)
+	i.src.str = s
+	i.src.bytes = nil
 	i.reset()
 	return i
 }
 
-func (i *iter) done() bool {
-	return i._done
+// next appends colElems to the internal array until it adds an element with CCC=0.
+// In the majority of cases, a colElem with a primary value > 0 will have
+// a CCC of 0. The CCC values of colation elements are also used to detect if the
+// input string was not normalized and to adjust the result accordingly.
+func (i *iter) next() bool {
+	sz := 0
+	for !i.src.done() {
+		p0 := len(i.ce)
+		i.ce, sz = i.t.appendNext(i.ce, i.src)
+		i.src = i.src.tail(sz)
+		last := len(i.ce) - 1
+		if ccc := i.ce[last].ccc(); ccc == 0 {
+			i.nce = len(i.ce)
+			i.pStarter = last
+			i.prevCCC = 0
+			return true
+		} else if p0 < last && i.ce[p0].ccc() == 0 {
+			// set i.nce to only cover part of i.ce for which ccc == 0 and
+			// use rest the next call to next.
+			for p0++; p0 < last && i.ce[p0].ccc() == 0; p0++ {
+			}
+			i.nce = p0
+			i.pStarter = p0 - 1
+			i.prevCCC = ccc
+			return true
+		} else if ccc < i.prevCCC {
+			i.doNorm(p0, ccc) // should be rare for most common cases
+		} else {
+			i.prevCCC = ccc
+		}
+	}
+	if len(i.ce) != i.nce {
+		i.nce = len(i.ce)
+		return true
+	}
+	return false
 }
 
-func (i *iter) next() {
-	if !i.eof && len(i.buf)-i.p < i.minBufSize {
-		// replenish buffer
-		n := copy(i.buf, i.buf[i.p:])
-		n += i.src.Next(i.buf[n:cap(i.buf)])
-		i.buf = i.buf[:n]
-		i.p = 0
-		i.eof = i.src.Done()
-	}
-	if i.p == len(i.buf) {
-		i._done = true
-		return
+// nextPlain is the same as next, but does not "normalize" the collation
+// elements.
+// TODO: remove this function. Using this instead of next does not seem
+// to improve performance in any significant way. We retain this until
+// later for evaluation purposes.
+func (i *iter) nextPlain() bool {
+	if i.src.done() {
+		return false
 	}
 	sz := 0
-	i.ce, sz = i.t.appendNext(i.ce, i.buf[i.p:])
-	i.p += sz
+	i.ce, sz = i.t.appendNext(i.ce, i.src)
+	i.src = i.src.tail(sz)
+	i.nce = len(i.ce)
+	return true
+}
+
+const maxCombiningCharacters = 30
+
+// doNorm reorders the collation elements in i.ce.
+// It assumes that blocks of collation elements added with appendNext
+// either start and end with the same CCC or start with CCC == 0.
+// This allows for a single insertion point for the entire block.
+// The correctness of this assumption is verified in builder.go.
+func (i *iter) doNorm(p int, ccc uint8) {
+	if p-i.pStarter > maxCombiningCharacters {
+		i.prevCCC = i.ce[len(i.ce)-1].ccc()
+		i.pStarter = len(i.ce) - 1
+		return
+	}
+	n := len(i.ce)
+	k := p
+	for p--; p > i.pStarter && ccc < i.ce[p-1].ccc(); p-- {
+	}
+	i.ce = append(i.ce, i.ce[p:k]...)
+	copy(i.ce[p:], i.ce[k:])
+	i.ce = i.ce[:n]
 }
 
 func (i *iter) nextPrimary() int {
 	for {
-		for ; i.pce < len(i.ce); i.pce++ {
+		for ; i.pce < i.nce; i.pce++ {
 			if v := i.ce[i.pce].primary(); v != 0 {
 				i.pce++
 				return v
 			}
 		}
-		if i.done() {
+		if !i.next() {
 			return 0
 		}
-		i.next()
 	}
 	panic("should not reach here")
 }

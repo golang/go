@@ -378,6 +378,7 @@ var keyTests = []keyTest{
 func TestKey(t *testing.T) {
 	c, _ := makeTable(appendNextTests[4].in)
 	c.Alternate = collate.AltShifted
+	c.Strength = collate.Quaternary
 	buf := collate.Buffer{}
 	keys1 := [][]byte{}
 	keys2 := [][]byte{}

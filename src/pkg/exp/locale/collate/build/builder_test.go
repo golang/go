@@ -7,48 +7,64 @@ package build
 import "testing"
 
 // cjk returns an implicit collation element for a CJK rune.
-func cjk(r rune) [][]int {
+func cjk(r rune) []rawCE {
 	// A CJK character C is represented in the DUCET as
 	//   [.AAAA.0020.0002.C][.BBBB.0000.0000.C]
 	// Where AAAA is the most significant 15 bits plus a base value.
 	// Any base value will work for the test, so we pick the common value of FB40.
 	const base = 0xFB40
-	return [][]int{
-		{base + int(r>>15), defaultSecondary, defaultTertiary, int(r)},
-		{int(r&0x7FFF) | 0x8000, 0, 0, int(r)},
+	return []rawCE{
+		{w: []int{base + int(r>>15), defaultSecondary, defaultTertiary, int(r)}},
+		{w: []int{int(r&0x7FFF) | 0x8000, 0, 0, int(r)}},
 	}
 }
 
-func pCE(p int) [][]int {
-	return [][]int{{p, defaultSecondary, defaultTertiary, 0}}
+func pCE(p int) []rawCE {
+	return mkCE([]int{p, defaultSecondary, defaultTertiary, 0}, 0)
 }
 
-func pqCE(p, q int) [][]int {
-	return [][]int{{p, defaultSecondary, defaultTertiary, q}}
+func pqCE(p, q int) []rawCE {
+	return mkCE([]int{p, defaultSecondary, defaultTertiary, q}, 0)
 }
 
-func ptCE(p, t int) [][]int {
-	return [][]int{{p, defaultSecondary, t, 0}}
+func ptCE(p, t int) []rawCE {
+	return mkCE([]int{p, defaultSecondary, t, 0}, 0)
 }
 
-func sCE(s int) [][]int {
-	return [][]int{{0, s, defaultTertiary, 0}}
+func ptcCE(p, t int, ccc uint8) []rawCE {
+	return mkCE([]int{p, defaultSecondary, t, 0}, ccc)
 }
 
-func stCE(s, t int) [][]int {
-	return [][]int{{0, s, t, 0}}
+func sCE(s int) []rawCE {
+	return mkCE([]int{0, s, defaultTertiary, 0}, 0)
+}
+
+func stCE(s, t int) []rawCE {
+	return mkCE([]int{0, s, t, 0}, 0)
+}
+
+func scCE(s int, ccc uint8) []rawCE {
+	return mkCE([]int{0, s, defaultTertiary, 0}, ccc)
+}
+
+func mkCE(w []int, ccc uint8) []rawCE {
+	return []rawCE{rawCE{w, ccc}}
 }
 
 // ducetElem is used to define test data that is used to generate a table.
 type ducetElem struct {
 	str string
-	ces [][]int
+	ces []rawCE
 }
 
 func newBuilder(t *testing.T, ducet []ducetElem) *Builder {
 	b := NewBuilder()
 	for _, e := range ducet {
-		if err := b.Add([]rune(e.str), e.ces, nil); err != nil {
+		ces := [][]int{}
+		for _, ce := range e.ces {
+			ces = append(ces, ce.w)
+		}
+		if err := b.Add([]rune(e.str), ces, nil); err != nil {
 			t.Errorf(err.Error())
 		}
 	}
@@ -58,7 +74,7 @@ func newBuilder(t *testing.T, ducet []ducetElem) *Builder {
 }
 
 type convertTest struct {
-	in, out [][]int
+	in, out []rawCE
 	err     bool
 }
 
@@ -173,16 +189,18 @@ func TestSimplify(t *testing.T) {
 }
 
 var expandTest = []ducetElem{
-	{"\u00C0", append(ptCE(100, 8), sCE(30)...)},
-	{"\u00C8", append(ptCE(105, 8), sCE(30)...)},
-	{"\u00C9", append(ptCE(105, 8), sCE(30)...)}, // identical expansion
+	{"\u0300", append(scCE(29, 230), scCE(30, 230)...)},
+	{"\u00C0", append(ptCE(100, 8), scCE(30, 230)...)},
+	{"\u00C8", append(ptCE(105, 8), scCE(30, 230)...)},
+	{"\u00C9", append(ptCE(105, 8), scCE(30, 230)...)}, // identical expansion
 	{"\u05F2", append(ptCE(200, 4), ptCE(200, 4)[0], ptCE(200, 4)[0])},
+	{"\u01FF", append(ptCE(200, 4), ptcCE(201, 4, 0)[0], scCE(30, 230)[0])},
 }
 
 func TestExpand(t *testing.T) {
 	const (
-		totalExpansions = 3
-		totalElements   = 2 + 2 + 3 + totalExpansions
+		totalExpansions = 5
+		totalElements   = 2 + 2 + 2 + 3 + 3 + totalExpansions
 	)
 	b := newBuilder(t, expandTest)
 	o := &b.root
