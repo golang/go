@@ -50,6 +50,7 @@ type formInfo struct {
 	form                     Form
 	composing, compatibility bool // form type
 	info                     lookupFunc
+	nextMain                 iterFunc
 }
 
 var formTable []*formInfo
@@ -67,7 +68,9 @@ func init() {
 		} else {
 			f.info = lookupInfoNFC
 		}
+		f.nextMain = nextDecomposed
 		if Form(i) == NFC || Form(i) == NFKC {
+			f.nextMain = nextComposed
 			f.composing = true
 		}
 	}
@@ -115,6 +118,10 @@ func (p Properties) hasDecomposition() bool { return p.flags&0x1 != 0 } // == is
 
 func (p Properties) isInert() bool {
 	return p.flags&0xf == 0 && p.ccc == 0
+}
+
+func (p Properties) multiSegment() bool {
+	return p.index >= firstMulti && p.index < endMulti
 }
 
 // Decomposition returns the decomposition for the underlying rune

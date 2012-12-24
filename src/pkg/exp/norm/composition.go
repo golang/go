@@ -28,24 +28,20 @@ type reorderBuffer struct {
 	nbyte uint8                     // Number or bytes.
 	f     formInfo
 
-	src       input
-	nsrc      int
-	srcBytes  inputBytes
-	srcString inputString
-	tmpBytes  inputBytes
+	src      input
+	nsrc     int
+	tmpBytes input
 }
 
 func (rb *reorderBuffer) init(f Form, src []byte) {
 	rb.f = *formTable[f]
-	rb.srcBytes = inputBytes(src)
-	rb.src = &rb.srcBytes
+	rb.src.setBytes(src)
 	rb.nsrc = len(src)
 }
 
 func (rb *reorderBuffer) initString(f Form, src string) {
 	rb.f = *formTable[f]
-	rb.srcString = inputString(src)
-	rb.src = &rb.srcString
+	rb.src.setString(src)
 	rb.nsrc = len(src)
 }
 
@@ -121,9 +117,9 @@ func (rb *reorderBuffer) insert(src input, i int, info Properties) bool {
 // in dcomp.  dcomp must be a sequence of decomposed UTF-8-encoded runes.
 func (rb *reorderBuffer) insertDecomposed(dcomp []byte) bool {
 	saveNrune, saveNbyte := rb.nrune, rb.nbyte
-	rb.tmpBytes = inputBytes(dcomp)
+	rb.tmpBytes.setBytes(dcomp)
 	for i := 0; i < len(dcomp); {
-		info := rb.f.info(&rb.tmpBytes, i)
+		info := rb.f.info(rb.tmpBytes, i)
 		pos := rb.nbyte
 		if !rb.insertOrdered(info) {
 			rb.nrune, rb.nbyte = saveNrune, saveNbyte

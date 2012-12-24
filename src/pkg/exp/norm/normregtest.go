@@ -223,13 +223,11 @@ func doTest(t *Test, f norm.Form, gold, test string) {
 	cmpResult(t, "Bytes", f, gold, test, string(result))
 	sresult := f.String(test)
 	cmpResult(t, "String", f, gold, test, sresult)
-	buf := make([]byte, norm.MaxSegmentSize)
 	acc := []byte{}
 	i := norm.Iter{}
-	i.SetInputString(f, test)
+	i.InitString(f, test)
 	for !i.Done() {
-		n := i.Next(buf)
-		acc = append(acc, buf[:n]...)
+		acc = append(acc, i.Next()...)
 	}
 	cmpResult(t, "Iter.Next", f, gold, test, string(acc))
 	for i := range test {

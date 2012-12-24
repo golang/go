@@ -574,7 +574,19 @@ func makeEntry(f *FormInfo) uint16 {
 
 // decompSet keeps track of unique decompositions, grouped by whether
 // the decomposition is followed by a trailing and/or leading CCC.
-type decompSet [4]map[string]bool
+type decompSet [6]map[string]bool
+
+const (
+	normalDecomp = iota
+	firstMulti
+	firstCCC
+	endMulti
+	firstLeadingCCC
+	firstCCCZeroExcept
+	lastDecomp
+)
+
+var cname = []string{"firstMulti", "firstCCC", "endMulti", "firstLeadingCCC", "firstCCCZeroExcept", "lastDecomp"}
 
 func makeDecompSet() decompSet {
 	m := decompSet{}
@@ -614,20 +626,30 @@ func printCharInfoTables() int {
 			const msg = "%U: lccc (%d) must be <= tcc (%d)"
 			logger.Fatalf(msg, r, lccc, tccc)
 		}
-		index := 0
+		index := normalDecomp
 		if tccc > 0 || lccc > 0 {
 			s += string([]byte{tccc})
-			index = 1
+			index = endMulti
+			for _, r := range d[1:] {
+				if ccc(r) == 0 {
+					index = firstCCC
+				}
+			}
 			if lccc > 0 {
 				s += string([]byte{lccc})
-				index = 2
+				if index == firstCCC {
+					logger.Fatalf("%U: multi-segment decomposition not supported for decompositions with leading CCC != 0", r)
+				}
+				index = firstLeadingCCC
 			}
 			if cc != lccc {
 				if cc != 0 {
 					logger.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", r, cc)
 				}
-				index = 3
+				index = firstCCCZeroExcept
 			}
+		} else if len(d) > 1 {
+			index = firstMulti
 		}
 		return index, s
 	}
@@ -653,7 +675,6 @@ func printCharInfoTables() int {
 	size := 0
 	positionMap := make(map[string]uint16)
 	decompositions.WriteString("\000")
-	cname := []string{"firstCCC", "firstLeadingCCC", "firstCCCZeroExcept", "lastDecomp"}
 	fmt.Println("const (")
 	for i, m := range decompSet {
 		sa := []string{}

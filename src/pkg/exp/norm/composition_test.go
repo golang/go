@@ -81,7 +81,7 @@ func flushF(rb *reorderBuffer) []byte {
 }
 
 func flushCopyF(rb *reorderBuffer) []byte {
-	out := make([]byte, MaxSegmentSize)
+	out := make([]byte, maxByteBufferSize)
 	n := rb.flushCopy(out)
 	return out[:n]
 }
