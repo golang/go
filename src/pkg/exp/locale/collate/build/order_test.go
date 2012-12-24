@@ -20,7 +20,7 @@ type entryTest struct {
 // entries plus a leading and trailing anchor.
 func makeList(n int) []*entry {
 	es := make([]*entry, n+2)
-	weights := [][]int{{100, 20, 5, 0}}
+	weights := []rawCE{{w: []int{100, 20, 5, 0}}}
 	for i := range es {
 		runes := []rune{rune(i)}
 		es[i] = &entry{
@@ -176,8 +176,8 @@ type entryLessTest struct {
 }
 
 var (
-	w1 = [][]int{{100, 20, 5, 5}}
-	w2 = [][]int{{101, 20, 5, 5}}
+	w1 = []rawCE{{w: []int{100, 20, 5, 5}}}
+	w2 = []rawCE{{w: []int{101, 20, 5, 5}}}
 )
 
 var entryLessTests = []entryLessTest{

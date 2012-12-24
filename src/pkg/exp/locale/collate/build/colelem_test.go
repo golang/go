@@ -16,7 +16,7 @@ type ceTest struct {
 }
 
 func normalCE(in []int) (ce uint32, err error) {
-	return makeCE(in)
+	return makeCE(rawCE{w: in[:3], ccc: uint8(in[3])})
 }
 
 func expandCE(in []int) (ce uint32, err error) {
@@ -32,17 +32,20 @@ func decompCE(in []int) (ce uint32, err error) {
 }
 
 var ceTests = []ceTest{
-	{normalCE, []int{0, 0, 0}, 0x80000000},
-	{normalCE, []int{0, 0x28, 3}, 0x80002803},
-	{normalCE, []int{100, defaultSecondary, 3}, 0x0000C883},
+	{normalCE, []int{0, 0, 0, 0}, 0xA0000000},
+	{normalCE, []int{0, 0x28, 3, 0}, 0xA0002803},
+	{normalCE, []int{0, 0x28, 3, 0xFF}, 0xAFF02803},
+	{normalCE, []int{100, defaultSecondary, 3, 0}, 0x0000C883},
 	// non-ignorable primary with non-default secondary
-	{normalCE, []int{100, 0x28, defaultTertiary}, 0x4000C828},
-	{normalCE, []int{100, defaultSecondary + 8, 3}, 0x0000C983},
-	{normalCE, []int{100, 0, 3}, 0xFFFF}, // non-ignorable primary with non-supported secondary
-	{normalCE, []int{100, 1, 3}, 0xFFFF},
-	{normalCE, []int{1 << maxPrimaryBits, defaultSecondary, 0}, 0xFFFF},
-	{normalCE, []int{0, 1 << maxSecondaryBits, 0}, 0xFFFF},
-	{normalCE, []int{100, defaultSecondary, 1 << maxTertiaryBits}, 0xFFFF},
+	{normalCE, []int{100, 0x28, defaultTertiary, 0}, 0x4000C828},
+	{normalCE, []int{100, defaultSecondary + 8, 3, 0}, 0x0000C983},
+	{normalCE, []int{100, 0, 3, 0}, 0xFFFF}, // non-ignorable primary with non-supported secondary
+	{normalCE, []int{100, 1, 3, 0}, 0xFFFF},
+	{normalCE, []int{1 << maxPrimaryBits, defaultSecondary, 0, 0}, 0xFFFF},
+	{normalCE, []int{0, 1 << maxSecondaryBits, 0, 0}, 0xFFFF},
+	{normalCE, []int{100, defaultSecondary, 1 << maxTertiaryBits, 0}, 0xFFFF},
+	{normalCE, []int{0x123, defaultSecondary, 8, 0xFF}, 0x88FF0123},
+	{normalCE, []int{0x123, defaultSecondary + 1, 8, 0xFF}, 0xFFFF},
 
 	{contractCE, []int{0, 0, 0}, 0xC0000000},
 	{contractCE, []int{1, 1, 1}, 0xC0010011},
@@ -85,6 +88,14 @@ func TestColElem(t *testing.T) {
 	}
 }
 
+func mkRawCES(in [][]int) []rawCE {
+	out := []rawCE{}
+	for _, w := range in {
+		out = append(out, rawCE{w: w})
+	}
+	return out
+}
+
 type weightsTest struct {
 	a, b   [][]int
 	level  collate.Level
@@ -119,8 +130,8 @@ var extra = [][]int{{200, 32, 8, 0}, {0, 32, 8, 0}, {0, 0, 8, 0}, {0, 0, 0, 0}}
 func TestNextWeight(t *testing.T) {
 	for i, tt := range nextWeightTests {
 		test := func(l collate.Level, tt weightsTest, a, gold [][]int) {
-			res := nextWeight(tt.level, a)
-			if !equalCEArrays(gold, res) {
+			res := nextWeight(tt.level, mkRawCES(a))
+			if !equalCEArrays(mkRawCES(gold), res) {
 				t.Errorf("%d:%d: expected weights %d; found %d", i, l, gold, res)
 			}
 		}
@@ -189,7 +200,7 @@ var compareTests = []weightsTest{
 func TestCompareWeights(t *testing.T) {
 	for i, tt := range compareTests {
 		test := func(tt weightsTest, a, b [][]int) {
-			res, level := compareWeights(a, b)
+			res, level := compareWeights(mkRawCES(a), mkRawCES(b))
 			if res != tt.result {
 				t.Errorf("%d: expected comparisson result %d; found %d", i, tt.result, res)
 			}

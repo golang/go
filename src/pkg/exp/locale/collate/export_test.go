@@ -30,7 +30,7 @@ func W(ce ...int) Weights {
 	return w
 }
 func (w Weights) String() string {
-	return fmt.Sprintf("[%d.%d.%d.%d]", w.Primary, w.Secondary, w.Tertiary, w.Quaternary)
+	return fmt.Sprintf("[%X.%X.%X.%X]", w.Primary, w.Secondary, w.Tertiary, w.Quaternary)
 }
 
 type Table struct {
@@ -52,7 +52,7 @@ func convertToWeights(ws []colElem) []Weights {
 func convertFromWeights(ws []Weights) []colElem {
 	out := make([]colElem, len(ws))
 	for i, w := range ws {
-		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary})
+		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary, 0})
 		if out[i] == ceIgnore && w.Quaternary > 0 {
 			out[i] = makeQuaternary(w.Quaternary)
 		}
@@ -61,7 +61,7 @@ func convertFromWeights(ws []Weights) []colElem {
 }
 
 func (t *Table) AppendNext(s []byte) ([]Weights, int) {
-	w, n := t.t.appendNext(nil, s)
+	w, n := t.t.appendNext(nil, source{bytes: s})
 	return convertToWeights(w), n
 }
 

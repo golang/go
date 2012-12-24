@@ -42,7 +42,9 @@ func pt(p, t int) []int {
 func makeTable(in []input) (*collate.Collator, error) {
 	b := build.NewBuilder()
 	for _, r := range in {
-		b.Add([]rune(r.str), r.ces, nil)
+		if e := b.Add([]rune(r.str), r.ces, nil); e != nil {
+			panic(e)
+		}
 	}
 	return b.Build()
 }
@@ -159,6 +161,7 @@ var appendNextTests = []tableTest{
 			{"b", [][]int{{200}}},
 			{"c", [][]int{{300}}},
 			{"\u03B1", [][]int{{900}}},
+			{"\x01", [][]int{{0, 0, 0, 0}}},
 
 			// contractions
 			{"a\u0300", [][]int{{101}}},
@@ -171,10 +174,11 @@ var appendNextTests = []tableTest{
 			{"a\u0301\u035F", [][]int{{121}}},
 			{"a\u0301\u035Fb", [][]int{{119}}},
 			{"\u03B1\u0345", [][]int{{901}, {902}}},
-			{"\u302E\u18A9", [][]int{{0, 131}, {0, 132}}},
+			{"\u302E\u302F", [][]int{{0, 131}, {0, 131}}},
 			{"\u302F\u18A9", [][]int{{0, 130}}},
 		}...),
 		[]check{
+			{"a\x01\u0300", 1, ColElems{w(100)}},
 			{"ab", 1, ColElems{w(100)}},                              // closing segment
 			{"a\u0316\u0300b", 5, ColElems{w(101), w(0, 220)}},       // closing segment
 			{"a\u0316\u0300", 5, ColElems{w(101), w(0, 220)}},        // no closing segment
@@ -239,12 +243,17 @@ var appendNextTests = []tableTest{
 			{"a\u302F\u18A9\u0301", 9, ColElems{w(102), w(0, 130)}},
 			// expansion within a gap
 			{"a\u0317\u0301", 5, ColElems{w(102), w(0, 220), w(0, 220)}},
-			{"a\u302E\u18A9\u0301", 9, ColElems{w(102), w(0, 131), w(0, 132)}},
-			{
-				"a\u0317\u302E\u18A9\u0301",
-				11,
-				ColElems{w(102), w(0, 220), w(0, 220), w(0, 131), w(0, 132)},
-			},
+			// repeating CCC blocks last modifier
+			{"a\u302E\u302F\u0301", 1, ColElems{w(100)}},
+			// The trailing combining characters (with lower CCC) should block the first one.
+			// TODO: make the following pass.
+			// {"a\u035E\u0316\u0316", 1, ColElems{w(100)}},
+			{"a\u035F\u035Eb", 5, ColElems{w(110), w(0, 233)}},
+			// Last combiner should match after normalization.
+			// TODO: make the following pass.
+			// {"a\u035D\u0301", 3, ColElems{w(102), w(0, 234)}},
+			// The first combiner is blocking the second one as they have the same CCC.
+			{"a\u035D\u035Eb", 1, ColElems{w(100)}},
 		},
 	},
 }

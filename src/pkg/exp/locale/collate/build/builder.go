@@ -98,24 +98,24 @@ func (b *Builder) Tailoring(locale string) *Tailoring {
 // a value for each colelem that is a variable. (See the reference above.)
 func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 	str := string(runes)
-	elems := make([][]int, len(colelems))
+	elems := make([]rawCE, len(colelems))
 	for i, ce := range colelems {
-		elems[i] = append(elems[i], ce...)
 		if len(ce) == 0 {
-			elems[i] = append(elems[i], []int{0, 0, 0, 0}...)
 			break
 		}
+		elems[i] = makeRawCE(ce, 0)
 		if len(ce) == 1 {
-			elems[i] = append(elems[i], defaultSecondary)
+			elems[i].w[1] = defaultSecondary
 		}
 		if len(ce) <= 2 {
-			elems[i] = append(elems[i], defaultTertiary)
+			elems[i].w[2] = defaultTertiary
 		}
 		if len(ce) <= 3 {
-			elems[i] = append(elems[i], ce[0])
+			elems[i].w[3] = ce[0]
 		}
 	}
 	for i, ce := range elems {
+		p := ce.w[0]
 		isvar := false
 		for _, j := range variables {
 			if i == j {
@@ -123,18 +123,18 @@ func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 			}
 		}
 		if isvar {
-			if ce[0] >= b.minNonVar && b.minNonVar > 0 {
-				return fmt.Errorf("primary value %X of variable is larger than the smallest non-variable %X", ce[0], b.minNonVar)
+			if p >= b.minNonVar && b.minNonVar > 0 {
+				return fmt.Errorf("primary value %X of variable is larger than the smallest non-variable %X", p, b.minNonVar)
 			}
-			if ce[0] > b.varTop {
-				b.varTop = ce[0]
+			if p > b.varTop {
+				b.varTop = p
 			}
-		} else if ce[0] > 1 { // 1 is a special primary value reserved for FFFE
-			if ce[0] <= b.varTop {
-				return fmt.Errorf("primary value %X of non-variable is smaller than the highest variable %X", ce[0], b.varTop)
+		} else if p > 1 { // 1 is a special primary value reserved for FFFE
+			if p <= b.varTop {
+				return fmt.Errorf("primary value %X of non-variable is smaller than the highest variable %X", p, b.varTop)
 			}
-			if b.minNonVar == 0 || ce[0] < b.minNonVar {
-				b.minNonVar = ce[0]
+			if b.minNonVar == 0 || p < b.minNonVar {
+				b.minNonVar = p
 			}
 		}
 	}
@@ -142,16 +142,42 @@ func (b *Builder) Add(runes []rune, colelems [][]int, variables []int) error {
 	if err != nil {
 		return err
 	}
+	cccs := []uint8{}
+	nfd := norm.NFD.String(str)
+	for i := range nfd {
+		cccs = append(cccs, norm.NFD.PropertiesString(nfd[i:]).CCC())
+	}
+	if len(cccs) < len(elems) {
+		if len(cccs) > 2 {
+			return fmt.Errorf("number of decomposed characters should be greater or equal to the number of collation elements for len(colelems) > 3 (%d < %d)", len(cccs), len(elems))
+		}
+		p := len(elems) - 1
+		for ; p > 0 && elems[p].w[0] == 0; p-- {
+			elems[p].ccc = cccs[len(cccs)-1]
+		}
+		for ; p >= 0; p-- {
+			elems[p].ccc = cccs[0]
+		}
+	} else {
+		for i := range elems {
+			elems[i].ccc = cccs[i]
+		}
+	}
+	// doNorm in collate.go assumes that the following conditions hold.
+	if len(elems) > 1 && len(cccs) > 1 && cccs[0] != 0 && cccs[0] != cccs[len(cccs)-1] {
+		return fmt.Errorf("incompatible CCC values for expansion %X (%d)", runes, cccs)
+	}
 	b.root.newEntry(str, elems)
 	return nil
 }
 
 func (t *Tailoring) setAnchor(anchor string) error {
-	anchor = norm.NFD.String(anchor)
+	anchor = norm.NFC.String(anchor)
 	a := t.index.find(anchor)
 	if a == nil {
 		a = t.index.newEntry(anchor, nil)
 		a.implicit = true
+		a.modified = true
 		for _, r := range []rune(anchor) {
 			e := t.index.find(string(r))
 			e.lock = true
@@ -221,7 +247,7 @@ func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
 	if t.anchor == nil {
 		return fmt.Errorf("%s:Insert: no anchor point set for tailoring of %s", t.id, str)
 	}
-	str = norm.NFD.String(str)
+	str = norm.NFC.String(str)
 	e := t.index.find(str)
 	if e == nil {
 		e = t.index.newEntry(str, nil)
@@ -262,12 +288,13 @@ func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
 	}
 	e.extend = norm.NFD.String(extend)
 	e.exclude = false
+	e.modified = true
 	e.elems = nil
 	t.anchor = e
 	return nil
 }
 
-func (o *ordering) getWeight(e *entry) [][]int {
+func (o *ordering) getWeight(e *entry) []rawCE {
 	if len(e.elems) == 0 && e.logical == noAnchor {
 		if e.implicit {
 			for _, r := range e.runes {
@@ -279,11 +306,10 @@ func (o *ordering) getWeight(e *entry) [][]int {
 			for ; a.elems == nil && !a.implicit; a = a.next {
 				count[a.level]++
 			}
-			e.elems = append([][]int(nil), make([]int, len(a.elems[0])))
-			copy(e.elems[0], a.elems[0])
+			e.elems = []rawCE{makeRawCE(a.elems[0].w, a.elems[0].ccc)}
 			for i := collate.Primary; i < collate.Quaternary; i++ {
 				if count[i] != 0 {
-					e.elems[0][i] -= count[i]
+					e.elems[0].w[i] -= count[i]
 					break
 				}
 			}
@@ -315,11 +341,11 @@ func (o *ordering) verifyWeights(a, b *entry, level collate.Level) error {
 		return nil
 	}
 	for i := collate.Primary; i < level; i++ {
-		if a.elems[0][i] < b.elems[0][i] {
+		if a.elems[0].w[i] < b.elems[0].w[i] {
 			return nil
 		}
 	}
-	if a.elems[0][level] >= b.elems[0][level] {
+	if a.elems[0].w[level] >= b.elems[0].w[level] {
 		err := fmt.Errorf("%s:overflow: collation elements of %q (%X) overflows those of %q (%X) at level %d (%X >= %X)", o.id, a.str, a.runes, b.str, b.runes, level, a.elems, b.elems)
 		log.Println(err)
 		// TODO: return the error instead, or better, fix the conflicting entry by making room.
@@ -339,6 +365,54 @@ func (b *Builder) errorID(locale string, e error) {
 	}
 }
 
+// patchNorm ensures that NFC and NFD counterparts are consistent.
+func (o *ordering) patchNorm() {
+	// Insert the NFD counterparts, if necessary.
+	for _, e := range o.ordered {
+		nfd := norm.NFD.String(e.str)
+		if nfd != e.str {
+			if e0 := o.find(nfd); e0 != nil && !e0.modified {
+				e0.elems = e.elems
+			} else if e.modified && !equalCEArrays(o.genColElems(nfd), e.elems) {
+				e := o.newEntry(nfd, e.elems)
+				e.modified = true
+			}
+		}
+	}
+	// Update unchanged composed forms if one of their parts changed.
+	for _, e := range o.ordered {
+		nfd := norm.NFD.String(e.str)
+		if e.modified || nfd == e.str {
+			continue
+		}
+		if e0 := o.find(nfd); e0 != nil {
+			e.elems = e0.elems
+		} else {
+			e.elems = o.genColElems(nfd)
+			if norm.NFD.LastBoundary([]byte(nfd)) == 0 {
+				r := []rune(nfd)
+				head := string(r[0])
+				tail := ""
+				for i := 1; i < len(r); i++ {
+					s := norm.NFC.String(head + string(r[i]))
+					if e0 := o.find(s); e0 != nil && e0.modified {
+						head = s
+					} else {
+						tail += string(r[i])
+					}
+				}
+				e.elems = append(o.genColElems(head), o.genColElems(tail)...)
+			}
+		}
+	}
+	// Exclude entries for which the individual runes generate the same collation elements.
+	for _, e := range o.ordered {
+		if len(e.runes) > 1 && equalCEArrays(o.genColElems(e.str), e.elems) {
+			e.exclude = true
+		}
+	}
+}
+
 func (b *Builder) buildOrdering(o *ordering) {
 	for _, e := range o.ordered {
 		o.getWeight(e)
@@ -346,6 +420,7 @@ func (b *Builder) buildOrdering(o *ordering) {
 	for _, e := range o.ordered {
 		o.addExtension(e)
 	}
+	o.patchNorm()
 	o.sort()
 	simplify(o)
 	b.processExpansions(o)   // requires simplify
@@ -436,20 +511,20 @@ func (b *Builder) Print(w io.Writer) (n int, err error) {
 
 // reproducibleFromNFKD checks whether the given expansion could be generated
 // from an NFKD expansion.
-func reproducibleFromNFKD(e *entry, exp, nfkd [][]int) bool {
+func reproducibleFromNFKD(e *entry, exp, nfkd []rawCE) bool {
 	// Length must be equal.
 	if len(exp) != len(nfkd) {
 		return false
 	}
 	for i, ce := range exp {
 		// Primary and secondary values should be equal.
-		if ce[0] != nfkd[i][0] || ce[1] != nfkd[i][1] {
+		if ce.w[0] != nfkd[i].w[0] || ce.w[1] != nfkd[i].w[1] {
 			return false
 		}
 		// Tertiary values should be equal to maxTertiary for third element onwards.
 		// TODO: there seem to be a lot of cases in CLDR (e.g. ㏭ in zh.xml) that can
 		// simply be dropped.  Try this out by dropping the following code.
-		if i >= 2 && ce[2] != maxTertiary {
+		if i >= 2 && ce.w[2] != maxTertiary {
 			return false
 		}
 		if _, err := makeCE(ce); err != nil {
@@ -469,22 +544,12 @@ func simplify(o *ordering) {
 			keep[e.runes[0]] = true
 		}
 	}
-	// Remove entries for which the runes normalize (using NFD) to identical values.
-	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
-		s := e.str
-		nfd := norm.NFD.String(s)
-		if len(e.runes) > 1 || keep[e.runes[0]] || nfd == s {
-			continue
-		}
-		if equalCEArrays(o.genColElems(nfd), e.elems) {
-			e.remove()
-		}
-	}
 	// Tag entries for which the runes NFKD decompose to identical values.
 	for e := o.front(); e != nil; e, _ = e.nextIndexed() {
 		s := e.str
 		nfkd := norm.NFKD.String(s)
-		if e.decompose || len(e.runes) > 1 || len(e.elems) == 1 || keep[e.runes[0]] || nfkd == s {
+		nfd := norm.NFD.String(s)
+		if e.decompose || len(e.runes) > 1 || len(e.elems) == 1 || keep[e.runes[0]] || nfkd == nfd {
 			continue
 		}
 		if reproducibleFromNFKD(e, e.elems, o.genColElems(nfkd)) {
@@ -589,18 +654,18 @@ func (b *Builder) processContractions(o *ordering) {
 		// Bucket sort entries in index order.
 		es := make([]*entry, len(l))
 		for _, e := range l {
-			var o, sn int
+			var p, sn int
 			if len(e.runes) > 1 {
 				str := []byte(string(e.runes[1:]))
-				o, sn = t.contractTries.lookup(handle, str)
+				p, sn = t.contractTries.lookup(handle, str)
 				if sn != len(str) {
-					log.Fatalf("processContractions: unexpected length for '%X'; len=%d; want %d", e.runes, sn, len(str))
+					log.Fatalf("%s: processContractions: unexpected length for '%X'; len=%d; want %d", o.id, e.runes, sn, len(str))
 				}
 			}
-			if es[o] != nil {
-				log.Fatalf("Multiple contractions for position %d for rune %U", o, e.runes[0])
+			if es[p] != nil {
+				log.Fatalf("%s: multiple contractions for position %d for rune %U", o.id, p, e.runes[0])
 			}
-			es[o] = e
+			es[p] = e
 		}
 		// Create collation elements for contractions.
 		elems := []uint32{}

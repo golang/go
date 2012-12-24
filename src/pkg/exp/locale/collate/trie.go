@@ -97,3 +97,64 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 	// Illegal rune
 	return 0, 1
 }
+
+// The body of lookupString is a verbatim copy of that of lookup.
+func (t *trie) lookupString(s string) (v colElem, sz int) {
+	c0 := s[0]
+	switch {
+	case c0 < tx:
+		return colElem(t.values0[c0]), 1
+	case c0 < t2:
+		return 0, 1
+	case c0 < t3:
+		if len(s) < 2 {
+			return 0, 0
+		}
+		i := t.index0[c0]
+		c1 := s[1]
+		if c1 < tx || t2 <= c1 {
+			return 0, 1
+		}
+		return t.lookupValue(i, c1), 2
+	case c0 < t4:
+		if len(s) < 3 {
+			return 0, 0
+		}
+		i := t.index0[c0]
+		c1 := s[1]
+		if c1 < tx || t2 <= c1 {
+			return 0, 1
+		}
+		o := int(i)<<6 + int(c1)
+		i = t.index[o]
+		c2 := s[2]
+		if c2 < tx || t2 <= c2 {
+			return 0, 2
+		}
+		return t.lookupValue(i, c2), 3
+	case c0 < t5:
+		if len(s) < 4 {
+			return 0, 0
+		}
+		i := t.index0[c0]
+		c1 := s[1]
+		if c1 < tx || t2 <= c1 {
+			return 0, 1
+		}
+		o := int(i)<<6 + int(c1)
+		i = t.index[o]
+		c2 := s[2]
+		if c2 < tx || t2 <= c2 {
+			return 0, 2
+		}
+		o = int(i)<<6 + int(c2)
+		i = t.index[o]
+		c3 := s[3]
+		if c3 < tx || t2 <= c3 {
+			return 0, 3
+		}
+		return t.lookupValue(i, c3), 4
+	}
+	// Illegal rune
+	return 0, 1
+}
