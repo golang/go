@@ -111,7 +111,8 @@ runtime·noteclear(Note *n)
 void
 runtime·notewakeup(Note *n)
 {
-	runtime·xchg(&n->key, 1);
+	if(runtime·xchg(&n->key, 1))
+		runtime·throw("notewakeup - double wakeup");
 	runtime·futexwakeup(&n->key, 1);
 }
 
