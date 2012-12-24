@@ -30,6 +30,18 @@ func TestRaceMapRW2(t *testing.T) {
 	<-ch
 }
 
+func TestRaceMapRWArray(t *testing.T) {
+	// Check instrumentation of unaddressable arrays (issue 4578).
+	m := make(map[int][2]int)
+	ch := make(chan bool, 1)
+	go func() {
+		_ = m[1][1]
+		ch <- true
+	}()
+	m[2] = [2]int{1, 2}
+	<-ch
+}
+
 func TestNoRaceMapRR(t *testing.T) {
 	m := make(map[int]int)
 	ch := make(chan bool, 1)
