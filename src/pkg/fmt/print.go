@@ -310,7 +310,7 @@ func getField(v reflect.Value, i int) reflect.Value {
 	return val
 }
 
-// Convert ASCII to integer.  n is 0 (and got is false) if no number present.
+// parsenum converts ASCII to integer.  num is 0 (and isnum is false) if no number present.
 func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	if start >= end {
 		return 0, false, end
@@ -1123,7 +1123,7 @@ func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
 	prevString := false
 	for fieldnum := 0; fieldnum < len(a); fieldnum++ {
 		p.fmt.clearflags()
-		// always add spaces if we're doing println
+		// always add spaces if we're doing Println
 		field := a[fieldnum]
 		if fieldnum > 0 {
 			isString := field != nil && reflect.TypeOf(field).Kind() == reflect.String
