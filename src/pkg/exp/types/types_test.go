@@ -20,15 +20,7 @@ func makePkg(t *testing.T, src string) (*ast.Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	files := map[string]*ast.File{filename: file}
-	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
-	if err != nil {
-		return nil, err
-	}
-	if err := Check(fset, pkg, nil, nil); err != nil {
-		return nil, err
-	}
-	return pkg, nil
+	return Check(fset, map[string]*ast.File{filename: file})
 }
 
 type testEntry struct {

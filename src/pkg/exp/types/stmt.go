@@ -270,7 +270,15 @@ func (check *checker) stmt(s ast.Stmt) {
 		// ignore
 
 	case *ast.DeclStmt:
-		check.decl(s.Decl)
+		d, _ := s.Decl.(*ast.GenDecl)
+		if d == nil || (d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR) {
+			check.invalidAST(token.NoPos, "const, type, or var declaration expected")
+			return
+		}
+		if d.Tok == token.CONST {
+			check.assocInitvals(d)
+		}
+		check.decl(d)
 
 	case *ast.LabeledStmt:
 		// TODO(gri) anything to do with label itself?
@@ -378,8 +386,14 @@ func (check *checker) stmt(s ast.Stmt) {
 			}
 			var x, y operand
 			check.expr(&x, s.Lhs[0], nil, -1)
+			if x.mode == invalid {
+				return
+			}
 			check.expr(&y, s.Rhs[0], nil, -1)
-			check.binary(&x, &y, op, nil)
+			if y.mode == invalid {
+				return
+			}
+			check.binary(&x, &y, op, x.typ)
 			check.assign1to1(s.Lhs[0], nil, &x, false, -1)
 		}
 
@@ -390,7 +404,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.call(s.Call)
 
 	case *ast.ReturnStmt:
-		sig := check.functypes[len(check.functypes)-1]
+		sig := check.funcsig
 		if n := len(sig.Results); n > 0 {
 			// TODO(gri) should not have to compute lhs, named every single time - clean this up
 			lhs := make([]ast.Expr, n)
@@ -459,6 +473,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					// duplicate entry, but only report an error if there are
 					// no other errors.
 					var dupl token.Pos
+					var yy operand
 					if y.mode == constant {
 						// TODO(gri) This code doesn't work correctly for
 						//           large integer, floating point, or
@@ -467,6 +482,7 @@ func (check *checker) stmt(s ast.Stmt) {
 						//           hash function to index the map.
 						dupl = seen[y.val]
 						seen[y.val] = y.pos()
+						yy = y // remember y
 					}
 					// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
 					// Order matters: By comparing y against x, error positions are at the case values.
@@ -480,8 +496,8 @@ func (check *checker) stmt(s ast.Stmt) {
 					}
 					check.comparison(&y, &x, token.EQL)
 					if y.mode != invalid && dupl.IsValid() {
-						check.errorf(y.pos(), "%s is duplicate case (previous at %s)",
-							&y, check.fset.Position(dupl))
+						check.errorf(yy.pos(), "%s is duplicate case (previous at %s)",
+							&yy, check.fset.Position(dupl))
 					}
 				}
 			}
@@ -664,6 +680,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		//           they refer to the expression in the range clause.
 		//           Should give better messages w/o too much code
 		//           duplication (assignment checking).
+		x.mode = value
 		if s.Key != nil {
 			x.typ = key
 			check.assign1to1(s.Key, nil, &x, decl, -1)

@@ -9,6 +9,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/scanner"
 	"go/token"
 	"sort"
 )
@@ -17,17 +18,33 @@ import (
 const trace = false
 
 type checker struct {
-	fset *token.FileSet
-	pkg  *ast.Package
-	errh func(token.Pos, string)
-	mapf func(ast.Expr, Type)
+	ctxt  *Context
+	fset  *token.FileSet
+	files []*ast.File
 
 	// lazily initialized
 	firsterr  error
-	filenames []string                      // sorted list of package file names for reproducible iteration order
 	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
-	functypes []*Signature                  // stack of function signatures; actively typechecked function on top
+	funclist  []function                    // list of functions/methods with correct signatures and non-empty bodies
+	funcsig   *Signature                    // signature of currently typechecked function
 	pos       []token.Pos                   // stack of expr positions; debugging support, used if trace is set
+}
+
+type function struct {
+	obj  *ast.Object // for debugging/tracing only
+	sig  *Signature
+	body *ast.BlockStmt
+}
+
+// later adds a function with non-empty body to the list of functions
+// that need to be processed after all package-level declarations
+// are typechecked.
+//
+func (check *checker) later(obj *ast.Object, sig *Signature, body *ast.BlockStmt) {
+	// functions implemented elsewhere (say in assembly) have no body
+	if body != nil {
+		check.funclist = append(check.funclist, function{obj, sig, body})
+	}
 }
 
 // declare declares an object of the given kind and name (ident) in scope;
@@ -110,12 +127,6 @@ func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident
 	}
 }
 
-func (check *checker) function(typ *Signature, body *ast.BlockStmt) {
-	check.functypes = append(check.functypes, typ)
-	check.stmt(body)
-	check.functypes = check.functypes[0 : len(check.functypes)-1]
-}
-
 // object typechecks an object by assigning it a type; obj.Type must be nil.
 // Callers must check obj.Type before calling object; this eliminates a call
 // for each identifier that has been typechecked already, a common scenario.
@@ -164,36 +175,39 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 				for _, f := range t.Fields {
 					if m := scope.Lookup(f.Name); m != nil {
 						check.errorf(m.Pos(), "type %s has both field and method named %s", obj.Name, f.Name)
+						// ok to continue
 					}
 				}
-				// ok to continue
 			case *Interface:
 				// methods cannot be associated with an interface type
 				for _, m := range scope.Objects {
 					recv := m.Decl.(*ast.FuncDecl).Recv.List[0].Type
 					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
+					// ok to continue
 				}
-				// ok to continue
 			}
 			// typecheck method signatures
-			for _, m := range scope.Objects {
-				mdecl := m.Decl.(*ast.FuncDecl)
-				// TODO(gri) At the moment, the receiver is type-checked when checking
-				// the method body. Also, we don't properly track if the receiver is
-				// a pointer (i.e., currently, method sets are too large). FIX THIS.
-				mtyp := check.typ(mdecl.Type, cycleOk).(*Signature)
-				m.Type = mtyp
+			for _, obj := range scope.Objects {
+				mdecl := obj.Decl.(*ast.FuncDecl)
+				sig := check.typ(mdecl.Type, cycleOk).(*Signature)
+				params, _ := check.collectParams(mdecl.Recv, false)
+				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+				obj.Type = sig
+				check.later(obj, sig, mdecl.Body)
 			}
 		}
 
 	case ast.Fun:
 		fdecl := obj.Decl.(*ast.FuncDecl)
-		check.collectParams(fdecl.Recv, false) // ensure method base is type-checked
-		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
-		obj.Type = ftyp
-		// functions implemented elsewhere (say in assembly) have no body
-		if fdecl.Body != nil {
-			check.function(ftyp, fdecl.Body)
+		// methods are typechecked when their receivers are typechecked
+		if fdecl.Recv == nil {
+			sig := check.typ(fdecl.Type, cycleOk).(*Signature)
+			if obj.Name == "init" && (len(sig.Params) != 0 || len(sig.Results) != 0) {
+				check.errorf(fdecl.Pos(), "func init must have no arguments and no return values")
+				// ok to continue
+			}
+			obj.Type = sig
+			check.later(obj, sig, fdecl.Body)
 		}
 
 	default:
@@ -233,40 +247,33 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 	if ptr, ok := typ.(*ast.StarExpr); ok {
 		typ = ptr.X
 	}
-	// determine receiver base type object (or nil if error)
+	// determine receiver base type object
 	var obj *ast.Object
 	if ident, ok := typ.(*ast.Ident); ok && ident.Obj != nil {
 		obj = ident.Obj
 		if obj.Kind != ast.Typ {
 			check.errorf(ident.Pos(), "%s is not a type", ident.Name)
-			obj = nil
+			return // ignore this method
 		}
 		// TODO(gri) determine if obj was defined in this package
 		/*
 			if check.notLocal(obj) {
 				check.errorf(ident.Pos(), "cannot define methods on non-local type %s", ident.Name)
-				obj = nil
+				return // ignore this method
 			}
 		*/
 	} else {
 		// If it's not an identifier or the identifier wasn't declared/resolved,
 		// the parser/resolver already reported an error. Nothing to do here.
+		return // ignore this method
 	}
-	// determine base type scope (or nil if error)
+	// declare method in receiver base type scope
 	var scope *ast.Scope
-	if obj != nil {
-		if obj.Data != nil {
-			scope = obj.Data.(*ast.Scope)
-		} else {
-			scope = ast.NewScope(nil)
-			obj.Data = scope
-		}
+	if obj.Data != nil {
+		scope = obj.Data.(*ast.Scope)
 	} else {
-		// use a dummy scope so that meth can be declared in
-		// presence of an error and get an associated object
-		// (always use a new scope so that we don't get double
-		// declaration errors)
 		scope = ast.NewScope(nil)
+		obj.Data = scope
 	}
 	check.declare(scope, ast.Fun, meth.Name, meth)
 }
@@ -308,13 +315,20 @@ func (check *checker) decl(decl ast.Decl) {
 			}
 		}
 	case *ast.FuncDecl:
-		if d.Name.Name == "init" {
-			// initialization function
-			// TODO(gri) ignore for now (has no object associated with it)
-			// (should probably collect in a first phase and properly initialize)
+		// methods are checked when their respective base types are checked
+		if d.Recv != nil {
 			return
 		}
-		if obj := d.Name.Obj; obj.Type == nil {
+		obj := d.Name.Obj
+		// Initialization functions don't have an object associated with them
+		// since they are not in any scope. Create a dummy object for them.
+		if d.Name.Name == "init" {
+			assert(obj == nil) // all other functions should have an object
+			obj = ast.NewObj(ast.Fun, d.Name.Name)
+			obj.Decl = d
+			d.Name.Obj = obj
+		}
+		if obj.Type == nil {
 			check.object(obj, false)
 		}
 	default:
@@ -324,35 +338,42 @@ func (check *checker) decl(decl ast.Decl) {
 
 // iterate calls f for each package-level declaration.
 func (check *checker) iterate(f func(*checker, ast.Decl)) {
-	list := check.filenames
-
-	if list == nil {
-		// initialize lazily
-		for filename := range check.pkg.Files {
-			list = append(list, filename)
-		}
-		sort.Strings(list)
-		check.filenames = list
-	}
-
-	for _, filename := range list {
-		for _, decl := range check.pkg.Files[filename].Decls {
+	for _, file := range check.files {
+		for _, decl := range file.Decls {
 			f(check, decl)
 		}
 	}
 }
 
+// sortedFiles returns the sorted list of package files given a package file map.
+func sortedFiles(m map[string]*ast.File) []*ast.File {
+	keys := make([]string, len(m))
+	i := 0
+	for k, _ := range m {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
+	files := make([]*ast.File, len(m))
+	for i, k := range keys {
+		files[i] = m[k]
+	}
+
+	return files
+}
+
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
-func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string), f func(ast.Expr, Type)) (err error) {
+func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
 	// initialize checker
-	var check checker
-	check.fset = fset
-	check.pkg = pkg
-	check.errh = errh
-	check.mapf = f
-	check.initexprs = make(map[*ast.ValueSpec][]ast.Expr)
+	check := checker{
+		ctxt:      ctxt,
+		fset:      fset,
+		files:     sortedFiles(files),
+		initexprs: make(map[*ast.ValueSpec][]ast.Expr),
+	}
 
 	// handle panics
 	defer func() {
@@ -365,9 +386,26 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string), 
 		default:
 			// unexpected panic: don't crash clients
 			// panic(p) // enable for debugging
-			err = fmt.Errorf("types.check internal error: %v", p)
+			// TODO(gri) add a test case for this scenario
+			err = fmt.Errorf("types internal error: %v", p)
 		}
 	}()
+
+	// resolve identifiers
+	imp := ctxt.Import
+	if imp == nil {
+		imp = GcImport
+	}
+	pkg, err = ast.NewPackage(fset, files, imp, Universe)
+	if err != nil {
+		if list, _ := err.(scanner.ErrorList); len(list) > 0 {
+			for _, err := range list {
+				check.err(err)
+			}
+		} else {
+			check.err(err)
+		}
+	}
 
 	// determine missing constant initialization expressions
 	// and associate methods with types
@@ -375,6 +413,21 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string), 
 
 	// typecheck all declarations
 	check.iterate((*checker).decl)
+
+	// typecheck all function/method bodies
+	// (funclist may grow when checking statements - do not use range clause!)
+	for i := 0; i < len(check.funclist); i++ {
+		f := check.funclist[i]
+		if trace {
+			s := "<function literal>"
+			if f.obj != nil {
+				s = f.obj.Name
+			}
+			fmt.Println("---", s)
+		}
+		check.funcsig = f.sig
+		check.stmtList(f.body.List)
+	}
 
 	return
 }

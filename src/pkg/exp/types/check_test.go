@@ -72,16 +72,25 @@ func getFile(filename string) (file *token.File) {
 	return file
 }
 
-func getPos(filename string, offset int) token.Pos {
-	if f := getFile(filename); f != nil {
-		return f.Pos(offset)
+// Positioned errors are of the form filename:line:column: message .
+var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
+
+// splitError splits an error's error message into a position string
+// and the actual error message. If there's no position information,
+// pos is the empty string, and msg is the entire error message.
+//
+func splitError(err error) (pos, msg string) {
+	msg = err.Error()
+	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
+		pos = m[1]
+		msg = m[2]
 	}
-	return token.NoPos
+	return
 }
 
-func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, error) {
+func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, []error) {
 	files := make(map[string]*ast.File)
-	var errors scanner.ErrorList
+	var errlist []error
 	for _, filename := range filenames {
 		if _, exists := files[filename]; exists {
 			t.Fatalf("%s: duplicate file %s", testname, filename)
@@ -92,14 +101,16 @@ func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*
 		}
 		files[filename] = file
 		if err != nil {
-			// if the parser returns a non-scanner.ErrorList error
-			// the file couldn't be read in the first place and
-			// file == nil; in that case we shouldn't reach here
-			errors = append(errors, err.(scanner.ErrorList)...)
+			if list, _ := err.(scanner.ErrorList); len(list) > 0 {
+				for _, err := range list {
+					errlist = append(errlist, err)
+				}
+			} else {
+				errlist = append(errlist, err)
+			}
 		}
-
 	}
-	return files, errors
+	return files, errlist
 }
 
 // ERROR comments must be of the form /* ERROR "rx" */ and rx is
@@ -107,11 +118,11 @@ func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*
 //
 var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
 
-// expectedErrors collects the regular expressions of ERROR comments found
+// errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) map[token.Pos][]string {
-	errors := make(map[token.Pos][]string)
+func errMap(t *testing.T, testname string, files map[string]*ast.File) map[string][]string {
+	errmap := make(map[string][]string)
 
 	for filename := range files {
 		src, err := ioutil.ReadFile(filename)
@@ -124,7 +135,7 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 		// set otherwise the position information returned here will
 		// not match the position information collected by the parser
 		s.Init(getFile(filename), src, nil, scanner.ScanComments)
-		var prev token.Pos // position of last non-comment, non-semicolon token
+		var prev string // position string of last non-comment, non-semicolon token
 
 	scanFile:
 		for {
@@ -135,102 +146,88 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 			case token.COMMENT:
 				s := errRx.FindStringSubmatch(lit)
 				if len(s) == 2 {
-					list := errors[prev]
-					errors[prev] = append(list, string(s[1]))
+					errmap[prev] = append(errmap[prev], string(s[1]))
 				}
 			case token.SEMICOLON:
 				// ignore automatically inserted semicolon
 				if lit == "\n" {
-					break
+					continue scanFile
 				}
 				fallthrough
 			default:
-				prev = pos
+				prev = fset.Position(pos).String()
 			}
 		}
 	}
 
-	return errors
+	return errmap
 }
 
-func eliminate(t *testing.T, expected map[token.Pos][]string, errors error) {
-	if *listErrors || errors == nil {
-		return
-	}
-	for _, error := range errors.(scanner.ErrorList) {
-		// error.Pos is a token.Position, but we want
-		// a token.Pos so we can do a map lookup
-		pos := getPos(error.Pos.Filename, error.Pos.Offset)
-		list := expected[pos]
+func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
+	for _, err := range errlist {
+		pos, msg := splitError(err)
+		list := errmap[pos]
 		index := -1 // list index of matching message, if any
 		// we expect one of the messages in list to match the error at pos
 		for i, msg := range list {
 			rx, err := regexp.Compile(msg)
 			if err != nil {
-				t.Errorf("%s: %v", error.Pos, err)
+				t.Errorf("%s: %v", pos, err)
 				continue
 			}
-			if match := rx.MatchString(error.Msg); match {
+			if rx.MatchString(msg) {
 				index = i
 				break
 			}
 		}
 		if index >= 0 {
 			// eliminate from list
-			n := len(list) - 1
-			if n > 0 {
+			if n := len(list) - 1; n > 0 {
 				// not the last entry - swap in last element and shorten list by 1
 				list[index] = list[n]
-				expected[pos] = list[:n]
+				errmap[pos] = list[:n]
 			} else {
 				// last entry - remove list from map
-				delete(expected, pos)
+				delete(errmap, pos)
 			}
 		} else {
-			t.Errorf("%s: no error expected: %q", error.Pos, error.Msg)
-			continue
+			t.Errorf("%s: no error expected: %q", pos, msg)
 		}
+
 	}
 }
 
 func checkFiles(t *testing.T, testname string, testfiles []string) {
-	// TODO(gri) Eventually all these different phases should be
-	//           subsumed into a single function call that takes
-	//           a set of files and creates a fully resolved and
-	//           type-checked AST.
+	// parse files and collect parser errors
+	files, errlist := parseFiles(t, testname, testfiles)
 
-	files, err := parseFiles(t, testname, testfiles)
-
-	// we are expecting the following errors
-	// (collect these after parsing the files so that
-	// they are found in the file set)
-	errors := expectedErrors(t, testname, files)
-
-	// verify errors returned by the parser
-	eliminate(t, errors, err)
-
-	// verify errors returned after resolving identifiers
-	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
-	eliminate(t, errors, err)
-
-	// verify errors returned by the typechecker
-	var list scanner.ErrorList
-	errh := func(pos token.Pos, msg string) {
-		list.Add(fset.Position(pos), msg)
-	}
-	err = Check(fset, pkg, errh, nil)
-	eliminate(t, errors, list)
+	// typecheck and collect typechecker errors
+	ctxt := Default
+	ctxt.Error = func(err error) { errlist = append(errlist, err) }
+	ctxt.Check(fset, files)
 
 	if *listErrors {
-		scanner.PrintError(os.Stdout, err)
+		t.Errorf("--- %s: %d errors found:", testname, len(errlist))
+		for _, err := range errlist {
+			t.Error(err)
+		}
 		return
 	}
 
+	// match and eliminate errors
+	// we are expecting the following errors
+	// (collect these after parsing the files so that
+	// they are found in the file set)
+	errmap := errMap(t, testname, files)
+	eliminate(t, errmap, errlist)
+
 	// there should be no expected errors left
-	if len(errors) > 0 {
-		t.Errorf("%s: %d errors not reported:", testname, len(errors))
-		for pos, msg := range errors {
-			t.Errorf("%s: %s\n", fset.Position(pos), msg)
+	if len(errmap) > 0 {
+		t.Errorf("--- %s: %d source positions with expected (but not reported) errors:", testname, len(errmap))
+		for pos, list := range errmap {
+			for _, rx := range list {
+				t.Errorf("%s: %q", pos, rx)
+			}
 		}
 	}
 }

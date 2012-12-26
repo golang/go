@@ -51,17 +51,20 @@ var tests = []string{
 	"exp/gotype/testdata/test1.go",
 
 	// directories
-	// Note: packages that don't typecheck yet are commented out
+	// Note: Packages that don't typecheck yet are commented out.
+	// Unless there is comment next to the commented out packages,
+	// the package does't typecheck due to errors in the shift
+	// expression checker.
 	"archive/tar",
 	"archive/zip",
 
 	"bufio",
 	"bytes",
 
-	"compress/bzip2",
+	// "compress/bzip2",
 	"compress/flate",
 	"compress/gzip",
-	"compress/lzw",
+	// "compress/lzw",
 	"compress/zlib",
 
 	"container/heap",
@@ -77,7 +80,7 @@ var tests = []string{
 	"crypto/elliptic",
 	"crypto/hmac",
 	"crypto/md5",
-	"crypto/rand",
+	// "crypto/rand",
 	"crypto/rc4",
 	// "crypto/rsa", // intermittent failure: /home/gri/go2/src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
 	"crypto/sha1",
@@ -91,14 +94,14 @@ var tests = []string{
 	"database/sql",
 	"database/sql/driver",
 
-	"debug/dwarf",
+	// "debug/dwarf",
 	"debug/elf",
 	"debug/gosym",
 	"debug/macho",
 	"debug/pe",
 
 	"encoding/ascii85",
-	"encoding/asn1",
+	// "encoding/asn1",
 	"encoding/base32",
 	"encoding/base64",
 	"encoding/binary",
@@ -124,7 +127,7 @@ var tests = []string{
 	"go/parser",
 	"go/printer",
 	"go/scanner",
-	"go/token",
+	// "go/token",
 
 	"hash/adler32",
 	"hash/crc32",
@@ -135,7 +138,7 @@ var tests = []string{
 	"image/color",
 	"image/draw",
 	"image/gif",
-	"image/jpeg",
+	// "image/jpeg",
 	"image/png",
 
 	"index/suffixarray",
@@ -146,7 +149,7 @@ var tests = []string{
 	"log",
 	"log/syslog",
 
-	"math",
+	// "math",
 	"math/big",
 	"math/cmplx",
 	"math/rand",
@@ -154,7 +157,7 @@ var tests = []string{
 	"mime",
 	"mime/multipart",
 
-	// "net", // c:\go\root\src\pkg\net\interface_windows.go:54:13: invalid operation: division by zero
+	// "net",
 	"net/http",
 	"net/http/cgi",
 	"net/http/fcgi",
@@ -165,41 +168,41 @@ var tests = []string{
 	"net/rpc",
 	"net/rpc/jsonrpc",
 	"net/smtp",
-	"net/textproto",
+	// "net/textproto",
 	"net/url",
 
 	"path",
 	"path/filepath",
 
-	// "reflect", // unsafe.Sizeof must return size > 0 for pointer types
+	"reflect",
 
 	"regexp",
 	"regexp/syntax",
 
-	"runtime",
+	// "runtime",
 	"runtime/cgo",
 	"runtime/debug",
 	"runtime/pprof",
 
 	"sort",
-	// "strconv", // bug in switch case duplicate detection
+	// "strconv",
 	"strings",
 
 	"sync",
 	"sync/atomic",
 
-	// "syscall", c:\go\root\src\pkg\syscall\syscall_windows.go:35:16: cannot convert EINVAL (constant 536870951) to error
+	// "syscall",
 
 	"testing",
 	"testing/iotest",
 	"testing/quick",
 
-	"text/scanner",
+	// "text/scanner",
 	"text/tabwriter",
 	"text/template",
 	"text/template/parse",
 
-	// "time", // local const decls without initialization expressions
+	"time",
 	"unicode",
 	"unicode/utf16",
 	"unicode/utf8",

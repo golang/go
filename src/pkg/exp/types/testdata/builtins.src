@@ -76,6 +76,22 @@ func _complex() {
 	complex /* ERROR "not used" */ (1, 2)
 }
 
+func _copy() {
+	copy /* ERROR "not enough arguments" */ ()
+	copy /* ERROR "not enough arguments" */ ("foo")
+	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
+	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
+	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
+
+	// spec examples
+	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
+	var s = make([]int, 6)
+	var b = make([]byte, 5)
+	n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
+	n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+	n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
+}
+
 func _delete() {
 	var m map[string]int
 	var s string

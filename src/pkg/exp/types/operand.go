@@ -169,7 +169,11 @@ func (x *operand) isAssignable(T Type) bool {
 	// x is the predeclared identifier nil and T is a pointer,
 	// function, slice, map, channel, or interface type
 	if x.isNil() {
-		switch Tu.(type) {
+		switch t := Tu.(type) {
+		case *Basic:
+			if t.Kind == UnsafePointer {
+				return true
+			}
 		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
 			return true
 		}

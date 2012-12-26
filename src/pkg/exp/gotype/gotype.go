@@ -170,13 +170,8 @@ func processFiles(filenames []string, allFiles bool) {
 }
 
 func processPackage(fset *token.FileSet, files map[string]*ast.File) {
-	// make a package (resolve all identifiers)
-	pkg, err := ast.NewPackage(fset, files, types.GcImport, types.Universe)
+	_, err := types.Check(fset, files)
 	if err != nil {
-		report(err)
-		return
-	}
-	if err = types.Check(fset, pkg, nil, nil); err != nil {
 		report(err)
 	}
 }
