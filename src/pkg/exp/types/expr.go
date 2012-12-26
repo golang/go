@@ -714,6 +714,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 
 	case *ast.CompositeLit:
+		// TODO(gri) Known bug: The parser doesn't resolve composite literal keys
+		//           because it cannot know the type of the literal and therefore
+		//           cannot know if a key is a struct field or not. Consequently,
+		//           if a key is an identifier, it is unresolved and thus has no
+		//           ast.Objects associated with it. At the moment, the respective
+		//           error message is not issued because the type-checker doesn't
+		//           resolve the identifier, and because it assumes that the parser
+		//           did the resolution.
 		typ := hint
 		openArray := false
 		if e.Type != nil {
