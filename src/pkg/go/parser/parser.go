@@ -1189,14 +1189,18 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 		return p.parseLiteralValue(nil)
 	}
 
-	x := p.checkExpr(p.parseExpr(keyOk)) // don't resolve if map key
+	// The parser cannot resolve a key expression because it does not know
+	// what the composite literal type is: if we have an array/slice index
+	// or map key, we want to resolve, but if we have a struct field name
+	// we cannot. Leave this to type-checking phase.
+	x := p.checkExpr(p.parseExpr(keyOk))
 	if keyOk {
 		if p.tok == token.COLON {
 			colon := p.pos
 			p.next()
 			return &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseElement(false)}
 		}
-		p.resolve(x) // not a map key
+		p.resolve(x) // not a key
 	}
 
 	return x

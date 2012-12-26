@@ -52,8 +52,8 @@ var tests = []string{
 
 	// directories
 	// Note: Packages that don't typecheck yet are commented out.
-	// Unless there is comment next to the commented out packages,
-	// the package does't typecheck due to errors in the shift
+	// Unless there is a comment next to the commented out packages,
+	// the package doesn't typecheck due to errors in the shift
 	// expression checker.
 	"archive/tar",
 	"archive/zip",
