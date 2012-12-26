@@ -122,3 +122,11 @@ func (T) m0() {}
 func (*T) m1() {}
 func (x T) m2() {}
 func (x *T) m3() {}
+
+
+// Initialization functions
+func init() {}
+func /* ERROR "no arguments and no return values" */ init(int) {}
+func /* ERROR "no arguments and no return values" */ init() int { return 0 }
+func /* ERROR "no arguments and no return values" */ init(int) int {}
+func (T) init(int) int { return 0 }

@@ -19,12 +19,8 @@ import (
 // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
 
 // TODO(gri) API issues
-// - clients need access to constant values
-// - clients need access to built-in type information
-
-// TODO(gri) Bugs
-// - expression hints are (correctly) used untyped for composite literal components, but also
-//   in possibly overlapping use as hints for shift expressions - investigate
+// - clients need access to builtins type information
+// - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
 
 func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params ObjList, isVariadic bool) {
 	if list == nil {
@@ -183,7 +179,14 @@ func (check *checker) op(m opPredicates, x *operand, op token.Token) bool {
 func (check *checker) unary(x *operand, op token.Token) {
 	switch op {
 	case token.AND:
-		// TODO(gri) need to check for composite literals, somehow (they are not variables, in general)
+		// spec: "As an exception to the addressability
+		// requirement x may also be a composite literal."
+		// (The spec doesn't specify whether the literal
+		// can be parenthesized or not, but all compilers
+		// accept parenthesized literals.)
+		if _, ok := unparen(x.expr).(*ast.CompositeLit); ok {
+			x.mode = variable
+		}
 		if x.mode != variable {
 			check.invalidOp(x.pos(), "cannot take address of %s", x)
 			goto Error
@@ -338,41 +341,45 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 }
 
 // untyped lhs shift operands convert to the hint type
-// TODO(gri) shift hinting is not correct
 func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
-	// The right operand in a shift expression must have unsigned integer type
-	// or be an untyped constant that can be converted to unsigned integer type.
-	if y.mode == constant && isUntyped(y.typ) {
-		if isRepresentableConst(y.val, UntypedInt) {
-			y.typ = Typ[UntypedInt]
-		}
-	}
-	if !isInteger(y.typ) || !isUnsigned(y.typ) && !isUntyped(y.typ) {
+	// spec: "The right operand in a shift expression must have unsigned
+	// integer type or be an untyped constant that can be converted to
+	// unsigned integer type."
+	switch {
+	case isInteger(y.typ) && isUnsigned(y.typ):
+		// nothing to do
+	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, UntypedInt):
+		y.typ = Typ[UntypedInt]
+	default:
 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
 		x.mode = invalid
 		return
 	}
 
-	// If the left operand of a non-constant shift expression is an untyped
-	// constant, the type of the constant is what it would be if the shift
-	// expression were replaced by its left operand alone; the type is int
-	// if it cannot be determined from the context (for instance, if the
-	// shift expression is an operand in a comparison against an untyped
-	// constant)
+	// spec: "If the left operand of a non-constant shift expression is
+	// an untyped constant, the type of the constant is what it would be
+	// if the shift expression were replaced by its left operand alone;
+	// the type is int if it cannot be determined from the context (for
+	// instance, if the shift expression is an operand in a comparison
+	// against an untyped constant)".
 	if x.mode == constant && isUntyped(x.typ) {
 		if y.mode == constant {
 			// constant shift - accept values of any (untyped) type
 			// as long as the value is representable as an integer
-			if isRepresentableConst(x.val, UntypedInt) {
-				x.typ = Typ[UntypedInt]
+			if x.mode == constant && isUntyped(x.typ) {
+				if isRepresentableConst(x.val, UntypedInt) {
+					x.typ = Typ[UntypedInt]
+				}
 			}
 		} else {
 			// non-constant shift
-			if hint != nil {
-				check.convertUntyped(x, hint)
-				if x.mode == invalid {
-					return
-				}
+			if hint == nil {
+				// TODO(gri) need to check for x.isNil (see other uses of defaultType)
+				hint = defaultType(x.typ)
+			}
+			check.convertUntyped(x, hint)
+			if x.mode == invalid {
+				return
 			}
 		}
 	}
@@ -395,10 +402,10 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
 			x.val = shiftConst(x.val, uint(s), op)
 			return
 		}
-		x.mode = value
 	}
 
-	// x.mode, x.Typ are unchanged
+	x.mode = value
+	// x.typ is already set
 }
 
 var binaryOpPredicates = opPredicates{
@@ -591,10 +598,23 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 	check.assignOperand(&z, x)
 }
 
-func (check *checker) recordType(x *operand) {
-	if x.mode != invalid {
-		check.mapf(x.expr, x.typ)
+var emptyResult Result
+
+func (check *checker) callExpr(x *operand) {
+	var typ Type
+	var val interface{}
+	switch x.mode {
+	case invalid:
+		return // nothing to do
+	case novalue:
+		typ = &emptyResult
+	case constant:
+		typ = x.typ
+		val = x.val
+	default:
+		typ = x.typ
 	}
+	check.ctxt.Expr(x.expr, typ, val)
 }
 
 // rawExpr typechecks expression e and initializes x with the expression
@@ -605,12 +625,16 @@ func (check *checker) recordType(x *operand) {
 //
 func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
 	if trace {
-		check.trace(e.Pos(), "expr(%s, iota = %d, cycleOk = %v)", e, iota, cycleOk)
+		c := ""
+		if cycleOk {
+			c = " ⨁"
+		}
+		check.trace(e.Pos(), "%s (%s, %d%s)", e, typeString(hint), iota, c)
 		defer check.untrace("=> %s", x)
 	}
 
-	if check.mapf != nil {
-		defer check.recordType(x)
+	if check.ctxt.Expr != nil {
+		defer check.callExpr(x)
 	}
 
 	switch e := e.(type) {
@@ -680,10 +704,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 
 	case *ast.FuncLit:
-		if typ, ok := check.typ(e.Type, false).(*Signature); ok {
+		if sig, ok := check.typ(e.Type, false).(*Signature); ok {
 			x.mode = value
-			x.typ = typ
-			check.function(typ, e.Body)
+			x.typ = sig
+			check.later(nil, sig, e.Body)
 		} else {
 			check.invalidAST(e.Pos(), "invalid function literal %s", e)
 			goto Error
@@ -767,7 +791,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					// i < len(fields)
 					etyp := fields[i].Type
 					if !x.isAssignable(etyp) {
-						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
+						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
 						continue
 					}
 				}
@@ -819,7 +843,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		}
 
-		x.mode = variable // TODO(gri) mode is really a value - keep for now to get going
+		x.mode = value
 		x.typ = typ
 
 	case *ast.ParenExpr:

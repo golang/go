@@ -33,7 +33,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		msg = "too many"
 	}
 	if msg != "" {
-		check.invalidOp(call.Pos(), msg+"arguments for %s (expected %d, found %d)", call, bin.nargs, n)
+		check.invalidOp(call.Pos(), msg+" arguments for %s (expected %d, found %d)", call, bin.nargs, n)
 		goto Error
 	}
 
@@ -175,8 +175,35 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		}
 
 	case _Copy:
-		// TODO(gri) implements checks
-		unimplemented()
+		var y operand
+		check.expr(&y, args[1], nil, iota)
+		if y.mode == invalid {
+			goto Error
+		}
+
+		var dst, src Type
+		if t, ok := typ0.(*Slice); ok {
+			dst = t.Elt
+		}
+		switch t := underlying(y.typ).(type) {
+		case *Basic:
+			if isString(y.typ) {
+				src = Typ[Byte]
+			}
+		case *Slice:
+			src = t.Elt
+		}
+
+		if dst == nil || src == nil {
+			check.invalidArg(x.pos(), "copy expects slice arguments; found %s and %s", x, &y)
+			goto Error
+		}
+
+		if !isIdentical(dst, src) {
+			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
+			goto Error
+		}
+
 		x.mode = value
 		x.typ = Typ[Int]
 
@@ -204,11 +231,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		if x.mode == constant {
 			// nothing to do for x.val == 0
 			if !isZeroConst(x.val) {
-				c := x.val.(complex)
+				c := x.val.(Complex)
 				if id == _Real {
-					x.val = c.re
+					x.val = c.Re
 				} else {
-					x.val = c.im
+					x.val = c.Im
 				}
 			}
 		} else {
@@ -271,6 +298,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = &Pointer{Base: typ0}
 
 	case _Panic, _Print, _Println:
+		for _, arg := range args[1:] {
+			check.expr(x, arg, nil, -1)
+		}
 		x.mode = novalue
 
 	case _Recover:
@@ -298,14 +328,9 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.val = int64(0)
 
 	case _Sizeof:
-		// basic types with specified sizes have size guarantees; for all others we use 0
-		var size int64
-		if typ, ok := typ0.(*Basic); ok {
-			size = typ.Size
-		}
 		x.mode = constant
 		x.typ = Typ[Uintptr]
-		x.val = size
+		x.val = sizeof(check.ctxt, typ0)
 
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
@@ -407,4 +432,26 @@ func (check *checker) complexArg(x *operand) bool {
 	}
 	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
 	return false
+}
+
+func sizeof(ctxt *Context, typ Type) int64 {
+	switch typ := underlying(typ).(type) {
+	case *Basic:
+		switch typ.Kind {
+		case Int, Uint:
+			return ctxt.IntSize
+		case Uintptr:
+			return ctxt.PtrSize
+		}
+		return typ.Size
+	case *Array:
+		return sizeof(ctxt, typ.Elt) * typ.Len
+	case *Struct:
+		var size int64
+		for _, f := range typ.Fields {
+			size += sizeof(ctxt, f.Type)
+		}
+		return size
+	}
+	return ctxt.PtrSize // good enough
 }

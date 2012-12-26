@@ -30,15 +30,15 @@ func unreachable() {
 }
 
 func (check *checker) printTrace(format string, args []interface{}) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	const dots = ".  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  "
 	n := len(check.pos) - 1
-	i := 2 * n
+	i := 3 * n
 	for i > len(dots) {
 		fmt.Print(dots)
 		i -= len(dots)
 	}
 	// i <= len(dots)
-	fmt.Printf("%s: ", check.fset.Position(check.pos[n]))
+	fmt.Printf("%s:\t", check.fset.Position(check.pos[n]))
 	fmt.Print(dots[0:i])
 	fmt.Println(check.formatMsg(format, args))
 }
@@ -76,15 +76,19 @@ func (check *checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.formatMsg(format, args))
 }
 
-func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
-	msg := check.formatMsg(format, args)
+func (check *checker) err(err error) {
 	if check.firsterr == nil {
-		check.firsterr = fmt.Errorf("%s: %s", check.fset.Position(pos), msg)
+		check.firsterr = err
 	}
-	if check.errh == nil {
+	f := check.ctxt.Error
+	if f == nil {
 		panic(bailout{}) // report only first error
 	}
-	check.errh(pos, msg)
+	f(err)
+}
+
+func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
+	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.formatMsg(format, args)))
 }
 
 func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {

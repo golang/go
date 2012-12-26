@@ -29,9 +29,9 @@ func (undeclared /* ERROR "undeclared" */) m() {}
 func (x *undeclared /* ERROR "undeclared" */) m() {}
 
 // TODO(gri) try to get rid of double error reporting here
-func (pi /* ERROR "not a type" */ /* ERROR "not a type" */) m1() {}
-func (x pi /* ERROR "not a type" */ /* ERROR "not a type" */) m2() {}
-func (x *pi /* ERROR "not a type" */ /* ERROR "cannot indirect" */) m3() {} // TODO(gri) not closing the last /* comment crashes the system
+func (pi /* ERROR "not a type" */) m1() {}
+func (x pi /* ERROR "not a type" */) m2() {}
+func (x *pi /* ERROR "not a type" */ ) m3() {} // TODO(gri) not closing the last /* comment crashes the system
 
 // Blank types.
 type _ struct { m int }

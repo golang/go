@@ -261,4 +261,14 @@ func _rangeloops() {
 	}
 	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
 	for _ = range rc {}
+
+	// constant strings
+	const cs = "foo"
+	for i, x := range cs {}
+	for i, x := range "" {
+		var ii int
+		ii = i
+		var xx rune
+		xx = x
+	}
 }

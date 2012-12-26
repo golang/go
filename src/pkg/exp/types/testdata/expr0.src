@@ -133,3 +133,19 @@ var (
 	ch8 = <-rc
 	ch9 = <-sc /* ERROR "cannot receive" */
 )
+
+// address of composite literals
+type T struct{x, y int}
+
+func f() T { return T{} }
+
+var (
+	_ = &T{1, 2}
+	_ = &[...]int{}
+	_ = &[]int{}
+	_ = &[]int{}
+	_ = &map[string]T{}
+	_ = &(T{1, 2})
+	_ = &((((T{1, 2}))))
+	_ = &f /* ERROR "cannot take address" */ ()
+)

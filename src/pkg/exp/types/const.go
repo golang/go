@@ -20,9 +20,9 @@ import (
 // Representation of constant values.
 //
 // bool     ->  bool (true, false)
-// numeric  ->  int64, *big.Int, *big.Rat, complex (ordered by increasing data structure "size")
+// numeric  ->  int64, *big.Int, *big.Rat, Complex (ordered by increasing data structure "size")
 // string   ->  string
-// nil      ->  nilType (nilConst)
+// nil      ->  NilType (nilConst)
 //
 // Numeric constants are normalized after each operation such
 // that they are represented by the "smallest" data structure
@@ -30,22 +30,22 @@ import (
 // type. Non-numeric constants are always normalized.
 
 // Representation of complex numbers.
-type complex struct {
-	re, im *big.Rat
+type Complex struct {
+	Re, Im *big.Rat
 }
 
-func (c complex) String() string {
-	if c.re.Sign() == 0 {
-		return fmt.Sprintf("%si", c.im)
+func (c Complex) String() string {
+	if c.Re.Sign() == 0 {
+		return fmt.Sprintf("%si", c.Im)
 	}
 	// normalized complex values always have an imaginary part
-	return fmt.Sprintf("(%s + %si)", c.re, c.im)
+	return fmt.Sprintf("(%s + %si)", c.Re, c.Im)
 }
 
 // Representation of nil.
-type nilType struct{}
+type NilType struct{}
 
-func (nilType) String() string {
+func (NilType) String() string {
 	return "nil"
 }
 
@@ -58,7 +58,7 @@ const (
 
 // Frequently used values.
 var (
-	nilConst  = nilType{}
+	nilConst  = NilType{}
 	zeroConst = int64(0)
 )
 
@@ -97,7 +97,7 @@ func newComplex(re, im *big.Rat) interface{} {
 	if im.Sign() == 0 {
 		return normalizeRatConst(re)
 	}
-	return complex{re, im}
+	return Complex{re, im}
 }
 
 // makeRuneConst returns the int64 code point for the rune literal
@@ -137,7 +137,7 @@ func makeFloatConst(lit string) interface{} {
 	return nil
 }
 
-// makeComplexConst returns the complex constant representation (complex) for
+// makeComplexConst returns the complex constant representation (Complex) for
 // the imaginary literal lit. The result is nil if lit is not a correct imaginary
 // literal.
 //
@@ -162,7 +162,7 @@ func makeStringConst(lit string) interface{} {
 	return nil
 }
 
-// toImagConst returns the constant complex(0, x) for a non-complex x.
+// toImagConst returns the constant Complex(0, x) for a non-complex x.
 func toImagConst(x interface{}) interface{} {
 	var im *big.Rat
 	switch x := x.(type) {
@@ -175,7 +175,7 @@ func toImagConst(x interface{}) interface{} {
 	default:
 		unreachable()
 	}
-	return complex{rat0, im}
+	return Complex{rat0, im}
 }
 
 // isZeroConst reports whether the value of constant x is 0.
@@ -282,7 +282,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
 			return true
 		}
 
-	case complex:
+	case Complex:
 		switch as {
 		case Complex64:
 			return true // TODO(gri) fix this
@@ -295,7 +295,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
 	case string:
 		return as == String || as == UntypedString
 
-	case nilType:
+	case NilType:
 		return as == UntypedNil || as == UnsafePointer
 
 	default:
@@ -313,7 +313,7 @@ var (
 // complexity returns a measure of representation complexity for constant x.
 func complexity(x interface{}) int {
 	switch x.(type) {
-	case bool, string, nilType:
+	case bool, string, NilType:
 		return 1
 	case int64:
 		return 2
@@ -321,7 +321,7 @@ func complexity(x interface{}) int {
 		return 3
 	case *big.Rat:
 		return 4
-	case complex:
+	case Complex:
 		return 5
 	}
 	unreachable()
@@ -330,7 +330,7 @@ func complexity(x interface{}) int {
 
 // matchConst returns the matching representation (same type) with the
 // smallest complexity for two constant values x and y. They must be
-// of the same "kind" (boolean, numeric, string, or nilType).
+// of the same "kind" (boolean, numeric, string, or NilType).
 //
 func matchConst(x, y interface{}) (_, _ interface{}) {
 	if complexity(x) > complexity(y) {
@@ -340,7 +340,7 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
 	// complexity(x) <= complexity(y)
 
 	switch x := x.(type) {
-	case bool, complex, string, nilType:
+	case bool, Complex, string, NilType:
 		return x, y
 
 	case int64:
@@ -351,8 +351,8 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
 			return big.NewInt(x), y
 		case *big.Rat:
 			return big.NewRat(x, 1), y
-		case complex:
-			return complex{big.NewRat(x, 1), rat0}, y
+		case Complex:
+			return Complex{big.NewRat(x, 1), rat0}, y
 		}
 
 	case *big.Int:
@@ -361,16 +361,16 @@ func matchConst(x, y interface{}) (_, _ interface{}) {
 			return x, y
 		case *big.Rat:
 			return new(big.Rat).SetFrac(x, int1), y
-		case complex:
-			return complex{new(big.Rat).SetFrac(x, int1), rat0}, y
+		case Complex:
+			return Complex{new(big.Rat).SetFrac(x, int1), rat0}, y
 		}
 
 	case *big.Rat:
 		switch y := y.(type) {
 		case *big.Rat:
 			return x, y
-		case complex:
-			return complex{x, rat0}, y
+		case Complex:
+			return Complex{x, rat0}, y
 		}
 	}
 
@@ -405,8 +405,8 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
 			return normalizeIntConst(new(big.Int).Neg(x))
 		case *big.Rat:
 			return normalizeRatConst(new(big.Rat).Neg(x))
-		case complex:
-			return newComplex(new(big.Rat).Neg(x.re), new(big.Rat).Neg(x.im))
+		case Complex:
+			return newComplex(new(big.Rat).Neg(x.Re), new(big.Rat).Neg(x.Im))
 		}
 	case token.XOR:
 		var z big.Int
@@ -551,10 +551,10 @@ func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
 		}
 		return normalizeRatConst(&z)
 
-	case complex:
-		y := y.(complex)
-		a, b := x.re, x.im
-		c, d := y.re, y.im
+	case Complex:
+		y := y.(Complex)
+		a, b := x.Re, x.Im
+		c, d := y.Re, y.Im
 		var re, im big.Rat
 		switch op {
 		case token.ADD:
@@ -632,7 +632,7 @@ func shiftConst(x interface{}, s uint, op token.Token) interface{} {
 
 // compareConst returns the result of the constant comparison x op y;
 // both operands must be of the same "kind" (boolean, numeric, string,
-// or nilType).
+// or NilType).
 //
 func compareConst(x, y interface{}, op token.Token) (z bool) {
 	x, y = matchConst(x, y)
@@ -707,10 +707,10 @@ func compareConst(x, y interface{}, op token.Token) (z bool) {
 			return s < 0
 		}
 
-	case complex:
-		y := y.(complex)
+	case Complex:
+		y := y.(Complex)
 		if op == token.EQL {
-			return x.re.Cmp(y.re) == 0 && x.im.Cmp(y.im) == 0
+			return x.Re.Cmp(y.Re) == 0 && x.Im.Cmp(y.Im) == 0
 		}
 
 	case string:
@@ -722,9 +722,9 @@ func compareConst(x, y interface{}, op token.Token) (z bool) {
 			return x < y
 		}
 
-	case nilType:
+	case NilType:
 		if op == token.EQL {
-			return x == y.(nilType)
+			return x == y.(NilType)
 		}
 	}
 

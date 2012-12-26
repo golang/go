@@ -2,30 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package types declares the data structures for representing
-// Go types and implements typechecking of an *ast.Package.
-//
-// PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
-//
 package types
 
 import (
 	"go/ast"
-	"go/token"
 	"sort"
 )
-
-// Check typechecks a package pkg. It returns the first error, or nil.
-//
-// Check augments the AST by assigning types to ast.Objects. It
-// calls err with the error position and message for each error.
-// It calls f with each valid AST expression and corresponding
-// type. If err == nil, Check terminates as soon as the first error
-// is found. If f is nil, it is not invoked.
-//
-func Check(fset *token.FileSet, pkg *ast.Package, err func(token.Pos, string), f func(ast.Expr, Type)) error {
-	return check(fset, pkg, err, f)
-}
 
 // All types implement the Type interface.
 // TODO(gri) Eventually determine what common Type functionality should be exported.
@@ -96,7 +78,7 @@ type Basic struct {
 	implementsType
 	Kind BasicKind
 	Info BasicInfo
-	Size int64 // > 0 if valid
+	Size int64
 	Name string
 }
 
@@ -142,8 +124,6 @@ type Pointer struct {
 }
 
 // A Result represents a (multi-value) function call result.
-// TODO(gri) consider using an empty Result (Values == nil)
-//           as representation for the novalue operand mode.
 type Result struct {
 	implementsType
 	Values ObjList // Signature.Results of the function called
