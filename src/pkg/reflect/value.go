@@ -1491,7 +1491,7 @@ func (v Value) Slice(beg, end int) Value {
 	}
 
 	// Declare slice so that gc can see the base pointer in it.
-	var x []byte
+	var x []unsafe.Pointer
 
 	// Reinterpret as *SliceHeader to edit.
 	s := (*SliceHeader)(unsafe.Pointer(&x))
@@ -1899,7 +1899,7 @@ func MakeSlice(typ Type, len, cap int) Value {
 	}
 
 	// Declare slice so that gc can see the base pointer in it.
-	var x []byte
+	var x []unsafe.Pointer
 
 	// Reinterpret as *SliceHeader to edit.
 	s := (*SliceHeader)(unsafe.Pointer(&x))
