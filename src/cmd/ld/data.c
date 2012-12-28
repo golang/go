@@ -580,7 +580,7 @@ datblk(int32 addr, int32 size)
 void
 strnput(char *s, int n)
 {
-	for(; *s && n > 0; s++) {
+	for(; n > 0 && *s; s++) {
 		cput(*s);
 		n--;
 	}
