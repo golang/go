@@ -1676,7 +1676,7 @@ instead of a <code>Visitor</code> interface value.
 The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
 in such cases the error argument will describe the failure.
 If a directory's contents are to be skipped,
-the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
+the function should return the value <a href="/pkg/path/filepath/#pkg-variables"><code>filepath.SkipDir</code></a>
 </p>
 
 {{code "/doc/progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
@@ -1865,7 +1865,7 @@ made easier with the new structure of the packages.
 The imports will be updated by fix tool.
 Single-template uses will be otherwise be largely unaffected.
 Code that uses multiple templates in concert will need to be updated by hand.
-The <a href="/pkg/text/template/#examples">examples</a> in
+The <a href="/pkg/text/template/#pkg-examples">examples</a> in
 the documentation for <code>text/template</code> can provide guidance.
 </p>
 
