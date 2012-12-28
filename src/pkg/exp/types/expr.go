@@ -507,8 +507,19 @@ func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
 	return i
 }
 
+// compositeLitKey resolves unresolved composite literal keys.
+// For details, see comment in go/parser/parser.go, method parseElement.
+func (check *checker) compositeLitKey(key ast.Expr) {
+	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
+		ident.Obj = check.pkgscope.Lookup(ident.Name)
+		if ident.Obj == nil {
+			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+		}
+	}
+}
+
 // indexElts checks the elements (elts) of an array or slice composite literal
-// against the literals element type (typ), and the element indices against
+// against the literal's element type (typ), and the element indices against
 // the literal length if known (length >= 0). It returns the length of the
 // literal (maximum index value + 1).
 //
@@ -520,6 +531,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+			check.compositeLitKey(kv.Key)
 			if i := check.index(kv.Key, length, iota); i >= 0 {
 				index = i
 				validIndex = true
@@ -714,14 +726,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		}
 
 	case *ast.CompositeLit:
-		// TODO(gri) Known bug: The parser doesn't resolve composite literal keys
-		//           because it cannot know the type of the literal and therefore
-		//           cannot know if a key is a struct field or not. Consequently,
-		//           if a key is an identifier, it is unresolved and thus has no
-		//           ast.Objects associated with it. At the moment, the respective
-		//           error message is not issued because the type-checker doesn't
-		//           resolve the identifier, and because it assumes that the parser
-		//           did the resolution.
 		typ := hint
 		openArray := false
 		if e.Type != nil {
@@ -827,6 +831,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					check.errorf(e.Pos(), "missing key in map literal")
 					continue
 				}
+				check.compositeLitKey(kv.Key)
 				check.expr(x, kv.Key, nil, iota)
 				if !x.isAssignable(utyp.Key) {
 					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
