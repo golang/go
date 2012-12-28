@@ -8,6 +8,7 @@ package signal
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -57,4 +58,44 @@ func TestSignal(t *testing.T) {
 
 	// The first SIGHUP should be waiting for us on c.
 	waitSig(t, c, syscall.SIGHUP)
+}
+
+func TestStress(t *testing.T) {
+	dur := 3 * time.Second
+	if testing.Short() {
+		dur = 100 * time.Millisecond
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	done := make(chan bool)
+	finished := make(chan bool)
+	go func() {
+		sig := make(chan os.Signal, 1)
+		Notify(sig, syscall.SIGUSR1)
+	Loop:
+		for {
+			select {
+			case <-sig:
+			case <-done:
+				break Loop
+			}
+		}
+		finished <- true
+	}()
+	go func() {
+	Loop:
+		for {
+			select {
+			case <-done:
+				break Loop
+			default:
+				syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+				runtime.Gosched()
+			}
+		}
+		finished <- true
+	}()
+	time.Sleep(dur)
+	close(done)
+	<-finished
+	<-finished
 }
