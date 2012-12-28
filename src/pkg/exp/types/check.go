@@ -23,6 +23,7 @@ type checker struct {
 	files []*ast.File
 
 	// lazily initialized
+	pkgscope  *ast.Scope
 	firsterr  error
 	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
 	funclist  []function                    // list of functions/methods with correct signatures and non-empty bodies
@@ -406,6 +407,7 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg 
 			check.err(err)
 		}
 	}
+	check.pkgscope = pkg.Scope
 
 	// determine missing constant initialization expressions
 	// and associate methods with types

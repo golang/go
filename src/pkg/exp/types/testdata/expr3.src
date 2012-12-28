@@ -246,7 +246,16 @@ func slice_literals() {
 	_ = S0{2.0}
 	_ = S0{2.1 /* ERROR "cannot use" */ }
 	_ = S0{"foo" /* ERROR "cannot use" */ }
+
+	// indices must be resolved correctly
+	// (for details, see comment in go/parser/parser.go, method parseElement)
+	index1 := 1
+	_ = S0{index1: 1}
+	_ = S0{index2: 2}
+	_ = S0{index3 /* ERROR "undeclared name" */ : 3}
 }
+
+var index2 int = 2
 
 func map_literals() {
 	type M0 map[string]int
@@ -256,7 +265,16 @@ func map_literals() {
 	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
 	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+
+	// map keys must be resolved correctly
+	// (for detials, see comment in go/parser/parser.go, method parseElement)
+	key1 := "foo"
+	_ = M0{key1: 1}
+	_ = M0{key2: 2}
+	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
 }
+
+var key2 string = "bar"
 
 type I interface {
 	m()
