@@ -5,6 +5,8 @@
 // Package types declares the data structures for representing
 // Go types and implements typechecking of package files.
 //
+// WARNING: THE TYPES API IS SUBJECT TO SIGNIFICANT CHANGE.
+//
 package types
 
 import (

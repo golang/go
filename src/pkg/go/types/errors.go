@@ -197,7 +197,7 @@ func typeString(typ Type) string {
 	return buf.String()
 }
 
-func writeParams(buf *bytes.Buffer, params ObjList, isVariadic bool) {
+func writeParams(buf *bytes.Buffer, params []*ast.Object, isVariadic bool) {
 	buf.WriteByte('(')
 	for i, par := range params {
 		if i > 0 {
@@ -287,7 +287,7 @@ func writeType(buf *bytes.Buffer, typ Type) {
 				buf.WriteString("; ")
 			}
 			buf.WriteString(m.Name)
-			writeSignature(buf, m.Type.(*Signature))
+			writeSignature(buf, m.Type)
 		}
 		buf.WriteByte('}')
 

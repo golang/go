@@ -301,10 +301,10 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
 
 			case *Interface:
 				// look for a matching method
-				for _, obj := range typ.Methods {
-					if obj.Name == name {
-						assert(obj.Type != nil)
-						if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
+				for _, m := range typ.Methods {
+					if m.Name == name {
+						assert(m.Type != nil)
+						if !potentialMatch(e.multiples, value, m.Type) {
 							return // name collision
 						}
 					}
@@ -380,9 +380,9 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 		}
 
 	case *Interface:
-		for _, obj := range typ.Methods {
-			if obj.Name == name {
-				return value, obj.Type.(Type)
+		for _, m := range typ.Methods {
+			if m.Name == name {
+				return value, m.Type
 			}
 		}
 	}

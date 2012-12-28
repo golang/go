@@ -4,13 +4,9 @@
 
 package types
 
-import (
-	"go/ast"
-	"sort"
-)
+import "go/ast"
 
 // All types implement the Type interface.
-// TODO(gri) Eventually determine what common Type functionality should be exported.
 type Type interface {
 	aType()
 }
@@ -95,7 +91,8 @@ type Slice struct {
 	Elt Type
 }
 
-type StructField struct {
+// A Field represents a field of a struct.
+type Field struct {
 	Name        string // unqualified type name for anonymous fields
 	Type        Type
 	Tag         string
@@ -105,7 +102,7 @@ type StructField struct {
 // A Struct represents a struct type struct{...}.
 type Struct struct {
 	implementsType
-	Fields []*StructField
+	Fields []*Field
 }
 
 func (typ *Struct) fieldIndex(name string) int {
@@ -126,16 +123,16 @@ type Pointer struct {
 // A Result represents a (multi-value) function call result.
 type Result struct {
 	implementsType
-	Values ObjList // Signature.Results of the function called
+	Values []*ast.Object // Signature.Results of the function called
 }
 
 // A Signature represents a user-defined function type func(...) (...).
 type Signature struct {
 	implementsType
-	Recv       *ast.Object // nil if not a method
-	Params     ObjList     // (incoming) parameters from left to right; or nil
-	Results    ObjList     // (outgoing) results from left to right; or nil
-	IsVariadic bool        // true if the last parameter's type is of the form ...T
+	Recv       *ast.Object   // nil if not a method
+	Params     []*ast.Object // (incoming) parameters from left to right; or nil
+	Results    []*ast.Object // (outgoing) results from left to right; or nil
+	IsVariadic bool          // true if the last parameter's type is of the form ...T
 }
 
 // builtinId is an id of a builtin function.
@@ -180,10 +177,16 @@ type builtin struct {
 	isStatement bool // true if the built-in is valid as an expression statement
 }
 
+// A Method represents a method of an interface.
+type Method struct {
+	Name string
+	Type *Signature
+}
+
 // An Interface represents an interface type interface{...}.
 type Interface struct {
 	implementsType
-	Methods ObjList // interface methods sorted by name; or nil
+	Methods []*Method // TODO(gri) consider keeping them in sorted order
 }
 
 // A Map represents a map type map[Key]Elt.
@@ -205,17 +208,6 @@ type NamedType struct {
 	Obj        *ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
 	Underlying Type        // nil if not fully declared yet; never a *NamedType
 }
-
-// An ObjList represents an ordered (in some fashion) list of objects.
-type ObjList []*ast.Object
-
-// ObjList implements sort.Interface.
-func (list ObjList) Len() int           { return len(list) }
-func (list ObjList) Less(i, j int) bool { return list[i].Name < list[j].Name }
-func (list ObjList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
-
-// Sort sorts an object list by object name.
-func (list ObjList) Sort() { sort.Sort(list) }
 
 // All concrete types embed implementsType which
 // ensures that all types implement the Type interface.

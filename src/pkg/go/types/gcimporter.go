@@ -383,8 +383,8 @@ func (p *gcParser) parseName() (name string) {
 
 // Field = Name Type [ string_lit ] .
 //
-func (p *gcParser) parseField() *StructField {
-	var f StructField
+func (p *gcParser) parseField() *Field {
+	var f Field
 	f.Name = p.parseName()
 	f.Type = p.parseType()
 	if p.tok == scanner.String {
@@ -406,7 +406,7 @@ func (p *gcParser) parseField() *StructField {
 // FieldList  = Field { ";" Field } .
 //
 func (p *gcParser) parseStructType() Type {
-	var fields []*StructField
+	var fields []*Field
 
 	parseField := func() {
 		fields = append(fields, p.parseField())
@@ -510,12 +510,12 @@ func (p *gcParser) parseSignature() *Signature {
 // visible in the export data.
 //
 func (p *gcParser) parseInterfaceType() Type {
-	var methods ObjList
+	var methods []*Method
 
 	parseMethod := func() {
-		obj := ast.NewObj(ast.Fun, p.parseName())
-		obj.Type = p.parseSignature()
-		methods = append(methods, obj)
+		name := p.parseName()
+		typ := p.parseSignature()
+		methods = append(methods, &Method{name, typ})
 	}
 
 	p.expectKeyword("interface")
@@ -529,7 +529,6 @@ func (p *gcParser) parseInterfaceType() Type {
 	}
 	p.expect('}')
 
-	methods.Sort()
 	return &Interface{Methods: methods}
 }
 

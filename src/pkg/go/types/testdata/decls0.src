@@ -127,7 +127,7 @@ type (
 	I2 interface {
 		m1()
 	}
-	I3 interface {
+	I3 interface { /* ERROR "multiple methods named m1" */
 		m1()
 		m1 /* ERROR "redeclared" */ ()
 	}

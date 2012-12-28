@@ -22,7 +22,7 @@ import (
 // - clients need access to builtins type information
 // - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
 
-func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params ObjList, isVariadic bool) {
+func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*ast.Object, isVariadic bool) {
 	if list == nil {
 		return
 	}
@@ -70,7 +70,7 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 	return
 }
 
-func (check *checker) collectMethods(list *ast.FieldList) (methods ObjList) {
+func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
 	if list == nil {
 		return
 	}
@@ -81,14 +81,13 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods ObjList) {
 		if len(f.Names) > 0 {
 			// methods (the parser ensures that there's only one
 			// and we don't care if a constructed AST has more)
-			if _, ok := typ.(*Signature); !ok {
+			sig, ok := typ.(*Signature)
+			if !ok {
 				check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
 				continue
 			}
 			for _, name := range f.Names {
-				obj := name.Obj
-				obj.Type = typ
-				methods = append(methods, obj)
+				methods = append(methods, &Method{name.Name, sig})
 			}
 		} else {
 			// embedded interface
@@ -101,14 +100,20 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods ObjList) {
 			}
 		}
 	}
-	// check for double declarations
-	methods.Sort()
-	prev := ""
-	for _, obj := range methods {
-		if obj.Name == prev {
-			check.errorf(list.Pos(), "multiple methods named %s", prev)
+	// Check for double declarations.
+	// The parser inserts methods into an interface-local scope, so local
+	// double declarations are reported by the parser already. We need to
+	// check again for conflicts due to embedded interfaces. This will lead
+	// to a 2nd error message if the double declaration was reported before
+	// by the parser.
+	// TODO(gri) clean this up a bit
+	seen := make(map[string]bool)
+	for _, m := range methods {
+		if seen[m.Name] {
+			check.errorf(list.Pos(), "multiple methods named %s", m.Name)
 			return // keep multiple entries, lookup will only return the first entry
 		}
+		seen[m.Name] = true
 	}
 	return
 }
@@ -125,7 +130,7 @@ func (check *checker) tag(t *ast.BasicLit) string {
 	return ""
 }
 
-func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
+func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*Field) {
 	if list == nil {
 		return
 	}
@@ -135,15 +140,15 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				fields = append(fields, &StructField{name.Name, typ, tag, false})
+				fields = append(fields, &Field{name.Name, typ, tag, false})
 			}
 		} else {
 			// anonymous field
 			switch t := deref(typ).(type) {
 			case *Basic:
-				fields = append(fields, &StructField{t.Name, typ, tag, true})
+				fields = append(fields, &Field{t.Name, typ, tag, true})
 			case *NamedType:
-				fields = append(fields, &StructField{t.Obj.Name, typ, tag, true})
+				fields = append(fields, &Field{t.Obj.Name, typ, tag, true})
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -921,7 +926,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			arg.Type = x.typ
 			x.mode = value
 			x.typ = &Signature{
-				Params:     append(ObjList{arg}, sig.Params...),
+				Params:     append([]*ast.Object{arg}, sig.Params...),
 				Results:    sig.Results,
 				IsVariadic: sig.IsVariadic,
 			}
