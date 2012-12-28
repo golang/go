@@ -5,36 +5,24 @@
 // This file implements runtime support for signal handling.
 //
 // Most synchronization primitives are not available from
-// the signal handler (it cannot block and cannot use locks)
+// the signal handler (it cannot block, allocate memory, or use locks)
 // so the handler communicates with a processing goroutine
 // via struct sig, below.
 //
-// Ownership for sig.Note passes back and forth between
-// the signal handler and the signal goroutine in rounds.
-// The initial state is that sig.note is cleared (setup by signal_enable).
-// At the beginning of each round, mask == 0.
-// The round goes through three stages:
-//
-// (In parallel)
-// 1a) One or more signals arrive and are handled
-// by sigsend using cas to set bits in sig.mask.
-// The handler that changes sig.mask from zero to non-zero
-// calls notewakeup(&sig).
-// 1b) Sigrecv calls notesleep(&sig) to wait for the wakeup.
-//
-// 2) Having received the wakeup, sigrecv knows that sigsend
-// will not send another wakeup, so it can noteclear(&sig)
-// to prepare for the next round. (Sigsend may still be adding
-// signals to sig.mask at this point, which is fine.)
-//
-// 3) Sigrecv uses cas to grab the current sig.mask and zero it,
-// triggering the next round.
-//
-// The signal handler takes ownership of the note by atomically
-// changing mask from a zero to non-zero value. It gives up
-// ownership by calling notewakeup. The signal goroutine takes
-// ownership by returning from notesleep (caused by the notewakeup)
-// and gives up ownership by clearing mask.
+// sigsend() is called by the signal handler to queue a new signal.
+// signal_recv() is called by the Go program to receive a newly queued signal.
+// Synchronization between sigsend() and signal_recv() is based on the sig.state
+// variable.  It can be in 3 states: 0, HASWAITER and HASSIGNAL.
+// HASWAITER means that signal_recv() is blocked on sig.Note and there are no
+// new pending signals.
+// HASSIGNAL means that sig.mask *may* contain new pending signals,
+// signal_recv() can't be blocked in this state.
+// 0 means that there are no new pending signals and signal_recv() is not blocked.
+// Transitions between states are done atomically with CAS.
+// When signal_recv() is unblocked, it resets sig.Note and rechecks sig.mask.
+// If several sigsend()'s and signal_recv() execute concurrently, it can lead to
+// unnecessary rechecks of sig.mask, but must not lead to missed signals
+// nor deadlocks.
 
 package runtime
 #include "runtime.h"
@@ -45,15 +33,20 @@ static struct {
 	Note;
 	uint32 mask[(NSIG+31)/32];
 	uint32 wanted[(NSIG+31)/32];
-	uint32 kick;
+	uint32 state;
 	bool inuse;
 } sig;
+
+enum {
+	HASWAITER = 1,
+	HASSIGNAL = 2,
+};
 
 // Called from sighandler to send a signal back out of the signal handling thread.
 bool
 runtime·sigsend(int32 s)
 {
-	uint32 bit, mask;
+	uint32 bit, mask, old, new;
 
 	if(!sig.inuse || s < 0 || s >= 32*nelem(sig.wanted) || !(sig.wanted[s/32]&(1U<<(s&31))))
 		return false;
@@ -65,8 +58,20 @@ runtime·sigsend(int32 s)
 		if(runtime·cas(&sig.mask[s/32], mask, mask|bit)) {
 			// Added to queue.
 			// Only send a wakeup if the receiver needs a kick.
-			if(runtime·cas(&sig.kick, 1, 0))
-				runtime·notewakeup(&sig);
+			for(;;) {
+				old = runtime·atomicload(&sig.state);
+				if(old == HASSIGNAL)
+					break;
+				if(old == HASWAITER)
+					new = 0;
+				else  // if(old == 0)
+					new = HASSIGNAL;
+				if(runtime·cas(&sig.state, old, new)) {
+					if (old == HASWAITER)
+						runtime·notewakeup(&sig);
+					break;
+				}
+			}
 			break;
 		}
 	}
@@ -77,7 +82,7 @@ runtime·sigsend(int32 s)
 // Must only be called from a single goroutine at a time.
 func signal_recv() (m uint32) {
 	static uint32 recv[nelem(sig.mask)];
-	int32 i, more;
+	uint32 i, old, new;
 	
 	for(;;) {
 		// Serve from local copy if there are bits left.
@@ -89,15 +94,27 @@ func signal_recv() (m uint32) {
 			}
 		}
 
-		// Get a new local copy.
-		// Ask for a kick if more signals come in
-		// during or after our check (before the sleep).
-		if(sig.kick == 0) {
-			runtime·noteclear(&sig);
-			runtime·cas(&sig.kick, 0, 1);
+		// Check and update sig.state.
+		for(;;) {
+			old = runtime·atomicload(&sig.state);
+			if(old == HASWAITER)
+				runtime·throw("inconsistent state in signal_recv");
+			if(old == HASSIGNAL)
+				new = 0;
+			else  // if(old == 0)
+				new = HASWAITER;
+			if(runtime·cas(&sig.state, old, new)) {
+				if (new == HASWAITER) {
+					runtime·entersyscall();
+					runtime·notesleep(&sig);
+					runtime·exitsyscall();
+					runtime·noteclear(&sig);
+				}
+				break;
+			}
 		}
 
-		more = 0;
+		// Get a new local copy.
 		for(i=0; i<nelem(sig.mask); i++) {
 			for(;;) {
 				m = sig.mask[i];
@@ -105,16 +122,7 @@ func signal_recv() (m uint32) {
 					break;
 			}
 			recv[i] = m;
-			if(m != 0)
-				more = 1;
 		}
-		if(more)
-			continue;
-
-		// Sleep waiting for more.
-		runtime·entersyscall();
-		runtime·notesleep(&sig);
-		runtime·exitsyscall();
 	}
 
 done:;
