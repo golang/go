@@ -2,12 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !race
-
 package ioutil
 
-var blackHoleBuf = make([]byte, 8192)
+var blackHoleBuf = make(chan []byte, 1)
 
 func blackHole() []byte {
-	return blackHoleBuf
+	select {
+	case b := <-blackHoleBuf:
+		return b
+	default:
+	}
+	return make([]byte, 8192)
+}
+
+func blackHolePut(p []byte) {
+	select {
+	case blackHoleBuf <- p:
+	default:
+	}
 }
