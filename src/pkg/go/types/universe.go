@@ -118,10 +118,9 @@ func init() {
 	{
 		res := ast.NewObj(ast.Var, "")
 		res.Type = Typ[String]
-		err := ast.NewObj(ast.Fun, "Error")
-		err.Type = &Signature{Results: ObjList{res}}
+		err := &Method{"Error", &Signature{Results: []*ast.Object{res}}}
 		obj := def(ast.Typ, "error")
-		obj.Type = &NamedType{Underlying: &Interface{Methods: ObjList{err}}, Obj: obj}
+		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
 	}
 
 	// predeclared constants

@@ -88,10 +88,7 @@ var testTypes = []testEntry{
 	// interfaces
 	dup("interface{}"),
 	dup("interface{m()}"),
-	{`interface{
-		m(int) float32
-		String() string
-	}`, `interface{String() string; m(int) float32}`}, // methods are sorted
+	dup(`interface{m(int) float32; String() string}`),
 	// TODO(gri) add test for interface w/ anonymous field
 
 	// maps

@@ -165,7 +165,7 @@ func isIdentical(x, y Type) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			return identicalTypes(x.Methods, y.Methods) // methods are sorted
+			return identicalMethods(x.Methods, y.Methods) // methods are sorted
 		}
 
 	case *Map:
@@ -194,17 +194,36 @@ func isIdentical(x, y Type) bool {
 
 // identicalTypes returns true if both lists a and b have the
 // same length and corresponding objects have identical types.
-func identicalTypes(a, b ObjList) bool {
-	if len(a) == len(b) {
-		for i, x := range a {
-			y := b[i]
-			if !isIdentical(x.Type.(Type), y.Type.(Type)) {
-				return false
-			}
-		}
-		return true
+func identicalTypes(a, b []*ast.Object) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	return false
+	for i, x := range a {
+		y := b[i]
+		if !isIdentical(x.Type.(Type), y.Type.(Type)) {
+			return false
+		}
+	}
+	return true
+}
+
+// identicalMethods returns true if both lists a and b have the
+// same length and corresponding methods have identical types.
+// TODO(gri) make this more efficient
+func identicalMethods(a, b []*Method) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := make(map[string]*Method)
+	for _, x := range a {
+		m[x.Name] = x
+	}
+	for _, y := range b {
+		if x := m[y.Name]; x == nil || !isIdentical(x.Type, y.Type) {
+			return false
+		}
+	}
+	return true
 }
 
 // underlying returns the underlying type of typ.
@@ -257,14 +276,14 @@ func defaultType(typ Type) Type {
 // it returns the first missing method required by T and whether it
 // is missing or simply has the wrong type.
 //
-func missingMethod(typ Type, T *Interface) (method *ast.Object, wrongType bool) {
+func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 	// TODO(gri): distinguish pointer and non-pointer receivers
 	// an interface type implements T if it has no methods with conflicting signatures
 	// Note: This is stronger than the current spec. Should the spec require this?
 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
 		for _, m := range T.Methods {
 			mode, sig := lookupField(ityp, m.Name) // TODO(gri) no need to go via lookupField
-			if mode != invalid && !isIdentical(sig, m.Type.(Type)) {
+			if mode != invalid && !isIdentical(sig, m.Type) {
 				return m, true
 			}
 		}
@@ -277,7 +296,7 @@ func missingMethod(typ Type, T *Interface) (method *ast.Object, wrongType bool) 
 		if mode == invalid {
 			return m, false
 		}
-		if !isIdentical(sig, m.Type.(Type)) {
+		if !isIdentical(sig, m.Type) {
 			return m, true
 		}
 	}
