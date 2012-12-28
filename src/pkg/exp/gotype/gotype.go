@@ -6,13 +6,13 @@ package main
 
 import (
 	"errors"
-	"exp/types"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"go/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
