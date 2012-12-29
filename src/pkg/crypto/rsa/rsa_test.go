@@ -21,6 +21,9 @@ func TestKeyGeneration(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
+	if bits := priv.N.BitLen(); bits != size {
+		t.Errorf("key too short (%d vs %d)", bits, size)
+	}
 	testKeyBasics(t, priv)
 }
 
