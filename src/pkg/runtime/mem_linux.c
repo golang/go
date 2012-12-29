@@ -10,6 +10,7 @@
 
 enum
 {
+	EAGAIN = 11,
 	ENOMEM = 12,
 	_PAGE_SIZE = 4096,
 };
@@ -61,6 +62,10 @@ runtime·SysAlloc(uintptr n)
 		if(p == (void*)EACCES) {
 			runtime·printf("runtime: mmap: access denied\n");
 			runtime·printf("if you're running SELinux, enable execmem for this process.\n");
+			runtime·exit(2);
+		}
+		if(p == (void*)EAGAIN) {
+			runtime·printf("runtime: mmap: too much locked memory (check 'ulimit -l').\n");
 			runtime·exit(2);
 		}
 		return nil;
