@@ -175,6 +175,11 @@ NextSetOfPrimes:
 			pminus1.Sub(prime, bigOne)
 			totient.Mul(totient, pminus1)
 		}
+		if n.BitLen() != bits {
+			// This should never happen because crypto/rand should
+			// set the top two bits in each prime.
+			continue NextSetOfPrimes
+		}
 
 		g := new(big.Int)
 		priv.D = new(big.Int)
