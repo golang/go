@@ -396,6 +396,7 @@ static char *proto_gccargs[] = {
 	"-Werror",
 	"-fno-common",
 	"-ggdb",
+	"-pipe",
 	"-O2",
 };
 
