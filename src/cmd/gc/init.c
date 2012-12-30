@@ -55,6 +55,10 @@ anyinit(NodeList *n)
 		case ODCLTYPE:
 		case OEMPTY:
 			break;
+		case OAS:
+			if(isblank(l->n->left) && candiscard(l->n->right))
+				break;
+			// fall through
 		default:
 			return 1;
 		}

@@ -259,3 +259,13 @@ var copy_pt0a = pt0a
 var copy_pt0b = pt0b
 var copy_pt1 = pt1
 var copy_pt1a = pt1a
+
+var _ interface{} = 1
+
+type T1 int
+
+func (t *T1) M() {}
+
+type Mer interface { M() }
+
+var _ Mer = (*T1)(nil)

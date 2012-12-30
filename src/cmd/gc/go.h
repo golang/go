@@ -1375,6 +1375,7 @@ void	walkexprlistsafe(NodeList *l, NodeList **init);
 void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 Node*	conv(Node*, Type*);
+int	candiscard(Node*);
 
 /*
  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c

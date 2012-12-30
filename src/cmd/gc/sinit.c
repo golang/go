@@ -108,6 +108,13 @@ init1(Node *n, NodeList **out)
 		case OAS:
 			if(n->defn->left != n)
 				goto bad;
+			if(isblank(n->defn->left) && candiscard(n->defn->right)) {
+				n->defn->op = OEMPTY;
+				n->defn->left = N;
+				n->defn->right = N;
+				break;
+			}
+
 		/*
 			n->defn->dodata = 1;
 			init1(n->defn->right, out);
