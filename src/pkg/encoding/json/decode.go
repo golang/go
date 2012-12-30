@@ -430,9 +430,9 @@ func (d *decodeState) object(v reflect.Value) {
 	// Check type of target: struct or map[string]T
 	switch v.Kind() {
 	case reflect.Map:
-		// map must have string type
+		// map must have string kind
 		t := v.Type()
-		if t.Key() != reflect.TypeOf("") {
+		if t.Key().Kind() != reflect.String {
 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
 			break
 		}
@@ -536,10 +536,12 @@ func (d *decodeState) object(v reflect.Value) {
 		} else {
 			d.value(subv)
 		}
+
 		// Write value back to map;
 		// if using struct, subv points into struct already.
 		if v.Kind() == reflect.Map {
-			v.SetMapIndex(reflect.ValueOf(key), subv)
+			kv := reflect.ValueOf(key).Convert(v.Type().Key())
+			v.SetMapIndex(kv, subv)
 		}
 
 		// Next token must be , or }.
