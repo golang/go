@@ -455,7 +455,7 @@ void
 runtime·throw(int8 *s)
 {
 	runtime·startpanic();
-	runtime·printf("throw: %s\n", s);
+	runtime·printf("fatal error: %s\n", s);
 	runtime·dopanic(0);
 	*(int32*)0 = 0;	// not reached
 	runtime·exit(1);	// even more not reached
