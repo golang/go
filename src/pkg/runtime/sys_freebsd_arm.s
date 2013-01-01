@@ -244,11 +244,16 @@ TEXT runtime·sigprocmask(SB),7,$0
 	MOVW.CS R9, (R9)
 	RET
 
-TEXT runtime·cacheflush(SB),7,$0
+TEXT runtime·cacheflush(SB),7,$8
+	MOVW $1, R0 // drain_writebuf
+	SWI $165 // sysarch
 	MOVW $0, R0 // icacheflush
 	MOVW 0(FP), R1 // start
+	MOVW R1, 4(R13)
 	MOVW 4(FP), R2 // end
 	SUB R1, R2 // R2 = length
+	MOVW R2, 8(R13)
+	MOVW $4(R13), R1
 	SWI $165 // sysarch
 	RET
 
