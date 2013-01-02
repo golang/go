@@ -72,6 +72,109 @@ pkg go/doc, var IllegalPrefixes []string
 pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
 pkg go/format, func Source([]byte) ([]byte, error)
 pkg go/printer, type Config struct, Indent int
+pkg go/types, const Bool BasicKind
+pkg go/types, const Byte BasicKind
+pkg go/types, const Complex128 BasicKind
+pkg go/types, const Complex64 BasicKind
+pkg go/types, const Float32 BasicKind
+pkg go/types, const Float64 BasicKind
+pkg go/types, const Int BasicKind
+pkg go/types, const Int16 BasicKind
+pkg go/types, const Int32 BasicKind
+pkg go/types, const Int64 BasicKind
+pkg go/types, const Int8 BasicKind
+pkg go/types, const Invalid BasicKind
+pkg go/types, const IsBoolean BasicInfo
+pkg go/types, const IsComplex BasicInfo
+pkg go/types, const IsConstType BasicInfo
+pkg go/types, const IsFloat BasicInfo
+pkg go/types, const IsInteger BasicInfo
+pkg go/types, const IsNumeric BasicInfo
+pkg go/types, const IsOrdered BasicInfo
+pkg go/types, const IsString BasicInfo
+pkg go/types, const IsUnsigned BasicInfo
+pkg go/types, const IsUntyped BasicInfo
+pkg go/types, const Rune BasicKind
+pkg go/types, const String BasicKind
+pkg go/types, const Uint BasicKind
+pkg go/types, const Uint16 BasicKind
+pkg go/types, const Uint32 BasicKind
+pkg go/types, const Uint64 BasicKind
+pkg go/types, const Uint8 BasicKind
+pkg go/types, const Uintptr BasicKind
+pkg go/types, const UnsafePointer BasicKind
+pkg go/types, const UntypedBool BasicKind
+pkg go/types, const UntypedComplex BasicKind
+pkg go/types, const UntypedFloat BasicKind
+pkg go/types, const UntypedInt BasicKind
+pkg go/types, const UntypedNil BasicKind
+pkg go/types, const UntypedRune BasicKind
+pkg go/types, const UntypedString BasicKind
+pkg go/types, func Check(*token.FileSet, map[string]*ast.File) (*ast.Package, error)
+pkg go/types, func FindGcExportData(*bufio.Reader) error
+pkg go/types, func FindPkg(string, string) (string, string)
+pkg go/types, func GcImport(map[string]*ast.Object, string) (*ast.Object, error)
+pkg go/types, func GcImportData(map[string]*ast.Object, string, string, *bufio.Reader) (*ast.Object, error)
+pkg go/types, method (*Context) Check(*token.FileSet, map[string]*ast.File) (*ast.Package, error)
+pkg go/types, method (Complex) String() string
+pkg go/types, method (NilType) String() string
+pkg go/types, type Array struct
+pkg go/types, type Array struct, Elt Type
+pkg go/types, type Array struct, Len int64
+pkg go/types, type Basic struct
+pkg go/types, type Basic struct, Info BasicInfo
+pkg go/types, type Basic struct, Kind BasicKind
+pkg go/types, type Basic struct, Name string
+pkg go/types, type Basic struct, Size int64
+pkg go/types, type BasicInfo int
+pkg go/types, type BasicKind int
+pkg go/types, type Chan struct
+pkg go/types, type Chan struct, Dir ast.ChanDir
+pkg go/types, type Chan struct, Elt Type
+pkg go/types, type Complex struct
+pkg go/types, type Complex struct, Im *big.Rat
+pkg go/types, type Complex struct, Re *big.Rat
+pkg go/types, type Context struct
+pkg go/types, type Context struct, Error func(error)
+pkg go/types, type Context struct, Expr func(ast.Expr, Type, interface{})
+pkg go/types, type Context struct, Import ast.Importer
+pkg go/types, type Context struct, IntSize int64
+pkg go/types, type Context struct, PtrSize int64
+pkg go/types, type Field struct
+pkg go/types, type Field struct, IsAnonymous bool
+pkg go/types, type Field struct, Name string
+pkg go/types, type Field struct, Tag string
+pkg go/types, type Field struct, Type Type
+pkg go/types, type Interface struct
+pkg go/types, type Interface struct, Methods []*Method
+pkg go/types, type Map struct
+pkg go/types, type Map struct, Elt Type
+pkg go/types, type Map struct, Key Type
+pkg go/types, type Method struct
+pkg go/types, type Method struct, Name string
+pkg go/types, type Method struct, Type *Signature
+pkg go/types, type NamedType struct
+pkg go/types, type NamedType struct, Obj *ast.Object
+pkg go/types, type NamedType struct, Underlying Type
+pkg go/types, type NilType struct
+pkg go/types, type Pointer struct
+pkg go/types, type Pointer struct, Base Type
+pkg go/types, type Result struct
+pkg go/types, type Result struct, Values []*ast.Object
+pkg go/types, type Signature struct
+pkg go/types, type Signature struct, IsVariadic bool
+pkg go/types, type Signature struct, Params []*ast.Object
+pkg go/types, type Signature struct, Recv *ast.Object
+pkg go/types, type Signature struct, Results []*ast.Object
+pkg go/types, type Slice struct
+pkg go/types, type Slice struct, Elt Type
+pkg go/types, type Struct struct
+pkg go/types, type Struct struct, Fields []*Field
+pkg go/types, type Type interface, unexported methods
+pkg go/types, var Default Context
+pkg go/types, var Typ [...]*Basic
+pkg go/types, var Universe *ast.Scope
+pkg go/types, var Unsafe *ast.Object
 pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
 pkg io, type ByteWriter interface { WriteByte }
 pkg io, type ByteWriter interface, WriteByte(byte) error
