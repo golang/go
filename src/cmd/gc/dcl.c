@@ -151,16 +151,30 @@ void
 redeclare(Sym *s, char *where)
 {
 	Strlit *pkgstr;
+	int line1, line2;
 
 	if(s->lastlineno == 0) {
 		pkgstr = s->origpkg ? s->origpkg->path : s->pkg->path;
 		yyerror("%S redeclared %s\n"
 			"\tprevious declaration during import \"%Z\"",
 			s, where, pkgstr);
-	} else
-		yyerror("%S redeclared %s\n"
+	} else {
+		line1 = parserline();
+		line2 = s->lastlineno;
+		
+		// When an import and a declaration collide in separate files,
+		// present the import as the "redeclared", because the declaration
+		// is visible where the import is, but not vice versa.
+		// See issue 4510.
+		if(s->def == N) {
+			line2 = line1;
+			line1 = s->lastlineno;
+		}
+
+		yyerrorl(line1, "%S redeclared %s (%#N)\n"
 			"\tprevious declaration at %L",
-			s, where, s->lastlineno);
+			s, where, s->def, line2);
+	}
 }
 
 static int vargen;
