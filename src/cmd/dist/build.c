@@ -892,20 +892,27 @@ install(char *dir)
 
 			// lib9/goos.c gets the default constants hard-coded.
 			if(streq(name, "goos.c")) {
-				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
-				vadd(&compile, bprintf(&b, "-DGOARCH=\"%s\"", goarch));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GOOS=\"%s\"", goos));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GOARCH=\"%s\"", goarch));
 				bprintf(&b1, "%s", goroot_final);
 				bsubst(&b1, "\\", "\\\\");  // turn into C string
-				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
-				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
-				vadd(&compile, bprintf(&b, "-DGOARM=\"%s\"", goarm));
-				vadd(&compile, bprintf(&b, "-DGO386=\"%s\"", go386));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GOROOT=\"%s\"", bstr(&b1)));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GOVERSION=\"%s\"", goversion));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GOARM=\"%s\"", goarm));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b, "GO386=\"%s\"", go386));
 			}
 
 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
 			if(streq(name, "lex.c")) {
 				xgetenv(&b, "GOEXPERIMENT");
-				vadd(&compile, bprintf(&b1, "-DGOEXPERIMENT=\"%s\"", bstr(&b)));
+				vadd(&compile, "-D");
+				vadd(&compile, bprintf(&b1, "GOEXPERIMENT=\"%s\"", bstr(&b)));
 			}
 		} else {
 			// Supporting files for a Go package.
@@ -913,12 +920,16 @@ install(char *dir)
 				vadd(&compile, bpathf(&b, "%s/%sa", tooldir, gochar));
 			else {
 				vadd(&compile, bpathf(&b, "%s/%sc", tooldir, gochar));
-				vadd(&compile, "-FVw");
+				vadd(&compile, "-F");
+				vadd(&compile, "-V");
+				vadd(&compile, "-w");
 			}
 			vadd(&compile, "-I");
 			vadd(&compile, workdir);
-			vadd(&compile, bprintf(&b, "-DGOOS_%s", goos));
-			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goarch));
+			vadd(&compile, "-D");
+			vadd(&compile, bprintf(&b, "GOOS_%s", goos));
+			vadd(&compile, "-D");
+			vadd(&compile, bprintf(&b, "GOARCH_%s", goarch));
 		}
 
 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
