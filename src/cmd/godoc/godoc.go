@@ -317,18 +317,21 @@ func startsWithUppercase(s string) bool {
 
 var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
 
+// stripExampleSuffix strips lowercase braz in Foo_braz or Foo_Bar_braz from name
+// while keeping uppercase Braz in Foo_Braz.
+func stripExampleSuffix(name string) string {
+	if i := strings.LastIndex(name, "_"); i != -1 {
+		if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
+			name = name[:i]
+		}
+	}
+	return name
+}
+
 func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
-		name := eg.Name
-
-		// Strip lowercase braz in Foo_braz or Foo_Bar_braz from name
-		// while keeping uppercase Braz in Foo_Braz.
-		if i := strings.LastIndex(name, "_"); i != -1 {
-			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
-				name = name[:i]
-			}
-		}
+		name := stripExampleSuffix(eg.Name)
 
 		if name != funcName {
 			continue
@@ -902,6 +905,82 @@ func packageExports(fset *token.FileSet, pkg *ast.Package) {
 	}
 }
 
+// declNames returns the names declared by decl.
+// Method names are returned in the form Receiver_Method.
+func declNames(decl ast.Decl) (names []string) {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		name := d.Name.Name
+		if d.Recv != nil {
+			var typeName string
+			switch r := d.Recv.List[0].Type.(type) {
+			case *ast.StarExpr:
+				typeName = r.X.(*ast.Ident).Name
+			case *ast.Ident:
+				typeName = r.Name
+			}
+			name = typeName + "_" + name
+		}
+		names = []string{name}
+	case *ast.GenDecl:
+		for _, spec := range d.Specs {
+			switch s := spec.(type) {
+			case *ast.TypeSpec:
+				names = append(names, s.Name.Name)
+			case *ast.ValueSpec:
+				for _, id := range s.Names {
+					names = append(names, id.Name)
+				}
+			}
+		}
+	}
+	return
+}
+
+// globalNames finds all top-level declarations in pkgs and returns a map
+// with the identifier names as keys.
+func globalNames(pkgs map[string]*ast.Package) map[string]bool {
+	names := make(map[string]bool)
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				for _, name := range declNames(decl) {
+					names[name] = true
+				}
+			}
+		}
+	}
+	return names
+}
+
+// parseExamples gets examples for packages in pkgs from *_test.go files in dir.
+func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string) ([]*doc.Example, error) {
+	var examples []*doc.Example
+	filter := func(d os.FileInfo) bool {
+		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+	}
+	testpkgs, err := parseDir(fset, dir, filter)
+	if err != nil {
+		return nil, err
+	}
+	globals := globalNames(pkgs)
+	for _, testpkg := range testpkgs {
+		var files []*ast.File
+		for _, f := range testpkg.Files {
+			files = append(files, f)
+		}
+		for _, e := range doc.Examples(files...) {
+			name := stripExampleSuffix(e.Name)
+			if name == "" || globals[name] {
+				examples = append(examples, e)
+			} else {
+				log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
+			}
+		}
+	}
+	return examples, nil
+}
+
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -975,21 +1054,9 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 		}
 	}
 
-	// get examples from *_test.go files
-	var examples []*doc.Example
-	filter = func(d os.FileInfo) bool {
-		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
-	}
-	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {
-		log.Println("parsing test files:", err)
-	} else {
-		for _, testpkg := range testpkgs {
-			var files []*ast.File
-			for _, f := range testpkg.Files {
-				files = append(files, f)
-			}
-			examples = append(examples, doc.Examples(files...)...)
-		}
+	examples, err := parseExamples(fset, pkgs, abspath)
+	if err != nil {
+		log.Println("parsing examples:", err)
 	}
 
 	// compute package documentation
