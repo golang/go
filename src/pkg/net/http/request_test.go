@@ -238,6 +238,35 @@ func TestNewRequestHost(t *testing.T) {
 	}
 }
 
+func TestNewRequestContentLength(t *testing.T) {
+	readByte := func(r io.Reader) io.Reader {
+		var b [1]byte
+		r.Read(b[:])
+		return r
+	}
+	tests := []struct {
+		r    io.Reader
+		want int64
+	}{
+		{bytes.NewReader([]byte("123")), 3},
+		{bytes.NewBuffer([]byte("1234")), 4},
+		{strings.NewReader("12345"), 5},
+		// Not detected:
+		{struct{ io.Reader }{strings.NewReader("xyz")}, 0},
+		{io.NewSectionReader(strings.NewReader("x"), 0, 6), 0},
+		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), 0},
+	}
+	for _, tt := range tests {
+		req, err := NewRequest("POST", "http://localhost/", tt.r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.ContentLength != tt.want {
+			t.Errorf("ContentLength(%#T) = %d; want %d", tt.r, req.ContentLength, tt.want)
+		}
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
