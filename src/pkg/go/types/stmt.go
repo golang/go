@@ -416,7 +416,11 @@ func (check *checker) stmt(s ast.Stmt) {
 				}
 				name := ast.NewIdent(res.Name)
 				name.NamePos = s.Pos()
-				name.Obj = res
+				// TODO(gri) Avoid creating new objects here once we
+				//           move away from ast.Objects completely.
+				obj := ast.NewObj(ast.Var, res.Name)
+				obj.Type = res.Type
+				name.Obj = obj
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {

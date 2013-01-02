@@ -428,7 +428,7 @@ func (p *gcParser) parseStructType() Type {
 
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
-func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
+func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	name := p.parseName()
 	if name == "" {
 		name = "_" // cannot access unnamed identifiers
@@ -437,20 +437,19 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 		p.expectSpecial("...")
 		isVariadic = true
 	}
-	ptyp := p.parseType()
+	typ := p.parseType()
 	// ignore argument tag (e.g. "noescape")
 	if p.tok == scanner.String {
 		p.next()
 	}
-	par = ast.NewObj(ast.Var, name)
-	par.Type = ptyp
+	par = &Var{name, typ}
 	return
 }
 
 // Parameters    = "(" [ ParameterList ] ")" .
 // ParameterList = { Parameter "," } Parameter .
 //
-func (p *gcParser) parseParameters() (list []*ast.Object, isVariadic bool) {
+func (p *gcParser) parseParameters() (list []*Var, isVariadic bool) {
 	parseParameter := func() {
 		par, variadic := p.parseParameter()
 		list = append(list, par)
@@ -482,13 +481,11 @@ func (p *gcParser) parseSignature() *Signature {
 	params, isVariadic := p.parseParameters()
 
 	// optional result type
-	var results []*ast.Object
+	var results []*Var
 	switch p.tok {
 	case scanner.Ident, '[', '*', '<', '@':
 		// single, unnamed result
-		result := ast.NewObj(ast.Var, "_")
-		result.Type = p.parseType()
-		results = []*ast.Object{result}
+		results = []*Var{{"", p.parseType()}}
 	case '(':
 		// named or multiple result(s)
 		var variadic bool

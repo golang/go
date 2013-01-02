@@ -17,12 +17,13 @@ import (
 // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
 // - rethink error handling: should all callers check if x.mode == valid after making a call?
 // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
+// - use "" or "_" consistently for anonymous identifiers? (e.g. reeceivers that have no name)
 
 // TODO(gri) API issues
 // - clients need access to builtins type information
 // - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
 
-func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*ast.Object, isVariadic bool) {
+func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
 	if list == nil {
 		return
 	}
@@ -46,26 +47,22 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 			for _, name := range field.Names {
 				obj := name.Obj
 				obj.Type = typ
-				params = append(params, obj)
 				last = obj
+				params = append(params, &Var{obj.Name, typ})
 			}
 		} else {
 			// anonymous parameter
 			obj := ast.NewObj(ast.Var, "")
 			obj.Type = typ
-			params = append(params, obj)
 			last = obj
+			params = append(params, &Var{obj.Name, typ})
 		}
 	}
 	// For a variadic function, change the last parameter's object type
 	// from T to []T (this is the type used inside the function), but
-	// keep a copy of the object with the original type T in the params
-	// list (this is the externally visible type).
+	// keep the params list unchanged (this is the externally visible type).
 	if isVariadic {
-		// if isVariadic is set, last must exist and len(params) > 0
-		copy := *last
 		last.Type = &Slice{Elt: last.Type.(Type)}
-		params[len(params)-1] = &copy
 	}
 	return
 }
@@ -576,7 +573,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 //
 func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
 	// determine parameter
-	var par *ast.Object
+	var par *Var
 	n := len(sig.Params)
 	if i < n {
 		par = sig.Params[i]
@@ -922,11 +919,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// argument of the method expression's function type
 			// TODO(gri) at the moment, method sets don't correctly track
 			// pointer vs non-pointer receivers => typechecker is too lenient
-			arg := ast.NewObj(ast.Var, "")
-			arg.Type = x.typ
 			x.mode = value
 			x.typ = &Signature{
-				Params:     append([]*ast.Object{arg}, sig.Params...),
+				Params:     append([]*Var{{"", x.typ}}, sig.Params...),
 				Results:    sig.Results,
 				IsVariadic: sig.IsVariadic,
 			}

@@ -120,19 +120,25 @@ type Pointer struct {
 	Base Type
 }
 
+// A Variable represents a variable (including function parameters and results).
+type Var struct {
+	Name string
+	Type Type
+}
+
 // A Result represents a (multi-value) function call result.
 type Result struct {
 	implementsType
-	Values []*ast.Object // Signature.Results of the function called
+	Values []*Var // Signature.Results of the function called
 }
 
 // A Signature represents a user-defined function type func(...) (...).
 type Signature struct {
 	implementsType
-	Recv       *ast.Object   // nil if not a method
-	Params     []*ast.Object // (incoming) parameters from left to right; or nil
-	Results    []*ast.Object // (outgoing) results from left to right; or nil
-	IsVariadic bool          // true if the last parameter's type is of the form ...T
+	Recv       *Var   // nil if not a method
+	Params     []*Var // (incoming) parameters from left to right; or nil
+	Results    []*Var // (outgoing) results from left to right; or nil
+	IsVariadic bool   // true if the last parameter's type is of the form ...T
 }
 
 // builtinId is an id of a builtin function.

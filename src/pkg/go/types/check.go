@@ -379,10 +379,8 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg 
 	// handle panics
 	defer func() {
 		switch p := recover().(type) {
-		case nil:
-			// normal return - nothing to do
-		case bailout:
-			// early exit
+		case nil, bailout:
+			// normal return or early exit
 			err = check.firsterr
 		default:
 			// unexpected panic: don't crash clients
