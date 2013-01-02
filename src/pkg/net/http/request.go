@@ -433,9 +433,11 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	}
 	if body != nil {
 		switch v := body.(type) {
-		case *strings.Reader:
-			req.ContentLength = int64(v.Len())
 		case *bytes.Buffer:
+			req.ContentLength = int64(v.Len())
+		case *bytes.Reader:
+			req.ContentLength = int64(v.Len())
+		case *strings.Reader:
 			req.ContentLength = int64(v.Len())
 		}
 	}
