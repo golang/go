@@ -1,4 +1,4 @@
-package main
+package z
 
 import "./p2"
 

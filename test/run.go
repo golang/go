@@ -171,8 +171,12 @@ func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
 	return runcmd("go", "tool", gc, "-e", longname)
 }
 
-func compileInDir(runcmd runCmd, dir, name string) (out []byte, err error) {
-	return runcmd("go", "tool", gc, "-e", "-D.", "-I.", filepath.Join(dir, name))
+func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err error) {
+	cmd := []string{"go", "tool", gc, "-e", "-D", ".", "-I", "."}
+	for _, name := range names {
+		cmd = append(cmd, filepath.Join(dir, name))
+	}
+	return runcmd(cmd...)
 }
 
 func linkFile(runcmd runCmd, goname string) (err error) {
@@ -259,6 +263,36 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
 	return
 }
 
+var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
+
+func goDirPackages(longdir string) ([][]string, error) {
+	files, err := goDirFiles(longdir)
+	if err != nil {
+		return nil, err
+	}
+	var pkgs [][]string
+	m := make(map[string]int)
+	for _, file := range files {
+		name := file.Name()
+		data, err := ioutil.ReadFile(filepath.Join(longdir, name))
+		if err != nil {
+			return nil, err
+		}
+		pkgname := packageRE.FindStringSubmatch(string(data))
+		if pkgname == nil {
+			return nil, fmt.Errorf("cannot find package name in %s", name)
+		}
+		i, ok := m[pkgname[1]]
+		if !ok {
+			i = len(pkgs)
+			pkgs = append(pkgs, nil)
+			m[pkgname[1]] = i
+		}
+		pkgs[i] = append(pkgs[i], name)
+	}
+	return pkgs, nil
+}
+		
 // run runs a test.
 func (t *test) run() {
 	defer close(t.donec)
@@ -376,13 +410,13 @@ func (t *test) run() {
 	case "compiledir":
 		// Compile all files in the directory in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
-		files, err := goDirFiles(longdir)
+		pkgs, err := goDirPackages(longdir)
 		if err != nil {
 			t.err = err
 			return
 		}
-		for _, gofile := range files {
-			_, t.err = compileInDir(runcmd, longdir, gofile.Name())
+		for _, gofiles := range pkgs {
+			_, t.err = compileInDir(runcmd, longdir, gofiles...)
 			if t.err != nil {
 				return
 			}
@@ -392,14 +426,14 @@ func (t *test) run() {
 		// errorcheck all files in lexicographic order
 		// useful for finding importing errors
 		longdir := filepath.Join(cwd, t.goDirName())
-		files, err := goDirFiles(longdir)
+		pkgs, err := goDirPackages(longdir)
 		if err != nil {
 			t.err = err
 			return
 		}
-		for i, gofile := range files {
-			out, err := compileInDir(runcmd, longdir, gofile.Name())
-			if i == len(files)-1 {
+		for i, gofiles := range pkgs {
+			out, err := compileInDir(runcmd, longdir, gofiles...)
+			if i == len(pkgs)-1 {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
 					return
@@ -411,8 +445,11 @@ func (t *test) run() {
 				t.err = err
 				return
 			}
-			longname := filepath.Join(longdir, gofile.Name())
-			t.err = t.errorCheck(string(out), longname, gofile.Name())
+			var fullshort []string
+			for _, name := range gofiles {
+				fullshort = append(fullshort, filepath.Join(longdir, name), name)
+			}
+			t.err = t.errorCheck(string(out), fullshort...)
 			if t.err != nil {
 				break
 			}
@@ -535,7 +572,7 @@ func (t *test) expectedOutput() string {
 	return string(b)
 }
 
-func (t *test) errorCheck(outStr string, full, short string) (err error) {
+func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 	defer func() {
 		if *verbose && err != nil {
 			log.Printf("%s gc output:\n%s", t, outStr)
@@ -561,10 +598,19 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 
 	// Cut directory name.
 	for i := range out {
-		out[i] = strings.Replace(out[i], full, short, -1)
+		for j := 0; j < len(fullshort); j += 2 {
+			full, short := fullshort[j], fullshort[j+1]
+			out[i] = strings.Replace(out[i], full, short, -1)
+		}
+	}
+	
+	var want []wantedError
+	for j := 0; j < len(fullshort); j += 2 {
+		full, short := fullshort[j], fullshort[j+1]
+		want = append(want, t.wantedErrors(full, short)...)
 	}
 
-	for _, we := range t.wantedErrors(full, short) {
+	for _, we := range want {
 		var errmsgs []string
 		errmsgs, out = partitionStrings(we.filterRe, out)
 		if len(errmsgs) == 0 {

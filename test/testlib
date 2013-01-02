@@ -5,14 +5,25 @@
 # These function names are also known to
 # (and are the plan for transitioning to) run.go.
 
+# helper (not known to run.go)
+# group file list by packages and return list of packages
+# each package is a comma-separated list of go files.
+pkgs() {
+	pkglist=$(grep -h '^package ' $* | awk '{print $2}' | sort -u)
+	for p in $pkglist
+	do
+		echo $(grep -l "^package $p\$" $*) | tr ' ' ,
+	done | sort
+}
+
 compile() {
 	$G $D/$F.go
 }
 
 compiledir() {
-	for gofile in $D/$F.dir/*.go
+	for pkg in $(pkgs $D/$F.dir/*.go)
 	do
-		$G -I. "$gofile" || return 1
+		$G -I . $(echo $pkg | tr , ' ') || return 1
 	done
 }
 
@@ -21,38 +32,40 @@ errorcheckdir() {
 	if [ "$1" = "-0" ]; then
 		lastzero="-0"
 	fi
-	files=($D/$F.dir/*.go)
-	for gofile in ${files[@]}
+	pkgs=$(pkgs $D/$F.dir/*.go)
+	for pkg in $pkgs.last
 	do
 		zero="-0"
-		if [ ${files[${#files[@]}-1]} = $gofile ]; then
+		case $pkg in
+		*.last)
+			pkg=$(echo $pkg |sed 's/\.last$//')
 			zero=$lastzero
-		fi
-		errchk $zero $G -D. -I. -e $gofile
+		esac
+		errchk $zero $G -D . -I . -e $(echo $pkg | tr , ' ')
 	done
 }
 
 rundir() {
 	lastfile=""
-	for gofile in $D/$F.dir/*.go
+	for pkg in $(pkgs $D/$F.dir/*.go)
 	do
-		name=$(basename ${gofile/\.go/} )
-		$G -D. -I. -e "$gofile" || return 1
+		name=$(echo $pkg | sed 's/\.go.*//; s/.*\///')
+		$G -D . -I . -e $(echo $pkg | tr , ' ') || return 1
 		lastfile=$name
 	done
-	$L -o $A.out -L. $lastfile.$A
+	$L -o $A.out -L . $lastfile.$A
 	./$A.out
 }
 
 rundircmpout() {
 	lastfile=""
-	for gofile in $D/$F.dir/*.go
+	for pkg in $(pkgs $D/$F.dir/*.go)
 	do
-		name=$(basename ${gofile/\.go/} )
-		$G -D. -I. -e "$gofile" || return 1
+		name=$(echo $pkg | sed 's/\.go.*//; s/.*\///')
+		$G -D . -I . -e $(echo $pkg | tr , ' ') || return 1
 		lastfile=$name
 	done
-	$L -o $A.out -L. $lastfile.$A
+	$L -o $A.out -L . $lastfile.$A
 	./$A.out 2>&1 | cmp - $D/$F.out
 }
 
