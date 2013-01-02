@@ -71,7 +71,13 @@ var reqWriteExcludeHeader = map[string]bool{
 // or to be sent by a client.
 type Request struct {
 	Method string // GET, POST, PUT, etc.
-	URL    *url.URL
+
+	// URL is created from the URI supplied on the Request-Line
+	// as stored in RequestURI.
+	//
+	// For most requests, fields other than Path and RawQuery
+	// will be empty. (See RFC 2616, Section 5.1.2)
+	URL *url.URL
 
 	// The protocol version for incoming requests.
 	// Outgoing requests always use HTTP/1.1.
