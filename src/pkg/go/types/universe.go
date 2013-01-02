@@ -116,9 +116,7 @@ func init() {
 
 	// error type
 	{
-		res := ast.NewObj(ast.Var, "")
-		res.Type = Typ[String]
-		err := &Method{"Error", &Signature{Results: []*ast.Object{res}}}
+		err := &Method{"Error", &Signature{Results: []*Var{{"", Typ[String]}}}}
 		obj := def(ast.Typ, "error")
 		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
 	}

@@ -197,7 +197,7 @@ func typeString(typ Type) string {
 	return buf.String()
 }
 
-func writeParams(buf *bytes.Buffer, params []*ast.Object, isVariadic bool) {
+func writeParams(buf *bytes.Buffer, params []*Var, isVariadic bool) {
 	buf.WriteByte('(')
 	for i, par := range params {
 		if i > 0 {
@@ -210,7 +210,7 @@ func writeParams(buf *bytes.Buffer, params []*ast.Object, isVariadic bool) {
 		if isVariadic && i == len(params)-1 {
 			buf.WriteString("...")
 		}
-		writeType(buf, par.Type.(Type))
+		writeType(buf, par.Type)
 	}
 	buf.WriteByte(')')
 }
