@@ -928,6 +928,7 @@ EXTERN	Node*	nblank;
 
 extern	int	thechar;
 extern	char*	thestring;
+EXTERN	int  	use_sse;
 
 EXTERN	char*	hunk;
 EXTERN	int32	nhunk;

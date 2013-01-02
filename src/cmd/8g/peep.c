@@ -129,7 +129,7 @@ peep(void)
 			p = p->link;
 		}
 	}
-  
+
 	// byte, word arithmetic elimination.
 	elimshortmov(r);
 
@@ -149,6 +149,8 @@ peep(void)
 		case AMOVB:
 		case AMOVW:
 		case AMOVL:
+		case AMOVSS:
+		case AMOVSD:
 			if(regtyp(&p->to))
 			if(p->from.type == D_CONST)
 				conprop(r);
@@ -165,6 +167,8 @@ loop1:
 		p = r->prog;
 		switch(p->as) {
 		case AMOVL:
+		case AMOVSS:
+		case AMOVSD:
 			if(regtyp(&p->to))
 			if(regtyp(&p->from)) {
 				if(copyprop(r)) {
@@ -241,6 +245,19 @@ loop1:
 	}
 	if(t)
 		goto loop1;
+
+	// MOVSD removal.
+	// We never use packed registers, so a MOVSD between registers
+	// can be replaced by MOVAPD, which moves the pair of float64s
+	// instead of just the lower one.  We only use the lower one, but
+	// the processor can do better if we do moves using both.
+	for(r=firstr; r!=R; r=r->link) {
+		p = r->prog;
+		if(p->as == AMOVSD)
+		if(regtyp(&p->from))
+		if(regtyp(&p->to))
+			p->as = AMOVAPD;
+	}
 }
 
 void
@@ -298,6 +315,8 @@ regtyp(Adr *a)
 
 	t = a->type;
 	if(t >= D_AX && t <= D_DI)
+		return 1;
+	if(t >= D_X0 && t <= D_X7)
 		return 1;
 	return 0;
 }
@@ -485,9 +504,16 @@ subprop(Reg *r0)
 		case ASTOSL:
 		case AMOVSB:
 		case AMOVSL:
+
+		case AFMOVF:
+		case AFMOVD:
+		case AFMOVFP:
+		case AFMOVDP:
 			return 0;
 
 		case AMOVL:
+		case AMOVSS:
+		case AMOVSD:
 			if(p->to.type == v1->type)
 				goto gotit;
 			break;
@@ -672,6 +698,17 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AMOVBLZX:
 	case AMOVWLSX:
 	case AMOVWLZX:
+	
+	case AMOVSS:
+	case AMOVSD:
+	case ACVTSD2SL:
+	case ACVTSD2SS:
+	case ACVTSL2SD:
+	case ACVTSL2SS:
+	case ACVTSS2SD:
+	case ACVTSS2SL:
+	case ACVTTSD2SL:
+	case ACVTTSS2SL:
 		if(copyas(&p->to, v)) {
 			if(s != A)
 				return copysub(&p->from, v, s, 1);
@@ -733,6 +770,26 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case AXORW:
 	case AMOVB:
 	case AMOVW:
+
+	case AADDSD:
+	case AADDSS:
+	case ACMPSD:
+	case ACMPSS:
+	case ADIVSD:
+	case ADIVSS:
+	case AMAXSD:
+	case AMAXSS:
+	case AMINSD:
+	case AMINSS:
+	case AMULSD:
+	case AMULSS:
+	case ARCPSS:
+	case ARSQRTSS:
+	case ASQRTSD:
+	case ASQRTSS:
+	case ASUBSD:
+	case ASUBSS:
+	case AXORPD:
 		if(copyas(&p->to, v))
 			return 2;
 		goto caseread;
@@ -740,6 +797,11 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACMPL:	/* read only */
 	case ACMPW:
 	case ACMPB:
+
+	case ACOMISD:
+	case ACOMISS:
+	case AUCOMISD:
+	case AUCOMISS:
 	caseread:
 		if(s != A) {
 			if(copysub(&p->from, v, s, 1))
@@ -900,7 +962,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 
 	if(copyas(a, v)) {
 		t = s->type;
-		if(t >= D_AX && t <= D_DI) {
+		if(t >= D_AX && t <= D_DI || t >= D_X0 && t <= D_X7) {
 			if(f)
 				a->type = t;
 		}

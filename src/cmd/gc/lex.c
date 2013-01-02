@@ -239,6 +239,7 @@ main(int argc, char *argv[])
 	goroot = getgoroot();
 	goos = getgoos();
 	goarch = thestring;
+	use_sse = strcmp(getgo386(), "sse") == 0;
 	
 	setexp();
 
