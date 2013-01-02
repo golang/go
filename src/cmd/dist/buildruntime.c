@@ -199,13 +199,16 @@ mkzasm(char *dir, char *file)
 	fatal("unknown $GOOS/$GOARCH in mkzasm");
 ok:
 
-	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -a proc.c
+	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a proc.c
 	// to get acid [sic] output.
 	vreset(&argv);
 	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
-	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
-	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
-	vadd(&argv, bprintf(&b, "-I%s", workdir));
+	vadd(&argv, "-D");
+	vadd(&argv, bprintf(&b, "GOOS_%s", goos));
+	vadd(&argv, "-D");
+	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
+	vadd(&argv, "-I");
+	vadd(&argv, bprintf(&b, "%s", workdir));
 	vadd(&argv, "-a");
 	vadd(&argv, "proc.c");
 	runv(&in, dir, CheckExit, &argv);
@@ -299,12 +302,15 @@ mkzruntimedefs(char *dir, char *file)
 	);
 
 	
-	// Run 6c -DGOOS_goos -DGOARCH_goarch -Iworkdir -q
+	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q
 	// on each of the runtimedefs C files.
 	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
-	vadd(&argv, bprintf(&b, "-DGOOS_%s", goos));
-	vadd(&argv, bprintf(&b, "-DGOARCH_%s", goarch));
-	vadd(&argv, bprintf(&b, "-I%s", workdir));
+	vadd(&argv, "-D");
+	vadd(&argv, bprintf(&b, "GOOS_%s", goos));
+	vadd(&argv, "-D");
+	vadd(&argv, bprintf(&b, "GOARCH_%s", goarch));
+	vadd(&argv, "-I");
+	vadd(&argv, bprintf(&b, "%s", workdir));
 	vadd(&argv, "-q");
 	vadd(&argv, "");
 	p = argv.p[argv.len-1];
