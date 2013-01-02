@@ -692,6 +692,7 @@ foptoas(int op, Type *t, int flg)
 {
 	int et, a;
 
+	a = AGOK;
 	et = simtype[t->etype];
 
 	if(use_sse)
