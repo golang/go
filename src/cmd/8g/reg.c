@@ -33,8 +33,8 @@
 #include "gg.h"
 #include "opt.h"
 
-#define	NREGVAR	8
-#define	REGBITS	((uint32)0xff)
+#define	NREGVAR	16	/* 8 integer + 8 floating */
+#define	REGBITS	((uint32)0xffff)
 #define	P2R(p)	(Reg*)(p->reg)
 
 static	int	first	= 1;
@@ -119,7 +119,10 @@ setaddrs(Bits bit)
 	}
 }
 
-static char* regname[] = { ".ax", ".cx", ".dx", ".bx", ".sp", ".bp", ".si", ".di" };
+static char* regname[] = {
+	".ax", ".cx", ".dx", ".bx", ".sp", ".bp", ".si", ".di",
+	".x0", ".x1", ".x2", ".x3", ".x4", ".x5", ".x6", ".x7",
+};
 
 static Node* regnodes[NREGVAR];
 
@@ -236,6 +239,8 @@ regopt(Prog *firstp)
 		 * funny
 		 */
 		case ALEAL:
+		case AFMOVD:
+		case AFMOVF:
 		case AFMOVL: 
 		case AFMOVW:
 		case AFMOVV:
@@ -276,6 +281,10 @@ regopt(Prog *firstp)
 		case ACMPB:
 		case ACMPL:
 		case ACMPW:
+		case ACOMISS:
+		case ACOMISD:
+		case AUCOMISS:
+		case AUCOMISD:
 		case ATESTB:
 		case ATESTL:
 		case ATESTW:
@@ -299,6 +308,17 @@ regopt(Prog *firstp)
 		case AMOVWLSX:
 		case AMOVWLZX:
 		case APOPL:
+
+		case AMOVSS:
+		case AMOVSD:
+		case ACVTSD2SL:
+		case ACVTSD2SS:
+		case ACVTSL2SD:
+		case ACVTSL2SS:
+		case ACVTSS2SD:
+		case ACVTSS2SL:
+		case ACVTTSD2SL:
+		case ACVTTSS2SL:
 			for(z=0; z<BITS; z++)
 				r->set.b[z] |= bit.b[z];
 			break;
@@ -383,6 +403,26 @@ regopt(Prog *firstp)
 		case AXCHGB:
 		case AXCHGW:
 		case AXCHGL:
+
+		case AADDSD:
+		case AADDSS:
+		case ACMPSD:
+		case ACMPSS:
+		case ADIVSD:
+		case ADIVSS:
+		case AMAXSD:
+		case AMAXSS:
+		case AMINSD:
+		case AMINSS:
+		case AMULSD:
+		case AMULSS:
+		case ARCPSS:
+		case ARSQRTSS:
+		case ASQRTSD:
+		case ASQRTSS:
+		case ASUBSD:
+		case ASUBSS:
+		case AXORPD:
 			for(z=0; z<BITS; z++) {
 				r->set.b[z] |= bit.b[z];
 				r->use2.b[z] |= bit.b[z];
@@ -694,6 +734,14 @@ brk:
 				p->to.u.branch = p->to.u.branch->link;
 	}
 
+	if(!use_sse)
+	for(p=firstp; p!=P; p=p->link) {
+		if(p->from.type >= D_X0 && p->from.type <= D_X7)
+			fatal("invalid use of %R with GO386=387: %P", p->from.type, p);
+		if(p->to.type >= D_X0 && p->to.type <= D_X7)
+			fatal("invalid use of %R with GO386=387: %P", p->to.type, p);
+	}
+
 	if(lastr != R) {
 		lastr->link = freer;
 		freer = firstr;
@@ -771,6 +819,12 @@ addmove(Reg *r, int bn, int rn, int f)
 	case TUINT16:
 		p1->as = AMOVW;
 		break;
+	case TFLOAT32:
+		p1->as = AMOVSS;
+		break;
+	case TFLOAT64:
+		p1->as = AMOVSD;
+		break;
 	case TINT:
 	case TUINT:
 	case TINT32:
@@ -810,6 +864,9 @@ doregbits(int r)
 	else
 	if(r >= D_AH && r <= D_BH)
 		b |= RtoB(r-D_AH+D_AX);
+	else
+	if(r >= D_X0 && r <= D_X0+7)
+		b |= FtoB(r);
 	return b;
 }
 
@@ -1209,6 +1266,13 @@ allreg(uint32 b, Rgn *r)
 
 	case TFLOAT32:
 	case TFLOAT64:
+		if(!use_sse)
+			break;
+		i = BtoF(~b);
+		if(i && r->cost > 0) {
+			r->regno = i;
+			return FtoB(i);
+		}
 		break;
 	}
 	return 0;
@@ -1298,7 +1362,7 @@ regset(Reg *r, uint32 bb)
 	set = 0;
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
-		v.type = BtoR(b);
+		v.type = b & 0xFF ? BtoR(b): BtoF(b);
 		c = copyu(r->prog, &v, A);
 		if(c == 3)
 			set |= b;
@@ -1317,7 +1381,7 @@ reguse(Reg *r, uint32 bb)
 	set = 0;
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
-		v.type = BtoR(b);
+		v.type = b & 0xFF ? BtoR(b): BtoF(b);
 		c = copyu(r->prog, &v, A);
 		if(c == 1 || c == 2 || c == 4)
 			set |= b;
@@ -1485,6 +1549,23 @@ BtoR(int32 b)
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;
+}
+
+int32
+FtoB(int f)
+{
+	if(f < D_X0 || f > D_X7)
+		return 0;
+	return 1L << (f - D_X0 + 8);
+}
+
+int
+BtoF(int32 b)
+{
+	b &= 0xFF00L;
+	if(b == 0)
+		return 0;
+	return bitno(b) - 8 + D_X0;
 }
 
 void

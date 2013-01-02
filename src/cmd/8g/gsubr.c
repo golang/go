@@ -690,9 +690,12 @@ optoas(int op, Type *t)
 int
 foptoas(int op, Type *t, int flg)
 {
-	int et;
+	int et, a;
 
 	et = simtype[t->etype];
+
+	if(use_sse)
+		goto sse;
 
 	// If we need Fpop, it means we're working on
 	// two different floating-point registers, not memory.
@@ -770,7 +773,64 @@ foptoas(int op, Type *t, int flg)
 
 	fatal("foptoas %O %T %#x", op, t, flg);
 	return 0;
+
+sse:
+	switch(CASE(op, et)) {
+	default:
+		fatal("foptoas-sse: no entry %O-%T", op, t);
+		break;
+
+	case CASE(OCMP, TFLOAT32):
+		a = AUCOMISS;
+		break;
+
+	case CASE(OCMP, TFLOAT64):
+		a = AUCOMISD;
+		break;
+
+	case CASE(OAS, TFLOAT32):
+		a = AMOVSS;
+		break;
+
+	case CASE(OAS, TFLOAT64):
+		a = AMOVSD;
+		break;
+
+	case CASE(OADD, TFLOAT32):
+		a = AADDSS;
+		break;
+
+	case CASE(OADD, TFLOAT64):
+		a = AADDSD;
+		break;
+
+	case CASE(OSUB, TFLOAT32):
+		a = ASUBSS;
+		break;
+
+	case CASE(OSUB, TFLOAT64):
+		a = ASUBSD;
+		break;
+
+	case CASE(OMUL, TFLOAT32):
+		a = AMULSS;
+		break;
+
+	case CASE(OMUL, TFLOAT64):
+		a = AMULSD;
+		break;
+
+	case CASE(ODIV, TFLOAT32):
+		a = ADIVSS;
+		break;
+
+	case CASE(ODIV, TFLOAT64):
+		a = ADIVSD;
+		break;
+	}
+	return a;
 }
+
 
 static	int	resvd[] =
 {
@@ -795,6 +855,8 @@ ginit(void)
 		reg[i] = 1;
 	for(i=D_AX; i<=D_DI; i++)
 		reg[i] = 0;
+	for(i=D_X0; i<=D_X7; i++)
+		reg[i] = 0;
 	for(i=0; i<nelem(resvd); i++)
 		reg[resvd[i]]++;
 }
@@ -812,6 +874,9 @@ gclean(void)
 	for(i=D_AX; i<=D_DI; i++)
 		if(reg[i])
 			yyerror("reg %R left allocated at %ux", i, regpc[i]);
+	for(i=D_X0; i<=D_X7; i++)
+		if(reg[i])
+			yyerror("reg %R left allocated\n", i);
 }
 
 int32
@@ -828,6 +893,9 @@ anyregalloc(void)
 		return 1;
 	ok:;
 	}
+	for(i=D_X0; i<=D_X7; i++)
+		if(reg[i])
+			return 1;
 	return 0;
 }
 
@@ -846,14 +914,16 @@ regalloc(Node *n, Type *t, Node *o)
 	et = simtype[t->etype];
 
 	switch(et) {
+	case TINT64:
+	case TUINT64:
+		fatal("regalloc64");
+
 	case TINT8:
 	case TUINT8:
 	case TINT16:
 	case TUINT16:
 	case TINT32:
 	case TUINT32:
-	case TINT64:
-	case TUINT64:
 	case TPTR32:
 	case TPTR64:
 	case TBOOL:
@@ -874,8 +944,22 @@ regalloc(Node *n, Type *t, Node *o)
 
 	case TFLOAT32:
 	case TFLOAT64:
-		i = D_F0;
-		goto out;
+		if(!use_sse) {
+			i = D_F0;
+			goto out;
+		}
+		if(o != N && o->op == OREGISTER) {
+			i = o->val.u.reg;
+			if(i >= D_X0 && i <= D_X7)
+				goto out;
+		}
+		for(i=D_X0; i<=D_X7; i++)
+			if(reg[i] == 0)
+				goto out;
+		fprint(2, "registers allocated at\n");
+		for(i=D_X0; i<=D_X7; i++)
+			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
+		fatal("out of floating registers");
 	}
 	yyerror("regalloc: unknown type %T", t);
 
@@ -1179,13 +1263,16 @@ memname(Node *n, Type *t)
 	n->orig->sym = n->sym;
 }
 
+static void floatmove(Node *f, Node *t);
+static void floatmove_387(Node *f, Node *t);
+static void floatmove_sse(Node *f, Node *t);
+
 void
 gmove(Node *f, Node *t)
 {
 	int a, ft, tt;
 	Type *cvt;
-	Node r1, r2, t1, t2, flo, fhi, tlo, thi, con, f0, f1, ax, dx, cx;
-	Prog *p1, *p2, *p3;
+	Node r1, r2, flo, fhi, tlo, thi, con;
 
 	if(debug['M'])
 		print("gmove %N -> %N\n", f, t);
@@ -1193,9 +1280,13 @@ gmove(Node *f, Node *t)
 	ft = simsimtype(f->type);
 	tt = simsimtype(t->type);
 	cvt = t->type;
-
+	
 	if(iscomplex[ft] || iscomplex[tt]) {
 		complexmove(f, t);
+		return;
+	}
+	if(isfloat[ft] || isfloat[tt]) {
+		floatmove(f, t);
 		return;
 	}
 
@@ -1206,19 +1297,9 @@ gmove(Node *f, Node *t)
 
 	// convert constant to desired type
 	if(f->op == OLITERAL) {
-		if(tt == TFLOAT32)
-			convconst(&con, types[TFLOAT64], &f->val);
-		else
-			convconst(&con, t->type, &f->val);
+		convconst(&con, t->type, &f->val);
 		f = &con;
 		ft = simsimtype(con.type);
-
-		// some constants can't move directly to memory.
-		if(ismem(t)) {
-			// float constants come from memory.
-			if(isfloat[tt])
-				goto hard;
-		}
 	}
 
 	// value -> value copy, only one memory operand.
@@ -1394,6 +1475,275 @@ gmove(Node *f, Node *t)
 		gins(AMOVL, ncon(0), &thi);
 		splitclean();
 		return;
+	}
+
+	gins(a, f, t);
+	return;
+
+rsrc:
+	// requires register source
+	regalloc(&r1, f->type, t);
+	gmove(f, &r1);
+	gins(a, &r1, t);
+	regfree(&r1);
+	return;
+
+rdst:
+	// requires register destination
+	regalloc(&r1, t->type, t);
+	gins(a, f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
+
+hard:
+	// requires register intermediate
+	regalloc(&r1, cvt, t);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
+
+fatal:
+	// should not happen
+	fatal("gmove %N -> %N", f, t);
+}
+
+static void
+floatmove(Node *f, Node *t)
+{
+	Node r1, r2, t1, t2, tlo, thi, con, f0, f1, ax, dx, cx;
+	Type *cvt;
+	int a, ft, tt;
+	Prog *p1, *p2, *p3;
+
+	ft = simsimtype(f->type);
+	tt = simsimtype(t->type);
+	cvt = t->type;
+
+	// cannot have two floating point memory operands.
+	if(isfloat[ft] && isfloat[tt] && ismem(f) && ismem(t))
+		goto hard;
+
+	// convert constant to desired type
+	if(f->op == OLITERAL) {
+		convconst(&con, t->type, &f->val);
+		f = &con;
+		ft = simsimtype(con.type);
+
+		// some constants can't move directly to memory.
+		if(ismem(t)) {
+			// float constants come from memory.
+			if(isfloat[tt])
+				goto hard;
+		}
+	}
+
+	// value -> value copy, only one memory operand.
+	// figure out the instruction to use.
+	// break out of switch for one-instruction gins.
+	// goto rdst for "destination must be register".
+	// goto hard for "convert to cvt type first".
+	// otherwise handle and return.
+
+	switch(CASE(ft, tt)) {
+	default:
+		if(use_sse)
+			floatmove_sse(f, t);
+		else
+			floatmove_387(f, t);
+		return;
+
+	// float to very long integer.
+	case CASE(TFLOAT32, TINT64):
+	case CASE(TFLOAT64, TINT64):
+		if(f->op == OREGISTER) {
+			cvt = f->type;
+			goto hardmem;
+		}
+		nodreg(&r1, types[ft], D_F0);
+		if(ft == TFLOAT32)
+			gins(AFMOVF, f, &r1);
+		else
+			gins(AFMOVD, f, &r1);
+
+		// set round to zero mode during conversion
+		memname(&t1, types[TUINT16]);
+		memname(&t2, types[TUINT16]);
+		gins(AFSTCW, N, &t1);
+		gins(AMOVW, ncon(0xf7f), &t2);
+		gins(AFLDCW, &t2, N);
+		if(tt == TINT16)
+			gins(AFMOVWP, &r1, t);
+		else if(tt == TINT32)
+			gins(AFMOVLP, &r1, t);
+		else
+			gins(AFMOVVP, &r1, t);
+		gins(AFLDCW, &t1, N);
+		return;
+
+	case CASE(TFLOAT32, TUINT64):
+	case CASE(TFLOAT64, TUINT64):
+		if(!ismem(f)) {
+			cvt = f->type;
+			goto hardmem;
+		}
+		bignodes();
+		nodreg(&f0, types[ft], D_F0);
+		nodreg(&f1, types[ft], D_F0 + 1);
+		nodreg(&ax, types[TUINT16], D_AX);
+
+		if(ft == TFLOAT32)
+			gins(AFMOVF, f, &f0);
+		else
+			gins(AFMOVD, f, &f0);
+
+		// if 0 > v { answer = 0 }
+		gins(AFMOVD, &zerof, &f0);
+		gins(AFUCOMIP, &f0, &f1);
+		p1 = gbranch(optoas(OGT, types[tt]), T, 0);
+		// if 1<<64 <= v { answer = 0 too }
+		gins(AFMOVD, &two64f, &f0);
+		gins(AFUCOMIP, &f0, &f1);
+		p2 = gbranch(optoas(OGT, types[tt]), T, 0);
+		patch(p1, pc);
+		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
+		split64(t, &tlo, &thi);
+		gins(AMOVL, ncon(0), &tlo);
+		gins(AMOVL, ncon(0), &thi);
+		splitclean();
+		p1 = gbranch(AJMP, T, 0);
+		patch(p2, pc);
+
+		// in range; algorithm is:
+		//	if small enough, use native float64 -> int64 conversion.
+		//	otherwise, subtract 2^63, convert, and add it back.
+
+		// set round to zero mode during conversion
+		memname(&t1, types[TUINT16]);
+		memname(&t2, types[TUINT16]);
+		gins(AFSTCW, N, &t1);
+		gins(AMOVW, ncon(0xf7f), &t2);
+		gins(AFLDCW, &t2, N);
+
+		// actual work
+		gins(AFMOVD, &two63f, &f0);
+		gins(AFUCOMIP, &f0, &f1);
+		p2 = gbranch(optoas(OLE, types[tt]), T, 0);
+		gins(AFMOVVP, &f0, t);
+		p3 = gbranch(AJMP, T, 0);
+		patch(p2, pc);
+		gins(AFMOVD, &two63f, &f0);
+		gins(AFSUBDP, &f0, &f1);
+		gins(AFMOVVP, &f0, t);
+		split64(t, &tlo, &thi);
+		gins(AXORL, ncon(0x80000000), &thi);	// + 2^63
+		patch(p3, pc);
+		splitclean();
+		// restore rounding mode
+		gins(AFLDCW, &t1, N);
+
+		patch(p1, pc);
+		return;
+
+	/*
+	 * integer to float
+	 */
+	case CASE(TINT64, TFLOAT32):
+	case CASE(TINT64, TFLOAT64):
+		if(t->op == OREGISTER)
+			goto hardmem;
+		nodreg(&f0, t->type, D_F0);
+		gins(AFMOVV, f, &f0);
+		if(tt == TFLOAT32)
+			gins(AFMOVFP, &f0, t);
+		else
+			gins(AFMOVDP, &f0, t);
+		return;
+
+	case CASE(TUINT64, TFLOAT32):
+	case CASE(TUINT64, TFLOAT64):
+		// algorithm is:
+		//	if small enough, use native int64 -> float64 conversion.
+		//	otherwise, halve (rounding to odd?), convert, and double.
+		nodreg(&ax, types[TUINT32], D_AX);
+		nodreg(&dx, types[TUINT32], D_DX);
+		nodreg(&cx, types[TUINT32], D_CX);
+		tempname(&t1, f->type);
+		split64(&t1, &tlo, &thi);
+		gmove(f, &t1);
+		gins(ACMPL, &thi, ncon(0));
+		p1 = gbranch(AJLT, T, 0);
+		// native
+		t1.type = types[TINT64];
+		nodreg(&r1, types[tt], D_F0);
+		gins(AFMOVV, &t1, &r1);
+		if(tt == TFLOAT32)
+			gins(AFMOVFP, &r1, t);
+		else
+			gins(AFMOVDP, &r1, t);
+		p2 = gbranch(AJMP, T, 0);
+		// simulated
+		patch(p1, pc);
+		gmove(&tlo, &ax);
+		gmove(&thi, &dx);
+		p1 = gins(ASHRL, ncon(1), &ax);
+		p1->from.index = D_DX;	// double-width shift DX -> AX
+		p1->from.scale = 0;
+		gins(AMOVL, ncon(0), &cx);
+		gins(ASETCC, N, &cx);
+		gins(AORL, &cx, &ax);
+		gins(ASHRL, ncon(1), &dx);
+		gmove(&dx, &thi);
+		gmove(&ax, &tlo);
+		nodreg(&r1, types[tt], D_F0);
+		nodreg(&r2, types[tt], D_F0 + 1);
+		gins(AFMOVV, &t1, &r1);
+		gins(AFMOVD, &r1, &r1);
+		gins(AFADDDP, &r1, &r2);
+		if(tt == TFLOAT32)
+			gins(AFMOVFP, &r1, t);
+		else
+			gins(AFMOVDP, &r1, t);
+		patch(p2, pc);
+		splitclean();
+		return;
+	}
+
+	gins(a, f, t);
+	return;
+
+hard:
+	// requires register intermediate
+	regalloc(&r1, cvt, t);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
+
+hardmem:
+	// requires memory intermediate
+	tempname(&r1, cvt);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	return;
+}
+
+static void
+floatmove_387(Node *f, Node *t)
+{
+	Node r1, t1, t2;
+	Type *cvt;
+	Prog *p1, *p2, *p3;
+	int a, ft, tt;
+
+	ft = simsimtype(f->type);
+	tt = simsimtype(t->type);
+	cvt = t->type;
+
+	switch(CASE(ft, tt)) {
+	default:
+		goto fatal;
 
 	/*
 	* float to integer
@@ -1473,73 +1823,8 @@ gmove(Node *f, Node *t)
 	case CASE(TFLOAT32, TUINT32):
 	case CASE(TFLOAT64, TUINT32):
 		// convert via int64.
-		tempname(&t1, types[TINT64]);
-		gmove(f, &t1);
-		split64(&t1, &tlo, &thi);
-		gins(ACMPL, &thi, ncon(0));
-		p1 = gbranch(AJEQ, T, +1);
-		gins(AMOVL, ncon(0), &tlo);
-		patch(p1, pc);
-		gmove(&tlo, t);
-		splitclean();
-		return;
-
-	case CASE(TFLOAT32, TUINT64):
-	case CASE(TFLOAT64, TUINT64):
-		bignodes();
-		nodreg(&f0, types[ft], D_F0);
-		nodreg(&f1, types[ft], D_F0 + 1);
-		nodreg(&ax, types[TUINT16], D_AX);
-
-		gmove(f, &f0);
-
-		// if 0 > v { answer = 0 }
-		gmove(&zerof, &f0);
-		gins(AFUCOMIP, &f0, &f1);
-		p1 = gbranch(optoas(OGT, types[tt]), T, 0);
-		// if 1<<64 <= v { answer = 0 too }
-		gmove(&two64f, &f0);
-		gins(AFUCOMIP, &f0, &f1);
-		p2 = gbranch(optoas(OGT, types[tt]), T, 0);
-		patch(p1, pc);
-		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
-		split64(t, &tlo, &thi);
-		gins(AMOVL, ncon(0), &tlo);
-		gins(AMOVL, ncon(0), &thi);
-		splitclean();
-		p1 = gbranch(AJMP, T, 0);
-		patch(p2, pc);
-
-		// in range; algorithm is:
-		//	if small enough, use native float64 -> int64 conversion.
-		//	otherwise, subtract 2^63, convert, and add it back.
-
-		// set round to zero mode during conversion
-		memname(&t1, types[TUINT16]);
-		memname(&t2, types[TUINT16]);
-		gins(AFSTCW, N, &t1);
-		gins(AMOVW, ncon(0xf7f), &t2);
-		gins(AFLDCW, &t2, N);
-
-		// actual work
-		gmove(&two63f, &f0);
-		gins(AFUCOMIP, &f0, &f1);
-		p2 = gbranch(optoas(OLE, types[tt]), T, 0);
-		gins(AFMOVVP, &f0, t);
-		p3 = gbranch(AJMP, T, 0);
-		patch(p2, pc);
-		gmove(&two63f, &f0);
-		gins(AFSUBDP, &f0, &f1);
-		gins(AFMOVVP, &f0, t);
-		split64(t, &tlo, &thi);
-		gins(AXORL, ncon(0x80000000), &thi);	// + 2^63
-		patch(p3, pc);
-		splitclean();
-		// restore rounding mode
-		gins(AFLDCW, &t1, N);
-
-		patch(p1, pc);
-		return;
+		cvt = types[TINT64];
+		goto hardmem;
 
 	/*
 	 * integer to float
@@ -1584,46 +1869,6 @@ gmove(Node *f, Node *t)
 		// convert via int64 memory
 		cvt = types[TINT64];
 		goto hardmem;
-
-	case CASE(TUINT64, TFLOAT32):
-	case CASE(TUINT64, TFLOAT64):
-		// algorithm is:
-		//	if small enough, use native int64 -> uint64 conversion.
-		//	otherwise, halve (rounding to odd?), convert, and double.
-		nodreg(&ax, types[TUINT32], D_AX);
-		nodreg(&dx, types[TUINT32], D_DX);
-		nodreg(&cx, types[TUINT32], D_CX);
-		tempname(&t1, f->type);
-		split64(&t1, &tlo, &thi);
-		gmove(f, &t1);
-		gins(ACMPL, &thi, ncon(0));
-		p1 = gbranch(AJLT, T, 0);
-		// native
-		t1.type = types[TINT64];
-		gmove(&t1, t);
-		p2 = gbranch(AJMP, T, 0);
-		// simulated
-		patch(p1, pc);
-		gmove(&tlo, &ax);
-		gmove(&thi, &dx);
-		p1 = gins(ASHRL, ncon(1), &ax);
-		p1->from.index = D_DX;	// double-width shift DX -> AX
-		p1->from.scale = 0;
-		gins(AMOVL, ncon(0), &cx);
-		gins(ASETCC, N, &cx);
-		gins(AORL, &cx, &ax);
-		gins(ASHRL, ncon(1), &dx);
-		gmove(&dx, &thi);
-		gmove(&ax, &tlo);
-		nodreg(&r1, types[tt], D_F0);
-		nodreg(&r2, types[tt], D_F0 + 1);
-		gmove(&t1, &r1);	// t1.type is TINT64 now, set above
-		gins(AFMOVD, &r1, &r1);
-		gins(AFADDDP, &r1, &r2);
-		gmove(&r1, t);
-		patch(p2, pc);
-		splitclean();
-		return;
 
 	/*
 	 * float to float
@@ -1688,22 +1933,6 @@ gmove(Node *f, Node *t)
 	gins(a, f, t);
 	return;
 
-rsrc:
-	// requires register source
-	regalloc(&r1, f->type, t);
-	gmove(f, &r1);
-	gins(a, &r1, t);
-	regfree(&r1);
-	return;
-
-rdst:
-	// requires register destination
-	regalloc(&r1, t->type, t);
-	gins(a, f, &r1);
-	gmove(&r1, t);
-	regfree(&r1);
-	return;
-
 hard:
 	// requires register intermediate
 	regalloc(&r1, cvt, t);
@@ -1721,7 +1950,128 @@ hardmem:
 
 fatal:
 	// should not happen
-	fatal("gmove %N -> %N", f, t);
+	fatal("gmove %lN -> %lN", f, t);
+	return;
+}
+
+static void
+floatmove_sse(Node *f, Node *t)
+{
+	Node r1;
+	Type *cvt;
+	int a, ft, tt;
+
+	ft = simsimtype(f->type);
+	tt = simsimtype(t->type);
+
+	switch(CASE(ft, tt)) {
+	default:
+		// should not happen
+		fatal("gmove %N -> %N", f, t);
+		return;
+	/*
+	* float to integer
+	*/
+	case CASE(TFLOAT32, TINT16):
+	case CASE(TFLOAT32, TINT8):
+	case CASE(TFLOAT32, TUINT16):
+	case CASE(TFLOAT32, TUINT8):
+	case CASE(TFLOAT64, TINT16):
+	case CASE(TFLOAT64, TINT8):
+	case CASE(TFLOAT64, TUINT16):
+	case CASE(TFLOAT64, TUINT8):
+		// convert via int32.
+		cvt = types[TINT32];
+		goto hard;
+
+	case CASE(TFLOAT32, TUINT32):
+	case CASE(TFLOAT64, TUINT32):
+		// convert via int64.
+		cvt = types[TINT64];
+		goto hardmem;
+
+	case CASE(TFLOAT32, TINT32):
+		a = ACVTTSS2SL;
+		goto rdst;
+
+	case CASE(TFLOAT64, TINT32):
+		a = ACVTTSD2SL;
+		goto rdst;
+
+	/*
+	 * integer to float
+	 */
+	case CASE(TINT8, TFLOAT32):
+	case CASE(TINT8, TFLOAT64):
+	case CASE(TINT16, TFLOAT32):
+	case CASE(TINT16, TFLOAT64):
+	case CASE(TUINT16, TFLOAT32):
+	case CASE(TUINT16, TFLOAT64):
+	case CASE(TUINT8, TFLOAT32):
+	case CASE(TUINT8, TFLOAT64):
+		// convert via int32 memory
+		cvt = types[TINT32];
+		goto hard;
+
+	case CASE(TUINT32, TFLOAT32):
+	case CASE(TUINT32, TFLOAT64):
+		// convert via int64 memory
+		cvt = types[TINT64];
+		goto hardmem;
+
+	case CASE(TINT32, TFLOAT32):
+		a = ACVTSL2SS;
+		goto rdst;
+
+	case CASE(TINT32, TFLOAT64):
+		a = ACVTSL2SD;
+		goto rdst;
+
+	/*
+	 * float to float
+	 */
+	case CASE(TFLOAT32, TFLOAT32):
+		a = AMOVSS;
+		break;
+
+	case CASE(TFLOAT64, TFLOAT64):
+		a = AMOVSD;
+		break;
+
+	case CASE(TFLOAT32, TFLOAT64):
+		a = ACVTSS2SD;
+		goto rdst;
+
+	case CASE(TFLOAT64, TFLOAT32):
+		a = ACVTSD2SS;
+		goto rdst;
+	}
+
+	gins(a, f, t);
+	return;
+
+hard:
+	// requires register intermediate
+	regalloc(&r1, cvt, t);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
+
+hardmem:
+	// requires memory intermediate
+	tempname(&r1, cvt);
+	gmove(f, &r1);
+	gmove(&r1, t);
+	return;
+
+rdst:
+	// requires register destination
+	regalloc(&r1, t->type, t);
+	gins(a, f, &r1);
+	gmove(&r1, t);
+	regfree(&r1);
+	return;
 }
 
 int
@@ -1752,6 +2102,10 @@ gins(int as, Node *f, Node *t)
 
 	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
 		fatal("gins MOVF reg, reg");
+	if(as == ACVTSD2SS && f && f->op == OLITERAL)
+		fatal("gins CVTSD2SS const");
+	if(as == AMOVSD && t && t->op == OREGISTER && t->val.u.reg == D_F0)
+		fatal("gins MOVSD into F0");
 
 	switch(as) {
 	case AMOVB:

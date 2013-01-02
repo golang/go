@@ -49,7 +49,7 @@ mfree(Node *n)
 void
 cgen(Node *n, Node *res)
 {
-	Node *nl, *nr, *r, n1, n2, nt, f0, f1;
+	Node *nl, *nr, *r, n1, n2, nt;
 	Prog *p1, *p2, *p3;
 	int a;
 
@@ -188,8 +188,10 @@ cgen(Node *n, Node *res)
 		}
 	}
 
-	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
-		goto flt;
+	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype]) {
+		cgen_float(n, res);
+		return;
+	}
 
 	switch(n->op) {
 	default:
@@ -430,40 +432,6 @@ uop:	// unary
 	cgen(nl, &n1);
 	gins(a, N, &n1);
 	gmove(&n1, res);
-	return;
-
-flt:	// floating-point.  387 (not SSE2) to interoperate with 8c
-	nodreg(&f0, nl->type, D_F0);
-	nodreg(&f1, n->type, D_F0+1);
-	if(nr != N)
-		goto flt2;
-
-	// unary
-	cgen(nl, &f0);
-	if(n->op != OCONV && n->op != OPLUS)
-		gins(foptoas(n->op, n->type, 0), N, N);
-	gmove(&f0, res);
-	return;
-
-flt2:	// binary
-	if(nl->ullman >= nr->ullman) {
-		cgen(nl, &f0);
-		if(nr->addable)
-			gins(foptoas(n->op, n->type, 0), nr, &f0);
-		else {
-			cgen(nr, &f0);
-			gins(foptoas(n->op, n->type, Fpop), &f0, &f1);
-		}
-	} else {
-		cgen(nr, &f0);
-		if(nl->addable)
-			gins(foptoas(n->op, n->type, Frev), nl, &f0);
-		else {
-			cgen(nl, &f0);
-			gins(foptoas(n->op, n->type, Frev|Fpop), &f0, &f1);
-		}
-	}
-	gmove(&f0, res);
 	return;
 }
 
@@ -919,8 +887,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2, tmp, t1, t2, ax;
-	NodeList *ll;
+	Node n1, n2, tmp;
 	Prog *p1, *p2;
 
 	if(debug['g']) {
@@ -945,7 +912,13 @@ bgen(Node *n, int true, int likely, Prog *to)
 		patch(gins(AEND, N, N), to);
 		return;
 	}
+	nl = n->left;
 	nr = N;
+
+	if(nl != N && isfloat[nl->type->etype]) {
+		bgen_float(n, true, likely, to);
+		return;
+	}
 
 	switch(n->op) {
 	default:
@@ -1031,19 +1004,6 @@ bgen(Node *n, int true, int likely, Prog *to)
 	case OGE:
 		a = n->op;
 		if(!true) {
-			if(isfloat[nl->type->etype]) {
-				// brcom is not valid on floats when NaN is involved.
-				p1 = gbranch(AJMP, T, 0);
-				p2 = gbranch(AJMP, T, 0);
-				patch(p1, pc);
-				ll = n->ninit;  // avoid re-genning ninit
-				n->ninit = nil;
-				bgen(n, 1, -likely, p2);
-				n->ninit = ll;
-				patch(gbranch(AJMP, T, 0), to);
-				patch(p2, pc);
-				break;
-			}				
 			a = brcom(a);
 			true = !true;
 		}
@@ -1089,61 +1049,6 @@ bgen(Node *n, int true, int likely, Prog *to)
 			break;
 		}
 
-		if(isfloat[nr->type->etype]) {
-			a = brrev(a);	// because the args are stacked
-			if(a == OGE || a == OGT) {
-				// only < and <= work right with NaN; reverse if needed
-				r = nr;
-				nr = nl;
-				nl = r;
-				a = brrev(a);
-			}
-			nodreg(&tmp, nr->type, D_F0);
-			nodreg(&n2, nr->type, D_F0 + 1);
-			nodreg(&ax, types[TUINT16], D_AX);
-			et = simsimtype(nr->type);
-			if(et == TFLOAT64) {
-				if(nl->ullman > nr->ullman) {
-					cgen(nl, &tmp);
-					cgen(nr, &tmp);
-					gins(AFXCHD, &tmp, &n2);
-				} else {
-					cgen(nr, &tmp);
-					cgen(nl, &tmp);
-				}
-				gins(AFUCOMIP, &tmp, &n2);
-				gins(AFMOVDP, &tmp, &tmp);	// annoying pop but still better than STSW+SAHF
-			} else {
-				// TODO(rsc): The moves back and forth to memory
-				// here are for truncating the value to 32 bits.
-				// This handles 32-bit comparison but presumably
-				// all the other ops have the same problem.
-				// We need to figure out what the right general
-				// solution is, besides telling people to use float64.
-				tempname(&t1, types[TFLOAT32]);
-				tempname(&t2, types[TFLOAT32]);
-				cgen(nr, &t1);
-				cgen(nl, &t2);
-				gmove(&t2, &tmp);
-				gins(AFCOMFP, &t1, &tmp);
-				gins(AFSTSW, N, &ax);
-				gins(ASAHF, N, N);
-			}
-			if(a == OEQ) {
-				// neither NE nor P
-				p1 = gbranch(AJNE, T, -likely);
-				p2 = gbranch(AJPS, T, -likely);
-				patch(gbranch(AJMP, T, 0), to);
-				patch(p1, pc);
-				patch(p2, pc);
-			} else if(a == ONE) {
-				// either NE or P
-				patch(gbranch(AJNE, T, likely), to);
-				patch(gbranch(AJPS, T, likely), to);
-			} else
-				patch(gbranch(optoas(a, nr->type), T, likely), to);
-			break;
-		}
 		if(iscomplex[nl->type->etype]) {
 			complexbool(a, nl, nr, true, likely, to);
 			break;
@@ -1164,8 +1069,6 @@ bgen(Node *n, int true, int likely, Prog *to)
 			break;
 		}
 
-		a = optoas(a, nr->type);
-
 		if(nr->ullman >= UINF) {
 			if(!nl->addable) {
 				tempname(&n1, nl->type);
@@ -1179,6 +1082,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 			}
 			regalloc(&n2, nr->type, N);
 			cgen(nr, &n2);
+			nr = &n2;
 			goto cmp;
 		}
 
@@ -1190,7 +1094,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 
 		if(smallintconst(nr)) {
 			gins(optoas(OCMP, nr->type), nl, nr);
-			patch(gbranch(a, nr->type, likely), to);
+			patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
 			break;
 		}
 
@@ -1201,11 +1105,15 @@ bgen(Node *n, int true, int likely, Prog *to)
 		}
 		regalloc(&n2, nr->type, N);
 		gmove(nr, &n2);
+		nr = &n2;
 
 cmp:
-		gins(optoas(OCMP, nr->type), nl, &n2);
-		patch(gbranch(a, nr->type, likely), to);
-		regfree(&n2);
+		gins(optoas(OCMP, nr->type), nl, nr);
+		patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
+
+		if(nl->op == OREGISTER)
+			regfree(nl);
+		regfree(nr);
 		break;
 	}
 }

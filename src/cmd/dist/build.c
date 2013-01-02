@@ -17,6 +17,7 @@ char *gohostchar;
 char *gohostos;
 char *goos;
 char *goarm;
+char *go386;
 char *goroot = GOROOT_FINAL;
 char *goroot_final = GOROOT_FINAL;
 char *workdir;
@@ -102,6 +103,11 @@ init(void)
 		bwritestr(&b, xgetgoarm());
 	goarm = btake(&b);
 
+	xgetenv(&b, "GO386");
+	if(b.len == 0)
+		bwritestr(&b, "387");
+	go386 = btake(&b);
+
 	p = bpathf(&b, "%s/include/u.h", goroot);
 	if(!isfile(p)) {
 		fatal("$GOROOT is not set correctly or not exported\n"
@@ -133,6 +139,7 @@ init(void)
 	xsetenv("GOARCH", goarch);
 	xsetenv("GOOS", goos);
 	xsetenv("GOARM", goarm);
+	xsetenv("GO386", go386);
 
 	// Make the environment more predictable.
 	xsetenv("LANG", "C");
@@ -892,6 +899,7 @@ install(char *dir)
 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
 				vadd(&compile, bprintf(&b, "-DGOARM=\"%s\"", goarm));
+				vadd(&compile, bprintf(&b, "-DGO386=\"%s\"", go386));
 			}
 
 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
@@ -1383,6 +1391,8 @@ cmdenv(int argc, char **argv)
 	xprintf(format, "GOCHAR", gochar);
 	if(streq(goarch, "arm"))
 		xprintf(format, "GOARM", goarm);
+	if(streq(goarch, "386"))
+		xprintf(format, "GO386", go386);
 
 	if(pflag) {
 		sep = ":";

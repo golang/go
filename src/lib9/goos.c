@@ -45,3 +45,9 @@ getgoarm(void)
 {
 	return defgetenv("GOARM", GOARM);
 }
+
+char*
+getgo386(void)
+{
+	return defgetenv("GO386", GO386);
+}
