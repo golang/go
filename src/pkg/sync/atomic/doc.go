@@ -38,9 +38,12 @@ import (
 	"unsafe"
 )
 
-// BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
+// BUG(rsc): On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
 //
-// On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
+// On both ARM and x86-32, it is the caller's responsibility to arrange for 64-bit
+// alignment of 64-bit words accessed atomically. The first word in a global
+// variable or in an allocated struct or slice can be relied upon to be
+// 64-bit aligned.
 
 // CompareAndSwapInt32 executes the compare-and-swap operation for an int32 value.
 func CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
