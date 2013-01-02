@@ -1845,26 +1845,33 @@ fixtemp(Prog *firstp)
 	for(p=firstp; p!=P; p=p->link) {
 		if(debug['R'] && debug['v'])
 			print("%P\n", p);
-		if(p->link == P
-			|| !RtoB(p->from.type)
-			|| p->to.type != D_AUTO
-			|| isfloat[p->to.etype])
+		if(p->link == P || p->to.type != D_AUTO)
 			continue;
-		switch(p->as) {
-		case AMOVB:
-			if(p->to.width == 1)
+		if(isfloat[p->to.etype] && FtoB(p->from.type)) {
+			switch(p->as) {
+			case AMOVSS:
+			case AMOVSD:
 				break;
-		case AMOVW:
-			if(p->to.width == 2)
-				break;
-		case AMOVL:
-			if(p->to.width == 4)
-				break;
-		default:
+			default:
+				continue;
+			}
+		} else if(!isfloat[p->to.etype] && RtoB(p->from.type)) {
+			switch(p->as) {
+			case AMOVB:
+				if(p->to.width == 1)
+					break;
+			case AMOVW:
+				if(p->to.width == 2)
+					break;
+			case AMOVL:
+				if(p->to.width == 4)
+					break;
+			default:
+				continue;
+			}
+		} else
 			continue;
-		}
 		// p is a MOV reg, mem.
-		// and it is not a float.
 		p2 = p->link;
 		h = hash32to16(fnv1(p->to.sym));
 		if(counts[h] != 2) {
@@ -1872,7 +1879,9 @@ fixtemp(Prog *firstp)
 		}
 		switch(p2->as) {
 		case ALEAL:
-		case AFMOVL: 
+		case AFMOVD:
+		case AFMOVF:
+		case AFMOVL:
 		case AFMOVW:
 		case AFMOVV:
 			// funny
