@@ -617,13 +617,20 @@ func typeFields(t reflect.Type) []field {
 				index := make([]int, len(f.index)+1)
 				copy(index, f.index)
 				index[len(f.index)] = i
+
+				ft := sf.Type
+				if ft.Name() == "" && ft.Kind() == reflect.Ptr {
+					// Follow pointer.
+					ft = ft.Elem()
+				}
+
 				// Record found field and index sequence.
-				if name != "" || !sf.Anonymous {
+				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
 					tagged := name != ""
 					if name == "" {
 						name = sf.Name
 					}
-					fields = append(fields, field{name, tagged, index, sf.Type,
+					fields = append(fields, field{name, tagged, index, ft,
 						opts.Contains("omitempty"), opts.Contains("string")})
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,
@@ -636,11 +643,6 @@ func typeFields(t reflect.Type) []field {
 				}
 
 				// Record new anonymous struct to explore in next round.
-				ft := sf.Type
-				if ft.Name() == "" {
-					// Must be pointer.
-					ft = ft.Elem()
-				}
 				nextCount[ft]++
 				if nextCount[ft] == 1 {
 					next = append(next, field{name: ft.Name(), index: index, typ: ft})

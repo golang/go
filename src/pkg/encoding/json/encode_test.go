@@ -186,3 +186,23 @@ func TestMarshalerEscaping(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+type IntType int
+
+type MyStruct struct {
+	IntType
+}
+
+func TestAnonymousNonstruct(t *testing.T) {
+	var i IntType = 11
+	a := MyStruct{i}
+	const want = `{"IntType":11}`
+
+	b, err := Marshal(a)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if got := string(b); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
