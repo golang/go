@@ -54,21 +54,23 @@ func compile(t *testing.T, dirname, filename string) string {
 var imports = make(map[string]*ast.Object)
 
 func testPath(t *testing.T, path string) bool {
+	t0 := time.Now()
 	_, err := GcImport(imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return false
 	}
+	t.Logf("testPath(%s): %v", path, time.Since(t0))
 	return true
 }
 
-const maxTime = 3 * time.Second
+const maxTime = 30 * time.Second
 
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
 	list, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		t.Errorf("testDir(%s): %s", dirname, err)
+		t.Fatalf("testDir(%s): %s", dirname, err)
 	}
 	for _, f := range list {
 		if time.Now().After(endTime) {
