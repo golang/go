@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of December 12, 2012",
+	"Subtitle": "Version of January 2, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -3246,6 +3246,7 @@ that is, either a variable, pointer indirection, or slice indexing
 operation; or a field selector of an addressable struct operand;
 or an array indexing operation of an addressable array.
 As an exception to the addressability requirement, <code>x</code> may also be a
+(possibly parenthesized)
 <a href="#Composite_literals">composite literal</a>.
 </p>
 <p>
@@ -3259,6 +3260,7 @@ will cause a <a href="#Run_time_panics">run-time panic</a>.
 <pre>
 &amp;x
 &amp;a[f(2)]
+&amp;Point{2, 3}
 *p
 *pf(x)
 </pre>
