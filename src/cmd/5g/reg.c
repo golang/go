@@ -1075,8 +1075,12 @@ prop(Reg *r, Bits ref, Bits cal)
 		default:
 			// Work around for issue 1304:
 			// flush modified globals before each instruction.
-			for(z=0; z<BITS; z++)
+			for(z=0; z<BITS; z++) {
 				cal.b[z] |= externs.b[z];
+				// issue 4066: flush modified return variables in case of panic
+				if(hasdefer)
+					cal.b[z] |= ovar.b[z];
+			}
 			break;
 		}
 		for(z=0; z<BITS; z++) {
