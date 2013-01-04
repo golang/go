@@ -758,4 +758,12 @@ xtryexecfunc(void (*f)(void))
 	return 0; // suffice for now
 }
 
+bool
+cansse(void)
+{
+	// if we had access to cpuid, could answer this question
+	// less conservatively.
+	return 0;
+}
+
 #endif // PLAN9

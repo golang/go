@@ -971,4 +971,29 @@ xtryexecfunc(void (*f)(void))
 	return 0; // suffice for now
 }
 
+static void
+cpuid(int dst[4], int ax)
+{
+	// NOTE: This asm statement is for mingw.
+	// If we ever support MSVC, use __cpuid(dst, ax)
+	// to use the built-in.
+#if defined(__i386__) || defined(__x86_64__)
+	asm volatile("cpuid"
+		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
+		: "0" (ax));
+#else
+	dst[0] = dst[1] = dst[2] = dst[3] = 0;
+#endif
+}
+
+bool
+cansse(void)
+{
+	int info[4];
+	
+	cpuid(info, 1);
+	return (info[3] & (1<<26)) != 0;	// SSE2
+}
+
+
 #endif // __WINDOWS__

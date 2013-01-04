@@ -741,6 +741,7 @@ xsamefile(char *f1, char *f2)
 
 sigjmp_buf sigill_jmpbuf;
 static void sigillhand(int);
+
 // xtryexecfunc tries to execute function f, if any illegal instruction
 // signal received in the course of executing that function, it will
 // return 0, otherwise it will return 1.
@@ -757,12 +758,34 @@ xtryexecfunc(void (*f)(void))
 	signal(SIGILL, SIG_DFL);
 	return r;
 }
+
 // SIGILL handler helper
 static void
 sigillhand(int signum)
 {
 	USED(signum);
 	siglongjmp(sigill_jmpbuf, 1);
+}
+
+static void
+__cpuid(int dst[4], int ax)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	asm volatile("cpuid"
+		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
+		: "0" (ax));
+#else
+	dst[0] = dst[1] = dst[2] = dst[3] = 0;
+#endif
+}
+
+bool
+cansse(void)
+{
+	int info[4];
+	
+	__cpuid(info, 1);
+	return (info[3] & (1<<26)) != 0;	// SSE2
 }
 
 #endif // PLAN9
