@@ -202,14 +202,14 @@ func (w *Writer) writeString(p Priority, s string) (int, error) {
 }
 
 // writeString: generates and writes a syslog formatted string. The
-// format is as follows: <PRI>1 TIMESTAMP HOSTNAME TAG[PID]: MSG
+// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
 func (n netConn) writeString(p Priority, hostname, tag, msg string) (int, error) {
 	nl := ""
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		nl = "\n"
 	}
 	timestamp := time.Now().Format(time.RFC3339)
-	if _, err := fmt.Fprintf(n.conn, "<%d>1 %s %s %s[%d]: %s%s", p, timestamp, hostname,
+	if _, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s", p, timestamp, hostname,
 		tag, os.Getpid(), msg, nl); err != nil {
 		return 0, err
 	}

@@ -104,16 +104,15 @@ func TestUDPDial(t *testing.T) {
 	}
 	msg := "udp test"
 	l.Info(msg)
-	expected := fmt.Sprintf("<%d>1 ", LOG_USER+LOG_INFO) + "%s %s syslog_test[%d]: udp test\n"
+	expected := fmt.Sprintf("<%d>", LOG_USER+LOG_INFO) + "%s %s syslog_test[%d]: udp test\n"
 	rcvd := <-done
 	var parsedHostname, timestamp string
 	var pid int
 	if hostname, err := os.Hostname(); err != nil {
 		t.Fatalf("Error retrieving hostname")
 	} else {
-		if n, err := fmt.Sscanf(rcvd, expected, &timestamp, &parsedHostname, &pid); n != 3 ||
-			err != nil || hostname != parsedHostname {
-			t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, expected)
+		if n, err := fmt.Sscanf(rcvd, expected, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
+			t.Fatalf("'%q', didn't match '%q' (%d, %s)", rcvd, expected, n, err)
 		}
 	}
 }
@@ -146,12 +145,13 @@ func TestWrite(t *testing.T) {
 				t.Fatalf("WriteString() failed: %s", err)
 			}
 			rcvd := <-done
-			test.exp = fmt.Sprintf("<%d>1 ", test.pri) + test.exp
+			test.exp = fmt.Sprintf("<%d>", test.pri) + test.exp
 			var parsedHostname, timestamp string
 			var pid int
-			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 ||
-				err != nil || hostname != parsedHostname {
-				t.Fatalf("s.Info() = '%q', didn't match '%q'", rcvd, test.exp)
+			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname,
+				&pid); n != 3 || err != nil || hostname != parsedHostname {
+				t.Fatalf("'%q', didn't match '%q' (%d %s)", rcvd, test.exp,
+					n, err)
 			}
 		}
 	}
