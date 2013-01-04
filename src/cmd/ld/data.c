@@ -150,14 +150,14 @@ relocsym(Sym *s)
 	int32 i, off, siz, fl;
 	vlong o;
 	uchar *cast;
-	
+
 	cursym = s;
 	memset(&p, 0, sizeof p);
 	for(r=s->r; r<s->r+s->nr; r++) {
 		off = r->off;
 		siz = r->siz;
-		if(off < 0 || off+(siz&~Rbig) > s->np) {
-			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz&~Rbig, 0, s->np);
+		if(off < 0 || off+siz > s->np) {
+			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz, 0, s->np);
 			continue;
 		}
 		if(r->sym != S && (r->sym->type & SMASK == 0 || r->sym->type & SMASK == SXREF)) {
@@ -198,20 +198,6 @@ relocsym(Sym *s)
 		default:
 			cursym = s;
 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
-		case 4 + Rbig:
-			fl = o;
-			s->p[off] = fl>>24;
-			s->p[off+1] = fl>>16;
-			s->p[off+2] = fl>>8;
-			s->p[off+3] = fl;
-			break;
-		case 4 + Rlittle:
-			fl = o;
-			s->p[off] = fl;
-			s->p[off+1] = fl>>8;
-			s->p[off+2] = fl>>16;
-			s->p[off+3] = fl>>24;
-			break;
 		case 4:
 			fl = o;
 			cast = (uchar*)&fl;
@@ -223,7 +209,7 @@ relocsym(Sym *s)
 			for(i=0; i<8; i++)
 				s->p[off+i] = cast[inuxi8[i]];
 			break;
-		}		
+		}
 	}
 }
 
@@ -231,7 +217,7 @@ void
 reloc(void)
 {
 	Sym *s;
-	
+
 	if(debug['v'])
 		Bprint(&bso, "%5.2f reloc\n", cputime());
 	Bflush(&bso);
@@ -246,10 +232,10 @@ void
 dynrelocsym(Sym *s)
 {
 	Reloc *r;
-	
+
 	if(HEADTYPE == Hwindows) {
 		Sym *rel, *targ;
-		
+
 		rel = lookup(".rel", 0);
 		if(s == rel)
 			return;
@@ -259,7 +245,7 @@ dynrelocsym(Sym *s)
 				targ->plt = rel->size;
 				r->sym = rel;
 				r->add = targ->plt;
-				
+
 				// jmp *addr
 				if(thechar == '8') {
 					adduint8(rel, 0xff);
@@ -291,7 +277,7 @@ void
 dynreloc(void)
 {
 	Sym *s;
-	
+
 	// -d supresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
 	if(debug['d'] && HEADTYPE != Hwindows)
@@ -364,12 +350,12 @@ savedata(Sym *s, Prog *p, char *pn)
 			break;
 		}
 		break;
-	
+
 	case D_SCONST:
 		for(i=0; i<siz; i++)
 			s->p[off+i] = p->to.scon[i];
 		break;
-	
+
 	case D_CONST:
 		if(p->to.sym)
 			goto Addr;
@@ -450,12 +436,12 @@ blk(Sym *start, int32 addr, int32 size)
 			errorexit();
 		}
 	}
-	
+
 	for(; addr < eaddr; addr++)
 		cput(0);
 	cflush();
 }
-			
+
 void
 codeblk(int32 addr, int32 size)
 {
@@ -498,7 +484,7 @@ codeblk(int32 addr, int32 size)
 			Bprint(&bso, "%.6llux\t%-20s | foreign text\n", (vlong)addr, sym->name);
 			n = sym->size;
 			q = sym->p;
-			
+
 			while(n >= 16) {
 				Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
 				addr += 16;
@@ -510,7 +496,7 @@ codeblk(int32 addr, int32 size)
 			addr += n;
 			continue;
 		}
-			
+
 		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)sym->value, sym->name, p);
 		for(p = p->link; p != P; p = p->link) {
 			if(p->link != P)
@@ -532,7 +518,7 @@ codeblk(int32 addr, int32 size)
 	}
 	Bflush(&bso);
 }
-			
+
 void
 datblk(int32 addr, int32 size)
 {
@@ -595,7 +581,7 @@ addstrdata(char *name, char *value)
 {
 	Sym *s, *sp;
 	char *p;
-	
+
 	p = smprint("%s.str", name);
 	sp = lookup(p, 0);
 	free(p);
@@ -775,7 +761,7 @@ addpcrelplus(Sym *s, Sym *t, int32 add)
 {
 	vlong i;
 	Reloc *r;
-	
+
 	if(s->type == 0)
 		s->type = SDATA;
 	s->reachable = 1;
@@ -972,7 +958,7 @@ dodata(void)
 	 * symbol, which is itself data.
 	 */
 	dynreloc();
-	
+
 	/* some symbols may no longer belong in datap (Mach-O) */
 	for(l=&datap; (s=*l) != nil; ) {
 		if(s->type <= STEXT || SXREF <= s->type)
@@ -1099,7 +1085,7 @@ dodata(void)
 	}
 	sect->len = datsize - sect->vaddr;
 	datsize = rnd(datsize, PtrSize);
-	
+
 	/* gcdata */
 	sect = addsection(&segtext, ".gcdata", 04);
 	sect->vaddr = datsize;
@@ -1169,7 +1155,7 @@ textaddress(void)
 	addsection(&segtext, ".text", 05);
 
 	// Assign PCs in text segment.
-	// Could parallelize, by assigning to text 
+	// Could parallelize, by assigning to text
 	// and then letting threads copy down, but probably not worth it.
 	sect = segtext.sect;
 	va = INITTEXT;
@@ -1192,7 +1178,7 @@ textaddress(void)
 		}
 		va += sym->size;
 	}
-	
+
 	// Align end of code so that rodata starts aligned.
 	// 128 bytes is likely overkill but definitely cheap.
 	va = rnd(va, 128);
@@ -1267,7 +1253,7 @@ address(void)
 		for(sub = sym->sub; sub != nil; sub = sub->sub)
 			sub->value += sym->value;
 	}
-	
+
 	xdefine("text", STEXT, text->vaddr);
 	xdefine("etext", STEXT, text->vaddr + text->len);
 	xdefine("rodata", SRODATA, rodata->vaddr);

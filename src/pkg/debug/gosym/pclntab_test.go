@@ -129,7 +129,7 @@ func TestLineFromAline(t *testing.T) {
 		if !ok {
 			t.Errorf("file %s starts on line %d", path, line)
 		} else if line != ll+1 {
-			t.Errorf("expected next line of file %s to be %d, got %d", path, ll+1, line)
+			t.Fatalf("expected next line of file %s to be %d, got %d", path, ll+1, line)
 		}
 		lastline[path] = line
 	}

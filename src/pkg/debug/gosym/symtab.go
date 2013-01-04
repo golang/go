@@ -13,6 +13,7 @@ package gosym
 // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -104,11 +105,18 @@ type sym struct {
 	name   []byte
 }
 
+var littleEndianSymtab = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0x00, 0x00}
+
 func walksymtab(data []byte, fn func(sym) error) error {
+	var order binary.ByteOrder = binary.BigEndian
+	if bytes.HasPrefix(data, littleEndianSymtab) {
+		data = data[6:]
+		order = binary.LittleEndian
+	}
 	var s sym
 	p := data
 	for len(p) >= 6 {
-		s.value = binary.BigEndian.Uint32(p[0:4])
+		s.value = order.Uint32(p[0:4])
 		typ := p[4]
 		if typ&0x80 == 0 {
 			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
@@ -139,7 +147,7 @@ func walksymtab(data []byte, fn func(sym) error) error {
 		}
 		s.name = p[0:i]
 		i += nnul
-		s.gotype = binary.BigEndian.Uint32(p[i : i+4])
+		s.gotype = order.Uint32(p[i : i+4])
 		p = p[i+4:]
 		fn(s)
 	}

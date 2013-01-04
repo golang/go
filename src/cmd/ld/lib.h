@@ -31,7 +31,7 @@
 enum
 {
 	Sxxx,
-	
+
 	/* order here is order in output file */
 	STEXT,
 	SMACHOPLT,
@@ -245,12 +245,6 @@ struct Endian
 };
 
 extern Endian be, le;
-
-// relocation size bits
-enum {
-	Rbig = 128,
-	Rlittle = 64,
-};
 
 /* set by call to mywhatsys() */
 extern	char*	goroot;

@@ -199,7 +199,7 @@ static void
 slputb(int32 v)
 {
 	uchar *p;
-	
+
 	symgrow(symt, symt->size+4);
 	p = symt->p + symt->size;
 	*p++ = v>>24;
@@ -208,6 +208,22 @@ slputb(int32 v)
 	*p = v;
 	symt->size += 4;
 }
+
+static void
+slputl(int32 v)
+{
+	uchar *p;
+
+	symgrow(symt, symt->size+4);
+	p = symt->p + symt->size;
+	*p++ = v;
+	*p++ = v>>8;
+	*p++ = v>>16;
+	*p = v>>24;
+	symt->size += 4;
+}
+
+static void (*slput)(int32);
 
 void
 wputl(ushort w)
@@ -269,15 +285,24 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 //		l = 8;
 	if(s != nil) {
 		rel = addrel(symt);
-		rel->siz = l + Rbig;
+		rel->siz = l;
 		rel->sym = s;
 		rel->type = D_ADDR;
 		rel->off = symt->size;
 		v = 0;
-	}	
-	if(l == 8)
-		slputb(v>>32);
-	slputb(v);
+	}
+
+	if(l == 8) {
+		if(slput == slputl) {
+			slputl(v);
+			slputl(v>>32);
+		} else {
+			slputb(v>>32);
+			slputb(v);
+		}
+	} else
+		slput(v);
+
 	if(ver)
 		t += 'a' - 'A';
 	scput(t+0x80);			/* 0x80 is variable length */
@@ -306,8 +331,8 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 		rel->off = symt->size;
 	}
 	if(l == 8)
-		slputb(0);
-	slputb(0);
+		slput(0);
+	slput(0);
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -356,7 +381,7 @@ symtab(void)
 	xdefine("end", SBSS, 0);
 	xdefine("epclntab", SRODATA, 0);
 	xdefine("esymtab", SRODATA, 0);
-	
+
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	s = lookup("type.*", 0);
 	s->type = STYPE;
@@ -372,7 +397,7 @@ symtab(void)
 	symt->type = SSYMTAB;
 	symt->size = 0;
 	symt->reachable = 1;
-	
+
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
@@ -396,5 +421,25 @@ symtab(void)
 
 	if(debug['s'])
 		return;
+
+	switch(thechar) {
+	default:
+		diag("unknown architecture %c", thechar);
+		errorexit();
+	case '5':
+	case '6':
+	case '8':
+		// magic entry to denote little-endian symbol table
+		slputl(0xfffffffe);
+		scput(0);
+		scput(0);
+		slput = slputl;
+		break;
+	case 'v':
+		// big-endian (in case one comes along)
+		slput = slputb;
+		break;
+	}
+
 	genasmsym(putsymb);
 }
