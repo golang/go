@@ -19,13 +19,13 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
 	uintptr hash;
 
 	b = a;
-	hash = M0;
+	hash = M0 ^ *h;
 	while(s > 0) {
 		hash = (hash ^ *b) * M1;
 		b++;
 		s--;
 	}
-	*h = (*h ^ hash) * M1;
+	*h = hash;
 }
 
 void
@@ -355,7 +355,7 @@ void
 runtime·interhash(uintptr *h, uintptr s, void *a)
 {
 	USED(s);
-	*h = (*h ^ runtime·ifacehash(*(Iface*)a)) * M1;
+	*h = runtime·ifacehash(*(Iface*)a, *h ^ M0) * M1;
 }
 
 void
@@ -389,7 +389,7 @@ void
 runtime·nilinterhash(uintptr *h, uintptr s, void *a)
 {
 	USED(s);
-	*h = (*h ^ runtime·efacehash(*(Eface*)a)) * M1;
+	*h = runtime·efacehash(*(Eface*)a, *h ^ M0) * M1;
 }
 
 void
