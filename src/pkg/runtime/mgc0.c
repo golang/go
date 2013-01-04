@@ -163,12 +163,14 @@ enum {
 // is moved/flushed to the work buffer (Workbuf).
 // The size of an intermediate buffer is very small,
 // such as 32 or 64 elements.
+typedef struct PtrTarget PtrTarget;
 struct PtrTarget
 {
 	void *p;
 	uintptr ti;
 };
 
+typedef struct BitTarget BitTarget;
 struct BitTarget
 {
 	void *p;
@@ -176,13 +178,14 @@ struct BitTarget
 	uintptr *bitp, shift;
 };
 
+typedef struct BufferList BufferList;
 struct BufferList
 {
-	struct PtrTarget ptrtarget[IntermediateBufferCapacity];
-	struct BitTarget bittarget[IntermediateBufferCapacity];
-	struct BufferList *next;
+	PtrTarget ptrtarget[IntermediateBufferCapacity];
+	BitTarget bittarget[IntermediateBufferCapacity];
+	BufferList *next;
 };
-static struct BufferList *bufferList;
+static BufferList *bufferList;
 
 static Lock lock;
 
@@ -207,7 +210,7 @@ static Lock lock;
 //  flushptrbuf
 //  (2nd part, mark and enqueue)
 static void
-flushptrbuf(struct PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj, struct BitTarget *bitbuf)
+flushptrbuf(PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj, BitTarget *bitbuf)
 {
 	byte *p, *arena_start, *obj;
 	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti;
@@ -215,8 +218,8 @@ flushptrbuf(struct PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uin
 	PageID k;
 	Obj *wp;
 	Workbuf *wbuf;
-	struct PtrTarget *ptrbuf_end;
-	struct BitTarget *bitbufpos, *bt;
+	PtrTarget *ptrbuf_end;
+	BitTarget *bitbufpos, *bt;
 
 	arena_start = runtime·mheap.arena_start;
 
@@ -323,7 +326,7 @@ flushptrbuf(struct PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uin
 			if((bits & (bitAllocated|bitMarked)) != bitAllocated)
 				continue;
 
-			*bitbufpos = (struct BitTarget){obj, ti, bitp, shift};
+			*bitbufpos = (BitTarget){obj, ti, bitp, shift};
 			bitbufpos++;
 		}
 
@@ -398,11 +401,11 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 	uintptr *pc;
 
-	struct BufferList *scanbuffers;
-	struct PtrTarget *ptrbuf, *ptrbuf_end;
-	struct BitTarget *bitbuf;
+	BufferList *scanbuffers;
+	PtrTarget *ptrbuf, *ptrbuf_end;
+	BitTarget *bitbuf;
 
-	struct PtrTarget *ptrbufpos;
+	PtrTarget *ptrbufpos;
 
 	// End of local variable declarations.
 
@@ -462,7 +465,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 				obj = *(byte**)i;
 				if(obj >= arena_start && obj < arena_used) {
-					*ptrbufpos = (struct PtrTarget){obj, 0};
+					*ptrbufpos = (PtrTarget){obj, 0};
 					ptrbufpos++;
 					if(ptrbufpos == ptrbuf_end)
 						goto flush_buffers;
