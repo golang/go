@@ -104,8 +104,12 @@ init(void)
 	goarm = btake(&b);
 
 	xgetenv(&b, "GO386");
-	if(b.len == 0)
-		bwritestr(&b, "387");
+	if(b.len == 0) {
+		if(cansse())
+			bwritestr(&b, "sse");
+		else
+			bwritestr(&b, "387");
+	}
 	go386 = btake(&b);
 
 	p = bpathf(&b, "%s/include/u.h", goroot);
