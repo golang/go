@@ -536,6 +536,7 @@ addexcept(IMAGE_SECTION_HEADER *text)
 	uvlong n;
 	Sym *sym;
 
+	USED(text);
 	if(thechar != '6')
 		return;
 

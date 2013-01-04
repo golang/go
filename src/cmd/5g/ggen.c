@@ -543,6 +543,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 	Type *tr;
 	uvlong sc;
 
+	USED(bounded);
 	if(nl->type->width > 4)
 		fatal("cgen_shift %T", nl->type);
 

@@ -913,6 +913,7 @@ asmb(void)
 			}
 			phsh(pnote, sh);
 		}
+		USED(resoff);
 
 		elfphload(&segtext);
 		elfphload(&segdata);
