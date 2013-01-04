@@ -1,11 +1,11 @@
 // Inferno libmach/sym.c
 // http://code.google.com/p/inferno-os/source/browse/utils/libmach/sym.c
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.
-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+//	Copyright © 1994-1999 Lucent Technologies Inc.
+//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -113,11 +113,17 @@ syminit(int fd, Fhdr *fp)
 	vlong vl;
 	Biobuf b;
 	int svalsz;
+	uvlong (*swav)(uvlong);
+	uint32 (*swal)(uint32);
+	uchar buf[6];
 
 	if(fp->symsz == 0)
 		return 0;
 	if(fp->type == FNONE)
 		return 0;
+
+	swav = beswav;
+	swal = beswal;
 
 	cleansyms();
 	textseg(fp->txtaddr, fp);
@@ -129,6 +135,15 @@ syminit(int fd, Fhdr *fp)
 	}
 	Binit(&b, fd, OREAD);
 	Bseek(&b, fp->symoff, 0);
+	memset(buf, 0, sizeof buf);
+	Bread(&b, buf, sizeof buf);
+	if(memcmp(buf, "\xfe\xff\xff\xff\x00\x00", 6) == 0) {
+		swav = leswav;
+		swal = leswal;
+	} else {
+		Bseek(&b, fp->symoff, 0);
+	}
+
 	nsym = 0;
 	size = 0;
 	for(p = symbols; size < fp->symsz; p++, nsym++) {
@@ -136,13 +151,13 @@ syminit(int fd, Fhdr *fp)
 			svalsz = 8;
 			if(Bread(&b, &vl, 8) != 8)
 				return symerrmsg(8, "symbol");
-			p->value = beswav(vl);
+			p->value = swav(vl);
 		}
 		else{
 			svalsz = 4;
 			if(Bread(&b, &l, 4) != 4)
 				return symerrmsg(4, "symbol");
-			p->value = (u32int)beswal(l);
+			p->value = (u32int)swal(l);
 		}
 		if(Bread(&b, &p->type, sizeof(p->type)) != sizeof(p->type))
 			return symerrmsg(sizeof(p->value), "symbol");
@@ -155,12 +170,12 @@ syminit(int fd, Fhdr *fp)
 		if(svalsz == 8){
 			if(Bread(&b, &vl, 8) != 8)
 				return symerrmsg(8, "symbol");
-			p->gotype = beswav(vl);
+			p->gotype = swav(vl);
 		}
 		else{
 			if(Bread(&b, &l, 4) != 4)
 				return symerrmsg(4, "symbol");
-			p->gotype = (u32int)beswal(l);
+			p->gotype = (u32int)swal(l);
 		}
 		size += svalsz;
 

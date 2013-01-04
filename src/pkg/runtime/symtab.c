@@ -40,13 +40,26 @@ walksymtab(void (*fn)(Sym*))
 {
 	byte *p, *ep, *q;
 	Sym s;
+	int32 bigend;
 
 	p = symtab;
 	ep = esymtab;
+
+	// Default is big-endian value encoding.
+	// If table begins fe ff ff ff 00 00, little-endian.
+	bigend = 1;
+	if(symtab[0] == 0xfe && symtab[1] == 0xff && symtab[2] == 0xff && symtab[3] == 0xff && symtab[4] == 0x00 && symtab[5] == 0x00) {
+		p += 6;
+		bigend = 0;
+	}
 	while(p < ep) {
 		if(p + 7 > ep)
 			break;
-		s.value = ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
+
+		if(bigend)
+			s.value = ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
+		else
+			s.value = ((uint32)p[3]<<24) | ((uint32)p[2]<<16) | ((uint32)p[1]<<8) | ((uint32)p[0]);
 
 		if(!(p[4]&0x80))
 			break;
@@ -304,7 +317,7 @@ splitpcln(void)
 			line += *p++;
 		else
 			line -= *p++ - 64;
-		
+
 		// pc, line now match.
 		// Because the state machine begins at pc==entry and line==0,
 		// it can happen - just at the beginning! - that the update may
@@ -326,7 +339,7 @@ splitpcln(void)
 			while(f < ef && pc >= (f+1)->entry);
 			f->pcln.array = p;
 			// pc0 and ln0 are the starting values for
-			// the loop over f->pcln, so pc must be 
+			// the loop over f->pcln, so pc must be
 			// adjusted by the same pcquant update
 			// that we're going to do as we continue our loop.
 			f->pc0 = pc + pcquant;
@@ -352,11 +365,11 @@ runtime·funcline(Func *f, uintptr targetpc)
 	uintptr pc;
 	int32 line;
 	int32 pcquant;
-	
+
 	enum {
 		debug = 0
 	};
-	
+
 	switch(thechar) {
 	case '5':
 		pcquant = 4;
@@ -383,7 +396,7 @@ runtime·funcline(Func *f, uintptr targetpc)
 
 		if(debug && !runtime·panicking)
 			runtime·printf("pc<%p targetpc=%p line=%d\n", pc, targetpc, line);
-		
+
 		// If the pc has advanced too far or we're out of data,
 		// stop and the last known line number.
 		if(pc > targetpc || p >= ep)
@@ -519,7 +532,7 @@ static bool
 hasprefix(String s, int8 *p)
 {
 	int32 i;
-	
+
 	for(i=0; i<s.len; i++) {
 		if(p[i] == 0)
 			return 1;
@@ -533,7 +546,7 @@ static bool
 contains(String s, int8 *p)
 {
 	int32 i;
-	
+
 	if(p[0] == 0)
 		return 1;
 	for(i=0; i<s.len; i++) {
@@ -549,7 +562,7 @@ bool
 runtime·showframe(Func *f)
 {
 	static int32 traceback = -1;
-	
+
 	if(traceback < 0)
 		traceback = runtime·gotraceback();
 	return traceback > 1 || contains(f->name, ".") && !hasprefix(f->name, "runtime.");
