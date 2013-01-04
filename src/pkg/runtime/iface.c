@@ -546,10 +546,10 @@ runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
 }
 
 static uintptr
-ifacehash1(void *data, Type *t)
+ifacehash1(void *data, Type *t, uintptr h)
 {
 	Alg *alg;
-	uintptr size, h;
+	uintptr size;
 	Eface err;
 
 	if(t == nil)
@@ -563,7 +563,6 @@ ifacehash1(void *data, Type *t)
 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
 		runtime·panic(err);
 	}
-	h = 0;
 	if(size <= sizeof(data))
 		alg->hash(&h, size, &data);
 	else
@@ -572,17 +571,17 @@ ifacehash1(void *data, Type *t)
 }
 
 uintptr
-runtime·ifacehash(Iface a)
+runtime·ifacehash(Iface a, uintptr h)
 {
 	if(a.tab == nil)
-		return 0;
-	return ifacehash1(a.data, a.tab->type);
+		return h;
+	return ifacehash1(a.data, a.tab->type, h);
 }
 
 uintptr
-runtime·efacehash(Eface a)
+runtime·efacehash(Eface a, uintptr h)
 {
-	return ifacehash1(a.data, a.type);
+	return ifacehash1(a.data, a.type, h);
 }
 
 static bool
