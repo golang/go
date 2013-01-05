@@ -642,8 +642,8 @@ func (b *builder) runTest(a *action) error {
 	// This is a last-ditch deadline to detect and
 	// stop wedged test binaries, to keep the builders
 	// running.
-	tick := time.NewTimer(testKillTimeout)
 	if err == nil {
+		tick := time.NewTimer(testKillTimeout)
 		startSigHandlers()
 		done := make(chan error)
 		go func() {
@@ -660,8 +660,7 @@ func (b *builder) runTest(a *action) error {
 		tick.Stop()
 	}
 	out := buf.Bytes()
-	t1 := time.Now()
-	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
+	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 	if err == nil {
 		if testShowPass {
 			a.testOutput.Write(out)
