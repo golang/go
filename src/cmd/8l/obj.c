@@ -77,18 +77,8 @@ Header headers[] = {
  */
 
 void
-usage(void)
-{
-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
-	exits("usage");
-}
-
-void
 main(int argc, char *argv[])
 {
-	int c;
-	char *name, *val;
-
 	Binit(&bso, 1, OWRITE);
 	listinit();
 	memset(debug, 0, sizeof(debug));
@@ -101,58 +91,40 @@ main(int argc, char *argv[])
 	INITENTRY = 0;
 	nuxiinit();
 
-	ARGBEGIN {
-	default:
-		c = ARGC();
-		if(c == 'l')
-			usage();
- 		if(c >= 0 && c < sizeof(debug))
-			debug[c]++;
-		break;
-	case 'o': /* output to (next arg) */
-		outfile = EARGF(usage());
-		break;
-	case 'E':
-		INITENTRY = EARGF(usage());
-		break;
-	case 'H':
-		HEADTYPE = headtype(EARGF(usage()));
-		break;
-	case 'I':
-		debug['I'] = 1; // denote cmdline interpreter override
-		interpreter = EARGF(usage());
-		break;
-	case 'L':
-		Lflag(EARGF(usage()));
-		break;
-	case 'T':
-		INITTEXT = atolwhex(EARGF(usage()));
-		break;
-	case 'D':
-		INITDAT = atolwhex(EARGF(usage()));
-		break;
-	case 'R':
-		INITRND = atolwhex(EARGF(usage()));
-		break;
-	case 'r':
-		rpath = EARGF(usage());
-		break;
-	case 'V':
-		print("%cl version %s\n", thechar, getgoversion());
-		errorexit();
-	case 'X':
-		name = EARGF(usage());
-		val = EARGF(usage());
-		addstrdata(name, val);
-		break;
-	case 'B':
-		val = EARGF(usage());
-		addbuildinfo(val);
-		break;
-	case 'k':
-		tracksym = EARGF(usage());
-		break;
-	} ARGEND
+	flagcount("1", "use alternate profiling code", &debug['1']);
+	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
+	flagstr("E", "sym: entry symbol", &INITENTRY);
+	flagint32("D", "addr: data address", &INITDAT);
+	flagfn1("I", "interp: set ELF interp", setinterp);
+	flagfn1("L", "dir: add dir to library path", Lflag);
+	flagfn1("H", "head: header type", setheadtype);
+	flagcount("K", "add stack underflow checks", &debug['K']);
+	flagcount("O", "print pc-line tables", &debug['O']);
+	flagcount("Q", "debug byte-register code gen", &debug['Q']);
+	flagint32("R", "rnd: address rounding", &INITRND);
+	flagcount("S", "check type signatures", &debug['S']);
+	flagint32("T", "addr: text address", &INITTEXT);
+	flagfn0("V", "print version and exit", doversion);
+	flagcount("W", "disassemble input", &debug['W']);
+	flagfn2("X", "name value: define string data", addstrdata);
+	flagcount("Z", "clear stack frame on entry", &debug['Z']);
+	flagcount("a", "disassemble output", &debug['a']);
+	flagcount("b", "race detection", &debug['b']);
+	flagcount("c", "dump call graph", &debug['c']);
+	flagcount("d", "disable dynamic executable", &debug['d']);
+	flagcount("f", "ignore version mismatch", &debug['f']);
+	flagcount("g", "disable go package data checks", &debug['g']);
+	flagstr("k", "sym: set field tracking symbol", &tracksym);
+	flagstr("o", "outfile: set output file", &outfile);
+	flagcount("p", "insert profiling code", &debug['p']);
+	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
+	flagcount("s", "disable symbol table", &debug['s']);
+	flagcount("n", "dump symbol table", &debug['n']);
+	flagcount("u", "reject unsafe packages", &debug['u']);
+	flagcount("v", "print link trace", &debug['v']);
+	flagcount("w", "disable DWARF generation", &debug['w']);
+	
+	flagparse(&argc, &argv, usage);
 
 	if(argc != 1)
 		usage();

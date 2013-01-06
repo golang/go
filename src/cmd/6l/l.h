@@ -317,8 +317,8 @@ enum
 EXTERN	int32	HEADR;
 EXTERN	int32	HEADTYPE;
 EXTERN	int32	INITRND;
-EXTERN	vlong	INITTEXT;
-EXTERN	vlong	INITDAT;
+EXTERN	int64	INITTEXT;
+EXTERN	int64	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
@@ -327,7 +327,7 @@ EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
 EXTERN	Sym*	datap;
 EXTERN	vlong	elfdatsize;
-EXTERN	char	debug[128];
+EXTERN	int	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Sym*	textp;
 EXTERN	Sym*	etextp;

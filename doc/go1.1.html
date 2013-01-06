@@ -18,6 +18,18 @@ TODO
 
 TODO: more
 
+<h3 id="gc-flag">Command-line flag parsing</h3>
+
+<p>
+In the gc toolchain, the compilers and linkers now use the
+same command-line flag parsing rules as the Go flag package, a departure
+from the traditional Unix flag parsing. This may affect scripts that invoke
+the tool directly.
+For example,
+<code>go tool 6c -Fw -Dfoo</code> must now be written
+<code>go tool 6c -F -w -D foo</code>. 
+</p>
+
 <h3 id="int">Size of int on 64-bit platforms</h3>
 
 <p>

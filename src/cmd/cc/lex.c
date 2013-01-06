@@ -86,10 +86,37 @@ pathchar(void)
  */
 
 void
+usage(void)
+{
+	print("usage: %cc [options] file.c...\n", thechar);
+	flagprint(1);
+	errorexit();
+}
+
+void
+dospim(void)
+{
+	thechar = '0';
+	thestring = "spim";
+}
+
+char **defs;
+int ndef;
+
+void
+dodef(char *p)
+{
+	if(ndef%8 == 0)
+		defs = allocn(defs, ndef*sizeof(char *),
+			8*sizeof(char *));
+	defs[ndef++] = p;
+	dodefine(p);
+}
+
+void
 main(int argc, char *argv[])
 {
-	char **defs, *p;
-	int c, ndef;
+	int c;
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
@@ -103,46 +130,56 @@ main(int argc, char *argv[])
 	defs = nil;
 	outfile = 0;
 	setinclude(".");
-	ARGBEGIN {
-	default:
-		c = ARGC();
-		if(c >= 0 && c < sizeof(debug))
-			debug[c]++;
-		break;
 
-	case 'l':			/* for little-endian mips */
-		if(thechar != 'v'){
-			print("can only use -l with vc\n");
-			errorexit();
-		}
-		thechar = '0';
-		thestring = "spim";
-		break;
+	flagcount("+", "pass -+ to preprocessor", &debug['+']);	
+	flagcount(".", "pass -. to preprocessor", &debug['.']);	
+	flagcount("<", "debug shift", &debug['<']);
+	flagcount("A", "debug alignment", &debug['A']);
+	flagcount("B", "allow pre-ANSI code", &debug['B']);
+	if(thechar == '5')
+		flagcount("C", "debug constant propagation", &debug['C']);
+	flagfn1("D", "name[=value]: add #define", dodef);
+	flagcount("F", "enable print format checks", &debug['F']);
+	if(thechar == '5')
+		flagcount("H", "debug shift propagation", &debug['H']);
+	flagfn1("I", "dir: add dir to include path", setinclude);
+	flagcount("L", "debug lexer", &debug['L']);
+	flagcount("M", "debug move generation", &debug['M']);
+	flagcount("N", "disable optimizations", &debug['N']);
+	flagcount("P", "debug peephole optimizer", &debug['P']);
+	flagcount("Q", "print exported Go definitions", &debug['Q']);
+	flagcount("R", "debug register optimizer", &debug['R']);
+	flagcount("S", "print assembly", &debug['S']);
+	flagcount("T", "enable type signatures", &debug['T']);
+	flagcount("V", "enable pointer type checks", &debug['V']);
+	flagcount("W", "debug switch generation", &debug['W']);
+	flagcount("X", "abort on error", &debug['X']);
+	flagcount("Y", "debug index generation", &debug['Y']);
+	flagcount("Z", "skip code generation", &debug['Z']);
+	flagcount("a", "print acid definitions", &debug['a']);
+	flagcount("c", "debug constant evaluation", &debug['c']);
+	flagcount("d", "debug declarations", &debug['d']);
+	flagcount("e", "debug macro expansion", &debug['e']);
+	flagcount("f", "debug pragmas", &debug['f']);
+	flagcount("g", "debug code generation", &debug['g']);
+	flagcount("i", "debug initialization", &debug['i']);
+	if(thechar == 'v')
+		flagfn0("l", "little-endian mips mode", dospim);
+	flagcount("m", "debug multiplication", &debug['m']);
+	flagcount("n", "print acid/Go to file, not stdout", &debug['n']);
+	flagstr("o", "file: set output file", &outfile);
+	flagcount("p", "invoke C preprocessor", &debug['p']);	
+	flagcount("q", "print Go definitions", &debug['q']);
+	flagcount("s", "print #define assembly offsets", &debug['s']);
+	flagcount("t", "debug code generation", &debug['t']);
+	flagcount("w", "enable warnings", &debug['w']);
+	flagcount("v", "increase debug verbosity", &debug['v']);	
+	
+	flagparse(&argc, &argv, usage);
 
-	case 'o':
-		outfile = ARGF();
-		break;
+	if(argc < 1 && outfile == 0)
+		usage();
 
-	case 'D':
-		p = ARGF();
-		if(p) {
-			if(ndef%8 == 0)
-				defs = allocn(defs, ndef*sizeof(char *),
-					8*sizeof(char *));
-			defs[ndef++] = p;
-			dodefine(p);
-		}
-		break;
-
-	case 'I':
-		p = ARGF();
-		setinclude(p);
-		break;
-	} ARGEND
-	if(argc < 1 && outfile == 0) {
-		print("usage: %cc [-options] files\n", thechar);
-		errorexit();
-	}
 	if(argc > 1){
 		print("can't compile multiple files\n");
 		errorexit();

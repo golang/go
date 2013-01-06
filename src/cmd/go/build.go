@@ -1333,7 +1333,7 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 		}
 	}
 	if extFiles == 0 {
-		gcargs = append(gcargs, "-=")
+		gcargs = append(gcargs, "-complete")
 	}
 
 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
@@ -1345,7 +1345,7 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
 }
 
 func (gcToolchain) pkgpath(basedir string, p *Package) string {
@@ -1383,7 +1383,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, 
 func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	args := stringList(tool(archChar+"c"), "-FVw", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
+	args := stringList(tool(archChar+"c"), "-F", "-V", "-w", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, cfile)
 	return b.run(p.Dir, p.ImportPath, args)
 }
 
@@ -1419,9 +1419,9 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 
 func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
-	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
+	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
-		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
+		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
 	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
 }
@@ -1486,9 +1486,9 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	defs := []string{"-DGOOS_" + goos, "-DGOARCH_" + goarch}
+	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
-		defs = append(defs, `-DGOPKGPATH="`+pkgpath+`"`)
+		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
@@ -1894,7 +1894,7 @@ func raceInit() {
 	}
 	buildGcflags = append(buildGcflags, "-b")
 	buildLdflags = append(buildLdflags, "-b")
-	buildCcflags = append(buildCcflags, "-DRACE")
+	buildCcflags = append(buildCcflags, "-D", "RACE")
 	buildContext.InstallTag = "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
 }
