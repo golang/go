@@ -286,7 +286,7 @@ EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
 EXTERN	Sym*	datap;
 EXTERN	int32 	elfdatsize;
-EXTERN	char	debug[128];
+EXTERN	int	debug[128];
 EXTERN	Sym*	etextp;
 EXTERN	char*	noname;
 EXTERN	Prog*	lastp;

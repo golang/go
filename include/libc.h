@@ -292,6 +292,16 @@ extern	char*	getgoversion(void);
 extern	char*	getgoarm(void);
 extern	char*	getgo386(void);
 
+extern	void	flagcount(char*, char*, int*);
+extern	void	flagint32(char*, char*, int32*);
+extern	void	flagint64(char*, char*, int64*);
+extern	void	flagstr(char*, char*, char**);
+extern	void	flagparse(int*, char***, void (*usage)(void));
+extern	void	flagfn0(char*, char*, void(*fn)(void));
+extern	void	flagfn1(char*, char*, void(*fn)(char*));
+extern	void	flagfn2(char*, char*, void(*fn)(char*, char*));
+extern	void	flagprint(int);
+
 #ifdef _WIN32
 
 #ifndef _WIN64

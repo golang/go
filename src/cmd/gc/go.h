@@ -841,7 +841,7 @@ EXTERN	int	safemode;
 EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	litbuf[NSYMB];
-EXTERN	char	debug[256];
+EXTERN	int	debug[256];
 EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	importmyname;	// my name for package
 EXTERN	Pkg*	localpkg;	// package being compiled

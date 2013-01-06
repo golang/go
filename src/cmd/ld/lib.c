@@ -1503,6 +1503,34 @@ cwrite(void *buf, int n)
 }
 
 void
+usage(void)
+{
+	fprint(2, "usage: %cl [options] main.%c\n", thechar, thechar);
+	flagprint(2);
+	exits("usage");
+}
+
+void
+setheadtype(char *s)
+{
+	HEADTYPE = headtype(s);
+}
+
+void
+setinterp(char *s)
+{
+	debug['I'] = 1; // denote cmdline interpreter override
+	interpreter = s;
+}
+
+void
+doversion(void)
+{
+	print("%cl version %s\n", thechar, getgoversion());
+	errorexit();
+}
+
+void
 genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 {
 	Auto *a;

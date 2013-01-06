@@ -847,12 +847,6 @@ simplifyshift(Node *n)
 	c2 = n->left->left->right->vconst;
 	c3 = n->left->right->vconst;
 
-/*
-	if(debug['h'])
-		print("%.3o %d %d %d #%.ux\n",
-			(s1<<3)|s2, c1, c2, topbit(c3), c3);
-*/
-
 	o = n->op;
 	switch((s1<<3)|s2) {
 	case 000:	/* (((e <<u c2) & c3) <<u c1) */

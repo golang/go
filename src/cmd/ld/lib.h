@@ -136,6 +136,7 @@ EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
 EXTERN	int	elfglobalsymndx;
 EXTERN	char*	tracksym;
+EXTERN	char*	interpreter;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
@@ -224,6 +225,9 @@ void	dostkcheck(void);
 void	undef(void);
 void	doweak(void);
 void	setpersrc(Sym*);
+void	doversion(void);
+void	usage(void);
+void	setinterp(char*);
 
 int	pathchar(void);
 void*	mal(uint32);
@@ -291,6 +295,7 @@ EXTERN	char*	headstring;
 extern	Header	headers[];
 
 int	headtype(char*);
+void	setheadtype(char*);
 
 int	Yconv(Fmt*);
 

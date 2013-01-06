@@ -133,42 +133,8 @@ enum
 void
 usage(void)
 {
-	print("gc: usage: %cg [flags] file.go...\n", thechar);
-	print("flags:\n");
-	// -A allow use of "any" type, for bootstrapping
-	// -B disable bounds checking
-	// -E print imported declarations
-	// -K warn when lineno is zero
-	// -M print arguments to gmove
-	// -P print peephole diagnostics
-	// -R print optimizer diagnostics
-	// -g print code generation diagnostics
-	// -i print line history
-	// -j print variables to be initialized at runtime
-	// -r print generated helper functions
-	// -s print redundant types in composite literals
-	// -v print more information with -P or -R
-	// -y print declarations in cannedimports (used with -d)
-	// -% print non-static initializers
-	// -+ indicate that the runtime is being compiled
-	print("  -D PATH interpret local imports relative to this import path\n");
-	print("  -I DIR search for packages in DIR\n");
-	print("  -L show full path in file:line prints\n");
-	print("  -N disable optimizations\n");
-	print("  -S print the assembly language\n");
-	print("  -V print the compiler version\n");
-	print("  -W print the parse tree after typing\n");
-	print("  -d print declarations\n");
-	print("  -e no limit on number of errors printed\n");
-	print("  -f print stack frame structure\n");
-	print("  -h panic on an error\n");
-	print("  -l disable inlining\n");
-	print("  -m print optimization decisions\n");
-	print("  -o file specify output file\n");
-	print("  -p assumed import path for this code\n");
-	print("  -u disable package unsafe\n");
-	print("  -w print type checking details\n");
-	print("  -x print lex tokens\n");
+	print("usage: %cg [options] file.go...\n", thechar);
+	flagprint(1);
 	exits("usage");
 }
 
@@ -186,10 +152,22 @@ fault(int s)
 	fatal("fault");
 }
 
+void
+doversion(void)
+{
+	char *p;
+
+	p = expstring();
+	if(strcmp(p, "X:none") == 0)
+		p = "";
+	print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+	exits(0);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int i, c;
+	int i;
 	NodeList *l;
 	char *p;
 
@@ -244,40 +222,44 @@ main(int argc, char *argv[])
 	setexp();
 
 	outfile = nil;
-	ARGBEGIN {
-	default:
-		c = ARGC();
-		if(c >= 0 && c < sizeof(debug))
-			debug[c]++;
-		break;
+	flagcount("+", "compiling runtime", &compiling_runtime);
+	flagcount("%", "debug non-static initializers", &debug['%']);
+	flagcount("A", "for bootstrapping, allow 'any' type", &debug['A']);
+	flagcount("B", "disable bounds checking", &debug['B']);
+	flagstr("D", "path: set relative path for local imports", &localimport);
+	flagcount("E", "debug symbol export", &debug['E']);
+	flagfn1("I", "dir: add dir to import search path", addidir);
+	flagcount("K", "debug missing line numbers", &debug['K']);
+	flagcount("L", "use full (long) path in error messages", &debug['L']);
+	flagcount("M", "debug move generation", &debug['M']);
+	flagcount("N", "disable optimizations", &debug['N']);
+	flagcount("P", "debug peephole optimizer", &debug['P']);
+	flagcount("R", "debug register optimizer", &debug['R']);
+	flagcount("S", "print assembly listing", &debug['S']);
+	flagfn0("V", "print compiler version", doversion);
+	flagcount("W", "debug parse tree after type checking", &debug['W']);
+	flagcount("b", "enable race detector", &debug['b']);
+	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
+	flagcount("d", "debug declarations", &debug['d']);
+	flagcount("e", "no limit on number of errors reported", &debug['e']);
+	flagcount("f", "debug stack frames", &debug['f']);
+	flagcount("g", "debug code generation", &debug['g']);
+	flagcount("h", "halt on error", &debug['h']);
+	flagcount("i", "debug line number stack", &debug['i']);
+	flagcount("j", "debug runtime-initialized variables", &debug['j']);
+	flagcount("l", "disable inlining", &debug['l']);
+	flagcount("m", "print optimization decisions", &debug['m']);
+	flagstr("o", "obj: set output file", &outfile);
+	flagstr("p", "path: set expected package import path", &myimportpath);
+	flagcount("r", "debug generated wrappers", &debug['r']);
+	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
+	flagcount("u", "reject unsafe code", &safemode);
+	flagcount("v", "increase debug verbosity", &debug['v']);
+	flagcount("w", "debug type checking", &debug['w']);
+	flagcount("x", "debug lexer", &debug['x']);
+	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
 
-	case 'o':
-		outfile = EARGF(usage());
-		break;
-	
-	case 'p':
-		myimportpath = EARGF(usage());
-		break;
-
-	case 'u':
-		safemode = 1;
-		break;
-
-	case 'D':
-		localimport = EARGF(usage());
-		break;
-
-	case 'I':
-		addidir(EARGF(usage()));
-		break;
-	
-	case 'V':
-		p = expstring();
-		if(strcmp(p, "X:none") == 0)
-			p = "";
-		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
-		exits(0);
-	} ARGEND
+	flagparse(&argc, &argv, usage);
 
 	if(debug['b']) {
 		racepkg = mkpkg(strlit("runtime/race"));
@@ -293,10 +275,6 @@ main(int argc, char *argv[])
 
 	if(argc < 1)
 		usage();
-
-	// special flags used during build.
-	compiling_runtime = debug['+']; // detect compilation of package runtime
-	pure_go = debug['=']; // package is completely go (no C or assembly)
 
 	pathname = mal(1000);
 	if(getwd(pathname, 999) == 0)

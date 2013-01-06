@@ -474,7 +474,7 @@ EXTERN	int	autobn;
 EXTERN	int32	autoffset;
 EXTERN	int	blockno;
 EXTERN	Decl*	dclstack;
-EXTERN	char	debug[256];
+EXTERN	int	debug[256];
 EXTERN	Hist*	ehist;
 EXTERN	int32	firstbit;
 EXTERN	Sym*	firstarg;

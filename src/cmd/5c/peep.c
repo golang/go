@@ -824,7 +824,7 @@ xtramodes(Reg *r, Adr *a)
 	Adr v;
 
 	p = r->prog;
-	if(debug['h'] && p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
+	if(p->as == AMOVB && p->from.type == D_OREG)	/* byte load */
 		return 0;
 	v = *a;
 	v.type = D_REG;
