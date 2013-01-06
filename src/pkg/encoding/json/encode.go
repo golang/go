@@ -75,8 +75,9 @@ import (
 //   Field int `json:",omitempty"`
 //
 // The "string" option signals that a field is stored as JSON inside a
-// JSON-encoded string.  This extra level of encoding is sometimes
-// used when communicating with JavaScript programs:
+// JSON-encoded string. It applies only to fields of string, floating point,
+// or integer types. This extra level of encoding is sometimes used when
+// communicating with JavaScript programs:
 //
 //    Int64String int64 `json:",string"`
 //
