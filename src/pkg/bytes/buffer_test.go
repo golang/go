@@ -260,7 +260,7 @@ func TestWriteTo(t *testing.T) {
 
 func TestRuneIO(t *testing.T) {
 	const NRune = 1000
-	// Built a test array while we write the data
+	// Built a test slice while we write the data
 	b := make([]byte, utf8.UTFMax*NRune)
 	var buf Buffer
 	n := 0
