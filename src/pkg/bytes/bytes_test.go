@@ -25,16 +25,16 @@ func eq(a, b []string) bool {
 	return true
 }
 
-func arrayOfString(a [][]byte) []string {
-	result := make([]string, len(a))
-	for j := 0; j < len(a); j++ {
-		result[j] = string(a[j])
+func sliceOfString(s [][]byte) []string {
+	result := make([]string, len(s))
+	for i, v := range s {
+		result[i] = string(v)
 	}
 	return result
 }
 
 // For ease of reading, the test cases use strings that are converted to byte
-// arrays before invoking the functions.
+// slices before invoking the functions.
 
 var abcd = "abcd"
 var faces = "☺☻☹"
@@ -435,7 +435,7 @@ var explodetests = []ExplodeTest{
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
 		a := SplitN([]byte(tt.s), nil, tt.n)
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
 			continue
@@ -473,7 +473,7 @@ var splittests = []SplitTest{
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
@@ -519,7 +519,7 @@ var splitaftertests = []SplitTest{
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
 		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
@@ -559,7 +559,7 @@ var fieldstests = []FieldsTest{
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := Fields([]byte(tt.s))
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
@@ -570,7 +570,7 @@ func TestFields(t *testing.T) {
 func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
 			continue
@@ -585,15 +585,15 @@ func TestFieldsFunc(t *testing.T) {
 	}
 	for _, tt := range fieldsFuncTests {
 		a := FieldsFunc([]byte(tt.s), pred)
-		result := arrayOfString(a)
+		result := sliceOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
 		}
 	}
 }
 
-// Test case for any function which accepts and returns a byte array.
-// For ease of creation, we write the byte arrays as strings.
+// Test case for any function which accepts and returns a byte slice.
+// For ease of creation, we write the byte slices as strings.
 type StringTest struct {
 	in, out string
 }
