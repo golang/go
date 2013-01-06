@@ -145,6 +145,7 @@ struct	Sym
 	int32	sig;
 	int32	size;
 	int32	align;	// if non-zero, required alignment in bytes
+	int32	elfsym;
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
 	Sym*	hash;	// in hash table
@@ -159,6 +160,7 @@ struct	Sym
 	char*	dynimpname;
 	char*	dynimplib;
 	char*	dynimpvers;
+	struct Section*	sect;
 	
 	// STEXT
 	Auto*	autom;

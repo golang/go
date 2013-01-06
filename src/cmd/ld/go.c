@@ -815,6 +815,7 @@ doweak(void)
 			if(t && t->type != 0 && t->reachable) {
 				s->value = t->value;
 				s->type = t->type;
+				s->outer = t;
 			} else {
 				s->type = SCONST;
 				s->value = 0;
