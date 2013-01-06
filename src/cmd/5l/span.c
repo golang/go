@@ -96,10 +96,15 @@ span(void)
 		Bprint(&bso, "%5.2f span\n", cputime());
 	Bflush(&bso);
 
+	sect = addsection(&segtext, ".text", 05);
+	lookup("text", 0)->sect = sect;
+	lookup("etext", 0)->sect = sect;
+
 	bflag = 0;
 	c = INITTEXT;
 	otxt = c;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+		cursym->sect = sect;
 		p = cursym->text;
 		if(p == P || p->link == P) { // handle external functions and ELF section symbols
 			if(cursym->type & SSUB)
@@ -254,7 +259,6 @@ span(void)
 			}
 		}
 	}
-	sect = addsection(&segtext, ".text", 05);
 	sect->vaddr = INITTEXT;
 	sect->len = c - INITTEXT;
 }

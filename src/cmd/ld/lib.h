@@ -105,6 +105,7 @@ struct Section
 	uvlong	len;
 	Section	*next;	// in segment list
 	Segment	*seg;
+	struct Elf64_Shdr *elfsect;
 };
 
 extern	char	symname[];
@@ -133,6 +134,7 @@ EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
+EXTERN	int	elfglobalsymndx;
 EXTERN	char*	tracksym;
 
 EXTERN	Segment	segtext;

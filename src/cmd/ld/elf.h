@@ -841,7 +841,8 @@ typedef struct {
  * Section header.
  */
 
-typedef struct {
+typedef struct Elf64_Shdr Elf64_Shdr;
+struct Elf64_Shdr {
 	Elf64_Word	name;	/* Section name (index into the
 					   section header string table). */
 	Elf64_Word	type;	/* Section type. */
@@ -853,7 +854,9 @@ typedef struct {
 	Elf64_Word	info;	/* Depends on section type. */
 	Elf64_Xword	addralign;	/* Alignment in bytes. */
 	Elf64_Xword	entsize;	/* Size of each entry in section. */
-} Elf64_Shdr;
+	
+	int	shnum; /* section number, not stored on disk */
+};
 
 /*
  * Program header.
@@ -957,7 +960,6 @@ typedef Elf64_Phdr ElfPhdr;
 
 void	elfinit(void);
 ElfEhdr	*getElfEhdr(void);
-ElfShdr	*newElfShstrtab(vlong);
 ElfShdr	*newElfShdr(vlong);
 ElfPhdr	*newElfPhdr(void);
 uint32	elfwritehdr(void);
@@ -974,23 +976,38 @@ extern	int	numelfshdr;
 extern	int	iself;
 extern	int	elfverneed;
 int	elfinterp(ElfShdr*, uint64, uint64, char*);
-int	elfwriteinterp(vlong);
+int	elfwriteinterp(void);
 int	elfnetbsdsig(ElfShdr*, uint64, uint64);
-int	elfwritenetbsdsig(vlong);
+int	elfwritenetbsdsig(void);
 int	elfopenbsdsig(ElfShdr*, uint64, uint64);
-int	elfwriteopenbsdsig(vlong);
+int	elfwriteopenbsdsig(void);
 void	addbuildinfo(char*);
 int	elfbuildinfo(ElfShdr*, uint64, uint64);
-int	elfwritebuildinfo(vlong);
+int	elfwritebuildinfo(void);
 void	elfdynhash(void);
 ElfPhdr* elfphload(Segment*);
 ElfShdr* elfshbits(Section*);
+ElfShdr* elfshalloc(Section*);
+ElfShdr* elfshname(char*);
+ElfShdr* elfshreloc(Section*);
 void	elfsetstring(char*, int);
 void	elfaddverneed(Sym*);
+void	elfemitreloc(void);
+void	shsym(ElfShdr*, Sym*);
+void	phsh(ElfPhdr*, ElfShdr*);
+void	doelf(void);
+void	elfsetupplt(void);
+void	dwarfaddshstrings(Sym*);
+void	dwarfaddelfheaders(void);
+void	asmbelf(vlong symo);
+void	asmbelfsetup(void);
+extern char linuxdynld[];
+extern char freebsddynld[];
+extern char netbsddynld[];
+extern char openbsddynld[];
 
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;
-EXTERN	int	elftextsh;
 EXTERN	int	buildinfolen;
 
 /*

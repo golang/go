@@ -195,19 +195,13 @@ newElfPhdr(void)
 }
 
 ElfShdr*
-newElfShstrtab(vlong name)
-{
-	hdr.shstrndx = hdr.shnum;
-	return newElfShdr(name);
-}
-
-ElfShdr*
 newElfShdr(vlong name)
 {
 	ElfShdr *e;
 
 	e = mal(sizeof *e);
 	e->name = name;
+	e->shnum = hdr.shnum;
 	if (hdr.shnum >= NSECT) {
 		diag("too many shdrs");
 	} else {
@@ -337,17 +331,11 @@ elfinterp(ElfShdr *sh, uint64 startva, uint64 resoff, char *p)
 }
 
 int
-elfwriteinterp(vlong stridx)
+elfwriteinterp(void)
 {
-	ElfShdr *sh = nil;
-	int i;
-
-	for(i = 0; i < hdr.shnum; i++)
-		if(shdr[i]->name == stridx)
-			sh = shdr[i];
-	if(sh == nil || interp == nil)
-		return 0;
-
+	ElfShdr *sh;
+	
+	sh = elfshname(".interp");
 	cseek(sh->off);
 	cwrite(interp, sh->size);
 	return sh->size;
@@ -371,16 +359,11 @@ elfnote(ElfShdr *sh, uint64 startva, uint64 resoff, int sz)
 }
 
 ElfShdr *
-elfwritenotehdr(vlong stridx, uint32 namesz, uint32 descsz, uint32 tag)
+elfwritenotehdr(char *str, uint32 namesz, uint32 descsz, uint32 tag)
 {
-	ElfShdr *sh = nil;
-	int i;
-
-	for(i = 0; i < hdr.shnum; i++)
-		if(shdr[i]->name == stridx)
-			sh = shdr[i];
-	if(sh == nil)
-		return nil;
+	ElfShdr *sh;
+	
+	sh = elfshname(str);
 
 	// Write Elf_Note header.
 	cseek(sh->off);
@@ -408,12 +391,12 @@ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
 }
 
 int
-elfwritenetbsdsig(vlong stridx)
+elfwritenetbsdsig(void)
 {
 	ElfShdr *sh;
 
 	// Write Elf_Note header.
-	sh = elfwritenotehdr(stridx, ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG);
+	sh = elfwritenotehdr(".note.netbsd.ident", ELF_NOTE_NETBSD_NAMESZ, ELF_NOTE_NETBSD_DESCSZ, ELF_NOTE_NETBSD_TAG);
 	if(sh == nil)
 		return 0;
 
@@ -441,12 +424,12 @@ elfopenbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
 }
 
 int
-elfwriteopenbsdsig(vlong stridx)
+elfwriteopenbsdsig(void)
 {
 	ElfShdr *sh;
 
 	// Write Elf_Note header.
-	sh = elfwritenotehdr(stridx, ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG);
+	sh = elfwritenotehdr(".note.openbsd.ident", ELF_NOTE_OPENBSD_NAMESZ, ELF_NOTE_OPENBSD_DESCSZ, ELF_NOTE_OPENBSD_TAG);
 	if(sh == nil)
 		return 0;
 
@@ -513,11 +496,11 @@ elfbuildinfo(ElfShdr *sh, uint64 startva, uint64 resoff)
 }
 
 int
-elfwritebuildinfo(vlong stridx)
+elfwritebuildinfo(void)
 {
 	ElfShdr *sh;
 
-	sh = elfwritenotehdr(stridx, ELF_NOTE_BUILDINFO_NAMESZ, buildinfolen, ELF_NOTE_BUILDINFO_TAG);
+	sh = elfwritenotehdr(".note.gnu.build-id", ELF_NOTE_BUILDINFO_NAMESZ, buildinfolen, ELF_NOTE_BUILDINFO_TAG);
 	if(sh == nil)
 		return 0;
 
@@ -721,18 +704,18 @@ elfphload(Segment *seg)
 }
 
 ElfShdr*
-elfshbits(Section *sect)
+elfshname(char *name)
 {
 	int i, off;
 	ElfShdr *sh;
 	
 	for(i=0; i<nelfstr; i++) {
-		if(strcmp(sect->name, elfstr[i].s) == 0) {
+		if(strcmp(name, elfstr[i].s) == 0) {
 			off = elfstr[i].off;
 			goto found;
 		}
 	}
-	diag("cannot find elf name %s", sect->name);
+	diag("cannot find elf name %s", name);
 	errorexit();
 	return nil;
 
@@ -742,8 +725,30 @@ found:
 		if(sh->name == off)
 			return sh;
 	}
-
+	
 	sh = newElfShdr(off);
+	return sh;
+}
+
+ElfShdr*
+elfshalloc(Section *sect)
+{
+	ElfShdr *sh;
+	
+	sh = elfshname(sect->name);
+	sect->elfsect = sh;
+	return sh;
+}
+
+ElfShdr*
+elfshbits(Section *sect)
+{
+	ElfShdr *sh;
+	
+	sh = elfshalloc(sect);
+	if(sh->type > 0)
+		return sh;
+
 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen)
 		sh->type = SHT_PROGBITS;
 	else
@@ -757,6 +762,541 @@ found:
 	sh->addralign = PtrSize;
 	sh->size = sect->len;
 	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
-	
+
 	return sh;
+}
+
+void
+doelf(void)
+{
+	Sym *s, *shstrtab, *dynstr;
+
+	if(!iself)
+		return;
+
+	/* predefine strings we need for section headers */
+	shstrtab = lookup(".shstrtab", 0);
+	shstrtab->type = SELFROSECT;
+	shstrtab->reachable = 1;
+
+	addstring(shstrtab, "");
+	addstring(shstrtab, ".text");
+	addstring(shstrtab, ".noptrdata");
+	addstring(shstrtab, ".data");
+	addstring(shstrtab, ".bss");
+	addstring(shstrtab, ".noptrbss");
+	if(HEADTYPE == Hnetbsd)
+		addstring(shstrtab, ".note.netbsd.ident");
+	if(HEADTYPE == Hopenbsd)
+		addstring(shstrtab, ".note.openbsd.ident");
+	if(buildinfolen > 0)
+		addstring(shstrtab, ".note.gnu.build-id");
+	addstring(shstrtab, ".elfdata");
+	addstring(shstrtab, ".rodata");
+	addstring(shstrtab, ".typelink");
+	addstring(shstrtab, ".gcdata");
+	addstring(shstrtab, ".gcbss");
+	addstring(shstrtab, ".gosymtab");
+	addstring(shstrtab, ".gopclntab");
+
+	if(!debug['s']) {
+		addstring(shstrtab, ".symtab");
+		addstring(shstrtab, ".strtab");
+		dwarfaddshstrings(shstrtab);
+	}
+	addstring(shstrtab, ".shstrtab");
+
+	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+		addstring(shstrtab, ".interp");
+		addstring(shstrtab, ".hash");
+		addstring(shstrtab, ".got");
+		addstring(shstrtab, ".got.plt");
+		addstring(shstrtab, ".dynamic");
+		addstring(shstrtab, ".dynsym");
+		addstring(shstrtab, ".dynstr");
+		if(thechar == '6') {
+			addstring(shstrtab, ".rela");
+			addstring(shstrtab, ".rela.plt");
+		} else {
+			addstring(shstrtab, ".rel");
+			addstring(shstrtab, ".rel.plt");
+		}
+		addstring(shstrtab, ".plt");
+		addstring(shstrtab, ".gnu.version");
+		addstring(shstrtab, ".gnu.version_r");
+
+		/* dynamic symbol table - first entry all zeros */
+		s = lookup(".dynsym", 0);
+		s->type = SELFROSECT;
+		s->reachable = 1;
+		if(thechar == '6')
+			s->size += ELF64SYMSIZE;
+		else
+			s->size += ELF32SYMSIZE;
+
+		/* dynamic string table */
+		s = lookup(".dynstr", 0);
+		s->type = SELFROSECT;
+		s->reachable = 1;
+		if(s->size == 0)
+			addstring(s, "");
+		dynstr = s;
+
+		/* relocation table */
+		if(thechar == '6')
+			s = lookup(".rela", 0);
+		else
+			s = lookup(".rel", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+
+		/* global offset table */
+		s = lookup(".got", 0);
+		s->reachable = 1;
+		s->type = SELFSECT; // writable
+
+		/* hash */
+		s = lookup(".hash", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+
+		s = lookup(".got.plt", 0);
+		s->reachable = 1;
+		s->type = SELFSECT; // writable
+
+		s = lookup(".plt", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+		
+		elfsetupplt();
+		
+		if(thechar == '6')
+			s = lookup(".rela.plt", 0);
+		else
+			s = lookup(".rel.plt", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+		
+		s = lookup(".gnu.version", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+		
+		s = lookup(".gnu.version_r", 0);
+		s->reachable = 1;
+		s->type = SELFROSECT;
+
+		/* define dynamic elf table */
+		s = lookup(".dynamic", 0);
+		s->reachable = 1;
+		s->type = SELFSECT; // writable
+
+		/*
+		 * .dynamic table
+		 */
+		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
+		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
+		if(thechar == '6')
+			elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
+		else
+			elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
+		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
+		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
+		if(thechar == '6') {
+			elfwritedynentsym(s, DT_RELA, lookup(".rela", 0));
+			elfwritedynentsymsize(s, DT_RELASZ, lookup(".rela", 0));
+			elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
+		} else {
+			elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
+			elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
+			elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
+		}
+		if(rpath)
+			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+		
+		elfwritedynentsym(s, DT_PLTGOT, lookup(".got.plt", 0));
+
+		if(thechar == '6') {
+			elfwritedynent(s, DT_PLTREL, DT_RELA);
+			elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rela.plt", 0));
+			elfwritedynentsym(s, DT_JMPREL, lookup(".rela.plt", 0));
+		} else {
+			elfwritedynent(s, DT_PLTREL, DT_REL);
+			elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+			elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
+		}
+		
+		elfwritedynent(s, DT_DEBUG, 0);
+
+		// Do not write DT_NULL.  elfdynhash will finish it.
+	}
+}
+
+void
+shsym(ElfShdr *sh, Sym *s)
+{
+	vlong addr;
+	addr = symaddr(s);
+	if(sh->flags&SHF_ALLOC)
+		sh->addr = addr;
+	sh->off = datoff(addr);
+	sh->size = s->size;
+}
+
+void
+phsh(ElfPhdr *ph, ElfShdr *sh)
+{
+	ph->vaddr = sh->addr;
+	ph->paddr = ph->vaddr;
+	ph->off = sh->off;
+	ph->filesz = sh->size;
+	ph->memsz = sh->size;
+	ph->align = sh->addralign;
+}
+
+void
+asmbelfsetup(void)
+{
+	Section *sect;
+
+	/* This null SHdr must appear before all others */
+	elfshname("");
+	
+	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+		elfshalloc(sect);
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		elfshalloc(sect);
+}
+
+void
+asmbelf(vlong symo)
+{
+	int a, o;
+	vlong startva, resoff;
+	ElfEhdr *eh;
+	ElfPhdr *ph, *pph, *pnote;
+	ElfShdr *sh;
+	Section *sect;
+
+	eh = getElfEhdr();
+	switch(thechar) {
+	default:
+		diag("unknown architecture in asmbelf");
+		errorexit();
+	case '5':
+		eh->machine = EM_ARM;
+		break;
+	case '6':
+		eh->machine = EM_X86_64;
+		break;
+	case '8':
+		eh->machine = EM_386;
+		break;
+	}
+
+	startva = INITTEXT - HEADR;
+	resoff = ELFRESERVE;
+
+	/* program header info */
+	pph = newElfPhdr();
+	pph->type = PT_PHDR;
+	pph->flags = PF_R + PF_X;
+	pph->off = eh->ehsize;
+	pph->vaddr = INITTEXT - HEADR + pph->off;
+	pph->paddr = INITTEXT - HEADR + pph->off;
+	pph->align = INITRND;
+
+	/*
+	 * PHDR must be in a loaded segment. Adjust the text
+	 * segment boundaries downwards to include it.
+	 */
+	o = segtext.vaddr - pph->vaddr;
+	segtext.vaddr -= o;
+	segtext.len += o;
+	o = segtext.fileoff - pph->off;
+	segtext.fileoff -= o;
+	segtext.filelen += o;
+
+	if(!debug['d']) {
+		/* interpreter */
+		sh = elfshname(".interp");
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC;
+		sh->addralign = 1;
+		if(interpreter == nil) {
+			switch(HEADTYPE) {
+			case Hlinux:
+				interpreter = linuxdynld;
+				break;
+			case Hfreebsd:
+				interpreter = freebsddynld;
+				break;
+			case Hnetbsd:
+				interpreter = netbsddynld;
+				break;
+			case Hopenbsd:
+				interpreter = openbsddynld;
+				break;
+			}
+		}
+		resoff -= elfinterp(sh, startva, resoff, interpreter);
+
+		ph = newElfPhdr();
+		ph->type = PT_INTERP;
+		ph->flags = PF_R;
+		phsh(ph, sh);
+	}
+
+	pnote = nil;
+	if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
+		sh = nil;
+		switch(HEADTYPE) {
+		case Hnetbsd:
+			sh = elfshname(".note.netbsd.ident");
+			resoff -= elfnetbsdsig(sh, startva, resoff);
+			break;
+		case Hopenbsd:
+			sh = elfshname(".note.openbsd.ident");
+			resoff -= elfopenbsdsig(sh, startva, resoff);
+			break;
+		}
+
+		pnote = newElfPhdr();
+		pnote->type = PT_NOTE;
+		pnote->flags = PF_R;
+		phsh(pnote, sh);
+	}
+
+	if(buildinfolen > 0) {
+		sh = elfshname(".note.gnu.build-id");
+		resoff -= elfbuildinfo(sh, startva, resoff);
+
+		if(pnote == nil) {
+			pnote = newElfPhdr();
+			pnote->type = PT_NOTE;
+			pnote->flags = PF_R;
+		}
+		phsh(pnote, sh);
+	}
+
+	// Additions to the reserved area must be above this line.
+	USED(resoff);
+
+	elfphload(&segtext);
+	elfphload(&segdata);
+
+	/* Dynamic linking sections */
+	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+		sh = elfshname(".dynsym");
+		sh->type = SHT_DYNSYM;
+		sh->flags = SHF_ALLOC;
+		if(PtrSize == 8)
+			sh->entsize = ELF64SYMSIZE;
+		else
+			sh->entsize = ELF32SYMSIZE;
+		sh->addralign = PtrSize;
+		sh->link = elfshname(".dynstr")->shnum;
+		// sh->info = index of first non-local symbol (number of local symbols)
+		shsym(sh, lookup(".dynsym", 0));
+
+		sh = elfshname(".dynstr");
+		sh->type = SHT_STRTAB;
+		sh->flags = SHF_ALLOC;
+		sh->addralign = 1;
+		shsym(sh, lookup(".dynstr", 0));
+
+		if(elfverneed) {
+			sh = elfshname(".gnu.version");
+			sh->type = SHT_GNU_VERSYM;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 2;
+			sh->link = elfshname(".dynsym")->shnum;
+			sh->entsize = 2;
+			shsym(sh, lookup(".gnu.version", 0));
+			
+			sh = elfshname(".gnu.version_r");
+			sh->type = SHT_GNU_VERNEED;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = PtrSize;
+			sh->info = elfverneed;
+			sh->link = elfshname(".dynstr")->shnum;
+			shsym(sh, lookup(".gnu.version_r", 0));
+		}
+
+		switch(eh->machine) {
+		case EM_X86_64:
+			sh = elfshname(".rela.plt");
+			sh->type = SHT_RELA;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF64RELASIZE;
+			sh->addralign = PtrSize;
+			sh->link = elfshname(".dynsym")->shnum;
+			sh->info = elfshname(".plt")->shnum;
+			shsym(sh, lookup(".rela.plt", 0));
+
+			sh = elfshname(".rela");
+			sh->type = SHT_RELA;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF64RELASIZE;
+			sh->addralign = 8;
+			sh->link = elfshname(".dynsym")->shnum;
+			shsym(sh, lookup(".rela", 0));
+			break;
+		
+		default:
+			sh = elfshname(".rel.plt");
+			sh->type = SHT_REL;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF32RELSIZE;
+			shsym(sh, lookup(".rel.plt", 0));
+
+			sh = elfshname(".rel");
+			sh->type = SHT_REL;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF32RELSIZE;
+			sh->addralign = 4;
+			sh->link = elfshname(".dynsym")->shnum;
+			shsym(sh, lookup(".rel", 0));
+			break;
+		}
+
+		sh = elfshname(".plt");
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+		if(eh->machine == EM_X86_64)
+			sh->entsize = 16;
+		else
+			sh->entsize = 4;
+		sh->addralign = 4;
+		shsym(sh, lookup(".plt", 0));
+
+		sh = elfshname(".got");
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC+SHF_WRITE;
+		sh->entsize = PtrSize;
+		sh->addralign = PtrSize;
+		shsym(sh, lookup(".got", 0));
+
+		sh = elfshname(".got.plt");
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC+SHF_WRITE;
+		sh->entsize = PtrSize;
+		sh->addralign = PtrSize;
+		shsym(sh, lookup(".got.plt", 0));
+		
+		sh = elfshname(".hash");
+		sh->type = SHT_HASH;
+		sh->flags = SHF_ALLOC;
+		sh->entsize = 4;
+		sh->addralign = PtrSize;
+		sh->link = elfshname(".dynsym")->shnum;
+		shsym(sh, lookup(".hash", 0));
+
+		/* sh and PT_DYNAMIC for .dynamic section */
+		sh = elfshname(".dynamic");
+		sh->type = SHT_DYNAMIC;
+		sh->flags = SHF_ALLOC+SHF_WRITE;
+		sh->entsize = 2*PtrSize;
+		sh->addralign = PtrSize;
+		sh->link = elfshname(".dynstr")->shnum;
+		shsym(sh, lookup(".dynamic", 0));
+		ph = newElfPhdr();
+		ph->type = PT_DYNAMIC;
+		ph->flags = PF_R + PF_W;
+		phsh(ph, sh);
+		
+		/*
+		 * Thread-local storage segment (really just size).
+		 */
+		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
+		// not currently support it. This is handled
+		// appropriately in runtime/cgo.
+		if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
+			ph = newElfPhdr();
+			ph->type = PT_TLS;
+			ph->flags = PF_R;
+			ph->memsz = -tlsoffset;
+			ph->align = PtrSize;
+		}
+	}
+
+	ph = newElfPhdr();
+	ph->type = PT_GNU_STACK;
+	ph->flags = PF_W+PF_R;
+	ph->align = PtrSize;
+	
+	ph = newElfPhdr();
+	ph->type = PT_PAX_FLAGS;
+	ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+	ph->align = PtrSize;
+
+	sh = elfshname(".shstrtab");
+	sh->type = SHT_STRTAB;
+	sh->addralign = 1;
+	shsym(sh, lookup(".shstrtab", 0));
+	eh->shstrndx = sh->shnum;
+
+	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+		elfshbits(sect);
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		elfshbits(sect);
+
+	if(!debug['s']) {
+		sh = elfshname(".symtab");
+		sh->type = SHT_SYMTAB;
+		sh->off = symo;
+		sh->size = symsize;
+		sh->addralign = PtrSize;
+		sh->entsize = 8+2*PtrSize;
+		sh->link = elfshname(".strtab")->shnum;
+		sh->info = elfglobalsymndx;
+
+		sh = elfshname(".strtab");
+		sh->type = SHT_STRTAB;
+		sh->off = symo+symsize;
+		sh->size = elfstrsize;
+		sh->addralign = 1;
+
+		dwarfaddelfheaders();
+	}
+
+	/* Main header */
+	eh->ident[EI_MAG0] = '\177';
+	eh->ident[EI_MAG1] = 'E';
+	eh->ident[EI_MAG2] = 'L';
+	eh->ident[EI_MAG3] = 'F';
+	if(HEADTYPE == Hfreebsd)
+		eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
+	else if(HEADTYPE == Hnetbsd)
+		eh->ident[EI_OSABI] = ELFOSABI_NETBSD;
+	else if(HEADTYPE == Hopenbsd)
+		eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
+	if(PtrSize == 8)
+		eh->ident[EI_CLASS] = ELFCLASS64;
+	else
+		eh->ident[EI_CLASS] = ELFCLASS32;
+	eh->ident[EI_DATA] = ELFDATA2LSB;
+	eh->ident[EI_VERSION] = EV_CURRENT;
+
+	eh->type = ET_EXEC;
+	eh->version = EV_CURRENT;
+	eh->entry = entryvalue();
+
+	pph->filesz = eh->phnum * eh->phentsize;
+	pph->memsz = pph->filesz;
+
+	cseek(0);
+	a = 0;
+	a += elfwritehdr();
+	a += elfwritephdrs();
+	a += elfwriteshdrs();
+	if(!debug['d'])
+		a += elfwriteinterp();
+	if(HEADTYPE == Hnetbsd)
+		a += elfwritenetbsdsig();
+	if(HEADTYPE == Hopenbsd)
+		a += elfwriteopenbsdsig();
+	if(buildinfolen > 0)
+		a += elfwritebuildinfo();
+	if(a > ELFRESERVE)	
+		diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 }

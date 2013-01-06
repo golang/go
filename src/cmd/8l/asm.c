@@ -70,36 +70,6 @@ datoff(vlong addr)
 	return 0;
 }
 
-enum {
-	ElfStrEmpty,
-	ElfStrInterp,
-	ElfStrHash,
-	ElfStrGot,
-	ElfStrGotPlt,
-	ElfStrDynamic,
-	ElfStrDynsym,
-	ElfStrDynstr,
-	ElfStrRel,
-	ElfStrText,
-	ElfStrData,
-	ElfStrBss,
-	ElfStrShstrtab,
-	ElfStrSymtab,
-	ElfStrStrtab,
-	ElfStrRelPlt,
-	ElfStrPlt,
-	ElfStrGnuVersion,
-	ElfStrGnuVersionR,
-	ElfStrNoteNetbsdIdent,
-	ElfStrNoteOpenbsdIdent,
-	ElfStrNoteBuildInfo,
-	ElfStrNoPtrData,
-	ElfStrNoPtrBss,
-	NElfStr
-};
-
-vlong elfstr[NElfStr];
-
 static int
 needlib(char *name)
 {
@@ -284,7 +254,7 @@ adddynrel(Sym *s, Reloc *r)
 	diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ->name, r->type, targ->type);
 }
 
-static void
+void
 elfsetupplt(void)
 {
 	Sym *plt, *got;
@@ -552,178 +522,20 @@ adddynlib(char *lib)
 }
 
 void
-doelf(void)
-{
-	Sym *s, *shstrtab, *dynstr;
-
-	if(!iself)
-		return;
-
-	/* predefine strings we need for section headers */
-	shstrtab = lookup(".shstrtab", 0);
-	shstrtab->type = SELFROSECT;
-	shstrtab->reachable = 1;
-
-	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
-	elfstr[ElfStrText] = addstring(shstrtab, ".text");
-	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
-	elfstr[ElfStrData] = addstring(shstrtab, ".data");
-	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
-	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
-	if(HEADTYPE == Hnetbsd)
-		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
-	if(HEADTYPE == Hopenbsd)
-		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
-	if(buildinfolen > 0)
-		elfstr[ElfStrNoteBuildInfo] = addstring(shstrtab, ".note.gnu.build-id");
-	addstring(shstrtab, ".elfdata");
-	addstring(shstrtab, ".rodata");
-	addstring(shstrtab, ".typelink");
-	addstring(shstrtab, ".gcdata");
-	addstring(shstrtab, ".gcbss");
-	addstring(shstrtab, ".gosymtab");
-	addstring(shstrtab, ".gopclntab");
-	if(!debug['s']) {
-		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
-		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
-		dwarfaddshstrings(shstrtab);
-	}
-	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
-
-	if(!debug['d']) {	/* -d suppresses dynamic loader format */
-		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
-		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
-		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
-		elfstr[ElfStrGotPlt] = addstring(shstrtab, ".got.plt");
-		elfstr[ElfStrDynamic] = addstring(shstrtab, ".dynamic");
-		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
-		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
-		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
-		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
-		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
-		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
-		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
-
-		/* dynamic symbol table - first entry all zeros */
-		s = lookup(".dynsym", 0);
-		s->type = SELFROSECT;
-		s->reachable = 1;
-		s->size += ELF32SYMSIZE;
-
-		/* dynamic string table */
-		s = lookup(".dynstr", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-		if(s->size == 0)
-			addstring(s, "");
-		dynstr = s;
-
-		/* relocation table */
-		s = lookup(".rel", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-
-		/* global offset table */
-		s = lookup(".got", 0);
-		s->reachable = 1;
-		s->type = SELFSECT; // writable
-		
-		/* hash */
-		s = lookup(".hash", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-
-		/* got.plt */
-		s = lookup(".got.plt", 0);
-		s->reachable = 1;
-		s->type = SELFSECT; // writable
-		
-		s = lookup(".plt", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-
-		s = lookup(".rel.plt", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-		
-		s = lookup(".gnu.version", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-		
-		s = lookup(".gnu.version_r", 0);
-		s->reachable = 1;
-		s->type = SELFROSECT;
-
-		elfsetupplt();
-
-		/* define dynamic elf table */
-		s = lookup(".dynamic", 0);
-		s->reachable = 1;
-		s->type = SELFSECT; // writable
-
-		/*
-		 * .dynamic table
-		 */
-		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
-		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
-		elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
-		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
-		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
-		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
-		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
-		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
-		if(rpath)
-			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
-		elfwritedynentsym(s, DT_PLTGOT, lookup(".got.plt", 0));
-		elfwritedynent(s, DT_PLTREL, DT_REL);
-		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
-		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
-
-		elfwritedynent(s, DT_DEBUG, 0);
-
-		// Do not write DT_NULL.  elfdynhash will finish it.
-	}
-}
-
-void
-shsym(Elf64_Shdr *sh, Sym *s)
-{
-	vlong addr;
-	addr = symaddr(s);
-	if(sh->flags&SHF_ALLOC)
-		sh->addr = addr;
-	sh->off = datoff(addr);
-	sh->size = s->size;
-}
-
-void
-phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
-{
-	ph->vaddr = sh->addr;
-	ph->paddr = ph->vaddr;
-	ph->off = sh->off;
-	ph->filesz = sh->size;
-	ph->memsz = sh->size;
-	ph->align = sh->addralign;
-}
-
-void
 asmb(void)
 {
 	int32 v, magic;
-	int a, dynsym;
-	uint32 symo, startva, dwarfoff, machlink, resoff;
-	ElfEhdr *eh;
-	ElfPhdr *ph, *pph, *pnote;
-	ElfShdr *sh;
+	uint32 symo, dwarfoff, machlink;
 	Section *sect;
 	Sym *sym;
-	int o;
 	int i;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
+
+	if(iself)
+		asmbelfsetup();
 
 	sect = segtext.sect;
 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
@@ -755,21 +567,6 @@ asmb(void)
 		segdwarf.filelen = cpos() - segdwarf.fileoff;
 
 		machlink = domacholink();
-	}
-
-	if(iself) {
-		/* index of elf text section; needed by asmelfsym, double-checked below */
-		/* !debug['d'] causes extra sections before the .text section */
-		elftextsh = 2;
-		if(!debug['d']) {
-			elftextsh += 10;
-			if(elfverneed)
-				elftextsh += 2;
-		}
-		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
-			elftextsh += 1;
-		if(buildinfolen > 0)
-			elftextsh += 1;
 	}
 
 	symsize = 0;
@@ -852,8 +649,6 @@ asmb(void)
 	cseek(0L);
 	switch(HEADTYPE) {
 	default:
-		if(iself)
-			goto Elfput;
 	case Hgarbunix:	/* garbage */
 		lputb(0x160L<<16);		/* magic and sections */
 		lputb(0L);			/* time and date */
@@ -979,304 +774,15 @@ asmb(void)
 		wputl(0x003E);			/* reloc table offset */
 		wputl(0x0000);			/* overlay number */
 		break;
-
 	case Hdarwin:
 		asmbmacho();
 		break;
-
-	Elfput:
-		eh = getElfEhdr();
-		startva = INITTEXT - HEADR;
-		resoff = ELFRESERVE;
-
-		/* This null SHdr must appear before all others */
-		newElfShdr(elfstr[ElfStrEmpty]);
-
-		/* program header info */
-		pph = newElfPhdr();
-		pph->type = PT_PHDR;
-		pph->flags = PF_R + PF_X;
-		pph->off = eh->ehsize;
-		pph->vaddr = INITTEXT - HEADR + pph->off;
-		pph->paddr = INITTEXT - HEADR + pph->off;
-		pph->align = INITRND;
-
-		/*
-		 * PHDR must be in a loaded segment. Adjust the text
-		 * segment boundaries downwards to include it.
-		 */
-		o = segtext.vaddr - pph->vaddr;
-		segtext.vaddr -= o;
-		segtext.len += o;
-		o = segtext.fileoff - pph->off;
-		segtext.fileoff -= o;
-		segtext.filelen += o;
-
-		if(!debug['d']) {
-			/* interpreter */
-			sh = newElfShdr(elfstr[ElfStrInterp]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC;
-			sh->addralign = 1;
-			if(interpreter == nil) {
-				switch(HEADTYPE) {
-				case Hlinux:
-					interpreter = linuxdynld;
-					break;
-				case Hfreebsd:
-					interpreter = freebsddynld;
-					break;
-				case Hnetbsd:
-					interpreter = netbsddynld;
-					break;
-				case Hopenbsd:
-					interpreter = openbsddynld;
-					break;
-				}
-			}
-			resoff -= elfinterp(sh, startva, resoff, interpreter);
-
-			ph = newElfPhdr();
-			ph->type = PT_INTERP;
-			ph->flags = PF_R;
-			phsh(ph, sh);
-		}
-
-		pnote = nil;
-		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
-			sh = nil;
-			switch(HEADTYPE) {
-			case Hnetbsd:
-				sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
-				resoff -= elfnetbsdsig(sh, startva, resoff);
-				break;
-			case Hopenbsd:
-				sh = newElfShdr(elfstr[ElfStrNoteOpenbsdIdent]);
-				resoff -= elfopenbsdsig(sh, startva, resoff);
-				break;
-			}
-
-			pnote = newElfPhdr();
-			pnote->type = PT_NOTE;
-			pnote->flags = PF_R;
-			phsh(pnote, sh);
-		}
-
-		if(buildinfolen > 0) {
-			sh = newElfShdr(elfstr[ElfStrNoteBuildInfo]);
-			resoff -= elfbuildinfo(sh, startva, resoff);
-
-			if(pnote == nil) {
-				pnote = newElfPhdr();
-				pnote->type = PT_NOTE;
-				pnote->flags = PF_R;
-			}
-			phsh(pnote, sh);
-		}
-
-		// Additions to the reserved area must be above this line.
-		USED(resoff);
-
-		elfphload(&segtext);
-		elfphload(&segdata);
-
-		/* Dynamic linking sections */
-		if(!debug['d']) {	/* -d suppresses dynamic loader format */
-			/* S headers for dynamic linking */
-			sh = newElfShdr(elfstr[ElfStrGot]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 4;
-			sh->addralign = 4;
-			shsym(sh, lookup(".got", 0));
-
-			sh = newElfShdr(elfstr[ElfStrGotPlt]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 4;
-			sh->addralign = 4;
-			shsym(sh, lookup(".got.plt", 0));
-
-			dynsym = eh->shnum;
-			sh = newElfShdr(elfstr[ElfStrDynsym]);
-			sh->type = SHT_DYNSYM;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = ELF32SYMSIZE;
-			sh->addralign = 4;
-			sh->link = dynsym+1;	// dynstr
-			// sh->info = index of first non-local symbol (number of local symbols)
-			shsym(sh, lookup(".dynsym", 0));
-
-			sh = newElfShdr(elfstr[ElfStrDynstr]);
-			sh->type = SHT_STRTAB;
-			sh->flags = SHF_ALLOC;
-			sh->addralign = 1;
-			shsym(sh, lookup(".dynstr", 0));
-			
-			if(elfverneed) {
-				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
-				sh->type = SHT_GNU_VERSYM;
-				sh->flags = SHF_ALLOC;
-				sh->addralign = 2;
-				sh->link = dynsym;
-				sh->entsize = 2;
-				shsym(sh, lookup(".gnu.version", 0));
-
-				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
-				sh->type = SHT_GNU_VERNEED;
-				sh->flags = SHF_ALLOC;
-				sh->addralign = 4;
-				sh->info = elfverneed;
-				sh->link = dynsym+1;  // dynstr
-				shsym(sh, lookup(".gnu.version_r", 0));
-			}
-
-			sh = newElfShdr(elfstr[ElfStrRelPlt]);
-			sh->type = SHT_REL;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = ELF32RELSIZE;
-			sh->addralign = 4;
-			sh->link = dynsym;
-			sh->info = eh->shnum;	// .plt
-			shsym(sh, lookup(".rel.plt", 0));
-			
-			sh = newElfShdr(elfstr[ElfStrPlt]);
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_EXECINSTR;
-			sh->entsize = 4;
-			sh->addralign = 4;
-			shsym(sh, lookup(".plt", 0));
-
-			sh = newElfShdr(elfstr[ElfStrHash]);
-			sh->type = SHT_HASH;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = 4;
-			sh->addralign = 4;
-			sh->link = dynsym;
-			shsym(sh, lookup(".hash", 0));
-
-			sh = newElfShdr(elfstr[ElfStrRel]);
-			sh->type = SHT_REL;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = ELF32RELSIZE;
-			sh->addralign = 4;
-			sh->link = dynsym;
-			shsym(sh, lookup(".rel", 0));
-
-			/* sh and PT_DYNAMIC for .dynamic section */
-			sh = newElfShdr(elfstr[ElfStrDynamic]);
-			sh->type = SHT_DYNAMIC;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 8;
-			sh->addralign = 4;
-			sh->link = dynsym+1;	// dynstr
-			shsym(sh, lookup(".dynamic", 0));
-			ph = newElfPhdr();
-			ph->type = PT_DYNAMIC;
-			ph->flags = PF_R + PF_W;
-			phsh(ph, sh);
-
-			/*
-			 * Thread-local storage segment (really just size).
-			 */
-			// Do not emit PT_TLS for OpenBSD since ld.so(1) does
-			// not currently support it. This is handled
-			// appropriately in runtime/cgo.
-			if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
-				ph = newElfPhdr();
-				ph->type = PT_TLS;
-				ph->flags = PF_R;
-				ph->memsz = -tlsoffset;
-				ph->align = 4;
-			}
-		}
-
-		ph = newElfPhdr();
-		ph->type = PT_GNU_STACK;
-		ph->flags = PF_W+PF_R;
-		ph->align = 4;
-
-		ph = newElfPhdr();
-		ph->type = PT_PAX_FLAGS;
-		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
-		ph->align = 4;
-
-		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
-		sh->type = SHT_STRTAB;
-		sh->addralign = 1;
-		shsym(sh, lookup(".shstrtab", 0));
-
-		if(elftextsh != eh->shnum)
-			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
-		for(sect=segtext.sect; sect!=nil; sect=sect->next)
-			elfshbits(sect);
-		for(sect=segdata.sect; sect!=nil; sect=sect->next)
-			elfshbits(sect);
-
-		if(!debug['s']) {
-			sh = newElfShdr(elfstr[ElfStrSymtab]);
-			sh->type = SHT_SYMTAB;
-			sh->off = symo;
-			sh->size = symsize;
-			sh->addralign = 4;
-			sh->entsize = 16;
-			sh->link = eh->shnum;	// link to strtab
-
-			sh = newElfShdr(elfstr[ElfStrStrtab]);
-			sh->type = SHT_STRTAB;
-			sh->off = symo+symsize;
-			sh->size = elfstrsize;
-			sh->addralign = 1;
-
-			dwarfaddelfheaders();
-		}
-
-		/* Main header */
-		eh->ident[EI_MAG0] = '\177';
-		eh->ident[EI_MAG1] = 'E';
-		eh->ident[EI_MAG2] = 'L';
-		eh->ident[EI_MAG3] = 'F';
-		eh->ident[EI_CLASS] = ELFCLASS32;
-		eh->ident[EI_DATA] = ELFDATA2LSB;
-		eh->ident[EI_VERSION] = EV_CURRENT;
-		switch(HEADTYPE) {
-		case Hfreebsd:
-			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
-			break;
-		case Hnetbsd:
-			eh->ident[EI_OSABI] = ELFOSABI_NETBSD;
-			break;
-		case Hopenbsd:
-			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
-			break;
-		}
-
-		eh->type = ET_EXEC;
-		eh->machine = EM_386;
-		eh->version = EV_CURRENT;
-		eh->entry = entryvalue();
-
-		if(pph != nil) {
-			pph->filesz = eh->phnum * eh->phentsize;
-			pph->memsz = pph->filesz;
-		}
-
-		cseek(0);
-		a = 0;
-		a += elfwritehdr();
-		a += elfwritephdrs();
-		a += elfwriteshdrs();
-		a += elfwriteinterp(elfstr[ElfStrInterp]);
-		if(HEADTYPE == Hnetbsd)
-			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
-		if(HEADTYPE == Hopenbsd)
-			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
-		if(buildinfolen > 0)
-			a += elfwritebuildinfo(elfstr[ElfStrNoteBuildInfo]);
-		if(a > ELFRESERVE)	
-			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+	case Hlinux:
+	case Hfreebsd:
+	case Hnetbsd:
+	case Hopenbsd:
+		asmbelf(symo);
 		break;
-
 	case Hwindows:
 		asmbpe();
 		break;
@@ -1308,83 +814,4 @@ rnd(int32 v, int32 r)
 		c += r;
 	v -= c;
 	return v;
-}
-
-void
-genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
-{
-	Auto *a;
-	Sym *s;
-	int h;
-
-	s = lookup("etext", 0);
-	if(s->type == STEXT)
-		put(s, s->name, 'T', s->value, s->size, s->version, 0);
-
-	for(h=0; h<NHASH; h++) {
-		for(s=hash[h]; s!=S; s=s->hash) {
-			if(s->hide)
-				continue;
-			switch(s->type&SMASK) {
-			case SCONST:
-			case SRODATA:
-			case SDATA:
-			case SELFROSECT:
-			case SMACHO:
-			case SMACHOGOT:
-			case STYPE:
-			case SSTRING:
-			case SGOSTRING:
-			case SWINDOWS:
-			case SNOPTRDATA:
-			case SSYMTAB:
-			case SPCLNTAB:
-			case SGCDATA:
-			case SGCBSS:
-				if(!s->reachable)
-					continue;
-				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
-				continue;
-
-			case SBSS:
-			case SNOPTRBSS:
-				if(!s->reachable)
-					continue;
-				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
-				continue;
-
-			case SFILE:
-				put(nil, s->name, 'f', s->value, 0, s->version, 0);
-				continue;
-			}
-		}
-	}
-
-	for(s = textp; s != nil; s = s->next) {
-		if(s->text == nil)
-			continue;
-
-		/* filenames first */
-		for(a=s->autom; a; a=a->link)
-			if(a->type == D_FILE)
-				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
-			else
-			if(a->type == D_FILE1)
-				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
-
-		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
-
-		/* frame, auto and param after */
-		put(nil, ".frame", 'm', s->text->to.offset+4, 0, 0, 0);
-
-		for(a=s->autom; a; a=a->link)
-			if(a->type == D_AUTO)
-				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
-			else
-			if(a->type == D_PARAM)
-				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
-	}
-	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %d\n", symsize);
-	Bflush(&bso);
 }
