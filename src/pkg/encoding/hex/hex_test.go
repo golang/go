@@ -65,7 +65,7 @@ func TestDecodeString(t *testing.T) {
 			t.Errorf("#%d: unexpected err value: %s", i, err)
 			continue
 		}
-		if bytes.Compare(dst, test.dec) != 0 {
+		if !bytes.Equal(dst, test.dec) {
 			t.Errorf("#%d: got: %#v want: #%v", i, dst, test.dec)
 		}
 	}

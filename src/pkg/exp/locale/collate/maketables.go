@@ -674,7 +674,7 @@ func testCollator(c *collate.Collator) {
 	for _, str := range testInput.values() {
 		k0 := c0.KeyFromString(&buf, str)
 		k := c.KeyFromString(&buf, str)
-		if bytes.Compare(k0, k) != 0 {
+		if !bytes.Equal(k0, k) {
 			failOnError(fmt.Errorf("test:%U: keys differ (%x vs %x)", []rune(str), k0, k))
 		}
 		buf.Reset()

@@ -56,7 +56,7 @@ func runTest(t *testing.T, in, out, flags string) {
 		return
 	}
 
-	if got := buf.Bytes(); bytes.Compare(got, expected) != 0 {
+	if got := buf.Bytes(); !bytes.Equal(got, expected) {
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
 		d, err := diff(expected, got)
 		if err == nil {

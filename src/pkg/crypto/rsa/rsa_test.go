@@ -179,7 +179,7 @@ func TestEncryptOAEP(t *testing.T) {
 			if err != nil {
 				t.Errorf("#%d,%d error: %s", i, j, err)
 			}
-			if bytes.Compare(out, message.out) != 0 {
+			if !bytes.Equal(out, message.out) {
 				t.Errorf("#%d,%d bad result: %x (want %x)", i, j, out, message.out)
 			}
 		}
@@ -203,7 +203,7 @@ func TestDecryptOAEP(t *testing.T) {
 			out, err := DecryptOAEP(sha1, nil, private, message.out, nil)
 			if err != nil {
 				t.Errorf("#%d,%d error: %s", i, j, err)
-			} else if bytes.Compare(out, message.in) != 0 {
+			} else if !bytes.Equal(out, message.in) {
 				t.Errorf("#%d,%d bad result: %#v (want %#v)", i, j, out, message.in)
 			}
 
@@ -211,7 +211,7 @@ func TestDecryptOAEP(t *testing.T) {
 			out, err = DecryptOAEP(sha1, random, private, message.out, nil)
 			if err != nil {
 				t.Errorf("#%d,%d (blind) error: %s", i, j, err)
-			} else if bytes.Compare(out, message.in) != 0 {
+			} else if !bytes.Equal(out, message.in) {
 				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in)
 			}
 		}

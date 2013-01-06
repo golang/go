@@ -123,7 +123,7 @@ func test(t *testing.T, mode Mode) {
 		}
 
 		// compare
-		if bytes.Compare(got, want) != 0 {
+		if !bytes.Equal(got, want) {
 			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
 		}
 	}

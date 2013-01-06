@@ -84,7 +84,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 	}
 
 	// the first and 2nd result should be identical
-	if bytes.Compare(b1.Bytes(), b2.Bytes()) != 0 {
+	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
 		t.Errorf("gofmt %s not idempotent", filename)
 	}
 }

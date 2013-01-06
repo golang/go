@@ -132,7 +132,7 @@ func TestMarshal(t *testing.T) {
 			t.Errorf("#%d failed: %s", i, err)
 		}
 		out, _ := hex.DecodeString(test.out)
-		if bytes.Compare(out, data) != 0 {
+		if !bytes.Equal(out, data) {
 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
 
 		}

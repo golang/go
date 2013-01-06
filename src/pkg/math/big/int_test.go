@@ -643,7 +643,7 @@ func TestSetBytes(t *testing.T) {
 
 func checkBytes(b []byte) bool {
 	b2 := new(Int).SetBytes(b).Bytes()
-	return bytes.Compare(b, b2) == 0
+	return bytes.Equal(b, b2)
 }
 
 func TestBytes(t *testing.T) {
