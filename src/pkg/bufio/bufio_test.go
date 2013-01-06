@@ -748,7 +748,7 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 	b := NewReaderSize(strings.NewReader(input), minReadBufferSize)
 	for i, e := range expect {
 		line, isPrefix, err := b.ReadLine()
-		if bytes.Compare(line, e.line) != 0 {
+		if !bytes.Equal(line, e.line) {
 			t.Errorf("%q call %d, line == %q, want %q", input, i, line, e.line)
 			return
 		}

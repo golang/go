@@ -388,10 +388,10 @@ func TestKey(t *testing.T) {
 	}
 	// Separate generation from testing to ensure buffers are not overwritten.
 	for i, tt := range keyTests {
-		if bytes.Compare(keys1[i], tt.out) != 0 {
+		if !bytes.Equal(keys1[i], tt.out) {
 			t.Errorf("%d: Key(%q) = %d; want %d", i, tt.in, keys1[i], tt.out)
 		}
-		if bytes.Compare(keys2[i], tt.out) != 0 {
+		if !bytes.Equal(keys2[i], tt.out) {
 			t.Errorf("%d: KeyFromString(%q) = %d; want %d", i, tt.in, keys2[i], tt.out)
 		}
 	}

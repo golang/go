@@ -422,7 +422,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	if bytes.Compare(jsonBig, b) != 0 {
+	if !bytes.Equal(jsonBig, b) {
 		t.Errorf("Marshal jsonBig")
 		diff(t, b, jsonBig)
 		return
@@ -474,7 +474,7 @@ func TestLargeByteSlice(t *testing.T) {
 	if err := Unmarshal(b, &s1); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if bytes.Compare(s0, s1) != 0 {
+	if !bytes.Equal(s0, s1) {
 		t.Errorf("Marshal large byte slice")
 		diff(t, s0, s1)
 	}

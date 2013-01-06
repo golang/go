@@ -124,7 +124,7 @@ func TestBitString(t *testing.T) {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if err == nil {
-			if test.bitLength != ret.BitLength || bytes.Compare(ret.Bytes, test.out) != 0 {
+			if test.bitLength != ret.BitLength || !bytes.Equal(ret.Bytes, test.out) {
 				t.Errorf("#%d: Bad result: %v (expected %v %v)", i, ret, test.out, test.bitLength)
 			}
 		}
@@ -166,7 +166,7 @@ func TestBitStringRightAlign(t *testing.T) {
 	for i, test := range bitStringRightAlignTests {
 		bs := BitString{test.in, test.inlen}
 		out := bs.RightAlign()
-		if bytes.Compare(out, test.out) != 0 {
+		if !bytes.Equal(out, test.out) {
 			t.Errorf("#%d got: %x want: %x", i, out, test.out)
 		}
 	}
@@ -477,7 +477,7 @@ func TestRawStructs(t *testing.T) {
 	if s.A != 0x50 {
 		t.Errorf("bad value for A: got %d want %d", s.A, 0x50)
 	}
-	if bytes.Compare([]byte(s.Raw), input) != 0 {
+	if !bytes.Equal([]byte(s.Raw), input) {
 		t.Errorf("bad value for Raw: got %x want %x", s.Raw, input)
 	}
 }
