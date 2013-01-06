@@ -408,18 +408,13 @@ func (p *gcParser) parseField() *Field {
 func (p *gcParser) parseStructType() Type {
 	var fields []*Field
 
-	parseField := func() {
-		fields = append(fields, p.parseField())
-	}
-
 	p.expectKeyword("struct")
 	p.expect('{')
-	if p.tok != '}' {
-		parseField()
-		for p.tok == ';' {
-			p.next()
-			parseField()
+	for p.tok != '}' {
+		if len(fields) > 0 {
+			p.expect(';')
 		}
+		fields = append(fields, p.parseField())
 	}
 	p.expect('}')
 
@@ -450,7 +445,11 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 // ParameterList = { Parameter "," } Parameter .
 //
 func (p *gcParser) parseParameters() (list []*Var, isVariadic bool) {
-	parseParameter := func() {
+	p.expect('(')
+	for p.tok != ')' {
+		if len(list) > 0 {
+			p.expect(',')
+		}
 		par, variadic := p.parseParameter()
 		list = append(list, par)
 		if variadic {
@@ -458,15 +457,6 @@ func (p *gcParser) parseParameters() (list []*Var, isVariadic bool) {
 				p.error("... not on final argument")
 			}
 			isVariadic = true
-		}
-	}
-
-	p.expect('(')
-	if p.tok != ')' {
-		parseParameter()
-		for p.tok == ',' {
-			p.next()
-			parseParameter()
 		}
 	}
 	p.expect(')')
@@ -509,20 +499,15 @@ func (p *gcParser) parseSignature() *Signature {
 func (p *gcParser) parseInterfaceType() Type {
 	var methods []*Method
 
-	parseMethod := func() {
+	p.expectKeyword("interface")
+	p.expect('{')
+	for p.tok != '}' {
+		if len(methods) > 0 {
+			p.expect(';')
+		}
 		name := p.parseName()
 		typ := p.parseSignature()
 		methods = append(methods, &Method{name, typ})
-	}
-
-	p.expectKeyword("interface")
-	p.expect('{')
-	if p.tok != '}' {
-		parseMethod()
-		for p.tok == ';' {
-			p.next()
-			parseMethod()
-		}
 	}
 	p.expect('}')
 
