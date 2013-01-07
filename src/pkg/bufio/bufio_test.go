@@ -28,9 +28,9 @@ func newRot13Reader(r io.Reader) *rot13Reader {
 }
 
 func (r13 *rot13Reader) Read(p []byte) (int, error) {
-	n, e := r13.r.Read(p)
-	if e != nil {
-		return n, e
+	n, err := r13.r.Read(p)
+	if err != nil {
+		return n, err
 	}
 	for i := 0; i < n; i++ {
 		c := p[i] | 0x20 // lowercase byte
@@ -48,15 +48,15 @@ func readBytes(buf *Reader) string {
 	var b [1000]byte
 	nb := 0
 	for {
-		c, e := buf.ReadByte()
-		if e == io.EOF {
+		c, err := buf.ReadByte()
+		if err == io.EOF {
 			break
 		}
-		if e == nil {
+		if err == nil {
 			b[nb] = c
 			nb++
-		} else if e != iotest.ErrTimeout {
-			panic("Data: " + e.Error())
+		} else if err != iotest.ErrTimeout {
+			panic("Data: " + err.Error())
 		}
 	}
 	return string(b[0:nb])
@@ -93,12 +93,12 @@ var readMakers = []readMaker{
 func readLines(b *Reader) string {
 	s := ""
 	for {
-		s1, e := b.ReadString('\n')
-		if e == io.EOF {
+		s1, err := b.ReadString('\n')
+		if err == io.EOF {
 			break
 		}
-		if e != nil && e != iotest.ErrTimeout {
-			panic("GetLines: " + e.Error())
+		if err != nil && err != iotest.ErrTimeout {
+			panic("GetLines: " + err.Error())
 		}
 		s += s1
 	}
@@ -110,9 +110,9 @@ func reads(buf *Reader, m int) string {
 	var b [1000]byte
 	nb := 0
 	for {
-		n, e := buf.Read(b[nb : nb+m])
+		n, err := buf.Read(b[nb : nb+m])
 		nb += n
-		if e == io.EOF {
+		if err == io.EOF {
 			break
 		}
 	}
