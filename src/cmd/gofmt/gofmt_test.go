@@ -62,7 +62,9 @@ func runTest(t *testing.T, in, out, flags string) {
 		if err == nil {
 			t.Errorf("%s", d)
 		}
-		ioutil.WriteFile(in+".gofmt", got, 0666)
+		if err := ioutil.WriteFile(in+".gofmt", got, 0666); err != nil {
+			t.Error(err)
+		}
 	}
 }
 

@@ -76,13 +76,13 @@ func (b *Reader) fill() {
 	}
 
 	// Read new data.
-	n, e := b.rd.Read(b.buf[b.w:])
+	n, err := b.rd.Read(b.buf[b.w:])
 	if n < 0 {
 		panic(errNegativeRead)
 	}
 	b.w += n
-	if e != nil {
-		b.err = e
+	if err != nil {
+		b.err = err
 	}
 }
 
@@ -379,8 +379,8 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Reader) ReadString(delim byte) (line string, err error) {
-	bytes, e := b.ReadBytes(delim)
-	return string(bytes), e
+	bytes, err := b.ReadBytes(delim)
+	return string(bytes), err
 }
 
 // WriteTo implements io.WriterTo.
@@ -461,17 +461,17 @@ func (b *Writer) Flush() error {
 	if b.n == 0 {
 		return nil
 	}
-	n, e := b.wr.Write(b.buf[0:b.n])
-	if n < b.n && e == nil {
-		e = io.ErrShortWrite
+	n, err := b.wr.Write(b.buf[0:b.n])
+	if n < b.n && err == nil {
+		err = io.ErrShortWrite
 	}
-	if e != nil {
+	if err != nil {
 		if n > 0 && n < b.n {
 			copy(b.buf[0:b.n-n], b.buf[n:b.n])
 		}
 		b.n -= n
-		b.err = e
-		return e
+		b.err = err
+		return err
 	}
 	b.n = 0
 	return nil
