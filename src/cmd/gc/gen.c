@@ -810,7 +810,11 @@ cgen_slice(Node *n, Node *res)
 		checkref(n->left);
 	}
 
-	src = *n->left;
+	if(isnil(n->left)) {
+		tempname(&src, n->left->type);
+		cgen(n->left, &src);
+	} else
+		src = *n->left;
 	src.xoffset += Array_array;
 	src.type = types[TUINTPTR];
 

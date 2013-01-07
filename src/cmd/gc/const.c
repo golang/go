@@ -162,6 +162,16 @@ convlit1(Node **np, Type *t, int explicit)
 		case TFUNC:
 		case TUNSAFEPTR:
 			break;
+
+		case TUINTPTR:
+			// A nil literal may be converted to uintptr
+			// if it is an unsafe.Pointer
+			if(n->type->etype == TUNSAFEPTR) {
+				n->val.u.xval = mal(sizeof(*n->val.u.xval));
+				mpmovecfix(n->val.u.xval, 0);
+				n->val.ctype = CTINT;
+			} else
+				goto bad;
 		}
 		break;
 
