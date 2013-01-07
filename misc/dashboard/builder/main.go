@@ -281,7 +281,9 @@ func (b *Builder) buildHash(hash string) error {
 	}
 
 	// build Go sub-repositories
-	b.buildSubrepos(filepath.Join(workpath, "go"), hash)
+	goRoot := filepath.Join(workpath, "go")
+	goPath := workpath
+	b.buildSubrepos(goRoot, goPath, hash)
 
 	return nil
 }
@@ -307,7 +309,7 @@ func (b *Builder) failBuild() bool {
 	return true
 }
 
-func (b *Builder) buildSubrepos(goRoot, goHash string) {
+func (b *Builder) buildSubrepos(goRoot, goPath, goHash string) {
 	for _, pkg := range dashboardPackages("subrepo") {
 		// get the latest todo for this package
 		hash, err := b.todo("build-package", pkg, goHash)
@@ -323,7 +325,7 @@ func (b *Builder) buildSubrepos(goRoot, goHash string) {
 		if *verbose {
 			log.Printf("buildSubrepos %s: building %q", pkg, hash)
 		}
-		buildLog, err := b.buildSubrepo(goRoot, pkg, hash)
+		buildLog, err := b.buildSubrepo(goRoot, goPath, pkg, hash)
 		if err != nil {
 			if buildLog == "" {
 				buildLog = err.Error()
@@ -341,43 +343,37 @@ func (b *Builder) buildSubrepos(goRoot, goHash string) {
 
 // buildSubrepo fetches the given package, updates it to the specified hash,
 // and runs 'go test -short pkg/...'. It returns the build log and any error.
-func (b *Builder) buildSubrepo(goRoot, pkg, hash string) (string, error) {
-	goBin := filepath.Join(goRoot, "bin")
-	goTool := filepath.Join(goBin, "go")
-	env := append(b.envv(), "GOROOT="+goRoot)
+func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error) {
+	goTool := filepath.Join(goRoot, "bin", "go")
+	env := append(b.envv(), "GOROOT="+goRoot, "GOPATH="+goPath)
 
-	// add goBin to PATH
+	// add $GOROOT/bin and $GOPATH/bin to PATH
 	for i, e := range env {
 		const p = "PATH="
 		if !strings.HasPrefix(e, p) {
 			continue
 		}
-		env[i] = p + goBin + string(os.PathListSeparator) + e[len(p):]
+		sep := string(os.PathListSeparator)
+		env[i] = p + filepath.Join(goRoot, "bin") + sep + filepath.Join(goPath, "bin") + sep + e[len(p):]
 	}
 
 	// fetch package and dependencies
-	log, status, err := runLog(*cmdTimeout, env, "", goRoot, goTool, "get", "-d", pkg)
+	log, status, err := runLog(*cmdTimeout, env, "", goPath, goTool, "get", "-d", pkg+"/...")
 	if err == nil && status != 0 {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
 	if err != nil {
-		// 'go get -d' will fail for a subrepo because its top-level
-		// directory does not contain a go package. No matter, just
-		// check whether an hg directory exists and proceed.
-		hgDir := filepath.Join(goRoot, "src/pkg", pkg, ".hg")
-		if fi, e := os.Stat(hgDir); e != nil || !fi.IsDir() {
-			return log, err
-		}
+		return log, err
 	}
 
 	// hg update to the specified hash
-	pkgPath := filepath.Join(goRoot, "src/pkg", pkg)
+	pkgPath := filepath.Join(goPath, "src", pkg)
 	if err := run(*cmdTimeout, nil, pkgPath, hgCmd("update", hash)...); err != nil {
 		return "", err
 	}
 
 	// test the package
-	log, status, err = runLog(*buildTimeout, env, "", goRoot, goTool, "test", "-short", pkg+"/...")
+	log, status, err = runLog(*buildTimeout, env, "", goPath, goTool, "test", "-short", pkg+"/...")
 	if err == nil && status != 0 {
 		err = fmt.Errorf("go exited with status %d", status)
 	}
