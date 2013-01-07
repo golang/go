@@ -128,7 +128,7 @@ func main() {
 	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
-		for _, p := range strings.Split(gopath, ":") {
+		for _, p := range filepath.SplitList(gopath) {
 			if build.IsLocalImport(p) {
 				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
 				os.Exit(2)
