@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"unicode/utf16"
 	"unicode/utf8"
+	"unsafe"
 )
 
 // File represents an open file descriptor.
@@ -41,12 +42,9 @@ func (file *File) Fd() uintptr {
 	return uintptr(file.fd)
 }
 
-// NewFile returns a new File with the given file descriptor and name.
-func NewFile(fd uintptr, name string) *File {
-	h := syscall.Handle(fd)
-	if h == syscall.InvalidHandle {
-		return nil
-	}
+// newFile returns a new File with the given file handle and name.
+// Unlike NewFile, it does not check that h is syscall.InvalidHandle.
+func newFile(h syscall.Handle, name string) *File {
 	f := &File{&file{fd: h, name: name}}
 	var m uint32
 	if syscall.GetConsoleMode(f.fd, &m) == nil {
@@ -56,11 +54,21 @@ func NewFile(fd uintptr, name string) *File {
 	return f
 }
 
+// NewFile returns a new File with the given file descriptor and name.
+func NewFile(fd uintptr, name string) *File {
+	h := syscall.Handle(fd)
+	if h == syscall.InvalidHandle {
+		return nil
+	}
+	return newFile(h, name)
+}
+
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
 	data     syscall.Win32finddata
 	needdata bool
 	path     string
+	isempty  bool // set if FindFirstFile returns ERROR_FILE_NOT_FOUND
 }
 
 func epipecheck(file *File, e error) {
@@ -73,7 +81,7 @@ func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
 func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if e != nil {
-		return nil, &PathError{"open", name, e}
+		return nil, e
 	}
 	return NewFile(uintptr(r), name), nil
 }
@@ -81,19 +89,37 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 func openDir(name string) (file *File, err error) {
 	maskp, e := syscall.UTF16PtrFromString(name + `\*`)
 	if e != nil {
-		return nil, &PathError{"open", name, e}
+		return nil, e
 	}
 	d := new(dirInfo)
 	r, e := syscall.FindFirstFile(maskp, &d.data)
 	if e != nil {
-		return nil, &PathError{"open", name, e}
+		// FindFirstFile returns ERROR_FILE_NOT_FOUND when
+		// no matching files can be found. Then, if directory
+		// exists, we should proceed.
+		if e != syscall.ERROR_FILE_NOT_FOUND {
+			return nil, e
+		}
+		var fa syscall.Win32FileAttributeData
+		namep, e := syscall.UTF16PtrFromString(name)
+		if e != nil {
+			return nil, e
+		}
+		e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+		if e != nil {
+			return nil, e
+		}
+		if fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY == 0 {
+			return nil, e
+		}
+		d.isempty = true
 	}
 	d.path = name
 	if !isAbs(d.path) {
 		cwd, _ := Getwd()
 		d.path = cwd + `\` + d.path
 	}
-	f := NewFile(uintptr(r), name)
+	f := newFile(r, name)
 	f.dirinfo = d
 	return f, nil
 }
@@ -120,7 +146,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	if e == nil {
 		return r, nil
 	}
-	return nil, e
+	return nil, &PathError{"open", name, e}
 }
 
 // Close closes the File, rendering it unusable for I/O.
@@ -130,7 +156,14 @@ func (file *File) Close() error {
 }
 
 func (file *file) close() error {
-	if file == nil || file.fd == syscall.InvalidHandle {
+	if file == nil {
+		return syscall.EINVAL
+	}
+	if file.isdir() && file.dirinfo.isempty {
+		// "special" empty directories
+		return nil
+	}
+	if file.fd == syscall.InvalidHandle {
 		return syscall.EINVAL
 	}
 	var e error
@@ -151,11 +184,14 @@ func (file *file) close() error {
 }
 
 func (file *File) readdir(n int) (fi []FileInfo, err error) {
-	if file == nil || file.fd == syscall.InvalidHandle {
+	if file == nil {
 		return nil, syscall.EINVAL
 	}
 	if !file.isdir() {
 		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
+	}
+	if !file.dirinfo.isempty && file.fd == syscall.InvalidHandle {
+		return nil, syscall.EINVAL
 	}
 	wantAll := n <= 0
 	size := n
@@ -165,7 +201,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	}
 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
 	d := &file.dirinfo.data
-	for n != 0 {
+	for n != 0 && !file.dirinfo.isempty {
 		if file.dirinfo.needdata {
 			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
 			if e != nil {
