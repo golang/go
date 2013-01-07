@@ -147,14 +147,27 @@ func (d *decoder) processSOF(n int) error {
 		return UnsupportedError("SOF has wrong number of image components")
 	}
 	for i := 0; i < d.nComp; i++ {
-		hv := d.tmp[7+3*i]
-		d.comp[i].h = int(hv >> 4)
-		d.comp[i].v = int(hv & 0x0f)
 		d.comp[i].c = d.tmp[6+3*i]
 		d.comp[i].tq = d.tmp[8+3*i]
 		if d.nComp == nGrayComponent {
+			// If a JPEG image has only one component, section A.2 says "this data
+			// is non-interleaved by definition" and section A.2.2 says "[in this
+			// case...] the order of data units within a scan shall be left-to-right
+			// and top-to-bottom... regardless of the values of H_1 and V_1". Section
+			// 4.8.2 also says "[for non-interleaved data], the MCU is defined to be
+			// one data unit". Similarly, section A.1.1 explains that it is the ratio
+			// of H_i to max_j(H_j) that matters, and similarly for V. For grayscale
+			// images, H_1 is the maximum H_j for all components j, so that ratio is
+			// always 1. The component's (h, v) is effectively always (1, 1): even if
+			// the nominal (h, v) is (2, 1), a 20x5 image is encoded in three 8x8
+			// MCUs, not two 16x8 MCUs.
+			d.comp[i].h = 1
+			d.comp[i].v = 1
 			continue
 		}
+		hv := d.tmp[7+3*i]
+		d.comp[i].h = int(hv >> 4)
+		d.comp[i].v = int(hv & 0x0f)
 		// For color images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
 		// downsampling ratios. This implies that the (h, v) values for the Y
 		// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)

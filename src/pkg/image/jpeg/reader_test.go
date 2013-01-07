@@ -24,6 +24,7 @@ func TestDecodeProgressive(t *testing.T) {
 		"../testdata/video-001.q50.440",
 		"../testdata/video-001.q50.444",
 		"../testdata/video-005.gray.q50",
+		"../testdata/video-005.gray.q50.2x2",
 	}
 	for _, tc := range testCases {
 		m0, err := decodeFile(tc + ".jpeg")
