@@ -83,7 +83,7 @@ libinit(void)
 
 	// add goroot to the end of the libdir list.
 	race = "";
-	if(debug['b'])
+	if(flag_race)
 		race = "_race";
 	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
 
@@ -286,7 +286,7 @@ loadlib(void)
 	loadinternal("runtime");
 	if(thechar == '5')
 		loadinternal("math");
-	if(debug['b'])
+	if(flag_race)
 		loadinternal("runtime/race");
 
 	for(i=0; i<libraryp; i++) {

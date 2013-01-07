@@ -980,7 +980,7 @@ dumptypestructs(void)
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(runtimepkg);
-		if(debug['b'])
+		if(flag_race)
 			dimportpath(racepkg);
 		dimportpath(mkpkg(strlit("main")));
 	}

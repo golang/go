@@ -66,7 +66,7 @@ compile(Node *fn)
 	walk(curfn);
 	if(nerrors != 0)
 		goto ret;
-	if(debug['b'])
+	if(flag_race)
 		racewalk(curfn);
 	if(nerrors != 0)
 		goto ret;
