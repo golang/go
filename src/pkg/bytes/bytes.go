@@ -12,7 +12,7 @@ import (
 )
 
 // Compare returns an integer comparing two byte slices lexicographically.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b
+// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
 // A nil argument is equivalent to an empty slice.
 func Compare(a, b []byte) int {
 	m := len(a)
