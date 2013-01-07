@@ -766,9 +766,10 @@ func (p *gcParser) parseVarDecl() {
 // Func = Signature [ Body ] .
 // Body = "{" ... "}" .
 //
-func (p *gcParser) parseFunc(scope *ast.Scope, name string) {
+func (p *gcParser) parseFunc(scope *ast.Scope, name string) *Signature {
 	obj := p.declare(scope, ast.Fun, name)
-	obj.Type = p.parseSignature()
+	sig := p.parseSignature()
+	obj.Type = sig
 	if p.tok == '{' {
 		p.next()
 		for i := 1; i > 0; p.next() {
@@ -780,6 +781,7 @@ func (p *gcParser) parseFunc(scope *ast.Scope, name string) {
 			}
 		}
 	}
+	return sig
 }
 
 // MethodDecl = "func" Receiver Name Func .
@@ -809,7 +811,8 @@ func (p *gcParser) parseMethodDecl() {
 
 	// declare method in base type scope
 	name := p.parseName() // unexported method names in imports are qualified with their package.
-	p.parseFunc(scope, name)
+	sig := p.parseFunc(scope, name)
+	sig.Recv = recv
 }
 
 // FuncDecl = "func" ExportedName Func .
