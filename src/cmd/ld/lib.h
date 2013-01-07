@@ -135,6 +135,7 @@ EXTERN	int	ndynexp;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
 EXTERN	int	elfglobalsymndx;
+EXTERN	int	flag_race;
 EXTERN	char*	tracksym;
 EXTERN	char*	interpreter;
 

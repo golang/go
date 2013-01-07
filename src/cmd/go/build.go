@@ -1892,8 +1892,8 @@ func raceInit() {
 		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
-	buildGcflags = append(buildGcflags, "-b")
-	buildLdflags = append(buildLdflags, "-b")
+	buildGcflags = append(buildGcflags, "-race")
+	buildLdflags = append(buildLdflags, "-race")
 	buildCcflags = append(buildCcflags, "-D", "RACE")
 	buildContext.InstallTag = "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")

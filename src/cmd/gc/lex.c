@@ -238,7 +238,6 @@ main(int argc, char *argv[])
 	flagcount("S", "print assembly listing", &debug['S']);
 	flagfn0("V", "print compiler version", doversion);
 	flagcount("W", "debug parse tree after type checking", &debug['W']);
-	flagcount("b", "enable race detector", &debug['b']);
 	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
 	flagcount("d", "debug declarations", &debug['d']);
 	flagcount("e", "no limit on number of errors reported", &debug['e']);
@@ -252,6 +251,7 @@ main(int argc, char *argv[])
 	flagstr("o", "obj: set output file", &outfile);
 	flagstr("p", "path: set expected package import path", &myimportpath);
 	flagcount("r", "debug generated wrappers", &debug['r']);
+	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
 	flagcount("u", "reject unsafe code", &safemode);
 	flagcount("v", "increase debug verbosity", &debug['v']);
@@ -261,7 +261,7 @@ main(int argc, char *argv[])
 
 	flagparse(&argc, &argv, usage);
 
-	if(debug['b']) {
+	if(flag_race) {
 		racepkg = mkpkg(strlit("runtime/race"));
 		racepkg->name = "race";
 	}
@@ -567,7 +567,7 @@ findpkg(Strlit *name)
 	}
 	if(goroot != nil) {
 		race = "";
-		if(debug['b'])
+		if(flag_race)
 			race = "_race";
 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.a", goroot, goos, goarch, race, name);
 		if(access(namebuf, 0) >= 0)

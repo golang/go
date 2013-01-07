@@ -109,7 +109,6 @@ main(int argc, char *argv[])
 	flagfn2("X", "name value: define string data", addstrdata);
 	flagcount("Z", "clear stack frame on entry", &debug['Z']);
 	flagcount("a", "disassemble output", &debug['a']);
-	flagcount("b", "race detection", &debug['b']);
 	flagcount("c", "dump call graph", &debug['c']);
 	flagcount("d", "disable dynamic executable", &debug['d']);
 	flagcount("f", "ignore version mismatch", &debug['f']);
@@ -118,6 +117,7 @@ main(int argc, char *argv[])
 	flagstr("o", "outfile: set output file", &outfile);
 	flagcount("p", "insert profiling code", &debug['p']);
 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
+	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "disable symbol table", &debug['s']);
 	flagcount("n", "dump symbol table", &debug['n']);
 	flagcount("u", "reject unsafe packages", &debug['u']);
