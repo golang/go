@@ -208,7 +208,7 @@ var printVerbs = []printVerb{
 	{'G', numFlag},
 	{'o', sharpNumFlag},
 	{'p', "-#"},
-	{'q', " -+.0"},
+	{'q', " -+.0#"},
 	{'s', " -+.0"},
 	{'t', "-"},
 	{'T', "-"},
@@ -287,6 +287,7 @@ func BadFunctionUsedInTests() {
 	fmt.Printf("%.*d", 3, 3)           // correct
 	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args in Printf call"
 	fmt.Printf("%q %q", multi()...)    // ok
+	fmt.Printf("%#q", `blah`)          // ok
 	printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("now is the time", "buddy") // ERROR "no formatting directive"
 	Printf("hi")                       // ok
