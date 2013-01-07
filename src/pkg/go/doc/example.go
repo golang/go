@@ -148,13 +148,13 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// Find unresolved identifiers and uses of top-level declarations.
 	unresolved := make(map[string]bool)
 	usesTopDecl := false
-	ast.Inspect(body, func(n ast.Node) bool {
-		// For an expression like fmt.Println, only add "fmt" to the
-		// set of unresolved names.
+	var inspectFunc func(ast.Node) bool
+	inspectFunc = func(n ast.Node) bool {
+		// For selector expressions, only inspect the left hand side.
+		// (For an expression like fmt.Println, only add "fmt" to the
+		// set of unresolved names, not "Println".)
 		if e, ok := n.(*ast.SelectorExpr); ok {
-			if id, ok := e.X.(*ast.Ident); ok && id.Obj == nil {
-				unresolved[id.Name] = true
-			}
+			ast.Inspect(e.X, inspectFunc)
 			return false
 		}
 		if id, ok := n.(*ast.Ident); ok {
@@ -165,7 +165,8 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 			}
 		}
 		return true
-	})
+	}
+	ast.Inspect(body, inspectFunc)
 	if usesTopDecl {
 		// We don't support examples that are not self-contained (yet).
 		return nil
