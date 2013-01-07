@@ -59,10 +59,10 @@ func ExampleCompare_search() {
 	var needle []byte
 	var haystack [][]byte // Assume sorted
 	i := sort.Search(len(haystack), func(i int) bool {
-		// Return needle <= haystack[i].
-		return bytes.Compare(needle, haystack[i]) <= 0
+		// Return haystack[i] >= needle.
+		return bytes.Compare(haystack[i], needle) >= 0
 	})
-	if i < len(haystack) && bytes.Equal(needle, haystack[i]) {
+	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
 		// Found it!
 	}
 }
