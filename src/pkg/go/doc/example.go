@@ -84,7 +84,13 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
 		// test that it begins with the correct prefix
 		text := last.Text()
 		if loc := outputPrefix.FindStringIndex(text); loc != nil {
-			return strings.TrimSpace(text[loc[1]:])
+			text = text[loc[1]:]
+			// Strip zero or more spaces followed by \n or a single space.
+			text = strings.TrimLeft(text, " ")
+			if len(text) > 0 && text[0] == '\n' {
+				text = text[1:]
+			}
+			return text
 		}
 	}
 	return "" // no suitable comment found
