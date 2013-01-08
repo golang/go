@@ -91,10 +91,19 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 
 	// TODO: cookies.  parsing them isn't exported, though.
 
+	uriStr := params["REQUEST_URI"]
+	if uriStr == "" {
+		// Fallback to SCRIPT_NAME, PATH_INFO and QUERY_STRING.
+		uriStr = params["SCRIPT_NAME"] + params["PATH_INFO"]
+		s := params["QUERY_STRING"]
+		if s != "" {
+			uriStr += "?" + s
+		}
+	}
 	if r.Host != "" {
 		// Hostname is provided, so we can reasonably construct a URL,
 		// even if we have to assume 'http' for the scheme.
-		rawurl := "http://" + r.Host + params["REQUEST_URI"]
+		rawurl := "http://" + r.Host + uriStr
 		url, err := url.Parse(rawurl)
 		if err != nil {
 			return nil, errors.New("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
@@ -104,7 +113,6 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	// Fallback logic if we don't have a Host header or the URL
 	// failed to parse
 	if r.URL == nil {
-		uriStr := params["REQUEST_URI"]
 		url, err := url.Parse(uriStr)
 		if err != nil {
 			return nil, errors.New("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
