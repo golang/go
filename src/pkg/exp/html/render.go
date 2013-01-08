@@ -14,7 +14,7 @@ import (
 
 type writer interface {
 	io.Writer
-	WriteByte(byte) error
+	io.ByteWriter
 	WriteString(string) (int, error)
 }
 
