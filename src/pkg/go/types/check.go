@@ -23,12 +23,12 @@ type checker struct {
 	files []*ast.File
 
 	// lazily initialized
-	pkgscope  *ast.Scope
-	firsterr  error
-	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
-	funclist  []function                    // list of functions/methods with correct signatures and non-empty bodies
-	funcsig   *Signature                    // signature of currently typechecked function
-	pos       []token.Pos                   // stack of expr positions; debugging support, used if trace is set
+	pkgscope *ast.Scope
+	firsterr error
+	initspec map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
+	funclist []function                        // list of functions/methods with correct signatures and non-empty bodies
+	funcsig  *Signature                        // signature of currently typechecked function
+	pos      []token.Pos                       // stack of expr positions; debugging support, used if trace is set
 }
 
 type function struct {
@@ -156,12 +156,12 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 		spec := obj.Decl.(*ast.ValueSpec)
 		iota := obj.Data.(int)
 		obj.Data = nil
-		// determine initialization expressions
-		values := spec.Values
-		if len(values) == 0 && obj.Kind == ast.Con {
-			values = check.initexprs[spec]
+		// determine spec for type and initialization expressions
+		init := spec
+		if len(init.Values) == 0 && obj.Kind == ast.Con {
+			init = check.initspec[spec]
 		}
-		check.valueSpec(spec.Pos(), obj, spec.Names, spec.Type, values, iota)
+		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
 
 	case ast.Typ:
 		typ := &NamedType{Obj: obj}
@@ -217,21 +217,21 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 }
 
 // assocInitvals associates "inherited" initialization expressions
-// with the corresponding *ast.ValueSpec in the check.initexprs map
+// with the corresponding *ast.ValueSpec in the check.initspec map
 // for constant declarations without explicit initialization expressions.
 //
 func (check *checker) assocInitvals(decl *ast.GenDecl) {
-	var values []ast.Expr
+	var last *ast.ValueSpec
 	for _, s := range decl.Specs {
 		if s, ok := s.(*ast.ValueSpec); ok {
 			if len(s.Values) > 0 {
-				values = s.Values
+				last = s
 			} else {
-				check.initexprs[s] = values
+				check.initspec[s] = last
 			}
 		}
 	}
-	if len(values) == 0 {
+	if last == nil {
 		check.invalidAST(decl.Pos(), "no initialization values provided")
 	}
 }
@@ -370,10 +370,10 @@ type bailout struct{}
 func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
 	// initialize checker
 	check := checker{
-		ctxt:      ctxt,
-		fset:      fset,
-		files:     sortedFiles(files),
-		initexprs: make(map[*ast.ValueSpec][]ast.Expr),
+		ctxt:     ctxt,
+		fset:     fset,
+		files:    sortedFiles(files),
+		initspec: make(map[*ast.ValueSpec]*ast.ValueSpec),
 	}
 
 	// handle panics
