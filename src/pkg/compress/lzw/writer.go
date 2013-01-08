@@ -13,7 +13,7 @@ import (
 
 // A writer is a buffered, flushable writer.
 type writer interface {
-	WriteByte(byte) error
+	io.ByteWriter
 	Flush() error
 }
 

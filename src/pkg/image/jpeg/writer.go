@@ -210,8 +210,8 @@ func init() {
 // writer is a buffered writer.
 type writer interface {
 	Flush() error
-	Write([]byte) (int, error)
-	WriteByte(byte) error
+	io.Writer
+	io.ByteWriter
 }
 
 // encoder encodes an image to the JPEG format.
