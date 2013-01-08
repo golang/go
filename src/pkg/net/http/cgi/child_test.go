@@ -82,6 +82,28 @@ func TestRequestWithoutHost(t *testing.T) {
 		t.Fatalf("unexpected nil URL")
 	}
 	if g, e := req.URL.String(), "/path?a=b"; e != g {
-		t.Errorf("expected URL %q; got %q", e, g)
+		t.Errorf("URL = %q; want %q", g, e)
+	}
+}
+
+func TestRequestWithoutRequestURI(t *testing.T) {
+	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"HTTP_HOST":       "example.com",
+		"REQUEST_METHOD":  "GET",
+		"SCRIPT_NAME":     "/dir/scriptname",
+		"PATH_INFO":       "/p1/p2",
+		"QUERY_STRING":    "a=1&b=2",
+		"CONTENT_LENGTH":  "123",
+	}
+	req, err := RequestFromMap(env)
+	if err != nil {
+		t.Fatalf("RequestFromMap: %v", err)
+	}
+	if req.URL == nil {
+		t.Fatalf("unexpected nil URL")
+	}
+	if g, e := req.URL.String(), "http://example.com/dir/scriptname/p1/p2?a=1&b=2"; e != g {
+		t.Errorf("URL = %q; want %q", g, e)
 	}
 }
