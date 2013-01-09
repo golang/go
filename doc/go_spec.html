@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 7, 2013",
+	"Subtitle": "Version of January 9, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1920,7 +1920,7 @@ _, y, _ := coord(p)  // coord() returns three values; only interested in y coord
 
 <p>
 Unlike regular variable declarations, a short variable declaration may redeclare variables provided they
-were originally declared in the same block with the same type, and at
+were originally declared earlier in the same block with the same type, and at
 least one of the non-<a href="#Blank_identifier">blank</a> variables is new.  As a consequence, redeclaration
 can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new
@@ -1930,6 +1930,7 @@ variable; it just assigns a new value to the original.
 <pre>
 field1, offset := nextField(str, 0)
 field2, offset := nextField(str, offset)  // redeclares offset
+a, a := 1, 2                              // illegal: double declaration of a or no new variable if a was declared elsewhere
 </pre>
 
 <p>
