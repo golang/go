@@ -97,6 +97,8 @@ struct Segment
 	Section*	sect;
 };
 
+#pragma incomplete struct Elf64_Shdr
+
 struct Section
 {
 	uchar	rwx;
