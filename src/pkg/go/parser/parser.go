@@ -149,7 +149,7 @@ func (p *parser) shortVarDecl(decl *ast.AssignStmt, list []ast.Expr) {
 				}
 			}
 		} else {
-			p.errorExpected(x.Pos(), "identifier")
+			p.errorExpected(x.Pos(), "identifier on left side of :=")
 		}
 	}
 	if n == 0 && p.mode&DeclarationErrors != 0 {
