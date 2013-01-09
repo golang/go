@@ -393,7 +393,18 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg 
 	// resolve identifiers
 	imp := ctxt.Import
 	if imp == nil {
-		imp = GcImport
+		// wrap GcImport to import packages only once by default.
+		imported := make(map[string]bool)
+		imp = func(imports map[string]*ast.Object, path string) (*ast.Object, error) {
+			if imported[path] && imports[path] != nil {
+				return imports[path], nil
+			}
+			pkg, err := GcImport(imports, path)
+			if err == nil {
+				imported[path] = true
+			}
+			return pkg, err
+		}
 	}
 	pkg, err = ast.NewPackage(fset, files, imp, Universe)
 	if err != nil {
