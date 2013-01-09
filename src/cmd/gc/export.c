@@ -220,10 +220,11 @@ dumpexportvar(Sym *s)
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if(debug['l'] < 2)
 				typecheckinl(n);
-			Bprint(bout, "\tfunc %#S%#hT { %#H }\n", s, t, n->inl);
+			// NOTE: The space after %#S here is necessary for ld's export data parser.
+			Bprint(bout, "\tfunc %#S %#hT { %#H }\n", s, t, n->inl);
 			reexportdeplist(n->inl);
 		} else
-			Bprint(bout, "\tfunc %#S%#hT\n", s, t);
+			Bprint(bout, "\tfunc %#S %#hT\n", s, t);
 	} else
 		Bprint(bout, "\tvar %#S %#T\n", s, t);
 }
@@ -282,10 +283,10 @@ dumpexporttype(Type *t)
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if(debug['l'] < 2)
 				typecheckinl(f->type->nname);
-			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
+			Bprint(bout, "\tfunc (%#T) %#hhS %#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
 			reexportdeplist(f->type->nname->inl);
 		} else
-			Bprint(bout, "\tfunc (%#T) %#hhS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
+			Bprint(bout, "\tfunc (%#T) %#hhS %#hT\n", getthisx(f->type)->type, f->sym, f->type);
 	}
 }
 
