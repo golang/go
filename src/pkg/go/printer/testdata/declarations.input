@@ -896,3 +896,28 @@ p, q,
 r string,
 		x ...int)
 }
+
+// omit superfluous parentheses in parameter lists
+func _((int))
+func _((((((int))))))
+func _(x (int))
+func _(x (((((int))))))
+func _(x, y (int))
+func _(x, y (((((int))))))
+
+func _() (int)
+func _() ((int))
+func _() ((((((int))))))
+
+func _() (x int)
+func _() (x (int))
+func _() (x (((((int))))))
+
+// special cases: some channel types require parentheses
+func _(x chan(<-chan int))
+func _(x (chan(<-chan int)))
+func _(x ((((chan(<-chan int))))))
+
+func _(x chan<-(chan int))
+func _(x (chan<-(chan int)))
+func _(x ((((chan<-(chan int))))))
