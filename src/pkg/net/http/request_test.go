@@ -267,6 +267,36 @@ func TestNewRequestContentLength(t *testing.T) {
 	}
 }
 
+type logWrites struct {
+	t   *testing.T
+	dst *[]string
+}
+
+func (l logWrites) WriteByte(c byte) error {
+	l.t.Fatalf("unexpected WriteByte call")
+	return nil
+}
+
+func (l logWrites) Write(p []byte) (n int, err error) {
+	*l.dst = append(*l.dst, string(p))
+	return len(p), nil
+}
+
+func TestRequestWriteBufferedWriter(t *testing.T) {
+	got := []string{}
+	req, _ := NewRequest("GET", "http://foo.com/", nil)
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET / HTTP/1.1\r\n",
+		"Host: foo.com\r\n",
+		"User-Agent: Go http package\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {

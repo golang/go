@@ -331,11 +331,20 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	}
 	// TODO(bradfitz): escape at least newlines in ruri?
 
-	bw := bufio.NewWriter(w)
-	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+	// Wrap the writer in a bufio Writer if it's not already buffered.
+	// Don't always call NewWriter, as that forces a bytes.Buffer
+	// and other small bufio Writers to have a minimum 4k buffer
+	// size.
+	var bw *bufio.Writer
+	if _, ok := w.(io.ByteWriter); !ok {
+		bw = bufio.NewWriter(w)
+		w = bw
+	}
+
+	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
 
 	// Header lines
-	fmt.Fprintf(bw, "Host: %s\r\n", host)
+	fmt.Fprintf(w, "Host: %s\r\n", host)
 
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
@@ -346,7 +355,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		}
 	}
 	if userAgent != "" {
-		fmt.Fprintf(bw, "User-Agent: %s\r\n", userAgent)
+		fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -354,33 +363,36 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	if err != nil {
 		return err
 	}
-	err = tw.WriteHeader(bw)
+	err = tw.WriteHeader(w)
 	if err != nil {
 		return err
 	}
 
 	// TODO: split long values?  (If so, should share code with Conn.Write)
-	err = req.Header.WriteSubset(bw, reqWriteExcludeHeader)
+	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
 	if err != nil {
 		return err
 	}
 
 	if extraHeaders != nil {
-		err = extraHeaders.Write(bw)
+		err = extraHeaders.Write(w)
 		if err != nil {
 			return err
 		}
 	}
 
-	io.WriteString(bw, "\r\n")
+	io.WriteString(w, "\r\n")
 
 	// Write body and trailer
-	err = tw.WriteBody(bw)
+	err = tw.WriteBody(w)
 	if err != nil {
 		return err
 	}
 
-	return bw.Flush()
+	if bw != nil {
+		return bw.Flush()
+	}
+	return nil
 }
 
 // ParseHTTPVersion parses a HTTP version string.
