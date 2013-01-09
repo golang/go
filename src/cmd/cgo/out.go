@@ -75,7 +75,11 @@ func (p *Package) writeDefs() {
 		conf.Fprint(fgo2, fset, def.Go)
 		fmt.Fprintf(fgo2, "\n\n")
 	}
-	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+	if *gccgo {
+		fmt.Fprintf(fgo2, "type _Ctype_void byte\n")
+	} else {
+		fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+	}
 
 	if *gccgo {
 		fmt.Fprintf(fc, cPrologGccgo)
@@ -1062,19 +1066,20 @@ const cPrologGccgo = `
 #include <string.h>
 
 typedef unsigned char byte;
+typedef intptr_t intgo;
 
 struct __go_string {
 	const unsigned char *__data;
-	int __length;
+	intgo __length;
 };
 
 typedef struct __go_open_array {
 	void* __values;
-	int __count;
-	int __capacity;
+	intgo __count;
+	intgo __capacity;
 } Slice;
 
-struct __go_string __go_byte_array_to_string(const void* p, int len);
+struct __go_string __go_byte_array_to_string(const void* p, intgo len);
 struct __go_open_array __go_string_to_byte_array (struct __go_string str);
 
 const char *CString(struct __go_string s) {
@@ -1082,15 +1087,15 @@ const char *CString(struct __go_string s) {
 }
 
 struct __go_string GoString(char *p) {
-	int len = (p != NULL) ? strlen(p) : 0;
+	intgo len = (p != NULL) ? strlen(p) : 0;
 	return __go_byte_array_to_string(p, len);
 }
 
-struct __go_string GoStringN(char *p, int n) {
+struct __go_string GoStringN(char *p, intgo n) {
 	return __go_byte_array_to_string(p, n);
 }
 
-Slice GoBytes(char *p, int n) {
+Slice GoBytes(char *p, intgo n) {
 	struct __go_string s = { (const unsigned char *)p, n };
 	return __go_string_to_byte_array(s);
 }
