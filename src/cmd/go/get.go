@@ -247,16 +247,17 @@ func downloadPackage(p *Package) error {
 	}
 
 	if p.build.SrcRoot == "" {
-		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
-		// Guard against people setting GOPATH=$GOROOT.  We have to use
-		// $GOROOT's directory hierarchy (src/pkg, not just src) in that case.
-		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 && list[0] != goroot {
-			p.build.SrcRoot = filepath.Join(list[0], "src")
-			p.build.PkgRoot = filepath.Join(list[0], "pkg")
-		} else {
-			p.build.SrcRoot = filepath.Join(goroot, "src", "pkg")
-			p.build.PkgRoot = filepath.Join(goroot, "pkg")
+		// Package not found.  Put in first directory of $GOPATH.
+		list := filepath.SplitList(buildContext.GOPATH)
+		if len(list) == 0 {
+			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: go help gopath")
 		}
+		// Guard against people setting GOPATH=$GOROOT.
+		if list[0] == goroot {
+			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath")
+		}
+		p.build.SrcRoot = filepath.Join(list[0], "src")
+		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
 	root := filepath.Join(p.build.SrcRoot, rootPath)
 	// If we've considered this repository already, don't do it again.
