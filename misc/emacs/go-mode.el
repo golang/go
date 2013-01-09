@@ -33,8 +33,8 @@
     ;; Operators (punctuation)
     (modify-syntax-entry ?+  "." st)
     (modify-syntax-entry ?-  "." st)
-    (modify-syntax-entry ?*  ". 23" st)                                    ; also part of comments
-    (modify-syntax-entry ?/ (if (featurep 'xemacs) ". 1456" ". 124b") st)  ; ditto
+    (modify-syntax-entry ?*  "." st)
+    (modify-syntax-entry ?/  "." st)
     (modify-syntax-entry ?%  "." st)
     (modify-syntax-entry ?&  "." st)
     (modify-syntax-entry ?|  "." st)
@@ -49,9 +49,6 @@
     (modify-syntax-entry ?\' "." st)
     (modify-syntax-entry ?`  "." st)
     (modify-syntax-entry ?\\ "." st)
-
-    ;; Newline is a comment-ender.
-    (modify-syntax-entry ?\n "> b" st)
 
     st)
   "Syntax table for Go mode.")
@@ -552,9 +549,8 @@ token on the line."
          (not (looking-at go-mode-non-terminating-keywords-regexp)))))))
 
 (defun go-mode-whitespace-p (char)
-  "Is newline, or char whitespace in the syntax table for go."
-  (or (eq char ?\n)
-      (= (char-syntax char) ?\ )))
+  "Is char whitespace in the syntax table for go."
+  (eq 32 (char-syntax char)))
 
 (defun go-mode-backward-skip-comments ()
   "Skip backward over comments and whitespace."
@@ -573,7 +569,7 @@ token on the line."
 		((go-mode-in-comment)
 		 ;; move point to char preceeding current comment
 		 (goto-char (1- (car (go-mode-in-comment)))))
-		
+
 		;; not in a comment or whitespace? we must be done.
 		(t (setq loop-guard nil)
 		   (forward-char 1)))))))
@@ -727,6 +723,8 @@ functions, and some types.  It also provides indentation that is
   ;; Comments
   (set (make-local-variable 'comment-start) "// ")
   (set (make-local-variable 'comment-end)   "")
+  (set (make-local-variable 'comment-use-syntax) nil)
+  (set (make-local-variable 'comment-start-skip) "\\([ \t]*\\)// ")
 
   ;; Go style
   (setq indent-tabs-mode t)
