@@ -601,10 +601,6 @@ install(char *dir)
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
-		if(xstrstr(bstr(&b), "clang") != nil) {
-			vadd(&gccargs, "-Wno-dangling-else");
-			vadd(&gccargs, "-Wno-unused-value");
-		}
 	}
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
