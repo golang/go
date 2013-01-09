@@ -400,7 +400,7 @@ func Valid(p []byte) bool {
 		} else {
 			_, size := DecodeRune(p[i:])
 			if size == 1 {
-				// All valid runes of size of 1 (those
+				// All valid runes of size 1 (those
 				// below RuneSelf) were handled above.
 				// This must be a RuneError.
 				return false
