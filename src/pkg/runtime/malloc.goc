@@ -829,7 +829,7 @@ runtime·stackalloc(uint32 n)
 	// allocator, assuming that inside malloc all the stack
 	// frames are small, so that all the stack allocations
 	// will be a single size, the minimum (right now, 5k).
-	if(m->mallocing || m->gcing || n == FixedStack) {
+	if(n == FixedStack || m->mallocing || m->gcing) {
 		if(n != FixedStack) {
 			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
 			runtime·throw("stackalloc");
@@ -852,7 +852,7 @@ runtime·stackfree(void *v, uintptr n)
 {
 	uint32 pos;
 
-	if(m->mallocing || m->gcing || n == FixedStack) {
+	if(n == FixedStack || m->mallocing || m->gcing) {
 		if(m->stackcachecnt == StackCacheSize)
 			stackcacherelease();
 		pos = m->stackcachepos;
