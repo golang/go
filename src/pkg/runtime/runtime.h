@@ -128,6 +128,13 @@ enum
 {
 	PtrSize = sizeof(void*),
 };
+enum
+{
+	// Per-M stack segment cache size.
+	StackCacheSize = 32,
+	// Global <-> per-M stack segment cache transfer batch size.
+	StackCacheBatch = 16,
+};
 
 /*
  * structures
@@ -262,7 +269,10 @@ struct	M
 	M*	schedlink;
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
-	FixAlloc	*stackalloc;
+	int32	stackinuse;
+	uint32	stackcachepos;
+	uint32	stackcachecnt;
+	void*	stackcache[StackCacheSize];
 	G*	lockedg;
 	G*	idleg;
 	uintptr	createstack[32];	// Stack that created this thread.

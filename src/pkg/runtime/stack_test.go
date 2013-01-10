@@ -34,6 +34,7 @@ package runtime_test
 import (
 	. "runtime"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -1526,3 +1527,51 @@ func stack4988() (uintptr, uintptr) { var buf [4988]byte; use(buf[:]); return St
 func stack4992() (uintptr, uintptr) { var buf [4992]byte; use(buf[:]); return Stackguard() }
 func stack4996() (uintptr, uintptr) { var buf [4996]byte; use(buf[:]); return Stackguard() }
 func stack5000() (uintptr, uintptr) { var buf [5000]byte; use(buf[:]); return Stackguard() }
+
+// TestStackMem measures per-thread stack segment cache behavior.
+// The test consumed up to 500MB in the past.
+func TestStackMem(t *testing.T) {
+	const (
+		BatchSize      = 32
+		BatchCount     = 512
+		ArraySize      = 1024
+		RecursionDepth = 128
+	)
+	if testing.Short() {
+		return
+	}
+	defer GOMAXPROCS(GOMAXPROCS(BatchSize))
+	s0 := new(MemStats)
+	ReadMemStats(s0)
+	for b := 0; b < BatchCount; b++ {
+		c := make(chan bool, BatchSize)
+		for i := 0; i < BatchSize; i++ {
+			go func() {
+				var f func(k int, a [ArraySize]byte)
+				f = func(k int, a [ArraySize]byte) {
+					if k == 0 {
+						time.Sleep(time.Millisecond)
+						return
+					}
+					f(k-1, a)
+				}
+				f(RecursionDepth, [ArraySize]byte{})
+				c <- true
+			}()
+		}
+		for i := 0; i < BatchSize; i++ {
+			<-c
+		}
+	}
+	s1 := new(MemStats)
+	ReadMemStats(s1)
+	consumed := s1.StackSys - s0.StackSys
+	t.Logf("Consumed %vMB for stack mem", consumed>>20)
+	estimate := uint64(8 * BatchSize * ArraySize * RecursionDepth) // 8 is to reduce flakiness.
+	if consumed > estimate {
+		t.Fatalf("Stack mem: want %v, got %v", estimate, consumed)
+	}
+	if s1.StackInuse > 1<<20 {
+		t.Fatalf("Stack inuse: want %v, got %v", 1<<20, s1.StackInuse)
+	}
+}
