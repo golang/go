@@ -10,6 +10,8 @@
 #include "stack.h"
 #include "mgc0.h"
 #include "race.h"
+#include "type.h"
+#include "typekind.h"
 
 enum {
 	Debug = 0,
@@ -21,6 +23,11 @@ enum {
 
 	handoffThreshold = 4,
 	IntermediateBufferCapacity = 64,
+
+	// Bits in type information
+	PRECISE = 1,
+	LOOP = 2,
+	PC_BITS = PRECISE | LOOP,
 };
 
 // Bits in per-word bitmap.
@@ -188,6 +195,9 @@ struct BufferList
 static BufferList *bufferList;
 
 static Lock lock;
+static Type *itabtype;
+
+static void enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj);
 
 // flushptrbuf moves data from the PtrTarget buffer to the work buffer.
 // The PtrTarget buffer contains blocks irrespective of whether the blocks have been marked or scanned,
@@ -210,10 +220,10 @@ static Lock lock;
 //  flushptrbuf
 //  (2nd part, mark and enqueue)
 static void
-flushptrbuf(PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj, BitTarget *bitbuf)
+flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj, BitTarget *bitbuf)
 {
 	byte *p, *arena_start, *obj;
-	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti;
+	uintptr size, *bitp, bits, shift, j, x, xbits, off, nobj, ti, n;
 	MSpan *s;
 	PageID k;
 	Obj *wp;
@@ -227,7 +237,9 @@ flushptrbuf(PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_
 	wbuf = *_wbuf;
 	nobj = *_nobj;
 
-	ptrbuf_end = ptrbuf + n;
+	ptrbuf_end = *ptrbufpos;
+	n = ptrbuf_end - ptrbuf;
+	*ptrbufpos = ptrbuf;
 
 	// If buffer is nearly full, get a new one.
 	if(wbuf == nil || nobj+n >= nelem(wbuf->obj)) {
@@ -326,8 +338,7 @@ flushptrbuf(PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_
 			if((bits & (bitAllocated|bitMarked)) != bitAllocated)
 				continue;
 
-			*bitbufpos = (BitTarget){obj, ti, bitp, shift};
-			bitbufpos++;
+			*bitbufpos++ = (BitTarget){obj, ti, bitp, shift};
 		}
 
 		runtime·lock(&lock);
@@ -378,6 +389,13 @@ flushptrbuf(PtrTarget *ptrbuf, uintptr n, Obj **_wp, Workbuf **_wbuf, uintptr *_
 // Program that scans the whole block and treats every block element as a potential pointer
 static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
 
+// Local variables of a program fragment or loop
+typedef struct Frame Frame;
+struct Frame {
+	uintptr count, elemsize, b;
+	uintptr *loop_or_ret;
+};
+
 // scanblock scans a block of n bytes starting at pointer b for references
 // to other objects, scanning any it finds recursively until there are no
 // unscanned objects left.  Instead of using an explicit recursion, it keeps
@@ -392,22 +410,17 @@ static void
 scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 {
 	byte *b, *arena_start, *arena_used;
-	uintptr n, i, end_b;
+	uintptr n, i, end_b, elemsize, ti, objti, count;
+	uintptr *pc, precise_type, nominal_size;
 	void *obj;
-
-	// TODO(atom): to be expanded in a next CL
-	struct Frame {uintptr count, b; uintptr *loop_or_ret;};
-	struct Frame stack_top;
-
-	uintptr *pc;
-
+	Type *t;
+	Slice *sliceptr;
+	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
 	BufferList *scanbuffers;
-	PtrTarget *ptrbuf, *ptrbuf_end;
+	PtrTarget *ptrbuf, *ptrbuf_end, *ptrbufpos;
 	BitTarget *bitbuf;
-
-	PtrTarget *ptrbufpos;
-
-	// End of local variable declarations.
+	Eface *eface;
+	Iface *iface;
 
 	if(sizeof(Workbuf) % PageSize != 0)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
@@ -415,6 +428,11 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	// Memory arena parameters.
 	arena_start = runtime·mheap.arena_start;
 	arena_used = runtime·mheap.arena_used;
+
+	stack_ptr = stack+nelem(stack)-1;
+	
+	precise_type = false;
+	nominal_size = 0;
 
 	// Allocate ptrbuf, bitbuf
 	{
@@ -445,50 +463,209 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			runtime·printf("scanblock %p %D\n", b, (int64)n);
 		}
 
-		// TODO(atom): to be replaced in a next CL
-		pc = defaultProg;
+		// TODO(atom): to be expanded in a next CL
+		if(ti != 0) {
+			pc = (uintptr*)(ti & ~(uintptr)PC_BITS);
+			precise_type = (ti & PRECISE);
+			stack_top.elemsize = pc[0];
+			if(!precise_type)
+				nominal_size = pc[0];
+			if(ti & LOOP) {
+				stack_top.count = 0;	// 0 means an infinite number of iterations
+				stack_top.loop_or_ret = pc+1;
+			} else {
+				stack_top.count = 1;
+			}
+		} else {
+			pc = defaultProg;
+		}
 
 		pc++;
 		stack_top.b = (uintptr)b;
 
 		end_b = (uintptr)b + n - PtrSize;
 
-	next_instr:
-		// TODO(atom): to be expanded in a next CL
+	for(;;) {
+		obj = nil;
+		objti = 0;
 		switch(pc[0]) {
-		case GC_DEFAULT_PTR:
-			while(true) {
-				i = stack_top.b;
-				if(i > end_b)
-					goto next_block;
-				stack_top.b += PtrSize;
+		case GC_PTR:
+			obj = *(void**)(stack_top.b + pc[1]);
+			objti = pc[2];
+			pc += 3;
+			break;
 
-				obj = *(byte**)i;
-				if(obj >= arena_start && obj < arena_used) {
-					*ptrbufpos = (PtrTarget){obj, 0};
-					ptrbufpos++;
-					if(ptrbufpos == ptrbuf_end)
-						goto flush_buffers;
+		case GC_SLICE:
+			sliceptr = (Slice*)(stack_top.b + pc[1]);
+			if(sliceptr->cap != 0) {
+				obj = sliceptr->array;
+				objti = pc[2] | PRECISE | LOOP;
+			}
+			pc += 3;
+			break;
+
+		case GC_APTR:
+			obj = *(void**)(stack_top.b + pc[1]);
+			pc += 2;
+			break;
+
+		case GC_STRING:
+			obj = *(void**)(stack_top.b + pc[1]);
+			pc += 2;
+			break;
+
+		case GC_EFACE:
+			eface = (Eface*)(stack_top.b + pc[1]);
+			pc += 2;
+			if(eface->type != nil && (eface->data >= arena_start && eface->data < arena_used)) {
+				t = eface->type;
+				if(t->size <= sizeof(void*)) {
+					if((t->kind & KindNoPointers))
+						break;
+
+					obj = eface->data;
+					if((t->kind & ~KindNoPointers) == KindPtr)
+						objti = (uintptr)((PtrType*)t)->elem->gc;
+				} else {
+					obj = eface->data;
+					objti = (uintptr)t->gc;
 				}
 			}
+			break;
+
+		case GC_IFACE:
+			iface = (Iface*)(stack_top.b + pc[1]);
+			pc += 2;
+			if(iface->tab == nil)
+				break;
+			
+			// iface->tab
+			if((void*)iface->tab >= arena_start && (void*)iface->tab < arena_used) {
+				*ptrbufpos++ = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
+				if(ptrbufpos == ptrbuf_end)
+					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
+			}
+
+			// iface->data
+			if(iface->data >= arena_start && iface->data < arena_used) {
+				t = iface->tab->type;
+				if(t->size <= sizeof(void*)) {
+					if((t->kind & KindNoPointers))
+						break;
+
+					obj = iface->data;
+					if((t->kind & ~KindNoPointers) == KindPtr)
+						objti = (uintptr)((PtrType*)t)->elem->gc;
+				} else {
+					obj = iface->data;
+					objti = (uintptr)t->gc;
+				}
+			}
+			break;
+
+		case GC_DEFAULT_PTR:
+			while((i = stack_top.b) <= end_b) {
+				stack_top.b += PtrSize;
+				obj = *(byte**)i;
+				if(obj >= arena_start && obj < arena_used) {
+					*ptrbufpos++ = (PtrTarget){obj, 0};
+					if(ptrbufpos == ptrbuf_end)
+						flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
+				}
+			}
+			goto next_block;
+
+		case GC_END:
+			if(--stack_top.count != 0) {
+				// Next iteration of a loop if possible.
+				elemsize = stack_top.elemsize;
+				stack_top.b += elemsize;
+				if(stack_top.b + elemsize <= end_b+PtrSize) {
+					pc = stack_top.loop_or_ret;
+					continue;
+				}
+				i = stack_top.b;
+			} else {
+				// Stack pop if possible.
+				if(stack_ptr+1 < stack+nelem(stack)) {
+					pc = stack_top.loop_or_ret;
+					stack_top = *(++stack_ptr);
+					continue;
+				}
+				i = (uintptr)b + nominal_size;
+			}
+			if(!precise_type) {
+				// Quickly scan [b+i,b+n) for possible pointers.
+				for(; i<=end_b; i+=PtrSize) {
+					if(*(byte**)i != nil) {
+						// Found a value that may be a pointer.
+						// Do a rescan of the entire block.
+						enqueue((Obj){b, n, 0}, &wbuf, &wp, &nobj);
+						break;
+					}
+				}
+			}
+			goto next_block;
+
+		case GC_ARRAY_START:
+			i = stack_top.b + pc[1];
+			count = pc[2];
+			elemsize = pc[3];
+			pc += 4;
+
+			// Stack push.
+			*stack_ptr-- = stack_top;
+			stack_top = (Frame){count, elemsize, i, pc};
+			continue;
+
+		case GC_ARRAY_NEXT:
+			if(--stack_top.count != 0) {
+				stack_top.b += stack_top.elemsize;
+				pc = stack_top.loop_or_ret;
+			} else {
+				// Stack pop.
+				stack_top = *(++stack_ptr);
+				pc += 1;
+			}
+			continue;
+
+		case GC_CALL:
+			// Stack push.
+			*stack_ptr-- = stack_top;
+			stack_top = (Frame){1, 0, stack_top.b + pc[1], pc+3 /*return address*/};
+			pc = (uintptr*)pc[2];  // target of the CALL instruction
+			continue;
+
+		case GC_MAP_PTR:
+			// TODO(atom): to be expanded in a next CL. Same as GC_APTR for now.
+			obj = *(void**)(stack_top.b + pc[1]);
+			pc += 3;
+			break;
+
+		case GC_REGION:
+			// TODO(atom): to be expanded in a next CL. Same as GC_APTR for now.
+			obj = (void*)(stack_top.b + pc[1]);
+			pc += 4;
+			break;
 
 		default:
 			runtime·throw("scanblock: invalid GC instruction");
 			return;
 		}
 
-	flush_buffers:
-		flushptrbuf(ptrbuf, ptrbufpos-ptrbuf, &wp, &wbuf, &nobj, bitbuf);
-		ptrbufpos = ptrbuf;
-		goto next_instr;
+		if(obj >= arena_start && obj < arena_used) {
+			*ptrbufpos++ = (PtrTarget){obj, objti};
+			if(ptrbufpos == ptrbuf_end)
+				flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
+		}
+	}
 
 	next_block:
 		// Done scanning [b, b+n).  Prepare for the next iteration of
-		// the loop by setting b, n to the parameters for the next block.
+		// the loop by setting b, n, ti to the parameters for the next block.
 
 		if(nobj == 0) {
-			flushptrbuf(ptrbuf, ptrbufpos-ptrbuf, &wp, &wbuf, &nobj, bitbuf);
-			ptrbufpos = ptrbuf;
+			flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
 
 			if(nobj == 0) {
 				if(!keepworking) {
@@ -509,6 +686,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		--wp;
 		b = wp->p;
 		n = wp->n;
+		ti = wp->ti;
 		nobj--;
 	}
 
@@ -1271,6 +1449,7 @@ gc(struct gc_args *args)
 	GCStats stats;
 	M *mp;
 	uint32 i;
+	Eface eface;
 
 	runtime·semacquire(&runtime·worldsema);
 	if(!args->force && mstats.heap_alloc < mstats.next_gc) {
@@ -1300,6 +1479,12 @@ gc(struct gc_args *args)
 	if(work.sweepfor == nil)
 		work.sweepfor = runtime·parforalloc(MaxGcproc);
 	m->locks--;
+
+	if(itabtype == nil) {
+		// get C pointer to the Go type "itab"
+		runtime·gc_itab_ptr(&eface);
+		itabtype = ((PtrType*)eface.type)->elem;
+	}
 
 	work.nwait = 0;
 	work.ndone = 0;
