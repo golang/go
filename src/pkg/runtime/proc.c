@@ -345,8 +345,6 @@ mcommoninit(M *mp)
 {
 	mp->id = runtime·sched.mcount++;
 	mp->fastrand = 0x49f6428aUL + mp->id + runtime·cputicks();
-	mp->stackalloc = runtime·malloc(sizeof(*mp->stackalloc));
-	runtime·FixAlloc_Init(mp->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
 
 	if(mp->mcache == nil)
 		mp->mcache = runtime·allocmcache();

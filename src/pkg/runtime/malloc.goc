@@ -748,9 +748,74 @@ runtime·cnew(Type *typ)
 	return ret;
 }
 
+typedef struct StackCacheNode StackCacheNode;
+struct StackCacheNode
+{
+	StackCacheNode *next;
+	void*	batch[StackCacheBatch-1];
+};
+
+static StackCacheNode *stackcache;
+static Lock stackcachemu;
+
+// stackcacherefill/stackcacherelease implement global cache of stack segments.
+// The cache is required to prevent unlimited growth of per-thread caches.
+static void
+stackcacherefill(void)
+{
+	StackCacheNode *n;
+	int32 i, pos;
+
+	runtime·lock(&stackcachemu);
+	n = stackcache;
+	if(n)
+		stackcache = n->next;
+	runtime·unlock(&stackcachemu);
+	if(n == nil) {
+		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch);
+		if(n == nil)
+			runtime·throw("out of memory (staccachekrefill)");
+		runtime·xadd64(&mstats.stacks_sys, FixedStack*StackCacheBatch);
+		for(i = 0; i < StackCacheBatch-1; i++)
+			n->batch[i] = (byte*)n + (i+1)*FixedStack;
+	}
+	pos = m->stackcachepos;
+	for(i = 0; i < StackCacheBatch-1; i++) {
+		m->stackcache[pos] = n->batch[i];
+		pos = (pos + 1) % StackCacheSize;
+	}
+	m->stackcache[pos] = n;
+	pos = (pos + 1) % StackCacheSize;
+	m->stackcachepos = pos;
+	m->stackcachecnt += StackCacheBatch;
+}
+
+static void
+stackcacherelease(void)
+{
+	StackCacheNode *n;
+	uint32 i, pos;
+
+	pos = (m->stackcachepos - m->stackcachecnt) % StackCacheSize;
+	n = (StackCacheNode*)m->stackcache[pos];
+	pos = (pos + 1) % StackCacheSize;
+	for(i = 0; i < StackCacheBatch-1; i++) {
+		n->batch[i] = m->stackcache[pos];
+		pos = (pos + 1) % StackCacheSize;
+	}
+	m->stackcachecnt -= StackCacheBatch;
+	runtime·lock(&stackcachemu);
+	n->next = stackcache;
+	stackcache = n;
+	runtime·unlock(&stackcachemu);
+}
+
 void*
 runtime·stackalloc(uint32 n)
 {
+	uint32 pos;
+	void *v;
+
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
 	// Doing so would cause a deadlock (issue 1547).
@@ -769,7 +834,15 @@ runtime·stackalloc(uint32 n)
 			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
 			runtime·throw("stackalloc");
 		}
-		return runtime·FixAlloc_Alloc(m->stackalloc);
+		if(m->stackcachecnt == 0)
+			stackcacherefill();
+		pos = m->stackcachepos;
+		pos = (pos - 1) % StackCacheSize;
+		v = m->stackcache[pos];
+		m->stackcachepos = pos;
+		m->stackcachecnt--;
+		m->stackinuse++;
+		return v;
 	}
 	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
 }
@@ -777,8 +850,16 @@ runtime·stackalloc(uint32 n)
 void
 runtime·stackfree(void *v, uintptr n)
 {
+	uint32 pos;
+
 	if(m->mallocing || m->gcing || n == FixedStack) {
-		runtime·FixAlloc_Free(m->stackalloc, v);
+		if(m->stackcachecnt == StackCacheSize)
+			stackcacherelease();
+		pos = m->stackcachepos;
+		m->stackcache[pos] = v;
+		m->stackcachepos = (pos + 1) % StackCacheSize;
+		m->stackcachecnt++;
+		m->stackinuse--;
 		return;
 	}
 	runtime·free(v);

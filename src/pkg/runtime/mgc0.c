@@ -1176,18 +1176,15 @@ cachestats(GCStats *stats)
 	MCache *c;
 	int32 i;
 	uint64 stacks_inuse;
-	uint64 stacks_sys;
 	uint64 *src, *dst;
 
 	if(stats)
 		runtime·memclr((byte*)stats, sizeof(*stats));
 	stacks_inuse = 0;
-	stacks_sys = 0;
 	for(mp=runtime·allm; mp; mp=mp->alllink) {
 		c = mp->mcache;
 		runtime·purgecachedstats(c);
-		stacks_inuse += mp->stackalloc->inuse;
-		stacks_sys += mp->stackalloc->sys;
+		stacks_inuse += mp->stackinuse*FixedStack;
 		if(stats) {
 			src = (uint64*)&mp->gcstats;
 			dst = (uint64*)stats;
@@ -1203,7 +1200,6 @@ cachestats(GCStats *stats)
 		}
 	}
 	mstats.stacks_inuse = stacks_inuse;
-	mstats.stacks_sys = stacks_sys;
 }
 
 // Structure of arguments passed to function gc().
