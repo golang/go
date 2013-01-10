@@ -1093,10 +1093,12 @@ runtime·exitsyscall(void)
 void
 runtime·oldstack(void)
 {
-	Stktop *top, old;
+	Stktop *top;
+	Gobuf label;
 	uint32 argsize;
 	uintptr cret;
-	byte *sp;
+	byte *sp, *old;
+	uintptr *src, *dst, *dstend;
 	G *gp;
 	int64 goid;
 
@@ -1104,24 +1106,29 @@ runtime·oldstack(void)
 
 	gp = m->curg;
 	top = (Stktop*)gp->stackbase;
+	old = (byte*)gp->stackguard - StackGuard;
 	sp = (byte*)top;
-	old = *top;
-	argsize = old.argsize;
+	argsize = top->argsize;
 	if(argsize > 0) {
 		sp -= argsize;
-		runtime·memmove(top->argp, sp, argsize);
+		dst = (uintptr*)top->argp;
+		dstend = dst + argsize/sizeof(*dst);
+		src = (uintptr*)sp;
+		while(dst < dstend)
+			*dst++ = *src++;
 	}
-	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+	goid = top->gobuf.g->goid;	// fault if g is bad, before gogo
 	USED(goid);
 
-	if(old.free != 0)
-		runtime·stackfree((byte*)gp->stackguard - StackGuard, old.free);
-	gp->stackbase = (uintptr)old.stackbase;
-	gp->stackguard = (uintptr)old.stackguard;
+	label = top->gobuf;
+	gp->stackbase = (uintptr)top->stackbase;
+	gp->stackguard = (uintptr)top->stackguard;
+	if(top->free != 0)
+		runtime·stackfree(old, top->free);
 
 	cret = m->cret;
 	m->cret = 0;  // drop reference
-	runtime·gogo(&old.gobuf, cret);
+	runtime·gogo(&label, cret);
 }
 
 // Called from reflect·call or from runtime·morestack when a new
@@ -1135,17 +1142,15 @@ runtime·newstack(void)
 	int32 framesize, minalloc, argsize;
 	Stktop *top;
 	byte *stk, *sp;
+	uintptr *src, *dst, *dstend;
 	G *gp;
 	Gobuf label;
 	bool reflectcall;
 	uintptr free;
 
 	framesize = m->moreframesize;
-	minalloc = m->moreframesize_minalloc;
 	argsize = m->moreargsize;
 	gp = m->curg;
-
-	m->moreframesize_minalloc = 0;
 
 	if(m->morebuf.sp < gp->stackguard - StackGuard) {
 		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, gp->stackguard - StackGuard);
@@ -1156,12 +1161,17 @@ runtime·newstack(void)
 		runtime·throw("runtime: stack split argsize");
 	}
 
+	minalloc = 0;
 	reflectcall = framesize==1;
-	if(reflectcall)
+	if(reflectcall) {
 		framesize = 0;
-
-	if(framesize < minalloc)
-		framesize = minalloc;
+		// moreframesize_minalloc is only set in runtime·gc(),
+		// that calls newstack via reflect·call().
+		minalloc = m->moreframesize_minalloc;
+		m->moreframesize_minalloc = 0;
+		if(framesize < minalloc)
+			framesize = minalloc;
+	}
 
 	if(reflectcall && minalloc == 0 && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > gp->stackguard) {
 		// special case: called from reflect.call (framesize==1)
@@ -1209,7 +1219,11 @@ runtime·newstack(void)
 	sp = (byte*)top;
 	if(argsize > 0) {
 		sp -= argsize;
-		runtime·memmove(sp, top->argp, argsize);
+		dst = (uintptr*)sp;
+		dstend = dst + argsize/sizeof(*dst);
+		src = (uintptr*)top->argp;
+		while(dst < dstend)
+			*dst++ = *src++;
 	}
 	if(thechar == '5') {
 		// caller would have saved its LR below args.
