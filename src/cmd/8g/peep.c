@@ -886,8 +886,6 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 
 	case ARET:	/* funny */
-		if(v->type == REGRET || v->type == FREGRET)
-			return 2;
 		if(s != A)
 			return 1;
 		return 3;
