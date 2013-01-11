@@ -1,9 +1,6 @@
-// $G $D/$F.go && $L $F.$A &&
-// ./$A.out >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1
-// rm -f tmp.go $A.out1
+// skip
 
-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
-// To run this test you must use the ./run shell script.
+// NOTE: the actual tests to run are rotate[0123].go
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -12,8 +9,8 @@
 // Generate test of shift and rotate by constants.
 // The output is compiled and run.
 //
-// The output takes around a gigabyte of memory to compile, link, and run
-// but it is only done during ./run, not in normal builds using run.go.
+// The integer type depends on the value of mode (rotate direction,
+// signedness).
 
 package main
 
@@ -37,9 +34,7 @@ func main() {
 		typ := fmt.Sprintf("int%d", 1<<logBits)
 		fmt.Fprint(b, strings.Replace(checkFunc, "XXX", typ, -1))
 		fmt.Fprint(b, strings.Replace(checkFunc, "XXX", "u"+typ, -1))
-		for mode := 0; mode < 1<<2; mode++ {
-			gentest(b, 1<<logBits, mode&1 != 0, mode&2 != 0)
-		}
+		gentest(b, 1<<logBits, mode&1 != 0, mode&2 != 0)
 	}
 }
 
