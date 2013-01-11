@@ -1,4 +1,4 @@
-// $G $D/pkg.go && pack grcS pkg.a pkg.$A 2> /dev/null && rm pkg.$A && $G -I. -u $D/main.go
+// $G $D/pkg.go && pack grcS pkg.a pkg.$A 2> /dev/null && rm pkg.$A && $G -I . -u $D/main.go
 // rm -f pkg.a
 
 // Copyright 2012 The Go Authors. All rights reserved.
