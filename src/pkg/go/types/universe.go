@@ -159,7 +159,7 @@ func def(kind ast.ObjKind, name string, typ Type) *ast.Object {
 			obj.Decl = Universe
 			obj.Type = typ
 			if typ, ok := typ.(*NamedType); ok {
-				typ.obj = obj
+				typ.AstObj = obj
 			}
 			if Universe.Insert(obj) != nil {
 				panic("internal error: double declaration")
