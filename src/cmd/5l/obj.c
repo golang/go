@@ -255,7 +255,12 @@ main(int argc, char *argv[])
 	doelf();
 	follow();
 	softfloat();
-	noops();
+	// 5l -Z means zero the stack frame on entry.
+	// This slows down function calls but can help avoid
+	// false positives in garbage collection.
+	if(debug['Z'])
+		dozerostk();
+	noops(); // generate stack split prolog, handle div/mod, etc.
 	dostkcheck();
 	span();
 	addexport();
