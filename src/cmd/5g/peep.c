@@ -1160,12 +1160,9 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 0;
 
 	case ARET:	/* funny */
-		if(v->type == D_REG)
-		if(v->reg == REGRET)
-			return 2;
-		if(v->type == D_FREG)
-		if(v->reg == FREGRET)
-			return 2;
+		if(s != A)
+			return 1;
+		return 3;
 
 	case ABL:	/* funny */
 		if(v->type == D_REG) {
