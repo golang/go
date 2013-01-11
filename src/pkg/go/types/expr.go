@@ -48,14 +48,14 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 				obj := name.Obj
 				obj.Type = typ
 				last = obj
-				params = append(params, &Var{obj.Name, typ})
+				params = append(params, &Var{Name: obj.Name, Type: typ})
 			}
 		} else {
 			// anonymous parameter
 			obj := ast.NewObj(ast.Var, "")
 			obj.Type = typ
 			last = obj
-			params = append(params, &Var{obj.Name, typ})
+			params = append(params, &Var{Name: obj.Name, Type: typ})
 		}
 	}
 	// For a variadic function, change the last parameter's object type
@@ -84,7 +84,7 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
 				continue
 			}
 			for _, name := range f.Names {
-				methods = append(methods, &Method{name.Name, sig})
+				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
 			}
 		} else {
 			// embedded interface
@@ -137,15 +137,24 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				fields = append(fields, &Field{name.Name, typ, tag, false})
+				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
 			}
 		} else {
 			// anonymous field
 			switch t := deref(typ).(type) {
 			case *Basic:
-				fields = append(fields, &Field{t.Name, typ, tag, true})
+				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
 			case *NamedType:
-				fields = append(fields, &Field{t.Obj.Name, typ, tag, true})
+				var name string
+				switch {
+				case t.obj != nil:
+					name = t.obj.Name
+				case t.Obj != nil:
+					name = t.Obj.GetName()
+				default:
+					unreachable()
+				}
+				fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, true})
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -183,9 +192,6 @@ func (check *checker) unary(x *operand, op token.Token) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		// (The spec doesn't specify whether the literal
-		// can be parenthesized or not, but all compilers
-		// accept parenthesized literals.)
 		if _, ok := unparen(x.expr).(*ast.CompositeLit); ok {
 			x.mode = variable
 		}
@@ -872,29 +878,33 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
 			if obj := ident.Obj; obj != nil && obj.Kind == ast.Pkg {
-				exp := obj.Data.(*ast.Scope).Lookup(sel)
+				exp := obj.Data.(*Package).Scope.Lookup(sel)
 				if exp == nil {
 					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
 					goto Error
 				}
-				// simplified version of the code for *ast.Idents:
-				// imported objects are always fully initialized
-				switch exp.Kind {
-				case ast.Con:
-					assert(exp.Data != nil)
+				// Simplified version of the code for *ast.Idents:
+				// - imported packages use types.Scope and types.Objects
+				// - imported objects are always fully initialized
+				switch exp := exp.(type) {
+				case *Const:
+					assert(exp.Val != nil)
 					x.mode = constant
-					x.val = exp.Data
-				case ast.Typ:
+					x.typ = exp.Type
+					x.val = exp.Val
+				case *TypeName:
 					x.mode = typexpr
-				case ast.Var:
+					x.typ = exp.Type
+				case *Var:
 					x.mode = variable
-				case ast.Fun:
+					x.typ = exp.Type
+				case *Func:
 					x.mode = value
+					x.typ = exp.Type
 				default:
 					unreachable()
 				}
 				x.expr = e
-				x.typ = exp.Type.(Type)
 				return
 			}
 		}
@@ -903,7 +913,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		mode, typ := lookupField(x.typ, sel)
+		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
 		if mode == invalid {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
@@ -921,7 +931,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// pointer vs non-pointer receivers => typechecker is too lenient
 			x.mode = value
 			x.typ = &Signature{
-				Params:     append([]*Var{{"", x.typ}}, sig.Params...),
+				Params:     append([]*Var{{Type: x.typ}}, sig.Params...),
 				Results:    sig.Results,
 				IsVariadic: sig.IsVariadic,
 			}

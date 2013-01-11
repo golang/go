@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements an ast.Importer for gc-generated object files.
-// TODO(gri) Eventually move this into a separate package outside types.
+// This file implements an Importer for gc-generated object files.
 
 package types
 
@@ -83,7 +82,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // be the beginning of the export data section. The filename is only used
 // in error messages.
 //
-func GcImportData(imports map[string]*ast.Object, filename, id string, data *bufio.Reader) (pkg *ast.Object, err error) {
+func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
 	// support for gcParser error handling
 	defer func() {
 		if r := recover(); r != nil {
@@ -104,7 +103,7 @@ func GcImportData(imports map[string]*ast.Object, filename, id string, data *buf
 // The imports map must contains all packages already imported.
 // GcImport satisfies the ast.Importer signature.
 //
-func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
+func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
 	if path == "unsafe" {
 		return Unsafe, nil
 	}
@@ -156,13 +155,13 @@ func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err
 // object/archive file and populates its scope with the results.
 type gcParser struct {
 	scanner scanner.Scanner
-	tok     rune                   // current token
-	lit     string                 // literal string; only valid for Ident, Int, String tokens
-	id      string                 // package id of imported package
-	imports map[string]*ast.Object // package id -> package object
+	tok     rune                // current token
+	lit     string              // literal string; only valid for Ident, Int, String tokens
+	id      string              // package id of imported package
+	imports map[string]*Package // package id -> package object
 }
 
-func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
+func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*Package) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
@@ -187,27 +186,45 @@ func (p *gcParser) next() {
 	}
 }
 
-// Declare inserts a named object of the given kind in scope.
-func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
-	// the object may have been imported before - if it exists
-	// already in the respective package scope, return that object
+func declConst(scope *Scope, name string) *Const {
+	// the constant may have been imported before - if it exists
+	// already in the respective scope, return that constant
 	if obj := scope.Lookup(name); obj != nil {
-		assert(obj.Kind == kind)
-		return obj
+		return obj.(*Const)
 	}
+	// otherwise create a new constant and insert it into the scope
+	obj := &Const{Name: name}
+	scope.Insert(obj)
+	return obj
+}
 
-	// otherwise create a new object and insert it into the package scope
-	obj := ast.NewObj(kind, name)
-	if scope.Insert(obj) != nil {
-		unreachable() // Lookup should have found it
+func declTypeName(scope *Scope, name string) *TypeName {
+	if obj := scope.Lookup(name); obj != nil {
+		return obj.(*TypeName)
 	}
+	obj := &TypeName{Name: name}
+	// a named type may be referred to before the underlying type
+	// is known - set it up
+	obj.Type = &NamedType{Obj: obj}
+	scope.Insert(obj)
+	return obj
+}
 
-	// if the new type object is a named type it may be referred
-	// to before the underlying type is known - set it up
-	if kind == ast.Typ {
-		obj.Type = &NamedType{Obj: obj}
+func declVar(scope *Scope, name string) *Var {
+	if obj := scope.Lookup(name); obj != nil {
+		return obj.(*Var)
 	}
+	obj := &Var{Name: name}
+	scope.Insert(obj)
+	return obj
+}
 
+func declFunc(scope *Scope, name string) *Func {
+	if obj := scope.Lookup(name); obj != nil {
+		return obj.(*Func)
+	}
+	obj := &Func{Name: name}
+	scope.Insert(obj)
 	return obj
 }
 
@@ -270,7 +287,7 @@ func (p *gcParser) expectKeyword(keyword string) {
 
 // ImportPath = string_lit .
 //
-func (p *gcParser) parsePkgId() *ast.Object {
+func (p *gcParser) parsePkgId() *Package {
 	id, err := strconv.Unquote(p.expect(scanner.String))
 	if err != nil {
 		p.error(err)
@@ -288,8 +305,7 @@ func (p *gcParser) parsePkgId() *ast.Object {
 
 	pkg := p.imports[id]
 	if pkg == nil {
-		pkg = ast.NewObj(ast.Pkg, "")
-		pkg.Data = ast.NewScope(nil)
+		pkg = &Package{Scope: new(Scope)}
 		p.imports[id] = pkg
 	}
 
@@ -315,7 +331,7 @@ func (p *gcParser) parseDotIdent() string {
 
 // ExportedName = "@" ImportPath "." dotIdentifier .
 //
-func (p *gcParser) parseExportedName() (*ast.Object, string) {
+func (p *gcParser) parseExportedName() (*Package, string) {
 	p.expect('@')
 	pkg := p.parsePkgId()
 	p.expect('.')
@@ -364,7 +380,7 @@ func (p *gcParser) parseMapType() Type {
 
 // Name = identifier | "?" | ExportedName  .
 //
-func (p *gcParser) parseName() (name string) {
+func (p *gcParser) parseName() (pkg *Package, name string) {
 	switch p.tok {
 	case scanner.Ident:
 		name = p.lit
@@ -374,7 +390,7 @@ func (p *gcParser) parseName() (name string) {
 		p.next()
 	case '@':
 		// exported name prefixed with package path
-		_, name = p.parseExportedName()
+		pkg, name = p.parseExportedName()
 	default:
 		p.error("name expected")
 	}
@@ -385,7 +401,7 @@ func (p *gcParser) parseName() (name string) {
 //
 func (p *gcParser) parseField() *Field {
 	var f Field
-	f.Name = p.parseName()
+	f.Pkg, f.Name = p.parseName()
 	f.Type = p.parseType()
 	if p.tok == scanner.String {
 		f.Tag = p.expect(scanner.String)
@@ -393,7 +409,7 @@ func (p *gcParser) parseField() *Field {
 	if f.Name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
 		if typ, ok := deref(f.Type).(*NamedType); ok && typ.Obj != nil {
-			f.Name = typ.Obj.Name
+			f.Name = typ.Obj.GetName()
 			f.IsAnonymous = true
 		} else {
 			p.errorf("anonymous field expected")
@@ -424,7 +440,7 @@ func (p *gcParser) parseStructType() Type {
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
 func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
-	name := p.parseName()
+	_, name := p.parseName()
 	if name == "" {
 		name = "_" // cannot access unnamed identifiers
 	}
@@ -437,7 +453,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	if p.tok == scanner.String {
 		p.next()
 	}
-	par = &Var{name, typ}
+	par = &Var{Name: name, Type: typ}
 	return
 }
 
@@ -475,7 +491,7 @@ func (p *gcParser) parseSignature() *Signature {
 	switch p.tok {
 	case scanner.Ident, '[', '*', '<', '@':
 		// single, unnamed result
-		results = []*Var{{"", p.parseType()}}
+		results = []*Var{{Type: p.parseType()}}
 	case '(':
 		// named or multiple result(s)
 		var variadic bool
@@ -505,9 +521,9 @@ func (p *gcParser) parseInterfaceType() Type {
 		if len(methods) > 0 {
 			p.expect(';')
 		}
-		name := p.parseName()
+		pkg, name := p.parseName()
 		typ := p.parseSignature()
-		methods = append(methods, &Method{name, typ})
+		methods = append(methods, &Method{QualifiedName{pkg, name}, typ})
 	}
 	p.expect('}')
 
@@ -566,7 +582,7 @@ func (p *gcParser) parseType() Type {
 	case '@':
 		// TypeName
 		pkg, name := p.parseExportedName()
-		return p.declare(pkg.Data.(*ast.Scope), ast.Typ, name).Type.(Type)
+		return declTypeName(pkg.Scope, name).Type
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
@@ -674,7 +690,7 @@ func (p *gcParser) parseNumber() (x operand) {
 func (p *gcParser) parseConstDecl() {
 	p.expectKeyword("const")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Con, name)
+	obj := declConst(pkg.Scope, name)
 	var x operand
 	if p.tok != '=' {
 		obj.Type = p.parseType()
@@ -732,7 +748,7 @@ func (p *gcParser) parseConstDecl() {
 		obj.Type = x.typ
 	}
 	assert(x.val != nil)
-	obj.Data = x.val
+	obj.Val = x.val
 }
 
 // TypeDecl = "type" ExportedName Type .
@@ -740,7 +756,7 @@ func (p *gcParser) parseConstDecl() {
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Typ, name)
+	obj := declTypeName(pkg.Scope, name)
 
 	// The type object may have been imported before and thus already
 	// have a type associated with it. We still need to parse the type
@@ -759,17 +775,15 @@ func (p *gcParser) parseTypeDecl() {
 func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Var, name)
+	obj := declVar(pkg.Scope, name)
 	obj.Type = p.parseType()
 }
 
 // Func = Signature [ Body ] .
 // Body = "{" ... "}" .
 //
-func (p *gcParser) parseFunc(scope *ast.Scope, name string) *Signature {
-	obj := p.declare(scope, ast.Fun, name)
+func (p *gcParser) parseFunc() *Signature {
 	sig := p.parseSignature()
-	obj.Type = sig
 	if p.tok == '{' {
 		p.next()
 		for i := 1; i > 0; p.next() {
@@ -794,25 +808,26 @@ func (p *gcParser) parseMethodDecl() {
 	p.expect(')')
 
 	// determine receiver base type object
-	typ := recv.Type.(Type)
+	typ := recv.Type
 	if ptr, ok := typ.(*Pointer); ok {
 		typ = ptr.Base
 	}
-	obj := typ.(*NamedType).Obj
+	base := typ.(*NamedType)
 
-	// determine base type scope
-	var scope *ast.Scope
-	if obj.Data != nil {
-		scope = obj.Data.(*ast.Scope)
-	} else {
-		scope = ast.NewScope(nil)
-		obj.Data = scope
-	}
-
-	// declare method in base type scope
-	name := p.parseName() // unexported method names in imports are qualified with their package.
-	sig := p.parseFunc(scope, name)
+	// parse method name, signature, and possibly inlined body
+	pkg, name := p.parseName() // unexported method names in imports are qualified with their package.
+	sig := p.parseFunc()
 	sig.Recv = recv
+
+	// add method to type unless type was imported before
+	// and method exists already
+	// TODO(gri) investigate if this can be avoided
+	for _, m := range base.Methods {
+		if m.Name == name {
+			return // method was added before
+		}
+	}
+	base.Methods = append(base.Methods, &Method{QualifiedName{pkg, name}, sig})
 }
 
 // FuncDecl = "func" ExportedName Func .
@@ -820,7 +835,8 @@ func (p *gcParser) parseMethodDecl() {
 func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	pkg, name := p.parseExportedName()
-	p.parseFunc(pkg.Data.(*ast.Scope), name)
+	typ := p.parseFunc()
+	declFunc(pkg.Scope, name).Type = typ
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
@@ -852,7 +868,7 @@ func (p *gcParser) parseDecl() {
 // Export        = "PackageClause { Decl } "$$" .
 // PackageClause = "package" identifier [ "safe" ] "\n" .
 //
-func (p *gcParser) parseExport() *ast.Object {
+func (p *gcParser) parseExport() *Package {
 	p.expectKeyword("package")
 	name := p.expect(scanner.Ident)
 	if p.tok != '\n' {
@@ -865,8 +881,7 @@ func (p *gcParser) parseExport() *ast.Object {
 
 	pkg := p.imports[p.id]
 	if pkg == nil {
-		pkg = ast.NewObj(ast.Pkg, name)
-		pkg.Data = ast.NewScope(nil)
+		pkg = &Package{Name: name, Scope: new(Scope)}
 		p.imports[p.id] = pkg
 	}
 

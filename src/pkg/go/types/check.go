@@ -9,9 +9,7 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/scanner"
 	"go/token"
-	"sort"
 )
 
 // enable for debugging
@@ -23,6 +21,7 @@ type checker struct {
 	files []*ast.File
 
 	// lazily initialized
+	pkg      *Package
 	pkgscope *ast.Scope
 	firsterr error
 	initspec map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
@@ -164,7 +163,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
 
 	case ast.Typ:
-		typ := &NamedType{Obj: obj}
+		typ := &NamedType{obj: obj}
 		obj.Type = typ // "mark" object so recursion terminates
 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
 		// typecheck associated method signatures
@@ -188,14 +187,18 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 				}
 			}
 			// typecheck method signatures
+			var methods []*Method
 			for _, obj := range scope.Objects {
 				mdecl := obj.Decl.(*ast.FuncDecl)
 				sig := check.typ(mdecl.Type, cycleOk).(*Signature)
 				params, _ := check.collectParams(mdecl.Recv, false)
 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
 				obj.Type = sig
+				methods = append(methods, &Method{QualifiedName{check.pkg, obj.Name}, sig})
 				check.later(obj, sig, mdecl.Body)
 			}
+			typ.Methods = methods
+			obj.Data = nil // don't use obj.Data later, accidentally
 		}
 
 	case ast.Fun:
@@ -346,33 +349,15 @@ func (check *checker) iterate(f func(*checker, ast.Decl)) {
 	}
 }
 
-// sortedFiles returns the sorted list of package files given a package file map.
-func sortedFiles(m map[string]*ast.File) []*ast.File {
-	keys := make([]string, len(m))
-	i := 0
-	for k, _ := range m {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-
-	files := make([]*ast.File, len(m))
-	for i, k := range keys {
-		files[i] = m[k]
-	}
-
-	return files
-}
-
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
-func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
+func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (astpkg *ast.Package, pkg *Package, err error) {
 	// initialize checker
 	check := checker{
 		ctxt:     ctxt,
 		fset:     fset,
-		files:    sortedFiles(files),
+		files:    files,
 		initspec: make(map[*ast.ValueSpec]*ast.ValueSpec),
 	}
 
@@ -394,8 +379,9 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg 
 	imp := ctxt.Import
 	if imp == nil {
 		// wrap GcImport to import packages only once by default.
+		// TODO(gri) move this into resolve
 		imported := make(map[string]bool)
-		imp = func(imports map[string]*ast.Object, path string) (*ast.Object, error) {
+		imp = func(imports map[string]*Package, path string) (*Package, error) {
 			if imported[path] && imports[path] != nil {
 				return imports[path], nil
 			}
@@ -406,17 +392,13 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg 
 			return pkg, err
 		}
 	}
-	pkg, err = ast.NewPackage(fset, files, imp, Universe)
-	if err != nil {
-		if list, _ := err.(scanner.ErrorList); len(list) > 0 {
-			for _, err := range list {
-				check.err(err)
-			}
-		} else {
-			check.err(err)
-		}
-	}
-	check.pkgscope = pkg.Scope
+	astpkg, pkg = check.resolve(imp)
+
+	// Imported packages and all types refer to types.Objects,
+	// the current package files' AST uses ast.Objects.
+	// Use an ast.Scope for the current package scope.
+	check.pkg = pkg
+	check.pkgscope = astpkg.Scope
 
 	// determine missing constant initialization expressions
 	// and associate methods with types

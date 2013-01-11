@@ -51,7 +51,7 @@ func compile(t *testing.T, dirname, filename string) string {
 
 // Use the same global imports map for all tests. The effect is
 // as if all tested packages were imported into a single package.
-var imports = make(map[string]*ast.Object)
+var imports = make(map[string]*Package)
 
 func testPath(t *testing.T, path string) bool {
 	t0 := time.Now()
@@ -147,12 +147,34 @@ func TestGcImportedTypes(t *testing.T) {
 			continue
 		}
 
-		obj := pkg.Data.(*ast.Scope).Lookup(objName)
-		if obj.Kind != test.kind {
-			t.Errorf("%s: got kind = %q; want %q", test.name, obj.Kind, test.kind)
+		obj := pkg.Scope.Lookup(objName)
+
+		// TODO(gri) should define an accessor on Object
+		var kind ast.ObjKind
+		var typ Type
+		switch obj := obj.(type) {
+		case *Const:
+			kind = ast.Con
+			typ = obj.Type
+		case *TypeName:
+			kind = ast.Typ
+			typ = obj.Type
+		case *Var:
+			kind = ast.Var
+			typ = obj.Type
+		case *Func:
+			kind = ast.Fun
+			typ = obj.Type
+		default:
+			unreachable()
 		}
-		typ := typeString(underlying(obj.Type.(Type)))
-		if typ != test.typ {
+
+		if kind != test.kind {
+			t.Errorf("%s: got kind = %q; want %q", test.name, kind, test.kind)
+		}
+
+		str := typeString(underlying(typ))
+		if str != test.typ {
 			t.Errorf("%s: got type = %q; want %q", test.name, typ, test.typ)
 		}
 	}

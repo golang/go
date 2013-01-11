@@ -91,9 +91,15 @@ type Slice struct {
 	Elt Type
 }
 
+// A QualifiedName is a name qualified with the package the declared the name.
+type QualifiedName struct {
+	Pkg  *Package // Pkg.Path == "" for current (non-imported) package
+	Name string   // unqualified type name for anonymous fields
+}
+
 // A Field represents a field of a struct.
 type Field struct {
-	Name        string // unqualified type name for anonymous fields
+	QualifiedName
 	Type        Type
 	Tag         string
 	IsAnonymous bool
@@ -118,12 +124,6 @@ func (typ *Struct) fieldIndex(name string) int {
 type Pointer struct {
 	implementsType
 	Base Type
-}
-
-// A Variable represents a variable (including function parameters and results).
-type Var struct {
-	Name string
-	Type Type
 }
 
 // A Result represents a (multi-value) function call result.
@@ -183,9 +183,9 @@ type builtin struct {
 	isStatement bool // true if the built-in is valid as an expression statement
 }
 
-// A Method represents a method of an interface.
+// A Method represents a method.
 type Method struct {
-	Name string
+	QualifiedName
 	Type *Signature
 }
 
@@ -211,8 +211,11 @@ type Chan struct {
 // A NamedType represents a named type as declared in a type declaration.
 type NamedType struct {
 	implementsType
-	Obj        *ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
+	// TODO(gri) remove obj once we have moved away from ast.Objects
+	obj        *ast.Object // corresponding declared object (current package)
+	Obj        Object      // corresponding declared object (imported package)
 	Underlying Type        // nil if not fully declared yet; never a *NamedType
+	Methods    []*Method   // TODO(gri) consider keeping them in sorted order
 }
 
 // All concrete types embed implementsType which

@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	aType            implementsType
-	Universe, unsafe *ast.Scope
-	Unsafe           *ast.Object // package unsafe
+	aType    implementsType
+	Universe *ast.Scope
+	Unsafe   *Package // package unsafe
 )
 
 // Predeclared types, indexed by BasicKind.
@@ -102,35 +102,31 @@ func init() {
 	Universe = ast.NewScope(nil)
 
 	// unsafe package and its scope
-	unsafe = ast.NewScope(nil)
-	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
-	Unsafe.Data = unsafe
+	Unsafe = &Package{Name: "unsafe", Scope: new(Scope)}
 
 	// predeclared types
 	for _, t := range Typ {
-		def(ast.Typ, t.Name).Type = t
+		def(ast.Typ, t.Name, t)
 	}
 	for _, t := range aliases {
-		def(ast.Typ, t.Name).Type = t
+		def(ast.Typ, t.Name, t)
 	}
 
 	// error type
 	{
-		err := &Method{"Error", &Signature{Results: []*Var{{"", Typ[String]}}}}
-		obj := def(ast.Typ, "error")
-		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
+		err := &Method{QualifiedName{Name: "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
+		def(ast.Typ, "error", &NamedType{Underlying: &Interface{Methods: []*Method{err}}})
 	}
 
 	// predeclared constants
 	for _, t := range predeclaredConstants {
-		obj := def(ast.Con, t.name)
-		obj.Type = Typ[t.kind]
+		obj := def(ast.Con, t.name, Typ[t.kind])
 		obj.Data = t.val
 	}
 
 	// predeclared functions
 	for _, f := range predeclaredFunctions {
-		def(ast.Fun, f.name).Type = f
+		def(ast.Fun, f.name, f)
 	}
 
 	universeIota = Universe.Lookup("iota")
@@ -140,19 +136,36 @@ func init() {
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
 //
-func def(kind ast.ObjKind, name string) *ast.Object {
-	obj := ast.NewObj(kind, name)
+func def(kind ast.ObjKind, name string, typ Type) *ast.Object {
 	// insert non-internal objects into respective scope
 	if strings.Index(name, " ") < 0 {
-		scope := Universe
 		// exported identifiers go into package unsafe
 		if ast.IsExported(name) {
-			scope = unsafe
+			var obj Object
+			switch kind {
+			case ast.Typ:
+				obj = &TypeName{Name: name, Type: typ}
+			case ast.Fun:
+				obj = &Func{Name: name, Type: typ}
+			default:
+				unreachable()
+
+			}
+			if Unsafe.Scope.Insert(obj) != nil {
+				panic("internal error: double declaration")
+			}
+		} else {
+			obj := ast.NewObj(kind, name)
+			obj.Decl = Universe
+			obj.Type = typ
+			if typ, ok := typ.(*NamedType); ok {
+				typ.obj = obj
+			}
+			if Universe.Insert(obj) != nil {
+				panic("internal error: double declaration")
+			}
+			return obj
 		}
-		if scope.Insert(obj) != nil {
-			panic("internal error: double declaration")
-		}
-		obj.Decl = scope
 	}
-	return obj
+	return nil
 }
