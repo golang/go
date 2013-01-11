@@ -369,16 +369,7 @@ func (db *DB) exec(query string, args []interface{}) (res Result, err error) {
 	}
 	defer sti.Close()
 
-	dargs, err := driverArgs(sti, args)
-	if err != nil {
-		return nil, err
-	}
-
-	resi, err := sti.Exec(dargs)
-	if err != nil {
-		return nil, err
-	}
-	return result{resi}, nil
+	return resultFromStatement(sti, args...)
 }
 
 // Query executes a query that returns rows, typically a SELECT.
@@ -608,16 +599,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	}
 	defer sti.Close()
 
-	dargs, err := driverArgs(sti, args)
-	if err != nil {
-		return nil, err
-	}
-
-	resi, err := sti.Exec(dargs)
-	if err != nil {
-		return nil, err
-	}
-	return result{resi}, nil
+	return resultFromStatement(sti, args...)
 }
 
 // Query executes a query that returns rows, typically a SELECT.
@@ -682,6 +664,10 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	}
 	defer releaseConn(nil)
 
+	return resultFromStatement(si, args...)
+}
+
+func resultFromStatement(si driver.Stmt, args ...interface{}) (Result, error) {
 	// -1 means the driver doesn't know how to count the number of
 	// placeholders, so we won't sanity check input here and instead let the
 	// driver deal with errors.
