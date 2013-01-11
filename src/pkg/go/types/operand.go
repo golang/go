@@ -222,11 +222,11 @@ type embeddedType struct {
 }
 
 // lookupFieldBreadthFirst searches all types in list for a single entry (field
-// or method) of the given name. If such a field is found, the result describes
-// the field mode and type; otherwise the result mode is invalid.
+// or method) of the given name from the given package. If such a field is found,
+// the result describes the field mode and type; otherwise the result mode is invalid.
 // (This function is similar in structure to FieldByNameFunc in reflect/type.go)
 //
-func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult) {
+func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res lookupResult) {
 	// visited records the types that have been searched already.
 	visited := make(map[*NamedType]bool)
 
@@ -265,20 +265,23 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
 			visited[typ] = true
 
 			// look for a matching attached method
-			if data := typ.Obj.Data; data != nil {
-				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
-					assert(obj.Type != nil)
-					if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
+			if typ.obj != nil {
+				assert(typ.obj.Data == nil) // methods must have been moved to typ.Methods
+			}
+			for _, m := range typ.Methods {
+				if identicalNames(name, m.QualifiedName) {
+					assert(m.Type != nil)
+					if !potentialMatch(e.multiples, value, m.Type) {
 						return // name collision
 					}
 				}
 			}
 
-			switch typ := underlying(typ).(type) {
+			switch t := typ.Underlying.(type) {
 			case *Struct:
 				// look for a matching field and collect embedded types
-				for _, f := range typ.Fields {
-					if f.Name == name {
+				for _, f := range t.Fields {
+					if identicalNames(name, f.QualifiedName) {
 						assert(f.Type != nil)
 						if !potentialMatch(e.multiples, variable, f.Type) {
 							return // name collision
@@ -301,8 +304,8 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
 
 			case *Interface:
 				// look for a matching method
-				for _, m := range typ.Methods {
-					if m.Name == name {
+				for _, m := range t.Methods {
+					if identicalNames(name, m.QualifiedName) {
 						assert(m.Type != nil)
 						if !potentialMatch(e.multiples, value, m.Type) {
 							return // name collision
@@ -348,23 +351,27 @@ func findType(list []embeddedType, typ *NamedType) *embeddedType {
 	return nil
 }
 
-func lookupField(typ Type, name string) (operandMode, Type) {
+func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	typ = deref(typ)
 
-	if typ, ok := typ.(*NamedType); ok {
-		if data := typ.Obj.Data; data != nil {
-			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
-				assert(obj.Type != nil)
-				return value, obj.Type.(Type)
+	if t, ok := typ.(*NamedType); ok {
+		if t.obj != nil {
+			assert(t.obj.Data == nil) // methods must have been moved to t.Methods
+		}
+		for _, m := range t.Methods {
+			if identicalNames(name, m.QualifiedName) {
+				assert(m.Type != nil)
+				return value, m.Type
 			}
 		}
+		typ = t.Underlying
 	}
 
-	switch typ := underlying(typ).(type) {
+	switch t := typ.(type) {
 	case *Struct:
 		var next []embeddedType
-		for _, f := range typ.Fields {
-			if f.Name == name {
+		for _, f := range t.Fields {
+			if identicalNames(name, f.QualifiedName) {
 				return variable, f.Type
 			}
 			if f.IsAnonymous {
@@ -380,8 +387,8 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 		}
 
 	case *Interface:
-		for _, m := range typ.Methods {
-			if m.Name == name {
+		for _, m := range t.Methods {
+			if identicalNames(name, m.QualifiedName) {
 				return value, m.Type
 			}
 		}

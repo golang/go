@@ -88,18 +88,15 @@ func splitError(err error) (pos, msg string) {
 	return
 }
 
-func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, []error) {
-	files := make(map[string]*ast.File)
+func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File, []error) {
+	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
-		if _, exists := files[filename]; exists {
-			t.Fatalf("%s: duplicate file %s", testname, filename)
-		}
 		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors)
 		if file == nil {
 			t.Fatalf("%s: could not parse file %s", testname, filename)
 		}
-		files[filename] = file
+		files = append(files, file)
 		if err != nil {
 			if list, _ := err.(scanner.ErrorList); len(list) > 0 {
 				for _, err := range list {
@@ -121,10 +118,11 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func errMap(t *testing.T, testname string, files map[string]*ast.File) map[string][]string {
+func errMap(t *testing.T, testname string, files []*ast.File) map[string][]string {
 	errmap := make(map[string][]string)
 
-	for filename := range files {
+	for _, file := range files {
+		filename := fset.Position(file.Package).Filename
 		src, err := ioutil.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("%s: could not read %s", testname, filename)
@@ -236,8 +234,8 @@ func TestCheck(t *testing.T) {
 	// Declare builtins for testing.
 	// Not done in an init func to avoid an init race with
 	// the construction of the Universe var.
-	def(ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
-	def(ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
+	def(ast.Fun, "assert", &builtin{aType, _Assert, "assert", 1, false, true})
+	def(ast.Fun, "trace", &builtin{aType, _Trace, "trace", 0, true, true})
 
 	// For easy debugging w/o changing the testing code,
 	// if there is a local test file, only test that file.

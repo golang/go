@@ -6,6 +6,8 @@
 
 package types
 
+import "go/ast"
+
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -126,11 +128,10 @@ func isIdentical(x, y Type) bool {
 		// and identical tags. Two anonymous fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
-			// TODO(gri) handle structs from different packages
 			if len(x.Fields) == len(y.Fields) {
 				for i, f := range x.Fields {
 					g := y.Fields[i]
-					if f.Name != g.Name ||
+					if !identicalNames(f.QualifiedName, g.QualifiedName) ||
 						!isIdentical(f.Type, g.Type) ||
 						f.Tag != g.Tag ||
 						f.IsAnonymous != g.IsAnonymous {
@@ -183,11 +184,29 @@ func isIdentical(x, y Type) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*NamedType); ok {
-			return x.Obj == y.Obj
+			switch {
+			case x.obj != nil:
+				return x.obj == y.obj
+			case x.Obj != nil:
+				return x.Obj == y.Obj
+			default:
+				unreachable()
+			}
 		}
 	}
 
 	return false
+}
+
+// identicalNames returns true if the names a and b are equal.
+func identicalNames(a, b QualifiedName) bool {
+	if a.Name != b.Name {
+		return false
+	}
+	// a.Name == b.Name
+	// TODO(gri) Guarantee that packages are canonicalized
+	//           and then we can compare p == q directly.
+	return ast.IsExported(a.Name) || a.Pkg.Path == b.Pkg.Path
 }
 
 // identicalTypes returns true if both lists a and b have the
@@ -212,12 +231,13 @@ func identicalMethods(a, b []*Method) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	m := make(map[string]*Method)
+	m := make(map[QualifiedName]*Method)
 	for _, x := range a {
-		m[x.Name] = x
+		assert(m[x.QualifiedName] == nil) // method list must not have duplicate entries
+		m[x.QualifiedName] = x
 	}
 	for _, y := range b {
-		if x := m[y.Name]; x == nil || !isIdentical(x.Type, y.Type) {
+		if x := m[y.QualifiedName]; x == nil || !isIdentical(x.Type, y.Type) {
 			return false
 		}
 	}
@@ -275,12 +295,13 @@ func defaultType(typ Type) Type {
 // is missing or simply has the wrong type.
 //
 func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+	// TODO(gri): this needs to correctly compare method names (taking package into account)
 	// TODO(gri): distinguish pointer and non-pointer receivers
 	// an interface type implements T if it has no methods with conflicting signatures
 	// Note: This is stronger than the current spec. Should the spec require this?
 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
 		for _, m := range T.Methods {
-			mode, sig := lookupField(ityp, m.Name) // TODO(gri) no need to go via lookupField
+			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
 			if mode != invalid && !isIdentical(sig, m.Type) {
 				return m, true
 			}
@@ -290,7 +311,7 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 
 	// a concrete type implements T if it implements all methods of T.
 	for _, m := range T.Methods {
-		mode, sig := lookupField(typ, m.Name)
+		mode, sig := lookupField(typ, m.QualifiedName)
 		if mode == invalid {
 			return m, false
 		}

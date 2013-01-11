@@ -311,7 +311,16 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		writeType(buf, t.Elt)
 
 	case *NamedType:
-		buf.WriteString(t.Obj.Name)
+		var s string
+		switch {
+		case t.obj != nil:
+			s = t.obj.Name
+		case t.Obj != nil:
+			s = t.Obj.GetName()
+		default:
+			s = "<NamedType w/o object>"
+		}
+		buf.WriteString(s)
 
 	default:
 		fmt.Fprintf(buf, "<type %T>", t)
