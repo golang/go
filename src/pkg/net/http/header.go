@@ -54,6 +54,16 @@ func (h Header) Write(w io.Writer) error {
 	return h.WriteSubset(w, nil)
 }
 
+func (h Header) clone() Header {
+	h2 := make(Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
+	}
+	return h2
+}
+
 var timeFormats = []string{
 	TimeFormat,
 	time.RFC850,
