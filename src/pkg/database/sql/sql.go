@@ -373,6 +373,7 @@ func (db *DB) exec(query string, args []interface{}) (res Result, err error) {
 }
 
 // Query executes a query that returns rows, typically a SELECT.
+// The args are for any placeholder parameters in the query.
 func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
 	stmt, err := db.Prepare(query)
 	if err != nil {
