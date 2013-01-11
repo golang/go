@@ -5,7 +5,6 @@
 package net
 
 import (
-	"runtime"
 	"time"
 )
 
@@ -113,30 +112,16 @@ func dialAddr(net, addr string, addri Addr, deadline time.Time) (c Conn, err err
 	return
 }
 
-const useDialTimeoutRace = runtime.GOOS == "windows" || runtime.GOOS == "plan9"
-
 // DialTimeout acts like Dial but takes a timeout.
 // The timeout includes name resolution, if required.
 func DialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
-	if useDialTimeoutRace {
-		// On windows and plan9, use the relatively inefficient
-		// goroutine-racing implementation of DialTimeout that
-		// doesn't push down deadlines to the pollster.
-		// TODO: remove this once those are implemented.
-		return dialTimeoutRace(net, addr, timeout)
-	}
-	deadline := time.Now().Add(timeout)
-	_, addri, err := resolveNetAddr("dial", net, addr, deadline)
-	if err != nil {
-		return nil, err
-	}
-	return dialAddr(net, addr, addri, deadline)
+	return dialTimeout(net, addr, timeout)
 }
 
 // dialTimeoutRace is the old implementation of DialTimeout, still used
 // on operating systems where the deadline hasn't been pushed down
 // into the pollserver.
-// TODO: fix this on Windows and plan9.
+// TODO: fix this on plan9.
 func dialTimeoutRace(net, addr string, timeout time.Duration) (Conn, error) {
 	t := time.NewTimer(timeout)
 	defer t.Stop()

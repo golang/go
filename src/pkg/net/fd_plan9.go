@@ -23,6 +23,12 @@ var canCancelIO = true // used for testing current package
 func sysInit() {
 }
 
+func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+	// On plan9, use the relatively inefficient
+	// goroutine-racing implementation.
+	return dialTimeoutRace(net, addr, timeout)
+}
+
 func newFD(proto, name string, ctl *os.File, laddr, raddr Addr) *netFD {
 	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
 }

@@ -45,6 +45,28 @@ func closesocket(s syscall.Handle) error {
 	return syscall.Closesocket(s)
 }
 
+func canUseConnectEx(net string) bool {
+	if net == "udp" || net == "udp4" || net == "udp6" {
+		// ConnectEx windows API does not support connectionless sockets.
+		return false
+	}
+	return syscall.LoadConnectEx() == nil
+}
+
+func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+	if !canUseConnectEx(net) {
+		// Use the relatively inefficient goroutine-racing
+		// implementation of DialTimeout.
+		return dialTimeoutRace(net, addr, timeout)
+	}
+	deadline := time.Now().Add(timeout)
+	_, addri, err := resolveNetAddr("dial", net, addr, deadline)
+	if err != nil {
+		return nil, err
+	}
+	return dialAddr(net, addr, addri, deadline)
+}
+
 // Interface for all IO operations.
 type anOpIface interface {
 	Op() *anOp
@@ -321,8 +343,48 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).closesocket)
 }
 
+// Make new connection.
+
+type connectOp struct {
+	anOp
+	ra syscall.Sockaddr
+}
+
+func (o *connectOp) Submit() error {
+	return syscall.ConnectEx(o.fd.sysfd, o.ra, nil, 0, nil, &o.o)
+}
+
+func (o *connectOp) Name() string {
+	return "ConnectEx"
+}
+
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
-	return syscall.Connect(fd.sysfd, ra)
+	if !canUseConnectEx(fd.net) {
+		return syscall.Connect(fd.sysfd, ra)
+	}
+	// ConnectEx windows API requires an unconnected, previously bound socket.
+	var la syscall.Sockaddr
+	switch ra.(type) {
+	case *syscall.SockaddrInet4:
+		la = &syscall.SockaddrInet4{}
+	case *syscall.SockaddrInet6:
+		la = &syscall.SockaddrInet6{}
+	default:
+		panic("unexpected type in connect")
+	}
+	if err := syscall.Bind(fd.sysfd, la); err != nil {
+		return err
+	}
+	// Call ConnectEx API.
+	var o connectOp
+	o.Init(fd, 'w')
+	o.ra = ra
+	_, err := iosrv.ExecIO(&o, fd.wdeadline.value())
+	if err != nil {
+		return err
+	}
+	// Refresh socket properties.
+	return syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
 }
 
 // Add a reference to this fd.
