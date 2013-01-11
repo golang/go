@@ -367,7 +367,7 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
 	return
 }
 
-// readSlice is like readBytes but returns a reference to internal buffer data.
+// readSlice is like ReadBytes but returns a reference to internal buffer data.
 func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
 	i := IndexByte(b.buf[b.off:], delim)
 	end := b.off + i + 1
@@ -377,6 +377,7 @@ func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
 	}
 	line = b.buf[b.off:end]
 	b.off = end
+	b.lastRead = opRead
 	return line, err
 }
 
