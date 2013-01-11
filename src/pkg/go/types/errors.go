@@ -313,10 +313,10 @@ func writeType(buf *bytes.Buffer, typ Type) {
 	case *NamedType:
 		var s string
 		switch {
-		case t.obj != nil:
-			s = t.obj.Name
 		case t.Obj != nil:
 			s = t.Obj.GetName()
+		case t.AstObj != nil:
+			s = t.AstObj.Name
 		default:
 			s = "<NamedType w/o object>"
 		}

@@ -6,8 +6,6 @@
 
 package types
 
-import "go/ast"
-
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
 		return ok
@@ -131,7 +129,7 @@ func isIdentical(x, y Type) bool {
 			if len(x.Fields) == len(y.Fields) {
 				for i, f := range x.Fields {
 					g := y.Fields[i]
-					if !identicalNames(f.QualifiedName, g.QualifiedName) ||
+					if !f.QualifiedName.IsSame(g.QualifiedName) ||
 						!isIdentical(f.Type, g.Type) ||
 						f.Tag != g.Tag ||
 						f.IsAnonymous != g.IsAnonymous {
@@ -185,10 +183,10 @@ func isIdentical(x, y Type) bool {
 		// in the same type declaration.
 		if y, ok := y.(*NamedType); ok {
 			switch {
-			case x.obj != nil:
-				return x.obj == y.obj
 			case x.Obj != nil:
 				return x.Obj == y.Obj
+			case x.AstObj != nil:
+				return x.AstObj == y.AstObj
 			default:
 				unreachable()
 			}
@@ -196,17 +194,6 @@ func isIdentical(x, y Type) bool {
 	}
 
 	return false
-}
-
-// identicalNames returns true if the names a and b are equal.
-func identicalNames(a, b QualifiedName) bool {
-	if a.Name != b.Name {
-		return false
-	}
-	// a.Name == b.Name
-	// TODO(gri) Guarantee that packages are canonicalized
-	//           and then we can compare p == q directly.
-	return ast.IsExported(a.Name) || a.Pkg.Path == b.Pkg.Path
 }
 
 // identicalTypes returns true if both lists a and b have the

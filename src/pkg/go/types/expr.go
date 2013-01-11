@@ -84,7 +84,7 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
 				continue
 			}
 			for _, name := range f.Names {
-				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
+				methods = append(methods, &Method{QualifiedName{nil, name.Name}, sig})
 			}
 		} else {
 			// embedded interface
@@ -137,24 +137,24 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
+				fields = append(fields, &Field{QualifiedName{nil, name.Name}, typ, tag, false})
 			}
 		} else {
 			// anonymous field
 			switch t := deref(typ).(type) {
 			case *Basic:
-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
+				fields = append(fields, &Field{QualifiedName{nil, t.Name}, typ, tag, true})
 			case *NamedType:
 				var name string
 				switch {
-				case t.obj != nil:
-					name = t.obj.Name
 				case t.Obj != nil:
 					name = t.Obj.GetName()
+				case t.AstObj != nil:
+					name = t.AstObj.Name
 				default:
 					unreachable()
 				}
-				fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, true})
+				fields = append(fields, &Field{QualifiedName{nil, name}, typ, tag, true})
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -913,7 +913,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
+		mode, typ := lookupField(x.typ, QualifiedName{nil, sel})
 		if mode == invalid {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error

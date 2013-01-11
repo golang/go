@@ -91,10 +91,35 @@ type Slice struct {
 	Elt Type
 }
 
-// A QualifiedName is a name qualified with the package the declared the name.
+// A QualifiedName is a name qualified with the package that declared the name.
 type QualifiedName struct {
-	Pkg  *Package // Pkg.Path == "" for current (non-imported) package
+	Pkg  *Package // nil for current (non-imported) package
 	Name string   // unqualified type name for anonymous fields
+}
+
+// IsSame reports whether p and q are the same.
+func (p QualifiedName) IsSame(q QualifiedName) bool {
+	// spec:
+	// "Two identifiers are different if they are spelled differently,
+	// or if they appear in different packages and are not exported.
+	// Otherwise, they are the same."
+	if p.Name != q.Name {
+		return false
+	}
+	// p.Name == q.Name
+	if !ast.IsExported(p.Name) {
+		// TODO(gri) just compare packages once we guarantee that they are canonicalized
+		pp := ""
+		if p.Pkg != nil {
+			pp = p.Pkg.Path
+		}
+		qp := ""
+		if q.Pkg != nil {
+			qp = q.Pkg.Path
+		}
+		return pp == qp
+	}
+	return true
 }
 
 // A Field represents a field of a struct.
@@ -211,9 +236,9 @@ type Chan struct {
 // A NamedType represents a named type as declared in a type declaration.
 type NamedType struct {
 	implementsType
-	// TODO(gri) remove obj once we have moved away from ast.Objects
-	obj        *ast.Object // corresponding declared object (current package)
+	// TODO(gri) remove AstObj once we have moved away from ast.Objects
 	Obj        Object      // corresponding declared object (imported package)
+	AstObj     *ast.Object // corresponding declared object (current package)
 	Underlying Type        // nil if not fully declared yet; never a *NamedType
 	Methods    []*Method   // TODO(gri) consider keeping them in sorted order
 }

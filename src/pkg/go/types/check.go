@@ -163,7 +163,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
 
 	case ast.Typ:
-		typ := &NamedType{obj: obj}
+		typ := &NamedType{AstObj: obj}
 		obj.Type = typ // "mark" object so recursion terminates
 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
 		// typecheck associated method signatures
@@ -194,7 +194,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
 				params, _ := check.collectParams(mdecl.Recv, false)
 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
 				obj.Type = sig
-				methods = append(methods, &Method{QualifiedName{check.pkg, obj.Name}, sig})
+				methods = append(methods, &Method{QualifiedName{nil, obj.Name}, sig})
 				check.later(obj, sig, mdecl.Body)
 			}
 			typ.Methods = methods

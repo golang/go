@@ -265,11 +265,11 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 			visited[typ] = true
 
 			// look for a matching attached method
-			if typ.obj != nil {
-				assert(typ.obj.Data == nil) // methods must have been moved to typ.Methods
+			if typ.AstObj != nil {
+				assert(typ.AstObj.Data == nil) // methods must have been moved to typ.Methods
 			}
 			for _, m := range typ.Methods {
-				if identicalNames(name, m.QualifiedName) {
+				if name.IsSame(m.QualifiedName) {
 					assert(m.Type != nil)
 					if !potentialMatch(e.multiples, value, m.Type) {
 						return // name collision
@@ -281,7 +281,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for _, f := range t.Fields {
-					if identicalNames(name, f.QualifiedName) {
+					if name.IsSame(f.QualifiedName) {
 						assert(f.Type != nil)
 						if !potentialMatch(e.multiples, variable, f.Type) {
 							return // name collision
@@ -305,7 +305,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 			case *Interface:
 				// look for a matching method
 				for _, m := range t.Methods {
-					if identicalNames(name, m.QualifiedName) {
+					if name.IsSame(m.QualifiedName) {
 						assert(m.Type != nil)
 						if !potentialMatch(e.multiples, value, m.Type) {
 							return // name collision
@@ -355,11 +355,11 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	typ = deref(typ)
 
 	if t, ok := typ.(*NamedType); ok {
-		if t.obj != nil {
-			assert(t.obj.Data == nil) // methods must have been moved to t.Methods
+		if t.AstObj != nil {
+			assert(t.AstObj.Data == nil) // methods must have been moved to t.Methods
 		}
 		for _, m := range t.Methods {
-			if identicalNames(name, m.QualifiedName) {
+			if name.IsSame(m.QualifiedName) {
 				assert(m.Type != nil)
 				return value, m.Type
 			}
@@ -371,7 +371,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	case *Struct:
 		var next []embeddedType
 		for _, f := range t.Fields {
-			if identicalNames(name, f.QualifiedName) {
+			if name.IsSame(f.QualifiedName) {
 				return variable, f.Type
 			}
 			if f.IsAnonymous {
@@ -388,7 +388,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 
 	case *Interface:
 		for _, m := range t.Methods {
-			if identicalNames(name, m.QualifiedName) {
+			if name.IsSame(m.QualifiedName) {
 				return value, m.Type
 			}
 		}
