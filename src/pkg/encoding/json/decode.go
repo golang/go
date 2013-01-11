@@ -52,6 +52,25 @@ import (
 // an UnmarshalTypeError describing the earliest such error.
 //
 func Unmarshal(data []byte, v interface{}) error {
+
+	// skip heavy processing for primitive values
+	var first byte
+	var i int
+	for i, first = range data {
+		if !isSpace(rune(first)) {
+			break
+		}
+	}
+	if first != '{' && first != '[' {
+		rv := reflect.ValueOf(v)
+		if rv.Kind() != reflect.Ptr || rv.IsNil() {
+			return &InvalidUnmarshalError{reflect.TypeOf(v)}
+		}
+		var d decodeState
+		d.literalStore(data[i:], rv.Elem(), false)
+		return d.savedError
+	}
+
 	d := new(decodeState).init(data)
 
 	// Quick check for well-formedness.

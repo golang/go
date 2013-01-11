@@ -205,6 +205,13 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsNumber, useNumber: true},
 
+	// raw values with whitespace
+	{in: "\n true ", ptr: new(bool), out: true},
+	{in: "\t 1 ", ptr: new(int), out: 1},
+	{in: "\r 1.2 ", ptr: new(float64), out: 1.2},
+	{in: "\t -5 \n", ptr: new(int16), out: int16(-5)},
+	{in: "\t \"a\\u1234\" \n", ptr: new(string), out: "a\u1234"},
+
 	// Z has a "-" tag.
 	{in: `{"Y": 1, "Z": 2}`, ptr: new(T), out: T{Y: 1}},
 
@@ -216,6 +223,16 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+
+	// raw value errors
+	{in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
+	{in: " 42 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 5}},
+	{in: "\x01 true", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
+	{in: " false \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 8}},
+	{in: "\x01 1.2", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
+	{in: " 3.4 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 6}},
+	{in: "\x01 \"string\"", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
+	{in: " \"string\" \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 11}},
 
 	// array tests
 	{in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
