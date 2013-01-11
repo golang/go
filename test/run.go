@@ -292,7 +292,7 @@ func goDirPackages(longdir string) ([][]string, error) {
 	}
 	return pkgs, nil
 }
-		
+
 // run runs a test.
 func (t *test) run() {
 	defer close(t.donec)
@@ -459,31 +459,32 @@ func (t *test) run() {
 		// Compile all files in the directory in lexicographic order.
 		// then link as if the last file is the main package and run it
 		longdir := filepath.Join(cwd, t.goDirName())
-		files, err := goDirFiles(longdir)
+		pkgs, err := goDirPackages(longdir)
 		if err != nil {
 			t.err = err
 			return
 		}
-		var gofile os.FileInfo
-		for _, gofile = range files {
-			_, err := compileInDir(runcmd, longdir, gofile.Name())
+		for i, gofiles := range pkgs {
+			_, err := compileInDir(runcmd, longdir, gofiles...)
 			if err != nil {
 				t.err = err
 				return
 			}
-		}
-		err = linkFile(runcmd, gofile.Name())
-		if err != nil {
-			t.err = err
-			return
-		}
-		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
-		if err != nil {
-			t.err = err
-			return
-		}
-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
-			t.err = fmt.Errorf("incorrect output\n%s", out)
+			if i == len(pkgs)-1 {
+				err = linkFile(runcmd, gofiles[0])
+				if err != nil {
+					t.err = err
+					return
+				}
+				out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
+				if err != nil {
+					t.err = err
+					return
+				}
+				if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+					t.err = fmt.Errorf("incorrect output\n%s", out)
+				}
+			}
 		}
 
 	case "build":
@@ -603,7 +604,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 			out[i] = strings.Replace(out[i], full, short, -1)
 		}
 	}
-	
+
 	var want []wantedError
 	for j := 0; j < len(fullshort); j += 2 {
 		full, short := fullshort[j], fullshort[j+1]
@@ -726,27 +727,6 @@ var skipOkay = map[string]bool{
 	"rotate.go":              true,
 	"sigchld.go":             true,
 	"sinit.go":               true,
-	"dwarf/main.go":          true,
-	"dwarf/z1.go":            true,
-	"dwarf/z10.go":           true,
-	"dwarf/z11.go":           true,
-	"dwarf/z12.go":           true,
-	"dwarf/z13.go":           true,
-	"dwarf/z14.go":           true,
-	"dwarf/z15.go":           true,
-	"dwarf/z16.go":           true,
-	"dwarf/z17.go":           true,
-	"dwarf/z18.go":           true,
-	"dwarf/z19.go":           true,
-	"dwarf/z2.go":            true,
-	"dwarf/z20.go":           true,
-	"dwarf/z3.go":            true,
-	"dwarf/z4.go":            true,
-	"dwarf/z5.go":            true,
-	"dwarf/z6.go":            true,
-	"dwarf/z7.go":            true,
-	"dwarf/z8.go":            true,
-	"dwarf/z9.go":            true,
 	"fixedbugs/bug248.go":    true, // combines errorcheckdir and rundir in the same dir.
 	"fixedbugs/bug302.go":    true, // tests both .$O and .a imports.
 	"fixedbugs/bug313.go":    true, // errorcheckdir with failures in the middle.
