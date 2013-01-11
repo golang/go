@@ -63,7 +63,16 @@ readlines:
 	}
 
 	for key, expected := range expectedMap {
-		if got := m[key]; got != expected {
+		got := m[key]
+		if key == "cwd" {
+			// For Windows. golang.org/issue/4645.
+			fi1, _ := os.Stat(got)
+			fi2, _ := os.Stat(expected)
+			if os.SameFile(fi1, fi2) {
+				got = expected
+			}
+		}
+		if got != expected {
 			t.Errorf("for key %q got %q; expected %q", key, got, expected)
 		}
 	}
