@@ -420,8 +420,9 @@ int32	immaddr(int32);
 int32	opbra(int, int);
 int	brextra(Prog*);
 int	isbranch(Prog*);
-void fnptrs(void);
+void	fnptrs(void);
 void	doelf(void);
+void	dozerostk(void); // used by -Z
 
 vlong		addaddr(Sym *s, Sym *t);
 vlong		addsize(Sym *s, Sym *t);

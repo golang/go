@@ -61,5 +61,13 @@ Options new in this version:
 	-B value
 		Add a NT_GNU_BUILD_ID note when using ELF.  The value
 		should start with 0x and be an even number of hex digits.
+	-Z
+		Zero stack on function entry. This is expensive but it might
+		be useful in cases where you are suffering from false positives
+		during garbage collection and are willing to trade the CPU time
+		for getting rid of the false positives.
+		NOTE: it only eliminates false positives caused by other function
+		calls, not false positives caused by dead temporaries stored in
+		the current function call.
 */
 package documentation
