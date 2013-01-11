@@ -7,6 +7,8 @@
 package syscall
 
 import (
+	errorspkg "errors"
+	"sync"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -710,6 +712,56 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 
 func LoadGetAddrInfo() error {
 	return procGetAddrInfoW.Find()
+}
+
+var connectExFunc struct {
+	once sync.Once
+	addr uintptr
+	err  error
+}
+
+func LoadConnectEx() error {
+	connectExFunc.once.Do(func() {
+		var s Handle
+		s, connectExFunc.err = Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+		if connectExFunc.err != nil {
+			return
+		}
+		defer CloseHandle(s)
+		var n uint32
+		connectExFunc.err = WSAIoctl(s,
+			SIO_GET_EXTENSION_FUNCTION_POINTER,
+			(*byte)(unsafe.Pointer(&WSAID_CONNECTEX)),
+			uint32(unsafe.Sizeof(WSAID_CONNECTEX)),
+			(*byte)(unsafe.Pointer(&connectExFunc.addr)),
+			uint32(unsafe.Sizeof(connectExFunc.addr)),
+			&n, nil, 0)
+	})
+	return connectExFunc.err
+}
+
+func connectEx(s Handle, name uintptr, namelen int32, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) (err error) {
+	r1, _, e1 := Syscall9(connectExFunc.addr, 7, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func ConnectEx(fd Handle, sa Sockaddr, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) error {
+	err := LoadConnectEx()
+	if err != nil {
+		return errorspkg.New("failed to find ConnectEx: " + err.Error())
+	}
+	ptr, n, err := sa.sockaddr()
+	if err != nil {
+		return err
+	}
+	return connectEx(fd, ptr, n, sendBuf, sendDataLen, bytesSent, overlapped)
 }
 
 // Invented structures to support what package os expects.

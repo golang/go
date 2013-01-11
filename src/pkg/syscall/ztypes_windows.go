@@ -496,15 +496,22 @@ const (
 	IPPROTO_TCP  = 6
 	IPPROTO_UDP  = 17
 
-	SOL_SOCKET               = 0xffff
-	SO_REUSEADDR             = 4
-	SO_KEEPALIVE             = 8
-	SO_DONTROUTE             = 16
-	SO_BROADCAST             = 32
-	SO_LINGER                = 128
-	SO_RCVBUF                = 0x1002
-	SO_SNDBUF                = 0x1001
-	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
+	SOL_SOCKET                = 0xffff
+	SO_REUSEADDR              = 4
+	SO_KEEPALIVE              = 8
+	SO_DONTROUTE              = 16
+	SO_BROADCAST              = 32
+	SO_LINGER                 = 128
+	SO_RCVBUF                 = 0x1002
+	SO_SNDBUF                 = 0x1001
+	SO_UPDATE_ACCEPT_CONTEXT  = 0x700b
+	SO_UPDATE_CONNECT_CONTEXT = 0x7010
+
+	IOC_OUT                            = 0x40000000
+	IOC_IN                             = 0x80000000
+	IOC_INOUT                          = IOC_IN | IOC_OUT
+	IOC_WS2                            = 0x08000000
+	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
@@ -941,3 +948,17 @@ const (
 	AI_CANONNAME   = 2
 	AI_NUMERICHOST = 4
 )
+
+type GUID struct {
+	Data1 uint32
+	Data2 uint16
+	Data3 uint16
+	Data4 [8]byte
+}
+
+var WSAID_CONNECTEX = GUID{
+	0x25a207b9,
+	0xddf3,
+	0x4660,
+	[8]byte{0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e},
+}
