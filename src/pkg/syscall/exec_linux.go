@@ -233,3 +233,20 @@ childerror:
 	// and this shuts up the compiler.
 	panic("unreached")
 }
+
+// Try to open a pipe with O_CLOEXEC set on both file descriptors.
+func forkExecPipe(p []int) (err error) {
+	err = Pipe2(p, O_CLOEXEC)
+	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
+	// might not be implemented.
+	if err == ENOSYS {
+		if err = Pipe(p); err != nil {
+			return
+		}
+		if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
+			return
+		}
+		_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
+	}
+	return
+}

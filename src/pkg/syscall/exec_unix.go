@@ -183,13 +183,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	ForkLock.Lock()
 
 	// Allocate child status pipe close on exec.
-	if err = Pipe(p[0:]); err != nil {
-		goto error
-	}
-	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
-		goto error
-	}
-	if _, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != nil {
+	if err = forkExecPipe(p[:]); err != nil {
 		goto error
 	}
 
