@@ -56,7 +56,7 @@ Options new in this version:
 		Set the value of an otherwise uninitialized string variable.
 		The symbol name should be of the form importpath.name,
 		as displayed in the symbol table printed by "go tool nm".
-	-b
+	-race
 		Link with race detection libraries.
 	-B value
 		Add a NT_GNU_BUILD_ID note when using ELF.  The value
