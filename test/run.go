@@ -30,10 +30,11 @@ import (
 )
 
 var (
-	verbose     = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
-	numParallel = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
-	summary     = flag.Bool("summary", false, "show summary of results")
-	showSkips   = flag.Bool("show_skips", false, "show skipped tests")
+	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
+	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
+	summary        = flag.Bool("summary", false, "show summary of results")
+	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
+	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 )
 
 var (
@@ -53,6 +54,10 @@ var (
 	// toRun is the channel of tests to run.
 	// It is nil until the first test is started.
 	toRun chan *test
+
+	// rungatec controls the max number of runoutput tests
+	// executed in parallel as they can each consume a lot of memory.
+	rungatec chan bool
 )
 
 // maxTests is an upper bound on the total number of tests.
@@ -68,6 +73,7 @@ func main() {
 	}
 
 	ratec = make(chan bool, *numParallel)
+	rungatec = make(chan bool, *runoutputLimit)
 	var err error
 	letter, err = build.ArchChar(build.Default.GOARCH)
 	check(err)
@@ -504,14 +510,17 @@ func (t *test) run() {
 		}
 
 	case "runoutput":
+		rungatec <- true
+		defer func() {
+			<-rungatec
+		}()
 		useTmp = false
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
 		if err != nil {
 			t.err = err
 		}
 		tfile := filepath.Join(t.tempDir, "tmp__.go")
-		err = ioutil.WriteFile(tfile, out, 0666)
-		if err != nil {
+		if err := ioutil.WriteFile(tfile, out, 0666); err != nil {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
@@ -734,4 +743,16 @@ var skipOkay = map[string]bool{
 	"fixedbugs/bug385_64.go": true, // arch-specific errors.
 	"fixedbugs/bug429.go":    true,
 	"bugs/bug395.go":         true,
+}
+
+// defaultRunOutputLimit returns the number of runoutput tests that
+// can be executed in parallel.
+func defaultRunOutputLimit() int {
+	const maxArmCPU = 2
+
+	cpu := runtime.NumCPU()
+	if runtime.GOARCH == "arm" && cpu > maxArmCPU {
+		cpu = maxArmCPU
+	}
+	return cpu
 }
