@@ -19,12 +19,13 @@ import (
 )
 
 type Example struct {
-	Name     string // name of the item being exemplified
-	Doc      string // example function doc string
-	Code     ast.Node
-	Play     *ast.File // a whole program version of the example
-	Comments []*ast.CommentGroup
-	Output   string // expected output
+	Name        string // name of the item being exemplified
+	Doc         string // example function doc string
+	Code        ast.Node
+	Play        *ast.File // a whole program version of the example
+	Comments    []*ast.CommentGroup
+	Output      string // expected output
+	EmptyOutput bool   // expect empty output
 }
 
 func Examples(files ...*ast.File) []*Example {
@@ -55,13 +56,15 @@ func Examples(files ...*ast.File) []*Example {
 			if f.Doc != nil {
 				doc = f.Doc.Text()
 			}
+			output, hasOutput := exampleOutput(f.Body, file.Comments)
 			flist = append(flist, &Example{
-				Name:     name[len("Example"):],
-				Doc:      doc,
-				Code:     f.Body,
-				Play:     playExample(file, f.Body),
-				Comments: file.Comments,
-				Output:   exampleOutput(f.Body, file.Comments),
+				Name:        name[len("Example"):],
+				Doc:         doc,
+				Code:        f.Body,
+				Play:        playExample(file, f.Body),
+				Comments:    file.Comments,
+				Output:      output,
+				EmptyOutput: output == "" && hasOutput,
 			})
 		}
 		if !hasTests && numDecl > 1 && len(flist) == 1 {
@@ -79,7 +82,8 @@ func Examples(files ...*ast.File) []*Example {
 
 var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
 
-func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
+// Extracts the expected output and whether there was a valid output comment
+func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, ok bool) {
 	if _, last := lastComment(b, comments); last != nil {
 		// test that it begins with the correct prefix
 		text := last.Text()
@@ -90,10 +94,10 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
 			if len(text) > 0 && text[0] == '\n' {
 				text = text[1:]
 			}
-			return text
+			return text, true
 		}
 	}
-	return "" // no suitable comment found
+	return "", false // no suitable comment found
 }
 
 // isTest tells whether name looks like a test, example, or benchmark.
