@@ -792,7 +792,7 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 		}
 	}
 	for _, e := range doc.Examples(f) {
-		if e.Output == "" {
+		if e.Output == "" && !e.EmptyOutput {
 			// Don't run examples with no output.
 			continue
 		}
