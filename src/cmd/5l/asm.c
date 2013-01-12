@@ -490,6 +490,8 @@ asmb(void)
 	int32 t;
 	uint32 symo;
 	Section *sect;
+	Sym *sym;
+	int i;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -546,18 +548,34 @@ asmb(void)
 			break;
 		}
 		cseek(symo);
-		if(iself) {
-			if(debug['v'])
-				Bprint(&bso, "%5.2f elfsym\n", cputime());
-			asmelfsym();
+		switch(HEADTYPE) {
+		default:
+			if(iself) {
+				if(debug['v'])
+					Bprint(&bso, "%5.2f elfsym\n", cputime());
+				asmelfsym();
+				cflush();
+				cwrite(elfstrdat, elfstrsize);
+	
+				if(debug['v'])
+					Bprint(&bso, "%5.2f dwarf\n", cputime());
+				dwarfemitdebugsections();
+			}
+			break;
+		case Hplan9x32:
+			asmplan9sym();
 			cflush();
-			cwrite(elfstrdat, elfstrsize);
 
-			if(debug['v'])
-				Bprint(&bso, "%5.2f dwarf\n", cputime());
-			dwarfemitdebugsections();
+			sym = lookup("pclntab", 0);
+			if(sym != nil) {
+				lcsize = sym->np;
+				for(i=0; i < lcsize; i++)
+					cput(sym->p[i]);
+
+				cflush();
+			}
+			break;
 		}
-		cflush();
 	}
 
 	cursym = nil;
@@ -581,7 +599,7 @@ asmb(void)
 			 - 8) / 4);		/* BL - entry code */
 
 		lputl(0xef000011);		/* SWI - exit code */
-		lputl(textsize+HEADR);		/* text size */
+		lputl(segtext.filelen+HEADR);		/* text size */
 		lputl(segdata.filelen);			/* data size */
 		lputl(0);			/* sym size */
 
@@ -601,7 +619,7 @@ asmb(void)
 		break;
 	case Hplan9x32:	/* plan 9 */
 		lput(0x647);			/* magic */
-		lput(textsize);			/* sizes */
+		lput(segtext.filelen);			/* sizes */
 		lput(segdata.filelen);
 		lput(segdata.len - segdata.filelen);
 		lput(symsize);			/* nsyms */
@@ -626,12 +644,12 @@ asmb(void)
 	}
 	cflush();
 	if(debug['c']){
-		print("textsize=%d\n", textsize);
+		print("textsize=%d\n", segtext.filelen);
 		print("datsize=%ulld\n", segdata.filelen);
 		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
 		print("symsize=%d\n", symsize);
 		print("lcsize=%d\n", lcsize);
-		print("total=%lld\n", textsize+segdata.len+symsize+lcsize);
+		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
 	}
 }
 
