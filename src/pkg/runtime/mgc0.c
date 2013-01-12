@@ -338,8 +338,7 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			if((bits & (bitAllocated|bitMarked)) != bitAllocated)
 				continue;
 
-			*bitbufpos = (BitTarget){obj, ti, bitp, shift};
-			bitbufpos++;
+			*bitbufpos++ = (BitTarget){obj, ti, bitp, shift};
 		}
 
 		runtime·lock(&lock);
@@ -542,8 +541,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			
 			// iface->tab
 			if((void*)iface->tab >= arena_start && (void*)iface->tab < arena_used) {
-				*ptrbufpos = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
-				ptrbufpos++;
+				*ptrbufpos++ = (PtrTarget){iface->tab, (uintptr)itabtype->gc};
 				if(ptrbufpos == ptrbuf_end)
 					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
 			}
@@ -570,8 +568,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				stack_top.b += PtrSize;
 				obj = *(byte**)i;
 				if(obj >= arena_start && obj < arena_used) {
-					*ptrbufpos = (PtrTarget){obj, 0};
-					ptrbufpos++;
+					*ptrbufpos++ = (PtrTarget){obj, 0};
 					if(ptrbufpos == ptrbuf_end)
 						flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
 				}
@@ -657,8 +654,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		}
 
 		if(obj >= arena_start && obj < arena_used) {
-			*ptrbufpos = (PtrTarget){obj, objti};
-			ptrbufpos++;
+			*ptrbufpos++ = (PtrTarget){obj, objti};
 			if(ptrbufpos == ptrbuf_end)
 				flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
 		}

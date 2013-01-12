@@ -950,9 +950,9 @@ sugen(Node *n, Node *nn, int32 w)
 
 	case OSTRUCT:
 		/*
-		 * rewrite so lhs has no fn call
+		 * rewrite so lhs has no side effect.
 		 */
-		if(nn != Z && nn->complex >= FNX) {
+		if(nn != Z && side(nn)) {
 			nod1 = *n;
 			nod1.type = typ(TIND, n->type);
 			regret(&nod2, &nod1);
