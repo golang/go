@@ -15,13 +15,13 @@ import (
 
 const filename = "<src>"
 
-func makePkg(t *testing.T, src string) (*ast.Package, error) {
+func makePkg(t *testing.T, src string) (*Package, error) {
 	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
 	if err != nil {
 		return nil, err
 	}
-	astpkg, _, err := Check(fset, []*ast.File{file})
-	return astpkg, err
+	pkg, err := Check(fset, []*ast.File{file})
+	return pkg, err
 }
 
 type testEntry struct {
@@ -110,7 +110,7 @@ func TestTypes(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := underlying(pkg.Scope.Lookup("T").Type.(Type))
+		typ := underlying(pkg.Scope.Lookup("T").GetType())
 		str := typeString(typ)
 		if str != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, str, test.str)

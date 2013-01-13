@@ -74,11 +74,11 @@ var Default = Context{
 //          we have the scope moved from *ast.Scope to *Scope, only *Package
 //          will be returned.
 //
-func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*ast.Package, *Package, error) {
+func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
 	return check(ctxt, fset, files)
 }
 
 // Check is shorthand for Default.Check.
-func Check(fset *token.FileSet, files []*ast.File) (*ast.Package, *Package, error) {
+func Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
 	return Default.Check(fset, files)
 }

@@ -265,9 +265,6 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 			visited[typ] = true
 
 			// look for a matching attached method
-			if typ.AstObj != nil {
-				assert(typ.AstObj.Data == nil) // methods must have been moved to typ.Methods
-			}
 			for _, m := range typ.Methods {
 				if name.IsSame(m.QualifiedName) {
 					assert(m.Type != nil)
@@ -355,9 +352,6 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	typ = deref(typ)
 
 	if t, ok := typ.(*NamedType); ok {
-		if t.AstObj != nil {
-			assert(t.AstObj.Data == nil) // methods must have been moved to t.Methods
-		}
 		for _, m := range t.Methods {
 			if name.IsSame(m.QualifiedName) {
 				assert(m.Type != nil)

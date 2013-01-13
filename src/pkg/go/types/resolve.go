@@ -7,40 +7,39 @@ package types
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"strconv"
 )
 
-func (check *checker) declareObj(scope, altScope *ast.Scope, obj *ast.Object) {
+func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
 	alt := scope.Insert(obj)
 	if alt == nil && altScope != nil {
 		// see if there is a conflicting declaration in altScope
-		alt = altScope.Lookup(obj.Name)
+		alt = altScope.Lookup(obj.GetName())
 	}
 	if alt != nil {
 		prevDecl := ""
-		if pos := alt.Pos(); pos.IsValid() {
+		if pos := alt.GetPos(); pos.IsValid() {
 			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
 		}
-		check.errorf(obj.Pos(), fmt.Sprintf("%s redeclared in this block%s", obj.Name, prevDecl))
+		check.errorf(obj.GetPos(), fmt.Sprintf("%s redeclared in this block%s", obj.GetName(), prevDecl))
 	}
 }
 
-func resolve(scope *ast.Scope, ident *ast.Ident) bool {
+func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
 	for ; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
-			ident.Obj = obj
+			check.idents[ident] = obj
 			return true
 		}
 	}
-	// handle universe scope lookups
 	return false
 }
 
-// TODO(gri) eventually resolve should only return *Package.
-func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
+func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.FuncDecl) {
 	// complete package scope
 	pkgName := ""
-	pkgScope := ast.NewScope(Universe)
+	pkgScope := &Scope{Outer: Universe}
 
 	i := 0
 	for _, file := range check.files {
@@ -57,9 +56,49 @@ func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
 		check.files[i] = file
 		i++
 
-		// collect top-level file objects in package scope
-		for _, obj := range file.Scope.Objects {
-			check.declareObj(pkgScope, nil, obj)
+		// insert top-level file objects in package scope
+		// (the parser took care of declaration errors)
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.BadDecl:
+				// ignore
+			case *ast.GenDecl:
+				if d.Tok == token.CONST {
+					check.assocInitvals(d)
+				}
+				for _, spec := range d.Specs {
+					switch s := spec.(type) {
+					case *ast.ImportSpec:
+						// handled separately below
+					case *ast.ValueSpec:
+						for _, name := range s.Names {
+							if name.Name == "_" {
+								continue
+							}
+							pkgScope.Insert(check.lookup(name))
+						}
+					case *ast.TypeSpec:
+						if s.Name.Name == "_" {
+							continue
+						}
+						pkgScope.Insert(check.lookup(s.Name))
+					default:
+						check.invalidAST(s.Pos(), "unknown ast.Spec node %T", s)
+					}
+				}
+			case *ast.FuncDecl:
+				if d.Recv != nil {
+					// collect method
+					methods = append(methods, d)
+					continue
+				}
+				if d.Name.Name == "_" || d.Name.Name == "init" {
+					continue // blank (_) and init functions are inaccessible
+				}
+				pkgScope.Insert(check.lookup(d.Name))
+			default:
+				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
+			}
 		}
 	}
 	check.files = check.files[0:i]
@@ -71,7 +110,7 @@ func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
 	for _, file := range check.files {
 		// build file scope by processing all imports
 		importErrors := false
-		fileScope := ast.NewScope(pkgScope)
+		fileScope := &Scope{Outer: pkgScope}
 		for _, spec := range file.Imports {
 			if importer == nil {
 				importErrors = true
@@ -97,25 +136,15 @@ func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
 			// add import to file scope
 			if name == "." {
 				// merge imported scope with file scope
-				// TODO(gri) Imported packages use Objects but the current
-				//           package scope is based on ast.Scope and ast.Objects
-				//           at the moment. Don't try to convert the imported
-				//           objects for now. Once we get rid of ast.Object
-				//           dependency, this loop can be enabled again.
-				panic("cannot handle dot-import")
-				/*
-					for _, obj := range pkg.Scope.Elems {
-						check.declareObj(fileScope, pkgScope, obj)
-					}
-				*/
+				for _, obj := range pkg.Scope.Entries {
+					check.declareObj(fileScope, pkgScope, obj)
+				}
 			} else if name != "_" {
 				// declare imported package object in file scope
 				// (do not re-use pkg in the file scope but create
 				// a new object instead; the Decl field is different
 				// for different files)
-				obj := ast.NewObj(ast.Pkg, name)
-				obj.Decl = spec
-				obj.Data = pkg
+				obj := &Package{Name: name, Scope: pkg.Scope, spec: spec}
 				check.declareObj(fileScope, pkgScope, obj)
 			}
 		}
@@ -130,7 +159,7 @@ func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
 		}
 		i := 0
 		for _, ident := range file.Unresolved {
-			if !resolve(fileScope, ident) {
+			if !check.resolveIdent(fileScope, ident) {
 				check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
 				file.Unresolved[i] = ident
 				i++
@@ -141,6 +170,5 @@ func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
 		pkgScope.Outer = Universe // reset outer scope
 	}
 
-	// TODO(gri) Once we have a pkgScope of type *Scope, only return *Package.
-	return &ast.Package{Name: pkgName, Scope: pkgScope}, &Package{Name: pkgName, Imports: imports}
+	return &Package{Name: pkgName, Scope: pkgScope, Imports: imports}, methods
 }
