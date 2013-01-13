@@ -163,7 +163,7 @@ func processFiles(filenames []string, allFiles bool) {
 }
 
 func processPackage(fset *token.FileSet, files []*ast.File) {
-	_, _, err := types.Check(fset, files)
+	_, err := types.Check(fset, files)
 	if err != nil {
 		report(err)
 	}

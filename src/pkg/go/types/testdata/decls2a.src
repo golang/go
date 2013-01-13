@@ -61,7 +61,7 @@ func (T5 /* ERROR "invalid receiver" */) m1() {}
 func (T5 /* ERROR "invalid receiver" */) m2() {}
 
 // Methods associated with non-local or unnamed types.
-// func (int) m() {} TODO(gri) check for methods associated with external (not package-local) types
+func (int /* ERROR "non-local type" */ ) m() {}
 func ([ /* ERROR "expected" */ ]int) m() {}
 func (time /* ERROR "expected" */ .Time) m() {}
 func (x interface /* ERROR "expected" */ {}) m() {}

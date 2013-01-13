@@ -76,10 +76,10 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	}
 
 	// lhs may or may not be typed yet
-	obj := ident.Obj
+	obj := check.lookup(ident)
 	var typ Type
-	if obj.Type != nil {
-		typ = obj.Type.(Type)
+	if t := obj.GetType(); t != nil {
+		typ = t
 	}
 
 	if rhs != nil {
@@ -94,7 +94,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		typ = Typ[Invalid]
 		if x.mode != invalid {
 			typ = x.typ
-			if obj.Kind == ast.Var && isUntyped(typ) {
+			if _, ok := obj.(*Var); ok && isUntyped(typ) {
 				if x.isNil() {
 					check.errorf(x.pos(), "use of untyped nil")
 					x.mode = invalid
@@ -103,15 +103,22 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 				}
 			}
 		}
-		obj.Type = typ
+		switch obj := obj.(type) {
+		case *Const:
+			obj.Type = typ
+		case *Var:
+			obj.Type = typ
+		default:
+			unreachable()
+		}
 	}
 
 	if x.mode != invalid {
 		var z operand
-		switch obj.Kind {
-		case ast.Con:
+		switch obj.(type) {
+		case *Const:
 			z.mode = constant
-		case ast.Var:
+		case *Var:
 			z.mode = variable
 		default:
 			unreachable()
@@ -122,12 +129,12 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	}
 
 	// for constants, set their value
-	if obj.Kind == ast.Con {
-		assert(obj.Data == nil)
+	if obj, ok := obj.(*Const); ok {
+		assert(obj.Val == nil)
 		if x.mode != invalid {
 			if x.mode == constant {
 				if isConstType(x.typ) {
-					obj.Data = x.val
+					obj.Val = x.val
 				} else {
 					check.errorf(x.pos(), "%s has invalid constant type", x)
 				}
@@ -135,22 +142,23 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 				check.errorf(x.pos(), "%s is not constant", x)
 			}
 		}
-		if obj.Data == nil {
+		if obj.Val == nil {
 			// set the constant to its type's zero value to reduce spurious errors
-			switch typ := underlying(obj.Type.(Type)); {
+			switch typ := underlying(obj.Type); {
 			case typ == Typ[Invalid]:
 				// ignore
 			case isBoolean(typ):
-				obj.Data = false
+				obj.Val = false
 			case isNumeric(typ):
-				obj.Data = int64(0)
+				obj.Val = int64(0)
 			case isString(typ):
-				obj.Data = ""
+				obj.Val = ""
 			case hasNil(typ):
-				obj.Data = nilConst
+				obj.Val = nilConst
 			default:
 				// in all other cases just prevent use of the constant
-				obj.Kind = ast.Bad
+				// TODO(gri) re-evaluate this code
+				obj.Val = nilConst
 			}
 		}
 	}
@@ -159,7 +167,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 // assignNtoM typechecks a general assignment. If decl is set, the lhs operands
 // must be identifiers. If their types are not set, they are deduced from the
 // types of the corresponding rhs expressions. iota >= 0 indicates that the
-// "assignment" is part of a constant declaration.
+// "assignment" is part of a constant/variable declaration.
 // Precondition: len(lhs) > 0 .
 //
 func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
@@ -187,7 +195,7 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
 			x.mode = value
 			for i, obj := range t.Values {
 				x.expr = nil // TODO(gri) should do better here
-				x.typ = obj.Type.(Type)
+				x.typ = obj.Type
 				check.assign1to1(lhs[i], nil, &x, decl, iota)
 			}
 			return
@@ -212,8 +220,15 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
 	if iota >= 0 {
 		// declaration
 		for _, e := range lhs {
-			if ident, ok := e.(*ast.Ident); ok {
-				ident.Obj.Type = Typ[Invalid]
+			if name, ok := e.(*ast.Ident); ok {
+				switch obj := check.lookup(name).(type) {
+				case *Const:
+					obj.Type = Typ[Invalid]
+				case *Var:
+					obj.Type = Typ[Invalid]
+				default:
+					unreachable()
+				}
 			}
 		}
 	}
@@ -411,16 +426,12 @@ func (check *checker) stmt(s ast.Stmt) {
 			named := false // if set, function has named results
 			for i, res := range sig.Results {
 				if len(res.Name) > 0 {
-					// a blank (_) result parameter is a named result parameter!
+					// a blank (_) result parameter is a named result
 					named = true
 				}
 				name := ast.NewIdent(res.Name)
 				name.NamePos = s.Pos()
-				// TODO(gri) Avoid creating new objects here once we
-				//           move away from ast.Objects completely.
-				obj := ast.NewObj(ast.Var, res.Name)
-				obj.Type = res.Type
-				name.Obj = obj
+				check.idents[name] = &Var{Name: res.Name, Type: res.Type}
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {
@@ -432,7 +443,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 
 	case *ast.BranchStmt:
-		unimplemented()
+		// TODO(gri) implement this
 
 	case *ast.BlockStmt:
 		check.stmtList(s.List)
@@ -453,7 +464,9 @@ func (check *checker) stmt(s ast.Stmt) {
 		tag := s.Tag
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
-			tag = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true", Obj: Universe.Lookup("true")}
+			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
+			check.idents[ident] = Universe.Lookup("true")
+			tag = ident
 		}
 		check.expr(&x, tag, nil, -1)
 
@@ -519,7 +532,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// remaining syntactic errors are considered AST errors here.
 		// TODO(gri) better factoring of error handling (invalid ASTs)
 		//
-		var lhs *ast.Object // lhs identifier object or nil
+		var lhs *Var // lhs variable or nil
 		var rhs ast.Expr
 		switch guard := s.Assign.(type) {
 		case *ast.ExprStmt:
@@ -534,7 +547,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
 				return
 			}
-			lhs = ident.Obj
+			lhs = check.lookup(ident).(*Var)
 			rhs = guard.Rhs[0]
 		default:
 			check.invalidAST(s.Pos(), "incorrect form of type switch guard")

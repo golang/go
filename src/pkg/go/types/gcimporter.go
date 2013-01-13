@@ -347,10 +347,11 @@ func (p *gcParser) parseExportedName() (*Package, string) {
 func (p *gcParser) parseBasicType() Type {
 	id := p.expect(scanner.Ident)
 	obj := Universe.Lookup(id)
-	if obj == nil || obj.Kind != ast.Typ {
-		p.errorf("not a basic type: %s", id)
+	if obj, ok := obj.(*TypeName); ok {
+		return obj.Type
 	}
-	return obj.Type.(Type)
+	p.errorf("not a basic type: %s", id)
+	return nil
 }
 
 // ArrayType = "[" int_lit "]" Type .

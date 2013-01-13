@@ -305,7 +305,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Recover:
 		x.mode = value
-		x.typ = emptyInterface
+		x.typ = new(Interface)
 
 	case _Alignof:
 		x.mode = constant

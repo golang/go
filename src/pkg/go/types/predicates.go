@@ -182,14 +182,7 @@ func isIdentical(x, y Type) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*NamedType); ok {
-			switch {
-			case x.Obj != nil:
-				return x.Obj == y.Obj
-			case x.AstObj != nil:
-				return x.AstObj == y.AstObj
-			default:
-				unreachable()
-			}
+			return x.Obj == y.Obj
 		}
 	}
 

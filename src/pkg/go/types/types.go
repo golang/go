@@ -71,7 +71,6 @@ const (
 
 // A Basic represents a basic type.
 type Basic struct {
-	implementsType
 	Kind BasicKind
 	Info BasicInfo
 	Size int64
@@ -80,14 +79,12 @@ type Basic struct {
 
 // An Array represents an array type [Len]Elt.
 type Array struct {
-	implementsType
 	Len int64
 	Elt Type
 }
 
 // A Slice represents a slice type []Elt.
 type Slice struct {
-	implementsType
 	Elt Type
 }
 
@@ -132,7 +129,6 @@ type Field struct {
 
 // A Struct represents a struct type struct{...}.
 type Struct struct {
-	implementsType
 	Fields []*Field
 }
 
@@ -147,19 +143,16 @@ func (typ *Struct) fieldIndex(name string) int {
 
 // A Pointer represents a pointer type *Base.
 type Pointer struct {
-	implementsType
 	Base Type
 }
 
 // A Result represents a (multi-value) function call result.
 type Result struct {
-	implementsType
 	Values []*Var // Signature.Results of the function called
 }
 
 // A Signature represents a user-defined function type func(...) (...).
 type Signature struct {
-	implementsType
 	Recv       *Var   // nil if not a method
 	Params     []*Var // (incoming) parameters from left to right; or nil
 	Results    []*Var // (outgoing) results from left to right; or nil
@@ -200,7 +193,6 @@ const (
 
 // A builtin represents the type of a built-in function.
 type builtin struct {
-	implementsType
 	id          builtinId
 	name        string
 	nargs       int // number of arguments (minimum if variadic)
@@ -216,35 +208,36 @@ type Method struct {
 
 // An Interface represents an interface type interface{...}.
 type Interface struct {
-	implementsType
 	Methods []*Method // TODO(gri) consider keeping them in sorted order
 }
 
 // A Map represents a map type map[Key]Elt.
 type Map struct {
-	implementsType
 	Key, Elt Type
 }
 
 // A Chan represents a channel type chan Elt, <-chan Elt, or chan<-Elt.
 type Chan struct {
-	implementsType
 	Dir ast.ChanDir
 	Elt Type
 }
 
 // A NamedType represents a named type as declared in a type declaration.
 type NamedType struct {
-	implementsType
-	// TODO(gri) remove AstObj once we have moved away from ast.Objects
-	Obj        Object      // corresponding declared object (imported package)
-	AstObj     *ast.Object // corresponding declared object (current package)
-	Underlying Type        // nil if not fully declared yet; never a *NamedType
-	Methods    []*Method   // TODO(gri) consider keeping them in sorted order
+	Obj        *TypeName // corresponding declared object
+	Underlying Type      // nil if not fully declared yet; never a *NamedType
+	Methods    []*Method // TODO(gri) consider keeping them in sorted order
 }
 
-// All concrete types embed implementsType which
-// ensures that all types implement the Type interface.
-type implementsType struct{}
-
-func (*implementsType) aType() {}
+func (*Basic) aType()     {}
+func (*Array) aType()     {}
+func (*Slice) aType()     {}
+func (*Struct) aType()    {}
+func (*Pointer) aType()   {}
+func (*Result) aType()    {}
+func (*Signature) aType() {}
+func (*builtin) aType()   {}
+func (*Interface) aType() {}
+func (*Map) aType()       {}
+func (*Chan) aType()      {}
+func (*NamedType) aType() {}
