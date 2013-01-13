@@ -22,6 +22,7 @@ func init() {
 	gophers := [...]string{
 		"adg",
 		"bradfitz",
+		"campoy",
 		"dsymonds",
 		"gri",
 		"iant",
