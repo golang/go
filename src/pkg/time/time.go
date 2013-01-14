@@ -261,8 +261,8 @@ func (t Time) abs() uint64 {
 // extracting both return values from a single zone lookup.
 func (t Time) locabs() (name string, offset int, abs uint64) {
 	l := t.loc
-	if l == nil {
-		l = &utcLoc
+	if l == nil || l == &localLoc {
+		l = l.get()
 	}
 	// Avoid function call if we hit the local time cache.
 	sec := t.sec + internalToUnix
