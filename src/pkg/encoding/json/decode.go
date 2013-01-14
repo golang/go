@@ -347,14 +347,18 @@ func (d *decodeState) array(v reflect.Value) {
 
 	// Check type of target.
 	switch v.Kind() {
+	case reflect.Interface:
+		if v.NumMethod() == 0 {
+			// Decoding into nil interface?  Switch to non-reflect code.
+			v.Set(reflect.ValueOf(d.arrayInterface()))
+			return
+		}
+		// Otherwise it's invalid.
+		fallthrough
 	default:
 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
 		d.off--
 		d.next()
-		return
-	case reflect.Interface:
-		// Decoding into nil interface?  Switch to non-reflect code.
-		v.Set(reflect.ValueOf(d.arrayInterface()))
 		return
 	case reflect.Array:
 	case reflect.Slice:
@@ -441,7 +445,7 @@ func (d *decodeState) object(v reflect.Value) {
 	v = pv
 
 	// Decoding into nil interface?  Switch to non-reflect code.
-	if v.Kind() == reflect.Interface {
+	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
 		v.Set(reflect.ValueOf(d.objectInterface()))
 		return
 	}
@@ -459,11 +463,9 @@ func (d *decodeState) object(v reflect.Value) {
 			v.Set(reflect.MakeMap(t))
 		}
 	case reflect.Struct:
+
 	default:
 		d.saveError(&UnmarshalTypeError{"object", v.Type()})
-	}
-
-	if !v.IsValid() {
 		d.off--
 		d.next() // skip over { } in input
 		return
@@ -646,7 +648,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		case reflect.Bool:
 			v.SetBool(value)
 		case reflect.Interface:
-			v.Set(reflect.ValueOf(value))
+			if v.NumMethod() == 0 {
+				v.Set(reflect.ValueOf(value))
+			} else {
+				d.saveError(&UnmarshalTypeError{"bool", v.Type()})
+			}
 		}
 
 	case '"': // string
@@ -676,7 +682,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		case reflect.String:
 			v.SetString(string(s))
 		case reflect.Interface:
-			v.Set(reflect.ValueOf(string(s)))
+			if v.NumMethod() == 0 {
+				v.Set(reflect.ValueOf(string(s)))
+			} else {
+				d.saveError(&UnmarshalTypeError{"string", v.Type()})
+			}
 		}
 
 	default: // number
@@ -703,6 +713,10 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			n, err := d.convertNumber(s)
 			if err != nil {
 				d.saveError(err)
+				break
+			}
+			if v.NumMethod() != 0 {
+				d.saveError(&UnmarshalTypeError{"number", v.Type()})
 				break
 			}
 			v.Set(reflect.ValueOf(n))
