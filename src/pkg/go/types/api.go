@@ -20,8 +20,15 @@ type Context struct {
 	PtrSize int64 // size in bytes of pointers
 
 	// If Error is not nil, it is called with each error found
-	// during type checking.
+	// during type checking. Most error messages have accurate
+	// position information; those error strings are formatted
+	// filename:line:column: message.
 	Error func(err error)
+
+	// If Ident is not nil, it is called for each identifier
+	// id that is type-checked: obj is the object denoted by
+	// the identifier.
+	Ident func(id *ast.Ident, obj Object)
 
 	// If Expr is not nil, it is called for each expression x that is
 	// type-checked: typ is the expression type, and val is the value

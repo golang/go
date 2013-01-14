@@ -511,7 +511,7 @@ func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
 func (check *checker) compositeLitKey(key ast.Expr) {
 	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
 		if obj := check.pkg.Scope.Lookup(ident.Name); obj != nil {
-			check.idents[ident] = obj
+			check.register(ident, obj)
 		} else {
 			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
 		}
@@ -871,6 +871,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
 					goto Error
 				}
+				check.register(e.Sel, exp)
 				// Simplified version of the code for *ast.Idents:
 				// - imported packages use types.Scope and types.Objects
 				// - imported objects are always fully initialized

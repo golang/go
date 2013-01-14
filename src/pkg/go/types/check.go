@@ -32,6 +32,21 @@ type checker struct {
 	pos       []token.Pos                       // stack of expr positions; debugging support, used if trace is set
 }
 
+func (check *checker) register(id *ast.Ident, obj Object) {
+	// When an expression is evaluated more than once (happens
+	// in rare cases, e.g. for statement expressions, see
+	// comment in stmt.go), the object has been registered
+	// before. Don't do anything in that case.
+	if alt := check.idents[id]; alt != nil {
+		assert(alt == obj)
+		return
+	}
+	check.idents[id] = obj
+	if f := check.ctxt.Ident; f != nil {
+		f(id, obj)
+	}
+}
+
 // lookup returns the unique Object denoted by the identifier.
 // For identifiers without assigned *ast.Object, it uses the
 // checker.idents map; for identifiers with an *ast.Object it
@@ -41,8 +56,8 @@ type checker struct {
 //           the typechecker, only the idents map is needed.
 //
 func (check *checker) lookup(ident *ast.Ident) Object {
-	astObj := ident.Obj
 	obj := check.idents[ident]
+	astObj := ident.Obj
 
 	if obj != nil {
 		assert(astObj == nil || check.objects[astObj] == nil || check.objects[astObj] == obj)
@@ -53,10 +68,9 @@ func (check *checker) lookup(ident *ast.Ident) Object {
 		return nil
 	}
 
-	obj = check.objects[astObj]
-	if obj == nil {
+	if obj = check.objects[astObj]; obj == nil {
 		obj = newObj(astObj)
-		check.idents[ident] = obj
+		check.register(ident, obj)
 		check.objects[astObj] = obj
 	}
 
@@ -82,7 +96,7 @@ func (check *checker) later(f *Func, sig *Signature, body *ast.BlockStmt) {
 
 func (check *checker) declareIdent(scope *Scope, ident *ast.Ident, obj Object) {
 	assert(check.lookup(ident) == nil) // identifier already declared or resolved
-	check.idents[ident] = obj
+	check.register(ident, obj)
 	if ident.Name != "_" {
 		if alt := scope.Insert(obj); alt != nil {
 			prevDecl := ""
@@ -364,7 +378,7 @@ func (check *checker) decl(decl ast.Decl) {
 		if d.Name.Name == "init" {
 			assert(obj == nil) // all other functions should have an object
 			obj = &Func{Name: d.Name.Name, decl: d}
-			check.idents[d.Name] = obj
+			check.register(d.Name, obj)
 		}
 		check.object(obj, false)
 	default:

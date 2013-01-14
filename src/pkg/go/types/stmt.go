@@ -307,6 +307,9 @@ func (check *checker) stmt(s ast.Stmt) {
 			// function calls are permitted
 			used = true
 			// but some builtins are excluded
+			// (Caution: This evaluates e.Fun twice, once here and once
+			//           below as part of s.X. This has consequences for
+			//           check.register. Perhaps this can be avoided.)
 			check.expr(&x, e.Fun, nil, -1)
 			if x.mode != invalid {
 				if b, ok := x.typ.(*builtin); ok && !b.isStatement {
@@ -431,7 +434,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				}
 				name := ast.NewIdent(res.Name)
 				name.NamePos = s.Pos()
-				check.idents[name] = &Var{Name: res.Name, Type: res.Type}
+				check.register(name, &Var{Name: res.Name, Type: res.Type})
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {
@@ -465,7 +468,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if tag == nil {
 			// use fake true tag value and position it at the opening { of the switch
 			ident := &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
-			check.idents[ident] = Universe.Lookup("true")
+			check.register(ident, Universe.Lookup("true"))
 			tag = ident
 		}
 		check.expr(&x, tag, nil, -1)
