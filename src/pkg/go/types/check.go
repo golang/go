@@ -70,9 +70,9 @@ func (check *checker) lookup(ident *ast.Ident) Object {
 
 	if obj = check.objects[astObj]; obj == nil {
 		obj = newObj(astObj)
-		check.register(ident, obj)
 		check.objects[astObj] = obj
 	}
+	check.register(ident, obj)
 
 	return obj
 }
@@ -256,7 +256,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 				params, _ := check.collectParams(m.decl.Recv, false)
 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
 				m.Type = sig
-				methods = append(methods, &Method{QualifiedName{nil, m.Name}, sig})
+				methods = append(methods, &Method{QualifiedName{check.pkg, m.Name}, sig})
 				check.later(m, sig, m.decl.Body)
 			}
 			typ.Methods = methods

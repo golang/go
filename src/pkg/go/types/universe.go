@@ -97,7 +97,8 @@ func init() {
 
 	// error type
 	{
-		err := &Method{QualifiedName{Name: "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
+		// Error has a nil package in its qualified name since it is in no package
+		err := &Method{QualifiedName{nil, "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
 		def(&TypeName{Name: "error", Type: &NamedType{Underlying: &Interface{Methods: []*Method{err}}}})
 	}
 

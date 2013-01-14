@@ -5,7 +5,7 @@
 // Package types declares the data structures for representing
 // Go types and implements typechecking of package files.
 //
-// WARNING: THE TYPES API IS SUBJECT TO SIGNIFICANT CHANGE.
+// WARNING: THE TYPES API IS SUBJECT TO CHANGE.
 //
 package types
 
@@ -25,9 +25,14 @@ type Context struct {
 	// filename:line:column: message.
 	Error func(err error)
 
-	// If Ident is not nil, it is called for each identifier
-	// id that is type-checked: obj is the object denoted by
-	// the identifier.
+	// If Ident is not nil, it is called for each identifier id
+	// denoting an Object in the files provided to Check, and
+	// obj is the denoted object.
+	// Ident is not called for fields and methods in struct or
+	// interface types or composite literals, or for blank (_)
+	// or dot (.) identifiers in dot-imports.
+	// TODO(gri) Consider making Fields and Methods ordinary
+	// Objects - than we could lift this restriction.
 	Ident func(id *ast.Ident, obj Object)
 
 	// If Expr is not nil, it is called for each expression x that is
