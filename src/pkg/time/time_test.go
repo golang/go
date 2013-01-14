@@ -1227,6 +1227,22 @@ func TestParseDurationRoundTrip(t *testing.T) {
 	}
 }
 
+// golang.org/issue/4622
+func TestLocationRace(t *testing.T) {
+	ResetLocalOnceForTest() // reset the Once to trigger the race
+
+	c := make(chan string, 1)
+	go func() {
+		c <- Now().String()
+	}()
+	Now().String()
+	<-c
+	Sleep(100 * Millisecond)
+
+	// Back to Los Angeles for subsequent tests:
+	ForceUSPacificForTesting()
+}
+
 var (
 	t Time
 	u int64
