@@ -418,19 +418,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 	// resolve identifiers
 	imp := ctxt.Import
 	if imp == nil {
-		// wrap GcImport to import packages only once by default.
-		// TODO(gri) move this into resolve
-		imported := make(map[string]bool)
-		imp = func(imports map[string]*Package, path string) (*Package, error) {
-			if imported[path] && imports[path] != nil {
-				return imports[path], nil
-			}
-			pkg, err := GcImport(imports, path)
-			if err == nil {
-				imported[path] = true
-			}
-			return pkg, err
-		}
+		imp = GcImport
 	}
 	pkg, methods := check.resolve(imp)
 	check.pkg = pkg
