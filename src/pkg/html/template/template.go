@@ -14,8 +14,8 @@ import (
 	"text/template/parse"
 )
 
-// Template is a specialized template.Template that produces a safe HTML
-// document fragment.
+// Template is a specialized Template from "text/template" that produces a safe
+// HTML document fragment.
 type Template struct {
 	escaped bool
 	// We could embed the text/template field, but it's safer not to because
@@ -238,7 +238,8 @@ func (t *Template) Name() string {
 // return values of which the second has type error. In that case, if the
 // second (error) argument evaluates to non-nil during execution, execution
 // terminates and Execute returns that error. FuncMap has the same base type
-// as template.FuncMap, copied here so clients need not import "text/template".
+// as FuncMap in "text/template", copied here so clients need not import
+// "text/template".
 type FuncMap map[string]interface{}
 
 // Funcs adds the elements of the argument map to the template's function map.
@@ -268,7 +269,10 @@ func (t *Template) Lookup(name string) *Template {
 	return t.set[name]
 }
 
-// Must panics if err is non-nil in the same way as template.Must.
+// Must is a helper that wraps a call to a function returning (*Template, error)
+// and panics if the error is non-nil. It is intended for use in variable initializations
+// such as
+//	var t = template.Must(template.New("name").Parse("html"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
 		panic(err)
