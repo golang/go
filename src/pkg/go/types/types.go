@@ -90,7 +90,7 @@ type Slice struct {
 
 // A QualifiedName is a name qualified with the package that declared the name.
 type QualifiedName struct {
-	Pkg  *Package // nil for current (non-imported) package
+	Pkg  *Package // nil only for predeclared error.Error
 	Name string   // unqualified type name for anonymous fields
 }
 
@@ -104,19 +104,7 @@ func (p QualifiedName) IsSame(q QualifiedName) bool {
 		return false
 	}
 	// p.Name == q.Name
-	if !ast.IsExported(p.Name) {
-		// TODO(gri) just compare packages once we guarantee that they are canonicalized
-		pp := ""
-		if p.Pkg != nil {
-			pp = p.Pkg.Path
-		}
-		qp := ""
-		if q.Pkg != nil {
-			qp = q.Pkg.Path
-		}
-		return pp == qp
-	}
-	return true
+	return ast.IsExported(p.Name) || p.Pkg == q.Pkg
 }
 
 // A Field represents a field of a struct.
