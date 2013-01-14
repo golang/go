@@ -610,10 +610,10 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 
 		// There is only one object (lhs) associated with a lhs identifier, but that object
-		// assumes different types for different clauses. Set it to nil when we are done so
-		// that the type cannot be used by mistake.
+		// assumes different types for different clauses. Set it back to the type of the
+		// TypeSwitchGuard expression so that that variable always has a valid type.
 		if lhs != nil {
-			lhs.Type = nil
+			lhs.Type = x.typ
 		}
 
 	case *ast.SelectStmt:
