@@ -23,10 +23,11 @@ type Object interface {
 
 // A Package represents the contents (objects) of a Go package.
 type Package struct {
-	Name    string
-	Path    string              // import path, "" for current (non-imported) package
-	Scope   *Scope              // package-level scope
-	Imports map[string]*Package // map of import paths to imported packages
+	Name     string
+	Path     string              // import path, "" for current (non-imported) package
+	Scope    *Scope              // package-level scope
+	Imports  map[string]*Package // map of import paths to imported packages
+	Complete bool                // if set, this package was imported completely
 
 	spec *ast.ImportSpec
 }

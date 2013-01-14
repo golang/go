@@ -77,10 +77,13 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // adds the corresponding package object to the imports map indexed by id,
 // and returns the object.
 //
-// The imports map must contains all packages already imported, and no map
-// entry with id as the key must be present. The data reader position must
-// be the beginning of the export data section. The filename is only used
-// in error messages.
+// The imports map must contains all packages already imported. The data
+// reader position must be the beginning of the export data section. The
+// filename is only used in error messages.
+//
+// If imports[id] contains the completely imported package, that package
+// can be used directly, and there is no need to call this function (but
+// there is also no harm but for extra time used).
 //
 func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
 	// support for gcParser error handling
@@ -118,12 +121,10 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 		return
 	}
 
-	// Note: imports[id] may already contain a partially imported package.
-	//       We must continue doing the full import here since we don't
-	//       know if something is missing.
-	// TODO: There's no need to re-import a package if we know that we
-	//       have done a full import before. At the moment we cannot
-	//       tell from the available information in this function alone.
+	// no need to re-import if the package was imported completely before
+	if pkg = imports[id]; pkg != nil && pkg.Complete {
+		return
+	}
 
 	// open file
 	f, err := os.Open(filename)
@@ -899,6 +900,9 @@ func (p *gcParser) parseExport() *Package {
 	if n := p.scanner.ErrorCount; n != 0 {
 		p.errorf("expected no scanner errors, got %d", n)
 	}
+
+	// package was imported completely and without errors
+	pkg.Complete = true
 
 	return pkg
 }
