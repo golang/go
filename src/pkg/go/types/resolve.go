@@ -29,7 +29,7 @@ func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
 func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
 	for ; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
-			check.idents[ident] = obj
+			check.register(ident, obj)
 			return true
 		}
 	}
