@@ -394,7 +394,7 @@ func TestGobEncoderValueThenPointer(t *testing.T) {
 	if got, want := x.V, v; got != want {
 		t.Errorf("v = %q, want %q", got, want)
 	}
-	if got, want := v.W, w; got == nil {
+	if got, want := x.W, w; got == nil {
 		t.Errorf("w = nil, want %q", want)
 	} else if *got != want {
 		t.Errorf("w = %q, want %q", *got, want)
@@ -422,7 +422,7 @@ func TestGobEncoderPointerThenValue(t *testing.T) {
 	} else if *got != want {
 		t.Errorf("v = %q, want %q", got, want)
 	}
-	if got, want := v.W, w; got != want {
+	if got, want := x.W, w; got != want {
 		t.Errorf("w = %q, want %q", got, want)
 	}
 }
