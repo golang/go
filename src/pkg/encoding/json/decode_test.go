@@ -1042,3 +1042,25 @@ func TestStringKind(t *testing.T) {
 	}
 
 }
+
+var decodeTypeErrorTests = []struct {
+	dest interface{}
+	src  string
+}{
+	{new(string), `{"user": "name"}`}, // issue 4628.
+	{new(error), `{}`},                // issue 4222
+	{new(error), `[]`},
+	{new(error), `""`},
+	{new(error), `123`},
+	{new(error), `true`},
+}
+
+func TestUnmarshalTypeError(t *testing.T) {
+	for _, item := range decodeTypeErrorTests {
+		err := Unmarshal([]byte(item.src), item.dest)
+		if _, ok := err.(*UnmarshalTypeError); !ok {
+			t.Errorf("expected type error for Unmarshal(%q, type %T): got %v instead",
+				item.src, item.dest, err)
+		}
+	}
+}
