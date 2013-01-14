@@ -8,9 +8,7 @@
 
 package syscall
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // Round the length of a raw sockaddr up to align it propery.
 func cmsgAlignOf(salen int) int {
@@ -38,77 +36,69 @@ func CmsgSpace(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
 }
 
-func cmsgData(cmsg *Cmsghdr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(cmsg)) + SizeofCmsghdr)
+func cmsgData(h *Cmsghdr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + SizeofCmsghdr)
 }
 
+// SocketControlMessage represents a socket control message.
 type SocketControlMessage struct {
 	Header Cmsghdr
 	Data   []byte
 }
 
-func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, error) {
-	var (
-		h     *Cmsghdr
-		dbuf  []byte
-		e     error
-		cmsgs []SocketControlMessage
-	)
-
-	for len(buf) >= CmsgLen(0) {
-		h, dbuf, e = socketControlMessageHeaderAndData(buf)
-		if e != nil {
-			break
+// ParseSocketControlMessage parses b as an array of socket control
+// messages.
+func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
+	var msgs []SocketControlMessage
+	for len(b) >= CmsgLen(0) {
+		h, dbuf, err := socketControlMessageHeaderAndData(b)
+		if err != nil {
+			return nil, err
 		}
-		m := SocketControlMessage{}
-		m.Header = *h
-		m.Data = dbuf[:int(h.Len)-cmsgAlignOf(SizeofCmsghdr)]
-		cmsgs = append(cmsgs, m)
-		buf = buf[cmsgAlignOf(int(h.Len)):]
+		m := SocketControlMessage{Header: *h, Data: dbuf[:int(h.Len)-cmsgAlignOf(SizeofCmsghdr)]}
+		msgs = append(msgs, m)
+		b = b[cmsgAlignOf(int(h.Len)):]
 	}
-
-	return cmsgs, e
+	return msgs, nil
 }
 
-func socketControlMessageHeaderAndData(buf []byte) (*Cmsghdr, []byte, error) {
-	h := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
-	if h.Len < SizeofCmsghdr || int(h.Len) > len(buf) {
+func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {
+	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
+	if h.Len < SizeofCmsghdr || int(h.Len) > len(b) {
 		return nil, nil, EINVAL
 	}
-	return h, buf[cmsgAlignOf(SizeofCmsghdr):], nil
+	return h, b[cmsgAlignOf(SizeofCmsghdr):], nil
 }
 
 // UnixRights encodes a set of open file descriptors into a socket
 // control message for sending to another process.
 func UnixRights(fds ...int) []byte {
 	datalen := len(fds) * 4
-	buf := make([]byte, CmsgSpace(datalen))
-	cmsg := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
-	cmsg.Level = SOL_SOCKET
-	cmsg.Type = SCM_RIGHTS
-	cmsg.SetLen(CmsgLen(datalen))
-
-	data := uintptr(cmsgData(cmsg))
+	b := make([]byte, CmsgSpace(datalen))
+	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
+	h.Level = SOL_SOCKET
+	h.Type = SCM_RIGHTS
+	h.SetLen(CmsgLen(datalen))
+	data := uintptr(cmsgData(h))
 	for _, fd := range fds {
 		*(*int32)(unsafe.Pointer(data)) = int32(fd)
 		data += 4
 	}
-
-	return buf
+	return b
 }
 
 // ParseUnixRights decodes a socket control message that contains an
 // integer array of open file descriptors from another process.
-func ParseUnixRights(msg *SocketControlMessage) ([]int, error) {
-	if msg.Header.Level != SOL_SOCKET {
+func ParseUnixRights(m *SocketControlMessage) ([]int, error) {
+	if m.Header.Level != SOL_SOCKET {
 		return nil, EINVAL
 	}
-	if msg.Header.Type != SCM_RIGHTS {
+	if m.Header.Type != SCM_RIGHTS {
 		return nil, EINVAL
 	}
-	fds := make([]int, len(msg.Data)>>2)
-	for i, j := 0, 0; i < len(msg.Data); i += 4 {
-		fds[j] = int(*(*int32)(unsafe.Pointer(&msg.Data[i])))
+	fds := make([]int, len(m.Data)>>2)
+	for i, j := 0, 0; i < len(m.Data); i += 4 {
+		fds[j] = int(*(*int32)(unsafe.Pointer(&m.Data[i])))
 		j++
 	}
 	return fds, nil
