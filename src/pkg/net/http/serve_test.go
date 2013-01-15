@@ -67,6 +67,7 @@ func (a dummyAddr) String() string {
 type testConn struct {
 	readBuf  bytes.Buffer
 	writeBuf bytes.Buffer
+	closec   chan bool // if non-nil, send value to it on close
 }
 
 func (c *testConn) Read(b []byte) (int, error) {
@@ -78,6 +79,10 @@ func (c *testConn) Write(b []byte) (int, error) {
 }
 
 func (c *testConn) Close() error {
+	select {
+	case c.closec <- true:
+	default:
+	}
 	return nil
 }
 
@@ -788,12 +793,10 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
 			"Content-Length: %d\r\n"+
 			"\r\n", len(body))))
 	conn.readBuf.Write([]byte(body))
-
-	done := make(chan bool)
+	conn.closec = make(chan bool, 1)
 
 	ls := &oneConnListener{conn}
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		defer close(done)
 		if conn.readBuf.Len() < len(body)/2 {
 			t.Errorf("on request, read buffer length is %d; expected about 1MB", conn.readBuf.Len())
 		}
@@ -803,7 +806,7 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
 			t.Errorf("post-WriteHeader, read buffer length is %d; expected about 1MB", conn.readBuf.Len())
 		}
 	}))
-	<-done
+	<-conn.closec
 
 	if res := conn.writeBuf.String(); !strings.Contains(res, "Connection: close") {
 		t.Errorf("Expected a Connection: close header; got response: %s", res)
@@ -1150,16 +1153,15 @@ func TestClientWriteShutdown(t *testing.T) {
 func TestServerBufferedChunking(t *testing.T) {
 	conn := new(testConn)
 	conn.readBuf.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
-	done := make(chan bool)
+	conn.closec = make(chan bool, 1)
 	ls := &oneConnListener{conn}
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		defer close(done)
 		rw.(Flusher).Flush() // force the Header to be sent, in chunking mode, not counting the length
 		rw.Write([]byte{'x'})
 		rw.Write([]byte{'y'})
 		rw.Write([]byte{'z'})
 	}))
-	<-done
+	<-conn.closec
 	if !bytes.HasSuffix(conn.writeBuf.Bytes(), []byte("\r\n\r\n3\r\nxyz\r\n0\r\n\r\n")) {
 		t.Errorf("response didn't end with a single 3 byte 'xyz' chunk; got:\n%q",
 			conn.writeBuf.Bytes())
