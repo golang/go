@@ -1216,7 +1216,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 }
 
 // Serve accepts incoming HTTP connections on the listener l,
-// creating a new service thread for each.  The service threads
+// creating a new service goroutine for each.  The service goroutines
 // read requests and then call handler to reply to them.
 // Handler is typically nil, in which case the DefaultServeMux is used.
 func Serve(l net.Listener, handler Handler) error {
@@ -1250,7 +1250,7 @@ func (srv *Server) ListenAndServe() error {
 }
 
 // Serve accepts incoming connections on the Listener l, creating a
-// new service thread for each.  The service threads read requests and
+// new service goroutine for each.  The service goroutines read requests and
 // then call srv.Handler to reply to them.
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
