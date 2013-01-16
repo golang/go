@@ -21,8 +21,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	id := bin.id
 
 	// declare before goto's
-	var arg0 ast.Expr
-	var typ0 Type
+	var arg0 ast.Expr // first argument, if present
 
 	// check argument count
 	n := len(args)
@@ -42,31 +41,24 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	if n > 0 {
 		arg0 = args[0]
 		switch id {
-		case _Make, _New:
-			// argument must be a type
-			typ0 = check.typ(arg0, false)
-			if typ0 == Typ[Invalid] {
-				goto Error
-			}
-		case _Trace:
-			// _Trace implementation does the work
+		case _Make, _New, _Trace:
+			// respective cases below do the work
 		default:
 			// argument must be an expression
 			check.expr(x, arg0, nil, iota)
 			if x.mode == invalid {
 				goto Error
 			}
-			typ0 = underlying(x.typ)
 		}
 	}
 
 	switch id {
 	case _Append:
-		s, ok := typ0.(*Slice)
-		if !ok {
+		if _, ok := underlying(x.typ).(*Slice); !ok {
 			check.invalidArg(x.pos(), "%s is not a typed slice", x)
 			goto Error
 		}
+		resultTyp := x.typ
 		for _, arg := range args[1:] {
 			check.expr(x, arg, nil, iota)
 			if x.mode == invalid {
@@ -75,12 +67,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			// TODO(gri) check assignability
 		}
 		x.mode = value
-		x.typ = s
+		x.typ = resultTyp
 
 	case _Cap, _Len:
 		mode := invalid
 		var val interface{}
-		switch typ := implicitDeref(typ0).(type) {
+		switch typ := implicitDeref(underlying(x.typ)).(type) {
 		case *Basic:
 			if isString(typ) && id == _Len {
 				if x.mode == constant {
@@ -116,7 +108,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.val = val
 
 	case _Close:
-		ch, ok := typ0.(*Chan)
+		ch, ok := underlying(x.typ).(*Chan)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			goto Error
@@ -182,7 +174,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		}
 
 		var dst, src Type
-		if t, ok := typ0.(*Slice); ok {
+		if t, ok := underlying(x.typ).(*Slice); ok {
 			dst = t.Elt
 		}
 		switch t := underlying(y.typ).(type) {
@@ -208,7 +200,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[Int]
 
 	case _Delete:
-		m, ok := typ0.(*Map)
+		m, ok := underlying(x.typ).(*Map)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			goto Error
@@ -224,7 +216,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.mode = novalue
 
 	case _Imag, _Real:
-		if !isComplex(typ0) {
+		if !isComplex(x.typ) {
 			check.invalidArg(x.pos(), "%s must be a complex number", x)
 			goto Error
 		}
@@ -242,7 +234,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			x.mode = value
 		}
 		k := Invalid
-		switch typ0.(*Basic).Kind {
+		switch underlying(x.typ).(*Basic).Kind {
 		case Complex64:
 			k = Float32
 		case Complex128:
@@ -255,8 +247,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[k]
 
 	case _Make:
+		resultTyp := check.typ(arg0, false)
+		if resultTyp == Typ[Invalid] {
+			goto Error
+		}
 		var min int // minimum number of arguments
-		switch underlying(typ0).(type) {
+		switch underlying(resultTyp).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -291,11 +287,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			// safe to continue
 		}
 		x.mode = variable
-		x.typ = typ0
+		x.typ = resultTyp
 
 	case _New:
+		resultTyp := check.typ(arg0, false)
+		if resultTyp == Typ[Invalid] {
+			goto Error
+		}
 		x.mode = variable
-		x.typ = &Pointer{Base: typ0}
+		x.typ = &Pointer{Base: resultTyp}
 
 	case _Panic, _Print, _Println:
 		for _, arg := range args[1:] {
@@ -329,14 +329,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Sizeof:
 		x.mode = constant
+		x.val = sizeof(check.ctxt, x.typ)
 		x.typ = Typ[Uintptr]
-		x.val = sizeof(check.ctxt, typ0)
 
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
-		if x.mode != constant || !isBoolean(typ0) {
+		if x.mode != constant || !isBoolean(x.typ) {
 			check.invalidArg(x.pos(), "%s is not a boolean constant", x)
 			goto Error
 		}
