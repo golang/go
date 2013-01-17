@@ -253,7 +253,8 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 		}
 	}
 	if len(args) <= skip {
-		if *verbose && !isLn {
+		// TODO: check that the receiver of Error() is of type error.
+		if !isLn && name != "Error" {
 			f.Badf(call.Pos(), "no args in %s call", name)
 		}
 		return
@@ -299,6 +300,8 @@ func BadFunctionUsedInTests() {
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+	var e error
+	fmt.Println(e.Error()) // correct, used to trigger "no args in Error call"
 }
 
 // printf is used by the test.
