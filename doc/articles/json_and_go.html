@@ -43,7 +43,7 @@ and an instance of <code>Message</code>
 {{code "/doc/progs/json1.go" `/m :=/`}}
 
 <p>
-we can marshal a JSON-encoded version of m using <code>json.Marshal</code>:
+we can marshal a JSON-encoded version of <code>m</code> using <code>json.Marshal</code>:
 </p>
 
 {{code "/doc/progs/json1.go" `/b, err :=/`}}
@@ -151,11 +151,11 @@ type?
 
 <p>
 <code>Unmarshal</code> will decode only the fields that it can find in the
-destination type.  In this case, only the Name field of m will be populated,
-and the Food field will be ignored. This behavior is particularly useful when
-you wish to pick only a few specific fields out of a large JSON blob. It also
-means that any unexported fields in the destination struct will be unaffected
-by <code>Unmarshal</code>.
+destination type.  In this case, only the <code>Name</code> field of m will be
+populated, and the <code>Food</code> field will be ignored. This behavior is
+particularly useful when you wish to pick only a few specific fields out of a
+large JSON blob. It also means that any unexported fields in the destination
+struct will be unaffected by <code>Unmarshal</code>.
 </p>
 
 <p>
@@ -163,7 +163,7 @@ But what if you don't know the structure of your JSON data beforehand?
 </p>
 
 <p>
-<b>Generic JSON with interface{}</b>
+<b>Generic JSON with <code>interface{}</code></b>
 </p>
 
 <p>
@@ -190,11 +190,12 @@ Or, if the underlying type is unknown, a type switch determines the type:
 
 {{code "/doc/progs/json2.go" `/switch v/` `/STOP/`}}
 
-
+<p>
 The json package uses <code>map[string]interface{}</code> and
 <code>[]interface{}</code> values to store arbitrary JSON objects and arrays;
 it will happily unmarshal any valid JSON blob into a plain
 <code>interface{}</code> value.  The default concrete Go types are:
+</p>
 
 <ul>
 <li>
