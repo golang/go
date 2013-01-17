@@ -35,10 +35,10 @@ type Timer struct {
 
 // Stop prevents the Timer from firing.
 // It returns true if the call stops the timer, false if the timer has already
-// expired or stopped.
+// expired or been stopped.
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
-func (t *Timer) Stop() (ok bool) {
+func (t *Timer) Stop() bool {
 	return stopTimer(&t.r)
 }
 
@@ -56,6 +56,17 @@ func NewTimer(d Duration) *Timer {
 	}
 	startTimer(&t.r)
 	return t
+}
+
+// Reset changes the timer to expire after duration d.
+// It returns true if the timer had been active, false if the timer had
+// expired or been stopped.
+func (t *Timer) Reset(d Duration) bool {
+	when := nano() + int64(d)
+	active := stopTimer(&t.r)
+	t.r.when = when
+	startTimer(&t.r)
+	return active
 }
 
 func sendTime(now int64, c interface{}) {
