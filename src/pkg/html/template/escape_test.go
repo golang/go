@@ -551,11 +551,6 @@ func TestEscape(t *testing.T) {
 			"<textarea>&lt;a&gt;&lt;b&gt;</textarea>",
 		},
 		{
-			"auditable exemption from escaping",
-			"{{range .A}}{{. | noescape}}{{end}}",
-			"<a><b>",
-		},
-		{
 			"No tag injection",
 			`{{"10$"}}<{{"script src,evil.org/pwnd.js"}}...`,
 			`10$&lt;script src,evil.org/pwnd.js...`,
@@ -659,12 +654,6 @@ func TestEscape(t *testing.T) {
 
 	for _, test := range tests {
 		tmpl := New(test.name)
-		// TODO: Move noescape into template/func.go
-		tmpl.Funcs(FuncMap{
-			"noescape": func(a ...interface{}) string {
-				return fmt.Sprint(a...)
-			},
-		})
 		tmpl = Must(tmpl.Parse(test.input))
 		b := new(bytes.Buffer)
 		if err := tmpl.Execute(b, data); err != nil {

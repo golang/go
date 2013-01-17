@@ -220,10 +220,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	idents := p.Cmds
 	for i := n - 1; i >= 0; i-- {
 		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
-			if id, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
-				if id.Ident == "noescape" {
-					return
-				}
+			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
 				continue
 			}
 		}
