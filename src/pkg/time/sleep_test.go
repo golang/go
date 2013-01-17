@@ -245,3 +245,27 @@ func TestSleepZeroDeadlock(t *testing.T) {
 	}
 	<-c
 }
+
+func TestReset(t *testing.T) {
+	t0 := NewTimer(100 * Millisecond)
+	Sleep(50 * Millisecond)
+	if t0.Reset(150*Millisecond) != true {
+		t.Fatalf("resetting unfired timer returned false")
+	}
+	Sleep(100 * Millisecond)
+	select {
+	case <-t0.C:
+		t.Fatalf("timer fired early")
+	default:
+	}
+	Sleep(100 * Millisecond)
+	select {
+	case <-t0.C:
+	default:
+		t.Fatalf("reset timer did not fire")
+	}
+
+	if t0.Reset(50*Millisecond) != false {
+		t.Fatalf("resetting expired timer returned true")
+	}
+}
