@@ -34,11 +34,12 @@ type InternalBenchmark struct {
 // timing and to specify the number of iterations to run.
 type B struct {
 	common
-	N         int
-	benchmark InternalBenchmark
-	bytes     int64
-	timerOn   bool
-	result    BenchmarkResult
+	N               int
+	benchmark       InternalBenchmark
+	bytes           int64
+	timerOn         bool
+	showAllocResult bool
+	result          BenchmarkResult
 	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
 	startAllocs uint64
 	startBytes  uint64
@@ -90,6 +91,13 @@ func (b *B) ResetTimer() {
 // SetBytes records the number of bytes processed in a single operation.
 // If this is called, the benchmark will report ns/op and MB/s.
 func (b *B) SetBytes(n int64) { b.bytes = n }
+
+// ReportAllocs enables malloc statistics for this benchmark.
+// It is equivalent to setting -test.benchmem, but it only affects the
+// benchmark function that calls ReportAllocs.
+func (b *B) ReportAllocs() {
+	b.showAllocResult = true
+}
 
 func (b *B) nsPerOp() int64 {
 	if b.N <= 0 {
@@ -298,7 +306,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 				continue
 			}
 			results := r.String()
-			if *benchmarkMemory {
+			if *benchmarkMemory || b.showAllocResult {
 				results += "\t" + r.MemString()
 			}
 			fmt.Println(results)

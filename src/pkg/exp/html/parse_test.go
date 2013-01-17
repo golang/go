@@ -382,15 +382,9 @@ func BenchmarkParser(b *testing.B) {
 	}
 	b.SetBytes(int64(len(buf)))
 	runtime.GC()
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	mallocs := ms.Mallocs
+	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Parse(bytes.NewBuffer(buf))
 	}
-	b.StopTimer()
-	runtime.ReadMemStats(&ms)
-	mallocs = ms.Mallocs - mallocs
-	b.Logf("%d iterations, %d mallocs per iteration\n", b.N, int(mallocs)/b.N)
 }
