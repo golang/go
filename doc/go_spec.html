@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 9, 2013",
+	"Subtitle": "Version of January 11, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -4382,7 +4382,7 @@ Range expression                          1st value          2nd value (if 2nd v
 array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
 string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E, <-chan E       element  e  E
+channel         c  chan E, &lt;-chan E       element  e  E
 </pre>
 
 <ol>
@@ -4408,11 +4408,12 @@ a single byte in the string.
 <li>
 The iteration order over maps is not specified
 and is not guaranteed to be the same from one iteration to the next.
-If map entries that have not yet been reached are deleted during iteration,
+If map entries that have not yet been reached are removed during iteration,
 the corresponding iteration values will not be produced. If map entries are
-inserted during iteration, the behavior is implementation-dependent, but the
-iteration values for each entry will be produced at most once. If the map
-is <code>nil</code>, the number of iterations is 0.
+created during iteration, that entry may be produced during the iteration or
+may be skipped. The choice may vary for each entry created and from one
+iteration to the next.
+If the map is <code>nil</code>, the number of iterations is 0.
 </li>
 
 <li>
