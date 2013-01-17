@@ -656,7 +656,9 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 		canonical += "/"
 	}
 	if r.URL.Path != canonical {
-		http.Redirect(w, r, canonical, http.StatusMovedPermanently)
+		url := *r.URL
+		url.Path = canonical
+		http.Redirect(w, r, url.String(), http.StatusMovedPermanently)
 		redirected = true
 	}
 	return
@@ -668,7 +670,9 @@ func redirectFile(w http.ResponseWriter, r *http.Request) (redirected bool) {
 		c = c[:len(c)-1]
 	}
 	if r.URL.Path != c {
-		http.Redirect(w, r, c, http.StatusMovedPermanently)
+		url := *r.URL
+		url.Path = c
+		http.Redirect(w, r, url.String(), http.StatusMovedPermanently)
 		redirected = true
 	}
 	return
