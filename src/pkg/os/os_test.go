@@ -536,8 +536,10 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	var b bytes.Buffer
 	io.Copy(&b, r)
 	output := b.String()
-	// Accept /usr prefix because Solaris /bin is symlinked to /usr/bin.
-	if output != expect && output != "/usr"+expect {
+
+	fi1, _ := Stat(strings.TrimSpace(output))
+	fi2, _ := Stat(expect)
+	if !SameFile(fi1, fi2) {
 		t.Errorf("exec %q returned %q wanted %q",
 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
 	}
@@ -545,15 +547,13 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 }
 
 func TestStartProcess(t *testing.T) {
-	var dir, cmd, le string
+	var dir, cmd string
 	var args []string
 	if runtime.GOOS == "windows" {
-		le = "\r\n"
 		cmd = Getenv("COMSPEC")
 		dir = Getenv("SystemRoot")
 		args = []string{"/c", "cd"}
 	} else {
-		le = "\n"
 		cmd = "/bin/pwd"
 		dir = "/"
 		args = []string{}
@@ -561,9 +561,9 @@ func TestStartProcess(t *testing.T) {
 	cmddir, cmdbase := filepath.Split(cmd)
 	args = append([]string{cmdbase}, args...)
 	// Test absolute executable path.
-	exec(t, dir, cmd, args, dir+le)
+	exec(t, dir, cmd, args, dir)
 	// Test relative executable path.
-	exec(t, cmddir, cmdbase, args, filepath.Clean(cmddir)+le)
+	exec(t, cmddir, cmdbase, args, cmddir)
 }
 
 func checkMode(t *testing.T, path string, mode FileMode) {
