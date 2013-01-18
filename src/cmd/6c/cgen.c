@@ -265,6 +265,18 @@ cgen(Node *n, Node *nn)
 				break;
 			}
 		}
+		if(n->op == OOR && l->op == OASHL && r->op == OLSHR
+		&& l->right->op == OCONST && r->right->op == OCONST
+		&& l->left->op == ONAME && r->left->op == ONAME
+		&& l->left->sym == r->left->sym
+		&& l->right->vconst + r->right->vconst == 8 * l->left->type->width) {
+			regalloc(&nod, l->left, nn);
+			cgen(l->left, &nod);
+			gopcode(OROTL, n->type, l->right, &nod);
+			gmove(&nod, nn);
+			regfree(&nod);
+			break;
+		}
 		if(n->op == OADD && l->op == OASHL && l->right->op == OCONST
 		&& (r->op != OCONST || r->vconst < -128 || r->vconst > 127)) {
 			c = l->right->vconst;

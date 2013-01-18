@@ -325,6 +325,7 @@ enum
 	OINDEX,
 	OFAS,
 	OREGPAIR,
+	OROTL,
 
 	OEND
 };
