@@ -355,3 +355,47 @@ func TestUnmarshalWithoutNameType(t *testing.T) {
 		t.Fatalf("have %v\nwant %v", x.Attr, OK)
 	}
 }
+
+func TestUnmarshalAttr(t *testing.T) {
+	type ParamVal struct {
+		Int int `xml:"int,attr"`
+	}
+
+	type ParamPtr struct {
+		Int *int `xml:"int,attr"`
+	}
+
+	type ParamStringPtr struct {
+		Int *string `xml:"int,attr"`
+	}
+
+	x := []byte(`<Param int="1" />`)
+
+	p1 := &ParamPtr{}
+	if err := Unmarshal(x, p1); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p1.Int == nil {
+		t.Fatalf("Unmarshal failed in to *int field")
+	} else if *p1.Int != 1 {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p1.Int, 1)
+	}
+
+	p2 := &ParamVal{}
+	if err := Unmarshal(x, p2); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p2.Int != 1 {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p2.Int, 1)
+	}
+
+	p3 := &ParamStringPtr{}
+	if err := Unmarshal(x, p3); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if p3.Int == nil {
+		t.Fatalf("Unmarshal failed in to *string field")
+	} else if *p3.Int != "1" {
+		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p3.Int, 1)
+	}
+}

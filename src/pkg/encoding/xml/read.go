@@ -394,6 +394,13 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 		return err == nil
 	}
 
+	if pv := dst; pv.Kind() == reflect.Ptr {
+		if pv.IsNil() {
+			pv.Set(reflect.New(pv.Type().Elem()))
+		}
+		dst = pv.Elem()
+	}
+
 	// Save accumulated data.
 	switch t := dst; t.Kind() {
 	case reflect.Invalid:
