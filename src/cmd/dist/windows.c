@@ -987,7 +987,7 @@ cpuid(int dst[4], int ax)
 }
 
 bool
-cansse(void)
+cansse2(void)
 {
 	int info[4];
 	

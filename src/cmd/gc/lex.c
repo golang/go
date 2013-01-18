@@ -217,7 +217,6 @@ main(int argc, char *argv[])
 	goroot = getgoroot();
 	goos = getgoos();
 	goarch = thestring;
-	use_sse = strcmp(getgo386(), "sse") == 0;
 	
 	setexp();
 
@@ -261,6 +260,9 @@ main(int argc, char *argv[])
 
 	flagparse(&argc, &argv, usage);
 
+	if(argc < 1)
+		usage();
+
 	if(flag_race) {
 		racepkg = mkpkg(strlit("runtime/race"));
 		racepkg->name = "race";
@@ -273,8 +275,15 @@ main(int argc, char *argv[])
 	if(debug['l'] <= 1)
 		debug['l'] = 1 - debug['l'];
 
-	if(argc < 1)
-		usage();
+	if(thechar == '8') {
+		p = getgo386();
+		if(strcmp(p, "387") == 0)
+			use_sse = 0;
+		else if(strcmp(p, "sse2") == 0)
+			use_sse = 1;
+		else
+			sysfatal("unsupported setting GO386=%s", p);
+	}
 
 	pathname = mal(1000);
 	if(getwd(pathname, 999) == 0)

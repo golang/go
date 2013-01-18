@@ -105,8 +105,8 @@ init(void)
 
 	xgetenv(&b, "GO386");
 	if(b.len == 0) {
-		if(cansse())
-			bwritestr(&b, "sse");
+		if(cansse2())
+			bwritestr(&b, "sse2");
 		else
 			bwritestr(&b, "387");
 	}
