@@ -320,7 +320,7 @@ struct	Node
 	int32	lineno;
 	int32	endlineno;
 	vlong	xoffset;
-	int32	stkdelta;	// offset added by stack frame compaction phase.
+	vlong	stkdelta;	// offset added by stack frame compaction phase.
 	int32	ostk;
 	int32	iota;
 	uint32	walkgen;
@@ -912,8 +912,8 @@ EXTERN	int	loophack;
 EXTERN	int32	iota;
 EXTERN	NodeList*	lastconst;
 EXTERN	Node*	lasttype;
-EXTERN	int32	maxarg;
-EXTERN	int32	stksize;		// stack size for current frame
+EXTERN	vlong	maxarg;
+EXTERN	vlong	stksize;		// stack size for current frame
 EXTERN	int32	blockgen;		// max block number
 EXTERN	int32	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment

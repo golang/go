@@ -1,4 +1,7 @@
-// compile
+// skip
+
+// NOTE: this test is now skipped because the relevant code
+// is rejected after fixing issue 4666.
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style

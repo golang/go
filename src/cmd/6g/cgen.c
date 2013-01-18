@@ -1329,7 +1329,7 @@ void
 sgen(Node *n, Node *ns, int64 w)
 {
 	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
-	int32 c, q, odst, osrc;
+	vlong c, q, odst, osrc;
 
 	if(debug['g']) {
 		print("\nsgen w=%lld\n", w);
