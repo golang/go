@@ -526,7 +526,7 @@ func (x *Int) Int64() int64 {
 	return v
 }
 
-// Uint64 returns the int64 representation of x.
+// Uint64 returns the uint64 representation of x.
 // If x cannot be represented in an uint64, the result is undefined.
 func (x *Int) Uint64() uint64 {
 	if len(x.abs) == 0 {
