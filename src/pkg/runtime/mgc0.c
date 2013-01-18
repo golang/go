@@ -410,7 +410,7 @@ static void
 scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 {
 	byte *b, *arena_start, *arena_used;
-	uintptr n, i, end_b, elemsize, ti, objti, count;
+	uintptr n, i, end_b, elemsize, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
 	void *obj;
 	Type *t;
@@ -463,7 +463,6 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			runtime·printf("scanblock %p %D\n", b, (int64)n);
 		}
 
-		// TODO(atom): to be expanded in a next CL
 		if(ti != 0) {
 			pc = (uintptr*)(ti & ~(uintptr)PC_BITS);
 			precise_type = (ti & PRECISE);
@@ -475,6 +474,37 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				stack_top.loop_or_ret = pc+1;
 			} else {
 				stack_top.count = 1;
+			}
+		} else if(UseSpanType) {
+			type = runtime·gettype(b);
+			if(type != 0) {
+				t = (Type*)(type & ~(uintptr)(PtrSize-1));
+				switch(type & (PtrSize-1)) {
+				case TypeInfo_SingleObject:
+					pc = (uintptr*)t->gc;
+					precise_type = true;  // type information about 'b' is precise
+					stack_top.count = 1;
+					stack_top.elemsize = pc[0];
+					break;
+				case TypeInfo_Array:
+					pc = (uintptr*)t->gc;
+					if(pc[0] == 0)
+						goto next_block;
+					precise_type = true;  // type information about 'b' is precise
+					stack_top.count = 0;  // 0 means an infinite number of iterations
+					stack_top.elemsize = pc[0];
+					stack_top.loop_or_ret = pc+1;
+					break;
+				case TypeInfo_Map:
+					// TODO(atom): to be expanded in a next CL
+					pc = defaultProg;
+					break;
+				default:
+					runtime·throw("scanblock: invalid type");
+					return;
+				}
+			} else {
+				pc = defaultProg;
 			}
 		} else {
 			pc = defaultProg;
