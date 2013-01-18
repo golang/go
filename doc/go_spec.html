@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 11, 2013",
+	"Subtitle": "Version of January 18, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -4353,7 +4353,7 @@ to corresponding <i>iteration variables</i> and then executes the block.
 </p>
 
 <pre class="ebnf">
-RangeClause = Expression [ "," Expression ] ( "=" | ":=" ) "range" Expression .
+RangeClause = ( ExpressionList "=" | IdentifierList ":=" ) "range" Expression .
 </pre>
 
 <p>
@@ -4522,7 +4522,7 @@ cases all referring to communication operations.
 SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
 CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
-RecvStmt   = [ Expression [ "," Expression ] ( "=" | ":=" ) ] RecvExpr .
+RecvStmt   = [ ExpressionList "=" | IdentifierList ":=" ] RecvExpr .
 RecvExpr   = Expression .
 </pre>
 
