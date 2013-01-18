@@ -1,9 +1,0 @@
-A new project has been submitted:
-
-Name: {{project.name}}
-Description: {{project.descr}}
-URL: {{project.web_url}}
-
-To edit/approve/delete:
-http://godashboard.appspot.com/project/edit?name={{project.name|toutf8|urlencode}}
-
