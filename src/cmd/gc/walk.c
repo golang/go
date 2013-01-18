@@ -2746,6 +2746,8 @@ walkcompare(Node **np, NodeList **init)
 		// Struct of four or fewer fields.
 		// Inline comparisons.
 		for(t1=t->type; t1; t1=t1->down) {
+			if(isblanksym(t1->sym))
+				continue;
 			li = nod(OXDOT, l, newname(t1->sym));
 			ri = nod(OXDOT, r, newname(t1->sym));
 			a = nod(n->op, li, ri);
