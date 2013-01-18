@@ -37,6 +37,7 @@ func sysInit() {
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
 	if syscall.LoadGetAddrInfo() == nil {
+		lookupPort = newLookupPort
 		lookupIP = newLookupIP
 	}
 }
