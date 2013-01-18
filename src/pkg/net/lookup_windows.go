@@ -17,6 +17,11 @@ var (
 	serventLock  sync.Mutex
 )
 
+var (
+	lookupPort = oldLookupPort
+	lookupIP   = oldLookupIP
+)
+
 // lookupProtocol looks up IP protocol name and returns correspondent protocol number.
 func lookupProtocol(name string) (proto int, err error) {
 	protoentLock.Lock()
@@ -39,8 +44,6 @@ func lookupHost(name string) (addrs []string, err error) {
 	}
 	return
 }
-
-var lookupIP = oldLookupIP
 
 func oldLookupIP(name string) (addrs []IP, err error) {
 	hostentLock.Lock()
@@ -92,7 +95,7 @@ func newLookupIP(name string) (addrs []IP, err error) {
 	return addrs, nil
 }
 
-func lookupPort(network, service string) (port int, err error) {
+func oldLookupPort(network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
@@ -106,6 +109,40 @@ func lookupPort(network, service string) (port int, err error) {
 		return 0, os.NewSyscallError("GetServByName", err)
 	}
 	return int(syscall.Ntohs(s.Port)), nil
+}
+
+func newLookupPort(network, service string) (port int, err error) {
+	var stype int32
+	switch network {
+	case "tcp4", "tcp6":
+		stype = syscall.SOCK_STREAM
+	case "udp4", "udp6":
+		stype = syscall.SOCK_DGRAM
+	}
+	hints := syscall.AddrinfoW{
+		Family:   syscall.AF_UNSPEC,
+		Socktype: stype,
+		Protocol: syscall.IPPROTO_IP,
+	}
+	var result *syscall.AddrinfoW
+	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
+	if e != nil {
+		return 0, os.NewSyscallError("GetAddrInfoW", e)
+	}
+	defer syscall.FreeAddrInfoW(result)
+	if result == nil {
+		return 0, os.NewSyscallError("LookupPort", syscall.EINVAL)
+	}
+	addr := unsafe.Pointer(result.Addr)
+	switch result.Family {
+	case syscall.AF_INET:
+		a := (*syscall.RawSockaddrInet4)(addr)
+		return int(syscall.Ntohs(a.Port)), nil
+	case syscall.AF_INET6:
+		a := (*syscall.RawSockaddrInet6)(addr)
+		return int(syscall.Ntohs(a.Port)), nil
+	}
+	return 0, os.NewSyscallError("LookupPort", syscall.EINVAL)
 }
 
 func lookupCNAME(name string) (cname string, err error) {
