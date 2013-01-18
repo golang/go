@@ -649,6 +649,16 @@ func (b *builder) do(root *action) {
 	wg.Wait()
 }
 
+// hasString reports whether s appears in the list of strings.
+func hasString(strings []string, s string) bool {
+	for _, t := range strings {
+		if s == t {
+			return true
+		}
+	}
+	return false
+}
+
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) (err error) {
 	defer func() {
@@ -667,6 +677,11 @@ func (b *builder) build(a *action) (err error) {
 
 	if buildV {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
+	}
+
+	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
+		!hasString(a.p.HFiles, "zasm_"+buildContext.GOOS+"_"+buildContext.GOARCH+".h") {
+		return fmt.Errorf("%s/%s must be bootstrapped using make.bash", buildContext.GOOS, buildContext.GOARCH)
 	}
 
 	// Make build directory.
