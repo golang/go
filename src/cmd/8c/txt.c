@@ -1253,6 +1253,14 @@ gopcode(int o, Type *ty, Node *f, Node *t)
 			a = ASALW;
 		break;
 
+	case OROTL:
+		a = AROLL;
+		if(et == TCHAR || et == TUCHAR)
+			a = AROLB;
+		if(et == TSHORT || et == TUSHORT)
+			a = AROLW;
+		break;
+
 	case OFUNC:
 		a = ACALL;
 		break;
