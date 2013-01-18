@@ -1053,8 +1053,12 @@ shouldbuild(char *file, char *dir)
 	// The main exception is libmach which has been modified
 	// in various places to support Go object files.
 	if(streq(gohostos, "plan9")) {
-		if(streq(dir, "lib9") && !hassuffix(file, "lib9/goos.c"))
+		if(streq(dir, "lib9")) {
+			name = lastelem(file);
+			if(streq(name, "goos.c") || streq(name, "flag.c"))
+				return 1;
 			return 0;
+		}
 		if(streq(dir, "libbio"))
 			return 0;
 	}
