@@ -699,7 +699,7 @@ retvar(Type *t, int i)
 {
 	Node *n;
 
-	snprint(namebuf, sizeof(namebuf), ".r%d", i);
+	snprint(namebuf, sizeof(namebuf), "~r%d", i);
 	n = newname(lookup(namebuf));
 	n->type = t->type;
 	n->class = PAUTO;

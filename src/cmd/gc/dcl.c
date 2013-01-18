@@ -638,7 +638,7 @@ funcargs(Node *nt)
 
 		if(n->left == N) {
 			// give it a name so escape analysis has nodes to work with
-			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
 			n->left = newname(lookup(namebuf));
 			n->left->orig = N;  // signal that the original was absent
 
@@ -653,7 +653,7 @@ funcargs(Node *nt)
 			*nn = *n->left;
 			n->left = nn;
 			
-			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
 			n->left->sym = lookup(namebuf);
 		}
 
