@@ -664,6 +664,7 @@ subprop(Reg *r0)
 		case AIMULW:
 			if(p->to.type != D_NONE)
 				break;
+			goto giveup;
 
 		case ARCLB:
 		case ARCLL:
@@ -699,6 +700,7 @@ subprop(Reg *r0)
 		case ASHRW:
 			if(p->from.type == D_CONST)
 				break;
+			goto giveup;
 
 		case ADIVB:
 		case ADIVL:
@@ -727,6 +729,7 @@ subprop(Reg *r0)
 		case AMOVSB:
 		case AMOVSL:
 		case AMOVSQ:
+		giveup:
 			if(debug['P'] && debug['v'])
 				print("\tfound %P; return 0\n", p);
 			return 0;
