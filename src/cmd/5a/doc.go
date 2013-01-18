@@ -6,7 +6,7 @@
 
 5a is a version of the Plan 9 assembler.  The original is documented at
 
-	http://plan9.bell-labs.com/magic/man2html/1/2a
+	http://plan9.bell-labs.com/magic/man2html/1/8a
 
 Its target architecture is the ARM, referred to by these tools as arm.
 

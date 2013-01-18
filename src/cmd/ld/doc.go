@@ -6,7 +6,7 @@
 
 Ld is the portable code for a modified version of the Plan 9 linker.  The original is documented at
 
-	http://plan9.bell-labs.com/magic/man2html/1/2l
+	http://plan9.bell-labs.com/magic/man2html/1/8l
 
 It reads object files (.5, .6, or .8 files) and writes a binary named for the
 architecture (5.out, 6.out, 8.out) by default (if $GOOS is windows, a .exe suffix

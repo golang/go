@@ -6,7 +6,7 @@
 
 5c is a version of the Plan 9 C compiler.  The original is documented at
 
-	http://plan9.bell-labs.com/magic/man2html/1/2c
+	http://plan9.bell-labs.com/magic/man2html/1/8c
 
 Its target architecture is the ARM, referred to by these tools as arm.
 
