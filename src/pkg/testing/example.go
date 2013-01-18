@@ -67,6 +67,7 @@ func runExample(eg InternalExample) (ok bool) {
 	}()
 
 	start := time.Now()
+	ok = true
 
 	// Clean up in a deferred call so we can recover if the example panics.
 	defer func() {
@@ -84,6 +85,7 @@ func runExample(eg InternalExample) (ok bool) {
 		}
 		if fail != "" || err != nil {
 			fmt.Printf("--- FAIL: %s (%v)\n%s", eg.Name, d, fail)
+			ok = false
 		} else if *chatty {
 			fmt.Printf("--- PASS: %s (%v)\n", eg.Name, d)
 		}
