@@ -54,32 +54,46 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
-// Huffman decoder is based on
-// J. Brian Connell, ``A Huffman-Shannon-Fano Code,''
-// Proceedings of the IEEE, 61(7) (July 1973), pp 1046-1047.
+// Note that much of the implemenation of huffmanDecoder is also copied
+// into gen.go (in package main) for the purpose of precomputing the
+// fixed huffman tables so they can be included statically.
+
+// The data structure for decoding Huffman tables is based on that of
+// zlib. There is a lookup table of a fixed bit width (huffmanChunkBits),
+// For codes smaller than the table width, there are multiple entries
+// (each combination of trailing bits has the same value). For codes
+// larger than the table width, the table contains a link to an overflow
+// table. The width of each entry in the link table is the maximum code
+// size minus the chunk width.
+
+// Note that you can do a lookup in the table even without all bits
+// filled. Since the extra bits are zero, and the DEFLATE Huffman codes
+// have the property that shorter codes come before longer ones, the
+// bit length estimate in the result is a lower bound on the actual
+// number of bits.
+
+// chunk & 15 is number of bits
+// chunk >> 4 is value, including table link
+
+const (
+	huffmanChunkBits  = 9
+	huffmanNumChunks  = 1 << huffmanChunkBits
+	huffmanCountMask  = 15
+	huffmanValueShift = 4
+)
+
 type huffmanDecoder struct {
-	// min, max code length
-	min, max int
-
-	// limit[i] = largest code word of length i
-	// Given code v of length n,
-	// need more bits if v > limit[n].
-	limit [maxCodeLen + 1]int
-
-	// base[i] = smallest code word of length i - seq number
-	base [maxCodeLen + 1]int
-
-	// codes[seq number] = output code.
-	// Given code v of length n, value is
-	// codes[v - base[n]].
-	codes []int
+	min      int                      // the minimum code length
+	chunks   [huffmanNumChunks]uint32 // chunks as described above
+	links    [][]uint32               // overflow links
+	linkMask uint32                   // mask the width of the link table
 }
 
 // Initialize Huffman decoding tables from array of code lengths.
 func (h *huffmanDecoder) init(bits []int) bool {
 	// Count number of codes of each length,
 	// compute min and max length.
-	var count [maxCodeLen + 1]int
+	var count [maxCodeLen]int
 	var min, max int
 	for _, n := range bits {
 		if n == 0 {
@@ -98,91 +112,56 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	}
 
 	h.min = min
-	h.max = max
-
-	// For each code range, compute
-	// nextcode (first code of that length),
-	// limit (last code of that length), and
-	// base (offset from first code to sequence number).
+	var linkBits uint
+	var numLinks int
+	if max > huffmanChunkBits {
+		linkBits = uint(max) - huffmanChunkBits
+		numLinks = 1 << linkBits
+		h.linkMask = uint32(numLinks - 1)
+	}
 	code := 0
-	seq := 0
 	var nextcode [maxCodeLen]int
 	for i := min; i <= max; i++ {
+		if i == huffmanChunkBits+1 {
+			// create link tables
+			link := code >> 1
+			h.links = make([][]uint32, huffmanNumChunks-link)
+			for j := uint(link); j < huffmanNumChunks; j++ {
+				reverse := int(reverseByte[j>>8]) | int(reverseByte[j&0xff])<<8
+				reverse >>= uint(16 - huffmanChunkBits)
+				off := j - uint(link)
+				h.chunks[reverse] = uint32(off<<huffmanValueShift + uint(i))
+				h.links[off] = make([]uint32, 1<<linkBits)
+			}
+		}
 		n := count[i]
 		nextcode[i] = code
-		h.base[i] = code - seq
 		code += n
-		seq += n
-		h.limit[i] = code - 1
 		code <<= 1
 	}
 
-	// Make array mapping sequence numbers to codes.
-	if len(h.codes) < len(bits) {
-		h.codes = make([]int, len(bits))
-	}
 	for i, n := range bits {
 		if n == 0 {
 			continue
 		}
 		code := nextcode[n]
 		nextcode[n]++
-		seq := code - h.base[n]
-		h.codes[seq] = i
+		chunk := uint32(i<<huffmanValueShift | n)
+		reverse := int(reverseByte[code>>8]) | int(reverseByte[code&0xff])<<8
+		reverse >>= uint(16 - n)
+		if n <= huffmanChunkBits {
+			for off := reverse; off < huffmanNumChunks; off += 1 << uint(n) {
+				h.chunks[off] = chunk
+			}
+		} else {
+			linktab := h.links[h.chunks[reverse&(huffmanNumChunks-1)]>>huffmanValueShift]
+			reverse >>= huffmanChunkBits
+			for off := reverse; off < numLinks; off += 1 << uint(n-huffmanChunkBits) {
+				linktab[off] = chunk
+			}
+		}
 	}
 	return true
-}
-
-// Hard-coded Huffman tables for DEFLATE algorithm.
-// See RFC 1951, section 3.2.6.
-var fixedHuffmanDecoder = huffmanDecoder{
-	7, 9,
-	[maxCodeLen + 1]int{7: 23, 199, 511},
-	[maxCodeLen + 1]int{7: 0, 24, 224},
-	[]int{
-		// length 7: 256-279
-		256, 257, 258, 259, 260, 261, 262,
-		263, 264, 265, 266, 267, 268, 269,
-		270, 271, 272, 273, 274, 275, 276,
-		277, 278, 279,
-
-		// length 8: 0-143
-		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-		12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-		22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-		32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
-		42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
-		52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
-		62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
-		72, 73, 74, 75, 76, 77, 78, 79, 80, 81,
-		82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
-		92, 93, 94, 95, 96, 97, 98, 99, 100,
-		101, 102, 103, 104, 105, 106, 107, 108,
-		109, 110, 111, 112, 113, 114, 115, 116,
-		117, 118, 119, 120, 121, 122, 123, 124,
-		125, 126, 127, 128, 129, 130, 131, 132,
-		133, 134, 135, 136, 137, 138, 139, 140,
-		141, 142, 143,
-
-		// length 8: 280-287
-		280, 281, 282, 283, 284, 285, 286, 287,
-
-		// length 9: 144-255
-		144, 145, 146, 147, 148, 149, 150, 151,
-		152, 153, 154, 155, 156, 157, 158, 159,
-		160, 161, 162, 163, 164, 165, 166, 167,
-		168, 169, 170, 171, 172, 173, 174, 175,
-		176, 177, 178, 179, 180, 181, 182, 183,
-		184, 185, 186, 187, 188, 189, 190, 191,
-		192, 193, 194, 195, 196, 197, 198, 199,
-		200, 201, 202, 203, 204, 205, 206, 207,
-		208, 209, 210, 211, 212, 213, 214, 215,
-		216, 217, 218, 219, 220, 221, 222, 223,
-		224, 225, 226, 227, 228, 229, 230, 231,
-		232, 233, 234, 235, 236, 237, 238, 239,
-		240, 241, 242, 243, 244, 245, 246, 247,
-		248, 249, 250, 251, 252, 253, 254, 255,
-	},
 }
 
 // The actual read interface needed by NewReader.
@@ -644,23 +623,23 @@ func (f *decompressor) moreBits() error {
 
 // Read the next Huffman-encoded symbol from f according to h.
 func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
-	for n := uint(h.min); n <= uint(h.max); n++ {
-		lim := h.limit[n]
-		if lim == -1 {
-			continue
-		}
+	n := uint(h.min)
+	for {
 		for f.nb < n {
 			if err := f.moreBits(); err != nil {
 				return 0, err
 			}
 		}
-		v := int(f.b & uint32(1<<n-1))
-		v <<= 16 - n
-		v = int(reverseByte[v>>8]) | int(reverseByte[v&0xFF])<<8 // reverse bits
-		if v <= lim {
+		chunk := h.chunks[f.b&(huffmanNumChunks-1)]
+		n = uint(chunk & huffmanCountMask)
+		if n > huffmanChunkBits {
+			chunk = h.links[chunk>>huffmanValueShift][(f.b>>huffmanChunkBits)&h.linkMask]
+			n = uint(chunk & huffmanCountMask)
+		}
+		if n <= f.nb {
 			f.b >>= n
 			f.nb -= n
-			return h.codes[v-h.base[n]], nil
+			return int(chunk >> huffmanValueShift), nil
 		}
 	}
 	return 0, CorruptInputError(f.roffset)
