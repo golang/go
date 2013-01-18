@@ -637,7 +637,8 @@ func skip(value, prefix string) (string, error) {
 //
 // Elements omitted from the value are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time
-// corresponding to Jan 1, year 0, 15:04:00 UTC.
+// corresponding to Jan 1, year 0, 15:04:00 UTC (note that because the year is
+// 0, this time is before the zero Time).
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
 func Parse(layout, value string) (Time, error) {
