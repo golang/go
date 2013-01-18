@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -499,9 +500,68 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return forkExec(argv0, argv, attr)
 }
 
+type waitErr struct {
+	Waitmsg
+	err error
+}
+
+var procs struct {
+	sync.Mutex
+	waits map[int]chan *waitErr
+}
+
+// startProcess starts a new goroutine, tied to the OS
+// thread, which runs the process and subsequently waits
+// for it to finish, communicating the process stats back
+// to any goroutines that may have been waiting on it.
+//
+// Such a dedicated goroutine is needed because on
+// Plan 9, only the parent thread can wait for a child,
+// whereas goroutines tend to jump OS threads (e.g.,
+// between starting a process and running Wait(), the
+// goroutine may have been rescheduled).
+func startProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
+	type forkRet struct {
+		pid int
+		err error
+	}
+
+	forkc := make(chan forkRet, 1)
+	go func() {
+		runtime.LockOSThread()
+		var ret forkRet
+
+		ret.pid, ret.err = forkExec(argv0, argv, attr)
+		// If fork fails there is nothing to wait for.
+		if ret.err != nil || ret.pid == 0 {
+			forkc <- ret
+			return
+		}
+
+		waitc := make(chan *waitErr, 1)
+
+		// Mark that the process is running.
+		procs.Lock()
+		if procs.waits == nil {
+			procs.waits = make(map[int]chan *waitErr)
+		}
+		procs.waits[ret.pid] = waitc
+		procs.Unlock()
+
+		forkc <- ret
+
+		var w waitErr
+		w.err = Await(&w.Waitmsg)
+		waitc <- &w
+		close(waitc)
+	}()
+	ret := <-forkc
+	return ret.pid, ret.err
+}
+
 // StartProcess wraps ForkExec for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
-	pid, err = forkExec(argv0, argv, attr)
+	pid, err = startProcess(argv0, argv, attr)
 	return pid, 0, err
 }
 
@@ -547,4 +607,36 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 		0)
 
 	return e1
+}
+
+// WaitProcess waits until the pid of a
+// running process is found in the queue of
+// wait messages. It is used in conjunction
+// with StartProcess to wait for a running
+// process to exit.
+func WaitProcess(pid int, w *Waitmsg) (err error) {
+	procs.Lock()
+	ch := procs.waits[pid]
+	procs.Unlock()
+
+	var wmsg *waitErr
+	if ch != nil {
+		wmsg = <-ch
+		procs.Lock()
+		if procs.waits[pid] == ch {
+			delete(procs.waits, pid)
+		}
+		procs.Unlock()
+	}
+	if wmsg == nil {
+		// ch was missing or ch is closed
+		return NewError("process not found")
+	}
+	if wmsg.err != nil {
+		return wmsg.err
+	}
+	if w != nil {
+		*w = wmsg.Waitmsg
+	}
+	return nil
 }

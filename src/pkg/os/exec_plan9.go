@@ -75,20 +75,12 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if p.Pid == -1 {
 		return nil, ErrInvalid
 	}
-
-	for true {
-		err = syscall.Await(&waitmsg)
-
-		if err != nil {
-			return nil, NewSyscallError("wait", err)
-		}
-
-		if waitmsg.Pid == p.Pid {
-			p.setDone()
-			break
-		}
+	err = syscall.WaitProcess(p.Pid, &waitmsg)
+	if err != nil {
+		return nil, NewSyscallError("wait", err)
 	}
 
+	p.setDone()
 	ps = &ProcessState{
 		pid:    waitmsg.Pid,
 		status: &waitmsg,
