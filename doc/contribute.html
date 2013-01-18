@@ -290,6 +290,11 @@ to add <code>somefile</code> to CL 99999, and use <code>hg file -d 99999 somefil
 </p>
 
 <p>
+Creating the change uploads a copy of the diff to the code review server, but it does not
+notify anyone about it. To do that, you need to run <code>hg mail</code> (see below).
+</p>
+
+<p>
 You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
 </p>
 
