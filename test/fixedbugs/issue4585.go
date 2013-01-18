@@ -32,6 +32,20 @@ type USmall struct {
 	A, _, B int32
 }
 
+// V has padding but not on the first field.
+type V struct {
+	A1, A2, A3 int32
+	B          int16
+	C          int32
+}
+
+// W has padding at the end.
+type W struct {
+	A1, A2, A3 int32
+	B          int32
+	C          int8
+}
+
 func test1() {
 	var a, b U
 	m := make(map[U]int)
@@ -84,8 +98,54 @@ func test3() {
 	}
 }
 
+func test4() {
+	var a, b V
+	m := make(map[V]int)
+
+	copy((*[20]byte)(unsafe.Pointer(&a))[:], "Hello World, Gopher!")
+	a.A1, a.A2, a.A3, a.B, a.C = 1, 2, 3, 4, 5
+	b.A1, b.A2, b.A3, b.B, b.C = 1, 2, 3, 4, 5
+
+	if a != b {
+		panic("broken equality: a != b")
+	}
+
+	m[a] = 1
+	m[b] = 2
+	if len(m) == 2 {
+		panic("broken hash: len(m) == 2")
+	}
+	if m[a] != 2 {
+		panic("m[a] != 2")
+	}
+}
+
+func test5() {
+	var a, b W
+	m := make(map[W]int)
+
+	copy((*[20]byte)(unsafe.Pointer(&a))[:], "Hello World, Gopher!")
+	a.A1, a.A2, a.A3, a.B, a.C = 1, 2, 3, 4, 5
+	b.A1, b.A2, b.A3, b.B, b.C = 1, 2, 3, 4, 5
+
+	if a != b {
+		panic("broken equality: a != b")
+	}
+
+	m[a] = 1
+	m[b] = 2
+	if len(m) == 2 {
+		panic("broken hash: len(m) == 2")
+	}
+	if m[a] != 2 {
+		panic("m[a] != 2")
+	}
+}
+
 func main() {
 	test1()
 	test2()
 	test3()
+	test4()
+	test5()
 }

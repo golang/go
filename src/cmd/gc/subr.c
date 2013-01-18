@@ -504,12 +504,17 @@ nod(int op, Node *nleft, Node *nright)
 	return n;
 }
 
+// ispaddedfield returns whether the given field
+// is followed by padding. For the case where t is
+// the last field, total gives the size of the enclosing struct.
 static int
-ispaddedfield(Type *t)
+ispaddedfield(Type *t, vlong total)
 {
 	if(t->etype != TFIELD)
 		fatal("ispaddedfield called non-field %T", t);
-	return t->down != T && t->width + t->type->width != t->down->width;
+	if(t->down == T)
+		return t->width + t->type->width != total;
+	return t->width + t->type->width != t->down->width;
 }
 
 int
@@ -591,7 +596,7 @@ algtype1(Type *t, Type **bad)
 		for(t1=t->type; t1!=T; t1=t1->down) {
 			// Blank fields and padding must be ignored,
 			// so need special compare.
-			if(isblanksym(t1->sym) || ispaddedfield(t1)) {
+			if(isblanksym(t1->sym) || ispaddedfield(t1, t->width)) {
 				ret = -1;
 				continue;
 			}
@@ -2619,7 +2624,7 @@ genhash(Sym *sym, Type *t)
 	Node *hashel;
 	Type *first, *t1;
 	int old_safemode;
-	int64 size, mul;
+	int64 size, mul, offend;
 
 	if(debug['r'])
 		print("genhash %S %T\n", sym, t);
@@ -2705,24 +2710,21 @@ genhash(Sym *sym, Type *t)
 		// Walk the struct using memhash for runs of AMEM
 		// and calling specific hash functions for the others.
 		first = T;
+		offend = 0;
 		for(t1=t->type;; t1=t1->down) {
 			if(t1 != T && algtype1(t1->type, nil) == AMEM && !isblanksym(t1->sym)) {
+				offend = t1->width + t1->type->width;
 				if(first == T)
 					first = t1;
 				// If it's a memory field but it's padded, stop here.
-				if(ispaddedfield(t1))
+				if(ispaddedfield(t1, t->width))
 					t1 = t1->down;
 				else
 					continue;
 			}
 			// Run memhash for fields up to this one.
 			if(first != T) {
-				if(first->down == t1)
-					size = first->type->width;
-				else if(t1 == T)
-					size = t->width - first->width;  // first->width is offset
-				else
-					size = t1->width - first->width;  // both are offsets
+				size = offend - first->width; // first->width is offset
 				hashel = hashmem(first->type);
 				// hashel(h, size, &p.first)
 				call = nod(OCALL, hashel, N);
@@ -2856,6 +2858,7 @@ geneq(Sym *sym, Type *t)
 	Type *t1, *first;
 	int old_safemode;
 	int64 size;
+	int64 offend;
 
 	if(debug['r'])
 		print("geneq %S %T\n", sym, t);
@@ -2929,12 +2932,14 @@ geneq(Sym *sym, Type *t)
 		// and calling specific equality tests for the others.
 		// Skip blank-named fields.
 		first = T;
+		offend = 0;
 		for(t1=t->type;; t1=t1->down) {
 			if(t1 != T && algtype1(t1->type, nil) == AMEM && !isblanksym(t1->sym)) {
+				offend = t1->width + t1->type->width;
 				if(first == T)
 					first = t1;
 				// If it's a memory field but it's padded, stop here.
-				if(ispaddedfield(t1))
+				if(ispaddedfield(t1, t->width))
 					t1 = t1->down;
 				else
 					continue;
@@ -2952,10 +2957,7 @@ geneq(Sym *sym, Type *t)
 						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
 				} else {
 					// More than two fields: use memequal.
-					if(t1 == T)
-						size = t->width - first->width;  // first->width is offset
-					else
-						size = t1->width - first->width;  // both are offsets
+					size = offend - first->width; // first->width is offset
 					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size, neq));
 				}
 				first = T;
