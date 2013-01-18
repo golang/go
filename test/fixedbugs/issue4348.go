@@ -1,13 +1,10 @@
-// skip
-
-// NOTE: this test is now skipped because the relevant code
-// is rejected after fixing issue 4666.
+// compile
 
 // Copyright 2012 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Issue 4238. After switch to 64-bit ints the compiler generates
+// Issue 4348. After switch to 64-bit ints the compiler generates
 // illegal instructions when using large array bounds or indexes.
 
 package main
@@ -20,8 +17,9 @@ func A() int {
 	return a[LARGE]
 }
 
+var b [LARGE]int
+
 func B(i int) int {
-	var b [LARGE]int
 	return b[i]
 }
 
