@@ -123,7 +123,7 @@ void	runv(Buf *b, char *dir, int mode, Vec *argv);
 void	bgrunv(char *dir, int mode, Vec *argv);
 void	bgwait(void);
 bool	streq(char*, char*);
-bool	cansse(void);
+bool	cansse2(void);
 void	writefile(Buf*, char*, int);
 void	xatexit(void (*f)(void));
 void	xexit(int);

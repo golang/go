@@ -759,7 +759,7 @@ xtryexecfunc(void (*f)(void))
 }
 
 bool
-cansse(void)
+cansse2(void)
 {
 	// if we had access to cpuid, could answer this question
 	// less conservatively.
