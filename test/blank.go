@@ -8,6 +8,8 @@
 
 package main
 
+import "unsafe"
+
 import _ "fmt"
 
 var call string
@@ -102,8 +104,15 @@ func main() {
 		panic(sum)
 	}
 
+	type T1 struct{ x, y, z int }
+	t1 := *(*T)(unsafe.Pointer(&T1{1, 2, 3}))
+	t2 := *(*T)(unsafe.Pointer(&T1{4, 5, 6}))
+	if t1 != t2 {
+		panic("T{} != T{}")
+	}
+
 	h(a, b)
-	
+
 	m()
 }
 
@@ -133,14 +142,13 @@ func fp1(x, y int) {
 	}
 }
 
-
 func m() {
 	var i I
-	
+
 	i = TI{}
 	i.M(1, 1)
 	i.M(2, 2)
-	
+
 	fp(1, 1)
 	fp(2, 2)
 }
@@ -162,4 +170,3 @@ func _() {
 func ff() {
 	var _ int = 1
 }
-

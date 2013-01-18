@@ -504,6 +504,14 @@ nod(int op, Node *nleft, Node *nright)
 	return n;
 }
 
+static int
+ispaddedfield(Type *t)
+{
+	if(t->etype != TFIELD)
+		fatal("ispaddedfield called non-field %T", t);
+	return t->down != T && t->width + t->type->width != t->down->width;
+}
+
 int
 algtype1(Type *t, Type **bad)
 {
@@ -581,8 +589,12 @@ algtype1(Type *t, Type **bad)
 		}
 		ret = AMEM;
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			if(isblanksym(t1->sym))
+			// Blank fields and padding must be ignored,
+			// so need special compare.
+			if(isblanksym(t1->sym) || ispaddedfield(t1)) {
+				ret = -1;
 				continue;
+			}
 			a = algtype1(t1->type, bad);
 			if(a == ANOEQ)
 				return ANOEQ;  // not comparable
@@ -2694,14 +2706,16 @@ genhash(Sym *sym, Type *t)
 		// and calling specific hash functions for the others.
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
-			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
-				if(first == T && !isblanksym(t1->sym))
+			if(t1 != T && algtype1(t1->type, nil) == AMEM && !isblanksym(t1->sym)) {
+				if(first == T)
 					first = t1;
-				continue;
+				// If it's a memory field but it's padded, stop here.
+				if(ispaddedfield(t1))
+					t1 = t1->down;
+				else
+					continue;
 			}
 			// Run memhash for fields up to this one.
-			while(first != T && isblanksym(first->sym))
-				first = first->down;
 			if(first != T) {
 				if(first->down == t1)
 					size = first->type->width;
@@ -2724,6 +2738,8 @@ genhash(Sym *sym, Type *t)
 			}
 			if(t1 == T)
 				break;
+			if(isblanksym(t1->sym))
+				continue;
 
 			// Run hash for this field.
 			hashel = hashfor(t1->type);
@@ -2737,6 +2753,8 @@ genhash(Sym *sym, Type *t)
 			call->list = list(call->list, na);
 			fn->nbody = list(fn->nbody, call);
 		}
+		// make sure body is not empty.
+		fn->nbody = list(fn->nbody, nod(ORETURN, N, N));
 		break;
 	}
 
@@ -2909,18 +2927,21 @@ geneq(Sym *sym, Type *t)
 	case TSTRUCT:
 		// Walk the struct using memequal for runs of AMEM
 		// and calling specific equality tests for the others.
+		// Skip blank-named fields.
 		first = T;
 		for(t1=t->type;; t1=t1->down) {
-			if(t1 != T && (isblanksym(t1->sym) || algtype1(t1->type, nil) == AMEM)) {
-				if(first == T && !isblanksym(t1->sym))
+			if(t1 != T && algtype1(t1->type, nil) == AMEM && !isblanksym(t1->sym)) {
+				if(first == T)
 					first = t1;
-				continue;
+				// If it's a memory field but it's padded, stop here.
+				if(ispaddedfield(t1))
+					t1 = t1->down;
+				else
+					continue;
 			}
 			// Run memequal for fields up to this one.
 			// TODO(rsc): All the calls to newname are wrong for
 			// cross-package unexported fields.
-			while(first != T && isblanksym(first->sym))
-				first = first->down;
 			if(first != T) {
 				if(first->down == t1) {
 					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
@@ -2941,6 +2962,8 @@ geneq(Sym *sym, Type *t)
 			}
 			if(t1 == T)
 				break;
+			if(isblanksym(t1->sym))
+				continue;
 
 			// Check this field, which is not just memory.
 			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym), neq));
