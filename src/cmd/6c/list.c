@@ -93,7 +93,7 @@ Pconv(Fmt *fp)
 		break;
 
 	default:
-		sprint(str, "(%L)	%A	%D,%lD",
+		sprint(str, "(%L)	%A	%D,%D",
 			p->lineno, p->as, &p->from, &p->to);
 		break;
 	}
@@ -120,13 +120,12 @@ Dconv(Fmt *fp)
 	i = a->type;
 
 	if(fp->flags & FmtLong) {
-		if(i != D_CONST) {
+		if(i == D_CONST)
+			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
+		else {
 			// ATEXT dst is not constant
 			sprint(str, "!!%D", a);
-			goto brk;
 		}
-		sprint(str, "$%lld-%lld", a->offset&0xffffffffLL,
-			(a->offset>>32)&0xffffffffLL);
 		goto brk;
 	}
 
@@ -138,7 +137,6 @@ Dconv(Fmt *fp)
 		goto brk;
 	}
 	switch(i) {
-
 	default:
 		if(a->offset)
 			sprint(str, "$%lld,%R", a->offset, i);
@@ -159,24 +157,21 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_STATIC:
-		sprint(str, "%s<>+%lld(SB)", a->sym->name,
-			a->offset);
+		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
 		break;
 
 	case D_AUTO:
-		if(a->sym) {
+		if(a->sym)
 			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
-			break;
-		}
-		sprint(str, "%lld(SP)", a->offset);
+		else
+			sprint(str, "%lld(SP)", a->offset);
 		break;
 
 	case D_PARAM:
-		if(a->sym) {
+		if(a->sym)
 			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
-			break;
-		}
-		sprint(str, "%lld(FP)", a->offset);
+		else
+			sprint(str, "%lld(FP)", a->offset);
 		break;
 
 	case D_CONST:
@@ -210,7 +205,7 @@ conv:
 
 char*	regstr[] =
 {
-	"AL",		/* [D_AL] */
+	"AL",	/* [D_AL] */
 	"CL",
 	"DL",
 	"BL",
@@ -227,7 +222,7 @@ char*	regstr[] =
 	"R14B",
 	"R15B",
 
-	"AX",		/* [D_AX] */
+	"AX",	/* [D_AX] */
 	"CX",
 	"DX",
 	"BX",
@@ -249,7 +244,7 @@ char*	regstr[] =
 	"DH",
 	"BH",
 
-	"F0",		/* [D_F0] */
+	"F0",	/* [D_F0] */
 	"F1",
 	"F2",
 	"F3",
@@ -284,20 +279,20 @@ char*	regstr[] =
 	"X14",
 	"X15",
 
-	"CS",		/* [D_CS] */
+	"CS",	/* [D_CS] */
 	"SS",
 	"DS",
 	"ES",
 	"FS",
 	"GS",
 
-	"GDTR",		/* [D_GDTR] */
-	"IDTR",		/* [D_IDTR] */
-	"LDTR",		/* [D_LDTR] */
-	"MSW",		/* [D_MSW] */
-	"TASK",		/* [D_TASK] */
+	"GDTR",	/* [D_GDTR] */
+	"IDTR",	/* [D_IDTR] */
+	"LDTR",	/* [D_LDTR] */
+	"MSW",	/* [D_MSW] */
+	"TASK",	/* [D_TASK] */
 
-	"CR0",		/* [D_CR] */
+	"CR0",	/* [D_CR] */
 	"CR1",
 	"CR2",
 	"CR3",
@@ -314,7 +309,7 @@ char*	regstr[] =
 	"CR14",
 	"CR15",
 
-	"DR0",		/* [D_DR] */
+	"DR0",	/* [D_DR] */
 	"DR1",
 	"DR2",
 	"DR3",
@@ -323,7 +318,7 @@ char*	regstr[] =
 	"DR6",
 	"DR7",
 
-	"TR0",		/* [D_TR] */
+	"TR0",	/* [D_TR] */
 	"TR1",
 	"TR2",
 	"TR3",
@@ -332,7 +327,7 @@ char*	regstr[] =
 	"TR6",
 	"TR7",
 
-	"NONE",		/* [D_NONE] */
+	"NONE",	/* [D_NONE] */
 };
 
 int
