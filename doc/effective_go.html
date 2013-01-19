@@ -726,11 +726,11 @@ func shouldEscape(c byte) bool {
 </pre>
 
 <p>
-Here's a comparison routine for byte arrays that uses two
+Here's a comparison routine for byte slices that uses two
 <code>switch</code> statements:
 </p>
 <pre>
-// Compare returns an integer comparing the two byte arrays,
+// Compare returns an integer comparing the two byte slices,
 // lexicographically.
 // The result will be 0 if a == b, -1 if a &lt; b, and +1 if a &gt; b
 func Compare(a, b []byte) int {
@@ -810,7 +810,7 @@ This is a common style; see the section on error handling for more examples.
 A similar approach obviates the need to pass a pointer to a return
 value to simulate a reference parameter.
 Here's a simple-minded function to
-grab a number from a position in a byte array, returning the number
+grab a number from a position in a byte slice, returning the number
 and the next position.
 </p>
 
@@ -827,12 +827,12 @@ func nextInt(b []byte, i int) (int, int) {
 </pre>
 
 <p>
-You could use it to scan the numbers in an input array <code>a</code> like this:
+You could use it to scan the numbers in an input slice <code>b</code> like this:
 </p>
 
 <pre>
-    for i := 0; i &lt; len(a); {
-        x, i = nextInt(a, i)
+    for i := 0; i &lt; len(b); {
+        x, i = nextInt(b, i)
         fmt.Println(x)
     }
 </pre>
@@ -1374,8 +1374,8 @@ var timeZone = map[string] int {
 </pre>
 <p>
 Assigning and fetching map values looks syntactically just like
-doing the same for arrays except that the index doesn't need to
-be an integer.
+doing the same for arrays and slices except that the index doesn't
+need to be an integer.
 </p>
 <pre>
 offset := timeZone["EST"]
@@ -1500,7 +1500,7 @@ prints
 If you just want the default conversion, such as decimal for integers, you can use
 the catchall format <code>%v</code> (for &ldquo;value&rdquo;); the result is exactly
 what <code>Print</code> and <code>Println</code> would produce.
-Moreover, that format can print <em>any</em> value, even arrays, structs, and
+Moreover, that format can print <em>any</em> value, even arrays, slices, structs, and
 maps.  Here is a print statement for the time zone map defined in the previous section.
 </p>
 <pre>
@@ -1544,8 +1544,8 @@ map[string] int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
 That quoted string format is also available through <code>%q</code> when
 applied to a value of type <code>string</code> or <code>[]byte</code>;
 the alternate format <code>%#q</code> will use backquotes instead if possible.
-Also, <code>%x</code> works on strings and arrays of bytes as well as on integers,
-generating a long hexadecimal string, and with
+Also, <code>%x</code> works on strings, byte arrays and byte slices as well as
+on integers, generating a long hexadecimal string, and with
 a space in the format (<code>%&nbsp;x</code>) it puts spaces between the bytes.
 </p>
 <p>
@@ -2836,7 +2836,7 @@ func init() {
 
 <p>
 When <code>panic</code> is called, including implicitly for run-time
-errors such as indexing an array out of bounds or failing a type
+errors such as indexing a slice out of bounds or failing a type
 assertion, it immediately stops execution of the current function
 and begins unwinding the stack of the goroutine, running any deferred
 functions along the way.  If that unwinding reaches the top of the
@@ -2937,7 +2937,7 @@ that it has the local type <code>Error</code>.
 If it does not, the type assertion will fail, causing a run-time error
 that continues the stack unwinding as though nothing had interrupted
 it.  This check means that if something unexpected happens, such
-as an array index out of bounds, the code will fail even though we
+as an index out of bounds, the code will fail even though we
 are using <code>panic</code> and <code>recover</code> to handle
 user-triggered errors.
 </p>
