@@ -504,8 +504,6 @@ loop:
 	p->as = o;
 	p->line = Bget4(f);
 	p->back = 2;
-	p->ft = 0;
-	p->tt = 0;
 	zaddr(pn, f, &p->from, h);
 	fromgotype = adrgotype;
 	zaddr(pn, f, &p->to, h);
