@@ -219,6 +219,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		if(istype(n->left->type, TMAP)) {
 			// crashes on len(m[0]) or len(f())
+			SET(n1);
 			USED(n1);
 			/*
 			n1 = nod(OADDR, n->left, N);

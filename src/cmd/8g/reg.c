@@ -1815,7 +1815,7 @@ hash32to16(uint32 h)
  * sees, which lets it do a better job and makes it less likely to turn
  * itself off.
  */
-void
+static void
 fixtemp(Prog *firstp)
 {
 	static uint8 counts[1<<16]; // A hash table to count variable occurences.

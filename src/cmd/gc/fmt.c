@@ -289,7 +289,7 @@ Jconv(Fmt *fp)
 		fmtprint(fp, " l(%d)", n->lineno);
 
 	if(!c && n->xoffset != BADWIDTH)
-		fmtprint(fp, " x(%lld%+d)", n->xoffset, n->stkdelta);
+		fmtprint(fp, " x(%lld%+lld)", n->xoffset, n->stkdelta);
 
 	if(n->class != 0) {
 		s = "";

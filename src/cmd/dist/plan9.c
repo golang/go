@@ -755,6 +755,7 @@ xsamefile(char *f1, char *f2)
 int
 xtryexecfunc(void (*f)(void))
 {
+	USED(f);
 	return 0; // suffice for now
 }
 

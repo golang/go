@@ -1515,7 +1515,7 @@ floatmove(Node *f, Node *t)
 {
 	Node r1, r2, t1, t2, tlo, thi, con, f0, f1, ax, dx, cx;
 	Type *cvt;
-	int a, ft, tt;
+	int ft, tt;
 	Prog *p1, *p2, *p3;
 
 	ft = simsimtype(f->type);
@@ -1710,9 +1710,6 @@ floatmove(Node *f, Node *t)
 		splitclean();
 		return;
 	}
-
-	gins(a, f, t);
-	return;
 
 hard:
 	// requires register intermediate
