@@ -26,11 +26,6 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
 		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
-	default:
-		if sa != nil {
-			// Diagnose when we will turn a non-nil sockaddr into a nil.
-			panic("unexpected type in sockaddrToTCP")
-		}
 	}
 	return nil
 }
