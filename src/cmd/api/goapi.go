@@ -181,6 +181,7 @@ func main() {
 	defer bw.Flush()
 
 	if *checkFile == "" {
+		sort.Strings(features)
 		for _, f := range features {
 			fmt.Fprintf(bw, "%s\n", f)
 		}
