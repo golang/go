@@ -108,7 +108,6 @@ struct	Prog
 	} u0;
 	Prog*	cond;
 	Prog*	link;
-	Prog*	dlink;
 	int32	pc;
 	int32	line;
 	int32	spadj;
@@ -117,7 +116,7 @@ struct	Prog
 	uchar	as;
 	uchar	scond;
 	uchar	reg;
-	uchar	align;
+	uchar	align;	// unused
 };
 
 #define	regused	u0.u0regused
@@ -136,8 +135,6 @@ struct	Sym
 	uchar	reachable;
 	uchar	dynexport;
 	uchar	leaf;
-	uchar	stkcheck;
-	uchar	hide;
 	int32	dynid;
 	int32	plt;
 	int32	got;
@@ -148,6 +145,8 @@ struct	Sym
 	int32	elfsym;
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
+	uchar	stkcheck;
+	uchar	hide;
 	Sym*	hash;	// in hash table
 	Sym*	allsym;	// in all symbol list
 	Sym*	next;	// in text or data list
