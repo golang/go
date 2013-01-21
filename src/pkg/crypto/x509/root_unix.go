@@ -27,9 +27,11 @@ func initSystemRoots() {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
-			break
+			systemRoots = roots
+			return
 		}
 	}
 
-	systemRoots = roots
+	// All of the files failed to load. systemRoots will be nil which will
+	// trigger a specific error at verification time.
 }

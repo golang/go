@@ -226,5 +226,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 }
 
 func initSystemRoots() {
-	systemRoots = NewCertPool()
 }
