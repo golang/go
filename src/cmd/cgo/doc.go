@@ -65,11 +65,13 @@ struct_, union_, or enum_, as in C.struct_stat.
 
 Go structs cannot embed fields with C types.
 
-Any C function that returns a value may be called in a multiple
-assignment context to retrieve both the return value and the
-C errno variable as an error.  For example:
+Any C function (even void functions) may be called in a multiple
+assignment context to retrieve both the return value (if any) and the
+C errno variable as an error (use _ to skip the result value if the
+function returns void).  For example:
 
 	n, err := C.atoi("abc")
+	_, err := C.voidFunc()
 
 In C, a function argument written as a fixed size array
 actually requires a pointer to the first element of the array.
@@ -83,7 +85,8 @@ by making copies of the data.  In pseudo-Go definitions:
 	// Go string to C string
 	// The C string is allocated in the C heap using malloc.
 	// It is the caller's responsibility to arrange for it to be
-	// freed, such as by calling C.free.
+	// freed, such as by calling C.free (be sure to include stdlib.h
+	// if C.free is needed).
 	func C.CString(string) *C.char
 
 	// C string to Go string
