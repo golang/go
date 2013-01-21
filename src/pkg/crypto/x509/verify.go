@@ -82,6 +82,14 @@ func (e UnknownAuthorityError) Error() string {
 	return "x509: certificate signed by unknown authority"
 }
 
+// SystemRootsError results when we fail to load the system root certificates.
+type SystemRootsError struct {
+}
+
+func (e SystemRootsError) Error() string {
+	return "x509: failed to load system roots and no roots provided"
+}
+
 // VerifyOptions contains parameters for Certificate.Verify. It's a structure
 // because other PKIX verification APIs have ended up needing many options.
 type VerifyOptions struct {
@@ -170,6 +178,9 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 
 	if opts.Roots == nil {
 		opts.Roots = systemRootsPool()
+		if opts.Roots == nil {
+			return nil, SystemRootsError{}
+		}
 	}
 
 	err = c.isValid(leafCertificate, nil, &opts)
