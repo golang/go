@@ -312,8 +312,9 @@ func notSpace(r rune) bool {
 	return !isSpace(r)
 }
 
-// skipSpace provides Scan() methods the ability to skip space and newline characters
-// in keeping with the current scanning mode set by format strings and Scan()/Scanln().
+// SkipSpace provides Scan methods the ability to skip space and newline
+// characters in keeping with the current scanning mode set by format strings
+// and Scan/Scanln.
 func (s *ss) SkipSpace() {
 	s.skipSpace(false)
 }
@@ -381,7 +382,7 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
 
 var ssFree = newCache(func() interface{} { return new(ss) })
 
-// Allocate a new ss struct or grab a cached one.
+// newScanState allocates a new ss struct or grab a cached one.
 func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
 	// If the reader is a *ss, then we've got a recursive
 	// call to Scan, so re-use the scan state.
@@ -413,7 +414,7 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
 	return
 }
 
-// Save used ss structs in ssFree; avoid an allocation per invocation.
+// free saves used ss structs in ssFree; avoid an allocation per invocation.
 func (s *ss) free(old ssave) {
 	// If it was used recursively, just restore the old state.
 	if old.validSave {

@@ -26,8 +26,8 @@ var (
 	extraBytes      = []byte("%!(EXTRA ")
 	irparenBytes    = []byte("i)")
 	bytesBytes      = []byte("[]byte{")
-	widthBytes      = []byte("%!(BADWIDTH)")
-	precBytes       = []byte("%!(BADPREC)")
+	badWidthBytes   = []byte("%!(BADWIDTH)")
+	badPrecBytes    = []byte("%!(BADPREC)")
 	noVerbBytes     = []byte("%!(NOVERB)")
 )
 
@@ -153,7 +153,7 @@ func newCache(f func() interface{}) *cache {
 
 var ppFree = newCache(func() interface{} { return new(pp) })
 
-// Allocate a new pp struct or grab a cached one.
+// newPrinter allocates a new pp struct or grab a cached one.
 func newPrinter() *pp {
 	p := ppFree.get().(*pp)
 	p.panicking = false
@@ -162,7 +162,7 @@ func newPrinter() *pp {
 	return p
 }
 
-// Save used pp structs in ppFree; avoids an allocation per invocation.
+// free saves used pp structs in ppFree; avoids an allocation per invocation.
 func (p *pp) free() {
 	// Don't hold on to pp structs with large buffers.
 	if cap(p.buf) > 1024 {
@@ -299,7 +299,7 @@ func Sprintln(a ...interface{}) string {
 	return s
 }
 
-// Get the i'th arg of the struct value.
+// getField gets the i'th arg of the struct value.
 // If the arg itself is an interface, return a value for
 // the thing inside the interface, not the interface itself.
 func getField(v reflect.Value, i int) reflect.Value {
@@ -1057,7 +1057,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		if i < end && format[i] == '*' {
 			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
 			if !p.fmt.widPresent {
-				p.buf.Write(widthBytes)
+				p.buf.Write(badWidthBytes)
 			}
 		} else {
 			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
@@ -1067,7 +1067,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			if format[i+1] == '*' {
 				p.fmt.prec, p.fmt.precPresent, i, fieldnum = intFromArg(a, end, i+1, fieldnum)
 				if !p.fmt.precPresent {
-					p.buf.Write(precBytes)
+					p.buf.Write(badPrecBytes)
 				}
 			} else {
 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
