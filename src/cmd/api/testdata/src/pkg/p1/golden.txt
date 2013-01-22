@@ -10,6 +10,7 @@ pkg p1, func Bar(int8, int16, int64)
 pkg p1, func Bar1(int8, int16, int64) uint64
 pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
 pkg p1, func BarE() Error
+pkg p1, func PlainFunc(int, int, string) (*B, error)
 pkg p1, func TakesFunc(func(int) int)
 pkg p1, method (*B) JustOnB()
 pkg p1, method (*B) OnBothTandBPtr()
@@ -37,20 +38,21 @@ pkg p1, type Embedded struct
 pkg p1, type Error interface { Error, Temporary }
 pkg p1, type Error interface, Error() string
 pkg p1, type Error interface, Temporary() bool
-pkg p1, type I interface, unexported methods
+pkg p1, type FuncType func(int, int, string) (*B, error)
 pkg p1, type I interface, Get(string) int64
 pkg p1, type I interface, GetNamed(string) int64
 pkg p1, type I interface, Name() string
 pkg p1, type I interface, PackageTwoMeth()
 pkg p1, type I interface, Set(string, int64)
+pkg p1, type I interface, unexported methods
 pkg p1, type MyInt int
 pkg p1, type Namer interface { Name }
 pkg p1, type Namer interface, Name() string
+pkg p1, type Private interface, X()
+pkg p1, type Private interface, unexported methods
 pkg p1, type Public interface { X, Y }
 pkg p1, type Public interface, X()
 pkg p1, type Public interface, Y()
-pkg p1, type Private interface, unexported methods
-pkg p1, type Private interface, X()
 pkg p1, type S struct
 pkg p1, type S struct, Public *int
 pkg p1, type S struct, PublicTime time.Time

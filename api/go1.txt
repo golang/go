@@ -2835,7 +2835,7 @@ pkg go/ast, type Field struct, Doc *CommentGroup
 pkg go/ast, type Field struct, Names []*Ident
 pkg go/ast, type Field struct, Tag *BasicLit
 pkg go/ast, type Field struct, Type Expr
-pkg go/ast, type FieldFilter func(name string, value reflect.Value) bool
+pkg go/ast, type FieldFilter func(string, reflect.Value) bool
 pkg go/ast, type FieldList struct
 pkg go/ast, type FieldList struct, Closing token.Pos
 pkg go/ast, type FieldList struct, List []*Field
@@ -2895,7 +2895,7 @@ pkg go/ast, type ImportSpec struct, Doc *CommentGroup
 pkg go/ast, type ImportSpec struct, EndPos token.Pos
 pkg go/ast, type ImportSpec struct, Name *Ident
 pkg go/ast, type ImportSpec struct, Path *BasicLit
-pkg go/ast, type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
+pkg go/ast, type Importer func(map[string]*Object, string) (*Object, error)
 pkg go/ast, type IncDecStmt struct
 pkg go/ast, type IncDecStmt struct, Tok token.Token
 pkg go/ast, type IncDecStmt struct, TokPos token.Pos
@@ -3033,7 +3033,7 @@ pkg go/build, type Context struct, GOARCH string
 pkg go/build, type Context struct, GOOS string
 pkg go/build, type Context struct, GOPATH string
 pkg go/build, type Context struct, GOROOT string
-pkg go/build, type Context struct, HasSubdir func(string) (string, bool)
+pkg go/build, type Context struct, HasSubdir func(string, string) (string, bool)
 pkg go/build, type Context struct, IsAbsPath func(string) bool
 pkg go/build, type Context struct, IsDir func(string) bool
 pkg go/build, type Context struct, JoinPath func(...string) string
@@ -3160,7 +3160,7 @@ pkg go/scanner, method (ErrorList) Swap(int, int)
 pkg go/scanner, type Error struct
 pkg go/scanner, type Error struct, Msg string
 pkg go/scanner, type Error struct, Pos token.Position
-pkg go/scanner, type ErrorHandler func(pos token.Position, msg string)
+pkg go/scanner, type ErrorHandler func(token.Position, string)
 pkg go/scanner, type ErrorList []*Error
 pkg go/scanner, type Mode uint
 pkg go/scanner, type Scanner struct
@@ -4808,7 +4808,7 @@ pkg net/http, type Server struct, ReadTimeout time.Duration
 pkg net/http, type Server struct, TLSConfig *tls.Config
 pkg net/http, type Server struct, WriteTimeout time.Duration
 pkg net/http, type Transport struct
-pkg net/http, type Transport struct, Dial func(string) (net.Conn, error)
+pkg net/http, type Transport struct, Dial func(string, string) (net.Conn, error)
 pkg net/http, type Transport struct, DisableCompression bool
 pkg net/http, type Transport struct, DisableKeepAlives bool
 pkg net/http, type Transport struct, MaxIdleConnsPerHost int
@@ -5327,7 +5327,7 @@ pkg path/filepath, func SplitList(string) []string
 pkg path/filepath, func ToSlash(string) string
 pkg path/filepath, func VolumeName(string) string
 pkg path/filepath, func Walk(string, WalkFunc) error
-pkg path/filepath, type WalkFunc func(path string, info os.FileInfo, err error) error
+pkg path/filepath, type WalkFunc func(string, os.FileInfo, error) error
 pkg path/filepath, var ErrBadPattern error
 pkg path/filepath, var SkipDir error
 pkg reflect, const Array Kind
@@ -30127,10 +30127,10 @@ pkg syscall, type Timeval struct
 pkg syscall, var ForkLock sync.RWMutex
 pkg syscall, var SocketDisableIPv6 bool
 pkg testing, func Benchmark(func(*B)) BenchmarkResult
-pkg testing, func Main(func(string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample)
-pkg testing, func RunBenchmarks(func(string) (bool, error), []InternalBenchmark)
-pkg testing, func RunExamples(func(string) (bool, error), []InternalExample) bool
-pkg testing, func RunTests(func(string) (bool, error), []InternalTest) bool
+pkg testing, func Main(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample)
+pkg testing, func RunBenchmarks(func(string, string) (bool, error), []InternalBenchmark)
+pkg testing, func RunExamples(func(string, string) (bool, error), []InternalExample) bool
+pkg testing, func RunTests(func(string, string) (bool, error), []InternalTest) bool
 pkg testing, func Short() bool
 pkg testing, method (*B) Error(...interface{})
 pkg testing, method (*B) Errorf(string, ...interface{})
