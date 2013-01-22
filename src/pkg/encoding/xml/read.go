@@ -374,75 +374,58 @@ Loop:
 }
 
 func copyValue(dst reflect.Value, src []byte) (err error) {
-	// Helper functions for integer and unsigned integer conversions
-	var itmp int64
-	getInt64 := func() bool {
-		itmp, err = strconv.ParseInt(string(src), 10, 64)
-		// TODO: should check sizes
-		return err == nil
-	}
-	var utmp uint64
-	getUint64 := func() bool {
-		utmp, err = strconv.ParseUint(string(src), 10, 64)
-		// TODO: check for overflow?
-		return err == nil
-	}
-	var ftmp float64
-	getFloat64 := func() bool {
-		ftmp, err = strconv.ParseFloat(string(src), 64)
-		// TODO: check for overflow?
-		return err == nil
-	}
-
-	if pv := dst; pv.Kind() == reflect.Ptr {
-		if pv.IsNil() {
-			pv.Set(reflect.New(pv.Type().Elem()))
+	if dst.Kind() == reflect.Ptr {
+		if dst.IsNil() {
+			dst.Set(reflect.New(dst.Type().Elem()))
 		}
-		dst = pv.Elem()
+		dst = dst.Elem()
 	}
 
 	// Save accumulated data.
-	switch t := dst; t.Kind() {
+	switch dst.Kind() {
 	case reflect.Invalid:
-		// Probably a comment.
+		// Probably a commendst.
 	default:
-		return errors.New("cannot happen: unknown type " + t.Type().String())
+		return errors.New("cannot happen: unknown type " + dst.Type().String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if !getInt64() {
+		itmp, err := strconv.ParseInt(string(src), 10, dst.Type().Bits())
+		if err != nil {
 			return err
 		}
-		t.SetInt(itmp)
+		dst.SetInt(itmp)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		if !getUint64() {
+		utmp, err := strconv.ParseUint(string(src), 10, dst.Type().Bits())
+		if err != nil {
 			return err
 		}
-		t.SetUint(utmp)
+		dst.SetUint(utmp)
 	case reflect.Float32, reflect.Float64:
-		if !getFloat64() {
+		ftmp, err := strconv.ParseFloat(string(src), dst.Type().Bits())
+		if err != nil {
 			return err
 		}
-		t.SetFloat(ftmp)
+		dst.SetFloat(ftmp)
 	case reflect.Bool:
 		value, err := strconv.ParseBool(strings.TrimSpace(string(src)))
 		if err != nil {
 			return err
 		}
-		t.SetBool(value)
+		dst.SetBool(value)
 	case reflect.String:
-		t.SetString(string(src))
+		dst.SetString(string(src))
 	case reflect.Slice:
 		if len(src) == 0 {
 			// non-nil to flag presence
 			src = []byte{}
 		}
-		t.SetBytes(src)
+		dst.SetBytes(src)
 	case reflect.Struct:
-		if t.Type() == timeType {
+		if dst.Type() == timeType {
 			tv, err := time.Parse(time.RFC3339, string(src))
 			if err != nil {
 				return err
 			}
-			t.Set(reflect.ValueOf(tv))
+			dst.Set(reflect.ValueOf(tv))
 		}
 	}
 	return nil
