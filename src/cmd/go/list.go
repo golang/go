@@ -99,7 +99,7 @@ var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
-	out := newCountingWriter(os.Stdout)
+	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
 
 	var do func(*Package)
@@ -119,13 +119,12 @@ func runList(cmd *Command, args []string) {
 			fatalf("%s", err)
 		}
 		do = func(p *Package) {
-			out.Reset()
 			if err := tmpl.Execute(out, p); err != nil {
 				out.Flush()
 				fatalf("%s", err)
 			}
-			if out.Count() > 0 {
-				out.w.WriteRune('\n')
+			if out.NeedNL() {
+				out.Write([]byte{'\n'})
 			}
 		}
 	}
@@ -140,32 +139,33 @@ func runList(cmd *Command, args []string) {
 	}
 }
 
-// CountingWriter counts its data, so we can avoid appending a newline
-// if there was no actual output.
-type CountingWriter struct {
-	w     *bufio.Writer
-	count int64
+// TrackingWriter tracks the last byte written on every write so
+// we can avoid printing a newline if one was already written or
+// if there is no output at all.
+type TrackingWriter struct {
+	w    *bufio.Writer
+	last byte
 }
 
-func newCountingWriter(w io.Writer) *CountingWriter {
-	return &CountingWriter{
-		w: bufio.NewWriter(w),
+func newTrackingWriter(w io.Writer) *TrackingWriter {
+	return &TrackingWriter{
+		w:    bufio.NewWriter(w),
+		last: '\n',
 	}
 }
 
-func (cw *CountingWriter) Write(p []byte) (n int, err error) {
-	cw.count += int64(len(p))
-	return cw.w.Write(p)
+func (t *TrackingWriter) Write(p []byte) (n int, err error) {
+	n, err = t.w.Write(p)
+	if n > 0 {
+		t.last = p[n-1]
+	}
+	return
 }
 
-func (cw *CountingWriter) Flush() {
-	cw.w.Flush()
+func (t *TrackingWriter) Flush() {
+	t.w.Flush()
 }
 
-func (cw *CountingWriter) Reset() {
-	cw.count = 0
-}
-
-func (cw *CountingWriter) Count() int64 {
-	return cw.count
+func (t *TrackingWriter) NeedNL() bool {
+	return t.last != '\n'
 }
