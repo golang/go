@@ -57,6 +57,16 @@ func ExampleDate() {
 	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
 }
 
+func ExampleTime_Format() {
+	const format = "Jan 2, 2006 at 3:04pm (MST)"
+	t := time.Date(2009, time.November, 10, 15, 0, 0, 0, time.Local)
+	fmt.Println(t.Format(format))
+	fmt.Println(t.UTC().Format(format))
+	// Output:
+	// Nov 10, 2009 at 3:00pm (PST)
+	// Nov 10, 2009 at 11:00pm (UTC)
+}
+
 func ExampleTime_Round() {
 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
 	round := []time.Duration{
