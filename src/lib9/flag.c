@@ -26,6 +26,14 @@ static Flag *curflag;
 static Flag *fhash[512];
 static Flag *first, *last;
 
+char *argv0;
+
+/*
+ * Mac OS can't deal with files that only declare data.
+ * ARGBEGIN mentions this function so that this file gets pulled in.
+ */
+void __fixargv0(void) { }
+
 // FNV-1 hash. http://isthe.com/chongo/tech/comp/fnv/
 static uint32
 fnv(char *p, int n)
@@ -221,7 +229,6 @@ flagparse(int *argcp, char ***argvp, void (*usage)(void))
 	argc = *argcp;
 	argv = *argvp;
 
-	__fixargv0();
 	argv0 = argv[0];
 	argc--;
 	argv++;
