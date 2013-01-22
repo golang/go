@@ -81,7 +81,7 @@ var vcsHg = &vcsCmd{
 	tagSyncCmd:     "update -r {tag}",
 	tagSyncDefault: "update default",
 
-	scheme:  []string{"https", "http"},
+	scheme:  []string{"https", "http", "ssh"},
 	pingCmd: "identify {scheme}://{repo}",
 }
 
