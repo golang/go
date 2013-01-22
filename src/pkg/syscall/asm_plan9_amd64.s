@@ -128,7 +128,7 @@ TEXT	·RawSyscall6(SB),7,$0
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 TEXT ·seek(SB),7,$0
-	LEAQ	newoffset+48(SP), AX
+	LEAQ	newoffset+40(SP), AX
 	MOVQ	AX, placeholder+8(SP)
 	
 	MOVQ	$0x8000, AX	// for NxM
@@ -137,8 +137,7 @@ TEXT ·seek(SB),7,$0
 	
 	CMPQ	AX, $-1
 	JNE	ok6
-	MOVQ	AX, 48(SP)	// newoffset low
-	MOVQ	AX, 56(SP)	// newoffset high
+	MOVQ	AX, 40(SP)	// newoffset
 	
 	SUBQ	$16, SP
 	CALL	syscall·errstr(SB)
@@ -150,7 +149,7 @@ ok6:
 	LEAQ	runtime·emptystring(SB), SI
 	
 copyresult6:
-	LEAQ	err+64(SP), DI
+	LEAQ	err+48(SP), DI
 
 	CLD
 	MOVSQ
