@@ -199,7 +199,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf("")}},
-	{in: `{"x": 1}`, ptr: new(tx), out: tx{}, err: &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
 	{in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(interface{}), out: ifaceNumAsFloat64},
@@ -1062,5 +1062,27 @@ func TestUnmarshalTypeError(t *testing.T) {
 			t.Errorf("expected type error for Unmarshal(%q, type %T): got %v instead",
 				item.src, item.dest, err)
 		}
+	}
+}
+
+// Test handling of unexported fields that should be ignored.
+// Issue 4660
+type unexportedFields struct {
+	Name string
+	m    map[string]interface{} `json:"-"`
+	m2   map[string]interface{} `json:"abcd"`
+}
+
+func TestUnmarshalUnexported(t *testing.T) {
+	input := `{"Name": "Bob", "m": {"x": 123}, "m2": {"y": 456}, "abcd": {"z": 789}}`
+	want := &unexportedFields{Name: "Bob"}
+
+	out := &unexportedFields{}
+	err := Unmarshal([]byte(input), out)
+	if err != nil {
+		t.Errorf("got error %v, expected nil", err)
+	}
+	if !reflect.DeepEqual(out, want) {
+		t.Errorf("got %q, want %q", out, want)
 	}
 }
