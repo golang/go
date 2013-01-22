@@ -96,9 +96,9 @@ func myatof32(s string) (f float32, ok bool) {
 }
 
 func TestFp(t *testing.T) {
-	f, err := os.Open("testfp.txt")
+	f, err := os.Open("testdata/testfp.txt")
 	if err != nil {
-		t.Fatal("testfp: open testfp.txt:", err)
+		t.Fatal("testfp: open testdata/testfp.txt:", err)
 	}
 	defer f.Close()
 
@@ -111,7 +111,7 @@ func TestFp(t *testing.T) {
 			break
 		}
 		if err2 != nil {
-			t.Fatal("testfp: read testfp.txt: " + err2.Error())
+			t.Fatal("testfp: read testdata/testfp.txt: " + err2.Error())
 		}
 		line = line[0 : len(line)-1]
 		lineno++
@@ -120,7 +120,7 @@ func TestFp(t *testing.T) {
 		}
 		a := strings.Split(line, " ")
 		if len(a) != 4 {
-			t.Error("testfp.txt:", lineno, ": wrong field count")
+			t.Error("testdata/testfp.txt:", lineno, ": wrong field count")
 			continue
 		}
 		var s string
@@ -130,21 +130,21 @@ func TestFp(t *testing.T) {
 			var ok bool
 			v, ok = myatof64(a[2])
 			if !ok {
-				t.Error("testfp.txt:", lineno, ": cannot atof64 ", a[2])
+				t.Error("testdata/testfp.txt:", lineno, ": cannot atof64 ", a[2])
 				continue
 			}
 			s = fmt.Sprintf(a[1], v)
 		case "float32":
 			v1, ok := myatof32(a[2])
 			if !ok {
-				t.Error("testfp.txt:", lineno, ": cannot atof32 ", a[2])
+				t.Error("testdata/testfp.txt:", lineno, ": cannot atof32 ", a[2])
 				continue
 			}
 			s = fmt.Sprintf(a[1], v1)
 			v = float64(v1)
 		}
 		if s != a[3] {
-			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+			t.Error("testdata/testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
 				"want ", a[3], " got ", s)
 		}
 	}
