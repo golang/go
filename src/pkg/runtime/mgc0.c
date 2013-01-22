@@ -1474,7 +1474,7 @@ runtime·gc(int32 force)
 static void
 gc(struct gc_args *args)
 {
-	int64 t0, t1, t2, t3;
+	int64 t0, t1, t2, t3, t4;
 	uint64 heap0, heap1, obj0, obj1;
 	GCStats stats;
 	M *mp;
@@ -1528,6 +1528,8 @@ gc(struct gc_args *args)
 		runtime·helpgc(work.nproc);
 	}
 
+	t1 = runtime·nanotime();
+
 	runtime·parfordo(work.markfor);
 	scanblock(nil, nil, 0, true);
 
@@ -1536,10 +1538,10 @@ gc(struct gc_args *args)
 			debug_scanblock(work.roots[i].p, work.roots[i].n);
 		runtime·atomicstore(&work.debugmarkdone, 1);
 	}
-	t1 = runtime·nanotime();
+	t2 = runtime·nanotime();
 
 	runtime·parfordo(work.sweepfor);
-	t2 = runtime·nanotime();
+	t3 = runtime·nanotime();
 
 	stealcache();
 	cachestats(&stats);
@@ -1569,18 +1571,18 @@ gc(struct gc_args *args)
 	heap1 = mstats.heap_alloc;
 	obj1 = mstats.nmalloc - mstats.nfree;
 
-	t3 = runtime·nanotime();
-	mstats.last_gc = t3;
-	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t3 - t0;
-	mstats.pause_total_ns += t3 - t0;
+	t4 = runtime·nanotime();
+	mstats.last_gc = t4;
+	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+	mstats.pause_total_ns += t4 - t0;
 	mstats.numgc++;
 	if(mstats.debuggc)
-		runtime·printf("pause %D\n", t3-t0);
+		runtime·printf("pause %D\n", t4-t0);
 
 	if(gctrace) {
 		runtime·printf("gc%d(%d): %D+%D+%D ms, %D -> %D MB %D -> %D (%D-%D) objects,"
 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
-			mstats.numgc, work.nproc, (t1-t0)/1000000, (t2-t1)/1000000, (t3-t2)/1000000,
+			mstats.numgc, work.nproc, (t2-t1)/1000000, (t3-t2)/1000000, (t1-t0+t4-t3)/1000000,
 			heap0>>20, heap1>>20, obj0, obj1,
 			mstats.nmalloc, mstats.nfree,
 			stats.nhandoff, stats.nhandoffcnt,
