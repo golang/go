@@ -75,9 +75,13 @@ func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
 
 func testAddrs(t *testing.T, ifat []Addr) {
 	for _, ifa := range ifat {
-		switch ifa.(type) {
+		switch v := ifa.(type) {
 		case *IPAddr, *IPNet:
-			t.Logf("\tinterface address %q", ifa.String())
+			if v == nil {
+				t.Errorf("\tunexpected value: %v", ifa)
+			} else {
+				t.Logf("\tinterface address %q", ifa.String())
+			}
 		default:
 			t.Errorf("\tunexpected type: %T", ifa)
 		}
@@ -86,9 +90,13 @@ func testAddrs(t *testing.T, ifat []Addr) {
 
 func testMulticastAddrs(t *testing.T, ifmat []Addr) {
 	for _, ifma := range ifmat {
-		switch ifma.(type) {
+		switch v := ifma.(type) {
 		case *IPAddr:
-			t.Logf("\tjoined group address %q", ifma.String())
+			if v == nil {
+				t.Errorf("\tunexpected value: %v", ifma)
+			} else {
+				t.Logf("\tjoined group address %q", ifma.String())
+			}
 		default:
 			t.Errorf("\tunexpected type: %T", ifma)
 		}
