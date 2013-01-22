@@ -72,7 +72,7 @@ func (f *fmt) init(buf *buffer) {
 	f.clearflags()
 }
 
-// Compute left and right padding widths (only one will be non-zero).
+// computePadding computes left and right padding widths (only one will be non-zero).
 func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth int) {
 	left := !f.minus
 	w := f.wid
@@ -95,7 +95,7 @@ func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth i
 	return
 }
 
-// Generate n bytes of padding.
+// writePadding generates n bytes of padding.
 func (f *fmt) writePadding(n int, padding []byte) {
 	for n > 0 {
 		m := n
@@ -107,8 +107,7 @@ func (f *fmt) writePadding(n int, padding []byte) {
 	}
 }
 
-// Append b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus)
-// clear flags afterwards.
+// pad appends b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus).
 func (f *fmt) pad(b []byte) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.Write(b)
@@ -124,8 +123,7 @@ func (f *fmt) pad(b []byte) {
 	}
 }
 
-// append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
-// clear flags afterwards.
+// padString appends s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
 func (f *fmt) padString(s string) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.WriteString(s)
@@ -139,17 +137,6 @@ func (f *fmt) padString(s string) {
 	if right > 0 {
 		f.writePadding(right, padding)
 	}
-}
-
-func putint(buf []byte, base, val uint64, digits string) int {
-	i := len(buf) - 1
-	for val >= base {
-		buf[i] = digits[val%base]
-		i--
-		val /= base
-	}
-	buf[i] = digits[val]
-	return i - 1
 }
 
 var (

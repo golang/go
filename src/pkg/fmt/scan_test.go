@@ -626,7 +626,7 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
 	}
 }
 
-// Special Reader that counts reads at end of file.
+// eofCounter is a special Reader that counts reads at end of file.
 type eofCounter struct {
 	reader   *strings.Reader
 	eofCount int
@@ -640,8 +640,8 @@ func (ec *eofCounter) Read(b []byte) (n int, err error) {
 	return
 }
 
-// Verify that when we scan, we see at most EOF once per call to a Scan function,
-// and then only when it's really an EOF
+// TestEOF verifies that when we scan, we see at most EOF once per call to a
+// Scan function, and then only when it's really an EOF.
 func TestEOF(t *testing.T) {
 	ec := &eofCounter{strings.NewReader("123\n"), 0}
 	var a int
@@ -668,7 +668,7 @@ func TestEOF(t *testing.T) {
 	}
 }
 
-// Verify that we see an EOF error if we run out of input.
+// TestEOFAtEndOfInput verifies that we see an EOF error if we run out of input.
 // This was a buglet: we used to get "expected integer".
 func TestEOFAtEndOfInput(t *testing.T) {
 	var i, j int
@@ -730,7 +730,8 @@ func TestEOFAllTypes(t *testing.T) {
 	}
 }
 
-// Verify that, at least when using bufio, successive calls to Fscan do not lose runes.
+// TestUnreadRuneWithBufio verifies that, at least when using bufio, successive
+// calls to Fscan do not lose runes.
 func TestUnreadRuneWithBufio(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader("123αb"))
 	var i int
@@ -753,7 +754,7 @@ func TestUnreadRuneWithBufio(t *testing.T) {
 
 type TwoLines string
 
-// Attempt to read two lines into the object.  Scanln should prevent this
+// Scan attempts to read two lines into the object.  Scanln should prevent this
 // because it stops at newline; Scan and Scanf should be fine.
 func (t *TwoLines) Scan(state ScanState, verb rune) error {
 	chars := make([]rune, 0, 100)
@@ -820,7 +821,8 @@ func (s *simpleReader) Read(b []byte) (n int, err error) {
 	return s.sr.Read(b)
 }
 
-// Test that Fscanf does not read past newline. Issue 3481.
+// TestLineByLineFscanf tests that Fscanf does not read past newline. Issue
+// 3481.
 func TestLineByLineFscanf(t *testing.T) {
 	r := &simpleReader{strings.NewReader("1\n2\n")}
 	var i, j int
@@ -862,7 +864,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
 	return
 }
 
-// Perform the same scanning task as RecursiveInt.Scan
+// scanInts performs the same scanning task as RecursiveInt.Scan
 // but without recurring through scanner, so we can compare
 // performance more directly.
 func scanInts(r *RecursiveInt, b *bytes.Buffer) (err error) {
