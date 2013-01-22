@@ -149,7 +149,11 @@ type TPtrExported struct {
 	*Embedded
 }
 
+type FuncType func(x, y int, s string) (b *B, err error)
+
 type Embedded struct{}
+
+func PlainFunc(x, y int, s string) (b *B, err error)
 
 func (*Embedded) OnEmbedded() {}
 
