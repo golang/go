@@ -9,7 +9,7 @@ import "errors"
 // These are predefined layouts for use in Time.Format.
 // The standard time used in the layouts is:
 //	Mon Jan 2 15:04:05 MST 2006
-// which is Unix time 1136243045. Since MST is GMT-0700,
+// which is Unix time 1136239445. Since MST is GMT-0700,
 // the standard time can be thought of as
 //	01/02 03:04:05PM '06 -0700
 // To define your own format, write down what the standard time would look
