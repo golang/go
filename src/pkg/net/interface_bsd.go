@@ -118,7 +118,9 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 				if err != nil {
 					return nil, err
 				}
-				ifat = append(ifat, ifa)
+				if ifa != nil {
+					ifat = append(ifat, ifa)
+				}
 			}
 		}
 	}
@@ -157,6 +159,8 @@ func newAddr(m *syscall.InterfaceAddrMessage) (Addr, error) {
 					ifa.IP[2], ifa.IP[3] = 0, 0
 				}
 			}
+		default: // Sockaddrs contain syscall.SockaddrDatalink on NetBSD
+			return nil, nil
 		}
 	}
 	return ifa, nil
