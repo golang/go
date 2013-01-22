@@ -106,6 +106,7 @@ func (e *UnmarshalTypeError) Error() string {
 
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
+// (No longer used; kept for compatibility.)
 type UnmarshalFieldError struct {
 	Key   string
 	Type  reflect.Type
@@ -529,15 +530,6 @@ func (d *decodeState) object(v reflect.Value) {
 						subv = subv.Elem()
 					}
 					subv = subv.Field(i)
-				}
-			} else {
-				// To give a good error, a quick scan for unexported fields in top level.
-				st := v.Type()
-				for i := 0; i < st.NumField(); i++ {
-					f := st.Field(i)
-					if f.PkgPath != "" && strings.EqualFold(f.Name, key) {
-						d.saveError(&UnmarshalFieldError{key, st, f})
-					}
 				}
 			}
 		}
