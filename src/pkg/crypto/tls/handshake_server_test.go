@@ -125,6 +125,50 @@ func TestClose(t *testing.T) {
 	}
 }
 
+func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, err error) {
+	c, s := net.Pipe()
+	go func() {
+		cli := Client(c, clientConfig)
+		cli.Handshake()
+		c.Close()
+	}()
+	server := Server(s, serverConfig)
+	err = server.Handshake()
+	if err == nil {
+		state = server.ConnectionState()
+	}
+	s.Close()
+	return
+}
+
+func TestCipherSuitePreference(t *testing.T) {
+	serverConfig := &Config{
+		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+		Certificates: testConfig.Certificates,
+	}
+	clientConfig := &Config{
+		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_RC4_128_SHA},
+		InsecureSkipVerify: true,
+	}
+	state, err := testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if state.CipherSuite != TLS_RSA_WITH_AES_128_CBC_SHA {
+		// By default the server should use the client's preference.
+		t.Fatalf("Client's preference was not used, got %x", state.CipherSuite)
+	}
+
+	serverConfig.PreferServerCipherSuites = true
+	state, err = testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if state.CipherSuite != TLS_RSA_WITH_RC4_128_SHA {
+		t.Fatalf("Server's preference was not used, got %x", state.CipherSuite)
+	}
+}
+
 func testServerScript(t *testing.T, name string, serverScript [][]byte, config *Config, peers []*x509.Certificate) {
 	c, s := net.Pipe()
 	srv := Server(s, config)

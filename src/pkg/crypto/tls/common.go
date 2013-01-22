@@ -184,6 +184,12 @@ type Config struct {
 	// is nil, TLS uses a list of suites supported by the implementation.
 	CipherSuites []uint16
 
+	// PreferServerCipherSuites controls whether the server selects the
+	// client's most preferred ciphersuite, or the server's most preferred
+	// ciphersuite. If true then the server's preference, as expressed in
+	// the order of elements in CipherSuites, is used.
+	PreferServerCipherSuites bool
+
 	// SessionTicketsDisabled may be set to true to disable session ticket
 	// (resumption) support.
 	SessionTicketsDisabled bool
