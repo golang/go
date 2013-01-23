@@ -467,11 +467,11 @@ func (b *Builder) Build() (*collate.Collator, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := collate.Init(t)
-	if c == nil {
+	table := collate.Init(t)
+	if table == nil {
 		panic("generated table of incompatible type")
 	}
-	return c, nil
+	return collate.NewFromTable(table), nil
 }
 
 // Build builds a Collator for Tailoring t.

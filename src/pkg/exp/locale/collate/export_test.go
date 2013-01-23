@@ -25,7 +25,7 @@ func W(ce ...int) Weights {
 	if len(ce) > 3 {
 		w.Quaternary = ce[3]
 	} else if w.Tertiary != 0 {
-		w.Quaternary = maxQuaternary
+		w.Quaternary = MaxQuaternary
 	}
 	return w
 }
@@ -34,34 +34,34 @@ func (w Weights) String() string {
 }
 
 type Table struct {
-	t *table
+	t Weigher
 }
 
 func GetTable(c *Collator) *Table {
 	return &Table{c.t}
 }
 
-func convertToWeights(ws []colElem) []Weights {
+func convertToWeights(ws []Elem) []Weights {
 	out := make([]Weights, len(ws))
 	for i, w := range ws {
-		out[i] = Weights{int(w.primary()), int(w.secondary()), int(w.tertiary()), int(w.quaternary())}
+		out[i] = Weights{int(w.Primary()), int(w.Secondary()), int(w.Tertiary()), int(w.Quaternary())}
 	}
 	return out
 }
 
-func convertFromWeights(ws []Weights) []colElem {
-	out := make([]colElem, len(ws))
+func convertFromWeights(ws []Weights) []Elem {
+	out := make([]Elem, len(ws))
 	for i, w := range ws {
 		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary, 0})
 		if out[i] == ceIgnore && w.Quaternary > 0 {
-			out[i] = makeQuaternary(w.Quaternary)
+			out[i] = MakeQuaternary(w.Quaternary)
 		}
 	}
 	return out
 }
 
 func (t *Table) AppendNext(s []byte) ([]Weights, int) {
-	w, n := t.t.appendNext(nil, source{bytes: s})
+	w, n := t.t.AppendNext(nil, s)
 	return convertToWeights(w), n
 }
 
@@ -69,7 +69,7 @@ func SetTop(c *Collator, top int) {
 	if c.t == nil {
 		c.t = &table{}
 	}
-	c.t.variableTop = uint32(top)
+	c.variableTop = uint32(top)
 }
 
 func GetColElems(c *Collator, str []byte) []Weights {

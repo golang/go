@@ -4,9 +4,8 @@
 
 package collate
 
-// Init is used by type Builder in exp/locale/collate/build/
-// to create Collator instances.  It is for internal use only.
-func Init(data interface{}) *Collator {
+// Init is for internal use only.
+func Init(data interface{}) Weigher {
 	init, ok := data.(tableInitializer)
 	if !ok {
 		return nil
@@ -14,15 +13,15 @@ func Init(data interface{}) *Collator {
 	t := &table{}
 	loff, voff := init.FirstBlockOffsets()
 	t.index.index = init.TrieIndex()
-	t.index.index0 = t.index.index[blockSize*loff:]
+	t.index.index0 = t.index.index[blockSize*int(loff):]
 	t.index.values = init.TrieValues()
-	t.index.values0 = t.index.values[blockSize*voff:]
+	t.index.values0 = t.index.values[blockSize*int(voff):]
 	t.expandElem = init.ExpandElems()
 	t.contractTries = init.ContractTries()
 	t.contractElem = init.ContractElems()
 	t.maxContractLen = init.MaxContractLen()
 	t.variableTop = init.VariableTop()
-	return newCollator(t)
+	return t
 }
 
 type tableInitializer interface {

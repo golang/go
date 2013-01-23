@@ -10,12 +10,12 @@ import (
 )
 
 type ceTest struct {
-	f   func(inout []int) (colElem, ceType)
+	f   func(inout []int) (Elem, ceType)
 	arg []int
 }
 
 // The make* funcs are simplified versions of the functions in build/colelem.go
-func makeCE(weights []int) colElem {
+func makeCE(weights []int) Elem {
 	const (
 		maxPrimaryBits          = 21
 		maxSecondaryBits        = 12
@@ -27,77 +27,77 @@ func makeCE(weights []int) colElem {
 		isPrimaryCCC            = 0x80000000
 		isSecondary             = 0xA0000000
 	)
-	var ce colElem
+	var ce Elem
 	ccc := weights[3]
 	if weights[0] != 0 {
 		if ccc != 0 {
-			ce = colElem(weights[2] << 24)
-			ce |= colElem(ccc) << 16
-			ce |= colElem(weights[0])
+			ce = Elem(weights[2] << 24)
+			ce |= Elem(ccc) << 16
+			ce |= Elem(weights[0])
 			ce |= isPrimaryCCC
 		} else if weights[2] == defaultTertiary {
-			ce = colElem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+			ce = Elem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
 			ce |= isPrimary
 		} else {
 			d := weights[1] - defaultSecondary + 4
-			ce = colElem(weights[0]<<maxSecondaryDiffBits + d)
-			ce = ce<<maxTertiaryCompactBits + colElem(weights[2])
+			ce = Elem(weights[0]<<maxSecondaryDiffBits + d)
+			ce = ce<<maxTertiaryCompactBits + Elem(weights[2])
 		}
 	} else {
-		ce = colElem(weights[1]<<maxTertiaryBits + weights[2])
-		ce += colElem(ccc) << 20
+		ce = Elem(weights[1]<<maxTertiaryBits + weights[2])
+		ce += Elem(ccc) << 20
 		ce |= isSecondary
 	}
 	return ce
 }
 
-func makeContractIndex(index, n, offset int) colElem {
+func makeContractIndex(index, n, offset int) Elem {
 	const (
 		contractID            = 0xC0000000
 		maxNBits              = 4
 		maxTrieIndexBits      = 12
 		maxContractOffsetBits = 13
 	)
-	ce := colElem(contractID)
-	ce += colElem(offset << (maxNBits + maxTrieIndexBits))
-	ce += colElem(index << maxNBits)
-	ce += colElem(n)
+	ce := Elem(contractID)
+	ce += Elem(offset << (maxNBits + maxTrieIndexBits))
+	ce += Elem(index << maxNBits)
+	ce += Elem(n)
 	return ce
 }
 
-func makeExpandIndex(index int) colElem {
+func makeExpandIndex(index int) Elem {
 	const expandID = 0xE0000000
-	return expandID + colElem(index)
+	return expandID + Elem(index)
 }
 
-func makeDecompose(t1, t2 int) colElem {
+func makeDecompose(t1, t2 int) Elem {
 	const decompID = 0xF0000000
-	return colElem(t2<<8+t1) + decompID
+	return Elem(t2<<8+t1) + decompID
 }
 
-func normalCE(inout []int) (ce colElem, t ceType) {
+func normalCE(inout []int) (ce Elem, t ceType) {
 	ce = makeCE(inout)
-	inout[0] = ce.primary()
-	inout[1] = ce.secondary()
-	inout[2] = int(ce.tertiary())
-	inout[3] = int(ce.ccc())
+	inout[0] = ce.Primary()
+	inout[1] = ce.Secondary()
+	inout[2] = int(ce.Tertiary())
+	inout[3] = int(ce.CCC())
 	return ce, ceNormal
 }
 
-func expandCE(inout []int) (ce colElem, t ceType) {
+func expandCE(inout []int) (ce Elem, t ceType) {
 	ce = makeExpandIndex(inout[0])
 	inout[0] = splitExpandIndex(ce)
 	return ce, ceExpansionIndex
 }
 
-func contractCE(inout []int) (ce colElem, t ceType) {
+func contractCE(inout []int) (ce Elem, t ceType) {
 	ce = makeContractIndex(inout[0], inout[1], inout[2])
 	i, n, o := splitContractIndex(ce)
 	inout[0], inout[1], inout[2] = i, n, o
 	return ce, ceContractionIndex
 }
 
-func decompCE(inout []int) (ce colElem, t ceType) {
+func decompCE(inout []int) (ce Elem, t ceType) {
 	ce = makeDecompose(inout[0], inout[1])
 	t1, t2 := splitDecompose(ce)
 	inout[0], inout[1] = int(t1), int(t2)
@@ -183,7 +183,7 @@ func TestImplicit(t *testing.T) {
 
 func TestUpdateTertiary(t *testing.T) {
 	tests := []struct {
-		in, out colElem
+		in, out Elem
 		t       uint8
 	}{
 		{0x4000FE20, 0x0000FE8A, 0x0A},
@@ -238,17 +238,17 @@ func TestDoNorm(t *testing.T) {
 			}
 			i.ce = append(i.ce, makeCE([]int{w, 20, 2, cc}))
 		}
-		i.prevCCC = i.ce[p-1].ccc()
-		i.doNorm(p, i.ce[p].ccc())
+		i.prevCCC = i.ce[p-1].CCC()
+		i.doNorm(p, i.ce[p].CCC())
 		if len(i.ce) != len(tt.out) {
 			t.Errorf("%d: length was %d; want %d", j, len(i.ce), len(tt.out))
 		}
 		prevCCC := uint8(0)
 		for k, ce := range i.ce {
-			if int(ce.ccc()) != tt.out[k] {
-				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.ccc(), tt.out[k])
+			if int(ce.CCC()) != tt.out[k] {
+				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.CCC(), tt.out[k])
 			}
-			if k > 0 && ce.ccc() == prevCCC && i.ce[k-1].primary() > ce.primary() {
+			if k > 0 && ce.CCC() == prevCCC && i.ce[k-1].Primary() > ce.Primary() {
 				t.Errorf("%d:%d: normalization crossed across CCC boundary.", j, k)
 			}
 		}
