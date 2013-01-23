@@ -280,6 +280,30 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
 	}
 }
 
+func BenchmarkString(b *testing.B) {
+	b.StopTimer()
+	b.ReportAllocs()
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			b.Errorf("Parse(%q) returned error %s", tt.in, err)
+			continue
+		}
+		if tt.roundtrip == "" {
+			continue
+		}
+		b.StartTimer()
+		var g string
+		for i := 0; i < b.N; i++ {
+			g = u.String()
+		}
+		b.StopTimer()
+		if w := tt.roundtrip; g != w {
+			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
+		}
+	}
+}
+
 func TestParse(t *testing.T) {
 	DoTest(t, Parse, "Parse", urltests)
 }
