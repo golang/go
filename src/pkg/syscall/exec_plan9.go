@@ -495,11 +495,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return pid, nil
 }
 
-// Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
-	return forkExec(argv0, argv, attr)
-}
-
 type waitErr struct {
 	Waitmsg
 	err error
@@ -551,12 +546,19 @@ func startProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, err err
 		forkc <- ret
 
 		var w waitErr
-		w.err = Await(&w.Waitmsg)
+		for w.err == nil && w.Pid != ret.pid {
+			w.err = Await(&w.Waitmsg)
+		}
 		waitc <- &w
 		close(waitc)
 	}()
 	ret := <-forkc
 	return ret.pid, ret.err
+}
+
+// Combination of fork and exec, careful to be thread safe.
+func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
+	return startProcess(argv0, argv, attr)
 }
 
 // StartProcess wraps ForkExec for package os.
@@ -612,8 +614,8 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 // WaitProcess waits until the pid of a
 // running process is found in the queue of
 // wait messages. It is used in conjunction
-// with StartProcess to wait for a running
-// process to exit.
+// with ForkExec/StartProcess to wait for a
+// running process to exit.
 func WaitProcess(pid int, w *Waitmsg) (err error) {
 	procs.Lock()
 	ch := procs.waits[pid]
