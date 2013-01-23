@@ -35,7 +35,6 @@ var verifyTests = []verifyTest{
 		currentTime:          1302726541,
 		dnsName:              "www.google.com",
 		testSystemRootsError: true,
-		systemSkip:           true,
 
 		// Without any roots specified we should get a system roots
 		// error.
@@ -212,6 +211,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 func testVerify(t *testing.T, useSystemRoots bool) {
 	for i, test := range verifyTests {
 		if useSystemRoots && test.systemSkip {
+			continue
+		}
+		if runtime.GOOS == "windows" && test.testSystemRootsError {
 			continue
 		}
 
