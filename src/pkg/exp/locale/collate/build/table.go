@@ -69,30 +69,14 @@ func (t *table) fprint(w io.Writer, name string) (n, size int, err error) {
 		}
 		size += sz
 	}
-	p := func(f string, a ...interface{}) {
-		nn, e := fmt.Fprintf(w, f, a...)
-		update(nn, 0, e)
-	}
-	// Write main table.
-	size += int(reflect.TypeOf(*t).Size())
-	p("var %sTable = table{\n", name)
-	update(t.index.printStruct(w, t.root, name))
-	p(",\n")
-	p("%sExpandElem[:],\n", name)
-	update(t.contractTries.printStruct(w, name))
-	p(",\n")
-	p("%sContractElem[:],\n", name)
-	p("%d,\n", t.maxContractLen)
-	p("0x%X,\n", t.variableTop)
-	p("}\n\n")
-
 	// Write arrays needed for the structure.
 	update(printColElems(w, t.expandElem, name+"ExpandElem"))
 	update(printColElems(w, t.contractElem, name+"ContractElem"))
 	update(t.index.printArrays(w, name))
 	update(t.contractTries.printArray(w, name))
 
-	p("// Total size of %sTable is %d bytes\n", name, size)
+	nn, e := fmt.Fprintf(w, "// Total size of %sTable is %d bytes\n", name, size)
+	update(nn, 0, e)
 	return
 }
 

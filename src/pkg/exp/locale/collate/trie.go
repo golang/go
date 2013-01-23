@@ -31,18 +31,18 @@ const (
 	te = 0xFE // 1111 1110
 )
 
-func (t *trie) lookupValue(n uint16, b byte) colElem {
-	return colElem(t.values[int(n)<<6+int(b)])
+func (t *trie) lookupValue(n uint16, b byte) Elem {
+	return Elem(t.values[int(n)<<6+int(b)])
 }
 
 // lookup returns the trie value for the first UTF-8 encoding in s and
 // the width in bytes of this encoding. The size will be 0 if s does not
 // hold enough bytes to complete the encoding. len(s) must be greater than 0.
-func (t *trie) lookup(s []byte) (v colElem, sz int) {
+func (t *trie) lookup(s []byte) (v Elem, sz int) {
 	c0 := s[0]
 	switch {
 	case c0 < tx:
-		return colElem(t.values0[c0]), 1
+		return Elem(t.values0[c0]), 1
 	case c0 < t2:
 		return 0, 1
 	case c0 < t3:
@@ -99,11 +99,11 @@ func (t *trie) lookup(s []byte) (v colElem, sz int) {
 }
 
 // The body of lookupString is a verbatim copy of that of lookup.
-func (t *trie) lookupString(s string) (v colElem, sz int) {
+func (t *trie) lookupString(s string) (v Elem, sz int) {
 	c0 := s[0]
 	switch {
 	case c0 < tx:
-		return colElem(t.values0[c0]), 1
+		return Elem(t.values0[c0]), 1
 	case c0 < t2:
 		return 0, 1
 	case c0 < t3:

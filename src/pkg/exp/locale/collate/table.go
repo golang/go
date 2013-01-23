@@ -37,12 +37,76 @@ func (t *table) indexedTable(idx tableIndex) *table {
 	return &nt
 }
 
+func (t *table) AppendNext(w []Elem, b []byte) (res []Elem, n int) {
+	return t.appendNext(w, source{bytes: b})
+}
+
+func (t *table) AppendNextString(w []Elem, s string) (res []Elem, n int) {
+	return t.appendNext(w, source{str: s})
+}
+
+func (t *table) Start(p int, b []byte) int {
+	// TODO: implement
+	panic("not implemented")
+}
+
+func (t *table) StartString(p int, s string) int {
+	// TODO: implement
+	panic("not implemented")
+}
+
+func (t *table) Domain() []string {
+	// TODO: implement
+	panic("not implemented")
+}
+
+type source struct {
+	str   string
+	bytes []byte
+}
+
+func (src *source) lookup(t *table) (ce Elem, sz int) {
+	if src.bytes == nil {
+		return t.index.lookupString(src.str)
+	}
+	return t.index.lookup(src.bytes)
+}
+
+func (src *source) tail(sz int) {
+	if src.bytes == nil {
+		src.str = src.str[sz:]
+	} else {
+		src.bytes = src.bytes[sz:]
+	}
+}
+
+func (src *source) nfd(buf []byte, end int) []byte {
+	if src.bytes == nil {
+		return norm.NFD.AppendString(buf[:0], src.str[:end])
+	}
+	return norm.NFD.Append(buf[:0], src.bytes[:end]...)
+}
+
+func (src *source) rune() (r rune, sz int) {
+	if src.bytes == nil {
+		return utf8.DecodeRuneInString(src.str)
+	}
+	return utf8.DecodeRune(src.bytes)
+}
+
+func (src *source) properties(f norm.Form) norm.Properties {
+	if src.bytes == nil {
+		return f.PropertiesString(src.str)
+	}
+	return f.Properties(src.bytes)
+}
+
 // appendNext appends the weights corresponding to the next rune or
 // contraction in s.  If a contraction is matched to a discontinuous
 // sequence of runes, the weights for the interstitial runes are
 // appended as well.  It returns a new slice that includes the appended
 // weights and the number of bytes consumed from s.
-func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
+func (t *table) appendNext(w []Elem, src source) (res []Elem, n int) {
 	ce, sz := src.lookup(t)
 	tp := ce.ctype()
 	if tp == ceNormal {
@@ -56,7 +120,8 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
 			if r >= firstHangul && r <= lastHangul {
 				// TODO: performance can be considerably improved here.
 				n = sz
-				for b := src.nfd(hangulSize); len(b) > 0; b = b[sz:] {
+				var buf [16]byte // Used for decomposing Hangul.
+				for b := src.nfd(buf[:0], hangulSize); len(b) > 0; b = b[sz:] {
 					ce, sz = t.index.lookup(b)
 					w = append(w, ce)
 				}
@@ -69,7 +134,7 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
 		w = t.appendExpansion(w, ce)
 	} else if tp == ceContractionIndex {
 		n := 0
-		src = src.tail(sz)
+		src.tail(sz)
 		if src.bytes == nil {
 			w, n = t.matchContractionString(w, ce, src.str)
 		} else {
@@ -95,17 +160,17 @@ func (t *table) appendNext(w []colElem, src source) (res []colElem, n int) {
 	return w, sz
 }
 
-func (t *table) appendExpansion(w []colElem, ce colElem) []colElem {
+func (t *table) appendExpansion(w []Elem, ce Elem) []Elem {
 	i := splitExpandIndex(ce)
 	n := int(t.expandElem[i])
 	i++
 	for _, ce := range t.expandElem[i : i+n] {
-		w = append(w, colElem(ce))
+		w = append(w, Elem(ce))
 	}
 	return w
 }
 
-func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colElem, int) {
+func (t *table) matchContraction(w []Elem, ce Elem, suffix []byte) ([]Elem, int) {
 	index, n, offset := splitContractIndex(ce)
 
 	scan := t.contractTries.scanner(index, n, suffix)
@@ -147,7 +212,7 @@ func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colE
 	}
 	// Append weights for the matched contraction, which may be an expansion.
 	i, n := scan.result()
-	ce = colElem(t.contractElem[i+offset])
+	ce = Elem(t.contractElem[i+offset])
 	if ce.ctype() == ceNormal {
 		w = append(w, ce)
 	} else {
@@ -163,7 +228,7 @@ func (t *table) matchContraction(w []colElem, ce colElem, suffix []byte) ([]colE
 // TODO: unify the two implementations. This is best done after first simplifying
 // the algorithm taking into account the inclusion of both NFC and NFD forms
 // in the table.
-func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) ([]colElem, int) {
+func (t *table) matchContractionString(w []Elem, ce Elem, suffix string) ([]Elem, int) {
 	index, n, offset := splitContractIndex(ce)
 
 	scan := t.contractTries.scannerString(index, n, suffix)
@@ -205,7 +270,7 @@ func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) (
 	}
 	// Append weights for the matched contraction, which may be an expansion.
 	i, n := scan.result()
-	ce = colElem(t.contractElem[i+offset])
+	ce = Elem(t.contractElem[i+offset])
 	if ce.ctype() == ceNormal {
 		w = append(w, ce)
 	} else {
@@ -216,4 +281,37 @@ func (t *table) matchContractionString(w []colElem, ce colElem, suffix string) (
 		w, p = t.appendNext(w, source{bytes: b})
 	}
 	return w, n
+}
+
+// TODO: this should stay after the rest of this file is moved to colltab
+func (t tableIndex) TrieIndex() []uint16 {
+	return mainLookup[:]
+}
+
+func (t tableIndex) TrieValues() []uint32 {
+	return mainValues[:]
+}
+
+func (t tableIndex) FirstBlockOffsets() (lookup, value uint16) {
+	return uint16(t.lookupOffset), uint16(t.valuesOffset)
+}
+
+func (t tableIndex) ExpandElems() []uint32 {
+	return mainExpandElem[:]
+}
+
+func (t tableIndex) ContractTries() []struct{ l, h, n, i uint8 } {
+	return mainCTEntries[:]
+}
+
+func (t tableIndex) ContractElems() []uint32 {
+	return mainContractElem[:]
+}
+
+func (t tableIndex) MaxContractLen() int {
+	return 18
+}
+
+func (t tableIndex) VariableTop() uint32 {
+	return 0x30E
 }

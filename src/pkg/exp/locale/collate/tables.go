@@ -326,15 +326,6 @@ var locales = map[string]tableIndex{
 	},
 }
 
-var mainTable = table{
-	trie{mainLookup[1344:], mainValues[0:], mainLookup[:], mainValues[:]},
-	mainExpandElem[:],
-	contractTrieSet(mainCTEntries[:]),
-	mainContractElem[:],
-	18,
-	0x30E,
-}
-
 // mainExpandElem: 45432 entries, 181728 bytes
 var mainExpandElem = [45432]uint32{
 	// Block 0, offset 0x0
@@ -51902,4 +51893,4 @@ var mainCTEntries = [2490]struct{ l, h, n, i uint8 }{
 	{0x80, 0x81, 0, 1},
 }
 
-// Total size of mainTable is 921204 bytes
+// Total size of mainTable is 920988 bytes
