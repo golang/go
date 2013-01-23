@@ -122,14 +122,14 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority
+	// non-authority with path
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
 			Scheme: "mailto",
 			Path:   "/webmaster@golang.org",
 		},
-		"",
+		"mailto:///webmaster@golang.org", // unfortunate compromise
 	},
 	// non-authority
 	{
@@ -241,6 +241,15 @@ var urltests = []URLTest{
 			Fragment: "foo&bar",
 		},
 		"http://www.google.com/?q=go+language#foo&bar",
+	},
+	{
+		"file:///home/adg/rabbits",
+		&URL{
+			Scheme: "file",
+			Host:   "",
+			Path:   "/home/adg/rabbits",
+		},
+		"file:///home/adg/rabbits",
 	},
 }
 
