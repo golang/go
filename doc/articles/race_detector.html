@@ -6,7 +6,7 @@
 <h2 id="Introduction">Introduction</h2>
 
 <p>
-Data races are one of the most common and hardest to debug types of bugs in concurrent systems.  A data race occurs when two goroutines access the same variable concurrently and at least one of the accesses is a write.  See the <a href="/ref/mem">The Go Memory Model</a> for details.
+Data races are one of the most common and hardest to debug types of bugs in concurrent systems.  A data race occurs when two goroutines access the same variable concurrently and at least one of the accesses is a write.  See the <a href="/ref/mem/">The Go Memory Model</a> for details.
 </p>
 
 <p>
@@ -18,10 +18,10 @@ func main() {
 	c := make(chan bool)
 	m := make(map[string]string)
 	go func() {
-		m["1"] = "a"  // First conflicting access.
+		m["1"] = "a" // First conflicting access.
 		c &lt;- true
 	}()
-	m["2"] = "b"  // Second conflicting access.
+	m["2"] = "b" // Second conflicting access.
 	&lt;-c
 	for k, v := range m {
 		fmt.Println(k, v)
@@ -96,18 +96,32 @@ GORACE="option1=val1 option2=val2"
 <p>
 The options are:
 </p>
-<li><code>log_path</code> (default <code>stderr</code>): The race detector writes
+
+<ul>
+<li>
+<code>log_path</code> (default <code>stderr</code>): The race detector writes
 its report to a file named log_path.pid.  The special names <code>stdout</code>
 and <code>stderr</code> cause reports to be written to standard output and
-standard error, respectively.</li>
-<li><code>exitcode</code> (default <code>66</code>): The exit status to use when
-exiting after a detected race.</li>
-<li><code>strip_path_prefix</code> (default <code>""</code>): Strip this prefix
-from all reported file paths, to make reports more concise.</li>
-<li><code>history_size</code> (default <code>1</code>): The per-goroutine memory
+standard error, respectively.
+</li>
+
+<li>
+<code>exitcode</code> (default <code>66</code>): The exit status to use when
+exiting after a detected race.
+</li>
+
+<li>
+<code>strip_path_prefix</code> (default <code>""</code>): Strip this prefix
+from all reported file paths, to make reports more concise.
+</li>
+
+<li>
+<code>history_size</code> (default <code>1</code>): The per-goroutine memory
 access history is <code>32K * 2**history_size elements</code>. Increasing this
 value can avoid a "failed to restore the stack" error in reports, but at the
-cost of increased memory usage.</li>
+cost of increased memory usage.
+</li>
+</ul>
 
 <p>
 Example:
@@ -131,17 +145,17 @@ You can use it to exclude some code/tests under the race detector. For example:
 package foo
 
 // The test contains a data race. See issue 123.
-func TestFoo(t *testing.T)  {
+func TestFoo(t *testing.T) {
 	// ...
 }
 
 // The test fails under the race detector due to timeouts.
-func TestBar(t *testing.T)  {
+func TestBar(t *testing.T) {
 	// ...
 }
 
 // The test takes too long under the race detector.
-func TestBaz(t *testing.T)  {
+func TestBaz(t *testing.T) {
 	// ...
 }
 </pre>
@@ -170,7 +184,7 @@ func main() {
 	wg.Add(5)
 	for i := 0; i < 5; i++ {
 		go func() {
-			fmt.Println(i)  // Not the 'i' you are looking for.
+			fmt.Println(i) // Not the 'i' you are looking for.
 			wg.Done()
 		}()
 	}
@@ -191,7 +205,7 @@ func main() {
 	wg.Add(5)
 	for i := 0; i < 5; i++ {
 		go func(j int) {
-			fmt.Println(j)  // Good. Read local copy of the loop counter.
+			fmt.Println(j) // Good. Read local copy of the loop counter.
 			wg.Done()
 		}(i)
 	}
@@ -217,7 +231,7 @@ func ParallelWrite(data []byte) chan error {
 			f1.Close()
 		}()
 	}
-	f2, err := os.Create("file2")  // The second conflicting write to err.
+	f2, err := os.Create("file2") // The second conflicting write to err.
 	if err != nil {
 		res &lt;- err
 	} else {
@@ -236,9 +250,11 @@ The fix is to introduce new variables in the goroutines (note <code>:=</code>):
 </p>
 
 <pre>
+			...
 			_, err := f1.Write(data)
 			...
 			_, err := f2.Write(data)
+			...
 </pre>
 
 <h3 id="Unprotected_global_variable">Unprotected global variable</h3>
@@ -286,14 +302,14 @@ func LookupService(name string) net.Addr {
 <h3 id="Primitive_unprotected_variable">Primitive unprotected variable</h3>
 
 <p>
-Data races can happen on variables of primitive types as well (<code>bool</code>, <code>int</code>, <code>int64</code>), like in the following example:
+Data races can happen on variables of primitive types as well (<code>bool</code>, <code>int</code>, <code>int64</code>, etc.), like in the following example:
 </p>
 
 <pre>
-type Watchdog struct { last int64 }
+type Watchdog struct{ last int64 }
 
 func (w *Watchdog) KeepAlive() {
-	w.last = time.Now().UnixNano()  // First conflicting access.
+	w.last = time.Now().UnixNano() // First conflicting access.
 }
 
 func (w *Watchdog) Start() {
@@ -316,11 +332,11 @@ Even such &ldquo;innocent&rdquo; data races can lead to hard to debug problems c
 
 <p>
 A typical fix for this race is to use a channel or a mutex.
-To preserve the lock-free behavior, one can also use the <a href="/pkg/sync/atomic"><code>sync/atomic</code></a> package.
+To preserve the lock-free behavior, one can also use the <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> package.
 </p>
 
 <pre>
-type Watchdog struct { last int64 }
+type Watchdog struct{ last int64 }
 
 func (w *Watchdog) KeepAlive() {
 	atomic.StoreInt64(&amp;w.last, time.Now().UnixNano())
