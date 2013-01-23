@@ -94,9 +94,9 @@ func TestLocalDirectory(t *testing.T) {
 func TestBogusDirectory(t *testing.T) {
 	const dir = "/foo/bar/baz/gopher"
 	_, err := ImportDir(dir, FindOnly)
-	want := fmt.Sprintf("%q is not a directory", dir)
+	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))
 	if err == nil || err.Error() != want {
-		t.Error("got error %q, want %q", err, want)
+		t.Errorf("got error %q, want %q", err, want)
 	}
 }
 
