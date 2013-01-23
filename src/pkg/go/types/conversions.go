@@ -28,14 +28,101 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 		goto Error
 	}
 
-	// TODO(gri) fix this - implement all checks and constant evaluation
-	if x.mode != constant || !isConstType(typ) {
+	if x.mode == constant && isConstType(typ) {
+		// constant conversion
+		// TODO(gri) implement this
+	} else {
+		// non-constant conversion
+		if !x.isConvertible(typ) {
+			check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
+			goto Error
+		}
 		x.mode = value
 	}
+
 	x.expr = conv
 	x.typ = typ
 	return
 
 Error:
 	x.mode = invalid
+}
+
+func (x *operand) isConvertible(T Type) bool {
+	// "x is assignable to T"
+	if x.isAssignable(T) {
+		return true
+	}
+
+	// "x's type and T have identical underlying types"
+	V := x.typ
+	Vu := underlying(V)
+	Tu := underlying(T)
+	if isIdentical(Vu, Tu) {
+		return true
+	}
+
+	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
+	if V, ok := V.(*Pointer); ok {
+		if T, ok := T.(*Pointer); ok {
+			if isIdentical(underlying(V.Base), underlying(T.Base)) {
+				return true
+			}
+		}
+	}
+
+	// "x's type and T are both integer or floating point types"
+	if (isInteger(V) || isFloat(V)) && (isInteger(T) || isFloat(T)) {
+		return true
+	}
+
+	// "x's type and T are both complex types"
+	if isComplex(V) && isComplex(T) {
+		return true
+	}
+
+	// "x is an integer or a slice of bytes or runes and T is a string type"
+	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
+		return true
+	}
+
+	// "x is a string and T is a slice of bytes or runes"
+	if isString(V) && isBytesOrRunes(Tu) {
+		return true
+	}
+
+	// package unsafe:
+	// "any pointer or value of underlying type uintptr can be converted into a unsafe.Pointer"
+	if (isPointer(Vu) || isUintptr(Vu)) && isUnsafePointer(T) {
+		return true
+	}
+	// "and vice versa"
+	if isUnsafePointer(V) && (isPointer(Tu) || isUintptr(Tu)) {
+		return true
+	}
+
+	return false
+}
+
+func isUintptr(typ Type) bool {
+	t, ok := typ.(*Basic)
+	return ok && t.Kind == Uintptr
+}
+
+func isUnsafePointer(typ Type) bool {
+	t, ok := typ.(*Basic)
+	return ok && t.Kind == UnsafePointer
+}
+
+func isPointer(typ Type) bool {
+	_, ok := typ.(*Pointer)
+	return ok
+}
+
+func isBytesOrRunes(typ Type) bool {
+	if s, ok := typ.(*Slice); ok {
+		t, ok := underlying(s.Elt).(*Basic)
+		return ok && (t.Kind == Byte || t.Kind == Rune)
+	}
+	return false
 }
