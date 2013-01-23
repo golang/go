@@ -386,7 +386,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 		}
 	}
 
-	if (url.Scheme != "" || !viaRequest) && strings.HasPrefix(rest, "//") && !strings.HasPrefix(rest, "///") {
+	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
 		authority, rest = split(rest[2:], '/', false)
 		url.User, url.Host, err = parseAuthority(authority)
@@ -442,12 +442,14 @@ func (u *URL) String() string {
 	if u.Opaque != "" {
 		result += u.Opaque
 	} else {
-		if u.Host != "" || u.User != nil {
+		if u.Scheme != "" || u.Host != "" || u.User != nil {
 			result += "//"
 			if u := u.User; u != nil {
 				result += u.String() + "@"
 			}
-			result += u.Host
+			if h := u.Host; h != "" {
+				result += u.Host
+			}
 		}
 		result += escape(u.Path, encodePath)
 	}
