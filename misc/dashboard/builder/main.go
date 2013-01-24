@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -47,21 +48,29 @@ type Builder struct {
 }
 
 var (
-	buildroot     = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
-	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
-	dashboard     = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
-	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
-	buildRevision = flag.String("rev", "", "Build specified revision and exit")
-	buildCmd      = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
-	failAll       = flag.Bool("fail", false, "fail all builds")
-	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
-	buildTimeout  = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
-	cmdTimeout    = flag.Duration("cmdTimeout", 5*time.Minute, "Maximum time to wait for an external command")
-	verbose       = flag.Bool("v", false, "verbose")
+	buildroot      = flag.String("buildroot", defaultBuildRoot(), "Directory under which to build")
+	dashboard      = flag.String("dashboard", "build.golang.org", "Go Dashboard Host")
+	buildRelease   = flag.Bool("release", false, "Build and upload binary release archives")
+	buildRevision  = flag.String("rev", "", "Build specified revision and exit")
+	buildCmd       = flag.String("cmd", filepath.Join(".", allCmd), "Build command (specify relative to go/src/)")
+	failAll        = flag.Bool("fail", false, "fail all builds")
+	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
+	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
+	cmdTimeout     = flag.Duration("cmdTimeout", 5*time.Minute, "Maximum time to wait for an external command")
+	commitInterval = flag.Duration("commitInterval", 1*time.Minute, "Time to wait between polling for new commits")
+	verbose        = flag.Bool("v", false, "verbose")
+)
+
+// Use a mutex to prevent the commit poller and builders from using the primary
+// local goroot simultaneously. Theoretically, Mercurial locks the repo when
+// it's in use. Practically, it does a bad job of this.
+// As a rule, only hold this lock while calling run or runLog.
+var (
+	goroot   string
+	gorootMu sync.Mutex
 )
 
 var (
-	goroot      string
 	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
 	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
 	allCmd      = "all" + suffix
@@ -76,7 +85,7 @@ func main() {
 		os.Exit(2)
 	}
 	flag.Parse()
-	if len(flag.Args()) == 0 && !*commitFlag {
+	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
 	goroot = filepath.Join(*buildroot, "goroot")
@@ -109,14 +118,6 @@ func main() {
 		}
 	}
 
-	if *commitFlag {
-		if len(flag.Args()) == 0 {
-			commitWatcher()
-			return
-		}
-		go commitWatcher()
-	}
-
 	// if specified, build revision and return
 	if *buildRevision != "" {
 		hash, err := fullHash(goroot, *buildRevision)
@@ -130,6 +131,14 @@ func main() {
 		}
 		return
 	}
+
+	// Start commit watcher, and exit if that's all we're doing.
+	if len(flag.Args()) == 0 {
+		log.Print("no build targets specified; watching commits only")
+		commitWatcher()
+		return
+	}
+	go commitWatcher()
 
 	// go continuous build mode (default)
 	// check for new commits and build them
@@ -220,14 +229,19 @@ func (b *Builder) build() bool {
 	if hash == "" {
 		return false
 	}
+
 	// Look for hash locally before running hg pull.
 	if _, err := fullHash(goroot, hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
-		if err := run(*cmdTimeout, nil, goroot, hgCmd("pull")...); err != nil {
+		gorootMu.Lock()
+		err = run(*cmdTimeout, nil, goroot, hgCmd("pull")...)
+		gorootMu.Unlock()
+		if err != nil {
 			log.Println("hg pull failed:", err)
 			return false
 		}
 	}
+
 	err = b.buildHash(hash)
 	if err != nil {
 		log.Println(err)
@@ -246,7 +260,7 @@ func (b *Builder) buildHash(hash string) error {
 	defer os.RemoveAll(workpath)
 
 	// clone repo
-	if err := run(*cmdTimeout, nil, workpath, hgCmd("clone", goroot, "go")...); err != nil {
+	if err := hgClone(goroot, filepath.Join(workpath, "go")); err != nil {
 		return err
 	}
 
@@ -469,11 +483,15 @@ func commitWatcher() {
 		if *verbose {
 			log.Printf("sleep...")
 		}
-		time.Sleep(60e9)
+		time.Sleep(*commitInterval)
 	}
 }
 
 func hgClone(url, path string) error {
+	if url == goroot {
+		gorootMu.Lock()
+		defer gorootMu.Unlock()
+	}
 	return run(*cmdTimeout, nil, *buildroot, hgCmd("clone", url, path)...)
 }
 
@@ -531,18 +549,34 @@ func commitPoll(key, pkg string) {
 		}
 	}
 
-	if err := run(*cmdTimeout, nil, pkgRoot, hgCmd("pull")...); err != nil {
+	lockGoroot := func() {
+		if pkgRoot == goroot {
+			gorootMu.Lock()
+		}
+	}
+	unlockGoroot := func() {
+		if pkgRoot == goroot {
+			gorootMu.Unlock()
+		}
+	}
+
+	lockGoroot()
+	err := run(*cmdTimeout, nil, pkgRoot, hgCmd("pull")...)
+	unlockGoroot()
+	if err != nil {
 		log.Printf("hg pull: %v", err)
 		return
 	}
 
 	const N = 50 // how many revisions to grab
 
+	lockGoroot()
 	data, _, err := runLog(*cmdTimeout, nil, "", pkgRoot, hgCmd("log",
 		"--encoding=utf-8",
 		"--limit="+strconv.Itoa(N),
 		"--template="+xmlLogTemplate)...,
 	)
+	unlockGoroot()
 	if err != nil {
 		log.Printf("hg log: %v", err)
 		return
@@ -626,6 +660,9 @@ func addCommit(pkg, hash, key string) bool {
 
 // fullHash returns the full hash for the given Mercurial revision.
 func fullHash(root, rev string) (string, error) {
+	if root == goroot {
+		gorootMu.Lock()
+	}
 	s, _, err := runLog(*cmdTimeout, nil, "", root,
 		hgCmd("log",
 			"--encoding=utf-8",
@@ -633,6 +670,9 @@ func fullHash(root, rev string) (string, error) {
 			"--limit=1",
 			"--template={node}")...,
 	)
+	if root == goroot {
+		gorootMu.Unlock()
+	}
 	if err != nil {
 		return "", nil
 	}
