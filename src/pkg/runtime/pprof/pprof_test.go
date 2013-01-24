@@ -26,8 +26,7 @@ func TestCPUProfile(t *testing.T) {
 		t.Logf("uname -a: %v", vers)
 		// Lion uses "Darwin Kernel Version 11".
 		if strings.Contains(vers, "Darwin Kernel Version 10") && strings.Contains(vers, "RELEASE_X86_64") {
-			t.Logf("skipping test on known-broken kernel (64-bit Leopard / Snow Leopard)")
-			return
+			t.Skip("skipping test on known-broken kernel (64-bit Leopard / Snow Leopard)")
 		}
 	case "plan9":
 		// unimplemented

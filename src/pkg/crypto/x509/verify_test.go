@@ -309,8 +309,7 @@ func TestGoVerify(t *testing.T) {
 
 func TestSystemVerify(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		t.Logf("skipping verify test using system APIs on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping verify test using system APIs on %q", runtime.GOOS)
 	}
 
 	testVerify(t, true)

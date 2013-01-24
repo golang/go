@@ -99,8 +99,7 @@ func TestGcImport(t *testing.T) {
 	// On cross-compile builds, the path will not exist.
 	// Need to use GOHOSTOS, which is not available.
 	if _, err := os.Stat(gcPath); err != nil {
-		t.Logf("skipping test: %v", err)
-		return
+		t.Skipf("skipping test: %v", err)
 	}
 
 	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {

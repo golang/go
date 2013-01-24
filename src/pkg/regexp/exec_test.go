@@ -69,8 +69,7 @@ func TestRE2Search(t *testing.T) {
 
 func TestRE2Exhaustive(t *testing.T) {
 	if testing.Short() {
-		t.Log("skipping TestRE2Exhaustive during short test")
-		return
+		t.Skip("skipping TestRE2Exhaustive during short test")
 	}
 	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
 }

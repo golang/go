@@ -63,8 +63,7 @@ func testDialTimeoutHandleLeak(t *testing.T) (before, after int) {
 
 func TestDialTimeoutHandleLeak(t *testing.T) {
 	if !canUseConnectEx("tcp") {
-		t.Logf("skipping test; no ConnectEx found.")
-		return
+		t.Skip("skipping test; no ConnectEx found.")
 	}
 	testDialTimeoutHandleLeak(t) // ignore first call results
 	before, after := testDialTimeoutHandleLeak(t)

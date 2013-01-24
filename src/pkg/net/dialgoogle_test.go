@@ -56,8 +56,7 @@ var googleaddrsipv4 = []string{
 
 func TestDialGoogleIPv4(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 
 	// Insert an actual IPv4 address for google.com
@@ -112,17 +111,14 @@ var googleaddrsipv6 = []string{
 
 func TestDialGoogleIPv6(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 	// Only run tcp6 if the kernel will take it.
 	if !supportsIPv6 {
-		t.Logf("skipping test; ipv6 is not supported")
-		return
+		t.Skip("skipping test; ipv6 is not supported")
 	}
 	if !*testIPv6 {
-		t.Logf("test disabled; use -ipv6 to enable")
-		return
+		t.Skip("test disabled; use -ipv6 to enable")
 	}
 
 	// Insert an actual IPv6 address for ipv6.google.com

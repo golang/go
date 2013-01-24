@@ -90,8 +90,7 @@ var fileListenerTests = []struct {
 func TestFileListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	for _, tt := range fileListenerTests {
@@ -181,8 +180,7 @@ var filePacketConnTests = []struct {
 func TestFilePacketConn(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	for _, tt := range filePacketConnTests {

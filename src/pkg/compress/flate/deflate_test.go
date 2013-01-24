@@ -124,8 +124,7 @@ func (r *sparseReader) Read(b []byte) (n int, err error) {
 
 func TestVeryLongSparseChunk(t *testing.T) {
 	if testing.Short() {
-		t.Logf("skipping sparse chunk during short test")
-		return
+		t.Skip("skipping sparse chunk during short test")
 	}
 	w, err := NewWriter(ioutil.Discard, 1)
 	if err != nil {

@@ -159,8 +159,7 @@ var tcpListenerNameTests = []struct {
 
 func TestTCPListenerName(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 
 	for _, tt := range tcpListenerNameTests {
