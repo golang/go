@@ -2506,7 +2506,7 @@ If <code>a</code> is not a map:
 	<li>the index <code>x</code> must be an integer value; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
 	    otherwise it is <i>out of range</i></li>
 	<li>a <a href="#Constants">constant</a> index must be non-negative
-	     and representable by a value of type <code>int</code>
+	    and representable by a value of type <code>int</code>
 </ul>
 
 <p>
@@ -2518,7 +2518,7 @@ where <code>A</code> is an <a href="#Array_types">array type</a>:
 	<li>if <code>a</code> is <code>nil</code> or if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
-	  <code>a[x]</code> is the element type of <code>A</code></li>
+	    <code>a[x]</code> is the element type of <code>A</code></li>
 </ul>
 
 <p>
@@ -2528,7 +2528,7 @@ For <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Sl
 	<li>if the slice is <code>nil</code> or if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the slice element at index <code>x</code> and the type of
-	  <code>a[x]</code> is the element type of <code>S</code></li>
+	    <code>a[x]</code> is the element type of <code>S</code></li>
 </ul>
 
 <p>
@@ -2541,7 +2541,7 @@ where <code>T</code> is a <a href="#String_types">string type</a>:
 	<li>if <code>x</code> is out of range at run time,
 	    a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 	<li><code>a[x]</code> is the byte at index <code>x</code> and the type of
-	  <code>a[x]</code> is <code>byte</code></li>
+	    <code>a[x]</code> is <code>byte</code></li>
 	<li><code>a[x]</code> may not be assigned to</li>
 </ul>
 
@@ -2551,14 +2551,14 @@ where <code>M</code> is a <a href="#Map_types">map type</a>:
 </p>
 <ul>
 	<li><code>x</code>'s type must be
-	<a href="#Assignability">assignable</a>
-	to the key type of <code>M</code></li>
+	    <a href="#Assignability">assignable</a>
+	    to the key type of <code>M</code></li>
 	<li>if the map contains an entry with key <code>x</code>,
-	  <code>a[x]</code> is the map value with key <code>x</code>
-	  and the type of <code>a[x]</code> is the value type of <code>M</code></li>
+	    <code>a[x]</code> is the map value with key <code>x</code>
+	    and the type of <code>a[x]</code> is the value type of <code>M</code></li>
 	<li>if the map is <code>nil</code> or does not contain such an entry,
-	  <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
-	  for the value type of <code>M</code></li>
+	    <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
+	    for the value type of <code>M</code></li>
 </ul>
 
 <p>
@@ -5008,7 +5008,7 @@ a <a href="#Run_time_panics">run-time panic</a> occurs.
 s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
 s := make([]int, 1e3)           // slice with len(s) == cap(s) == 1000
 s := make([]int, 1&lt;&lt;63)         // illegal: len(s) is not representable by a value of type int
-s := make([]int, 10, 0)	        // illegal: len(s) > cap(s)
+s := make([]int, 10, 0)         // illegal: len(s) > cap(s)
 c := make(chan int, 10)         // channel with a buffer size of 10
 m := make(map[string]int, 100)  // map with initial space for 100 elements
 </pre>

@@ -208,7 +208,7 @@ easier to understand what happens when things combine.
 <h3 id="Is_Google_using_go_internally"> Is Google using Go internally?</h3>
 
 <p>
-Yes. There are now several Go programs deployed in 
+Yes. There are now several Go programs deployed in
 production inside Google.  A public example is the server behind
 <a href="http://golang.org">http://golang.org</a>.
 It's just the <a href="/cmd/godoc"><code>godoc</code></a>
@@ -224,14 +224,14 @@ There are two Go compiler implementations, <code>gc</code>
 (the <code>6g</code> program and friends) and <code>gccgo</code>.
 <code>Gc</code> uses a different calling convention and linker and can
 therefore only be linked with C programs using the same convention.
-There is such a C compiler but no C++ compiler. 
-<code>Gccgo</code> is a GCC front-end that can, with care, be linked with 
-GCC-compiled C or C++ programs. 
+There is such a C compiler but no C++ compiler.
+<code>Gccgo</code> is a GCC front-end that can, with care, be linked with
+GCC-compiled C or C++ programs.
 </p>
 
 <p>
-The <a href="/cmd/cgo/">cgo</a> program provides the mechanism for a 
-&ldquo;foreign function interface&rdquo; to allow safe calling of 
+The <a href="/cmd/cgo/">cgo</a> program provides the mechanism for a
+&ldquo;foreign function interface&rdquo; to allow safe calling of
 C libraries from Go code. SWIG extends this capability to C++ libraries.
 </p>
 
@@ -597,7 +597,7 @@ func (b Bar) Foo() {}
 </pre>
 
 <p>
-Most code doesn't make use of such constraints, since they limit the utility of 
+Most code doesn't make use of such constraints, since they limit the utility of
 the interface idea. Sometimes, though, they're necessary to resolve ambiguities
 among similar interfaces.
 </p>
@@ -934,7 +934,7 @@ When the project launched,
 Google Code supported only Subversion and Mercurial.
 Mercurial was a better choice because of its plugin mechanism
 that allowed us to create the "codereview" plugin to connect
-the project to the excellent code review tools at 
+the project to the excellent code review tools at
 <a href="http://codereview.appspot.com">codereview.appspot.com</a>.
 </p>
 
@@ -971,7 +971,7 @@ slice value doesn't copy the data it points to.  Copying an interface value
 makes a copy of the thing stored in the interface value.  If the interface
 value holds a struct, copying the interface value makes a copy of the
 struct.  If the interface value holds a pointer, copying the interface value
-makes a copy of the pointer, but again not the data it points to. 
+makes a copy of the pointer, but again not the data it points to.
 </p>
 
 <h3 id="methods_on_values_or_pointers">
@@ -1148,7 +1148,7 @@ Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 You must set the <code>GOMAXPROCS</code> shell environment variable
 or use the similarly-named <a href="/pkg/runtime/#GOMAXPROCS"><code>function</code></a>
 of the runtime package to allow the
-run-time support to utilize more than one OS thread. 
+run-time support to utilize more than one OS thread.
 </p>
 
 <p>
@@ -1161,7 +1161,7 @@ Why does using <code>GOMAXPROCS</code> &gt; 1 sometimes make my program
 slower?</h3>
 
 <p>
-It depends on the nature of your program. 
+It depends on the nature of your program.
 Problems that are intrinsically sequential cannot be sped up by adding
 more goroutines.
 Concurrency only becomes parallelism when the problem is
@@ -1250,18 +1250,18 @@ func main() {
 
     // wait for all goroutines to complete before exiting
     for _ = range values {
-        &lt;-done 
+        &lt;-done
     }
 }
 </pre>
 
 <p>
-One might mistakenly expect to see <code>a, b, c</code> as the output. 
-What you'll probably see instead is <code>c, c, c</code>.  This is because 
+One might mistakenly expect to see <code>a, b, c</code> as the output.
+What you'll probably see instead is <code>c, c, c</code>.  This is because
 each iteration of the loop uses the same instance of the variable <code>v</code>, so
-each closure shares that single variable. When the closure runs, it prints the 
+each closure shares that single variable. When the closure runs, it prints the
 value of <code>v</code> at the time <code>fmt.Println</code> is executed,
-but <code>v</code> may have been modified since the goroutine was launched. 
+but <code>v</code> may have been modified since the goroutine was launched.
 To help detect this and other problems before they happen, run
 <a href="http://golang.org/cmd/go/#hdr-Run_go_tool_vet_on_packages"><code>go vet</code></a>.
 </p>
@@ -1282,7 +1282,7 @@ One way is to pass the variable as an argument to the closure:
 </pre>
 
 <p>
-In this example, the value of <code>v</code> is passed as an argument to the 
+In this example, the value of <code>v</code> is passed as an argument to the
 anonymous function. That value is then accessible inside the function as
 the variable <code>u</code>.
 </p>
@@ -1478,7 +1478,7 @@ For these reasons, Go allows neither.
 <p>
 When developing code, it's common to create these situations
 temporarily and it can be annoying to have to edit them out before the
-program will compile.  
+program will compile.
 </p>
 
 <p>
@@ -1525,13 +1525,13 @@ Why does Go perform badly on benchmark X?</h3>
 
 <p>
 One of Go's design goals is to approach the performance of C for comparable
-programs, yet on some benchmarks it does quite poorly, including several 
-in <a href="/test/bench/shootout/">test/bench/shootout</a>. The slowest depend on libraries 
-for which versions of comparable performance are not available in Go. 
+programs, yet on some benchmarks it does quite poorly, including several
+in <a href="/test/bench/shootout/">test/bench/shootout</a>. The slowest depend on libraries
+for which versions of comparable performance are not available in Go.
 For instance, <a href="/test/bench/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
 versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
-written in optimized assembler). 
+written in optimized assembler).
 Benchmarks that depend on regular expressions
 (<a href="/test/bench/shootout/regex-dna.go">regex-dna.go</a>, for instance) are
 essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
@@ -1550,7 +1550,7 @@ indicate.
 <p>
 Still, there is room for improvement. The compilers are good but could be
 better, many libraries need major performance work, and the garbage collector
-isn't fast enough yet. (Even if it were, taking care not to generate unnecessary 
+isn't fast enough yet. (Even if it were, taking care not to generate unnecessary
 garbage can have a huge effect.)
 </p>
 
