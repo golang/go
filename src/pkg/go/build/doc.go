@@ -63,6 +63,9 @@
 // they must appear near the top of the file, preceded
 // only by blank lines and other line comments.
 //
+// To distinguish build constraints from package documentation, a series of
+// build constraints must be followed by a blank line.
+//
 // A build constraint is evaluated as the OR of space-separated options;
 // each option evaluates as the AND of its comma-separated terms;
 // and each term is an alphanumeric word or, preceded by !, its negation.
