@@ -444,7 +444,7 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
 		return
 	}
 
-	if !isIdentical(x.typ, y.typ) {
+	if !IsIdentical(x.typ, y.typ) {
 		check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 		x.mode = invalid
 		return

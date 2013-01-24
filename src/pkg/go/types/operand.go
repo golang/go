@@ -137,7 +137,7 @@ func (x *operand) isAssignable(T Type) bool {
 	V := x.typ
 
 	// x's type is identical to T
-	if isIdentical(V, T) {
+	if IsIdentical(V, T) {
 		return true
 	}
 
@@ -146,7 +146,7 @@ func (x *operand) isAssignable(T Type) bool {
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if isIdentical(Vu, Tu) {
+	if IsIdentical(Vu, Tu) {
 		return !isNamed(V) || !isNamed(T)
 	}
 
@@ -161,7 +161,7 @@ func (x *operand) isAssignable(T Type) bool {
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.Dir == ast.SEND|ast.RECV {
-		if Tc, ok := Tu.(*Chan); ok && isIdentical(Vc.Elt, Tc.Elt) {
+		if Tc, ok := Tu.(*Chan); ok && IsIdentical(Vc.Elt, Tc.Elt) {
 			return !isNamed(V) || !isNamed(T)
 		}
 	}

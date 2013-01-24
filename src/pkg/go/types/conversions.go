@@ -58,14 +58,14 @@ func (x *operand) isConvertible(T Type) bool {
 	V := x.typ
 	Vu := underlying(V)
 	Tu := underlying(T)
-	if isIdentical(Vu, Tu) {
+	if IsIdentical(Vu, Tu) {
 		return true
 	}
 
 	// "x's type and T are unnamed pointer types and their pointer base types have identical underlying types"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if isIdentical(underlying(V.Base), underlying(T.Base)) {
+			if IsIdentical(underlying(V.Base), underlying(T.Base)) {
 				return true
 			}
 		}
