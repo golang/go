@@ -390,8 +390,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 // This fails pretty reliably with GOMAXPROCS=100 or something high.
 func TestStressSurpriseServerCloses(t *testing.T) {
 	if testing.Short() {
-		t.Logf("skipping test in short mode")
-		return
+		t.Skip("skipping test in short mode")
 	}
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Length", "5")

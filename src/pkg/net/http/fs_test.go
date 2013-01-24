@@ -257,8 +257,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
 func TestDirJoin(t *testing.T) {
 	wfi, err := os.Stat("/etc/hosts")
 	if err != nil {
-		t.Logf("skipping test; no /etc/hosts file")
-		return
+		t.Skip("skipping test; no /etc/hosts file")
 	}
 	test := func(d Dir, name string) {
 		f, err := d.Open(name)
@@ -665,13 +664,10 @@ func TestServeContent(t *testing.T) {
 // verifies that sendfile is being used on Linux
 func TestLinuxSendfile(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Logf("skipping; linux-only test")
-		return
+		t.Skip("skipping; linux-only test")
 	}
-	_, err := exec.LookPath("strace")
-	if err != nil {
-		t.Logf("skipping; strace not found in path")
-		return
+	if _, err := exec.LookPath("strace"); err != nil {
+		t.Skip("skipping; strace not found in path")
 	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -690,10 +686,8 @@ func TestLinuxSendfile(t *testing.T) {
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
 	child.Stderr = &buf
-	err = child.Start()
-	if err != nil {
-		t.Logf("skipping; failed to start straced child: %v", err)
-		return
+	if err := child.Start(); err != nil {
+		t.Skipf("skipping; failed to start straced child: %v", err)
 	}
 
 	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))

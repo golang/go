@@ -18,8 +18,7 @@ import (
 
 func TestOver65kFiles(t *testing.T) {
 	if testing.Short() {
-		t.Logf("slow test; skipping")
-		return
+		t.Skip("slow test; skipping")
 	}
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
@@ -108,8 +107,7 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
 
 func TestZip64(t *testing.T) {
 	if testing.Short() {
-		t.Logf("slow test; skipping")
-		return
+		t.Skip("slow test; skipping")
 	}
 	// write 2^32 bytes plus "END\n" to a zip file
 	buf := new(bytes.Buffer)

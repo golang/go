@@ -61,8 +61,7 @@ var icmpTests = []struct {
 
 func TestICMP(t *testing.T) {
 	if os.Getuid() != 0 {
-		t.Logf("skipping test; must be root")
-		return
+		t.Skip("skipping test; must be root")
 	}
 
 	seqnum := 61455
@@ -253,8 +252,7 @@ var ipConnLocalNameTests = []struct {
 
 func TestIPConnLocalName(t *testing.T) {
 	if os.Getuid() != 0 {
-		t.Logf("skipping test; must be root")
-		return
+		t.Skip("skipping test; must be root")
 	}
 
 	for _, tt := range ipConnLocalNameTests {

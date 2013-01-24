@@ -74,8 +74,7 @@ func TestDialTimeout(t *testing.T) {
 		// by default. FreeBSD likely works, but is untested.
 		// TODO(rsc):
 		// The timeout never happens on Windows.  Why?  Issue 3016.
-		t.Logf("skipping test on %q; untested.", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q; untested.", runtime.GOOS)
 	}
 
 	connected := 0
@@ -107,8 +106,7 @@ func TestDialTimeout(t *testing.T) {
 func TestSelfConnect(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// TODO(brainman): do not know why it hangs.
-		t.Logf("skipping known-broken test on windows")
-		return
+		t.Skip("skipping known-broken test on windows")
 	}
 	// Test that Dial does not honor self-connects.
 	// See the comment in DialTCP.
@@ -228,8 +226,7 @@ func TestDialError(t *testing.T) {
 func TestDialTimeoutFDLeak(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		// TODO(bradfitz): test on other platforms
-		t.Logf("skipping test on %s", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	ln := newLocalListener(t)

@@ -48,12 +48,10 @@ var multicastListenerTests = []struct {
 func TestMulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "netbsd", "openbsd", "plan9", "windows":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	case "linux":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
-			t.Logf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
-			return
+			t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
 		}
 	}
 
@@ -83,12 +81,10 @@ func TestMulticastListener(t *testing.T) {
 func TestSimpleMulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	case "windows":
 		if testing.Short() || !*testExternal {
-			t.Logf("skipping test on windows to avoid firewall")
-			return
+			t.Skip("skipping test on windows to avoid firewall")
 		}
 	}
 

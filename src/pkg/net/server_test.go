@@ -142,8 +142,7 @@ var seqpacketConnServerTests = []struct {
 
 func TestSeqpacketConnServer(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	for _, tt := range seqpacketConnServerTests {

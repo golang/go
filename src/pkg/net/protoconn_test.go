@@ -156,12 +156,10 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 func TestIPConnSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping read test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping read test on %q", runtime.GOOS)
 	}
 	if os.Getuid() != 0 {
-		t.Logf("skipping test; must be root")
-		return
+		t.Skipf("skipping test; must be root")
 	}
 
 	la, err := net.ResolveIPAddr("ip4", "127.0.0.1")
@@ -212,8 +210,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 func TestUnixListenerSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Logf("skipping read test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping read test on %q", runtime.GOOS)
 	}
 
 	p := "/tmp/gotest.net"
@@ -259,8 +256,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 func TestUnixConnSpecificMethods(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	p1, p2, p3 := "/tmp/gotest.net1", "/tmp/gotest.net2", "/tmp/gotest.net3"

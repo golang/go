@@ -27,8 +27,7 @@ type copyRes struct {
 func TestAcceptTimeout(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	ln := newLocalListener(t).(*TCPListener)
@@ -75,8 +74,7 @@ func TestAcceptTimeout(t *testing.T) {
 func TestReadTimeout(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	ln := newLocalListener(t)
@@ -131,8 +129,7 @@ func TestReadTimeout(t *testing.T) {
 func TestWriteTimeout(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	ln := newLocalListener(t)
@@ -238,8 +235,7 @@ func testTimeout(t *testing.T, net, addr string, readFrom bool) {
 func TestTimeoutUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	// set up a listener that won't talk back
@@ -256,8 +252,7 @@ func TestTimeoutUDP(t *testing.T) {
 func TestTimeoutTCP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	// set up a listener that won't talk back
@@ -273,8 +268,7 @@ func TestTimeoutTCP(t *testing.T) {
 func TestDeadlineReset(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -302,8 +296,7 @@ func TestDeadlineReset(t *testing.T) {
 func TestTimeoutAccept(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -329,13 +322,11 @@ func TestTimeoutAccept(t *testing.T) {
 func TestReadWriteDeadline(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	if !canCancelIO {
-		t.Logf("skipping test on this system")
-		return
+		t.Skip("skipping test on this system")
 	}
 	const (
 		readTimeout  = 50 * time.Millisecond
@@ -595,8 +586,7 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 func TestProlongTimeout(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	ln := newLocalListener(t)

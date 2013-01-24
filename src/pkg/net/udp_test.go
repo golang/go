@@ -43,8 +43,7 @@ func TestResolveUDPAddr(t *testing.T) {
 func TestWriteToUDP(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
-		t.Logf("skipping test on %q", runtime.GOOS)
-		return
+		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
 	l, err := ListenPacket("udp", "127.0.0.1:0")
@@ -130,8 +129,7 @@ var udpConnLocalNameTests = []struct {
 
 func TestUDPConnLocalName(t *testing.T) {
 	if testing.Short() || !*testExternal {
-		t.Logf("skipping test to avoid external network")
-		return
+		t.Skip("skipping test to avoid external network")
 	}
 
 	for _, tt := range udpConnLocalNameTests {

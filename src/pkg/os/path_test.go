@@ -168,8 +168,7 @@ func TestRemoveAll(t *testing.T) {
 
 func TestMkdirAllWithSymlink(t *testing.T) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Log("Skipping test: symlinks don't exist under Windows/Plan 9")
-		return
+		t.Skip("Skipping test: symlinks don't exist under Windows/Plan 9")
 	}
 
 	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")

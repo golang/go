@@ -311,8 +311,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 
 func TestReaddirNValues(t *testing.T) {
 	if testing.Short() {
-		t.Logf("test.short; skipping")
-		return
+		t.Skip("test.short; skipping")
 	}
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -1072,8 +1071,7 @@ var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsol
 
 func TestLargeWriteToConsole(t *testing.T) {
 	if !*testLargeWrite {
-		t.Logf("skipping console-flooding test; enable with -large_write")
-		return
+		t.Skip("skipping console-flooding test; enable with -large_write")
 	}
 	b := make([]byte, 32000)
 	for i := range b {
