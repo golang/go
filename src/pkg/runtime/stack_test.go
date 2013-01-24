@@ -1571,7 +1571,7 @@ func TestStackMem(t *testing.T) {
 	if consumed > estimate {
 		t.Fatalf("Stack mem: want %v, got %v", estimate, consumed)
 	}
-	if s1.StackInuse > 1<<20 {
-		t.Fatalf("Stack inuse: want %v, got %v", 1<<20, s1.StackInuse)
+	if s1.StackInuse > 4<<20 {
+		t.Fatalf("Stack inuse: want %v, got %v", 4<<20, s1.StackInuse)
 	}
 }
