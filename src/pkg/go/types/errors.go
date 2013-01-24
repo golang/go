@@ -316,3 +316,16 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		fmt.Fprintf(buf, "<type %T>", t)
 	}
 }
+
+func (t *Array) String() string     { return typeString(t) }
+func (t *Basic) String() string     { return typeString(t) }
+func (t *Chan) String() string      { return typeString(t) }
+func (t *Interface) String() string { return typeString(t) }
+func (t *Map) String() string       { return typeString(t) }
+func (t *NamedType) String() string { return typeString(t) }
+func (t *Pointer) String() string   { return typeString(t) }
+func (t *Result) String() string    { return typeString(t) }
+func (t *Signature) String() string { return typeString(t) }
+func (t *Slice) String() string     { return typeString(t) }
+func (t *Struct) String() string    { return typeString(t) }
+func (t *builtin) String() string   { return typeString(t) }

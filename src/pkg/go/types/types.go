@@ -8,6 +8,7 @@ import "go/ast"
 
 // All types implement the Type interface.
 type Type interface {
+	String() string
 	aType()
 }
 
