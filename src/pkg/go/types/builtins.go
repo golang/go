@@ -142,7 +142,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
-		if !isIdentical(x.typ, y.typ) {
+		if !IsIdentical(x.typ, y.typ) {
 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 			goto Error
 		}
@@ -191,7 +191,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
-		if !isIdentical(dst, src) {
+		if !IsIdentical(dst, src) {
 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			goto Error
 		}
