@@ -124,7 +124,7 @@ var respTests = []respTest{
 
 	// Chunked response without Content-Length.
 	{
-		"HTTP/1.0 200 OK\r\n" +
+		"HTTP/1.1 200 OK\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"\r\n" +
 			"0a\r\n" +
@@ -137,12 +137,12 @@ var respTests = []respTest{
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
-			Proto:            "HTTP/1.0",
+			Proto:            "HTTP/1.1",
 			ProtoMajor:       1,
-			ProtoMinor:       0,
+			ProtoMinor:       1,
 			Request:          dummyReq("GET"),
 			Header:           Header{},
-			Close:            true,
+			Close:            false,
 			ContentLength:    -1,
 			TransferEncoding: []string{"chunked"},
 		},
@@ -152,7 +152,7 @@ var respTests = []respTest{
 
 	// Chunked response with Content-Length.
 	{
-		"HTTP/1.0 200 OK\r\n" +
+		"HTTP/1.1 200 OK\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"Content-Length: 10\r\n" +
 			"\r\n" +
@@ -164,12 +164,12 @@ var respTests = []respTest{
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
-			Proto:            "HTTP/1.0",
+			Proto:            "HTTP/1.1",
 			ProtoMajor:       1,
-			ProtoMinor:       0,
+			ProtoMinor:       1,
 			Request:          dummyReq("GET"),
 			Header:           Header{},
-			Close:            true,
+			Close:            false,
 			ContentLength:    -1, // TODO(rsc): Fix?
 			TransferEncoding: []string{"chunked"},
 		},
@@ -177,23 +177,88 @@ var respTests = []respTest{
 		"Body here\n",
 	},
 
-	// Chunked response in response to a HEAD request (the "chunked" should
-	// be ignored, as HEAD responses never have bodies)
+	// Chunked response in response to a HEAD request
 	{
-		"HTTP/1.0 200 OK\r\n" +
+		"HTTP/1.1 200 OK\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"\r\n",
 
 		Response{
-			Status:        "200 OK",
-			StatusCode:    200,
-			Proto:         "HTTP/1.0",
-			ProtoMajor:    1,
-			ProtoMinor:    0,
-			Request:       dummyReq("HEAD"),
-			Header:        Header{},
-			Close:         true,
-			ContentLength: -1,
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			Request:          dummyReq("HEAD"),
+			Header:           Header{},
+			TransferEncoding: []string{"chunked"},
+			Close:            false,
+			ContentLength:    -1,
+		},
+
+		"",
+	},
+
+	// Content-Length in response to a HEAD request
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Content-Length: 256\r\n" +
+			"\r\n",
+
+		Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.0",
+			ProtoMajor:       1,
+			ProtoMinor:       0,
+			Request:          dummyReq("HEAD"),
+			Header:           Header{"Content-Length": {"256"}},
+			TransferEncoding: nil,
+			Close:            true,
+			ContentLength:    256,
+		},
+
+		"",
+	},
+
+	// Content-Length in response to a HEAD request with HTTP/1.1
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 256\r\n" +
+			"\r\n",
+
+		Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			Request:          dummyReq("HEAD"),
+			Header:           Header{"Content-Length": {"256"}},
+			TransferEncoding: nil,
+			Close:            false,
+			ContentLength:    256,
+		},
+
+		"",
+	},
+
+	// No Content-Length or Chunked in response to a HEAD request
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"\r\n",
+
+		Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.0",
+			ProtoMajor:       1,
+			ProtoMinor:       0,
+			Request:          dummyReq("HEAD"),
+			Header:           Header{},
+			TransferEncoding: nil,
+			Close:            true,
+			ContentLength:    -1,
 		},
 
 		"",
