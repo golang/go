@@ -87,10 +87,8 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 	// Sanitize Body,ContentLength,TransferEncoding
 	if t.ResponseToHEAD {
 		t.Body = nil
-		t.TransferEncoding = nil
-		// ContentLength is expected to hold Content-Length
-		if t.ContentLength < 0 {
-			return nil, ErrMissingContentLength
+		if chunked(t.TransferEncoding) {
+			t.ContentLength = -1
 		}
 	} else {
 		if !atLeastHTTP11 || t.Body == nil {
@@ -120,9 +118,6 @@ func (t *transferWriter) shouldSendContentLength() bool {
 		return false
 	}
 	if t.ContentLength > 0 {
-		return true
-	}
-	if t.ResponseToHEAD {
 		return true
 	}
 	// Many servers expect a Content-Length for these methods
@@ -379,12 +374,6 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, error) 
 	}
 
 	delete(header, "Transfer-Encoding")
-
-	// Head responses have no bodies, so the transfer encoding
-	// should be ignored.
-	if requestMethod == "HEAD" {
-		return nil, nil
-	}
 
 	encodings := strings.Split(raw[0], ",")
 	te := make([]string, 0, len(encodings))
