@@ -24,6 +24,13 @@ static	int32	debug	= 0;
 
 int32	runtime·gcwaiting;
 
+G*	runtime·allg;
+G*	runtime·lastg;
+M*	runtime·allm;
+
+int8*	runtime·goos;
+int32	runtime·ncpu;
+
 // Go scheduler
 //
 // The go scheduler's job is to match ready-to-run goroutines (`g's)
