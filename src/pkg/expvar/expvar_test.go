@@ -18,6 +18,7 @@ func RemoveAll() {
 }
 
 func TestInt(t *testing.T) {
+	RemoveAll()
 	reqs := NewInt("requests")
 	if reqs.i != 0 {
 		t.Errorf("reqs.i = %v, want 0", reqs.i)
@@ -43,6 +44,7 @@ func TestInt(t *testing.T) {
 }
 
 func TestFloat(t *testing.T) {
+	RemoveAll()
 	reqs := NewFloat("requests-float")
 	if reqs.f != 0.0 {
 		t.Errorf("reqs.f = %v, want 0", reqs.f)
@@ -68,6 +70,7 @@ func TestFloat(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
+	RemoveAll()
 	name := NewString("my-name")
 	if name.s != "" {
 		t.Errorf("name.s = %q, want \"\"", name.s)
@@ -84,6 +87,7 @@ func TestString(t *testing.T) {
 }
 
 func TestMapCounter(t *testing.T) {
+	RemoveAll()
 	colors := NewMap("bike-shed-colors")
 
 	colors.Add("red", 1)
@@ -123,6 +127,7 @@ func TestMapCounter(t *testing.T) {
 }
 
 func TestFunc(t *testing.T) {
+	RemoveAll()
 	var x interface{} = []string{"a", "b"}
 	f := Func(func() interface{} { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
