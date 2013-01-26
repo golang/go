@@ -144,6 +144,8 @@ func TestPipes(t *testing.T) {
 	check("Wait", err)
 }
 
+var testedAlreadyLeaked = false
+
 func TestExtraFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("no operating system support; skipping")
@@ -151,10 +153,13 @@ func TestExtraFiles(t *testing.T) {
 
 	// Ensure that file descriptors have not already been leaked into
 	// our environment.
-	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
-		err := os.NewFile(fd, "").Close()
-		if err == nil {
-			t.Logf("Something already leaked - closed fd %d", fd)
+	if !testedAlreadyLeaked {
+		testedAlreadyLeaked = true
+		for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+			err := os.NewFile(fd, "").Close()
+			if err == nil {
+				t.Logf("Something already leaked - closed fd %d", fd)
+			}
 		}
 	}
 

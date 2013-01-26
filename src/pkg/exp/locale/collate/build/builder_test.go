@@ -89,7 +89,10 @@ var convLargeTests = []convertTest{
 
 func TestConvertLarge(t *testing.T) {
 	for i, tt := range convLargeTests {
-		e := &entry{elems: tt.in}
+		e := new(entry)
+		for _, ce := range tt.in {
+			e.elems = append(e.elems, makeRawCE(ce.w, ce.ccc))
+		}
 		elems, err := convertLargeWeights(e.elems)
 		if tt.err {
 			if err == nil {

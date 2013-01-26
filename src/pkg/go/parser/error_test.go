@@ -34,9 +34,11 @@ import (
 
 const testdata = "testdata"
 
+var fsetErrs *token.FileSet
+
 // getFile assumes that each filename occurs at most once
 func getFile(filename string) (file *token.File) {
-	fset.Iterate(func(f *token.File) bool {
+	fsetErrs.Iterate(func(f *token.File) bool {
 		if f.Name() == filename {
 			if file != nil {
 				panic(filename + " used multiple times")
@@ -125,7 +127,7 @@ func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.Er
 	if len(expected) > 0 {
 		t.Errorf("%d errors not reported:", len(expected))
 		for pos, msg := range expected {
-			t.Errorf("%s: %s\n", fset.Position(pos), msg)
+			t.Errorf("%s: %s\n", fsetErrs.Position(pos), msg)
 		}
 	}
 }
@@ -137,7 +139,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 		return
 	}
 
-	_, err = ParseFile(fset, filename, src, DeclarationErrors)
+	_, err = ParseFile(fsetErrs, filename, src, DeclarationErrors)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)
@@ -153,6 +155,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 }
 
 func TestErrors(t *testing.T) {
+	fsetErrs = token.NewFileSet()
 	list, err := ioutil.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)

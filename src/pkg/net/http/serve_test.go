@@ -184,10 +184,11 @@ var vtests = []struct {
 }
 
 func TestHostHandlers(t *testing.T) {
+	mux := NewServeMux()
 	for _, h := range handlers {
-		Handle(h.pattern, stringHandler(h.msg))
+		mux.Handle(h.pattern, stringHandler(h.msg))
 	}
-	ts := httptest.NewServer(nil)
+	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())

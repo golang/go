@@ -15,17 +15,6 @@ import (
 	"time"
 )
 
-var (
-	test_bool     = Bool("test_bool", false, "bool value")
-	test_int      = Int("test_int", 0, "int value")
-	test_int64    = Int64("test_int64", 0, "int64 value")
-	test_uint     = Uint("test_uint", 0, "uint value")
-	test_uint64   = Uint64("test_uint64", 0, "uint64 value")
-	test_string   = String("test_string", "0", "string value")
-	test_float64  = Float64("test_float64", 0, "float64 value")
-	test_duration = Duration("test_duration", 0, "time.Duration value")
-)
-
 func boolString(s string) string {
 	if s == "0" {
 		return "false"
@@ -34,6 +23,16 @@ func boolString(s string) string {
 }
 
 func TestEverything(t *testing.T) {
+	ResetForTesting(nil)
+	Bool("test_bool", false, "bool value")
+	Int("test_int", 0, "int value")
+	Int64("test_int64", 0, "int64 value")
+	Uint("test_uint", 0, "uint value")
+	Uint64("test_uint64", 0, "uint64 value")
+	String("test_string", "0", "string value")
+	Float64("test_float64", 0, "float64 value")
+	Duration("test_duration", 0, "time.Duration value")
+
 	m := make(map[string]*Flag)
 	desired := "0"
 	visitor := func(f *Flag) {
