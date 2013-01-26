@@ -181,6 +181,24 @@ if [ $(GOPATH= ./testgo install 'foo/quxx' 2>&1 | egrep -c '\(\$GOPATH not set\)
         ok=false
 fi
 
+# issue 4186. go get cannot be used to download packages to $GOROOT
+# Test that without GOPATH set, go get should fail
+d=$(mktemp -d)
+mkdir -p $d/src/pkg
+if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
+	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
+	ok=false
+fi	
+rm -rf $d
+# Test that with GOPATH=$GOROOT, go get should fail
+d=$(mktemp -d)
+mkdir -p $d/src/pkg
+if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
+        echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
+        ok=false
+fi
+rm -rf $d
+
 # clean up
 rm -rf testdata/bin testdata/bin1
 rm -f testgo
