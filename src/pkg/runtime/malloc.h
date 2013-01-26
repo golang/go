@@ -446,7 +446,7 @@ void	runtime·markallocated(void *v, uintptr n, bool noptr);
 void	runtime·checkallocated(void *v, uintptr n);
 void	runtime·markfreed(void *v, uintptr n);
 void	runtime·checkfreed(void *v, uintptr n);
-int32	runtime·checking;
+extern	int32	runtime·checking;
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 bool	runtime·blockspecial(void*);

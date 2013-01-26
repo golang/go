@@ -562,15 +562,15 @@ struct Panic
  */
 extern	String	runtime·emptystring;
 extern	uintptr runtime·zerobase;
-G*	runtime·allg;
-G*	runtime·lastg;
-M*	runtime·allm;
+extern	G*	runtime·allg;
+extern	G*	runtime·lastg;
+extern	M*	runtime·allm;
 extern	int32	runtime·gomaxprocs;
 extern	bool	runtime·singleproc;
 extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
-int8*	runtime·goos;
-int32	runtime·ncpu;
+extern	int8*	runtime·goos;
+extern	int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
 extern 	void	(*runtime·sysargs)(int32, uint8**);
 extern	uint32	runtime·maxstring;
