@@ -41,3 +41,14 @@ func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(
 	}
 	return la, nil
 }
+
+func sysSocket(f, t, p int) (syscall.Handle, error) {
+	// See ../syscall/exec_unix.go for description of ForkLock.
+	syscall.ForkLock.RLock()
+	s, err := syscall.Socket(f, t, p)
+	if err == nil {
+		syscall.CloseOnExec(s)
+	}
+	syscall.ForkLock.RUnlock()
+	return s, err
+}
