@@ -298,9 +298,6 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
 }
 
 func newFD(fd, family, sotype int, net string) (*netFD, error) {
-	if err := syscall.SetNonblock(fd, true); err != nil {
-		return nil, err
-	}
 	netfd := &netFD{
 		sysfd:  fd,
 		family: family,
@@ -615,16 +612,11 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 	}
 	defer fd.decref()
 
-	// See ../syscall/exec_unix.go for description of ForkLock.
-	// It is okay to hold the lock across syscall.Accept
-	// because we have put fd.sysfd into non-blocking mode.
 	var s int
 	var rsa syscall.Sockaddr
 	for {
-		syscall.ForkLock.RLock()
-		s, rsa, err = syscall.Accept(fd.sysfd)
+		s, rsa, err = accept(fd.sysfd)
 		if err != nil {
-			syscall.ForkLock.RUnlock()
 			if err == syscall.EAGAIN {
 				if err = fd.pollServer.WaitRead(fd); err == nil {
 					continue
@@ -638,8 +630,6 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 		}
 		break
 	}
-	syscall.CloseOnExec(s)
-	syscall.ForkLock.RUnlock()
 
 	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
 		closesocket(s)
