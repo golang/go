@@ -16,6 +16,31 @@ pkgs() {
 	done | sort
 }
 
+# +build aborts execution if the supplied tags don't match,
+# i.e. none of the tags (x or !x) matches GOARCH or GOOS.
++build() {
+	if (( $# == 0 )); then
+		return
+	fi
+	for tag; do
+		case $tag in
+		$GOARCH|$GOOS)
+			#echo >&2 "match $tag in $1"
+			return # don't exclude.
+			;;
+		'!'$GOARCH|'!'$GOOS)
+			;;
+		'!'*)
+			# not x where x is neither GOOS nor GOARCH.
+			#echo >&2 "match $tag in $1"
+			return # don't exclude
+			;;
+		esac
+	done
+	# no match.
+	exit 0
+}
+
 compile() {
 	$G $D/$F.go
 }
