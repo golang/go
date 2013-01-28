@@ -138,7 +138,9 @@ HaveSpan:
 		*(uintptr*)(t->start<<PageShift) = *(uintptr*)(s->start<<PageShift);  // copy "needs zeroing" mark
 		t->state = MSpanInUse;
 		MHeap_FreeLocked(h, t);
+		t->unusedsince = s->unusedsince; // preserve age
 	}
+	s->unusedsince = 0;
 
 	// Record span info, because gc needs to be
 	// able to map interior pointer to containing span.
@@ -300,10 +302,12 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 	}
 	mstats.heap_idle += s->npages<<PageShift;
 	s->state = MSpanFree;
-	s->unusedsince = 0;
-	s->npreleased = 0;
 	runtime·MSpanList_Remove(s);
 	sp = (uintptr*)(s->start<<PageShift);
+	// Stamp newly unused spans. The scavenger will use that
+	// info to potentially give back some pages to the OS.
+	s->unusedsince = runtime·nanotime();
+	s->npreleased = 0;
 
 	// Coalesce with earlier, later spans.
 	p = s->start;
@@ -401,10 +405,10 @@ runtime·MHeap_Scavenger(void)
 			runtime·entersyscall();
 			runtime·notesleep(&note);
 			runtime·exitsyscall();
+			if(trace)
+				runtime·printf("scvg%d: GC forced\n", k);
 			runtime·lock(h);
 			now = runtime·nanotime();
-			if (trace)
-				runtime·printf("scvg%d: GC forced\n", k);
 		}
 		sumreleased = 0;
 		for(i=0; i < nelem(h->free)+1; i++) {
@@ -415,7 +419,7 @@ runtime·MHeap_Scavenger(void)
 			if(runtime·MSpanList_IsEmpty(list))
 				continue;
 			for(s=list->next; s != list; s=s->next) {
-				if(s->unusedsince != 0 && (now - s->unusedsince) > limit) {
+				if((now - s->unusedsince) > limit) {
 					released = (s->npages - s->npreleased) << PageShift;
 					mstats.heap_released += released;
 					sumreleased += released;

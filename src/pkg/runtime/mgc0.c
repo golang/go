@@ -1159,10 +1159,6 @@ sweepspan(ParFor *desc, uint32 idx)
 
 	USED(&desc);
 	s = runtime·mheap.allspans[idx];
-	// Stamp newly unused spans. The scavenger will use that
-	// info to potentially give back some pages to the OS.
-	if(s->state == MSpanFree && s->unusedsince == 0)
-		s->unusedsince = runtime·nanotime();
 	if(s->state != MSpanInUse)
 		return;
 	arena_start = runtime·mheap.arena_start;
