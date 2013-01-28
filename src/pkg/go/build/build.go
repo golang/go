@@ -322,7 +322,9 @@ func (p *Package) IsCommand() bool {
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 	p, err := ctxt.Import(".", dir, mode)
-	if err == nil && !ctxt.isDir(p.Dir) {
+	// TODO(rsc,adg): breaks godoc net/http. Not sure why.
+	// See CL 7232047 and issue 4696.
+	if false && err == nil && !ctxt.isDir(p.Dir) {
 		err = fmt.Errorf("%q is not a directory", p.Dir)
 	}
 	return p, err
