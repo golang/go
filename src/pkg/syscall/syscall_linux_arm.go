@@ -28,6 +28,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
 
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32

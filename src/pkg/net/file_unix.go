@@ -20,6 +20,10 @@ func newFileFD(f *os.File) (*netFD, error) {
 	}
 	syscall.CloseOnExec(fd)
 	syscall.ForkLock.RUnlock()
+	if err = syscall.SetNonblock(fd, true); err != nil {
+		closesocket(fd)
+		return nil, err
+	}
 
 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {

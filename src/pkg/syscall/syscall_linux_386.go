@@ -164,6 +164,9 @@ const (
 	_GETSOCKOPT  = 15
 	_SENDMSG     = 16
 	_RECVMSG     = 17
+	_ACCEPT4     = 18
+	_RECVMMSG    = 19
+	_SENDMMSG    = 20
 )
 
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
@@ -171,6 +174,14 @@ func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
 
 func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+	if e != 0 {
+		err = e
+	}
+	return
+}
+
+func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
 	if e != 0 {
 		err = e
 	}
