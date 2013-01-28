@@ -241,7 +241,7 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		p.WriteString(strconv.FormatUint(val.Uint(), 10))
 	case reflect.Float32, reflect.Float64:
-		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, 64))
+		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, val.Type().Bits()))
 	case reflect.String:
 		// TODO: Add EscapeString.
 		Escape(p, []byte(val.String()))
