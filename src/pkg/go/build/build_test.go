@@ -92,6 +92,7 @@ func TestLocalDirectory(t *testing.T) {
 
 // golang.org/issue/3248
 func TestBogusDirectory(t *testing.T) {
+	return // See issue 4696.
 	const dir = "/foo/bar/baz/gopher"
 	_, err := ImportDir(dir, FindOnly)
 	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))
