@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -25,6 +26,156 @@ type Rat struct {
 // NewRat creates a new Rat with numerator a and denominator b.
 func NewRat(a, b int64) *Rat {
 	return new(Rat).SetFrac64(a, b)
+}
+
+// SetFloat64 sets z to exactly f and returns z.
+// If f is not finite, SetFloat returns nil.
+func (z *Rat) SetFloat64(f float64) *Rat {
+	const expMask = 1<<11 - 1
+	bits := math.Float64bits(f)
+	mantissa := bits & (1<<52 - 1)
+	exp := int((bits >> 52) & expMask)
+	switch exp {
+	case expMask: // non-finite
+		return nil
+	case 0: // denormal
+		exp -= 1022
+	default: // normal
+		mantissa |= 1 << 52
+		exp -= 1023
+	}
+
+	shift := 52 - exp
+
+	// Optimisation (?): partially pre-normalise.
+	for mantissa&1 == 0 && shift > 0 {
+		mantissa >>= 1
+		shift--
+	}
+
+	z.a.SetUint64(mantissa)
+	z.a.neg = f < 0
+	z.b.Set(intOne)
+	if shift > 0 {
+		z.b.Lsh(&z.b, uint(shift))
+	} else {
+		z.a.Lsh(&z.a, uint(-shift))
+	}
+	return z.norm()
+}
+
+// isFinite reports whether f represents a finite rational value.
+// It is equivalent to !math.IsNan(f) && !math.IsInf(f, 0).
+func isFinite(f float64) bool {
+	return math.Abs(f) <= math.MaxFloat64
+}
+
+// low64 returns the least significant 64 bits of natural number z.
+func low64(z nat) uint64 {
+	if len(z) == 0 {
+		return 0
+	}
+	if _W == 32 && len(z) > 1 {
+		return uint64(z[1])<<32 | uint64(z[0])
+	}
+	return uint64(z[0])
+}
+
+// quotToFloat returns the non-negative IEEE 754 double-precision
+// value nearest to the quotient a/b, using round-to-even in halfway
+// cases.  It does not mutate its arguments.
+// Preconditions: b is non-zero; a and b have no common factors.
+func quotToFloat(a, b nat) (f float64, exact bool) {
+	// TODO(adonovan): specialize common degenerate cases: 1.0, integers.
+	alen := a.bitLen()
+	if alen == 0 {
+		return 0, true
+	}
+	blen := b.bitLen()
+	if blen == 0 {
+		panic("division by zero")
+	}
+
+	// 1. Left-shift A or B such that quotient A/B is in [1<<53, 1<<55).
+	// (54 bits if A<B when they are left-aligned, 55 bits if A>=B.)
+	// This is 2 or 3 more than the float64 mantissa field width of 52:
+	// - the optional extra bit is shifted away in step 3 below.
+	// - the high-order 1 is omitted in float64 "normal" representation;
+	// - the low-order 1 will be used during rounding then discarded.
+	exp := alen - blen
+	var a2, b2 nat
+	a2 = a2.set(a)
+	b2 = b2.set(b)
+	if shift := 54 - exp; shift > 0 {
+		a2 = a2.shl(a2, uint(shift))
+	} else if shift < 0 {
+		b2 = b2.shl(b2, uint(-shift))
+	}
+
+	// 2. Compute quotient and remainder (q, r).  NB: due to the
+	// extra shift, the low-order bit of q is logically the
+	// high-order bit of r.
+	var q nat
+	q, r := q.div(a2, a2, b2) // (recycle a2)
+	mantissa := low64(q)
+	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
+
+	// 3. If quotient didn't fit in 54 bits, re-do division by b2<<1
+	// (in effect---we accomplish this incrementally).
+	if mantissa>>54 == 1 {
+		if mantissa&1 == 1 {
+			haveRem = true
+		}
+		mantissa >>= 1
+		exp++
+	}
+	if mantissa>>53 != 1 {
+		panic("expected exactly 54 bits of result")
+	}
+
+	// 4. Rounding.
+	if -1022-52 <= exp && exp <= -1022 {
+		// Denormal case; lose 'shift' bits of precision.
+		shift := uint64(-1022 - (exp - 1)) // [1..53)
+		lostbits := mantissa & (1<<shift - 1)
+		haveRem = haveRem || lostbits != 0
+		mantissa >>= shift
+		exp = -1023 + 2
+	}
+	// Round q using round-half-to-even.
+	exact = !haveRem
+	if mantissa&1 != 0 {
+		exact = false
+		if haveRem || mantissa&2 != 0 {
+			if mantissa++; mantissa >= 1<<54 {
+				// Complete rollover 11...1 => 100...0, so shift is safe
+				mantissa >>= 1
+				exp++
+			}
+		}
+	}
+	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 2^53.
+
+	f = math.Ldexp(float64(mantissa), exp-53)
+	if math.IsInf(f, 0) {
+		exact = false
+	}
+	return
+}
+
+// Float64 returns the nearest float64 value to z.
+// If z is exactly representable as a float64, Float64 returns exact=true.
+// If z is negative, so too is f, even if f==0.
+func (z *Rat) Float64() (f float64, exact bool) {
+	b := z.b.abs
+	if len(b) == 0 {
+		b = b.set(natOne) // materialize denominator
+	}
+	f, exact = quotToFloat(z.a.abs, b)
+	if z.a.neg {
+		f = -f
+	}
+	return
 }
 
 // SetFrac sets z to a/b and returns z.
