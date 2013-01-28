@@ -135,7 +135,7 @@ func (obj *Object) Pos() token.Pos {
 	return token.NoPos
 }
 
-// ObKind describes what an object represents.
+// ObjKind describes what an object represents.
 type ObjKind int
 
 // The list of possible Object kinds.
