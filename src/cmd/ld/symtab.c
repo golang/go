@@ -367,9 +367,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s->name, ver, typ ? typ->name : "");
+			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, name, ver, typ ? typ->name : "");
 		else
-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s->name, typ ? typ->name : "");
+			Bprint(&bso, "%c %.8llux %s %s\n", t, v, name, typ ? typ->name : "");
 	}
 }
 
