@@ -222,12 +222,12 @@ type Function struct {
 
 	// The following fields are set transiently during building,
 	// then cleared.
-	currentBlock *BasicBlock            // where to emit code
-	objects      map[types.Object]Value // addresses of local variables
-	results      []*Alloc               // tuple of named results
-	// syntax    *funcSyntax             // abstract syntax trees for Go source functions
-	// targets   *targets                // linked stack of branch targets
-	// lblocks   map[*ast.Object]*lblock // labelled blocks
+	currentBlock *BasicBlock             // where to emit code
+	objects      map[types.Object]Value  // addresses of local variables
+	results      []*Alloc                // tuple of named results
+	syntax       *funcSyntax             // abstract syntax trees for Go source functions
+	targets      *targets                // linked stack of branch targets
+	lblocks      map[*ast.Object]*lblock // labelled blocks
 }
 
 // An SSA basic block.
@@ -984,18 +984,9 @@ func (v *Capture) Name() string     { return v.Outer.Name() }
 
 func (v *Global) Type() types.Type { return v.Type_ }
 func (v *Global) Name() string     { return v.Name_ }
-func (v *Global) String() string   { return v.Name_ } // placeholder
 
 func (v *Function) Name() string     { return v.Name_ }
 func (v *Function) Type() types.Type { return v.Signature }
-func (v *Function) String() string   { return v.Name_ } // placeholder
-
-// FullName returns v's package-qualified name.
-func (v *Global) FullName() string { return fmt.Sprintf("%s.%s", v.Pkg.ImportPath, v.Name_) }
-
-func (v *Literal) Name() string     { return "Literal" } // placeholder
-func (v *Literal) String() string   { return "Literal" } // placeholder
-func (v *Literal) Type() types.Type { return v.Type_ }   // placeholder
 
 func (v *Parameter) Type() types.Type { return v.Type_ }
 func (v *Parameter) Name() string     { return v.Name_ }
