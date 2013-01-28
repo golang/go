@@ -150,7 +150,7 @@ var tests = []string{
 	"log/syslog",
 
 	// "math",
-	"math/big",
+	//"math/big",
 	"math/cmplx",
 	"math/rand",
 
