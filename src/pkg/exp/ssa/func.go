@@ -10,6 +10,18 @@ import (
 	"os"
 )
 
+// Mode bits for additional diagnostics and checking.
+// TODO(adonovan): move these to builder.go once submitted.
+type BuilderMode uint
+
+const (
+	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
+	LogFunctions                                 // Dump function SSA code to stderr
+	LogSource                                    // Show source locations as SSA builder progresses
+	SanityCheckFunctions                         // Perform sanity checking of function bodies
+	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
+)
+
 // addEdge adds a control-flow graph edge from from to to.
 func addEdge(from, to *BasicBlock) {
 	from.Succs = append(from.Succs, to)
