@@ -5,6 +5,7 @@
 package json
 
 import (
+	"bytes"
 	"errors"
 	"io"
 )
@@ -56,6 +57,12 @@ func (dec *Decoder) Decode(v interface{}) error {
 	dec.buf = dec.buf[0:rest]
 
 	return err
+}
+
+// Buffered returns a reader of the data remaining in the Decoder's
+// buffer. The reader is valid until the next call to Decode.
+func (dec *Decoder) Buffered() io.Reader {
+	return bytes.NewReader(dec.buf)
 }
 
 // readValue reads a JSON value into dec.buf.
