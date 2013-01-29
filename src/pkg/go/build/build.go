@@ -321,13 +321,7 @@ func (p *Package) IsCommand() bool {
 // ImportDir is like Import but processes the Go package found in
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
-	p, err := ctxt.Import(".", dir, mode)
-	// TODO(rsc,adg): breaks godoc net/http. Not sure why.
-	// See CL 7232047 and issue 4696.
-	if false && err == nil && !ctxt.isDir(p.Dir) {
-		err = fmt.Errorf("%q is not a directory", p.Dir)
-	}
-	return p, err
+	return ctxt.Import(".", dir, mode)
 }
 
 // NoGoError is the error used by Import to describe a directory
