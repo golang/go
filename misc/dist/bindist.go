@@ -611,11 +611,18 @@ func cp(dst, src string) error {
 		return err
 	}
 	defer sf.Close()
+	fi, err := sf.Stat()
+	if err != nil {
+		return err
+	}
 	df, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer df.Close()
+	if err := df.Chmod(fi.Mode()); err != nil {
+		return err
+	}
 	_, err = io.Copy(df, sf)
 	return err
 }
