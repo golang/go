@@ -559,11 +559,13 @@ contains(String s, int8 *p)
 }
 
 bool
-runtime·showframe(Func *f)
+runtime·showframe(Func *f, bool current)
 {
 	static int32 traceback = -1;
 
+	if(current && m->throwing > 0)
+		return 1;
 	if(traceback < 0)
 		traceback = runtime·gotraceback();
-	return traceback > 1 || contains(f->name, ".") && !hasprefix(f->name, "runtime.");
+	return traceback > 1 || f != nil && contains(f->name, ".") && !hasprefix(f->name, "runtime.");
 }
