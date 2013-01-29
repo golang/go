@@ -180,6 +180,14 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 		args[i] = expand(m, arg)
 	}
 
+	_, err := exec.LookPath(v.cmd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr,
+			"go: missing %s command. See http://golang.org/s/gogetcmd\n",
+			v.name)
+		return nil, err
+	}
+
 	cmd := exec.Command(v.cmd, args...)
 	cmd.Dir = dir
 	if buildX {
@@ -189,7 +197,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
-	err := cmd.Run()
+	err = cmd.Run()
 	out := buf.Bytes()
 	if err != nil {
 		if verbose || buildV {
