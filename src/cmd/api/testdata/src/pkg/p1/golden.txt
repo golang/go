@@ -28,6 +28,9 @@ pkg p1, method (TPtrExported) OnEmbedded()
 pkg p1, method (TPtrUnexported) OnBothTandBPtr()
 pkg p1, method (TPtrUnexported) OnBothTandBVal()
 pkg p1, type B struct
+pkg p1, type ByteStruct struct
+pkg p1, type ByteStruct struct, B uint8
+pkg p1, type ByteStruct struct, R int32
 pkg p1, type Codec struct
 pkg p1, type Codec struct, Func func(int, int) int
 pkg p1, type EmbedSelector struct
@@ -65,7 +68,9 @@ pkg p1, type T struct
 pkg p1, type TPtrExported struct
 pkg p1, type TPtrExported struct, embedded *Embedded
 pkg p1, type TPtrUnexported struct
-pkg p1, var ByteConv []byte
+pkg p1, var Byte uint8
+pkg p1, var ByteConv []uint8
+pkg p1, var ByteFunc func(uint8) int32
 pkg p1, var ChecksumError error
 pkg p1, var SIPtr *SI
 pkg p1, var SIPtr2 *SI

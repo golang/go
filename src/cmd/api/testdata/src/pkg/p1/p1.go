@@ -193,3 +193,11 @@ var ifaceVar interface{} = 5
 var assertVar = ifaceVar.(int)
 
 var indexVar = m["foo"]
+
+var Byte byte
+var ByteFunc func(byte) rune
+
+type ByteStruct struct {
+	B byte
+	R rune
+}
