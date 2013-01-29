@@ -31,6 +31,7 @@ import (
 var (
 	tag      = flag.String("tag", "release", "mercurial tag to check out")
 	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
+	tourPath = flag.String("tour", "code.google.com/p/go-tour", "Go tour repo import path")
 	verbose  = flag.Bool("v", false, "verbose output")
 	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
 	wxsFile  = flag.String("wxs", "", "path to custom installer.wxs")
@@ -62,6 +63,20 @@ var cleanFiles = []string{
 var sourceCleanFiles = []string{
 	"bin",
 	"pkg",
+}
+
+var tourPackages = []string{
+	"pic",
+	"tree",
+	"wc",
+}
+
+var tourContent = []string{
+	"prog",
+	"solutions",
+	"static",
+	"template",
+	"tour.article",
 }
 
 var fileRe = regexp.MustCompile(`^go\.([a-z0-9-.]+)\.(src|([a-z0-9]+)-([a-z0-9]+))\.`)
@@ -127,6 +142,7 @@ type Build struct {
 	OS     string
 	Arch   string
 	root   string
+	gopath string
 }
 
 func (b *Build) Do() error {
@@ -136,6 +152,7 @@ func (b *Build) Do() error {
 	}
 	defer os.RemoveAll(work)
 	b.root = filepath.Join(work, "go")
+	b.gopath = work
 
 	// Clone Go distribution and update to tag.
 	_, err = b.run(work, "hg", "clone", "-q", *repo, b.root)
@@ -168,6 +185,10 @@ func (b *Build) Do() error {
 		}
 	}
 	if err != nil {
+		return err
+	}
+
+	if err := b.tour(); err != nil {
 		return err
 	}
 
@@ -344,6 +365,33 @@ func (b *Build) Do() error {
 	return err
 }
 
+func (b *Build) tour() error {
+	// go get the gotour package.
+	_, err := b.run(b.gopath, filepath.Join(b.root, "bin", "go"), "get", *tourPath+"/gotour")
+	if err != nil {
+		return err
+	}
+
+	// Copy all the tour content to $GOROOT/misc/tour.
+	importPath := filepath.FromSlash(*tourPath)
+	tourSrc := filepath.Join(b.gopath, "src", importPath)
+	contentDir := filepath.Join(b.root, "misc", "tour")
+	if err = cpAllDir(contentDir, tourSrc, tourContent...); err != nil {
+		return err
+	}
+
+	// Copy the tour source code so it's accessible with $GOPATH pointing to $GOROOT/misc/tour.
+	if err = cpAllDir(filepath.Join(contentDir, "src", importPath), tourSrc, tourPackages...); err != nil {
+		return err
+	}
+
+	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
+	return cp(
+		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),
+		filepath.Join(b.gopath, "bin", "gotour"),
+	)
+}
+
 func (b *Build) run(dir, name string, args ...string) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	absName, err := lookPath(name)
@@ -375,6 +423,7 @@ var cleanEnv = []string{
 	"GOOS",
 	"GOROOT",
 	"GOROOT_FINAL",
+	"GOPATH",
 }
 
 func (b *Build) env() []string {
@@ -397,6 +446,7 @@ func (b *Build) env() []string {
 		"GOOS="+b.OS,
 		"GOROOT="+b.root,
 		"GOROOT_FINAL="+final,
+		"GOPATH="+b.gopath,
 	)
 	return env
 }
@@ -568,6 +618,29 @@ func cp(dst, src string) error {
 	defer df.Close()
 	_, err = io.Copy(df, sf)
 	return err
+}
+
+func cpDir(dst, src string) error {
+	walk := func(srcPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, srcPath[len(src):])
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0755)
+		}
+		return cp(dstPath, srcPath)
+	}
+	return filepath.Walk(src, walk)
+}
+
+func cpAllDir(dst, basePath string, dirs ...string) error {
+	for _, dir := range dirs {
+		if err := cpDir(filepath.Join(dst, dir), filepath.Join(basePath, dir)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func makeTar(targ, workdir string) error {
