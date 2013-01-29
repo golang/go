@@ -645,20 +645,21 @@ enum
 	Cboth = Crecv | Csend,
 };
 
+// declaration context
 enum
 {
 	Pxxx,
 
-	PEXTERN,	// declaration context
-	PAUTO,
-	PPARAM,
-	PPARAMOUT,
-	PPARAMREF,	// param passed by reference
-	PFUNC,
+	PEXTERN,	// global variable
+	PAUTO,		// local variables
+	PPARAM,		// input arguments
+	PPARAMOUT,	// output results
+	PPARAMREF,	// closure variable reference
+	PFUNC,		// global function
 
 	PDISCARD,	// discard during parse of duplicate import
 
-	PHEAP = 1<<7,
+	PHEAP = 1<<7,	// an extra bit to identify an escaped variable
 };
 
 enum
