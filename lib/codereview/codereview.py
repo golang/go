@@ -544,7 +544,7 @@ def LoadCL(ui, repo, name, web=True):
 		cl.private = d.get('private', False) != False
 		cl.lgtm = []
 		for m in d.get('messages', []):
-			if m.get('approval', False) == True:
+			if m.get('approval', False) == True or m.get('disapproval', False) == True:
 				who = re.sub('@.*', '', m.get('sender', ''))
 				text = re.sub("\n(.|\n)*", '', m.get('text', ''))
 				cl.lgtm.append((who, text))
