@@ -151,16 +151,27 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 func (f *Function) addParam(name string, typ types.Type) *Parameter {
 	v := &Parameter{
 		Name_: name,
-		Type_: pointer(typ), // address of param
+		Type_: typ,
 	}
 	f.Params = append(f.Params, v)
 	return v
 }
 
-func (f *Function) addObjParam(obj types.Object) *Parameter {
-	p := f.addParam(obj.GetName(), obj.GetType())
-	f.objects[obj] = p
-	return p
+// addSpilledParam declares a parameter that is pre-spilled to the
+// stack; the function body will load/store the spilled location.
+// Subsequent registerization will eliminate spills where possible.
+//
+func (f *Function) addSpilledParam(obj types.Object) {
+	name := obj.GetName()
+	param := f.addParam(name, obj.GetType())
+	spill := &Alloc{
+		Name_: name + "~", // "~" means "spilled"
+		Type_: pointer(obj.GetType()),
+	}
+	f.objects[obj] = spill
+	f.Locals = append(f.Locals, spill)
+	f.emit(spill)
+	f.emit(&Store{Addr: spill, Val: param})
 }
 
 // start initializes the function prior to generating SSA code for its body.
@@ -186,7 +197,7 @@ func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
 	if f.syntax.recvField != nil {
 		for _, field := range f.syntax.recvField.List {
 			for _, n := range field.Names {
-				f.addObjParam(idents[n])
+				f.addSpilledParam(idents[n])
 			}
 			if field.Names == nil {
 				f.addParam(f.Signature.Recv.Name, f.Signature.Recv.Type)
@@ -198,7 +209,7 @@ func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
 	if f.syntax.paramFields != nil {
 		for _, field := range f.syntax.paramFields.List {
 			for _, n := range field.Names {
-				f.addObjParam(idents[n])
+				f.addSpilledParam(idents[n])
 			}
 		}
 	}
@@ -300,18 +311,18 @@ func (f *Function) addLocal(typ types.Type) *Alloc {
 func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	if v, ok := f.objects[obj]; ok {
 		if escaping {
-			switch v := v.(type) {
-			case *Capture:
-				// TODO(adonovan): fix: we must support this case.
-				// Requires copying to a 'new' Alloc.
-				fmt.Fprintln(os.Stderr, "Error: escaping reference to Capture")
-			case *Parameter:
-				v.Heap = true
-			case *Alloc:
-				v.Heap = true
-			default:
-				panic(fmt.Sprintf("Unexpected Function.objects kind: %T", v))
+			// Walk up the chain of Captures.
+			x := v
+			for {
+				if c, ok := x.(*Capture); ok {
+					x = c.Outer
+				} else {
+					break
+				}
 			}
+			// By construction, all captures are ultimately Allocs in the
+			// naive SSA form.  Parameters are pre-spilled to the stack.
+			x.(*Alloc).Heap = true
 		}
 		return v // function-local var (address)
 	}
@@ -340,7 +351,7 @@ func (f *Function) emit(instr Instruction) Value {
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
 	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
-	fmt.Fprintf(w, "# Type: %s\n", f.Type())
+	fmt.Fprintf(w, "# Type: %s\n", f.Signature)
 
 	if f.Enclosing != nil {
 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
@@ -411,6 +422,7 @@ func (f *Function) newBasicBlock(name string) *BasicBlock {
 		Name: fmt.Sprintf("%d.%s", len(f.Blocks), name),
 		Func: f,
 	}
+	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
 	return b
 }

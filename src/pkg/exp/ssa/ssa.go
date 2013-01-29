@@ -246,19 +246,20 @@ type Function struct {
 // instructions, respectively).
 //
 type BasicBlock struct {
-	Name         string        // label; no semantic significance
-	Func         *Function     // containing function
-	Instrs       []Instruction // instructions in order
-	Preds, Succs []*BasicBlock // predecessors and successors
+	Name         string         // label; no semantic significance
+	Func         *Function      // containing function
+	Instrs       []Instruction  // instructions in order
+	Preds, Succs []*BasicBlock  // predecessors and successors
+	succs2       [2]*BasicBlock // initial space for Succs.
 }
 
 // Pure values ----------------------------------------
 
 // A Capture is a pointer to a lexically enclosing local variable.
 //
-// The referent of a capture is a Parameter, Alloc or another Capture
-// and is always considered potentially escaping, so Captures are
-// always addresses in the heap, and have pointer types.
+// The referent of a capture is an Alloc or another Capture and is
+// always considered potentially escaping, so Captures are always
+// addresses in the heap, and have pointer types.
 //
 type Capture struct {
 	Outer Value // the Value captured from the enclosing context.
@@ -266,22 +267,9 @@ type Capture struct {
 
 // A Parameter represents an input parameter of a function.
 //
-// Parameters are addresses and thus have pointer types.
-// TODO(adonovan): this will change.  We should just spill parameters
-// to ordinary Alloc-style locals if they are ever used in an
-// addressable context.  Then we can lose the Heap flag.
-//
-// In the common case where Heap=false, Parameters are pointers into
-// the function's stack frame.  If the case where Heap=true because a
-// parameter's address may escape from its function, Parameters are
-// pointers into a space in the heap implicitly allocated during the
-// function call.  (See also Alloc, which uses the Heap flag in a
-// similar manner.)
-//
 type Parameter struct {
 	Name_ string
-	Type_ *types.Pointer
-	Heap  bool
+	Type_ types.Type
 }
 
 // A Literal represents a literal nil, boolean, string or numeric

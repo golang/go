@@ -5,10 +5,6 @@ package ssa
 // TODO(adonovan): instead of creating several "unreachable" blocks
 // per function in the Builder, reuse a single one (e.g. at Blocks[1])
 // to reduce garbage.
-//
-// TODO(adonovan): in the absence of multiway branch instructions,
-// each BasicBlock has 0, 1, or 2 successors.  We should preallocate
-// the backing array for the Succs slice inline in BasicBlock.
 
 import (
 	"fmt"
@@ -117,7 +113,7 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 	}
 
 	// A inherits B's successors
-	a.Succs = b.Succs
+	a.Succs = append(a.succs2[:0], b.Succs...)
 
 	// Fix up Preds links of all successors of B.
 	for _, c := range b.Succs {
