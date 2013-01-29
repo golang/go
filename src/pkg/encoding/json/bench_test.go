@@ -153,5 +153,37 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 			b.Fatal("Unmmarshal:", err)
 		}
 	}
-	b.SetBytes(int64(len(codeJSON)))
+}
+
+func BenchmarkUnmarshalString(b *testing.B) {
+	data := []byte(`"hello, world"`)
+	var s string
+
+	for i := 0; i < b.N; i++ {
+		if err := Unmarshal(data, &s); err != nil {
+			b.Fatal("Unmarshal:", err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalFloat64(b *testing.B) {
+	var f float64
+	data := []byte(`3.14`)
+
+	for i := 0; i < b.N; i++ {
+		if err := Unmarshal(data, &f); err != nil {
+			b.Fatal("Unmarshal:", err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalInt64(b *testing.B) {
+	var x int64
+	data := []byte(`3`)
+
+	for i := 0; i < b.N; i++ {
+		if err := Unmarshal(data, &x); err != nil {
+			b.Fatal("Unmarshal:", err)
+		}
+	}
 }
