@@ -1059,8 +1059,29 @@ func TestUnmarshalTypeError(t *testing.T) {
 	for _, item := range decodeTypeErrorTests {
 		err := Unmarshal([]byte(item.src), item.dest)
 		if _, ok := err.(*UnmarshalTypeError); !ok {
-			t.Errorf("expected type error for Unmarshal(%q, type %T): got %v instead",
+			t.Errorf("expected type error for Unmarshal(%q, type %T): got %T",
 				item.src, item.dest, err)
+		}
+	}
+}
+
+var unmarshalSyntaxTests = []string{
+	"tru",
+	"fals",
+	"nul",
+	"123e",
+	`"hello`,
+	`[1,2,3`,
+	`{"key":1`,
+	`{"key":1,`,
+}
+
+func TestUnmarshalSyntax(t *testing.T) {
+	var x interface{}
+	for _, src := range unmarshalSyntaxTests {
+		err := Unmarshal([]byte(src), &x)
+		if _, ok := err.(*SyntaxError); !ok {
+			t.Errorf("expected syntax error for Unmarshal(%q): got %T", src, err)
 		}
 	}
 }
