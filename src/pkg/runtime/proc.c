@@ -242,6 +242,7 @@ runtime·main(void)
 	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.init = true;
 	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
+	scvg->issystem = true;
 	main·init();
 	runtime·sched.init = false;
 	if(!runtime·sched.lockmain)
@@ -325,9 +326,13 @@ void
 runtime·tracebackothers(G *me)
 {
 	G *gp;
+	int32 traceback;
 
+	traceback = runtime·gotraceback();
 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
 		if(gp == me || gp->status == Gdead)
+			continue;
+		if(gp->issystem && traceback < 2)
 			continue;
 		runtime·printf("\n");
 		runtime·goroutineheader(gp);
@@ -624,6 +629,7 @@ top:
 	if((scvg == nil && runtime·sched.grunning == 0) ||
 	   (scvg != nil && runtime·sched.grunning == 1 && runtime·sched.gwait == 0 &&
 	    (scvg->status == Grunning || scvg->status == Gsyscall))) {
+		m->throwing = -1;  // do not dump full stacks
 		runtime·throw("all goroutines are asleep - deadlock!");
 	}
 

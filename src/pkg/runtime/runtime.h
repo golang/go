@@ -219,6 +219,7 @@ struct	G
 	G*	schedlink;
 	bool	readyonstop;
 	bool	ispanic;
+	bool	issystem;
 	int8	raceignore; // ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
@@ -252,6 +253,7 @@ struct	M
 	G*	curg;		// current running goroutine
 	int32	id;
 	int32	mallocing;
+	int32	throwing;
 	int32	gcing;
 	int32	locks;
 	int32	nomemprof;
@@ -865,7 +867,7 @@ Hmap*	runtime·makemap_c(MapType*, int64);
 Hchan*	runtime·makechan_c(ChanType*, int64);
 void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
 void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
-bool	runtime·showframe(Func*);
+bool	runtime·showframe(Func*, bool);
 
 void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
 

@@ -454,6 +454,8 @@ runtime·throwinit(void)
 void
 runtime·throw(int8 *s)
 {
+	if(m->throwing == 0)
+		m->throwing = 1;
 	runtime·startpanic();
 	runtime·printf("fatal error: %s\n", s);
 	runtime·dopanic(0);

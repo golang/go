@@ -108,8 +108,10 @@ addtimer(Timer *t)
 			runtime·ready(timers.timerproc);
 		}
 	}
-	if(timers.timerproc == nil)
+	if(timers.timerproc == nil) {
 		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
+		timers.timerproc->issystem = true;
+	}
 }
 
 // Delete timer t from the heap.
