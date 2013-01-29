@@ -1140,9 +1140,20 @@ func (w *Walker) namelessField(f *ast.Field) *ast.Field {
 	}
 }
 
+var (
+	byteRx = regexp.MustCompile(`\bbyte\b`)
+	runeRx = regexp.MustCompile(`\brune\b`)
+)
+
 func (w *Walker) emitFeature(feature string) {
 	if !w.wantedPkg[w.curPackageName] {
 		return
+	}
+	if strings.Contains(feature, "byte") {
+		feature = byteRx.ReplaceAllString(feature, "uint8")
+	}
+	if strings.Contains(feature, "rune") {
+		feature = runeRx.ReplaceAllString(feature, "int32")
 	}
 	f := strings.Join(w.scope, ", ") + ", " + feature
 	if _, dup := w.features[f]; dup {
@@ -1159,6 +1170,7 @@ func (w *Walker) emitFeature(feature string) {
 		}
 		panic("feature contains newlines: " + f)
 	}
+
 	w.features[f] = true
 	if *verbose {
 		log.Printf("feature: %s", f)

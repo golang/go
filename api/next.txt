@@ -7,10 +7,10 @@ pkg bufio, method (ReadWriter) ReadFrom(io.Reader) (int64, error)
 pkg bufio, method (ReadWriter) WriteTo(io.Writer) (int64, error)
 pkg bytes, method (*Buffer) Grow(int)
 pkg bytes, method (*Reader) WriteTo(io.Writer) (int64, error)
-pkg crypto/hmac, func Equal([]byte, []byte) bool
+pkg crypto/hmac, func Equal([]uint8, []uint8) bool
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
-pkg crypto/tls, type Config struct, SessionTicketKey [32]byte
+pkg crypto/tls, type Config struct, SessionTicketKey [32]uint8
 pkg crypto/tls, type Config struct, SessionTicketsDisabled bool
 pkg crypto/tls, type ConnectionState struct, DidResume bool
 pkg crypto/x509, const ECDSA PublicKeyAlgorithm
@@ -27,10 +27,10 @@ pkg crypto/x509, const PEMCipherAES128 PEMCipher
 pkg crypto/x509, const PEMCipherAES192 PEMCipher
 pkg crypto/x509, const PEMCipherAES256 PEMCipher
 pkg crypto/x509, const PEMCipherDES PEMCipher
-pkg crypto/x509, func DecryptPEMBlock(*pem.Block, []byte) ([]byte, error)
-pkg crypto/x509, func EncryptPEMBlock(io.Reader, string, []byte, []byte, PEMCipher) (*pem.Block, error)
+pkg crypto/x509, func DecryptPEMBlock(*pem.Block, []uint8) ([]uint8, error)
+pkg crypto/x509, func EncryptPEMBlock(io.Reader, string, []uint8, []uint8, PEMCipher) (*pem.Block, error)
 pkg crypto/x509, func IsEncryptedPEMBlock(*pem.Block) bool
-pkg crypto/x509, func ParseECPrivateKey([]byte) (*ecdsa.PrivateKey, error)
+pkg crypto/x509, func ParseECPrivateKey([]uint8) (*ecdsa.PrivateKey, error)
 pkg crypto/x509, type PEMCipher int
 pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
 pkg crypto/x509, var IncorrectPasswordError error
@@ -71,7 +71,7 @@ pkg go/doc, type Example struct, EmptyOutput bool
 pkg go/doc, type Example struct, Play *ast.File
 pkg go/doc, var IllegalPrefixes []string
 pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
-pkg go/format, func Source([]byte) ([]byte, error)
+pkg go/format, func Source([]uint8) ([]uint8, error)
 pkg go/printer, type Config struct, Indent int
 pkg go/types, const Bool BasicKind
 pkg go/types, const Byte BasicKind
@@ -230,7 +230,7 @@ pkg go/types, var Universe *Scope
 pkg go/types, var Unsafe *Package
 pkg image, const YCbCrSubsampleRatio440 YCbCrSubsampleRatio
 pkg io, type ByteWriter interface { WriteByte }
-pkg io, type ByteWriter interface, WriteByte(byte) error
+pkg io, type ByteWriter interface, WriteByte(uint8) error
 pkg log/syslog (darwin-386), const LOG_AUTH Priority
 pkg log/syslog (darwin-386), const LOG_AUTHPRIV Priority
 pkg log/syslog (darwin-386), const LOG_CRON Priority
@@ -451,17 +451,17 @@ pkg log/syslog (linux-arm), const LOG_NEWS Priority
 pkg log/syslog (linux-arm), const LOG_SYSLOG Priority
 pkg log/syslog (linux-arm), const LOG_USER Priority
 pkg log/syslog (linux-arm), const LOG_UUCP Priority
-pkg math/big, method (*Int) MarshalJSON() ([]byte, error)
+pkg math/big, method (*Int) MarshalJSON() ([]uint8, error)
 pkg math/big, method (*Int) SetUint64(uint64) *Int
 pkg math/big, method (*Int) Uint64() uint64
-pkg math/big, method (*Int) UnmarshalJSON([]byte) error
+pkg math/big, method (*Int) UnmarshalJSON([]uint8) error
 pkg mime/multipart, method (*Writer) SetBoundary(string) error
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UnixConn, error)
 pkg net, func LookupNS(string) ([]*NS, error)
-pkg net, method (*IPConn) ReadMsgIP([]byte, []byte) (int, int, int, *IPAddr, error)
-pkg net, method (*IPConn) WriteMsgIP([]byte, []byte, *IPAddr) (int, int, error)
-pkg net, method (*UDPConn) ReadMsgUDP([]byte, []byte) (int, int, int, *UDPAddr, error)
-pkg net, method (*UDPConn) WriteMsgUDP([]byte, []byte, *UDPAddr) (int, int, error)
+pkg net, method (*IPConn) ReadMsgIP([]uint8, []uint8) (int, int, int, *IPAddr, error)
+pkg net, method (*IPConn) WriteMsgIP([]uint8, []uint8, *IPAddr) (int, int, error)
+pkg net, method (*UDPConn) ReadMsgUDP([]uint8, []uint8) (int, int, int, *UDPAddr, error)
+pkg net, method (*UDPConn) WriteMsgUDP([]uint8, []uint8, *UDPAddr) (int, int, error)
 pkg net, method (*UnixConn) CloseRead() error
 pkg net, method (*UnixConn) CloseWrite() error
 pkg net, type IPAddr struct, Zone string
@@ -479,7 +479,7 @@ pkg net/http, type Request struct, PostForm url.Values
 pkg net/mail, func ParseAddress(string) (*Address, error)
 pkg net/mail, func ParseAddressList(string) ([]*Address, error)
 pkg net/smtp, method (*Client) Hello(string) error
-pkg net/textproto, func TrimBytes([]byte) []byte
+pkg net/textproto, func TrimBytes([]uint8) []uint8
 pkg net/textproto, func TrimString(string) string
 pkg os, method (FileMode) IsRegular() bool
 pkg reflect, const SelectDefault SelectDir
@@ -601,11 +601,11 @@ pkg syscall (darwin-386), const VT1 ideal-int
 pkg syscall (darwin-386), const VTDLY ideal-int
 pkg syscall (darwin-386), const VTIME ideal-int
 pkg syscall (darwin-386), const VWERASE ideal-int
-pkg syscall (darwin-386), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (darwin-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (darwin-386), type Inet4Pktinfo struct
-pkg syscall (darwin-386), type Inet4Pktinfo struct, Addr [4]byte
+pkg syscall (darwin-386), type Inet4Pktinfo struct, Addr [4]uint8
 pkg syscall (darwin-386), type Inet4Pktinfo struct, Ifindex uint32
-pkg syscall (darwin-386), type Inet4Pktinfo struct, Spec_dst [4]byte
+pkg syscall (darwin-386), type Inet4Pktinfo struct, Spec_dst [4]uint8
 pkg syscall (darwin-386), type Termios struct
 pkg syscall (darwin-386), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-386), type Termios struct, Cflag uint32
@@ -708,11 +708,11 @@ pkg syscall (darwin-386-cgo), const VT1 ideal-int
 pkg syscall (darwin-386-cgo), const VTDLY ideal-int
 pkg syscall (darwin-386-cgo), const VTIME ideal-int
 pkg syscall (darwin-386-cgo), const VWERASE ideal-int
-pkg syscall (darwin-386-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (darwin-386-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct
-pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Addr [4]byte
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Addr [4]uint8
 pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Ifindex uint32
-pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Spec_dst [4]byte
+pkg syscall (darwin-386-cgo), type Inet4Pktinfo struct, Spec_dst [4]uint8
 pkg syscall (darwin-386-cgo), type Termios struct
 pkg syscall (darwin-386-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-386-cgo), type Termios struct, Cflag uint32
@@ -815,11 +815,11 @@ pkg syscall (darwin-amd64), const VT1 ideal-int
 pkg syscall (darwin-amd64), const VTDLY ideal-int
 pkg syscall (darwin-amd64), const VTIME ideal-int
 pkg syscall (darwin-amd64), const VWERASE ideal-int
-pkg syscall (darwin-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (darwin-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (darwin-amd64), type Inet4Pktinfo struct
-pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Addr [4]byte
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Addr [4]uint8
 pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Ifindex uint32
-pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Spec_dst [4]byte
+pkg syscall (darwin-amd64), type Inet4Pktinfo struct, Spec_dst [4]uint8
 pkg syscall (darwin-amd64), type Termios struct
 pkg syscall (darwin-amd64), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-amd64), type Termios struct, Cflag uint64
@@ -828,7 +828,7 @@ pkg syscall (darwin-amd64), type Termios struct, Ispeed uint64
 pkg syscall (darwin-amd64), type Termios struct, Lflag uint64
 pkg syscall (darwin-amd64), type Termios struct, Oflag uint64
 pkg syscall (darwin-amd64), type Termios struct, Ospeed uint64
-pkg syscall (darwin-amd64), type Termios struct, Pad_cgo_0 [4]byte
+pkg syscall (darwin-amd64), type Termios struct, Pad_cgo_0 [4]uint8
 pkg syscall (darwin-amd64-cgo), const B0 ideal-int
 pkg syscall (darwin-amd64-cgo), const B110 ideal-int
 pkg syscall (darwin-amd64-cgo), const B115200 ideal-int
@@ -923,11 +923,11 @@ pkg syscall (darwin-amd64-cgo), const VT1 ideal-int
 pkg syscall (darwin-amd64-cgo), const VTDLY ideal-int
 pkg syscall (darwin-amd64-cgo), const VTIME ideal-int
 pkg syscall (darwin-amd64-cgo), const VWERASE ideal-int
-pkg syscall (darwin-amd64-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (darwin-amd64-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct
-pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Addr [4]byte
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Addr [4]uint8
 pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Ifindex uint32
-pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Spec_dst [4]byte
+pkg syscall (darwin-amd64-cgo), type Inet4Pktinfo struct, Spec_dst [4]uint8
 pkg syscall (darwin-amd64-cgo), type Termios struct
 pkg syscall (darwin-amd64-cgo), type Termios struct, Cc [20]uint8
 pkg syscall (darwin-amd64-cgo), type Termios struct, Cflag uint64
@@ -936,37 +936,37 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Ispeed uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Lflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Oflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Ospeed uint64
-pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]byte
-pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*byte, error)
-pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (freebsd-amd64), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-386), func GetsockoptUcred(int, int, int) (*Ucred, error)
-pkg syscall (linux-386), func Getxattr(string, string, []byte) (int, error)
-pkg syscall (linux-386), func Listxattr(string, []byte) (int, error)
+pkg syscall (linux-386), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-386), func Listxattr(string, []uint8) (int, error)
 pkg syscall (linux-386), func Pipe2([]int, int) error
 pkg syscall (linux-386), func PtraceSyscall(int, int) error
 pkg syscall (linux-386), func Removexattr(string, string) error
-pkg syscall (linux-386), func Setxattr(string, string, []byte, int) error
-pkg syscall (linux-386), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-386), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-386), type SysProcAttr struct, Ctty int
 pkg syscall (linux-386-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
-pkg syscall (linux-386-cgo), func Getxattr(string, string, []byte) (int, error)
-pkg syscall (linux-386-cgo), func Listxattr(string, []byte) (int, error)
+pkg syscall (linux-386-cgo), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-386-cgo), func Listxattr(string, []uint8) (int, error)
 pkg syscall (linux-386-cgo), func Pipe2([]int, int) error
 pkg syscall (linux-386-cgo), func PtraceSyscall(int, int) error
 pkg syscall (linux-386-cgo), func Removexattr(string, string) error
-pkg syscall (linux-386-cgo), func Setxattr(string, string, []byte, int) error
-pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-386-cgo), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-386-cgo), type SysProcAttr struct, Ctty int
 pkg syscall (linux-amd64), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64), func GetsockoptUcred(int, int, int) (*Ucred, error)
-pkg syscall (linux-amd64), func Getxattr(string, string, []byte) (int, error)
-pkg syscall (linux-amd64), func Listxattr(string, []byte) (int, error)
+pkg syscall (linux-amd64), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-amd64), func Listxattr(string, []uint8) (int, error)
 pkg syscall (linux-amd64), func Pipe2([]int, int) error
 pkg syscall (linux-amd64), func PtraceSyscall(int, int) error
 pkg syscall (linux-amd64), func Removexattr(string, string) error
-pkg syscall (linux-amd64), func Setxattr(string, string, []byte, int) error
-pkg syscall (linux-amd64), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-amd64), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-amd64), type SysProcAttr struct, Ctty int
 pkg syscall (linux-amd64), type TCPInfo struct
 pkg syscall (linux-amd64), type TCPInfo struct, Advmss uint32
@@ -980,7 +980,7 @@ pkg syscall (linux-amd64), type TCPInfo struct, Last_data_recv uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Last_data_sent uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Lost uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Options uint8
-pkg syscall (linux-amd64), type TCPInfo struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-amd64), type TCPInfo struct, Pad_cgo_0 [2]uint8
 pkg syscall (linux-amd64), type TCPInfo struct, Pmtu uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Probes uint8
 pkg syscall (linux-amd64), type TCPInfo struct, Rcv_mss uint32
@@ -1002,13 +1002,13 @@ pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
 pkg syscall (linux-amd64-cgo), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
-pkg syscall (linux-amd64-cgo), func Getxattr(string, string, []byte) (int, error)
-pkg syscall (linux-amd64-cgo), func Listxattr(string, []byte) (int, error)
+pkg syscall (linux-amd64-cgo), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-amd64-cgo), func Listxattr(string, []uint8) (int, error)
 pkg syscall (linux-amd64-cgo), func Pipe2([]int, int) error
 pkg syscall (linux-amd64-cgo), func PtraceSyscall(int, int) error
 pkg syscall (linux-amd64-cgo), func Removexattr(string, string) error
-pkg syscall (linux-amd64-cgo), func Setxattr(string, string, []byte, int) error
-pkg syscall (linux-amd64-cgo), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-amd64-cgo), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-amd64-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Ctty int
 pkg syscall (linux-amd64-cgo), type TCPInfo struct
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Advmss uint32
@@ -1022,7 +1022,7 @@ pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_recv uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Last_data_sent uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Lost uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Options uint8
-pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pad_cgo_0 [2]byte
+pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pad_cgo_0 [2]uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Pmtu uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Probes uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Rcv_mss uint32
@@ -1043,13 +1043,13 @@ pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
 pkg syscall (linux-arm), func GetsockoptUcred(int, int, int) (*Ucred, error)
-pkg syscall (linux-arm), func Getxattr(string, string, []byte) (int, error)
-pkg syscall (linux-arm), func Listxattr(string, []byte) (int, error)
+pkg syscall (linux-arm), func Getxattr(string, string, []uint8) (int, error)
+pkg syscall (linux-arm), func Listxattr(string, []uint8) (int, error)
 pkg syscall (linux-arm), func Pipe2([]int, int) error
 pkg syscall (linux-arm), func PtraceSyscall(int, int) error
 pkg syscall (linux-arm), func Removexattr(string, string) error
-pkg syscall (linux-arm), func Setxattr(string, string, []byte, int) error
-pkg syscall (linux-arm), func SlicePtrFromStrings([]string) ([]*byte, error)
+pkg syscall (linux-arm), func Setxattr(string, string, []uint8, int) error
+pkg syscall (linux-arm), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-arm), type SysProcAttr struct, Ctty int
 pkg syscall (windows-386), const AI_CANONNAME ideal-int
 pkg syscall (windows-386), const AI_NUMERICHOST ideal-int
@@ -1065,17 +1065,17 @@ pkg syscall (windows-386), const IOC_WS2 ideal-int
 pkg syscall (windows-386), const SIO_GET_EXTENSION_FUNCTION_POINTER ideal-int
 pkg syscall (windows-386), const SO_UPDATE_CONNECT_CONTEXT ideal-int
 pkg syscall (windows-386), func CancelIoEx(Handle, *Overlapped) error
-pkg syscall (windows-386), func ConnectEx(Handle, Sockaddr, *byte, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-386), func ConnectEx(Handle, Sockaddr, *uint8, uint32, *uint32, *Overlapped) error
 pkg syscall (windows-386), func FreeAddrInfoW(*AddrinfoW)
 pkg syscall (windows-386), func GetAddrInfoW(*uint16, *uint16, *AddrinfoW, **AddrinfoW) error
 pkg syscall (windows-386), func GetConsoleMode(Handle, *uint32) error
-pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *uint8, *int32) error
 pkg syscall (windows-386), func LoadCancelIoEx() error
 pkg syscall (windows-386), func LoadConnectEx() error
 pkg syscall (windows-386), func LoadGetAddrInfo() error
 pkg syscall (windows-386), func UTF16FromString(string) ([]uint16, error)
 pkg syscall (windows-386), func UTF16PtrFromString(string) (*uint16, error)
-pkg syscall (windows-386), func WriteConsole(Handle, *uint16, uint32, *uint32, *byte) error
+pkg syscall (windows-386), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
 pkg syscall (windows-386), type AddrinfoW struct
 pkg syscall (windows-386), type AddrinfoW struct, Addr uintptr
 pkg syscall (windows-386), type AddrinfoW struct, Addrlen uintptr
@@ -1089,7 +1089,7 @@ pkg syscall (windows-386), type GUID struct
 pkg syscall (windows-386), type GUID struct, Data1 uint32
 pkg syscall (windows-386), type GUID struct, Data2 uint16
 pkg syscall (windows-386), type GUID struct, Data3 uint16
-pkg syscall (windows-386), type GUID struct, Data4 [8]byte
+pkg syscall (windows-386), type GUID struct, Data4 [8]uint8
 pkg syscall (windows-386), type RawSockaddrInet6 struct, Family uint16
 pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
 pkg syscall (windows-386), var WSAID_CONNECTEX GUID
@@ -1107,17 +1107,17 @@ pkg syscall (windows-amd64), const IOC_WS2 ideal-int
 pkg syscall (windows-amd64), const SIO_GET_EXTENSION_FUNCTION_POINTER ideal-int
 pkg syscall (windows-amd64), const SO_UPDATE_CONNECT_CONTEXT ideal-int
 pkg syscall (windows-amd64), func CancelIoEx(Handle, *Overlapped) error
-pkg syscall (windows-amd64), func ConnectEx(Handle, Sockaddr, *byte, uint32, *uint32, *Overlapped) error
+pkg syscall (windows-amd64), func ConnectEx(Handle, Sockaddr, *uint8, uint32, *uint32, *Overlapped) error
 pkg syscall (windows-amd64), func FreeAddrInfoW(*AddrinfoW)
 pkg syscall (windows-amd64), func GetAddrInfoW(*uint16, *uint16, *AddrinfoW, **AddrinfoW) error
 pkg syscall (windows-amd64), func GetConsoleMode(Handle, *uint32) error
-pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *uint8, *int32) error
 pkg syscall (windows-amd64), func LoadCancelIoEx() error
 pkg syscall (windows-amd64), func LoadConnectEx() error
 pkg syscall (windows-amd64), func LoadGetAddrInfo() error
 pkg syscall (windows-amd64), func UTF16FromString(string) ([]uint16, error)
 pkg syscall (windows-amd64), func UTF16PtrFromString(string) (*uint16, error)
-pkg syscall (windows-amd64), func WriteConsole(Handle, *uint16, uint32, *uint32, *byte) error
+pkg syscall (windows-amd64), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
 pkg syscall (windows-amd64), type AddrinfoW struct
 pkg syscall (windows-amd64), type AddrinfoW struct, Addr uintptr
 pkg syscall (windows-amd64), type AddrinfoW struct, Addrlen uintptr
@@ -1131,17 +1131,17 @@ pkg syscall (windows-amd64), type GUID struct
 pkg syscall (windows-amd64), type GUID struct, Data1 uint32
 pkg syscall (windows-amd64), type GUID struct, Data2 uint16
 pkg syscall (windows-amd64), type GUID struct, Data3 uint16
-pkg syscall (windows-amd64), type GUID struct, Data4 [8]byte
+pkg syscall (windows-amd64), type GUID struct, Data4 [8]uint8
 pkg syscall (windows-amd64), type RawSockaddrInet6 struct, Family uint16
 pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
 pkg syscall (windows-amd64), var WSAID_CONNECTEX GUID
-pkg syscall, func BytePtrFromString(string) (*byte, error)
-pkg syscall, func ByteSliceFromString(string) ([]byte, error)
+pkg syscall, func BytePtrFromString(string) (*uint8, error)
+pkg syscall, func ByteSliceFromString(string) ([]uint8, error)
 pkg syscall, func NsecToTimespec(int64) Timespec
 pkg syscall, func TimespecToNsec(Timespec) int64
 pkg syscall, func UtimesNano(string, []Timespec) error
 pkg syscall, type RawSockaddrInet6 struct
-pkg syscall, type RawSockaddrInet6 struct, Addr [16]byte
+pkg syscall, type RawSockaddrInet6 struct, Addr [16]uint8
 pkg syscall, type RawSockaddrInet6 struct, Flowinfo uint32
 pkg syscall, type RawSockaddrInet6 struct, Port uint16
 pkg syscall, type RawSockaddrInet6 struct, Scope_id uint32
@@ -1221,4 +1221,4 @@ pkg unicode, var Miao *RangeTable
 pkg unicode, var Sharada *RangeTable
 pkg unicode, var Sora_Sompeng *RangeTable
 pkg unicode, var Takri *RangeTable
-pkg unicode/utf8, func ValidRune(rune) bool
+pkg unicode/utf8, func ValidRune(int32) bool
