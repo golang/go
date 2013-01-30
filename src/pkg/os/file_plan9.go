@@ -104,7 +104,6 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 		append = true
 	}
 
-	syscall.ForkLock.RLock()
 	if (create && trunc) || excl {
 		fd, e = syscall.Create(name, flag, syscallMode(perm))
 	} else {
@@ -117,7 +116,6 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 			}
 		}
 	}
-	syscall.ForkLock.RUnlock()
 
 	if e != nil {
 		return nil, &PathError{"open", name, e}
