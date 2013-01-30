@@ -190,6 +190,7 @@ runtime·schedinit(void)
 	byte *p;
 
 	m->nomemprof++;
+	runtime·mprofinit();
 	runtime·mallocinit();
 	mcommoninit(m);
 

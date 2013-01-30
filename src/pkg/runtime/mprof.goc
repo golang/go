@@ -13,7 +13,41 @@ package runtime
 #include "type.h"
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.
-static Lock proflock;
+static Lock proflock, alloclock;
+
+// All memory allocations are local and do not escape outside of the profiler.
+// The profiler is forbidden from referring to garbage-collected memory.
+
+static byte *pool;        // memory allocation pool
+static uintptr poolfree;  // number of bytes left in the pool
+enum {
+	Chunk = 32*PageSize,  // initial size of the pool
+};
+
+// Memory allocation local to this file.
+// There is no way to return the allocated memory back to the OS.
+static void*
+allocate(uintptr size)
+{
+	void *v;
+
+	if(size == 0)
+		return nil;
+
+	if(size >= Chunk/2)
+		return runtime·SysAlloc(size);
+
+	runtime·lock(&alloclock);
+	if(size > poolfree) {
+		pool = runtime·SysAlloc(Chunk);
+		poolfree = Chunk;
+	}
+	v = pool;
+	pool += size;
+	poolfree -= size;
+	runtime·unlock(&alloclock);
+	return v;
+}
 
 enum { MProf, BProf };  // profile types
 
@@ -88,7 +122,7 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 	if(!alloc)
 		return nil;
 
-	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
+	b = allocate(sizeof *b + nstk*sizeof stk[0]);
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->typ = typ;
@@ -157,7 +191,7 @@ struct AddrEntry
 	Bucket *b;
 };
 
-static AddrHash *addrhash[1<<AddrHashBits];
+static AddrHash **addrhash;	// points to (AddrHash*)[1<<AddrHashBits]
 static AddrEntry *addrfree;
 static uintptr addrmem;
 
@@ -184,7 +218,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 		if(ah->addr == (addr>>AddrHashShift))
 			goto found;
 
-	ah = runtime·mallocgc(sizeof *ah, FlagNoProfiling, 0, 1);
+	ah = allocate(sizeof *ah);
 	addrmem += sizeof *ah;
 	ah->next = addrhash[h];
 	ah->addr = addr>>AddrHashShift;
@@ -192,7 +226,7 @@ setaddrbucket(uintptr addr, Bucket *b)
 
 found:
 	if((e = addrfree) == nil) {
-		e = runtime·mallocgc(64*sizeof *e, FlagNoProfiling, 0, 0);
+		e = allocate(64*sizeof *e);
 		addrmem += 64*sizeof *e;
 		for(i=0; i+1<64; i++)
 			e[i].next = &e[i+1];
@@ -487,3 +521,8 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
 	}
 }
 
+void
+runtime·mprofinit(void)
+{
+	addrhash = allocate((1<<AddrHashBits)*sizeof *addrhash);
+}
