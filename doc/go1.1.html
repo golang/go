@@ -14,6 +14,23 @@ TODO
 
 TODO
 
+<h3 id="divzero">Integer division by zero</h3>
+
+<p>
+In Go 1, integer division by a constant zero produced a runtime panic:
+</p>
+
+<pre>
+func f(x int) int {
+	return x/0
+}
+</pre>
+
+<p>
+In Go 1.1, an integer division by constant zero is not a legal program, so it is a compile-time error.
+</p>
+
+
 <h2 id="impl">Changes to the implementations and tools</h2>
 
 TODO: more
