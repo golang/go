@@ -500,8 +500,8 @@ func TestIssue3521(t *testing.T) {
 	}
 }
 
-// Test inputs to Rat.SetString.  The optional prefix "slow:" skips
-// checks found to be slow for certain large rationals.
+// Test inputs to Rat.SetString.  The prefix "long:" causes the test
+// to be skipped in --test.short mode.  (The threshold is about 500us.)
 var float64inputs = []string{
 	//
 	// Constants plundered from strconv/testfp.txt.
@@ -630,8 +630,8 @@ var float64inputs = []string{
 	"-1e310",
 	"1e400",
 	"-1e400",
-	"1e400000",
-	"-1e400000",
+	"long:1e400000",
+	"long:-1e400000",
 
 	// denormalized
 	"1e-305",
@@ -649,10 +649,10 @@ var float64inputs = []string{
 	"2e-324",
 	// way too small
 	"1e-350",
-	"slow:1e-400000",
+	"long:1e-400000",
 	// way too small, negative
 	"-1e-350",
-	"slow:-1e-400000",
+	"long:-1e-400000",
 
 	// try to overflow exponent
 	// [Disabled: too slow and memory-hungry with rationals.]
@@ -672,7 +672,7 @@ var float64inputs = []string{
 
 	// A different kind of very large number.
 	"22.222222222222222",
-	"2." + strings.Repeat("2", 4000) + "e+1",
+	"long:2." + strings.Repeat("2", 4000) + "e+1",
 
 	// Exactly halfway between 1 and math.Nextafter(1, 2).
 	// Round to even (down).
@@ -682,7 +682,7 @@ var float64inputs = []string{
 	// Slightly higher; round up.
 	"1.00000000000000011102230246251565404236316680908203126",
 	// Slightly higher, but you have to read all the way to the end.
-	"slow:1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1",
+	"long:1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1",
 
 	// Smallest denormal, 2^(-1022-52)
 	"4.940656458412465441765687928682213723651e-324",
@@ -705,9 +705,11 @@ var float64inputs = []string{
 
 func TestFloat64SpecialCases(t *testing.T) {
 	for _, input := range float64inputs {
-		slow := strings.HasPrefix(input, "slow:")
-		if slow {
-			input = input[len("slow:"):]
+		if strings.HasPrefix(input, "long:") {
+			if testing.Short() {
+				continue
+			}
+			input = input[len("long:"):]
 		}
 
 		r, ok := new(Rat).SetString(input)
@@ -736,7 +738,7 @@ func TestFloat64SpecialCases(t *testing.T) {
 			}
 		}
 
-		if !isFinite(f) || slow {
+		if !isFinite(f) {
 			continue
 		}
 
@@ -769,8 +771,11 @@ func TestFloat64Distribution(t *testing.T) {
 		9,
 		11,
 	}
-	const winc, einc = 5, 100 // quick test (<1s)
-	//const winc, einc = 1, 1 // soak test (~75s)
+	var winc, einc = uint64(1), int(1) // soak test (~75s on x86-64)
+	if testing.Short() {
+		winc, einc = 10, 500 // quick test (~12ms on x86-64)
+	}
+
 	for _, sign := range "+-" {
 		for _, a := range add {
 			for wid := uint64(0); wid < 60; wid += winc {
