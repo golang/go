@@ -1534,9 +1534,27 @@ func gccgoCleanPkgpath(p *Package) string {
 // libgcc returns the filename for libgcc, as determined by invoking gcc with
 // the -print-libgcc-file-name option.
 func (b *builder) libgcc(p *Package) (string, error) {
+	var buf bytes.Buffer
+
+	prev := b.print
+	if buildN {
+		// In -n mode we temporarily swap out the builder's
+		// print function to capture the command-line. This
+		// let's us assign it to $LIBGCC and produce a valid
+		// buildscript for cgo packages.
+		b.print = func(a ...interface{}) (n int, err error) {
+			return fmt.Fprint(&buf, a...)
+		}
+	}
 	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
 	if err != nil {
 		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
+	}
+	if buildN {
+		s := fmt.Sprintf("LIBGCC=$(%s)\n", buf.Next(buf.Len()-1))
+		b.print = prev
+		b.print(s)
+		return "$LIBGCC", nil
 	}
 	return strings.Trim(string(f), "\r\n"), nil
 }
