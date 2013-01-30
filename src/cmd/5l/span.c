@@ -330,9 +330,11 @@ addpool(Prog *p, Adr *a)
 	switch(c) {
 	default:
 		t.to = *a;
+		if(flag_shared && t.to.sym != S)
+			t.pcrel = p;
 		break;
 
-	case	C_SROREG:
+	case C_SROREG:
 	case C_LOREG:
 	case C_ROREG:
 	case C_FOREG:
@@ -347,11 +349,13 @@ addpool(Prog *p, Adr *a)
 		break;
 	}
 
-	for(q = blitrl; q != P; q = q->link)	/* could hash on t.t0.offset */
-		if(memcmp(&q->to, &t.to, sizeof(t.to)) == 0) {
-			p->cond = q;
-			return;
-		}
+	if(t.pcrel == P) {
+		for(q = blitrl; q != P; q = q->link)	/* could hash on t.t0.offset */
+			if(q->pcrel == P && memcmp(&q->to, &t.to, sizeof(t.to)) == 0) {
+				p->cond = q;
+				return;
+			}
+	}
 
 	q = prg();
 	*q = t;
@@ -570,7 +574,10 @@ aclass(Adr *a)
 			if(s == S)
 				break;
 			instoffset = 0;	// s.b. unused but just in case
-			return C_LCON;
+			if(flag_shared)
+				return C_LCONADDR;
+			else
+				return C_LCON;
 
 		case D_AUTO:
 			instoffset = autosize + a->offset;
@@ -736,8 +743,14 @@ buildop(void)
 	for(i=0; i<C_GOK; i++)
 		for(n=0; n<C_GOK; n++)
 			xcmp[i][n] = cmp(n, i);
-	for(n=0; optab[n].as != AXXX; n++)
-		;
+	for(n=0; optab[n].as != AXXX; n++) {
+		if((optab[n].flag & LPCREL) != 0) {
+			if(flag_shared)
+				optab[n].size += optab[n].pcrelsiz;
+			else
+				optab[n].flag &= ~LPCREL;
+		}
+	}
 	qsort(optab, n, sizeof(optab[0]), ocmp);
 	for(i=0; i<n; i++) {
 		r = optab[i].as;

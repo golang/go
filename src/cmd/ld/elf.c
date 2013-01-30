@@ -794,6 +794,8 @@ doelf(void)
 	addstring(shstrtab, ".elfdata");
 	addstring(shstrtab, ".rodata");
 	addstring(shstrtab, ".typelink");
+	if(flag_shared)
+		addstring(shstrtab, ".data.rel.ro");
 	addstring(shstrtab, ".gcdata");
 	addstring(shstrtab, ".gcbss");
 	addstring(shstrtab, ".gosymtab");
@@ -926,6 +928,13 @@ doelf(void)
 		}
 		
 		elfwritedynent(s, DT_DEBUG, 0);
+
+		if(flag_shared) {
+			Sym *init_sym = lookup(LIBINITENTRY, 0);
+			if(init_sym->type != STEXT)
+				diag("entry not text: %s", init_sym->name);
+			elfwritedynentsym(s, DT_INIT, init_sym);
+		}
 
 		// Do not write DT_NULL.  elfdynhash will finish it.
 	}
@@ -1277,7 +1286,11 @@ asmbelf(vlong symo)
 	eh->ident[EI_DATA] = ELFDATA2LSB;
 	eh->ident[EI_VERSION] = EV_CURRENT;
 
-	eh->type = ET_EXEC;
+	if(flag_shared)
+		eh->type = ET_DYN;
+	else
+		eh->type = ET_EXEC;
+
 	eh->version = EV_CURRENT;
 	eh->entry = entryvalue();
 

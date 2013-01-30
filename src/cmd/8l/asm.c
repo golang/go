@@ -95,6 +95,18 @@ int	nelfsym = 1;
 static void	addpltsym(Sym*);
 static void	addgotsym(Sym*);
 
+Sym *
+lookuprel(void)
+{
+	return lookup(".rel", 0);
+}
+
+void
+adddynrela(Sym *rela, Sym *s, Reloc *r)
+{
+	sysfatal("adddynrela not implemented");
+}
+
 void
 adddynrel(Sym *s, Reloc *r)
 {

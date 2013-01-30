@@ -80,6 +80,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	LIBINITENTRY = 0;
 	nuxiinit();
 	
 	p = getgoarm();
@@ -123,6 +124,7 @@ main(int argc, char *argv[])
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);
+	flagcount("shared", "generate shared object", &flag_shared);
 	
 	flagparse(&argc, &argv, usage);
 

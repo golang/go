@@ -47,6 +47,7 @@ enum
 	SELFROSECT,
 	SELFSECT,
 	SNOPTRDATA,
+	SDATARELRO,
 	SDATA,
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SMACHOGOT,
@@ -138,6 +139,7 @@ EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
 EXTERN	int	elfglobalsymndx;
 EXTERN	int	flag_race;
+EXTERN	int flag_shared;
 EXTERN	char*	tracksym;
 EXTERN	char*	interpreter;
 
@@ -176,6 +178,8 @@ void	symtab(void);
 void	Lflag(char *arg);
 void	usage(void);
 void	adddynrel(Sym*, Reloc*);
+void	adddynrela(Sym*, Sym*, Reloc*);
+Sym*	lookuprel();
 void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
 void	ldobj(Biobuf*, char*, int64, char*, int);
 void	ldelf(Biobuf*, char*, int64, char*);

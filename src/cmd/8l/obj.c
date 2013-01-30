@@ -89,6 +89,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	LIBINITENTRY = 0;
 	nuxiinit();
 
 	flagcount("1", "use alternate profiling code", &debug['1']);

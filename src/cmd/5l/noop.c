@@ -45,6 +45,20 @@ static	Sym*	sym_divu;
 static	Sym*	sym_mod;
 static	Sym*	sym_modu;
 
+static void
+linkcase(Prog *casep)
+{
+	Prog *p;
+
+	for(p = casep; p != P; p = p->link){
+		if(p->as == ABCASE) {
+			for(; p != P && p->as == ABCASE; p = p->link)
+				p->pcrel = casep;
+			break;
+		}
+	}
+}
+
 void
 noops(void)
 {
@@ -76,6 +90,11 @@ noops(void)
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
 			switch(p->as) {
+			case ACASE:
+				if(flag_shared)
+					linkcase(p);
+				break;
+
 			case ATEXT:
 				p->mark |= LEAF;
 				break;
