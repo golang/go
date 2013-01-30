@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "defs_GOOS_GOARCH.h"
 #include "zasm_GOOS_GOARCH.h"
 
 // setldt(int entry, int address, int limit)
@@ -102,9 +101,8 @@ TEXT runtime·rfork(SB),7,$0
 	MOVL	DX, g(AX)
 	MOVL	BX, m(AX)
 
-	// Initialize AX from _tos->pid
-	MOVL	_tos(SB), AX
-	MOVL	tos_pid(AX), AX
+	// Initialize AX from TOS struct.
+	MOVL	procid(AX), AX
 	MOVL	AX, m_procid(BX)	// save pid as m->procid
 	
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
@@ -119,6 +117,54 @@ TEXT runtime·rfork(SB),7,$0
 	
 	CALL	SI	// fn()
 	CALL	runtime·exit(SB)
+	RET
+
+// void sigtramp(void *ureg, int8 *note)
+TEXT runtime·sigtramp(SB),7,$0
+	get_tls(AX)
+
+	// check that m exists
+	MOVL	m(AX), BX
+	CMPL	BX, $0
+	JNE	3(PC)
+	CALL	runtime·badsignal(SB) // will exit
+	RET
+
+	// save args
+	MOVL	ureg+4(SP), CX
+	MOVL	note+8(SP), DX
+
+	// change stack
+	MOVL	m_gsignal(BX), BP
+	MOVL	g_stackbase(BP), BP
+	MOVL	BP, SP
+
+	// make room for args and g
+	SUBL	$16, SP
+
+	// save g
+	MOVL	g(AX), BP
+	MOVL	BP, 12(SP)
+
+	// g = m->gsignal
+	MOVL	m_gsignal(BX), DI
+	MOVL	DI, g(AX)
+
+	// load args and call sighandler
+	MOVL	CX, 0(SP)
+	MOVL	DX, 4(SP)
+	MOVL	BP, 8(SP)
+
+	CALL	runtime·sighandler(SB)
+
+	// restore g
+	get_tls(BX)
+	MOVL	12(SP), BP
+	MOVL	BP, g(BX)
+
+	// call noted(AX)
+	MOVL	AX, 0(SP)
+	CALL	runtime·noted(SB)
 	RET
 
 // Only used by the 64-bit runtime.

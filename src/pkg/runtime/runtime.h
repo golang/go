@@ -296,6 +296,9 @@ struct	M
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 #endif
+#ifdef GOOS_plan9
+	int8*		notesig;
+#endif
 	SEH*	seh;
 	uintptr	end[];
 };

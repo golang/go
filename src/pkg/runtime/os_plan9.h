@@ -16,9 +16,12 @@ int32	runtime·rfork(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
 int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
 int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
-int32	runtime·notify(void (*fn)(void*, byte*));
+int32	runtime·notify(void (*fn)(void*, int8*));
 int32	runtime·noted(int32);
-void	runtime·gonote(void*, byte*);
+void	runtime·sigtramp(void*, int8*);
+int32	runtime·sighandler(void*, int8*, G*);
+void	runtime·sigpanic(void);
+void	runtime·goexitsall(int8*);
 void	runtime·setfpmasks(void);
 
 /* open */
@@ -79,4 +82,5 @@ struct Tos {
 	/* top of stack is here */
 };
 
-#define	NSIG 1
+#define	NSIG	5	/* number of signals in runtime·SigTab array */
+#define	ERRMAX	128	/* max length of note string */
