@@ -42,6 +42,12 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
 func (x *cbcEncrypter) BlockSize() int { return x.blockSize }
 
 func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
 	for len(src) > 0 {
 		for i := 0; i < x.blockSize; i++ {
 			x.iv[i] ^= src[i]
@@ -70,6 +76,12 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 func (x *cbcDecrypter) BlockSize() int { return x.blockSize }
 
 func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%x.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
 	for len(src) > 0 {
 		x.b.Decrypt(x.tmp, src[:x.blockSize])
 		for i := 0; i < x.blockSize; i++ {
