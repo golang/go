@@ -106,12 +106,19 @@ reexportdep(Node *n)
 		switch(n->class&~PHEAP) {
 		case PFUNC:
 			// methods will be printed along with their type
+			// nodes for T.Method expressions
 			if(n->left && n->left->op == OTYPE)
+				break;
+			// nodes for method calls.
+			if(!n->type || n->type->thistuple > 0)
 				break;
 			// fallthrough
 		case PEXTERN:
-			if(n->sym && !exportedsym(n->sym))
+			if(n->sym && !exportedsym(n->sym)) {
+				if(debug['E'])
+					print("reexport name %S\n", n->sym);
 				exportlist = list(exportlist, n);
+			}
 		}
 		break;
 
@@ -122,6 +129,8 @@ reexportdep(Node *n)
 			if(isptr[t->etype])
 				t = t->type;
 			if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
+				if(debug['E'])
+					print("reexport type %S from declaration\n", t->sym);
 				exportlist = list(exportlist, t->sym->def);
 			}
 		}

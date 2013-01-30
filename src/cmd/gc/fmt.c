@@ -228,6 +228,7 @@ goopnames[] =
 	[ORANGE]	= "range",
 	[OREAL]		= "real",
 	[ORECV]		= "<-",
+	[ORECOVER]	= "recover",
 	[ORETURN]	= "return",
 	[ORSH]		= ">>",
 	[OSELECT]	= "select",
@@ -1290,6 +1291,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAKE:
 	case ONEW:
 	case OPANIC:
+	case ORECOVER:
 	case OPRINT:
 	case OPRINTN:
 		if(n->left)
