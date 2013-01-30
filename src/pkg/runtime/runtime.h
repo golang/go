@@ -657,6 +657,7 @@ void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);
 void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
+void	runtime·mprofinit(void);
 bool	runtime·ifaceeq_c(Iface, Iface);
 bool	runtime·efaceeq_c(Eface, Eface);
 uintptr	runtime·ifacehash(Iface, uintptr);
