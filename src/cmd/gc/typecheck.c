@@ -640,6 +640,13 @@ reswitch:
 				n->op = OCMPIFACE;
 			}
 		}
+
+		if((op == ODIV || op == OMOD) && isconst(r, CTINT))
+		if(mpcmpfixc(r->val.u.xval, 0) == 0) {
+			yyerror("division by zero");
+			goto error;
+		} 
+
 		n->type = t;
 		goto ret;
 

@@ -18,7 +18,7 @@ func zzz () {
     for s := range arr {
         x := make([]byte, 10)
         for i := 0; i < 100 ; i++ {
-            x[i] ^= k[i-arr[s].num%0]
+            x[i] ^= k[i-arr[s].num%3]
         }
     }
 }

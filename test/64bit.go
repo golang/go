@@ -594,6 +594,19 @@ const binaryConstR = "func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or, 
 	"}\n" +
 	"\n"
 
+const binaryConstR0 = "func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n" +
+	"	const b %v = %v;\n" +
+	"	const typ = `%s`;\n" +
+	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"}\n" +
+	"\n"
+
 const shiftConstL = "func test%vShiftL%v(b uint64, left, right %v) {\n" +
 	"	const a %v = %v;\n" +
 	"	const typ = `%s`;\n" +
@@ -621,12 +634,20 @@ const shiftConstR = "func test%vShiftR%v(a, left, right %v) {\n" +
 func constTests() {
 	for i, a := range int64Values {
 		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64")
-		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
+		if a.hi == 0 && a.lo == 0 {
+			fmt.Fprintf(bout, binaryConstR0, "Int64", i, "int64", "int64", a, "int64")
+		} else {
+			fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
+		}
 		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64")
 	}
 	for i, a := range uint64Values {
 		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
-		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
+		if a.hi == 0 && a.lo == 0 {
+			fmt.Fprintf(bout, binaryConstR0, "Uint64", i, "uint64", "uint64", a, "uint64")
+		} else {
+			fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
+		}
 		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
 	}
 	for i, a := range shiftValues {
