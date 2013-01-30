@@ -732,6 +732,8 @@ deadcode(void)
 		Bprint(&bso, "%5.2f deadcode\n", cputime());
 
 	mark(lookup(INITENTRY, 0));
+	if(flag_shared)
+		mark(lookup(LIBINITENTRY, 0));
 	for(i=0; i<nelem(morename); i++)
 		mark(lookup(morename[i], 0));
 

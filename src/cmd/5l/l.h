@@ -111,6 +111,7 @@ struct	Prog
 	} u0;
 	Prog*	cond;
 	Prog*	link;
+	Prog*	pcrel;
 	int32	pc;
 	int32	line;
 	int32	spadj;
@@ -175,6 +176,7 @@ struct	Sym
 	Reloc*	r;
 	int32	nr;
 	int32	maxr;
+	int 	rel_ro;
 };
 
 #define SIGNINTERN	(1729*325*1729)
@@ -197,6 +199,7 @@ struct	Optab
 	char	size;
 	char	param;
 	char	flag;
+	uchar	pcrelsiz;
 };
 struct	Oprang
 {
@@ -214,6 +217,7 @@ enum
 	LFROM		= 1<<0,
 	LTO		= 1<<1,
 	LPOOL		= 1<<2,
+	LPCREL		= 1<<3,
 
 	C_NONE		= 0,
 	C_REG,
@@ -228,6 +232,7 @@ enum
 	C_NCON,		/* ~RCON */
 	C_SCON,		/* 0xffff */
 	C_LCON,
+	C_LCONADDR,
 	C_ZFCON,
 	C_SFCON,
 	C_LFCON,
@@ -281,6 +286,7 @@ EXTERN	int32	INITDAT;		/* data location */
 EXTERN	int32	INITRND;		/* data round above text location */
 EXTERN	int32	INITTEXT;		/* text location */
 EXTERN	char*	INITENTRY;		/* entry point */
+EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
 EXTERN	int32	autosize;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;

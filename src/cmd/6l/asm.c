@@ -99,6 +99,20 @@ int nelfsym = 1;
 static void addpltsym(Sym*);
 static void addgotsym(Sym*);
 
+Sym *
+lookuprel(void)
+{
+	return lookup(".rela", 0);
+}
+
+void
+adddynrela(Sym *rela, Sym *s, Reloc *r)
+{
+	addaddrplus(rela, s, r->off);
+	adduint64(rela, R_X86_64_RELATIVE);
+	addaddrplus(rela, r->sym, r->add); // Addend
+}
+
 void
 adddynrel(Sym *s, Reloc *r)
 {
@@ -463,7 +477,7 @@ adddynsym(Sym *s)
 			addaddr(d, s);
 	
 		/* size of object */
-		adduint64(d, 0);
+		adduint64(d, s->size);
 	
 		if(!s->dynexport && s->dynimplib && needlib(s->dynimplib)) {
 			elfwritedynent(lookup(".dynamic", 0), DT_NEEDED,

@@ -387,6 +387,11 @@ symtab(void)
 	xdefine("etypelink", SRODATA, 0);
 	xdefine("rodata", SRODATA, 0);
 	xdefine("erodata", SRODATA, 0);
+	xdefine("reloffset", SRODATA, 0);
+	if(flag_shared) {
+		xdefine("datarelro", SDATARELRO, 0);
+		xdefine("edatarelro", SDATARELRO, 0);
+	}
 	xdefine("gcdata", SGCDATA, 0);
 	xdefine("egcdata", SGCDATA, 0);
 	xdefine("gcbss", SGCBSS, 0);

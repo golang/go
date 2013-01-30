@@ -435,6 +435,7 @@ cnames[] =
 	[C_LAUTO]	= "C_LAUTO",
 	[C_LBRA]	= "C_LBRA",
 	[C_LCON]	= "C_LCON",
+	[C_LCONADDR]	= "C_LCONADDR",
 	[C_LOREG]	= "C_LOREG",
 	[C_NCON]	= "C_NCON",
 	[C_NONE]	= "C_NONE",

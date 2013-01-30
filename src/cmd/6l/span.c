@@ -372,7 +372,10 @@ oclass(Adr *a)
 				switch(a->index) {
 				case D_EXTERN:
 				case D_STATIC:
-					return Yi32;	/* TO DO: Yi64 */
+					if(flag_shared)
+						return Yiauto;
+					else
+						return Yi32;	/* TO DO: Yi64 */
 				case D_AUTO:
 				case D_PARAM:
 					return Yiauto;
@@ -731,7 +734,10 @@ vaddr(Adr *a, Reloc *r)
 			diag("need reloc for %D", a);
 			errorexit();
 		}
-		r->type = D_ADDR;
+		if(flag_shared)
+			r->type = D_PCREL;
+		else
+			r->type = D_ADDR;
 		r->siz = 4;	// TODO: 8 for external symbols
 		r->off = -1;	// caller must fill in
 		r->sym = s;
@@ -760,6 +766,8 @@ asmandsz(Adr *a, int r, int rex, int m64)
 				goto bad;
 			case D_STATIC:
 			case D_EXTERN:
+				if(flag_shared)
+					goto bad;
 				t = D_NONE;
 				v = vaddr(a, &rel);
 				break;
@@ -820,7 +828,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
 
 	rexflag |= (regrex[t] & Rxb) | rex;
 	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
-		if(asmode != 64){
+		if(flag_shared && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || asmode != 64) {
 			*andptr++ = (0 << 6) | (5 << 0) | (r << 3);
 			goto putrelv;
 		}
@@ -1776,13 +1784,17 @@ asmins(Prog *p)
 			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
 				break;
 		}
-		for(r=cursym->r+cursym->nr; r-- > cursym->r; ) {
-			if(r->off < p->pc)
-				break;
-			r->off++;
-		}
 		memmove(and+np+1, and+np, n-np);
 		and[np] = 0x40 | rexflag;
 		andptr++;
+	}
+	n = andptr - and;
+	for(r=cursym->r+cursym->nr; r-- > cursym->r; ) {
+		if(r->off < p->pc)
+			break;
+		if(rexflag)
+			r->off++;
+		if(r->type == D_PCREL)
+			r->add -= p->pc + n - (r->off + r->siz);
 	}
 }

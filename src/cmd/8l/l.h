@@ -163,6 +163,7 @@ struct	Sym
 	Reloc*	r;
 	int32	nr;
 	int32	maxr;
+	int 	rel_ro;
 };
 struct	Optab
 {
@@ -275,6 +276,7 @@ EXTERN	int32	INITRND;
 EXTERN	int32	INITTEXT;
 EXTERN	int32	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
+EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
 EXTERN	int32	casepc;
 EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
