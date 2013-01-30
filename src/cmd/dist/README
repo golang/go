@@ -31,8 +31,8 @@ Bufs or Vecs on the stack should be
 		... main code ...
 		bprintf(&b1, "hello, world");
 		vadd(&v1, bstr(&b1));  // v1 takes a copy of its argument
-		bprintf(&b1, "another string");
-		vadd(&v1, bstr(&b1));  // v1 now has two strings
+		bprintf(&b2, "another string");
+		vadd(&v1, bstr(&b2));  // v1 now has two strings
 		
 		bfree(&b1);
 		bfree(&b2);
