@@ -574,7 +574,9 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
 		return
 	}
-	from, err = anyToSockaddr(&rsa)
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(&rsa)
+	}
 	return
 }
 
