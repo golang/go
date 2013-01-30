@@ -69,8 +69,8 @@ struct	Adr
 	union
 	{
 		struct {
-			int32	offset;
-			int32	offset2; // argsize
+			int32	u0offset;
+			int32	u0offset2; // argsize
 		} u0off;
 		char*	u0sval;
 		Ieee	u0ieee;
@@ -84,8 +84,8 @@ struct	Adr
 	char	class;
 };
 
-#define	offset	u0.u0off.offset
-#define	offset2	u0.u0off.offset2
+#define	offset	u0.u0off.u0offset
+#define	offset2	u0.u0off.u0offset2
 #define	sval	u0.u0sval
 #define	scon	sval
 #define	ieee	u0.u0ieee
