@@ -124,18 +124,20 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+		if sa.Name != "" {
+			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+		}
 	}
 	return
 }
 
 // ReadFrom implements the PacketConn ReadFrom method.
-func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, uaddr, err := c.ReadFromUnix(b)
-	return n, uaddr.toAddr(), err
+	n, addr, err := c.ReadFromUnix(b)
+	return n, addr.toAddr(), err
 }
 
 // ReadMsgUnix reads a packet from c, copying the payload into b and
@@ -149,7 +151,9 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+		if sa.Name != "" {
+			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+		}
 	}
 	return
 }
