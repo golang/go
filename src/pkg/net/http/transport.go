@@ -529,14 +529,13 @@ type persistConn struct {
 	closech  chan struct{}       // broadcast close when readLoop (TCP connection) closes
 	isProxy  bool
 
+	lk                   sync.Mutex // guards following 3 fields
+	numExpectedResponses int
+	broken               bool // an error has happened on this connection; marked broken so it's not reused.
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
 	// original Request given to RoundTrip is not modified)
 	mutateHeaderFunc func(Header)
-
-	lk                   sync.Mutex // guards numExpectedResponses and broken
-	numExpectedResponses int
-	broken               bool // an error has happened on this connection; marked broken so it's not reused.
 }
 
 func (pc *persistConn) isBroken() bool {
@@ -711,8 +710,13 @@ type writeRequest struct {
 }
 
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
-	if pc.mutateHeaderFunc != nil {
-		pc.mutateHeaderFunc(req.extraHeaders())
+	pc.lk.Lock()
+	pc.numExpectedResponses++
+	headerFn := pc.mutateHeaderFunc
+	pc.lk.Unlock()
+
+	if headerFn != nil {
+		headerFn(req.extraHeaders())
 	}
 
 	// Ask for a compressed version if the caller didn't set their
@@ -727,10 +731,6 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		requestedGzip = true
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}
-
-	pc.lk.Lock()
-	pc.numExpectedResponses++
-	pc.lk.Unlock()
 
 	// Write the request concurrently with waiting for a response,
 	// in case the server decides to reply before reading our full
