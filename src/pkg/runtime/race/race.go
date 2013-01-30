@@ -15,6 +15,8 @@ void __tsan_go_start(int pgoid, int chgoid, void *pc);
 void __tsan_go_end(int goid);
 void __tsan_read(int goid, void *addr, void *pc);
 void __tsan_write(int goid, void *addr, void *pc);
+void __tsan_read_range(int goid, void *addr, long sz, long step, void *pc);
+void __tsan_write_range(int goid, void *addr, long sz, long step, void *pc);
 void __tsan_func_enter(int goid, void *pc);
 void __tsan_func_exit(int goid);
 void __tsan_malloc(int goid, void *p, long sz, void *pc);
@@ -53,6 +55,16 @@ func Read(goid int32, addr, pc uintptr) {
 
 func Write(goid int32, addr, pc uintptr) {
 	C.__tsan_write(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
+}
+
+func ReadRange(goid int32, addr, sz, step, pc uintptr) {
+	C.__tsan_read_range(C.int(goid), unsafe.Pointer(addr),
+		C.long(sz), C.long(step), unsafe.Pointer(pc))
+}
+
+func WriteRange(goid int32, addr, sz, step, pc uintptr) {
+	C.__tsan_write_range(C.int(goid), unsafe.Pointer(addr),
+		C.long(sz), C.long(step), unsafe.Pointer(pc))
 }
 
 func FuncEnter(goid int32, pc uintptr) {
