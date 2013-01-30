@@ -269,12 +269,44 @@ var splitjointests = []struct {
 	{"127.0.0.1", "1234", "127.0.0.1:1234"},
 	{"::1", "80", "[::1]:80"},
 	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
+	{"", "0", ":0"},
+	{"127.0.0.1", "", "127.0.0.1:"},           // Go 1.0 behaviour
+	{"www.google.com", "", "www.google.com:"}, // Go 1.0 behaviour
+}
+
+var splitfailuretests = []struct {
+	HostPort string
+	Err      string
+}{
+	{"www.google.com", "missing port in address"},
+	{"127.0.0.1", "missing port in address"},
+	{"[::1]", "missing port in address"},
+	{"::1", "too many colons in address"},
+
+	// Test cases that didn't fail in Go 1.0
+	{"[foo:bar]", "missing port in address"},
+	{"[foo:bar]baz", "missing port in address"},
+	{"[foo]:[bar]:baz", "too many colons in address"},
+	{"[foo]bar:baz", "missing port in address"},
+	{"[foo]:[bar]baz", "unexpected '[' in address"},
+	{"foo[bar]:baz", "unexpected '[' in address"},
+	{"foo]bar:baz", "unexpected ']' in address"},
 }
 
 func TestSplitHostPort(t *testing.T) {
 	for _, tt := range splitjointests {
 		if host, port, err := SplitHostPort(tt.Join); host != tt.Host || port != tt.Port || err != nil {
 			t.Errorf("SplitHostPort(%q) = %q, %q, %v; want %q, %q, nil", tt.Join, host, port, err, tt.Host, tt.Port)
+		}
+	}
+	for _, tt := range splitfailuretests {
+		if _, _, err := SplitHostPort(tt.HostPort); err == nil {
+			t.Errorf("SplitHostPort(%q) should have failed", tt.HostPort)
+		} else {
+			e := err.(*AddrError)
+			if e.Err != tt.Err {
+				t.Errorf("SplitHostPort(%q) = _, _, %q; want %q", tt.HostPort, e.Err, tt.Err)
+			}
 		}
 	}
 }
