@@ -176,7 +176,7 @@ func dynimport(obj string) {
 		for _, s := range sym {
 			targ := s.Name
 			if s.Version != "" {
-				targ += "@" + s.Version
+				targ += "#" + s.Version
 			}
 			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
 		}
@@ -218,7 +218,8 @@ func dynimport(obj string) {
 		}
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+			name := strings.Split(ss[0], "@")[0]
+			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
 		}
 		return
 	}

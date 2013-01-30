@@ -506,7 +506,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 		}
 
 		name = expandpkg(name, pkg);
-		q = strchr(def, '@');
+		q = strchr(def, '#');
 		if(q)
 			*q++ = '\0';
 		s = lookup(name, 0);
