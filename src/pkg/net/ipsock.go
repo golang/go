@@ -77,23 +77,62 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 }
 
 func splitHostPort(hostport string) (host, port, zone string, err error) {
+	j, k := 0, 0
+
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
-		err = &AddrError{"missing port in address", hostport}
-		return
+		goto missingPort
 	}
-	host, port = hostport[:i], hostport[i+1:]
-	// Can put brackets around host ...
-	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
-		host = host[1 : len(host)-1]
-	} else {
-		// ... but if there are no brackets, no colons.
-		if byteIndex(host, ':') >= 0 {
-			err = &AddrError{"too many colons in address", hostport}
+
+	if hostport[0] == '[' {
+		// Expect the first ']' just before the last ':'.
+		end := byteIndex(hostport, ']')
+		if end < 0 {
+			err = &AddrError{"missing ']' in address", hostport}
 			return
 		}
+		switch end + 1 {
+		case len(hostport):
+			// There can't be a ':' behind the ']' now.
+			goto missingPort
+		case i:
+			// The expected result.
+		default:
+			// Either ']' isn't followed by a colon, or it is
+			// followed by a colon that is not the last one.
+			if hostport[end+1] == ':' {
+				goto tooManyColons
+			}
+			goto missingPort
+		}
+		host = hostport[1:end]
+		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
+	} else {
+		host = hostport[:i]
+
+		if byteIndex(host, ':') >= 0 {
+			goto tooManyColons
+		}
 	}
+	if byteIndex(hostport[j:], '[') >= 0 {
+		err = &AddrError{"unexpected '[' in address", hostport}
+		return
+	}
+	if byteIndex(hostport[k:], ']') >= 0 {
+		err = &AddrError{"unexpected ']' in address", hostport}
+		return
+	}
+
+	port = hostport[i+1:]
+	return
+
+missingPort:
+	err = &AddrError{"missing port in address", hostport}
+	return
+
+tooManyColons:
+	err = &AddrError{"too many colons in address", hostport}
 	return
 }
 
