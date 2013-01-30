@@ -139,7 +139,7 @@ func (g *phraseGenerator) generate(doNorm bool) []Input {
 			buf16 = make([]uint16, 0, buf16Size)
 		}
 		if doNorm {
-			buf8 = norm.NFC.AppendString(buf8, str)
+			buf8 = norm.NFD.AppendString(buf8, str)
 		} else {
 			buf8 = append(buf8, str...)
 		}

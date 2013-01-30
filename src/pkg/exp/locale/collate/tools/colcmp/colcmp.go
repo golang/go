@@ -279,7 +279,7 @@ func parseInput(args []string) []Input {
 		}
 		s = string(rs)
 		if *doNorm {
-			s = norm.NFC.String(s)
+			s = norm.NFD.String(s)
 		}
 		input = append(input, makeInputString(s))
 	}
