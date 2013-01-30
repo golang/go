@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "defs_GOOS_GOARCH.h"
 #include "zasm_GOOS_GOARCH.h"
 
 // setldt(int entry, int address, int limit)
@@ -104,7 +103,7 @@ TEXT runtime·plan9_semrelease(SB),7,$0
 	MOVQ	$38, BP
 	SYSCALL
 	RET
-	
+
 TEXT runtime·rfork(SB),7,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$19, BP // rfork
@@ -144,6 +143,53 @@ TEXT runtime·rfork(SB),7,$0
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),7,$0
+	RET
+
+// void sigtramp(void *ureg, int8 *note)
+TEXT runtime·sigtramp(SB),7,$0
+	get_tls(AX)
+
+	// check that m exists
+	MOVQ	m(AX), BX
+	CMPQ	BX, $0
+	JNE	3(PC)
+	CALL	runtime·badsignal(SB) // will exit
+	RET
+
+	// save args
+	MOVQ	ureg+8(SP), CX
+	MOVQ	note+16(SP), DX
+
+	// change stack
+	MOVQ	m_gsignal(BX), R10
+	MOVQ	g_stackbase(R10), BP
+	MOVQ	BP, SP
+
+	// make room for args and g
+	SUBQ	$32, SP
+
+	// save g
+	MOVQ	g(AX), BP
+	MOVQ	BP, 24(SP)
+
+	// g = m->gsignal
+	MOVQ	R10, g(AX)
+
+	// load args and call sighandler
+	MOVQ	CX, 0(SP)
+	MOVQ	DX, 8(SP)
+	MOVQ	BP, 16(SP)
+
+	CALL	runtime·sighandler(SB)
+
+	// restore g
+	get_tls(BX)
+	MOVQ	24(SP), R10
+	MOVQ	R10, g(BX)
+
+	// call noted(AX)
+	MOVQ	AX, 0(SP)
+	CALL	runtime·noted(SB)
 	RET
 
 TEXT runtime·setfpmasks(SB),7,$8

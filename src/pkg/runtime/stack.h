@@ -55,13 +55,19 @@ functions to make sure that this limit cannot be violated.
 enum {
 	// StackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
-	// purposes like signal handling. Used on Windows because
-	// it does not use a separate stack.
+	// purposes like signal handling. Used on Windows and on
+	// Plan 9 because they do not use a separate stack.
 #ifdef GOOS_windows
 	StackSystem = 512 * sizeof(uintptr),
 #else
+#ifdef GOOS_plan9
+	// The size of the note handler frame varies among architectures,
+	// but 512 bytes should be enough for every implementation.
+	StackSystem = 512,
+#else
 	StackSystem = 0,
-#endif
+#endif	// Plan 9
+#endif	// Windows
 
 	// The amount of extra stack to allocate beyond the size
 	// needed for the single frame that triggered the split.

@@ -7,13 +7,17 @@
 #include "arch_GOARCH.h"
 
 int8 *goos = "plan9";
-int8 *runtime·exitstatus;
+extern SigTab runtime·sigtab[];
 
 int32 runtime·postnote(int32, int8*);
 
 void
 runtime·minit(void)
 {
+	// Initialize stack and goroutine for note handling.
+	m->gsignal = runtime·malg(32*1024);
+	m->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
+
 	// Mask all SSE floating-point exceptions
 	// when running on the 64-bit kernel.
 	runtime·setfpmasks();
@@ -65,7 +69,7 @@ runtime·osinit(void)
 {
 	runtime·ncpu = getproccount();
 	m->procid = getpid();
-	runtime·notify(runtime·gonote);
+	runtime·notify(runtime·sigtramp);
 }
 
 void
@@ -169,7 +173,7 @@ runtime·itoa(int32 n, byte *p, uint32 len)
 }
 
 void
-goexitsall(void)
+runtime·goexitsall(int8 *status)
 {
 	M *mp;
 	int32 pid;
@@ -177,31 +181,7 @@ goexitsall(void)
 	pid = getpid();
 	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
 		if(mp->procid != pid)
-			runtime·postnote(mp->procid, "gointr");
-}
-
-void
-runtime·gonote(void*, byte *s)
-{
-	uint8 buf[128];
-	int32 l;
-
-	l = runtime·findnull(s);
-	if(l > 4 && runtime·mcmp(s, (byte*)"sys:", 4) == 0) {
-		runtime·memclr(buf, sizeof buf);
-		runtime·memmove((void*)buf, (void*)s, runtime·findnull(s));
-		runtime·exitstatus = (int8*)buf;
-		goexitsall();
-		runtime·noted(NDFLT);
-	}
-
-	if(runtime·exitstatus)
-		runtime·exits(runtime·exitstatus);
-
-	if(runtime·strcmp(s, (byte*)"gointr") == 0)
-		runtime·noted(NCONT);
-
-	runtime·noted(NDFLT);
+			runtime·postnote(mp->procid, status);
 }
 
 int32
@@ -240,17 +220,18 @@ void
 runtime·exit(int32 e)
 {
 	byte tmp[16];
-
+	int8 *status;
+ 
 	if(e == 0)
-		runtime·exitstatus = "";
+		status = "";
 	else {
 		/* build error string */
 		runtime·itoa(e, tmp, sizeof tmp);
-		runtime·exitstatus = (int8*)tmp;
+		status = (int8*)tmp;
 	}
 
-	goexitsall();
-	runtime·exits(runtime·exitstatus);
+	runtime·goexitsall(status);
+	runtime·exits(status);
 }
 
 void
@@ -307,15 +288,15 @@ os·sigpipe(void)
 	runtime·throw("too many writes on closed pipe");
 }
 
-/*
- * placeholder - once notes are implemented,
- * a signal generating a panic must appear as
- * a call to this function for correct handling by
- * traceback.
- */
 void
 runtime·sigpanic(void)
 {
+	if(g->sigpc == 0)
+		runtime·panicstring("call of nil func value");
+	runtime·panicstring(m->notesig);
+
+	if(g->sig == 1 || g->sig == 2)
+		runtime·throw("fault");
 }
 
 int32
@@ -357,8 +338,8 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
 // This runs on a foreign stack, without an m or a g.  No stack split.
 #pragma textflag 7
 void
-runtime·badsignal(int32 sig)
+runtime·badsignal(void)
 {
-	USED(sig);
 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+	runtime·exits(badsignal);
 }
