@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"io"
 	"os"
@@ -31,6 +32,7 @@ var (
 	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
 	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
 	vetRangeLoops      = flag.Bool("rangeloops", false, "check that range loop variables are used correctly")
+	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
 )
 
 // setExit sets the value for os.Exit when it is called, later.  It
@@ -188,6 +190,8 @@ func (f *File) walkFile(name string, file *ast.File) {
 // Visit implements the ast.Visitor interface.
 func (f *File) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
+	case *ast.AssignStmt:
+		f.walkAssignStmt(n)
 	case *ast.CallExpr:
 		f.walkCallExpr(n)
 	case *ast.CompositeLit:
@@ -202,6 +206,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		f.walkRangeStmt(n)
 	}
 	return f
+}
+
+// walkCall walks an assignment statement
+func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
+	f.checkAtomicAssignment(stmt)
 }
 
 // walkCall walks a call expression.
@@ -258,4 +267,11 @@ func (f *File) walkInterfaceType(t *ast.InterfaceType) {
 // walkRangeStmt walks a range statement.
 func (f *File) walkRangeStmt(n *ast.RangeStmt) {
 	checkRangeLoop(f, n)
+}
+
+// goFmt returns a string representation of the expression
+func (f *File) gofmt(x ast.Expr) string {
+	f.b.Reset()
+	printer.Fprint(&f.b, f.fset, x)
+	return f.b.String()
 }
