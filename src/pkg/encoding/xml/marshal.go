@@ -81,8 +81,7 @@ func Marshal(v interface{}) ([]byte, error) {
 func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
-	enc.prefix = prefix
-	enc.indent = indent
+	enc.Indent(prefix, indent)
 	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
@@ -97,6 +96,14 @@ type Encoder struct {
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{printer{Writer: bufio.NewWriter(w)}}
+}
+
+// Indent sets the encoder to generate XML in which each element
+// begins on a new indented line that starts with prefix and is followed by
+// one or more copies of indent according to the nesting depth.
+func (enc *Encoder) Indent(prefix, indent string) {
+	enc.prefix = prefix
+	enc.indent = indent
 }
 
 // Encode writes the XML encoding of v to the stream.

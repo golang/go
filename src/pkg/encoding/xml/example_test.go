@@ -50,6 +50,46 @@ func ExampleMarshalIndent() {
 	//   </person>
 }
 
+func ExampleEncoder() {
+	type Address struct {
+		City, State string
+	}
+	type Person struct {
+		XMLName   xml.Name `xml:"person"`
+		Id        int      `xml:"id,attr"`
+		FirstName string   `xml:"name>first"`
+		LastName  string   `xml:"name>last"`
+		Age       int      `xml:"age"`
+		Height    float32  `xml:"height,omitempty"`
+		Married   bool
+		Address
+		Comment string `xml:",comment"`
+	}
+
+	v := &Person{Id: 13, FirstName: "John", LastName: "Doe", Age: 42}
+	v.Comment = " Need more details. "
+	v.Address = Address{"Hanga Roa", "Easter Island"}
+
+	enc := xml.NewEncoder(os.Stdout)
+	enc.Indent("  ", "    ")
+	if err := enc.Encode(v); err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+
+	// Output:
+	//   <person id="13">
+	//       <name>
+	//           <first>John</first>
+	//           <last>Doe</last>
+	//       </name>
+	//       <age>42</age>
+	//       <Married>false</Married>
+	//       <City>Hanga Roa</City>
+	//       <State>Easter Island</State>
+	//       <!-- Need more details. -->
+	//   </person>
+}
+
 // This example demonstrates unmarshaling an XML excerpt into a value with
 // some preset fields. Note that the Phone field isn't modified and that
 // the XML <Company> element is ignored. Also, the Groups field is assigned
