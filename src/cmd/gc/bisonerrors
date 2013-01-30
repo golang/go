@@ -41,9 +41,9 @@ grammar && NF>0 {
 }
 
 # In state dumps, record shift/reduce actions.
-bison && /^state 0/ { grammar = 0; states = 1 }
+bison && /^[Ss]tate 0/ { grammar = 0; states = 1 }
 
-states && /^state / { state = $2 }
+states && /^[Ss]tate / { state = $2 }
 states { statetext[state] = statetext[state] $0 "\n" }
 
 states && / shift/ {
