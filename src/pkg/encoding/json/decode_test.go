@@ -239,6 +239,12 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[1, 2, 3]`, ptr: new([1]int), out: [1]int{1}},
 	{in: `[1, 2, 3]`, ptr: new([5]int), out: [5]int{1, 2, 3, 0, 0}},
 
+	// empty array to interface test
+	{in: `[]`, ptr: new([]interface{}), out: []interface{}{}},
+	{in: `null`, ptr: new([]interface{}), out: []interface{}(nil)},
+	{in: `{"T":[]}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": []interface{}{}}},
+	{in: `{"T":null}`, ptr: new(map[string]interface{}), out: map[string]interface{}{"T": interface{}(nil)}},
+
 	// composite tests
 	{in: allValueIndent, ptr: new(All), out: allValue},
 	{in: allValueCompact, ptr: new(All), out: allValue},
