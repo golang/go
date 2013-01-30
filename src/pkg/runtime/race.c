@@ -16,6 +16,8 @@ void runtime∕race·Finalize(void);
 void runtime∕race·FinalizerGoroutine(int32);
 void runtime∕race·Read(int32 goid, void *addr, void *pc);
 void runtime∕race·Write(int32 goid, void *addr, void *pc);
+void runtime∕race·ReadRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
+void runtime∕race·WriteRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
 void runtime∕race·FuncEnter(int32 goid, void *pc);
 void runtime∕race·FuncExit(int32 goid);
 void runtime∕race·Malloc(int32 goid, void *p, uintptr sz, void *pc);
@@ -186,6 +188,42 @@ void
 runtime·racereadpc(void *addr, void *callpc, void *pc)
 {
 	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
+}
+
+static void
+rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, bool write)
+{
+	int64 goid;
+
+	if(!onstack((uintptr)addr)) {
+		m->racecall = true;
+		goid = g->goid-1;
+		if(callpc) {
+			if(callpc == (uintptr)runtime·lessstack ||
+				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+				runtime·callers(3, &callpc, 1);
+			runtime∕race·FuncEnter(goid, (void*)callpc);
+		}
+		if(write)
+			runtime∕race·WriteRange(goid, addr, size, step, (void*)pc);
+		else
+			runtime∕race·ReadRange(goid, addr, size, step, (void*)pc);
+		if(callpc)
+			runtime∕race·FuncExit(goid);
+		m->racecall = false;
+	}
+}
+
+void
+runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
+{
+	rangeaccess(addr, sz, step, (uintptr)callpc, (uintptr)pc, true);
+}
+
+void
+runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
+{
+	rangeaccess(addr, sz, step, (uintptr)callpc, (uintptr)pc, false);
 }
 
 void

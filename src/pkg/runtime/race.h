@@ -22,6 +22,8 @@ void	runtime·racegostart(int32 goid, void *pc);
 void	runtime·racegoend(int32 goid);
 void	runtime·racewritepc(void *addr, void *callpc, void *pc);
 void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+void	runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc);
+void	runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc);
 void	runtime·racefingo(void);
 void	runtime·raceacquire(void *addr);
 void	runtime·raceacquireg(G *gp, void *addr);
