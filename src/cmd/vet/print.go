@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -62,6 +63,23 @@ func (f *File) literal(value ast.Expr) *ast.BasicLit {
 	switch v := value.(type) {
 	case *ast.BasicLit:
 		return v
+	case *ast.ParenExpr:
+		return f.literal(v.X)
+	case *ast.BinaryExpr:
+		if v.Op != token.ADD {
+			break
+		}
+		litX := f.literal(v.X)
+		litY := f.literal(v.Y)
+		if litX != nil && litY != nil {
+			lit := *litX
+			x, errX := strconv.Unquote(litX.Value)
+			y, errY := strconv.Unquote(litY.Value)
+			if errX == nil && errY == nil {
+				lit.Value = strconv.Quote(x + y)
+				return &lit
+			}
+		}
 	case *ast.Ident:
 		// See if it's a constant or initial value (we can't tell the difference).
 		if v.Obj == nil || v.Obj.Decl == nil {
@@ -101,7 +119,10 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 	if lit.Kind != token.STRING {
 		f.Badf(call.Pos(), "literal %v not a string in call to", lit.Value, name)
 	}
-	format := lit.Value
+	format, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		f.Badf(call.Pos(), "invalid quoted string literal")
+	}
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > skip+1 {
 			f.Badf(call.Pos(), "no formatting directive in %s call", name)
@@ -282,6 +303,7 @@ func BadFunctionUsedInTests() {
 	fmt.Println()                      // not an error
 	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
 	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args in Printf call"
+	fmt.Printf("%"+("s"), "hi", 3)     // ERROR "wrong number of args in Printf call"
 	fmt.Printf("%s%%%d", "hi", 3)      // correct
 	fmt.Printf("%08s", "woo")          // correct
 	fmt.Printf("% 8s", "woo")          // correct
