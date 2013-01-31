@@ -105,6 +105,9 @@ func (p *P) String() string {
 	return "String(p)"
 }
 
+var barray = [5]renamedUint8{1, 2, 3, 4, 5}
+var bslice = barray[:]
+
 var b byte
 
 var fmttests = []struct {
@@ -332,14 +335,18 @@ var fmttests = []struct {
 	// arrays
 	{"%v", array, "[1 2 3 4 5]"},
 	{"%v", iarray, "[1 hello 2.5 <nil>]"},
+	{"%v", barray, "[1 2 3 4 5]"},
 	{"%v", &array, "&[1 2 3 4 5]"},
 	{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
+	{"%v", &barray, "&[1 2 3 4 5]"},
 
 	// slices
 	{"%v", slice, "[1 2 3 4 5]"},
 	{"%v", islice, "[1 hello 2.5 <nil>]"},
+	{"%v", bslice, "[1 2 3 4 5]"},
 	{"%v", &slice, "&[1 2 3 4 5]"},
 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
+	{"%v", &bslice, "&[1 2 3 4 5]"},
 
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
@@ -382,6 +389,8 @@ var fmttests = []struct {
 	{"%#v", map[int]byte(nil), `map[int]uint8(nil)`},
 	{"%#v", map[int]byte{}, `map[int]uint8{}`},
 	{"%#v", "foo", `"foo"`},
+	{"%#v", barray, `[5]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
+	{"%#v", bslice, `[]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
@@ -407,6 +416,9 @@ var fmttests = []struct {
 	{"%x", renamedString("thing"), "7468696e67"},
 	{"%d", renamedBytes([]byte{1, 2, 15}), `[1 2 15]`},
 	{"%q", renamedBytes([]byte("hello")), `"hello"`},
+	{"%x", []renamedUint8{'a', 'b', 'c'}, "616263"},
+	{"%s", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "hello"},
+	{"%q", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, `"hello"`},
 	{"%v", renamedFloat32(22), "22"},
 	{"%v", renamedFloat64(33), "33"},
 	{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
