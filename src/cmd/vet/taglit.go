@@ -124,5 +124,5 @@ var untaggedLiteralWhitelist = map[string]bool{
 }
 
 type BadTag struct {
-	S string `this is a bad tag`
+	S string `this is a bad tag` // ERROR "not compatible with reflect.StructTag.Get"
 }

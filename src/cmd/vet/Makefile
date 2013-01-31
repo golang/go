@@ -4,4 +4,5 @@
 
 test testshort:
 	go build
-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' print.go rangeloop.go atomic.go
+	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
+
