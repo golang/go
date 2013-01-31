@@ -660,6 +660,13 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 
+		if p.N.Sign() <= 0 {
+			return nil, errors.New("x509: RSA modulus is not a positive number")
+		}
+		if p.E <= 0 {
+			return nil, errors.New("x509: RSA public exponent is not a positive number")
+		}
+
 		pub := &rsa.PublicKey{
 			E: p.E,
 			N: p.N,
