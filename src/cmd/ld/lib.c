@@ -1447,6 +1447,23 @@ Yconv(Fmt *fp)
 
 vlong coutpos;
 
+static void
+dowrite(int fd, char *p, int n)
+{
+	int m;
+	
+	while(n > 0) {
+		m = write(fd, p, n);
+		if(m <= 0) {
+			cursym = S;
+			diag("write error: %r");
+			errorexit();
+		}
+		n -= m;
+		p += m;
+	}
+}
+
 void
 cflush(void)
 {
@@ -1455,13 +1472,8 @@ cflush(void)
 	if(cbpmax < cbp)
 		cbpmax = cbp;
 	n = cbpmax - buf.cbuf;
-	if(n) {
-		if(write(cout, buf.cbuf, n) != n) {
-			diag("write error: %r");
-			errorexit();
-		}
-		coutpos += n;
-	}
+	dowrite(cout, buf.cbuf, n);
+	coutpos += n;
 	cbp = buf.cbuf;
 	cbc = sizeof(buf.cbuf);
 	cbpmax = cbp;
@@ -1502,10 +1514,7 @@ cwrite(void *buf, int n)
 	cflush();
 	if(n <= 0)
 		return;
-	if(write(cout, buf, n) != n) {
-		diag("write error: %r");
-		errorexit();
-	}
+	dowrite(cout, buf, n);
 	coutpos += n;
 }
 
