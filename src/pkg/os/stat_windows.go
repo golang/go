@@ -5,9 +5,7 @@
 package os
 
 import (
-	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
@@ -22,7 +20,7 @@ func (file *File) Stat() (fi FileInfo, err error) {
 		return Stat(file.name)
 	}
 	if file.name == DevNull {
-		return statDevNull()
+		return &devNullStat, nil
 	}
 	var d syscall.ByHandleFileInformation
 	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
@@ -30,11 +28,18 @@ func (file *File) Stat() (fi FileInfo, err error) {
 		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
 	}
 	return &fileStat{
-		name:    basename(file.name),
-		size:    mkSize(d.FileSizeHigh, d.FileSizeLow),
-		modTime: mkModTime(d.LastWriteTime),
-		mode:    mkMode(d.FileAttributes),
-		sys:     mkSysFromFI(&d),
+		name: basename(file.name),
+		sys: syscall.Win32FileAttributeData{
+			FileAttributes: d.FileAttributes,
+			CreationTime:   d.CreationTime,
+			LastAccessTime: d.LastAccessTime,
+			LastWriteTime:  d.LastWriteTime,
+			FileSizeHigh:   d.FileSizeHigh,
+			FileSizeLow:    d.FileSizeLow,
+		},
+		vol:   d.VolumeSerialNumber,
+		idxhi: d.FileIndexHigh,
+		idxlo: d.FileIndexLow,
 	}, nil
 }
 
@@ -45,29 +50,23 @@ func Stat(name string) (fi FileInfo, err error) {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
 	if name == DevNull {
-		return statDevNull()
+		return &devNullStat, nil
 	}
-	var d syscall.Win32FileAttributeData
+	fs := &fileStat{name: basename(name)}
 	namep, e := syscall.UTF16PtrFromString(name)
 	if e != nil {
 		return nil, &PathError{"Stat", name, e}
 	}
-	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
+	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
 	if e != nil {
 		return nil, &PathError{"GetFileAttributesEx", name, e}
 	}
-	path := name
-	if !isAbs(path) {
+	fs.path = name
+	if !isAbs(fs.path) {
 		cwd, _ := Getwd()
-		path = cwd + `\` + path
+		fs.path = cwd + `\` + fs.path
 	}
-	return &fileStat{
-		name:    basename(name),
-		size:    mkSize(d.FileSizeHigh, d.FileSizeLow),
-		modTime: mkModTime(d.LastWriteTime),
-		mode:    mkMode(d.FileAttributes),
-		sys:     mkSys(path, d.LastAccessTime, d.CreationTime),
-	}, nil
+	return fs, nil
 }
 
 // Lstat returns the FileInfo structure describing the named file.
@@ -77,22 +76,6 @@ func Stat(name string) (fi FileInfo, err error) {
 func Lstat(name string) (fi FileInfo, err error) {
 	// No links on Windows
 	return Stat(name)
-}
-
-// statDevNull return FileInfo structure describing DevNull file ("NUL").
-// It creates invented data, since none of windows api will return
-// that information.
-func statDevNull() (fi FileInfo, err error) {
-	return &fileStat{
-		name: DevNull,
-		mode: ModeDevice | ModeCharDevice | 0666,
-		sys: &winSys{
-			// hopefully this will work for SameFile
-			vol:   0,
-			idxhi: 0,
-			idxlo: 0,
-		},
-	}, nil
 }
 
 // basename removes trailing slashes and the leading
@@ -171,96 +154,4 @@ func volumeName(path string) (v string) {
 		}
 	}
 	return ""
-}
-
-type winSys struct {
-	sync.Mutex
-	path              string
-	atime, ctime      syscall.Filetime
-	vol, idxhi, idxlo uint32
-}
-
-func mkSize(hi, lo uint32) int64 {
-	return int64(hi)<<32 + int64(lo)
-}
-
-func mkModTime(mtime syscall.Filetime) time.Time {
-	return time.Unix(0, mtime.Nanoseconds())
-}
-
-func mkMode(fa uint32) (m FileMode) {
-	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-		m |= ModeDir | 0111
-	}
-	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
-		m |= 0444
-	} else {
-		m |= 0666
-	}
-	return m
-}
-
-func mkSys(path string, atime, ctime syscall.Filetime) *winSys {
-	return &winSys{
-		path:  path,
-		atime: atime,
-		ctime: ctime,
-	}
-}
-
-func mkSysFromFI(i *syscall.ByHandleFileInformation) *winSys {
-	return &winSys{
-		atime: i.LastAccessTime,
-		ctime: i.CreationTime,
-		vol:   i.VolumeSerialNumber,
-		idxhi: i.FileIndexHigh,
-		idxlo: i.FileIndexLow,
-	}
-}
-
-func (s *winSys) loadFileId() error {
-	if s.path == "" {
-		// already done
-		return nil
-	}
-	s.Lock()
-	defer s.Unlock()
-	pathp, e := syscall.UTF16PtrFromString(s.path)
-	if e != nil {
-		return e
-	}
-	h, e := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
-	if e != nil {
-		return e
-	}
-	defer syscall.CloseHandle(h)
-	var i syscall.ByHandleFileInformation
-	e = syscall.GetFileInformationByHandle(syscall.Handle(h), &i)
-	if e != nil {
-		return e
-	}
-	s.path = ""
-	s.vol = i.VolumeSerialNumber
-	s.idxhi = i.FileIndexHigh
-	s.idxlo = i.FileIndexLow
-	return nil
-}
-
-func sameFile(sys1, sys2 interface{}) bool {
-	s1 := sys1.(*winSys)
-	s2 := sys2.(*winSys)
-	e := s1.loadFileId()
-	if e != nil {
-		panic(e)
-	}
-	e = s2.loadFileId()
-	if e != nil {
-		panic(e)
-	}
-	return s1.vol == s2.vol && s1.idxhi == s2.idxhi && s1.idxlo == s2.idxlo
-}
-
-// For testing.
-func atime(fi FileInfo) time.Time {
-	return time.Unix(0, fi.Sys().(*winSys).atime.Nanoseconds())
 }
