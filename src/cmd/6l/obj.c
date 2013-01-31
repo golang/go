@@ -108,6 +108,7 @@ main(int argc, char *argv[])
 	flagcount("d", "disable dynamic executable", &debug['d']);
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
+	flagcount("hostobj", "generate host object file", &isobj);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
 	flagcount("n", "dump symbol table", &debug['n']);
 	flagstr("o", "outfile: set output file", &outfile);
@@ -129,6 +130,15 @@ main(int argc, char *argv[])
 
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
+
+	if(isobj) {
+		switch(HEADTYPE) {
+		default:
+			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+		case Hlinux:
+			break;
+		}
+	}
 
 	if(outfile == nil) {
 		if(HEADTYPE == Hwindows)
