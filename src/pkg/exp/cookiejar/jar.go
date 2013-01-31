@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package cookiejar implements an RFC 6265-compliant http.CookieJar.
-//
-// TODO: example code to create a memory-backed cookie jar with the default
-// public suffix list.
+// Package cookiejar implements an in-memory RFC 6265-compliant http.CookieJar.
 package cookiejar
 
 import (
@@ -32,46 +29,34 @@ type PublicSuffixList interface {
 	// for IDN/Punycode.
 	PublicSuffix(domain string) string
 
-	// String returns a description of the source of this public suffix list.
-	// A Jar will store its PublicSuffixList's description in its storage,
-	// and update the stored cookies if its list has a different description
-	// than the stored list. The description will typically contain something
-	// like a time stamp or version number.
+	// String returns a description of the source of this public suffix
+	// list. The description will typically contain something like a time
+	// stamp or version number.
 	String() string
 }
 
 // Options are the options for creating a new Jar.
 type Options struct {
-	// Storage is the cookie jar storage. It may not be nil.
-	Storage Storage
-
-	// PublicSuffixList is the public suffix list that determines whether an
-	// HTTP server can set a cookie for a domain. It may not be nil.
+	// PublicSuffixList is the public suffix list that determines whether
+	// an HTTP server can set a cookie for a domain.
+	//
+	// A nil value is valid and may be useful for testing but it is not
+	// secure: it means that the HTTP server for foo.com can set a cookie
+	// for bar.com.
 	PublicSuffixList PublicSuffixList
-
-	// TODO: ErrorFunc for handling storage errors?
 }
 
 // Jar implements the http.CookieJar interface from the net/http package.
 type Jar struct {
-	storage Storage
-	psList  PublicSuffixList
+	psList PublicSuffixList
 }
 
-// New returns a new cookie jar.
-func New(o *Options) *Jar {
-	return &Jar{
-		storage: o.Storage,
-		psList:  o.PublicSuffixList,
-	}
+// New returns a new cookie jar. A nil *Options is equivalent to a zero
+// Options.
+func New(o *Options) (*Jar, error) {
+	// TODO.
+	return nil, nil
 }
-
-// TODO(nigeltao): how do we reject HttpOnly cookies? Do we post-process the
-// return value from Jar.Cookies?
-//
-// HttpOnly cookies are those for regular HTTP(S) requests but should not be
-// visible from JavaScript. The HttpOnly bit mitigates XSS attacks; it's not
-// for HTTP vs HTTPS vs FTP transports.
 
 // Cookies implements the Cookies method of the http.CookieJar interface.
 //
