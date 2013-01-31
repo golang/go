@@ -118,9 +118,9 @@ func (p *ProcessState) String() string {
 	case status.Exited():
 		res = "exit status " + itod(status.ExitStatus())
 	case status.Signaled():
-		res = "signal " + itod(int(status.Signal()))
+		res = "signal: " + status.Signal().String()
 	case status.Stopped():
-		res = "stop signal " + itod(int(status.StopSignal()))
+		res = "stop signal: " + status.StopSignal().String()
 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
 			res += " (trap " + itod(status.TrapCause()) + ")"
 		}
