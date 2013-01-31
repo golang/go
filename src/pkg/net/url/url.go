@@ -220,6 +220,12 @@ func escape(s string, mode encoding) string {
 //
 //	scheme:opaque[?query][#fragment]
 //
+// Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
+// A consequence is that it is impossible to tell which slashes in the Path were
+// slashes in the raw URL and which were %2f. This distinction is rarely important,
+// but when it is a client must use other routines to parse the raw URL or construct
+// the parsed URL. For example, an HTTP server can consult req.RequestURI, and
+// an HTTP client can use URL{Opaque: "/Go%2f"} instead of URL{Path: "/Go/"}.
 type URL struct {
 	Scheme   string
 	Opaque   string    // encoded opaque data
@@ -371,6 +377,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	if url.Scheme, rest, err = getscheme(rawurl); err != nil {
 		goto Error
 	}
+	url.Scheme = strings.ToLower(url.Scheme)
 
 	rest, url.RawQuery = split(rest, '?', true)
 

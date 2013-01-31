@@ -251,6 +251,15 @@ var urltests = []URLTest{
 		},
 		"file:///home/adg/rabbits",
 	},
+	// case-insensitive scheme
+	{
+		"MaIlTo:webmaster@golang.org",
+		&URL{
+			Scheme: "mailto",
+			Opaque: "webmaster@golang.org",
+		},
+		"mailto:webmaster@golang.org",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
