@@ -13,7 +13,7 @@
 //      0: disabled
 //      1: 40-nodes leaf functions, oneliners, lazy typechecking (default)
 //      2: early typechecking of all imported bodies 
-//      3: 
+//      3: allow variadic functions
 //      4: allow non-leaf functions , (breaks runtime.Caller)
 //      5: transitive inlining
 //
@@ -39,9 +39,10 @@ static int	ishairylist(NodeList *ll, int *budget);
 // Used by inlcalls
 static void	inlnodelist(NodeList *l);
 static void	inlnode(Node **np);
-static void	mkinlcall(Node **np, Node *fn);
+static void	mkinlcall(Node **np, Node *fn, int isddd);
 static Node*	inlvar(Node *n);
 static Node*	retvar(Type *n, int i);
+static Node*	argvar(Type *n, int i);
 static Node*	newlabel(void);
 static Node*	inlsubst(Node *n);
 static NodeList* inlsubstlist(NodeList *l);
@@ -131,9 +132,10 @@ caninl(Node *fn)
 		fatal("caninl on non-typechecked function %N", fn);
 
 	// can't handle ... args yet
-	for(t=fn->type->type->down->down->type; t; t=t->down)
-		if(t->isddd)
-			return;
+	if(debug['l'] < 3)
+		for(t=fn->type->type->down->down->type; t; t=t->down)
+			if(t->isddd)
+				return;
 
 	budget = 40;  // allowed hairyness
 	if(ishairylist(fn->nbody, &budget))
@@ -453,10 +455,10 @@ inlnode(Node **np)
 		if(debug['m']>3)
 			print("%L:call to func %+N\n", n->lineno, n->left);
 		if(n->left->inl)	// normal case
-			mkinlcall(np, n->left);
+			mkinlcall(np, n->left, n->isddd);
 		else if(n->left->op == ONAME && n->left->left && n->left->left->op == OTYPE && n->left->right &&  n->left->right->op == ONAME)  // methods called as functions
 			if(n->left->sym->def)
-				mkinlcall(np, n->left->sym->def);
+				mkinlcall(np, n->left->sym->def, n->isddd);
 		break;
 
 	case OCALLMETH:
@@ -469,7 +471,7 @@ inlnode(Node **np)
 		if(n->left->type->nname == N) 
 			fatal("no function definition for [%p] %+T\n", n->left->type, n->left->type);
 
-		mkinlcall(np, n->left->type->nname);
+		mkinlcall(np, n->left->type->nname, n->isddd);
 
 		break;
 	}
@@ -477,10 +479,10 @@ inlnode(Node **np)
 	lineno = lno;
 }
 
-static void	mkinlcall1(Node **np, Node *fn);
+static void	mkinlcall1(Node **np, Node *fn, int isddd);
 
 static void
-mkinlcall(Node **np, Node *fn)
+mkinlcall(Node **np, Node *fn, int isddd)
 {
 	int save_safemode;
 	Pkg *pkg;
@@ -492,7 +494,7 @@ mkinlcall(Node **np, Node *fn)
 	pkg = fnpkg(fn);
 	if(pkg != localpkg && pkg != nil)
 		safemode = 0;
-	mkinlcall1(np, fn);
+	mkinlcall1(np, fn, isddd);
 	safemode = save_safemode;
 }
 
@@ -513,13 +515,18 @@ tinlvar(Type *t)
 // inlined function body and list, rlist contain the input, output
 // parameters.
 static void
-mkinlcall1(Node **np, Node *fn)
+mkinlcall1(Node **np, Node *fn, int isddd)
 {
 	int i;
 	int chkargcount;
 	Node *n, *call, *saveinlfn, *as, *m;
 	NodeList *dcl, *ll, *ninit, *body;
 	Type *t;
+	// For variadic fn.
+	int variadic, varargcount, multiret;
+	Node *vararg;
+	NodeList *varargs;
+	Type *varargtype, *vararrtype;
 
 	if (fn->inl == nil)
 		return;
@@ -589,6 +596,40 @@ mkinlcall1(Node **np, Node *fn)
 		}
 	}
 
+	// check if inlined function is variadic.
+	variadic = 0;
+	varargtype = T;
+	varargcount = 0;
+	for(t=fn->type->type->down->down->type; t; t=t->down) {
+		if(t->isddd) {
+			variadic = 1;
+			varargtype = t->type;
+		}
+	}
+	// but if argument is dotted too forget about variadicity.
+	if(variadic && isddd)
+		variadic = 0;
+
+	// check if argument is actually a returned tuple from call.
+	multiret = 0;
+	if(n->list && !n->list->next) {
+		switch(n->list->n->op) {
+		case OCALL:
+		case OCALLFUNC:
+		case OCALLINTER:
+		case OCALLMETH:
+			if(n->list->n->left->type->outtuple > 1)
+				multiret = n->list->n->left->type->outtuple-1;
+		}
+	}
+
+	if(variadic) {
+		varargcount = count(n->list) + multiret;
+		if(n->left->op != ODOTMETH)
+			varargcount -= fn->type->thistuple;
+		varargcount -= fn->type->intuple - 1;
+	}
+
 	// assign arguments to the parameters' temp names
 	as = nod(OAS2, N, N);
 	as->rlist = n->list;
@@ -611,17 +652,69 @@ mkinlcall1(Node **np, Node *fn)
 
 	// append ordinary arguments to LHS.
 	chkargcount = n->list && n->list->next;
-	for(t = getinargx(fn->type)->type; t && (!chkargcount || ll); t=t->down) {
-		if(chkargcount && ll) {
-			// len(n->list) > 1, count arguments.
+	vararg = N;    // the slice argument to a variadic call
+	varargs = nil; // the list of LHS names to put in vararg.
+	if(!chkargcount) {
+		// 0 or 1 expression on RHS.
+		for(t = getinargx(fn->type)->type; t; t=t->down) {
+			if(variadic && t->isddd) {
+				vararg = tinlvar(t);
+				for(i=0; i<varargcount && ll; i++) {
+					m = argvar(varargtype, i);
+					varargs = list(varargs, m);
+					as->list = list(as->list, m);
+				}
+				break;
+			}
+			as->list = list(as->list, tinlvar(t));
+		}
+	} else {
+		// match arguments except final variadic (unless the call is dotted itself)
+		for(t = getinargx(fn->type)->type; t;) {
+			if(!ll)
+				break;
+			if(variadic && t->isddd)
+				break;
+			as->list = list(as->list, tinlvar(t));
+			t=t->down;
 			ll=ll->next;
 		}
-		as->list = list(as->list, tinlvar(t));
+		// match varargcount arguments with variadic parameters.
+		if(variadic && t && t->isddd) {
+			vararg = tinlvar(t);
+			for(i=0; i<varargcount && ll; i++) {
+				m = argvar(varargtype, i);
+				varargs = list(varargs, m);
+				as->list = list(as->list, m);
+				ll=ll->next;
+			}
+			if(i==varargcount)
+				t=t->down;
+		}
+		if(ll || t)
+			fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
 	}
-	if(chkargcount && (ll || t))
-		fatal("arg count mismatch: %#T  vs %,H\n",  getinargx(fn->type), n->list);
 
 	if (as->rlist) {
+		typecheck(&as, Etop);
+		ninit = list(ninit, as);
+	}
+
+	// turn the variadic args into a slice.
+	if(variadic) {
+		as = nod(OAS, vararg, N);
+		if(!varargcount) {
+			as->right = nodnil();
+			as->right->type = varargtype;
+		} else {
+			vararrtype = typ(TARRAY);
+			vararrtype->type = varargtype->type;
+			vararrtype->bound = varargcount;
+
+			as->right = nod(OCOMPLIT, N, typenod(varargtype));
+			as->right->list = varargs;
+			as->right = nod(OSLICE, as->right, nod(OKEY, N, N));
+		}
 		typecheck(&as, Etop);
 		ninit = list(ninit, as);
 	}
@@ -700,6 +793,23 @@ retvar(Type *t, int i)
 	Node *n;
 
 	snprint(namebuf, sizeof(namebuf), "~r%d", i);
+	n = newname(lookup(namebuf));
+	n->type = t->type;
+	n->class = PAUTO;
+	n->used = 1;
+	n->curfn = curfn;   // the calling function, not the called one
+	curfn->dcl = list(curfn->dcl, n);
+	return n;
+}
+
+// Synthesize a variable to store the inlined function's arguments
+// when they come from a multiple return call.
+static Node*
+argvar(Type *t, int i)
+{
+	Node *n;
+
+	snprint(namebuf, sizeof(namebuf), "~arg%d", i);
 	n = newname(lookup(namebuf));
 	n->type = t->type;
 	n->class = PAUTO;
