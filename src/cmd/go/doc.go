@@ -95,6 +95,9 @@ The build flags are shared by the build, install, run, and test commands:
 		See the documentation for the go/build package for
 		more information about build tags.
 
+The list flags accept a space-separated list of strings. To embed spaces
+in an element in the list, surround it with either single or double quotes.
+
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
 see 'go help gopath'.
@@ -272,7 +275,7 @@ List packages
 
 Usage:
 
-	go list [-e] [-f format] [-json] [packages]
+	go list [-e] [-f format] [-json] [-tags 'tag list'] [packages]
 
 List lists the packages named by the import paths, one per line.
 
@@ -299,14 +302,15 @@ which calls strings.Join. The struct being passed to the template is:
         Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles  []string     // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles []string     // .go sources files that import "C"
-        CFiles   []string     // .c source files
-        HFiles   []string     // .h source files
-        SFiles   []string     // .s source files
-        SysoFiles []string    // .syso object files to add to archive
-        SwigFiles []string    // .swig files
-        SwigCXXFiles []string // .swigcxx files
+        GoFiles  []string       // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string       // .go sources files that import "C"
+        IgnoredGoFiles []string // .go sources ignored due to build constraints
+        CFiles   []string       // .c source files
+        HFiles   []string       // .h source files
+        SFiles   []string       // .s source files
+        SysoFiles []string      // .syso object files to add to archive
+        SwigFiles []string      // .swig files
+        SwigCXXFiles []string   // .swigcxx files
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -340,6 +344,9 @@ error and instead processes the erroneous packages with the usual
 printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
+
+The -tags flag specifies a list of build tags, like in the 'go build'
+command.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -376,6 +383,7 @@ followed by detailed output for each failed package.
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".  These additional files can contain test functions,
 benchmark functions, and example functions.  See 'go help testfunc' for more.
+Each listed package causes the execution of a separate test binary.
 
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
@@ -748,6 +756,9 @@ will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
 
+The test flags that generate profiles also leave the test binary in pkg.test
+for use when analyzing the profiles.
+
 
 Description of testing functions
 
@@ -763,8 +774,8 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
 
 	func BenchmarkXXX(b *testing.B) { ... }
 
-An example function is similar to a test function but, instead of using *testing.T
-to report success or failure, prints output to os.Stdout and os.Stderr.
+An example function is similar to a test function but, instead of using
+*testing.T to report success or failure, prints output to os.Stdout.
 That output is compared against the function's "Output:" comment, which
 must be the last comment in the function body (see example below). An
 example with no such comment, or with no text after "Output:" is compiled

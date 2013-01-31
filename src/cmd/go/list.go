@@ -14,7 +14,7 @@ import (
 )
 
 var cmdList = &Command{
-	UsageLine: "list [-e] [-f format] [-json] [packages]",
+	UsageLine: "list [-e] [-f format] [-json] [-tags 'tag list'] [packages]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
@@ -42,14 +42,15 @@ which calls strings.Join. The struct being passed to the template is:
         Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles  []string     // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles []string     // .go sources files that import "C"
-        CFiles   []string     // .c source files
-        HFiles   []string     // .h source files
-        SFiles   []string     // .s source files
-        SysoFiles []string    // .syso object files to add to archive
-        SwigFiles []string    // .swig files
-        SwigCXXFiles []string // .swigcxx files
+        GoFiles  []string       // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string       // .go sources files that import "C"
+        IgnoredGoFiles []string // .go sources ignored due to build constraints
+        CFiles   []string       // .c source files
+        HFiles   []string       // .h source files
+        SFiles   []string       // .s source files
+        SysoFiles []string      // .syso object files to add to archive
+        SwigFiles []string      // .swig files
+        SwigCXXFiles []string   // .swigcxx files
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -84,6 +85,9 @@ printing.  Erroneous packages will have a non-empty ImportPath and
 a non-nil Error field; other information may or may not be missing
 (zeroed).
 
+The -tags flag specifies a list of build tags, like in the 'go build'
+command.
+
 For more about specifying packages, see 'go help packages'.
 	`,
 }
@@ -91,6 +95,7 @@ For more about specifying packages, see 'go help packages'.
 func init() {
 	cmdList.Run = runList // break init cycle
 	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
+	cmdList.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
 }
 
 var listE = cmdList.Flag.Bool("e", false, "")

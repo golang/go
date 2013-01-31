@@ -183,7 +183,7 @@ fi
 
 # issue 4186. go get cannot be used to download packages to $GOROOT
 # Test that without GOPATH set, go get should fail
-d=$(mktemp -d)
+d=$(mktemp -d -t testgo)
 mkdir -p $d/src/pkg
 if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
 	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
@@ -191,12 +191,92 @@ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch
 fi	
 rm -rf $d
 # Test that with GOPATH=$GOROOT, go get should fail
-d=$(mktemp -d)
+d=$(mktemp -d -t testgo)
 mkdir -p $d/src/pkg
 if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
         echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
         ok=false
 fi
+rm -rf $d
+
+# issue 3941: args with spaces
+d=$(mktemp -d -t testgo)
+cat >$d/main.go<<EOF
+package main
+var extern string
+func main() {
+	println(extern)
+}
+EOF
+./testgo run -ldflags '-X main.extern "hello world"' $d/main.go 2>hello.out
+if ! grep -q '^hello world' hello.out; then
+	echo "ldflags -X main.extern 'hello world' failed. Output:"
+	cat hello.out
+	ok=false
+fi
+rm -rf $d
+
+# test that go test -cpuprofile leaves binary behind
+./testgo test -cpuprofile strings.prof strings || ok=false
+if [ ! -x strings.test ]; then
+	echo "go test -cpuprofile did not create strings.test"
+	ok=false
+fi
+rm -f strings.prof strings.test
+
+# issue 4568. test that symlinks don't screw things up too badly.
+old=$(pwd)
+d=$(mktemp -d -t testgo)
+mkdir -p $d/src
+(
+	ln -s $d $d/src/dir1
+	cd $d/src/dir1
+	echo package p >p.go
+	export GOPATH=$d
+	if [ "$($old/testgo list -f '{{.Root}}' .)" != "$d" ]; then
+		echo got lost in symlink tree:
+		pwd
+		env|grep WD
+		$old/testgo list -json . dir1
+		touch $d/failed
+	fi		
+)
+if [ -f $d/failed ]; then
+	ok=false
+fi
+rm -rf $d
+
+# issue 4515.
+d=$(mktemp -d -t testgo)
+mkdir -p $d/src/example/a $d/src/example/b $d/bin
+cat >$d/src/example/a/main.go <<EOF
+package main
+func main() {}
+EOF
+cat >$d/src/example/b/main.go <<EOF
+// +build mytag
+
+package main
+func main() {}
+EOF
+GOPATH=$d ./testgo install -tags mytag example/a example/b || ok=false
+if [ ! -x $d/bin/a -o ! -x $d/bin/b ]; then
+	echo go install example/a example/b did not install binaries
+	ok=false
+fi
+rm -f $d/bin/*
+GOPATH=$d ./testgo install -tags mytag example/... || ok=false
+if [ ! -x $d/bin/a -o ! -x $d/bin/b ]; then
+	echo go install example/... did not install binaries
+	ok=false
+fi
+rm -f $d/bin/*go
+export GOPATH=$d
+if [ "$(./testgo list -tags mytag example/b...)" != "example/b" ]; then
+	echo go list example/b did not find example/b
+	ok=false
+fi
+unset GOPATH
 rm -rf $d
 
 # clean up

@@ -134,6 +134,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			passToTest = append(passToTest, args[i])
 			continue
 		}
+		var err error
 		switch f.name {
 		// bool flags.
 		case "a", "c", "i", "n", "x", "v", "work", "race":
@@ -141,11 +142,20 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		case "p":
 			setIntFlag(&buildP, value)
 		case "gcflags":
-			buildGcflags = strings.Fields(value)
+			buildGcflags, err = splitQuotedFields(value)
+			if err != nil {
+				fatalf("invalid flag argument for -%s: %v", f.name, err)
+			}
 		case "ldflags":
-			buildLdflags = strings.Fields(value)
+			buildLdflags, err = splitQuotedFields(value)
+			if err != nil {
+				fatalf("invalid flag argument for -%s: %v", f.name, err)
+			}
 		case "gccgoflags":
-			buildGccgoflags = strings.Fields(value)
+			buildGccgoflags, err = splitQuotedFields(value)
+			if err != nil {
+				fatalf("invalid flag argument for -%s: %v", f.name, err)
+			}
 		case "tags":
 			buildContext.BuildTags = strings.Fields(value)
 		case "compiler":
@@ -157,6 +167,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			testBench = true
 		case "timeout":
 			testTimeout = value
+		case "blockprofile", "cpuprofile", "memprofile":
+			testProfile = true
 		}
 		if extraWord {
 			i++
