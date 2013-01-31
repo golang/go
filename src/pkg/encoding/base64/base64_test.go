@@ -257,6 +257,7 @@ func TestDecoderIssue3577(t *testing.T) {
 	wantErr := errors.New("my error")
 	next <- nextRead{5, nil}
 	next <- nextRead{10, wantErr}
+	next <- nextRead{0, wantErr}
 	d := NewDecoder(StdEncoding, &faultInjectReader{
 		source: "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==", // twas brillig...
 		nextc:  next,
