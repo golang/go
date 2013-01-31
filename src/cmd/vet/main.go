@@ -15,6 +15,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,12 +28,13 @@ var exitCode = 0
 // Flags to control which checks to perform
 var (
 	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
+	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
+	vetBuildTags       = flag.Bool("buildtags", false, "check that +build tags are valid")
 	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
 	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
 	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
-	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
 	vetRangeLoops      = flag.Bool("rangeloops", false, "check that range loop variables are used correctly")
-	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
+	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
 )
 
 // setExit sets the value for os.Exit when it is called, later.  It
@@ -108,8 +110,23 @@ func main() {
 // doFile analyzes one file.  If the reader is nil, the source code is read from the
 // named file.
 func doFile(name string, reader io.Reader) {
+	if reader == nil {
+		f, err := os.Open(name)
+		if err != nil {
+			errorf("%s: %s", name, err)
+			return
+		}
+		defer f.Close()
+		reader = f
+	}
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		errorf("%s: %s", name, err)
+		return
+	}
+	checkBuildTag(name, data)
 	fs := token.NewFileSet()
-	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
+	parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
 	if err != nil {
 		errorf("%s: %s", name, err)
 		return
