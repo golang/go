@@ -222,11 +222,16 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 			continue
 		}
 		f := &fileStat{
-			name:    name,
-			size:    mkSize(d.FileSizeHigh, d.FileSizeLow),
-			modTime: mkModTime(d.LastWriteTime),
-			mode:    mkMode(d.FileAttributes),
-			sys:     mkSys(file.dirinfo.path+`\`+name, d.LastAccessTime, d.CreationTime),
+			name: name,
+			sys: syscall.Win32FileAttributeData{
+				FileAttributes: d.FileAttributes,
+				CreationTime:   d.CreationTime,
+				LastAccessTime: d.LastAccessTime,
+				LastWriteTime:  d.LastWriteTime,
+				FileSizeHigh:   d.FileSizeHigh,
+				FileSizeLow:    d.FileSizeLow,
+			},
+			path: file.dirinfo.path + `\` + name,
 		}
 		n--
 		fi = append(fi, f)

@@ -99,21 +99,8 @@ func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
-type fileStat struct {
-	name    string
-	size    int64
-	mode    FileMode
-	modTime time.Time
-	sys     interface{}
-}
-
-func (fs *fileStat) Name() string       { return fs.name }
-func (fs *fileStat) Size() int64        { return fs.size }
-func (fs *fileStat) Mode() FileMode     { return fs.mode }
-func (fs *fileStat) ModTime() time.Time { return fs.modTime }
-func (fs *fileStat) IsDir() bool        { return fs.mode.IsDir() }
-func (fs *fileStat) Sys() interface{}   { return fs.sys }
+func (fs *fileStat) Name() string { return fs.name }
+func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
 
 // SameFile reports whether fi1 and fi2 describe the same file.
 // For example, on Unix this means that the device and inode fields
@@ -127,5 +114,5 @@ func SameFile(fi1, fi2 FileInfo) bool {
 	if !ok1 || !ok2 {
 		return false
 	}
-	return sameFile(fs1.sys, fs2.sys)
+	return sameFile(fs1, fs2)
 }

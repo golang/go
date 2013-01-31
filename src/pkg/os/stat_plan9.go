@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-func sameFile(sys1, sys2 interface{}) bool {
-	a := sys1.(*syscall.Dir)
-	b := sys2.(*syscall.Dir)
+func sameFile(fs1, fs2 *fileStat) bool {
+	a := fs1.sys.(*syscall.Dir)
+	b := fs2.sys.(*syscall.Dir)
 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
 }
 

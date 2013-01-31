@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-func sameFile(sys1, sys2 interface{}) bool {
-	stat1 := sys1.(*syscall.Stat_t)
-	stat2 := sys2.(*syscall.Stat_t)
+func sameFile(fs1, fs2 *fileStat) bool {
+	stat1 := fs1.sys.(*syscall.Stat_t)
+	stat2 := fs2.sys.(*syscall.Stat_t)
 	return stat1.Dev == stat2.Dev && stat1.Ino == stat2.Ino
 }
 
