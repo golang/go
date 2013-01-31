@@ -266,6 +266,35 @@ adddynrel(Sym *s, Reloc *r)
 	diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ->name, r->type, targ->type);
 }
 
+int
+elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+{
+	USED(add);	// written to obj file by ../ld/data.c's reloc
+
+	LPUT(off);
+
+	switch(r->type) {
+	default:
+		return -1;
+
+	case D_ADDR:
+		if(r->siz == 4)
+			LPUT(R_386_32 | elfsym<<8);
+		else
+			return -1;
+		break;
+
+	case D_PCREL:
+		if(r->siz == 4)
+			LPUT(R_386_PC32 | elfsym<<8);
+		else
+			return -1;
+		break;
+	}
+
+	return 0;
+}
+
 void
 elfsetupplt(void)
 {
@@ -633,6 +662,9 @@ asmb(void)
 				if(debug['v'])
 					Bprint(&bso, "%5.2f dwarf\n", cputime());
 				dwarfemitdebugsections();
+				
+				if(isobj)
+					elfemitreloc();
 			}
 			break;
 		case Hplan9x32:

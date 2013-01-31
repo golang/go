@@ -239,6 +239,35 @@ adddynrel(Sym *s, Reloc *r)
 	diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ->name, r->type, targ->type);
 }
 
+int
+elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+{
+	USED(add);	// written to obj file by ../ld/data.c's reloc
+
+	LPUT(off);
+
+	switch(r->type) {
+	default:
+		return -1;
+
+	case D_ADDR:
+		if(r->siz == 4)
+			LPUT(R_ARM_ABS32 | elfsym<<8);
+		else
+			return -1;
+		break;
+
+	case D_PCREL:
+		if(r->siz == 4)
+			LPUT(R_ARM_REL32 | elfsym<<8);
+		else
+			return -1;
+		break;
+	}
+
+	return 0;
+}
+
 void
 elfsetupplt(void)
 {
@@ -573,6 +602,9 @@ asmb(void)
 				if(debug['v'])
 					Bprint(&bso, "%5.2f dwarf\n", cputime());
 				dwarfemitdebugsections();
+				
+				if(isobj)
+					elfemitreloc();
 			}
 			break;
 		case Hplan9x32:
@@ -809,6 +841,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 
 	case 5:		/* bra s */
 		v = -8;
+		// TODO: Use addrel.
 		if(p->cond != P)
 			v = (p->cond->pc - pc) - 8;
 		o1 = opbra(p->as, p->scond);
@@ -1481,6 +1514,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		// It's not supposed to be reached, ever, but if it is, we'd
 		// like to be able to tell how we got there.  Assemble as
 		//	BL $0
+		// TODO: Use addrel.
 		v = (0 - pc) - 8;
 		o1 = opbra(ABL, C_SCOND_NONE);
 		o1 |= (v >> 2) & 0xffffff;

@@ -285,6 +285,37 @@ adddynrel(Sym *s, Reloc *r)
 }
 
 int
+elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+{
+	VPUT(off);
+
+	switch(r->type) {
+	default:
+		return -1;
+
+	case D_ADDR:
+		if(r->siz == 4)
+			VPUT(R_X86_64_32 | (uint64)elfsym<<32);
+		else if(r->siz == 8)
+			VPUT(R_X86_64_64 | (uint64)elfsym<<32);
+		else
+			return -1;
+		break;
+
+	case D_PCREL:
+		if(r->siz == 4)
+			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
+		else
+			return -1;
+		add -= r->siz;
+		break;
+	}
+
+	VPUT(add);
+	return 0;
+}
+
+int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
 	USED(r);
@@ -674,6 +705,9 @@ asmb(void)
 				       Bprint(&bso, "%5.2f dwarf\n", cputime());
 
 				dwarfemitdebugsections();
+				
+				if(isobj)
+					elfemitreloc();
 			}
 			break;
 		case Hplan9x64:

@@ -1400,6 +1400,19 @@ headtype(char *name)
 	return -1;  // not reached
 }
 
+char*
+headstr(int v)
+{
+	static char buf[20];
+	int i;
+
+	for(i=0; headers[i].name; i++)
+		if(v == headers[i].val)
+			return headers[i].name;
+	snprint(buf, sizeof buf, "%d", v);
+	return buf;
+}
+
 void
 undef(void)
 {

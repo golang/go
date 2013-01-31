@@ -109,6 +109,8 @@ struct Section
 	Section	*next;	// in segment list
 	Segment	*seg;
 	struct Elf64_Shdr *elfsect;
+	uvlong	reloff;
+	uvlong	rellen;
 };
 
 extern	char	symname[];
@@ -137,6 +139,7 @@ EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
+EXTERN	int	isobj;
 EXTERN	int	elfglobalsymndx;
 EXTERN	int	flag_race;
 EXTERN	int flag_shared;
@@ -302,6 +305,7 @@ EXTERN	char*	headstring;
 extern	Header	headers[];
 
 int	headtype(char*);
+char*	headstr(int);
 void	setheadtype(char*);
 
 int	Yconv(Fmt*);

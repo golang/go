@@ -758,12 +758,124 @@ elfshbits(Section *sect)
 		sh->flags |= SHF_EXECINSTR;
 	if(sect->rwx & 2)
 		sh->flags |= SHF_WRITE;
-	sh->addr = sect->vaddr;
+	if(!isobj)
+		sh->addr = sect->vaddr;
 	sh->addralign = PtrSize;
 	sh->size = sect->len;
 	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 
 	return sh;
+}
+
+ElfShdr*
+elfshreloc(Section *sect)
+{
+	int typ;
+	ElfShdr *sh;
+	char *prefix;
+	char buf[100];
+	
+	// If main section is SHT_NOBITS, nothing to relocate.
+	// Also nothing to relocate in .shstrtab.
+	if(sect->vaddr >= sect->seg->vaddr + sect->seg->filelen)
+		return nil;
+	if(strcmp(sect->name, ".shstrtab") == 0)
+		return nil;
+
+	if(thechar == '6') {
+		prefix = ".rela";
+		typ = SHT_RELA;
+	} else {
+		prefix = ".rel";
+		typ = SHT_REL;
+	}
+
+	snprint(buf, sizeof buf, "%s%s", prefix, sect->name);
+	sh = elfshname(buf);
+	sh->type = typ;
+	sh->entsize = PtrSize*(2+(typ==SHT_RELA));
+	sh->link = elfshname(".symtab")->shnum;
+	sh->info = sect->elfsect->shnum;
+	sh->off = sect->reloff;
+	sh->size = sect->rellen;
+	sh->addralign = PtrSize;
+	return sh;
+}
+
+void
+elfrelocsect(Section *sect, Sym *first)
+{
+	Sym *sym, *rs;
+	int32 eaddr;
+	Reloc *r;
+	int64 add;
+
+	// If main section is SHT_NOBITS, nothing to relocate.
+	// Also nothing to relocate in .shstrtab.
+	if(sect->vaddr >= sect->seg->vaddr + sect->seg->filelen)
+		return;
+	if(strcmp(sect->name, ".shstrtab") == 0)
+		return;
+
+	sect->reloff = cpos();
+	for(sym = first; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= sect->vaddr)
+			break;
+	}
+	
+	eaddr = sect->vaddr + sect->len;
+	for(; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= eaddr)
+			break;
+		cursym = sym;
+		
+		for(r = sym->r; r < sym->r+sym->nr; r++) {
+			// Ignore relocations handled by reloc already.
+			switch(r->type) {
+			case D_SIZE:
+				continue;
+			case D_ADDR:
+			case D_PCREL:
+				if(r->sym->type == SCONST)
+					continue;
+				break;
+			}
+
+			add = r->add;
+			rs = r->sym;
+			while(rs->outer != nil) {
+				add += rs->value - rs->outer->value;
+				rs = rs->outer;
+			}
+				
+			if(rs->elfsym == 0)
+				diag("reloc %d to non-elf symbol %s (rs=%s) %d", r->type, r->sym->name, rs->name, rs->type);
+
+			if(elfreloc1(r, sym->value - sect->vaddr + r->off, rs->elfsym, add) < 0)
+				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+		}
+	}
+		
+	sect->rellen = cpos() - sect->reloff;
+}	
+	
+void
+elfemitreloc(void)
+{
+	Section *sect;
+
+	while(cpos()&7)
+		cput(0);
+
+	elfrelocsect(segtext.sect, textp);
+	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
+		elfrelocsect(sect, datap);	
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		elfrelocsect(sect, datap);	
 }
 
 void
@@ -800,6 +912,33 @@ doelf(void)
 	addstring(shstrtab, ".gcbss");
 	addstring(shstrtab, ".gosymtab");
 	addstring(shstrtab, ".gopclntab");
+	
+	if(isobj) {
+		debug['s'] = 0;
+		debug['d'] = 1;
+
+		if(thechar == '6') {
+			addstring(shstrtab, ".rela.text");
+			addstring(shstrtab, ".rela.rodata");
+			addstring(shstrtab, ".rela.typelink");
+			addstring(shstrtab, ".rela.gcdata");
+			addstring(shstrtab, ".rela.gcbss");
+			addstring(shstrtab, ".rela.gosymtab");
+			addstring(shstrtab, ".rela.gopclntab");
+			addstring(shstrtab, ".rela.noptrdata");
+			addstring(shstrtab, ".rela.data");
+		} else {
+			addstring(shstrtab, ".rel.text");
+			addstring(shstrtab, ".rel.rodata");
+			addstring(shstrtab, ".rel.typelink");
+			addstring(shstrtab, ".rel.gcdata");
+			addstring(shstrtab, ".rel.gcbss");
+			addstring(shstrtab, ".rel.gosymtab");
+			addstring(shstrtab, ".rel.gopclntab");
+			addstring(shstrtab, ".rel.noptrdata");
+			addstring(shstrtab, ".rel.data");
+		}
+	}
 
 	if(!debug['s']) {
 		addstring(shstrtab, ".symtab");
@@ -1004,6 +1143,14 @@ asmbelf(vlong symo)
 
 	startva = INITTEXT - HEADR;
 	resoff = ELFRESERVE;
+	
+	pph = nil;
+	if(isobj) {
+		/* skip program headers */
+		eh->phoff = 0;
+		eh->phentsize = 0;
+		goto elfobj;
+	}
 
 	/* program header info */
 	pph = newElfPhdr();
@@ -1238,17 +1385,29 @@ asmbelf(vlong symo)
 	ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
 	ph->align = PtrSize;
 
+elfobj:
 	sh = elfshname(".shstrtab");
 	sh->type = SHT_STRTAB;
 	sh->addralign = 1;
 	shsym(sh, lookup(".shstrtab", 0));
 	eh->shstrndx = sh->shnum;
 
+	// put these sections early in the list
+	elfshname(".symtab");
+	elfshname(".strtab");
+
 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
 
+	if(isobj) {
+		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+			elfshreloc(sect);
+		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+			elfshreloc(sect);
+	}
+		
 	if(!debug['s']) {
 		sh = elfshname(".symtab");
 		sh->type = SHT_SYMTAB;
@@ -1265,7 +1424,9 @@ asmbelf(vlong symo)
 		sh->size = elfstrsize;
 		sh->addralign = 1;
 
-		dwarfaddelfheaders();
+		// TODO(rsc): Enable for isobj too, once we know it works.
+		if(!isobj)
+			dwarfaddelfheaders();
 	}
 
 	/* Main header */
@@ -1288,14 +1449,20 @@ asmbelf(vlong symo)
 
 	if(flag_shared)
 		eh->type = ET_DYN;
+	else if(isobj)
+		eh->type = ET_REL;
 	else
 		eh->type = ET_EXEC;
 
-	eh->version = EV_CURRENT;
-	eh->entry = entryvalue();
+	if(!isobj)
+		eh->entry = entryvalue();
 
-	pph->filesz = eh->phnum * eh->phentsize;
-	pph->memsz = pph->filesz;
+	eh->version = EV_CURRENT;
+
+	if(pph != nil) {
+		pph->filesz = eh->phnum * eh->phentsize;
+		pph->memsz = pph->filesz;
+	}
 
 	cseek(0);
 	a = 0;
@@ -1304,12 +1471,14 @@ asmbelf(vlong symo)
 	a += elfwriteshdrs();
 	if(!debug['d'])
 		a += elfwriteinterp();
-	if(HEADTYPE == Hnetbsd)
-		a += elfwritenetbsdsig();
-	if(HEADTYPE == Hopenbsd)
-		a += elfwriteopenbsdsig();
-	if(buildinfolen > 0)
-		a += elfwritebuildinfo();
+	if(!isobj) {
+		if(HEADTYPE == Hnetbsd)
+			a += elfwritenetbsdsig();
+		if(HEADTYPE == Hopenbsd)
+			a += elfwriteopenbsdsig();
+		if(buildinfolen > 0)
+			a += elfwritebuildinfo();
+	}
 	if(a > ELFRESERVE)	
 		diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 }
