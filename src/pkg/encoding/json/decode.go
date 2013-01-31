@@ -33,6 +33,10 @@ import (
 // the value pointed at by the pointer.  If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
+// To unmarshal JSON into a struct, Unmarshal matches incoming object
+// keys to the keys used by Marshal (either the struct field name or its tag),
+// preferring an exact match but also accepting a case-insensitive match.
+//
 // To unmarshal JSON into an interface value, Unmarshal unmarshals
 // the JSON into the concrete value contained in the interface value.
 // If the interface value is nil, that is, has no concrete value stored in it,
