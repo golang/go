@@ -23,7 +23,7 @@ type score struct {
 // An action transitions stochastically to a resulting score.
 type action func(current score) (result score, turnIsOver bool)
 
-// roll returns the (result, turnIsOver) outcome of simulating a die roll. 
+// roll returns the (result, turnIsOver) outcome of simulating a die roll.
 // If the roll value is 1, then thisTurn score is abandoned, and the players'
 // roles swap.  Otherwise, the roll value is added to thisTurn.
 func roll(s score) (score, bool) {
