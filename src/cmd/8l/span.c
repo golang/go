@@ -794,19 +794,71 @@ uchar	ymovtab[] =
 	0
 };
 
+// byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
+// which is not referenced in a->type.
+// If a is empty, it returns BX to account for MULB-like instructions
+// that might use DX and AX.
 int
-isax(Adr *a)
+byteswapreg(Adr *a)
 {
+	int cana, canb, canc, cand;
+
+	cana = canb = canc = cand = 1;
 
 	switch(a->type) {
+	case D_NONE:
+		cana = cand = 0;
+		break;
 	case D_AX:
 	case D_AL:
 	case D_AH:
 	case D_INDIR+D_AX:
-		return 1;
+		cana = 0;
+		break;
+	case D_BX:
+	case D_BL:
+	case D_BH:
+	case D_INDIR+D_BX:
+		canb = 0;
+		break;
+	case D_CX:
+	case D_CL:
+	case D_CH:
+	case D_INDIR+D_CX:
+		canc = 0;
+		break;
+	case D_DX:
+	case D_DL:
+	case D_DH:
+	case D_INDIR+D_DX:
+		cand = 0;
+		break;
 	}
-	if(a->index == D_AX)
-		return 1;
+	switch(a->index) {
+	case D_AX:
+		cana = 0;
+		break;
+	case D_BX:
+		canb = 0;
+		break;
+	case D_CX:
+		canc = 0;
+		break;
+	case D_DX:
+		cand = 0;
+		break;
+	}
+	if(cana)
+		return D_AX;
+	if(canb)
+		return D_BX;
+	if(canc)
+		return D_CX;
+	if(cand)
+		return D_DX;
+
+	diag("impossible byte register");
+	errorexit();
 	return 0;
 }
 
@@ -879,7 +931,7 @@ doasm(Prog *p)
 	Optab *o;
 	Prog *q, pp;
 	uchar *t;
-	int z, op, ft, tt;
+	int z, op, ft, tt, breg;
 	int32 v, pre;
 	Reloc rel, *r;
 	Adr *a;
@@ -1272,15 +1324,13 @@ bad:
 	pp = *p;
 	z = p->from.type;
 	if(z >= D_BP && z <= D_DI) {
-		if(isax(&p->to) || p->to.type == D_NONE) {
-			// We certainly don't want to exchange
-			// with AX if the op is MUL or DIV.
+		if((breg = byteswapreg(&p->to)) != D_AX) {
 			*andptr++ = 0x87;			/* xchg lhs,bx */
-			asmand(&p->from, reg[D_BX]);
-			subreg(&pp, z, D_BX);
+			asmand(&p->from, reg[breg]);
+			subreg(&pp, z, breg);
 			doasm(&pp);
 			*andptr++ = 0x87;			/* xchg lhs,bx */
-			asmand(&p->from, reg[D_BX]);
+			asmand(&p->from, reg[breg]);
 		} else {
 			*andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
 			subreg(&pp, z, D_AX);
@@ -1291,13 +1341,13 @@ bad:
 	}
 	z = p->to.type;
 	if(z >= D_BP && z <= D_DI) {
-		if(isax(&p->from)) {
+		if((breg = byteswapreg(&p->from)) != D_AX) {
 			*andptr++ = 0x87;			/* xchg rhs,bx */
-			asmand(&p->to, reg[D_BX]);
-			subreg(&pp, z, D_BX);
+			asmand(&p->to, reg[breg]);
+			subreg(&pp, z, breg);
 			doasm(&pp);
 			*andptr++ = 0x87;			/* xchg rhs,bx */
-			asmand(&p->to, reg[D_BX]);
+			asmand(&p->to, reg[breg]);
 		} else {
 			*andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
 			subreg(&pp, z, D_AX);
