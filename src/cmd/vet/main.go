@@ -25,7 +25,8 @@ import (
 var verbose = flag.Bool("v", false, "verbose")
 var exitCode = 0
 
-// Flags to control which checks to perform
+// Flags to control which checks to perform.
+// NOTE: Add new flags to the if statement at the top of func main too.
 var (
 	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
 	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
@@ -65,7 +66,7 @@ func main() {
 	flag.Parse()
 
 	// If a check is named explicitly, turn off the 'all' flag.
-	if *vetMethods || *vetPrintf || *vetStructTags || *vetUntaggedLiteral || *vetRangeLoops {
+	if *vetAtomic || *vetBuildTags || *vetMethods || *vetPrintf || *vetStructTags || *vetRangeLoops || *vetUntaggedLiteral {
 		*vetAll = false
 	}
 
