@@ -79,6 +79,9 @@ The build flags are shared by the build, install, run, and test commands:
 		See the documentation for the go/build package for
 		more information about build tags.
 
+The list flags accept a space-separated list of strings. To embed spaces
+in an element in the list, surround it with either single or double quotes.
+
 For more about specifying packages, see 'go help packages'.
 For more about where packages and binaries are installed,
 see 'go help gopath'.
@@ -167,11 +170,52 @@ func addBuildFlagsNX(cmd *Command) {
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
 }
 
+func isSpaceByte(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
 type stringsFlag []string
 
 func (v *stringsFlag) Set(s string) error {
-	*v = strings.Fields(s)
-	return nil
+	var err error
+	*v, err = splitQuotedFields(s)
+	return err
+}
+
+func splitQuotedFields(s string) ([]string, error) {
+	// Split fields allowing '' or "" around elements.
+	// Quotes further inside the string do not count.
+	var f []string
+	for len(s) > 0 {
+		for len(s) > 0 && isSpaceByte(s[0]) {
+			s = s[1:]
+		}
+		if len(s) == 0 {
+			break
+		}
+		// Accepted quoted string. No unescaping inside.
+		if s[0] == '"' || s[0] == '\'' {
+			quote := s[0]
+			s = s[1:]
+			i := 0
+			for i < len(s) && s[i] != quote {
+				i++
+			}
+			if i >= len(s) {
+				return nil, fmt.Errorf("unterminated %c string", quote)
+			}
+			f = append(f, s[:i])
+			s = s[i+1:]
+			continue
+		}
+		i := 0
+		for i < len(s) && !isSpaceByte(s[i]) {
+			i++
+		}
+		f = append(f, s[:i])
+		s = s[i:]
+	}
+	return f, nil
 }
 
 func (v *stringsFlag) String() string {
@@ -244,7 +288,7 @@ func runInstall(cmd *Command, args []string) {
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
-			errorf("go install: no install location for %s", p.ImportPath)
+			errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
 		}
 	}
 	exitIfErrors()
@@ -514,9 +558,18 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		a.f = (*builder).build
 		a.target = a.objpkg
 		if a.link {
-			// An executable file.
-			// (This is the name of a temporary file.)
-			a.target = a.objdir + "a.out" + exeSuffix
+			// An executable file. (This is the name of a temporary file.)
+			// Because we run the temporary file in 'go run' and 'go test',
+			// the name will show up in ps listings. If the caller has specified
+			// a name, use that instead of a.out. The binary is generated
+			// in an otherwise empty subdirectory named exe to avoid
+			// naming conflicts.  The only possible conflict is if we were
+			// to create a top-level package named exe.
+			name := "a.out"
+			if p.exeName != "" {
+				name = p.exeName
+			}
+			a.target = a.objdir + filepath.Join("exe", name) + exeSuffix
 		}
 	}
 
@@ -688,6 +741,14 @@ func (b *builder) build(a *action) (err error) {
 	obj := a.objdir
 	if err := b.mkdir(obj); err != nil {
 		return err
+	}
+
+	// make target directory
+	dir, _ := filepath.Split(a.target)
+	if dir != "" {
+		if err := b.mkdir(dir); err != nil {
+			return err
+		}
 	}
 
 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
@@ -914,7 +975,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
 			incMap[dir] = true
 			if _, ok := buildToolchain.(gccgcToolchain); ok {
-				dir = filepath.Join(dir, "gccgo")
+				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
 			} else {
 				dir = filepath.Join(dir, goos+"_"+goarch)
 				if buildRace {

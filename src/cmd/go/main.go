@@ -129,6 +129,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
+			if strings.Contains(p, "~") && runtime.GOOS != "windows" {
+				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot contain shell metacharacter '~': %q\n", p)
+				os.Exit(2)
+			}
 			if build.IsLocalImport(p) {
 				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
 				os.Exit(2)

@@ -204,7 +204,7 @@ func download(arg string, stk *importStack) {
 	// due to wildcard expansion.
 	for _, p := range pkgs {
 		if *getFix {
-			run(stringList(tool("fix"), relPaths(p.gofiles)))
+			run(stringList(tool("fix"), relPaths(p.allgofiles)))
 
 			// The imports might have changed, so reload again.
 			p = reloadPackage(arg, stk)

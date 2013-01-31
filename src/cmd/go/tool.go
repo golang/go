@@ -100,7 +100,14 @@ func runTool(cmd *Command, args []string) {
 	}
 	err := toolCmd.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+		// Only print about the exit status if the command
+		// didn't even run (not an ExitError) or it didn't exit cleanly
+		// or we're printing command lines too (-x mode).
+		// Assume if command exited cleanly (even with non-zero status)
+		// it printed any messages it wanted to print.
+		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || buildX {
+			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+		}
 		setExitStatus(1)
 		return
 	}

@@ -117,12 +117,27 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
 		return f(root, dir)
 	}
 
-	if p, err := filepath.EvalSymlinks(root); err == nil {
-		root = p
+	// Try using paths we received.
+	if rel, ok = hasSubdir(root, dir); ok {
+		return
 	}
-	if p, err := filepath.EvalSymlinks(dir); err == nil {
-		dir = p
+
+	// Try expanding symlinks and comparing
+	// expanded against unexpanded and
+	// expanded against expanded.
+	rootSym, _ := filepath.EvalSymlinks(root)
+	dirSym, _ := filepath.EvalSymlinks(dir)
+
+	if rel, ok = hasSubdir(rootSym, dir); ok {
+		return
 	}
+	if rel, ok = hasSubdir(root, dirSym); ok {
+		return
+	}
+	return hasSubdir(rootSym, dirSym)
+}
+
+func hasSubdir(root, dir string) (rel string, ok bool) {
 	const sep = string(filepath.Separator)
 	root = filepath.Clean(root)
 	if !strings.HasSuffix(root, sep) {
@@ -179,6 +194,21 @@ func (ctxt *Context) gopath() []string {
 			// but would cause us to find packages with import paths
 			// like "pkg/math".
 			// Do not get confused by this common mistake.
+			continue
+		}
+		if strings.Contains(p, "~") && runtime.GOOS != "windows" {
+			// Path segments containing ~ on Unix are almost always
+			// users who have incorrectly quoted ~ while setting GOPATH,
+			// preventing it from expanding to $HOME.
+			// The situation is made more confusing by the fact that
+			// bash allows quoted ~ in $PATH (most shells do not).
+			// Do not get confused by this, and do not try to use the path.
+			// It does not exist, and printing errors about it confuses
+			// those users even more, because they think "sure ~ exists!".
+			// The go command diagnoses this situation and prints a
+			// useful error.
+			// On Windows, ~ is used in short names, such as c:\progra~1
+			// for c:\program files.
 			continue
 		}
 		all = append(all, p)
@@ -284,14 +314,15 @@ type Package struct {
 	PkgObj     string // installed .a file
 
 	// Source files
-	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles     []string // .go source files that import "C"
-	CFiles       []string // .c source files
-	HFiles       []string // .h source files
-	SFiles       []string // .s source files
-	SysoFiles    []string // .syso system object files to add to archive
-	SwigFiles    []string // .swig files
-	SwigCXXFiles []string // .swigcxx files
+	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles       []string // .go source files that import "C"
+	IgnoredGoFiles []string // .go source files ignored for this build
+	CFiles         []string // .c source files
+	HFiles         []string // .h source files
+	SFiles         []string // .s source files
+	SysoFiles      []string // .syso system object files to add to archive
+	SwigFiles      []string // .swig files
+	SwigCXXFiles   []string // .swigcxx files
 
 	// Cgo directives
 	CgoPkgConfig []string // Cgo pkg-config directives
@@ -519,15 +550,20 @@ Found:
 			strings.HasPrefix(name, ".") {
 			continue
 		}
-		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
-			continue
-		}
 
 		i := strings.LastIndex(name, ".")
 		if i < 0 {
 			i = len(name)
 		}
 		ext := name[i:]
+
+		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
+			if ext == ".go" {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+			}
+			continue
+		}
+
 		switch ext {
 		case ".go", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
 			// tentatively okay - read to make sure
@@ -561,6 +597,9 @@ Found:
 
 		// Look for +build comments to accept or reject the file.
 		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
+			if ext == ".go" {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+			}
 			continue
 		}
 
@@ -593,6 +632,7 @@ Found:
 
 		pkg := pf.Name.Name
 		if pkg == "documentation" {
+			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
 			continue
 		}
 

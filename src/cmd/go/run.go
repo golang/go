@@ -46,6 +46,13 @@ func runRun(cmd *Command, args []string) {
 	if len(files) == 0 {
 		fatalf("go run: no go files listed")
 	}
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			// goFilesPackage is going to assign this to TestGoFiles.
+			// Reject since it won't be part of the build.
+			fatalf("go run: cannot run *_test.go files (%s)", file)
+		}
+	}
 	p := goFilesPackage(files)
 	if p.Error != nil {
 		fatalf("%s", p.Error)
@@ -58,6 +65,13 @@ func runRun(cmd *Command, args []string) {
 		fatalf("go run: cannot run non-main package")
 	}
 	p.target = "" // must build - not up to date
+	var src string
+	if len(p.GoFiles) > 0 {
+		src = p.GoFiles[0]
+	} else {
+		src = p.CgoFiles[0]
+	}
+	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
 	a1 := b.action(modeBuild, modeBuild, p)
 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
 	b.do(a)

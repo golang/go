@@ -48,6 +48,7 @@ followed by detailed output for each failed package.
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".  These additional files can contain test functions,
 benchmark functions, and example functions.  See 'go help testfunc' for more.
+Each listed package causes the execution of a separate test binary.
 
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
@@ -156,6 +157,9 @@ here are passed through unaltered.  For instance, the command
 will compile the test binary and then run it as
 
 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+
+The test flags that generate profiles also leave the test binary in pkg.test
+for use when analyzing the profiles.
 `,
 }
 
@@ -206,6 +210,7 @@ See the documentation of the testing package for more information.
 
 var (
 	testC            bool     // -c flag
+	testProfile      bool     // some profiling flag
 	testI            bool     // -i flag
 	testV            bool     // -v flag
 	testFiles        []string // -file flag(s)  TODO: not respected
@@ -231,12 +236,15 @@ func runTest(cmd *Command, args []string) {
 	if testC && len(pkgs) != 1 {
 		fatalf("cannot use -c flag with multiple packages")
 	}
+	if testProfile && len(pkgs) != 1 {
+		fatalf("cannot use test profile flag with multiple packages")
+	}
 
 	// If a test timeout was given and is parseable, set our kill timeout
 	// to that timeout plus one minute.  This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if dt, err := time.ParseDuration(testTimeout); err == nil {
+	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
 		testKillTimeout = dt + 1*time.Minute
 	}
 
@@ -427,7 +435,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 	// Use last element of import path, not package name.
 	// They differ when package name is "main".
-	_, elem := path.Split(p.ImportPath)
+	// But if the import path is "command-line-arguments",
+	// like it is during 'go run', use the package name.
+	var elem string
+	if p.ImportPath == "command-line-arguments" {
+		elem = p.Name
+	} else {
+		_, elem = path.Split(p.ImportPath)
+	}
 	testBinary := elem + ".test"
 
 	// The ptest package needs to be importable under the
@@ -554,14 +569,17 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
 	pmainAction := a
 
-	if testC {
-		// -c flag: create action to copy binary to ./test.out.
+	if testC || testProfile {
+		// -c or profiling flag: create action to copy binary to ./test.out.
 		runAction = &action{
 			f:      (*builder).install,
 			deps:   []*action{pmainAction},
 			p:      pmain,
-			target: testBinary + exeSuffix,
+			target: filepath.Join(cwd, testBinary+exeSuffix),
 		}
+		pmainAction = runAction // in case we are running the test
+	}
+	if testC {
 		printAction = &action{p: p, deps: []*action{runAction}} // nop
 	} else {
 		// run test
@@ -655,7 +673,7 @@ func (b *builder) runTest(a *action) error {
 		case <-tick.C:
 			cmd.Process.Kill()
 			err = <-done
-			fmt.Fprintf(&buf, "*** Test killed: ran too long.\n")
+			fmt.Fprintf(&buf, "*** Test killed: ran too long (%v).\n", testKillTimeout)
 		}
 		tick.Stop()
 	}
