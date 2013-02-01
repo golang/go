@@ -78,7 +78,7 @@ func (f *File) ReadGo(name string) {
 			}
 			if cg != nil {
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
-				f.Preamble += cg.Text() + "\n"
+				f.Preamble += commentText(cg) + "\n"
 			}
 		}
 	}
@@ -129,6 +129,30 @@ func (f *File) ReadGo(name string) {
 
 	f.Comments = ast1.Comments
 	f.AST = ast2
+}
+
+// Like ast.CommentGroup's Text method but preserves
+// leading blank lines, so that line numbers line up.
+func commentText(g *ast.CommentGroup) string {
+	if g == nil {
+		return ""
+	}
+	var pieces []string
+	for _, com := range g.List {
+		c := string(com.Text)
+		// Remove comment markers.
+		// The parser has given us exactly the comment text.
+		switch c[1] {
+		case '/':
+			//-style comment (no newline at the end)
+			c = c[2:] + "\n"
+		case '*':
+			/*-style comment */
+			c = c[2 : len(c)-2]
+		}
+		pieces = append(pieces, c)
+	}
+	return strings.Join(pieces, "")
 }
 
 // Save references to C.xxx for later processing.
