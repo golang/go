@@ -530,6 +530,7 @@ readfile(Buf *b, char *file)
 	HANDLE h;
 	Rune *r;
 
+	breset(b);
 	if(vflag > 2)
 		errprintf("read %s\n", file);
 	torune(&r, file);
