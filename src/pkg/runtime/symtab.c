@@ -93,6 +93,7 @@ walksymtab(void (*fn)(Sym*))
 
 static Func *func;
 static int32 nfunc;
+extern byte reloffset[];
 
 static byte **fname;
 static int32 nfname;
@@ -118,7 +119,7 @@ dofunc(Sym *sym)
 		}
 		f = &func[nfunc++];
 		f->name = runtime·gostringnocopy(sym->name);
-		f->entry = sym->value;
+		f->entry = sym->value + (uint64)reloffset;
 		if(sym->symtype == 'L' || sym->symtype == 'l')
 			f->frame = -sizeof(uintptr);
 		break;

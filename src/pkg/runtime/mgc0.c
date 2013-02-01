@@ -663,7 +663,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			// Stack push.
 			*stack_ptr-- = stack_top;
 			stack_top = (Frame){1, 0, stack_top.b + pc[1], pc+3 /*return address*/};
-			pc = (uintptr*)pc[2];  // target of the CALL instruction
+			pc = (uintptr*)((byte*)pc + (uintptr)pc[2]);  // target of the CALL instruction
 			continue;
 
 		case GC_MAP_PTR:
