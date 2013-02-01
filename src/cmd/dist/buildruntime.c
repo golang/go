@@ -205,7 +205,7 @@ mkzasm(char *dir, char *file)
 	fatal("unknown $GOOS/$GOARCH in mkzasm");
 ok:
 
-	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a proc.c
+	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -a -n -o workdir/proc.acid proc.c
 	// to get acid [sic] output.
 	vreset(&argv);
 	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
@@ -216,8 +216,12 @@ ok:
 	vadd(&argv, "-I");
 	vadd(&argv, bprintf(&b, "%s", workdir));
 	vadd(&argv, "-a");
+	vadd(&argv, "-n");
+	vadd(&argv, "-o");
+	vadd(&argv, bpathf(&b, "%s/proc.acid", workdir));
 	vadd(&argv, "proc.c");
-	runv(&in, dir, CheckExit, &argv);
+	runv(nil, dir, CheckExit, &argv);
+	readfile(&in, bpathf(&b, "%s/proc.acid", workdir));
 	
 	// Convert input like
 	//	aggr G
@@ -288,11 +292,12 @@ mkzruntimedefs(char *dir, char *file)
 {
 	int i, skip;
 	char *p;
-	Buf in, b, out;
+	Buf in, b, b1, out;
 	Vec argv, lines, fields, seen;
 	
 	binit(&in);
 	binit(&b);
+	binit(&b1);
 	binit(&out);
 	vinit(&argv);
 	vinit(&lines);
@@ -308,7 +313,7 @@ mkzruntimedefs(char *dir, char *file)
 	);
 
 	
-	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q
+	// Run 6c -D GOOS_goos -D GOARCH_goarch -I workdir -q -n -o workdir/runtimedefs
 	// on each of the runtimedefs C files.
 	vadd(&argv, bpathf(&b, "%s/%sc", tooldir, gochar));
 	vadd(&argv, "-D");
@@ -318,11 +323,15 @@ mkzruntimedefs(char *dir, char *file)
 	vadd(&argv, "-I");
 	vadd(&argv, bprintf(&b, "%s", workdir));
 	vadd(&argv, "-q");
+	vadd(&argv, "-n");
+	vadd(&argv, "-o");
+	vadd(&argv, bpathf(&b, "%s/runtimedefs", workdir));
 	vadd(&argv, "");
 	p = argv.p[argv.len-1];
 	for(i=0; i<nelem(runtimedefs); i++) {
 		argv.p[argv.len-1] = runtimedefs[i];
-		runv(&b, dir, CheckExit, &argv);
+		runv(nil, dir, CheckExit, &argv);
+		readfile(&b, bpathf(&b1, "%s/runtimedefs", workdir));
 		bwriteb(&in, &b);
 	}
 	argv.p[argv.len-1] = p;
@@ -364,6 +373,7 @@ mkzruntimedefs(char *dir, char *file)
 
 	bfree(&in);
 	bfree(&b);
+	bfree(&b1);
 	bfree(&out);
 	vfree(&argv);
 	vfree(&lines);
