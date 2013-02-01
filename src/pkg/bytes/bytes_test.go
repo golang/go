@@ -794,8 +794,8 @@ func TestRunes(t *testing.T) {
 }
 
 type TrimTest struct {
-	f               string
-	in, cutset, out string
+	f            string
+	in, arg, out string
 }
 
 var trimTests = []TrimTest{
@@ -820,12 +820,17 @@ var trimTests = []TrimTest{
 	{"TrimRight", "", "123", ""},
 	{"TrimRight", "", "", ""},
 	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
+	{"TrimPrefix", "aabb", "a", "abb"},
+	{"TrimPrefix", "aabb", "b", "aabb"},
+	{"TrimSuffix", "aabb", "a", "aabb"},
+	{"TrimSuffix", "aabb", "b", "aab"},
 }
 
 func TestTrim(t *testing.T) {
 	for _, tc := range trimTests {
 		name := tc.f
 		var f func([]byte, string) []byte
+		var fb func([]byte, []byte) []byte
 		switch name {
 		case "Trim":
 			f = Trim
@@ -833,12 +838,21 @@ func TestTrim(t *testing.T) {
 			f = TrimLeft
 		case "TrimRight":
 			f = TrimRight
+		case "TrimPrefix":
+			fb = TrimPrefix
+		case "TrimSuffix":
+			fb = TrimSuffix
 		default:
 			t.Errorf("Undefined trim function %s", name)
 		}
-		actual := string(f([]byte(tc.in), tc.cutset))
+		var actual string
+		if f != nil {
+			actual = string(f([]byte(tc.in), tc.arg))
+		} else {
+			actual = string(fb([]byte(tc.in), []byte(tc.arg)))
+		}
 		if actual != tc.out {
-			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
+			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
 		}
 	}
 }

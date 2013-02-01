@@ -515,6 +515,24 @@ func TrimFunc(s []byte, f func(r rune) bool) []byte {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
 }
 
+// TrimPrefix returns s without the provided leading prefix string.
+// If s doesn't start with prefix, s is returned unchanged.
+func TrimPrefix(s, prefix []byte) []byte {
+	if HasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
+}
+
+// TrimSuffix returns s without the provided trailing suffix string.
+// If s doesn't end with suffix, s is returned unchanged.
+func TrimSuffix(s, suffix []byte) []byte {
+	if HasSuffix(s, suffix) {
+		return s[:len(s)-len(suffix)]
+	}
+	return s
+}
+
 // IndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
 // It returns the byte index in s of the first Unicode
 // code point satisfying f(c), or -1 if none do.

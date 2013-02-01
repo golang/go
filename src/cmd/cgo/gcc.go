@@ -1542,8 +1542,8 @@ func godefsFields(fld []*ast.Field) {
 	npad := 0
 	for _, f := range fld {
 		for _, n := range f.Names {
-			if strings.HasPrefix(n.Name, prefix) && n.Name != prefix {
-				n.Name = n.Name[len(prefix):]
+			if n.Name != prefix {
+				n.Name = strings.TrimPrefix(n.Name, prefix)
 			}
 			if n.Name == "_" {
 				// Use exported name instead.

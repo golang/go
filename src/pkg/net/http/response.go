@@ -198,9 +198,7 @@ func (r *Response) Write(w io.Writer) error {
 	}
 	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
 	statusCode := strconv.Itoa(r.StatusCode) + " "
-	if strings.HasPrefix(text, statusCode) {
-		text = text[len(statusCode):]
-	}
+	text = strings.TrimPrefix(text, statusCode)
 	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
 
 	// Process Body,ContentLength,Close,Trailer

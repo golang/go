@@ -778,8 +778,7 @@ func (w *Walker) walkConst(vs *ast.ValueSpec) {
 				}
 			}
 		}
-		if strings.HasPrefix(litType, constDepPrefix) {
-			dep := litType[len(constDepPrefix):]
+		if dep := strings.TrimPrefix(litType, constDepPrefix); dep != litType {
 			w.constDep[ident.Name] = dep
 			continue
 		}

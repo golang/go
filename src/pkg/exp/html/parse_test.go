@@ -42,10 +42,7 @@ func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
 		}
 		b = append(b, line...)
 	}
-	text = string(b)
-	if strings.HasSuffix(text, "\n") {
-		text = text[:len(text)-1]
-	}
+	text = strings.TrimSuffix(string(b), "\n")
 	b = b[:0]
 
 	// Skip the error list.

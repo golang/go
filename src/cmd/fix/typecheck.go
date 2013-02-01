@@ -395,9 +395,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			// Field or method.
 			name := n.Sel.Name
 			if t := typeof[n.X]; t != "" {
-				if strings.HasPrefix(t, "*") {
-					t = t[1:] // implicit *
-				}
+				t = strings.TrimPrefix(t, "*") // implicit *
 				if typ := cfg.Type[t]; typ != nil {
 					if t := typ.dot(cfg, name); t != "" {
 						typeof[n] = t

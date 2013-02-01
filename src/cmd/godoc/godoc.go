@@ -419,9 +419,7 @@ func pkgLinkFunc(path string) string {
 	relpath := path[1:]
 	// because of the irregular mapping under goroot
 	// we need to correct certain relative paths
-	if strings.HasPrefix(relpath, "src/pkg/") {
-		relpath = relpath[len("src/pkg/"):]
-	}
+	relpath = strings.TrimPrefix(relpath, "src/pkg/")
 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
 }
 

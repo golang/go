@@ -90,9 +90,7 @@ func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
 			fmt.Fprintf(&f.b, "<%s>", err)
 		}
 		actual := f.b.String()
-		if strings.HasPrefix(actual, "func(") {
-			actual = actual[4:]
-		}
+		actual = strings.TrimPrefix(actual, "func(")
 		actual = id.Name + actual
 
 		f.Warnf(id.Pos(), "method %s should have signature %s", actual, expectFmt)

@@ -347,7 +347,7 @@ func main() {
 		fs.Bind(target, OS(path), "/", bindReplace)
 		abspath = target
 	} else if strings.HasPrefix(path, cmdPrefix) {
-		path = path[len(cmdPrefix):]
+		path = strings.TrimPrefix(path, cmdPrefix)
 		forceCmd = true
 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
 		fs.Bind(target, OS(bp.Dir), "/", bindReplace)
