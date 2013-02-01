@@ -207,6 +207,11 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 void
 runtime·traceback(byte *pc0, byte *sp, byte*, G *gp)
 {
+	if(gp->status == Gsyscall) {
+		// Override signal registers if blocked in system call.
+		pc0 = gp->sched.pc;
+		sp = (byte*)gp->sched.sp;
+	}
 	runtime·gentraceback(pc0, sp, nil, gp, 0, nil, 100);
 }
 

@@ -281,6 +281,7 @@ struct	M
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
+	uint32	locked;	// tracking for LockOSThread
 	M*	nextwaitm;	// next M waiting for lock
 	uintptr	waitsema;	// semaphore for parking on locks
 	uint32	waitsemacount;
@@ -301,6 +302,15 @@ struct	M
 #endif
 	SEH*	seh;
 	uintptr	end[];
+};
+
+// The m->locked word holds a single bit saying whether
+// external calls to LockOSThread are in effect, and then a counter
+// of the internal nesting depth of lockOSThread / unlockOSThread.
+enum
+{
+	LockExternal = 1,
+	LockInternal = 2,
 };
 
 struct	Stktop
@@ -858,8 +868,8 @@ void	runtime·semrelease(uint32*);
 int32	runtime·gomaxprocsfunc(int32 n);
 void	runtime·procyield(uint32);
 void	runtime·osyield(void);
-void	runtime·LockOSThread(void);
-void	runtime·UnlockOSThread(void);
+void	runtime·lockOSThread(void);
+void	runtime·unlockOSThread(void);
 
 void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
 void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);

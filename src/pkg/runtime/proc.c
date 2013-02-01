@@ -79,7 +79,6 @@ struct Sched {
 	int32 profilehz;	// cpu profiling rate
 
 	bool init;  // running initialization
-	bool lockmain;  // init called runtime.LockOSThread
 
 	Note	stopped;	// one g can set waitstop and wait here for m's to stop
 };
@@ -238,7 +237,7 @@ runtime·main(void)
 	// Those can arrange for main.main to run in the main thread
 	// by calling runtime.LockOSThread during initialization
 	// to preserve the lock.
-	runtime·LockOSThread();
+	runtime·lockOSThread();
 	// From now on, newgoroutines may use non-main threads.
 	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.init = true;
@@ -246,8 +245,7 @@ runtime·main(void)
 	scvg->issystem = true;
 	main·init();
 	runtime·sched.init = false;
-	if(!runtime·sched.lockmain)
-		runtime·UnlockOSThread();
+	runtime·unlockOSThread();
 
 	// The deadlock detection has false negatives.
 	// Let scvg start up, to eliminate the false negative
@@ -917,6 +915,7 @@ schedule(G *gp)
 			if(gp->lockedm) {
 				gp->lockedm = nil;
 				m->lockedg = nil;
+				m->locked = 0;
 			}
 			gp->idlem = nil;
 			runtime·unwindstack(gp, nil);
@@ -1460,26 +1459,50 @@ runtime·gomaxprocsfunc(int32 n)
 	return ret;
 }
 
-void
-runtime·LockOSThread(void)
+static void
+LockOSThread(void)
 {
-	if(m == &runtime·m0 && runtime·sched.init) {
-		runtime·sched.lockmain = true;
-		return;
-	}
 	m->lockedg = g;
 	g->lockedm = m;
 }
 
 void
-runtime·UnlockOSThread(void)
+runtime·LockOSThread(void)
 {
-	if(m == &runtime·m0 && runtime·sched.init) {
-		runtime·sched.lockmain = false;
+	m->locked |= LockExternal;
+	LockOSThread();
+}
+
+void
+runtime·lockOSThread(void)
+{
+	m->locked += LockInternal;
+	LockOSThread();
+}
+
+static void
+UnlockOSThread(void)
+{
+	if(m->locked != 0)
 		return;
-	}
 	m->lockedg = nil;
 	g->lockedm = nil;
+}	
+
+void
+runtime·UnlockOSThread(void)
+{
+	m->locked &= ~LockExternal;
+	UnlockOSThread();
+}
+
+void
+runtime·unlockOSThread(void)
+{
+	if(m->locked < LockInternal)
+		runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
+	m->locked -= LockInternal;
+	UnlockOSThread();
 }
 
 bool
