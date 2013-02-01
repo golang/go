@@ -1448,7 +1448,7 @@ func (v Value) SetString(x string) {
 }
 
 // Slice returns a slice of v.
-// It panics if v's Kind is not Array, Slice, or String.
+// It panics if v's Kind is not Array, Slice or String, or if v is an unaddressable array.
 func (v Value) Slice(beg, end int) Value {
 	var (
 		cap  int
