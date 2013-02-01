@@ -814,11 +814,11 @@ func (b *builder) build(a *action) (err error) {
 
 	// Compile Go.
 	if len(gofiles) > 0 {
-		if out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles); err != nil {
+		out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles)
+		if err != nil {
 			return err
-		} else {
-			objects = append(objects, out)
 		}
+		objects = append(objects, out)
 	}
 
 	// Copy .h files named for goos or goarch or goos_goarch
@@ -1177,6 +1177,8 @@ func relPaths(paths []string) []string {
 // print this error.
 var errPrintedOutput = errors.New("already printed output - no need to show error")
 
+var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+\]`)
+
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure
 // and returns a non-nil error.
@@ -1189,7 +1191,16 @@ func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
 		if desc == "" {
 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
 		}
-		b.showOutput(dir, desc, string(out))
+		out := string(out)
+		// Fix up output referring to cgo-generated code to be more readable.
+		// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
+		// Replace _Ctype_foo with C.foo.
+		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+		if !buildX && cgoLine.MatchString(out) {
+			out = cgoLine.ReplaceAllString(out, "")
+			out = strings.Replace(out, "type _Ctype_", "type C.", -1)
+		}
+		b.showOutput(dir, desc, out)
 		if err != nil {
 			err = errPrintedOutput
 		}
