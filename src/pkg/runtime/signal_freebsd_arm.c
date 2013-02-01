@@ -75,7 +75,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 
 	t = &runtime·sigtab[sig];
 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
-		if(gp == nil)
+		if(gp == nil || gp == m->g0)
 			goto Throw;
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
@@ -118,6 +118,10 @@ Throw:
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 
 	runtime·printf("PC=%x\n", r->r15);
+	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+		runtime·printf("signal arrived during cgo execution\n");
+		gp = m->lockedg;
+	}
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){

@@ -91,7 +91,6 @@ static int64 cgosync;  /* represents possible synchronization in C code */
 void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
 void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
 
-static void unlockm(void);
 static void unwindm(void);
 
 // Call from Go to C.
@@ -119,22 +118,16 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a
-	 * cgo callback.
+	 * cgo callback. Add entry to defer stack in case of panic.
 	 */
-	d.special = false;
-	if(m->lockedg == nil) {
-		m->lockedg = g;
-		g->lockedm = m;
-
-		// Add entry to defer stack in case of panic.
-		d.fn = (byte*)unlockm;
-		d.siz = 0;
-		d.link = g->defer;
-		d.argp = (void*)-1;  // unused because unlockm never recovers
-		d.special = true;
-		d.free = false;
-		g->defer = &d;
-	}
+	runtime·lockOSThread();
+	d.fn = (byte*)runtime·unlockOSThread;
+	d.siz = 0;
+	d.link = g->defer;
+	d.argp = (void*)-1;  // unused because unlockm never recovers
+	d.special = true;
+	d.free = false;
+	g->defer = &d;
 
 	m->ncgo++;
 
@@ -161,22 +154,13 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		m->cgomal = nil;
 	}
 
-	if(d.special) {
-		if(g->defer != &d || d.fn != (byte*)unlockm)
-			runtime·throw("runtime: bad defer entry in cgocallback");
-		g->defer = d.link;
-		unlockm();
-	}
+	if(g->defer != &d || d.fn != (byte*)runtime·unlockOSThread)
+		runtime·throw("runtime: bad defer entry in cgocallback");
+	g->defer = d.link;
+	runtime·unlockOSThread();
 
 	if(raceenabled)
 		runtime·raceacquire(&cgosync);
-}
-
-static void
-unlockm(void)
-{
-	m->lockedg = nil;
-	g->lockedm = nil;
 }
 
 void

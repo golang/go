@@ -68,6 +68,10 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 		info->ExceptionInformation[0], info->ExceptionInformation[1]);
 
 	runtime·printf("PC=%x\n", r->Eip);
+	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+		runtime·printf("signal arrived during cgo execution\n");
+		gp = m->lockedg;
+	}
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){

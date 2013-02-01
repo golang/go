@@ -47,7 +47,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 
 	t = &runtime·sigtab[sig];
 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
-		if(gp == nil)
+		if(gp == nil || gp == m->g0)
 			goto Throw;
 		// Work around Leopard bug that doesn't set FPE_INTDIV.
 		// Look at instruction to see if it is a divide.
@@ -101,7 +101,11 @@ Throw:
 		runtime·printf("%s\n", runtime·sigtab[sig].name);
 	}
 
-	runtime·printf("pc: %x\n", r->eip);
+	runtime·printf("PC=%x\n", r->eip);
+	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+		runtime·printf("signal arrived during cgo execution\n");
+		gp = m->lockedg;
+	}	
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
