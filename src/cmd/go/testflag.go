@@ -195,9 +195,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 	}
 	name := arg[1:]
 	// If there's already "test.", drop it for now.
-	if strings.HasPrefix(name, "test.") {
-		name = name[5:]
-	}
+	name = strings.TrimPrefix(name, "test.")
 	equals := strings.Index(name, "=")
 	if equals >= 0 {
 		value = name[equals+1:]

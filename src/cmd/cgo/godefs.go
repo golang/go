@@ -180,7 +180,7 @@ func (p *Package) cdefs(f *File, srcfile string) string {
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
-					s := line[len("type ") : len(line)-len(" struct {")]
+					s := strings.TrimSuffix(strings.TrimPrefix(line, "type "), " struct {")
 					printf("typedef struct %s %s;\n", s, s)
 				}
 			}

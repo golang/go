@@ -44,10 +44,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		if bp.PkgObj == "" {
 			return
 		}
-		noext = bp.PkgObj
-		if strings.HasSuffix(noext, ".a") {
-			noext = noext[:len(noext)-len(".a")]
-		}
+		noext = strings.TrimSuffix(bp.PkgObj, ".a")
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"

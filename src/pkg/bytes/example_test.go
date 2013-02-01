@@ -66,3 +66,20 @@ func ExampleCompare_search() {
 		// Found it!
 	}
 }
+
+func ExampleTrimSuffix() {
+	var b = []byte("Hello, goodbye, etc!")
+	b = bytes.TrimSuffix(b, []byte("goodbye, etc!"))
+	b = bytes.TrimSuffix(b, []byte("gopher"))
+	b = append(b, bytes.TrimSuffix([]byte("world!"), []byte("x!"))...)
+	os.Stdout.Write(b)
+	// Output: Hello, world!
+}
+
+func ExampleTrimPrefix() {
+	var b = []byte("Goodbye,, world!")
+	b = bytes.TrimPrefix(b, []byte("Goodbye,"))
+	b = bytes.TrimPrefix(b, []byte("See ya,"))
+	fmt.Printf("Hello%s", b)
+	// Output: Hello, world!
+}

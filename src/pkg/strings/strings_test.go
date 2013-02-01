@@ -496,8 +496,8 @@ func TestSpecialCase(t *testing.T) {
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 var trimTests = []struct {
-	f               string
-	in, cutset, out string
+	f            string
+	in, arg, out string
 }{
 	{"Trim", "abba", "a", "bb"},
 	{"Trim", "abba", "ab", ""},
@@ -520,6 +520,10 @@ var trimTests = []struct {
 	{"TrimRight", "", "123", ""},
 	{"TrimRight", "", "", ""},
 	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
+	{"TrimPrefix", "aabb", "a", "abb"},
+	{"TrimPrefix", "aabb", "b", "aabb"},
+	{"TrimSuffix", "aabb", "a", "aabb"},
+	{"TrimSuffix", "aabb", "b", "aab"},
 }
 
 func TestTrim(t *testing.T) {
@@ -533,12 +537,16 @@ func TestTrim(t *testing.T) {
 			f = TrimLeft
 		case "TrimRight":
 			f = TrimRight
+		case "TrimPrefix":
+			f = TrimPrefix
+		case "TrimSuffix":
+			f = TrimSuffix
 		default:
 			t.Errorf("Undefined trim function %s", name)
 		}
-		actual := f(tc.in, tc.cutset)
+		actual := f(tc.in, tc.arg)
 		if actual != tc.out {
-			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
+			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
 		}
 	}
 }

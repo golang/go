@@ -229,9 +229,7 @@ func (dir *Directory) lookupLocal(name string) *Directory {
 }
 
 func splitPath(p string) []string {
-	if strings.HasPrefix(p, "/") {
-		p = p[1:]
-	}
+	p = strings.TrimPrefix(p, "/")
 	if p == "" {
 		return nil
 	}
@@ -310,14 +308,9 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		// the path is relative to root.Path - remove the root.Path
 		// prefix (the prefix should always be present but avoid
 		// crashes and check)
-		path := d.Path
-		if strings.HasPrefix(d.Path, root.Path) {
-			path = d.Path[len(root.Path):]
-		}
+		path := strings.TrimPrefix(d.Path, root.Path)
 		// remove leading separator if any - path must be relative
-		if len(path) > 0 && path[0] == '/' {
-			path = path[1:]
-		}
+		path = strings.TrimPrefix(path, "/")
 		p.Path = path
 		p.Name = d.Name
 		p.HasPkg = d.HasPkg

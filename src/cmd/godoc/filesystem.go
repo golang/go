@@ -459,9 +459,7 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
 		if hasPathPrefix(old, path) && old != path {
 			// Find next element after path in old.
 			elem := old[len(path):]
-			if strings.HasPrefix(elem, "/") {
-				elem = elem[1:]
-			}
+			elem = strings.TrimPrefix(elem, "/")
 			if i := strings.Index(elem, "/"); i >= 0 {
 				elem = elem[:i]
 			}

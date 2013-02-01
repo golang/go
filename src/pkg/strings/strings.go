@@ -558,6 +558,24 @@ func TrimSpace(s string) string {
 	return TrimFunc(s, unicode.IsSpace)
 }
 
+// TrimPrefix returns s without the provided leading prefix string.
+// If s doesn't start with prefix, s is returned unchanged.
+func TrimPrefix(s, prefix string) string {
+	if HasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
+}
+
+// TrimSuffix returns s without the provided trailing suffix string.
+// If s doesn't end with suffix, s is returned unchanged.
+func TrimSuffix(s, suffix string) string {
+	if HasSuffix(s, suffix) {
+		return s[:len(s)-len(suffix)]
+	}
+	return s
+}
+
 // Replace returns a copy of the string s with the first n
 // non-overlapping instances of old replaced by new.
 // If n < 0, there is no limit on the number of replacements.
