@@ -126,7 +126,10 @@ xcom(Node *n)
 		break;
 
 	case ONAME:
-		n->addable = 10;
+		if(flag_largemodel)
+			n->addable = 9;
+		else
+			n->addable = 10;
 		if(n->class == CPARAM || n->class == CAUTO)
 			n->addable = 11;
 		break;

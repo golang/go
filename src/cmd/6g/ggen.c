@@ -59,6 +59,7 @@ ginscall(Node *f, int proc)
 {
 	Prog *p;
 	Node reg, con;
+	Node r1;
 
 	switch(proc) {
 	default:
@@ -76,7 +77,14 @@ ginscall(Node *f, int proc)
 	case 1:	// call in new proc (go)
 	case 2:	// deferred call (defer)
 		nodreg(&reg, types[TINT64], D_CX);
-		gins(APUSHQ, f, N);
+		if(flag_largemodel) {
+			regalloc(&r1, f->type, f);
+			gmove(f, &r1);
+			gins(APUSHQ, &r1, N);
+			regfree(&r1);
+		} else {
+			gins(APUSHQ, f, N);
+		}
 		nodconst(&con, types[TINT32], argsize(f->type));
 		gins(APUSHQ, &con, N);
 		if(proc == 1)

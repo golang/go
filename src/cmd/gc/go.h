@@ -941,6 +941,7 @@ EXTERN	int	compiling_runtime;
 EXTERN	int	compiling_wrappers;
 EXTERN	int	pure_go;
 EXTERN	int	flag_race;
+EXTERN	int	flag_largemodel;
 
 EXTERN	int	nointerface;
 EXTERN	int	fieldtrack_enabled;

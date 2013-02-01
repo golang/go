@@ -737,8 +737,12 @@ agenr(Node *n, Node *a, Node *res)
 			regalloc(&n3, types[tptr], res);
 			p1 = gins(ALEAQ, N, &n3);
 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
-			p1->from.scale = 1;
-			p1->from.index = n2.val.u.reg;
+			if(flag_largemodel) {
+				gins(AADDQ, &n2, &n3);
+			} else {
+				p1->from.scale = 1;
+				p1->from.index = n2.val.u.reg;
+			}
 			goto indexdone;
 		}
 

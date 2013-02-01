@@ -528,6 +528,7 @@ EXTERN	int	packflg;
 EXTERN	int	fproundflg;
 EXTERN	int	textflag;
 EXTERN	int	dataflag;
+EXTERN	int	flag_largemodel;
 EXTERN	int	ncontin;
 EXTERN	int	canreach;
 EXTERN	int	warnreach;

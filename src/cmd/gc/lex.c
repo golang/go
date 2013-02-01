@@ -257,6 +257,8 @@ main(int argc, char *argv[])
 	flagcount("w", "debug type checking", &debug['w']);
 	flagcount("x", "debug lexer", &debug['x']);
 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
+	if(thechar == '6')
+		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
 
 	flagparse(&argc, &argv, usage);
 
