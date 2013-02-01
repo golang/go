@@ -92,6 +92,23 @@ func TestSortLarge_Random(t *testing.T) {
 	}
 }
 
+func TestReverseSortIntSlice(t *testing.T) {
+	data := ints
+	data1 := ints
+	a := IntSlice(data[0:])
+	Sort(a)
+	r := IntSlice(data1[0:])
+	Sort(Reverse(r))
+	for i := 0; i < len(data); i++ {
+		if a[i] != r[len(data)-1-i] {
+			t.Errorf("reverse sort didn't sort")
+		}
+		if i > len(data)/2 {
+			break
+		}
+	}
+}
+
 func BenchmarkSortString1K(b *testing.B) {
 	b.StopTimer()
 	for i := 0; i < b.N; i++ {
