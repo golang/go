@@ -748,7 +748,6 @@ setuint64(Sym *s, vlong r, uint64 v)
 	setuintxx(s, r, v, 8);
 }
 
-/*
 static vlong
 addaddrpcrelplus(Sym *s, Sym *t, int32 add)
 {
@@ -769,7 +768,6 @@ addaddrpcrelplus(Sym *s, Sym *t, int32 add)
 	r->add = add;
 	return i;
 }
-*/
 
 vlong
 addaddrplus(Sym *s, Sym *t, int32 add)
@@ -951,7 +949,7 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
 		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
 		adduintxx(gc, GC_CALL, PtrSize);
 		adduintxx(gc, off, PtrSize);
-		addaddrplus(gc, decodetype_gc(gotype), 1*PtrSize);
+		addaddrpcrelplus(gc, decodetype_gc(gotype), 4*PtrSize);
 	} else {
 		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
 		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
