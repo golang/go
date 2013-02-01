@@ -116,6 +116,11 @@ copied from the cgo input files. Functions with multiple
 return values are mapped to functions returning a struct.
 Not all Go types can be mapped to C types in a useful way.
 
+Using //export in a file places a restriction on the preamble:
+since it is copied into two different C output files, it must not
+contain any definitions, only declarations. Definitions must be
+placed in preambles in other files, or in C source files.
+
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.
 
