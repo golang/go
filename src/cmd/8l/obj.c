@@ -114,7 +114,7 @@ main(int argc, char *argv[])
 	flagcount("d", "disable dynamic executable", &debug['d']);
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
-	flagcount("hostobj", "generate host object file", &hostobj);
+	flagcount("hostobj", "generate host object file", &isobj);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
 	flagstr("o", "outfile: set output file", &outfile);
 	flagcount("p", "insert profiling code", &debug['p']);
