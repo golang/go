@@ -554,6 +554,10 @@ ismem(Node *n)
 	case ONAME:
 	case OPARAM:
 		return 1;
+	case OADDR:
+		if(flag_largemodel)
+			return 1;
+		break;
 	}
 	return 0;
 }
