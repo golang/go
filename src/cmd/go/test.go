@@ -809,7 +809,9 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 			*seen = true
 		}
 	}
-	for _, e := range doc.Examples(f) {
+	ex := doc.Examples(f)
+	sort.Sort(byOrder(ex))
+	for _, e := range ex {
 		if e.Output == "" && !e.EmptyOutput {
 			// Don't run examples with no output.
 			continue
@@ -819,6 +821,12 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 	}
 	return nil
 }
+
+type byOrder []*doc.Example
+
+func (x byOrder) Len() int           { return len(x) }
+func (x byOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x byOrder) Less(i, j int) bool { return x[i].Order < x[j].Order }
 
 var testmainTmpl = template.Must(template.New("main").Parse(`
 package main
