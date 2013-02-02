@@ -840,6 +840,7 @@ treecopy(Node *n)
 	default:
 		m = nod(OXXX, N, N);
 		*m = *n;
+		m->orig = m;
 		m->left = treecopy(n->left);
 		m->right = treecopy(n->right);
 		m->list = listtreecopy(n->list);

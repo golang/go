@@ -997,6 +997,7 @@ void	defaultlit(Node **np, Type *t);
 void	defaultlit2(Node **lp, Node **rp, int force);
 void	evconst(Node *n);
 int	isconst(Node *n, int ct);
+int	isgoconst(Node *n);
 Node*	nodcplxlit(Val r, Val i);
 Node*	nodlit(Val v);
 long	nonnegconst(Node *n);

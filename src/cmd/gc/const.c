@@ -78,6 +78,7 @@ convlit1(Node **np, Type *t, int explicit)
 	if(!explicit && !isideal(n->type))
 		return;
 
+	
 	if(n->op == OLITERAL) {
 		nn = nod(OXXX, N, N);
 		*nn = *n;
@@ -953,10 +954,6 @@ ret:
 	*n = *nl;
 	// restore value of n->orig.
 	n->orig = norig;
-	if(norig->op == OCONV) {
-		dump("N", n);
-		dump("NORIG", norig);
-	}
 	n->val = v;
 
 	// check range.
@@ -1448,4 +1445,133 @@ cmplxdiv(Mpcplx *v, Mpcplx *rv)
 	mpmovefltflt(&v->imag, &bc);
 	mpsubfltflt(&v->imag, &ad);		// bc-ad
 	mpdivfltflt(&v->imag, &cc_plus_dd);	// (bc+ad)/(cc+dd)
+}
+
+static int hascallchan(Node*);
+
+// Is n a Go language constant (as opposed to a compile-time constant)?
+// Expressions derived from nil, like string([]byte(nil)), while they
+// may be known at compile time, are not Go language constants.
+// Only called for expressions known to evaluated to compile-time
+// constants.
+int
+isgoconst(Node *n)
+{
+	Node *l;
+	Type *t;
+
+	if(n->orig != N)
+		n = n->orig;
+
+	switch(n->op) {
+	case OADD:
+	case OADDSTR:
+	case OAND:
+	case OANDAND:
+	case OANDNOT:
+	case OCOM:
+	case ODIV:
+	case OEQ:
+	case OGE:
+	case OGT:
+	case OLE:
+	case OLSH:
+	case OLT:
+	case OMINUS:
+	case OMOD:
+	case OMUL:
+	case ONE:
+	case ONOT:
+	case OOR:
+	case OOROR:
+	case OPLUS:
+	case ORSH:
+	case OSUB:
+	case OXOR:
+	case OCONV:
+	case OIOTA:
+	case OCOMPLEX:
+	case OREAL:
+	case OIMAG:
+		if(isgoconst(n->left) && (n->right == N || isgoconst(n->right)))
+			return 1;
+		break;
+	
+	case OLEN:
+	case OCAP:
+		l = n->left;
+		if(isgoconst(l))
+			return 1;
+		// Special case: len/cap is constant when applied to array or
+		// pointer to array when the expression does not contain
+		// function calls or channel receive operations.
+		t = l->type;
+		if(t != T && isptr[t->etype])
+			t = t->type;
+		if(isfixedarray(t) && !hascallchan(l))
+			return 1;
+		break;
+
+	case OLITERAL:
+		if(n->val.ctype != CTNIL)
+			return 1;
+		break;
+
+	case ONAME:
+		l = n->sym->def;
+		if(l->op == OLITERAL && n->val.ctype != CTNIL)
+			return 1;
+		break;
+	
+	case ONONAME:
+		if(n->sym->def != N && n->sym->def->op == OIOTA)
+			return 1;
+		break;
+	
+	case OCALL:
+		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
+		l = n->left;
+		while(l->op == OPAREN)
+			l = l->left;
+		if(l->op != ONAME || l->sym->pkg != unsafepkg)
+			break;
+		if(strcmp(l->sym->name, "Alignof") == 0 ||
+		   strcmp(l->sym->name, "Offsetof") == 0 ||
+		   strcmp(l->sym->name, "Sizeof") == 0)
+			return 1;
+		break;		
+	}
+
+	//dump("nonconst", n);
+	return 0;
+}
+
+static int
+hascallchan(Node *n)
+{
+	NodeList *l;
+
+	if(n == N)
+		return 0;
+	switch(n->op) {
+	case OCALL:
+	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
+	case ORECV:
+		return 1;
+	}
+	
+	if(hascallchan(n->left) ||
+	   hascallchan(n->right))
+		return 1;
+	
+	for(l=n->list; l; l=l->next)
+		if(hascallchan(l->n))
+			return 1;
+	for(l=n->rlist; l; l=l->next)
+		if(hascallchan(l->n))
+			return 1;
+
+	return 0;
 }
