@@ -377,8 +377,11 @@ reswitch:
 			t->bound = -1;	// slice
 		} else if(l->op == ODDD) {
 			t->bound = -100;	// to be filled in
-			if(!(top&Ecomplit))
+			if(!(top&Ecomplit) && !n->diag) {
+				t->broke = 1;
+				n->diag = 1;
 				yyerror("use of [...] array outside of array literal");
+			}
 		} else {
 			l = typecheck(&n->left, Erv);
 			switch(consttype(l)) {
@@ -1028,8 +1031,11 @@ reswitch:
 		defaultlit(&n->left, T);
 		l = n->left;
 		if(l->op == OTYPE) {
-			if(n->isddd || l->type->bound == -100)
-				yyerror("invalid use of ... in type conversion", l);
+			if(n->isddd || l->type->bound == -100) {
+				if(!l->type->broke)
+					yyerror("invalid use of ... in type conversion", l);
+				n->diag = 1;
+			}
 			// pick off before type-checking arguments
 			ok |= Erv;
 			// turn CALL(type, arg) into CONV(arg) w/ type
@@ -1335,7 +1341,10 @@ reswitch:
 		if((t = n->left->type) == T || n->type == T)
 			goto error;
 		if((n->op = convertop(t, n->type, &why)) == 0) {
-			yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
+			if(!n->diag && !n->type->broke) {
+				yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
+				n->diag = 1;
+			}
 			n->op = OCONV;
 		}
 		switch(n->op) {

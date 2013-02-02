@@ -253,8 +253,12 @@ dowidth(Type *t)
 			checkwidth(t->type);
 			t->align = widthptr;
 		}
-		else if(t->bound == -100)
-			yyerror("use of [...] array outside of array literal");
+		else if(t->bound == -100) {
+			if(!t->broke) {
+				yyerror("use of [...] array outside of array literal");
+				t->broke = 1;
+			}
+		}
 		else
 			fatal("dowidth %T", t);	// probably [...]T
 		break;
