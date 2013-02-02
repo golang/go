@@ -279,6 +279,9 @@ fi
 unset GOPATH
 rm -rf $d
 
+# Only succeeds if source order is preserved.
+./testgo test testdata/example[12]_test.go
+
 # clean up
 rm -rf testdata/bin testdata/bin1
 rm -f testgo
