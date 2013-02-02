@@ -405,6 +405,20 @@ simple_stmt:
 	expr
 	{
 		$$ = $1;
+
+		// These nodes do not carry line numbers.
+		// Since a bare name used as an expression is an error,
+		// introduce a wrapper node to give the correct line.
+		switch($$->op) {
+		case ONAME:
+		case ONONAME:
+		case OTYPE:
+		case OPACK:
+		case OLITERAL:
+			$$ = nod(OPAREN, $$, N);
+			$$->implicit = 1;
+			break;
+		}
 	}
 |	expr LASOP expr
 	{
@@ -989,6 +1003,7 @@ bare_complitexpr:
 		case OPACK:
 		case OLITERAL:
 			$$ = nod(OPAREN, $$, N);
+			$$->implicit = 1;
 		}
 	}
 |	'{' start_complit braced_keyval_list '}'
