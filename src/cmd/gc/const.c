@@ -240,7 +240,8 @@ convlit1(Node **np, Type *t, int explicit)
 
 bad:
 	if(!n->diag) {
-		yyerror("cannot convert %N to type %T", n, t);
+		if(!t->broke)
+			yyerror("cannot convert %N to type %T", n, t);
 		n->diag = 1;
 	}
 	if(isideal(n->type)) {
