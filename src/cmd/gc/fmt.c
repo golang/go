@@ -381,7 +381,13 @@ Vconv(Fmt *fp)
 	case CTCPLX:
 		if((fp->flags & FmtSharp) || fmtmode == FExp)
 			return fmtprint(fp, "(%F+%Fi)", &v->u.cval->real, &v->u.cval->imag);
-		return fmtprint(fp, "(%#F + %#Fi)", &v->u.cval->real, &v->u.cval->imag);
+		if(mpcmpfltc(&v->u.cval->real, 0) == 0)
+			return fmtprint(fp, "%#Fi", &v->u.cval->imag);
+		if(mpcmpfltc(&v->u.cval->imag, 0) == 0)
+			return fmtprint(fp, "%#F", &v->u.cval->real);
+		if(mpcmpfltc(&v->u.cval->imag, 0) < 0)
+			return fmtprint(fp, "(%#F%#Fi)", &v->u.cval->real, &v->u.cval->imag);
+		return fmtprint(fp, "(%#F+%#Fi)", &v->u.cval->real, &v->u.cval->imag);
 	case CTSTR:
 		return fmtprint(fp, "\"%Z\"", v->u.sval);
 	case CTBOOL:
@@ -391,7 +397,7 @@ Vconv(Fmt *fp)
 	case CTNIL:
 		return fmtstrcpy(fp, "nil");
 	}
-	return fmtprint(fp, "<%d>", v->ctype);
+	return fmtprint(fp, "<ctype=%d>", v->ctype);
 }
 
 // Fmt "%Z": escaped string literals
@@ -1110,8 +1116,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OLITERAL:  // this is a bit of a mess
 		if(fmtmode == FErr && n->sym != S)
 			return fmtprint(f, "%S", n->sym);
-		if(n->val.ctype == CTNIL && n->orig != N)
-			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
+		if(n->val.ctype == CTNIL && n->orig != N && n->orig != n)
+			return exprfmt(f, n->orig, prec);
 		if(n->type != T && n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.

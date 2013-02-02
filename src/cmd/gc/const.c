@@ -469,6 +469,20 @@ isconst(Node *n, int ct)
 	return t == ct || (ct == CTINT && t == CTRUNE);
 }
 
+static Node*
+saveorig(Node *n)
+{
+	Node *n1;
+
+	if(n == n->orig) {
+		// duplicate node for n->orig.
+		n1 = nod(OLITERAL, N, N);
+		n->orig = n1;
+		*n1 = *n;
+	}
+	return n->orig;
+}
+
 /*
  * if n is constant, rewrite as OLITERAL node.
  */
@@ -934,15 +948,14 @@ unary:
 	}
 
 ret:
-	if(n == n->orig) {
-		// duplicate node for n->orig.
-		norig = nod(OLITERAL, N, N);
-		*norig = *n;
-	} else
-		norig = n->orig;
+	norig = saveorig(n);
 	*n = *nl;
 	// restore value of n->orig.
 	n->orig = norig;
+	if(norig->op == OCONV) {
+		dump("N", n);
+		dump("NORIG", norig);
+	}
 	n->val = v;
 
 	// check range.
@@ -956,11 +969,15 @@ ret:
 	return;
 
 settrue:
+	norig = saveorig(n);
 	*n = *nodbool(1);
+	n->orig = norig;
 	return;
 
 setfalse:
+	norig = saveorig(n);
 	*n = *nodbool(0);
+	n->orig = norig;
 	return;
 }
 

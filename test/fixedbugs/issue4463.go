@@ -45,17 +45,17 @@ func F() {
 	(println("bar"))
 	(recover())
 
-	go append(a, 0)			// ERROR "not used"
-	go cap(a)			// ERROR "not used"
-	go complex(1, 2)		// ERROR "not used"
-	go imag(1i)			// ERROR "not used"
-	go len(a)			// ERROR "not used"
-	go make([]int, 10)		// ERROR "not used"
-	go new(int)			// ERROR "not used"
-	go real(1i)			// ERROR "not used"
-	go unsafe.Alignof(a)		// ERROR "not used"
-	go unsafe.Offsetof(s.f)		// ERROR "not used"
-	go unsafe.Sizeof(a)		// ERROR "not used"
+	go append(a, 0)			// ERROR "discards result"
+	go cap(a)			// ERROR "discards result"
+	go complex(1, 2)		// ERROR "discards result"
+	go imag(1i)			// ERROR "discards result"
+	go len(a)			// ERROR "discards result"
+	go make([]int, 10)		// ERROR "discards result"
+	go new(int)			// ERROR "discards result"
+	go real(1i)			// ERROR "discards result"
+	go unsafe.Alignof(a)		// ERROR "discards result"
+	go unsafe.Offsetof(s.f)		// ERROR "discards result"
+	go unsafe.Sizeof(a)		// ERROR "discards result"
 
 	go close(c)
 	go copy(a, a)
@@ -65,17 +65,17 @@ func F() {
 	go println("bar")
 	go recover()
 
-	defer append(a, 0)		// ERROR "not used"
-	defer cap(a)			// ERROR "not used"
-	defer complex(1, 2)		// ERROR "not used"
-	defer imag(1i)			// ERROR "not used"
-	defer len(a)			// ERROR "not used"
-	defer make([]int, 10)		// ERROR "not used"
-	defer new(int)			// ERROR "not used"
-	defer real(1i)			// ERROR "not used"
-	defer unsafe.Alignof(a)		// ERROR "not used"
-	defer unsafe.Offsetof(s.f)	// ERROR "not used"
-	defer unsafe.Sizeof(a)		// ERROR "not used"
+	defer append(a, 0)		// ERROR "discards result"
+	defer cap(a)			// ERROR "discards result"
+	defer complex(1, 2)		// ERROR "discards result"
+	defer imag(1i)			// ERROR "discards result"
+	defer len(a)			// ERROR "discards result"
+	defer make([]int, 10)		// ERROR "discards result"
+	defer new(int)			// ERROR "discards result"
+	defer real(1i)			// ERROR "discards result"
+	defer unsafe.Alignof(a)		// ERROR "discards result"
+	defer unsafe.Offsetof(s.f)	// ERROR "discards result"
+	defer unsafe.Sizeof(a)		// ERROR "discards result"
 
 	defer close(c)
 	defer copy(a, a)
