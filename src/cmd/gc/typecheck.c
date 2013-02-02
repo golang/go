@@ -31,6 +31,7 @@ static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
+static void	checkdefergo(Node*);
 
 static	NodeList*	typecheckdefstack;
 
@@ -1122,10 +1123,12 @@ reswitch:
 			if(!iscomplex[t->etype])
 				goto badcall1;
 			if(isconst(l, CTCPLX)){
+				r = n;
 				if(n->op == OREAL)
 					n = nodfltconst(&l->val.u.cval->real);
 				else
 					n = nodfltconst(&l->val.u.cval->imag);
+				n->orig = r;
 			}
 			n->type = types[cplxsubtype(t->etype)];
 			goto ret;
@@ -1185,7 +1188,9 @@ reswitch:
 		}
 		if(l->op == OLITERAL && r->op == OLITERAL) {
 			// make it a complex literal
-			n = nodcplxlit(l->val, r->val);
+			r = nodcplxlit(l->val, r->val);
+			r->orig = n;
+			n = r;
 		}
 		n->type = t;
 		goto ret;
@@ -1336,6 +1341,10 @@ reswitch:
 		switch(n->op) {
 		case OCONVNOP:
 			if(n->left->op == OLITERAL) {
+				r = nod(OXXX, N, N);
+				n->op = OCONV;
+				n->orig = r;
+				*r = *n;
 				n->op = OLITERAL;
 				n->val = n->left->val;
 			}
@@ -1539,12 +1548,15 @@ reswitch:
 
 	case ODEFER:
 		ok |= Etop;
-		typecheck(&n->left, Etop);
+		typecheck(&n->left, Etop|Erv);
+		if(!n->left->diag)
+			checkdefergo(n);
 		goto ret;
 
 	case OPROC:
 		ok |= Etop;
-		typecheck(&n->left, Etop|Eproc);
+		typecheck(&n->left, Etop|Eproc|Erv);
+		checkdefergo(n);
 		goto ret;
 
 	case OFOR:
@@ -1664,7 +1676,7 @@ ret:
 	}
 	if((top & Etop) && !(top & (Ecall|Erv|Etype)) && !(ok & Etop)) {
 		if(n->diag == 0) {
-			yyerror("%N not used", n);
+			yyerror("%N evaluated but not used", n);
 			n->diag = 1;
 		}
 		goto error;
@@ -1685,6 +1697,56 @@ error:
 
 out:
 	*np = n;
+}
+
+static void
+checkdefergo(Node *n)
+{
+	char *what;
+	
+	what = "defer";
+	if(n->op == OPROC)
+		what = "go";
+
+	switch(n->left->op) {
+	case OCALLINTER:
+	case OCALLMETH:
+	case OCALLFUNC:
+	case OCLOSE:
+	case OCOPY:
+	case ODELETE:
+	case OPANIC:
+	case OPRINT:
+	case OPRINTN:
+	case ORECOVER:
+		// ok
+		break;
+	case OAPPEND:
+	case OCAP:
+	case OCOMPLEX:
+	case OIMAG:
+	case OLEN:
+	case OMAKE:
+	case OMAKESLICE:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case ONEW:
+	case OREAL:
+	case OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
+		if(n->left->orig != N && n->left->orig->op == OCONV)
+			goto conv;
+		yyerror("%s discards result of %N", what, n->left);
+		break;
+	default:
+	conv:
+		if(!n->diag) {
+			// The syntax made sure it was a call, so this must be
+			// a conversion.
+			n->diag = 1;
+			yyerror("%s requires function call, not conversion", what);
+		}
+		break;
+	}
 }
 
 static void
