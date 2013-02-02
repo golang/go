@@ -48,7 +48,7 @@ func f() {
 	defer recover() // ok
 
 	int(0) // ERROR "int\(0\) evaluated but not used"
-	string([]byte("abc")) // ERROR "string\(\[\]byte literal\) evaluated but not used"
+	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used"
 
 	append(x, 1) // ERROR "not used"
 	cap(x) // ERROR "not used"

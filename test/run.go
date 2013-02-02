@@ -683,6 +683,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 			continue
 		}
 		matched := false
+		n := len(out)
 		for _, errmsg := range errmsgs {
 			if we.re.MatchString(errmsg) {
 				matched = true
@@ -691,7 +692,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
 			}
 		}
 		if !matched {
-			errs = append(errs, fmt.Errorf("%s:%d: no match for %q in%s", we.file, we.lineNum, we.reStr, strings.Join(out, "\n")))
+			errs = append(errs, fmt.Errorf("%s:%d: no match for %#q in:\n\t%s", we.file, we.lineNum, we.reStr, strings.Join(out[n:], "\n\t")))
 			continue
 		}
 	}
@@ -758,7 +759,7 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 		all := m[1]
 		mm := errQuotesRx.FindAllStringSubmatch(all, -1)
 		if mm == nil {
-			log.Fatalf("invalid errchk line in %s: %s", t.goFileName(), line)
+			log.Fatalf("%s:%d: invalid errchk line: %s", t.goFileName(), lineNum, line)
 		}
 		for _, m := range mm {
 			rx := lineRx.ReplaceAllStringFunc(m[1], func(m string) string {
@@ -772,10 +773,14 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
 				}
 				return fmt.Sprintf("%s:%d", short, n)
 			})
-			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, short, lineNum)
+			re, err := regexp.Compile(rx)
+			if err != nil {
+				log.Fatalf("%s:%d: invalid regexp in ERROR line: %v", t.goFileName(), lineNum, err)
+			}
+			filterPattern := fmt.Sprintf(`^(\w+/)?%s:%d[:[]`, regexp.QuoteMeta(short), lineNum)
 			errs = append(errs, wantedError{
 				reStr:    rx,
-				re:       regexp.MustCompile(rx),
+				re:       re,
 				filterRe: regexp.MustCompile(filterPattern),
 				lineNum:  lineNum,
 				file:     short,

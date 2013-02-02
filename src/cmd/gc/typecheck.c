@@ -1336,6 +1336,9 @@ reswitch:
 	case OCONV:
 	doconv:
 		ok |= Erv;
+		l = nod(OXXX, N, N);
+		n->orig = l;
+		*l = *n;
 		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
 		convlit1(&n->left, n->type, 1);
 		if((t = n->left->type) == T || n->type == T)
@@ -3007,12 +3010,12 @@ typecheckdef(Node *n)
 			yyerror("xxx");
 		}
 		typecheck(&e, Erv | Eiota);
-		if(e->type != T && e->op != OLITERAL) {
-			yyerror("const initializer must be constant");
-			goto ret;
-		}
 		if(isconst(e, CTNIL)) {
 			yyerror("const initializer cannot be nil");
+			goto ret;
+		}
+		if(e->type != T && e->op != OLITERAL || !isgoconst(e)) {
+			yyerror("const initializer %N is not a constant", e);
 			goto ret;
 		}
 		t = n->type;
