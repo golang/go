@@ -75,8 +75,8 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	runtime·printf("\n");
 
 	if(runtime·gotraceback()){
-		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, m->curg);
-		runtime·tracebackothers(m->curg);
+		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, gp);
+		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}
 
