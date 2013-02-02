@@ -212,6 +212,10 @@ func (c *common) Failed() bool {
 
 // FailNow marks the function as having failed and stops its execution.
 // Execution will continue at the next test or benchmark.
+// FailNow must be called from the goroutine running the
+// test or benchmark function, not from other goroutines
+// created during the test. Calling FailNow does not stop
+// those other goroutines.
 func (c *common) FailNow() {
 	c.Fail()
 
@@ -244,33 +248,33 @@ func (c *common) log(s string) {
 	c.output = append(c.output, decorate(s)...)
 }
 
-// Log formats its arguments using default formatting, analogous to Println(),
+// Log formats its arguments using default formatting, analogous to Println,
 // and records the text in the error log.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
-// Logf formats its arguments according to the format, analogous to Printf(),
+// Logf formats its arguments according to the format, analogous to Printf,
 // and records the text in the error log.
 func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
 
-// Error is equivalent to Log() followed by Fail().
+// Error is equivalent to Log followed by Fail.
 func (c *common) Error(args ...interface{}) {
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
-// Errorf is equivalent to Logf() followed by Fail().
+// Errorf is equivalent to Logf followed by Fail.
 func (c *common) Errorf(format string, args ...interface{}) {
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
-// Fatal is equivalent to Log() followed by FailNow().
+// Fatal is equivalent to Log followed by FailNow.
 func (c *common) Fatal(args ...interface{}) {
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
-// Fatalf is equivalent to Logf() followed by FailNow().
+// Fatalf is equivalent to Logf followed by FailNow.
 func (c *common) Fatalf(format string, args ...interface{}) {
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
@@ -345,20 +349,23 @@ func (t *T) report() {
 	}
 }
 
-// Skip is equivalent to Log() followed by SkipNow().
+// Skip is equivalent to Log followed by SkipNow.
 func (t *T) Skip(args ...interface{}) {
 	t.log(fmt.Sprintln(args...))
 	t.SkipNow()
 }
 
-// Skipf is equivalent to Logf() followed by SkipNow().
+// Skipf is equivalent to Logf followed by SkipNow.
 func (t *T) Skipf(format string, args ...interface{}) {
 	t.log(fmt.Sprintf(format, args...))
 	t.SkipNow()
 }
 
-// SkipNow marks the function as having been skipped and stops its execution.
-// Execution will continue at the next test or benchmark. See also, t.FailNow.
+// SkipNow marks the test as having been skipped and stops its execution.
+// Execution will continue at the next test or benchmark. See also FailNow.
+// SkipNow must be called from the goroutine running the test, not from
+// other goroutines created during the test. Calling SkipNow does not stop
+// those other goroutines.
 func (t *T) SkipNow() {
 	t.skip()
 	runtime.Goexit()
@@ -370,7 +377,7 @@ func (t *T) skip() {
 	t.skipped = true
 }
 
-// Skipped reports whether the function was skipped.
+// Skipped reports whether the test was skipped.
 func (t *T) Skipped() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
