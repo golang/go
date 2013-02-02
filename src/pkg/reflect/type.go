@@ -708,7 +708,7 @@ type StructField struct {
 	Tag       StructTag // field tag string
 	Offset    uintptr   // offset within struct, in bytes
 	Index     []int     // index sequence for Type.FieldByIndex
-	Anonymous bool      // is an anonymous field
+	Anonymous bool      // is an embedded field
 }
 
 // A StructTag is the tag string in a struct field.
