@@ -1672,11 +1672,11 @@ fmtinstallgo(void)
 void
 dumplist(char *s, NodeList *l)
 {
-	print("%s\n%+H\n", s, l);
+	print("%s%+H\n", s, l);
 }
 
 void
 dump(char *s, Node *n)
 {
-	print("%s [%p]\n%+N\n", s, n, n);
+	print("%s [%p]%+N\n", s, n, n);
 }
