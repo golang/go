@@ -13,7 +13,6 @@ import (
 	"math/rand"
 	"os"
 	. "reflect"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -2012,20 +2011,13 @@ func TestAddr(t *testing.T) {
 }
 
 func noAlloc(t *testing.T, n int, f func(int)) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	// once to prime everything
-	f(-1)
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	oldmallocs := memstats.Mallocs
-
-	for j := 0; j < n; j++ {
-		f(j)
-	}
-	runtime.ReadMemStats(memstats)
-	mallocs := memstats.Mallocs - oldmallocs
-	if mallocs > 0 {
-		t.Fatalf("%d mallocs after %d iterations", mallocs, n)
+	i := -1
+	allocs := testing.AllocsPerRun(n, func() {
+		f(i)
+		i++
+	})
+	if allocs > 0 {
+		t.Errorf("%d iterations: got %v mallocs, want 0", n, allocs)
 	}
 }
 

@@ -6,7 +6,6 @@ package http
 
 import (
 	"bytes"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -175,38 +174,31 @@ func TestHasToken(t *testing.T) {
 	}
 }
 
+var testHeader = Header{
+	"Content-Length": {"123"},
+	"Content-Type":   {"text/plain"},
+	"Date":           {"some date at some time Z"},
+	"Server":         {"Go http package"},
+}
+
+var buf bytes.Buffer
+
 func BenchmarkHeaderWriteSubset(b *testing.B) {
-	doHeaderWriteSubset(b.N, b)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		testHeader.WriteSubset(&buf, nil)
+	}
 }
 
 func TestHeaderWriteSubsetMallocs(t *testing.T) {
-	doHeaderWriteSubset(100, t)
-}
-
-type errorfer interface {
-	Errorf(string, ...interface{})
-}
-
-func doHeaderWriteSubset(n int, t errorfer) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	h := Header(map[string][]string{
-		"Content-Length": {"123"},
-		"Content-Type":   {"text/plain"},
-		"Date":           {"some date at some time Z"},
-		"Server":         {"Go http package"},
-	})
-	var buf bytes.Buffer
-	var m0 runtime.MemStats
-	runtime.ReadMemStats(&m0)
-	for i := 0; i < n; i++ {
+	n := testing.AllocsPerRun(100, func() {
 		buf.Reset()
-		h.WriteSubset(&buf, nil)
-	}
-	var m1 runtime.MemStats
-	runtime.ReadMemStats(&m1)
-	if mallocs := m1.Mallocs - m0.Mallocs; n >= 100 && mallocs >= uint64(n) {
+		testHeader.WriteSubset(&buf, nil)
+	})
+	if n > 1 {
 		// TODO(bradfitz,rsc): once we can sort without allocating,
 		// make this an error.  See http://golang.org/issue/3761
-		// t.Errorf("did %d mallocs (>= %d iterations); should have avoided mallocs", mallocs, n)
+		// t.Errorf("got %v allocs, want <= %v", n, 1)
 	}
 }
