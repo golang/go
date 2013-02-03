@@ -224,13 +224,10 @@ Download and install packages and dependencies
 
 Usage:
 
-	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]
+	go get [-d] [-fix] [-u] [build flags] [packages]
 
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
-
-The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
-and 'go install'.  See 'go help build'.
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
@@ -241,6 +238,9 @@ before resolving dependencies or building the code.
 The -u flag instructs get to use the network to update the named packages
 and their dependencies.  By default, get uses the network to check out
 missing packages but does not use it to look for updates to existing packages.
+
+Get also accepts all the flags in the 'go build' and 'go install' commands,
+to control the installation. See 'go help build'.
 
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
