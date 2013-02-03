@@ -553,6 +553,8 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 
 	ninit = n->ninit;
 
+//dumplist("ninit pre", ninit);
+
 	if (fn->defn) // local function
 		dcl = fn->defn->dcl;
 	else // imported function
@@ -566,7 +568,8 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 			ll->n->inlvar = inlvar(ll->n);
 			// Typecheck because inlvar is not necessarily a function parameter.
 			typecheck(&ll->n->inlvar, Erv);
-			ninit = list(ninit, nod(ODCL, ll->n->inlvar, N));  // otherwise gen won't emit the allocations for heapallocs
+			if ((ll->n->class&~PHEAP) != PAUTO)
+				ninit = list(ninit, nod(ODCL, ll->n->inlvar, N));  // otherwise gen won't emit the allocations for heapallocs
 			if (ll->n->class == PPARAMOUT)  // we rely on the order being correct here
 				inlretvars = list(inlretvars, ll->n->inlvar);
 		}
@@ -733,6 +736,7 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 	body = list(body, nod(OLABEL, inlretlabel, N));
 
 	typechecklist(body, Etop);
+//dumplist("ninit post", ninit);
 
 	call = nod(OINLCALL, N, N);
 	call->ninit = ninit;
@@ -742,6 +746,7 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 	call->typecheck = 1;
 
 	setlno(call, n->lineno);
+//dumplist("call body", body);
 
 	*np = call;
 
