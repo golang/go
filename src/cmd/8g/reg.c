@@ -222,6 +222,10 @@ regopt(Prog *firstp)
 			}
 		}
 
+		// Avoid making variables for direct-called functions.
+		if(p->as == ACALL && p->to.type == D_EXTERN)
+			continue;
+
 		// Addressing makes some registers used.
 		if(p->from.type >= D_INDIR)
 			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);

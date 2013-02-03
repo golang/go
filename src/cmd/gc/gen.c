@@ -735,8 +735,6 @@ cgen_as(Node *nl, Node *nr)
 			return;
 		}
 		clearslim(nl);
-		if(nl->addable)
-			gused(nl);
 		return;
 	}
 
