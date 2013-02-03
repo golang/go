@@ -127,3 +127,21 @@ func divInSlice() {
 	i := 1
 	_ = v[(i*4)/3]
 }
+
+func TestNoRaceReturn(t *testing.T) {
+	c := make(chan int)
+	noRaceReturn(c)
+	<-c
+}
+
+// Return used to do an implicit a = a, causing a read/write race
+// with the goroutine. Compiler has an optimization to avoid that now.
+// See issue 4014.
+func noRaceReturn(c chan int) (a, b int) {
+	a = 42
+	go func() {
+		_ = a
+		c <- 1
+	}()
+	return a, 10
+}
