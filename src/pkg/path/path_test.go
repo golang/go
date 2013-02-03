@@ -5,7 +5,6 @@
 package path
 
 import (
-	"runtime"
 	"testing"
 )
 
@@ -64,7 +63,6 @@ var cleantests = []PathTest{
 }
 
 func TestClean(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	for _, test := range cleantests {
 		if s := Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
@@ -74,19 +72,11 @@ func TestClean(t *testing.T) {
 		}
 	}
 
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	allocs := -ms.Mallocs
-	const rounds = 100
-	for i := 0; i < rounds; i++ {
-		for _, test := range cleantests {
-			Clean(test.result)
+	for _, test := range cleantests {
+		allocs := testing.AllocsPerRun(100, func() { Clean(test.result) })
+		if allocs > 0 {
+			t.Errorf("Clean(%q): %v allocs, want zero", test.result, allocs)
 		}
-	}
-	runtime.ReadMemStats(&ms)
-	allocs += ms.Mallocs
-	if allocs >= rounds {
-		t.Errorf("Clean cleaned paths: %d allocations per test round, want zero", allocs/rounds)
 	}
 }
 

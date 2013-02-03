@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"testing"
 )
 
@@ -50,49 +49,43 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	const N = 1000
+
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	mallocs := 0 - memstats.Mallocs
-	const count = 1000
-	for i := 0; i < count; i++ {
+
+	allocs := testing.AllocsPerRun(N, func() {
 		err := enc.Encode(bench)
 		if err != nil {
 			t.Fatal("encode:", err)
 		}
-	}
-	runtime.ReadMemStats(memstats)
-	mallocs += memstats.Mallocs
-	fmt.Printf("mallocs per encode of type Bench: %d\n", mallocs/count)
+	})
+	fmt.Printf("mallocs per encode of type Bench: %v\n", allocs)
 }
 
 func TestCountDecodeMallocs(t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	const N = 1000
+
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	bench := &Bench{7, 3.2, "now is the time", []byte("for all good men")}
-	const count = 1000
-	for i := 0; i < count; i++ {
+
+	// Fill the buffer with enough to decode
+	testing.AllocsPerRun(N, func() {
 		err := enc.Encode(bench)
 		if err != nil {
 			t.Fatal("encode:", err)
 		}
-	}
+	})
+
 	dec := NewDecoder(&buf)
-	memstats := new(runtime.MemStats)
-	runtime.ReadMemStats(memstats)
-	mallocs := 0 - memstats.Mallocs
-	for i := 0; i < count; i++ {
+	allocs := testing.AllocsPerRun(N, func() {
 		*bench = Bench{}
 		err := dec.Decode(&bench)
 		if err != nil {
 			t.Fatal("decode:", err)
 		}
-	}
-	runtime.ReadMemStats(memstats)
-	mallocs += memstats.Mallocs
-	fmt.Printf("mallocs per decode of type Bench: %d\n", mallocs/count)
+	})
+	fmt.Printf("mallocs per decode of type Bench: %v\n", allocs)
 }
