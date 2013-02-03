@@ -78,7 +78,6 @@ convlit1(Node **np, Type *t, int explicit)
 	if(!explicit && !isideal(n->type))
 		return;
 
-	
 	if(n->op == OLITERAL) {
 		nn = nod(OXXX, N, N);
 		*nn = *n;
@@ -88,8 +87,12 @@ convlit1(Node **np, Type *t, int explicit)
 
 	switch(n->op) {
 	default:
-		if(n->type == idealbool)
-			n->type = types[TBOOL];
+		if(n->type == idealbool) {
+			if(t->etype == TBOOL)
+				n->type = t;
+			else
+				n->type = types[TBOOL];
+		}
 		if(n->type->etype == TIDEAL) {
 			convlit(&n->left, t);
 			convlit(&n->right, t);
