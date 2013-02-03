@@ -1326,8 +1326,12 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 		lr->n = safeexpr(lr->n, init);
 
 	nn = nil;
-	for(ll=nl, lr=nr; ll && lr; ll=ll->next, lr=lr->next)
+	for(ll=nl, lr=nr; ll && lr; ll=ll->next, lr=lr->next) {
+		// Do not generate 'x = x' during return. See issue 4014.
+		if(op == ORETURN && ll->n == lr->n)
+			continue;
 		nn = list(nn, ascompatee1(op, ll->n, lr->n, init));
+	}
 
 	// cannot happen: caller checked that lists had same length
 	if(ll || lr)
