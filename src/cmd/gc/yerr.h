@@ -26,7 +26,7 @@ static struct {
 	237, ';',
 	"unexpected semicolon or newline before {",
 
-	474, LBODY,
+	475, LBODY,
 	"unexpected semicolon or newline before {",
 
 	22, '{',
@@ -44,7 +44,7 @@ static struct {
 	37, ',',
 	"unexpected comma in channel type",
 
-	437, LELSE,
+	438, LELSE,
 	"unexpected semicolon or newline before else",
 
 	257, ',',
@@ -65,12 +65,12 @@ static struct {
 	425, ';',
 	"need trailing comma before newline in composite literal",
 	
-	435, ';',
+	436, ';',
 	"need trailing comma before newline in composite literal",
 	
 	112, LNAME,
 	"nested func not allowed",
 
-	641, ';',
+	642, ';',
 	"else must be followed by if or statement block"
 };

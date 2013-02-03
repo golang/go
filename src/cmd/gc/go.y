@@ -947,7 +947,7 @@ pexpr_no_paren:
 		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
 	}
 |	pseudocall
-|	convtype '(' expr ')'
+|	convtype '(' expr ocomma ')'
 	{
 		// conversion
 		$$ = nod(OCALL, $1, N);
