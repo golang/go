@@ -510,6 +510,8 @@ tinlvar(Type *t)
 	return nblank;
 }
 
+static int inlgen;
+
 // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
 // On return ninit has the parameter assignments, the nbody is the
 // inlined function body and list, rlist contain the input, output
@@ -730,6 +732,7 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 	}
 
 	inlretlabel = newlabel();
+	inlgen++;
 	body = inlsubstlist(fn->inl);
 
 	body = list(body, nod(OGOTO, inlretlabel, N));	// avoid 'not used' when function doesnt have return
@@ -855,6 +858,7 @@ inlsubstlist(NodeList *ll)
 static Node*
 inlsubst(Node *n)
 {
+	char *p;
 	Node *m, *as;
 	NodeList *ll;
 
@@ -897,6 +901,16 @@ inlsubst(Node *n)
 		typecheck(&m, Etop);
 //		dump("Return after substitution", m);
 		return m;
+	
+	case OGOTO:
+	case OLABEL:
+		m = nod(OXXX, N, N);
+		*m = *n;
+		m->ninit = nil;
+		p = smprint("%s·%d", n->left->sym->name, inlgen);	
+		m->left = newname(lookup(p));
+		free(p);
+		return m;	
 	}
 
 
