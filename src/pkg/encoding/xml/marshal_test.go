@@ -7,6 +7,7 @@ package xml
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"strconv"
@@ -840,6 +841,24 @@ var marshalErrorTests = []struct {
 	},
 }
 
+var marshalIndentTests = []struct {
+	Value     interface{}
+	Prefix    string
+	Indent    string
+	ExpectXML string
+}{
+	{
+		Value: &SecretAgent{
+			Handle:    "007",
+			Identity:  "James Bond",
+			Obfuscate: "<redacted/>",
+		},
+		Prefix:    "",
+		Indent:    "\t",
+		ExpectXML: fmt.Sprintf("<agent handle=\"007\">\n\t<Identity>James Bond</Identity><redacted/>\n</agent>"),
+	},
+}
+
 func TestMarshalErrors(t *testing.T) {
 	for idx, test := range marshalErrorTests {
 		_, err := Marshal(test.Value)
@@ -880,6 +899,19 @@ func TestUnmarshal(t *testing.T) {
 			t.Errorf("#%d: unexpected error: %#v", i, err)
 		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
 			t.Errorf("#%d: unmarshal(%q):\nhave %#v\nwant %#v", i, test.ExpectXML, got, want)
+		}
+	}
+}
+
+func TestMarshalIndent(t *testing.T) {
+	for i, test := range marshalIndentTests {
+		data, err := MarshalIndent(test.Value, test.Prefix, test.Indent)
+		if err != nil {
+			t.Errorf("#%d: Error: %s", i, err)
+			continue
+		}
+		if got, want := string(data), test.ExpectXML; got != want {
+			t.Errorf("#%d: MarshalIndent:\nGot:%s\nWant:\n%s", i, got, want)
 		}
 	}
 }
