@@ -832,23 +832,34 @@ reswitch:
 			yyerror("invalid operation: %N (index of type %T)", n, t);
 			goto error;
 
+
+		case TSTRING:
 		case TARRAY:
 			defaultlit(&n->right, T);
-			n->type = t->type;
+			if(t->etype == TSTRING)
+				n->type = types[TUINT8];
+			else
+				n->type = t->type;
+			why = "string";
+			if(t->etype == TARRAY) {
+				if(isfixedarray(t))
+					why = "array";
+				else
+					why = "slice";
+			}
 			if(n->right->type != T && !isint[n->right->type->etype]) {
-				yyerror("non-integer array index %N", n->right);
+				yyerror("non-integer %s index %N", why, n->right);
 				break;
 			}
 			if(n->right->op == OLITERAL) {
-			       	if(mpgetfix(n->right->val.u.xval) < 0) {
-					why = isfixedarray(t) ? "array" : "slice";
+			       	if(mpgetfix(n->right->val.u.xval) < 0)
 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
-				} else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
+				else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
-				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0) {
-					why = isfixedarray(t) ? "array" : "slice";
+				else if(isconst(n->left, CTSTR) && mpgetfix(n->right->val.u.xval) >= n->left->val.u.sval->len)
+					yyerror("invalid string index %N (out of bounds for %d-byte string)", n->right, n->left->val.u.sval->len);
+				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0)
 					yyerror("invalid %s index %N (index too large)", why, n->right);
-				}
 			}
 			break;
 
@@ -859,13 +870,6 @@ reswitch:
 				n->right = assignconv(n->right, t->down, "map index");
 			n->type = t->type;
 			n->op = OINDEXMAP;
-			break;
-
-		case TSTRING:
-			defaultlit(&n->right, types[TUINT]);
-			if(n->right->type != T && !isint[n->right->type->etype])
-				yyerror("non-integer string index %N", n->right);
-			n->type = types[TUINT8];
 			break;
 		}
 		goto ret;

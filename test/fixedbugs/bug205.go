@@ -11,8 +11,8 @@ var s string;
 var m map[string]int;
 
 func main() {
-	println(t["hi"]);	// ERROR "integer"
-	println(s["hi"]);	// ERROR "integer" "to type uint"
-	println(m[0]);	// ERROR "map index"
+	println(t["hi"]);	// ERROR "non-integer slice index"
+	println(s["hi"]);	// ERROR "non-integer string index"
+	println(m[0]);	// ERROR "as type string in map index"
 }
 
