@@ -124,6 +124,7 @@ type printer struct {
 	prefix     string
 	depth      int
 	indentedIn bool
+	putNewline bool
 }
 
 // marshalValue writes one or more XML elements representing val.
@@ -394,7 +395,11 @@ func (p *printer) writeIndent(depthDelta int) {
 		}
 		p.indentedIn = false
 	}
-	p.WriteByte('\n')
+	if p.putNewline {
+		p.WriteByte('\n')
+	} else {
+		p.putNewline = true
+	}
 	if len(p.prefix) > 0 {
 		p.WriteString(p.prefix)
 	}
