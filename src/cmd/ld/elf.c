@@ -55,7 +55,9 @@ elfinit(void)
 
 	// 32-bit architectures
 	case '5':
-		hdr.flags = 0x5000002; // has entry point, Version5 EABI
+		// we only use EABI on linux/arm
+		if(HEADTYPE == Hlinux)
+			hdr.flags = 0x5000002; // has entry point, Version5 EABI
 		// fallthrough
 	default:
 		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
@@ -1303,6 +1305,7 @@ asmbelf(vlong symo)
 			sh->type = SHT_REL;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = ELF32RELSIZE;
+			sh->link = elfshname(".dynsym")->shnum;
 			shsym(sh, lookup(".rel.plt", 0));
 
 			sh = elfshname(".rel");
@@ -1375,15 +1378,17 @@ asmbelf(vlong symo)
 		}
 	}
 
-	ph = newElfPhdr();
-	ph->type = PT_GNU_STACK;
-	ph->flags = PF_W+PF_R;
-	ph->align = PtrSize;
-	
-	ph = newElfPhdr();
-	ph->type = PT_PAX_FLAGS;
-	ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
-	ph->align = PtrSize;
+	if(HEADTYPE == Hlinux) {
+		ph = newElfPhdr();
+		ph->type = PT_GNU_STACK;
+		ph->flags = PF_W+PF_R;
+		ph->align = PtrSize;
+		
+		ph = newElfPhdr();
+		ph->type = PT_PAX_FLAGS;
+		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+		ph->align = PtrSize;
+	}
 
 elfobj:
 	sh = elfshname(".shstrtab");
