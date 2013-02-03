@@ -40,7 +40,7 @@ static Prog *PP;
 char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 char openbsddynld[] = "XXX";
-char netbsddynld[] = "XXX";
+char netbsddynld[] = "/libexec/ld.elf_so";
 
 int32
 entryvalue(void)
@@ -580,9 +580,6 @@ asmb(void)
 			break;
 		case Hplan9x32:
 			symo = HEADR+segtext.len+segdata.filelen;
-			break;
-		case Hnetbsd:
-			symo = rnd(segdata.filelen, 4096);
 			break;
 		ElfSym:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
