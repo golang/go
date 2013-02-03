@@ -275,6 +275,10 @@ regopt(Prog *firstp)
 			}
 		}
 
+		// Avoid making variables for direct-called functions.
+		if(p->as == ABL && p->to.type == D_EXTERN)
+			continue;
+
 		/*
 		 * left side always read
 		 */
