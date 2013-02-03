@@ -32,6 +32,7 @@ static void	checkassignlist(NodeList*);
 static void	stringtoarraylit(Node**);
 static Node*	resolve(Node*);
 static void	checkdefergo(Node*);
+static int	checkmake(Type*, char*, Node*);
 
 static	NodeList*	typecheckdefstack;
 
@@ -1403,22 +1404,20 @@ reswitch:
 			l = args->n;
 			args = args->next;
 			typecheck(&l, Erv);
-			defaultlit(&l, types[TINT]);
 			r = N;
 			if(args != nil) {
 				r = args->n;
 				args = args->next;
 				typecheck(&r, Erv);
-				defaultlit(&r, types[TINT]);
 			}
 			if(l->type == T || (r && r->type == T))
 				goto error;
-			if(!isint[l->type->etype]) {
-				yyerror("non-integer len argument to make(%T)", t);
+			et = checkmake(t, "len", l) < 0;
+			et |= r && checkmake(t, "cap", r) < 0;
+			if(et)
 				goto error;
-			}
-			if(r && !isint[r->type->etype]) {
-				yyerror("non-integer cap argument to make(%T)", t);
+			if(isconst(l, CTINT) && r && isconst(r, CTINT) && mpcmpfixfix(l->val.u.xval, r->val.u.xval) > 0) {
+				yyerror("len larger than cap in make(%T)", t);
 				goto error;
 			}
 			n->left = l;
@@ -1434,10 +1433,8 @@ reswitch:
 				defaultlit(&l, types[TINT]);
 				if(l->type == T)
 					goto error;
-				if(!isint[l->type->etype]) {
-					yyerror("non-integer size argument to make(%T)", t);
+				if(checkmake(t, "size", l) < 0)
 					goto error;
-				}
 				n->left = l;
 			} else
 				n->left = nodintconst(0);
@@ -1453,10 +1450,8 @@ reswitch:
 				defaultlit(&l, types[TINT]);
 				if(l->type == T)
 					goto error;
-				if(!isint[l->type->etype]) {
-					yyerror("non-integer buffer argument to make(%T)", t);
+				if(checkmake(t, "buffer", l) < 0)
 					goto error;
-				}
 				n->left = l;
 			} else
 				n->left = nodintconst(0);
@@ -3097,4 +3092,34 @@ ret:
 	lineno = lno;
 	n->walkdef = 1;
 	return n;
+}
+
+static int
+checkmake(Type *t, char *arg, Node *n)
+{
+	if(n->op == OLITERAL) {
+		n->val = toint(n->val);
+		if(mpcmpfixc(n->val.u.xval, 0) < 0) {
+			yyerror("negative %s argument in make(%T)", arg, t);
+			return -1;
+		}
+		if(mpcmpfixfix(n->val.u.xval, maxintval[TINT]) > 0) {
+			yyerror("%s argument too large in make(%T)", arg, t);
+			return -1;
+		}
+		
+		// Delay defaultlit until after we've checked range, to avoid
+		// a redundant "constant NNN overflows int" error.
+		defaultlit(&n, types[TINT]);
+		return 0;
+	}
+	
+	// Defaultlit still necessary for non-constant: n might be 1<<k.
+	defaultlit(&n, types[TINT]);
+
+	if(!isint[n->type->etype]) {
+		yyerror("non-integer %s argument in make(%T) - %T", arg, t, n->type);
+		return -1;
+	}
+	return 0;
 }

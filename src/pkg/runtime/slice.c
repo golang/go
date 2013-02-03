@@ -20,9 +20,14 @@ static	void	growslice1(SliceType*, Slice, intgo, Slice *);
 void
 runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 {
-	if(len < 0 || (intgo)len != len)
+	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
+	// but it produces a 'len out of range' error instead of a 'cap out of range' error
+	// when someone does make([]T, bignumber). 'cap out of range' is true too,
+	// but since the cap is only being supplied implicitly, saying len is clearer.
+	// See issue 4085.
+	if(len < 0 || (intgo)len != len || t->elem->size > 0 && len > MaxMem / t->elem->size)
 		runtime·panicstring("makeslice: len out of range");
-	
+
 	if(cap < len || (intgo)cap != cap || t->elem->size > 0 && cap > MaxMem / t->elem->size)
 		runtime·panicstring("makeslice: cap out of range");
 

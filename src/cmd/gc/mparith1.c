@@ -43,10 +43,10 @@ mpcmpfixfix(Mpint *a, Mpint *b)
 int
 mpcmpfixc(Mpint *b, vlong c)
 {
-	Mpint a;
+	Mpint c1;
 
-	mpmovecfix(&a, c);
-	return mpcmpfixfix(&a, b);
+	mpmovecfix(&c1, c);
+	return mpcmpfixfix(b, &c1);
 }
 
 int
