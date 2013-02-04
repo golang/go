@@ -478,6 +478,7 @@ var parseTests = []ParseTest{
 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
 	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1, 0},
 	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1, 0},
+	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 22:00:57 PDT", true, true, 1, 0},
 	{"RFC1123Z", RFC1123Z, "Thu, 04 Feb 2010 21:00:57 -0800", true, true, 1, 0},
 	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
 	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
@@ -530,6 +531,42 @@ func TestParse(t *testing.T) {
 		} else {
 			checkTime(time, &test, t)
 		}
+	}
+}
+
+func TestParseInSydney(t *testing.T) {
+	loc, err := LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that Parse (and ParseInLocation) understand
+	// that Feb EST and Aug EST are different time zones in Sydney
+	// even though both are called EST.
+	t1, err := ParseInLocation("Jan 02 2006 MST", "Feb 01 2013 EST", loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t2 := Date(2013, February, 1, 00, 00, 00, 0, loc)
+	if t1 != t2 {
+		t.Fatalf("ParseInLocation(Feb 01 2013 EST, Sydney) = %v, want %v", t1, t2)
+	}
+	_, offset := t1.Zone()
+	if offset != 11*60*60 {
+		t.Fatalf("ParseInLocation(Feb 01 2013 EST, Sydney).Zone = _, %d, want _, %d", offset, 11*60*60)
+	}
+
+	t1, err = ParseInLocation("Jan 02 2006 MST", "Aug 01 2013 EST", loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t2 = Date(2013, August, 1, 00, 00, 00, 0, loc)
+	if t1 != t2 {
+		t.Fatalf("ParseInLocation(Aug 01 2013 EST, Sydney) = %v, want %v", t1, t2)
+	}
+	_, offset = t1.Zone()
+	if offset != 10*60*60 {
+		t.Fatalf("ParseInLocation(Aug 01 2013 EST, Sydney).Zone = _, %d, want _, %d", offset, 10*60*60)
 	}
 }
 

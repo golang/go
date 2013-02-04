@@ -67,6 +67,38 @@ func ExampleTime_Format() {
 	// Nov 10, 2009 at 11:00pm (UTC)
 }
 
+func ExampleParse() {
+	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
+	t, _ := time.Parse(longForm, "Feb 3, 2013 at 7:54pm (PST)")
+	fmt.Println(t)
+
+	// Note: without explicit zone, returns time in UTC.
+	const shortForm = "2006-Jan-02"
+	t, _ = time.Parse(shortForm, "2013-Feb-03")
+	fmt.Println(t)
+
+	// Output:
+	// 2013-02-03 19:54:00 -0800 PST
+	// 2013-02-03 00:00:00 +0000 UTC
+}
+
+func ExampleParseInLocation() {
+	loc, _ := time.LoadLocation("Europe/Berlin")
+
+	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
+	t, _ := time.ParseInLocation(longForm, "Jul 9, 2012 at 5:02am (CEST)", loc)
+	fmt.Println(t)
+
+	// Note: without explicit zone, returns time in given location.
+	const shortForm = "2006-Jan-02"
+	t, _ = time.ParseInLocation(shortForm, "2012-Jul-09", loc)
+	fmt.Println(t)
+
+	// Output:
+	// 2012-07-09 05:02:00 +0200 CEST
+	// 2012-07-09 00:00:00 +0200 CEST
+}
+
 func ExampleTime_Round() {
 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
 	round := []time.Duration{

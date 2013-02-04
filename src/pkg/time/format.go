@@ -641,7 +641,37 @@ func skip(value, prefix string) (string, error) {
 // 0, this time is before the zero Time).
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
+//
+// In the absence of a time zone indicator, Parse returns a time in UTC.
+//
+// When parsing a time with a zone offset like -0700, if the offset corresponds
+// to a time zone used by the current location (Local), then Parse uses that
+// location and zone in the returned time. Otherwise it records the time as
+// being in a fabricated location with time fixed at the given zone offset.
+//
+// When parsing a time with a zone abbreviation like MST, if the zone abbreviation
+// has a defined offset in the current location, then that offset is used.
+// The zone abbreviation "UTC" is recognized as UTC regardless of location.
+// If the zone abbreviation is unknown, Parse records the time as being
+// in a fabricated location with the given zone abbreviation and a zero offset.
+// This choice means that such a time can be parse and reformatted with the
+// same layout losslessly, but the exact instant used in the representation will
+// differ by the actual zone offset. To avoid such problems, prefer time layouts
+// that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
+	return parse(layout, value, UTC, Local)
+}
+
+// ParseInLocation is like Parse but differs in two important ways.
+// First, in the absence of time zone information, Parse interprets a time as UTC;
+// ParseInLocation interprets the time as in the given location.
+// Second, when given a zone offset or abbreviation, Parse tries to match it
+// against the Local location; ParseInLocation uses the given location.
+func ParseInLocation(layout, value string, loc *Location) (Time, error) {
+	return parse(layout, value, loc, loc)
+}
+
+func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
 	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -892,20 +922,19 @@ func Parse(layout, value string) (Time, error) {
 		hour = 0
 	}
 
-	// TODO: be more aggressive checking day?
 	if z != nil {
 		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
 	}
 
-	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 	if zoneOffset != -1 {
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		t.sec -= int64(zoneOffset)
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := Local.lookup(t.sec + internalToUnix)
+		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.loc = Local
+			t.loc = local
 			return t, nil
 		}
 
@@ -915,16 +944,14 @@ func Parse(layout, value string) (Time, error) {
 	}
 
 	if zoneName != "" {
+		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, _, ok := Local.lookupName(zoneName)
+		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
 		if ok {
-			name, off, _, _, _ := Local.lookup(t.sec + internalToUnix - int64(offset))
-			if name == zoneName && off == offset {
-				t.sec -= int64(offset)
-				t.loc = Local
-				return t, nil
-			}
+			t.sec -= int64(offset)
+			t.loc = local
+			return t, nil
 		}
 
 		// Otherwise, create fake zone with unknown offset.
@@ -932,8 +959,8 @@ func Parse(layout, value string) (Time, error) {
 		return t, nil
 	}
 
-	// Otherwise, fall back to UTC.
-	return t, nil
+	// Otherwise, fall back to default.
+	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
 }
 
 func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
