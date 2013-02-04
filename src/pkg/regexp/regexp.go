@@ -130,7 +130,7 @@ func CompilePOSIX(expr string) (*Regexp, error) {
 	return compile(expr, syntax.POSIX, true)
 }
 
-// Longest sets the match semantics of the regexp to leftmost-longest.
+// Longest makes future searches prefer the leftmost-longest match.
 // That is, when matching against text, the regexp returns a match that
 // begins as early as possible in the input (leftmost), and among those
 // it chooses a match that is as long as possible.
