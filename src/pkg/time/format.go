@@ -611,14 +611,14 @@ func skip(value, prefix string) (string, error) {
 	for len(prefix) > 0 {
 		if prefix[0] == ' ' {
 			if len(value) > 0 && value[0] != ' ' {
-				return "", errBad
+				return value, errBad
 			}
 			prefix = cutspace(prefix)
 			value = cutspace(value)
 			continue
 		}
 		if len(value) == 0 || value[0] != prefix[0] {
-			return "", errBad
+			return value, errBad
 		}
 		prefix = prefix[1:]
 		value = value[1:]
