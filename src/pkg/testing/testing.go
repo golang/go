@@ -281,7 +281,7 @@ func (c *common) Fatalf(format string, args ...interface{}) {
 }
 
 // Parallel signals that this test is to be run in parallel with (and only with)
-// other parallel tests in this CPU group.
+// other parallel tests.
 func (t *T) Parallel() {
 	t.signal <- (*T)(nil) // Release main testing loop
 	<-t.startParallel     // Wait for serial tests to finish

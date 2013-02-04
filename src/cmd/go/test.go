@@ -81,43 +81,27 @@ var helpTestflag = &Command{
 The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
-The test binary, called pkg.test, where pkg is the name of the
-directory containing the package sources, has its own flags:
+The following flags are recognized by the 'go test' command and
+control the execution of any test:
 
-	-test.v
-	    Verbose output: log all tests as they are run.
-
-	-test.run pattern
-	    Run only those tests and examples matching the regular
-	    expression.
-
-	-test.bench pattern
+	-bench regexp
 	    Run benchmarks matching the regular expression.
-	    By default, no benchmarks run.
+	    By default, no benchmarks run. To run all benchmarks,
+	    use '-bench .' or '-bench=.'.
 
-	-test.benchmem
+	-benchmem
 	    Print memory allocation statistics for benchmarks.
 
-	-test.cpuprofile cpu.out
-	    Write a CPU profile to the specified file before exiting.
+	-benchtime t
+		Run enough iterations of each benchmark to take t, specified
+		as a time.Duration (for example, -benchtime 1h30s).
+		The default is 1 second (1s).
 
-	-test.memprofile mem.out
-	    Write a memory profile to the specified file when all tests
-	    are complete.
-
-	-test.memprofilerate n
-	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
-	    To profile all memory allocations, use -test.memprofilerate=1
-	    and set the environment variable GOGC=off to disable the
-	    garbage collector, provided the test can run in the available
-	    memory without garbage collection.
-
-	-test.blockprofile block.out
+	-blockprofile block.out
 	    Write a goroutine blocking profile to the specified file
 	    when all tests are complete.
 
-	-test.blockprofilerate n
+	-blockprofilerate n
 	    Control the detail provided in goroutine blocking profiles by setting
 	    runtime.BlockProfileRate to n.  See 'godoc runtime BlockProfileRate'.
 	    The profiler aims to sample, on average, one blocking event every
@@ -125,32 +109,55 @@ directory containing the package sources, has its own flags:
 	    if -test.blockprofile is set without this flag, all blocking events
 	    are recorded, equivalent to -test.blockprofilerate=1.
 
-	-test.parallel n
+	-cpu 1,2,4
+	    Specify a list of GOMAXPROCS values for which the tests or
+	    benchmarks should be executed.  The default is the current value
+	    of GOMAXPROCS.
+
+	-cpuprofile cpu.out
+	    Write a CPU profile to the specified file before exiting.
+
+	-memprofile mem.out
+	    Write a memory profile to the specified file when all tests
+	    are complete.
+
+	-memprofilerate n
+	    Enable more precise (and expensive) memory profiles by setting
+	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
+	    To profile all memory allocations, use -test.memprofilerate=1
+	    and set the environment variable GOGC=off to disable the
+	    garbage collector, provided the test can run in the available
+	    memory without garbage collection.
+
+	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel.
 	    The value of this flag is the maximum number of tests to run
 	    simultaneously; by default, it is set to the value of GOMAXPROCS.
 
-	-test.short
+	-run regexp
+	    Run only those tests and examples matching the regular
+	    expression.
+
+	-short
 	    Tell long-running tests to shorten their run time.
 	    It is off by default but set during all.bash so that installing
 	    the Go tree can run a sanity check but not spend time running
 	    exhaustive tests.
 
-	-test.timeout t
+	-timeout t
 		If a test runs longer than t, panic.
 
-	-test.benchtime t
-		Run enough iterations of each benchmark to take t.
-		The default is 1 second.
+	-v
+	    Verbose output: log all tests as they are run.
 
-	-test.cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or
-	    benchmarks should be executed.  The default is the current value
-	    of GOMAXPROCS.
+The test binary, called pkg.test where pkg is the name of the
+directory containing the package sources, can be invoked directly
+after building it with 'go test -c'. When invoking the test binary
+directly, each of the standard flag names must be prefixed with 'test.',
+as in -test.run=TestMyFunc or -test.v.
 
-For convenience, each of these -test.X flags of the test binary is
-also available as the flag -X in 'go test' itself.  Flags not listed
-here are passed through unaltered.  For instance, the command
+When running 'go test', flags not listed above are passed through
+unaltered. For instance, the command
 
 	go test -x -v -cpuprofile=prof.out -dir=testdata -update
 
