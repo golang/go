@@ -231,7 +231,7 @@ type Cmsghdr struct {
 	Len          uint32
 	Level        int32
 	Type         int32
-	X__cmsg_data [0]byte
+	X__cmsg_data [0]uint8
 }
 
 type Inet4Pktinfo struct {
@@ -251,6 +251,40 @@ type Ucred struct {
 	Gid uint32
 }
 
+type TCPInfo struct {
+	State          uint8
+	Ca_state       uint8
+	Retransmits    uint8
+	Probes         uint8
+	Backoff        uint8
+	Options        uint8
+	Pad_cgo_0      [2]byte
+	Rto            uint32
+	Ato            uint32
+	Snd_mss        uint32
+	Rcv_mss        uint32
+	Unacked        uint32
+	Sacked         uint32
+	Lost           uint32
+	Retrans        uint32
+	Fackets        uint32
+	Last_data_sent uint32
+	Last_ack_sent  uint32
+	Last_data_recv uint32
+	Last_ack_recv  uint32
+	Pmtu           uint32
+	Rcv_ssthresh   uint32
+	Rtt            uint32
+	Rttvar         uint32
+	Snd_ssthresh   uint32
+	Snd_cwnd       uint32
+	Advmss         uint32
+	Reordering     uint32
+	Rcv_rtt        uint32
+	Rcv_space      uint32
+	Total_retrans  uint32
+}
+
 const (
 	SizeofSockaddrInet4     = 0x10
 	SizeofSockaddrInet6     = 0x1c
@@ -267,6 +301,7 @@ const (
 	SizeofInet4Pktinfo      = 0xc
 	SizeofInet6Pktinfo      = 0x14
 	SizeofUcred             = 0xc
+	SizeofTCPInfo           = 0x68
 )
 
 const (
@@ -299,7 +334,7 @@ const (
 	IFLA_LINKINFO     = 0x12
 	IFLA_NET_NS_PID   = 0x13
 	IFLA_IFALIAS      = 0x14
-	IFLA_MAX          = 0x1c
+	IFLA_MAX          = 0x1d
 	RT_SCOPE_UNIVERSE = 0x0
 	RT_SCOPE_SITE     = 0xc8
 	RT_SCOPE_LINK     = 0xfd
@@ -433,7 +468,7 @@ type InotifyEvent struct {
 	Mask   uint32
 	Cookie uint32
 	Len    uint32
-	Name   [0]byte
+	Name   [0]uint8
 }
 
 const SizeofInotifyEvent = 0x10
