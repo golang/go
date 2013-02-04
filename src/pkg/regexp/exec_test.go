@@ -706,3 +706,17 @@ func BenchmarkMatchHard_1K(b *testing.B)    { benchmark(b, hard, 1<<10) }
 func BenchmarkMatchHard_32K(b *testing.B)   { benchmark(b, hard, 32<<10) }
 func BenchmarkMatchHard_1M(b *testing.B)    { benchmark(b, hard, 1<<20) }
 func BenchmarkMatchHard_32M(b *testing.B)   { benchmark(b, hard, 32<<20) }
+
+func TestLongest(t *testing.T) {
+	re, err := Compile(`a(|b)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := re.FindString("ab"), "a"; g != w {
+		t.Errorf("first match was %q, want %q", g, w)
+	}
+	re.Longest()
+	if g, w := re.FindString("ab"), "ab"; g != w {
+		t.Errorf("longest match was %q, want %q", g, w)
+	}
+}
