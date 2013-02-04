@@ -926,10 +926,10 @@ walkexpr(Node **np, NodeList **init)
 
 	case OANDNOT:
 		walkexpr(&n->left, init);
-		walkexpr(&n->right, init);
 		n->op = OAND;
 		n->right = nod(OCOM, n->right, N);
 		typecheck(&n->right, Erv);
+		walkexpr(&n->right, init);
 		goto ret;
 
 	case ODIV:
