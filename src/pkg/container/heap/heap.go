@@ -4,7 +4,7 @@
 
 // Package heap provides heap operations for any type that implements
 // heap.Interface. A heap is a tree with the property that each node is the
-// highest-valued node in its subtree.
+// minimum-valued node in its subtree.
 //
 // A heap is a common way to implement a priority queue. To build a priority
 // queue, implement the Heap interface with the (negative) priority as the
