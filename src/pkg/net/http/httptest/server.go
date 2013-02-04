@@ -21,7 +21,11 @@ import (
 type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
-	TLS      *tls.Config // nil if not using TLS
+
+	// TLS is the optional TLS configuration, populated with a new config
+	// after TLS is started. If set on an unstarted server before StartTLS
+	// is called, existing fields are copied into the new config.
+	TLS *tls.Config
 
 	// Config may be changed after calling NewUnstartedServer and
 	// before Start or StartTLS.
@@ -119,9 +123,16 @@ func (s *Server) StartTLS() {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
 	}
 
-	s.TLS = &tls.Config{
-		NextProtos:   []string{"http/1.1"},
-		Certificates: []tls.Certificate{cert},
+	existingConfig := s.TLS
+	s.TLS = new(tls.Config)
+	if existingConfig != nil {
+		*s.TLS = *existingConfig
+	}
+	if s.TLS.NextProtos == nil {
+		s.TLS.NextProtos = []string{"http/1.1"}
+	}
+	if len(s.TLS.Certificates) == 0 {
+		s.TLS.Certificates = []tls.Certificate{cert}
 	}
 	tlsListener := tls.NewListener(s.Listener, s.TLS)
 
