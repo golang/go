@@ -174,6 +174,12 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
 		}
 	}
 
+	if len(tx) == 0 {
+		// Build fake transition to cover all time.
+		// This happens in fixed locations like "Etc/GMT0".
+		tx = append(tx, zoneTrans{when: -1 << 63, index: 0})
+	}
+
 	// Committed to succeed.
 	l = &Location{zone: zone, tx: tx}
 
