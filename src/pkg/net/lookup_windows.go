@@ -6,15 +6,9 @@ package net
 
 import (
 	"os"
-	"sync"
+	"runtime"
 	"syscall"
 	"unsafe"
-)
-
-var (
-	protoentLock sync.Mutex
-	hostentLock  sync.Mutex
-	serventLock  sync.Mutex
 )
 
 var (
@@ -22,15 +16,31 @@ var (
 	lookupIP   = oldLookupIP
 )
 
-// lookupProtocol looks up IP protocol name and returns correspondent protocol number.
-func lookupProtocol(name string) (proto int, err error) {
-	protoentLock.Lock()
-	defer protoentLock.Unlock()
+func getprotobyname(name string) (proto int, err error) {
 	p, err := syscall.GetProtoByName(name)
 	if err != nil {
 		return 0, os.NewSyscallError("GetProtoByName", err)
 	}
 	return int(p.Proto), nil
+}
+
+// lookupProtocol looks up IP protocol name and returns correspondent protocol number.
+func lookupProtocol(name string) (proto int, err error) {
+	// GetProtoByName return value is stored in thread local storage.
+	// Start new os thread before the call to prevent races.
+	type result struct {
+		proto int
+		err   error
+	}
+	ch := make(chan result)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		proto, err := getprotobyname(name)
+		ch <- result{proto: proto, err: err}
+	}()
+	r := <-ch
+	return r.proto, r.err
 }
 
 func lookupHost(name string) (addrs []string, err error) {
@@ -45,9 +55,7 @@ func lookupHost(name string) (addrs []string, err error) {
 	return
 }
 
-func oldLookupIP(name string) (addrs []IP, err error) {
-	hostentLock.Lock()
-	defer hostentLock.Unlock()
+func gethostbyname(name string) (addrs []IP, err error) {
 	h, err := syscall.GetHostByName(name)
 	if err != nil {
 		return nil, os.NewSyscallError("GetHostByName", err)
@@ -64,6 +72,24 @@ func oldLookupIP(name string) (addrs []IP, err error) {
 		return nil, os.NewSyscallError("LookupIP", syscall.EWINDOWS)
 	}
 	return addrs, nil
+}
+
+func oldLookupIP(name string) (addrs []IP, err error) {
+	// GetHostByName return value is stored in thread local storage.
+	// Start new os thread before the call to prevent races.
+	type result struct {
+		addrs []IP
+		err   error
+	}
+	ch := make(chan result)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		addrs, err := gethostbyname(name)
+		ch <- result{addrs: addrs, err: err}
+	}()
+	r := <-ch
+	return r.addrs, r.err
 }
 
 func newLookupIP(name string) (addrs []IP, err error) {
@@ -95,20 +121,36 @@ func newLookupIP(name string) (addrs []IP, err error) {
 	return addrs, nil
 }
 
-func oldLookupPort(network, service string) (port int, err error) {
+func getservbyname(network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
 	case "udp4", "udp6":
 		network = "udp"
 	}
-	serventLock.Lock()
-	defer serventLock.Unlock()
 	s, err := syscall.GetServByName(service, network)
 	if err != nil {
 		return 0, os.NewSyscallError("GetServByName", err)
 	}
 	return int(syscall.Ntohs(s.Port)), nil
+}
+
+func oldLookupPort(network, service string) (port int, err error) {
+	// GetServByName return value is stored in thread local storage.
+	// Start new os thread before the call to prevent races.
+	type result struct {
+		port int
+		err  error
+	}
+	ch := make(chan result)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		port, err := getservbyname(network, service)
+		ch <- result{port: port, err: err}
+	}()
+	r := <-ch
+	return r.port, r.err
 }
 
 func newLookupPort(network, service string) (port int, err error) {
