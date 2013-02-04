@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"io"
+	"sort"
 )
 
 func (id Id) String() string {
@@ -65,18 +67,6 @@ func (v *Builtin) String() string {
 
 func (r *Function) String() string {
 	return fmt.Sprintf("function %s : %s", r.Name(), r.Type())
-}
-
-// FullName returns the name of this function qualified by the
-// package name, unless it is anonymous or synthetic.
-//
-// TODO(adonovan): move to func.go when it's submitted.
-//
-func (f *Function) FullName() string {
-	if f.Enclosing != nil || f.Pkg == nil {
-		return f.Name_ // anonymous or synthetic
-	}
-	return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
 }
 
 // FullName returns g's package-qualified name.
@@ -340,39 +330,51 @@ func (s *MapUpdate) String() string {
 }
 
 func (p *Package) String() string {
-	// TODO(adonovan): prettify output.
-	var b bytes.Buffer
-	fmt.Fprintf(&b, "Package %s at %s:\n", p.ImportPath, p.Prog.Files.File(p.Pos).Name())
+	return "Package " + p.ImportPath
+}
 
-	// TODO(adonovan): make order deterministic.
+func (p *Package) DumpTo(w io.Writer) {
+	fmt.Fprintf(w, "Package %s at %s:\n", p.ImportPath, p.Prog.Files.File(p.Pos).Name())
+
+	var names []string
 	maxname := 0
 	for name := range p.Members {
 		if l := len(name); l > maxname {
 			maxname = l
 		}
+		names = append(names, name)
 	}
 
-	for name, mem := range p.Members {
-		switch mem := mem.(type) {
+	sort.Strings(names)
+	for _, name := range names {
+		switch mem := p.Members[name].(type) {
 		case *Literal:
-			fmt.Fprintf(&b, " const %-*s %s\n", maxname, name, mem.Name())
+			fmt.Fprintf(w, "  const %-*s %s\n", maxname, name, mem.Name())
 
 		case *Function:
-			fmt.Fprintf(&b, " func  %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(w, "  func  %-*s %s\n", maxname, name, mem.Type())
 
 		case *Type:
-			fmt.Fprintf(&b, " type  %-*s %s\n", maxname, name, mem.NamedType.Underlying)
-			// TODO(adonovan): make order deterministic.
-			for name, method := range mem.Methods {
-				fmt.Fprintf(&b, "       method %s %s\n", name, method.Signature)
+			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.NamedType.Underlying)
+			// We display only PtrMethods since its keys
+			// are a superset of Methods' keys, though the
+			// methods themselves may differ,
+			// e.g. different bridge methods.
+			var keys ids
+			for id := range mem.PtrMethods {
+				keys = append(keys, id)
+			}
+			sort.Sort(keys)
+			for _, id := range keys {
+				method := mem.PtrMethods[id]
+				fmt.Fprintf(w, "    method %s %s\n", id, method.Signature)
 			}
 
 		case *Global:
-			fmt.Fprintf(&b, " var   %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type())
 
 		}
 	}
-	return b.String()
 }
 
 func commaOk(x bool) string {

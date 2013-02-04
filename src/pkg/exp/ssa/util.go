@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"reflect"
 )
 
 func unreachable() {
@@ -118,6 +119,26 @@ func objKind(obj types.Object) ast.ObjKind {
 	panic(fmt.Sprintf("unexpected Object type: %T", obj))
 }
 
+// canHaveConcreteMethods returns true iff typ may have concrete
+// methods associated with it.  Callers must supply allowPtr=true.
+//
+// TODO(gri): consider putting this in go/types.  It's surprisingly subtle.
+func canHaveConcreteMethods(typ types.Type, allowPtr bool) bool {
+	switch typ := typ.(type) {
+	case *types.Pointer:
+		return allowPtr && canHaveConcreteMethods(typ.Base, false)
+	case *types.NamedType:
+		switch typ.Underlying.(type) {
+		case *types.Pointer, *types.Interface:
+			return false
+		}
+		return true
+	case *types.Struct:
+		return true
+	}
+	return false
+}
+
 // DefaultType returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types. If there is no
 // corresponding untyped type, the result is types.Typ[types.Invalid].
@@ -158,6 +179,10 @@ func makeId(name string, pkg *types.Package) (id Id) {
 	id.Name = name
 	if !ast.IsExported(name) {
 		id.Pkg = pkg
+		// TODO(gri): fix
+		// if pkg.Path == "" {
+		// 	panic("Package " + pkg.Name + "has empty Path")
+		// }
 	}
 	return
 }
@@ -170,3 +195,16 @@ func makeId(name string, pkg *types.Package) (id Id) {
 func IdFromQualifiedName(qn types.QualifiedName) Id {
 	return makeId(qn.Name, qn.Pkg)
 }
+
+type ids []Id // a sortable slice of Id
+
+func (p ids) Len() int { return len(p) }
+func (p ids) Less(i, j int) bool {
+	x, y := p[i], p[j]
+	// *Package pointers are canonical so order by them.
+	// Don't use x.Pkg.ImportPath because sometimes it's empty.
+	// (TODO(gri): fix that.)
+	return reflect.ValueOf(x.Pkg).Pointer() < reflect.ValueOf(y.Pkg).Pointer() ||
+		x.Pkg == y.Pkg && x.Name < y.Name
+}
+func (p ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
