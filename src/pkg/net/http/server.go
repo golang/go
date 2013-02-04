@@ -416,6 +416,16 @@ func (c *conn) readRequest() (w *response, err error) {
 	if c.hijacked() {
 		return nil, ErrHijacked
 	}
+
+	if d := c.server.ReadTimeout; d != 0 {
+		c.rwc.SetReadDeadline(time.Now().Add(d))
+	}
+	if d := c.server.WriteTimeout; d != 0 {
+		defer func() {
+			c.rwc.SetWriteDeadline(time.Now().Add(d))
+		}()
+	}
+
 	c.lr.N = int64(c.server.maxHeaderBytes()) + 4096 /* bufio slop */
 	var req *Request
 	if req, err = ReadRequest(c.buf.Reader); err != nil {
@@ -779,6 +789,12 @@ func (c *conn) serve() {
 	}()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+		if d := c.server.ReadTimeout; d != 0 {
+			c.rwc.SetReadDeadline(time.Now().Add(d))
+		}
+		if d := c.server.WriteTimeout; d != 0 {
+			c.rwc.SetWriteDeadline(time.Now().Add(d))
+		}
 		if err := tlsConn.Handshake(); err != nil {
 			return
 		}
@@ -1274,12 +1290,6 @@ func (srv *Server) Serve(l net.Listener) error {
 			return e
 		}
 		tempDelay = 0
-		if srv.ReadTimeout != 0 {
-			rw.SetReadDeadline(time.Now().Add(srv.ReadTimeout))
-		}
-		if srv.WriteTimeout != 0 {
-			rw.SetWriteDeadline(time.Now().Add(srv.WriteTimeout))
-		}
 		c, err := srv.newConn(rw)
 		if err != nil {
 			continue
