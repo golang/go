@@ -1353,6 +1353,8 @@ runtime·gchelper(void)
 		runtime·notewakeup(&work.alldone);
 }
 
+#define GcpercentUnknown (-2)
+
 // Initialized from $GOGC.  GOGC=off means no gc.
 //
 // Next gc is after we've allocated an extra amount of
@@ -1362,7 +1364,7 @@ runtime·gchelper(void)
 // proportion to the allocation cost.  Adjusting gcpercent
 // just changes the linear constant (and also the amount of
 // extra memory used).
-static int32 gcpercent = -2;
+static int32 gcpercent = GcpercentUnknown;
 
 static void
 stealcache(void)
@@ -1415,6 +1417,19 @@ struct gc_args
 
 static void gc(struct gc_args *args);
 
+static int32
+readgogc(void)
+{
+	byte *p;
+
+	p = runtime·getenv("GOGC");
+	if(p == nil || p[0] == '\0')
+		return 100;
+	if(runtime·strcmp(p, (byte*)"off") == 0)
+		return -1;
+	return runtime·atoi(p);
+}
+
 void
 runtime·gc(int32 force)
 {
@@ -1438,14 +1453,8 @@ runtime·gc(int32 force)
 	if(!mstats.enablegc || m->locks > 0 || runtime·panicking)
 		return;
 
-	if(gcpercent == -2) {	// first time through
-		p = runtime·getenv("GOGC");
-		if(p == nil || p[0] == '\0')
-			gcpercent = 100;
-		else if(runtime·strcmp(p, (byte*)"off") == 0)
-			gcpercent = -1;
-		else
-			gcpercent = runtime·atoi(p);
+	if(gcpercent == GcpercentUnknown) {	// first time through
+		gcpercent = readgogc();
 
 		p = runtime·getenv("GOGCTRACE");
 		if(p != nil)
@@ -1610,6 +1619,51 @@ runtime·ReadMemStats(MStats *stats)
 	m->gcing = 0;
 	runtime·semrelease(&runtime·worldsema);
 	runtime·starttheworld();
+}
+
+void
+runtime∕debug·readGCStats(Slice *pauses)
+{
+	uint64 *p;
+	uint32 i, n;
+
+	// Calling code in runtime/debug should make the slice large enough.
+	if(pauses->cap < nelem(mstats.pause_ns)+3)
+		runtime·throw("runtime: short slice passed to readGCStats");
+
+	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
+	p = (uint64*)pauses->array;
+	runtime·lock(&runtime·mheap);
+	n = mstats.numgc;
+	if(n > nelem(mstats.pause_ns))
+		n = nelem(mstats.pause_ns);
+	
+	// The pause buffer is circular. The most recent pause is at
+	// pause_ns[(numgc-1)%nelem(pause_ns)], and then backward
+	// from there to go back farther in time. We deliver the times
+	// most recent first (in p[0]).
+	for(i=0; i<n; i++)
+		p[i] = mstats.pause_ns[(mstats.numgc-1-i)%nelem(mstats.pause_ns)];
+
+	p[n] = mstats.last_gc;
+	p[n+1] = mstats.numgc;
+	p[n+2] = mstats.pause_total_ns;	
+	runtime·unlock(&runtime·mheap);
+	pauses->len = n+3;
+}
+
+void
+runtime∕debug·setGCPercent(intgo in, intgo out)
+{
+	runtime·lock(&runtime·mheap);
+	if(gcpercent == GcpercentUnknown)
+		gcpercent = readgogc();
+	out = gcpercent;
+	if(in < 0)
+		in = -1;
+	gcpercent = in;
+	runtime·unlock(&runtime·mheap);
+	FLUSH(&out);
 }
 
 static void

@@ -86,6 +86,7 @@ typedef struct MSpan	MSpan;
 typedef struct MStats	MStats;
 typedef struct MLink	MLink;
 typedef struct MTypes	MTypes;
+typedef struct GCStats	GCStats;
 
 enum
 {
@@ -229,7 +230,7 @@ struct MStats
 	uint64	buckhash_sys;	// profiling bucket hash table
 
 	// Statistics about garbage collector.
-	// Protected by stopping the world during GC.
+	// Protected by mheap or stopping the world during GC.
 	uint64	next_gc;	// next GC (in heap_alloc time)
 	uint64  last_gc;	// last GC (in absolute time)
 	uint64	pause_total_ns;
@@ -248,7 +249,6 @@ struct MStats
 
 #define mstats runtime·memStats	/* name shared with Go */
 extern MStats mstats;
-
 
 // Size classes.  Computed and initialized by InitSizes.
 //
