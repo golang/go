@@ -676,6 +676,11 @@ var parseErrorTests = []ParseErrorTest{
 	// issue 4502. StampNano requires exactly 9 digits of precision.
 	{StampNano, "Dec  7 11:22:01.000000", `cannot parse ".000000" as ".000000000"`},
 	{StampNano, "Dec  7 11:22:01.0000000000", "extra text: 0"},
+	// issue 4493. Helpful errors.
+	{RFC3339, "2006-01-02T15:04:05Z07:00", `parsing time "2006-01-02T15:04:05Z07:00": extra text: 07:00`},
+	{RFC3339, "2006-01-02T15:04_abc", `parsing time "2006-01-02T15:04_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as ":"`},
+	{RFC3339, "2006-01-02T15:04:05_abc", `parsing time "2006-01-02T15:04:05_abc" as "2006-01-02T15:04:05Z07:00": cannot parse "_abc" as "Z07:00"`},
+	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
 }
 
 func TestParseErrors(t *testing.T) {
