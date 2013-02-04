@@ -142,7 +142,7 @@ var pkgDeps = map[string][]string{
 	// Packages used by testing must be low-level (L2+fmt).
 	"regexp":         {"L2", "regexp/syntax"},
 	"regexp/syntax":  {"L2"},
-	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os"},
+	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
 	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
 	"text/tabwriter": {"L2"},
 
