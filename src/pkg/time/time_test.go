@@ -1265,6 +1265,22 @@ func TestCountMallocs(t *testing.T) {
 	}
 }
 
+func TestLoadFixed(t *testing.T) {
+	// Issue 4064: handle locations without any zone transitions.
+	loc, err := LoadLocation("Etc/GMT+1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The tzdata name Etc/GMT+1 uses "east is negative",
+	// but Go and most other systems use "east is positive".
+	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
+	name, offset := Now().In(loc).Zone()
+	if name != "GMT+1" || offset != -1*60*60 {
+		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q, %d", name, offset, "GMT+1", -1*60*60)
+	}
+}
+
 func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		t = Now()
