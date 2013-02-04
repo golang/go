@@ -38,7 +38,7 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
 }
 
 func getInterfaceList() ([]syscall.InterfaceInfo, error) {
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 	if err != nil {
 		return nil, os.NewSyscallError("Socket", err)
 	}

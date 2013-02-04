@@ -619,15 +619,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
 	defer fd.decref()
 
 	// Get new socket.
-	// See ../syscall/exec_unix.go for description of ForkLock.
-	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(fd.family, fd.sotype, 0)
+	s, err := sysSocket(fd.family, fd.sotype, 0)
 	if err != nil {
-		syscall.ForkLock.RUnlock()
 		return nil, &OpError{"socket", fd.net, fd.laddr, err}
 	}
-	syscall.CloseOnExec(s)
-	syscall.ForkLock.RUnlock()
 
 	// Associate our new socket with IOCP.
 	onceStartServer.Do(startServer)
