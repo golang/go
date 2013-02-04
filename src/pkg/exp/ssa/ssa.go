@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sync"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
@@ -16,18 +17,17 @@ import (
 //
 // TODO(adonovan): synthetic methods for promoted methods and for
 // standalone interface methods do not belong to any package.  Make
-// them enumerable here.
-//
-// TODO(adonovan): MethodSets of types other than named types
-// (i.e. anon structs) are not currently accessible, nor are they
-// memoized.  Add a method: MethodSetForType() which looks in the
-// appropriate Package (for methods of named types) or in
-// Program.AnonStructMethods (for methods of anon structs).
+// them enumerable here so clients can (e.g.) generate code for them.
 //
 type Program struct {
 	Files    *token.FileSet            // position information for the files of this Program
 	Packages map[string]*Package       // all loaded Packages, keyed by import path
 	Builtins map[types.Object]*Builtin // all built-in functions, keyed by typechecker objects.
+
+	methodSets      map[types.Type]MethodSet    // concrete method sets for all needed types  [TODO(adonovan): de-dup]
+	methodSetsMu    sync.Mutex                  // serializes all accesses to methodSets
+	concreteMethods map[*types.Method]*Function // maps named concrete methods to their code
+	mode            BuilderMode                 // set of mode bits
 }
 
 // A Package is a single analyzed Go package, containing Members for
@@ -80,27 +80,18 @@ type Id struct {
 	Name string
 }
 
-// A MethodSet contains all the methods whose receiver is either T or
-// *T, for some named or struct type T.
-//
-// TODO(adonovan): the client is required to adapt T<=>*T, e.g. when
-// invoking an interface method.  (This could be simplified for the
-// client by having distinct method sets for T and *T, with the SSA
-// Builder generating wrappers as needed, but probably the client is
-// able to do a better job.)  Document the precise rules the client
-// must follow.
+// A MethodSet contains all the methods for a particular type.
+// The method sets for T and *T are distinct entities.
 //
 type MethodSet map[Id]*Function
 
 // A Type is a Member of a Package representing the name, underlying
 // type and method set of a named type declared at package scope.
 //
-// The method set contains only concrete methods; it is empty for
-// interface types.
-//
 type Type struct {
-	NamedType *types.NamedType
-	Methods   MethodSet
+	NamedType  *types.NamedType
+	Methods    MethodSet // concrete method set of N
+	PtrMethods MethodSet // concrete method set of (*N)
 }
 
 // An SSA value that can be referenced by an instruction.
@@ -479,7 +470,7 @@ type ChangeInterface struct {
 type MakeInterface struct {
 	Register
 	X       Value
-	Methods MethodSet // method set of (non-interface) X iff converting to interface
+	Methods MethodSet // method set of (non-interface) X
 }
 
 // A MakeClosure instruction yields an anonymous function value whose

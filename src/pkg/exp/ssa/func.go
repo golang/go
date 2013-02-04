@@ -10,18 +10,6 @@ import (
 	"os"
 )
 
-// Mode bits for additional diagnostics and checking.
-// TODO(adonovan): move these to builder.go once submitted.
-type BuilderMode uint
-
-const (
-	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
-	LogFunctions                                 // Dump function SSA code to stderr
-	LogSource                                    // Show source locations as SSA builder progresses
-	SanityCheckFunctions                         // Perform sanity checking of function bodies
-	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
-)
-
 // addEdge adds a control-flow graph edge from from to to.
 func addEdge(from, to *BasicBlock) {
 	from.Succs = append(from.Succs, to)
@@ -182,8 +170,8 @@ func (f *Function) addSpilledParam(obj types.Object) {
 // Otherwise, idents is ignored and the usual set-up for Go source
 // functions is skipped.
 //
-func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
-	if mode&LogSource != 0 {
+func (f *Function) start(idents map[*ast.Ident]types.Object) {
+	if f.Prog.mode&LogSource != 0 {
 		fmt.Fprintf(os.Stderr, "build function %s @ %s\n", f.FullName(), f.Prog.Files.Position(f.Pos))
 	}
 	f.currentBlock = f.newBasicBlock("entry")
@@ -226,7 +214,7 @@ func (f *Function) start(mode BuilderMode, idents map[*ast.Ident]types.Object) {
 }
 
 // finish() finalizes the function after SSA code generation of its body.
-func (f *Function) finish(mode BuilderMode) {
+func (f *Function) finish() {
 	f.objects = nil
 	f.results = nil
 	f.currentBlock = nil
@@ -269,13 +257,13 @@ func (f *Function) finish(mode BuilderMode) {
 	}
 	optimizeBlocks(f)
 
-	if mode&LogFunctions != 0 {
+	if f.Prog.mode&LogFunctions != 0 {
 		f.DumpTo(os.Stderr)
 	}
-	if mode&SanityCheckFunctions != 0 {
+	if f.Prog.mode&SanityCheckFunctions != 0 {
 		MustSanityCheck(f, nil)
 	}
-	if mode&LogSource != 0 {
+	if f.Prog.mode&LogSource != 0 {
 		fmt.Fprintf(os.Stderr, "build function %s done\n", f.FullName())
 	}
 }
@@ -345,6 +333,46 @@ func (f *Function) emit(instr Instruction) Value {
 	return f.currentBlock.emit(instr)
 }
 
+// FullName returns the full name of this function, qualified by
+// package name, receiver type, etc.
+//
+// Examples:
+//      "math.IsNaN"                // a package-level function
+//      "(*sync.WaitGroup).Add"     // a declared method
+//      "(*exp/ssa.Ret).Block"      // a bridge method
+//      "(ssa.Instruction).Block"   // an interface method thunk
+//      "func@5.32"                 // an anonymous function
+//
+func (f *Function) FullName() string {
+	// Anonymous?
+	if f.Enclosing != nil {
+		return f.Name_
+	}
+
+	recv := f.Signature.Recv
+
+	// Synthetic?
+	if f.Pkg == nil {
+		if recv != nil {
+			// TODO(adonovan): print type package-qualified, if NamedType.
+			return fmt.Sprintf("(%s).%s", recv.Type, f.Name_) // bridge method
+		}
+		return fmt.Sprintf("(%s).%s", f.Params[0].Type(), f.Name_) // interface method thunk
+	}
+
+	// Declared method?
+	if recv != nil {
+		star := ""
+		if isPointer(recv.Type) {
+			star = "*"
+		}
+		return fmt.Sprintf("(%s%s.%s).%s", star, f.Pkg.ImportPath, deref(recv.Type), f.Name_)
+	}
+
+	// Package-level function.
+	return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
+}
+
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
 // all basic blocks of function f.
 //
@@ -364,18 +392,21 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 	}
 
+	io.WriteString(w, "func ")
 	params := f.Params
 	if f.Signature.Recv != nil {
-		fmt.Fprintf(w, "func (%s) %s(", params[0].Name(), f.Name())
+		fmt.Fprintf(w, "(%s %s) ", params[0].Name(), params[0].Type())
 		params = params[1:]
-	} else {
-		fmt.Fprintf(w, "func %s(", f.Name())
 	}
+	io.WriteString(w, f.Name())
+	io.WriteString(w, "(")
 	for i, v := range params {
 		if i > 0 {
 			io.WriteString(w, ", ")
 		}
 		io.WriteString(w, v.Name())
+		io.WriteString(w, " ")
+		io.WriteString(w, v.Type().String())
 	}
 	io.WriteString(w, "):\n")
 
