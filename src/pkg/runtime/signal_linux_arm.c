@@ -68,11 +68,17 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 		gp->sigcode1 = r->fault_address;
 		gp->sigpc = r->arm_pc;
 
-		// If this is a leaf function, we do smash LR,
-		// but we're not going back there anyway.
-		// Don't bother smashing if r->arm_pc is 0,
-		// which is probably a call to a nil func: the
-		// old link register is more useful in the stack trace.
+		// We arrange lr, and pc to pretend the panicking
+		// function calls sigpanic directly.
+		// Always save LR to stack so that panics in leaf
+		// functions are correctly handled. This smashes
+		// the stack frame but we're not going back there
+		// anyway.
+		r->arm_sp -= 4;
+		*(uint32 *)r->arm_sp = r->arm_lr;
+		// Don't bother saving PC if it's zero, which is
+		// probably a call to a nil func: the old link register
+		// is more useful in the stack trace.
 		if(r->arm_pc != 0)
 			r->arm_lr = r->arm_pc;
 		// In case we are panicking from external C code
