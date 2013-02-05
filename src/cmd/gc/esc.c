@@ -981,15 +981,29 @@ escflood(EscState *e, Node *dst)
 	}
 }
 
+// There appear to be some loops in the escape graph, causing
+// arbitrary recursion into deeper and deeper levels.
+// Cut this off safely by making minLevel sticky: once you
+// get that deep, you cannot go down any further but you also
+// cannot go up any further. This is a conservative fix.
+// Making minLevel smaller (more negative) would handle more
+// complex chains of indirections followed by address-of operations,
+// at the cost of repeating the traversal once for each additional
+// allowed level when a loop is encountered. Using -2 suffices to
+// pass all the tests we have written so far, which we assume matches
+// the level of complexity we want the escape analysis code to handle.
+#define MinLevel (-2)
+
 static void
 escwalk(EscState *e, int level, Node *dst, Node *src)
 {
 	NodeList *ll;
-	int leaks;
+	int leaks, newlevel;
 
-	if(src->walkgen == walkgen)
+	if(src->walkgen == walkgen && src->esclevel <= level)
 		return;
 	src->walkgen = walkgen;
+	src->esclevel = level;
 
 	if(debug['m']>1)
 		print("escwalk: level:%d depth:%d %.*s %hN(%hJ) scope:%S[%d]\n",
@@ -1039,7 +1053,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 			if(debug['m'])
 				warnl(src->lineno, "%hN escapes to heap", src);
 		}
-		escwalk(e, level-1, dst, src->left);
+		newlevel = level;
+		if(level > MinLevel)
+			newlevel--;
+		escwalk(e, newlevel, dst, src->left);
 		break;
 
 	case OARRAYLIT:
@@ -1074,7 +1091,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case ODOTPTR:
 	case OINDEXMAP:
 	case OIND:
-		escwalk(e, level+1, dst, src->left);
+		newlevel = level;
+		if(level > MinLevel)
+			newlevel++;
+		escwalk(e, newlevel, dst, src->left);
 	}
 
 recurse:
