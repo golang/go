@@ -1277,8 +1277,11 @@ xfndcl:
 		$$ = $2;
 		if($$ == N)
 			break;
+		if(noescape && $3 != nil)
+			yyerror("can only use //go:noescape with external func implementations");
 		$$->nbody = $3;
 		$$->endlineno = lineno;
+		$$->noescape = noescape;
 		funcbody($$);
 	}
 
@@ -1462,6 +1465,7 @@ xdcl_list:
 		if(nsyntaxerrors == 0)
 			testdclstack();
 		nointerface = 0;
+		noescape = 0;
 	}
 
 vardcl_list:

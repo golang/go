@@ -253,6 +253,7 @@ struct	Node
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
 	uchar	esc;		// EscXXX
+	uchar	noescape;	// func arguments do not escape
 	uchar	funcdepth;
 	uchar	builtin;	// built-in name, like len or close
 	uchar	walkdef;
@@ -943,6 +944,7 @@ EXTERN	int	compiling_wrappers;
 EXTERN	int	pure_go;
 EXTERN	int	flag_race;
 EXTERN	int	flag_largemodel;
+EXTERN	int	noescape;
 
 EXTERN	int	nointerface;
 EXTERN	int	fieldtrack_enabled;
