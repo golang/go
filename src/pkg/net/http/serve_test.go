@@ -326,6 +326,66 @@ func TestServerTimeouts(t *testing.T) {
 	}
 }
 
+// golang.org/issue/4741 -- setting only a write timeout that triggers
+// shouldn't cause a handler to block forever on reads (next HTTP
+// request) that will never happen.
+func TestOnlyWriteTimeout(t *testing.T) {
+	var conn net.Conn
+	var afterTimeoutErrc = make(chan error, 1)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		buf := make([]byte, 512<<10)
+		_, err := w.Write(buf)
+		if err != nil {
+			t.Errorf("handler Write error: %v", err)
+			return
+		}
+		conn.SetWriteDeadline(time.Now().Add(-30 * time.Second))
+		_, err = w.Write(buf)
+		afterTimeoutErrc <- err
+	}))
+	ts.Listener = trackLastConnListener{ts.Listener, &conn}
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{DisableKeepAlives: false}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	errc := make(chan error)
+	go func() {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			errc <- err
+			return
+		}
+		_, err = io.Copy(ioutil.Discard, res.Body)
+		errc <- err
+	}()
+	select {
+	case err := <-errc:
+		if err == nil {
+			t.Errorf("expected an error from Get request")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for Get error")
+	}
+	if err := <-afterTimeoutErrc; err == nil {
+		t.Error("expected write error after timeout")
+	}
+}
+
+// trackLastConnListener tracks the last net.Conn that was accepted.
+type trackLastConnListener struct {
+	net.Listener
+	last *net.Conn // destination
+}
+
+func (l trackLastConnListener) Accept() (c net.Conn, err error) {
+	c, err = l.Listener.Accept()
+	*l.last = c
+	return
+}
+
 // TestIdentityResponse verifies that a handler can unset
 func TestIdentityResponse(t *testing.T) {
 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
