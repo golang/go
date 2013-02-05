@@ -119,17 +119,33 @@ func (c *Commit) Valid() error {
 	return nil
 }
 
+// each result line is approx 105 bytes. This constant is a tradeoff between
+// build history and the AppEngine datastore limit of 1mb.
+const maxResults = 1000
+
 // AddResult adds the denormalized Reuslt data to the Commit's Result field.
 // It must be called from inside a datastore transaction.
 func (com *Commit) AddResult(c appengine.Context, r *Result) error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("getting Commit: %v", err)
 	}
-	com.ResultData = append(com.ResultData, r.Data())
+	com.ResultData = trim(append(com.ResultData, r.Data()), maxResults)
 	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
 		return fmt.Errorf("putting Commit: %v", err)
 	}
 	return nil
+}
+
+func trim(s []string, n int) []string {
+	l := min(len(s), n)
+	return s[len(s)-l:]
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Result returns the build Result for this Commit for the given builder/goHash.
