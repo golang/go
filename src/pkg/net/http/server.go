@@ -223,12 +223,16 @@ func (cw *chunkWriter) Write(p []byte) (n int, err error) {
 	if cw.chunking {
 		_, err = fmt.Fprintf(cw.res.conn.buf, "%x\r\n", len(p))
 		if err != nil {
+			cw.res.conn.rwc.Close()
 			return
 		}
 	}
 	n, err = cw.res.conn.buf.Write(p)
 	if cw.chunking && err == nil {
 		_, err = cw.res.conn.buf.Write(crlf)
+	}
+	if err != nil {
+		cw.res.conn.rwc.Close()
 	}
 	return
 }
