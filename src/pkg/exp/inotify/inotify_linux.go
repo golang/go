@@ -153,7 +153,7 @@ func (w *Watcher) readEvents() {
 	var buf [syscall.SizeofInotifyEvent * 4096]byte
 
 	for {
-		n, err := syscall.Read(w.fd, buf[0:])
+		n, err := syscall.Read(w.fd, buf[:])
 		// See if there is a message on the "done" channel
 		var done bool
 		select {
@@ -163,11 +163,13 @@ func (w *Watcher) readEvents() {
 
 		// If EOF or a "done" message is received
 		if n == 0 || done {
+			// The syscall.Close can be slow.  Close
+			// w.Event first.
+			close(w.Event)
 			err := syscall.Close(w.fd)
 			if err != nil {
 				w.Error <- os.NewSyscallError("close", err)
 			}
-			close(w.Event)
 			close(w.Error)
 			return
 		}
