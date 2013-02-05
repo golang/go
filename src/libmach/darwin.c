@@ -751,7 +751,7 @@ havet:
 static void*
 excthread(void *v)
 {
-	extern boolean_t exc_server();
+	extern boolean_t exc_server(mach_msg_header_t *, mach_msg_header_t *);
 	mach_msg_server(exc_server, 2048, excport, 0);
 	return 0;
 }

@@ -50,7 +50,7 @@ struct MachoDebug {
 	uint32	filesize;
 };
 
-MachoHdr*	getMachoHdr();
+MachoHdr*	getMachoHdr(void);
 MachoSeg*	newMachoSeg(char*, int);
 MachoSect*	newMachoSect(MachoSeg*, char*);
 MachoLoad*	newMachoLoad(uint32, uint32);

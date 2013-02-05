@@ -398,6 +398,9 @@ setup(void)
 // gccargs is the gcc command line to use for compiling a single C file.
 static char *proto_gccargs[] = {
 	"-Wall",
+	// native Plan 9 compilers don't like non-standard prototypes
+	// so let gcc catch them.
+	"-Wstrict-prototypes",
 	"-Wno-sign-compare",
 	"-Wno-missing-braces",
 	"-Wno-parentheses",
