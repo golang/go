@@ -374,6 +374,7 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 // and directories are filtered by walkFn. The files are walked in lexical
 // order, which makes the output deterministic but means that for very
 // large directories Walk can be inefficient.
+// Walk does not follow symbolic links.
 func Walk(root string, walkFn WalkFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
