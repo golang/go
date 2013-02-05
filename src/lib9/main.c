@@ -30,7 +30,8 @@ THE SOFTWARE.
 #ifdef WIN32
 #include <windows.h>
 
-static void crashhandler() {
+static void crashhandler(int sig) {
+	USED(sig);
 	fprint(2, "%s: internal fatal error.\n", argv0);
 	exit(1);
 }
