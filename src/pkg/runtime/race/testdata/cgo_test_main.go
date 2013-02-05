@@ -5,26 +5,16 @@
 package main
 
 /*
-#include <pthread.h>
-
-pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 int sync;
 
 void Notify(void)
 {
-	pthread_mutex_lock(&mtx);
-	sync = 1;
-	pthread_cond_broadcast(&cv);
-	pthread_mutex_unlock(&mtx);
+	__sync_fetch_and_add(&sync, 1);
 }
 
 void Wait(void)
 {
-	pthread_mutex_lock(&mtx);
-	while(sync == 0)
-		pthread_cond_wait(&cv, &mtx);
-	pthread_mutex_unlock(&mtx);
+	while(__sync_fetch_and_add(&sync, 0) == 0) {}
 }
 */
 import "C"
