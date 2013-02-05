@@ -1436,7 +1436,7 @@ getlinepragma(void)
 	Hist *h;
 
 	c = getr();
-	if(c == 'g' && fieldtrack_enabled)
+	if(c == 'g')
 		goto go;
 	if(c != 'l')	
 		goto out;
@@ -1491,18 +1491,32 @@ getlinepragma(void)
 	goto out;
 
 go:
-	for(i=1; i<11; i++) {
-		c = getr();
-		if(c != "go:nointerface"[i])
-			goto out;
-	}
-	nointerface = 1;
+	cp = lexbuf;
+	ep = lexbuf+sizeof(lexbuf)-5;
+	*cp++ = 'g'; // already read
 	for(;;) {
 		c = getr();
-		if(c == EOF || c == '\n')
+		if(c == EOF || c >= Runeself)
+			goto out;
+		if(c == '\n')
 			break;
+		if(cp < ep)
+			*cp++ = c;
 	}
+	*cp = 0;
+	ep = strchr(lexbuf, ' ');
+	if(ep != nil)
+		*ep = 0;
 
+	if(strcmp(lexbuf, "go:nointerface") == 0 && fieldtrack_enabled) {
+		nointerface = 1;
+		goto out;
+	}
+	if(strcmp(lexbuf, "go:noescape") == 0) {
+		noescape = 1;
+		goto out;
+	}
+	
 out:
 	return c;
 }

@@ -330,7 +330,10 @@ escfunc(EscState *e, Node *func)
 		case PPARAM:
 			if(ll->n->type && !haspointers(ll->n->type))
 				break;
-			ll->n->esc = EscNone;	// prime for escflood later
+			if(curfn->nbody == nil && !curfn->noescape)
+				ll->n->esc = EscHeap;
+			else
+				ll->n->esc = EscNone;	// prime for escflood later
 			e->noesc = list(e->noesc, ll->n);
 			ll->n->escloopdepth = 1; 
 			break;
@@ -1109,13 +1112,21 @@ esctag(EscState *e, Node *func)
 {
 	Node *savefn;
 	NodeList *ll;
-	
+	Type *t;
+
 	USED(e);
 	func->esc = EscFuncTagged;
 	
-	// External functions must be assumed unsafe.
-	if(func->nbody == nil)
+	// External functions are assumed unsafe,
+	// unless //go:noescape is given before the declaration.
+	if(func->nbody == nil) {
+		if(func->noescape) {
+			for(t=getinargx(func->type)->type; t; t=t->down)
+				if(haspointers(t->type))
+					t->note = mktag(EscNone);
+		}
 		return;
+	}
 
 	savefn = curfn;
 	curfn = func;

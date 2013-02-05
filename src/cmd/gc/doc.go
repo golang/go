@@ -25,6 +25,8 @@ other packages. It is therefore not necessary when compiling client C of
 package P to read the files of P's dependencies, only the compiled output
 of P.
 
+Command Line
+
 Usage:
 	go tool 6g [flags] file...
 The specified files must be Go source files and all part of the same package.
@@ -48,7 +50,7 @@ Flags:
 		disable optimizations
 	-S
 		write assembly language text to standard output (code only)
-	-SS
+	-S -S
 		write assembly language text to standard output (code and data)
 	-u
 		disallow importing packages not marked as safe
@@ -60,5 +62,28 @@ Flags:
 There are also a number of debugging flags; run the command with no arguments
 to get a usage message.
 
+Compiler Directives
+
+The compiler accepts two compiler directives in the form of // comments at the
+beginning of a line. To distinguish them from non-directive comments, the directives
+require no space between the slashes and the name of the directive. However, since
+they are comments, tools unaware of the directive convention or of a particular
+directive can skip over a directive like any other comment.
+
+    //line path/to/file:linenumber
+
+The //line directive specifies that the source line that follows should be recorded
+as having come from the given file path and line number. Successive lines are
+recorded using increasing line numbers, until the next directive. This directive
+typically appears in machine-generated code, so that compilers and debuggers
+will show lines in the original input to the generator.
+
+    //go:noescape
+
+The //go:noescape directive specifies that the next declaration in the file, which
+must be a func without a body (meaning that it has an implementation not written
+in Go) does not allow any of the pointers passed as arguments to escape into the
+heap or into the values returned from the function. This information can be used as
+during the compiler's escape analysis of Go code calling the function.
 */
 package documentation
