@@ -80,7 +80,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
 	}
 	switch {
-	case fi.Mode()&os.ModeType == 0:
+	case fi.Mode().IsRegular():
 		h.Mode |= c_ISREG
 		h.Typeflag = TypeReg
 		h.Size = fi.Size()
