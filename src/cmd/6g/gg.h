@@ -80,7 +80,7 @@ void	cgen_dcl(Node*);
 int	needconvert(Type*, Type*);
 void	genconv(Type*, Type*);
 void	allocparams(void);
-void	checklabels();
+void	checklabels(void);
 void	ginscall(Node*, int);
 int	gen_as_init(Node*);
 void	clearslim(Node*);

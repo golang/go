@@ -426,14 +426,14 @@ addppword(uvlong pc)
 }
 
 void
-startpptrace()
+startpptrace(void)
 {
 	ppstart = nppdata;
 	addppword(~0);
 }
 
 void
-endpptrace()
+endpptrace(void)
 {
 	ppdata[ppstart] = nppdata-ppstart-1;
 }
@@ -644,7 +644,7 @@ compareleaf(const void *va, const void *vb)
 }
 
 void
-dumphistogram()
+dumphistogram(void)
 {
 	int i, h, n;
 	PC *x;
@@ -699,7 +699,7 @@ struct Trace {
 };
 
 void
-dumppprof()
+dumppprof(void)
 {
 	uvlong i, n, *p, *e;
 	int ntrace;
