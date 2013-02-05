@@ -324,6 +324,7 @@ struct	Node
 	int32	ostk;
 	int32	iota;
 	uint32	walkgen;
+	int32	esclevel;
 };
 #define	N	((Node*)0)
 
