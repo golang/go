@@ -6,7 +6,11 @@
 
 // Package syslog provides a simple interface to the system log
 // service. It can send messages to the syslog daemon using UNIX
-// domain sockets, UDP, or TCP connections.
+// domain sockets, UDP or TCP.
+//
+// Only one call to Dial is necessary. On write failures,
+// the syslog client will attempt to reconnect to the server
+// and write again.
 package syslog
 
 import (
@@ -15,6 +19,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -78,15 +84,10 @@ type Writer struct {
 	priority Priority
 	tag      string
 	hostname string
-	conn     serverConn
-}
+	network  string
+	raddr    string
 
-type serverConn interface {
-	writeString(p Priority, hostname, tag, s string) (int, error)
-	close() error
-}
-
-type netConn struct {
+	mu   sync.Mutex // guards conn
 	conn net.Conn
 }
 
@@ -101,7 +102,7 @@ func New(priority Priority, tag string) (w *Writer, err error) {
 // address raddr on the network net.  Each write to the returned
 // writer sends a log message with the given facility, severity and
 // tag.
-func Dial(network, raddr string, priority Priority, tag string) (w *Writer, err error) {
+func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
 		return nil, errors.New("log/syslog: invalid priority")
 	}
@@ -109,115 +110,158 @@ func Dial(network, raddr string, priority Priority, tag string) (w *Writer, err 
 	if tag == "" {
 		tag = os.Args[0]
 	}
-
 	hostname, _ := os.Hostname()
 
-	var conn serverConn
-	if network == "" {
-		conn, err = unixSyslog()
-		if hostname == "" {
-			hostname = "localhost"
-		}
-	} else {
-		var c net.Conn
-		c, err = net.Dial(network, raddr)
-		conn = netConn{c}
-		if hostname == "" {
-			hostname = c.LocalAddr().String()
-		}
+	w := &Writer{
+		priority: priority,
+		tag:      tag,
+		hostname: hostname,
+		network:  network,
+		raddr:    raddr,
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	err := w.connect()
 	if err != nil {
 		return nil, err
 	}
+	return w, err
+}
 
-	return &Writer{priority: priority, tag: tag, hostname: hostname, conn: conn}, nil
+// connect makes a connection to the syslog server.
+// It must be called with w.mu held.
+func (w *Writer) connect() (err error) {
+	if w.conn != nil {
+		// ignore err from close, it makes sense to continue anyway
+		w.conn.Close()
+		w.conn = nil
+	}
+
+	if w.network == "" {
+		w.conn, err = unixSyslog()
+		if w.hostname == "" {
+			w.hostname = "localhost"
+		}
+	} else {
+		var c net.Conn
+		c, err = net.Dial(w.network, w.raddr)
+		if err == nil {
+			w.conn = c
+			if w.hostname == "" {
+				w.hostname = c.LocalAddr().String()
+			}
+		}
+	}
+	return
 }
 
 // Write sends a log message to the syslog daemon.
 func (w *Writer) Write(b []byte) (int, error) {
-	return w.writeString(w.priority, string(b))
+	return w.writeAndRetry(w.priority, string(b))
 }
 
-func (w *Writer) Close() error { return w.conn.close() }
+// Close closes a connection to the syslog daemon.
+func (w *Writer) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.conn != nil {
+		err := w.conn.Close()
+		w.conn = nil
+		return err
+	}
+	return nil
+}
 
 // Emerg logs a message with severity LOG_EMERG, ignoring the severity
 // passed to New.
 func (w *Writer) Emerg(m string) (err error) {
-	_, err = w.writeString(LOG_EMERG, m)
+	_, err = w.writeAndRetry(LOG_EMERG, m)
 	return err
 }
 
 // Alert logs a message with severity LOG_ALERT, ignoring the severity
 // passed to New.
 func (w *Writer) Alert(m string) (err error) {
-	_, err = w.writeString(LOG_ALERT, m)
+	_, err = w.writeAndRetry(LOG_ALERT, m)
 	return err
 }
 
 // Crit logs a message with severity LOG_CRIT, ignoring the severity
 // passed to New.
 func (w *Writer) Crit(m string) (err error) {
-	_, err = w.writeString(LOG_CRIT, m)
+	_, err = w.writeAndRetry(LOG_CRIT, m)
 	return err
 }
 
 // Err logs a message with severity LOG_ERR, ignoring the severity
 // passed to New.
 func (w *Writer) Err(m string) (err error) {
-	_, err = w.writeString(LOG_ERR, m)
+	_, err = w.writeAndRetry(LOG_ERR, m)
 	return err
 }
 
 // Wanring logs a message with severity LOG_WARNING, ignoring the
 // severity passed to New.
 func (w *Writer) Warning(m string) (err error) {
-	_, err = w.writeString(LOG_WARNING, m)
+	_, err = w.writeAndRetry(LOG_WARNING, m)
 	return err
 }
 
 // Notice logs a message with severity LOG_NOTICE, ignoring the
 // severity passed to New.
 func (w *Writer) Notice(m string) (err error) {
-	_, err = w.writeString(LOG_NOTICE, m)
+	_, err = w.writeAndRetry(LOG_NOTICE, m)
 	return err
 }
 
 // Info logs a message with severity LOG_INFO, ignoring the severity
 // passed to New.
 func (w *Writer) Info(m string) (err error) {
-	_, err = w.writeString(LOG_INFO, m)
+	_, err = w.writeAndRetry(LOG_INFO, m)
 	return err
 }
 
 // Debug logs a message with severity LOG_DEBUG, ignoring the severity
 // passed to New.
 func (w *Writer) Debug(m string) (err error) {
-	_, err = w.writeString(LOG_DEBUG, m)
+	_, err = w.writeAndRetry(LOG_DEBUG, m)
 	return err
 }
 
-func (w *Writer) writeString(p Priority, s string) (int, error) {
-	return w.conn.writeString((w.priority&facilityMask)|(p&severityMask),
-		w.hostname, w.tag, s)
-}
+func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
+	pr := (w.priority & facilityMask) | (p & severityMask)
 
-// writeString: generates and writes a syslog formatted string. The
-// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
-func (n netConn) writeString(p Priority, hostname, tag, msg string) (int, error) {
-	nl := ""
-	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
-		nl = "\n"
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.conn != nil {
+		if n, err := w.write(pr, s); err == nil {
+			return n, err
+		}
 	}
-	timestamp := time.Now().Format(time.RFC3339)
-	if _, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s", p, timestamp, hostname,
-		tag, os.Getpid(), msg, nl); err != nil {
+	if err := w.connect(); err != nil {
 		return 0, err
 	}
-	return len(msg), nil
+	return w.write(pr, s)
 }
 
-func (n netConn) close() error {
-	return n.conn.Close()
+// write generates and writes a syslog formatted string. The
+// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
+func (w *Writer) write(p Priority, msg string) (int, error) {
+	// ensure it ends in a \n
+	nl := ""
+	if !strings.HasSuffix(msg, "\n") {
+		nl = "\n"
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
+		p, timestamp, w.hostname,
+		w.tag, os.Getpid(), msg, nl)
+	return len(msg), nil
 }
 
 // NewLogger creates a log.Logger whose output is written to
