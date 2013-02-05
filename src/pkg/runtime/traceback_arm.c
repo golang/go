@@ -182,6 +182,12 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 		// If this was deferproc or newproc, the caller had an extra 12.
 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
 			sp += 12;
+
+		// sighandler saves the lr on stack before fake a call to sigpanic
+		if(waspanic) {
+			pc = *(uintptr *)sp;
+			sp += 4;
+		}
 	}
 	
 	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
