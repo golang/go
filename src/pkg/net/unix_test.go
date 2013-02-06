@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -119,5 +121,37 @@ func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
 	}
 	if peer != nil {
 		t.Errorf("peer adddress is %v", peer)
+	}
+}
+
+func TestUnixAutobind(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping: autobind is linux only")
+	}
+
+	laddr := &UnixAddr{Name: "", Net: "unixgram"}
+	c1, err := ListenUnixgram("unixgram", laddr)
+	if err != nil {
+		t.Fatalf("ListenUnixgram failed: %v", err)
+	}
+	defer c1.Close()
+
+	// retrieve the autobind address
+	autoAddr := c1.LocalAddr().(*UnixAddr)
+	if len(autoAddr.Name) <= 1 {
+		t.Fatalf("Invalid autobind address: %v", autoAddr)
+	}
+	if autoAddr.Name[0] != '@' {
+		t.Fatalf("Invalid autobind address: %v", autoAddr)
+	}
+
+	c2, err := DialUnix("unixgram", nil, autoAddr)
+	if err != nil {
+		t.Fatalf("DialUnix failed: %v", err)
+	}
+	defer c2.Close()
+
+	if !reflect.DeepEqual(c1.LocalAddr(), c2.RemoteAddr()) {
+		t.Fatalf("Expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
 	}
 }
