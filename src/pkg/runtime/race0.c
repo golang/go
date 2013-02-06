@@ -7,9 +7,10 @@
 
 #include "runtime.h"
 
-void
+uintptr
 runtime·raceinit(void)
 {
+	return 0;
 }
 
 void
@@ -119,15 +120,14 @@ runtime·racefree(void *p)
 	USED(p);
 }
 
-void
-runtime·racegostart(int32 goid, void *pc)
+uintptr
+runtime·racegostart(void *pc)
 {
-	USED(goid);
 	USED(pc);
+	return 0;
 }
 
 void
-runtime·racegoend(int32 goid)
+runtime·racegoend()
 {
-	USED(goid);
 }

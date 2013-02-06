@@ -10,36 +10,36 @@
 #include "malloc.h"
 #include "race.h"
 
-void runtime∕race·Initialize(void);
+void runtime∕race·Initialize(uintptr *racectx);
 void runtime∕race·MapShadow(void *addr, uintptr size);
 void runtime∕race·Finalize(void);
-void runtime∕race·FinalizerGoroutine(int32);
-void runtime∕race·Read(int32 goid, void *addr, void *pc);
-void runtime∕race·Write(int32 goid, void *addr, void *pc);
-void runtime∕race·ReadRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
-void runtime∕race·WriteRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
-void runtime∕race·FuncEnter(int32 goid, void *pc);
-void runtime∕race·FuncExit(int32 goid);
-void runtime∕race·Malloc(int32 goid, void *p, uintptr sz, void *pc);
+void runtime∕race·FinalizerGoroutine(uintptr racectx);
+void runtime∕race·Read(uintptr racectx, void *addr, void *pc);
+void runtime∕race·Write(uintptr racectx, void *addr, void *pc);
+void runtime∕race·ReadRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
+void runtime∕race·WriteRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
+void runtime∕race·FuncEnter(uintptr racectx, void *pc);
+void runtime∕race·FuncExit(uintptr racectx);
+void runtime∕race·Malloc(uintptr racectx, void *p, uintptr sz, void *pc);
 void runtime∕race·Free(void *p);
-void runtime∕race·GoStart(int32 pgoid, int32 chgoid, void *pc);
-void runtime∕race·GoEnd(int32 goid);
-void runtime∕race·Acquire(int32 goid, void *addr);
-void runtime∕race·Release(int32 goid, void *addr);
-void runtime∕race·ReleaseMerge(int32 goid, void *addr);
+void runtime∕race·GoStart(uintptr racectx, uintptr *chracectx, void *pc);
+void runtime∕race·GoEnd(uintptr racectx);
+void runtime∕race·Acquire(uintptr racectx, void *addr);
+void runtime∕race·Release(uintptr racectx, void *addr);
+void runtime∕race·ReleaseMerge(uintptr racectx, void *addr);
 
 extern byte noptrdata[];
 extern byte enoptrbss[];
 
 static bool onstack(uintptr argp);
 
-void
+uintptr
 runtime·raceinit(void)
 {
-	uintptr sz;
+	uintptr sz, racectx;
 
 	m->racecall = true;
-	runtime∕race·Initialize();
+	runtime∕race·Initialize(&racectx);
 	sz = (byte*)&runtime·mheap - noptrdata;
 	if(sz)
 		runtime∕race·MapShadow(noptrdata, sz);
@@ -47,6 +47,7 @@ runtime·raceinit(void)
 	if(sz)
 		runtime∕race·MapShadow(&runtime·mheap+1, sz);
 	m->racecall = false;
+	return racectx;
 }
 
 void
@@ -73,7 +74,7 @@ runtime·racewrite(uintptr addr)
 {
 	if(!onstack(addr)) {
 		m->racecall = true;
-		runtime∕race·Write(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
+		runtime∕race·Write(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
 		m->racecall = false;
 	}
 }
@@ -86,7 +87,7 @@ runtime·raceread(uintptr addr)
 {
 	if(!onstack(addr)) {
 		m->racecall = true;
-		runtime∕race·Read(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
+		runtime∕race·Read(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
 		m->racecall = false;
 	}
 }
@@ -105,7 +106,7 @@ runtime·racefuncenter(uintptr pc)
 		runtime·callers(2, &pc, 1);
 
 	m->racecall = true;
-	runtime∕race·FuncEnter(g->goid-1, (void*)pc);
+	runtime∕race·FuncEnter(g->racectx, (void*)pc);
 	m->racecall = false;
 }
 
@@ -115,7 +116,7 @@ void
 runtime·racefuncexit(void)
 {
 	m->racecall = true;
-	runtime∕race·FuncExit(g->goid-1);
+	runtime∕race·FuncExit(g->racectx);
 	m->racecall = false;
 }
 
@@ -126,7 +127,7 @@ runtime·racemalloc(void *p, uintptr sz, void *pc)
 	if(m->curg == nil)
 		return;
 	m->racecall = true;
-	runtime∕race·Malloc(m->curg->goid-1, p, sz, pc);
+	runtime∕race·Malloc(m->curg->racectx, p, sz, pc);
 	m->racecall = false;
 }
 
@@ -138,42 +139,45 @@ runtime·racefree(void *p)
 	m->racecall = false;
 }
 
-void
-runtime·racegostart(int32 goid, void *pc)
+uintptr
+runtime·racegostart(void *pc)
 {
+	uintptr racectx;
+
 	m->racecall = true;
-	runtime∕race·GoStart(g->goid-1, goid-1, pc);
+	runtime∕race·GoStart(g->racectx, &racectx, pc);
 	m->racecall = false;
+	return racectx;
 }
 
 void
-runtime·racegoend(int32 goid)
+runtime·racegoend(void)
 {
 	m->racecall = true;
-	runtime∕race·GoEnd(goid-1);
+	runtime∕race·GoEnd(g->racectx);
 	m->racecall = false;
 }
 
 static void
 memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
 {
-	int64 goid;
+	uintptr racectx;
 
 	if(!onstack((uintptr)addr)) {
 		m->racecall = true;
-		goid = g->goid-1;
+		racectx = g->racectx;
 		if(callpc) {
 			if(callpc == (uintptr)runtime·lessstack ||
 				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
 				runtime·callers(3, &callpc, 1);
-			runtime∕race·FuncEnter(goid, (void*)callpc);
+			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
 		if(write)
-			runtime∕race·Write(goid, addr, (void*)pc);
+			runtime∕race·Write(racectx, addr, (void*)pc);
 		else
-			runtime∕race·Read(goid, addr, (void*)pc);
+			runtime∕race·Read(racectx, addr, (void*)pc);
 		if(callpc)
-			runtime∕race·FuncExit(goid);
+			runtime∕race·FuncExit(racectx);
 		m->racecall = false;
 	}
 }
@@ -193,23 +197,23 @@ runtime·racereadpc(void *addr, void *callpc, void *pc)
 static void
 rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, bool write)
 {
-	int64 goid;
+	uintptr racectx;
 
 	if(!onstack((uintptr)addr)) {
 		m->racecall = true;
-		goid = g->goid-1;
+		racectx = g->racectx;
 		if(callpc) {
 			if(callpc == (uintptr)runtime·lessstack ||
 				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
 				runtime·callers(3, &callpc, 1);
-			runtime∕race·FuncEnter(goid, (void*)callpc);
+			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
 		if(write)
-			runtime∕race·WriteRange(goid, addr, size, step, (void*)pc);
+			runtime∕race·WriteRange(racectx, addr, size, step, (void*)pc);
 		else
-			runtime∕race·ReadRange(goid, addr, size, step, (void*)pc);
+			runtime∕race·ReadRange(racectx, addr, size, step, (void*)pc);
 		if(callpc)
-			runtime∕race·FuncExit(goid);
+			runtime∕race·FuncExit(racectx);
 		m->racecall = false;
 	}
 }
@@ -238,7 +242,7 @@ runtime·raceacquireg(G *gp, void *addr)
 	if(g->raceignore)
 		return;
 	m->racecall = true;
-	runtime∕race·Acquire(gp->goid-1, addr);
+	runtime∕race·Acquire(gp->racectx, addr);
 	m->racecall = false;
 }
 
@@ -254,7 +258,7 @@ runtime·racereleaseg(G *gp, void *addr)
 	if(g->raceignore)
 		return;
 	m->racecall = true;
-	runtime∕race·Release(gp->goid-1, addr);
+	runtime∕race·Release(gp->racectx, addr);
 	m->racecall = false;
 }
 
@@ -270,7 +274,7 @@ runtime·racereleasemergeg(G *gp, void *addr)
 	if(g->raceignore)
 		return;
 	m->racecall = true;
-	runtime∕race·ReleaseMerge(gp->goid-1, addr);
+	runtime∕race·ReleaseMerge(gp->racectx, addr);
 	m->racecall = false;
 }
 
@@ -278,7 +282,7 @@ void
 runtime·racefingo(void)
 {
 	m->racecall = true;
-	runtime∕race·FinalizerGoroutine(g->goid - 1);
+	runtime∕race·FinalizerGoroutine(g->racectx);
 	m->racecall = false;
 }
 

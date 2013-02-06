@@ -8,23 +8,23 @@
 package race
 
 /*
-void __tsan_init(void);
+void __tsan_init(void **racectx);
 void __tsan_fini(void);
 void __tsan_map_shadow(void *addr, void *size);
-void __tsan_go_start(int pgoid, int chgoid, void *pc);
-void __tsan_go_end(int goid);
-void __tsan_read(int goid, void *addr, void *pc);
-void __tsan_write(int goid, void *addr, void *pc);
-void __tsan_read_range(int goid, void *addr, long sz, long step, void *pc);
-void __tsan_write_range(int goid, void *addr, long sz, long step, void *pc);
-void __tsan_func_enter(int goid, void *pc);
-void __tsan_func_exit(int goid);
-void __tsan_malloc(int goid, void *p, long sz, void *pc);
+void __tsan_go_start(void *racectx, void **chracectx, void *pc);
+void __tsan_go_end(void *racectx);
+void __tsan_read(void *racectx, void *addr, void *pc);
+void __tsan_write(void *racectx, void *addr, void *pc);
+void __tsan_read_range(void *racectx, void *addr, long sz, long step, void *pc);
+void __tsan_write_range(void *racectx, void *addr, long sz, long step, void *pc);
+void __tsan_func_enter(void *racectx, void *pc);
+void __tsan_func_exit(void *racectx);
+void __tsan_malloc(void *racectx, void *p, long sz, void *pc);
 void __tsan_free(void *p);
-void __tsan_acquire(int goid, void *addr);
-void __tsan_release(int goid, void *addr);
-void __tsan_release_merge(int goid, void *addr);
-void __tsan_finalizer_goroutine(int tid);
+void __tsan_acquire(void *racectx, void *addr);
+void __tsan_release(void *racectx, void *addr);
+void __tsan_release_merge(void *racectx, void *addr);
+void __tsan_finalizer_goroutine(void *racectx);
 */
 import "C"
 
@@ -33,8 +33,8 @@ import (
 	"unsafe"
 )
 
-func Initialize() {
-	C.__tsan_init()
+func Initialize(racectx *uintptr) {
+	C.__tsan_init((*unsafe.Pointer)(unsafe.Pointer(racectx)))
 }
 
 func Finalize() {
@@ -45,62 +45,62 @@ func MapShadow(addr, size uintptr) {
 	C.__tsan_map_shadow(unsafe.Pointer(addr), unsafe.Pointer(size))
 }
 
-func FinalizerGoroutine(goid int32) {
-	C.__tsan_finalizer_goroutine(C.int(goid))
+func FinalizerGoroutine(racectx uintptr) {
+	C.__tsan_finalizer_goroutine(unsafe.Pointer(racectx))
 }
 
-func Read(goid int32, addr, pc uintptr) {
-	C.__tsan_read(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
+func Read(racectx uintptr, addr, pc uintptr) {
+	C.__tsan_read(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
 }
 
-func Write(goid int32, addr, pc uintptr) {
-	C.__tsan_write(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
+func Write(racectx uintptr, addr, pc uintptr) {
+	C.__tsan_write(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
 }
 
-func ReadRange(goid int32, addr, sz, step, pc uintptr) {
-	C.__tsan_read_range(C.int(goid), unsafe.Pointer(addr),
+func ReadRange(racectx uintptr, addr, sz, step, pc uintptr) {
+	C.__tsan_read_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
 		C.long(sz), C.long(step), unsafe.Pointer(pc))
 }
 
-func WriteRange(goid int32, addr, sz, step, pc uintptr) {
-	C.__tsan_write_range(C.int(goid), unsafe.Pointer(addr),
+func WriteRange(racectx uintptr, addr, sz, step, pc uintptr) {
+	C.__tsan_write_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
 		C.long(sz), C.long(step), unsafe.Pointer(pc))
 }
 
-func FuncEnter(goid int32, pc uintptr) {
-	C.__tsan_func_enter(C.int(goid), unsafe.Pointer(pc))
+func FuncEnter(racectx uintptr, pc uintptr) {
+	C.__tsan_func_enter(unsafe.Pointer(racectx), unsafe.Pointer(pc))
 }
 
-func FuncExit(goid int32) {
-	C.__tsan_func_exit(C.int(goid))
+func FuncExit(racectx uintptr) {
+	C.__tsan_func_exit(unsafe.Pointer(racectx))
 }
 
-func Malloc(goid int32, p, sz, pc uintptr) {
-	C.__tsan_malloc(C.int(goid), unsafe.Pointer(p), C.long(sz), unsafe.Pointer(pc))
+func Malloc(racectx uintptr, p, sz, pc uintptr) {
+	C.__tsan_malloc(unsafe.Pointer(racectx), unsafe.Pointer(p), C.long(sz), unsafe.Pointer(pc))
 }
 
 func Free(p uintptr) {
 	C.__tsan_free(unsafe.Pointer(p))
 }
 
-func GoStart(pgoid, chgoid int32, pc uintptr) {
-	C.__tsan_go_start(C.int(pgoid), C.int(chgoid), unsafe.Pointer(pc))
+func GoStart(racectx uintptr, chracectx *uintptr, pc uintptr) {
+	C.__tsan_go_start(unsafe.Pointer(racectx), (*unsafe.Pointer)(unsafe.Pointer(chracectx)), unsafe.Pointer(pc))
 }
 
-func GoEnd(goid int32) {
-	C.__tsan_go_end(C.int(goid))
+func GoEnd(racectx uintptr) {
+	C.__tsan_go_end(unsafe.Pointer(racectx))
 }
 
-func Acquire(goid int32, addr uintptr) {
-	C.__tsan_acquire(C.int(goid), unsafe.Pointer(addr))
+func Acquire(racectx uintptr, addr uintptr) {
+	C.__tsan_acquire(unsafe.Pointer(racectx), unsafe.Pointer(addr))
 }
 
-func Release(goid int32, addr uintptr) {
-	C.__tsan_release(C.int(goid), unsafe.Pointer(addr))
+func Release(racectx uintptr, addr uintptr) {
+	C.__tsan_release(unsafe.Pointer(racectx), unsafe.Pointer(addr))
 }
 
-func ReleaseMerge(goid int32, addr uintptr) {
-	C.__tsan_release_merge(C.int(goid), unsafe.Pointer(addr))
+func ReleaseMerge(racectx uintptr, addr uintptr) {
+	C.__tsan_release_merge(unsafe.Pointer(racectx), unsafe.Pointer(addr))
 }
 
 //export __tsan_symbolize
