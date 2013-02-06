@@ -24,7 +24,7 @@ type appError struct {
 type appHandler func(http.ResponseWriter, *http.Request) *appError
 
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e := fn(w, r); e != nil { // e is *appError, not os.Error.
+	if e := fn(w, r); e != nil { // e is *appError, not error.
 		c := appengine.NewContext(r)
 		c.Errorf("%v", e.Error)
 		http.Error(w, e.Message, e.Code)
