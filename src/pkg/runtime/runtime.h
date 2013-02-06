@@ -233,6 +233,7 @@ struct	G
 	uintptr	sigcode1;
 	uintptr	sigpc;
 	uintptr	gopc;	// pc of go statement that created this goroutine
+	uintptr	racectx;
 	uintptr	end[];
 };
 struct	M

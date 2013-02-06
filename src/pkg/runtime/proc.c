@@ -221,7 +221,7 @@ runtime·schedinit(void)
 	m->nomemprof--;
 
 	if(raceenabled)
-		runtime·raceinit();
+		g->racectx = runtime·raceinit();
 }
 
 extern void main·init(void);
@@ -283,6 +283,8 @@ schedunlock(void)
 void
 runtime·goexit(void)
 {
+	if(raceenabled)
+		runtime·racegoend();
 	g->status = Gmoribund;
 	runtime·gosched();
 }
@@ -909,8 +911,6 @@ schedule(G *gp)
 			gput(gp);
 			break;
 		case Gmoribund:
-			if(raceenabled)
-				runtime·racegoend(gp->goid);
 			gp->status = Gdead;
 			if(gp->lockedm) {
 				gp->lockedm = nil;
@@ -1327,7 +1327,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	byte *sp;
 	G *newg;
 	int32 siz;
-	int64 goid;
+	uintptr racectx;
 
 //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
 	siz = narg + nret;
@@ -1340,9 +1340,8 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	if(siz > StackMin - 1024)
 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
-	goid = runtime·xadd64((uint64*)&runtime·sched.goidgen, 1);
 	if(raceenabled)
-		runtime·racegostart(goid, callerpc);
+		racectx = runtime·racegostart(callerpc);
 
 	schedlock();
 
@@ -1374,9 +1373,11 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->sched.g = newg;
 	newg->entry = fn;
 	newg->gopc = (uintptr)callerpc;
+	if(raceenabled)
+		newg->racectx = racectx;
 
 	runtime·sched.gcount++;
-	newg->goid = goid;
+	newg->goid = ++runtime·sched.goidgen;
 
 	newprocreadylocked(newg);
 	schedunlock();
