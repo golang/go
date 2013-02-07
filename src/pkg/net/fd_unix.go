@@ -109,17 +109,24 @@ func (s *pollServer) AddFD(fd *netFD, mode int) error {
 // Evict evicts fd from the pending list, unblocking
 // any I/O running on fd.  The caller must have locked
 // pollserver.
-func (s *pollServer) Evict(fd *netFD) {
+// Return value is whether the pollServer should be woken up.
+func (s *pollServer) Evict(fd *netFD) bool {
+	doWakeup := false
 	if s.pending[fd.sysfd<<1] == fd {
 		s.WakeFD(fd, 'r', errClosing)
-		s.poll.DelFD(fd.sysfd, 'r')
+		if s.poll.DelFD(fd.sysfd, 'r') {
+			doWakeup = true
+		}
 		delete(s.pending, fd.sysfd<<1)
 	}
 	if s.pending[fd.sysfd<<1|1] == fd {
 		s.WakeFD(fd, 'w', errClosing)
-		s.poll.DelFD(fd.sysfd, 'w')
+		if s.poll.DelFD(fd.sysfd, 'w') {
+			doWakeup = true
+		}
 		delete(s.pending, fd.sysfd<<1|1)
 	}
+	return doWakeup
 }
 
 var wakeupbuf [1]byte
@@ -386,9 +393,12 @@ func (fd *netFD) Close() error {
 	// the final decref will close fd.sysfd.  This should happen
 	// fairly quickly, since all the I/O is non-blocking, and any
 	// attempts to block in the pollserver will return errClosing.
-	fd.pollServer.Evict(fd)
+	doWakeup := fd.pollServer.Evict(fd)
 	fd.pollServer.Unlock()
 	fd.decref()
+	if doWakeup {
+		fd.pollServer.Wakeup()
+	}
 	return nil
 }
 
