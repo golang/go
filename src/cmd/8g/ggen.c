@@ -704,6 +704,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
 			split64(&nt, &lo, &hi);
 			gmove(&lo, &n1);
+			splitclean();
 		}
 	} else {
 		if(nr->type->width > 4) {
@@ -716,6 +717,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 			p2 = gbranch(optoas(ONE, types[TUINT32]), T, +1);
 			gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
+			splitclean();
 			patch(p2, pc);
 		} else {
 			gins(optoas(OCMP, nr->type), &n1, ncon(w));
