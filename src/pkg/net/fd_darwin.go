@@ -32,6 +32,8 @@ func newpollster() (p *pollster, err error) {
 	return p, nil
 }
 
+// First return value is whether the pollServer should be woken up.
+// This version always returns false.
 func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	// pollServer is locked.
 
@@ -65,7 +67,9 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	return false, nil
 }
 
-func (p *pollster) DelFD(fd int, mode int) {
+// Return value is whether the pollServer should be woken up.
+// This version always returns false.
+func (p *pollster) DelFD(fd int, mode int) bool {
 	// pollServer is locked.
 
 	var kmode int
@@ -80,6 +84,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	//	rather than waiting for real event
 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT)
 	syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
+	return false
 }
 
 func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
