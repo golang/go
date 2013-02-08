@@ -167,6 +167,8 @@ will compile the test binary and then run it as
 
 The test flags that generate profiles also leave the test binary in pkg.test
 for use when analyzing the profiles.
+
+Flags not recognized by 'go test' must be placed after any specified packages.
 `,
 }
 
