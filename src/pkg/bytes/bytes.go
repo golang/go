@@ -571,7 +571,10 @@ func indexFunc(s []byte, f func(r rune) bool, truth bool) int {
 // inverted.
 func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
 	for i := len(s); i > 0; {
-		r, size := utf8.DecodeLastRune(s[0:i])
+		r, size := rune(s[i-1]), 1
+		if r >= utf8.RuneSelf {
+			r, size = utf8.DecodeLastRune(s[0:i])
+		}
 		i -= size
 		if f(r) == truth {
 			return i

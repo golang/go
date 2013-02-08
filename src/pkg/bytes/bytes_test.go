@@ -1073,3 +1073,10 @@ func BenchmarkFieldsFunc(b *testing.B) {
 		FieldsFunc(fieldsInput, unicode.IsSpace)
 	}
 }
+
+func BenchmarkTrimSpace(b *testing.B) {
+	s := []byte("  Some text.  \n")
+	for i := 0; i < b.N; i++ {
+		TrimSpace(s)
+	}
+}
