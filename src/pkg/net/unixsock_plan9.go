@@ -93,8 +93,7 @@ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn
 type UnixListener struct{}
 
 // ListenUnix announces on the Unix domain socket laddr and returns a
-// Unix listener.  The network net must be "unix", "unixgram" or
-// "unixpacket".
+// Unix listener.  The network net must be "unix" or "unixpacket".
 func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	return nil, syscall.EPLAN9
 }

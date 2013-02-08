@@ -251,11 +251,10 @@ type UnixListener struct {
 }
 
 // ListenUnix announces on the Unix domain socket laddr and returns a
-// Unix listener.  The network net must be "unix", "unixgram" or
-// "unixpacket".
+// Unix listener.  The network net must be "unix" or "unixpacket".
 func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	switch net {
-	case "unix", "unixgram", "unixpacket":
+	case "unix", "unixpacket":
 	default:
 		return nil, UnknownNetworkError(net)
 	}
