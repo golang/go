@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin freebsd linux netbsd openbsd
+
 package net
 
 import "syscall"
 
-func maxListenerBacklog() int {
-	// TODO: Implement this
-	return syscall.SOMAXCONN
-}
-
-func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
+func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
 	a := toAddr(la)
 	if a == nil {
 		return la, nil
@@ -36,15 +33,4 @@ func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(
 		}
 	}
 	return la, nil
-}
-
-func sysSocket(f, t, p int) (syscall.Handle, error) {
-	// See ../syscall/exec_unix.go for description of ForkLock.
-	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(f, t, p)
-	if err == nil {
-		syscall.CloseOnExec(s)
-	}
-	syscall.ForkLock.RUnlock()
-	return s, err
 }

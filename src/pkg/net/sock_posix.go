@@ -4,8 +4,6 @@
 
 // +build darwin freebsd linux netbsd openbsd windows
 
-// Sockets
-
 package net
 
 import (
@@ -15,7 +13,7 @@ import (
 
 var listenerBacklog = maxListenerBacklog()
 
-// Generic socket creation.
+// Generic POSIX socket creation.
 func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	s, err := sysSocket(f, t, p)
 	if err != nil {
