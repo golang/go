@@ -12,6 +12,7 @@
 #include "race.h"
 #include "type.h"
 #include "typekind.h"
+#include "hashmap.h"
 
 enum {
 	Debug = 0,
@@ -161,9 +162,80 @@ static struct {
 } work;
 
 enum {
-	// TODO(atom): to be expanded in a next CL
 	GC_DEFAULT_PTR = GC_NUM_INSTR,
+	GC_MAP_NEXT,
 };
+
+// markonly marks an object. It returns true if the object
+// has been marked by this function, false otherwise.
+// This function isn't thread-safe and doesn't append the object to any buffer.
+static bool
+markonly(void *obj)
+{
+	byte *p;
+	uintptr *bitp, bits, shift, x, xbits, off;
+	MSpan *s;
+	PageID k;
+
+	// Words outside the arena cannot be pointers.
+	if(obj < runtime·mheap.arena_start || obj >= runtime·mheap.arena_used)
+		return false;
+
+	// obj may be a pointer to a live object.
+	// Try to find the beginning of the object.
+
+	// Round down to word boundary.
+	obj = (void*)((uintptr)obj & ~((uintptr)PtrSize-1));
+
+	// Find bits for this word.
+	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
+	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+	shift = off % wordsPerBitmapWord;
+	xbits = *bitp;
+	bits = xbits >> shift;
+
+	// Pointing at the beginning of a block?
+	if((bits & (bitAllocated|bitBlockBoundary)) != 0)
+		goto found;
+
+	// Otherwise consult span table to find beginning.
+	// (Manually inlined copy of MHeap_LookupMaybe.)
+	k = (uintptr)obj>>PageShift;
+	x = k;
+	if(sizeof(void*) == 8)
+		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+	s = runtime·mheap.map[x];
+	if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
+		return false;
+	p = (byte*)((uintptr)s->start<<PageShift);
+	if(s->sizeclass == 0) {
+		obj = p;
+	} else {
+		if((byte*)obj >= (byte*)s->limit)
+			return false;
+		uintptr size = s->elemsize;
+		int32 i = ((byte*)obj - p)/size;
+		obj = p+i*size;
+	}
+
+	// Now that we know the object header, reload bits.
+	off = (uintptr*)obj - (uintptr*)runtime·mheap.arena_start;
+	bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+	shift = off % wordsPerBitmapWord;
+	xbits = *bitp;
+	bits = xbits >> shift;
+
+found:
+	// Now we have bits, bitp, and shift correct for
+	// obj pointing at the base of the object.
+	// Only care about allocated and not marked.
+	if((bits & (bitAllocated|bitMarked)) != bitAllocated)
+		return false;
+	*bitp |= bitMarked<<shift;
+
+	// The object is now marked
+	return true;
+}
 
 // PtrTarget and BitTarget are structures used by intermediate buffers.
 // The intermediate buffers hold GC data before it
@@ -190,6 +262,7 @@ struct BufferList
 {
 	PtrTarget ptrtarget[IntermediateBufferCapacity];
 	BitTarget bittarget[IntermediateBufferCapacity];
+	Obj obj[IntermediateBufferCapacity];
 	BufferList *next;
 };
 static BufferList *bufferList;
@@ -386,8 +459,67 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 	*_nobj = nobj;
 }
 
+static void
+flushobjbuf(Obj *objbuf, Obj **objbufpos, Obj **_wp, Workbuf **_wbuf, uintptr *_nobj)
+{
+	uintptr nobj, off;
+	Obj *wp, obj;
+	Workbuf *wbuf;
+	Obj *objbuf_end;
+
+	wp = *_wp;
+	wbuf = *_wbuf;
+	nobj = *_nobj;
+
+	objbuf_end = *objbufpos;
+	*objbufpos = objbuf;
+
+	while(objbuf < objbuf_end) {
+		obj = *objbuf++;
+
+		// Align obj.b to a word boundary.
+		off = (uintptr)obj.p & (PtrSize-1);
+		if(off != 0) {
+			obj.p += PtrSize - off;
+			obj.n -= PtrSize - off;
+			obj.ti = 0;
+		}
+
+		if(obj.p == nil || obj.n == 0)
+			continue;
+
+		// If buffer is full, get a new one.
+		if(wbuf == nil || nobj >= nelem(wbuf->obj)) {
+			if(wbuf != nil)
+				wbuf->nobj = nobj;
+			wbuf = getempty(wbuf);
+			wp = wbuf->obj;
+			nobj = 0;
+		}
+
+		*wp = obj;
+		wp++;
+		nobj++;
+	}
+
+	// If another proc wants a pointer, give it some.
+	if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
+		wbuf->nobj = nobj;
+		wbuf = handoff(wbuf);
+		nobj = wbuf->nobj;
+		wp = wbuf->obj + nobj;
+	}
+
+	*_wp = wp;
+	*_wbuf = wbuf;
+	*_nobj = nobj;
+}
+
 // Program that scans the whole block and treats every block element as a potential pointer
 static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
+
+// Hashmap iterator program
+static uintptr mapProg[2] = {0, GC_MAP_NEXT};
 
 // Local variables of a program fragment or loop
 typedef struct Frame Frame;
@@ -412,6 +544,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	byte *b, *arena_start, *arena_used;
 	uintptr n, i, end_b, elemsize, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
+	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti;
 	void *obj;
 	Type *t;
 	Slice *sliceptr;
@@ -419,8 +552,14 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	BufferList *scanbuffers;
 	PtrTarget *ptrbuf, *ptrbuf_end, *ptrbufpos;
 	BitTarget *bitbuf;
+	Obj *objbuf, *objbuf_end, *objbufpos;
 	Eface *eface;
 	Iface *iface;
+	Hmap *hmap;
+	MapType *maptype;
+	bool didmark, mapkey_kind, mapval_kind;
+	struct hash_gciter map_iter;
+	struct hash_gciter_data d;
 
 	if(sizeof(Workbuf) % PageSize != 0)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
@@ -448,11 +587,20 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		ptrbuf = &scanbuffers->ptrtarget[0];
 		ptrbuf_end = &scanbuffers->ptrtarget[0] + nelem(scanbuffers->ptrtarget);
 		bitbuf = &scanbuffers->bittarget[0];
+		objbuf = &scanbuffers->obj[0];
+		objbuf_end = &scanbuffers->obj[0] + nelem(scanbuffers->obj);
 
 		runtime·unlock(&lock);
 	}
 
 	ptrbufpos = ptrbuf;
+	objbufpos = objbuf;
+
+	// (Silence the compiler)
+	map_ret = nil;
+	mapkey_size = mapval_size = 0;
+	mapkey_kind = mapval_kind = false;
+	mapkey_ti = mapval_ti = 0;
 
 	goto next_block;
 
@@ -496,8 +644,21 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					stack_top.loop_or_ret = pc+1;
 					break;
 				case TypeInfo_Map:
-					// TODO(atom): to be expanded in a next CL
-					pc = defaultProg;
+					hmap = (Hmap*)b;
+					maptype = (MapType*)t;
+					if(hash_gciter_init(hmap, &map_iter)) {
+						mapkey_size = maptype->key->size;
+						mapkey_kind = maptype->key->kind;
+						mapkey_ti   = (uintptr)maptype->key->gc | PRECISE;
+						mapval_size = maptype->elem->size;
+						mapval_kind = maptype->elem->kind;
+						mapval_ti   = (uintptr)maptype->elem->gc | PRECISE;
+
+						map_ret = 0;
+						pc = mapProg;
+					} else {
+						goto next_block;
+					}
 					break;
 				default:
 					runtime·throw("scanblock: invalid type");
@@ -667,10 +828,68 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			continue;
 
 		case GC_MAP_PTR:
-			// TODO(atom): to be expanded in a next CL. Same as GC_APTR for now.
-			obj = *(void**)(stack_top.b + pc[1]);
-			pc += 3;
-			break;
+			hmap = *(Hmap**)(stack_top.b + pc[1]);
+			if(hmap == nil) {
+				pc += 3;
+				continue;
+			}
+			runtime·lock(&lock);
+			didmark = markonly(hmap);
+			runtime·unlock(&lock);
+			if(didmark) {
+				maptype = (MapType*)pc[2];
+				if(hash_gciter_init(hmap, &map_iter)) {
+					mapkey_size = maptype->key->size;
+					mapkey_kind = maptype->key->kind;
+					mapkey_ti   = (uintptr)maptype->key->gc | PRECISE;
+					mapval_size = maptype->elem->size;
+					mapval_kind = maptype->elem->kind;
+					mapval_ti   = (uintptr)maptype->elem->gc | PRECISE;
+
+					// Start mapProg.
+					map_ret = pc+3;
+					pc = mapProg+1;
+				} else {
+					pc += 3;
+				}
+			} else {
+				pc += 3;
+			}
+			continue;
+
+		case GC_MAP_NEXT:
+			// Add all keys and values to buffers, mark all subtables.
+			while(hash_gciter_next(&map_iter, &d)) {
+				// buffers: reserve space for 2 objects.
+				if(ptrbufpos+2 >= ptrbuf_end)
+					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
+				if(objbufpos+2 >= objbuf_end)
+					flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+
+				if(d.st != nil) {
+					runtime·lock(&lock);
+					markonly(d.st);
+					runtime·unlock(&lock);
+				}
+				if(d.key_data != nil) {
+					if(!(mapkey_kind & KindNoPointers) || d.indirectkey) {
+						if(!d.indirectkey)
+							*objbufpos++ = (Obj){d.key_data, mapkey_size, mapkey_ti};
+						else
+							*ptrbufpos++ = (PtrTarget){*(void**)d.key_data, mapkey_ti};
+					}
+					if(!(mapval_kind & KindNoPointers) || d.indirectval) {
+						if(!d.indirectval)
+							*objbufpos++ = (Obj){d.val_data, mapval_size, mapval_ti};
+						else
+							*ptrbufpos++ = (PtrTarget){*(void**)d.val_data, mapval_ti};
+					}
+				}
+			}
+			if(map_ret == 0)
+				goto next_block;
+			pc = map_ret;
+			continue;
 
 		case GC_REGION:
 			// TODO(atom): to be expanded in a next CL. Same as GC_APTR for now.
@@ -696,6 +915,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 		if(nobj == 0) {
 			flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj, bitbuf);
+			flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
 
 			if(nobj == 0) {
 				if(!keepworking) {

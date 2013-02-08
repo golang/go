@@ -63,7 +63,6 @@
 	}
  */
 
-#define	malloc		runtime·mal
 #define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
 #define	memcpy(a,b,c)	runtime·memmove((byte*)(a),(byte*)(b),(uint32)(c))
 #define	assert(a)	if(!(a)) runtime·throw("hashmap assert")
@@ -160,3 +159,27 @@ struct hash_iter {
    whether used or not.   "level" is the subtable level, 0 means first level. */
 /* TESTING ONLY: DO NOT USE THIS ROUTINE IN NORMAL CODE */
 // void hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg);
+
+/* Used by the garbage collector */
+struct hash_gciter
+{
+	int32	elemsize;
+	uint8	flag;
+	uint8	valoff;
+	uint32	i;		/* stack pointer in subtable_state */
+	struct hash_subtable *st;
+	struct hash_gciter_sub {
+		struct hash_entry *e;		/* pointer into subtable */
+		struct hash_entry *last;	/* last entry in subtable */
+	} subtable_state[4];
+};
+struct hash_gciter_data
+{
+	struct hash_subtable *st;	/* subtable pointer, or nil */
+	uint8 *key_data;		/* key data, or nil */
+	uint8 *val_data;		/* value data, or nil */
+	bool indirectkey;		/* storing pointers to keys */
+	bool indirectval;		/* storing pointers to values */
+};
+bool hash_gciter_init (struct Hmap *h, struct hash_gciter *it);
+bool hash_gciter_next (struct hash_gciter *it, struct hash_gciter_data *data);
