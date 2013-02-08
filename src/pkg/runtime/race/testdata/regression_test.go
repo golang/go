@@ -15,10 +15,13 @@ type LogImpl struct {
 }
 
 func NewLog() (l LogImpl) {
+	c := make(chan bool)
 	go func() {
 		_ = l
+		c <- true
 	}()
 	l = LogImpl{}
+	<-c
 	return
 }
 
