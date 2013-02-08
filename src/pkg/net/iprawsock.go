@@ -29,7 +29,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
 		net = "ip"
 	}
-	afnet, _, err := parseDialNetwork(net)
+	afnet, _, err := parseNetwork(net)
 	if err != nil {
 		return nil, err
 	}

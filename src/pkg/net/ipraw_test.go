@@ -182,7 +182,7 @@ const (
 )
 
 func newICMPEchoRequest(net string, id, seqnum, msglen int, filler []byte) []byte {
-	afnet, _, _ := parseDialNetwork(net)
+	afnet, _, _ := parseNetwork(net)
 	switch afnet {
 	case "ip4":
 		return newICMPv4EchoRequest(id, seqnum, msglen, filler)

@@ -166,7 +166,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 }
 
 func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
-	net, proto, err := parseDialNetwork(netProto)
+	net, proto, err := parseNetwork(netProto)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 // and WriteTo methods can be used to receive and send IP
 // packets with per-packet addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	net, proto, err := parseDialNetwork(netProto)
+	net, proto, err := parseNetwork(netProto)
 	if err != nil {
 		return nil, err
 	}
