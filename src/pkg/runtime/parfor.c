@@ -145,7 +145,7 @@ runtime·parfordo(ParFor *desc)
 				// See if it has any work.
 				begin = (uint32)pos;
 				end = (uint32)(pos>>32);
-				if(begin >= end-1) {
+				if(begin+1 >= end) {
 					begin = end = 0;
 					break;
 				}
