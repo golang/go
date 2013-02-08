@@ -1569,24 +1569,24 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 			return "local repository is out of date; sync to get %s" % (vers)
 		patch1, err = portPatch(repo, patch, vers, id)
 		if err != "":
-			if not opts["ignore_hgpatch_failure"]:
+			if not opts["ignore_hgapplydiff_failure"]:
 				return "codereview issue %s is out of date: %s (%s->%s)" % (clname, err, vers, id)
 		else:
 			patch = patch1
-	argv = ["hgpatch"]
+	argv = ["hgapplydiff"]
 	if opts["no_incoming"] or mode == "backport":
 		argv += ["--checksync=false"]
 	try:
 		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
 	except:
-		return "hgpatch: " + ExceptionDetail() + "\nInstall hgpatch with:\n$ go get code.google.com/p/go.codereview/cmd/hgpatch\n"
+		return "hgapplydiff: " + ExceptionDetail() + "\nInstall hgapplydiff with:\n$ go get code.google.com/p/go.codereview/cmd/hgapplydiff\n"
 
 	out, err = cmd.communicate(patch)
-	if cmd.returncode != 0 and not opts["ignore_hgpatch_failure"]:
-		return "hgpatch failed"
+	if cmd.returncode != 0 and not opts["ignore_hgapplydiff_failure"]:
+		return "hgapplydiff failed"
 	cl.local = True
 	cl.files = out.strip().split()
-	if not cl.files and not opts["ignore_hgpatch_failure"]:
+	if not cl.files and not opts["ignore_hgapplydiff_failure"]:
 		return "codereview issue %s has no changed files" % clname
 	files = ChangedFiles(ui, repo, [])
 	extra = Sub(cl.files, files)
@@ -2099,7 +2099,7 @@ cmdtable = {
 	"^clpatch": (
 		clpatch,
 		[
-			('', 'ignore_hgpatch_failure', None, 'create CL metadata even if hgpatch fails'),
+			('', 'ignore_hgapplydiff_failure', None, 'create CL metadata even if hgapplydiff fails'),
 			('', 'no_incoming', None, 'disable check for incoming changes'),
 		],
 		"change#"
@@ -2158,7 +2158,7 @@ cmdtable = {
 	"^release-apply": (
 		release_apply,
 		[
-			('', 'ignore_hgpatch_failure', None, 'create CL metadata even if hgpatch fails'),
+			('', 'ignore_hgapplydiff_failure', None, 'create CL metadata even if hgapplydiff fails'),
 			('', 'no_incoming', None, 'disable check for incoming changes'),
 		],
 		"change#"
@@ -2181,7 +2181,7 @@ cmdtable = {
 	"^undo": (
 		undo,
 		[
-			('', 'ignore_hgpatch_failure', None, 'create CL metadata even if hgpatch fails'),
+			('', 'ignore_hgapplydiff_failure', None, 'create CL metadata even if hgapplydiff fails'),
 			('', 'no_incoming', None, 'disable check for incoming changes'),
 		],
 		"change#"
