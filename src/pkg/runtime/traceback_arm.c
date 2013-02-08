@@ -183,10 +183,15 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
 			sp += 12;
 
-		// sighandler saves the lr on stack before fake a call to sigpanic
+		// sighandler saves the lr on stack before faking a call to sigpanic
 		if(waspanic) {
-			pc = *(uintptr *)sp;
+			x = *(uintptr *)sp;
 			sp += 4;
+			f = runtime·findfunc(pc);
+			if (f == nil) {
+				pc = x;
+			} else if (f->frame == 0)
+				lr = x;
 		}
 	}
 	
