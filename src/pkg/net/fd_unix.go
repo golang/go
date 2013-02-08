@@ -297,11 +297,11 @@ func server(fd int) *pollServer {
 
 func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
 	deadline := time.Now().Add(timeout)
-	_, addri, err := resolveNetAddr("dial", net, addr, deadline)
+	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
 		return nil, err
 	}
-	return dialAddr(net, addr, addri, deadline)
+	return dial(net, addr, ra, deadline)
 }
 
 func newFD(fd, family, sotype int, net string) (*netFD, error) {
