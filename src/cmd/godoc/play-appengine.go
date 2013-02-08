@@ -24,12 +24,12 @@ func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
 	resp, err := client.Post(url, req.Header.Get("Content-type"), req.Body)
 	if err != nil {
 		http.Error(w, "Internal Server Error", 500)
-		c.Errorf("making POST request:", err)
+		c.Errorf("making POST request: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		http.Error(w, "Internal Server Error", 500)
-		c.Errorf("making POST request:", err)
+		c.Errorf("making POST request: %v", err)
 	}
 }
