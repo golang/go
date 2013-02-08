@@ -609,6 +609,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
 		regalloc(&n3, types[TUINT32], N);
 		gmove(&lo, &n1);
 		gmove(&hi, &n3);
+		splitclean();
 		gins(ATST, &n3, N);
 		nodconst(&t, types[TUINT32], w);
 		p1 = gins(AMOVW, &t, &n1);

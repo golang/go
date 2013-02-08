@@ -560,9 +560,9 @@ split64(Node *n, Node *lo, Node *hi)
 	if(!is64(n->type))
 		fatal("split64 %T", n->type);
 
-	sclean[nsclean].op = OEMPTY;
 	if(nsclean >= nelem(sclean))
 		fatal("split64 clean");
+	sclean[nsclean].op = OEMPTY;
 	nsclean++;
 	switch(n->op) {
 	default:
