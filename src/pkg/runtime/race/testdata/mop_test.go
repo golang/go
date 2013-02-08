@@ -745,7 +745,8 @@ func TestRaceCrawl(t *testing.T) {
 	url := "dummyurl"
 	depth := 3
 	seen := make(map[string]bool)
-	ch := make(chan int)
+	ch := make(chan int, 100)
+	var wg sync.WaitGroup
 	var crawl func(string, int)
 	crawl = func(u string, d int) {
 		nurl := 0
@@ -759,12 +760,16 @@ func TestRaceCrawl(t *testing.T) {
 		urls := [...]string{"a", "b", "c"}
 		for _, uu := range urls {
 			if _, ok := seen[uu]; !ok {
+				wg.Add(1)
 				go crawl(uu, d-1)
 				nurl++
 			}
 		}
+		wg.Done()
 	}
+	wg.Add(1)
 	go crawl(url, depth)
+	wg.Wait()
 }
 
 func TestRaceIndirection(t *testing.T) {
