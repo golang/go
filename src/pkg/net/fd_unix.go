@@ -661,6 +661,9 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	syscall.ForkLock.RUnlock()
 
 	// We want blocking mode for the new fd, hence the double negative.
+	// This also puts the old fd into blocking mode, meaning that
+	// I/O will block the thread instead of letting us use the epoll server.
+	// Everything will still work, just with more threads.
 	if err = syscall.SetNonblock(ns, false); err != nil {
 		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
 	}

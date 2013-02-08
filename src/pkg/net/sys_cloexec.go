@@ -35,14 +35,14 @@ func sysSocket(f, t, p int) (int, error) {
 // descriptor as nonblocking and close-on-exec.
 func accept(fd int) (int, syscall.Sockaddr, error) {
 	// See ../syscall/exec_unix.go for description of ForkLock.
-	// It is okay to hold the lock across syscall.Accept
+	// It is probably okay to hold the lock across syscall.Accept
 	// because we have put fd.sysfd into non-blocking mode.
-	syscall.ForkLock.RLock()
+	// However, a call to the File method will put it back into
+	// blocking mode. We can't take that risk, so no use of ForkLock here.
 	nfd, sa, err := syscall.Accept(fd)
 	if err == nil {
 		syscall.CloseOnExec(nfd)
 	}
-	syscall.ForkLock.RUnlock()
 	if err != nil {
 		return -1, nil, err
 	}
