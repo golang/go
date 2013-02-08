@@ -81,7 +81,7 @@ hash_subtable_new (Hmap *h, int32 power, int32 used)
 		max_probes = 1 << power;
 	}
 	bytes += limit_bytes - elemsize;
-	st = malloc (offsetof (struct hash_subtable, entry[0]) + bytes);
+	st = runtime·mallocgc(offsetof (struct hash_subtable, entry[0]) + bytes, UseSpanType ? FlagNoPointers : 0, 1, 1);
 	st->power = power;
 	st->used = used;
 	st->datasize = h->datasize;
@@ -705,6 +705,82 @@ static void
 hash_visit (Hmap *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
 {
 	hash_visit_internal (h->st, 0, 0, data_visit, arg);
+}
+
+// Initialize the iterator.
+// Returns false if Hmap contains no pointers (in which case the iterator is not initialized).
+bool
+hash_gciter_init (Hmap *h, struct hash_gciter *it)
+{
+	// GC during map initialization
+	if(h->st == nil)
+		return false;
+
+	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+	it->flag = h->flag;
+	it->valoff = h->valoff;
+	it->i = 0;
+	it->st = h->st;
+	it->subtable_state[it->i].e = h->st->entry;
+	it->subtable_state[it->i].last = h->st->last;
+	return true;
+}
+
+// Returns true and fills *data with subtable/key/value data,
+// or returns false if the iterator has terminated.
+bool
+hash_gciter_next (struct hash_gciter *it, struct hash_gciter_data *data)
+{
+	struct hash_entry *e;
+	struct hash_gciter_sub *sub;
+
+	data->st = nil;
+	data->key_data = nil;
+	data->val_data = nil;
+
+	// pointer to the first-level table
+	if(it->st != nil) {
+		data->st = it->st;
+		it->st = nil;
+		return true;
+	}
+
+popped:
+	sub = &it->subtable_state[it->i];
+	e = sub->e;
+	while (e <= sub->last) {
+		if ((e->hash & HASH_MASK) == HASH_SUBHASH) {
+			struct hash_subtable *st = *(struct hash_subtable **)e->data;
+			data->st = st;
+			sub->e = HASH_OFFSET (e, it->elemsize);
+
+			// push
+			it->i++;
+			assert (it->i < nelem(it->subtable_state));
+			sub++;
+			sub->e = st->entry;
+			sub->last = st->last;
+
+			return true;
+		}
+		if(e->hash != HASH_NIL) {
+			void *key_data = e->data;
+			void *val_data = (byte*)e->data + it->valoff;
+			data->key_data = key_data;
+			data->val_data = val_data;
+			data->indirectkey = (it->flag & IndirectKey) != 0;
+			data->indirectval = (it->flag & IndirectVal) != 0;
+			sub->e = HASH_OFFSET (e, it->elemsize);
+			return true;
+		}
+		e = HASH_OFFSET (e, it->elemsize);
+	}
+	if(it->i != 0) {
+		// pop
+		it->i--;
+		goto popped;
+	}
+	return false;
 }
 
 //
