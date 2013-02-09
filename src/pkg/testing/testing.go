@@ -33,6 +33,7 @@
 //         }
 //     }
 //
+// The benchmark function must run the target code b.N times.
 // The benchmark package will vary b.N until the benchmark function lasts
 // long enough to be timed reliably.  The output
 //     BenchmarkHello    10000000    282 ns/op
