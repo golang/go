@@ -5610,9 +5610,18 @@ func Sizeof(variable ArbitraryType) uintptr
 </pre>
 
 <p>
-Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted into
-a <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted to
+a <code>Pointer</code> type and vice versa.
 </p>
+
+<pre>
+var f float64
+bits = *(*uint64)(unsafe.Pointer(&amp;f))
+
+type ptr unsafe.Pointer
+bits = *(*uint64)(ptr(&amp;f))
+</pre>
+
 <p>
 The functions <code>Alignof</code> and <code>Sizeof</code> take an expression <code>x</code>
 of any type and return the alignment or size, respectively, of a hypothetical variable <code>v</code>
