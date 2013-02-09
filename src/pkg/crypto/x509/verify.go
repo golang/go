@@ -389,6 +389,14 @@ func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
 			for _, usage := range cert.ExtKeyUsage {
 				if requestedUsage == usage {
 					continue NextRequestedUsage
+				} else if requestedUsage == ExtKeyUsageServerAuth &&
+					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
+						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
+					// In order to support COMODO
+					// certificate chains, we have to
+					// accept Netscape or Microsoft SGC
+					// usages as equal to ServerAuth.
+					continue NextRequestedUsage
 				}
 			}
 
