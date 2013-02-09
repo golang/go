@@ -110,6 +110,9 @@ func TestWithSimulated(t *testing.T) {
 	for _, tr := range transport {
 		done := make(chan string)
 		addr := startServer(tr, "", done)
+		if tr == "unix" || tr == "unixgram" {
+			defer os.Remove(addr)
+		}
 		s, err := Dial(tr, addr, LOG_INFO|LOG_USER, "syslog_test")
 		if err != nil {
 			t.Fatalf("Dial() failed: %v", err)
@@ -127,6 +130,7 @@ func TestFlap(t *testing.T) {
 	net := "unix"
 	done := make(chan string)
 	addr := startServer(net, "", done)
+	defer os.Remove(addr)
 
 	s, err := Dial(net, addr, LOG_INFO|LOG_USER, "syslog_test")
 	if err != nil {
@@ -278,6 +282,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	net := "unix"
 	done := make(chan string)
 	addr := startServer(net, "", done)
+	defer os.Remove(addr)
 
 	// count all the messages arriving
 	count := make(chan int)
