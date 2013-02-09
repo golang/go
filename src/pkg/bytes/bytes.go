@@ -37,10 +37,6 @@ func Compare(a, b []byte) int {
 	return 0
 }
 
-// Equal returns a boolean reporting whether a == b.
-// A nil argument is equivalent to an empty slice.
-func Equal(a, b []byte) bool
-
 func equalPortable(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
