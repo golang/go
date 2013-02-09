@@ -164,6 +164,9 @@ var verifyTests = []verifyTest{
 		roots:         []string{comodoRoot},
 		currentTime:   1360431182,
 
+		// CryptoAPI can find alternative validation paths so we don't
+		// perform this test with system validation.
+		systemSkip: true,
 		expectedChains: [][]string{
 			{"mega.co.nz", "EssentialSSL CA", "COMODO Certification Authority"},
 		},
