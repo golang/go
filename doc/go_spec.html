@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 21, 2013",
+	"Subtitle": "Version of February 9, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -2765,13 +2765,14 @@ causes a <a href="#Run_time_panics">run-time panic</a>.
 </p>
 
 <p>
-As a special case, if the return parameters of a function or method
+As a special case, if the return values of a function or method
 <code>g</code> are equal in number and individually
 assignable to the parameters of another function or method
 <code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code>
 will invoke <code>f</code> after binding the return values of
 <code>g</code> to the parameters of <code>f</code> in order.  The call
-of <code>f</code> must contain no parameters other than the call of <code>g</code>.
+of <code>f</code> must contain no parameters other than the call of <code>g</code>,
+and <code>g</code> must have at least one return value.
 If <code>f</code> has a final <code>...</code> parameter, it is
 assigned the return values of <code>g</code> that remain after
 assignment of regular parameters.
