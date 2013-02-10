@@ -57,8 +57,7 @@ architectures.
 	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
 </dt>
 <dd>
-	Supports only Linux binaries. Less widely used than the other ports and therefore
-	not as thoroughly tested.
+	Supports only Linux binaries. Less widely used than the other ports and therefore not as thoroughly tested.
 </dd>
 </dl>
 
@@ -81,31 +80,9 @@ The full set of supported combinations is listed in the discussion of
 <h2 id="ctools">Install C tools, if needed</h2>
 
 <p>
-The Go tool chain is written in C.
-To build it, you need a C compiler installed.
-</p>
-
-<p>
-On OS X, a C compiler is bundled in the command line tools for
-<a href="http://developer.apple.com/Xcode/">Xcode</a>,
-and you don't need to install the whole Xcode to compile Go.
-If you have already installed Xcode 4.3+, you can install command
-line tools from the Components tab of the Downloads preferences panel.
-To verify you have a working compiler, just invoke <code>gcc</code>
-in a freshly created Terminal window, unless you see the
-"<code>gcc: command not found</code>" error, you are ready to go.
-</p>
-
-<p>
-On Ubuntu/Debian, use <code>sudo apt-get install gcc libc6-dev</code>.
-If you want to build 32-bit binaries on a 64-bit system you'll also need the
-<code>libc6-dev-i386</code> package.
-</p>
-
-<p>
-On Windows, install <code>gcc</code> with
-<a href="http://www.mingw.org/">MinGW</a>.
-(Make sure you add its <code>bin</code> subdirectory to your <code>PATH</code>.)
+The Go tool chain is written in C. To build it, you need a C compiler installed. 
+Please refer to the <a href="http://code.google.com/p/go-wiki/wiki/InstallFromSource#Install_C_tools">InstallFromSource</a>
+page on the Go community Wiki for operating system specific instructions.
 </p>
 
 <h2 id="mercurial">Install Mercurial, if needed</h2>
