@@ -104,6 +104,9 @@ lookuprel(void)
 void
 adddynrela(Sym *rela, Sym *s, Reloc *r)
 {
+	USED(rela);
+	USED(s);
+	USED(r);
 	sysfatal("adddynrela not implemented");
 }
 
