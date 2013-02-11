@@ -27,7 +27,7 @@ import "go/ast"
 // its index or value variables are used unsafely inside goroutines or deferred
 // function literals.
 func checkRangeLoop(f *File, n *ast.RangeStmt) {
-	if !*vetRangeLoops && !*vetAll {
+	if !vet("rangeloops") {
 		return
 	}
 	key, _ := n.Key.(*ast.Ident)

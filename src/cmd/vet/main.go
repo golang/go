@@ -25,18 +25,23 @@ import (
 var verbose = flag.Bool("v", false, "verbose")
 var exitCode = 0
 
-// Flags to control which checks to perform.
-// NOTE: Add new flags to the if statement at the top of func main too.
-var (
-	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
-	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
-	vetBuildTags       = flag.Bool("buildtags", false, "check that +build tags are valid")
-	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
-	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
-	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
-	vetRangeLoops      = flag.Bool("rangeloops", false, "check that range loop variables are used correctly")
-	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
-)
+// Flags to control which checks to perform. "all" is set to true here, and disabled later if
+// a flag is set explicitly.
+var report = map[string]*bool{
+	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
+	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
+	"composites": flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
+	"methods":    flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
+	"printf":     flag.Bool("printf", false, "check printf-like invocations"),
+	"structtags": flag.Bool("structtags", false, "check that struct field tags have canonical format"),
+	"rangeloops": flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
+}
+
+// vet tells whether to report errors for the named check, a flag name.
+func vet(name string) bool {
+	return *report["all"] || *report[name]
+}
 
 // setExit sets the value for os.Exit when it is called, later.  It
 // remembers the highest value.
@@ -66,8 +71,11 @@ func main() {
 	flag.Parse()
 
 	// If a check is named explicitly, turn off the 'all' flag.
-	if *vetAtomic || *vetBuildTags || *vetMethods || *vetPrintf || *vetStructTags || *vetRangeLoops || *vetUntaggedLiteral {
-		*vetAll = false
+	for name, ptr := range report {
+		if name != "all" && *ptr {
+			*report["all"] = false
+			break
+		}
 	}
 
 	if *printfuncs != "" {

@@ -14,7 +14,7 @@ import (
 
 // checkField checks a struct field tag.
 func (f *File) checkCanonicalFieldTag(field *ast.Field) {
-	if !*vetStructTags && !*vetAll {
+	if !vet("structtags") {
 		return
 	}
 	if field.Tag == nil {
@@ -37,5 +37,5 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
 }
 
 type BadTypeUsedInTests struct {
-	X int "hello" // ERROR "struct field tag"
+	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
 }

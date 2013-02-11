@@ -44,7 +44,7 @@ var printList = map[string]int{
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
 func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
-	if !*vetPrintf && !*vetAll {
+	if !vet("printf") {
 		return
 	}
 	name := strings.ToLower(Name)

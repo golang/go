@@ -9,12 +9,14 @@ package main
 import (
 	"go/ast"
 	"strings"
+
+	"flag" // for test
 )
 
 // checkUntaggedLiteral checks if a composite literal is an struct literal with
 // untagged fields.
 func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
-	if !*vetUntaggedLiteral && !*vetAll {
+	if !vet("composites") {
 		return
 	}
 	// Check if the CompositeLit contains an untagged field.
@@ -123,6 +125,9 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"image.Rectangle":     true,
 }
 
-type BadTag struct {
-	S string `this is a bad tag` // ERROR "not compatible with reflect.StructTag.Get"
+var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
+	"Name",
+	"Usage",
+	nil, // Value
+	"DefValue",
 }
