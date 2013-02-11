@@ -128,13 +128,13 @@ func main() {
 		panic("fail")
 	}
 
-	var zs struct { S }
-	var zps struct { *S1 }
-	var zi struct { I }
-	var zpi struct { *I1 }
-	var zpt struct { *T1 }
-	var zt struct { T }
-	var zv struct { Val }
+	var zs struct{ S }
+	var zps struct{ *S1 }
+	var zi struct{ I }
+	var zpi struct{ *I1 }
+	var zpt struct{ *T1 }
+	var zt struct{ T }
+	var zv struct{ Val }
 
 	if zs.val() != 1 {
 		println("zs.val:", zs.val())
@@ -247,4 +247,61 @@ func main() {
 		println("zv.val():", zv.val())
 		panic("fail")
 	}
+
+	promotion()
+}
+
+type A struct{ B }
+type B struct {
+	C
+	*D
+}
+type C int
+
+func (C) f()  {} // value receiver, direct field of A
+func (*C) g() {} // pointer receiver
+
+type D int
+
+func (D) h()  {} // value receiver, indirect field of A
+func (*D) i() {} // pointer receiver
+
+func expectPanic() {
+	if r := recover(); r == nil {
+		panic("expected nil dereference")
+	}
+}
+
+func promotion() {
+	var a A
+	// Addressable value receiver.
+	a.f()
+	a.g()
+	func() {
+		defer expectPanic()
+		a.h() // dynamic error: nil dereference in a.B.D->f()
+	}()
+	a.i()
+
+	// Non-addressable value receiver.
+	A(a).f()
+	// A(a).g() // static error: cannot call pointer method on A literal.B.C
+	func() {
+		defer expectPanic()
+		A(a).h() // dynamic error: nil dereference in A().B.D->f()
+	}()
+	A(a).i()
+
+	// Pointer receiver.
+	(&a).f()
+	(&a).g()
+	func() {
+		defer expectPanic()
+		(&a).h() // dynamic error: nil deref: nil dereference in (&a).B.D->f()
+	}()
+	(&a).i()
+
+	c := new(C)
+	c.f() // makes a copy
+	c.g()
 }
