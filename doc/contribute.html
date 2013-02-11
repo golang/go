@@ -112,7 +112,9 @@ you are a committer (see below), but Mercurial complains if it is missing.
 
 <p>
 After adding the extension, <code>hg help codereview</code>
-will show documentation for its commands.
+will show documentation for its commands. As the codereview extension is only
+enabled for your checkout in <code>$GOROOT</code>, the remainder of this 
+document assumes you are inside <code>$GOROOT</code> when issuing commands.
 </p>
 
 <h3>Log in to the code review site.</h3>
@@ -282,22 +284,37 @@ which <code>hg change</code> will print, something like:
 CL created: http://codereview.appspot.com/99999
 </pre>
 
+<h3>Adding or removing files from an existing change</h3>
+
 <p>
 If you need to re-edit the change description, or change the files included in the CL,
-run <code>hg change 99999</code>. Alternatively, you can use <code>hg file 99999 somefile</code>
-to add <code>somefile</code> to CL 99999, and use <code>hg file -d 99999 somefile</code> to remove
-<code>somefile</code> from the CL.
+run <code>hg change 99999</code>.
 </p>
 
 <p>
-Creating the change uploads a copy of the diff to the code review server, but it does not
-notify anyone about it. To do that, you need to run <code>hg mail</code> (see below).
+Alternatively, you can use
+<p/>
+
+<pre>
+$ hg file 99999 somefile
+</pre>
+
+<p>
+to add <code>somefile</code> to CL 99999, and
+</p>
+
+<pre>
+$ hg file -d 99999 somefile
+</pre>
+
+<p>
+to remove <code>somefile</code> from the CL.
 </p>
 
 <p>
-You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
+A file may only belong to a single active CL at a time. <code>hg file</code>
+will issue a warning if a file is moved between changes.
 </p>
-
 
 <h3>Synchronize your client</h3>
 
@@ -390,6 +407,12 @@ changes, but you may still need to run
 
 <h3>Mail the change for review</h3>
 
+<p>
+Creating or uploading the change uploads a copy of the diff to the code review server,
+but it does not notify anyone about it. To do that, you need to run <code>hg mail</code>
+(see below).
+</p>
+
 <p>To send out a change for review, run <code>hg mail</code> using the change list number
 assigned during <code>hg change</code>:</p>
 
@@ -411,6 +434,10 @@ $ hg mail -r golang-dev@googlegroups.com --cc math-nuts@swtch.com 99999
 
 <p>Note that <code>-r</code> and <code>--cc</code> cannot be spelled <code>--r</code> or <code>-cc</code>.</p>
 
+<p>
+If your change relates to an open issue, please add a comment to the issue
+announcing your proposed fix, including a link to your CL.
+</p>
 
 <h3>Reviewing code</h3>
 
@@ -424,7 +451,18 @@ to send comments back.
 
 <h3>Revise and upload</h3>
 
-<p>You will probably revise your code in response to the reviewer comments.
+<p>
+You will probably revise your code in response to the reviewer comments. When
+you have done this, you can upload your change to the code review server
+without sending a notification by running <code>hg upload</code> using the change
+list number assigned during <code>hg change</code>
+</p>
+
+<pre>
+$ hg upload 99999
+</pre>
+
+<p>
 When you have revised the code and are ready for another round of review, run
 </p>
 
@@ -445,11 +483,73 @@ The reviewer approves the change by replying with a mail that says
 <code>LGTM</code>: looks good to me.
 </p>
 
+<p>
+You can see a list of your pending changes by running <code>hg pending</code> (<code>hg p</code> for short).
+</p>
+
+<h3>Reviewing code by others</h3>
+
+<p>
+You can import a CL proposed by someone else into your local Mercurial client
+by using the <code>hg clpatch</code> command. Running
+</p>
+
+<pre>
+$ hg clpatch 99999
+</pre>
+
+<p>
+will apply the latest diff for CL 99999 to your working copy. If any of the
+files referenced in CL 99999 have local modifications, <code>clpatch</code>
+will refuse to apply the whole diff. Once applied, CL 99999 will show up in
+the output of <code>hg pending</code> and others.
+</p>
+
+<p>
+To revert a CL you have applied locally, use the <code>hg revert</code>
+command. Running
+</p>
+
+<pre>
+$ hg revert @99999
+</pre>
+
+<p>
+will revert any files mentioned on CL 99999 to their original state. This can
+be an effective way of reverting one CL revision and applying another.
+</p>
+
+<p>
+Once the CL has been submitted, the next time you run <code>hg sync</code>
+it will be removed from your local pending list. Occasionally the pending list
+can get out of sync leaving stale references to closed or abandoned CLs. 
+You can use <code>hg change -D 99999</code> to remove the reference to CL 99999.
+
 <h3>Submit the change after the review</h3>
 
 <p>
 After the code has been <code>LGTM</code>'ed, it is time to submit
-it to the Mercurial repository.
+it to the Mercurial repository. 
+</p>
+
+<p>
+If you are not a committer, you cannot submit the change directly.
+Instead a committer, usually the reviewer who said <code>LGTM</code>,
+will run:
+</p>
+
+<pre>
+$ hg clpatch 99999
+$ hg submit 99999
+</pre>
+
+The <code>submit</code> command submits the code.  You will be listed as the
+author, but the change message will also indicate who the committer was.
+Your local client will notice that the change has been submitted
+when you next run <code>hg sync</code>.
+</p>
+
+<p>
 If you are a committer, you can run:
 </p>
 
@@ -475,30 +575,7 @@ $ hg submit 99999
 local repository out of date; must sync before submit
 </pre>
 
-<p>
-If you are not a committer, you cannot submit the change directly.
-Instead, a committer, usually the reviewer who said <code>LGTM</code>,
-will run:
-</p>
-
-<pre>
-$ hg clpatch 99999
-$ hg submit 99999
-</pre>
-
-<p>The <code>clpatch</code> command imports your change 99999 into
-the committer's local Mercurial client, at which point the committer
-can check or test the code more.
-(Anyone can run <code>clpatch</code> to try a change that
-has been uploaded to the code review server.)
-The <code>submit</code> command submits the code.  You will be listed as the
-author, but the change message will also indicate who the committer was.
-Your local client will notice that the change has been submitted
-when you next run <code>hg sync</code>.
-</p>
-
-
-<h3 id="copyright">Copyright</h3>
+<h2 id="copyright">Copyright</h2>
 
 <p>Files in the Go repository don't list author names,
 both to avoid clutter and to avoid having to keep the lists up to date.
@@ -541,3 +618,8 @@ This rigmarole needs to be done only for your first submission.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 </pre>
+
+<p>
+Files in the repository are copyright the year they are added. It is not
+necessary to update the copyright year on files that you change.
+</p>
