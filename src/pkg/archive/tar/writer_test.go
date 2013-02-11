@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -101,6 +102,27 @@ var writerTests = []*writerTest{
 			},
 		},
 	},
+	// This file was produced using gnu tar 1.17
+	// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+	{
+		file: "testdata/ustar.tar",
+		entries: []*writerTestEntry{
+			{
+				header: &Header{
+					Name:     strings.Repeat("longname/", 15) + "file.txt",
+					Mode:     0644,
+					Uid:      0765,
+					Gid:      024,
+					Size:     06,
+					ModTime:  time.Unix(1360135598, 0),
+					Typeflag: '0',
+					Uname:    "shane",
+					Gname:    "staff",
+				},
+				contents: "hello\n",
+			},
+		},
+	},
 }
 
 // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
@@ -177,6 +199,64 @@ testLoop:
 		}
 		if testing.Short() { // The second test is expensive.
 			break
+		}
+	}
+}
+
+func TestPax(t *testing.T) {
+	// Create an archive with a large name
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdr, err := FileInfoHeader(fileinfo, "")
+	if err != nil {
+		t.Fatalf("os.Stat: %v", err)
+	}
+	// Force a PAX long name to be written
+	longName := strings.Repeat("ab", 100)
+	contents := strings.Repeat(" ", int(hdr.Size))
+	hdr.Name = longName
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = writer.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Simple test to make sure PAX extensions are in effect
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+		t.Fatal("Expected at least one PAX header to be written.")
+	}
+	// Test that we can get a long name back out of the archive.
+	reader := NewReader(&buf)
+	hdr, err = reader.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hdr.Name != longName {
+		t.Fatal("Couldn't recover long file name")
+	}
+}
+
+func TestPAXHeader(t *testing.T) {
+	medName := strings.Repeat("CD", 50)
+	longName := strings.Repeat("AB", 100)
+	paxTests := [][2]string{
+		{"name=/etc/hosts", "19 name=/etc/hosts\n"},
+		{"a=b", "6 a=b\n"},          // Single digit length
+		{"a=names", "11 a=names\n"}, // Test case involving carries
+		{"name=" + longName, fmt.Sprintf("210 name=%s\n", longName)},
+		{"name=" + medName, fmt.Sprintf("110 name=%s\n", medName)}}
+
+	for _, test := range paxTests {
+		key, expected := test[0], test[1]
+		if result := paxHeader(key); result != expected {
+			t.Fatalf("paxHeader: got %s, expected %s", result, expected)
 		}
 	}
 }
