@@ -25,7 +25,7 @@ var (
 
 // checkBuildTag checks that build tags are in the correct location and well-formed.
 func checkBuildTag(name string, data []byte) {
-	if !*vetBuildTags && !*vetAll {
+	if !vet("buildtags") {
 		return
 	}
 	lines := bytes.SplitAfter(data, nl)

@@ -55,7 +55,7 @@ var canonicalMethods = map[string]MethodSig{
 }
 
 func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
-	if !*vetMethods && !*vetAll {
+	if !vet("methods") {
 		return
 	}
 	// Expected input/output.
@@ -161,9 +161,9 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
 	return f.b.String() == expect
 }
 
-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
+func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
 }
 
 type BadInterfaceUsedInTests interface {
-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
+	ReadByte() byte // ERROR "should have signature ReadByte"
 }

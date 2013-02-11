@@ -13,7 +13,7 @@ import (
 // checkAtomicAssignment walks the assignment statement checking for comomon
 // mistaken usage of atomic package, such as: x = atomic.AddUint64(&x, 1)
 func (f *File) checkAtomicAssignment(n *ast.AssignStmt) {
-	if !*vetAtomic && !*vetAll {
+	if !vet("atomic") {
 		return
 	}
 
