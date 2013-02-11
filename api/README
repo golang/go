@@ -5,8 +5,8 @@ Each file is a list of of API features, one per line.
 go1.txt (and similarly named files) are frozen once a version has been
 shipped. Each file adds new lines but does not remove any.
 
-except.txt lists features that may disappear without breaking
-true compatibility. The only package there is text/template/parse.
+except.txt lists features that may disappear without breaking true
+compatibility.
 
 next.txt is the only file intended to be mutated. It's a list of
 features that may be added to the next version. It only affects
