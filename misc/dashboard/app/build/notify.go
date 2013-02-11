@@ -38,7 +38,7 @@ var failIgnore = map[string]bool{
 // have been retrieved from the datastore within that transaction.
 func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
 	if failIgnore[builder] {
-		return
+		return nil
 	}
 
 	// TODO(adg): implement notifications for packages
