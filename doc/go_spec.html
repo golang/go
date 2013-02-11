@@ -3448,16 +3448,20 @@ Conversion = Type "(" Expression [ "," ] ")" .
 
 <p>
 If the type starts with the operator <code>*</code> or <code>&lt;-</code>,
-or the keyword <code>func</code>, it must be parenthesized:
+or if the type starts with the keyword <code>func</code>
+and has no result list, it must be parenthesized when
+necessary to avoid ambiguity:
 </p>
 
 <pre>
 *Point(p)        // same as *(Point(p))
-(*Point)(p)      // p is converted to (*Point)
+(*Point)(p)      // p is converted to *Point
 &lt;-chan int(c)    // same as &lt;-(chan int(c))
-(&lt;-chan int)(c)  // c is converted to (&lt;-chan int)
+(&lt;-chan int)(c)  // c is converted to &lt;-chan int
 func()(x)        // function signature func() x
-(func())(x)      // x is converted to (func())
+(func())(x)      // x is converted to func()
+(func() int)(x)  // x is converted to func() int
+func() int(x)    // x is converted to func() int (unambiguous)
 </pre>
 
 <p>
@@ -3551,12 +3555,6 @@ There is no linguistic mechanism to convert between pointers and integers.
 The package <a href="#Package_unsafe"><code>unsafe</code></a>
 implements this functionality under
 restricted circumstances.
-</p>
-
-<p>
-Implementation restriction: For backward-compatibility with the Go 1 language
-specification, a compiler may accept non-parenthesized literal function types
-in conversions where the syntax is unambiguous.
 </p>
 
 <h4>Conversions between numeric types</h4>
