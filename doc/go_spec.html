@@ -3470,6 +3470,14 @@ type <code>T</code> in any of these cases:
 	<code>x</code> is representable by a value of type <code>T</code>.
 	</li>
 	<li>
+	<code>x</code> is a floating-point constant,
+	<code>T</code> is a floating-point type,
+	and <code>x</code> is representable by a value
+	of type <code>T</code> after rounding using
+	IEEE 754 round-to-even rules.
+	The constant <code>T(x)</code> is the rounded value.
+	</li>
+	<li>
 	<code>x</code> is an integer constant and <code>T</code> is a
 	<a href="#String_types">string type</a>.
 	The same rule as for non-constant <code>x</code> applies in this case
@@ -3485,6 +3493,7 @@ Converting a constant yields a typed constant as result.
 uint(iota)               // iota value of type uint
 float32(2.718281828)     // 2.718281828 of type float32
 complex128(1)            // 1.0 + 0.0i of type complex128
+float32(0.49999999)      // 0.5 of type float32
 string('x')              // "x" of type string
 string(0x266c)           // "♬" of type string
 MyString("foo" + "bar")  // "foobar" of type MyString
