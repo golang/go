@@ -307,9 +307,9 @@ func main() {
 
 	// switch on array.
 	switch ar := [3]int{1, 2, 3}; ar {
-	case [3]int{1,2,3}:
+	case [3]int{1, 2, 3}:
 		assert(true, "[1 2 3]")
-	case [3]int{4,5,6}:
+	case [3]int{4, 5, 6}:
 		assert(false, "ar should be [1 2 3]")
 	default:
 		assert(false, "ar should be [1 2 3]")
@@ -327,12 +327,57 @@ func main() {
 		assert(false, "c1 did not match itself")
 	}
 
+	// empty switch
+	switch {
+	}
+
+	// empty switch with default case.
+	fired = false
+	switch {
+	default:
+		fired = true
+	}
+	assert(fired, "fail")
+
+	// Default and fallthrough.
+	count = 0
+	switch {
+	default:
+		count++
+		fallthrough
+	case false:
+		count++
+	}
+	assert(count == 2, "fail")
+
+	// fallthrough to default, which is not at end.
+	count = 0
+	switch i5 {
+	case 5:
+		count++
+		fallthrough
+	default:
+		count++
+	case 6:
+		count++
+	}
+	assert(count == 2, "fail")
+
+	// fallthrough in final case.
+	count = 0
+	switch i5 {
+	case 5:
+		count++
+		fallthrough
+	}
+	assert(count == 1, "fail")
+
 	i := 0
 	switch x := 5; {
-		case i < x:
-			os.Exit(0)
-		case i == x:
-		case i > x:
-			os.Exit(1)
+	case i < x:
+		os.Exit(0)
+	case i == x:
+	case i > x:
+		os.Exit(1)
 	}
 }
