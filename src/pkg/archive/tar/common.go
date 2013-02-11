@@ -9,6 +9,7 @@
 // References:
 //   http://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5
 //   http://www.gnu.org/software/tar/manual/html_node/Standard.html
+//   http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html
 package tar
 
 import (
@@ -33,6 +34,8 @@ const (
 	TypeCont          = '7'    // reserved
 	TypeXHeader       = 'x'    // extended header
 	TypeXGlobalHeader = 'g'    // global extended header
+	TypeGNULongName   = 'L'    // Next file has a long name
+	TypeGNULongLink   = 'K'    // Next file symlinks to a file w/ a long name
 )
 
 // A Header represents a single header in a tar archive.
@@ -53,6 +56,12 @@ type Header struct {
 	AccessTime time.Time // access time
 	ChangeTime time.Time // status change time
 }
+
+// File name constants from the tar spec.
+const (
+	fileNameSize       = 100 // Maximum number of bytes in a standard tar name.
+	fileNamePrefixSize = 155 // Maximum number of ustar extension bytes.
+)
 
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi os.FileInfo, h *Header) error
