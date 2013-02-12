@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exp/locale/collate"
+	"exp/locale/collate/colltab"
 	"exp/norm"
 	"fmt"
 	"io"
@@ -225,25 +225,25 @@ func (t *Tailoring) SetAnchorBefore(anchor string) error {
 // at the primary sorting level:
 //      t := b.Tailoring("se")
 // 		t.SetAnchor("z")
-// 		t.Insert(collate.Primary, "ä", "")
+// 		t.Insert(colltab.Primary, "ä", "")
 // Order "ü" after "ue" at the secondary sorting level:
 //		t.SetAnchor("ue")
-//		t.Insert(collate.Secondary, "ü","")
+//		t.Insert(colltab.Secondary, "ü","")
 // or
 //		t.SetAnchor("u")
-//		t.Insert(collate.Secondary, "ü", "e")
+//		t.Insert(colltab.Secondary, "ü", "e")
 // Order "q" afer "ab" at the secondary level and "Q" after "q"
 // at the tertiary level:
 // 		t.SetAnchor("ab")
-// 		t.Insert(collate.Secondary, "q", "")
-// 		t.Insert(collate.Tertiary, "Q", "")
+// 		t.Insert(colltab.Secondary, "q", "")
+// 		t.Insert(colltab.Tertiary, "Q", "")
 // Order "b" before "a":
 //      t.SetAnchorBefore("a")
-//      t.Insert(collate.Primary, "b", "")
+//      t.Insert(colltab.Primary, "b", "")
 // Order "0" after the last primary ignorable:
 //      t.SetAnchor("<last_primary_ignorable/>")
-//      t.Insert(collate.Primary, "0", "")
-func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
+//      t.Insert(colltab.Primary, "0", "")
+func (t *Tailoring) Insert(level colltab.Level, str, extend string) error {
 	if t.anchor == nil {
 		return fmt.Errorf("%s:Insert: no anchor point set for tailoring of %s", t.id, str)
 	}
@@ -301,13 +301,13 @@ func (o *ordering) getWeight(e *entry) []rawCE {
 				e.elems = append(e.elems, o.getWeight(o.find(string(r)))...)
 			}
 		} else if e.before {
-			count := [collate.Identity + 1]int{}
+			count := [colltab.Identity + 1]int{}
 			a := e
 			for ; a.elems == nil && !a.implicit; a = a.next {
 				count[a.level]++
 			}
 			e.elems = []rawCE{makeRawCE(a.elems[0].w, a.elems[0].ccc)}
-			for i := collate.Primary; i < collate.Quaternary; i++ {
+			for i := colltab.Primary; i < colltab.Quaternary; i++ {
 				if count[i] != 0 {
 					e.elems[0].w[i] -= count[i]
 					break
@@ -336,11 +336,11 @@ func (o *ordering) addExtension(e *entry) {
 	e.extend = ""
 }
 
-func (o *ordering) verifyWeights(a, b *entry, level collate.Level) error {
-	if level == collate.Identity || b == nil || b.elems == nil || a.elems == nil {
+func (o *ordering) verifyWeights(a, b *entry, level colltab.Level) error {
+	if level == colltab.Identity || b == nil || b.elems == nil || a.elems == nil {
 		return nil
 	}
-	for i := collate.Primary; i < level; i++ {
+	for i := colltab.Primary; i < level; i++ {
 		if a.elems[0].w[i] < b.elems[0].w[i] {
 			return nil
 		}
@@ -462,20 +462,21 @@ func (b *Builder) build() (*table, error) {
 }
 
 // Build builds the root Collator.
-func (b *Builder) Build() (*collate.Collator, error) {
+// TODO: return Weigher instead
+func (b *Builder) Build() (colltab.Weigher, error) {
 	t, err := b.build()
 	if err != nil {
 		return nil, err
 	}
-	table := collate.Init(t)
+	table := colltab.Init(t)
 	if table == nil {
 		panic("generated table of incompatible type")
 	}
-	return collate.NewFromTable(table), nil
+	return table, nil
 }
 
 // Build builds a Collator for Tailoring t.
-func (t *Tailoring) Build() (*collate.Collator, error) {
+func (t *Tailoring) Build() (colltab.Weigher, error) {
 	// TODO: implement.
 	return nil, nil
 }
@@ -498,6 +499,7 @@ func (b *Builder) Print(w io.Writer) (n int, err error) {
 		p(fmt.Fprintf(w, "%q, ", loc.id))
 	}
 	p(fmt.Fprintln(w, "}\n"))
+	p(fmt.Fprintf(w, "const varTop = 0x%x\n\n", b.varTop))
 	p(fmt.Fprintln(w, "var locales = map[string]tableIndex{"))
 	for _, loc := range b.locale {
 		p(fmt.Fprintf(w, "\t%q: ", loc.id))

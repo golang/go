@@ -2,19 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate
+package colltab
 
 import (
 	"exp/norm"
 	"unicode/utf8"
 )
-
-// tableIndex holds information for constructing a table
-// for a certain locale based on the main table.
-type tableIndex struct {
-	lookupOffset uint32
-	valuesOffset uint32
-}
 
 // table holds all collation data for a given collation ordering.
 type table struct {
@@ -28,13 +21,6 @@ type table struct {
 	contractElem   []uint32
 	maxContractLen int
 	variableTop    uint32
-}
-
-func (t *table) indexedTable(idx tableIndex) *table {
-	nt := *t
-	nt.index.index0 = t.index.index[idx.lookupOffset*blockSize:]
-	nt.index.values0 = t.index.values[idx.valuesOffset*blockSize:]
-	return &nt
 }
 
 func (t *table) AppendNext(w []Elem, b []byte) (res []Elem, n int) {
@@ -58,6 +44,10 @@ func (t *table) StartString(p int, s string) int {
 func (t *table) Domain() []string {
 	// TODO: implement
 	panic("not implemented")
+}
+
+func (t *table) Top() uint32 {
+	return t.variableTop
 }
 
 type source struct {
@@ -281,37 +271,4 @@ func (t *table) matchContractionString(w []Elem, ce Elem, suffix string) ([]Elem
 		w, p = t.appendNext(w, source{bytes: b})
 	}
 	return w, n
-}
-
-// TODO: this should stay after the rest of this file is moved to colltab
-func (t tableIndex) TrieIndex() []uint16 {
-	return mainLookup[:]
-}
-
-func (t tableIndex) TrieValues() []uint32 {
-	return mainValues[:]
-}
-
-func (t tableIndex) FirstBlockOffsets() (lookup, value uint16) {
-	return uint16(t.lookupOffset), uint16(t.valuesOffset)
-}
-
-func (t tableIndex) ExpandElems() []uint32 {
-	return mainExpandElem[:]
-}
-
-func (t tableIndex) ContractTries() []struct{ l, h, n, i uint8 } {
-	return mainCTEntries[:]
-}
-
-func (t tableIndex) ContractElems() []uint32 {
-	return mainContractElem[:]
-}
-
-func (t tableIndex) MaxContractLen() int {
-	return 18
-}
-
-func (t tableIndex) VariableTop() uint32 {
-	return 0x30E
 }

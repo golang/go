@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"exp/locale/collate"
 	"exp/locale/collate/build"
+	"exp/locale/collate/colltab"
 	"flag"
 	"fmt"
 	"io"
@@ -228,12 +229,14 @@ func runes(b []byte) []rune {
 func doTest(t Test) {
 	bld := build.NewBuilder()
 	parseUCA(bld)
-	c, err := bld.Build()
+	w, err := bld.Build()
 	Error(err)
-	c.Strength = collate.Tertiary
+	c := collate.NewFromTable(w)
+	c.Strength = colltab.Quaternary
 	c.Alternate = collate.AltShifted
 	b := &collate.Buffer{}
 	if strings.Contains(t.name, "NON_IGNOR") {
+		c.Strength = colltab.Tertiary
 		c.Alternate = collate.AltNonIgnorable
 	}
 	prev := t.str[0]

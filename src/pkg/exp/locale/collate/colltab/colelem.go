@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate
+package colltab
 
 import (
+	"fmt"
 	"unicode"
 )
 
@@ -94,23 +95,31 @@ func (ce Elem) ctype() ceType {
 // 11qqqqqq qqqqqqqq qqqqqqq0 00000000
 //   - q* quaternary value
 const (
-	ceTypeMask            = 0xC0000000
-	ceTypeMaskExt         = 0xE0000000
-	ceType1               = 0x40000000
-	ceType2               = 0x00000000
-	ceType3or4            = 0x80000000
-	ceType4               = 0xA0000000
-	ceTypeQ               = 0xC0000000
-	ceIgnore              = ceType4
-	firstNonPrimary       = 0x80000000
-	lastSpecialPrimary    = 0xA0000000
-	secondaryMask         = 0x80000000
-	hasTertiaryMask       = 0x40000000
-	primaryValueMask      = 0x3FFFFE00
-	primaryShift          = 9
-	compactPrimaryBits    = 16
-	compactSecondaryShift = 5
-	minCompactSecondary   = defaultSecondary - 4
+	ceTypeMask              = 0xC0000000
+	ceTypeMaskExt           = 0xE0000000
+	ceIgnoreMask            = 0xF00FFFFF
+	ceType1                 = 0x40000000
+	ceType2                 = 0x00000000
+	ceType3or4              = 0x80000000
+	ceType4                 = 0xA0000000
+	ceTypeQ                 = 0xC0000000
+	Ignore                  = ceType4
+	firstNonPrimary         = 0x80000000
+	lastSpecialPrimary      = 0xA0000000
+	secondaryMask           = 0x80000000
+	hasTertiaryMask         = 0x40000000
+	primaryValueMask        = 0x3FFFFE00
+	maxPrimaryBits          = 21
+	compactPrimaryBits      = 16
+	maxSecondaryBits        = 12
+	maxTertiaryBits         = 8
+	maxCCCBits              = 8
+	maxSecondaryCompactBits = 8
+	maxSecondaryDiffBits    = 4
+	maxTertiaryCompactBits  = 5
+	primaryShift            = 9
+	compactSecondaryShift   = 5
+	minCompactSecondary     = defaultSecondary - 4
 )
 
 func makeImplicitCE(primary int) Elem {
@@ -120,8 +129,51 @@ func makeImplicitCE(primary int) Elem {
 // MakeElem returns an Elem for the given values.  It will return an error
 // if the given combination of values is invalid.
 func MakeElem(primary, secondary, tertiary int, ccc uint8) (Elem, error) {
-	// TODO: implement
-	return 0, nil
+	if w := primary; w >= 1<<maxPrimaryBits || w < 0 {
+		return 0, fmt.Errorf("makeCE: primary weight out of bounds: %x >= %x", w, 1<<maxPrimaryBits)
+	}
+	if w := secondary; w >= 1<<maxSecondaryBits || w < 0 {
+		return 0, fmt.Errorf("makeCE: secondary weight out of bounds: %x >= %x", w, 1<<maxSecondaryBits)
+	}
+	if w := tertiary; w >= 1<<maxTertiaryBits || w < 0 {
+		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %x >= %x", w, 1<<maxTertiaryBits)
+	}
+	ce := Elem(0)
+	if primary != 0 {
+		if ccc != 0 {
+			if primary >= 1<<compactPrimaryBits {
+				return 0, fmt.Errorf("makeCE: primary weight with non-zero CCC out of bounds: %x >= %x", primary, 1<<compactPrimaryBits)
+			}
+			if secondary != defaultSecondary {
+				return 0, fmt.Errorf("makeCE: cannot combine non-default secondary value (%x) with non-zero CCC (%x)", secondary, ccc)
+			}
+			ce = Elem(tertiary << (compactPrimaryBits + maxCCCBits))
+			ce |= Elem(ccc) << compactPrimaryBits
+			ce |= Elem(primary)
+			ce |= ceType3or4
+		} else if tertiary == defaultTertiary {
+			if secondary >= 1<<maxSecondaryCompactBits {
+				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", secondary, 1<<maxSecondaryCompactBits)
+			}
+			ce = Elem(primary<<(maxSecondaryCompactBits+1) + secondary)
+			ce |= ceType1
+		} else {
+			d := secondary - defaultSecondary + maxSecondaryDiffBits
+			if d >= 1<<maxSecondaryDiffBits || d < 0 {
+				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
+			}
+			if tertiary >= 1<<maxTertiaryCompactBits {
+				return 0, fmt.Errorf("makeCE: tertiary weight with non-zero primary out of bounds: %x > %x", tertiary, 1<<maxTertiaryCompactBits)
+			}
+			ce = Elem(primary<<maxSecondaryDiffBits + d)
+			ce = ce<<maxTertiaryCompactBits + Elem(tertiary)
+		}
+	} else {
+		ce = Elem(secondary<<maxTertiaryBits + tertiary)
+		ce += Elem(ccc) << (maxSecondaryBits + maxTertiaryBits)
+		ce |= ceType4
+	}
+	return ce, nil
 }
 
 // MakeQuaternary returns an Elem with the given quaternary value.
@@ -211,12 +263,12 @@ func (ce Elem) updateTertiary(t uint8) Elem {
 }
 
 // Quaternary returns the quaternary value if explicitly specified,
-// 0 if ce == ceIgnore, or MaxQuaternary otherwise.
+// 0 if ce == Ignore, or MaxQuaternary otherwise.
 // Quaternary values are used only for shifted variants.
 func (ce Elem) Quaternary() int {
 	if ce&ceTypeMask == ceTypeQ {
 		return int(ce&primaryValueMask) >> primaryShift
-	} else if ce == ceIgnore {
+	} else if ce&ceIgnoreMask == Ignore {
 		return 0
 	}
 	return MaxQuaternary

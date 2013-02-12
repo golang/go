@@ -7,6 +7,8 @@ package collate
 
 var availableLocales = []string{"af", "ar", "as", "az", "be", "bg", "bn", "ca", "cs", "cy", "da", "de", "dz", "ee", "el", "en_US_POSIX", "eo", "es", "et", "fa", "fi", "fil", "fo", "fr_CA", "gu", "ha", "haw", "he", "hi", "hr", "hu", "hy", "ig", "is", "ja", "kk", "kl", "km", "kn", "ko", "kok", "ln", "lt", "lv", "mk", "ml", "mr", "mt", "my", "nb", "nn", "nso", "om", "or", "pa", "pl", "ps", "ro", "root", "ru", "se", "si", "sk", "sl", "sq", "sr", "sv", "ta", "te", "th", "tn", "to", "tr", "uk", "ur", "vi", "wae", "yo", "zh"}
 
+const varTop = 0x30e
+
 var locales = map[string]tableIndex{
 	"af": {
 		lookupOffset: 0x16,

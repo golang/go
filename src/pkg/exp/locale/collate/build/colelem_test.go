@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exp/locale/collate"
+	"exp/locale/collate/colltab"
 	"testing"
 )
 
@@ -98,7 +98,7 @@ func mkRawCES(in [][]int) []rawCE {
 
 type weightsTest struct {
 	a, b   [][]int
-	level  collate.Level
+	level  colltab.Level
 	result int
 }
 
@@ -106,22 +106,22 @@ var nextWeightTests = []weightsTest{
 	{
 		a:     [][]int{{100, 20, 5, 0}},
 		b:     [][]int{{101, defaultSecondary, defaultTertiary, 0}},
-		level: collate.Primary,
+		level: colltab.Primary,
 	},
 	{
 		a:     [][]int{{100, 20, 5, 0}},
 		b:     [][]int{{100, 21, defaultTertiary, 0}},
-		level: collate.Secondary,
+		level: colltab.Secondary,
 	},
 	{
 		a:     [][]int{{100, 20, 5, 0}},
 		b:     [][]int{{100, 20, 6, 0}},
-		level: collate.Tertiary,
+		level: colltab.Tertiary,
 	},
 	{
 		a:     [][]int{{100, 20, 5, 0}},
 		b:     [][]int{{100, 20, 5, 0}},
-		level: collate.Identity,
+		level: colltab.Identity,
 	},
 }
 
@@ -129,14 +129,14 @@ var extra = [][]int{{200, 32, 8, 0}, {0, 32, 8, 0}, {0, 0, 8, 0}, {0, 0, 0, 0}}
 
 func TestNextWeight(t *testing.T) {
 	for i, tt := range nextWeightTests {
-		test := func(l collate.Level, tt weightsTest, a, gold [][]int) {
+		test := func(l colltab.Level, tt weightsTest, a, gold [][]int) {
 			res := nextWeight(tt.level, mkRawCES(a))
 			if !equalCEArrays(mkRawCES(gold), res) {
 				t.Errorf("%d:%d: expected weights %d; found %d", i, l, gold, res)
 			}
 		}
 		test(-1, tt, tt.a, tt.b)
-		for l := collate.Primary; l <= collate.Tertiary; l++ {
+		for l := colltab.Primary; l <= colltab.Tertiary; l++ {
 			if tt.level <= l {
 				test(l, tt, append(tt.a, extra[l]), tt.b)
 			} else {
@@ -150,49 +150,49 @@ var compareTests = []weightsTest{
 	{
 		[][]int{{100, 20, 5, 0}},
 		[][]int{{100, 20, 5, 0}},
-		collate.Identity,
+		colltab.Identity,
 		0,
 	},
 	{
 		[][]int{{100, 20, 5, 0}, extra[0]},
 		[][]int{{100, 20, 5, 1}},
-		collate.Primary,
+		colltab.Primary,
 		1,
 	},
 	{
 		[][]int{{100, 20, 5, 0}},
 		[][]int{{101, 20, 5, 0}},
-		collate.Primary,
+		colltab.Primary,
 		-1,
 	},
 	{
 		[][]int{{101, 20, 5, 0}},
 		[][]int{{100, 20, 5, 0}},
-		collate.Primary,
+		colltab.Primary,
 		1,
 	},
 	{
 		[][]int{{100, 0, 0, 0}, {0, 20, 5, 0}},
 		[][]int{{0, 20, 5, 0}, {100, 0, 0, 0}},
-		collate.Identity,
+		colltab.Identity,
 		0,
 	},
 	{
 		[][]int{{100, 20, 5, 0}},
 		[][]int{{100, 21, 5, 0}},
-		collate.Secondary,
+		colltab.Secondary,
 		-1,
 	},
 	{
 		[][]int{{100, 20, 5, 0}},
 		[][]int{{100, 20, 2, 0}},
-		collate.Tertiary,
+		colltab.Tertiary,
 		1,
 	},
 	{
 		[][]int{{100, 20, 5, 1}},
 		[][]int{{100, 20, 5, 2}},
-		collate.Quaternary,
+		colltab.Quaternary,
 		-1,
 	},
 }

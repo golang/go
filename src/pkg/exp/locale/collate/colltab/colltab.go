@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate
+package colltab
 
 // A Weigher can be used as a source for Collator and Searcher.
 type Weigher interface {
@@ -25,4 +25,7 @@ type Weigher interface {
 	// Domain returns a slice of all single characters and contractions for which
 	// collation elements are defined in this table.
 	Domain() []string
+
+	// Top returns the highest variable primary value.
+	Top() uint32
 }

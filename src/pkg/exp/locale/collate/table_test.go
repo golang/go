@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate_test
+package collate
 
 import (
-	"exp/locale/collate"
 	"exp/locale/collate/build"
+	"exp/locale/collate/colltab"
 	"exp/norm"
 	"testing"
 )
 
-type ColElems []collate.Weights
+type ColElems []Weights
 
 type input struct {
 	str string
@@ -29,8 +29,8 @@ type tableTest struct {
 	chk []check
 }
 
-func w(ce ...int) collate.Weights {
-	return collate.W(ce...)
+func w(ce ...int) Weights {
+	return W(ce...)
 }
 
 var defaults = w(0)
@@ -39,14 +39,18 @@ func pt(p, t int) []int {
 	return []int{p, defaults.Secondary, t}
 }
 
-func makeTable(in []input) (*collate.Collator, error) {
+func makeTable(in []input) (*Collator, error) {
 	b := build.NewBuilder()
 	for _, r := range in {
 		if e := b.Add([]rune(r.str), r.ces, nil); e != nil {
 			panic(e)
 		}
 	}
-	return b.Build()
+	t, err := b.Build()
+	if err != nil {
+		return nil, err
+	}
+	return NewFromTable(t), nil
 }
 
 // modSeq holds a seqeunce of modifiers in increasing order of CCC long enough
@@ -265,19 +269,20 @@ func TestAppendNext(t *testing.T) {
 			t.Errorf("%d: error creating table: %v", i, err)
 			continue
 		}
-		ct := collate.GetTable(c)
 		for j, chk := range tt.chk {
-			ws, n := ct.AppendNext([]byte(chk.in))
+			ws, n := c.t.AppendNext(nil, []byte(chk.in))
 			if n != chk.n {
 				t.Errorf("%d:%d: bytes consumed was %d; want %d", i, j, n, chk.n)
 			}
-			if len(ws) != len(chk.out) {
-				t.Errorf("%d:%d: len(ws) was %d; want %d (%v vs %v)\n%X", i, j, len(ws), len(chk.out), ws, chk.out, chk.in)
+			out := convertFromWeights(chk.out)
+			if len(ws) != len(out) {
+				t.Errorf("%d:%d: len(ws) was %d; want %d (%X vs %X)\n%X", i, j, len(ws), len(out), ws, out, chk.in)
 				continue
 			}
 			for k, w := range ws {
-				if w != chk.out[k] {
-					t.Errorf("%d:%d: Weights %d was %v; want %v", i, j, k, w, chk.out[k])
+				w, _ = colltab.MakeElem(w.Primary(), w.Secondary(), int(w.Tertiary()), 0)
+				if w != out[k] {
+					t.Errorf("%d:%d: Weights %d was %X; want %X", i, j, k, w, out[k])
 				}
 			}
 		}

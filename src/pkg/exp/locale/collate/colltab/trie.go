@@ -9,7 +9,7 @@
 // The last byte is used to index into a table of collation elements.
 // For a full description, see exp/locale/collate/build/trie.go.
 
-package collate
+package colltab
 
 const blockSize = 64
 

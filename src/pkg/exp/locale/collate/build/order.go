@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exp/locale/collate"
+	"exp/locale/collate/colltab"
 	"exp/norm"
 	"fmt"
 	"log"
@@ -36,7 +36,7 @@ type entry struct {
 
 	// prev, next, and level are used to keep track of tailorings.
 	prev, next *entry
-	level      collate.Level // next differs at this level
+	level      colltab.Level // next differs at this level
 	skipRemove bool          // do not unlink when removed
 
 	decompose bool // can use NFKD decomposition to generate elems
@@ -76,7 +76,7 @@ func (e *entry) contractionStarter() bool {
 // from the current entry.
 // Entries that can be explicitly derived and logical reset positions are
 // examples of entries that will not be indexed.
-func (e *entry) nextIndexed() (*entry, collate.Level) {
+func (e *entry) nextIndexed() (*entry, colltab.Level) {
 	level := e.level
 	for e = e.next; e != nil && (e.exclude || len(e.elems) == 0); e = e.next {
 		if e.level < level {

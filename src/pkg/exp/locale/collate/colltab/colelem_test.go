@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate
+package colltab
 
 import (
 	"testing"
@@ -14,40 +14,8 @@ type ceTest struct {
 	arg []int
 }
 
-// The make* funcs are simplified versions of the functions in build/colelem.go
 func makeCE(weights []int) Elem {
-	const (
-		maxPrimaryBits          = 21
-		maxSecondaryBits        = 12
-		maxSecondaryCompactBits = 8
-		maxSecondaryDiffBits    = 4
-		maxTertiaryBits         = 8
-		maxTertiaryCompactBits  = 5
-		isPrimary               = 0x40000000
-		isPrimaryCCC            = 0x80000000
-		isSecondary             = 0xA0000000
-	)
-	var ce Elem
-	ccc := weights[3]
-	if weights[0] != 0 {
-		if ccc != 0 {
-			ce = Elem(weights[2] << 24)
-			ce |= Elem(ccc) << 16
-			ce |= Elem(weights[0])
-			ce |= isPrimaryCCC
-		} else if weights[2] == defaultTertiary {
-			ce = Elem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
-			ce |= isPrimary
-		} else {
-			d := weights[1] - defaultSecondary + 4
-			ce = Elem(weights[0]<<maxSecondaryDiffBits + d)
-			ce = ce<<maxTertiaryCompactBits + Elem(weights[2])
-		}
-	} else {
-		ce = Elem(weights[1]<<maxTertiaryBits + weights[2])
-		ce += Elem(ccc) << 20
-		ce |= isSecondary
-	}
+	ce, _ := MakeElem(weights[0], weights[1], weights[2], uint8(weights[3]))
 	return ce
 }
 
@@ -103,12 +71,6 @@ func decompCE(inout []int) (ce Elem, t ceType) {
 	inout[0], inout[1] = int(t1), int(t2)
 	return ce, ceDecompose
 }
-
-const (
-	maxPrimaryBits   = 21
-	maxSecondaryBits = 16
-	maxTertiaryBits  = 8
-)
 
 var ceTests = []ceTest{
 	{normalCE, []int{0, 0, 0, 0}},
@@ -195,80 +157,6 @@ func TestUpdateTertiary(t *testing.T) {
 	for i, tt := range tests {
 		if out := tt.in.updateTertiary(tt.t); out != tt.out {
 			t.Errorf("%d: was %X; want %X", i, out, tt.out)
-		}
-	}
-}
-
-func TestDoNorm(t *testing.T) {
-	const div = -1 // The insertion point of the next block.
-	tests := []struct {
-		in, out []int
-	}{
-		{in: []int{4, div, 3},
-			out: []int{3, 4},
-		},
-		{in: []int{4, div, 3, 3, 3},
-			out: []int{3, 3, 3, 4},
-		},
-		{in: []int{0, 4, div, 3},
-			out: []int{0, 3, 4},
-		},
-		{in: []int{0, 0, 4, 5, div, 3, 3},
-			out: []int{0, 0, 3, 3, 4, 5},
-		},
-		{in: []int{0, 0, 1, 4, 5, div, 3, 3},
-			out: []int{0, 0, 1, 3, 3, 4, 5},
-		},
-		{in: []int{0, 0, 1, 4, 5, div, 4, 4},
-			out: []int{0, 0, 1, 4, 4, 4, 5},
-		},
-	}
-	for j, tt := range tests {
-		i := iter{}
-		var w, p, s int
-		for k, cc := range tt.in {
-			if cc == 0 {
-				s = 0
-			}
-			if cc == div {
-				w = 100
-				p = k
-				i.pStarter = s
-				continue
-			}
-			i.ce = append(i.ce, makeCE([]int{w, 20, 2, cc}))
-		}
-		i.prevCCC = i.ce[p-1].CCC()
-		i.doNorm(p, i.ce[p].CCC())
-		if len(i.ce) != len(tt.out) {
-			t.Errorf("%d: length was %d; want %d", j, len(i.ce), len(tt.out))
-		}
-		prevCCC := uint8(0)
-		for k, ce := range i.ce {
-			if int(ce.CCC()) != tt.out[k] {
-				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.CCC(), tt.out[k])
-			}
-			if k > 0 && ce.CCC() == prevCCC && i.ce[k-1].Primary() > ce.Primary() {
-				t.Errorf("%d:%d: normalization crossed across CCC boundary.", j, k)
-			}
-		}
-	}
-	// test cutoff of large sequence of combining characters.
-	result := []uint8{8, 8, 8, 5, 5}
-	for o := -2; o <= 2; o++ {
-		i := iter{pStarter: 2, prevCCC: 8}
-		n := maxCombiningCharacters + 1 + o
-		for j := 1; j < n+i.pStarter; j++ {
-			i.ce = append(i.ce, makeCE([]int{100, 20, 2, 8}))
-		}
-		p := len(i.ce)
-		i.ce = append(i.ce, makeCE([]int{0, 20, 2, 5}))
-		i.doNorm(p, 5)
-		if i.prevCCC != result[o+2] {
-			t.Errorf("%d: i.prevCCC was %d; want %d", n, i.prevCCC, result[o+2])
-		}
-		if result[o+2] == 5 && i.pStarter != p {
-			t.Errorf("%d: i.pStarter was %d; want %d", n, i.pStarter, p)
 		}
 	}
 }
