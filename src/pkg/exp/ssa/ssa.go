@@ -204,7 +204,7 @@ type Function struct {
 
 	Pos       token.Pos // location of the definition
 	Enclosing *Function // enclosing function if anon; nil if global
-	Pkg       *Package  // enclosing package; nil for some synthetic methods
+	Pkg       *Package  // enclosing package for Go source functions; otherwise nil
 	Prog      *Program  // enclosing program
 	Params    []*Parameter
 	FreeVars  []*Capture // free variables whose values must be supplied by closure

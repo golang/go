@@ -344,6 +344,11 @@ func (f *Function) emit(instr Instruction) Value {
 //      "func@5.32"                 // an anonymous function
 //
 func (f *Function) FullName() string {
+	return f.fullName(nil)
+}
+
+// Like FullName, but if from==f.Pkg, suppress package qualification.
+func (f *Function) fullName(from *Package) string {
 	// Anonymous?
 	if f.Enclosing != nil {
 		return f.Name_
@@ -353,11 +358,20 @@ func (f *Function) FullName() string {
 
 	// Synthetic?
 	if f.Pkg == nil {
+		var recvType types.Type
 		if recv != nil {
-			// TODO(adonovan): print type package-qualified, if NamedType.
-			return fmt.Sprintf("(%s).%s", recv.Type, f.Name_) // bridge method
+			recvType = recv.Type // bridge method
+		} else {
+			recvType = f.Params[0].Type() // interface method thunk
 		}
-		return fmt.Sprintf("(%s).%s", f.Params[0].Type(), f.Name_) // interface method thunk
+		// TODO(adonovan): print type package-qualified, if NamedType.
+		return fmt.Sprintf("(%s).%s", recvType, f.Name_)
+	}
+
+	// "pkg." prefix for cross-package references only.
+	var pkgQual string
+	if from != f.Pkg {
+		pkgQual = f.Pkg.ImportPath + "."
 	}
 
 	// Declared method?
@@ -366,11 +380,11 @@ func (f *Function) FullName() string {
 		if isPointer(recv.Type) {
 			star = "*"
 		}
-		return fmt.Sprintf("(%s%s.%s).%s", star, f.Pkg.ImportPath, deref(recv.Type), f.Name_)
+		return fmt.Sprintf("(%s%s%s).%s", star, pkgQual, deref(recv.Type), f.Name_)
 	}
 
 	// Package-level function.
-	return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
+	return pkgQual + f.Name_
 }
 
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
