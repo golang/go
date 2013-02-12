@@ -20,7 +20,7 @@ package interp
 //   *ssa.Builtin   } --- functions.
 //   *closure      /
 // - tuple --- as returned by Ret, Next, "value,ok" modes, etc.
-// - iter --- iterators from 'range'.
+// - iter --- iterators from 'range' over map or string.
 // - bad --- a poison pill for locals that have gone out of scope.
 // - rtype -- the interpreter's concrete implementation of reflect.Type
 //
@@ -440,31 +440,6 @@ func toString(v value) string {
 
 // ------------------------------------------------------------------------
 // Iterators
-
-type arrayIter struct {
-	a array
-	i int
-}
-
-func (it *arrayIter) next() tuple {
-	okv := make(tuple, 3)
-	ok := it.i < len(it.a)
-	okv[0] = ok
-	if ok {
-		okv[1] = it.i
-		okv[2] = copyVal(it.a[it.i])
-	}
-	it.i++
-	return okv
-}
-
-type chanIter chan value
-
-func (it chanIter) next() tuple {
-	okv := make(tuple, 3)
-	okv[1], okv[0] = <-it
-	return okv
-}
 
 type stringIter struct {
 	*strings.Reader

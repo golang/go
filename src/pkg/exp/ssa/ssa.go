@@ -675,7 +675,9 @@ type Select struct {
 	Blocking bool
 }
 
-// Range yields an iterator over the domain and range of X.
+// Range yields an iterator over the domain and range of X,
+// which must be a string or map.
+//
 // Elements are accessed via Next.
 //
 // Type() returns a *types.Result (tuple type).
@@ -685,7 +687,7 @@ type Select struct {
 //
 type Range struct {
 	Register
-	X Value // array, *array, slice, string, map or chan
+	X Value // string or map
 }
 
 // Next reads and advances the iterator Iter and returns a 3-tuple

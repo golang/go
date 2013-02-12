@@ -1009,8 +1009,6 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 
 func rangeIter(x value, t types.Type) iter {
 	switch x := x.(type) {
-	case nil:
-		panic("range of nil")
 	case map[value]value:
 		// TODO(adonovan): fix: leaks goroutines and channels
 		// on each incomplete map iteration.  We need to open
@@ -1040,16 +1038,8 @@ func rangeIter(x value, t types.Type) iter {
 			close(it)
 		}()
 		return it
-	case *value: // non-nil *array
-		return &arrayIter{a: (*x).(array)}
-	case array:
-		return &arrayIter{a: x}
-	case []value:
-		return &arrayIter{a: array(x)}
 	case string:
 		return &stringIter{Reader: strings.NewReader(x)}
-	case chan value:
-		return chanIter(x)
 	}
 	panic(fmt.Sprintf("cannot range over %T", x))
 }

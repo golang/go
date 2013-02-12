@@ -1949,49 +1949,196 @@ func (b *Builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	fn.currentBlock = done
 }
 
+// rangeIndexed emits to fn the header for an integer indexed loop
+// over array, *array or slice value x.
+// The v result is defined only if tv is non-nil.
+//
+func (b *Builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value, loop, done *BasicBlock) {
+	//
+	//      length = len(x)
+	//      index = -1
+	// loop:                                   (target of continue)
+	//      index++
+	// 	if index < length goto body else done
+	// body:
+	//      k = index
+	//      v = x[index]
+	//      ...body...
+	// 	jump loop
+	// done:                                   (target of break)
+
+	// Determine number of iterations.
+	var length Value
+	if arr, ok := deref(x.Type()).(*types.Array); ok {
+		// For array or *array, the number of iterations is
+		// known statically thanks to the type.  We avoid a
+		// data dependence upon x, permitting later dead-code
+		// elimination if x is pure, static unrolling, etc.
+		// Ranging over a nil *array may have >0 iterations.
+		length = intLiteral(arr.Len)
+	} else {
+		// length = len(x).
+		var call Call
+		call.Func = b.globals[types.Universe.Lookup("len")]
+		call.Args = []Value{x}
+		call.setType(tInt)
+		length = fn.emit(&call)
+	}
+
+	index := fn.addLocal(tInt)
+	emitStore(fn, index, intLiteral(-1))
+
+	loop = fn.newBasicBlock("rangeindex.loop")
+	emitJump(fn, loop)
+	fn.currentBlock = loop
+
+	incr := &BinOp{
+		Op: token.ADD,
+		X:  emitLoad(fn, index),
+		Y:  intLiteral(1),
+	}
+	incr.setType(tInt)
+	emitStore(fn, index, fn.emit(incr))
+
+	body := fn.newBasicBlock("rangeindex.body")
+	done = fn.newBasicBlock("rangeindex.done")
+	emitIf(fn, emitCompare(fn, token.LSS, incr, length), body, done)
+	fn.currentBlock = body
+
+	k = emitLoad(fn, index)
+	if tv != nil {
+		switch t := underlyingType(x.Type()).(type) {
+		case *types.Array:
+			instr := &Index{
+				X:     x,
+				Index: k,
+			}
+			instr.setType(t.Elt)
+			v = fn.emit(instr)
+
+		case *types.Pointer: // *array
+			instr := &IndexAddr{
+				X:     x,
+				Index: k,
+			}
+			instr.setType(pointer(t.Base.(*types.Array).Elt))
+			v = emitLoad(fn, fn.emit(instr))
+
+		case *types.Slice:
+			instr := &IndexAddr{
+				X:     x,
+				Index: k,
+			}
+			instr.setType(pointer(t.Elt))
+			v = emitLoad(fn, fn.emit(instr))
+
+		default:
+			panic("rangeIndexed x:" + t.String())
+		}
+	}
+	return
+}
+
+// rangeIter emits to fn the header for a loop using
+// Range/Next/Extract to iterate over map or string value x.
+// tk and tv are the types of the key/value results k and v, or nil
+// if the respective component is not wanted.
+//
+func (b *Builder) rangeIter(fn *Function, x Value, tk, tv types.Type) (k, v Value, loop, done *BasicBlock) {
+	//
+	//	it = range x
+	// loop:                                   (target of continue)
+	//	okv = next it                      (ok, key, value)
+	//  	ok = extract okv #0
+	// 	if ok goto body else done
+	// body:
+	// 	k = extract okv #1
+	// 	v = extract okv #2
+	//      ...body...
+	// 	jump loop
+	// done:                                   (target of break)
+	//
+
+	rng := &Range{X: x}
+	rng.setType(tRangeIter)
+	it := fn.emit(rng)
+
+	loop = fn.newBasicBlock("rangeiter.loop")
+	emitJump(fn, loop)
+	fn.currentBlock = loop
+
+	okv := &Next{Iter: it}
+	okv.setType(&types.Result{Values: []*types.Var{
+		varOk,
+		{Name: "k", Type: tk},
+		{Name: "v", Type: tv},
+	}})
+	fn.emit(okv)
+
+	body := fn.newBasicBlock("rangeiter.body")
+	done = fn.newBasicBlock("rangeiter.done")
+	emitIf(fn, emitExtract(fn, okv, 0, tBool), body, done)
+	fn.currentBlock = body
+
+	if tk != nil {
+		k = emitExtract(fn, okv, 1, tk)
+	}
+	if tv != nil {
+		v = emitExtract(fn, okv, 2, tv)
+	}
+	return
+}
+
+// rangeChan emits to fn the header for a loop that receives from
+// channel x until it fails.
+// tk is the channel's element type, or nil if the k result is not
+// wanted
+//
+func (b *Builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop, done *BasicBlock) {
+	//
+	// loop:                                   (target of continue)
+	//      ko = <-x                           (key, ok)
+	//      ok = extract ko #1
+	//      if ok goto body else done
+	// body:
+	//      k = extract ko #0
+	//      ...
+	//      goto loop
+	// done:                                   (target of break)
+
+	loop = fn.newBasicBlock("rangechan.loop")
+	emitJump(fn, loop)
+	fn.currentBlock = loop
+	recv := &UnOp{
+		Op:      token.ARROW,
+		X:       x,
+		CommaOk: true,
+	}
+	recv.setType(&types.Result{Values: []*types.Var{
+		{Name: "k", Type: tk},
+		varOk,
+	}})
+	ko := fn.emit(recv)
+	body := fn.newBasicBlock("rangechan.body")
+	done = fn.newBasicBlock("rangechan.done")
+	emitIf(fn, emitExtract(fn, ko, 1, tBool), body, done)
+	fn.currentBlock = body
+	if tk != nil {
+		k = emitExtract(fn, ko, 0, tk)
+	}
+	return
+}
+
 // rangeStmt emits to fn code for the range statement s, optionally
 // labelled by label.
 //
 func (b *Builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
-	//	it := range x
-	//      jump loop
-	// loop:                                   (target of continue)
-	//	okv := next it                     (ok, key, value?)
-	//  	ok = extract okv #0
-	// 	if ok goto body else done
-	// body:
-	// 	t0 = extract okv #1
-	//      k = *t0
-	// 	t1 = extract okv #2
-	//      v = *t1
-	//      ...body...
-	// 	jump loop
-	// done:                                   (target of break)
-
-	hasK := !isBlankIdent(s.Key)
-	hasV := s.Value != nil && !isBlankIdent(s.Value)
-
-	// Ranging over just the keys of a pointer to an array
-	// doesn't (need to) evaluate the array:
-	//   for i := range (*[10]int)(nil) {...}
-	// Instead it is transformed into a simple loop:
-	//	i = -1
-	//      jump loop
-	// loop:                                   (target of continue)
-	//      increment i
-	// 	if i < 10 goto body else done
-	// body:
-	//      k = i
-	//      ...body...
-	// 	jump loop
-	// done:                                   (target of break)
-	var arrayLen int64 = -1
-	if !hasV {
-		if ptr, ok := underlyingType(b.exprType(s.X)).(*types.Pointer); ok {
-			if arr, ok := underlyingType(ptr.Base).(*types.Array); ok {
-				arrayLen = arr.Len
-			}
-		}
+	var tk, tv types.Type
+	if !isBlankIdent(s.Key) {
+		tk = b.exprType(s.Key)
+	}
+	if s.Value != nil && !isBlankIdent(s.Value) {
+		tv = b.exprType(s.Value)
 	}
 
 	// If iteration variables are defined (:=), this
@@ -2001,89 +2148,50 @@ func (b *Builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	// using := never redeclares an existing variable; it
 	// always creates a new one.
 	if s.Tok == token.DEFINE {
-		if hasK {
+		if tk != nil {
 			fn.addNamedLocal(b.obj(s.Key.(*ast.Ident)))
 		}
-		if hasV {
+		if tv != nil {
 			fn.addNamedLocal(b.obj(s.Value.(*ast.Ident)))
 		}
 	}
 
-	var ok Value
-	var okv *Next
-	var okvVars []*types.Var
-	var index *Alloc // *array index loops only
-	loop := fn.newBasicBlock("range.loop")
-	var body, done *BasicBlock
-	if arrayLen == -1 {
-		rng := &Range{X: b.expr(fn, s.X)}
-		rng.setType(tRangeIter)
-		it := fn.emit(rng)
+	x := b.expr(fn, s.X)
 
-		emitJump(fn, loop)
-		fn.currentBlock = loop
+	var k, v Value
+	var loop, done *BasicBlock
+	switch rt := underlyingType(x.Type()).(type) {
+	case *types.Slice, *types.Array, *types.Pointer: // *array
+		k, v, loop, done = b.rangeIndexed(fn, x, tv)
 
-		okv = &Next{Iter: it}
-		okvVars = []*types.Var{
-			varOk,
-			{Name: "k", Type: tInvalid}, // mutated below
-			{Name: "v", Type: tInvalid}, // mutated below
-		}
-		okv.setType(&types.Result{Values: okvVars})
-		fn.emit(okv)
-		ok = emitExtract(fn, okv, 0, tBool)
-	} else {
-		index = fn.addLocal(tInt)
-		emitStore(fn, index, intLiteral(-1))
+	case *types.Chan:
+		k, loop, done = b.rangeChan(fn, x, tk)
 
-		emitJump(fn, loop)
-		fn.currentBlock = loop
+	case *types.Map, *types.Basic: // string
+		k, v, loop, done = b.rangeIter(fn, x, tk, tv)
 
-		// TODO use emitArith here and elsewhere?
-		incr := &BinOp{
-			Op: token.ADD,
-			X:  emitLoad(fn, index),
-			Y:  intLiteral(1),
-		}
-		incr.setType(tInt)
-		emitStore(fn, index, fn.emit(incr))
-		ok = emitCompare(fn, token.LSS, incr, intLiteral(arrayLen))
+	default:
+		panic("Cannot range over: " + rt.String())
 	}
 
-	body = fn.newBasicBlock("range.body")
-	done = fn.newBasicBlock("range.done")
-
-	emitIf(fn, ok, body, done)
-	fn.currentBlock = body
+	// Evaluate both LHS expressions before we update either.
+	var kl, vl lvalue
+	if tk != nil {
+		kl = b.addr(fn, s.Key, false) // non-escaping
+	}
+	if tv != nil {
+		vl = b.addr(fn, s.Value, false) // non-escaping
+	}
+	if tk != nil {
+		kl.store(fn, k)
+	}
+	if tv != nil {
+		vl.store(fn, v)
+	}
 
 	if label != nil {
 		label._break = done
 		label._continue = loop
-	}
-
-	if arrayLen == -1 {
-		// Evaluate both LHS expressions before we update either.
-		var k, v lvalue
-		if hasK {
-			k = b.addr(fn, s.Key, false) // non-escaping
-			okvVars[1].Type = b.exprType(s.Key)
-		}
-		if hasV {
-			v = b.addr(fn, s.Value, false) // non-escaping
-			okvVars[2].Type = b.exprType(s.Value)
-		}
-		if hasK {
-			k.store(fn, emitExtract(fn, okv, 1, okvVars[1].Type))
-		}
-		if hasV {
-			v.store(fn, emitExtract(fn, okv, 2, okvVars[2].Type))
-		}
-	} else {
-		// Store a copy of the index variable to k.
-		if hasK {
-			k := b.addr(fn, s.Key, false) // non-escaping
-			k.store(fn, emitLoad(fn, index))
-		}
 	}
 
 	fn.targets = &targets{
