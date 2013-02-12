@@ -24,3 +24,7 @@ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
 #define	NSIG 33
 #define	SI_USER	0
+
+// From NetBSD's <sys/ucontext.h>
+#define _UC_SIGMASK	0x01
+#define _UC_CPU		0x04
