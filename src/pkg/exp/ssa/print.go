@@ -20,9 +20,9 @@ func (id Id) String() string {
 }
 
 // relName returns the name of v relative to i.
-// In most cases, this is identical to v.Name(), but for cross-package
-// references to Functions (including methods) and Globals, the
-// package-qualified FullName is used instead.
+// In most cases, this is identical to v.Name(), but for references to
+// Functions (including methods) and Globals, the FullName is used
+// instead, explicitly package-qualified for cross-package references.
 //
 func relName(v Value, i Instruction) string {
 	switch v := v.(type) {
@@ -32,10 +32,7 @@ func relName(v Value, i Instruction) string {
 		}
 		return v.FullName()
 	case *Function:
-		if v.Pkg == nil || v.Pkg == i.Block().Func.Pkg {
-			return v.Name()
-		}
-		return v.FullName()
+		return v.fullName(i.Block().Func.Pkg)
 	}
 	return v.Name()
 }
