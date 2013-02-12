@@ -9,6 +9,7 @@ package collate
 
 import (
 	"bytes"
+	"exp/locale/collate/colltab"
 	"exp/norm"
 )
 
@@ -46,7 +47,7 @@ type Collator struct {
 	// diacritical marks to be ignored but not case without having to fiddle with levels).
 
 	// Strength sets the maximum level to use in comparison.
-	Strength Level
+	Strength colltab.Level
 
 	// Alternate specifies an alternative handling of variables.
 	Alternate AlternateHandling
@@ -75,7 +76,7 @@ type Collator struct {
 
 	f norm.Form
 
-	t Weigher
+	t colltab.Weigher
 
 	sorter sorter
 
@@ -125,17 +126,18 @@ func New(loc string) *Collator {
 			t = locales["root"]
 		}
 	}
-	return NewFromTable(Init(t))
+	return NewFromTable(colltab.Init(t))
 }
 
-func NewFromTable(t Weigher) *Collator {
+func NewFromTable(t colltab.Weigher) *Collator {
 	c := &Collator{
-		Strength: Tertiary,
+		Strength: colltab.Tertiary,
 		f:        norm.NFD,
 		t:        t,
 	}
 	c._iter[0].init(c)
 	c._iter[1].init(c)
+	c.variableTop = t.Top()
 	return c
 }
 
@@ -166,7 +168,7 @@ func (c *Collator) Compare(a, b []byte) int {
 	if res := c.compare(); res != 0 {
 		return res
 	}
-	if Identity == c.Strength {
+	if colltab.Identity == c.Strength {
 		return bytes.Compare(a, b)
 	}
 	return 0
@@ -182,7 +184,7 @@ func (c *Collator) CompareString(a, b string) int {
 	if res := c.compare(); res != 0 {
 		return res
 	}
-	if Identity == c.Strength {
+	if colltab.Identity == c.Strength {
 		if a < b {
 			return -1
 		} else if a > b {
@@ -222,7 +224,7 @@ func (c *Collator) compare() int {
 	} else {
 		// TODO: handle shifted
 	}
-	if Secondary <= c.Strength {
+	if colltab.Secondary <= c.Strength {
 		f := (*iter).nextSecondary
 		if c.Backwards {
 			f = (*iter).prevSecondary
@@ -232,12 +234,12 @@ func (c *Collator) compare() int {
 		}
 	}
 	// TODO: special case handling (Danish?)
-	if Tertiary <= c.Strength || c.CaseLevel {
+	if colltab.Tertiary <= c.Strength || c.CaseLevel {
 		if res := compareLevel((*iter).nextTertiary, ia, ib); res != 0 {
 			return res
 		}
 		// TODO: Not needed for the default value of AltNonIgnorable?
-		if Quaternary <= c.Strength {
+		if colltab.Quaternary <= c.Strength {
 			if res := compareLevel((*iter).nextQuaternary, ia, ib); res != 0 {
 				return res
 			}
@@ -266,14 +268,14 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
 	return c.key(buf, c.getColElemsString(str))
 }
 
-func (c *Collator) key(buf *Buffer, w []Elem) []byte {
-	processWeights(c.Alternate, c.variableTop, w)
+func (c *Collator) key(buf *Buffer, w []colltab.Elem) []byte {
+	processWeights(c.Alternate, c.t.Top(), w)
 	kn := len(buf.key)
 	c.keyFromElems(buf, w)
 	return buf.key[kn:]
 }
 
-func (c *Collator) getColElems(str []byte) []Elem {
+func (c *Collator) getColElems(str []byte) []colltab.Elem {
 	i := c.iter(0)
 	i.setInput(str)
 	for i.next() {
@@ -281,7 +283,7 @@ func (c *Collator) getColElems(str []byte) []Elem {
 	return i.ce
 }
 
-func (c *Collator) getColElemsString(str string) []Elem {
+func (c *Collator) getColElemsString(str string) []colltab.Elem {
 	i := c.iter(0)
 	i.setInputString(str)
 	for i.next() {
@@ -293,15 +295,15 @@ type iter struct {
 	bytes []byte
 	str   string
 
-	wa  [512]Elem
-	ce  []Elem
+	wa  [512]colltab.Elem
+	ce  []colltab.Elem
 	pce int
 	nce int // nce <= len(nce)
 
 	prevCCC  uint8
 	pStarter int
 
-	t Weigher
+	t colltab.Weigher
 }
 
 func (i *iter) init(c *Collator) {
@@ -493,13 +495,13 @@ func appendPrimary(key []byte, p int) []byte {
 
 // keyFromElems converts the weights ws to a compact sequence of bytes.
 // The result will be appended to the byte buffer in buf.
-func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+func (c *Collator) keyFromElems(buf *Buffer, ws []colltab.Elem) {
 	for _, v := range ws {
 		if w := v.Primary(); w > 0 {
 			buf.key = appendPrimary(buf.key, w)
 		}
 	}
-	if Secondary <= c.Strength {
+	if colltab.Secondary <= c.Strength {
 		buf.key = append(buf.key, 0, 0)
 		// TODO: we can use one 0 if we can guarantee that all non-zero weights are > 0xFF.
 		if !c.Backwards {
@@ -518,7 +520,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
 	} else if c.CaseLevel {
 		buf.key = append(buf.key, 0, 0)
 	}
-	if Tertiary <= c.Strength || c.CaseLevel {
+	if colltab.Tertiary <= c.Strength || c.CaseLevel {
 		buf.key = append(buf.key, 0, 0)
 		for _, v := range ws {
 			if w := v.Tertiary(); w > 0 {
@@ -529,12 +531,12 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
 		// Note that we represent MaxQuaternary as 0xFF. The first byte of the
 		// representation of a primary weight is always smaller than 0xFF,
 		// so using this single byte value will compare correctly.
-		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
+		if colltab.Quaternary <= c.Strength && c.Alternate >= AltShifted {
 			if c.Alternate == AltShiftTrimmed {
 				lastNonFFFF := len(buf.key)
 				buf.key = append(buf.key, 0)
 				for _, v := range ws {
-					if w := v.Quaternary(); w == MaxQuaternary {
+					if w := v.Quaternary(); w == colltab.MaxQuaternary {
 						buf.key = append(buf.key, 0xFF)
 					} else if w > 0 {
 						buf.key = appendPrimary(buf.key, w)
@@ -545,7 +547,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
 			} else {
 				buf.key = append(buf.key, 0)
 				for _, v := range ws {
-					if w := v.Quaternary(); w == MaxQuaternary {
+					if w := v.Quaternary(); w == colltab.MaxQuaternary {
 						buf.key = append(buf.key, 0xFF)
 					} else if w > 0 {
 						buf.key = appendPrimary(buf.key, w)
@@ -556,18 +558,18 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
 	}
 }
 
-func processWeights(vw AlternateHandling, top uint32, wa []Elem) {
+func processWeights(vw AlternateHandling, top uint32, wa []colltab.Elem) {
 	ignore := false
 	vtop := int(top)
 	switch vw {
 	case AltShifted, AltShiftTrimmed:
 		for i := range wa {
 			if p := wa[i].Primary(); p <= vtop && p != 0 {
-				wa[i] = MakeQuaternary(p)
+				wa[i] = colltab.MakeQuaternary(p)
 				ignore = true
 			} else if p == 0 {
 				if ignore {
-					wa[i] = ceIgnore
+					wa[i] = colltab.Ignore
 				}
 			} else {
 				ignore = false
@@ -576,7 +578,7 @@ func processWeights(vw AlternateHandling, top uint32, wa []Elem) {
 	case AltBlanked:
 		for i := range wa {
 			if p := wa[i].Primary(); p <= vtop && (ignore || p != 0) {
-				wa[i] = ceIgnore
+				wa[i] = colltab.Ignore
 				ignore = true
 			} else {
 				ignore = false

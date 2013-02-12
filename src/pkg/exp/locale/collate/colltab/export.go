@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package collate
+package colltab
 
 // Init is for internal use only.
 func Init(data interface{}) Weigher {

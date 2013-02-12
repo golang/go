@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exp/locale/collate"
+	"exp/locale/collate/colltab"
 	"fmt"
 	"unicode"
 )
@@ -34,87 +34,15 @@ func makeRawCE(w []int, ccc uint8) rawCE {
 // form to represent such m to n mappings.  Such special collation elements
 // have a value >= 0x80000000.
 
-// For normal collation elements, we assume that a collation element either has
-// a primary or non-default secondary value, not both.
-// Collation elements with a primary value are of the form
-// 01pppppp pppppppp ppppppp0 ssssssss
-//   - p* is primary collation value
-//   - s* is the secondary collation value
-// 00pppppp pppppppp ppppppps sssttttt, where
-//   - p* is primary collation value
-//   - s* offset of secondary from default value.
-//   - t* is the tertiary collation value
-// 100ttttt cccccccc pppppppp pppppppp
-//   - t* is the tertiar collation value
-//   - c* is the cannonical combining class
-//   - p* is the primary collation value
-// Collation elements with a secondary value are of the form
-// 1010cccc ccccssss ssssssss tttttttt, where
-//   - c* is the canonical combining class
-//   - s* is the secondary collation value
-//   - t* is the tertiary collation value
 const (
-	maxPrimaryBits          = 21
-	maxPrimaryCompactBits   = 16
-	maxSecondaryBits        = 12
-	maxSecondaryCompactBits = 8
-	maxCCCBits              = 8
-	maxSecondaryDiffBits    = 4
-	maxTertiaryBits         = 8
-	maxTertiaryCompactBits  = 5
-
-	isPrimary    = 0x40000000
-	isPrimaryCCC = 0x80000000
-	isSecondary  = 0xA0000000
+	maxPrimaryBits   = 21
+	maxSecondaryBits = 12
+	maxTertiaryBits  = 8
 )
 
-func makeCE(rce rawCE) (uint32, error) {
-	weights := rce.w
-	if w := weights[0]; w >= 1<<maxPrimaryBits || w < 0 {
-		return 0, fmt.Errorf("makeCE: primary weight out of bounds: %x >= %x", w, 1<<maxPrimaryBits)
-	}
-	if w := weights[1]; w >= 1<<maxSecondaryBits || w < 0 {
-		return 0, fmt.Errorf("makeCE: secondary weight out of bounds: %x >= %x", w, 1<<maxSecondaryBits)
-	}
-	if w := weights[2]; w >= 1<<maxTertiaryBits || w < 0 {
-		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %x >= %x", w, 1<<maxTertiaryBits)
-	}
-	ce := uint32(0)
-	if weights[0] != 0 {
-		if rce.ccc != 0 {
-			if weights[0] >= 1<<maxPrimaryCompactBits {
-				return 0, fmt.Errorf("makeCE: primary weight with non-zero CCC out of bounds: %x >= %x", weights[0], 1<<maxPrimaryCompactBits)
-			}
-			if weights[1] != defaultSecondary {
-				return 0, fmt.Errorf("makeCE: cannot combine non-default secondary value (%x) with non-zero CCC (%x)", weights[1], rce.ccc)
-			}
-			ce = uint32(weights[2] << (maxPrimaryCompactBits + maxCCCBits))
-			ce |= uint32(rce.ccc) << maxPrimaryCompactBits
-			ce |= uint32(weights[0])
-			ce |= isPrimaryCCC
-		} else if weights[2] == defaultTertiary {
-			if weights[1] >= 1<<maxSecondaryCompactBits {
-				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
-			}
-			ce = uint32(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
-			ce |= isPrimary
-		} else {
-			d := weights[1] - defaultSecondary + maxSecondaryDiffBits
-			if d >= 1<<maxSecondaryDiffBits || d < 0 {
-				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
-			}
-			if weights[2] >= 1<<maxTertiaryCompactBits {
-				return 0, fmt.Errorf("makeCE: tertiary weight with non-zero primary out of bounds: %x > %x (%X)", weights[2], 1<<maxTertiaryCompactBits, weights)
-			}
-			ce = uint32(weights[0]<<maxSecondaryDiffBits + d)
-			ce = ce<<maxTertiaryCompactBits + uint32(weights[2])
-		}
-	} else {
-		ce = uint32(weights[1]<<maxTertiaryBits + weights[2])
-		ce += uint32(rce.ccc) << (maxSecondaryBits + maxTertiaryBits)
-		ce |= isSecondary
-	}
-	return ce, nil
+func makeCE(ce rawCE) (uint32, error) {
+	v, e := colltab.MakeElem(ce.w[0], ce.w[1], ce.w[2], ce.ccc)
+	return uint32(v), e
 }
 
 // For contractions, collation elements are of the form
@@ -287,24 +215,24 @@ func convertLargeWeights(elems []rawCE) (res []rawCE, err error) {
 
 // nextWeight computes the first possible collation weights following elems
 // for the given level.
-func nextWeight(level collate.Level, elems []rawCE) []rawCE {
-	if level == collate.Identity {
+func nextWeight(level colltab.Level, elems []rawCE) []rawCE {
+	if level == colltab.Identity {
 		next := make([]rawCE, len(elems))
 		copy(next, elems)
 		return next
 	}
 	next := []rawCE{makeRawCE(elems[0].w, elems[0].ccc)}
 	next[0].w[level]++
-	if level < collate.Secondary {
-		next[0].w[collate.Secondary] = defaultSecondary
+	if level < colltab.Secondary {
+		next[0].w[colltab.Secondary] = defaultSecondary
 	}
-	if level < collate.Tertiary {
-		next[0].w[collate.Tertiary] = defaultTertiary
+	if level < colltab.Tertiary {
+		next[0].w[colltab.Tertiary] = defaultTertiary
 	}
 	// Filter entries that cannot influence ordering.
 	for _, ce := range elems[1:] {
 		skip := true
-		for i := collate.Primary; i < level; i++ {
+		for i := colltab.Primary; i < level; i++ {
 			skip = skip && ce.w[i] == 0
 		}
 		if !skip {
@@ -314,7 +242,7 @@ func nextWeight(level collate.Level, elems []rawCE) []rawCE {
 	return next
 }
 
-func nextVal(elems []rawCE, i int, level collate.Level) (index, value int) {
+func nextVal(elems []rawCE, i int, level colltab.Level) (index, value int) {
 	for ; i < len(elems) && elems[i].w[level] == 0; i++ {
 	}
 	if i < len(elems) {
@@ -325,8 +253,8 @@ func nextVal(elems []rawCE, i int, level collate.Level) (index, value int) {
 
 // compareWeights returns -1 if a < b, 1 if a > b, or 0 otherwise.
 // It also returns the collation level at which the difference is found.
-func compareWeights(a, b []rawCE) (result int, level collate.Level) {
-	for level := collate.Primary; level < collate.Identity; level++ {
+func compareWeights(a, b []rawCE) (result int, level colltab.Level) {
+	for level := colltab.Primary; level < colltab.Identity; level++ {
 		var va, vb int
 		for ia, ib := 0, 0; ia < len(a) || ib < len(b); ia, ib = ia+1, ib+1 {
 			ia, va = nextVal(a, ia, level)
@@ -340,7 +268,7 @@ func compareWeights(a, b []rawCE) (result int, level collate.Level) {
 			}
 		}
 	}
-	return 0, collate.Identity
+	return 0, colltab.Identity
 }
 
 func equalCE(a, b rawCE) bool {

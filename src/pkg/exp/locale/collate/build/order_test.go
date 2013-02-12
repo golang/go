@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exp/locale/collate"
+	"exp/locale/collate/colltab"
 	"strconv"
 	"testing"
 )
@@ -27,7 +27,7 @@ func makeList(n int) []*entry {
 			runes: runes,
 			elems: weights,
 		}
-		weights = nextWeight(collate.Primary, weights)
+		weights = nextWeight(colltab.Primary, weights)
 	}
 	for i := 1; i < len(es); i++ {
 		es[i-1].next = es[i]
