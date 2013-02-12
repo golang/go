@@ -40,6 +40,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 		x.mode = value
 	}
 
+	check.conversions[conv] = true // for cap/len checking
 	x.expr = conv
 	x.typ = typ
 	return

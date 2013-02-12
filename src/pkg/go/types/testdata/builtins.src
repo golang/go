@@ -33,6 +33,10 @@ func _cap() {
 	assert(_4 == 20)
 	_5 := cap(c)
 	cap /* ERROR "not used" */ (c)
+
+	// issue 4744
+	type T struct{ a [10]int }
+	const _ = cap(((*T)(nil)).a)
 }
 
 func _close() {
@@ -151,6 +155,10 @@ func _len() {
 	var ch <-chan int
 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
 	_ = nn // TODO(gri) remove this once unused constants get type-checked
+
+	// issue 4744
+	type T struct{ a [10]int }
+	const _ = len(((*T)(nil)).a)
 }
 
 func _make() {

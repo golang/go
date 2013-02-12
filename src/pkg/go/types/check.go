@@ -21,15 +21,16 @@ type checker struct {
 	files []*ast.File
 
 	// lazily initialized
-	pkg       *Package                          // current package
-	firsterr  error                             // first error encountered
-	idents    map[*ast.Ident]Object             // maps identifiers to their unique object
-	objects   map[*ast.Object]Object            // maps *ast.Objects to their unique object
-	initspecs map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
-	methods   map[*TypeName]*Scope              // maps type names to associated methods
-	funclist  []function                        // list of functions/methods with correct signatures and non-empty bodies
-	funcsig   *Signature                        // signature of currently typechecked function
-	pos       []token.Pos                       // stack of expr positions; debugging support, used if trace is set
+	pkg         *Package                          // current package
+	firsterr    error                             // first error encountered
+	idents      map[*ast.Ident]Object             // maps identifiers to their unique object
+	objects     map[*ast.Object]Object            // maps *ast.Objects to their unique object
+	initspecs   map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
+	methods     map[*TypeName]*Scope              // maps type names to associated methods
+	conversions map[*ast.CallExpr]bool            // set of type-checked conversions (to distinguish from calls)
+	funclist    []function                        // list of functions/methods with correct signatures and non-empty bodies
+	funcsig     *Signature                        // signature of currently typechecked function
+	pos         []token.Pos                       // stack of expr positions; debugging support, used if trace is set
 }
 
 func (check *checker) register(id *ast.Ident, obj Object) {
@@ -392,13 +393,14 @@ type bailout struct{}
 func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package, err error) {
 	// initialize checker
 	check := checker{
-		ctxt:      ctxt,
-		fset:      fset,
-		files:     files,
-		idents:    make(map[*ast.Ident]Object),
-		objects:   make(map[*ast.Object]Object),
-		initspecs: make(map[*ast.ValueSpec]*ast.ValueSpec),
-		methods:   make(map[*TypeName]*Scope),
+		ctxt:        ctxt,
+		fset:        fset,
+		files:       files,
+		idents:      make(map[*ast.Ident]Object),
+		objects:     make(map[*ast.Object]Object),
+		initspecs:   make(map[*ast.ValueSpec]*ast.ValueSpec),
+		methods:     make(map[*TypeName]*Scope),
+		conversions: make(map[*ast.CallExpr]bool),
 	}
 
 	// handle panics
