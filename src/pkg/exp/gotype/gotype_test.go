@@ -181,7 +181,7 @@ var tests = []string{
 
 	// "runtime",
 	"runtime/cgo",
-	// "runtime/debug", // rejects a valid constant - issue 4744
+	"runtime/debug",
 	"runtime/pprof",
 
 	"sort",

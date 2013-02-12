@@ -72,7 +72,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	case _Cap, _Len:
 		mode := invalid
 		var val interface{}
-		switch typ := implicitDeref(underlying(x.typ)).(type) {
+		switch typ := implicitArrayDeref(underlying(x.typ)).(type) {
 		case *Basic:
 			if isString(typ) && id == _Len {
 				if x.mode == constant {
@@ -85,7 +85,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 		case *Array:
 			mode = value
-			if !containsCallsOrReceives(arg0) {
+			// spec: "The expressions len(s) and cap(s) are constants
+			// if the type of s is an array or pointer to an array and
+			// the expression s does not contain channel receives or
+			// function calls; in this case s is not evaluated."
+			if !check.containsCallsOrReceives(arg0) {
 				mode = constant
 				val = typ.Len
 			}
@@ -382,10 +386,10 @@ Error:
 	x.expr = call
 }
 
-// implicitDeref returns A if typ is of the form *A and A is an array;
+// implicitArrayDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
 //
-func implicitDeref(typ Type) Type {
+func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
 		if a, ok := underlying(p.Base).(*Array); ok {
 			return a
@@ -394,25 +398,25 @@ func implicitDeref(typ Type) Type {
 	return typ
 }
 
-// containsCallsOrReceives returns true if the expression x contains
-// function calls or channel receives; it returns false otherwise.
+// containsCallsOrReceives reports if x contains function calls or channel receives.
+// Expects that x was type-checked already.
 //
-func containsCallsOrReceives(x ast.Expr) bool {
-	res := false
+func (check *checker) containsCallsOrReceives(x ast.Expr) (found bool) {
 	ast.Inspect(x, func(x ast.Node) bool {
 		switch x := x.(type) {
 		case *ast.CallExpr:
-			res = true
-			return false
+			// calls and conversions look the same
+			if !check.conversions[x] {
+				found = true
+			}
 		case *ast.UnaryExpr:
 			if x.Op == token.ARROW {
-				res = true
-				return false
+				found = true
 			}
 		}
-		return true
+		return !found // no need to continue if found
 	})
-	return res
+	return
 }
 
 // unparen removes any parentheses surrounding an expression and returns
