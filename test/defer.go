@@ -25,6 +25,7 @@ func test1() {
 	test1helper()
 	if result != "9876543210" {
 		fmt.Printf("test1: bad defer result (should be 9876543210): %q\n", result)
+		panic("defer")
 	}
 }
 
@@ -41,6 +42,7 @@ func test2() {
 	test2helper()
 	if result != "9876543210" {
 		fmt.Printf("test2: bad defer result (should be 9876543210): %q\n", result)
+		panic("defer")
 	}
 }
 

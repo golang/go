@@ -33,8 +33,9 @@ func main() {
 		m, h, s := f3()
 		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
 	}
-	if x() != "3" {
-		println("x() failed")
+	if y := x(); y != "3" {
+		println("x() failed", y)
+		panic("fail")
 	}
 	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
 }

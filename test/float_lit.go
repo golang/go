@@ -196,4 +196,8 @@ func main() {
 	if !close(-210.012e19, -210012, 1000, 19) {
 		print("-210.012e19 is ", -210.012e19, "\n")
 	}
+
+	if bad {
+		panic("float_lit")
+	}
 }

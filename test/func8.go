@@ -37,13 +37,13 @@ func y() string {
 
 func main() {
 	if f() == g() {
-		println("wrong f,g order")
+		panic("wrong f,g order")
 	}
 
 	if x() == (y() == "abc") {
 		panic("wrong compare")
 	}
 	if xy != "xy" {
-		println("wrong x,y order")
+		panic("wrong x,y order")
 	}
 }

@@ -13,36 +13,44 @@ import "fmt"
 func f8(x, y, q, r int8) {
 	if t := x / y; t != q {
 		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
+		panic("divide")
 	}
 	if t := x % y; t != r {
 		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
+		panic("divide")
 	}
 }
 
 func f16(x, y, q, r int16) {
 	if t := x / y; t != q {
 		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
+		panic("divide")
 	}
 	if t := x % y; t != r {
 		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
+		panic("divide")
 	}
 }
 
 func f32(x, y, q, r int32) {
 	if t := x / y; t != q {
 		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
+		panic("divide")
 	}
 	if t := x % y; t != r {
 		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
+		panic("divide")
 	}
 }
 
 func f64(x, y, q, r int64) {
 	if t := x / y; t != q {
 		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
+		panic("divide")
 	}
 	if t := x % y; t != r {
 		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
+		panic("divide")
 	}
 }
 
