@@ -72,8 +72,15 @@ TEXT runtime·breakpoint(SB),7,$0
 	WORD    $0xe1200071 // BKPT 0x0001
 	RET
 
+GLOBL runtime·goarm(SB), $4
 TEXT runtime·asminit(SB),7,$0
-	// No per-thread init.
+	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
+	MOVW runtime·goarm(SB), R11
+	CMP $5, R11
+	BLE 4(PC)
+	WORD $0xeef1ba10	// vmrs r11, fpscr
+	BIC $(1<<24), R11
+	WORD $0xeee1ba10	// vmsr fpscr, r11
 	RET
 
 /*

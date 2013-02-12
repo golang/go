@@ -144,10 +144,6 @@ runtime·semawakeup(M *mp)
 	runtime·atomicstore(&mp->waitsemalock, 0);
 }
 
-// From NetBSD's <sys/ucontext.h>
-#define _UC_SIGMASK	0x01
-#define _UC_CPU		0x04
-
 void
 runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 {
