@@ -1692,7 +1692,7 @@ var HTMLAutoClose = htmlAutoClose
 var htmlAutoClose = []string{
 	/*
 		hget http://www.w3.org/TR/html4/loose.dtd |
-		9 sed -n 's/<!ELEMENT (.*) - O EMPTY.+/	"\1",/p' | tr A-Z a-z
+		9 sed -n 's/<!ELEMENT ([^ ]*) +- O EMPTY.+/	"\1",/p' | tr A-Z a-z
 	*/
 	"basefont",
 	"br",
@@ -1702,7 +1702,7 @@ var htmlAutoClose = []string{
 	"param",
 	"hr",
 	"input",
-	"col     ",
+	"col",
 	"frame",
 	"isindex",
 	"base",
