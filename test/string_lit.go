@@ -33,6 +33,7 @@ func assert(a, b, c string) {
 				print("\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n")
 			}
 		}
+		panic("string_lit")
 	}
 }
 
@@ -110,7 +111,7 @@ func main() {
 	r = -1
 	s = string(r)
 	assert(s, "\xef\xbf\xbd", "negative rune")
-	
+
 	// the large rune tests again, this time using constants instead of a variable.
 	// these conversions will be done at compile time.
 	s = string(0x10ffff) // largest rune value

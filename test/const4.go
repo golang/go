@@ -9,7 +9,7 @@
 package main
 
 var b struct {
-	a[10]int
+	a [10]int
 }
 
 var m map[string][20]int
@@ -61,17 +61,22 @@ var c1 = func() chan *[70]int {
 func main() {
 	if n1 != 10 || n2 != 20 || n3 != 30 || n4 != 40 || n5 != 50 || n6 != 60 || n7 != 70 {
 		println("BUG:", n1, n2, n3, n4, n5, n6, n7)
+		panic("fail")
 	}
 	if !calledF {
 		println("BUG: did not call f")
+		panic("fail")
 	}
 	if <-c == nil {
 		println("BUG: did not receive from c")
+		panic("fail")
 	}
 	if !calledG {
 		println("BUG: did not call g")
+		panic("fail")
 	}
 	if <-c1 == nil {
 		println("BUG: did not receive from c1")
+		panic("fail")
 	}
 }

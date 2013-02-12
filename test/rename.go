@@ -8,7 +8,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+)
 
 func main() {
 	n :=
@@ -52,6 +55,7 @@ func main() {
 			iota
 	if n != NUM*(NUM-1)/2 {
 		fmt.Println("BUG: wrong n", n, NUM*(NUM-1)/2)
+		runtime.Breakpoint() // panic is inaccessible
 	}
 }
 

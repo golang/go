@@ -71,6 +71,10 @@ func main() {
 	inter = 1
 	check("type-concrete", func() { println(inter.(string)) }, "int, not string")
 	check("type-interface", func() { println(inter.(m)) }, "missing method m")
+
+	if didbug {
+		panic("recover3")
+	}
 }
 
 type m interface {

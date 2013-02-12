@@ -17,7 +17,7 @@ func f() int {
 
 func g() int {
 	if !calledf {
-		println("BUG: func7 - called g before f")
+		panic("BUG: func7 - called g before f")
 	}
 	return 0
 }
@@ -28,4 +28,3 @@ func main() {
 		panic("wrong answer")
 	}
 }
-

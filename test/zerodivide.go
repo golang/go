@@ -237,4 +237,7 @@ func main() {
 			fmt.Printf("%v/%v: expected %g error; got %g\n", t.f, t.g, t.out, x)
 		}
 	}
+	if bad {
+		panic("zerodivide")
+	}
 }

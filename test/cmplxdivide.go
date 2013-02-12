@@ -45,4 +45,7 @@ func main() {
 			fmt.Printf("%v/%v: expected %v error; got %v\n", t.f, t.g, t.out, x)
 		}
 	}
+	if bad {
+		panic("cmplxdivide failed.")
+	}
 }

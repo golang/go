@@ -52,9 +52,11 @@ func chk(p, q *int, v int, s string) {
 func chkalias(p, q *int, v int, s string) {
 	if p != q {
 		println("want aliased pointers but got different after", s)
+		bad = true
 	}
 	if *q != v+1 {
 		println("wrong value want", v+1, "got", *q, "after", s)
+		bad = true
 	}
 }
 

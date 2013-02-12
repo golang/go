@@ -17,7 +17,7 @@ func main() {
 	case uint8:
 		// ok
 	default:
-		println("byte != uint8")
+		panic("byte != uint8")
 	}
 
 	x = uint8(2)
@@ -25,7 +25,7 @@ func main() {
 	case byte:
 		// ok
 	default:
-		println("uint8 != byte")
+		panic("uint8 != byte")
 	}
 
 	rune32 := false
@@ -37,7 +37,7 @@ func main() {
 		// must be new code
 		rune32 = true
 	default:
-		println("rune != int and rune != int32")
+		panic("rune != int and rune != int32")
 	}
 
 	if rune32 {
@@ -49,6 +49,6 @@ func main() {
 	case rune:
 		// ok
 	default:
-		println("int (or int32) != rune")
+		panic("int (or int32) != rune")
 	}
 }

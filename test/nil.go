@@ -115,7 +115,7 @@ func chantest() {
 	})
 	shouldBlock(func() {
 		x, ok := <-ch
-		println(x, ok)
+		println(x, ok) // unreachable
 	})
 
 	if len(ch) != 0 {
