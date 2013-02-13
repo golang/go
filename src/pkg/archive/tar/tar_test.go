@@ -14,13 +14,13 @@ import (
 )
 
 func TestFileInfoHeader(t *testing.T) {
-	fi, err := os.Lstat("testdata/small.txt")
+	fi, err := os.Stat("testdata/small.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
 	h, err := FileInfoHeader(fi, "")
 	if err != nil {
-		t.Fatalf("on small.txt: %v", err)
+		t.Fatalf("FileInfoHeader: %v", err)
 	}
 	if g, e := h.Name, "small.txt"; g != e {
 		t.Errorf("Name = %q; want %q", g, e)
@@ -29,6 +29,29 @@ func TestFileInfoHeader(t *testing.T) {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(5); g != e {
+		t.Errorf("Size = %v; want %v", g, e)
+	}
+	if g, e := h.ModTime, fi.ModTime(); !g.Equal(e) {
+		t.Errorf("ModTime = %v; want %v", g, e)
+	}
+}
+
+func TestFileInfoHeaderDir(t *testing.T) {
+	fi, err := os.Stat("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := FileInfoHeader(fi, "")
+	if err != nil {
+		t.Fatalf("FileInfoHeader: %v", err)
+	}
+	if g, e := h.Name, "testdata/"; g != e {
+		t.Errorf("Name = %q; want %q", g, e)
+	}
+	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISDIR; g != e {
+		t.Errorf("Mode = %#o; want %#o", g, e)
+	}
+	if g, e := h.Size, int64(0); g != e {
 		t.Errorf("Size = %v; want %v", g, e)
 	}
 	if g, e := h.ModTime, fi.ModTime(); !g.Equal(e) {
