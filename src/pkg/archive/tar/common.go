@@ -79,6 +79,7 @@ const (
 
 // FileInfoHeader creates a partially-populated Header from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
+// If fi describes a directory, a slash is appended to the name.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("tar: FileInfo is nil")
@@ -96,6 +97,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fi.IsDir():
 		h.Typeflag = TypeDir
 		h.Mode |= c_ISDIR
+		h.Name += "/"
 	case fi.Mode()&os.ModeSymlink != 0:
 		h.Typeflag = TypeSymlink
 		h.Mode |= c_ISLNK
