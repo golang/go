@@ -214,6 +214,32 @@ func _new() {
 	new /* ERROR "not used" */ (int)
 }
 
+func _panic() {
+	panic /* ERROR "arguments" */ ()
+	panic /* ERROR "arguments" */ (1, 2)
+	panic(0)
+	panic("foo")
+	panic(false)
+}
+
+func _print() {
+	print()
+	print(1)
+	print(1, 2)
+	print("foo")
+	print(2.718281828)
+	print(false)
+}
+
+func _println() {
+	println()
+	println(1)
+	println(1, 2)
+	println("foo")
+	println(2.718281828)
+	println(false)
+}
+
 func _real() {
 	var f32 float32
 	var f64 float64
