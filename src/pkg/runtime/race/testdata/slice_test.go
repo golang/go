@@ -443,3 +443,23 @@ func TestRaceSliceIndexAccess2(t *testing.T) {
 	_ = s[v]
 	<-c
 }
+
+func TestRaceSliceByteToString(t *testing.T) {
+	c := make(chan string)
+	s := make([]byte, 10)
+	go func() {
+		c <- string(s)
+	}()
+	s[0] = 42
+	<-c
+}
+
+func TestRaceSliceRuneToString(t *testing.T) {
+	c := make(chan string)
+	s := make([]rune, 10)
+	go func() {
+		c <- string(s)
+	}()
+	s[9] = 42
+	<-c
+}
