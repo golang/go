@@ -41,7 +41,6 @@ var sysdir = func() (sd *sysDir) {
 		sd = &sysDir{
 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
 			[]string{
-				"hosts",
 				"networks",
 				"protocol",
 				"services",
