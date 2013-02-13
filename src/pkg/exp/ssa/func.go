@@ -257,6 +257,21 @@ func (f *Function) finish() {
 	}
 	optimizeBlocks(f)
 
+	// Build immediate-use (referrers) graph.
+	var rands []*Value
+	for _, b := range f.Blocks {
+		for _, instr := range b.Instrs {
+			rands = instr.Operands(rands[:0]) // recycle storage
+			for _, rand := range rands {
+				if r := *rand; r != nil {
+					if ref := r.Referrers(); ref != nil {
+						*ref = append(*ref, instr)
+					}
+				}
+			}
+		}
+	}
+
 	if f.Prog.mode&LogFunctions != 0 {
 		f.DumpTo(os.Stderr)
 	}
@@ -320,7 +335,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	if f.Enclosing == nil {
 		panic("no Value for type.Object " + obj.GetName())
 	}
-	v := &Capture{f.Enclosing.lookup(obj, true)} // escaping
+	v := &Capture{Outer: f.Enclosing.lookup(obj, true)} // escaping
 	f.objects[obj] = v
 	f.FreeVars = append(f.FreeVars, v)
 	return v
