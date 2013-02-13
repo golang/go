@@ -60,6 +60,10 @@ func (l *Literal) Type() types.Type {
 	return l.Type_
 }
 
+func (l *Literal) Referrers() *[]Instruction {
+	return nil
+}
+
 // IsNil returns true if this literal represents a typed or untyped nil value.
 func (l *Literal) IsNil() bool {
 	_, ok := l.Value.(types.NilType)

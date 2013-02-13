@@ -279,7 +279,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		for _, binding := range instr.Bindings {
 			bindings = append(bindings, fr.get(binding))
 		}
-		fr.env[instr] = &closure{instr.Fn, bindings}
+		fr.env[instr] = &closure{instr.Fn.(*ssa.Function), bindings}
 
 	case *ssa.Phi:
 		for i, pred := range instr.Block_.Preds {

@@ -95,10 +95,6 @@ type Type struct {
 }
 
 // An SSA value that can be referenced by an instruction.
-//
-// TODO(adonovan): add methods:
-// - Referrers() []*Instruction // all instructions that refer to this value.
-//
 type Value interface {
 	// Name returns the name of this value, and determines how
 	// this Value appears when used as an operand of an
@@ -129,6 +125,20 @@ type Value interface {
 	// the case of NamedTypes.
 	Type() types.Type
 
+	// Referrers returns the list of instructions that have this
+	// value as one of their operands; it may contain duplicates
+	// if an instruction has a repeated operand.
+	//
+	// Referrers actually returns a pointer through which the
+	// caller may perform mutations to the object's state.
+	//
+	// Referrers is currently only defined for the function-local
+	// values Capture, Parameter and all value-defining instructions.
+	// It returns nil for Function, Builtin, Literal and Global.
+	//
+	// Instruction.Operands contains the inverse of this relation.
+	Referrers() *[]Instruction
+
 	// Dummy method to indicate the "implements" relation.
 	ImplementsValue()
 }
@@ -139,9 +149,6 @@ type Value interface {
 // An Instruction that defines a value (e.g. BinOp) also implements
 // the Value interface; an Instruction that only has an effect (e.g. Store)
 // does not.
-//
-// TODO(adonovan): add method:
-// - Operands() []Value  // all Values referenced by this instruction.
 //
 type Instruction interface {
 	// String returns the disassembled form of this value.  e.g.
@@ -168,6 +175,23 @@ type Instruction interface {
 	// SetBlock sets the basic block to which this instruction
 	// belongs.
 	SetBlock(*BasicBlock)
+
+	// Operands returns the operands of this instruction: the
+	// set of Values it references.
+	//
+	// Specifically, it appends their addresses to rands, a
+	// user-provided slice, and returns the resulting slice,
+	// permitting avoidance of memory allocation.
+	//
+	// The operands are appended in undefined order; the addresses
+	// are always non-nil but may point to a nil Value.  Clients
+	// may store through the pointers, e.g. to effect a value
+	// renaming.
+	//
+	// Value.Referrers is a subset of the inverse of this
+	// relation.  (Referrers are not tracked for all types of
+	// Values.)
+	Operands(rands []*Value) []*Value
 
 	// Dummy method to indicate the "implements" relation.
 	ImplementsInstruction()
@@ -253,14 +277,16 @@ type BasicBlock struct {
 // addresses in the heap, and have pointer types.
 //
 type Capture struct {
-	Outer Value // the Value captured from the enclosing context.
+	Outer     Value // the Value captured from the enclosing context.
+	referrers []Instruction
 }
 
 // A Parameter represents an input parameter of a function.
 //
 type Parameter struct {
-	Name_ string
-	Type_ types.Type
+	Name_     string
+	Type_     types.Type
+	referrers []Instruction
 }
 
 // A Literal represents a literal nil, boolean, string or numeric
@@ -342,9 +368,10 @@ type Builtin struct {
 //
 type Alloc struct {
 	anInstruction
-	Name_ string
-	Type_ types.Type
-	Heap  bool
+	Name_     string
+	Type_     types.Type
+	Heap      bool
+	referrers []Instruction
 }
 
 // Phi represents an SSA φ-node, which combines values that differ
@@ -486,7 +513,7 @@ type MakeInterface struct {
 //
 type MakeClosure struct {
 	Register
-	Fn       *Function
+	Fn       Value   // always a *Function
 	Bindings []Value // values for each free variable in Fn.FreeVars
 }
 
@@ -891,8 +918,9 @@ type MapUpdate struct {
 //
 type Register struct {
 	anInstruction
-	num   int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
-	Type_ types.Type // type of virtual register
+	num       int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
+	Type_     types.Type // type of virtual register
+	referrers []Instruction
 }
 
 // AnInstruction is a mix-in embedded by all Instructions.
@@ -957,28 +985,36 @@ type CallCommon struct {
 	Pos         token.Pos // position of call expression
 }
 
-func (v *Builtin) Type() types.Type { return v.Object.GetType() }
-func (v *Builtin) Name() string     { return v.Object.GetName() }
+func (v *Builtin) Type() types.Type        { return v.Object.GetType() }
+func (v *Builtin) Name() string            { return v.Object.GetName() }
+func (*Builtin) Referrers() *[]Instruction { return nil }
 
-func (v *Capture) Type() types.Type { return v.Outer.Type() }
-func (v *Capture) Name() string     { return v.Outer.Name() }
+func (v *Capture) Type() types.Type          { return v.Outer.Type() }
+func (v *Capture) Name() string              { return v.Outer.Name() }
+func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
 
-func (v *Global) Type() types.Type { return v.Type_ }
-func (v *Global) Name() string     { return v.Name_ }
+func (v *Global) Type() types.Type        { return v.Type_ }
+func (v *Global) Name() string            { return v.Name_ }
+func (*Global) Referrers() *[]Instruction { return nil }
 
-func (v *Function) Name() string     { return v.Name_ }
-func (v *Function) Type() types.Type { return v.Signature }
+func (v *Function) Name() string            { return v.Name_ }
+func (v *Function) Type() types.Type        { return v.Signature }
+func (*Function) Referrers() *[]Instruction { return nil }
 
-func (v *Parameter) Type() types.Type { return v.Type_ }
-func (v *Parameter) Name() string     { return v.Name_ }
+func (v *Parameter) Type() types.Type          { return v.Type_ }
+func (v *Parameter) Name() string              { return v.Name_ }
+func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 
-func (v *Alloc) Type() types.Type { return v.Type_ }
-func (v *Alloc) Name() string     { return v.Name_ }
+func (v *Alloc) Type() types.Type          { return v.Type_ }
+func (v *Alloc) Name() string              { return v.Name_ }
+func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
 
-func (v *Register) Type() types.Type       { return v.Type_ }
-func (v *Register) setType(typ types.Type) { v.Type_ = typ }
-func (v *Register) Name() string           { return fmt.Sprintf("t%d", v.num) }
-func (v *Register) setNum(num int)         { v.num = num }
+func (v *Register) Type() types.Type          { return v.Type_ }
+func (v *Register) setType(typ types.Type)    { v.Type_ = typ }
+func (v *Register) Name() string              { return fmt.Sprintf("t%d", v.num) }
+func (v *Register) setNum(num int)            { v.num = num }
+func (v *Register) Referrers() *[]Instruction { return &v.referrers }
+func (v *Register) asRegister() *Register     { return v }
 
 func (v *anInstruction) Block() *BasicBlock         { return v.Block_ }
 func (v *anInstruction) SetBlock(block *BasicBlock) { v.Block_ = block }
@@ -1091,3 +1127,140 @@ func (*Slice) ImplementsInstruction()           {}
 func (*Store) ImplementsInstruction()           {}
 func (*TypeAssert) ImplementsInstruction()      {}
 func (*UnOp) ImplementsInstruction()            {}
+
+// Operands.
+
+// REVIEWERS: Should this method be defined nearer each type to avoid skew?
+
+func (v *Alloc) Operands(rands []*Value) []*Value {
+	return rands
+}
+
+func (v *BinOp) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X, &v.Y)
+}
+
+func (c *CallCommon) Operands(rands []*Value) []*Value {
+	rands = append(rands, &c.Recv, &c.Func)
+	for i := range c.Args {
+		rands = append(rands, &c.Args[i])
+	}
+	return rands
+}
+
+func (v *ChangeInterface) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *Conv) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *Extract) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Tuple)
+}
+
+func (v *Field) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *FieldAddr) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (s *If) Operands(rands []*Value) []*Value {
+	return append(rands, &s.Cond)
+}
+
+func (v *Index) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X, &v.Index)
+}
+
+func (v *IndexAddr) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X, &v.Index)
+}
+
+func (*Jump) Operands(rands []*Value) []*Value {
+	return rands
+}
+
+func (v *Lookup) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X, &v.Index)
+}
+
+func (v *MakeChan) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Size)
+}
+
+func (v *MakeClosure) Operands(rands []*Value) []*Value {
+	rands = append(rands, &v.Fn)
+	for i := range v.Bindings {
+		rands = append(rands, &v.Bindings[i])
+	}
+	return rands
+}
+
+func (v *MakeInterface) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *MakeMap) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Reserve)
+}
+
+func (v *MakeSlice) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Len, &v.Cap)
+}
+
+func (v *MapUpdate) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Map, &v.Key, &v.Value)
+}
+
+func (v *Next) Operands(rands []*Value) []*Value {
+	return append(rands, &v.Iter)
+}
+
+func (v *Phi) Operands(rands []*Value) []*Value {
+	for i := range v.Edges {
+		rands = append(rands, &v.Edges[i])
+	}
+	return rands
+}
+
+func (v *Range) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (s *Ret) Operands(rands []*Value) []*Value {
+	for i := range s.Results {
+		rands = append(rands, &s.Results[i])
+	}
+	return rands
+}
+
+func (v *Select) Operands(rands []*Value) []*Value {
+	for _, st := range v.States {
+		rands = append(rands, &st.Chan, &st.Send)
+	}
+	return rands
+}
+
+func (s *Send) Operands(rands []*Value) []*Value {
+	return append(rands, &s.Chan, &s.X)
+}
+
+func (v *Slice) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X, &v.Low, &v.High)
+}
+
+func (s *Store) Operands(rands []*Value) []*Value {
+	return append(rands, &s.Addr, &s.Val)
+}
+
+func (v *TypeAssert) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *UnOp) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
