@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"regexp"
 	"runtime"
 	"testing"
@@ -219,6 +220,31 @@ func TestDialError(t *testing.T) {
 		match, _ = regexp.MatchString(duplicateErrorPattern, s)
 		if match {
 			t.Errorf("#%d: %q, duplicate error return from Dial", i, s)
+		}
+	}
+}
+
+var invalidDialAndListenArgTests = []struct {
+	net  string
+	addr string
+	err  error
+}{
+	{"foo", "bar", &OpError{Op: "dial", Net: "foo", Addr: nil, Err: UnknownNetworkError("foo")}},
+	{"baz", "", &OpError{Op: "listen", Net: "baz", Addr: nil, Err: UnknownNetworkError("baz")}},
+	{"tcp", "", &OpError{Op: "dial", Net: "tcp", Addr: nil, Err: errMissingAddress}},
+}
+
+func TestInvalidDialAndListenArgs(t *testing.T) {
+	for _, tt := range invalidDialAndListenArgTests {
+		var err error
+		switch tt.err.(*OpError).Op {
+		case "dial":
+			_, err = Dial(tt.net, tt.addr)
+		case "listen":
+			_, err = Listen(tt.net, tt.addr)
+		}
+		if !reflect.DeepEqual(tt.err, err) {
+			t.Fatalf("got %#v; expected %#v", err, tt.err)
 		}
 	}
 }
