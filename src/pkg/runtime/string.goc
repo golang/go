@@ -6,6 +6,7 @@ package runtime
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "malloc.h"
+#include "race.h"
 
 String	runtime·emptystring;
 
@@ -271,6 +272,12 @@ func intstring(v int64) (s String) {
 }
 
 func slicebytetostring(b Slice) (s String) {
+	void *pc;
+
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&b);
+		runtime·racereadrangepc(b.array, b.len, 1, pc, runtime·slicebytetostring);
+	}
 	s = gostringsize(b.len);
 	runtime·memmove(s.str, b.array, s.len);
 }
@@ -286,7 +293,12 @@ func slicerunetostring(b Slice) (s String) {
 	intgo siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
+	void *pc;
 
+	if(raceenabled) {
+		pc = runtime·getcallerpc(&b);
+		runtime·racereadrangepc(b.array, b.len*sizeof(*a), sizeof(*a), pc, runtime·slicerunetostring);
+	}
 	a = (int32*)b.array;
 	siz1 = 0;
 	for(i=0; i<b.len; i++) {
