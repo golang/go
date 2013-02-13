@@ -686,7 +686,7 @@ asmb(void)
 	}
 	cflush();
 	if(debug['c']){
-		print("textsize=%d\n", segtext.filelen);
+		print("textsize=%ulld\n", segtext.filelen);
 		print("datsize=%ulld\n", segdata.filelen);
 		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
 		print("symsize=%d\n", symsize);
