@@ -90,8 +90,11 @@ type Slice struct {
 }
 
 // A QualifiedName is a name qualified with the package that declared the name.
+// Note: Pkg may be a fake package (no name, no scope) because the GC compiler's
+//       export information doesn't provide full information in some cases.
+// TODO(gri): Should change Pkg to PkgPath since it's the only thing we care about.
 type QualifiedName struct {
-	Pkg  *Package // nil only for predeclared error.Error
+	Pkg  *Package // nil only for predeclared error.Error (exported)
 	Name string   // unqualified type name for anonymous fields
 }
 
@@ -105,7 +108,7 @@ func (p QualifiedName) IsSame(q QualifiedName) bool {
 		return false
 	}
 	// p.Name == q.Name
-	return ast.IsExported(p.Name) || p.Pkg == q.Pkg
+	return ast.IsExported(p.Name) || p.Pkg.Path == q.Pkg.Path
 }
 
 // A Field represents a field of a struct.

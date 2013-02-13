@@ -4,6 +4,11 @@
 
 package types
 
+import (
+	"bytes"
+	"fmt"
+)
+
 // A Scope maintains the set of named language entities declared
 // in the scope and a link to the immediately surrounding (outer)
 // scope.
@@ -56,4 +61,18 @@ func (s *Scope) Insert(obj Object) Object {
 	}
 
 	return nil
+}
+
+// Debugging support
+func (s *Scope) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "scope %p {", s)
+	if s != nil && len(s.Entries) > 0 {
+		fmt.Fprintln(&buf)
+		for _, obj := range s.Entries {
+			fmt.Fprintf(&buf, "\t%s\t%T\n", obj.GetName(), obj)
+		}
+	}
+	fmt.Fprintf(&buf, "}\n")
+	return buf.String()
 }

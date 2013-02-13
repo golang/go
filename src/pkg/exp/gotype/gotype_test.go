@@ -82,7 +82,7 @@ var tests = []string{
 	"crypto/md5",
 	// "crypto/rand",
 	"crypto/rc4",
-	// "crypto/rsa", // intermittent failure: /home/gri/go2/src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
+	"crypto/rsa",
 	"crypto/sha1",
 	"crypto/sha256",
 	"crypto/sha512",
