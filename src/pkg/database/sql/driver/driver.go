@@ -65,6 +65,17 @@ type Execer interface {
 	Exec(query string, args []Value) (Result, error)
 }
 
+// Queryer is an optional interface that may be implemented by a Conn.
+//
+// If a Conn does not implement Queryer, the db package's DB.Query will
+// first prepare a query, execute the statement, and then close the
+// statement.
+//
+// Query may return ErrSkip.
+type Queryer interface {
+	Query(query string, args []Value) (Rows, error)
+}
+
 // Conn is a connection to a database. It is not used concurrently
 // by multiple goroutines.
 //
