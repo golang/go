@@ -266,6 +266,18 @@ func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error
 	return nil, driver.ErrSkip
 }
 
+func (c *fakeConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	// This is an optional interface, but it's implemented here
+	// just to check that all the args are of the proper types.
+	// ErrSkip is returned so the caller acts as if we didn't
+	// implement this at all.
+	err := checkSubsetTypes(args)
+	if err != nil {
+		return nil, err
+	}
+	return nil, driver.ErrSkip
+}
+
 func errf(msg string, args ...interface{}) error {
 	return errors.New("fakedb: " + fmt.Sprintf(msg, args...))
 }
