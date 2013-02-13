@@ -41,7 +41,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	if n > 0 {
 		arg0 = args[0]
 		switch id {
-		case _Make, _New, _Trace:
+		case _Make, _New, _Print, _Println, _Trace:
 			// respective cases below do the work
 		default:
 			// argument must be an expression
@@ -301,9 +301,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.mode = variable
 		x.typ = &Pointer{Base: resultTyp}
 
-	case _Panic, _Print, _Println:
-		for _, arg := range args[1:] {
+	case _Panic:
+		x.mode = novalue
+
+	case _Print, _Println:
+		for _, arg := range args {
 			check.expr(x, arg, nil, -1)
+			if x.mode == invalid {
+				goto Error
+			}
 		}
 		x.mode = novalue
 

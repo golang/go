@@ -73,8 +73,8 @@ var predeclaredFunctions = [...]*builtin{
 	{_Make, "make", 1, true, false},
 	{_New, "new", 1, false, false},
 	{_Panic, "panic", 1, false, true},
-	{_Print, "print", 1, true, true},
-	{_Println, "println", 1, true, true},
+	{_Print, "print", 0, true, true},
+	{_Println, "println", 0, true, true},
 	{_Real, "real", 1, false, false},
 	{_Recover, "recover", 0, false, true},
 
