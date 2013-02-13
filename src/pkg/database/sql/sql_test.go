@@ -448,6 +448,32 @@ func TestIssue2542Deadlock(t *testing.T) {
 	}
 }
 
+func TestCloseStmtBeforeRows(t *testing.T) {
+	t.Skip("known broken test; golang.org/issue/3865")
+	return
+
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	s, err := db.Prepare("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := s.Query()
+	if err != nil {
+		s.Close()
+		t.Fatal(err)
+	}
+
+	err = s.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r.Close()
+}
+
 // Tests fix for issue 2788, that we bind nil to a []byte if the
 // value in the column is sql null
 func TestNullByteSlice(t *testing.T) {
