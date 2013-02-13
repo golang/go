@@ -6,6 +6,7 @@ package io_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	. "io"
 	"strings"
@@ -89,6 +90,12 @@ func (w *noReadFrom) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
+type wantedAndErrReader struct{}
+
+func (wantedAndErrReader) Read(p []byte) (int, error) {
+	return len(p), errors.New("wantedAndErrReader error")
+}
+
 func TestCopyNEOF(t *testing.T) {
 	// Test that EOF behavior is the same regardless of whether
 	// argument to CopyN has ReadFrom.
@@ -113,6 +120,16 @@ func TestCopyNEOF(t *testing.T) {
 	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
 	if n != 3 || err != EOF {
 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
+	}
+
+	n, err = CopyN(b, wantedAndErrReader{}, 5)
+	if n != 5 || err != nil {
+		t.Errorf("CopyN(bytes.Buffer, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
+	}
+
+	n, err = CopyN(&noReadFrom{b}, wantedAndErrReader{}, 5)
+	if n != 5 || err != nil {
+		t.Errorf("CopyN(noReadFrom, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
 	}
 }
 
