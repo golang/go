@@ -292,14 +292,16 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
 
 // CopyN copies n bytes (or until an error) from src to dst.
 // It returns the number of bytes copied and the earliest
-// error encountered while copying.  Because Read can
-// return the full amount requested as well as an error
-// (including EOF), so can CopyN.
+// error encountered while copying.
+// On return, written == n if and only if err == nil.
 //
 // If dst implements the ReaderFrom interface,
 // the copy is implemented using it.
 func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 	written, err = Copy(dst, LimitReader(src, n))
+	if written == n {
+		return n, nil
+	}
 	if written < n && err == nil {
 		// src stopped early; must have been EOF.
 		err = EOF
