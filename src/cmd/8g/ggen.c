@@ -1053,35 +1053,16 @@ x87:
 	goto ret;
 
 sse:
-	if(nr->ullman >= UINF) {
-		if(!nl->addable) {
-			tempname(&n1, nl->type);
-			cgen(nl, &n1);
-			nl = &n1;
-		}
-		if(!nr->addable) {
-			tempname(&tmp, nr->type);
-			cgen(nr, &tmp);
-			nr = &tmp;
-		}
-		regalloc(&n2, nr->type, N);
-		cgen(nr, &n2);
-		nr = &n2;
-		goto ssecmp;
-	}
-
 	if(!nl->addable) {
 		tempname(&n1, nl->type);
 		cgen(nl, &n1);
 		nl = &n1;
 	}
-
 	if(!nr->addable) {
 		tempname(&tmp, nr->type);
 		cgen(nr, &tmp);
 		nr = &tmp;
 	}
-
 	regalloc(&n2, nr->type, N);
 	gmove(nr, &n2);
 	nr = &n2;
@@ -1092,7 +1073,6 @@ sse:
 		nl = &n3;
 	}
 
-ssecmp:
 	if(a == OGE || a == OGT) {
 		// only < and <= work right with NaN; reverse if needed
 		r = nr;
