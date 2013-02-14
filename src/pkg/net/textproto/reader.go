@@ -128,6 +128,17 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 		return line, nil
 	}
 
+	// Optimistically assume that we have started to buffer the next line
+	// and it starts with an ASCII letter (the next header key), so we can
+	// avoid copying that buffered data around in memory and skipping over
+	// non-existent whitespace.
+	if r.R.Buffered() > 1 {
+		peek, err := r.R.Peek(1)
+		if err == nil && isASCIILetter(peek[0]) {
+			return trim(line), nil
+		}
+	}
+
 	// ReadByte or the next readLineSlice will flush the read buffer;
 	// copy the slice into buf.
 	r.buf = append(r.buf[:0], trim(line)...)
@@ -445,7 +456,7 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 //	}
 //
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
-	m := make(MIMEHeader)
+	m := make(MIMEHeader, 4)
 	for {
 		kv, err := r.readContinuedLineSlice()
 		if len(kv) == 0 {
