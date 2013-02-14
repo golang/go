@@ -195,16 +195,22 @@ func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
 	setExit(1)
 }
 
+func (f *File) loc(pos token.Pos) string {
+	// Do not print columns. Because the pos often points to the start of an
+	// expression instead of the inner part with the actual error, the
+	// precision can mislead.
+	posn := f.fset.Position(pos)
+	return fmt.Sprintf("%s:%d: ", posn.Filename, posn.Line)
+}
+
 // Warn reports an error but does not set the exit code.
 func (f *File) Warn(pos token.Pos, args ...interface{}) {
-	loc := f.fset.Position(pos).String() + ": "
-	fmt.Fprint(os.Stderr, loc+fmt.Sprintln(args...))
+	fmt.Fprint(os.Stderr, f.loc(pos)+fmt.Sprintln(args...))
 }
 
 // Warnf reports a formatted error but does not set the exit code.
 func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
-	loc := f.fset.Position(pos).String() + ": "
-	fmt.Fprintf(os.Stderr, loc+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, f.loc(pos)+format+"\n", args...)
 }
 
 // walkFile walks the file's tree.
