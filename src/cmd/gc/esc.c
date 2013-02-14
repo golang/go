@@ -281,7 +281,7 @@ analyze(NodeList *all, int recursive)
 
 	// print("escapes: %d e->dsts, %d edges\n", e->dstcount, e->edgecount);
 
-	// visit the updstream of each dst, mark address nodes with
+	// visit the upstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
 	for(l = e->dsts; l; l=l->next)
 		escflood(e, l->n);
@@ -802,7 +802,7 @@ escassignfromtag(EscState *e, Strlit *note, NodeList *dsts, Node *src)
 
 // This is a bit messier than fortunate, pulled out of esc's big
 // switch for clarity.	We either have the paramnodes, which may be
-// connected to other things throug flows or we have the parameter type
+// connected to other things through flows or we have the parameter type
 // nodes, which may be marked "noescape". Navigating the ast is slightly
 // different for methods vs plain functions and for imported vs
 // this-package
