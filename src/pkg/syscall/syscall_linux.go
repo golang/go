@@ -18,16 +18,19 @@ import "unsafe"
  */
 
 //sys	open(path string, mode int, perm uint32) (fd int, err error)
+
 func Open(path string, mode int, perm uint32) (fd int, err error) {
 	return open(path, mode|O_LARGEFILE, perm)
 }
 
 //sys	openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+
 func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error) {
 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
 }
 
 //sysnb	pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
@@ -40,6 +43,7 @@ func Pipe(p []int) (err error) {
 }
 
 //sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
@@ -52,6 +56,7 @@ func Pipe2(p []int, flags int) (err error) {
 }
 
 //sys	utimes(path string, times *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
@@ -60,6 +65,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 }
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
@@ -79,6 +85,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 }
 
 //sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (err error)
+
 func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
@@ -99,6 +106,7 @@ func Futimes(fd int, tv []Timeval) (err error) {
 const ImplementsGetwd = true
 
 //sys	Getcwd(buf []byte) (n int, err error)
+
 func Getwd() (wd string, err error) {
 	var buf [PathMax]byte
 	n, err := Getcwd(buf[0:])
@@ -208,6 +216,7 @@ func (w WaitStatus) TrapCause() int {
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err error)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
 	wpid, err = wait4(pid, &status, options, rusage)
@@ -809,6 +818,7 @@ func PtraceAttach(pid int) (err error) { return ptrace(PTRACE_ATTACH, pid, 0, 0)
 func PtraceDetach(pid int) (err error) { return ptrace(PTRACE_DETACH, pid, 0, 0) }
 
 //sys	reboot(magic1 uint, magic2 uint, cmd int, arg string) (err error)
+
 func Reboot(cmd int) (err error) {
 	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
 }
@@ -848,6 +858,7 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 }
 
 //sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (err error)
+
 func Mount(source string, target string, fstype string, flags uintptr, data string) (err error) {
 	// Certain file systems get rather angry and EINVAL if you give
 	// them an empty string of data, rather than NULL.
