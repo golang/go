@@ -276,11 +276,23 @@ type Listener interface {
 
 var errMissingAddress = errors.New("missing address")
 
+// OpError is the error type usually returned by functions in the net
+// package. It describes the operation, network type, and address of
+// an error.
 type OpError struct {
-	Op   string
-	Net  string
+	// Op is the operation which caused the error, such as
+	// "read" or "write".
+	Op string
+
+	// Net is the network type on which this error occurred,
+	// such as "tcp" or "udp6".
+	Net string
+
+	// Addr is the network address on which this error occurred.
 	Addr Addr
-	Err  error
+
+	// Err is the error that occurred during the operation.
+	Err error
 }
 
 func (e *OpError) Error() string {
