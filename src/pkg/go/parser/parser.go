@@ -344,10 +344,22 @@ func (p *parser) next() {
 type bailout struct{}
 
 func (p *parser) error(pos token.Pos, msg string) {
-	if p.mode&SpuriousErrors == 0 && p.errors.Len() >= 10 {
-		panic(bailout{})
+	epos := p.file.Position(pos)
+
+	// If AllErrors is not set, discard errors reported on the same line
+	// as the last recorded error and stop parsing if there are more than
+	// 10 errors.
+	if p.mode&AllErrors == 0 {
+		n := len(p.errors)
+		if n > 0 && p.errors[n-1].Pos.Line == epos.Line {
+			return // discard - likely a spurious error
+		}
+		if n > 10 {
+			panic(bailout{})
+		}
 	}
-	p.errors.Add(p.file.Position(pos), msg)
+
+	p.errors.Add(epos, msg)
 }
 
 func (p *parser) errorExpected(pos token.Pos, msg string) {

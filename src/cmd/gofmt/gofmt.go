@@ -29,7 +29,7 @@ var (
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
 	simplifyAST = flag.Bool("s", false, "simplify code")
 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
-	allErrors   = flag.Bool("e", false, "print all (including spurious) errors")
+	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
 	// layout control
 	comments  = flag.Bool("comments", true, "print comments")
@@ -65,7 +65,7 @@ func initParserMode() {
 		parserMode |= parser.ParseComments
 	}
 	if *allErrors {
-		parserMode |= parser.SpuriousErrors
+		parserMode |= parser.AllErrors
 	}
 }
 
