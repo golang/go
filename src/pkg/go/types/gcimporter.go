@@ -108,10 +108,14 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 		return Unsafe, nil
 	}
 
-	srcDir, err := os.Getwd()
-	if err != nil {
-		return
+	srcDir := "."
+	if build.IsLocalImport(path) {
+		srcDir, err = os.Getwd()
+		if err != nil {
+			return
+		}
 	}
+
 	filename, id := FindPkg(path, srcDir)
 	if filename == "" {
 		err = errors.New("can't find import: " + id)
