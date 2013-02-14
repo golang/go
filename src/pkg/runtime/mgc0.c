@@ -1255,13 +1255,14 @@ static void
 addfinroots(void *v)
 {
 	uintptr size;
+	void *base;
 
 	size = 0;
-	if(!runtime·mlookup(v, &v, &size, nil) || !runtime·blockspecial(v))
+	if(!runtime·mlookup(v, &base, &size, nil) || !runtime·blockspecial(base))
 		runtime·throw("mark - finalizer inconsistency");
 
 	// do not mark the finalizer block itself.  just mark the things it points at.
-	addroot((Obj){v, size, 0});
+	addroot((Obj){base, size, 0});
 }
 
 static void
