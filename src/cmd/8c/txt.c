@@ -1396,6 +1396,9 @@ gprefetch(Node *n)
 {
 	Node n1;
 	
+	if(strcmp(getgo386(), "sse2") != 0) // assume no prefetch on old machines
+		return;
+
 	regalloc(&n1, n, Z);
 	gmove(n, &n1);
 	n1.op = OINDREG;
