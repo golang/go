@@ -121,3 +121,150 @@ func TestRoundTrip(t *testing.T) {
 		t.Errorf("Data mismatch.\n got %q\nwant %q", rData, data)
 	}
 }
+
+type headerRoundTripTest struct {
+	h  *Header
+	fm os.FileMode
+}
+
+func TestHeaderRoundTrip(t *testing.T) {
+	golden := []headerRoundTripTest{
+		// regular file.
+		{
+			h: &Header{
+				Name:     "test.txt",
+				Mode:     0644 | c_ISREG,
+				Size:     12,
+				ModTime:  time.Unix(1360600916, 0),
+				Typeflag: TypeReg,
+			},
+			fm: 0644,
+		},
+		// hard link.
+		{
+			h: &Header{
+				Name:     "hard.txt",
+				Mode:     0644 | c_ISLNK,
+				Size:     0,
+				ModTime:  time.Unix(1360600916, 0),
+				Typeflag: TypeLink,
+			},
+			fm: 0644 | os.ModeSymlink,
+		},
+		// symbolic link.
+		{
+			h: &Header{
+				Name:     "link.txt",
+				Mode:     0777 | c_ISLNK,
+				Size:     0,
+				ModTime:  time.Unix(1360600852, 0),
+				Typeflag: TypeSymlink,
+			},
+			fm: 0777 | os.ModeSymlink,
+		},
+		// character device node.
+		{
+			h: &Header{
+				Name:     "dev/null",
+				Mode:     0666 | c_ISCHR,
+				Size:     0,
+				ModTime:  time.Unix(1360578951, 0),
+				Typeflag: TypeChar,
+			},
+			fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		},
+		// block device node.
+		{
+			h: &Header{
+				Name:     "dev/sda",
+				Mode:     0660 | c_ISBLK,
+				Size:     0,
+				ModTime:  time.Unix(1360578954, 0),
+				Typeflag: TypeBlock,
+			},
+			fm: 0660 | os.ModeDevice,
+		},
+		// directory.
+		{
+			h: &Header{
+				Name:     "dir/",
+				Mode:     0755 | c_ISDIR,
+				Size:     0,
+				ModTime:  time.Unix(1360601116, 0),
+				Typeflag: TypeDir,
+			},
+			fm: 0755 | os.ModeDir,
+		},
+		// fifo node.
+		{
+			h: &Header{
+				Name:     "dev/initctl",
+				Mode:     0600 | c_ISFIFO,
+				Size:     0,
+				ModTime:  time.Unix(1360578949, 0),
+				Typeflag: TypeFifo,
+			},
+			fm: 0600 | os.ModeNamedPipe,
+		},
+		// setuid.
+		{
+			h: &Header{
+				Name:     "bin/su",
+				Mode:     0755 | c_ISREG | c_ISUID,
+				Size:     23232,
+				ModTime:  time.Unix(1355405093, 0),
+				Typeflag: TypeReg,
+			},
+			fm: 0755 | os.ModeSetuid,
+		},
+		// setguid.
+		{
+			h: &Header{
+				Name:     "group.txt",
+				Mode:     0750 | c_ISREG | c_ISGID,
+				Size:     0,
+				ModTime:  time.Unix(1360602346, 0),
+				Typeflag: TypeReg,
+			},
+			fm: 0750 | os.ModeSetgid,
+		},
+		// sticky.
+		{
+			h: &Header{
+				Name:     "sticky.txt",
+				Mode:     0600 | c_ISREG | c_ISVTX,
+				Size:     7,
+				ModTime:  time.Unix(1360602540, 0),
+				Typeflag: TypeReg,
+			},
+			fm: 0600 | os.ModeSticky,
+		},
+	}
+
+	for i, g := range golden {
+		fi := g.h.FileInfo()
+		h2, err := FileInfoHeader(fi, "")
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if got, want := h2.Name, g.h.Name; got != want {
+			t.Errorf("i=%d: Name: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.Size, g.h.Size; got != want {
+			t.Errorf("i=%d: Size: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.Mode, g.h.Mode; got != want {
+			t.Errorf("i=%d: Mode: got %o, want %o", i, got, want)
+		}
+		if got, want := fi.Mode(), g.fm; got != want {
+			t.Errorf("i=%d: fi.Mode: got %o, want %o", i, got, want)
+		}
+		if got, want := h2.ModTime, g.h.ModTime; got != want {
+			t.Errorf("i=%d: ModTime: got %v, want %v", i, got, want)
+		}
+		if sysh, ok := fi.Sys().(*Header); !ok || sysh != g.h {
+			t.Errorf("i=%d: Sys didn't return original *Header", i)
+		}
+	}
+}
