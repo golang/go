@@ -92,7 +92,7 @@ func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File,
 	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors)
+		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors|parser.AllErrors)
 		if file == nil {
 			t.Fatalf("%s: could not parse file %s", testname, filename)
 		}

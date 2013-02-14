@@ -52,13 +52,13 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 type Mode uint
 
 const (
-	PackageClauseOnly Mode             = 1 << iota // parsing stops after package clause
-	ImportsOnly                                    // parsing stops after import declarations
+	PackageClauseOnly Mode             = 1 << iota // stop parsing after package clause
+	ImportsOnly                                    // stop parsing after import declarations
 	ParseComments                                  // parse comments and add them to AST
 	Trace                                          // print a trace of parsed productions
 	DeclarationErrors                              // report declaration errors
 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
-	AllErrors         = SpuriousErrors             // report all (not just the first 10) errors per file
+	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
 )
 
 // ParseFile parses the source code of a single Go source file and returns

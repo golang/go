@@ -139,7 +139,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 		return
 	}
 
-	_, err = ParseFile(fsetErrs, filename, src, DeclarationErrors)
+	_, err = ParseFile(fsetErrs, filename, src, DeclarationErrors|AllErrors)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)

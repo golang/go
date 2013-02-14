@@ -23,7 +23,7 @@ var (
 	pkgName   = flag.String("p", "", "process only those files in package pkgName")
 	recursive = flag.Bool("r", false, "recursively process subdirectories")
 	verbose   = flag.Bool("v", false, "verbose mode")
-	allErrors = flag.Bool("e", false, "print all (including spurious) errors")
+	allErrors = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
 	// debugging support
 	parseComments = flag.Bool("comments", false, "parse comments (ignored if -ast not set)")
@@ -71,7 +71,7 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
 	// parse entire file
 	mode := parser.DeclarationErrors
 	if *allErrors {
-		mode |= parser.SpuriousErrors
+		mode |= parser.AllErrors
 	}
 	if *parseComments && *printAST {
 		mode |= parser.ParseComments
