@@ -199,23 +199,6 @@ func TestDomainAndType(t *testing.T) {
 	}
 }
 
-// content yields the (non-expired) cookies of jar in the form
-// "name1=value1 name2=value2 ...".
-func (jar *Jar) content() string {
-	var cookies []string
-	now := time.Now().UTC()
-	for _, submap := range jar.entries {
-		for _, cookie := range submap {
-			if !cookie.Expires.After(now) {
-				continue
-			}
-			cookies = append(cookies, cookie.Name+"="+cookie.Value)
-		}
-	}
-	sort.Strings(cookies)
-	return strings.Join(cookies, " ")
-}
-
 // expiresIn creates an expires attribute delta seconds from now.
 func expiresIn(delta int) string {
 	t := time.Now().Round(time.Second).Add(time.Duration(delta) * time.Second)
@@ -252,8 +235,6 @@ type query struct {
 
 // run runs the jarTest.
 func (test jarTest) run(t *testing.T, jar *Jar) {
-	u := mustParseURL(test.fromURL)
-
 	// Populate jar with cookies.
 	setCookies := make([]*http.Cookie, len(test.setCookies))
 	for i, cs := range test.setCookies {
@@ -263,23 +244,36 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 		}
 		setCookies[i] = cookies[0]
 	}
-	jar.SetCookies(u, setCookies)
+	jar.SetCookies(mustParseURL(test.fromURL), setCookies)
+
+	// Serialize non-expired entries in the form "name1=val1 name2=val2".
+	var cs []string
+	now := time.Now().UTC()
+	for _, submap := range jar.entries {
+		for _, cookie := range submap {
+			if !cookie.Expires.After(now) {
+				continue
+			}
+			cs = append(cs, cookie.Name+"="+cookie.Value)
+		}
+	}
+	sort.Strings(cs)
+	got := strings.Join(cs, " ")
 
 	// Make sure jar content matches our expectations.
-	if got := jar.content(); got != test.content {
+	if got != test.content {
 		t.Errorf("Test %q Content\ngot  %q\nwant %q",
 			test.description, got, test.content)
 	}
 
 	// Test different calls to Cookies.
-	for _, query := range test.queries {
+	for i, query := range test.queries {
 		var s []string
 		for _, c := range jar.Cookies(mustParseURL(query.toURL)) {
 			s = append(s, c.Name+"="+c.Value)
 		}
-		got := strings.Join(s, " ")
-		if got != query.want {
-			// TODO: t.Errorf() once Cookies is implemented
+		if got := strings.Join(s, " "); got != query.want {
+			t.Errorf("Test %q #%d\ngot  %q\nwant %q", test.description, i, got, query.want)
 		}
 	}
 }
@@ -432,11 +426,533 @@ var basicsTests = [...]jarTest{
 			{"http://www.host.test/path/foo", "A=4 A=7 A=2 A=5 A=1"},
 		},
 	},
+	{
+		"Disallow domain cookie on public suffix.",
+		"http://www.bbc.co.uk",
+		[]string{
+			"a=1",
+			"b=2; domain=co.uk",
+		},
+		"a=1",
+		[]query{{"http://www.bbc.co.uk", "a=1"}},
+	},
 }
 
 func TestBasics(t *testing.T) {
 	for _, test := range basicsTests {
 		jar := newTestJar()
+		test.run(t, jar)
+	}
+}
+
+// updateAndDeleteTests contains jarTests which must be performed on the same
+// Jar.
+var updateAndDeleteTests = [...]jarTest{
+	{
+		"Set initial cookies.",
+		"http://www.host.test",
+		[]string{
+			"a=1",
+			"b=2; secure",
+			"c=3; httponly",
+			"d=4; secure; httponly"},
+		"a=1 b=2 c=3 d=4",
+		[]query{
+			{"http://www.host.test", "a=1 c=3"},
+			{"https://www.host.test", "a=1 b=2 c=3 d=4"},
+		},
+	},
+	{
+		"Update value via http.",
+		"http://www.host.test",
+		[]string{
+			"a=w",
+			"b=x; secure",
+			"c=y; httponly",
+			"d=z; secure; httponly"},
+		"a=w b=x c=y d=z",
+		[]query{
+			{"http://www.host.test", "a=w c=y"},
+			{"https://www.host.test", "a=w b=x c=y d=z"},
+		},
+	},
+	{
+		"Clear Secure flag from a http.",
+		"http://www.host.test/",
+		[]string{
+			"b=xx",
+			"d=zz; httponly"},
+		"a=w b=xx c=y d=zz",
+		[]query{{"http://www.host.test", "a=w b=xx c=y d=zz"}},
+	},
+	{
+		"Delete all.",
+		"http://www.host.test/",
+		[]string{
+			"a=1; max-Age=-1",                    // delete via MaxAge
+			"b=2; " + expiresIn(-10),             // delete via Expires
+			"c=2; max-age=-1; " + expiresIn(-10), // delete via both
+			"d=4; max-age=-1; " + expiresIn(10)}, // MaxAge takes precedence
+		"",
+		[]query{{"http://www.host.test", ""}},
+	},
+	{
+		"Refill #1.",
+		"http://www.host.test",
+		[]string{
+			"A=1",
+			"A=2; path=/foo",
+			"A=3; domain=.host.test",
+			"A=4; path=/foo; domain=.host.test"},
+		"A=1 A=2 A=3 A=4",
+		[]query{{"http://www.host.test/foo", "A=2 A=4 A=1 A=3"}},
+	},
+	{
+		"Refill #2.",
+		"http://www.google.com",
+		[]string{
+			"A=6",
+			"A=7; path=/foo",
+			"A=8; domain=.google.com",
+			"A=9; path=/foo; domain=.google.com"},
+		"A=1 A=2 A=3 A=4 A=6 A=7 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=4 A=1 A=3"},
+			{"http://www.google.com/foo", "A=7 A=9 A=6 A=8"},
+		},
+	},
+	{
+		"Delete A7.",
+		"http://www.google.com",
+		[]string{"A=; path=/foo; max-age=-1"},
+		"A=1 A=2 A=3 A=4 A=6 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=4 A=1 A=3"},
+			{"http://www.google.com/foo", "A=9 A=6 A=8"},
+		},
+	},
+	{
+		"Delete A4.",
+		"http://www.host.test",
+		[]string{"A=; path=/foo; domain=host.test; max-age=-1"},
+		"A=1 A=2 A=3 A=6 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=1 A=3"},
+			{"http://www.google.com/foo", "A=9 A=6 A=8"},
+		},
+	},
+	{
+		"Delete A6.",
+		"http://www.google.com",
+		[]string{"A=; max-age=-1"},
+		"A=1 A=2 A=3 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=1 A=3"},
+			{"http://www.google.com/foo", "A=9 A=8"},
+		},
+	},
+	{
+		"Delete A3.",
+		"http://www.host.test",
+		[]string{"A=; domain=host.test; max-age=-1"},
+		"A=1 A=2 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=1"},
+			{"http://www.google.com/foo", "A=9 A=8"},
+		},
+	},
+	{
+		"No cross-domain delete.",
+		"http://www.host.test",
+		[]string{
+			"A=; domain=google.com; max-age=-1",
+			"A=; path=/foo; domain=google.com; max-age=-1"},
+		"A=1 A=2 A=8 A=9",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=1"},
+			{"http://www.google.com/foo", "A=9 A=8"},
+		},
+	},
+	{
+		"Delete A8 and A9.",
+		"http://www.google.com",
+		[]string{
+			"A=; domain=google.com; max-age=-1",
+			"A=; path=/foo; domain=google.com; max-age=-1"},
+		"A=1 A=2",
+		[]query{
+			{"http://www.host.test/foo", "A=2 A=1"},
+			{"http://www.google.com/foo", ""},
+		},
+	},
+}
+
+func TestUpdateAndDelete(t *testing.T) {
+	jar := newTestJar()
+	for _, test := range updateAndDeleteTests {
+		test.run(t, jar)
+	}
+}
+
+func TestExpiration(t *testing.T) {
+	jar := newTestJar()
+	jarTest{
+		"Fill jar.",
+		"http://www.host.test",
+		[]string{
+			"a=1",
+			"b=2; max-age=1",       // should expire in 1 second
+			"c=3; " + expiresIn(1), // should expire in 1 second
+			"d=4; max-age=100",
+		},
+		"a=1 b=2 c=3 d=4",
+		[]query{{"http://www.host.test", "a=1 b=2 c=3 d=4"}},
+	}.run(t, jar)
+
+	time.Sleep(1500 * time.Millisecond)
+
+	jarTest{
+		"Check jar.",
+		"http://www.host.test",
+		[]string{},
+		"a=1 d=4",
+		[]query{{"http://www.host.test", "a=1 d=4"}},
+	}.run(t, jar)
+}
+
+//
+// Tests derived from Chromium's cookie_store_unittest.h.
+//
+
+// See http://src.chromium.org/viewvc/chrome/trunk/src/net/cookies/cookie_store_unittest.h?revision=159685&content-type=text/plain
+// Some of the original tests are in a bad condition (e.g.
+// DomainWithTrailingDotTest) or are not RFC 6265 conforming (e.g.
+// TestNonDottedAndTLD #1 and #6) and have not been ported.
+
+// chromiumBasicsTests contains fundamental tests. Each jarTest has to be
+// performed on a fresh, empty Jar.
+var chromiumBasicsTests = [...]jarTest{
+	{
+		"DomainWithTrailingDotTest.",
+		"http://www.google.com/",
+		[]string{
+			"a=1; domain=.www.google.com.",
+			"b=2; domain=.www.google.com.."},
+		"",
+		[]query{
+			{"http://www.google.com", ""},
+		},
+	},
+	{
+		"ValidSubdomainTest #1.",
+		"http://a.b.c.d.com",
+		[]string{
+			"a=1; domain=.a.b.c.d.com",
+			"b=2; domain=.b.c.d.com",
+			"c=3; domain=.c.d.com",
+			"d=4; domain=.d.com"},
+		"a=1 b=2 c=3 d=4",
+		[]query{
+			{"http://a.b.c.d.com", "a=1 b=2 c=3 d=4"},
+			{"http://b.c.d.com", "b=2 c=3 d=4"},
+			{"http://c.d.com", "c=3 d=4"},
+			{"http://d.com", "d=4"},
+		},
+	},
+	{
+		"ValidSubdomainTest #2.",
+		"http://a.b.c.d.com",
+		[]string{
+			"a=1; domain=.a.b.c.d.com",
+			"b=2; domain=.b.c.d.com",
+			"c=3; domain=.c.d.com",
+			"d=4; domain=.d.com",
+			"X=bcd; domain=.b.c.d.com",
+			"X=cd; domain=.c.d.com"},
+		"X=bcd X=cd a=1 b=2 c=3 d=4",
+		[]query{
+			{"http://b.c.d.com", "b=2 c=3 d=4 X=bcd X=cd"},
+			{"http://c.d.com", "c=3 d=4 X=cd"},
+		},
+	},
+	{
+		"InvalidDomainTest #1.",
+		"http://foo.bar.com",
+		[]string{
+			"a=1; domain=.yo.foo.bar.com",
+			"b=2; domain=.foo.com",
+			"c=3; domain=.bar.foo.com",
+			"d=4; domain=.foo.bar.com.net",
+			"e=5; domain=ar.com",
+			"f=6; domain=.",
+			"g=7; domain=/",
+			"h=8; domain=http://foo.bar.com",
+			"i=9; domain=..foo.bar.com",
+			"j=10; domain=..bar.com",
+			"k=11; domain=.foo.bar.com?blah",
+			"l=12; domain=.foo.bar.com/blah",
+			"m=12; domain=.foo.bar.com:80",
+			"n=14; domain=.foo.bar.com:",
+			"o=15; domain=.foo.bar.com#sup",
+		},
+		"", // Jar is empty.
+		[]query{{"http://foo.bar.com", ""}},
+	},
+	{
+		"InvalidDomainTest #2.",
+		"http://foo.com.com",
+		[]string{"a=1; domain=.foo.com.com.com"},
+		"",
+		[]query{{"http://foo.bar.com", ""}},
+	},
+	{
+		"DomainWithoutLeadingDotTest #1.",
+		"http://manage.hosted.filefront.com",
+		[]string{"a=1; domain=filefront.com"},
+		"a=1",
+		[]query{{"http://www.filefront.com", "a=1"}},
+	},
+	{
+		"DomainWithoutLeadingDotTest #2.",
+		"http://www.google.com",
+		[]string{"a=1; domain=www.google.com"},
+		"a=1",
+		[]query{
+			{"http://www.google.com", "a=1"},
+			{"http://sub.www.google.com", "a=1"},
+			{"http://something-else.com", ""},
+		},
+	},
+	{
+		"CaseInsensitiveDomainTest.",
+		"http://www.google.com",
+		[]string{
+			"a=1; domain=.GOOGLE.COM",
+			"b=2; domain=.www.gOOgLE.coM"},
+		"a=1 b=2",
+		[]query{{"http://www.google.com", "a=1 b=2"}},
+	},
+	{
+		"TestIpAddress #1.",
+		"http://1.2.3.4/foo",
+		[]string{"a=1; path=/"},
+		"a=1",
+		[]query{{"http://1.2.3.4/foo", "a=1"}},
+	},
+	{
+		"TestIpAddress #2.",
+		"http://1.2.3.4/foo",
+		[]string{
+			"a=1; domain=.1.2.3.4",
+			"b=2; domain=.3.4"},
+		"",
+		[]query{{"http://1.2.3.4/foo", ""}},
+	},
+	{
+		"TestIpAddress #3.",
+		"http://1.2.3.4/foo",
+		[]string{"a=1; domain=1.2.3.4"},
+		"",
+		[]query{{"http://1.2.3.4/foo", ""}},
+	},
+	{
+		"TestNonDottedAndTLD #2.",
+		"http://com./index.html",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://com./index.html", "a=1"},
+			{"http://no-cookies.com./index.html", ""},
+		},
+	},
+	{
+		"TestNonDottedAndTLD #3.",
+		"http://a.b",
+		[]string{
+			"a=1; domain=.b",
+			"b=2; domain=b"},
+		"",
+		[]query{{"http://bar.foo", ""}},
+	},
+	{
+		"TestNonDottedAndTLD #4.",
+		"http://google.com",
+		[]string{
+			"a=1; domain=.com",
+			"b=2; domain=com"},
+		"",
+		[]query{{"http://google.com", ""}},
+	},
+	{
+		"TestNonDottedAndTLD #5.",
+		"http://google.co.uk",
+		[]string{
+			"a=1; domain=.co.uk",
+			"b=2; domain=.uk"},
+		"",
+		[]query{
+			{"http://google.co.uk", ""},
+			{"http://else.co.com", ""},
+			{"http://else.uk", ""},
+		},
+	},
+	{
+		"TestHostEndsWithDot.",
+		"http://www.google.com",
+		[]string{
+			"a=1",
+			"b=2; domain=.www.google.com."},
+		"a=1",
+		[]query{{"http://www.google.com", "a=1"}},
+	},
+	{
+		"PathTest",
+		"http://www.google.izzle",
+		[]string{"a=1; path=/wee"},
+		"a=1",
+		[]query{
+			{"http://www.google.izzle/wee", "a=1"},
+			{"http://www.google.izzle/wee/", "a=1"},
+			{"http://www.google.izzle/wee/war", "a=1"},
+			{"http://www.google.izzle/wee/war/more/more", "a=1"},
+			{"http://www.google.izzle/weehee", ""},
+			{"http://www.google.izzle/", ""},
+		},
+	},
+}
+
+func TestChromiumBasics(t *testing.T) {
+	for _, test := range chromiumBasicsTests {
+		jar := newTestJar()
+		test.run(t, jar)
+	}
+}
+
+// chromiumDomainTests contains jarTests which must be executed all on the
+// same Jar.
+var chromiumDomainTests = [...]jarTest{
+	{
+		"Fill #1.",
+		"http://www.google.izzle",
+		[]string{"A=B"},
+		"A=B",
+		[]query{{"http://www.google.izzle", "A=B"}},
+	},
+	{
+		"Fill #2.",
+		"http://www.google.izzle",
+		[]string{"C=D; domain=.google.izzle"},
+		"A=B C=D",
+		[]query{{"http://www.google.izzle", "A=B C=D"}},
+	},
+	{
+		"Verify A is a host cookie and not accessible from subdomain.",
+		"http://unused.nil",
+		[]string{},
+		"A=B C=D",
+		[]query{{"http://foo.www.google.izzle", "C=D"}},
+	},
+	{
+		"Verify domain cookies are found on proper domain.",
+		"http://www.google.izzle",
+		[]string{"E=F; domain=.www.google.izzle"},
+		"A=B C=D E=F",
+		[]query{{"http://www.google.izzle", "A=B C=D E=F"}},
+	},
+	{
+		"Leading dots in domain attributes are optional.",
+		"http://www.google.izzle",
+		[]string{"G=H; domain=www.google.izzle"},
+		"A=B C=D E=F G=H",
+		[]query{{"http://www.google.izzle", "A=B C=D E=F G=H"}},
+	},
+	{
+		"Verify domain enforcement works #1.",
+		"http://www.google.izzle",
+		[]string{"K=L; domain=.bar.www.google.izzle"},
+		"A=B C=D E=F G=H",
+		[]query{{"http://bar.www.google.izzle", "C=D E=F G=H"}},
+	},
+	{
+		"Verify domain enforcement works #2.",
+		"http://unused.nil",
+		[]string{},
+		"A=B C=D E=F G=H",
+		[]query{{"http://www.google.izzle", "A=B C=D E=F G=H"}},
+	},
+}
+
+func TestChromiumDomain(t *testing.T) {
+	jar := newTestJar()
+	for _, test := range chromiumDomainTests {
+		test.run(t, jar)
+	}
+
+}
+
+// chromiumDeletionTests must be performed all on the same Jar.
+var chromiumDeletionTests = [...]jarTest{
+	{
+		"Create session cookie a1.",
+		"http://www.google.com",
+		[]string{"a=1"},
+		"a=1",
+		[]query{{"http://www.google.com", "a=1"}},
+	},
+	{
+		"Delete sc a1 via MaxAge.",
+		"http://www.google.com",
+		[]string{"a=1; max-age=-1"},
+		"",
+		[]query{{"http://www.google.com", ""}},
+	},
+	{
+		"Create session cookie b2.",
+		"http://www.google.com",
+		[]string{"b=2"},
+		"b=2",
+		[]query{{"http://www.google.com", "b=2"}},
+	},
+	{
+		"Delete sc b2 via Expires.",
+		"http://www.google.com",
+		[]string{"b=2; " + expiresIn(-10)},
+		"",
+		[]query{{"http://www.google.com", ""}},
+	},
+	{
+		"Create persistent cookie c3.",
+		"http://www.google.com",
+		[]string{"c=3; max-age=3600"},
+		"c=3",
+		[]query{{"http://www.google.com", "c=3"}},
+	},
+	{
+		"Delete pc c3 via MaxAge.",
+		"http://www.google.com",
+		[]string{"c=3; max-age=-1"},
+		"",
+		[]query{{"http://www.google.com", ""}},
+	},
+	{
+		"Create persistent cookie d4.",
+		"http://www.google.com",
+		[]string{"d=4; max-age=3600"},
+		"d=4",
+		[]query{{"http://www.google.com", "d=4"}},
+	},
+	{
+		"Delete pc d4 via Expires.",
+		"http://www.google.com",
+		[]string{"d=4; " + expiresIn(-10)},
+		"",
+		[]query{{"http://www.google.com", ""}},
+	},
+}
+
+func TestChromiumDeletion(t *testing.T) {
+	jar := newTestJar()
+	for _, test := range chromiumDeletionTests {
 		test.run(t, jar)
 	}
 }
