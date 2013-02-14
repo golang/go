@@ -29,42 +29,38 @@ func run(timeout time.Duration, envv []string, dir string, argv ...string) error
 	return waitWithTimeout(timeout, cmd)
 }
 
-// runLog runs a process and returns the combined stdout/stderr,
-// as well as writing it to logfile (if specified). It returns
-// process combined stdout and stderr output, exit status and error.
-// The error returned is nil, if process is started successfully,
-// even if exit status is not successful.
-func runLog(timeout time.Duration, envv []string, logfile, dir string, argv ...string) (string, int, error) {
-	if *verbose {
-		log.Println("runLog", argv)
-	}
+// runLog runs a process and returns the combined stdout/stderr. It returns
+// process combined stdout and stderr output, exit status and error. The
+// error returned is nil, if process is started successfully, even if exit
+// status is not successful.
+func runLog(timeout time.Duration, envv []string, dir string, argv ...string) (string, bool, error) {
+	var b bytes.Buffer
+	ok, err := runOutput(timeout, envv, &b, dir, argv...)
+	return b.String(), ok, err
+}
 
-	b := new(bytes.Buffer)
-	var w io.Writer = b
-	if logfile != "" {
-		f, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			return "", 0, err
-		}
-		defer f.Close()
-		w = io.MultiWriter(f, b)
+// runOutput runs a process and directs any output to the supplied writer.
+// It returns exit status and error. The error returned is nil, if process
+// is started successfully, even if exit status is not successful.
+func runOutput(timeout time.Duration, envv []string, out io.Writer, dir string, argv ...string) (bool, error) {
+	if *verbose {
+		log.Println("runOutput", argv)
 	}
 
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = dir
 	cmd.Env = envv
-	cmd.Stdout = w
-	cmd.Stderr = w
+	cmd.Stdout = out
+	cmd.Stderr = out
 
 	startErr := cmd.Start()
 	if startErr != nil {
-		return "", 1, startErr
+		return false, startErr
 	}
-	exitStatus := 0
 	if err := waitWithTimeout(timeout, cmd); err != nil {
-		exitStatus = 1 // TODO(bradfitz): this is fake. no callers care, so just return a bool instead.
+		return false, err
 	}
-	return b.String(), exitStatus, nil
+	return true, nil
 }
 
 func waitWithTimeout(timeout time.Duration, cmd *exec.Cmd) error {

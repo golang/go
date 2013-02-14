@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -272,21 +273,36 @@ func (b *Builder) buildHash(hash string) error {
 	srcDir := filepath.Join(workpath, "go", "src")
 
 	// build
+	var buildlog bytes.Buffer
 	logfile := filepath.Join(workpath, "build.log")
+	f, err := os.Create(logfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := io.MultiWriter(f, &buildlog)
+
 	cmd := *buildCmd
 	if !filepath.IsAbs(cmd) {
 		cmd = filepath.Join(srcDir, cmd)
 	}
 	startTime := time.Now()
-	buildLog, status, err := runLog(*buildTimeout, b.envv(), logfile, srcDir, cmd)
+	ok, err := runOutput(*buildTimeout, b.envv(), w, srcDir, cmd)
 	runTime := time.Now().Sub(startTime)
-	if err != nil {
-		return fmt.Errorf("%s: %s", *buildCmd, err)
+	errf := func() string {
+		if err != nil {
+			return fmt.Sprintf("error: %v", err)
+		}
+		if !ok {
+			return "failed"
+		}
+		return "success"
 	}
+	fmt.Fprintf(w, "Build complete, duration %v. Result: %v\n", runTime, errf())
 
-	if status != 0 {
+	if err != nil || !ok {
 		// record failure
-		return b.recordResult(false, "", hash, "", buildLog, runTime)
+		return b.recordResult(false, "", hash, "", buildlog.String(), runTime)
 	}
 
 	// record success
@@ -372,9 +388,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	}
 
 	// fetch package and dependencies
-	log, status, err := runLog(*cmdTimeout, env, "", goPath, goTool, "get", "-d", pkg+"/...")
-	if err == nil && status != 0 {
-		err = fmt.Errorf("go exited with status %d", status)
+	log, ok, err := runLog(*cmdTimeout, env, goPath, goTool, "get", "-d", pkg+"/...")
+	if err == nil && !ok {
+		err = fmt.Errorf("go exited with status 1")
 	}
 	if err != nil {
 		return log, err
@@ -387,9 +403,9 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 	}
 
 	// test the package
-	log, status, err = runLog(*buildTimeout, env, "", goPath, goTool, "test", "-short", pkg+"/...")
-	if err == nil && status != 0 {
-		err = fmt.Errorf("go exited with status %d", status)
+	log, ok, err = runLog(*buildTimeout, env, goPath, goTool, "test", "-short", pkg+"/...")
+	if err == nil && !ok {
+		err = fmt.Errorf("go exited with status 1")
 	}
 	return log, err
 }
@@ -571,7 +587,7 @@ func commitPoll(key, pkg string) {
 	const N = 50 // how many revisions to grab
 
 	lockGoroot()
-	data, _, err := runLog(*cmdTimeout, nil, "", pkgRoot, hgCmd("log",
+	data, _, err := runLog(*cmdTimeout, nil, pkgRoot, hgCmd("log",
 		"--encoding=utf-8",
 		"--limit="+strconv.Itoa(N),
 		"--template="+xmlLogTemplate)...,
@@ -663,7 +679,7 @@ func fullHash(root, rev string) (string, error) {
 	if root == goroot {
 		gorootMu.Lock()
 	}
-	s, _, err := runLog(*cmdTimeout, nil, "", root,
+	s, _, err := runLog(*cmdTimeout, nil, root,
 		hgCmd("log",
 			"--encoding=utf-8",
 			"--rev="+rev,
