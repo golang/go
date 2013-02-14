@@ -168,15 +168,18 @@ const (
 )
 
 type testingData struct {
-	desc    string
-	t       *testing.T
-	data    []int
-	maxswap int // number of swaps allowed
-	nswap   int
+	desc        string
+	t           *testing.T
+	data        []int
+	maxswap     int // number of swaps allowed
+	ncmp, nswap int
 }
 
-func (d *testingData) Len() int           { return len(d.data) }
-func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j] }
+func (d *testingData) Len() int { return len(d.data) }
+func (d *testingData) Less(i, j int) bool {
+	d.ncmp++
+	return d.data[i] < d.data[j]
+}
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		d.t.Errorf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
@@ -209,8 +212,7 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface)) {
 	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"}
 	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"}
 	var tmp1, tmp2 [1025]int
-	for ni := 0; ni < len(sizes); ni++ {
-		n := sizes[ni]
+	for _, n := range sizes {
 		for m := 1; m < 2*n; m *= 2 {
 			for dist := 0; dist < _NDist; dist++ {
 				j := 0
@@ -276,8 +278,10 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface)) {
 					}
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode])
-					d := &testingData{desc, t, mdata[0:n], n * lg(n) * 12 / 10, 0}
+					d := &testingData{desc: desc, t: t, data: mdata[0:n], maxswap: n * lg(n) * 12 / 10}
 					sort(d)
+					// Uncomment if you are trying to improve the number of compares/swaps.
+					//t.Logf("%s: ncmp=%d, nswp=%d", desc, d.ncmp, d.nswap)
 
 					// If we were testing C qsort, we'd have to make a copy
 					// of the slice and sort it ourselves and then compare

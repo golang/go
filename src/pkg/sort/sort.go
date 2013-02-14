@@ -124,26 +124,31 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 	// into the middle of the slice.
 	pivot := lo
 	a, b, c, d := lo+1, lo+1, hi, hi
-	for b < c {
-		if data.Less(b, pivot) { // data[b] < pivot
-			b++
-			continue
+	for {
+		for b < c {
+			if data.Less(b, pivot) { // data[b] < pivot
+				b++
+			} else if !data.Less(pivot, b) { // data[b] = pivot
+				data.Swap(a, b)
+				a++
+				b++
+			} else {
+				break
+			}
 		}
-		if !data.Less(pivot, b) { // data[b] = pivot
-			data.Swap(a, b)
-			a++
-			b++
-			continue
+		for b < c {
+			if data.Less(pivot, c-1) { // data[c-1] > pivot
+				c--
+			} else if !data.Less(c-1, pivot) { // data[c-1] = pivot
+				data.Swap(c-1, d-1)
+				c--
+				d--
+			} else {
+				break
+			}
 		}
-		if data.Less(pivot, c-1) { // data[c-1] > pivot
-			c--
-			continue
-		}
-		if !data.Less(c-1, pivot) { // data[c-1] = pivot
-			data.Swap(c-1, d-1)
-			c--
-			d--
-			continue
+		if b >= c {
+			break
 		}
 		// data[b] > pivot; data[c-1] < pivot
 		data.Swap(b, c-1)
