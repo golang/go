@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -97,6 +98,52 @@ func (e *entry) id() string {
 	return fmt.Sprintf("%s;%s;%s", e.Domain, e.Path, e.Name)
 }
 
+// shouldSend determines whether e's cookie qualifies to be included in a
+// request to host/path. It is the caller's responsibility to check if the
+// cookie is expired.
+func (e *entry) shouldSend(https bool, host, path string) bool {
+	return e.domainMatch(host) && e.pathMatch(path) && (https || !e.Secure)
+}
+
+// domainMatch implements "domain-match" of RFC 6265 section 5.1.3.
+func (e *entry) domainMatch(host string) bool {
+	if e.Domain == host {
+		return true
+	}
+	return !e.HostOnly && strings.HasSuffix(host, "."+e.Domain)
+}
+
+// pathMatch implements "path-match" according to RFC 6265 section 5.1.4.
+func (e *entry) pathMatch(requestPath string) bool {
+	if requestPath == e.Path {
+		return true
+	}
+	if strings.HasPrefix(requestPath, e.Path) {
+		if e.Path[len(e.Path)-1] == '/' {
+			return true // The "/any/" matches "/any/path" case.
+		} else if requestPath[len(e.Path)] == '/' {
+			return true // The "/any" matches "/any/path" case.
+		}
+	}
+	return false
+}
+
+// byPathLength is a []entry sort.Interface that sorts according to RFC 6265
+// section 5.4 point 2: by longest path and then by earliest creation time.
+type byPathLength []entry
+
+func (s byPathLength) Len() int { return len(s) }
+
+func (s byPathLength) Less(i, j int) bool {
+	in, jn := len(s[i].Path), len(s[j].Path)
+	if in == jn {
+		return s[i].Creation.Before(s[j].Creation)
+	}
+	return in > jn
+}
+
+func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
 // Cookies implements the Cookies method of the http.CookieJar interface.
 //
 // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
@@ -118,10 +165,28 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
 		return cookies
 	}
 
+	now := time.Now()
+	https := u.Scheme == "https"
+	path := u.Path
+	if path == "" {
+		path = "/"
+	}
+
 	modified := false
-	for _, _ = range submap {
-		// TODO: handle expired cookies
-		// TODO: handle selection of cookies
+	var selected []entry
+	for id, e := range submap {
+		if e.Persistent && !e.Expires.After(now) {
+			delete(submap, id)
+			modified = true
+			continue
+		}
+		if !e.shouldSend(https, host, path) {
+			continue
+		}
+		e.LastAccess = now
+		submap[id] = e
+		selected = append(selected, e)
+		modified = true
 	}
 	if modified {
 		if len(submap) == 0 {
@@ -131,7 +196,10 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
 		}
 	}
 
-	// TODO: proper sorting based on Path length (and Creation)
+	sort.Sort(byPathLength(selected))
+	for _, e := range selected {
+		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value})
+	}
 
 	return cookies
 }
