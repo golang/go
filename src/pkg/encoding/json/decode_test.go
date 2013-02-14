@@ -330,6 +330,43 @@ var unmarshalTests = []unmarshalTest{
 		ptr: new(S10),
 		out: S10{S13: S13{S8: S8{S9: S9{Y: 2}}}},
 	},
+
+	// invalid UTF-8 is coerced to valid UTF-8.
+	{
+		in:  "\"hello\xffworld\"",
+		ptr: new(string),
+		out: "hello\ufffdworld",
+	},
+	{
+		in:  "\"hello\xc2\xc2world\"",
+		ptr: new(string),
+		out: "hello\ufffd\ufffdworld",
+	},
+	{
+		in:  "\"hello\xc2\xffworld\"",
+		ptr: new(string),
+		out: "hello\ufffd\ufffdworld",
+	},
+	{
+		in:  "\"hello\\ud800world\"",
+		ptr: new(string),
+		out: "hello\ufffdworld",
+	},
+	{
+		in:  "\"hello\\ud800\\ud800world\"",
+		ptr: new(string),
+		out: "hello\ufffd\ufffdworld",
+	},
+	{
+		in:  "\"hello\\ud800\\ud800world\"",
+		ptr: new(string),
+		out: "hello\ufffd\ufffdworld",
+	},
+	{
+		in:  "\"hello\xed\xa0\x80\xed\xb0\x80world\"",
+		ptr: new(string),
+		out: "hello\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdworld",
+	},
 }
 
 func TestMarshal(t *testing.T) {

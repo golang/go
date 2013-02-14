@@ -55,6 +55,11 @@ import (
 // If no more serious errors are encountered, Unmarshal returns
 // an UnmarshalTypeError describing the earliest such error.
 //
+// When unmarshaling quoted strings, invalid UTF-8 or
+// invalid UTF-16 surrogate pairs are not treated as an error.
+// Instead, they are replaced by the Unicode replacement
+// character U+FFFD.
+//
 func Unmarshal(data []byte, v interface{}) error {
 	// Check for well-formedness.
 	// Avoids filling out half a data structure
