@@ -24,6 +24,7 @@ static	Node*	append(Node*, NodeList**);
 static	Node*	sliceany(Node*, NodeList**);
 static	void	walkcompare(Node**, NodeList**);
 static	void	walkrotate(Node**);
+static	void	walkmul(Node**, NodeList**);
 static	void	walkdiv(Node**, NodeList**);
 static	int	bounded(Node*, int64);
 static	Mpint	mpzero;
@@ -481,7 +482,6 @@ walkexpr(Node **np, NodeList **init)
 
 	case OAND:
 	case OSUB:
-	case OMUL:
 	case OHMUL:
 	case OLT:
 	case OLE:
@@ -930,6 +930,12 @@ walkexpr(Node **np, NodeList **init)
 		n->right = nod(OCOM, n->right, N);
 		typecheck(&n->right, Erv);
 		walkexpr(&n->right, init);
+		goto ret;
+
+	case OMUL:
+		walkexpr(&n->left, init);
+		walkexpr(&n->right, init);
+		walkmul(&n, init);
 		goto ret;
 
 	case ODIV:
@@ -2895,6 +2901,70 @@ yes:
 
 	*np = n;
 	return;
+}
+
+/*
+ * walkmul rewrites integer multiplication by powers of two as shifts.
+ */
+static void
+walkmul(Node **np, NodeList **init)
+{
+	Node *n, *nl, *nr;
+	int pow, neg, w;
+	
+	n = *np;
+	if(!isint[n->type->etype])
+		return;
+
+	if(n->right->op == OLITERAL) {
+		nl = n->left;
+		nr = n->right;
+	} else if(n->left->op == OLITERAL) {
+		nl = n->right;
+		nr = n->left;
+	} else
+		return;
+
+	neg = 0;
+
+	// x*0 is 0 (and side effects of x).
+	if(mpgetfix(nr->val.u.xval) == 0) {
+		cheapexpr(nl, init);
+		nodconst(n, n->type, 0);
+		goto ret;
+	}
+
+	// nr is a constant.
+	pow = powtwo(nr);
+	if(pow < 0)
+		return;
+	if(pow >= 1000) {
+		// negative power of 2, like -16
+		neg = 1;
+		pow -= 1000;
+	}
+
+	w = nl->type->width*8;
+	if(pow+1 >= w)// too big, shouldn't happen
+		return;
+
+	nl = cheapexpr(nl, init);
+
+	if(pow == 0) {
+		// x*1 is x
+		n = nl;
+		goto ret;
+	}
+	
+	n = nod(OLSH, nl, nodintconst(pow));
+
+ret:
+	if(neg)
+		n = nod(OMINUS, n, N);
+
+	typecheck(&n, Erv);
+	walkexpr(&n, init);
+	*np = n;
 }
 
 /*
