@@ -171,9 +171,9 @@ redeclare(Sym *s, char *where)
 			line1 = s->lastlineno;
 		}
 
-		yyerrorl(line1, "%S redeclared %s (%#N)\n"
+		yyerrorl(line1, "%S redeclared %s\n"
 			"\tprevious declaration at %L",
-			s, where, s->def, line2);
+			s, where, line2);
 	}
 }
 
