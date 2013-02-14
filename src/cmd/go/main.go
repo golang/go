@@ -379,6 +379,25 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
 	return out
 }
 
+// envForDir returns a copy of the environment
+// suitable for running in the given directory.
+// The environment is the current process's environment
+// but with an updated $PWD, so that an os.Getwd in the
+// child will be faster.
+func envForDir(dir string) []string {
+	env := os.Environ()
+	for i, kv := range env {
+		if strings.HasPrefix(kv, "PWD=") {
+			env[i] = "PWD=" + dir
+			return env
+		}
+	}
+	// Internally we only use rooted paths, so dir is rooted.
+	// Even if dir is not rooted, no harm done.
+	env = append(env, "PWD="+dir)
+	return env
+}
+
 // matchPattern(pattern)(name) reports whether
 // name matches pattern.  Pattern is a limited glob
 // pattern in which '...' means 'any string' and there
