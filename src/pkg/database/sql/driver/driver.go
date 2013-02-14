@@ -56,7 +56,7 @@ var ErrBadConn = errors.New("driver: bad connection")
 
 // Execer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement Execer, the db package's DB.Exec will
+// If a Conn does not implement Execer, the sql package's DB.Exec will
 // first prepare a query, execute the statement, and then close the
 // statement.
 //
@@ -67,7 +67,7 @@ type Execer interface {
 
 // Queryer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn does not implement Queryer, the db package's DB.Query will
+// If a Conn does not implement Queryer, the sql package's DB.Query will
 // first prepare a query, execute the statement, and then close the
 // statement.
 //

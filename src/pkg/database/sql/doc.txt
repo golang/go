@@ -21,7 +21,7 @@ Goals of the sql and sql/driver packages:
   Database Driver -> sql (to register) + sql/driver (implement interfaces)
 
 * Make type casting/conversions consistent between all drivers. To
-  achieve this, most of the conversions are done in the db package,
+  achieve this, most of the conversions are done in the sql package,
   not in each driver. The drivers then only have to deal with a
   smaller set of types.
 
