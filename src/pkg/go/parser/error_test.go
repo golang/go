@@ -145,6 +145,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 		t.Error(err)
 		return
 	}
+	found.RemoveMultiples()
 
 	// we are expecting the following errors
 	// (collect these after parsing a file so that it is found in the file set)
