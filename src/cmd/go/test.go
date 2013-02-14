@@ -635,6 +635,7 @@ func (b *builder) runTest(a *action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
+	cmd.Env = envForDir(cmd.Dir)
 	var buf bytes.Buffer
 	if testStreamOutput {
 		cmd.Stdout = os.Stdout
@@ -647,7 +648,7 @@ func (b *builder) runTest(a *action) error {
 	// If there are any local SWIG dependencies, we want to load
 	// the shared library from the build directory.
 	if a.p.usesSwig() {
-		env := os.Environ()
+		env := cmd.Env
 		found := false
 		prefix := "LD_LIBRARY_PATH="
 		for i, v := range env {

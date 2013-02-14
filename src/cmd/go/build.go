@@ -1226,7 +1226,7 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		cmd.Dir = dir
-		// TODO: cmd.Env
+		cmd.Env = envForDir(cmd.Dir)
 		err := cmd.Run()
 
 		// cmd.Run will fail on Unix if some other process has the binary
