@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 var stop = make(chan bool, 1)
@@ -43,6 +44,36 @@ func TestStopTheWorldDeadlock(t *testing.T) {
 	<-compl
 	stop <- true
 	runtime.GOMAXPROCS(maxprocs)
+}
+
+func TestYieldLocked(t *testing.T) {
+	const N = 10
+	c := make(chan bool)
+	go func() {
+		runtime.LockOSThread()
+		for i := 0; i < N; i++ {
+			runtime.Gosched()
+			time.Sleep(time.Millisecond)
+		}
+		c <- true
+		// runtime.UnlockOSThread() is deliberately omitted
+	}()
+	<-c
+}
+
+func TestBlockLocked(t *testing.T) {
+	const N = 10
+	c := make(chan bool)
+	go func() {
+		runtime.LockOSThread()
+		for i := 0; i < N; i++ {
+			c <- true
+		}
+		runtime.UnlockOSThread()
+	}()
+	for i := 0; i < N; i++ {
+		<-c
+	}
 }
 
 func stackGrowthRecursive(i int) {
