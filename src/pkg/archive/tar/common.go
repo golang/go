@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"time"
 )
 
@@ -63,18 +64,114 @@ const (
 	fileNamePrefixSize = 155 // Maximum number of ustar extension bytes.
 )
 
+// FileInfo returns an os.FileInfo for the Header.
+func (h *Header) FileInfo() os.FileInfo {
+	return headerFileInfo{h}
+}
+
+// headerFileInfo implements os.FileInfo.
+type headerFileInfo struct {
+	h *Header
+}
+
+func (fi headerFileInfo) Size() int64        { return fi.h.Size }
+func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
+func (fi headerFileInfo) ModTime() time.Time { return fi.h.ModTime }
+func (fi headerFileInfo) Sys() interface{}   { return fi.h }
+
+// Name returns the base name of the file.
+func (fi headerFileInfo) Name() string {
+	if fi.IsDir() {
+		return path.Clean(fi.h.Name)
+	}
+	return fi.h.Name
+}
+
+// Mode returns the permission and mode bits for the headerFileInfo.
+func (fi headerFileInfo) Mode() (mode os.FileMode) {
+	// Set file permission bits.
+	mode = os.FileMode(fi.h.Mode).Perm()
+
+	// Set setuid, setgid and sticky bits.
+	if fi.h.Mode&c_ISUID != 0 {
+		// setuid
+		mode |= os.ModeSetuid
+	}
+	if fi.h.Mode&c_ISGID != 0 {
+		// setgid
+		mode |= os.ModeSetgid
+	}
+	if fi.h.Mode&c_ISVTX != 0 {
+		// sticky
+		mode |= os.ModeSticky
+	}
+
+	// Set file mode bits.
+	// clear perm, setuid, setgid and sticky bits.
+	m := os.FileMode(fi.h.Mode) &^ 07777
+	if m == c_ISDIR {
+		// directory
+		mode |= os.ModeDir
+	}
+	if m == c_ISFIFO {
+		// named pipe (FIFO)
+		mode |= os.ModeNamedPipe
+	}
+	if m == c_ISLNK {
+		// symbolic link
+		mode |= os.ModeSymlink
+	}
+	if m == c_ISBLK {
+		// device file
+		mode |= os.ModeDevice
+	}
+	if m == c_ISCHR {
+		// Unix character device
+		mode |= os.ModeDevice
+		mode |= os.ModeCharDevice
+	}
+	if m == c_ISSOCK {
+		// Unix domain socket
+		mode |= os.ModeSocket
+	}
+
+	switch fi.h.Typeflag {
+	case TypeLink, TypeSymlink:
+		// hard link, symbolic link
+		mode |= os.ModeSymlink
+	case TypeChar:
+		// character device node
+		mode |= os.ModeDevice
+		mode |= os.ModeCharDevice
+	case TypeBlock:
+		// block device node
+		mode |= os.ModeDevice
+	case TypeDir:
+		// directory
+		mode |= os.ModeDir
+	case TypeFifo:
+		// fifo node
+		mode |= os.ModeNamedPipe
+	}
+
+	return mode
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
 var sysStat func(fi os.FileInfo, h *Header) error
 
 // Mode constants from the tar spec.
 const (
-	c_ISDIR  = 040000
-	c_ISFIFO = 010000
-	c_ISREG  = 0100000
-	c_ISLNK  = 0120000
-	c_ISBLK  = 060000
-	c_ISCHR  = 020000
-	c_ISSOCK = 0140000
+	c_ISUID  = 04000   // Set uid
+	c_ISGID  = 02000   // Set gid
+	c_ISVTX  = 01000   // Save text (sticky bit)
+	c_ISDIR  = 040000  // Directory
+	c_ISFIFO = 010000  // FIFO
+	c_ISREG  = 0100000 // Regular file
+	c_ISLNK  = 0120000 // Symbolic link
+	c_ISBLK  = 060000  // Block special file
+	c_ISCHR  = 020000  // Character special file
+	c_ISSOCK = 0140000 // Socket
 )
 
 // FileInfoHeader creates a partially-populated Header from fi.
@@ -84,13 +181,14 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("tar: FileInfo is nil")
 	}
+	fm := fi.Mode()
 	h := &Header{
 		Name:    fi.Name(),
 		ModTime: fi.ModTime(),
-		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
+		Mode:    int64(fm.Perm()), // or'd with c_IS* constants later
 	}
 	switch {
-	case fi.Mode().IsRegular():
+	case fm.IsRegular():
 		h.Mode |= c_ISREG
 		h.Typeflag = TypeReg
 		h.Size = fi.Size()
@@ -98,22 +196,34 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		h.Typeflag = TypeDir
 		h.Mode |= c_ISDIR
 		h.Name += "/"
-	case fi.Mode()&os.ModeSymlink != 0:
+	case fm&os.ModeSymlink != 0:
 		h.Typeflag = TypeSymlink
 		h.Mode |= c_ISLNK
 		h.Linkname = link
-	case fi.Mode()&os.ModeDevice != 0:
-		if fi.Mode()&os.ModeCharDevice != 0 {
+	case fm&os.ModeDevice != 0:
+		if fm&os.ModeCharDevice != 0 {
 			h.Mode |= c_ISCHR
 			h.Typeflag = TypeChar
 		} else {
 			h.Mode |= c_ISBLK
 			h.Typeflag = TypeBlock
 		}
-	case fi.Mode()&os.ModeSocket != 0:
+	case fm&os.ModeNamedPipe != 0:
+		h.Typeflag = TypeFifo
+		h.Mode |= c_ISFIFO
+	case fm&os.ModeSocket != 0:
 		h.Mode |= c_ISSOCK
 	default:
-		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fi.Mode())
+		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
+	}
+	if fm&os.ModeSetuid != 0 {
+		h.Mode |= c_ISUID
+	}
+	if fm&os.ModeSetgid != 0 {
+		h.Mode |= c_ISGID
+	}
+	if fm&os.ModeSticky != 0 {
+		h.Mode |= c_ISVTX
 	}
 	if sysStat != nil {
 		return h, sysStat(fi, h)
