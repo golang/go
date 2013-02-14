@@ -433,6 +433,7 @@ func (t *test) run() {
 		cmd.Stderr = &buf
 		if useTmp {
 			cmd.Dir = t.tempDir
+			cmd.Env = envForDir(cmd.Dir)
 		}
 		err := cmd.Run()
 		if err != nil {
@@ -827,4 +828,21 @@ func checkShouldTest() {
 	assertNot(shouldTest("// +build !windows", "windows", "amd64"))
 	assertNot(shouldTest("// +build arm 386", "linux", "amd64"))
 	assert(shouldTest("// This is a test.", "os", "arch"))
+}
+
+// envForDir returns a copy of the environment
+// suitable for running in the given directory.
+// The environment is the current process's environment
+// but with an updated $PWD, so that an os.Getwd in the
+// child will be faster.
+func envForDir(dir string) []string {
+	env := os.Environ()
+	for i, kv := range env {
+		if strings.HasPrefix(kv, "PWD=") {
+			env[i] = "PWD=" + dir
+			return env
+		}
+	}
+	env = append(env, "PWD="+dir)
+	return env
 }
