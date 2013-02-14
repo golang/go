@@ -5,8 +5,14 @@
 package os
 
 import (
+	"sync"
 	"syscall"
 )
+
+var getwdCache struct {
+	sync.Mutex
+	dir string
+}
 
 // Getwd returns a rooted path name corresponding to the
 // current directory.  If the current directory can be
@@ -29,6 +35,17 @@ func Getwd() (pwd string, err error) {
 	// if $PWD is set and matches ".", use it.
 	pwd = Getenv("PWD")
 	if len(pwd) > 0 && pwd[0] == '/' {
+		d, err := Stat(pwd)
+		if err == nil && SameFile(dot, d) {
+			return pwd, nil
+		}
+	}
+
+	// Apply same kludge but to cached dir instead of $PWD.
+	getwdCache.Lock()
+	pwd = getwdCache.dir
+	getwdCache.Unlock()
+	if len(pwd) > 0 {
 		d, err := Stat(pwd)
 		if err == nil && SameFile(dot, d) {
 			return pwd, nil
@@ -88,5 +105,11 @@ func Getwd() (pwd string, err error) {
 		// Set up for next round.
 		dot = pd
 	}
+
+	// Save answer as hint to avoid the expensive path next time.
+	getwdCache.Lock()
+	getwdCache.dir = pwd
+	getwdCache.Unlock()
+
 	return pwd, nil
 }
