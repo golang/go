@@ -409,7 +409,6 @@ static char *proto_gccargs[] = {
 	"-Wno-comment",
 	"-Werror",
 	"-fno-common",
-	"-ggdb",
 	"-pipe",
 	"-O2",
 };
@@ -552,7 +551,7 @@ static void
 install(char *dir)
 {
 	char *name, *p, *elem, *prefix, *exe;
-	bool islib, ispkg, isgo, stale;
+	bool islib, ispkg, isgo, stale, clang;
 	Buf b, b1, path;
 	Vec compile, files, link, go, missing, clean, lib, extra;
 	Time ttarg, t;
@@ -601,9 +600,14 @@ install(char *dir)
 		xgetenv(&b, "CC");
 		if(b.len == 0)
 			bprintf(&b, "gcc");
+		clang = contains(bstr(&b), "clang");
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
+		if(clang)
+			vadd(&gccargs, "-g");
+		else
+			vadd(&gccargs, "-ggdb");
 	}
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");

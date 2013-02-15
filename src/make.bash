@@ -29,6 +29,9 @@
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 # to include all cgo related files, .c and .go file with "cgo"
 # build directive, in the build. Set it to 0 to ignore them.
+#
+# CC: Command line to run to get at host C compiler.
+# Default is "gcc". Also supported: "clang".
 
 set -e
 if [ ! -f run.bash ]; then
@@ -103,7 +106,7 @@ case "$GOHOSTARCH" in
 386) mflag=-m32;;
 amd64) mflag=-m64;;
 esac
-gcc $mflag -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+${CC:-gcc} $mflag -O2 -Wall -Werror -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
 
 eval $(./cmd/dist/dist env -p)
 echo

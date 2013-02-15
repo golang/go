@@ -374,7 +374,7 @@ extern	char*	unsharp(char*);
 /* command line */
 extern char	*argv0;
 extern void __fixargv0(void);
-#define	ARGBEGIN	for((argv0?0:(argv0=(__fixargv0(),*argv))),argv++,argc--;\
+#define	ARGBEGIN	for((void)(argv0?0:(argv0=(__fixargv0(),*argv))),argv++,argc--;\
 			    argv[0] && argv[0][0]=='-' && argv[0][1];\
 			    argc--, argv++) {\
 				char *_args, *_argt;\
