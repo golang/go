@@ -82,7 +82,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			// The 0x48 byte is only on amd64.
 			p = (byte*)pc;
 			// We check p < p+8 to avoid wrapping and faulting if we lose track.
-			if(runtime·mheap.arena_start < p && p < p+8 && p+8 < runtime·mheap.arena_used &&  // pointer in allocated memory
+			if(runtime·mheap->arena_start < p && p < p+8 && p+8 < runtime·mheap->arena_used &&  // pointer in allocated memory
 			   (sizeof(uintptr) != 8 || *p++ == 0x48) &&  // skip 0x48 byte on amd64
 			   p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2);
@@ -234,7 +234,7 @@ isclosureentry(uintptr pc)
 	int32 i, siz;
 	
 	p = (byte*)pc;
-	if(p < runtime·mheap.arena_start || p+32 > runtime·mheap.arena_used)
+	if(p < runtime·mheap->arena_start || p+32 > runtime·mheap->arena_used)
 		return 0;
 
 	if(*p == 0xe8) {

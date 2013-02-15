@@ -383,7 +383,7 @@ scavenge(uint64 now, uint64 limit)
 	uintptr sumreleased;
 	MHeap *h;
 	
-	h = &runtime·mheap;
+	h = runtime·mheap;
 	sumreleased = 0;
 	for(i=0; i < nelem(h->free); i++)
 		sumreleased += scavengelist(&h->free[i], now, limit);
@@ -421,7 +421,7 @@ runtime·MHeap_Scavenger(void)
 	if(env != nil)
 		trace = runtime·atoi(env) > 0;
 
-	h = &runtime·mheap;
+	h = runtime·mheap;
 	for(k=0;; k++) {
 		runtime·noteclear(&note);
 		runtime·entersyscall();
@@ -463,9 +463,9 @@ void
 runtime∕debug·freeOSMemory(void)
 {
 	runtime·gc(1);
-	runtime·lock(&runtime·mheap);
+	runtime·lock(runtime·mheap);
 	scavenge(~(uintptr)0, 0);
-	runtime·unlock(&runtime·mheap);
+	runtime·unlock(runtime·mheap);
 }
 
 // Initialize a new span with the given start and npages.
