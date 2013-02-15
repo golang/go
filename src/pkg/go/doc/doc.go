@@ -18,6 +18,12 @@ type Package struct {
 	Imports    []string
 	Filenames  []string
 	Bugs       []string
+	// Notes such as TODO(userid): or SECURITY(userid):
+	// along the lines of BUG(userid). Any marker with 2 or more upper
+	// case [A-Z] letters is recognised.
+	// BUG is explicitly not included in these notes but will
+	// be in a subsequent change when the Bugs field above is removed.
+	Notes map[string][]string
 
 	// declarations
 	Consts []*Value
@@ -89,6 +95,7 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 		Imports:    sortedKeys(r.imports),
 		Filenames:  r.filenames,
 		Bugs:       r.bugs,
+		Notes:      r.notes,
 		Consts:     sortedValues(r.values, token.CONST),
 		Types:      sortedTypes(r.types, mode&AllMethods != 0),
 		Vars:       sortedValues(r.values, token.VAR),
