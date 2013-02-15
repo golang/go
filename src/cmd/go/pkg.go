@@ -125,6 +125,9 @@ func (p *PackageError) Error() string {
 		// is the most important thing.
 		return p.Pos + ": " + p.Err
 	}
+	if len(p.ImportStack) == 0 {
+		return p.Err
+	}
 	return "package " + strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
 }
 
@@ -370,6 +373,31 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	p.allgofiles = append(p.allgofiles, p.gofiles...)
 	sort.Strings(p.allgofiles)
 
+	// Check for case-insensitive collision of input files.
+	// To avoid problems on case-insensitive files, we reject any package
+	// where two different input files have equal names under a case-insensitive
+	// comparison.
+	f1, f2 := foldDup(stringList(
+		p.GoFiles,
+		p.CgoFiles,
+		p.IgnoredGoFiles,
+		p.CFiles,
+		p.HFiles,
+		p.SFiles,
+		p.SysoFiles,
+		p.SwigFiles,
+		p.SwigCXXFiles,
+		p.TestGoFiles,
+		p.XTestGoFiles,
+	))
+	if f1 != "" {
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         fmt.Sprintf("case-insensitive file name collision: %q and %q", f1, f2),
+		}
+		return p
+	}
+
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))
 	deps := make(map[string]bool)
@@ -423,8 +451,21 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		p.target = ""
 	}
-
 	p.Target = p.target
+
+	// In the absence of errors lower in the dependency tree,
+	// check for case-insensitive collisions of import paths.
+	if len(p.DepsErrors) == 0 {
+		dep1, dep2 := foldDup(p.Deps)
+		if dep1 != "" {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("case-insensitive import collision: %q and %q", dep1, dep2),
+			}
+			return p
+		}
+	}
+
 	return p
 }
 
