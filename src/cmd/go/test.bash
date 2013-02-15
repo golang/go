@@ -279,6 +279,47 @@ fi
 unset GOPATH
 rm -rf $d
 
+# issue 4773. case-insensitive collisions
+d=$(mktemp -d -t testgo)
+export GOPATH=$d
+mkdir -p $d/src/example/a $d/src/example/b
+cat >$d/src/example/a/a.go <<EOF
+package p
+import (
+	_ "math/rand"
+	_ "math/Rand"
+)
+EOF
+if ./testgo list example/a 2>$d/out; then
+	echo go list example/a should have failed, did not.
+	ok=false
+elif ! grep "case-insensitive import collision" $d/out >/dev/null; then
+	echo go list example/a did not report import collision.
+	ok=false
+fi
+cat >$d/src/example/b/file.go <<EOF
+package b
+EOF
+cat >$d/src/example/b/FILE.go <<EOF
+package b
+EOF
+if [ $(ls $d/src/example/b | wc -l) = 2 ]; then
+	# case-sensitive file system, let directory read find both files
+	args="example/b"
+else
+	# case-insensitive file system, list files explicitly on command line.
+	args="$d/src/example/b/file.go $d/src/example/b/FILE.go"
+fi
+if ./testgo list $args 2>$d/out; then
+	echo go list example/b should have failed, did not.
+	ok=false
+elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
+	echo go list example/b did not report file name collision.
+	ok=false
+fi
+unset GOPATH
+rm -rf $d
+
 # Only succeeds if source order is preserved.
 ./testgo test testdata/example[12]_test.go
 
