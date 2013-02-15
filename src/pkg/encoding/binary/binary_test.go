@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -149,8 +150,14 @@ func TestWriteT(t *testing.T) {
 
 	tv := reflect.Indirect(reflect.ValueOf(ts))
 	for i, n := 0, tv.NumField(); i < n; i++ {
+		typ := tv.Field(i).Type().String()
+		if typ == "[4]int" {
+			typ = "int" // the problem is int, not the [4]
+		}
 		if err := Write(buf, BigEndian, tv.Field(i).Interface()); err == nil {
 			t.Errorf("WriteT.%v: have err == nil, want non-nil", tv.Field(i).Type())
+		} else if !strings.Contains(err.Error(), typ) {
+			t.Errorf("WriteT: have err == %q, want it to mention %s", err, typ)
 		}
 	}
 }
@@ -238,7 +245,7 @@ func BenchmarkReadStruct(b *testing.B) {
 	bsr := &byteSliceReader{}
 	var buf bytes.Buffer
 	Write(&buf, BigEndian, &s)
-	n := dataSize(reflect.ValueOf(s))
+	n, _ := dataSize(reflect.ValueOf(s))
 	b.SetBytes(int64(n))
 	t := s
 	b.ResetTimer()
