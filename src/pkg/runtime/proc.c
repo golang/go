@@ -253,6 +253,14 @@ runtime·main(void)
 	main·main();
 	if(raceenabled)
 		runtime·racefini();
+	
+	// Make racy client program work: if panicking on
+	// another goroutine at the same time as main returns,
+	// let the other goroutine finish printing the panic trace.
+	// Once it does, it will exit. See issue 3934.
+	if(runtime·panicking)
+		runtime·park(nil, nil, "panicwait");
+
 	runtime·exit(0);
 	for(;;)
 		*(int32*)runtime·main = 0;
