@@ -79,6 +79,8 @@ func (p *ProcessState) Sys() interface{} {
 // SysUsage returns system-dependent resource usage information about
 // the exited process.  Convert it to the appropriate underlying
 // type, such as *syscall.Rusage on Unix, to access its contents.
+// (On Unix, *syscall.Rusage matches struct rusage as defined in the
+// getrusage(2) manual page.)
 func (p *ProcessState) SysUsage() interface{} {
 	return p.sysUsage()
 }
