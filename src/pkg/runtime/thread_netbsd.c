@@ -21,7 +21,6 @@ enum
 extern SigTab runtime·sigtab[];
 
 static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
-static Sigset sigset_none;
 
 extern void runtime·getcontext(UcontextT *context);
 extern int32 runtime·lwp_create(UcontextT *context, uintptr flags, void *lwpid);
@@ -164,6 +163,9 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	uc.uc_link = nil;
 	uc.uc_sigmask = sigset_all;
 
+	mp->sigset = runtime·mal(sizeof(Sigset));
+	runtime·sigprocmask(SIG_SETMASK, nil, mp->sigset);
+
 	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, gp, fn);
 
 	ret = runtime·lwp_create(&uc, 0, &mp->procid);
@@ -195,7 +197,8 @@ runtime·minit(void)
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
-	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+	if(m->sigset != nil)
+		runtime·sigprocmask(SIG_SETMASK, m->sigset, nil);
 }
 
 void

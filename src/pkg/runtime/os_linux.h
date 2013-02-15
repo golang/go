@@ -4,6 +4,7 @@
 
 #define SIG_DFL ((void*)0)
 #define SIG_IGN ((void*)1)
+#define SIGHUP 1
 
 // Linux-specific system calls
 int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);

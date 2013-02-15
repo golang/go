@@ -10,7 +10,6 @@
 extern SigTab runtime·sigtab[];
 
 static Sigset sigset_all = ~(Sigset)0;
-static Sigset sigset_none;
 static Sigset sigset_prof = 1<<(SIGPROF-1);
 
 static void
@@ -99,6 +98,8 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	}
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
+	mp->sigset = runtime·mal(sizeof(Sigset));
+	*(Sigset*)mp->sigset = oset;
 	errno = runtime·bsdthread_create(stk, mp, gp, fn);
 	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
 
@@ -116,10 +117,9 @@ runtime·minit(void)
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 
-	if(m->profilehz > 0)
-		runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
-	else
-		runtime·sigprocmask(SIG_SETMASK, &sigset_prof, nil);
+	if(m->sigset != nil)
+		runtime·sigprocmask(SIG_SETMASK, m->sigset, nil);
+	runtime·setprof(m->profilehz > 0);
 }
 
 // Mach IPC, to get at semaphores

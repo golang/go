@@ -4,6 +4,7 @@
 
 #define SIG_DFL ((void*)0)
 #define SIG_IGN ((void*)1)
+#define SIGHUP 1
 
 #define SIG_BLOCK 1
 #define SIG_UNBLOCK 2

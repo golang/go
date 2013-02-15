@@ -21,7 +21,6 @@ enum
 extern SigTab runtime·sigtab[];
 
 static Sigset sigset_all = ~(Sigset)0;
-static Sigset sigset_none;
 
 extern int64 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
 extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
@@ -142,6 +141,8 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	param.tf_stack = stk;
 
 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+	mp->sigset = runtime·mal(sizeof(Sigset));
+	*(Sigset*)mp->sigset = oset;
 	ret = runtime·tfork((byte*)&param, sizeof(param), mp, gp, fn);
 	runtime·sigprocmask(SIG_SETMASK, oset);
 
@@ -172,7 +173,8 @@ runtime·minit(void)
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
-	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+	if(m->sigset != nil)
+		runtime·sigprocmask(SIG_SETMASK, m->sigset, nil, sizeof *m->sigset);
 }
 
 void
