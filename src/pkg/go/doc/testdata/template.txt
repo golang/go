@@ -62,4 +62,7 @@ TYPES
 */}}{{with .Bugs}}
 BUGS
 {{range .}}	{{synopsis .}}
-{{end}}{{end}}
+{{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
+{{$marker}}
+{{range $content}}	{{synopsis .}}
+{{end}}{{end}}{{end}}

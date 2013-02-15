@@ -149,6 +149,7 @@ type reader struct {
 	doc       string // package documentation, if any
 	filenames []string
 	bugs      []string
+	notes     map[string][]string
 
 	// declarations
 	imports map[string]int
@@ -400,9 +401,23 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 }
 
 var (
-	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*") // BUG(uid):
-	bug_content = regexp.MustCompile("[^ \n\r\t]+")                    // at least one non-whitespace char
+	noteMarker  = regexp.MustCompile(`^/[/*][ \t]*([A-Z][A-Z]+)\(.+\):[ \t]*(.*)`) // MARKER(uid)
+	noteContent = regexp.MustCompile(`[^ \n\r\t]+`)                                // at least one non-whitespace char
 )
+
+func readNote(c *ast.CommentGroup) (marker, annotation string) {
+	text := c.List[0].Text
+	if m := noteMarker.FindStringSubmatch(text); m != nil {
+		if btxt := m[2]; noteContent.MatchString(btxt) {
+			// non-empty MARKER comment; collect comment without the MARKER prefix
+			list := append([]*ast.Comment(nil), c.List...) // make a copy
+			list[0].Text = m[2]
+
+			return m[1], (&ast.CommentGroup{List: list}).Text()
+		}
+	}
+	return "", ""
+}
 
 // readFile adds the AST for a source file to the reader.
 //
@@ -469,16 +484,15 @@ func (r *reader) readFile(src *ast.File) {
 		}
 	}
 
-	// collect BUG(...) comments
+	// collect MARKER(...): annotations
 	for _, c := range src.Comments {
-		text := c.List[0].Text
-		if m := bug_markers.FindStringIndex(text); m != nil {
-			// found a BUG comment; maybe empty
-			if btxt := text[m[1]:]; bug_content.MatchString(btxt) {
-				// non-empty BUG comment; collect comment without BUG prefix
-				list := append([]*ast.Comment(nil), c.List...) // make a copy
-				list[0].Text = text[m[1]:]
-				r.bugs = append(r.bugs, (&ast.CommentGroup{List: list}).Text())
+		if marker, text := readNote(c); marker != "" {
+			// Remove r.bugs in a separate CL along with
+			// any necessary changes to client code.
+			if marker == "BUG" {
+				r.bugs = append(r.bugs, text)
+			} else {
+				r.notes[marker] = append(r.notes[marker], text)
 			}
 		}
 	}
@@ -492,6 +506,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 	r.mode = mode
 	r.types = make(map[string]*namedType)
 	r.funcs = make(methodSet)
+	r.notes = make(map[string][]string)
 
 	// sort package files before reading them so that the
 	// result does not depend on map iteration order
