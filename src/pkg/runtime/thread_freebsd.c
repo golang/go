@@ -13,6 +13,7 @@ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 #define	CTL_HW	6
 #define	HW_NCPU	3
 
+static Sigset sigset_none;
 static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
 
 static int32
@@ -90,8 +91,6 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	}
 
 	runtime·sigprocmask(&sigset_all, &oset);
-	mp->sigset = runtime·mal(sizeof(Sigset));
-	*(Sigset*)mp->sigset = oset;
 	runtime·memclr((byte*)&param, sizeof param);
 
 	param.start_func = runtime·thr_start;
@@ -128,8 +127,7 @@ runtime·minit(void)
 	// Initialize signal handling
 	m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
-	if(m->sigset != nil)
-		runtime·sigprocmask(m->sigset, nil);
+	runtime·sigprocmask(&sigset_none, nil);
 }
 
 void
