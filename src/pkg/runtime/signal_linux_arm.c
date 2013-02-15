@@ -144,7 +144,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	// under nohup and do not set explicit handler.
 	if(i == SIGHUP) {
 		runtime·memclr((byte*)&sa, sizeof sa);
-		runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask));
+		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+			runtime·throw("rt_sigaction read failure");
 		if(sa.sa_handler == SIG_IGN)
 			return;
 	}
