@@ -13,6 +13,7 @@ int32 runtime·open(uint8*, int32, int32);
 int32 runtime·close(int32);
 int32 runtime·read(int32, void*, int32);
 
+static Sigset sigset_none;
 static Sigset sigset_all = { ~(uint32)0, ~(uint32)0 };
 
 // Linux futex.
@@ -148,8 +149,6 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled.  It will enable them in minit.
 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_all, &oset, sizeof oset);
-	mp->sigset = runtime·mal(sizeof(Sigset));
-	*(Sigset*)mp->sigset = oset;
 	ret = runtime·clone(flags, stk, mp, gp, fn);
 	runtime·rtsigprocmask(SIG_SETMASK, &oset, nil, sizeof oset);
 
@@ -178,8 +177,7 @@ runtime·minit(void)
 	// Initialize signal handling.
 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
-	if(m->sigset != nil)
-		runtime·rtsigprocmask(SIG_SETMASK, m->sigset, nil, sizeof *m->sigset);
+	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof(Sigset));
 }
 
 void

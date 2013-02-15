@@ -290,7 +290,6 @@ struct	M
 	GCStats	gcstats;
 	bool	racecall;
 	void*	racepc;
-	void*	sigset;
 	uint32	moreframesize_minalloc;
 
 	uintptr	settype_buf[1024];
