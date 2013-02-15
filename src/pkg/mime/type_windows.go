@@ -58,7 +58,7 @@ func initMime() {
 
 func initMimeForTests() map[string]string {
 	return map[string]string{
-		".bmp": "image/bmp",
+		".wav": "audio/wav",
 		".png": "image/png",
 	}
 }
