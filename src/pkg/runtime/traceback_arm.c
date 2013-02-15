@@ -74,8 +74,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			// we have lost track of where we are.
 			p = (byte*)pc;
 			if((pc&3) == 0 && p < p+4 &&
-			   runtime·mheap.arena_start < p &&
-			   p+4 < runtime·mheap.arena_used) {
+			   runtime·mheap->arena_start < p &&
+			   p+4 < runtime·mheap->arena_used) {
 			   	x = *(uintptr*)p;
 				if((x&0xfffff000) == 0xe49df000) {
 					// End of closure:
@@ -94,7 +94,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 						// argument copying
 						p += 7*4;
 					}
-					if((byte*)pc < p && p < p+4 && p+4 < runtime·mheap.arena_used) {
+					if((byte*)pc < p && p < p+4 && p+4 < runtime·mheap->arena_used) {
 						pc = *(uintptr*)p;
 						fp = nil;
 						continue;

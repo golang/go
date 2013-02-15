@@ -40,12 +40,7 @@ runtime·raceinit(void)
 
 	m->racecall = true;
 	runtime∕race·Initialize(&racectx);
-	sz = (byte*)&runtime·mheap - noptrdata;
-	if(sz)
-		runtime∕race·MapShadow(noptrdata, sz);
-	sz = enoptrbss - (byte*)(&runtime·mheap+1);
-	if(sz)
-		runtime∕race·MapShadow(&runtime·mheap+1, sz);
+	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
 	m->racecall = false;
 	return racectx;
 }
@@ -102,7 +97,7 @@ runtime·racefuncenter(uintptr pc)
 	// Same thing if the PC is on the heap, which should be a
 	// closure trampoline.
 	if(pc == (uintptr)runtime·lessstack ||
-		(pc >= (uintptr)runtime·mheap.arena_start && pc < (uintptr)runtime·mheap.arena_used))
+		(pc >= (uintptr)runtime·mheap->arena_start && pc < (uintptr)runtime·mheap->arena_used))
 		runtime·callers(2, &pc, 1);
 
 	m->racecall = true;
@@ -168,7 +163,7 @@ memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
 		racectx = g->racectx;
 		if(callpc) {
 			if(callpc == (uintptr)runtime·lessstack ||
-				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
 				runtime·callers(3, &callpc, 1);
 			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
@@ -204,7 +199,7 @@ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, 
 		racectx = g->racectx;
 		if(callpc) {
 			if(callpc == (uintptr)runtime·lessstack ||
-				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
 				runtime·callers(3, &callpc, 1);
 			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
@@ -354,7 +349,7 @@ onstack(uintptr argp)
 	// the layout is in ../../cmd/ld/data.c
 	if((byte*)argp >= noptrdata && (byte*)argp < enoptrbss)
 		return false;
-	if((byte*)argp >= runtime·mheap.arena_start && (byte*)argp < runtime·mheap.arena_used)
+	if((byte*)argp >= runtime·mheap->arena_start && (byte*)argp < runtime·mheap->arena_used)
 		return false;
 	return true;
 }

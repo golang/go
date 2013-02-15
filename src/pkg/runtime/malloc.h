@@ -427,7 +427,7 @@ struct MHeap
 	FixAlloc spanalloc;	// allocator for Span*
 	FixAlloc cachealloc;	// allocator for MCache*
 };
-extern MHeap runtime·mheap;
+extern MHeap *runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
 MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
