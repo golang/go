@@ -391,9 +391,9 @@ func (p *Package) guessKinds(f *File) []*Name {
 	b.WriteString(builtinProlog)
 	b.WriteString(f.Preamble)
 	b.WriteString("void __cgo__f__(void) {\n")
-	b.WriteString("#line 0 \"cgo-test\"\n")
+	b.WriteString("#line 1 \"cgo-test\"\n")
 	for i, n := range toSniff {
-		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)
+		fmt.Fprintf(&b, "%s; /* #%d */\nenum { _cgo_enum_%d = %s }; /* #%d */\n", n.C, i, i, n.C, i)
 	}
 	b.WriteString("}\n")
 	stderr := p.gccErrors(b.Bytes())
@@ -423,14 +423,18 @@ func (p *Package) guessKinds(f *File) []*Name {
 		if err != nil {
 			continue
 		}
+		i = (i - 1) / 2
 		what := ""
 		switch {
 		default:
 			continue
-		case strings.Contains(line, ": useless type name in empty declaration"):
+		case strings.Contains(line, ": useless type name in empty declaration"),
+			strings.Contains(line, ": declaration does not declare anything"),
+			strings.Contains(line, ": unexpected type name"):
 			what = "type"
 			isConst[i] = false
-		case strings.Contains(line, ": statement with no effect"):
+		case strings.Contains(line, ": statement with no effect"),
+			strings.Contains(line, ": expression result unused"):
 			what = "not-type" // const or func or var
 		case strings.Contains(line, "undeclared"):
 			error_(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
@@ -731,14 +735,19 @@ func (p *Package) rewriteRef(f *File) {
 	}
 }
 
-// gccName returns the name of the compiler to run.  Use $GCC if set in
+// gccName returns the name of the compiler to run.  Use $CC if set in
 // the environment, otherwise just "gcc".
 
-func (p *Package) gccName() (ret string) {
-	if ret = os.Getenv("GCC"); ret == "" {
-		ret = "gcc"
+func (p *Package) gccName() string {
+	// Use $CC if set, since that's what the build uses.
+	if ret := os.Getenv("CC"); ret != "" {
+		return ret
 	}
-	return
+	// Fall back to $GCC if set, since that's what we used to use.
+	if ret := os.Getenv("GCC"); ret != "" {
+		return ret
+	}
+	return "gcc"
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
@@ -771,6 +780,13 @@ func (p *Package) gccCmd() []string {
 		"-c",  // do not link
 		"-xc", // input language is C
 	}
+	if strings.Contains(p.gccName(), "clang") {
+		c = append(c,
+			"-ferror-limit=0",
+			"-Wno-unneeded-internal-declaration",
+		)
+	}
+
 	c = append(c, p.GccOptions...)
 	c = append(c, p.gccMachine()...)
 	c = append(c, "-") //read input from standard input

@@ -126,7 +126,7 @@ func (c buildCompiler) Set(value string) error {
 	case "gc":
 		buildToolchain = gcToolchain{}
 	case "gccgo":
-		buildToolchain = gccgcToolchain{}
+		buildToolchain = gccgoToolchain{}
 	default:
 		return fmt.Errorf("unknown compiler %q", value)
 	}
@@ -143,7 +143,7 @@ func init() {
 	case "gc":
 		buildToolchain = gcToolchain{}
 	case "gccgo":
-		buildToolchain = gccgcToolchain{}
+		buildToolchain = gccgoToolchain{}
 	}
 }
 
@@ -527,7 +527,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 			return a
 		}
 		// gccgo standard library is "fake" too.
-		if _, ok := buildToolchain.(gccgcToolchain); ok {
+		if _, ok := buildToolchain.(gccgoToolchain); ok {
 			// the target name is needed for cgo.
 			a.target = p.target
 			return a
@@ -848,7 +848,7 @@ func (b *builder) build(a *action) (err error) {
 	}
 
 	objExt := archChar
-	if _, ok := buildToolchain.(gccgcToolchain); ok {
+	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		objExt = "o"
 	}
 
@@ -974,7 +974,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	for _, a1 := range all {
 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
 			incMap[dir] = true
-			if _, ok := buildToolchain.(gccgcToolchain); ok {
+			if _, ok := buildToolchain.(gccgoToolchain); ok {
 				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
 			} else {
 				dir = filepath.Join(dir, goos+"_"+goarch)
@@ -1475,19 +1475,19 @@ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
 }
 
 // The Gccgo toolchain.
-type gccgcToolchain struct{}
+type gccgoToolchain struct{}
 
 var gccgoBin, _ = exec.LookPath("gccgo")
 
-func (gccgcToolchain) compiler() string {
+func (gccgoToolchain) compiler() string {
 	return gccgoBin
 }
 
-func (gccgcToolchain) linker() string {
+func (gccgoToolchain) linker() string {
 	return gccgoBin
 }
 
-func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
 	out := p.Name + ".o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
@@ -1505,7 +1505,7 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 	return ofile, b.run(p.Dir, p.ImportPath, args)
 }
 
-func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
 	sfile = mkAbs(p.Dir, sfile)
 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
@@ -1515,14 +1515,14 @@ func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) erro
 	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
 }
 
-func (gccgcToolchain) pkgpath(basedir string, p *Package) string {
+func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
 	end := filepath.FromSlash(p.ImportPath + ".a")
 	afile := filepath.Join(basedir, end)
 	// add "lib" to the final element
 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
 }
 
-func (gccgcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []string) error {
+func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []string) error {
 	var absOfiles []string
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
@@ -1530,7 +1530,7 @@ func (gccgcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
 }
 
-func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
 	afiles := make(map[*Package]string)
@@ -1572,7 +1572,7 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
 	return b.run(".", p.ImportPath, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
 }
 
-func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
 	cfile = mkAbs(p.Dir, cfile)
 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
@@ -1580,6 +1580,7 @@ func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
 	}
+	// TODO: Support using clang here (during gccgo build)?
 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
 }
@@ -1647,8 +1648,12 @@ func (b *builder) gccCmd(objdir string) []string {
 	// NOTE: env.go's mkEnv knows that the first three
 	// strings returned are "gcc", "-I", objdir (and cuts them off).
 
-	// TODO: HOST_CC?
-	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
+	gcc := strings.Fields(os.Getenv("CC"))
+	if len(gcc) == 0 {
+		gcc = append(gcc, "gcc")
+	}
+	a := []string{gcc[0], "-I", objdir, "-g", "-O2"}
+	a = append(a, gcc[1:]...)
 
 	// Definitely want -fPIC but on Windows gcc complains
 	// "-fPIC ignored for target (all code is position independent)"
@@ -1657,13 +1662,16 @@ func (b *builder) gccCmd(objdir string) []string {
 	}
 	a = append(a, b.gccArchArgs()...)
 	// gcc-4.5 and beyond require explicit "-pthread" flag
-	// for multithreading with pthread library.
+	// for multithreading with pthread library, but clang whines
+	// about unused arguments if we pass it.
 	if buildContext.CgoEnabled {
 		switch goos {
 		case "windows":
 			a = append(a, "-mthreads")
 		default:
-			a = append(a, "-pthread")
+			if !strings.Contains(a[0], "clang") {
+				a = append(a, "-pthread")
+			}
 		}
 	}
 
@@ -1756,7 +1764,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 
-	if _, ok := buildToolchain.(gccgcToolchain); ok {
+	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		cgoflags = append(cgoflags, "-gccgo")
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
@@ -1839,7 +1847,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		cgoLDFLAGS = cgoLDFLAGS[0 : len(cgoLDFLAGS)-1]
 	}
 
-	if _, ok := buildToolchain.(gccgcToolchain); ok {
+	if _, ok := buildToolchain.(gccgoToolchain); ok {
 		// we don't use dynimport when using gccgo.
 		return outGo, outObj, nil
 	}
@@ -1922,7 +1930,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj
 	}
 	soname := p.swigSoname(file)
 
-	_, gccgo := buildToolchain.(gccgcToolchain)
+	_, gccgo := buildToolchain.(gccgoToolchain)
 
 	// swig
 	args := []string{

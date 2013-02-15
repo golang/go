@@ -34,6 +34,7 @@ func mkEnv() []envVar {
 	b.init()
 
 	env := []envVar{
+		{"CC", b.gccCmd(".")[0]},
 		{"GOARCH", goarch},
 		{"GOBIN", gobin},
 		{"GOCHAR", archChar},
