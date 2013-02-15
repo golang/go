@@ -1398,8 +1398,10 @@ elfobj:
 	eh->shstrndx = sh->shnum;
 
 	// put these sections early in the list
-	elfshname(".symtab");
-	elfshname(".strtab");
+	if(!debug['s']) {
+		elfshname(".symtab");
+		elfshname(".strtab");
+	}
 
 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
