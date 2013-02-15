@@ -73,6 +73,11 @@
 			{{if .Bugs}}
 				<dd><a href="#pkg-bugs">Bugs</a></dd>
 			{{end}}
+			{{if .Notes}}
+                                {{range $marker, $item := .Notes}}
+				<dd><a href="#pkg-{{$marker}}">{{$marker}}</a></dd>
+                                {{end}}
+			{{end}}
 			</dl>
 			</div><!-- #manual-nav -->
 
@@ -166,6 +171,14 @@
 		<h2 id="pkg-bugs">Bugs</h2>
 		{{range .}}
 		{{comment_html .}}
+		{{end}}
+	{{end}}
+	{{with .Notes}}
+                {{range $marker, $content := .}}
+		    <h2 id="pkg-{{$marker}}">{{$marker}}</h2>
+		    {{range .}}
+		    {{comment_html .}}
+                    {{end}}
 		{{end}}
 	{{end}}
 {{end}}

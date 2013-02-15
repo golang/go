@@ -61,7 +61,12 @@ TYPES
 BUGS
 
 {{range .}}{{comment_text . "    " "\t"}}
-{{end}}{{end}}{{end}}{{/*
+{{end}}{{end}}{{with .Notes}}
+{{range $marker, $content := .}}
+{{$marker}}
+
+{{range $content}}{{comment_text . "    " "\t"}}
+{{end}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
