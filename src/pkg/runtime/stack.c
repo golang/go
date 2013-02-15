@@ -90,7 +90,7 @@ runtime·stackalloc(uint32 n)
 	// will be a single size, the minimum (right now, 5k).
 	if(n == FixedStack || m->mallocing || m->gcing) {
 		if(n != FixedStack) {
-			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
+			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
 			runtime·throw("stackalloc");
 		}
 		if(m->stackcachecnt == 0)
