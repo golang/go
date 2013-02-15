@@ -140,13 +140,11 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 	return b;
 }
 
-// Record that a gc just happened: all the 'recent' statistics are now real.
-void
-runtime·MProf_GC(void)
+static void
+MProf_GC(void)
 {
 	Bucket *b;
-	
-	runtime·lock(&proflock);
+
 	for(b=mbuckets; b; b=b->allnext) {
 		b->allocs += b->recent_allocs;
 		b->frees += b->recent_frees;
@@ -157,6 +155,14 @@ runtime·MProf_GC(void)
 		b->recent_alloc_bytes = 0;
 		b->recent_free_bytes = 0;
 	}
+}
+
+// Record that a gc just happened: all the 'recent' statistics are now real.
+void
+runtime·MProf_GC(void)
+{
+	runtime·lock(&proflock);
+	MProf_GC();
 	runtime·unlock(&proflock);
 }
 
@@ -370,12 +376,28 @@ record(Record *r, Bucket *b)
 func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
 	Bucket *b;
 	Record *r;
+	bool clear;
 
 	runtime·lock(&proflock);
 	n = 0;
-	for(b=mbuckets; b; b=b->allnext)
+	clear = true;
+	for(b=mbuckets; b; b=b->allnext) {
 		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
 			n++;
+		if(b->allocs != 0 || b->frees != 0)
+			clear = false;
+	}
+	if(clear) {
+		// Absolutely no data, suggesting that a garbage collection
+		// has not yet happened. In order to allow profiling when
+		// garbage collection is disabled from the beginning of execution,
+		// accumulate stats as if a GC just happened, and recount buckets.
+		MProf_GC();
+		n = 0;
+		for(b=mbuckets; b; b=b->allnext)
+			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+				n++;
+	}
 	ok = false;
 	if(n <= p.len) {
 		ok = true;
