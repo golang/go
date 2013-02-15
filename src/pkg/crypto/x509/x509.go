@@ -19,6 +19,8 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"net"
+	"strconv"
 	"time"
 )
 
@@ -464,6 +466,7 @@ type Certificate struct {
 	// Subject Alternate Name values
 	DNSNames       []string
 	EmailAddresses []string
+	IPAddresses    []net.IP
 
 	// Name constraints
 	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
@@ -841,6 +844,13 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 					case 2:
 						out.DNSNames = append(out.DNSNames, string(v.Bytes))
 						parsedName = true
+					case 7:
+						switch len(v.Bytes) {
+						case net.IPv4len, net.IPv6len:
+							out.IPAddresses = append(out.IPAddresses, v.Bytes)
+						default:
+							return nil, errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(v.Bytes)))
+						}
 					}
 				}
 
@@ -1085,11 +1095,22 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 		n++
 	}
 
-	if len(template.DNSNames) > 0 {
+	if len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 {
 		ret[n].Id = oidExtensionSubjectAltName
-		rawValues := make([]asn1.RawValue, len(template.DNSNames))
-		for i, name := range template.DNSNames {
-			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)}
+		var rawValues []asn1.RawValue
+		for _, name := range template.DNSNames {
+			rawValues = append(rawValues, asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)})
+		}
+		for _, email := range template.EmailAddresses {
+			rawValues = append(rawValues, asn1.RawValue{Tag: 1, Class: 2, Bytes: []byte(email)})
+		}
+		for _, rawIP := range template.IPAddresses {
+			// If possible, we always want to encode IPv4 addresses in 4 bytes.
+			ip := rawIP.To4()
+			if ip == nil {
+				ip = rawIP
+			}
+			rawValues = append(rawValues, asn1.RawValue{Tag: 7, Class: 2, Bytes: ip})
 		}
 		ret[n].Value, err = asn1.Marshal(rawValues)
 		if err != nil {

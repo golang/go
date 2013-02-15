@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"net"
 	"runtime"
 	"strings"
 	"time"
@@ -63,14 +64,28 @@ type HostnameError struct {
 }
 
 func (h HostnameError) Error() string {
-	var valid string
 	c := h.Certificate
-	if len(c.DNSNames) > 0 {
-		valid = strings.Join(c.DNSNames, ", ")
+
+	var valid string
+	if ip := net.ParseIP(h.Host); ip != nil {
+		// Trying to validate an IP
+		if len(c.IPAddresses) == 0 {
+			return "x509: cannot validate certificate for " + h.Host + " because it doesn't contain any IP SANs"
+		}
+		for _, san := range c.IPAddresses {
+			if len(valid) > 0 {
+				valid += ", "
+			}
+			valid += san.String()
+		}
 	} else {
-		valid = c.Subject.CommonName
+		if len(c.DNSNames) > 0 {
+			valid = strings.Join(c.DNSNames, ", ")
+		} else {
+			valid = c.Subject.CommonName
+		}
 	}
-	return "certificate is valid for " + valid + ", not " + h.Host
+	return "x509: certificate is valid for " + valid + ", not " + h.Host
 }
 
 // UnknownAuthorityError results when the certificate issuer is unknown
@@ -334,6 +349,22 @@ func toLowerCaseASCII(in string) string {
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
 func (c *Certificate) VerifyHostname(h string) error {
+	// IP addresses may be written in [ ].
+	candidateIP := h
+	if len(h) >= 3 && h[0] == '[' && h[len(h)-1] == ']' {
+		candidateIP = h[1 : len(h)-1]
+	}
+	if ip := net.ParseIP(candidateIP); ip != nil {
+		// We only match IP addresses against IP SANs.
+		// https://tools.ietf.org/html/rfc6125#appendix-B.2
+		for _, candidate := range c.IPAddresses {
+			if ip.Equal(candidate) {
+				return nil
+			}
+		}
+		return HostnameError{c, candidateIP}
+	}
+
 	lowered := toLowerCaseASCII(h)
 
 	if len(c.DNSNames) > 0 {

@@ -306,7 +306,7 @@ var pkgDeps = map[string][]string{
 	},
 	"crypto/x509": {
 		"L4", "CRYPTO-MATH", "OS", "CGO",
-		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "syscall",
+		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "syscall",
 	},
 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
 
