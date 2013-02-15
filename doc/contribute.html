@@ -113,7 +113,7 @@ you are a committer (see below), but Mercurial complains if it is missing.
 <p>
 After adding the extension, <code>hg help codereview</code>
 will show documentation for its commands. As the codereview extension is only
-enabled for your checkout in <code>$GOROOT</code>, the remainder of this 
+enabled for your checkout in <code>$GOROOT</code>, the remainder of this
 document assumes you are inside <code>$GOROOT</code> when issuing commands.
 </p>
 
@@ -522,14 +522,15 @@ be an effective way of reverting one CL revision and applying another.
 <p>
 Once the CL has been submitted, the next time you run <code>hg sync</code>
 it will be removed from your local pending list. Occasionally the pending list
-can get out of sync leaving stale references to closed or abandoned CLs. 
+can get out of sync leaving stale references to closed or abandoned CLs.
 You can use <code>hg change -D 99999</code> to remove the reference to CL 99999.
+</p>
 
 <h3>Submit the change after the review</h3>
 
 <p>
 After the code has been <code>LGTM</code>'ed, it is time to submit
-it to the Mercurial repository. 
+it to the Mercurial repository.
 </p>
 
 <p>
@@ -543,6 +544,7 @@ $ hg clpatch 99999
 $ hg submit 99999
 </pre>
 
+<p>
 The <code>submit</code> command submits the code.  You will be listed as the
 author, but the change message will also indicate who the committer was.
 Your local client will notice that the change has been submitted
@@ -566,8 +568,7 @@ in the repository.
 
 <p>
 If your local copy of the repository is out of date,
-<code>hg submit</code>
-will refuse the change:
+<code>hg submit</code> will refuse the change:
 </p>
 
 <pre>
