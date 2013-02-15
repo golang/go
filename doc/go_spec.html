@@ -4377,9 +4377,15 @@ the range clause is equivalent to the same clause with only the first variable p
 </p>
 
 <p>
-The range expression is evaluated once before beginning the loop
-except if the expression is an array, in which case, depending on
-the expression, it might not be evaluated (see below).
+The range expression is evaluated once before beginning the loop,
+with one exception. If the range expression is an array or a pointer to an array
+and only the first iteration value is present, only the range expression's
+length is evaluated; if that length is constant by definition
+(see §<a href="#Length_and_capacity">Length and capacity</a>),
+the range expression itself will not be evaluated.
+</p>
+
+<p>
 Function calls on the left are evaluated once per iteration.
 For each iteration, iteration values are produced as follows:
 </p>
@@ -4396,8 +4402,8 @@ channel         c  chan E, &lt;-chan E       element  e  E
 <ol>
 <li>
 For an array, pointer to array, or slice value <code>a</code>, the index iteration
-values are produced in increasing order, starting at element index 0. As a special
-case, if only the first iteration variable is present, the range loop produces
+values are produced in increasing order, starting at element index 0.
+If only the first iteration variable is present, the range loop produces
 iteration values from 0 up to <code>len(a)</code> and does not index into the array
 or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
 </li>
