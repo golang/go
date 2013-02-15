@@ -46,7 +46,7 @@ func runPktSyslog(c net.PacketConn, done chan<- string) {
 
 var crashy = false
 
-func runStreamSyslog(l net.Listener, done chan<- string) {
+func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 	for {
 		var c net.Conn
 		var err error
@@ -54,7 +54,10 @@ func runStreamSyslog(l net.Listener, done chan<- string) {
 			fmt.Print(err)
 			return
 		}
+		wg.Add(1)
 		go func(c net.Conn) {
+			defer wg.Done()
+			c.SetReadDeadline(time.Now().Add(5 * time.Second))
 			b := bufio.NewReader(c)
 			for ct := 1; !crashy || ct&7 != 0; ct++ {
 				s, err := b.ReadString('\n')
@@ -68,7 +71,7 @@ func runStreamSyslog(l net.Listener, done chan<- string) {
 	}
 }
 
-func startServer(n, la string, done chan<- string) (addr string) {
+func startServer(n, la string, done chan<- string) (addr string, wg *sync.WaitGroup) {
 	if n == "udp" || n == "tcp" {
 		la = "127.0.0.1:0"
 	} else {
@@ -85,20 +88,25 @@ func startServer(n, la string, done chan<- string) (addr string) {
 		os.Remove(la)
 	}
 
+	wg = new(sync.WaitGroup)
 	if n == "udp" || n == "unixgram" {
 		l, e := net.ListenPacket(n, la)
 		if e != nil {
 			log.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.LocalAddr().String()
-		go runPktSyslog(l, done)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runPktSyslog(l, done)
+		}()
 	} else {
 		l, e := net.Listen(n, la)
 		if e != nil {
 			log.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.Addr().String()
-		go runStreamSyslog(l, done)
+		go runStreamSyslog(l, done, wg)
 	}
 	return
 }
@@ -109,7 +117,7 @@ func TestWithSimulated(t *testing.T) {
 
 	for _, tr := range transport {
 		done := make(chan string)
-		addr := startServer(tr, "", done)
+		addr, _ := startServer(tr, "", done)
 		if tr == "unix" || tr == "unixgram" {
 			defer os.Remove(addr)
 		}
@@ -129,7 +137,7 @@ func TestWithSimulated(t *testing.T) {
 func TestFlap(t *testing.T) {
 	net := "unix"
 	done := make(chan string)
-	addr := startServer(net, "", done)
+	addr, _ := startServer(net, "", done)
 	defer os.Remove(addr)
 
 	s, err := Dial(net, addr, LOG_INFO|LOG_USER, "syslog_test")
@@ -234,7 +242,7 @@ func TestWrite(t *testing.T) {
 	} else {
 		for _, test := range tests {
 			done := make(chan string)
-			addr := startServer("udp", "", done)
+			addr, _ := startServer("udp", "", done)
 			l, err := Dial("udp", addr, test.pri, test.pre)
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
@@ -255,7 +263,7 @@ func TestWrite(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
-	addr := startServer("udp", "", make(chan string))
+	addr, _ := startServer("udp", "", make(chan string))
 	w, err := Dial("udp", addr, LOG_USER|LOG_ERR, "how's it going?")
 	if err != nil {
 		t.Fatalf("syslog.Dial() failed: %v", err)
@@ -281,7 +289,7 @@ func TestConcurrentReconnect(t *testing.T) {
 
 	net := "unix"
 	done := make(chan string)
-	addr := startServer(net, "", done)
+	addr, srvWG := startServer(net, "", done)
 	defer os.Remove(addr)
 
 	// count all the messages arriving
@@ -319,6 +327,7 @@ func TestConcurrentReconnect(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	srvWG.Wait()
 	close(done)
 
 	select {
