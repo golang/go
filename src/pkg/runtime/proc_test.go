@@ -46,36 +46,6 @@ func TestStopTheWorldDeadlock(t *testing.T) {
 	runtime.GOMAXPROCS(maxprocs)
 }
 
-func TestYieldProgress(t *testing.T) {
-	testYieldProgress(t, false)
-}
-
-func TestYieldLockedProgress(t *testing.T) {
-	testYieldProgress(t, true)
-}
-
-func testYieldProgress(t *testing.T, locked bool) {
-	c := make(chan bool)
-	cack := make(chan bool)
-	go func() {
-		if locked {
-			runtime.LockOSThread()
-		}
-		for {
-			select {
-			case <-c:
-				cack <- true
-				break
-			default:
-				runtime.Gosched()
-			}
-		}
-	}()
-	time.Sleep(10 * time.Millisecond)
-	c <- true
-	<-cack
-}
-
 func TestYieldLocked(t *testing.T) {
 	const N = 10
 	c := make(chan bool)
