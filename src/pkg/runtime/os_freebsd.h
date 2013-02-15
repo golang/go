@@ -1,5 +1,6 @@
 #define SIG_DFL ((void*)0)
 #define SIG_IGN ((void*)1)
+#define SIGHUP 1
 
 int32	runtime·thr_new(ThrParam*, int32);
 void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
