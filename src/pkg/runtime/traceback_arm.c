@@ -125,6 +125,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 				tracepc = pc;	// back up to CALL instruction for funcline.
 				if(n > 0 && pc > f->entry && !waspanic)
 					tracepc -= sizeof(uintptr);
+				if(m->throwing && gp == m->curg)
+					runtime·printf("[fp=%p] ", fp);
 				runtime·printf("%S(", f->name);
 				for(i = 0; i < f->args; i++) {
 					if(i != 0)
