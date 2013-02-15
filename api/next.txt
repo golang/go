@@ -1,15 +1,21 @@
+pkg archive/tar, const TypeGNULongLink ideal-char
+pkg archive/tar, const TypeGNULongName ideal-char
 pkg archive/tar, func FileInfoHeader(os.FileInfo, string) (*Header, error)
+pkg archive/tar, method (*Header) FileInfo() os.FileInfo
 pkg archive/zip, type FileHeader struct, CompressedSize64 uint64
 pkg archive/zip, type FileHeader struct, UncompressedSize64 uint64
 pkg bufio, method (*Reader) WriteTo(io.Writer) (int64, error)
 pkg bufio, method (*Writer) ReadFrom(io.Reader) (int64, error)
 pkg bufio, method (ReadWriter) ReadFrom(io.Reader) (int64, error)
 pkg bufio, method (ReadWriter) WriteTo(io.Writer) (int64, error)
+pkg bytes, func TrimPrefix([]uint8, []uint8) []uint8
+pkg bytes, func TrimSuffix([]uint8, []uint8) []uint8
 pkg bytes, method (*Buffer) Grow(int)
 pkg bytes, method (*Reader) WriteTo(io.Writer) (int64, error)
 pkg crypto/hmac, func Equal([]uint8, []uint8) bool
 pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA uint16
 pkg crypto/tls, const TLS_RSA_WITH_AES_256_CBC_SHA uint16
+pkg crypto/tls, type Config struct, PreferServerCipherSuites bool
 pkg crypto/tls, type Config struct, SessionTicketKey [32]uint8
 pkg crypto/tls, type Config struct, SessionTicketsDisabled bool
 pkg crypto/tls, type ConnectionState struct, DidResume bool
@@ -21,6 +27,8 @@ pkg crypto/x509, const ECDSAWithSHA512 SignatureAlgorithm
 pkg crypto/x509, const ExtKeyUsageIPSECEndSystem ExtKeyUsage
 pkg crypto/x509, const ExtKeyUsageIPSECTunnel ExtKeyUsage
 pkg crypto/x509, const ExtKeyUsageIPSECUser ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageMicrosoftServerGatedCrypto ExtKeyUsage
+pkg crypto/x509, const ExtKeyUsageNetscapeServerGatedCrypto ExtKeyUsage
 pkg crypto/x509, const IncompatibleUsage InvalidReason
 pkg crypto/x509, const PEMCipher3DES PEMCipher
 pkg crypto/x509, const PEMCipherAES128 PEMCipher
@@ -31,9 +39,14 @@ pkg crypto/x509, func DecryptPEMBlock(*pem.Block, []uint8) ([]uint8, error)
 pkg crypto/x509, func EncryptPEMBlock(io.Reader, string, []uint8, []uint8, PEMCipher) (*pem.Block, error)
 pkg crypto/x509, func IsEncryptedPEMBlock(*pem.Block) bool
 pkg crypto/x509, func ParseECPrivateKey([]uint8) (*ecdsa.PrivateKey, error)
+pkg crypto/x509, method (SystemRootsError) Error() string
+pkg crypto/x509, type Certificate struct, IPAddresses []net.IP
 pkg crypto/x509, type PEMCipher int
+pkg crypto/x509, type SystemRootsError struct
 pkg crypto/x509, type VerifyOptions struct, KeyUsages []ExtKeyUsage
 pkg crypto/x509, var IncorrectPasswordError error
+pkg database/sql/driver, type Queryer interface { Query }
+pkg database/sql/driver, type Queryer interface, Query(string, []Value) (Rows, error)
 pkg debug/elf, method (*File) DynString(DynTag) ([]string, error)
 pkg debug/elf, type FileHeader struct, Entry uint64
 pkg debug/pe, const COFFSymbolSize ideal-int
@@ -52,11 +65,13 @@ pkg debug/pe, type Symbol struct, StorageClass uint8
 pkg debug/pe, type Symbol struct, Type uint16
 pkg debug/pe, type Symbol struct, Value uint32
 pkg encoding/csv, method (*Writer) Error() error
+pkg encoding/json, method (*Decoder) Buffered() io.Reader
 pkg encoding/json, method (*Decoder) UseNumber()
 pkg encoding/json, method (Number) Float64() (float64, error)
 pkg encoding/json, method (Number) Int64() (int64, error)
 pkg encoding/json, method (Number) String() string
 pkg encoding/json, type Number string
+pkg encoding/xml, method (*Encoder) Indent(string, string)
 pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
 pkg go/ast, method (CommentMap) Comments() []*CommentGroup
 pkg go/ast, method (CommentMap) Filter(Node) CommentMap
@@ -65,13 +80,17 @@ pkg go/ast, method (CommentMap) Update(Node, Node) Node
 pkg go/ast, type ChanType struct, Arrow token.Pos
 pkg go/ast, type CommentMap map[Node][]*CommentGroup
 pkg go/build, type Context struct, InstallTag string
+pkg go/build, type Package struct, IgnoredGoFiles []string
 pkg go/build, type Package struct, SwigCXXFiles []string
 pkg go/build, type Package struct, SwigFiles []string
 pkg go/doc, type Example struct, EmptyOutput bool
+pkg go/doc, type Example struct, Order int
 pkg go/doc, type Example struct, Play *ast.File
+pkg go/doc, type Package struct, Notes map[string][]string
 pkg go/doc, var IllegalPrefixes []string
 pkg go/format, func Node(io.Writer, *token.FileSet, interface{}) error
 pkg go/format, func Source([]uint8) ([]uint8, error)
+pkg go/parser, const AllErrors Mode
 pkg go/printer, type Config struct, Indent int
 pkg go/types, const Bool BasicKind
 pkg go/types, const Byte BasicKind
@@ -116,6 +135,10 @@ pkg go/types, func FindGcExportData(*bufio.Reader) error
 pkg go/types, func FindPkg(string, string) (string, string)
 pkg go/types, func GcImport(map[string]*Package, string) (*Package, error)
 pkg go/types, func GcImportData(map[string]*Package, string, string, *bufio.Reader) (*Package, error)
+pkg go/types, func IsIdentical(Type, Type) bool
+pkg go/types, method (*Array) String() string
+pkg go/types, method (*Basic) String() string
+pkg go/types, method (*Chan) String() string
 pkg go/types, method (*Const) GetName() string
 pkg go/types, method (*Const) GetPos() token.Pos
 pkg go/types, method (*Const) GetType() Type
@@ -123,11 +146,20 @@ pkg go/types, method (*Context) Check(*token.FileSet, []*ast.File) (*Package, er
 pkg go/types, method (*Func) GetName() string
 pkg go/types, method (*Func) GetPos() token.Pos
 pkg go/types, method (*Func) GetType() Type
+pkg go/types, method (*Interface) String() string
+pkg go/types, method (*Map) String() string
+pkg go/types, method (*NamedType) String() string
 pkg go/types, method (*Package) GetName() string
 pkg go/types, method (*Package) GetPos() token.Pos
 pkg go/types, method (*Package) GetType() Type
+pkg go/types, method (*Pointer) String() string
+pkg go/types, method (*Result) String() string
 pkg go/types, method (*Scope) Insert(Object) Object
 pkg go/types, method (*Scope) Lookup(string) Object
+pkg go/types, method (*Scope) String() string
+pkg go/types, method (*Signature) String() string
+pkg go/types, method (*Slice) String() string
+pkg go/types, method (*Struct) String() string
 pkg go/types, method (*TypeName) GetName() string
 pkg go/types, method (*TypeName) GetPos() token.Pos
 pkg go/types, method (*TypeName) GetType() Type
@@ -175,6 +207,7 @@ pkg go/types, type Func struct
 pkg go/types, type Func struct, Name string
 pkg go/types, type Func struct, Type Type
 pkg go/types, type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
+pkg go/types, type Importer func(map[string]*Package, string) (*Package, error)
 pkg go/types, type Interface struct
 pkg go/types, type Interface struct, Methods []*Method
 pkg go/types, type Map struct
@@ -217,6 +250,7 @@ pkg go/types, type Slice struct
 pkg go/types, type Slice struct, Elt Type
 pkg go/types, type Struct struct
 pkg go/types, type Struct struct, Fields []*Field
+pkg go/types, type Type interface, String() string
 pkg go/types, type Type interface, unexported methods
 pkg go/types, type TypeName struct
 pkg go/types, type TypeName struct, Name string
@@ -455,6 +489,8 @@ pkg math/big, method (*Int) MarshalJSON() ([]uint8, error)
 pkg math/big, method (*Int) SetUint64(uint64) *Int
 pkg math/big, method (*Int) Uint64() uint64
 pkg math/big, method (*Int) UnmarshalJSON([]uint8) error
+pkg math/big, method (*Rat) Float64() (float64, bool)
+pkg math/big, method (*Rat) SetFloat64(float64) *Rat
 pkg mime/multipart, method (*Writer) SetBoundary(string) error
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UnixConn, error)
 pkg net, func LookupNS(string) ([]*NS, error)
@@ -476,6 +512,7 @@ pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
 pkg net/http, type CloseNotifier interface { CloseNotify }
 pkg net/http, type CloseNotifier interface, CloseNotify() <-chan bool
 pkg net/http, type Request struct, PostForm url.Values
+pkg net/http, type Server struct, TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 pkg net/mail, func ParseAddress(string) (*Address, error)
 pkg net/mail, func ParseAddressList(string) ([]*Address, error)
 pkg net/smtp, method (*Client) Hello(string) error
@@ -497,6 +534,7 @@ pkg reflect, type SelectCase struct, Dir SelectDir
 pkg reflect, type SelectCase struct, Send Value
 pkg reflect, type SelectDir int
 pkg reflect, type Type interface, ConvertibleTo(Type) bool
+pkg regexp, method (*Regexp) Longest()
 pkg regexp, method (*Regexp) Split(string, int) []string
 pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
 pkg runtime, func BlockProfile([]BlockProfileRecord) (int, bool)
@@ -506,6 +544,18 @@ pkg runtime, type BlockProfileRecord struct
 pkg runtime, type BlockProfileRecord struct, Count int64
 pkg runtime, type BlockProfileRecord struct, Cycles int64
 pkg runtime, type BlockProfileRecord struct, embedded StackRecord
+pkg runtime/debug, func FreeOSMemory()
+pkg runtime/debug, func ReadGCStats(*GCStats)
+pkg runtime/debug, func SetGCPercent(int) int
+pkg runtime/debug, type GCStats struct
+pkg runtime/debug, type GCStats struct, LastGC time.Time
+pkg runtime/debug, type GCStats struct, NumGC int64
+pkg runtime/debug, type GCStats struct, Pause []time.Duration
+pkg runtime/debug, type GCStats struct, PauseQuantiles []time.Duration
+pkg runtime/debug, type GCStats struct, PauseTotal time.Duration
+pkg sort, func Reverse(Interface) Interface
+pkg strings, func TrimPrefix(string, string) string
+pkg strings, func TrimSuffix(string, string) string
 pkg strings, method (*Reader) WriteTo(io.Writer) (int64, error)
 pkg syscall (darwin-386), const B0 ideal-int
 pkg syscall (darwin-386), const B110 ideal-int
@@ -940,6 +990,8 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]uint8
 pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (freebsd-amd64), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (linux-386), const SizeofTCPInfo ideal-int
+pkg syscall (linux-386), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-386), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-386), func Getxattr(string, string, []uint8) (int, error)
 pkg syscall (linux-386), func Listxattr(string, []uint8) (int, error)
@@ -949,6 +1001,40 @@ pkg syscall (linux-386), func Removexattr(string, string) error
 pkg syscall (linux-386), func Setxattr(string, string, []uint8, int) error
 pkg syscall (linux-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-386), type SysProcAttr struct, Ctty int
+pkg syscall (linux-386), type TCPInfo struct
+pkg syscall (linux-386), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-386), type TCPInfo struct, Ato uint32
+pkg syscall (linux-386), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-386), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-386), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-386), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-386), type TCPInfo struct, Lost uint32
+pkg syscall (linux-386), type TCPInfo struct, Options uint8
+pkg syscall (linux-386), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-386), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-386), type TCPInfo struct, Probes uint8
+pkg syscall (linux-386), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-386), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-386), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-386), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-386), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-386), type TCPInfo struct, Rto uint32
+pkg syscall (linux-386), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-386), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-386), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-386), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-386), type TCPInfo struct, State uint8
+pkg syscall (linux-386), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-386), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-386-cgo), const SizeofTCPInfo ideal-int
+pkg syscall (linux-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-386-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-386-cgo), func Getxattr(string, string, []uint8) (int, error)
 pkg syscall (linux-386-cgo), func Listxattr(string, []uint8) (int, error)
@@ -958,7 +1044,40 @@ pkg syscall (linux-386-cgo), func Removexattr(string, string) error
 pkg syscall (linux-386-cgo), func Setxattr(string, string, []uint8, int) error
 pkg syscall (linux-386-cgo), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (linux-386-cgo), type TCPInfo struct
+pkg syscall (linux-386-cgo), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Ato uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Lost uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Options uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Probes uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rto uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, State uint8
+pkg syscall (linux-386-cgo), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-386-cgo), type TCPInfo struct, Unacked uint32
 pkg syscall (linux-amd64), const SizeofTCPInfo ideal-int
+pkg syscall (linux-amd64), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-amd64), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-amd64), func Getxattr(string, string, []uint8) (int, error)
 pkg syscall (linux-amd64), func Listxattr(string, []uint8) (int, error)
@@ -1001,6 +1120,7 @@ pkg syscall (linux-amd64), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
 pkg syscall (linux-amd64-cgo), const SizeofTCPInfo ideal-int
+pkg syscall (linux-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-amd64-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-amd64-cgo), func Getxattr(string, string, []uint8) (int, error)
 pkg syscall (linux-amd64-cgo), func Listxattr(string, []uint8) (int, error)
@@ -1042,6 +1162,8 @@ pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-arm), const SizeofTCPInfo ideal-int
+pkg syscall (linux-arm), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-arm), func GetsockoptUcred(int, int, int) (*Ucred, error)
 pkg syscall (linux-arm), func Getxattr(string, string, []uint8) (int, error)
 pkg syscall (linux-arm), func Listxattr(string, []uint8) (int, error)
@@ -1051,6 +1173,38 @@ pkg syscall (linux-arm), func Removexattr(string, string) error
 pkg syscall (linux-arm), func Setxattr(string, string, []uint8, int) error
 pkg syscall (linux-arm), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (linux-arm), type SysProcAttr struct, Ctty int
+pkg syscall (linux-arm), type TCPInfo struct
+pkg syscall (linux-arm), type TCPInfo struct, Advmss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Ato uint32
+pkg syscall (linux-arm), type TCPInfo struct, Backoff uint8
+pkg syscall (linux-arm), type TCPInfo struct, Ca_state uint8
+pkg syscall (linux-arm), type TCPInfo struct, Fackets uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_ack_recv uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_ack_sent uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_data_recv uint32
+pkg syscall (linux-arm), type TCPInfo struct, Last_data_sent uint32
+pkg syscall (linux-arm), type TCPInfo struct, Lost uint32
+pkg syscall (linux-arm), type TCPInfo struct, Options uint8
+pkg syscall (linux-arm), type TCPInfo struct, Pad_cgo_0 [2]uint8
+pkg syscall (linux-arm), type TCPInfo struct, Pmtu uint32
+pkg syscall (linux-arm), type TCPInfo struct, Probes uint8
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_mss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_rtt uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_space uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rcv_ssthresh uint32
+pkg syscall (linux-arm), type TCPInfo struct, Reordering uint32
+pkg syscall (linux-arm), type TCPInfo struct, Retrans uint32
+pkg syscall (linux-arm), type TCPInfo struct, Retransmits uint8
+pkg syscall (linux-arm), type TCPInfo struct, Rto uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rtt uint32
+pkg syscall (linux-arm), type TCPInfo struct, Rttvar uint32
+pkg syscall (linux-arm), type TCPInfo struct, Sacked uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_cwnd uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_mss uint32
+pkg syscall (linux-arm), type TCPInfo struct, Snd_ssthresh uint32
+pkg syscall (linux-arm), type TCPInfo struct, State uint8
+pkg syscall (linux-arm), type TCPInfo struct, Total_retrans uint32
+pkg syscall (linux-arm), type TCPInfo struct, Unacked uint32
 pkg syscall (windows-386), const AI_CANONNAME ideal-int
 pkg syscall (windows-386), const AI_NUMERICHOST ideal-int
 pkg syscall (windows-386), const AI_PASSIVE ideal-int
@@ -1145,8 +1299,13 @@ pkg syscall, type RawSockaddrInet6 struct, Addr [16]uint8
 pkg syscall, type RawSockaddrInet6 struct, Flowinfo uint32
 pkg syscall, type RawSockaddrInet6 struct, Port uint16
 pkg syscall, type RawSockaddrInet6 struct, Scope_id uint32
+pkg testing, func AllocsPerRun(int, func()) float64
 pkg testing, func Verbose() bool
 pkg testing, method (*B) ReportAllocs()
+pkg testing, method (*T) Skip(...interface{})
+pkg testing, method (*T) SkipNow()
+pkg testing, method (*T) Skipf(string, ...interface{})
+pkg testing, method (*T) Skipped() bool
 pkg testing, method (BenchmarkResult) AllocedBytesPerOp() int64
 pkg testing, method (BenchmarkResult) AllocsPerOp() int64
 pkg testing, method (BenchmarkResult) MemString() string
@@ -1209,6 +1368,7 @@ pkg text/template/parse, type TemplateNode struct, embedded Pos
 pkg text/template/parse, type TextNode struct, embedded Pos
 pkg text/template/parse, type Tree struct, ParseName string
 pkg text/template/parse, type VariableNode struct, embedded Pos
+pkg time, func ParseInLocation(string, string, *Location) (Time, error)
 pkg time, method (*Timer) Reset(Duration) bool
 pkg time, method (Time) Round(Duration) Time
 pkg time, method (Time) Truncate(Duration) Time
