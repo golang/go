@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -174,6 +175,49 @@ func TestMatchHostnames(t *testing.T) {
 	}
 }
 
+func TestMatchIP(t *testing.T) {
+	// Check that pattern matching is working.
+	c := &Certificate{
+		DNSNames: []string{"*.foo.bar.baz"},
+		Subject: pkix.Name{
+			CommonName: "*.foo.bar.baz",
+		},
+	}
+	err := c.VerifyHostname("quux.foo.bar.baz")
+	if err != nil {
+		t.Fatalf("VerifyHostname(quux.foo.bar.baz): %v", err)
+	}
+
+	// But check that if we change it to be matching against an IP address,
+	// it is rejected.
+	c = &Certificate{
+		DNSNames: []string{"*.2.3.4"},
+		Subject: pkix.Name{
+			CommonName: "*.2.3.4",
+		},
+	}
+	err = c.VerifyHostname("1.2.3.4")
+	if err == nil {
+		t.Fatalf("VerifyHostname(1.2.3.4) should have failed, did not")
+	}
+
+	c = &Certificate{
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	err = c.VerifyHostname("127.0.0.1")
+	if err != nil {
+		t.Fatalf("VerifyHostname(127.0.0.1): %v", err)
+	}
+	err = c.VerifyHostname("::1")
+	if err != nil {
+		t.Fatalf("VerifyHostname(::1): %v", err)
+	}
+	err = c.VerifyHostname("[::1]")
+	if err != nil {
+		t.Fatalf("VerifyHostname([::1]): %v", err)
+	}
+}
+
 func TestCertificateParse(t *testing.T) {
 	s, _ := hex.DecodeString(certBytes)
 	certs, err := ParseCertificates(s)
@@ -284,8 +328,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			UnknownExtKeyUsage: testUnknownExtKeyUsage,
 
 			BasicConstraintsValid: true,
-			IsCA:     true,
-			DNSNames: []string{"test.example.com"},
+			IsCA: true,
+
+			DNSNames:       []string{"test.example.com"},
+			EmailAddresses: []string{"gopher@golang.org"},
+			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
 
 			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
 			PermittedDNSDomains: []string{".example.com", "example.com"},
@@ -325,6 +372,18 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 
 		if !reflect.DeepEqual(cert.UnknownExtKeyUsage, testUnknownExtKeyUsage) {
 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
+		}
+
+		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
+			t.Errorf("%s: SAN DNS names differ from template. Got %v, want %v", test.name, cert.DNSNames, template.DNSNames)
+		}
+
+		if !reflect.DeepEqual(cert.EmailAddresses, template.EmailAddresses) {
+			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
+		}
+
+		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
+			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
 		}
 
 		if test.checkSig {

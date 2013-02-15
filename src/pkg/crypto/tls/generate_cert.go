@@ -16,36 +16,80 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"flag"
+	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"os"
+	"strings"
 	"time"
 )
 
-var hostName *string = flag.String("host", "127.0.0.1", "Hostname to generate a certificate for")
+var (
+	host      = flag.String("host", "", "Comma-separated hostnames and IPs to generate a certificate for")
+	validFrom = flag.String("start-date", "", "Creation date formatted as Jan 1 15:04:05 2011")
+	validFor  = flag.Duration("duration", 365*24*time.Hour, "Duration that certificate is valid for")
+	isCA      = flag.Bool("ca", false, "whether this cert should be its own Certificate Authority")
+	rsaBits   = flag.Int("rsa-bits", 1024, "Size of RSA key to generate")
+)
 
 func main() {
 	flag.Parse()
 
-	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	if len(*host) == 0 {
+		log.Fatalf("Missing required --host parameter")
+	}
+
+	priv, err := rsa.GenerateKey(rand.Reader, *rsaBits)
 	if err != nil {
 		log.Fatalf("failed to generate private key: %s", err)
 		return
 	}
 
-	now := time.Now()
+	var notBefore time.Time
+	if len(*validFrom) == 0 {
+		notBefore = time.Now()
+	} else {
+		notBefore, err = time.Parse("Jan 2 15:04:05 2006", *validFrom)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse creation date: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
+	notAfter := notBefore.Add(*validFor)
+
+	// end of ASN.1 time
+	endOfTime := time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
+	if notAfter.After(endOfTime) {
+		notAfter = endOfTime
+	}
 
 	template := x509.Certificate{
 		SerialNumber: new(big.Int).SetInt64(0),
 		Subject: pkix.Name{
-			CommonName:   *hostName,
 			Organization: []string{"Acme Co"},
 		},
-		NotBefore: now.Add(-5 * time.Minute).UTC(),
-		NotAfter:  now.AddDate(1, 0, 0).UTC(), // valid for 1 year.
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
 
-		SubjectKeyId: []byte{1, 2, 3, 4},
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	hosts := strings.Split(*host, ",")
+	for _, h := range hosts {
+		if ip := net.ParseIP(h); ip != nil {
+			template.IPAddresses = append(template.IPAddresses, ip)
+		} else {
+			template.DNSNames = append(template.DNSNames, h)
+		}
+	}
+
+	if *isCA {
+		template.IsCA = true
+		template.KeyUsage |= x509.KeyUsageCertSign
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
