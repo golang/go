@@ -36,7 +36,7 @@ static bool onstack(uintptr argp);
 uintptr
 runtime·raceinit(void)
 {
-	uintptr sz, racectx;
+	uintptr racectx;
 
 	m->racecall = true;
 	runtime∕race·Initialize(&racectx);
