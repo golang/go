@@ -15,7 +15,7 @@ typedef struct sigaction {
 		void    (*__sa_sigaction)(int32, Siginfo*, void *);
 	} __sigaction_u;		/* signal handler */
 	int32	sa_flags;		/* see signal options below */
-	int64	sa_mask;		/* signal mask to apply */
+	Sigset	sa_mask;		/* signal mask to apply */
 } Sigaction;
 
 void
@@ -141,7 +141,10 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
-	sa.sa_mask = ~0ULL;
+	sa.sa_mask.__bits[0] = ~(uint32)0;
+	sa.sa_mask.__bits[1] = ~(uint32)0;
+	sa.sa_mask.__bits[2] = ~(uint32)0;
+	sa.sa_mask.__bits[3] = ~(uint32)0;
 	if (fn == runtime·sighandler)
 		fn = (void*)runtime·sigtramp;
 	sa.__sigaction_u.__sa_sigaction = (void*)fn;
