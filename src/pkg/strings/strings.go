@@ -36,15 +36,35 @@ func explode(s string, n int) []string {
 	return a
 }
 
+// primeRK is the prime base used in Rabin-Karp algorithm.
+const primeRK = 16777619
+
+// hashstr returns the hash and the appropriate multiplicative
+// factor for use in Rabin-Karp algorithm.
+func hashstr(sep string) (uint32, uint32) {
+	hash := uint32(0)
+	for i := 0; i < len(sep); i++ {
+		hash = hash*primeRK + uint32(sep[i])
+
+	}
+	var pow, sq uint32 = 1, primeRK
+	for i := len(sep); i > 0; i >>= 1 {
+		if i&1 != 0 {
+			pow *= sq
+		}
+		sq *= sq
+	}
+	return hash, pow
+}
+
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
 	if sep == "" {
 		return utf8.RuneCountInString(s) + 1
 	}
 	c := sep[0]
-	l := len(sep)
 	n := 0
-	if l == 1 {
+	if len(sep) == 1 {
 		// special case worth making fast
 		for i := 0; i < len(s); i++ {
 			if s[i] == c {
@@ -53,11 +73,26 @@ func Count(s, sep string) int {
 		}
 		return n
 	}
-	for i := 0; i+l <= len(s); i++ {
-		if s[i] == c && s[i:i+l] == sep {
+	if len(sep) > len(s) {
+		return 0
+	}
+	hashsep, pow := hashstr(sep)
+	h := uint32(0)
+	for i := 0; i < len(sep); i++ {
+		h = h*primeRK + uint32(s[i])
+	}
+	lastmatch := 0
+	for i := len(sep); ; i++ {
+		// Invariant: h = hash(s[i-l : i])
+		if h == hashsep && lastmatch <= i-len(sep) && s[i-len(sep):i] == sep {
 			n++
-			i += l - 1
+			lastmatch = i
 		}
+		if i >= len(s) {
+			break
+		}
+		h = h*primeRK + uint32(s[i])
+		h -= pow * uint32(s[i-len(sep)])
 	}
 	return n
 }
@@ -94,10 +129,25 @@ func Index(s, sep string) int {
 		return -1
 	}
 	// n > 1
-	for i := 0; i+n <= len(s); i++ {
-		if s[i] == c && s[i:i+n] == sep {
-			return i
+	if n > len(s) {
+		return -1
+	}
+	// Hash sep.
+	hashsep, pow := hashstr(sep)
+	var h uint32
+	for i := 0; i < n; i++ {
+		h = h*primeRK + uint32(s[i])
+	}
+	for i := n; ; i++ {
+		// Invariant: h = hash(s[i-n : i])
+		if h == hashsep && s[i-n:i] == sep {
+			return i - n
 		}
+		if i >= len(s) {
+			break
+		}
+		h = h*primeRK + uint32(s[i])
+		h -= pow * uint32(s[i-n])
 	}
 	return -1
 }

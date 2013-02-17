@@ -1001,6 +1001,57 @@ func TestEqualFold(t *testing.T) {
 	}
 }
 
+func makeBenchInputHard() string {
+	tokens := [...]string{
+		"<a>", "<p>", "<b>", "<strong>",
+		"</a>", "</p>", "</b>", "</strong>",
+		"hello", "world",
+	}
+	x := make([]byte, 0, 1<<20)
+	for len(x) < 1<<20 {
+		i := rand.Intn(len(tokens))
+		x = append(x, tokens[i]...)
+	}
+	return string(x)
+}
+
+var benchInputHard = makeBenchInputHard()
+
+func benchmarkIndexHard(b *testing.B, sep string) {
+	for i := 0; i < b.N; i++ {
+		Index(benchInputHard, sep)
+	}
+}
+
+func benchmarkCountHard(b *testing.B, sep string) {
+	for i := 0; i < b.N; i++ {
+		Count(benchInputHard, sep)
+	}
+}
+
+func BenchmarkIndexHard1(b *testing.B) { benchmarkIndexHard(b, "<>") }
+func BenchmarkIndexHard2(b *testing.B) { benchmarkIndexHard(b, "</pre>") }
+func BenchmarkIndexHard3(b *testing.B) { benchmarkIndexHard(b, "<b>hello world</b>") }
+
+func BenchmarkCountHard1(b *testing.B) { benchmarkCountHard(b, "<>") }
+func BenchmarkCountHard2(b *testing.B) { benchmarkCountHard(b, "</pre>") }
+func BenchmarkCountHard3(b *testing.B) { benchmarkCountHard(b, "<b>hello world</b>") }
+
+var benchInputTorture = Repeat("ABC", 1<<10) + "123" + Repeat("ABC", 1<<10)
+var benchNeedleTorture = Repeat("ABC", 1<<10+1)
+
+func BenchmarkIndexTorture(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Index(benchInputTorture, benchNeedleTorture)
+	}
+}
+
+func BenchmarkCountTorture(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Count(benchInputTorture, benchNeedleTorture)
+	}
+}
+
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
