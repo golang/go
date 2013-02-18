@@ -5,6 +5,7 @@
 #define SIG_DFL ((void*)0)
 #define SIG_IGN ((void*)1)
 #define SIGHUP 1
+#define SS_DISABLE 4
 
 int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
 int32	runtime·bsdthread_register(void);

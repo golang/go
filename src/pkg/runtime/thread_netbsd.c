@@ -193,7 +193,8 @@ runtime·minit(void)
 	m->procid = runtime·lwp_self();
 
 	// Initialize signal handling
-	m->gsignal = runtime·malg(32*1024);
+	if(m->gsignal == nil)
+		m->gsignal = runtime·malg(32*1024);
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
 }
