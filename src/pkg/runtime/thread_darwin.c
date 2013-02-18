@@ -113,7 +113,8 @@ void
 runtime·minit(void)
 {
 	// Initialize signal handling.
-	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+	if(m->gsignal == nil)
+		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
@@ -438,10 +439,11 @@ runtime·sigpanic(void)
 	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
 
-// TODO(rsc): place holder to fix build.
+#pragma textflag 7
 void
 runtime·osyield(void)
 {
+	runtime·usleep(1);
 }
 
 uintptr

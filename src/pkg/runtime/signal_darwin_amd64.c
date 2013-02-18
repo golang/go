@@ -135,6 +135,8 @@ runtime·signalstack(byte *p, int32 n)
 	st.ss_sp = p;
 	st.ss_size = n;
 	st.ss_flags = 0;
+	if(p == nil)
+		st.ss_flags = SS_DISABLE;
 	runtime·sigaltstack(&st, nil);
 }
 
