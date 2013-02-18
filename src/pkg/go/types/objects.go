@@ -14,6 +14,7 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
+	GetPkg() *Package
 	GetName() string
 	GetType() Type
 	GetPos() token.Pos
@@ -34,6 +35,7 @@ type Package struct {
 
 // A Const represents a declared constant.
 type Const struct {
+	Pkg  *Package
 	Name string
 	Type Type
 	Val  interface{}
@@ -43,6 +45,7 @@ type Const struct {
 
 // A TypeName represents a declared type.
 type TypeName struct {
+	Pkg  *Package
 	Name string
 	Type Type // *NamedType or *Basic
 
@@ -51,6 +54,7 @@ type TypeName struct {
 
 // A Variable represents a declared variable (including function parameters and results).
 type Var struct {
+	Pkg  *Package // nil for parameters
 	Name string
 	Type Type
 
@@ -60,11 +64,18 @@ type Var struct {
 
 // A Func represents a declared function.
 type Func struct {
+	Pkg  *Package
 	Name string
 	Type Type // *Signature or *Builtin
 
 	decl *ast.FuncDecl
 }
+
+func (obj *Package) GetPkg() *Package  { return obj }
+func (obj *Const) GetPkg() *Package    { return obj.Pkg }
+func (obj *TypeName) GetPkg() *Package { return obj.Pkg }
+func (obj *Var) GetPkg() *Package      { return obj.Pkg }
+func (obj *Func) GetPkg() *Package     { return obj.Pkg }
 
 func (obj *Package) GetName() string  { return obj.Name }
 func (obj *Const) GetName() string    { return obj.Name }
@@ -126,7 +137,8 @@ func (*Func) anObject()     {}
 // TODO(gri) Once we do identifier resolution completely in
 //           in the typechecker, this functionality can go.
 //
-func newObj(astObj *ast.Object) Object {
+func newObj(pkg *Package, astObj *ast.Object) Object {
+	assert(pkg != nil)
 	name := astObj.Name
 	typ, _ := astObj.Type.(Type)
 	switch astObj.Kind {
@@ -135,18 +147,18 @@ func newObj(astObj *ast.Object) Object {
 	case ast.Pkg:
 		unreachable()
 	case ast.Con:
-		return &Const{Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
+		return &Const{Pkg: pkg, Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
 	case ast.Typ:
-		return &TypeName{Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
+		return &TypeName{Pkg: pkg, Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
 	case ast.Var:
 		switch astObj.Decl.(type) {
 		case *ast.Field, *ast.ValueSpec, *ast.AssignStmt: // these are ok
 		default:
 			unreachable()
 		}
-		return &Var{Name: name, Type: typ, decl: astObj.Decl}
+		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
 	case ast.Fun:
-		return &Func{Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
+		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
 	case ast.Lbl:
 		unreachable() // for now
 	}

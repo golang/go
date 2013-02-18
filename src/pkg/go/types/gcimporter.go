@@ -197,23 +197,25 @@ func (p *gcParser) next() {
 	}
 }
 
-func declConst(scope *Scope, name string) *Const {
+func declConst(pkg *Package, name string) *Const {
 	// the constant may have been imported before - if it exists
 	// already in the respective scope, return that constant
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Const)
 	}
 	// otherwise create a new constant and insert it into the scope
-	obj := &Const{Name: name}
+	obj := &Const{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
 
-func declTypeName(scope *Scope, name string) *TypeName {
+func declTypeName(pkg *Package, name string) *TypeName {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*TypeName)
 	}
-	obj := &TypeName{Name: name}
+	obj := &TypeName{Pkg: pkg, Name: name}
 	// a named type may be referred to before the underlying type
 	// is known - set it up
 	obj.Type = &NamedType{Obj: obj}
@@ -221,20 +223,22 @@ func declTypeName(scope *Scope, name string) *TypeName {
 	return obj
 }
 
-func declVar(scope *Scope, name string) *Var {
+func declVar(pkg *Package, name string) *Var {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Var)
 	}
-	obj := &Var{Name: name}
+	obj := &Var{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
 
-func declFunc(scope *Scope, name string) *Func {
+func declFunc(pkg *Package, name string) *Func {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Func)
 	}
-	obj := &Func{Name: name}
+	obj := &Func{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
@@ -507,7 +511,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	if p.tok == scanner.String {
 		p.next()
 	}
-	par = &Var{Name: name, Type: typ}
+	par = &Var{Name: name, Type: typ} // Pkg == nil
 	return
 }
 
@@ -637,7 +641,7 @@ func (p *gcParser) parseType() Type {
 	case '@':
 		// TypeName
 		pkg, name := p.parseExportedName()
-		return declTypeName(pkg.Scope, name).Type
+		return declTypeName(pkg, name).Type
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
@@ -740,7 +744,7 @@ func (p *gcParser) parseNumber() (x operand) {
 func (p *gcParser) parseConstDecl() {
 	p.expectKeyword("const")
 	pkg, name := p.parseExportedName()
-	obj := declConst(pkg.Scope, name)
+	obj := declConst(pkg, name)
 	var x operand
 	if p.tok != '=' {
 		obj.Type = p.parseType()
@@ -806,7 +810,7 @@ func (p *gcParser) parseConstDecl() {
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
 	pkg, name := p.parseExportedName()
-	obj := declTypeName(pkg.Scope, name)
+	obj := declTypeName(pkg, name)
 
 	// The type object may have been imported before and thus already
 	// have a type associated with it. We still need to parse the type
@@ -825,7 +829,7 @@ func (p *gcParser) parseTypeDecl() {
 func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	obj := declVar(pkg.Scope, name)
+	obj := declVar(pkg, name)
 	obj.Type = p.parseType()
 }
 
@@ -886,7 +890,7 @@ func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	pkg, name := p.parseExportedName()
 	typ := p.parseFunc()
-	declFunc(pkg.Scope, name).Type = typ
+	declFunc(pkg, name).Type = typ
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .

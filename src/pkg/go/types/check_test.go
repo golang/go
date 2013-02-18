@@ -238,6 +238,7 @@ func TestCheck(t *testing.T) {
 	// the construction of the Universe var.
 	if !testBuiltinsDeclared {
 		testBuiltinsDeclared = true
+		// Pkg == nil for Universe objects
 		def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
 		def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
 	}

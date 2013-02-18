@@ -55,10 +55,10 @@ var aliases = [...]*Basic{
 }
 
 var predeclaredConstants = [...]*Const{
-	{"true", Typ[UntypedBool], true, nil},
-	{"false", Typ[UntypedBool], false, nil},
-	{"iota", Typ[UntypedInt], zeroConst, nil},
-	{"nil", Typ[UntypedNil], nilConst, nil},
+	{nil, "true", Typ[UntypedBool], true, nil},
+	{nil, "false", Typ[UntypedBool], false, nil},
+	{nil, "iota", Typ[UntypedInt], zeroConst, nil},
+	{nil, "nil", Typ[UntypedNil], nilConst, nil},
 }
 
 var predeclaredFunctions = [...]*builtin{
@@ -130,6 +130,15 @@ func def(obj Object) {
 	scope := Universe
 	if ast.IsExported(name) {
 		scope = Unsafe.Scope
+		// set Pkg field
+		switch obj := obj.(type) {
+		case *TypeName:
+			obj.Pkg = Unsafe
+		case *Func:
+			obj.Pkg = Unsafe
+		default:
+			unreachable()
+		}
 	}
 	if scope.Insert(obj) != nil {
 		panic("internal error: double declaration")
