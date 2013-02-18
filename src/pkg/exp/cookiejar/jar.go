@@ -63,6 +63,10 @@ type Jar struct {
 	// entries is a set of entries, keyed by their eTLD+1 and subkeyed by
 	// their name/domain/path.
 	entries map[string]map[string]entry
+
+	// nextSeqNum is the next sequence number assigned to a new cookie
+	// created SetCookies.
+	nextSeqNum uint64
 }
 
 // New returns a new cookie jar. A nil *Options is equivalent to a zero
@@ -78,7 +82,9 @@ func New(o *Options) (*Jar, error) {
 }
 
 // entry is the internal representation of a cookie.
-// The fields are those of RFC 6265.
+//
+// This struct type is not used outside of this package per se, but the exported
+// fields are those of RFC 6265.
 type entry struct {
 	Name       string
 	Value      string
@@ -91,6 +97,11 @@ type entry struct {
 	Expires    time.Time
 	Creation   time.Time
 	LastAccess time.Time
+
+	// seqNum is a sequence number so that Cookies returns cookies in a
+	// deterministic order, even for cookies that have equal Path length and
+	// equal Creation time. This simplifies testing.
+	seqNum uint64
 }
 
 // Id returns the domain;path;name triple of e as an id.
@@ -135,11 +146,13 @@ type byPathLength []entry
 func (s byPathLength) Len() int { return len(s) }
 
 func (s byPathLength) Less(i, j int) bool {
-	in, jn := len(s[i].Path), len(s[j].Path)
-	if in == jn {
+	if len(s[i].Path) != len(s[j].Path) {
+		return len(s[i].Path) > len(s[j].Path)
+	}
+	if !s[i].Creation.Equal(s[j].Creation) {
 		return s[i].Creation.Before(s[j].Creation)
 	}
-	return in > jn
+	return s[i].seqNum < s[j].seqNum
 }
 
 func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -148,6 +161,11 @@ func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 //
 // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
 func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+	return j.cookies(u, time.Now())
+}
+
+// cookies is like Cookies but takes the current time as a parameter.
+func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return cookies
 	}
@@ -165,7 +183,6 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
 		return cookies
 	}
 
-	now := time.Now()
 	https := u.Scheme == "https"
 	path := u.Path
 	if path == "" {
@@ -208,6 +225,11 @@ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
 //
 // It does nothing if the URL's scheme is not HTTP or HTTPS.
 func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	j.setCookies(u, cookies, time.Now())
+}
+
+// setCookies is like SetCookies but takes the current time as parameter.
+func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 	if len(cookies) == 0 {
 		return
 	}
@@ -225,7 +247,6 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	defer j.mu.Unlock()
 
 	submap := j.entries[key]
-	now := time.Now()
 
 	modified := false
 	for _, cookie := range cookies {
@@ -249,16 +270,15 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 
 		if old, ok := submap[id]; ok {
 			e.Creation = old.Creation
+			e.seqNum = old.seqNum
 		} else {
 			e.Creation = now
+			e.seqNum = j.nextSeqNum
+			j.nextSeqNum++
 		}
 		e.LastAccess = now
 		submap[id] = e
 		modified = true
-		// Make Creation and LastAccess strictly monotonic forcing
-		// deterministic behaviour during sorting.
-		// TODO: check if this is conforming to RFC 6265.
-		now = now.Add(1 * time.Nanosecond)
 	}
 
 	if modified {
@@ -384,7 +404,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 			e.Expires = endOfTime
 			e.Persistent = false
 		} else {
-			if c.Expires.Before(now) {
+			if !c.Expires.After(now) {
 				return e, true, nil
 			}
 			e.Expires = c.Expires

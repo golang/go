@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// tNow is the synthetic current time used as now during testing.
+var tNow = time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC)
+
 // testPSL implements PublicSuffixList with just two rules: "co.uk"
 // and the default rule "*".
 type testPSL struct{}
@@ -199,9 +202,9 @@ func TestDomainAndType(t *testing.T) {
 	}
 }
 
-// expiresIn creates an expires attribute delta seconds from now.
+// expiresIn creates an expires attribute delta seconds from tNow.
 func expiresIn(delta int) string {
-	t := time.Now().Round(time.Second).Add(time.Duration(delta) * time.Second)
+	t := tNow.Add(time.Duration(delta) * time.Second)
 	return "expires=" + t.Format(time.RFC1123)
 }
 
@@ -216,9 +219,12 @@ func mustParseURL(s string) *url.URL {
 
 // jarTest encapsulates the following actions on a jar:
 //   1. Perform SetCookies with fromURL and the cookies from setCookies.
+//      (Done at time tNow + 0 ms.)
 //   2. Check that the entries in the jar matches content.
+//      (Done at time tNow + 1001 ms.)
 //   3. For each query in tests: Check that Cookies with toURL yields the
 //      cookies in want.
+//      (Query n done at tNow + (n+2)*1001 ms.)
 type jarTest struct {
 	description string   // The description of what this test is supposed to test
 	fromURL     string   // The full URL of the request from which Set-Cookie headers where received
@@ -235,6 +241,8 @@ type query struct {
 
 // run runs the jarTest.
 func (test jarTest) run(t *testing.T, jar *Jar) {
+	now := tNow
+
 	// Populate jar with cookies.
 	setCookies := make([]*http.Cookie, len(test.setCookies))
 	for i, cs := range test.setCookies {
@@ -244,11 +252,11 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 		}
 		setCookies[i] = cookies[0]
 	}
-	jar.SetCookies(mustParseURL(test.fromURL), setCookies)
+	jar.setCookies(mustParseURL(test.fromURL), setCookies, now)
+	now = now.Add(1001 * time.Millisecond)
 
 	// Serialize non-expired entries in the form "name1=val1 name2=val2".
 	var cs []string
-	now := time.Now().UTC()
 	for _, submap := range jar.entries {
 		for _, cookie := range submap {
 			if !cookie.Expires.After(now) {
@@ -268,8 +276,9 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 
 	// Test different calls to Cookies.
 	for i, query := range test.queries {
+		now = now.Add(1001 * time.Millisecond)
 		var s []string
-		for _, c := range jar.Cookies(mustParseURL(query.toURL)) {
+		for _, c := range jar.cookies(mustParseURL(query.toURL), now) {
 			s = append(s, c.Name+"="+c.Value)
 		}
 		if got := strings.Join(s, " "); got != query.want {
@@ -588,7 +597,6 @@ var updateAndDeleteTests = [...]jarTest{
 }
 
 func TestUpdateAndDelete(t *testing.T) {
-	t.Skip("test is broken on windows/386") // issue 4823
 	jar := newTestJar()
 	for _, test := range updateAndDeleteTests {
 		test.run(t, jar)
@@ -596,29 +604,26 @@ func TestUpdateAndDelete(t *testing.T) {
 }
 
 func TestExpiration(t *testing.T) {
-	t.Skip("test is broken on windows/386") // issue 4823
 	jar := newTestJar()
 	jarTest{
-		"Fill jar.",
+		"Expiration.",
 		"http://www.host.test",
 		[]string{
 			"a=1",
-			"b=2; max-age=1",       // should expire in 1 second
-			"c=3; " + expiresIn(1), // should expire in 1 second
-			"d=4; max-age=100",
+			"b=2; max-age=3",
+			"c=3; " + expiresIn(3),
+			"d=4; max-age=5",
+			"e=5; " + expiresIn(5),
+			"f=6; max-age=100",
 		},
-		"a=1 b=2 c=3 d=4",
-		[]query{{"http://www.host.test", "a=1 b=2 c=3 d=4"}},
-	}.run(t, jar)
-
-	time.Sleep(1500 * time.Millisecond)
-
-	jarTest{
-		"Check jar.",
-		"http://www.host.test",
-		[]string{},
-		"a=1 d=4",
-		[]query{{"http://www.host.test", "a=1 d=4"}},
+		"a=1 b=2 c=3 d=4 e=5 f=6", // executed at t0 + 1001 ms
+		[]query{
+			{"http://www.host.test", "a=1 b=2 c=3 d=4 e=5 f=6"}, // t0 + 2002 ms
+			{"http://www.host.test", "a=1 d=4 e=5 f=6"},         // t0 + 3003 ms
+			{"http://www.host.test", "a=1 d=4 e=5 f=6"},         // t0 + 4004 ms
+			{"http://www.host.test", "a=1 f=6"},                 // t0 + 5005 ms
+			{"http://www.host.test", "a=1 f=6"},                 // t0 + 6006 ms
+		},
 	}.run(t, jar)
 }
 
@@ -885,7 +890,6 @@ var chromiumDomainTests = [...]jarTest{
 }
 
 func TestChromiumDomain(t *testing.T) {
-	t.Skip("test is broken on windows/amd64") // issue 4823
 	jar := newTestJar()
 	for _, test := range chromiumDomainTests {
 		test.run(t, jar)
@@ -954,7 +958,6 @@ var chromiumDeletionTests = [...]jarTest{
 }
 
 func TestChromiumDeletion(t *testing.T) {
-	t.Skip("test is broken on windows/386") // issue 4823
 	jar := newTestJar()
 	for _, test := range chromiumDeletionTests {
 		test.run(t, jar)
