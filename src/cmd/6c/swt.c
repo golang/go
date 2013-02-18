@@ -626,7 +626,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
 int32
 maxround(int32 max, int32 v)
 {
-	v = xround(v, SZ_LONG);
+	v = xround(v, SZ_VLONG);
 	if(v > max)
 		return v;
 	return max;
