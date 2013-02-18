@@ -434,7 +434,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				}
 				name := ast.NewIdent(res.Name)
 				name.NamePos = s.Pos()
-				check.register(name, &Var{Name: res.Name, Type: res.Type})
+				check.register(name, &Var{Name: res.Name, Type: res.Type}) // Pkg == nil
 				lhs[i] = name
 			}
 			if len(s.Results) > 0 || !named {

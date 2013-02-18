@@ -116,14 +116,14 @@ func TestResolveQualifiedIdents(t *testing.T) {
 				for _, list := range x.Fields.List {
 					for _, f := range list.Names {
 						assert(idents[f] == nil)
-						idents[f] = &Var{Name: f.Name}
+						idents[f] = &Var{Pkg: pkg, Name: f.Name}
 					}
 				}
 			case *ast.InterfaceType:
 				for _, list := range x.Methods.List {
 					for _, f := range list.Names {
 						assert(idents[f] == nil)
-						idents[f] = &Func{Name: f.Name}
+						idents[f] = &Func{Pkg: pkg, Name: f.Name}
 					}
 				}
 			case *ast.CompositeLit:
@@ -131,7 +131,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 					if kv, ok := e.(*ast.KeyValueExpr); ok {
 						if k, ok := kv.Key.(*ast.Ident); ok {
 							assert(idents[k] == nil)
-							idents[k] = &Var{Name: k.Name}
+							idents[k] = &Var{Pkg: pkg, Name: k.Name}
 						}
 					}
 				}

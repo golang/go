@@ -70,7 +70,7 @@ func (check *checker) lookup(ident *ast.Ident) Object {
 	}
 
 	if obj = check.objects[astObj]; obj == nil {
-		obj = newObj(astObj)
+		obj = newObj(check.pkg, astObj)
 		check.objects[astObj] = obj
 	}
 	check.register(ident, obj)
@@ -346,7 +346,7 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 		scope = new(Scope)
 		check.methods[tname] = scope
 	}
-	check.declareIdent(scope, meth.Name, &Func{Name: meth.Name.Name, decl: meth})
+	check.declareIdent(scope, meth.Name, &Func{Pkg: check.pkg, Name: meth.Name.Name, decl: meth})
 }
 
 func (check *checker) decl(decl ast.Decl) {
@@ -378,7 +378,7 @@ func (check *checker) decl(decl ast.Decl) {
 		// since they are not in any scope. Create a dummy object for them.
 		if d.Name.Name == "init" {
 			assert(obj == nil) // all other functions should have an object
-			obj = &Func{Name: d.Name.Name, decl: d}
+			obj = &Func{Pkg: check.pkg, Name: d.Name.Name, decl: d}
 			check.register(d.Name, obj)
 		}
 		check.object(obj, false)
@@ -403,8 +403,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 		conversions: make(map[*ast.CallExpr]bool),
 	}
 
-	// handle panics
+	// set results and handle panics
 	defer func() {
+		pkg = check.pkg
 		switch p := recover().(type) {
 		case nil, bailout:
 			// normal return or early exit
@@ -422,8 +423,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 	if imp == nil {
 		imp = GcImport
 	}
-	pkg, methods := check.resolve(imp)
-	check.pkg = pkg
+	methods := check.resolve(imp)
 
 	// associate methods with types
 	for _, m := range methods {

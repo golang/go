@@ -36,8 +36,9 @@ func (check *checker) resolveIdent(scope *Scope, ident *ast.Ident) bool {
 	return false
 }
 
-func (check *checker) resolve(importer Importer) (pkg *Package, methods []*ast.FuncDecl) {
-	pkg = &Package{Scope: &Scope{Outer: Universe}, Imports: make(map[string]*Package)}
+func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
+	pkg := &Package{Scope: &Scope{Outer: Universe}, Imports: make(map[string]*Package)}
+	check.pkg = pkg
 
 	// complete package scope
 	i := 0
