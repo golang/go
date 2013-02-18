@@ -71,11 +71,12 @@ func TestReadGCStats(t *testing.T) {
 	}
 }
 
-var big = make([]byte, 1<<20)
+var big []byte
 
 func TestFreeOSMemory(t *testing.T) {
 	var ms1, ms2 runtime.MemStats
 
+	big = make([]byte, 1<<20)
 	big = nil
 	runtime.GC()
 	runtime.ReadMemStats(&ms1)
