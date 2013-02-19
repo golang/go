@@ -1052,6 +1052,14 @@ func BenchmarkCountTorture(b *testing.B) {
 	}
 }
 
+func BenchmarkCountTortureOverlapping(b *testing.B) {
+	A := Repeat("ABC", 1<<20)
+	B := Repeat("ABC", 1<<10)
+	for i := 0; i < b.N; i++ {
+		Count(A, B)
+	}
+}
+
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
