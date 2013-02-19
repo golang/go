@@ -10,5 +10,6 @@ package net
 // addresses for all network interfaces.  Otherwise it returns
 // addresses for a specific interface.
 func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+	// TODO(mikio): Implement this like other platforms.
 	return nil, nil
 }
