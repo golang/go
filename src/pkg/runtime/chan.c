@@ -840,7 +840,7 @@ static void*
 selectgo(Select **selp)
 {
 	Select *sel;
-	uint32 o, i, j;
+	uint32 o, i, j, k;
 	Scase *cas, *dfl;
 	Hchan *c;
 	SudoG *sg;
@@ -874,12 +874,42 @@ selectgo(Select **selp)
 	}
 
 	// sort the cases by Hchan address to get the locking order.
+	// simple heap sort, to guarantee n log n time and constant stack footprint.
 	for(i=0; i<sel->ncase; i++) {
-		c = sel->scase[i].chan;
-		for(j=i; j>0 && sel->lockorder[j-1] >= c; j--)
-			sel->lockorder[j] = sel->lockorder[j-1];
+		j = i;
+		c = sel->scase[j].chan;
+		while(j > 0 && sel->lockorder[k=(j-1)/2] < c) {
+			sel->lockorder[j] = sel->lockorder[k];
+			j = k;
+		}
 		sel->lockorder[j] = c;
 	}
+	for(i=sel->ncase; i-->0; ) {
+		c = sel->lockorder[i];
+		sel->lockorder[i] = sel->lockorder[0];
+		j = 0;
+		for(;;) {
+			k = j*2+1;
+			if(k >= i)
+				break;
+			if(k+1 < i && sel->lockorder[k] < sel->lockorder[k+1])
+				k++;
+			if(c < sel->lockorder[k]) {
+				sel->lockorder[j] = sel->lockorder[k];
+				j = k;
+				continue;
+			}
+			break;
+		}
+		sel->lockorder[j] = c;
+	}
+	/*
+	for(i=0; i+1<sel->ncase; i++)
+		if(sel->lockorder[i] > sel->lockorder[i+1]) {
+			runtime·printf("i=%d %p %p\n", i, sel->lockorder[i], sel->lockorder[i+1]);
+			runtime·throw("select: broken sort");
+		}
+	*/
 	sellock(sel);
 
 loop:
