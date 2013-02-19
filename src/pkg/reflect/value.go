@@ -1791,8 +1791,9 @@ type SelectCase struct {
 }
 
 // Select executes a select operation described by the list of cases.
-// Like the Go select statement, it blocks until one of the cases can
-// proceed and then executes that case. It returns the index of the chosen case
+// Like the Go select statement, it blocks until at least one of the cases
+// can proceed, makes a uniform pseudo-random choice,
+// and then executes that case. It returns the index of the chosen case
 // and, if that case was a receive operation, the value received and a
 // boolean indicating whether the value corresponds to a send on the channel
 // (as opposed to a zero value received because the channel is closed).
