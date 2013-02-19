@@ -307,7 +307,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *NamedType:
 		s := "<NamedType w/o object>"
-		if t.Obj != nil {
+		if obj := t.Obj; obj != nil {
+			if obj.Pkg != nil && obj.Pkg.Path != "" {
+				buf.WriteString(obj.Pkg.Path)
+				buf.WriteString(".")
+			}
 			s = t.Obj.GetName()
 		}
 		buf.WriteString(s)

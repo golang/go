@@ -255,6 +255,7 @@ func (f *Function) finish() {
 			}
 		}
 	}
+
 	optimizeBlocks(f)
 
 	// Build immediate-use (referrers) graph.
@@ -351,8 +352,11 @@ func (f *Function) emit(instr Instruction) Value {
 // FullName returns the full name of this function, qualified by
 // package name, receiver type, etc.
 //
+// The specific formatting rules are not guaranteed and may change.
+//
 // Examples:
 //      "math.IsNaN"                // a package-level function
+//      "IsNaN"                     // intra-package reference to same
 //      "(*sync.WaitGroup).Add"     // a declared method
 //      "(*exp/ssa.Ret).Block"      // a bridge method
 //      "(ssa.Instruction).Block"   // an interface method thunk
@@ -379,27 +383,20 @@ func (f *Function) fullName(from *Package) string {
 		} else {
 			recvType = f.Params[0].Type() // interface method thunk
 		}
-		// TODO(adonovan): print type package-qualified, if NamedType.
 		return fmt.Sprintf("(%s).%s", recvType, f.Name_)
-	}
-
-	// "pkg." prefix for cross-package references only.
-	var pkgQual string
-	if from != f.Pkg {
-		pkgQual = f.Pkg.ImportPath + "."
 	}
 
 	// Declared method?
 	if recv != nil {
-		star := ""
-		if isPointer(recv.Type) {
-			star = "*"
-		}
-		return fmt.Sprintf("(%s%s%s).%s", star, pkgQual, deref(recv.Type), f.Name_)
+		return fmt.Sprintf("(%s).%s", recv.Type, f.Name_)
 	}
 
 	// Package-level function.
-	return pkgQual + f.Name_
+	// Prefix with package name for cross-package references only.
+	if from != f.Pkg {
+		return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
+	}
+	return f.Name_
 }
 
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
@@ -408,7 +405,6 @@ func (f *Function) fullName(from *Package) string {
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
 	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
-	fmt.Fprintf(w, "# Type: %s\n", f.Signature)
 
 	if f.Enclosing != nil {
 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
@@ -421,6 +417,7 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 	}
 
+	// Function Signature in declaration syntax; derived from types.Signature.String().
 	io.WriteString(w, "func ")
 	params := f.Params
 	if f.Signature.Recv != nil {
@@ -435,9 +432,23 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 		io.WriteString(w, v.Name())
 		io.WriteString(w, " ")
+		if f.Signature.IsVariadic && i == len(params)-1 {
+			io.WriteString(w, "...")
+		}
 		io.WriteString(w, v.Type().String())
 	}
-	io.WriteString(w, "):\n")
+	io.WriteString(w, ")")
+	if res := f.Signature.Results; res != nil {
+		io.WriteString(w, " ")
+		var t types.Type
+		if len(res) == 1 && res[0].Name == "" {
+			t = res[0].Type
+		} else {
+			t = &types.Result{Values: res}
+		}
+		io.WriteString(w, t.String())
+	}
+	io.WriteString(w, ":\n")
 
 	for _, b := range f.Blocks {
 		if b == nil {
