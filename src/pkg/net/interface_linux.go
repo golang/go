@@ -119,12 +119,16 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 			goto done
 		case syscall.RTM_NEWADDR:
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+			ifi, err := InterfaceByIndex(int(ifam.Index))
+			if err != nil {
+				return nil, err
+			}
 			if ifindex == 0 || ifindex == int(ifam.Index) {
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
 					return nil, os.NewSyscallError("netlink routeattr", err)
 				}
-				ifat = append(ifat, newAddr(attrs, int(ifam.Family), int(ifam.Prefixlen)))
+				ifat = append(ifat, newAddr(attrs, ifi, ifam))
 			}
 		}
 	}
@@ -132,19 +136,19 @@ done:
 	return ifat, nil
 }
 
-func newAddr(attrs []syscall.NetlinkRouteAttr, family, pfxlen int) Addr {
+func newAddr(attrs []syscall.NetlinkRouteAttr, ifi *Interface, ifam *syscall.IfAddrmsg) Addr {
 	ifa := &IPNet{}
 	for _, a := range attrs {
-		switch a.Attr.Type {
-		case syscall.IFA_ADDRESS:
-			switch family {
+		if ifi.Flags&FlagPointToPoint != 0 && a.Attr.Type == syscall.IFA_LOCAL ||
+			ifi.Flags&FlagPointToPoint == 0 && a.Attr.Type == syscall.IFA_ADDRESS {
+			switch ifam.Family {
 			case syscall.AF_INET:
 				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
-				ifa.Mask = CIDRMask(pfxlen, 8*IPv4len)
+				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv4len)
 			case syscall.AF_INET6:
 				ifa.IP = make(IP, IPv6len)
 				copy(ifa.IP, a.Value[:])
-				ifa.Mask = CIDRMask(pfxlen, 8*IPv6len)
+				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv6len)
 			}
 		}
 	}
