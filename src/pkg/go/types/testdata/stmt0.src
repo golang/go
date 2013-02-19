@@ -29,6 +29,9 @@ func _() {
 
 	s += "bar"
 	s += 1 /* ERROR "cannot convert.*string" */
+
+	var u64 uint64
+	u64 += 1<<u64
 }
 
 func _incdecs() {

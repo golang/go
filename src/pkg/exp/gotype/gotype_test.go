@@ -61,7 +61,7 @@ var tests = []string{
 	"bufio",
 	"bytes",
 
-	// "compress/bzip2",
+	"compress/bzip2",
 	"compress/flate",
 	"compress/gzip",
 	// "compress/lzw",
@@ -80,7 +80,7 @@ var tests = []string{
 	"crypto/elliptic",
 	"crypto/hmac",
 	"crypto/md5",
-	// "crypto/rand",
+	"crypto/rand",
 	"crypto/rc4",
 	"crypto/rsa",
 	"crypto/sha1",
@@ -126,7 +126,7 @@ var tests = []string{
 	"go/parser",
 	"go/printer",
 	"go/scanner",
-	// "go/token",
+	"go/token",
 	"go/types",
 
 	"hash/adler32",
@@ -138,7 +138,7 @@ var tests = []string{
 	"image/color",
 	"image/draw",
 	"image/gif",
-	// "image/jpeg",
+	"image/jpeg",
 	"image/png",
 
 	"index/suffixarray",
@@ -149,7 +149,7 @@ var tests = []string{
 	"log",
 	"log/syslog",
 
-	// "math",
+	"math",
 	//"math/big",
 	"math/cmplx",
 	"math/rand",
@@ -168,7 +168,7 @@ var tests = []string{
 	"net/rpc",
 	"net/rpc/jsonrpc",
 	"net/smtp",
-	// "net/textproto",
+	"net/textproto",
 	"net/url",
 
 	"path",

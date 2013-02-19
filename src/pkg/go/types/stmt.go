@@ -403,11 +403,13 @@ func (check *checker) stmt(s ast.Stmt) {
 				return
 			}
 			var x, y operand
+			// The lhs operand's type doesn't need a hint (from the rhs operand),
+			// because it must be a fully typed variable in this case.
 			check.expr(&x, s.Lhs[0], nil, -1)
 			if x.mode == invalid {
 				return
 			}
-			check.expr(&y, s.Rhs[0], nil, -1)
+			check.expr(&y, s.Rhs[0], x.typ, -1)
 			if y.mode == invalid {
 				return
 			}
