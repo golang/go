@@ -20,17 +20,16 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("netlink rib", err)
 	}
-
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
 		return nil, os.NewSyscallError("netlink message", err)
 	}
-
 	var ift []Interface
+loop:
 	for _, m := range msgs {
 		switch m.Header.Type {
 		case syscall.NLMSG_DONE:
-			goto done
+			break loop
 		case syscall.RTM_NEWLINK:
 			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
 			if ifindex == 0 || ifindex == int(ifim.Index) {
@@ -43,7 +42,6 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 			}
 		}
 	}
-done:
 	return ift, nil
 }
 
@@ -98,12 +96,10 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("netlink rib", err)
 	}
-
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
 		return nil, os.NewSyscallError("netlink message", err)
 	}
-
 	ifat, err := addrTable(msgs, ifindex)
 	if err != nil {
 		return nil, err
@@ -113,10 +109,11 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 
 func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 	var ifat []Addr
+loop:
 	for _, m := range msgs {
 		switch m.Header.Type {
 		case syscall.NLMSG_DONE:
-			goto done
+			break loop
 		case syscall.RTM_NEWADDR:
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
 			ifi, err := InterfaceByIndex(int(ifam.Index))
@@ -132,7 +129,6 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 			}
 		}
 	}
-done:
 	return ifat, nil
 }
 
@@ -149,6 +145,9 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, ifi *Interface, ifam *syscall.IfA
 				ifa.IP = make(IP, IPv6len)
 				copy(ifa.IP, a.Value[:])
 				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv6len)
+				if ifam.Scope == syscall.RT_SCOPE_HOST || ifam.Scope == syscall.RT_SCOPE_LINK {
+					ifa.Zone = zoneToString(int(ifam.Index))
+				}
 			}
 		}
 	}
@@ -180,7 +179,6 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
 		return nil
 	}
 	defer fd.close()
-
 	var (
 		ifmat []Addr
 		name  string
@@ -218,7 +216,6 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 		return nil
 	}
 	defer fd.close()
-
 	var ifmat []Addr
 	b := make([]byte, IPv6len)
 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
@@ -231,6 +228,9 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
 			}
 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+				ifma.Zone = ifi.Name
+			}
 			ifmat = append(ifmat, ifma.toAddr())
 		}
 	}

@@ -19,18 +19,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("route rib", err)
 	}
-
 	msgs, err := syscall.ParseRoutingMessage(tab)
 	if err != nil {
 		return nil, os.NewSyscallError("route message", err)
 	}
-
 	var ifmat []Addr
 	for _, m := range msgs {
-		switch v := m.(type) {
+		switch m := m.(type) {
 		case *syscall.InterfaceMulticastAddrMessage:
-			if ifindex == 0 || ifindex == int(v.Header.Index) {
-				ifma, err := newMulticastAddr(v)
+			if ifindex == 0 || ifindex == int(m.Header.Index) {
+				ifma, err := newMulticastAddr(m)
 				if err != nil {
 					return nil, err
 				}
@@ -46,22 +44,20 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) 
 	if err != nil {
 		return nil, os.NewSyscallError("route sockaddr", err)
 	}
-
 	var ifmat []Addr
-	for _, s := range sas {
-		switch v := s.(type) {
+	for _, sa := range sas {
+		switch sa := sa.(type) {
 		case *syscall.SockaddrInet4:
-			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
+			ifma := &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
 			ifmat = append(ifmat, ifma.toAddr())
 		case *syscall.SockaddrInet6:
 			ifma := &IPAddr{IP: make(IP, IPv6len)}
-			copy(ifma.IP, v.Addr[:])
+			copy(ifma.IP, sa.Addr[:])
 			// NOTE: KAME based IPv6 protcol stack usually embeds
 			// the interface index in the interface-local or link-
 			// local address as the kernel-internal form.
-			if ifma.IP.IsInterfaceLocalMulticast() ||
-				ifma.IP.IsLinkLocalMulticast() {
-				// remove embedded scope zone ID
+			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+				ifma.Zone = zoneToString(int(ifma.IP[2]<<8 | ifma.IP[3]))
 				ifma.IP[2], ifma.IP[3] = 0, 0
 			}
 			ifmat = append(ifmat, ifma.toAddr())
