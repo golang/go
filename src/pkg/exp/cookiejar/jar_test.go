@@ -99,10 +99,25 @@ func TestJarKey(t *testing.T) {
 			t.Errorf("%q: got %q, want %q", host, got, want)
 		}
 	}
+}
 
-	for _, host := range []string{"www.example.com", "example.com", "com"} {
-		if got := jarKey(host, nil); got != "com" {
-			t.Errorf(`%q: got %q, want "com"`, host, got)
+var jarKeyNilPSLTests = map[string]string{
+	"foo.www.example.com": "example.com",
+	"www.example.com":     "example.com",
+	"example.com":         "example.com",
+	"com":                 "com",
+	"foo.www.bbc.co.uk":   "co.uk",
+	"www.bbc.co.uk":       "co.uk",
+	"bbc.co.uk":           "co.uk",
+	"co.uk":               "co.uk",
+	"uk":                  "uk",
+	"192.168.0.5":         "192.168.0.5",
+}
+
+func TestJarKeyNilPSL(t *testing.T) {
+	for host, want := range jarKeyNilPSLTests {
+		if got := jarKey(host, nil); got != want {
+			t.Errorf("%q: got %q, want %q", host, got, want)
 		}
 	}
 }
