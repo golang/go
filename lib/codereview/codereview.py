@@ -2444,6 +2444,8 @@ def MySend1(request_path, payload=None,
 		self._Authenticate()
 	if request_path is None:
 		return
+	if timeout is None:
+		timeout = 30 # seconds
 
 	old_timeout = socket.getdefaulttimeout()
 	socket.setdefaulttimeout(timeout)
