@@ -48,8 +48,8 @@ type Options struct {
 	// an HTTP server can set a cookie for a domain.
 	//
 	// A nil value is valid and may be useful for testing but it is not
-	// secure: it means that the HTTP server for foo.com can set a cookie
-	// for bar.com.
+	// secure: it means that the HTTP server for foo.co.uk can set a cookie
+	// for bar.co.uk.
 	PublicSuffixList PublicSuffixList
 }
 
@@ -333,19 +333,24 @@ func jarKey(host string, psl PublicSuffixList) string {
 	if isIP(host) {
 		return host
 	}
+
+	var i int
 	if psl == nil {
-		// Key cookies under TLD of host.
-		return host[1+strings.LastIndex(host, "."):]
-	}
-	suffix := psl.PublicSuffix(host)
-	if suffix == host {
-		return host
-	}
-	i := len(host) - len(suffix)
-	if i <= 0 || host[i-1] != '.' {
-		// The provided public suffix list psl is broken.
-		// Storing cookies under host is a safe stopgap.
-		return host
+		i = strings.LastIndex(host, ".")
+		if i == -1 {
+			return host
+		}
+	} else {
+		suffix := psl.PublicSuffix(host)
+		if suffix == host {
+			return host
+		}
+		i = len(host) - len(suffix)
+		if i <= 0 || host[i-1] != '.' {
+			// The provided public suffix list psl is broken.
+			// Storing cookies under host is a safe stopgap.
+			return host
+		}
 	}
 	prevDot := strings.LastIndex(host[:i-1], ".")
 	return host[prevDot+1:]
