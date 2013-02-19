@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval `{go env -9}
+eval `{go tool dist env -9}
 
 # allow all.rc to avoid double-build of everything
 rebuild = true
