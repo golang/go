@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package net_test
+// This file implements API tests across platforms and will never have a build
+// tag.
+
+package net
 
 import (
-	"net"
 	"os"
 	"runtime"
 	"testing"
@@ -35,13 +37,13 @@ func TestConnAndListener(t *testing.T) {
 			os.Remove(tt.addr)
 		}
 
-		ln, err := net.Listen(tt.net, tt.addr)
+		ln, err := Listen(tt.net, tt.addr)
 		if err != nil {
 			t.Errorf("net.Listen failed: %v", err)
 			return
 		}
 		ln.Addr()
-		defer func(ln net.Listener, net, addr string) {
+		defer func(ln Listener, net, addr string) {
 			ln.Close()
 			switch net {
 			case "unix", "unixpacket":
@@ -52,7 +54,7 @@ func TestConnAndListener(t *testing.T) {
 		done := make(chan int)
 		go transponder(t, ln, done)
 
-		c, err := net.Dial(tt.net, ln.Addr().String())
+		c, err := Dial(tt.net, ln.Addr().String())
 		if err != nil {
 			t.Errorf("net.Dial failed: %v", err)
 			return
@@ -77,7 +79,7 @@ func TestConnAndListener(t *testing.T) {
 	}
 }
 
-func transponder(t *testing.T, ln net.Listener, done chan<- int) {
+func transponder(t *testing.T, ln Listener, done chan<- int) {
 	defer func() { done <- 1 }()
 
 	c, err := ln.Accept()

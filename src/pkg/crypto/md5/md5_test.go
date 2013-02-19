@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package md5_test
+package md5
 
 import (
-	"crypto/md5"
 	"fmt"
 	"io"
 	"testing"
@@ -54,7 +53,7 @@ var golden = []md5Test{
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
-		c := md5.New()
+		c := New()
 		buf := make([]byte, len(g.in)+4)
 		for j := 0; j < 3+4; j++ {
 			if j < 2 {
@@ -79,14 +78,14 @@ func TestGolden(t *testing.T) {
 }
 
 func ExampleNew() {
-	h := md5.New()
+	h := New()
 	io.WriteString(h, "The fog is getting thicker!")
 	io.WriteString(h, "And Leon's getting laaarger!")
 	fmt.Printf("%x", h.Sum(nil))
 	// Output: e2c569be17396eca2a2e3c11578123ed
 }
 
-var bench = md5.New()
+var bench = New()
 var buf = make([]byte, 8192+1)
 var sum = make([]byte, bench.Size())
 

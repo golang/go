@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http_test
+package http
 
 import (
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,9 +31,9 @@ func TestFileTransport(t *testing.T) {
 	defer os.Remove(dname)
 	defer os.Remove(fname)
 
-	tr := &http.Transport{}
-	tr.RegisterProtocol("file", http.NewFileTransport(http.Dir(dname)))
-	c := &http.Client{Transport: tr}
+	tr := &Transport{}
+	tr.RegisterProtocol("file", NewFileTransport(Dir(dname)))
+	c := &Client{Transport: tr}
 
 	fooURLs := []string{"file:///foo.txt", "file://../foo.txt"}
 	for _, urlstr := range fooURLs {

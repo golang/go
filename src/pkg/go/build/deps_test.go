@@ -5,10 +5,9 @@
 // This file exercises the import parser but also checks that
 // some low-level packages do not have new dependencies added.
 
-package build_test
+package build
 
 import (
-	"go/build"
 	"sort"
 	"testing"
 )
@@ -382,7 +381,7 @@ func TestDependencies(t *testing.T) {
 	}
 	sort.Strings(all)
 
-	ctxt := build.Default
+	ctxt := Default
 	test := func(mustImport bool) {
 		for _, pkg := range all {
 			if isMacro(pkg) {
