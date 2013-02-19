@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains support functions for parsing .go files.
-// Similar functionality is found in package go/parser but the
-// functions here operate using godoc's file system fs instead
-// of calling the OS's file operations directly.
+// This file contains support functions for parsing .go files
+// accessed via godoc's file system fs.
 
 package main
 
@@ -13,7 +11,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	pathpkg "path"
 )
 
@@ -25,44 +22,16 @@ func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.Fil
 	return parser.ParseFile(fset, filename, src, mode)
 }
 
-func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first error) {
-	pkgs = make(map[string]*ast.Package)
-	for _, filename := range filenames {
-		file, err := parseFile(fset, filename, parser.ParseComments)
+func parseFiles(fset *token.FileSet, abspath string, localnames []string) (map[string]*ast.File, error) {
+	files := make(map[string]*ast.File)
+	for _, f := range localnames {
+		absname := pathpkg.Join(abspath, f)
+		file, err := parseFile(fset, absname, parser.ParseComments)
 		if err != nil {
-			if first == nil {
-				first = err
-			}
-			continue
+			return nil, err
 		}
-
-		name := file.Name.Name
-		pkg, found := pkgs[name]
-		if !found {
-			// TODO(gri) Use NewPackage here; reconsider ParseFiles API.
-			pkg = &ast.Package{Name: name, Files: make(map[string]*ast.File)}
-			pkgs[name] = pkg
-		}
-		pkg.Files[filename] = file
-	}
-	return
-}
-
-func parseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool) (map[string]*ast.Package, error) {
-	list, err := fs.ReadDir(path)
-	if err != nil {
-		return nil, err
+		files[absname] = file
 	}
 
-	filenames := make([]string, len(list))
-	i := 0
-	for _, d := range list {
-		if filter == nil || filter(d) {
-			filenames[i] = pathpkg.Join(path, d.Name())
-			i++
-		}
-	}
-	filenames = filenames[0:i]
-
-	return parseFiles(fset, filenames)
+	return files, nil
 }

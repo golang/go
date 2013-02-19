@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 Gc is the generic label for the family of Go compilers
@@ -86,4 +88,4 @@ in Go) does not allow any of the pointers passed as arguments to escape into the
 heap or into the values returned from the function. This information can be used as
 during the compiler's escape analysis of Go code calling the function.
 */
-package documentation
+package main

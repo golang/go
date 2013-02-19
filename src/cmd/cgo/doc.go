@@ -133,4 +133,4 @@ Cgo does not yet work with gccgo.
 See "C? Go? Cgo!" for an introduction to using cgo:
 http://golang.org/doc/articles/c_go_cgo.html
 */
-package documentation
+package main

@@ -20,4 +20,4 @@
 // security mechanisms. Do not deploy it in untrusted environments.
 // By default, goplay listens only on localhost. This can be overridden with
 // the -http parameter. Do so at your own risk.
-package documentation
+package main

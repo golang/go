@@ -74,7 +74,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	// determine number of subdirectories and if there are package files
 	ndirs := 0
 	hasPkgFiles := false
-	var synopses [4]string // prioritized package documentation (0 == highest priority)
+	var synopses [3]string // prioritized package documentation (0 == highest priority)
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
@@ -95,12 +95,10 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 						switch file.Name.Name {
 						case name:
 							i = 0 // normal case: directory name matches package name
-						case fakePkgName:
-							i = 1 // synopses for commands
 						case "main":
-							i = 2 // directory contains a main package
+							i = 1 // directory contains a main package
 						default:
-							i = 3 // none of the above
+							i = 2 // none of the above
 						}
 						if 0 <= i && i < len(synopses) && synopses[i] == "" {
 							synopses[i] = doc.Synopsis(file.Doc.Text())

@@ -86,8 +86,8 @@ var (
 
 func initHandlers() {
 	fileServer = http.FileServer(&httpFS{fs})
-	cmdHandler = docServer{"/cmd/", "/src/cmd", false}
-	pkgHandler = docServer{"/pkg/", "/src/pkg", true}
+	cmdHandler = docServer{"/cmd/", "/src/cmd"}
+	pkgHandler = docServer{"/pkg/", "/src/pkg"}
 }
 
 func registerPublicHandlers(mux *http.ServeMux) {
@@ -794,10 +794,6 @@ func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Packages
 
-// Fake package file and name for commands. Contains the command documentation.
-const fakePkgFile = "doc.go"
-const fakePkgName = "documentation"
-
 // Fake relative package path for built-ins. Documentation for all globals
 // (not just exported ones) will be shown for packages in this directory.
 const builtinPkgPath = "builtin"
@@ -854,16 +850,20 @@ func remoteSearchURL(query string, html bool) string {
 }
 
 type PageInfo struct {
-	Dirname  string         // directory containing the package
-	FSet     *token.FileSet // corresponding file set
-	PAst     *ast.File      // nil if no single AST with package exports
-	PDoc     *doc.Package   // nil if no single package documentation
+	Dirname string // directory containing the package
+	Err     error  // error or nil
+
+	// package info
+	FSet     *token.FileSet // nil if no package documentation
+	PDoc     *doc.Package   // nil if no package documentation
 	Examples []*doc.Example // nil if no example code
-	Dirs     *DirList       // nil if no directory information
-	DirTime  time.Time      // directory time stamp
-	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
-	IsPkg    bool           // false if this is not documenting a real package
-	Err      error          // I/O error or nil
+	PAst     *ast.File      // nil if no AST with package exports
+	IsMain   bool           // true for package main
+
+	// directory info
+	Dirs    *DirList  // nil if no directory information
+	DirTime time.Time // directory time stamp
+	DirFlat bool      // if set, show directory in a flat (non-indented) manner
 }
 
 func (info *PageInfo) IsEmpty() bool {
@@ -873,7 +873,6 @@ func (info *PageInfo) IsEmpty() bool {
 type docServer struct {
 	pattern string // url pattern; e.g. "/pkg/"
 	fsRoot  string // file system root to which the pattern is mapped
-	isPkg   bool   // true if this handler serves real package documentation (as opposed to command documentation)
 }
 
 // fsReadDir implements ReadDir for the go/build package.
@@ -890,15 +889,6 @@ func fsOpenFile(name string) (r io.ReadCloser, err error) {
 	return ioutil.NopCloser(bytes.NewReader(data)), nil
 }
 
-func inList(name string, list []string) bool {
-	for _, l := range list {
-		if name == l {
-			return true
-		}
-	}
-	return false
-}
-
 // packageExports is a local implementation of ast.PackageExports
 // which correctly updates each package file's comment list.
 // (The ast.PackageExports signature is frozen, hence the local
@@ -912,9 +902,9 @@ func packageExports(fset *token.FileSet, pkg *ast.Package) {
 	}
 }
 
-// declNames returns the names declared by decl.
-// Method names are returned in the form Receiver_Method.
-func declNames(decl ast.Decl) (names []string) {
+// addNames adds the names declared by decl to the names set.
+// Method names are added in the form ReceiverTypeName_Method.
+func addNames(names map[string]bool, decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
 		name := d.Name.Name
@@ -928,64 +918,52 @@ func declNames(decl ast.Decl) (names []string) {
 			}
 			name = typeName + "_" + name
 		}
-		names = []string{name}
+		names[name] = true
 	case *ast.GenDecl:
 		for _, spec := range d.Specs {
 			switch s := spec.(type) {
 			case *ast.TypeSpec:
-				names = append(names, s.Name.Name)
+				names[s.Name.Name] = true
 			case *ast.ValueSpec:
 				for _, id := range s.Names {
-					names = append(names, id.Name)
+					names[id.Name] = true
 				}
 			}
 		}
 	}
-	return
 }
 
-// globalNames finds all top-level declarations in pkgs and returns a map
-// with the identifier names as keys.
-func globalNames(pkgs map[string]*ast.Package) map[string]bool {
+// globalNames returns a set of the names declared by all package-level
+// declarations. Method names are returned in the form Receiver_Method.
+func globalNames(pkg *ast.Package) map[string]bool {
 	names := make(map[string]bool)
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				for _, name := range declNames(decl) {
-					names[name] = true
-				}
-			}
+	for _, file := range pkg.Files {
+		for _, decl := range file.Decls {
+			addNames(names, decl)
 		}
 	}
 	return names
 }
 
-// parseExamples gets examples for packages in pkgs from *_test.go files in dir.
-func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string) ([]*doc.Example, error) {
+// collectExamples collects examples for pkg from testfiles.
+func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Example {
+	var files []*ast.File
+	for _, f := range testfiles {
+		files = append(files, f)
+	}
+
 	var examples []*doc.Example
-	filter := func(d os.FileInfo) bool {
-		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
-	}
-	testpkgs, err := parseDir(fset, dir, filter)
-	if err != nil {
-		return nil, err
-	}
-	globals := globalNames(pkgs)
-	for _, testpkg := range testpkgs {
-		var files []*ast.File
-		for _, f := range testpkg.Files {
-			files = append(files, f)
-		}
-		for _, e := range doc.Examples(files...) {
-			name := stripExampleSuffix(e.Name)
-			if name == "" || globals[name] {
-				examples = append(examples, e)
-			} else {
-				log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
-			}
+	globals := globalNames(pkg)
+	for _, e := range doc.Examples(files...) {
+		name := stripExampleSuffix(e.Name)
+		if name == "" || globals[name] {
+			examples = append(examples, e)
+		} else {
+			log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
 		}
 	}
-	return examples, nil
+
+	return examples
 }
 
 // getPageInfo returns the PageInfo for a package directory abspath. If the
@@ -993,83 +971,56 @@ func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
 // is extracted from the AST. If there is no corresponding package in the
 // directory, PageInfo.PAst and PageInfo.PDoc are nil. If there are no sub-
-// directories, PageInfo.Dirs is nil. If a directory read error occurred,
-// PageInfo.Err is set to the respective error but the error is not logged.
+// directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
+// set to the respective error but the error is not logged.
 //
-func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) PageInfo {
-	var pkgFiles []string
+func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (info PageInfo) {
+	info.Dirname = abspath
 
-	// Restrict to the package files
-	// that would be used when building the package on this
-	// system.  This makes sure that if there are separate
-	// implementations for, say, Windows vs Unix, we don't
+	// Restrict to the package files that would be used when building
+	// the package on this system.  This makes sure that if there are
+	// separate implementations for, say, Windows vs Unix, we don't
 	// jumble them all together.
 	// Note: Uses current binary's GOOS/GOARCH.
-	// To use different pair, such as if we allowed the user
-	// to choose, set ctxt.GOOS and ctxt.GOARCH before
-	// calling ctxt.ScanDir.
+	// To use different pair, such as if we allowed the user to choose,
+	// set ctxt.GOOS and ctxt.GOARCH before calling ctxt.ImportDir.
 	ctxt := build.Default
 	ctxt.IsAbsPath = pathpkg.IsAbs
 	ctxt.ReadDir = fsReadDir
 	ctxt.OpenFile = fsOpenFile
-	if dir, err := ctxt.ImportDir(abspath, 0); err == nil {
-		pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
+	pkginfo, err := ctxt.ImportDir(abspath, 0)
+	// continue if there are no Go source files; we still want the directory info
+	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
+		info.Err = err
+		return
 	}
 
-	// filter function to select the desired .go files
-	filter := func(d os.FileInfo) bool {
-		// Only Go files.
-		if !isPkgFile(d) {
-			return false
-		}
-		// If we are looking at cmd documentation, only accept
-		// the special fakePkgFile containing the documentation.
-		if !h.isPkg {
-			return d.Name() == fakePkgFile
-		}
-		// Also restrict file list to pkgFiles.
-		return pkgFiles == nil || inList(d.Name(), pkgFiles)
+	// collect package files
+	pkgname := pkginfo.Name
+	pkgfiles := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
+	if len(pkgfiles) == 0 {
+		// Commands written in C have no .go files in the build.
+		// Instead, documentation may be found in an ignored file.
+		// The file may be ignored via an explicit +build ignore
+		// constraint (recommended), or by defining the package
+		// documentation (historic).
+		pkgname = "main" // assume package main since pkginfo.Name == ""
+		pkgfiles = pkginfo.IgnoredGoFiles
 	}
 
-	// get package ASTs
-	fset := token.NewFileSet()
-	pkgs, err := parseDir(fset, abspath, filter)
-	if err != nil {
-		return PageInfo{Dirname: abspath, Err: err}
-	}
-
-	// select package
-	var pkg *ast.Package // selected package
-	if len(pkgs) == 1 {
-		// Exactly one package - select it.
-		for _, p := range pkgs {
-			pkg = p
+	// get package information, if any
+	if len(pkgfiles) > 0 {
+		// build package AST
+		fset := token.NewFileSet()
+		files, err := parseFiles(fset, abspath, pkgfiles)
+		if err != nil {
+			info.Err = err
+			return
 		}
+		pkg := &ast.Package{Name: pkgname, Files: files}
 
-	} else if len(pkgs) > 1 {
-		// More than one package - report an error.
-		var buf bytes.Buffer
-		for _, p := range pkgs {
-			if buf.Len() > 0 {
-				fmt.Fprintf(&buf, ", ")
-			}
-			fmt.Fprintf(&buf, p.Name)
-		}
-		return PageInfo{
-			Dirname: abspath,
-			Err:     fmt.Errorf("%s contains more than one package: %s", abspath, buf.Bytes()),
-		}
-	}
-
-	examples, err := parseExamples(fset, pkgs, abspath)
-	if err != nil {
-		log.Println("parsing examples:", err)
-	}
-
-	// compute package documentation
-	var past *ast.File
-	var pdoc *doc.Package
-	if pkg != nil {
+		// extract package documentation
+		info.FSet = fset
 		if mode&showSource == 0 {
 			// show extracted documentation
 			var m doc.Mode
@@ -1079,7 +1030,15 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 			if mode&allMethods != 0 {
 				m |= doc.AllMethods
 			}
-			pdoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
+			info.PDoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
+
+			// collect examples
+			testfiles := append(pkginfo.TestGoFiles, pkginfo.XTestGoFiles...)
+			files, err = parseFiles(fset, abspath, testfiles)
+			if err != nil {
+				log.Println("parsing examples:", err)
+			}
+			info.Examples = collectExamples(pkg, files)
 		} else {
 			// show source code
 			// TODO(gri) Consider eliminating export filtering in this mode,
@@ -1087,11 +1046,12 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 			if mode&noFiltering == 0 {
 				packageExports(fset, pkg)
 			}
-			past = ast.MergePackageFiles(pkg, 0)
+			info.PAst = ast.MergePackageFiles(pkg, 0)
 		}
+		info.IsMain = pkgname == "main"
 	}
 
-	// get directory information
+	// get directory information, if any
 	var dir *Directory
 	var timestamp time.Time
 	if tree, ts := fsTree.get(); tree != nil && tree.(*Directory) != nil {
@@ -1109,19 +1069,11 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 		dir = newDirectory(abspath, 1)
 		timestamp = time.Now()
 	}
+	info.Dirs = dir.listing(true)
+	info.DirTime = timestamp
+	info.DirFlat = mode&flatDir != 0
 
-	return PageInfo{
-		Dirname:  abspath,
-		FSet:     fset,
-		PAst:     past,
-		PDoc:     pdoc,
-		Examples: examples,
-		Dirs:     dir.listing(true),
-		DirTime:  timestamp,
-		DirFlat:  mode&flatDir != 0,
-		IsPkg:    h.isPkg,
-		Err:      nil,
-	}
+	return
 }
 
 func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -1151,26 +1103,25 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case info.PAst != nil:
 		tabtitle = info.PAst.Name.Name
-		title = "Package " + tabtitle
 	case info.PDoc != nil:
-		if info.PDoc.Name == fakePkgName {
-			// assume that the directory name is the command name
-			_, tabtitle = pathpkg.Split(relpath)
-		} else {
-			tabtitle = info.PDoc.Name
-		}
-		if info.IsPkg {
-			title = "Package " + tabtitle
-		} else {
-			title = "Command " + tabtitle
-		}
+		tabtitle = info.PDoc.Name
 	default:
 		tabtitle = info.Dirname
-		title = "Directory " + tabtitle
+		title = "Directory "
 		if *showTimestamps {
 			subtitle = "Last update: " + info.DirTime.String()
 		}
 	}
+	if title == "" {
+		if info.IsMain {
+			// assume that the directory name is the command name
+			_, tabtitle = pathpkg.Split(relpath)
+			title = "Command "
+		} else {
+			title = "Package "
+		}
+	}
+	title += tabtitle
 
 	// special cases for top-level package/command directories
 	switch tabtitle {

@@ -48,4 +48,4 @@ referenced by yacc's generated code.  Setting it to distinct values
 allows multiple grammars to be placed in a single package.
 
 */
-package documentation
+package main

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 6a is a version of the Plan 9 assembler.  The original is documented at
@@ -11,4 +13,4 @@
 Its target architecture is the x86-64, referred to by these tools as amd64.
 
 */
-package documentation
+package main

@@ -2,7 +2,7 @@
 
 ---------------------------------------
 
-*/}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
+*/}}{{with .PDoc}}{{if not $.IsMain}}PACKAGE
 
 package {{.Name}}
     import "{{.ImportPath}}"
