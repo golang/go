@@ -2570,11 +2570,13 @@ func (b *Builder) CreatePackage(importPath string, files []*ast.File) (*Package,
 // from the gc compiler's object files; no code will be available.
 //
 func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, files []*ast.File) *Package {
-	// TODO(gri): make this an invariant and eliminate importPath
-	// param and Package field.
-	// if importPath != p.Types.Path {
-	// 	panic(importPath + " != " + p.Types.Path)
-	// }
+	// The typechecker sets types.Package.Path only for GcImported
+	// packages, since it doesn't know import path until after typechecking is done.
+	// Here we ensure it is always set, since we know the correct path.
+	// TODO(adonovan): eliminate redundant ssa.Package.ImportPath field.
+	if typkg.Path == "" {
+		typkg.Path = importPath
+	}
 
 	p := &Package{
 		Prog:       b.Prog,
