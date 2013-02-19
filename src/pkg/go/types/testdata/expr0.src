@@ -149,3 +149,13 @@ var (
 	_ = &((((T{1, 2}))))
 	_ = &f /* ERROR "cannot take address" */ ()
 )
+
+// recursive pointer types
+type P *P
+
+var (
+	p1 P = new(P)
+	p2 P = *p1
+	p3 P = &p2
+)
+

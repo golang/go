@@ -1193,7 +1193,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case typexpr:
 			x.typ = &Pointer{Base: x.typ}
 		default:
-			if typ, ok := x.typ.(*Pointer); ok {
+			if typ, ok := underlying(x.typ).(*Pointer); ok {
 				x.mode = variable
 				x.typ = typ.Base
 			} else {
