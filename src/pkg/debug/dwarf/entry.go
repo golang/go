@@ -185,6 +185,10 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		// flag
 		case formFlag:
 			val = b.uint8() == 1
+		case formFlagPresent:
+			// The attribute is implicitly indicated as present, and no value is
+			// encoded in the debugging information entry itself.
+			val = true
 
 		// reference to other entry
 		case formRefAddr:
