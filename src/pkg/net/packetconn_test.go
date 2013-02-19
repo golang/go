@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package net_test
+// This file implements API tests across platforms and will never have a build
+// tag.
+
+package net
 
 import (
-	"net"
 	"os"
 	"runtime"
 	"strings"
@@ -24,7 +26,7 @@ var packetConnTests = []struct {
 }
 
 func TestPacketConn(t *testing.T) {
-	closer := func(c net.PacketConn, net, addr1, addr2 string) {
+	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
 		case "unixgram":
@@ -61,7 +63,7 @@ func TestPacketConn(t *testing.T) {
 			continue
 		}
 
-		c1, err := net.ListenPacket(tt.net, tt.addr1)
+		c1, err := ListenPacket(tt.net, tt.addr1)
 		if err != nil {
 			t.Fatalf("net.ListenPacket failed: %v", err)
 		}
@@ -71,7 +73,7 @@ func TestPacketConn(t *testing.T) {
 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
 
-		c2, err := net.ListenPacket(tt.net, tt.addr2)
+		c2, err := ListenPacket(tt.net, tt.addr2)
 		if err != nil {
 			t.Fatalf("net.ListenPacket failed: %v", err)
 		}
@@ -119,7 +121,7 @@ func TestConnAndPacketConn(t *testing.T) {
 			continue
 		}
 
-		c1, err := net.ListenPacket(tt.net, tt.addr1)
+		c1, err := ListenPacket(tt.net, tt.addr1)
 		if err != nil {
 			t.Fatalf("net.ListenPacket failed: %v", err)
 		}
@@ -129,7 +131,7 @@ func TestConnAndPacketConn(t *testing.T) {
 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 		defer c1.Close()
 
-		c2, err := net.Dial(tt.net, c1.LocalAddr().String())
+		c2, err := Dial(tt.net, c1.LocalAddr().String())
 		if err != nil {
 			t.Fatalf("net.Dial failed: %v", err)
 		}
@@ -147,9 +149,9 @@ func TestConnAndPacketConn(t *testing.T) {
 		if _, _, err := c1.ReadFrom(rb1); err != nil {
 			t.Fatalf("net.PacetConn.ReadFrom failed: %v", err)
 		}
-		var dst net.Addr
+		var dst Addr
 		if netstr[0] == "ip" {
-			dst = &net.IPAddr{IP: net.IPv4(127, 0, 0, 1)}
+			dst = &IPAddr{IP: IPv4(127, 0, 0, 1)}
 		} else {
 			dst = c2.LocalAddr()
 		}

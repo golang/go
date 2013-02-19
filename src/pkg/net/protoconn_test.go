@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package net_test
+// This file implements API tests across platforms and will never have a build
+// tag.
+
+package net
 
 import (
 	"bytes"
-	"net"
 	"os"
 	"runtime"
 	"testing"
@@ -23,11 +25,11 @@ var condErrorf = func() func(*testing.T, string, ...interface{}) {
 }()
 
 func TestTCPListenerSpecificMethods(t *testing.T) {
-	la, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("net.ResolveTCPAddr failed: %v", err)
 	}
-	ln, err := net.ListenTCP("tcp4", la)
+	ln, err := ListenTCP("tcp4", la)
 	if err != nil {
 		t.Fatalf("net.ListenTCP failed: %v", err)
 	}
@@ -36,7 +38,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 	defer ln.Close()
 
 	if c, err := ln.Accept(); err != nil {
-		if !err.(net.Error).Timeout() {
+		if !err.(Error).Timeout() {
 			t.Errorf("net.TCPListener.Accept failed: %v", err)
 			return
 		}
@@ -44,7 +46,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 		c.Close()
 	}
 	if c, err := ln.AcceptTCP(); err != nil {
-		if !err.(net.Error).Timeout() {
+		if !err.(Error).Timeout() {
 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
 			return
 		}
@@ -61,11 +63,11 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 }
 
 func TestTCPConnSpecificMethods(t *testing.T) {
-	la, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
+	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("net.ResolveTCPAddr failed: %v", err)
 	}
-	ln, err := net.ListenTCP("tcp4", la)
+	ln, err := ListenTCP("tcp4", la)
 	if err != nil {
 		t.Fatalf("net.ListenTCP failed: %v", err)
 	}
@@ -75,12 +77,12 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 	done := make(chan int)
 	go transponder(t, ln, done)
 
-	ra, err := net.ResolveTCPAddr("tcp4", ln.Addr().String())
+	ra, err := ResolveTCPAddr("tcp4", ln.Addr().String())
 	if err != nil {
 		t.Errorf("net.ResolveTCPAddr failed: %v", err)
 		return
 	}
-	c, err := net.DialTCP("tcp4", nil, ra)
+	c, err := DialTCP("tcp4", nil, ra)
 	if err != nil {
 		t.Errorf("net.DialTCP failed: %v", err)
 		return
@@ -109,11 +111,11 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 }
 
 func TestUDPConnSpecificMethods(t *testing.T) {
-	la, err := net.ResolveUDPAddr("udp4", "127.0.0.1:0")
+	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("net.ResolveUDPAddr failed: %v", err)
 	}
-	c, err := net.ListenUDP("udp4", la)
+	c, err := ListenUDP("udp4", la)
 	if err != nil {
 		t.Fatalf("net.ListenUDP failed: %v", err)
 	}
@@ -128,7 +130,7 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 
 	wb := []byte("UDPCONN TEST")
 	rb := make([]byte, 128)
-	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*net.UDPAddr)); err != nil {
+	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*UDPAddr)); err != nil {
 		t.Errorf("net.UDPConn.WriteToUDP failed: %v", err)
 		return
 	}
@@ -136,7 +138,7 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 		t.Errorf("net.UDPConn.ReadFromUDP failed: %v", err)
 		return
 	}
-	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*net.UDPAddr)); err != nil {
+	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
 		condErrorf(t, "net.UDPConn.WriteMsgUDP failed: %v", err)
 		return
 	}
@@ -162,11 +164,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
 		t.Skipf("skipping test; must be root")
 	}
 
-	la, err := net.ResolveIPAddr("ip4", "127.0.0.1")
+	la, err := ResolveIPAddr("ip4", "127.0.0.1")
 	if err != nil {
 		t.Fatalf("net.ResolveIPAddr failed: %v", err)
 	}
-	c, err := net.ListenIP("ip4:icmp", la)
+	c, err := ListenIP("ip4:icmp", la)
 	if err != nil {
 		t.Fatalf("net.ListenIP failed: %v", err)
 	}
@@ -182,7 +184,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	id := os.Getpid() & 0xffff
 	wb := newICMPEchoRequest(id, 1, 128, []byte("IPCONN TEST "))
 	rb := make([]byte, 20+128)
-	if _, err := c.WriteToIP(wb, c.LocalAddr().(*net.IPAddr)); err != nil {
+	if _, err := c.WriteToIP(wb, c.LocalAddr().(*IPAddr)); err != nil {
 		t.Errorf("net.IPConn.WriteToIP failed: %v", err)
 		return
 	}
@@ -190,7 +192,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
 		t.Errorf("net.IPConn.ReadFromIP failed: %v", err)
 		return
 	}
-	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*net.IPAddr)); err != nil {
+	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*IPAddr)); err != nil {
 		condErrorf(t, "net.UDPConn.WriteMsgIP failed: %v", err)
 		return
 	}
@@ -215,11 +217,11 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 
 	p := "/tmp/gotest.net"
 	os.Remove(p)
-	la, err := net.ResolveUnixAddr("unix", p)
+	la, err := ResolveUnixAddr("unix", p)
 	if err != nil {
 		t.Fatalf("net.ResolveUnixAddr failed: %v", err)
 	}
-	ln, err := net.ListenUnix("unix", la)
+	ln, err := ListenUnix("unix", la)
 	if err != nil {
 		t.Fatalf("net.ListenUnix failed: %v", err)
 	}
@@ -229,7 +231,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	defer os.Remove(p)
 
 	if c, err := ln.Accept(); err != nil {
-		if !err.(net.Error).Timeout() {
+		if !err.(Error).Timeout() {
 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
 			return
 		}
@@ -237,7 +239,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 		c.Close()
 	}
 	if c, err := ln.AcceptUnix(); err != nil {
-		if !err.(net.Error).Timeout() {
+		if !err.(Error).Timeout() {
 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
 			return
 		}
@@ -264,11 +266,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	os.Remove(p2)
 	os.Remove(p3)
 
-	a1, err := net.ResolveUnixAddr("unixgram", p1)
+	a1, err := ResolveUnixAddr("unixgram", p1)
 	if err != nil {
 		t.Fatalf("net.ResolveUnixAddr failed: %v", err)
 	}
-	c1, err := net.DialUnix("unixgram", a1, nil)
+	c1, err := DialUnix("unixgram", a1, nil)
 	if err != nil {
 		t.Fatalf("net.DialUnix failed: %v", err)
 	}
@@ -282,12 +284,12 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	defer c1.Close()
 	defer os.Remove(p1)
 
-	a2, err := net.ResolveUnixAddr("unixgram", p2)
+	a2, err := ResolveUnixAddr("unixgram", p2)
 	if err != nil {
 		t.Errorf("net.ResolveUnixAddr failed: %v", err)
 		return
 	}
-	c2, err := net.DialUnix("unixgram", a2, nil)
+	c2, err := DialUnix("unixgram", a2, nil)
 	if err != nil {
 		t.Errorf("net.DialUnix failed: %v", err)
 		return
@@ -302,12 +304,12 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	defer c2.Close()
 	defer os.Remove(p2)
 
-	a3, err := net.ResolveUnixAddr("unixgram", p3)
+	a3, err := ResolveUnixAddr("unixgram", p3)
 	if err != nil {
 		t.Errorf("net.ResolveUnixAddr failed: %v", err)
 		return
 	}
-	c3, err := net.ListenUnixgram("unixgram", a3)
+	c3, err := ListenUnixgram("unixgram", a3)
 	if err != nil {
 		t.Errorf("net.ListenUnixgram failed: %v", err)
 		return
