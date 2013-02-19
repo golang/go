@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 Cov is a rudimentary code coverage tool.
@@ -31,4 +33,4 @@ The options are:
 The program is the same for all architectures: 386, amd64, and arm.
 
 */
-package documentation
+package main

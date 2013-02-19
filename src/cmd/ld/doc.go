@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 Ld is the portable code for a modified version of the Plan 9 linker.  The original is documented at
@@ -70,4 +72,4 @@ Options new in this version:
 		calls, not false positives caused by dead temporaries stored in
 		the current function call.
 */
-package documentation
+package main

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 Pack is a variant of the Plan 9 ar tool.  The original is documented at
@@ -24,4 +26,4 @@ The new option 'P' causes pack to remove the given prefix
 from file names in the line number information in object files
 that are already stored in or added to the archive.
 */
-package documentation
+package main

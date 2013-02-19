@@ -72,6 +72,6 @@ To convert the package tree from explicit slice upper bounds to implicit ones:
 
 	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src/pkg
 */
-package documentation
+package main
 
 // BUG(rsc): The implementation of -r is a bit slow.

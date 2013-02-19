@@ -33,4 +33,4 @@ Fix does not make backup copies of the files that it edits.
 Instead, use a version control system's ``diff'' functionality to inspect
 the changes that fix makes before committing them.
 */
-package documentation
+package main

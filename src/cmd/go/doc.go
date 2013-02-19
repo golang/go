@@ -812,6 +812,6 @@ See the documentation of the testing package for more information.
 
 
 */
-package documentation
+package main
 
 // NOTE: cmdDoc is in fmt.go.

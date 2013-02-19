@@ -10,7 +10,7 @@
 	correspond to Go identifiers).
 -->
 {{with .PDoc}}
-	{{if $.IsPkg}}
+	{{if not $.IsMain}}
 		<div id="short-nav">
 			<dl>
 			<dd><code>import "{{html .ImportPath}}"</code></dd>

@@ -67,4 +67,4 @@ The other flags are:
 			-printfuncs=Warn:1,Warnf:1
 
 */
-package documentation
+package main

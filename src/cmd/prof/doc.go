@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 /*
 
 Prof is a rudimentary real-time profiler.
@@ -44,4 +46,4 @@ every 100ms until the program completes.
 It is installed as go tool prof and is architecture-independent.
 
 */
-package documentation
+package main

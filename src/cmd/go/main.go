@@ -200,7 +200,7 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
 
 
 {{end}}*/
-package documentation
+package main
 
 // NOTE: cmdDoc is in fmt.go.
 `
