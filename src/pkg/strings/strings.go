@@ -59,21 +59,26 @@ func hashstr(sep string) (uint32, uint32) {
 
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
-	if sep == "" {
-		return utf8.RuneCountInString(s) + 1
-	}
-	c := sep[0]
 	n := 0
-	if len(sep) == 1 {
+	// special cases
+	switch {
+	case len(sep) == 0:
+		return utf8.RuneCountInString(s) + 1
+	case len(sep) == 1:
 		// special case worth making fast
+		c := sep[0]
 		for i := 0; i < len(s); i++ {
 			if s[i] == c {
 				n++
 			}
 		}
 		return n
-	}
-	if len(sep) > len(s) {
+	case len(sep) > len(s):
+		return 0
+	case len(sep) == len(s):
+		if sep == s {
+			return 1
+		}
 		return 0
 	}
 	hashsep, pow := hashstr(sep)
@@ -82,17 +87,19 @@ func Count(s, sep string) int {
 		h = h*primeRK + uint32(s[i])
 	}
 	lastmatch := 0
-	for i := len(sep); ; i++ {
-		// Invariant: h = hash(s[i-l : i])
+	if h == hashsep && s[:len(sep)] == sep {
+		n++
+		lastmatch = len(sep)
+	}
+	for i := len(sep); i < len(s); {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i-len(sep)])
+		i++
 		if h == hashsep && lastmatch <= i-len(sep) && s[i-len(sep):i] == sep {
 			n++
 			lastmatch = i
 		}
-		if i >= len(s) {
-			break
-		}
-		h = h*primeRK + uint32(s[i])
-		h -= pow * uint32(s[i-len(sep)])
 	}
 	return n
 }
@@ -115,11 +122,11 @@ func ContainsRune(s string, r rune) bool {
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep string) int {
 	n := len(sep)
-	if n == 0 {
+	switch {
+	case n == 0:
 		return 0
-	}
-	c := sep[0]
-	if n == 1 {
+	case n == 1:
+		c := sep[0]
 		// special case worth making fast
 		for i := 0; i < len(s); i++ {
 			if s[i] == c {
@@ -127,9 +134,12 @@ func Index(s, sep string) int {
 			}
 		}
 		return -1
-	}
-	// n > 1
-	if n > len(s) {
+	case n == len(s):
+		if sep == s {
+			return 0
+		}
+		return -1
+	case n > len(s):
 		return -1
 	}
 	// Hash sep.
@@ -138,16 +148,17 @@ func Index(s, sep string) int {
 	for i := 0; i < n; i++ {
 		h = h*primeRK + uint32(s[i])
 	}
-	for i := n; ; i++ {
-		// Invariant: h = hash(s[i-n : i])
+	if h == hashsep && s[:n] == sep {
+		return 0
+	}
+	for i := n; i < len(s); {
+		h *= primeRK
+		h += uint32(s[i])
+		h -= pow * uint32(s[i-n])
+		i++
 		if h == hashsep && s[i-n:i] == sep {
 			return i - n
 		}
-		if i >= len(s) {
-			break
-		}
-		h = h*primeRK + uint32(s[i])
-		h -= pow * uint32(s[i-n])
 	}
 	return -1
 }
