@@ -115,23 +115,8 @@ type Result interface {
 type Stmt interface {
 	// Close closes the statement.
 	//
-	// Closing a statement should not interrupt any outstanding
-	// query created from that statement. That is, the following
-	// order of operations is valid:
-	//
-	//  * create a driver statement
-	//  * call Query on statement, returning Rows
-	//  * close the statement
-	//  * read from Rows
-	//
-	// If closing a statement invalidates currently-running
-	// queries, the final step above will incorrectly fail.
-	//
-	// TODO(bradfitz): possibly remove the restriction above, if
-	// enough driver authors object and find it complicates their
-	// code too much. The sql package could be smarter about
-	// refcounting the statement and closing it at the appropriate
-	// time.
+	// As of Go 1.1, a Stmt will not be closed if it's in use
+	// by any queries.
 	Close() error
 
 	// NumInput returns the number of placeholder parameters.
