@@ -98,7 +98,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 	if err != nil {
 		return nil, err
 	}
-	return &TCPConn{conn{fd}}, nil
+	return newTCPConn(fd), nil
 }
 
 // TCPListener is a TCP network listener.  Clients should typically

@@ -19,6 +19,10 @@ type UDPConn struct {
 	conn
 }
 
+func newUDPConn(fd *netFD) *UDPConn {
+	return &UDPConn{conn{fd}}
+}
+
 // ReadFromUDP reads a UDP packet from c, copying the payload into b.
 // It returns the number of bytes copied into b and the return address
 // that was on the packet.
@@ -27,14 +31,8 @@ type UDPConn struct {
 // Timeout() == true after a fixed time limit; see SetDeadline and
 // SetReadDeadline.
 func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
-	if !c.ok() {
+	if !c.ok() || c.fd.data == nil {
 		return 0, nil, syscall.EINVAL
-	}
-	if c.fd.data == nil {
-		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, nil, err
-		}
 	}
 	buf := make([]byte, udpHeaderSize+len(b))
 	m, err := c.fd.data.Read(buf)
@@ -76,15 +74,8 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 // SetWriteDeadline.  On packet-oriented connections, write timeouts
 // are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
-	if !c.ok() {
+	if !c.ok() || c.fd.data == nil {
 		return 0, syscall.EINVAL
-	}
-	if c.fd.data == nil {
-		f, err := os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
-		c.fd.data = f
 	}
 	h := new(udpHeader)
 	h.raddr = addr.IP.To16()
@@ -141,7 +132,7 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	if err != nil {
 		return nil, err
 	}
-	return &UDPConn{conn{fd}}, nil
+	return newUDPConn(fd), nil
 }
 
 const udpHeaderSize = 16*3 + 2*2
@@ -193,7 +184,11 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &UDPConn{conn{l.netFD()}}, nil
+	l.data, err = os.OpenFile(l.dir+"/data", os.O_RDWR, 0)
+	if err != nil {
+		return nil, err
+	}
+	return newUDPConn(l.netFD()), nil
 }
 
 // ListenMulticastUDP listens for incoming multicast UDP packets

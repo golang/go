@@ -29,21 +29,15 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
 	return dialTimeoutRace(net, addr, timeout)
 }
 
-func newFD(proto, name string, ctl *os.File, laddr, raddr Addr) *netFD {
-	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
+func newFD(proto, name string, ctl, data *os.File, laddr, raddr Addr) *netFD {
+	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, data, laddr, raddr}
 }
 
 func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
 
 func (fd *netFD) Read(b []byte) (n int, err error) {
-	if !fd.ok() {
+	if !fd.ok() || fd.data == nil {
 		return 0, syscall.EINVAL
-	}
-	if fd.data == nil {
-		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
 	}
 	n, err = fd.data.Read(b)
 	if fd.proto == "udp" && err == io.EOF {
@@ -54,14 +48,8 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 }
 
 func (fd *netFD) Write(b []byte) (n int, err error) {
-	if !fd.ok() {
+	if !fd.ok() || fd.data == nil {
 		return 0, syscall.EINVAL
-	}
-	if fd.data == nil {
-		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
-		if err != nil {
-			return 0, err
-		}
 	}
 	return fd.data.Write(b)
 }
@@ -85,11 +73,10 @@ func (fd *netFD) Close() error {
 		return syscall.EINVAL
 	}
 	err := fd.ctl.Close()
-	if err != nil {
-		return err
-	}
 	if fd.data != nil {
-		err = fd.data.Close()
+		if err1 := fd.data.Close(); err1 != nil && err == nil {
+			err = err1
+		}
 	}
 	fd.ctl = nil
 	fd.data = nil
