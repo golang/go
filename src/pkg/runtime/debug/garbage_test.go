@@ -70,12 +70,14 @@ func TestReadGCStats(t *testing.T) {
 	}
 }
 
-var big []byte
+var big = make([]byte, 1<<20)
 
 func TestFreeOSMemory(t *testing.T) {
 	var ms1, ms2 runtime.MemStats
 
-	big = make([]byte, 1<<20)
+	if big == nil {
+		t.Skip("test is not reliable when run multiple times")
+	}
 	big = nil
 	runtime.GC()
 	runtime.ReadMemStats(&ms1)
