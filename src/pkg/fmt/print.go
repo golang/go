@@ -729,7 +729,7 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 
 	if field == nil {
 		if verb == 'T' || verb == 'v' {
-			p.buf.Write(nilAngleBytes)
+			p.fmt.pad(nilAngleBytes)
 		} else {
 			p.badVerb(verb)
 		}
