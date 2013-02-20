@@ -8,7 +8,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +62,10 @@ func exec(t *testing.T, db *DB, query string, args ...interface{}) {
 }
 
 func closeDB(t *testing.T, db *DB) {
+	if e := recover(); e != nil {
+		fmt.Printf("Panic: %v\n", e)
+		panic(e)
+	}
 	err := db.Close()
 	if err != nil {
 		t.Fatalf("error closing DB: %v", err)
@@ -448,10 +451,8 @@ func TestIssue2542Deadlock(t *testing.T) {
 	}
 }
 
+// From golang.org/issue/3865
 func TestCloseStmtBeforeRows(t *testing.T) {
-	t.Skip("known broken test; golang.org/issue/3865")
-	return
-
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
@@ -665,9 +666,4 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 			t.Errorf("id=%d got %#v, want %#v", id, bindValDeref, spec.rows[i].scanNullVal)
 		}
 	}
-}
-
-func stack() string {
-	buf := make([]byte, 1024)
-	return string(buf[:runtime.Stack(buf, false)])
 }
