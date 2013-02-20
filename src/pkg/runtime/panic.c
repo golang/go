@@ -382,6 +382,8 @@ nomatch:
 void
 runtime·startpanic(void)
 {
+	if(m->mcache == nil)  // can happen if called from signal handler or throw
+		m->mcache = runtime·allocmcache();
 	if(m->dying) {
 		runtime·printf("panic during panic\n");
 		runtime·exit(3);
