@@ -70,3 +70,36 @@ func HasPrefix(p, prefix string) bool {
 	}
 	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(prefix))
 }
+
+func splitList(path string) []string {
+	// The same implementation is used in LookPath in os/exec;
+	// consider changing os/exec when changing this.
+
+	if path == "" {
+		return []string{}
+	}
+
+	// Split path, respecting but preserving quotes.
+	list := []string{}
+	start := 0
+	quo := false
+	for i := 0; i < len(path); i++ {
+		switch c := path[i]; {
+		case c == '"':
+			quo = !quo
+		case c == ListSeparator && !quo:
+			list = append(list, path[start:i])
+			start = i + 1
+		}
+	}
+	list = append(list, path[start:])
+
+	// Remove quotes.
+	for i, s := range list {
+		if strings.Contains(s, `"`) {
+			list[i] = strings.Replace(s, `"`, ``, -1)
+		}
+	}
+
+	return list
+}

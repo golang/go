@@ -176,10 +176,7 @@ func FromSlash(path string) string {
 // usually found in PATH or GOPATH environment variables.
 // Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
 func SplitList(path string) []string {
-	if path == "" {
-		return []string{}
-	}
-	return strings.Split(path, string(ListSeparator))
+	return splitList(path)
 }
 
 // Split splits path immediately following the final Separator,

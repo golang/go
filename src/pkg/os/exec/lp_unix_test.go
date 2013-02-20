@@ -32,7 +32,10 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
 	if err != nil {
 		t.Fatal("OpenFile failed: ", err)
 	}
-	defer f.Close()
+	err = f.Close()
+	if err != nil {
+		t.Fatal("Close failed: ", err)
+	}
 
 	pathenv := os.Getenv("PATH")
 	defer os.Setenv("PATH", pathenv)
