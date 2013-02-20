@@ -290,11 +290,31 @@ TEXT	runtime·asmcgocall(SB),7,$0
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT	runtime·cgocallback(SB),7,$16
+	// Load m and g from thread-local storage.
+	MOVW	cgo_load_gm(SB), R0
+	CMP	$0, R0
+	BL.NE	(R0)
+
+	// If m is nil, Go did not create the current thread.
+	// Call needm to obtain one for temporary use.
+	// In this case, we're running on the thread stack, so there's
+	// lots of space, but the linker doesn't know. Hide the call from
+	// the linker analysis by using an indirect call.
+	MOVW	m, savedm-16(SP)
+	CMP	$0, m
+	B.NE havem
+	MOVW	$runtime·needm(SB), R0
+	BL	(R0)
+
+havem:
+	// Now there's a valid m, and we're running on its m->g0.
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	// Save current sp in m->g0->sched.sp in preparation for
+	// switch back to m->curg stack.
 	MOVW	fn+0(FP), R0
 	MOVW	frame+4(FP), R1
 	MOVW	framesize+8(FP), R2
 
-	// Save current m->g0->sched.sp on stack and then set it to SP.
 	MOVW	m_g0(m), R3
 	MOVW	(g_sched+gobuf_sp)(R3), R4
 	MOVW.W	R4, -4(R13)
@@ -314,6 +334,8 @@ TEXT	runtime·cgocallback(SB),7,$16
 	// a frame size of 16, the same amount that we use below),
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
+
+	// Save current m->g0->sched.sp on stack and then set it to SP.
 	MOVW	m_curg(m), g
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 
@@ -350,7 +372,27 @@ TEXT	runtime·cgocallback(SB),7,$16
 	ADD	$4, R13
 	MOVW	R6, (g_sched+gobuf_sp)(g)
 
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
+	MOVW	savedm-16(SP), R6
+	CMP	$0, R6
+	B.NE	3(PC)
+	MOVW	$runtime·dropm(SB), R0
+	BL	(R0)
+
 	// Done!
+	RET
+
+// void setmg(M*, G*); set m and g. for use by needm.
+TEXT runtime·setmg(SB), 7, $-4
+	MOVW	mm+0(FP), m
+	MOVW	gg+4(FP), g
+
+	// Save m and g to thread-local storage.
+	MOVW	cgo_save_gm(SB), R0
+	CMP	$0, R0
+	BL.NE	(R0)
+
 	RET
 
 TEXT runtime·getcallerpc(SB),7,$-4

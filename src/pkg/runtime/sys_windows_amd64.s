@@ -343,3 +343,6 @@ TEXT runtime·settls(SB),7,$0
 TEXT runtime·install_exception_handler(SB),7,$0
 	CALL	runtime·setstacklimits(SB)
 	RET
+
+TEXT runtime·remove_exception_handler(SB),7,$0
+	RET

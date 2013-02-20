@@ -303,3 +303,15 @@ TEXT runtime·install_exception_handler(SB),7,$0
 	MOVL	DX, 0(FS)
 
 	RET
+
+// void remove_exception_handler()
+TEXT runtime·remove_exception_handler(SB),7,$0
+	get_tls(CX)
+	MOVL	m(CX), CX		// m
+
+	// Remove SEH frame
+	MOVL	m_seh(CX), DX
+	MOVL	seh_prev(DX), AX
+	MOVL	AX, 0(FS)
+
+	RET

@@ -181,6 +181,13 @@ runtime·minit(void)
 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof(Sigset));
 }
 
+// Called from dropm to undo the effect of an minit.
+void
+runtime·unminit(void)
+{
+	runtime·signalstack(nil, 0);
+}
+
 void
 runtime·sigpanic(void)
 {

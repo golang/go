@@ -23,6 +23,13 @@ runtime·minit(void)
 	runtime·setfpmasks();
 }
 
+// Called from dropm to undo the effect of an minit.
+void
+runtime·unminit(void)
+{
+}
+
+
 static int32
 getproccount(void)
 {
@@ -82,6 +89,7 @@ runtime·initsig(void)
 {
 }
 
+#pragma textflag 7
 void
 runtime·osyield(void)
 {

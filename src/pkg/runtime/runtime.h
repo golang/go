@@ -289,6 +289,7 @@ struct	M
 	uint32	waitsemalock;
 	GCStats	gcstats;
 	bool	racecall;
+	bool	needextram;
 	void*	racepc;
 	uint32	moreframesize_minalloc;
 
@@ -657,10 +658,11 @@ void	runtime·ready(G*);
 byte*	runtime·getenv(int8*);
 int32	runtime·atoi(byte*);
 void	runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void));
-void	runtime·signalstack(byte*, int32);
 G*	runtime·malg(int32);
 void	runtime·asminit(void);
 void	runtime·minit(void);
+void	runtime·unminit(void);
+void	runtime·signalstack(byte*, int32);
 Func*	runtime·findfunc(uintptr);
 int32	runtime·funcline(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
@@ -683,6 +685,8 @@ int32	runtime·gcount(void);
 void	runtime·mcall(void(*)(G*));
 uint32	runtime·fastrand1(void);
 
+void runtime·setmg(M*, G*);
+void runtime·newextram(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);
 void	runtime·gosched(void);

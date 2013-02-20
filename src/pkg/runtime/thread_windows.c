@@ -135,6 +135,7 @@ runtime·write(int32 fd, void *buf, int32 n)
 	return written;
 }
 
+#pragma textflag 7
 void
 runtime·osyield(void)
 {
@@ -209,6 +210,13 @@ void
 runtime·minit(void)
 {
 	runtime·install_exception_handler();
+}
+
+// Called from dropm to undo the effect of an minit.
+void
+runtime·unminit(void)
+{
+	runtime·remove_exception_handler();
 }
 
 int64
