@@ -1720,9 +1720,9 @@ var (
 	esc_cr   = []byte("&#xD;")
 )
 
-// Escape writes to w the properly escaped XML equivalent
+// EscapeText writes to w the properly escaped XML equivalent
 // of the plain text data s.
-func Escape(w io.Writer, s []byte) {
+func EscapeText(w io.Writer, s []byte) error {
 	var esc []byte
 	last := 0
 	for i, c := range s {
@@ -1746,11 +1746,25 @@ func Escape(w io.Writer, s []byte) {
 		default:
 			continue
 		}
-		w.Write(s[last:i])
-		w.Write(esc)
+		if _, err := w.Write(s[last:i]); err != nil {
+			return err
+		}
+		if _, err := w.Write(esc); err != nil {
+			return err
+		}
 		last = i + 1
 	}
-	w.Write(s[last:])
+	if _, err := w.Write(s[last:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Escape is like EscapeText but omits the error return value.
+// It is provided for backwards compatibility with Go 1.0.
+// Code targeting Go 1.1 or later should use EscapeText.
+func Escape(w io.Writer, s []byte) {
+	EscapeText(w, s)
 }
 
 // procInstEncoding parses the `encoding="..."` or `encoding='...'`
