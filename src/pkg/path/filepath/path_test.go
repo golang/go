@@ -148,10 +148,36 @@ var splitlisttests = []SplitListTest{
 	{string([]byte{lsep, 'a', lsep, 'b'}), []string{"", "a", "b"}},
 }
 
+var winsplitlisttests = []SplitListTest{
+	// quoted
+	{`"a"`, []string{`a`}},
+
+	// semicolon
+	{`";"`, []string{`;`}},
+	{`"a;b"`, []string{`a;b`}},
+	{`";";`, []string{`;`, ``}},
+	{`;";"`, []string{``, `;`}},
+
+	// partially quoted
+	{`a";"b`, []string{`a;b`}},
+	{`a; ""b`, []string{`a`, ` b`}},
+	{`"a;b`, []string{`a;b`}},
+	{`""a;b`, []string{`a`, `b`}},
+	{`"""a;b`, []string{`a;b`}},
+	{`""""a;b`, []string{`a`, `b`}},
+	{`a";b`, []string{`a;b`}},
+	{`a;b";c`, []string{`a`, `b;c`}},
+	{`"a";b";c`, []string{`a`, `b;c`}},
+}
+
 func TestSplitList(t *testing.T) {
-	for _, test := range splitlisttests {
+	tests := splitlisttests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winsplitlisttests...)
+	}
+	for _, test := range tests {
 		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
-			t.Errorf("SplitList(%q) = %s, want %s", test.list, l, test.result)
+			t.Errorf("SplitList(%#q) = %#q, want %#q", test.list, l, test.result)
 		}
 	}
 }

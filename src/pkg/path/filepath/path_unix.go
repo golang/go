@@ -23,3 +23,10 @@ func volumeNameLen(path string) int {
 func HasPrefix(p, prefix string) bool {
 	return strings.HasPrefix(p, prefix)
 }
+
+func splitList(path string) []string {
+	if path == "" {
+		return []string{}
+	}
+	return strings.Split(path, string(ListSeparator))
+}

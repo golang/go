@@ -72,11 +72,44 @@ func LookPath(file string) (f string, err error) {
 		return
 	}
 	if pathenv := os.Getenv(`PATH`); pathenv != `` {
-		for _, dir := range strings.Split(pathenv, `;`) {
+		for _, dir := range splitList(pathenv) {
 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
 				return
 			}
 		}
 	}
 	return ``, &Error{file, ErrNotFound}
+}
+
+func splitList(path string) []string {
+	// The same implementation is used in SplitList in path/filepath;
+	// consider changing path/filepath when changing this.
+
+	if path == "" {
+		return []string{}
+	}
+
+	// Split path, respecting but preserving quotes.
+	list := []string{}
+	start := 0
+	quo := false
+	for i := 0; i < len(path); i++ {
+		switch c := path[i]; {
+		case c == '"':
+			quo = !quo
+		case c == os.PathListSeparator && !quo:
+			list = append(list, path[start:i])
+			start = i + 1
+		}
+	}
+	list = append(list, path[start:])
+
+	// Remove quotes.
+	for i, s := range list {
+		if strings.Contains(s, `"`) {
+			list[i] = strings.Replace(s, `"`, ``, -1)
+		}
+	}
+
+	return list
 }
