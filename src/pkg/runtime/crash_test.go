@@ -9,19 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"text/template"
 )
 
-type crashTest struct {
-	Cgo bool
-}
+func executeTest(t *testing.T, templ string, data interface{}) string {
+	checkStaleRuntime(t)
 
-// This test is a separate program, because it is testing
-// both main (m0) and non-main threads (m).
-
-func testCrashHandler(t *testing.T, ct *crashTest) {
-	st := template.Must(template.New("crashSource").Parse(crashSource))
+	st := template.Must(template.New("crashSource").Parse(templ))
 
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
@@ -34,25 +30,73 @@ func testCrashHandler(t *testing.T, ct *crashTest) {
 	if err != nil {
 		t.Fatalf("failed to create %v: %v", src, err)
 	}
-	err = st.Execute(f, ct)
+	err = st.Execute(f, data)
 	if err != nil {
 		f.Close()
 		t.Fatalf("failed to execute template: %v", err)
 	}
 	f.Close()
 
-	got, err := exec.Command("go", "run", src).CombinedOutput()
-	if err != nil {
-		t.Fatalf("program exited with error: %v\n%v", err, string(got))
+	// Deadlock tests hang with GOMAXPROCS>1.  Issue 4826.
+	cmd := exec.Command("go", "run", src)
+	for _, s := range os.Environ() {
+		if strings.HasPrefix(s, "GOMAXPROCS") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, s)
 	}
+	got, _ := cmd.CombinedOutput()
+	return string(got)
+}
+
+func checkStaleRuntime(t *testing.T) {
+	// 'go run' uses the installed copy of runtime.a, which may be out of date.
+	out, err := exec.Command("go", "list", "-f", "{{.Stale}}", "runtime").CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to execute 'go list': %v\n%v", err, string(out))
+	}
+	if string(out) != "false\n" {
+		t.Fatalf("Stale runtime.a. Run 'go install runtime'.")
+	}
+}
+
+func testCrashHandler(t *testing.T, cgo bool) {
+	type crashTest struct {
+		Cgo bool
+	}
+	got := executeTest(t, crashSource, &crashTest{Cgo: cgo})
 	want := "main: recovered done\nnew-thread: recovered done\nsecond-new-thread: recovered done\nmain-again: recovered done\n"
-	if string(got) != string(want) {
-		t.Fatalf("expected %q, but got %q", string(want), string(got))
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
 	}
 }
 
 func TestCrashHandler(t *testing.T) {
-	testCrashHandler(t, &crashTest{Cgo: false})
+	testCrashHandler(t, false)
+}
+
+func testDeadlock(t *testing.T, source string) {
+	got := executeTest(t, source, nil)
+	want := "fatal error: all goroutines are asleep - deadlock!\n"
+	if !strings.HasPrefix(got, want) {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestSimpleDeadlock(t *testing.T) {
+	testDeadlock(t, simpleDeadlockSource)
+}
+
+func TestInitDeadlock(t *testing.T) {
+	testDeadlock(t, initDeadlockSource)
+}
+
+func TestLockedDeadlock(t *testing.T) {
+	testDeadlock(t, lockedDeadlockSource)
+}
+
+func TestLockedDeadlock2(t *testing.T) {
+	testDeadlock(t, lockedDeadlockSource2)
 }
 
 const crashSource = `
@@ -96,5 +140,46 @@ func main() {
 	testInNewThread("new-thread")
 	testInNewThread("second-new-thread")
 	test("main-again")
+}
+`
+
+const simpleDeadlockSource = `
+package main
+func main() {
+	select {}
+}
+`
+
+const initDeadlockSource = `
+package main
+func init() {
+	select {}
+}
+func main() {
+}
+`
+
+const lockedDeadlockSource = `
+package main
+import "runtime"
+func main() {
+	runtime.LockOSThread()
+	select {}
+}
+`
+
+const lockedDeadlockSource2 = `
+package main
+import (
+	"runtime"
+	"time"
+)
+func main() {
+	go func() {
+		runtime.LockOSThread()
+		select {}
+	}()
+	time.Sleep(time.Millisecond)
+	select {}
 }
 `

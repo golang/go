@@ -11,5 +11,5 @@ import (
 )
 
 func TestCgoCrashHandler(t *testing.T) {
-	testCrashHandler(t, &crashTest{Cgo: true})
+	testCrashHandler(t, true)
 }
