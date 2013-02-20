@@ -84,6 +84,7 @@ vprintf(int8 *s, byte *base)
 		narg = 0;
 		switch(*p) {
 		case 't':
+		case 'c':
 			narg = arg + 1;
 			break;
 		case 'd':	// 32-bit
@@ -125,6 +126,9 @@ vprintf(int8 *s, byte *base)
 		switch(*p) {
 		case 'a':
 			runtime·printslice(*(Slice*)v);
+			break;
+		case 'c':
+			runtime·printbyte(*(int8*)v);
 			break;
 		case 'd':
 			runtime·printint(*(int32*)v);
@@ -200,6 +204,12 @@ runtime·printbool(bool v)
 		return;
 	}
 	gwrite((byte*)"false", 5);
+}
+
+void
+runtime·printbyte(int8 c)
+{
+	gwrite(&c, 1);
 }
 
 void
