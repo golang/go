@@ -208,7 +208,7 @@ func TestReader(t *testing.T) {
 		}
 
 		piper, pipew := io.Pipe()
-		pb := bufio.NewReader(piper)
+		pb := bufio.NewScanner(piper)
 		go sng(pipew, fn, img)
 		defer piper.Close()
 
@@ -219,7 +219,7 @@ func TestReader(t *testing.T) {
 			continue
 		}
 		defer sf.Close()
-		sb := bufio.NewReader(sf)
+		sb := bufio.NewScanner(sf)
 		if err != nil {
 			t.Error(fn, err)
 			continue
@@ -227,23 +227,27 @@ func TestReader(t *testing.T) {
 
 		// Compare the two, in SNG format, line by line.
 		for {
-			ps, perr := pb.ReadString('\n')
-			ss, serr := sb.ReadString('\n')
-			if perr == io.EOF && serr == io.EOF {
+			pdone := pb.Scan()
+			sdone := sb.Scan()
+			if pdone && sdone {
 				break
 			}
-			if perr != nil {
-				t.Error(fn, perr)
+			if pdone || sdone {
+				t.Errorf("%s: Different sizes", fn)
 				break
 			}
-			if serr != nil {
-				t.Error(fn, serr)
-				break
-			}
+			ps := pb.Text()
+			ss := sb.Text()
 			if ps != ss {
 				t.Errorf("%s: Mismatch\n%sversus\n%s\n", fn, ps, ss)
 				break
 			}
+		}
+		if pb.Err() != nil {
+			t.Error(fn, pb.Err())
+		}
+		if sb.Err() != nil {
+			t.Error(fn, sb.Err())
 		}
 	}
 }
