@@ -121,6 +121,13 @@ runtime·minit(void)
 	runtime·setprof(m->profilehz > 0);
 }
 
+// Called from dropm to undo the effect of an minit.
+void
+runtime·unminit(void)
+{
+	runtime·signalstack(nil, 0);
+}
+
 // Mach IPC, to get at semaphores
 // Definitions are in /usr/include/mach on a Mac.
 

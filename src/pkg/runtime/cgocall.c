@@ -216,6 +216,11 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 
 	runtime·exitsyscall();	// coming out of cgo call
 
+	if(m->needextram) {
+		m->needextram = 0;
+		runtime·newextram();
+	}
+
 	// Add entry to defer stack in case of panic.
 	d.fn = (byte*)unwindm;
 	d.siz = 0;

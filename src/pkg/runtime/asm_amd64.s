@@ -509,21 +509,33 @@ TEXT runtime·asmcgocall(SB),7,$0
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
 TEXT runtime·cgocallback(SB),7,$24
-	MOVQ	fn+0(FP), AX
-	MOVQ	frame+8(FP), BX
-	MOVQ	framesize+16(FP), DX
-
-	// Save current m->g0->sched.sp on stack and then set it to SP.
+	// If m is nil, Go did not create the current thread.
+	// Call needm to obtain one for temporary use.
+	// In this case, we're running on the thread stack, so there's
+	// lots of space, but the linker doesn't know. Hide the call from
+	// the linker analysis by using an indirect call through AX.
+	get_tls(CX)
+#ifdef GOOS_windows
+	CMPQ	CX, $0
+	JNE	3(PC)
+	PUSHQ	$0
+	JMP	needm
+#endif
+	MOVQ	m(CX), BP
+	PUSHQ	BP
+	CMPQ	BP, $0
+	JNE	havem
+needm:
+	MOVQ	$runtime·needm(SB), AX
+	CALL	AX
 	get_tls(CX)
 	MOVQ	m(CX), BP
-	
-	// If m is nil, it is almost certainly because we have been called
-	// on a thread that Go did not create.  We're going to crash as
-	// soon as we try to use m; instead, try to print a nice error and exit.
-	CMPQ	BP, $0
-	JNE 2(PC)
-	CALL	runtime·badcallback(SB)
 
+havem:
+	// Now there's a valid m, and we're running on its m->g0.
+	// Save current m->g0->sched.sp on stack and then set it to SP.
+	// Save current sp in m->g0->sched.sp in preparation for
+	// switch back to m->curg stack.
 	MOVQ	m_g0(BP), SI
 	PUSHQ	(g_sched+gobuf_sp)(SI)
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
@@ -542,6 +554,10 @@ TEXT runtime·cgocallback(SB),7,$24
 	// a frame size of 24, the same amount that we use below),
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
+	MOVQ	fn+0(FP), AX
+	MOVQ	frame+8(FP), BX
+	MOVQ	framesize+16(FP), DX
+
 	MOVQ	m_curg(BP), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
@@ -579,8 +595,35 @@ TEXT runtime·cgocallback(SB),7,$24
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 	POPQ	(g_sched+gobuf_sp)(SI)
+	
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
+	POPQ	BP
+	CMPQ	BP, $0
+	JNE 3(PC)
+	MOVQ	$runtime·dropm(SB), AX
+	CALL	AX
 
 	// Done!
+	RET
+
+// void setmg(M*, G*); set m and g. for use by needm.
+TEXT runtime·setmg(SB), 7, $0
+	MOVQ	mm+0(FP), AX
+#ifdef GOOS_windows
+	CMPQ	AX, $0
+	JNE	settls
+	MOVQ	$0, 0x28(GS)
+	RET
+settls:
+	LEAQ	m_tls(AX), AX
+	MOVQ	AX, 0x28(GS)
+#endif
+	get_tls(CX)
+	MOVQ	mm+0(FP), AX
+	MOVQ	AX, m(CX)
+	MOVQ	gg+8(FP), BX
+	MOVQ	BX, g(CX)
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
