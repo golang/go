@@ -397,14 +397,6 @@ canaddmcpu(void)
 static void
 gput(G *gp)
 {
-	M *mp;
-
-	// If g is wired, hand it off directly.
-	if((mp = gp->lockedm) != nil && canaddmcpu()) {
-		mnextg(mp, gp);
-		return;
-	}
-
 	// If g is the idle goroutine for an m, hand it off.
 	if(gp->idlem != nil) {
 		if(gp->idlem->idleg != nil) {
