@@ -211,9 +211,13 @@ func (x *operand) isInteger() bool {
 		x.mode == constant && isRepresentableConst(x.val, UntypedInt)
 }
 
+// lookupResult represents the result of a struct field/method lookup.
+// TODO(gri) mode (variable for fields vs value for methods) and offset
+//           (>= 0 vs <0) provide redundant data - simplify!
 type lookupResult struct {
-	mode operandMode
-	typ  Type
+	mode   operandMode
+	typ    Type
+	offset int64 // byte offset for struct fields, <0 for methods
 }
 
 type embeddedType struct {
@@ -234,7 +238,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 	var next []embeddedType
 
 	// potentialMatch is invoked every time a match is found.
-	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
+	potentialMatch := func(multiples bool, mode operandMode, typ Type, offset int64) bool {
 		if multiples || res.mode != invalid {
 			// name appeared already at this level - annihilate
 			res.mode = invalid
@@ -243,6 +247,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 		// first appearance of name
 		res.mode = mode
 		res.typ = typ
+		res.offset = offset
 		return true
 	}
 
@@ -268,7 +273,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 			for _, m := range typ.Methods {
 				if name.IsSame(m.QualifiedName) {
 					assert(m.Type != nil)
-					if !potentialMatch(e.multiples, value, m.Type) {
+					if !potentialMatch(e.multiples, value, m.Type, -1) {
 						return // name collision
 					}
 				}
@@ -280,7 +285,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 				for _, f := range t.Fields {
 					if name.IsSame(f.QualifiedName) {
 						assert(f.Type != nil)
-						if !potentialMatch(e.multiples, variable, f.Type) {
+						if !potentialMatch(e.multiples, variable, f.Type, f.Offset) {
 							return // name collision
 						}
 						continue
@@ -304,7 +309,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 				for _, m := range t.Methods {
 					if name.IsSame(m.QualifiedName) {
 						assert(m.Type != nil)
-						if !potentialMatch(e.multiples, value, m.Type) {
+						if !potentialMatch(e.multiples, value, m.Type, -1) {
 							return // name collision
 						}
 					}
@@ -348,14 +353,14 @@ func findType(list []embeddedType, typ *NamedType) *embeddedType {
 	return nil
 }
 
-func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+func lookupField(typ Type, name QualifiedName) lookupResult {
 	typ = deref(typ)
 
 	if t, ok := typ.(*NamedType); ok {
 		for _, m := range t.Methods {
 			if name.IsSame(m.QualifiedName) {
 				assert(m.Type != nil)
-				return value, m.Type
+				return lookupResult{value, m.Type, -1}
 			}
 		}
 		typ = t.Underlying
@@ -366,7 +371,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 		var next []embeddedType
 		for _, f := range t.Fields {
 			if name.IsSame(f.QualifiedName) {
-				return variable, f.Type
+				return lookupResult{variable, f.Type, f.Offset}
 			}
 			if f.IsAnonymous {
 				// Possible optimization: If the embedded type
@@ -376,18 +381,17 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 			}
 		}
 		if len(next) > 0 {
-			res := lookupFieldBreadthFirst(next, name)
-			return res.mode, res.typ
+			return lookupFieldBreadthFirst(next, name)
 		}
 
 	case *Interface:
 		for _, m := range t.Methods {
 			if name.IsSame(m.QualifiedName) {
-				return value, m.Type
+				return lookupResult{value, m.Type, -1}
 			}
 		}
 	}
 
 	// not found
-	return invalid, nil
+	return lookupResult{mode: invalid}
 }

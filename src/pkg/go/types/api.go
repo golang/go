@@ -15,17 +15,15 @@ import (
 )
 
 // A Context specifies the supporting context for type checking.
+// An empty Context is a ready-to-use default context.
 type Context struct {
-	IntSize int64 // size in bytes of int and uint values
-	PtrSize int64 // size in bytes of pointers
-
-	// If Error is not nil, it is called with each error found
-	// during type checking. Most error messages have accurate
-	// position information; those error strings are formatted
-	// filename:line:column: message.
+	// If Error != nil, it is called with each error found
+	// during type checking. The error strings of errors with
+	// detailed position information are formatted as follows:
+	// filename:line:column: message
 	Error func(err error)
 
-	// If Ident is not nil, it is called for each identifier id
+	// If Ident != nil, it is called for each identifier id
 	// denoting an Object in the files provided to Check, and
 	// obj is the denoted object.
 	// Ident is not called for fields and methods in struct or
@@ -35,7 +33,7 @@ type Context struct {
 	// Objects - than we could lift this restriction.
 	Ident func(id *ast.Ident, obj Object)
 
-	// If Expr is not nil, it is called for each expression x that is
+	// If Expr != nil, it is called for each expression x that is
 	// type-checked: typ is the expression type, and val is the value
 	// if x is constant, val is nil otherwise.
 	//
@@ -52,8 +50,23 @@ type Context struct {
 	// represented accurately as an int64.
 	Expr func(x ast.Expr, typ Type, val interface{})
 
-	// If Import is not nil, it is used instead of GcImport.
+	// If Import != nil, it is called for each imported package.
+	// Otherwise, GcImporter is called.
 	Import Importer
+
+	// If Alignof != nil, it is called to determine alignment.
+	// Otherwise DefaultAlignmentof is called.
+	// Alignof must return a size > 0, in bytes. It is not called
+	// for arrays and structs (those alignments are based on the
+	// alignment of the array elements or struct fields, respectively).
+	Alignof func(Type) int64
+
+	// If Sizeof != nil, it is called to determine sizes of types.
+	// Otherwise, DefaultSizeof is called.
+	// Sizeof must return a size >= 0, in bytes. It is not called
+	// for arrays and structs (those sizes are based on the sizes
+	// of the array elements or struct fields, respectively).
+	Sizeof func(Type) int64
 }
 
 // An Importer resolves import paths to Package objects.
@@ -67,30 +80,16 @@ type Context struct {
 // return pkg.
 type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
 
-// Default is the default context for type checking.
-var Default = Context{
-	// TODO(gri) Perhaps this should depend on GOARCH?
-	IntSize: 8,
-	PtrSize: 8,
-}
-
 // Check resolves and typechecks a set of package files within the given
-// context. The package files' ASTs are augmented by assigning types to
-// ast.Objects. If there are no errors, Check returns the package, otherwise
+// context. If there are no errors, Check returns the package, otherwise
 // it returns the first error. If the context's Error handler is nil,
 // Check terminates as soon as the first error is encountered.
-//
-// CAUTION: At the moment, the returned *ast.Package only contains the package
-//          name and scope - the other fields are not set up. The returned
-//          *Package contains the name and imports (but no scope yet). Once
-//          we have the scope moved from *ast.Scope to *Scope, only *Package
-//          will be returned.
-//
 func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
 	return check(ctxt, fset, files)
 }
 
-// Check is shorthand for Default.Check.
+// Check is shorthand for ctxt.Check where ctxt is a default (empty) context.
 func Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
-	return Default.Check(fset, files)
+	var ctxt Context
+	return ctxt.Check(fset, files)
 }

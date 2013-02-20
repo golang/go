@@ -131,21 +131,28 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 	if list == nil {
 		return
 	}
+
+	var typ Type   // current field typ
+	var tag string // current field tag
+	add := func(name string, isAnonymous bool) {
+		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, 0, isAnonymous})
+	}
+
 	for _, f := range list.List {
-		typ := check.typ(f.Type, cycleOk)
-		tag := check.tag(f.Tag)
+		typ = check.typ(f.Type, cycleOk)
+		tag = check.tag(f.Tag)
 		if len(f.Names) > 0 {
 			// named fields
 			for _, name := range f.Names {
-				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
+				add(name.Name, false)
 			}
 		} else {
 			// anonymous field
 			switch t := deref(typ).(type) {
 			case *Basic:
-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
+				add(t.Name, true)
 			case *NamedType:
-				fields = append(fields, &Field{QualifiedName{check.pkg, t.Obj.GetName()}, typ, tag, true})
+				add(t.Obj.GetName(), true)
 			default:
 				if typ != Typ[Invalid] {
 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
@@ -153,7 +160,31 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 			}
 		}
 	}
+
 	return
+}
+
+// align returns the smallest y >= x such that y % a == 0.
+func align(x, a int64) int64 {
+	y := x + a - 1
+	return y - y%a
+}
+
+func (ctxt *Context) newStruct(fields []*Field) *Struct {
+	// spec: "For a variable x of struct type: unsafe.Alignof(x) is the largest of
+	// of the values unsafe.Alignof(x.f) for each field f of x, but at least 1."
+	maxAlign := int64(1)
+	var offset int64
+	for _, f := range fields {
+		a := ctxt.alignof(f.Type)
+		if a > maxAlign {
+			maxAlign = a
+		}
+		offset = align(offset, a)
+		f.Offset = offset
+		offset += ctxt.sizeof(f.Type)
+	}
+	return &Struct{fields, maxAlign, offset}
 }
 
 type opPredicates map[token.Token]func(Type) bool
@@ -902,14 +933,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
-		if mode == invalid {
+		res := lookupField(x.typ, QualifiedName{check.pkg, sel})
+		if res.mode == invalid {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
 		}
 		if x.mode == typexpr {
 			// method expression
-			sig, ok := typ.(*Signature)
+			sig, ok := res.typ.(*Signature)
 			if !ok {
 				check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
 				goto Error
@@ -926,8 +957,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			}
 		} else {
 			// regular selector
-			x.mode = mode
-			x.typ = typ
+			x.mode = res.mode
+			x.typ = res.typ
 		}
 
 	case *ast.IndexExpr:
@@ -1242,7 +1273,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.StructType:
 		x.mode = typexpr
-		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
+		x.typ = check.ctxt.newStruct(check.collectFields(e.Fields, cycleOk))
 
 	case *ast.FuncType:
 		params, isVariadic := check.collectParams(e.Params, true)

@@ -55,7 +55,7 @@ var imports = make(map[string]*Package)
 
 func testPath(t *testing.T, path string) bool {
 	t0 := time.Now()
-	_, err := GcImport(imports, path)
+	_, err := GcImport(&Context{}, imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return false
@@ -140,7 +140,7 @@ func TestGcImportedTypes(t *testing.T) {
 		importPath := s[0]
 		objName := s[1]
 
-		pkg, err := GcImport(imports, importPath)
+		pkg, err := GcImport(&Context{}, imports, importPath)
 		if err != nil {
 			t.Error(err)
 			continue

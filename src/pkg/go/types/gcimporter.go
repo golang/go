@@ -82,7 +82,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // can be used directly, and there is no need to call this function (but
 // there is also no harm but for extra time used).
 //
-func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
+func GcImportData(ctxt *Context, imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
 	// support for gcParser error handling
 	defer func() {
 		if r := recover(); r != nil {
@@ -91,7 +91,7 @@ func GcImportData(imports map[string]*Package, filename, id string, data *bufio.
 	}()
 
 	var p gcParser
-	p.init(filename, id, data, imports)
+	p.init(ctxt, filename, id, data, imports)
 	pkg = p.parseExport()
 
 	return
@@ -103,7 +103,7 @@ func GcImportData(imports map[string]*Package, filename, id string, data *bufio.
 // The imports map must contains all packages already imported.
 // GcImport satisfies the ast.Importer signature.
 //
-func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
+func GcImport(ctxt *Context, imports map[string]*Package, path string) (pkg *Package, err error) {
 	if path == "unsafe" {
 		return Unsafe, nil
 	}
@@ -145,7 +145,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 		return
 	}
 
-	pkg, err = GcImportData(imports, filename, id, buf)
+	pkg, err = GcImportData(ctxt, imports, filename, id, buf)
 
 	return
 }
@@ -156,6 +156,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 // gcParser parses the exports inside a gc compiler-produced
 // object/archive file and populates its scope with the results.
 type gcParser struct {
+	ctxt    *Context
 	scanner scanner.Scanner
 	tok     rune                // current token
 	lit     string              // literal string; only valid for Ident, Int, String tokens
@@ -163,7 +164,8 @@ type gcParser struct {
 	imports map[string]*Package // package id -> package object
 }
 
-func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*Package) {
+func (p *gcParser) init(ctxt *Context, filename, id string, src io.Reader, imports map[string]*Package) {
+	p.ctxt = ctxt
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
@@ -492,7 +494,7 @@ func (p *gcParser) parseStructType() Type {
 	}
 	p.expect('}')
 
-	return &Struct{Fields: fields}
+	return p.ctxt.newStruct(fields)
 }
 
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .

@@ -64,7 +64,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 
 	// resolve and type-check package AST
 	idents := make(map[*ast.Ident]Object)
-	ctxt := Default
+	var ctxt Context
 	ctxt.Ident = func(id *ast.Ident, obj Object) { idents[id] = obj }
 	pkg, err := ctxt.Check(fset, files)
 	if err != nil {
