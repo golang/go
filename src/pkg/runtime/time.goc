@@ -200,7 +200,7 @@ timerproc(void)
 		timers.sleeping = true;
 		runtime·noteclear(&timers.waitnote);
 		runtime·unlock(&timers);
-		runtime·entersyscall();
+		runtime·entersyscallblock();
 		runtime·notetsleep(&timers.waitnote, delta);
 		runtime·exitsyscall();
 	}

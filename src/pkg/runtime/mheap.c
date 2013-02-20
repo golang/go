@@ -424,7 +424,7 @@ runtime·MHeap_Scavenger(void)
 	h = runtime·mheap;
 	for(k=0;; k++) {
 		runtime·noteclear(&note);
-		runtime·entersyscall();
+		runtime·entersyscallblock();
 		runtime·notetsleep(&note, tick);
 		runtime·exitsyscall();
 
@@ -438,7 +438,7 @@ runtime·MHeap_Scavenger(void)
 			runtime·noteclear(&note);
 			notep = &note;
 			runtime·newproc1((byte*)forcegchelper, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
-			runtime·entersyscall();
+			runtime·entersyscallblock();
 			runtime·notesleep(&note);
 			runtime·exitsyscall();
 			if(trace)

@@ -360,7 +360,7 @@ getprofile(Profile *p)
 		return ret;
 
 	// Wait for new log.
-	runtime·entersyscall();
+	runtime·entersyscallblock();
 	runtime·notesleep(&p->wait);
 	runtime·exitsyscall();
 	runtime·noteclear(&p->wait);

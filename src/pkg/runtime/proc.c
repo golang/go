@@ -1049,6 +1049,59 @@ runtime·entersyscall(void)
 	schedunlock();
 }
 
+// The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
+// The hint is ignored at the moment, and it's just a copy of runtime·entersyscall().
+#pragma textflag 7
+void
+runtime·entersyscallblock(void)
+{
+	uint32 v;
+
+	if(m->profilehz > 0)
+		runtime·setprof(false);
+
+	// Leave SP around for gc and traceback.
+	runtime·gosave(&g->sched);
+	g->gcsp = g->sched.sp;
+	g->gcstack = g->stackbase;
+	g->gcguard = g->stackguard;
+	g->status = Gsyscall;
+	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
+		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
+		runtime·throw("entersyscall");
+	}
+
+	// Fast path.
+	// The slow path inside the schedlock/schedunlock will get
+	// through without stopping if it does:
+	//	mcpu--
+	//	gwait not true
+	//	waitstop && mcpu <= mcpumax not true
+	// If we can do the same with a single atomic add,
+	// then we can skip the locks.
+	v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
+	if(!atomic_gwaiting(v) && (!atomic_waitstop(v) || atomic_mcpu(v) > atomic_mcpumax(v)))
+		return;
+
+	schedlock();
+	v = runtime·atomicload(&runtime·sched.atomic);
+	if(atomic_gwaiting(v)) {
+		matchmg();
+		v = runtime·atomicload(&runtime·sched.atomic);
+	}
+	if(atomic_waitstop(v) && atomic_mcpu(v) <= atomic_mcpumax(v)) {
+		runtime·xadd(&runtime·sched.atomic, -1<<waitstopShift);
+		runtime·notewakeup(&runtime·sched.stopped);
+	}
+
+	// Re-save sched in case one of the calls
+	// (notewakeup, matchmg) triggered something using it.
+	runtime·gosave(&g->sched);
+
+	schedunlock();
+}
+
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
