@@ -74,7 +74,7 @@ const (
 type Basic struct {
 	Kind BasicKind
 	Info BasicInfo
-	Size int64
+	size int64 // use DefaultSizeof to get size
 	Name string
 }
 
@@ -116,12 +116,15 @@ type Field struct {
 	QualifiedName
 	Type        Type
 	Tag         string
+	Offset      int64 // offset within struct, in bytes
 	IsAnonymous bool
 }
 
 // A Struct represents a struct type struct{...}.
 type Struct struct {
-	Fields []*Field
+	Fields    []*Field
+	Alignment int64 // struct alignment in bytes
+	Size      int64 // struct size in bytes
 }
 
 func (typ *Struct) fieldIndex(name string) int {

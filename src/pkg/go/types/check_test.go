@@ -200,7 +200,7 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 	files, errlist := parseFiles(t, testname, testfiles)
 
 	// typecheck and collect typechecker errors
-	ctxt := Default
+	var ctxt Context
 	ctxt.Error = func(err error) { errlist = append(errlist, err) }
 	ctxt.Check(fset, files)
 

@@ -41,7 +41,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	if n > 0 {
 		arg0 = args[0]
 		switch id {
-		case _Make, _New, _Print, _Println, _Trace:
+		case _Make, _New, _Print, _Println, _Offsetof, _Trace:
 			// respective cases below do the work
 		default:
 			// argument must be an expression
@@ -319,27 +319,32 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Alignof:
 		x.mode = constant
+		x.val = check.ctxt.alignof(x.typ)
 		x.typ = Typ[Uintptr]
-		// For now we return 1 always as it satisfies the spec's alignment guarantees.
-		// TODO(gri) Extend typechecker API so that platform-specific values can be
-		//           provided.
-		x.val = int64(1)
 
 	case _Offsetof:
-		if _, ok := unparen(x.expr).(*ast.SelectorExpr); !ok {
-			check.invalidArg(x.pos(), "%s is not a selector", x)
+		arg, ok := unparen(arg0).(*ast.SelectorExpr)
+		if !ok {
+			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
+			goto Error
+		}
+		check.expr(x, arg.X, nil, -1)
+		if x.mode == invalid {
+			goto Error
+		}
+		sel := arg.Sel.Name
+		res := lookupField(x.typ, QualifiedName{check.pkg, arg.Sel.Name})
+		if res.mode != variable {
+			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
 			goto Error
 		}
 		x.mode = constant
+		x.val = res.offset
 		x.typ = Typ[Uintptr]
-		// because of the size guarantees for basic types (> 0 for some),
-		// returning 0 is only correct if two distinct non-zero size
-		// structs can have the same address (the spec permits that)
-		x.val = int64(0)
 
 	case _Sizeof:
 		x.mode = constant
-		x.val = sizeof(check.ctxt, x.typ)
+		x.val = check.ctxt.sizeof(x.typ)
 		x.typ = Typ[Uintptr]
 
 	case _Assert:
@@ -444,24 +449,92 @@ func (check *checker) complexArg(x *operand) bool {
 	return false
 }
 
-func sizeof(ctxt *Context, typ Type) int64 {
+func (ctxt *Context) alignof(typ Type) int64 {
+	// For arrays and structs, alignment is defined in terms
+	// of alignment of the elements and fields, respectively.
+	switch typ := underlying(typ).(type) {
+	case *Array:
+		// spec: "For a variable x of array type: unsafe.Alignof(x)
+		// is the same as unsafe.Alignof(x[0]), but at least 1."
+		return ctxt.alignof(typ.Elt)
+	case *Struct:
+		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+		// is the largest of of the values unsafe.Alignof(x.f) for
+		// each field f of x, but at least 1."
+		return typ.Alignment
+	}
+	// externally defined Alignof
+	if f := ctxt.Alignof; f != nil {
+		if a := f(typ); a > 0 {
+			return a
+		}
+		panic("Context.Alignof returned value < 1")
+	}
+	// all other cases
+	return DefaultAlignof(typ)
+}
+
+// DefaultMaxAlign is the default maximum alignment, in bytes,
+// used by DefaultAlignof.
+const DefaultMaxAlign = 8
+
+// DefaultAlignof implements the default alignment computation
+// for unsafe.Alignof. It is used if Context.Alignof == nil.
+func DefaultAlignof(typ Type) int64 {
+	a := DefaultSizeof(typ) // may be 0
+	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+	if a < 1 {
+		return 1
+	}
+	if a > DefaultMaxAlign {
+		return DefaultMaxAlign
+	}
+	return a
+}
+
+func (ctxt *Context) sizeof(typ Type) int64 {
+	// For arrays and structs, size is defined in terms
+	// of size of the elements and fields, respectively.
+	switch typ := underlying(typ).(type) {
+	case *Array:
+		return ctxt.sizeof(typ.Elt) * typ.Len // may be 0
+	case *Struct:
+		return typ.Size
+	}
+	// externally defined Sizeof
+	if f := ctxt.Sizeof; f != nil {
+		if s := f(typ); s >= 0 {
+			return s
+		}
+		panic("Context.Sizeof returned value < 0")
+	}
+	// all other cases
+	return DefaultSizeof(typ)
+}
+
+// DefaultPtrSize is the default size of pointers, in bytes,
+// used by DefaultSizeof.
+const DefaultPtrSize = 8
+
+// DefaultSizeof implements the default size computation
+// for unsafe.Sizeof. It is used if Context.Sizeof == nil.
+func DefaultSizeof(typ Type) int64 {
 	switch typ := underlying(typ).(type) {
 	case *Basic:
-		switch typ.Kind {
-		case Int, Uint:
-			return ctxt.IntSize
-		case Uintptr:
-			return ctxt.PtrSize
+		if s := typ.size; s > 0 {
+			return s
 		}
-		return typ.Size
+		if typ.Kind == String {
+			return DefaultPtrSize * 2
+		}
 	case *Array:
-		return sizeof(ctxt, typ.Elt) * typ.Len
+		return DefaultSizeof(typ.Elt) * typ.Len // may be 0
+	case *Slice:
+		return DefaultPtrSize * 3
 	case *Struct:
-		var size int64
-		for _, f := range typ.Fields {
-			size += sizeof(ctxt, f.Type)
-		}
-		return size
+		return typ.Size // may be 0
+	case *Signature:
+		return DefaultPtrSize * 2
 	}
-	return ctxt.PtrSize // good enough
+	return DefaultPtrSize // catch-all
 }

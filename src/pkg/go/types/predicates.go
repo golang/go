@@ -281,8 +281,8 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 	// Note: This is stronger than the current spec. Should the spec require this?
 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
 		for _, m := range T.Methods {
-			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
-			if mode != invalid && !IsIdentical(sig, m.Type) {
+			res := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
+			if res.mode != invalid && !IsIdentical(res.typ, m.Type) {
 				return m, true
 			}
 		}
@@ -291,11 +291,11 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 
 	// a concrete type implements T if it implements all methods of T.
 	for _, m := range T.Methods {
-		mode, sig := lookupField(typ, m.QualifiedName)
-		if mode == invalid {
+		res := lookupField(typ, m.QualifiedName)
+		if res.mode == invalid {
 			return m, false
 		}
-		if !IsIdentical(sig, m.Type) {
+		if !IsIdentical(res.typ, m.Type) {
 			return m, true
 		}
 	}

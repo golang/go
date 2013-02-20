@@ -422,7 +422,7 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
 		// thus "too large": We must limit the result size to
 		// the type's size.
 		if typ.Info&IsUnsigned != 0 {
-			s := uint(typ.Size) * 8
+			s := uint(typ.size) * 8
 			if s == 0 {
 				// platform-specific type
 				// TODO(gri) this needs to be factored out

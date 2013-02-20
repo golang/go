@@ -162,13 +162,7 @@ func NewBuilder(mode BuilderMode, loader SourceLoader, errh func(error)) *Builde
 	// constants/idents/types maps associated with the containing
 	// package so we can discard them once that package is built.
 	b.typechecker = types.Context{
-		// TODO(adonovan): permit the client to specify these
-		// values.  Perhaps expose the types.Context parameter
-		// directly (though of course we'll have to override
-		// the Expr/Ident/Import callbacks).
-		IntSize: 8,
-		PtrSize: 8,
-		Error:   errh,
+		Error: errh,
 		Expr: func(x ast.Expr, typ types.Type, val interface{}) {
 			b.types[x] = typ
 			if val != nil {

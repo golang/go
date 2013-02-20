@@ -269,6 +269,15 @@ func _recover() {
 	recover()
 }
 
+// assuming types.DefaultPtrSize == 8
+type S struct{       // offset
+	a bool       //  0
+	b rune       //  4
+	c *int       //  8
+	d bool       // 16
+	e complex128 // 24
+}                    // 40
+
 func _Alignof() {
 	var x int
 	_ = unsafe /* ERROR "argument" */ .Alignof()
@@ -277,6 +286,13 @@ func _Alignof() {
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
 	unsafe /* ERROR "not used" */ .Alignof(x)
+
+	var y S
+	assert(unsafe.Alignof(y.a) == 1)
+	assert(unsafe.Alignof(y.b) == 4)
+	assert(unsafe.Alignof(y.c) == 8)
+	assert(unsafe.Alignof(y.d) == 1)
+	assert(unsafe.Alignof(y.e) == 8)
 }
 
 func _Offsetof() {
@@ -289,6 +305,13 @@ func _Offsetof() {
 	_ = unsafe.Offsetof((x.f))
 	_ = unsafe.Offsetof((((((((x))).f)))))
 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
+
+	var y S
+	assert(unsafe.Offsetof(y.a) == 0)
+	assert(unsafe.Offsetof(y.b) == 4)
+	assert(unsafe.Offsetof(y.c) == 8)
+	assert(unsafe.Offsetof(y.d) == 16)
+	assert(unsafe.Offsetof(y.e) == 24)
 }
 
 func _Sizeof() {
@@ -314,6 +337,14 @@ func _Sizeof() {
 	assert(unsafe.Sizeof(float64(0)) == 8)
 	assert(unsafe.Sizeof(complex64(0)) == 8)
 	assert(unsafe.Sizeof(complex128(0)) == 16)
+
+	var y S
+	assert(unsafe.Sizeof(y.a) == 1)
+	assert(unsafe.Sizeof(y.b) == 4)
+	assert(unsafe.Sizeof(y.c) == 8)
+	assert(unsafe.Sizeof(y.d) == 1)
+	assert(unsafe.Sizeof(y.e) == 16)
+	assert(unsafe.Sizeof(y) == 40)
 }
 
 // self-testing only
