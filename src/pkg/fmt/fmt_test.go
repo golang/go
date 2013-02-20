@@ -178,6 +178,8 @@ var fmttests = []struct {
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
 	{"%10.1q", "日本語日本語", `       "日"`},
+	{"%10v", nil, "     <nil>"},
+	{"%-10v", nil, "<nil>     "},
 
 	// integers
 	{"%d", 12345, "12345"},
@@ -437,6 +439,8 @@ var fmttests = []struct {
 	{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
 	{"%T", intVal, "int"},
 	{"%6T", &intVal, "  *int"},
+	{"%10T", nil, "     <nil>"},
+	{"%-10T", nil, "<nil>     "},
 
 	// %p
 	{"p0=%p", new(int), "p0=0xPTR"},
