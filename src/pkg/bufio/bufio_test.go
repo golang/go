@@ -953,7 +953,7 @@ func TestNegativeRead(t *testing.T) {
 			t.Fatal("read did not panic")
 		case error:
 			if !strings.Contains(err.Error(), "reader returned negative count from Read") {
-				t.Fatal("wrong panic: %v", err)
+				t.Fatalf("wrong panic: %v", err)
 			}
 		default:
 			t.Fatalf("unexpected panic value: %T(%v)", err, err)
