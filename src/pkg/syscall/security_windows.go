@@ -70,7 +70,7 @@ type UserInfo10 struct {
 
 const (
 	// do not reorder
-	SidTypeUser = 1 << iota
+	SidTypeUser = 1 + iota
 	SidTypeGroup
 	SidTypeDomain
 	SidTypeAlias
