@@ -193,7 +193,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 	if xmlns != "" {
 		p.WriteString(` xmlns="`)
 		// TODO: EscapeString, to avoid the allocation.
-		Escape(p, []byte(xmlns))
+		if err := EscapeText(p, []byte(xmlns)); err != nil {
+			return err
+		}
 		p.WriteByte('"')
 	}
 
@@ -252,19 +254,22 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
 		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, val.Type().Bits()))
 	case reflect.String:
 		// TODO: Add EscapeString.
-		Escape(p, []byte(val.String()))
+		EscapeText(p, []byte(val.String()))
 	case reflect.Bool:
 		p.WriteString(strconv.FormatBool(val.Bool()))
 	case reflect.Array:
 		// will be [...]byte
-		bytes := make([]byte, val.Len())
-		for i := range bytes {
-			bytes[i] = val.Index(i).Interface().(byte)
+		var bytes []byte
+		if val.CanAddr() {
+			bytes = val.Slice(0, val.Len()).Bytes()
+		} else {
+			bytes = make([]byte, val.Len())
+			reflect.Copy(reflect.ValueOf(bytes), val)
 		}
-		Escape(p, bytes)
+		EscapeText(p, bytes)
 	case reflect.Slice:
 		// will be []byte
-		Escape(p, val.Bytes())
+		EscapeText(p, val.Bytes())
 	default:
 		return &UnsupportedTypeError{typ}
 	}
@@ -298,10 +303,14 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			case reflect.Bool:
 				Escape(p, strconv.AppendBool(scratch[:0], vf.Bool()))
 			case reflect.String:
-				Escape(p, []byte(vf.String()))
+				if err := EscapeText(p, []byte(vf.String())); err != nil {
+					return err
+				}
 			case reflect.Slice:
 				if elem, ok := vf.Interface().([]byte); ok {
-					Escape(p, elem)
+					if err := EscapeText(p, elem); err != nil {
+						return err
+					}
 				}
 			case reflect.Struct:
 				if vf.Type() == timeType {

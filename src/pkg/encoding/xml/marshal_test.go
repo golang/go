@@ -965,6 +965,16 @@ func TestMarshalWriteErrors(t *testing.T) {
 	}
 }
 
+func TestMarshalWriteIOErrors(t *testing.T) {
+	enc := NewEncoder(errWriter{})
+
+	expectErr := "unwritable"
+	err := enc.Encode(&Passenger{})
+	if err == nil || err.Error() != expectErr {
+		t.Errorf("EscapeTest = [error] %v, want %v", err, expectErr)
+	}
+}
+
 func BenchmarkMarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Marshal(atomValue)
