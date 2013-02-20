@@ -241,14 +241,13 @@ runtime·main(void)
 	runtime·sched.init = true;
 	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
 	scvg->issystem = true;
-	main·init();
-	runtime·sched.init = false;
-	runtime·unlockOSThread();
-
 	// The deadlock detection has false negatives.
 	// Let scvg start up, to eliminate the false negative
 	// for the trivial program func main() { select{} }.
 	runtime·gosched();
+	main·init();
+	runtime·sched.init = false;
+	runtime·unlockOSThread();
 
 	main·main();
 	if(raceenabled)
