@@ -817,6 +817,7 @@ void*	runtime·getcallerpc(void*);
  * runtime go-called
  */
 void	runtime·printbool(bool);
+void	runtime·printbyte(int8);
 void	runtime·printfloat(float64);
 void	runtime·printint(int64);
 void	runtime·printiface(Iface);
