@@ -959,7 +959,7 @@ func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Ex
 		if name == "" || globals[name] {
 			examples = append(examples, e)
 		} else {
-			log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
+			log.Printf("skipping example 'Example%s' because '%s' is not a known function or type", e.Name, e.Name)
 		}
 	}
 
