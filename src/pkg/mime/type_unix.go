@@ -23,15 +23,11 @@ func loadMimeFile(filename string) {
 	if err != nil {
 		return
 	}
+	defer f.Close()
 
-	reader := bufio.NewReader(f)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			f.Close()
-			return
-		}
-		fields := strings.Fields(line)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
 		if len(fields) <= 1 || fields[0][0] == '#' {
 			continue
 		}
@@ -42,6 +38,9 @@ func loadMimeFile(filename string) {
 			}
 			setExtensionType("."+ext, mimeType)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		panic(err)
 	}
 }
 
