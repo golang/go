@@ -89,7 +89,7 @@ func testRE2(t *testing.T, file string) {
 		txt = f
 	}
 	lineno := 0
-	r := bufio.NewReader(txt)
+	scanner := bufio.NewScanner(txt)
 	var (
 		str       []string
 		input     []string
@@ -99,16 +99,8 @@ func testRE2(t *testing.T, file string) {
 		nfail     int
 		ncase     int
 	)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatalf("%s:%d: %v", file, lineno, err)
-		}
-		line = line[:len(line)-1] // chop \n
-		lineno++
+	for lineno := 1; scanner.Scan(); lineno++ {
+		line := scanner.Text()
 		switch {
 		case line == "":
 			t.Fatalf("%s:%d: unexpected blank line", file, lineno)
@@ -203,6 +195,9 @@ func testRE2(t *testing.T, file string) {
 		default:
 			t.Fatalf("%s:%d: out of sync: %s\n", file, lineno, line)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("%s:%d: %v", file, lineno, err)
 	}
 	if len(input) != 0 {
 		t.Fatalf("%s:%d: out of sync: have %d strings left at EOF", file, lineno, len(input))
