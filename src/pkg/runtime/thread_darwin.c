@@ -109,12 +109,19 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 }
 
 // Called to initialize a new m (including the bootstrap m).
+// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+void
+runtime·mpreinit(M *mp)
+{
+	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+}
+
+// Called to initialize a new m (including the bootstrap m).
+// Called on the new thread, can not allocate memory.
 void
 runtime·minit(void)
 {
 	// Initialize signal handling.
-	if(m->gsignal == nil)
-		m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);

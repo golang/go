@@ -206,6 +206,15 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 }
 
 // Called to initialize a new m (including the bootstrap m).
+// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+void
+runtime·mpreinit(M *mp)
+{
+	USED(mp);
+}
+
+// Called to initialize a new m (including the bootstrap m).
+// Called on the new thread, can not allocate memory.
 void
 runtime·minit(void)
 {

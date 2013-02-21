@@ -370,6 +370,8 @@ mcommoninit(M *mp)
 
 	runtime·callers(1, mp->createstack, nelem(mp->createstack));
 
+	runtime·mpreinit(mp);
+
 	// Add to runtime·allm so garbage collector doesn't free m
 	// when it is just in a register or thread-local storage.
 	mp->alllink = runtime·allm;
