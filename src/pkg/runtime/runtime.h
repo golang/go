@@ -353,8 +353,8 @@ struct	Func
 	uintptr	pc0;	// starting pc, ln for table
 	int32	ln0;
 	int32	frame;	// stack frame size
-	int32	args;	// number of 32-bit in/out args
-	int32	locals;	// number of 32-bit locals
+	int32	args;	// in/out args size
+	int32	locals;	// locals size
 };
 
 // layout of Itab known to compilers

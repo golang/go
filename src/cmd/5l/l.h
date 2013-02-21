@@ -147,6 +147,8 @@ struct	Sym
 	int32	size;
 	int32	align;	// if non-zero, required alignment in bytes
 	int32	elfsym;
+	int32	locals;	// size of stack frame locals area
+	int32	args;	// size of stack frame incoming arguments area
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
 	uchar	stkcheck;

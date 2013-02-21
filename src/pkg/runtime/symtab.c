@@ -124,17 +124,17 @@ dofunc(Sym *sym)
 			f->frame = -sizeof(uintptr);
 		break;
 	case 'm':
-		if(nfunc > 0 && func != nil)
-			func[nfunc-1].frame += sym->value;
-		break;
-	case 'p':
-		if(nfunc > 0 && func != nil) {
-			f = &func[nfunc-1];
-			// args counts 32-bit words.
-			// sym->value is the arg's offset.
-			// don't know width of this arg, so assume it is 64 bits.
-			if(f->args < sym->value/4 + 2)
-				f->args = sym->value/4 + 2;
+		if(nfunc <= 0 || func == nil)
+			break;
+		if(runtime·strcmp(sym->name, (byte*)".frame") == 0)
+			func[nfunc-1].frame = sym->value;
+		else if(runtime·strcmp(sym->name, (byte*)".locals") == 0)
+			func[nfunc-1].locals = sym->value;
+		else if(runtime·strcmp(sym->name, (byte*)".args") == 0)
+			func[nfunc-1].args = sym->value;
+		else {
+			runtime·printf("invalid 'm' symbol named '%s'\n", sym->name);
+			runtime·throw("mangled symbol table");
 		}
 		break;
 	case 'f':

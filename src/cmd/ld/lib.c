@@ -1626,8 +1626,10 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
-		/* frame, auto and param after */
+		/* frame, locals, args, auto and param after */
 		put(nil, ".frame", 'm', s->text->to.offset+PtrSize, 0, 0, 0);
+		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+		put(nil, ".args", 'm', s->args, 0, 0, 0);
 
 		for(a=s->autom; a; a=a->link)
 			if(a->type == D_AUTO)

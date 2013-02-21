@@ -568,6 +568,7 @@ enum	as
 	AXORPS,
 	
 	AUSEFIELD,
+	ALOCALS,
 
 	ALAST
 };

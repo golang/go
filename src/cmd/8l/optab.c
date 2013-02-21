@@ -961,6 +961,7 @@ Optab optab[] =
 	{ AXORPS,	yxm,	Pm, 0x57 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
+	{ ALOCALS },
 
 	0
 };
