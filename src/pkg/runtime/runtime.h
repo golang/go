@@ -660,6 +660,7 @@ int32	runtime·atoi(byte*);
 void	runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void));
 G*	runtime·malg(int32);
 void	runtime·asminit(void);
+void	runtime·mpreinit(M*);
 void	runtime·minit(void);
 void	runtime·unminit(void);
 void	runtime·signalstack(byte*, int32);

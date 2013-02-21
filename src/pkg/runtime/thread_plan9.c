@@ -11,13 +11,21 @@ extern SigTab runtime·sigtab[];
 
 int32 runtime·postnote(int32, int8*);
 
+// Called to initialize a new m (including the bootstrap m).
+// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+void
+runtime·mpreinit(M *mp)
+{
+	// Initialize stack and goroutine for note handling.
+	mp->gsignal = runtime·malg(32*1024);
+	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
+}
+
+// Called to initialize a new m (including the bootstrap m).
+// Called on the new thread, can not allocate memory.
 void
 runtime·minit(void)
 {
-	// Initialize stack and goroutine for note handling.
-	m->gsignal = runtime·malg(32*1024);
-	m->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
-
 	// Mask all SSE floating-point exceptions
 	// when running on the 64-bit kernel.
 	runtime·setfpmasks();
