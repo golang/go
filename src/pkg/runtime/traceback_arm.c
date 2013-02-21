@@ -32,8 +32,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 	waspanic = false;
 
 	// If the PC is goexit, the goroutine hasn't started yet.
-	if(pc == (uintptr)runtime·goexit && gp->entry != 0) {
-		pc = (uintptr)gp->entry;
+	if(pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
+		pc = (uintptr)gp->fnstart->fn;
 		lr = (uintptr)runtime·goexit;
 	}
 

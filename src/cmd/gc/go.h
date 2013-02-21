@@ -907,6 +907,7 @@ EXTERN	NodeList*	externdcl;
 EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
 EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
+EXTERN	NodeList*	funcsyms;
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
 EXTERN	int	incannedimport;
 EXTERN	int	statuniqgen;		// name generator for static temps
@@ -1058,6 +1059,7 @@ Node*	typedcl0(Sym *s);
 Node*	typedcl1(Node *n, Node *t, int local);
 Node*	typenod(Type *t);
 NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
+Sym*	funcsym(Sym*);
 
 /*
  *	esc.c

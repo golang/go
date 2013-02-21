@@ -281,7 +281,7 @@ gen(Node *n)
 
 	switch(n->op) {
 	default:
-		fatal("gen: unknown op %N", n);
+		fatal("gen: unknown op %+hN", n);
 		break;
 
 	case OCASE:

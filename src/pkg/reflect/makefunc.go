@@ -14,6 +14,8 @@ import (
 // makeFuncImpl is the closure value implementing the function
 // returned by MakeFunc.
 type makeFuncImpl struct {
+	codeptr unsafe.Pointer
+
 	// References visible to the garbage collector.
 	// The code array below contains the same references
 	// embedded in the machine code.
@@ -62,11 +64,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 		typ: t,
 		fn:  fn,
 	}
+	impl.codeptr = unsafe.Pointer(&impl.code[0])
 
 	tptr := unsafe.Pointer(t)
 	fptr := *(*unsafe.Pointer)(unsafe.Pointer(&fn))
 	tmp := makeFuncStub
-	stub := *(*unsafe.Pointer)(unsafe.Pointer(&tmp))
+	stub := **(**unsafe.Pointer)(unsafe.Pointer(&tmp))
 
 	// Create code. Copy template and fill in pointer values.
 	switch runtime.GOARCH {
@@ -95,7 +98,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 		cacheflush(&impl.code[0], &impl.code[len(impl.code)-1])
 	}
 
-	return Value{t, unsafe.Pointer(&impl.code[0]), flag(Func) << flagKindShift}
+	return Value{t, unsafe.Pointer(impl), flag(Func) << flagKindShift}
 }
 
 func cacheflush(start, end *byte)

@@ -1436,3 +1436,21 @@ funccompile(Node *n, int isclosure)
 	funcdepth = 0;
 	dclcontext = PEXTERN;
 }
+
+Sym*
+funcsym(Sym *s)
+{
+	char *p;
+	Sym *s1;
+	
+	p = smprint("%s·f", s->name);
+	s1 = pkglookup(p, s->pkg);
+	free(p);
+	if(s1->def == N) {
+		s1->def = newname(s1);
+		s1->def->shortname = newname(s);
+		funcsyms = list(funcsyms, s1->def);
+	}
+	return s1;
+}
+ 

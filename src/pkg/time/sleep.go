@@ -18,7 +18,7 @@ type runtimeTimer struct {
 	i      int32
 	when   int64
 	period int64
-	f      func(int64, interface{})
+	f      func(int64, interface{}) // NOTE: must not be closure
 	arg    interface{}
 }
 

@@ -257,10 +257,12 @@ isfat(Type *t)
  * also fix up direct register references to be D_OREG.
  */
 void
-afunclit(Addr *a)
+afunclit(Addr *a, Node *n)
 {
 	if(a->type == D_CONST && a->name == D_EXTERN || a->type == D_REG) {
 		a->type = D_OREG;
+		if(n->op == ONAME)
+			a->sym = n->sym;
 	}
 }
 
@@ -1315,6 +1317,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		case PFUNC:
 			a->name = D_EXTERN;
 			a->type = D_CONST;
+			a->sym = funcsym(a->sym);
 			break;
 		}
 		break;

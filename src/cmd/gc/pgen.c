@@ -83,7 +83,7 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	if(fn->dupok)
 		ptxt->TEXTFLAG = DUPOK;
-	afunclit(&ptxt->from);
+	afunclit(&ptxt->from, curfn->nname);
 
 	ginit();
 

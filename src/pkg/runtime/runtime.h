@@ -57,6 +57,7 @@ typedef	union	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		String;
+typedef	struct	FuncVal		FuncVal;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	FixAlloc	FixAlloc;
@@ -78,11 +79,11 @@ typedef	struct	WinCall		WinCall;
 typedef	struct	SEH		SEH;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
-typedef struct	GCStats		GCStats;
-typedef struct	LFNode		LFNode;
-typedef struct	ParFor		ParFor;
-typedef struct	ParForThread	ParForThread;
-typedef struct	CgoMal		CgoMal;
+typedef	struct	GCStats		GCStats;
+typedef	struct	LFNode		LFNode;
+typedef	struct	ParFor		ParFor;
+typedef	struct	ParForThread	ParForThread;
+typedef	struct	CgoMal		CgoMal;
 
 /*
  * Per-CPU declaration.
@@ -154,6 +155,11 @@ struct String
 	byte*	str;
 	intgo	len;
 };
+struct FuncVal
+{
+	void	(*fn)(void);
+	// variable-size, fn-specific data here
+};
 struct Iface
 {
 	Itab*	tab;
@@ -209,7 +215,7 @@ struct	G
 	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
 	uintptr	stack0;
-	byte*	entry;		// initial function
+	FuncVal*	fnstart;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
 	int16	status;
@@ -416,7 +422,7 @@ struct	Timer
 	// a well-behaved function and not block.
 	int64	when;
 	int64	period;
-	void	(*f)(int64, Eface);
+	FuncVal	*fv;
 	Eface	arg;
 };
 
@@ -552,7 +558,7 @@ struct Defer
 	bool	free; // if special, free when done
 	byte*	argp;  // where args were copied from
 	byte*	pc;
-	byte*	fn;
+	FuncVal*	fn;
 	Defer*	link;
 	void*	args[1];	// padded to actual size
 };
@@ -610,6 +616,7 @@ int32	runtime·charntorune(int32*, uint8*, int32);
 
 void	runtime·gogo(Gobuf*, uintptr);
 void	runtime·gogocall(Gobuf*, void(*)(void));
+void	runtime·gogocallfn(Gobuf*, FuncVal*);
 void	runtime·gosave(Gobuf*);
 void	runtime·lessstack(void);
 void	runtime·goargs(void);
@@ -652,7 +659,7 @@ void	runtime·atomicstore64(uint64 volatile*, uint64);
 uint64	runtime·atomicload64(uint64 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
-void	runtime·jmpdefer(byte*, void*);
+void	runtime·jmpdefer(FuncVal*, void*);
 void	runtime·exit1(int32);
 void	runtime·ready(G*);
 byte*	runtime·getenv(int8*);
@@ -678,7 +685,7 @@ uintptr	runtime·ifacehash(Iface, uintptr);
 uintptr	runtime·efacehash(Eface, uintptr);
 void*	runtime·malloc(uintptr size);
 void	runtime·free(void *v);
-bool	runtime·addfinalizer(void*, void(*fn)(void*), uintptr);
+bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr);
 void	runtime·runpanic(Panic*);
 void*	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
@@ -699,7 +706,7 @@ void	runtime·asmcgocall(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
 void	runtime·entersyscallblock(void);
 void	runtime·exitsyscall(void);
-G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
+G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
 bool	runtime·sigsend(int32 sig);
 int32	runtime·callers(int32, uintptr*, int32);
 int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
@@ -835,7 +842,7 @@ void	runtime·printuint(uint64);
 void	runtime·printhex(uint64);
 void	runtime·printslice(Slice);
 void	runtime·printcomplex(Complex128);
-void	reflect·call(byte*, byte*, uint32);
+void	reflect·call(FuncVal*, byte*, uint32);
 void	runtime·panic(Eface);
 void	runtime·panicindex(void);
 void	runtime·panicslice(void);

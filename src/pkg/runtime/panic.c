@@ -119,7 +119,7 @@ freedefer(Defer *d)
 // functions that split the stack.
 #pragma textflag 7
 uintptr
-runtime·deferproc(int32 siz, byte* fn, ...)
+runtime·deferproc(int32 siz, FuncVal *fn, ...)
 {
 	Defer *d;
 
@@ -156,7 +156,8 @@ void
 runtime·deferreturn(uintptr arg0)
 {
 	Defer *d;
-	byte *argp, *fn;
+	byte *argp;
+	FuncVal *fn;
 
 	d = g->defer;
 	if(d == nil)

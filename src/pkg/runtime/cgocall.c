@@ -95,6 +95,8 @@ static void unwindm(void);
 
 // Call from Go to C.
 
+static FuncVal unlockOSThread = { runtime·unlockOSThread };
+
 void
 runtime·cgocall(void (*fn)(void*), void *arg)
 {
@@ -121,7 +123,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	 * cgo callback. Add entry to defer stack in case of panic.
 	 */
 	runtime·lockOSThread();
-	d.fn = (byte*)runtime·unlockOSThread;
+	d.fn = &unlockOSThread;
 	d.siz = 0;
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unlockm never recovers
@@ -154,7 +156,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		m->cgomal = nil;
 	}
 
-	if(g->defer != &d || d.fn != (byte*)runtime·unlockOSThread)
+	if(g->defer != &d || d.fn != &unlockOSThread)
 		runtime·throw("runtime: bad defer entry in cgocallback");
 	g->defer = d.link;
 	runtime·unlockOSThread();
@@ -201,13 +203,17 @@ runtime·cfree(void *p)
 
 // Call from C back to Go.
 
+static FuncVal unwindmf = {unwindm};
+
 void
 runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 {
 	Defer d;
+	FuncVal fv;
 
+	fv.fn = fn;
 	if(m->racecall) {
-		reflect·call((byte*)fn, arg, argsize);
+		reflect·call(&fv, arg, argsize);
 		return;
 	}
 
@@ -222,7 +228,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 	}
 
 	// Add entry to defer stack in case of panic.
-	d.fn = (byte*)unwindm;
+	d.fn = &unwindmf;
 	d.siz = 0;
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unwindm never recovers
@@ -234,7 +240,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 		runtime·raceacquire(&cgosync);
 
 	// Invoke callback.
-	reflect·call((byte*)fn, arg, argsize);
+	reflect·call(&fv, arg, argsize);
 
 	if(raceenabled)
 		runtime·racereleasemerge(&cgosync);
@@ -242,7 +248,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 	// Pop defer.
 	// Do not unwind m->g0->sched.sp.
 	// Our caller, cgocallback, will do that.
-	if(g->defer != &d || d.fn != (byte*)unwindm)
+	if(g->defer != &d || d.fn != &unwindmf)
 		runtime·throw("runtime: bad defer entry in cgocallback");
 	g->defer = d.link;
 

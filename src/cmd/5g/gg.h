@@ -141,7 +141,7 @@ int	isfat(Type*);
 int	dotaddable(Node*, Node*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*, int*);
-void	afunclit(Addr*);
+void	afunclit(Addr*, Node*);
 void	datagostring(Strlit*, Addr*);
 void	split64(Node*, Node*, Node*);
 void	splitclean(void);

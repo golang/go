@@ -381,7 +381,7 @@ func (v Value) call(method string, in []Value) []Value {
 			if iface.itab == nil {
 				panic(method + " of method on nil interface value")
 			}
-			fn = iface.itab.fun[i]
+			fn = unsafe.Pointer(&iface.itab.fun[i])
 			rcvr = iface.word
 		} else {
 			ut := v.typ.uncommon()
@@ -392,7 +392,7 @@ func (v Value) call(method string, in []Value) []Value {
 			if m.pkgPath != nil {
 				panic(method + " of unexported method")
 			}
-			fn = m.ifn
+			fn = unsafe.Pointer(&m.ifn)
 			t = m.mtyp
 			rcvr = v.iword()
 		}
@@ -1213,18 +1213,35 @@ func (v Value) OverflowUint(x uint64) bool {
 // code using reflect cannot obtain unsafe.Pointers
 // without importing the unsafe package explicitly.
 // It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
+//
+// If v's Kind is Func, the returned pointer is an underlying
+// code pointer, but not necessarily enough to identify a
+// single function uniquely. The only guarantee is that the
+// result is zero if and only if v is a nil func Value.
 func (v Value) Pointer() uintptr {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr, UnsafePointer:
-		if k == Func && v.flag&flagMethod != 0 {
+	case Chan, Map, Ptr, UnsafePointer:
+		p := v.val
+		if v.flag&flagIndir != 0 {
+			p = *(*unsafe.Pointer)(p)
+		}
+		return uintptr(p)
+	case Func:
+		if v.flag&flagMethod != 0 {
 			panic("reflect.Value.Pointer of method Value")
 		}
 		p := v.val
 		if v.flag&flagIndir != 0 {
 			p = *(*unsafe.Pointer)(p)
 		}
+		// Non-nil func value points at data block.
+		// First word of data block is actual code.
+		if p != nil {
+			p = *(*unsafe.Pointer)(p)
+		}
 		return uintptr(p)
+
 	case Slice:
 		return (*SliceHeader)(v.val).Data
 	}

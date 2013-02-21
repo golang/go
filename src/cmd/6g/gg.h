@@ -130,7 +130,7 @@ Plist*	newplist(void);
 int	isfat(Type*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
-void	afunclit(Addr*);
+void	afunclit(Addr*, Node*);
 void	nodfconst(Node*, Type*, Mpflt*);
 void	gtrack(Sym*);
 
