@@ -32,10 +32,11 @@
 //
 // The builder initially builds a naive SSA form in which all local
 // variables are addresses of stack locations with explicit loads and
-// stores.  If desired, registerisation and φ-node insertion using
-// dominance and dataflow can be performed as a later pass to improve
-// the accuracy and performance of subsequent analyses; this pass is
-// not yet implemented.
+// stores.  Registerisation of eligible locals and φ-node insertion
+// using dominance and dataflow are then performed as a second pass
+// called "lifting" to improve the accuracy and performance of
+// subsequent analyses; this pass can be skipped by setting the
+// NaiveForm builder flag.
 //
 // The program representation constructed by this package is fully
 // resolved internally, i.e. it does not rely on the names of Values,

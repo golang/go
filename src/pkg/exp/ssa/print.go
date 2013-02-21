@@ -91,13 +91,21 @@ func (v *Phi) String() string {
 		// Be robust against malformed CFG.
 		blockname := "?"
 		if v.Block_ != nil && i < len(v.Block_.Preds) {
-			blockname = v.Block_.Preds[i].Name
+			blockname = v.Block_.Preds[i].String()
 		}
 		b.WriteString(blockname)
 		b.WriteString(": ")
-		b.WriteString(relName(edge, v))
+		edgeVal := "<nil>" // be robust
+		if edge != nil {
+			edgeVal = relName(edge, v)
+		}
+		b.WriteString(edgeVal)
 	}
 	b.WriteString("]")
+	if v.Comment != "" {
+		b.WriteString(" #")
+		b.WriteString(v.Comment)
+	}
 	return b.String()
 }
 
@@ -255,7 +263,7 @@ func (s *Jump) String() string {
 	// Be robust against malformed CFG.
 	blockname := "?"
 	if s.Block_ != nil && len(s.Block_.Succs) == 1 {
-		blockname = s.Block_.Succs[0].Name
+		blockname = s.Block_.Succs[0].String()
 	}
 	return fmt.Sprintf("jump %s", blockname)
 }
@@ -264,8 +272,8 @@ func (s *If) String() string {
 	// Be robust against malformed CFG.
 	tblockname, fblockname := "?", "?"
 	if s.Block_ != nil && len(s.Block_.Succs) == 2 {
-		tblockname = s.Block_.Succs[0].Name
-		fblockname = s.Block_.Succs[1].Name
+		tblockname = s.Block_.Succs[0].String()
+		fblockname = s.Block_.Succs[1].String()
 	}
 	return fmt.Sprintf("if %s goto %s else %s", relName(s.Cond, s), tblockname, fblockname)
 }

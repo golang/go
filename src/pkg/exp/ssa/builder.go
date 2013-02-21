@@ -122,6 +122,7 @@ const (
 	LogSource                                    // Show source locations as SSA builder progresses
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
+	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 )
 
 // NewBuilder creates and returns a new SSA builder.
@@ -380,7 +381,7 @@ func (b *Builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 
 	// TODO(adonovan): do we need emitConv on each edge?
 	// Test with named boolean types.
-	phi := &Phi{Edges: edges}
+	phi := &Phi{Edges: edges, Comment: e.Op.String()}
 	phi.Type_ = phi.Edges[0].Type()
 	return done.emit(phi)
 }
@@ -1340,7 +1341,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 			for i, id := range spec.Names {
 				if !isBlankIdent(id) {
 					g := b.globals[b.obj(id)].(*Global)
-					g.spec = nil // just an optimisation
+					g.spec = nil // just an optimization
 					emitStore(init, g,
 						emitExtract(init, tuple, i, rtypes[i].Type))
 				}
@@ -1419,7 +1420,7 @@ func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		// e.g. x, y = f(), g()
 		if len(lhss) == 1 {
 			// x = type{...}
-			// Optimisation: in-place construction
+			// Optimization: in-place construction
 			// of composite literals.
 			b.exprInPlace(fn, lvals[0], rhss[0])
 		} else {
@@ -1764,7 +1765,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// A blocking select of a single case degenerates to a
 	// simple send or receive.
-	// TODO(adonovan): is this optimisation worth its weight?
+	// TODO(adonovan): is this optimization worth its weight?
 	if len(s.Body.List) == 1 {
 		clause := s.Body.List[0].(*ast.CommClause)
 		if clause.Comm != nil {

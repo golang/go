@@ -1,6 +1,6 @@
 package ssa
 
-// Simple block optimisations to simplify the control flow graph.
+// Simple block optimizations to simplify the control flow graph.
 
 // TODO(adonovan): instead of creating several "unreachable" blocks
 // per function in the Builder, reuse a single one (e.g. at Blocks[1])
@@ -15,47 +15,52 @@ import (
 // successive iteration of optimizeBlocks.  Very verbose.
 const debugBlockOpt = false
 
-func hasPhi(b *BasicBlock) bool {
-	_, ok := b.Instrs[0].(*Phi)
-	return ok
+// markReachable sets Index=-1 for all blocks reachable from b.
+func markReachable(b *BasicBlock) {
+	b.Index = -1
+	for _, succ := range b.Succs {
+		if succ.Index == 0 {
+			markReachable(succ)
+		}
+	}
 }
 
-// prune attempts to prune block b if it is unreachable (i.e. has no
-// predecessors other than itself), disconnecting it from the CFG.
-// The result is true if the optimisation was applied.  i is the block
-// index within the function.
+// deleteUnreachableBlocks marks all reachable blocks of f and
+// eliminates (nils) all others, including possibly cyclic subgraphs.
 //
-func prune(f *Function, i int, b *BasicBlock) bool {
-	if i == 0 {
-		return false // don't prune entry block
+func deleteUnreachableBlocks(f *Function) {
+	const white, black = 0, -1
+	// We borrow b.Index temporarily as the mark bit.
+	for _, b := range f.Blocks {
+		b.Index = white
 	}
-	if len(b.Preds) == 0 || len(b.Preds) == 1 && b.Preds[0] == b {
-		// Disconnect it from its successors.
-		for _, c := range b.Succs {
-			c.removePred(b)
+	markReachable(f.Blocks[0])
+	for i, b := range f.Blocks {
+		if b.Index == white {
+			for _, c := range b.Succs {
+				if c.Index == black {
+					c.removePred(b) // delete white->black edge
+				}
+			}
+			if debugBlockOpt {
+				fmt.Fprintln(os.Stderr, "unreachable", b)
+			}
+			f.Blocks[i] = nil // delete b
 		}
-		if debugBlockOpt {
-			fmt.Fprintln(os.Stderr, "prune", b.Name)
-		}
-
-		// Delete b.
-		f.Blocks[i] = nil
-		return true
 	}
-	return false
+	f.removeNilBlocks()
 }
 
 // jumpThreading attempts to apply simple jump-threading to block b,
 // in which a->b->c become a->c if b is just a Jump.
-// The result is true if the optimisation was applied.
-// i is the block index within the function.
+// The result is true if the optimization was applied.
 //
-func jumpThreading(f *Function, i int, b *BasicBlock) bool {
-	if i == 0 {
+func jumpThreading(f *Function, b *BasicBlock) bool {
+	if b.Index == 0 {
 		return false // don't apply to entry block
 	}
 	if b.Instrs == nil {
-		fmt.Println("empty block ", b.Name)
+		fmt.Println("empty block ", b)
 		return false
 	}
 	if _, ok := b.Instrs[0].(*Jump); !ok {
@@ -65,7 +70,7 @@ func jumpThreading(f *Function, i int, b *BasicBlock) bool {
 	if c == b {
 		return false // don't apply to degenerate jump-to-self.
 	}
-	if hasPhi(c) {
+	if c.hasPhi() {
 		return false // not sound without more effort
 	}
 	for j, a := range b.Preds {
@@ -87,16 +92,16 @@ func jumpThreading(f *Function, i int, b *BasicBlock) bool {
 		}
 
 		if debugBlockOpt {
-			fmt.Fprintln(os.Stderr, "jumpThreading", a.Name, b.Name, c.Name)
+			fmt.Fprintln(os.Stderr, "jumpThreading", a, b, c)
 		}
 	}
-	f.Blocks[i] = nil
+	f.Blocks[b.Index] = nil // delete b
 	return true
 }
 
-// fuseBlocks attempts to apply the block fusion optimisation to block
+// fuseBlocks attempts to apply the block fusion optimization to block
 // a, in which a->b becomes ab if len(a.Succs)==len(b.Preds)==1.
-// The result is true if the optimisation was applied.
+// The result is true if the optimization was applied.
 //
 func fuseBlocks(f *Function, a *BasicBlock) bool {
 	if len(a.Succs) != 1 {
@@ -121,11 +126,10 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 	}
 
 	if debugBlockOpt {
-		fmt.Fprintln(os.Stderr, "fuseBlocks", a.Name, b.Name)
+		fmt.Fprintln(os.Stderr, "fuseBlocks", a, b)
 	}
 
-	// Make b unreachable.  Subsequent pruning will reclaim it.
-	b.Preds = nil
+	f.Blocks[b.Index] = nil // delete b
 	return true
 }
 
@@ -134,6 +138,8 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 // threading.
 //
 func optimizeBlocks(f *Function) {
+	deleteUnreachableBlocks(f)
+
 	// Loop until no further progress.
 	changed := true
 	for changed {
@@ -144,17 +150,11 @@ func optimizeBlocks(f *Function) {
 			MustSanityCheck(f, nil)
 		}
 
-		for i, b := range f.Blocks {
+		for _, b := range f.Blocks {
 			// f.Blocks will temporarily contain nils to indicate
 			// deleted blocks; we remove them at the end.
 			if b == nil {
 				continue
-			}
-
-			// Prune unreachable blocks (including all empty blocks).
-			if prune(f, i, b) {
-				changed = true
-				continue // (b was pruned)
 			}
 
 			// Fuse blocks.  b->c becomes bc.
@@ -163,24 +163,11 @@ func optimizeBlocks(f *Function) {
 			}
 
 			// a->b->c becomes a->c if b contains only a Jump.
-			if jumpThreading(f, i, b) {
+			if jumpThreading(f, b) {
 				changed = true
 				continue // (b was disconnected)
 			}
 		}
 	}
-
-	// Eliminate nils from Blocks.
-	j := 0
-	for _, b := range f.Blocks {
-		if b != nil {
-			f.Blocks[j] = b
-			j++
-		}
-	}
-	// Nil out b.Blocks[j:] to aid GC.
-	for i := j; i < len(f.Blocks); i++ {
-		f.Blocks[i] = nil
-	}
-	f.Blocks = f.Blocks[:j]
+	f.removeNilBlocks()
 }

@@ -261,11 +261,14 @@ type Function struct {
 // instructions, respectively).
 //
 type BasicBlock struct {
-	Name         string         // label; no semantic significance
+	Index        int            // index of this block within Func.Blocks
+	Comment      string         // optional label; no semantic significance
 	Func         *Function      // containing function
 	Instrs       []Instruction  // instructions in order
 	Preds, Succs []*BasicBlock  // predecessors and successors
 	succs2       [2]*BasicBlock // initial space for Succs.
+	dom          *domNode       // node in dominator tree; optional.
+	gaps         int            // number of nil Instrs (transient).
 }
 
 // Pure values ----------------------------------------
@@ -372,6 +375,7 @@ type Alloc struct {
 	Type_     types.Type
 	Heap      bool
 	referrers []Instruction
+	index     int // dense numbering; for lifting
 }
 
 // Phi represents an SSA φ-node, which combines values that differ
@@ -383,7 +387,8 @@ type Alloc struct {
 //
 type Phi struct {
 	Register
-	Edges []Value // Edges[i] is value for Block().Preds[i]
+	Comment string  // a hint as to its purpose
+	Edges   []Value // Edges[i] is value for Block().Preds[i]
 }
 
 // Call represents a function or method call.
@@ -422,6 +427,8 @@ type BinOp struct {
 // UnOp yields the result of Op X.
 // ARROW is channel receive.
 // MUL is pointer indirection (load).
+// XOR is bitwise complement.
+// SUB is negation.
 //
 // If CommaOk and Op=ARROW, the result is a 2-tuple of the value above
 // and a boolean indicating the success of the receive.  The
@@ -1239,8 +1246,8 @@ func (s *Ret) Operands(rands []*Value) []*Value {
 }
 
 func (v *Select) Operands(rands []*Value) []*Value {
-	for _, st := range v.States {
-		rands = append(rands, &st.Chan, &st.Send)
+	for i := range v.States {
+		rands = append(rands, &v.States[i].Chan, &v.States[i].Send)
 	}
 	return rands
 }
