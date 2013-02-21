@@ -1,6 +1,6 @@
 package ssa
 
-// An optional pass for sanity checking invariants of the SSA representation.
+// An optional pass for sanity-checking invariants of the SSA representation.
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
@@ -50,7 +50,7 @@ func blockNames(blocks []*BasicBlock) string {
 		if i > 0 {
 			io.WriteString(&buf, ", ")
 		}
-		io.WriteString(&buf, b.Name)
+		io.WriteString(&buf, b.String())
 	}
 	return buf.String()
 }
@@ -58,7 +58,7 @@ func blockNames(blocks []*BasicBlock) string {
 func (s *sanity) diagnostic(prefix, format string, args ...interface{}) {
 	fmt.Fprintf(s.reporter, "%s: function %s", prefix, s.fn.FullName())
 	if s.block != nil {
-		fmt.Fprintf(s.reporter, ", block %s", s.block.Name)
+		fmt.Fprintf(s.reporter, ", block %s", s.block)
 	}
 	io.WriteString(s.reporter, ": ")
 	fmt.Fprintf(s.reporter, format, args...)
@@ -102,7 +102,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		if idx == 0 {
 			// It suffices to apply this check to just the first phi node.
 			if dup := findDuplicate(s.block.Preds); dup != nil {
-				s.errorf("phi node in block with duplicate predecessor %s", dup.Name)
+				s.errorf("phi node in block with duplicate predecessor %s", dup)
 			}
 		} else {
 			prev := s.block.Instrs[idx-1]
@@ -112,9 +112,29 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		}
 		if ne, np := len(instr.Edges), len(s.block.Preds); ne != np {
 			s.errorf("phi node has %d edges but %d predecessors", ne, np)
+
+		} else {
+			for i, e := range instr.Edges {
+				if e == nil {
+					s.errorf("phi node '%s' has no value for edge #%d from %s", instr.Comment, i, s.block.Preds[i])
+				}
+			}
 		}
 
 	case *Alloc:
+		if !instr.Heap {
+			found := false
+			for _, l := range s.fn.Locals {
+				if l == instr {
+					found = true
+					break
+				}
+			}
+			if !found {
+				s.errorf("local alloc %s = %s does not appear in Function.Locals", instr.Name(), instr)
+			}
+		}
+
 	case *Call:
 	case *BinOp:
 	case *UnOp:
@@ -155,7 +175,7 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
 			return
 		}
 		if s.block.Succs[0] == s.block.Succs[1] {
-			s.errorf("If-instruction has same True, False target blocks: %s", s.block.Succs[0].Name)
+			s.errorf("If-instruction has same True, False target blocks: %s", s.block.Succs[0])
 			return
 		}
 
@@ -177,22 +197,30 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
 	}
 }
 
-func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
+func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	s.block = b
+
+	if b.Index != index {
+		s.errorf("block has incorrect Index %d", b.Index)
+	}
+	if b.Func != s.fn {
+		s.errorf("block has incorrect Func %s", b.Func.FullName())
+	}
 
 	// Check all blocks are reachable.
 	// (The entry block is always implicitly reachable.)
-	if !isEntry && len(b.Preds) == 0 {
+	if index > 0 && len(b.Preds) == 0 {
 		s.warnf("unreachable block")
 		if b.Instrs == nil {
 			// Since this block is about to be pruned,
 			// tolerating transient problems in it
-			// simplifies other optimisations.
+			// simplifies other optimizations.
 			return
 		}
 	}
 
-	// Check predecessor and successor relations are dual.
+	// Check predecessor and successor relations are dual,
+	// and that all blocks in CFG belong to same function.
 	for _, a := range b.Preds {
 		found := false
 		for _, bb := range a.Succs {
@@ -202,7 +230,10 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
 			}
 		}
 		if !found {
-			s.errorf("expected successor edge in predecessor %s; found only: %s", a.Name, blockNames(a.Succs))
+			s.errorf("expected successor edge in predecessor %s; found only: %s", a, blockNames(a.Succs))
+		}
+		if a.Func != s.fn {
+			s.errorf("predecessor %s belongs to different function %s", a, a.Func.FullName())
 		}
 	}
 	for _, c := range b.Succs {
@@ -214,21 +245,32 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
 			}
 		}
 		if !found {
-			s.errorf("expected predecessor edge in successor %s; found only: %s", c.Name, blockNames(c.Preds))
+			s.errorf("expected predecessor edge in successor %s; found only: %s", c, blockNames(c.Preds))
+		}
+		if c.Func != s.fn {
+			s.errorf("successor %s belongs to different function %s", c, c.Func.FullName())
 		}
 	}
 
 	// Check each instruction is sane.
+	// TODO(adonovan): check Instruction invariants:
+	// - check Operands is dual to Value.Referrers.
+	// - check all Operands that are also Instructions belong to s.fn too
+	//   (and for bonus marks, that their block dominates block b).
 	n := len(b.Instrs)
 	if n == 0 {
 		s.errorf("basic block contains no instructions")
 	}
 	for j, instr := range b.Instrs {
+		if instr == nil {
+			s.errorf("nil instruction at index %d", j)
+			continue
+		}
 		if b2 := instr.Block(); b2 == nil {
 			s.errorf("nil Block() for instruction at index %d", j)
 			continue
 		} else if b2 != b {
-			s.errorf("wrong Block() (%s) for instruction at index %d ", b2.Name, j)
+			s.errorf("wrong Block() (%s) for instruction at index %d ", b2, j)
 			continue
 		}
 		if j < n-1 {
@@ -241,21 +283,30 @@ func (s *sanity) checkBlock(b *BasicBlock, isEntry bool) {
 
 func (s *sanity) checkFunction(fn *Function) bool {
 	// TODO(adonovan): check Function invariants:
-	// - check owning Package (if any) contains this function.
+	// - check owning Package (if any) contains this (possibly anon) function
 	// - check params match signature
-	// - check locals are all !Heap
 	// - check transient fields are nil
-	// - check block labels are unique (warning)
+	// - warn if any fn.Locals do not appear among block instructions.
 	s.fn = fn
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
+	}
+	for i, l := range fn.Locals {
+		if l.Heap {
+			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
+		}
+	}
+	if fn.Blocks != nil && len(fn.Blocks) == 0 {
+		// Function _had_ blocks (so it's not external) but
+		// they were "optimized" away, even the entry block.
+		s.errorf("Blocks slice is non-nil but empty")
 	}
 	for i, b := range fn.Blocks {
 		if b == nil {
 			s.warnf("nil *BasicBlock at f.Blocks[%d]", i)
 			continue
 		}
-		s.checkBlock(b, i == 0)
+		s.checkBlock(b, i)
 	}
 	s.block = nil
 	s.fn = nil

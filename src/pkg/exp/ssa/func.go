@@ -16,6 +16,13 @@ func addEdge(from, to *BasicBlock) {
 	to.Preds = append(to.Preds, from)
 }
 
+// String returns a human-readable label of this block.
+// It is not guaranteed unique within the function.
+//
+func (b *BasicBlock) String() string {
+	return fmt.Sprintf("%d.%s", b.Index, b.Comment)
+}
+
 // emit appends an instruction to the current basic block.
 // If the instruction defines a Value, it is returned.
 //
@@ -24,6 +31,23 @@ func (b *BasicBlock) emit(i Instruction) Value {
 	b.Instrs = append(b.Instrs, i)
 	v, _ := i.(Value)
 	return v
+}
+
+// predIndex returns the i such that b.Preds[i] == c or panics if
+// there is none.
+func (b *BasicBlock) predIndex(c *BasicBlock) int {
+	for i, pred := range b.Preds {
+		if pred == c {
+			return i
+		}
+	}
+	panic(fmt.Sprintf("no edge %s -> %s", c, b))
+}
+
+// hasPhi returns true if b.Instrs contains φ-nodes.
+func (b *BasicBlock) hasPhi() bool {
+	_, ok := b.Instrs[0].(*Phi)
+	return ok
 }
 
 // phis returns the prefix of b.Instrs containing all the block's φ-nodes.
@@ -127,7 +151,7 @@ type funcSyntax struct {
 func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 	lb := f.lblocks[label.Obj]
 	if lb == nil {
-		lb = &lblock{_goto: f.newBasicBlock("label." + label.Name)}
+		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
 		f.lblocks[label.Obj] = lb
 	}
 	return lb
@@ -147,7 +171,7 @@ func (f *Function) addParam(name string, typ types.Type) *Parameter {
 
 // addSpilledParam declares a parameter that is pre-spilled to the
 // stack; the function body will load/store the spilled location.
-// Subsequent registerization will eliminate spills where possible.
+// Subsequent lifting will eliminate spills where possible.
 //
 func (f *Function) addSpilledParam(obj types.Object) {
 	name := obj.GetName()
@@ -213,6 +237,34 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
 	}
 }
 
+// numberRegisters assigns numbers to all SSA registers
+// (value-defining Instructions) in f, to aid debugging.
+// (Non-Instruction Values are named at construction.)
+// NB: named Allocs retain their existing name.
+// TODO(adonovan): when we have source position info,
+// preserve names only for source locals.
+//
+func numberRegisters(f *Function) {
+	a, v := 0, 0
+	for _, b := range f.Blocks {
+		for _, instr := range b.Instrs {
+			switch instr := instr.(type) {
+			case *Alloc:
+				// Allocs may be named at birth.
+				if instr.Name_ == "" {
+					instr.Name_ = fmt.Sprintf("a%d", a)
+					a++
+				}
+			case Value:
+				instr.(interface {
+					setNum(int)
+				}).setNum(v)
+				v++
+			}
+		}
+	}
+}
+
 // finish() finalizes the function after SSA code generation of its body.
 func (f *Function) finish() {
 	f.objects = nil
@@ -235,27 +287,6 @@ func (f *Function) finish() {
 	}
 	f.Locals = f.Locals[:j]
 
-	// Ensure all value-defining Instructions have register names.
-	// (Non-Instruction Values are named at construction.)
-	tmp := 0
-	for _, b := range f.Blocks {
-		for _, instr := range b.Instrs {
-			switch instr := instr.(type) {
-			case *Alloc:
-				// Local Allocs may already be named.
-				if instr.Name_ == "" {
-					instr.Name_ = fmt.Sprintf("t%d", tmp)
-					tmp++
-				}
-			case Value:
-				instr.(interface {
-					setNum(int)
-				}).setNum(tmp)
-				tmp++
-			}
-		}
-	}
-
 	optimizeBlocks(f)
 
 	// Build immediate-use (referrers) graph.
@@ -273,15 +304,45 @@ func (f *Function) finish() {
 		}
 	}
 
+	if f.Prog.mode&NaiveForm == 0 {
+		// For debugging pre-state of lifting pass:
+		// numberRegisters(f)
+		// f.DumpTo(os.Stderr)
+
+		lift(f)
+	}
+
+	numberRegisters(f)
+
 	if f.Prog.mode&LogFunctions != 0 {
 		f.DumpTo(os.Stderr)
 	}
+
 	if f.Prog.mode&SanityCheckFunctions != 0 {
 		MustSanityCheck(f, nil)
 	}
 	if f.Prog.mode&LogSource != 0 {
 		fmt.Fprintf(os.Stderr, "build function %s done\n", f.FullName())
 	}
+}
+
+// removeNilBlocks eliminates nils from f.Blocks and updates each
+// BasicBlock.Index.  Use this after any pass that may delete blocks.
+//
+func (f *Function) removeNilBlocks() {
+	j := 0
+	for _, b := range f.Blocks {
+		if b != nil {
+			b.Index = j
+			f.Blocks[j] = b
+			j++
+		}
+	}
+	// Nil out f.Blocks[j:] to aid GC.
+	for i := j; i < len(f.Blocks); i++ {
+		f.Blocks[i] = nil
+	}
+	f.Blocks = f.Blocks[:j]
 }
 
 // addNamedLocal creates a local variable, adds it to function f and
@@ -417,6 +478,13 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 	}
 
+	if len(f.Locals) > 0 {
+		io.WriteString(w, "# Locals:\n")
+		for i, l := range f.Locals {
+			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), indirectType(l.Type()))
+		}
+	}
+
 	// Function Signature in declaration syntax; derived from types.Signature.String().
 	io.WriteString(w, "func ")
 	params := f.Params
@@ -450,19 +518,24 @@ func (f *Function) DumpTo(w io.Writer) {
 	}
 	io.WriteString(w, ":\n")
 
+	if f.Blocks == nil {
+		io.WriteString(w, "\t(external)\n")
+	}
+
 	for _, b := range f.Blocks {
 		if b == nil {
 			// Corrupt CFG.
 			fmt.Fprintf(w, ".nil:\n")
 			continue
 		}
-		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b.Name, len(b.Preds), len(b.Succs))
+		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b, len(b.Preds), len(b.Succs))
 		if false { // CFG debugging
-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b.Name, blockNames(b.Succs))
+			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b, blockNames(b.Succs))
 		}
 		for _, instr := range b.Instrs {
 			io.WriteString(w, "\t")
-			if v, ok := instr.(Value); ok {
+			switch v := instr.(type) {
+			case Value:
 				l := 80 // for old time's sake.
 				// Left-align the instruction.
 				if name := v.Name(); name != "" {
@@ -475,7 +548,10 @@ func (f *Function) DumpTo(w io.Writer) {
 				if t := v.Type(); t != nil {
 					fmt.Fprintf(w, "%*s", l-9, t)
 				}
-			} else {
+			case nil:
+				// Be robust against bad transforms.
+				io.WriteString(w, "<deleted>")
+			default:
 				io.WriteString(w, instr.String())
 			}
 			io.WriteString(w, "\n")
@@ -484,14 +560,15 @@ func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "\n")
 }
 
-// newBasicBlock adds to f a new basic block with a unique name and
-// returns it.  It does not automatically become the current block for
-// subsequent calls to emit.
+// newBasicBlock adds to f a new basic block and returns it.  It does
+// not automatically become the current block for subsequent calls to emit.
+// comment is an optional string for more readable debugging output.
 //
-func (f *Function) newBasicBlock(name string) *BasicBlock {
+func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	b := &BasicBlock{
-		Name: fmt.Sprintf("%d.%s", len(f.Blocks), name),
-		Func: f,
+		Index:   len(f.Blocks),
+		Comment: comment,
+		Func:    f,
 	}
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)

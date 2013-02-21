@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 	"strings"
 )
 
@@ -22,6 +23,7 @@ P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
+N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
@@ -41,6 +43,8 @@ Examples:
 % ssadump -build=FPG hello.go         # quickly dump SSA form of a single package
 `
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
 	flag.Parse()
 	args := flag.Args()
@@ -58,6 +62,8 @@ func main() {
 			mode |= ssa.LogSource
 		case 'C':
 			mode |= ssa.SanityCheckFunctions
+		case 'N':
+			mode |= ssa.NaiveForm
 		case 'G':
 			mode |= ssa.UseGCImporter
 		default:
@@ -93,6 +99,16 @@ func main() {
 	}
 	if gofiles == nil {
 		log.Fatal("No *.go source files specified.")
+	}
+
+	// Profiling support.
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	// TODO(adonovan): permit naming a package directly instead of
