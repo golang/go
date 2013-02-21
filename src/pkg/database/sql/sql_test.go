@@ -273,6 +273,35 @@ func TestStatementQueryRow(t *testing.T) {
 
 }
 
+// golang.org/issue/3734
+func TestStatementQueryRowConcurrent(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	stmt, err := db.Prepare("SELECT|people|age|name=?")
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	defer stmt.Close()
+
+	const n = 10
+	ch := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			var age int
+			err := stmt.QueryRow("Alice").Scan(&age)
+			if err == nil && age != 1 {
+				err = fmt.Errorf("unexpected age %d", age)
+			}
+			ch <- err
+		}()
+	}
+	for i := 0; i < n; i++ {
+		if err := <-ch; err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 // just a test of fakedb itself
 func TestBogusPreboundParameters(t *testing.T) {
 	db := newTestDB(t, "foo")

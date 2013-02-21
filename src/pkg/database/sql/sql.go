@@ -408,7 +408,9 @@ func (db *DB) putConn(c driver.Conn, err error) {
 	c.Close()
 }
 
-// Prepare creates a prepared statement for later execution.
+// Prepare creates a prepared statement for later queries or executions.
+// Multiple queries or executions may be run concurrently from the
+// returned statement.
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
