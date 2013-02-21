@@ -972,6 +972,12 @@ runtime·newextram(void)
 	mp->locked = LockInternal;
 	mp->lockedg = gp;
 	gp->lockedm = mp;
+	// put on allg for garbage collector
+	if(runtime·lastg == nil)
+		runtime·allg = gp;
+	else
+		runtime·lastg->alllink = gp;
+	runtime·lastg = gp;
 	schedunlock();
 
 	// Add m to the extra list.
