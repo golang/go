@@ -48,7 +48,8 @@ func TestFileInfoHeaderDir(t *testing.T) {
 	if g, e := h.Name, "testdata/"; g != e {
 		t.Errorf("Name = %q; want %q", g, e)
 	}
-	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISDIR; g != e {
+	const setsid = 02000 // see golang.org/issue/4867
+	if g, e := h.Mode&^setsid, int64(fi.Mode().Perm())|c_ISDIR; g != e {
 		t.Errorf("Mode = %#o; want %#o", g, e)
 	}
 	if g, e := h.Size, int64(0); g != e {
