@@ -9,6 +9,21 @@ import (
 	"testing"
 )
 
+// LoopbackInterface returns a logical network interface for loopback
+// tests.
+func loopbackInterface() *Interface {
+	ift, err := Interfaces()
+	if err != nil {
+		return nil
+	}
+	for _, ifi := range ift {
+		if ifi.Flags&FlagLoopback != 0 && ifi.Flags&FlagUp != 0 {
+			return &ifi
+		}
+	}
+	return nil
+}
+
 func sameInterface(i, j *Interface) bool {
 	if i == nil || j == nil {
 		return false
@@ -29,10 +44,10 @@ func TestInterfaces(t *testing.T) {
 	for _, ifi := range ift {
 		ifxi, err := InterfaceByIndex(ifi.Index)
 		if err != nil {
-			t.Fatalf("InterfaceByIndex(%q) failed: %v", ifi.Index, err)
+			t.Fatalf("InterfaceByIndex(%v) failed: %v", ifi.Index, err)
 		}
 		if !sameInterface(ifxi, &ifi) {
-			t.Fatalf("InterfaceByIndex(%q) = %v, want %v", ifi.Index, *ifxi, ifi)
+			t.Fatalf("InterfaceByIndex(%v) = %v, want %v", ifi.Index, *ifxi, ifi)
 		}
 		ifxn, err := InterfaceByName(ifi.Name)
 		if err != nil {
@@ -99,6 +114,70 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) {
 			}
 		default:
 			t.Errorf("\tunexpected type: %T", ifma)
+		}
+	}
+}
+
+func BenchmarkInterfaces(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if _, err := Interfaces(); err != nil {
+			b.Fatalf("Interfaces failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkInterfaceByIndex(b *testing.B) {
+	ifi := loopbackInterface()
+	if ifi == nil {
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		if _, err := InterfaceByIndex(ifi.Index); err != nil {
+			b.Fatalf("InterfaceByIndex failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkInterfaceByName(b *testing.B) {
+	ifi := loopbackInterface()
+	if ifi == nil {
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		if _, err := InterfaceByName(ifi.Name); err != nil {
+			b.Fatalf("InterfaceByName failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkInterfaceAddrs(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if _, err := InterfaceAddrs(); err != nil {
+			b.Fatalf("InterfaceAddrs failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkInterfacesAndAddrs(b *testing.B) {
+	ifi := loopbackInterface()
+	if ifi == nil {
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		if _, err := ifi.Addrs(); err != nil {
+			b.Fatalf("Interface.Addrs failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
+	ifi := loopbackInterface()
+	if ifi == nil {
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		if _, err := ifi.MulticastAddrs(); err != nil {
+			b.Fatalf("Interface.MulticastAddrs failed: %v", err)
 		}
 	}
 }
