@@ -236,18 +236,10 @@ func parseUCA(builder *build.Builder) {
 	}
 	failOnError(err)
 	defer r.Close()
-	input := bufio.NewReader(r)
+	scanner := bufio.NewScanner(r)
 	colelem := regexp.MustCompile(`\[([.*])([0-9A-F.]+)\]`)
-	for i := 1; err == nil; i++ {
-		l, prefix, e := input.ReadLine()
-		err = e
-		line := string(l)
-		if prefix {
-			log.Fatalf("%d: buffer overflow", i)
-		}
-		if err != nil && err != io.EOF {
-			log.Fatalf("%d: %v", i, err)
-		}
+	for i := 1; scanner.Scan(); i++ {
+		line := scanner.Text()
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
@@ -299,6 +291,9 @@ func parseUCA(builder *build.Builder) {
 			}
 			failOnError(builder.Add(lhs, rhs, vars))
 		}
+	}
+	if scanner.Err() != nil {
+		log.Fatal(scanner.Err())
 	}
 }
 

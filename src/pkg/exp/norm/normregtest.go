@@ -12,7 +12,6 @@ import (
 	"exp/norm"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -118,8 +117,8 @@ func (t Test) Name() string {
 	return fmt.Sprintf("%s:%d", part[t.partnr].name, t.number)
 }
 
-var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n$`)
-var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n?$`)
+var partRe = regexp.MustCompile(`@Part(\d) # (.*)$`)
+var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)$`)
 
 var counter int
 
@@ -141,15 +140,9 @@ func loadTestData() {
 	}
 	f := resp.Body
 	defer f.Close()
-	input := bufio.NewReader(f)
-	for {
-		line, err := input.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			logger.Fatal(err)
-		}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
@@ -189,6 +182,9 @@ func loadTestData() {
 		}
 		part := &part[len(part)-1]
 		part.tests = append(part.tests, test)
+	}
+	if scanner.Err() != nil {
+		logger.Fatal(scanner.Err())
 	}
 }
 

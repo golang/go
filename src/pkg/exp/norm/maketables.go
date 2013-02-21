@@ -307,16 +307,12 @@ func parseCharacter(line string) {
 func loadUnicodeData() {
 	f := openReader("UnicodeData.txt")
 	defer f.Close()
-	input := bufio.NewReader(f)
-	for {
-		line, err := input.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			logger.Fatal(err)
-		}
-		parseCharacter(line[0 : len(line)-1])
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		parseCharacter(scanner.Text())
+	}
+	if scanner.Err() != nil {
+		logger.Fatal(scanner.Err())
 	}
 }
 
@@ -347,16 +343,9 @@ func parseExclusion(line string) int {
 func loadCompositionExclusions() {
 	f := openReader("CompositionExclusions.txt")
 	defer f.Close()
-	input := bufio.NewReader(f)
-	for {
-		line, err := input.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			logger.Fatal(err)
-		}
-		point := parseExclusion(line[0 : len(line)-1])
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		point := parseExclusion(scanner.Text())
 		if point == 0 {
 			continue
 		}
@@ -365,6 +354,9 @@ func loadCompositionExclusions() {
 			logger.Fatalf("%U: Duplicate entry in exclusions.", c.codePoint)
 		}
 		c.excludeInComp = true
+	}
+	if scanner.Err() != nil {
+		log.Fatal(scanner.Err())
 	}
 }
 
@@ -853,15 +845,9 @@ func testDerived() {
 	}
 	f := openReader("DerivedNormalizationProps.txt")
 	defer f.Close()
-	input := bufio.NewReader(f)
-	for {
-		line, err := input.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			logger.Fatal(err)
-		}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
 		qc := qcRe.FindStringSubmatch(line)
 		if qc == nil {
 			continue
@@ -919,6 +905,9 @@ func testDerived() {
 				lastFailed = true
 			}
 		}
+	}
+	if scanner.Err() != nil {
+		logger.Fatal(scanner.Err())
 	}
 	// Any unspecified value must be QCYes. Verify this.
 	for i, c := range chars {
