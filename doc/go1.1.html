@@ -121,6 +121,14 @@ warning: GOPATH set to GOROOT (/home/User/go) has no effect
 package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath
 </pre>
 
+<h3 id="gofix">Changes to go fix</h3>
+
+<p>
+The <code>go fix</code> command no longer applies fixes to update code from
+before Go 1 to use Go 1 APIs. To update pre-Go 1 code to Go 1.1, use a Go 1.0 toolchain
+to convert the code to Go 1.0 first.
+</p>
+
 <h2 id="library">Changes to the standard library</h2>
 
 <h3 id="debug/elf">debug/elf</h3>
