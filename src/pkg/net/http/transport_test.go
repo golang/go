@@ -970,6 +970,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 		io.Copy(w, neverEnding('a'))
 	})
 	ts := httptest.NewServer(mux)
+	timeout := 100 * time.Millisecond
 
 	client := &Client{
 		Transport: &Transport{
@@ -978,7 +979,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+				conn.SetDeadline(time.Now().Add(timeout))
 				if debug {
 					conn = NewLoggingConn("client", conn)
 				}
@@ -988,6 +989,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 		},
 	}
 
+	getFailed := false
 	nRuns := 5
 	if testing.Short() {
 		nRuns = 1
@@ -998,6 +1000,14 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 		}
 		sres, err := client.Get(ts.URL + "/get")
 		if err != nil {
+			if !getFailed {
+				// Make the timeout longer, once.
+				getFailed = true
+				t.Logf("increasing timeout")
+				i--
+				timeout *= 10
+				continue
+			}
 			t.Errorf("Error issuing GET: %v", err)
 			break
 		}
@@ -1024,6 +1034,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 		io.Copy(ioutil.Discard, r.Body)
 	})
 	ts := httptest.NewServer(mux)
+	timeout := 100 * time.Millisecond
 
 	client := &Client{
 		Transport: &Transport{
@@ -1032,7 +1043,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
-				conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+				conn.SetDeadline(time.Now().Add(timeout))
 				if debug {
 					conn = NewLoggingConn("client", conn)
 				}
@@ -1042,6 +1053,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 		},
 	}
 
+	getFailed := false
 	nRuns := 5
 	if testing.Short() {
 		nRuns = 1
@@ -1052,6 +1064,14 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 		}
 		sres, err := client.Get(ts.URL + "/get")
 		if err != nil {
+			if !getFailed {
+				// Make the timeout longer, once.
+				getFailed = true
+				t.Logf("increasing timeout")
+				i--
+				timeout *= 10
+				continue
+			}
 			t.Errorf("Error issuing GET: %v", err)
 			break
 		}
