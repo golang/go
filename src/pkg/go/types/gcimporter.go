@@ -548,13 +548,7 @@ func (p *gcParser) parseSignature() *Signature {
 
 	// optional result type
 	var results []*Var
-	switch p.tok {
-	case scanner.Ident, '[', '*', '<', '@':
-		// TODO(gri) does this ever happen?
-		// single, unnamed result
-		results = []*Var{{Type: p.parseType()}}
-	case '(':
-		// named or multiple result(s)
+	if p.tok == '(' {
 		var variadic bool
 		results, variadic = p.parseParameters()
 		if variadic {
