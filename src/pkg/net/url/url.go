@@ -693,6 +693,10 @@ func (u *URL) RequestURI() string {
 		if result == "" {
 			result = "/"
 		}
+	} else {
+		if strings.HasPrefix(result, "//") {
+			result = u.Scheme + ":" + result
+		}
 	}
 	if u.RawQuery != "" {
 		result += "?" + u.RawQuery

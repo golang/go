@@ -798,6 +798,24 @@ var requritests = []RequestURITest{
 		},
 		"/a%20b",
 	},
+	// golang.org/issue/4860 variant 1
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Opaque: "/%2F/%2F/",
+		},
+		"/%2F/%2F/",
+	},
+	// golang.org/issue/4860 variant 2
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Opaque: "//other.example.com/%2F/%2F/",
+		},
+		"http://other.example.com/%2F/%2F/",
+	},
 	{
 		&URL{
 			Scheme:   "http",
