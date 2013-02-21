@@ -14,6 +14,13 @@ import (
 	"unsafe"
 )
 
+// A bogus "reflect" type-checker package.  Shared across interpreters.
+var reflectTypesPackage = &types.Package{
+	Name:     "reflect",
+	Path:     "reflect",
+	Complete: true,
+}
+
 // rtype is the concrete type the interpreter uses to implement the
 // reflect.Type interface.  Since its type is opaque to the target
 // language, we use a types.Basic.
@@ -21,26 +28,13 @@ import (
 // type rtype <opaque>
 var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
 
-// Value is the interpreter's version of reflect.Value.
-//
-// Since it has no public fields and we control all the functions in
-// the reflect package, it doesn't matter that it is not the same as
-// the real Value struct.
-//
-// A reflect.Value contains the same two fields as the interpreter's
-// iface struct.
-//
-// type Value struct {
-//   t    rtype
-//   v    Value
-// }
-//
-// Even though it's a struct, we use a types.Basic since no-one cares.
-var reflectValueType = makeNamedType("Value", &types.Basic{Name: "Value"})
-
 func makeNamedType(name string, underlying types.Type) *types.NamedType {
 	nt := &types.NamedType{Underlying: underlying}
-	nt.Obj = &types.TypeName{Name: name, Type: nt}
+	nt.Obj = &types.TypeName{
+		Name: name,
+		Type: nt,
+		Pkg:  reflectTypesPackage,
+	}
 	return nt
 }
 
@@ -63,12 +57,12 @@ func makeReflectType(rt rtype) value {
 	return iface{rtypeType, rt}
 }
 
-func ext۰reflect۰Init(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Init(fn *ssa.Function, args []value) value {
 	// Signature: func()
 	return nil
 }
 
-func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) int
 	rt := args[0].(rtype).t
 	basic, ok := underlyingType(rt).(*types.Basic)
@@ -104,7 +98,7 @@ func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value, slots []value) va
 	return nil
 }
 
-func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) reflect.Type
 	var elem types.Type
 	switch rt := underlyingType(args[0].(rtype).t).(type) {
@@ -124,22 +118,22 @@ func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value, slots []value) va
 	return makeReflectType(rtype{elem})
 }
 
-func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) uint
 	return uint(reflectKind(args[0].(rtype).t))
 }
 
-func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) string
 	return args[0].(rtype).t.String()
 }
 
-func ext۰reflect۰TypeOf(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰TypeOf(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) string
 	return makeReflectType(rtype{args[0].(iface).t})
 }
 
-func ext۰reflect۰ValueOf(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰ValueOf(fn *ssa.Function, args []value) value {
 	// Signature: func (interface{}) reflect.Value
 	itf := args[0].(iface)
 	return makeReflectValue(itf.t, itf.v)
@@ -208,17 +202,22 @@ func reflectKind(t types.Type) reflect.Kind {
 	panic(fmt.Sprint("unexpected type: ", t))
 }
 
-func ext۰reflect۰Value۰Kind(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Kind(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) uint
 	return uint(reflectKind(rV2T(args[0]).t))
 }
 
-func ext۰reflect۰Value۰Type(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰String(fn *ssa.Function, args []value) value {
+	// Signature: func (reflect.Value) string
+	return toString(rV2V(args[0]))
+}
+
+func ext۰reflect۰Value۰Type(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) reflect.Type
 	return makeReflectType(rV2T(args[0]))
 }
 
-func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) int
 	switch v := rV2V(args[0]).(type) {
 	case string:
@@ -239,12 +238,12 @@ func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value, slots []value) val
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) int
 	return len(rV2V(args[0]).(structure))
 }
 
-func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) uintptr
 	switch v := rV2V(args[0]).(type) {
 	case *value:
@@ -265,7 +264,7 @@ func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value, slots []value)
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, i int) Value
 	i := args[1].(int)
 	t := underlyingType(rV2T(args[0]).t)
@@ -280,19 +279,19 @@ func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value, slots []value) v
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) bool
 	// Always false for our representation.
 	return false
 }
 
-func ext۰reflect۰Value۰CanInterface(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰CanInterface(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) bool
 	// Always true for our representation.
 	return true
 }
 
-func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) reflect.Value
 	switch x := rV2V(args[0]).(type) {
 	case iface:
@@ -305,19 +304,19 @@ func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value, slots []value) va
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
 	return makeReflectValue(underlyingType(rV2T(v).t).(*types.Struct).Fields[i].Type, rV2V(v).(structure)[i])
 }
 
-func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) interface{}
-	return ext۰reflect۰valueInterface(fn, args, slots)
+	return ext۰reflect۰valueInterface(fn, args)
 }
 
-func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) int64
 	switch x := rV2V(args[0]).(type) {
 	case int:
@@ -336,7 +335,7 @@ func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value, slots []value) val
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) bool
 	switch x := rV2V(args[0]).(type) {
 	case *value:
@@ -363,12 +362,12 @@ func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value, slots []value) v
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰IsValid(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰Value۰IsValid(fn *ssa.Function, args []value) value {
 	// Signature: func (reflect.Value) bool
 	return rV2V(args[0]) != nil
 }
 
-func ext۰reflect۰valueInterface(fn *ssa.Function, args []value, slots []value) value {
+func ext۰reflect۰valueInterface(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value, safe bool) interface{}
 	v := args[0].(structure)
 	return iface{rV2T(v).t, rV2V(v)}
@@ -394,12 +393,8 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
 
 func initReflect(i *interpreter) {
 	i.reflectPackage = &ssa.Package{
-		Prog: i.prog,
-		Types: &types.Package{
-			Name:     "reflect",
-			Path:     "reflect",
-			Complete: true,
-		},
+		Prog:       i.prog,
+		Types:      reflectTypesPackage,
 		ImportPath: "reflect",
 		Members:    make(map[string]ssa.Member),
 	}

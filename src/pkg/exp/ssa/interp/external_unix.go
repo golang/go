@@ -11,14 +11,14 @@ import (
 	"syscall"
 )
 
-func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
+func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
 	// We could emulate syscall.Syscall but it's more effort.
 	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
 	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
 	return iface{}
 }
 
-func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
+func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
 	// We could emulate syscall.Syscall but it's more effort.
 	p := args[1].([]value)
 	b := make([]byte, 0, len(p))

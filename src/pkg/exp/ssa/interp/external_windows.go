@@ -10,10 +10,10 @@ import (
 	"exp/ssa"
 )
 
-func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
+func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
 	panic("syscall.Kill not yet implemented")
 }
 
-func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
+func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
 	panic("syscall.Write not yet implemented")
 }
