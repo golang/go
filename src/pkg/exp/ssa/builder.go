@@ -62,6 +62,7 @@ var (
 	tInvalid    = types.Typ[types.Invalid]
 	tUntypedNil = types.Typ[types.UntypedNil]
 	tRangeIter  = &types.Basic{Name: "iter"} // the type of all "range" iterators
+	tEface      = new(types.Interface)
 
 	// The result type of a "select".
 	tSelect = &types.Result{Values: []*types.Var{
@@ -512,6 +513,11 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 			return intLiteral(at.Len)
 		}
 		// Otherwise treat as normal.
+
+	case "panic":
+		fn.emit(&Panic{X: emitConv(fn, b.expr(fn, args[0]), tEface)})
+		fn.currentBlock = fn.newBasicBlock("unreachable")
+		return vFalse // any non-nil Value will do
 	}
 	return nil // treat all others as a regular function call
 }
@@ -774,32 +780,20 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 			// Type conversion, e.g. string(x) or big.Int(x)
 			return emitConv(fn, b.expr(fn, e.Args[0]), typ)
 		}
-		// Call to "intrinsic" built-ins, e.g. new, make.
-		wasPanic := false
+		// Call to "intrinsic" built-ins, e.g. new, make, panic.
 		if id, ok := e.Fun.(*ast.Ident); ok {
 			obj := b.obj(id)
 			if _, ok := fn.Prog.Builtins[obj]; ok {
 				if v := b.builtin(fn, id.Name, e.Args, typ); v != nil {
 					return v
 				}
-				wasPanic = id.Name == "panic"
 			}
 		}
 		// Regular function call.
 		var v Call
 		b.setCall(fn, e, &v.CallCommon)
 		v.setType(typ)
-		fn.emit(&v)
-
-		// Compile panic as if followed by for{} so that its
-		// successor is unreachable.
-		// TODO(adonovan): consider a dedicated Panic instruction
-		// (in which case, don't forget Go and Defer).
-		if wasPanic {
-			emitSelfLoop(fn)
-			fn.currentBlock = fn.newBasicBlock("unreachable")
-		}
-		return &v
+		return fn.emit(&v)
 
 	case *ast.UnaryExpr:
 		switch e.Op {
@@ -1161,7 +1155,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 			bptypes = append(bptypes, nil) // map
 			bptypes = append(bptypes, nil) // key
 		case "print", "println": // print{,ln}(any, ...any)
-			vt = new(types.Interface) // variadic
+			vt = tEface // variadic
 			if !c.HasEllipsis {
 				args, varargs = args[:1], args[1:]
 			}
@@ -1188,7 +1182,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 			}
 			bptypes = append(bptypes, argType, argType)
 		case "panic":
-			bptypes = append(bptypes, new(types.Interface))
+			bptypes = append(bptypes, tEface)
 		case "recover":
 			// no-op
 		default:
@@ -2257,14 +2251,14 @@ start:
 
 	case *ast.GoStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
-		// panic() is not forbidden, but is not (yet) an intrinsic.
+		// panic is treated like an ordinary function call.
 		var v Go
 		b.setCall(fn, s.Call, &v.CallCommon)
 		fn.emit(&v)
 
 	case *ast.DeferStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
-		// panic() is not forbidden, but is not (yet) an intrinsic.
+		// panic is treated like an ordinary function call.
 		var v Defer
 		b.setCall(fn, s.Call, &v.CallCommon)
 		fn.emit(&v)

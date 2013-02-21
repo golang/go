@@ -282,6 +282,10 @@ func (s *Go) String() string {
 	return printCall(&s.CallCommon, "go ", s)
 }
 
+func (s *Panic) String() string {
+	return "panic " + relName(s.X, s)
+}
+
 func (s *Ret) String() string {
 	var b bytes.Buffer
 	b.WriteString("ret")

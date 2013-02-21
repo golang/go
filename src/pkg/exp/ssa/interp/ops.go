@@ -16,6 +16,9 @@ type targetPanic struct {
 	v value
 }
 
+// If the target program calls exit, the interpreter panics with this type.
+type exitPanic int
+
 // literalValue returns the value of the literal with the
 // dynamic type tag appropriate for l.Type().
 func literalValue(l *ssa.Literal) value {
@@ -974,6 +977,8 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 		}
 
 	case "panic":
+		// ssa.Panic handles most cases; this is only for "go
+		// panic" or "defer panic".
 		panic(targetPanic{args[0]})
 
 	case "recover":

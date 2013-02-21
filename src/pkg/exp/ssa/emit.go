@@ -247,15 +247,3 @@ func emitTailCall(f *Function, call *Call) {
 	f.emit(&ret)
 	f.currentBlock = nil
 }
-
-// emitSelfLoop emits to f a self-loop.
-// This is a defensive measure to ensure control-flow integrity.
-// It should never be reachable.
-// Postcondition: f.currentBlock is nil.
-//
-func emitSelfLoop(f *Function) {
-	loop := f.newBasicBlock("selfloop")
-	emitJump(f, loop)
-	f.currentBlock = loop
-	emitJump(f, loop)
-}

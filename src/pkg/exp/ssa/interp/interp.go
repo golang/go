@@ -171,6 +171,9 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		}
 		return kReturn
 
+	case *ssa.Panic:
+		panic(targetPanic{fr.get(instr.X)})
+
 	case *ssa.Send:
 		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
 
@@ -475,7 +478,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 
 	for {
 		if i.mode&EnableTracing != 0 {
-			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block.Name)
+			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
 	block:
 		for _, instr = range fr.block.Instrs {
