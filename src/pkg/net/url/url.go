@@ -225,7 +225,8 @@ func escape(s string, mode encoding) string {
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
 // but when it is a client must use other routines to parse the raw URL or construct
 // the parsed URL. For example, an HTTP server can consult req.RequestURI, and
-// an HTTP client can use URL{Opaque: "/Go%2f"} instead of URL{Path: "/Go/"}.
+// an HTTP client can use URL{Host: "example.com", Opaque: "//example.com/Go%2f"}
+// instead of URL{Host: "example.com", Path: "/Go/"}.
 type URL struct {
 	Scheme   string
 	Opaque   string    // encoded opaque data
