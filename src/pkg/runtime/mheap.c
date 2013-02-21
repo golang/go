@@ -391,6 +391,8 @@ scavenge(uint64 now, uint64 limit)
 	return sumreleased;
 }
 
+static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
+
 // Release (part of) unused memory to OS.
 // Goroutine created at startup.
 // Loop forever.
@@ -437,7 +439,7 @@ runtime·MHeap_Scavenger(void)
 			// GC blocks other goroutines via the runtime·worldsema.
 			runtime·noteclear(&note);
 			notep = &note;
-			runtime·newproc1((byte*)forcegchelper, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
+			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
 			runtime·entersyscallblock();
 			runtime·notesleep(&note);
 			runtime·exitsyscall();

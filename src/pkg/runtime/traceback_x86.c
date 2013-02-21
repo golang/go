@@ -40,10 +40,10 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 	waspanic = false;
 	
 	// If the PC is goexit, the goroutine hasn't started yet.
-	if(pc0 == gp->sched.pc && sp == (byte*)gp->sched.sp && pc0 == (byte*)runtime·goexit && gp->entry != 0) {
+	if(pc0 == gp->sched.pc && sp == (byte*)gp->sched.sp && pc0 == (byte*)runtime·goexit && gp->fnstart != nil) {
 		fp = sp;
 		lr = pc;
-		pc = (uintptr)gp->entry;
+		pc = (uintptr)gp->fnstart->fn;
 	}
 	
 	// If the PC is zero, it's likely a nil function call.

@@ -94,15 +94,17 @@ clearfat(Node *nl)
 /*
  * generate:
  *	call f
+ *	proc=-1	normal call but no return
  *	proc=0	normal call
  *	proc=1	goroutine run in new proc
  *	proc=2	defer call save away stack
+  *	proc=3	normal call to C pointer (not Go func value)
  */
 void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node reg, con;
+	Node reg, r1, con;
 
 	switch(proc) {
 	default:
@@ -111,10 +113,23 @@ ginscall(Node *f, int proc)
 
 	case 0:	// normal call
 	case -1:	// normal call but no return
-		p = gins(ACALL, N, f);
-		afunclit(&p->to);
-		if(proc == -1 || noreturn(p))
-			gins(AUNDEF, N, N);
+		if(f->op == ONAME && f->class == PFUNC) {
+			p = gins(ACALL, N, f);
+			afunclit(&p->to, f);
+			if(proc == -1 || noreturn(p))
+				gins(AUNDEF, N, N);
+			break;
+		}
+		nodreg(&reg, types[tptr], D_AX);
+		nodreg(&r1, types[tptr], D_BX);
+		gmove(f, &reg);
+		reg.op = OINDREG;
+		gmove(&reg, &r1);
+		gins(ACALL, N, &r1);
+		break;
+	
+	case 3:	// normal call of c function pointer
+		gins(ACALL, N, f);
 		break;
 
 	case 1:	// call in new proc (go)
@@ -186,7 +201,15 @@ cgen_callinter(Node *n, Node *res, int proc)
 		fatal("cgen_callinter: badwidth");
 	nodo.op = OINDREG;
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
-	cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
+	
+	if(proc == 0) {
+		// plain call: use direct c function pointer - more efficient
+		cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
+		proc = 3;
+	} else {
+		// go/defer. generate go func value.
+		gins(ALEAL, &nodo, &nodr);	// REG = &(20+offset(REG)) -- i.tab->fun[f]
+	}
 
 	// BOTCH nodr.type = fntype;
 	nodr.type = n->left->type;

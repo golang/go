@@ -104,7 +104,7 @@ struct Workbuf
 typedef struct Finalizer Finalizer;
 struct Finalizer
 {
-	void (*fn)(void*);
+	FuncVal *fn;
 	void *arg;
 	uintptr nret;
 };
@@ -1328,7 +1328,7 @@ addroots(void)
 static bool
 handlespecial(byte *p, uintptr size)
 {
-	void (*fn)(void*);
+	FuncVal *fn;
 	uintptr nret;
 	FinBlock *block;
 	Finalizer *f;
@@ -1656,6 +1656,7 @@ runtime·gc(int32 force)
 {
 	byte *p;
 	struct gc_args a, *ap;
+	FuncVal gcv;
 
 	// The atomic operations are not atomic if the uint64s
 	// are not aligned on uint64 boundaries. This has been
@@ -1689,13 +1690,16 @@ runtime·gc(int32 force)
 	a.force = force;
 	ap = &a;
 	m->moreframesize_minalloc = StackBig;
-	reflect·call((byte*)gc, (byte*)&ap, sizeof(ap));
+	gcv.fn = (void*)gc;
+	reflect·call(&gcv, (byte*)&ap, sizeof(ap));
 
 	if(gctrace > 1 && !force) {
 		a.force = 1;
 		gc(&a);
 	}
 }
+
+static FuncVal runfinqv = {runfinq};
 
 static void
 gc(struct gc_args *args)
@@ -1786,7 +1790,7 @@ gc(struct gc_args *args)
 		m->locks++;	// disable gc during the mallocs in newproc
 		// kick off or wake up goroutine to run queued finalizers
 		if(fing == nil)
-			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
+			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
 		else if(fingwait) {
 			fingwait = 0;
 			runtime·ready(fing);
@@ -1924,7 +1928,7 @@ runfinq(void)
 					framecap = framesz;
 				}
 				*(void**)frame = f->arg;
-				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
+				reflect·call(f->fn, frame, sizeof(uintptr) + f->nret);
 				f->fn = nil;
 				f->arg = nil;
 			}

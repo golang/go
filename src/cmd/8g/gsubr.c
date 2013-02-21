@@ -255,11 +255,12 @@ isfat(Type *t)
  * call afunclit to fix up the argument.
  */
 void
-afunclit(Addr *a)
+afunclit(Addr *a, Node *n)
 {
 	if(a->type == D_ADDR && a->index == D_EXTERN) {
 		a->type = D_EXTERN;
 		a->index = D_NONE;
+		a->sym = n->sym;
 	}
 }
 
@@ -2273,6 +2274,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		case PFUNC:
 			a->index = D_EXTERN;
 			a->type = D_ADDR;
+			a->sym = funcsym(a->sym);
 			break;
 		}
 		break;

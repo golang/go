@@ -57,6 +57,8 @@ ready(int64 now, Eface e)
 	runtime·ready(e.data);
 }
 
+static FuncVal readyv = {(void(*)(void))ready};
+
 // Put the current goroutine to sleep for ns nanoseconds.
 void
 runtime·tsleep(int64 ns, int8 *reason)
@@ -68,12 +70,14 @@ runtime·tsleep(int64 ns, int8 *reason)
 
 	t.when = runtime·nanotime() + ns;
 	t.period = 0;
-	t.f = ready;
+	t.fv = &readyv;
 	t.arg.data = g;
 	runtime·lock(&timers);
 	addtimer(&t);
 	runtime·park(runtime·unlock, &timers, reason);
 }
+
+static FuncVal timerprocv = {timerproc};
 
 // Add a timer to the heap and start or kick the timer proc
 // if the new timer is earlier than any of the others.
@@ -109,7 +113,7 @@ addtimer(Timer *t)
 		}
 	}
 	if(timers.timerproc == nil) {
-		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
+		timers.timerproc = runtime·newproc1(&timerprocv, nil, 0, 0, addtimer);
 		timers.timerproc->issystem = true;
 	}
 }
@@ -182,7 +186,7 @@ timerproc(void)
 				siftdown(0);
 				t->i = -1;  // mark as removed
 			}
-			f = t->f;
+			f = (void*)t->fv->fn;
 			arg = t->arg;
 			runtime·unlock(&timers);
 			if(raceenabled)

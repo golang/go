@@ -226,6 +226,8 @@ runtime·schedinit(void)
 extern void main·init(void);
 extern void main·main(void);
 
+static FuncVal scavenger = {runtime·MHeap_Scavenger};
+
 // The main goroutine.
 void
 runtime·main(void)
@@ -240,7 +242,7 @@ runtime·main(void)
 	// From now on, newgoroutines may use non-main threads.
 	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.init = true;
-	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
+	scvg = runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
 	scvg->issystem = true;
 	// The deadlock detection has false negatives.
 	// Let scvg start up, to eliminate the false negative
@@ -1170,7 +1172,7 @@ schedule(G *gp)
 		runtime·resetcpuprofiler(hz);
 
 	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
-		runtime·gogocall(&gp->sched, (void(*)(void))gp->entry);
+		runtime·gogocallfn(&gp->sched, gp->fnstart);
 	}
 	runtime·gogo(&gp->sched, 0);
 }
@@ -1419,7 +1421,7 @@ runtime·malg(int32 stacksize)
 // functions that split the stack.
 #pragma textflag 7
 void
-runtime·newproc(int32 siz, byte* fn, ...)
+runtime·newproc(int32 siz, FuncVal* fn, ...)
 {
 	byte *argp;
 
@@ -1435,7 +1437,7 @@ runtime·newproc(int32 siz, byte* fn, ...)
 // address of the go statement that created this.  The new g is put
 // on the queue of g's waiting to run.
 G*
-runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 {
 	byte *sp;
 	G *newg;
@@ -1484,7 +1486,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->sched.sp = (uintptr)sp;
 	newg->sched.pc = (byte*)runtime·goexit;
 	newg->sched.g = newg;
-	newg->entry = fn;
+	newg->fnstart = fn;
 	newg->gopc = (uintptr)callerpc;
 	if(raceenabled)
 		newg->racectx = racectx;

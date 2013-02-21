@@ -416,7 +416,7 @@ walkexpr(Node **np, NodeList **init)
 	switch(n->op) {
 	default:
 		dump("walk", n);
-		fatal("walkexpr: switch 1 unknown op %N", n);
+		fatal("walkexpr: switch 1 unknown op %+hN", n);
 		break;
 
 	case OTYPE:
@@ -442,7 +442,6 @@ walkexpr(Node **np, NodeList **init)
 		usefield(n);
 		walkexpr(&n->left, init);
 		goto ret;
-		
 
 	case OEFACE:
 		walkexpr(&n->left, init);

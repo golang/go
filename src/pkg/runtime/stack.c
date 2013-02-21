@@ -273,7 +273,10 @@ runtime·newstack(void)
 	label.sp = (uintptr)sp;
 	label.pc = (byte*)runtime·lessstack;
 	label.g = m->curg;
-	runtime·gogocall(&label, m->morepc);
+	if(reflectcall)
+		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
+	else
+		runtime·gogocall(&label, m->morepc);
 
 	*(int32*)345 = 123;	// never return
 }

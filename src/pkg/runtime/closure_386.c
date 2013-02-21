@@ -18,6 +18,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 	if(siz < 0 || siz%4 != 0)
 		runtime·throw("bad closure size");
 
+	fn = *(byte**)fn;
 	ret = (byte**)((byte*)&arg0 + siz);
 
 	if(siz > 100) {
@@ -40,8 +41,10 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 	if(n%4)
 		n += 4 - n%4;
 
-	p = runtime·mal(n);
+	p = runtime·mal(4+n);
 	*ret = p;
+	*(byte**)p = p+4;
+	p += 4;
 	q = p + n - siz;
 
 	if(siz > 0) {

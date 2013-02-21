@@ -68,7 +68,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHQ	$runtime·main(SB)		// entry
+	PUSHQ	$runtime·main·f(SB)		// entry
 	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
 	POPQ	AX
@@ -79,6 +79,9 @@ ok:
 
 	MOVL	$0xf1, 0xf1  // crash
 	RET
+
+DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
+GLOBL	runtime·main·f(SB),8,$8
 
 TEXT runtime·breakpoint(SB),7,$0
 	BYTE	$0xcc
@@ -132,6 +135,23 @@ TEXT runtime·gogocall(SB), 7, $0
 	MOVQ	gobuf_pc(BX), BX
 	PUSHQ	BX
 	JMP	AX
+	POPQ	BX	// not reached
+
+// void gogocallfn(Gobuf*, FuncVal*)
+// restore state from Gobuf but then call fn.
+// (call fn, returning to state in Gobuf)
+TEXT runtime·gogocallfn(SB), 7, $0
+	MOVQ	16(SP), AX		// fn
+	MOVQ	8(SP), BX		// gobuf
+	MOVQ	gobuf_g(BX), DX
+	get_tls(CX)
+	MOVQ	DX, g(CX)
+	MOVQ	0(DX), CX	// make sure g != nil
+	MOVQ	gobuf_sp(BX), SP	// restore SP
+	MOVQ	gobuf_pc(BX), BX
+	PUSHQ	BX
+	MOVQ	0(AX), BX
+	JMP	BX
 	POPQ	BX	// not reached
 
 // void mcall(void (*fn)(G*))
@@ -455,7 +475,8 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVQ	16(SP), BX	// caller sp
 	LEAQ	-8(BX), SP	// caller sp after CALL
 	SUBQ	$5, (SP)	// return to CALL again
-	JMP	AX	// but first run the deferred function
+	MOVQ	0(AX), BX
+	JMP	BX	// but first run the deferred function
 
 // Dummy function to use in saved gobuf.PC,
 // to match SP pointing at a return address.

@@ -11,7 +11,7 @@ enum { debug = 0 };
 typedef struct Fin Fin;
 struct Fin
 {
-	void (*fn)(void*);
+	FuncVal *fn;
 	uintptr nret;
 };
 
@@ -42,7 +42,7 @@ static struct {
 } fintab[TABSZ];
 
 static void
-addfintab(Fintab *t, void *k, void (*fn)(void*), uintptr nret)
+addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret)
 {
 	int32 i, j;
 
@@ -137,7 +137,7 @@ resizefintab(Fintab *tab)
 }
 
 bool
-runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
+runtime·addfinalizer(void *p, FuncVal *f, uintptr nret)
 {
 	Fintab *tab;
 	byte *base;
@@ -175,7 +175,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
 // get finalizer; if del, delete finalizer.
 // caller is responsible for updating RefHasFinalizer (special) bit.
 bool
-runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret)
+runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret)
 {
 	Fintab *tab;
 	bool res;

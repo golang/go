@@ -463,7 +463,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	}
 	mt := p.typ
 	m.Type = mt
-	fn := p.tfn
+	fn := unsafe.Pointer(&p.tfn)
 	m.Func = Value{mt, fn, fl}
 	m.Index = i
 	return

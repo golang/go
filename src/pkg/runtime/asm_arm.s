@@ -50,7 +50,7 @@ TEXT _rt0_arm(SB),7,$-4
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVW	$runtime·main(SB), R0
+	MOVW	$runtime·main·f(SB), R0
 	MOVW.W	R0, -4(R13)
 	MOVW	$8, R0
 	MOVW.W	R0, -4(R13)
@@ -65,6 +65,9 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	$1234, R0
 	MOVW	$1000, R1
 	MOVW	R0, (R1)	// fail hard
+
+DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·main·f(SB),8,$4
 
 TEXT runtime·breakpoint(SB),7,$0
 	// gdb won't skip this breakpoint instruction automatically,
@@ -125,6 +128,24 @@ TEXT runtime·gogocall(SB), 7, $-4
 	MOVW	gobuf_sp(R3), SP	// restore SP
 	MOVW	gobuf_pc(R3), LR
 	MOVW	R1, PC
+
+// void gogocallfn(Gobuf*, FuncVal*)
+// restore state from Gobuf but then call fn.
+// (call fn, returning to state in Gobuf)
+// using frame size $-4 means do not save LR on stack.
+TEXT runtime·gogocallfn(SB), 7, $-4
+	MOVW	0(FP), R3		// gobuf
+	MOVW	4(FP), R1		// fn
+	MOVW	8(FP), R2		// fp offset
+	MOVW	gobuf_g(R3), g
+	MOVW	0(g), R0		// make sure g != nil
+	MOVW	cgo_save_gm(SB), R0
+	CMP 	$0, R0 // if in Cgo, we have to save g and m
+	BL.NE	(R0) // this call will clobber R0
+	MOVW	gobuf_sp(R3), SP	// restore SP
+	MOVW	gobuf_pc(R3), LR
+	MOVW	R1, R0
+	MOVW	0(R1), PC
 
 // void mcall(void (*fn)(G*))
 // Switch to m->g0's stack, call fn(g).
@@ -242,7 +263,8 @@ TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	fn+0(FP), R0
 	MOVW	argp+4(FP), SP
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
-	B		(R0)
+	MOVW	0(R0), R1
+	B	(R1)
 
 // Dummy function to use in saved gobuf.PC,
 // to match SP pointing at a return address.
