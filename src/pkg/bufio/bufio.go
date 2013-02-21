@@ -278,7 +278,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 }
 
 // ReadLine is a low-level line-reading primitive. Most callers should use
-// ReadBytes('\n') or ReadString('\n') instead.
+// ReadBytes('\n') or ReadString('\n') instead or use a Scanner.
 //
 // ReadLine tries to return a single line, not including the end-of-line bytes.
 // If the line was too long for the buffer then isPrefix is set and the
@@ -331,6 +331,7 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 // it returns the data read before the error and the error itself (often io.EOF).
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
+// For simple uses, a Scanner may be more convenient.
 func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 	// Use ReadSlice to look for array,
 	// accumulating full buffers.
@@ -378,6 +379,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // it returns the data read before the error and the error itself (often io.EOF).
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
+// For simple uses, a Scanner may be more convenient.
 func (b *Reader) ReadString(delim byte) (line string, err error) {
 	bytes, err := b.ReadBytes(delim)
 	return string(bytes), err
