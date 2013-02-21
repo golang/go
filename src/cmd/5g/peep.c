@@ -1189,6 +1189,9 @@ copyu(Prog *p, Adr *v, Adr *s)
 			if(v->reg == (uchar)REGARG)
 				return 3;
 		return 0;
+
+	case ALOCALS:	/* funny */
+		return 0;
 	}
 }
 

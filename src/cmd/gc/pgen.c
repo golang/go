@@ -14,7 +14,7 @@ compile(Node *fn)
 {
 	Plist *pl;
 	Node nod1, *n;
-	Prog *ptxt;
+	Prog *plocals, *ptxt;
 	int32 lno;
 	Type *t;
 	Iter save;
@@ -87,6 +87,8 @@ compile(Node *fn)
 
 	ginit();
 
+	plocals = gins(ALOCALS, N, N);
+
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
 
@@ -132,6 +134,9 @@ compile(Node *fn)
 
 	oldstksize = stksize;
 	allocauto(ptxt);
+
+	plocals->to.offset = stksize;
+
 	if(0)
 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
 

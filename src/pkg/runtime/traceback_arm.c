@@ -128,7 +128,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 				if(m->throwing && gp == m->curg)
 					runtime·printf("[fp=%p] ", fp);
 				runtime·printf("%S(", f->name);
-				for(i = 0; i < f->args; i++) {
+				for(i = 0; i < f->args/sizeof(uintptr); i++) {
 					if(i != 0)
 						runtime·prints(", ");
 					runtime·printhex(((uintptr*)fp)[1+i]);

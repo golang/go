@@ -197,6 +197,7 @@ enum	as
 	AMULAWB,
 	
 	AUSEFIELD,
+	ALOCALS,
 
 	ALAST,
 };

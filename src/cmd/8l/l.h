@@ -138,6 +138,8 @@ struct	Sym
 	int32	got;
 	int32	align;	// if non-zero, required alignment in bytes
 	int32	elfsym;
+	int32	locals;	// size of stack frame locals area
+	int32	args;	// size of stack frame incoming arguments area
 	Sym*	hash;	// in hash table
 	Sym*	allsym;	// in all symbol list
 	Sym*	next;	// in text or data list

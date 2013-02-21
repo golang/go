@@ -758,6 +758,7 @@ enum	as
 	APSHUFD,
 	
 	AUSEFIELD,
+	ALOCALS,
 
 	ALAST
 };

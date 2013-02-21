@@ -573,6 +573,11 @@ loop:
 		pc++;
 		break;
 
+	case ALOCALS:
+		cursym->locals = p->to.offset;
+		pc++;
+		break;
+
 	case ATEXT:
 		if(cursym != nil && cursym->text) {
 			histtoauto();
@@ -610,6 +615,7 @@ loop:
 		s->type = STEXT;
 		s->text = p;
 		s->value = pc;
+		s->args = p->to.offset2;
 		lastp = p;
 		p->pc = pc;
 		pc++;
