@@ -166,16 +166,10 @@ func loadTestData() []Test {
 		ff, err := f.Open()
 		Error(err)
 		defer ff.Close()
-		input := bufio.NewReader(ff)
+		scanner := bufio.NewScanner(ff)
 		test := Test{name: path.Base(f.Name)}
-		for {
-			line, err := input.ReadString('\n')
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				log.Fatal(err)
-			}
+		for scanner.Scan() {
+			line := scanner.Text()
 			if len(line) <= 1 || line[0] == '#' {
 				if m := versionRe.FindStringSubmatch(line); m != nil {
 					if m[1] != unicode.Version {
@@ -205,6 +199,9 @@ func loadTestData() []Test {
 				test.str = append(test.str, str)
 				test.comment = append(test.comment, m[2])
 			}
+		}
+		if scanner.Err() != nil {
+			log.Fatal(scanner.Err())
 		}
 		tests = append(tests, test)
 	}
