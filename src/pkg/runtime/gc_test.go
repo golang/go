@@ -5,11 +5,15 @@
 package runtime_test
 
 import (
+	"os"
 	"runtime"
 	"testing"
 )
 
 func TestGcSys(t *testing.T) {
+	if os.Getenv("GOGC") == "off" {
+		t.Fatalf("GOGC=off in environment; test cannot pass")
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	memstats := new(runtime.MemStats)
 	runtime.GC()
