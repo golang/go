@@ -248,7 +248,7 @@ type Function struct {
 // An SSA basic block.
 //
 // The final element of Instrs is always an explicit transfer of
-// control (If, Jump or Ret).
+// control (If, Jump, Ret or Panic).
 //
 // A block may contain no Instructions only if it is unreachable,
 // i.e. Preds is nil.  Empty blocks are typically pruned.
@@ -842,6 +842,22 @@ type Ret struct {
 	Results []Value
 }
 
+// Panic initiates a panic with value X.
+//
+// A Panic instruction must be the last instruction of its containing
+// BasicBlock, which must have no successors.
+//
+// NB: 'go panic(x)' and 'defer panic(x)' do not use this instruction;
+// they are treated as calls to a built-in function.
+//
+// Example printed form:
+// 	panic t0
+//
+type Panic struct {
+	anInstruction
+	X Value // an interface{}
+}
+
 // Go creates a new goroutine and calls the specified function
 // within it.
 //
@@ -1125,6 +1141,7 @@ func (*MakeMap) ImplementsInstruction()         {}
 func (*MakeSlice) ImplementsInstruction()       {}
 func (*MapUpdate) ImplementsInstruction()       {}
 func (*Next) ImplementsInstruction()            {}
+func (*Panic) ImplementsInstruction()           {}
 func (*Phi) ImplementsInstruction()             {}
 func (*Range) ImplementsInstruction()           {}
 func (*Ret) ImplementsInstruction()             {}
@@ -1225,6 +1242,10 @@ func (v *MapUpdate) Operands(rands []*Value) []*Value {
 
 func (v *Next) Operands(rands []*Value) []*Value {
 	return append(rands, &v.Iter)
+}
+
+func (s *Panic) Operands(rands []*Value) []*Value {
+	return append(rands, &s.X)
 }
 
 func (v *Phi) Operands(rands []*Value) []*Value {
