@@ -34,6 +34,9 @@
 // * the sizes of the int, uint and uintptr types in the target
 // program are assumed to be the same as those of the interpreter
 // itself.
+//
+// * os.Exit is implemented using panic, causing deferred functions to
+// run.
 package interp
 
 import (
@@ -42,7 +45,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"log"
 	"os"
 	"reflect"
 	"runtime"
@@ -106,12 +108,11 @@ func (fr *frame) get(key ssa.Value) value {
 		if r, ok := fr.i.globals[key]; ok {
 			return r
 		}
-	default:
-		if r, ok := fr.env[key]; ok {
-			return r
-		}
 	}
-	panic(fmt.Sprintf("get: unexpected type %T", key))
+	if r, ok := fr.env[key]; ok {
+		return r
+	}
+	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
 // findMethodSet returns the method set for type typ, which may be one
@@ -428,7 +429,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			if i.mode&EnableTracing != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
-			return ext(fn, args, env)
+			return ext(fn, args)
 		}
 		if fn.Blocks == nil {
 			panic("no code for function: " + name)
@@ -516,7 +517,10 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.
 //
-func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) {
+// Interpret returns the exit code of the program: 2 for panic (like
+// gc does), or the argument to os.Exit for normal termination.
+//
+func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) (exitCode int) {
 	i := &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa.Value]*value),
@@ -541,6 +545,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 			for _, s := range os.Environ() {
 				envs = append(envs, s)
 			}
+			envs = append(envs, "GOSSAINTERP=1")
 			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
@@ -549,7 +554,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3450))
+			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
 			Args := []value{filename}
@@ -561,13 +566,15 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 	}
 
 	// Top-level error handler.
-	complete := false
+	exitCode = 2
 	defer func() {
-		if complete || i.mode&DisableRecover != 0 {
+		if exitCode != 2 || i.mode&DisableRecover != 0 {
 			return
 		}
-		// TODO(adonovan): stop the world and dump goroutines.
 		switch p := recover().(type) {
+		case exitPanic:
+			exitCode = int(p)
+			return
 		case targetPanic:
 			fmt.Fprintln(os.Stderr, "panic:", toString(p.v))
 		case runtime.Error:
@@ -575,17 +582,24 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 		case string:
 			fmt.Fprintln(os.Stderr, "panic:", p)
 		default:
-			panic(fmt.Sprintf("unexpected panic type: %T", p))
+			fmt.Fprintln(os.Stderr, "panic: unexpected type: %T", p)
 		}
-		os.Exit(1)
+
+		// TODO(adonovan): dump panicking interpreter goroutine?
+		// buf := make([]byte, 0x10000)
+		// runtime.Stack(buf, false)
+		// fmt.Fprintln(os.Stderr, string(buf))
+		// (Or dump panicking target goroutine?)
 	}()
 
 	// Run!
 	call(i, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		call(i, nil, token.NoPos, mainFn, nil)
+		exitCode = 0
 	} else {
-		log.Fatalf("no main function")
+		fmt.Fprintln(os.Stderr, "No main function.")
+		exitCode = 1
 	}
-	complete = true
+	return
 }

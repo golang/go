@@ -8,9 +8,13 @@
 
 package main
 
-import "unsafe"
+import (
+	"os"
+	"unsafe"
+)
 
 var global bool
+
 func use(b bool) { global = b }
 
 func stringptr(s string) uintptr { return *(*uintptr)(unsafe.Pointer(&s)) }
@@ -38,8 +42,12 @@ func main() {
 	var c string = "hello"
 	var d string = "hel" // try to get different pointer
 	d = d + "lo"
-	if stringptr(c) == stringptr(d) {
-		panic("compiler too smart -- got same string")
+
+	// exp/ssa/interp can't handle unsafe.Pointer.
+	if os.Getenv("GOSSAINTERP") != "" {
+		if stringptr(c) == stringptr(d) {
+			panic("compiler too smart -- got same string")
+		}
 	}
 
 	var e = make(chan int)
@@ -283,7 +291,7 @@ func main() {
 		isfalse(ix != z)
 		isfalse(iz != x)
 	}
-	
+
 	// structs with _ fields
 	{
 		var x = struct {
@@ -296,7 +304,7 @@ func main() {
 			x: 1, y: 2, z: 3,
 		}
 		var ix interface{} = x
-		
+
 		istrue(x == x)
 		istrue(x == ix)
 		istrue(ix == x)
