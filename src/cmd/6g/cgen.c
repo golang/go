@@ -191,7 +191,7 @@ cgen(Node *n, Node *res)
 	switch(n->op) {
 	default:
 		dump("cgen", n);
-		fatal("cgen: unknown op %N", n);
+		fatal("cgen: unknown op %+hN", n);
 		break;
 
 	// these call bgen to get a bool value
@@ -820,7 +820,7 @@ agen(Node *n, Node *res)
 
 	switch(n->op) {
 	default:
-		fatal("agen: unknown op %N", n);
+		fatal("agen: unknown op %+hN", n);
 		break;
 
 	case OCALLMETH:
