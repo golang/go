@@ -1453,4 +1453,3 @@ funcsym(Sym *s)
 	}
 	return s1;
 }
- 
