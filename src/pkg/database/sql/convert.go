@@ -14,6 +14,8 @@ import (
 	"strconv"
 )
 
+var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
+
 // driverArgs converts arguments from callers of Stmt.Exec and
 // Stmt.Query into driver Values.
 //
@@ -75,34 +77,52 @@ func driverArgs(si driver.Stmt, args []interface{}) ([]driver.Value, error) {
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type.
 func convertAssign(dest, src interface{}) error {
-	// Common cases, without reflect.  Fall through.
+	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
 		switch d := dest.(type) {
 		case *string:
+			if d == nil {
+				return errNilPtr
+			}
 			*d = s
 			return nil
 		case *[]byte:
+			if d == nil {
+				return errNilPtr
+			}
 			*d = []byte(s)
 			return nil
 		}
 	case []byte:
 		switch d := dest.(type) {
 		case *string:
+			if d == nil {
+				return errNilPtr
+			}
 			*d = string(s)
 			return nil
 		case *interface{}:
+			if d == nil {
+				return errNilPtr
+			}
 			bcopy := make([]byte, len(s))
 			copy(bcopy, s)
 			*d = bcopy
 			return nil
 		case *[]byte:
+			if d == nil {
+				return errNilPtr
+			}
 			*d = s
 			return nil
 		}
 	case nil:
 		switch d := dest.(type) {
 		case *[]byte:
+			if d == nil {
+				return errNilPtr
+			}
 			*d = nil
 			return nil
 		}
@@ -139,6 +159,9 @@ func convertAssign(dest, src interface{}) error {
 	dpv := reflect.ValueOf(dest)
 	if dpv.Kind() != reflect.Ptr {
 		return errors.New("destination not a pointer")
+	}
+	if dpv.IsNil() {
+		return errNilPtr
 	}
 
 	if !sv.IsValid() {

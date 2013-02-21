@@ -696,3 +696,15 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 		}
 	}
 }
+
+// golang.org/issue/4859
+func TestQueryRowNilScanDest(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	var name *string // nil pointer
+	err := db.QueryRow("SELECT|people|name|").Scan(name)
+	want := "sql: Scan error on column index 0: destination pointer is nil"
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %q; want %q", err.Error(), want)
+	}
+}
