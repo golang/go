@@ -3,6 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // The file define a quoted-printable decoder, as specified in RFC 2045.
+// Deviations:
+// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
+// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
+//    with other broken QP encoders & decoders.
 
 package multipart
 
@@ -14,14 +18,16 @@ import (
 )
 
 type qpReader struct {
-	br   *bufio.Reader
-	rerr error  // last read error
-	line []byte // to be consumed before more of br
+	br        *bufio.Reader
+	skipWhite bool
+	rerr      error  // last read error
+	line      []byte // to be consumed before more of br
 }
 
 func newQuotedPrintableReader(r io.Reader) io.Reader {
 	return &qpReader{
-		br: bufio.NewReader(r),
+		br:        bufio.NewReader(r),
+		skipWhite: true,
 	}
 }
 
@@ -49,6 +55,10 @@ func (q *qpReader) readHexByte(v []byte) (b byte, err error) {
 	return hb<<4 | lb, nil
 }
 
+func isQPSkipWhiteByte(b byte) bool {
+	return b == ' ' || b == '\t'
+}
+
 func isQPDiscardWhitespace(r rune) bool {
 	switch r {
 	case '\n', '\r', ' ', '\t':
@@ -57,22 +67,48 @@ func isQPDiscardWhitespace(r rune) bool {
 	return false
 }
 
+var (
+	crlf       = []byte("\r\n")
+	lf         = []byte("\n")
+	softSuffix = []byte("=")
+)
+
 func (q *qpReader) Read(p []byte) (n int, err error) {
 	for len(p) > 0 {
 		if len(q.line) == 0 {
 			if q.rerr != nil {
 				return n, q.rerr
 			}
+			q.skipWhite = true
 			q.line, q.rerr = q.br.ReadSlice('\n')
-			q.line = bytes.TrimRightFunc(q.line, isQPDiscardWhitespace)
-			continue
-		}
-		if len(q.line) == 1 && q.line[0] == '=' {
-			// Soft newline; skipped.
-			q.line = nil
+
+			// Does the line end in CRLF instead of just LF?
+			hasLF := bytes.HasSuffix(q.line, lf)
+			hasCR := bytes.HasSuffix(q.line, crlf)
+			wholeLine := q.line
+			q.line = bytes.TrimRightFunc(wholeLine, isQPDiscardWhitespace)
+			if bytes.HasSuffix(q.line, softSuffix) {
+				rightStripped := wholeLine[len(q.line):]
+				q.line = q.line[:len(q.line)-1]
+				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) {
+					q.rerr = fmt.Errorf("multipart: invalid bytes after =: %q", rightStripped)
+				}
+			} else if hasLF {
+				if hasCR {
+					q.line = append(q.line, '\r', '\n')
+				} else {
+					q.line = append(q.line, '\n')
+				}
+			}
 			continue
 		}
 		b := q.line[0]
+		if q.skipWhite && isQPSkipWhiteByte(b) {
+			q.line = q.line[1:]
+			continue
+		}
+		q.skipWhite = false
+
 		switch {
 		case b == '=':
 			b, err = q.readHexByte(q.line[1:])
@@ -80,7 +116,9 @@ func (q *qpReader) Read(p []byte) (n int, err error) {
 				return n, err
 			}
 			q.line = q.line[2:] // 2 of the 3; other 1 is done below
-		case b != '\t' && (b < ' ' || b > '~'):
+		case b == '\t' || b == '\r' || b == '\n':
+			break
+		case b < ' ' || b > '~':
 			return n, fmt.Errorf("multipart: invalid unescaped byte 0x%02x in quoted-printable body", b)
 		}
 		p[0] = b
