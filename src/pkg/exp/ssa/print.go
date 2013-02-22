@@ -68,7 +68,7 @@ func (r *Function) String() string {
 
 // FullName returns g's package-qualified name.
 func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.ImportPath, g.Name_)
+	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path, g.Name_)
 }
 
 // Instruction.String()
@@ -339,11 +339,11 @@ func (s *MapUpdate) String() string {
 }
 
 func (p *Package) String() string {
-	return "Package " + p.ImportPath
+	return "Package " + p.Types.Path
 }
 
 func (p *Package) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "Package %s at %s:\n", p.ImportPath, p.Prog.Files.File(p.Pos).Name())
+	fmt.Fprintf(w, "Package %s at %s:\n", p.Types.Path, p.Prog.Files.File(p.Pos).Name())
 
 	var names []string
 	maxname := 0

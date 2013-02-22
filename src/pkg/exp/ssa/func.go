@@ -461,7 +461,7 @@ func (f *Function) fullName(from *Package) string {
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
 	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
+		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path, f.Name_)
 	}
 	return f.Name_
 }
@@ -491,8 +491,10 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 		io.WriteString(w, " ")
 		if sig.IsVariadic && i == len(params)-1 {
 			io.WriteString(w, "...")
+			io.WriteString(w, underlyingType(v.Type()).(*types.Slice).Elt.String())
+		} else {
+			io.WriteString(w, v.Type().String())
 		}
-		io.WriteString(w, v.Type().String())
 	}
 	io.WriteString(w, ")")
 	if res := sig.Results; res != nil {

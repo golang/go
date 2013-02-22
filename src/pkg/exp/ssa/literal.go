@@ -115,9 +115,8 @@ func (l *Literal) Int64() int64 {
 	case *big.Int:
 		return x.Int64()
 	case *big.Rat:
-		// TODO(adonovan): fix: is this the right rounding mode?
 		var q big.Int
-		return q.Quo(x.Num(), x.Denom()).Int64()
+		return q.Quo(x.Num(), x.Denom()).Int64() // truncate
 	}
 	panic(fmt.Sprintf("unexpected literal value: %T", l.Value))
 }
@@ -135,9 +134,8 @@ func (l *Literal) Uint64() uint64 {
 	case *big.Int:
 		return x.Uint64()
 	case *big.Rat:
-		// TODO(adonovan): fix: is this right?
 		var q big.Int
-		return q.Quo(x.Num(), x.Denom()).Uint64()
+		return q.Quo(x.Num(), x.Denom()).Uint64() // truncate
 	}
 	panic(fmt.Sprintf("unexpected literal value: %T", l.Value))
 }

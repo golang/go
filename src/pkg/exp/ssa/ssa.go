@@ -36,13 +36,12 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog       *Program          // the owning program
-	Types      *types.Package    // the type checker's package object for this package.
-	ImportPath string            // e.g. "sync/atomic"
-	Pos        token.Pos         // position of an arbitrary file in the package
-	Members    map[string]Member // all exported and unexported members of the package
-	AnonFuncs  []*Function       // all anonymous functions in this package
-	Init       *Function         // the package's (concatenated) init function
+	Prog      *Program          // the owning program
+	Types     *types.Package    // the type checker's package object for this package.
+	Pos       token.Pos         // position of an arbitrary file in the package
+	Members   map[string]Member // all exported and unexported members of the package
+	AnonFuncs []*Function       // all anonymous functions in this package
+	Init      *Function         // the package's (concatenated) init function
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -1004,7 +1003,7 @@ type CallCommon struct {
 	Method      int       // index of interface method within Recv.Type().(*types.Interface).Methods
 	Func        Value     // target of call, iff function call
 	Args        []Value   // actual parameters, including receiver in invoke mode
-	HasEllipsis bool      // true iff last Args is a slice  (needed?)
+	HasEllipsis bool      // true iff last Args is a slice of '...' args (needed?)
 	Pos         token.Pos // position of call expression
 }
 

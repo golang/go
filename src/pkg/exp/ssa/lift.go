@@ -18,7 +18,7 @@ package ssa
 // http://lists.cs.uiuc.edu/pipermail/llvmdev/2012-January/046638.html
 // (Be sure to expand the whole thread.)
 
-// TODO(adonovan): there are many optimizations worth evaluating, and
+// TODO(adonovan): opt: there are many optimizations worth evaluating, and
 // the conventional wisdom for SSA construction is that a simple
 // algorithm well engineered often beats those of better asymptotic
 // complexity on all but the most egregious inputs.
@@ -254,8 +254,6 @@ func (s *blockSet) add(b *BasicBlock) bool {
 
 // take removes an arbitrary element from a set s and
 // returns its index, or returns -1 if empty.
-//
-// TODO(adonovan): add this method (optimized) to big.Int.
 func (s *blockSet) take() int {
 	l := s.BitLen()
 	for i := 0; i < l; i++ {
