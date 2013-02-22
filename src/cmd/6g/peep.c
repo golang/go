@@ -1169,6 +1169,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 2;
 		if(REGARG >= 0 && v->type == (uchar)REGARG)
 			return 2;
+		if(v->type == p->from.type)
+			return 2;
 
 		if(s != A) {
 			if(copysub(&p->to, v, s, 1))

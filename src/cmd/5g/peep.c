@@ -1174,6 +1174,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 		if(v->type == D_FREG)
 			if(v->reg <= FREGEXT && v->reg > exfregoffset)
 				return 2;
+		if(p->from.type == D_REG && v->type == D_REG && p->from.reg == v->reg)
+			return 2;
 
 		if(s != A) {
 			if(copysub(&p->to, v, s, 1))

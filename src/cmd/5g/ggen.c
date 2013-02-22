@@ -78,13 +78,14 @@ ginscall(Node *f, int proc)
 				gins(AUNDEF, N, N);
 			break;
 		}
-		nodreg(&r, types[tptr], 0);
+		nodreg(&r, types[tptr], 7);
 		nodreg(&r1, types[tptr], 1);
 		gmove(f, &r);
 		r.op = OINDREG;
 		gmove(&r, &r1);
+		r.op = OREGISTER;
 		r1.op = OINDREG;
-		gins(ABL, N, &r1);
+		gins(ABL, &r, &r1);
 		break;
 
 	case 3:	// normal call of c function pointer
