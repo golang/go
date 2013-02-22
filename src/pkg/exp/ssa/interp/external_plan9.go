@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!plan9
-
 package interp
 
 import (
@@ -12,10 +10,7 @@ import (
 )
 
 func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
-	// We could emulate syscall.Syscall but it's more effort.
-	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
-	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
-	return iface{}
+	panic("syscall.Kill not yet implemented")
 }
 
 func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
