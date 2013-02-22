@@ -615,7 +615,7 @@ int32	runtime·charntorune(int32*, uint8*, int32);
 #define FLUSH(x)	USED(x)
 
 void	runtime·gogo(Gobuf*, uintptr);
-void	runtime·gogocall(Gobuf*, void(*)(void));
+void	runtime·gogocall(Gobuf*, void(*)(void), uintptr);
 void	runtime·gogocallfn(Gobuf*, FuncVal*);
 void	runtime·gosave(Gobuf*);
 void	runtime·lessstack(void);

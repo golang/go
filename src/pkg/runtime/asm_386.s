@@ -134,16 +134,17 @@ TEXT runtime·gogo(SB), 7, $0
 	MOVL	gobuf_pc(BX), BX
 	JMP	BX
 
-// void gogocall(Gobuf*, void (*fn)(void))
+// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
 TEXT runtime·gogocall(SB), 7, $0
+	MOVL	12(SP), DX	// context
 	MOVL	8(SP), AX		// fn
 	MOVL	4(SP), BX		// gobuf
-	MOVL	gobuf_g(BX), DX
+	MOVL	gobuf_g(BX), DI
 	get_tls(CX)
-	MOVL	DX, g(CX)
-	MOVL	0(DX), CX		// make sure g != nil
+	MOVL	DI, g(CX)
+	MOVL	0(DI), CX		// make sure g != nil
 	MOVL	gobuf_sp(BX), SP	// restore SP
 	MOVL	gobuf_pc(BX), BX
 	PUSHL	BX
@@ -154,16 +155,16 @@ TEXT runtime·gogocall(SB), 7, $0
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
 TEXT runtime·gogocallfn(SB), 7, $0
-	MOVL	8(SP), AX		// fn
+	MOVL	8(SP), DX		// fn
 	MOVL	4(SP), BX		// gobuf
-	MOVL	gobuf_g(BX), DX
+	MOVL	gobuf_g(BX), DI
 	get_tls(CX)
-	MOVL	DX, g(CX)
-	MOVL	0(DX), CX		// make sure g != nil
+	MOVL	DI, g(CX)
+	MOVL	0(DI), CX		// make sure g != nil
 	MOVL	gobuf_sp(BX), SP	// restore SP
 	MOVL	gobuf_pc(BX), BX
 	PUSHL	BX
-	MOVL	0(AX), BX
+	MOVL	0(DX), BX
 	JMP	BX
 	POPL	BX	// not reached
 
@@ -209,11 +210,13 @@ TEXT runtime·morestack(SB),7,$0
 	CMPL	g(CX), SI
 	JNE	2(PC)
 	INT	$3
+	
+	MOVL	DX, m_cret(BX)
 
-	// frame size in DX
+	// frame size in DI
 	// arg size in AX
 	// Save in m.
-	MOVL	DX, m_moreframesize(BX)
+	MOVL	DI, m_moreframesize(BX)
 	MOVL	AX, m_moreargsize(BX)
 
 	// Called from f.
@@ -441,11 +444,11 @@ TEXT runtime·atomicstore64(SB), 7, $0
 // 2. sub 5 bytes from the callers return
 // 3. jmp to the argument
 TEXT runtime·jmpdefer(SB), 7, $0
-	MOVL	4(SP), AX	// fn
+	MOVL	4(SP), DX	// fn
 	MOVL	8(SP), BX	// caller sp
 	LEAL	-4(BX), SP	// caller sp after CALL
 	SUBL	$5, (SP)	// return to CALL again
-	MOVL	0(AX), BX
+	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
 // Dummy function to use in saved gobuf.PC,
