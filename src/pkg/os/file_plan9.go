@@ -244,13 +244,23 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
+// Since Plan 9 preserves message boundaries, never allow
+// a zero-byte write.
 func (f *File) write(b []byte) (n int, err error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	return syscall.Write(f.fd, b)
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
+// Since Plan 9 preserves message boundaries, never allow
+// a zero-byte write.
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
 	return syscall.Pwrite(f.fd, b, off)
 }
 
