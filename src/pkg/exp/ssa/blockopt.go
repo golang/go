@@ -2,7 +2,7 @@ package ssa
 
 // Simple block optimizations to simplify the control flow graph.
 
-// TODO(adonovan): instead of creating several "unreachable" blocks
+// TODO(adonovan): opt: instead of creating several "unreachable" blocks
 // per function in the Builder, reuse a single one (e.g. at Blocks[1])
 // to reduce garbage.
 

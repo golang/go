@@ -3,6 +3,7 @@
 // TODO(adonovan): more.
 //
 // Validate this file with 'go run' after editing.
+// TODO(adonovan): break this into small files organized by theme.
 
 package main
 
@@ -318,5 +319,47 @@ func init() {
 	delete(m, 2)
 	if len(m) != 0 {
 		panic(m)
+	}
+}
+
+//////////////////////////////////////////////////////////////////////
+// Variadic bridge methods and interface thunks.
+
+type VT int
+
+var vcount = 0
+
+func (VT) f(x int, y ...string) {
+	vcount++
+	if x != 1 {
+		panic(x)
+	}
+	if len(y) != 2 || y[0] != "foo" || y[1] != "bar" {
+		panic(y)
+	}
+}
+
+type VS struct {
+	VT
+}
+
+type VI interface {
+	f(x int, y ...string)
+}
+
+func init() {
+	foobar := []string{"foo", "bar"}
+	var s VS
+	s.f(1, "foo", "bar")
+	s.f(1, foobar...)
+	if vcount != 2 {
+		panic("s.f not called twice")
+	}
+
+	fn := VI.f
+	fn(s, 1, "foo", "bar")
+	fn(s, 1, foobar...)
+	if vcount != 4 {
+		panic("I.f not called twice")
 	}
 }

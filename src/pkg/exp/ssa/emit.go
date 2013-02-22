@@ -67,7 +67,7 @@ func emitCompare(f *Function, op token.Token, x, y Value) Value {
 	//   switch true { case e: ... }
 	//   if e==true { ... }
 	// even in the case when e's type is an interface.
-	// TODO(adonovan): generalise to x==true, false!=y, etc.
+	// TODO(adonovan): opt: generalise to x==true, false!=y, etc.
 	if x == vTrue && op == token.EQL {
 		if yt, ok := yt.(*types.Basic); ok && yt.Info&types.IsBoolean != 0 {
 			return y

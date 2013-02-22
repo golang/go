@@ -79,8 +79,8 @@ func (bl blank) store(fn *Function, v Value) {
 }
 
 func (bl blank) typ() types.Type {
-	// TODO(adonovan): this should be the type of the blank Ident;
-	// the typechecker doesn't provide this yet, but fortunately,
-	// we don't need it yet either.
+	// This should be the type of the blank Ident; the typechecker
+	// doesn't provide this yet, but fortunately, we don't need it
+	// yet either.
 	panic("blank.typ is unimplemented")
 }

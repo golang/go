@@ -237,7 +237,7 @@ func (b *Builder) isType(e ast.Expr) bool {
 func (b *Builder) lookup(obj types.Object) (v Value, ok bool) {
 	v, ok = b.globals[obj]
 	if ok {
-		// TODO(adonovan): the build phase should only
+		// TODO(adonovan): opt: the build phase should only
 		// propagate to v if it's in the same package as the
 		// caller of lookup if we want to make this
 		// concurrent.
@@ -532,7 +532,7 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 // expr() for rvalues.
 // It does require mutation of Builder.types though; if we want to
 // make the Builder concurrent we'll have to avoid that.
-// TODO(adonovan): emit code directly rather than desugaring the AST.
+// TODO(adonovan): opt: emit code directly rather than desugaring the AST.
 //
 func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast.SelectorExpr, index int) {
 	id := makeId(sel.Sel.Name, pkg.Types)
@@ -563,7 +563,7 @@ func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast
 			X:   x,
 			Sel: &ast.Ident{Name: path.field.Name},
 		}
-		b.types[sel] = path.field.Type // TODO(adonovan): fix: not thread-safe
+		b.types[sel] = path.field.Type // TODO(adonovan): opt: not thread-safe
 		return sel
 	}
 
@@ -572,7 +572,7 @@ func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast
 		X:   makeSelector(b, sel.X, path),
 		Sel: sel.Sel,
 	}
-	b.types[sel2] = b.exprType(sel) // TODO(adonovan): fix: not thread-safe
+	b.types[sel2] = b.exprType(sel) // TODO(adonovan): opt: not thread-safe
 	return
 }
 
@@ -980,7 +980,7 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// Case 2a: X.f() or (*X).f(): a statically dipatched call to
 	// the method f in the method-set of X or *X.  X may be
 	// an interface.  Treat like case 0.
-	// TODO(adonovan): inline expr() here, to make the call static
+	// TODO(adonovan): opt: inline expr() here, to make the call static
 	// and to avoid generation of a stub for an interface method.
 	if b.isType(sel.X) {
 		c.Func = b.expr(fn, e.Fun)
@@ -1060,7 +1060,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// 3. Ellipsis call f(a, b, rest...) to variadic function.
 	//    'rest' is already a slice; all args treated in the usual manner.
 	// 4. f(g()) where g has >1 return parameters.  f may also be variadic.
-	//    TODO(adonovan): implement.
+	//    TODO(adonovan): fix: implement.
 
 	var args, varargs []ast.Expr = e.Args, nil
 	c.HasEllipsis = e.Ellipsis != 0
@@ -1400,7 +1400,6 @@ func (b *Builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 // isDef is true if this is a short variable declaration (:=).
 //
 // Note the similarity with localValueSpec.
-// TODO(adonovan): explain differences.
 //
 func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 	// Side effects of all LHSs and RHSs must occur in left-to-right order.
@@ -1769,7 +1768,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// A blocking select of a single case degenerates to a
 	// simple send or receive.
-	// TODO(adonovan): is this optimization worth its weight?
+	// TODO(adonovan): opt: is this optimization worth its weight?
 	if len(s.Body.List) == 1 {
 		clause := s.Body.List[0].(*ast.CommClause)
 		if clause.Comm != nil {
@@ -1834,8 +1833,6 @@ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// } else {
 	//     ...default...
 	// }
-	//
-	// TODO(adonovan): opt: define and use a multiway dispatch instr.
 	pair := &Select{
 		States:   states,
 		Blocking: blocking,
@@ -2572,17 +2569,17 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 	// The typechecker sets types.Package.Path only for GcImported
 	// packages, since it doesn't know import path until after typechecking is done.
 	// Here we ensure it is always set, since we know the correct path.
-	// TODO(adonovan): eliminate redundant ssa.Package.ImportPath field.
 	if typkg.Path == "" {
 		typkg.Path = importPath
+	} else if typkg.Path != importPath {
+		panic(fmt.Sprintf("%s != %s", typkg.Path, importPath))
 	}
 
 	p := &Package{
-		Prog:       b.Prog,
-		Types:      typkg,
-		ImportPath: importPath,
-		Members:    make(map[string]Member),
-		files:      files,
+		Prog:    b.Prog,
+		Types:   typkg,
+		Members: make(map[string]Member),
+		files:   files,
 	}
 
 	b.packages[typkg] = p
@@ -2714,7 +2711,7 @@ func (b *Builder) BuildPackage(p *Package) {
 		return // already done (or nothing to do)
 	}
 	if b.mode&LogSource != 0 {
-		fmt.Fprintln(os.Stderr, "build package", p.ImportPath)
+		fmt.Fprintln(os.Stderr, "build package", p.Types.Path)
 	}
 	init := p.Init
 	init.start(b.idents)
@@ -2765,7 +2762,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	// order.  This causes init() code to be generated in
 	// topological order.  We visit them transitively through
 	// functions of the same package, but we don't treat functions
-	// as roots.  TODO(adonovan): fix: don't visit through other
+	// as roots.  TODO(adonovan): opt: don't visit through other
 	// packages.
 	//
 	// We also ensure all functions and methods are built, even if
