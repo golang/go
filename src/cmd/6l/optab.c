@@ -326,7 +326,8 @@ uchar	yloop[] =
 };
 uchar	ycall[] =
 {
-	Ynone,	Yml,	Zo_m64,	2,
+	Ynone,	Yml,	Zo_m64,	0,
+	Yrx,	Yrx,	Zo_m64,	2,
 	Ynone,	Ybr,	Zcall,	1,
 	0
 };
