@@ -35,6 +35,10 @@
 // program are assumed to be the same as those of the interpreter
 // itself.
 //
+// * all values occupy space, even those of types defined by the spec
+// to have zero size, e.g. struct{}.  This can cause asymptotic
+// performance degradation.
+//
 // * os.Exit is implemented using panic, causing deferred functions to
 // run.
 package interp
