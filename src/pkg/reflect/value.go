@@ -555,7 +555,10 @@ func (v Value) call(method string, in []Value) []Value {
 // frame into a call using Values.
 // It is in this file so that it can be next to the call method above.
 // The remainder of the MakeFunc implementation is in makefunc.go.
-func callReflect(ftyp *funcType, f func([]Value) []Value, frame unsafe.Pointer) {
+func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+	ftyp := ctxt.typ
+	f := ctxt.fn
+
 	// Copy argument frame into Values.
 	ptr := frame
 	off := uintptr(0)
