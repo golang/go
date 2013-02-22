@@ -135,6 +135,7 @@ compile(Node *fn)
 	oldstksize = stksize;
 	allocauto(ptxt);
 
+	plocals->to.type = D_CONST;
 	plocals->to.offset = stksize;
 
 	if(0)
