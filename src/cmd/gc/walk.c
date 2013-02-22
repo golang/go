@@ -536,6 +536,11 @@ walkexpr(Node **np, NodeList **init)
 		n->addable = 1;
 		goto ret;
 
+	case OCLOSUREVAR:
+	case OCFUNC:
+		n->addable = 1;
+		goto ret;
+
 	case ONAME:
 		if(!(n->class & PHEAP) && n->class != PPARAMREF)
 			n->addable = 1;
@@ -556,10 +561,12 @@ walkexpr(Node **np, NodeList **init)
 		if(n->list && n->list->n->op == OAS)
 			goto ret;
 
+		/*
 		if(n->left->op == OCLOSURE) {
 			walkcallclosure(n, init);
 			t = n->left->type;
 		}
+		*/
 
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
@@ -1340,7 +1347,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 
 	// cannot happen: caller checked that lists had same length
 	if(ll || lr)
-		yyerror("error in shape across %+H %O %+H", nl, op, nr);
+		yyerror("error in shape across %+H %O %+H / %d %d [%s]", nl, op, nr, count(nl), count(nr), curfn->nname->sym->name);
 	return nn;
 }
 

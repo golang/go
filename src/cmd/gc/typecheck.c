@@ -1533,6 +1533,21 @@ reswitch:
 			fatal("OITAB of %T", t);
 		n->type = ptrto(types[TUINTPTR]);
 		goto ret;
+	
+	case OCLOSUREVAR:
+		ok |= Erv;
+		goto ret;
+	
+	case OCFUNC:
+		ok |= Erv;
+		typecheck(&n->left, Erv);
+		n->type = types[TUINTPTR];
+		goto ret;
+
+	case OCONVNOP:
+		ok |= Erv;
+		typecheck(&n->left, Erv);
+		goto ret;
 
 	/*
 	 * statements

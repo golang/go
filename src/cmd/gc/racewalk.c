@@ -139,6 +139,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 1, 0);
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
+	
+	case OCFUNC:
+		// can't matter
+		goto ret;
 
 	case OBLOCK:
 		if(n->list == nil)

@@ -133,44 +133,19 @@ typecheckclosure(Node *func, int top)
 static Node*
 makeclosure(Node *func, int nowrap)
 {
-	Node *xtype, *v, *addr, *xfunc;
-	NodeList *l;
+	Node *xtype, *v, *addr, *xfunc, *cv;
+	NodeList *l, *body;
 	static int closgen;
 	char *p;
+	int offset;
 
 	/*
 	 * wrap body in external function
-	 * with extra closure parameters.
+	 * that begins by reading closure parameters.
 	 */
 	xtype = nod(OTFUNC, N, N);
-
-	// each closure variable has a corresponding
-	// address parameter.
-	for(l=func->cvars; l; l=l->next) {
-		v = l->n;
-		if(v->op == 0)
-			continue;
-		addr = nod(ONAME, N, N);
-		p = smprint("&%s", v->sym->name);
-		addr->sym = lookup(p);
-		free(p);
-		addr->ntype = nod(OIND, typenod(v->type), N);
-		addr->class = PPARAM;
-		addr->addable = 1;
-		addr->ullman = 1;
-
-		v->heapaddr = addr;
-
-		xtype->list = list(xtype->list, nod(ODCLFIELD, addr, addr->ntype));
-	}
-
-	// then a dummy arg where the closure's caller pc sits
-	if (!nowrap)
-		xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
-
-	// then the function arguments
-	xtype->list = concat(xtype->list, func->list);
-	xtype->rlist = concat(xtype->rlist, func->rlist);
+	xtype->list = func->list;
+	xtype->rlist = func->rlist;
 
 	// create the function
 	xfunc = nod(ODCLFUNC, N, N);
@@ -182,12 +157,43 @@ makeclosure(Node *func, int nowrap)
 	declare(xfunc->nname, PFUNC);
 	xfunc->nname->funcdepth = func->funcdepth;
 	xfunc->funcdepth = func->funcdepth;
+	
+	// declare variables holding addresses taken from closure
+	// and initialize in entry prologue.
+	body = nil;
+	offset = widthptr;
+	for(l=func->cvars; l; l=l->next) {
+		v = l->n;
+		if(v->op == 0)
+			continue;
+		addr = nod(ONAME, N, N);
+		p = smprint("&%s", v->sym->name);
+		addr->sym = lookup(p);
+		free(p);
+		addr->ntype = nod(OIND, typenod(v->type), N);
+		addr->class = PAUTO;
+		addr->addable = 1;
+		addr->ullman = 1;
+		addr->used = 1;
+		addr->curfn = xfunc;
+		xfunc->dcl = list(xfunc->dcl, addr);
+		v->heapaddr = addr;
+		cv = nod(OCLOSUREVAR, N, N);
+		cv->type = ptrto(v->type);
+		cv->xoffset = offset;
+		body = list(body, nod(OAS, addr, cv));
+		offset += widthptr;
+	}
+	typechecklist(body, Etop);
+	walkstmtlist(body);
+	xfunc->enter = body;
+
 	xfunc->nbody = func->nbody;
-	xfunc->dcl = func->dcl;
+	xfunc->dcl = concat(func->dcl, xfunc->dcl);
 	if(xfunc->nbody == nil)
 		fatal("empty body - won't generate any code");
 	typecheck(&xfunc, Etop);
-	
+
 	xfunc->closure = func;
 	func->closure = xfunc;
 	
@@ -201,51 +207,51 @@ makeclosure(Node *func, int nowrap)
 Node*
 walkclosure(Node *func, NodeList **init)
 {
+	Node *clos, *typ;
+	NodeList *l;
+	char buf[20];
 	int narg;
-	Node *xtype, *xfunc, *call, *clos;
-	NodeList *l, *in;
 
-	// no closure vars, don't bother wrapping
+	// If no closure vars, don't bother wrapping.
 	if(func->cvars == nil)
 		return func->closure->nname;
 
-	/*
-	 * wrap body in external function
-	 * with extra closure parameters.
-	 */
+	// Create closure in the form of a composite literal.
+	// supposing the closure captures an int i and a string s
+	// and has one float64 argument and no results,
+	// the generated code looks like:
+	//
+	//	clos = &struct{F uintptr; A0 *int; A1 *string}{func·001, &i, &s}
+	//
+	// The use of the struct provides type information to the garbage
+	// collector so that it can walk the closure. We could use (in this case)
+	// [3]unsafe.Pointer instead, but that would leave the gc in the dark.
+	// The information appears in the binary in the form of type descriptors;
+	// the struct is unnamed so that closures in multiple packages with the
+	// same struct type can share the descriptor.
 
-	// create the function
-	xfunc = func->closure;
-	xtype = xfunc->nname->ntype;
-
-	// prepare call of sys.closure that turns external func into func literal value.
-	clos = syslook("closure", 1);
-	clos->type = T;
-	clos->ntype = nod(OTFUNC, N, N);
-	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// siz
-	in = list(in, nod(ODCLFIELD, N, xtype));
 	narg = 0;
+	typ = nod(OTSTRUCT, N, N);
+	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
 	for(l=func->cvars; l; l=l->next) {
 		if(l->n->op == 0)
 			continue;
-		narg++;
-		in = list(in, nod(ODCLFIELD, N, l->n->heapaddr->ntype));
+		snprint(buf, sizeof buf, "A%d", narg++);
+		typ->list = list(typ->list, nod(ODCLFIELD, newname(lookup(buf)), l->n->heapaddr->ntype));
 	}
-	clos->ntype->list = in;
-	clos->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(func->type)));
+
+	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
+	clos->right->implicit = 1;
+	clos->list = concat(list1(nod(OCFUNC, func->closure->nname, N)), func->enter);
+
+	// Force type conversion from *struct to the func type.
+	clos = nod(OCONVNOP, clos, N);
+	clos->type = func->type;
+	
 	typecheck(&clos, Erv);
+	walkexpr(&clos, init);
 
-	call = nod(OCALL, clos, N);
-	if(narg*widthptr > 100)
-		yyerror("closure needs too many variables; runtime will reject it");
-	in = list1(nodintconst(narg*widthptr));
-	in = list(in, xfunc->nname);
-	in = concat(in, func->enter);
-	call->list = in;
-
-	typecheck(&call, Erv);
-	walkexpr(&call, init);
-	return call;
+	return clos;
 }
 
 // Special case for closures that get called in place.

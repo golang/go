@@ -561,6 +561,8 @@ enum
 	OINLCALL,	// intermediary representation of an inlined call.
 	OEFACE,	// itable and data words of an empty-interface value.
 	OITAB,	// itable word of an interface value.
+	OCLOSUREVAR, // variable reference at beginning of closure function
+	OCFUNC,	// reference to c function pointer (not go func value)
 
 	// arch-specific registers
 	OREGISTER,	// a register, such as AX.

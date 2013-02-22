@@ -1097,6 +1097,8 @@ checkoffset(Addr *a, int canemitcode)
 void
 naddr(Node *n, Addr *a, int canemitcode)
 {
+	Prog *p;
+
 	a->scale = 0;
 	a->index = D_NONE;
 	a->type = D_NONE;
@@ -1157,6 +1159,22 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->sym = n->left->sym;
 		a->type = D_PARAM;
 		a->node = n->left->orig;
+		break;
+	
+	case OCLOSUREVAR:
+		if(!canemitcode)
+			fatal("naddr OCLOSUREVAR cannot emit code");
+		p = gins(AMOVQ, N, N);
+		p->from.type = D_DX+D_INDIR;
+		p->from.offset = n->xoffset;
+		p->to.type = D_BX;
+		a->type = D_BX;
+		a->sym = S;
+		break;
+	
+	case OCFUNC:
+		naddr(n->left, a, canemitcode);
+		a->sym = n->left->sym;
 		break;
 
 	case ONAME:

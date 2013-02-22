@@ -125,7 +125,8 @@ ginscall(Node *f, int proc)
 		gmove(f, &reg);
 		reg.op = OINDREG;
 		gmove(&reg, &r1);
-		gins(ACALL, N, &r1);
+		reg.op = OREGISTER;
+		gins(ACALL, &reg, &r1);
 		break;
 	
 	case 3:	// normal call of c function pointer

@@ -112,7 +112,7 @@ TEXT runtime·gogo(SB), 7, $-4
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_pc(R1), PC
 
-// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+// void gogocall(Gobuf*, void (*fn)(void), uintptr r7)
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
 // using frame size $-4 means do not save LR on stack.
@@ -124,7 +124,7 @@ TEXT runtime·gogocall(SB), 7, $-4
 	MOVW	cgo_save_gm(SB), R0
 	CMP 	$0, R0 // if in Cgo, we have to save g and m
 	BL.NE	(R0) // this call will clobber R0
-	MOVW	8(FP), R0	// context
+	MOVW	8(FP), R7	// context
 	MOVW	gobuf_sp(R3), SP	// restore SP
 	MOVW	gobuf_pc(R3), LR
 	MOVW	R1, PC
@@ -143,7 +143,7 @@ TEXT runtime·gogocallfn(SB), 7, $-4
 	BL.NE	(R0) // this call will clobber R0
 	MOVW	gobuf_sp(R3), SP	// restore SP
 	MOVW	gobuf_pc(R3), LR
-	MOVW	R1, R0
+	MOVW	R1, R7
 	MOVW	0(R1), PC
 
 // void mcall(void (*fn)(G*))
@@ -188,7 +188,7 @@ TEXT runtime·morestack(SB),7,$-4
 	BL.EQ	runtime·abort(SB)
 
 	// Save in m.
-	MOVW	R0, m_cret(m) // function context
+	MOVW	R7, m_cret(m) // function context
 	MOVW	R1, m_moreframesize(m)
 	MOVW	R2, m_moreargsize(m)
 
@@ -260,10 +260,10 @@ TEXT runtime·lessstack(SB), 7, $-4
 TEXT runtime·jmpdefer(SB), 7, $0
 	MOVW	0(SP), LR
 	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	fn+0(FP), R0
+	MOVW	fn+0(FP), R7
 	MOVW	argp+4(FP), SP
 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
-	MOVW	0(R0), R1
+	MOVW	0(R7), R1
 	B	(R1)
 
 // Dummy function to use in saved gobuf.PC,
