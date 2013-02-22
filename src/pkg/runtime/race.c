@@ -87,10 +87,10 @@ runtime·raceread(uintptr addr)
 	}
 }
 
-// Called from instrumented code.
+// Called from runtime·racefuncenter (assembly).
 #pragma textflag 7
 void
-runtime·racefuncenter(uintptr pc)
+runtime·racefuncenter1(uintptr pc)
 {
 	// If the caller PC is lessstack, use slower runtime·callers
 	// to walk across the stack split to find the real caller.
