@@ -11,10 +11,11 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"io"
+	"go/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -54,6 +55,8 @@ func setExit(err int) {
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
+	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -62,6 +65,7 @@ func Usage() {
 // The parse tree walkers are all methods of this type.
 type File struct {
 	fset *token.FileSet
+	name string
 	file *ast.File
 	b    bytes.Buffer // for use by methods
 }
@@ -102,56 +106,104 @@ func main() {
 	}
 
 	if flag.NArg() == 0 {
-		doFile("stdin", os.Stdin)
-	} else {
-		for _, name := range flag.Args() {
-			// Is it a directory?
-			if fi, err := os.Stat(name); err == nil && fi.IsDir() {
-				walkDir(name)
-			} else {
-				doFile(name, nil)
-			}
+		Usage()
+	}
+	dirs := false
+	files := false
+	for _, name := range flag.Args() {
+		// Is it a directory?
+		fi, err := os.Stat(name)
+		if err != nil {
+			warnf("error walking tree: %s", err)
+			continue
+		}
+		if fi.IsDir() {
+			dirs = true
+		} else {
+			files = true
 		}
 	}
+	if dirs && files {
+		Usage()
+	}
+	if dirs {
+		for _, name := range flag.Args() {
+			walkDir(name)
+		}
+		return
+	}
+	doPackage(flag.Args())
 	os.Exit(exitCode)
 }
 
-// doFile analyzes one file.  If the reader is nil, the source code is read from the
-// named file.
-func doFile(name string, reader io.Reader) {
-	if reader == nil {
+// doPackageDir analyzes the single package found in the directory, if there is one.
+func doPackageDir(directory string) {
+	pkg, err := build.Default.ImportDir(directory, 0)
+	if err != nil {
+		// If it's just that there are no go source files, that's fine.
+		if _, nogo := err.(*build.NoGoError); nogo {
+			return
+		}
+		// Non-fatal: we are doing a recursive walk and there may be other directories.
+		warnf("cannot process directory %s: %s", directory, err)
+		return
+	}
+	names := append(pkg.GoFiles, pkg.CgoFiles...)
+	// Prefix file names with directory names.
+	if directory != "." {
+		for i, name := range names {
+			names[i] = filepath.Join(directory, name)
+		}
+	}
+	doPackage(names)
+}
+
+// doPackage analyzes the single package constructed from the named files.
+func doPackage(names []string) {
+	var files []*File
+	var astFiles []*ast.File
+	fs := token.NewFileSet()
+	for _, name := range names {
 		f, err := os.Open(name)
 		if err != nil {
 			errorf("%s: %s", name, err)
-			return
 		}
 		defer f.Close()
-		reader = f
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			errorf("%s: %s", name, err)
+		}
+		checkBuildTag(name, data)
+		parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+		if err != nil {
+			errorf("%s: %s", name, err)
+		}
+		files = append(files, &File{fset: fs, name: name, file: parsedFile})
+		astFiles = append(astFiles, parsedFile)
 	}
-	data, err := ioutil.ReadAll(reader)
+	context := types.Context{
+	// TODO: set up Expr, Ident.
+	}
+	// Type check the package.
+	pkg, err := context.Check(fs, astFiles)
 	if err != nil {
-		errorf("%s: %s", name, err)
-		return
+		warnf("%s", err)
 	}
-	checkBuildTag(name, data)
-	fs := token.NewFileSet()
-	parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
-	if err != nil {
-		errorf("%s: %s", name, err)
-		return
+	_ = pkg
+	for _, file := range files {
+		file.walkFile(file.name, file.file)
 	}
-	file := &File{fset: fs, file: parsedFile}
-	file.walkFile(name, parsedFile)
 }
 
 func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
 		errorf("walk error: %s", err)
+	}
+	// One package per directory. Ignore the files themselves.
+	if !f.IsDir() {
 		return nil
 	}
-	if !f.IsDir() && strings.HasSuffix(path, ".go") {
-		doFile(path, nil)
-	}
+	doPackageDir(path)
 	return nil
 }
 
@@ -160,11 +212,18 @@ func walkDir(root string) {
 	filepath.Walk(root, visit)
 }
 
-// error formats the error to standard error, adding program
-// identification and a newline
+// errorf formats the error to standard error, adding program
+// identification and a newline, and exits.
 func errorf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
-	setExit(2)
+	os.Exit(2)
+}
+
+// warnf formats the error to standard error, adding program
+// identification and a newline, but does not exit.
+func warnf(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
+	setExit(1)
 }
 
 // Println is fmt.Println guarded by -v.
@@ -240,7 +299,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	return f
 }
 
-// walkCall walks an assignment statement
+// walkAssignStmt walks an assignment statement
 func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
 	f.checkAtomicAssignment(stmt)
 }
