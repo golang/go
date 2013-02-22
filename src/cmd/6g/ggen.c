@@ -77,7 +77,7 @@ ginscall(Node *f, int proc)
 				gins(AUNDEF, N, N);
 			break;
 		}
-		nodreg(&reg, types[tptr], D_AX);
+		nodreg(&reg, types[tptr], D_DX);
 		nodreg(&r1, types[tptr], D_BX);
 		gmove(f, &reg);
 		reg.op = OINDREG;

@@ -539,9 +539,9 @@ dostkoff(void)
 				q = p;
 			}
 
-			p = appendp(p);	// save frame size in DX
+			p = appendp(p);	// save frame size in DI
 			p->as = AMOVL;
-			p->to.type = D_DX;
+			p->to.type = D_DI;
 			p->from.type = D_CONST;
 
 			// If we ask for more stack, we'll get a minimum of StackMin bytes.

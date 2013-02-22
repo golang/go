@@ -112,19 +112,19 @@ TEXT runtime·gogo(SB), 7, $-4
 	MOVW	gobuf_sp(R1), SP	// restore SP
 	MOVW	gobuf_pc(R1), PC
 
-// void gogocall(Gobuf*, void (*fn)(void))
+// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
 // restore state from Gobuf but then call fn.
 // (call fn, returning to state in Gobuf)
 // using frame size $-4 means do not save LR on stack.
 TEXT runtime·gogocall(SB), 7, $-4
 	MOVW	0(FP), R3		// gobuf
 	MOVW	4(FP), R1		// fn
-	MOVW	8(FP), R2		// fp offset
 	MOVW	gobuf_g(R3), g
 	MOVW	0(g), R0		// make sure g != nil
 	MOVW	cgo_save_gm(SB), R0
 	CMP 	$0, R0 // if in Cgo, we have to save g and m
 	BL.NE	(R0) // this call will clobber R0
+	MOVW	8(FP), R0	// context
 	MOVW	gobuf_sp(R3), SP	// restore SP
 	MOVW	gobuf_pc(R3), LR
 	MOVW	R1, PC
@@ -136,7 +136,6 @@ TEXT runtime·gogocall(SB), 7, $-4
 TEXT runtime·gogocallfn(SB), 7, $-4
 	MOVW	0(FP), R3		// gobuf
 	MOVW	4(FP), R1		// fn
-	MOVW	8(FP), R2		// fp offset
 	MOVW	gobuf_g(R3), g
 	MOVW	0(g), R0		// make sure g != nil
 	MOVW	cgo_save_gm(SB), R0
@@ -189,6 +188,7 @@ TEXT runtime·morestack(SB),7,$-4
 	BL.EQ	runtime·abort(SB)
 
 	// Save in m.
+	MOVW	R0, m_cret(m) // function context
 	MOVW	R1, m_moreframesize(m)
 	MOVW	R2, m_moreargsize(m)
 

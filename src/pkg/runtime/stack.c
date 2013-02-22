@@ -276,7 +276,7 @@ runtime·newstack(void)
 	if(reflectcall)
 		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
 	else
-		runtime·gogocall(&label, m->morepc);
+		runtime·gogocall(&label, m->morepc, m->cret);
 
 	*(int32*)345 = 123;	// never return
 }
