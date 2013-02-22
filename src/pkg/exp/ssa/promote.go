@@ -408,7 +408,7 @@ func findPromotedField(st *types.Struct, id Id) (*anonFieldPath, int) {
 	var list, next []*anonFieldPath
 	for i, f := range st.Fields {
 		if f.IsAnonymous {
-			list = append(next, &anonFieldPath{nil, i, f})
+			list = append(list, &anonFieldPath{nil, i, f})
 		}
 	}
 
