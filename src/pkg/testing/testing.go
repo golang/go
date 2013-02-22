@@ -50,7 +50,7 @@
 //     }
 //
 // The package also runs and verifies example code. Example functions may
-// include a concluding comment that begins with "Output:" and is compared with
+// include a concluding line comment that begins with "Output:" and is compared with
 // the standard output of the function when the tests are run. (The comparison
 // ignores leading and trailing space.) These are examples of an example:
 //
