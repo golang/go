@@ -453,19 +453,20 @@ func matchPackages(pattern string) []string {
 			return filepath.SkipDir
 		}
 
+		// We use, e.g., cmd/gofmt as the pseudo import path for gofmt.
+		name = "cmd/" + name
+		if have[name] {
+			return nil
+		}
+		have[name] = true
+		if !match(name) {
+			return nil
+		}
 		_, err = buildContext.ImportDir(path, 0)
 		if err != nil {
 			return nil
 		}
-
-		// We use, e.g., cmd/gofmt as the pseudo import path for gofmt.
-		name = "cmd/" + name
-		if !have[name] {
-			have[name] = true
-			if match(name) {
-				pkgs = append(pkgs, name)
-			}
-		}
+		pkgs = append(pkgs, name)
 		return nil
 	})
 
@@ -493,14 +494,14 @@ func matchPackages(pattern string) []string {
 				return nil
 			}
 			have[name] = true
-
+			if !match(name) {
+				return nil
+			}
 			_, err = buildContext.ImportDir(path, 0)
 			if err != nil && strings.Contains(err.Error(), "no Go source files") {
 				return nil
 			}
-			if match(name) {
-				pkgs = append(pkgs, name)
-			}
+			pkgs = append(pkgs, name)
 			return nil
 		})
 	}
