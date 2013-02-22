@@ -292,3 +292,31 @@ func init() {
 		panic(c)
 	}
 }
+
+// Shifts.
+func init() {
+	var i int64 = 1
+	var u uint64 = 1 << 32
+	if x := i << uint32(u); x != 1 {
+		panic(x)
+	}
+	if x := i << uint64(u); x != 0 {
+		panic(x)
+	}
+}
+
+// Implicit conversion of delete() key operand.
+func init() {
+	type I interface{}
+	m := make(map[I]bool)
+	m[1] = true
+	m[I(2)] = true
+	if len(m) != 2 {
+		panic(m)
+	}
+	delete(m, I(1))
+	delete(m, 2)
+	if len(m) != 0 {
+		panic(m)
+	}
+}

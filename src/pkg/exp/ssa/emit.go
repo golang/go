@@ -34,7 +34,6 @@ func emitLoad(f *Function, addr Value) Value {
 func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
 	switch op {
 	case token.SHL, token.SHR:
-		// TODO(adonovan): fix: is this correct?
 		x = emitConv(f, x, t)
 		y = emitConv(f, y, types.Typ[types.Uint64])
 
@@ -59,7 +58,6 @@ func emitArith(f *Function, op token.Token, x, y Value, t types.Type) Value {
 // comparison comparison 'x op y'.
 //
 func emitCompare(f *Function, op token.Token, x, y Value) Value {
-	// TODO(adonovan): fix: this is incomplete.
 	xt := underlyingType(x.Type())
 	yt := underlyingType(y.Type())
 

@@ -31,15 +31,10 @@ package ssa
 //   It uses a mutex so that access from multiple threads is serialized.
 
 // TODO(adonovan): fix the following:
-// - append, delete details.
 // - support f(g()) where g has multiple result parameters.
-// - finish emitCompare, emitArith.
-// - banish "untyped" types everywhere except package/universal constants?
 // - concurrent SSA code generation of multiple packages.
 // - consider function-local NamedTypes.
 //   They can have nonempty method-sets due to promotion.  Test.
-// - polish.
-// - tests.
 
 import (
 	"fmt"
@@ -58,6 +53,8 @@ var (
 	tByte       = types.Typ[types.Byte]
 	tFloat32    = types.Typ[types.Float32]
 	tFloat64    = types.Typ[types.Float64]
+	tComplex64  = types.Typ[types.Complex64]
+	tComplex128 = types.Typ[types.Complex128]
 	tInt        = types.Typ[types.Int]
 	tInvalid    = types.Typ[types.Invalid]
 	tUntypedNil = types.Typ[types.UntypedNil]
@@ -1128,17 +1125,21 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		var bptypes []types.Type // formal parameter types of builtins
 		switch builtin := e.Fun.(*ast.Ident).Name; builtin {
 		case "append":
-			// append([]T, ...T) []T
-			// append([]byte, string...) []byte  // TODO(adonovan): fix: support.
 			// Infer arg types from result type:
 			rt := b.exprType(e)
-			vt = underlyingType(rt).(*types.Slice).Elt // variadic
-			if !c.HasEllipsis {
-				args, varargs = args[:1], args[1:]
-			}
 			bptypes = append(bptypes, rt)
+			if c.HasEllipsis {
+				// 2-arg '...' call form.  No conversions.
+				// append([]T, []T) []T
+				// append([]byte, string) []byte
+			} else {
+				// variadic call form.
+				// append([]T, ...T) []T
+				args, varargs = args[:1], args[1:]
+				vt = underlyingType(rt).(*types.Slice).Elt
+			}
 		case "close":
-			bptypes = append(bptypes, nil) // no conv
+			// no conv
 		case "copy":
 			// copy([]T, []T) int
 			// Infer arg types from each other.  Sleazy.
@@ -1151,22 +1152,33 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 			}
 		case "delete":
 			// delete(map[K]V, K)
-			// TODO(adonovan): fix: this is incorrect.
-			bptypes = append(bptypes, nil) // map
-			bptypes = append(bptypes, nil) // key
+			tkey := underlyingType(b.exprType(args[0])).(*types.Map).Key
+			bptypes = append(bptypes, nil)  // map: no conv
+			bptypes = append(bptypes, tkey) // key
 		case "print", "println": // print{,ln}(any, ...any)
 			vt = tEface // variadic
 			if !c.HasEllipsis {
 				args, varargs = args[:1], args[1:]
 			}
 		case "len":
-			bptypes = append(bptypes, nil) // no conv
+			// no conv
 		case "cap":
-			bptypes = append(bptypes, nil) // no conv
+			// no conv
 		case "real", "imag":
-			// TODO(adonovan): fix: apply reverse conversion
-			// to "complex" case below.
-			bptypes = append(bptypes, nil)
+			// Reverse conversion to "complex" case below.
+			// Typechecker, help us out. :(
+			var argType types.Type
+			switch b.exprType(e).(*types.Basic).Kind {
+			case types.UntypedFloat:
+				argType = types.Typ[types.UntypedComplex]
+			case types.Float64:
+				argType = tComplex128
+			case types.Float32:
+				argType = tComplex64
+			default:
+				unreachable()
+			}
+			bptypes = append(bptypes, argType, argType)
 		case "complex":
 			// Typechecker, help us out. :(
 			var argType types.Type
