@@ -21,7 +21,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 {
 	int32 i, n, iter;
 	uintptr pc, lr, tracepc, x;
-	byte *fp, *p;
+	byte *fp;
 	bool waspanic;
 	Stktop *stk;
 	Func *f;
@@ -66,43 +66,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			continue;
 		}
 		
-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
-			// Dangerous, but worthwhile: see if this is a closure by
-			// decoding the instruction stream.
-			//
-			// We check p < p+4 to avoid wrapping and faulting if
-			// we have lost track of where we are.
-			p = (byte*)pc;
-			if((pc&3) == 0 && p < p+4 &&
-			   runtime·mheap->arena_start < p &&
-			   p+4 < runtime·mheap->arena_used) {
-			   	x = *(uintptr*)p;
-				if((x&0xfffff000) == 0xe49df000) {
-					// End of closure:
-					// MOVW.P frame(R13), R15
-					pc = *(uintptr*)sp;
-					lr = 0;
-					sp += x & 0xfff;
-					fp = nil;
-					continue;
-				}
-				if((x&0xfffff000) == 0xe52de000 && lr == (uintptr)runtime·goexit) {
-					// Beginning of closure.
-					// Closure at top of stack, not yet started.
-					p += 5*4;
-					if((x&0xfff) != 4) {
-						// argument copying
-						p += 7*4;
-					}
-					if((byte*)pc < p && p < p+4 && p+4 < runtime·mheap->arena_used) {
-						pc = *(uintptr*)p;
-						fp = nil;
-						continue;
-					}
-				}
-			}
+		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
 			break;
-		}
 		
 		// Found an actual function.
 		if(lr == 0)

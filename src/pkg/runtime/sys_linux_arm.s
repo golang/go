@@ -38,7 +38,6 @@
 #define SYS_clock_gettime (SYS_BASE + 263)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
-#define SYS_ARM_cacheflush (ARM_BASE + 2)
 
 TEXT runtime·open(SB),7,$0
 	MOVW	0(FP), R0
@@ -266,15 +265,6 @@ TEXT runtime·clone(SB),7,$0
 	MOVW	$1234, R0
 	MOVW	$1005, R1
 	MOVW	R0, (R1)
-
-
-TEXT runtime·cacheflush(SB),7,$0
-	MOVW	0(FP), R0
-	MOVW	4(FP), R1
-	MOVW	$0, R2
-	MOVW	$SYS_ARM_cacheflush, R7
-	SWI	$0
-	RET
 
 TEXT runtime·sigaltstack(SB),7,$0
 	MOVW	0(FP), R0

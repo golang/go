@@ -8,7 +8,6 @@
 #include "arch_GOARCH.h"
 #include "malloc.h"
 
-static uintptr isclosureentry(uintptr);
 void runtime·deferproc(void);
 void runtime·newproc(void);
 void runtime·newstack(void);
@@ -25,7 +24,6 @@ void runtime·sigpanic(void);
 int32
 runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max)
 {
-	byte *p;
 	int32 i, n, iter, sawnewstack;
 	uintptr pc, lr, tracepc;
 	byte *fp;
@@ -75,33 +73,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			stk = (Stktop*)stk->stackbase;
 			continue;
 		}
-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
-			// Dangerous, but worthwhile: see if this is a closure:
-			//	ADDQ $wwxxyyzz, SP; RET
-			//	[48] 81 c4 zz yy xx ww c3
-			// The 0x48 byte is only on amd64.
-			p = (byte*)pc;
-			// We check p < p+8 to avoid wrapping and faulting if we lose track.
-			if(runtime·mheap->arena_start < p && p < p+8 && p+8 < runtime·mheap->arena_used &&  // pointer in allocated memory
-			   (sizeof(uintptr) != 8 || *p++ == 0x48) &&  // skip 0x48 byte on amd64
-			   p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
-				sp += *(uint32*)(p+2);
-				pc = *(uintptr*)sp;
-				sp += sizeof(uintptr);
-				lr = 0;
-				fp = nil;
-				continue;
-			}
-			
-			// Closure at top of stack, not yet started.
-			if(lr == (uintptr)runtime·goexit && (pc = isclosureentry(pc)) != 0) {
-				fp = sp;
-				continue;
-			}
-
-			// Unknown pc: stop.
+		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
 			break;
-		}
 
 		// Found an actual function.
 		if(fp == nil) {
@@ -227,78 +200,4 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 	pc = runtime·getcallerpc(&skip);
 
 	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m);
-}
-
-static uintptr
-isclosureentry(uintptr pc)
-{
-	byte *p;
-	int32 i, siz;
-	
-	p = (byte*)pc;
-	if(p < runtime·mheap->arena_start || p+32 > runtime·mheap->arena_used)
-		return 0;
-
-	if(*p == 0xe8) {
-		// CALL fn
-		return pc+5+*(int32*)(p+1);
-	}
-	
-	if(sizeof(uintptr) == 8 && p[0] == 0x48 && p[1] == 0xb9 && p[10] == 0xff && p[11] == 0xd1) {
-		// MOVQ $fn, CX; CALL *CX
-		return *(uintptr*)(p+2);
-	}
-
-	// SUBQ $siz, SP
-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x81 || *p++ != 0xec)
-		return 0;
-	siz = *(uint32*)p;
-	p += 4;
-	
-	// MOVQ $q, SI
-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xbe)
-		return 0;
-	p += sizeof(uintptr);
-
-	// MOVQ SP, DI
-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x89 || *p++ != 0xe7)
-		return 0;
-
-	// CLD on 32-bit
-	if(sizeof(uintptr) == 4 && *p++ != 0xfc)
-		return 0;
-
-	if(siz <= 4*sizeof(uintptr)) {
-		// MOVSQ...
-		for(i=0; i<siz; i+=sizeof(uintptr))
-			if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
-				return 0;
-	} else {
-		// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
-		if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xc7 || *p++ != 0xc1)
-			return 0;
-		p += 4;
-		
-		// REP MOVSQ
-		if(*p++ != 0xf3 || (sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
-			return 0;
-	}
-	
-	// CALL fn
-	if(*p == 0xe8) {
-		p++;
-		return (uintptr)p+4 + *(int32*)p;
-	}
-	
-	// MOVQ $fn, CX; CALL *CX
-	if(sizeof(uintptr) != 8 || *p++ != 0x48 || *p++ != 0xb9)
-		return 0;
-
-	pc = *(uintptr*)p;
-	p += 8;
-	
-	if(*p++ != 0xff || *p != 0xd1)
-		return 0;
-
-	return pc;
 }
