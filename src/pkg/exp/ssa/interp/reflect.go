@@ -233,7 +233,7 @@ func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value) value {
 	case map[value]value:
 		return len(v)
 	default:
-		panic(fmt.Sprintf("reflect.(Value).Len(%V)", v))
+		panic(fmt.Sprintf("reflect.(Value).Len(%v)", v))
 	}
 	return nil // unreachable
 }

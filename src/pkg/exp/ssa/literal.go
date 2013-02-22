@@ -9,7 +9,10 @@ import (
 	"strconv"
 )
 
-var complexZero = types.Complex{new(big.Rat), new(big.Rat)}
+var complexZero = types.Complex{
+	Re: new(big.Rat),
+	Im: new(big.Rat),
+}
 
 // newLiteral returns a new literal of the specified value and type.
 // val must be valid according to the specification of Literal.Value.
