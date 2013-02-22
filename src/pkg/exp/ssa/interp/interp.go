@@ -586,7 +586,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) 
 		case string:
 			fmt.Fprintln(os.Stderr, "panic:", p)
 		default:
-			fmt.Fprintln(os.Stderr, "panic: unexpected type: %T", p)
+			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
 		}
 
 		// TODO(adonovan): dump panicking interpreter goroutine?
