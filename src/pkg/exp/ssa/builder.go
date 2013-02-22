@@ -33,8 +33,6 @@ package ssa
 // TODO(adonovan): fix the following:
 // - support f(g()) where g has multiple result parameters.
 // - concurrent SSA code generation of multiple packages.
-// - consider function-local NamedTypes.
-//   They can have nonempty method-sets due to promotion.  Test.
 
 import (
 	"fmt"

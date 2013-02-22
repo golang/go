@@ -4,7 +4,6 @@ package ssa
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -39,20 +38,6 @@ func MustSanityCheck(fn *Function, reporter io.Writer) {
 	if !SanityCheck(fn, reporter) {
 		panic("SanityCheck failed")
 	}
-}
-
-// blockNames returns the names of the specified blocks as a
-// human-readable string.
-//
-func blockNames(blocks []*BasicBlock) string {
-	var buf bytes.Buffer
-	for i, b := range blocks {
-		if i > 0 {
-			io.WriteString(&buf, ", ")
-		}
-		io.WriteString(&buf, b.String())
-	}
-	return buf.String()
 }
 
 func (s *sanity) diagnostic(prefix, format string, args ...interface{}) {
@@ -236,7 +221,7 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			}
 		}
 		if !found {
-			s.errorf("expected successor edge in predecessor %s; found only: %s", a, blockNames(a.Succs))
+			s.errorf("expected successor edge in predecessor %s; found only: %s", a, a.Succs)
 		}
 		if a.Func != s.fn {
 			s.errorf("predecessor %s belongs to different function %s", a, a.Func.FullName())
@@ -251,7 +236,7 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 			}
 		}
 		if !found {
-			s.errorf("expected predecessor edge in successor %s; found only: %s", c, blockNames(c.Preds))
+			s.errorf("expected predecessor edge in successor %s; found only: %s", c, c.Preds)
 		}
 		if c.Func != s.fn {
 			s.errorf("successor %s belongs to different function %s", c, c.Func.FullName())

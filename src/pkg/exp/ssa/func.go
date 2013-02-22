@@ -265,6 +265,25 @@ func numberRegisters(f *Function) {
 	}
 }
 
+// buildReferrers populates the def/use information in all non-nil
+// Value.Referrers slice.
+// Precondition: all such slices are initially empty.
+func buildReferrers(f *Function) {
+	var rands []*Value
+	for _, b := range f.Blocks {
+		for _, instr := range b.Instrs {
+			rands = instr.Operands(rands[:0]) // recycle storage
+			for _, rand := range rands {
+				if r := *rand; r != nil {
+					if ref := r.Referrers(); ref != nil {
+						*ref = append(*ref, instr)
+					}
+				}
+			}
+		}
+	}
+}
+
 // finish() finalizes the function after SSA code generation of its body.
 func (f *Function) finish() {
 	f.objects = nil
@@ -289,20 +308,7 @@ func (f *Function) finish() {
 
 	optimizeBlocks(f)
 
-	// Build immediate-use (referrers) graph.
-	var rands []*Value
-	for _, b := range f.Blocks {
-		for _, instr := range b.Instrs {
-			rands = instr.Operands(rands[:0]) // recycle storage
-			for _, rand := range rands {
-				if r := *rand; r != nil {
-					if ref := r.Referrers(); ref != nil {
-						*ref = append(*ref, instr)
-					}
-				}
-			}
-		}
-	}
+	buildReferrers(f)
 
 	if f.Prog.mode&NaiveForm == 0 {
 		// For debugging pre-state of lifting pass:
@@ -460,6 +466,47 @@ func (f *Function) fullName(from *Package) string {
 	return f.Name_
 }
 
+// writeSignature writes to w the signature sig in declaration syntax.
+// Derived from types.Signature.String().
+//
+func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Parameter) {
+	io.WriteString(w, "func ")
+	if sig.Recv != nil {
+		io.WriteString(w, "(")
+		if n := params[0].Name(); n != "" {
+			io.WriteString(w, n)
+			io.WriteString(w, " ")
+		}
+		io.WriteString(w, params[0].Type().String())
+		io.WriteString(w, ") ")
+		params = params[1:]
+	}
+	io.WriteString(w, name)
+	io.WriteString(w, "(")
+	for i, v := range params {
+		if i > 0 {
+			io.WriteString(w, ", ")
+		}
+		io.WriteString(w, v.Name())
+		io.WriteString(w, " ")
+		if sig.IsVariadic && i == len(params)-1 {
+			io.WriteString(w, "...")
+		}
+		io.WriteString(w, v.Type().String())
+	}
+	io.WriteString(w, ")")
+	if res := sig.Results; res != nil {
+		io.WriteString(w, " ")
+		var t types.Type
+		if len(res) == 1 && res[0].Name == "" {
+			t = res[0].Type
+		} else {
+			t = &types.Result{Values: res}
+		}
+		io.WriteString(w, t.String())
+	}
+}
+
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
 // all basic blocks of function f.
 //
@@ -485,37 +532,7 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 	}
 
-	// Function Signature in declaration syntax; derived from types.Signature.String().
-	io.WriteString(w, "func ")
-	params := f.Params
-	if f.Signature.Recv != nil {
-		fmt.Fprintf(w, "(%s %s) ", params[0].Name(), params[0].Type())
-		params = params[1:]
-	}
-	io.WriteString(w, f.Name())
-	io.WriteString(w, "(")
-	for i, v := range params {
-		if i > 0 {
-			io.WriteString(w, ", ")
-		}
-		io.WriteString(w, v.Name())
-		io.WriteString(w, " ")
-		if f.Signature.IsVariadic && i == len(params)-1 {
-			io.WriteString(w, "...")
-		}
-		io.WriteString(w, v.Type().String())
-	}
-	io.WriteString(w, ")")
-	if res := f.Signature.Results; res != nil {
-		io.WriteString(w, " ")
-		var t types.Type
-		if len(res) == 1 && res[0].Name == "" {
-			t = res[0].Type
-		} else {
-			t = &types.Result{Values: res}
-		}
-		io.WriteString(w, t.String())
-	}
+	writeSignature(w, f.Name(), f.Signature, f.Params)
 	io.WriteString(w, ":\n")
 
 	if f.Blocks == nil {
@@ -530,7 +547,7 @@ func (f *Function) DumpTo(w io.Writer) {
 		}
 		fmt.Fprintf(w, ".%s:\t\t\t\t\t\t\t       P:%d S:%d\n", b, len(b.Preds), len(b.Succs))
 		if false { // CFG debugging
-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", blockNames(b.Preds), b, blockNames(b.Succs))
+			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
 		for _, instr := range b.Instrs {
 			io.WriteString(w, "\t")
