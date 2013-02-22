@@ -319,7 +319,7 @@ TEXT runtime·cgocallback(SB),7,$12
 	MOVW	R0, 8(R13)
 	MOVW	framesize+8(FP), R0
 	MOVW	R0, 12(R13)
-	MOVL	$runtime·cgocallback_gofunc(SB), R0
+	MOVW	$runtime·cgocallback_gofunc(SB), R0
 	BL	(R0)
 	RET
 
