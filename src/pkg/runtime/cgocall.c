@@ -206,14 +206,12 @@ runtime·cfree(void *p)
 static FuncVal unwindmf = {unwindm};
 
 void
-runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+runtime·cgocallbackg(FuncVal *fn, void *arg, uintptr argsize)
 {
 	Defer d;
-	FuncVal fv;
 
-	fv.fn = fn;
 	if(m->racecall) {
-		reflect·call(&fv, arg, argsize);
+		reflect·call(fn, arg, argsize);
 		return;
 	}
 
@@ -240,7 +238,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
 		runtime·raceacquire(&cgosync);
 
 	// Invoke callback.
-	reflect·call(&fv, arg, argsize);
+	reflect·call(fn, arg, argsize);
 
 	if(raceenabled)
 		runtime·racereleasemerge(&cgosync);

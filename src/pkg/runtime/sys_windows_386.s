@@ -216,7 +216,7 @@ TEXT runtime·callbackasm+0(SB),7,$0
 
 	CLD
 
-	CALL	runtime·cgocallback(SB)
+	CALL	runtime·cgocallback_gofunc(SB)
 
 	POPL	AX
 	POPL	CX

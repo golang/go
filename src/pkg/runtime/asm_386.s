@@ -498,8 +498,22 @@ TEXT runtime·asmcgocall(SB),7,$0
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
-// See cgocall.c for more details.
+// Turn the fn into a Go func (by taking its address) and call
+// cgocallback_gofunc.
 TEXT runtime·cgocallback(SB),7,$12
+	LEAL	fn+0(FP), AX
+	MOVL	AX, 0(SP)
+	MOVL	frame+4(FP), AX
+	MOVL	AX, 4(SP)
+	MOVL	framesize+8(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	$runtime·cgocallback_gofunc(SB), AX
+	CALL	AX
+	RET
+
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// See cgocall.c for more details.
+TEXT runtime·cgocallback_gofunc(SB),7,$12
 	// If m is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's

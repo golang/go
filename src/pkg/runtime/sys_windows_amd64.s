@@ -272,13 +272,13 @@ TEXT runtime·callbackasm(SB),7,$0
 	MOVQ	R15, 0(SP)
 
 	// prepare call stack.  use SUBQ to hide from stack frame checks
-	// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+	// cgocallback(Go func, void *frame, uintptr framesize)
 	SUBQ	$24, SP
 	MOVQ	DX, 16(SP)	// uintptr framesize
 	MOVQ	CX, 8(SP)   // void *frame
-	MOVQ	AX, 0(SP)    // void (*fn)(void*)
+	MOVQ	AX, 0(SP)    // Go func
 	CLD
-	CALL  runtime·cgocallback(SB)
+	CALL  runtime·cgocallback_gofunc(SB)
 	MOVQ	0(SP), AX
 	MOVQ	8(SP), CX
 	MOVQ	16(SP), DX
