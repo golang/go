@@ -78,7 +78,7 @@ runtime·compilecallback(Eface fn, bool /*cleanstack*/)
 	// MOVQ fn, AX
 	*p++ = 0x48;
 	*p++ = 0xb8;
-	*(uint64*)p = (uint64)(*(byte**)fn.data);
+	*(uint64*)p = (uint64)(fn.data);
 	p += 8;
 	// PUSH AX
 	*p++ = 0x50;

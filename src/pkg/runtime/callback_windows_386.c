@@ -80,7 +80,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 
 	// MOVL fn, AX
 	*p++ = 0xb8;
-	*(uint32*)p = (uint32)(*(byte**)fn.data);
+	*(uint32*)p = (uint32)(fn.data);
 	p += 4;
 
 	// MOVL argsize, DX

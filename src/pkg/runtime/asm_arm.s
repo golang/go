@@ -310,8 +310,22 @@ TEXT	runtime·asmcgocall(SB),7,$0
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// Turn the fn into a Go func (by taking its address) and call
+// cgocallback_gofunc.
+TEXT runtime·cgocallback(SB),7,$12
+	MOVW	$fn+0(FP), R0
+	MOVW	R0, 4(R13)
+	MOVW	frame+4(FP), R0
+	MOVW	R0, 8(R13)
+	MOVW	framesize+8(FP), R0
+	MOVW	R0, 12(R13)
+	MOVL	$runtime·cgocallback_gofunc(SB), R0
+	BL	(R0)
+	RET
+
+// cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
 // See cgocall.c for more details.
-TEXT	runtime·cgocallback(SB),7,$16
+TEXT	runtime·cgocallback_gofunc(SB),7,$16
 	// Load m and g from thread-local storage.
 	MOVW	cgo_load_gm(SB), R0
 	CMP	$0, R0
