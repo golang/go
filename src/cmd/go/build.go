@@ -1609,6 +1609,8 @@ func gccgoCleanPkgpath(p *Package) string {
 func (b *builder) libgcc(p *Package) (string, error) {
 	var buf bytes.Buffer
 
+	gccCmd := b.gccCmd(p.Dir)
+
 	prev := b.print
 	if buildN {
 		// In -n mode we temporarily swap out the builder's
@@ -1619,7 +1621,7 @@ func (b *builder) libgcc(p *Package) (string, error) {
 			return fmt.Fprint(&buf, a...)
 		}
 	}
-	f, err := b.runOut(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-print-libgcc-file-name")
+	f, err := b.runOut(p.Dir, p.ImportPath, gccCmd, "-print-libgcc-file-name")
 	if err != nil {
 		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
 	}
@@ -1629,6 +1631,13 @@ func (b *builder) libgcc(p *Package) (string, error) {
 		b.print(s)
 		return "$LIBGCC", nil
 	}
+
+	// clang might not be able to find libgcc, and in that case,
+	// it will simply return "libgcc.a", which is of no use to us.
+	if strings.Contains(gccCmd[0], "clang") && !filepath.IsAbs(string(f)) {
+		return "", nil
+	}
+
 	return strings.Trim(string(f), "\r\n"), nil
 }
 
@@ -1662,17 +1671,19 @@ func (b *builder) gccCmd(objdir string) []string {
 	}
 	a = append(a, b.gccArchArgs()...)
 	// gcc-4.5 and beyond require explicit "-pthread" flag
-	// for multithreading with pthread library, but clang whines
-	// about unused arguments if we pass it.
+	// for multithreading with pthread library.
 	if buildContext.CgoEnabled {
 		switch goos {
 		case "windows":
 			a = append(a, "-mthreads")
 		default:
-			if !strings.Contains(a[0], "clang") {
-				a = append(a, "-pthread")
-			}
+			a = append(a, "-pthread")
 		}
+	}
+
+	// clang is too smart about command-line arguments
+	if strings.Contains(a[0], "clang") {
+		a = append(a, "-Qunused-arguments")
 	}
 
 	// On OS X, some of the compilers behave as if -fno-common
@@ -1706,6 +1717,7 @@ var cgoRe = regexp.MustCompile(`[/\\:]`)
 
 var (
 	cgoLibGccFile     string
+	cgoLibGccErr      error
 	cgoLibGccFileOnce sync.Once
 )
 
@@ -1800,21 +1812,19 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 
 	cgoLibGccFileOnce.Do(func() {
-		cgoLibGccFile, err = b.libgcc(p)
+		cgoLibGccFile, cgoLibGccErr = b.libgcc(p)
 	})
-	if cgoLibGccFile == "" {
-		if err == nil {
-			err = errors.New("failed to get libgcc filename")
-		}
+	if cgoLibGccFile == "" && cgoLibGccErr != nil {
 		return nil, nil, err
 	}
 
 	var staticLibs []string
 	if goos == "windows" {
 		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
-		staticLibs = []string{"-lmingwex", "-lmingw32", cgoLibGccFile}
-	} else {
-		staticLibs = []string{cgoLibGccFile}
+		staticLibs = []string{"-lmingwex", "-lmingw32"}
+	}
+	if cgoLibGccFile != "" {
+		staticLibs = append(staticLibs, cgoLibGccFile)
 	}
 
 	for _, cfile := range cfiles {

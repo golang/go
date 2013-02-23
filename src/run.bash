@@ -48,10 +48,8 @@ go test sync -short -timeout=120s -cpu=10
 
 # Race detector only supported on Linux and OS X,
 # and only on amd64, and only when cgo is enabled.
-# Also, clang can't seem to link the .syso files, so only
-# run if we're using gcc.
-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-${CC:-gcc}" in
-linux-linux-amd64-1-*gcc* | darwin-darwin-amd64-1-*gcc*)
+case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+linux-linux-amd64-1 | darwin-darwin-amd64-1)
 	echo
 	echo '# Testing race detector.'
 	go test -race -i flag

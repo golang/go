@@ -409,6 +409,7 @@ static char *proto_gccargs[] = {
 	"-Wno-comment",
 	"-Werror",
 	"-fno-common",
+	"-ggdb",
 	"-pipe",
 	"-O2",
 };
@@ -604,10 +605,10 @@ install(char *dir)
 		splitfields(&gccargs, bstr(&b));
 		for(i=0; i<nelem(proto_gccargs); i++)
 			vadd(&gccargs, proto_gccargs[i]);
-		if(clang)
-			vadd(&gccargs, "-g");
-		else
-			vadd(&gccargs, "-ggdb");
+		if(clang) {
+			// clang is too smart about unused command-line arguments
+			vadd(&gccargs, "-Qunused-arguments");
+		}
 	}
 
 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
