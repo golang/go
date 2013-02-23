@@ -3,6 +3,6 @@
 # license that can be found in the LICENSE file.
 
 test testshort:
-	go build
+	go build -tags unsafe
 	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
 

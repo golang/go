@@ -160,7 +160,8 @@ func doPackageDir(directory string) {
 }
 
 type Package struct {
-	types map[ast.Expr]types.Type
+	types  map[ast.Expr]types.Type
+	values map[ast.Expr]interface{}
 }
 
 // doPackage analyzes the single package constructed from the named files.
@@ -188,8 +189,12 @@ func doPackage(names []string) {
 	}
 	pkg := new(Package)
 	pkg.types = make(map[ast.Expr]types.Type)
+	pkg.values = make(map[ast.Expr]interface{})
 	exprFn := func(x ast.Expr, typ types.Type, val interface{}) {
 		pkg.types[x] = typ
+		if val != nil {
+			pkg.values[x] = val
+		}
 	}
 	context := types.Context{
 		Expr: exprFn,

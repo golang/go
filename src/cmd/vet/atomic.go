@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-// checkAtomicAssignment walks the assignment statement checking for comomon
+// checkAtomicAssignment walks the assignment statement checking for common
 // mistaken usage of atomic package, such as: x = atomic.AddUint64(&x, 1)
 func (f *File) checkAtomicAssignment(n *ast.AssignStmt) {
 	if !vet("atomic") {
