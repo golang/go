@@ -1715,7 +1715,8 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 {
 	int32 n;
 
-	if(m == nil || m->mcache == nil)
+	// Windows does profiling in a dedicated thread w/o m.
+	if(!Windows && (m == nil || m->mcache == nil))
 		return;
 	if(prof.fn == nil || prof.hz == 0)
 		return;
