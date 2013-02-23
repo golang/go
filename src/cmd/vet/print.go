@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -274,9 +275,18 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 		}
 	}
 	if len(args) <= skip {
-		// TODO: check that the receiver of Error() is of type error.
-		if !isLn && name != "Error" {
-			f.Badf(call.Pos(), "no args in %s call", name)
+		// If we have a call to a method called Error that satisfies the Error interface,
+		// then it's ok. Otherwise it's something like (*T).Error from the testing package
+		// and we need to check it.
+		if name == "Error" && f.pkg != nil && f.isErrorMethodCall(call) {
+			return
+		}
+		// If it's an Error call now, it's probably for printing errors.
+		if !isLn {
+			// Check the signature to be sure: there are niladic functions called "error".
+			if f.pkg == nil || skip != 0 || f.numArgsInSignature(call) != skip {
+				f.Badf(call.Pos(), "no args in %s call", name)
+			}
 		}
 		return
 	}
@@ -295,6 +305,95 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 			}
 		}
 	}
+}
+
+// numArgsInSignature tells how many formal arguments the function type
+// being called has. Assumes type checking is on (f.pkg != nil).
+func (f *File) numArgsInSignature(call *ast.CallExpr) int {
+	// Check the type of the function or method declaration
+	typ := f.pkg.types[call.Fun]
+	if typ == nil {
+		return 0
+	}
+	// The type must be a signature, but be sure for safety.
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return 0
+	}
+	return len(sig.Params)
+}
+
+// isErrorMethodCall reports whether the call is of a method with signature
+//	func Error() error
+// where "error" is the universe's error type. We know the method is called "Error"
+// and f.pkg is set.
+func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
+	// Is it a selector expression? Otherwise it's a function call, not a method call.
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	// The package is type-checked, so if there are no arguments, we're done.
+	if len(call.Args) > 0 {
+		return false
+	}
+	// Check the type of the method declaration
+	typ := f.pkg.types[sel]
+	if typ == nil {
+		return false
+	}
+	// The type must be a signature, but be sure for safety.
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return false
+	}
+	// There must be a receiver for it to be a method call. Otherwise it is
+	// a function, not something that satisfies the error interface.
+	if sig.Recv == nil {
+		return false
+	}
+	// There must be no arguments. Already verified by type checking, but be thorough.
+	if len(sig.Params) > 0 {
+		return false
+	}
+	// Finally the real questions.
+	// There must be one result.
+	if len(sig.Results) != 1 {
+		return false
+	}
+	// It must have return type "string" from the universe.
+	result := sig.Results[0].Type
+	if types.IsIdentical(result, types.Typ[types.String]) {
+		return true
+	}
+	return true
+}
+
+// Error methods that do not satisfy the Error interface and should be checked.
+type errorTest1 int
+
+func (errorTest1) Error(...interface{}) string {
+	return "hi"
+}
+
+type errorTest2 int // Analogous to testing's *T type.
+func (errorTest2) Error(...interface{}) {
+}
+
+type errorTest3 int
+
+func (errorTest3) Error() { // No return value.
+}
+
+type errorTest4 int
+
+func (errorTest4) Error() int { // Different return type.
+	return 3
+}
+
+type errorTest5 int
+
+func (errorTest5) error() { // niladic; don't complain if no args (was bug)
 }
 
 // This function never executes, but it serves as a simple test for the program.
@@ -322,8 +421,25 @@ func BadFunctionUsedInTests() {
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
 	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+	// Something that satisfies the error interface.
 	var e error
-	fmt.Println(e.Error()) // correct, used to trigger "no args in Error call"
+	fmt.Println(e.Error()) // ok
+	// Something that looks like an error interface but isn't, such as the (*T).Error method
+	// in the testing package.
+	var et1 errorTest1
+	fmt.Println(et1.Error())        // ERROR "no args in Error call"
+	fmt.Println(et1.Error("hi"))    // ok
+	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
+	var et2 errorTest2
+	et2.Error()        // ERROR "no args in Error call"
+	et2.Error("hi")    // ok, not an error method.
+	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
+	var et3 errorTest3
+	et3.Error() // ok, not an error method.
+	var et4 errorTest4
+	et4.Error() // ok, not an error method.
+	var et5 errorTest5
+	et5.error() // ok, not an error method.
 }
 
 // printf is used by the test.

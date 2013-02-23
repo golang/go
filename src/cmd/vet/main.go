@@ -64,6 +64,7 @@ func Usage() {
 // File is a wrapper for the state of a file used in the parser.
 // The parse tree walkers are all methods of this type.
 type File struct {
+	pkg  *Package
 	fset *token.FileSet
 	name string
 	file *ast.File
@@ -158,6 +159,10 @@ func doPackageDir(directory string) {
 	doPackage(names)
 }
 
+type Package struct {
+	types map[ast.Expr]types.Type
+}
+
 // doPackage analyzes the single package constructed from the named files.
 func doPackage(names []string) {
 	var files []*File
@@ -181,16 +186,21 @@ func doPackage(names []string) {
 		files = append(files, &File{fset: fs, name: name, file: parsedFile})
 		astFiles = append(astFiles, parsedFile)
 	}
+	pkg := new(Package)
+	pkg.types = make(map[ast.Expr]types.Type)
+	exprFn := func(x ast.Expr, typ types.Type, val interface{}) {
+		pkg.types[x] = typ
+	}
 	context := types.Context{
-	// TODO: set up Expr, Ident.
+		Expr: exprFn,
 	}
 	// Type check the package.
-	pkg, err := context.Check(fs, astFiles)
+	_, err := context.Check(fs, astFiles)
 	if err != nil {
 		warnf("%s", err)
 	}
-	_ = pkg
 	for _, file := range files {
+		file.pkg = pkg
 		file.walkFile(file.name, file.file)
 	}
 }
