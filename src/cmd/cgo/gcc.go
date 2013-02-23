@@ -783,7 +783,13 @@ func (p *Package) gccCmd() []string {
 	if strings.Contains(p.gccName(), "clang") {
 		c = append(c,
 			"-ferror-limit=0",
+			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
+			// doesn't have -Wno-unneeded-internal-declaration, so we need yet another
+			// flag to disable the warning. Yes, really good diagnostics, clang.
+			"-Wno-unknown-warning-option",
 			"-Wno-unneeded-internal-declaration",
+			"-Wno-unused-function",
+			"-Qunused-arguments",
 		)
 	}
 
@@ -1047,6 +1053,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			fatalf("%s: type conversion loop at %s", lineno(pos), dtype)
 		}
 		return t
+	}
+
+	// clang won't generate DW_AT_byte_size for pointer types,
+	// so we have to fix it here.
+	if dt, ok := base(dtype).(*dwarf.PtrType); ok && dt.ByteSize == -1 {
+		dt.ByteSize = c.ptrSize
 	}
 
 	t := new(Type)
