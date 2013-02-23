@@ -113,6 +113,14 @@ func stackGrowthRecursive(i int) {
 	}
 }
 
+func TestSchedLocalQueue(t *testing.T) {
+	runtime.TestSchedLocalQueue1()
+}
+
+func TestSchedLocalQueueSteal(t *testing.T) {
+	runtime.TestSchedLocalQueueSteal1()
+}
+
 func benchmarkStackGrowth(b *testing.B, rec int) {
 	const CallsPerSched = 1000
 	procs := runtime.GOMAXPROCS(-1)

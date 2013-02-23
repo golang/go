@@ -61,3 +61,9 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
 	begin, end := parforiters(desc, uintptr(tid))
 	return uint32(begin), uint32(end)
 }
+
+func testSchedLocalQueue()
+func testSchedLocalQueueSteal()
+
+var TestSchedLocalQueue1 = testSchedLocalQueue
+var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
