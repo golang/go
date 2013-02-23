@@ -239,6 +239,8 @@ runtime·main(void)
 	// by calling runtime.LockOSThread during initialization
 	// to preserve the lock.
 	runtime·lockOSThread();
+	if(m != &runtime·m0)
+		runtime·throw("runtime·main not on m0");
 	// From now on, newgoroutines may use non-main threads.
 	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.init = true;
@@ -255,7 +257,7 @@ runtime·main(void)
 	main·main();
 	if(raceenabled)
 		runtime·racefini();
-	
+
 	// Make racy client program work: if panicking on
 	// another goroutine at the same time as main returns,
 	// let the other goroutine finish printing the panic trace.
@@ -669,9 +671,10 @@ int32
 runtime·gcprocs(void)
 {
 	int32 n;
-	
+
 	// Figure out how many CPUs to use during GC.
 	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+	runtime·lock(&runtime·sched);
 	n = runtime·gomaxprocs;
 	if(n > runtime·ncpu)
 		n = runtime·ncpu;
@@ -679,7 +682,24 @@ runtime·gcprocs(void)
 		n = MaxGcproc;
 	if(n > runtime·sched.mwait+1) // one M is currently running
 		n = runtime·sched.mwait+1;
+	runtime·unlock(&runtime·sched);
 	return n;
+}
+
+static bool
+needaddgcproc(void)
+{
+	int32 n;
+
+	runtime·lock(&runtime·sched);
+	n = runtime·gomaxprocs;
+	if(n > runtime·ncpu)
+		n = runtime·ncpu;
+	if(n > MaxGcproc)
+		n = MaxGcproc;
+	n -= runtime·sched.mwait+1; // one M is currently running
+	runtime·unlock(&runtime·sched);
+	return n > 0;
 }
 
 void
@@ -740,20 +760,14 @@ void
 runtime·starttheworld(void)
 {
 	M *mp;
-	int32 max;
-	
-	// Figure out how many CPUs GC could possibly use.
-	max = runtime·gomaxprocs;
-	if(max > runtime·ncpu)
-		max = runtime·ncpu;
-	if(max > MaxGcproc)
-		max = MaxGcproc;
+	bool add;
 
+	add = needaddgcproc();
 	schedlock();
 	runtime·gcwaiting = 0;
 	setmcpumax(runtime·gomaxprocs);
 	matchmg();
-	if(runtime·gcprocs() < max && canaddmcpu()) {
+	if(add && canaddmcpu()) {
 		// If GC could have used another helper proc, start one now,
 		// in the hope that it will be available next time.
 		// It would have been even better to start it before the collection,
@@ -866,7 +880,7 @@ runtime·allocm(void)
 		mp->g0 = runtime·malg(-1);
 	else
 		mp->g0 = runtime·malg(8192);
-	
+
 	return mp;
 }
 
@@ -921,13 +935,13 @@ runtime·needm(byte x)
 	// Set needextram when we've just emptied the list,
 	// so that the eventual call into cgocallbackg will
 	// allocate a new m for the extra list. We delay the
-	// allocation until then so that it can be done 
+	// allocation until then so that it can be done
 	// after exitsyscall makes sure it is okay to be
 	// running at all (that is, there's no garbage collection
-	// running right now).	
+	// running right now).
 	mp->needextram = mp->schedlink == nil;
 	unlockextra(mp->schedlink);
-	
+
 	// Install m and g (= m->g0) and set the stack bounds
 	// to match the current stack. We don't actually know
 	// how big the stack is, like we don't know how big any
@@ -995,7 +1009,7 @@ runtime·newextram(void)
 // The main expense here is the call to signalstack to release the
 // m's signal stack, and then the call to needm on the next callback
 // from this thread. It is tempting to try to save the m for next time,
-// which would eliminate both these costs, but there might not be 
+// which would eliminate both these costs, but there might not be
 // a next time: the current thread (which Go does not control) might exit.
 // If we saved the m for that thread, there would be an m leak each time
 // such a thread exited. Instead, we acquire and release an m on each
@@ -1042,7 +1056,7 @@ lockextra(bool nilokay)
 {
 	M *mp;
 	void (*yield)(void);
-	
+
 	for(;;) {
 		mp = runtime·atomicloadp(&runtime·extram);
 		if(mp == MLOCKED) {
@@ -1077,7 +1091,7 @@ M*
 runtime·newm(void)
 {
 	M *mp;
-	
+
 	mp = runtime·allocm();
 
 	if(runtime·iscgo) {
@@ -1171,9 +1185,8 @@ schedule(G *gp)
 	if(m->profilehz != hz)
 		runtime·resetcpuprofiler(hz);
 
-	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
+	if(gp->sched.pc == (byte*)runtime·goexit)  // kickoff
 		runtime·gogocallfn(&gp->sched, gp->fnstart);
-	}
 	runtime·gogo(&gp->sched, 0);
 }
 
@@ -1603,7 +1616,7 @@ UnlockOSThread(void)
 		return;
 	m->lockedg = nil;
 	g->lockedm = nil;
-}	
+}
 
 void
 runtime·UnlockOSThread(void)
@@ -1646,14 +1659,25 @@ runtime·mid(uint32 ret)
 void
 runtime·NumGoroutine(intgo ret)
 {
-	ret = runtime·sched.gcount;
+	ret = runtime·gcount();
 	FLUSH(&ret);
 }
 
 int32
 runtime·gcount(void)
 {
-	return runtime·sched.gcount;
+	G *gp;
+	int32 n, s;
+
+	n = 0;
+	runtime·lock(&runtime·sched);
+	for(gp = runtime·allg; gp; gp = gp->alllink) {
+		s = gp->status;
+		if(s == Grunnable || s == Grunning || s == Gsyscall || s == Gwaiting)
+			n++;
+	}
+	runtime·unlock(&runtime·sched);
+	return n;
 }
 
 int32
@@ -1687,6 +1711,8 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 {
 	int32 n;
 
+	if(m == nil || m->mcache == nil)
+		return;
 	if(prof.fn == nil || prof.hz == 0)
 		return;
 
