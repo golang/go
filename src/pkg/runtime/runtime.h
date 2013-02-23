@@ -52,6 +52,7 @@ typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
 typedef	union	Lock		Lock;
 typedef	struct	M		M;
+typedef struct	P		P;
 typedef	struct	Mem		Mem;
 typedef	union	Note		Note;
 typedef	struct	Slice		Slice;
@@ -310,6 +311,17 @@ struct	M
 #endif
 	SEH*	seh;
 	uintptr	end[];
+};
+
+struct P
+{
+	Lock;
+
+	// Queue of runnable goroutines.
+	G**	runq;
+	int32	runqhead;
+	int32	runqtail;
+	int32	runqsize;
 };
 
 // The m->locked word holds a single bit saying whether
