@@ -770,7 +770,15 @@ sigillhand(int signum)
 static void
 __cpuid(int dst[4], int ax)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef __i386__
+	// we need to avoid ebx on i386 (esp. when -fPIC).
+	asm volatile(
+		"mov %%ebx, %%edi\n\t"
+		"cpuid\n\t"
+		"xchgl %%ebx, %%edi"
+		: "=a" (dst[0]), "=D" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
+		: "0" (ax));
+#elif defined(__x86_64__)
 	asm volatile("cpuid"
 		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
 		: "0" (ax));
