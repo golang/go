@@ -9,7 +9,8 @@ package {{.Name}}
 
 {{else}}COMMAND DOCUMENTATION
 
-{{end}}{{comment_text .Doc "    " "\t"}}{{/*
+{{end}}{{comment_text .Doc "    " "\t"}}
+{{example_text "" $.Examples $.FSet "    "}}{{/*
 
 ---------------------------------------
 
@@ -36,6 +37,7 @@ FUNCTIONS
 
 {{range .}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
+{{example_text .Name $.Examples $.FSet "    "}}
 {{end}}{{end}}{{/*
 
 ---------------------------------------
@@ -43,16 +45,19 @@ FUNCTIONS
 */}}{{with .Types}}
 TYPES
 
-{{range .}}{{node .Decl $.FSet}}
+{{range .}}{{$tname := .Name}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
 {{range .Consts}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
 {{end}}{{range .Vars}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{range .Funcs}}{{node .Decl $.FSet}}
+{{end}}{{example_text .Name $.Examples $.FSet "    "}}
+{{range .Funcs}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
+{{example_text .Name $.Examples $.FSet "    "}}
 {{end}}{{range .Methods}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
+{{$name := printf "%s_%s" $tname .Name}}{{example_text $name $.Examples $.FSet "    "}}
 {{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------

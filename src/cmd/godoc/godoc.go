@@ -65,6 +65,7 @@ var (
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
 	showPlayground = flag.Bool("play", false, "enable playground in web interface")
+	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
 
 	// search index
 	indexEnabled = flag.Bool("index", false, "enable search index")
@@ -329,6 +330,47 @@ func stripExampleSuffix(name string) string {
 	return name
 }
 
+func example_textFunc(funcName string, examples []*doc.Example, fset *token.FileSet, indent string) string {
+	if !*showExamples {
+		return ""
+	}
+
+	var buf bytes.Buffer
+	first := true
+	for _, eg := range examples {
+		name := stripExampleSuffix(eg.Name)
+		if name != funcName {
+			continue
+		}
+
+		if !first {
+			buf.WriteString("\n")
+		}
+		first = false
+
+		// print code
+		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+		var buf1 bytes.Buffer
+		writeNode(&buf1, fset, cnode)
+		code := buf1.String()
+		// Additional formatting if this is a function body.
+		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
+			// remove surrounding braces
+			code = code[1 : n-1]
+			// unindent
+			code = strings.Replace(code, "\n    ", "\n", -1)
+		}
+		code = strings.Trim(code, "\n")
+		code = strings.Replace(code, "\n", "\n\t", -1)
+
+		buf.WriteString(indent)
+		buf.WriteString("Example:\n\t")
+		buf.WriteString(code)
+		buf.WriteString("\n")
+	}
+	return buf.String()
+}
+
 func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
@@ -494,6 +536,7 @@ var fmap = template.FuncMap{
 
 	// formatting of Examples
 	"example_html":   example_htmlFunc,
+	"example_text":   example_textFunc,
 	"example_name":   example_nameFunc,
 	"example_suffix": example_suffixFunc,
 }
