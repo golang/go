@@ -369,6 +369,8 @@ const (
 	F_UNLCK                           = 0x2
 	F_UNLCKSYS                        = 0x4
 	F_WRLCK                           = 0x3
+	IFAN_ARRIVAL                      = 0x0
+	IFAN_DEPARTURE                    = 0x1
 	IFF_ALLMULTI                      = 0x200
 	IFF_ALTPHYS                       = 0x4000
 	IFF_BROADCAST                     = 0x2
