@@ -14,7 +14,7 @@ runtime·SysAlloc(uintptr n)
 	void *v;
 
 	mstats.sys += n;
-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(v < (void*)4096)
 		return nil;
 	return v;
@@ -51,7 +51,7 @@ runtime·SysMap(void *v, uintptr n)
 	void *p;
 	
 	mstats.sys += n;
-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
 	if(p == (void*)-ENOMEM)
 		runtime·throw("runtime: out of memory");
 	if(p != v)
