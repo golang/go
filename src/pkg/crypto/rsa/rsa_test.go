@@ -28,11 +28,11 @@ func TestKeyGeneration(t *testing.T) {
 }
 
 func Test3PrimeKeyGeneration(t *testing.T) {
+	size := 768
 	if testing.Short() {
-		return
+		size = 256
 	}
 
-	size := 768
 	priv, err := GenerateMultiPrimeKey(rand.Reader, 3, size)
 	if err != nil {
 		t.Errorf("failed to generate key")
@@ -41,16 +41,34 @@ func Test3PrimeKeyGeneration(t *testing.T) {
 }
 
 func Test4PrimeKeyGeneration(t *testing.T) {
+	size := 768
 	if testing.Short() {
-		return
+		size = 256
 	}
 
-	size := 768
 	priv, err := GenerateMultiPrimeKey(rand.Reader, 4, size)
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
 	testKeyBasics(t, priv)
+}
+
+func TestNPrimeKeyGeneration(t *testing.T) {
+	primeSize := 64
+	maxN := 24
+	if testing.Short() {
+		primeSize = 16
+		maxN = 16
+	}
+	// Test that generation of N-prime keys works for N > 4.
+	for n := 5; n < maxN; n++ {
+		priv, err := GenerateMultiPrimeKey(rand.Reader, n, 64+n*primeSize)
+		if err == nil {
+			testKeyBasics(t, priv)
+		} else {
+			t.Errorf("failed to generate %d-prime key", n)
+		}
+	}
 }
 
 func TestGnuTLSKey(t *testing.T) {
