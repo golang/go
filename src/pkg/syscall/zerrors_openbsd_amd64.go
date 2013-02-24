@@ -447,6 +447,8 @@ const (
 	ICANON                            = 0x100
 	ICRNL                             = 0x100
 	IEXTEN                            = 0x400
+	IFAN_ARRIVAL                      = 0x0
+	IFAN_DEPARTURE                    = 0x1
 	IFA_ROUTE                         = 0x1
 	IFF_ALLMULTI                      = 0x200
 	IFF_BROADCAST                     = 0x2

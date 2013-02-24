@@ -260,11 +260,12 @@ type FdSet struct {
 }
 
 const (
-	SizeofIfMsghdr  = 0xe8
-	SizeofIfData    = 0xd0
-	SizeofIfaMsghdr = 0x18
-	SizeofRtMsghdr  = 0x58
-	SizeofRtMetrics = 0x30
+	SizeofIfMsghdr         = 0xe8
+	SizeofIfData           = 0xd0
+	SizeofIfaMsghdr        = 0x18
+	SizeofIfAnnounceMsghdr = 0x1a
+	SizeofRtMsghdr         = 0x58
+	SizeofRtMetrics        = 0x30
 )
 
 type IfMsghdr struct {
@@ -319,6 +320,16 @@ type IfaMsghdr struct {
 	Addrs   int32
 	Flags   int32
 	Metric  int32
+}
+
+type IfAnnounceMsghdr struct {
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Hdrlen  uint16
+	Index   uint16
+	What    uint16
+	Name    [16]int8
 }
 
 type RtMsghdr struct {
