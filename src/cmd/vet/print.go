@@ -415,8 +415,8 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 }
 
 // isErrorMethodCall reports whether the call is of a method with signature
-//	func Error() error
-// where "error" is the universe's error type. We know the method is called "Error"
+//	func Error() string
+// where "string" is the universe's string type. We know the method is called "Error"
 // and f.pkg is set.
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
@@ -457,7 +457,7 @@ func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	if types.IsIdentical(result, types.Typ[types.String]) {
 		return true
 	}
-	return true
+	return false
 }
 
 // Error methods that do not satisfy the Error interface and should be checked.
