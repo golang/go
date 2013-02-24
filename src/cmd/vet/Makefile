@@ -4,5 +4,5 @@
 
 test testshort:
 	go build -tags unsafe
-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
+	../../../test/errchk ./vet -compositewhitelist=false -printfuncs='Warn:1,Warnf:1' *.go
 
