@@ -7,11 +7,15 @@
 package main
 
 import (
+	"flag"
 	"go/ast"
+	"go/types"
 	"strings"
 
-	"flag" // for test
+	"go/scanner" // for test; chosen because it's already linked in.
 )
+
+var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
 
 // checkUntaggedLiteral checks if a composite literal is an struct literal with
 // untagged fields.
@@ -19,6 +23,26 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 	if !vet("composites") {
 		return
 	}
+
+	// Check that the CompositeLit's type is a slice or array (which need no tag), if possible.
+	if f.pkg != nil {
+		typ := f.pkg.types[c]
+		if typ != nil {
+			// If it's a named type, pull out the underlying type.
+			if namedType, ok := typ.(*types.NamedType); ok {
+				typ = namedType.Underlying
+			}
+			switch typ.(type) {
+			case *types.Slice:
+				return
+			case *types.Array:
+				return
+			}
+		}
+	}
+
+	// It's a struct, or we can't tell it's not a struct because we don't have types.
+
 	// Check if the CompositeLit contains an untagged field.
 	allKeyValue := true
 	for _, e := range c.Elts {
@@ -48,11 +72,11 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 	typ := path + "." + s.Sel.Name
-	if untaggedLiteralWhitelist[typ] {
+	if *compositeWhiteList && untaggedLiteralWhitelist[typ] {
 		return
 	}
 
-	f.Warnf(c.Pos(), "%s struct literal uses untagged fields", typ)
+	f.Warnf(c.Pos(), "%s composite literal uses untagged fields", typ)
 }
 
 // pkgPath returns the import path "image/png" for the package name "png".
@@ -125,9 +149,17 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"image.Rectangle":     true,
 }
 
+// Testing is awkward because we need to reference things from a separate package
+// to trigger the warnings.
+
 var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
 	"Name",
 	"Usage",
 	nil, // Value
 	"DefValue",
 }
+
+// Used to test the check for slices and arrays: If that test is disabled and
+// vet is run with --compositewhitelist=false, this line triggers an error.
+// Clumsy but sufficient.
+var scannerErrorListTest = scanner.ErrorList{nil, nil}
