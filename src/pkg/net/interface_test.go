@@ -5,12 +5,13 @@
 package net
 
 import (
-	"bytes"
+	"reflect"
 	"testing"
 )
 
-// LoopbackInterface returns a logical network interface for loopback
-// tests.
+// loopbackInterface returns an available logical network interface
+// for loopback tests.  It returns nil if no suitable interface is
+// found.
 func loopbackInterface() *Interface {
 	ift, err := Interfaces()
 	if err != nil {
@@ -22,16 +23,6 @@ func loopbackInterface() *Interface {
 		}
 	}
 	return nil
-}
-
-func sameInterface(i, j *Interface) bool {
-	if i == nil || j == nil {
-		return false
-	}
-	if i.Index == j.Index && i.Name == j.Name && bytes.Equal(i.HardwareAddr, j.HardwareAddr) {
-		return true
-	}
-	return false
 }
 
 func TestInterfaces(t *testing.T) {
@@ -46,15 +37,15 @@ func TestInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatalf("InterfaceByIndex(%v) failed: %v", ifi.Index, err)
 		}
-		if !sameInterface(ifxi, &ifi) {
-			t.Fatalf("InterfaceByIndex(%v) = %v, want %v", ifi.Index, *ifxi, ifi)
+		if !reflect.DeepEqual(ifxi, &ifi) {
+			t.Fatalf("InterfaceByIndex(%v) = %v, want %v", ifi.Index, ifxi, ifi)
 		}
 		ifxn, err := InterfaceByName(ifi.Name)
 		if err != nil {
 			t.Fatalf("InterfaceByName(%q) failed: %v", ifi.Name, err)
 		}
-		if !sameInterface(ifxn, &ifi) {
-			t.Fatalf("InterfaceByName(%q) = %v, want %v", ifi.Name, *ifxn, ifi)
+		if !reflect.DeepEqual(ifxn, &ifi) {
+			t.Fatalf("InterfaceByName(%q) = %v, want %v", ifi.Name, ifxn, ifi)
 		}
 		t.Logf("%q: flags %q, ifindex %v, mtu %v", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
@@ -129,7 +120,7 @@ func BenchmarkInterfaces(b *testing.B) {
 func BenchmarkInterfaceByIndex(b *testing.B) {
 	ifi := loopbackInterface()
 	if ifi == nil {
-		return
+		b.Skip("loopback interface not found")
 	}
 	for i := 0; i < b.N; i++ {
 		if _, err := InterfaceByIndex(ifi.Index); err != nil {
@@ -141,7 +132,7 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
 func BenchmarkInterfaceByName(b *testing.B) {
 	ifi := loopbackInterface()
 	if ifi == nil {
-		return
+		b.Skip("loopback interface not found")
 	}
 	for i := 0; i < b.N; i++ {
 		if _, err := InterfaceByName(ifi.Name); err != nil {
@@ -161,7 +152,7 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
 func BenchmarkInterfacesAndAddrs(b *testing.B) {
 	ifi := loopbackInterface()
 	if ifi == nil {
-		return
+		b.Skip("loopback interface not found")
 	}
 	for i := 0; i < b.N; i++ {
 		if _, err := ifi.Addrs(); err != nil {
@@ -173,7 +164,7 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
 func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
 	ifi := loopbackInterface()
 	if ifi == nil {
-		return
+		b.Skip("loopback interface not found")
 	}
 	for i := 0; i < b.N; i++ {
 		if _, err := ifi.MulticastAddrs(); err != nil {
