@@ -238,14 +238,18 @@ walkclosure(Node *func, NodeList **init)
 	}
 
 	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
+	clos->esc = func->esc;
 	clos->right->implicit = 1;
 	clos->list = concat(list1(nod(OCFUNC, func->closure->nname, N)), func->enter);
 
 	// Force type conversion from *struct to the func type.
 	clos = nod(OCONVNOP, clos, N);
 	clos->type = func->type;
-	
+
 	typecheck(&clos, Erv);
+	// typecheck will insert a PTRLIT node under CONVNOP,
+	// tag it with escape analysis result.
+	clos->left->esc = func->esc;
 	walkexpr(&clos, init);
 
 	return clos;
