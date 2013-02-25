@@ -1229,11 +1229,11 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 	// In the former case we are done, and in the latter case we don't
 	// care because the type checker will do a separate field lookup.
 	//
-	// If the key does not resolve, it must a) be defined at the top-
-	// level in another file of the same package or be undeclared, or
-	// b) it is a struct field. In the former case, the type checker
-	// can do a top-level lookup, and in the latter case it will do a
-	// separate field lookup.
+	// If the key does not resolve, it a) must be defined at the top
+	// level in another file of the same package, the universe scope, or be
+	// undeclared; or b) it is a struct field. In the former case, the type
+	// checker can do a top-level lookup, and in the latter case it will do
+	// a separate field lookup.
 	x := p.checkExpr(p.parseExpr(keyOk))
 	if keyOk {
 		if p.tok == token.COLON {
