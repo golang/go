@@ -505,6 +505,7 @@ zaddr(Gen *a, int s)
 	Bputc(&obuf, a->reg);
 	Bputc(&obuf, s);
 	Bputc(&obuf, a->name);
+	Bputc(&obuf, 0);
 	switch(a->type) {
 	default:
 		print("unknown type %d\n", a->type);

@@ -321,6 +321,8 @@ EXTERN	int	dtype;
 EXTERN	int	tlsoffset;
 EXTERN	int	armsize;
 EXTERN	int	goarm;
+EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
+EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
 extern	char*	anames[];
 extern	Optab	optab[];

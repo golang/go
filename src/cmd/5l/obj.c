@@ -280,8 +280,21 @@ main(int argc, char *argv[])
 	errorexit();
 }
 
+static Sym*
+zsym(char *pn, Biobuf *f, Sym *h[])
+{	
+	int o;
+	
+	o = BGETC(f);
+	if(o == 0)
+		return S;
+	if(o < 0 || o >= NSYM || h[o] == nil)
+		mangle(pn);
+	return h[o];
+}
+
 static void
-zaddr(Biobuf *f, Adr *a, Sym *h[])
+zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
 {
 	int i, c;
 	int32 l;
@@ -298,6 +311,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	}
 	a->sym = h[c];
 	a->name = BGETC(f);
+	adrgotype = zsym(pn, f, h);
 
 	if((schar)a->reg < 0 || a->reg > NREG) {
 		print("register out of range %d\n", a->reg);
@@ -358,8 +372,11 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	if(s == S)
 		return;
 	i = a->name;
-	if(i != D_AUTO && i != D_PARAM)
+	if(i != D_AUTO && i != D_PARAM) {
+		if(s && adrgotype)
+			s->gotype = adrgotype;
 		return;
+	}
 
 	l = a->offset;
 	for(u=curauto; u; u=u->link)
@@ -367,6 +384,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		if(u->type == i) {
 			if(u->aoffset > l)
 				u->aoffset = l;
+			if(adrgotype)
+				u->gotype = adrgotype;
 			return;
 		}
 
@@ -376,6 +395,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = i;
+	u->gotype = adrgotype;
 }
 
 void
@@ -484,8 +504,9 @@ loop:
 	p->reg = BGETC(f);
 	p->line = Bget4(f);
 
-	zaddr(f, &p->from, h);
-	zaddr(f, &p->to, h);
+	zaddr(pn, f, &p->from, h);
+	fromgotype = adrgotype;
+	zaddr(pn, f, &p->to, h);
 
 	if(p->as != ATEXT && p->as != AGLOBL && p->reg > NREG)
 		diag("register out of range %A %d", p->as, p->reg);
@@ -611,6 +632,11 @@ loop:
 			etextp->next = s;
 		else
 			textp = s;
+		if(fromgotype) {
+			if(s->gotype && s->gotype != fromgotype)
+				diag("%s: type mismatch for %s", pn, s->name);
+			s->gotype = fromgotype;
+		}
 		etextp = s;
 		p->align = 4;
 		autosize = (p->to.offset+3L) & ~3L;
