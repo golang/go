@@ -543,6 +543,8 @@ func (check *checker) compositeLitKey(key ast.Expr) {
 	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
 		if obj := check.pkg.Scope.Lookup(ident.Name); obj != nil {
 			check.register(ident, obj)
+		} else if obj := Universe.Lookup(ident.Name); obj != nil {
+			check.register(ident, obj)
 		} else {
 			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
 		}

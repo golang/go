@@ -259,6 +259,8 @@ var index2 int = 2
 
 func map_literals() {
 	type M0 map[string]int
+	type M1 map[bool]int
+	type M2 map[*int]int
 
 	_ = M0{}
 	_ = M0{1 /* ERROR "missing key" */ }
@@ -267,11 +269,14 @@ func map_literals() {
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
 
 	// map keys must be resolved correctly
-	// (for detials, see comment in go/parser/parser.go, method parseElement)
+	// (for details, see comment in go/parser/parser.go, method parseElement)
 	key1 := "foo"
 	_ = M0{key1: 1}
 	_ = M0{key2: 2}
 	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
+
+	_ = M1{true: 1, false: 0}
+	_ = M2{nil: 0, &index2: 1}
 }
 
 var key2 string = "bar"
