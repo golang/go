@@ -293,3 +293,23 @@ func TestReset(t *testing.T) {
 	}
 	t.Error(err)
 }
+
+// Test that sleeping for an interval so large it overflows does not
+// result in a short sleep duration.
+func TestOverflowSleep(t *testing.T) {
+	const timeout = 25 * Millisecond
+	const big = Duration(int64(1<<63 - 1))
+	select {
+	case <-After(big):
+		t.Fatalf("big timeout fired")
+	case <-After(timeout):
+		// OK
+	}
+	const neg = Duration(-1 << 63)
+	select {
+	case <-After(neg):
+		// OK
+	case <-After(timeout):
+		t.Fatalf("negative timeout didn't fire")
+	}
+}
