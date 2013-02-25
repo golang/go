@@ -482,6 +482,7 @@ enum
 	TypeInfo_SingleObject = 0,
 	TypeInfo_Array = 1,
 	TypeInfo_Map = 2,
+	TypeInfo_Chan = 3,
 
 	// Enables type information at the end of blocks allocated from heap	
 	DebugTypeAtBlockEnd = 0,

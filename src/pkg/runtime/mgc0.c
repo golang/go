@@ -164,6 +164,7 @@ static struct {
 enum {
 	GC_DEFAULT_PTR = GC_NUM_INSTR,
 	GC_MAP_NEXT,
+	GC_CHAN,
 };
 
 // markonly marks an object. It returns true if the object
@@ -521,6 +522,9 @@ static uintptr defaultProg[2] = {PtrSize, GC_DEFAULT_PTR};
 // Hashmap iterator program
 static uintptr mapProg[2] = {0, GC_MAP_NEXT};
 
+// Hchan program
+static uintptr chanProg[2] = {0, GC_CHAN};
+
 // Local variables of a program fragment or loop
 typedef struct Frame Frame;
 struct Frame {
@@ -560,6 +564,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	bool didmark, mapkey_kind, mapval_kind;
 	struct hash_gciter map_iter;
 	struct hash_gciter_data d;
+	Hchan *chan;
+	ChanType *chantype;
 
 	if(sizeof(Workbuf) % PageSize != 0)
 		runtime·throw("scanblock: size of Workbuf is suboptimal");
@@ -601,6 +607,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	mapkey_size = mapval_size = 0;
 	mapkey_kind = mapval_kind = false;
 	mapkey_ti = mapval_ti = 0;
+	chan = nil;
+	chantype = nil;
 
 	goto next_block;
 
@@ -659,6 +667,11 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					} else {
 						goto next_block;
 					}
+					break;
+				case TypeInfo_Chan:
+					chan = (Hchan*)b;
+					chantype = (ChanType*)t;
+					pc = chanProg;
 					break;
 				default:
 					runtime·throw("scanblock: invalid type");
@@ -896,6 +909,26 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			obj = (void*)(stack_top.b + pc[1]);
 			pc += 4;
 			break;
+
+		case GC_CHAN:
+			// There are no heap pointers in struct Hchan,
+			// so we can ignore the leading sizeof(Hchan) bytes.
+			if(!(chantype->elem->kind & KindNoPointers)) {
+				// Channel's buffer follows Hchan immediately in memory.
+				// Size of buffer (cap(c)) is second int in the chan struct.
+				n = ((uintgo*)chan)[1];
+				if(n > 0) {
+					// TODO(atom): split into two chunks so that only the
+					// in-use part of the circular buffer is scanned.
+					// (Channel routines zero the unused part, so the current
+					// code does not lead to leaks, it's just a little inefficient.)
+					*objbufpos++ = (Obj){(byte*)chan+runtime·Hchansize, n*chantype->elem->size,
+						(uintptr)chantype->elem->gc | PRECISE | LOOP};
+					if(objbufpos == objbuf_end)
+						flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+				}
+			}
+			goto next_block;
 
 		default:
 			runtime·throw("scanblock: invalid GC instruction");

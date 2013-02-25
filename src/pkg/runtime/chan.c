@@ -33,6 +33,8 @@ struct	WaitQ
 	SudoG*	last;
 };
 
+// The garbage collector is assuming that Hchan can only contain pointers into the stack
+// and cannot contain pointers into the heap.
 struct	Hchan
 {
 	uintgo	qcount;			// total data in the q
@@ -47,6 +49,8 @@ struct	Hchan
 	WaitQ	sendq;			// list of send waiters
 	Lock;
 };
+
+uint32 runtime·Hchansize = sizeof(Hchan);
 
 // Buffer follows Hchan immediately in memory.
 // chanbuf(c, i) is pointer to the i'th slot in the buffer.
@@ -112,6 +116,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	c->elemalg = elem->alg;
 	c->elemalign = elem->align;
 	c->dataqsiz = hint;
+	runtime·settype(c, (uintptr)t | TypeInfo_Chan);
 
 	if(debug)
 		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%D\n",

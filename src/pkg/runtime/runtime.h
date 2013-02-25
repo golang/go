@@ -609,6 +609,7 @@ extern	int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
 extern 	void	(*runtime·sysargs)(int32, uint8**);
 extern	uint32	runtime·maxstring;
+extern	uint32	runtime·Hchansize;
 
 /*
  * common functions and data
