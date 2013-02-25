@@ -14,11 +14,12 @@ compile(Node *fn)
 {
 	Plist *pl;
 	Node nod1, *n;
-	Prog *plocals, *ptxt;
+	Prog *plocals, *ptxt, *p, *p1;
 	int32 lno;
 	Type *t;
 	Iter save;
 	vlong oldstksize;
+	NodeList *l;
 
 	if(newproc == N) {
 		newproc = sysfunc("newproc");
@@ -92,12 +93,25 @@ compile(Node *fn)
 	for(t=curfn->paramfld; t; t=t->down)
 		gtrack(tracksym(t->type));
 
+	for(l=fn->dcl; l; l=l->next) {
+		n = l->n;
+		if(n->op != ONAME) // might be OTYPE or OLITERAL
+			continue;
+		switch(n->class) {
+		case PAUTO:
+		case PPARAM:
+		case PPARAMOUT:
+			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
+			p = gins(ATYPE, l->n, &nod1);
+			p->from.gotype = ngotype(l->n);
+			break;
+		}
+	}
+
 	genlist(curfn->enter);
 
 	retpc = nil;
 	if(hasdefer || curfn->exit) {
-		Prog *p1;
-
 		p1 = gjmp(nil);
 		retpc = gjmp(nil);
 		patch(p1, pc);

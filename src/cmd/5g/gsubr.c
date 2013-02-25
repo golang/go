@@ -192,15 +192,16 @@ gjmp(Prog *to)
 }
 
 void
-ggloblnod(Node *nam, int32 width)
+ggloblnod(Node *nam)
 {
 	Prog *p;
 
 	p = gins(AGLOBL, nam, N);
 	p->lineno = nam->lineno;
+	p->from.gotype = ngotype(nam);
 	p->to.sym = S;
 	p->to.type = D_CONST;
-	p->to.offset = width;
+	p->to.offset = nam->type->width;
 	if(nam->readonly)
 		p->reg = RODATA;
 	if(nam->type != T && !haspointers(nam->type))

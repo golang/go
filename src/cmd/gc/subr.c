@@ -3555,10 +3555,8 @@ umagic(Magic *m)
 Sym*
 ngotype(Node *n)
 {
-	if(n->sym != S && n->realtype != T)
-	if(strncmp(n->sym->name, "autotmp_", 8) != 0)
-		return typenamesym(n->realtype);
-
+	if(n->type != T)
+		return typenamesym(n->type);
 	return S;
 }
 

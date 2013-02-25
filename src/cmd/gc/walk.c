@@ -2217,6 +2217,8 @@ paramstoheap(Type **argin, int out)
 	nn = nil;
 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
 		v = t->nname;
+		if(v && v->sym && v->sym->name[0] == '~')
+			v = N;
 		if(v == N && out && hasdefer) {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.

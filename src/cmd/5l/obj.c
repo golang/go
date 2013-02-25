@@ -578,6 +578,10 @@ loop:
 		pc++;
 		break;
 
+	case ATYPE:
+		pc++;
+		goto loop;
+
 	case ATEXT:
 		if(cursym != nil && cursym->text) {
 			histtoauto();

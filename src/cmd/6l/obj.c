@@ -590,6 +590,10 @@ loop:
 		cursym->locals = p->to.offset;
 		pc++;
 		goto loop;
+	
+	case ATYPE:
+		pc++;
+		goto loop;
 
 	case ATEXT:
 		s = p->from.sym;

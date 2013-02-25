@@ -191,15 +191,16 @@ gjmp(Prog *to)
 }
 
 void
-ggloblnod(Node *nam, int32 width)
+ggloblnod(Node *nam)
 {
 	Prog *p;
 
 	p = gins(AGLOBL, nam, N);
 	p->lineno = nam->lineno;
+	p->from.gotype = ngotype(nam);
 	p->to.sym = S;
 	p->to.type = D_CONST;
-	p->to.offset = width;
+	p->to.offset = nam->type->width;
 	if(nam->readonly)
 		p->from.scale = RODATA;
 	if(nam->type != T && !haspointers(nam->type))
@@ -2260,7 +2261,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 			a->etype = simtype[n->type->etype];
 			dowidth(n->type);
 			a->width = n->type->width;
-			a->gotype = ngotype(n);
 		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;

@@ -195,6 +195,8 @@ regopt(Prog *firstp)
 		case AGLOBL:
 		case ANAME:
 		case ASIGNAME:
+		case ALOCALS:
+		case ATYPE:
 			continue;
 		}
 		r = rega();

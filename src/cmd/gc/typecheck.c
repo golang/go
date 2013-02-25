@@ -296,7 +296,6 @@ typecheck1(Node **np, int top)
 		}
 
 		typecheckdef(n);
-		n->realtype = n->type;
 		if(n->op == ONONAME)
 			goto error;
 	}

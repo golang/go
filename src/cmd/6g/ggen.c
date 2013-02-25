@@ -25,6 +25,9 @@ void
 markautoused(Prog* p)
 {
 	for (; p; p = p->link) {
+		if (p->as == ATYPE)
+			continue;
+
 		if (p->from.type == D_AUTO && p->from.node)
 			p->from.node->used = 1;
 
@@ -35,14 +38,22 @@ markautoused(Prog* p)
 
 // Fixup instructions after compactframe has moved all autos around.
 void
-fixautoused(Prog* p)
+fixautoused(Prog *p)
 {
-	for (; p; p = p->link) {
+	Prog **lp;
+
+	for (lp=&p; (p=*lp) != P; ) {
+		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
+			*lp = p->link;
+			continue;
+		}
 		if (p->from.type == D_AUTO && p->from.node)
 			p->from.offset += p->from.node->stkdelta;
 
 		if (p->to.type == D_AUTO && p->to.node)
 			p->to.offset += p->to.node->stkdelta;
+
+		lp = &p->link;
 	}
 }
 
