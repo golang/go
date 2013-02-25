@@ -65,7 +65,8 @@ autoexport(Node *n, int ctxt)
 		return;
 	if(n->ntype && n->ntype->op == OTFUNC && n->ntype->left)	// method
 		return;
-	if(exportname(n->sym->name) || initname(n->sym->name))
+	// -A is for cmd/gc/mkbuiltin script, so export everything
+	if(debug['A'] || exportname(n->sym->name) || initname(n->sym->name))
 		exportsym(n);
 }
 
