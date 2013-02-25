@@ -28,7 +28,7 @@ TEXT	·Syscall(SB),7,$0
 	SYSCALL
 	MOVQ	AX, r1+40(SP)
 	MOVQ	$0, r2+48(SP)
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE	ok3
 
 	SUBQ	$16, SP
@@ -67,7 +67,7 @@ TEXT	·Syscall6(SB),7,$0
 	SYSCALL
 	MOVQ	AX, r1+64(SP)
 	MOVQ	$0, r2+72(SP)
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE	ok4
 	
 	SUBQ	$16, SP
@@ -83,8 +83,8 @@ copyresult4:
 	LEAQ	err+80(SP), DI
 
 	CLD
-	MOVSL
-	MOVSL
+	MOVSQ
+	MOVSQ
 
 	CALL	runtime·exitsyscall(SB)
 	RET
@@ -135,9 +135,9 @@ TEXT ·seek(SB),7,$0
 	MOVQ	$SYS_SEEK, BP	// syscall entry
 	SYSCALL
 	
-	CMPQ	AX, $-1
+	CMPL	AX, $-1
 	JNE	ok6
-	MOVQ	AX, 40(SP)	// newoffset
+	MOVQ	$-1, newoffset+40(SP)
 	
 	SUBQ	$16, SP
 	CALL	syscall·errstr(SB)
