@@ -524,6 +524,23 @@ func TestTCPClose(t *testing.T) {
 	}
 }
 
+func TestErrorAfterClientClose(t *testing.T) {
+	once.Do(startServer)
+
+	client, err := dialHTTP()
+	if err != nil {
+		t.Fatalf("dialing: %v", err)
+	}
+	err = client.Close()
+	if err != nil {
+		t.Fatal("close error:", err)
+	}
+	err = client.Call("Arith.Add", &Args{7, 9}, new(Reply))
+	if err != ErrShutdown {
+		t.Errorf("Forever: expected ErrShutdown got %v", err)
+	}
+}
+
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	b.StopTimer()
 	once.Do(startServer)
