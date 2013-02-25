@@ -2354,13 +2354,12 @@ typecheckcomplit(Node **np)
 			yyerror("invalid pointer type %T for composite literal (use &%T instead)", t, t->type);
 			goto error;
 		}
-		
 		// Also, the underlying type must be a struct, map, slice, or array.
 		if(!iscomptype(t)) {
 			yyerror("invalid pointer type %T for composite literal", t);
 			goto error;
 		}
-		t = t->type;		
+		t = t->type;
 	}
 
 	switch(t->etype) {
@@ -2414,6 +2413,9 @@ typecheckcomplit(Node **np)
 		if(t->bound < 0)
 			n->right = nodintconst(len);
 		n->op = OARRAYLIT;
+		// restore implicitness.
+		if(isptr[n->type->etype])
+			n->right->implicit = 1;
 		break;
 
 	case TMAP:
