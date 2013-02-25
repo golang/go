@@ -305,6 +305,35 @@ func main() {
 		assert(false, "i should be true")
 	}
 
+	// switch on interface with constant cases differing by type.
+	// was rejected by compiler: see issue 4781
+	type T int
+	type B bool
+	type F float64
+	type S string
+	switch i := interface{}(float64(1.0)); i {
+	case nil:
+		assert(false, "i should be float64(1.0)")
+	case (*int)(nil):
+		assert(false, "i should be float64(1.0)")
+	case 1:
+		assert(false, "i should be float64(1.0)")
+	case T(1):
+		assert(false, "i should be float64(1.0)")
+	case F(1.0):
+		assert(false, "i should be float64(1.0)")
+	case 1.0:
+		assert(true, "true")
+	case "hello":
+		assert(false, "i should be float64(1.0)")
+	case S("hello"):
+		assert(false, "i should be float64(1.0)")
+	case true, B(false):
+		assert(false, "i should be float64(1.0)")
+	case false, B(true):
+		assert(false, "i should be float64(1.0)")
+	}
+
 	// switch on array.
 	switch ar := [3]int{1, 2, 3}; ar {
 	case [3]int{1, 2, 3}:
