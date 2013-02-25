@@ -695,7 +695,6 @@ typedef	struct	Var	Var;
 struct	Var
 {
 	vlong	offset;
-	Sym*	gotype;
 	Node*	node;
 	int	width;
 	char	name;
