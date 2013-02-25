@@ -139,8 +139,9 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
 	return append(dst, QuoteRuneToASCII(r)...)
 }
 
-// CanBackquote returns whether the string s would be
-// a valid Go string literal if enclosed in backquotes.
+// CanBackquote reports whether the string s can be represented
+// unchanged as a single-line backquoted string without control
+// characters other than space and tab.
 func CanBackquote(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if (s[i] < ' ' && s[i] != '\t') || s[i] == '`' {
