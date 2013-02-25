@@ -348,7 +348,7 @@ func TestGobEncoderFieldsOfDifferentType(t *testing.T) {
 		t.Fatal("decode error:", err)
 	}
 	if y.G.s != "XYZ" {
-		t.Fatalf("expected `XYZ` got %c", y.G.s)
+		t.Fatalf("expected `XYZ` got %q", y.G.s)
 	}
 }
 

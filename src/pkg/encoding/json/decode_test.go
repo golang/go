@@ -1158,7 +1158,7 @@ type Time3339 time.Time
 
 func (t *Time3339) UnmarshalJSON(b []byte) error {
 	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
-		return fmt.Errorf("types: failed to unmarshal non-string value %q as an RFC 3339 time")
+		return fmt.Errorf("types: failed to unmarshal non-string value %q as an RFC 3339 time", b)
 	}
 	tm, err := time.Parse(time.RFC3339, string(b[1:len(b)-1]))
 	if err != nil {
