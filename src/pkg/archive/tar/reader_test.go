@@ -338,7 +338,7 @@ func TestParsePAXTime(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !ts.Equal(expected) {
-			t.Fatal("Time parsing failure %s %s", ts, expected)
+			t.Fatalf("Time parsing failure %s %s", ts, expected)
 		}
 	}
 }

@@ -262,7 +262,7 @@ func TestNewRequestContentLength(t *testing.T) {
 			t.Fatal(err)
 		}
 		if req.ContentLength != tt.want {
-			t.Errorf("ContentLength(%#T) = %d; want %d", tt.r, req.ContentLength, tt.want)
+			t.Errorf("ContentLength(%T) = %d; want %d", tt.r, req.ContentLength, tt.want)
 		}
 	}
 }
