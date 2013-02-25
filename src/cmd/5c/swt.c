@@ -601,7 +601,8 @@ zaddr(char *bp, Adr *a, int s)
 	bp[1] = a->reg;
 	bp[2] = s;
 	bp[3] = a->name;
-	bp += 4;
+	bp[4] = 0;
+	bp += 5;
 	switch(a->type) {
 	default:
 		diag(Z, "unknown type %d in zaddr", a->type);

@@ -1214,6 +1214,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	a->type = D_NONE;
 	a->name = D_NONE;
 	a->reg = NREG;
+	a->gotype = S;
 	a->node = N;
 	a->etype = 0;
 	if(n == N)

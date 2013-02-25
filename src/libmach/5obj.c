@@ -42,6 +42,7 @@ struct Addr
 	char	type;
 	char	sym;
 	char	name;
+	char	gotype;
 };
 static Addr addr(Biobuf*);
 static char type2char(int);
@@ -115,6 +116,7 @@ addr(Biobuf *bp)
 	skip(bp,1);		/* reg */
 	a.sym = Bgetc(bp);	/* sym index */
 	a.name = Bgetc(bp);	/* sym type */
+	a.gotype = Bgetc(bp);	/* go type */
 	switch(a.type){
 	default:
 	case D_NONE:
