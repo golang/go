@@ -544,10 +544,11 @@ can't be loaded the only sensible thing to do is exit the program.
 </p>
 
 <p>
-A <code>for</code> loop is used with a <code>range</code> statement
-to iterate over an array constant containing the names of the templates we want
-parsed. If we were to add more templates to our program, we would add their
-names to that array.
+The <code>ParseFiles</code> function takes any number of string arguments that
+identify our template files, and parses those files into templates that are
+named after the base file name. If we were to add more templates to our
+program, we would add their names to the <code>ParseFiles</code> call's
+arguments.
 </p>
 
 <p>
