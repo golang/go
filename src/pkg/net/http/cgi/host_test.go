@@ -19,7 +19,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -340,11 +339,7 @@ func TestCopyError(t *testing.T) {
 	}
 
 	childRunning := func() bool {
-		p, err := os.FindProcess(pid)
-		if err != nil {
-			return false
-		}
-		return p.Signal(syscall.Signal(0)) == nil
+		return isProcessRunning(t, pid)
 	}
 
 	if !childRunning() {
