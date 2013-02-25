@@ -833,6 +833,7 @@ buildop(void)
 		case ALOCALS:
 		case ACASE:
 		case ABCASE:
+		case ATYPE:
 			break;
 		case AADDF:
 			oprange[AADDD] = oprange[r];

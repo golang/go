@@ -723,12 +723,15 @@ typefmt(Fmt *fp, Type *t)
 		if(!(fp->flags&FmtShort)) {
 			s = t->sym;
 
-			// Take the name from the original, lest we substituted it with .anon%d
-			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N)
-				if(t->nname->orig != N)
+			// Take the name from the original, lest we substituted it with ~anon%d
+			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N) {
+				if(t->nname->orig != N) {
 					s = t->nname->orig->sym;
-				else 
+					if(s != S && s->name[0] == '~')
+						s = S;
+				} else 
 					s = S;
+			}
 			
 			if(s != S && !t->embedded) {
 				if(t->funarg)

@@ -640,8 +640,7 @@ funcargs(Node *nt)
 			// give it a name so escape analysis has nodes to work with
 			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
 			n->left = newname(lookup(namebuf));
-			n->left->orig = N;  // signal that the original was absent
-
+			// TODO: n->left->missing = 1;
 		} 
 
 		n->left->op = ONAME;
@@ -815,7 +814,7 @@ structfield(Node *n)
 		break;
 	}
 
-	if(n->left && n->left->op == ONAME && n->left->orig != N) {
+	if(n->left && n->left->op == ONAME) {
 		f->nname = n->left;
 		f->embedded = n->embedded;
 		f->sym = f->nname->sym;
@@ -1177,6 +1176,7 @@ functype(Node *this, NodeList *in, NodeList *out)
 {
 	Type *t;
 	NodeList *rcvr;
+	Sym *s;
 
 	t = typ(TFUNC);
 
@@ -1194,7 +1194,12 @@ functype(Node *this, NodeList *in, NodeList *out)
 		t->thistuple = 1;
 	t->outtuple = count(out);
 	t->intuple = count(in);
-	t->outnamed = t->outtuple > 0 && out->n->left != N && out->n->left->orig != N;
+	t->outnamed = 0;
+	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
+		s = out->n->left->orig->sym;
+		if(s != S && s->name[0] != '~')
+			t->outnamed = 1;
+	}
 
 	return t;
 }

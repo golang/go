@@ -569,6 +569,7 @@ enum	as
 	
 	AUSEFIELD,
 	ALOCALS,
+	ATYPE,
 
 	ALAST
 };
