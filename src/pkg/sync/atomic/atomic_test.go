@@ -1119,7 +1119,7 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float32(i) {
-						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
+						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
 					}
 				}
 			}
@@ -1167,7 +1167,7 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 					d1 := X.data1
 					d2 := X.data2
 					if d1 != i || d2 != float64(i) {
-						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
+						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
 					}
 				}
 			}
