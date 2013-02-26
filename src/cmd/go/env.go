@@ -34,18 +34,22 @@ func mkEnv() []envVar {
 	b.init()
 
 	env := []envVar{
-		{"CC", b.gccCmd(".")[0]},
 		{"GOARCH", goarch},
 		{"GOBIN", gobin},
 		{"GOCHAR", archChar},
 		{"GOEXE", exeSuffix},
-		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
 		{"GOHOSTARCH", runtime.GOARCH},
 		{"GOHOSTOS", runtime.GOOS},
 		{"GOOS", goos},
 		{"GOPATH", os.Getenv("GOPATH")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
+	}
+
+	if goos != "plan9" {
+		cmd := b.gccCmd(".")
+		env = append(env, envVar{"CC", cmd[0]})
+		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
 	}
 
 	if buildContext.CgoEnabled {
