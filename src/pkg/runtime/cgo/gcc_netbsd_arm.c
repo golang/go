@@ -20,7 +20,10 @@ static void *threadentry(void*);
 void __aeabi_read_tp(void) __attribute__((naked));
 void cgo_tls_set_gm(void) __attribute__((naked));
 void cgo_tls_get_gm(void) __attribute__((naked));
-void __aeabi_read_tp(void) {
+
+void
+__aeabi_read_tp(void)
+{
 	// this function is only allowed to clobber r0
 	__asm__ __volatile__ (
 		"mrc p15, 0, r0, c13, c0, 3\n\t"
@@ -32,8 +35,11 @@ void __aeabi_read_tp(void) {
 		"mov pc, lr\n\t"
 	);
 }
+
 // g (R10) at 8(TP), m (R9) at 12(TP)
-void cgo_tls_get_gm(void) {
+void
+cgo_tls_get_gm(void)
+{
 	__asm__ __volatile__ (
 		"push {lr}\n\t"
 		"bl __aeabi_read_tp\n\t"
@@ -42,7 +48,10 @@ void cgo_tls_get_gm(void) {
 		"pop {pc}\n\t"
 	);
 }
-void cgo_tls_set_gm(void) {
+
+void
+cgo_tls_set_gm(void)
+{
 	__asm__ __volatile__ (
 		"push {lr}\n\t"
 		"bl __aeabi_read_tp\n\t"
@@ -51,6 +60,7 @@ void cgo_tls_set_gm(void) {
 		"pop {pc}\n\t"
 	);
 }
+
 // both cgo_tls_{get,set}_gm can be called from runtime
 void (*cgo_load_gm)(void) = cgo_tls_get_gm;
 void (*cgo_save_gm)(void) = cgo_tls_set_gm;

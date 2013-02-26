@@ -852,7 +852,8 @@ xprintf(char *fmt, ...)
 }
 
 void
-errprintf(char *fmt, ...) {
+errprintf(char *fmt, ...)
+{
 	va_list arg;
 	char *p;
 	DWORD n, w;

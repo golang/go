@@ -172,7 +172,8 @@ amd64_uregPC(void)
 }
 
 uvlong
-amd64_uregSP(void) {
+amd64_uregSP(void)
+{
 	return ureg_amd64.sp;
 }
 

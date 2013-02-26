@@ -591,7 +591,8 @@ lookup(char *fn, char *var, Symbol *s)
  * strcmp, but allow '_' to match center dot (rune 00b7 == bytes c2 b7)
  */
 int
-cdotstrcmp(char *sym, char *user) {
+cdotstrcmp(char *sym, char *user)
+{
 	for (;;) {
 		while (*sym == *user) {
 			if (*sym++ == '\0')

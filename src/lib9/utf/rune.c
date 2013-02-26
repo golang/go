@@ -247,7 +247,8 @@ bad:
 }
 
 int
-isvalidcharntorune(const char* str, int length, Rune* rune, int* consumed) {
+isvalidcharntorune(const char* str, int length, Rune* rune, int* consumed)
+{
 	*consumed = charntorune(rune, str, length);
 	return *rune != Runeerror || *consumed == 3;
 }

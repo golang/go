@@ -5,22 +5,26 @@
 #include <u.h>
 #include <libc.h>
 
-int fork()
+int
+fork(void)
 {
 	return -1;
 }
 
-int p9rfork(int flags)
+int
+p9rfork(int flags)
 {
 	return -1;
 }
 
-Waitmsg *p9wait()
+Waitmsg*
+p9wait(void)
 {
 	return 0;
 }
 
-int p9waitpid()
+int
+p9waitpid(void)
 {
 	return -1;
 }
