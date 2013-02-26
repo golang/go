@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
+func (check *checker) declareObj(scope, altScope *Scope, obj Object, dotImport token.Pos) {
 	alt := scope.Insert(obj)
 	if alt == nil && altScope != nil {
 		// see if there is a conflicting declaration in altScope
@@ -19,8 +19,22 @@ func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
 	}
 	if alt != nil {
 		prevDecl := ""
+
+		// for dot-imports, local declarations are declared first - swap messages
+		if dotImport.IsValid() {
+			if pos := alt.GetPos(); pos.IsValid() {
+				check.errorf(pos, fmt.Sprintf("%s redeclared in this block by dot-import at %s",
+					obj.GetName(), check.fset.Position(dotImport)))
+				return
+			}
+
+			// get by w/o other position
+			check.errorf(dotImport, fmt.Sprintf("dot-import redeclares %s", obj.GetName()))
+			return
+		}
+
 		if pos := alt.GetPos(); pos.IsValid() {
-			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
+			prevDecl = fmt.Sprintf("\n\tother declaration at %s", check.fset.Position(pos))
 		}
 		check.errorf(obj.GetPos(), fmt.Sprintf("%s redeclared in this block%s", obj.GetName(), prevDecl))
 	}
@@ -137,7 +151,12 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 			if name == "." {
 				// merge imported scope with file scope
 				for _, obj := range imp.Scope.Entries {
-					check.declareObj(fileScope, pkg.Scope, obj)
+					// gcimported package scopes contain non-exported
+					// objects such as types used in partially exported
+					// objects - do not accept them
+					if ast.IsExported(obj.GetName()) {
+						check.declareObj(fileScope, pkg.Scope, obj, spec.Pos())
+					}
 				}
 				// TODO(gri) consider registering the "." identifier
 				// if we have Context.Ident callbacks for say blank
@@ -149,7 +168,7 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 				// a new object instead; the Decl field is different
 				// for different files)
 				obj := &Package{Name: name, Scope: imp.Scope, spec: spec}
-				check.declareObj(fileScope, pkg.Scope, obj)
+				check.declareObj(fileScope, pkg.Scope, obj, token.NoPos)
 			}
 		}
 

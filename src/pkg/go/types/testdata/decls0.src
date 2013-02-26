@@ -11,7 +11,17 @@ import (
 	// we can have multiple blank imports (was bug)
 	_ "math"
 	_ "net/rpc"
+	// reflect defines a type "flag" which shows up in the gc export data
+	"reflect"
+	. "reflect"
 )
+
+// reflect.flag must not be visible in this package
+type flag int
+type _ reflect /* ERROR "cannot refer to unexported" */ .flag
+
+// dot-imported exported objects may conflict with local objects
+type Value /* ERROR "redeclared in this block by dot-import" */ struct{}
 
 const pi = 3.1415
 

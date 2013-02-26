@@ -89,7 +89,13 @@ func (obj *TypeName) GetType() Type { return obj.Type }
 func (obj *Var) GetType() Type      { return obj.Type }
 func (obj *Func) GetType() Type     { return obj.Type }
 
-func (obj *Package) GetPos() token.Pos { return obj.spec.Pos() }
+func (obj *Package) GetPos() token.Pos {
+	if obj.spec != nil {
+		return obj.spec.Pos()
+	}
+	return token.NoPos
+}
+
 func (obj *Const) GetPos() token.Pos {
 	for _, n := range obj.spec.Names {
 		if n.Name == obj.Name {
@@ -98,7 +104,13 @@ func (obj *Const) GetPos() token.Pos {
 	}
 	return token.NoPos
 }
-func (obj *TypeName) GetPos() token.Pos { return obj.spec.Pos() }
+func (obj *TypeName) GetPos() token.Pos {
+	if obj.spec != nil {
+		return obj.spec.Pos()
+	}
+	return token.NoPos
+}
+
 func (obj *Var) GetPos() token.Pos {
 	switch d := obj.decl.(type) {
 	case *ast.Field:
@@ -122,7 +134,12 @@ func (obj *Var) GetPos() token.Pos {
 	}
 	return token.NoPos
 }
-func (obj *Func) GetPos() token.Pos { return obj.decl.Name.Pos() }
+func (obj *Func) GetPos() token.Pos {
+	if obj.decl != nil && obj.decl.Name != nil {
+		return obj.decl.Name.Pos()
+	}
+	return token.NoPos
+}
 
 func (*Package) anObject()  {}
 func (*Const) anObject()    {}
