@@ -276,6 +276,9 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 					return
 				}
 			}
+			if f.pkg == nil { // Nothing more to do.
+				return
+			}
 			// Verb is good. If nargs>1, we have something like %.*s and all but the final
 			// arg must be integer.
 			for i := 0; i < nargs-1; i++ {
@@ -285,8 +288,13 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 			}
 			for _, v := range printVerbs {
 				if v.verb == verb {
-					if !f.matchArgType(v.typ, call.Args[argNum+nargs-1]) {
-						f.Badf(call.Pos(), "arg for printf verb %%%c of wrong type", verb)
+					arg := call.Args[argNum+nargs-1]
+					if !f.matchArgType(v.typ, arg) {
+						typeString := ""
+						if typ := f.pkg.types[arg]; typ != nil {
+							typeString = typ.String()
+						}
+						f.Badf(call.Pos(), "arg for printf verb %%%c of wrong type: %s", verb, typeString)
 					}
 					break
 				}
@@ -298,9 +306,6 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 }
 
 func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
-	if f.pkg == nil {
-		return true // Don't know; assume OK.
-	}
 	// TODO: for now, we can only test builtin types and untyped constants.
 	typ := f.pkg.types[arg]
 	if typ == nil {
@@ -322,7 +327,7 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 	case types.String:
 		return t&argString != 0
 	case types.UnsafePointer:
-		return t&argPointer != 0
+		return t&(argPointer|argInt) != 0
 	case types.UntypedBool:
 		return t&argBool != 0
 	case types.UntypedComplex:

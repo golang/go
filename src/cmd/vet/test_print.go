@@ -14,8 +14,8 @@ import (
 )
 
 func UnsafePointerPrintfTest() {
-	var up *unsafe.Pointer
-	fmt.Printf("%p", up)
+	var up unsafe.Pointer
+	fmt.Printf("%p, %x %X", up, up, up)
 }
 
 // Error methods that do not satisfy the Error interface and should be checked.
