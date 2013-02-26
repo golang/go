@@ -104,6 +104,12 @@ TEXT runtime·plan9_semrelease(SB),7,$0
 	SYSCALL
 	RET
 
+TEXT runtime·nanotime(SB),7,$0
+	MOVQ	$0x8000, AX
+	MOVQ	$60, BP
+	SYSCALL
+	RET
+
 TEXT runtime·rfork(SB),7,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$19, BP // rfork

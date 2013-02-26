@@ -44,4 +44,5 @@ const (
 	SYS_AWAIT      = 47
 	SYS_PREAD      = 50
 	SYS_PWRITE     = 51
+	SYS_NANOTIME   = 60
 )
