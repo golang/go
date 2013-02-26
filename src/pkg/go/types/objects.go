@@ -169,9 +169,11 @@ func newObj(pkg *Package, astObj *ast.Object) Object {
 		return &TypeName{Pkg: pkg, Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
 	case ast.Var:
 		switch astObj.Decl.(type) {
-		case *ast.Field, *ast.ValueSpec, *ast.AssignStmt: // these are ok
+		case *ast.Field: // function parameters
+		case *ast.ValueSpec: // proper variable declarations
+		case *ast.AssignStmt: // short variable declarations
 		default:
-			unreachable()
+			unreachable() // everything else is not ok
 		}
 		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
 	case ast.Fun:

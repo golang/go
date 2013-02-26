@@ -31,7 +31,7 @@ var (
 	printAST      = flag.Bool("ast", false, "print AST")
 )
 
-var exitCode = 0
+var errorCount int
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gotype [flags] [path ...]\n")
@@ -41,7 +41,11 @@ func usage() {
 
 func report(err error) {
 	scanner.PrintError(os.Stderr, err)
-	exitCode = 2
+	if list, ok := err.(scanner.ErrorList); ok {
+		errorCount += len(list)
+		return
+	}
+	errorCount++
 }
 
 // parse returns the AST for the Go source src.
@@ -163,10 +167,25 @@ func processFiles(filenames []string, allFiles bool) {
 }
 
 func processPackage(fset *token.FileSet, files []*ast.File) {
-	_, err := types.Check(fset, files)
-	if err != nil {
-		report(err)
+	type bailout struct{}
+	ctxt := types.Context{
+		Error: func(err error) {
+			if !*allErrors && errorCount >= 10 {
+				panic(bailout{})
+			}
+			report(err)
+		},
 	}
+
+	defer func() {
+		switch err := recover().(type) {
+		case nil, bailout:
+		default:
+			panic(err)
+		}
+	}()
+
+	ctxt.Check(fset, files)
 }
 
 func main() {
@@ -180,5 +199,7 @@ func main() {
 		processFiles(flag.Args(), true)
 	}
 
-	os.Exit(exitCode)
+	if errorCount > 0 {
+		os.Exit(2)
+	}
 }
