@@ -3,24 +3,37 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-eval `{go tool dist env -9}
+rfork e
+
+eval `{go env}
+
+GOPATH = () # we disallow local import for non-local packges, if $GOROOT happens
+            # to be under $GOPATH, then some tests below will fail
 
 # allow all.rc to avoid double-build of everything
 rebuild = true
 if(~ $1 --no-rebuild)
 	shift
 if not {
+	# Run only one process at a time on 9vx.
+	if(~ $sysname vx32)
+		pflag = (-p 1)
 	echo '# Building packages and commands.'
-	time go install -a -v -p 1 std
+	time go install -a -v $pflag std
 	echo
 }
+
+# we must unset GOROOT_FINAL before tests, because runtime/debug requires
+# correct access to source code, so if we have GOROOT_FINAL in effect,
+# at least runtime/debug test will fail.
+GOROOT_FINAL = ()
 
 echo '# Testing packages.'
 time go test std -short -timeout 120s
 echo
 
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
-GOMAXPROCS=2 go test runtime -short -timeout 120s -cpu 1,2,4
+GOMAXPROCS=2 go test runtime -short -timeout 240s -cpu 1,2,4
 echo
 
 echo '# sync -cpu=10'

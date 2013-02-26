@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+rfork n
+
 if(! test -f make.rc){
 	echo 'all.rc must be run from $GOROOT/src' >[1=2]
 	exit wrongdir

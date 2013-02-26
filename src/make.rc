@@ -23,17 +23,21 @@
 # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
 # building the commands.
 #
-# CGO_ENABLED: Setting this to 0 disables the use of cgo
-# in the built and installed packages and tools.
+# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
+# building.
+#
+# CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+# to include all cgo related files, .c and .go file with "cgo"
+# build directive, in the build. Set it to 0 to ignore them.
 
 rfork e
-if(! test -f run.bash){
+if(! test -f run.rc){
 	echo 'make.rc must be run from $GOROOT/src' >[1=2]
 	exit wrongdir
 }
 
 # Clean old generated file that will cause problems in the build.
-rm -rf ./pkg/runtime/runtime_defs.go
+rm -f ./pkg/runtime/runtime_defs.go
 
 # Determine the host compiler toolchain.
 eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
@@ -72,17 +76,19 @@ mv cmd/dist/dist $GOTOOLDIR/dist
 $GOTOOLDIR/go_bootstrap clean -i std
 echo
 
-# TODO(ality): remove the -p flag once the exec/await/RFNOTEG race is fixed.
+# Run only one process at a time on 9vx.
+if(~ $sysname vx32)
+	pflag = (-p 1)
 
 if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
 	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
+		$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
 	echo
 }
 
 echo '# Building packages and commands for' $GOOS/$GOARCH^.
-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
+$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
 echo
 
 rm -f $GOTOOLDIR/go_bootstrap
