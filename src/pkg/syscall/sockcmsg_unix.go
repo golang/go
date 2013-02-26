@@ -37,7 +37,7 @@ func CmsgSpace(datalen int) int {
 }
 
 func cmsgData(h *Cmsghdr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + SizeofCmsghdr)
+	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
 }
 
 // SocketControlMessage represents a socket control message.
