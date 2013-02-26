@@ -421,9 +421,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 	// resolve identifiers
 	imp := ctxt.Import
 	if imp == nil {
-		imp = func(imports map[string]*Package, path string) (pkg *Package, err error) {
-			return GcImport(ctxt, imports, path)
-		}
+		imp = GcImport
 	}
 	methods := check.resolve(imp)
 

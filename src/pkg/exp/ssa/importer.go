@@ -45,7 +45,7 @@ func (b *Builder) doImport(imports map[string]*types.Package, path string) (typk
 	}
 	var files []*ast.File
 	if b.mode&UseGCImporter != 0 {
-		typkg, err = types.GcImport(&b.typechecker, imports, path)
+		typkg, err = types.GcImport(imports, path)
 	} else {
 		files, err = b.loader(b.Prog.Files, path)
 		if err == nil {

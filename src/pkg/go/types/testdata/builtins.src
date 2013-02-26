@@ -270,13 +270,24 @@ func _recover() {
 }
 
 // assuming types.DefaultPtrSize == 8
-type S struct{       // offset
+type S0 struct{      // offset
 	a bool       //  0
 	b rune       //  4
 	c *int       //  8
 	d bool       // 16
 	e complex128 // 24
 }                    // 40
+
+type S1 struct{   // offset
+	x float32 //  0
+	y string  //  8
+	z *S1     // 24
+	S0        // 32
+}                 // 72
+
+type S2 struct{ // offset
+	*S1     //  0
+}               //  8
 
 func _Alignof() {
 	var x int
@@ -287,7 +298,7 @@ func _Alignof() {
 	_ = unsafe.Alignof(new(struct{}))
 	unsafe /* ERROR "not used" */ .Alignof(x)
 
-	var y S
+	var y S0
 	assert(unsafe.Alignof(y.a) == 1)
 	assert(unsafe.Alignof(y.b) == 4)
 	assert(unsafe.Alignof(y.c) == 8)
@@ -306,12 +317,29 @@ func _Offsetof() {
 	_ = unsafe.Offsetof((((((((x))).f)))))
 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
 
-	var y S
-	assert(unsafe.Offsetof(y.a) == 0)
-	assert(unsafe.Offsetof(y.b) == 4)
-	assert(unsafe.Offsetof(y.c) == 8)
-	assert(unsafe.Offsetof(y.d) == 16)
-	assert(unsafe.Offsetof(y.e) == 24)
+	var y0 S0
+	assert(unsafe.Offsetof(y0.a) == 0)
+	assert(unsafe.Offsetof(y0.b) == 4)
+	assert(unsafe.Offsetof(y0.c) == 8)
+	assert(unsafe.Offsetof(y0.d) == 16)
+	assert(unsafe.Offsetof(y0.e) == 24)
+
+	var y1 S1
+	assert(unsafe.Offsetof(y1.x) == 0)
+	assert(unsafe.Offsetof(y1.y) == 8)
+	assert(unsafe.Offsetof(y1.z) == 24)
+	assert(unsafe.Offsetof(y1.S0) == 32)
+
+	assert(unsafe.Offsetof(y1.S0.a) == 0) // relative to S0
+	assert(unsafe.Offsetof(y1.a) == 32)   // relative to S1
+	assert(unsafe.Offsetof(y1.b) == 36)   // relative to S1
+	assert(unsafe.Offsetof(y1.c) == 40)   // relative to S1
+	assert(unsafe.Offsetof(y1.d) == 48)   // relative to S1
+	assert(unsafe.Offsetof(y1.e) == 56)   // relative to S1
+
+	var y2 S2
+	assert(unsafe.Offsetof(y2.S1) == 0)
+	_ = unsafe.Offsetof(y2 /* ERROR "embedded via pointer" */ .x)
 }
 
 func _Sizeof() {
@@ -338,13 +366,19 @@ func _Sizeof() {
 	assert(unsafe.Sizeof(complex64(0)) == 8)
 	assert(unsafe.Sizeof(complex128(0)) == 16)
 
-	var y S
-	assert(unsafe.Sizeof(y.a) == 1)
-	assert(unsafe.Sizeof(y.b) == 4)
-	assert(unsafe.Sizeof(y.c) == 8)
-	assert(unsafe.Sizeof(y.d) == 1)
-	assert(unsafe.Sizeof(y.e) == 16)
-	assert(unsafe.Sizeof(y) == 40)
+	var y0 S0
+	assert(unsafe.Sizeof(y0.a) == 1)
+	assert(unsafe.Sizeof(y0.b) == 4)
+	assert(unsafe.Sizeof(y0.c) == 8)
+	assert(unsafe.Sizeof(y0.d) == 1)
+	assert(unsafe.Sizeof(y0.e) == 16)
+	assert(unsafe.Sizeof(y0) == 40)
+
+	var y1 S1
+	assert(unsafe.Sizeof(y1) == 72)
+
+	var y2 S2
+	assert(unsafe.Sizeof(y2) == 8)
 }
 
 // self-testing only

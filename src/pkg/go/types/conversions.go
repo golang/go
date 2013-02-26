@@ -33,7 +33,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 		// TODO(gri) implement this
 	} else {
 		// non-constant conversion
-		if !x.isConvertible(typ) {
+		if !x.isConvertible(check.ctxt, typ) {
 			check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
 			goto Error
 		}
@@ -49,9 +49,9 @@ Error:
 	x.mode = invalid
 }
 
-func (x *operand) isConvertible(T Type) bool {
+func (x *operand) isConvertible(ctxt *Context, T Type) bool {
 	// "x is assignable to T"
-	if x.isAssignable(T) {
+	if x.isAssignable(ctxt, T) {
 		return true
 	}
 

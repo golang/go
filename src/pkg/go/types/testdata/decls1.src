@@ -88,8 +88,8 @@ var (
 	v4 = r + 2147483647
 	v5 = r + 2147483648 /* ERROR "overflows" */
 	v6 = 42
-	v7 = v6 + 2147483647
-	v8 = v6 + 2147483648 /* ERROR "overflows" */
+	v7 = v6 + 9223372036854775807
+	v8 = v6 + 9223372036854775808 /* ERROR "overflows" */
 	v9 = i + 1 << 10
 	v10 byte = 1024 /* ERROR "overflows" */
 	v11 = xx/yy*yy - xx

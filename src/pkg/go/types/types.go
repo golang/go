@@ -116,20 +116,18 @@ type Field struct {
 	QualifiedName
 	Type        Type
 	Tag         string
-	Offset      int64 // offset within struct, in bytes
 	IsAnonymous bool
 }
 
 // A Struct represents a struct type struct{...}.
 type Struct struct {
-	Fields    []*Field
-	Alignment int64 // struct alignment in bytes
-	Size      int64 // struct size in bytes
+	Fields  []*Field
+	offsets []int64 // field offsets in bytes, lazily computed
 }
 
-func (typ *Struct) fieldIndex(name string) int {
+func (typ *Struct) fieldIndex(name QualifiedName) int {
 	for i, f := range typ.Fields {
-		if f.Name == name {
+		if f.QualifiedName.IsSame(name) {
 			return i
 		}
 	}

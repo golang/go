@@ -54,18 +54,21 @@ type Context struct {
 	// Otherwise, GcImporter is called.
 	Import Importer
 
-	// If Alignof != nil, it is called to determine alignment.
-	// Otherwise DefaultAlignmentof is called.
-	// Alignof must return a size > 0, in bytes. It is not called
-	// for arrays and structs (those alignments are based on the
-	// alignment of the array elements or struct fields, respectively).
+	// If Alignof != nil, it is called to determine the alignment
+	// of the given type. Otherwise DefaultAlignmentof is called.
+	// Alignof must implement the alignment guarantees required by
+	// the spec.
 	Alignof func(Type) int64
 
-	// If Sizeof != nil, it is called to determine sizes of types.
-	// Otherwise, DefaultSizeof is called.
-	// Sizeof must return a size >= 0, in bytes. It is not called
-	// for arrays and structs (those sizes are based on the sizes
-	// of the array elements or struct fields, respectively).
+	// If Offsetsof != nil, it is called to determine the offsets
+	// of the given struct fields, in bytes. Otherwise DefaultOffsetsof
+	// is called. Offsetsof must implement the offset guarantees
+	// required by the spec.
+	Offsetsof func(fields []*Field) []int64
+
+	// If Sizeof != nil, it is called to determine the size of the
+	// given type. Otherwise, DefaultSizeof is called. Sizeof must
+	// implement the size guarantees required by the spec.
 	Sizeof func(Type) int64
 }
 

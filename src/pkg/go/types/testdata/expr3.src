@@ -128,6 +128,16 @@ func indexes() {
 	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
 
 	_ = s[1<<30] // no compile-time error here
+
+	// issue 4913
+	type mystring string
+	var ss string
+	var ms mystring
+	var i, j int
+	ss = "foo"[1:2]
+	ss = "foo"[i:j]
+	ms = "foo" /* ERROR "cannot assign" */ [1:2]
+	ms = "foo" /* ERROR "cannot assign" */ [i:j]
 }
 
 type T struct {

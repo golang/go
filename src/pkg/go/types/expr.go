@@ -135,7 +135,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 	var typ Type   // current field typ
 	var tag string // current field tag
 	add := func(name string, isAnonymous bool) {
-		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, 0, isAnonymous})
+		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, isAnonymous})
 	}
 
 	for _, f := range list.List {
@@ -162,29 +162,6 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
 	}
 
 	return
-}
-
-// align returns the smallest y >= x such that y % a == 0.
-func align(x, a int64) int64 {
-	y := x + a - 1
-	return y - y%a
-}
-
-func (ctxt *Context) newStruct(fields []*Field) *Struct {
-	// spec: "For a variable x of struct type: unsafe.Alignof(x) is the largest of
-	// of the values unsafe.Alignof(x.f) for each field f of x, but at least 1."
-	maxAlign := int64(1)
-	var offset int64
-	for _, f := range fields {
-		a := ctxt.alignof(f.Type)
-		if a > maxAlign {
-			maxAlign = a
-		}
-		offset = align(offset, a)
-		f.Offset = offset
-		offset += ctxt.sizeof(f.Type)
-	}
-	return &Struct{fields, maxAlign, offset}
 }
 
 type opPredicates map[token.Token]func(Type) bool
@@ -245,7 +222,7 @@ func (check *checker) unary(x *operand, op token.Token) {
 
 	if x.mode == constant {
 		typ := underlying(x.typ).(*Basic)
-		x.val = unaryOpConst(x.val, op, typ)
+		x.val = unaryOpConst(x.val, check.ctxt, op, typ)
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		check.isRepresentable(x, typ)
@@ -279,7 +256,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 		return
 	}
 
-	if !isRepresentableConst(x.val, typ.Kind) {
+	if !isRepresentableConst(x.val, check.ctxt, typ.Kind) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			msg = "%s overflows %s"
@@ -342,7 +319,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 	// TODO(gri) deal with interface vs non-interface comparison
 
 	valid := false
-	if x.isAssignable(y.typ) || y.isAssignable(x.typ) {
+	if x.isAssignable(check.ctxt, y.typ) || y.isAssignable(check.ctxt, x.typ) {
 		switch op {
 		case token.EQL, token.NEQ:
 			valid = isComparable(x.typ) ||
@@ -378,7 +355,7 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
 	switch {
 	case isInteger(y.typ) && isUnsigned(y.typ):
 		// nothing to do
-	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, UntypedInt):
+	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, check.ctxt, UntypedInt):
 		y.typ = Typ[UntypedInt]
 	default:
 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
@@ -397,7 +374,7 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
 			// constant shift - accept values of any (untyped) type
 			// as long as the value is representable as an integer
 			if x.mode == constant && isUntyped(x.typ) {
-				if isRepresentableConst(x.val, UntypedInt) {
+				if isRepresentableConst(x.val, check.ctxt, UntypedInt) {
 					x.typ = Typ[UntypedInt]
 				}
 			}
@@ -512,7 +489,7 @@ func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
 	var x operand
 
 	check.expr(&x, index, nil, iota)
-	if !x.isInteger() {
+	if !x.isInteger(check.ctxt) {
 		check.errorf(x.pos(), "index %s must be integer", &x)
 		return -1
 	}
@@ -591,7 +568,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 		// check element against composite literal element type
 		var x operand
 		check.expr(&x, eval, typ, iota)
-		if !x.isAssignable(typ) {
+		if !x.isAssignable(check.ctxt, typ) {
 			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
 		}
 	}
@@ -799,7 +776,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
 						continue
 					}
-					i := utyp.fieldIndex(key.Name)
+					i := utyp.fieldIndex(QualifiedName{check.pkg, key.Name})
 					if i < 0 {
 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
 						continue
@@ -812,7 +789,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					visited[i] = true
 					check.expr(x, kv.Value, nil, iota)
 					etyp := fields[i].Type
-					if !x.isAssignable(etyp) {
+					if !x.isAssignable(check.ctxt, etyp) {
 						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
 						continue
 					}
@@ -831,7 +808,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					}
 					// i < len(fields)
 					etyp := fields[i].Type
-					if !x.isAssignable(etyp) {
+					if !x.isAssignable(check.ctxt, etyp) {
 						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
 						continue
 					}
@@ -862,7 +839,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				check.compositeLitKey(kv.Key)
 				check.expr(x, kv.Key, nil, iota)
-				if !x.isAssignable(utyp.Key) {
+				if !x.isAssignable(check.ctxt, utyp.Key) {
 					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
 					continue
 				}
@@ -874,7 +851,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					visited[x.val] = true
 				}
 				check.expr(x, kv.Value, utyp.Elt, iota)
-				if !x.isAssignable(utyp.Elt) {
+				if !x.isAssignable(check.ctxt, utyp.Elt) {
 					check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
 					continue
 				}
@@ -1009,7 +986,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *Map:
 			var key operand
 			check.expr(&key, e.Index, nil, iota)
-			if key.mode == invalid || !key.isAssignable(typ.Key) {
+			if key.mode == invalid || !key.isAssignable(check.ctxt, typ.Key) {
 				check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
 				goto Error
 			}
@@ -1049,7 +1026,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				// a constant) even if the string and the indices
 				// are constant
 				x.mode = value
-				// x.typ doesn't change
+				// x.typ doesn't change, but if it is an untyped
+				// string it becomes string (see also issue 4913).
+				if typ.Kind == UntypedString {
+					x.typ = Typ[String]
+				}
 			}
 
 		case *Array:
@@ -1278,7 +1259,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.StructType:
 		x.mode = typexpr
-		x.typ = check.ctxt.newStruct(check.collectFields(e.Fields, cycleOk))
+		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
 
 	case *ast.FuncType:
 		params, isVariadic := check.collectParams(e.Params, true)
