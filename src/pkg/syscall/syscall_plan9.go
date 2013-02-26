@@ -312,29 +312,12 @@ func DecodeBintime(b []byte) (nsec int64, err error) {
 	return
 }
 
-func Gettimeofday(tv *Timeval) (err error) {
-	// TODO(paulzhol):
-	// avoid reopening a file descriptor for /dev/bintime on each call,
-	// use lower-level calls to avoid allocation.
-
-	var b [8]byte
-	var nsec int64
-
-	fd, e := Open("/dev/bintime", O_RDONLY)
+func Gettimeofday(tv *Timeval) error {
+	nsec, e := nanotime()
 	if e != nil {
 		return e
 	}
-	defer Close(fd)
-
-	if _, e = Pread(fd, b[:], 0); e != nil {
-		return e
-	}
-
-	if nsec, e = DecodeBintime(b[:]); e != nil {
-		return e
-	}
 	*tv = NsecToTimeval(nsec)
-
 	return e
 }
 
