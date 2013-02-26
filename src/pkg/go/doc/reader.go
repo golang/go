@@ -412,7 +412,6 @@ func readNote(c *ast.CommentGroup) (marker, annotation string) {
 			// non-empty MARKER comment; collect comment without the MARKER prefix
 			list := append([]*ast.Comment(nil), c.List...) // make a copy
 			list[0].Text = m[2]
-
 			return m[1], (&ast.CommentGroup{List: list}).Text()
 		}
 	}
@@ -487,12 +486,9 @@ func (r *reader) readFile(src *ast.File) {
 	// collect MARKER(...): annotations
 	for _, c := range src.Comments {
 		if marker, text := readNote(c); marker != "" {
-			// Remove r.bugs in a separate CL along with
-			// any necessary changes to client code.
+			r.notes[marker] = append(r.notes[marker], text)
 			if marker == "BUG" {
 				r.bugs = append(r.bugs, text)
-			} else {
-				r.notes[marker] = append(r.notes[marker], text)
 			}
 		}
 	}
