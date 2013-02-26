@@ -32,6 +32,7 @@ type file struct {
 	// only for console io
 	isConsole bool
 	lastbits  []byte // first few bytes of the last incomplete rune in last write
+	readbuf   []rune // input console buffer
 }
 
 // Fd returns the Windows handle referencing the open file.
@@ -242,11 +243,48 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	return fi, nil
 }
 
+// readConsole reads utf16 charcters from console File,
+// encodes them into utf8 and stores them in buffer b.
+// It returns the number of utf8 bytes read and an error, if any.
+func (f *File) readConsole(b []byte) (n int, err error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if len(f.readbuf) == 0 {
+		// get more input data from os
+		wchars := make([]uint16, len(b))
+		var p *uint16
+		if len(b) > 0 {
+			p = &wchars[0]
+		}
+		var nw uint32
+		err := syscall.ReadConsole(f.fd, p, uint32(len(wchars)), &nw, nil)
+		if err != nil {
+			return 0, err
+		}
+		f.readbuf = utf16.Decode(wchars[:nw])
+	}
+	for i, r := range f.readbuf {
+		if utf8.RuneLen(r) > len(b) {
+			f.readbuf = f.readbuf[i:]
+			return n, nil
+		}
+		nr := utf8.EncodeRune(b, r)
+		b = b[nr:]
+		n += nr
+	}
+	f.readbuf = nil
+	return n, nil
+}
+
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
 func (f *File) read(b []byte) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
+	if f.isConsole {
+		return f.readConsole(b)
+	}
 	return syscall.Read(f.fd, b)
 }
 
