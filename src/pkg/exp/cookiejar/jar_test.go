@@ -49,8 +49,8 @@ var canonicalHostTests = map[string]string{
 	"192.168.0.5:8080":        "192.168.0.5",
 	"2001:4860:0:2001::68":    "2001:4860:0:2001::68",
 	"[2001:4860:0:::68]:8080": "2001:4860:0:::68",
-	// "www.bücher.de":        "www.xn--bcher-kva.de",  // TODO de-comment once proper idna is available
-	"www.example.com.": "www.example.com",
+	"www.bücher.de":           "www.xn--bcher-kva.de",
+	"www.example.com.":        "www.example.com",
 }
 
 func TestCanonicalHost(t *testing.T) {
