@@ -945,7 +945,7 @@ type Register struct {
 	referrers []Instruction
 }
 
-// AnInstruction is a mix-in embedded by all Instructions.
+// anInstruction is a mix-in embedded by all Instructions.
 // It provides the implementations of the Block and SetBlock methods.
 type anInstruction struct {
 	Block_ *BasicBlock // the basic block of this instruction
