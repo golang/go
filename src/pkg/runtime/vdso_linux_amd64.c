@@ -170,7 +170,9 @@ static symbol_key sym_keys[] = {
 	{ (byte*)"__vdso_clock_gettime", &runtime·__vdso_clock_gettime_sym },
 };
 
-static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr) {
+static void
+vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
+{
 	uint64 i;
 	bool found_vaddr = false;
 
@@ -237,7 +239,9 @@ static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr*
 	vdso_info->valid = true;
 }
 
-static int32 vdso_find_version(struct vdso_info *vdso_info, version_key* ver) {
+static int32
+vdso_find_version(struct vdso_info *vdso_info, version_key* ver)
+{
 	if(vdso_info->valid == false) {
 		return 0;
 	}
@@ -259,7 +263,9 @@ static int32 vdso_find_version(struct vdso_info *vdso_info, version_key* ver) {
 	return 0;
 }
 
-static void vdso_parse_symbols(struct vdso_info *vdso_info, int32 version) {
+static void
+vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
+{
 	int32 i, j;
 
 	if(vdso_info->valid == false)

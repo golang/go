@@ -128,6 +128,6 @@ runtime·racegostart(void *pc)
 }
 
 void
-runtime·racegoend()
+runtime·racegoend(void)
 {
 }

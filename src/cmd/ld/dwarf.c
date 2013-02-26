@@ -1936,7 +1936,8 @@ writeinfo(void)
  *  because we need die->offs and infoo/infosize;
  */
 static int
-ispubname(DWDie *die) {
+ispubname(DWDie *die)
+{
 	DWAttr *a;
 
 	switch(die->abbrev) {
@@ -1949,7 +1950,8 @@ ispubname(DWDie *die) {
 }
 
 static int
-ispubtype(DWDie *die) {
+ispubtype(DWDie *die)
+{
 	return die->abbrev >= DW_ABRV_NULLTYPE;
 }
 
