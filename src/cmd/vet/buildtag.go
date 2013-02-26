@@ -2,12 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +builder // ERROR "possible malformed \+build comment"
-// +build !ignore
-
 package main
-
-// +build toolate // ERROR "build comment appears too late in file"
 
 import (
 	"bytes"
