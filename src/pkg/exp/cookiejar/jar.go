@@ -301,18 +301,11 @@ func canonicalHost(host string) (string, error) {
 			return "", err
 		}
 	}
-
 	if strings.HasSuffix(host, ".") {
 		// Strip trailing dot from fully qualified domain names.
 		host = host[:len(host)-1]
 	}
-
-	// TODO: the "canonicalized host name" of RFC 6265 requires the idna ToASCII
-	// transformation. Possible solutions:
-	//  - promote package idna from go.net to go and import "net/idna"
-	//  - document behavior as a BUG
-
-	return host, nil
+	return toASCII(host)
 }
 
 // hasPort returns whether host contains a port number. host may be a host
