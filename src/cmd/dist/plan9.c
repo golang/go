@@ -700,12 +700,6 @@ main(int argc, char **argv)
 		fatal("$objtype is unset");
 	gohostarch = btake(&b);
 
-	xgetenv(&b, "GOBIN");
-	if(b.len == 0){
-		bpathf(&b, "/%s/bin", gohostarch);
-		xsetenv("GOBIN", bstr(&b));
-	}
-
 	srand(time(0)+getpid());
 	init();
 	xmain(argc, argv);
