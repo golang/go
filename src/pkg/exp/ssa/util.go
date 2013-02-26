@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"io"
+	"os"
 	"reflect"
 )
 
@@ -208,3 +210,18 @@ func (p ids) Less(i, j int) bool {
 		x.Pkg == y.Pkg && x.Name < y.Name
 }
 func (p ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
+// logStack prints the formatted "start" message to stderr and
+// returns a closure that prints the corresponding "end" message.
+// Call using 'defer logStack(...)()' to show builder stack on panic.
+// Don't forget trailing parens!
+//
+func logStack(format string, args ...interface{}) func() {
+	msg := fmt.Sprintf(format, args...)
+	io.WriteString(os.Stderr, msg)
+	io.WriteString(os.Stderr, "\n")
+	return func() {
+		io.WriteString(os.Stderr, msg)
+		io.WriteString(os.Stderr, " end\n")
+	}
+}

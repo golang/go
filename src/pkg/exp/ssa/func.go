@@ -195,9 +195,6 @@ func (f *Function) addSpilledParam(obj types.Object) {
 // functions is skipped.
 //
 func (f *Function) start(idents map[*ast.Ident]types.Object) {
-	if f.Prog.mode&LogSource != 0 {
-		fmt.Fprintf(os.Stderr, "build function %s @ %s\n", f.FullName(), f.Prog.Files.Position(f.Pos))
-	}
 	f.currentBlock = f.newBasicBlock("entry")
 	f.objects = make(map[types.Object]Value) // needed for some synthetics, e.g. init
 	if f.syntax == nil {
@@ -326,9 +323,6 @@ func (f *Function) finish() {
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
 		MustSanityCheck(f, nil)
-	}
-	if f.Prog.mode&LogSource != 0 {
-		fmt.Fprintf(os.Stderr, "build function %s done\n", f.FullName())
 	}
 }
 

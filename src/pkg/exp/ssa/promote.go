@@ -263,7 +263,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	sig.Recv = &types.Var{Name: "recv", Type: typ}
 
 	if prog.mode&LogSource != 0 {
-		fmt.Fprintf(os.Stderr, "makeBridgeMethod %s, %s, type %s\n", typ, cand, &sig)
+		defer logStack("makeBridgeMethod %s, %s, type %s", typ, cand, &sig)()
 	}
 
 	fn := &Function{
@@ -361,7 +361,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 //
 func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 	if prog.mode&LogSource != 0 {
-		fmt.Fprintf(os.Stderr, "makeImethodThunk %s.%s\n", typ, id)
+		defer logStack("makeImethodThunk %s.%s", typ, id)()
 	}
 	itf := underlyingType(typ).(*types.Interface)
 	index, meth := methodIndex(itf, itf.Methods, id)
