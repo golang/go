@@ -363,3 +363,30 @@ func init() {
 		panic("I.f not called twice")
 	}
 }
+
+// Multiple labels on same statement.
+func multipleLabels() {
+	var trace []int
+	i := 0
+one:
+two:
+	for ; i < 3; i++ {
+		trace = append(trace, i)
+		switch i {
+		case 0:
+			continue two
+		case 1:
+			i++
+			goto one
+		case 2:
+			break two
+		}
+	}
+	if x := fmt.Sprint(trace); x != "[0 1 2]" {
+		panic(x)
+	}
+}
+
+func init() {
+	multipleLabels()
+}

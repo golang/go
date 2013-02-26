@@ -152,6 +152,9 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 	lb := f.lblocks[label.Obj]
 	if lb == nil {
 		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
+		if f.lblocks == nil {
+			f.lblocks = make(map[*ast.Object]*lblock)
+		}
 		f.lblocks[label.Obj] = lb
 	}
 	return lb
@@ -200,7 +203,6 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
 	if f.syntax == nil {
 		return // synthetic function; no syntax tree
 	}
-	f.lblocks = make(map[*ast.Object]*lblock)
 
 	// Receiver (at most one inner iteration).
 	if f.syntax.recvField != nil {
