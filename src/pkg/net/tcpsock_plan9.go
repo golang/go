@@ -161,7 +161,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 // File returns a copy of the underlying os.File, set to blocking
 // mode.  It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
-func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
+func (l *TCPListener) File() (f *os.File, err error) { return l.dup() }
 
 // ListenTCP announces on the TCP address laddr and returns a TCP
 // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a

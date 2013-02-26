@@ -83,8 +83,29 @@ func (fd *netFD) Close() error {
 	return err
 }
 
+// This method is only called via Conn.
 func (fd *netFD) dup() (*os.File, error) {
-	return nil, syscall.EPLAN9
+	if !fd.ok() || fd.data == nil {
+		return nil, syscall.EINVAL
+	}
+	return fd.file(fd.data, fd.dir+"/data")
+}
+
+func (l *TCPListener) dup() (*os.File, error) {
+	if !l.fd.ok() {
+		return nil, syscall.EINVAL
+	}
+	return l.fd.file(l.fd.ctl, l.fd.dir+"/ctl")
+}
+
+func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
+	syscall.ForkLock.RLock()
+	dfd, err := syscall.Dup(int(f.Fd()), -1)
+	syscall.ForkLock.RUnlock()
+	if err != nil {
+		return nil, &OpError{"dup", s, fd.laddr, err}
+	}
+	return os.NewFile(uintptr(dfd), s), nil
 }
 
 func setDeadline(fd *netFD, t time.Time) error {
