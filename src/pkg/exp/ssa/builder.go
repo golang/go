@@ -2215,7 +2215,6 @@ func (b *Builder) stmt(fn *Function, _s ast.Stmt) {
 	// target is always set; its _break and _continue are set only
 	// within the body of switch/typeswitch/select/for/range.
 	// It is effectively an additional default-nil parameter of stmt().
-	// TODO(adonovan): fix: handle multiple labels on the same stmt.
 	var label *lblock
 start:
 	switch s := _s.(type) {
