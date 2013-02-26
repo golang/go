@@ -137,7 +137,17 @@ func main() {
 	os.Exit(exitCode)
 }
 
-// doPackageDir analyzes the single package found in the directory, if there is one.
+// prefixDirectory places the directory name on the beginning of each name in the list.
+func prefixDirectory(directory string, names []string) {
+	if directory != "." {
+		for i, name := range names {
+			names[i] = filepath.Join(directory, name)
+		}
+	}
+}
+
+// doPackageDir analyzes the single package found in the directory, if there is one,
+// plus a test package, if there is one.
 func doPackageDir(directory string) {
 	pkg, err := build.Default.ImportDir(directory, 0)
 	if err != nil {
@@ -149,14 +159,17 @@ func doPackageDir(directory string) {
 		warnf("cannot process directory %s: %s", directory, err)
 		return
 	}
-	names := append(pkg.GoFiles, pkg.CgoFiles...)
-	// Prefix file names with directory names.
-	if directory != "." {
-		for i, name := range names {
-			names[i] = filepath.Join(directory, name)
-		}
-	}
+	var names []string
+	names = append(names, pkg.CgoFiles...)
+	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
+	prefixDirectory(directory, names)
 	doPackage(names)
+	// Is there also a "foo_test" package? If so, do that one as well.
+	if len(pkg.XTestGoFiles) > 0 {
+		names = pkg.XTestGoFiles
+		prefixDirectory(directory, names)
+		doPackage(names)
+	}
 }
 
 type Package struct {
@@ -201,7 +214,7 @@ func doPackage(names []string) {
 	}
 	// Type check the package.
 	_, err := context.Check(fs, astFiles)
-	if err != nil {
+	if err != nil && *verbose {
 		warnf("%s", err)
 	}
 	for _, file := range files {
