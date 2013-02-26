@@ -13,7 +13,7 @@ import (
 )
 
 func runTest(t *testing.T, path string) {
-	exitCode = 0
+	errorCount = 0
 
 	*recursive = false
 	if suffix := ".go"; strings.HasSuffix(path, suffix) {
@@ -41,8 +41,8 @@ func runTest(t *testing.T, path string) {
 		processFiles(files, true)
 	}
 
-	if exitCode != 0 {
-		t.Errorf("processing %s failed: exitCode = %d", path, exitCode)
+	if errorCount > 0 {
+		t.Errorf("processing %s failed: %d errors", path, errorCount)
 	}
 }
 

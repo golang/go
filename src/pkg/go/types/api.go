@@ -84,9 +84,12 @@ type Context struct {
 type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
 
 // Check resolves and typechecks a set of package files within the given
-// context. If there are no errors, Check returns the package, otherwise
-// it returns the first error. If the context's Error handler is nil,
-// Check terminates as soon as the first error is encountered.
+// context. It returns the package and the first error encountered, if
+// any. If the context's Error handler is nil, Check terminates as soon
+// as the first error is encountered; otherwise it continues until the
+// entire package is checked. If there are errors, the package may be
+// only partially type-checked, and the resulting package may be incomplete
+// (missing objects, imports, etc.).
 func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*Package, error) {
 	return check(ctxt, fset, files)
 }

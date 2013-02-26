@@ -54,7 +54,7 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case token.Pos:
-			args[i] = check.fset.Position(a)
+			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
 			args[i] = exprString(a)
 		case Type:

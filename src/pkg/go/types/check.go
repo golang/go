@@ -219,9 +219,21 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			obj.Type = Typ[Invalid]
 			return
 		}
-		spec := obj.decl.(*ast.ValueSpec)
-		obj.visited = true
-		check.valueSpec(spec.Pos(), obj, spec.Names, spec, 0)
+		switch d := obj.decl.(type) {
+		case *ast.Field:
+			unreachable() // function parameters are always typed when collected
+		case *ast.ValueSpec:
+			obj.visited = true
+			check.valueSpec(d.Pos(), obj, d.Names, d, 0)
+		case *ast.AssignStmt:
+			// If we reach here, we have a short variable declaration
+			// where the rhs didn't typecheck and thus the lhs has no
+			// types.
+			obj.visited = true
+			obj.Type = Typ[Invalid]
+		default:
+			unreachable() // see also function newObj
+		}
 
 	case *TypeName:
 		if obj.Type != nil {
@@ -412,7 +424,11 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 			err = check.firsterr
 		default:
 			// unexpected panic: don't crash clients
-			panic(p) // enable for debugging
+			const debug = true
+			if debug {
+				check.dump("INTERNAL PANIC: %v", p)
+				panic(p)
+			}
 			// TODO(gri) add a test case for this scenario
 			err = fmt.Errorf("types internal error: %v", p)
 		}

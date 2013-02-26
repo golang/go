@@ -187,6 +187,9 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
 		var x operand
 		check.expr(&x, rhs[0], nil, iota)
 		if x.mode == invalid {
+			// If decl is set, this leaves the lhs identifiers
+			// untyped. We catch this when looking up the respective
+			// object.
 			return
 		}
 
