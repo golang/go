@@ -21,7 +21,7 @@ func (check *checker) assignOperand(z, x *operand) {
 
 	check.convertUntyped(x, z.typ)
 
-	if !x.isAssignable(z.typ) {
+	if !x.isAssignable(check.ctxt, z.typ) {
 		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
 		x.mode = invalid
 	}
@@ -338,7 +338,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(tch.Elt) {
+		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(check.ctxt, tch.Elt) {
 			check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
 		}
 

@@ -14,8 +14,8 @@ import (
 )
 
 // TODO(gri) At the moment, constants are different types
-// passed around as interface{} values. Consider introducing
-// a Const type and use methods instead of xConst functions.
+// passed around as interface{} values. Introduce a Const
+// interface and use methods instead of xConst functions.
 
 // Representation of constant values.
 //
@@ -48,13 +48,6 @@ type NilType struct{}
 func (NilType) String() string {
 	return "nil"
 }
-
-// Implementation-specific constants.
-// TODO(gri) These need to go elsewhere.
-const (
-	intBits = 32
-	ptrBits = 64
-)
 
 // Frequently used values.
 var (
@@ -206,7 +199,7 @@ func isNegConst(x interface{}) bool {
 // be represented as a value of the basic type Typ[as] without loss
 // of precision.
 //
-func isRepresentableConst(x interface{}, as BasicKind) bool {
+func isRepresentableConst(x interface{}, ctxt *Context, as BasicKind) bool {
 	switch x := x.(type) {
 	case bool:
 		return as == Bool || as == UntypedBool
@@ -214,27 +207,32 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
 	case int64:
 		switch as {
 		case Int:
-			return -1<<(intBits-1) <= x && x <= 1<<(intBits-1)-1
+			var s = uint(ctxt.sizeof(Typ[as])) * 8
+			return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
 		case Int8:
-			return -1<<(8-1) <= x && x <= 1<<(8-1)-1
+			const s = 8
+			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
 		case Int16:
-			return -1<<(16-1) <= x && x <= 1<<(16-1)-1
-		case Int32, UntypedRune:
-			return -1<<(32-1) <= x && x <= 1<<(32-1)-1
+			const s = 16
+			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
+		case Int32:
+			const s = 32
+			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
 		case Int64:
 			return true
-		case Uint:
-			return 0 <= x && x <= 1<<intBits-1
+		case Uint, Uintptr:
+			var s = uint(ctxt.sizeof(Typ[as])) * 8
+			return 0 <= x && x <= int64(1)<<(s-1)-1
 		case Uint8:
-			return 0 <= x && x <= 1<<8-1
+			const s = 8
+			return 0 <= x && x <= 1<<s-1
 		case Uint16:
-			return 0 <= x && x <= 1<<16-1
+			const s = 16
+			return 0 <= x && x <= 1<<s-1
 		case Uint32:
-			return 0 <= x && x <= 1<<32-1
+			const s = 32
+			return 0 <= x && x <= 1<<s-1
 		case Uint64:
-			return 0 <= x
-		case Uintptr:
-			assert(ptrBits == 64)
 			return 0 <= x
 		case Float32:
 			return true // TODO(gri) fix this
@@ -250,12 +248,11 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
 
 	case *big.Int:
 		switch as {
-		case Uint:
-			return x.Sign() >= 0 && x.BitLen() <= intBits
+		case Uint, Uintptr:
+			var s = uint(ctxt.sizeof(Typ[as])) * 8
+			return x.Sign() >= 0 && x.BitLen() <= int(s)
 		case Uint64:
 			return x.Sign() >= 0 && x.BitLen() <= 64
-		case Uintptr:
-			return x.Sign() >= 0 && x.BitLen() <= ptrBits
 		case Float32:
 			return true // TODO(gri) fix this
 		case Float64:
@@ -389,7 +386,7 @@ func is63bit(x int64) bool {
 }
 
 // unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
-func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
+func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) interface{} {
 	switch op {
 	case token.ADD:
 		return x // nothing to do
@@ -422,21 +419,8 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
 		// thus "too large": We must limit the result size to
 		// the type's size.
 		if typ.Info&IsUnsigned != 0 {
-			s := uint(typ.size) * 8
-			if s == 0 {
-				// platform-specific type
-				// TODO(gri) this needs to be factored out
-				switch typ.Kind {
-				case Uint:
-					s = intBits
-				case Uintptr:
-					s = ptrBits
-				default:
-					unreachable()
-				}
-			}
-			// z &^= (-1)<<s
-			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s))
+			s := uint(ctxt.sizeof(typ)) * 8
+			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s)) // z &^= (-1)<<s
 		}
 		return normalizeIntConst(&z)
 	case token.NOT:
