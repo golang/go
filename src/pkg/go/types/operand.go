@@ -300,7 +300,11 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
 					// this level, f.Type appears multiple times at the next
 					// level.
 					if f.IsAnonymous && res.mode == invalid {
-						next = append(next, embeddedType{deref(f.Type).(*NamedType), e.multiples})
+						// Ignore embedded basic types - only user-defined
+						// named types can have methods or have struct fields.
+						if t, _ := deref(f.Type).(*NamedType); t != nil {
+							next = append(next, embeddedType{t, e.multiples})
+						}
 					}
 				}
 
@@ -377,7 +381,11 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
 				// Possible optimization: If the embedded type
 				// is a pointer to the current type we could
 				// ignore it.
-				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
+				// Ignore embedded basic types - only user-defined
+				// named types can have methods or have struct fields.
+				if t, _ := deref(f.Type).(*NamedType); t != nil {
+					next = append(next, embeddedType{typ: t})
+				}
 			}
 		}
 		if len(next) > 0 {

@@ -44,6 +44,28 @@ func issue4355() {
 	_ = t /* ERROR "no single field or method" */ .X
 }
 
+// Embedded fields can be predeclared types.
+
+func _() {
+	type T0 struct{
+		int
+		float32
+		f int
+	}
+	var x T0
+	_ = x.int
+	_ = x.float32
+	_ = x.f
+
+	type T1 struct{
+		T0
+	}
+	var y T1
+	_ = y.int
+	_ = y.float32
+	_ = y.f
+}
+
 // Borrowed from the FieldByName test cases in reflect/all_test.go.
 
 type D1 struct {
