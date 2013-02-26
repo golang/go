@@ -17,7 +17,7 @@ struct StackCacheNode
 static StackCacheNode *stackcache;
 static Lock stackcachemu;
 
-// stackcacherefill/stackcacherelease implement global cache of stack segments.
+// stackcacherefill/stackcacherelease implement a global cache of stack segments.
 // The cache is required to prevent unlimited growth of per-thread caches.
 static void
 stackcacherefill(void)
@@ -33,7 +33,7 @@ stackcacherefill(void)
 	if(n == nil) {
 		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch);
 		if(n == nil)
-			runtime·throw("out of memory (staccachekrefill)");
+			runtime·throw("out of memory (stackcacherefill)");
 		runtime·xadd64(&mstats.stacks_sys, FixedStack*StackCacheBatch);
 		for(i = 0; i < StackCacheBatch-1; i++)
 			n->batch[i] = (byte*)n + (i+1)*FixedStack;
