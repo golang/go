@@ -70,12 +70,9 @@
 					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
 				{{end}}
 			{{end}}
-			{{if .Bugs}}
-				<dd><a href="#pkg-bugs">Bugs</a></dd>
-			{{end}}
-			{{if .Notes}}
-                                {{range $marker, $item := .Notes}}
-				<dd><a href="#pkg-{{$marker}}">{{$marker}}</a></dd>
+			{{if $.Notes}}
+                                {{range $marker, $item := $.Notes}}
+				<dd><a href="#pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</a></dd>
                                 {{end}}
 			{{end}}
 			</dl>
@@ -167,15 +164,9 @@
 		{{comment_html .Doc}}
 	{{end}}
 
-	{{with .Bugs}}
-		<h2 id="pkg-bugs">Bugs</h2>
-		{{range .}}
-		{{comment_html .}}
-		{{end}}
-	{{end}}
-	{{with .Notes}}
+	{{with $.Notes}}
                 {{range $marker, $content := .}}
-		    <h2 id="pkg-{{$marker}}">{{$marker}}</h2>
+		    <h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
 		    {{range .}}
 		    {{comment_html .}}
                     {{end}}

@@ -62,13 +62,9 @@ TYPES
 
 ---------------------------------------
 
-*/}}{{with .Bugs}}
-BUGS
-
-{{range .}}{{comment_text . "    " "\t"}}
-{{end}}{{end}}{{with .Notes}}
+*/}}{{with $.Notes}}
 {{range $marker, $content := .}}
-{{$marker}}
+{{noteTitle $marker}}s
 
 {{range $content}}{{comment_text . "    " "\t"}}
 {{end}}{{end}}{{end}}{{end}}{{/*

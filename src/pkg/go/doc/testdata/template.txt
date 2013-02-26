@@ -60,9 +60,9 @@ TYPES
 {{end}}{{end}}{{end}}{{/*
 
 */}}{{with .Bugs}}
-BUGS
+BUGS .Bugs is now deprecated, please use .Notes instead
 {{range .}}	{{synopsis .}}
 {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
-{{$marker}}
+{{$marker}}S
 {{range $content}}	{{synopsis .}}
 {{end}}{{end}}{{end}}

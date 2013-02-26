@@ -17,7 +17,10 @@ type Package struct {
 	ImportPath string
 	Imports    []string
 	Filenames  []string
-	Bugs       []string
+	// DEPRECATED. For backward compatibility Bugs is still populated,
+	// but all new code should use Notes instead.
+	Bugs []string
+
 	// Notes such as TODO(userid): or SECURITY(userid):
 	// along the lines of BUG(userid). Any marker with 2 or more upper
 	// case [A-Z] letters is recognised.

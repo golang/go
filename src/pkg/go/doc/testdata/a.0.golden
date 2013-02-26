@@ -8,13 +8,17 @@ FILENAMES
 	testdata/a0.go
 	testdata/a1.go
 
+BUGS .Bugs is now deprecated, please use .Notes instead
+	// bug0 
+	// bug1 
+
 BUGS
 	// bug0 
 	// bug1 
 
-SECBUG
+SECBUGS
 	// sec hole 0 need to fix asap 
 
-TODO
+TODOS
 	// todo0 
 	// todo1 
