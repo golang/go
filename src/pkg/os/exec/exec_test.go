@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -83,10 +84,16 @@ func TestNoExistBinary(t *testing.T) {
 
 func TestExitStatus(t *testing.T) {
 	// Test that exit values are returned correctly
-	err := helperCommand("exit", "42").Run()
+	cmd := helperCommand("exit", "42")
+	err := cmd.Run()
+	want := "exit status 42"
+	switch runtime.GOOS {
+	case "plan9":
+		want = fmt.Sprintf("exit status: '%s %d: 42'", filepath.Base(cmd.Path), cmd.ProcessState.Pid())
+	}
 	if werr, ok := err.(*ExitError); ok {
-		if s, e := werr.Error(), "exit status 42"; s != e {
-			t.Errorf("from exit 42 got exit %q, want %q", s, e)
+		if s := werr.Error(); s != want {
+			t.Errorf("from exit 42 got exit %q, want %q", s, want)
 		}
 	} else {
 		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
@@ -146,6 +153,20 @@ func TestPipes(t *testing.T) {
 
 var testedAlreadyLeaked = false
 
+// basefds returns the number of expected file descriptors
+// to be present in a process at start.
+func basefds() uintptr {
+	n := os.Stderr.Fd() + 1
+
+	// Go runtime for 32-bit Plan 9 requires that /dev/bintime
+	// be kept open.
+	// See ../../runtime/time_plan9_386.c:/^runtime·nanotime
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "386" {
+		n++
+	}
+	return n
+}
+
 func TestExtraFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("no operating system support; skipping")
@@ -155,7 +176,7 @@ func TestExtraFiles(t *testing.T) {
 	// our environment.
 	if !testedAlreadyLeaked {
 		testedAlreadyLeaked = true
-		for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
+		for fd := basefds(); fd <= 101; fd++ {
 			err := os.NewFile(fd, "").Close()
 			if err == nil {
 				t.Logf("Something already leaked - closed fd %d", fd)
@@ -209,13 +230,16 @@ func TestExtraFiles(t *testing.T) {
 	}
 
 	c := helperCommand("read3")
+	var stdout, stderr bytes.Buffer
+	c.Stdout = &stdout
+	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
-	bs, err := c.CombinedOutput()
+	err = c.Run()
 	if err != nil {
-		t.Fatalf("CombinedOutput: %v; output %q", err, bs)
+		t.Fatalf("Run: %v; stdout %q, stderr %q", err, stdout.Bytes(), stderr.Bytes())
 	}
-	if string(bs) != text {
-		t.Errorf("got %q; want %q", string(bs), text)
+	if stdout.String() != text {
+		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
 	}
 }
 
@@ -360,7 +384,7 @@ func TestHelperProcess(*testing.T) {
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
-			for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {
+			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
 				f, err := os.Open(os.Args[0])
 				if err != nil {
 					fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
@@ -384,7 +408,7 @@ func TestHelperProcess(*testing.T) {
 		// what we do with fd3 as long as we refer to it;
 		// closing it is the easy choice.
 		fd3.Close()
-		os.Stderr.Write(bs)
+		os.Stdout.Write(bs)
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
