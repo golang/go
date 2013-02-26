@@ -35,7 +35,3 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
 		return
 	}
 }
-
-type BadTypeUsedInTests struct {
-	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
-}

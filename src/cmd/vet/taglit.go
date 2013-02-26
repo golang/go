@@ -11,8 +11,6 @@ import (
 	"go/ast"
 	"go/types"
 	"strings"
-
-	"go/scanner" // for test; chosen because it's already linked in.
 )
 
 var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
@@ -148,18 +146,3 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"image.Point":         true,
 	"image.Rectangle":     true,
 }
-
-// Testing is awkward because we need to reference things from a separate package
-// to trigger the warnings.
-
-var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
-	"Name",
-	"Usage",
-	nil, // Value
-	"DefValue",
-}
-
-// Used to test the check for slices and arrays: If that test is disabled and
-// vet is run with --compositewhitelist=false, this line triggers an error.
-// Clumsy but sufficient.
-var scannerErrorListTest = scanner.ErrorList{nil, nil}

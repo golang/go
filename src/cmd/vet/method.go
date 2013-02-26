@@ -160,10 +160,3 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
 	printer.Fprint(&f.b, f.fset, actual)
 	return f.b.String() == expect
 }
-
-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
-}
-
-type BadInterfaceUsedInTests interface {
-	ReadByte() byte // ERROR "should have signature ReadByte"
-}
