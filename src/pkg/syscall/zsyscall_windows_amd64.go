@@ -107,6 +107,7 @@ var (
 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
 	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
 	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
+	procReadConsoleW                     = modkernel32.NewProc("ReadConsoleW")
 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
@@ -1228,6 +1229,18 @@ func GetConsoleMode(console Handle, mode *uint32) (err error) {
 
 func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) {
 	r1, _, e1 := Syscall6(procWriteConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(towrite), uintptr(unsafe.Pointer(written)), uintptr(unsafe.Pointer(reserved)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) {
+	r1, _, e1 := Syscall6(procReadConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(toread), uintptr(unsafe.Pointer(read)), uintptr(unsafe.Pointer(inputControl)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
