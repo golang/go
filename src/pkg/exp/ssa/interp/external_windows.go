@@ -16,9 +16,6 @@ func ext۰syscall۰Close(fn *ssa.Function, args []value) value {
 func ext۰syscall۰Fstat(fn *ssa.Function, args []value) value {
 	panic("syscall.Fstat not yet implemented")
 }
-func ext۰syscall۰Getdents(fn *ssa.Function, args []value) value {
-	panic("syscall.Getdents not yet implemented")
-}
 func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
 	panic("syscall.Kill not yet implemented")
 }
@@ -33,6 +30,9 @@ func ext۰syscall۰ParseDirent(fn *ssa.Function, args []value) value {
 }
 func ext۰syscall۰Read(fn *ssa.Function, args []value) value {
 	panic("syscall.Read not yet implemented")
+}
+func ext۰syscall۰ReadDirent(fn *ssa.Function, args []value) value {
+	panic("syscall.ReadDirent not yet implemented")
 }
 func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
 	panic("syscall.Stat not yet implemented")
