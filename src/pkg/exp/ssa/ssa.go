@@ -45,7 +45,9 @@ type Package struct {
 
 	// The following fields are set transiently during building,
 	// then cleared.
-	files []*ast.File // the abstract syntax tree for the files of the package
+	started  int32                   // atomically tested and set at start of build phase
+	files    []*ast.File             // the abstract syntax trees for the files of the package
+	nTo1Vars map[*ast.ValueSpec]bool // set of n:1 ValueSpecs already built
 }
 
 // A Member is a member of a Go package, implemented by *Literal,

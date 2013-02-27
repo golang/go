@@ -182,7 +182,7 @@ func run(t *testing.T, dir, input string) bool {
 		return false
 	}
 
-	b.BuildPackage(mainpkg)
+	b.BuildAllPackages()
 	b = nil // discard Builder
 
 	hint = fmt.Sprintf("To trace execution, run:\n%% go run exp/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
