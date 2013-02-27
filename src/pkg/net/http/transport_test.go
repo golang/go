@@ -1113,6 +1113,54 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 	ts.Close()
 }
 
+func TestTransportResponseHeaderTimeout(t *testing.T) {
+	defer checkLeakedTransports(t)
+	if testing.Short() {
+		t.Skip("skipping timeout test in -short mode")
+	}
+	const debug = false
+	mux := NewServeMux()
+	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {})
+	mux.HandleFunc("/slow", func(w ResponseWriter, r *Request) {
+		time.Sleep(2 * time.Second)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	tr := &Transport{
+		ResponseHeaderTimeout: 500 * time.Millisecond,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	tests := []struct {
+		path    string
+		want    int
+		wantErr string
+	}{
+		{path: "/fast", want: 200},
+		{path: "/slow", wantErr: "timeout awaiting response headers"},
+		{path: "/fast", want: 200},
+	}
+	for i, tt := range tests {
+		res, err := c.Get(ts.URL + tt.path)
+		if err != nil {
+			if strings.Contains(err.Error(), tt.wantErr) {
+				continue
+			}
+			t.Errorf("%d. unexpected error: %v", i, err)
+			continue
+		}
+		if tt.wantErr != "" {
+			t.Errorf("%d. no error. expected error: %v", i, tt.wantErr)
+			continue
+		}
+		if res.StatusCode != tt.want {
+			t.Errorf("%d for path %q status = %d; want %d", i, tt.path, res.StatusCode, tt.want)
+		}
+	}
+}
+
 type fooProto struct{}
 
 func (fooProto) RoundTrip(req *Request) (*Response, error) {
