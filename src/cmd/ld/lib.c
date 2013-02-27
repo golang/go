@@ -1564,6 +1564,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 {
 	Auto *a;
 	Sym *s;
+	int32 off;
 
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
@@ -1627,16 +1628,37 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
 
 		/* frame, locals, args, auto and param after */
-		put(nil, ".frame", 'm', s->text->to.offset+PtrSize, 0, 0, 0);
+		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
 		put(nil, ".args", 'm', s->args, 0, 0, 0);
 
-		for(a=s->autom; a; a=a->link)
-			if(a->type == D_AUTO)
-				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
-			else
+		for(a=s->autom; a; a=a->link) {
+			// Emit a or p according to actual offset, even if label is wrong.
+			// This avoids negative offsets, which cannot be encoded.
+			if(a->type != D_AUTO && a->type != D_PARAM)
+				continue;
+			
+			// compute offset relative to FP
 			if(a->type == D_PARAM)
-				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+				off = a->aoffset;
+			else
+				off = a->aoffset - PtrSize;
+			
+			// FP
+			if(off >= 0) {
+				put(nil, a->asym->name, 'p', off, 0, 0, a->gotype);
+				continue;
+			}
+			
+			// SP
+			if(off <= -PtrSize) {
+				put(nil, a->asym->name, 'a', -(off+PtrSize), 0, 0, a->gotype);
+				continue;
+			}
+			
+			// Otherwise, off is addressing the saved program counter.
+			// Something underhanded is going on. Say nothing.
+		}
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %ud\n", symsize);

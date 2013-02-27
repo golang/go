@@ -1163,7 +1163,6 @@ dodata(void)
 	sect->vaddr = 0;
 	lookup("rodata", 0)->sect = sect;
 	lookup("erodata", 0)->sect = sect;
-	lookup("reloffset", 0)->sect = sect;
 	datsize = 0;
 	s = datap;
 	for(; s != nil && s->type < STYPELINK; s = s->next) {
