@@ -23,6 +23,7 @@ P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
+L	build distinct packages seria[L]ly instead of in parallel.
 N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
 
@@ -66,6 +67,8 @@ func main() {
 			mode |= ssa.NaiveForm
 		case 'G':
 			mode |= ssa.UseGCImporter
+		case 'L':
+			mode |= ssa.BuildSerially
 		default:
 			log.Fatalf("Unknown -build option: '%c'.", c)
 		}
@@ -128,7 +131,7 @@ func main() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	b.BuildPackage(mainpkg)
+	b.BuildAllPackages()
 	b = nil // discard Builder
 
 	if *runFlag {

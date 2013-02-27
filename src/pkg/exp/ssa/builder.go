@@ -12,25 +12,18 @@ package ssa
 // In the BUILD phase, the Builder traverses the AST of each Go source
 // function and generates SSA instructions for the function body.
 // Within each package, building proceeds in a topological order over
-// the symbol reference graph, whose roots are the set of
-// package-level declarations in lexical order.
-//
-// In principle, the BUILD phases for each package can occur in
-// parallel, and that is our goal though there remains work to do.
-// Currently we ensure that all the imports of a package are fully
-// built before we start building it.
+// the intra-package symbol reference graph, whose roots are the set
+// of package-level declarations in lexical order.  The BUILD phases
+// for distinct packages are independent and are executed in parallel.
 //
 // The Builder's and Program's indices (maps) are populated and
 // mutated during the CREATE phase, but during the BUILD phase they
-// remain constant, with the following exceptions:
-// - globalValueSpec mutates Builder.nTo1Vars.
-//   TODO(adonovan): make this a per-Package map so it's thread-safe.
-// - Program.methodSets is populated lazily across phases.
-//   It uses a mutex so that access from multiple threads is serialized.
+// remain constant.  The sole exception is Prog.methodSets, which is
+// protected by a dedicated mutex.
 
-// TODO(adonovan): fix the following:
-// - support f(g()) where g has multiple result parameters.
-// - concurrent SSA code generation of multiple packages.
+// TODO(adonovan):
+// - fix: support f(g()) where g has multiple result parameters.
+// - fix: multiple labels on same statement.
 
 import (
 	"fmt"
@@ -39,6 +32,8 @@ import (
 	"go/types"
 	"os"
 	"strconv"
+	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -103,7 +98,6 @@ type Builder struct {
 	constants   map[ast.Expr]*Literal       // values of constant expressions
 	idents      map[*ast.Ident]types.Object // canonical type objects of all named entities
 	globals     map[types.Object]Value      // all package-level funcs and vars, and universal built-ins
-	nTo1Vars    map[*ast.ValueSpec]bool     // set of n:1 ValueSpecs already built [not threadsafe]
 	typechecker types.Context               // the typechecker context (stateless)
 }
 
@@ -117,6 +111,7 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
+	BuildSerially                                // Build packages serially, not in parallel.
 )
 
 // NewBuilder creates and returns a new SSA builder.
@@ -148,7 +143,6 @@ func NewBuilder(mode BuilderMode, loader SourceLoader, errh func(error)) *Builde
 		globals:    make(map[types.Object]Value),
 		idents:     make(map[*ast.Ident]types.Object),
 		importErrs: make(map[string]error),
-		nTo1Vars:   make(map[*ast.ValueSpec]bool),
 		packages:   make(map[*types.Package]*Package),
 		types:      make(map[ast.Expr]types.Type),
 	}
@@ -229,21 +223,25 @@ func (b *Builder) isType(e ast.Expr) bool {
 }
 
 // lookup returns the package-level *Function or *Global (or universal
-// *Builtin) for the named object obj, causing its initialization code
-// to be emitted into v.Package.Init if not already done.
+// *Builtin) for the named object obj.
 //
-func (b *Builder) lookup(obj types.Object) (v Value, ok bool) {
+// Intra-package references are edges in the initialization dependency
+// graph.  If the result v is a Function or Global belonging to
+// 'from', the package on whose behalf this lookup occurs, then lookup
+// emits initialization code into from.Init if not already done.
+//
+func (b *Builder) lookup(from *Package, obj types.Object) (v Value, ok bool) {
 	v, ok = b.globals[obj]
 	if ok {
-		// TODO(adonovan): opt: the build phase should only
-		// propagate to v if it's in the same package as the
-		// caller of lookup if we want to make this
-		// concurrent.
 		switch v := v.(type) {
 		case *Function:
-			b.buildFunction(v)
+			if from == v.Pkg {
+				b.buildFunction(v)
+			}
 		case *Global:
-			b.buildGlobal(v, obj)
+			if from == v.Pkg {
+				b.buildGlobal(v, obj)
+			}
 		}
 	}
 	return
@@ -515,100 +513,63 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 	return nil // treat all others as a regular function call
 }
 
-// selector evaluates the selector expression e and returns its value,
-// or if wantAddr is true, its address, in which case escaping
-// indicates whether the caller intends to use the resulting pointer
-// in a potentially escaping way.
+// demoteSelector returns a SelectorExpr syntax tree that is
+// equivalent to sel but contains no selections of promoted fields.
+// It returns the field index of the explicit (=outermost) selection.
 //
-func (b *Builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
-	id := makeId(e.Sel.Name, fn.Pkg.Types)
-	st := underlyingType(deref(b.exprType(e.X))).(*types.Struct)
-	index := -1
+// pkg is the package in which the reference occurs.  This is
+// significant because a non-exported field is considered distinct
+// from a field of that name in any other package.
+//
+// This is a rather clunky and inefficient implementation, but it
+// (a) is simple and hopefully self-evidently correct and
+// (b) permits us to decouple the demotion from the code generation,
+// the latter being performed in two modes: addr() for lvalues,
+// expr() for rvalues.
+// It does require mutation of Builder.types though; if we want to
+// make the Builder concurrent we'll have to avoid that.
+// TODO(adonovan): opt: emit code directly rather than desugaring the AST.
+//
+func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast.SelectorExpr, index int) {
+	id := makeId(sel.Sel.Name, pkg.Types)
+	xtype := b.exprType(sel.X)
+	// fmt.Fprintln(os.Stderr, xtype, id) // debugging
+	st := underlyingType(deref(xtype)).(*types.Struct)
 	for i, f := range st.Fields {
 		if IdFromQualifiedName(f.QualifiedName) == id {
-			index = i
-			break
+			return sel, i
 		}
 	}
-	var path *anonFieldPath
-	if index == -1 {
-		// Not a named field.  Use breadth-first algorithm.
-		path, index = findPromotedField(st, id)
-		if path == nil {
-			panic("field not found, even with promotion: " + e.Sel.Name)
-		}
+	// Not a named field.  Use breadth-first algorithm.
+	path, index := findPromotedField(st, id)
+	if path == nil {
+		panic("field not found, even with promotion: " + sel.Sel.Name)
 	}
-	fieldType := b.exprType(e)
-	if wantAddr {
-		return b.fieldAddr(fn, e.X, path, index, fieldType, escaping)
-	}
-	return b.fieldExpr(fn, e.X, path, index, fieldType)
-}
 
-// fieldAddr evaluates the base expression (a struct or *struct),
-// applies to it any implicit field selections from path, and then
-// selects the field #index of type fieldType.
-// Its address is returned.
-//
-// (fieldType can be derived from base+index.)
-//
-func (b *Builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, escaping bool) Value {
-	var x Value
-	if path != nil {
-		switch underlyingType(path.field.Type).(type) {
-		case *types.Struct:
-			x = b.fieldAddr(fn, base, path.tail, path.index, path.field.Type, escaping)
-		case *types.Pointer:
-			x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type)
+	// makeSelector(e, [C,B,A]) returns (((e.A).B).C).
+	// e is the original selector's base.
+	// This function has no free variables.
+	var makeSelector func(b *Builder, e ast.Expr, path *anonFieldPath) *ast.SelectorExpr
+	makeSelector = func(b *Builder, e ast.Expr, path *anonFieldPath) *ast.SelectorExpr {
+		x := e
+		if path.tail != nil {
+			x = makeSelector(b, e, path.tail)
 		}
-	} else {
-		switch underlyingType(b.exprType(base)).(type) {
-		case *types.Struct:
-			x = b.addr(fn, base, escaping).(address).addr
-		case *types.Pointer:
-			x = b.expr(fn, base)
+		sel := &ast.SelectorExpr{
+			X:   x,
+			Sel: &ast.Ident{Name: path.field.Name},
 		}
+		b.types[sel] = path.field.Type // TODO(adonovan): opt: not thread-safe
+		return sel
 	}
-	v := &FieldAddr{
-		X:     x,
-		Field: index,
-	}
-	v.setType(pointer(fieldType))
-	return fn.emit(v)
-}
 
-// fieldExpr evaluates the base expression (a struct or *struct),
-// applies to it any implicit field selections from path, and then
-// selects the field #index of type fieldType.
-// Its value is returned.
-//
-// (fieldType can be derived from base+index.)
-//
-func (b *Builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type) Value {
-	var x Value
-	if path != nil {
-		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type)
-	} else {
-		x = b.expr(fn, base)
+	// Construct new SelectorExpr, bottom up.
+	sel2 = &ast.SelectorExpr{
+		X:   makeSelector(b, sel.X, path),
+		Sel: sel.Sel,
 	}
-	switch underlyingType(x.Type()).(type) {
-	case *types.Struct:
-		v := &Field{
-			X:     x,
-			Field: index,
-		}
-		v.setType(fieldType)
-		return fn.emit(v)
-
-	case *types.Pointer: // *struct
-		v := &FieldAddr{
-			X:     x,
-			Field: index,
-		}
-		v.setType(pointer(fieldType))
-		return emitLoad(fn, fn.emit(v))
-	}
-	panic("unreachable")
+	b.types[sel2] = b.exprType(sel) // TODO(adonovan): opt: not thread-safe
+	return
 }
 
 // addr lowers a single-result addressable expression e to SSA form,
@@ -630,7 +591,7 @@ func (b *Builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, in
 // analysis.
 //
 // Operations forming potentially escaping pointers include:
-// - &x
+// - &x, including when implicit in method call or composite literals.
 // - a[:] iff a is an array (not *array)
 // - references to variables in lexically enclosing functions.
 //
@@ -638,7 +599,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	switch e := e.(type) {
 	case *ast.Ident:
 		obj := b.obj(e)
-		v, ok := b.lookup(obj) // var (address)
+		v, ok := b.lookup(fn.Pkg, obj) // var (address)
 		if !ok {
 			v = fn.lookup(obj, escaping)
 		}
@@ -661,14 +622,27 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 	case *ast.SelectorExpr:
 		// p.M where p is a package.
 		if obj := b.isPackageRef(e); obj != nil {
-			if v, ok := b.lookup(obj); ok {
+			if v, ok := b.lookup(fn.Pkg, obj); ok {
 				return address{v}
 			}
 			panic("undefined package-qualified name: " + obj.GetName())
 		}
 
 		// e.f where e is an expression.
-		return address{b.selector(fn, e, true, escaping)}
+		e, index := b.demoteSelector(e, fn.Pkg)
+		var x Value
+		switch underlyingType(b.exprType(e.X)).(type) {
+		case *types.Struct:
+			x = b.addr(fn, e.X, escaping).(address).addr
+		case *types.Pointer:
+			x = b.expr(fn, e.X)
+		}
+		v := &FieldAddr{
+			X:     x,
+			Field: index,
+		}
+		v.setType(pointer(b.exprType(e)))
+		return address{fn.emit(v)}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -873,7 +847,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 	case *ast.Ident:
 		obj := b.obj(e)
 		// Global or universal?
-		if v, ok := b.lookup(obj); ok {
+		if v, ok := b.lookup(fn.Pkg, obj); ok {
 			if objKind(obj) == ast.Var {
 				v = emitLoad(fn, v) // var (address)
 			}
@@ -889,19 +863,33 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		}
 
 		// (*T).f or T.f, the method f from the method-set of type T.
-		xtype := b.exprType(e.X)
 		if b.isType(e.X) {
 			id := makeId(e.Sel.Name, fn.Pkg.Types)
-			if m := b.Prog.MethodSet(xtype)[id]; m != nil {
+			typ := b.exprType(e.X)
+			if m := b.Prog.MethodSet(typ)[id]; m != nil {
 				return m
 			}
 
 			// T must be an interface; return method thunk.
-			return makeImethodThunk(b.Prog, xtype, id)
+			return makeImethodThunk(b.Prog, typ, id)
 		}
 
 		// e.f where e is an expression.
-		return b.selector(fn, e, false, false)
+		e, index := b.demoteSelector(e, fn.Pkg)
+		switch underlyingType(b.exprType(e.X)).(type) {
+		case *types.Struct:
+			// Non-addressable struct in a register.
+			v := &Field{
+				X:     b.expr(fn, e.X),
+				Field: index,
+			}
+			v.setType(b.exprType(e))
+			return fn.emit(v)
+
+		case *types.Pointer: // *struct
+			// Addressable structs; use FieldAddr and Load.
+			return b.addr(fn, e, false).load(fn)
+		}
 
 	case *ast.IndexExpr:
 		switch t := underlyingType(b.exprType(e.X)).(type) {
@@ -975,7 +963,7 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	// Case 1: call of form x.F() where x is a package name.
 	if obj := b.isPackageRef(sel); obj != nil {
 		// This is a specialization of expr(ast.Ident(obj)).
-		if v, ok := b.lookup(obj); ok {
+		if v, ok := b.lookup(fn.Pkg, obj); ok {
 			if _, ok := v.(*Function); !ok {
 				v = emitLoad(fn, v) // var (address)
 			}
@@ -1343,10 +1331,10 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 		// e.g. var x, _, y = f()
 		// n:1 assignment.
 		// Only the first time for a given SPEC has any effect.
-		if !b.nTo1Vars[spec] {
-			b.nTo1Vars[spec] = true
+		if !init.Pkg.nTo1Vars[spec] {
+			init.Pkg.nTo1Vars[spec] = true
 			if b.mode&LogSource != 0 {
-				defer logStack("build globals %s", spec.Names)()
+				fmt.Fprintln(os.Stderr, "build globals", spec.Names) // ugly...
 			}
 			tuple := b.exprN(init, spec.Values[0])
 			rtypes := tuple.Type().(*types.Result).Values
@@ -2294,10 +2282,6 @@ start:
 		}
 		var results []Value
 		// Per the spec, there are three distinct cases of return.
-		// TODO(adonovan): fix: the design of Ret is incorrect:
-		// deferred procedures may modify named result locations
-		// after "Ret" has loaded its operands, causing the calls's
-		// result to change.  Tricky... rethink.
 		switch {
 		case len(s.Results) == 0:
 			// Return with no arguments.
@@ -2422,10 +2406,6 @@ func (b *Builder) buildFunction(fn *Function) {
 	}
 	if fn.syntax.body == nil {
 		return // Go source function with no body (external)
-	}
-	if fn.Prog.mode&LogSource != 0 {
-		defer logStack("build function %s @ %s",
-			fn.FullName(), fn.Prog.Files.Position(fn.Pos))()
 	}
 	fn.start(b.idents)
 	b.stmt(fn, fn.syntax.body)
@@ -2552,7 +2532,7 @@ func (b *Builder) membersFromDecl(pkg *Package, decl ast.Decl) {
 // CreatePackage creates a package from the specified set of files,
 // performs type-checking, and allocates all global SSA Values for the
 // package.  It returns a new SSA Package providing access to these
-// values.
+// values.  The order of files determines the package initialization order.
 //
 // importPath is the full name under which this package is known, such
 // as appears in an import declaration. e.g. "sync/atomic".
@@ -2591,10 +2571,11 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
 	}
 
 	p := &Package{
-		Prog:    b.Prog,
-		Types:   typkg,
-		Members: make(map[string]Member),
-		files:   files,
+		Prog:     b.Prog,
+		Types:    typkg,
+		Members:  make(map[string]Member),
+		files:    files,
+		nTo1Vars: make(map[*ast.ValueSpec]bool),
 	}
 
 	b.packages[typkg] = p
@@ -2691,8 +2672,7 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 		} else if decl.Recv == nil && id.Name == "init" {
 			// init() block
 			if b.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build init block @",
-					b.Prog.Files.Position(decl.Pos()))
+				fmt.Fprintln(os.Stderr, "build init block @", b.Prog.Files.Position(decl.Pos()))
 			}
 			init := pkg.Init
 
@@ -2718,16 +2698,41 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 }
 
+// BuildAllPackages constructs the SSA representation of the bodies of
+// all functions in all packages known to the Builder.  Construction
+// occurs in parallel unless the BuildSerially mode flag was set.
+//
+// BuildAllPackages is idempotent and thread-safe.
+//
+func (b *Builder) BuildAllPackages() {
+	var wg sync.WaitGroup
+	for _, p := range b.Prog.Packages {
+		if b.mode&BuildSerially != 0 {
+			b.BuildPackage(p)
+		} else {
+			wg.Add(1)
+			go func(p *Package) {
+				b.BuildPackage(p)
+				wg.Done()
+			}(p)
+		}
+	}
+	wg.Wait()
+}
+
 // BuildPackage builds SSA code for all functions and vars in package p.
 //
-// BuildPackage is idempotent.
+// BuildPackage is idempotent and thread-safe.
 //
 func (b *Builder) BuildPackage(p *Package) {
+	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
+		return // already started
+	}
 	if p.files == nil {
-		return // already done (or nothing to do)
+		return // nothing to do
 	}
 	if b.mode&LogSource != 0 {
-		defer logStack("build package %s", p.Types.Path)()
+		fmt.Fprintln(os.Stderr, "build package", p.Types.Path)
 	}
 	init := p.Init
 	init.start(b.idents)
@@ -2760,12 +2765,6 @@ func (b *Builder) BuildPackage(p *Package) {
 		if p2 == nil {
 			panic("Building " + p.Name() + ": CreatePackage has not been called for package " + name)
 		}
-		// TODO(adonovan): opt: BuildPackage should be
-		// package-local, so we can run it for all packages in
-		// parallel once CreatePackage has been called for all
-		// prerequisites.  Until then, ensure all import
-		// dependencies are completely built before we are.
-		b.BuildPackage(p2)
 
 		var v Call
 		v.Func = p2.Init
@@ -2778,23 +2777,17 @@ func (b *Builder) BuildPackage(p *Package) {
 	// order.  This causes init() code to be generated in
 	// topological order.  We visit them transitively through
 	// functions of the same package, but we don't treat functions
-	// as roots.  TODO(adonovan): opt: don't visit through other
-	// packages.
+	// as roots.
 	//
 	// We also ensure all functions and methods are built, even if
 	// they are unreachable.
-	//
-	// The order between files is unspecified (and is in fact
-	// nondeterministic).
-	//
-	// TODO(adonovan): the partial order of initialization is
-	// underspecified.  Discuss this with gri.
 	for _, file := range p.files {
 		for _, decl := range file.Decls {
 			b.buildDecl(p, decl)
 		}
 	}
 	p.files = nil
+	p.nTo1Vars = nil
 
 	// Finish up.
 	emitJump(init, done)
