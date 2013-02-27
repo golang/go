@@ -35,15 +35,6 @@ func (s *sorter) init(n int) {
 	s.keys = s.keys[0:n]
 }
 
-func (s *sorter) clean() {
-	if len(s.buf.key) > maxSortBuffer {
-		s.buf.key = s.buf.buf[:0]
-	}
-	if len(s.keys) > maxSortEntries {
-		s.keys = nil
-	}
-}
-
 func (s *sorter) sort(src swapper) {
 	s.src = src
 	sort.Sort(s)
@@ -80,8 +71,8 @@ func (c *Collator) Sort(x Lister) {
 	c.sorter.sort(x)
 }
 
-// Strings sorts x using the rules of c.
-func (c *Collator) Strings(x []string) {
+// SortStrings uses sort.Sort to sort the strings in x using the rules of c.
+func (c *Collator) SortStrings(x []string) {
 	c.sorter.init(len(x))
 	for i, s := range x {
 		c.sorter.keys[i] = c.KeyFromString(c.sorter.buf, s)
