@@ -73,6 +73,12 @@ type Transport struct {
 	// (keep-alive) to keep per-host.  If zero,
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
+
+	// ResponseHeaderTimeout, if non-zero, specifies the amount of
+	// time to wait for a server's response headers after fully
+	// writing the request (including its body, if any). This
+	// time does not include the time to read the response body.
+	ResponseHeaderTimeout time.Duration
 }
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
@@ -743,6 +749,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	var re responseAndError
 	var pconnDeadCh = pc.closech
 	var failTicker <-chan time.Time
+	var respHeaderTimer <-chan time.Time
 WaitResponse:
 	for {
 		select {
@@ -751,6 +758,9 @@ WaitResponse:
 				re = responseAndError{nil, err}
 				pc.close()
 				break WaitResponse
+			}
+			if d := pc.t.ResponseHeaderTimeout; d > 0 {
+				respHeaderTimer = time.After(d)
 			}
 		case <-pconnDeadCh:
 			// The persist connection is dead. This shouldn't
@@ -768,7 +778,11 @@ WaitResponse:
 			pconnDeadCh = nil                               // avoid spinning
 			failTicker = time.After(100 * time.Millisecond) // arbitrary time to wait for resc
 		case <-failTicker:
-			re = responseAndError{nil, errors.New("net/http: transport closed before response was received")}
+			re = responseAndError{err: errors.New("net/http: transport closed before response was received")}
+			break WaitResponse
+		case <-respHeaderTimer:
+			pc.close()
+			re = responseAndError{err: errors.New("net/http: timeout awaiting response headers")}
 			break WaitResponse
 		case re = <-resc:
 			break WaitResponse
