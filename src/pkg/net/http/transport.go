@@ -590,11 +590,11 @@ func (pc *persistConn) readLoop() {
 		if err == nil {
 			resp, err = ReadResponse(pc.br, rc.req)
 		}
+		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0
 
 		if err != nil {
 			pc.close()
 		} else {
-			hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
 			if rc.addedGzip && hasBody && resp.Header.Get("Content-Encoding") == "gzip" {
 				resp.Header.Del("Content-Encoding")
 				resp.Header.Del("Content-Length")
@@ -614,7 +614,6 @@ func (pc *persistConn) readLoop() {
 			alive = false
 		}
 
-		hasBody := resp != nil && rc.req.Method != "HEAD" && resp.ContentLength != 0
 		var waitForBodyRead chan bool
 		if hasBody {
 			lastbody = resp.Body

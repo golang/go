@@ -61,4 +61,5 @@ func TestFileTransport(t *testing.T) {
 	if res.StatusCode != 404 {
 		t.Errorf("for %s, StatusCode = %d, want 404", badURL, res.StatusCode)
 	}
+	res.Body.Close()
 }

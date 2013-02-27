@@ -102,11 +102,13 @@ func (tcs *testConnSet) check(t *testing.T) {
 // Two subsequent requests and verify their response is the same.
 // The response from the server is our own IP:port
 func TestTransportKeepAlives(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
 	for _, disableKeepAlive := range []bool{false, true} {
 		tr := &Transport{DisableKeepAlives: disableKeepAlive}
+		defer tr.CloseIdleConnections()
 		c := &Client{Transport: tr}
 
 		fetch := func(n int) string {
@@ -133,6 +135,7 @@ func TestTransportKeepAlives(t *testing.T) {
 }
 
 func TestTransportConnectionCloseOnResponse(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
@@ -183,6 +186,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 }
 
 func TestTransportConnectionCloseOnRequest(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
@@ -233,6 +237,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 }
 
 func TestTransportIdleCacheKeys(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
@@ -265,6 +270,7 @@ func TestTransportIdleCacheKeys(t *testing.T) {
 }
 
 func TestTransportMaxPerHostIdleConns(t *testing.T) {
+	defer checkLeakedTransports(t)
 	resch := make(chan string)
 	gotReq := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -333,6 +339,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 }
 
 func TestTransportServerClosingUnexpectedly(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
 
@@ -389,6 +396,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 // Test for http://golang.org/issue/2616 (appropriate issue number)
 // This fails pretty reliably with GOMAXPROCS=100 or something high.
 func TestStressSurpriseServerCloses(t *testing.T) {
+	defer checkLeakedTransports(t)
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
@@ -444,6 +452,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 // TestTransportHeadResponses verifies that we deal with Content-Lengths
 // with no bodies properly
 func TestTransportHeadResponses(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method != "HEAD" {
 			panic("expected HEAD; got " + r.Method)
@@ -472,6 +481,7 @@ func TestTransportHeadResponses(t *testing.T) {
 // TestTransportHeadChunkedResponse verifies that we ignore chunked transfer-encoding
 // on responses to HEAD requests.
 func TestTransportHeadChunkedResponse(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method != "HEAD" {
 			panic("expected HEAD; got " + r.Method)
@@ -513,6 +523,7 @@ var roundTripTests = []struct {
 
 // Test that the modification made to the Request by the RoundTripper is cleaned up
 func TestRoundTripGzip(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const responseBody = "test response body"
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
 		accept := req.Header.Get("Accept-Encoding")
@@ -569,6 +580,7 @@ func TestRoundTripGzip(t *testing.T) {
 }
 
 func TestTransportGzip(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const nRandBytes = 1024 * 1024
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -661,6 +673,7 @@ func TestTransportGzip(t *testing.T) {
 }
 
 func TestTransportProxy(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ch := make(chan string, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ch <- "real server"
@@ -689,6 +702,7 @@ func TestTransportProxy(t *testing.T) {
 // but checks that we don't recurse forever, and checks that
 // Content-Encoding is removed.
 func TestTransportGzipRecursive(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Write(rgz)
@@ -715,6 +729,7 @@ func TestTransportGzipRecursive(t *testing.T) {
 
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
+	defer checkLeakedTransports(t)
 	gotReqCh := make(chan bool)
 	unblockCh := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -780,6 +795,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 // golang.org/issue/4531: Transport leaks goroutines when
 // request.ContentLength is explicitly short
 func TestTransportPersistConnLeakShortBody(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
 	defer ts.Close()
@@ -818,6 +834,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 
 // This used to crash; http://golang.org/issue/3266
 func TestTransportIdleConnCrash(t *testing.T) {
+	defer checkLeakedTransports(t)
 	tr := &Transport{}
 	c := &Client{Transport: tr}
 
@@ -847,6 +864,7 @@ func TestTransportIdleConnCrash(t *testing.T) {
 // which sadly lacked a triggering test.  The large response body made
 // the old race easier to trigger.
 func TestIssue3644(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const numFoos = 5000
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "close")
@@ -874,6 +892,7 @@ func TestIssue3644(t *testing.T) {
 // Test that a client receives a server's reply, even if the server doesn't read
 // the entire request body.
 func TestIssue3595(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const deniedMsg = "sorry, denied."
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		Error(w, deniedMsg, StatusUnauthorized)
@@ -898,6 +917,7 @@ func TestIssue3595(t *testing.T) {
 // From http://golang.org/issue/4454 ,
 // "client fails to handle requests with no body and chunked encoding"
 func TestChunkedNoContent(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNoContent)
 	}))
@@ -920,6 +940,7 @@ func TestChunkedNoContent(t *testing.T) {
 }
 
 func TestTransportConcurrency(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const maxProcs = 16
 	const numReqs = 500
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
@@ -964,6 +985,7 @@ func TestTransportConcurrency(t *testing.T) {
 }
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
@@ -1024,6 +1046,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
 }
 
 func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
@@ -1103,6 +1126,7 @@ func (fooProto) RoundTrip(req *Request) (*Response, error) {
 }
 
 func TestTransportAltProto(t *testing.T) {
+	defer checkLeakedTransports(t)
 	tr := &Transport{}
 	c := &Client{Transport: tr}
 	tr.RegisterProtocol("foo", fooProto{})
@@ -1121,6 +1145,7 @@ func TestTransportAltProto(t *testing.T) {
 }
 
 func TestTransportNoHost(t *testing.T) {
+	defer checkLeakedTransports(t)
 	tr := &Transport{}
 	_, err := tr.RoundTrip(&Request{
 		Header: make(Header),
