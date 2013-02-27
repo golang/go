@@ -54,12 +54,12 @@ func ext۰syscall۰Fstat(fn *ssa.Function, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰Getdents(fn *ssa.Function, args []value) value {
-	// func GetDents(fd int, buf []byte) (n int, err error)
+func ext۰syscall۰ReadDirent(fn *ssa.Function, args []value) value {
+	// func ReadDirent(fd int, buf []byte) (n int, err error)
 	fd := args[0].(int)
 	p := args[1].([]value)
 	b := make([]byte, len(p))
-	n, err := syscall.Getdents(fd, b)
+	n, err := syscall.ReadDirent(fd, b)
 	for i := 0; i < n; i++ {
 		p[i] = b[i]
 	}
