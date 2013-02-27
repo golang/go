@@ -10,13 +10,13 @@ import (
 )
 
 // A couple of type definitions to make the units clear.
-type solarMass float64
+type earthMass float64
 type au float64
 
 // A Planet defines the properties of a solar system object.
 type Planet struct {
 	name     string
-	mass     solarMass
+	mass     earthMass
 	distance au
 }
 
