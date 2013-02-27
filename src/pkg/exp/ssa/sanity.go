@@ -120,32 +120,33 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 			}
 		}
 
-	case *Call:
 	case *BinOp:
-	case *UnOp:
-	case *MakeClosure:
-	case *MakeChan:
-	case *MakeMap:
-	case *MakeSlice:
-	case *Slice:
+	case *Call:
+	case *ChangeInterface:
+	case *Conv:
+	case *Defer:
+	case *Extract:
 	case *Field:
 	case *FieldAddr:
-	case *IndexAddr:
-	case *Index:
-	case *Select:
-	case *Range:
-	case *TypeAssert:
-	case *Extract:
 	case *Go:
-	case *Defer:
-	case *Send:
-	case *Store:
+	case *Index:
+	case *IndexAddr:
+	case *Lookup:
+	case *MakeChan:
+	case *MakeClosure:
+	case *MakeInterface:
+	case *MakeMap:
+	case *MakeSlice:
 	case *MapUpdate:
 	case *Next:
-	case *Lookup:
-	case *Conv:
-	case *ChangeInterface:
-	case *MakeInterface:
+	case *Range:
+	case *RunDefers:
+	case *Select:
+	case *Send:
+	case *Slice:
+	case *Store:
+	case *TypeAssert:
+	case *UnOp:
 		// TODO(adonovan): implement checks.
 	default:
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))

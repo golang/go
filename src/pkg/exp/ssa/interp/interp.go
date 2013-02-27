@@ -119,6 +119,16 @@ func (fr *frame) get(key ssa.Value) value {
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
+func (fr *frame) rundefers() {
+	for i := range fr.defers {
+		if fr.i.mode&EnableTracing != 0 {
+			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
+		}
+		fr.defers[len(fr.defers)-1-i]()
+	}
+	fr.defers = fr.defers[:0]
+}
+
 // findMethodSet returns the method set for type typ, which may be one
 // of the interpreter's fake types.
 func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
@@ -170,11 +180,14 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		default:
 			var res []value
 			for _, r := range instr.Results {
-				res = append(res, copyVal(fr.get(r)))
+				res = append(res, fr.get(r))
 			}
 			fr.result = tuple(res)
 		}
 		return kReturn
+
+	case *ssa.RunDefers:
+		fr.rundefers()
 
 	case *ssa.Panic:
 		panic(targetPanic{fr.get(instr.X)})
@@ -466,12 +479,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			}
 			fr.status, fr.panic = stPanic, recover()
 		}
-		for i := range fr.defers {
-			if fr.i.mode&EnableTracing != 0 {
-				fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
-			}
-			fr.defers[len(fr.defers)-1-i]()
-		}
+		fr.rundefers()
 		// Destroy the locals to avoid accidental use after return.
 		for i := range fn.Locals {
 			fr.locals[i] = bad{}

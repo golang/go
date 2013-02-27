@@ -222,6 +222,7 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 }
 
 // emitTailCall emits to f a function call in tail position.
+// Precondition: f does/will not use deferred procedure calls.
 // Postcondition: f.currentBlock is nil.
 //
 func emitTailCall(f *Function, call *Call) {
