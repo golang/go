@@ -748,27 +748,6 @@ setuint64(Sym *s, vlong r, uint64 v)
 	setuintxx(s, r, v, 8);
 }
 
-static vlong
-addaddrpcrelplus(Sym *s, Sym *t, int32 add)
-{
-	vlong i;
-	Reloc *r;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	i = s->size;
-	s->size += PtrSize;
-	symgrow(s, s->size);
-	r = addrel(s);
-	r->sym = t;
-	r->off = i;
-	r->siz = PtrSize;
-	r->type = D_PCREL;
-	r->add = add;
-	return i;
-}
-
 vlong
 addaddrplus(Sym *s, Sym *t, int32 add)
 {
@@ -949,7 +928,9 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
 		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
 		adduintxx(gc, GC_CALL, PtrSize);
 		adduintxx(gc, off, PtrSize);
-		addaddrpcrelplus(gc, decodetype_gc(gotype), 4*PtrSize);
+		addpcrelplus(gc, decodetype_gc(gotype), 3*PtrSize+4);
+		if(PtrSize == 8)
+			adduintxx(gc, 0, 4);
 	} else {
 		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
 		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
