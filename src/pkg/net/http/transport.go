@@ -42,9 +42,11 @@ const DefaultMaxIdleConnsPerHost = 2
 // https, and http proxies (for either http or https with CONNECT).
 // Transport can also cache connections for future re-use.
 type Transport struct {
-	idleLk   sync.Mutex
+	idleMu   sync.Mutex
 	idleConn map[string][]*persistConn
-	altLk    sync.RWMutex
+	reqMu    sync.Mutex
+	reqConn  map[*Request]*persistConn
+	altMu    sync.RWMutex
 	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
 
 	// TODO: tunable on global max cached connections
@@ -139,12 +141,12 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 		return nil, errors.New("http: nil Request.Header")
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-		t.altLk.RLock()
+		t.altMu.RLock()
 		var rt RoundTripper
 		if t.altProto != nil {
 			rt = t.altProto[req.URL.Scheme]
 		}
-		t.altLk.RUnlock()
+		t.altMu.RUnlock()
 		if rt == nil {
 			return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
 		}
@@ -181,8 +183,8 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	if scheme == "http" || scheme == "https" {
 		panic("protocol " + scheme + " already registered")
 	}
-	t.altLk.Lock()
-	defer t.altLk.Unlock()
+	t.altMu.Lock()
+	defer t.altMu.Unlock()
 	if t.altProto == nil {
 		t.altProto = make(map[string]RoundTripper)
 	}
@@ -197,10 +199,10 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 // a "keep-alive" state. It does not interrupt any connections currently
 // in use.
 func (t *Transport) CloseIdleConnections() {
-	t.idleLk.Lock()
+	t.idleMu.Lock()
 	m := t.idleConn
 	t.idleConn = nil
-	t.idleLk.Unlock()
+	t.idleMu.Unlock()
 	if m == nil {
 		return
 	}
@@ -208,6 +210,17 @@ func (t *Transport) CloseIdleConnections() {
 		for _, pconn := range conns {
 			pconn.close()
 		}
+	}
+}
+
+// CancelRequest cancels an in-flight request by closing its
+// connection.
+func (t *Transport) CancelRequest(req *Request) {
+	t.reqMu.Lock()
+	pc := t.reqConn[req]
+	t.reqMu.Unlock()
+	if pc != nil {
+		pc.conn.Close()
 	}
 }
 
@@ -266,12 +279,12 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 	if max == 0 {
 		max = DefaultMaxIdleConnsPerHost
 	}
-	t.idleLk.Lock()
+	t.idleMu.Lock()
 	if t.idleConn == nil {
 		t.idleConn = make(map[string][]*persistConn)
 	}
 	if len(t.idleConn[key]) >= max {
-		t.idleLk.Unlock()
+		t.idleMu.Unlock()
 		pconn.close()
 		return false
 	}
@@ -281,14 +294,14 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 		}
 	}
 	t.idleConn[key] = append(t.idleConn[key], pconn)
-	t.idleLk.Unlock()
+	t.idleMu.Unlock()
 	return true
 }
 
 func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 	key := cm.String()
-	t.idleLk.Lock()
-	defer t.idleLk.Unlock()
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
 	if t.idleConn == nil {
 		return nil
 	}
@@ -311,6 +324,19 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 		}
 	}
 	panic("unreachable")
+}
+
+func (t *Transport) setReqConn(r *Request, pc *persistConn) {
+	t.reqMu.Lock()
+	defer t.reqMu.Unlock()
+	if t.reqConn == nil {
+		t.reqConn = make(map[*Request]*persistConn)
+	}
+	if pc != nil {
+		t.reqConn[r] = pc
+	} else {
+		delete(t.reqConn, r)
+	}
 }
 
 func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
@@ -662,6 +688,8 @@ func (pc *persistConn) readLoop() {
 			alive = <-waitForBodyRead
 		}
 
+		pc.t.setReqConn(rc.req, nil)
+
 		if !alive {
 			pc.close()
 		}
@@ -715,6 +743,7 @@ type writeRequest struct {
 }
 
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
+	pc.t.setReqConn(req.Request, pc)
 	pc.lk.Lock()
 	pc.numExpectedResponses++
 	headerFn := pc.mutateHeaderFunc
@@ -793,6 +822,9 @@ WaitResponse:
 	pc.numExpectedResponses--
 	pc.lk.Unlock()
 
+	if re.err != nil {
+		pc.t.setReqConn(req.Request, nil)
+	}
 	return re.res, re.err
 }
 
