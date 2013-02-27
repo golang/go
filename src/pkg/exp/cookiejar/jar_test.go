@@ -51,15 +51,26 @@ var canonicalHostTests = map[string]string{
 	"[2001:4860:0:::68]:8080": "2001:4860:0:::68",
 	"www.bücher.de":           "www.xn--bcher-kva.de",
 	"www.example.com.":        "www.example.com",
+	"[bad.unmatched.bracket:": "error",
 }
 
 func TestCanonicalHost(t *testing.T) {
 	for h, want := range canonicalHostTests {
-		got, _ := canonicalHost(h)
+		got, err := canonicalHost(h)
+		if want == "error" {
+			if err == nil {
+				t.Errorf("%q: got nil error, want non-nil", h)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%q: %v", h, err)
+			continue
+		}
 		if got != want {
 			t.Errorf("%q: got %q, want %q", h, got, want)
+			continue
 		}
-		// TODO handle errors
 	}
 }
 
