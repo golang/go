@@ -160,6 +160,7 @@ func doPackageDir(directory string) {
 		return
 	}
 	var names []string
+	names = append(names, pkg.GoFiles...)
 	names = append(names, pkg.CgoFiles...)
 	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
 	prefixDirectory(directory, names)
@@ -209,8 +210,11 @@ func doPackage(names []string) {
 			pkg.values[x] = val
 		}
 	}
+	// By providing the Context with our own error function, it will continue
+	// past the first error. There is no need for that function to do anything.
 	context := types.Context{
-		Expr: exprFn,
+		Expr:  exprFn,
+		Error: func(error) {},
 	}
 	// Type check the package.
 	_, err := context.Check(fs, astFiles)

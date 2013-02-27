@@ -276,9 +276,6 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 					return
 				}
 			}
-			if f.pkg == nil { // Nothing more to do.
-				return
-			}
 			// Verb is good. If nargs>1, we have something like %.*s and all but the final
 			// arg must be integer.
 			for i := 0; i < nargs-1; i++ {
@@ -373,13 +370,13 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 		// If we have a call to a method called Error that satisfies the Error interface,
 		// then it's ok. Otherwise it's something like (*T).Error from the testing package
 		// and we need to check it.
-		if name == "Error" && f.pkg != nil && f.isErrorMethodCall(call) {
+		if name == "Error" && f.isErrorMethodCall(call) {
 			return
 		}
 		// If it's an Error call now, it's probably for printing errors.
 		if !isLn {
 			// Check the signature to be sure: there are niladic functions called "error".
-			if f.pkg == nil || firstArg != 0 || f.numArgsInSignature(call) != firstArg {
+			if firstArg != 0 || f.numArgsInSignature(call) != firstArg {
 				f.Badf(call.Pos(), "no args in %s call", name)
 			}
 		}
@@ -403,7 +400,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 }
 
 // numArgsInSignature tells how many formal arguments the function type
-// being called has. Assumes type checking is on (f.pkg != nil).
+// being called has.
 func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 	// Check the type of the function or method declaration
 	typ := f.pkg.types[call.Fun]
@@ -420,8 +417,7 @@ func (f *File) numArgsInSignature(call *ast.CallExpr) int {
 
 // isErrorMethodCall reports whether the call is of a method with signature
 //	func Error() string
-// where "string" is the universe's string type. We know the method is called "Error"
-// and f.pkg is set.
+// where "string" is the universe's string type. We know the method is called "Error".
 func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
 	// Is it a selector expression? Otherwise it's a function call, not a method call.
 	sel, ok := call.Fun.(*ast.SelectorExpr)
