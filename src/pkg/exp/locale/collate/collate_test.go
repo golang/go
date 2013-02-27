@@ -210,7 +210,7 @@ func TestProcessWeights(t *testing.T) {
 		processWeights(tt.opt.alt, uint32(tt.opt.top), in)
 		for j, w := range in {
 			if w != out[j] {
-				t.Errorf("%d: Weights %d was %v; want %v %X %X", i, j, w, out[j])
+				t.Errorf("%d: Weights %d was %v; want %v", i, j, w, out[j])
 			}
 		}
 	}
