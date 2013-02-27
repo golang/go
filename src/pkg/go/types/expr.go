@@ -293,6 +293,11 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 
 	// typed target
 	switch t := underlying(target).(type) {
+	case nil:
+		// We may reach here due to previous type errors.
+		// Be conservative and don't crash.
+		x.mode = invalid
+		return
 	case *Basic:
 		check.isRepresentable(x, t)
 	case *Interface:
@@ -304,6 +309,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 			goto Error
 		}
 	default:
+		check.dump("x = %v, target = %v", x, target) // leave for debugging
 		unreachable()
 	}
 
