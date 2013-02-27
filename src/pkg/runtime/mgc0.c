@@ -546,7 +546,7 @@ static void
 scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 {
 	byte *b, *arena_start, *arena_used;
-	uintptr n, i, end_b, elemsize, ti, objti, count, type;
+	uintptr n, i, end_b, elemsize, size, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
 	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti;
 	void *obj;
@@ -905,9 +905,14 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			continue;
 
 		case GC_REGION:
-			// TODO(atom): to be expanded in a next CL. Same as GC_APTR for now.
 			obj = (void*)(stack_top.b + pc[1]);
+			size = pc[2];
+			objti = pc[3];
 			pc += 4;
+
+			*objbufpos++ = (Obj){obj, size, objti};
+			if(objbufpos == objbuf_end)
+				flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
 			break;
 
 		case GC_CHAN:
