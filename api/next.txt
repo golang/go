@@ -4,10 +4,26 @@ pkg archive/tar, func FileInfoHeader(os.FileInfo, string) (*Header, error)
 pkg archive/tar, method (*Header) FileInfo() os.FileInfo
 pkg archive/zip, type FileHeader struct, CompressedSize64 uint64
 pkg archive/zip, type FileHeader struct, UncompressedSize64 uint64
+pkg bufio, const MaxScanTokenSize ideal-int
+pkg bufio, func NewScanner(io.Reader) *Scanner
+pkg bufio, func ScanBytes([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanLines([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanRunes([]uint8, bool) (int, []uint8, error)
+pkg bufio, func ScanWords([]uint8, bool) (int, []uint8, error)
 pkg bufio, method (*Reader) WriteTo(io.Writer) (int64, error)
+pkg bufio, method (*Scanner) Bytes() []uint8
+pkg bufio, method (*Scanner) Err() error
+pkg bufio, method (*Scanner) Scan() bool
+pkg bufio, method (*Scanner) Split(SplitFunc)
+pkg bufio, method (*Scanner) Text() string
 pkg bufio, method (*Writer) ReadFrom(io.Reader) (int64, error)
 pkg bufio, method (ReadWriter) ReadFrom(io.Reader) (int64, error)
 pkg bufio, method (ReadWriter) WriteTo(io.Writer) (int64, error)
+pkg bufio, type Scanner struct
+pkg bufio, type SplitFunc func([]uint8, bool) (int, []uint8, error)
+pkg bufio, var ErrAdvanceTooFar error
+pkg bufio, var ErrNegativeAdvance error
+pkg bufio, var ErrTooLong error
 pkg bytes, func TrimPrefix([]uint8, []uint8) []uint8
 pkg bytes, func TrimSuffix([]uint8, []uint8) []uint8
 pkg bytes, method (*Buffer) Grow(int)
@@ -71,6 +87,7 @@ pkg encoding/json, method (Number) Float64() (float64, error)
 pkg encoding/json, method (Number) Int64() (int64, error)
 pkg encoding/json, method (Number) String() string
 pkg encoding/json, type Number string
+pkg encoding/xml, func EscapeText(io.Writer, []uint8) error
 pkg encoding/xml, method (*Encoder) Indent(string, string)
 pkg go/ast, func NewCommentMap(*token.FileSet, Node, []*CommentGroup) CommentMap
 pkg go/ast, method (CommentMap) Comments() []*CommentGroup
@@ -96,6 +113,8 @@ pkg go/types, const Bool BasicKind
 pkg go/types, const Byte BasicKind
 pkg go/types, const Complex128 BasicKind
 pkg go/types, const Complex64 BasicKind
+pkg go/types, const DefaultMaxAlign ideal-int
+pkg go/types, const DefaultPtrSize ideal-int
 pkg go/types, const Float32 BasicKind
 pkg go/types, const Float64 BasicKind
 pkg go/types, const Int BasicKind
@@ -131,6 +150,9 @@ pkg go/types, const UntypedNil BasicKind
 pkg go/types, const UntypedRune BasicKind
 pkg go/types, const UntypedString BasicKind
 pkg go/types, func Check(*token.FileSet, []*ast.File) (*Package, error)
+pkg go/types, func DefaultAlignof(Type) int64
+pkg go/types, func DefaultOffsetsof([]*Field) []int64
+pkg go/types, func DefaultSizeof(Type) int64
 pkg go/types, func FindGcExportData(*bufio.Reader) error
 pkg go/types, func FindPkg(string, string) (string, string)
 pkg go/types, func GcImport(map[string]*Package, string) (*Package, error)
@@ -140,16 +162,19 @@ pkg go/types, method (*Array) String() string
 pkg go/types, method (*Basic) String() string
 pkg go/types, method (*Chan) String() string
 pkg go/types, method (*Const) GetName() string
+pkg go/types, method (*Const) GetPkg() *Package
 pkg go/types, method (*Const) GetPos() token.Pos
 pkg go/types, method (*Const) GetType() Type
 pkg go/types, method (*Context) Check(*token.FileSet, []*ast.File) (*Package, error)
 pkg go/types, method (*Func) GetName() string
+pkg go/types, method (*Func) GetPkg() *Package
 pkg go/types, method (*Func) GetPos() token.Pos
 pkg go/types, method (*Func) GetType() Type
 pkg go/types, method (*Interface) String() string
 pkg go/types, method (*Map) String() string
 pkg go/types, method (*NamedType) String() string
 pkg go/types, method (*Package) GetName() string
+pkg go/types, method (*Package) GetPkg() *Package
 pkg go/types, method (*Package) GetPos() token.Pos
 pkg go/types, method (*Package) GetType() Type
 pkg go/types, method (*Pointer) String() string
@@ -161,9 +186,11 @@ pkg go/types, method (*Signature) String() string
 pkg go/types, method (*Slice) String() string
 pkg go/types, method (*Struct) String() string
 pkg go/types, method (*TypeName) GetName() string
+pkg go/types, method (*TypeName) GetPkg() *Package
 pkg go/types, method (*TypeName) GetPos() token.Pos
 pkg go/types, method (*TypeName) GetType() Type
 pkg go/types, method (*Var) GetName() string
+pkg go/types, method (*Var) GetPkg() *Package
 pkg go/types, method (*Var) GetPos() token.Pos
 pkg go/types, method (*Var) GetType() Type
 pkg go/types, method (Complex) String() string
@@ -189,15 +216,19 @@ pkg go/types, type Complex struct, Im *big.Rat
 pkg go/types, type Complex struct, Re *big.Rat
 pkg go/types, type Const struct
 pkg go/types, type Const struct, Name string
+pkg go/types, type Const struct, Pkg *Package
 pkg go/types, type Const struct, Type Type
 pkg go/types, type Const struct, Val interface{}
 pkg go/types, type Context struct
+pkg go/types, type Context struct, Alignof func(Type) int64
 pkg go/types, type Context struct, Error func(error)
 pkg go/types, type Context struct, Expr func(ast.Expr, Type, interface{})
 pkg go/types, type Context struct, Ident func(*ast.Ident, Object)
 pkg go/types, type Context struct, Import Importer
 pkg go/types, type Context struct, IntSize int64
+pkg go/types, type Context struct, Offsetsof func([]*Field) []int64
 pkg go/types, type Context struct, PtrSize int64
+pkg go/types, type Context struct, Sizeof func(Type) int64
 pkg go/types, type Field struct
 pkg go/types, type Field struct, IsAnonymous bool
 pkg go/types, type Field struct, Tag string
@@ -205,6 +236,7 @@ pkg go/types, type Field struct, Type Type
 pkg go/types, type Field struct, embedded QualifiedName
 pkg go/types, type Func struct
 pkg go/types, type Func struct, Name string
+pkg go/types, type Func struct, Pkg *Package
 pkg go/types, type Func struct, Type Type
 pkg go/types, type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
 pkg go/types, type Importer func(map[string]*Package, string) (*Package, error)
@@ -222,6 +254,7 @@ pkg go/types, type NamedType struct, Obj *TypeName
 pkg go/types, type NamedType struct, Underlying Type
 pkg go/types, type NilType struct
 pkg go/types, type Object interface, GetName() string
+pkg go/types, type Object interface, GetPkg() *Package
 pkg go/types, type Object interface, GetPos() token.Pos
 pkg go/types, type Object interface, GetType() Type
 pkg go/types, type Object interface, unexported methods
@@ -254,9 +287,11 @@ pkg go/types, type Type interface, String() string
 pkg go/types, type Type interface, unexported methods
 pkg go/types, type TypeName struct
 pkg go/types, type TypeName struct, Name string
+pkg go/types, type TypeName struct, Pkg *Package
 pkg go/types, type TypeName struct, Type Type
 pkg go/types, type Var struct
 pkg go/types, type Var struct, Name string
+pkg go/types, type Var struct, Pkg *Package
 pkg go/types, type Var struct, Type Type
 pkg go/types, var Default Context
 pkg go/types, var Typ [...]*Basic
@@ -492,20 +527,28 @@ pkg math/big, method (*Int) UnmarshalJSON([]uint8) error
 pkg math/big, method (*Rat) Float64() (float64, bool)
 pkg math/big, method (*Rat) SetFloat64(float64) *Rat
 pkg mime/multipart, method (*Writer) SetBoundary(string) error
+pkg net, func Deadline(time.Time) DialOption
+pkg net, func DialOpt(string, ...DialOption) (Conn, error)
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UnixConn, error)
+pkg net, func LocalAddress(Addr) DialOption
 pkg net, func LookupNS(string) ([]*NS, error)
+pkg net, func Network(string) DialOption
+pkg net, func Timeout(time.Duration) DialOption
 pkg net, method (*IPConn) ReadMsgIP([]uint8, []uint8) (int, int, int, *IPAddr, error)
 pkg net, method (*IPConn) WriteMsgIP([]uint8, []uint8, *IPAddr) (int, int, error)
 pkg net, method (*UDPConn) ReadMsgUDP([]uint8, []uint8) (int, int, int, *UDPAddr, error)
 pkg net, method (*UDPConn) WriteMsgUDP([]uint8, []uint8, *UDPAddr) (int, int, error)
 pkg net, method (*UnixConn) CloseRead() error
 pkg net, method (*UnixConn) CloseWrite() error
+pkg net, type DialOption interface, unexported methods
 pkg net, type IPAddr struct, Zone string
 pkg net, type IPNet struct, Zone string
 pkg net, type NS struct
 pkg net, type NS struct, Host string
 pkg net, type TCPAddr struct, Zone string
 pkg net, type UDPAddr struct, Zone string
+pkg net, var TCP DialOption
+pkg net, var UDP DialOption
 pkg net/http, func ParseTime(string) (time.Time, error)
 pkg net/http, method (*Request) PostFormValue(string) string
 pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
@@ -513,6 +556,7 @@ pkg net/http, type CloseNotifier interface { CloseNotify }
 pkg net/http, type CloseNotifier interface, CloseNotify() <-chan bool
 pkg net/http, type Request struct, PostForm url.Values
 pkg net/http, type Server struct, TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
+pkg net/http, type Transport struct, ResponseHeaderTimeout time.Duration
 pkg net/mail, func ParseAddress(string) (*Address, error)
 pkg net/mail, func ParseAddressList(string) ([]*Address, error)
 pkg net/smtp, method (*Client) Hello(string) error
@@ -987,9 +1031,49 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Lflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Oflag uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Ospeed uint64
 pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]uint8
+pkg syscall (freebsd-386), const IFAN_ARRIVAL ideal-int
+pkg syscall (freebsd-386), const IFAN_DEPARTURE ideal-int
+pkg syscall (freebsd-386), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-386), func SlicePtrFromStrings([]string) ([]*uint8, error)
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Index uint16
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Msglen uint16
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Name [16]int8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Type uint8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, Version uint8
+pkg syscall (freebsd-386), type IfAnnounceMsghdr struct, What uint16
+pkg syscall (freebsd-386), type InterfaceAnnounceMessage struct
+pkg syscall (freebsd-386), type InterfaceAnnounceMessage struct, Header IfAnnounceMsghdr
+pkg syscall (freebsd-amd64), const IFAN_ARRIVAL ideal-int
+pkg syscall (freebsd-amd64), const IFAN_DEPARTURE ideal-int
+pkg syscall (freebsd-amd64), const SizeofIfAnnounceMsghdr ideal-int
 pkg syscall (freebsd-amd64), func SlicePtrFromStrings([]string) ([]*uint8, error)
 pkg syscall (freebsd-amd64), func Syscall9(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Index uint16
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Msglen uint16
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Name [16]int8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Type uint8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Version uint8
+pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, What uint16
+pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct
+pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct, Header IfAnnounceMsghdr
+pkg syscall (linux-386), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-386), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-386), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-386), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-386), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-386), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-386), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-386), const RTNLGRP_TC ideal-int
 pkg syscall (linux-386), const SizeofTCPInfo ideal-int
 pkg syscall (linux-386), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-386), func GetsockoptUcred(int, int, int) (*Ucred, error)
@@ -1033,6 +1117,22 @@ pkg syscall (linux-386), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-386), type TCPInfo struct, State uint8
 pkg syscall (linux-386), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-386), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-386-cgo), const RTNLGRP_TC ideal-int
 pkg syscall (linux-386-cgo), const SizeofTCPInfo ideal-int
 pkg syscall (linux-386-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-386-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
@@ -1076,6 +1176,22 @@ pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-386-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-386-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-386-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-amd64), const RTNLGRP_TC ideal-int
 pkg syscall (linux-amd64), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-amd64), func GetsockoptUcred(int, int, int) (*Ucred, error)
@@ -1119,6 +1235,22 @@ pkg syscall (linux-amd64), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-amd64), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-amd64-cgo), const RTNLGRP_TC ideal-int
 pkg syscall (linux-amd64-cgo), const SizeofTCPInfo ideal-int
 pkg syscall (linux-amd64-cgo), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-amd64-cgo), func GetsockoptUcred(int, int, int) (*Ucred, error)
@@ -1162,6 +1294,22 @@ pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-arm), const RTNLGRP_IPV4_IFADDR ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_MROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_ROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV4_RULE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_IFADDR ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_IFINFO ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_MROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_PREFIX ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_ROUTE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_IPV6_RULE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_LINK ideal-int
+pkg syscall (linux-arm), const RTNLGRP_ND_USEROPT ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NEIGH ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NONE ideal-int
+pkg syscall (linux-arm), const RTNLGRP_NOTIFY ideal-int
+pkg syscall (linux-arm), const RTNLGRP_TC ideal-int
 pkg syscall (linux-arm), const SizeofTCPInfo ideal-int
 pkg syscall (linux-arm), func Accept4(int, int) (int, Sockaddr, error)
 pkg syscall (linux-arm), func GetsockoptUcred(int, int, int) (*Ucred, error)
@@ -1227,6 +1375,7 @@ pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *uint8, *int32)
 pkg syscall (windows-386), func LoadCancelIoEx() error
 pkg syscall (windows-386), func LoadConnectEx() error
 pkg syscall (windows-386), func LoadGetAddrInfo() error
+pkg syscall (windows-386), func ReadConsole(Handle, *uint16, uint32, *uint32, *uint8) error
 pkg syscall (windows-386), func UTF16FromString(string) ([]uint16, error)
 pkg syscall (windows-386), func UTF16PtrFromString(string) (*uint16, error)
 pkg syscall (windows-386), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
@@ -1269,6 +1418,7 @@ pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *uint8, *int3
 pkg syscall (windows-amd64), func LoadCancelIoEx() error
 pkg syscall (windows-amd64), func LoadConnectEx() error
 pkg syscall (windows-amd64), func LoadGetAddrInfo() error
+pkg syscall (windows-amd64), func ReadConsole(Handle, *uint16, uint32, *uint32, *uint8) error
 pkg syscall (windows-amd64), func UTF16FromString(string) ([]uint16, error)
 pkg syscall (windows-amd64), func UTF16PtrFromString(string) (*uint16, error)
 pkg syscall (windows-amd64), func WriteConsole(Handle, *uint16, uint32, *uint32, *uint8) error
@@ -1302,6 +1452,10 @@ pkg syscall, type RawSockaddrInet6 struct, Scope_id uint32
 pkg testing, func AllocsPerRun(int, func()) float64
 pkg testing, func Verbose() bool
 pkg testing, method (*B) ReportAllocs()
+pkg testing, method (*B) Skip(...interface{})
+pkg testing, method (*B) SkipNow()
+pkg testing, method (*B) Skipf(string, ...interface{})
+pkg testing, method (*B) Skipped() bool
 pkg testing, method (*T) Skip(...interface{})
 pkg testing, method (*T) SkipNow()
 pkg testing, method (*T) Skipf(string, ...interface{})
