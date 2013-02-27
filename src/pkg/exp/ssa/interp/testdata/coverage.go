@@ -23,6 +23,13 @@ func init() {
 	}
 }
 
+func init() {
+	// Call of variadic function with (implicit) empty slice.
+	if x := fmt.Sprint(); x != "" {
+		panic(x)
+	}
+}
+
 type empty interface{}
 
 type I interface {

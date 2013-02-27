@@ -28,6 +28,14 @@ var reflectTypesPackage = &types.Package{
 // type rtype <opaque>
 var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
 
+// error is an (interpreted) named type whose underlying type is string.
+// The interpreter uses it for all implementations of the built-in error
+// interface that it creates.
+// We put it in the "reflect" package for expedience.
+//
+// type error string
+var errorType = makeNamedType("error", &types.Basic{Name: "error"})
+
 func makeNamedType(name string, underlying types.Type) *types.NamedType {
 	nt := &types.NamedType{Underlying: underlying}
 	nt.Obj = &types.TypeName{
@@ -121,6 +129,17 @@ func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value) value {
 func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
 	// Signature: func (t reflect.rtype) uint
 	return uint(reflectKind(args[0].(rtype).t))
+}
+
+func ext۰reflect۰rtype۰NumOut(fn *ssa.Function, args []value) value {
+	// Signature: func (t reflect.rtype) int
+	return len(args[0].(rtype).t.(*types.Signature).Results)
+}
+
+func ext۰reflect۰rtype۰Out(fn *ssa.Function, args []value) value {
+	// Signature: func (t reflect.rtype, i int) int
+	i := args[1].(int)
+	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results[i].Type})
 }
 
 func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
@@ -279,6 +298,11 @@ func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value) value {
 	return nil // unreachable
 }
 
+func ext۰reflect۰Value۰Bool(fn *ssa.Function, args []value) value {
+	// Signature: func (reflect.Value) bool
+	return rV2V(args[0]).(bool)
+}
+
 func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value) value {
 	// Signature: func (v reflect.Value) bool
 	// Always false for our representation.
@@ -373,6 +397,10 @@ func ext۰reflect۰valueInterface(fn *ssa.Function, args []value) value {
 	return iface{rV2T(v).t, rV2V(v)}
 }
 
+func ext۰reflect۰error۰Error(fn *ssa.Function, args []value) value {
+	return args[0]
+}
+
 // newMethod creates a new method of the specified name, package and receiver type.
 func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function {
 	fn := &ssa.Function{
@@ -402,6 +430,11 @@ func initReflect(i *interpreter) {
 		ssa.Id{nil, "Bits"}:   newMethod(i.reflectPackage, rtypeType, "Bits"),
 		ssa.Id{nil, "Elem"}:   newMethod(i.reflectPackage, rtypeType, "Elem"),
 		ssa.Id{nil, "Kind"}:   newMethod(i.reflectPackage, rtypeType, "Kind"),
+		ssa.Id{nil, "NumOut"}: newMethod(i.reflectPackage, rtypeType, "NumOut"),
+		ssa.Id{nil, "Out"}:    newMethod(i.reflectPackage, rtypeType, "Out"),
 		ssa.Id{nil, "String"}: newMethod(i.reflectPackage, rtypeType, "String"),
+	}
+	i.errorMethods = ssa.MethodSet{
+		ssa.Id{nil, "Error"}: newMethod(i.reflectPackage, errorType, "Error"),
 	}
 }

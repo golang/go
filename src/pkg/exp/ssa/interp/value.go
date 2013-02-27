@@ -226,10 +226,8 @@ func equals(x, y value) bool {
 		return x == y.(*hashmap)
 	case map[value]value:
 		return (x != nil) == (y.(map[value]value) != nil)
-	case *ssa.Function:
-		return x == y.(*ssa.Function)
-	case *closure:
-		return x == y.(*closure)
+	case *ssa.Function, *closure:
+		return x == y
 	case []value:
 		return (x != nil) == (y.([]value) != nil)
 	}

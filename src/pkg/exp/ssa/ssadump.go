@@ -9,6 +9,7 @@ import (
 	"exp/ssa/interp"
 	"flag"
 	"fmt"
+	"go/ast"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -36,7 +37,8 @@ T	[T]race execution of the program.  Best for single-threaded programs!
 `)
 
 const usage = `SSA builder and interpreter.
-Usage: ssadump [<flag> ...] <file.go> ...
+Usage: ssadump [<flag> ...] [<file.go> ...] [<arg> ...]
+       ssadump [<flag> ...] <import/path>   [<arg> ...]
 Use -help flag to display options.
 
 Examples:
@@ -56,11 +58,11 @@ func main() {
 	for _, c := range *buildFlag {
 		switch c {
 		case 'P':
-			mode |= ssa.LogPackages
+			mode |= ssa.LogPackages | ssa.BuildSerially
 		case 'F':
-			mode |= ssa.LogFunctions
+			mode |= ssa.LogFunctions | ssa.BuildSerially
 		case 'S':
-			mode |= ssa.LogSource
+			mode |= ssa.LogSource | ssa.BuildSerially
 		case 'C':
 			mode |= ssa.SanityCheckFunctions
 		case 'N':
@@ -91,19 +93,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Treat all leading consecutive "*.go" arguments as a single package.
-	//
-	// TODO(gri): make it a typechecker error for there to be
-	// duplicate (e.g.) main functions in the same package.
-	var gofiles []string
-	for len(args) > 0 && strings.HasSuffix(args[0], ".go") {
-		gofiles = append(gofiles, args[0])
-		args = args[1:]
-	}
-	if gofiles == nil {
-		log.Fatal("No *.go source files specified.")
-	}
-
 	// Profiling support.
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -114,20 +103,46 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// TODO(adonovan): permit naming a package directly instead of
-	// a list of .go files.
-
 	// TODO(adonovan/gri): the cascade of errors is confusing due
 	// to reentrant control flow.  Disable for now and re-think.
 	var errh func(error)
 	// errh = func(err error) { fmt.Println(err.Error()) }
 
-	b := ssa.NewBuilder(mode, ssa.GorootLoader, errh)
-	files, err := ssa.ParseFiles(b.Prog.Files, ".", gofiles...)
+	loader := ssa.GorootLoader
+	b := ssa.NewBuilder(mode, loader, errh)
+
+	var pkgname string
+	var files []*ast.File
+	var err error
+
+	switch {
+	case len(args) == 0:
+		log.Fatal("No *.go source files nor package name was specified.")
+
+	case strings.HasSuffix(args[0], ".go"):
+		// % ssadump a.go b.go ...
+		// Leading consecutive *.go arguments constitute main package.
+		i := 1
+		for ; i < len(args) && strings.HasSuffix(args[i], ".go"); i++ {
+		}
+		files, err = ssa.ParseFiles(b.Prog.Files, ".", args[:i]...)
+		pkgname = "main"
+		args = args[i:]
+
+	default:
+		// % ssadump my/package ...
+		// First argument is import path of main package.
+		pkgname = args[0]
+		args = args[1:]
+		files, err = loader(b.Prog.Files, pkgname)
+	}
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	mainpkg, err := b.CreatePackage("main", files)
+
+	// TODO(gri): make it a typechecker error for there to be
+	// duplicate (e.g.) main functions in the same package.
+	mainpkg, err := b.CreatePackage(pkgname, files)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -135,6 +150,6 @@ func main() {
 	b = nil // discard Builder
 
 	if *runFlag {
-		interp.Interpret(mainpkg, interpMode, gofiles[0], args)
+		interp.Interpret(mainpkg, interpMode, pkgname, args)
 	}
 }

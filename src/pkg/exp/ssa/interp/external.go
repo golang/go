@@ -21,6 +21,7 @@ type externalFn func(fn *ssa.Function, args []value) value
 // Key strings are from Function.FullName().
 // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
 var externals = map[string]externalFn{
+	"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
 	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
 	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,
 	"(reflect.Value).Elem":            ext۰reflect۰Value۰Elem,
@@ -36,10 +37,15 @@ var externals = map[string]externalFn{
 	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
 	"(reflect.Value).String":          ext۰reflect۰Value۰String,
 	"(reflect.Value).Type":            ext۰reflect۰Value۰Type,
+	"(reflect.error).Error":           ext۰reflect۰error۰Error,
 	"(reflect.rtype).Bits":            ext۰reflect۰rtype۰Bits,
 	"(reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
 	"(reflect.rtype).Kind":            ext۰reflect۰rtype۰Kind,
+	"(reflect.rtype).NumOut":          ext۰reflect۰rtype۰NumOut,
+	"(reflect.rtype).Out":             ext۰reflect۰rtype۰Out,
 	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
+	"bytes.Equal":                     ext۰bytes۰Equal,
+	"bytes.IndexByte":                 ext۰bytes۰IndexByte,
 	"math.Float32bits":                ext۰math۰Float32bits,
 	"math.Float32frombits":            ext۰math۰Float32frombits,
 	"math.Float64bits":                ext۰math۰Float64bits,
@@ -61,12 +67,56 @@ var externals = map[string]externalFn{
 	"sync/atomic.LoadUint32":          ext۰atomic۰LoadUint32,
 	"sync/atomic.StoreInt32":          ext۰atomic۰StoreInt32,
 	"sync/atomic.StoreUint32":         ext۰atomic۰StoreUint32,
+	"syscall.Close":                   ext۰syscall۰Close,
 	"syscall.Exit":                    ext۰syscall۰Exit,
+	"syscall.Fstat":                   ext۰syscall۰Fstat,
+	"syscall.Getdents":                ext۰syscall۰Getdents,
 	"syscall.Getpid":                  ext۰syscall۰Getpid,
+	"syscall.Getwd":                   ext۰syscall۰Getwd,
 	"syscall.Kill":                    ext۰syscall۰Kill,
+	"syscall.Lstat":                   ext۰syscall۰Lstat,
+	"syscall.Open":                    ext۰syscall۰Open,
+	"syscall.ParseDirent":             ext۰syscall۰ParseDirent,
+	"syscall.Read":                    ext۰syscall۰Read,
+	"syscall.Stat":                    ext۰syscall۰Stat,
 	"syscall.Write":                   ext۰syscall۰Write,
 	"time.Sleep":                      ext۰time۰Sleep,
 	"time.now":                        ext۰time۰now,
+}
+
+// wrapError returns an interpreted 'error' interface value for err.
+func wrapError(err error) value {
+	if err == nil {
+		return iface{}
+	}
+	return iface{t: errorType, v: err.Error()}
+}
+
+func ext۰bytes۰Equal(fn *ssa.Function, args []value) value {
+	// func Equal(a, b []byte) bool
+	a := args[0].([]value)
+	b := args[1].([]value)
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func ext۰bytes۰IndexByte(fn *ssa.Function, args []value) value {
+	// func IndexByte(s []byte, c byte) int
+	s := args[0].([]value)
+	c := args[1].(byte)
+	for i, b := range s {
+		if b.(byte) == c {
+			return i
+		}
+	}
+	return -1
 }
 
 func ext۰math۰Float64frombits(fn *ssa.Function, args []value) value {
@@ -171,15 +221,17 @@ func ext۰syscall۰Exit(fn *ssa.Function, args []value) value {
 	panic(exitPanic(args[0].(int)))
 }
 
+func ext۰syscall۰Getwd(fn *ssa.Function, args []value) value {
+	s, err := syscall.Getwd()
+	return tuple{s, wrapError(err)}
+}
+
 func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
-	// We could emulate syscall.Syscall but it's more effort.
 	return syscall.Getpid()
 }
 
 // The set of remaining native functions we need to implement (as needed):
 
-// bytes/bytes.go:42:func Equal(a, b []byte) bool
-// bytes/bytes_decl.go:8:func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
 // crypto/aes/cipher_asm.go:10:func hasAsm() bool
 // crypto/aes/cipher_asm.go:11:func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 // crypto/aes/cipher_asm.go:12:func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
@@ -283,10 +335,6 @@ func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
 // syscall/syscall_linux_amd64.go:60:func Gettimeofday(tv *Timeval) (err error)
 // syscall/syscall_linux_amd64.go:61:func Time(t *Time_t) (tt Time_t, err error)
 // syscall/syscall_linux_arm.go:28:func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
-// syscall/syscall_unix.go:23:func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-// syscall/syscall_unix.go:24:func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-// syscall/syscall_unix.go:25:func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-// syscall/syscall_unix.go:26:func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 // time/sleep.go:25:func startTimer(*runtimeTimer)
 // time/sleep.go:26:func stopTimer(*runtimeTimer) bool
 // time/time.go:758:func now() (sec int64, nsec int32)
