@@ -32,6 +32,8 @@ func _() {
 
 	var u64 uint64
 	u64 += 1<<u64
+
+	undeclared /* ERROR "undeclared" */ = 991
 }
 
 func _incdecs() {

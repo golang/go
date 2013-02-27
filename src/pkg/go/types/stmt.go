@@ -62,6 +62,10 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 			}
 		}
 
+		if x.mode == invalid || z.mode == invalid {
+			return
+		}
+
 		check.assignOperand(&z, x)
 		if x.mode != invalid && z.mode == constant {
 			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
