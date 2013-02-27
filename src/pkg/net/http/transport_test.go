@@ -1118,7 +1118,6 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timeout test in -short mode")
 	}
-	const debug = false
 	mux := NewServeMux()
 	mux.HandleFunc("/fast", func(w ResponseWriter, r *Request) {})
 	mux.HandleFunc("/slow", func(w ResponseWriter, r *Request) {
@@ -1157,6 +1156,60 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 		}
 		if res.StatusCode != tt.want {
 			t.Errorf("%d for path %q status = %d; want %d", i, tt.path, res.StatusCode, tt.want)
+		}
+	}
+}
+
+func TestTransportCancelRequest(t *testing.T) {
+	defer checkLeakedTransports(t)
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+	unblockc := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "Hello")
+		w.(Flusher).Flush() // send headers and some body
+		<-unblockc
+	}))
+	defer ts.Close()
+	defer close(unblockc)
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		tr.CancelRequest(req)
+	}()
+	t0 := time.Now()
+	body, err := ioutil.ReadAll(res.Body)
+	d := time.Since(t0)
+
+	if err == nil {
+		t.Error("expected an error reading the body")
+	}
+	if string(body) != "Hello" {
+		t.Errorf("Body = %q; want Hello", body)
+	}
+	if d < 500*time.Millisecond {
+		t.Errorf("expected ~1 second delay; got %v", d)
+	}
+	// Verify no outstanding requests after readLoop/writeLoop
+	// goroutines shut down.
+	for tries := 3; tries > 0; tries-- {
+		n := tr.NumPendingRequestsForTesting()
+		if n == 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+		if tries == 1 {
+			t.Errorf("pending requests = %d; want 0", n)
 		}
 	}
 }
