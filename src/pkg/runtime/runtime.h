@@ -317,11 +317,19 @@ struct P
 {
 	Lock;
 
+	P*	link;
+
 	// Queue of runnable goroutines.
 	G**	runq;
 	int32	runqhead;
 	int32	runqtail;
 	int32	runqsize;
+
+	// Available G's (status == Gdead)
+	G*	gfree;
+	int32	gfreecnt;
+
+	byte	pad[64];
 };
 
 // The m->locked word holds a single bit saying whether

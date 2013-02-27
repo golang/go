@@ -60,7 +60,6 @@ int32	runtime·ncpu;
 struct Sched {
 	Lock;
 
-	G *gfree;	// available g's (status == Gdead)
 	int64 goidgen;
 
 	G *ghead;	// g's waiting to run
@@ -72,6 +71,20 @@ struct Sched {
 	M *mhead;	// m's waiting for work
 	int32 mwait;	// number of m's waiting for work
 	int32 mcount;	// number of m's that have been created
+
+	P	p;  // temporary
+
+	P*	pidle;  // idle P's
+	uint32	npidle;
+
+	// Global runnable queue.
+	G*	runqhead;
+	G*	runqtail;
+	int32	runqsize;
+
+	// Global cache of dead G's.
+	Lock	gflock;
+	G*	gfree;
 
 	volatile uint32 atomic;	// atomic scheduling word (see below)
 
@@ -148,8 +161,9 @@ static void gput(G*);	// put/get on ghead/gtail
 static G* gget(void);
 static void mput(M*);	// put/get on mhead
 static M* mget(G*);
-static void gfput(G*);	// put/get on gfree
-static G* gfget(void);
+static void gfput(P*, G*);
+static G* gfget(P*);
+static void gfpurge(P*);
 static void matchmg(void);	// match m's to g's
 static void readylocked(G*);	// ready, but sched is locked
 static void mnextg(M*, G*);
@@ -158,6 +172,10 @@ static void runqput(P*, G*);
 static G* runqget(P*);
 static void runqgrow(P*);
 static G* runqsteal(P*, P*);
+static void globrunqput(G*);
+static G* globrunqget(P*);
+static P* pidleget(void);
+static void pidleput(P*);
 
 void
 setmcpumax(uint32 n)
@@ -1153,7 +1171,7 @@ schedule(G *gp)
 			}
 			gp->idlem = nil;
 			runtime·unwindstack(gp, nil);
-			gfput(gp);
+			gfput(&runtime·sched.p, gp);
 			if(--runtime·sched.gcount == 0)
 				runtime·exit(0);
 			break;
@@ -1477,7 +1495,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 
 	schedlock();
 
-	if((newg = gfget()) != nil) {
+	if((newg = gfget(&runtime·sched.p)) != nil) {
 		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
@@ -1518,26 +1536,72 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 //printf(" goid=%d\n", newg->goid);
 }
 
-// Put on gfree list.  Sched must be locked.
+// Put on gfree list.
+// If local list is too long, transfer a batch to the global list.
 static void
-gfput(G *gp)
+gfput(P *p, G *gp)
 {
 	if(gp->stackguard - StackGuard != gp->stack0)
 		runtime·throw("invalid stack in gfput");
-	gp->schedlink = runtime·sched.gfree;
-	runtime·sched.gfree = gp;
+	gp->schedlink = p->gfree;
+	p->gfree = gp;
+	p->gfreecnt++;
+	if(p->gfreecnt >= 64) {
+		runtime·lock(&runtime·sched.gflock);
+		while(p->gfreecnt >= 32) {
+			p->gfreecnt--;
+			gp = p->gfree;
+			p->gfree = gp->schedlink;
+			gp->schedlink = runtime·sched.gfree;
+			runtime·sched.gfree = gp;
+		}
+		runtime·unlock(&runtime·sched.gflock);
+	}
 }
 
-// Get from gfree list.  Sched must be locked.
+// Get from gfree list.
+// If local list is empty, grab a batch from global list.
 static G*
-gfget(void)
+gfget(P *p)
 {
 	G *gp;
 
-	gp = runtime·sched.gfree;
-	if(gp)
-		runtime·sched.gfree = gp->schedlink;
+retry:
+	gp = p->gfree;
+	if(gp == nil && runtime·sched.gfree) {
+		runtime·lock(&runtime·sched.gflock);
+		while(p->gfreecnt < 32 && runtime·sched.gfree) {
+			p->gfreecnt++;
+			gp = runtime·sched.gfree;
+			runtime·sched.gfree = gp->schedlink;
+			gp->schedlink = p->gfree;
+			p->gfree = gp;
+		}
+		runtime·unlock(&runtime·sched.gflock);
+		goto retry;
+	}
+	if(gp) {
+		p->gfree = gp->schedlink;
+		p->gfreecnt--;
+	}
 	return gp;
+}
+
+// Purge all cached G's from gfree list to the global list.
+static void
+gfpurge(P *p)
+{
+	G *gp;
+
+	runtime·lock(&runtime·sched.gflock);
+	while(p->gfreecnt) {
+		p->gfreecnt--;
+		gp = p->gfree;
+		p->gfree = gp->schedlink;
+		gp->schedlink = runtime·sched.gfree;
+		runtime·sched.gfree = gp;
+	}
+	runtime·unlock(&runtime·sched.gflock);
 }
 
 void
@@ -1759,6 +1823,72 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 
 	if(hz != 0)
 		runtime·resetcpuprofiler(hz);
+}
+
+// Put gp on the global runnable queue.
+// Sched must be locked.
+static void
+globrunqput(G *gp)
+{
+	gp->schedlink = nil;
+	if(runtime·sched.runqtail)
+		runtime·sched.runqtail->schedlink = gp;
+	else
+		runtime·sched.runqhead = gp;
+	runtime·sched.runqtail = gp;
+	runtime·sched.runqsize++;
+}
+
+// Try get a batch of G's from the global runnable queue.
+// Sched must be locked.
+static G*
+globrunqget(P *p)
+{
+	G *gp, *gp1;
+	int32 n;
+
+	if(runtime·sched.runqsize == 0)
+		return nil;
+	n = runtime·sched.runqsize/runtime·gomaxprocs+1;
+	if(n > runtime·sched.runqsize)
+		n = runtime·sched.runqsize;
+	runtime·sched.runqsize -= n;
+	if(runtime·sched.runqsize == 0)
+		runtime·sched.runqtail = nil;
+	gp = runtime·sched.runqhead;
+	runtime·sched.runqhead = gp->schedlink;
+	n--;
+	while(n--) {
+		gp1 = runtime·sched.runqhead;
+		runtime·sched.runqhead = gp1->schedlink;
+		runqput(p, gp1);
+	}
+	return gp;
+}
+
+// Put p to on pidle list.
+// Sched must be locked.
+static void
+pidleput(P *p)
+{
+	p->link = runtime·sched.pidle;
+	runtime·sched.pidle = p;
+	runtime·sched.npidle++;
+}
+
+// Try get a p from pidle list.
+// Sched must be locked.
+static P*
+pidleget(void)
+{
+	P *p;
+
+	p = runtime·sched.pidle;
+	if(p) {
+		runtime·sched.pidle = p->link;
+		runtime·sched.npidle--;
+	}
+	return p;
 }
 
 // Put g on local runnable queue.
