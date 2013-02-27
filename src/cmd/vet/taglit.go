@@ -22,20 +22,18 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 
-	// Check that the CompositeLit's type is a slice or array (which need no tag), if possible.
-	if f.pkg != nil {
-		typ := f.pkg.types[c]
-		if typ != nil {
-			// If it's a named type, pull out the underlying type.
-			if namedType, ok := typ.(*types.NamedType); ok {
-				typ = namedType.Underlying
-			}
-			switch typ.(type) {
-			case *types.Slice:
-				return
-			case *types.Array:
-				return
-			}
+	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
+	typ := f.pkg.types[c]
+	if typ != nil {
+		// If it's a named type, pull out the underlying type.
+		if namedType, ok := typ.(*types.NamedType); ok {
+			typ = namedType.Underlying
+		}
+		switch typ.(type) {
+		case *types.Slice:
+			return
+		case *types.Array:
+			return
 		}
 	}
 
@@ -69,8 +67,8 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		f.Warnf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
 		return
 	}
-	typ := path + "." + s.Sel.Name
-	if *compositeWhiteList && untaggedLiteralWhitelist[typ] {
+	typeName := path + "." + s.Sel.Name
+	if *compositeWhiteList && untaggedLiteralWhitelist[typeName] {
 		return
 	}
 
