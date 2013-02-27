@@ -301,7 +301,7 @@ func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dial(net, addr, ra, deadline)
+	return dial(net, addr, noLocalAddr, ra, deadline)
 }
 
 func newFD(fd, family, sotype int, net string) (*netFD, error) {
