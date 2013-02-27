@@ -295,41 +295,76 @@ vputl(uint64 v)
 	lputl(v >> 32);
 }
 
+// Emit symbol table entry.
+// The table format is described at the top of ../../pkg/runtime/symtab.c.
 void
 putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 {
-	int i, f, l;
+	int i, f, c;
+	vlong v1;
 	Reloc *rel;
 
 	USED(size);
-	if(t == 'f')
-		name++;
-	l = 4;
-//	if(!debug['8'])
-//		l = 8;
+	
+	// type byte
+	if('A' <= t && t <= 'Z')
+		c = t - 'A';
+	else if('a' <= t && t <= 'z')
+		c = t - 'a' + 26;
+	else {
+		diag("invalid symbol table type %c", t);
+		errorexit();
+		return;
+	}
+	
+	if(s != nil)
+		c |= 0x40; // wide value
+	if(typ != nil)
+		c |= 0x80; // has go type
+	scput(c);
+
+	// value
 	if(s != nil) {
+		// full width
 		rel = addrel(symt);
-		rel->siz = l;
+		rel->siz = PtrSize;
 		rel->sym = s;
 		rel->type = D_ADDR;
 		rel->off = symt->size;
-		v = 0;
+		if(PtrSize == 8)
+			slput(0);
+		slput(0);
+	} else {
+		// varint
+		if(v < 0) {
+			diag("negative value in symbol table: %s %lld", name, v);
+			errorexit();
+		}
+		v1 = v;
+		while(v1 >= 0x80) {
+			scput(v1 | 0x80);
+			v1 >>= 7;
+		}
+		scput(v1);
 	}
 
-	if(l == 8) {
-		if(slput == slputl) {
-			slputl(v);
-			slputl(v>>32);
-		} else {
-			slputb(v>>32);
-			slputb(v);
-		}
-	} else
-		slput(v);
-
-	if(ver)
-		t += 'a' - 'A';
-	scput(t+0x80);			/* 0x80 is variable length */
+	// go type if present
+	if(typ != nil) {
+		if(!typ->reachable)
+			diag("unreachable type %s", typ->name);
+		rel = addrel(symt);
+		rel->siz = PtrSize;
+		rel->sym = typ;
+		rel->type = D_ADDR;
+		rel->off = symt->size;
+		if(PtrSize == 8)
+			slput(0);
+		slput(0);
+	}
+	
+	// name	
+	if(t == 'f')
+		name++;
 
 	if(t == 'Z' || t == 'z') {
 		scput(name[0]);
@@ -339,24 +374,11 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 		}
 		scput(0);
 		scput(0);
-	}
-	else {
+	} else {
 		for(i=0; name[i]; i++)
 			scput(name[i]);
 		scput(0);
 	}
-	if(typ) {
-		if(!typ->reachable)
-			diag("unreachable type %s", typ->name);
-		rel = addrel(symt);
-		rel->siz = l;
-		rel->sym = typ;
-		rel->type = D_ADDR;
-		rel->off = symt->size;
-	}
-	if(l == 8)
-		slput(0);
-	slput(0);
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -389,7 +411,6 @@ symtab(void)
 	xdefine("etypelink", SRODATA, 0);
 	xdefine("rodata", SRODATA, 0);
 	xdefine("erodata", SRODATA, 0);
-	xdefine("reloffset", SRODATA, 0);
 	if(flag_shared) {
 		xdefine("datarelro", SDATARELRO, 0);
 		xdefine("edatarelro", SDATARELRO, 0);
@@ -464,17 +485,20 @@ symtab(void)
 	case '5':
 	case '6':
 	case '8':
-		// magic entry to denote little-endian symbol table
-		slputl(0xfffffffe);
-		scput(0);
-		scput(0);
+		// little-endian symbol table
 		slput = slputl;
 		break;
 	case 'v':
-		// big-endian (in case one comes along)
+		// big-endian symbol table
 		slput = slputb;
 		break;
 	}
+	// new symbol table header.
+	slput(0xfffffffd);
+	scput(0);
+	scput(0);
+	scput(0);
+	scput(PtrSize);
 
 	genasmsym(putsymb);
 }
