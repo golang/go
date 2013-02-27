@@ -8,7 +8,6 @@ package ssa
 import (
 	"fmt"
 	"go/types"
-	"os"
 )
 
 // anonFieldPath is a linked list of anonymous fields entered by
@@ -121,7 +120,7 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 //
 func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 	if prog.mode&LogSource != 0 {
-		fmt.Fprintf(os.Stderr, "buildMethodSet %s %T\n", typ, typ)
+		defer logStack("buildMethodSet %s %T", typ, typ)()
 	}
 
 	// cands maps ids (field and method names) encountered at any

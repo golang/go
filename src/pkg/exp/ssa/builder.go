@@ -513,63 +513,100 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 	return nil // treat all others as a regular function call
 }
 
-// demoteSelector returns a SelectorExpr syntax tree that is
-// equivalent to sel but contains no selections of promoted fields.
-// It returns the field index of the explicit (=outermost) selection.
+// selector evaluates the selector expression e and returns its value,
+// or if wantAddr is true, its address, in which case escaping
+// indicates whether the caller intends to use the resulting pointer
+// in a potentially escaping way.
 //
-// pkg is the package in which the reference occurs.  This is
-// significant because a non-exported field is considered distinct
-// from a field of that name in any other package.
-//
-// This is a rather clunky and inefficient implementation, but it
-// (a) is simple and hopefully self-evidently correct and
-// (b) permits us to decouple the demotion from the code generation,
-// the latter being performed in two modes: addr() for lvalues,
-// expr() for rvalues.
-// It does require mutation of Builder.types though; if we want to
-// make the Builder concurrent we'll have to avoid that.
-// TODO(adonovan): opt: emit code directly rather than desugaring the AST.
-//
-func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast.SelectorExpr, index int) {
-	id := makeId(sel.Sel.Name, pkg.Types)
-	xtype := b.exprType(sel.X)
-	// fmt.Fprintln(os.Stderr, xtype, id) // debugging
-	st := underlyingType(deref(xtype)).(*types.Struct)
+func (b *Builder) selector(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
+	id := makeId(e.Sel.Name, fn.Pkg.Types)
+	st := underlyingType(deref(b.exprType(e.X))).(*types.Struct)
+	index := -1
 	for i, f := range st.Fields {
 		if IdFromQualifiedName(f.QualifiedName) == id {
-			return sel, i
+			index = i
+			break
 		}
 	}
-	// Not a named field.  Use breadth-first algorithm.
-	path, index := findPromotedField(st, id)
-	if path == nil {
-		panic("field not found, even with promotion: " + sel.Sel.Name)
+	var path *anonFieldPath
+	if index == -1 {
+		// Not a named field.  Use breadth-first algorithm.
+		path, index = findPromotedField(st, id)
+		if path == nil {
+			panic("field not found, even with promotion: " + e.Sel.Name)
+		}
 	}
+	fieldType := b.exprType(e)
+	if wantAddr {
+		return b.fieldAddr(fn, e.X, path, index, fieldType, escaping)
+	}
+	return b.fieldExpr(fn, e.X, path, index, fieldType)
+}
 
-	// makeSelector(e, [C,B,A]) returns (((e.A).B).C).
-	// e is the original selector's base.
-	// This function has no free variables.
-	var makeSelector func(b *Builder, e ast.Expr, path *anonFieldPath) *ast.SelectorExpr
-	makeSelector = func(b *Builder, e ast.Expr, path *anonFieldPath) *ast.SelectorExpr {
-		x := e
-		if path.tail != nil {
-			x = makeSelector(b, e, path.tail)
+// fieldAddr evaluates the base expression (a struct or *struct),
+// applies to it any implicit field selections from path, and then
+// selects the field #index of type fieldType.
+// Its address is returned.
+//
+// (fieldType can be derived from base+index.)
+//
+func (b *Builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type, escaping bool) Value {
+	var x Value
+	if path != nil {
+		switch underlyingType(path.field.Type).(type) {
+		case *types.Struct:
+			x = b.fieldAddr(fn, base, path.tail, path.index, path.field.Type, escaping)
+		case *types.Pointer:
+			x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type)
 		}
-		sel := &ast.SelectorExpr{
-			X:   x,
-			Sel: &ast.Ident{Name: path.field.Name},
+	} else {
+		switch underlyingType(b.exprType(base)).(type) {
+		case *types.Struct:
+			x = b.addr(fn, base, escaping).(address).addr
+		case *types.Pointer:
+			x = b.expr(fn, base)
 		}
-		b.types[sel] = path.field.Type // TODO(adonovan): opt: not thread-safe
-		return sel
 	}
+	v := &FieldAddr{
+		X:     x,
+		Field: index,
+	}
+	v.setType(pointer(fieldType))
+	return fn.emit(v)
+}
 
-	// Construct new SelectorExpr, bottom up.
-	sel2 = &ast.SelectorExpr{
-		X:   makeSelector(b, sel.X, path),
-		Sel: sel.Sel,
+// fieldExpr evaluates the base expression (a struct or *struct),
+// applies to it any implicit field selections from path, and then
+// selects the field #index of type fieldType.
+// Its value is returned.
+//
+// (fieldType can be derived from base+index.)
+//
+func (b *Builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, index int, fieldType types.Type) Value {
+	var x Value
+	if path != nil {
+		x = b.fieldExpr(fn, base, path.tail, path.index, path.field.Type)
+	} else {
+		x = b.expr(fn, base)
 	}
-	b.types[sel2] = b.exprType(sel) // TODO(adonovan): opt: not thread-safe
-	return
+	switch underlyingType(x.Type()).(type) {
+	case *types.Struct:
+		v := &Field{
+			X:     x,
+			Field: index,
+		}
+		v.setType(fieldType)
+		return fn.emit(v)
+
+	case *types.Pointer: // *struct
+		v := &FieldAddr{
+			X:     x,
+			Field: index,
+		}
+		v.setType(pointer(fieldType))
+		return emitLoad(fn, fn.emit(v))
+	}
+	panic("unreachable")
 }
 
 // addr lowers a single-result addressable expression e to SSA form,
@@ -629,20 +666,7 @@ func (b *Builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		}
 
 		// e.f where e is an expression.
-		e, index := b.demoteSelector(e, fn.Pkg)
-		var x Value
-		switch underlyingType(b.exprType(e.X)).(type) {
-		case *types.Struct:
-			x = b.addr(fn, e.X, escaping).(address).addr
-		case *types.Pointer:
-			x = b.expr(fn, e.X)
-		}
-		v := &FieldAddr{
-			X:     x,
-			Field: index,
-		}
-		v.setType(pointer(b.exprType(e)))
-		return address{fn.emit(v)}
+		return address{b.selector(fn, e, true, escaping)}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -875,21 +899,7 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
 		}
 
 		// e.f where e is an expression.
-		e, index := b.demoteSelector(e, fn.Pkg)
-		switch underlyingType(b.exprType(e.X)).(type) {
-		case *types.Struct:
-			// Non-addressable struct in a register.
-			v := &Field{
-				X:     b.expr(fn, e.X),
-				Field: index,
-			}
-			v.setType(b.exprType(e))
-			return fn.emit(v)
-
-		case *types.Pointer: // *struct
-			// Addressable structs; use FieldAddr and Load.
-			return b.addr(fn, e, false).load(fn)
-		}
+		return b.selector(fn, e, false, false)
 
 	case *ast.IndexExpr:
 		switch t := underlyingType(b.exprType(e.X)).(type) {
@@ -1334,7 +1344,7 @@ func (b *Builder) globalValueSpec(init *Function, spec *ast.ValueSpec, g *Global
 		if !init.Pkg.nTo1Vars[spec] {
 			init.Pkg.nTo1Vars[spec] = true
 			if b.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build globals", spec.Names) // ugly...
+				defer logStack("build globals %s", spec.Names)()
 			}
 			tuple := b.exprN(init, spec.Values[0])
 			rtypes := tuple.Type().(*types.Result).Values
@@ -2412,6 +2422,10 @@ func (b *Builder) buildFunction(fn *Function) {
 	if fn.syntax.body == nil {
 		return // Go source function with no body (external)
 	}
+	if fn.Prog.mode&LogSource != 0 {
+		defer logStack("build function %s @ %s",
+			fn.FullName(), fn.Prog.Files.Position(fn.Pos))()
+	}
 	fn.start(b.idents)
 	b.stmt(fn, fn.syntax.body)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
@@ -2742,7 +2756,7 @@ func (b *Builder) BuildPackage(p *Package) {
 		return // nothing to do
 	}
 	if b.mode&LogSource != 0 {
-		fmt.Fprintln(os.Stderr, "build package", p.Types.Path)
+		defer logStack("build package %s", p.Types.Path)()
 	}
 	init := p.Init
 	init.start(b.idents)
