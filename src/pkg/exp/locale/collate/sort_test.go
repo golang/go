@@ -14,12 +14,13 @@ func ExampleCollator_Strings() {
 	c := collate.New("root")
 	strings := []string{
 		"ad",
+		"ab",
 		"äb",
 		"ac",
 	}
-	c.Strings(strings)
+	c.SortStrings(strings)
 	fmt.Println(strings)
-	// Output: [äb ac ad]
+	// Output: [ab äb ac ad]
 }
 
 type sorter []string
