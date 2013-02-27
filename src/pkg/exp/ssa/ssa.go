@@ -240,7 +240,7 @@ type Function struct {
 	// then cleared.
 	currentBlock *BasicBlock             // where to emit code
 	objects      map[types.Object]Value  // addresses of local variables
-	results      []*Alloc                // tuple of named results
+	namedResults []*Alloc                // tuple of named results
 	syntax       *funcSyntax             // abstract syntax trees for Go source functions
 	targets      *targets                // linked stack of branch targets
 	lblocks      map[*ast.Object]*lblock // labelled blocks
@@ -270,6 +270,7 @@ type BasicBlock struct {
 	succs2       [2]*BasicBlock // initial space for Succs.
 	dom          *domNode       // node in dominator tree; optional.
 	gaps         int            // number of nil Instrs (transient).
+	rundefers    int            // number of rundefers (transient)
 }
 
 // Pure values ----------------------------------------
@@ -817,9 +818,7 @@ type If struct {
 // Ret returns values and control back to the calling function.
 //
 // len(Results) is always equal to the number of results in the
-// function's signature.  A source-level 'return' statement with no
-// operands in a multiple-return value function is desugared to make
-// the results explicit.
+// function's signature.
 //
 // If len(Results) > 1, Ret returns a tuple value with the specified
 // components which the caller must access using Extract instructions.
@@ -827,9 +826,6 @@ type If struct {
 // There is no instruction to return a ready-made tuple like those
 // returned by a "value,ok"-mode TypeAssert, Lookup or UnOp(ARROW) or
 // a tail-call to a function with multiple result parameters.
-// TODO(adonovan): consider defining one; but: dis- and re-assembling
-// the tuple is unavoidable if assignability conversions are required
-// on the components.
 //
 // Ret must be the last instruction of its containing BasicBlock.
 // Such a block has no successors.
@@ -841,6 +837,20 @@ type If struct {
 type Ret struct {
 	anInstruction
 	Results []Value
+}
+
+// RunDefers pops and invokes the entire stack of procedure calls
+// pushed by Defer instructions in this function.
+//
+// It is legal to encounter multiple 'rundefers' instructions in a
+// single control-flow path through a function; this is useful in
+// the combined init() function, for example.
+//
+// Example printed form:
+//	rundefers
+//
+type RunDefers struct {
+	anInstruction
 }
 
 // Panic initiates a panic with value X.
@@ -875,8 +885,7 @@ type Go struct {
 }
 
 // Defer pushes the specified call onto a stack of functions
-// to be called immediately prior to returning from the
-// current function.
+// to be called by a RunDefers instruction or by a panic.
 //
 // See CallCommon for generic function call documentation.
 //
@@ -1146,6 +1155,7 @@ func (*Panic) ImplementsInstruction()           {}
 func (*Phi) ImplementsInstruction()             {}
 func (*Range) ImplementsInstruction()           {}
 func (*Ret) ImplementsInstruction()             {}
+func (*RunDefers) ImplementsInstruction()       {}
 func (*Select) ImplementsInstruction()          {}
 func (*Send) ImplementsInstruction()            {}
 func (*Slice) ImplementsInstruction()           {}
@@ -1264,6 +1274,10 @@ func (s *Ret) Operands(rands []*Value) []*Value {
 	for i := range s.Results {
 		rands = append(rands, &s.Results[i])
 	}
+	return rands
+}
+
+func (*RunDefers) Operands(rands []*Value) []*Value {
 	return rands
 }
 

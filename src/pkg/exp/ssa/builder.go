@@ -2276,39 +2276,44 @@ start:
 					block = t._break
 				}
 			}
+			// Run function calls deferred in this init
+			// block when explicitly returning from it.
+			fn.emit(new(RunDefers))
 			emitJump(fn, block)
 			fn.currentBlock = fn.newBasicBlock("unreachable")
 			return
 		}
-		var results []Value
-		// Per the spec, there are three distinct cases of return.
-		switch {
-		case len(s.Results) == 0:
-			// Return with no arguments.
-			// Prior assigns to named result params are
-			// reloaded into results tuple.
-			// A void function is a degenerate case of this.
-			for _, r := range fn.results {
-				results = append(results, emitLoad(fn, r))
-			}
 
-		case len(s.Results) == 1 && len(fn.Signature.Results) > 1:
+		var results []Value
+		if len(s.Results) == 1 && len(fn.Signature.Results) > 1 {
 			// Return of one expression in a multi-valued function.
 			tuple := b.exprN(fn, s.Results[0])
 			for i, v := range tuple.Type().(*types.Result).Values {
 				results = append(results, emitExtract(fn, tuple, i, v.Type))
 			}
-
-		default:
-			// Return one or more single-valued expressions.
-			// These become the scalar or tuple result.
-			for _, r := range s.Results {
-				results = append(results, b.expr(fn, r))
+		} else {
+			// 1:1 return, or no-arg return in non-void function.
+			for i, r := range s.Results {
+				v := emitConv(fn, b.expr(fn, r), fn.Signature.Results[i].Type)
+				results = append(results, v)
 			}
 		}
-		// Perform implicit conversions.
-		for i := range results {
-			results[i] = emitConv(fn, results[i], fn.Signature.Results[i].Type)
+		if fn.namedResults != nil {
+			// Function has named result parameters (NRPs).
+			// Perform parallel assignment of return operands to NRPs.
+			for i, r := range results {
+				emitStore(fn, fn.namedResults[i], r)
+			}
+		}
+		// Run function calls deferred in this
+		// function when explicitly returning from it.
+		fn.emit(new(RunDefers))
+		if fn.namedResults != nil {
+			// Reload NRPs to form the result tuple.
+			results = results[:0]
+			for _, r := range fn.namedResults {
+				results = append(results, emitLoad(fn, r))
+			}
 		}
 		fn.emit(&Ret{Results: results})
 		fn.currentBlock = fn.newBasicBlock("unreachable")
@@ -2410,7 +2415,9 @@ func (b *Builder) buildFunction(fn *Function) {
 	fn.start(b.idents)
 	b.stmt(fn, fn.syntax.body)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
-		// We fell off the end: an implicit no-arg return statement.
+		// Run function calls deferred in this function when
+		// falling off the end of the body block.
+		fn.emit(new(RunDefers))
 		fn.emit(new(Ret))
 	}
 	fn.finish()
@@ -2686,6 +2693,9 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
 				_break: next,
 			}
 			b.stmt(init, decl.Body)
+			// Run function calls deferred in this init
+			// block when falling off the end of the block.
+			init.emit(new(RunDefers))
 			emitJump(init, next)
 			init.targets = init.targets.tail
 			init.currentBlock = next
@@ -2792,6 +2802,7 @@ func (b *Builder) BuildPackage(p *Package) {
 	// Finish up.
 	emitJump(init, done)
 	init.currentBlock = done
+	init.emit(new(RunDefers))
 	init.emit(new(Ret))
 	init.finish()
 }

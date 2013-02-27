@@ -225,12 +225,12 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
 		}
 	}
 
-	// Results.
+	// Named results.
 	if f.syntax.resultFields != nil {
 		for _, field := range f.syntax.resultFields.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
-				f.results = append(f.results, f.addNamedLocal(idents[n]))
+				f.namedResults = append(f.namedResults, f.addNamedLocal(idents[n]))
 			}
 		}
 	}
@@ -286,7 +286,7 @@ func buildReferrers(f *Function) {
 // finish() finalizes the function after SSA code generation of its body.
 func (f *Function) finish() {
 	f.objects = nil
-	f.results = nil
+	f.namedResults = nil
 	f.currentBlock = nil
 	f.lblocks = nil
 	f.syntax = nil

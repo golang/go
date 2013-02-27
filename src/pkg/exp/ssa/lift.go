@@ -154,22 +154,33 @@ func lift(fn *Function) {
 	// concatenation of all non-dead newPhis and non-nil Instrs
 	// for the block, reusing the original array if space permits.
 
+	// While we're here, we also eliminate 'rundefers'
+	// instructions in functions that contain no 'defer'
+	// instructions.
+	usesDefer := false
+
 	// Determine which allocs we can lift and number them densely.
 	// The renaming phase uses this numbering for compact maps.
 	numAllocs := 0
 	for _, b := range fn.Blocks {
 		b.gaps = 0
+		b.rundefers = 0
 		for i, instr := range b.Instrs {
-			if alloc, ok := instr.(*Alloc); ok {
-				if liftAlloc(df, alloc, newPhis) {
-					alloc.index = numAllocs
+			switch instr := instr.(type) {
+			case *Alloc:
+				if liftAlloc(df, instr, newPhis) {
+					instr.index = numAllocs
 					numAllocs++
 					// Delete the alloc.
 					b.Instrs[i] = nil
 					b.gaps++
 				} else {
-					alloc.index = -1
+					instr.index = -1
 				}
+			case *Defer:
+				usesDefer = true
+			case *RunDefers:
+				b.rundefers++
 			}
 		}
 	}
@@ -202,22 +213,33 @@ func lift(fn *Function) {
 		}
 		nps = nps[:j]
 
-		if j+b.gaps == 0 {
-			continue // fast path: no new phis and no gaps
+		rundefersToKill := b.rundefers
+		if usesDefer {
+			rundefersToKill = 0
+		}
+
+		if j+b.gaps+rundefersToKill == 0 {
+			continue // fast path: no new phis or gaps
 		}
 
 		// Compact nps + non-nil Instrs into a new slice.
 		// TODO(adonovan): opt: compact in situ if there is
 		// sufficient space or slack in the slice.
-		dst := make([]Instruction, j+len(b.Instrs)-b.gaps)
+		dst := make([]Instruction, len(b.Instrs)+j-b.gaps-rundefersToKill)
 		for i, np := range nps {
 			dst[i] = np.phi
 		}
 		for _, instr := range b.Instrs {
-			if instr != nil {
-				dst[j] = instr
-				j++
+			if instr == nil {
+				continue
 			}
+			if !usesDefer {
+				if _, ok := instr.(*RunDefers); ok {
+					continue
+				}
+			}
+			dst[j] = instr
+			j++
 		}
 		for i, np := range nps {
 			dst[i] = np.phi

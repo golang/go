@@ -300,6 +300,10 @@ func (s *Ret) String() string {
 	return b.String()
 }
 
+func (*RunDefers) String() string {
+	return "rundefers"
+}
+
 func (s *Send) String() string {
 	return fmt.Sprintf("send %s <- %s", relName(s.Chan, s), relName(s.X, s))
 }
