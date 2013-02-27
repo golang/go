@@ -528,6 +528,7 @@ const (
 	MSG_DONTWAIT                     = 0x40
 	MSG_EOR                          = 0x80
 	MSG_ERRQUEUE                     = 0x2000
+	MSG_FASTOPEN                     = 0x20000000
 	MSG_FIN                          = 0x200
 	MSG_MORE                         = 0x8000
 	MSG_NOSIGNAL                     = 0x4000
