@@ -54,6 +54,7 @@ var ServeFileRangeTests = []struct {
 }
 
 func TestServeFile(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/file")
 	}))
@@ -169,6 +170,7 @@ var fsRedirectTestData = []struct {
 }
 
 func TestFSRedirect(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(StripPrefix("/test", FileServer(Dir("."))))
 	defer ts.Close()
 
@@ -193,6 +195,7 @@ func (fs *testFileSystem) Open(name string) (File, error) {
 }
 
 func TestFileServerCleans(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ch := make(chan string, 1)
 	fs := FileServer(&testFileSystem{func(name string) (File, error) {
 		ch <- name
@@ -224,6 +227,7 @@ func mustRemoveAll(dir string) {
 }
 
 func TestFileServerImplicitLeadingSlash(t *testing.T) {
+	defer checkLeakedTransports(t)
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("TempDir: %v", err)
@@ -302,6 +306,7 @@ func TestEmptyDirOpenCWD(t *testing.T) {
 }
 
 func TestServeFileContentType(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const ctype = "icecream/chocolate"
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.FormValue("override") == "1" {
@@ -318,12 +323,14 @@ func TestServeFileContentType(t *testing.T) {
 		if h := resp.Header.Get("Content-Type"); h != want {
 			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
 		}
+		resp.Body.Close()
 	}
 	get("0", "text/plain; charset=utf-8")
 	get("1", ctype)
 }
 
 func TestServeFileMimeType(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "testdata/style.css")
 	}))
@@ -332,6 +339,7 @@ func TestServeFileMimeType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 	want := "text/css; charset=utf-8"
 	if h := resp.Header.Get("Content-Type"); h != want {
 		t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
@@ -339,6 +347,7 @@ func TestServeFileMimeType(t *testing.T) {
 }
 
 func TestServeFileFromCWD(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		ServeFile(w, r, "fs_test.go")
 	}))
@@ -354,6 +363,7 @@ func TestServeFileFromCWD(t *testing.T) {
 }
 
 func TestServeFileWithContentEncoding(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "foo")
 		ServeFile(w, r, "testdata/file")
@@ -363,12 +373,14 @@ func TestServeFileWithContentEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 	if g, e := resp.ContentLength, int64(-1); g != e {
 		t.Errorf("Content-Length mismatch: got %d, want %d", g, e)
 	}
 }
 
 func TestServeIndexHtml(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const want = "index.html says hello\n"
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
@@ -390,6 +402,7 @@ func TestServeIndexHtml(t *testing.T) {
 }
 
 func TestFileServerZeroByte(t *testing.T) {
+	defer checkLeakedTransports(t)
 	ts := httptest.NewServer(FileServer(Dir(".")))
 	defer ts.Close()
 
@@ -458,6 +471,7 @@ func (fs fakeFS) Open(name string) (File, error) {
 }
 
 func TestDirectoryIfNotModified(t *testing.T) {
+	defer checkLeakedTransports(t)
 	const indexContents = "I am a fake index.html file"
 	fileMod := time.Unix(1000000000, 0).UTC()
 	fileModStr := fileMod.Format(TimeFormat)
@@ -531,6 +545,7 @@ func mustStat(t *testing.T, fileName string) os.FileInfo {
 }
 
 func TestServeContent(t *testing.T) {
+	defer checkLeakedTransports(t)
 	type serveParam struct {
 		name        string
 		modtime     time.Time
@@ -663,6 +678,7 @@ func TestServeContent(t *testing.T) {
 
 // verifies that sendfile is being used on Linux
 func TestLinuxSendfile(t *testing.T) {
+	defer checkLeakedTransports(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("skipping; linux-only test")
 	}

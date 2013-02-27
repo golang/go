@@ -1476,7 +1476,7 @@ func (h *timeoutHandler) errorBody() string {
 }
 
 func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	tw := &timeoutWriter{w: w}
 	go func() {
 		h.handler.ServeHTTP(tw, r)
