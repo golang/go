@@ -110,7 +110,7 @@ syminit(int fd, Fhdr *fp)
 {
 	Sym *p;
 	int32 i, l, size;
-	vlong vl, off;
+	vlong vl;
 	Biobuf b;
 	int svalsz, newformat, shift;
 	uvlong (*swav)(uvlong);
@@ -167,7 +167,6 @@ syminit(int fd, Fhdr *fp)
 	size = 0;
 	for(p = symbols; size < fp->symsz; p++, nsym++) {
 		if(newformat) {
-			off = Boffset(&b);
 			// Go 1.1 format. See comment at top of ../pkg/runtime/symtab.c.
 			if(Bread(&b, &c, 1) != 1)
 				return symerrmsg(1, "symbol");
