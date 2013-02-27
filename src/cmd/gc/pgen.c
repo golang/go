@@ -209,8 +209,10 @@ allocauto(Prog* ptxt)
 	ll = curfn->dcl;
 	n = ll->n;
 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
+		// No locals used at all
 		curfn->dcl = nil;
 		stksize = 0;
+		fixautoused(ptxt);
 		return;
 	}
 
