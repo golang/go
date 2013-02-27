@@ -4,7 +4,84 @@
 
 package net
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// A DialOption modifies a DialOpt call.
+type DialOption interface {
+	dialOption()
+}
+
+var (
+	// TCP is a dial option to dial with TCP (over IPv4 or IPv6).
+	TCP = Network("tcp")
+
+	// UDP is a dial option to dial with UDP (over IPv4 or IPv6).
+	UDP = Network("udp")
+)
+
+// Network returns a DialOption to dial using the given network.
+//
+// Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+// "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
+// (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram" and
+// "unixpacket".
+//
+// For IP networks, net must be "ip", "ip4" or "ip6" followed
+// by a colon and a protocol number or name, such as
+// "ipv4:1" or "ip6:ospf".
+func Network(net string) DialOption {
+	return dialNetwork(net)
+}
+
+type dialNetwork string
+
+func (dialNetwork) dialOption() {}
+
+// Deadline returns a DialOption to fail a dial that doesn't
+// complete before t.
+func Deadline(t time.Time) DialOption {
+	return dialDeadline(t)
+}
+
+// Timeout returns a DialOption to fail a dial that doesn't
+// complete within the provided duration.
+func Timeout(d time.Duration) DialOption {
+	return dialDeadline(time.Now().Add(d))
+}
+
+type dialDeadline time.Time
+
+func (dialDeadline) dialOption() {}
+
+type tcpFastOpen struct{}
+
+func (tcpFastOpen) dialOption() {}
+
+// TODO(bradfitz): implement this (golang.org/issue/4842) and unexport this.
+//
+// TCPFastTimeout returns an option to use TCP Fast Open (TFO) when
+// doing this dial. It is only valid for use with TCP connections.
+// Data sent over a TFO connection may be processed by the peer
+// multiple times, so should be used with caution.
+func todo_TCPFastTimeout() DialOption {
+	return tcpFastOpen{}
+}
+
+type localAddrOption struct {
+	la Addr
+}
+
+func (localAddrOption) dialOption() {}
+
+// LocalAddress returns a dial option to perform a dial with the
+// provided local address. The address must be of a compatible type
+// for the network being dialed.
+func LocalAddress(addr Addr) DialOption {
+	return localAddrOption{addr}
+}
 
 func parseNetwork(net string) (afnet string, proto int, err error) {
 	i := last(net, ':')
@@ -75,25 +152,71 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
 //	Dial("ip6:ospf", "::1")
 //
 func Dial(net, addr string) (Conn, error) {
-	ra, err := resolveAddr("dial", net, addr, noDeadline)
+	return DialOpt(addr, dialNetwork(net))
+}
+
+func netFromOptions(opts []DialOption) string {
+	for _, opt := range opts {
+		if p, ok := opt.(dialNetwork); ok {
+			return string(p)
+		}
+	}
+	return "tcp"
+}
+
+func deadlineFromOptions(opts []DialOption) time.Time {
+	for _, opt := range opts {
+		if d, ok := opt.(dialDeadline); ok {
+			return time.Time(d)
+		}
+	}
+	return noDeadline
+}
+
+var noLocalAddr Addr // nil
+
+func localAddrFromOptions(opts []DialOption) Addr {
+	for _, opt := range opts {
+		if o, ok := opt.(localAddrOption); ok {
+			return o.la
+		}
+	}
+	return noLocalAddr
+}
+
+// DialOpt dials addr using the provided options.
+// If no options are provided, DialOpt(addr) is equivalent
+// to Dial("tcp", addr). See Dial for the syntax of addr.
+func DialOpt(addr string, opts ...DialOption) (Conn, error) {
+	net := netFromOptions(opts)
+	deadline := deadlineFromOptions(opts)
+	la := localAddrFromOptions(opts)
+	ra, err := resolveAddr("dial", net, addr, deadline)
 	if err != nil {
 		return nil, err
 	}
-	return dial(net, addr, ra, noDeadline)
+	return dial(net, addr, la, ra, deadline)
 }
 
-func dial(net, addr string, ra Addr, deadline time.Time) (c Conn, err error) {
+func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
+	if la != nil && la.Network() != ra.Network() {
+		return nil, &OpError{"dial", net, ra, errors.New("mismatched local addr type " + la.Network())}
+	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
-		c, err = dialTCP(net, nil, ra, deadline)
+		la, _ := la.(*TCPAddr)
+		c, err = dialTCP(net, la, ra, deadline)
 	case *UDPAddr:
-		c, err = dialUDP(net, nil, ra, deadline)
+		la, _ := la.(*UDPAddr)
+		c, err = dialUDP(net, la, ra, deadline)
 	case *IPAddr:
-		c, err = dialIP(net, nil, ra, deadline)
+		la, _ := la.(*IPAddr)
+		c, err = dialIP(net, la, ra, deadline)
 	case *UnixAddr:
-		c, err = dialUnix(net, nil, ra, deadline)
+		la, _ := la.(*UnixAddr)
+		c, err = dialUnix(net, la, ra, deadline)
 	default:
-		err = &OpError{"dial", net + " " + addr, nil, UnknownNetworkError(net)}
+		err = &OpError{"dial", net + " " + addr, ra, UnknownNetworkError(net)}
 	}
 	if err != nil {
 		return nil, err
@@ -127,7 +250,7 @@ func dialTimeoutRace(net, addr string, timeout time.Duration) (Conn, error) {
 			return
 		}
 		resolvedAddr <- ra // in case we need it for OpError
-		c, err := dial(net, addr, ra, noDeadline)
+		c, err := dial(net, addr, noLocalAddr, ra, noDeadline)
 		ch <- pair{c, err}
 	}()
 	select {
