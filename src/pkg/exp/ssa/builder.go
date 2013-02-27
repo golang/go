@@ -1077,7 +1077,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	case *types.Signature:
 		np := len(typ.Params)
 		if !c.HasEllipsis {
-			if typ.IsVariadic && len(args) > np-1 {
+			if typ.IsVariadic {
 				// case 2: ordinary call of variadic function.
 				vt = typ.Params[np-1].Type
 				args, varargs = args[:np-1], args[np-1:]
@@ -1216,7 +1216,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	}
 
 	// Common code for varargs.
-	if len(varargs) > 0 { // case 2
+	if vt != nil { // case 2
 		at := &types.Array{
 			Elt: vt,
 			Len: int64(len(varargs)),

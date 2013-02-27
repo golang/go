@@ -84,6 +84,7 @@ type interpreter struct {
 	globals        map[ssa.Value]*value // addresses of global variables (immutable)
 	mode           Mode                 // interpreter options
 	reflectPackage *ssa.Package         // the fake reflect package
+	errorMethods   ssa.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
 }
 
@@ -132,8 +133,11 @@ func (fr *frame) rundefers() {
 // findMethodSet returns the method set for type typ, which may be one
 // of the interpreter's fake types.
 func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
-	if typ == rtypeType {
+	switch typ {
+	case rtypeType:
 		return i.rtypeMethods
+	case errorType:
+		return i.errorMethods
 	}
 	return i.prog.MethodSet(typ)
 }
@@ -211,8 +215,9 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		return kJump
 
 	case *ssa.Defer:
+		pos := instr.Pos // TODO(gri): workaround for bug in typeswitch+funclit.
 		fn, args := prepareCall(fr, &instr.CallCommon)
-		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos, fn, args) })
+		fr.defers = append(fr.defers, func() { call(fr.i, fr, pos, fn, args) })
 
 	case *ssa.Go:
 		fn, args := prepareCall(fr, &instr.CallCommon)
