@@ -209,7 +209,7 @@ func (t *transferWriter) WriteBody(w io.Writer) (err error) {
 		}
 	}
 
-	if t.ContentLength != -1 && t.ContentLength != ncopy {
+	if !t.ResponseToHEAD && t.ContentLength != -1 && t.ContentLength != ncopy {
 		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
 			t.ContentLength, ncopy)
 	}
@@ -327,7 +327,11 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(t.TransferEncoding):
-		t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+		if noBodyExpected(t.RequestMethod) {
+			t.Body = &body{Reader: io.LimitReader(r, 0), closing: t.Close}
+		} else {
+			t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+		}
 	case realLength >= 0:
 		// TODO: limit the Content-Length. This is an easy DoS vector.
 		t.Body = &body{Reader: io.LimitReader(r, realLength), closing: t.Close}
