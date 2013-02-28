@@ -753,7 +753,7 @@ func TestFloat64SpecialCases(t *testing.T) {
 
 		// 4. Check exactness using slow algorithm.
 		if wasExact := new(Rat).SetFloat64(f).Cmp(r) == 0; wasExact != exact {
-			t.Errorf("Rat.SetString(%q).Float64().exact = %b, want %b", input, exact, wasExact)
+			t.Errorf("Rat.SetString(%q).Float64().exact = %t, want %t", input, exact, wasExact)
 		}
 	}
 }

@@ -967,7 +967,7 @@ var ContainsRuneTests = []struct {
 func TestContainsRune(t *testing.T) {
 	for _, ct := range ContainsRuneTests {
 		if ContainsRune(ct.str, ct.r) != ct.expected {
-			t.Errorf("ContainsRune(%s, %s) = %v, want %v",
+			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
 				ct.str, ct.r, !ct.expected, ct.expected)
 		}
 	}
