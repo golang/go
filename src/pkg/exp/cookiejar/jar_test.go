@@ -471,6 +471,34 @@ var basicsTests = [...]jarTest{
 		"a=1",
 		[]query{{"http://www.bbc.co.uk", "a=1"}},
 	},
+	{
+		"Host cookie on IP.",
+		"http://192.168.0.10",
+		[]string{"a=1"},
+		"a=1",
+		[]query{{"http://192.168.0.10", "a=1"}},
+	},
+	{
+		"Port is ignored #1.",
+		"http://www.host.test/",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://www.host.test", "a=1"},
+			{"http://www.host.test:8080/", "a=1"},
+		},
+	},
+	{
+		"Port is ignored #2.",
+		"http://www.host.test:8080/",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://www.host.test", "a=1"},
+			{"http://www.host.test:8080/", "a=1"},
+			{"http://www.host.test:1234/", "a=1"},
+		},
+	},
 }
 
 func TestBasics(t *testing.T) {
@@ -986,6 +1014,180 @@ var chromiumDeletionTests = [...]jarTest{
 func TestChromiumDeletion(t *testing.T) {
 	jar := newTestJar()
 	for _, test := range chromiumDeletionTests {
+		test.run(t, jar)
+	}
+}
+
+// domainHandlingTests tests and documents the rules for domain handling.
+// Each test must be performed on an empty new Jar.
+var domainHandlingTests = [...]jarTest{
+	{
+		"Host cookie",
+		"http://www.host.test",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://www.host.test", "a=1"},
+			{"http://host.test", ""},
+			{"http://bar.host.test", ""},
+			{"http://foo.www.host.test", ""},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Domain cookie #1",
+		"http://www.host.test",
+		[]string{"a=1; domain=host.test"},
+		"a=1",
+		[]query{
+			{"http://www.host.test", "a=1"},
+			{"http://host.test", "a=1"},
+			{"http://bar.host.test", "a=1"},
+			{"http://foo.www.host.test", "a=1"},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Domain cookie #2",
+		"http://www.host.test",
+		[]string{"a=1; domain=.host.test"},
+		"a=1",
+		[]query{
+			{"http://www.host.test", "a=1"},
+			{"http://host.test", "a=1"},
+			{"http://bar.host.test", "a=1"},
+			{"http://foo.www.host.test", "a=1"},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Host cookie on IDNA domain #1",
+		"http://www.bücher.test",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://www.bücher.test", "a=1"},
+			{"http://www.xn--bcher-kva.test", "a=1"},
+			{"http://bücher.test", ""},
+			{"http://xn--bcher-kva.test", ""},
+			{"http://bar.bücher.test", ""},
+			{"http://bar.xn--bcher-kva.test", ""},
+			{"http://foo.www.bücher.test", ""},
+			{"http://foo.www.xn--bcher-kva.test", ""},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Host cookie on IDNA domain #2",
+		"http://www.xn--bcher-kva.test",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://www.bücher.test", "a=1"},
+			{"http://www.xn--bcher-kva.test", "a=1"},
+			{"http://bücher.test", ""},
+			{"http://xn--bcher-kva.test", ""},
+			{"http://bar.bücher.test", ""},
+			{"http://bar.xn--bcher-kva.test", ""},
+			{"http://foo.www.bücher.test", ""},
+			{"http://foo.www.xn--bcher-kva.test", ""},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Domain cookie on IDNA domain #1",
+		"http://www.bücher.test",
+		[]string{"a=1; domain=xn--bcher-kva.test"},
+		"a=1",
+		[]query{
+			{"http://www.bücher.test", "a=1"},
+			{"http://www.xn--bcher-kva.test", "a=1"},
+			{"http://bücher.test", "a=1"},
+			{"http://xn--bcher-kva.test", "a=1"},
+			{"http://bar.bücher.test", "a=1"},
+			{"http://bar.xn--bcher-kva.test", "a=1"},
+			{"http://foo.www.bücher.test", "a=1"},
+			{"http://foo.www.xn--bcher-kva.test", "a=1"},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Domain cookie on IDNA domain #2",
+		"http://www.xn--bcher-kva.test",
+		[]string{"a=1; domain=xn--bcher-kva.test"},
+		"a=1",
+		[]query{
+			{"http://www.bücher.test", "a=1"},
+			{"http://www.xn--bcher-kva.test", "a=1"},
+			{"http://bücher.test", "a=1"},
+			{"http://xn--bcher-kva.test", "a=1"},
+			{"http://bar.bücher.test", "a=1"},
+			{"http://bar.xn--bcher-kva.test", "a=1"},
+			{"http://foo.www.bücher.test", "a=1"},
+			{"http://foo.www.xn--bcher-kva.test", "a=1"},
+			{"http://other.test", ""},
+			{"http://test", ""},
+		},
+	},
+	{
+		"Host cookie on TLD.",
+		"http://com",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://com", "a=1"},
+			{"http://any.com", ""},
+			{"http://any.test", ""},
+		},
+	},
+	{
+		"Domain cookie on TLD becomes a host cookie.",
+		"http://com",
+		[]string{"a=1; domain=com"},
+		"a=1",
+		[]query{
+			{"http://com", "a=1"},
+			{"http://any.com", ""},
+			{"http://any.test", ""},
+		},
+	},
+	{
+		"Host cookie on public suffix.",
+		"http://co.uk",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"http://co.uk", "a=1"},
+			{"http://uk", ""},
+			{"http://some.co.uk", ""},
+			{"http://foo.some.co.uk", ""},
+			{"http://any.uk", ""},
+		},
+	},
+	{
+		"Domain cookie on public suffix is ignored.",
+		"http://some.co.uk",
+		[]string{"a=1; domain=co.uk"},
+		"",
+		[]query{
+			{"http://co.uk", ""},
+			{"http://uk", ""},
+			{"http://some.co.uk", ""},
+			{"http://foo.some.co.uk", ""},
+			{"http://any.uk", ""},
+		},
+	},
+}
+
+func TestDomainHandling(t *testing.T) {
+	for _, test := range domainHandlingTests {
+		jar := newTestJar()
 		test.run(t, jar)
 	}
 }
