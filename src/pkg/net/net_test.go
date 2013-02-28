@@ -173,6 +173,10 @@ func TestUDPListenClose(t *testing.T) {
 }
 
 func TestTCPClose(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
 	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

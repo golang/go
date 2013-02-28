@@ -89,7 +89,7 @@ var fileListenerTests = []struct {
 
 func TestFileListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "windows":
+	case "windows":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
