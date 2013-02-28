@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Network interface identification for Darwin
-
 package net
 
 import (
@@ -11,11 +9,10 @@ import (
 	"syscall"
 )
 
-// If the ifindex is zero, interfaceMulticastAddrTable returns
-// addresses for all network interfaces.  Otherwise it returns
-// addresses for a specific interface.
-func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
-	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
+// interfaceMulticastAddrTable returns addresses for a specific
+// interface.
+func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
 	if err != nil {
 		return nil, os.NewSyscallError("route rib", err)
 	}
@@ -27,8 +24,8 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 	for _, m := range msgs {
 		switch m := m.(type) {
 		case *syscall.InterfaceMulticastAddrMessage:
-			if ifindex == 0 || ifindex == int(m.Header.Index) {
-				ifma, err := newMulticastAddr(m)
+			if ifi.Index == int(m.Header.Index) {
+				ifma, err := newMulticastAddr(ifi, m)
 				if err != nil {
 					return nil, err
 				}
@@ -39,7 +36,7 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 	return ifmat, nil
 }
 
-func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
+func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
 		return nil, os.NewSyscallError("route sockaddr", err)
@@ -57,7 +54,7 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) 
 			// the interface index in the interface-local or link-
 			// local address as the kernel-internal form.
 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
-				ifma.Zone = zoneToString(int(ifma.IP[2]<<8 | ifma.IP[3]))
+				ifma.Zone = ifi.Name
 				ifma.IP[2], ifma.IP[3] = 0, 0
 			}
 			ifmat = append(ifmat, ifma.toAddr())
