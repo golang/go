@@ -195,12 +195,13 @@ static int32 nfname;
 
 static uint32 funcinit;
 static Lock funclock;
+static uintptr lastvalue;
 
 static void
 dofunc(Sym *sym)
 {
 	Func *f;
-
+	
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
@@ -208,6 +209,11 @@ dofunc(Sym *sym)
 	case 'L':
 		if(runtime·strcmp(sym->name, (byte*)"etext") == 0)
 			break;
+		if(sym->value < lastvalue) {
+			runtime·printf("symbols out of order: %p before %p\n", lastvalue, sym->value);
+			runtime·throw("malformed symbol table");
+		}
+		lastvalue = sym->value;
 		if(func == nil) {
 			nfunc++;
 			break;
@@ -544,6 +550,7 @@ buildfuncs(void)
 	// count funcs, fnames
 	nfunc = 0;
 	nfname = 0;
+	lastvalue = 0;
 	walksymtab(dofunc);
 
 	// Initialize tables.
@@ -553,6 +560,7 @@ buildfuncs(void)
 	func[nfunc].entry = (uint64)etext;
 	fname = runtime·mallocgc(nfname*sizeof fname[0], FlagNoPointers, 0, 1);
 	nfunc = 0;
+	lastvalue = 0;
 	walksymtab(dofunc);
 
 	// split pc/ln table by func

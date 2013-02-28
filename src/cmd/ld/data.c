@@ -58,70 +58,73 @@ datcmp(Sym *s1, Sym *s2)
 }
 
 Sym*
-datsort(Sym *l)
+listsort(Sym *l, int (*cmp)(Sym*, Sym*), int off)
 {
 	Sym *l1, *l2, *le;
+	#define NEXT(l) (*(Sym**)((char*)(l)+off))
 
-	if(l == 0 || l->next == 0)
+	if(l == 0 || NEXT(l) == 0)
 		return l;
 
 	l1 = l;
 	l2 = l;
 	for(;;) {
-		l2 = l2->next;
+		l2 = NEXT(l2);
 		if(l2 == 0)
 			break;
-		l2 = l2->next;
+		l2 = NEXT(l2);
 		if(l2 == 0)
 			break;
-		l1 = l1->next;
+		l1 = NEXT(l1);
 	}
 
-	l2 = l1->next;
-	l1->next = 0;
-	l1 = datsort(l);
-	l2 = datsort(l2);
+	l2 = NEXT(l1);
+	NEXT(l1) = 0;
+	l1 = listsort(l, cmp, off);
+	l2 = listsort(l2, cmp, off);
 
 	/* set up lead element */
-	if(datcmp(l1, l2) < 0) {
+	if(cmp(l1, l2) < 0) {
 		l = l1;
-		l1 = l1->next;
+		l1 = NEXT(l1);
 	} else {
 		l = l2;
-		l2 = l2->next;
+		l2 = NEXT(l2);
 	}
 	le = l;
 
 	for(;;) {
 		if(l1 == 0) {
 			while(l2) {
-				le->next = l2;
+				NEXT(le) = l2;
 				le = l2;
-				l2 = l2->next;
+				l2 = NEXT(l2);
 			}
-			le->next = 0;
+			NEXT(le) = 0;
 			break;
 		}
 		if(l2 == 0) {
 			while(l1) {
-				le->next = l1;
+				NEXT(le) = l1;
 				le = l1;
-				l1 = l1->next;
+				l1 = NEXT(l1);
 			}
 			break;
 		}
-		if(datcmp(l1, l2) < 0) {
-			le->next = l1;
+		if(cmp(l1, l2) < 0) {
+			NEXT(le) = l1;
 			le = l1;
-			l1 = l1->next;
+			l1 = NEXT(l1);
 		} else {
-			le->next = l2;
+			NEXT(le) = l2;
 			le = l2;
-			l2 = l2->next;
+			l2 = NEXT(l2);
 		}
 	}
-	le->next = 0;
+	NEXT(le) = 0;
 	return l;
+	
+	#undef NEXT
 }
 
 Reloc*
@@ -1010,7 +1013,7 @@ dodata(void)
 				s->type = SDATARELRO;
 		}
 	}
-	datap = datsort(datap);
+	datap = listsort(datap, datcmp, offsetof(Sym, next));
 
 	/*
 	 * allocate sections.  list is sorted by type,

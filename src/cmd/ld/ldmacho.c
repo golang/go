@@ -593,13 +593,6 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			} else
 				s->type = SDATA;
 		}
-		if(s->type == STEXT) {
-			if(etextp)
-				etextp->next = s;
-			else
-				textp = s;
-			etextp = s;
-		}
 		sect->sym = s;
 	}
 	
@@ -631,6 +624,12 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			werrstr("reference to invalid section %s/%s", sect->segname, sect->name);
 			continue;
 		}
+		if(s->outer != S) {
+			if(s->dupok)
+				continue;
+			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+			errorexit();
+		}
 		s->type = outer->type | SSUB;
 		s->sub = outer->sub;
 		outer->sub = s;
@@ -661,11 +660,29 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			p->link = nil;
 			p->pc = pc++;
 			s->text = p;
-
-			etextp->next = s;
-			etextp = s;
 		}
 		sym->sym = s;
+	}
+
+	// Sort outer lists by address, adding to textp.
+	// This keeps textp in increasing address order.
+	for(i=0; i<c->seg.nsect; i++) {
+		sect = &c->seg.sect[i];
+		if((s = sect->sym) == S)
+			continue;
+		if(s->sub)
+			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+		if(s->type == STEXT) {
+			if(etextp)
+				etextp->next = s;
+			else
+				textp = s;
+			etextp = s;
+			for(s = s->sub; s != S; s = s->sub) {
+				etextp->next = s;
+				etextp = s;
+			}
+		}
 	}
 
 	// load relocations

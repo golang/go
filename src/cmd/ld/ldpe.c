@@ -236,13 +236,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		s->p = sect->base;
 		s->np = sect->size;
 		s->size = sect->size;
-		if(s->type == STEXT) {
-			if(etextp)
-				etextp->next = s;
-			else
-				textp = s;
-			etextp = s;
-		}
 		sect->sym = s;
 		if(strcmp(sect->name, ".rsrc") == 0)
 			setpersrc(sect->sym);
@@ -327,6 +320,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			goto bad;
 	
 		s = sym->sym;
+		if(s->outer != S) {
+			if(s->dupok)
+				continue;
+			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+			errorexit();
+		}
 		if(sym->sectnum == 0) {// extern
 			if(s->type == SDYNIMPORT)
 				s->plt = -2; // flag for dynimport in PE object files.
@@ -367,9 +366,27 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			p->link = nil;
 			p->pc = pc++;
 			s->text = p;
-	
-			etextp->next = s;
+		}
+	}
+
+	// Sort outer lists by address, adding to textp.
+	// This keeps textp in increasing address order.
+	for(i=0; i<obj->nsect; i++) {
+		s = obj->sect[i].sym;
+		if(s == S)
+			continue;
+		if(s->sub)
+			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+		if(s->type == STEXT) {
+			if(etextp)
+				etextp->next = s;
+			else
+				textp = s;
 			etextp = s;
+			for(s = s->sub; s != S; s = s->sub) {
+				etextp->next = s;
+				etextp = s;
+			}
 		}
 	}
 
