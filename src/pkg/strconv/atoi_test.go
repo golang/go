@@ -5,6 +5,7 @@
 package strconv_test
 
 import (
+	"errors"
 	"reflect"
 	. "strconv"
 	"testing"
@@ -146,6 +147,16 @@ var atoi32tests = []atoi32Test{
 	{"-2147483649", -1 << 31, ErrRange},
 }
 
+type numErrorTest struct {
+	num, want string
+}
+
+var numErrorTests = []numErrorTest{
+	{"0", `strconv.ParseFloat: parsing "0": failed`},
+	{"`", "strconv.ParseFloat: parsing \"`\": failed"},
+	{"1\x00.2", `strconv.ParseFloat: parsing "1\x00.2": failed`},
+}
+
 func init() {
 	// The atoi routines return NumErrors wrapping
 	// the error and the string.  Convert the tables above.
@@ -273,6 +284,19 @@ func TestParseInt(t *testing.T) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, test.err)
 			}
+		}
+	}
+}
+
+func TestNumError(t *testing.T) {
+	for _, test := range numErrorTests {
+		err := &NumError{
+			Func: "ParseFloat",
+			Num:  test.num,
+			Err:  errors.New("failed"),
+		}
+		if got := err.Error(); got != test.want {
+			t.Errorf(`(&NumError{"ParseFloat", %q, "failed"}).Error() = %v, want %v`, test.num, got, test.want)
 		}
 	}
 }

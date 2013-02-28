@@ -110,6 +110,7 @@ var atoftests = []atofTest{
 	{"1e", "0", ErrSyntax},
 	{"1e-", "0", ErrSyntax},
 	{".e-1", "0", ErrSyntax},
+	{"1\x00.2", "0", ErrSyntax},
 
 	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
