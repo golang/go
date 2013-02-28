@@ -308,7 +308,7 @@ func Rename(oldname, newname string) error {
 	d.Null()
 	d.Name = newname
 
-	var buf [syscall.STATFIXLEN]byte
+	buf := make([]byte, syscall.STATFIXLEN+len(d.Name))
 	n, err := d.Marshal(buf[:])
 	if err != nil {
 		return &PathError{"rename", oldname, err}
