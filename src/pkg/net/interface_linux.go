@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Network interface identification for Linux
-
 package net
 
 import (
@@ -37,16 +35,18 @@ loop:
 				if err != nil {
 					return nil, os.NewSyscallError("netlink routeattr", err)
 				}
-				ifi := newLink(ifim, attrs)
-				ift = append(ift, ifi)
+				ift = append(ift, *newLink(ifim, attrs))
+				if ifindex == int(ifim.Index) {
+					break loop
+				}
 			}
 		}
 	}
 	return ift, nil
 }
 
-func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) Interface {
-	ifi := Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
+func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) *Interface {
+	ifi := &Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case syscall.IFLA_ADDRESS:
@@ -88,10 +88,10 @@ func linkFlags(rawFlags uint32) Flags {
 	return f
 }
 
-// If the ifindex is zero, interfaceAddrTable returns addresses
-// for all network interfaces.  Otherwise it returns addresses
-// for a specific interface.
-func interfaceAddrTable(ifindex int) ([]Addr, error) {
+// If the ifi is nil, interfaceAddrTable returns addresses for all
+// network interfaces.  Otherwise it returns addresses for a specific
+// interface.
+func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
 	if err != nil {
 		return nil, os.NewSyscallError("netlink rib", err)
@@ -100,14 +100,22 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
 	if err != nil {
 		return nil, os.NewSyscallError("netlink message", err)
 	}
-	ifat, err := addrTable(msgs, ifindex)
+	var ift []Interface
+	if ifi == nil {
+		var err error
+		ift, err = interfaceTable(0)
+		if err != nil {
+			return nil, err
+		}
+	}
+	ifat, err := addrTable(ift, ifi, msgs)
 	if err != nil {
 		return nil, err
 	}
 	return ifat, nil
 }
 
-func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+func addrTable(ift []Interface, ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {
 	var ifat []Addr
 loop:
 	for _, m := range msgs {
@@ -116,58 +124,51 @@ loop:
 			break loop
 		case syscall.RTM_NEWADDR:
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
-			ifi, err := InterfaceByIndex(int(ifam.Index))
-			if err != nil {
-				return nil, err
-			}
-			if ifindex == 0 || ifindex == int(ifam.Index) {
+			if len(ift) != 0 || ifi.Index == int(ifam.Index) {
+				if len(ift) != 0 {
+					var err error
+					ifi, err = interfaceByIndex(ift, int(ifam.Index))
+					if err != nil {
+						return nil, err
+					}
+				}
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
 					return nil, os.NewSyscallError("netlink routeattr", err)
 				}
-				ifat = append(ifat, newAddr(attrs, ifi, ifam))
+				ifa := newAddr(ifi, ifam, attrs)
+				if ifa != nil {
+					ifat = append(ifat, ifa)
+				}
 			}
 		}
 	}
 	return ifat, nil
 }
 
-func newAddr(attrs []syscall.NetlinkRouteAttr, ifi *Interface, ifam *syscall.IfAddrmsg) Addr {
-	ifa := &IPNet{}
+func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRouteAttr) Addr {
 	for _, a := range attrs {
 		if ifi.Flags&FlagPointToPoint != 0 && a.Attr.Type == syscall.IFA_LOCAL ||
 			ifi.Flags&FlagPointToPoint == 0 && a.Attr.Type == syscall.IFA_ADDRESS {
 			switch ifam.Family {
 			case syscall.AF_INET:
-				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
-				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv4len)
+				return &IPNet{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3]), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv4len)}
 			case syscall.AF_INET6:
-				ifa.IP = make(IP, IPv6len)
+				ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
 				copy(ifa.IP, a.Value[:])
-				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv6len)
 				if ifam.Scope == syscall.RT_SCOPE_HOST || ifam.Scope == syscall.RT_SCOPE_LINK {
-					ifa.Zone = zoneToString(int(ifam.Index))
+					ifa.Zone = ifi.Name
 				}
+				return ifa
 			}
 		}
 	}
-	return ifa
+	return nil
 }
 
-// If the ifindex is zero, interfaceMulticastAddrTable returns
-// addresses for all network interfaces.  Otherwise it returns
-// addresses for a specific interface.
-func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
-	var (
-		err error
-		ifi *Interface
-	)
-	if ifindex > 0 {
-		ifi, err = InterfaceByIndex(ifindex)
-		if err != nil {
-			return nil, err
-		}
-	}
+// interfaceMulticastAddrTable returns addresses for a specific
+// interface.
+func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 	ifmat4 := parseProcNetIGMP("/proc/net/igmp", ifi)
 	ifmat6 := parseProcNetIGMP6("/proc/net/igmp6", ifi)
 	return append(ifmat4, ifmat6...), nil
