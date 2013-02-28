@@ -196,7 +196,6 @@ void	deadcode(void);
 Reloc*	addrel(Sym*);
 void	codeblk(int32, int32);
 void	datblk(int32, int32);
-Sym*	datsort(Sym*);
 void	reloc(void);
 void	relocsym(Sym*);
 void	savedata(Sym*, Prog*, char*);
@@ -238,6 +237,8 @@ void	setpersrc(Sym*);
 void	doversion(void);
 void	usage(void);
 void	setinterp(char*);
+Sym*	listsort(Sym*, int(*cmp)(Sym*, Sym*), int);
+int	valuecmp(Sym*, Sym*);
 
 int	pathchar(void);
 void*	mal(uint32);

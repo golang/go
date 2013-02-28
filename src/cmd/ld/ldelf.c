@@ -311,6 +311,16 @@ static int	map(ElfObj*, ElfSect*);
 static int	readsym(ElfObj*, int i, ElfSym*, int);
 static int	reltype(char*, int, uchar*);
 
+int
+valuecmp(Sym *a, Sym *b)
+{
+	if(a->value < b->value)
+		return -1;
+	if(a->value > b->value)
+		return +1;
+	return 0;
+}
+
 void
 ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 {
@@ -541,13 +551,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		}
 		s->size = sect->size;
 		s->align = sect->align;
-		if(s->type == STEXT) {
-			if(etextp)
-				etextp->next = s;
-			else
-				textp = s;
-			etextp = s;
-		}
 		sect->sym = s;
 	}
 
@@ -583,6 +586,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			continue;
 		}
 		s = sym.sym;
+		if(s->outer != S) {
+			if(s->dupok)
+				continue;
+			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+			errorexit();
+		}
 		s->sub = sect->sym->sub;
 		sect->sym->sub = s;
 		s->type = sect->sym->type | (s->type&~SMASK) | SSUB;
@@ -611,7 +620,25 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 				p->link = nil;
 				p->pc = pc++;
 				s->text = p;
-
+			}
+		}
+	}
+	
+	// Sort outer lists by address, adding to textp.
+	// This keeps textp in increasing address order.
+	for(i=0; i<obj->nsect; i++) {
+		s = obj->sect[i].sym;
+		if(s == S)
+			continue;
+		if(s->sub)
+			s->sub = listsort(s->sub, valuecmp, offsetof(Sym, sub));
+		if(s->type == STEXT) {
+			if(etextp)
+				etextp->next = s;
+			else
+				textp = s;
+			etextp = s;
+			for(s = s->sub; s != S; s = s->sub) {
 				etextp->next = s;
 				etextp = s;
 			}
@@ -792,7 +819,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 				// set dupok generally. See http://codereview.appspot.com/5823055/
 				// comment #5 for details.
 				if(s && sym->other == 2) {
-					s->type = SHIDDEN;
+					s->type |= SHIDDEN;
 					s->dupok = 1;
 				}
 			}
@@ -804,14 +831,14 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
 					// and should only reference by its index, not name, so we
 					// don't bother to add them into hash table
 					s = newsym(sym->name, version);
-					s->type = SHIDDEN;
+					s->type |= SHIDDEN;
 				}
 			break;
 		case ElfSymBindWeak:
 			if(needSym) {
 				s = newsym(sym->name, 0);
 				if(sym->other == 2)
-					s->type = SHIDDEN;
+					s->type |= SHIDDEN;
 			}
 			break;
 		default:
