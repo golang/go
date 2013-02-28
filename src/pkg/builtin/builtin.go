@@ -114,6 +114,8 @@ type ComplexType complex64
 // result of append, often in the variable holding the slice itself:
 //	slice = append(slice, elem1, elem2)
 //	slice = append(slice, anotherSlice...)
+// As a special case, it is legal to append a string to a byte slice, like this:
+//	slice = append([]byte("hello "), "world"...)
 func append(slice []Type, elems ...Type) []Type
 
 // The copy built-in function copies elements from a source slice into a
