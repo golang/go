@@ -28,20 +28,101 @@ func shifts1() {
 }
 
 func shifts2() {
-	// TODO(gri) enable commented out tests below.
+	// from the spec
 	var (
 		s uint = 33
 		i = 1<<s           // 1 has type int
 		j int32 = 1<<s     // 1 has type int32; j == 0
 		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
 		m int = 1.0<<s     // 1.0 has type int
-	//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+		n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
 		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
-	//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+		p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
 		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
 		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
 		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
 	)
+}
+
+func shifts3(a int16, b float32) {
+	var (
+		s uint = 11
+		u = 1 /* ERROR "must be integer" */ <<s + 1.0
+		v complex128 = 1 /* ERROR "must be integer" */ << s + 1.0 /* ERROR "must be integer" */ << s + 1
+	)
+	x := 1.0 /* ERROR "must be integer" */ <<s + 1
+	shifts3(1.0 << s, 1 /* ERROR "must be integer" */ >> s)
+	// TODO(gri) add more tests (systematically)
+}
+
+func shifts4() {
+	// from src/pkg/compress/lzw/reader.go:90
+	{
+		var d struct {
+			bits     uint32
+			width    uint
+		}
+		_ = uint16(d.bits & (1<<d.width - 1))
+	}
+
+	// from src/pkg/debug/dwarf/buf.go:116
+	{
+		var ux uint64
+		var bits uint
+		x := int64(ux)
+		if x&(1<<(bits-1)) != 0 {}
+	}
+
+	// from src/pkg/encoding/asn1/asn1.go:160
+	{
+		var bytes []byte
+		if bytes[len(bytes)-1]&((1<<bytes[0])-1) != 0 {}
+	}
+
+	// from src/pkg/math/big/rat.go:140
+	{
+		var exp int
+		var mantissa uint64
+		shift := uint64(-1022 - (exp - 1)) // [1..53)
+		_ = mantissa & (1<<shift - 1)
+	}
+
+	// from src/pkg/net/interface.go:51
+	{
+		type Flags uint
+		var f Flags
+		var i int
+		if f&(1<<uint(i)) != 0 {}
+	}
+
+	// from src/pkg/runtime/softfloat64.go:234
+	{
+		var gm uint64
+		var shift uint
+		_ = gm & (1<<shift - 1)
+	}
+
+	// from src/pkg/strconv/atof.go:326
+	{
+		var mant uint64
+		var mantbits uint
+		if mant == 2<<mantbits {}
+	}
+
+	// from src/pkg/syscall/route_bsd.go:82
+	{
+		var Addrs int32
+		const rtaRtMask = 1
+		var i uint
+		if Addrs&rtaRtMask&(1<<i) == 0 {}
+	}
+
+	// from src/pkg/text/scanner/scanner.go:540
+	{
+		var s struct { Whitespace uint64 }
+		var ch rune
+		for s.Whitespace&(1<<uint(ch)) != 0 {}
+	}
 }
 
 // TODO(gri) The error messages below depond on adjusting the spec

@@ -11,20 +11,23 @@ import (
 	"go/token"
 )
 
-func (check *checker) assignOperand(z, x *operand) {
+// assigment reports whether x can be assigned to a variable of type 'to',
+// if necessary by attempting to convert untyped values to the appropriate
+// type. If x.mode == invalid upon return, then assignment has already
+// issued an error message and the caller doesn't have to report another.
+// TODO(gri) This latter behavior is for historic reasons and complicates
+// callers. Needs to be cleaned up.
+func (check *checker) assignment(x *operand, to Type) bool {
 	if t, ok := x.typ.(*Result); ok {
 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
 		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
 		x.mode = invalid
-		return
+		return false
 	}
 
-	check.convertUntyped(x, z.typ)
+	check.convertUntyped(x, to)
 
-	if !x.isAssignable(check.ctxt, z.typ) {
-		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
-		x.mode = invalid
-	}
+	return x.mode != invalid && x.isAssignable(check.ctxt, to)
 }
 
 // assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil),
@@ -49,6 +52,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 
 	if !decl {
 		// regular assignment - start with lhs to obtain a type hint
+		// TODO(gri) clean this up - we don't need type hints anymore
 		var z operand
 		check.expr(&z, lhs, nil, -1)
 		if z.mode == invalid {
@@ -66,8 +70,13 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 			return
 		}
 
-		check.assignOperand(&z, x)
-		if x.mode != invalid && z.mode == constant {
+		if !check.assignment(x, z.typ) {
+			if x.mode != invalid {
+				check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+			}
+			return
+		}
+		if z.mode == constant {
 			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
 		}
 		return
@@ -118,18 +127,19 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	}
 
 	if x.mode != invalid {
-		var z operand
-		switch obj.(type) {
-		case *Const:
-			z.mode = constant
-		case *Var:
-			z.mode = variable
-		default:
-			unreachable()
+		if !check.assignment(x, typ) {
+			if x.mode != invalid {
+				switch obj.(type) {
+				case *Const:
+					check.errorf(x.pos(), "cannot assign %s to variable of type %s", x, typ)
+				case *Var:
+					check.errorf(x.pos(), "cannot initialize constant of type %s with %s", typ, x)
+				default:
+					unreachable()
+				}
+				x.mode = invalid
+			}
 		}
-		z.expr = ident
-		z.typ = typ
-		check.assignOperand(&z, x)
 	}
 
 	// for constants, set their value
@@ -345,8 +355,10 @@ func (check *checker) stmt(s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(check.ctxt, tch.Elt) {
-			check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
+		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !check.assignment(&x, tch.Elt) {
+			if x.mode != invalid {
+				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
+			}
 		}
 
 	case *ast.IncDecStmt:
@@ -360,10 +372,12 @@ func (check *checker) stmt(s ast.Stmt) {
 			check.invalidAST(s.TokPos, "unknown inc/dec operation %s", s.Tok)
 			return
 		}
-		var x, y operand
-		check.expr(&x, s.X, nil, -1)
-		check.expr(&y, &ast.BasicLit{ValuePos: x.pos(), Kind: token.INT, Value: "1"}, nil, -1) // use x's position
-		check.binary(&x, &y, op, nil)
+		var x operand
+		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
+		check.binary(&x, s.X, Y, op, -1)
+		if x.mode == invalid {
+			return
+		}
 		check.assign1to1(s.X, nil, &x, false, -1)
 
 	case *ast.AssignStmt:
@@ -409,18 +423,11 @@ func (check *checker) stmt(s ast.Stmt) {
 				check.invalidAST(s.TokPos, "unknown assignment operation %s", s.Tok)
 				return
 			}
-			var x, y operand
-			// The lhs operand's type doesn't need a hint (from the rhs operand),
-			// because it must be a fully typed variable in this case.
-			check.expr(&x, s.Lhs[0], nil, -1)
+			var x operand
+			check.binary(&x, s.Lhs[0], s.Rhs[0], op, -1)
 			if x.mode == invalid {
 				return
 			}
-			check.expr(&y, s.Rhs[0], x.typ, -1)
-			if y.mode == invalid {
-				return
-			}
-			check.binary(&x, &y, op, x.typ)
 			check.assign1to1(s.Lhs[0], nil, &x, false, -1)
 		}
 
@@ -464,7 +471,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.optionalStmt(s.Init)
 		var x operand
 		check.expr(&x, s.Cond, nil, -1)
-		if !isBoolean(x.typ) {
+		if x.mode != invalid && !isBoolean(x.typ) {
 			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
 		}
 		check.stmt(s.Body)
@@ -641,7 +648,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		if s.Cond != nil {
 			var x operand
 			check.expr(&x, s.Cond, nil, -1)
-			if !isBoolean(x.typ) {
+			if x.mode != invalid && !isBoolean(x.typ) {
 				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
 			}
 		}

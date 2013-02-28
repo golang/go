@@ -338,7 +338,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
 			goto Error
 		}
-		offs := check.ctxt.offsetof(x.typ, res.index)
+		offs := check.ctxt.offsetof(deref(x.typ), res.index)
 		if offs < 0 {
 			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
 			goto Error

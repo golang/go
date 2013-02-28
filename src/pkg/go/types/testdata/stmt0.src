@@ -36,7 +36,7 @@ func _() {
 	undeclared /* ERROR "undeclared" */ = 991
 }
 
-func _incdecs() {
+func incdecs() {
 	const c = 3.14
 	c /* ERROR "cannot assign" */ ++
 	s := "foo"
@@ -52,17 +52,17 @@ func _incdecs() {
 	z++
 }
 
-func _sends() {
+func sends() {
 	var ch chan int
 	var rch <-chan int
 	var x int
 	x /* ERROR "cannot send" */ <- x
 	rch /* ERROR "cannot send" */ <- x
-	ch /* ERROR "cannot send" */ <- "foo"
+	ch <- "foo" /* ERROR "cannot convert" */
 	ch <- x
 }
 
-func _selects() {
+func selects() {
 	select {}
 	var (
 		ch chan int
@@ -82,23 +82,23 @@ func _selects() {
 	}
 }
 
-func _gos() {
+func gos() {
 	go 1 /* ERROR "expected function/method call" */
-	go _gos()
+	go gos()
 	var c chan int
 	go close(c)
 	go len(c) // TODO(gri) this should not be legal
 }
 
-func _defers() {
+func defers() {
 	defer 1 /* ERROR "expected function/method call" */
-	defer _defers()
+	defer defers()
 	var c chan int
 	defer close(c)
 	defer len(c) // TODO(gri) this should not be legal
 }
 
-func _switches() {
+func switches() {
 	var x int
 
 	switch x {
@@ -148,7 +148,7 @@ type T2 struct{}
 func (T) m() {}
 func (T2) m(int) {}
 
-func _typeswitches() {
+func typeswitches() {
 	var i int
 	var x interface{}
 
@@ -189,7 +189,16 @@ func _typeswitches() {
 	}
 }
 
-func _rangeloops() {
+func typeswitch0() {
+	switch y := interface{}(nil).(type) {
+	case int:
+		// TODO(gri) y has the wrong type here (type-checking
+		// of captured variable is delayed)
+		// func() int { return y + 0 }()
+	}
+}
+
+func rangeloops() {
 	var (
 		x int
 		a [10]float32
