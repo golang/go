@@ -25,6 +25,11 @@ var condErrorf = func() func(*testing.T, string, ...interface{}) {
 }()
 
 func TestTCPListenerSpecificMethods(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("net.ResolveTCPAddr failed: %v", err)

@@ -420,6 +420,11 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 }
 
 func testVariousDeadlines(t *testing.T, maxProcs int) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
 	ln := newLocalListener(t)
 	defer ln.Close()
@@ -518,6 +523,11 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
 // TestReadDeadlineDataAvailable tests that read deadlines work, even
 // if there's data ready to be read.
 func TestReadDeadlineDataAvailable(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	ln := newLocalListener(t)
 	defer ln.Close()
 
@@ -552,6 +562,11 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 // TestWriteDeadlineBufferAvailable tests that write deadlines work, even
 // if there's buffer space available to write.
 func TestWriteDeadlineBufferAvailable(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
 	ln := newLocalListener(t)
 	defer ln.Close()
 
