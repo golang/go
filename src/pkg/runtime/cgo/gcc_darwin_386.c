@@ -115,7 +115,6 @@ x_cgo_init(G *g)
 	inittls();
 }
 
-void (*_cgo_init)(G*) = x_cgo_init;
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)

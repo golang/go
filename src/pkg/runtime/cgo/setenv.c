@@ -4,13 +4,7 @@
 
 // +build darwin freebsd linux netbsd openbsd
 
-#include "libcgo.h"
+#pragma cgo_import_static x_cgo_setenv
 
-#include <stdlib.h>
-
-/* Stub for calling setenv */
-void
-x_cgo_setenv(char **arg)
-{
-	setenv(arg[0], arg[1], 1);
-}
+void x_cgo_setenv(char**);
+void (*_cgo_setenv)(char**) = x_cgo_setenv;
