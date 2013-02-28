@@ -16,6 +16,7 @@ func runTest(t *testing.T, path string) {
 	errorCount = 0
 
 	*recursive = false
+	*allErrors = true
 	if suffix := ".go"; strings.HasSuffix(path, suffix) {
 		// single file
 		path = filepath.Join(runtime.GOROOT(), "src/pkg", path)
@@ -64,7 +65,7 @@ var tests = []string{
 	"compress/bzip2",
 	"compress/flate",
 	"compress/gzip",
-	// "compress/lzw",
+	"compress/lzw",
 	"compress/zlib",
 
 	"container/heap",
@@ -94,14 +95,14 @@ var tests = []string{
 	"database/sql",
 	"database/sql/driver",
 
-	// "debug/dwarf",
+	"debug/dwarf",
 	"debug/elf",
 	"debug/gosym",
 	"debug/macho",
 	"debug/pe",
 
 	"encoding/ascii85",
-	// "encoding/asn1",
+	"encoding/asn1",
 	"encoding/base32",
 	"encoding/base64",
 	"encoding/binary",
@@ -150,14 +151,14 @@ var tests = []string{
 	"log/syslog",
 
 	"math",
-	//"math/big",
+	"math/big",
 	"math/cmplx",
 	"math/rand",
 
 	"mime",
 	"mime/multipart",
 
-	// "net",
+	"net",
 	"net/http",
 	"net/http/cgi",
 	"net/http/fcgi",
@@ -179,25 +180,25 @@ var tests = []string{
 	"regexp",
 	"regexp/syntax",
 
-	// "runtime",
+	"runtime",
 	"runtime/cgo",
 	"runtime/debug",
 	"runtime/pprof",
 
 	"sort",
-	// "strconv",
+	"strconv",
 	"strings",
 
 	"sync",
 	"sync/atomic",
 
-	// "syscall",
+	"syscall",
 
 	"testing",
 	"testing/iotest",
 	"testing/quick",
 
-	// "text/scanner",
+	"text/scanner",
 	"text/tabwriter",
 	"text/template",
 	"text/template/parse",

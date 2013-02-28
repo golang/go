@@ -33,9 +33,13 @@ type Context struct {
 	// Objects - than we could lift this restriction.
 	Ident func(id *ast.Ident, obj Object)
 
-	// If Expr != nil, it is called for each expression x that is
-	// type-checked: typ is the expression type, and val is the value
-	// if x is constant, val is nil otherwise.
+	// If Expr != nil, it is called exactly once for each expression x
+	// that is type-checked: typ is the expression type, and val is the
+	// value if x is constant, val is nil otherwise.
+	//
+	// If x is a literal value (constant, composite literal), typ is always
+	// the dynamic type of x (never an interface type). Otherwise, typ is x's
+	// static type (possibly an interface type).
 	//
 	// Constants are represented as follows:
 	//
