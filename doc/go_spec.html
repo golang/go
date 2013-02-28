@@ -2637,7 +2637,7 @@ a[:]   // same as a[0 : len(a)]
 
 <p>
 For arrays or strings, the indices <code>low</code> and <code>high</code> are
-<i>in range</i> if <code>0 &lt;= <code>low</code> &lt;= <code>high</code> &lt;= len(a)</code>,
+<i>in range</i> if <code>0</code> &lt;= <code>low</code> &lt;= <code>high</code> &lt;= <code>len(a)</code>,
 otherwise they are <i>out of range</i>.
 For slices, the upper index bound is the slice capacity <code>cap(a)</code> rather than the length.
 A <a href="#Constants">constant</a> index must be non-negative and representable by a value of type
