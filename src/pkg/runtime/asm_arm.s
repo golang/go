@@ -31,10 +31,10 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	R13, g_stackbase(g)
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
-	// if there is an initcgo, call it.
-	MOVW	initcgo(SB), R2
+	// if there is an _cgo_init, call it.
+	MOVW	_cgo_init(SB), R2
 	CMP	$0, R2
-	MOVW.NE	g, R0 // first argument of initcgo is g
+	MOVW.NE	g, R0 // first argument of _cgo_init is g
 	BL.NE	(R2) // will clobber R0-R3
 
 	BL	runtime·checkgoarm(SB)
@@ -105,7 +105,7 @@ TEXT runtime·gogo(SB), 7, $-4
 	MOVW	0(FP), R1		// gobuf
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
-	MOVW	cgo_save_gm(SB), R2
+	MOVW	_cgo_save_gm(SB), R2
 	CMP 	$0, R2 // if in Cgo, we have to save g and m
 	BL.NE	(R2) // this call will clobber R0
 	MOVW	4(FP), R0		// return 2nd arg
@@ -121,7 +121,7 @@ TEXT runtime·gogocall(SB), 7, $-4
 	MOVW	4(FP), R1		// fn
 	MOVW	gobuf_g(R3), g
 	MOVW	0(g), R0		// make sure g != nil
-	MOVW	cgo_save_gm(SB), R0
+	MOVW	_cgo_save_gm(SB), R0
 	CMP 	$0, R0 // if in Cgo, we have to save g and m
 	BL.NE	(R0) // this call will clobber R0
 	MOVW	8(FP), R7	// context
@@ -138,7 +138,7 @@ TEXT runtime·gogocallfn(SB), 7, $-4
 	MOVW	4(FP), R1		// fn
 	MOVW	gobuf_g(R3), g
 	MOVW	0(g), R0		// make sure g != nil
-	MOVW	cgo_save_gm(SB), R0
+	MOVW	_cgo_save_gm(SB), R0
 	CMP 	$0, R0 // if in Cgo, we have to save g and m
 	BL.NE	(R0) // this call will clobber R0
 	MOVW	gobuf_sp(R3), SP	// restore SP
@@ -327,7 +327,7 @@ TEXT runtime·cgocallback(SB),7,$12
 // See cgocall.c for more details.
 TEXT	runtime·cgocallback_gofunc(SB),7,$16
 	// Load m and g from thread-local storage.
-	MOVW	cgo_load_gm(SB), R0
+	MOVW	_cgo_load_gm(SB), R0
 	CMP	$0, R0
 	BL.NE	(R0)
 
@@ -425,7 +425,7 @@ TEXT runtime·setmg(SB), 7, $-4
 	MOVW	gg+4(FP), g
 
 	// Save m and g to thread-local storage.
-	MOVW	cgo_save_gm(SB), R0
+	MOVW	_cgo_save_gm(SB), R0
 	CMP	$0, R0
 	BL.NE	(R0)
 

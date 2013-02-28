@@ -101,8 +101,8 @@ inittls(void)
 		pthread_key_delete(tofree[i]);
 }
 
-static void
-xinitcgo(G *g)
+void
+x_cgo_init(G *g)
 {
 	pthread_attr_t attr;
 	size_t size;
@@ -115,10 +115,10 @@ xinitcgo(G *g)
 	inittls();
 }
 
-void (*initcgo)(G*) = xinitcgo;
+void (*_cgo_init)(G*) = x_cgo_init;
 
 void
-libcgo_sys_thread_start(ThreadStart *ts)
+_cgo_sys_thread_start(ThreadStart *ts)
 {
 	pthread_attr_t attr;
 	sigset_t ign, oset;
@@ -153,7 +153,7 @@ threadentry(void *v)
 	ts.g->stackbase = (uintptr)&ts;
 
 	/*
-	 * libcgo_sys_thread_start set stackguard to stack size;
+	 * _cgo_sys_thread_start set stackguard to stack size;
 	 * change to actual guard pointer.
 	 */
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;

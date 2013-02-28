@@ -14,14 +14,14 @@ TEXT _rt0_amd64(SB),7,$-8
 	MOVQ	BX, 24(SP)
 	
 	// create istack out of the given (operating system) stack.
-	// initcgo may update stackguard.
+	// _cgo_init may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
 	LEAQ	(-64*1024+104)(SP), BX
 	MOVQ	BX, g_stackguard(DI)
 	MOVQ	SP, g_stackbase(DI)
 
-	// if there is an initcgo, call it.
-	MOVQ	initcgo(SB), AX
+	// if there is an _cgo_init, call it.
+	MOVQ	_cgo_init(SB), AX
 	TESTQ	AX, AX
 	JZ	needtls
 	// g0 already in DI

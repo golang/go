@@ -846,10 +846,10 @@ runtime·mstart(void)
 	// is enabled, we must remove our seh here.
 }
 
-// When running with cgo, we call libcgo_thread_start
+// When running with cgo, we call _cgo_thread_start
 // to start threads for us so that we can play nicely with
 // foreign code.
-void (*libcgo_thread_start)(void*);
+void (*_cgo_thread_start)(void*);
 
 typedef struct CgoThreadStart CgoThreadStart;
 struct CgoThreadStart
@@ -1119,12 +1119,12 @@ runtime·newm(void)
 	if(runtime·iscgo) {
 		CgoThreadStart ts;
 
-		if(libcgo_thread_start == nil)
-			runtime·throw("libcgo_thread_start missing");
+		if(_cgo_thread_start == nil)
+			runtime·throw("_cgo_thread_start missing");
 		ts.m = mp;
 		ts.g = mp->g0;
 		ts.fn = runtime·mstart;
-		runtime·asmcgocall(libcgo_thread_start, &ts);
+		runtime·asmcgocall(_cgo_thread_start, &ts);
 	} else {
 		runtime·newosproc(mp, mp->g0, (byte*)mp->g0->stackbase, runtime·mstart);
 	}
@@ -2103,3 +2103,4 @@ runtime·testSchedLocalQueueSteal(void)
 		}
 	}
 }
+

@@ -83,13 +83,13 @@
 // _cgoexp_GoF immediately returns to crosscall2, which restores the
 // callee-save registers for gcc and returns to GoF, which returns to f.
 
-void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+void *_cgo_init;	/* filled in by dynamic linker when Cgo is available */
 static int64 cgosync;  /* represents possible synchronization in C code */
 
 // These two are only used by the architecture where TLS based storage isn't
 // the default for g and m (e.g., ARM)
-void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
-void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
+void *_cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
+void *_cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
 
 static void unwindm(void);
 

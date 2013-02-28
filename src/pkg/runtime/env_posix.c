@@ -35,7 +35,7 @@ runtime·getenv(int8 *s)
 	return nil;
 }
 
-void (*libcgo_setenv)(byte**);
+void (*_cgo_setenv)(byte**);
 
 // Update the C environment if cgo is loaded.
 // Called from syscall.Setenv.
@@ -44,7 +44,7 @@ syscall·setenv_c(String k, String v)
 {
 	byte *arg[2];
 
-	if(libcgo_setenv == nil)
+	if(_cgo_setenv == nil)
 		return;
 
 	arg[0] = runtime·malloc(k.len + 1);
@@ -55,7 +55,7 @@ syscall·setenv_c(String k, String v)
 	runtime·memmove(arg[1], v.str, v.len);
 	arg[1][v.len] = 0;
 
-	runtime·asmcgocall((void*)libcgo_setenv, arg);
+	runtime·asmcgocall((void*)_cgo_setenv, arg);
 	runtime·free(arg[0]);
 	runtime·free(arg[1]);
 }

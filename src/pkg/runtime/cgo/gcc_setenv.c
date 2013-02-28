@@ -9,10 +9,10 @@
 #include <stdlib.h>
 
 /* Stub for calling setenv */
-static void
-xlibcgo_setenv(char **arg)
+void
+x_cgo_setenv(char **arg)
 {
 	setenv(arg[0], arg[1], 1);
 }
 
-void (*libcgo_setenv)(char**) = xlibcgo_setenv;
+void (*_cgo_setenv)(char**) = x_cgo_setenv;
