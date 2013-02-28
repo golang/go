@@ -51,7 +51,6 @@ func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 		var c net.Conn
 		var err error
 		if c, err = l.Accept(); err != nil {
-			fmt.Print(err)
 			return
 		}
 		wg.Add(1)
@@ -71,7 +70,7 @@ func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 	}
 }
 
-func startServer(n, la string, done chan<- string) (addr string, wg *sync.WaitGroup) {
+func startServer(n, la string, done chan<- string) (addr string, sock io.Closer, wg *sync.WaitGroup) {
 	if n == "udp" || n == "tcp" {
 		la = "127.0.0.1:0"
 	} else {
@@ -95,6 +94,7 @@ func startServer(n, la string, done chan<- string) (addr string, wg *sync.WaitGr
 			log.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.LocalAddr().String()
+		sock = l
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -106,7 +106,12 @@ func startServer(n, la string, done chan<- string) (addr string, wg *sync.WaitGr
 			log.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.Addr().String()
-		go runStreamSyslog(l, done, wg)
+		sock = l
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runStreamSyslog(l, done, wg)
+		}()
 	}
 	return
 }
@@ -117,7 +122,7 @@ func TestWithSimulated(t *testing.T) {
 
 	for _, tr := range transport {
 		done := make(chan string)
-		addr, _ := startServer(tr, "", done)
+		addr, _, _ := startServer(tr, "", done)
 		if tr == "unix" || tr == "unixgram" {
 			defer os.Remove(addr)
 		}
@@ -137,8 +142,9 @@ func TestWithSimulated(t *testing.T) {
 func TestFlap(t *testing.T) {
 	net := "unix"
 	done := make(chan string)
-	addr, _ := startServer(net, "", done)
+	addr, sock, _ := startServer(net, "", done)
 	defer os.Remove(addr)
+	defer sock.Close()
 
 	s, err := Dial(net, addr, LOG_INFO|LOG_USER, "syslog_test")
 	if err != nil {
@@ -152,7 +158,8 @@ func TestFlap(t *testing.T) {
 	check(t, msg, <-done)
 
 	// restart the server
-	startServer(net, addr, done)
+	_, sock2, _ := startServer(net, addr, done)
+	defer sock2.Close()
 
 	// and try retransmitting
 	msg = "Moo 3"
@@ -242,7 +249,8 @@ func TestWrite(t *testing.T) {
 	} else {
 		for _, test := range tests {
 			done := make(chan string)
-			addr, _ := startServer("udp", "", done)
+			addr, sock, _ := startServer("udp", "", done)
+			defer sock.Close()
 			l, err := Dial("udp", addr, test.pri, test.pre)
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
@@ -263,7 +271,8 @@ func TestWrite(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
-	addr, _ := startServer("udp", "", make(chan string))
+	addr, sock, _ := startServer("udp", "", make(chan string))
+	defer sock.Close()
 	w, err := Dial("udp", addr, LOG_USER|LOG_ERR, "how's it going?")
 	if err != nil {
 		t.Fatalf("syslog.Dial() failed: %v", err)
@@ -289,7 +298,7 @@ func TestConcurrentReconnect(t *testing.T) {
 
 	net := "unix"
 	done := make(chan string)
-	addr, srvWG := startServer(net, "", done)
+	addr, sock, srvWG := startServer(net, "", done)
 	defer os.Remove(addr)
 
 	// count all the messages arriving
@@ -327,6 +336,7 @@ func TestConcurrentReconnect(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	sock.Close()
 	srvWG.Wait()
 	close(done)
 
