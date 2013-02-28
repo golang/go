@@ -121,7 +121,7 @@ func (e *entry) domainMatch(host string) bool {
 	if e.Domain == host {
 		return true
 	}
-	return !e.HostOnly && strings.HasSuffix(host, "."+e.Domain)
+	return !e.HostOnly && hasDotSuffix(host, e.Domain)
 }
 
 // pathMatch implements "path-match" according to RFC 6265 section 5.1.4.
@@ -137,6 +137,11 @@ func (e *entry) pathMatch(requestPath string) bool {
 		}
 	}
 	return false
+}
+
+// hasDotSuffix returns whether s ends in "."+suffix.
+func hasDotSuffix(s, suffix string) bool {
+	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
 }
 
 // byPathLength is a []entry sort.Interface that sorts according to RFC 6265
@@ -469,7 +474,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 
 	// See RFC 6265 section 5.3 #5.
 	if j.psList != nil {
-		if ps := j.psList.PublicSuffix(domain); ps != "" && !strings.HasSuffix(domain, "."+ps) {
+		if ps := j.psList.PublicSuffix(domain); ps != "" && !hasDotSuffix(domain, ps) {
 			if host == domain {
 				// This is the one exception in which a cookie
 				// with a domain attribute is a host cookie.
@@ -481,7 +486,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 
 	// The domain must domain-match host: www.mycompany.com cannot
 	// set cookies for .ourcompetitors.com.
-	if host != domain && !strings.HasSuffix(host, "."+domain) {
+	if host != domain && !hasDotSuffix(host, domain) {
 		return "", false, errIllegalDomain
 	}
 

@@ -40,6 +40,80 @@ func newTestJar() *Jar {
 	return jar
 }
 
+var hasDotSuffixTests = [...]struct {
+	s, suffix string
+}{
+	{"", ""},
+	{"", "."},
+	{"", "x"},
+	{".", ""},
+	{".", "."},
+	{".", ".."},
+	{".", "x"},
+	{".", "x."},
+	{".", ".x"},
+	{".", ".x."},
+	{"x", ""},
+	{"x", "."},
+	{"x", ".."},
+	{"x", "x"},
+	{"x", "x."},
+	{"x", ".x"},
+	{"x", ".x."},
+	{".x", ""},
+	{".x", "."},
+	{".x", ".."},
+	{".x", "x"},
+	{".x", "x."},
+	{".x", ".x"},
+	{".x", ".x."},
+	{"x.", ""},
+	{"x.", "."},
+	{"x.", ".."},
+	{"x.", "x"},
+	{"x.", "x."},
+	{"x.", ".x"},
+	{"x.", ".x."},
+	{"com", ""},
+	{"com", "m"},
+	{"com", "om"},
+	{"com", "com"},
+	{"com", ".com"},
+	{"com", "x.com"},
+	{"com", "xcom"},
+	{"com", "xorg"},
+	{"com", "org"},
+	{"com", "rg"},
+	{"foo.com", ""},
+	{"foo.com", "m"},
+	{"foo.com", "om"},
+	{"foo.com", "com"},
+	{"foo.com", ".com"},
+	{"foo.com", "o.com"},
+	{"foo.com", "oo.com"},
+	{"foo.com", "foo.com"},
+	{"foo.com", ".foo.com"},
+	{"foo.com", "x.foo.com"},
+	{"foo.com", "xfoo.com"},
+	{"foo.com", "xfoo.org"},
+	{"foo.com", "foo.org"},
+	{"foo.com", "oo.org"},
+	{"foo.com", "o.org"},
+	{"foo.com", ".org"},
+	{"foo.com", "org"},
+	{"foo.com", "rg"},
+}
+
+func TestHasDotSuffix(t *testing.T) {
+	for _, tc := range hasDotSuffixTests {
+		got := hasDotSuffix(tc.s, tc.suffix)
+		want := strings.HasSuffix(tc.s, "."+tc.suffix)
+		if got != want {
+			t.Errorf("s=%q, suffix=%q: got %v, want %v", tc.s, tc.suffix, got, want)
+		}
+	}
+}
+
 var canonicalHostTests = map[string]string{
 	"www.example.com":         "www.example.com",
 	"WWW.EXAMPLE.COM":         "www.example.com",
