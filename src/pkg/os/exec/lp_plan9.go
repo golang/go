@@ -8,7 +8,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"syscall"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
@@ -22,7 +21,7 @@ func findExecutable(file string) error {
 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
 		return nil
 	}
-	return syscall.EPERM
+	return os.ErrPermission
 }
 
 // LookPath searches for an executable binary named file

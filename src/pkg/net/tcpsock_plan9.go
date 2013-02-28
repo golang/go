@@ -89,7 +89,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)}
 	}
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
@@ -141,7 +141,7 @@ func (l *TCPListener) Close() error {
 	}
 	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
 		l.fd.ctl.Close()
-		return err
+		return &OpError{"close", l.fd.ctl.Name(), l.fd.laddr, err}
 	}
 	return l.fd.ctl.Close()
 }
@@ -171,7 +171,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, &OpError{"listen", net, laddr, UnknownNetworkError(net)}
 	}
 	if laddr == nil {
 		laddr = &TCPAddr{}

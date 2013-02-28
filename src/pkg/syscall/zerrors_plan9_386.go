@@ -4,8 +4,6 @@
 
 package syscall
 
-import "errors"
-
 // Constants
 const (
 	// Invented values to support what package os expects.
@@ -28,12 +26,23 @@ const (
 
 // Errors
 var (
-	EINVAL       = errors.New("bad arg in system call")
-	ENOTDIR      = errors.New("not a directory")
-	ENOENT       = errors.New("file does not exist")
-	EEXIST       = errors.New("file already exists")
-	EIO          = errors.New("i/o error")
-	ENAMETOOLONG = errors.New("file name too long")
-	EPERM        = errors.New("permission denied")
-	EPLAN9       = errors.New("not supported by plan 9")
+	EINVAL       = NewError("bad arg in system call")
+	ENOTDIR      = NewError("not a directory")
+	EISDIR       = NewError("file is a directory")
+	ENOENT       = NewError("file does not exist")
+	EEXIST       = NewError("file already exists")
+	EMFILE       = NewError("no free file descriptors")
+	EIO          = NewError("i/o error")
+	ENAMETOOLONG = NewError("file name too long")
+	EINTR        = NewError("interrupted")
+	EPERM        = NewError("permission denied")
+	EBUSY        = NewError("no free devices")
+	ETIMEDOUT    = NewError("connection timed out")
+	EPLAN9       = NewError("not supported by plan 9")
+
+	// The following errors do not correspond to any
+	// Plan 9 system messages. Invented to support
+	// what package os and others expect.
+	EACCES       = NewError("access permission denied")
+	EAFNOSUPPORT = NewError("address family not supported by protocol")
 )
