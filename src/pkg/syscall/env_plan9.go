@@ -15,11 +15,14 @@ var (
 	// envOnce guards copyenv, which populates env.
 	envOnce sync.Once
 
-	// envLock guards env.
+	// envLock guards env and envs.
 	envLock sync.RWMutex
 
 	// env maps from an environment variable to its value.
 	env = make(map[string]string)
+
+	// envs contains elements of env in the form "key=value".
+	envs []string
 
 	errZeroLengthKey = errors.New("zero length key")
 	errShortWrite    = errors.New("i/o count too small")
@@ -71,12 +74,16 @@ func copyenv() {
 	if err != nil {
 		return
 	}
+	envs = make([]string, len(files))
+	i := 0
 	for _, key := range files {
 		v, err := readenv(key)
 		if err != nil {
 			continue
 		}
 		env[key] = v
+		envs[i] = key + "=" + v
+		i++
 	}
 }
 
@@ -96,6 +103,7 @@ func Getenv(key string) (value string, found bool) {
 		return "", false
 	}
 	env[key] = v
+	envs = append(envs, key+"="+v)
 	return v, true
 }
 
@@ -112,6 +120,7 @@ func Setenv(key, value string) error {
 		return err
 	}
 	env[key] = value
+	envs = append(envs, key+"="+value)
 	return nil
 }
 
@@ -120,6 +129,7 @@ func Clearenv() {
 	defer envLock.Unlock()
 
 	env = make(map[string]string)
+	envs = []string{}
 	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
 }
 
@@ -128,11 +138,5 @@ func Environ() []string {
 	defer envLock.RUnlock()
 
 	envOnce.Do(copyenv)
-	a := make([]string, len(env))
-	i := 0
-	for k, v := range env {
-		a[i] = k + "=" + v
-		i++
-	}
-	return a
+	return append([]string(nil), envs...)
 }
