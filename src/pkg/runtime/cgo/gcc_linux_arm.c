@@ -55,10 +55,6 @@ x_cgo_save_gm(void)
 	);
 }
 
-// both cgo_tls_{get,set}_gm can be called from runtime
-void (*_cgo_load_gm)(void) = x_cgo_load_gm;
-void (*_cgo_save_gm)(void) = x_cgo_save_gm;
-
 void
 x_cgo_init(G *g)
 {
@@ -72,7 +68,6 @@ x_cgo_init(G *g)
 	pthread_attr_destroy(&attr);
 }
 
-void (*_cgo_init)(G*) = x_cgo_init;
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)

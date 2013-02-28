@@ -16,8 +16,6 @@ x_cgo_malloc(void *p)
 	a->ret = malloc(a->n);
 }
 
-void (*_cgo_malloc)(void*) = x_cgo_malloc;
-
 /* Stub for calling free from Go */
 void
 x_cgo_free(void *p)
@@ -28,8 +26,6 @@ x_cgo_free(void *p)
 
 	free(a->arg);
 }
-
-void (*_cgo_free)(void*) = x_cgo_free;
 
 /* Stub for creating a new thread */
 void
@@ -47,5 +43,3 @@ x_cgo_thread_start(ThreadStart *arg)
 
 	_cgo_sys_thread_start(ts);	/* OS-dependent half */
 }
-
-void (*_cgo_thread_start)(ThreadStart*) = x_cgo_thread_start;
