@@ -23,6 +23,14 @@ func (e ErrorString) Error() string { return string(e) }
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) error { return ErrorString(s) }
 
+func (e ErrorString) Temporary() bool {
+	return e == EINTR || e == EMFILE || e.Timeout()
+}
+
+func (e ErrorString) Timeout() bool {
+	return e == EBUSY || e == ETIMEDOUT
+}
+
 // A Note is a string describing a process note.
 // It implements the os.Signal interface.
 type Note string
@@ -37,9 +45,6 @@ var (
 	Stdin  = 0
 	Stdout = 1
 	Stderr = 2
-
-	EAFNOSUPPORT = NewError("address family not supported by protocol")
-	EISDIR       = NewError("file is a directory")
 )
 
 // For testing: clients can set this flag to force
