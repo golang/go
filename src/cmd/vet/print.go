@@ -243,7 +243,7 @@ var printVerbs = []printVerb{
 	// '+' is required sign for numbers, Go format for %v.
 	// '#' is alternate format for several verbs.
 	// ' ' is spacer for numbers
-	{'b', numFlag, argInt},
+	{'b', numFlag, argInt | argFloat},
 	{'c', "-", argRune | argInt},
 	{'d', numFlag, argInt},
 	{'e', numFlag, argFloat},
@@ -280,7 +280,7 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 			// arg must be integer.
 			for i := 0; i < nargs-1; i++ {
 				if !f.matchArgType(argInt, call.Args[argNum+i]) {
-					f.Badf(call.Pos(), "arg for * in printf format not of type int")
+					f.Badf(call.Pos(), "arg %s for * in printf format not of type int", call.Args[argNum+i])
 				}
 			}
 			for _, v := range printVerbs {
@@ -291,7 +291,7 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 						if typ := f.pkg.types[arg]; typ != nil {
 							typeString = typ.String()
 						}
-						f.Badf(call.Pos(), "arg for printf verb %%%c of wrong type: %s", verb, typeString)
+						f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", arg, verb, typeString)
 					}
 					break
 				}
@@ -346,6 +346,11 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 		return t&argString != 0
 	case types.UntypedNil:
 		return t&argPointer != 0 // TODO?
+	case types.Invalid:
+		if *verbose {
+			f.Warnf(arg.Pos(), "printf argument %v has invalid or unknown type", arg)
+		}
+		return true // Probably a type check problem.
 	}
 	return false
 }
