@@ -157,7 +157,7 @@ var respTests = []respTest{
 			"Content-Length: 10\r\n" +
 			"\r\n" +
 			"0a\r\n" +
-			"Body here\n" +
+			"Body here\n\r\n" +
 			"0\r\n" +
 			"\r\n",
 
@@ -327,13 +327,10 @@ var respTests = []respTest{
 }
 
 func TestReadResponse(t *testing.T) {
-	for i := range respTests {
-		tt := &respTests[i]
-		var braw bytes.Buffer
-		braw.WriteString(tt.Raw)
-		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.Request)
+	for i, tt := range respTests {
+		resp, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.Raw)), tt.Resp.Request)
 		if err != nil {
-			t.Errorf("#%d: %s", i, err)
+			t.Errorf("#%d: %v", i, err)
 			continue
 		}
 		rbody := resp.Body
@@ -341,12 +338,32 @@ func TestReadResponse(t *testing.T) {
 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
 		var bout bytes.Buffer
 		if rbody != nil {
-			io.Copy(&bout, rbody)
+			_, err = io.Copy(&bout, rbody)
+			if err != nil {
+				t.Errorf("#%d: %v", i, err)
+				continue
+			}
 			rbody.Close()
 		}
 		body := bout.String()
 		if body != tt.Body {
 			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
+		}
+	}
+}
+
+func TestWriteResponse(t *testing.T) {
+	for i, tt := range respTests {
+		resp, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.Raw)), tt.Resp.Request)
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+			continue
+		}
+		bout := bytes.NewBuffer(nil)
+		err = resp.Write(bout)
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+			continue
 		}
 	}
 }
