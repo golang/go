@@ -194,10 +194,11 @@ func (t *transferWriter) WriteBody(w io.Writer) (err error) {
 			ncopy, err = io.Copy(w, t.Body)
 		} else {
 			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
-			nextra, err := io.Copy(ioutil.Discard, t.Body)
 			if err != nil {
 				return err
 			}
+			var nextra int64
+			nextra, err = io.Copy(ioutil.Discard, t.Body)
 			ncopy += nextra
 		}
 		if err != nil {
