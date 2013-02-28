@@ -81,7 +81,7 @@ func TestImplicitMapConversion(t *testing.T) {
 			t.Errorf("#5 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
 		if p := mv.MapIndex(ValueOf(b1)).Elem().Pointer(); p != uintptr(unsafe.Pointer(b2)) {
-			t.Errorf("#5 MapIndex(b1) = %p want %p", p, b2)
+			t.Errorf("#5 MapIndex(b1) = %#x want %p", p, b2)
 		}
 	}
 	{
@@ -96,7 +96,7 @@ func TestImplicitMapConversion(t *testing.T) {
 			t.Errorf("#6 after SetMapIndex(c1, c2): %p (!= %p), %t (map=%v)", x, c2, ok, m)
 		}
 		if p := mv.MapIndex(ValueOf(c1)).Pointer(); p != ValueOf(c2).Pointer() {
-			t.Errorf("#6 MapIndex(c1) = %p want %p", p, c2)
+			t.Errorf("#6 MapIndex(c1) = %#x want %p", p, c2)
 		}
 	}
 	{
@@ -115,7 +115,7 @@ func TestImplicitMapConversion(t *testing.T) {
 			t.Errorf("#7 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
 		if p := mv.MapIndex(ValueOf(b1)).Pointer(); p != uintptr(unsafe.Pointer(b2)) {
-			t.Errorf("#7 MapIndex(b1) = %p want %p", p, b2)
+			t.Errorf("#7 MapIndex(b1) = %#x want %p", p, b2)
 		}
 	}
 
