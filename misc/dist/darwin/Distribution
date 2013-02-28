@@ -13,7 +13,13 @@ function installCheck() {
         my.result.type = 'Fatal';
         return false;
     }
-    return true;
+    if(system.files.fileExistsAtPath('/usr/local/go/bin/go')) {
+	    my.result.title = 'Previous Installation Detected';
+	    my.result.message = 'A previous installation of Go exists at /usr/local/go. This installer will remove the previous installation prior to installing. Please back up any data before proceeding.';
+	    my.result.type = 'Warning';
+	    return false;
+	}
+    return true;    
 }
     </script>
     <choices-outline>
