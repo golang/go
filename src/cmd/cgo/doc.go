@@ -300,7 +300,7 @@ For example, here is the definition of _Cfunc_puts:
 
 The hexadecimal number is a hash of cgo's input, chosen to be
 deterministic yet unlikely to collide with other uses. The actual
-function _cgo_be59f0f25121_Cfunc_flush is implemented in a C source
+function _cgo_be59f0f25121_Cfunc_puts is implemented in a C source
 file compiled by gcc, the file x.cgo2.c:
 
 	void
