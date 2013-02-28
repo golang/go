@@ -396,4 +396,230 @@ and libcgo_thread_start to a gcc-compiled function that can be used to
 create a new thread, in place of the runtime's usual direct system
 calls.
 
+[NOTE: From here down is planned but not yet implemented.]
+
+Internal and External Linking
+
+The text above describes "internal" linking, in which 6l parses and
+links host object files (ELF, Mach-O, PE, and so on) into the final
+executable itself. Keeping 6l simple means we cannot possibly
+implement the full semantics of the host linker, so the kinds of
+objects that can be linked directly into the binary is limited (other
+code can only be used as a dynamic library). On the other hand, when
+using internal linking, 6l can generate Go binaries by itself.
+
+In order to allow linking arbitrary object files without requiring
+dynamic libraries, cgo will soon support an "external" linking mode
+too. In external linking mode, 6l does not process any host object
+files. Instead, it collects all the Go code and writes a single go.o
+object file containing it. Then it invokes the host linker (usually
+gcc) to combine the go.o object file and any supporting non-Go code
+into a final executable. External linking avoids the dynamic library
+requirement but introduces a requirement that the host linker be
+present to create such a binary.
+
+Most builds both compile source code and invoke the linker to create a
+binary. When cgo is involved, the compile step already requires gcc, so
+it is not problematic for the link step to require gcc too.
+
+An important exception is builds using a pre-compiled copy of the
+standard library. In particular, package net uses cgo on most systems,
+and we want to preserve the ability to compile pure Go code that
+imports net without requiring gcc to be present at link time. (In this
+case, the dynamic library requirement is less significant, because the
+only library involved is libc.so, which can usually be assumed
+present.)
+
+This conflict between functionality and the gcc requirement means we
+must support both internal and external linking, depending on the
+circumstances: if net is the only cgo-using package, then internal
+linking is probably fine, but if other packages are involved, so that there
+are dependencies on libraries beyond libc, external linking is likely
+to work better. The compilation of a package records the relevant
+information to support both linking modes, leaving the decision
+to be made when linking the final binary.
+
+Linking Directives
+
+In either linking mode, package-specific directives must be passed
+through to 6l. These are communicated by writing #pragma directives
+in a C source file compiled by 6c. The directives are copied into the .6 object file
+and then processed by the linker.
+
+The directives are:
+
+#pragma cgo_dynamic_import <local> [<remote> ["<library>"]]
+
+	In internal linking mode, allow an unresolved reference to
+	<local>, assuming it will be resolved by a dynamic library
+	symbol. The optional <remote> specifies the symbol's name and
+	possibly version in the dynamic library, and the optional "<library>"
+	names the specific library where the symbol should be found.
+
+	In the <remote>, # or @ can be used to introduce a symbol version.
+
+	Examples:
+	#pragma cgo_dynamic_import puts
+	#pragma cgo_dynamic_import puts puts#GLIBC_2.2.5
+	#pragma cgo_dynamic_import puts puts#GLIBC_2.2.5 "libc.so.6"
+
+	A side effect of the cgo_dynamic_import directive with a
+	library is to make the final binary depend on that dynamic
+	library. To get the dependency without importing any specific
+	symbols, use _ for local and remote.
+
+	Example:
+	#pragma cgo_dynamic_import _ _ "libc.so.6"
+
+	For compatibility with current versions of SWIG,
+	#pragma dynimport is an alias for #pragma cgo_dynamic_import.
+
+#pragma cgo_dynamic_linker "<path>"
+
+	In internal linking mode, use "<path>" as the dynamic linker
+	in the final binary. This directive is only needed from one
+	package when constructing a binary; by convention it is
+	supplied by runtime/cgo.
+
+	Example:
+	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
+
+#pragma cgo_export <local> <remote>
+
+	In both internal and external linking modes, put the Go symbol
+	named <local> into the program's exported symbol table as
+	<remote>, so that C code can refer to it by that name. This
+	mechanism makes it possible for C code to call back into Go or
+	to share Go's data.
+
+	For compatibility with current versions of SWIG,
+	#pragma dynexport is an alias for #pragma cgo_export.
+
+#pragma cgo_static_import <local>
+
+	In external linking mode, allow unresolved references to
+	<local> in the go.o object file prepared for the host linker,
+	under the assumption that <local> will be supplied by the
+	other object files that will be linked with go.o.
+
+	Example:
+	#pragma cgo_static_import puts_wrapper
+
+#pragma cgo_ldflag "<arg>"
+
+	In external linking mode, invoke the host linker (usually gcc)
+	with "<arg>" as a command-line argument following the .o files.
+	Note that the arguments are for "gcc", not "ld".
+
+	Example:
+	#pragma cgo_ldflag "-lpthread"
+	#pragma cgo_ldflag "-L/usr/local/sqlite3/lib"
+
+A package compiled with cgo will include directives for both
+internal and external linking; the linker will select the appropriate
+subset for the chosen linking mode.
+
+Example
+
+As a simple example, consider a package that uses cgo to call C.sin.
+The following code will be generated by cgo:
+
+	// compiled by 6g
+
+	type _Ctype_double float64
+	func _Cfunc_sin(_Ctype_double) _Ctype_double
+
+	// compiled by 6c
+
+	#pragma cgo_dynamic_import sin sin#GLIBC_2.2.5 "libm.so.6"
+	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
+
+	#pragma cgo_static_import _cgo_gcc_Cfunc_sin
+	#pragma cgo_ldflag "-lm"
+
+	void _cgo_gcc_Cfunc_sin(void*);
+
+	void
+	·_Cfunc_sin(struct{uint8 x[16];}p)
+	{
+		runtime·cgocall(_cgo_gcc_Cfunc_sin, &p);
+	}
+
+	// compiled by gcc, into foo.cgo2.o
+
+	void
+	_cgo_gcc_Cfunc_sin(void *v)
+	{
+		struct {
+			double p0;
+			double r;
+		} __attribute__((__packed__)) *a = v;
+		a->r = sin(a->p0);
+	}
+
+What happens at link time depends on whether the final binary is linked
+using the internal or external mode. If other packages are compiled in
+"external only" mode, then the final link will be an external one.
+Otherwise the link will be an internal one.
+
+The directives in the 6c-compiled file are used according to the kind
+of final link used.
+
+In internal mode, 6l itself processes all the host object files, in
+particular foo.cgo2.o. To do so, it uses the cgo_dynamic_import and
+cgo_dynamic_linker directives to learn that the otherwise undefined
+reference to sin in foo.cgo2.o should be rewritten to refer to the
+symbol sin with version GLIBC_2.2.5 from the dynamic library
+"libm.so.6", and the binary should request "/lib/ld-linux.so.2" as its
+runtime dynamic linker.
+
+In external mode, 6l does not process any host object files, in
+particular foo.cgo2.o. It links together the 6g- and 6c-generated
+object files, along with any other Go code, into a go.o file. While
+doing that, 6l will discover that there is no definition for
+_cgo_gcc_Cfunc_sin, referred to by the 6c-compiled source file. This
+is okay, because 6l also processes the cgo_static_import directive and
+knows that _cgo_gcc_Cfunc_sin is expected to be supplied by a host
+object file, so 6l does not treat the missing symbol as an error when
+creating go.o. Indeed, the definition for _cgo_gcc_Cfunc_sin will be
+provided to the host linker by foo2.cgo.o, which in turn will need the
+symbol 'sin'. 6l also processes the cgo_ldflag directives, so that it
+knows that the eventual host link command must include the -lm
+argument, so that the host linker will be able to find 'sin' in the
+math library.
+
+6l Command Line Interface
+
+The go command and any other Go-aware build systems invoke 6l
+to link a collection of packages into a single binary. By default, 6l will
+present the same interface it does today:
+
+	6l main.a
+
+produces a file named 6.out, even if 6l does so by invoking the host
+linker in external linking mode.
+
+By default, 6l will decide the linking mode as follows: if the only
+packages using cgo are those on a whitelist of standard library
+packages (net, os/user, runtime/cgo), 6l will use internal linking
+mode. Otherwise, there are non-standard cgo packages involved, and 6l
+will use external linking mode. The first rule means that a build of
+the godoc binary, which uses net but no other cgo, can run without
+needing gcc available. The second rule means that a build of a
+cgo-wrapped library like sqlite3 can generate a standalone executable
+instead of needing to refer to a dynamic library. The specific choice
+can be overridden using a command line flag: 6l -cgolink=internal or
+6l -cgolink=external.
+
+In an external link, 6l will create a temporary directory, write any
+host object files found in package archives to that directory (renamed
+to avoid conflicts), write the go.o file to that directory, and invoke
+the host linker. The default value for the host linker is $CC, split
+into fields, or else "gcc". The specific host linker command line can
+be overridden using a command line flag: 6l -hostld='gcc -ggdb'
+
+These defaults mean that Go-aware build systems can ignore the linking
+changes and keep running plain '6l' and get reasonable results, but
+they can also control the linking details if desired.
+
 */
