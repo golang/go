@@ -14,17 +14,17 @@ static void threadentry(void*);
    The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
 #define STACKSIZE (1*1024*1024)
 
-static void
-xinitcgo(G *g)
+void
+x_cgo_init(G *g)
 {
 	int tmp;
 	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
 }
 
-void (*initcgo)(G*) = xinitcgo;
+void (*_cgo_init)(G*) = x_cgo_init;
 
 void
-libcgo_sys_thread_start(ThreadStart *ts)
+_cgo_sys_thread_start(ThreadStart *ts)
 {
 	_beginthread(threadentry, 0, ts);
 }

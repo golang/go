@@ -26,7 +26,7 @@ struct G
 };
 
 /*
- * Arguments to the libcgo_thread_start call.
+ * Arguments to the _cgo_thread_start call.
  * Also known to ../pkg/runtime/runtime.h.
  */
 typedef struct ThreadStart ThreadStart;
@@ -40,14 +40,14 @@ struct ThreadStart
 /*
  * Called by 5c/6c/8c world.
  * Makes a local copy of the ThreadStart and
- * calls libcgo_sys_thread_start(ts).
+ * calls _cgo_sys_thread_start(ts).
  */
-extern void (*libcgo_thread_start)(ThreadStart *ts);
+extern void (*_cgo_thread_start)(ThreadStart *ts);
 
 /*
  * Creates the new operating system thread (OS, arch dependent).
  */
-void libcgo_sys_thread_start(ThreadStart *ts);
+void _cgo_sys_thread_start(ThreadStart *ts);
 
 /*
  * Call fn in the 6c world.
