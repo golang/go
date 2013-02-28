@@ -194,7 +194,7 @@ way to iterate over an <code>Image</code> m's pixels looks like:
 <pre>
 b := m.Bounds()
 for y := b.Min.Y; y &lt; b.Max.Y; y++ {
-	for x := b.Min.X; y &lt; b.Max.X; x++ {
+	for x := b.Min.X; x &lt; b.Max.X; x++ {
 		doStuffWith(m.At(x, y))
 	}
 }
