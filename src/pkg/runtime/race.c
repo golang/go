@@ -94,10 +94,7 @@ runtime·racefuncenter1(uintptr pc)
 {
 	// If the caller PC is lessstack, use slower runtime·callers
 	// to walk across the stack split to find the real caller.
-	// Same thing if the PC is on the heap, which should be a
-	// closure trampoline.
-	if(pc == (uintptr)runtime·lessstack ||
-		(pc >= (uintptr)runtime·mheap->arena_start && pc < (uintptr)runtime·mheap->arena_used))
+	if(pc == (uintptr)runtime·lessstack)
 		runtime·callers(2, &pc, 1);
 
 	m->racecall = true;
@@ -162,8 +159,7 @@ memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
 		m->racecall = true;
 		racectx = g->racectx;
 		if(callpc) {
-			if(callpc == (uintptr)runtime·lessstack ||
-				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
+			if(callpc == (uintptr)runtime·lessstack)
 				runtime·callers(3, &callpc, 1);
 			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
@@ -198,8 +194,7 @@ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, 
 		m->racecall = true;
 		racectx = g->racectx;
 		if(callpc) {
-			if(callpc == (uintptr)runtime·lessstack ||
-				(callpc >= (uintptr)runtime·mheap->arena_start && callpc < (uintptr)runtime·mheap->arena_used))
+			if(callpc == (uintptr)runtime·lessstack)
 				runtime·callers(3, &callpc, 1);
 			runtime∕race·FuncEnter(racectx, (void*)callpc);
 		}
