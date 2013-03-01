@@ -23,7 +23,6 @@ package ssa
 
 // TODO(adonovan):
 // - fix: support f(g()) where g has multiple result parameters.
-// - fix: multiple labels on same statement.
 
 import (
 	"fmt"

@@ -221,11 +221,17 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 	return f.emit(e)
 }
 
-// emitTailCall emits to f a function call in tail position.
+// emitTailCall emits to f a function call in tail position,
+// passing on all but the first formal parameter to f as actual
+// values in the call.  Intended for delegating bridge methods.
 // Precondition: f does/will not use deferred procedure calls.
 // Postcondition: f.currentBlock is nil.
 //
 func emitTailCall(f *Function, call *Call) {
+	for _, arg := range f.Params[1:] {
+		call.Args = append(call.Args, arg)
+	}
+	call.Type_ = &types.Result{Values: f.Signature.Results}
 	tuple := f.emit(call)
 	var ret Ret
 	switch {
