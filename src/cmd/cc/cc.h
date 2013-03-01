@@ -444,25 +444,6 @@ struct	Funct
 	Sym*	castfr[NTYPE];
 };
 
-struct	Dynimp
-{
-	char*	local;
-	char*	remote;
-	char*	path;
-};
-
-EXTERN	Dynimp	*dynimp;
-EXTERN	int	ndynimp;
-
-struct	Dynexp
-{
-	char*	local;
-	char*	remote;
-};
-
-EXTERN	Dynexp	*dynexp;
-EXTERN	int	ndynexp;
-
 EXTERN struct
 {
 	Type*	tenum;		/* type of entire enum */
@@ -533,6 +514,7 @@ EXTERN	int	ncontin;
 EXTERN	int	canreach;
 EXTERN	int	warnreach;
 EXTERN	Bits	zbits;
+EXTERN	Fmt	pragcgobuf;
 
 extern	char	*onames[], *tnames[], *gnames[];
 extern	char	*cnames[], *qnames[], *bnames[];
@@ -774,10 +756,7 @@ void	pragfpround(void);
 void	pragdataflag(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
-void	pragdynimport(void);
-void	pragdynexport(void);
-void	pragdynlinker(void);
-EXTERN	char *dynlinker;
+void	pragcgo(char*);
 
 /*
  * calls to machine depend part

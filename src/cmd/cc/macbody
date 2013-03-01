@@ -743,16 +743,8 @@ macprag(void)
 		pragincomplete();
 		return;
 	}
-	if(s && strcmp(s->name, "dynimport") == 0) {
-		pragdynimport();
-		return;
-	}
-	if(s && strcmp(s->name, "dynexport") == 0) {
-		pragdynexport();
-		return;
-	}
-	if(s && strcmp(s->name, "dynlinker") == 0) {
-		pragdynlinker();
+	if(s && (strncmp(s->name, "cgo_", 4) == 0 || strncmp(s->name, "dyn", 3) == 0)) {
+		pragcgo(s->name);
 		return;
 	}
 	while(getnsc() != '\n')
