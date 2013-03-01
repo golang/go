@@ -226,7 +226,6 @@ func zero(t types.Type) value {
 			return map[value]value(nil)
 		}
 		return (*hashmap)(nil)
-
 	case *types.Signature:
 		return (*ssa.Function)(nil)
 	}
@@ -1136,11 +1135,14 @@ func conv(t_dst, t_src types.Type, x value) value {
 		return x
 
 	case *types.Pointer:
-		// *value to unsafe.Pointer?
-		if ut_dst, ok := ut_dst.(*types.Basic); ok {
+		switch ut_dst := ut_dst.(type) {
+		case *types.Basic:
+			// *value to unsafe.Pointer?
 			if ut_dst.Kind == types.UnsafePointer {
 				return unsafe.Pointer(x.(*value))
 			}
+		case *types.Pointer:
+			return x
 		}
 
 	case *types.Slice:
