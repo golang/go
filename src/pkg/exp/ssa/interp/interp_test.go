@@ -71,43 +71,41 @@ var gorootTests = []string{
 	"bigmap.go",
 	"func.go",
 	"reorder2.go",
-	// The following tests are disabled until the typechecker supports shifts correctly.
-	// They can be enabled if you patch workaround https://codereview.appspot.com/7312068.
-	// "closure.go",
-	// "gc.go",
-	// "goprint.go",  // doesn't actually assert anything
-	// "utf.go",
+	"closure.go",
+	"gc.go",
+	"goprint.go", // doesn't actually assert anything
+	"utf.go",
 	"method.go",
-	// "char_lit.go",
-	//"env.go",
-	// "int_lit.go",
-	// "string_lit.go",
-	// "defer.go",
-	// "typeswitch.go",
-	// "stringrange.go",
-	// "reorder.go",
+	"char_lit.go",
+	"env.go",
+	"int_lit.go",
+	"string_lit.go",
+	"defer.go",
+	"typeswitch.go",
+	"stringrange.go",
+	"reorder.go",
 	"literal.go",
-	// "nul1.go",
-	// "zerodivide.go",
-	// "convert.go",
+	"nul1.go",
+	"zerodivide.go",
+	"convert.go",
 	"convT2X.go",
-	// "switch.go",
-	// "initialize.go",
-	// "blank.go", // partly disabled; TODO(adonovan): skip blank fields in struct{_} equivalence.
-	// "map.go",
-	// "bom.go",
-	// "closedchan.go",
-	// "divide.go",
-	// "rename.go",
-	// "const3.go",
-	// "nil.go",
-	// "recover.go", // partly disabled; TODO(adonovan): fix.
+	"initialize.go",
+	"ddd.go",
+	"blank.go", // partly disabled; TODO(adonovan): skip blank fields in struct{_} equivalence.
+	"map.go",
+	"bom.go",
+	"closedchan.go",
+	"divide.go",
+	"rename.go",
+	"const3.go",
+	"nil.go",
+	"recover.go", // partly disabled; TODO(adonovan): fix.
 	// Slow tests follow.
-	// "cmplxdivide.go cmplxdivide1.go",
-	// "append.go",
-	// "crlf.go", // doesn't actually assert anything
-	//"typeswitch1.go",
-	// "floatcmp.go",
+	"cmplxdivide.go cmplxdivide1.go",
+	"append.go",
+	"crlf.go", // doesn't actually assert anything
+	"typeswitch1.go",
+	"floatcmp.go",
 	"gc1.go",
 
 	// Working, but not worth enabling:
@@ -119,22 +117,26 @@ var gorootTests = []string{
 	// "const.go",     // works but for but one bug: constant folder doesn't consider representations.
 	// "init1.go",     // too slow (80s) and not that interesting. Cheats on ReadMemStats check too.
 
+	// Typechecker failures:
+	// "switch.go",    // bug re: switch ... { case 1.0:... case 1:... }
+	// "iota.go",      // crash
+	// "rune.go",      // error re: rune as index
+	// "64bit.go",     // error re: comparison
+	// "cmp.go",       // error re: comparison
+	// "rotate.go rotate0.go", // error re: shifts
+	// "rotate.go rotate1.go", // error re: shifts
+	// "rotate.go rotate2.go", // error re: shifts
+	// "rotate.go rotate3.go", // error re: shifts
+	// "run.go",       // produces wrong constant for bufio.runeError; also, not really a test.
+
 	// Broken.  TODO(adonovan): fix.
-	// ddd.go          // builder: variadic methods
 	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
 	// nilptr.go       // interp: V > uintptr not implemented. Slow test, lots of mem
-	// iota.go         // typechecker: crash
-	// rotate.go       // typechecker: shifts
-	// rune.go         // typechecker: shifts
-	// 64bit.go        // typechecker: shifts
-	// cmp.go          // typechecker: comparison
 	// recover1.go     // error: "spurious recover"
 	// recover2.go     // panic: interface conversion: string is not error: missing method Error
 	// recover3.go     // logic errors: panicked with wrong Error.
 	// simassign.go    // requires support for f(f(x,y)).
 	// method3.go      // Fails dynamically; (*T).f vs (T).f are distinct methods.
-	// ddd2.go         // fails
-	// run.go          // rtype.NumOut not yet implemented.  Not really a test though.
 	// args.go         // works, but requires specific os.Args from the driver.
 	// index.go        // a template, not a real test.
 	// mallocfin.go    // SetFinalizer not implemented.
@@ -145,7 +147,7 @@ var gorootTests = []string{
 
 // These are files in exp/ssa/interp/testdata/.
 var testdataTests = []string{
-// "coverage.go",  // shifts
+	"coverage.go",
 }
 
 func run(t *testing.T, dir, input string) bool {
