@@ -628,7 +628,7 @@ extern	P**	runtime·allp;
 extern	int32	runtime·gomaxprocs;
 extern	bool	runtime·singleproc;
 extern	uint32	runtime·panicking;
-extern	int32	runtime·gcwaiting;		// gc is waiting to run
+extern	uint32	runtime·gcwaiting;		// gc is waiting to run
 extern	int8*	runtime·goos;
 extern	int32	runtime·ncpu;
 extern	bool	runtime·iscgo;

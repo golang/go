@@ -45,7 +45,7 @@ struct Sched {
 
 	int32	stopwait;
 	Note	stopnote;
-	bool	sysmonwait;
+	uint32	sysmonwait;
 	Note	sysmonnote;
 
 	int32	profilehz;	// cpu profiling rate
@@ -59,7 +59,7 @@ Sched	runtime·sched;
 int32	runtime·gomaxprocs;
 bool	runtime·singleproc;
 bool	runtime·iscgo;
-int32	runtime·gcwaiting;
+uint32	runtime·gcwaiting;
 M	runtime·m0;
 G	runtime·g0;	 // idle goroutine for m0
 G*	runtime·allg;
@@ -277,7 +277,7 @@ runtime·ready(G *gp)
 	}
 	gp->status = Grunnable;
 	runqput(m->p, gp);
-	if(runtime·sched.npidle != 0 && runtime·sched.nmspinning == 0)  // TODO: fast atomic
+	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0)  // TODO: fast atomic
 		wakep();
 }
 
@@ -842,7 +842,7 @@ handoffp(P *p)
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
-	if(runtime·sched.nmspinning + runtime·sched.npidle == 0 &&  // TODO: fast atomic
+	if(runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) == 0 &&  // TODO: fast atomic
 		runtime·cas(&runtime·sched.nmspinning, 0, 1)) {
 		startm(p, true);
 		return;
@@ -996,7 +996,7 @@ top:
 	// If number of spinning M's >= number of busy P's, block.
 	// This is necessary to prevent excessive CPU consumption
 	// when GOMAXPROCS>>1 but the program parallelism is low.
-	if(!m->spinning && 2 * runtime·sched.nmspinning >= runtime·gomaxprocs - runtime·sched.npidle)  // TODO: fast atomic
+	if(!m->spinning && 2 * runtime·atomicload(&runtime·sched.nmspinning) >= runtime·gomaxprocs - runtime·atomicload(&runtime·sched.npidle))  // TODO: fast atomic
 		goto stop;
 	if(!m->spinning) {
 		m->spinning = true;
@@ -1079,8 +1079,8 @@ top:
 	// M wakeup policy is deliberately somewhat conservative (see nmspinning handling),
 	// so see if we need to wakeup another M here.
 	if (m->p->runqhead != m->p->runqtail &&
-		runtime·sched.nmspinning == 0 &&
-		runtime·sched.npidle > 0)  // TODO: fast atomic
+		runtime·atomicload(&runtime·sched.nmspinning) == 0 &&
+		runtime·atomicload(&runtime·sched.npidle) > 0)  // TODO: fast atomic
 		wakep();
 
 	if(gp->lockedm) {
@@ -1197,10 +1197,10 @@ void
 		runtime·throw("entersyscall");
 	}
 
-	if(runtime·sched.sysmonwait) {  // TODO: fast atomic
+	if(runtime·atomicload(&runtime·sched.sysmonwait)) {  // TODO: fast atomic
 		runtime·lock(&runtime·sched);
-		if(runtime·sched.sysmonwait) {
-			runtime·sched.sysmonwait = false;
+		if(runtime·atomicload(&runtime·sched.sysmonwait)) {
+			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
 			runtime·notewakeup(&runtime·sched.sysmonnote);
 		}
 		runtime·unlock(&runtime·sched);
@@ -1457,7 +1457,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
 		newg->racectx = runtime·racegostart(callerpc);
 	runqput(m->p, newg);
 
-	if(runtime·sched.npidle != 0 && runtime·sched.nmspinning == 0 && fn->fn != runtime·main)  // TODO: fast atomic
+	if(runtime·atomicload(&runtime·sched.npidle) != 0 && runtime·atomicload(&runtime·sched.nmspinning) == 0 && fn->fn != runtime·main)  // TODO: fast atomic
 		wakep();
 	return newg;
 }
@@ -1915,10 +1915,10 @@ sysmon(void)
 		if(delay > 10*1000)  // up to 10ms
 			delay = 10*1000;
 		runtime·usleep(delay);
-		if(runtime·gcwaiting || runtime·sched.npidle == runtime·gomaxprocs) {  // TODO: fast atomic
+		if(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {  // TODO: fast atomic
 			runtime·lock(&runtime·sched);
-			if(runtime·gcwaiting || runtime·sched.npidle == runtime·gomaxprocs) {
-				runtime·sched.sysmonwait = true;
+			if(runtime·atomicload(&runtime·gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
 				runtime·unlock(&runtime·sched);
 				runtime·notesleep(&runtime·sched.sysmonnote);
 				runtime·noteclear(&runtime·sched.sysmonnote);
@@ -1954,7 +1954,7 @@ retake(uint32 *ticks)
 		s = p->status;
 		if(s != Psyscall)
 			continue;
-		if(p->runqhead == p->runqtail && runtime·sched.nmspinning + runtime·sched.npidle > 0)  // TODO: fast atomic
+		if(p->runqhead == p->runqtail && runtime·atomicload(&runtime·sched.nmspinning) + runtime·atomicload(&runtime·sched.npidle) > 0)  // TODO: fast atomic
 			continue;
 		// Need to increment number of locked M's before the CAS.
 		// Otherwise the M from which we retake can exit the syscall,
@@ -2042,7 +2042,7 @@ pidleput(P *p)
 {
 	p->link = runtime·sched.pidle;
 	runtime·sched.pidle = p;
-	runtime·sched.npidle++;  // TODO: fast atomic
+	runtime·xadd(&runtime·sched.npidle, 1);  // TODO: fast atomic
 }
 
 // Try get a p from pidle list.
@@ -2055,7 +2055,7 @@ pidleget(void)
 	p = runtime·sched.pidle;
 	if(p) {
 		runtime·sched.pidle = p->link;
-		runtime·sched.npidle--;  // TODO: fast atomic
+		runtime·xadd(&runtime·sched.npidle, -1);  // TODO: fast atomic
 	}
 	return p;
 }
