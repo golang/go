@@ -330,9 +330,9 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 
-	// start function is in tls[2]
 	get_tls(CX)
-	MOVQ	16(CX), AX
+	MOVQ	m(CX), AX
+	MOVQ	m_mstartfn(AX), AX
 	CALL	AX
 
 	XORL	AX, AX			// return 0 == success

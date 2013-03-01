@@ -104,7 +104,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	param.tls_size = sizeof mp->tls;
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
-	mp->tls[2] = (uintptr)fn;
+	mp->mstartfn = fn;
 
 	runtime·thr_new(&param, sizeof param);
 	runtime·sigprocmask(&oset, nil);
