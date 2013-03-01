@@ -41,8 +41,14 @@ The <a href="/src/pkg/">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
 use the language.
+Moreover, many of the packages contain working, self-contained
+executable examples you can run directly from the
+<a href="http://golang.org">golang.org</a> web site, such as
+<a href="http://golang.org/pkg/strings/#example_Map">this one</a> (click
+on the word "Example" to open it up).
 If you have a question about how to approach a problem or how something
-might be implemented, they can provide answers, ideas and
+might be implemented, the documentation, code and examples in the
+library can provide answers, ideas and
 background.
 </p>
 
@@ -108,7 +114,7 @@ All Go code in the standard packages has been formatted with <code>gofmt</code>.
 
 
 <p>
-Some formatting details remain.  Very briefly,
+Some formatting details remain.  Very briefly:
 </p>
 
 <dl>
@@ -123,14 +129,14 @@ Some formatting details remain.  Very briefly,
     </dd>
     <dt>Parentheses</dt>
     <dd>
-    Go needs fewer parentheses: control structures (<code>if</code>,
+    Go needs fewer parentheses than C and Java: control structures (<code>if</code>,
     <code>for</code>, <code>switch</code>) do not have parentheses in
     their syntax.
     Also, the operator precedence hierarchy is shorter and clearer, so
 <pre>
 x&lt;&lt;8 + y&lt;&lt;16
 </pre>
-    means what the spacing implies.
+    means what the spacing implies, unlike in the other languages.
     </dd>
 </dl>
 
@@ -140,8 +146,8 @@ x&lt;&lt;8 + y&lt;&lt;16
 Go provides C-style <code>/* */</code> block comments
 and C++-style <code>//</code> line comments.
 Line comments are the norm;
-block comments appear mostly as package comments and
-are also useful to disable large swaths of code.
+block comments appear mostly as package comments, but
+are useful within an expression or to disable large swaths of code.
 </p>
 
 <p>
@@ -205,6 +211,13 @@ takes care of that.
 The comments are uninterpreted plain text, so HTML and other
 annotations such as <code>_this_</code> will reproduce <i>verbatim</i> and should
 not be used.
+One adjustment <code>godoc</code> does do is to display indented
+text in a fixed-width font, suitable for program snippets.
+The package comment for the
+<a href="http://golang.org/pkg/fmt/"><code>fmt</code> package</a> uses this to good effect.
+</p>
+
+<p>
 Depending on the context, <code>godoc</code> might not even
 reformat comments, so make sure they look good straight up:
 use correct spelling, punctuation, and sentence structure,
@@ -229,6 +242,33 @@ starts with the name being declared.
 // Compile parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
 func Compile(str string) (regexp *Regexp, err error) {
+</pre>
+
+<p>
+If the name always begins the comment, the output of <code>godoc</code>
+can usefully be run through <code>grep</code>.
+Imagine you couldn't remember the name "Compile" but were looking for
+the parsing function for regular expressions, so you ran
+the command,
+</p>
+
+<pre>
+$ godoc regexp | grep parse
+</pre>
+
+<p>
+If all the doc comments in the package began, "This function...", <code>grep</code>
+wouldn't help you remember the name. But because the package starts each
+doc comment with the name, you'd see something like this,
+which recalls the word you're looking for.
+</p>
+
+<pre>
+$ godoc regexp | grep parse
+    Compile parses a regular expression and returns, if successful, a Regexp
+    parsed. It simplifies safe initialization of global variables holding
+    cannot be parsed. It simplifies safe initialization of global variables
+$
 </pre>
 
 <p>
@@ -265,7 +305,7 @@ var (
 
 <p>
 Names are as important in Go as in any other language.
-In some cases they even have semantic effect: for instance,
+They even have semantic effect:
 the visibility of a name outside a package is determined by whether its
 first character is upper case.
 It's therefore worth spending a little time talking about naming conventions
@@ -310,11 +350,11 @@ not <code>encoding_base64</code> and not <code>encodingBase64</code>.
 </p>
 
 <p>
-The importer of a package will use the name to refer to its contents
-(the <code>import .</code> notation is intended mostly for tests and other
-unusual situations and should be avoided unless necessary),
+The importer of a package will use the name to refer to its contents.
 so exported names in the package can use that fact
 to avoid stutter.
+(Don't use the <code>import .</code> notation, which can simplify
+tests that must run outside the package they are testing, but should otherwise be avoided.)
 For instance, the buffered reader type in the <code>bufio</code> package is called <code>Reader</code>,
 not <code>BufReader</code>, because users see it as <code>bufio.Reader</code>,
 which is a clear, concise name.
@@ -335,9 +375,7 @@ Another short example is <code>once.Do</code>;
 <code>once.Do(setup)</code> reads well and would not be improved by
 writing <code>once.DoOrWaitUntilDone(setup)</code>.
 Long names don't automatically make things more readable.
-If the name represents something intricate or subtle, it's usually better
-to write a helpful doc comment than to attempt to put all the information
-into the name.
+A helpful doc comment can often be more valuable than an extra long name.
 </p>
 
 <h3 id="Getters">Getters</h3>
@@ -394,8 +432,8 @@ multiword names.
 <h2 id="semicolons">Semicolons</h2>
 
 <p>
-Like C, Go's formal grammar uses semicolons to terminate statements;
-unlike C, those semicolons do not appear in the source.
+Like C, Go's formal grammar uses semicolons to terminate statements,
+but unlike in C, those semicolons do not appear in the source.
 Instead the lexer uses a simple rule to insert semicolons automatically
 as it scans, so the input text is mostly free of them.
 </p>
@@ -431,7 +469,8 @@ statements on a line, should you write code that way.
 </p>
 
 <p>
-One caveat. You should never put the opening brace of a
+One consequence of the semicolon insertion rules
+is that you cannot put the opening brace of a
 control structure (<code>if</code>, <code>for</code>, <code>switch</code>,
 or <code>select</code>) on the next line.  If you do, a semicolon
 will be inserted before the brace, which could cause unwanted
@@ -540,7 +579,7 @@ codeUsing(f, d)
 </pre>
 
 
-<h3 id="redeclaration">Redeclaration</h3>
+<h3 id="redeclaration">Redeclaration and reassignment</h3>
 
 <p>
 An aside: The last example in the previous section demonstrates a detail of how the
@@ -577,7 +616,7 @@ if it has already been declared, provided:
 
 <ul>
 <li>this declaration is in the same scope as the existing declaration of <code>v</code>
-(if <code>v</code> is already declared in an outer scope, the declaration will create a new variable),</li>
+(if <code>v</code> is already declared in an outer scope, the declaration will create a new variable §),</li>
 <li>the corresponding value in the initialization is assignable to <code>v</code>, and</li>
 <li>there is at least one other variable in the declaration that is being declared anew.</li>
 </ul>
@@ -587,6 +626,12 @@ This unusual property is pure pragmatism,
 making it easy to use a single <code>err</code> value, for example,
 in a long <code>if-else</code> chain.
 You'll see it used often.
+</p>
+
+<p>
+§ It's worth noting here that in Go the scope of function parameters and return values
+is the same as the function body, even though they appear lexically outside the braces
+that enclose the body.
 </p>
 
 <h3 id="for">For</h3>
@@ -634,7 +679,7 @@ If you only need the first item in the range (the key or index), drop the second
 </p>
 <pre>
 for key := range m {
-    if expired(key) {
+    if key.expired() {
         delete(m, key)
     }
 }
@@ -652,29 +697,30 @@ for _, value := range array {
 
 <p>
 For strings, the <code>range</code> does more work for you, breaking out individual
-Unicode characters by parsing the UTF-8.
+Unicode code points by parsing the UTF-8.
 Erroneous encodings consume one byte and produce the
 replacement rune U+FFFD. The loop
 </p>
 <pre>
-for pos, char := range "日本語" {
-    fmt.Printf("character %c starts at byte position %d\n", char, pos)
+for pos, char := range "日本\x80語" { // \x80 is an illegal UTF-8 encoding
+    fmt.Printf("character %#U starts at byte position %d\n", char, pos)
 }
 </pre>
 <p>
 prints
 </p>
 <pre>
-character 日 starts at byte position 0
-character 本 starts at byte position 3
-character 語 starts at byte position 6
+character U+65E5 '日' starts at byte position 0
+character U+672C '本' starts at byte position 3
+character U+FFFD '�' starts at byte position 6
+character U+8A9E '語' starts at byte position 7
 </pre>
 
 <p>
 Finally, Go has no comma operator and <code>++</code> and <code>--</code>
 are statements not expressions.
 Thus if you want to run multiple variables in a <code>for</code>
-you should use parallel assignment.
+you should use parallel assignment (although that precludes <code>++</code> and <code>--</code>).
 </p>
 <pre>
 // Reverse a
@@ -757,19 +803,23 @@ variable.  Such a <em>type switch</em> uses the syntax of a type
 assertion with the keyword <code>type</code> inside the parentheses.
 If the switch declares a variable in the expression, the variable will
 have the corresponding type in each clause.
+It's also idiomatic to reuse the name in such cases, in effect declaring
+a new variable with the same name but a different type in each case.
 </p>
 <pre>
-switch t := interfaceValue.(type) {
+var t interface{}
+t = functionOfSomeType()
+switch t := t.(type) {
 default:
-    fmt.Printf("unexpected type %T", t)  // %T prints type
+    fmt.Printf("unexpected type %T", t)       // %T prints whatever type t has
 case bool:
-    fmt.Printf("boolean %t\n", t)
+    fmt.Printf("boolean %t\n", t)             // t has type bool
 case int:
-    fmt.Printf("integer %d\n", t)
+    fmt.Printf("integer %d\n", t)             // t has type int
 case *bool:
-    fmt.Printf("pointer to boolean %t\n", *t)
+    fmt.Printf("pointer to boolean %t\n", *t) // t has type *bool
 case *int:
-    fmt.Printf("pointer to integer %d\n", *t)
+    fmt.Printf("pointer to integer %d\n", *t) // t has type *int
 }
 </pre>
 
