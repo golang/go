@@ -19,5 +19,5 @@ TEXT crosscall2(SB),7,$-4
 	MOVW	_cgo_load_gm(SB), R0
 	BL	(R0)
 	MOVW	PC, R14
-	MOVW	-4(R13), PC
+	MOVW	0(R13), PC
 	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, PC]
