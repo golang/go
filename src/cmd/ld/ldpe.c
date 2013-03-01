@@ -320,12 +320,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			goto bad;
 	
 		s = sym->sym;
-		if(s->outer != S) {
-			if(s->dupok)
-				continue;
-			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
-			errorexit();
-		}
 		if(sym->sectnum == 0) {// extern
 			if(s->type == SDYNIMPORT)
 				s->plt = -2; // flag for dynimport in PE object files.
@@ -344,6 +338,13 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 
 		if(sect == nil) 
 			return;
+
+		if(s->outer != S) {
+			if(s->dupok)
+				continue;
+			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+			errorexit();
+		}
 		s->sub = sect->sym->sub;
 		sect->sym->sub = s;
 		s->type = sect->sym->type | SSUB;
