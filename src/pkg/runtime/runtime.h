@@ -265,7 +265,8 @@ struct	M
 	uintptr	cret;		// return value from C
 	uint64	procid;		// for debuggers, but offset not hard-coded
 	G*	gsignal;	// signal-handling G
-	uint64	tls[4];		// thread-local storage (for x86 extern register)
+	uintptr	tls[4];		// thread-local storage (for x86 extern register)
+	void	(*mstartfn)(void);
 	G*	curg;		// current running goroutine
 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
 	P*	nextp;

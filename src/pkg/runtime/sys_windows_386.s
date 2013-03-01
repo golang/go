@@ -260,9 +260,10 @@ TEXT runtime·tstart(SB),7,$0
 
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 
-	// start function is in tls[2]
+	// newosproc left the function we should call in mp->mstartfn.
 	get_tls(CX)
-	MOVL	8(CX), AX
+	MOVL	m(CX), AX
+	MOVL	m_mstartfn(AX), AX
 	CALL	AX
 
 	RET

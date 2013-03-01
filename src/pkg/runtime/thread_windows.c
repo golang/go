@@ -197,7 +197,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	if(gp != mp->g0)
 		runtime·throw("invalid newosproc gp");
 
-	mp->tls[2] = (uintptr)fn;
+	mp->mstartfn = fn;
 
 	thandle = runtime·stdcall(runtime·CreateThread, 6,
 		nil, (uintptr)0x20000, runtime·tstart_stdcall, mp,
