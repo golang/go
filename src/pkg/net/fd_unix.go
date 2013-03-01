@@ -182,11 +182,7 @@ func (s *pollServer) CheckDeadlines() {
 		if t > 0 {
 			if t <= now {
 				delete(s.pending, key)
-				if mode == 'r' {
-					s.poll.DelFD(fd.sysfd, mode)
-				} else {
-					s.poll.DelFD(fd.sysfd, mode)
-				}
+				s.poll.DelFD(fd.sysfd, mode)
 				s.WakeFD(fd, mode, errTimeout)
 			} else if nextDeadline == 0 || t < nextDeadline {
 				nextDeadline = t
