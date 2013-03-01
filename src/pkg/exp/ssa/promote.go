@@ -272,13 +272,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 	}
 	fn.start(nil)
 	fn.addSpilledParam(sig.Recv)
-	var last *Parameter
-	for _, p := range fn.Signature.Params {
-		last = fn.addParam(p.Name, p.Type)
-	}
-	if fn.Signature.IsVariadic {
-		last.Type_ = &types.Slice{Elt: last.Type_}
-	}
+	createParams(fn)
 
 	// Each bridge method performs a sequence of selections,
 	// then tailcalls the promoted method.
@@ -315,20 +309,28 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function 
 		fn.Pos = c.Func.(*Function).Pos // TODO(adonovan): fix: wrong.
 		c.Pos = fn.Pos                  // TODO(adonovan): fix: wrong.
 		c.Args = append(c.Args, v)
-		for _, arg := range fn.Params[1:] {
-			c.Args = append(c.Args, arg)
-		}
 	} else {
 		c.Recv = v
 		c.Method = 0
-		for _, arg := range fn.Params {
-			c.Args = append(c.Args, arg)
-		}
 	}
-	c.Type_ = &types.Result{Values: sig.Results}
 	emitTailCall(fn, &c)
 	fn.finish()
 	return fn
+}
+
+// createParams creates parameters for bridge method fn based on its Signature.
+func createParams(fn *Function) {
+	var last *Parameter
+	for i, p := range fn.Signature.Params {
+		name := p.Name
+		if name == "" {
+			name = fmt.Sprintf("arg%d", i)
+		}
+		last = fn.addParam(name, p.Type)
+	}
+	if fn.Signature.IsVariadic {
+		last.Type_ = &types.Slice{Elt: last.Type_}
+	}
 }
 
 // Thunks for standalone interface methods ----------------------------------------
@@ -373,21 +375,10 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
 	// TODO(adonovan): set fn.Pos to location of interface method ast.Field.
 	fn.start(nil)
 	fn.addParam("recv", typ)
-	var last *Parameter
-	for _, p := range fn.Signature.Params {
-		last = fn.addParam(p.Name, p.Type)
-	}
-	if fn.Signature.IsVariadic {
-		last.Type_ = &types.Slice{Elt: last.Type_}
-	}
-
+	createParams(fn)
 	var c Call
 	c.Method = index
 	c.Recv = fn.Params[0]
-	for _, arg := range fn.Params[1:] {
-		c.Args = append(c.Args, arg)
-	}
-	c.Type_ = &types.Result{Values: sig.Results}
 	emitTailCall(fn, &c)
 	fn.finish()
 	return fn
