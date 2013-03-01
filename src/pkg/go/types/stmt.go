@@ -719,6 +719,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		x.mode = value
 		if s.Key != nil {
 			x.typ = key
+			x.expr = s.Key
 			check.assign1to1(s.Key, nil, &x, decl, -1)
 		} else {
 			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
@@ -726,6 +727,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		}
 		if s.Value != nil {
 			x.typ = val
+			x.expr = s.Value
 			check.assign1to1(s.Value, nil, &x, decl, -1)
 		}
 
