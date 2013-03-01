@@ -454,13 +454,6 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 		return 0, nil
 	}
 
-	// Logic based on media type. The purpose of the following code is just
-	// to detect whether the unsupported "multipart/byteranges" is being
-	// used. A proper Content-Type parser is needed in the future.
-	if strings.Contains(strings.ToLower(header.get("Content-Type")), "multipart/byteranges") {
-		return -1, ErrNotSupported
-	}
-
 	// Body-EOF logic based on other methods (like closing, or chunked coding)
 	return -1, nil
 }
