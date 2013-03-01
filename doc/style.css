@@ -267,10 +267,12 @@ a#start {
 	border-radius: 5px;
 }
 a#start .big {
+	display: block;
 	font-weight: bold;
 	font-size: 20px;
 }
 a#start .desc {
+	display: block;
 	font-size: 14px;
 	font-weight: normal;
 	margin-top: 5px;
