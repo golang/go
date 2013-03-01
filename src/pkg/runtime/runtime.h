@@ -118,8 +118,17 @@ enum
 	Grunning,
 	Gsyscall,
 	Gwaiting,
-	Gmoribund,
+	Gmoribund_unused,  // currently unused, but hardcoded in gdb scripts
 	Gdead,
+};
+enum
+{
+	// P status
+	Pidle,
+	Prunning,
+	Psyscall,
+	Pgcstop,
+	Pdead,
 };
 enum
 {
@@ -214,6 +223,7 @@ struct	G
 	Gobuf	sched;
 	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
 	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+	byte*	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
 	uintptr	stack0;
 	FuncVal*	fnstart;		// initial function
@@ -224,13 +234,11 @@ struct	G
 	uint32	selgen;		// valid sudog pointer
 	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;
-	bool	readyonstop;
 	bool	ispanic;
 	bool	issystem;
 	int8	raceignore; // ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
-	M*	idlem;
 	int32	sig;
 	int32	writenbuf;
 	byte*	writebuf;
@@ -259,22 +267,24 @@ struct	M
 	G*	gsignal;	// signal-handling G
 	uint32	tls[8];		// thread-local storage (for 386 extern register)
 	G*	curg;		// current running goroutine
+	P*	p;		// attached P for executing Go code (nil if not executing Go code)
+	P*	nextp;
 	int32	id;
 	int32	mallocing;
 	int32	throwing;
 	int32	gcing;
 	int32	locks;
 	int32	nomemprof;
-	int32	waitnextg;
 	int32	dying;
 	int32	profilehz;
 	int32	helpgc;
+	bool	blockingsyscall;
+	bool	spinning;
 	uint32	fastrand;
 	uint64	ncgocall;	// number of cgo calls in total
 	int32	ncgo;		// number of cgo calls currently in progress
 	CgoMal*	cgomal;
-	Note	havenextg;
-	G*	nextg;
+	Note	park;
 	M*	alllink;	// on allm
 	M*	schedlink;
 	uint32	machport;	// Return address for Mach IPC (OS X)
@@ -284,7 +294,6 @@ struct	M
 	uint32	stackcachecnt;
 	void*	stackcache[StackCacheSize];
 	G*	lockedg;
-	G*	idleg;
 	uintptr	createstack[32];	// Stack that created this thread.
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
@@ -298,6 +307,8 @@ struct	M
 	bool	racecall;
 	bool	needextram;
 	void*	racepc;
+	void	(*waitunlockf)(Lock*);
+	Lock*	waitlock;
 	uint32	moreframesize_minalloc;
 
 	uintptr	settype_buf[1024];
@@ -317,7 +328,11 @@ struct P
 {
 	Lock;
 
+	uint32	status;  // one of Pidle/Prunning/...
 	P*	link;
+	uint32	tick;   // incremented on every scheduler or system call
+	M*	m;	// back-link to associated M (nil if idle)
+	MCache*	mcache;
 
 	// Queue of runnable goroutines.
 	G**	runq;
@@ -608,6 +623,7 @@ extern	uintptr runtime·zerobase;
 extern	G*	runtime·allg;
 extern	G*	runtime·lastg;
 extern	M*	runtime·allm;
+extern	P**	runtime·allp;
 extern	int32	runtime·gomaxprocs;
 extern	bool	runtime·singleproc;
 extern	uint32	runtime·panicking;
