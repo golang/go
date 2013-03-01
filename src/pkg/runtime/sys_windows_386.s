@@ -260,7 +260,10 @@ TEXT runtime·tstart(SB),7,$0
 
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 
-	CALL	runtime·mstart(SB)
+	// start function is in tls[2]
+	get_tls(CX)
+	MOVL	8(CX), AX
+	CALL	AX
 
 	RET
 

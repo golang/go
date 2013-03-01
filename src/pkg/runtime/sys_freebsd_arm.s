@@ -33,7 +33,11 @@ TEXT runtime·thr_start(SB),7,$0
 	// set up g
 	MOVW m_g0(R9), R10
 	BL runtime·emptyfunc(SB) // fault if stack check is wrong
-	BL runtime·mstart(SB)
+
+	// newosproc left the function we should call in mp->tls[2] for us.
+	MOVW	(m_tls+8)(m), R0
+	BL	(R0)
+
 	MOVW $2, R9  // crash (not reached)
 	MOVW R9, (R9)
 	RET
