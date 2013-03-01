@@ -35,31 +35,6 @@ EXT(crosscall_386):
 	popl %ebp
 	ret
 
-/*
- * void crosscall2(void (*fn)(void*, int32), void*, int32)
- *
- * Save registers and call fn with two arguments.
- */
-.globl EXT(crosscall2)
-EXT(crosscall2):
-	pushl %ebp
-	movl %esp, %ebp
-	pushl %ebx
-	pushl %esi
-	pushl %edi
-
-	pushl 16(%ebp)
-	pushl 12(%ebp)
-	mov 8(%ebp), %eax
-	call *%eax
-	addl $8,%esp
-
-	popl %edi
-	popl %esi
-	popl %ebx
-	popl %ebp
-	ret
-
 .globl EXT(__stack_chk_fail_local)
 EXT(__stack_chk_fail_local):
 1:
