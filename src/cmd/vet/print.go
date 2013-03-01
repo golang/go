@@ -280,7 +280,7 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 			// arg must be integer.
 			for i := 0; i < nargs-1; i++ {
 				if !f.matchArgType(argInt, call.Args[argNum+i]) {
-					f.Badf(call.Pos(), "arg %s for * in printf format not of type int", call.Args[argNum+i])
+					f.Badf(call.Pos(), "arg %s for * in printf format not of type int", f.gofmt(call.Args[argNum+i]))
 				}
 			}
 			for _, v := range printVerbs {
@@ -291,7 +291,7 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 						if typ := f.pkg.types[arg]; typ != nil {
 							typeString = typ.String()
 						}
-						f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", arg, verb, typeString)
+						f.Badf(call.Pos(), "arg %s for printf verb %%%c of wrong type: %s", f.gofmt(arg), verb, typeString)
 					}
 					break
 				}
@@ -339,7 +339,7 @@ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
 		}
 		return t&argFloat != 0
 	case types.UntypedInt:
-		return t&(argInt|argFloat) != 0 // You might say Printf("%g", 1234)
+		return t&argInt != 0
 	case types.UntypedRune:
 		return t&(argInt|argRune) != 0
 	case types.UntypedString:

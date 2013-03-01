@@ -392,7 +392,7 @@ func (f *File) walkRangeStmt(n *ast.RangeStmt) {
 	checkRangeLoop(f, n)
 }
 
-// goFmt returns a string representation of the expression
+// gofmt returns a string representation of the expression.
 func (f *File) gofmt(x ast.Expr) string {
 	f.b.Reset()
 	printer.Fprint(&f.b, f.fset, x)
