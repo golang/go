@@ -54,6 +54,8 @@ echo.
 
 if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
 echo # Testing race detector.
+echo # skipping test due to bug (http://code.google.com/p/go/issues/detail?id=4948).
+goto norace
 go test -race -i flag
 if errorlevel 1 goto fail
 go test -race -short flag
