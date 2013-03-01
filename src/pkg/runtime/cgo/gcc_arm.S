@@ -24,7 +24,7 @@ EXT(crosscall_arm2):
 	mov r10, r1 // g
 	mov r9, r2 // m
 	mov r3, r0 // save r0, cgo_tls_set_gm will clobber it
-	bl EXT(cgo_tls_set_gm) // save current g and m into TLS variable
+	bl EXT(x_cgo_save_gm) // save current g and m into TLS variable
 	mov lr, pc
 	mov pc, r3
 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
@@ -45,7 +45,7 @@ EXT(crosscall2):
 	 *  nevertheless.
 	 */
 	push {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
-	bl EXT(cgo_tls_get_gm) // set up g and m from TLS
+	bl EXT(x_cgo_load_gm) // set up g and m from TLS
 	mov lr, pc
 	ldr pc, [sp, #0]
 	pop {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
