@@ -5,9 +5,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 )
@@ -16,50 +16,17 @@ import (
 // It returns the output to standard output and standard error.
 // ok indicates whether the command exited successfully.
 func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
-	cmd, err := exec.LookPath(argv[0])
-	if err != nil {
-		fatalf("exec %s: %s", argv[0], err)
-	}
-	r0, w0, err := os.Pipe()
-	if err != nil {
+	p := exec.Command(argv[0], argv[1:]...)
+	p.Stdin = bytes.NewReader(stdin)
+	var bout, berr bytes.Buffer
+	p.Stdout = &bout
+	p.Stderr = &berr
+	err := p.Run()
+	if _, ok := err.(*exec.ExitError); err != nil && !ok {
 		fatalf("%s", err)
 	}
-	r1, w1, err := os.Pipe()
-	if err != nil {
-		fatalf("%s", err)
-	}
-	r2, w2, err := os.Pipe()
-	if err != nil {
-		fatalf("%s", err)
-	}
-	p, err := os.StartProcess(cmd, argv, &os.ProcAttr{Files: []*os.File{r0, w1, w2}})
-	if err != nil {
-		fatalf("%s", err)
-	}
-	r0.Close()
-	w1.Close()
-	w2.Close()
-	c := make(chan bool)
-	go func() {
-		w0.Write(stdin)
-		w0.Close()
-		c <- true
-	}()
-	go func() {
-		stdout, _ = ioutil.ReadAll(r1)
-		r1.Close()
-		c <- true
-	}()
-	stderr, _ = ioutil.ReadAll(r2)
-	r2.Close()
-	<-c
-	<-c
-
-	state, err := p.Wait()
-	if err != nil {
-		fatalf("%s", err)
-	}
-	ok = state.Success()
+	ok = p.ProcessState.Success()
+	stdout, stderr = bout.Bytes(), berr.Bytes()
 	return
 }
 
