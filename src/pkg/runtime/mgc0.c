@@ -585,6 +585,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 		if(bufferList == nil) {
 			bufferList = runtime·SysAlloc(sizeof(*bufferList));
+			if(bufferList == nil)
+				runtime·throw("runtime: cannot allocate memory");
 			bufferList->next = nil;
 		}
 		scanbuffers = bufferList;
@@ -1147,6 +1149,8 @@ getempty(Workbuf *b)
 		if(work.nchunk < sizeof *b) {
 			work.nchunk = 1<<20;
 			work.chunk = runtime·SysAlloc(work.nchunk);
+			if(work.chunk == nil)
+				runtime·throw("runtime: cannot allocate memory");
 		}
 		b = (Workbuf*)work.chunk;
 		work.chunk += sizeof *b;
@@ -1230,6 +1234,8 @@ addroot(Obj obj)
 		if(cap < 2*work.rootcap)
 			cap = 2*work.rootcap;
 		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj));
+		if(new == nil)
+			runtime·throw("runtime: cannot allocate memory");
 		if(work.roots != nil) {
 			runtime·memmove(new, work.roots, work.rootcap*sizeof(Obj));
 			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj));
@@ -1381,6 +1387,8 @@ handlespecial(byte *p, uintptr size)
 	if(finq == nil || finq->cnt == finq->cap) {
 		if(finc == nil) {
 			finc = runtime·SysAlloc(PageSize);
+			if(finc == nil)
+				runtime·throw("runtime: cannot allocate memory");
 			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
 			finc->alllink = allfin;
 			allfin = finc;

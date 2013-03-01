@@ -40,6 +40,8 @@ allocate(uintptr size)
 	runtime·lock(&alloclock);
 	if(size > poolfree) {
 		pool = runtime·SysAlloc(Chunk);
+		if(pool == nil)
+			runtime·throw("runtime: cannot allocate memory");
 		poolfree = Chunk;
 	}
 	v = pool;
@@ -100,6 +102,8 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 
 	if(buckhash == nil) {
 		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0]);
+		if(buckhash == nil)
+			runtime·throw("runtime: cannot allocate memory");
 		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
 	}
 
@@ -123,6 +127,8 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
 		return nil;
 
 	b = allocate(sizeof *b + nstk*sizeof stk[0]);
+	if(b == nil)
+		runtime·throw("runtime: cannot allocate memory");
 	bucketmem += sizeof *b + nstk*sizeof stk[0];
 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
 	b->typ = typ;
