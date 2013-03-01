@@ -519,6 +519,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
 				data3 = runtime·mallocgc(nbytes3, FlagNoPointers, 0, 1);
 			} else {
 				data3 = runtime·SysAlloc(nbytes3);
+				if(data3 == nil)
+					runtime·throw("runtime: cannot allocate memory");
 				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
 			}
 
@@ -555,6 +557,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
 					data2 = runtime·mallocgc(nbytes2, FlagNoPointers, 0, 1);
 				} else {
 					data2 = runtime·SysAlloc(nbytes2);
+					if(data2 == nil)
+						runtime·throw("runtime: cannot allocate memory");
 					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
 				}
 

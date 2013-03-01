@@ -37,6 +37,8 @@ RecordSpan(void *vh, byte *p)
 		if(cap < h->nspancap*3/2)
 			cap = h->nspancap*3/2;
 		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
+		if(all == nil)
+			runtime·throw("runtime: cannot allocate memory");
 		if(h->allspans) {
 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
 			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
