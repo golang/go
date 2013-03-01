@@ -70,10 +70,10 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 			Env:  []string{`Path=` + tt.list},
 			Dir:  tmp,
 		}
-		out, err := cmd.Output()
+		out, err := cmd.CombinedOutput()
 		switch {
 		case err != nil:
-			t.Errorf("%d,%d: execution error %v", ti, i, err)
+			t.Errorf("%d,%d: execution error %v\n%q", ti, i, err, out)
 			return
 		case !reflect.DeepEqual(out, exp):
 			t.Errorf("%d,%d: expected %#q, got %#q", ti, i, exp, out)
