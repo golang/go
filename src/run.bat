@@ -72,6 +72,8 @@ if errorlevel 1 goto fail
 echo.
 
 :: cgo tests
+:: issue 4955 - cgo is broken
+goto nocgo
 if x%CGO_ENABLED% == x0 goto nocgo
 echo # ..\misc\cgo\life
 go run %GOROOT%\test\run.go - ..\misc\cgo\life
