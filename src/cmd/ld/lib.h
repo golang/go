@@ -63,6 +63,7 @@ enum
 	SFILE,
 	SCONST,
 	SDYNIMPORT,
+	SHOSTOBJ,
 
 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
 	SMASK = SSUB - 1,

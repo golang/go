@@ -124,6 +124,9 @@ main(int argc, char *argv[])
 	cinit();
 	ginit();
 	arginit();
+	
+	fmtstrinit(&pragcgobuf);
+	quotefmtinstall();
 
 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
 	ndef = 0;

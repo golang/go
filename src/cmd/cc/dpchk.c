@@ -662,82 +662,93 @@ getimpsym(void)
 	return lookup();
 }
 
-void
-pragdynimport(void)
+static int
+more(void)
 {
-	Sym *local, *remote;
-	char *path;
-	Dynimp *f;
-
-	local = getimpsym();
-	if(local == nil)
-		goto err;
-
-	remote = getimpsym();
-	if(remote == nil)
-		goto err;
-
-	path = getquoted();
-	if(path == nil)
-		goto err;
-
-	if(ndynimp%32 == 0)
-		dynimp = realloc(dynimp, (ndynimp+32)*sizeof dynimp[0]);
-	f = &dynimp[ndynimp++];
-	f->local = local->name;
-	f->remote = remote->name;
-	f->path = path;
-	goto out;
-
-err:
-	yyerror("usage: #pragma dynimport local remote \"path\"");
-
-out:
-	while(getnsc() != '\n')
-		;
+	int c;
+	
+	do
+		c = getnsc();
+	while(c == ' ' || c == '\t');
+	unget(c);
+	return c != '\n';
 }
 
 void
-pragdynexport(void)
+pragcgo(char *verb)
 {
 	Sym *local, *remote;
-	Dynexp *f;
+	char *p;
 
-	local = getsym();
-	if(local == nil)
-		goto err;
+	if(strcmp(verb, "cgo_dynamic_linker") == 0 || strcmp(verb, "dynlinker") == 0) {
+		p = getquoted();
+		if(p == nil)
+			goto err1;
+		fmtprint(&pragcgobuf, "cgo_dynamic_linker %q\n", p);
+		goto out;
+	
+	err1:
+		yyerror("usage: #pragma cgo_dynamic_linker \"path\"");
+		goto out;
+	}	
+	
+	if(strcmp(verb, "cgo_export") == 0 || strcmp(verb, "dynexport") == 0) {
+		local = getimpsym();
+		if(local == nil)
+			goto err2;
+		if(!more()) {
+			fmtprint(&pragcgobuf, "cgo_export %q\n", local->name);
+			goto out;
+		}
+		remote = getimpsym();
+		if(remote == nil)
+			goto err2;
+		fmtprint(&pragcgobuf, "cgo_export %q %q\n", local->name, remote->name);
+		goto out;
+	
+	err2:
+		yyerror("usage: #pragma cgo_export local [remote]");
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_import_dynamic") == 0 || strcmp(verb, "dynimport") == 0) {
+		local = getimpsym();
+		if(local == nil)
+			goto err3;
+		if(!more()) {
+			fmtprint(&pragcgobuf, "cgo_import_dynamic %q\n", local->name);
+			goto out;
+		}
+		remote = getimpsym();
+		if(remote == nil)
+			goto err3;
+		if(!more()) {
+			fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q\n", local->name, remote->name);
+			goto out;
+		}
+		p = getquoted();
+		if(p == nil)	
+			goto err3;
+		fmtprint(&pragcgobuf, "cgo_import_dynamic %q %q %q\n", local->name, remote->name, p);
+		goto out;
+	
+	err3:
+		yyerror("usage: #pragma cgo_import_dynamic local [remote [\"library\"]]");
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_import_static") == 0) {
+		local = getimpsym();
+		if(local == nil)
+			goto err4;
+		fmtprint(&pragcgobuf, "cgo_import_static %q\n", local->name);
+		goto out;
 
-	remote = getsym();
-	if(remote == nil)
-		goto err;
-
-	if(ndynexp%32 == 0)
-		dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
-	f = &dynexp[ndynexp++];
-	f->local = local->name;
-	f->remote = remote->name;
-	goto out;
-
-err:
-	yyerror("usage: #pragma dynexport local remote");
-
-out:
-	while(getnsc() != '\n')
-		;
-}
-
-void
-pragdynlinker(void)
-{
-	dynlinker = getquoted();
-	if(dynlinker == nil)
-		goto err;
-
-	goto out;
-
-err:
-	yyerror("usage: #pragma dynlinker \"path\"");
-
+	err4:
+		yyerror("usage: #pragma cgo_import_static local [remote]");
+		goto out;
+	}
+	
 out:
 	while(getnsc() != '\n')
 		;

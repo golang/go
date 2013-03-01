@@ -135,6 +135,8 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 void
 asmelfsym(void)
 {
+	Sym *s;
+
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
 
@@ -144,6 +146,13 @@ asmelfsym(void)
 	elfbind = STB_GLOBAL;
 	elfglobalsymndx = numelfsym;
 	genasmsym(putelfsym);
+	
+	for(s=allsym; s!=S; s=s->allsym) {
+		if(s->type != SHOSTOBJ)
+			continue;
+		putelfsyment(putelfstr(s->name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
+		s->elfsym = numelfsym++;
+	}
 }
 
 static void

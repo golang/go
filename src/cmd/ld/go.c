@@ -67,9 +67,7 @@ ilookup(char *name)
 }
 
 static void loadpkgdata(char*, char*, char*, int);
-static void loaddynimport(char*, char*, char*, int);
-static void loaddynexport(char*, char*, char*, int);
-static void loaddynlinker(char*, char*, char*, int);
+static void loadcgo(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
 
@@ -178,12 +176,12 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 
 	loadpkgdata(filename, pkg, p0, p1 - p0);
 
-	// look for dynimport section
-	p0 = strstr(p1, "\n$$  // dynimport");
+	// look for cgo section
+	p0 = strstr(p1, "\n$$  // cgo");
 	if(p0 != nil) {
 		p0 = strchr(p0+1, '\n');
 		if(p0 == nil) {
-			fprint(2, "%s: found $$ // dynimport but no newline in %s\n", argv0, filename);
+			fprint(2, "%s: found $$ // cgo but no newline in %s\n", argv0, filename);
 			if(debug['u'])
 				errorexit();
 			return;
@@ -192,55 +190,12 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 		if(p1 == nil)
 			p1 = strstr(p0, "\n!\n");
 		if(p1 == nil) {
-			fprint(2, "%s: cannot find end of // dynimport section in %s\n", argv0, filename);
+			fprint(2, "%s: cannot find end of // cgo section in %s\n", argv0, filename);
 			if(debug['u'])
 				errorexit();
 			return;
 		}
-		loaddynimport(filename, pkg, p0 + 1, p1 - (p0+1));
-	}
-
-	// look for dynexp section
-	p0 = strstr(p1, "\n$$  // dynexport");
-	if(p0 != nil) {
-		p0 = strchr(p0+1, '\n');
-		if(p0 == nil) {
-			fprint(2, "%s: found $$ // dynexport but no newline in %s\n", argv0, filename);
-			if(debug['u'])
-				errorexit();
-			return;
-		}
-		p1 = strstr(p0, "\n$$");
-		if(p1 == nil)
-			p1 = strstr(p0, "\n!\n");
-		if(p1 == nil) {
-			fprint(2, "%s: cannot find end of // dynexport section in %s\n", argv0, filename);
-			if(debug['u'])
-				errorexit();
-			return;
-		}
-		loaddynexport(filename, pkg, p0 + 1, p1 - (p0+1));
-	}
-
-	p0 = strstr(p1, "\n$$  // dynlinker");
-	if(p0 != nil) {
-		p0 = strchr(p0+1, '\n');
-		if(p0 == nil) {
-			fprint(2, "%s: found $$ // dynlinker but no newline in %s\n", argv0, filename);
-			if(debug['u'])
-				errorexit();
-			return;
-		}
-		p1 = strstr(p0, "\n$$");
-		if(p1 == nil)
-			p1 = strstr(p0, "\n!\n");
-		if(p1 == nil) {
-			fprint(2, "%s: cannot find end of // dynlinker section in %s\n", argv0, filename);
-			if(debug['u'])
-				errorexit();
-			return;
-		}
-		loaddynlinker(filename, pkg, p0 + 1, p1 - (p0+1));
+		loadcgo(filename, pkg, p0 + 1, p1 - (p0+1));
 	}
 }
 
@@ -456,165 +411,129 @@ useline:
 }
 
 static void
-loaddynimport(char *file, char *pkg, char *p, int n)
+loadcgo(char *file, char *pkg, char *p, int n)
 {
-	char *pend, *next, *name, *def, *p0, *lib, *q;
+	char *pend, *next, *p0, *q;
+	char *f[10], *local, *remote, *lib;
+	int nf;
 	Sym *s;
 
 	USED(file);
 	pend = p + n;
+	p0 = nil;
 	for(; p<pend; p=next) {
 		next = strchr(p, '\n');
 		if(next == nil)
 			next = "";
 		else
 			*next++ = '\0';
-		p0 = p;
-		if(strncmp(p, "dynimport ", 10) != 0)
-			goto err;
-		p += 10;
-		name = p;
-		p = strchr(name, ' ');
-		if(p == nil)
-			goto err;
-		while(*p == ' ')
-			p++;
-		def = p;
-		p = strchr(def, ' ');
-		if(p == nil)
-			goto err;
-		while(*p == ' ')
-			p++;
-		lib = p;
 
-		// successful parse: now can edit the line
-		*strchr(name, ' ') = 0;
-		*strchr(def, ' ') = 0;
+		free(p0);
+		p0 = strdup(p); // save for error message
+		nf = tokenize(p, f, nelem(f));
 		
-		if(debug['d']) {
-			fprint(2, "%s: %s: cannot use dynamic imports with -d flag\n", argv0, file);
-			nerrors++;
-			return;
+		if(strcmp(f[0], "cgo_import_dynamic") == 0) {
+			if(nf < 2 || nf > 4)
+				goto err;
+			
+			local = f[1];
+			remote = local;
+			if(nf > 2)
+				remote = f[2];
+			lib = "";
+			if(nf > 3)
+				lib = f[3];
+			
+			if(debug['d']) {
+				fprint(2, "%s: %s: cannot use dynamic imports with -d flag\n", argv0, file);
+				nerrors++;
+				return;
+			}
+		
+			if(strcmp(local, "_") == 0 && strcmp(remote, "_") == 0) {
+				// allow #pragma dynimport _ _ "foo.so"
+				// to force a link of foo.so.
+				havedynamic = 1;
+				adddynlib(lib);
+				continue;
+			}
+
+			local = expandpkg(local, pkg);
+			q = strchr(remote, '#');
+			if(q)
+				*q++ = '\0';
+			s = lookup(local, 0);
+			if(local != f[1])
+				free(local);
+			if(s->type == 0 || s->type == SXREF) {
+				s->dynimplib = lib;
+				s->dynimpname = remote;
+				s->dynimpvers = q;
+				s->type = SDYNIMPORT;
+				havedynamic = 1;
+			}
+			continue;
 		}
 		
-		if(strcmp(name, "_") == 0 && strcmp(def, "_") == 0) {
-			// allow #pragma dynimport _ _ "foo.so"
-			// to force a link of foo.so.
-			havedynamic = 1;
-			adddynlib(lib);
+		if(strcmp(f[0], "cgo_import_static") == 0) {
+			if(nf != 2)
+				goto err;
+			if(isobj) {
+				local = f[1];
+				s = lookup(local, 0);
+				s->type = SHOSTOBJ;
+				s->size = 0;
+			}
 			continue;
 		}
 
-		name = expandpkg(name, pkg);
-		q = strchr(def, '#');
-		if(q)
-			*q++ = '\0';
-		s = lookup(name, 0);
-		free(name);
-		if(s->type == 0 || s->type == SXREF) {
-			s->dynimplib = lib;
-			s->dynimpname = def;
-			s->dynimpvers = q;
-			s->type = SDYNIMPORT;
-			havedynamic = 1;
+		if(strcmp(f[0], "cgo_export") == 0) {
+			if(nf < 2 || nf > 3)
+				goto err;
+			local = f[1];
+			if(nf > 2)
+				remote = f[2];
+			else
+				remote = local;
+			local = expandpkg(local, pkg);
+			s = lookup(local, 0);
+			if(s->dynimplib != nil) {
+				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
+				nerrors++;
+			}
+			s->dynimpname = remote;
+			s->dynexport = 1;
+
+			if(ndynexp%32 == 0)
+				dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+			dynexp[ndynexp++] = s;
+
+			if(local != f[1])
+				free(local);
+			continue;
+		}
+		
+		if(strcmp(f[0], "cgo_dynamic_linker") == 0) {
+			if(nf != 2)
+				goto err;
+			
+			if(!debug['I']) { // not overridden by command line
+				if(interpreter != nil && strcmp(interpreter, f[1]) != 0) {
+					fprint(2, "%s: conflict dynlinker: %s and %s\n", argv0, interpreter, f[1]);
+					nerrors++;
+					return;
+				}
+				free(interpreter);
+				interpreter = strdup(f[1]);
+			}
+			continue;
 		}
 	}
+	free(p0);
 	return;
 
 err:
 	fprint(2, "%s: %s: invalid dynimport line: %s\n", argv0, file, p0);
-	nerrors++;
-}
-
-static void
-loaddynexport(char *file, char *pkg, char *p, int n)
-{
-	char *pend, *next, *local, *elocal, *remote, *p0;
-	Sym *s;
-
-	USED(file);
-	pend = p + n;
-	for(; p<pend; p=next) {
-		next = strchr(p, '\n');
-		if(next == nil)
-			next = "";
-		else
-			*next++ = '\0';
-		p0 = p;
-		if(strncmp(p, "dynexport ", 10) != 0)
-			goto err;
-		p += 10;
-		local = p;
-		p = strchr(local, ' ');
-		if(p == nil)
-			goto err;
-		while(*p == ' ')
-			p++;
-		remote = p;
-
-		// successful parse: now can edit the line
-		*strchr(local, ' ') = 0;
-
-		elocal = expandpkg(local, pkg);
-
-		s = lookup(elocal, 0);
-		if(s->dynimplib != nil) {
-			fprint(2, "%s: symbol is both dynimport and dynexport %s\n", argv0, local);
-			nerrors++;
-		}
-		s->dynimpname = remote;
-		s->dynexport = 1;
-
-		if(ndynexp%32 == 0)
-			dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
-		dynexp[ndynexp++] = s;
-
-		if (elocal != local)
-			free(elocal);
-	}
-	return;
-
-err:
-	fprint(2, "%s: invalid dynexport line: %s\n", argv0, p0);
-	nerrors++;
-}
-
-static void
-loaddynlinker(char *file, char *pkg, char *p, int n)
-{
-	char *pend, *next, *dynlinker, *p0;
-
-	USED(file);
-	USED(pkg);
-	pend = p + n;
-	for(; p<pend; p=next) {
-		next = strchr(p, '\n');
-		if(next == nil)
-			next = "";
-		else
-			*next++ = '\0';
-		p0 = p;
-		if(strncmp(p, "dynlinker ", 10) != 0)
-			goto err;
-		p += 10;
-		dynlinker = p;
-
-		if(*dynlinker == '\0')
-			goto err;
-		if(!debug['I']) { // not overrided by cmdline
-			if(interpreter != nil && strcmp(interpreter, dynlinker) != 0) {
-				fprint(2, "%s: conflict dynlinker: %s and %s\n", argv0, interpreter, dynlinker);
-				nerrors++;
-				return;
-			}
-			free(interpreter);
-			interpreter = strdup(dynlinker);
-		}
-	}
-	return;
-
-err:
-	fprint(2, "%s: invalid dynlinker line: %s\n", argv0, p0);
 	nerrors++;
 }
 

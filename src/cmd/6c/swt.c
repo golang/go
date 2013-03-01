@@ -247,22 +247,12 @@ outcode(void)
 	Binit(&b, f, OWRITE);
 
 	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
-	if(ndynimp > 0 || ndynexp > 0) {
-		int i;
-
+	if(pragcgobuf.to > pragcgobuf.start) {
 		Bprint(&b, "\n");
 		Bprint(&b, "$$  // exports\n\n");
 		Bprint(&b, "$$  // local types\n\n");
-		Bprint(&b, "$$  // dynimport\n");
-		for(i=0; i<ndynimp; i++)
-			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
-		Bprint(&b, "\n$$  // dynexport\n");
-		for(i=0; i<ndynexp; i++)
-			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
-		Bprint(&b, "\n$$  // dynlinker\n");
-		if(dynlinker != nil) {
-			Bprint(&b, "dynlinker %s\n", dynlinker);
-		}
+		Bprint(&b, "$$  // cgo\n");
+		Bprint(&b, "%s", fmtstrflush(&pragcgobuf));
 		Bprint(&b, "\n$$\n\n");
 	}
 	Bprint(&b, "!\n");

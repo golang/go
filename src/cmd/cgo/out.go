@@ -163,10 +163,13 @@ func dynimport(obj string) {
 	}
 
 	if f, err := elf.Open(obj); err == nil {
-		if sec := f.Section(".interp"); sec != nil {
-			if data, err := sec.Data(); err == nil && len(data) > 1 {
-				// skip trailing \0 in data
-				fmt.Fprintf(stdout, "#pragma dynlinker %q\n", string(data[:len(data)-1]))
+		if !*importRuntimeCgo {
+			// We are runtime/cgo, so emit the cgo_dynamic_linker line.
+			if sec := f.Section(".interp"); sec != nil {
+				if data, err := sec.Data(); err == nil && len(data) > 1 {
+					// skip trailing \0 in data
+					fmt.Fprintf(stdout, "#pragma cgo_dynamic_linker %q\n", string(data[:len(data)-1]))
+				}
 			}
 		}
 		sym, err := f.ImportedSymbols()
@@ -178,14 +181,14 @@ func dynimport(obj string) {
 			if s.Version != "" {
 				targ += "#" + s.Version
 			}
-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
+			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
 		}
 		lib, err := f.ImportedLibraries()
 		if err != nil {
 			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
 		}
 		for _, l := range lib {
-			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
+			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic _ _ %q\n", l)
 		}
 		return
 	}
@@ -199,14 +202,14 @@ func dynimport(obj string) {
 			if len(s) > 0 && s[0] == '_' {
 				s = s[1:]
 			}
-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s, s, "")
+			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", s, s, "")
 		}
 		lib, err := f.ImportedLibraries()
 		if err != nil {
 			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
 		}
 		for _, l := range lib {
-			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
+			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic _ _ %q\n", l)
 		}
 		return
 	}
@@ -219,7 +222,7 @@ func dynimport(obj string) {
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
 			name := strings.Split(ss[0], "@")[0]
-			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
+			fmt.Fprintf(stdout, "#pragma cgo_import_dynamic %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
 		}
 		return
 	}
@@ -377,6 +380,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	_, argSize = p.structType(n)
 
 	// C wrapper calls into gcc, passing a pointer to the argument frame.
+	fmt.Fprintf(fc, "#pragma cgo_import_static _cgo%s%s\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fc, "\n")
 	fmt.Fprintf(fc, "void\n")
@@ -647,7 +651,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		if fn.Recv != nil {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
-		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
+		fmt.Fprintf(fc, "#pragma cgo_export %s\n", goname)
 		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
 		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
 		fmt.Fprintf(fc, "void\n")

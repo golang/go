@@ -47,22 +47,9 @@ pragvararg(void)
 }
 
 void
-pragdynimport(void)
+pragcgo(char *name)
 {
-	while(getnsc() != '\n')
-		;
-}
-
-void
-pragdynexport(void)
-{
-	while(getnsc() != '\n')
-		;
-}
-
-void
-pragdynlinker(void)
-{
+	USED(name);
 	while(getnsc() != '\n')
 		;
 }
