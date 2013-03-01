@@ -84,7 +84,7 @@ static void schedule(void);
 static void procresize(int32);
 static void acquirep(P*);
 static P* releasep(void);
-static void newm(void(*)(void), P*, bool, bool);
+static void newm(void(*)(void), P*);
 static void goidle(void);
 static void stopm(void);
 static void startm(P*, bool);
@@ -161,7 +161,7 @@ static FuncVal scavenger = {runtime·MHeap_Scavenger};
 void
 runtime·main(void)
 {
-	newm(sysmon, nil, false, false);
+	newm(sysmon, nil);
 
 	// Lock the main goroutine onto this, the main OS thread,
 	// during initialization.  Most programs won't care, but a few
@@ -381,6 +381,12 @@ runtime·stoptheworld(void)
 	}
 }
 
+static void
+mhelpgc(void)
+{
+	m->helpgc = 1;
+}
+
 void
 runtime·starttheworld(void)
 {
@@ -428,7 +434,7 @@ runtime·starttheworld(void)
 		// coordinate.  This lazy approach works out in practice:
 		// we don't mind if the first couple gc rounds don't have quite
 		// the maximum number of procs.
-		newm(runtime·mstart, nil, true, false);
+		newm(mhelpgc, nil);
 	}
 }
 
@@ -460,6 +466,9 @@ runtime·mstart(void)
 		if(runtime·iscgo)
 			runtime·newextram();
 	}
+	
+	if(m->mstartfn)
+		m->mstartfn();
 
 	if(m->helpgc) {
 		m->helpgc = false;
@@ -726,16 +735,15 @@ unlockextra(M *mp)
 }
 
 
-// Create a new m.  It will start off with a call to fn.
+// Create a new m.  It will start off with a call to fn, or else the scheduler.
 static void
-newm(void(*fn)(void), P *p, bool helpgc, bool spinning)
+newm(void(*fn)(void), P *p)
 {
 	M *mp;
 
 	mp = runtime·allocm(p);
 	mp->nextp = p;
-	mp->helpgc = helpgc;
-	mp->spinning = spinning;
+	mp->mstartfn = fn;
 
 	if(runtime·iscgo) {
 		CgoThreadStart ts;
@@ -744,11 +752,11 @@ newm(void(*fn)(void), P *p, bool helpgc, bool spinning)
 			runtime·throw("_cgo_thread_start missing");
 		ts.m = mp;
 		ts.g = mp->g0;
-		ts.fn = fn;
+		ts.fn = runtime·mstart;
 		runtime·asmcgocall(_cgo_thread_start, &ts);
 		return;
 	}
-	runtime·newosproc(mp, mp->g0, (byte*)mp->g0->stackbase, fn);
+	runtime·newosproc(mp, (byte*)mp->g0->stackbase);
 }
 
 // Stops execution of the current m until new work is available.
@@ -781,12 +789,19 @@ retry:
 	m->nextp = nil;
 }
 
+static void
+mspinning(void)
+{
+	m->spinning = true;
+}
+
 // Schedules some M to run the p (creates an M if necessary).
 // If p==nil, tries to get an idle P, if no idle P's returns false.
 static void
 startm(P *p, bool spinning)
 {
 	M *mp;
+	void (*fn)(void);
 
 	runtime·lock(&runtime·sched);
 	if(p == nil) {
@@ -801,7 +816,10 @@ startm(P *p, bool spinning)
 	mp = mget();
 	runtime·unlock(&runtime·sched);
 	if(mp == nil) {
-		newm(runtime·mstart, p, false, spinning);
+		fn = nil;
+		if(spinning)
+			fn = mspinning;
+		newm(fn, p);
 		return;
 	}
 	if(mp->spinning)
@@ -1886,11 +1904,6 @@ sysmon(void)
 {
 	uint32 idle, delay;
 	uint32 ticks[MaxGomaxprocs];
-
-	// This is a special dedicated thread that retakes P's from blocking syscalls.
-	// It works w/o mcache nor stackalloc, it may work concurrently with GC.
-	runtime·asminit();
-	runtime·minit();
 
 	idle = 0;  // how many cycles in succession we had not wokeup somebody
 	delay = 0;

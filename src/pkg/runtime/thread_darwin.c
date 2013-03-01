@@ -87,19 +87,19 @@ runtime·goenvs(void)
 }
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	int32 errno;
 	Sigset oset;
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
 	if(0){
-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
-	errno = runtime·bsdthread_create(stk, mp, gp, fn);
+	errno = runtime·bsdthread_create(stk, mp, mp->g0, runtime·mstart);
 	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
 
 	if(errno < 0) {

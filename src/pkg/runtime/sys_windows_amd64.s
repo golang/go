@@ -329,11 +329,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	CLD
 
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
-
-	get_tls(CX)
-	MOVQ	m(CX), AX
-	MOVQ	m_mstartfn(AX), AX
-	CALL	AX
+	CALL	runtime·mstart(SB)
 
 	XORL	AX, AX			// return 0 == success
 	RET

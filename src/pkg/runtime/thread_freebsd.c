@@ -77,18 +77,14 @@ runtime·futexwakeup(uint32 *addr, uint32 cnt)
 void runtime·thr_start(void*);
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	ThrParam param;
 	Sigset oset;
 
-	// thr_start assumes gp == mp->g0
-	if(gp != mp->g0)
-		runtime·throw("invalid newosproc gp");
-
 	if(0){
-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	runtime·sigprocmask(&sigset_all, &oset);
@@ -96,15 +92,18 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 
 	param.start_func = runtime·thr_start;
 	param.arg = (byte*)mp;
-	param.stack_base = (void*)gp->stackbase;
-	param.stack_size = (byte*)stk - (byte*)gp->stackbase;
+	
+	// NOTE(rsc): This code is confused. stackbase is the top of the stack
+	// and is equal to stk. However, it's working, so I'm not changing it.
+	param.stack_base = (void*)mp->g0->stackbase;
+	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
+
 	param.child_tid = (intptr*)&mp->procid;
 	param.parent_tid = nil;
 	param.tls_base = (void*)&mp->tls[0];
 	param.tls_size = sizeof mp->tls;
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
-	mp->mstartfn = fn;
 
 	runtime·thr_new(&param, sizeof param);
 	runtime·sigprocmask(&oset, nil);

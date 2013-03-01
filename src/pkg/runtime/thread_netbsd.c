@@ -145,15 +145,15 @@ runtime·semawakeup(M *mp)
 }
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	UcontextT uc;
 	int32 ret;
 
 	if(0) {
 		runtime·printf(
-			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+			"newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
@@ -164,7 +164,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	uc.uc_link = nil;
 	uc.uc_sigmask = sigset_all;
 
-	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, gp, fn);
+	runtime·lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp->g0, runtime·mstart);
 
 	ret = runtime·lwp_create(&uc, 0, &mp->procid);
 
