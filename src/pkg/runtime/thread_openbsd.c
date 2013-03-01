@@ -131,8 +131,8 @@ runtime·newosproc(M *mp, void *stk)
 
 	if(0) {
 		runtime·printf(
-			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, mp, mp->g0, fn, mp->id, (int32)mp->tls[0], &mp);
+			"newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
+			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
