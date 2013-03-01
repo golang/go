@@ -59,12 +59,12 @@ func PrintfTests() {
 	fmt.Printf("%b %b", 3, i)
 	fmt.Printf("%c %c %c %c", 3, i, 'x', r)
 	fmt.Printf("%d %d", 3, i)
-	fmt.Printf("%e %e %e", 3, 3e9, x)
-	fmt.Printf("%E %E %E", 3, 3e9, x)
-	fmt.Printf("%f %f %f", 3, 3e9, x)
-	fmt.Printf("%F %F %F", 3, 3e9, x)
-	fmt.Printf("%g %g %g", 3, 3e9, x)
-	fmt.Printf("%G %G %G", 3, 3e9, x)
+	fmt.Printf("%e %e", 3e9, x)
+	fmt.Printf("%E %E", 3e9, x)
+	fmt.Printf("%f %f", 3e9, x)
+	fmt.Printf("%F %F", 3e9, x)
+	fmt.Printf("%g %g", 3e9, x)
+	fmt.Printf("%G %G", 3e9, x)
 	fmt.Printf("%o %o", 3, i)
 	fmt.Printf("%p %p", p, nil)
 	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
@@ -77,24 +77,24 @@ func PrintfTests() {
 	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
 	// Some bad format/argTypes
-	fmt.Printf("%b", 2.3)                      // ERROR "arg for printf verb %b of wrong type"
-	fmt.Printf("%c", 2.3)                      // ERROR "arg for printf verb %c of wrong type"
-	fmt.Printf("%d", 2.3)                      // ERROR "arg for printf verb %d of wrong type"
-	fmt.Printf("%e", "hi")                     // ERROR "arg for printf verb %e of wrong type"
-	fmt.Printf("%E", true)                     // ERROR "arg for printf verb %E of wrong type"
-	fmt.Printf("%f", "hi")                     // ERROR "arg for printf verb %f of wrong type"
-	fmt.Printf("%F", 'x')                      // ERROR "arg for printf verb %F of wrong type"
-	fmt.Printf("%g", "hi")                     // ERROR "arg for printf verb %g of wrong type"
-	fmt.Printf("%G", i)                        // ERROR "arg for printf verb %G of wrong type"
-	fmt.Printf("%o", x)                        // ERROR "arg for printf verb %o of wrong type"
-	fmt.Printf("%p", 23)                       // ERROR "arg for printf verb %p of wrong type"
-	fmt.Printf("%q", x)                        // ERROR "arg for printf verb %q of wrong type"
-	fmt.Printf("%s", b)                        // ERROR "arg for printf verb %s of wrong type"
-	fmt.Printf("%t", 23)                       // ERROR "arg for printf verb %t of wrong type"
-	fmt.Printf("%U", x)                        // ERROR "arg for printf verb %U of wrong type"
-	fmt.Printf("%x", nil)                      // ERROR "arg for printf verb %x of wrong type"
-	fmt.Printf("%X", 2.3)                      // ERROR "arg for printf verb %X of wrong type"
-	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg for printf verb %g of wrong type"
+	fmt.Printf("%b", "hi")                     // ERROR "arg .hi. for printf verb %b of wrong type"
+	fmt.Printf("%c", 2.3)                      // ERROR "arg 2.3 for printf verb %c of wrong type"
+	fmt.Printf("%d", 2.3)                      // ERROR "arg 2.3 for printf verb %d of wrong type"
+	fmt.Printf("%e", "hi")                     // ERROR "arg .hi. for printf verb %e of wrong type"
+	fmt.Printf("%E", true)                     // ERROR "arg true for printf verb %E of wrong type"
+	fmt.Printf("%f", "hi")                     // ERROR "arg .hi. for printf verb %f of wrong type"
+	fmt.Printf("%F", 'x')                      // ERROR "arg 'x' for printf verb %F of wrong type"
+	fmt.Printf("%g", "hi")                     // ERROR "arg .hi. for printf verb %g of wrong type"
+	fmt.Printf("%G", i)                        // ERROR "arg i for printf verb %G of wrong type"
+	fmt.Printf("%o", x)                        // ERROR "arg x for printf verb %o of wrong type"
+	fmt.Printf("%p", 23)                       // ERROR "arg 23 for printf verb %p of wrong type"
+	fmt.Printf("%q", x)                        // ERROR "arg x for printf verb %q of wrong type"
+	fmt.Printf("%s", b)                        // ERROR "arg b for printf verb %s of wrong type"
+	fmt.Printf("%t", 23)                       // ERROR "arg 23 for printf verb %t of wrong type"
+	fmt.Printf("%U", x)                        // ERROR "arg x for printf verb %U of wrong type"
+	fmt.Printf("%x", nil)                      // ERROR "arg nil for printf verb %x of wrong type"
+	fmt.Printf("%X", 2.3)                      // ERROR "arg 2.3 for printf verb %X of wrong type"
+	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	// TODO
 	fmt.Println()                      // not an error
 	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
@@ -105,9 +105,9 @@ func PrintfTests() {
 	fmt.Printf("% 8s", "woo")          // correct
 	fmt.Printf("%.*d", 3, 3)           // correct
 	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args for format in Printf call"
-	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg for \* in printf format not of type int"
+	fmt.Printf("%.*d", "hi", 3)        // ERROR "arg .hi. for \* in printf format not of type int"
 	fmt.Printf("%.*d", i, 3)           // correct
-	fmt.Printf("%.*d", s, 3)           // ERROR "arg for \* in printf format not of type int"
+	fmt.Printf("%.*d", s, 3)           // ERROR "arg s for \* in printf format not of type int"
 	fmt.Printf("%q %q", multi()...)    // ok
 	fmt.Printf("%#q", `blah`)          // ok
 	printf("now is the time", "buddy") // ERROR "no formatting directive"
