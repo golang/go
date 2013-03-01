@@ -124,7 +124,7 @@ enum
 };
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	int32 ret;
 	int32 flags;
@@ -142,14 +142,14 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
 	if(0){
-		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, runtime·clone, mp->id, (int32)mp->tls[0], &mp);
+		runtime·printf("newosproc stk=%p m=%p g=%p clone=%p id=%d/%d ostk=%p\n",
+			stk, mp, mp->g0, runtime·clone, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled.  It will enable them in minit.
 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_all, &oset, sizeof oset);
-	ret = runtime·clone(flags, stk, mp, gp, fn);
+	ret = runtime·clone(flags, stk, mp, mp->g0, runtime·mstart);
 	runtime·rtsigprocmask(SIG_SETMASK, &oset, nil, sizeof oset);
 
 	if(ret < 0) {

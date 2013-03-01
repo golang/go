@@ -38,13 +38,8 @@ TEXT runtime·thr_start(SB),7,$0
 	MOVQ	m_g0(R13), DI
 	MOVQ	DI, g(CX)
 
-	CALL runtime·stackcheck(SB)
-	
-	// newosproc left the function we should call in mp->mstartfn.
-	get_tls(CX)
-	MOVQ	m(CX), AX
-	MOVQ	m_mstartfn(AX), AX
-	CALL	AX
+	CALL	runtime·stackcheck(SB)
+	CALL	runtime·mstart(SB)
 
 	MOVQ 0, AX			// crash (not reached)
 

@@ -259,12 +259,7 @@ TEXT runtime·tstart(SB),7,$0
 	CLD
 
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
-
-	// newosproc left the function we should call in mp->mstartfn.
-	get_tls(CX)
-	MOVL	m(CX), AX
-	MOVL	m_mstartfn(AX), AX
-	CALL	AX
+	CALL	runtime·mstart(SB)
 
 	RET
 

@@ -223,15 +223,15 @@ runtime·exit(int32 e)
 }
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	mp->tls[0] = mp->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
+			stk, mp, mp->g0, fn, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
 	}
 
-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, gp, fn) < 0)
+	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, mp->g0, runtime·mstart) < 0)
 		runtime·throw("newosproc: rfork failed");
 }
 

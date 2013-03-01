@@ -187,17 +187,11 @@ runtime·semacreate(void)
 #define STACK_SIZE_PARAM_IS_A_RESERVATION ((uintptr)0x00010000)
 
 void
-runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+runtime·newosproc(M *mp, void *stk)
 {
 	void *thandle;
 
 	USED(stk);
-
-	// assume gp == mp->g0
-	if(gp != mp->g0)
-		runtime·throw("invalid newosproc gp");
-
-	mp->mstartfn = fn;
 
 	thandle = runtime·stdcall(runtime·CreateThread, 6,
 		nil, (uintptr)0x20000, runtime·tstart_stdcall, mp,
