@@ -1634,19 +1634,11 @@ runtime·gchelper(void)
 static int32 gcpercent = GcpercentUnknown;
 
 static void
-stealcache(void)
-{
-	M *mp;
-
-	for(mp=runtime·allm; mp; mp=mp->alllink)
-		runtime·MCache_ReleaseAll(mp->mcache);
-}
-
-static void
 cachestats(GCStats *stats)
 {
 	M *mp;
 	MCache *c;
+	P *p, **pp;
 	int32 i;
 	uint64 stacks_inuse;
 	uint64 *src, *dst;
@@ -1655,8 +1647,6 @@ cachestats(GCStats *stats)
 		runtime·memclr((byte*)stats, sizeof(*stats));
 	stacks_inuse = 0;
 	for(mp=runtime·allm; mp; mp=mp->alllink) {
-		c = mp->mcache;
-		runtime·purgecachedstats(c);
 		stacks_inuse += mp->stackinuse*FixedStack;
 		if(stats) {
 			src = (uint64*)&mp->gcstats;
@@ -1665,6 +1655,12 @@ cachestats(GCStats *stats)
 				dst[i] += src[i];
 			runtime·memclr((byte*)&mp->gcstats, sizeof(mp->gcstats));
 		}
+	}
+	for(pp=runtime·allp; p=*pp; pp++) {
+		c = p->mcache;
+		if(c==nil)
+			continue;
+		runtime·purgecachedstats(c);
 		for(i=0; i<nelem(c->local_by_size); i++) {
 			mstats.by_size[i].nmalloc += c->local_by_size[i].nmalloc;
 			c->local_by_size[i].nmalloc = 0;
@@ -1819,11 +1815,10 @@ gc(struct gc_args *args)
 	runtime·parfordo(work.sweepfor);
 	t3 = runtime·nanotime();
 
-	stealcache();
-	cachestats(&stats);
-
 	if(work.nproc > 1)
 		runtime·notesleep(&work.alldone);
+
+	cachestats(&stats);
 
 	stats.nprocyield += work.sweepfor->nprocyield;
 	stats.nosyield += work.sweepfor->nosyield;
