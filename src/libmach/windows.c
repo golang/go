@@ -48,8 +48,12 @@ procthreadpids(int pid, int *p, int np)
 int 
 pread(int fd, void *buf, int count, int offset)
 {
-	sysfatal("pread unimplemented in Windows");
-	return -1;
+	int oldoffset, n;
+	
+	oldoffset = seek(fd, offset, 0);
+	n = read(fd, buf, count);
+	seek(fd, oldoffset, 0);
+	return n;
 }
 
 int 
