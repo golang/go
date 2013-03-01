@@ -52,7 +52,7 @@ typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
 typedef	union	Lock		Lock;
 typedef	struct	M		M;
-typedef struct	P		P;
+typedef	struct	P		P;
 typedef	struct	Mem		Mem;
 typedef	union	Note		Note;
 typedef	struct	Slice		Slice;
@@ -265,7 +265,7 @@ struct	M
 	uintptr	cret;		// return value from C
 	uint64	procid;		// for debuggers, but offset not hard-coded
 	G*	gsignal;	// signal-handling G
-	uint32	tls[8];		// thread-local storage (for 386 extern register)
+	uint64	tls[4];		// thread-local storage (for x86 extern register)
 	G*	curg;		// current running goroutine
 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
 	P*	nextp;

@@ -38,7 +38,12 @@ TEXT runtime·thr_start(SB),7,$0
 	
 	MOVL	AX, m(CX)
 	CALL	runtime·stackcheck(SB)		// smashes AX
-	CALL	runtime·mstart(SB)
+
+	// newosproc left the function we should call in mp->tls[2] for us.
+	get_tls(CX)
+	MOVQ	8(CX), AX
+	CALL	AX
+
 	MOVL	0, AX			// crash (not reached)
 
 // Exit the entire program (like C exit)

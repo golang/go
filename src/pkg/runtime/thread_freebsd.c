@@ -82,12 +82,13 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	ThrParam param;
 	Sigset oset;
 
-	USED(fn);	// thr_start assumes fn == mstart
-	USED(gp);	// thr_start assumes gp == mp->g0
+	// thr_start assumes gp == mp->g0
+	if(gp != mp->g0)
+		runtime·throw("invalid newosproc gp");
 
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
-			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
+			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
 	}
 
 	runtime·sigprocmask(&sigset_all, &oset);
@@ -103,6 +104,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
 	param.tls_size = sizeof mp->tls;
 
 	mp->tls[0] = mp->id;	// so 386 asm can find it
+	mp->tls[2] = (uintptr)fn;
 
 	runtime·thr_new(&param, sizeof param);
 	runtime·sigprocmask(&oset, nil);
