@@ -75,6 +75,7 @@ go run $GOROOT/test/run.go - .
 
 [ "$CGO_ENABLED" != 1 ] ||
 [ "$GOHOSTOS" == openbsd ] || # issue 4878
+[ "$GOARCH" == arm ] || # issue 4961
 (xcd ../misc/cgo/test
 go test
 ) || exit $?
