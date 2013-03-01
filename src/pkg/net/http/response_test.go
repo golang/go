@@ -324,6 +324,30 @@ var respTests = []respTest{
 
 		"",
 	},
+
+	// golang.org/issue/4767: don't special-case multipart/byteranges responses
+	{
+		`HTTP/1.1 206 Partial Content
+Connection: close
+Content-Type: multipart/byteranges; boundary=18a75608c8f47cef
+
+some body`,
+		Response{
+			Status:     "206 Partial Content",
+			StatusCode: 206,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Content-Type": []string{"multipart/byteranges; boundary=18a75608c8f47cef"},
+			},
+			Close:         true,
+			ContentLength: -1,
+		},
+
+		"some body",
+	},
 }
 
 func TestReadResponse(t *testing.T) {
