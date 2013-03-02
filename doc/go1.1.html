@@ -182,4 +182,26 @@ that can be used to remove precision from a time before passing it to
 external storage.
 </p>
 
-TODO
+<h3 id="exp_old">Exp and old subtrees moved to go.exp subrepo</h3>
+
+<p>
+To make it easier for binary distributions to access them if desired, the <code>exp</code>
+and <code>old</code> source subtrees, which are not included in binary distributions,
+have been moved to the new <code>go.exp</code> subrepository at
+<code>code.google.com/p/go.exp</code>. To access the <code>ssa</code> package,
+for example, run
+</p>
+
+<pre>
+$ go get code.google.com/go.exp/ssa
+</pre>
+
+<p>
+and then in Go source,
+</p>
+
+<pre>
+import "code.google.com/go.exp/ssa"
+</pre>
+
+<h3 id="TODO">TODO</h3>
