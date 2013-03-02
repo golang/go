@@ -10,11 +10,11 @@ import (
 	"testing"
 )
 
-func (ti *testInterface) setBroadcast(suffix int) {
+func (ti *testInterface) setBroadcast(suffix int) error {
 	ti.name = fmt.Sprintf("gotest%d", suffix)
 	xname, err := exec.LookPath("ip")
 	if err != nil {
-		xname = "ip"
+		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
@@ -24,15 +24,16 @@ func (ti *testInterface) setBroadcast(suffix int) {
 		Path: xname,
 		Args: []string{"ip", "link", "delete", ti.name, "type", "dummy"},
 	})
+	return nil
 }
 
-func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
+func (ti *testInterface) setPointToPoint(suffix int, local, remote string) error {
 	ti.name = fmt.Sprintf("gotest%d", suffix)
 	ti.local = local
 	ti.remote = remote
 	xname, err := exec.LookPath("ip")
 	if err != nil {
-		xname = "ip"
+		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
@@ -44,12 +45,13 @@ func (ti *testInterface) setPointToPoint(suffix int, local, remote string) {
 	})
 	xname, err = exec.LookPath("ifconfig")
 	if err != nil {
-		xname = "ifconfig"
+		return err
 	}
 	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
 		Path: xname,
 		Args: []string{"ifconfig", ti.name, "inet", local, "dstaddr", remote},
 	})
+	return nil
 }
 
 const (
