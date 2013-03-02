@@ -550,6 +550,15 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
 	check.expr(x, lhs, nil, iota)
 	check.expr(&y, rhs, nil, iota)
 
+	if x.mode == invalid {
+		return
+	}
+	if y.mode == invalid {
+		x.mode = invalid
+		x.expr = y.expr
+		return
+	}
+
 	if isShift(op) {
 		check.shift(x, &y, op)
 		return
@@ -1089,6 +1098,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.IndexExpr:
 		check.expr(x, e.X, nil, iota)
+		if x.mode == invalid {
+			goto Error
+		}
 
 		valid := false
 		length := int64(-1) // valid if >= 0
@@ -1130,9 +1142,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *Map:
 			var key operand
 			check.expr(&key, e.Index, nil, iota)
-			if key.mode == invalid || !check.assignment(&key, typ.Key) {
-				if x.mode != invalid {
-					check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
+			if !check.assignment(&key, typ.Key) {
+				if key.mode != invalid {
+					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
 				}
 				goto Error
 			}
@@ -1157,6 +1169,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.SliceExpr:
 		check.expr(x, e.X, nil, iota)
+		if x.mode == invalid {
+			goto Error
+		}
 
 		valid := false
 		length := int64(-1) // valid if >= 0
@@ -1367,10 +1382,19 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 	case *ast.UnaryExpr:
 		check.expr(x, e.X, nil, iota)
+		if x.mode == invalid {
+			goto Error
+		}
 		check.unary(x, e.Op)
+		if x.mode == invalid {
+			goto Error
+		}
 
 	case *ast.BinaryExpr:
 		check.binary(x, e.X, e.Y, e.Op, iota)
+		if x.mode == invalid {
+			goto Error
+		}
 
 	case *ast.KeyValueExpr:
 		// key:value expressions are handled in composite literals
@@ -1423,7 +1447,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.typ = &Chan{Dir: e.Dir, Elt: check.typ(e.Value, true)}
 
 	default:
-		check.dump("e = %s", e)
+		if debug {
+			check.dump("expr = %v (%T)", e, e)
+		}
 		unreachable()
 	}
 
