@@ -110,8 +110,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 	p = ret.array+ret.len*w;
 	q = y.array;
 	w *= y.len;
-	// TODO: make 16 an architecture-dependent constant.
-	if(w <= 16) { // 16 empirically tested as approximate crossover on amd64.
+	if(w <= appendCrossover) {
 		if(p <= q || w <= p-q) // No overlap.
 			while(w-- > 0)
 				*p++ = *q++;
@@ -136,6 +135,8 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 {
 	intgo m;
 	void *pc;
+	uintptr w;
+	uint8 *p, *q;
 
 	m = x.len+y.len;
 
@@ -158,7 +159,16 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
 			runtime·racewriterangepc(ret.array+ret.len, y.len, 1, pc, runtime·appendstr);
 	}
 
-	runtime·memmove(ret.array + ret.len, y.str, y.len);
+	// Small appends can avoid the overhead of memmove.
+	w = y.len;
+	p = ret.array+ret.len;
+	q = y.str;
+	if(w <= appendCrossover) {
+		while(w-- > 0)
+			*p++ = *q++;
+	} else {
+		runtime·memmove(p, q, w);
+	}
 	ret.len += y.len;
 	FLUSH(&ret);
 }
