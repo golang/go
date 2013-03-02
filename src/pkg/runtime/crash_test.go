@@ -37,15 +37,7 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
 	}
 	f.Close()
 
-	// Deadlock tests hang with GOMAXPROCS>1.  Issue 4826.
-	cmd := exec.Command("go", "run", src)
-	for _, s := range os.Environ() {
-		if strings.HasPrefix(s, "GOMAXPROCS") {
-			continue
-		}
-		cmd.Env = append(cmd.Env, s)
-	}
-	got, _ := cmd.CombinedOutput()
+	got, _ := exec.Command("go", "run", src).CombinedOutput()
 	return string(got)
 }
 
