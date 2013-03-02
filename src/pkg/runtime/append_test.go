@@ -52,6 +52,38 @@ func BenchmarkAppend32Bytes(b *testing.B) {
 	benchmarkAppendBytes(b, 32)
 }
 
+func benchmarkAppendStr(b *testing.B, str string) {
+	b.StopTimer()
+	x := make([]byte, 0, N)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		x = x[0:0]
+		for j := 0; j < N; j++ {
+			x = append(x, str...)
+		}
+	}
+}
+
+func BenchmarkAppendStr1Byte(b *testing.B) {
+	benchmarkAppendStr(b, "1")
+}
+
+func BenchmarkAppendStr4Bytes(b *testing.B) {
+	benchmarkAppendStr(b, "1234")
+}
+
+func BenchmarkAppendStr8Bytes(b *testing.B) {
+	benchmarkAppendStr(b, "12345678")
+}
+
+func BenchmarkAppendStr16Bytes(b *testing.B) {
+	benchmarkAppendStr(b, "1234567890123456")
+}
+
+func BenchmarkAppendStr32Bytes(b *testing.B) {
+	benchmarkAppendStr(b, "12345678901234567890123456789012")
+}
+
 func BenchmarkAppendSpecialCase(b *testing.B) {
 	b.StopTimer()
 	x := make([]int, 0, N)
