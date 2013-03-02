@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 11, 2013",
+	"Subtitle": "Version of March 1, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -4154,12 +4154,14 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
 <p>
-In a case or default clause,
-the last statement only may be a "fallthrough" statement
-(§<a href="#Fallthrough_statements">Fallthrough statement</a>) to
+In a case or default clause, the last non-empty statement
+may be a (possibly <a href="#Labeled_statements">labeled</a>)
+<a href="#Fallthrough_statements">"fallthrough" statement</a> to
 indicate that control should flow from the end of this clause to
 the first statement of the next clause.
 Otherwise control flows to the end of the "switch" statement.
+A "fallthrough" statement may appear as the last statement of all
+but the last clause of an expression switch.
 </p>
 
 <p>
@@ -4798,9 +4800,8 @@ the "for" statement's block but the <code>goto</code> is not.
 
 <p>
 A "fallthrough" statement transfers control to the first statement of the
-next case clause in a expression "switch" statement (§<a href="#Expression_switches">Expression switches</a>). It may
-be used only as the final non-empty statement in a case or default clause in an
-expression "switch" statement.
+next case clause in a <a href="#Expression_switches">expression "switch" statement</a>.
+It may be used only as the final non-empty statement in such a clause.
 </p>
 
 <pre class="ebnf">
