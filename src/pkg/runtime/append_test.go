@@ -26,9 +26,7 @@ func benchmarkAppendBytes(b *testing.B, length int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		x = x[0:0]
-		for j := 0; j < N; j++ {
-			x = append(x, y...)
-		}
+		x = append(x, y...)
 	}
 }
 
@@ -58,9 +56,7 @@ func benchmarkAppendStr(b *testing.B, str string) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		x = x[0:0]
-		for j := 0; j < N; j++ {
-			x = append(x, str...)
-		}
+		x = append(x, str...)
 	}
 }
 
