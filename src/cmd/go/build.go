@@ -814,11 +814,17 @@ func (b *builder) build(a *action) (err error) {
 
 	// Compile Go.
 	if len(gofiles) > 0 {
-		out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles)
+		ofile, out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles)
+		if len(out) > 0 {
+			b.showOutput(a.p.Dir, a.p.ImportPath, b.processOutput(out))
+			if err != nil {
+				return errPrintedOutput
+			}
+		}
 		if err != nil {
 			return err
 		}
-		objects = append(objects, out)
+		objects = append(objects, ofile)
 	}
 
 	// Copy .h files named for goos or goarch or goos_goarch
@@ -1185,27 +1191,32 @@ var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+\]`)
 func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
 	out, err := b.runOut(dir, desc, cmdargs...)
 	if len(out) > 0 {
-		if out[len(out)-1] != '\n' {
-			out = append(out, '\n')
-		}
 		if desc == "" {
 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
 		}
-		out := string(out)
-		// Fix up output referring to cgo-generated code to be more readable.
-		// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
-		// Replace _Ctype_foo with C.foo.
-		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
-		if !buildX && cgoLine.MatchString(out) {
-			out = cgoLine.ReplaceAllString(out, "")
-			out = strings.Replace(out, "type _Ctype_", "type C.", -1)
-		}
-		b.showOutput(dir, desc, out)
+		b.showOutput(dir, desc, b.processOutput(out))
 		if err != nil {
 			err = errPrintedOutput
 		}
 	}
 	return err
+}
+
+// processOutput prepares the output of runOut to be output to the console.
+func (b *builder) processOutput(out []byte) string {
+	if out[len(out)-1] != '\n' {
+		out = append(out, '\n')
+	}
+	messages := string(out)
+	// Fix up output referring to cgo-generated code to be more readable.
+	// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
+	// Replace _Ctype_foo with C.foo.
+	// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+	if !buildX && cgoLine.MatchString(messages) {
+		messages = cgoLine.ReplaceAllString(messages, "")
+		messages = strings.Replace(messages, "type _Ctype_", "type C.", -1)
+	}
+	return messages
 }
 
 // runOut runs the command given by cmdline in the directory dir.
@@ -1325,7 +1336,7 @@ type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
 	// The compiler runs in the directory dir.
-	gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error)
+	gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *builder, p *Package, objdir, ofile, cfile string) error
@@ -1362,8 +1373,8 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
-	return "", noCompiler()
+func (noToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, out []byte, err error) {
+	return "", nil, noCompiler()
 }
 
 func (noToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
@@ -1398,7 +1409,7 @@ func (gcToolchain) linker() string {
 	return tool(archChar + "l")
 }
 
-func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
 	out := "_go_." + archChar
 	ofile = obj + out
 	gcargs := []string{"-p", p.ImportPath}
@@ -1427,7 +1438,9 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
-	return ofile, b.run(p.Dir, p.ImportPath, args)
+
+	output, err = b.runOut(p.Dir, p.ImportPath, args)
+	return ofile, output, err
 }
 
 func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
@@ -1487,7 +1500,7 @@ func (gccgoToolchain) linker() string {
 	return gccgoBin
 }
 
-func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
 	out := p.Name + ".o"
 	ofile = obj + out
 	gcargs := []string{"-g"}
@@ -1502,7 +1515,9 @@ func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
-	return ofile, b.run(p.Dir, p.ImportPath, args)
+
+	output, err = b.runOut(p.Dir, p.ImportPath, args)
+	return ofile, output, err
 }
 
 func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
@@ -1897,8 +1912,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 // Run SWIG on all SWIG input files.
 func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+
+	intgosize, err := b.swigIntSize(obj)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	for _, f := range p.SwigFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, false)
+		goFile, objFile, err := b.swigOne(p, f, obj, false, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1910,7 +1931,7 @@ func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		goFile, objFile, err := b.swigOne(p, f, obj, true)
+		goFile, objFile, err := b.swigOne(p, f, obj, true, intgosize)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1924,8 +1945,31 @@ func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj
 	return outGo, outObj, nil
 }
 
+// This code fails to build if sizeof(int) <= 32
+const swigIntSizeCode = `
+package main
+const i int = 1 << 32
+`
+
+// Determine the size of int on the target system for the -intgosize option
+// of swig >= 2.0.9
+func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+	src := filepath.Join(b.work, "swig_intsize.go")
+	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0644); err != nil {
+		return
+	}
+	srcs := []string{src}
+
+	p := goFilesPackage(srcs)
+
+	if _, _, e := buildToolchain.gc(b, p, obj, nil, srcs); e != nil {
+		return "32", nil
+	}
+	return "64", nil
+}
+
 // Run SWIG on one SWIG input file.
-func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj string, err error) {
+func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize string) (outGo, outObj string, err error) {
 	n := 5 // length of ".swig"
 	if cxx {
 		n = 8 // length of ".swigcxx"
@@ -1945,6 +1989,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj
 	// swig
 	args := []string{
 		"-go",
+		"-intgosize", intgosize,
 		"-module", base,
 		"-soname", soname,
 		"-o", obj + gccBase + gccExt,
@@ -1957,7 +2002,14 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj
 		args = append(args, "-c++")
 	}
 
-	if err := b.run(p.Dir, p.ImportPath, "swig", args, file); err != nil {
+	if out, err := b.runOut(p.Dir, p.ImportPath, "swig", args, file); err != nil {
+		if len(out) > 0 {
+			if bytes.Contains(out, []byte("Unrecognized option -intgosize")) {
+				return "", "", errors.New("must have SWIG version >= 2.0.9\n")
+			}
+			b.showOutput(p.Dir, p.ImportPath, b.processOutput(out))
+			return "", "", errPrintedOutput
+		}
 		return "", "", err
 	}
 
