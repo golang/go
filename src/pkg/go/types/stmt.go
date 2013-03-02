@@ -18,6 +18,10 @@ import (
 // TODO(gri) This latter behavior is for historic reasons and complicates
 // callers. Needs to be cleaned up.
 func (check *checker) assignment(x *operand, to Type) bool {
+	if x.mode == invalid {
+		return false
+	}
+
 	if t, ok := x.typ.(*Result); ok {
 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
 		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
