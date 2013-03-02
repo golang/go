@@ -14,7 +14,24 @@ func TestGcSys(t *testing.T) {
 	if os.Getenv("GOGC") == "off" {
 		t.Fatalf("GOGC=off in environment; test cannot pass")
 	}
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	data := struct{ Short bool }{testing.Short()}
+	got := executeTest(t, testGCSysSource, &data)
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+const testGCSysSource = `
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	runtime.GOMAXPROCS(1)
 	memstats := new(runtime.MemStats)
 	runtime.GC()
 	runtime.ReadMemStats(memstats)
@@ -23,9 +40,9 @@ func TestGcSys(t *testing.T) {
 	runtime.MemProfileRate = 0 // disable profiler
 
 	itercount := 1000000
-	if testing.Short() {
-		itercount = 100000
-	}
+{{if .Short}}
+	itercount = 100000
+{{end}}
 	for i := 0; i < itercount; i++ {
 		workthegc()
 	}
@@ -38,15 +55,17 @@ func TestGcSys(t *testing.T) {
 	} else {
 		sys = memstats.Sys - sys
 	}
-	t.Logf("used %d extra bytes", sys)
 	if sys > 16<<20 {
-		t.Fatalf("using too much memory: %d bytes", sys)
+		fmt.Printf("using too much memory: %d bytes\n", sys)
+		return
 	}
+	fmt.Printf("OK\n")
 }
 
 func workthegc() []byte {
 	return make([]byte, 1029)
 }
+`
 
 func TestGcDeepNesting(t *testing.T) {
 	type T [2][2][2][2][2][2][2][2][2][2]*int
