@@ -745,17 +745,24 @@ static void sigillhand(int);
 // xtryexecfunc tries to execute function f, if any illegal instruction
 // signal received in the course of executing that function, it will
 // return 0, otherwise it will return 1.
+// Some systems (notably NetBSD) will spin and spin when executing VFPv3
+// instructions on VFPv2 system (e.g. Raspberry Pi) without ever triggering
+// SIGILL, so we set a 1-second alarm to catch that case.
 int
 xtryexecfunc(void (*f)(void))
 {
 	int r;
 	r = 0;
 	signal(SIGILL, sigillhand);
+	signal(SIGALRM, sigillhand);
+	alarm(1);
 	if(sigsetjmp(sigill_jmpbuf, 1) == 0) {
 		f();
 		r = 1;
 	}
 	signal(SIGILL, SIG_DFL);
+	alarm(0);
+	signal(SIGALRM, SIG_DFL);
 	return r;
 }
 

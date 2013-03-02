@@ -17,6 +17,18 @@ static void useVFPv1(void);
 char *
 xgetgoarm(void)
 {
+#if defined(__NetBSD__) || defined(__FreeBSD__)
+	// NetBSD has buggy support for VFPv2 (incorrect inexact, 
+	// denormial, and NaN handling). When GOARM=6, some of our
+	// math tests fails on Raspberry Pi.
+	// Thus we return "5" here for safety, the user is free
+	// to override.
+	// Note: using GOARM=6 with cgo can trigger a kernel assertion
+	// failure and crash NetBSD/evbarm kernel.
+	// FreeBSD also have broken VFP support, so disable VFP also
+	// on FreeBSD.
+	return "5";
+#endif
 	if(xtryexecfunc(useVFPv3))
 		return "7";
 	else if(xtryexecfunc(useVFPv1))
