@@ -188,7 +188,7 @@ func partsToHash(c *Commit, p []string) *Result {
 //
 // Each Result entity is a descendant of its associated Commit entity.
 type Result struct {
-	Builder     string // "arch-os[-note]"
+	Builder     string // "os-arch[-note]"
 	Hash        string
 	PackagePath string // (empty for Go commits)
 
