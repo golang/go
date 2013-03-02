@@ -53,7 +53,9 @@ func TestPointToPointInterface(t *testing.T) {
 	ip := ParseIP(remote)
 	for i := 0; i < 3; i++ {
 		ti := &testInterface{}
-		ti.setPointToPoint(5963+i, local, remote)
+		if err := ti.setPointToPoint(5963+i, local, remote); err != nil {
+			t.Skipf("test requries external command: %v", err)
+		}
 		if err := ti.setup(); err != nil {
 			t.Fatalf("testInterface.setup failed: %v", err)
 		} else {
@@ -98,7 +100,9 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 			t.Fatalf("Interfaces failed: %v", err)
 		}
 		ti := &testInterface{}
-		ti.setBroadcast(5682 + i)
+		if err := ti.setBroadcast(5682 + i); err != nil {
+			t.Skipf("test requires external command: %v", err)
+		}
 		if err := ti.setup(); err != nil {
 			t.Fatalf("testInterface.setup failed: %v", err)
 		} else {
