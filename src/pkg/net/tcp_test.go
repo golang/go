@@ -11,23 +11,51 @@ import (
 	"time"
 )
 
-func BenchmarkTCPOneShot(b *testing.B) {
-	benchmarkTCP(b, false, false)
+func BenchmarkTCP4OneShot(b *testing.B) {
+	benchmarkTCP(b, false, false, "127.0.0.1:0")
 }
 
-func BenchmarkTCPOneShotTimeout(b *testing.B) {
-	benchmarkTCP(b, false, true)
+func BenchmarkTCP4OneShotTimeout(b *testing.B) {
+	benchmarkTCP(b, false, true, "127.0.0.1:0")
 }
 
-func BenchmarkTCPPersistent(b *testing.B) {
-	benchmarkTCP(b, true, false)
+func BenchmarkTCP4Persistent(b *testing.B) {
+	benchmarkTCP(b, true, false, "127.0.0.1:0")
 }
 
-func BenchmarkTCPPersistentTimeout(b *testing.B) {
-	benchmarkTCP(b, true, true)
+func BenchmarkTCP4PersistentTimeout(b *testing.B) {
+	benchmarkTCP(b, true, true, "127.0.0.1:0")
 }
 
-func benchmarkTCP(b *testing.B, persistent, timeout bool) {
+func BenchmarkTCP6OneShot(b *testing.B) {
+	if !supportsIPv6 {
+		b.Skip("ipv6 is not supported")
+	}
+	benchmarkTCP(b, false, false, "[::1]:0")
+}
+
+func BenchmarkTCP6OneShotTimeout(b *testing.B) {
+	if !supportsIPv6 {
+		b.Skip("ipv6 is not supported")
+	}
+	benchmarkTCP(b, false, true, "[::1]:0")
+}
+
+func BenchmarkTCP6Persistent(b *testing.B) {
+	if !supportsIPv6 {
+		b.Skip("ipv6 is not supported")
+	}
+	benchmarkTCP(b, true, false, "[::1]:0")
+}
+
+func BenchmarkTCP6PersistentTimeout(b *testing.B) {
+	if !supportsIPv6 {
+		b.Skip("ipv6 is not supported")
+	}
+	benchmarkTCP(b, true, true, "[::1]:0")
+}
+
+func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	const msgLen = 512
 	conns := b.N
 	numConcurrent := runtime.GOMAXPROCS(-1) * 16
@@ -61,7 +89,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool) {
 		}
 		return true
 	}
-	ln, err := Listen("tcp", "127.0.0.1:0")
+	ln, err := Listen("tcp", laddr)
 	if err != nil {
 		b.Fatalf("Listen failed: %v", err)
 	}
