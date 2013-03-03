@@ -8,11 +8,24 @@
 package net
 
 import (
+	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
 	"time"
 )
+
+// testUnixAddr uses ioutil.TempFile to get a name that is unique.
+func testUnixAddr() string {
+	f, err := ioutil.TempFile("", "nettest")
+	if err != nil {
+		panic(err)
+	}
+	addr := f.Name()
+	f.Close()
+	os.Remove(addr)
+	return addr
+}
 
 var condFatalf = func() func(*testing.T, string, ...interface{}) {
 	// A few APIs are not implemented yet on both Plan 9 and Windows.
