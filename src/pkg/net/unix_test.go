@@ -8,7 +8,6 @@ package net
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -16,18 +15,6 @@ import (
 	"testing"
 	"time"
 )
-
-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
-func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "nettest")
-	if err != nil {
-		panic(err)
-	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
-}
 
 func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	addr := testUnixAddr()
