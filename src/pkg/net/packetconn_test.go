@@ -143,6 +143,10 @@ func TestConnAndPacketConn(t *testing.T) {
 				t.Fatalf("icmpMessage.Marshal failed: %v", err)
 			}
 		case "unixgram":
+			switch runtime.GOOS {
+			case "plan9", "windows":
+				continue
+			}
 			wb = []byte("UNIXGRAM PACKETCONN TEST")
 		default:
 			continue
