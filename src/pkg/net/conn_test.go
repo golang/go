@@ -19,8 +19,8 @@ var connTests = []struct {
 	addr string
 }{
 	{"tcp", "127.0.0.1:0"},
-	{"unix", "/tmp/gotest.net1"},
-	{"unixpacket", "/tmp/gotest.net2"},
+	{"unix", testUnixAddr()},
+	{"unixpacket", testUnixAddr()},
 }
 
 func TestConnAndListener(t *testing.T) {
@@ -34,15 +34,12 @@ func TestConnAndListener(t *testing.T) {
 			if tt.net == "unixpacket" && runtime.GOOS != "linux" {
 				continue
 			}
-			os.Remove(tt.addr)
 		}
 
 		ln, err := Listen(tt.net, tt.addr)
 		if err != nil {
-			t.Errorf("net.Listen failed: %v", err)
-			return
+			t.Fatalf("Listen failed: %v", err)
 		}
-		ln.Addr()
 		defer func(ln Listener, net, addr string) {
 			ln.Close()
 			switch net {
@@ -50,29 +47,28 @@ func TestConnAndListener(t *testing.T) {
 				os.Remove(addr)
 			}
 		}(ln, tt.net, tt.addr)
+		ln.Addr()
 
 		done := make(chan int)
 		go transponder(t, ln, done)
 
 		c, err := Dial(tt.net, ln.Addr().String())
 		if err != nil {
-			t.Errorf("net.Dial failed: %v", err)
-			return
+			t.Fatalf("Dial failed: %v", err)
 		}
+		defer c.Close()
 		c.LocalAddr()
 		c.RemoteAddr()
 		c.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-		defer c.Close()
 
 		if _, err := c.Write([]byte("CONN TEST")); err != nil {
-			t.Errorf("net.Conn.Write failed: %v", err)
-			return
+			t.Fatalf("Conn.Write failed: %v", err)
 		}
 		rb := make([]byte, 128)
 		if _, err := c.Read(rb); err != nil {
-			t.Errorf("net.Conn.Read failed: %v", err)
+			t.Fatalf("Conn.Read failed: %v", err)
 		}
 
 		<-done
@@ -82,26 +78,32 @@ func TestConnAndListener(t *testing.T) {
 func transponder(t *testing.T, ln Listener, done chan<- int) {
 	defer func() { done <- 1 }()
 
+	switch ln := ln.(type) {
+	case *TCPListener:
+		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	case *UnixListener:
+		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+	}
 	c, err := ln.Accept()
 	if err != nil {
-		t.Errorf("net.Listener.Accept failed: %v", err)
+		t.Errorf("Listener.Accept failed: %v", err)
 		return
 	}
+	defer c.Close()
 	c.LocalAddr()
 	c.RemoteAddr()
 	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
 	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-	defer c.Close()
 
 	b := make([]byte, 128)
 	n, err := c.Read(b)
 	if err != nil {
-		t.Errorf("net.Conn.Read failed: %v", err)
+		t.Errorf("Conn.Read failed: %v", err)
 		return
 	}
 	if _, err := c.Write(b[:n]); err != nil {
-		t.Errorf("net.Conn.Write failed: %v", err)
+		t.Errorf("Conn.Write failed: %v", err)
 		return
 	}
 }
