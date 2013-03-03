@@ -83,9 +83,16 @@ var (
 	fileServer http.Handler // default file server
 	cmdHandler docServer
 	pkgHandler docServer
+
+	// which code 'Notes' to show
+	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
+	// list of 'Notes' to show
+	notesToShow []string
 )
 
 func initHandlers() {
+	notesToShow = strings.Split(*notes, ",")
+
 	fileServer = http.FileServer(&httpFS{fs})
 	cmdHandler = docServer{"/cmd/", "/src/cmd"}
 	pkgHandler = docServer{"/pkg/", "/src/pkg"}
