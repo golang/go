@@ -71,11 +71,6 @@ var (
 
 	// command-line searches
 	query = flag.Bool("q", false, "arguments are considered search queries")
-
-	// which code 'Notes' to show.
-	notes = flag.String("notes", "BUG", "comma separated list of Note markers as per pkg:go/doc")
-	// vector of 'Notes' to show.
-	notesToShow []string
 )
 
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
@@ -161,8 +156,6 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-
-	notesToShow = strings.Split(*notes, ",")
 
 	// Check usage: either server and no args, command line and args, or index creation mode
 	if (*httpAddr != "" || *urlFlag != "") != (flag.NArg() == 0) && !*writeIndex {
