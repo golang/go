@@ -301,9 +301,6 @@ func TestCopyError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
-	if runtime.GOOS == "darwin" {
-		t.Skipf("issue 4958 - skipping test on darwin")
-	}
 	h := &Handler{
 		Path: "testdata/test.cgi",
 		Root: "/test.cgi",
