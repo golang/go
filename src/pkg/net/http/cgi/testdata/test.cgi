@@ -24,7 +24,8 @@ print "X-Test-Header: X-Test-Value\r\n";
 print "\r\n";
 
 if ($params->{"bigresponse"}) {
-    for (1..1024) {
+    # 17 MB, for OS X: golang.org/issue/4958
+    for (1..(17 * 1024)) {
         print "A" x 1024, "\r\n";
     }
     exit 0;
