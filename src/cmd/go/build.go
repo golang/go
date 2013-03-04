@@ -1879,7 +1879,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	// cgo -dynimport
 	importC := obj + "_cgo_import.c"
-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
+	cgoflags = []string{}
+	if p.Standard && p.ImportPath == "runtime/cgo" {
+		cgoflags = append(cgoflags, "-dynlinker") // record path to dynamic linker
+	}
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC, cgoflags); err != nil {
 		return nil, nil, err
 	}
 

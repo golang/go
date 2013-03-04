@@ -163,8 +163,8 @@ func dynimport(obj string) {
 	}
 
 	if f, err := elf.Open(obj); err == nil {
-		if !*importRuntimeCgo {
-			// We are runtime/cgo, so emit the cgo_dynamic_linker line.
+		if *dynlinker {
+			// Emit the cgo_dynamic_linker line.
 			if sec := f.Section(".interp"); sec != nil {
 				if data, err := sec.Data(); err == nil && len(data) > 1 {
 					// skip trailing \0 in data
