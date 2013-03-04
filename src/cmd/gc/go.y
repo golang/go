@@ -536,7 +536,10 @@ compound_stmt:
 	}
 	stmt_list '}'
 	{
-		$$ = liststmt($3);
+		if($3 == nil)
+			$$ = nod(OEMPTY, N, N);
+		else
+			$$ = liststmt($3);
 		popdcl();
 	}
 

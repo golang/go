@@ -268,6 +268,7 @@ struct	Node
 	uchar	addrtaken;	// address taken, even if not moved to heap
 	uchar	dupok;	// duplicate definitions ok (for func)
 	schar	likely; // likeliness of if statement
+	uchar	hasbreak;	// has break statement
 
 	// most nodes
 	Type*	type;
@@ -1363,6 +1364,7 @@ Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);
 void	copytype(Node *n, Type *t);
+void	checkreturn(Node*);
 void	queuemethod(Node *n);
 
 /*
