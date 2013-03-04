@@ -7,12 +7,12 @@
 package go1
 
 import (
+	"bytes"
 	"compress/bzip2"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"strings"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ var (
 
 func makeJsonBytes() []byte {
 	var r io.Reader
-	r = strings.NewReader(jsonbz2_base64)
+	r = bytes.NewReader(bytes.Replace(jsonbz2_base64, []byte{'\n'}, nil, -1))
 	r = base64.NewDecoder(base64.StdEncoding, r)
 	r = bzip2.NewReader(r)
 	b, err := ioutil.ReadAll(r)
