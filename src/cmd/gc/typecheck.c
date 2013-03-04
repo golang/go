@@ -1340,9 +1340,7 @@ reswitch:
 	case OCONV:
 	doconv:
 		ok |= Erv;
-		l = nod(OXXX, N, N);
-		n->orig = l;
-		*l = *n;
+		saveorignode(n);
 		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
 		convlit1(&n->left, n->type, 1);
 		if((t = n->left->type) == T || n->type == T)
@@ -2322,7 +2320,7 @@ static void
 typecheckcomplit(Node **np)
 {
 	int bad, i, len, nerr;
-	Node *l, *n, *r, **hash;
+	Node *l, *n, *norig, *r, **hash;
 	NodeList *ll;
 	Type *t, *f;
 	Sym *s, *s1;
@@ -2339,14 +2337,18 @@ typecheckcomplit(Node **np)
 		yyerror("missing type in composite literal");
 		goto error;
 	}
-	
+
+	// Save original node (including n->right)
+	norig = nod(n->op, N, N);
+	*norig = *n;
+
 	setlineno(n->right);
 	l = typecheck(&n->right /* sic */, Etype|Ecomplit);
 	if((t = l->type) == T)
 		goto error;
 	nerr = nerrors;
 	n->type = t;
-	
+
 	if(isptr[t->etype]) {
 		// For better or worse, we don't allow pointers as the composite literal type,
 		// except when using the &T syntax, which sets implicit on the OIND.
@@ -2413,9 +2415,6 @@ typecheckcomplit(Node **np)
 		if(t->bound < 0)
 			n->right = nodintconst(len);
 		n->op = OARRAYLIT;
-		// restore implicitness.
-		if(isptr[n->type->etype])
-			n->right->implicit = 1;
 		break;
 
 	case TMAP:
@@ -2520,6 +2519,7 @@ typecheckcomplit(Node **np)
 	if(nerr != nerrors)
 		goto error;
 	
+	n->orig = norig;
 	if(isptr[n->type->etype]) {
 		n = nod(OPTRLIT, n, N);
 		n->typecheck = 1;
@@ -2528,6 +2528,7 @@ typecheckcomplit(Node **np)
 		n->left->typecheck = 1;
 	}
 
+	n->orig = norig;
 	*np = n;
 	lineno = lno;
 	return;
