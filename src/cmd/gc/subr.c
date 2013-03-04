@@ -513,6 +513,18 @@ nod(int op, Node *nleft, Node *nright)
 	return n;
 }
 
+void
+saveorignode(Node *n)
+{
+	Node *norig;
+
+	if(n->orig != N)
+		return;
+	norig = nod(n->op, N, N);
+	*norig = *n;
+	n->orig = norig;
+}
+
 // ispaddedfield returns whether the given field
 // is followed by padding. For the case where t is
 // the last field, total gives the size of the enclosing struct.
@@ -1416,7 +1428,7 @@ assignconv(Node *n, Type *t, char *context)
 	r->type = t;
 	r->typecheck = 1;
 	r->implicit = 1;
-	r->orig = n;
+	r->orig = n->orig;
 	return r;
 }
 

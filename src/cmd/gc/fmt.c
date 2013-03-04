@@ -1091,6 +1091,7 @@ static int
 exprfmt(Fmt *f, Node *n, int prec)
 {
 	int nprec;
+	int ptrlit;
 	NodeList *l;
 
 	while(n && n->implicit && (n->op == OIND || n->op == OADDR))
@@ -1201,12 +1202,23 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%T { %H }", n->type, n->closure->nbody);
 
 	case OCOMPLIT:
-		if(fmtmode == FErr)
+		ptrlit = n->right != N && n->right->implicit && n->right->type && isptr[n->right->type->etype];
+		if(fmtmode == FErr) {
+			if(n->right != N && n->right->type != T && !n->implicit) {
+				if(ptrlit)
+					return fmtprint(f, "&%T literal", n->right->type->type);
+				else
+					return fmtprint(f, "%T literal", n->right->type);
+			}
 			return fmtstrcpy(f, "composite literal");
+		}
+		if(fmtmode == FExp && ptrlit)
+			// typecheck has overwritten OIND by OTYPE with pointer type.
+			return fmtprint(f, "&%T{ %,H }", n->right->type->type, n->list);
 		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
 
 	case OPTRLIT:
-		if(fmtmode == FExp)  // handle printing of '&' below.
+		if(fmtmode == FExp && n->left->implicit)
 			return fmtprint(f, "%N", n->left);
 		return fmtprint(f, "&%N", n->left);
 
@@ -1214,8 +1226,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 		if(fmtmode == FExp) {   // requires special handling of field names
 			if(n->implicit)
 				fmtstrcpy(f, "{");
-			else if(n->right->implicit)
-				fmtprint(f, "&%T{", n->type);
 			else
 				fmtprint(f, "(%T{", n->type);
 			for(l=n->list; l; l=l->next) {
@@ -1226,7 +1236,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 				else
 					fmtstrcpy(f, " ");
 			}
-			if(!n->implicit && !n->right->implicit)
+			if(!n->implicit)
 				return fmtstrcpy(f, "})");
 			return fmtstrcpy(f, "}");
 		}
@@ -1238,13 +1248,16 @@ exprfmt(Fmt *f, Node *n, int prec)
 			return fmtprint(f, "%T literal", n->type);
 		if(fmtmode == FExp && n->implicit)
 			return fmtprint(f, "{ %,H }", n->list);
-		if(fmtmode == FExp && n->right->implicit)
-			return fmtprint(f, "&%T{ %,H }", n->type, n->list);
 		return fmtprint(f, "(%T{ %,H })", n->type, n->list);
 
 	case OKEY:
-		if(n->left && n->right)
-			return fmtprint(f, "%N:%N", n->left, n->right);
+		if(n->left && n->right) {
+			if(fmtmode == FExp && n->left->type && n->left->type->etype == TFIELD) {
+				// requires special handling of field names
+				return fmtprint(f, "%hhS:%N", n->left->sym, n->right);
+			} else
+				return fmtprint(f, "%N:%N", n->left, n->right);
+		}
 		if(!n->left && n->right)
 			return fmtprint(f, ":%N", n->right);
 		if(n->left && !n->right)
