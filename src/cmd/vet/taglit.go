@@ -72,7 +72,11 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 
-	f.Warnf(c.Pos(), "%s composite literal uses untagged fields", typ)
+	pre := ""
+	if typ != nil {
+		pre = typ.String() + " "
+	}
+	f.Warn(c.Pos(), pre+"composite literal uses untagged fields")
 }
 
 // pkgPath returns the import path "image/png" for the package name "png".
