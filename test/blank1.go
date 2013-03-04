@@ -9,8 +9,13 @@
 
 package _	// ERROR "invalid package name _"
 
+var t struct {
+	_ int
+}
+
 func main() {
 	_()	// ERROR "cannot use _ as value"
 	x := _+1	// ERROR "cannot use _ as value"
 	_ = x
+	_ = t._ // ERROR "cannot refer to blank field"
 }
