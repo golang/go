@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 1, 2013",
+	"Subtitle": "Version of March 4, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -5367,7 +5367,8 @@ import . "lib/math"         Sin
 <p>
 An import declaration declares a dependency relation between
 the importing and imported package.
-It is illegal for a package to import itself or to import a package without
+It is illegal for a package to import itself, directly or indirectly,
+or to directly import a package without
 referring to any of its exported identifiers. To import a package solely for
 its side-effects (initialization), use the <a href="#Blank_identifier">blank</a>
 identifier as explicit package name:
