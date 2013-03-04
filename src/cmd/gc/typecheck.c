@@ -761,6 +761,10 @@ reswitch:
 			n->op = ODOTPTR;
 			checkwidth(t);
 		}
+		if(isblank(n->right)) {
+			yyerror("cannot refer to blank field or method");
+			goto error;
+		}
 		if(!lookdot(n, t, 0)) {
 			if(lookdot(n, t, 1))
 				yyerror("%N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
