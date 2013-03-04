@@ -376,6 +376,7 @@ main(int argc, char *argv[])
 			curfn = l->n;
 			saveerrors();
 			typechecklist(l->n->nbody, Etop);
+			checkreturn(l->n);
 			if(nerrors != 0)
 				l->n->nbody = nil;  // type errors; do not compile
 		}

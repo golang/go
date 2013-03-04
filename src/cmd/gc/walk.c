@@ -29,40 +29,6 @@ static	void	walkdiv(Node**, NodeList**);
 static	int	bounded(Node*, int64);
 static	Mpint	mpzero;
 
-// can this code branch reach the end
-// without an unconditional RETURN
-// this is hard, so it is conservative
-static int
-walkret(NodeList *l)
-{
-	Node *n;
-
-loop:
-	while(l && l->next)
-		l = l->next;
-	if(l == nil)
-		return 1;
-
-	// at this point, we have the last
-	// statement of the function
-	n = l->n;
-	switch(n->op) {
-	case OBLOCK:
-		l = n->list;
-		goto loop;
-
-	case OGOTO:
-	case ORETURN:
-	case OPANIC:
-		return 0;
-		break;
-	}
-
-	// all other statements
-	// will flow to the end
-	return 1;
-}
-
 void
 walk(Node *fn)
 {
@@ -76,9 +42,6 @@ walk(Node *fn)
 		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
 		dumplist(s, curfn->nbody);
 	}
-	if(curfn->type->outtuple)
-		if(walkret(curfn->nbody))
-			yyerror("function ends without a return statement");
 
 	lno = lineno;
 
