@@ -23,6 +23,11 @@ var connTests = []struct {
 	{"unixpacket", testUnixAddr()},
 }
 
+// someTimeout is used just to test that net.Conn implementations
+// don't explode when their SetFooDeadline methods are called.
+// It isn't actually used for testing timeouts.
+const someTimeout = 10 * time.Second
+
 func TestConnAndListener(t *testing.T) {
 	for _, tt := range connTests {
 		switch tt.net {
@@ -59,9 +64,9 @@ func TestConnAndListener(t *testing.T) {
 		defer c.Close()
 		c.LocalAddr()
 		c.RemoteAddr()
-		c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-		c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+		c.SetDeadline(time.Now().Add(someTimeout))
+		c.SetReadDeadline(time.Now().Add(someTimeout))
+		c.SetWriteDeadline(time.Now().Add(someTimeout))
 
 		if _, err := c.Write([]byte("CONN TEST")); err != nil {
 			t.Fatalf("Conn.Write failed: %v", err)
@@ -80,9 +85,9 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
 
 	switch ln := ln.(type) {
 	case *TCPListener:
-		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		ln.SetDeadline(time.Now().Add(someTimeout))
 	case *UnixListener:
-		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		ln.SetDeadline(time.Now().Add(someTimeout))
 	}
 	c, err := ln.Accept()
 	if err != nil {
@@ -92,9 +97,9 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
 	defer c.Close()
 	c.LocalAddr()
 	c.RemoteAddr()
-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
-	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+	c.SetDeadline(time.Now().Add(someTimeout))
+	c.SetReadDeadline(time.Now().Add(someTimeout))
+	c.SetWriteDeadline(time.Now().Add(someTimeout))
 
 	b := make([]byte, 128)
 	n, err := c.Read(b)
