@@ -38,6 +38,14 @@ var filenames = []string{
 	"basn6a16",
 }
 
+var filenamesPaletted = []string{
+	"basn3p01",
+	"basn3p02",
+	"basn3p04",
+	"basn3p08",
+	"basn3p08-trns",
+}
+
 var filenamesShort = []string{
 	"basn0g01",
 	"basn0g04-31",
@@ -274,6 +282,31 @@ func TestReaderError(t *testing.T) {
 		}
 		if img != nil {
 			t.Errorf("decoding %s: have image + error", tt.file)
+		}
+	}
+}
+
+func TestPalettedDecodeConfig(t *testing.T) {
+	for _, fn := range filenamesPaletted {
+		f, err := os.Open("testdata/pngsuite/" + fn + ".png")
+		if err != nil {
+			t.Errorf("%s: open failed: %v", fn, err)
+			continue
+		}
+		defer f.Close()
+		cfg, err := DecodeConfig(f)
+		if err != nil {
+			t.Errorf("%s: %v", fn, err)
+			continue
+		}
+		pal, ok := cfg.ColorModel.(color.Palette)
+		if !ok {
+			t.Errorf("%s: expected paletted color model", fn)
+			continue
+		}
+		if pal == nil {
+			t.Errorf("%s: palette not initialized", fn)
+			continue
 		}
 	}
 }

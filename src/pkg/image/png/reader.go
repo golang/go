@@ -652,10 +652,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			}
 			return image.Config{}, err
 		}
-		if d.stage == dsSeenIHDR && d.cb != cbP8 {
+		paletted := d.cb == cbP8 || d.cb == cbP4 || d.cb == cbP2 || d.cb == cbP1
+		if d.stage == dsSeenIHDR && !paletted {
 			break
 		}
-		if d.stage == dsSeenPLTE && d.cb == cbP8 {
+		if d.stage == dsSeenPLTE && paletted {
 			break
 		}
 	}
