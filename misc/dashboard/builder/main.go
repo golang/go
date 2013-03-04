@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// set up work environment, use existing enviroment if possible
-	if goroot.Exists() {
+	if goroot.Exists() || *failAll {
 		log.Print("Found old workspace, will use it")
 	} else {
 		if err := os.RemoveAll(*buildroot); err != nil {
