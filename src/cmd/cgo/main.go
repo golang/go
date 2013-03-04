@@ -142,6 +142,7 @@ var fset = token.NewFileSet()
 
 var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
 var dynout = flag.String("dynout", "", "write -dynobj output to this file")
+var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in dynimport mode")
 
 // These flags are for bootstrapping a new Go implementation,
 // to generate Go and C headers that match the data layout and
