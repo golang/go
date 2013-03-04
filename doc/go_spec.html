@@ -1469,12 +1469,13 @@ Any value may be assigned to the <a href="#Blank_identifier">blank identifier</a
 <h2 id="Blocks">Blocks</h2>
 
 <p>
-A <i>block</i> is a sequence of declarations and statements within matching
-brace brackets.
+A <i>block</i> is a possibly empty sequence of declarations and statements
+within matching brace brackets.
 </p>
 
 <pre class="ebnf">
-Block = "{" { Statement ";" } "}" .
+Block = "{" StatementList "}" .
+StatementList = { Statement ";" } .
 </pre>
 
 <p>
@@ -1490,10 +1491,13 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 	<li>Each file has a <i>file block</i> containing all Go source text
 	    in that file.</li>
 
-	<li>Each <code>if</code>, <code>for</code>, and <code>switch</code>
+	<li>Each <a href="#If_statements">"if"</a>,
+	    <a href="#For_statements">"for"</a>, and
+	    <a href="#Switch_statements">"switch"</a>
 	    statement is considered to be in its own implicit block.</li>
 
-	<li>Each clause in a <code>switch</code> or <code>select</code> statement
+	<li>Each clause in a <a href="#Switch_statements">"switch"</a>
+	    or <a href="#Select_statements">"select"</a> statement
 	    acts as an implicit block.</li>
 </ol>
 
@@ -1948,10 +1952,17 @@ to a function.
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" FunctionName Signature [ Body ] .
+FunctionDecl = "func" FunctionName ( Function | Signature ) .
 FunctionName = identifier .
-Body         = Block .
+Function     = Signature FunctionBody .
+FunctionBody = Block .
 </pre>
+
+<p>
+If the function's <a href="#Function_types">signature</a> declares
+result parameters, the function body's statement list must end in
+a <a href="#Terminating_statements">terminating statement</a>.
+</p>
 
 <p>
 A function declaration may omit the body. Such a declaration provides the
@@ -1972,13 +1983,13 @@ func flushICache(begin, end uintptr)  // implemented externally
 <h3 id="Method_declarations">Method declarations</h3>
 
 <p>
-A method is a function with a <i>receiver</i>.
-A method declaration binds an identifier, the <i>method name</i>, to a method.
-It also associates the method with the receiver's <i>base type</i>.
+A method is a <a href="#Function_declarations">function</a> with a <i>receiver</i>.
+A method declaration binds an identifier, the <i>method name</i>, to a method,
+and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl   = "func" Receiver MethodName Signature [ Body ] .
+MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 Receiver     = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
 BaseTypeName = identifier .
 </pre>
@@ -2284,12 +2295,11 @@ noteFrequency := map[string]float32{
 <h3 id="Function_literals">Function literals</h3>
 
 <p>
-A function literal represents an anonymous function.
-It consists of a specification of the function type and a function body.
+A function literal represents an anonymous <a href="#Function_declarations">function</a>.
 </p>
 
 <pre class="ebnf">
-FunctionLit = FunctionType Body .
+FunctionLit = "func" Function .
 </pre>
 
 <pre>
@@ -3843,6 +3853,84 @@ Statement =
 SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 </pre>
 
+<h3 id="Terminating_statements">Terminating statements</h3>
+
+<p>
+A terminating statement is one of the following:
+</p>
+
+<ol>
+<li>
+	A <a href="#Return_statements">"return"</a> or
+    	<a href="#Goto_statements">"goto"</a> statement.
+	<!-- ul below only for regular layout -->
+	<ul> </ul>
+</li>
+
+<li>
+	A call to the built-in function
+	<a href="#Handling_panics"><code>panic</code></a>.
+	<!-- ul below only for regular layout -->
+	<ul> </ul>
+</li>
+
+<li>
+	A <a href="#Blocks">block</a> in which the statement list ends in a terminating statement.
+	<!-- ul below only for regular layout -->
+	<ul> </ul>
+</li>
+
+<li>
+	An <a href="#If_statements">"if" statement</a> in which:
+	<ul>
+	<li>the "else" branch is present, and</li>
+	<li>both branches are terminating statements.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#For_statements">"for" statement</a> in which:
+	<ul>
+	<li>there are no "break" statements referring to the "for" statement, and</li>
+	<li>the loop condition is absent.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#Switch_statements">"switch" statement</a> in which:
+	<ul>
+	<li>there are no "break" statements referring to the "switch" statement,</li>
+	<li>there is a default case, and</li>
+	<li>the statement lists in each case, including the default, end in a terminating
+	    statement, or a possibly labeled <a href="#Fallthrough_statements">"fallthrough"
+	    statement</a>.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#Select_statements">"select" statement</a> in which:
+	<ul>
+	<li>there are no "break" statements referring to the "select" statement, and</li>
+	<li>the statement lists in each case, including the default if present,
+	    end in a terminating statement.</li>
+	</ul>
+</li>
+
+<li>
+	A <a href="#Labeled_statements">labeled statement</a> labeling
+	a terminating statement.
+</li>
+</ol>
+
+<p>
+All other statements are not terminating.
+</p>
+
+<p>
+A <a href="#Blocks">statement list</a> ends in a terminating statement if the list
+is not empty and its final statement is terminating.
+</p>
+
 
 <h3 id="Empty_statements">Empty statements</h3>
 
@@ -4149,7 +4237,7 @@ the expression <code>true</code>.
 
 <pre class="ebnf">
 ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
-ExprCaseClause = ExprSwitchCase ":" { Statement ";" } .
+ExprCaseClause = ExprSwitchCase ":" StatementList .
 ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
@@ -4213,7 +4301,7 @@ expression <code>x</code>. As with type assertions, <code>x</code> must be of
 <pre class="ebnf">
 TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
-TypeCaseClause  = TypeSwitchCase ":" { Statement ";" } .
+TypeCaseClause  = TypeSwitchCase ":" StatementList .
 TypeSwitchCase  = "case" TypeList | "default" .
 TypeList        = Type { "," Type } .
 </pre>
@@ -4536,7 +4624,7 @@ cases all referring to communication operations.
 
 <pre class="ebnf">
 SelectStmt = "select" "{" { CommClause } "}" .
-CommClause = CommCase ":" { Statement ";" } .
+CommClause = CommCase ":" StatementList .
 CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
 RecvStmt   = [ ExpressionList "=" | IdentifierList ":=" ] RecvExpr .
 RecvExpr   = Expression .
