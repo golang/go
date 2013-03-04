@@ -90,7 +90,7 @@ func up(h Interface, j int) {
 func down(h Interface, i, n int) {
 	for {
 		j1 := 2*i + 1
-		if j1 >= n {
+		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
 			break
 		}
 		j := j1 // left child
