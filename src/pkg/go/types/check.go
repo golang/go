@@ -481,6 +481,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 		}
 		check.funcsig = f.sig
 		check.stmtList(f.body.List)
+		if len(f.sig.Results) > 0 && f.body != nil && !check.isTerminating(f.body, "") {
+			check.errorf(f.body.Rbrace, "missing return")
+		}
 	}
 
 	// remaining untyped expressions must indeed be untyped
