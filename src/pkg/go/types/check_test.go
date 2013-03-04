@@ -57,6 +57,7 @@ var tests = []struct {
 	{"builtins", []string{"testdata/builtins.src"}},
 	{"conversions", []string{"testdata/conversions.src"}},
 	{"stmt0", []string{"testdata/stmt0.src"}},
+	{"stmt1", []string{"testdata/stmt1.src"}},
 }
 
 var fset = token.NewFileSet()
