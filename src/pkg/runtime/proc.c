@@ -18,6 +18,8 @@
 // P - processor, a resource that is required to execute Go code.
 //     M must have an associated P to execute Go code, however it can be
 //     blocked or in a syscall w/o an associated P.
+//
+// Design doc at http://golang.org/s/go11sched.
 
 typedef struct Sched Sched;
 struct Sched {
