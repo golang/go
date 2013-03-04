@@ -36,3 +36,10 @@ var (
 	b2     = 1.0 << c    // ERROR "overflow"
 	d2     = f(1.0 << c) // ERROR "overflow"
 )
+
+var (
+	// issues 4882, 4936.
+	a3 = 1.0<<s + 0 // ERROR "invalid operation|shift of non-integer operand"
+	// issue 4937
+	b3 = 1<<s + 1 + 1.0 // ERROR "invalid operation|shift of non-integer operand"
+)

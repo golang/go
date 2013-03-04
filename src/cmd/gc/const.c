@@ -1034,85 +1034,88 @@ nodcplxlit(Val r, Val i)
 	return n;
 }
 
-// TODO(rsc): combine with convlit
+// idealkind returns a constant kind like consttype
+// but for an arbitrary "ideal" expression.
+static int
+idealkind(Node *n)
+{
+	int k1, k2;
+
+	if(n == N || !isideal(n->type))
+		return CTxxx;
+
+	switch(n->op) {
+	default:
+		return CTxxx;
+	case OLITERAL:
+		return n->val.ctype;
+	case OADD:
+	case OAND:
+	case OANDNOT:
+	case OCOM:
+	case ODIV:
+	case OMINUS:
+	case OMOD:
+	case OMUL:
+	case OSUB:
+	case OXOR:
+	case OOR:
+	case OPLUS:
+		// numeric kinds.
+		k1 = idealkind(n->left);
+		k2 = idealkind(n->right);
+		if(k1 > k2)
+			return k1;
+		else
+			return k2;
+	case OADDSTR:
+		return CTSTR;
+	case OANDAND:
+	case OEQ:
+	case OGE:
+	case OGT:
+	case OLE:
+	case OLT:
+	case ONE:
+	case ONOT:
+	case OOROR:
+	case OCMPSTR:
+	case OCMPIFACE:
+		return CTBOOL;
+	case OLSH:
+	case ORSH:
+		// shifts (beware!).
+		return idealkind(n->left);
+	}
+}
+
 void
 defaultlit(Node **np, Type *t)
 {
 	int lno;
+	int ctype;
 	Node *n, *nn;
+	Type *t1;
 
 	n = *np;
 	if(n == N || !isideal(n->type))
 		return;
 
-	switch(n->op) {
-	case OLITERAL:
+	if(n->op == OLITERAL) {
 		nn = nod(OXXX, N, N);
 		*nn = *n;
 		n = nn;
 		*np = n;
-		break;
-	case OLSH:
-	case ORSH:
-		defaultlit(&n->left, t);
-		t = n->left->type;
-		if(t != T && !isint[t->etype]) {
-			yyerror("invalid operation: %N (shift of type %T)", n, t);
-			t = T;
-		}
-		n->type = t;
-		return;
-	case OCOM:
-	case ONOT:
-		defaultlit(&n->left, t);
-		n->type = n->left->type;
-		return;
-	default:
-		if(n->left == N || n->right == N) {
-			dump("defaultlit", n);
-			fatal("defaultlit");
-		}
-		// n is ideal, so left and right must both be ideal.
-		// n has not been computed as a constant value,
-		// so either left or right must not be constant.
-		// The only 'ideal' non-constant expressions are shifts.  Ugh.
-		// If one of these is a shift and the other is not, use that type.
-		// When compiling x := 1<<i + 3.14, this means we try to push
-		// the float64 down into the 1<<i, producing the correct error
-		// (cannot shift float64).
-		//
-		// If t is an interface type, we want the default type for the
-		// value, so just do as if no type was given.
-		if(t && t->etype == TINTER)
-			t = T;
-		if(t == T && (n->right->op == OLSH || n->right->op == ORSH)) {
-			defaultlit(&n->left, T);
-			defaultlit(&n->right, n->left->type);
-		} else if(t == T && (n->left->op == OLSH || n->left->op == ORSH)) {
-			defaultlit(&n->right, T);
-			defaultlit(&n->left, n->right->type);
-		} else if(iscmp[n->op]) {
-			defaultlit2(&n->left, &n->right, 1);
-		} else {
-			defaultlit(&n->left, t);
-			defaultlit(&n->right, t);
-		}
-		if(n->type == idealbool || n->type == idealstring) {
-			if(t != T && t->etype == n->type->etype)
-				n->type = t;
-			else
-				n->type = types[n->type->etype];
-		} else
-			n->type = n->left->type;
-		return;
 	}
 
 	lno = setlineno(n);
-	switch(n->val.ctype) {
+	ctype = idealkind(n);
+	t1 = T;
+	switch(ctype) {
 	default:
 		if(t != T) {
 			convlit(np, t);
-			break;
+			return;
 		}
 		if(n->val.ctype == CTNIL) {
 			lineno = lno;
@@ -1121,46 +1124,52 @@ defaultlit(Node **np, Type *t)
 			break;
 		}
 		if(n->val.ctype == CTSTR) {
-			n->type = types[TSTRING];
+			t1 = types[TSTRING];
+			convlit(np, t1);
 			break;
 		}
 		yyerror("defaultlit: unknown literal: %N", n);
 		break;
+	case CTxxx:
+		fatal("defaultlit: idealkind is CTxxx: %+N", n);
+		break;
 	case CTBOOL:
-		n->type = types[TBOOL];
+		t1 = types[TBOOL];
 		if(t != T && t->etype == TBOOL)
-			n->type = t;
+			t1 = t;
+		convlit(np, t1);
 		break;
 	case CTINT:
-		n->type = types[TINT];
+		t1 = types[TINT];
 		goto num;
 	case CTRUNE:
-		n->type = runetype;
+		t1 = runetype;
 		goto num;
 	case CTFLT:
-		n->type = types[TFLOAT64];
+		t1 = types[TFLOAT64];
 		goto num;
 	case CTCPLX:
-		n->type = types[TCOMPLEX128];
+		t1 = types[TCOMPLEX128];
 		goto num;
 	num:
 		if(t != T) {
 			if(isint[t->etype]) {
-				n->type = t;
+				t1 = t;
 				n->val = toint(n->val);
 			}
 			else
 			if(isfloat[t->etype]) {
-				n->type = t;
+				t1 = t;
 				n->val = toflt(n->val);
 			}
 			else
 			if(iscomplex[t->etype]) {
-				n->type = t;
+				t1 = t;
 				n->val = tocplx(n->val);
 			}
 		}
-		overflow(n->val, n->type);
+		overflow(n->val, t1);
+		convlit(np, t1);
 		break;
 	}
 	lineno = lno;
