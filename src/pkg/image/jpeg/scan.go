@@ -109,9 +109,11 @@ func (d *decoder) processSOS(n int) error {
 	myy := (d.height + 8*v0 - 1) / (8 * v0)
 	if d.img1 == nil && d.img3 == nil {
 		d.makeImg(h0, v0, mxx, myy)
-		if d.progressive {
-			for i := 0; i < nComp; i++ {
-				compIndex := scan[i].compIndex
+	}
+	if d.progressive {
+		for i := 0; i < nComp; i++ {
+			compIndex := scan[i].compIndex
+			if d.progCoeffs[compIndex] == nil {
 				d.progCoeffs[compIndex] = make([]block, mxx*myy*d.comp[compIndex].h*d.comp[compIndex].v)
 			}
 		}
