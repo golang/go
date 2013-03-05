@@ -23,7 +23,7 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
 
 	tag, err := strconv.Unquote(field.Tag.Value)
 	if err != nil {
-		f.Warnf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
+		f.Badf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
 		return
 	}
 
@@ -31,7 +31,7 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
 	// new key:value to end and checking that
 	// the tag parsing code can find it.
 	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
-		f.Warnf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
+		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
 		return
 	}
 }

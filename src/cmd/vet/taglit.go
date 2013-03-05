@@ -64,7 +64,7 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 	// Convert the package name to an import path, and compare to a whitelist.
 	path := pkgPath(f, pkg.Name)
 	if path == "" {
-		f.Warnf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
+		f.Badf(c.Pos(), "unresolvable package for %s.%s literal", pkg.Name, s.Sel.Name)
 		return
 	}
 	typeName := path + "." + s.Sel.Name
