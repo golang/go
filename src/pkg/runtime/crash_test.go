@@ -91,6 +91,14 @@ func TestLockedDeadlock2(t *testing.T) {
 	testDeadlock(t, lockedDeadlockSource2)
 }
 
+func TestGoexitDeadlock(t *testing.T) {
+	got := executeTest(t, goexitDeadlockSource, nil)
+	want := ""
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
 const crashSource = `
 package main
 
@@ -173,5 +181,23 @@ func main() {
 	}()
 	time.Sleep(time.Millisecond)
 	select {}
+}
+`
+
+const goexitDeadlockSource = `
+package main
+import (
+      "runtime"
+)
+
+func F() {
+      for i := 0; i < 10; i++ {
+      }
+}
+
+func main() {
+      go F()
+      go F()
+      runtime.Goexit()
 }
 `
