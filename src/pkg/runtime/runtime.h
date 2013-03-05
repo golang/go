@@ -761,6 +761,8 @@ int64	runtime·cputicks(void);
 int64	runtime·tickspersecond(void);
 void	runtime·blockevent(int64, int32);
 extern int64 runtime·blockprofilerate;
+void	runtime·addtimer(Timer*);
+bool	runtime·deltimer(Timer*);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
