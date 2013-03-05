@@ -15,7 +15,6 @@ package time
 
 static Timers timers;
 static void addtimer(Timer*);
-static bool deltimer(Timer*);
 
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
@@ -31,15 +30,13 @@ func Sleep(ns int64) {
 func startTimer(t *Timer) {
 	if(raceenabled)
 		runtime·racerelease(t);
-	runtime·lock(&timers);
-	addtimer(t);
-	runtime·unlock(&timers);
+	runtime·addtimer(t);
 }
 
 // stopTimer removes t from the timer heap if it is there.
 // It returns true if t was removed, false if t wasn't even there.
 func stopTimer(t *Timer) (stopped bool) {
-	stopped = deltimer(t);
+	stopped = runtime·deltimer(t);
 }
 
 // C runtime.
@@ -78,6 +75,14 @@ runtime·tsleep(int64 ns, int8 *reason)
 }
 
 static FuncVal timerprocv = {timerproc};
+
+void
+runtime·addtimer(Timer *t)
+{
+	runtime·lock(&timers);
+	addtimer(t);
+	runtime·unlock(&timers);
+}
 
 // Add a timer to the heap and start or kick the timer proc
 // if the new timer is earlier than any of the others.
@@ -121,8 +126,8 @@ addtimer(Timer *t)
 // Delete timer t from the heap.
 // Do not need to update the timerproc:
 // if it wakes up early, no big deal.
-static bool
-deltimer(Timer *t)
+bool
+runtime·deltimer(Timer *t)
 {
 	int32 i;
 
