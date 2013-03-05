@@ -156,6 +156,10 @@ TestAtomic64(void)
 		runtime·throw("xadd64 failed");
 	if(runtime·atomicload64(&z64) != (2ull<<40)+2)
 		runtime·throw("xadd64 failed");
+	if(runtime·xchg64(&z64, (3ull<<40)+3) != (2ull<<40)+2)
+		runtime·throw("xchg64 failed");
+	if(runtime·atomicload64(&z64) != (3ull<<40)+3)
+		runtime·throw("xchg64 failed");
 }
 
 void

@@ -123,6 +123,19 @@ runtime·xadd64(uint64 volatile *addr, int64 delta)
 
 #pragma textflag 7
 uint64
+runtime·xchg64(uint64 volatile *addr, uint64 v)
+{
+	uint64 res;
+
+	runtime·lock(LOCK(addr));
+	res = *addr;
+	*addr = v;
+	runtime·unlock(LOCK(addr));
+	return res;
+}
+
+#pragma textflag 7
+uint64
 runtime·atomicload64(uint64 volatile *addr)
 {
 	uint64 res;
