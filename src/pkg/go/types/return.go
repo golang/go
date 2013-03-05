@@ -81,7 +81,6 @@ func (check *checker) isTerminating(s ast.Stmt, label string) bool {
 		if s.Cond == nil && !hasBreak(s.Body, label, true) {
 			return true
 		}
-
 	}
 
 	return false
@@ -105,6 +104,10 @@ func (check *checker) isTerminatingSwitch(body *ast.BlockStmt, label string) boo
 	}
 	return hasDefault
 }
+
+// TODO(gri) For nested breakable statements, the current implementation of hasBreak
+//	     will traverse the same subtree repeatedly, once for each label. Replace
+//           with a single-pass label/break matching phase.
 
 // hasBreak reports if s is or contains a break statement
 // referring to the label-ed statement or implicit-ly the
