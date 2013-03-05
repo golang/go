@@ -831,8 +831,8 @@ case *int:
 One of Go's unusual features is that functions and methods
 can return multiple values.  This form can be used to
 improve on a couple of clumsy idioms in C programs: in-band
-error returns (such as <code>-1</code> for <code>EOF</code>)
-and modifying an argument.
+error returns such as <code>-1</code> for <code>EOF</code>
+and modifying an argument passed by address.
 </p>
 
 <p>
@@ -841,7 +841,8 @@ error code secreted away in a volatile location.
 In Go, <code>Write</code>
 can return a count <i>and</i> an error: &ldquo;Yes, you wrote some
 bytes but not all of them because you filled the device&rdquo;.
-The signature of <code>File.Write</code> in package <code>os</code> is:
+The signature of the <code>Write</code> method on files from
+package <code>os</code> is:
 </p>
 
 <pre>
@@ -1208,7 +1209,7 @@ It creates slices, maps, and channels only, and it returns an <em>initialized</e
 (not <em>zeroed</em>)
 value of type <code>T</code> (not <code>*T</code>).
 The reason for the distinction
-is that these three types are, under the covers, references to data structures that
+is that these three types represent, under the covers, references to data structures that
 must be initialized before use.
 A slice, for example, is a three-item descriptor
 containing a pointer to the data (inside an array), the length, and the
@@ -1253,7 +1254,8 @@ v := make([]int, 100)
 <p>
 Remember that <code>make</code> applies only to maps, slices and channels
 and does not return a pointer.
-To obtain an explicit pointer allocate with <code>new</code>.
+To obtain an explicit pointer allocate with <code>new</code> or take the address
+of a variable explicitly.
 </p>
 
 <h3 id="arrays">Arrays</h3>
@@ -1300,7 +1302,8 @@ x := Sum(&amp;array)  // Note the explicit address-of operator
 </pre>
 
 <p>
-But even this style isn't idiomatic Go.  Slices are.
+But even this style isn't idiomatic Go.
+Use slices instead.
 </p>
 
 <h3 id="slices">Slices</h3>
@@ -1312,9 +1315,9 @@ dimension such as transformation matrices, most array programming in
 Go is done with slices rather than simple arrays.
 </p>
 <p>
-Slices are <i>reference types</i>, which means that if you assign one
-slice to another, both refer to the same underlying array.  For
-instance, if a function takes a slice argument, changes it makes to
+Slices hold references to an underlying array, and if you assign one
+slice to another, both refer to the same array.
+If a function takes a slice argument, changes it makes to
 the elements of the slice will be visible to the caller, analogous to
 passing a pointer to the underlying array.  A <code>Read</code>
 function can therefore accept a slice argument rather than a pointer
@@ -1391,19 +1394,87 @@ design, though, we need a little more information, so we'll return
 to it later.
 </p>
 
+<h3 id="two_dimensional_slices">Two-dimensional slices</h3>
+
+<p>
+Go's arrays and slices are one-dimensional.
+To create the equivalent of a 2D array or slice, it is necessary to define an array-of-arrays
+or slice-of-slices, like this:
+</p>
+
+<pre>
+type Transform [3][3]float64  // A 3x3 array, really an array of arrays.
+type LinesOfText [][]byte     // A slice of byte slices.
+</pre>
+
+<p>
+Because slices are variable-length, it is possible to have each inner
+slice be a different length.
+That can be a common situation, as in our <code>LinesOfText</code>
+example: each line has an independent length.
+</p>
+
+<pre>
+text := LinesOfText{
+	[]byte("Now is the time"),
+	[]byte("for all good gophers"),
+	[]byte("to bring some fun to the party."),
+}
+</pre>
+
+<p>
+Sometimes it's necessary to allocate a 2D slice, a situation that can arise when
+processing scan lines of pixels, for instance.
+There are two ways to achieve this.
+One is to allocate each slice independently; the other
+is to allocate a single array and point the individual slices into it.
+Which to use depends on your application.
+If the slices might grow or shrink, they should be allocated independently
+to avoid overwriting the next line; if not, it can be more efficient to construct
+the object with a single allocation.
+For reference, here are sketches of the two methods.
+First, a line a time:
+</p>
+
+<pre>
+// Allocate the top-level slice.
+picture := make([][]uint8, YSize) // One row per unit of y.
+// Loop over the rows, allocating the slice for each row.
+for i := range picture {
+	picture[i] = make([]uint8, XSize)
+}
+</pre>
+
+<p>
+And now as one allocation, sliced into lines:
+</p>
+
+<pre>
+// Allocate the top-level slice, the same as before.
+picture := make([][]uint8, YSize) // One row per unit of y.
+// Allocate one large slice to hold all the pixels.
+pixels := make([]uint8, XSize*YSize) // Has type []uint8 even though picture is [][]uint8.
+// Loop over the rows, slicing each row from the front of the remaining pixels slice.
+for i := range picture {
+	picture[i], pixels = pixels[:XSize], pixels[XSize:]
+}
+</pre>
 
 <h3 id="maps">Maps</h3>
 
 <p>
-Maps are a convenient and powerful built-in data structure to associate
-values of different types.
+Maps are a convenient and powerful built-in data structure that associate
+values of one type (the <em>key</em>) with values of another type
+(the <em>element</em> or <em>value</em>)
 The key can be of any type for which the equality operator is defined,
 such as integers,
 floating point and complex numbers,
 strings, pointers, interfaces (as long as the dynamic type
-supports equality), structs and arrays. Slices cannot be used as map keys,
+supports equality), structs and arrays.
+Slices cannot be used as map keys,
 because equality is not defined on them.
-Like slices, maps are a reference type. If you pass a map to a function
+Like slices, maps hold references to an underlying data structure.
+If you pass a map to a function
 that changes the contents of the map, the changes will be visible
 in the caller.
 </p>
@@ -1453,7 +1524,7 @@ if attended[person] { // will be false if person is not in the map
 <p>
 Sometimes you need to distinguish a missing entry from
 a zero value.  Is there an entry for <code>"UTC"</code>
-or is that zero value because it's not in the map at all?
+or is that the empty string because it's not in the map at all?
 You can discriminate with a form of multiple assignment.
 </p>
 <pre>
@@ -1482,7 +1553,8 @@ func offset(tz string) int {
 To test for presence in the map without worrying about the actual value,
 you can use the blank identifier (<code>_</code>).
 The blank identifier can be assigned or declared with any value of any type, with the
-value discarded harmlessly.  For testing just presence in a map, use the blank
+value discarded harmlessly; it's a bit like writing to the Unix <code>/dev/null</code> file.
+For testing just presence in a map, use the blank
 identifier in place of the usual variable for the value.
 </p>
 <pre>
@@ -2463,7 +2535,7 @@ completion.  For that, we need channels.
 <h3 id="channels">Channels</h3>
 
 <p>
-Like maps, channels are a reference type and are allocated with <code>make</code>.
+Like maps, channels are allocated with <code>make</code>.
 If an optional integer parameter is provided, it sets the buffer size for the channel.
 The default is zero, for an unbuffered or synchronous channel.
 </p>
