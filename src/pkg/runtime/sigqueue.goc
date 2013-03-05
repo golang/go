@@ -83,8 +83,7 @@ runtime·sigsend(int32 s)
 func signal_recv() (m uint32) {
 	static uint32 recv[nelem(sig.mask)];
 	uint32 i, old, new;
-
-	g->issystem = true;
+	
 	for(;;) {
 		// Serve from local copy if there are bits left.
 		for(i=0; i<NSIG; i++) {
