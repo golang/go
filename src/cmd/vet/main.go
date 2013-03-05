@@ -186,17 +186,21 @@ func doPackage(names []string) {
 	for _, name := range names {
 		f, err := os.Open(name)
 		if err != nil {
-			errorf("%s: %s", name, err)
+			// Warn but continue to next package.
+			warnf("%s: %s", name, err)
+			return
 		}
 		defer f.Close()
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
-			errorf("%s: %s", name, err)
+			warnf("%s: %s", name, err)
+			return
 		}
 		checkBuildTag(name, data)
 		parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
 		if err != nil {
-			errorf("%s: %s", name, err)
+			warnf("%s: %s", name, err)
+			return
 		}
 		files = append(files, &File{fset: fs, name: name, file: parsedFile})
 		astFiles = append(astFiles, parsedFile)
@@ -229,7 +233,8 @@ func doPackage(names []string) {
 
 func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
-		errorf("walk error: %s", err)
+		warnf("walk error: %s", err)
+		return err
 	}
 	// One package per directory. Ignore the files themselves.
 	if !f.IsDir() {
@@ -239,7 +244,7 @@ func visit(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
-// walkDir recursively walks the tree looking for .go files.
+// walkDir recursively walks the tree looking for Go packages.
 func walkDir(root string) {
 	filepath.Walk(root, visit)
 }

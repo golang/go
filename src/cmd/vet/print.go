@@ -366,7 +366,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 		if sel, ok := args[0].(*ast.SelectorExpr); ok {
 			if x, ok := sel.X.(*ast.Ident); ok {
 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
-					f.Warnf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
+					f.Badf(call.Pos(), "first argument to %s is %s.%s", name, x.Name, sel.Sel.Name)
 				}
 			}
 		}

@@ -9,6 +9,12 @@ calls whose arguments do not align with the format string. Vet uses heuristics
 that do not guarantee all reports are genuine problems, but it can find errors
 not caught by the compilers.
 
+Its exit code is 2 for erroneous invocation of the tool, 1 if a
+problem was reported, and 0 otherwise. Note that the tool does not
+check every possible problem and depends on unreliable heuristics
+so it should be used as guidance only, not as a firm indicator of
+program correctness.
+
 By default all checks are performed, but if explicit flags are provided, only
 those identified by the flags are performed.
 
