@@ -1300,52 +1300,51 @@ addroot(Obj obj)
 }
 
 static void
-addframeroots(Func *f, byte*, byte *sp, void*)
-{
-	if (f->frame > sizeof(uintptr))
-		addroot((Obj){sp, f->frame - sizeof(uintptr), 0});
-	if (f->args > 0)
-		addroot((Obj){sp + f->frame, f->args, 0});
-}
-
-static void
 addstackroots(G *gp)
 {
 	M *mp;
-	Func *f;
-	byte *sp, *pc;
+	int32 n;
+	Stktop *stk;
+	byte *sp, *guard;
+
+	stk = (Stktop*)gp->stackbase;
+	guard = (byte*)gp->stackguard;
 
 	if(gp == g) {
 		// Scanning our own stack: start at &gp.
 		sp = (byte*)&gp;
-		pc = runtime·getcallerpc(&gp);
 	} else if((mp = gp->m) != nil && mp->helpgc) {
 		// gchelper's stack is in active use and has no interesting pointers.
 		return;
-	} else if(gp->gcstack != (uintptr)nil) {
-		// Scanning another goroutine that is about to enter or might
-		// have just exited a system call. It may be executing code such
-		// as schedlock and may have needed to start a new stack segment.
-		// Use the stack segment and stack pointer at the time of
-		// the system call instead, since that won't change underfoot.
-		sp = (byte*)gp->gcsp;
-		pc = gp->gcpc;
 	} else {
 		// Scanning another goroutine's stack.
 		// The goroutine is usually asleep (the world is stopped).
 		sp = (byte*)gp->sched.sp;
-		pc = gp->sched.pc;
-		if (pc == (byte*)runtime·goexit && gp->fnstart != nil) {
-			// The goroutine has not started.  Its incoming
-			// arguments are at the top of the stack and must
-			// be scanned.  No other data on the stack.
-			f = runtime·findfunc((uintptr)gp->fnstart->fn);
-			if (f->args > 0)
-				addroot((Obj){sp, f->args, 0});
-			return;
+
+		// The exception is that if the goroutine is about to enter or might
+		// have just exited a system call, it may be executing code such
+		// as schedlock and may have needed to start a new stack segment.
+		// Use the stack segment and stack pointer at the time of
+		// the system call instead, since that won't change underfoot.
+		if(gp->gcstack != (uintptr)nil) {
+			stk = (Stktop*)gp->gcstack;
+			sp = (byte*)gp->gcsp;
+			guard = (byte*)gp->gcguard;
 		}
 	}
-	runtime·gentraceback(pc, sp, nil, gp, 0, nil, 0x7fffffff, addframeroots, nil);
+
+	n = 0;
+	while(stk) {
+		if(sp < guard-StackGuard || (byte*)stk < sp) {
+			runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+			runtime·throw("scanstack");
+		}
+		addroot((Obj){sp, (byte*)stk - sp, 0});
+		sp = (byte*)stk->gobuf.sp;
+		guard = stk->stackguard;
+		stk = (Stktop*)stk->stackbase;
+		n++;
+	}
 }
 
 static void

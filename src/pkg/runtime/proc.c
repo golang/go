@@ -1710,7 +1710,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 		runtime·unlock(&prof);
 		return;
 	}
-	n = runtime·gentraceback(pc, sp, lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil);
+	n = runtime·gentraceback(pc, sp, lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf));
 	if(n > 0)
 		prof.fn(prof.pcbuf, n);
 	runtime·unlock(&prof);
