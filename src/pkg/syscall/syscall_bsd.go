@@ -327,6 +327,11 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	if err = getsockname(fd, &rsa, &len); err != nil {
 		return
 	}
+	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
+	if runtime.GOOS == "openbsd" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
+		rsa.Addr.Family = AF_UNIX
+		rsa.Addr.Len = SizeofSockaddrUnix
+	}
 	return anyToSockaddr(&rsa)
 }
 
