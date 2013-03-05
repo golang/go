@@ -442,6 +442,12 @@ TEXT runtime·xchg(SB), 7, $0
 	XCHGL	AX, 0(BX)
 	RET
 
+TEXT runtime·xchg64(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVQ	16(SP), AX
+	XCHGQ	AX, 0(BX)
+	RET
+
 TEXT runtime·procyield(SB),7,$0
 	MOVL	8(SP), AX
 again:
