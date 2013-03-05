@@ -30,6 +30,7 @@ var exitCode = 0
 // a flag is set explicitly.
 var report = map[string]*bool{
 	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+	"assign":     flag.Bool("assign", false, "check for useless assignments"),
 	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
 	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
 	"composites": flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
@@ -338,6 +339,7 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 
 // walkAssignStmt walks an assignment statement
 func (f *File) walkAssignStmt(stmt *ast.AssignStmt) {
+	f.checkAssignStmt(stmt)
 	f.checkAtomicAssignment(stmt)
 }
 
