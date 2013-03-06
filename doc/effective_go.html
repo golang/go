@@ -699,7 +699,12 @@ for _, value := range array {
 For strings, the <code>range</code> does more work for you, breaking out individual
 Unicode code points by parsing the UTF-8.
 Erroneous encodings consume one byte and produce the
-replacement rune U+FFFD. The loop
+replacement rune U+FFFD.
+(The name (with associated builtin type) <code>rune</code> is Go terminology for a
+single Unicode code point.
+See <a href="http://golang.org/ref/spec#Rune_literals">the language specification</a>
+for details.)
+The loop
 </p>
 <pre>
 for pos, char := range "日本\x80語" { // \x80 is an illegal UTF-8 encoding
@@ -1596,8 +1601,7 @@ fmt.Println("Hello", 23)
 fmt.Println(fmt.Sprint("Hello ", 23))
 </pre>
 <p>
-As mentioned in
-the <a href="http://tour.golang.org">Tour</a>, <code>fmt.Fprint</code>
+The formatted print functions <code>fmt.Fprint</code>
 and friends take as a first argument any object
 that implements the <code>io.Writer</code> interface; the variables <code>os.Stdout</code>
 and <code>os.Stderr</code> are familiar instances.
@@ -1663,8 +1667,10 @@ map[string] int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
 <p>
 (Note the ampersands.)
 That quoted string format is also available through <code>%q</code> when
-applied to a value of type <code>string</code> or <code>[]byte</code>;
-the alternate format <code>%#q</code> will use backquotes instead if possible.
+applied to a value of type <code>string</code> or <code>[]byte</code>.
+The alternate format <code>%#q</code> will use backquotes instead if possible.
+(The <code>%q</code> format also applies to integers and runes, producing a
+single-quoted rune constant.)
 Also, <code>%x</code> works on strings, byte arrays and byte slices as well as
 on integers, generating a long hexadecimal string, and with
 a space in the format (<code>%&nbsp;x</code>) it puts spaces between the bytes.
@@ -1762,7 +1768,7 @@ is different from our custom <code>Append</code> function above.
 Schematically, it's like this:
 </p>
 <pre>
-func append(slice []<i>T</i>, elements...T) []<i>T</i>
+func append(slice []<i>T</i>, elements...<i>T</i>) []<i>T</i>
 </pre>
 <p>
 where <i>T</i> is a placeholder for any given type.  You can't
@@ -1810,7 +1816,7 @@ would be wrong; <code>y</code> is not of type <code>int</code>.
 Although it doesn't look superficially very different from
 initialization in C or C++, initialization in Go is more powerful.
 Complex structures can be built during initialization and the ordering
-issues between initialized objects in different packages are handled
+issues among initialized objects, even among different packages, are handled
 correctly.
 </p>
 
@@ -1820,7 +1826,7 @@ correctly.
 Constants in Go are just that&mdash;constant.
 They are created at compile time, even when defined as
 locals in functions,
-and can only be numbers, strings or booleans.
+and can only be numbers, characters (runes), strings or booleans.
 Because of the compile-time restriction, the expressions
 that define them must be constant expressions,
 evaluatable by the compiler.  For instance,
@@ -1838,9 +1844,11 @@ sets of values.
 </p>
 {{code "/doc/progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
 <p>
-The ability to attach a method such as <code>String</code> to a
-type makes it possible for such values to format themselves
-automatically for printing, even as part of a general type.
+The ability to attach a method such as <code>String</code> to any
+user-defined type makes it possible for arbitrary values to format themselves
+automatically for printing.
+Although you'll see it most often applied to structs, this technique is also useful for
+scalar types such as floating-point types like <code>ByteSize</code>.
 </p>
 {{code "/doc/progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
 <p>
@@ -1909,7 +1917,8 @@ func init() {
 
 <h3 id="pointers_vs_values">Pointers vs. Values</h3>
 <p>
-Methods can be defined for any named type that is not a pointer or an interface;
+As we saw with <code>ByteSize</code>,
+methods can be defined for any named type (except a pointer or an interface);
 the receiver does not have to be a struct.
 </p>
 <p>
@@ -1970,7 +1979,7 @@ modifications to be discarded.
 </p>
 <p>
 By the way, the idea of using <code>Write</code> on a slice of bytes
-is implemented by <code>bytes.Buffer</code>.
+is central to the implementation of <code>bytes.Buffer</code>.
 </p>
 
 <h2 id="interfaces_and_types">Interfaces and other types</h2>
@@ -2205,9 +2214,7 @@ It's easy to write a function to print the arguments.
 </p>
 <pre>
 func ArgServer() {
-    for _, s := range os.Args {
-        fmt.Println(s)
-    }
+    fmt.Println(os.Args)
 }
 </pre>
 <p>
@@ -2243,9 +2250,7 @@ to have the right signature.
 <pre>
 // Argument server.
 func ArgServer(w http.ResponseWriter, req *http.Request) {
-    for _, s := range os.Args {
-        fmt.Fprintln(w, s)
-    }
+    fmt.Fprintln(w, os.Args)
 }
 </pre>
 <p>
@@ -2400,8 +2405,8 @@ log to the <code>Job</code>:
 job.Log("starting now...")
 </pre>
 <p>
-The <code>Logger</code> is a regular field of the struct and we can initialize
-it in the usual way with a constructor,
+The <code>Logger</code> is a regular field of the <code>Job</code> struct,
+so we can initialize it in the usual way inside the constructor for <code>Job</code>, like this,
 </p>
 <pre>
 func NewJob(command string, logger *log.Logger) *Job {
@@ -2416,10 +2421,12 @@ job := &amp;Job{command, log.New(os.Stderr, "Job: ", log.Ldate)}
 </pre>
 <p>
 If we need to refer to an embedded field directly, the type name of the field,
-ignoring the package qualifier, serves as a field name.  If we needed to access the
+ignoring the package qualifier, serves as a field name, as it did
+in the <code>Read</code> method of our <code>ReaderWriter</code> struct.
+Here, if we needed to access the
 <code>*log.Logger</code> of a <code>Job</code> variable <code>job</code>,
-we would write <code>job.Logger</code>.
-This would be useful if we wanted to refine the methods of <code>Logger</code>.
+we would write <code>job.Logger</code>,
+which would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
 func (job *Job) Logf(format string, args ...interface{}) {
@@ -2535,7 +2542,8 @@ completion.  For that, we need channels.
 <h3 id="channels">Channels</h3>
 
 <p>
-Like maps, channels are allocated with <code>make</code>.
+Like maps, channels are allocated with <code>make</code>, and
+the resulting value acts as a reference to an underlying data structure.
 If an optional integer parameter is provided, it sets the buffer size for the channel.
 The default is zero, for an unbuffered or synchronous channel.
 </p>
@@ -2545,7 +2553,7 @@ cj := make(chan int, 0)         // unbuffered channel of integers
 cs := make(chan *os.File, 100)  // buffered channel of pointers to Files
 </pre>
 <p>
-Channels combine communication&mdash;the exchange of a value&mdash;with
+Unbuffered channels combine communication&mdash;the exchange of a value&mdash;with
 synchronization&mdash;guaranteeing that two calculations (goroutines) are in
 a known state.
 </p>
@@ -2741,6 +2749,17 @@ of logical CPUs on the local machine.
 Again, this requirement is expected to be retired as the scheduling and run-time improve.
 </p>
 
+<p>
+Be sure not to confuse the ideas of concurrency—structuring a program
+as independently executing components—and parallelism—executing
+calculations in parallel for efficiency on multiple CPUs.
+Although the concurrency features of Go can make some problems easy
+to structure as parallel computations, Go is a concurrent language,
+not a parallel one, and not all parallelization problems fit Go's model.
+For a discussion of the distinction, see the talk cited in
+<a href="http://blog.golang.org/2013/01/concurrency-is-not-parallelism.html">this
+blog post</a>.
+
 <h3 id="leaky_buffer">A leaky buffer</h3>
 
 <p>
@@ -2857,7 +2876,7 @@ it is much more informative than the plain
 
 <p>
 When feasible, error strings should identify their origin, such as by having
-a prefix naming the package that generated the error.  For example, in package
+a prefix naming the operation or package that generated the error.  For example, in package
 <code>image</code>, the string representation for a decoding error due to an
 unknown format is "image: unknown format".
 </p>
@@ -2912,9 +2931,7 @@ that in effect creates a run-time error that will stop the program
 (but see the next section).  The function takes a single argument
 of arbitrary type&mdash;often a string&mdash;to be printed as the
 program dies.  It's also a way to indicate that something impossible has
-happened, such as exiting an infinite loop.  In fact, the compiler
-recognizes a <code>panic</code> at the end of a function and
-suppresses the usual check for a <code>return</code> statement.
+happened, such as exiting an infinite loop.
 </p>
 
 
@@ -3016,7 +3033,7 @@ With our recovery pattern in place, the <code>do</code>
 function (and anything it calls) can get out of any bad situation
 cleanly by calling <code>panic</code>.  We can use that idea to
 simplify error handling in complex software.  Let's look at an
-idealized excerpt from the <code>regexp</code> package, which reports
+idealized version of a <code>regexp</code> package, which reports
 parsing errors by calling <code>panic</code> with a local
 error type.  Here's the definition of <code>Error</code>,
 an <code>error</code> method, and the <code>Compile</code> function.
@@ -3057,17 +3074,26 @@ to <code>err</code>, that the problem was a parse error by asserting
 that it has the local type <code>Error</code>.
 If it does not, the type assertion will fail, causing a run-time error
 that continues the stack unwinding as though nothing had interrupted
-it.  This check means that if something unexpected happens, such
+it.
+This check means that if something unexpected happens, such
 as an index out of bounds, the code will fail even though we
 are using <code>panic</code> and <code>recover</code> to handle
-user-triggered errors.
+parse errors.
 </p>
 
 <p>
-With error handling in place, the <code>error</code> method
+With error handling in place, the <code>error</code> method (because it's a
+method bound to a type, it's fine, even natural, for it to have the same name
+as the builtin <code>error</code> type)
 makes it easy to report parse errors without worrying about unwinding
-the parse stack by hand.
+the parse stack by hand:
 </p>
+
+<pre>
+if pos==0 {
+    re.error("'*' illegal at start of expression")
+}
+</pre>
 
 <p>
 Useful though this pattern is, it should be used only within a package.
