@@ -47,14 +47,15 @@ func test4029(t *testing.T) {
 func loadThySelf(t *testing.T, symbol string) {
 	this_process := C.dlopen(nil, C.RTLD_NOW)
 	if this_process == nil {
-		t.Fatal("dlopen:", C.GoString(C.dlerror()))
+		t.Error("dlopen:", C.GoString(C.dlerror()))
+		return
 	}
 	defer C.dlclose(this_process)
 
 	symbol_address := C.dlsym(this_process, C.CString(symbol))
 	if symbol_address == nil {
-		t.Fatal("dlsym:", C.GoString(C.dlerror()))
-	} else {
-		t.Log(symbol, symbol_address)
+		t.Error("dlsym:", C.GoString(C.dlerror()))
+		return
 	}
+	t.Log(symbol, symbol_address)
 }
