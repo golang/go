@@ -487,7 +487,9 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			continue;
 		}
 
-		if(strcmp(f[0], "cgo_export") == 0) {
+		// TODO: cgo_export_static
+
+		if(strcmp(f[0], "cgo_export_dynamic") == 0) {
 			if(nf < 2 || nf > 3)
 				goto err;
 			local = f[1];
@@ -501,13 +503,17 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
 				nerrors++;
 			}
-			s->dynimpname = remote;
 			s->dynexport = 1;
-
-			if(ndynexp%32 == 0)
-				dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
-			dynexp[ndynexp++] = s;
-
+			if(s->dynimpname == nil) {
+				s->dynimpname = remote;
+				if(ndynexp%32 == 0)
+					dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+				dynexp[ndynexp++] = s;
+			} else if(strcmp(s->dynimpname, remote) != 0) {
+				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->dynimpname, remote);
+				nerrors++;
+				return;
+			}
 			if(local != f[1])
 				free(local);
 			continue;
@@ -526,6 +532,15 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				free(interpreter);
 				interpreter = strdup(f[1]);
 			}
+			continue;
+		}
+		
+		if(strcmp(f[0], "cgo_ldflag") == 0) {
+			if(nf != 2)
+				goto err;
+			if(nldflag%32 == 0)
+				ldflag = realloc(ldflag, (nldflag+32)*sizeof ldflag[0]);
+			ldflag[nldflag++] = strdup(f[1]);
 			continue;
 		}
 	}

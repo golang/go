@@ -31,7 +31,12 @@ func (p *Package) writeDefs() {
 
 	fflg := creat(*objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
-		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
+		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, strings.Join(v, " "))
+		if k == "LDFLAGS" {
+			for _, arg := range v {
+				fmt.Fprintf(fc, "#pragma cgo_ldflag %q\n", arg)
+			}
+		}
 	}
 	fflg.Close()
 
@@ -100,6 +105,7 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
 			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 
+			fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", n.C)
 			fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 
 			cVars[n.C] = true
@@ -651,8 +657,9 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		if fn.Recv != nil {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
-		fmt.Fprintf(fc, "#pragma cgo_export %s\n", goname)
+		fmt.Fprintf(fc, "#pragma cgo_export_dynamic %s\n", goname)
 		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
+		fmt.Fprintf(fc, "#pragma cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
 		fmt.Fprintf(fc, "void\n")
 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)

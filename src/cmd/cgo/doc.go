@@ -484,16 +484,16 @@ The directives are:
 	Example:
 	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
 
-#pragma cgo_export <local> <remote>
+#pragma cgo_export_dynamic <local> <remote>
 
-	In both internal and external linking modes, put the Go symbol
+	In internal linking mode, put the Go symbol
 	named <local> into the program's exported symbol table as
 	<remote>, so that C code can refer to it by that name. This
 	mechanism makes it possible for C code to call back into Go or
 	to share Go's data.
 
 	For compatibility with current versions of SWIG,
-	#pragma dynexport is an alias for #pragma cgo_export.
+	#pragma dynexport is an alias for #pragma cgo_export_dynamic.
 
 #pragma cgo_import_static <local>
 
@@ -504,6 +504,14 @@ The directives are:
 
 	Example:
 	#pragma cgo_import_static puts_wrapper
+
+#pragma cgo_export_static <local> <remote>
+
+	In external linking mode, put the Go symbol
+	named <local> into the program's exported symbol table as
+	<remote>, so that C code can refer to it by that name. This
+	mechanism makes it possible for C code to call back into Go or
+	to share Go's data.
 
 #pragma cgo_ldflag "<arg>"
 

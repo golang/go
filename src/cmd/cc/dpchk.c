@@ -692,22 +692,24 @@ pragcgo(char *verb)
 		goto out;
 	}	
 	
-	if(strcmp(verb, "cgo_export") == 0 || strcmp(verb, "dynexport") == 0) {
+	if(strcmp(verb, "dynexport") == 0)
+		verb = "cgo_export_dynamic";
+	if(strcmp(verb, "cgo_export_static") == 0 || strcmp(verb, "cgo_export_dynamic") == 0) {
 		local = getimpsym();
 		if(local == nil)
 			goto err2;
 		if(!more()) {
-			fmtprint(&pragcgobuf, "cgo_export %q\n", local->name);
+			fmtprint(&pragcgobuf, "%s %q\n", verb, local->name);
 			goto out;
 		}
 		remote = getimpsym();
 		if(remote == nil)
 			goto err2;
-		fmtprint(&pragcgobuf, "cgo_export %q %q\n", local->name, remote->name);
+		fmtprint(&pragcgobuf, "%s %q %q\n", verb, local->name, remote->name);
 		goto out;
 	
 	err2:
-		yyerror("usage: #pragma cgo_export local [remote]");
+		yyerror("usage: #pragma %s local [remote]", verb);
 		goto out;
 	}
 	
@@ -746,6 +748,18 @@ pragcgo(char *verb)
 
 	err4:
 		yyerror("usage: #pragma cgo_import_static local [remote]");
+		goto out;
+	}
+	
+	if(strcmp(verb, "cgo_ldflag") == 0) {
+		p = getquoted();
+		if(p == nil)
+			goto err5;
+		fmtprint(&pragcgobuf, "cgo_ldflag %q\n", p);
+		goto out;
+
+	err5:
+		yyerror("usage: #pragma cgo_ldflag \"arg\"");
 		goto out;
 	}
 	
