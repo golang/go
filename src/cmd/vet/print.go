@@ -10,7 +10,6 @@ import (
 	"flag"
 	"go/ast"
 	"go/token"
-	"go/types"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -302,59 +301,6 @@ func (f *File) checkPrintfArg(call *ast.CallExpr, verb rune, flags []byte, argNu
 	f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
 }
 
-func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
-	// TODO: for now, we can only test builtin types and untyped constants.
-	typ := f.pkg.types[arg]
-	if typ == nil {
-		return true
-	}
-	basic, ok := typ.(*types.Basic)
-	if !ok {
-		return true
-	}
-	switch basic.Kind {
-	case types.Bool:
-		return t&argBool != 0
-	case types.Int, types.Int8, types.Int16, types.Int32, types.Int64:
-		fallthrough
-	case types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64, types.Uintptr:
-		return t&argInt != 0
-	case types.Float32, types.Float64, types.Complex64, types.Complex128:
-		return t&argFloat != 0
-	case types.String:
-		return t&argString != 0
-	case types.UnsafePointer:
-		return t&(argPointer|argInt) != 0
-	case types.UntypedBool:
-		return t&argBool != 0
-	case types.UntypedComplex:
-		return t&argFloat != 0
-	case types.UntypedFloat:
-		// If it's integral, we can use an int format.
-		switch f.pkg.values[arg].(type) {
-		case int, int8, int16, int32, int64:
-			return t&(argInt|argFloat) != 0
-		case uint, uint8, uint16, uint32, uint64:
-			return t&(argInt|argFloat) != 0
-		}
-		return t&argFloat != 0
-	case types.UntypedInt:
-		return t&argInt != 0
-	case types.UntypedRune:
-		return t&(argInt|argRune) != 0
-	case types.UntypedString:
-		return t&argString != 0
-	case types.UntypedNil:
-		return t&argPointer != 0 // TODO?
-	case types.Invalid:
-		if *verbose {
-			f.Warnf(arg.Pos(), "printf argument %v has invalid or unknown type", arg)
-		}
-		return true // Probably a type check problem.
-	}
-	return false
-}
-
 // checkPrint checks a call to an unformatted print routine such as Println.
 // call.Args[firstArg] is the first argument to be printed.
 func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
@@ -402,65 +348,4 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
 			}
 		}
 	}
-}
-
-// numArgsInSignature tells how many formal arguments the function type
-// being called has.
-func (f *File) numArgsInSignature(call *ast.CallExpr) int {
-	// Check the type of the function or method declaration
-	typ := f.pkg.types[call.Fun]
-	if typ == nil {
-		return 0
-	}
-	// The type must be a signature, but be sure for safety.
-	sig, ok := typ.(*types.Signature)
-	if !ok {
-		return 0
-	}
-	return len(sig.Params)
-}
-
-// isErrorMethodCall reports whether the call is of a method with signature
-//	func Error() string
-// where "string" is the universe's string type. We know the method is called "Error".
-func (f *File) isErrorMethodCall(call *ast.CallExpr) bool {
-	// Is it a selector expression? Otherwise it's a function call, not a method call.
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	// The package is type-checked, so if there are no arguments, we're done.
-	if len(call.Args) > 0 {
-		return false
-	}
-	// Check the type of the method declaration
-	typ := f.pkg.types[sel]
-	if typ == nil {
-		return false
-	}
-	// The type must be a signature, but be sure for safety.
-	sig, ok := typ.(*types.Signature)
-	if !ok {
-		return false
-	}
-	// There must be a receiver for it to be a method call. Otherwise it is
-	// a function, not something that satisfies the error interface.
-	if sig.Recv == nil {
-		return false
-	}
-	// There must be no arguments. Already verified by type checking, but be thorough.
-	if len(sig.Params) > 0 {
-		return false
-	}
-	// Finally the real questions.
-	// There must be one result.
-	if len(sig.Results) != 1 {
-		return false
-	}
-	// It must have return type "string" from the universe.
-	result := sig.Results[0].Type
-	if types.IsIdentical(result, types.Typ[types.String]) {
-		return true
-	}
-	return false
 }
