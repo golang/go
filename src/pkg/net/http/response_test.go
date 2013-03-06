@@ -466,7 +466,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		if test.compressed {
 			gzReader, err := gzip.NewReader(resp.Body)
 			checkErr(err, "gzip.NewReader")
-			resp.Body = &readFirstCloseBoth{gzReader, resp.Body}
+			resp.Body = &readerAndCloser{gzReader, resp.Body}
 		}
 
 		rbuf := make([]byte, 2500)

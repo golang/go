@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/url"
@@ -592,7 +591,6 @@ func remoteSideClosed(err error) bool {
 func (pc *persistConn) readLoop() {
 	defer close(pc.closech)
 	alive := true
-	var lastbody io.ReadCloser // last response body, if any, read on this connection
 
 	for alive {
 		pb, err := pc.br.Peek(1)
@@ -610,13 +608,6 @@ func (pc *persistConn) readLoop() {
 		pc.lk.Unlock()
 
 		rc := <-pc.reqch
-
-		// Advance past the previous response's body, if the
-		// caller hasn't done so.
-		if lastbody != nil {
-			lastbody.Close() // assumed idempotent
-			lastbody = nil
-		}
 
 		var resp *Response
 		if err == nil {
@@ -636,7 +627,7 @@ func (pc *persistConn) readLoop() {
 					pc.close()
 					err = zerr
 				} else {
-					resp.Body = &readFirstCloseBoth{&discardOnCloseReadCloser{gzReader}, resp.Body}
+					resp.Body = &readerAndCloser{gzReader, resp.Body}
 				}
 			}
 			resp.Body = &bodyEOFSignal{body: resp.Body}
@@ -648,8 +639,14 @@ func (pc *persistConn) readLoop() {
 
 		var waitForBodyRead chan bool
 		if hasBody {
-			lastbody = resp.Body
-			waitForBodyRead = make(chan bool, 1)
+			waitForBodyRead = make(chan bool, 2)
+			resp.Body.(*bodyEOFSignal).earlyCloseFn = func() error {
+				// Sending false here sets alive to
+				// false and closes the connection
+				// below.
+				waitForBodyRead <- false
+				return nil
+			}
 			resp.Body.(*bodyEOFSignal).fn = func(err error) {
 				alive1 := alive
 				if err != nil {
@@ -666,15 +663,6 @@ func (pc *persistConn) readLoop() {
 		}
 
 		if alive && !hasBody {
-			// When there's no response body, we immediately
-			// reuse the TCP connection (putIdleConn), but
-			// we need to prevent ClientConn.Read from
-			// closing the Response.Body on the next
-			// loop, otherwise it might close the body
-			// before the client code has had a chance to
-			// read it (even though it'll just be 0, EOF).
-			lastbody = nil
-
 			if !pc.t.putIdleConn(pc) {
 				alive = false
 			}
@@ -868,13 +856,16 @@ func canonicalAddr(url *url.URL) string {
 
 // bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
 // once, right before its final (error-producing) Read or Close call
-// returns.
+// returns. If earlyCloseFn is non-nil and Close is called before
+// io.EOF is seen, earlyCloseFn is called instead of fn, and its
+// return value is the return value from Close.
 type bodyEOFSignal struct {
-	body   io.ReadCloser
-	mu     sync.Mutex  // guards closed, rerr and fn
-	closed bool        // whether Close has been called
-	rerr   error       // sticky Read error
-	fn     func(error) // error will be nil on Read io.EOF
+	body         io.ReadCloser
+	mu           sync.Mutex   // guards following 4 fields
+	closed       bool         // whether Close has been called
+	rerr         error        // sticky Read error
+	fn           func(error)  // error will be nil on Read io.EOF
+	earlyCloseFn func() error // optional alt Close func used if io.EOF not seen
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
@@ -907,6 +898,9 @@ func (es *bodyEOFSignal) Close() error {
 		return nil
 	}
 	es.closed = true
+	if es.earlyCloseFn != nil && es.rerr != io.EOF {
+		return es.earlyCloseFn()
+	}
 	err := es.body.Close()
 	es.condfn(err)
 	return err
@@ -924,28 +918,7 @@ func (es *bodyEOFSignal) condfn(err error) {
 	es.fn = nil
 }
 
-type readFirstCloseBoth struct {
-	io.ReadCloser
+type readerAndCloser struct {
+	io.Reader
 	io.Closer
-}
-
-func (r *readFirstCloseBoth) Close() error {
-	if err := r.ReadCloser.Close(); err != nil {
-		r.Closer.Close()
-		return err
-	}
-	if err := r.Closer.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
-// discardOnCloseReadCloser consumes all its input on Close.
-type discardOnCloseReadCloser struct {
-	io.ReadCloser
-}
-
-func (d *discardOnCloseReadCloser) Close() error {
-	io.Copy(ioutil.Discard, d.ReadCloser) // ignore errors; likely invalid or already closed
-	return d.ReadCloser.Close()
 }
