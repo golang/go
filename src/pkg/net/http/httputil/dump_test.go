@@ -68,7 +68,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go http package\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
 
@@ -80,7 +80,7 @@ var dumpTests = []dumpTest{
 
 		WantDumpOut: "GET /foo HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
-			"User-Agent: Go http package\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
 }
