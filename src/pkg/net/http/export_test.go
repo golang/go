@@ -54,3 +54,5 @@ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	}
 	return &timeoutHandler{handler, f, ""}
 }
+
+var DefaultUserAgent = defaultUserAgent

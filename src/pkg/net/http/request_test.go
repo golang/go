@@ -289,7 +289,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	want := []string{
 		"GET / HTTP/1.1\r\n",
 		"Host: foo.com\r\n",
-		"User-Agent: Go http package\r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
 		"\r\n",
 	}
 	if !reflect.DeepEqual(got, want) {
