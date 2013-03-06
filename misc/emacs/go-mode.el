@@ -7,16 +7,69 @@
 (require 'cl)
 (require 'diff-mode)
 (require 'ffap)
-(require 'find-lisp)
 (require 'url)
+
+;; XEmacs compatibility guidelines
+;; - Minimum required version of XEmacs: 21.5.32
+;;   - Feature that cannot be backported: POSIX character classes in
+;;     regular expressions
+;;   - Functions that could be backported but won't because 21.5.32
+;;     covers them: plenty.
+;;   - Features that are still partly broken:
+;;     - Fontification will not handle unicode correctly
+;;
+;; - Do not use \_< and \_> regexp delimiters directly; use
+;;   go--regexp-enclose-in-symbol
+;;
+;; - The character `_` must not be a symbol constituent but a
+;;   character constituent
+;;
+;; - Do not use process-lines
+;;
+;; - Use go--old-completion-list-style when using a plain list as the
+;;   collection for completing-read
+;;
+;; - Use go--kill-whole-line instead of kill-whole-line (called
+;;   kill-entire-line in XEmacs)
+;;
+;; - Use go--position-bytes instead of position-bytes
+(defmacro go--xemacs-p ()
+  `(featurep 'xemacs))
+
+(defalias 'go--kill-whole-line
+  (if (fboundp 'kill-whole-line)
+      'kill-whole-line
+    'kill-entire-line))
+
+;; XEmacs unfortunately does not offer position-bytes. We can fall
+;; back to just using (point), but it will be incorrect as soon as
+;; multibyte characters are being used.
+(if (fboundp 'position-bytes)
+    (defalias 'go--position-bytes 'position-bytes)
+  (defun go--position-bytes (point) point))
+
+(defun go--old-completion-list-style (list)
+  (mapcar (lambda (x) (cons x nil)) list))
+
+
+(defun go--regexp-enclose-in-symbol (s)
+  ;; XEmacs does not support \_<, GNU Emacs does. In GNU Emacs we make
+  ;; extensive use of \_< to support unicode in identifiers. Until we
+  ;; come up with a better solution for XEmacs, this solution will
+  ;; break fontification in XEmacs for identifiers such as "typeµ".
+  ;; XEmacs will consider "type" a keyword, GNU Emacs won't.
+
+  (if (go--xemacs-p)
+      (concat "\\<" s "\\>")
+    (concat "\\_<" s "\\_>")))
 
 (defconst go-dangling-operators-regexp "[^-]-\\|[^+]\\+\\|[/*&><.=|^]")
 (defconst gofmt-stdin-tag "<standard input>")
-(defconst go-identifier-regexp "[[:word:][:multibyte:]_]+")
+(defconst go-identifier-regexp "[[:word:][:multibyte:]]+")
 (defconst go-label-regexp go-identifier-regexp)
-(defconst go-type-regexp "[[:word:][:multibyte:]_*]+")
-(defconst go-func-regexp (concat "\\<func\\>\\s *\\(" go-identifier-regexp "\\)"))
-(defconst go-func-meth-regexp (concat "\\<func\\>\\s *\\(?:(\\s *" go-identifier-regexp "\\s +" go-type-regexp "\\s *)\\s *\\)?\\(" go-identifier-regexp "\\)("))
+(defconst go-type-regexp "[[:word:][:multibyte:]*]+")
+(defconst go-func-regexp (concat (go--regexp-enclose-in-symbol "func") "\\s *\\(" go-identifier-regexp "\\)"))
+(defconst go-func-meth-regexp (concat (go--regexp-enclose-in-symbol "func") "\\s *\\(?:(\\s *" go-identifier-regexp "\\s +" go-type-regexp "\\s *)\\s *\\)?\\(" go-identifier-regexp "\\)("))
 (defconst go-builtins
   '("append" "cap"   "close"   "complex" "copy"
     "delete" "imag"  "len"     "make"    "new"
@@ -58,23 +111,27 @@
     (modify-syntax-entry ?=  "." st)
     (modify-syntax-entry ?<  "." st)
     (modify-syntax-entry ?>  "." st)
-    (modify-syntax-entry ?/  ". 124b" st)
+    (modify-syntax-entry ?/ (if (go--xemacs-p) ". 1456" ". 124b") st)
     (modify-syntax-entry ?*  ". 23" st)
     (modify-syntax-entry ?\n "> b" st)
     (modify-syntax-entry ?\" "\"" st)
     (modify-syntax-entry ?\' "\"" st)
     (modify-syntax-entry ?`  "\"" st)
     (modify-syntax-entry ?\\ "\\" st)
-    (modify-syntax-entry ?_  "_" st)
+    ;; It would be nicer to have _ as a symbol constituent, but that
+    ;; would trip up XEmacs, which does not support the \_< anchor
+    (modify-syntax-entry ?_  "w" st)
 
     st)
   "Syntax table for Go mode.")
 
 (defun go--build-font-lock-keywords ()
+  ;; we cannot use 'symbols in regexp-opt because emacs <24 doesn't
+  ;; understand that
   (append
-   `((,(regexp-opt go-mode-keywords 'symbols) . font-lock-keyword-face)
-     (,(regexp-opt go-builtins 'symbols) . font-lock-builtin-face)
-     (,(regexp-opt go-constants 'symbols) . font-lock-constant-face)
+   `((,(go--regexp-enclose-in-symbol (regexp-opt go-mode-keywords t)) . font-lock-keyword-face)
+     (,(go--regexp-enclose-in-symbol (regexp-opt go-builtins t)) . font-lock-builtin-face)
+     (,(go--regexp-enclose-in-symbol (regexp-opt go-constants t)) . font-lock-constant-face)
      (,go-func-regexp 1 font-lock-function-name-face)) ;; function (not method) name
 
    (if go-fontify-function-calls
@@ -83,22 +140,22 @@
      `((,go-func-meth-regexp 1 font-lock-function-name-face))) ;; method name
 
    `(
-     ("\\<type\\>[[:space:]]*\\([^[:space:]]+\\)" 1 font-lock-type-face) ;; types
-     (,(concat "\\<type\\>[[:space:]]*" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
-     (,(concat "\\(?:[[:space:]]+\\|\\]\\)\\[\\([[:digit:]]+\\|\\.\\.\\.\\)?\\]" go-type-name-regexp) 2 font-lock-type-face) ;; Arrays/slices
-     (,(concat "map\\[[^]]+\\]" go-type-name-regexp) 1 font-lock-type-face) ;; map value type
+     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
+     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
+     (,(concat "[^[:word:][:multibyte:]]\\[\\([[:digit:]]+\\|\\.\\.\\.\\)?\\]" go-type-name-regexp) 2 font-lock-type-face) ;; Arrays/slices
      (,(concat "\\(" go-identifier-regexp "\\)" "{") 1 font-lock-type-face)
-     (,(concat "\\<map\\[" go-type-name-regexp) 1 font-lock-type-face) ;; map key type
-     (,(concat "\\<chan\\>[[:space:]]*\\(?:<-\\)?" go-type-name-regexp) 1 font-lock-type-face) ;; channel type
-     (,(concat "\\<\\(?:new\\|make\\)\\>\\(?:[[:space:]]\\|)\\)*(" go-type-name-regexp) 1 font-lock-type-face) ;; new/make type
+     (,(concat (go--regexp-enclose-in-symbol "map") "\\[[^]]+\\]" go-type-name-regexp) 1 font-lock-type-face) ;; map value type
+     (,(concat (go--regexp-enclose-in-symbol "map") "\\[" go-type-name-regexp) 1 font-lock-type-face) ;; map key type
+     (,(concat (go--regexp-enclose-in-symbol "chan") "[[:space:]]*\\(?:<-\\)?" go-type-name-regexp) 1 font-lock-type-face) ;; channel type
+     (,(concat (go--regexp-enclose-in-symbol "\\(?:new\\|make\\)") "\\(?:[[:space:]]\\|)\\)*(" go-type-name-regexp) 1 font-lock-type-face) ;; new/make type
      ;; TODO do we actually need this one or isn't it just a function call?
      (,(concat "\\.\\s *(" go-type-name-regexp) 1 font-lock-type-face) ;; Type conversion
-     (,(concat "\\<func\\>[[:space:]]+(" go-identifier-regexp "[[:space:]]+" go-type-name-regexp ")") 1 font-lock-type-face) ;; Method receiver
+     (,(concat (go--regexp-enclose-in-symbol "func") "[[:space:]]+(" go-identifier-regexp "[[:space:]]+" go-type-name-regexp ")") 1 font-lock-type-face) ;; Method receiver
      ;; Like the original go-mode this also marks compound literal
      ;; fields. There, it was marked as to fix, but I grew quite
      ;; accustomed to it, so it'll stay for now.
      (,(concat "^[[:space:]]*\\(" go-label-regexp "\\)[[:space:]]*:\\(\\S.\\|$\\)") 1 font-lock-constant-face) ;; Labels and compound literal fields
-     (,(concat "\\<\\(goto\\|break\\|continue\\)\\>[[:space:]]*\\(" go-label-regexp "\\)") 2 font-lock-constant-face)))) ;; labels in goto/break/continue
+     (,(concat (go--regexp-enclose-in-symbol "\\(goto\\|break\\|continue\\)") "[[:space:]]*\\(" go-label-regexp "\\)") 2 font-lock-constant-face)))) ;; labels in goto/break/continue
 
 (defvar go-mode-map
   (let ((m (make-sparse-keymap)))
@@ -141,7 +198,7 @@ It skips over whitespace, comments, cases and labels and, if
 STOP-AT-STRING is not true, over strings."
 
   (let (pos (start-pos (point)))
-    (skip-chars-backward "\n[:blank:]")
+    (skip-chars-backward "\n\s\t")
     (if (and (save-excursion (beginning-of-line) (go-in-string-p)) (looking-back "`") (not stop-at-string))
         (backward-char))
     (if (and (go-in-string-p) (not stop-at-string))
@@ -480,7 +537,7 @@ you save any file, kind of defeating the point of autoloading."
     (completing-read (if symbol
                          (format "godoc (default %s): " symbol)
                        "godoc: ")
-                     (go-packages) nil nil nil 'go-godoc-history symbol)))
+                     (go--old-completion-list-style (go-packages)) nil nil nil 'go-godoc-history symbol)))
 
 (defun godoc--get-buffer (query)
   "Get an empty buffer for a godoc query."
@@ -629,7 +686,7 @@ uncommented, otherwise a new import will be added."
   (interactive
    (list
     current-prefix-arg
-    (replace-regexp-in-string "^[\"']\\|[\"']$" "" (completing-read "Package: " (go-packages)))))
+    (replace-regexp-in-string "^[\"']\\|[\"']$" "" (completing-read "Package: " (go--old-completion-list-style (go-packages))))))
   (save-excursion
     (let (as line import-start)
       (if arg
@@ -654,10 +711,33 @@ uncommented, otherwise a new import will be added."
           ('none (insert "\nimport (\n\t" line "\n)\n")))))))
 
 (defun go-root-and-paths ()
-  (let* ((output (process-lines "go" "env" "GOROOT" "GOPATH"))
+  (let* ((output (split-string (shell-command-to-string "go env GOROOT GOPATH") "\n"))
          (root (car output))
-         (paths (split-string (car (cdr output)) ":")))
+         (paths (split-string (cadr output) ":")))
     (append (list root) paths)))
+
+(defun go--string-prefix-p (s1 s2 &optional ignore-case)
+  "Return non-nil if S1 is a prefix of S2.
+If IGNORE-CASE is non-nil, the comparison is case-insensitive."
+  (eq t (compare-strings s1 nil nil
+                         s2 0 (length s1) ignore-case)))
+
+(defun go--directory-dirs (dir)
+  "Recursively return all subdirectories in DIR."
+  (if (file-directory-p dir)
+      (let ((dir (directory-file-name dir))
+            (dirs '())
+            (files (directory-files dir nil nil t)))
+        (dolist (file files)
+          (unless (member file '("." ".."))
+            (let ((file (concat dir "/" file)))
+              (if (file-directory-p file)
+                  (setq dirs (append (cons file
+                                           (go--directory-dirs file))
+                                     dirs))))))
+        dirs)
+    '()))
+
 
 (defun go-packages ()
   (sort
@@ -668,12 +748,12 @@ uncommented, otherwise a new import will be added."
          (mapcan (lambda (dir)
                    (mapcar (lambda (file)
                              (let ((sub (substring file (length pkgdir) -2)))
-                               (unless (or (string-prefix-p "obj/" sub) (string-prefix-p "tool/" sub))
+                               (unless (or (go--string-prefix-p "obj/" sub) (go--string-prefix-p "tool/" sub))
                                  (mapconcat 'identity (cdr (split-string sub "/")) "/"))))
                            (if (file-directory-p dir)
                                (directory-files dir t "\\.a$"))))
                  (if (file-directory-p pkgdir)
-                     (find-lisp-find-files-internal pkgdir 'find-lisp-file-predicate-is-directory 'find-lisp-default-directory-predicate)))))
+                     (go--directory-dirs pkgdir)))))
      (go-root-and-paths)))
    'string<))
 
@@ -713,8 +793,7 @@ will be commented, otherwise they will be removed completely."
           (beginning-of-line)
           (if arg
               (comment-region (line-beginning-position) (line-end-position))
-            (let ((kill-whole-line t))
-              (kill-line))))
+            (go--kill-whole-line)))
         (message "Removed %d imports" (length lines)))
       (if flymake-state (flymake-mode-on)))))
 
