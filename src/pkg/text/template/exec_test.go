@@ -816,3 +816,40 @@ func TestExecuteOnNewTemplate(t *testing.T) {
 	// This is issue 3872.
 	_ = New("Name").Templates()
 }
+
+const testTemplates = `{{define "one"}}one{{end}}{{define "two"}}two{{end}}`
+
+func TestMessageForExecuteEmpty(t *testing.T) {
+	// Test a truly empty template.
+	tmpl := New("empty")
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, 0)
+	if err == nil {
+		t.Fatal("expected initial error")
+	}
+	got := err.Error()
+	want := `template: empty: "empty" is an incomplete or empty template`
+	if got != want {
+		t.Errorf("expected error %s got %s", want, got)
+	}
+	// Add a non-empty template to check that the error is helpful.
+	tests, err := New("").Parse(testTemplates)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl.AddParseTree("secondary", tests.Tree)
+	err = tmpl.Execute(&b, 0)
+	if err == nil {
+		t.Fatal("expected second error")
+	}
+	got = err.Error()
+	want = `template: empty: "empty" is an incomplete or empty template; defined templates are: "secondary"`
+	if got != want {
+		t.Errorf("expected error %s got %s", want, got)
+	}
+	// Make sure we can execute the secondary.
+	err = tmpl.ExecuteTemplate(&b, "secondary", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
