@@ -1214,6 +1214,70 @@ func TestTransportCancelRequest(t *testing.T) {
 	}
 }
 
+// golang.org/issue/3672 -- Client can't close HTTP stream
+// Calling Close on a Response.Body used to just read until EOF.
+// Now it actually closes the TCP connection.
+func TestTransportCloseResponseBody(t *testing.T) {
+	defer checkLeakedTransports(t)
+	writeErr := make(chan error, 1)
+	msg := []byte("young\n")
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		for {
+			_, err := w.Write(msg)
+			if err != nil {
+				writeErr <- err
+				return
+			}
+			w.(Flusher).Flush()
+		}
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	req, _ := NewRequest("GET", ts.URL, nil)
+	defer tr.CancelRequest(req)
+
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const repeats = 3
+	buf := make([]byte, len(msg)*repeats)
+	want := bytes.Repeat(msg, repeats)
+
+	_, err = io.ReadFull(res.Body, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buf, want) {
+		t.Errorf("read %q; want %q", buf, want)
+	}
+	didClose := make(chan error, 1)
+	go func() {
+		didClose <- res.Body.Close()
+	}()
+	select {
+	case err := <-didClose:
+		if err != nil {
+			t.Errorf("Close = %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("too long waiting for close")
+	}
+	select {
+	case err := <-writeErr:
+		if err == nil {
+			t.Errorf("expected non-nil write error")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("too long waiting for write error")
+	}
+}
+
 type fooProto struct{}
 
 func (fooProto) RoundTrip(req *Request) (*Response, error) {
