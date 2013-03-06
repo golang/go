@@ -552,11 +552,21 @@ pkg net, var UDP DialOption
 pkg net/http, func ParseTime(string) (time.Time, error)
 pkg net/http, method (*Request) PostFormValue(string) string
 pkg net/http, method (*ServeMux) Handler(*Request) (Handler, string)
+pkg net/http, method (*Transport) CancelRequest(*Request)
 pkg net/http, type CloseNotifier interface { CloseNotify }
 pkg net/http, type CloseNotifier interface, CloseNotify() <-chan bool
 pkg net/http, type Request struct, PostForm url.Values
 pkg net/http, type Server struct, TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 pkg net/http, type Transport struct, ResponseHeaderTimeout time.Duration
+pkg net/http/cookiejar, func New(*Options) (*Jar, error)
+pkg net/http/cookiejar, method (*Jar) Cookies(*url.URL) []*http.Cookie
+pkg net/http/cookiejar, method (*Jar) SetCookies(*url.URL, []*http.Cookie)
+pkg net/http/cookiejar, type Jar struct
+pkg net/http/cookiejar, type Options struct
+pkg net/http/cookiejar, type Options struct, PublicSuffixList PublicSuffixList
+pkg net/http/cookiejar, type PublicSuffixList interface { PublicSuffix, String }
+pkg net/http/cookiejar, type PublicSuffixList interface, PublicSuffix(string) string
+pkg net/http/cookiejar, type PublicSuffixList interface, String() string
 pkg net/mail, func ParseAddress(string) (*Address, error)
 pkg net/mail, func ParseAddressList(string) ([]*Address, error)
 pkg net/smtp, method (*Client) Hello(string) error
@@ -1058,6 +1068,7 @@ pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, Version uint8
 pkg syscall (freebsd-amd64), type IfAnnounceMsghdr struct, What uint16
 pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct
 pkg syscall (freebsd-amd64), type InterfaceAnnounceMessage struct, Header IfAnnounceMsghdr
+pkg syscall (linux-386), const MSG_FASTOPEN ideal-int
 pkg syscall (linux-386), const RTNLGRP_IPV4_IFADDR ideal-int
 pkg syscall (linux-386), const RTNLGRP_IPV4_MROUTE ideal-int
 pkg syscall (linux-386), const RTNLGRP_IPV4_ROUTE ideal-int
@@ -1117,6 +1128,7 @@ pkg syscall (linux-386), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-386), type TCPInfo struct, State uint8
 pkg syscall (linux-386), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-386), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-386-cgo), const MSG_FASTOPEN ideal-int
 pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
 pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
 pkg syscall (linux-386-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
@@ -1176,6 +1188,7 @@ pkg syscall (linux-386-cgo), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-386-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-386-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-386-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64), const MSG_FASTOPEN ideal-int
 pkg syscall (linux-amd64), const RTNLGRP_IPV4_IFADDR ideal-int
 pkg syscall (linux-amd64), const RTNLGRP_IPV4_MROUTE ideal-int
 pkg syscall (linux-amd64), const RTNLGRP_IPV4_ROUTE ideal-int
@@ -1235,6 +1248,7 @@ pkg syscall (linux-amd64), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-amd64), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-amd64-cgo), const MSG_FASTOPEN ideal-int
 pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_IFADDR ideal-int
 pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_MROUTE ideal-int
 pkg syscall (linux-amd64-cgo), const RTNLGRP_IPV4_ROUTE ideal-int
@@ -1294,6 +1308,7 @@ pkg syscall (linux-amd64-cgo), type TCPInfo struct, Snd_ssthresh uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, State uint8
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Total_retrans uint32
 pkg syscall (linux-amd64-cgo), type TCPInfo struct, Unacked uint32
+pkg syscall (linux-arm), const MSG_FASTOPEN ideal-int
 pkg syscall (linux-arm), const RTNLGRP_IPV4_IFADDR ideal-int
 pkg syscall (linux-arm), const RTNLGRP_IPV4_MROUTE ideal-int
 pkg syscall (linux-arm), const RTNLGRP_IPV4_ROUTE ideal-int
