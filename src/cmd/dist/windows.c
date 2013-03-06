@@ -271,6 +271,8 @@ static void bgwait1(void);
 static void
 genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
 {
+	// Another copy of this logic is in ../../lib9/run_windows.c.
+	// If there's a bug here, fix the logic there too.
 	int i, j, nslash;
 	Buf cmd;
 	char *q;
