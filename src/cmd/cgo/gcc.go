@@ -139,11 +139,7 @@ NextLine:
 // addToFlag appends args to flag.  All flags are later written out onto the
 // _cgo_flags file for the build system to use.
 func (p *Package) addToFlag(flag string, args []string) {
-	if oldv, ok := p.CgoFlags[flag]; ok {
-		p.CgoFlags[flag] = oldv + " " + strings.Join(args, " ")
-	} else {
-		p.CgoFlags[flag] = strings.Join(args, " ")
-	}
+	p.CgoFlags[flag] = append(p.CgoFlags[flag], args...)
 	if flag == "CFLAGS" {
 		// We'll also need these when preprocessing for dwarf information.
 		p.GccOptions = append(p.GccOptions, args...)
