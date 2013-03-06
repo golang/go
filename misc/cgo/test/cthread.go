@@ -34,6 +34,10 @@ func testCthread(t *testing.T) {
 	if runtime.GOARCH == "arm" {
 		t.Skip("testCthread disabled on arm")
 	}
+	// TODO(brainman): http://golang.org/issue/4955
+	if runtime.GOOS == "windows" {
+		t.Skip("testCthread disabled on windows: http://golang.org/issue/4955")
+	}
 
 	C.doAdd(10, 6)
 
