@@ -134,13 +134,15 @@ echo
 
 if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+	# TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
-		"$GOTOOLDIR"/go_bootstrap install -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+		"$GOTOOLDIR"/go_bootstrap install -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -tags gotypes -v std
 	echo
 fi
 
 echo "# Building packages and commands for $GOOS/$GOARCH."
-"$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+# TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
+"$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -tags gotypes -v std
 echo
 
 rm -f "$GOTOOLDIR"/go_bootstrap
