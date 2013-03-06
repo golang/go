@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -1299,6 +1300,9 @@ var mallocTest = []struct {
 }
 
 func TestCountMallocs(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
 	for _, mt := range mallocTest {
 		allocs := int(testing.AllocsPerRun(100, mt.fn))
 		if allocs > mt.count {

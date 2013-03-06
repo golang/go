@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -49,6 +50,10 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
 }
 
 func TestCountEncodeMallocs(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+
 	const N = 1000
 
 	var buf bytes.Buffer
@@ -65,6 +70,10 @@ func TestCountEncodeMallocs(t *testing.T) {
 }
 
 func TestCountDecodeMallocs(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
+
 	const N = 1000
 
 	var buf bytes.Buffer

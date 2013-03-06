@@ -9,6 +9,7 @@ import (
 	. "fmt"
 	"io"
 	"math"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -601,6 +602,9 @@ var mallocTest = []struct {
 var _ bytes.Buffer
 
 func TestCountMallocs(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
 		if got, max := mallocs, float64(mt.count); got > max {

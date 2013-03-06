@@ -5,6 +5,7 @@
 package path
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -70,6 +71,11 @@ func TestClean(t *testing.T) {
 		if s := Clean(test.result); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
 		}
+	}
+
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
+		return
 	}
 
 	for _, test := range cleantests {

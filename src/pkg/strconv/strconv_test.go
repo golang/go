@@ -5,6 +5,7 @@
 package strconv_test
 
 import (
+	"runtime"
 	. "strconv"
 	"strings"
 	"testing"
@@ -43,6 +44,9 @@ var (
 )
 
 func TestCountMallocs(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
 	for _, mt := range mallocTest {
 		allocs := testing.AllocsPerRun(100, mt.fn)
 		if max := float64(mt.count); allocs > max {

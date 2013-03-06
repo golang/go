@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	. "reflect"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -2011,6 +2012,9 @@ func TestAddr(t *testing.T) {
 }
 
 func noAlloc(t *testing.T, n int, f func(int)) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
 	i := -1
 	allocs := testing.AllocsPerRun(n, func() {
 		f(i)

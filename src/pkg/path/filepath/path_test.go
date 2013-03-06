@@ -107,6 +107,11 @@ func TestClean(t *testing.T) {
 		}
 	}
 
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
+		return
+	}
+
 	for _, test := range tests {
 		allocs := testing.AllocsPerRun(100, func() { filepath.Clean(test.result) })
 		if allocs > 0 {

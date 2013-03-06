@@ -5,6 +5,7 @@
 package sort_test
 
 import (
+	"runtime"
 	. "sort"
 	"testing"
 )
@@ -127,6 +128,9 @@ func runSearchWrappers() {
 }
 
 func TestSearchWrappersDontAlloc(t *testing.T) {
+	if runtime.GOMAXPROCS(0) > 1 {
+		t.Skip("skipping; GOMAXPROCS>1")
+	}
 	allocs := testing.AllocsPerRun(100, runSearchWrappers)
 	if allocs != 0 {
 		t.Errorf("expected no allocs for runSearchWrappers, got %v", allocs)
