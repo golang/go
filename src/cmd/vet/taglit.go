@@ -9,7 +9,6 @@ package main
 import (
 	"flag"
 	"go/ast"
-	"go/types"
 	"strings"
 )
 
@@ -22,19 +21,9 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 
-	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
-	typ := f.pkg.types[c]
-	if typ != nil {
-		// If it's a named type, pull out the underlying type.
-		if namedType, ok := typ.(*types.NamedType); ok {
-			typ = namedType.Underlying
-		}
-		switch typ.(type) {
-		case *types.Slice:
-			return
-		case *types.Array:
-			return
-		}
+	isStruct, typeString := f.pkg.isStruct(c)
+	if !isStruct {
+		return
 	}
 
 	// It's a struct, or we can't tell it's not a struct because we don't have types.
@@ -72,11 +61,7 @@ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 		return
 	}
 
-	pre := ""
-	if typ != nil {
-		pre = typ.String() + " "
-	}
-	f.Warn(c.Pos(), pre+"composite literal uses untagged fields")
+	f.Warn(c.Pos(), typeString+" composite literal uses untagged fields")
 }
 
 // pkgPath returns the import path "image/png" for the package name "png".
@@ -124,7 +109,6 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"encoding/xml.Comment":                          true,
 	"encoding/xml.Directive":                        true,
 	"exp/norm.Decomposition":                        true,
-	"exp/types.ObjList":                             true,
 	"go/scanner.ErrorList":                          true,
 	"image/color.Palette":                           true,
 	"net.HardwareAddr":                              true,

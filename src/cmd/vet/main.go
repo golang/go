@@ -15,7 +15,6 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -175,7 +174,7 @@ func doPackageDir(directory string) {
 }
 
 type Package struct {
-	types  map[ast.Expr]types.Type
+	types  map[ast.Expr]Type
 	values map[ast.Expr]interface{}
 }
 
@@ -207,22 +206,8 @@ func doPackage(names []string) {
 		astFiles = append(astFiles, parsedFile)
 	}
 	pkg := new(Package)
-	pkg.types = make(map[ast.Expr]types.Type)
-	pkg.values = make(map[ast.Expr]interface{})
-	exprFn := func(x ast.Expr, typ types.Type, val interface{}) {
-		pkg.types[x] = typ
-		if val != nil {
-			pkg.values[x] = val
-		}
-	}
-	// By providing the Context with our own error function, it will continue
-	// past the first error. There is no need for that function to do anything.
-	context := types.Context{
-		Expr:  exprFn,
-		Error: func(error) {},
-	}
 	// Type check the package.
-	_, err := context.Check(fs, astFiles)
+	err := pkg.check(fs, astFiles)
 	if err != nil && *verbose {
 		warnf("%s", err)
 	}
