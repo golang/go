@@ -178,7 +178,7 @@ var testHeader = Header{
 	"Content-Length": {"123"},
 	"Content-Type":   {"text/plain"},
 	"Date":           {"some date at some time Z"},
-	"Server":         {"Go http package"},
+	"Server":         {DefaultUserAgent},
 }
 
 var buf bytes.Buffer
