@@ -1095,3 +1095,21 @@ func BenchmarkFieldsFunc(b *testing.B) {
 		FieldsFunc(fieldsInput, unicode.IsSpace)
 	}
 }
+
+func BenchmarkSplit1(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, "")
+	}
+}
+
+func BenchmarkSplit2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, "/")
+	}
+}
+
+func BenchmarkSplit3(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Split(benchInputHard, "hello")
+	}
+}
