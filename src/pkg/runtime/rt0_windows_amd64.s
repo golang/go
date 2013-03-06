@@ -4,7 +4,7 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-TEXT _rt0_amd64_darwin(SB),7,$-8
+TEXT _rt0_amd64_windows(SB),7,$-8
 	LEAQ	8(SP), SI // argv
 	MOVQ	0(SP), DI // argc
 	MOVQ	$main(SB), AX
