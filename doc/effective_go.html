@@ -1710,10 +1710,45 @@ the receiver for <code>String</code> must be of value type; this example used a 
 that's more efficient and idiomatic for struct types.
 See the section below on <a href="#pointers_vs_values">pointers vs. value receivers</a> for more information.)
 </p>
+
 <p>
 Our <code>String</code> method is able to call <code>Sprintf</code> because the
-print routines are fully reentrant and can be used recursively.
-We can even go one step further and pass a print routine's arguments directly to another such routine.
+print routines are fully reentrant and can be wrapped this way.
+There is one important detail to understand about this approach,
+however: don't construct a <code>String</code> method by calling
+<code>Sprintf</code> in a way that will recur into your <code>String</code>
+method indefinitely.  This can happen if the <code>Sprintf</code>
+call attempts to print the receiver directly as a string, which in
+turn will invoke the method again.  It's a common and easy mistake
+to make, as this example shows.
+</p>
+
+<pre>
+type MyString string
+
+func (m MyString) String() string {
+    return fmt.Sprintf("MyString=%s", m) // Error: will recur forever.
+}
+</pre>
+
+<p>
+It's also easy to fix: convert the argument to the basic string type, which does not have the
+method.
+</p>
+
+<pre>
+type MyString string
+func (m MyString) String() string {
+    return fmt.Sprintf("MyString=%s", string(m)) // OK: note conversion.
+}
+</pre>
+
+<p>
+In the <a href="#initialization">initialization section</a> we'll see another technique that avoids this recursion.
+</p>
+
+<p>
+Another printing technique is to pass a print routine's arguments directly to another such routine.
 The signature of <code>Printf</code> uses the type <code>...interface{}</code>
 for its final argument to specify that an arbitrary number of parameters (of arbitrary type)
 can appear after the format.
@@ -1857,13 +1892,13 @@ while <code>ByteSize(1e13)</code> prints as <code>9.09TB</code>.
 </p>
 
 <p>
-Note that it's fine to call <code>Sprintf</code> and friends in the
-implementation of <code>String</code> methods, but beware of
-recurring into the <code>String</code> method through the nested
-<code>Sprintf</code> call using a string format
-(<code>%s</code>, <code>%q</code>, <code>%v</code>, <code>%x</code> or <code>%X</code>).
-The <code>ByteSize</code> implementation of <code>String</code> is safe
-because it calls <code>Sprintf</code> with <code>%f</code>.
+The use here of <code>Sprintf</code>
+to implement <code>ByteSize</code>'s <code>String</code> method is safe
+(avoids recurring indefinitely) not because of a conversion but
+because it calls <code>Sprintf</code> with <code>%f</code>,
+which is not a string format: <code>Sprintf</code> will only call
+the <code>String</code> method when it wants a string, and <code>%f</code>
+wants a floating-point value.
 </p>
 
 <h3 id="variables">Variables</h3>
@@ -2022,10 +2057,8 @@ func (s Sequence) String() string {
 }
 </pre>
 <p>
-The conversion causes <code>s</code> to be treated as an ordinary slice
-and therefore receive the default formatting.
-Without the conversion, <code>Sprint</code> would find the
-<code>String</code> method of <code>Sequence</code> and recur indefinitely.
+This method is another example of the conversion technique for calling
+<code>Sprintf</code> safely from a <code>String</code> method.
 Because the two types (<code>Sequence</code> and <code>[]int</code>)
 are the same if we ignore the type name, it's legal to convert between them.
 The conversion doesn't create a new value, it just temporarily acts
