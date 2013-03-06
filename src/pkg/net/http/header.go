@@ -103,21 +103,41 @@ type keyValues struct {
 	values []string
 }
 
-type byKey []keyValues
+// A headerSorter implements sort.Interface by sorting a []keyValues
+// by key. It's used as a pointer, so it can fit in a sort.Interface
+// interface value without allocation.
+type headerSorter struct {
+	kvs []keyValues
+}
 
-func (s byKey) Len() int           { return len(s) }
-func (s byKey) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s byKey) Less(i, j int) bool { return s[i].key < s[j].key }
+func (s *headerSorter) Len() int           { return len(s.kvs) }
+func (s *headerSorter) Swap(i, j int)      { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
+func (s *headerSorter) Less(i, j int) bool { return s.kvs[i].key < s.kvs[j].key }
 
-func (h Header) sortedKeyValues(exclude map[string]bool) []keyValues {
-	kvs := make([]keyValues, 0, len(h))
+// TODO: convert this to a sync.Cache (issue 4720)
+var headerSorterCache = make(chan *headerSorter, 8)
+
+// sortedKeyValues returns h's keys sorted in the returned kvs
+// slice. The headerSorter used to sort is also returned, for possible
+// return to headerSorterCache.
+func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *headerSorter) {
+	select {
+	case hs = <-headerSorterCache:
+	default:
+		hs = new(headerSorter)
+	}
+	if cap(hs.kvs) < len(h) {
+		hs.kvs = make([]keyValues, 0, len(h))
+	}
+	kvs = hs.kvs[:0]
 	for k, vv := range h {
 		if !exclude[k] {
 			kvs = append(kvs, keyValues{k, vv})
 		}
 	}
-	sort.Sort(byKey(kvs))
-	return kvs
+	hs.kvs = kvs
+	sort.Sort(hs)
+	return kvs, hs
 }
 
 // WriteSubset writes a header in wire format.
@@ -127,7 +147,8 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 	if !ok {
 		ws = stringWriter{w}
 	}
-	for _, kv := range h.sortedKeyValues(exclude) {
+	kvs, sorter := h.sortedKeyValues(exclude)
+	for _, kv := range kvs {
 		for _, v := range kv.values {
 			v = headerNewlineToSpace.Replace(v)
 			v = textproto.TrimString(v)
@@ -137,6 +158,10 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 				}
 			}
 		}
+	}
+	select {
+	case headerSorterCache <- sorter:
+	default:
 	}
 	return nil
 }

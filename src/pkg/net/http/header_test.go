@@ -196,9 +196,7 @@ func TestHeaderWriteSubsetMallocs(t *testing.T) {
 		buf.Reset()
 		testHeader.WriteSubset(&buf, nil)
 	})
-	if n > 1 {
-		// TODO(bradfitz,rsc): once we can sort without allocating,
-		// make this an error.  See http://golang.org/issue/3761
-		// t.Errorf("got %v allocs, want <= %v", n, 1)
+	if n > 0 {
+		t.Errorf("mallocs = %d; want 0", n)
 	}
 }
