@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Darwin and Linux use the same linkage to main
-
 TEXT _rt0_amd64_freebsd(SB),7,$-8
-	MOVQ	$_rt0_amd64(SB), DX
-	JMP	DX
+	LEAQ	8(DI), SI // argv
+	MOVQ	0(DI), DI // argc
+	MOVQ	$main(SB), AX
+	JMP	AX
+
+TEXT main(SB),7,$-8
+	MOVQ	$_rt0_amd64(SB), AX
+	JMP	AX

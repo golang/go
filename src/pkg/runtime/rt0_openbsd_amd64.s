@@ -3,6 +3,11 @@
 // license that can be found in the LICENSE file.
 
 TEXT _rt0_amd64_openbsd(SB),7,$-8
-	MOVQ	$_rt0_amd64(SB), DX
-	MOVQ	SP, DI
-	JMP	DX
+	LEAQ	8(SP), SI // argv
+	MOVQ	0(SP), DI // argc
+	MOVQ	$main(SB), AX
+	JMP	AX
+
+TEXT main(SB),7,$-8
+	MOVQ	$_rt0_amd64(SB), AX
+	JMP	AX

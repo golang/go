@@ -4,9 +4,14 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-TEXT	_rt0_amd64_windows(SB),7,$-8
+TEXT _rt0_amd64_darwin(SB),7,$-8
+	LEAQ	8(SP), SI // argv
+	MOVQ	0(SP), DI // argc
+	MOVQ	$main(SB), AX
+	JMP	AX
+
+TEXT main(SB),7,$-8
 	MOVQ	$_rt0_amd64(SB), AX
-	MOVQ	SP, DI
 	JMP	AX
 
 DATA  runtime·iswindows(SB)/4, $1

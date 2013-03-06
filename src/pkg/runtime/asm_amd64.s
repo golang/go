@@ -6,8 +6,8 @@
 
 TEXT _rt0_amd64(SB),7,$-8
 	// copy arguments forward on an even stack
-	MOVQ	0(DI), AX		// argc
-	LEAQ	8(DI), BX		// argv
+	MOVQ	DI, AX		// argc
+	MOVQ	SI, BX		// argv
 	SUBQ	$(4*8+7), SP		// 2args 2auto
 	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
