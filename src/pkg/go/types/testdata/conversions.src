@@ -8,11 +8,29 @@ package conversions
 
 // argument count
 var (
-	_v0 = int /* ERROR "one argument" */ ()
-	_v1 = int /* ERROR "one argument" */ (1, 2)
+	_ = int /* ERROR "one argument" */ ()
+	_ = int /* ERROR "one argument" */ (1, 2)
 )
 
-//
+func string_conversions() {
+	const A = string(65)
+	assert(A == "A")
+	const E = string(-1)
+	assert(E == "\uFFFD")
+	assert(E == string(1234567890))
+
+	type myint int
+	assert(A == string(myint(65)))
+
+	type mystring string
+	const _ mystring = mystring("foo")
+
+	const _ = string  /* ERROR "cannot convert" */ (true)
+	const _ = string  /* ERROR "cannot convert" */ (1.2)
+	const _ = string  /* ERROR "cannot convert" */ (nil)
+}
+
+// 
 var (
-	_v2 = int8(0)
+	_ = int8(0)
 )
