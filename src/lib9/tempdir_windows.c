@@ -30,18 +30,16 @@ WinRune*
 torune(char *p)
 {
 	int i, n;
-	Rune *r1;
+	Rune rr;
 	WinRune *r;
 	
-	r1 = runesmprint("%s", p);
-	n = 0;
-	while(r1[n] != '\0')
-		n++;
-	n++;
-	r = malloc(n*sizeof r[0]);
-	for(i=0; i<n; i++)
-		r[i] = r1[i];
-	free(r1);
+	n = utflen(p);
+	r = malloc((n+1)*sizeof r[0]);
+	for(i=0; i<n; i++) {
+		p += chartorune(&rr, p);
+		r[i] = rr;
+	}
+	r[n] = '\0';
 	return r;
 }
 
