@@ -19,6 +19,7 @@ import (
 
 // Representation of constant values.
 //
+// invalid  ->  nil (i.e., we don't know the constant value; this can only happen in erroneous programs)
 // bool     ->  bool (true, false)
 // numeric  ->  int64, *big.Int, *big.Rat, Complex (ordered by increasing data structure "size")
 // string   ->  string
@@ -159,6 +160,8 @@ func makeStringConst(lit string) interface{} {
 func toImagConst(x interface{}) interface{} {
 	var im *big.Rat
 	switch x := x.(type) {
+	case nil:
+		im = rat0
 	case int64:
 		im = big.NewRat(x, 1)
 	case *big.Int:
@@ -184,6 +187,8 @@ func isZeroConst(x interface{}) bool {
 //
 func isNegConst(x interface{}) bool {
 	switch x := x.(type) {
+	case nil:
+		return false
 	case int64:
 		return x < 0
 	case *big.Int:
@@ -200,6 +205,10 @@ func isNegConst(x interface{}) bool {
 // of precision.
 //
 func isRepresentableConst(x interface{}, ctxt *Context, as BasicKind) bool {
+	if x == nil {
+		return true // avoid spurious errors
+	}
+
 	switch x := x.(type) {
 	case bool:
 		return as == Bool || as == UntypedBool
@@ -387,6 +396,10 @@ func is63bit(x int64) bool {
 
 // unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
 func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) interface{} {
+	if x == nil {
+		return nil
+	}
+
 	switch op {
 	case token.ADD:
 		return x // nothing to do
@@ -437,6 +450,10 @@ func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) inte
 // division. Division by zero leads to a run-time panic.
 //
 func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
+	if x == nil || y == nil {
+		return nil
+	}
+
 	x, y = matchConst(x, y)
 
 	switch x := x.(type) {
@@ -591,6 +608,9 @@ func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
 //
 func shiftConst(x interface{}, s uint, op token.Token) interface{} {
 	switch x := x.(type) {
+	case nil:
+		return nil
+
 	case int64:
 		switch op {
 		case token.SHL:
@@ -619,6 +639,10 @@ func shiftConst(x interface{}, s uint, op token.Token) interface{} {
 // or NilType).
 //
 func compareConst(x, y interface{}, op token.Token) (z bool) {
+	if x == nil || y == nil {
+		return false
+	}
+
 	x, y = matchConst(x, y)
 
 	// x == y  =>  x == y

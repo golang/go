@@ -580,7 +580,11 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
 	}
 
 	if !IsIdentical(x.typ, y.typ) {
-		check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+		// only report an error if we have valid types
+		// (otherwise we had an error reported elsewhere already)
+		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+			check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+		}
 		x.mode = invalid
 		return
 	}
@@ -823,8 +827,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
 			goto Error
 		case *Const:
-			if obj.Val == nil {
-				goto Error // cycle detected
+			if obj.Type == Typ[Invalid] {
+				goto Error
 			}
 			x.mode = constant
 			if obj == universeIota {
@@ -834,7 +838,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				x.val = int64(iota)
 			} else {
-				x.val = obj.Val
+				x.val = obj.Val // may be nil if we don't know the constant value
 			}
 		case *TypeName:
 			x.mode = typexpr

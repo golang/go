@@ -38,9 +38,10 @@ type Const struct {
 	Pkg  *Package
 	Name string
 	Type Type
-	Val  interface{}
+	Val  interface{} // nil means unknown constant value due to type error
 
-	spec *ast.ValueSpec
+	visited bool // for initialization cycle detection
+	spec    *ast.ValueSpec
 }
 
 // A TypeName represents a declared type.
