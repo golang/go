@@ -108,7 +108,6 @@ var untaggedLiteralWhitelist = map[string]bool{
 	"encoding/xml.CharData":                         true,
 	"encoding/xml.Comment":                          true,
 	"encoding/xml.Directive":                        true,
-	"exp/norm.Decomposition":                        true,
 	"go/scanner.ErrorList":                          true,
 	"image/color.Palette":                           true,
 	"net.HardwareAddr":                              true,

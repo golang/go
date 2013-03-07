@@ -313,7 +313,6 @@ static char *unreleased[] = {
 	"src/cmd/cov",
 	"src/cmd/prof",
 	"src/pkg/old",
-	"src/pkg/exp",
 };
 
 // setup sets up the tree for the initial build.
