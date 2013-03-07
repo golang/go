@@ -90,6 +90,7 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	LIBINITENTRY = 0;
+	linkmode = LinkInternal; // TODO: LinkAuto once everything works.
 	nuxiinit();
 
 	flagcount("1", "use alternate profiling code", &debug['1']);
@@ -125,6 +126,7 @@ main(int argc, char *argv[])
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);
+	// TODO: link mode flag
 	
 	flagparse(&argc, &argv, usage);
 
@@ -308,6 +310,8 @@ main(int argc, char *argv[])
 	reloc();
 	asmb();
 	undef();
+	hostlink();
+
 	if(debug['v']) {
 		Bprint(&bso, "%5.2f cpu time\n", cputime());
 		Bprint(&bso, "%d symbols\n", nsymbol);

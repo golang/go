@@ -121,7 +121,17 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 
 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
 	// maybe one day STB_WEAK.
-	bind = (ver || (x->type & SHIDDEN)) ? STB_LOCAL : STB_GLOBAL;
+	bind = STB_GLOBAL;
+	if(ver || (x->type & SHIDDEN))
+		bind = STB_LOCAL;
+
+	// In external linking mode, we have to invoke gcc with -rdynamic
+	// to get the exported symbols put into the dynamic symbol table.
+	// To avoid filling the dynamic table with lots of unnecessary symbols,
+	// mark all Go symbols local (not global) in the final executable.
+	if(linkmode == LinkExternal && !(x->cgoexport&CgoExportStatic))
+		bind = STB_LOCAL;
+
 	if(bind != elfbind)
 		return;
 

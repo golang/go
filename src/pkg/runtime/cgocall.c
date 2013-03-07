@@ -280,3 +280,9 @@ runtime·cgounimpl(void)	// called from (incomplete) assembly
 {
 	runtime·throw("runtime: cgo not implemented");
 }
+
+// For cgo-using programs with external linking,
+// export "main" (defined in assembly) so that libc can handle basic
+// C runtime startup and call the Go program as if it were
+// the C main function.
+#pragma cgo_export_static main

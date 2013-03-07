@@ -595,7 +595,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		s->sub = sect->sym->sub;
 		sect->sym->sub = s;
 		s->type = sect->sym->type | (s->type&~SMASK) | SSUB;
-		if(!s->dynexport) {
+		if(!(s->cgoexport & CgoExportDynamic)) {
 			s->dynimplib = nil;  // satisfy dynimport
 			s->dynimpname = nil;  // satisfy dynimport
 		}

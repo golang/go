@@ -56,11 +56,7 @@ newMachoLoad(uint32 type, uint32 ndata)
 			mload = 1;
 		else
 			mload *= 2;
-		load = realloc(load, mload*sizeof load[0]);
-		if(load == nil) {
-			diag("out of memory");
-			errorexit();
-		}
+		load = erealloc(load, mload*sizeof load[0]);
 	}
 
 	if(macho64 && (ndata & 1))
@@ -286,13 +282,8 @@ machoadddynlib(char *lib)
 		load_budget += 4096;
 	}
 
-	if(ndylib%32 == 0) {
-		dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
-		if(dylib == nil) {
-			diag("out of memory");
-			errorexit();
-		}
-	}
+	if(ndylib%32 == 0)
+		dylib = erealloc(dylib, (ndylib+32)*sizeof dylib[0]);
 	dylib[ndylib++] = lib;
 }
 

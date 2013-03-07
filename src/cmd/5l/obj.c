@@ -82,6 +82,7 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	LIBINITENTRY = 0;
+	linkmode = LinkInternal; // TODO: LinkAuto once everything works.
 	nuxiinit();
 	
 	p = getgoarm();
@@ -126,6 +127,7 @@ main(int argc, char *argv[])
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);
 	flagcount("shared", "generate shared object", &flag_shared);
+	// TODO: link mode flag
 	
 	flagparse(&argc, &argv, usage);
 
@@ -268,6 +270,7 @@ main(int argc, char *argv[])
 	reloc();
 	asmb();
 	undef();
+	hostlink();
 
 	if(debug['c'])
 		print("ARM size = %d\n", armsize);

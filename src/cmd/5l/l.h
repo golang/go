@@ -137,7 +137,7 @@ struct	Sym
 	short	version;
 	uchar	dupok;
 	uchar	reachable;
-	uchar	dynexport;
+	uchar	cgoexport;
 	uchar	leaf;
 	int32	dynid;
 	int32	plt;
