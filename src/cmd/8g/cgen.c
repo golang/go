@@ -1055,7 +1055,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 		}
 
 		if(is64(nr->type)) {
-			if(!nl->addable) {
+			if(!nl->addable || isconst(nl, CTINT)) {
 				tempname(&n1, nl->type);
 				cgen(nl, &n1);
 				nl = &n1;
