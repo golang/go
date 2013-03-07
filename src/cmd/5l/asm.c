@@ -125,7 +125,7 @@ adddynrel(Sym *s, Reloc *r)
 	// Handle relocations found in ELF object files.
 	case 256 + R_ARM_PLT32:
 		r->type = D_CALL;
-		if(targ->dynimpname != nil && !targ->dynexport) {
+		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add = braddoff(r->add, targ->plt / 4);
@@ -138,7 +138,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 256 + R_ARM_GOT32: // R_ARM_GOT_BREL
-		if(targ->dynimpname == nil || targ->dynexport) {
+		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
 			addgotsyminternal(targ);
 		} else {
 			addgotsym(targ);
@@ -149,7 +149,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 256 + R_ARM_GOT_PREL: // GOT(S) + A - P
-		if(targ->dynimpname == nil || targ->dynexport) {
+		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
 			addgotsyminternal(targ);
 		} else {
 			addgotsym(targ);
@@ -171,7 +171,7 @@ adddynrel(Sym *s, Reloc *r)
 
 	case 256 + R_ARM_CALL:
 		r->type = D_CALL;
-		if(targ->dynimpname != nil && !targ->dynexport) {
+		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add = braddoff(r->add, targ->plt / 4);
@@ -184,7 +184,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 256 + R_ARM_ABS32: 
-		if(targ->dynimpname != nil && !targ->dynexport)
+		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic))
 			diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ->name);
 		r->type = D_ADDR;
 		return;
@@ -201,7 +201,7 @@ adddynrel(Sym *s, Reloc *r)
 	case 256 + R_ARM_PC24:
 	case 256 + R_ARM_JUMP24:
 		r->type = D_CALL;
-		if(targ->dynimpname != nil && !targ->dynexport) {
+		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add = braddoff(r->add, targ->plt / 4);
@@ -210,7 +210,7 @@ adddynrel(Sym *s, Reloc *r)
 	}
 	
 	// Handle references to ELF symbols from our own object files.
-	if(targ->dynimpname == nil || targ->dynexport)
+	if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic))
 		return;
 
 	switch(r->type) {
@@ -464,7 +464,7 @@ adddynsym(Sym *s)
 
 		/* type */
 		t = STB_GLOBAL << 4;
-		if(s->dynexport && (s->type&SMASK) == STEXT)
+		if((s->cgoexport & CgoExportDynamic) && (s->type&SMASK) == STEXT)
 			t |= STT_FUNC;
 		else
 			t |= STT_OBJECT;
@@ -472,7 +472,7 @@ adddynsym(Sym *s)
 		adduint8(d, 0);
 
 		/* shndx */
-		if(!s->dynexport && s->dynimpname != nil)
+		if(!(s->cgoexport & CgoExportDynamic) && s->dynimpname != nil)
 			adduint16(d, SHN_UNDEF);
 		else {
 			switch(s->type) {

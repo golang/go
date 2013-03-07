@@ -138,6 +138,7 @@ EXTERN	char*	outfile;
 EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
+EXTERN	Sym**	dynexp;
 EXTERN	int	nldflag;
 EXTERN	char**	ldflag;
 EXTERN	int	havedynamic;
@@ -148,6 +149,21 @@ EXTERN	int	flag_race;
 EXTERN	int flag_shared;
 EXTERN	char*	tracksym;
 EXTERN	char*	interpreter;
+
+enum
+{
+	LinkAuto = 0,
+	LinkInternal,
+	LinkExternal,
+};
+EXTERN	int	linkmode;
+
+// for dynexport field of Sym
+enum
+{
+	CgoExportDynamic = 1<<0,
+	CgoExportStatic = 1<<1,
+};
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
@@ -187,7 +203,7 @@ void	adddynrel(Sym*, Reloc*);
 void	adddynrela(Sym*, Sym*, Reloc*);
 Sym*	lookuprel(void);
 void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
-void	ldobj(Biobuf*, char*, int64, char*, int);
+void	ldobj(Biobuf*, char*, int64, char*, char*, int);
 void	ldelf(Biobuf*, char*, int64, char*);
 void	ldmacho(Biobuf*, char*, int64, char*);
 void	ldpe(Biobuf*, char*, int64, char*);
@@ -242,6 +258,10 @@ void	usage(void);
 void	setinterp(char*);
 Sym*	listsort(Sym*, int(*cmp)(Sym*, Sym*), int);
 int	valuecmp(Sym*, Sym*);
+void	hostobjs(void);
+void	hostlink(void);
+char*	estrdup(char*);
+void*	erealloc(void*, long);
 
 int	pathchar(void);
 void*	mal(uint32);

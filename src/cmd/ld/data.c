@@ -135,11 +135,7 @@ addrel(Sym *s)
 			s->maxr = 4;
 		else
 			s->maxr <<= 1;
-		s->r = realloc(s->r, s->maxr*sizeof s->r[0]);
-		if(s->r == 0) {
-			diag("out of memory");
-			errorexit();
-		}
+		s->r = erealloc(s->r, s->maxr*sizeof s->r[0]);
 		memset(s->r+s->nr, 0, (s->maxr-s->nr)*sizeof s->r[0]);
 	}
 	return &s->r[s->nr++];
@@ -300,7 +296,7 @@ dynrelocsym(Sym *s)
 	for(r=s->r; r<s->r+s->nr; r++) {
 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
 			adddynrel(s, r);
-		if(flag_shared && r->sym != S && (r->sym->dynimpname == nil || r->sym->dynexport) && r->type == D_ADDR
+		if(flag_shared && r->sym != S && (r->sym->dynimpname == nil || (r->sym->cgoexport & CgoExportDynamic)) && r->type == D_ADDR
 				&& (s == got || s->type == SDATA || s->type == SGOSTRING || s->type == STYPE || s->type == SRODATA)) {
 			// Create address based RELATIVE relocation
 			adddynrela(rel, s, r);
@@ -342,11 +338,7 @@ symgrow(Sym *s, int32 siz)
 			s->maxp = 8;
 		while(s->maxp < siz)
 			s->maxp <<= 1;
-		s->p = realloc(s->p, s->maxp);
-		if(s->p == nil) {
-			diag("out of memory");
-			errorexit();
-		}
+		s->p = erealloc(s->p, s->maxp);
 		memset(s->p+s->np, 0, s->maxp-s->np);
 	}
 	s->np = siz;

@@ -12,8 +12,10 @@
 //   void crosscall2(void (*fn)(void *, int), void *, int);
 // 
 // We need to export the symbol crosscall2 in order to support
-// callbacks from shared libraries.
-#pragma dynexport crosscall2 crosscall2
+// callbacks from shared libraries. This applies regardless of
+// linking mode.
+#pragma cgo_export_static crosscall2
+#pragma cgo_export_dynamic crosscall2
 
 // Allocate memory.  This allocates the requested number of bytes in
 // memory controlled by the Go runtime.  The allocated memory will be

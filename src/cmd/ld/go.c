@@ -59,7 +59,7 @@ ilookup(char *name)
 		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
 			return x;
 	x = mal(sizeof *x);
-	x->name = strdup(name);
+	x->name = estrdup(name);
 	x->hash = ihash[h];
 	ihash[h] = x;
 	nimport++;
@@ -70,8 +70,6 @@ static void loadpkgdata(char*, char*, char*, int);
 static void loadcgo(char*, char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
-
-static Sym **dynexp;
 
 void
 ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
@@ -205,14 +203,14 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
 	char *p, *ep, *prefix, *name, *def;
 	Import *x;
 
-	file = strdup(file);
+	file = estrdup(file);
 	p = data;
 	ep = data + len;
 	while(parsepkgdata(file, pkg, &p, ep, &prefix, &name, &def) > 0) {
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
-			x->def = strdup(def);
+			x->def = estrdup(def);
 			x->file = file;
 		} else if(strcmp(x->prefix, prefix) != 0) {
 			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
@@ -244,7 +242,7 @@ expandpkg(char *t0, char *pkg)
 		n++;
 
 	if(n == 0)
-		return strdup(t0);
+		return estrdup(t0);
 
 	// use malloc, not mal, so that caller can free
 	w0 = malloc(strlen(t0) + strlen(pkg)*n);
@@ -429,7 +427,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			*next++ = '\0';
 
 		free(p0);
-		p0 = strdup(p); // save for error message
+		p0 = estrdup(p); // save for error message
 		nf = tokenize(p, f, nelem(f));
 		
 		if(strcmp(f[0], "cgo_import_dynamic") == 0) {
@@ -487,9 +485,14 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			continue;
 		}
 
-		// TODO: cgo_export_static
+		if(strcmp(f[0], "cgo_export_static") == 0 || strcmp(f[0], "cgo_export_dynamic") == 0) {
+			// TODO: Make Mach-O code happier. Right now it sees the dynimpname and
+			// includes CgoExportStatic symbols in the dynamic table, and then dyld
+			// cannot find them when we run the binary. Disabling Windows too
+			// because it probably has the same issue.
+			if(strcmp(f[0], "cgo_export_static") == 0 && (HEADTYPE == Hdarwin || HEADTYPE == Hwindows))
+				continue;
 
-		if(strcmp(f[0], "cgo_export_dynamic") == 0) {
 			if(nf < 2 || nf > 3)
 				goto err;
 			local = f[1];
@@ -503,11 +506,15 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
 				nerrors++;
 			}
-			s->dynexport = 1;
+			
+			if(strcmp(f[0], "cgo_export_static") == 0)
+				s->cgoexport |= CgoExportStatic;
+			else
+				s->cgoexport |= CgoExportDynamic;
 			if(s->dynimpname == nil) {
 				s->dynimpname = remote;
 				if(ndynexp%32 == 0)
-					dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+					dynexp = erealloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
 				dynexp[ndynexp++] = s;
 			} else if(strcmp(s->dynimpname, remote) != 0) {
 				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->dynimpname, remote);
@@ -530,7 +537,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 					return;
 				}
 				free(interpreter);
-				interpreter = strdup(f[1]);
+				interpreter = estrdup(f[1]);
 			}
 			continue;
 		}
@@ -539,8 +546,8 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			if(nf != 2)
 				goto err;
 			if(nldflag%32 == 0)
-				ldflag = realloc(ldflag, (nldflag+32)*sizeof ldflag[0]);
-			ldflag[nldflag++] = strdup(f[1]);
+				ldflag = erealloc(ldflag, (nldflag+32)*sizeof ldflag[0]);
+			ldflag[nldflag++] = estrdup(f[1]);
 			continue;
 		}
 	}
@@ -844,7 +851,7 @@ getpkg(char *path)
 		if(strcmp(p->path, path) == 0)
 			return p;
 	p = mal(sizeof *p);
-	p->path = strdup(path);
+	p->path = estrdup(path);
 	p->next = phash[h];
 	phash[h] = p;
 	p->all = pkgall;
@@ -868,7 +875,7 @@ imported(char *pkg, char *import)
 		i->mimpby *= 2;
 		if(i->mimpby == 0)
 			i->mimpby = 16;
-		i->impby = realloc(i->impby, i->mimpby*sizeof i->impby[0]);
+		i->impby = erealloc(i->impby, i->mimpby*sizeof i->impby[0]);
 	}
 	i->impby[i->nimpby++] = p;
 	free(pkg);

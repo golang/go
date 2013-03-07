@@ -1260,7 +1260,7 @@ dwarfaddfrag(int n, char *frag)
 	if (n >= ftabsize) {
 		s = ftabsize;
 		ftabsize = 1 + n + (n >> 2);
-		ftab = realloc(ftab, ftabsize * sizeof(ftab[0]));
+		ftab = erealloc(ftab, ftabsize * sizeof(ftab[0]));
 		memset(ftab + s, 0, (ftabsize - s) * sizeof(ftab[0]));
 	}
 
@@ -1342,7 +1342,7 @@ addhistfile(char *zentry)
 
 	if (histfilesize == histfilecap) {
 		histfilecap = 2 * histfilecap + 2;
-		histfile = realloc(histfile, histfilecap * sizeof(char*));
+		histfile = erealloc(histfile, histfilecap * sizeof(char*));
 	}
 	if (histfilesize == 0)
 		histfile[histfilesize++] = "<eof>";
@@ -1412,7 +1412,7 @@ checknesting(void)
 		includestacksize += 1;
 		includestacksize <<= 2;
 //		print("checknesting: growing to %d\n", includestacksize);
-		includestack = realloc(includestack, includestacksize * sizeof *includestack);	       
+		includestack = erealloc(includestack, includestacksize * sizeof *includestack);	       
 	}
 }
 
@@ -1651,7 +1651,7 @@ writelines(void)
 			lang = guesslang(histfile[1]);
 			finddebugruntimepath();
 
-			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, strdup(histfile[1]));
+			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup(histfile[1]));
 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
 			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
 			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);

@@ -195,7 +195,7 @@ initdynimport(void)
 	dr = nil;
 	m = nil;
 	for(s = allsym; s != S; s = s->allsym) {
-		if(!s->reachable || !s->dynimpname || s->dynexport)
+		if(!s->reachable || !s->dynimpname || (s->cgoexport & CgoExportDynamic))
 			continue;
 		for(d = dr; d != nil; d = d->next) {
 			if(strcmp(d->name,s->dynimplib) == 0) {
@@ -335,7 +335,7 @@ initdynexport(void)
 	
 	nexport = 0;
 	for(s = allsym; s != S; s = s->allsym) {
-		if(!s->reachable || !s->dynimpname || !s->dynexport)
+		if(!s->reachable || !s->dynimpname || !(s->cgoexport & CgoExportDynamic))
 			continue;
 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
 			diag("pe dynexport table is full");

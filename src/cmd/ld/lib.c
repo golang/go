@@ -44,6 +44,8 @@ int	nlibdir = 0;
 static int	maxlibdir = 0;
 static int	cout = -1;
 
+static	void	hostlinksetup(void);
+
 char*	goroot;
 char*	goarch;
 char*	goos;
@@ -59,11 +61,7 @@ Lflag(char *arg)
 			maxlibdir = 8;
 		else
 			maxlibdir *= 2;
-		p = realloc(libdir, maxlibdir * sizeof(*p));
-		if (p == nil) {
-			print("too many -L's: %d\n", nlibdir);
-			usage();
-		}
+		p = erealloc(libdir, maxlibdir * sizeof(*p));
 		libdir = p;
 	}
 	libdir[nlibdir++] = arg;
@@ -95,7 +93,7 @@ libinit(void)
 #endif
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
-		diag("cannot create %s", outfile);
+		diag("cannot create %s: %r", outfile);
 		errorexit();
 	}
 
@@ -242,7 +240,7 @@ addlibpath(char *srcref, char *objref, char *file, char *pkg)
 
 	if(libraryp == nlibrary){
 		nlibrary = 50 + 2*libraryp;
-		library = realloc(library, sizeof library[0] * nlibrary);
+		library = erealloc(library, sizeof library[0] * nlibrary);
 	}
 
 	l = &library[libraryp++];
@@ -288,7 +286,7 @@ loadinternal(char *name)
 void
 loadlib(void)
 {
-	int i;
+	int i, w, x;
 
 	loadinternal("runtime");
 	if(thechar == '5')
@@ -303,6 +301,28 @@ loadlib(void)
 		objfile(library[i].file, library[i].pkg);
 	}
 	
+	// If we got this far in automatic mode, there were no
+	// cgo uses that suggest we need external mode.
+	// Switch to internal.
+	if(linkmode == LinkAuto)
+		linkmode = LinkInternal;
+
+	// Now that we know the link mode, trim the dynexp list.
+	x = CgoExportDynamic;
+	if(linkmode == LinkExternal)
+		x = CgoExportStatic;
+	w = 0;
+	for(i=0; i<ndynexp; i++)
+		if(dynexp[i]->cgoexport & x)
+			dynexp[w++] = dynexp[i];
+	ndynexp = w;
+	
+	// In internal link mode, read the host object files.
+	if(linkmode == LinkInternal)
+		hostobjs();
+	else
+		hostlinksetup();
+
 	// We've loaded all the code now.
 	// If there are no dynamic libraries needed, gcc disables dynamic linking.
 	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
@@ -375,7 +395,7 @@ objfile(char *file, char *pkg)
 		/* load it as a regular file */
 		l = Bseek(f, 0L, 2);
 		Bseek(f, 0L, 0);
-		ldobj(f, pkg, l, file, FileObj);
+		ldobj(f, pkg, l, file, file, FileObj);
 		Bterm(f);
 		free(pkg);
 		return;
@@ -434,7 +454,7 @@ objfile(char *file, char *pkg)
 			l--;
 		snprint(pname, sizeof pname, "%s(%.*s)", file, utfnlen(arhdr.name, l), arhdr.name);
 		l = atolwhex(arhdr.size);
-		ldobj(f, pkg, l, pname, ArchiveObj);
+		ldobj(f, pkg, l, pname, file, ArchiveObj);
 	}
 
 out:
@@ -442,8 +462,213 @@ out:
 	free(pkg);
 }
 
+static void
+dowrite(int fd, char *p, int n)
+{
+	int m;
+	
+	while(n > 0) {
+		m = write(fd, p, n);
+		if(m <= 0) {
+			cursym = S;
+			diag("write error: %r");
+			errorexit();
+		}
+		n -= m;
+		p += m;
+	}
+}
+
+typedef struct Hostobj Hostobj;
+
+struct Hostobj
+{
+	void (*ld)(Biobuf*, char*, int64, char*);
+	char *pkg;
+	char *pn;
+	char *file;
+	int64 off;
+	int64 len;
+};
+
+Hostobj *hostobj;
+int nhostobj;
+int mhostobj;
+
+// These packages can use internal linking mode.
+// Others trigger external mode.
+const char *internalpkg[] = {
+	"net",
+	"os/user",
+	"runtime/cgo"
+};
+
 void
-ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file)
+{
+	int i, isinternal;
+	Hostobj *h;
+
+	isinternal = 0;
+	for(i=0; i<nelem(internalpkg); i++) {
+		if(strcmp(pkg, internalpkg[i]) == 0) {
+			isinternal = 1;
+			break;
+		}
+	}
+
+	if(!isinternal && linkmode == LinkAuto)
+		linkmode = LinkExternal;
+
+	if(nhostobj >= mhostobj) {
+		if(mhostobj == 0)
+			mhostobj = 16;
+		else
+			mhostobj *= 2;
+		hostobj = erealloc(hostobj, mhostobj*sizeof hostobj[0]);
+	}
+	h = &hostobj[nhostobj++];
+	h->ld = ld;
+	h->pkg = pkg;
+	h->pn = estrdup(pn);
+	h->file = estrdup(file);
+	h->off = Boffset(f);
+	h->len = len;
+}
+
+void
+hostobjs(void)
+{
+	int i;
+	Biobuf *f;
+	Hostobj *h;
+	
+	for(i=0; i<nhostobj; i++) {
+		h = &hostobj[i];
+		f = Bopen(h->file, OREAD);
+		if(f == nil) {
+			cursym = S;
+			diag("cannot reopen %s: %r", h->pn);
+			errorexit();
+		}
+		Bseek(f, h->off, 0);
+		h->ld(f, h->pkg, h->len, h->pn);
+		Bterm(f);
+	}
+}
+
+static char *tmpdir;
+
+static void
+rmtemp(void)
+{
+	removeall(tmpdir);
+}
+
+static void
+hostlinksetup(void)
+{
+	char *p;
+
+	if(linkmode != LinkExternal)
+		return;
+
+	// create temporary directory and arrange cleanup
+	// TODO: Add flag to specify tempdir, which is then not cleaned up.
+	tmpdir = mktempdir();
+	atexit(rmtemp);
+	
+	// change our output to temporary object file
+	close(cout);
+	p = smprint("%s/go.o", tmpdir);
+	cout = create(p, 1, 0775);
+	if(cout < 0) {
+		diag("cannot create %s: %r", p);
+		errorexit();
+	}
+	free(p);
+}
+
+void
+hostlink(void)
+{
+	char *p, **argv;
+	int i, w, n, argc, len;
+	Hostobj *h;
+	Biobuf *f;
+	static char buf[64<<10];
+
+	if(linkmode != LinkExternal)
+		return;
+
+	argv = malloc((10+nhostobj+nldflag)*sizeof argv[0]);
+	argc = 0;
+	// TODO: Add command-line flag to override gcc path and specify additional leading options.
+	// TODO: Add command-line flag to specify additional trailing options.
+	argv[argc++] = "gcc";
+	if(!debug['s'])
+		argv[argc++] = "-ggdb"; 
+	argv[argc++] = "-o";
+	argv[argc++] = outfile;
+	
+	// Force global symbols to be exported for dlopen, etc.
+	// NOTE: May not work on OS X or Windows. We'll see.
+	argv[argc++] = "-rdynamic";
+
+	// already wrote main object file
+	// copy host objects to temporary directory
+	for(i=0; i<nhostobj; i++) {
+		h = &hostobj[i];
+		f = Bopen(h->file, OREAD);
+		if(f == nil) {
+			cursym = S;
+			diag("cannot reopen %s: %r", h->pn);
+			errorexit();
+		}
+		Bseek(f, h->off, 0);
+		p = smprint("%s/%06d.o", tmpdir, i);
+		argv[argc++] = p;
+		w = create(p, 1, 0775);
+		if(w < 0) {
+			diag("cannot create %s: %r", p);
+			errorexit();
+		}
+		len = h->len;
+		while(len > 0 && (n = Bread(f, buf, sizeof buf)) > 0){
+			if(n > len)
+				n = len;
+			dowrite(w, buf, n);
+			len -= n;
+		}
+		if(close(w) < 0) {
+			diag("cannot write %s: %r", p);
+			errorexit();
+		}
+		Bterm(f);
+	}
+	
+	argv[argc++] = smprint("%s/go.o", tmpdir);
+	for(i=0; i<nldflag; i++)
+		argv[argc++] = ldflag[i];
+	argv[argc] = nil;
+
+	quotefmtinstall();
+	if(debug['v']) {
+		Bprint(&bso, "host link:");
+		for(i=0; i<argc; i++)
+			Bprint(&bso, " %q", argv[i]);
+		Bprint(&bso, "\n");
+		Bflush(&bso);
+	}
+
+	if(runcmd(argv) < 0) {
+		diag("%s: running %s failed: %r", argv0, argv[0]);
+		errorexit();
+	}
+}
+
+void
+ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
 {
 	char *line;
 	int n, c1, c2, c3, c4;
@@ -453,7 +678,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 
 	eof = Boffset(f) + len;
 
-	pn = strdup(pn);
+	pn = estrdup(pn);
 
 	c1 = Bgetc(f);
 	c2 = Bgetc(f);
@@ -466,18 +691,15 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 
 	magic = c1<<24 | c2<<16 | c3<<8 | c4;
 	if(magic == 0x7f454c46) {	// \x7F E L F
-		ldelf(f, pkg, len, pn);
-		free(pn);
+		ldhostobj(ldelf, f, pkg, len, pn, file);
 		return;
 	}
 	if((magic&~1) == 0xfeedface || (magic&~0x01000000) == 0xcefaedfe) {
-		ldmacho(f, pkg, len, pn);
-		free(pn);
+		ldhostobj(ldmacho, f, pkg, len, pn, file);
 		return;
 	}
 	if(c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86) {
-		ldpe(f, pkg, len, pn);
-		free(pn);
+		ldhostobj(ldpe, f, pkg, len, pn, file);
 		return;
 	}
 
@@ -524,7 +746,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	line[n] = '\0';
 	if(n-10 > strlen(t)) {
 		if(theline == nil)
-			theline = strdup(line+10);
+			theline = estrdup(line+10);
 		else if(strcmp(theline, line+10) != 0) {
 			line[n] = '\0';
 			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
@@ -1460,23 +1682,6 @@ Yconv(Fmt *fp)
 
 vlong coutpos;
 
-static void
-dowrite(int fd, char *p, int n)
-{
-	int m;
-	
-	while(n > 0) {
-		m = write(fd, p, n);
-		if(m <= 0) {
-			cursym = S;
-			diag("write error: %r");
-			errorexit();
-		}
-		n -= m;
-		p += m;
-	}
-}
-
 void
 cflush(void)
 {
@@ -1576,7 +1781,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
 
 	for(s=allsym; s!=S; s=s->allsym) {
-		if(s->hide)
+		if(s->hide || (s->name[0] == '.' && s->version == 0))
 			continue;
 		switch(s->type&SMASK) {
 		case SCONST:
@@ -1663,4 +1868,28 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
+}
+
+char*
+estrdup(char *p)
+{
+	p = strdup(p);
+	if(p == nil) {
+		cursym = S;
+		diag("out of memory");
+		errorexit();
+	}
+	return p;
+}
+
+void*
+erealloc(void *p, long n)
+{
+	p = realloc(p, n);
+	if(p == nil) {
+		cursym = S;
+		diag("out of memory");
+		errorexit();
+	}
+	return p;
 }

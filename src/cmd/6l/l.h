@@ -144,7 +144,7 @@ struct	Sym
 	short	version;
 	uchar	dupok;
 	uchar	reachable;
-	uchar	dynexport;
+	uchar	cgoexport;
 	uchar	special;
 	uchar	stkcheck;
 	uchar	hide;

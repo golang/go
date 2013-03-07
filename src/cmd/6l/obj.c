@@ -83,6 +83,7 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	LIBINITENTRY = 0;
+	linkmode = LinkInternal; // TODO: LinkAuto once everything works.
 	nuxiinit();
 
 	flagcount("1", "use alternate profiling code", &debug['1']);
@@ -122,6 +123,10 @@ main(int argc, char *argv[])
 	flagcount("shared", "generate shared object", &flag_shared);
 	
 	flagparse(&argc, &argv, usage);
+	
+	// TODO: link mode flag instead of isobj
+	if(isobj)
+		linkmode = LinkExternal;
 
 	if(argc != 1)
 		usage();
@@ -282,6 +287,7 @@ main(int argc, char *argv[])
 	reloc();
 	asmb();
 	undef();
+	hostlink();
 	if(debug['v']) {
 		Bprint(&bso, "%5.2f cpu time\n", cputime());
 		Bprint(&bso, "%d symbols\n", nsymbol);
