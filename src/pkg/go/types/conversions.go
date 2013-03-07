@@ -30,12 +30,32 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 
 	if x.mode == constant && isConstType(typ) {
 		// constant conversion
-		// TODO(gri) implement this
+		typ := underlying(typ).(*Basic)
+		// For now just implement string(x) where x is an integer,
+		// as a temporary work-around for issue 4982, which is a
+		// common issue.
+		if typ.Kind == String {
+			switch {
+			case x.isInteger(check.ctxt):
+				codepoint, ok := x.val.(int64)
+				if !ok {
+					// absolute value too large (or unknown) for conversion;
+					// same as converting any other out-of-range value - let
+					// string(codepoint) do the work
+					codepoint = -1
+				}
+				x.val = string(codepoint)
+			case isString(x.typ):
+				// nothing to do
+			default:
+				goto ErrorMsg
+			}
+		}
+		// TODO(gri) verify the remaining conversions.
 	} else {
 		// non-constant conversion
 		if !x.isConvertible(check.ctxt, typ) {
-			check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
-			goto Error
+			goto ErrorMsg
 		}
 		x.mode = value
 	}
@@ -45,8 +65,11 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 	x.typ = typ
 	return
 
+ErrorMsg:
+	check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
 Error:
 	x.mode = invalid
+	x.expr = conv
 }
 
 func (x *operand) isConvertible(ctxt *Context, T Type) bool {
