@@ -57,10 +57,15 @@ func netipv6zone(f *ast.File) bool {
 							Value: e,
 						}
 					} else {
-						cl.Elts[i] = &ast.KeyValueExpr{
-							Key:   ast.NewIdent("Port"),
-							Value: e,
+						if e.(*ast.BasicLit).Value == "0" {
+							cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
+						} else {
+							cl.Elts[i] = &ast.KeyValueExpr{
+								Key:   ast.NewIdent("Port"),
+								Value: e,
+							}
 						}
+
 					}
 				}
 				fixed = true
