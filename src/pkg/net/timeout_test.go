@@ -532,7 +532,7 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
 	defer ln.Close()
 
 	servec := make(chan copyRes)
-	const msg = "data client shouldn't read, even though it it'll be waiting"
+	const msg = "data client shouldn't read, even though it'll be waiting"
 	go func() {
 		c, err := ln.Accept()
 		if err != nil {
@@ -593,6 +593,64 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
 	}
 	if !isTimeout(res.err) {
 		t.Errorf("Write error = %v; want timeout", res.err)
+	}
+}
+
+// TestAcceptDeadlineConnectionAvailable tests that accept deadlines work, even
+// if there's incoming connections available.
+func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	ln := newLocalListener(t).(*TCPListener)
+	defer ln.Close()
+
+	go func() {
+		c, err := Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial: %v", err)
+		}
+		defer c.Close()
+		var buf [1]byte
+		c.Read(buf[:]) // block until the connection or listener is closed
+	}()
+	time.Sleep(10 * time.Millisecond)
+	ln.SetDeadline(time.Now().Add(-5 * time.Second)) // in the past
+	c, err := ln.Accept()
+	if err == nil {
+		defer c.Close()
+	}
+	if !isTimeout(err) {
+		t.Fatalf("Accept: got %v; want timeout", err)
+	}
+}
+
+// TestConnectDeadlineInThePast tests that connect deadlines work, even
+// if the connection can be established w/o blocking.
+func TestConnectDeadlineInThePast(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	ln := newLocalListener(t).(*TCPListener)
+	defer ln.Close()
+
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			defer c.Close()
+		}
+	}()
+	time.Sleep(10 * time.Millisecond)
+	c, err := DialTimeout("tcp", ln.Addr().String(), -5*time.Second) // in the past
+	if err == nil {
+		defer c.Close()
+	}
+	if !isTimeout(err) {
+		t.Fatalf("DialTimeout: got %v; want timeout", err)
 	}
 }
 
