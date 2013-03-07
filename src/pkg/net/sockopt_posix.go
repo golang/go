@@ -11,7 +11,6 @@ package net
 import (
 	"os"
 	"syscall"
-	"time"
 )
 
 // Boolean to int.
@@ -117,24 +116,6 @@ func setWriteBuffer(fd *netFD, bytes int) error {
 	}
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes))
-}
-
-// TODO(dfc) these unused error returns could be removed
-
-func setReadDeadline(fd *netFD, t time.Time) error {
-	fd.rdeadline.setTime(t)
-	return nil
-}
-
-func setWriteDeadline(fd *netFD, t time.Time) error {
-	fd.wdeadline.setTime(t)
-	return nil
-}
-
-func setDeadline(fd *netFD, t time.Time) error {
-	setReadDeadline(fd, t)
-	setWriteDeadline(fd, t)
-	return nil
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) error {
