@@ -170,3 +170,23 @@ TEXT runtime·sigtramp(SB),7,$0
 // Only used by the 64-bit runtime.
 TEXT runtime·setfpmasks(SB),7,$0
 	RET
+
+#define ERRMAX 128	/* from os_plan9.h */
+
+// func errstr() String
+// Only used by package syscall.
+// Grab error string due to a syscall made
+// in entersyscall mode, without going
+// through the allocator (issue 4994).
+// See ../syscall/asm_plan9_386.s:/·Syscall/
+TEXT runtime·errstr(SB),7,$0
+	get_tls(AX)
+	MOVL	m(AX), BX
+	MOVL	m_errstr(BX), CX
+	MOVL	CX, 4(SP)
+	MOVL	$ERRMAX, 8(SP)
+	MOVL	$41, AX
+	INT	$64
+	CALL	runtime·findnull(SB)
+	MOVL	AX, 8(SP)
+	RET
