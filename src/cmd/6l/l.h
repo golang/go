@@ -263,6 +263,7 @@ enum
 	Zo_iw,
 	Zm_o,
 	Zm_r,
+	Zm2_r,
 	Zm_r_xm,
 	Zm_r_i_xm,
 	Zm_r_3d,
@@ -292,10 +293,11 @@ enum
 	P32		= 0x32,	/* 32-bit only */
 	Pe		= 0x66,	/* operand escape */
 	Pm		= 0x0f,	/* 2byte opcode escape */
-	Pq		= 0xff,	/* both escape */
+	Pq		= 0xff,	/* both escapes: 66 0f */
 	Pb		= 0xfe,	/* byte operands */
-	Pf2		= 0xf2,	/* xmm escape 1 */
-	Pf3		= 0xf3,	/* xmm escape 2 */
+	Pf2		= 0xf2,	/* xmm escape 1: f2 0f */
+	Pf3		= 0xf3,	/* xmm escape 2: f3 0f */
+	Pq3		= 0x67, /* xmm escape 3: 66 48 0f */
 	Pw		= 0x48,	/* Rex.w */
 	Py		= 0x80,	/* defaults to 64-bit mode */
 

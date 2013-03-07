@@ -522,6 +522,11 @@ uchar	ymshuf[] =
 	Ymm,	Ymr,	Zibm_r,	2,
 	0
 };
+uchar	ymshufb[] =
+{
+	Yxm,	Yxr,	Zm2_r,	2,
+	0
+};
 uchar	yxshuf[] =
 {
 	Yxm,	Yxr,	Zibm_r,	2,
@@ -530,6 +535,11 @@ uchar	yxshuf[] =
 uchar	yextrw[] =
 {
 	Yxr,	Yrl,	Zibm_r,	2,
+	0
+};
+uchar	yinsr[] =
+{
+	Ymm,	Yxr,	Zibm_r,	3,
 	0
 };
 uchar	ypsdq[] =
@@ -983,6 +993,8 @@ Optab optab[] =
 	{ APFSUB,	ymfp,	Px, 0x9a },
 	{ APFSUBR,	ymfp,	Px, 0xaa },
 	{ APINSRW,	yextrw,	Pq, 0xc4,(00) },
+	{ APINSRD,	yinsr,	Pq, 0x3a, 0x22, (00) },
+	{ APINSRQ,	yinsr,	Pq3, 0x3a, 0x22, (00) },
 	{ APMADDWL,	ymm,	Py, 0xf5,Pe,0xf5 },
 	{ APMAXSW,	yxm,	Pe, 0xee },
 	{ APMAXUB,	yxm,	Pe, 0xde },
@@ -1008,6 +1020,7 @@ Optab optab[] =
 	{ APSHUFL,	yxshuf,	Pq, 0x70,(00) },
 	{ APSHUFLW,	yxshuf,	Pf2, 0x70,(00) },
 	{ APSHUFW,	ymshuf,	Pm, 0x70,(00) },
+	{ APSHUFB,	ymshufb,Pq, 0x38, 0x00 },
 	{ APSLLO,	ypsdq,	Pq, 0x73,(07) },
 	{ APSLLL,	yps,	Py, 0xf2, 0x72,(06), Pe,0xf2, Pe,0x72,(06) },
 	{ APSLLQ,	yps,	Py, 0xf3, 0x73,(06), Pe,0xf3, Pe,0x73,(06) },

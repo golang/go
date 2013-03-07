@@ -1003,8 +1003,20 @@ found:
 			*andptr++ = op;
 		break;
 
+	case Zlitm_r:
+		for(; op = o->op[z]; z++)
+			*andptr++ = op;
+		asmand(&p->from, reg[p->to.type]);
+		break;
+
 	case Zm_r:
 		*andptr++ = op;
+		asmand(&p->from, reg[p->to.type]);
+		break;
+
+	case Zm2_r:
+		*andptr++ = op;
+		*andptr++ = o->op[z+1];
 		asmand(&p->from, reg[p->to.type]);
 		break;
 
@@ -1015,6 +1027,13 @@ found:
 
 	case Zm_r_i_xm:
 		mediaop(o, op, t[3], z);
+		asmand(&p->from, reg[p->to.type]);
+		*andptr++ = p->to.offset;
+		break;
+
+	case Zibm_r:
+		while ((op = o->op[z++]) != 0)
+			*andptr++ = op;
 		asmand(&p->from, reg[p->to.type]);
 		*andptr++ = p->to.offset;
 		break;
