@@ -150,7 +150,14 @@ uchar	ymovl[] =
 //	Yi0,	Yml,	Zibo_m,	2,	// shorter but slower AND $0,dst
 	Yi32,	Yrl,	Zil_rp,	1,
 	Yi32,	Yml,	Zilo_m,	2,
+	Yml,	Yxr,	Zm_r_xm,	2,	// XMM MOVD (32 bit)
+	Yxr,	Yml,	Zr_m_xm,	2,	// XMM MOVD (32 bit)
 	Yiauto,	Yrl,	Zaut_r,	2,
+	0
+};
+uchar	ymovq[] =
+{
+	Yml,	Yxr,	Zm_r_xm,	2,
 	0
 };
 uchar	ym_rl[] =
@@ -435,6 +442,21 @@ uchar	yprefetch[] =
 	Ym,	Ynone,	Zm_o,	2,
 	0,
 };
+uchar	yaes[] =
+{
+	Yxm,	Yxr,	Zlitm_r,	2,
+	0
+};
+uchar	yinsrd[] =
+{
+	Yml,	Yxr,	Zibm_r,	2,
+	0
+};
+uchar	ymshufb[] =
+{
+	Yxm,	Yxr,	Zm2_r,	2,
+	0
+};
 
 Optab optab[] =
 /*	as, ytab, andproto, opcode */
@@ -552,8 +574,9 @@ Optab optab[] =
 	{ ALSLL,	yml_rl,	Pm, 0x03  },
 	{ ALSLW,	yml_rl,	Pq, 0x03  },
 	{ AMOVB,	ymovb,	Pb, 0x88,0x8a,0xb0,0xc6,(00) },
-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00) },
+	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e },
 	{ AMOVW,	ymovl,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00) },
+	{ AMOVQ,	ymovq,	Pf3, 0x7e },
 	{ AMOVBLSX,	ymb_rl,	Pm, 0xbe },
 	{ AMOVBLZX,	ymb_rl,	Pm, 0xb6 },
 	{ AMOVBWSX,	ymb_rl,	Pq, 0xbe },
@@ -793,6 +816,7 @@ Optab optab[] =
 	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
 	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
 
+	{ ACPUID,	ynone,	Pm, 0xa2 },
 	{ ARDTSC,	ynone,	Pm, 0x31 },
 
 	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
@@ -925,6 +949,7 @@ Optab optab[] =
 	{ AORPD,	yxm,	Pq, 0x56 },
 	{ AORPS,	yxm,	Pm, 0x56 },
 	{ APADDQ,	yxm,	Pe, 0xd4 },
+	{ APAND,	yxm,	Pe, 0xdb },
 	{ APMAXSW,	yxm,	Pe, 0xee },
 	{ APMAXUB,	yxm,	Pe, 0xde },
 	{ APMINSW,	yxm,	Pe, 0xea },
@@ -960,6 +985,10 @@ Optab optab[] =
 	{ AUNPCKLPS,	yxm,	Pm, 0x14 },
 	{ AXORPD,	yxm,	Pe, 0x57 },
 	{ AXORPS,	yxm,	Pm, 0x57 },
+
+	{ AAESENC,	yaes,	Pq, 0x38,0xdc,(0) },
+	{ APINSRD,	yinsrd,	Pq, 0x3a, 0x22, (00) },
+	{ APSHUFB,	ymshufb,Pq, 0x38, 0x00 },
 
 	{ AUSEFIELD,	ynop,	Px, 0,0 },
 	{ ALOCALS },

@@ -1161,6 +1161,11 @@ found:
 		*andptr++ = Pe;
 		*andptr++ = Pm;
 		break;
+	case Pq3:	/* 16 bit escape, Rex.w, and opcode escape */
+		*andptr++ = Pe;
+		*andptr++ = Pw;
+		*andptr++ = Pm;
+		break;
 
 	case Pf2:	/* xmm opcode escape */
 	case Pf3:
@@ -1227,6 +1232,11 @@ found:
 		/* fall through */
 	case Zm_r:
 		*andptr++ = op;
+		asmand(&p->from, &p->to);
+		break;
+	case Zm2_r:
+		*andptr++ = op;
+		*andptr++ = o->op[z+1];
 		asmand(&p->from, &p->to);
 		break;
 
