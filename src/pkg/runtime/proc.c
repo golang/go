@@ -392,7 +392,7 @@ mhelpgc(void)
 void
 runtime·starttheworld(void)
 {
-	P *p;
+	P *p, *p1;
 	M *mp;
 	bool add;
 
@@ -405,6 +405,7 @@ runtime·starttheworld(void)
 		procresize(runtime·gomaxprocs);
 	runtime·gcwaiting = 0;
 
+	p1 = nil;
 	while(p = pidleget()) {
 		// procresize() puts p's with work at the beginning of the list.
 		// Once we reach a p without a run queue, the rest don't have one either.
@@ -414,8 +415,9 @@ runtime·starttheworld(void)
 		}
 		mp = mget();
 		if(mp == nil) {
-			pidleput(p);
-			break;
+			p->link = p1;
+			p1 = p;
+			continue;
 		}
 		if(mp->nextp)
 			runtime·throw("starttheworld: inconsistent mp->nextp");
@@ -427,6 +429,13 @@ runtime·starttheworld(void)
 		runtime·notewakeup(&runtime·sched.sysmonnote);
 	}
 	runtime·unlock(&runtime·sched);
+
+	while(p1) {
+		p = p1;
+		p1 = p1->link;
+		add = false;
+		newm(nil, p);
+	}
 
 	if(add) {
 		// If GC could have used another helper proc, start one now,
