@@ -320,6 +320,7 @@ struct	M
 #endif
 #ifdef GOOS_plan9
 	int8*		notesig;
+	byte*	errstr;
 #endif
 	SEH*	seh;
 	uintptr	end[];

@@ -32,7 +32,7 @@ TEXT	·Syscall(SB),7,$0
 	JNE	ok3
 
 	SUBQ	$16, SP
-	CALL	syscall·errstr(SB)
+	CALL	runtime·errstr(SB)
 	MOVQ	SP, SI
 	ADDQ	$16, SP
 	JMP	copyresult3
@@ -71,7 +71,7 @@ TEXT	·Syscall6(SB),7,$0
 	JNE	ok4
 	
 	SUBQ	$16, SP
-	CALL	syscall·errstr(SB)
+	CALL	runtime·errstr(SB)
 	MOVQ	SP, SI
 	ADDQ	$16, SP
 	JMP	copyresult4

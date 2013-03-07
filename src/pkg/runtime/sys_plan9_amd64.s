@@ -206,3 +206,24 @@ TEXT runtime·setfpmasks(SB),7,$8
 	MOVL	AX, 0(SP)
 	LDMXCSR	0(SP)
 	RET
+
+#define ERRMAX 128	/* from os_plan9.h */
+
+// func errstr() String
+// Only used by package syscall.
+// Grab error string due to a syscall made
+// in entersyscall mode, without going
+// through the allocator (issue 4994).
+// See ../syscall/asm_plan9_386.s:/·Syscall/
+TEXT runtime·errstr(SB),7,$0
+	get_tls(AX)
+	MOVQ	m(AX), BX
+	MOVQ	m_errstr(BX), CX
+	MOVQ	CX, 8(SP)
+	MOVQ	$ERRMAX, 16(SP)
+	MOVQ	$0x8000, AX
+	MOVQ	$41, BP
+	SYSCALL
+	CALL	runtime·findnull(SB)
+	MOVQ	AX, 16(SP)
+	RET
