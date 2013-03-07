@@ -111,8 +111,8 @@ const (
 	ti5 = ti0 /* ERROR "mismatched types" */ + ti1
 	ti6 = ti1 - ti1
 	ti7 = ti2 /* ERROR "mismatched types" */ * ti1
-	//ti8 = ti3 / ti3 // TODO(gri) enable this
-	//ti9 = ti3 % ti3 // TODO(gri) enable this
+	ti8 = ti3 / ti3
+	ti9 = ti3 % ti3
 
 	ti10 = 1 / 0 /* ERROR "division by zero" */
 	ti11 = ti1 / 0 /* ERROR "division by zero" */
@@ -135,7 +135,7 @@ const (
 	tf5 = tf0 + tf1
 	tf6 = tf1 - tf1
 	tf7 = tf2 /* ERROR "mismatched types" */ * tf1
-	// tf8 = tf3 / tf3 // TODO(gri) enable this
+	tf8 = tf3 / tf3
 	tf9 = tf3 /* ERROR "not defined" */ % tf3
 
 	tf10 = 1 / 0 /* ERROR "division by zero" */

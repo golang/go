@@ -35,149 +35,123 @@ func (check *checker) assignment(x *operand, to Type) bool {
 }
 
 // assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil),
-// or lhs = x (if rhs == nil). If decl is set, the lhs operand must be an identifier.
-// If its type is not set, it is deduced from the type or value of x. If lhs has a
-// type it is used as a hint when evaluating rhs, if present.
+// or lhs = x (if rhs == nil). If decl is set, the lhs operand must be an identifier;
+// if its type is not set, it is deduced from the type of x or set to Typ[Invalid] in
+// case of an error.
 //
 func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota int) {
-	ident, _ := lhs.(*ast.Ident)
+	// Start with rhs so we have an expression type
+	// for declarations with implicit type.
 	if x == nil {
-		assert(rhs != nil)
 		x = new(operand)
-	}
-
-	if ident != nil && ident.Name == "_" {
-		// anything can be assigned to a blank identifier - check rhs only, if present
-		if rhs != nil {
-			check.expr(x, rhs, nil, iota)
+		check.expr(x, rhs, nil, iota)
+		// don't exit for declarations - we need the lhs obj first
+		if x.mode == invalid && !decl {
+			return
 		}
-		return
 	}
+	// x.mode == valid || decl
 
+	// lhs may be an identifier
+	ident, _ := lhs.(*ast.Ident)
+
+	// regular assignment; we know x is valid
 	if !decl {
-		// regular assignment - start with lhs to obtain a type hint
-		// TODO(gri) clean this up - we don't need type hints anymore
+		// anything can be assigned to the blank identifier
+		if ident != nil && ident.Name == "_" {
+			return
+		}
+
 		var z operand
 		check.expr(&z, lhs, nil, -1)
 		if z.mode == invalid {
-			z.typ = nil // so we can proceed with rhs
-		}
-
-		if rhs != nil {
-			check.expr(x, rhs, z.typ, -1)
-			if x.mode == invalid {
-				return
-			}
-		}
-
-		if x.mode == invalid || z.mode == invalid {
 			return
 		}
 
-		if !check.assignment(x, z.typ) {
+		// TODO(gri) verify that all other z.mode values
+		//           that may appear here are legal
+		if z.mode == constant || !check.assignment(x, z.typ) {
 			if x.mode != invalid {
 				check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
 			}
-			return
-		}
-		if z.mode == constant {
-			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
 		}
 		return
 	}
 
-	// declaration - lhs must be an identifier
+	// declaration with initialization; lhs must be an identifier
 	if ident == nil {
 		check.errorf(lhs.Pos(), "cannot declare %s", lhs)
 		return
 	}
 
-	// lhs may or may not be typed yet
-	obj := check.lookup(ident)
+	// Determine typ of lhs: If the object doesn't have a type
+	// yet, determine it from the type of x; if x is invalid,
+	// set the object type to Typ[Invalid].
 	var typ Type
-	if t := obj.GetType(); t != nil {
-		typ = t
-	}
+	obj := check.lookup(ident)
+	switch obj := obj.(type) {
+	default:
+		unreachable()
 
-	if rhs != nil {
-		check.expr(x, rhs, typ, iota)
-		// continue even if x.mode == invalid
-	}
+	case nil:
+		// TODO(gri) is this really unreachable?
+		unreachable()
 
-	if typ == nil {
-		// determine lhs type from rhs expression;
-		// for variables, convert untyped types to
-		// default types
-		typ = Typ[Invalid]
-		if x.mode != invalid {
-			typ = x.typ
-			if _, ok := obj.(*Var); ok && isUntyped(typ) {
-				if x.isNil() {
-					check.errorf(x.pos(), "use of untyped nil")
-					x.mode = invalid
-				} else {
+	case *Const:
+		typ = obj.Type // may already be Typ[Invalid]
+		if typ == nil {
+			typ = Typ[Invalid]
+			if x.mode != invalid {
+				typ = x.typ
+			}
+			obj.Type = typ
+		}
+
+	case *Var:
+		typ = obj.Type // may already be Typ[Invalid]
+		if typ == nil {
+			typ = Typ[Invalid]
+			if x.mode != invalid {
+				typ = x.typ
+				if isUntyped(typ) {
+					// convert untyped types to default types
+					if typ == Typ[UntypedNil] {
+						check.errorf(x.pos(), "use of untyped nil")
+						obj.Type = Typ[Invalid]
+						return
+					}
 					typ = defaultType(typ)
 				}
 			}
-		}
-		switch obj := obj.(type) {
-		case *Const:
 			obj.Type = typ
-		case *Var:
-			obj.Type = typ
-		default:
-			unreachable()
 		}
 	}
 
-	if x.mode != invalid {
-		if !check.assignment(x, typ) {
-			if x.mode != invalid {
-				switch obj.(type) {
-				case *Const:
-					check.errorf(x.pos(), "cannot assign %s to variable of type %s", x, typ)
-				case *Var:
-					check.errorf(x.pos(), "cannot initialize constant of type %s with %s", typ, x)
-				default:
-					unreachable()
-				}
-				x.mode = invalid
+	// nothing else to check if we don't have a valid lhs or rhs
+	if typ == Typ[Invalid] || x.mode == invalid {
+		return
+	}
+
+	if !check.assignment(x, typ) {
+		if x.mode != invalid {
+			if x.typ != Typ[Invalid] && typ != Typ[Invalid] {
+				check.errorf(x.pos(), "cannot initialize %s (type %s) with %s", ident.Name, typ, x)
 			}
 		}
+		return
 	}
 
 	// for constants, set their value
-	if obj, ok := obj.(*Const); ok {
-		assert(obj.Val == nil)
-		if x.mode != invalid {
-			if x.mode == constant {
-				if isConstType(x.typ) {
-					obj.Val = x.val
-				} else {
-					check.errorf(x.pos(), "%s has invalid constant type", x)
-				}
-			} else {
-				check.errorf(x.pos(), "%s is not constant", x)
+	if obj, _ := obj.(*Const); obj != nil {
+		obj.Val = nil // failure case: we don't know the constant value
+		if x.mode == constant {
+			if isConstType(x.typ) {
+				obj.Val = x.val
+			} else if x.typ != Typ[Invalid] {
+				check.errorf(x.pos(), "%s has invalid constant type", x)
 			}
-		}
-		if obj.Val == nil {
-			// set the constant to its type's zero value to reduce spurious errors
-			switch typ := underlying(obj.Type); {
-			case typ == Typ[Invalid]:
-				// ignore
-			case isBoolean(typ):
-				obj.Val = false
-			case isNumeric(typ):
-				obj.Val = int64(0)
-			case isString(typ):
-				obj.Val = ""
-			case hasNil(typ):
-				obj.Val = nilConst
-			default:
-				// in all other cases just prevent use of the constant
-				// TODO(gri) re-evaluate this code
-				obj.Val = nilConst
-			}
+		} else if x.mode != invalid {
+			check.errorf(x.pos(), "%s is not constant", x)
 		}
 	}
 }
@@ -494,6 +468,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.expr(&x, tag, nil, -1)
 
 		check.multipleDefaults(s.Body.List)
+		// TODO(gri) check also correct use of fallthrough
 		seen := make(map[interface{}]token.Pos)
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)

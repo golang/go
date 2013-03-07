@@ -154,7 +154,6 @@ func _len() {
 	assert /* ERROR "failed" */ (n == 10)
 	var ch <-chan int
 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
-	_ = nn // TODO(gri) remove this once unused constants get type-checked
 
 	// issue 4744
 	type T struct{ a [10]int }

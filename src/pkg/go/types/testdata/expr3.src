@@ -125,9 +125,10 @@ func shifts4() {
 	}
 }
 
-// TODO(gri) The error messages below depond on adjusting the spec
+// TODO(gri) The error messages below depend on adjusting the spec
 //           to reflect what gc is doing at the moment (the spec
 //           asks for run-time errors at the moment - see issue 4231).
+// TODO(gri) This has been fixed in the spec. Fix this.
 //
 func indexes() {
 	_ = 1 /* ERROR "cannot index" */ [0]

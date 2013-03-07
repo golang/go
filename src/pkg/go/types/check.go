@@ -202,20 +202,22 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			return // already checked
 		}
 		// The obj.Val field for constants is initialized to its respective
-		// iota value by the parser.
-		// The object's fields can be in one of the following states:
-		// Type != nil  =>  the constant value is Val
-		// Type == nil  =>  the constant is not typechecked yet, and Val can be:
-		// Val  is int  =>  Val is the value of iota for this declaration
-		// Val  == nil  =>  the object's expression is being evaluated
-		if obj.Val == nil {
-			check.errorf(obj.GetPos(), "illegal cycle in initialization of %s", obj.Name)
+		// iota value (type int) by the parser.
+		// If the object's type is Typ[Invalid], the object value is ignored.
+		// If the object's type is valid, the object value must be a legal
+		// constant value; it may be nil to indicate that we don't know the
+		// value of the constant (e.g., in: "const x = float32("foo")" we
+		// know that x is a constant and has type float32, but we don't
+		// have a value due to the error in the conversion).
+		if obj.visited {
+			check.errorf(obj.GetPos(), "illegal cycle in initialization of constant %s", obj.Name)
 			obj.Type = Typ[Invalid]
 			return
 		}
+		obj.visited = true
 		spec := obj.spec
 		iota := obj.Val.(int)
-		obj.Val = nil // mark obj as "visited" for cycle detection
+		obj.Val = nil // set to a valid (but unknown) constant value
 		// determine spec for type and initialization expressions
 		init := spec
 		if len(init.Values) == 0 {
@@ -228,7 +230,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			return // already checked
 		}
 		if obj.visited {
-			check.errorf(obj.GetPos(), "illegal cycle in initialization of %s", obj.Name)
+			check.errorf(obj.GetPos(), "illegal cycle in initialization of variable %s", obj.Name)
 			obj.Type = Typ[Invalid]
 			return
 		}

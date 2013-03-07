@@ -55,10 +55,10 @@ var aliases = [...]*Basic{
 }
 
 var predeclaredConstants = [...]*Const{
-	{nil, "true", Typ[UntypedBool], true, nil},
-	{nil, "false", Typ[UntypedBool], false, nil},
-	{nil, "iota", Typ[UntypedInt], zeroConst, nil},
-	{nil, "nil", Typ[UntypedNil], nilConst, nil},
+	{Name: "true", Type: Typ[UntypedBool], Val: true},
+	{Name: "false", Type: Typ[UntypedBool], Val: false},
+	{Name: "iota", Type: Typ[UntypedInt], Val: zeroConst},
+	{Name: "nil", Type: Typ[UntypedNil], Val: nilConst},
 }
 
 var predeclaredFunctions = [...]*builtin{
