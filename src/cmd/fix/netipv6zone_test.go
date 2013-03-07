@@ -26,7 +26,8 @@ func f() net.Addr {
 	c := &net.IPAddr{ip1}
 	sub(&net.UDPAddr{ip2, 12345})
 	d := &net.TCPAddr{IP: ip3, Port: 54321}
-	return &net.TCPAddr{ip4}, nil
+	e := &net.TCPAddr{ip4, 0}
+	return &net.TCPAddr{ip5}, nil
 }
 `,
 		Out: `package main
@@ -44,7 +45,8 @@ func f() net.Addr {
 	c := &net.IPAddr{IP: ip1}
 	sub(&net.UDPAddr{IP: ip2, Port: 12345})
 	d := &net.TCPAddr{IP: ip3, Port: 54321}
-	return &net.TCPAddr{IP: ip4}, nil
+	e := &net.TCPAddr{IP: ip4}
+	return &net.TCPAddr{IP: ip5}, nil
 }
 `,
 	},
