@@ -49,13 +49,17 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 	}
 
 	if ursa != nil {
-		fd.wdeadline.setTime(deadline)
+		if !deadline.IsZero() {
+			setWriteDeadline(fd, deadline)
+		}
 		if err = fd.connect(ursa); err != nil {
 			closesocket(s)
 			return nil, err
 		}
 		fd.isConnected = true
-		fd.wdeadline.set(0)
+		if !deadline.IsZero() {
+			setWriteDeadline(fd, time.Time{})
+		}
 	}
 
 	lsa, _ := syscall.Getsockname(s)

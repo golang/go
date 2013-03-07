@@ -9,6 +9,7 @@ package net
 import (
 	"os"
 	"syscall"
+	"time"
 )
 
 func setDefaultSockopts(s syscall.Handle, f, t int, ipv6only bool) error {
@@ -45,5 +46,23 @@ func setDefaultMulticastSockopts(s syscall.Handle) error {
 	if err != nil {
 		return os.NewSyscallError("setsockopt", err)
 	}
+	return nil
+}
+
+// TODO(dfc) these unused error returns could be removed
+
+func setReadDeadline(fd *netFD, t time.Time) error {
+	fd.rdeadline.setTime(t)
+	return nil
+}
+
+func setWriteDeadline(fd *netFD, t time.Time) error {
+	fd.wdeadline.setTime(t)
+	return nil
+}
+
+func setDeadline(fd *netFD, t time.Time) error {
+	setReadDeadline(fd, t)
+	setWriteDeadline(fd, t)
 	return nil
 }
