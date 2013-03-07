@@ -31,6 +31,9 @@
 #pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
 #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
+#pragma dynimport runtime·NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
+
+extern void *runtime·NtWaitForSingleObject;
 
 extern void *runtime·CloseHandle;
 extern void *runtime·CreateEvent;
@@ -133,22 +136,6 @@ runtime·write(int32 fd, void *buf, int32 n)
 	}
 	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
 	return written;
-}
-
-#pragma textflag 7
-void
-runtime·osyield(void)
-{
-	runtime·stdcall(runtime·Sleep, 1, (uintptr)0);
-}
-
-void
-runtime·usleep(uint32 us)
-{
-	us /= 1000;
-	if(us == 0)
-		us = 1;
-	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
 }
 
 #define INFINITE ((uintptr)0xFFFFFFFF)

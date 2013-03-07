@@ -346,3 +346,35 @@ TEXT runtime·install_exception_handler(SB),7,$0
 
 TEXT runtime·remove_exception_handler(SB),7,$0
 	RET
+
+TEXT runtime·osyield(SB),7,$8
+	// Tried NtYieldExecution but it doesn't yield hard enough.
+	// NtWaitForSingleObject being used here as Sleep(0).
+	// The CALL is safe because NtXxx is a system call wrapper:
+	// it puts the right system call number in AX, then does
+	// a SYSENTER and a RET.
+	MOVQ	runtime·NtWaitForSingleObject(SB), AX
+	MOVQ	$1, BX
+	NEGQ	BX
+	MOVQ	SP, R8 // ptime
+	MOVQ	BX, (R8)
+	MOVQ	$-1, CX // handle
+	MOVQ	$0, DX // alertable
+	CALL	AX
+	RET
+
+TEXT runtime·usleep(SB),7,$8
+	// The CALL is safe because NtXxx is a system call wrapper:
+	// it puts the right system call number in AX, then does
+	// a SYSENTER and a RET.
+	MOVQ	runtime·NtWaitForSingleObject(SB), AX
+	// Have 1us units; want negative 100ns units.
+	MOVL	usec+0(FP), BX
+	IMULQ	$10, BX
+	NEGQ	BX
+	MOVQ	SP, R8 // ptime
+	MOVQ	BX, (R8)
+	MOVQ	$-1, CX // handle
+	MOVQ	$0, DX // alertable
+	CALL	AX
+	RET
