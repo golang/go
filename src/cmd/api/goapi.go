@@ -138,9 +138,7 @@ func main() {
 		}
 
 		for _, pkg := range pkgs {
-			if strings.HasPrefix(pkg, "cmd/") ||
-				strings.HasPrefix(pkg, "exp/") ||
-				strings.HasPrefix(pkg, "old/") {
+			if strings.HasPrefix(pkg, "cmd/") {
 				continue
 			}
 			if fi, err := os.Stat(filepath.Join(w.root, pkg)); err != nil || !fi.IsDir() {
