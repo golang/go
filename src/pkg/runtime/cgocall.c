@@ -95,7 +95,8 @@ static void unwindm(void);
 
 // Call from Go to C.
 
-static FuncVal unlockOSThread = { runtime·unlockOSThread };
+static void endcgo(void);
+static FuncVal endcgoV = { endcgo };
 
 void
 runtime·cgocall(void (*fn)(void*), void *arg)
@@ -123,7 +124,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	 * cgo callback. Add entry to defer stack in case of panic.
 	 */
 	runtime·lockOSThread();
-	d.fn = &unlockOSThread;
+	d.fn = &endcgoV;
 	d.siz = 0;
 	d.link = g->defer;
 	d.argp = (void*)-1;  // unused because unlockm never recovers
@@ -148,6 +149,16 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	runtime·asmcgocall(fn, arg);
 	runtime·exitsyscall();
 
+	if(g->defer != &d || d.fn != &endcgoV)
+		runtime·throw("runtime: bad defer entry in cgocallback");
+	g->defer = d.link;
+	endcgo();
+}
+
+static void
+endcgo(void)
+{
+	runtime·unlockOSThread();
 	m->ncgo--;
 	if(m->ncgo == 0) {
 		// We are going back to Go and are not in a recursive
@@ -155,11 +166,6 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 		// _cgo_allocate that is no longer referenced.
 		m->cgomal = nil;
 	}
-
-	if(g->defer != &d || d.fn != &unlockOSThread)
-		runtime·throw("runtime: bad defer entry in cgocallback");
-	g->defer = d.link;
-	runtime·unlockOSThread();
 
 	if(raceenabled)
 		runtime·raceacquire(&cgosync);

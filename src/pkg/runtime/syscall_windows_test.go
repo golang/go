@@ -172,9 +172,6 @@ func TestCallbackGC(t *testing.T) {
 }
 
 func TestCallbackPanic(t *testing.T) {
-	// TODO(brainman): http://golang.org/issue/4971
-	t.Skip("TestCallbackPanic disabled: http://golang.org/issue/4971")
-
 	// Make sure panic during callback unwinds properly.
 	if runtime.LockedOSThread() {
 		t.Fatal("locked OS thread on entry to TestCallbackPanic")

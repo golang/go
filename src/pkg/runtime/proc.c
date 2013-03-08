@@ -1173,6 +1173,11 @@ goexit0(G *gp)
 	gp->lockedm = nil;
 	m->curg = nil;
 	m->lockedg = nil;
+	if(m->locked & ~LockExternal) {
+		runtime·printf("invalid m->locked = %d", m->locked);
+		runtime·throw("internal lockOSThread error");
+	}	
+	m->locked = 0;
 	runtime·unwindstack(gp, nil);
 	gfput(m->p, gp);
 	schedule();
