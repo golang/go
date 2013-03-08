@@ -23,11 +23,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove(SB), 7, $0
 
 	MOVQ	to+0(FP), DI
 	MOVQ	fr+8(FP), SI
-	MOVLQSX	n+16(FP), BX
+	MOVQ	n+16(FP), BX
 
 /*
  * check and set for backwards
@@ -38,7 +39,7 @@ TEXT runtime·memmove(SB), 7, $0
 /*
  * forward copy loop
  */
-forward:	
+forward:
 	MOVQ	BX, CX
 	SHRQ	$3, CX
 	ANDQ	$7, BX
