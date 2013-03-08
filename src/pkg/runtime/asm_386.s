@@ -6,8 +6,8 @@
 
 TEXT _rt0_386(SB),7,$0
 	// copy arguments forward on an even stack
-	MOVL	0(SP), AX		// argc
-	LEAL	4(SP), BX		// argv
+	MOVL	argc+0(FP), AX
+	MOVL	argv+4(FP), BX
 	SUBL	$128, SP		// plenty of scratch
 	ANDL	$~15, SP
 	MOVL	AX, 120(SP)		// save argc, argv away
