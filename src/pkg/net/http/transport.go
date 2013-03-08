@@ -41,12 +41,13 @@ const DefaultMaxIdleConnsPerHost = 2
 // https, and http proxies (for either http or https with CONNECT).
 // Transport can also cache connections for future re-use.
 type Transport struct {
-	idleMu   sync.Mutex
-	idleConn map[string][]*persistConn
-	reqMu    sync.Mutex
-	reqConn  map[*Request]*persistConn
-	altMu    sync.RWMutex
-	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
+	idleMu     sync.Mutex
+	idleConn   map[string][]*persistConn
+	idleConnCh map[string]chan *persistConn
+	reqMu      sync.Mutex
+	reqConn    map[*Request]*persistConn
+	altMu      sync.RWMutex
+	altProto   map[string]RoundTripper // nil or map of URI scheme => RoundTripper
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
@@ -279,6 +280,17 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 		max = DefaultMaxIdleConnsPerHost
 	}
 	t.idleMu.Lock()
+	select {
+	case t.idleConnCh[key] <- pconn:
+		// We're done with this pconn and somebody else is
+		// currently waiting for a conn of this type (they're
+		// actively dialing, but this conn is ready
+		// first). Chrome calls this socket late binding.  See
+		// https://insouciant.org/tech/connection-management-in-chromium/
+		t.idleMu.Unlock()
+		return true
+	default:
+	}
 	if t.idleConn == nil {
 		t.idleConn = make(map[string][]*persistConn)
 	}
@@ -297,8 +309,23 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 	return true
 }
 
+func (t *Transport) getIdleConnCh(cm *connectMethod) chan *persistConn {
+	key := cm.key()
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	if t.idleConnCh == nil {
+		t.idleConnCh = make(map[string]chan *persistConn)
+	}
+	ch, ok := t.idleConnCh[key]
+	if !ok {
+		ch = make(chan *persistConn)
+		t.idleConnCh[key] = ch
+	}
+	return ch
+}
+
 func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
-	key := cm.String()
+	key := cm.key()
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
 	if t.idleConn == nil {
@@ -354,6 +381,37 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 		return pc, nil
 	}
 
+	type dialRes struct {
+		pc  *persistConn
+		err error
+	}
+	dialc := make(chan dialRes)
+	go func() {
+		pc, err := t.dialConn(cm)
+		dialc <- dialRes{pc, err}
+	}()
+
+	idleConnCh := t.getIdleConnCh(cm)
+	select {
+	case v := <-dialc:
+		// Our dial finished.
+		return v.pc, v.err
+	case pc := <-idleConnCh:
+		// Another request finished first and its net.Conn
+		// became available before our dial. Or somebody
+		// else's dial that they didn't use.
+		// But our dial is still going, so give it away
+		// when it finishes:
+		go func() {
+			if v := <-dialc; v.err == nil {
+				t.putIdleConn(v.pc)
+			}
+		}()
+		return pc, nil
+	}
+}
+
+func (t *Transport) dialConn(cm *connectMethod) (*persistConn, error) {
 	conn, err := t.dial("tcp", cm.addr())
 	if err != nil {
 		if cm.proxyURL != nil {
@@ -366,7 +424,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 
 	pconn := &persistConn{
 		t:        t,
-		cacheKey: cm.String(),
+		cacheKey: cm.key(),
 		conn:     conn,
 		reqch:    make(chan requestAndChan, 50),
 		writech:  make(chan writeRequest, 50),
@@ -514,6 +572,10 @@ type connectMethod struct {
 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
 	targetScheme string   // "http" or "https"
 	targetAddr   string   // Not used if proxy + http targetScheme (4th example in table)
+}
+
+func (ck *connectMethod) key() string {
+	return ck.String() // TODO: use a struct type instead
 }
 
 func (ck *connectMethod) String() string {

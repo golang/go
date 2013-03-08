@@ -1324,6 +1324,64 @@ func TestTransportNoHost(t *testing.T) {
 	}
 }
 
+func TestTransportSocketLateBinding(t *testing.T) {
+	defer checkLeakedTransports(t)
+
+	mux := NewServeMux()
+	fooGate := make(chan bool, 1)
+	mux.HandleFunc("/foo", func(w ResponseWriter, r *Request) {
+		w.Header().Set("foo-ipport", r.RemoteAddr)
+		w.(Flusher).Flush()
+		<-fooGate
+	})
+	mux.HandleFunc("/bar", func(w ResponseWriter, r *Request) {
+		w.Header().Set("bar-ipport", r.RemoteAddr)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	dialGate := make(chan bool, 1)
+	tr := &Transport{
+		Dial: func(n, addr string) (net.Conn, error) {
+			<-dialGate
+			return net.Dial(n, addr)
+		},
+		DisableKeepAlives: false,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{
+		Transport: tr,
+	}
+
+	dialGate <- true // only allow one dial
+	fooRes, err := c.Get(ts.URL + "/foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fooAddr := fooRes.Header.Get("foo-ipport")
+	if fooAddr == "" {
+		t.Fatal("No addr on /foo request")
+	}
+	time.AfterFunc(200*time.Millisecond, func() {
+		// let the foo response finish so we can use its
+		// connection for /bar
+		fooGate <- true
+		io.Copy(ioutil.Discard, fooRes.Body)
+		fooRes.Body.Close()
+	})
+
+	barRes, err := c.Get(ts.URL + "/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	barAddr := barRes.Header.Get("bar-ipport")
+	if barAddr != fooAddr {
+		t.Fatalf("/foo came from conn %q; /bar came from %q instead", fooAddr, barAddr)
+	}
+	barRes.Body.Close()
+	dialGate <- true
+}
+
 type proxyFromEnvTest struct {
 	req     string // URL to fetch; blank means "http://example.com"
 	env     string
