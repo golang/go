@@ -668,7 +668,7 @@ void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);
 int32	runtime·mcmp(byte*, byte*, uint32);
-void	runtime·memmove(void*, void*, uint32);
+void	runtime·memmove(void*, void*, uintptr);
 void*	runtime·mal(uintptr);
 String	runtime·catstring(String, String);
 String	runtime·gostring(byte*);
