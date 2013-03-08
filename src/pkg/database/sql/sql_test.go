@@ -708,3 +708,32 @@ func TestQueryRowNilScanDest(t *testing.T) {
 		t.Errorf("error = %q; want %q", err.Error(), want)
 	}
 }
+
+func TestIssue4902(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	driver := db.driver.(*fakeDriver)
+	opens0 := driver.openCount
+
+	var stmt *Stmt
+	var err error
+	for i := 0; i < 10; i++ {
+		stmt, err = db.Prepare("SELECT|people|name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = stmt.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	opens := driver.openCount - opens0
+	if opens > 1 {
+		t.Errorf("opens = %d; want <= 1", opens)
+		t.Logf("db = %#v", db)
+		t.Logf("driver = %#v", driver)
+		t.Logf("stmt = %#v", stmt)
+	}
+}

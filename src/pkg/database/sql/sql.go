@@ -445,6 +445,7 @@ func (db *DB) prepare(query string) (*Stmt, error) {
 		css:   []connStmt{{ci, si}},
 	}
 	db.addDep(stmt, stmt)
+	db.putConn(ci, nil)
 	return stmt, nil
 }
 
