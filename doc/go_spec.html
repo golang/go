@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 4, 2013",
+	"Subtitle": "Version of March 7, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -5734,8 +5734,10 @@ as if <code>v</code> was declared via <code>var v = x</code>.
 </p>
 <p>
 The function <code>Offsetof</code> takes a (possibly parenthesized) <a href="#Selectors">selector</a>
-denoting a struct field of any type and returns the field offset in bytes relative to the
-struct's address.
+<code>s.f</code>, denoting a field <code>f</code> of the struct denoted by <code>s</code>
+or <code>*s</code>, and returns the field offset in bytes relative to the struct's address.
+If <code>f</code> is an <a href="#Struct_types">embedded field</a>, it must be reachable
+without pointer indirections through fields of the struct.
 For a struct <code>s</code> with field <code>f</code>:
 </p>
 
