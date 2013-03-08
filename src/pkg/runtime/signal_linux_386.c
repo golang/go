@@ -155,9 +155,8 @@ extern uint32 runtime·_vdso;
 
 #pragma textflag 7
 void
-runtime·linux_setup_vdso(int32 argc, void *argv_list)
+runtime·linux_setup_vdso(int32 argc, byte **argv)
 {
-	byte **argv = &argv_list;
 	byte **envp;
 	uint32 *auxv;
 
