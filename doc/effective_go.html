@@ -2092,6 +2092,91 @@ and <code>[]int</code>), each of which does some part of the job.
 That's more unusual in practice but can be effective.
 </p>
 
+<h3 id="interface_conversions">Interface conversions and type assertions</h3>
+
+<p>
+<a href="#type_switch">Type switches</a> are a form of conversion: they take an interface and, for
+each case in the switch, in a sense convert it to the type of that case.
+Here's a simplified version of how the code under <code>fmt.Printf</code> turns a value into
+a string using a type switch.
+If it's already a string, we want the actual string value held by the interface, while if it has a
+<code>String</code> method we want the result of calling the method.
+</p>
+
+<pre>
+type Stringer interface {
+    String() string
+}
+
+var value interface{} // Value provided by caller.
+switch str := value.(type) {
+case string:
+    return str
+case Stringer:
+    return str.String()
+}
+</pre>
+
+<p>
+The first case finds a concrete value; the second converts the interface into another interface.
+It's perfectly fine to mix types this way.
+</p>
+
+<p>
+What if there's only one type we care about? If we know the value holds a <code>string</code>
+and we just want to extract it?
+A one-case type switch would do, but so would a <em>type assertion</em>.
+A type assertion takes an interface value and extracts from it a value of the specified explicit type.
+The syntax borrows from the clause opening a type switch, but with an explicit
+type rather than the <code>type</code> keyword:
+
+<pre>
+value.(typeName)
+</pre>
+
+<p>
+and the result is a new value with the static type <code>typeName</code>.
+That type must either be the concrete type held by the interface, or a second interface
+type that the value can be converted to.
+To extract the string we know is in the value, we could write:
+</p>
+
+<pre>
+str := value.(string)
+</pre>
+
+<p>
+But if it turns out that the value does not contain a string, the program will crash with a run-time error.
+To guard against that, use the "comma, ok" idiom to test, safely, whether the value is a string:
+</p>
+
+<pre>
+str, ok := value.(string)
+if ok {
+    fmt.Printf("string value is: %q\n", str)
+} else {
+    fmt.Printf("value is not a string\n")
+}
+</pre>
+
+<p>
+If the type assertion fails, <code>str</code> will still exist and be of type string, but it will have
+the zero value, an empty string.
+</p>
+
+<p>
+As an illustration of the capability, here's an <code>if</code>-<code>else</code>
+statement that's equivalent to the type switch that opened this section.
+</p>
+
+<pre>
+if str, ok := value.(string); ok {
+    return str
+} else if str, ok := value.(Stringer); ok {
+    return str.String()
+}
+</pre>
+
 <h3 id="generality">Generality</h3>
 <p>
 If a type exists only to implement an interface
@@ -2449,7 +2534,7 @@ package, which defines a <code><a href="/pkg/encoding/json/#Marshaler">Marshaler
 interface. When the JSON encoder receives a value that implements that interface,
 the encoder invokes the value's marshaling method to convert it to JSON
 instead of doing the standard conversion.
-The encoder checks this property at run time with code like:
+The encoder checks this property at run time with a <a href="interface_conversions">type assertion</a> like:
 </p>
 
 <pre>
@@ -3129,11 +3214,8 @@ for try := 0; try &lt; 2; try++ {
 </pre>
 
 <p>
-The second <code>if</code> statement here is idiomatic Go.
-The type assertion <code>err.(*os.PathError)</code> is
-checked with the "comma ok" idiom (mentioned <a href="#maps">earlier</a>
-in the context of examining maps).
-If the type assertion fails, <code>ok</code> will be false, and <code>e</code>
+The second <code>if</code> statement here is another <a href="#interface_conversion">type assertion</a>.
+If it fails, <code>ok</code> will be false, and <code>e</code>
 will be <code>nil</code>.
 If it succeeds,  <code>ok</code> will be true, which means the
 error was of type <code>*os.PathError</code>, and then so is <code>e</code>,
