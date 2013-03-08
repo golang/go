@@ -696,6 +696,9 @@ for _, value := range array {
 </pre>
 
 <p>
+The blank identifier has many uses, as described in <a href="#blank">a later section</a>.
+
+<p>
 For strings, the <code>range</code> does more work for you, breaking out individual
 Unicode code points by parsing the UTF-8.
 Erroneous encodings consume one byte and produce the
@@ -801,6 +804,8 @@ func Compare(a, b []byte) int {
     return 0
 }
 </pre>
+
+<h2 id="type_switch">Type switch</h2>
 
 <p>
 A switch can also be used to discover the dynamic type of an interface
@@ -1556,11 +1561,8 @@ func offset(tz string) int {
 </pre>
 <p>
 To test for presence in the map without worrying about the actual value,
-you can use the blank identifier (<code>_</code>).
-The blank identifier can be assigned or declared with any value of any type, with the
-value discarded harmlessly; it's a bit like writing to the Unix <code>/dev/null</code> file.
-For testing just presence in a map, use the blank
-identifier in place of the usual variable for the value.
+you can use the <a href="#blank">blank identifier</a> (<code>_</code>)
+in place of the usual variable for the value.
 </p>
 <pre>
 _, present := timeZone[tz]
@@ -2311,6 +2313,196 @@ In this section we have made an HTTP server from a struct, an integer,
 a channel, and a function, all because interfaces are just sets of
 methods, which can be defined for (almost) any type.
 </p>
+
+<h2 id="blank">The blank identifier</h2>
+
+<p>
+We've mentioned the blank identifier a couple of times now, in the context of
+<a href="#for"><code>for</code> <code>range</code> loops</a>
+and <a href="#maps">maps</a>.
+The blank identifier can be assigned or declared with any value of any type, with the
+value discarded harmlessly.
+It's a bit like writing to the Unix <code>/dev/null</code> file:
+it represents a write-only value
+to be used as a place-holder
+where a variable is needed but the actual value is irrelevant.
+It has uses beyond those we've seen already.
+</p>
+
+<h3 id="blank_assign">The blank identifier in multiple assignment</h3>
+
+<p>
+The use of a blank identifier in a <code>for</code> <code>range</code> loop is a
+special case of a general situation: multiple assignment.
+<p>
+If an assignment requires multiple values on the left side,
+but one of the values will not be used by the program,
+a blank identifier on the left-hand-side of the
+the assignment avoids the need
+to create a dummy variable and makes it clear that the
+value is to be discarded.
+For instance, when calling a function that returns
+a value and an error, but only the error is important,
+use the blank identifier to discard the irrelevant value.
+</p>
+
+<pre>
+if _, err := os.Stat(path); os.IsNotExist(err) {
+	fmt.Printf("%s does not exist\n", path)
+}
+</pre>
+
+<p>
+Occasionally you'll see code that discards the error value in order
+to ignore the error; this is terrible practice. Always check error returns;
+they're provided for a reason.
+</p>
+
+<pre>
+// Bad! This code will crash if path does not exist.
+fi, _ := os.Stat(path)
+if fi.IsDir() {
+    fmt.Printf("%s is a directory\n", path)
+}
+</pre>
+
+<h3 id="blank_unused">Unused imports and variables</h3>
+
+<p>
+It is an error to import a package or to declare a variable without using it.
+Unused imports bloat the program and slow compilation,
+while a variable that is initialized but not used is at least
+a wasted computation and perhaps indicative of a
+larger bug.
+When a program is under active development, however,
+unused imports and variables often arise and it can
+be annoying to delete them just to have the compilation proceed,
+only to have them be needed again later.
+The blank identifier provides a workaround.
+</p>
+<p>
+This half-written program is has two unused imports
+(<code>fmt</code> and <code>io</code>)
+and an unused variable (<code>fd</code>),
+so it will not compile, but it would be nice to see if the
+code so far is correct.
+</p>
+{{code "/doc/progs/eff_unused1.go" `/package/` `$`}}
+<p>
+To silence complaints about the unused imports, use a
+blank identifier to refer to a symbol from the imported package.
+Similarly, assigning the unused variable <code>fd</code>
+to the blank identifier will silence the unused variable error.
+This version of the program does compile.
+</p>
+{{code "/doc/progs/eff_unused2.go" `/package/` `$`}}
+
+<p>
+By convention, the global declarations to silence import errors
+should come right after the imports and be commented,
+both to make them easy to find and as a reminder to clean things up later.
+</p>
+
+<h3 id="blank_import">Import for side effect</h3>
+
+<p>
+An unused import like <code>fmt</code> or <code>io</code> in the
+previous example should eventually be used or removed:
+blank assignments identify code as a work in progress.
+But sometimes it is useful to import a package only for its
+side effects, without any explicit use.
+For example, during its <code>init</code> function,
+the <code><a href="/pkg/net/http/pprof/">net/http/pprof</a></code>
+package registers HTTP handlers that provide
+debugging information. It has an exported API, but
+most clients need only the handler registration and
+access the data through a web page.
+To import the package only for its side effects, rename the package
+to the blank identifier:
+</p>
+<pre>
+import _ "net/http/pprof"
+</pre>
+<p>
+This form of import makes clear that the package is being
+imported for its side effects, because there is no other possible
+use of the package: in this file, it doesn't have a name.
+(If it did, and we didn't use that name, the compiler would reject the program.)
+</p>
+
+<h3 id="blank_implements">Interface checks</h3>
+
+<p>
+As we saw in the discussion of <a href="#interfaces_and_types">interfaces</a> above,
+a type need not declare explicitly that it implements an interface.
+Instead, a type implements the interface just by implementing the interface's methods.
+In practice, most interface conversions are static and therefore checked at compile time.
+For example, passing an <code>*os.File</code> to a function
+expecting an <code>io.Reader</code> will not compile unless
+<code>*os.File</code> implements the <code>io.Reader</code> interface.
+</p>
+
+<p>
+Some interface checks do happen at run-time, though.
+One instance is in the <code><a href="/pkg/encoding/json/">encoding/json</a></code>
+package, which defines a <code><a href="/pkg/encoding/json/#Marshaler">Marshaler</a></code>
+interface. When the JSON encoder receives a value that implements that interface,
+the encoder invokes the value's marshaling method to convert it to JSON
+instead of doing the standard conversion.
+The encoder checks this property at run time with code like:
+</p>
+
+<pre>
+m, ok := val.(json.Marshaler)
+</pre>
+
+<p>
+If it's necessary only to ask whether a type implements an interface, without
+actually using the interface itself, perhaps as part of an error check, use the blank
+identifier to ignore the type-asserted value:
+</p>
+
+<pre>
+if _, ok := val.(json.Marshaler); ok {
+    fmt.Printf("value %v of type %T implements json.Marshaler\n", val, val)
+}
+</pre>
+
+<p>
+One place this situation arises is when it is necessary to guarantee within the package implementing the type that
+it it actually satisfies the interface.
+If a type—for example,
+<code><a href="/pkg/encoding/json/#RawMessage">json.RawMessage</a></code>—needs
+a custom its JSON representation, it should implement
+<code>json.Marshaler</code>, but there are no static conversions that would
+cause the compiler to verify this automatically.
+If the type inadvertently fails to satisfy the interface, the JSON encoder will still work,
+but will not use the custom implementation.
+To guarantee that the implementation is correct,
+a global declaration using the blank identifier can be used in the package:
+</p>
+<pre>
+var _ json.Marshaler = (*RawMessage)(nil)
+</pre>
+<p>
+In this declaration, the assignment involving a conversion of a
+<code>*RawMessage</code> to a <code>Marshaler</code>
+requires that <code>*RawMessage</code> implements <code>Marshaler</code>,
+and that property will be checked at compile time.
+Should the <code>json.Marshaler</code> interface change, this package
+will no longer compile and we will be on notice that it needs to be updated.
+</p>
+
+<p>
+The appearance of the blank identifier in this construct indicates that
+the declaration exists only for the type checking,
+not to create a variable.
+Don't do this for every type that satisfies an interface, though.
+By convention, such declarations are only used
+when there are no static conversions already present in the code,
+which is a rare event.
+</p>
+
 
 <h2 id="embedding">Embedding</h2>
 
@@ -3146,155 +3338,6 @@ filter unexpected problems and re-panic with the original error.
 That's left as an exercise for the reader.
 </p>
 
-<h2 id="blank">Blank identifier</h2>
-
-<p>
-Go defines a special identifier <code>_</code>, called the <i>blank identifier</i>.
-The blank identifier can be used in a declaration to avoid
-declaring a name, and it can be used in an assignment to discard a value.
-This definition makes it useful in a variety of contexts.
-</p>
-
-<h3 id="blank_assign">Multiple assignment</h3>
-
-<p>
-If an assignment requires multiple values on the left side,
-but one of the values will not be used by the program,
-using the blank identifier in the assignment avoids the need
-to create a dummy variable.
-We saw one example of this in the discussion of
-<a href="#for">for loops</a> above.
-</p>
-<pre>
-sum := 0
-for _, value := range array {
-    sum += value
-}
-</pre>
-
-<p>
-Another common use is when calling a function that returns
-a value and an error, but only the error is important.
-</p>
-<pre>
-if _, err := os.Stat(path); os.IsNotExist(err) {
-	fmt.Printf("%s does not exist\n", path)
-}
-</pre>
-
-<p>
-A final use that is more common than it should be is to 
-discard the error from a function that is not expected to fail.
-This is usually a mistake: when the function does fail, the code
-will continue on and probably panic dereferencing a nil pointer.
-</p>
-<pre>
-// Always check errors: this program crashes if path does not exist.
-fi, _ := os.Stat(path)
-fmt.Printf("%s is %d bytes\n", path, fi.Size())
-</pre>
-
-<h3 id="blank_unused">Unused imports and variables</h3>
-
-<p>
-Go defines that it is an error to import a package without using it,
-or to declare a variable without using its value.
-Unused imports bloat a program and lengthen compiles unnecessarily;
-a variable that is initialized but not used is at least
-a wasted computation and perhaps indicative of a
-larger bug.
-Of course, both of these situations also arise in programs
-that are under active development, as you test and refine
-your code. 
-</p>
-<p>
-For example, in this program, there are two unused imports
-(<code>fmt</code> and <code>io</code>)
-and an unused variable (<code>greeting</code>).
-</p>
-{{code "/doc/progs/unused1.go" `/package/` `$`}}
-<p>
-Top-level blank declarations referring to the packages
-will silence the unused import errors.
-By convention, these declarations should come immediately after
-the imports, as a reminder to clean things up later.
-Similarly, assigning <code>greeting</code> to a blank identifier
-will silence the unused variable error.
-</p>
-{{code "/doc/progs/unused2.go" `/package/` `$`}}
-
-<h3 id="blank_import">Import for side effect</h3>
-
-<p>
-An unused import like <code>fmt</code> or <code>io</code> in the last section
-should eventually be used or removed:
-blank assignments identify code as a work in progress.
-But sometimes it is useful to import a package only for its
-side effects, without any explicit use.
-For example, during its <code>init</code> function,
-the <code><a href="/pkg/net/http/pprof/">net/http/pprof</a></code>
-package registers HTTP handlers that provide useful
-debugging information. It has an exported API too, but
-most clients need only the handler registration.
-In this situation, it is conventional to rename the package
-to the blank identifier:
-</p>
-<pre>
-import _ "net/http/pprof"
-</pre>
-<p>
-This form of import makes clear that the package is being
-imported for its side effects, because there is no other possible
-use of the package: in this file, it doesn't have a name.
-</p>
-
-<h3 id="blank_implements">Interface checks</h3>
-
-<p>
-As we saw in the discussion of <a href="#interfaces_and_types">interfaces</a> above,
-Go does not require a type to declare explicitly that it implements an interface.
-It implements the interface by simply implementing the required methods.
-This makes Go programs more lightweight and flexible, and it can avoid
-unnecessary dependencies between packages. 
-Most interface conversions are static, visible to the compiler,
-and therefore checked at compile time.
-For example, passing an <code>*os.File</code> to a function
-expecting an <code>io.Reader</code> will not compile unless
-<code>*os.File</code> implements the <code>io.Reader</code> interface.
-</p>
-<p>
-However, some types that are used only to satisfy dynamic interface checks.
-For example, the <code><a href="/pkg/encoding/json/">encoding/json</a></code>
-package defines a <code><a href="/pkg/encoding/json/#Marshaler">Marshaler</a></code>
-interface. If the JSON encoder encounters a type implementing that interface,
-the encoder will let the type convert itself to JSON instead of using the standard
-conversion.
-This check is done only at runtime, with code like:
-</p>
-<pre>
-m, ok := val.(json.Marshaler)
-</pre>
-<p>
-If a type—for example,
-<code><a href="/pkg/encoding/json/#RawMessage">json.RawMessage</a></code>—intends
-to customize its JSON representation, it should implement
-<code>json.Marshaler</code>, but there are no static conversions that would
-cause the compiler to verify this automatically.
-A declaration can be used to add such a check:
-</p>
-<pre>
-var _ json.Marshaler = (*RawMessage)(nil)
-</pre>
-<p>
-As part of type-checking this static assignment of a
-<code>*RawMessage</code> to a <code>Marshaler</code>,
-the Go compiler will require that <code>*RawMessage</code> implements <code>Marshaler</code>.
-Using the blank identifier here indicates that
-the declaration exists only for the type checking,
-not to create a variable.
-Conventionally, such declarations are used only when there are
-no static conversions already present in the code.
-</p>
 
 <h2 id="web_server">A web server</h2>
 

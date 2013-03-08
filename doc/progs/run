@@ -16,6 +16,7 @@ effective_go="
 	eff_bytesize
 	eff_qr
 	eff_sequence
+	eff_unused2
 "
 
 error_handling="
