@@ -598,7 +598,7 @@ hostlink(void)
 	Biobuf *f;
 	static char buf[64<<10];
 
-	if(linkmode != LinkExternal)
+	if(linkmode != LinkExternal || nerrors > 0)
 		return;
 
 	argv = malloc((10+nhostobj+nldflag)*sizeof argv[0]);
@@ -606,6 +606,14 @@ hostlink(void)
 	// TODO: Add command-line flag to override gcc path and specify additional leading options.
 	// TODO: Add command-line flag to specify additional trailing options.
 	argv[argc++] = "gcc";
+	switch(thechar){
+	case '8':
+		argv[argc++] = "-m32";
+		break;
+	case '6':
+		argv[argc++] = "-m64";
+		break;
+	}
 	if(!debug['s'])
 		argv[argc++] = "-ggdb"; 
 	argv[argc++] = "-o";
@@ -1249,6 +1257,7 @@ addsection(Segment *seg, char *name, int rwx)
 	sect->rwx = rwx;
 	sect->name = name;
 	sect->seg = seg;
+	sect->align = PtrSize; // everything is at least pointer-aligned
 	*l = sect;
 	return sect;
 }
@@ -1781,7 +1790,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
 
 	for(s=allsym; s!=S; s=s->allsym) {
-		if(s->hide || (s->name[0] == '.' && s->version == 0))
+		if(s->hide || (s->name[0] == '.' && s->version == 0 && strcmp(s->name, ".rathole") != 0))
 			continue;
 		switch(s->type&SMASK) {
 		case SCONST:

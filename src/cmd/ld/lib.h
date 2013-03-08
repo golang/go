@@ -104,6 +104,7 @@ struct Segment
 struct Section
 {
 	uchar	rwx;
+	int32	align;
 	char	*name;
 	uvlong	vaddr;
 	uvlong	len;
