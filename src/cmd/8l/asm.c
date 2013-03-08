@@ -128,7 +128,7 @@ adddynrel(Sym *s, Reloc *r)
 
 	// Handle relocations found in ELF object files.
 	case 256 + R_386_PC32:
-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic))
+		if(targ->dynimpname != nil && !targ->cgoexport)
 			diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ->name);
 		if(targ->type == 0 || targ->type == SXREF)
 			diag("unknown symbol %s in pcrel", targ->name);
@@ -139,7 +139,7 @@ adddynrel(Sym *s, Reloc *r)
 	case 256 + R_386_PLT32:
 		r->type = D_PCREL;
 		r->add += 4;
-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
+		if(targ->dynimpname != nil && !targ->cgoexport) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add += targ->plt;
@@ -147,7 +147,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;		
 	
 	case 256 + R_386_GOT32:
-		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
+		if(targ->dynimpname == nil || targ->cgoexport) {
 			// have symbol
 			// turn MOVL of GOT entry into LEAL of symbol itself
 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
@@ -175,19 +175,19 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 
 	case 256 + R_386_32:
-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic))
+		if(targ->dynimpname != nil && !targ->cgoexport)
 			diag("unexpected R_386_32 relocation for dynamic symbol %s", targ->name);
 		r->type = D_ADDR;
 		return;
 	
 	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 0:
 		r->type = D_ADDR;
-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic))
+		if(targ->dynimpname != nil && !targ->cgoexport)
 			diag("unexpected reloc for dynamic symbol %s", targ->name);
 		return;
 	
 	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 1:
-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
+		if(targ->dynimpname != nil && !targ->cgoexport) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add = targ->plt;
@@ -198,7 +198,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 	
 	case 512 + MACHO_FAKE_GOTPCREL:
-		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
+		if(targ->dynimpname == nil || targ->cgoexport) {
 			// have symbol
 			// turn MOVL of GOT entry into LEAL of symbol itself
 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
@@ -217,7 +217,7 @@ adddynrel(Sym *s, Reloc *r)
 	}
 	
 	// Handle references to ELF symbols from our own object files.
-	if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic))
+	if(targ->dynimpname == nil || targ->cgoexport)
 		return;
 
 	switch(r->type) {
@@ -461,7 +461,7 @@ adddynsym(Sym *s)
 	
 		/* type */
 		t = STB_GLOBAL << 4;
-		if((s->cgoexport & CgoExportDynamic) && (s->type&SMASK) == STEXT)
+		if(s->cgoexport && (s->type&SMASK) == STEXT)
 			t |= STT_FUNC;
 		else
 			t |= STT_OBJECT;
@@ -469,7 +469,7 @@ adddynsym(Sym *s)
 		adduint8(d, 0);
 	
 		/* shndx */
-		if(!(s->cgoexport & CgoExportDynamic) && s->dynimpname != nil)
+		if(!s->cgoexport && s->dynimpname != nil)
 			adduint16(d, SHN_UNDEF);
 		else {
 			switch(s->type) {
