@@ -130,6 +130,10 @@ main(int argc, char *argv[])
 	
 	flagparse(&argc, &argv, usage);
 
+	// TODO: link mode flag instead of isobj
+	if(isobj)
+		linkmode = LinkExternal;
+
 	if(argc != 1)
 		usage();
 

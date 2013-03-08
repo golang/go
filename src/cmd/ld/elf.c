@@ -762,7 +762,7 @@ elfshbits(Section *sect)
 		sh->flags |= SHF_WRITE;
 	if(!isobj)
 		sh->addr = sect->vaddr;
-	sh->addralign = PtrSize;
+	sh->addralign = sect->align;
 	sh->size = sect->len;
 	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 

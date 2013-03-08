@@ -42,6 +42,7 @@ enum
 	thechar = '6',
 	PtrSize = 8,
 	IntSize = 8,
+	MaxAlign = 32,	// max data alignment
 	
 	// Loop alignment constants:
 	// want to align loop entry to LoopAlign-byte boundary,
