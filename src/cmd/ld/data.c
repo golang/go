@@ -199,7 +199,7 @@ relocsym(Sym *s)
 			if(r->sym)
 				o += symaddr(r->sym);
 			o += r->add - (s->value + r->off + r->siz);
-			if(isobj && r->sym->type != SCONST) {
+			if(isobj && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
 				if(thechar == '6')
 					o = 0;
 				else
@@ -950,11 +950,11 @@ dodata(void)
 	Bflush(&bso);
 
 	// define garbage collection symbols
-	gcdata1 = lookup("gcdata1", 0);
-	gcdata1->type = SGCDATA;
+	gcdata1 = lookup("gcdata", 0);
+	gcdata1->type = STYPE;
 	gcdata1->reachable = 1;
-	gcbss1 = lookup("gcbss1", 0);
-	gcbss1->type = SGCBSS;
+	gcbss1 = lookup("gcbss", 0);
+	gcbss1->type = STYPE;
 	gcbss1->reachable = 1;
 
 	// size of .data and .bss section. the zero value is later replaced by the actual size of the section.
@@ -1154,7 +1154,7 @@ dodata(void)
 	}
 	sect->len = datsize - sect->vaddr;
 
-	/* type */
+	/* typelink */
 	sect = addsection(&segtext, ".typelink", 04);
 	sect->align = maxalign(s, STYPELINK);
 	datsize = rnd(datsize, sect->align);
@@ -1162,38 +1162,6 @@ dodata(void)
 	lookup("typelink", 0)->sect = sect;
 	lookup("etypelink", 0)->sect = sect;
 	for(; s != nil && s->type == STYPELINK; s = s->next) {
-		datsize = aligndatsize(datsize, s);
-		s->sect = sect;
-		s->type = SRODATA;
-		s->value = datsize;
-		datsize += s->size;
-	}
-	sect->len = datsize - sect->vaddr;
-
-	/* gcdata */
-	sect = addsection(&segtext, ".gcdata", 04);
-	sect->align = maxalign(s, SGCDATA);
-	datsize = rnd(datsize, sect->align);
-	sect->vaddr = datsize;
-	lookup("gcdata", 0)->sect = sect;
-	lookup("egcdata", 0)->sect = sect;
-	for(; s != nil && s->type == SGCDATA; s = s->next) {
-		datsize = aligndatsize(datsize, s);
-		s->sect = sect;
-		s->type = SRODATA;
-		s->value = datsize;
-		datsize += s->size;
-	}
-	sect->len = datsize - sect->vaddr;
-
-	/* gcbss */
-	sect = addsection(&segtext, ".gcbss", 04);
-	sect->align = maxalign(s, SGCBSS);
-	datsize = rnd(datsize, sect->align);
-	sect->vaddr = datsize;
-	lookup("gcbss", 0)->sect = sect;
-	lookup("egcbss", 0)->sect = sect;
-	for(; s != nil && s->type == SGCBSS; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
 		s->type = SRODATA;
@@ -1295,7 +1263,7 @@ void
 address(void)
 {
 	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss, *datarelro;
-	Section *gcdata, *gcbss, *typelink;
+	Section *typelink;
 	Sym *sym, *sub;
 	uvlong va;
 
@@ -1349,9 +1317,7 @@ address(void)
 	text = segtext.sect;
 	rodata = text->next;
 	typelink = rodata->next;
-	gcdata = typelink->next;
-	gcbss = gcdata->next;
-	symtab = gcbss->next;
+	symtab = typelink->next;
 	pclntab = symtab->next;
 
 	for(sym = datap; sym != nil; sym = sym->next) {
@@ -1374,10 +1340,15 @@ address(void)
 		xdefine("datarelro", SRODATA, datarelro->vaddr);
 		xdefine("edatarelro", SRODATA, datarelro->vaddr + datarelro->len);
 	}
-	xdefine("gcdata", SGCDATA, gcdata->vaddr);
-	xdefine("egcdata", SGCDATA, gcdata->vaddr + gcdata->len);
-	xdefine("gcbss", SGCBSS, gcbss->vaddr);
-	xdefine("egcbss", SGCBSS, gcbss->vaddr + gcbss->len);
+
+	sym = lookup("gcdata", 0);
+	xdefine("egcdata", STYPE, symaddr(sym) + sym->size);
+	lookup("egcdata", 0)->sect = sym->sect;
+
+	sym = lookup("gcbss", 0);
+	xdefine("egcbss", STYPE, symaddr(sym) + sym->size);
+	lookup("egcbss", 0)->sect = sym->sect;
+
 	xdefine("symtab", SRODATA, symtab->vaddr);
 	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
 	xdefine("pclntab", SRODATA, pclntab->vaddr);

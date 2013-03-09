@@ -434,10 +434,8 @@ symtab(void)
 		xdefine("datarelro", SDATARELRO, 0);
 		xdefine("edatarelro", SDATARELRO, 0);
 	}
-	xdefine("gcdata", SGCDATA, 0);
-	xdefine("egcdata", SGCDATA, 0);
-	xdefine("gcbss", SGCBSS, 0);
-	xdefine("egcbss", SGCBSS, 0);
+	xdefine("egcdata", STYPE, 0);
+	xdefine("egcbss", STYPE, 0);
 	xdefine("noptrdata", SNOPTRDATA, 0);
 	xdefine("enoptrdata", SNOPTRDATA, 0);
 	xdefine("data", SDATA, 0);
