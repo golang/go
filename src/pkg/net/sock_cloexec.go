@@ -44,8 +44,8 @@ func sysSocket(f, t, p int) (int, error) {
 func accept(fd int) (int, syscall.Sockaddr, error) {
 	nfd, sa, err := syscall.Accept4(fd, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
 	// The accept4 system call was introduced in Linux 2.6.28.  If
-	// we get an ENOSYS error, fall back to using accept.
-	if err == nil || err != syscall.ENOSYS {
+	// we get an ENOSYS or EINVAL error, fall back to using accept.
+	if err == nil || (err != syscall.ENOSYS && err != syscall.EINVAL) {
 		return nfd, sa, err
 	}
 
