@@ -224,6 +224,13 @@ TEXT runtime·errstr(SB),7,$0
 	MOVQ	$0x8000, AX
 	MOVQ	$41, BP
 	SYSCALL
+
+	// syscall requires caller-save
+	MOVQ	8(SP), CX
+
+	// push the argument
+	PUSHQ	CX
 	CALL	runtime·findnull(SB)
+	POPQ	CX
 	MOVQ	AX, 16(SP)
 	RET

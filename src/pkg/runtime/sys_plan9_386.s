@@ -187,6 +187,13 @@ TEXT runtime·errstr(SB),7,$0
 	MOVL	$ERRMAX, 8(SP)
 	MOVL	$41, AX
 	INT	$64
+
+	// syscall requires caller-save
+	MOVL	4(SP), CX
+
+	// push the argument
+	PUSHL	CX
 	CALL	runtime·findnull(SB)
+	POPL	CX
 	MOVL	AX, 8(SP)
 	RET
