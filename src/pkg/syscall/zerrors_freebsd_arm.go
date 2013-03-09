@@ -7,7 +7,6 @@
 package syscall
 
 const (
-	//O_CLOEXEC                         = 0x100000
 	AF_APPLETALK                      = 0x10
 	AF_ARP                            = 0x23
 	AF_ATM                            = 0x1e
@@ -333,10 +332,11 @@ const (
 	DLT_LINUX_SLL                     = 0x71
 	DLT_LOOP                          = 0x6c
 	DLT_LTALK                         = 0x72
-	DLT_MATCHING_MAX                  = 0xf2
+	DLT_MATCHING_MAX                  = 0xf6
 	DLT_MATCHING_MIN                  = 0x68
 	DLT_MFR                           = 0xb6
 	DLT_MOST                          = 0xd3
+	DLT_MPEG_2_TS                     = 0xf3
 	DLT_MPLS                          = 0xdb
 	DLT_MTP2                          = 0x8c
 	DLT_MTP2_WITH_PHDR                = 0x8b
@@ -344,7 +344,9 @@ const (
 	DLT_MUX27010                      = 0xec
 	DLT_NETANALYZER                   = 0xf0
 	DLT_NETANALYZER_TRANSPARENT       = 0xf1
+	DLT_NFC_LLCP                      = 0xf5
 	DLT_NFLOG                         = 0xef
+	DLT_NG40                          = 0xf4
 	DLT_NULL                          = 0x0
 	DLT_PCI_EXP                       = 0x7d
 	DLT_PFLOG                         = 0x75
@@ -985,6 +987,35 @@ const (
 	LOCK_NB                           = 0x4
 	LOCK_SH                           = 0x1
 	LOCK_UN                           = 0x8
+	MADV_AUTOSYNC                     = 0x7
+	MADV_CORE                         = 0x9
+	MADV_DONTNEED                     = 0x4
+	MADV_FREE                         = 0x5
+	MADV_NOCORE                       = 0x8
+	MADV_NORMAL                       = 0x0
+	MADV_NOSYNC                       = 0x6
+	MADV_PROTECT                      = 0xa
+	MADV_RANDOM                       = 0x1
+	MADV_SEQUENTIAL                   = 0x2
+	MADV_WILLNEED                     = 0x3
+	MAP_ANON                          = 0x1000
+	MAP_ANONYMOUS                     = 0x1000
+	MAP_COPY                          = 0x2
+	MAP_FILE                          = 0x0
+	MAP_FIXED                         = 0x10
+	MAP_HASSEMAPHORE                  = 0x200
+	MAP_NOCORE                        = 0x20000
+	MAP_NORESERVE                     = 0x40
+	MAP_NOSYNC                        = 0x800
+	MAP_PREFAULT_READ                 = 0x40000
+	MAP_PRIVATE                       = 0x2
+	MAP_RENAME                        = 0x20
+	MAP_RESERVED0080                  = 0x80
+	MAP_RESERVED0100                  = 0x100
+	MAP_SHARED                        = 0x1
+	MAP_STACK                         = 0x400
+	MCL_CURRENT                       = 0x1
+	MCL_FUTURE                        = 0x2
 	MSG_COMPAT                        = 0x8000
 	MSG_CTRUNC                        = 0x20
 	MSG_DONTROUTE                     = 0x4
@@ -998,6 +1029,9 @@ const (
 	MSG_PEEK                          = 0x2
 	MSG_TRUNC                         = 0x10
 	MSG_WAITALL                       = 0x40
+	MS_ASYNC                          = 0x1
+	MS_INVALIDATE                     = 0x2
+	MS_SYNC                           = 0x0
 	NET_RT_DUMP                       = 0x1
 	NET_RT_FLAGS                      = 0x2
 	NET_RT_IFLIST                     = 0x3
@@ -1059,6 +1093,10 @@ const (
 	PARMRK                            = 0x8
 	PARODD                            = 0x2000
 	PENDIN                            = 0x20000000
+	PROT_EXEC                         = 0x4
+	PROT_NONE                         = 0x0
+	PROT_READ                         = 0x1
+	PROT_WRITE                        = 0x2
 	RLIMIT_AS                         = 0xa
 	RLIMIT_CORE                       = 0x4
 	RLIMIT_CPU                        = 0x0
@@ -1369,10 +1407,12 @@ const (
 	VWERASE                           = 0x4
 	WCONTINUED                        = 0x4
 	WCOREFLAG                         = 0x80
+	WEXITED                           = 0x10
 	WLINUXCLONE                       = 0x80000000
 	WNOHANG                           = 0x1
 	WNOWAIT                           = 0x8
 	WSTOPPED                          = 0x2
+	WTRAPPED                          = 0x20
 	WUNTRACED                         = 0x2
 )
 

@@ -149,6 +149,7 @@ const (
 	SYS_FFCLOCK_GETCOUNTER       = 241 // { int ffclock_getcounter(ffcounter *ffcount); }
 	SYS_FFCLOCK_SETESTIMATE      = 242 // { int ffclock_setestimate( \
 	SYS_FFCLOCK_GETESTIMATE      = 243 // { int ffclock_getestimate( \
+	SYS_CLOCK_GETCPUCLOCKID2     = 247 // { int clock_getcpuclockid2(id_t id,\
 	SYS_NTP_GETTIME              = 248 // { int ntp_gettime(struct ntptimeval *ntvp); }
 	SYS_MINHERIT                 = 250 // { int minherit(void *addr, size_t len, \
 	SYS_RFORK                    = 251 // { int rfork(int flags); }
@@ -320,7 +321,7 @@ const (
 	SYS_JAIL_REMOVE              = 508 // { int jail_remove(int jid); }
 	SYS_CLOSEFROM                = 509 // { int closefrom(int lowfd); }
 	SYS_LPATHCONF                = 513 // { int lpathconf(char *path, int name); }
-	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, u_int64_t rights); }
+	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, uint64_t rights); }
 	SYS_CAP_GETRIGHTS            = 515 // { int cap_getrights(int fd, \
 	SYS_CAP_ENTER                = 516 // { int cap_enter(void); }
 	SYS_CAP_GETMODE              = 517 // { int cap_getmode(u_int *modep); }
@@ -337,4 +338,5 @@ const (
 	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
 	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
 	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+	SYS_WAIT6                    = 532 // { int wait6(int idtype, int id, \
 )
