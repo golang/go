@@ -40,9 +40,6 @@ func New(name string) *Template {
 
 // Name returns the name of the template.
 func (t *Template) Name() string {
-	if t.name == "" {
-		return "<unnamed>"
-	}
 	return t.name
 }
 
