@@ -1805,8 +1805,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		case SSTRING:
 		case SGOSTRING:
 		case SWINDOWS:
-		case SGCDATA:
-		case SGCBSS:
 			if(!s->reachable)
 				continue;
 			put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);

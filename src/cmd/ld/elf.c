@@ -843,7 +843,9 @@ elfrelocsect(Section *sect, Sym *first)
 			case D_ADDR:
 			case D_PCREL:
 				if(r->sym->type == SCONST)
-					continue;
+					continue;	// handled in data.c:/^relocsym
+				if(r->type == D_PCREL && r->sym->sect == sym->sect)
+					continue;	// handled in data.c:/^relocsym
 				break;
 			}
 
