@@ -147,6 +147,7 @@ main(int argc, char *argv[])
 		default:
 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
 		case Hlinux:
+		case Hnetbsd:
 			break;
 		}
 	}
