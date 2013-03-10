@@ -428,10 +428,9 @@ addgotsym(Sym *s)
 void
 adddynsym(Sym *s)
 {
-	Sym *d, *str;
+	Sym *d;
 	int t;
 	char *name;
-	vlong off;
 	
 	if(s->dynid >= 0)
 		return;
@@ -490,57 +489,10 @@ adddynsym(Sym *s)
 			adduint16(d, t);
 		}
 	} else if(HEADTYPE == Hdarwin) {
-		// Mach-O symbol nlist32
-		d = lookup(".dynsym", 0);
-		name = s->dynimpname;
-		if(name == nil)
-			name = s->name;
-		if(d->size == 0 && ndynexp > 0) { // pre-allocate for dynexps
-			symgrow(d, ndynexp*12);
-		}
-		if(s->dynid <= -100) { // pre-allocated, see cmd/ld/go.c:^sortdynexp()
-			s->dynid = -s->dynid-100;
-			off = s->dynid*12;
-		} else {
-			off = d->size;
-			s->dynid = off/12;
-		}
-		// darwin still puts _ prefixes on all C symbols
-		str = lookup(".dynstr", 0);
-		setuint32(d, off, str->size);
-		off += 4;
-		adduint8(str, '_');
-		addstring(str, name);
-		if(s->type == SDYNIMPORT) {
-			setuint8(d, off, 0x01); // type - N_EXT - external symbol
-			off++;
-			setuint8(d, off, 0); // section
-			off++;
-		} else {
-			setuint8(d, off, 0x0f);
-			off++;
-			switch(s->type) {
-			default:
-			case STEXT:
-				setuint8(d, off, 1);
-				break;
-			case SDATA:
-				setuint8(d, off, 2);
-				break;
-			case SBSS:
-				setuint8(d, off, 4);
-				break;
-			}
-			off++;
-		}
-		setuint16(d, off, 0); // desc
-		off += 2;
-		if(s->type == SDYNIMPORT)
-			setuint32(d, off, 0); // value
-		else
-			setaddr(d, off, s);
-		off += 4;
-	} else if(HEADTYPE != Hwindows) {
+		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
+	} else if(HEADTYPE == Hwindows) {
+		// already taken care of
+	} else {
 		diag("adddynsym: unsupported binary format");
 	}
 }

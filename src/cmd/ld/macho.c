@@ -16,6 +16,18 @@ static	MachoLoad	*load;
 static	MachoSeg	seg[16];
 static	int	nload, mload, nseg, ndebug, nsect;
 
+enum
+{
+	SymKindLocal = 0,
+	SymKindExtdef,
+	SymKindUndef,
+	NumSymKind
+};
+
+static	int nkind[NumSymKind];
+static	Sym** sortsym;
+static	int	nsortsym;
+
 // Amount of space left for adding load commands
 // that refer to dynamic libraries.  Because these have
 // to go in the Mach-O header, we can't just pick a
@@ -23,6 +35,8 @@ static	int	nload, mload, nseg, ndebug, nsect;
 // one page, the non-dynamic library stuff takes
 // up about 1300 bytes; we overestimate that as 2k.
 static	int	load_budget = INITIAL_MACHO_HEADR - 2*1024;
+
+static	void	machodysymtab(void);
 
 void
 machoinit(void)
@@ -221,14 +235,14 @@ domacho(void)
 		return;
 
 	// empirically, string table must begin with " \x00".
-	s = lookup(".dynstr", 0);
-	s->type = SMACHODYNSTR;
+	s = lookup(".machosymstr", 0);
+	s->type = SMACHOSYMSTR;
 	s->reachable = 1;
 	adduint8(s, ' ');
 	adduint8(s, '\0');
 	
-	s = lookup(".dynsym", 0);
-	s->type = SMACHODYNSYM;
+	s = lookup(".machosymtab", 0);
+	s->type = SMACHOSYMTAB;
 	s->reachable = 1;
 	
 	s = lookup(".plt", 0);	// will be __symbol_stub
@@ -286,14 +300,15 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
 		msect->align++;
 	msect->addr = sect->vaddr;
 	msect->size = sect->len;
-	msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 	
 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen) {
 		// data in file
 		if(sect->len > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
 			diag("macho cannot represent section %s crossing data and bss", sect->name);
+		msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
 	} else {
 		// zero fill
+		msect->off = 0;
 		msect->flag |= 1;
 	}
 
@@ -303,7 +318,7 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
 	if(strcmp(sect->name, ".plt") == 0) {
 		msect->name = "__symbol_stub1";
 		msect->flag = 0x80000408; /* only instructions, code, symbol stubs */
-		msect->res1 = 0;
+		msect->res1 = 0;//nkind[SymKindLocal];
 		msect->res2 = 6;
 	}
 
@@ -390,15 +405,15 @@ asmbmacho(void)
 		ml->data[2+10] = entryvalue();	/* start pc */
 		break;
 	}
-
+	
 	if(!debug['d']) {
 		Sym *s1, *s2, *s3, *s4;
 
 		// must match domacholink below
-		s1 = lookup(".dynsym", 0);
+		s1 = lookup(".machosymtab", 0);
 		s2 = lookup(".linkedit.plt", 0);
 		s3 = lookup(".linkedit.got", 0);
-		s4 = lookup(".dynstr", 0);
+		s4 = lookup(".machosymstr", 0);
 
 		ms = newMachoSeg("__LINKEDIT", 0);
 		ms->vaddr = va+v+rnd(segdata.len, INITRND);
@@ -410,29 +425,11 @@ asmbmacho(void)
 
 		ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
 		ml->data[0] = linkoff;	/* symoff */
-		ml->data[1] = s1->size / (macho64 ? 16 : 12);	/* nsyms */
+		ml->data[1] = nsortsym;	/* nsyms */
 		ml->data[2] = linkoff + s1->size + s2->size + s3->size;	/* stroff */
 		ml->data[3] = s4->size;	/* strsize */
 
-		ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
-		ml->data[0] = 0;	/* ilocalsym */
-		ml->data[1] = 0;	/* nlocalsym */
-		ml->data[2] = 0;	/* iextdefsym */
-		ml->data[3] = ndynexp;	/* nextdefsym */
-		ml->data[4] = ndynexp;	/* iundefsym */
-		ml->data[5] = (s1->size / (macho64 ? 16 : 12)) - ndynexp;	/* nundefsym */
-		ml->data[6] = 0;	/* tocoffset */
-		ml->data[7] = 0;	/* ntoc */
-		ml->data[8] = 0;	/* modtaboff */
-		ml->data[9] = 0;	/* nmodtab */
-		ml->data[10] = 0;	/* extrefsymoff */
-		ml->data[11] = 0;	/* nextrefsyms */
-		ml->data[12] = linkoff + s1->size;	/* indirectsymoff */
-		ml->data[13] = (s2->size + s3->size) / 4;	/* nindirectsyms */
-		ml->data[14] = 0;	/* extreloff */
-		ml->data[15] = 0;	/* nextrel */
-		ml->data[16] = 0;	/* locreloff */
-		ml->data[17] = 0;	/* nlocrel */
+		machodysymtab();
 
 		ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
 		ml->data[0] = 12;	/* offset to string */
@@ -456,18 +453,188 @@ asmbmacho(void)
 		diag("HEADR too small: %d > %d", a, HEADR);
 }
 
+static int
+symkind(Sym *s)
+{
+	if(s->type == SDYNIMPORT)
+		return SymKindUndef;
+	if(s->dynimpname)
+		return SymKindExtdef;
+	return SymKindLocal;
+}
+
+static void
+addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotype)
+{
+	USED(name);
+	USED(addr);
+	USED(size);
+	USED(ver);
+	USED(gotype);
+
+	if(s == nil)
+		return;
+
+	switch(type) {
+	default:
+		return;
+	case 'D':
+	case 'B':
+	case 'T':
+		break;
+	}
+	
+	if(sortsym) {
+		sortsym[nsortsym] = s;
+		nkind[symkind(s)]++;
+	}
+	nsortsym++;
+}
+
+static char*
+xsymname(Sym *s)
+{
+	if(s->dynimpname != nil)
+		return s->dynimpname;
+	return s->name;
+}
+	
+static int
+scmp(const void *p1, const void *p2)
+{
+	Sym *s1, *s2;
+	int k1, k2;
+
+	s1 = *(Sym**)p1;
+	s2 = *(Sym**)p2;
+	
+	k1 = symkind(s1);
+	k2 = symkind(s2);
+	if(k1 != k2)
+		return k1 - k2;
+
+	return strcmp(xsymname(s1), xsymname(s2));
+}
+
+static void
+machogenasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+{
+	Sym *s;
+
+	genasmsym(put);
+	for(s=allsym; s; s=s->allsym)
+		if(s->type == SDYNIMPORT)
+			put(s, nil, 'D', 0, 0, 0, nil);
+}
+			
+void
+machosymorder(void)
+{
+	int i;
+
+	// On Mac OS X Mountain Lion, we must sort exported symbols
+	// So we sort them here and pre-allocate dynid for them
+	// See http://golang.org/issue/4029
+	for(i=0; i<ndynexp; i++)
+		dynexp[i]->reachable = 1;
+	machogenasmsym(addsym);
+	sortsym = mal(nsortsym * sizeof sortsym[0]);
+	nsortsym = 0;
+	machogenasmsym(addsym);
+	qsort(sortsym, nsortsym, sizeof sortsym[0], scmp);
+	for(i=0; i<nsortsym; i++)
+		sortsym[i]->dynid = i;
+}
+
+static void
+machosymtab(void)
+{
+	int i;
+	Sym *symtab, *symstr, *s, *o;
+
+	symtab = lookup(".machosymtab", 0);
+	symstr = lookup(".machosymstr", 0);
+
+	for(i=0; i<nsortsym; i++) {
+		s = sortsym[i];
+		adduint32(symtab, symstr->size);
+		adduint8(symstr, '_');
+		addstring(symstr, xsymname(s));
+		if(s->type == SDYNIMPORT) {
+			adduint8(symtab, 0x01); // type N_EXT, external symbol
+			adduint8(symtab, 0); // no section
+			adduint16(symtab, 0); // desc
+			adduintxx(symtab, 0, PtrSize); // no value
+		} else {
+			adduint8(symtab, 0x0f);
+			o = s;
+			while(o->outer != nil)
+				o = o->outer;
+			if(o->sect == nil) {
+				diag("missing section for %s", s->name);
+				adduint8(symtab, 0);
+			} else
+				adduint8(symtab, o->sect->extnum);
+			adduint16(symtab, 0); // desc
+			adduintxx(symtab, symaddr(s), PtrSize);
+		}
+	}
+}
+
+static void
+machodysymtab(void)
+{
+	int n;
+	MachoLoad *ml;
+	Sym *s1, *s2, *s3;
+
+	ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
+
+	n = 0;
+	ml->data[0] = n;	/* ilocalsym */
+	ml->data[1] = nkind[SymKindLocal];	/* nlocalsym */
+	n += nkind[SymKindLocal];
+
+	ml->data[2] = n;	/* iextdefsym */
+	ml->data[3] = nkind[SymKindExtdef];	/* nextdefsym */
+	n += nkind[SymKindExtdef];
+
+	ml->data[4] = n;	/* iundefsym */
+	ml->data[5] = nkind[SymKindUndef];	/* nundefsym */
+
+	ml->data[6] = 0;	/* tocoffset */
+	ml->data[7] = 0;	/* ntoc */
+	ml->data[8] = 0;	/* modtaboff */
+	ml->data[9] = 0;	/* nmodtab */
+	ml->data[10] = 0;	/* extrefsymoff */
+	ml->data[11] = 0;	/* nextrefsyms */
+
+	// must match domacholink below
+	s1 = lookup(".machosymtab", 0);
+	s2 = lookup(".linkedit.plt", 0);
+	s3 = lookup(".linkedit.got", 0);
+	ml->data[12] = linkoff + s1->size;	/* indirectsymoff */
+	ml->data[13] = (s2->size + s3->size) / 4;	/* nindirectsyms */
+
+	ml->data[14] = 0;	/* extreloff */
+	ml->data[15] = 0;	/* nextrel */
+	ml->data[16] = 0;	/* locreloff */
+	ml->data[17] = 0;	/* nlocrel */
+}
+
 vlong
 domacholink(void)
 {
 	int size;
 	Sym *s1, *s2, *s3, *s4;
 
+	machosymtab();
+
 	// write data that will be linkedit section
-	s1 = lookup(".dynsym", 0);
-	relocsym(s1);
+	s1 = lookup(".machosymtab", 0);
 	s2 = lookup(".linkedit.plt", 0);
 	s3 = lookup(".linkedit.got", 0);
-	s4 = lookup(".dynstr", 0);
+	s4 = lookup(".machosymstr", 0);
 
 	// Force the linkedit section to end on a 16-byte
 	// boundary.  This allows pure (non-cgo) Go binaries
@@ -503,3 +670,4 @@ domacholink(void)
 
 	return rnd(size, INITRND);
 }
+

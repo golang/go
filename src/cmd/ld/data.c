@@ -33,6 +33,7 @@
 #include	"l.h"
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 #include	"../ld/pe.h"
 #include	"../../pkg/runtime/mgc0.h"
 
@@ -943,7 +944,7 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
 void
 dodata(void)
 {
-	int32 datsize;
+	int32 n, datsize;
 	Section *sect;
 	Sym *s, *last, **l;
 	Sym *gcdata1, *gcbss1;
@@ -992,7 +993,11 @@ dodata(void)
 	 * to assign addresses, record all the necessary
 	 * dynamic relocations.  these will grow the relocation
 	 * symbol, which is itself data.
+	 *
+	 * on darwin, we need the symbol table numbers for dynreloc.
 	 */
+	if(HEADTYPE == Hdarwin)
+		machosymorder();
 	dynreloc();
 
 	/* some symbols may no longer belong in datap (Mach-O) */
@@ -1218,6 +1223,13 @@ dodata(void)
 		datsize += s->size;
 		sect->len = datsize - sect->vaddr;
 	}
+	
+	/* number the sections */
+	n = 1;
+	for(sect = segtext.sect; sect != nil; sect = sect->next)
+		sect->extnum = n++;
+	for(sect = segdata.sect; sect != nil; sect = sect->next)
+		sect->extnum = n++;
 }
 
 // assign addresses to text

@@ -336,7 +336,6 @@ loadlib(void)
 		debug['d'] = 1;
 	
 	importcycles();
-	sortdynexp();
 }
 
 /*
