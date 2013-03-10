@@ -553,8 +553,10 @@ void
 datblk(int32 addr, int32 size)
 {
 	Sym *sym;
-	int32 eaddr;
+	int32 i, eaddr;
 	uchar *p, *ep;
+	char *typ, *rsname;
+	Reloc *r;
 
 	if(debug['a'])
 		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, cpos());
@@ -574,23 +576,46 @@ datblk(int32 addr, int32 size)
 		if(sym->value >= eaddr)
 			break;
 		if(addr < sym->value) {
-			Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(pre-pad)", addr);
+			Bprint(&bso, "\t%.8ux| 00 ...\n", addr);
 			addr = sym->value;
 		}
-		Bprint(&bso, "%-20s %.8ux|", sym->name, (uint)addr);
+		Bprint(&bso, "%s\n\t%.8ux|", sym->name, (uint)addr);
 		p = sym->p;
 		ep = p + sym->np;
-		while(p < ep)
+		while(p < ep) {
+			if(p > sym->p && (int)(p-sym->p)%16 == 0)
+				Bprint(&bso, "\n\t%.8ux|", (uint)(addr+(p-sym->p)));
 			Bprint(&bso, " %.2ux", *p++);
+		}
 		addr += sym->np;
 		for(; addr < sym->value+sym->size; addr++)
 			Bprint(&bso, " %.2ux", 0);
 		Bprint(&bso, "\n");
+		
+		if(isobj) {
+			for(i=0; i<sym->nr; i++) {
+				r = &sym->r[i];
+				rsname = "";
+				if(r->sym)
+					rsname = r->sym->name;
+				typ = "?";
+				switch(r->type) {
+				case D_ADDR:
+					typ = "addr";
+					break;
+				case D_PCREL:
+					typ = "pcrel";
+					break;
+				}
+				Bprint(&bso, "\treloc %.8ux/%d %s %s+%#llx [%#llx]\n",
+					(uint)(sym->value+r->off), r->siz, typ, rsname, r->add, r->sym->value+r->add);
+			}
+		}				
 	}
 
 	if(addr < eaddr)
-		Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(post-pad)", (uint)addr);
-	Bprint(&bso, "%-20s %.8ux|\n", "", (uint)eaddr);
+		Bprint(&bso, "\t%.8ux| 00 ...\n", (uint)addr);
+	Bprint(&bso, "\t%.8ux|\n", (uint)eaddr);
 }
 
 void
