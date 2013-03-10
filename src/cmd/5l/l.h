@@ -134,6 +134,7 @@ struct	Prog
 struct	Sym
 {
 	char*	name;
+	char*	extname;	// name used in external object files
 	short	type;
 	short	version;
 	uchar	dupok;
@@ -163,7 +164,6 @@ struct	Sym
 	Sym*	reachparent;
 	Sym*	queue;
 	char*	file;
-	char*	dynimpname;
 	char*	dynimplib;
 	char*	dynimpvers;
 	struct Section*	sect;

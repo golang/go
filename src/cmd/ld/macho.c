@@ -458,7 +458,7 @@ symkind(Sym *s)
 {
 	if(s->type == SDYNIMPORT)
 		return SymKindUndef;
-	if(s->dynimpname)
+	if(s->cgoexport)
 		return SymKindExtdef;
 	return SymKindLocal;
 }
@@ -490,14 +490,6 @@ addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotyp
 	}
 	nsortsym++;
 }
-
-static char*
-xsymname(Sym *s)
-{
-	if(s->dynimpname != nil)
-		return s->dynimpname;
-	return s->name;
-}
 	
 static int
 scmp(const void *p1, const void *p2)
@@ -513,7 +505,7 @@ scmp(const void *p1, const void *p2)
 	if(k1 != k2)
 		return k1 - k2;
 
-	return strcmp(xsymname(s1), xsymname(s2));
+	return strcmp(s1->extname, s2->extname);
 }
 
 static void
@@ -559,7 +551,7 @@ machosymtab(void)
 		s = sortsym[i];
 		adduint32(symtab, symstr->size);
 		adduint8(symstr, '_');
-		addstring(symstr, xsymname(s));
+		addstring(symstr, s->extname);
 		if(s->type == SDYNIMPORT) {
 			adduint8(symtab, 0x01); // type N_EXT, external symbol
 			adduint8(symtab, 0); // no section

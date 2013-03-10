@@ -639,10 +639,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 			s->size = (sym+1)->value - sym->value;
 		else
 			s->size = sect->addr + sect->size - sym->value;
-		if(!(s->cgoexport & CgoExportDynamic)) {
+		if(!(s->cgoexport & CgoExportDynamic))
 			s->dynimplib = nil;	// satisfy dynimport
-			s->dynimpname = nil;	// satisfy dynimport
-		}
 		if(outer->type == STEXT) {
 			Prog *p;
 

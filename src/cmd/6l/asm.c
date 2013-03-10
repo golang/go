@@ -131,7 +131,7 @@ adddynrel(Sym *s, Reloc *r)
 
 	// Handle relocations found in ELF object files.
 	case 256 + R_X86_64_PC32:
-		if(targ->dynimpname != nil && !targ->cgoexport)
+		if(targ->type == SDYNIMPORT)
 			diag("unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ->name);
 		if(targ->type == 0 || targ->type == SXREF)
 			diag("unknown symbol %s in pcrel", targ->name);
@@ -142,7 +142,7 @@ adddynrel(Sym *s, Reloc *r)
 	case 256 + R_X86_64_PLT32:
 		r->type = D_PCREL;
 		r->add += 4;
-		if(targ->dynimpname != nil && !targ->cgoexport) {
+		if(targ->type == SDYNIMPORT) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add += targ->plt;
@@ -150,7 +150,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 	
 	case 256 + R_X86_64_GOTPCREL:
-		if(targ->dynimpname == nil || targ->cgoexport) {
+		if(targ->type != SDYNIMPORT) {
 			// have symbol
 			if(r->off >= 2 && s->p[r->off-2] == 0x8b) {
 				// turn MOVQ of GOT entry into LEAQ of symbol itself
@@ -161,7 +161,6 @@ adddynrel(Sym *s, Reloc *r)
 			}
 			// fall back to using GOT and hope for the best (CMOV*)
 			// TODO: just needs relocation, no need to put in .dynsym
-			targ->dynimpname = targ->name;
 		}
 		addgotsym(targ);
 		r->type = D_PCREL;
@@ -171,7 +170,7 @@ adddynrel(Sym *s, Reloc *r)
 		return;
 	
 	case 256 + R_X86_64_64:
-		if(targ->dynimpname != nil && !targ->cgoexport)
+		if(targ->type == SDYNIMPORT)
 			diag("unexpected R_X86_64_64 relocation for dynamic symbol %s", targ->name);
 		r->type = D_ADDR;
 		return;
@@ -182,12 +181,12 @@ adddynrel(Sym *s, Reloc *r)
 	case 512 + MACHO_X86_64_RELOC_BRANCH*2 + 0:
 		// TODO: What is the difference between all these?
 		r->type = D_ADDR;
-		if(targ->dynimpname != nil && !targ->cgoexport)
+		if(targ->type == SDYNIMPORT)
 			diag("unexpected reloc for dynamic symbol %s", targ->name);
 		return;
 
 	case 512 + MACHO_X86_64_RELOC_BRANCH*2 + 1:
-		if(targ->dynimpname != nil && !targ->cgoexport) {
+		if(targ->type == SDYNIMPORT) {
 			addpltsym(targ);
 			r->sym = lookup(".plt", 0);
 			r->add = targ->plt;
@@ -201,12 +200,12 @@ adddynrel(Sym *s, Reloc *r)
 	case 512 + MACHO_X86_64_RELOC_SIGNED_2*2 + 1:
 	case 512 + MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
 		r->type = D_PCREL;
-		if(targ->dynimpname != nil && !targ->cgoexport)
+		if(targ->type == SDYNIMPORT)
 			diag("unexpected pc-relative reloc for dynamic symbol %s", targ->name);
 		return;
 
 	case 512 + MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
-		if(targ->dynimpname == nil || targ->cgoexport) {
+		if(targ->type != SDYNIMPORT) {
 			// have symbol
 			// turn MOVQ of GOT entry into LEAQ of symbol itself
 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
@@ -219,7 +218,7 @@ adddynrel(Sym *s, Reloc *r)
 		}
 		// fall through
 	case 512 + MACHO_X86_64_RELOC_GOT*2 + 1:
-		if(targ->dynimpname == nil || targ->cgoexport)
+		if(targ->type != SDYNIMPORT)
 			diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
 		addgotsym(targ);
 		r->type = D_PCREL;
@@ -229,7 +228,7 @@ adddynrel(Sym *s, Reloc *r)
 	}
 	
 	// Handle references to ELF symbols from our own object files.
-	if(targ->dynimpname == nil || targ->cgoexport)
+	if(targ->type != SDYNIMPORT)
 		return;
 
 	switch(r->type) {
@@ -455,17 +454,12 @@ adddynsym(Sym *s)
 	if(s->dynid >= 0)
 		return;
 
-	if(s->dynimpname == nil)
-		diag("adddynsym: no dynamic name for %s", s->name);
-
 	if(iself) {
 		s->dynid = nelfsym++;
 
 		d = lookup(".dynsym", 0);
 
-		name = s->dynimpname;
-		if(name == nil)
-			name = s->name;
+		name = s->extname;
 		adduint32(d, addstring(lookup(".dynstr", 0), name));
 		/* type */
 		t = STB_GLOBAL << 4;
@@ -479,7 +473,7 @@ adddynsym(Sym *s)
 		adduint8(d, 0);
 	
 		/* section where symbol is defined */
-		if(!s->cgoexport && s->dynimpname != nil)
+		if(s->type == SDYNIMPORT)
 			adduint16(d, SHN_UNDEF);
 		else {
 			switch(s->type) {
@@ -514,7 +508,7 @@ adddynsym(Sym *s)
 				addstring(lookup(".dynstr", 0), s->dynimplib));
 		}
 	} else if(HEADTYPE == Hdarwin) {
-		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
+		diag("adddynsym: missed symbol %s (%s)", s->name, s->extname);
 	} else if(HEADTYPE == Hwindows) {
 		// already taken care of
 	} else {
