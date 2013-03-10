@@ -123,6 +123,7 @@ main(int argc, char *argv[])
 	flagcount("race", "enable race detector", &flag_race);
 	flagcount("s", "disable symbol table", &debug['s']);
 	flagcount("n", "dump symbol table", &debug['n']);
+	flagstr("tmpdir", "leave temporary files in this directory", &tmpdir);
 	flagcount("u", "reject unsafe packages", &debug['u']);
 	flagcount("v", "print link trace", &debug['v']);
 	flagcount("w", "disable DWARF generation", &debug['w']);

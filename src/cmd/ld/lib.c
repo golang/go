@@ -557,8 +557,6 @@ hostobjs(void)
 	}
 }
 
-static char *tmpdir;
-
 static void
 rmtemp(void)
 {
@@ -574,10 +572,11 @@ hostlinksetup(void)
 		return;
 
 	// create temporary directory and arrange cleanup
-	// TODO: Add flag to specify tempdir, which is then not cleaned up.
-	tmpdir = mktempdir();
-	atexit(rmtemp);
-	
+	if(tmpdir == nil) {
+		tmpdir = mktempdir();
+		atexit(rmtemp);
+	}
+
 	// change our output to temporary object file
 	close(cout);
 	p = smprint("%s/go.o", tmpdir);

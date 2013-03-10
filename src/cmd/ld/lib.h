@@ -148,6 +148,7 @@ EXTERN	int	flag_race;
 EXTERN	int flag_shared;
 EXTERN	char*	tracksym;
 EXTERN	char*	interpreter;
+EXTERN	char*	tmpdir;
 
 enum
 {
@@ -166,8 +167,7 @@ enum
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
-EXTERN	Segment	segsym;
-EXTERN	Segment segdwarf;
+EXTERN	Segment	segdwarf;
 
 void	addlib(char *src, char *obj);
 void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
