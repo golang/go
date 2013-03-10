@@ -2298,42 +2298,42 @@ dwarfaddmachoheaders(void)
 	ms->fileoffset = fakestart;
 	ms->filesize = abbrevo-fakestart;
 
-	msect = newMachoSect(ms, "__debug_abbrev");
+	msect = newMachoSect(ms, "__debug_abbrev", "__DWARF");
 	msect->off = abbrevo;
 	msect->size = abbrevsize;
 	ms->filesize += msect->size;
 
-	msect = newMachoSect(ms, "__debug_line");
+	msect = newMachoSect(ms, "__debug_line", "__DWARF");
 	msect->off = lineo;
 	msect->size = linesize;
 	ms->filesize += msect->size;
 
-	msect = newMachoSect(ms, "__debug_frame");
+	msect = newMachoSect(ms, "__debug_frame", "__DWARF");
 	msect->off = frameo;
 	msect->size = framesize;
 	ms->filesize += msect->size;
 
-	msect = newMachoSect(ms, "__debug_info");
+	msect = newMachoSect(ms, "__debug_info", "__DWARF");
 	msect->off = infoo;
 	msect->size = infosize;
 	ms->filesize += msect->size;
 
 	if (pubnamessize > 0) {
-		msect = newMachoSect(ms, "__debug_pubnames");
+		msect = newMachoSect(ms, "__debug_pubnames", "__DWARF");
 		msect->off = pubnameso;
 		msect->size = pubnamessize;
 		ms->filesize += msect->size;
 	}
 
 	if (pubtypessize > 0) {
-		msect = newMachoSect(ms, "__debug_pubtypes");
+		msect = newMachoSect(ms, "__debug_pubtypes", "__DWARF");
 		msect->off = pubtypeso;
 		msect->size = pubtypessize;
 		ms->filesize += msect->size;
 	}
 
 	if (arangessize > 0) {
-		msect = newMachoSect(ms, "__debug_aranges");
+		msect = newMachoSect(ms, "__debug_aranges", "__DWARF");
 		msect->off = arangeso;
 		msect->size = arangessize;
 		ms->filesize += msect->size;
@@ -2341,7 +2341,7 @@ dwarfaddmachoheaders(void)
 
 	// TODO(lvd) fix gdb/python to load MachO (16 char section name limit)
 	if (gdbscriptsize > 0) {
-		msect = newMachoSect(ms, "__debug_gdb_scripts");
+		msect = newMachoSect(ms, "__debug_gdb_scripts", "__DWARF");
 		msect->off = gdbscripto;
 		msect->size = gdbscriptsize;
 		ms->filesize += msect->size;

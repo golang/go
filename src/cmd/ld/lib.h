@@ -34,7 +34,6 @@ enum
 
 	/* order here is order in output file */
 	STEXT,
-	SMACHOPLT,
 	STYPE,
 	SSTRING,
 	SGOSTRING,
@@ -43,12 +42,13 @@ enum
 	SSYMTAB,
 	SPCLNTAB,
 	SELFROSECT,
+	SMACHOPLT,
 	SELFSECT,
+	SMACHO,	/* Mach-O __nl_symbol_ptr */
+	SMACHOGOT,
 	SNOPTRDATA,
 	SDATARELRO,
 	SDATA,
-	SMACHO,	/* Mach-O __nl_symbol_ptr */
-	SMACHOGOT,
 	SWINDOWS,
 	SBSS,
 	SNOPTRBSS,

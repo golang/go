@@ -1030,8 +1030,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	uvlong textsize, datasize, bsssize;
 	uchar *cmdbuf;
 	uchar *cmdp;
-	int i, hdrsize;
-	uint32 textva, textoff, datava, dataoff;
+	int i, j, hdrsize;
+	uint32 textva, textoff, datava, dataoff, symoff, symsize, pclnoff, pclnsize;
 
 	mp = &hp->e.machhdr;
 	if (leswal(mp->filetype) != MACH_EXECUTABLE_TYPE) {
@@ -1141,33 +1141,24 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 			if (strcmp(seg32->segname, "__TEXT") == 0) {
 				textva = seg32->vmaddr;
 				textoff = seg32->fileoff;
+				textsize = seg32->vmsize;
 				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
-				if (strcmp(sect32->sectname, "__text") == 0) {
-					textsize = swal(sect32->size);
-				} else {
-					werrstr("no text section");
-					goto bad;
+				for(j = 0; j < seg32->nsects; j++, sect32++) {
+					if (strcmp(sect32->sectname, "__gosymtab") == 0) {
+						symoff = swal(sect32->offset);
+						symsize = swal(sect32->size);
+					}
+					if (strcmp(sect32->sectname, "__gopclntab") == 0) {
+						pclnoff = swal(sect32->offset);
+						pclnsize = swal(sect32->size);
+					}
 				}
 			}
 			if (strcmp(seg32->segname, "__DATA") == 0) {
 				datava = seg32->vmaddr;
 				dataoff = seg32->fileoff;
-				sect32 = (MachSect32*)(cmdp + sizeof(MachSeg32));
-				if (strcmp(sect32->sectname, "__data") == 0) {
-					datasize = swal(sect32->size);
-				} else {
-					werrstr("no data section");
-					goto bad;
-				}
-				sect32++;
-				if (strcmp(sect32->sectname, "__nl_symbol_ptr") == 0)
-					sect32++;
-				if (strcmp(sect32->sectname, "__bss") == 0) {
-					bsssize = swal(sect32->size);
-				} else {
-					werrstr("no bss section");
-					goto bad;
-				}
+				datasize = seg32->filesize;
+				bsssize = seg32->vmsize - seg32->filesize;
 			}
 			break;
 
@@ -1188,42 +1179,39 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 			if (strcmp(seg->segname, "__TEXT") == 0) {
 				textva = seg->vmaddr;
 				textoff = seg->fileoff;
+				textsize = seg->vmsize;
 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
-				if (strcmp(sect->sectname, "__text") == 0) {
-					textsize = swav(sect->size);
-				} else {
-					werrstr("no text section");
-					goto bad;
+				for(j = 0; j < seg->nsects; j++, sect++) {
+print("%s %#x %#x\n", sect->sectname, swal(sect->offset), swal(sect->size));
+					if (strcmp(sect->sectname, "__gosymtab") == 0) {
+						symoff = swal(sect->offset);
+						symsize = swal(sect->size);
+					}
+					if (strcmp(sect->sectname, "__gopclntab") == 0) {
+						pclnoff = swal(sect->offset);
+						pclnsize = swal(sect->size);
+					}
 				}
 			}
 			if (strcmp(seg->segname, "__DATA") == 0) {
 				datava = seg->vmaddr;
 				dataoff = seg->fileoff;
-				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
-				if (strcmp(sect->sectname, "__data") == 0) {
-					datasize = swav(sect->size);
-				} else {
-					werrstr("no data section");
-					goto bad;
-				}
-				sect++;
-				if (strcmp(sect->sectname, "__nl_symbol_ptr") == 0)
-					sect++;
-				if (strcmp(sect->sectname, "__bss") == 0) {
-					bsssize = swav(sect->size);
-				} else {
-					werrstr("no bss section");
-					goto bad;
-				}
+				datasize = seg->filesize;
+				bsssize = seg->vmsize - seg->filesize;
 			}
 			break;
 		case MACH_UNIXTHREAD:
 			break;
 		case MACH_SYMSEG:
-			if (symtab == 0)
+			if (symtab == 0) {
 				symtab = (MachSymSeg*)c;
-			else if (pclntab == 0)
+				symoff = swal(symtab->fileoff);
+				symsize = swal(symtab->filesize);
+			} else if (pclntab == 0) {
 				pclntab = (MachSymSeg*)c;
+				pclnoff = swal(pclntab->fileoff);
+				pclnsize = swal(pclntab->filesize);
+			}
 			break;
 		}
 		cmdp += c->size;
@@ -1236,8 +1224,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	/* compute entry by taking address after header - weird - BUG? */
 	settext(fp, textva+sizeof(Machhdr) + mp->sizeofcmds, textva, textsize, textoff);
 	setdata(fp, datava, datasize, dataoff, bsssize);
-	if(symtab != 0)
-		setsym(fp, symtab->fileoff, symtab->filesize, 0, 0, 0, pclntab? pclntab->filesize : 0);
+	if(symoff > 0)
+		setsym(fp, symoff, symsize, 0, 0, pclnoff, pclnsize);
 	free(cmd);
 	free(cmdbuf);
 	return 1;
