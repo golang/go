@@ -1757,6 +1757,8 @@ runtime·gc(int32 force)
 	// a problem in the past.
 	if((((uintptr)&work.empty) & 7) != 0)
 		runtime·throw("runtime: gc work buffer is misaligned");
+	if((((uintptr)&work.full) & 7) != 0)
+		runtime·throw("runtime: gc work buffer is misaligned");
 
 	// The gc is turned off (via enablegc) until
 	// the bootstrap has completed.

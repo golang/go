@@ -46,6 +46,7 @@ void
 runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32))
 {
 	uint32 i, begin, end;
+	uint64 *pos;
 
 	if(desc == nil || nthr == 0 || nthr > desc->nthrmax || body == nil) {
 		runtime·printf("desc=%p nthr=%d count=%d body=%p\n", desc, nthr, n, body);
@@ -67,7 +68,10 @@ runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, 
 	for(i=0; i<nthr; i++) {
 		begin = (uint64)n*i / nthr;
 		end = (uint64)n*(i+1) / nthr;
-		desc->thr[i].pos = (uint64)begin | (((uint64)end)<<32);
+		pos = &desc->thr[i].pos;
+		if(((uintptr)pos & 7) != 0)
+			runtime·throw("parforsetup: pos is not aligned");
+		*pos = (uint64)begin | (((uint64)end)<<32);
 	}
 }
 
