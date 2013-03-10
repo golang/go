@@ -1116,6 +1116,10 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	textsize = 0;
 	datasize = 0;
 	bsssize = 0;
+	symoff = 0;
+	symsize = 0;
+	pclnoff = 0;
+	pclnsize = 0;
 	for (i = 0; i < mp->ncmds; i++) {
 		MachCmd *c;
 
