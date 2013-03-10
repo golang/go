@@ -879,6 +879,9 @@ symalign(Sym *s)
 {
 	int32 align;
 
+	if(s->align != 0)
+		return s->align;
+
 	align = MaxAlign;
 	while(align > s->size && align > 1)
 		align >>= 1;
@@ -1136,9 +1139,10 @@ dodata(void)
 	lookup("end", 0)->sect = sect;
 
 	/* we finished segdata, begin segtext */
+	s = datap;
+	datsize = 0;
 
 	/* read-only data */
-	s = datap;
 	sect = addsection(&segtext, ".rodata", 04);
 	sect->align = maxalign(s, STYPELINK-1);
 	sect->vaddr = 0;
@@ -1202,7 +1206,7 @@ dodata(void)
 	}
 	sect->len = datsize - sect->vaddr;
 
-	/* read-only ELF sections */
+	/* read-only ELF, Mach-O sections */
 	for(; s != nil && s->type < SELFSECT; s = s->next) {
 		sect = addsection(&segtext, s->name, 04);
 		sect->align = symalign(s);
@@ -1266,6 +1270,7 @@ address(void)
 	Section *typelink;
 	Sym *sym, *sub;
 	uvlong va;
+	vlong vlen;
 
 	va = INITTEXT;
 	segtext.rwx = 05;
@@ -1295,11 +1300,11 @@ address(void)
 	noptrbss = nil;
 	datarelro = nil;
 	for(s=segdata.sect; s != nil; s=s->next) {
+		vlen = s->len;
 		if(s->next)
-			s->len = s->next->vaddr - s->vaddr;
+			vlen = s->next->vaddr - s->vaddr;
 		s->vaddr = va;
-		va += s->len;
-		segdata.filelen += s->len;
+		va += vlen;
 		segdata.len = va - segdata.vaddr;
 		if(strcmp(s->name, ".data") == 0)
 			data = s;

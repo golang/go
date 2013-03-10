@@ -14,7 +14,6 @@ static	int	macho64;
 static	MachoHdr	hdr;
 static	MachoLoad	*load;
 static	MachoSeg	seg[16];
-static	MachoDebug	xdebug[16];
 static	int	nload, mload, nseg, ndebug, nsect;
 
 // Amount of space left for adding load commands
@@ -86,7 +85,7 @@ newMachoSeg(char *name, int msect)
 }
 
 MachoSect*
-newMachoSect(MachoSeg *seg, char *name)
+newMachoSect(MachoSeg *seg, char *name, char *segname)
 {
 	MachoSect *s;
 
@@ -96,20 +95,10 @@ newMachoSect(MachoSeg *seg, char *name)
 	}
 	s = &seg->sect[seg->nsect++];
 	s->name = name;
+	s->segname = segname;
 	nsect++;
 	return s;
 }
-
-MachoDebug*
-newMachoDebug(void)
-{
-	if(ndebug >= nelem(xdebug)) {
-		diag("too many debugs");
-		errorexit();
-	}
-	return &xdebug[ndebug++];
-}
-
 
 // Generic linking code.
 
@@ -126,7 +115,6 @@ machowrite(void)
 	int i, j;
 	MachoSeg *s;
 	MachoSect *t;
-	MachoDebug *d;
 	MachoLoad *l;
 
 	o1 = cpos();
@@ -186,7 +174,7 @@ machowrite(void)
 			t = &s->sect[j];
 			if(macho64) {
 				strnput(t->name, 16);
-				strnput(s->name, 16);
+				strnput(t->segname, 16);
 				VPUT(t->addr);
 				VPUT(t->size);
 				LPUT(t->off);
@@ -199,7 +187,7 @@ machowrite(void)
 				LPUT(0);	/* reserved */
 			} else {
 				strnput(t->name, 16);
-				strnput(s->name, 16);
+				strnput(t->segname, 16);
 				LPUT(t->addr);
 				LPUT(t->size);
 				LPUT(t->off);
@@ -219,14 +207,6 @@ machowrite(void)
 		LPUT(4*(l->ndata+2));
 		for(j=0; j<l->ndata; j++)
 			LPUT(l->data[j]);
-	}
-
-	for(i=0; i<ndebug; i++) {
-		d = &xdebug[i];
-		LPUT(3);	/* obsolete gdb debug info */
-		LPUT(16);	/* size of symseg command */
-		LPUT(d->fileoffset);
-		LPUT(d->filesize);
 	}
 
 	return cpos() - o1;
@@ -258,6 +238,7 @@ domacho(void)
 	s = lookup(".got", 0);	// will be __nl_symbol_ptr
 	s->type = SMACHOGOT;
 	s->reachable = 1;
+	s->align = 4;
 	
 	s = lookup(".linkedit.plt", 0);	// indirect table for .plt
 	s->type = SMACHOINDIRECTPLT;
@@ -287,6 +268,52 @@ machoadddynlib(char *lib)
 	dylib[ndylib++] = lib;
 }
 
+static void
+machoshbits(MachoSeg *mseg, Section *sect, char *segname)
+{
+	MachoSect *msect;
+	char buf[40];
+	char *p;
+	
+	snprint(buf, sizeof buf, "__%s", sect->name+1);
+	for(p=buf; *p; p++)
+		if(*p == '.')
+			*p = '_';
+
+	msect = newMachoSect(mseg, estrdup(buf), segname);
+	
+	while(1<<msect->align < sect->align)
+		msect->align++;
+	msect->addr = sect->vaddr;
+	msect->size = sect->len;
+	msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+	
+	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen) {
+		// data in file
+		if(sect->len > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
+			diag("macho cannot represent section %s crossing data and bss", sect->name);
+	} else {
+		// zero fill
+		msect->flag |= 1;
+	}
+
+	if(sect->rwx & 1)
+		msect->flag |= 0x400; /* has instructions */
+	
+	if(strcmp(sect->name, ".plt") == 0) {
+		msect->name = "__symbol_stub1";
+		msect->flag = 0x80000408; /* only instructions, code, symbol stubs */
+		msect->res1 = 0;
+		msect->res2 = 6;
+	}
+
+	if(strcmp(sect->name, ".got") == 0) {
+		msect->name = "__nl_symbol_ptr";
+		msect->flag = 6;	/* section with nonlazy symbol pointers */
+		msect->res1 = lookup(".linkedit.plt", 0)->size / 4;	/* offset into indirect symbol table */
+	}
+}
+
 void
 asmbmacho(void)
 {
@@ -294,11 +321,9 @@ asmbmacho(void)
 	vlong va;
 	int a, i;
 	MachoHdr *mh;
-	MachoSect *msect;
 	MachoSeg *ms;
-	MachoDebug *md;
 	MachoLoad *ml;
-	Sym *s;
+	Section *sect;
 
 	/* apple MACH */
 	va = INITTEXT - HEADR;
@@ -323,62 +348,29 @@ asmbmacho(void)
 
 	/* text */
 	v = rnd(HEADR+segtext.len, INITRND);
-	ms = newMachoSeg("__TEXT", 2);
+	ms = newMachoSeg("__TEXT", 20);
 	ms->vaddr = va;
 	ms->vsize = v;
+	ms->fileoffset = 0;
 	ms->filesize = v;
 	ms->prot1 = 7;
 	ms->prot2 = 5;
-
-	msect = newMachoSect(ms, "__text");
-	msect->addr = INITTEXT;
-	msect->size = segtext.sect->len;
-	msect->off = INITTEXT - va;
-	msect->flag = 0x400;	/* flag - some instructions */
 	
-	s = lookup(".plt", 0);
-	if(s->size > 0) {
-		msect = newMachoSect(ms, "__symbol_stub1");
-		msect->addr = symaddr(s);
-		msect->size = s->size;
-		msect->off = ms->fileoffset + msect->addr - ms->vaddr;
-		msect->flag = 0x80000408;	/* flag */
-		msect->res1 = 0;	/* index into indirect symbol table */
-		msect->res2 = 6;	/* size of stubs */
-	}
+	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+		machoshbits(ms, sect, "__TEXT");
 
 	/* data */
 	w = segdata.len;
-	ms = newMachoSeg("__DATA", 3);
+	ms = newMachoSeg("__DATA", 20);
 	ms->vaddr = va+v;
 	ms->vsize = w;
 	ms->fileoffset = v;
 	ms->filesize = segdata.filelen;
-	ms->prot1 = 7;
+	ms->prot1 = 3;
 	ms->prot2 = 3;
-
-	msect = newMachoSect(ms, "__data");
-	msect->addr = va+v;
-	msect->off = v;
-	msect->size = segdata.filelen;
-
-	s = lookup(".got", 0);
-	if(s->size > 0) {
-		msect->size = symaddr(s) - msect->addr;
-
-		msect = newMachoSect(ms, "__nl_symbol_ptr");
-		msect->addr = symaddr(s);
-		msect->size = s->size;
-		msect->off = datoff(msect->addr);
-		msect->align = 2;
-		msect->flag = 6;	/* section with nonlazy symbol pointers */
-		msect->res1 = lookup(".linkedit.plt", 0)->size / 4;	/* offset into indirect symbol table */
-	}
-
-	msect = newMachoSect(ms, "__bss");
-	msect->addr = va+v+segdata.filelen;
-	msect->size = segdata.len - segdata.filelen;
-	msect->flag = 1;	/* flag - zero fill */
+	
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		machoshbits(ms, sect, "__DATA");
 
 	switch(thechar) {
 	default:
@@ -456,21 +448,8 @@ asmbmacho(void)
 		}
 	}
 
-	if(!debug['s']) {
-		Sym *s;
-
-		md = newMachoDebug();
-		s = lookup("symtab", 0);
-		md->fileoffset = datoff(s->value);
-		md->filesize = s->size;
-
-		md = newMachoDebug();
-		s = lookup("pclntab", 0);
-		md->fileoffset = datoff(s->value);
-		md->filesize = s->size;
-
+	if(!debug['s'])
 		dwarfaddmachoheaders();
-	}
 
 	a = machowrite();
 	if(a > HEADR)
