@@ -11,7 +11,27 @@ import (
 
 // A DialOption modifies a DialOpt call.
 type DialOption interface {
-	dialOption()
+	setDialOpt(*dialOpts)
+}
+
+var noLocalAddr Addr // nil
+
+// dialOpts holds all the dial options, populated by a DialOption's
+// setDialOpt.
+//
+// All fields may be their zero value.
+type dialOpts struct {
+	deadline        time.Time
+	localAddr       Addr
+	network         string // if empty, "tcp"
+	deferredConnect bool
+}
+
+func (o *dialOpts) net() string {
+	if o.network == "" {
+		return "tcp"
+	}
+	return o.network
 }
 
 var (
@@ -38,7 +58,9 @@ func Network(net string) DialOption {
 
 type dialNetwork string
 
-func (dialNetwork) dialOption() {}
+func (s dialNetwork) setDialOpt(o *dialOpts) {
+	o.network = string(s)
+}
 
 // Deadline returns a DialOption to fail a dial that doesn't
 // complete before t.
@@ -46,19 +68,29 @@ func Deadline(t time.Time) DialOption {
 	return dialDeadline(t)
 }
 
+type dialDeadline time.Time
+
+func (t dialDeadline) setDialOpt(o *dialOpts) {
+	o.deadline = time.Time(t)
+}
+
 // Timeout returns a DialOption to fail a dial that doesn't
 // complete within the provided duration.
 func Timeout(d time.Duration) DialOption {
-	return dialDeadline(time.Now().Add(d))
+	return dialTimeoutOpt(d)
 }
 
-type dialDeadline time.Time
+type dialTimeoutOpt time.Duration
 
-func (dialDeadline) dialOption() {}
+func (d dialTimeoutOpt) setDialOpt(o *dialOpts) {
+	o.deadline = time.Now().Add(time.Duration(d))
+}
 
 type tcpFastOpen struct{}
 
-func (tcpFastOpen) dialOption() {}
+func (tcpFastOpen) setDialOpt(o *dialOpts) {
+	o.deferredConnect = true
+}
 
 // TODO(bradfitz): implement this (golang.org/issue/4842) and unexport this.
 //
@@ -74,7 +106,9 @@ type localAddrOption struct {
 	la Addr
 }
 
-func (localAddrOption) dialOption() {}
+func (a localAddrOption) setDialOpt(o *dialOpts) {
+	o.localAddr = a.la
+}
 
 // LocalAddress returns a dial option to perform a dial with the
 // provided local address. The address must be of a compatible type
@@ -155,47 +189,19 @@ func Dial(net, addr string) (Conn, error) {
 	return DialOpt(addr, dialNetwork(net))
 }
 
-func netFromOptions(opts []DialOption) string {
-	for _, opt := range opts {
-		if p, ok := opt.(dialNetwork); ok {
-			return string(p)
-		}
-	}
-	return "tcp"
-}
-
-func deadlineFromOptions(opts []DialOption) time.Time {
-	for _, opt := range opts {
-		if d, ok := opt.(dialDeadline); ok {
-			return time.Time(d)
-		}
-	}
-	return noDeadline
-}
-
-var noLocalAddr Addr // nil
-
-func localAddrFromOptions(opts []DialOption) Addr {
-	for _, opt := range opts {
-		if o, ok := opt.(localAddrOption); ok {
-			return o.la
-		}
-	}
-	return noLocalAddr
-}
-
 // DialOpt dials addr using the provided options.
 // If no options are provided, DialOpt(addr) is equivalent
 // to Dial("tcp", addr). See Dial for the syntax of addr.
 func DialOpt(addr string, opts ...DialOption) (Conn, error) {
-	net := netFromOptions(opts)
-	deadline := deadlineFromOptions(opts)
-	la := localAddrFromOptions(opts)
-	ra, err := resolveAddr("dial", net, addr, deadline)
+	var o dialOpts
+	for _, opt := range opts {
+		opt.setDialOpt(&o)
+	}
+	ra, err := resolveAddr("dial", o.net(), addr, o.deadline)
 	if err != nil {
 		return nil, err
 	}
-	return dial(net, addr, la, ra, deadline)
+	return dial(o.net(), addr, o.localAddr, ra, o.deadline)
 }
 
 func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
