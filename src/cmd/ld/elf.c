@@ -605,9 +605,7 @@ elfdynhash(void)
 		if(sy->dynimpvers)
 			need[sy->dynid] = addelflib(&needlib, sy->dynimplib, sy->dynimpvers);
 
-		name = sy->dynimpname;
-		if(name == nil)
-			name = sy->name;
+		name = sy->extname;
 		hc = elfhash((uchar*)name);
 
 		b = hc % nbucket;

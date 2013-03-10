@@ -843,6 +843,7 @@ _lookup(char *symb, int v, int creat)
 		return nil;
 
 	s = newsym(symb, v);
+	s->extname = s->name;
 	s->hash = hash[h];
 	hash[h] = s;
 

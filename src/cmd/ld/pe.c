@@ -195,7 +195,7 @@ initdynimport(void)
 	dr = nil;
 	m = nil;
 	for(s = allsym; s != S; s = s->allsym) {
-		if(!s->reachable || !s->dynimpname || (s->cgoexport & CgoExportDynamic))
+		if(!s->reachable || s->type != SDYNIMPORT)
 			continue;
 		for(d = dr; d != nil; d = d->next) {
 			if(strcmp(d->name,s->dynimplib) == 0) {
@@ -262,7 +262,7 @@ addimports(IMAGE_SECTION_HEADER *datsect)
 		for(m = d->ms; m != nil; m = m->next) {
 			m->off = nextsectoff + cpos() - startoff;
 			wputl(0); // hint
-			strput(m->s->dynimpname);
+			strput(m->s->extname);
 		}
 	}
 	
@@ -325,7 +325,7 @@ scmp(const void *p1, const void *p2)
 
 	s1 = *(Sym**)p1;
 	s2 = *(Sym**)p2;
-	return strcmp(s1->dynimpname, s2->dynimpname);
+	return strcmp(s1->extname, s2->extname);
 }
 
 static void
@@ -335,7 +335,7 @@ initdynexport(void)
 	
 	nexport = 0;
 	for(s = allsym; s != S; s = s->allsym) {
-		if(!s->reachable || !s->dynimpname || !(s->cgoexport & CgoExportDynamic))
+		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
 			continue;
 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
 			diag("pe dynexport table is full");
@@ -358,7 +358,7 @@ addexports(void)
 
 	size = sizeof e + 10*nexport + strlen(outfile) + 1;
 	for(i=0; i<nexport; i++)
-		size += strlen(dexport[i]->dynimpname) + 1;
+		size += strlen(dexport[i]->extname) + 1;
 	
 	if (nexport == 0)
 		return;
@@ -394,7 +394,7 @@ addexports(void)
 	v = e.Name + strlen(outfile)+1;
 	for(i=0; i<nexport; i++) {
 		lputl(v);
-		v += strlen(dexport[i]->dynimpname)+1;
+		v += strlen(dexport[i]->extname)+1;
 	}
 	// put EXPORT Ordinal Table
 	for(i=0; i<nexport; i++)
@@ -402,7 +402,7 @@ addexports(void)
 	// put Names
 	strnput(outfile, strlen(outfile)+1);
 	for(i=0; i<nexport; i++)
-		strnput(dexport[i]->dynimpname, strlen(dexport[i]->dynimpname)+1);
+		strnput(dexport[i]->extname, strlen(dexport[i]->extname)+1);
 	strnput("", sect->SizeOfRawData - size);
 }
 

@@ -465,7 +465,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				free(local);
 			if(s->type == 0 || s->type == SXREF) {
 				s->dynimplib = lib;
-				s->dynimpname = remote;
+				s->extname = remote;
 				s->dynimpvers = q;
 				s->type = SDYNIMPORT;
 				havedynamic = 1;
@@ -507,17 +507,17 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				nerrors++;
 			}
 			
-			if(strcmp(f[0], "cgo_export_static") == 0)
-				s->cgoexport |= CgoExportStatic;
-			else
-				s->cgoexport |= CgoExportDynamic;
-			if(s->dynimpname == nil) {
-				s->dynimpname = remote;
+			if(s->cgoexport == 0) {
+				if(strcmp(f[0], "cgo_export_static") == 0)
+					s->cgoexport |= CgoExportStatic;
+				else
+					s->cgoexport |= CgoExportDynamic;
+				s->extname = remote;
 				if(ndynexp%32 == 0)
 					dynexp = erealloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
 				dynexp[ndynexp++] = s;
-			} else if(strcmp(s->dynimpname, remote) != 0) {
-				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->dynimpname, remote);
+			} else if(strcmp(s->extname, remote) != 0) {
+				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->extname, remote);
 				nerrors++;
 				return;
 			}

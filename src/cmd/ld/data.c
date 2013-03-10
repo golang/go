@@ -297,7 +297,7 @@ dynrelocsym(Sym *s)
 	for(r=s->r; r<s->r+s->nr; r++) {
 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
 			adddynrel(s, r);
-		if(flag_shared && r->sym != S && (r->sym->dynimpname == nil || (r->sym->cgoexport & CgoExportDynamic)) && r->type == D_ADDR
+		if(flag_shared && r->sym != S && s->type != SDYNIMPORT && r->type == D_ADDR
 				&& (s == got || s->type == SDATA || s->type == SGOSTRING || s->type == STYPE || s->type == SRODATA)) {
 			// Create address based RELATIVE relocation
 			adddynrela(rel, s, r);
