@@ -1186,7 +1186,6 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 				textsize = seg->vmsize;
 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
 				for(j = 0; j < seg->nsects; j++, sect++) {
-print("%s %#x %#x\n", sect->sectname, swal(sect->offset), swal(sect->size));
 					if (strcmp(sect->sectname, "__gosymtab") == 0) {
 						symoff = swal(sect->offset);
 						symsize = swal(sect->size);

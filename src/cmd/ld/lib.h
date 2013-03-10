@@ -54,8 +54,8 @@ enum
 	SNOPTRBSS,
 
 	SXREF,
-	SMACHODYNSTR,
-	SMACHODYNSYM,
+	SMACHOSYMSTR,
+	SMACHOSYMTAB,
 	SMACHOINDIRECTPLT,
 	SMACHOINDIRECTGOT,
 	SFILE,
@@ -102,6 +102,7 @@ struct Segment
 struct Section
 {
 	uchar	rwx;
+	int16	extnum;
 	int32	align;
 	char	*name;
 	uvlong	vaddr;
@@ -224,6 +225,7 @@ vlong	adduint8(Sym*, uint8);
 vlong	adduint16(Sym*, uint16);
 vlong	adduint32(Sym*, uint32);
 vlong	adduint64(Sym*, uint64);
+vlong	adduintxx(Sym*, uint64, int);
 vlong	addaddr(Sym*, Sym*);
 vlong	addaddrplus(Sym*, Sym*, int32);
 vlong	addpcrelplus(Sym*, Sym*, int32);
@@ -380,5 +382,3 @@ char*	decodetype_structfieldname(Sym*, int);
 Sym*	decodetype_structfieldtype(Sym*, int);
 vlong	decodetype_structfieldoffs(Sym*, int);
 vlong	decodetype_ifacemethodcount(Sym*);
-
-void	sortdynexp(void);

@@ -51,6 +51,7 @@ MachoSect*	newMachoSect(MachoSeg*, char*, char*);
 MachoLoad*	newMachoLoad(uint32, uint32);
 int	machowrite(void);
 void	machoinit(void);
+void	machosymorder(void);
 
 /*
  * Total amount of space to reserve at the start of the file
