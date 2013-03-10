@@ -483,6 +483,7 @@ struct ParFor
 	bool wait;			// if true, wait while all threads finish processing,
 					// otherwise parfor may return while other threads are still working
 	ParForThread *thr;		// array of thread descriptors
+	uint32 pad;			// to align ParForThread.pos for 64-bit atomic operations
 	// stats
 	uint64 nsteal;
 	uint64 nstealcnt;
