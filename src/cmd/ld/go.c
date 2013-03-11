@@ -499,11 +499,16 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				remote = local;
 			local = expandpkg(local, pkg);
 			s = lookup(local, 0);
+
+			// export overrides import, for openbsd/cgo.
+			// see issue 4878.
 			if(s->dynimplib != nil) {
-				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
-				nerrors++;
+				s->dynimplib = nil;
+				s->extname = nil;
+				s->dynimpvers = nil;
+				s->type = 0;
 			}
-			
+
 			if(s->cgoexport == 0) {
 				if(strcmp(f[0], "cgo_export_static") == 0)
 					s->cgoexport |= CgoExportStatic;

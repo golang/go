@@ -48,9 +48,9 @@ tcb_fixup(int mainthread)
 	bcopy(oldtcb, newtcb + TLS_SIZE, TCB_SIZE);
 	__set_tcb(newtcb + TLS_SIZE);
 
-	// The main thread TCB is a static allocation - do not try to free it.
-	if(!mainthread)
-		free(oldtcb);
+	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
+	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
+	// has proper support for PT_TLS.
 }
 
 static void *
