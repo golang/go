@@ -1070,7 +1070,8 @@ shouldbuild(char *file, char *dir)
 			name = lastelem(file);
 			if(streq(name, "goos.c") || streq(name, "flag.c"))
 				return 1;
-			return 0;
+			if(!contains(name, "plan9"))
+				return 0;
 		}
 		if(streq(dir, "libbio"))
 			return 0;
