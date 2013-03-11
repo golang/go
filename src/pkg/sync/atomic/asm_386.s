@@ -28,6 +28,9 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
 
 TEXT ·CompareAndSwapUint64(SB),7,$0
 	MOVL	addr+0(FP), BP
+	TESTL	$7, BP
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	MOVL	old+4(FP), AX
 	MOVL	old+8(FP), DX
 	MOVL	new+12(FP), BX
@@ -61,6 +64,9 @@ TEXT ·AddInt64(SB),7,$0
 TEXT ·AddUint64(SB),7,$0
 	// no XADDQ so use CMPXCHG8B loop
 	MOVL	addr+0(FP), BP
+	TESTL	$7, BP
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	// DI:SI = delta
 	MOVL	delta+4(FP), SI
 	MOVL	delta+8(FP), DI
@@ -105,6 +111,9 @@ TEXT ·LoadInt64(SB),7,$0
 
 TEXT ·LoadUint64(SB),7,$0
 	MOVL	addr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	// MOVQ and EMMS were introduced on the Pentium MMX.
 	// MOVQ (%EAX), %MM0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
@@ -133,6 +142,9 @@ TEXT ·StoreInt64(SB),7,$0
 
 TEXT ·StoreUint64(SB),7,$0
 	MOVL	addr+0(FP), AX
+	TESTL	$7, AX
+	JZ	2(PC)
+	MOVL	0, AX // crash with nil ptr deref
 	// MOVQ and EMMS were introduced on the Pentium MMX.
 	// MOVQ 0x8(%ESP), %MM0
 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08

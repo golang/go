@@ -1177,3 +1177,29 @@ func TestStoreLoadRelAcq64(t *testing.T) {
 	<-c
 	<-c
 }
+
+func shouldPanic(t *testing.T, name string, f func()) {
+	defer func() {
+		if recover() == nil {
+			t.Errorf("%s did not panic", name)
+		}
+	}()
+	f()
+}
+
+func TestUnaligned64(t *testing.T) {
+	// Unaligned 64-bit atomics on 32-bit systems are
+	// a continual source of pain. Test that on 386 they crash
+	// instead of failing silently.
+	if runtime.GOARCH != "386" {
+		t.Skip("test only runs on 386")
+	}
+
+	x := make([]uint32, 4)
+	p := (*uint64)(unsafe.Pointer(&x[1])) // misaligned
+
+	shouldPanic(t, "LoadUint64", func() { LoadUint64(p) })
+	shouldPanic(t, "StoreUint64", func() { StoreUint64(p, 1) })
+	shouldPanic(t, "CompareAndSwapUint64", func() { CompareAndSwapUint64(p, 1, 2) })
+	shouldPanic(t, "AddUint64", func() { AddUint64(p, 3) })
+}
