@@ -29,6 +29,9 @@ func TestReverseProxy(t *testing.T) {
 		if c := r.Header.Get("Connection"); c != "" {
 			t.Errorf("handler got Connection header value %q", c)
 		}
+		if c := r.Header.Get("Upgrade"); c != "" {
+			t.Errorf("handler got Keep-Alive header value %q", c)
+		}
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
@@ -49,6 +52,7 @@ func TestReverseProxy(t *testing.T) {
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("Upgrade", "foo")
 	getReq.Close = true
 	res, err := http.DefaultClient.Do(getReq)
 	if err != nil {
