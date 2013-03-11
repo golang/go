@@ -556,6 +556,11 @@ hostobjs(void)
 	}
 }
 
+// provided by lib9
+int runcmd(char**);
+char* mktempdir(void);
+void removeall(char*);
+
 static void
 rmtemp(void)
 {

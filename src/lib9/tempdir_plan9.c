@@ -9,7 +9,7 @@ char*
 mktempdir(void)
 {
 	char *p;
-	int i;
+	int fd, i;
 	
 	p = smprint("/tmp/go-link-XXXXXX");
 	for(i=0; i<1000; i++) {
@@ -27,7 +27,7 @@ mktempdir(void)
 void
 removeall(char *p)
 {
-	int fd, n;
+	int fd, n, i;
 	Dir *d;
 	char *q;
 	
