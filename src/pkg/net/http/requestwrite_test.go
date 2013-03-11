@@ -391,6 +391,30 @@ var reqWriteTests = []reqWriteTest{
 			"Host: x.google.com\r\n" +
 			"User-Agent: Go 1.1 package http\r\n\r\n",
 	},
+
+	// Testing custom case in header keys. Issue 5022.
+	{
+		Req: Request{
+			Method: "GET",
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   "www.google.com",
+				Path:   "/",
+			},
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header: Header{
+				"ALL-CAPS": {"x"},
+			},
+		},
+
+		WantWrite: "GET / HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
+			"User-Agent: Go 1.1 package http\r\n" +
+			"ALL-CAPS: x\r\n" +
+			"\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
