@@ -1182,9 +1182,9 @@ reswitch:
 		defaultlit2(&l, &r, 0);
 		n->left = l;
 		n->right = r;
-		if(l->type->etype != r->type->etype) {
+		if(!eqtype(l->type, r->type)) {
 		badcmplx:
-			yyerror("invalid operation: %N (complex of types %T, %T)", n, l->type, r->type);
+			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
 			goto error;
 		}
 		switch(l->type->etype) {
