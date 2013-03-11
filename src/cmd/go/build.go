@@ -391,7 +391,9 @@ var (
 
 func (b *builder) init() {
 	var err error
-	b.print = fmt.Print
+	b.print = func(a ...interface{}) (int, error) {
+		return fmt.Fprint(os.Stderr, a...)
+	}
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
 
@@ -1632,7 +1634,7 @@ func (b *builder) libgcc(p *Package) (string, error) {
 		// print function to capture the command-line. This
 		// let's us assign it to $LIBGCC and produce a valid
 		// buildscript for cgo packages.
-		b.print = func(a ...interface{}) (n int, err error) {
+		b.print = func(a ...interface{}) (int, error) {
 			return fmt.Fprint(&buf, a...)
 		}
 	}
