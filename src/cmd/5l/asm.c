@@ -296,6 +296,16 @@ elfsetupplt(void)
 }
 
 int
+machoreloc1(Reloc *r, vlong sectoff)
+{
+	USED(r);
+	USED(sectoff);
+
+	return -1;
+}
+
+
+int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
 	switch(r->type) {
@@ -325,15 +335,16 @@ archreloc(Reloc *r, Sym *s, vlong *val)
 		*val = braddoff((0xff000000U & (uint32)r->add), 
 		                (0xffffff & (uint32)
 		                   ((symaddr(r->sym) + ((uint32)r->add) * 4 - (s->value + r->off)) / 4)));
-	return 0;
-}
-return -1;
+		return 0;
+	}
+	return -1;
 }
 
 static Reloc *
 addpltreloc(Sym *plt, Sym *got, Sym *sym, int typ)
 {
-Reloc *r;
+	Reloc *r;
+
 	r = addrel(plt);
 	r->sym = got;
 	r->off = plt->size;
