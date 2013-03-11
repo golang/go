@@ -81,6 +81,19 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+// Hop-by-hop headers. These are removed when sent to the backend.
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+var hopHeaders = []string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authenticate",
+	"Proxy-Authorization",
+	"Te", // canonicalized version of "TE"
+	"Trailers",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
 func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -96,14 +109,21 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq.ProtoMinor = 1
 	outreq.Close = false
 
-	// Remove the connection header to the backend.  We want a
-	// persistent connection, regardless of what the client sent
-	// to us.  This is modifying the same underlying map from req
-	// (shallow copied above) so we only copy it if necessary.
-	if outreq.Header.Get("Connection") != "" {
-		outreq.Header = make(http.Header)
-		copyHeader(outreq.Header, req.Header)
-		outreq.Header.Del("Connection")
+	// Remove hop-by-hop headers to the backend.  Especially
+	// important is "Connection" because we want a persistent
+	// connection, regardless of what the client sent to us.  This
+	// is modifying the same underlying map from req (shallow
+	// copied above) so we only copy it if necessary.
+	copiedHeaders := false
+	for _, h := range hopHeaders {
+		if outreq.Header.Get(h) != "" {
+			if !copiedHeaders {
+				outreq.Header = make(http.Header)
+				copyHeader(outreq.Header, req.Header)
+				copiedHeaders = true
+			}
+			outreq.Header.Del(h)
+		}
 	}
 
 	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
