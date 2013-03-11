@@ -8,6 +8,8 @@
 // general syntax used by Perl, Python, and other languages.
 // More precisely, it is the syntax accepted by RE2 and described at
 // http://code.google.com/p/re2/wiki/Syntax, except for \C.
+// For an overview of the syntax, run
+//   godoc regexp/syntax
 //
 // All characters are UTF-8-encoded code points.
 //
@@ -27,11 +29,11 @@
 // of bytes; return values are adjusted as appropriate.
 //
 // If 'Submatch' is present, the return value is a slice identifying the
-// successive submatches of the expression.  Submatches are matches of
-// parenthesized subexpressions within the regular expression, numbered from
-// left to right in order of opening parenthesis.  Submatch 0 is the match of
-// the entire expression, submatch 1 the match of the first parenthesized
-// subexpression, and so on.
+// successive submatches of the expression. Submatches are matches of
+// parenthesized subexpressions (also known as capturing groups) within the
+// regular expression, numbered from left to right in order of opening
+// parenthesis. Submatch 0 is the match of the entire expression, submatch 1
+// the match of the first parenthesized subexpression, and so on.
 //
 // If 'Index' is present, matches and submatches are identified by byte index
 // pairs within the input string: result[2*n:2*n+1] identifies the indexes of
