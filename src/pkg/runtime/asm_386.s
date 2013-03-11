@@ -26,9 +26,8 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
-	PUSHL	BP
+	MOVL	BP, 0(SP)
 	CALL	AX
-	POPL	BP
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok

@@ -614,6 +614,8 @@ hostlink(void)
 	}
 	if(!debug['s'])
 		argv[argc++] = "-ggdb"; 
+	if(HEADTYPE == Hdarwin)
+		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
 	argv[argc++] = "-o";
 	argv[argc++] = outfile;
 	
