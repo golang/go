@@ -270,12 +270,13 @@ adddynrel(Sym *s, Reloc *r)
 }
 
 int
-elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+elfreloc1(Reloc *r, vlong sectoff)
 {
-	USED(add);	// written to obj file by ../ld/data.c's reloc
+	int32 elfsym;
 
-	LPUT(off);
+	LPUT(sectoff);
 
+	elfsym = r->xsym->elfsym;
 	switch(r->type) {
 	default:
 		return -1;

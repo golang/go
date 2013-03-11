@@ -805,10 +805,9 @@ elfshreloc(Section *sect)
 void
 elfrelocsect(Section *sect, Sym *first)
 {
-	Sym *sym, *rs;
+	Sym *sym;
 	int32 eaddr;
 	Reloc *r;
-	int64 add;
 
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
@@ -834,30 +833,15 @@ elfrelocsect(Section *sect, Sym *first)
 		cursym = sym;
 		
 		for(r = sym->r; r < sym->r+sym->nr; r++) {
-			// Ignore relocations handled by reloc already.
-			switch(r->type) {
-			case D_SIZE:
+			if(r->done)
 				continue;
-			case D_ADDR:
-			case D_PCREL:
-				if(r->sym->type == SCONST)
-					continue;	// handled in data.c:/^relocsym
-				if(r->type == D_PCREL && r->sym->sect == sym->sect)
-					continue;	// handled in data.c:/^relocsym
-				break;
+			if(r->xsym == nil) {
+				diag("missing xsym in relocation");
+				continue;
 			}
-
-			add = r->add;
-			rs = r->sym;
-			while(rs->outer != nil) {
-				add += rs->value - rs->outer->value;
-				rs = rs->outer;
-			}
-				
-			if(rs->elfsym == 0)
-				diag("reloc %d to non-elf symbol %s (rs=%s) %d", r->type, r->sym->name, rs->name, rs->type);
-
-			if(elfreloc1(r, sym->value - sect->vaddr + r->off, rs->elfsym, add) < 0)
+			if(r->xsym->elfsym == 0)
+				diag("reloc %d to non-elf symbol %s (outer=%s) %d", r->type, r->sym->name, r->xsym->name, r->sym->type);
+			if(elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
 		}
 	}

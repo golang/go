@@ -1005,7 +1005,7 @@ extern char linuxdynld[];
 extern char freebsddynld[];
 extern char netbsddynld[];
 extern char openbsddynld[];
-int	elfreloc1(Reloc*, vlong off, int32 elfsym, vlong add);
+int	elfreloc1(Reloc*, vlong sectoff);
 
 EXTERN	int	elfstrsize;
 EXTERN	char*	elfstrdat;
