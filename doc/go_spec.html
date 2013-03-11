@@ -2513,7 +2513,8 @@ rules apply:
 If <code>a</code> is not a map:
 </p>
 <ul>
-	<li>the index <code>x</code> must be an integer value; it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
+	<li>the index <code>x</code> must be of integer type or untyped;
+	    it is <i>in range</i> if <code>0 &lt;= x &lt; len(a)</code>,
 	    otherwise it is <i>out of range</i></li>
 	<li>a <a href="#Constants">constant</a> index must be non-negative
 	    and representable by a value of type <code>int</code>
@@ -5095,7 +5096,7 @@ make(T, n)       channel    asynchronous channel of type T, buffer size n
 
 
 <p>
-The size arguments <code>n</code> and <code>m</code> must be integer values.
+The size arguments <code>n</code> and <code>m</code> must be of integer type or untyped.
 A <a href="#Constants">constant</a> size argument must be non-negative and
 representable by a value of type <code>int</code>.
 If both <code>n</code> and <code>m</code> are provided and are constant, then
