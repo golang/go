@@ -11,18 +11,19 @@ ok=true
 unset GOPATH
 unset GOBIN
 
-# Test that error messages have file:line information
-# at beginning of line.
-for i in testdata/errmsg/*.go
-do
-	# TODO: |cat should not be necessary here but is.
-	./testgo test $i 2>&1 | cat >err.out || true
-	if ! grep -q "^$i:" err.out; then
-		echo "$i: missing file:line in error message"
-		cat err.out
-		ok=false
-	fi
-done
+# Test that error messages have file:line information at beginning of
+# the line. Also test issue 4917: that the error is on stderr.
+d=$(mktemp -d -t testgoXXX)
+fn=$d/err.go
+echo "package main" > $fn
+echo 'import "bar"' >> $fn
+./testgo run $fn 2>$d/err.out || true
+if ! grep -q "^$fn:" $d/err.out; then
+	echo "missing file:line in error message"
+	cat $d/err.out
+	ok=false
+fi
+rm -r $d
 
 # Test local (./) imports.
 testlocal() {
@@ -51,7 +52,7 @@ testlocal() {
 		ok=false
 	fi
 	
-	rm -f err.out hello.out hello
+	rm -f hello.out hello
 	
 	# Test that go install x.go fails.
 	if ./testgo install "testdata/$local/easy.go" >/dev/null 2>&1; then
@@ -183,7 +184,7 @@ fi
 
 # issue 4186. go get cannot be used to download packages to $GOROOT
 # Test that without GOPATH set, go get should fail
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src/pkg
 if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
 	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
@@ -191,7 +192,7 @@ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch
 fi	
 rm -rf $d
 # Test that with GOPATH=$GOROOT, go get should fail
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src/pkg
 if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
         echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
@@ -200,7 +201,7 @@ fi
 rm -rf $d
 
 # issue 3941: args with spaces
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 cat >$d/main.go<<EOF
 package main
 var extern string
@@ -226,7 +227,7 @@ rm -f strings.prof strings.test
 
 # issue 4568. test that symlinks don't screw things up too badly.
 old=$(pwd)
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src
 (
 	ln -s $d $d/src/dir1
@@ -247,7 +248,7 @@ fi
 rm -rf $d
 
 # issue 4515.
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 mkdir -p $d/src/example/a $d/src/example/b $d/bin
 cat >$d/src/example/a/main.go <<EOF
 package main
@@ -280,7 +281,7 @@ unset GOPATH
 rm -rf $d
 
 # issue 4773. case-insensitive collisions
-d=$(mktemp -d -t testgo)
+d=$(mktemp -d -t testgoXXX)
 export GOPATH=$d
 mkdir -p $d/src/example/a $d/src/example/b
 cat >$d/src/example/a/a.go <<EOF
