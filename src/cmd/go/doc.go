@@ -56,9 +56,13 @@ build writes the resulting executable to output.
 Otherwise build compiles the packages but discards the results,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name.  If not specified, the
-name is packagename.a (for a non-main package) or the base
-name of the first source file (for a main package).
+The -o flag specifies the output file name. If not specified, the
+output file name depends on the arguments and derives from the name
+of the package, such as p.a for package p, unless p is 'main'. If
+the package is main and file names are provided, the file name
+derives from the first file name mentioned, such as f1 for 'go build
+f1.go f2.go'; with no files provided ('go build'), the output file
+name is the base name of the containing directory.
 
 The build flags are shared by the build, install, run, and test commands:
 
@@ -66,6 +70,8 @@ The build flags are shared by the build, install, run, and test commands:
 		force rebuilding of packages that are already up-to-date.
 	-n
 		print the commands but do not run them.
+	-o file
+		specify output file name; see description above.
 	-p n
 		the number of builds that can be run in parallel.
 		The default is the number of CPUs available.
