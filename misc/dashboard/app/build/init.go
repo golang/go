@@ -20,12 +20,13 @@ var defaultPackages = []*Package{
 
 // subRepos specifies the Go project sub-repositories.
 var subRepos = []string{
+	"blog",
 	"codereview",
 	"crypto",
+	"exp",
 	"image",
 	"net",
 	"talks",
-	"exp",
 }
 
 // Put subRepos into defaultPackages.
