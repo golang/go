@@ -98,4 +98,8 @@ func TestStress(t *testing.T) {
 	close(done)
 	<-finished
 	<-finished
+	// When run with 'go test -cpu=1,2,4' SIGUSR1 from this test can slip
+	// into subsequent TestSignal() causing failure.
+	// Sleep for a while to reduce the possibility of the failure.
+	time.Sleep(10 * time.Millisecond)
 }
