@@ -81,6 +81,11 @@ use Getopt::Long;
 
 my $PPROF_VERSION = "1.5";
 
+# NOTE: All mentions of c++filt have been expunged from this script
+# because (1) we don't use C++, and (2) the copy of c++filt that ships
+# on OS X is from 2007 and destroys nm output by "demangling" the
+# first two columns (address and symbol type).
+
 # These are the object tools we use which can come from a
 # user-specified location using --tools, from the PPROF_TOOLS
 # environment variable, or from the environment.
@@ -88,7 +93,6 @@ my %obj_tool_map = (
   "objdump" => "objdump",
   "nm" => "nm",
   "addr2line" => "addr2line",
-  "c++filt" => "c++filt",
   ## ConfigureObjTools may add architecture-specific entries:
   #"nm_pdb" => "nm-pdb",       # for reading windows (PDB-format) executables
   #"addr2line_pdb" => "addr2line-pdb",                                # ditto
@@ -3093,9 +3097,7 @@ sub FetchSymbols {
     my $url = SymbolPageURL();
     $url = ResolveRedirectionForCurl($url);
     my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
-    # We use c++filt in case $SYMBOL_PAGE gives us mangled symbols.
-    my $cppfilt = $obj_tool_map{"c++filt"};
-    open(SYMBOL, "$command_line | $cppfilt |") or error($command_line);
+    open(SYMBOL, "$command_line |") or error($command_line);
     ReadSymbols(*SYMBOL{IO}, $symbol_map);
     close(SYMBOL);
   }
@@ -4790,7 +4792,6 @@ sub GetProcedureBoundaries {
   }
 
   my $nm = $obj_tool_map{"nm"};
-  my $cppfilt = $obj_tool_map{"c++filt"};
 
   # nm can fail for two reasons: 1) $image isn't a debug library; 2) nm
   # binary doesn't support --demangle.  In addition, for OS X we need
@@ -4799,27 +4800,21 @@ sub GetProcedureBoundaries {
   # in an incompatible way.  So first we test whether our nm supports
   # --demangle and -f.
   my $demangle_flag = "";
-  my $cppfilt_flag = "";
   if (system("$nm --demangle $image >/dev/null 2>&1") == 0) {
     # In this mode, we do "nm --demangle <foo>"
     $demangle_flag = "--demangle";
-    $cppfilt_flag = "";
-  } elsif (system("$cppfilt $image >/dev/null 2>&1") == 0) {
-    # In this mode, we do "nm <foo> | c++filt"
-    $cppfilt_flag = " | $cppfilt";
-  };
+  }
   my $flatten_flag = "";
   if (system("$nm -f $image >/dev/null 2>&1") == 0) {
     $flatten_flag = "-f";
   }
 
-  # Finally, in the case $imagie isn't a debug library, we try again with
-  # -D to at least get *exported* symbols.  If we can't use --demangle,
-  # we use c++filt instead, if it exists on this system.
+  # Finally, in the case $image isn't a debug library, we try again with
+  # -D to at least get *exported* symbols.  If we can't use --demangle, too bad.
   my @nm_commands = ("$nm -n $flatten_flag $demangle_flag" .
-                     " $image 2>/dev/null $cppfilt_flag",
+                     " $image 2>/dev/null",
                      "$nm -D -n $flatten_flag $demangle_flag" .
-                     " $image 2>/dev/null $cppfilt_flag",
+                     " $image 2>/dev/null",
                      # go tool nm is for Go binaries
                      "go tool nm $image 2>/dev/null | sort");
 
