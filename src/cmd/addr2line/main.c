@@ -12,12 +12,18 @@
 #include <mach.h>
 
 void
+printusage(int fd)
+{
+	fprint(fd, "usage: addr2line binary\n");
+	fprint(fd, "reads addresses from standard input and writes two lines for each:\n");
+	fprint(fd, "\tfunction name\n");
+	fprint(fd, "\tfile:line\n");
+}
+
+void
 usage(void)
 {
-	fprint(2, "usage: addr2line binary\n");
-	fprint(2, "reads addresses from standard input and writes two lines for each:\n");
-	fprint(2, "\tfunction name\n");
-	fprint(2, "\tfile:line\n");
+	printusage(2);
 	exits("usage");
 }
 
@@ -31,6 +37,11 @@ main(int argc, char **argv)
 	Fhdr fhdr;
 	Biobuf bin, bout;
 	char file[1024];
+
+	if(argc > 1 && strcmp(argv[1], "--help") == 0) {
+		printusage(1);
+		exits(0);
+	}
 
 	ARGBEGIN{
 	default:
