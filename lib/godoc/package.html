@@ -10,7 +10,11 @@
 	correspond to Go identifiers).
 -->
 {{with .PDoc}}
-	{{if not $.IsMain}}
+	{{if $.IsMain}}
+		{{/* command documentation */}}
+		{{comment_html .Doc}}
+	{{else}}
+		{{/* package documentation */}}
 		<div id="short-nav">
 			<dl>
 			<dd><code>import "{{html .ImportPath}}"</code></dd>
@@ -160,8 +164,6 @@
 				{{example_html $name $.Examples $.FSet}}
 			{{end}}
 		{{end}}
-	{{else}}  {{/* not a package; is a command */}}
-		{{comment_html .Doc}}
 	{{end}}
 
 	{{with $.Notes}}
