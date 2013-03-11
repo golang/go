@@ -205,11 +205,10 @@ func (x *operand) isAssignable(ctxt *Context, T Type) bool {
 }
 
 // isInteger reports whether x is a (typed or untyped) integer value.
-// TODO(gri) remove ctxt argument - it is not required for UntypedInt.
-func (x *operand) isInteger(ctxt *Context) bool {
+func (x *operand) isInteger() bool {
 	return x.mode == invalid ||
 		isInteger(x.typ) ||
-		x.mode == constant && isRepresentableConst(x.val, ctxt, UntypedInt)
+		x.mode == constant && isRepresentableConst(x.val, nil, UntypedInt) // no context required for UntypedInt
 }
 
 // lookupResult represents the result of a struct field/method lookup.

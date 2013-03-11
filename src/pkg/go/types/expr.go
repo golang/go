@@ -24,6 +24,51 @@ import (
 // - clients need access to builtins type information
 // - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
 
+/*
+Basic algorithm:
+
+Expressions are checked recursively, top down. Expression checker functions
+are generally of the form:
+
+  func f(x *operand, e *ast.Expr, ...)
+
+where e is the expression to be checked, and x is the result of the check.
+The check performed by f may fail in which case x.mode == invalid, and
+related error messages will have been issued by f.
+
+If a hint argument is present, it is the composite literal element type
+of an outer composite literal; it is used to type-check composite literal
+elements that have no explicit type specification in the source
+(e.g.: []T{{...}, {...}}, the hint is the type T in this case).
+
+If an iota argument >= 0 is present, it is the value of iota for the
+specific expression.
+
+All expressions are checked via rawExpr, which dispatches according
+to expression kind. Upon returning, rawExpr is recording the types and
+constant values for all expressions that have an untyped type (those types
+may change on the way up in the expression tree). Usually these are constants,
+but the results of comparisons or non-constant shifts of untyped constants
+may also be untyped, but not constant.
+
+Untyped expressions may eventually become fully typed (i.e., not untyped),
+typically when the value is assigned to a variable, or is used otherwise.
+The updateExprType method is used to record this final type and update
+the recorded types: the type-checked expression tree is again traversed down,
+and the new type is propagated as needed. Untyped constant expression values
+that become fully typed must now be representable by the full type (constant
+sub-expression trees are left alone except for their roots). This mechanism
+ensures that a client sees the actual (run-time) type an untyped value would
+have. It also permits type-checking of lhs shift operands "as if the shift
+were not present": when updateExprType visits an untyped lhs shift operand
+and assigns it it's final type, that type must be an integer type, and a
+constant lhs must be representable as an integer.
+
+When an expression gets its final type, either on the way out from rawExpr,
+on the way down in updateExprType, or at the end of the type checker run,
+if present the Context.Expr method is invoked to notify a go/types client.
+*/
+
 func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
 	if list == nil {
 		return
@@ -260,7 +305,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 	if !isRepresentableConst(x.val, check.ctxt, typ.Kind) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
-			msg = "%s overflows %s"
+			msg = "%s overflows (or cannot be accurately represented as) %s"
 		} else {
 			msg = "cannot convert %s to %s"
 		}
@@ -269,24 +314,30 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
 	}
 }
 
-// updateExprType updates the type of all untyped nodes in the
-// expression tree of x to typ. If shiftOp is set, x is the lhs
-// of a shift expression. In that case, and if x is in the set
-// of shift operands with delayed type checking, and typ is not
-// an untyped type, updateExprType will check if typ is an
-// integer type.
-// If Context.Expr != nil, it is called for all nodes that are
-// now assigned their final (not untyped) type.
-func (check *checker) updateExprType(x ast.Expr, typ Type, shiftOp bool) {
+// updateExprType updates the type of x to typ and invokes itself
+// recursively for the operands of x, depending on expression kind.
+// If typ is still an untyped and not the final type, updateExprType
+// only updates the recorded untyped type for x and possibly its
+// operands. Otherwise (i.e., typ is not an untyped type anymore,
+// or it is the final type for x), Context.Expr is invoked, if present.
+// Also, if x is a constant, it must be representable as a value of typ,
+// and if x is the (formerly untyped) lhs operand of a non-constant
+// shift, it must be an integer value.
+//
+func (check *checker) updateExprType(x ast.Expr, typ Type, final bool) {
+	old, found := check.untyped[x]
+	if !found {
+		return // nothing to do
+	}
+
+	// update operands of x if necessary
 	switch x := x.(type) {
 	case *ast.BadExpr,
 		*ast.FuncLit,
 		*ast.CompositeLit,
-		*ast.SelectorExpr,
 		*ast.IndexExpr,
 		*ast.SliceExpr,
 		*ast.TypeAssertExpr,
-		*ast.CallExpr,
 		*ast.StarExpr,
 		*ast.KeyValueExpr,
 		*ast.ArrayType,
@@ -295,58 +346,86 @@ func (check *checker) updateExprType(x ast.Expr, typ Type, shiftOp bool) {
 		*ast.InterfaceType,
 		*ast.MapType,
 		*ast.ChanType:
-		// these expression are never untyped - nothing to do
+		// These expression are never untyped - nothing to do.
+		// The respective sub-expressions got their final types
+		// upon assignment or use.
+		if debug {
+			check.dump("%s: found old type(%s): %s (new: %s)", x.Pos(), x, old.typ, typ)
+			unreachable()
+		}
 		return
 
-	case *ast.Ident, *ast.BasicLit:
-		// update type
+	case *ast.CallExpr:
+		// Resulting in an untyped constant (e.g., built-in complex).
+		// The respective calls take care of calling updateExprType
+		// for the arguments if necessary.
+
+	case *ast.Ident, *ast.BasicLit, *ast.SelectorExpr:
+		// An identifier denoting a constant, a constant literal,
+		// or a qualified identifier (imported untyped constant).
+		// No operands to take care of.
 
 	case *ast.ParenExpr:
-		check.updateExprType(x.X, typ, false)
+		check.updateExprType(x.X, typ, final)
 
 	case *ast.UnaryExpr:
-		check.updateExprType(x.X, typ, false)
+		// If x is a constant, the operands were constants.
+		// They don't need to be updated since they never
+		// get "materialized" into a typed value; and they
+		// will be processed at the end of the type check.
+		if old.isConst {
+			break
+		}
+		check.updateExprType(x.X, typ, final)
 
 	case *ast.BinaryExpr:
+		if old.isConst {
+			break // see comment for unary expressions
+		}
 		if isComparison(x.Op) {
-			// result type is independent of operand types
+			// The result type is independent of operand types
+			// and the operand types must have final types.
 		} else if isShift(x.Op) {
-			// result type depends only on lhs operand
-			check.updateExprType(x.X, typ, true)
+			// The result type depends only on lhs operand.
+			// The rhs type was updated when checking the shift.
+			check.updateExprType(x.X, typ, final)
 		} else {
-			// operand types match result type
-			check.updateExprType(x.X, typ, false)
-			check.updateExprType(x.Y, typ, false)
+			// The operand types match the result type.
+			check.updateExprType(x.X, typ, final)
+			check.updateExprType(x.Y, typ, final)
 		}
 
-	case *ast.Ellipsis:
-		unreachable()
 	default:
 		unreachable()
 	}
 
-	// TODO(gri) t should always exist, shouldn't it?
-	if t := check.untyped[x]; t != nil {
-		if isUntyped(typ) {
-			check.untyped[x] = typ.(*Basic)
-		} else {
-			// notify clients of final type for x
-			if f := check.ctxt.Expr; f != nil {
-				f(x, typ, check.constants[x])
-			}
-			delete(check.untyped, x)
-			delete(check.constants, x)
-			// check delayed shift
-			// Note: Using shiftOp is an optimization: it prevents
-			// map lookups when we know x is not a shiftOp in the
-			// first place.
-			if shiftOp && check.shiftOps[x] {
-				if !isInteger(typ) {
-					check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
-				}
-				delete(check.shiftOps, x)
-			}
+	// If the new type is not final and still untyped, just
+	// update the recorded type.
+	if !final && isUntyped(typ) {
+		old.typ = underlying(typ).(*Basic)
+		check.untyped[x] = old
+		return
+	}
+
+	// Otherwise we have the final (typed or untyped type).
+	// Remove it from the map.
+	delete(check.untyped, x)
+
+	// If x is the lhs of a shift, its final type must be integer.
+	// We already know from the shift check that it is representable
+	// as an integer if it is a constant.
+	if old.isLhs && !isInteger(typ) {
+		check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
+		return
+	}
+
+	// Everything's fine, notify client of final type for x.
+	if f := check.ctxt.Expr; f != nil {
+		var val interface{}
+		if old.isConst {
+			val = old.val
 		}
+		f(x, typ, val)
 	}
 }
 
@@ -419,7 +498,7 @@ func (check *checker) convertUntyped(x *operand, target Type) {
 	}
 
 	x.typ = target
-	check.updateExprType(x.expr, target, false)
+	check.updateExprType(x.expr, target, true) // UntypedNils are final
 	return
 
 Error:
@@ -456,18 +535,39 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
 		x.mode = value
 	}
 
+	// The result type of a comparison is always boolean and
+	// independent of the argument types. They have now their
+	// final types (untyped or typed): update the respective
+	// expression trees.
+	check.updateExprType(x.expr, x.typ, true)
+	check.updateExprType(y.expr, y.typ, true)
+
 	x.typ = Typ[UntypedBool]
 }
 
 func (check *checker) shift(x, y *operand, op token.Token) {
+	untypedx := isUntyped(x.typ)
+
+	// The lhs must be of integer type or be representable
+	// as an integer; otherwise the shift has no chance.
+	if !isInteger(x.typ) && (!untypedx || !isRepresentableConst(x.val, nil, UntypedInt)) {
+		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
+		x.mode = invalid
+		return
+	}
+
 	// spec: "The right operand in a shift expression must have unsigned
 	// integer type or be an untyped constant that can be converted to
 	// unsigned integer type."
 	switch {
 	case isInteger(y.typ) && isUnsigned(y.typ):
 		// nothing to do
-	case y.mode == constant && isUntyped(y.typ):
-		check.convertUntyped(x, Typ[UntypedInt])
+	case isUntyped(y.typ):
+		check.convertUntyped(y, Typ[UntypedInt])
+		if y.mode == invalid {
+			x.mode = invalid
+			return
+		}
 	default:
 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
 		x.mode = invalid
@@ -476,33 +576,28 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 
 	if x.mode == constant {
 		if y.mode == constant {
-			// constant shift - lhs must be (representable as) an integer
-			if isUntyped(x.typ) {
-				if !isRepresentableConst(x.val, check.ctxt, UntypedInt) {
-					check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
+			if untypedx {
+				x.typ = Typ[UntypedInt]
+			}
+			if x.val != nil && y.val != nil {
+				// rhs must be within reasonable bounds
+				const stupidShift = 1024
+				s, ok := y.val.(int64)
+				if !ok || s < 0 || s >= stupidShift {
+					check.invalidOp(y.pos(), "%s: stupid shift", y)
 					x.mode = invalid
 					return
 				}
-				x.typ = Typ[UntypedInt]
+				// everything's ok
+				x.val = shiftConst(x.val, uint(s), op)
+			} else {
+				x.val = nil
 			}
-			assert(x.isInteger(check.ctxt))
-
-			// rhs must be within reasonable bounds
-			const stupidShift = 1024
-			s, ok := y.val.(int64)
-			if !ok || s < 0 || s >= stupidShift {
-				check.invalidOp(y.pos(), "%s: stupid shift", y)
-				x.mode = invalid
-				return
-			}
-
-			// everything's ok
-			x.val = shiftConst(x.val, uint(s), op)
 			return
 		}
 
 		// non-constant shift with constant lhs
-		if isUntyped(x.typ) {
+		if untypedx {
 			// spec: "If the left operand of a non-constant shift expression is
 			// an untyped constant, the type of the constant is what it would be
 			// if the shift expression were replaced by its left operand alone;
@@ -510,8 +605,16 @@ func (check *checker) shift(x, y *operand, op token.Token) {
 			// instance, if the shift expression is an operand in a comparison
 			// against an untyped constant)".
 
-			// delay operand checking until we know the type
-			check.shiftOps[x.expr] = true
+			// Delay operand checking until we know the final type:
+			// The lhs expression must be in the untyped map, mark
+			// the entry as lhs shift operand.
+			if info, ok := check.untyped[x.expr]; ok {
+				info.isLhs = true
+				check.untyped[x.expr] = info
+			} else {
+				unreachable()
+			}
+			// keep x's type
 			x.mode = value
 			return
 		}
@@ -613,36 +716,41 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
 	// x.typ is unchanged
 }
 
-// index checks an index expression for validity. If length >= 0, it is the upper
-// bound for the index. The result is a valid index >= 0, or a negative value.
-//
-func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+// index checks an index/size expression arg for validity.
+// If length >= 0, it is the upper bound for arg.
+// TODO(gri): Do we need iota?
+func (check *checker) index(arg ast.Expr, length int64, iota int) (i int64, ok bool) {
 	var x operand
+	check.expr(&x, arg, nil, iota)
 
-	check.expr(&x, index, nil, iota)
-	if !x.isInteger(check.ctxt) {
-		check.errorf(x.pos(), "index %s must be integer", &x)
-		return -1
-	}
-	if x.mode != constant {
-		return -1 // we cannot check more
-	}
-	// The spec doesn't require int64 indices, but perhaps it should.
-	i, ok := x.val.(int64)
-	if !ok {
-		check.errorf(x.pos(), "stupid index %s", &x)
-		return -1
-	}
-	if i < 0 {
-		check.errorf(x.pos(), "index %s must not be negative", &x)
-		return -1
-	}
-	if length >= 0 && i >= length {
-		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
-		return -1
+	// an untyped constant must be representable as Int
+	check.convertUntyped(&x, Typ[Int])
+	if x.mode == invalid {
+		return
 	}
 
-	return i
+	// the index/size must be of integer type
+	if !isInteger(x.typ) {
+		check.invalidArg(x.pos(), "%s must be integer", &x)
+		return
+	}
+
+	// a constant index/size i must be 0 <= i < length
+	if x.mode == constant && x.val != nil {
+		i = x.val.(int64)
+		if i < 0 {
+			check.invalidArg(x.pos(), "%s must not be negative", &x)
+			return
+		}
+		if length >= 0 && i >= length {
+			check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
+			return
+		}
+		// 0 <= i [ && i < length ]
+		return i, true
+	}
+
+	return -1, true
 }
 
 // compositeLitKey resolves unresolved composite literal keys.
@@ -673,8 +781,10 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota 
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
 			check.compositeLitKey(kv.Key)
-			if i := check.index(kv.Key, length, iota); i >= 0 {
-				index = i
+			if i, ok := check.index(kv.Key, length, iota); ok {
+				if i >= 0 {
+					index = i
+				}
 				validIndex = true
 			}
 			eval = kv.Value
@@ -756,6 +866,7 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, 
 var emptyResult Result
 
 func (check *checker) callExpr(x *operand) {
+	// convert x into a user-friendly set of values
 	var typ Type
 	var val interface{}
 	switch x.mode {
@@ -774,10 +885,7 @@ func (check *checker) callExpr(x *operand) {
 	// until it becomes typed or until the end of
 	// type checking
 	if isUntyped(typ) {
-		check.untyped[x.expr] = typ.(*Basic)
-		if val != nil {
-			check.constants[x.expr] = val
-		}
+		check.untyped[x.expr] = exprInfo{x.mode == constant, false, typ.(*Basic), val}
 		return
 	}
 
@@ -806,6 +914,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		defer check.untrace("=> %s", x)
 	}
 
+	// record final type of x if untyped, notify clients of type otherwise
 	defer check.callExpr(x)
 
 	switch e := e.(type) {
@@ -998,7 +1107,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					}
 					continue
 				}
-				if x.mode == constant {
+				if x.mode == constant && x.val != nil {
 					if visited[x.val] {
 						check.errorf(x.pos(), "duplicate key %s in map literal", x.val)
 						continue
@@ -1112,7 +1221,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *Basic:
 			if isString(typ) {
 				valid = true
-				if x.mode == constant {
+				if x.mode == constant && x.val != nil {
 					length = int64(len(x.val.(string)))
 				}
 				// an indexed string always yields a byte value
@@ -1183,7 +1292,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		case *Basic:
 			if isString(typ) {
 				valid = true
-				if x.mode == constant {
+				if x.mode == constant && x.val != nil {
 					length = int64(len(x.val.(string))) + 1 // +1 for slice
 				}
 				// a sliced string always yields a string value
@@ -1228,12 +1337,16 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		lo := int64(0)
 		if e.Low != nil {
-			lo = check.index(e.Low, length, iota)
+			if i, ok := check.index(e.Low, length, iota); ok && i >= 0 {
+				lo = i
+			}
 		}
 
 		hi := int64(-1)
 		if e.High != nil {
-			hi = check.index(e.High, length, iota)
+			if i, ok := check.index(e.High, length, iota); ok && i >= 0 {
+				hi = i
+			}
 		} else if length >= 0 {
 			hi = length
 		}

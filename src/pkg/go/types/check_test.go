@@ -54,6 +54,7 @@ var tests = []struct {
 	{"expr1", []string{"testdata/expr1.src"}},
 	{"expr2", []string{"testdata/expr2.src"}},
 	{"expr3", []string{"testdata/expr3.src"}},
+	{"shifts", []string{"testdata/shifts.src"}},
 	{"builtins", []string{"testdata/builtins.src"}},
 	{"conversions", []string{"testdata/conversions.src"}},
 	{"stmt0", []string{"testdata/stmt0.src"}},
@@ -61,17 +62,6 @@ var tests = []struct {
 }
 
 var fset = token.NewFileSet()
-
-func getFile(filename string) (file *token.File) {
-	fset.Iterate(func(f *token.File) bool {
-		if f.Name() == filename {
-			file = f
-			return false // end iteration
-		}
-		return true
-	})
-	return file
-}
 
 // Positioned errors are of the form filename:line:column: message .
 var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
@@ -120,6 +110,7 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
 // in files and returns them as a map of error positions to error messages.
 //
 func errMap(t *testing.T, testname string, files []*ast.File) map[string][]string {
+	// map of position strings to lists of error message patterns
 	errmap := make(map[string][]string)
 
 	for _, file := range files {
@@ -130,10 +121,7 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 		}
 
 		var s scanner.Scanner
-		// file was parsed already - do not add it again to the file
-		// set otherwise the position information returned here will
-		// not match the position information collected by the parser
-		s.Init(getFile(filename), src, nil, scanner.ScanComments)
+		s.Init(fset.AddFile(filename, fset.Base(), len(src)), src, nil, scanner.ScanComments)
 		var prev string // position string of last non-comment, non-semicolon token
 
 	scanFile:
@@ -143,9 +131,8 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 			case token.EOF:
 				break scanFile
 			case token.COMMENT:
-				s := errRx.FindStringSubmatch(lit)
-				if len(s) == 2 {
-					errmap[prev] = append(errmap[prev], string(s[1]))
+				if s := errRx.FindStringSubmatch(lit); len(s) == 2 {
+					errmap[prev] = append(errmap[prev], s[1])
 				}
 			case token.SEMICOLON:
 				// ignore automatically inserted semicolon
@@ -164,17 +151,17 @@ func errMap(t *testing.T, testname string, files []*ast.File) map[string][]strin
 
 func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	for _, err := range errlist {
-		pos, msg := splitError(err)
+		pos, gotMsg := splitError(err)
 		list := errmap[pos]
 		index := -1 // list index of matching message, if any
 		// we expect one of the messages in list to match the error at pos
-		for i, msg := range list {
-			rx, err := regexp.Compile(msg)
+		for i, wantRx := range list {
+			rx, err := regexp.Compile(wantRx)
 			if err != nil {
 				t.Errorf("%s: %v", pos, err)
 				continue
 			}
-			if rx.MatchString(msg) {
+			if rx.MatchString(gotMsg) {
 				index = i
 				break
 			}
@@ -190,9 +177,8 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 				delete(errmap, pos)
 			}
 		} else {
-			t.Errorf("%s: no error expected: %q", pos, msg)
+			t.Errorf("%s: no error expected: %q", pos, gotMsg)
 		}
-
 	}
 }
 
@@ -213,10 +199,8 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 		return
 	}
 
-	// match and eliminate errors
+	// match and eliminate errors;
 	// we are expecting the following errors
-	// (collect these after parsing the files so that
-	// they are found in the file set)
 	errmap := errMap(t, testname, files)
 	eliminate(t, errmap, errlist)
 

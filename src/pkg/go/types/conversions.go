@@ -36,7 +36,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 		// common issue.
 		if typ.Kind == String {
 			switch {
-			case x.isInteger(check.ctxt):
+			case x.isInteger():
 				codepoint, ok := x.val.(int64)
 				if !ok {
 					// absolute value too large (or unknown) for conversion;
@@ -59,6 +59,9 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota 
 		}
 		x.mode = value
 	}
+
+	// the conversion argument types are final
+	check.updateExprType(x.expr, x.typ, true)
 
 	check.conversions[conv] = true // for cap/len checking
 	x.expr = conv

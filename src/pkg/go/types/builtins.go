@@ -11,6 +11,9 @@ import (
 	"go/token"
 )
 
+// TODO(gri): Several built-ins are missing assignment checks. As a result,
+//            non-constant shift arguments may not be properly type-checked.
+
 // builtin typechecks a built-in call. The built-in type is bin, and iota is the current
 // value of iota or -1 if iota doesn't have a value in the current context. The result
 // of the call is returned via x. If the call has type errors, the returned x is marked
@@ -170,6 +173,10 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
+		// arguments have final type
+		check.updateExprType(args[0], typ, true)
+		check.updateExprType(args[1], typ, true)
+
 	case _Copy:
 		var y operand
 		check.expr(&y, args[1], nil, iota)
@@ -269,24 +276,13 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			check.errorf(call.Pos(), "%s expects %d or %d arguments; found %d", call, min, min+1, n)
 			goto Error
 		}
-		var sizes []interface{} // constant integer arguments, if any
+		var sizes []int64 // constant integer arguments, if any
 		for _, arg := range args[1:] {
-			check.expr(x, arg, nil, iota)
-			if x.isInteger(check.ctxt) {
-				if x.mode == constant {
-					if isNegConst(x.val) {
-						check.invalidArg(x.pos(), "%s must not be negative", x)
-						// safe to continue
-					} else {
-						sizes = append(sizes, x.val) // x.val >= 0
-					}
-				}
-			} else {
-				check.invalidArg(x.pos(), "%s must be an integer", x)
-				// safe to continue
+			if s, ok := check.index(arg, -1, iota); ok && s >= 0 {
+				sizes = append(sizes, s)
 			}
 		}
-		if len(sizes) == 2 && compareConst(sizes[0], sizes[1], token.GTR) {
+		if len(sizes) == 2 && sizes[0] > sizes[1] {
 			check.invalidArg(args[1].Pos(), "length and capacity swapped")
 			// safe to continue
 		}

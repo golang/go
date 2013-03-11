@@ -59,6 +59,8 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	if !decl {
 		// anything can be assigned to the blank identifier
 		if ident != nil && ident.Name == "_" {
+			// the rhs has its final type
+			check.updateExprType(rhs, x.typ, true)
 			return
 		}
 
