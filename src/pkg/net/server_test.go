@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -39,6 +40,12 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxonly bool)
 		return true
 	}
 	return false
+}
+
+func tempfile(filename string) string {
+	// use /tmp in case it is prohibited to create
+	// UNIX sockets in TMPDIR
+	return "/tmp/" + filename + "." + strconv.Itoa(os.Getpid())
 }
 
 var streamConnServerTests = []struct {
@@ -86,7 +93,7 @@ var streamConnServerTests = []struct {
 
 	{snet: "tcp6", saddr: "[::1]", cnet: "tcp6", caddr: "[::1]", ipv6: true},
 
-	{snet: "unix", saddr: "/tmp/gotest1.net", cnet: "unix", caddr: "/tmp/gotest1.net.local"},
+	{snet: "unix", saddr: tempfile("gotest1.net"), cnet: "unix", caddr: tempfile("gotest1.net.local")},
 	{snet: "unix", saddr: "@gotest2/net", cnet: "unix", caddr: "@gotest2/net.local", linux: true},
 }
 
@@ -135,7 +142,7 @@ var seqpacketConnServerTests = []struct {
 	caddr string // client address
 	empty bool   // test with empty data
 }{
-	{net: "unixpacket", saddr: "/tmp/gotest3.net", caddr: "/tmp/gotest3.net.local"},
+	{net: "unixpacket", saddr: tempfile("/gotest3.net"), caddr: tempfile("gotest3.net.local")},
 	{net: "unixpacket", saddr: "@gotest4/net", caddr: "@gotest4/net.local"},
 }
 
@@ -294,10 +301,10 @@ var datagramPacketConnServerTests = []struct {
 	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, empty: true},
 	{snet: "udp", saddr: "[::1]", cnet: "udp", caddr: "[::1]", ipv6: true, dial: true, empty: true},
 
-	{snet: "unixgram", saddr: "/tmp/gotest5.net", cnet: "unixgram", caddr: "/tmp/gotest5.net.local"},
-	{snet: "unixgram", saddr: "/tmp/gotest5.net", cnet: "unixgram", caddr: "/tmp/gotest5.net.local", dial: true},
-	{snet: "unixgram", saddr: "/tmp/gotest5.net", cnet: "unixgram", caddr: "/tmp/gotest5.net.local", empty: true},
-	{snet: "unixgram", saddr: "/tmp/gotest5.net", cnet: "unixgram", caddr: "/tmp/gotest5.net.local", dial: true, empty: true},
+	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local")},
+	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), dial: true},
+	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), empty: true},
+	{snet: "unixgram", saddr: tempfile("gotest5.net"), cnet: "unixgram", caddr: tempfile("gotest5.net.local"), dial: true, empty: true},
 
 	{snet: "unixgram", saddr: "@gotest6/net", cnet: "unixgram", caddr: "@gotest6/net.local", linux: true},
 }
