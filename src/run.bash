@@ -78,7 +78,7 @@ go run $GOROOT/test/run.go - .
 (xcd ../misc/cgo/test
 go test
 case "$GOHOSTOS-$GOARCH" in
-darwin-386 | darwin-amd64 | linux-386 | linux-amd64)
+darwin-386 | darwin-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64 | openbsd-386 | openbsd-amd64)
 	go test -ldflags '-w -hostobj'
 esac
 ) || exit $?
