@@ -565,24 +565,31 @@ mkinlcall1(Node **np, Node *fn, int isddd)
 	inlretvars = nil;
 	i = 0;
 	// Make temp names to use instead of the originals
-	for(ll = dcl; ll; ll=ll->next)
+	for(ll = dcl; ll; ll=ll->next) {
+		if(ll->n->class == PPARAMOUT)  // return values handled below.
+			continue;
 		if(ll->n->op == ONAME) {
 			ll->n->inlvar = inlvar(ll->n);
 			// Typecheck because inlvar is not necessarily a function parameter.
 			typecheck(&ll->n->inlvar, Erv);
 			if ((ll->n->class&~PHEAP) != PAUTO)
 				ninit = list(ninit, nod(ODCL, ll->n->inlvar, N));  // otherwise gen won't emit the allocations for heapallocs
-			if (ll->n->class == PPARAMOUT)  // we rely on the order being correct here
-				inlretvars = list(inlretvars, ll->n->inlvar);
 		}
+	}
 
-	// anonymous return values, synthesize names for use in assignment that replaces return
-	if(inlretvars == nil && fn->type->outtuple > 0)
-		for(t = getoutargx(fn->type)->type; t; t = t->down) {
+	// temporaries for return values.
+	for(t = getoutargx(fn->type)->type; t; t = t->down) {
+		if(t != T && t->nname != N && !isblank(t->nname)) {
+			m = inlvar(t->nname);
+			typecheck(&m, Erv);
+			t->nname->inlvar = m;
+		} else {
+			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i++);
-			ninit = list(ninit, nod(ODCL, m, N));
-			inlretvars = list(inlretvars, m);
 		}
+		ninit = list(ninit, nod(ODCL, m, N));
+		inlretvars = list(inlretvars, m);
+	}
 
 	// assign receiver.
 	if(fn->type->thistuple && n->left->op == ODOTMETH) {
