@@ -2565,6 +2565,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		fn->dupok = 1;
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
+	inlcalls(fn);
 	curfn = nil;
 	funccompile(fn, 0);
 }

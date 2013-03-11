@@ -16,6 +16,8 @@ static	void	dumpglobls(void);
 void
 dumpobj(void)
 {
+	NodeList *externs, *tmp;
+
 	bout = Bopen(outfile, OWRITE);
 	if(bout == nil) {
 		flusherrors();
@@ -31,8 +33,20 @@ dumpobj(void)
 
 	outhist(bout);
 
+	externs = nil;
+	if(externdcl != nil)
+		externs = externdcl->end;
+
 	dumpglobls();
 	dumptypestructs();
+
+	// Dump extra globals.
+	tmp = externdcl;
+	if(externs != nil)
+		externdcl = externs->next;
+	dumpglobls();
+	externdcl = tmp;
+
 	dumpdata();
 	dumpfuncs();
 
