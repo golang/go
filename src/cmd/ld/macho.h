@@ -52,6 +52,8 @@ MachoLoad*	newMachoLoad(uint32, uint32);
 int	machowrite(void);
 void	machoinit(void);
 void	machosymorder(void);
+void	machoemitreloc(void);
+int	machoreloc1(Reloc*, vlong);
 
 /*
  * Total amount of space to reserve at the start of the file

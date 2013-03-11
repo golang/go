@@ -147,8 +147,11 @@ main(int argc, char *argv[])
 		switch(HEADTYPE) {
 		default:
 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+		case Hdarwin:
+		case Hfreebsd:
 		case Hlinux:
 		case Hnetbsd:
+		case Hopenbsd:
 			break;
 		}
 	}

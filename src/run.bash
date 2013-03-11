@@ -77,6 +77,10 @@ go run $GOROOT/test/run.go - .
 [ "$GOHOSTOS" == openbsd ] || # issue 4878
 (xcd ../misc/cgo/test
 go test
+case "$GOHOSTOS-$GOARCH" in
+darwin-386 | darwin-amd64 | linux-386 | linux-amd64)
+	go test -ldflags '-w -hostobj'
+esac
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||

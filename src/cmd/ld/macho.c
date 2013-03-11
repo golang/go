@@ -150,7 +150,10 @@ machowrite(void)
 		LPUT(0xfeedface);
 	LPUT(hdr.cpu);
 	LPUT(hdr.subcpu);
-	LPUT(2);	/* file type - mach executable */
+	if(isobj)
+		LPUT(1);	/* file type - mach object */
+	else
+		LPUT(2);	/* file type - mach executable */
 	LPUT(nload+nseg+ndebug);
 	LPUT(loadsize);
 	LPUT(1);	/* flags - no undefines */
@@ -245,22 +248,24 @@ domacho(void)
 	s->type = SMACHOSYMTAB;
 	s->reachable = 1;
 	
-	s = lookup(".plt", 0);	// will be __symbol_stub
-	s->type = SMACHOPLT;
-	s->reachable = 1;
+	if(!isobj) {
+		s = lookup(".plt", 0);	// will be __symbol_stub
+		s->type = SMACHOPLT;
+		s->reachable = 1;
 	
-	s = lookup(".got", 0);	// will be __nl_symbol_ptr
-	s->type = SMACHOGOT;
-	s->reachable = 1;
-	s->align = 4;
+		s = lookup(".got", 0);	// will be __nl_symbol_ptr
+		s->type = SMACHOGOT;
+		s->reachable = 1;
+		s->align = 4;
 	
-	s = lookup(".linkedit.plt", 0);	// indirect table for .plt
-	s->type = SMACHOINDIRECTPLT;
-	s->reachable = 1;
+		s = lookup(".linkedit.plt", 0);	// indirect table for .plt
+		s->type = SMACHOINDIRECTPLT;
+		s->reachable = 1;
 	
-	s = lookup(".linkedit.got", 0);	// indirect table for .got
-	s->type = SMACHOINDIRECTGOT;
-	s->reachable = 1;
+		s = lookup(".linkedit.got", 0);	// indirect table for .got
+		s->type = SMACHOINDIRECTGOT;
+		s->reachable = 1;
+	}
 }
 
 void
@@ -295,7 +300,11 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
 			*p = '_';
 
 	msect = newMachoSect(mseg, estrdup(buf), segname);
-	
+	if(sect->rellen > 0) {
+		msect->reloc = sect->reloff;
+		msect->nreloc = sect->rellen / 8;
+	}
+
 	while(1<<msect->align < sect->align)
 		msect->align++;
 	msect->addr = sect->vaddr;
@@ -356,54 +365,70 @@ asmbmacho(void)
 		mh->subcpu = MACHO_SUBCPU_X86;
 		break;
 	}
+	
+	ms = nil;
+	if(isobj) {
+		/* segment for entire file */
+		ms = newMachoSeg("", 40);
+		ms->fileoffset = segtext.fileoff;
+		ms->filesize = segdata.fileoff + segdata.filelen - segtext.fileoff;
+	}
 
 	/* segment for zero page */
-	ms = newMachoSeg("__PAGEZERO", 0);
-	ms->vsize = va;
+	if(!isobj) {
+		ms = newMachoSeg("__PAGEZERO", 0);
+		ms->vsize = va;
+	}
 
 	/* text */
 	v = rnd(HEADR+segtext.len, INITRND);
-	ms = newMachoSeg("__TEXT", 20);
-	ms->vaddr = va;
-	ms->vsize = v;
-	ms->fileoffset = 0;
-	ms->filesize = v;
-	ms->prot1 = 7;
-	ms->prot2 = 5;
-	
+	if(!isobj) {
+		ms = newMachoSeg("__TEXT", 20);
+		ms->vaddr = va;
+		ms->vsize = v;
+		ms->fileoffset = 0;
+		ms->filesize = v;
+		ms->prot1 = 7;
+		ms->prot2 = 5;
+	}
+
 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
 		machoshbits(ms, sect, "__TEXT");
 
 	/* data */
-	w = segdata.len;
-	ms = newMachoSeg("__DATA", 20);
-	ms->vaddr = va+v;
-	ms->vsize = w;
-	ms->fileoffset = v;
-	ms->filesize = segdata.filelen;
-	ms->prot1 = 3;
-	ms->prot2 = 3;
-	
+	if(!isobj) {
+		w = segdata.len;
+		ms = newMachoSeg("__DATA", 20);
+		ms->vaddr = va+v;
+		ms->vsize = w;
+		ms->fileoffset = v;
+		ms->filesize = segdata.filelen;
+		ms->prot1 = 3;
+		ms->prot2 = 3;
+	}
+
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		machoshbits(ms, sect, "__DATA");
 
-	switch(thechar) {
-	default:
-		diag("unknown macho architecture");
-		errorexit();
-	case '6':
-		ml = newMachoLoad(5, 42+2);	/* unix thread */
-		ml->data[0] = 4;	/* thread type */
-		ml->data[1] = 42;	/* word count */
-		ml->data[2+32] = entryvalue();	/* start pc */
-		ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
-		break;
-	case '8':
-		ml = newMachoLoad(5, 16+2);	/* unix thread */
-		ml->data[0] = 1;	/* thread type */
-		ml->data[1] = 16;	/* word count */
-		ml->data[2+10] = entryvalue();	/* start pc */
-		break;
+	if(!isobj) {
+		switch(thechar) {
+		default:
+			diag("unknown macho architecture");
+			errorexit();
+		case '6':
+			ml = newMachoLoad(5, 42+2);	/* unix thread */
+			ml->data[0] = 4;	/* thread type */
+			ml->data[1] = 42;	/* word count */
+			ml->data[2+32] = entryvalue();	/* start pc */
+			ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
+			break;
+		case '8':
+			ml = newMachoLoad(5, 16+2);	/* unix thread */
+			ml->data[0] = 1;	/* thread type */
+			ml->data[1] = 16;	/* word count */
+			ml->data[2+10] = entryvalue();	/* start pc */
+			break;
+		}
 	}
 	
 	if(!debug['d']) {
@@ -415,13 +440,15 @@ asmbmacho(void)
 		s3 = lookup(".linkedit.got", 0);
 		s4 = lookup(".machosymstr", 0);
 
-		ms = newMachoSeg("__LINKEDIT", 0);
-		ms->vaddr = va+v+rnd(segdata.len, INITRND);
-		ms->vsize = s1->size + s2->size + s3->size + s4->size;
-		ms->fileoffset = linkoff;
-		ms->filesize = ms->vsize;
-		ms->prot1 = 7;
-		ms->prot2 = 3;
+		if(!isobj) {
+			ms = newMachoSeg("__LINKEDIT", 0);
+			ms->vaddr = va+v+rnd(segdata.len, INITRND);
+			ms->vsize = s1->size + s2->size + s3->size + s4->size;
+			ms->fileoffset = linkoff;
+			ms->filesize = ms->vsize;
+			ms->prot1 = 7;
+			ms->prot2 = 3;
+		}
 
 		ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
 		ml->data[0] = linkoff;	/* symoff */
@@ -431,21 +458,24 @@ asmbmacho(void)
 
 		machodysymtab();
 
-		ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
-		ml->data[0] = 12;	/* offset to string */
-		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
-
-		for(i=0; i<ndylib; i++) {
-			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
-			ml->data[0] = 24;	/* offset of string from beginning of load */
-			ml->data[1] = 0;	/* time stamp */
-			ml->data[2] = 0;	/* version */
-			ml->data[3] = 0;	/* compatibility version */
-			strcpy((char*)&ml->data[4], dylib[i]);
+		if(!isobj) {
+			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+			ml->data[0] = 12;	/* offset to string */
+			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+	
+			for(i=0; i<ndylib; i++) {
+				ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
+				ml->data[0] = 24;	/* offset of string from beginning of load */
+				ml->data[1] = 0;	/* time stamp */
+				ml->data[2] = 0;	/* version */
+				ml->data[3] = 0;	/* compatibility version */
+				strcpy((char*)&ml->data[4], dylib[i]);
+			}
 		}
 	}
 
-	if(!debug['s'])
+	// TODO: dwarf headers go in ms too
+	if(!debug['s'] && !isobj)
 		dwarfaddmachoheaders();
 
 	a = machowrite();
@@ -515,7 +545,8 @@ machogenasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 
 	genasmsym(put);
 	for(s=allsym; s; s=s->allsym)
-		if(s->type == SDYNIMPORT)
+		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ)
+		if(s->reachable)
 			put(s, nil, 'D', 0, 0, 0, nil);
 }
 			
@@ -552,13 +583,16 @@ machosymtab(void)
 		adduint32(symtab, symstr->size);
 		adduint8(symstr, '_');
 		addstring(symstr, s->extname);
-		if(s->type == SDYNIMPORT) {
+		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
 			adduint8(symtab, 0x01); // type N_EXT, external symbol
 			adduint8(symtab, 0); // no section
 			adduint16(symtab, 0); // desc
 			adduintxx(symtab, 0, PtrSize); // no value
 		} else {
-			adduint8(symtab, 0x0f);
+			if(s->cgoexport)
+				adduint8(symtab, 0x0f);
+			else
+				adduint8(symtab, 0x0e);
 			o = s;
 			while(o->outer != nil)
 				o = o->outer;
@@ -663,3 +697,56 @@ domacholink(void)
 	return rnd(size, INITRND);
 }
 
+
+void
+machorelocsect(Section *sect, Sym *first)
+{
+	Sym *sym;
+	int32 eaddr;
+	Reloc *r;
+
+	// If main section has no bits, nothing to relocate.
+	if(sect->vaddr >= sect->seg->vaddr + sect->seg->filelen)
+		return;
+	
+	sect->reloff = cpos();
+	for(sym = first; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= sect->vaddr)
+			break;
+	}
+	
+	eaddr = sect->vaddr + sect->len;
+	for(; sym != nil; sym = sym->next) {
+		if(!sym->reachable)
+			continue;
+		if(sym->value >= eaddr)
+			break;
+		cursym = sym;
+		
+		for(r = sym->r; r < sym->r+sym->nr; r++) {
+			if(r->done)
+				continue;
+			if(machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+		}
+	}
+		
+	sect->rellen = cpos() - sect->reloff;
+}
+
+void
+machoemitreloc(void)
+{
+	Section *sect;
+
+	while(cpos()&7)
+		cput(0);
+
+	machorelocsect(segtext.sect, textp);
+	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
+		machorelocsect(sect, datap);	
+	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+		machorelocsect(sect, datap);	
+}

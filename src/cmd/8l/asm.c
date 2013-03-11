@@ -299,6 +299,78 @@ elfreloc1(Reloc *r, vlong sectoff)
 	return 0;
 }
 
+int
+machoreloc1(Reloc *r, vlong sectoff)
+{
+	uint32 v;
+	Sym *rs;
+	
+	rs = r->xsym;
+
+	if(rs->type == SHOSTOBJ) {
+		if(rs->dynid < 0) {
+			diag("reloc %d to non-macho symbol %s type=%d", r->type, rs->name, rs->type);
+			return -1;
+		}
+		v = rs->dynid;			
+		v |= 1<<27; // external relocation
+	} else {
+		v = rs->sect->extnum;
+		if(v == 0) {
+			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
+			return -1;
+		}
+	}
+
+	switch(r->type) {
+	default:
+		return -1;
+	case D_ADDR:
+		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
+		break;
+	case D_PCREL:
+		v |= 1<<24; // pc-relative bit
+		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
+		break;
+	}
+	
+	switch(r->siz) {
+	default:
+		return -1;
+	case 1:
+		v |= 0<<25;
+		break;
+	case 2:
+		v |= 1<<25;
+		break;
+	case 4:
+		v |= 2<<25;
+		break;
+	case 8:
+		v |= 3<<25;
+		break;
+	}
+
+	LPUT(sectoff);
+	LPUT(v);
+	return 0;
+}
+
+int
+archreloc(Reloc *r, Sym *s, vlong *val)
+{
+	USED(s);
+	switch(r->type) {
+	case D_CONST:
+		*val = r->add;
+		return 0;
+	case D_GOTOFF:
+		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
+		return 0;
+	}
+	return -1;
+}
+
 void
 elfsetupplt(void)
 {
@@ -325,21 +397,6 @@ elfsetupplt(void)
 		adduint32(got, 0);
 		adduint32(got, 0);
 	}
-}
-
-int
-archreloc(Reloc *r, Sym *s, vlong *val)
-{
-	USED(s);
-	switch(r->type) {
-	case D_CONST:
-		*val = r->add;
-		return 0;
-	case D_GOTOFF:
-		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
-		return 0;
-	}
-	return -1;
 }
 
 static void
@@ -635,6 +692,10 @@ asmb(void)
 			if(debug['v'])
 				Bprint(&bso, "%5.2f dwarf\n", cputime());
 			dwarfemitdebugsections();
+			break;
+		case Hdarwin:
+			if(isobj)
+				machoemitreloc();
 			break;
 		}
 	}

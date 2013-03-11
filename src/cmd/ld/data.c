@@ -192,12 +192,20 @@ relocsym(Sym *s)
 					r->xadd += symaddr(rs) - symaddr(rs->outer);
 					rs = rs->outer;
 				}
+				if(rs->type != SHOSTOBJ && rs->sect == nil)
+					diag("missing section for %s", rs->name);
 				r->xsym = rs;
 
-				if(thechar == '6')
-					o = 0;
-				else
-					o = r->xadd;
+				o = r->xadd;
+				if(iself) {
+					if(thechar == '6')
+						o = 0;
+				} else if(HEADTYPE == Hdarwin) {
+					if(rs->type != SHOSTOBJ)
+						o += symaddr(rs);
+				} else {
+					diag("unhandled pcrel relocation for %s", headtype);
+				}
 				break;
 			}
 			o = symaddr(r->sym) + r->add;
@@ -214,13 +222,22 @@ relocsym(Sym *s)
 					r->xadd += symaddr(rs) - symaddr(rs->outer);
 					rs = rs->outer;
 				}
+				r->xadd -= r->siz; // relative to address after the relocated chunk
+				if(rs->type != SHOSTOBJ && rs->sect == nil)
+					diag("missing section for %s", rs->name);
 				r->xsym = rs;
-				r->xadd -= r->siz;
 
-				if(thechar == '6')
-					o = 0;
-				else
-					o = r->xadd;
+				o = r->xadd;
+				if(iself) {
+					if(thechar == '6')
+						o = 0;
+				} else if(HEADTYPE == Hdarwin) {
+					if(rs->type != SHOSTOBJ)
+						o += symaddr(rs) - rs->sect->vaddr;
+					o -= r->off; // WTF?
+				} else {
+					diag("unhandled pcrel relocation for %s", headtype);
+				}
 				break;
 			}
 			o = 0;

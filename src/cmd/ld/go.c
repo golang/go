@@ -486,11 +486,8 @@ loadcgo(char *file, char *pkg, char *p, int n)
 		}
 
 		if(strcmp(f[0], "cgo_export_static") == 0 || strcmp(f[0], "cgo_export_dynamic") == 0) {
-			// TODO: Make Mach-O code happier. Right now it sees the dynimpname and
-			// includes CgoExportStatic symbols in the dynamic table, and then dyld
-			// cannot find them when we run the binary. Disabling Windows too
-			// because it probably has the same issue.
-			if(strcmp(f[0], "cgo_export_static") == 0 && (HEADTYPE == Hdarwin || HEADTYPE == Hwindows))
+			// TODO: Remove once we know Windows is okay.
+			if(strcmp(f[0], "cgo_export_static") == 0 && HEADTYPE == Hwindows)
 				continue;
 
 			if(nf < 2 || nf > 3)
