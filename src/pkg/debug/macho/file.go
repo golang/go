@@ -142,6 +142,8 @@ type Dysymtab struct {
  * Mach-O reader
  */
 
+// FormatError is returned by some operations if the data does
+// not have the correct format for an object file.
 type FormatError struct {
 	off int64
 	msg string
