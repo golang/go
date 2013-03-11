@@ -47,9 +47,9 @@ Repetitions:
   x{n}?          exactly n x
 
 Grouping:
-  (re)           numbered capturing group
-  (?P<name>re)   named & numbered capturing group
-  (?:re)         non-capturing group
+  (re)           numbered capturing group (submatch)
+  (?P<name>re)   named & numbered capturing group (submatch)
+  (?:re)         non-capturing group (submatch)
   (?flags)       set flags within current group; non-capturing
   (?flags:re)    set flags during re; non-capturing
 
