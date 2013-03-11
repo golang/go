@@ -2,14 +2,15 @@
 
 ---------------------------------------
 
-*/}}{{with .PDoc}}{{if not $.IsMain}}PACKAGE
+*/}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
+
+{{comment_text .Doc "    " "\t"}}
+{{else}}PACKAGE DOCUMENTATION
 
 package {{.Name}}
     import "{{.ImportPath}}"
 
-{{else}}COMMAND DOCUMENTATION
-
-{{end}}{{comment_text .Doc "    " "\t"}}
+{{comment_text .Doc "    " "\t"}}
 {{example_text "" $.Examples $.FSet "    "}}{{/*
 
 ---------------------------------------
@@ -58,7 +59,7 @@ TYPES
 {{end}}{{range .Methods}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
 {{$name := printf "%s_%s" $tname .Name}}{{example_text $name $.Examples $.FSet "    "}}
-{{end}}{{end}}{{end}}{{/*
+{{end}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
