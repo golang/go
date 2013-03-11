@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 7, 2013",
+	"Subtitle": "Version of March 11, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -3108,7 +3108,7 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 <h3 id="Comparison_operators">Comparison operators</h3>
 
 <p>
-Comparison operators compare two operands and yield a boolean value.
+Comparison operators compare two operands and yield an untyped boolean value.
 </p>
 
 <pre class="grammar">
@@ -3216,20 +3216,17 @@ Comparison of pointer, channel, and interface values to <code>nil</code>
 is also allowed and follows from the general rules above.
 </p>
 
-<p>
-The result of a comparison can be assigned to any boolean type.
-If the context does not demand a specific boolean type,
-the result has type <code>bool</code>.
-</p>
-
 <pre>
-type MyBool bool
+const c = 3 < 4            // c is the untyped bool constant true
 
+type MyBool bool
 var x, y int
 var (
-	b1 MyBool = x == y // result of comparison has type MyBool
-	b2 bool   = x == y // result of comparison has type bool
-	b3        = x == y // result of comparison has type bool
+	// The result of a comparison is an untyped bool.
+	// The usual assignment rules apply.
+	b3        = x == y // b3 has type bool
+	b4 bool   = x == y // b4 has type bool
+	b5 MyBool = x == y // b5 has type MyBool
 )
 </pre>
 
