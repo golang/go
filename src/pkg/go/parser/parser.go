@@ -48,7 +48,8 @@ type parser struct {
 	syncCnt int       // number of calls to syncXXX without progress
 
 	// Non-syntactic parser control
-	exprLev int // < 0: in control clause, >= 0: in expression
+	exprLev int  // < 0: in control clause, >= 0: in expression
+	inRhs   bool // if set, the parser is parsing a rhs expression
 
 	// Ordinary identifier scopes
 	pkgScope   *ast.Scope        // pkgScope.Outer == nil
@@ -539,6 +540,8 @@ func (p *parser) parseExprList(lhs bool) (list []ast.Expr) {
 }
 
 func (p *parser) parseLhsList() []ast.Expr {
+	old := p.inRhs
+	p.inRhs = false
 	list := p.parseExprList(true)
 	switch p.tok {
 	case token.DEFINE:
@@ -560,11 +563,16 @@ func (p *parser) parseLhsList() []ast.Expr {
 			p.resolve(x)
 		}
 	}
+	p.inRhs = old
 	return list
 }
 
 func (p *parser) parseRhsList() []ast.Expr {
-	return p.parseExprList(false)
+	old := p.inRhs
+	p.inRhs = true
+	list := p.parseExprList(false)
+	p.inRhs = old
+	return list
 }
 
 // ----------------------------------------------------------------------------
@@ -1505,6 +1513,14 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 	return p.parsePrimaryExpr(lhs)
 }
 
+func (p *parser) tokPrec() (token.Token, int) {
+	tok := p.tok
+	if p.inRhs && tok == token.ASSIGN {
+		tok = token.EQL
+	}
+	return tok, tok.Precedence()
+}
+
 // If lhs is set and the result is an identifier, it is not resolved.
 func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	if p.trace {
@@ -1512,10 +1528,13 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	}
 
 	x := p.parseUnaryExpr(lhs)
-	for prec := p.tok.Precedence(); prec >= prec1; prec-- {
-		for p.tok.Precedence() == prec {
-			pos, op := p.pos, p.tok
-			p.next()
+	for _, prec := p.tokPrec(); prec >= prec1; prec-- {
+		for {
+			op, oprec := p.tokPrec()
+			if oprec != prec {
+				break
+			}
+			pos := p.expect(op)
 			if lhs {
 				p.resolve(x)
 				lhs = false
@@ -1541,11 +1560,19 @@ func (p *parser) parseExpr(lhs bool) ast.Expr {
 }
 
 func (p *parser) parseRhs() ast.Expr {
-	return p.checkExpr(p.parseExpr(false))
+	old := p.inRhs
+	p.inRhs = true
+	x := p.checkExpr(p.parseExpr(false))
+	p.inRhs = old
+	return x
 }
 
 func (p *parser) parseRhsOrType() ast.Expr {
-	return p.checkExprOrType(p.parseExpr(false))
+	old := p.inRhs
+	p.inRhs = true
+	x := p.checkExprOrType(p.parseExpr(false))
+	p.inRhs = old
+	return x
 }
 
 // ----------------------------------------------------------------------------
