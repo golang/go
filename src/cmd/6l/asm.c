@@ -284,10 +284,13 @@ adddynrel(Sym *s, Reloc *r)
 }
 
 int
-elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+elfreloc1(Reloc *r, vlong sectoff)
 {
-	VPUT(off);
+	int32 elfsym;
 
+	VPUT(sectoff);
+
+	elfsym = r->xsym->elfsym;
 	switch(r->type) {
 	default:
 		return -1;
@@ -306,11 +309,10 @@ elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
 			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
 		else
 			return -1;
-		add -= r->siz;
 		break;
 	}
 
-	VPUT(add);
+	VPUT(r->xadd);
 	return 0;
 }
 

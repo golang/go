@@ -155,6 +155,7 @@ relocsym(Sym *s)
 	cursym = s;
 	memset(&p, 0, sizeof p);
 	for(r=s->r; r<s->r+s->nr; r++) {
+		r->done = 1;
 		off = r->off;
 		siz = r->siz;
 		if(off < 0 || off+siz > s->np) {
@@ -181,31 +182,51 @@ relocsym(Sym *s)
 				diag("unknown reloc %d", r->type);
 			break;
 		case D_ADDR:
-			o = symaddr(r->sym) + r->add;
 			if(isobj && r->sym->type != SCONST) {
+				r->done = 0;
+
+				// set up addend for eventual relocation via outer symbol.
+				rs = r->sym;
+				r->xadd = r->add;
+				while(rs->outer != nil) {
+					r->xadd += symaddr(rs) - symaddr(rs->outer);
+					rs = rs->outer;
+				}
+				r->xsym = rs;
+
 				if(thechar == '6')
 					o = 0;
-				else {
-					// set up addend for eventual relocation via outer symbol
-					rs = r->sym;
-					while(rs->outer != nil)
-						rs = rs->outer;
-					o -= symaddr(rs);
-				}
+				else
+					o = r->xadd;
+				break;
 			}
+			o = symaddr(r->sym) + r->add;
 			break;
 		case D_PCREL:
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+			if(isobj && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
+				r->done = 0;
+
+				// set up addend for eventual relocation via outer symbol.
+				rs = r->sym;
+				r->xadd = r->add;
+				while(rs->outer != nil) {
+					r->xadd += symaddr(rs) - symaddr(rs->outer);
+					rs = rs->outer;
+				}
+				r->xsym = rs;
+				r->xadd -= r->siz;
+
+				if(thechar == '6')
+					o = 0;
+				else
+					o = r->xadd;
+				break;
+			}
 			o = 0;
 			if(r->sym)
 				o += symaddr(r->sym);
 			o += r->add - (s->value + r->off + r->siz);
-			if(isobj && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
-				if(thechar == '6')
-					o = 0;
-				else
-					o = r->add - r->siz;
-			}
 			break;
 		case D_SIZE:
 			o = r->sym->size + r->add;

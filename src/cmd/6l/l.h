@@ -101,9 +101,12 @@ struct	Reloc
 {
 	int32	off;
 	uchar	siz;
+	uchar	done;
 	int32	type;
 	int64	add;
+	int64	xadd;
 	Sym*	sym;
+	Sym*	xsym;
 };
 
 struct	Prog
