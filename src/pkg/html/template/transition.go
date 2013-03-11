@@ -71,7 +71,6 @@ func tText(c context, s []byte) (context, int) {
 		}
 		k = j
 	}
-	panic("unreachable")
 }
 
 var elementContentType = [...]state{

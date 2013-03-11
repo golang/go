@@ -89,8 +89,6 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
 			prev = pos
 		}
 	}
-
-	panic("unreachable")
 }
 
 // compareErrors compares the map of expected error messages with the list

@@ -51,6 +51,4 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	default:
 		return nil, fmt.Errorf("crypto/x509: PKCS#8 wrapping contained private key with unknown algorithm: %v", privKey.Algo.Algorithm)
 	}
-
-	panic("unreachable")
 }

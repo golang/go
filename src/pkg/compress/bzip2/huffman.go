@@ -54,8 +54,6 @@ func (t huffmanTree) Decode(br *bitReader) (v uint16) {
 			nodeIndex = node.right
 		}
 	}
-
-	panic("unreachable")
 }
 
 // newHuffmanTree builds a Huffman tree from a slice containing the code

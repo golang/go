@@ -171,7 +171,6 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 		}
 		records = append(records, record)
 	}
-	panic("unreachable")
 }
 
 // readRune reads one rune from r, folding \r\n to \n and keeping track

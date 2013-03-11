@@ -729,7 +729,6 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 	default:
 		return nil, nil
 	}
-	panic("unreachable")
 }
 
 func parseCertificate(in *certificate) (*Certificate, error) {

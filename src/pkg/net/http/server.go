@@ -1337,7 +1337,6 @@ func (srv *Server) Serve(l net.Listener) error {
 		}
 		go c.serve()
 	}
-	panic("not reached")
 }
 
 // ListenAndServe listens on the TCP network address addr

@@ -51,7 +51,6 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 			return b, err
 		}
 	}
-	panic("unreachable")
 }
 
 func TestClient(t *testing.T) {

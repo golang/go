@@ -43,7 +43,6 @@ func (r *Rand) ExpFloat64() float64 {
 			return x
 		}
 	}
-	panic("unreachable")
 }
 
 var ke = [256]uint32{

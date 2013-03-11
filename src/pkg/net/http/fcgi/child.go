@@ -267,5 +267,4 @@ func Serve(l net.Listener, handler http.Handler) error {
 		c := newChild(rw, handler)
 		go c.serve()
 	}
-	panic("unreachable")
 }

@@ -399,12 +399,10 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) error {
 
 func (WriteFailCodec) ReadResponseHeader(*Response) error {
 	select {}
-	panic("unreachable")
 }
 
 func (WriteFailCodec) ReadResponseBody(interface{}) error {
 	select {}
-	panic("unreachable")
 }
 
 func (WriteFailCodec) Close() error {

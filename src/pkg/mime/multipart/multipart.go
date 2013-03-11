@@ -265,7 +265,6 @@ func (r *Reader) NextPart() (*Part, error) {
 
 		return nil, fmt.Errorf("multipart: unexpected line in Next(): %q", line)
 	}
-	panic("unreachable")
 }
 
 // isFinalBoundary returns whether line is the final boundary line

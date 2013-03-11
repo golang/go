@@ -280,7 +280,6 @@ func dialTimeoutRace(net, addr string, timeout time.Duration) (Conn, error) {
 	case p := <-ch:
 		return p.Conn, p.error
 	}
-	panic("unreachable")
 }
 
 type stringAddr struct {

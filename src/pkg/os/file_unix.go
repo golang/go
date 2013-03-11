@@ -198,7 +198,6 @@ func (f *File) write(b []byte) (n int, err error) {
 
 		return n, err
 	}
-	panic("not reached")
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
