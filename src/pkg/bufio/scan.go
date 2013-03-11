@@ -169,7 +169,6 @@ func (s *Scanner) Scan() bool {
 		}
 		s.end += n
 	}
-	panic("not reached")
 }
 
 // advance consumes n bytes of the buffer. It reports whether the advance was legal.

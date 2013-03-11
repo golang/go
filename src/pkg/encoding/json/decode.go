@@ -739,6 +739,7 @@ func (d *decodeState) valueInterface() interface{} {
 	switch d.scanWhile(scanSkipSpace) {
 	default:
 		d.error(errPhase)
+		panic("unreachable")
 	case scanBeginArray:
 		return d.arrayInterface()
 	case scanBeginObject:
@@ -746,7 +747,6 @@ func (d *decodeState) valueInterface() interface{} {
 	case scanBeginLiteral:
 		return d.literalInterface()
 	}
-	panic("unreachable")
 }
 
 // arrayInterface is like array but returns []interface{}.

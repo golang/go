@@ -489,7 +489,6 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 			return m, err
 		}
 	}
-	panic("unreachable")
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the

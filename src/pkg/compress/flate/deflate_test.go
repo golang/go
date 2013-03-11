@@ -158,7 +158,6 @@ func (b *syncBuffer) Read(p []byte) (n int, err error) {
 		}
 		<-b.ready
 	}
-	panic("unreachable")
 }
 
 func (b *syncBuffer) signal() {

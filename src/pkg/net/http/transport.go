@@ -349,7 +349,6 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 			return
 		}
 	}
-	panic("unreachable")
 }
 
 func (t *Transport) setReqConn(r *Request, pc *persistConn) {

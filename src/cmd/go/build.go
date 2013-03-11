@@ -1291,7 +1291,6 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
 
 		return buf.Bytes(), err
 	}
-	panic("unreachable")
 }
 
 // mkdir makes the named directory.

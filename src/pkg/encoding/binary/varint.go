@@ -120,7 +120,6 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
 		x |= uint64(b&0x7f) << s
 		s += 7
 	}
-	panic("unreachable")
 }
 
 // ReadVarint reads an encoded signed integer from r and returns it as an int64.

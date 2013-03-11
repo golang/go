@@ -144,8 +144,6 @@ GeneratePrimes:
 		params.G = g
 		return
 	}
-
-	panic("unreachable")
 }
 
 // GenerateKey generates a public&private key pair. The Parameters of the

@@ -274,7 +274,6 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 			return b.buf, ErrBufferFull
 		}
 	}
-	panic("not reached")
 }
 
 // ReadLine is a low-level line-reading primitive. Most callers should use

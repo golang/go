@@ -144,7 +144,6 @@ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 	}
-	panic("unreachable")
 }
 
 // Discard is an io.Writer on which all Write calls succeed

@@ -304,7 +304,6 @@ func (d *decoder) readExtension() error {
 			return err
 		}
 	}
-	panic("unreachable")
 }
 
 func (d *decoder) readGraphicControl() error {

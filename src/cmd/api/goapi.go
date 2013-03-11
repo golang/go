@@ -723,7 +723,6 @@ func (w *Walker) varValueType(vi interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown const value type %T", vi)
 	}
-	panic("unreachable")
 }
 
 // resolveName finds a top-level node named name and returns the node
