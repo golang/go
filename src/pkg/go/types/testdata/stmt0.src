@@ -116,7 +116,7 @@ func switches() {
 	}
 
 	switch x {
-	case 1 /* ERROR "overflows int" */ << 100:
+	case 1 /* ERROR "overflows" */ << 100:
 	}
 
 	switch x {
@@ -171,13 +171,13 @@ func typeswitches() {
 
 	switch t := x.(type) {
 	case nil:
-		var v bool = t /* ERROR "cannot assign" */
+		var v bool = t /* ERROR "cannot initialize" */
 	case int:
 		var v int = t
 	case float32, complex64:
-		var v float32 = t /* ERROR "cannot assign" */
+		var v float32 = t /* ERROR "cannot initialize" */
 	default:
-		var v float32 = t /* ERROR "cannot assign" */
+		var v float32 = t /* ERROR "cannot initialize" */
 	}
 
 	var t I

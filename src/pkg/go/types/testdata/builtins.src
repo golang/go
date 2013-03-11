@@ -54,6 +54,7 @@ func _complex() {
 	var f32 float32
 	var f64 float64
 	var c64 complex64
+	var c128 complex128
 	_ = complex /* ERROR "argument" */ ()
 	_ = complex /* ERROR "argument" */ (1)
 	_ = complex(true /* ERROR "invalid argument" */ , 0)
@@ -78,6 +79,21 @@ func _complex() {
 	_ = complex(1, 1.1)
 	_ = complex(1, 'a')
 	complex /* ERROR "not used" */ (1, 2)
+
+	var _ complex64 = complex(f32, f32)
+	var _ complex64 = complex /* ERROR "cannot initialize" */ (f64, f64)
+
+	var _ complex128 = complex /* ERROR "cannot initialize" */ (f32, f32)
+	var _ complex128 = complex(f64, f64)
+
+	// untyped constants
+	const _ int = complex(1, 0)
+	const _ float32 = complex(1, 0)
+	const _ complex64 = complex(1, 0)
+	const _ complex128 = complex(1, 0)
+
+	const _ int = complex /* ERROR "int" */ (1.1, 0)
+	const _ float32 = complex /* ERROR "float32" */ (1, 2)
 }
 
 func _copy() {
@@ -161,7 +177,9 @@ func _len() {
 }
 
 func _make() {
-	n := 0
+	var n int
+	var m float32
+	var s uint
 
 	_ = make /* ERROR "argument" */ ()
 	_ = make(1 /* ERROR "not a type" */)
@@ -172,32 +190,40 @@ func _make() {
 	_ = make/* ERROR "arguments" */ ([]int, 2, 3, 4)
 	_ = make([]int, int /* ERROR "not an expression" */)
 	_ = make([]int, 10, float32 /* ERROR "not an expression" */)
-	_ = make([]int, "foo" /* ERROR "must be an integer" */)
-	_ = make([]int, 10, 2.3 /* ERROR "must be an integer" */)
+	_ = make([]int, "foo" /* ERROR "cannot convert" */)
+	_ = make([]int, 10, 2.3 /* ERROR "overflows" */)
 	_ = make([]int, 5, 10.0)
 	_ = make([]int, 0i)
+	_ = make([]int, 1.0)
+	_ = make([]int, 1.0<<s)
+	_ = make([]int, 1.1 /* ERROR "int" */ <<s)
 	_ = make([]int, - /* ERROR "must not be negative" */ 1, 10)
 	_ = make([]int, 0, - /* ERROR "must not be negative" */ 1)
 	_ = make([]int, - /* ERROR "must not be negative" */ 1, - /* ERROR "must not be negative" */ 1)
-	_ = make([]int, 1<<100, 1<<100)  // run-time panic
-	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100 + 1, 1<<100)
-	_ = make([]int, 1 /* ERROR "length and capacity swapped" */ <<100, 12345)
+	_ = make([]int, 1 /* ERROR "overflows" */ <<100, 1 /* ERROR "overflows" */ <<100)
+	_ = make([]int, 10 /* ERROR "length and capacity swapped" */ , 9)
+	_ = make([]int, 1 /* ERROR "overflows" */ <<100, 12345)
+	_ = make([]int, m /* ERROR "must be integer" */ )
 
 	// maps
 	_ = make /* ERROR "arguments" */ (map[int]string, 10, 20)
 	_ = make(map[int]float32, int /* ERROR "not an expression" */)
-	_ = make(map[int]float32, "foo" /* ERROR "must be an integer" */)
+	_ = make(map[int]float32, "foo" /* ERROR "cannot convert" */)
 	_ = make(map[int]float32, 10)
 	_ = make(map[int]float32, n)
 	_ = make(map[int]float32, int64(n))
+	_ = make(map[string]bool, 10.0)
+	_ = make(map[string]bool, 10.0<<s)
 
 	// channels
 	_ = make /* ERROR "arguments" */ (chan int, 10, 20)
 	_ = make(chan int, int /* ERROR "not an expression" */)
-	_ = make(chan<- int, "foo" /* ERROR "must be an integer" */)
+	_ = make(chan<- int, "foo" /* ERROR "cannot convert" */)
 	_ = make(<-chan float64, 10)
 	_ = make(chan chan int, n)
 	_ = make(chan string, int64(n))
+	_ = make(chan bool, 10.0)
+	_ = make(chan bool, 10.0<<s)
 
 	make /* ERROR "not used" */ ([]int, 10)
 }
@@ -309,8 +335,8 @@ func _Offsetof() {
 	var x struct{ f int }
 	_ = unsafe /* ERROR "argument" */ .Offsetof()
 	_ = unsafe /* ERROR "argument" */ .Offsetof(1, 2)
-	_ = unsafe.Offsetof(int /* ERROR "not an expression" */)
-	_ = unsafe.Offsetof(x /* ERROR "not a selector" */)
+	_ = unsafe.Offsetof(int /* ERROR "not a selector expression" */)
+	_ = unsafe.Offsetof(x /* ERROR "not a selector expression" */)
 	_ = unsafe.Offsetof(x.f)
 	_ = unsafe.Offsetof((x.f))
 	_ = unsafe.Offsetof((((((((x))).f)))))
@@ -338,7 +364,7 @@ func _Offsetof() {
 
 	var y2 S2
 	assert(unsafe.Offsetof(y2.S1) == 0)
-	_ = unsafe.Offsetof(y2 /* ERROR "embedded via pointer" */ .x)
+	_ = unsafe.Offsetof(y2 /* ERROR "embedded via a pointer" */ .x)
 }
 
 func _Sizeof() {

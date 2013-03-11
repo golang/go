@@ -18,6 +18,15 @@ const (
 	trace = false // turn on for detailed type resolution traces
 )
 
+// exprInfo stores type and constant value for an untyped expression.
+type exprInfo struct {
+	isConst bool // expression has a, possibly unknown, constant value
+	isLhs   bool // expression is lhs operand of a shift with delayed type check
+	typ     *Basic
+	val     interface{} // constant value (may be nil if unknown); valid if isConst
+}
+
+// A checker is an instance of the type checker.
 type checker struct {
 	ctxt  *Context
 	fset  *token.FileSet
@@ -31,14 +40,7 @@ type checker struct {
 	initspecs   map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
 	methods     map[*TypeName]*Scope              // maps type names to associated methods
 	conversions map[*ast.CallExpr]bool            // set of type-checked conversions (to distinguish from calls)
-
-	// untyped expressions
-	// TODO(gri): Consider merging the untyped and constants map. Should measure
-	// the ratio between untyped non-constant and untyped constant expressions
-	// to make an informed decision.
-	untyped   map[ast.Expr]*Basic      // map of expressions of untyped type
-	constants map[ast.Expr]interface{} // map of untyped constant expressions; each key also appears in untyped
-	shiftOps  map[ast.Expr]bool        // map of lhs shift operands with delayed type-checking
+	untyped     map[ast.Expr]exprInfo             // map of expressions without final type
 
 	// functions
 	funclist []function  // list of functions/methods with correct signatures and non-empty bodies
@@ -234,18 +236,14 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			obj.Type = Typ[Invalid]
 			return
 		}
+		obj.visited = true
 		switch d := obj.decl.(type) {
 		case *ast.Field:
 			unreachable() // function parameters are always typed when collected
 		case *ast.ValueSpec:
-			obj.visited = true
 			check.valueSpec(d.Pos(), obj, d.Names, d, 0)
 		case *ast.AssignStmt:
-			// If we reach here, we have a short variable declaration
-			// where the rhs didn't typecheck and thus the lhs has no
-			// types.
-			obj.visited = true
-			obj.Type = Typ[Invalid]
+			unreachable() // assign1to1 sets the type for failing short var decls
 		default:
 			unreachable() // see also function newObj
 		}
@@ -428,9 +426,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 		initspecs:   make(map[*ast.ValueSpec]*ast.ValueSpec),
 		methods:     make(map[*TypeName]*Scope),
 		conversions: make(map[*ast.CallExpr]bool),
-		untyped:     make(map[ast.Expr]*Basic),
-		constants:   make(map[ast.Expr]interface{}),
-		shiftOps:    make(map[ast.Expr]bool),
+		untyped:     make(map[ast.Expr]exprInfo),
 	}
 
 	// set results and handle panics
@@ -490,9 +486,9 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 
 	// remaining untyped expressions must indeed be untyped
 	if debug {
-		for x, typ := range check.untyped {
-			if !isUntyped(typ) {
-				check.dump("%s: %s (type %s) is not untyped", x.Pos(), x, typ)
+		for x, info := range check.untyped {
+			if !isUntyped(info.typ) {
+				check.dump("%s: %s (type %s) is not untyped", x.Pos(), x, info.typ)
 				panic(0)
 			}
 		}
@@ -503,8 +499,12 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
 	// after function body checking for smaller
 	// map size and more immediate feedback.
 	if ctxt.Expr != nil {
-		for x, typ := range check.untyped {
-			ctxt.Expr(x, typ, check.constants[x])
+		for x, info := range check.untyped {
+			var val interface{}
+			if info.isConst {
+				val = info.val
+			}
+			ctxt.Expr(x, info.typ, val)
 		}
 	}
 

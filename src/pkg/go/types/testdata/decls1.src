@@ -37,7 +37,7 @@ var (
 	s4 = s + t
 	s5 = s /* ERROR "invalid operation" */ / t
 	s6 = array[t1]
-	s7 = array[x /* ERROR "index" */]
+	s7 = array[x /* ERROR "integer" */]
 	s8 = &a
 	s10 = &42 /* ERROR "cannot take address" */
 	s11 = &v
@@ -48,16 +48,16 @@ var (
 	s19 = s1 /* ERROR "cannot call" */ ()
  	s20 = f0 /* ERROR "no value" */ ()
 	s21 = f6(1, s1, i)
-	s22 = f6(1, s1, uu /* ERROR "cannot assign" */ )
+	s22 = f6(1, s1, uu /* ERROR "cannot pass argument" */ )
 	
 	t1 int = i + j
 	t2 int = i /* ERROR "mismatched types" */ + x
-	t3 int = c /* ERROR "cannot assign" */ + d
+	t3 int = c /* ERROR "cannot initialize" */ + d
 	t4 string = s + t
 	t5 string = s /* ERROR "invalid operation" */ / t
 	t6 byte = array[t1]
-	t7 byte = array[x /* ERROR "index" */]
-	t8 *int = & /* ERROR "cannot assign" */ a
+	t7 byte = array[x /* ERROR "must be integer" */]
+	t8 *int = & /* ERROR "cannot initialize" */ a
 	t10 *int = &42 /* ERROR "cannot take address" */
 	t11 *complex64 = &v
 	t12 complex64 = -(u + *t11) / *&v

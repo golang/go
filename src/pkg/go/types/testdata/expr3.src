@@ -2,171 +2,45 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// various expressions
-
 package expr3
 
-func shifts1() {
-	var (
-		i0 int
-		u0 uint
-	)
-
-	var (
-		v0 = 1<<0
-		v1 = 1<<i0 /* ERROR "must be unsigned" */
-		v2 = 1<<u0
-		v3 = 1<<"foo" /* ERROR "must be unsigned" */
-		v4 = 1<<- /* ERROR "stupid shift" */ 1
-		v5 = 1<<1025 /* ERROR "stupid shift" */
-		v6 = 1 /* ERROR "overflows" */ <<100
-
-		v10 uint = 1 << 0
-		v11 uint = 1 << u0
-		v12 float32 = 1 /* ERROR "must be integer" */ << u0
-	)
-}
-
-func shifts2() {
-	// from the spec
-	var (
-		s uint = 33
-		i = 1<<s           // 1 has type int
-		j int32 = 1<<s     // 1 has type int32; j == 0
-		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
-		m int = 1.0<<s     // 1.0 has type int
-		n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
-		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
-		p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
-		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
-		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
-		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
-	)
-}
-
-func shifts3(a int16, b float32) {
-	var (
-		s uint = 11
-		u = 1 /* ERROR "must be integer" */ <<s + 1.0
-		v complex128 = 1 /* ERROR "must be integer" */ << s + 1.0 /* ERROR "must be integer" */ << s + 1
-	)
-	x := 1.0 /* ERROR "must be integer" */ <<s + 1
-	shifts3(1.0 << s, 1 /* ERROR "must be integer" */ >> s)
-	// TODO(gri) add more tests (systematically)
-}
-
-func shifts4() {
-	// from src/pkg/compress/lzw/reader.go:90
-	{
-		var d struct {
-			bits     uint32
-			width    uint
-		}
-		_ = uint16(d.bits & (1<<d.width - 1))
-	}
-
-	// from src/pkg/debug/dwarf/buf.go:116
-	{
-		var ux uint64
-		var bits uint
-		x := int64(ux)
-		if x&(1<<(bits-1)) != 0 {}
-	}
-
-	// from src/pkg/encoding/asn1/asn1.go:160
-	{
-		var bytes []byte
-		if bytes[len(bytes)-1]&((1<<bytes[0])-1) != 0 {}
-	}
-
-	// from src/pkg/math/big/rat.go:140
-	{
-		var exp int
-		var mantissa uint64
-		shift := uint64(-1022 - (exp - 1)) // [1..53)
-		_ = mantissa & (1<<shift - 1)
-	}
-
-	// from src/pkg/net/interface.go:51
-	{
-		type Flags uint
-		var f Flags
-		var i int
-		if f&(1<<uint(i)) != 0 {}
-	}
-
-	// from src/pkg/runtime/softfloat64.go:234
-	{
-		var gm uint64
-		var shift uint
-		_ = gm & (1<<shift - 1)
-	}
-
-	// from src/pkg/strconv/atof.go:326
-	{
-		var mant uint64
-		var mantbits uint
-		if mant == 2<<mantbits {}
-	}
-
-	// from src/pkg/syscall/route_bsd.go:82
-	{
-		var Addrs int32
-		const rtaRtMask = 1
-		var i uint
-		if Addrs&rtaRtMask&(1<<i) == 0 {}
-	}
-
-	// from src/pkg/text/scanner/scanner.go:540
-	{
-		var s struct { Whitespace uint64 }
-		var ch rune
-		for s.Whitespace&(1<<uint(ch)) != 0 {}
-	}
-}
-
-// TODO(gri) The error messages below depend on adjusting the spec
-//           to reflect what gc is doing at the moment (the spec
-//           asks for run-time errors at the moment - see issue 4231).
-// TODO(gri) This has been fixed in the spec. Fix this.
-//
 func indexes() {
 	_ = 1 /* ERROR "cannot index" */ [0]
 	_ = indexes /* ERROR "cannot index" */ [0]
 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
 
 	var a [10]int
-	_ = a[true /* ERROR "must be integer" */ ]
-	_ = a["foo" /* ERROR "must be integer" */ ]
-	_ = a[1.1 /* ERROR "must be integer" */ ]
+	_ = a[true /* ERROR "cannot convert" */ ]
+	_ = a["foo" /* ERROR "cannot convert" */ ]
+	_ = a[1.1 /* ERROR "overflows" */ ]
 	_ = a[1.0]
-	_ = a[- /* ERROR "index .* negative" */ 1]
-	_ = a[- /* ERROR "index .* negative" */ 1 :]
-	_ = a[: - /* ERROR "index .* negative" */ 1]
+	_ = a[- /* ERROR "negative" */ 1]
+	_ = a[- /* ERROR "negative" */ 1 :]
+	_ = a[: - /* ERROR "negative" */ 1]
 	var a0 int
 	a0 = a[0]
 	var a1 int32
 	a1 = a /* ERROR "cannot assign" */ [1] 
 	_ = a[9]
 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
-	_ = a[1 /* ERROR "stupid index" */ <<100]
+	_ = a[1 /* ERROR "overflows" */ <<100]
 	_ = a[10:]
 	_ = a[:10]
 	_ = a[10:10]
 	_ = a[11 /* ERROR "index .* out of bounds" */ :]
 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
-	_ = a[: 1 /* ERROR "stupid index" */ <<100]
+	_ = a[: 1 /* ERROR "overflows" */ <<100]
 
 	pa := &a
 	_ = pa[9]
 	_ = pa[10 /* ERROR "index .* out of bounds" */ ]
-	_ = pa[1 /* ERROR "stupid index" */ <<100]
+	_ = pa[1 /* ERROR "overflows" */ <<100]
 	_ = pa[10:]
 	_ = pa[:10]
 	_ = pa[10:10]
 	_ = pa[11 /* ERROR "index .* out of bounds" */ :]
 	_ = pa[: 11 /* ERROR "index .* out of bounds" */ ]
-	_ = pa[: 1 /* ERROR "stupid index" */ <<100]
+	_ = pa[: 1 /* ERROR "overflows" */ <<100]
 
 	var b [0]int
 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
@@ -176,21 +50,21 @@ func indexes() {
 	_ = b[0:0]
 
 	var s []int
-	_ = s[- /* ERROR "index .* negative" */ 1]
-	_ = s[- /* ERROR "index .* negative" */ 1 :]
-	_ = s[: - /* ERROR "index .* negative" */ 1]
+	_ = s[- /* ERROR "negative" */ 1]
+	_ = s[- /* ERROR "negative" */ 1 :]
+	_ = s[: - /* ERROR "negative" */ 1]
 	_ = s[0]
 	_ = s[1 : 2]
 	_ = s[2 /* ERROR "inverted slice range" */ : 1]
 	_ = s[2 :]
-	_ = s[: 1 /* ERROR "stupid index" */ <<100]
-	_ = s[1 /* ERROR "stupid index" */ <<100 :]
-	_ = s[1 /* ERROR "stupid index" */ <<100 : 1 /* ERROR "stupid index" */ <<100]
+	_ = s[: 1 /* ERROR "overflows" */ <<100]
+	_ = s[1 /* ERROR "overflows" */ <<100 :]
+	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
 
 	var t string
-	_ = t[- /* ERROR "index .* negative" */ 1]
-	_ = t[- /* ERROR "index .* negative" */ 1 :]
-	_ = t[: - /* ERROR "index .* negative" */ 1]
+	_ = t[- /* ERROR "negative" */ 1]
+	_ = t[- /* ERROR "negative" */ 1 :]
+	_ = t[: - /* ERROR "negative" */ 1]
 	var t0 byte
 	t0 = t[0]
 	var t1 rune
@@ -199,9 +73,9 @@ func indexes() {
 	_ = ("foo" + "bar")[6 /* ERROR "index .* out of bounds" */ ]
 
 	const c = "foo"
-	_ = c[- /* ERROR "index .* negative" */ 1]
-	_ = c[- /* ERROR "index .* negative" */ 1 :]
-	_ = c[: - /* ERROR "index .* negative" */ 1]
+	_ = c[- /* ERROR "negative" */ 1]
+	_ = c[- /* ERROR "negative" */ 1 :]
+	_ = c[: - /* ERROR "negative" */ 1]
 	var c0 byte
 	c0 = c[0]
 	var c2 float32
@@ -233,7 +107,7 @@ func method_expressions() {
 	_ = T /* ERROR "has no method" */ .x
 	_ = T.m
 	var f func(*T) = (*T).m
-	var g func(*T) = ( /* ERROR "cannot assign" */ T).m
+	var g func(*T) = ( /* ERROR "cannot initialize" */ T).m
 }
 
 func struct_literals() {
@@ -254,7 +128,7 @@ func struct_literals() {
 	_ = T1{aa /* ERROR "unknown field" */ : 0}
 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
-	_ = T1{a: "foo" /* ERROR "cannot use" */ }
+	_ = T1{a: "foo" /* ERROR "cannot convert" */ }
 	_ = T1{c /* ERROR "unknown field" */ : 0}
 	_ = T1{T0: { /* ERROR "missing type" */ }}
 	_ = T1{T0: T0{}}
@@ -265,7 +139,7 @@ func struct_literals() {
 	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
 	_ = T0{1, 2} /* ERROR "too few values" */
 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
-	_ = T0{1, "foo" /* ERROR "cannot use" */, 3.4  /* ERROR "cannot use" */}
+	_ = T0{1, "foo" /* ERROR "cannot convert" */, 3.4  /* ERROR "overflows" */}
 }
 
 func array_literals() {
@@ -279,18 +153,18 @@ func array_literals() {
 	_ = A1{0, 1, 2}
 	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /* ERROR "index .* out of bounds" */ }
-	_ = A1{- /* ERROR "index .* negative" */ 1: 0}
+	_ = A1{- /* ERROR "negative" */ 1: 0}
 	_ = A1{8: 8, 9}
 	_ = A1{8: 8, 9, 10 /* ERROR "index .* out of bounds" */ }
 	_ = A1{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
 	_ = A1{5: 5, 6, 7, 3: 3, 4}
 	_ = A1{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
 	_ = A1{10 /* ERROR "index .* out of bounds" */ : 10, 10 /* ERROR "index .* out of bounds" */ : 10}
-	_ = A1{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
-	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
+	_ = A1{5: 5, 6, 7, 3: 3, 1 /* ERROR "overflows" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
+	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
 	_ = A1{2.0}
-	_ = A1{2.1 /* ERROR "cannot use" */ }
-	_ = A1{"foo" /* ERROR "cannot use" */ }
+	_ = A1{2.1 /* ERROR "overflows" */ }
+	_ = A1{"foo" /* ERROR "cannot convert" */ }
 
 	a0 := [...]int{}
 	assert(len(a0) == 0)
@@ -302,7 +176,7 @@ func array_literals() {
 	a13 = a1
 	a14 = a1 /* ERROR "cannot assign" */
 	
-	a2 := [...]int{- /* ERROR "index .* negative" */ 1: 0}
+	a2 := [...]int{- /* ERROR "negative" */ 1: 0}
 
 	a3 := [...]int{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
 	assert(len(a3) == 5) // somewhat arbitrary
@@ -326,18 +200,18 @@ func slice_literals() {
 	_ = S0{0, 1, 2}
 	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	_ = S0{- /* ERROR "index .* negative" */ 1: 0}
+	_ = S0{- /* ERROR "negative" */ 1: 0}
 	_ = S0{8: 8, 9}
 	_ = S0{8: 8, 9, 10}
 	_ = S0{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
 	_ = S0{5: 5, 6, 7, 3: 3, 4}
 	_ = S0{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
 	_ = S0{10: 10, 10 /* ERROR "duplicate index" */ : 10}
-	_ = S0{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
-	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
+	_ = S0{5: 5, 6, 7, 3: 3, 1 /* ERROR "overflows" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
+	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
 	_ = S0{2.0}
-	_ = S0{2.1 /* ERROR "cannot use" */ }
-	_ = S0{"foo" /* ERROR "cannot use" */ }
+	_ = S0{2.1 /* ERROR "overflows" */ }
+	_ = S0{"foo" /* ERROR "cannot convert" */ }
 
 	// indices must be resolved correctly
 	// (for details, see comment in go/parser/parser.go, method parseElement)
@@ -356,8 +230,8 @@ func map_literals() {
 
 	_ = M0{}
 	_ = M0{1 /* ERROR "missing key" */ }
-	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
-	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
+	_ = M0{1 /* ERROR "cannot convert" */ : 2}
+	_ = M0{"foo": "bar" /* ERROR "cannot convert" */ }
 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
 
 	// map keys must be resolved correctly
@@ -428,7 +302,7 @@ func _calls() {
 	f1(10.0)
 	f1 /* ERROR "too few arguments" */ ()
 	f1(x, y /* ERROR "too many arguments" */ )
-	f1(s /* ERROR "cannot assign" */ )
+	f1(s /* ERROR "cannot pass" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
@@ -437,24 +311,24 @@ func _calls() {
 	f2 /* ERROR "too few arguments" */ ()
 	f2 /* ERROR "too few arguments" */ (3.14)
 	f2(3.14, "foo")
-	f2(x /* ERROR "cannot assign" */ , "foo")
+	f2(x /* ERROR "cannot pass" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2 /* ERROR "too few arguments" */ (g1 /* ERROR "cannot assign" */ ())
+	f2 /* ERROR "too few arguments" */ (g1 /* ERROR "cannot pass" */ ())
 	f2(g2())
 
 	fs /* ERROR "too few arguments" */ ()
 	fs(g0 /* ERROR "used as value" */ ())
-	fs(g1 /* ERROR "cannot assign" */ ())
+	fs(g1 /* ERROR "cannot pass" */ ())
 	// fs(g2()) // TODO(gri) missing position in error message
 	fs(gs())
 
 	fv()
 	fv(1, 2.0, x)
-	fv(s /* ERROR "cannot assign" */ )
+	fv(s /* ERROR "cannot pass" */ )
 	fv(s...)
 	fv(1, s /* ERROR "can only use ... with matching parameter" */ ...)
-	fv(gs /* ERROR "cannot assign" */ ())
-	fv(gs /* ERROR "cannot assign" */ ()...)
+	fv(gs /* ERROR "cannot pass" */ ())
+	fv(gs /* ERROR "cannot pass" */ ()...)
 
 	fi()
 	fi(1, 2.0, x, 3.14, "foo")
