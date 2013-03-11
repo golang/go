@@ -939,6 +939,8 @@ install(char *dir)
 			}
 			vadd(&compile, "-I");
 			vadd(&compile, workdir);
+			vadd(&compile, "-I");
+			vadd(&compile, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
 			vadd(&compile, "-D");
 			vadd(&compile, bprintf(&b, "GOOS_%s", goos));
 			vadd(&compile, "-D");
