@@ -5,13 +5,16 @@
 // +build gotypes
 
 // This file contains the pieces of the tool that require the go/types package.
+// To compile this file, you must first run
+//  $ go get code.google.com/p/go.exp/go/types
 
 package main
 
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
+
+	"code.google.com/p/go.exp/go/types"
 )
 
 // Type is equivalent to go/types.Type. Repeating it here allows us to avoid
