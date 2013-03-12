@@ -5,7 +5,7 @@
 // Package signal implements access to incoming signals.
 package signal
 
-// BUG(rsc): This package is not yet implemented on Plan 9 and Windows.
+// BUG(rsc): This package is not yet implemented on Plan 9.
 
 import (
 	"os"
