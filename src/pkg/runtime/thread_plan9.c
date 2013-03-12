@@ -48,7 +48,7 @@ getproccount(void)
 	int32 fd, i, n, ncpu;
 	byte buf[2048];
 
-	fd = runtime·open((byte*)"/dev/sysstat", OREAD);
+	fd = runtime·open("/dev/sysstat", OREAD, 0);
 	if(fd < 0)
 		return 1;
 	ncpu = 0;
@@ -72,7 +72,7 @@ getpid(void)
 	int32 fd;
 
 	runtime·memclr(b, sizeof(b));
-	fd = runtime·open((byte*)"#c/pid", 0);
+	fd = runtime·open("#c/pid", 0, 0);
 	if(fd >= 0) {
 		runtime·read(fd, b, sizeof(b));
 		runtime·close(fd);
@@ -89,6 +89,13 @@ runtime·osinit(void)
 	runtime·ncpu = getproccount();
 	m->procid = getpid();
 	runtime·notify(runtime·sigtramp);
+}
+
+void
+runtime·get_random_data(byte **rnd, int32 *rnd_len)
+{
+	*rnd = nil;
+	*rnd_len = 0;
 }
 
 void
@@ -195,7 +202,7 @@ runtime·postnote(int32 pid, int8* msg)
 	p--;
 	runtime·memmove((void*)p, (void*)"/note", 5);
 
-	fd = runtime·open(buf, OWRITE);
+	fd = runtime·open((int8*)buf, OWRITE, 0);
 	if(fd < 0)
 		return -1;
 

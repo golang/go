@@ -20,7 +20,7 @@ runtime·getenv(int8 *s)
 	runtime·memmove((void*)file, (void*)"/env/", 5);
 	runtime·memmove((void*)(file+5), (void*)s, len);
 
-	fd = runtime·open(file, OREAD);
+	fd = runtime·open((int8*)file, OREAD, 0);
 	if(fd < 0)
 		return nil;
 	n = runtime·seek(fd, 0, 2);
