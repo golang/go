@@ -528,7 +528,7 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 
 	}
 	h = &hostobj[nhostobj++];
 	h->ld = ld;
-	h->pkg = pkg;
+	h->pkg = estrdup(pkg);
 	h->pn = estrdup(pn);
 	h->file = estrdup(file);
 	h->off = Boffset(f);
