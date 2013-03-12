@@ -142,11 +142,11 @@ func TestDecoderBuffering(t *testing.T) {
 }
 
 func TestDecodeCorrupt(t *testing.T) {
-	type corrupt struct {
-		e string
-		p int
-	}
-	examples := []corrupt{
+	testCases := []struct {
+		input  string
+		offset int // -1 means no corruption.
+	}{
+		{"", -1},
 		{"!!!!", 0},
 		{"x===", 1},
 		{"AA=A", 2},
@@ -154,18 +154,27 @@ func TestDecodeCorrupt(t *testing.T) {
 		{"AAAAA", 4},
 		{"AAAAAA", 4},
 		{"A=", 1},
+		{"A==", 1},
 		{"AA=", 3},
+		{"AA==", -1},
+		{"AAA=", -1},
+		{"AAAA", -1},
 		{"AAAAAA=", 7},
 	}
-
-	for _, e := range examples {
-		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)))
-		_, err := StdEncoding.Decode(dbuf, []byte(e.e))
+	for _, tc := range testCases {
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
+		_, err := StdEncoding.Decode(dbuf, []byte(tc.input))
+		if tc.offset == -1 {
+			if err != nil {
+				t.Error("Decoder wrongly detected coruption in", tc.input)
+			}
+			continue
+		}
 		switch err := err.(type) {
 		case CorruptInputError:
-			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)
+			testEqual(t, "Corruption in %q at offset %v, want %v", tc.input, int(err), tc.offset)
 		default:
-			t.Error("Decoder failed to detect corruption in", e)
+			t.Error("Decoder failed to detect corruption in", tc)
 		}
 	}
 }

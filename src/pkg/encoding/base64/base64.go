@@ -227,9 +227,8 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				continue
 			}
 			if in == '=' && j >= 2 && len(src) < 4 {
-				// We've reached the end and there's
-				// padding
-				if len(src) == 0 && j == 2 {
+				// We've reached the end and there's padding
+				if len(src)+j < 4-1 {
 					// not enough padding
 					return n, false, CorruptInputError(len(osrc))
 				}
@@ -237,8 +236,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 					// incorrect padding
 					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
 				}
-				dlen = j
-				end = true
+				dlen, end = j, true
 				break
 			}
 			dbuf[j] = enc.decodeMap[in]
