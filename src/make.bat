@@ -90,16 +90,14 @@ echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
-:: TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -tags gotypes -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -v std
 endlocal
 if errorlevel 1 goto fail
 echo.
 
 :mainbuild
 echo # Building packages and commands.
-:: TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
-"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -tags gotypes -v std
+"%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.
