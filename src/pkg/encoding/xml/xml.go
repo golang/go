@@ -956,7 +956,7 @@ Input:
 				b0, b1 = 0, 0
 				continue Input
 			}
-			ent := string(d.buf.Bytes()[before])
+			ent := string(d.buf.Bytes()[before:])
 			if ent[len(ent)-1] != ';' {
 				ent += " (no semicolon)"
 			}
