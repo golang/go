@@ -33,7 +33,7 @@ func makeParserBytes() []byte {
 	return b
 }
 
-func BenchmarkParse(b *testing.B) {
+func BenchmarkGoParse(b *testing.B) {
 	b.SetBytes(int64(len(parserbytes)))
 	for i := 0; i < b.N; i++ {
 		if _, err := parser.ParseFile(token.NewFileSet(), "", parserbytes, parser.ParseComments); err != nil {
