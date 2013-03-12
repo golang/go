@@ -169,6 +169,11 @@ type Decoder struct {
 	// the CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
+	// DefaultSpace sets the default name space used for unadorned tags,
+	// as if the entire XML stream were wrapped in an element containing
+	// the attribute xmlns="DefaultSpace".
+	DefaultSpace string
+
 	r         io.ByteReader
 	buf       bytes.Buffer
 	saved     *bytes.Buffer
@@ -282,6 +287,8 @@ func (d *Decoder) translate(n *Name, isElementName bool) {
 	}
 	if v, ok := d.ns[n.Space]; ok {
 		n.Space = v
+	} else if n.Space == "" {
+		n.Space = d.DefaultSpace
 	}
 }
 

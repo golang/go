@@ -267,6 +267,9 @@ Loop:
 		if oldf.flags&fMode != newf.flags&fMode {
 			continue
 		}
+		if oldf.xmlns != "" && newf.xmlns != "" && oldf.xmlns != newf.xmlns {
+			continue
+		}
 		minl := min(len(newf.parents), len(oldf.parents))
 		for p := 0; p < minl; p++ {
 			if oldf.parents[p] != newf.parents[p] {

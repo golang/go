@@ -120,6 +120,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 
 type printer struct {
 	*bufio.Writer
+	seq        int
 	indent     string
 	prefix     string
 	depth      int
@@ -210,6 +211,20 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 			continue
 		}
 		p.WriteByte(' ')
+		if finfo.xmlns != "" {
+			p.WriteString("xmlns:")
+			p.seq++
+			id := "_" + strconv.Itoa(p.seq)
+			p.WriteString(id)
+			p.WriteString(`="`)
+			// TODO: EscapeString, to avoid the allocation.
+			if err := EscapeText(p, []byte(finfo.xmlns)); err != nil {
+				return err
+			}
+			p.WriteString(`" `)
+			p.WriteString(id)
+			p.WriteByte(':')
+		}
 		p.WriteString(finfo.name)
 		p.WriteString(`="`)
 		if err := p.marshalSimple(fv.Type(), fv); err != nil {
