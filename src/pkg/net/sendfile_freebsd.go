@@ -83,7 +83,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			break
 		}
 		if err1 == syscall.EAGAIN {
-			if err1 = c.pollServer.WaitWrite(c); err1 == nil {
+			if err1 = c.pd.WaitWrite(); err1 == nil {
 				continue
 			}
 		}
