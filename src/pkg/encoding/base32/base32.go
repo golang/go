@@ -236,7 +236,6 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		var dbuf [8]byte
 		dlen := 8
 
-		// do the top bytes contain any data?
 		for j := 0; j < 8; {
 			if len(src) == 0 {
 				return n, false, CorruptInputError(len(osrc) - len(src) - j)
@@ -248,15 +247,26 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				continue
 			}
 			if in == '=' && j >= 2 && len(src) < 8 {
-				// We've reached the end and there's
-				// padding, the rest should be padded
-				for k := 0; k < 8-j-1; k++ {
+				// We've reached the end and there's padding
+				if len(src)+j < 8-1 {
+					// not enough padding
+					return n, false, CorruptInputError(len(osrc))
+				}
+				for k := 0; k < 8-1-j; k++ {
 					if len(src) > k && src[k] != '=' {
+						// incorrect padding
 						return n, false, CorruptInputError(len(osrc) - len(src) + k - 1)
 					}
 				}
-				dlen = j
-				end = true
+				dlen, end = j, true
+				// 7, 5 and 2 are not valid padding lengths, and so 1, 3 and 6 are not
+				// valid dlen values. See RFC 4648 Section 6 "Base 32 Encoding" listing
+				// the five valid padding lengths, and Section 9 "Illustrations and
+				// Examples" for an illustration for how the the 1st, 3rd and 6th base32
+				// src bytes do not yield enough information to decode a dst byte.
+				if dlen == 1 || dlen == 3 || dlen == 6 {
+					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
+				}
 				break
 			}
 			dbuf[j] = enc.decodeMap[in]
@@ -269,16 +279,16 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		// Pack 8x 5-bit source blocks into 5 byte destination
 		// quantum
 		switch dlen {
-		case 7, 8:
+		case 8:
 			dst[4] = dbuf[6]<<5 | dbuf[7]
 			fallthrough
-		case 6, 5:
+		case 7:
 			dst[3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
 			fallthrough
-		case 4:
+		case 5:
 			dst[2] = dbuf[3]<<4 | dbuf[4]>>1
 			fallthrough
-		case 3:
+		case 4:
 			dst[1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
 			fallthrough
 		case 2:
@@ -288,11 +298,11 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		switch dlen {
 		case 2:
 			n += 1
-		case 3, 4:
+		case 4:
 			n += 2
 		case 5:
 			n += 3
-		case 6, 7:
+		case 7:
 			n += 4
 		case 8:
 			n += 5
