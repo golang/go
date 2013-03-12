@@ -15,9 +15,11 @@ import (
 	"time"
 )
 
-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
+// testUnixAddr uses ioutil.TempFile to get a name that is unique. It
+// also uses /tmp directory in case it is prohibited to create UNIX
+// sockets in TMPDIR.
 func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "nettest")
+	f, err := ioutil.TempFile("/tmp", "nettest")
 	if err != nil {
 		panic(err)
 	}
