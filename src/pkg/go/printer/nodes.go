@@ -271,12 +271,12 @@ func (p *printer) parameters(fields *ast.FieldList) {
 			// if there are multiple parameter names for this par
 			// or the type is on a separate line)
 			var parLineBeg int
-			var parLineEnd = p.lineFor(par.Type.Pos())
 			if len(par.Names) > 0 {
 				parLineBeg = p.lineFor(par.Names[0].Pos())
 			} else {
-				parLineBeg = parLineEnd
+				parLineBeg = p.lineFor(par.Type.Pos())
 			}
+			var parLineEnd = p.lineFor(par.Type.End())
 			// separating "," if needed
 			needsLinebreak := 0 < prevLine && prevLine < parLineBeg
 			if i > 0 {
