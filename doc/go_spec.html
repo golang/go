@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 11, 2013",
+	"Subtitle": "Version of March 12, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -5270,14 +5270,14 @@ func recover() interface{}
 </pre>
 
 <p>
-A <code>panic</code> call in a function <code>F</code> terminates the execution
-of <code>F</code>.
+While executing a function <code>F</code>,
+an explicit call to <code>panic</code> or a <a href="#Run_time_panics">run-time panic</a>
+terminates the execution of <code>F</code>.
 Any functions <a href="#Defer_statements">deferred</a> by <code>F</code>
-are executed before <code>F</code> returns to its caller. To the caller,
-the call of <code>F</code> then behaves itself like a call to <code>panic</code>,
-terminating its own execution and running deferred functions in the same manner.
-This continues until all functions in the goroutine have ceased execution,
-in reverse order. At that point, the program is terminated and the error
+are then executed as usual.
+Next, any deferred functions run by <code>F's</code> caller are run,
+and so on up to any deferred by the top-level function in the executing goroutine.
+At that point, the program is terminated and the error
 condition is reported, including the value of the argument to <code>panic</code>.
 This termination sequence is called <i>panicking</i>.
 </p>
@@ -5290,15 +5290,34 @@ panic(Error("cannot parse"))
 
 <p>
 The <code>recover</code> function allows a program to manage behavior
-of a panicking goroutine.  Executing a <code>recover</code> call
-<i>inside</i> a deferred function (but not any function called by it) stops
-the panicking sequence by restoring normal execution, and retrieves
-the error value passed to the call of <code>panic</code>.  If
-<code>recover</code> is called outside the deferred function it will
-not stop a panicking sequence.  In this case, or when the goroutine
-is not panicking, or if the argument supplied to <code>panic</code>
-was <code>nil</code>, <code>recover</code> returns <code>nil</code>.
+of a panicking goroutine.
+Suppose a function <code>G</code> defers a function <code>D</code> that calls
+<code>recover</code> and a panic occurs in a function on the same goroutine in which <code>G</code>
+is executing.
+When the running of deferred functions reaches <code>D</code>,
+the return value of <code>D</code>'s call to <code>recover</code> will be the value passed to the call of <code>panic</code>.
+If <code>D</code> returns normally, without starting a new
+<code>panic</code>, the panicking sequence stops. In that case,
+the state of functions called between <code>G</code> and the call to <code>panic</code>
+is discarded, and normal execution resumes.
+Any functions deferred by <code>G</code> before <code>D</code> are then run and <code>G</code>'s
+execution terminates by returning to its caller.
 </p>
+
+<p>
+The return value of <code>recover</code> is <code>nil</code> if any of the following conditions holds:
+</p>
+<ul>
+<li>
+<code>panic</code>'s argument was <code>nil</code>;
+</li>
+<li>
+the goroutine is not panicking;
+</li>
+<li>
+<code>recover</code> was not called directly by a deferred function.
+</li>
+</ul>
 
 <p>
 The <code>protect</code> function in the example below invokes
