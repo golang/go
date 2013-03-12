@@ -20,7 +20,7 @@ type netFD struct {
 	sysmu  sync.Mutex
 	sysref int
 
-	// must lock both sysmu and pollserver to write
+	// must lock both sysmu and pollDesc to write
 	// can lock either to read
 	closing bool
 
@@ -30,8 +30,6 @@ type netFD struct {
 	sotype      int
 	isConnected bool
 	sysfile     *os.File
-	cr          chan error
-	cw          chan error
 	net         string
 	laddr       Addr
 	raddr       Addr
@@ -39,14 +37,8 @@ type netFD struct {
 	// serialize access to Read and Write methods
 	rio, wio sync.Mutex
 
-	// read and write deadlines
-	rdeadline, wdeadline deadline
-
-	// owned by fd wait server
-	ncr, ncw int
-
 	// wait server
-	pollServer *pollServer
+	pd pollDesc
 }
 
 func dialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
@@ -65,7 +57,7 @@ func newFD(fd, family, sotype int, net string) (*netFD, error) {
 		sotype: sotype,
 		net:    net,
 	}
-	if err := pollServerInit(netfd); err != nil {
+	if err := netfd.pd.Init(netfd); err != nil {
 		return nil, err
 	}
 	return netfd, nil
@@ -91,12 +83,12 @@ func (fd *netFD) name() string {
 func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	fd.wio.Lock()
 	defer fd.wio.Unlock()
-	if err := fd.pollServer.PrepareWrite(fd); err != nil {
+	if err := fd.pd.PrepareWrite(); err != nil {
 		return err
 	}
 	err := syscall.Connect(fd.sysfd, ra)
 	if err == syscall.EINPROGRESS {
-		if err = fd.pollServer.WaitWrite(fd); err != nil {
+		if err = fd.pd.WaitWrite(); err != nil {
 			return err
 		}
 		var e int
@@ -112,7 +104,7 @@ func (fd *netFD) connect(ra syscall.Sockaddr) error {
 }
 
 // Add a reference to this fd.
-// If closing==true, pollserver must be locked; mark the fd as closing.
+// If closing==true, pollDesc must be locked; mark the fd as closing.
 // Returns an error if the fd cannot be used.
 func (fd *netFD) incref(closing bool) error {
 	fd.sysmu.Lock()
@@ -135,7 +127,7 @@ func (fd *netFD) decref() {
 	fd.sysref--
 	if fd.closing && fd.sysref == 0 && fd.sysfile != nil {
 		fd.sysfile.Close()
-		fd.pollServer.Close(fd)
+		fd.pd.Close()
 		fd.sysfile = nil
 		fd.sysfd = -1
 	}
@@ -143,21 +135,21 @@ func (fd *netFD) decref() {
 }
 
 func (fd *netFD) Close() error {
-	fd.pollServer.Lock() // needed for both fd.incref(true) and pollserver.Evict
+	fd.pd.Lock() // needed for both fd.incref(true) and pollDesc.Evict
 	if err := fd.incref(true); err != nil {
-		fd.pollServer.Unlock()
+		fd.pd.Unlock()
 		return err
 	}
 	// Unblock any I/O.  Once it all unblocks and returns,
 	// so that it cannot be referring to fd.sysfd anymore,
 	// the final decref will close fd.sysfd.  This should happen
 	// fairly quickly, since all the I/O is non-blocking, and any
-	// attempts to block in the pollserver will return errClosing.
-	doWakeup := fd.pollServer.Evict(fd)
-	fd.pollServer.Unlock()
+	// attempts to block in the pollDesc will return errClosing.
+	doWakeup := fd.pd.Evict()
+	fd.pd.Unlock()
 	fd.decref()
 	if doWakeup {
-		fd.pollServer.Wakeup()
+		fd.pd.Wakeup()
 	}
 	return nil
 }
@@ -189,7 +181,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareRead(fd); err != nil {
+	if err := fd.pd.PrepareRead(); err != nil {
 		return 0, &OpError{"read", fd.net, fd.raddr, err}
 	}
 	for {
@@ -197,7 +189,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
-				if err = fd.pollServer.WaitRead(fd); err == nil {
+				if err = fd.pd.WaitRead(); err == nil {
 					continue
 				}
 			}
@@ -218,7 +210,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 		return 0, nil, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareRead(fd); err != nil {
+	if err := fd.pd.PrepareRead(); err != nil {
 		return 0, nil, &OpError{"read", fd.net, fd.laddr, err}
 	}
 	for {
@@ -226,7 +218,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN {
-				if err = fd.pollServer.WaitRead(fd); err == nil {
+				if err = fd.pd.WaitRead(); err == nil {
 					continue
 				}
 			}
@@ -247,7 +239,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 		return 0, 0, 0, nil, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareRead(fd); err != nil {
+	if err := fd.pd.PrepareRead(); err != nil {
 		return 0, 0, 0, nil, &OpError{"read", fd.net, fd.laddr, err}
 	}
 	for {
@@ -255,7 +247,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 		if err != nil {
 			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN {
-				if err = fd.pollServer.WaitRead(fd); err == nil {
+				if err = fd.pd.WaitRead(); err == nil {
 					continue
 				}
 			}
@@ -283,7 +275,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 		return 0, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareWrite(fd); err != nil {
+	if err := fd.pd.PrepareWrite(); err != nil {
 		return 0, &OpError{"write", fd.net, fd.raddr, err}
 	}
 	for {
@@ -296,7 +288,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
 			break
 		}
 		if err == syscall.EAGAIN {
-			if err = fd.pollServer.WaitWrite(fd); err == nil {
+			if err = fd.pd.WaitWrite(); err == nil {
 				continue
 			}
 		}
@@ -322,13 +314,13 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 		return 0, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareWrite(fd); err != nil {
+	if err := fd.pd.PrepareWrite(); err != nil {
 		return 0, &OpError{"write", fd.net, fd.raddr, err}
 	}
 	for {
 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
 		if err == syscall.EAGAIN {
-			if err = fd.pollServer.WaitWrite(fd); err == nil {
+			if err = fd.pd.WaitWrite(); err == nil {
 				continue
 			}
 		}
@@ -349,13 +341,13 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 		return 0, 0, err
 	}
 	defer fd.decref()
-	if err := fd.pollServer.PrepareWrite(fd); err != nil {
+	if err := fd.pd.PrepareWrite(); err != nil {
 		return 0, 0, &OpError{"write", fd.net, fd.raddr, err}
 	}
 	for {
 		err = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {
-			if err = fd.pollServer.WaitWrite(fd); err == nil {
+			if err = fd.pd.WaitWrite(); err == nil {
 				continue
 			}
 		}
@@ -380,14 +372,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
 
 	var s int
 	var rsa syscall.Sockaddr
-	if err = fd.pollServer.PrepareRead(fd); err != nil {
+	if err = fd.pd.PrepareRead(); err != nil {
 		return nil, &OpError{"accept", fd.net, fd.laddr, err}
 	}
 	for {
 		s, rsa, err = accept(fd.sysfd)
 		if err != nil {
 			if err == syscall.EAGAIN {
-				if err = fd.pollServer.WaitRead(fd); err == nil {
+				if err = fd.pd.WaitRead(); err == nil {
 					continue
 				}
 			} else if err == syscall.ECONNABORTED {
