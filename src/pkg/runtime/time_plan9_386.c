@@ -24,7 +24,7 @@ runtime·nanotime(void)
 	// file descriptor) is roughly four times slower
 	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
 
-	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
+	if(fd < 0 && (fd = runtime·open("/dev/bintime", OREAD|OCEXEC, 0)) < 0)
 		return 0;
 	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
 		return 0;
