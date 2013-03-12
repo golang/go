@@ -230,7 +230,7 @@ func (e CorruptInputError) Error() string {
 // indicates if end-of-message padding was encountered and thus any
 // additional data is an error.
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
-	osrc := src
+	olen := len(src)
 	for len(src) > 0 && !end {
 		// Decode quantum using the base32 alphabet
 		var dbuf [8]byte
@@ -238,7 +238,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 
 		for j := 0; j < 8; {
 			if len(src) == 0 {
-				return n, false, CorruptInputError(len(osrc) - len(src) - j)
+				return n, false, CorruptInputError(olen - len(src) - j)
 			}
 			in := src[0]
 			src = src[1:]
@@ -250,12 +250,12 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// We've reached the end and there's padding
 				if len(src)+j < 8-1 {
 					// not enough padding
-					return n, false, CorruptInputError(len(osrc))
+					return n, false, CorruptInputError(olen)
 				}
 				for k := 0; k < 8-1-j; k++ {
 					if len(src) > k && src[k] != '=' {
 						// incorrect padding
-						return n, false, CorruptInputError(len(osrc) - len(src) + k - 1)
+						return n, false, CorruptInputError(olen - len(src) + k - 1)
 					}
 				}
 				dlen, end = j, true
@@ -265,13 +265,13 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// Examples" for an illustration for how the the 1st, 3rd and 6th base32
 				// src bytes do not yield enough information to decode a dst byte.
 				if dlen == 1 || dlen == 3 || dlen == 6 {
-					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
+					return n, false, CorruptInputError(olen - len(src) - 1)
 				}
 				break
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(len(osrc) - len(src) - 1)
+				return n, false, CorruptInputError(olen - len(src) - 1)
 			}
 			j++
 		}

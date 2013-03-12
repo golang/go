@@ -210,7 +210,7 @@ func (e CorruptInputError) Error() string {
 // indicates if end-of-message padding was encountered and thus any
 // additional data is an error.
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
-	osrc := src
+	olen := len(src)
 	for len(src) > 0 && !end {
 		// Decode quantum using the base64 alphabet
 		var dbuf [4]byte
@@ -218,7 +218,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 
 		for j := 0; j < 4; {
 			if len(src) == 0 {
-				return n, false, CorruptInputError(len(osrc) - len(src) - j)
+				return n, false, CorruptInputError(olen - len(src) - j)
 			}
 			in := src[0]
 			src = src[1:]
@@ -230,18 +230,18 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 				// We've reached the end and there's padding
 				if len(src)+j < 4-1 {
 					// not enough padding
-					return n, false, CorruptInputError(len(osrc))
+					return n, false, CorruptInputError(olen)
 				}
 				if len(src) > 0 && src[0] != '=' {
 					// incorrect padding
-					return n, false, CorruptInputError(len(osrc) - len(src) - 1)
+					return n, false, CorruptInputError(olen - len(src) - 1)
 				}
 				dlen, end = j, true
 				break
 			}
 			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(len(osrc) - len(src) - 1)
+				return n, false, CorruptInputError(olen - len(src) - 1)
 			}
 			j++
 		}
