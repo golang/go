@@ -49,10 +49,6 @@ type Transport struct {
 	altMu      sync.RWMutex
 	altProto   map[string]RoundTripper // nil or map of URI scheme => RoundTripper
 
-	// TODO: tunable on global max cached connections
-	// TODO: tunable on timeout on cached connections
-	// TODO: optional pipelining
-
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
 	// request is aborted with the provided error.
@@ -68,7 +64,18 @@ type Transport struct {
 	// tls.Client. If nil, the default configuration is used.
 	TLSClientConfig *tls.Config
 
-	DisableKeepAlives  bool
+	// DisableKeepAlives, if true, prevents re-use of TCP connections
+	// between different HTTP requests.
+	DisableKeepAlives bool
+
+	// DisableCompression, if true, prevents the Transport from
+	// requesting compression with an "Accept-Encoding: gzip"
+	// request header when the Request contains no existing
+	// Accept-Encoding value. If the Transport requests gzip on
+	// its own and gets a gzipped response, it's transparently
+	// decoded in the Response.Body. However, if the user
+	// explicitly requested gzip it is not automatically
+	// uncompressed.
 	DisableCompression bool
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
@@ -81,6 +88,9 @@ type Transport struct {
 	// writing the request (including its body, if any). This
 	// time does not include the time to read the response body.
 	ResponseHeaderTimeout time.Duration
+
+	// TODO: tunable on global max cached connections
+	// TODO: tunable on timeout on cached connections
 }
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
@@ -133,6 +143,9 @@ func (tr *transportRequest) extraHeaders() Header {
 }
 
 // RoundTrip implements the RoundTripper interface.
+//
+// For higher-level HTTP client support (such as handling of cookies
+// and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 	if req.URL == nil {
 		return nil, errors.New("http: nil Request.URL")

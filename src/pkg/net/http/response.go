@@ -46,6 +46,9 @@ type Response struct {
 	// The http Client and Transport guarantee that Body is always
 	// non-nil, even on responses without a body or responses with
 	// a zero-lengthed body.
+	//
+	// The Body is automatically dechunked if the server replied
+	// with a "chunked" Transfer-Encoding.
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content.  The

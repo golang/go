@@ -19,12 +19,16 @@ import (
 	"strings"
 )
 
-// A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
-// that uses DefaultTransport.
+// A Client is an HTTP client. Its zero value (DefaultClient) is a
+// usable client that uses DefaultTransport.
 //
-// The Client's Transport typically has internal state (cached
-// TCP connections), so Clients should be reused instead of created as
+// The Client's Transport typically has internal state (cached TCP
+// connections), so Clients should be reused instead of created as
 // needed. Clients are safe for concurrent use by multiple goroutines.
+//
+// A Client is higher-level than a RoundTripper (such as Transport)
+// and additionally handles HTTP details such as cookies and
+// redirects.
 type Client struct {
 	// Transport specifies the mechanism by which individual
 	// HTTP requests are made.
