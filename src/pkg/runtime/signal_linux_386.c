@@ -150,6 +150,7 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 }
 
 #define AT_NULL		0
+#define AT_RANDOM	25
 #define AT_SYSINFO	32
 extern uint32 runtime·_vdso;
 
@@ -168,7 +169,12 @@ runtime·linux_setup_vdso(int32 argc, byte **argv)
 	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
 		if(auxv[0] == AT_SYSINFO) {
 			runtime·_vdso = auxv[1];
-			break;
+			continue;
+		}
+		if(auxv[0] == AT_RANDOM) {
+			runtime·startup_random_data = (byte*)auxv[1];
+			runtime·startup_random_data_len = 16;
+			continue;
 		}
 	}
 }

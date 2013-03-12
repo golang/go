@@ -467,6 +467,41 @@ runtime·algarray[] =
 
 // Runtime helpers.
 
+// used in asm_{386,amd64}.s
+byte runtime·aeskeysched[HashRandomBytes];
+
+void
+runtime·hashinit(void)
+{
+	// Install aes hash algorithm if we have the instructions we need
+	if((runtime·cpuid_ecx & (1 << 25)) != 0 &&  // aes (aesenc)
+	   (runtime·cpuid_ecx & (1 << 9)) != 0 &&   // sse3 (pshufb)
+	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
+		byte *rnd;
+		int32 n;
+		runtime·algarray[AMEM].hash = runtime·aeshash;
+		runtime·algarray[AMEM8].hash = runtime·aeshash;
+		runtime·algarray[AMEM16].hash = runtime·aeshash;
+		runtime·algarray[AMEM32].hash = runtime·aeshash32;
+		runtime·algarray[AMEM64].hash = runtime·aeshash64;
+		runtime·algarray[AMEM128].hash = runtime·aeshash;
+		runtime·algarray[ASTRING].hash = runtime·aeshashstr;
+
+		// Initialize with random data so hash collisions will be hard to engineer.
+		runtime·get_random_data(&rnd, &n);
+		if(n > HashRandomBytes)
+			n = HashRandomBytes;
+		runtime·memmove(runtime·aeskeysched, rnd, n);
+		if(n < HashRandomBytes) {
+			// Not very random, but better than nothing.
+			int64 t = runtime·nanotime();
+			while (n < HashRandomBytes) {
+				runtime·aeskeysched[n++] = (int8)(t >> (8 * (n % 8)));
+			}
+		}
+	}
+}
+
 // func equal(t *Type, x T, y T) (ret bool)
 #pragma textflag 7
 void

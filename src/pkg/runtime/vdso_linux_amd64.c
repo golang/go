@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 
+#define AT_RANDOM 25
 #define AT_SYSINFO_EHDR 33
 #define AT_NULL	0    /* End of vector */
 #define PT_LOAD	1    /* Loadable program segment */
@@ -319,11 +320,16 @@ runtime·linux_setup_vdso(int32 argc, uint8** argv)
 		if(elf_auxv[i].a_type == AT_SYSINFO_EHDR) {
 			if(elf_auxv[i].a_un.a_val == 0) {
 				// Something went wrong
-				return;
+				continue;
 			}
 			vdso_init_from_sysinfo_ehdr(&vdso_info, (Elf64_Ehdr*)elf_auxv[i].a_un.a_val);
 			vdso_parse_symbols(&vdso_info, vdso_find_version(&vdso_info, &linux26));
-			return;
+			continue;
+		}
+		if(elf_auxv[i].a_type == AT_RANDOM) {
+		        runtime·startup_random_data = (byte*)elf_auxv[i].a_un.a_val;
+		        runtime·startup_random_data_len = 16;
+			continue;
 		}
 	}
 }

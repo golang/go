@@ -20,6 +20,17 @@ TEXT _rt0_amd64(SB),7,$-8
 	MOVQ	BX, g_stackguard(DI)
 	MOVQ	SP, g_stackbase(DI)
 
+	// find out information about the processor we're on
+	MOVQ	$0, AX
+	CPUID
+	CMPQ	AX, $0
+	JE	nocpuinfo
+	MOVQ	$1, AX
+	CPUID
+	MOVL	CX, runtime·cpuid_ecx(SB)
+	MOVL	DX, runtime·cpuid_edx(SB)
+nocpuinfo:	
+	
 	// if there is an _cgo_init, call it.
 	MOVQ	_cgo_init(SB), AX
 	TESTQ	AX, AX
@@ -65,6 +76,7 @@ ok:
 	MOVQ	AX, 8(SP)
 	CALL	runtime·args(SB)
 	CALL	runtime·osinit(SB)
+	CALL	runtime·hashinit(SB)
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
@@ -729,3 +741,165 @@ TEXT runtime·stackguard(SB),7,$0
 	RET
 
 GLOBL runtime·tls0(SB), $64
+
+// hash function using AES hardware instructions
+TEXT runtime·aeshash(SB),7,$0
+	MOVQ	8(SP), DX	// ptr to hash value
+	MOVQ	16(SP), CX	// size
+	MOVQ	24(SP), AX	// ptr to data
+	JMP	runtime·aeshashbody(SB)
+
+TEXT runtime·aeshashstr(SB),7,$0
+	MOVQ	8(SP), DX	// ptr to hash value
+	MOVQ	24(SP), AX	// ptr to string struct
+	MOVQ	8(AX), CX	// length of string
+	MOVQ	(AX), AX	// string data
+	JMP	runtime·aeshashbody(SB)
+
+// AX: data
+// CX: length
+// DX: ptr to seed input / hash output
+TEXT runtime·aeshashbody(SB),7,$0
+	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
+	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+aesloop:
+	CMPQ	CX, $16
+	JB	aesloopend
+	MOVOU	(AX), X1
+	AESENC	X2, X0
+	AESENC	X1, X0
+	SUBQ	$16, CX
+	ADDQ	$16, AX
+	JMP	aesloop
+aesloopend:
+	TESTQ	CX, CX
+	JE	finalize	// no partial block
+
+	TESTQ	$16, AX
+	JNE	highpartial
+
+	// address ends in 0xxxx.  16 bytes loaded
+	// at this address won't cross a page boundary, so
+	// we can load it directly.
+	MOVOU	(AX), X1
+	ADDQ	CX, CX
+	PAND	masks(SB)(CX*8), X1
+	JMP	partial
+highpartial:
+	// address ends in 1xxxx.  Might be up against
+	// a page boundary, so load ending at last byte.
+	// Then shift bytes down using pshufb.
+	MOVOU	-16(AX)(CX*1), X1
+	ADDQ	CX, CX
+	PSHUFB	shifts(SB)(CX*8), X1
+partial:
+	// incorporate partial block into hash
+	AESENC	X3, X0
+	AESENC	X1, X0
+finalize:	
+	// finalize hash
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVQ	X0, (DX)
+	RET
+
+TEXT runtime·aeshash32(SB),7,$0
+	MOVQ	8(SP), DX	// ptr to hash value
+	MOVQ	24(SP), AX	// ptr to data
+	MOVQ	(DX), X0	// seed
+	PINSRD	$2, (AX), X0	// data
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVQ	X0, (DX)
+	RET
+
+TEXT runtime·aeshash64(SB),7,$0
+	MOVQ	8(SP), DX	// ptr to hash value
+	MOVQ	24(SP), AX	// ptr to data
+	MOVQ	(DX), X0	// seed
+	PINSRQ	$1, (AX), X0	// data
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVQ	X0, (DX)
+	RET
+
+// simple mask to get rid of data in the high part of the register.
+TEXT masks(SB),7,$0
+	QUAD $0x0000000000000000
+	QUAD $0x0000000000000000
+	QUAD $0x00000000000000ff
+	QUAD $0x0000000000000000
+	QUAD $0x000000000000ffff
+	QUAD $0x0000000000000000
+	QUAD $0x0000000000ffffff
+	QUAD $0x0000000000000000
+	QUAD $0x00000000ffffffff
+	QUAD $0x0000000000000000
+	QUAD $0x000000ffffffffff
+	QUAD $0x0000000000000000
+	QUAD $0x0000ffffffffffff
+	QUAD $0x0000000000000000
+	QUAD $0x00ffffffffffffff
+	QUAD $0x0000000000000000
+	QUAD $0xffffffffffffffff
+	QUAD $0x0000000000000000
+	QUAD $0xffffffffffffffff
+	QUAD $0x00000000000000ff
+	QUAD $0xffffffffffffffff
+	QUAD $0x000000000000ffff
+	QUAD $0xffffffffffffffff
+	QUAD $0x0000000000ffffff
+	QUAD $0xffffffffffffffff
+	QUAD $0x00000000ffffffff
+	QUAD $0xffffffffffffffff
+	QUAD $0x000000ffffffffff
+	QUAD $0xffffffffffffffff
+	QUAD $0x0000ffffffffffff
+	QUAD $0xffffffffffffffff
+	QUAD $0x00ffffffffffffff
+
+	// these are arguments to pshufb.  They move data down from
+	// the high bytes of the register to the low bytes of the register.
+	// index is how many bytes to move.
+TEXT shifts(SB),7,$0
+	QUAD $0x0000000000000000
+	QUAD $0x0000000000000000
+	QUAD $0xffffffffffffff0f
+	QUAD $0xffffffffffffffff
+	QUAD $0xffffffffffff0f0e
+	QUAD $0xffffffffffffffff
+	QUAD $0xffffffffff0f0e0d
+	QUAD $0xffffffffffffffff
+	QUAD $0xffffffff0f0e0d0c
+	QUAD $0xffffffffffffffff
+	QUAD $0xffffff0f0e0d0c0b
+	QUAD $0xffffffffffffffff
+	QUAD $0xffff0f0e0d0c0b0a
+	QUAD $0xffffffffffffffff
+	QUAD $0xff0f0e0d0c0b0a09
+	QUAD $0xffffffffffffffff
+	QUAD $0x0f0e0d0c0b0a0908
+	QUAD $0xffffffffffffffff
+	QUAD $0x0e0d0c0b0a090807
+	QUAD $0xffffffffffffff0f
+	QUAD $0x0d0c0b0a09080706
+	QUAD $0xffffffffffff0f0e
+	QUAD $0x0c0b0a0908070605
+	QUAD $0xffffffffff0f0e0d
+	QUAD $0x0b0a090807060504
+	QUAD $0xffffffff0f0e0d0c
+	QUAD $0x0a09080706050403
+	QUAD $0xffffff0f0e0d0c0b
+	QUAD $0x0908070605040302
+	QUAD $0xffff0f0e0d0c0b0a
+	QUAD $0x0807060504030201
+	QUAD $0xff0f0e0d0c0b0a09
