@@ -266,6 +266,12 @@ type Plain struct {
 	V interface{}
 }
 
+type MyInt int
+
+type EmbedInt struct {
+	MyInt
+}
+
 // Unless explicitly stated as such (or *Plain), all of the
 // tests below are two-way tests. When introducing new tests,
 // please try to make them two-way as well to ensure that
@@ -789,6 +795,12 @@ var marshalTests = []struct {
 			Nested: "1\n2\n3\n\n4\n5",
 		},
 		UnmarshalOnly: true,
+	},
+	{
+		ExpectXML: `<EmbedInt><MyInt>42</MyInt></EmbedInt>`,
+		Value: &EmbedInt{
+			MyInt: 42,
+		},
 	},
 }
 

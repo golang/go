@@ -70,20 +70,19 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 				if t.Kind() == reflect.Ptr {
 					t = t.Elem()
 				}
-				if t.Kind() != reflect.Struct {
-					continue
-				}
-				inner, err := getTypeInfo(t)
-				if err != nil {
-					return nil, err
-				}
-				for _, finfo := range inner.fields {
-					finfo.idx = append([]int{i}, finfo.idx...)
-					if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
+				if t.Kind() == reflect.Struct {
+					inner, err := getTypeInfo(t)
+					if err != nil {
 						return nil, err
 					}
+					for _, finfo := range inner.fields {
+						finfo.idx = append([]int{i}, finfo.idx...)
+						if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
+							return nil, err
+						}
+					}
+					continue
 				}
-				continue
 			}
 
 			finfo, err := structFieldInfo(typ, &f)
