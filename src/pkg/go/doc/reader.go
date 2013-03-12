@@ -533,10 +533,13 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) 
 
 	// copy existing receiver field and set new type
 	newField := *f.Decl.Recv.List[0]
+	origPos := newField.Type.Pos()
 	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
-	var typ ast.Expr = ast.NewIdent(recvTypeName)
+	newIdent := &ast.Ident{NamePos: origPos, Name: recvTypeName}
+	var typ ast.Expr = newIdent
 	if !embeddedIsPtr && origRecvIsPtr {
-		typ = &ast.StarExpr{X: typ}
+		newIdent.NamePos++ // '*' is one character
+		typ = &ast.StarExpr{Star: origPos, X: newIdent}
 	}
 	newField.Type = typ
 
