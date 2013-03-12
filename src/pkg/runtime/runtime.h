@@ -767,6 +767,7 @@ void	runtime·blockevent(int64, int32);
 extern int64 runtime·blockprofilerate;
 void	runtime·addtimer(Timer*);
 bool	runtime·deltimer(Timer*);
+G*	runtime·netpoll(bool);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
@@ -968,5 +969,5 @@ extern uint64 ·neginf;
 
 enum
 {
-	UseSpanType = 1,
+	UseSpanType = 0,
 };
