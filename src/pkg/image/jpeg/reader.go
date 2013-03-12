@@ -245,10 +245,38 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 		if err != nil {
 			return nil, err
 		}
-		if d.tmp[0] != 0xff {
-			return nil, FormatError("missing 0xff marker start")
+		for d.tmp[0] != 0xff {
+			// Strictly speaking, this is a format error. However, libjpeg is
+			// liberal in what it accepts. As of version 9, next_marker in
+			// jdmarker.c treats this as a warning (JWRN_EXTRANEOUS_DATA) and
+			// continues to decode the stream. Even before next_marker sees
+			// extraneous data, jpeg_fill_bit_buffer in jdhuff.c reads as many
+			// bytes as it can, possibly past the end of a scan's data. It
+			// effectively puts back any markers that it overscanned (e.g. an
+			// "\xff\xd9" EOI marker), but it does not put back non-marker data,
+			// and thus it can silently ignore a small number of extraneous
+			// non-marker bytes before next_marker has a chance to see them (and
+			// print a warning).
+			//
+			// We are therefore also liberal in what we accept. Extraneous data
+			// is silently ignored.
+			//
+			// This is similar to, but not exactly the same as, the restart
+			// mechanism within a scan (the RST[0-7] markers).
+			//
+			// Note that extraneous 0xff bytes in e.g. SOS data are escaped as
+			// "\xff\x00", and so are detected a little further down below.
+			d.tmp[0] = d.tmp[1]
+			d.tmp[1], err = d.r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
 		}
 		marker := d.tmp[1]
+		if marker == 0 {
+			// Treat "\xff\x00" as extraneous data.
+			continue
+		}
 		for marker == 0xff {
 			// Section B.1.1.2 says, "Any marker may optionally be preceded by any
 			// number of fill bytes, which are bytes assigned code X'FF'".
