@@ -301,7 +301,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	s := parentStack{printer: p}
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
-		if finfo.flags&(fAttr) != 0 {
+		if finfo.flags&fAttr != 0 {
 			continue
 		}
 		vf := finfo.value(val)

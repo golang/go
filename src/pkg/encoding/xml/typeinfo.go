@@ -192,16 +192,19 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 	}
 
 	// Prepare field name and parents.
-	tokens = strings.Split(tag, ">")
-	if tokens[0] == "" {
-		tokens[0] = f.Name
+	parents := strings.Split(tag, ">")
+	if parents[0] == "" {
+		parents[0] = f.Name
 	}
-	if tokens[len(tokens)-1] == "" {
+	if parents[len(parents)-1] == "" {
 		return nil, fmt.Errorf("xml: trailing '>' in field %s of type %s", f.Name, typ)
 	}
-	finfo.name = tokens[len(tokens)-1]
-	if len(tokens) > 1 {
-		finfo.parents = tokens[:len(tokens)-1]
+	finfo.name = parents[len(parents)-1]
+	if len(parents) > 1 {
+		if (finfo.flags & fElement) == 0 {
+			return nil, fmt.Errorf("xml: %s chain not valid with %s flag", tag, strings.Join(tokens[1:], ","))
+		}
+		finfo.parents = parents[:len(parents)-1]
 	}
 
 	// If the field type has an XMLName field, the names must match
