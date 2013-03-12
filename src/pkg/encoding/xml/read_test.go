@@ -6,6 +6,7 @@ package xml
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -397,5 +398,212 @@ func TestUnmarshalAttr(t *testing.T) {
 		t.Fatalf("Unmarshal failed in to *string field")
 	} else if *p3.Int != "1" {
 		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p3.Int, 1)
+	}
+}
+
+type Tables struct {
+	HTable string `xml:"http://www.w3.org/TR/html4/ table"`
+	FTable string `xml:"http://www.w3schools.com/furniture table"`
+}
+
+var tables = []struct {
+	xml string
+	tab Tables
+	ns  string
+}{
+	{
+		xml: `<Tables>` +
+			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
+			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables>` +
+			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
+			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/">` +
+			`<f:table>world</f:table>` +
+			`<h:table>hello</h:table>` +
+			`</Tables>`,
+		tab: Tables{"hello", "world"},
+	},
+	{
+		xml: `<Tables>` +
+			`<table>bogus</table>` +
+			`</Tables>`,
+		tab: Tables{},
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{HTable: "only"},
+		ns:  "http://www.w3.org/TR/html4/",
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{FTable: "only"},
+		ns:  "http://www.w3schools.com/furniture",
+	},
+	{
+		xml: `<Tables>` +
+			`<table>only</table>` +
+			`</Tables>`,
+		tab: Tables{},
+		ns:  "something else entirely",
+	},
+}
+
+func TestUnmarshalNS(t *testing.T) {
+	for i, tt := range tables {
+		var dst Tables
+		var err error
+		if tt.ns != "" {
+			d := NewDecoder(strings.NewReader(tt.xml))
+			d.DefaultSpace = tt.ns
+			err = d.Decode(&dst)
+		} else {
+			err = Unmarshal([]byte(tt.xml), &dst)
+		}
+		if err != nil {
+			t.Errorf("#%d: Unmarshal: %v", i, err)
+			continue
+		}
+		want := tt.tab
+		if dst != want {
+			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
+		}
+	}
+}
+
+func TestMarshalNS(t *testing.T) {
+	dst := Tables{"hello", "world"}
+	data, err := Marshal(&dst)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	want := `<Tables><table xmlns="http://www.w3.org/TR/html4/">hello</table><table xmlns="http://www.w3schools.com/furniture">world</table></Tables>`
+	str := string(data)
+	if str != want {
+		t.Errorf("have: %q\nwant: %q\n", str, want)
+	}
+}
+
+type TableAttrs struct {
+	TAttr TAttr
+}
+
+type TAttr struct {
+	HTable string `xml:"http://www.w3.org/TR/html4/ table,attr"`
+	FTable string `xml:"http://www.w3schools.com/furniture table,attr"`
+}
+
+var tableAttrs = []struct {
+	xml string
+	tab TableAttrs
+	ns  string
+}{
+	{
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"hello", "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
+			`h:table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"hello", "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`h:table="hello" f:table="world" xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"hello", "world"}},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"hello", ""}},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr xmlns="http://www.w3.org/TR/html4/" ` +
+			`table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"", "world"}},
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`table="bogus" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{},
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
+			`h:table="hello" table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"hello", ""}},
+		ns:  "http://www.w3schools.com/furniture",
+	},
+	{
+		// Default space does not apply to attribute names.
+		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr ` +
+			`table="hello" f:table="world" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{TAttr{"", "world"}},
+		ns:  "http://www.w3.org/TR/html4/",
+	},
+	{
+		xml: `<TableAttrs><TAttr ` +
+			`table="bogus" ` +
+			`/></TableAttrs>`,
+		tab: TableAttrs{},
+		ns:  "something else entirely",
+	},
+}
+
+func TestUnmarshalNSAttr(t *testing.T) {
+	for i, tt := range tableAttrs {
+		var dst TableAttrs
+		var err error
+		if tt.ns != "" {
+			d := NewDecoder(strings.NewReader(tt.xml))
+			d.DefaultSpace = tt.ns
+			err = d.Decode(&dst)
+		} else {
+			err = Unmarshal([]byte(tt.xml), &dst)
+		}
+		if err != nil {
+			t.Errorf("#%d: Unmarshal: %v", i, err)
+			continue
+		}
+		want := tt.tab
+		if dst != want {
+			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
+		}
+	}
+}
+
+func TestMarshalNSAttr(t *testing.T) {
+	dst := TableAttrs{TAttr{"hello", "world"}}
+	data, err := Marshal(&dst)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	want := `<TableAttrs><TAttr xmlns:_1="http://www.w3.org/TR/html4/" _1:table="hello" xmlns:_2="http://www.w3schools.com/furniture" _2:table="world"></TAttr></TableAttrs>`
+	str := string(data)
+	if str != want {
+		t.Errorf("have: %q\nwant: %q\n", str, want)
 	}
 }
