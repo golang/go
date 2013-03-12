@@ -409,6 +409,9 @@ runtime·MHeap_Scavenger(void)
 	bool trace;
 	Note note, *notep;
 
+	g->issystem = true;
+	g->isbackground = true;
+
 	// If we go two minutes without a garbage collection, force one to run.
 	forcegc = 2*60*1e9;
 	// If a span goes unused for 5 minutes after a garbage collection,

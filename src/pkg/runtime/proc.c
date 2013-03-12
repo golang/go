@@ -71,8 +71,6 @@ M*	runtime·extram;
 int8*	runtime·goos;
 int32	runtime·ncpu;
 static int32	newprocs;
-// Keep trace of scavenger's goroutine for deadlock detection.
-static G *scvg;
 
 void runtime·mstart(void);
 static void runqput(P*, G*);
@@ -174,8 +172,7 @@ runtime·main(void)
 	runtime·lockOSThread();
 	if(m != &runtime·m0)
 		runtime·throw("runtime·main not on m0");
-	scvg = runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
-	scvg->issystem = true;
+	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
 	main·init();
 	runtime·unlockOSThread();
 
@@ -1265,7 +1262,7 @@ void
 
 	p = releasep();
 	handoffp(p);
-	if(g == scvg)  // do not consider blocked scavenger for deadlock detection
+	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		inclocked(1);
 	runtime·gosave(&g->sched);  // re-save for traceback
 }
@@ -1297,7 +1294,7 @@ runtime·exitsyscall(void)
 		return;
 	}
 
-	if(g == scvg)  // do not consider blocked scavenger for deadlock detection
+	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
 		inclocked(-1);
 	// Try to get any other idle P.
 	m->p = nil;
@@ -1899,7 +1896,7 @@ checkdead(void)
 	}
 	grunning = 0;
 	for(gp = runtime·allg; gp; gp = gp->alllink) {
-		if(gp == scvg)
+		if(gp->isbackground)
 			continue;
 		s = gp->status;
 		if(s == Gwaiting)

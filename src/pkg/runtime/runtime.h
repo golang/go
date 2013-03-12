@@ -235,8 +235,9 @@ struct	G
 	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;
 	bool	ispanic;
-	bool	issystem;
-	int8	raceignore; // ignore race detection events
+	bool	issystem;	// do not output in stack dump
+	bool	isbackground;	// ignore in deadlock detector
+	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
 	int32	sig;
