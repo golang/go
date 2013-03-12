@@ -697,7 +697,7 @@ func TestLinuxSendfile(t *testing.T) {
 	defer ln.Close()
 
 	var buf bytes.Buffer
-	child := exec.Command("strace", "-f", os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := exec.Command("strace", "-f", "-q", "-e", "trace=sendfile,sendfile64", os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf
