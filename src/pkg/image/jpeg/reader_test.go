@@ -8,8 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"io/ioutil"
+	"math/rand"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -129,6 +132,66 @@ func pixString(pix []byte, stride, x, y int) string {
 		fmt.Fprintf(s, "\n")
 	}
 	return s.String()
+}
+
+func TestExtraneousData(t *testing.T) {
+	// Encode a 1x1 red image.
+	src := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	src.Set(0, 0, color.RGBA{0xff, 0x00, 0x00, 0xff})
+	buf := new(bytes.Buffer)
+	if err := Encode(buf, src, nil); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	enc := buf.String()
+	// Sanity check that the encoded JPEG is long enough, that it ends in a
+	// "\xff\xd9" EOI marker, and that it contains a "\xff\xda" SOS marker
+	// somewhere in the final 64 bytes.
+	if len(enc) < 64 {
+		t.Fatalf("encoded JPEG is too short: %d bytes", len(enc))
+	}
+	if got, want := enc[len(enc)-2:], "\xff\xd9"; got != want {
+		t.Fatalf("encoded JPEG ends with %q, want %q", got, want)
+	}
+	if s := enc[len(enc)-64:]; !strings.Contains(s, "\xff\xda") {
+		t.Fatalf("encoded JPEG does not contain a SOS marker (ff da) near the end: % x", s)
+	}
+	// Test that adding some random junk between the SOS marker and the
+	// EOI marker does not affect the decoding.
+	rnd := rand.New(rand.NewSource(1))
+	for i, nerr := 0, 0; i < 1000 && nerr < 10; i++ {
+		buf.Reset()
+		// Write all but the trailing "\xff\xd9" EOI marker.
+		buf.WriteString(enc[:len(enc)-2])
+		// Write some random extraneous data.
+		for n := rnd.Intn(10); n > 0; n-- {
+			if x := byte(rnd.Intn(256)); x != 0xff {
+				buf.WriteByte(x)
+			} else {
+				// The JPEG format escapes a SOS 0xff data byte as "\xff\x00".
+				buf.WriteString("\xff\x00")
+			}
+		}
+		// Write the "\xff\xd9" EOI marker.
+		buf.WriteString("\xff\xd9")
+
+		// Check that we can still decode the resultant image.
+		got, err := Decode(buf)
+		if err != nil {
+			t.Errorf("could not decode image #%d: %v", i, err)
+			nerr++
+			continue
+		}
+		if got.Bounds() != src.Bounds() {
+			t.Errorf("image #%d, bounds differ: %v and %v", i, got.Bounds(), src.Bounds())
+			nerr++
+			continue
+		}
+		if averageDelta(got, src) > 2<<8 {
+			t.Errorf("image #%d changed too much after a round trip", i)
+			nerr++
+			continue
+		}
+	}
 }
 
 func benchmarkDecode(b *testing.B, filename string) {
