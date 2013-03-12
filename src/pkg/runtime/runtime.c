@@ -75,6 +75,11 @@ runtime·args(int32 c, uint8 **v)
 int32 runtime·isplan9;
 int32 runtime·iswindows;
 
+// Information about what cpu features are available.
+// Set on startup in asm_{x86/amd64}.s.
+uint32 runtime·cpuid_ecx;
+uint32 runtime·cpuid_edx;
+
 void
 runtime·goargs(void)
 {

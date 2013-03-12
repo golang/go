@@ -558,11 +558,25 @@ struct	Alg
 
 extern	Alg	runtime·algarray[Amax];
 
+byte*	runtime·startup_random_data;
+uint32	runtime·startup_random_data_len;
+void	runtime·get_random_data(byte**, int32*);
+
+enum {
+	// hashinit wants this many random bytes
+	HashRandomBytes = 32
+};
+void	runtime·hashinit(void);
+
 void	runtime·memhash(uintptr*, uintptr, void*);
 void	runtime·nohash(uintptr*, uintptr, void*);
 void	runtime·strhash(uintptr*, uintptr, void*);
 void	runtime·interhash(uintptr*, uintptr, void*);
 void	runtime·nilinterhash(uintptr*, uintptr, void*);
+void	runtime·aeshash(uintptr*, uintptr, void*);
+void	runtime·aeshash32(uintptr*, uintptr, void*);
+void	runtime·aeshash64(uintptr*, uintptr, void*);
+void	runtime·aeshashstr(uintptr*, uintptr, void*);
 
 void	runtime·memequal(bool*, uintptr, void*, void*);
 void	runtime·noequal(bool*, uintptr, void*, void*);
@@ -581,7 +595,6 @@ void	runtime·memcopy16(uintptr, void*, void*);
 void	runtime·memcopy32(uintptr, void*, void*);
 void	runtime·memcopy64(uintptr, void*, void*);
 void	runtime·memcopy128(uintptr, void*, void*);
-void	runtime·memcopy(uintptr, void*, void*);
 void	runtime·strcopy(uintptr, void*, void*);
 void	runtime·algslicecopy(uintptr, void*, void*);
 void	runtime·intercopy(uintptr, void*, void*);
@@ -638,6 +651,8 @@ extern	bool	runtime·iscgo;
 extern 	void	(*runtime·sysargs)(int32, uint8**);
 extern	uint32	runtime·maxstring;
 extern	uint32	runtime·Hchansize;
+extern	uint32	runtime·cpuid_ecx;
+extern	uint32	runtime·cpuid_edx;
 
 /*
  * common functions and data
@@ -684,7 +699,10 @@ int32	runtime·gotraceback(void);
 void	runtime·goroutineheader(G*);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	runtime·tracebackothers(G*);
+int32	runtime·open(int8*, int32, int32);
+int32	runtime·read(int32, void*, int32);
 int32	runtime·write(int32, void*, int32);
+int32	runtime·close(int32);
 int32	runtime·mincore(void*, uintptr, byte*);
 bool	runtime·cas(uint32*, uint32, uint32);
 bool	runtime·cas64(uint64*, uint64*, uint64);

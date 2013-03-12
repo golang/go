@@ -181,6 +181,22 @@ runtime·osinit(void)
 }
 
 void
+runtime·get_random_data(byte **rnd, int32 *rnd_len)
+{
+	static byte urandom_data[HashRandomBytes];
+	int32 fd;
+	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
+		*rnd = urandom_data;
+		*rnd_len = HashRandomBytes;
+	} else {
+		*rnd = nil;
+		*rnd_len = 0;
+	}
+	runtime·close(fd);
+}
+
+void
 runtime·goenvs(void)
 {
 	runtime·goenvs_unix();

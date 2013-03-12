@@ -20,6 +20,17 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	BX, g_stackguard(BP)
 	MOVL	SP, g_stackbase(BP)
 	
+	// find out information about the processor we're on
+	MOVL	$0, AX
+	CPUID
+	CMPL	AX, $0
+	JE	nocpuinfo
+	MOVL	$1, AX
+	CPUID
+	MOVL	CX, runtime·cpuid_ecx(SB)
+	MOVL	DX, runtime·cpuid_edx(SB)
+nocpuinfo:	
+
 	// if there is an _cgo_init, call it to let it
 	// initialize and to set up GS.  if not,
 	// we set up GS ourselves.
@@ -71,6 +82,7 @@ ok:
 	MOVL	AX, 4(SP)
 	CALL	runtime·args(SB)
 	CALL	runtime·osinit(SB)
+	CALL	runtime·hashinit(SB)
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
@@ -709,3 +721,261 @@ TEXT runtime·stackguard(SB),7,$0
 	RET
 
 GLOBL runtime·tls0(SB), $32
+
+// hash function using AES hardware instructions
+TEXT runtime·aeshash(SB),7,$0
+	MOVL	4(SP), DX	// ptr to hash value
+	MOVL	8(SP), CX	// size
+	MOVL	12(SP), AX	// ptr to data
+	JMP	runtime·aeshashbody(SB)
+
+TEXT runtime·aeshashstr(SB),7,$0
+	MOVL	4(SP), DX	// ptr to hash value
+	MOVL	12(SP), AX	// ptr to string struct
+	MOVL	4(AX), CX	// length of string
+	MOVL	(AX), AX	// string data
+	JMP	runtime·aeshashbody(SB)
+
+// AX: data
+// CX: length
+// DX: ptr to seed input / hash output
+TEXT runtime·aeshashbody(SB),7,$0
+	MOVL	(DX), X0	// seed to low 32 bits of xmm0
+	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+aesloop:
+	CMPL	CX, $16
+	JB	aesloopend
+	MOVOU	(AX), X1
+	AESENC	X2, X0
+	AESENC	X1, X0
+	SUBL	$16, CX
+	ADDL	$16, AX
+	JMP	aesloop
+aesloopend:
+	TESTL	CX, CX
+	JE	finalize	// no partial block
+
+	TESTL	$16, AX
+	JNE	highpartial
+
+	// address ends in 0xxxx.  16 bytes loaded
+	// at this address won't cross a page boundary, so
+	// we can load it directly.
+	MOVOU	(AX), X1
+	ADDL	CX, CX
+	PAND	masks(SB)(CX*8), X1
+	JMP	partial
+highpartial:
+	// address ends in 1xxxx.  Might be up against
+	// a page boundary, so load ending at last byte.
+	// Then shift bytes down using pshufb.
+	MOVOU	-16(AX)(CX*1), X1
+	ADDL	CX, CX
+	PSHUFB	shifts(SB)(CX*8), X1
+partial:
+	// incorporate partial block into hash
+	AESENC	X3, X0
+	AESENC	X1, X0
+finalize:	
+	// finalize hash
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVL	X0, (DX)
+	RET
+
+TEXT runtime·aeshash32(SB),7,$0
+	MOVL	4(SP), DX	// ptr to hash value
+	MOVL	12(SP), AX	// ptr to data
+	MOVL	(DX), X0	// seed
+	PINSRD	$1, (AX), X0	// data
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVL	X0, (DX)
+	RET
+
+TEXT runtime·aeshash64(SB),7,$0
+	MOVL	4(SP), DX	// ptr to hash value
+	MOVL	12(SP), AX	// ptr to data
+	MOVQ	(AX), X0	// data
+	PINSRD	$2, (DX), X0	// seed
+	MOVOU	runtime·aeskeysched+0(SB), X2
+	MOVOU	runtime·aeskeysched+16(SB), X3
+	AESENC	X2, X0
+	AESENC	X3, X0
+	AESENC	X2, X0
+	MOVL	X0, (DX)
+	RET
+
+
+// simple mask to get rid of data in the high part of the register.
+TEXT masks(SB),7,$0
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0x000000ff
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0x0000ffff
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0x00ffffff
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0x000000ff
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0x0000ffff
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0x00ffffff
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x000000ff
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x0000ffff
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x00ffffff
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x00000000
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x000000ff
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x0000ffff
+	
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0x00ffffff
+
+	// these are arguments to pshufb.  They move data down from
+	// the high bytes of the register to the low bytes of the register.
+	// index is how many bytes to move.
+TEXT shifts(SB),7,$0
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	LONG $0x00000000
+	
+	LONG $0xffffff0f
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0xffff0f0e
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0xff0f0e0d
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0f0e0d0c
+	LONG $0xffffffff
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0e0d0c0b
+	LONG $0xffffff0f
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0d0c0b0a
+	LONG $0xffff0f0e
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0c0b0a09
+	LONG $0xff0f0e0d
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0b0a0908
+	LONG $0x0f0e0d0c
+	LONG $0xffffffff
+	LONG $0xffffffff
+	
+	LONG $0x0a090807
+	LONG $0x0e0d0c0b
+	LONG $0xffffff0f
+	LONG $0xffffffff
+	
+	LONG $0x09080706
+	LONG $0x0d0c0b0a
+	LONG $0xffff0f0e
+	LONG $0xffffffff
+	
+	LONG $0x08070605
+	LONG $0x0c0b0a09
+	LONG $0xff0f0e0d
+	LONG $0xffffffff
+	
+	LONG $0x07060504
+	LONG $0x0b0a0908
+	LONG $0x0f0e0d0c
+	LONG $0xffffffff
+	
+	LONG $0x06050403
+	LONG $0x0a090807
+	LONG $0x0e0d0c0b
+	LONG $0xffffff0f
+	
+	LONG $0x05040302
+	LONG $0x09080706
+	LONG $0x0d0c0b0a
+	LONG $0xffff0f0e
+	
+	LONG $0x04030201
+	LONG $0x08070605
+	LONG $0x0c0b0a09
+	LONG $0xff0f0e0d
+

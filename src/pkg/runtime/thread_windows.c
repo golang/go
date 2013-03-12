@@ -11,6 +11,9 @@
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
 #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
 #pragma dynimport runtime·CreateWaitableTimer CreateWaitableTimerA "kernel32.dll"
+#pragma dynimport runtime·CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
+#pragma dynimport runtime·CryptGenRandom CryptGenRandom "advapi32.dll"
+#pragma dynimport runtime·CryptReleaseContext CryptReleaseContext "advapi32.dll"
 #pragma dynimport runtime·DuplicateHandle DuplicateHandle "kernel32.dll"
 #pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
 #pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
@@ -39,6 +42,9 @@ extern void *runtime·CloseHandle;
 extern void *runtime·CreateEvent;
 extern void *runtime·CreateThread;
 extern void *runtime·CreateWaitableTimer;
+extern void *runtime·CryptAcquireContextW;
+extern void *runtime·CryptGenRandom;
+extern void *runtime·CryptReleaseContext;
 extern void *runtime·DuplicateHandle;
 extern void *runtime·ExitProcess;
 extern void *runtime·FreeEnvironmentStringsW;
@@ -79,6 +85,24 @@ runtime·osinit(void)
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
 	runtime·ncpu = getproccount();
+}
+
+void
+runtime·get_random_data(byte **rnd, int32 *rnd_len)
+{
+	uintptr handle;
+	*rnd = nil;
+	*rnd_len = 0;
+	if(runtime·stdcall(runtime·CryptAcquireContextW, 5, &handle, nil, nil,
+			   (uintptr)1 /* PROV_RSA_FULL */,
+			   (uintptr)0xf0000000U /* CRYPT_VERIFYCONTEXT */) != 0) {
+		static byte random_data[HashRandomBytes];
+		if(runtime·stdcall(runtime·CryptGenRandom, 3, handle, (uintptr)HashRandomBytes, random_data)) {
+			*rnd = random_data;
+			*rnd_len = HashRandomBytes;
+		}
+		runtime·stdcall(runtime·CryptReleaseContext, 2, handle, (uintptr)0);
+	}
 }
 
 void

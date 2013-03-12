@@ -47,6 +47,7 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	R1, 8(R13)
 	BL	runtime·args(SB)
 	BL	runtime·osinit(SB)
+	BL	runtime·hashinit(SB)
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
@@ -489,3 +490,17 @@ TEXT runtime·stackguard(SB),7,$0
 	MOVW	R1, sp+0(FP)
 	MOVW	R2, limit+4(FP)
 	RET
+
+// not implemented for ARM
+TEXT runtime·aeshash(SB),7,$-4
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash32(SB),7,$-4
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshash64(SB),7,$-4
+	MOVW	$0, R0
+	MOVW	(R0), R1
+TEXT runtime·aeshashstr(SB),7,$-4
+	MOVW	$0, R0
+	MOVW	(R0), R1

@@ -22,6 +22,21 @@ TEXT runtime·exit1(SB),7,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
+TEXT runtime·open(SB),7,$-4
+	MOVL	$5, AX
+	INT	$0x80
+	RET
+
+TEXT runtime·close(SB),7,$-4
+	MOVL	$6, AX
+	INT	$0x80
+	RET
+
+TEXT runtime·read(SB),7,$-4
+	MOVL	$3, AX
+	INT	$0x80
+	RET
+
 TEXT runtime·write(SB),7,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80

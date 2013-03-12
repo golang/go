@@ -9,10 +9,6 @@
 
 extern SigTab runtime·sigtab[];
 
-int32 runtime·open(uint8*, int32, int32);
-int32 runtime·close(int32);
-int32 runtime·read(int32, void*, int32);
-
 static Sigset sigset_none;
 static Sigset sigset_all = { ~(uint32)0, ~(uint32)0 };
 
@@ -162,6 +158,32 @@ void
 runtime·osinit(void)
 {
 	runtime·ncpu = getproccount();
+}
+
+// Random bytes initialized at startup.  These come
+// from the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.c).
+byte*	runtime·startup_random_data;
+uint32	runtime·startup_random_data_len;
+
+void
+runtime·get_random_data(byte **rnd, int32 *rnd_len)
+{
+	if(runtime·startup_random_data != nil) {
+		*rnd = runtime·startup_random_data;
+		*rnd_len = runtime·startup_random_data_len;
+	} else {
+		static byte urandom_data[HashRandomBytes];
+		int32 fd;
+		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+		if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
+			*rnd = urandom_data;
+			*rnd_len = HashRandomBytes;
+		} else {
+			*rnd = nil;
+			*rnd_len = 0;
+		}
+		runtime·close(fd);
+	}
 }
 
 void
