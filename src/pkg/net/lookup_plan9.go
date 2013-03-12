@@ -7,7 +7,6 @@ package net
 import (
 	"errors"
 	"os"
-	"syscall"
 )
 
 func query(filename, query string, bufSize int) (res []string, err error) {
@@ -70,9 +69,26 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 	return query("/net/dns", addr+" "+typ, 1024)
 }
 
+// lookupProtocol looks up IP protocol name and returns
+// the corresponding protocol number.
 func lookupProtocol(name string) (proto int, err error) {
-	// TODO: Implement this
-	return 0, syscall.EPLAN9
+	lines, err := query("/net/cs", "!protocol="+name, 128)
+	if err != nil {
+		return 0, err
+	}
+	unknownProtoError := errors.New("unknown IP protocol specified: " + name)
+	if len(lines) == 0 {
+		return 0, unknownProtoError
+	}
+	f := getFields(lines[0])
+	if len(f) < 2 {
+		return 0, unknownProtoError
+	}
+	s := f[1]
+	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
+		return n, nil
+	}
+	return 0, unknownProtoError
 }
 
 func lookupHost(host string) (addrs []string, err error) {
