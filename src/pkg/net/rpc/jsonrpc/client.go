@@ -83,7 +83,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) error {
 
 	r.Error = ""
 	r.Seq = c.resp.Id
-	if c.resp.Error != nil {
+	if c.resp.Error != nil || c.resp.Result == nil {
 		x, ok := c.resp.Error.(string)
 		if !ok {
 			return fmt.Errorf("invalid error %v", c.resp.Error)

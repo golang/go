@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/rpc"
 	"testing"
@@ -183,6 +184,22 @@ func TestMalformedInput(t *testing.T) {
 	cli, srv := net.Pipe()
 	go cli.Write([]byte(`{id:1}`)) // invalid json
 	ServeConn(srv)                 // must return, not loop
+}
+
+func TestMalformedOutput(t *testing.T) {
+	cli, srv := net.Pipe()
+	go srv.Write([]byte(`{"id":0,"result":null,"error":null}`))
+	go ioutil.ReadAll(srv)
+
+	client := NewClient(cli)
+	defer client.Close()
+
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err := client.Call("Arith.Add", args, reply)
+	if err == nil {
+		t.Error("expected error")
+	}
 }
 
 func TestUnexpectedError(t *testing.T) {
