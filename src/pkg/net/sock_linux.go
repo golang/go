@@ -21,5 +21,11 @@ func maxListenerBacklog() int {
 	if n == 0 || !ok {
 		return syscall.SOMAXCONN
 	}
+	// Linux stores the backlog in a uint16.
+	// Truncate number to avoid wrapping.
+	// See issue 5030.
+	if n > 1<<16-1 {
+		n = 1<<16 - 1
+	}
 	return n
 }
