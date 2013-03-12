@@ -2422,7 +2422,7 @@ special case of a general situation: multiple assignment.
 <p>
 If an assignment requires multiple values on the left side,
 but one of the values will not be used by the program,
-a blank identifier on the left-hand-side of the
+a blank identifier on the left-hand-side of
 the assignment avoids the need
 to create a dummy variable and makes it clear that the
 value is to be discarded.
@@ -2893,18 +2893,26 @@ means waiting until some receiver has retrieved a value.
 <p>
 A buffered channel can be used like a semaphore, for instance to
 limit throughput.  In this example, incoming requests are passed
-to <code>handle</code>, which sends a value into the channel, processes
-the request, and then receives a value from the channel.
+to <code>handle</code>, which receives a value from the channel, processes
+the request, and then sends a value back to the channel
+to ready the "semaphore" for the next consumer.
 The capacity of the channel buffer limits the number of
-simultaneous calls to <code>process</code>.
+simultaneous calls to <code>process</code>,
+so during initialization we prime the channel by filling it to capacity.
 </p>
 <pre>
 var sem = make(chan int, MaxOutstanding)
 
 func handle(r *Request) {
-    sem &lt;- 1    // Wait for active queue to drain.
-    process(r)  // May take a long time.
-    &lt;-sem       // Done; enable next request to run.
+    &lt;-sem          // Wait for active queue to drain.
+    process(r)     // May take a long time.
+    sem &lt;- 1       // Done; enable next request to run.
+}
+
+func init() {
+    for i := 0; i < MaxOutstanding; i++ {
+        sem &lt;- 1
+    }
 }
 
 func Serve(queue chan *Request) {
@@ -2914,8 +2922,37 @@ func Serve(queue chan *Request) {
     }
 }
 </pre>
+
 <p>
-Here's the same idea implemented by starting a fixed
+Because data synchronization occurs on a receive from a channel
+(that is, the send "happens before" the receive; see
+<a href="/ref/mem">The Go Memory Model</a>),
+acquisition of the semaphore must be on a channel receive, not a send.
+</p>
+
+<p>
+This design has a problem, though: <code>Serve</code>
+creates a new goroutine for
+every incoming request, even though only <code>MaxOutstanding</code>
+of them can run at any moment.
+As a result, the program can consume unlimited resources if the requests come in too fast.
+We can address that deficiency by changing <code>Serve</code> to
+gate the creation of the goroutines.
+</p>
+
+<pre>
+func Serve(queue chan *Request) {
+    for req := range queue {
+        &lt;-sem
+        go func() {
+            process(req)
+            sem &lt;- 1
+        }
+    }
+}</pre>
+
+<p>
+Another solution that manages resources well is to start a fixed
 number of <code>handle</code> goroutines all reading from the request
 channel.
 The number of goroutines limits the number of simultaneous
@@ -2924,6 +2961,7 @@ This <code>Serve</code> function also accepts a channel on which
 it will be told to exit; after launching the goroutines it blocks
 receiving from that channel.
 </p>
+
 <pre>
 func handle(queue chan *Request) {
     for r := range queue {
