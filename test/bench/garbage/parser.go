@@ -205,7 +205,6 @@ var packages = []string{
 	"go/printer",
 	"go/scanner",
 	"go/token",
-	"go/types",
 	"hash",
 	"hash/adler32",
 	"hash/crc32",
