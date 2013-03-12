@@ -267,6 +267,38 @@ func TestNewRequestContentLength(t *testing.T) {
 	}
 }
 
+var parseHTTPVersionTests = []struct {
+	vers         string
+	major, minor int
+	ok           bool
+}{
+	{"HTTP/0.9", 0, 9, true},
+	{"HTTP/1.0", 1, 0, true},
+	{"HTTP/1.1", 1, 1, true},
+	{"HTTP/3.14", 3, 14, true},
+
+	{"HTTP", 0, 0, false},
+	{"HTTP/one.one", 0, 0, false},
+	{"HTTP/1.1/", 0, 0, false},
+	{"HTTP/-1,0", 0, 0, false},
+	{"HTTP/0,-1", 0, 0, false},
+	{"HTTP/", 0, 0, false},
+	{"HTTP/1,1", 0, 0, false},
+}
+
+func TestParseHTTPVersion(t *testing.T) {
+	for _, tt := range parseHTTPVersionTests {
+		major, minor, ok := ParseHTTPVersion(tt.vers)
+		if ok != tt.ok || major != tt.major || minor != tt.minor {
+			type version struct {
+				major, minor int
+				ok           bool
+			}
+			t.Errorf("failed to parse %q, expected: %#v, got %#v", tt.vers, version{tt.major, tt.minor, tt.ok}, version{major, minor, ok})
+		}
+	}
+}
+
 type logWrites struct {
 	t   *testing.T
 	dst *[]string
