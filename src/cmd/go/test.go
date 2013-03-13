@@ -81,6 +81,11 @@ var helpTestflag = &Command{
 The 'go test' command takes both flags that apply to 'go test' itself
 and flags that apply to the resulting test binary.
 
+Several of the flags control profiling and write an execution profile
+suitable for "go tool pprof"; run "go tool pprof help" for more
+information.  The --alloc_space, --alloc_objects, and --show_bytes
+options of pprof control how the information is presented.
+
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
 
@@ -118,8 +123,8 @@ control the execution of any test:
 	    Write a CPU profile to the specified file before exiting.
 
 	-memprofile mem.out
-	    Write a memory profile to the specified file when all tests
-	    are complete.
+	    Write a memory profile to the specified file after all tests
+	    have passed.
 
 	-memprofilerate n
 	    Enable more precise (and expensive) memory profiles by setting
