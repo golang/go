@@ -16,11 +16,11 @@ import (
 
 var connTests = []struct {
 	net  string
-	addr string
+	addr func() string
 }{
-	{"tcp", "127.0.0.1:0"},
-	{"unix", testUnixAddr()},
-	{"unixpacket", testUnixAddr()},
+	{"tcp", func() string { return "127.0.0.1:0" }},
+	{"unix", testUnixAddr},
+	{"unixpacket", testUnixAddr},
 }
 
 // someTimeout is used just to test that net.Conn implementations
@@ -41,7 +41,8 @@ func TestConnAndListener(t *testing.T) {
 			}
 		}
 
-		ln, err := Listen(tt.net, tt.addr)
+		addr := tt.addr()
+		ln, err := Listen(tt.net, addr)
 		if err != nil {
 			t.Fatalf("Listen failed: %v", err)
 		}
@@ -51,7 +52,7 @@ func TestConnAndListener(t *testing.T) {
 			case "unix", "unixpacket":
 				os.Remove(addr)
 			}
-		}(ln, tt.net, tt.addr)
+		}(ln, tt.net, addr)
 		ln.Addr()
 
 		done := make(chan int)

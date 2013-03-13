@@ -15,14 +15,20 @@ import (
 	"time"
 )
 
+func strfunc(s string) func() string {
+	return func() string {
+		return s
+	}
+}
+
 var packetConnTests = []struct {
 	net   string
-	addr1 string
-	addr2 string
+	addr1 func() string
+	addr2 func() string
 }{
-	{"udp", "127.0.0.1:0", "127.0.0.1:0"},
-	{"ip:icmp", "127.0.0.1", "127.0.0.1"},
-	{"unixgram", testUnixAddr(), testUnixAddr()},
+	{"udp", strfunc("127.0.0.1:0"), strfunc("127.0.0.1:0")},
+	{"ip:icmp", strfunc("127.0.0.1"), strfunc("127.0.0.1")},
+	{"unixgram", testUnixAddr, testUnixAddr},
 }
 
 func TestPacketConn(t *testing.T) {
@@ -70,21 +76,22 @@ func TestPacketConn(t *testing.T) {
 			continue
 		}
 
-		c1, err := ListenPacket(tt.net, tt.addr1)
+		addr1, addr2 := tt.addr1(), tt.addr2()
+		c1, err := ListenPacket(tt.net, addr1)
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c1, netstr[0], addr1, addr2)
 		c1.LocalAddr()
 		c1.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 
-		c2, err := ListenPacket(tt.net, tt.addr2)
+		c2, err := ListenPacket(tt.net, addr2)
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c2, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c2, netstr[0], addr1, addr2)
 		c2.LocalAddr()
 		c2.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
@@ -152,11 +159,12 @@ func TestConnAndPacketConn(t *testing.T) {
 			continue
 		}
 
-		c1, err := ListenPacket(tt.net, tt.addr1)
+		addr1, addr2 := tt.addr1(), tt.addr2()
+		c1, err := ListenPacket(tt.net, addr1)
 		if err != nil {
 			t.Fatalf("ListenPacket failed: %v", err)
 		}
-		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+		defer closer(c1, netstr[0], addr1, addr2)
 		c1.LocalAddr()
 		c1.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
