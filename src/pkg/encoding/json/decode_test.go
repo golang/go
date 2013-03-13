@@ -1178,3 +1178,16 @@ func TestUnmarshalJSONLiteralError(t *testing.T) {
 		t.Errorf("got err = %v; want out of range error", err)
 	}
 }
+
+// Test that extra object elements in an array do not result in a
+// "data changing underfoot" error.
+// Issue 3717
+func TestSkipArrayObjects(t *testing.T) {
+	json := `[{}]`
+	var dest [0]interface{}
+
+	err := Unmarshal([]byte(json), &dest)
+	if err != nil {
+		t.Errorf("got error %q, want nil", err)
+	}
+}
