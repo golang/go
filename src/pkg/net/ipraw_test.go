@@ -337,3 +337,19 @@ func TestIPConnLocalName(t *testing.T) {
 		}
 	}
 }
+
+func TestIPConnRemoteName(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("skipping test; must be root")
+	}
+
+	raddr := &IPAddr{IP: IPv4(127, 0, 0, 10).To4()}
+	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
+	if err != nil {
+		t.Fatalf("DialIP failed: %v", err)
+	}
+	defer c.Close()
+	if !reflect.DeepEqual(raddr, c.RemoteAddr()) {
+		t.Fatalf("got %#v, expected %#v", c.RemoteAddr(), raddr)
+	}
+}
