@@ -65,7 +65,7 @@ TYPES
 
 */}}{{with $.Notes}}
 {{range $marker, $content := .}}
-{{noteTitle $marker}}s
+{{$marker}}S
 
 {{range $content}}{{comment_text . "    " "\t"}}
 {{end}}{{end}}{{end}}{{end}}{{/*
