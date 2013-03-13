@@ -4417,11 +4417,9 @@ sub MapToSymbols {
     $cmd = "$addr2line --demangle -f -C -e $image";
   }
 
-  if (system("$addr2line --help >/dev/null 2>&1") != 0) {
-    # addr2line must not exist.  Fall back to go tool addr2line.
-    $addr2line = "go tool addr2line";
-    $cmd = "$addr2line $image";
-  }
+  # Use the go version because we know it works on all platforms
+  $addr2line = "go tool addr2line";
+  $cmd = "$addr2line $image";
 
   # If "addr2line" isn't installed on the system at all, just use
   # nm to get what info we can (function names, but not line numbers).
