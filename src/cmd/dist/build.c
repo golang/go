@@ -1046,7 +1046,7 @@ out:
 static bool
 matchfield(char *f)
 {
-	return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap");
+	return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
 }
 
 // shouldbuild reports whether we should build this file.

@@ -27,15 +27,31 @@ import (
 
 // A Context specifies the supporting context for a build.
 type Context struct {
-	GOARCH      string   // target architecture
-	GOOS        string   // target operating system
-	GOROOT      string   // Go root
-	GOPATH      string   // Go path
-	CgoEnabled  bool     // whether cgo can be used
-	BuildTags   []string // additional tags to recognize in +build lines
-	InstallTag  string   // package install directory suffix
-	UseAllFiles bool     // use files regardless of +build lines, file names
-	Compiler    string   // compiler to assume when computing target paths
+	GOARCH      string // target architecture
+	GOOS        string // target operating system
+	GOROOT      string // Go root
+	GOPATH      string // Go path
+	CgoEnabled  bool   // whether cgo can be used
+	UseAllFiles bool   // use files regardless of +build lines, file names
+	Compiler    string // compiler to assume when computing target paths
+
+	// The build and release tags specify build constraints
+	// that should be considered satisfied when processing +build lines.
+	// Clients creating a new context may customize BuildTags, which
+	// defaults to empty, but it is usually an error to customize ReleaseTags,
+	// which defaults to the list of Go releases the current release is compatible with.
+	// In addition to the BuildTags and ReleaseTags, build constraints
+	// consider the values of GOARCH and GOOS as satisfied tags.
+	BuildTags   []string
+	ReleaseTags []string
+
+	// The install suffix specifies a suffix to use in the name of the installation
+	// directory. By default it is empty, but custom builds that need to keep
+	// their outputs separate can set InstallSuffix to do so. For example, when
+	// using the race detector, the go command uses InstallSuffix = "race", so
+	// that on a Linux/386 system, packages are written to a directory named
+	// "linux_386_race" instead of the usual "linux_386".
+	InstallSuffix string
 
 	// By default, Import uses the operating system's file system calls
 	// to read directories and files.  To read from other sources,
@@ -267,6 +283,17 @@ func defaultContext() Context {
 	c.GOPATH = envOr("GOPATH", "")
 	c.Compiler = runtime.Compiler
 
+	// Each major Go release in the Go 1.x series should add a tag here.
+	// Old tags should not be removed. That is, the go1.x tag is present
+	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
+	// say "+build go1.x", and code that should only be built before Go 1.x
+	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+	//
+	// When we reach Go 1.3 the line will read
+	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3"}
+	// and so on.
+	c.ReleaseTags = []string{"go1.1"}
+
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
 		c.CgoEnabled = true
@@ -397,11 +424,11 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		dir, elem := pathpkg.Split(p.ImportPath)
 		pkga = "pkg/gccgo/" + dir + "lib" + elem + ".a"
 	case "gc":
-		tag := ""
-		if ctxt.InstallTag != "" {
-			tag = "_" + ctxt.InstallTag
+		suffix := ""
+		if ctxt.InstallSuffix != "" {
+			suffix = "_" + ctxt.InstallSuffix
 		}
-		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + tag + "/" + p.ImportPath + ".a"
+		pkga = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix + "/" + p.ImportPath + ".a"
 	default:
 		// Save error for end of function.
 		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)
@@ -970,8 +997,8 @@ func splitQuoted(s string) (r []string, err error) {
 //	!cgo (if cgo is disabled)
 //	ctxt.Compiler
 //	!ctxt.Compiler
-//	tag (if tag is listed in ctxt.BuildTags)
-//	!tag (if tag is not listed in ctxt.BuildTags)
+//	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+//	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
 //	a comma-separated list of any of these
 //
 func (ctxt *Context) match(name string) bool {
@@ -989,10 +1016,10 @@ func (ctxt *Context) match(name string) bool {
 		return len(name) > 1 && !ctxt.match(name[1:])
 	}
 
-	// Tags must be letters, digits, underscores.
+	// Tags must be letters, digits, underscores or dots.
 	// Unlike in Go identifiers, all digits are fine (e.g., "386").
 	for _, c := range name {
-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
 			return false
 		}
 	}
@@ -1007,6 +1034,11 @@ func (ctxt *Context) match(name string) bool {
 
 	// other tags
 	for _, tag := range ctxt.BuildTags {
+		if tag == name {
+			return true
+		}
+	}
+	for _, tag := range ctxt.ReleaseTags {
 		if tag == name {
 			return true
 		}
