@@ -126,6 +126,70 @@ type printer struct {
 	depth      int
 	indentedIn bool
 	putNewline bool
+	attrNS     map[string]string // map prefix -> name space
+	attrPrefix map[string]string // map name space -> prefix
+}
+
+// createAttrPrefix finds the name space prefix attribute to use for the given name space,
+// defining a new prefix if necessary. It returns the prefix and whether it is new.
+func (p *printer) createAttrPrefix(url string) (prefix string, isNew bool) {
+	if prefix = p.attrPrefix[url]; prefix != "" {
+		return prefix, false
+	}
+
+	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
+	// and must be referred to that way.
+	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
+	// but users should not be trying to use that one directly - that's our job.)
+	if url == xmlURL {
+		return "xml", false
+	}
+
+	// Need to define a new name space.
+	if p.attrPrefix == nil {
+		p.attrPrefix = make(map[string]string)
+		p.attrNS = make(map[string]string)
+	}
+
+	// Pick a name. We try to use the final element of the path
+	// but fall back to _.
+	prefix = strings.TrimRight(url, "/")
+	if i := strings.LastIndex(prefix, "/"); i >= 0 {
+		prefix = prefix[i+1:]
+	}
+	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
+		prefix = "_"
+	}
+	if strings.HasPrefix(prefix, "xml") {
+		// xmlanything is reserved.
+		prefix = "_" + prefix
+	}
+	if p.attrNS[prefix] != "" {
+		// Name is taken. Find a better one.
+		for p.seq++; ; p.seq++ {
+			if id := prefix + "_" + strconv.Itoa(p.seq); p.attrNS[id] == "" {
+				prefix = id
+				break
+			}
+		}
+	}
+
+	p.attrPrefix[url] = prefix
+	p.attrNS[prefix] = url
+
+	p.WriteString(`xmlns:`)
+	p.WriteString(prefix)
+	p.WriteString(`="`)
+	EscapeText(p, []byte(url))
+	p.WriteString(`" `)
+
+	return prefix, true
+}
+
+// deleteAttrPrefix removes an attribute name space prefix.
+func (p *printer) deleteAttrPrefix(prefix string) {
+	delete(p.attrPrefix, p.attrNS[prefix])
+	delete(p.attrNS, prefix)
 }
 
 // marshalValue writes one or more XML elements representing val.
@@ -212,17 +276,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		}
 		p.WriteByte(' ')
 		if finfo.xmlns != "" {
-			p.WriteString("xmlns:")
-			p.seq++
-			id := "_" + strconv.Itoa(p.seq)
-			p.WriteString(id)
-			p.WriteString(`="`)
-			// TODO: EscapeString, to avoid the allocation.
-			if err := EscapeText(p, []byte(finfo.xmlns)); err != nil {
-				return err
+			prefix, created := p.createAttrPrefix(finfo.xmlns)
+			if created {
+				defer p.deleteAttrPrefix(prefix)
 			}
-			p.WriteString(`" `)
-			p.WriteString(id)
+			p.WriteString(prefix)
 			p.WriteByte(':')
 		}
 		p.WriteString(finfo.name)

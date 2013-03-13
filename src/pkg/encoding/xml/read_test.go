@@ -503,6 +503,11 @@ type TableAttrs struct {
 type TAttr struct {
 	HTable string `xml:"http://www.w3.org/TR/html4/ table,attr"`
 	FTable string `xml:"http://www.w3schools.com/furniture table,attr"`
+	Lang   string `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Other1 string `xml:"http://golang.org/xml/ other,attr,omitempty"`
+	Other2 string `xml:"http://golang.org/xmlfoo/ other,attr,omitempty"`
+	Other3 string `xml:"http://golang.org/json/ other,attr,omitempty"`
+	Other4 string `xml:"http://golang.org/2/json/ other,attr,omitempty"`
 }
 
 var tableAttrs = []struct {
@@ -514,33 +519,33 @@ var tableAttrs = []struct {
 		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
 			`h:table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"hello", "world"}},
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
 	},
 	{
 		xml: `<TableAttrs><TAttr xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
 			`h:table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"hello", "world"}},
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
 	},
 	{
 		xml: `<TableAttrs><TAttr ` +
 			`h:table="hello" f:table="world" xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"hello", "world"}},
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
 	},
 	{
 		// Default space does not apply to attribute names.
 		xml: `<TableAttrs xmlns="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
 			`h:table="hello" table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"hello", ""}},
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: ""}},
 	},
 	{
 		// Default space does not apply to attribute names.
 		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr xmlns="http://www.w3.org/TR/html4/" ` +
 			`table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"", "world"}},
+		tab: TableAttrs{TAttr{HTable: "", FTable: "world"}},
 	},
 	{
 		xml: `<TableAttrs><TAttr ` +
@@ -553,7 +558,7 @@ var tableAttrs = []struct {
 		xml: `<TableAttrs xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
 			`h:table="hello" table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"hello", ""}},
+		tab: TableAttrs{TAttr{HTable: "hello", FTable: ""}},
 		ns:  "http://www.w3schools.com/furniture",
 	},
 	{
@@ -561,7 +566,7 @@ var tableAttrs = []struct {
 		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr ` +
 			`table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
-		tab: TableAttrs{TAttr{"", "world"}},
+		tab: TableAttrs{TAttr{HTable: "", FTable: "world"}},
 		ns:  "http://www.w3.org/TR/html4/",
 	},
 	{
@@ -596,14 +601,23 @@ func TestUnmarshalNSAttr(t *testing.T) {
 }
 
 func TestMarshalNSAttr(t *testing.T) {
-	dst := TableAttrs{TAttr{"hello", "world"}}
-	data, err := Marshal(&dst)
+	src := TableAttrs{TAttr{"hello", "world", "en_US", "other1", "other2", "other3", "other4"}}
+	data, err := Marshal(&src)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	want := `<TableAttrs><TAttr xmlns:_1="http://www.w3.org/TR/html4/" _1:table="hello" xmlns:_2="http://www.w3schools.com/furniture" _2:table="world"></TAttr></TableAttrs>`
+	want := `<TableAttrs><TAttr xmlns:html4="http://www.w3.org/TR/html4/" html4:table="hello" xmlns:furniture="http://www.w3schools.com/furniture" furniture:table="world" xml:lang="en_US" xmlns:_xml="http://golang.org/xml/" _xml:other="other1" xmlns:_xmlfoo="http://golang.org/xmlfoo/" _xmlfoo:other="other2" xmlns:json="http://golang.org/json/" json:other="other3" xmlns:json_1="http://golang.org/2/json/" json_1:other="other4"></TAttr></TableAttrs>`
 	str := string(data)
 	if str != want {
-		t.Errorf("have: %q\nwant: %q\n", str, want)
+		t.Errorf("Marshal:\nhave: %#q\nwant: %#q\n", str, want)
+	}
+
+	var dst TableAttrs
+	if err := Unmarshal(data, &dst); err != nil {
+		t.Errorf("Unmarshal: %v", err)
+	}
+
+	if dst != src {
+		t.Errorf("Unmarshal = %q, want %q", dst, src)
 	}
 }

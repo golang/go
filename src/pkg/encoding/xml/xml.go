@@ -273,6 +273,8 @@ func (d *Decoder) Token() (t Token, err error) {
 	return
 }
 
+const xmlURL = "http://www.w3.org/XML/1998/namespace"
+
 // Apply name space translation to name n.
 // The default name space (for Space=="")
 // applies only to element names, not to attribute names.
@@ -282,6 +284,8 @@ func (d *Decoder) translate(n *Name, isElementName bool) {
 		return
 	case n.Space == "" && !isElementName:
 		return
+	case n.Space == "xml":
+		n.Space = xmlURL
 	case n.Space == "" && n.Local == "xmlns":
 		return
 	}
