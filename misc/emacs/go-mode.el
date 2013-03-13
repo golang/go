@@ -233,6 +233,28 @@ STOP-AT-STRING is not true, over strings."
               (puthash cur-line val go-dangling-cache))))
     val))
 
+(defun go--at-function-definition ()
+  "Return non-nil if point is on the opening curly brace of a
+function definition.
+
+We do this by first calling (beginning-of-defun), which will take
+us to the start of *some* function. We then look for the opening
+curly brace of that function and compare its position against the
+curly brace we are checking. If they match, we return non-nil."
+  (if (= (char-after) ?\{)
+      (save-excursion
+        (let ((old-point (point))
+              start-nesting)
+          (beginning-of-defun)
+          (when (looking-at "func ")
+            (setq start-nesting (go-paren-level))
+            (skip-chars-forward "^{")
+            (while (> (go-paren-level) start-nesting)
+              (forward-char)
+              (skip-chars-forward "^{") 0)
+            (if (and (= (go-paren-level) start-nesting) (= old-point (point)))
+                t))))))
+
 (defun go-goto-opening-parenthesis (&optional char)
   (let ((start-nesting (go-paren-level)))
     (while (and (not (bobp))
@@ -244,6 +266,20 @@ STOP-AT-STRING is not true, over strings."
           (if (go-in-string-or-comment-p)
               (go-goto-beginning-of-string-or-comment)
             (backward-char))))))
+
+(defun go--indentation-for-opening-parenthesis ()
+  "Return the semantic indentation for the current opening parenthesis.
+
+If point is on an opening curly brace and said curly brace
+belongs to a function declaration, the indentation of the func
+keyword will be returned. Otherwise the indentation of the
+current line will be returned."
+  (save-excursion
+    (if (go--at-function-definition)
+        (progn
+          (beginning-of-defun)
+          (current-indentation))
+      (current-indentation))))
 
 (defun go-indentation-at-point ()
   (save-excursion
@@ -258,7 +294,7 @@ STOP-AT-STRING is not true, over strings."
         (go-goto-opening-parenthesis (char-after))
         (if (go-previous-line-has-dangling-op-p)
             (- (current-indentation) tab-width)
-          (current-indentation)))
+          (go--indentation-for-opening-parenthesis)))
        ((progn (go--backward-irrelevant t) (looking-back go-dangling-operators-regexp))
         ;; only one nesting for all dangling operators in one operation
         (if (go-previous-line-has-dangling-op-p)
@@ -269,7 +305,7 @@ STOP-AT-STRING is not true, over strings."
        ((progn (go-goto-opening-parenthesis) (< (go-paren-level) start-nesting))
         (if (go-previous-line-has-dangling-op-p)
             (current-indentation)
-          (+ (current-indentation) tab-width)))
+          (+ (go--indentation-for-opening-parenthesis) tab-width)))
        (t
         (current-indentation))))))
 
