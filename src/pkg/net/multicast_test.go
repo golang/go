@@ -117,7 +117,7 @@ func TestIPv6MulticastListener(t *testing.T) {
 		// routing stuff for finding out an appropriate
 		// nexthop containing both network and link layer
 		// adjacencies.
-		if ifi == nil && !*testExternal {
+		if ifi == nil && (!*testExternal || !*testIPv6) {
 			continue
 		}
 		for _, tt := range ipv6MulticastListenerTests {
