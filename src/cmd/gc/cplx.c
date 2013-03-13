@@ -36,7 +36,7 @@ void
 complexmove(Node *f, Node *t)
 {
 	int ft, tt;
-	Node n1, n2, n3, n4;
+	Node n1, n2, n3, n4, tmp;
 
 	if(debug['g']) {
 		dump("\ncomplexmove-f", f);
@@ -62,9 +62,9 @@ complexmove(Node *f, Node *t)
 		// make f addable.
 		// also use temporary if possible stack overlap.
 		if(!f->addable || overlap(f, t)) {
-			tempname(&n1, f->type);
-			complexmove(f, &n1);
-			f = &n1;
+			tempname(&tmp, f->type);
+			complexmove(f, &tmp);
+			f = &tmp;
 		}
 
 		subnode(&n1, &n2, f);
