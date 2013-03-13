@@ -15,6 +15,40 @@ import (
 	"go/scanner"
 )
 
+var Okay1 = []string{
+	"Name",
+	"Usage",
+	"DefValue",
+}
+
+var Okay2 = map[string]bool{
+	"Name":     true,
+	"Usage":    true,
+	"DefValue": true,
+}
+
+var Okay3 = struct {
+	X string
+	Y string
+	Z string
+}{
+	"Name",
+	"Usage",
+	"DefValue",
+}
+
+type MyStruct struct {
+	X string
+	Y string
+	Z string
+}
+
+var Okay4 = MyStruct{
+	"Name",
+	"Usage",
+	"DefValue",
+}
+
 // Testing is awkward because we need to reference things from a separate package
 // to trigger the warnings.
 

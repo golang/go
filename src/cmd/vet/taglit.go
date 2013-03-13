@@ -14,16 +14,47 @@ import (
 
 var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
 
-// checkUntaggedLiteral checks if a composite literal is an struct literal with
+// checkUntaggedLiteral checks if a composite literal is a struct literal with
 // untagged fields.
 func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
 	if !vet("composites") {
 		return
 	}
 
+	typ := c.Type
+	for {
+		if typ1, ok := c.Type.(*ast.ParenExpr); ok {
+			typ = typ1
+			continue
+		}
+		break
+	}
+
+	switch typ.(type) {
+	case *ast.ArrayType:
+		return
+	case *ast.MapType:
+		return
+	case *ast.StructType:
+		return // a literal struct type does not need to use tags
+	case *ast.Ident:
+		// A simple type name like t or T does not need tags either,
+		// since it is almost certainly declared in the current package.
+		// (The exception is names being used via import . "pkg", but
+		// those are already breaking the Go 1 compatibility promise,
+		// so not reporting potential additional breakage seems okay.)
+		return
+	}
+
+	// Otherwise the type is a selector like pkg.Name.
+	// We only care if pkg.Name is a struct, not if it's a map, array, or slice.
 	isStruct, typeString := f.pkg.isStruct(c)
 	if !isStruct {
 		return
+	}
+
+	if typeString == "" { // isStruct doesn't know
+		typeString = f.gofmt(typ)
 	}
 
 	// It's a struct, or we can't tell it's not a struct because we don't have types.

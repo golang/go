@@ -25,7 +25,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 }
 
 func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
-	return true, "struct" // Assume true, so we do the check.
+	return true, "" // Assume true, so we do the check.
 }
 
 func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
