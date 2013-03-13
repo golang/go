@@ -40,9 +40,13 @@ build writes the resulting executable to output.
 Otherwise build compiles the packages but discards the results,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name.  If not specified, the
-name is packagename.a (for a non-main package) or the base
-name of the first source file (for a main package).
+The -o flag specifies the output file name. If not specified, the
+output file name depends on the arguments and derives from the name
+of the package, such as p.a for package p, unless p is 'main'. If
+the package is main and file names are provided, the file name
+derives from the first file name mentioned, such as f1 for 'go build
+f1.go f2.go'; with no files provided ('go build'), the output file
+name is the base name of the containing directory.
 
 The build flags are shared by the build, install, run, and test commands:
 
@@ -53,6 +57,9 @@ The build flags are shared by the build, install, run, and test commands:
 	-p n
 		the number of builds that can be run in parallel.
 		The default is the number of CPUs available.
+	-race
+		enable data race detection.
+		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -60,20 +67,22 @@ The build flags are shared by the build, install, run, and test commands:
 		do not delete it when exiting.
 	-x
 		print the commands.
-	-race
-		enable data race detection.
-		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
 
 	-ccflags 'arg list'
-		arguments to pass on each 5c, 6c, or 8c compiler invocation
+		arguments to pass on each 5c, 6c, or 8c compiler invocation.
 	-compiler name
-		name of compiler to use, as in runtime.Compiler (gccgo or gc)
+		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags 'arg list'
-		arguments to pass on each gccgo compiler/linker invocation
+		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags 'arg list'
-		arguments to pass on each 5g, 6g, or 8g compiler invocation
+		arguments to pass on each 5g, 6g, or 8g compiler invocation.
+	-installsuffix suffix
+		a suffix to use in the name of the package installation directory,
+		in order to keep output separate from default builds.
+		If using the -race flag, the install suffix is automatically set to race
+		or, if set explicitly, has _race appended to it.
 	-ldflags 'flag list'
-		arguments to pass on each 5l, 6l, or 8l linker invocation
+		arguments to pass on each 5l, 6l, or 8l linker invocation.
 	-tags 'tag list'
 		a list of build tags to consider satisfied during the build.
 		See the documentation for the go/build package for
@@ -153,6 +162,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildA, "a", false, "")
 	cmd.Flag.BoolVar(&buildN, "n", false, "")
 	cmd.Flag.IntVar(&buildP, "p", buildP, "")
+	cmd.Flag.StringVar(&buildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.BoolVar(&buildV, "v", false, "")
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
@@ -2084,6 +2094,9 @@ func raceInit() {
 	buildGcflags = append(buildGcflags, "-race")
 	buildLdflags = append(buildLdflags, "-race")
 	buildCcflags = append(buildCcflags, "-D", "RACE")
-	buildContext.InstallTag = "race"
+	if buildContext.InstallSuffix != "" {
+		buildContext.InstallSuffix += "_"
+	}
+	buildContext.InstallSuffix += "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
 }
