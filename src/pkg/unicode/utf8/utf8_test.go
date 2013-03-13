@@ -124,7 +124,7 @@ func TestDecodeRune(t *testing.T) {
 		s := m.str
 		r, size = DecodeRuneInString(s)
 		if r != m.r || size != len(b) {
-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", s, r, size, m.r, len(b))
+			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, m.r, len(b))
 		}
 
 		// there's an extra byte that bytes left behind - make sure trailing byte works
@@ -164,7 +164,7 @@ func TestDecodeRune(t *testing.T) {
 			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, r, size, RuneError, 1)
 		}
 		s = string(b)
-		r, size = DecodeRune(b)
+		r, size = DecodeRuneInString(s)
 		if r != RuneError || size != 1 {
 			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, r, size, RuneError, 1)
 		}
@@ -182,7 +182,7 @@ func TestDecodeSurrogateRune(t *testing.T) {
 		s := m.str
 		r, size = DecodeRuneInString(s)
 		if r != RuneError || size != 1 {
-			t.Errorf("DecodeRune(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
+			t.Errorf("DecodeRuneInString(%q) = %x, %d want %x, %d", b, r, size, RuneError, 1)
 		}
 	}
 }
