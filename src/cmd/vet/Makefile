@@ -5,5 +5,8 @@
 # Assumes go/types is installed
 test testshort:
 	go build -tags 'vet_test gotypes'
-	../../../test/errchk ./vet -compositewhitelist=false -printfuncs='Warn:1,Warnf:1' *.go
+	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
 
+test_notypes:
+	go build -tags 'vet_test'
+	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
