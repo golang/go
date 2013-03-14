@@ -30,6 +30,7 @@ extern void runtime·lwp_mcontext_init(void *mc, void *stack, M *mp, G *gp, void
 extern int32 runtime·lwp_park(Timespec *abstime, int32 unpark, void *hint, void *unparkhint);
 extern int32 runtime·lwp_unpark(int32 lwp, void *hint);
 extern int32 runtime·lwp_self(void);
+extern void runtime·lwp_tramp(void);
 
 // From NetBSD's <sys/sysctl.h>
 #define	CTL_HW	6
