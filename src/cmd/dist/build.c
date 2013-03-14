@@ -1046,7 +1046,16 @@ out:
 static bool
 matchfield(char *f)
 {
-	return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
+	char *p;
+	bool res;
+
+	p = xstrrchr(f, ',');
+	if(p == nil)
+		return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
+	*p = 0;
+	res = matchfield(f) && matchfield(p+1);
+	*p = ',';
+	return res;
 }
 
 // shouldbuild reports whether we should build this file.
