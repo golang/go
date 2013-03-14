@@ -5,7 +5,6 @@
 package sql
 
 import (
-	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,10 +15,10 @@ import (
 func init() {
 	type dbConn struct {
 		db *DB
-		c  driver.Conn
+		c  *driverConn
 	}
 	freedFrom := make(map[dbConn]string)
-	putConnHook = func(db *DB, c driver.Conn) {
+	putConnHook = func(db *DB, c *driverConn) {
 		for _, oc := range db.freeConn {
 			if oc == c {
 				// print before panic, as panic may get lost due to conflicting panic
@@ -78,7 +77,7 @@ func numPrepares(t *testing.T, db *DB) int {
 	if n := len(db.freeConn); n != 1 {
 		t.Fatalf("free conns = %d; want 1", n)
 	}
-	return db.freeConn[0].(*fakeConn).numPrepare
+	return db.freeConn[0].ci.(*fakeConn).numPrepare
 }
 
 func TestQuery(t *testing.T) {
@@ -576,7 +575,7 @@ func TestQueryRowClosingStmt(t *testing.T) {
 	if len(db.freeConn) != 1 {
 		t.Fatalf("expected 1 free conn")
 	}
-	fakeConn := db.freeConn[0].(*fakeConn)
+	fakeConn := db.freeConn[0].ci.(*fakeConn)
 	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
 		t.Errorf("statement close mismatch: made %d, closed %d", made, closed)
 	}
