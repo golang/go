@@ -1,9 +1,10 @@
-// godefs -f-I/usr/src/linux-headers-2.6.26-2-versatile/include defs_arm.c
-
-// MACHINE GENERATED - DO NOT EDIT.
+// TODO: Generate using cgo like defs_linux_{386,amd64}.h
 
 // Constants
 enum {
+	ENOMEM = 0xc,
+	EAGAIN = 0xb,
+
 	PROT_NONE = 0,
 	PROT_READ = 0x1,
 	PROT_WRITE = 0x2,
