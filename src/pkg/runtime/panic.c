@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "arch_GOARCH.h"
 #include "stack.h"
+#include "malloc.h"
 
 // Code related to defer, panic and recover.
 
@@ -383,7 +384,10 @@ nomatch:
 void
 runtime·startpanic(void)
 {
-	if(m->mcache == nil)  // can happen if called from signal handler or throw
+	if(runtime·mheap == 0 || runtime·mheap->cachealloc.size == 0) { // very early
+		runtime·printf("runtime: panic before malloc heap initialized\n");
+		m->mallocing = 1; // tell rest of panic not to try to malloc
+	} else if(m->mcache == nil) // can happen if called from signal handler or throw
 		m->mcache = runtime·allocmcache();
 	if(m->dying) {
 		runtime·printf("panic during panic\n");
