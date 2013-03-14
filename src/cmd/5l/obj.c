@@ -428,6 +428,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
 	ntext = 0;
 	eof = Boffset(f) + len;
 	src[0] = 0;
+	pn = estrdup(pn); // we keep it in Sym* references
 
 newloop:
 	memset(h, 0, sizeof(h));
