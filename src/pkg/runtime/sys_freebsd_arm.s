@@ -54,11 +54,30 @@ TEXT runtime·exit1(SB),7,$-8
 	MOVW.CS R9, (R9)
 	RET
 
+TEXT runtime·open(SB),7,$-8
+	MOVW 0(FP), R0	// arg 1 name
+	MOVW 4(FP), R1	// arg 2 mode
+	MOVW 8(FP), R2	// arg 3 perm
+	SWI $5
+	RET
+
+TEXT runtime·read(SB),7,$-8
+	MOVW 0(FP), R0	// arg 1 fd
+	MOVW 4(FP), R1	// arg 2 buf
+	MOVW 8(FP), R2	// arg 3 count
+	SWI $3
+	RET
+
 TEXT runtime·write(SB),7,$-8
 	MOVW 0(FP), R0	// arg 1 fd
 	MOVW 4(FP), R1	// arg 2 buf
 	MOVW 8(FP), R2	// arg 3 count
 	SWI $4
+	RET
+
+TEXT runtime·close(SB),7,$-8
+	MOVW 0(FP), R0	// arg 1 fd
+	SWI $6
 	RET
 
 TEXT runtime·getrlimit(SB),7,$-8
