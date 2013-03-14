@@ -86,21 +86,19 @@ func (fd *netFD) connect(ra syscall.Sockaddr) error {
 	if err := fd.pd.PrepareWrite(); err != nil {
 		return err
 	}
-	err := syscall.Connect(fd.sysfd, ra)
-	if err == syscall.EINPROGRESS {
+	for {
+		err := syscall.Connect(fd.sysfd, ra)
+		if err == nil || err == syscall.EISCONN {
+			break
+		}
+		if err != syscall.EINPROGRESS && err != syscall.EALREADY && err != syscall.EINTR {
+			return err
+		}
 		if err = fd.pd.WaitWrite(); err != nil {
 			return err
 		}
-		var e int
-		e, err = syscall.GetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
-		if err != nil {
-			return os.NewSyscallError("getsockopt", err)
-		}
-		if e != 0 {
-			err = syscall.Errno(e)
-		}
 	}
-	return err
+	return nil
 }
 
 // Add a reference to this fd.
