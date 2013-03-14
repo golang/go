@@ -28,12 +28,18 @@ func newLocalListener(t *testing.T) Listener {
 }
 
 func TestDialTimeout(t *testing.T) {
+	origBacklog := listenerBacklog
+	defer func() {
+		listenerBacklog = origBacklog
+	}()
+	listenerBacklog = 1
+
 	ln := newLocalListener(t)
 	defer ln.Close()
 
 	errc := make(chan error)
 
-	numConns := listenerBacklog + 10
+	numConns := listenerBacklog + 100
 
 	// TODO(bradfitz): It's hard to test this in a portable
 	// way. This is unfortunate, but works for now.
