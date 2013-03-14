@@ -516,7 +516,7 @@ runtime·settype_flush(M *mp, bool sysalloc)
 			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
 
 			if(!sysalloc) {
-				data3 = runtime·mallocgc(nbytes3, FlagNoPointers, 0, 1);
+				data3 = runtime·mallocgc(nbytes3, FlagNoProfiling|FlagNoPointers, 0, 1);
 			} else {
 				data3 = runtime·SysAlloc(nbytes3);
 				if(data3 == nil)
@@ -554,7 +554,7 @@ runtime·settype_flush(M *mp, bool sysalloc)
 				nbytes2 = ntypes * sizeof(uintptr);
 
 				if(!sysalloc) {
-					data2 = runtime·mallocgc(nbytes2, FlagNoPointers, 0, 1);
+					data2 = runtime·mallocgc(nbytes2, FlagNoProfiling|FlagNoPointers, 0, 1);
 				} else {
 					data2 = runtime·SysAlloc(nbytes2);
 					if(data2 == nil)
