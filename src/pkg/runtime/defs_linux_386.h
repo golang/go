@@ -1,8 +1,12 @@
 // Created by cgo -cdefs - DO NOT EDIT
-// cgo -cdefs defs2.go
+// cgo -cdefs defs2_linux.go
 
 
 enum {
+	EINTR	= 0x4,
+	EAGAIN	= 0xb,
+	ENOMEM	= 0xc,
+
 	PROT_NONE	= 0x0,
 	PROT_READ	= 0x1,
 	PROT_WRITE	= 0x2,
@@ -72,6 +76,17 @@ enum {
 
 	O_RDONLY	= 0x0,
 	O_CLOEXEC	= 0x80000,
+
+	EPOLLIN		= 0x1,
+	EPOLLOUT	= 0x4,
+	EPOLLERR	= 0x8,
+	EPOLLHUP	= 0x10,
+	EPOLLRDHUP	= 0x2000,
+	EPOLLET		= -0x80000000,
+	EPOLL_CLOEXEC	= 0x80000,
+	EPOLL_CTL_ADD	= 0x1,
+	EPOLL_CTL_DEL	= 0x2,
+	EPOLL_CTL_MOD	= 0x3,
 };
 
 typedef struct Fpreg Fpreg;
@@ -86,6 +101,7 @@ typedef struct Sigaltstack Sigaltstack;
 typedef struct Sigcontext Sigcontext;
 typedef struct Ucontext Ucontext;
 typedef struct Itimerval Itimerval;
+typedef struct EpollEvent EpollEvent;
 
 #pragma pack on
 
@@ -185,6 +201,10 @@ struct Ucontext {
 struct Itimerval {
 	Timeval	it_interval;
 	Timeval	it_value;
+};
+struct EpollEvent {
+	uint32	events;
+	uint64	data;
 };
 
 

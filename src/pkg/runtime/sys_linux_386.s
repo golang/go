@@ -430,3 +430,46 @@ TEXT runtime·sched_getaffinity(SB),7,$0
 	MOVL	12(SP), DX
 	CALL	*runtime·_vdso(SB)
 	RET
+
+// int32 runtime·epollcreate(int32 size);
+TEXT runtime·epollcreate(SB),7,$0
+	MOVL    $254, AX
+	MOVL	4(SP), BX
+	CALL	*runtime·_vdso(SB)
+	RET
+
+// int32 runtime·epollcreate1(int32 flags);
+TEXT runtime·epollcreate1(SB),7,$0
+	MOVL    $329, AX
+	MOVL	4(SP), BX
+	CALL	*runtime·_vdso(SB)
+	RET
+
+// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+TEXT runtime·epollctl(SB),7,$0
+	MOVL	$255, AX
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	MOVL	16(SP), SI
+	CALL	*runtime·_vdso(SB)
+	RET
+
+// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+TEXT runtime·epollwait(SB),7,$0
+	MOVL	$256, AX
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	MOVL	16(SP), SI
+	CALL	*runtime·_vdso(SB)
+	RET
+
+// void runtime·closeonexec(int32 fd);
+TEXT runtime·closeonexec(SB),7,$0
+	MOVL	$55, AX  // fcntl
+	MOVL	4(SP), BX  // fd
+	MOVL	$2, CX  // F_SETFD
+	MOVL	$1, DX  // FD_CLOEXEC
+	CALL	*runtime·_vdso(SB)
+	RET

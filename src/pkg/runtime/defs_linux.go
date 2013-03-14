@@ -7,7 +7,7 @@
 /*
 Input to cgo -cdefs
 
-GOARCH=amd64 cgo -cdefs defs.go defs1.go >amd64/defs.h
+GOARCH=amd64 go tool cgo -cdefs defs_linux.go defs1_linux.go >defs_linux_amd64.h
 */
 
 package runtime
@@ -25,10 +25,17 @@ package runtime
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 #include <asm/mman.h>
+#include <asm-generic/errno.h>
+#include <asm-generic/poll.h>
+#include <linux/eventpoll.h>
 */
 import "C"
 
 const (
+	EINTR  = C.EINTR
+	EAGAIN = C.EAGAIN
+	ENOMEM = C.ENOMEM
+
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
 	PROT_WRITE = C.PROT_WRITE
@@ -95,6 +102,17 @@ const (
 	ITIMER_REAL    = C.ITIMER_REAL
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 	ITIMER_PROF    = C.ITIMER_PROF
+
+	EPOLLIN       = C.POLLIN
+	EPOLLOUT      = C.POLLOUT
+	EPOLLERR      = C.POLLERR
+	EPOLLHUP      = C.POLLHUP
+	EPOLLRDHUP    = C.POLLRDHUP
+	EPOLLET       = C.EPOLLET
+	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
+	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
+	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
+	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
 )
 
 type Timespec C.struct_timespec
@@ -102,3 +120,4 @@ type Timeval C.struct_timeval
 type Sigaction C.struct_sigaction
 type Siginfo C.siginfo_t
 type Itimerval C.struct_itimerval
+type EpollEvent C.struct_epoll_event

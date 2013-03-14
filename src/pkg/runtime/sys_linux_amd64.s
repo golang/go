@@ -347,3 +347,46 @@ TEXT runtime·sched_getaffinity(SB),7,$0
 	MOVL	$204, AX			// syscall entry
 	SYSCALL
 	RET
+
+// int32 runtime·epollcreate(int32 size);
+TEXT runtime·epollcreate(SB),7,$0
+	MOVL    8(SP), DI
+	MOVL    $213, AX                        // syscall entry
+	SYSCALL
+	RET
+
+// int32 runtime·epollcreate1(int32 flags);
+TEXT runtime·epollcreate1(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	$291, AX			// syscall entry
+	SYSCALL
+	RET
+
+// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+TEXT runtime·epollctl(SB),7,$0
+	MOVL	8(SP), DI
+	MOVL	12(SP), SI
+	MOVL	16(SP), DX
+	MOVQ	24(SP), R10
+	MOVL	$233, AX			// syscall entry
+	SYSCALL
+	RET
+
+// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+TEXT runtime·epollwait(SB),7,$0
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	28(SP), R10
+	MOVL	$232, AX			// syscall entry
+	SYSCALL
+	RET
+
+// void runtime·closeonexec(int32 fd);
+TEXT runtime·closeonexec(SB),7,$0
+	MOVL    8(SP), DI  // fd
+	MOVQ    $2, SI  // F_SETFD
+	MOVQ    $1, DX  // FD_CLOEXEC
+	MOVL	$72, AX  // fcntl
+	SYSCALL
+	RET

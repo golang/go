@@ -10,8 +10,6 @@
 
 enum
 {
-	EAGAIN = 11,
-	ENOMEM = 12,
 	_PAGE_SIZE = 4096,
 };
 
