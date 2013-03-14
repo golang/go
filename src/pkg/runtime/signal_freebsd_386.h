@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SIG_REGS(ctxt) (*((Ucontext*)(ctxt))->uc_mcontext)
+#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
 
 #define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
 #define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
