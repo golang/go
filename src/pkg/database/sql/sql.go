@@ -258,13 +258,15 @@ func (db *DB) removeDep(x finalCloser, dep interface{}) error {
 //
 // Most users will open a database via a driver-specific connection
 // helper function that returns a *DB.
+//
+// Open may just validate its arguments without creating a connection
+// to the database. To verify that the data source name is valid, call
+// Ping.
 func Open(driverName, dataSourceName string) (*DB, error) {
 	driveri, ok := drivers[driverName]
 	if !ok {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
-	// TODO: optionally proactively connect to a Conn to check
-	// the dataSourceName: golang.org/issue/4804
 	db := &DB{
 		driver:    driveri,
 		dsn:       dataSourceName,
@@ -273,6 +275,20 @@ func Open(driverName, dataSourceName string) (*DB, error) {
 		onConnPut: make(map[driver.Conn][]func()),
 	}
 	return db, nil
+}
+
+// Ping verifies a connection to the database is still alive,
+// establishing a connection if necessary.
+func (db *DB) Ping() error {
+	// TODO(bradfitz): give drivers an optional hook to implement
+	// this in a more efficient or more reliable way, if they
+	// have one.
+	c, err := db.conn()
+	if err != nil {
+		return err
+	}
+	db.putConn(c, nil)
+	return nil
 }
 
 // Close closes the database, releasing any open resources.
