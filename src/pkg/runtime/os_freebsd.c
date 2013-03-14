@@ -4,6 +4,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "signal_unix.h"
 #include "stack.h"
 
 extern SigTab runtime·sigtab[];
@@ -256,4 +257,59 @@ runtime·badsignal(int32 sig)
 	}
 	runtime·write(2, "\n", 1);
 	runtime·exit(1);
+}
+
+extern void runtime·sigtramp(void);
+
+typedef struct sigaction {
+	union {
+		void    (*__sa_handler)(int32);
+		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+	} __sigaction_u;		/* signal handler */
+	int32	sa_flags;		/* see signal options below */
+	Sigset	sa_mask;		/* signal mask to apply */
+} Sigaction;
+
+void
+runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+	if(restart)
+		sa.sa_flags |= SA_RESTART;
+	sa.sa_mask.__bits[0] = ~(uint32)0;
+	sa.sa_mask.__bits[1] = ~(uint32)0;
+	sa.sa_mask.__bits[2] = ~(uint32)0;
+	sa.sa_mask.__bits[3] = ~(uint32)0;
+	if(fn == runtime·sighandler)
+		fn = (void*)runtime·sigtramp;
+	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+	runtime·sigaction(i, &sa, nil);
+}
+
+GoSighandler*
+runtime·getsig(int32 i)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	runtime·sigaction(i, nil, &sa);
+	if((void*)sa.__sigaction_u.__sa_sigaction == runtime·sigtramp)
+		return runtime·sighandler;
+	return (void*)sa.__sigaction_u.__sa_sigaction;
+}
+
+void
+runtime·signalstack(byte *p, int32 n)
+{
+	StackT st;
+
+	st.ss_sp = (void*)p;
+	st.ss_size = n;
+	st.ss_flags = 0;
+	if(p == nil)
+		st.ss_flags = SS_DISABLE;
+	runtime·sigaltstack(&st, nil);
 }

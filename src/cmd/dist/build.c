@@ -794,6 +794,9 @@ install(char *dir)
 			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
 		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
 			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
+		p = bpathf(&b1, "%s/signal_%s_%s.h", bstr(&path), goos, goarch);
+		if(isfile(p))
+			copy(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
 		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
 			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
