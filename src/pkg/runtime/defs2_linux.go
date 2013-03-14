@@ -7,7 +7,7 @@
 /*
  * Input to cgo -cdefs
 
-GOARCH=386 cgo -cdefs defs2.go >386/defs.h
+GOARCH=386 go tool cgo -cdefs defs2_linux.go >defs_linux_386.h
 
 The asm header tricks we have to use for Linux on amd64
 (see defs.c and defs1.c) don't work here, so this is yet another
@@ -17,15 +17,19 @@ file.  Sigh.
 package runtime
 
 /*
-#cgo CFLAGS: -I/home/rsc/pub/linux-2.6/arch/x86/include -I/home/rsc/pub/linux-2.6/include -D_LOOSE_KERNEL_NAMES -D__ARCH_SI_UID_T=__kernel_uid32_t
+#cgo CFLAGS: -I/tmp/linux/arch/x86/include -I/tmp/linux/include -D_LOOSE_KERNEL_NAMES -D__ARCH_SI_UID_T=__kernel_uid32_t
 
 #define size_t __kernel_size_t
+#define pid_t int
 #include <asm/signal.h>
 #include <asm/mman.h>
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
 #include <asm/siginfo.h>
+#include <asm-generic/errno.h>
 #include <asm-generic/fcntl.h>
+#include <asm-generic/poll.h>
+#include <linux/eventpoll.h>
 
 // This is the sigaction structure from the Linux 2.1.68 kernel which
 //   is used with the rt_sigaction system call.  For 386 this is not
@@ -35,12 +39,16 @@ struct kernel_sigaction {
 	__sighandler_t k_sa_handler;
 	unsigned long sa_flags;
 	void (*sa_restorer) (void);
-	sigset_t sa_mask;
+	unsigned long long sa_mask;
 };
 */
 import "C"
 
 const (
+	EINTR  = C.EINTR
+	EAGAIN = C.EAGAIN
+	ENOMEM = C.ENOMEM
+
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
 	PROT_WRITE = C.PROT_WRITE
@@ -110,6 +118,17 @@ const (
 
 	O_RDONLY  = C.O_RDONLY
 	O_CLOEXEC = C.O_CLOEXEC
+
+	EPOLLIN       = C.POLLIN
+	EPOLLOUT      = C.POLLOUT
+	EPOLLERR      = C.POLLERR
+	EPOLLHUP      = C.POLLHUP
+	EPOLLRDHUP    = C.POLLRDHUP
+	EPOLLET       = C.EPOLLET
+	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
+	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
+	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
+	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
 )
 
 type Fpreg C.struct__fpreg
@@ -124,3 +143,4 @@ type Sigaltstack C.struct_sigaltstack
 type Sigcontext C.struct_sigcontext
 type Ucontext C.struct_ucontext
 type Itimerval C.struct_itimerval
+type EpollEvent C.struct_epoll_event

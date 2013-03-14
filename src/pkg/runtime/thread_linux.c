@@ -25,9 +25,6 @@ enum
 {
 	FUTEX_WAIT = 0,
 	FUTEX_WAKE = 1,
-
-	EINTR = 4,
-	EAGAIN = 11,
 };
 
 // Atomically,

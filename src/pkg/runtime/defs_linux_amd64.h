@@ -1,8 +1,12 @@
 // Created by cgo -cdefs - DO NOT EDIT
-// cgo -cdefs defs.go defs1.go
+// cgo -cdefs defs_linux.go defs1_linux.go
 
 
 enum {
+	EINTR	= 0x4,
+	EAGAIN	= 0xb,
+	ENOMEM	= 0xc,
+
 	PROT_NONE	= 0x0,
 	PROT_READ	= 0x1,
 	PROT_WRITE	= 0x2,
@@ -69,6 +73,17 @@ enum {
 	ITIMER_REAL	= 0x0,
 	ITIMER_VIRTUAL	= 0x1,
 	ITIMER_PROF	= 0x2,
+
+	EPOLLIN		= 0x1,
+	EPOLLOUT	= 0x4,
+	EPOLLERR	= 0x8,
+	EPOLLHUP	= 0x10,
+	EPOLLRDHUP	= 0x2000,
+	EPOLLET		= -0x80000000,
+	EPOLL_CLOEXEC	= 0x80000,
+	EPOLL_CTL_ADD	= 0x1,
+	EPOLL_CTL_DEL	= 0x2,
+	EPOLL_CTL_MOD	= 0x3,
 };
 
 typedef struct Timespec Timespec;
@@ -76,6 +91,7 @@ typedef struct Timeval Timeval;
 typedef struct Sigaction Sigaction;
 typedef struct Siginfo Siginfo;
 typedef struct Itimerval Itimerval;
+typedef struct EpollEvent EpollEvent;
 
 #pragma pack on
 
@@ -104,11 +120,15 @@ struct Itimerval {
 	Timeval	it_interval;
 	Timeval	it_value;
 };
+struct EpollEvent {
+	uint32	events;
+	uint64	data;
+};
 
 
 #pragma pack off
 // Created by cgo -cdefs - DO NOT EDIT
-// cgo -cdefs defs.go defs1.go
+// cgo -cdefs defs_linux.go defs1_linux.go
 
 
 enum {
