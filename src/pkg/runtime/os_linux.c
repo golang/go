@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "signal_unix.h"
 #include "stack.h"
 
 extern SigTab runtime·sigtab[];
@@ -308,4 +309,61 @@ runtime·badsignal(int32 sig)
 	}
 	runtime·write(2, "\n", 1);
 	runtime·exit(1);
+}
+
+#ifdef GOARCH_386
+#define sa_handler k_sa_handler
+#endif
+
+/*
+ * This assembler routine takes the args from registers, puts them on the stack,
+ * and calls sighandler().
+ */
+extern void runtime·sigtramp(void);
+extern void runtime·sigreturn(void);	// calls runtime·sigreturn
+
+void
+runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+	if(restart)
+		sa.sa_flags |= SA_RESTART;
+	sa.sa_mask = ~0ULL;
+	// TODO(adonovan): Linux manpage says "sa_restorer element is
+	// obsolete and should not be used".  Avoid it here, and test.
+	sa.sa_restorer = (void*)runtime·sigreturn;
+	if(fn == runtime·sighandler)
+		fn = (void*)runtime·sigtramp;
+	sa.sa_handler = fn;
+	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+		runtime·throw("rt_sigaction failure");
+}
+
+GoSighandler*
+runtime·getsig(int32 i)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+		runtime·throw("rt_sigaction read failure");
+	if((void*)sa.sa_handler == runtime·sigtramp)
+		return runtime·sighandler;
+	return (void*)sa.sa_handler;
+}
+
+void
+runtime·signalstack(byte *p, int32 n)
+{
+	Sigaltstack st;
+
+	st.ss_sp = p;
+	st.ss_size = n;
+	st.ss_flags = 0;
+	if(p == nil)
+		st.ss_flags = SS_DISABLE;
+	runtime·sigaltstack(&st, nil);
 }

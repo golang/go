@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SIG_DFL ((void*)0)
-#define SIG_IGN ((void*)1)
-#define SIGHUP 1
 #define SS_DISABLE 4
 
 #define SIG_BLOCK 1
@@ -13,9 +10,6 @@
 
 struct sigaction;
 
-void	runtime·raisesigpipe(void);
-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
 void	runtime·sigpanic(void);
 
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);

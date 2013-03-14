@@ -16,7 +16,6 @@ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
 int32	runtime·notify(void (*fn)(void*, int8*));
 int32	runtime·noted(int32);
 void	runtime·sigtramp(void*, int8*);
-int32	runtime·sighandler(void*, int8*, G*);
 void	runtime·sigpanic(void);
 void	runtime·goexitsall(int8*);
 void	runtime·setfpmasks(void);

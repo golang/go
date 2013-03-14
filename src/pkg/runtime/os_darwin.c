@@ -5,6 +5,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "signal_unix.h"
 #include "stack.h"
 
 extern SigTab runtime·sigtab[];
@@ -545,4 +546,42 @@ runtime·badsignal(int32 sig)
 	}
 	runtime·write(2, "\n", 1);
 	runtime·exit(1);
+}
+
+void
+runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+{
+	Sigaction sa;
+		
+	runtime·memclr((byte*)&sa, sizeof sa);
+	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+	if(restart)
+		sa.sa_flags |= SA_RESTART;
+	sa.sa_mask = ~(uintptr)0;
+	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
+	runtime·sigaction(i, &sa, nil);
+}
+
+GoSighandler*
+runtime·getsig(int32 i)
+{
+	Sigaction sa;
+
+	runtime·memclr((byte*)&sa, sizeof sa);
+	runtime·sigaction(i, nil, &sa);
+	return *(void**)sa.__sigaction_u;
+}
+
+void
+runtime·signalstack(byte *p, int32 n)
+{
+	StackT st;
+
+	st.ss_sp = (void*)p;
+	st.ss_size = n;
+	st.ss_flags = 0;
+	if(p == nil)
+		st.ss_flags = SS_DISABLE;
+	runtime·sigaltstack(&st, nil);
 }

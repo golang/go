@@ -7,6 +7,7 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "signal_unix.h"
 
 extern SigTab runtime·sigtab[];
 
