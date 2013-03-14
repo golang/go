@@ -1,0 +1,346 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package net
+
+#include "runtime.h"
+#include "defs_GOOS_GOARCH.h"
+#include "arch_GOARCH.h"
+#include "malloc.h"
+
+// Integrated network poller (platform-independent part).
+// A particular implementation (epoll/kqueue) must define the following functions:
+// void runtime·netpollinit(void);			// to initialize the poller
+// int32 runtime·netpollopen(int32 fd, PollDesc *pd);	// to arm edge-triggered notifications
+							// and associate fd with pd.
+// An implementation must call the following function to denote that the pd is ready.
+// void runtime·netpollready(G **gpp, PollDesc *pd, int32 mode);
+
+#define READY ((G*)1)
+
+struct PollDesc
+{
+	PollDesc* link;	// in pollcache, protected by pollcache.Lock
+	Lock;		// protectes the following fields
+	bool	closing;
+	uintptr	seq;	// protects from stale timers and ready notifications
+	G*	rg;	// G waiting for read or READY (binary semaphore)
+	Timer	rt;	// read deadline timer (set if rt.fv != nil)
+	int64	rd;	// read deadline
+	G*	wg;	// the same for writes
+	Timer	wt;
+	int64	wd;
+};
+
+static struct
+{
+	Lock;
+	PollDesc*	first;
+	// PollDesc objects must be type-stable,
+	// because we can get ready notification from epoll/kqueue
+	// after the descriptor is closed/reused.
+	// Stale notifications are detected using seq variable,
+	// seq is incremented when deadlines are changed or descriptor is reused.
+} pollcache;
+
+static void	netpollblock(PollDesc*, int32);
+static G*	netpollunblock(PollDesc*, int32);
+static void	deadline(int64, Eface);
+static void	readDeadline(int64, Eface);
+static void	writeDeadline(int64, Eface);
+static PollDesc*	allocPollDesc(void);
+static intgo	checkerr(PollDesc *pd, int32 mode);
+
+static FuncVal deadlineFn	= {(void(*)(void))deadline};
+static FuncVal readDeadlineFn	= {(void(*)(void))readDeadline};
+static FuncVal writeDeadlineFn	= {(void(*)(void))writeDeadline};
+
+func runtime_pollServerInit() {
+	runtime·netpollinit();
+}
+
+func runtime_pollOpen(fd int) (pd *PollDesc, errno int) {
+	pd = allocPollDesc();
+	runtime·lock(pd);
+	if(pd->wg != nil && pd->wg != READY)
+		runtime·throw("runtime_pollOpen: blocked write on free descriptor");
+	if(pd->rg != nil && pd->rg != READY)
+		runtime·throw("runtime_pollOpen: blocked read on free descriptor");
+	pd->closing = false;
+	pd->seq++;
+	pd->rg = nil;
+	pd->rd = 0;
+	pd->wg = nil;
+	pd->wd = 0;
+	runtime·unlock(pd);
+
+	errno = runtime·netpollopen(fd, pd);
+}
+
+func runtime_pollClose(pd *PollDesc) {
+	if(!pd->closing)
+		runtime·throw("runtime_pollClose: close w/o unblock");
+	if(pd->wg != nil && pd->wg != READY)
+		runtime·throw("runtime_pollClose: blocked write on closing descriptor");
+	if(pd->rg != nil && pd->rg != READY)
+		runtime·throw("runtime_pollClose: blocked read on closing descriptor");
+	runtime·lock(&pollcache);
+	pd->link = pollcache.first;
+	pollcache.first = pd;
+	runtime·unlock(&pollcache);
+}
+
+func runtime_pollReset(pd *PollDesc, mode int) (err int) {
+	runtime·lock(pd);
+	err = checkerr(pd, mode);
+	if(err)
+		goto ret;
+	if(mode == 'r')
+		pd->rg = nil;
+	else if(mode == 'w')
+		pd->wg = nil;
+ret:
+	runtime·unlock(pd);
+}
+
+func runtime_pollWait(pd *PollDesc, mode int) (err int) {
+	runtime·lock(pd);
+	err = checkerr(pd, mode);
+	if(err)
+		goto ret;
+	netpollblock(pd, mode);
+	err = checkerr(pd, mode);
+ret:
+	runtime·unlock(pd);
+}
+
+func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
+	runtime·lock(pd);
+	if(pd->closing)
+		goto ret;
+	pd->seq++;  // invalidate current timers
+	// Reset current timers.
+	if(pd->rt.fv) {
+		runtime·deltimer(&pd->rt);
+		pd->rt.fv = nil;
+	}
+	if(pd->wt.fv) {
+		runtime·deltimer(&pd->wt);
+		pd->wt.fv = nil;
+	}
+	// Setup new timers.
+	if(d != 0 && d <= runtime·nanotime()) {
+		d = -1;
+	}
+	if(mode == 'r' || mode == 'r'+'w')
+		pd->rd = d;
+	if(mode == 'w' || mode == 'r'+'w')
+		pd->wd = d;
+	if(pd->rd > 0 && pd->rd == pd->wd) {
+		pd->rt.fv = &deadlineFn;
+		pd->rt.when = pd->rd;
+		// Copy current seq into the timer arg.
+		// Timer func will check the seq against current descriptor seq,
+		// if they differ the descriptor was reused or timers were reset.
+		pd->rt.arg.type = (Type*)pd->seq;
+		pd->rt.arg.data = pd;
+		runtime·addtimer(&pd->rt);
+	} else {
+		if(pd->rd > 0) {
+			pd->rt.fv = &readDeadlineFn;
+			pd->rt.when = pd->rd;
+			pd->rt.arg.type = (Type*)pd->seq;
+			pd->rt.arg.data = pd;
+			runtime·addtimer(&pd->rt);
+		}
+		if(pd->wd > 0) {
+			pd->wt.fv = &writeDeadlineFn;
+			pd->wt.when = pd->wd;
+			pd->wt.arg.type = (Type*)pd->seq;
+			pd->wt.arg.data = pd;
+			runtime·addtimer(&pd->wt);
+		}
+	}
+ret:
+	runtime·unlock(pd);
+}
+
+func runtime_pollUnblock(pd *PollDesc) {
+	G *rg, *wg;
+
+	runtime·lock(pd);
+	if(pd->closing)
+		runtime·throw("runtime_pollUnblock: already closing");
+	pd->closing = true;
+	pd->seq++;
+	rg = netpollunblock(pd, 'r');
+	wg = netpollunblock(pd, 'w');
+	if(pd->rt.fv) {
+		runtime·deltimer(&pd->rt);
+		pd->rt.fv = nil;
+	}
+	if(pd->wt.fv) {
+		runtime·deltimer(&pd->wt);
+		pd->wt.fv = nil;
+	}
+	runtime·unlock(pd);
+	if(rg)
+		runtime·ready(rg);
+	if(wg)
+		runtime·ready(wg);
+}
+
+// make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
+void
+runtime·netpollready(G **gpp, PollDesc *pd, int32 mode)
+{
+	G *rg, *wg;
+
+	rg = wg = nil;
+	runtime·lock(pd);
+	if(mode == 'r' || mode == 'r'+'w')
+		rg = netpollunblock(pd, 'r');
+	if(mode == 'w' || mode == 'r'+'w')
+		wg = netpollunblock(pd, 'w');
+	runtime·unlock(pd);
+	if(rg) {
+		rg->schedlink = *gpp;
+		*gpp = rg;
+	}
+	if(wg) {
+		wg->schedlink = *gpp;
+		*gpp = wg;
+	}
+}
+
+static intgo
+checkerr(PollDesc *pd, int32 mode)
+{
+	if(pd->closing)
+		return 1;  // errClosing
+	if((mode == 'r' && pd->rd < 0) || (mode == 'w' && pd->wd < 0))
+		return 2;  // errTimeout
+	return 0;
+}
+
+static void
+netpollblock(PollDesc *pd, int32 mode)
+{
+	G **gpp;
+
+	gpp = &pd->rg;
+	if(mode == 'w')
+		gpp = &pd->wg;
+	if(*gpp == READY) {
+		*gpp = nil;
+		return;
+	}
+	if(*gpp != nil)
+		runtime·throw("epoll: double wait");
+	*gpp = g;
+	runtime·park(runtime·unlock, &pd->Lock, "IO wait");
+	runtime·lock(pd);
+}
+
+static G*
+netpollunblock(PollDesc *pd, int32 mode)
+{
+	G **gpp, *old;
+
+	gpp = &pd->rg;
+	if(mode == 'w')
+		gpp = &pd->wg;
+	if(*gpp == READY)
+		return nil;
+	if(*gpp == nil) {
+		*gpp = READY;
+		return nil;
+	}
+	old = *gpp;
+	*gpp = nil;
+	return old;
+}
+
+static void
+deadlineimpl(int64 now, Eface arg, bool read, bool write)
+{
+	PollDesc *pd;
+	uint32 seq;
+	G *rg, *wg;
+
+	USED(now);
+	pd = (PollDesc*)arg.data;
+	// This is the seq when the timer was set.
+	// If it's stale, ignore the timer event.
+	seq = (uintptr)arg.type;
+	rg = wg = nil;
+	runtime·lock(pd);
+	if(seq != pd->seq) {
+		// The descriptor was reused or timers were reset.
+		runtime·unlock(pd);
+		return;
+	}
+	if(read) {
+		if(pd->rd <= 0 || pd->rt.fv == nil)
+			runtime·throw("deadlineimpl: inconsistent read deadline");
+		pd->rd = -1;
+		pd->rt.fv = nil;
+		rg = netpollunblock(pd, 'r');
+	}
+	if(write) {
+		if(pd->wd <= 0 || (pd->wt.fv == nil && !read))
+			runtime·throw("deadlineimpl: inconsistent write deadline");
+		pd->wd = -1;
+		pd->wt.fv = nil;
+		wg = netpollunblock(pd, 'w');
+	}
+	runtime·unlock(pd);
+	if(rg)
+		runtime·ready(rg);
+	if(wg)
+		runtime·ready(wg);
+}
+
+static void
+deadline(int64 now, Eface arg)
+{
+	deadlineimpl(now, arg, true, true);
+}
+
+static void
+readDeadline(int64 now, Eface arg)
+{
+	deadlineimpl(now, arg, true, false);
+}
+
+static void
+writeDeadline(int64 now, Eface arg)
+{
+	deadlineimpl(now, arg, false, true);
+}
+
+static PollDesc*
+allocPollDesc(void)
+{
+	PollDesc *pd;
+	uint32 i, n;
+
+	runtime·lock(&pollcache);
+	if(pollcache.first == nil) {
+		n = PageSize/sizeof(*pd);
+		if(n == 0)
+			n = 1;
+		// Must be in non-GC memory because can be referenced
+		// only from epoll/kqueue internals.
+		pd = runtime·SysAlloc(n*sizeof(*pd));
+		for(i = 0; i < n; i++) {
+			pd[i].link = pollcache.first;
+			pollcache.first = &pd[i];
+		}
+	}
+	pd = pollcache.first;
+	pollcache.first = pd->link;
+	runtime·unlock(&pollcache);
+	return pd;
+}

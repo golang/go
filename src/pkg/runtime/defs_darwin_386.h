@@ -3,6 +3,9 @@
 
 
 enum {
+	EINTR	= 0x4,
+	EFAULT	= 0xe,
+
 	PROT_NONE	= 0x0,
 	PROT_READ	= 0x1,
 	PROT_WRITE	= 0x2,
@@ -106,6 +109,14 @@ enum {
 	ITIMER_REAL	= 0x0,
 	ITIMER_VIRTUAL	= 0x1,
 	ITIMER_PROF	= 0x2,
+
+	EV_ADD		= 0x1,
+	EV_DELETE	= 0x2,
+	EV_CLEAR	= 0x20,
+	EV_RECEIPT	= 0x40,
+	EV_ERROR	= 0x4000,
+	EVFILT_READ	= -0x1,
+	EVFILT_WRITE	= -0x2,
 };
 
 typedef struct MachBody MachBody;
@@ -117,6 +128,7 @@ typedef struct Sigaction Sigaction;
 typedef struct Siginfo Siginfo;
 typedef struct Timeval Timeval;
 typedef struct Itimerval Itimerval;
+typedef struct Timespec Timespec;
 typedef struct FPControl FPControl;
 typedef struct FPStatus FPStatus;
 typedef struct RegMMST RegMMST;
@@ -130,6 +142,7 @@ typedef struct FloatState32 FloatState32;
 typedef struct ExceptionState32 ExceptionState32;
 typedef struct Mcontext32 Mcontext32;
 typedef struct Ucontext Ucontext;
+typedef struct Kevent Kevent;
 
 #pragma pack on
 
@@ -170,7 +183,7 @@ struct StackT {
 typedef	byte	Sighandler[4];
 
 struct Sigaction {
-	Sighandler	__sigaction_u;
+	byte	__sigaction_u[4];
 	void	*sa_tramp;
 	uint32	sa_mask;
 	int32	sa_flags;
@@ -185,7 +198,7 @@ struct Siginfo {
 	uint32	si_uid;
 	int32	si_status;
 	byte	*si_addr;
-	Sigval	si_value;
+	byte	si_value[4];
 	int32	si_band;
 	uint32	__pad[7];
 };
@@ -196,6 +209,10 @@ struct Timeval {
 struct Itimerval {
 	Timeval	it_interval;
 	Timeval	it_value;
+};
+struct Timespec {
+	int32	tv_sec;
+	int32	tv_nsec;
 };
 
 struct FPControl {
@@ -360,6 +377,15 @@ struct Ucontext {
 	Ucontext	*uc_link;
 	uint32	uc_mcsize;
 	Mcontext32	*uc_mcontext;
+};
+
+struct Kevent {
+	uint32	ident;
+	int16	filter;
+	uint16	flags;
+	uint32	fflags;
+	int32	data;
+	byte	*udata;
 };
 
 
