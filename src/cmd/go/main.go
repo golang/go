@@ -130,8 +130,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
-			if strings.Contains(p, "~") && runtime.GOOS != "windows" {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot contain shell metacharacter '~': %q\n", p)
+			// Note: using HasPrefix instead of Contains because a ~ can appear
+			// in the middle of directory elements, such as /tmp/git-1.8.2~rc3
+			// or C:\PROGRA~1. Only ~ as a path prefix has meaning to the shell.
+			if strings.HasPrefix(p, "~") {
+				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot start with shell metacharacter '~': %q\n", p)
 				os.Exit(2)
 			}
 			if build.IsLocalImport(p) {
