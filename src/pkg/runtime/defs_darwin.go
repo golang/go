@@ -7,8 +7,8 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
-GOARCH=386 cgo -cdefs defs_darwin.go >defs_darwin_386.h
+GOARCH=amd64 go tool cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
+GOARCH=386 go tool cgo -cdefs defs_darwin.go >defs_darwin_386.h
 */
 
 package runtime
@@ -19,12 +19,17 @@ package runtime
 #include <mach/message.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <errno.h>
 #include <signal.h>
+#include <sys/event.h>
 #include <sys/mman.h>
 */
 import "C"
 
 const (
+	EINTR  = C.EINTR
+	EFAULT = C.EFAULT
+
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
 	PROT_WRITE = C.PROT_WRITE
@@ -128,6 +133,14 @@ const (
 	ITIMER_REAL    = C.ITIMER_REAL
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 	ITIMER_PROF    = C.ITIMER_PROF
+
+	EV_ADD       = C.EV_ADD
+	EV_DELETE    = C.EV_DELETE
+	EV_CLEAR     = C.EV_CLEAR
+	EV_RECEIPT   = C.EV_RECEIPT
+	EV_ERROR     = C.EV_ERROR
+	EVFILT_READ  = C.EVFILT_READ
+	EVFILT_WRITE = C.EVFILT_WRITE
 )
 
 type MachBody C.mach_msg_body_t
@@ -144,6 +157,7 @@ type Sigval C.union_sigval
 type Siginfo C.siginfo_t
 type Timeval C.struct_timeval
 type Itimerval C.struct_itimerval
+type Timespec C.struct_timespec
 
 type FPControl C.struct_fp_control
 type FPStatus C.struct_fp_status
@@ -161,3 +175,5 @@ type ExceptionState32 C.struct_i386_exception_state
 type Mcontext32 C.struct_mcontext32
 
 type Ucontext C.struct_ucontext
+
+type Kevent C.struct_kevent

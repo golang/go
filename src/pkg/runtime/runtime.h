@@ -85,6 +85,7 @@ typedef	struct	LFNode		LFNode;
 typedef	struct	ParFor		ParFor;
 typedef	struct	ParForThread	ParForThread;
 typedef	struct	CgoMal		CgoMal;
+typedef	struct	PollDesc	PollDesc;
 
 /*
  * Per-CPU declaration.
@@ -786,6 +787,9 @@ extern int64 runtime·blockprofilerate;
 void	runtime·addtimer(Timer*);
 bool	runtime·deltimer(Timer*);
 G*	runtime·netpoll(bool);
+void	runtime·netpollinit(void);
+int32	runtime·netpollopen(int32, PollDesc*);
+void	runtime·netpollready(G**, PollDesc*, int32);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
