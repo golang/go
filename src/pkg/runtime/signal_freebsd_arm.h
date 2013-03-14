@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SIG_REGS(ctxt) (((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
+#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
 
 #define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
 #define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])
@@ -25,3 +25,4 @@
 #define SIG_TRAP(info, ctxt) (0)
 #define SIG_ERROR(info, ctxt) (0)
 #define SIG_OLDMASK(info, ctxt) (0)
+#define SIG_CODE0(info, ctxt) ((uintptr)(info)->si_code)
