@@ -991,5 +991,5 @@ extern uint64 ·neginf;
 
 enum
 {
-	UseSpanType = 0,
+	UseSpanType = 1,
 };
