@@ -1729,6 +1729,7 @@ var (
 	esc_tab  = []byte("&#x9;")
 	esc_nl   = []byte("&#xA;")
 	esc_cr   = []byte("&#xD;")
+	esc_fffd = []byte("\uFFFD") // Unicode replacement character
 )
 
 // EscapeText writes to w the properly escaped XML equivalent
@@ -1736,8 +1737,10 @@ var (
 func EscapeText(w io.Writer, s []byte) error {
 	var esc []byte
 	last := 0
-	for i, c := range s {
-		switch c {
+	for i := 0; i < len(s); {
+		r, width := utf8.DecodeRune(s[i:])
+		i += width
+		switch r {
 		case '"':
 			esc = esc_quot
 		case '\'':
@@ -1755,15 +1758,19 @@ func EscapeText(w io.Writer, s []byte) error {
 		case '\r':
 			esc = esc_cr
 		default:
+			if !isInCharacterRange(r) {
+				esc = esc_fffd
+				break
+			}
 			continue
 		}
-		if _, err := w.Write(s[last:i]); err != nil {
+		if _, err := w.Write(s[last : i-width]); err != nil {
 			return err
 		}
 		if _, err := w.Write(esc); err != nil {
 			return err
 		}
-		last = i + 1
+		last = i
 	}
 	if _, err := w.Write(s[last:]); err != nil {
 		return err

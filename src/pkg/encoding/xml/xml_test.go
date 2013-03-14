@@ -5,6 +5,7 @@
 package xml
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -695,6 +696,21 @@ func TestEscapeTextIOErrors(t *testing.T) {
 	err := EscapeText(errWriter{}, []byte{'A'})
 
 	if err == nil || err.Error() != expectErr {
-		t.Errorf("EscapeTest = [error] %v, want %v", err, expectErr)
+		t.Errorf("have %v, want %v", err, expectErr)
+	}
+}
+
+func TestEscapeTextInvalidChar(t *testing.T) {
+	input := []byte("A \x00 terminated string.")
+	expected := "A \uFFFD terminated string."
+
+	buff := new(bytes.Buffer)
+	if err := EscapeText(buff, input); err != nil {
+		t.Fatalf("have %v, want nil", err)
+	}
+	text := buff.String()
+
+	if text != expected {
+		t.Errorf("have %v, want %v", text, expected)
 	}
 }
