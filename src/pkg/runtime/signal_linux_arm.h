@@ -25,3 +25,4 @@
 #define SIG_TRAP(info, ctxt) (SIG_REGS(ctxt).trap_no)
 #define SIG_ERROR(info, ctxt) (SIG_REGS(ctxt).error_code)
 #define SIG_OLDMASK(info, ctxt) (SIG_REGS(ctxt).oldmask)
+#define SIG_CODE0(info, ctxt) ((uintptr)(info)->si_code)

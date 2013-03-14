@@ -61,7 +61,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		// the unwinding code.
 		gp->sig = sig;
 		gp->sigcode0 = SIG_CODE0(info, ctxt);
-		gp->sigcode1 = SIG_FAULT_ADDRESS(info, ctxt);
+		gp->sigcode1 = SIG_FAULT(info, ctxt);
 		gp->sigpc = SIG_PC(info, ctxt);
 
 		// We arrange lr, and pc to pretend the panicking
@@ -113,7 +113,7 @@ Throw:
 		runtime·traceback((void*)SIG_PC(info, ctxt), (void*)SIG_SP(info, ctxt), (void*)SIG_LR(info, ctxt), gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
-		runtime·dumpregs(r);
+		runtime·dumpregs(info, ctxt);
 	}
 
 	runtime·exit(2);
