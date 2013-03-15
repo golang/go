@@ -2,6 +2,7 @@
 
 // Constants
 enum {
+	EINTR  = 0x4,
 	ENOMEM = 0xc,
 	EAGAIN = 0xb,
 
@@ -65,6 +66,17 @@ enum {
 	ITIMER_VIRTUAL = 0x1,
 	O_RDONLY = 0,
 	O_CLOEXEC = 02000000,
+
+	EPOLLIN		= 0x1,
+	EPOLLOUT	= 0x4,
+	EPOLLERR	= 0x8,
+	EPOLLHUP	= 0x10,
+	EPOLLRDHUP	= 0x2000,
+	EPOLLET		= -0x80000000,
+	EPOLL_CLOEXEC	= 0x80000,
+	EPOLL_CTL_ADD	= 0x1,
+	EPOLL_CTL_DEL	= 0x2,
+	EPOLL_CTL_MOD	= 0x3,
 };
 
 // Types
@@ -145,5 +157,12 @@ struct Sigaction {
 	uint32 sa_flags;
 	void *sa_restorer;
 	uint64 sa_mask;
+};
+
+typedef struct EpollEvent EpollEvent;
+struct EpollEvent {
+	uint32	events;
+	uint32	_pad;
+	uint64	data;
 };
 #pragma pack off

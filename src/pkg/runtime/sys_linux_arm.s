@@ -36,6 +36,11 @@
 #define SYS_ugetrlimit (SYS_BASE + 191)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
+#define SYS_epoll_create (SYS_BASE + 250)
+#define SYS_epoll_ctl (SYS_BASE + 251)
+#define SYS_epoll_wait (SYS_BASE + 252)
+#define SYS_epoll_create1 (SYS_BASE + 357)
+#define SYS_fcntl (SYS_BASE + 55)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 
@@ -371,7 +376,6 @@ cascheck:
 	MOVW $0, R0
 	RET
 
-
 TEXT runtime·casp(SB),7,$0
 	B	runtime·cas(SB)
 
@@ -386,4 +390,47 @@ TEXT runtime·sched_getaffinity(SB),7,$0
 	MOVW	8(FP), R2
 	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
+	RET
+
+// int32 runtime·epollcreate(int32 size)
+TEXT runtime·epollcreate(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	$SYS_epoll_create, R7
+	SWI	$0
+	RET
+
+// int32 runtime·epollcreate1(int32 flags)
+TEXT runtime·epollcreate1(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	$SYS_epoll_create1, R7
+	SWI	$0
+	RET
+
+// int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev)
+TEXT runtime·epollctl(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	12(FP), R3
+	MOVW	$SYS_epoll_ctl, R7
+	SWI	$0
+	RET
+
+// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
+TEXT runtime·epollwait(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	12(FP), R3
+	MOVW	$SYS_epoll_wait, R7
+	SWI	$0
+	RET
+
+// void runtime·closeonexec(int32 fd)
+TEXT runtime·closeonexec(SB),7,$0
+	MOVW	0(FP), R0	// fd
+	MOVW	$2, R1	// F_SETFD
+	MOVW	$1, R2	// FD_CLOEXEC
+	MOVW	$SYS_fcntl, R7
+	SWI $0
 	RET
