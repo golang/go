@@ -1588,7 +1588,7 @@ cmdclean(int argc, char **argv)
 void
 cmdbanner(int argc, char **argv)
 {
-	char *pathsep;
+	char *pathsep, *pid, *ns;
 	Buf b, b1, search, path;
 
 	ARGBEGIN{
@@ -1612,15 +1612,28 @@ cmdbanner(int argc, char **argv)
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
 	xprintf("Installed commands in %s\n", gobin);
 
-	// Check that gobin appears in $PATH.
-	xgetenv(&b, "PATH");
-	pathsep = ":";
-	if(streq(gohostos, "windows"))
-		pathsep = ";";
-	bprintf(&b1, "%s%s%s", pathsep, bstr(&b), pathsep);
-	bprintf(&search, "%s%s%s", pathsep, gobin, pathsep);
-	if(xstrstr(bstr(&b1), bstr(&search)) == nil)
-		xprintf("*** You need to add %s to your PATH.\n", gobin);
+	if(streq(gohostos, "plan9")) {
+		// Check that gobin is bound before /bin.
+		readfile(&b, "#c/pid");
+		bsubst(&b, " ", "");
+		pid = btake(&b);
+		bprintf(&b, "/proc/%s/ns", pid);
+		ns = btake(&b);
+		readfile(&b, ns);
+		bprintf(&search, "bind -b %s /bin\n", gobin);
+		if(xstrstr(bstr(&b), bstr(&search)) == nil)
+			xprintf("*** You need to bind %s before /bin.\n", gobin);
+	} else {
+		// Check that gobin appears in $PATH.
+		xgetenv(&b, "PATH");
+		pathsep = ":";
+		if(streq(gohostos, "windows"))
+			pathsep = ";";
+		bprintf(&b1, "%s%s%s", pathsep, bstr(&b), pathsep);
+		bprintf(&search, "%s%s%s", pathsep, gobin, pathsep);
+		if(xstrstr(bstr(&b1), bstr(&search)) == nil)
+			xprintf("*** You need to add %s to your PATH.\n", gobin);
+	}
 
 	if(streq(gohostos, "darwin")) {
 		if(isfile(bpathf(&path, "%s/cov", tooldir)))
