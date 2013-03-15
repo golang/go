@@ -178,8 +178,14 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			c.Errorf("Failed reading body: %v", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
 		if resp.StatusCode != 200 {
-			c.Errorf("Retrieving CL reviewer list failed: got HTTP response %d", resp.StatusCode)
+			c.Errorf("Retrieving CL reviewer list failed: got HTTP response %d\nBody: %s", resp.StatusCode, body)
 			http.Error(w, "Failed contacting Rietveld", 500)
 			return
 		}
@@ -187,7 +193,7 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 		var apiResp struct {
 			Reviewers []string `json:"reviewers"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		if err := json.Unmarshal(body, &apiResp); err != nil {
 			// probably can't be retried
 			msg := fmt.Sprintf("Malformed JSON from %v: %v", url, err)
 			c.Errorf("%s", msg)
@@ -212,8 +218,14 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				c.Errorf("Failed reading Gobot body: %v", err)
+				http.Error(w, err.Error(), 500)
+				return
+			}
 			if resp.StatusCode != 200 {
-				c.Errorf("Gobot GET failed: got HTTP response %d", resp.StatusCode)
+				c.Errorf("Gobot GET failed: got HTTP response %d\nBody: %s", resp.StatusCode, body)
 				http.Error(w, "Failed contacting Gobot", 500)
 				return
 			}
