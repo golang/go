@@ -21,6 +21,7 @@ func init() {
 	// and prefer to use their golang.org address for code review.
 	gophers := [...]string{
 		"adg",
+		"agl",
 		"bradfitz",
 		"campoy",
 		"dsymonds",
@@ -36,6 +37,24 @@ func init() {
 		emailToPerson[p+"@golang.org"] = p
 		emailToPerson[p+"@google.com"] = p
 		preferredEmail[p] = p + "@golang.org"
+	}
+	// Other people.
+	others := map[string]string{
+		"adonovan": "adonovan@google.com",
+		"brainman": "alex.brainman@gmail.com",
+		"ality":    "ality@pbrane.org",
+		"dfc":      "dave@cheney.net",
+		"dvyukov":  "dvyukov@google.com",
+		"gustavo":  "gustavo@niemeyer.net",
+		"jsing":    "jsing@google.com",
+		"mikioh":   "mikioh.mikioh@gmail.com",
+		"minux":    "minux.ma@gmail.com",
+		"rminnich": "rminnich@gmail.com",
+	}
+	for p, e := range others {
+		personList = append(personList, p)
+		emailToPerson[e] = p
+		preferredEmail[p] = e
 	}
 
 	sort.Strings(personList)
