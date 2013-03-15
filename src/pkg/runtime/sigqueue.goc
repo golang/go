@@ -133,8 +133,6 @@ done:;
 
 // Must only be called from a single goroutine at a time.
 func signal_enable(s uint32) {
-	int32 i;
-
 	if(!sig.inuse) {
 		// The first call to signal_enable is for us
 		// to use for initialization.  It does not pass
@@ -144,16 +142,16 @@ func signal_enable(s uint32) {
 		return;
 	}
 	
-	if(~s == 0) {
-		// Special case: want everything.
-		for(i=0; i<nelem(sig.wanted); i++)
-			sig.wanted[i] = ~(uint32)0;
-		runtime·sigenable(s);
-		return;
-	}
-
 	if(s >= nelem(sig.wanted)*32)
 		return;
 	sig.wanted[s/32] |= 1U<<(s&31);
 	runtime·sigenable(s);
+}
+
+// Must only be called from a single goroutine at a time.
+func signal_disable(s uint32) {
+	if(s >= nelem(sig.wanted)*32)
+		return;
+	sig.wanted[s/32] &= ~(1U<<(s&31));
+	runtime·sigdisable(s);
 }

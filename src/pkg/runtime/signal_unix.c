@@ -22,6 +22,20 @@ runtime·initsig(void)
 		t = &runtime·sigtab[i];
 		if((t->flags == 0) || (t->flags & SigDefault))
 			continue;
+
+		// For some signals, we respect an inherited SIG_IGN handler
+		// rather than insist on installing our own default handler.
+		// Even these signals can be fetched using the os/signal package.
+		switch(i) {
+		case SIGHUP:
+		case SIGINT:
+			if(runtime·getsig(i) == SIG_IGN) {
+				t->flags = SigNotify | SigIgnored;
+				continue;
+			}
+		}
+
+		t->flags |= SigHandling;
 		runtime·setsig(i, runtime·sighandler, true);
 	}
 }
@@ -29,18 +43,35 @@ runtime·initsig(void)
 void
 runtime·sigenable(uint32 sig)
 {
-	int32 i;
 	SigTab *t;
 
-	for(i = 0; i<NSIG; i++) {
-		// ~0 means all signals.
-		if(~sig == 0 || i == sig) {
-			t = &runtime·sigtab[i];
-			if(t->flags & SigDefault) {
-				runtime·setsig(i, runtime·sighandler, true);
-				t->flags &= ~SigDefault;  // make this idempotent
-			}
-		}
+	if(sig >= NSIG)
+		return;
+
+	t = &runtime·sigtab[sig];
+	if((t->flags & SigNotify) && !(t->flags & SigHandling)) {
+		t->flags |= SigHandling;
+		if(runtime·getsig(sig) == SIG_IGN)
+			t->flags |= SigIgnored;
+		runtime·setsig(sig, runtime·sighandler, true);
+	}
+}
+
+void
+runtime·sigdisable(uint32 sig)
+{
+	SigTab *t;
+
+	if(sig >= NSIG)
+		return;
+
+	t = &runtime·sigtab[sig];
+	if((t->flags & SigNotify) && (t->flags & SigHandling)) {
+		t->flags &= ~SigHandling;
+		if(t->flags & SigIgnored)
+			runtime·setsig(sig, SIG_IGN, true);
+		else
+			runtime·setsig(sig, SIG_DFL, true);
 	}
 }
 

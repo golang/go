@@ -384,6 +384,8 @@ enum
 	SigThrow = 1<<2,	// if signal.Notify doesn't take it, exit loudly
 	SigPanic = 1<<3,	// if the signal is from the kernel, panic
 	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
+	SigHandling = 1<<5,	// our signal handler is registered
+	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
 };
 
 // NOTE(rsc): keep in sync with extern.go:/type.Func.
@@ -696,6 +698,7 @@ String	runtime·gostringnocopy(byte*);
 String	runtime·gostringw(uint16*);
 void	runtime·initsig(void);
 void	runtime·sigenable(uint32 sig);
+void	runtime·sigdisable(uint32 sig);
 int32	runtime·gotraceback(void);
 void	runtime·goroutineheader(G*);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);

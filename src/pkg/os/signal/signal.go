@@ -14,13 +14,20 @@ import (
 
 var handlers struct {
 	sync.Mutex
-	list []handler
+	m   map[chan<- os.Signal]*handler
+	ref [numSig]int64
 }
 
 type handler struct {
-	c   chan<- os.Signal
-	sig os.Signal
-	all bool
+	mask [(numSig + 31) / 32]uint32
+}
+
+func (h *handler) want(sig int) bool {
+	return (h.mask[sig/32]>>uint(sig&31))&1 != 0
+}
+
+func (h *handler) set(sig int) {
+	h.mask[sig/32] |= 1 << uint(sig&31)
 }
 
 // Notify causes package signal to relay incoming signals to c.
@@ -32,6 +39,13 @@ type handler struct {
 // signal rate.  For a channel used for notification of just one signal value,
 // a buffer of size 1 is sufficient.
 //
+// It is allowed to call Notify multiple times with the same channel:
+// each call expands the set of signals sent to that channel.
+// The only way to remove signals from the set is to call Stop.
+//
+// It is allowed to call Notify multiple times with different channels
+// and the same signals: each channel receives copies of incoming
+// signals independently.
 func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	if c == nil {
 		panic("os/signal: Notify using nil channel")
@@ -39,32 +53,77 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 
 	handlers.Lock()
 	defer handlers.Unlock()
+
+	h := handlers.m[c]
+	if h == nil {
+		if handlers.m == nil {
+			handlers.m = make(map[chan<- os.Signal]*handler)
+		}
+		h = new(handler)
+		handlers.m[c] = h
+	}
+
+	add := func(n int) {
+		if n < 0 {
+			return
+		}
+		if !h.want(n) {
+			h.set(n)
+			if handlers.ref[n] == 0 {
+				enableSignal(n)
+			}
+			handlers.ref[n]++
+		}
+	}
+
 	if len(sig) == 0 {
-		enableSignal(nil)
-		handlers.list = append(handlers.list, handler{c: c, all: true})
+		for n := 0; n < numSig; n++ {
+			add(n)
+		}
 	} else {
 		for _, s := range sig {
-			// We use nil as a special wildcard value for enableSignal,
-			// so filter it out of the list of arguments.  This is safe because
-			// we will never get an incoming nil signal, so discarding the
-			// registration cannot affect the observed behavior.
-			if s != nil {
-				enableSignal(s)
-				handlers.list = append(handlers.list, handler{c: c, sig: s})
+			add(signum(s))
+		}
+	}
+}
+
+// Stop causes package signal to stop relaying incoming signals to c.
+// It undoes the effect of all prior calls to Notify using c.
+// When Stop returns, it is guaranteed that c will receive no more signals.
+func Stop(c chan<- os.Signal) {
+	handlers.Lock()
+	defer handlers.Unlock()
+
+	h := handlers.m[c]
+	if h == nil {
+		return
+	}
+	delete(handlers.m, c)
+
+	for n := 0; n < numSig; n++ {
+		if h.want(n) {
+			handlers.ref[n]--
+			if handlers.ref[n] == 0 {
+				disableSignal(n)
 			}
 		}
 	}
 }
 
 func process(sig os.Signal) {
+	n := signum(sig)
+	if n < 0 {
+		return
+	}
+
 	handlers.Lock()
 	defer handlers.Unlock()
 
-	for _, h := range handlers.list {
-		if h.all || h.sig == sig {
+	for c, h := range handlers.m {
+		if h.want(n) {
 			// send but do not block for it
 			select {
-			case h.c <- sig:
+			case c <- sig:
 			default:
 			}
 		}
