@@ -45,7 +45,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 	}
 
 	t = &runtime·sigtab[sig];
-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
 		if(gp == nil || gp == m->g0)
 			goto Throw;
 
@@ -87,7 +87,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 		return;
 	}
 
-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
 		if(runtime·sigsend(sig))
 			return;
 	if(t->flags & SigKill)
