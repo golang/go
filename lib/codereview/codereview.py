@@ -155,7 +155,8 @@ default_to_utf8()
 global_status = None
 
 def set_status(s):
-	# print >>sys.stderr, "\t", time.asctime(), s
+	if verbosity > 0:
+		print >>sys.stderr, time.asctime(), s
 	global global_status
 	global_status = s
 
@@ -2213,6 +2214,7 @@ def reposetup(ui, repo):
 	if codereview_init:
 		return
 	codereview_init = True
+	start_status_thread()
 
 	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
 	root = ''
