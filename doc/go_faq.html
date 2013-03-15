@@ -974,6 +974,57 @@ struct.  If the interface value holds a pointer, copying the interface value
 makes a copy of the pointer, but again not the data it points to.
 </p>
 
+<h3 id="pointer_to_interface">
+When should I use a pointer to an interface?</h3>
+
+<p>
+Almost never. Pointers to interface values arise only in rare, tricky situations involving
+disguising an interface value's type for delayed evaluation.
+</p>
+
+<p>
+It is however a common mistake to pass a pointer to an interface value
+to a function expecting an interface. The compiler will complain about this
+error but the situation can still be confusing, because sometimes a
+<a href="#different_method_sets">pointer
+is necessary to satisfy an interface</a>.
+The insight is that although a pointer to a concrete type can satisfy
+an interface, with one exception <em>a pointer to an interface can never satisfy a interface</em>.
+</p>
+
+<p>
+Consider the variable declaration,
+</p>
+
+<pre>
+var w io.Writer
+</pre>
+
+<p>
+The printing function <code>fmt.Fprintf</code> takes as its first argument
+a value that satisfies <code>io.Writer</code>—something that implements
+the canonical <code>Write</code> method. Thus we can write
+</p>
+
+<pre>
+fmt.Fprintf(w, "hello, world\n")
+</pre>
+
+<p>
+If however we pass the address of <code>w</code>, the program will not compile.
+</p>
+
+<pre>
+fmt.Fprintf(&amp;w, "hello, world\n") // Compile-time error.
+</pre>
+
+<p>
+The one exception is that any value, even a pointer to an interface, can be assigned to
+a variable of empty interface type (<code>interface{}</code>).
+Even so, it's almost certainly a mistake if the value is a pointer to an interface;
+the result can be confusing.
+</p>
+
 <h3 id="methods_on_values_or_pointers">
 Should I define methods on values or pointers?</h3>
 
