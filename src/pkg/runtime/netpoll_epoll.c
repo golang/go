@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,386 linux,amd64
+// +build linux
 
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
