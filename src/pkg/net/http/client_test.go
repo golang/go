@@ -54,7 +54,7 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 }
 
 func TestClient(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(robotsTxtHandler)
 	defer ts.Close()
 
@@ -72,7 +72,7 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientHead(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(robotsTxtHandler)
 	defer ts.Close()
 
@@ -95,7 +95,7 @@ func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err error)
 }
 
 func TestGetRequestFormat(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	url := "http://dummy.faketld/"
@@ -112,7 +112,7 @@ func TestGetRequestFormat(t *testing.T) {
 }
 
 func TestPostRequestFormat(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -139,7 +139,7 @@ func TestPostRequestFormat(t *testing.T) {
 }
 
 func TestPostFormRequestFormat(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -181,7 +181,7 @@ func TestPostFormRequestFormat(t *testing.T) {
 }
 
 func TestRedirects(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		n, _ := strconv.Atoi(r.FormValue("n"))
@@ -255,7 +255,7 @@ func TestRedirects(t *testing.T) {
 }
 
 func TestPostRedirects(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	var log struct {
 		sync.Mutex
 		bytes.Buffer
@@ -373,7 +373,7 @@ func (j *TestJar) Cookies(u *url.URL) []*Cookie {
 }
 
 func TestRedirectCookiesOnRequest(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(echoCookiesRedirectHandler)
 	defer ts.Close()
@@ -391,7 +391,7 @@ func TestRedirectCookiesOnRequest(t *testing.T) {
 }
 
 func TestRedirectCookiesJar(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	var ts *httptest.Server
 	ts = httptest.NewServer(echoCookiesRedirectHandler)
 	defer ts.Close()
@@ -428,7 +428,7 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
 }
 
 func TestJarCalls(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		pathSuffix := r.RequestURI[1:]
 		if r.RequestURI == "/nosetcookie" {
@@ -492,7 +492,7 @@ func (j *RecordingJar) logf(format string, args ...interface{}) {
 }
 
 func TestStreamingGet(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	say := make(chan string)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.(Flusher).Flush()
@@ -543,7 +543,7 @@ func (c *writeCountingConn) Write(p []byte) (int, error) {
 // TestClientWrites verifies that client requests are buffered and we
 // don't send a TCP packet per line of the http request + body.
 func TestClientWrites(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
 	defer ts.Close()
@@ -577,7 +577,7 @@ func TestClientWrites(t *testing.T) {
 }
 
 func TestClientInsecureTransport(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Write([]byte("Hello"))
 	}))
@@ -605,7 +605,7 @@ func TestClientInsecureTransport(t *testing.T) {
 }
 
 func TestClientErrorWithRequestURI(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
 	req.RequestURI = "/this/field/is/illegal/and/should/error/"
 	_, err := DefaultClient.Do(req)
@@ -634,7 +634,7 @@ func newTLSTransport(t *testing.T, ts *httptest.Server) *Transport {
 }
 
 func TestClientWithCorrectTLSServerName(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.TLS.ServerName != "127.0.0.1" {
 			t.Errorf("expected client to set ServerName 127.0.0.1, got: %q", r.TLS.ServerName)
@@ -649,7 +649,7 @@ func TestClientWithCorrectTLSServerName(t *testing.T) {
 }
 
 func TestClientWithIncorrectTLSServerName(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	defer ts.Close()
 
@@ -667,7 +667,7 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 
 // Verify Response.ContentLength is populated. http://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		if v := r.FormValue("cl"); v != "" {
 			w.Header().Set("Content-Length", v)

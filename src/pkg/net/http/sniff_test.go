@@ -54,7 +54,7 @@ func TestDetectContentType(t *testing.T) {
 }
 
 func TestServerContentType(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
@@ -85,7 +85,7 @@ func TestServerContentType(t *testing.T) {
 }
 
 func TestContentTypeWithCopy(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 
 	const (
 		input    = "\n<html>\n\t<head>\n"
@@ -119,7 +119,7 @@ func TestContentTypeWithCopy(t *testing.T) {
 }
 
 func TestSniffWriteSize(t *testing.T) {
-	defer checkLeakedTransports(t)
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
