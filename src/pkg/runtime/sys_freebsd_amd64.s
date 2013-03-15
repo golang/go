@@ -261,7 +261,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVQ	$202, AX		// sys___sysctl
 	SYSCALL
 	JCC 3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET

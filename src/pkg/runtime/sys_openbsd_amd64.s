@@ -23,7 +23,7 @@ TEXT runtime·tfork(SB),7,$32
 
 	// Return if tfork syscall failed.
 	JCC	3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 
 	// In parent, return.
@@ -243,7 +243,7 @@ TEXT runtime·mmap(SB),7,$0
 	MOVL	$197, AX
 	SYSCALL
 	JCC	2(PC)
-	NEGL	AX
+	NEGQ	AX
 	ADDQ	$16, SP
 	RET
 
@@ -294,7 +294,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVQ	$202, AX		// sys___sysctl
 	SYSCALL
 	JCC	3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET

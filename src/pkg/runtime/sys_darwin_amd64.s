@@ -289,7 +289,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
 	SYSCALL
 	JCC 3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET
@@ -342,7 +342,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
 	SYSCALL
 	JCC 3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET
@@ -435,7 +435,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVL	$(0x2000000+202), AX	// syscall entry
 	SYSCALL
 	JCC 3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET
@@ -448,7 +448,7 @@ TEXT runtime·kqueue(SB),7,$0
 	MOVL	$(0x2000000+362), AX
 	SYSCALL
 	JCC	2(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
@@ -462,7 +462,7 @@ TEXT runtime·kevent(SB),7,$0
 	MOVL	$(0x2000000+363), AX
 	SYSCALL
 	JCC	2(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 
 // void runtime·closeonexec(int32 fd);
