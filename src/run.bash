@@ -116,9 +116,12 @@ go build ../misc/dashboard/builder ../misc/goplay
 ./timing.sh -test
 ) || exit $?
 
+[ "$GOOS" == openbsd ] || # golang.org/issue/5057
+(
 echo
 echo '#' ../test/bench/go1
 go test ../test/bench/go1
+) || exit $?
 
 (xcd ../test
 unset GOMAXPROCS
