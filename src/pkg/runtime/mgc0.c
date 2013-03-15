@@ -191,7 +191,7 @@ static struct {
 
 // markonly marks an object. It returns true if the object
 // has been marked by this function, false otherwise.
-// This function isn't thread-safe and doesn't append the object to any buffer.
+// This function doesn't append the object to any buffer.
 static bool
 markonly(void *obj)
 {
@@ -254,7 +254,17 @@ found:
 	// Only care about allocated and not marked.
 	if((bits & (bitAllocated|bitMarked)) != bitAllocated)
 		return false;
-	*bitp |= bitMarked<<shift;
+	if(work.nproc == 1)
+		*bitp |= bitMarked<<shift;
+	else {
+		for(;;) {
+			x = *bitp;
+			if(x & (bitMarked<<shift))
+				return false;
+			if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
+				break;
+		}
+	}
 
 	// The object is now marked
 	return true;
@@ -325,7 +335,6 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 	Obj *wp;
 	Workbuf *wbuf;
 	PtrTarget *ptrbuf_end;
-	BitTarget *bitbufpos, *bt;
 
 	arena_start = runtime·mheap->arena_start;
 
@@ -358,8 +367,6 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 	//             The single-threaded branch may be added in a next CL.
 	{
 		// Multi-threaded version.
-
-		bitbufpos = bitbuf;
 
 		while(ptrbuf < ptrbuf_end) {
 			obj = ptrbuf->p;
@@ -438,25 +445,21 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 			// Only care about allocated and not marked.
 			if((bits & (bitAllocated|bitMarked)) != bitAllocated)
 				continue;
-
-			*bitbufpos++ = (BitTarget){obj, ti, bitp, shift};
-		}
-
-		runtime·lock(&lock);
-		for(bt=bitbuf; bt<bitbufpos; bt++){
-			xbits = *bt->bitp;
-			bits = xbits >> bt->shift;
-			if((bits & bitMarked) != 0)
-				continue;
-
-			// Mark the block
-			*bt->bitp = xbits | (bitMarked << bt->shift);
+			if(work.nproc == 1)
+				*bitp |= bitMarked<<shift;
+			else {
+				for(;;) {
+					x = *bitp;
+					if(x & (bitMarked<<shift))
+						goto continue_obj;
+					if(runtime·casp((void**)bitp, (void*)x, (void*)(x|(bitMarked<<shift))))
+						break;
+				}
+			}
 
 			// If object has no pointers, don't need to scan further.
 			if((bits & bitNoPointers) != 0)
 				continue;
-
-			obj = bt->p;
 
 			// Ask span about size class.
 			// (Manually inlined copy of MHeap_Lookup.)
@@ -467,11 +470,11 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
 
 			PREFETCH(obj);
 
-			*wp = (Obj){obj, s->elemsize, bt->ti};
+			*wp = (Obj){obj, s->elemsize, ti};
 			wp++;
 			nobj++;
+		continue_obj:;
 		}
-		runtime·unlock(&lock);
 
 		// If another proc wants a pointer, give it some.
 		if(work.nwait > 0 && nobj > handoffThreshold && work.full == 0) {
@@ -588,7 +591,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	Iface *iface;
 	Hmap *hmap;
 	MapType *maptype;
-	bool didmark, mapkey_kind, mapval_kind;
+	bool mapkey_kind, mapval_kind;
 	struct hash_gciter map_iter;
 	struct hash_gciter_data d;
 	Hchan *chan;
@@ -894,10 +897,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				pc += 3;
 				continue;
 			}
-			runtime·lock(&lock);
-			didmark = markonly(hmap);
-			runtime·unlock(&lock);
-			if(didmark) {
+			if(markonly(hmap)) {
 				maptype = (MapType*)pc[2];
 				if(hash_gciter_init(hmap, &map_iter)) {
 					mapkey_size = maptype->key->size;
@@ -927,11 +927,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				if(objbufpos+2 >= objbuf_end)
 					flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
 
-				if(d.st != nil) {
-					runtime·lock(&lock);
+				if(d.st != nil)
 					markonly(d.st);
-					runtime·unlock(&lock);
-				}
+
 				if(d.key_data != nil) {
 					if(!(mapkey_kind & KindNoPointers) || d.indirectkey) {
 						if(!d.indirectkey)
