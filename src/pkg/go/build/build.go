@@ -212,8 +212,8 @@ func (ctxt *Context) gopath() []string {
 			// Do not get confused by this common mistake.
 			continue
 		}
-		if strings.Contains(p, "~") && runtime.GOOS != "windows" {
-			// Path segments containing ~ on Unix are almost always
+		if strings.HasPrefix(p, "~") {
+			// Path segments starting with ~ on Unix are almost always
 			// users who have incorrectly quoted ~ while setting GOPATH,
 			// preventing it from expanding to $HOME.
 			// The situation is made more confusing by the fact that
