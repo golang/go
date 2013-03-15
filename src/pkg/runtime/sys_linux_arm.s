@@ -92,11 +92,11 @@ TEXT runtime·exit1(SB),7,$-4
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT	runtime·raisesigpipe(SB),7,$-4
+TEXT	runtime·raise(SB),7,$-4
 	MOVW	$SYS_gettid, R7
 	SWI	$0
 	// arg 1 tid already in R0 from gettid
-	MOVW	$13, R1	// arg 2 SIGPIPE
+	MOVW	sig+0(FP), R1	// arg 2 - signal
 	MOVW	$SYS_tkill, R7
 	SWI	$0
 	RET

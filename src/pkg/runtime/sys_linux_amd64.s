@@ -75,11 +75,11 @@ TEXT runtime·usleep(SB),7,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$12
+TEXT runtime·raise(SB),7,$12
 	MOVL	$186, AX	// syscall - gettid
 	SYSCALL
 	MOVL	AX, DI	// arg 1 tid
-	MOVL	$13, SI	// arg 2 SIGPIPE
+	MOVL	sig+0(FP), SI	// arg 2
 	MOVL	$200, AX	// syscall - tkill
 	SYSCALL
 	RET

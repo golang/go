@@ -455,3 +455,16 @@ int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
 
 int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
 int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
+
+void
+runtime·crash(void)
+{
+	// TODO: This routine should do whatever is needed
+	// to make the Windows program abort/crash as it
+	// would if Go was not intercepting signals.
+	// On Unix the routine would remove the custom signal
+	// handler and then raise a signal (like SIGABRT).
+	// Something like that should happen here.
+	// It's okay to leave this empty for now: if crash returns
+	// the ordinary exit-after-panic happens.
+}

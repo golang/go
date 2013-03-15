@@ -61,12 +61,13 @@ TEXT runtime·usleep(SB),7,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$12
+TEXT runtime·raise(SB),7,$12
 	MOVL	$311, AX		// sys__lwp_self
 	INT	$0x80
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)		// arg 1 - target
-	MOVL	$13, 8(SP)		// arg 2 - signo == SIGPIPE
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)		// arg 2 - signo
 	MOVL	$318, AX		// sys__lwp_kill
 	INT	$0x80
 	RET

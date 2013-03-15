@@ -125,11 +125,11 @@ TEXT runtime·usleep(SB),7,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$16
+TEXT runtime·raise(SB),7,$16
 	MOVL	$311, AX		// sys__lwp_self
 	SYSCALL
 	MOVQ	AX, DI			// arg 1 - target
-	MOVQ	$13, SI			// arg 2 - signo == SIGPIPE
+	MOVL	sig+0(FP), SI		// arg 2 - signo
 	MOVL	$318, AX		// sys__lwp_kill
 	SYSCALL
 	RET

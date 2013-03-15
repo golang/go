@@ -95,14 +95,14 @@ TEXT runtime·getrlimit(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$16
+TEXT runtime·raise(SB),7,$16
 	// thr_self(&8(SP))
 	LEAQ	8(SP), DI	// arg 1 &8(SP)
 	MOVL	$432, AX
 	SYSCALL
 	// thr_kill(self, SIGPIPE)
 	MOVQ	8(SP), DI	// arg 1 id
-	MOVQ	$13, SI	// arg 2 SIGPIPE
+	MOVL	sig+0(FP), SI	// arg 2
 	MOVL	$433, AX
 	SYSCALL
 	RET

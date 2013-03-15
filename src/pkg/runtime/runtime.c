@@ -17,14 +17,27 @@ enum {
  */
 void	runtime·sigpanic(void);
 
+// The GOTRACEBACK environment variable controls the
+// behavior of a Go program that is crashing and exiting.
+//	GOTRACEBACK=0   suppress all tracebacks
+//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
+//	GOTRACEBACK=2   show tracebacks including runtime frames
+//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
 int32
-runtime·gotraceback(void)
+runtime·gotraceback(bool *crash)
 {
 	byte *p;
 
+	if(crash != nil)
+		*crash = false;
 	p = runtime·getenv("GOTRACEBACK");
 	if(p == nil || p[0] == '\0')
 		return 1;	// default is on
+	if(runtime·strcmp(p, (byte*)"crash") == 0) {
+		if(crash != nil)
+			*crash = true;
+		return 2;	// extra information
+	}
 	return runtime·atoi(p);
 }
 

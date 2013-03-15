@@ -98,5 +98,23 @@ void
 os·sigpipe(void)
 {
 	runtime·setsig(SIGPIPE, SIG_DFL, false);
-	runtime·raisesigpipe();
+	runtime·raise(SIGPIPE);
+}
+
+void
+runtime·crash(void)
+{
+#ifdef GOOS_darwin
+	// OS X core dumps are linear dumps of the mapped memory,
+	// from the first virtual byte to the last, with zeros in the gaps.
+	// Because of the way we arrange the address space on 64-bit systems,
+	// this means the OS X core file will be >128 GB and even on a zippy
+	// workstation can take OS X well over an hour to write (uninterruptible).
+	// Save users from making that mistake.
+	if(sizeof(void*) == 8)
+		return;
+#endif
+
+	runtime·setsig(SIGABRT, SIG_DFL, false);
+	runtime·raise(SIGABRT);
 }

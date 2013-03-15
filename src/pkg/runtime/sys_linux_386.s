@@ -77,11 +77,11 @@ TEXT runtime·usleep(SB),7,$8
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$12
+TEXT runtime·raise(SB),7,$12
 	MOVL	$224, AX	// syscall - gettid
 	CALL	*runtime·_vdso(SB)
-	MOVL	AX, 0(SP)	// arg 1 tid
-	MOVL	$13, 4(SP)	// arg 2 SIGPIPE
+	MOVL	AX, BX	// arg 1 tid
+	MOVL	sig+0(FP), CX	// arg 2 signal
 	MOVL	$238, AX	// syscall - tkill
 	CALL	*runtime·_vdso(SB)
 	RET
