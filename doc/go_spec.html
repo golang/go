@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 12, 2013",
+	"Subtitle": "Version of March 15, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -2905,9 +2905,7 @@ The right operand in a shift expression must have unsigned integer type
 or be an untyped constant that can be converted to unsigned integer type.
 If the left operand of a non-constant shift expression is an untyped constant,
 the type of the constant is what it would be if the shift expression were
-replaced by its left operand alone; the type is <code>int</code> if it cannot
-be determined from the context (for instance, if the shift expression is an
-operand in a comparison against an untyped constant).
+replaced by its left operand alone.
 </p>
 
 <pre>
@@ -2916,10 +2914,12 @@ var i = 1&lt;&lt;s           // 1 has type int
 var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
 var m int = 1.0&lt;&lt;s     // 1.0 has type int
-var n = 1.0&lt;&lt;s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+var n = 1.0&lt;&lt;s != i    // 1.0 has type int; n == false if ints are 32bits in size
 var o = 1&lt;&lt;s == 2&lt;&lt;s   // 1 and 2 have type int; o == true if ints are 32bits in size
 var p = 1&lt;&lt;s == 1&lt;&lt;33  // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
 var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift
+var u1 = 1.0&lt;&lt;s != 0   // illegal: 1.0 has type float64, cannot shift
+var u2 = 1&lt;&lt;s != 1.0   // illegal: 1 has type float64, cannot shift
 var v float32 = 1&lt;&lt;s   // illegal: 1 has type float32, cannot shift
 var w int64 = 1.0&lt;&lt;33  // 1.0&lt;&lt;33 is a constant shift expression
 </pre>
