@@ -949,6 +949,38 @@ combined with the Go project's mostly linear, non-branching use of
 version control, a switch to git doesn't seem worthwhile.
 </p>
 
+<h3 id="git_https">
+Why does "go get" use HTTPS when cloning a repository?</h3>
+
+<p>
+Companies often permit outgoing traffic only on the standard TCP ports 80 (HTTP)
+and 443 (HTTPS), blocking outgoing traffic on other ports, including TCP port 9418 
+(git) and TCP port 22 (SSH).
+When using HTTPS instead of HTTP, <code>git</code> enforces certificate validation by
+default, providing protection against man-in-the-middle, eavesdropping and tampering attacks.
+The <code>go get</code> command therefore uses HTTPS for safety.
+</p>
+
+<p>
+If you use <code>git</code> and prefer to push changes through SSH using your existing key 
+it's easy to work around this. For GitHub, try one of these solutions:
+</p>
+<ul>
+<li>Manually clone the repository in the expected package directory:
+<pre>
+$ cd $GOPATH/src/github.com/username
+$ git clone git@github.com:username/package.git
+</pre>
+</li>
+<li>Force <code>git push</code> to use the <code>SSH</code> protocol by appending
+these two lines to <code>~/.gitconfig</code>:
+<pre>
+[url "git@github.com:"]
+	pushInsteadOf = https://github.com/
+</pre>
+</li>
+</ul>
+
 <h2 id="Pointers">Pointers and Allocation</h2>
 
 <h3 id="pass_by_value">
