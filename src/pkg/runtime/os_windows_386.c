@@ -91,6 +91,12 @@ runtime·sigenable(uint32 sig)
 }
 
 void
+runtime·sigdisable(uint32 sig)
+{
+	USED(sig);
+}
+
+void
 runtime·dosigprof(Context *r, G *gp)
 {
 	runtime·sigprof((uint8*)r->Eip, (uint8*)r->Esp, nil, gp);

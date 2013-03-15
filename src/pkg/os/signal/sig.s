@@ -8,6 +8,9 @@
 #define JMP B
 #endif
 
+TEXT ·signal_disable(SB),7,$0
+	JMP runtime·signal_disable(SB)
+
 TEXT ·signal_enable(SB),7,$0
 	JMP runtime·signal_enable(SB)
 
