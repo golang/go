@@ -39,6 +39,9 @@ func interestingGoroutines() (gs []string) {
 // Verify the other tests didn't leave any goroutines running.
 // This is in a file named z_last_test.go so it sorts at the end.
 func TestGoroutinesRunning(t *testing.T) {
+	if testing.Short() {
+		t.Skip("not counting goroutines for leakage in -short mode")
+	}
 	gs := interestingGoroutines()
 
 	n := 0
