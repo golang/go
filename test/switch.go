@@ -392,15 +392,6 @@ func main() {
 	}
 	assert(count == 2, "fail")
 
-	// fallthrough in final case.
-	count = 0
-	switch i5 {
-	case 5:
-		count++
-		fallthrough
-	}
-	assert(count == 1, "fail")
-
 	i := 0
 	switch x := 5; {
 	case i < x:

@@ -322,6 +322,10 @@ casebody(Node *sw, Node *typeswvar)
 				setlineno(last);
 				yyerror("cannot fallthrough in type switch");
 			}
+			if(l->next == nil) {
+				setlineno(last);
+				yyerror("cannot fallthrough final case in switch");
+			}
 			last->op = OFALL;
 		} else
 			stat = list(stat, br);
