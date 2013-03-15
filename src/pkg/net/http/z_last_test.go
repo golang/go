@@ -24,6 +24,7 @@ func interestingGoroutines() (gs []string) {
 		stack := strings.TrimSpace(sl[1])
 		if stack == "" ||
 			strings.Contains(stack, "created by net.newPollServer") ||
+			strings.Contains(stack, "created by net.startServer") ||
 			strings.Contains(stack, "created by testing.RunTests") ||
 			strings.Contains(stack, "closeWriteAndWait") ||
 			strings.Contains(stack, "testing.Main(") {
