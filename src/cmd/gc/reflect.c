@@ -1026,10 +1026,23 @@ dalgsym(Type *t)
 }
 
 static int
+gcinline(Type *t) {
+	switch(t->etype) {
+	case TARRAY:
+		if(t->bound == 1)
+			return 1;
+		if(t->width <= 4*widthptr)
+			return 1;
+		break;
+	}
+	return 0;
+}
+
+static int
 dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 {
 	Type *t1;
-	vlong o, off2, fieldoffset;
+	vlong o, off2, fieldoffset, i;
 
 	if(t->align > 0 && (*off % t->align) != 0)
 		fatal("dgcsym1: invalid initial alignment, %T", t);
@@ -1132,8 +1145,9 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 		} else {
 			if(t->bound < 1 || !haspointers(t->type)) {
 				*off += t->width;
-			} else if(t->bound == 1) {
-				ot = dgcsym1(s, ot, t->type, off, stack_size);  // recursive call of dgcsym1
+			} else if(gcinline(t)) {
+				for(i=0; i<t->bound; i++)
+					ot = dgcsym1(s, ot, t->type, off, stack_size);  // recursive call of dgcsym1
 			} else {
 				if(stack_size < GC_STACK_CAPACITY) {
 					ot = duintptr(s, ot, GC_ARRAY_START);  // a stack push during GC
