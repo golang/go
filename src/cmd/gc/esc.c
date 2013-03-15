@@ -1033,7 +1033,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 
 	switch(src->op) {
 	case ONAME:
-		if(src->class == PPARAM && leaks && src->esc != EscHeap) {
+		if(src->class == PPARAM && (leaks || dst->escloopdepth < 0) && src->esc != EscHeap) {
 			src->esc = EscScope;
 			if(debug['m'])
 				warnl(src->lineno, "leaking param: %hN", src);
