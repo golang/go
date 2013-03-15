@@ -60,12 +60,13 @@ TEXT runtime·write(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$24
-	get_tls(CX)
-	MOVQ	m(CX), DX
-	MOVL	$13, DI	// arg 1 SIGPIPE
-	MOVQ	m_procid(DX), SI	// arg 2 thread_port
-	MOVL	$(0x2000000+328), AX	// syscall entry __pthread_kill
+TEXT runtime·raise(SB),7,$24
+	MOVL	$(0x2000000+20), AX // getpid
+	SYSCALL
+	MOVQ	AX, DI	// arg 1 - pid
+	MOVL	sig+0(FP), SI	// arg 2 - signal
+	MOVL	$1, DX	// arg 3 - posix
+	MOVL	$(0x2000000+37), AX // kill
 	SYSCALL
 	RET
 

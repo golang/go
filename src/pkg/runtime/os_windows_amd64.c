@@ -35,6 +35,7 @@ runtime·dumpregs(Context *r)
 uint32
 runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {
+	bool crash;
 	uintptr *sp;
 
 	switch(info->ExceptionCode) {
@@ -81,11 +82,14 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 	}
 	runtime·printf("\n");
 
-	if(runtime·gotraceback()){
+	if(runtime·gotraceback(&crash)){
 		runtime·traceback((void*)r->Rip, (void*)r->Rsp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(r);
 	}
+	
+	if(crash)
+		runtime·crash();
 
 	runtime·exit(2);
 	return 0;

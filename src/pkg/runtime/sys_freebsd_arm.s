@@ -87,13 +87,13 @@ TEXT runtime·getrlimit(SB),7,$-8
 	SWI $194
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$8
+TEXT runtime·raise(SB),7,$8
 	// thr_self(&4(R13))
 	MOVW $4(R13), R0 // arg 1 &4(R13)
 	SWI $432
 	// thr_kill(self, SIGPIPE)
 	MOVW 4(R13), R0	// arg 1 id
-	MOVW $13, R1	// arg 2 SIGPIPE
+	MOVW sig+0(FP), R1	// arg 2 - signal
 	SWI $433
 	RET
 

@@ -699,7 +699,7 @@ String	runtime·gostringw(uint16*);
 void	runtime·initsig(void);
 void	runtime·sigenable(uint32 sig);
 void	runtime·sigdisable(uint32 sig);
-int32	runtime·gotraceback(void);
+int32	runtime·gotraceback(bool *crash);
 void	runtime·goroutineheader(G*);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	runtime·tracebackothers(G*);
@@ -793,6 +793,7 @@ G*	runtime·netpoll(bool);
 void	runtime·netpollinit(void);
 int32	runtime·netpollopen(int32, PollDesc*);
 void	runtime·netpollready(G**, PollDesc*, int32);
+void	runtime·crash(void);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32

@@ -81,16 +81,17 @@ TEXT runtime·getrlimit(SB),7,$-4
 	INT	$0x80
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$12
+TEXT runtime·raise(SB),7,$16
 	// thr_self(&8(SP))
 	LEAL	8(SP), AX
-	MOVL	AX, 0(SP)
+	MOVL	AX, 4(SP)
 	MOVL	$432, AX
 	INT	$0x80
 	// thr_kill(self, SIGPIPE)
 	MOVL	8(SP), AX
-	MOVL	AX, 0(SP)
-	MOVL	$13, 4(SP)
+	MOVL	AX, 4(SP)
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)
 	MOVL	$433, AX
 	INT	$0x80
 	RET

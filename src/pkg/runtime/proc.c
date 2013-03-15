@@ -232,7 +232,7 @@ runtime·tracebackothers(G *me)
 	G *gp;
 	int32 traceback;
 
-	traceback = runtime·gotraceback();
+	traceback = runtime·gotraceback(nil);
 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
 		if(gp == me || gp->status == Gdead)
 			continue;

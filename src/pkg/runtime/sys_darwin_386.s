@@ -44,13 +44,14 @@ TEXT runtime·write(SB),7,$0
 	INT	$0x80
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$8
-	get_tls(CX)
-	MOVL	m(CX), DX
-	MOVL	m_procid(DX), DX
-	MOVL	DX, 0(SP)	// thread_port
-	MOVL	$13, 4(SP)	// signal: SIGPIPE
-	MOVL	$328, AX	// __pthread_kill
+TEXT runtime·raise(SB),7,$16
+	MOVL	$20, AX // getpid
+	INT	$0x80
+	MOVL	AX, 4(SP)	// pid
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)	// signal
+	MOVL	$1, 12(SP)	// posix
+	MOVL	$37, AX // kill
 	INT	$0x80
 	RET
 

@@ -10,4 +10,5 @@ void	runtime·setsig(int32, GoSighandler*, bool);
 GoSighandler* runtime·getsig(int32);
 
 void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
-void	runtime·raisesigpipe(void);
+void	runtime·raise(int32);
+

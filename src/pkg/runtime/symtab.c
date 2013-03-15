@@ -670,6 +670,6 @@ runtime·showframe(Func *f, bool current)
 	if(current && m->throwing > 0)
 		return 1;
 	if(traceback < 0)
-		traceback = runtime·gotraceback();
+		traceback = runtime·gotraceback(nil);
 	return traceback > 1 || f != nil && contains(f->name, ".") && !hasprefix(f->name, "runtime.");
 }

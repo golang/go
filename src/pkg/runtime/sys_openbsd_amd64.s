@@ -133,11 +133,11 @@ TEXT runtime·usleep(SB),7,$16
 	SYSCALL
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$16
+TEXT runtime·raise(SB),7,$16
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL
 	MOVQ	AX, DI			// arg 1 - pid
-	MOVQ	$13, SI			// arg 2 - signum == SIGPIPE
+	MOVL	sig+0(FP), SI			// arg 2 - signum
 	MOVL	$37, AX			// sys_kill
 	SYSCALL
 	RET

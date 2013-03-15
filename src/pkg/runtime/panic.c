@@ -402,12 +402,13 @@ void
 runtime·dopanic(int32 unused)
 {
 	static bool didothers;
+	bool crash;
 
 	if(g->sig != 0)
 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
 
-	if(runtime·gotraceback()){
+	if(runtime·gotraceback(&crash)){
 		if(g != m->g0) {
 			runtime·printf("\n");
 			runtime·goroutineheader(g);
@@ -428,6 +429,9 @@ runtime·dopanic(int32 unused)
 		runtime·lock(&deadlock);
 		runtime·lock(&deadlock);
 	}
+	
+	if(crash)
+		runtime·crash();
 
 	runtime·exit(2);
 }

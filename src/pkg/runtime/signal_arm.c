@@ -43,6 +43,7 @@ void
 runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
 {
 	SigTab *t;
+	bool crash;
 
 	if(sig == SIGPROF) {
 		if(gp != m->g0 && gp != m->gsignal)
@@ -109,12 +110,15 @@ Throw:
 	}
 	runtime·printf("\n");
 
-	if(runtime·gotraceback()){
+	if(runtime·gotraceback(&crash)){
 		runtime·traceback((void*)SIG_PC(info, ctxt), (void*)SIG_SP(info, ctxt), (void*)SIG_LR(info, ctxt), gp);
 		runtime·tracebackothers(gp);
 		runtime·printf("\n");
 		runtime·dumpregs(info, ctxt);
 	}
+	
+	if(crash)
+		runtime·crash();
 
 	runtime·exit(2);
 }

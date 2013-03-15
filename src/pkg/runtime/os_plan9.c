@@ -92,6 +92,13 @@ runtime·osinit(void)
 }
 
 void
+runtime·crash(void)
+{
+	runtime·notify(nil);
+	*(int32*)0 = 0;
+}
+
+void
 runtime·get_random_data(byte **rnd, int32 *rnd_len)
 {
 	*rnd = nil;

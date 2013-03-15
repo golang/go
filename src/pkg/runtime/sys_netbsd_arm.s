@@ -88,9 +88,9 @@ TEXT runtime·usleep(SB),7,$16
 	SWI $0xa001ae	// sys_nanosleep
 	RET
 
-TEXT runtime·raisesigpipe(SB),7,$16
+TEXT runtime·raise(SB),7,$16
 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
-	MOVW $13, R1	// arg 2 - signo == SIGPIPE
+	MOVW	sig+0(FP), R1	// arg 2 - signal
 	SWI $0xa0013e	// sys__lwp_kill
 	RET
 

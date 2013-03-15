@@ -28,6 +28,7 @@ runtime·dumpregs(Ureg *u)
 int32
 runtime·sighandler(void *v, int8 *s, G *gp)
 {
+	bool crash;
 	Ureg *ureg;
 	uintptr *sp;
 	SigTab *sig, *nsig;
@@ -93,11 +94,15 @@ Throw:
 	runtime·printf("PC=%X\n", ureg->pc);
 	runtime·printf("\n");
 
-	if(runtime·gotraceback()) {
+	if(runtime·gotraceback(&crash)) {
 		runtime·traceback((void*)ureg->pc, (void*)ureg->sp, 0, gp);
 		runtime·tracebackothers(gp);
 		runtime·dumpregs(ureg);
 	}
+	
+	if(crash)
+		runtime·crash();
+
 	runtime·goexitsall("");
 	runtime·exits(s);
 
