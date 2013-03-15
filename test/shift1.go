@@ -42,4 +42,16 @@ var (
 	a3 = 1.0<<s + 0 // ERROR "invalid operation|shift of non-integer operand"
 	// issue 4937
 	b3 = 1<<s + 1 + 1.0 // ERROR "invalid operation|shift of non-integer operand"
+	// issue 5014
+	c3     = complex(1<<s, 0) // ERROR "shift of type float64"
+	d3 int = complex(1<<s, 3) // ERROR "cannot use.*as type int" "shift of type float64"
+	e3     = real(1 << s)     // ERROR "invalid"
+	f3     = imag(1 << s)     // ERROR "invalid"
+)
+
+var (
+	a4 float64
+	b4 int
+	c4 = complex(1<<s, a4) // ERROR "shift of type float64"
+	d4 = complex(1<<s, b4) // ERROR "invalid"
 )
