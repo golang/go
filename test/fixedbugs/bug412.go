@@ -7,8 +7,8 @@
 package p
 
 type t struct {
-	x int  // ERROR "duplicate field x|duplicate field name .x."
-	x int
+	x int  // GCCGO_ERROR "duplicate field name .x."
+	x int  // GC_ERROR "duplicate field x"
 }
 
 func f(t *t) int {

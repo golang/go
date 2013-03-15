@@ -7,5 +7,5 @@
 package main
 
 func f (x,		// GCCGO_ERROR "previous"
-	x int) {	// ERROR "redeclared|redefinition" "duplicate"
+	x int) {	// ERROR "duplicate argument|redefinition"
 }
