@@ -16,7 +16,7 @@ TEXT runtime·lwp_create(SB),7,$0
 	MOVL	$309, AX		// sys__lwp_create
 	SYSCALL
 	JCC	2(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 
 TEXT runtime·lwp_tramp(SB),7,$0
@@ -254,7 +254,7 @@ TEXT runtime·mmap(SB),7,$0
 	MOVL	$197, AX		// sys_mmap
 	SYSCALL
 	JCC	2(PC)
-	NEGL	AX
+	NEGQ	AX
 	ADDQ	$16, SP
 	RET
 
@@ -306,7 +306,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVQ	$202, AX		// sys___sysctl
 	SYSCALL
 	JCC 3(PC)
-	NEGL	AX
+	NEGQ	AX
 	RET
 	MOVL	$0, AX
 	RET
