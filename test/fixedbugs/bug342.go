@@ -9,11 +9,7 @@
 package p
 
 type a interface {
-	foo(x int) (x int) // ERROR "redeclared|redefinition"
-}
-
-var b interface {
-	bar(y int) (y int) // ERROR "redeclared|redefinition"
+	foo(x int) (x int) // ERROR "duplicate argument|redefinition"
 }
 
 /*

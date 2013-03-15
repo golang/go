@@ -369,6 +369,7 @@ struct	Sym
 	uchar	sym;		// huffman encoding in object file
 	Sym*	link;
 	int32	npkg;	// number of imported packages with this name
+	uint32	uniqgen;
 
 	// saved and restored by dcopy
 	Pkg*	pkg;
