@@ -8,6 +8,8 @@
 #define M0 (sizeof(uintptr)==4 ? 2860486313UL : 33054211828000289ULL)
 #define M1 (sizeof(uintptr)==4 ? 3267000013UL : 23344194077549503ULL)
 
+static bool use_aeshash;
+
 /*
  * map and chan helpers for
  * dealing with unknown types
@@ -17,6 +19,10 @@ runtime·memhash(uintptr *h, uintptr s, void *a)
 {
 	byte *b;
 	uintptr hash;
+	if(use_aeshash) {
+		runtime·aeshash(h, s, a);
+		return;
+	}
 
 	b = a;
 	hash = M0 ^ *h;
@@ -479,6 +485,7 @@ runtime·hashinit(void)
 	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
 		byte *rnd;
 		int32 n;
+		use_aeshash = true;
 		runtime·algarray[AMEM].hash = runtime·aeshash;
 		runtime·algarray[AMEM8].hash = runtime·aeshash;
 		runtime·algarray[AMEM16].hash = runtime·aeshash;
