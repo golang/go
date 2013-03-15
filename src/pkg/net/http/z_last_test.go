@@ -7,27 +7,56 @@ package http_test
 import (
 	"net/http"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 )
 
+func interestingGoroutines() (gs []string) {
+	buf := make([]byte, 2<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	for _, g := range strings.Split(string(buf), "\n\n") {
+		sl := strings.SplitN(g, "\n", 2)
+		if len(sl) != 2 {
+			continue
+		}
+		stack := strings.TrimSpace(sl[1])
+		if stack == "" ||
+			strings.Contains(stack, "created by net.newPollServer") ||
+			strings.Contains(stack, "created by testing.RunTests") ||
+			strings.Contains(stack, "closeWriteAndWait") ||
+			strings.Contains(stack, "testing.Main(") {
+			continue
+		}
+		gs = append(gs, stack)
+	}
+	sort.Strings(gs)
+	return
+}
+
 // Verify the other tests didn't leave any goroutines running.
 // This is in a file named z_last_test.go so it sorts at the end.
 func TestGoroutinesRunning(t *testing.T) {
-	n := runtime.NumGoroutine()
+	gs := interestingGoroutines()
+
+	n := 0
+	stackCount := make(map[string]int)
+	for _, g := range gs {
+		stackCount[g]++
+		n++
+	}
+
 	t.Logf("num goroutines = %d", n)
-	if n > 20 {
-		// Currently 14 on Linux (blocked in epoll_wait,
-		// waiting for on fds that are closed?), but give some
-		// slop for now.
-		buf := make([]byte, 1<<20)
-		buf = buf[:runtime.Stack(buf, true)]
-		t.Errorf("Too many goroutines:\n%s", buf)
+	if n > 0 {
+		t.Error("Too many goroutines.")
+		for stack, count := range stackCount {
+			t.Logf("%d instances of:\n%s", count, stack)
+		}
 	}
 }
 
-func checkLeakedTransports(t *testing.T) {
+func afterTest(t *testing.T) {
 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 	if testing.Short() {
 		return
@@ -40,6 +69,7 @@ func checkLeakedTransports(t *testing.T) {
 		").writeLoop(":                                 "a Transport",
 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
 		"timeoutHandler":                               "a TimeoutHandler",
+		"net.(*netFD).connect(":                        "a timing out dial",
 	}
 	for i := 0; i < 4; i++ {
 		bad = ""
@@ -56,5 +86,6 @@ func checkLeakedTransports(t *testing.T) {
 		// shutting down, so give it some time.
 		time.Sleep(250 * time.Millisecond)
 	}
-	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
+	gs := interestingGoroutines()
+	t.Errorf("Test appears to have leaked %s:\n%s", bad, strings.Join(gs, "\n\n"))
 }
