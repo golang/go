@@ -754,11 +754,22 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		case GC_EFACE:
 			eface = (Eface*)(stack_top.b + pc[1]);
 			pc += 2;
-			if(eface->type != nil && (eface->data >= arena_start && eface->data < arena_used)) {
-				t = eface->type;
+			if(eface->type == nil)
+				continue;
+
+			// eface->type
+			t = eface->type;
+			if((void*)t >= arena_start && (void*)t < arena_used) {
+				*ptrbufpos++ = (PtrTarget){t, 0};
+				if(ptrbufpos == ptrbuf_end)
+					flushptrbuf(ptrbuf, &ptrbufpos, &wp, &wbuf, &nobj);
+			}
+
+			// eface->data
+			if(eface->data >= arena_start && eface->data < arena_used) {
 				if(t->size <= sizeof(void*)) {
 					if((t->kind & KindNoPointers))
-						break;
+						continue;
 
 					obj = eface->data;
 					if((t->kind & ~KindNoPointers) == KindPtr)
@@ -774,7 +785,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			iface = (Iface*)(stack_top.b + pc[1]);
 			pc += 2;
 			if(iface->tab == nil)
-				break;
+				continue;
 			
 			// iface->tab
 			if((void*)iface->tab >= arena_start && (void*)iface->tab < arena_used) {
@@ -788,7 +799,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				t = iface->tab->type;
 				if(t->size <= sizeof(void*)) {
 					if((t->kind & KindNoPointers))
-						break;
+						continue;
 
 					obj = iface->data;
 					if((t->kind & ~KindNoPointers) == KindPtr)
@@ -815,9 +826,8 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		case GC_END:
 			if(--stack_top.count != 0) {
 				// Next iteration of a loop if possible.
-				elemsize = stack_top.elemsize;
-				stack_top.b += elemsize;
-				if(stack_top.b + elemsize <= end_b+PtrSize) {
+				stack_top.b += stack_top.elemsize;
+				if(stack_top.b + stack_top.elemsize <= end_b+PtrSize) {
 					pc = stack_top.loop_or_ret;
 					continue;
 				}
@@ -945,7 +955,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			*objbufpos++ = (Obj){obj, size, objti};
 			if(objbufpos == objbuf_end)
 				flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
-			break;
+			continue;
 
 		case GC_CHAN:
 			// There are no heap pointers in struct Hchan,
