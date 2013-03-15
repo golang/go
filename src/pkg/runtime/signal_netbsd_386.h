@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
+#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
 
 #define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EAX])
 #define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBX])
@@ -11,9 +11,9 @@
 #define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDI])
 #define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESI])
 #define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBP])
-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESP])
+#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_UESP])
 #define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EIP])
-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFLAGS])
+#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFL])
 
 #define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
 #define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
