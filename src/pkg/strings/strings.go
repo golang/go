@@ -492,10 +492,10 @@ func isSeparator(r rune) bool {
 	return unicode.IsSpace(r)
 }
 
-// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
-
 // Title returns a copy of the string s with all Unicode letters that begin words
 // mapped to their title case.
+//
+// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s string) string {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
