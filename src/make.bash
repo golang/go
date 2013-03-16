@@ -140,7 +140,6 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
 fi
 
 echo "# Building packages and commands for $GOOS/$GOARCH."
-# TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
 "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
 echo
 
