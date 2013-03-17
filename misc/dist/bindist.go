@@ -386,9 +386,13 @@ func (b *Build) tour() error {
 	}
 
 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
+	gotour := "gotour"
+	if runtime.GOOS == "windows" {
+		gotour = "gotour.exe"
+	}
 	return cp(
 		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),
-		filepath.Join(b.gopath, "bin", "gotour"),
+		filepath.Join(b.gopath, "bin", gotour),
 	)
 }
 
@@ -620,8 +624,11 @@ func cp(dst, src string) error {
 		return err
 	}
 	defer df.Close()
-	if err := df.Chmod(fi.Mode()); err != nil {
-		return err
+	// Windows doesn't currently implement Fchmod
+	if runtime.GOOS != "windows" {
+		if err := df.Chmod(fi.Mode()); err != nil {
+			return err
+		}
 	}
 	_, err = io.Copy(df, sf)
 	return err
