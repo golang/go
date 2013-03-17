@@ -54,7 +54,6 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) 
 			// the interface index in the interface-local or link-
 			// local address as the kernel-internal form.
 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
-				ifma.Zone = ifi.Name
 				ifma.IP[2], ifma.IP[3] = 0, 0
 			}
 			ifmat = append(ifmat, ifma.toAddr())

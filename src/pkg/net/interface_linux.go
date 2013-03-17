@@ -156,9 +156,6 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
 			case syscall.AF_INET6:
 				ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
 				copy(ifa.IP, a.Value[:])
-				if ifam.Scope == syscall.RT_SCOPE_HOST || ifam.Scope == syscall.RT_SCOPE_LINK {
-					ifa.Zone = ifi.Name
-				}
 				return ifa
 			}
 		}
@@ -229,9 +226,6 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
 			}
 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
-			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
-				ifma.Zone = ifi.Name
-			}
 			ifmat = append(ifmat, ifma.toAddr())
 		}
 	}

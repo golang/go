@@ -36,7 +36,6 @@ type IPMask []byte
 type IPNet struct {
 	IP   IP     // network number
 	Mask IPMask // network mask
-	Zone string // IPv6 scoped addressing zone
 }
 
 // IPv4 returns the IP address (in 16-byte form) of the
