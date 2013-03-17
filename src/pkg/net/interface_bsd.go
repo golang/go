@@ -171,7 +171,6 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (Addr, error) {
 				// the interface index in the interface-local or link-
 				// local address as the kernel-internal form.
 				if ifa.IP.IsLinkLocalUnicast() {
-					ifa.Zone = ifi.Name
 					ifa.IP[2], ifa.IP[3] = 0, 0
 				}
 			}
