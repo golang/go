@@ -5,15 +5,16 @@
 #include "runtime.h"
 #include "defs_GOOS_GOARCH.h"
 #include "os_GOOS.h"
+#include "signal_GOOS_GOARCH.h"
 
 void
 runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
 {
-	mc->r15 = (uint32)runtime·lwp_tramp;
-	mc->r13 = (uint32)stack;
-	mc->r0 = (uint32)mp;
-	mc->r1 = (uint32)gp;
-	mc->r2 = (uint32)fn;
+	mc->__gregs[REG_R15] = (uint32)runtime·lwp_tramp;
+	mc->__gregs[REG_R13] = (uint32)stack;
+	mc->__gregs[REG_R0] = (uint32)mp;
+	mc->__gregs[REG_R1] = (uint32)gp;
+	mc->__gregs[REG_R2] = (uint32)fn;
 }
 
 void
