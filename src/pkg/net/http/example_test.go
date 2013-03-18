@@ -54,3 +54,8 @@ func ExampleFileServer() {
 	// we use StripPrefix so that /tmpfiles/somefile will access /tmp/somefile
 	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
 }
+
+func ExampleStripPrefix() {
+	// we use StripPrefix so that /tmpfiles/somefile will access /tmp/somefile
+	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
+}
