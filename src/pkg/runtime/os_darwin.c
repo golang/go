@@ -409,9 +409,14 @@ int32
 runtime·mach_semacquire(uint32 sem, int64 ns)
 {
 	int32 r;
+	int64 secs;
 
 	if(ns >= 0) {
-		r = runtime·mach_semaphore_timedwait(sem, ns/1000000000LL, ns%1000000000LL);
+		secs = ns/1000000000LL;
+		// Avoid overflow
+		if(secs > 1LL<<30)
+			secs = 1LL<<30;
+		r = runtime·mach_semaphore_timedwait(sem, secs, ns%1000000000LL);
 		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
 			return -1;
 		if(r != 0)
