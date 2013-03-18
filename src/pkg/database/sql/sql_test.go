@@ -761,3 +761,32 @@ func TestSimultaneousQueries(t *testing.T) {
 	}
 	defer r2.Close()
 }
+
+func TestMaxIdleConns(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx.Commit()
+	if got := len(db.freeConn); got != 1 {
+		t.Errorf("freeConns = %d; want 1", got)
+	}
+
+	db.SetMaxIdleConns(0)
+
+	if got := len(db.freeConn); got != 0 {
+		t.Errorf("freeConns after set to zero = %d; want 0", got)
+	}
+
+	tx, err = db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx.Commit()
+	if got := len(db.freeConn); got != 0 {
+		t.Errorf("freeConns = %d; want 0", got)
+	}
+}

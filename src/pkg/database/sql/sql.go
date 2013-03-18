@@ -197,6 +197,7 @@ type DB struct {
 	dep       map[finalCloser]depSet
 	onConnPut map[*driverConn][]func() // code (with mu held) run when conn is next returned
 	lastPut   map[*driverConn]string   // stacktrace of last conn's put; debug only
+	maxIdle   int                      // zero means defaultMaxIdleConns; negative means 0
 }
 
 // driverConn wraps a driver.Conn with a mutex, to
@@ -332,11 +333,45 @@ func (db *DB) Close() error {
 	return err
 }
 
-func (db *DB) maxIdleConns() int {
-	const defaultMaxIdleConns = 2
-	// TODO(bradfitz): ask driver, if supported, for its default preference
-	// TODO(bradfitz): let users override?
-	return defaultMaxIdleConns
+const defaultMaxIdleConns = 2
+
+func (db *DB) maxIdleConnsLocked() int {
+	n := db.maxIdle
+	switch {
+	case n == 0:
+		// TODO(bradfitz): ask driver, if supported, for its default preference
+		return defaultMaxIdleConns
+	case n < 0:
+		return 0
+	default:
+		return n
+	}
+}
+
+// SetMaxIdleConns sets the maximum number of connections in the idle
+// connection pool.
+//
+// If n <= 0, no idle connections are retained.
+func (db *DB) SetMaxIdleConns(n int) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	if n > 0 {
+		db.maxIdle = n
+	} else {
+		// No idle connections.
+		db.maxIdle = -1
+	}
+	for len(db.freeConn) > 0 && len(db.freeConn) > n {
+		nfree := len(db.freeConn)
+		dc := db.freeConn[nfree-1]
+		db.freeConn[nfree-1] = nil
+		db.freeConn = db.freeConn[:nfree-1]
+		go func() {
+			dc.Lock()
+			dc.ci.Close()
+			dc.Unlock()
+		}()
+	}
 }
 
 // conn returns a newly-opened or cached *driverConn
@@ -441,7 +476,7 @@ func (db *DB) putConn(dc *driverConn, err error) {
 	if putConnHook != nil {
 		putConnHook(db, dc)
 	}
-	if n := len(db.freeConn); !db.closed && n < db.maxIdleConns() {
+	if n := len(db.freeConn); !db.closed && n < db.maxIdleConnsLocked() {
 		db.freeConn = append(db.freeConn, dc)
 		db.mu.Unlock()
 		return
