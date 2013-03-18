@@ -590,7 +590,7 @@ func (db *DB) queryConn(dc *driverConn, releaseConn func(error), query string, a
 				releaseConn(err)
 				return nil, err
 			}
-			// Note: ownership of ci passes to the *Rows, to be freed
+			// Note: ownership of dc passes to the *Rows, to be freed
 			// with releaseConn.
 			rows := &Rows{
 				db:          db,
@@ -689,14 +689,8 @@ type Tx struct {
 
 	// dc is owned exclusively until Commit or Rollback, at which point
 	// it's returned with putConn.
-	// TODO(bradfitz): golang.org/issue/3857
 	dc  *driverConn
 	txi driver.Tx
-
-	// cimu is held while somebody is using ci (between grabConn
-	// and releaseConn)
-	// TODO(bradfitz): golang.org/issue/3857
-	cimu sync.Mutex
 
 	// done transitions from false to true exactly once, on Commit
 	// or Rollback. once done, all operations fail with
@@ -720,12 +714,7 @@ func (tx *Tx) grabConn() (*driverConn, error) {
 	if tx.done {
 		return nil, ErrTxDone
 	}
-	tx.cimu.Lock()
 	return tx.dc, nil
-}
-
-func (tx *Tx) releaseConn() {
-	tx.cimu.Unlock()
 }
 
 // Commit commits the transaction.
@@ -774,7 +763,6 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer tx.releaseConn()
 
 	dc.Lock()
 	si, err := dc.ci.Prepare(query)
@@ -817,7 +805,6 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	if err != nil {
 		return &Stmt{stickyErr: err}
 	}
-	defer tx.releaseConn()
 	dc.Lock()
 	si, err := dc.ci.Prepare(stmt.query)
 	dc.Unlock()
@@ -840,7 +827,6 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer tx.releaseConn()
 
 	if execer, ok := dc.ci.(driver.Execer); ok {
 		dargs, err := driverArgs(nil, args)
@@ -871,14 +857,12 @@ func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 
 // Query executes a query that returns rows, typically a SELECT.
 func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
-	ci, err := tx.grabConn()
+	dc, err := tx.grabConn()
 	if err != nil {
 		return nil, err
 	}
-
-	releaseConn := func(err error) { tx.releaseConn() }
-
-	return tx.db.queryConn(ci, releaseConn, query, args)
+	releaseConn := func(error) {}
+	return tx.db.queryConn(dc, releaseConn, query, args)
 }
 
 // QueryRow executes a query that is expected to return at most one row.
@@ -980,7 +964,7 @@ func (s *Stmt) connStmt() (ci *driverConn, releaseConn func(error), si driver.St
 		if err != nil {
 			return
 		}
-		releaseConn = func(error) { s.tx.releaseConn() }
+		releaseConn = func(error) {}
 		return ci, releaseConn, s.txsi.si, nil
 	}
 
