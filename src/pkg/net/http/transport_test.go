@@ -941,14 +941,17 @@ func TestChunkedNoContent(t *testing.T) {
 
 func TestTransportConcurrency(t *testing.T) {
 	defer afterTest(t)
-	const maxProcs = 16
-	const numReqs = 500
+	maxProcs, numReqs := 16, 500
+	if testing.Short() {
+		maxProcs, numReqs = 4, 50
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%v", r.FormValue("echo"))
 	}))
 	defer ts.Close()
 	tr := &Transport{}
+	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr}
 	reqs := make(chan string)
 	defer close(reqs)
@@ -973,8 +976,8 @@ func TestTransportConcurrency(t *testing.T) {
 				if string(all) != req {
 					t.Errorf("body of req %s = %q; want %q", req, all, req)
 				}
-				wg.Done()
 				res.Body.Close()
+				wg.Done()
 			}
 		}()
 	}
