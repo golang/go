@@ -736,3 +736,28 @@ func TestIssue4902(t *testing.T) {
 		t.Logf("stmt = %#v", stmt)
 	}
 }
+
+// Issue 3857
+// This used to deadlock.
+func TestSimultaneousQueries(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	r1, err := tx.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r1.Close()
+
+	r2, err := tx.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r2.Close()
+}
