@@ -21,6 +21,25 @@ TEXT runtime·exit1(SB),7,$-4
 	MOVW $1, R9	// crash
 	MOVW R9, (R9)
 	RET
+	
+TEXT runtime·open(SB),7,$-8
+	MOVW 0(FP), R0
+	MOVW 4(FP), R1
+	MOVW 8(FP), R2
+	SWI $0xa00005
+	RET
+
+TEXT runtime·close(SB),7,$-8
+	MOVW 0(FP), R0
+	SWI $0xa00006
+	RET
+
+TEXT runtime·read(SB),7,$-8
+	MOVW 0(FP), R0
+	MOVW 4(FP), R1
+	MOVW 8(FP), R2
+	SWI $0xa00003
+	RET
 
 TEXT runtime·write(SB),7,$-4
 	MOVW	0(FP), R0	// arg 1 - fd

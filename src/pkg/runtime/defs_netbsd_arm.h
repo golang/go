@@ -1,5 +1,5 @@
 // Created by cgo -cdefs - DO NOT EDIT
-// cgo -cdefs defs_netbsd.go
+// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
 
 
 enum {
@@ -138,3 +138,27 @@ struct UcontextT {
 };
 
 #pragma pack off
+// Created by cgo -cdefs - DO NOT EDIT
+// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
+
+
+enum {
+	REG_R0		= 0x0,
+	REG_R1		= 0x1,
+	REG_R2		= 0x2,
+	REG_R3		= 0x3,
+	REG_R4		= 0x4,
+	REG_R5		= 0x5,
+	REG_R6		= 0x6,
+	REG_R7		= 0x7,
+	REG_R8		= 0x8,
+	REG_R9		= 0x9,
+	REG_R10		= 0xa,
+	REG_R11		= 0xb,
+	REG_R12		= 0xc,
+	REG_R13		= 0xd,
+	REG_R14		= 0xe,
+	REG_R15		= 0xf,
+	REG_CPSR	= 0x10,
+};
+
