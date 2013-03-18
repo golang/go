@@ -797,6 +797,12 @@ inlvar(Node *var)
 	n->class = PAUTO;
 	n->used = 1;
 	n->curfn = curfn;   // the calling function, not the called one
+
+	// esc pass wont run if we're inlining into a iface wrapper
+	// luckily, we can steal the results from the target func
+	if(var->esc == EscHeap)
+		addrescapes(n);
+
 	curfn->dcl = list(curfn->dcl, n);
 	return n;
 }
