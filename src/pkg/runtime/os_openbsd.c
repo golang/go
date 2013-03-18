@@ -62,6 +62,7 @@ int32
 runtime·semasleep(int64 ns)
 {
 	Timespec ts;
+	int64 secs;
 
 	// spin-mutex lock
 	while(runtime·xchg(&m->waitsemalock, 1))
@@ -76,7 +77,11 @@ runtime·semasleep(int64 ns)
 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
 			else {
 				ns += runtime·nanotime();
-				ts.tv_sec = ns/1000000000LL;
+				secs = ns/1000000000LL;
+				// Avoid overflow
+				if(secs > 1LL<<30)
+					secs = 1LL<<30;
+				ts.tv_sec = secs;
 				ts.tv_nsec = ns%1000000000LL;
 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
 			}

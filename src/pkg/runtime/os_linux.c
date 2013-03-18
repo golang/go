@@ -36,15 +36,17 @@ void
 runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
 	Timespec ts, *tsp;
+	int64 secs;
 
 	if(ns < 0)
 		tsp = nil;
 	else {
-		ts.tv_sec = ns/1000000000LL;
-		ts.tv_nsec = ns%1000000000LL;
+		secs = ns/1000000000LL;
 		// Avoid overflow
-		if(ts.tv_sec > 1<<30)
-			ts.tv_sec = 1<<30;
+		if(secs > 1LL<<30)
+			secs = 1LL<<30;
+		ts.tv_sec = secs;
+		ts.tv_nsec = ns%1000000000LL;
 		tsp = &ts;
 	}
 
