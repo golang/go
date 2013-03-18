@@ -9,6 +9,7 @@
 TODO
  - overview
  - link back to Go 1 and also Go 1 Compatibility docs.
+ - links through body of text
 
 <h2 id="language">Changes to the language</h2>
 
@@ -33,7 +34,8 @@ In Go 1.1, an integer division by constant zero is not a legal program, so it is
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
-TODO: more
+<li>TODO: more</li>
+<li>TODO: unicode: surrogate halves in compiler, libraries, runtime</li>
 
 <h3 id="gc-flag">Command-line flag parsing</h3>
 
@@ -59,7 +61,7 @@ more than 2 billion elements on 64-bit platforms.
 <em>Updating</em>:
 Most programs will be unaffected by this change.
 Because Go does not allow implicit conversions between distinct
-<a href="/ref/spec#Numeric_types">numeric types</a>,
+<a href="/ref/spec/#Numeric_types">numeric types</a>,
 no programs will stop compiling due to this change.
 However, programs that contain implicit assumptions
 that <code>int</code> is only 32 bits may change behavior.
@@ -129,7 +131,26 @@ before Go 1 to use Go 1 APIs. To update pre-Go 1 code to Go 1.1, use a Go 1.0 to
 to convert the code to Go 1.0 first.
 </p>
 
+<h2 id="performance">Performance</h2>
+
+<p>
+TODO introduction
+</p>
+
+<ul>
+<li>TODO better code generation (inlining, ...?)</li>
+<li>TODO parallel gc</li>
+<li>TODO more precise gc</li>
+<li>TODO networking is more efficient (known to runtime)</li>
+</ul>
+
 <h2 id="library">Changes to the standard library</h2>
+
+<h3 id="bufio_scanner">bufio.Scanner</h3>
+
+<p>
+TODO
+</p>
 
 <h3 id="debug_elf">debug/elf</h3>
 <p>
@@ -139,13 +160,6 @@ is no longer skipped since indexes into the symbol table returned by debug/elf,
 will be different to indexes into the original ELF symbol table. Any code that
 calls the debug/elf functions Symbols or ImportedSymbols may need to be
 adjusted to account for the additional symbol and the change in symbol offsets.
-</p>
-
-<h3 id="html_template">html/template</h3>
-
-<p>
-Templates using the undocumented and only partially implemented
-"noescape" feature will break: that feature was removed.
 </p>
 
 <h3 id="net">net</h3>
@@ -168,6 +182,20 @@ with <code>ReadFrom</code> and <code>WriteTo</code> methods on
 the <code>UnixConn</code>.
 </p>
 
+<h3 id="reflect">reflect</h3>
+
+<p>
+TODO: 
+<code>reflect</code>: Select, ChanOf, MakeFunc, MapOf, SliceOf, Convert, Type.ConvertibleTo
+</p>
+
+<h3 id="runtime">runtime</h3>
+
+<p>
+TODO:
+<code>runtime</code>: BlockProfile
+</p>
+
 <h3 id="time">time</h3>
 <p>
 On FreeBSD, Linux, NetBSD, OS X and OpenBSD, previous versions of the time package
@@ -180,6 +208,10 @@ will have discarded nanoseconds.
 To address this case, there are two new methods of time.Time, Round and Truncate,
 that can be used to remove precision from a time before passing it to
 external storage.
+</p>
+
+<p> TODO: 
+<code>time</code>: ParseInLocation, Timer.Reset, Time.YearDay
 </p>
 
 <h3 id="exp_old">Exp and old subtrees moved to go.exp subrepo</h3>
@@ -204,4 +236,217 @@ and then in Go source,
 import "code.google.com/p/go.exp/ssa"
 </pre>
 
-<h3 id="TODO">TODO</h3>
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+The following list summarizes a number of minor changes to the library, mostly additions.
+See the relevant package documentation for more information about each change.
+</p>
+
+<ul>
+<li> 
+The <a href="/pkg/bytes/"><code>bytes</code></a> package has two new functions,
+<a href="/pkg/bytes/#TrimPrefix"><code>TrimPrefix</code></a>
+and
+<a href="/pkg/bytes/#TrimSuffix"><code>TrimSuffix</code></a>,
+with self-evident properties.
+Also, the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
+has a new method
+<a href="/pkg/bytes/#Buffer.Grow"><code>Grow</code></a> that
+provides some control over memory allocation inside the buffer.
+Finally, the
+<a href="/pkg/bytes/#Reader"><code>Reader</code></a> type now has a
+<a href="/pkg/strings/#Reader.WriteTo"><code>WriteTo</code></a> method
+so it implements the 
+<a href="/pkg/io/#WriterTo"><code>io.WriterTo</code></a> interface.
+</li>
+
+<li>
+The <a href="/pkg/crypto/hmac/"><code>crypto/hmac</code></a> package has a new function,
+<a href="/pkg/crypto/hmac/#Equal"><code>Equal</code></a>, to compare two MACs.
+</li>
+
+<li> TODO: 
+<code>crypto/x509</code>: DecryptPEMBlock, EncryptPEMBlock etc.
+</li>
+
+<li> TODO: 
+<code>database/sql/driver</code>: Queryer
+</li>
+
+<li> TODO: 
+<code>database/sql</code>: Ping, SetMaxIdleConns
+</li>
+
+<li> TODO: 
+<code>encoding/json</code>: Decoder.Buffered, UseNumber, Number
+</li>
+
+<li> TODO: 
+<code>encoding/xml</code>: EscapeText Encoder.Indent
+</li>
+
+<li>
+In the <a href="/pkg/go/ast/"><code>go/ast</code></a> package, a
+new type <a href="/pkg/go/ast/#CommentMap"><code>CommentMap</code></a>
+and associated methods makes it easier to extract and process comments in Go programs.
+</li>
+
+<li>
+In the <a href="/pkg/go/doc/"><code>go/doc</code></a> package,
+the parser now keeps better track of stylized annotations such as <code>TODO(joe)</code>
+throughout the code,
+information that the <a href="/cmd/godoc/"><code>godoc</code></a>
+command can filter or present according to the value of the <code>-notes</code> flag.
+</li>
+
+<li> TODO: 
+<code>go/format</code>: Node, Source
+</li>
+
+<li>
+The undocumented and only partially implemented "noescape" feature of the
+<a href="/pkg/html/template/">html/template</a>
+package has been removed; programs that depend on it will break.
+</li>
+
+<li>
+The <a href="/pkg/io/">io</a> package now exports the
+<a href="/pkg/io/#ByteWriter"><code>io.ByteWriter</code></a> interface to capture the common
+functionality of writing a byte at a time.
+</li>
+
+<li>
+The <a href="/pkg/log/syslog/"><code>log/syslog</code></a> package now provides better support
+for OS-specific logging features.
+</li>
+
+<li>
+The <a href="/pkg/math/big/"><code>math/big</code></a> package's
+<a href="/pkg/math/big/#Int"><code>Int</code></a> type now has
+now has methods
+<a href="/pkg/math/big/#Int.MarshalJSON"><code>MarshalJSON</code></a>
+and
+<a href="/pkg/math/big/#Int.UnmarshalJSON"><code>UnmarshalJSON</code></a>
+to convert to and from a JSON representation.
+Also,
+<a href="/pkg/math/big/#Int"><code>Int</code></a>
+can now convert directly to and from a <code>uint64</code> using
+<a href="/pkg/math/big/#Int.Uint64"><code>Uint64</code></a>
+and
+<a href="/pkg/math/big/#Int.SetUint64"><code>SetUint64</code></a>,
+while
+<a href="/pkg/math/big/#Rat"><code>Rat</code></a>
+can do the same with <code>float64</code> using
+<a href="/pkg/math/big/#Rat.Float64"><code>Float64</code></a>
+and
+<a href="/pkg/math/big/#Rat.SetFloat64"><code>SetFloat64</code></a>.
+</li>
+
+<li> TODO: 
+<code>mime/multipart</code>: Writer.SetBoundary
+</li>
+
+<li>
+The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
+</li>
+
+<li> TODO: 
+<code>net/http</code>: ParseTime, CloseNotifier, Request.PostFormValue, ServeMux.Handler, Transport.CancelRequest
+</li>
+
+<li> TODO: 
+<code>net/mail</code>: ParseAddress, ParseAddressList
+</li>
+
+<li> TODO: 
+<code>net/smtp</code>: Client.Hello
+</li>
+
+<li> TODO: 
+<code>net/textproto</code>: TrimBytes, TrimString
+</li>
+
+<li>
+<code>net</code>: DialOption, DialOpt, ListenUnixgram, LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
+</li>
+
+<li>
+The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular</code> </a> makes it easy to ask if a file is a plain file.
+</li>
+
+<li> TODO: 
+<code>pkg/image</code>: new subsamplings
+</li>
+
+<li>
+The <a href="/pkg/regexp/"><code>regexp</code></a> package
+now supports Unix-original lefmost-longest matches through the
+<a href="/pkg/regexp/#Regexp.Longest"><code>Regexp.Longest</code></a>
+method, while
+<a href="/pkg/regexp/#Regexp.Split"><code>Regexp.Split</code></a> slices
+strings into pieces based on separators defined by the regular expression.
+</li>
+
+<li> TODO: 
+<code>runtime/debug</code>: FreeOSMemory, ReadGCStats, SetGCPercent
+</li>
+
+<li>
+The <a href="/pkg/sort/"><code>sort</code></a> package has a new function,
+<a href="/pkg/sort/#Reverse"><code>Reverse</code></a>.
+Wrapping the argument of a call to 
+<a href="/pkg/sort/#Sort"><code>sort.Sort</code></a>
+with a call to <code>Reverse</code> causes the sort order to be reversed.
+</li>
+
+<li>
+The <a href="/pkg/strings/"><code>strings</code></a> package has two new functions,
+<a href="/pkg/strings/#TrimPrefix"><code>TrimPrefix</code></a>
+and
+<a href="/pkg/strings/#TrimSuffix"><code>TrimSuffix</code></a>
+with self-evident properties, and the the new method
+<a href="/pkg/strings/#Reader.WriteTo"><code>Reader.WriteTo</code></a> so the
+<a href="/pkg/strings/#Reader"><code>Reader</code></a>
+type now implements the
+<a href="/pkg/io/#WriterTo"><code>io.WriterTo</code></a> interface.
+</li>
+
+<li>
+The <a href="/pkg/syscall/"><code>syscall</code></a> package has received many updates to make it more inclusive of constants and system calls for each supported operating system.
+</li>
+
+<li>
+The <a href="/pkg/testing/"><code>testing</code></a> package now automates the generation of allocation
+statistics in benchmarks using the new
+<a href="/pkg/testing/#AllocsPerRun"><code>AllocsPerRun</code></a> function and the
+<a href="/pkg/testing/#BenchmarkResult.AllocsPerOp"><code>AllocsPerOp</code></a> method of
+<a href="/pkg/testing/#BenchmarkResult"><code>BenchmarkResult</code></a>.
+There is also a new
+<a href="/pkg/testing/#Verbose"><code>Verbose</code></a> function to test the state of the <code>-v</code>
+command-line flag,
+and a new
+<a href="/pkg/testing/#B.Skip"><code>Skip</code></a> method of
+<a href="/pkg/testing/#B"><code>testing.B</code></a> and
+<a href="/pkg/testing/#T"><code>testing.T</code></a>
+to simplify skipping an inappropriate test.
+</li>
+
+<li>
+In the <a href="/pkg/text/template/"><code>text/template</code></a>
+and
+<a href="/pkg/html/template/"><code>html/template</code></a> packages,
+templates can now use parentheses to group the elements of pipelines, simplifying the construction of complex pipelines.
+TODO: Link to example.
+</li>
+
+<li>
+In the <a href="/pkg/unicode/utf8/"><code>unicode/utf8</code></a> package,
+the new function <a href="/pkg/unicode/utf8/#ValidRune"><code>ValidRune</code></a> reports whether the rune is a valid Unicode code point.
+To be valid, a rune must be in range and not be a surrogate half.
+</li>
+
+<li>
+The implementation of the <a href="/pkg/unicode/"><code>unicode</code></a> package has been updated to Unicode version 6.2.0.
+</li>
+</ul>
