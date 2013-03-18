@@ -151,6 +151,33 @@ func TestPipes(t *testing.T) {
 	check("Wait", err)
 }
 
+// Issue 5071
+func TestPipeLookPathLeak(t *testing.T) {
+	fd0 := numOpenFDS(t)
+	for i := 0; i < 4; i++ {
+		cmd := Command("something-that-does-not-exist-binary")
+		cmd.StdoutPipe()
+		cmd.StderrPipe()
+		cmd.StdinPipe()
+		if err := cmd.Run(); err == nil {
+			t.Fatal("unexpected success")
+		}
+	}
+	fdGrowth := numOpenFDS(t) - fd0
+	if fdGrowth > 2 {
+		t.Errorf("leaked %d fds; want ~0", fdGrowth)
+	}
+}
+
+func numOpenFDS(t *testing.T) int {
+	lsof, err := Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+	if err != nil {
+		t.Skip("skipping test; error finding or running lsof")
+		return 0
+	}
+	return bytes.Count(lsof, []byte("\n"))
+}
+
 var testedAlreadyLeaked = false
 
 // basefds returns the number of expected file descriptors
