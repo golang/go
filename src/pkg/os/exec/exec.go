@@ -235,6 +235,8 @@ func (c *Cmd) Run() error {
 // Start starts the specified command but does not wait for it to complete.
 func (c *Cmd) Start() error {
 	if c.err != nil {
+		c.closeDescriptors(c.closeAfterStart)
+		c.closeDescriptors(c.closeAfterWait)
 		return c.err
 	}
 	if c.Process != nil {
