@@ -253,8 +253,6 @@ TEXT runtime·mmap(SB),7,$0
 	MOVQ	$0, R9			// arg 6 - pad
 	MOVL	$197, AX		// sys_mmap
 	SYSCALL
-	JCC	2(PC)
-	NEGQ	AX
 	ADDQ	$16, SP
 	RET
 

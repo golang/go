@@ -89,8 +89,6 @@ TEXT runtime·mmap(SB),7,$36
 	STOSL
 	MOVL	$197, AX		// sys_mmap
 	INT	$0x80
-	JCC	2(PC)
-	NEGL	AX
 	RET
 
 TEXT runtime·munmap(SB),7,$-4
