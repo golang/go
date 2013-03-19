@@ -151,7 +151,7 @@ func is32(ranges []Range32, r uint32) bool {
 	return false
 }
 
-// Is tests whether rune is in the specified table of ranges.
+// Is reports whether the rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
 	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
