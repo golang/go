@@ -41,8 +41,12 @@ static vlong arangeso;
 static vlong arangessize;
 static vlong gdbscripto;
 static vlong gdbscriptsize;
+static vlong inforeloco;
+static vlong inforelocsize;
 
 static char  gdbscript[1024];
+
+static Sym *dsym;
 
 /*
  *  Basic I/O
@@ -485,26 +489,43 @@ mkindex(DWDie *die)
 	die->hash = mal(HASHSIZE * sizeof(DWDie*));
 }
 
+static DWDie*
+walktypedef(DWDie *die)
+{
+	DWAttr *attr;
+
+	// Resolve typedef if present.
+	if (die->abbrev == DW_ABRV_TYPEDECL) {
+		for (attr = die->attr; attr; attr = attr->link) {
+			if (attr->atr == DW_AT_type && attr->cls == DW_CLS_REFERENCE && attr->data != nil) {
+				return (DWDie*)attr->data;
+			}
+		}
+	}
+	return die;
+}
+
 // Find child by AT_name using hashtable if available or linear scan
 // if not.
 static DWDie*
 find(DWDie *die, char* name)
 {
-	DWDie *a, *b;
+	DWDie *a, *b, *die2;
 	int h;
 
+top:
 	if (die->hash == nil) {
 		for (a = die->child; a != nil; a = a->link)
 			if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
 				return a;
-		return nil;
+		goto notfound;
 	}
 
 	h = hashstr(name);
 	a = die->hash[h];
 
 	if (a == nil)
-		return nil;
+		goto notfound;
 
 
 	if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
@@ -522,6 +543,14 @@ find(DWDie *die, char* name)
 		a = b;
 		b = b->hlink;
 	}
+
+notfound:
+	die2 = walktypedef(die);
+	if(die2 != die) {
+		die = die2;
+		goto top;
+	}
+
 	return nil;
 }
 
@@ -531,7 +560,7 @@ find_or_diag(DWDie *die, char* name)
 	DWDie *r;
 	r = find(die, name);
 	if (r == nil) {
-		diag("dwarf find: %s has no %s", getattr(die, DW_AT_name)->data, name);
+		diag("dwarf find: %s %p has no %s", getattr(die, DW_AT_name)->data, die, name);
 		errorexit();
 	}
 	return r;
@@ -548,14 +577,33 @@ newrefattr(DWDie *die, uint8 attr, DWDie* ref)
 static int fwdcount;
 
 static void
-putattr(int form, int cls, vlong value, char *data)
+putattr(int abbrev, int form, int cls, vlong value, char *data)
 {
+	Reloc *r;
+
 	switch(form) {
 	case DW_FORM_addr:	// address
 		addrput(value);
 		break;
 
 	case DW_FORM_block1:	// block
+		if(cls == DW_CLS_ADDRESS) {
+			cput(1+PtrSize);
+			cput(DW_OP_addr);
+			if(linkmode == LinkExternal) {
+				r = addrel(dsym);
+				r->sym = (Sym*)data;
+				r->xsym = r->sym;
+				r->off = cpos() - infoo;
+				r->siz = PtrSize;
+				r->type = D_ADDR;
+				r->add = value - r->sym->value;
+				r->xadd = r->add;
+				value = r->add;
+			}
+			addrput(value);
+			break;
+		}
 		value &= 0xff;
 		cput(value);
 		while(value--)
@@ -615,13 +663,23 @@ putattr(int form, int cls, vlong value, char *data)
 		break;
 
 	case DW_FORM_ref_addr:	// reference to a DIE in the .info section
+		// In DWARF 2 (which is what we claim to generate),
+		// the ref_addr is the same size as a normal address.
+		// In DWARF 3 it is always 32 bits, unless emitting a large
+		// (> 4 GB of debug info aka "64-bit") unit, which we don't implement.
 		if (data == nil) {
-			diag("dwarf: null reference");
-			LPUT(0);  // invalid dwarf, gdb will complain.
+			diag("dwarf: null reference in %d", abbrev);
+			if(PtrSize == 8)
+				VPUT(0); // invalid dwarf, gdb will complain.
+			else
+				VPUT(0); // invalid dwarf, gdb will complain.
 		} else {
 			if (((DWDie*)data)->offs == 0)
 				fwdcount++;
-			LPUT(((DWDie*)data)->offs);
+			if(PtrSize == 8)
+				VPUT(((DWDie*)data)->offs);
+			else
+				LPUT(((DWDie*)data)->offs);
 		}
 		break;
 
@@ -654,12 +712,12 @@ putattrs(int abbrev, DWAttr* attr)
 
 	for(af = abbrevs[abbrev].attr; af->attr; af++)
 		if (attrs[af->attr])
-			putattr(af->form,
+			putattr(abbrev, af->form,
 				attrs[af->attr]->cls,
 				attrs[af->attr]->value,
 				attrs[af->attr]->data);
 		else
-			putattr(af->form, 0, 0, 0);
+			putattr(abbrev, af->form, 0, 0, 0);
 }
 
 static void putdie(DWDie* die);
@@ -729,16 +787,9 @@ newmemberoffsetattr(DWDie *die, int32 offs)
 // GDB doesn't like DW_FORM_addr for DW_AT_location, so emit a
 // location expression that evals to a const.
 static void
-newabslocexprattr(DWDie *die, vlong addr)
+newabslocexprattr(DWDie *die, vlong addr, Sym *sym)
 {
-	char block[10];
-	int i;
-
-	i = 0;
-	block[i++] = DW_OP_constu;
-	i += uleb128enc(addr, block+i);
-	newattr(die, DW_AT_location, DW_CLS_BLOCK, i, mal(i));
-	memmove(die->attr->data, block, i);
+	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
 }
 
 
@@ -764,6 +815,31 @@ lookup_or_diag(char *n)
 		errorexit();
 	}
 	return s;
+}
+
+static void
+dotypedef(DWDie *parent, char *name, DWDie *def)
+{
+	DWDie *die;
+
+	// Only emit typedefs for real names.
+	if(strncmp(name, "map[", 4) == 0)
+		return;
+	if(strncmp(name, "struct {", 8) == 0)
+		return;
+	if(strncmp(name, "chan ", 5) == 0)
+		return;
+	if(*name == '[' || *name == '*')
+		return;
+	if(def == nil)
+		diag("dwarf: bad def in dotypedef");
+
+	// The typedef entry must be created after the def,
+	// so that future lookups will find the typedef instead
+	// of the real definition. This hooks the typedef into any
+	// circular definition loops, so that gdb can understand them.
+	die = newdie(parent, DW_ABRV_TYPEDECL, name);
+	newrefattr(die, DW_AT_type, def);
 }
 
 // Define gotype, for composite ones recurse into constituents.
@@ -840,6 +916,7 @@ defgotype(Sym *gotype)
 
 	case KindArray:
 		die = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, name);
+		dotypedef(&dwtypes, name, die);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		s = decodetype_arrayelem(gotype);
 		newrefattr(die, DW_AT_type, defgotype(s));
@@ -857,6 +934,7 @@ defgotype(Sym *gotype)
 
 	case KindFunc:
 		die = newdie(&dwtypes, DW_ABRV_FUNCTYPE, name);
+		dotypedef(&dwtypes, name, die);
 		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "void"));
 		nfields = decodetype_funcincount(gotype);
 		for (i = 0; i < nfields; i++) {
@@ -876,6 +954,7 @@ defgotype(Sym *gotype)
 
 	case KindInterface:
 		die = newdie(&dwtypes, DW_ABRV_IFACETYPE, name);
+		dotypedef(&dwtypes, name, die);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		nfields = decodetype_ifacemethodcount(gotype);
 		if (nfields == 0)
@@ -895,12 +974,14 @@ defgotype(Sym *gotype)
 
 	case KindPtr:
 		die = newdie(&dwtypes, DW_ABRV_PTRTYPE, name);
+		dotypedef(&dwtypes, name, die);
 		s = decodetype_ptrelem(gotype);
 		newrefattr(die, DW_AT_type, defgotype(s));
 		break;
 
 	case KindSlice:
 		die = newdie(&dwtypes, DW_ABRV_SLICETYPE, name);
+		dotypedef(&dwtypes, name, die);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		s = decodetype_arrayelem(gotype);
 		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
@@ -913,6 +994,7 @@ defgotype(Sym *gotype)
 
 	case KindStruct:
 		die = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, name);
+		dotypedef(&dwtypes, name, die);
 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
 		nfields = decodetype_structfieldcount(gotype);
 		for (i = 0; i < nfields; i++) {
@@ -998,7 +1080,7 @@ synthesizestringtypes(DWDie* die)
 {
 	DWDie *prototype;
 
-	prototype = defgotype(lookup_or_diag("type.runtime._string"));
+	prototype = walktypedef(defgotype(lookup_or_diag("type.runtime._string")));
 	if (prototype == nil)
 		return;
 
@@ -1014,7 +1096,7 @@ synthesizeslicetypes(DWDie *die)
 {
 	DWDie *prototype, *elem;
 
-	prototype = defgotype(lookup_or_diag("type.runtime.slice"));
+	prototype = walktypedef(defgotype(lookup_or_diag("type.runtime.slice")));
 	if (prototype == nil)
 		return;
 
@@ -1057,9 +1139,9 @@ synthesizemaptypes(DWDie *die)
 	int hashsize, keysize, valsize, datsize, valsize_in_hash, datavo;
 	DWAttr *a;
 
-	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
-	hash_subtable	= defgotype(lookup_or_diag("type.runtime.hash_subtable"));
-	hash_entry	= defgotype(lookup_or_diag("type.runtime.hash_entry"));
+	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
+	hash_subtable	= walktypedef(defgotype(lookup_or_diag("type.runtime.hash_subtable")));
+	hash_entry	= walktypedef(defgotype(lookup_or_diag("type.runtime.hash_entry")));
 
 	if (hash == nil || hash_subtable == nil || hash_entry == nil)
 		return;
@@ -1149,9 +1231,9 @@ synthesizechantypes(DWDie *die)
 	DWAttr *a;
 	int elemsize, sudogsize;
 
-	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
-	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
-	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
+	sudog = walktypedef(defgotype(lookup_or_diag("type.runtime.sudog")));
+	waitq = walktypedef(defgotype(lookup_or_diag("type.runtime.waitq")));
+	hchan = walktypedef(defgotype(lookup_or_diag("type.runtime.hchan")));
 	if (sudog == nil || waitq == nil || hchan == nil)
 		return;
 
@@ -1220,7 +1302,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 	case 'D':
 	case 'B':
 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s);
-		newabslocexprattr(dv, v);
+		newabslocexprattr(dv, v, sym);
 		if (ver == 0)
 			newattr(dv, DW_AT_external, DW_CLS_FLAG, 1, 0);
 		// fallthrough
@@ -1581,12 +1663,12 @@ mkvarname(char* name, int da)
 
 // flush previous compilation unit.
 static void
-flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
+flushunit(DWDie *dwinfo, vlong pc, Sym *pcsym, vlong unitstart, int32 header_length)
 {
 	vlong here;
 
 	if (dwinfo != nil && pc != 0) {
-		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, 0);
+		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, (char*)pcsym);
 	}
 
 	if (unitstart >= 0) {
@@ -1597,7 +1679,7 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
 		here = cpos();
 		cseek(unitstart);
 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
-		WPUT(3);  // dwarf version
+		WPUT(2);  // dwarf version
 		LPUT(header_length); // header length starting here
 		cseek(here);
 	}
@@ -1607,7 +1689,7 @@ static void
 writelines(void)
 {
 	Prog *q;
-	Sym *s;
+	Sym *s, *epcs;
 	Auto *a;
 	vlong unitstart, headerend, offs;
 	vlong pc, epc, lc, llc, lline;
@@ -1622,6 +1704,7 @@ writelines(void)
 	headerend = -1;
 	pc = 0;
 	epc = 0;
+	epcs = S;
 	lc = 1;
 	llc = 1;
 	currfile = -1;
@@ -1637,7 +1720,7 @@ writelines(void)
 		// we're entering a new compilation unit
 
 		if (inithist(s->autom)) {
-			flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
+			flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
 			unitstart = cpos();
 
 			if(debug['v'] > 1) {
@@ -1654,12 +1737,12 @@ writelines(void)
 			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup(histfile[1]));
 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
 			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
-			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);
+			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, (char*)s);
 
 			// Write .debug_line Line Number Program Header (sec 6.2.4)
 			// Fields marked with (*) must be changed for 64-bit dwarf
 			LPUT(0);   // unit_length (*), will be filled in by flushunit.
-			WPUT(3);   // dwarf version (appendix F)
+			WPUT(2);   // dwarf version (appendix F)
 			LPUT(0);   // header_length (*), filled in by flushunit.
 			// cpos == unitstart + 4 + 2 + 4
 			cput(1);   // minimum_instruction_length
@@ -1683,6 +1766,7 @@ writelines(void)
 
 			pc = s->text->pc;
 			epc = pc;
+			epcs = s;
 			currfile = 1;
 			lc = 1;
 			llc = 1;
@@ -1701,9 +1785,9 @@ writelines(void)
 		}
 
 		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s->name);
-		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, 0);
+		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
 		epc = s->value + s->size;
-		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, 0);
+		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, (char*)s);
 		if (s->version == 0)
 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
 
@@ -1785,7 +1869,7 @@ writelines(void)
 		dwfunc->hash = nil;
 	}
 
-	flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
+	flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
 	linesize = cpos() - lineo;
 }
 
@@ -1909,6 +1993,9 @@ writeinfo(void)
 	vlong unitstart, here;
 
 	fwdcount = 0;
+	if (dsym == S)
+		dsym = lookup(".dwarfinfo", 0);
+	dsym->nr = 0;
 
 	for (compunit = dwroot.child; compunit; compunit = compunit->link) {
 		unitstart = cpos();
@@ -1917,7 +2004,7 @@ writeinfo(void)
 		// Fields marked with (*) must be changed for 64-bit dwarf
 		// This must match COMPUNITHEADERSIZE above.
 		LPUT(0);	// unit_length (*), will be filled in later.
-		WPUT(3);	// dwarf version (appendix F)
+		WPUT(2);	// dwarf version (appendix F)
 		LPUT(0);	// debug_abbrev_offset (*)
 		cput(PtrSize);	// address_size
 
@@ -2057,6 +2144,27 @@ align(vlong size)
 		strnput("", rnd(size, PEFILEALIGN) - size);
 }
 
+static vlong
+writeinforeloc(void)
+{
+	int i;
+	vlong start;
+	Reloc *r;
+	
+	start = cpos();
+	for(r = dsym->r; r < dsym->r+dsym->nr; r++) {
+		if(iself)
+			i = elfreloc1(r, r->off);
+		else if(HEADTYPE == Hdarwin)
+			i = machoreloc1(r, r->off);
+		else
+			i = -1;
+		if(i < 0)
+			diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+	}
+	return start;
+}
+
 /*
  * This is the main entry point for generating dwarf.  After emitting
  * the mandatory debug_abbrev section, it calls writelines() to set up
@@ -2157,6 +2265,10 @@ dwarfemitdebugsections(void)
 	gdbscripto = writegdbscript();
 	gdbscriptsize = cpos() - gdbscripto;
 	align(gdbscriptsize);
+	
+	inforeloco = writeinforeloc();
+	inforelocsize = cpos() - inforeloco;
+	align(inforelocsize);
 }
 
 /*
@@ -2316,6 +2428,8 @@ dwarfaddmachoheaders(void)
 	msect = newMachoSect(ms, "__debug_info", "__DWARF");
 	msect->off = infoo;
 	msect->size = infosize;
+	msect->reloc = inforeloco;
+	msect->nreloc = inforelocsize / 8;
 	ms->filesize += msect->size;
 
 	if (pubnamessize > 0) {
