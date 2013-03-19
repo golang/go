@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 	flagcount("d", "disable dynamic executable", &debug['d']);
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
-	flagcount("hostobj", "generate host object file", &isobj);
+	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
 	flagcount("n", "dump symbol table", &debug['n']);
 	flagstr("o", "outfile: set output file", &outfile);
@@ -124,10 +124,6 @@ main(int argc, char *argv[])
 	flagcount("w", "disable DWARF generation", &debug['w']);
 	
 	flagparse(&argc, &argv, usage);
-	
-	// TODO: link mode flag instead of isobj
-	if(isobj)
-		linkmode = LinkExternal;
 
 	if(argc != 1)
 		usage();
@@ -137,17 +133,19 @@ main(int argc, char *argv[])
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
 
-	if(isobj) {
-		switch(HEADTYPE) {
-		default:
-			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
-		case Hdarwin:
-		case Hfreebsd:
-		case Hlinux:
-		case Hnetbsd:
-		case Hopenbsd:
-			break;
-		}
+	switch(HEADTYPE) {
+	default:
+		if(linkmode == LinkAuto)
+			linkmode = LinkInternal;
+		if(linkmode == LinkExternal)
+			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+		break;
+	case Hdarwin:
+	case Hfreebsd:
+	case Hlinux:
+	case Hnetbsd:
+	case Hopenbsd:
+		break;
 	}
 
 	if(outfile == nil) {

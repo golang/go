@@ -178,11 +178,11 @@ relocsym(Sym *s)
 		switch(r->type) {
 		default:
 			o = 0;
-			if(isobj || archreloc(r, s, &o) < 0)
+			if(linkmode == LinkExternal || archreloc(r, s, &o) < 0)
 				diag("unknown reloc %d", r->type);
 			break;
 		case D_ADDR:
-			if(isobj && r->sym->type != SCONST) {
+			if(linkmode == LinkExternal && r->sym->type != SCONST) {
 				r->done = 0;
 
 				// set up addend for eventual relocation via outer symbol.
@@ -212,7 +212,7 @@ relocsym(Sym *s)
 			break;
 		case D_PCREL:
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
-			if(isobj && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
+			if(linkmode == LinkExternal && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
 				r->done = 0;
 
 				// set up addend for eventual relocation via outer symbol.
@@ -630,7 +630,7 @@ datblk(int32 addr, int32 size)
 			Bprint(&bso, " %.2ux", 0);
 		Bprint(&bso, "\n");
 		
-		if(isobj) {
+		if(linkmode == LinkExternal) {
 			for(i=0; i<sym->nr; i++) {
 				r = &sym->r[i];
 				rsname = "";

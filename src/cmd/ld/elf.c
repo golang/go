@@ -758,7 +758,7 @@ elfshbits(Section *sect)
 		sh->flags |= SHF_EXECINSTR;
 	if(sect->rwx & 2)
 		sh->flags |= SHF_WRITE;
-	if(!isobj)
+	if(linkmode != LinkExternal)
 		sh->addr = sect->vaddr;
 	sh->addralign = sect->align;
 	sh->size = sect->len;
@@ -899,7 +899,7 @@ doelf(void)
 	addstring(shstrtab, ".gosymtab");
 	addstring(shstrtab, ".gopclntab");
 	
-	if(isobj) {
+	if(linkmode == LinkExternal) {
 		debug['s'] = 0;
 		debug['d'] = 1;
 
@@ -1131,7 +1131,7 @@ asmbelf(vlong symo)
 	resoff = ELFRESERVE;
 	
 	pph = nil;
-	if(isobj) {
+	if(linkmode == LinkExternal) {
 		/* skip program headers */
 		eh->phoff = 0;
 		eh->phentsize = 0;
@@ -1392,7 +1392,7 @@ elfobj:
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		elfshbits(sect);
 
-	if(isobj) {
+	if(linkmode == LinkExternal) {
 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
 			elfshreloc(sect);
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
@@ -1415,8 +1415,8 @@ elfobj:
 		sh->size = elfstrsize;
 		sh->addralign = 1;
 
-		// TODO(rsc): Enable for isobj too, once we know it works.
-		if(!isobj)
+		// TODO(rsc): Enable for linkmode == LinkExternal too, once we know it works.
+		if(linkmode != LinkExternal)
 			dwarfaddelfheaders();
 	}
 
@@ -1440,12 +1440,12 @@ elfobj:
 
 	if(flag_shared)
 		eh->type = ET_DYN;
-	else if(isobj)
+	else if(linkmode == LinkExternal)
 		eh->type = ET_REL;
 	else
 		eh->type = ET_EXEC;
 
-	if(!isobj)
+	if(linkmode != LinkExternal)
 		eh->entry = entryvalue();
 
 	eh->version = EV_CURRENT;
@@ -1462,7 +1462,7 @@ elfobj:
 	a += elfwriteshdrs();
 	if(!debug['d'])
 		a += elfwriteinterp();
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		if(HEADTYPE == Hnetbsd)
 			a += elfwritenetbsdsig();
 		if(HEADTYPE == Hopenbsd)

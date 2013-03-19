@@ -671,7 +671,7 @@ asmb(void)
 					Bprint(&bso, "%5.2f dwarf\n", cputime());
 				dwarfemitdebugsections();
 				
-				if(isobj)
+				if(linkmode == LinkExternal)
 					elfemitreloc();
 			}
 			break;
@@ -694,7 +694,7 @@ asmb(void)
 			dwarfemitdebugsections();
 			break;
 		case Hdarwin:
-			if(isobj)
+			if(linkmode == LinkExternal)
 				machoemitreloc();
 			break;
 		}

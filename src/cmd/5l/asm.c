@@ -605,7 +605,7 @@ asmb(void)
 					Bprint(&bso, "%5.2f dwarf\n", cputime());
 				dwarfemitdebugsections();
 				
-				if(isobj)
+				if(linkmode == LinkExternal)
 					elfemitreloc();
 			}
 			break;

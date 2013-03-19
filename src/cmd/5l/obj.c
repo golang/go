@@ -117,6 +117,7 @@ main(int argc, char *argv[])
 	flagcount("f", "ignore version mismatch", &debug['f']);
 	flagcount("g", "disable go package data checks", &debug['g']);
 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
 	flagcount("n", "dump symbol table", &debug['n']);
 	flagstr("o", "outfile: set output file", &outfile);
 	flagcount("p", "insert profiling code", &debug['p']);
@@ -134,6 +135,11 @@ main(int argc, char *argv[])
 
 	if(argc != 1)
 		usage();
+
+	if(linkmode != Linkinternal) {
+		diag("only -linkmode=internal is supported");
+		errorexit();
+	}
 
 	libinit();
 
