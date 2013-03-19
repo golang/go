@@ -64,5 +64,5 @@ BUGS .Bugs is now deprecated, please use .Notes instead
 {{range .}}	{{synopsis .}}
 {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
 {{$marker}}S
-{{range $content}}	{{synopsis .}}
+{{range $content}}	{{synopsis .Body}} (uid: {{.UID}})
 {{end}}{{end}}{{end}}

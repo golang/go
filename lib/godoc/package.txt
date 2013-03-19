@@ -67,7 +67,7 @@ TYPES
 {{range $marker, $content := .}}
 {{$marker}}S
 
-{{range $content}}{{comment_text . "    " "\t"}}
+{{range $content}}{{comment_text .Body "   " "\t"}}
 {{end}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------

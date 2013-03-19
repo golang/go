@@ -9,16 +9,24 @@ FILENAMES
 	testdata/a1.go
 
 BUGS .Bugs is now deprecated, please use .Notes instead
-	// bug0 
-	// bug1 
+	// bug0
+	// bug1
 
 BUGS
-	// bug0 
-	// bug1 
+	// bug0 (uid: uid)
+	// bug1 (uid: uid)
+
+NOTES
+	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
+	// 2 of 4 (uid: foo)
+	// 3 of 4 (uid: bar)
+	// 4 of 4 - this is the last line of note 4 (uid: bar)
+	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
+	// The ':' after the marker and uid is optional. (uid: xxx)
 
 SECBUGS
-	// sec hole 0 need to fix asap 
+	// sec hole 0 need to fix asap (uid: uid)
 
 TODOS
-	// todo0 
-	// todo1 
+	// todo0 (uid: uid)
+	// todo1 (uid: uid)
