@@ -170,6 +170,7 @@ EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
 EXTERN	Segment	segdwarf;
 
+void	setlinkmode(char*);
 void	addlib(char *src, char *obj);
 void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
 Section*	addsection(Segment*, char*, int);

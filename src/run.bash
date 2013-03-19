@@ -75,10 +75,11 @@ go run $GOROOT/test/run.go - .
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
-go test
+go test -ldflags '-linkmode=auto'
+go test -ldflags '-linkmode=internal'
 case "$GOHOSTOS-$GOARCH" in
 darwin-386 | darwin-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64 | openbsd-386 | openbsd-amd64)
-	go test -ldflags '-w -hostobj'
+	go test -ldflags '-linkmode=external'
 esac
 ) || exit $?
 

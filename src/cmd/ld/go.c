@@ -476,12 +476,10 @@ loadcgo(char *file, char *pkg, char *p, int n)
 		if(strcmp(f[0], "cgo_import_static") == 0) {
 			if(nf != 2)
 				goto err;
-			if(isobj) {
-				local = f[1];
-				s = lookup(local, 0);
-				s->type = SHOSTOBJ;
-				s->size = 0;
-			}
+			local = f[1];
+			s = lookup(local, 0);
+			s->type = SHOSTOBJ;
+			s->size = 0;
 			continue;
 		}
 
@@ -924,4 +922,19 @@ importcycles(void)
 	
 	for(p=pkgall; p; p=p->all)
 		cycle(p);
+}
+
+void
+setlinkmode(char *arg)
+{
+	if(strcmp(arg, "internal") == 0)
+		linkmode = LinkInternal;
+	else if(strcmp(arg, "external") == 0)
+		linkmode = LinkExternal;
+	else if(strcmp(arg, "auto") == 0)
+		linkmode = LinkAuto;
+	else {
+		fprint(2, "unknown link mode -linkmode %s\n", arg);
+		errorexit();
+	}
 }
