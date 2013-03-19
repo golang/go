@@ -75,9 +75,9 @@
 				{{end}}
 			{{end}}
 			{{if $.Notes}}
-                                {{range $marker, $item := $.Notes}}
+				{{range $marker, $item := $.Notes}}
 				<dd><a href="#pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</a></dd>
-                                {{end}}
+				{{end}}
 			{{end}}
 			</dl>
 			</div><!-- #manual-nav -->
@@ -92,7 +92,7 @@
 			</dl>
 		</div>
 		{{end}}
-	
+
 		{{with .Filenames}}
 			<h4>Package files</h4>
 			<p>
@@ -105,7 +105,7 @@
 		{{end}}
 		</div><!-- .expanded -->
 		</div><!-- #pkg-index -->
-	
+
 		{{with .Consts}}
 			<h2 id="pkg-constants">Constants</h2>
 			{{range .}}
@@ -167,11 +167,11 @@
 	{{end}}
 
 	{{with $.Notes}}
-                {{range $marker, $content := .}}
-		    <h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
-		    {{range .}}
-		    {{comment_html .}}
-                    {{end}}
+		{{range $marker, $content := .}}
+			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
+			{{range .}}
+			{{comment_html .}}
+			{{end}}
 		{{end}}
 	{{end}}
 {{end}}
@@ -252,7 +252,7 @@ $(document).ready(function() {
 			var resize = function() {
 				code.height(0);
 				var h = code[0].scrollHeight;
-				code.height(h+20); // minimize bouncing
+				code.height(h+20); // minimize bouncing.
 				code.closest('.input').height(h);
 			};
 			code.on('keydown', resize);
