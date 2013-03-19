@@ -1357,7 +1357,7 @@ addstackroots(G *gp)
 			runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
 			runtime·throw("scanstack");
 		}
-		addroot((Obj){sp, (byte*)stk - sp, 0});
+		addroot((Obj){sp, (byte*)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
 		sp = (byte*)stk->gobuf.sp;
 		guard = stk->stackguard;
 		stk = (Stktop*)stk->stackbase;
@@ -1399,14 +1399,17 @@ addroots(void)
 	for(spanidx=0; spanidx<runtime·mheap->nspan; spanidx++) {
 		s = allspans[spanidx];
 		if(s->state == MSpanInUse) {
+			// The garbage collector ignores type pointers stored in MSpan.types:
+			//  - Compiler-generated types are stored outside of heap.
+			//  - The reflect package has runtime-generated types cached in its data structures.
+			//    The garbage collector relies on finding the references via that cache.
 			switch(s->types.compression) {
 			case MTypes_Empty:
 			case MTypes_Single:
 				break;
 			case MTypes_Words:
 			case MTypes_Bytes:
-				// TODO(atom): consider using defaultProg instead of 0
-				addroot((Obj){(byte*)&s->types.data, sizeof(void*), 0});
+				markonly((byte*)s->types.data);
 				break;
 			}
 		}
