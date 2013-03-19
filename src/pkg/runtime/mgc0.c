@@ -566,7 +566,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	byte *b, *arena_start, *arena_used;
 	uintptr n, i, end_b, elemsize, size, ti, objti, count, type;
 	uintptr *pc, precise_type, nominal_size;
-	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti;
+	uintptr *map_ret, mapkey_size, mapval_size, mapkey_ti, mapval_ti, *chan_ret;
 	void *obj;
 	Type *t;
 	Slice *sliceptr;
@@ -627,6 +627,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 	mapkey_ti = mapval_ti = 0;
 	chan = nil;
 	chantype = nil;
+	chan_ret = nil;
 
 	goto next_block;
 
@@ -692,7 +693,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 						mapval_kind = maptype->elem->kind;
 						mapval_ti   = (uintptr)maptype->elem->gc | PRECISE;
 
-						map_ret = 0;
+						map_ret = nil;
 						pc = mapProg;
 					} else {
 						goto next_block;
@@ -701,6 +702,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 				case TypeInfo_Chan:
 					chan = (Hchan*)b;
 					chantype = (ChanType*)t;
+					chan_ret = nil;
 					pc = chanProg;
 					break;
 				default:
@@ -941,7 +943,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					}
 				}
 			}
-			if(map_ret == 0)
+			if(map_ret == nil)
 				goto next_block;
 			pc = map_ret;
 			continue;
@@ -955,6 +957,25 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			*objbufpos++ = (Obj){obj, size, objti};
 			if(objbufpos == objbuf_end)
 				flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
+			continue;
+
+		case GC_CHAN_PTR:
+			// Similar to GC_MAP_PTR
+			chan = *(Hchan**)(stack_top.b + pc[1]);
+			if(chan == nil) {
+				pc += 3;
+				continue;
+			}
+			if(markonly(chan)) {
+				chantype = (ChanType*)pc[2];
+				if(!(chantype->elem->kind & KindNoPointers)) {
+					// Start chanProg.
+					chan_ret = pc+3;
+					pc = chanProg+1;
+					continue;
+				}
+			}
+			pc += 3;
 			continue;
 
 		case GC_CHAN:
@@ -975,7 +996,10 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 						flushobjbuf(objbuf, &objbufpos, &wp, &wbuf, &nobj);
 				}
 			}
-			goto next_block;
+			if(chan_ret == nil)
+				goto next_block;
+			pc = chan_ret;
+			continue;
 
 		default:
 			runtime·throw("scanblock: invalid GC instruction");
