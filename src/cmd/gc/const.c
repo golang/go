@@ -1211,6 +1211,7 @@ void
 defaultlit2(Node **lp, Node **rp, int force)
 {
 	Node *l, *r;
+	int lkind, rkind;
 
 	l = *lp;
 	r = *rp;
@@ -1230,18 +1231,20 @@ defaultlit2(Node **lp, Node **rp, int force)
 		convlit(lp, types[TBOOL]);
 		convlit(rp, types[TBOOL]);
 	}
-	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
+	lkind = idealkind(l);
+	rkind = idealkind(r);
+	if(lkind == CTCPLX || rkind == CTCPLX) {
 		convlit(lp, types[TCOMPLEX128]);
 		convlit(rp, types[TCOMPLEX128]);
 		return;
 	}
-	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
+	if(lkind == CTFLT || rkind == CTFLT) {
 		convlit(lp, types[TFLOAT64]);
 		convlit(rp, types[TFLOAT64]);
 		return;
 	}
 
-	if(isconst(l, CTRUNE) || isconst(r, CTRUNE)) {
+	if(lkind == CTRUNE || rkind == CTRUNE) {
 		convlit(lp, runetype);
 		convlit(rp, runetype);
 		return;
