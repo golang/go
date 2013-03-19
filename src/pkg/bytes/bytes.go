@@ -464,7 +464,7 @@ func isSeparator(r rune) bool {
 // Title returns a copy of s with all Unicode letters that begin words
 // mapped to their title case.
 //
-// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s []byte) []byte {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
