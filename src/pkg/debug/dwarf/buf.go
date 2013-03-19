@@ -13,17 +13,45 @@ import (
 
 // Data buffer being decoded.
 type buf struct {
-	dwarf    *Data
-	order    binary.ByteOrder
-	name     string
-	off      Offset
-	data     []byte
-	addrsize int
-	err      error
+	dwarf  *Data
+	order  binary.ByteOrder
+	format dataFormat
+	name   string
+	off    Offset
+	data   []byte
+	err    error
 }
 
-func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
-	return buf{d, d.order, name, off, data, addrsize, nil}
+// Data format, other than byte order.  This affects the handling of
+// certain field formats.
+type dataFormat interface {
+	// DWARF version number.  Zero means unknown.
+	version() int
+
+	// 64-bit DWARF format?
+	dwarf64() (dwarf64 bool, isKnown bool)
+
+	// Size of an address, in bytes.  Zero means unknown.
+	addrsize() int
+}
+
+// Some parts of DWARF have no data format, e.g., abbrevs.
+type unknownFormat struct{}
+
+func (u unknownFormat) version() int {
+	return 0
+}
+
+func (u unknownFormat) dwarf64() (bool, bool) {
+	return false, false
+}
+
+func (u unknownFormat) addrsize() int {
+	return 0
+}
+
+func makeBuf(d *Data, format dataFormat, name string, off Offset, data []byte) buf {
+	return buf{d, d.order, format, name, off, data, nil}
 }
 
 func (b *buf) uint8() uint8 {
@@ -121,7 +149,7 @@ func (b *buf) int() int64 {
 
 // Address-sized uint.
 func (b *buf) addr() uint64 {
-	switch b.addrsize {
+	switch b.format.addrsize() {
 	case 1:
 		return uint64(b.uint8())
 	case 2:
