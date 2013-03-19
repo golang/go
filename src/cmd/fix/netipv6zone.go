@@ -14,7 +14,7 @@ var netipv6zoneFix = fix{
 	"netipv6zone",
 	"2012-11-26",
 	netipv6zone,
-	`Adapt element key to IPNet, IPAddr, UDPAddr or TCPAddr composite literals.
+	`Adapt element key to IPAddr, UDPAddr or TCPAddr composite literals.
 
 https://codereview.appspot.com/6849045/
 `,
@@ -39,7 +39,7 @@ func netipv6zone(f *ast.File) bool {
 			return
 		}
 		switch ss := se.Sel.String(); ss {
-		case "IPNet", "IPAddr", "UDPAddr", "TCPAddr":
+		case "IPAddr", "UDPAddr", "TCPAddr":
 			for i, e := range cl.Elts {
 				if _, ok := e.(*ast.KeyValueExpr); ok {
 					break
@@ -51,21 +51,13 @@ func netipv6zone(f *ast.File) bool {
 						Value: e,
 					}
 				case 1:
-					if ss == "IPNet" {
+					if e.(*ast.BasicLit).Value == "0" {
+						cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
+					} else {
 						cl.Elts[i] = &ast.KeyValueExpr{
-							Key:   ast.NewIdent("Mask"),
+							Key:   ast.NewIdent("Port"),
 							Value: e,
 						}
-					} else {
-						if e.(*ast.BasicLit).Value == "0" {
-							cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
-						} else {
-							cl.Elts[i] = &ast.KeyValueExpr{
-								Key:   ast.NewIdent("Port"),
-								Value: e,
-							}
-						}
-
 					}
 				}
 				fixed = true
