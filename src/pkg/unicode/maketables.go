@@ -440,7 +440,7 @@ func printCategories() {
 			varDecl = "\tLetter = _L;	// Letter/L is the set of Unicode letters, category L.\n"
 			varDecl += "\tL = _L\n"
 		case "M":
-			varDecl = "\tMark = _M;	// Mark/M is the set of Unicode mark characters, category  M.\n"
+			varDecl = "\tMark = _M;	// Mark/M is the set of Unicode mark characters, category M.\n"
 			varDecl += "\tM = _M\n"
 		case "N":
 			varDecl = "\tNumber = _N;	// Number/N is the set of Unicode number characters, category N.\n"

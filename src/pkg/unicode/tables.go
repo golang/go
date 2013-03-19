@@ -2864,7 +2864,7 @@ var (
 	Lo     = _Lo // Lo is the set of Unicode characters in category Lo.
 	Lower  = _Ll // Lower is the set of Unicode lower case letters.
 	Ll     = _Ll // Ll is the set of Unicode characters in category Ll.
-	Mark   = _M  // Mark/M is the set of Unicode mark characters, category  M.
+	Mark   = _M  // Mark/M is the set of Unicode mark characters, category M.
 	M      = _M
 	Mc     = _Mc // Mc is the set of Unicode characters in category Mc.
 	Me     = _Me // Me is the set of Unicode characters in category Me.
