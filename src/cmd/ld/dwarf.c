@@ -672,7 +672,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
 			if(PtrSize == 8)
 				VPUT(0); // invalid dwarf, gdb will complain.
 			else
-				VPUT(0); // invalid dwarf, gdb will complain.
+				LPUT(0); // invalid dwarf, gdb will complain.
 		} else {
 			if (((DWDie*)data)->offs == 0)
 				fwdcount++;
