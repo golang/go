@@ -148,8 +148,7 @@ type reader struct {
 	// package properties
 	doc       string // package documentation, if any
 	filenames []string
-	bugs      []string
-	notes     map[string][]string
+	notes     map[string][]*Note
 
 	// declarations
 	imports map[string]int
@@ -401,21 +400,54 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 }
 
 var (
-	noteMarker  = regexp.MustCompile(`^/[/*][ \t]*([A-Z][A-Z]+)\(.+\):[ \t]*(.*)`) // MARKER(uid)
-	noteContent = regexp.MustCompile(`[^ \n\r\t]+`)                                // at least one non-whitespace char
+	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                    // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
+	noteMarkerRx  = regexp.MustCompile(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
+	noteCommentRx = regexp.MustCompile(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
 )
 
-func readNote(c *ast.CommentGroup) (marker, annotation string) {
-	text := c.List[0].Text
-	if m := noteMarker.FindStringSubmatch(text); m != nil {
-		if btxt := m[2]; noteContent.MatchString(btxt) {
-			// non-empty MARKER comment; collect comment without the MARKER prefix
-			list := append([]*ast.Comment(nil), c.List...) // make a copy
-			list[0].Text = m[2]
-			return m[1], (&ast.CommentGroup{List: list}).Text()
+// readNote collects a single note from a sequence of comments.
+//
+func (r *reader) readNote(list []*ast.Comment) {
+	text := (&ast.CommentGroup{List: list}).Text()
+	if m := noteMarkerRx.FindStringSubmatchIndex(text); m != nil {
+		// The note body starts after the marker.
+		// We remove any formatting so that we don't
+		// get spurious line breaks/indentation when
+		// showing the TODO body.
+		body := clean(text[m[1]:])
+		if body != "" {
+			marker := text[m[2]:m[3]]
+			r.notes[marker] = append(r.notes[marker], &Note{
+				Pos:  list[0].Pos(),
+				UID:  text[m[4]:m[5]],
+				Body: body,
+			})
 		}
 	}
-	return "", ""
+}
+
+// readNotes extracts notes from comments.
+// A note must start at the beginning of a comment with "MARKER(uid):"
+// and is followed by the note body (e.g., "// BUG(gri): fix this").
+// The note ends at the end of the comment group or at the start of
+// another note in the same comment group, whichever comes first.
+//
+func (r *reader) readNotes(comments []*ast.CommentGroup) {
+	for _, group := range comments {
+		i := -1 // comment index of most recent note start, valid if >= 0
+		list := group.List
+		for j, c := range list {
+			if noteCommentRx.MatchString(c.Text) {
+				if i >= 0 {
+					r.readNote(list[i:j])
+				}
+				i = j
+			}
+		}
+		if i >= 0 {
+			r.readNote(list[i:])
+		}
+	}
 }
 
 // readFile adds the AST for a source file to the reader.
@@ -484,14 +516,7 @@ func (r *reader) readFile(src *ast.File) {
 	}
 
 	// collect MARKER(...): annotations
-	for _, c := range src.Comments {
-		if marker, text := readNote(c); marker != "" {
-			r.notes[marker] = append(r.notes[marker], text)
-			if marker == "BUG" {
-				r.bugs = append(r.bugs, text)
-			}
-		}
-	}
+	r.readNotes(src.Comments)
 	src.Comments = nil // consumed unassociated comments - remove from AST
 }
 
@@ -502,7 +527,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 	r.mode = mode
 	r.types = make(map[string]*namedType)
 	r.funcs = make(methodSet)
-	r.notes = make(map[string][]string)
+	r.notes = make(map[string][]*Note)
 
 	// sort package files before reading them so that the
 	// result does not depend on map iteration order
@@ -761,6 +786,17 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 		func(i, j int) { list[i], list[j] = list[j], list[i] },
 		len(list),
 	)
+	return list
+}
+
+// noteBodies returns a list of note body strings given a list of notes.
+// This is only used to populate the deprecated Package.Bugs field.
+//
+func noteBodies(notes []*Note) []string {
+	var list []string
+	for _, n := range notes {
+		list = append(list, n.Body)
+	}
 	return list
 }
 
