@@ -1082,13 +1082,22 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
 		*off += t->width;
 		break;
 
-	case TCHAN:
 	case TUNSAFEPTR:
 	case TFUNC:
 		if(*off % widthptr != 0)
 			fatal("dgcsym1: invalid alignment, %T", t);
 		ot = duintptr(s, ot, GC_APTR);
 		ot = duintptr(s, ot, *off);
+		*off += t->width;
+		break;
+
+	// struct Hchan*
+	case TCHAN:
+		if(*off % widthptr != 0)
+			fatal("dgcsym1: invalid alignment, %T", t);
+		ot = duintptr(s, ot, GC_CHAN_PTR);
+		ot = duintptr(s, ot, *off);
+		ot = dsymptr(s, ot, dtypesym(t), 0);
 		*off += t->width;
 		break;
 
