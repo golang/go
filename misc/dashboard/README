@@ -4,8 +4,8 @@
 
 The files in this directory constitute the continuous builder:
 
-godashboard/: an AppEngine server
-builder/:     gobuilder, a Go continuous build client
+app/:     an AppEngine server
+builder/: gobuilder, a Go continuous build client
 
 If you wish to run a Go builder, please email golang-dev@googlegroups.com
 
