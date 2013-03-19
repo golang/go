@@ -9,11 +9,17 @@
 TODO
  - overview
  - link back to Go 1 and also Go 1 Compatibility docs.
- - links through body of text
 
 <h2 id="language">Changes to the language</h2>
 
-TODO
+<p>
+<a href="/doc/go1compat.html">The Go compatibility document</a> promises
+that programs written to the Go 1 language specification will continue to operate,
+and those promises are maintained.
+In the interest of firming up the specification, though, there are some
+details about some error cases that have been clarified.
+There is also some new language features.
+</p>
 
 <h3 id="divzero">Integer division by zero</h3>
 
@@ -31,6 +37,25 @@ func f(x int) int {
 In Go 1.1, an integer division by constant zero is not a legal program, so it is a compile-time error.
 </p>
 
+<h3 id="unicode_literals">Surrogates in Unicode literals</h3>
+
+<p>
+The definition of string and rune literals has been refined to exclude surrogate halves from the
+set of valid Unicode code points.
+See the <a href="#unicode">Unicode</a> section for more information.
+</p>
+
+<h3 id="method_values">Method values</h3>
+
+<p>
+TODO
+</p>
+
+<h3 id="return">Return requirements</h3>
+
+<p>
+TODO
+</p>
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
@@ -38,7 +63,7 @@ In Go 1.1, an integer division by constant zero is not a legal program, so it is
 TODO: more
 </p>
 
-<h3 id="gc-flag">Command-line flag parsing</h3>
+<h3 id="gc_flag">Command-line flag parsing</h3>
 
 <p>
 In the gc tool chain, the compilers and linkers now use the
@@ -53,7 +78,11 @@ For example,
 <h3 id="int">Size of int on 64-bit platforms</h3>
 
 <p>
-The language allows the implementation to choose whether the <code>int</code> type and <code>uint</code> types are 32 or 64 bits. Previous Go implementations made <code>int</code> and <code>uint</code> 32 bits on all systems. Both the gc and gccgo implementations (TODO: check that gccgo does) <a href="http://golang.org/issue/2188">now make <code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64</a>.
+The language allows the implementation to choose whether the <code>int</code> type and
+<code>uint</code> types are 32 or 64 bits. Previous Go implementations made <code>int</code>
+and <code>uint</code> 32 bits on all systems. Both the gc and gccgo implementations
+<a href="http://golang.org/issue/2188">now make
+<code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64</a>.
 Among other things, this enables the allocation of slices with
 more than 2 billion elements on 64-bit platforms.
 </p>
@@ -75,7 +104,7 @@ i := int(x)     // i is -1 on 32-bit systems, 0xffffffff on 64-bit
 fmt.Println(i)
 </pre>
 
-<p>Portable code intending 32-bit sign extension (yielding -1 on all systems)
+<p>Portable code intending 32-bit sign extension (yielding <code>-1</code> on all systems)
 would instead say:
 </p>
 
@@ -83,7 +112,7 @@ would instead say:
 i := int(int32(x))
 </pre>
 
-<h3 id="unicode_surrogates">Unicode</h3>
+<h3 id="unicode">Unicode</h3>
 
 <p>
 To make it possible to represent code points greater than 65535 in UTF-16,
@@ -126,34 +155,46 @@ some editors add them as a kind of "magic number" identifying a UTF-8 encoded fi
 <em>Updating</em>:
 Most programs will be unaffected by the surrogate change.
 Programs that depend on the old behavior should be modified to avoid the issue.
-The byte-order-mark change is strictly backwards- compatible.
+The byte-order-mark change is strictly backwards-compatible.
 </p>
 
-<h3 id="asm">Assembler</h3>
+<h3 id="gc_asm">The gc assemblers</h3>
 
 <p>
-Due to the <a href="#int">int</a> and TODO: OTHER changes,
-the placement of function arguments on the stack has changed.
+Due to the change of the <a href="#int"><code>int</code></a> to 64 bits and some other changes,
+the arrangement of function arguments on the stack has changed in the gc tool chain.
 Functions written in assembly will need to be revised at least
 to adjust frame pointer offsets.
 </p>
 
-<h3 id="gotool">Changes to the go tool</h3>
+<p>
+TODO: Point to cmd/vet once it handles this.
+</p>
 
-<p>The <code>go</code> tool has acquired several improvements which are intended to improve the experience for new Go users.</p>
+<h3 id="gocmd">Changes to the go command</h3>
 
-<p>Firstly, when compiling, testing, or running Go code, the <code>go</code> tool will now give more detailed errors messages, including a list of paths searched, when a package cannot be located.
+<p>
+The <a href="/cmd/go/"><code>go</code></a> command has acquired several
+changes intended to improve the experience for new Go users.
+</p>
+
+<p>
+First, when compiling, testing, or running Go code, the <code>go</code> command will now give more detailed error messages,
+including a list of paths searched, when a package cannot be located.
 </p>
 
 <pre>
 $ go build foo/quxx
 can't load package: package foo/quxx: cannot find package "foo/quxx" in any of:
-        /home/User/go/src/pkg/foo/quxx (from $GOROOT)
-        /home/User/src/foo/quxx (from $GOPATH) 
+        /home/you/go/src/pkg/foo/quxx (from $GOROOT)
+        /home/you/src/foo/quxx (from $GOPATH) 
 </pre>
 
 <p>
-Secondly, the <code>go get</code> command no longer allows <code>$GOROOT</code> as the default destination when downloading package source. To use <code>go get</code> command, a valid <code>$GOPATH</code> is now required.
+Second, the <code>go get</code> command no longer allows <code>$GOROOT</code>
+as the default destination when downloading package source.
+To use the <code>go get</code>
+command, a valid <code>$GOPATH</code> is now required.
 </p>
 
 <pre>
@@ -161,7 +202,9 @@ $ GOPATH= go get code.google.com/p/foo/quxx
 package code.google.com/p/foo/quxx: cannot download, $GOPATH not set. For more details see: go help gopath 
 </pre>
 
-<p>Finally, as a result of the previous change, the <code>go get</code> command will also fail when <code>$GOPATH</code> and <code>$GOROOT</code> are set to the same value. 
+<p>
+Finally, as a result of the previous change, the <code>go get</code> command will also fail
+when <code>$GOPATH</code> and <code>$GOROOT</code> are set to the same value. 
 </p>
 
 <pre>
@@ -170,11 +213,17 @@ warning: GOPATH set to GOROOT (/home/User/go) has no effect
 package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath
 </pre>
 
+<p>
+TODO: go test uses  -c with a profile flag.
+</p>
+
 <h3 id="gofix">Changes to go fix</h3>
 
 <p>
-The <code>go fix</code> command no longer applies fixes to update code from
-before Go 1 to use Go 1 APIs. To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
+The <a href="/cmd/fix/"><code>fix</code></a> command, usually run as
+<code>go fix</code>, no longer applies fixes to update code from
+before Go 1 to use Go 1 APIs.
+To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
 to convert the code to Go 1.0 first.
 </p>
 
@@ -200,33 +249,57 @@ TODO
 </p>
 
 <h3 id="debug_elf">debug/elf</h3>
+
 <p>
-Previous versions of the debug/elf package intentionally skipped over the first
-symbol in the ELF symbol table, since it is always an empty symbol. This symbol
-is no longer skipped since indexes into the symbol table returned by debug/elf,
-will be different to indexes into the original ELF symbol table. Any code that
-calls the debug/elf functions Symbols or ImportedSymbols may need to be
-adjusted to account for the additional symbol and the change in symbol offsets.
+TODO: Decide whether to keep this change. See CL 6848044.
+</p>
+
+<p>
+Previous versions of the <a href="/debug/elf/"><code>debug/elf</code></a> package
+intentionally skipped over the first
+symbol in the ELF symbol table, since it is always an empty symbol.
+This symbol
+is no longer skipped since indexes into the symbol table returned by <code>debug/elf</code>
+will be different from indexes into the original ELF symbol table.
+Any code that calls the methods
+<a href="/pkg/debug/elf/#File.Symbols"><code>Symbols</code></a>
+or
+<a href="/pkg/debug/elf/#File.ImportedSymbols"><code>ImportedSymbols</code></a>
+of the
+<a href="/pkg/debug/elf/#File"><code>elf.File</code></a>
+type may need to be adjusted to account for the additional symbol and the change in symbol offsets.
 </p>
 
 <h3 id="net">net</h3>
 
 <p>
-The protocol-specific resolvers were formerly
-lax about the network name passed in. For example, although the documentation was clear
-that the only valid networks for <code>ResolveTCPAddr</code> are <code>"tcp"</code>,
-<code>"tcp4"</code>, and <code>"tcp6"</code>, the Go 1.0 implementation silently accepted
-any string. The Go 1.1 implementation returns an error if the network is not one of those strings.
-The same is true of the other protocol-specific resolvers <code>ResolveIPAddr</code>, <code>ResolveUDPAddr</code>, and
-<code>ResolveUnixAddr</code>.
+The protocol-specific resolvers in the <a href="/pkg/net/"><code>net</code></a> package were formerly
+lax about the network name passed in.
+Although the documentation was clear
+that the only valid networks for
+<a href="/pkg/net/#ResolveTCPAddr"><code>ResolveTCPAddr</code></a>
+are <code>"tcp"</code>,
+<code>"tcp4"</code>, and <code>"tcp6"</code>, the Go 1.0 implementation silently accepted any string.
+The Go 1.1 implementation returns an error if the network is not one of those strings.
+The same is true of the other protocol-specific resolvers <a href="/pkg/ResolveIPAddr/"><code>ResolveIPAddr</code></a>,
+<a href="/pkg/ResolveUDPAddr/"><code>ResolveUDPAddr</code></a>, and
+<a href="/pkg/ResolveUnixAddr/"><code>ResolveUnixAddr</code></a>.
 </p>
 
 <p>
-The previous <code>ListenUnixgram</code> returned <code>UDPConn</code> as
-a representation of the connection endpoint. The Go 1.1 implementation
-returns <code>UnixConn</code> to allow reading and writing
-with <code>ReadFrom</code> and <code>WriteTo</code> methods on
-the <code>UnixConn</code>.
+The previous implementation of
+<a href="/pkg/net/#ListenUnixgram"><code>ListenUnixgram</code></a>
+returned a
+<a href="/pkg/net/#UDPConn"><code>UDPConn</code></a> as
+a representation of the connection endpoint.
+The Go 1.1 implementation instead returns a
+<a href="/pkg/UnixConn/"><code>UnixConn</code></a>
+to allow reading and writing
+with its
+<a href="/pkg/net/#UnixConn.ReadFrom"><code>ReadFrom</code></a>
+and 
+<a href="/pkg/net/#UnixConn.WriteTo"><code>WriteTo</code></a>
+methods.
 </p>
 
 <h3 id="reflect">reflect</h3>
@@ -245,23 +318,52 @@ TODO:
 
 <h3 id="time">time</h3>
 <p>
-On FreeBSD, Linux, NetBSD, OS X and OpenBSD, previous versions of the time package
-returned times with microsecond precision. The Go 1.1 implementation of time on these
-systems now returns times with nanosecond precision. Code may exist that expects to be
-able to store such a time in an external format with only microsecond precision,
-read it back, and recover exactly the same time instant.
-In Go 1.1 the same time will not be recovered, since the external storage
-will have discarded nanoseconds.
-To address this case, there are two new methods of time.Time, Round and Truncate,
+On FreeBSD, Linux, NetBSD, OS X and OpenBSD, previous versions of the
+<a href="/pkg/time/"><code>time</code></a> package
+returned times with microsecond precision.
+The Go 1.1 implementation on these
+systems now returns times with nanosecond precision.
+Programs that write to an external format with microsecond precision
+and read it back, expecting to recover the original value, will be affected
+by the loss of precision.
+There are two new methods of <a href="/pkg/time/#Time"><code>Time</code></a>,
+<a href="/pkg/time/#Time.Round"><code>Round</code></a>
+and
+<a href="/pkg/time/#Time.Truncate"><code>Truncate</code></a>,
 that can be used to remove precision from a time before passing it to
 external storage.
 </p>
 
-<p> TODO: 
-<code>time</code>: ParseInLocation, Timer.Reset, Time.YearDay
+<p>
+The new method
+<a href="/pkg/time/#Time.YearDay"><code>YearDay</code></a>
+returns the one-indexed integral day number of the year specified by the time value.
 </p>
 
-<h3 id="exp_old">Exp and old subtrees moved to go.exp subrepo</h3>
+<p>
+The
+<a href="/pkg/time/#Timer"><code>Timer</code></a>
+type has a new method
+<a href="/pkg/time/#Timer.Reset"><code>Reset</code></a>
+that modifies the timer to expire after a specified duration.
+</p>
+
+<p>
+Finally, the new function
+<a href="/pkg/time/#ParseInLocation"><code>ParseInLocation</code></a>
+is like the existing
+<a href="/pkg/time/#Parse"><code>Parse</code></a>
+but parses the time in the context of a location (time zone), ignoring
+time zone information in the parsed string.
+This function addresses a common source of confusion in the time API.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that needs to read and write times using an external format with
+lower precision should be modified to use the new methods.
+
+<h3 id="exp_old">Exp and old subtrees moved to go.exp and go.text subrepositories</h3>
 
 <p>
 To make it easier for binary distributions to access them if desired, the <code>exp</code>
@@ -282,6 +384,12 @@ and then in Go source,
 <pre>
 import "code.google.com/p/go.exp/ssa"
 </pre>
+
+<p>
+The old package <code>exp/norm</code> has also been moved, but to a new repository
+<code>go.text</code>, where the Unicode APIs and other text-related packages will
+be developed.
+</p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
