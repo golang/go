@@ -1016,10 +1016,12 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 	res = nil;
 	hit = hash_insert(t, h, ak, (void**)&res);
 	if(!hit) {
+		// Need to pass dogc=0 to runtime·mallocgc because the garbage collector
+		// is assuming that all hashmaps are in a consistent state.
 		if(h->flag & IndirectKey)
-			*(void**)res = runtime·mal(t->key->size);
+			*(void**)res = runtime·mallocgc(t->key->size, 0, 0, 1);
 		if(h->flag & IndirectVal)
-			*(void**)(res+h->valoff) = runtime·mal(t->elem->size);
+			*(void**)(res+h->valoff) = runtime·mallocgc(t->elem->size, 0, 0, 1);
 	}
 	t->key->alg->copy(t->key->size, hash_keyptr(h, res), ak);
 	t->elem->alg->copy(t->elem->size, hash_valptr(h, res), av);
