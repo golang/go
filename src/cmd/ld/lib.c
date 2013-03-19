@@ -287,6 +287,7 @@ void
 loadlib(void)
 {
 	int i, w, x;
+	Sym *s;
 
 	loadinternal("runtime");
 	if(thechar == '5')
@@ -301,12 +302,21 @@ loadlib(void)
 		objfile(library[i].file, library[i].pkg);
 	}
 	
+	if(linkmode == LinkExternal && !iscgo)
+		linkmode = LinkInternal;
+
 	// If we got this far in automatic mode, there were no
 	// cgo uses that suggest we need external mode.
 	// Switch to internal.
-	if(linkmode == LinkAuto)
+	if(linkmode == LinkAuto) {
 		linkmode = LinkInternal;
-
+		// Drop all the cgo_import_static declarations.
+		// Turns out we won't be needing them.
+		for(s = allsym; s != S; s = s->allsym)
+			if(s->type == SHOSTOBJ)
+				s->type = 0;
+	}
+	
 	// Now that we know the link mode, trim the dynexp list.
 	x = CgoExportDynamic;
 	if(linkmode == LinkExternal)
@@ -497,9 +507,11 @@ int mhostobj;
 // These packages can use internal linking mode.
 // Others trigger external mode.
 const char *internalpkg[] = {
+	"crypto/x509",
 	"net",
 	"os/user",
-	"runtime/cgo"
+	"runtime/cgo",
+	"runtime/race"
 };
 
 void
@@ -618,7 +630,7 @@ hostlink(void)
 		break;
 	}
 	if(!debug['s'])
-		argv[argc++] = "-ggdb"; 
+		argv[argc++] = "-gdwarf-2"; 
 	if(HEADTYPE == Hdarwin)
 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
 	argv[argc++] = "-o";

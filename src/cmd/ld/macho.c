@@ -150,7 +150,7 @@ machowrite(void)
 		LPUT(0xfeedface);
 	LPUT(hdr.cpu);
 	LPUT(hdr.subcpu);
-	if(isobj)
+	if(linkmode == LinkExternal)
 		LPUT(1);	/* file type - mach object */
 	else
 		LPUT(2);	/* file type - mach executable */
@@ -248,7 +248,7 @@ domacho(void)
 	s->type = SMACHOSYMTAB;
 	s->reachable = 1;
 	
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		s = lookup(".plt", 0);	// will be __symbol_stub
 		s->type = SMACHOPLT;
 		s->reachable = 1;
@@ -367,7 +367,7 @@ asmbmacho(void)
 	}
 	
 	ms = nil;
-	if(isobj) {
+	if(linkmode == LinkExternal) {
 		/* segment for entire file */
 		ms = newMachoSeg("", 40);
 		ms->fileoffset = segtext.fileoff;
@@ -375,14 +375,14 @@ asmbmacho(void)
 	}
 
 	/* segment for zero page */
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		ms = newMachoSeg("__PAGEZERO", 0);
 		ms->vsize = va;
 	}
 
 	/* text */
 	v = rnd(HEADR+segtext.len, INITRND);
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		ms = newMachoSeg("__TEXT", 20);
 		ms->vaddr = va;
 		ms->vsize = v;
@@ -396,7 +396,7 @@ asmbmacho(void)
 		machoshbits(ms, sect, "__TEXT");
 
 	/* data */
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		w = segdata.len;
 		ms = newMachoSeg("__DATA", 20);
 		ms->vaddr = va+v;
@@ -410,7 +410,7 @@ asmbmacho(void)
 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
 		machoshbits(ms, sect, "__DATA");
 
-	if(!isobj) {
+	if(linkmode != LinkExternal) {
 		switch(thechar) {
 		default:
 			diag("unknown macho architecture");
@@ -440,7 +440,7 @@ asmbmacho(void)
 		s3 = lookup(".linkedit.got", 0);
 		s4 = lookup(".machosymstr", 0);
 
-		if(!isobj) {
+		if(linkmode != LinkExternal) {
 			ms = newMachoSeg("__LINKEDIT", 0);
 			ms->vaddr = va+v+rnd(segdata.len, INITRND);
 			ms->vsize = s1->size + s2->size + s3->size + s4->size;
@@ -458,7 +458,7 @@ asmbmacho(void)
 
 		machodysymtab();
 
-		if(!isobj) {
+		if(linkmode != LinkExternal) {
 			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
 			ml->data[0] = 12;	/* offset to string */
 			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
@@ -475,7 +475,7 @@ asmbmacho(void)
 	}
 
 	// TODO: dwarf headers go in ms too
-	if(!debug['s'] && !isobj)
+	if(!debug['s'] && linkmode != LinkExternal)
 		dwarfaddmachoheaders();
 
 	a = machowrite();
@@ -581,7 +581,10 @@ machosymtab(void)
 	for(i=0; i<nsortsym; i++) {
 		s = sortsym[i];
 		adduint32(symtab, symstr->size);
-		adduint8(symstr, '_');
+		
+		// Only add _ to C symbols. Go symbols have dot in the name.
+		if(strstr(s->extname, ".") == nil)
+			adduint8(symstr, '_');
 		addstring(symstr, s->extname);
 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
 			adduint8(symtab, 0x01); // type N_EXT, external symbol

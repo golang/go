@@ -93,6 +93,7 @@ enum
 	DW_CLS_FLAG,
 	DW_CLS_PTR,	// lineptr, loclistptr, macptr, rangelistptr
 	DW_CLS_REFERENCE,
+	DW_CLS_ADDRLOC,
 	DW_CLS_STRING
 };
 
