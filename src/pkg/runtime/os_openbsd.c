@@ -79,8 +79,8 @@ runtime·semasleep(int64 ns)
 				ns += runtime·nanotime();
 				secs = ns/1000000000LL;
 				// Avoid overflow
-				if(secs > 1LL<<30)
-					secs = 1LL<<30;
+				if(secs >= 1LL<<31)
+					secs = (1LL<<31) - 1;
 				ts.tv_sec = secs;
 				ts.tv_nsec = ns%1000000000LL;
 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);

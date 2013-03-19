@@ -65,7 +65,6 @@ int32
 runtime·semasleep(int64 ns)
 {
 	Timespec ts;
-	int64 secs;
 
 	// spin-mutex lock
 	while(runtime·xchg(&m->waitsemalock, 1))
@@ -94,11 +93,7 @@ runtime·semasleep(int64 ns)
 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
 			} else {
 				ns += runtime·nanotime();
-				secs = ns/1000000000LL;
-				// Avoid overflow
-				if(secs > 1LL<<30)
-					secs = 1LL<<30;
-				ts.tv_sec = secs;
+				ts.tv_sec = ns/1000000000LL;
 				ts.tv_nsec = ns%1000000000LL;
 				// TODO(jsing) - potential deadlock!
 				// See above for details.
