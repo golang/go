@@ -932,14 +932,26 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 					if(!(mapkey_kind & KindNoPointers) || d.indirectkey) {
 						if(!d.indirectkey)
 							*objbufpos++ = (Obj){d.key_data, mapkey_size, mapkey_ti};
-						else
+						else {
+							if(Debug) {
+								obj = *(void**)d.key_data;
+								if(!(arena_start <= obj && obj < arena_used))
+									runtime·throw("scanblock: inconsistent hashmap");
+							}
 							*ptrbufpos++ = (PtrTarget){*(void**)d.key_data, mapkey_ti};
+						}
 					}
 					if(!(mapval_kind & KindNoPointers) || d.indirectval) {
 						if(!d.indirectval)
 							*objbufpos++ = (Obj){d.val_data, mapval_size, mapval_ti};
-						else
+						else {
+							if(Debug) {
+								obj = *(void**)d.val_data;
+								if(!(arena_start <= obj && obj < arena_used))
+									runtime·throw("scanblock: inconsistent hashmap");
+							}
 							*ptrbufpos++ = (PtrTarget){*(void**)d.val_data, mapval_ti};
+						}
 					}
 				}
 			}
