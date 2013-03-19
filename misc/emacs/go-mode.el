@@ -15,6 +15,8 @@
 ;;   - Functions that could be backported but won't because 21.5.32
 ;;     covers them: plenty.
 ;;   - Features that are still partly broken:
+;;     - godef will not work correctly if multibyte characters are
+;;       being used
 ;;     - Fontification will not handle unicode correctly
 ;;
 ;; - Do not use \_< and \_> regexp delimiters directly; use
@@ -163,6 +165,8 @@
     (define-key m ":" 'go-mode-insert-and-indent)
     (define-key m "=" 'go-mode-insert-and-indent)
     (define-key m (kbd "C-c C-a") 'go-import-add)
+    (define-key m (kbd "C-c C-j") 'godef-jump)
+    (define-key m (kbd "C-c C-d") 'godef-describe)
     m)
   "Keymap used by Go mode to implement electric keys.")
 
@@ -391,11 +395,25 @@ The following extra functions are defined:
 - `go-goto-imports'
 - `go-play-buffer' and `go-play-region'
 - `go-download-play'
+- `godef-describe' and `godef-jump'
 
 If you want to automatically run `gofmt' before saving a file,
 add the following hook to your emacs configuration:
 
 \(add-hook 'before-save-hook 'gofmt-before-save)
+
+If you want to use `godef-jump' instead of etags (or similar),
+consider binding godef-jump to `M-.', which is the default key
+for `find-tag':
+
+\(add-hook 'go-mode-hook (lambda ()
+                          (local-set-key (kbd \"M-.\") 'godef-jump)))
+
+Please note that godef is an external dependency. You can install
+it with
+
+go get code.google.com/p/rog-go/exp/cmd/godef
+
 
 If you're looking for even more integration with Go, namely
 on-the-fly syntax checking, auto-completion and snippets, it is
@@ -822,5 +840,60 @@ will be commented, otherwise they will be removed completely."
             (go--kill-whole-line)))
         (message "Removed %d imports" (length lines)))
       (if flymake-state (flymake-mode-on)))))
+
+(defun godef--find-file-line-column (specifier)
+  "Given a file name in the format of `filename:line:column',
+visit FILENAME and go to line LINE and column COLUMN."
+  (let* ((components (split-string specifier ":"))
+         (line (string-to-number (nth 1 components)))
+         (column (string-to-number (nth 2 components))))
+    (with-current-buffer (find-file (car components))
+      (goto-char (point-min))
+      (forward-line (1- line))
+      (beginning-of-line)
+      (forward-char (1- column))
+      (if (buffer-modified-p)
+          (message "Buffer is modified, file position might not have been correct")))))
+
+(defun godef--call (point)
+  "Call godef, acquiring definition position and expression
+description at POINT."
+  (if (go--xemacs-p)
+      (message "godef does not reliably work in XEmacs, expect bad results"))
+  (if (not buffer-file-name)
+      (message "Cannot use godef on a buffer without a file name")
+    (let ((outbuf (get-buffer-create "*godef*")))
+      (with-current-buffer outbuf
+        (erase-buffer))
+      (call-process-region (point-min) (point-max) "godef" nil outbuf nil "-i" "-t" "-f" (file-truename buffer-file-name) "-o" (number-to-string (go--position-bytes (point))))
+      (with-current-buffer outbuf
+        (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
+
+(defun godef-describe (point)
+  "Describe the expression at POINT."
+  (interactive "d")
+  (condition-case nil
+      (let ((description (nth 1 (godef--call point))))
+        (if (string= "" description)
+            (message "No description found for expression at point")
+          (message "%s" description)))
+    (file-error (message "Could not run godef binary"))))
+
+(defun godef-jump (point)
+  "Jump to the definition of the expression at POINT."
+  (interactive "d")
+  (condition-case nil
+      (let ((file (car (godef--call point))))
+        (cond
+         ((string= "-" file)
+          (message "godef: expression is not defined anywhere"))
+         ((string= "godef: no identifier found" file)
+          (message "%s" file))
+         ((go--string-prefix-p "godef: no declaration found for " file)
+          (message "%s" file))
+         (t
+          (push-mark)
+          (godef--find-file-line-column file))))
+    (file-error (message "Could not run godef binary"))))
 
 (provide 'go-mode)
