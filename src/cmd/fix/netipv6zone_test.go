@@ -15,18 +15,11 @@ var netipv6zoneTests = []testCase{
 
 import "net"
 
-var a = []struct {
-	*net.IPNet
-}{
-	&net.IPNet{net.ParseIP("2001:DB8::"), net.IPMask(net.ParseIP("ffff:ffff:ffff::"))},
-}
-
 func f() net.Addr {
-	b := net.IPNet{net.IPv4(127, 0, 0, 1), net.IPv4Mask(255, 0, 0, 0)}
-	c := &net.IPAddr{ip1}
+	a := &net.IPAddr{ip1}
 	sub(&net.UDPAddr{ip2, 12345})
-	d := &net.TCPAddr{IP: ip3, Port: 54321}
-	e := &net.TCPAddr{ip4, 0}
+	c := &net.TCPAddr{IP: ip3, Port: 54321}
+	d := &net.TCPAddr{ip4, 0}
 	return &net.TCPAddr{ip5}, nil
 }
 `,
@@ -34,18 +27,11 @@ func f() net.Addr {
 
 import "net"
 
-var a = []struct {
-	*net.IPNet
-}{
-	&net.IPNet{IP: net.ParseIP("2001:DB8::"), Mask: net.IPMask(net.ParseIP("ffff:ffff:ffff::"))},
-}
-
 func f() net.Addr {
-	b := net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.IPv4Mask(255, 0, 0, 0)}
-	c := &net.IPAddr{IP: ip1}
+	a := &net.IPAddr{IP: ip1}
 	sub(&net.UDPAddr{IP: ip2, Port: 12345})
-	d := &net.TCPAddr{IP: ip3, Port: 54321}
-	e := &net.TCPAddr{IP: ip4}
+	c := &net.TCPAddr{IP: ip3, Port: 54321}
+	d := &net.TCPAddr{IP: ip4}
 	return &net.TCPAddr{IP: ip5}, nil
 }
 `,
