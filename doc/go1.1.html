@@ -34,13 +34,14 @@ In Go 1.1, an integer division by constant zero is not a legal program, so it is
 
 <h2 id="impl">Changes to the implementations and tools</h2>
 
-<li>TODO: more</li>
-<li>TODO: unicode: surrogate halves in compiler, libraries, runtime</li>
+<p>
+TODO: more
+</p>
 
 <h3 id="gc-flag">Command-line flag parsing</h3>
 
 <p>
-In the gc toolchain, the compilers and linkers now use the
+In the gc tool chain, the compilers and linkers now use the
 same command-line flag parsing rules as the Go flag package, a departure
 from the traditional Unix flag parsing. This may affect scripts that invoke
 the tool directly.
@@ -81,6 +82,52 @@ would instead say:
 <pre>
 i := int(int32(x))
 </pre>
+
+<h3 id="unicode_surrogates">Unicode</h3>
+
+<p>
+To make it possible to represent code points greater than 65535 in UTF-16,
+Unicode defines <em>surrogate halves</em>,
+a range of code points to be used only in the assembly of large values, and only in UTF-16.
+The code points in that surrogate range are illegal for any other purpose.
+In Go 1.1, this constraint is honored by the compiler, libraries, and run-time:
+a surrogate half is illegal as a rune value, when encoded as UTF-8, or when
+encoded in isolation as UTF-16.
+When encountered, for example in converting from a rune to UTF-8, it is
+treated as an encoding error and will yield the replacement rune,
+<a href="/pkg/unicode/utf8/#RuneError"><code>utf8.RuneError</code></a>,
+U+FFFD.
+</p>
+
+<p>
+This program,
+</p>
+
+<pre>
+import "fmt"
+
+func main() {
+    fmt.Printf("%+q\n", string(0xD800))
+}
+</pre>
+
+<p>
+printed <code>"\ud800"</code> in Go 1.0, but prints <code>"\ufffd"</code> in Go 1.1.
+</p>
+
+<p>
+The Unicode byte order marks U+FFFE and U+FEFF, encoded in UTF-8, are now permitted as the first
+character of a Go source file.
+Even though their appearance in the byte-order-free UTF-8 encoding is clearly unnecessary,
+some editors add them as a kind of "magic number" identifying a UTF-8 encoded file.
+</p>
+
+<p>
+<em>Updating</em>:
+Most programs will be unaffected by the surrogate change.
+Programs that depend on the old behavior should be modified to avoid the issue.
+The byte-order-mark change is strictly backwards- compatible.
+</p>
 
 <h3 id="asm">Assembler</h3>
 
@@ -127,7 +174,7 @@ package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to 
 
 <p>
 The <code>go fix</code> command no longer applies fixes to update code from
-before Go 1 to use Go 1 APIs. To update pre-Go 1 code to Go 1.1, use a Go 1.0 toolchain
+before Go 1 to use Go 1 APIs. To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
 to convert the code to Go 1.0 first.
 </p>
 
@@ -176,7 +223,7 @@ The same is true of the other protocol-specific resolvers <code>ResolveIPAddr</c
 
 <p>
 The previous <code>ListenUnixgram</code> returned <code>UDPConn</code> as
-arepresentation of the connection endpoint. The Go 1.1 implementation
+a representation of the connection endpoint. The Go 1.1 implementation
 returns <code>UnixConn</code> to allow reading and writing
 with <code>ReadFrom</code> and <code>WriteTo</code> methods on
 the <code>UnixConn</code>.
@@ -381,7 +428,7 @@ The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular
 
 <li>
 The <a href="/pkg/regexp/"><code>regexp</code></a> package
-now supports Unix-original lefmost-longest matches through the
+now supports Unix-original leftmost-longest matches through the
 <a href="/pkg/regexp/#Regexp.Longest"><code>Regexp.Longest</code></a>
 method, while
 <a href="/pkg/regexp/#Regexp.Split"><code>Regexp.Split</code></a> slices
