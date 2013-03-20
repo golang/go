@@ -324,7 +324,7 @@ outcode(void)
 		zaddr(&b, &p->from, sf);
 		zaddr(&b, &p->to, st);
 	}
-	Bflush(&b);
+	Bterm(&b);
 	close(f);
 	firstp = P;
 	lastp = P;
