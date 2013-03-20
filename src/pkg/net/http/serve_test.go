@@ -1620,3 +1620,34 @@ func BenchmarkServer(b *testing.B) {
 		b.Errorf("Test failure: %v, with output: %s", err, out)
 	}
 }
+
+func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
+	b.ReportAllocs()
+	req := []byte(strings.Replace(`GET / HTTP/1.0
+Host: golang.org
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.52 Safari/537.17
+Accept-Encoding: gzip,deflate,sdch
+Accept-Language: en-US,en;q=0.8
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+
+`, "\n", "\r\n", -1))
+	res := []byte("Hello world!\n")
+
+	conn := &testConn{
+		closec: make(chan bool),
+	}
+	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		rw.Write(res)
+	})
+	ln := new(oneConnListener)
+	for i := 0; i < b.N; i++ {
+		conn.readBuf.Reset()
+		conn.writeBuf.Reset()
+		conn.readBuf.Write(req)
+		ln.conn = conn
+		Serve(ln, handler)
+		<-conn.closec
+	}
+}
