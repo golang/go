@@ -485,7 +485,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
 		}
 
-		// tried records the location of unsucsessful package lookups
+		// tried records the location of unsuccessful package lookups
 		var tried struct {
 			goroot string
 			gopath []string

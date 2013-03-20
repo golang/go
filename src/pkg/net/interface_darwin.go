@@ -50,7 +50,7 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) 
 		case *syscall.SockaddrInet6:
 			ifma := &IPAddr{IP: make(IP, IPv6len)}
 			copy(ifma.IP, sa.Addr[:])
-			// NOTE: KAME based IPv6 protcol stack usually embeds
+			// NOTE: KAME based IPv6 protocol stack usually embeds
 			// the interface index in the interface-local or link-
 			// local address as the kernel-internal form.
 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {

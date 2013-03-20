@@ -655,7 +655,7 @@ func (w *response) bodyAllowed() bool {
 //
 // Handler starts. No header has been sent. The handler can either
 // write a header, or just start writing.  Writing before sending a header
-// sends an implicity empty 200 OK header.
+// sends an implicitly empty 200 OK header.
 //
 // If the handler didn't declare a Content-Length up front, we either
 // go into chunking mode or, if the handler finishes running before

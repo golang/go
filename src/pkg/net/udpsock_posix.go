@@ -89,7 +89,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 }
 
 // ReadMsgUDP reads a packet from c, copying the payload into b and
-// the associdated out-of-band data into oob.  It returns the number
+// the associated out-of-band data into oob.  It returns the number
 // of bytes copied into b, the number of bytes copied into oob, the
 // flags that were set on the packet and the source address of the
 // packet.
