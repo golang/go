@@ -1380,6 +1380,12 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
 		}
 	}
 
+	if(local && !pa->local) {
+		// defining method on non-local type.
+		yyerror("cannot define new methods on non-local type %T", pa);
+		return;
+	}
+
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
 
@@ -1392,12 +1398,6 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
 			continue;
 		if(!eqtype(t, f->type))
 			yyerror("method redeclared: %T.%S\n\t%T\n\t%T", pa, sf, f->type, t);
-		return;
-	}
-
-	if(local && !pa->local) {
-		// defining method on non-local type.
-		yyerror("cannot define new methods on non-local type %T", pa);
 		return;
 	}
 
