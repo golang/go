@@ -35,7 +35,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 	MSpan *s;
 	void *v;
 
-	if(runtime·gcwaiting && g != m->g0 && m->locks == 0)
+	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && dogc)
 		runtime·gosched();
 	if(m->mallocing)
 		runtime·throw("malloc/free - deadlock");
