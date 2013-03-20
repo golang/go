@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 	if(argc != 1)
 		usage();
 
-	if(linkmode != Linkinternal) {
+	if(linkmode != LinkInternal) {
 		diag("only -linkmode=internal is supported");
 		errorexit();
 	}
