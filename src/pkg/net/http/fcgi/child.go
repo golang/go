@@ -10,10 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cgi"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -152,6 +154,8 @@ func (c *child) serve() {
 
 var errCloseConn = errors.New("fcgi: connection should be closed")
 
+var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+
 func (c *child) handleRecord(rec *record) error {
 	req, ok := c.requests[rec.h.Id]
 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
@@ -191,6 +195,8 @@ func (c *child) handleRecord(rec *record) error {
 				// body could be an io.LimitReader, but it shouldn't matter
 				// as long as both sides are behaving.
 				body, req.pw = io.Pipe()
+			} else {
+				body = emptyBody
 			}
 			go c.serveRequest(req, body)
 		}
@@ -232,9 +238,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 		httpReq.Body = body
 		c.handler.ServeHTTP(r, httpReq)
 	}
-	if body != nil {
-		body.Close()
-	}
+	body.Close()
 	r.Close()
 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
 	if !req.keepConn {
