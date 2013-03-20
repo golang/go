@@ -452,6 +452,7 @@ enum
 	OCALLFUNC,	// f()
 	OCALLMETH,	// t.Method()
 	OCALLINTER,	// err.Error()
+	OCALLPART,	// t.Method (without ())
 	OCAP,	// cap
 	OCLOSE,	// close
 	OCLOSURE,	// f = func() { etc }
@@ -564,6 +565,7 @@ enum
 	OITAB,	// itable word of an interface value.
 	OCLOSUREVAR, // variable reference at beginning of closure function
 	OCFUNC,	// reference to c function pointer (not go func value)
+	OCHECKNOTNIL, // emit code to ensure pointer/interface not nil
 
 	// arch-specific registers
 	OREGISTER,	// a register, such as AX.
@@ -989,7 +991,8 @@ Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
 void	typecheckclosure(Node *func, int top);
 Node*	walkclosure(Node *func, NodeList **init);
-void	walkcallclosure(Node *n, NodeList **init);
+void	typecheckpartialcall(Node*, Node*);
+Node*	walkpartialcall(Node*, NodeList**);
 
 /*
  *	const.c
@@ -1419,7 +1422,8 @@ EXTERN	Node*	nodfp;
 int	anyregalloc(void);
 void	betypeinit(void);
 void	bgen(Node *n, int true, int likely, Prog *to);
-void	checkref(Node*);
+void	checkref(Node *n, int force);
+void	checknotnil(Node*, NodeList**);
 void	cgen(Node*, Node*);
 void	cgen_asop(Node *n);
 void	cgen_call(Node *n, int proc);

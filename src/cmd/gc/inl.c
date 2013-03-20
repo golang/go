@@ -357,7 +357,7 @@ inlnode(Node **np)
 		}
 
 	case OCLOSURE:
-		// TODO do them here (or earlier) instead of in walkcallclosure,
+		// TODO do them here (or earlier),
 		// so escape analysis can avoid more heapmoves.
 		return;
 	}
