@@ -732,6 +732,7 @@ reswitch:
 			yyerror("rhs of . must be a name");	// impossible
 			goto error;
 		}
+		r = n->right;
 
 		if(n->left->op == OTYPE) {
 			if(!looktypedot(n, t, 0)) {
@@ -775,7 +776,12 @@ reswitch:
 		switch(n->op) {
 		case ODOTINTER:
 		case ODOTMETH:
-			ok |= Ecall;
+			if(top&Ecall)
+				ok |= Ecall;
+			else {
+				typecheckpartialcall(n, r);
+				ok |= Erv;
+			}
 			break;
 		default:
 			ok |= Erv;
@@ -1694,10 +1700,6 @@ ret:
 		yyerror("%N is not a type", n);
 		goto error;
 	}
-	if((ok & Ecall) && !(top & Ecall)) {
-		yyerror("method %N is not an expression, must be called", n);
-		goto error;
-	}
 	// TODO(rsc): simplify
 	if((top & (Ecall|Erv|Etype)) && !(top & Etop) && !(ok & (Erv|Etype|Ecall))) {
 		yyerror("%N used as value", n);
@@ -2560,6 +2562,7 @@ islvalue(Node *n)
 		// fall through
 	case OIND:
 	case ODOTPTR:
+	case OCLOSUREVAR:
 		return 1;
 	case ODOT:
 		return islvalue(n->left);

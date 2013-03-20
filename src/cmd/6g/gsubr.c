@@ -555,6 +555,7 @@ ismem(Node *n)
 	case OINDREG:
 	case ONAME:
 	case OPARAM:
+	case OCLOSUREVAR:
 		return 1;
 	case OADDR:
 		if(flag_largemodel)
@@ -1057,11 +1058,11 @@ gins(int as, Node *f, Node *t)
 // Generate an instruction referencing *n
 // to force segv on nil pointer dereference.
 void
-checkref(Node *n)
+checkref(Node *n, int force)
 {
 	Node m;
 
-	if(n->type->type->width < unmappedzero)
+	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
 		return;
 
 	regalloc(&m, types[TUINTPTR], n);
@@ -1098,8 +1099,6 @@ checkoffset(Addr *a, int canemitcode)
 void
 naddr(Node *n, Addr *a, int canemitcode)
 {
-	Prog *p;
-
 	a->scale = 0;
 	a->index = D_NONE;
 	a->type = D_NONE;
@@ -1163,14 +1162,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 	
 	case OCLOSUREVAR:
-		if(!canemitcode)
-			fatal("naddr OCLOSUREVAR cannot emit code");
-		p = gins(AMOVQ, N, N);
-		p->from.type = D_DX+D_INDIR;
-		p->from.offset = n->xoffset;
-		p->to.type = D_BX;
-		a->type = D_BX;
+		a->type = D_DX+D_INDIR;
 		a->sym = S;
+		a->offset = n->xoffset;
 		break;
 	
 	case OCFUNC:

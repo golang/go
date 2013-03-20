@@ -3723,3 +3723,17 @@ isbadimport(Strlit *path)
 	}
 	return 0;
 }
+
+void
+checknotnil(Node *x, NodeList **init)
+{
+	Node *n;
+	
+	if(isinter(x->type)) {
+		x = nod(OITAB, x, N);
+		typecheck(&x, Erv);
+	}
+	n = nod(OCHECKNOTNIL, x, N);
+	n->typecheck = 1;
+	*init = list(*init, n);
+}

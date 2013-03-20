@@ -184,6 +184,7 @@ walkstmt(Node **np)
 	case OLABEL:
 	case ODCLCONST:
 	case ODCLTYPE:
+	case OCHECKNOTNIL:
 		break;
 
 	case OBLOCK:
@@ -396,13 +397,28 @@ walkexpr(Node **np, NodeList **init)
 	case OIMAG:
 	case ODOTMETH:
 	case ODOTINTER:
+		walkexpr(&n->left, init);
+		goto ret;
+
 	case OIND:
+		if(n->left->type->type->width == 0) {
+			n->left = cheapexpr(n->left, init);
+			checknotnil(n->left, init);
+		}
 		walkexpr(&n->left, init);
 		goto ret;
 
 	case ODOT:
+		usefield(n);
+		walkexpr(&n->left, init);
+		goto ret;
+
 	case ODOTPTR:
 		usefield(n);
+		if(n->op == ODOTPTR && n->left->type->type->width == 0) {
+			n->left = cheapexpr(n->left, init);
+			checknotnil(n->left, init);
+		}
 		walkexpr(&n->left, init);
 		goto ret;
 
@@ -523,13 +539,6 @@ walkexpr(Node **np, NodeList **init)
 		t = n->left->type;
 		if(n->list && n->list->n->op == OAS)
 			goto ret;
-
-		/*
-		if(n->left->op == OCLOSURE) {
-			walkcallclosure(n, init);
-			t = n->left->type;
-		}
-		*/
 
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
@@ -1320,6 +1329,10 @@ walkexpr(Node **np, NodeList **init)
 
 	case OCLOSURE:
 		n = walkclosure(n, init);
+		goto ret;
+	
+	case OCALLPART:
+		n = walkpartialcall(n, init);
 		goto ret;
 	}
 	fatal("missing switch %O", n->op);

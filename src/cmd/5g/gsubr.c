@@ -543,6 +543,7 @@ ismem(Node *n)
 	case OINDREG:
 	case ONAME:
 	case OPARAM:
+	case OCLOSUREVAR:
 		return 1;
 	}
 	return 0;
@@ -1163,11 +1164,11 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 // Generate an instruction referencing *n
 // to force segv on nil pointer dereference.
 void
-checkref(Node *n)
+checkref(Node *n, int force)
 {
 	Node m1, m2;
 
-	if(n->type->type->width < unmappedzero)
+	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
 		return;
 
 	regalloc(&m1, types[TUINTPTR], n);
@@ -1209,8 +1210,6 @@ checkoffset(Addr *a, int canemitcode)
 void
 naddr(Node *n, Addr *a, int canemitcode)
 {
-	Prog *p;
-
 	a->type = D_NONE;
 	a->name = D_NONE;
 	a->reg = NREG;
@@ -1283,16 +1282,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 		break;
 	
 	case OCLOSUREVAR:
-		if(!canemitcode)
-			fatal("naddr OCLOSUREVAR cannot emit code");
-		p = gins(AMOVW, N, N);
-		p->from.type = D_OREG;
-		p->from.reg = 7;
-		p->from.offset = n->xoffset;
-		p->to.type = D_REG;
-		p->to.reg = 1;
-		a->type = D_REG;
-		a->reg = 1;
+		a->type = D_OREG;
+		a->reg = 7;
+		a->offset = n->xoffset;
 		a->sym = S;
 		break;		
 
