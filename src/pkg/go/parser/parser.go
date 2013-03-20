@@ -2118,7 +2118,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(p *parser, doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
+type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
 
 func isValidImport(lit string) bool {
 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
@@ -2237,12 +2237,12 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 		lparen = p.pos
 		p.next()
 		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
-			list = append(list, f(p, p.leadComment, keyword, iota))
+			list = append(list, f(p.leadComment, keyword, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list = append(list, f(p, nil, keyword, 0))
+		list = append(list, f(nil, keyword, 0))
 	}
 
 	return &ast.GenDecl{
@@ -2343,10 +2343,10 @@ func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 	var f parseSpecFunction
 	switch p.tok {
 	case token.CONST, token.VAR:
-		f = (*parser).parseValueSpec
+		f = p.parseValueSpec
 
 	case token.TYPE:
-		f = (*parser).parseTypeSpec
+		f = p.parseTypeSpec
 
 	case token.FUNC:
 		return p.parseFuncDecl()
@@ -2398,7 +2398,7 @@ func (p *parser) parseFile() *ast.File {
 	if p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
-			decls = append(decls, p.parseGenDecl(token.IMPORT, (*parser).parseImportSpec))
+			decls = append(decls, p.parseGenDecl(token.IMPORT, p.parseImportSpec))
 		}
 
 		if p.mode&ImportsOnly == 0 {
