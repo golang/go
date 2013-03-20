@@ -8,7 +8,6 @@
 #include "hashmap.h"
 #include "type.h"
 #include "race.h"
-#include "typekind.h" // TODO: remove
 
 // This file contains the implementation of Go's map type.
 //
@@ -113,10 +112,10 @@ enum
 {
 	IndirectKey = 1,    // storing pointers to keys
 	IndirectValue = 2,  // storing pointers to values
-	Iterator = 4,       // there may be an iterator using buckets  TODO: use
-	OldIterator = 8,    // there may be an iterator using oldbuckets  TODO: use
-	CanFreeBucket = 16, // ok to free buckets  TODO: use
-	CanFreeKey = 32,    // ok to free pointers to keys  TODO: use
+	Iterator = 4,       // there may be an iterator using buckets
+	OldIterator = 8,    // there may be an iterator using oldbuckets
+	CanFreeBucket = 16, // ok to free buckets
+	CanFreeKey = 32,    // keys are indirect and ok to free keys
 };
 
 // Macros for dereferencing indirect keys
@@ -213,12 +212,12 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 	uint8 flags;
 	Bucket *b;
 
-	flags = CanFreeBucket | CanFreeKey;
+	flags = CanFreeBucket;
 
 	// figure out how big we have to make everything
 	keysize = t->key->size;
 	if(keysize > MAXKEYSIZE) {
-		flags |= IndirectKey;
+		flags |= IndirectKey | CanFreeKey;
 		keysize = sizeof(byte*);
 	}
 	valuesize = t->elem->size;
@@ -293,6 +292,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 	uintptr i;
 	byte *k, *v;
 	byte *xk, *yk, *xv, *yv;
+	byte *ob;
 
 	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
 	newbit = (uintptr)1 << (h->B - 1);
@@ -378,13 +378,35 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 
 			b = nextb;
 		} while(b != nil);
+
+		// Free old overflow buckets as much as we can.
+		if((h->flags & OldIterator) == 0) {
+			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+			if((h->flags & CanFreeBucket) != 0) {
+				while((nextb = overflowptr(b)) != nil) {
+					b->overflow = nextb->overflow;
+					runtime·free(nextb);
+				}
+			} else {
+				// can't explicitly free overflow buckets, but at least
+				// we can unlink them.
+				b->overflow = (Bucket*)1;
+			}
+		}
 	}
 
 	// advance evacuation mark
 	if(oldbucket == h->nevacuate) {
 		h->nevacuate = oldbucket + 1;
 		if(oldbucket + 1 == newbit) { // newbit == # of oldbuckets
-			h->oldbuckets = nil;
+			// free main bucket array
+			if((h->flags & (OldIterator | CanFreeBucket)) == CanFreeBucket) {
+				ob = h->oldbuckets;
+				h->oldbuckets = nil;
+				runtime·free(ob);
+			} else {
+				h->oldbuckets = nil;
+			}
 		}
 	}
 	if(docheck)
@@ -421,8 +443,12 @@ hash_grow(MapType *t, Hmap *h)
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
 	new_buckets = runtime·mallocgc(h->bucketsize << (h->B + 1), 0, 1, 0);
 	flags = (h->flags & ~(Iterator | OldIterator));
-	if((h->flags & Iterator) != 0)
+	if((h->flags & Iterator) != 0) {
 		flags |= OldIterator;
+		// We can't free indirect keys any more, as
+		// they are potentially aliased across buckets.
+		flags &= ~CanFreeKey;
+	}
 
 	// commit the grow (atomic wrt gc)
 	h->B++;
@@ -642,11 +668,22 @@ hash_remove(MapType *t, Hmap *h, void *key)
 			if(!eq)
 				continue;
 
+			if((h->flags & CanFreeKey) != 0) {
+				k = *(byte**)k;
+			}
+			if((h->flags & IndirectValue) != 0) {
+				v = *(byte**)v;
+			}
+
 			b->tophash[i] = 0;
 			h->count--;
-			// TODO: free key if indirect.  Can't do it if
-			// there's any iterator ever, as indirect keys are aliased across
-			// buckets.
+			
+			if((h->flags & CanFreeKey) != 0) {
+				runtime·free(k);
+			}
+			if((h->flags & IndirectValue) != 0) {
+				runtime·free(v);
+			}
 			// TODO: consolidate buckets if they are mostly empty
 			// can only consolidate if there are no live iterators at this size.
 			if(docheck)
@@ -702,6 +739,7 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 	it->wrapped = false;
 	it->bptr = nil;
 
+	// Remember we have an iterator at this level.
 	h->flags |= Iterator;
 }
 
