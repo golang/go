@@ -1246,7 +1246,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 }
 
 // typelinks is implemented in package runtime.
-// It retuns a slice of all the 'typelink' information in the binary,
+// It returns a slice of all the 'typelink' information in the binary,
 // which is to say a slice of known types, sorted by string.
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.

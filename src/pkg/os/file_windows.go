@@ -243,7 +243,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	return fi, nil
 }
 
-// readConsole reads utf16 charcters from console File,
+// readConsole reads utf16 characters from console File,
 // encodes them into utf8 and stores them in buffer b.
 // It returns the number of utf8 bytes read and an error, if any.
 func (f *File) readConsole(b []byte) (n int, err error) {

@@ -268,7 +268,7 @@ func (r *Reader) NextPart() (*Part, error) {
 }
 
 // isFinalBoundary returns whether line is the final boundary line
-// indiciating that all parts are over.
+// indicating that all parts are over.
 // It matches `^--boundary--[ \t]*(\r\n)?$`
 func (mr *Reader) isFinalBoundary(line []byte) bool {
 	if !bytes.HasPrefix(line, mr.dashBoundaryDash) {
