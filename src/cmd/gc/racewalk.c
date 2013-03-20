@@ -385,6 +385,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OHMUL:
 	case OLROT:
 	case ORROTC:
+	case OCHECKNOTNIL:
 		goto ret;
 	}
 
