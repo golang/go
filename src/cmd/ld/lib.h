@@ -143,7 +143,6 @@ EXTERN	int	nldflag;
 EXTERN	char**	ldflag;
 EXTERN	int	havedynamic;
 EXTERN	int	iscgo;
-EXTERN	int	isobj;
 EXTERN	int	elfglobalsymndx;
 EXTERN	int	flag_race;
 EXTERN	int flag_shared;
