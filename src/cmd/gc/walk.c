@@ -636,8 +636,48 @@ walkexpr(Node **np, NodeList **init)
 		r = n->rlist->n;
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
-		fn = mapfn("mapaccess2", r->left->type);
-		r = mkcall1(fn, getoutargx(fn->type), init, typename(r->left->type), r->left, r->right);
+		t = r->left->type;
+		p = nil;
+		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
+			switch(simsimtype(t->down)) {
+			case TINT32:
+			case TUINT32:
+				p = "mapaccess2_fast32";
+				break;
+			case TINT64:
+			case TUINT64:
+				p = "mapaccess2_fast64";
+				break;
+			case TSTRING:
+				p = "mapaccess2_faststr";
+				break;
+			}
+		}
+		if(p != nil) {
+			// from:
+			//   a,b = m[i]
+			// to:
+			//   var,b = mapaccess2_fast*(t, m, i)
+			//   a = *var
+			a = n->list->n;
+			var = temp(ptrto(t->type));
+			var->typecheck = 1;
+
+			fn = mapfn(p, t);
+			r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
+			n->rlist = list1(r);
+			n->op = OAS2FUNC;
+			n->list->n = var;
+			walkexpr(&n, init);
+			*init = list(*init, n);
+
+			n = nod(OAS, a, nod(OIND, var, N));
+			typecheck(&n, Etop);
+			walkexpr(&n, init);
+			goto ret;
+		}
+		fn = mapfn("mapaccess2", t);
+		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
 		n->rlist = list1(r);
 		n->op = OAS2FUNC;
 		goto as2func;
@@ -1004,7 +1044,33 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 
 		t = n->left->type;
-		n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
+		p = nil;
+		if(t->type->width <= 128) {  // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
+			switch(simsimtype(t->down)) {
+			case TINT32:
+			case TUINT32:
+				p = "mapaccess1_fast32";
+				break;
+			case TINT64:
+			case TUINT64:
+				p = "mapaccess1_fast64";
+				break;
+			case TSTRING:
+				p = "mapaccess1_faststr";
+				break;
+			}
+		}
+		if(p != nil) {
+			// use fast version.  The fast versions return a pointer to the value - we need
+			// to dereference it to get the result.
+			n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, n->right);
+			n = nod(OIND, n, N);
+			n->type = t->type;
+			n->typecheck = 1;
+		} else {
+			// no fast version for this key
+			n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
+		}
 		goto ret;
 
 	case ORECV:

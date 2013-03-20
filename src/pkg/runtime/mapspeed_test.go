@@ -5,6 +5,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -92,5 +93,58 @@ func BenchmarkHashStringArraySpeed(b *testing.B) {
 		if idx == size {
 			idx = 0
 		}
+	}
+}
+
+func BenchmarkMegMap(b *testing.B) {
+	m := make(map[string]bool)
+	for suffix := 'A'; suffix <= 'G'; suffix++ {
+		m[strings.Repeat("X", 1<<20-1)+fmt.Sprint(suffix)] = true
+	}
+	key := strings.Repeat("X", 1<<20-1) + "k"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key]
+	}
+}
+
+func BenchmarkMegOneMap(b *testing.B) {
+	m := make(map[string]bool)
+	m[strings.Repeat("X", 1<<20)] = true
+	key := strings.Repeat("Y", 1<<20)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key]
+	}
+}
+
+func BenchmarkMegEmptyMap(b *testing.B) {
+	m := make(map[string]bool)
+	key := strings.Repeat("X", 1<<20)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key]
+	}
+}
+
+func BenchmarkSmallStrMap(b *testing.B) {
+	m := make(map[string]bool)
+	for suffix := 'A'; suffix <= 'G'; suffix++ {
+		m[fmt.Sprint(suffix)] = true
+	}
+	key := "k"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[key]
+	}
+}
+func BenchmarkIntMap(b *testing.B) {
+	m := make(map[int]bool)
+	for i := 0; i < 8; i++ {
+		m[i] = true
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = m[7]
 	}
 }

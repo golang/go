@@ -687,7 +687,7 @@ void	runtime·panicstring(int8*);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);
-int32	runtime·mcmp(byte*, byte*, uint32);
+int32	runtime·mcmp(byte*, byte*, uintptr);
 void	runtime·memmove(void*, void*, uintptr);
 void*	runtime·mal(uintptr);
 String	runtime·catstring(String, String);
@@ -962,7 +962,6 @@ void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
 void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
 void	runtime·mapiternext(struct hash_iter*);
 bool	runtime·mapiterkey(struct hash_iter*, void*);
-void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
 Hmap*	runtime·makemap_c(MapType*, int64);
 
 Hchan*	runtime·makechan_c(ChanType*, int64);

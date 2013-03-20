@@ -42,9 +42,9 @@ runtime·gotraceback(bool *crash)
 }
 
 int32
-runtime·mcmp(byte *s1, byte *s2, uint32 n)
+runtime·mcmp(byte *s1, byte *s2, uintptr n)
 {
-	uint32 i;
+	uintptr i;
 	byte c1, c2;
 
 	for(i=0; i<n; i++) {
