@@ -762,8 +762,8 @@ TEXT runtime·aeshashstr(SB),7,$0
 TEXT runtime·aeshashbody(SB),7,$0
 	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
-	MOVOU	runtime·aeskeysched+0(SB), X2
-	MOVOU	runtime·aeskeysched+16(SB), X3
+	MOVO	runtime·aeskeysched+0(SB), X2
+	MOVO	runtime·aeskeysched+16(SB), X3
 aesloop:
 	CMPQ	CX, $16
 	JB	aesloopend
@@ -811,11 +811,9 @@ TEXT runtime·aeshash32(SB),7,$0
 	MOVQ	24(SP), AX	// ptr to data
 	MOVQ	(DX), X0	// seed
 	PINSRD	$2, (AX), X0	// data
-	MOVOU	runtime·aeskeysched+0(SB), X2
-	MOVOU	runtime·aeskeysched+16(SB), X3
-	AESENC	X2, X0
-	AESENC	X3, X0
-	AESENC	X2, X0
+	AESENC	runtime·aeskeysched+0(SB), X0
+	AESENC	runtime·aeskeysched+16(SB), X0
+	AESENC	runtime·aeskeysched+0(SB), X0
 	MOVQ	X0, (DX)
 	RET
 
@@ -824,11 +822,9 @@ TEXT runtime·aeshash64(SB),7,$0
 	MOVQ	24(SP), AX	// ptr to data
 	MOVQ	(DX), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
-	MOVOU	runtime·aeskeysched+0(SB), X2
-	MOVOU	runtime·aeskeysched+16(SB), X3
-	AESENC	X2, X0
-	AESENC	X3, X0
-	AESENC	X2, X0
+	AESENC	runtime·aeskeysched+0(SB), X0
+	AESENC	runtime·aeskeysched+16(SB), X0
+	AESENC	runtime·aeskeysched+0(SB), X0
 	MOVQ	X0, (DX)
 	RET
 
