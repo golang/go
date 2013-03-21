@@ -1,3 +1,8 @@
+// DO NOT EDIT.
+// Generate with: go run gen.go -full | gofmt >md5block.go
+
+// +build !amd64,!386
+
 package md5
 
 import (
