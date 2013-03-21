@@ -57,6 +57,15 @@ runtime·netpollopen(int32 fd, PollDesc *pd)
 	return 0;
 }
 
+int32
+runtime·netpollclose(int32 fd)
+{
+	// Don't need to unregister because calling close()
+	// on fd will remove any kevents that reference the descriptor.
+	USED(fd);
+	return 0;
+}
+
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
 G*
