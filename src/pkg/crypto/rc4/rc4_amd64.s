@@ -1,11 +1,19 @@
 // Original source:
 //	http://www.zorinaq.com/papers/rc4-amd64.html
 //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
+
+// Local modifications:
 //
 // Transliterated from GNU to 6a assembly syntax by the Go authors.
 // The comments and spacing are from the original.
-
+//
 // The new EXTEND macros avoid a bad stall on some systems after 8-bit math.
+//
+// The original code accumulated 64 bits of key stream in an integer
+// register and then XOR'ed the key stream into the data 8 bytes at a time.
+// Modified to accumulate 128 bits of key stream into an XMM register
+// and then XOR the key stream into the data 16 bytes at a time.
+// Approximately doubles throughput.
 
 // NOTE: Changing EXTEND to a no-op makes the code run 1.2x faster on Core i5
 // but makes the code run 2.0x slower on Xeon.
@@ -38,59 +46,123 @@ TEXT ·xorKeyStream(SB),7,$0
 	MOVQ	yp+40(FP),	AX
 	MOVBQZX	0(AX),		DX		// y = *yp
 
-	INCQ	CX				// x++
-	ANDQ	$255,		CX		// x &= 0xff
-	LEAQ	-8(BX)(SI*1),	BX		// rbx = in+len-8
-	MOVQ	BX,		R9		// tmp = in+len-8
-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x]
-	CMPQ	BX,		SI		// cmp in with in+len-8
-	JLT	end				// jump if (in+len-8 < in)
+	LEAQ	(SI)(BX*1),	R9		// limit = in+len
 
-start:
-	ADDQ	$8,		SI		// increment in
-	ADDQ	$8,		DI		// increment out
-	
-	// generate the next 8 bytes of the rc4 stream into R8
-	MOVQ	$8,		R11		// byte counter
-l1:	ADDB	AX,		DX
-	EXTEND(DX)
-	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
-	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
-	ADDB	AX,		BX		// val = ty + tx
-	EXTEND(BX)
-	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
-	INCB	CX				// x++ (NEXT ROUND)
+l1:	CMPQ	SI,		R9		// cmp in with in+len
+	JGE	finished			// jump if (in >= in+len)
+
+	INCB	CX
 	EXTEND(CX)
-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
-	SHLQ	$8,		R8
-	MOVB	(BP)(BX*1),	R8		// val = d[val]
-	DECQ	R11
-	JNZ	l1
+	TESTL	$15,		CX
+	JZ	wordloop
 
-	// xor 8 bytes
-	BSWAPQ	R8
-	XORQ	-8(SI),		R8
-	CMPQ	SI,		R9		// cmp in+len-8 with in XXX
-	MOVQ	R8,		-8(DI)
-	JLE	start				// jump if (in <= in+len-8)
+	MOVBLZX	(BP)(CX*4),	AX
 
-end:
-	ADDQ	$8,		R9		// tmp = in+len
-
-	// handle the last bytes, one by one
-l2:	CMPQ	R9,		SI		// cmp in with in+len
-	JLE	finished			// jump if (in+len <= in)
 	ADDB	AX,		DX		// y += tx
 	EXTEND(DX)
-	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
-	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
+	MOVBLZX	(BP)(DX*4),	BX		// ty = d[y]
+	MOVB	BX,		(BP)(CX*4)	// d[x] = ty
 	ADDB	AX,		BX		// val = ty+tx
 	EXTEND(BX)
-	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
-	INCB	CX				// x++ (NEXT ROUND)
+	MOVB	AX,		(BP)(DX*4)	// d[y] = tx
+	MOVBLZX	(BP)(BX*4),	R8		// val = d[val]
+	XORB	(SI),		R8		// xor 1 byte
+	MOVB	R8,		(DI)
+	INCQ	SI				// in++
+	INCQ	DI				// out++
+	JMP l1
+
+wordloop:
+	SUBQ	$16,		R9
+	CMPQ	SI,		R9
+	JGT	end
+
+start:
+	ADDQ	$16,		SI		// increment in
+	ADDQ	$16,		DI		// increment out
+
+	// Each KEYROUND generates one byte of key and
+	// inserts it into an XMM register at the given 16-bit index.
+	// The key state array is uint32 words only using the bottom
+	// byte of each word, so the 16-bit OR only copies 8 useful bits.
+	// We accumulate alternating bytes into X0 and X1, and then at
+	// the end we OR X1<<8 into X0 to produce the actual key.
+	//
+	// At the beginning of the loop, CX%16 == 0, so the 16 loads
+	// at state[CX], state[CX+1], ..., state[CX+15] can precompute
+	// (state+CX) as R12 and then become R12[0], R12[1], ... R12[15],
+	// without fear of the byte computation CX+15 wrapping around.
+	//
+	// The first round needs R12[0], the second needs R12[1], and so on.
+	// We can avoid memory stalls by starting the load for round n+1
+	// before the end of round n, using the LOAD macro.
+	LEAQ	(BP)(CX*4),	R12
+
+#define KEYROUND(xmm, load, off, r1, r2, index) \
+	MOVBLZX	(BP)(DX*4),	R8; \
+	MOVB	r1,		(BP)(DX*4); \
+	load((off+1), r2); \
+	MOVB	R8,		(off*4)(R12); \
+	ADDB	r1,		R8; \
+	EXTEND(R8); \
+	PINSRW	$index, (BP)(R8*4), xmm
+
+#define LOAD(off, reg) \
+	MOVBLZX	(off*4)(R12),	reg; \
+	ADDB	reg,		DX; \
+	EXTEND(DX)
+
+#define SKIP(off, reg)
+
+	LOAD(0, AX)
+	KEYROUND(X0, LOAD, 0, AX, BX, 0)
+	KEYROUND(X1, LOAD, 1, BX, AX, 0)
+	KEYROUND(X0, LOAD, 2, AX, BX, 1)
+	KEYROUND(X1, LOAD, 3, BX, AX, 1)
+	KEYROUND(X0, LOAD, 4, AX, BX, 2)
+	KEYROUND(X1, LOAD, 5, BX, AX, 2)
+	KEYROUND(X0, LOAD, 6, AX, BX, 3)
+	KEYROUND(X1, LOAD, 7, BX, AX, 3)
+	KEYROUND(X0, LOAD, 8, AX, BX, 4)
+	KEYROUND(X1, LOAD, 9, BX, AX, 4)
+	KEYROUND(X0, LOAD, 10, AX, BX, 5)
+	KEYROUND(X1, LOAD, 11, BX, AX, 5)
+	KEYROUND(X0, LOAD, 12, AX, BX, 6)
+	KEYROUND(X1, LOAD, 13, BX, AX, 6)
+	KEYROUND(X0, LOAD, 14, AX, BX, 7)
+	KEYROUND(X1, SKIP, 15, BX, AX, 7)
+	
+	ADDB	$16,		CX
+
+	PSLLQ	$8,		X1
+	PXOR	X1,		X0
+	MOVOU	-16(SI),	X2
+	PXOR	X0,		X2
+	MOVOU	X2,		-16(DI)
+
+	CMPQ	SI,		R9		// cmp in with in+len-16
+	JLE	start				// jump if (in <= in+len-16)
+
+end:
+	DECB	CX
+	ADDQ	$16,		R9		// tmp = in+len
+
+	// handle the last bytes, one by one
+l2:	CMPQ	SI,		R9		// cmp in with in+len
+	JGE	finished			// jump if (in >= in+len)
+
+	INCB	CX
 	EXTEND(CX)
-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
-	MOVBLZX	(BP)(BX*1),	R8		// val = d[val]
+	MOVBLZX	(BP)(CX*4),	AX
+
+	ADDB	AX,		DX		// y += tx
+	EXTEND(DX)
+	MOVBLZX	(BP)(DX*4),	BX		// ty = d[y]
+	MOVB	BX,		(BP)(CX*4)	// d[x] = ty
+	ADDB	AX,		BX		// val = ty+tx
+	EXTEND(BX)
+	MOVB	AX,		(BP)(DX*4)	// d[y] = tx
+	MOVBLZX	(BP)(BX*4),	R8		// val = d[val]
 	XORB	(SI),		R8		// xor 1 byte
 	MOVB	R8,		(DI)
 	INCQ	SI				// in++
@@ -98,7 +170,6 @@ l2:	CMPQ	R9,		SI		// cmp in with in+len
 	JMP l2
 
 finished:
-	DECQ	CX				// x--
 	MOVQ	yp+40(FP),	BX
 	MOVB	DX, 0(BX)
 	MOVQ	xp+32(FP),	AX

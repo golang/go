@@ -537,6 +537,11 @@ uchar	yextrw[] =
 	Yxr,	Yrl,	Zibm_r,	2,
 	0
 };
+uchar	yinsrw[] =
+{
+	Yml,	Yxr,	Zibm_r,	2,
+	0
+};
 uchar	yinsr[] =
 {
 	Ymm,	Yxr,	Zibm_r,	3,
@@ -992,7 +997,7 @@ Optab optab[] =
 	{ APFRSQRT,	ymfp,	Px, 0x97 },
 	{ APFSUB,	ymfp,	Px, 0x9a },
 	{ APFSUBR,	ymfp,	Px, 0xaa },
-	{ APINSRW,	yextrw,	Pq, 0xc4,(00) },
+	{ APINSRW,	yinsrw,	Pq, 0xc4,(00) },
 	{ APINSRD,	yinsr,	Pq, 0x3a, 0x22, (00) },
 	{ APINSRQ,	yinsr,	Pq3, 0x3a, 0x22, (00) },
 	{ APMADDWL,	ymm,	Py, 0xf5,Pe,0xf5 },

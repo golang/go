@@ -5,6 +5,7 @@
 package rc4
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -112,6 +113,26 @@ func TestGolden(t *testing.T) {
 				off += n
 			}
 		}
+	}
+}
+
+func TestBlock(t *testing.T) {
+	c1a, _ := NewCipher(golden[0].key)
+	c1b, _ := NewCipher(golden[1].key)
+	data1 := make([]byte, 1<<20)
+	for i := range data1 {
+		c1a.XORKeyStream(data1[i:i+1], data1[i:i+1])
+		c1b.XORKeyStream(data1[i:i+1], data1[i:i+1])
+	}
+
+	c2a, _ := NewCipher(golden[0].key)
+	c2b, _ := NewCipher(golden[1].key)
+	data2 := make([]byte, 1<<20)
+	c2a.XORKeyStream(data2, data2)
+	c2b.XORKeyStream(data2, data2)
+
+	if !bytes.Equal(data1, data2) {
+		t.Fatalf("bad block")
 	}
 }
 
