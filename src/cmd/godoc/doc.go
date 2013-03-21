@@ -67,6 +67,9 @@ The flags are:
 	-maxresults=10000
 		maximum number of full text search results shown
 		(no full text index is built if maxresults <= 0)
+	-notes="BUG"
+		regular expression matching note markers to show
+		(e.g., "BUG|TODO", ".*")
 	-html
 		print HTML in command-line mode
 	-goroot=$GOROOT
