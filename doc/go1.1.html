@@ -16,15 +16,15 @@ TODO
 <a href="/doc/go1compat.html">The Go compatibility document</a> promises
 that programs written to the Go 1 language specification will continue to operate,
 and those promises are maintained.
-In the interest of firming up the specification, though, there are some
+In the interest of firming up the specification, though, there are
 details about some error cases that have been clarified.
-There is also some new language features.
+There are also some new language features.
 </p>
 
 <h3 id="divzero">Integer division by zero</h3>
 
 <p>
-In Go 1, integer division by a constant zero produced a runtime panic:
+In Go 1, integer division by a constant zero produced a run-time panic:
 </p>
 
 <pre>
@@ -214,7 +214,17 @@ package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to 
 </pre>
 
 <p>
-TODO: go test uses  -c with a profile flag.
+The <code>go test</code> command no longer deletes the binary when run with profiling enabled,
+to make it easier to analyze the profile.
+The implementation sets the <code>-c</code> flag automatically, so after running,
+</p>
+
+<pre>
+$ go test -cpuprofile cpuprof.out mypackage
+</pre>
+
+<p>
+the file <code>mypackage.test</code> will be left in the directory where <code>go test</code> was run.
 </p>
 
 <h3 id="gofix">Changes to go fix</h3>
@@ -421,24 +431,54 @@ The <a href="/pkg/crypto/hmac/"><code>crypto/hmac</code></a> package has a new f
 <a href="/pkg/crypto/hmac/#Equal"><code>Equal</code></a>, to compare two MACs.
 </li>
 
-<li> TODO: 
-<code>crypto/x509</code>: DecryptPEMBlock, EncryptPEMBlock etc.
+<li>
+The <a href="/pkg/crypto/x509/"><code>crypto/x509</code></a> package
+now supports PEM blocks (see
+<a href="/pkg/crypto/x509/#DecryptPEMBlock"><code>DecryptPEMBlock</code></a> for instance),
+and a new function
+<a href="/pkg/crypto/x509/#ParseECPrivateKey"><code>ParseECPrivateKey</code></a> to parse elliptic curve private keys.
 </li>
 
-<li> TODO: 
-<code>database/sql/driver</code>: Queryer
+<li>
+The <a href="/pkg/database/sql/"><code>database/sql/</code></a> package
+has a new 
+<a href="/pkg/database/sql/#DB.Ping"><code>Ping</code></a>
+method for its
+<a href="/pkg/database/sql/#DB"><code>DB</code></a>
+type that tests the health of the connection.
 </li>
 
-<li> TODO: 
-<code>database/sql</code>: Ping, SetMaxIdleConns
+<li>
+The <a href="/pkg/database/sql/driver/"><code>database/sql/driver</code></a> package
+has a new
+<a href="/pkg/database/sql/driver/#Queryer"><code>Queryer</code></a>
+interface that a
+<a href="/pkg/database/sql/driver/#Conn"><code>Conn</code></a>
+may implement to improve performance.
 </li>
 
-<li> TODO: 
-<code>encoding/json</code>: Decoder.Buffered, UseNumber, Number
+<li>
+The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package's
+<a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
+has a new method
+<a href="/pkg/encoding/json/#Decoder.Reader"><code>Reader</code></a>
+to provide access to the remaining data in its buffer,
+as well as a new method
+<a href="/pkg/encoding/json/#Decoder.UseNumber"><code>UseNumber</code></a>
+to unmarshal a value into the new type
+<a href="/pkg/encoding/json/#Number"><code>Number</code></a>,
+a string, rather than a float64.
 </li>
 
-<li> TODO: 
-<code>encoding/xml</code>: EscapeText Encoder.Indent
+<li>
+The <a href="/pkg/encoding/xml/"><code>endoding/xml</code></a> package
+has a new function,
+<a href="/pkg/encoding/xml/#EscapeText"><code>EscapeText</code></a>,
+which writes escaped XML output,
+and a method on
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>,
+<a href="/pkg/encoding/xml/#Encoder.Indent"><code>Indent</code></a>,
+to specify indented output.
 </li>
 
 <li>
@@ -455,8 +495,15 @@ information that the <a href="/cmd/godoc/"><code>godoc</code></a>
 command can filter or present according to the value of the <code>-notes</code> flag.
 </li>
 
-<li> TODO: 
-<code>go/format</code>: Node, Source
+<li>
+A new package, <a href="/pkg/go/format/"><code>go/format</code></a>, provides
+a convenient way for a program to access the formatting capabilities of <code>gofmt</code>.
+It has two functions,
+<a href="/pkg/go/format/#Node"><code>Node</code></a> to format a Go parser
+<a href="/pkg/go/ast/#Node"><code>Node</code></a>,
+and
+<a href="/pkg/go/format/#Source"><code>Source</code></a>
+to format arbitrary Go source code.
 </li>
 
 <li>
@@ -498,8 +545,12 @@ and
 <a href="/pkg/math/big/#Rat.SetFloat64"><code>SetFloat64</code></a>.
 </li>
 
-<li> TODO: 
-<code>mime/multipart</code>: Writer.SetBoundary
+<li>
+The <a href="/pkg/mime/multipart/"><code>mime/multipart</code></a> package
+has a new method for its
+<a href="/pkg/mime/multipart/#Writer"><code>Writer</code></a>,
+<a href="/pkg/mime/multipart/#Writer.SetBoundary"><code>SetBoundary</code></a>,
+to define the boundary separator used to package the output.
 </li>
 
 <li>
@@ -518,11 +569,15 @@ The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provid
 <code>net/smtp</code>: Client.Hello
 </li>
 
-<li> TODO: 
-<code>net/textproto</code>: TrimBytes, TrimString
+<li>
+The <a href="/pkg/net/textproto/"><code>net/textproto</code></a> package
+has two new functions,
+<a href="/pkg/net/textproto/#TrimBytes"><code>TrimBytes</code></a> and
+<a href="/pkg/net/textproto/#TrimString"><code>TrimString</code></a>,
+which do ASCII-only trimming of leading and trailing spaces.
 </li>
 
-<li>
+<li> TODO:
 <code>net</code>: DialOption, DialOpt, ListenUnixgram, LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
 </li>
 
@@ -530,8 +585,9 @@ The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provid
 The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular</code> </a> makes it easy to ask if a file is a plain file.
 </li>
 
-<li> TODO: 
-<code>pkg/image</code>: new subsamplings
+<li>
+The <a href="/pkg/image/jpeg/"><code>image/jpeg</code></a> package now
+reads progressive JPEG files and handles a few more subsampling configurations.
 </li>
 
 <li>
@@ -543,8 +599,17 @@ method, while
 strings into pieces based on separators defined by the regular expression.
 </li>
 
-<li> TODO: 
-<code>runtime/debug</code>: FreeOSMemory, ReadGCStats, SetGCPercent
+<li>
+The <a href="/pkg/runtime/debug/"><code>runtime/debug</code></a> package
+has three new functions regarding memory usage.
+The <a href="/pkg/runtime/debug/#FreeOSMemory"><code>FreeOSMemory</code></a>
+function triggers a run of the garbage collector and then attempts to return unused
+memory to the operating system;
+the <a href="/pkg/runtime/debug/#ReadGCStats"><code>ReadGCStats</code></a>
+function retrieves statistics about the collector; and
+<a href="/pkg/runtime/debug/#SetGCPercent"><code>SetGCPercent</code></a>
+provides a programmatic way to control how often the collector runs,
+including disabling it altogether.
 </li>
 
 <li>
