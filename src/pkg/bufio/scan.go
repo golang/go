@@ -27,8 +27,6 @@ import (
 // control over error handling or large tokens, or must run sequential scans
 // on a reader, should use bufio.Reader instead.
 //
-// TODO(r): Provide executable examples.
-//
 type Scanner struct {
 	r            io.Reader // The reader provided by the client.
 	split        SplitFunc // The function to split the tokens.

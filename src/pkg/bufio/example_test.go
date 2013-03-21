@@ -19,7 +19,7 @@ func ExampleScanner_lines() {
 		fmt.Println(scanner.Text()) // Println will add back the final '\n'
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stdout, "reading standard input:", err)
+		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
 }
 
@@ -37,7 +37,7 @@ func ExampleScanner_words() {
 		count++
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stdout, "reading input:", err)
+		fmt.Fprintln(os.Stderr, "reading input:", err)
 	}
 	fmt.Printf("%d\n", count)
 	// Output: 15
