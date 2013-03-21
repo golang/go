@@ -25,6 +25,7 @@ struct PollDesc
 {
 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
 	Lock;		// protectes the following fields
+	int32	fd;
 	bool	closing;
 	uintptr	seq;	// protects from stale timers and ready notifications
 	G*	rg;	// G waiting for read or READY (binary semaphore)
@@ -69,6 +70,7 @@ func runtime_pollOpen(fd int) (pd *PollDesc, errno int) {
 		runtime·throw("runtime_pollOpen: blocked write on free descriptor");
 	if(pd->rg != nil && pd->rg != READY)
 		runtime·throw("runtime_pollOpen: blocked read on free descriptor");
+	pd->fd = fd;
 	pd->closing = false;
 	pd->seq++;
 	pd->rg = nil;
@@ -87,6 +89,7 @@ func runtime_pollClose(pd *PollDesc) {
 		runtime·throw("runtime_pollClose: blocked write on closing descriptor");
 	if(pd->rg != nil && pd->rg != READY)
 		runtime·throw("runtime_pollClose: blocked read on closing descriptor");
+	runtime·netpollclose(pd->fd);
 	runtime·lock(&pollcache);
 	pd->link = pollcache.first;
 	pollcache.first = pd;

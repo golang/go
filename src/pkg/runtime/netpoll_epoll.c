@@ -34,10 +34,22 @@ int32
 runtime·netpollopen(int32 fd, PollDesc *pd)
 {
 	EpollEvent ev;
+	int32 res;
 
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
 	ev.data = (uint64)pd;
-	return runtime·epollctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+	return -res;
+}
+
+int32
+runtime·netpollclose(int32 fd)
+{
+	EpollEvent ev;
+	int32 res;
+
+	res = runtime·epollctl(epfd, EPOLL_CTL_DEL, fd, &ev);
+	return -res;
 }
 
 // polls for ready network connections
