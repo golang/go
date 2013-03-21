@@ -162,14 +162,15 @@ func (c *child) handleRecord(rec *record) error {
 		// The spec says to ignore unknown request IDs.
 		return nil
 	}
-	if ok && rec.h.Type == typeBeginRequest {
-		// The server is trying to begin a request with the same ID
-		// as an in-progress request. This is an error.
-		return errors.New("fcgi: received ID that is already in-flight")
-	}
 
 	switch rec.h.Type {
 	case typeBeginRequest:
+		if req != nil {
+			// The server is trying to begin a request with the same ID
+			// as an in-progress request. This is an error.
+			return errors.New("fcgi: received ID that is already in-flight")
+		}
+
 		var br beginRequest
 		if err := br.read(rec.content()); err != nil {
 			return err
@@ -179,6 +180,7 @@ func (c *child) handleRecord(rec *record) error {
 			return nil
 		}
 		c.requests[rec.h.Id] = newRequest(rec.h.Id, br.flags)
+		return nil
 	case typeParams:
 		// NOTE(eds): Technically a key-value pair can straddle the boundary
 		// between two packets. We buffer until we've received all parameters.
@@ -187,6 +189,7 @@ func (c *child) handleRecord(rec *record) error {
 			return nil
 		}
 		req.parseParams()
+		return nil
 	case typeStdin:
 		content := rec.content()
 		if req.pw == nil {
@@ -207,24 +210,29 @@ func (c *child) handleRecord(rec *record) error {
 		} else if req.pw != nil {
 			req.pw.Close()
 		}
+		return nil
 	case typeGetValues:
 		values := map[string]string{"FCGI_MPXS_CONNS": "1"}
 		c.conn.writePairs(typeGetValuesResult, 0, values)
+		return nil
 	case typeData:
 		// If the filter role is implemented, read the data stream here.
+		return nil
 	case typeAbortRequest:
+		println("abort")
 		delete(c.requests, rec.h.Id)
 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
 		if !req.keepConn {
 			// connection will close upon return
 			return errCloseConn
 		}
+		return nil
 	default:
 		b := make([]byte, 8)
 		b[0] = byte(rec.h.Type)
 		c.conn.writeRecord(typeUnknownType, 0, b)
+		return nil
 	}
-	return nil
 }
 
 func (c *child) serveRequest(req *request, body io.ReadCloser) {
@@ -238,9 +246,19 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 		httpReq.Body = body
 		c.handler.ServeHTTP(r, httpReq)
 	}
-	body.Close()
 	r.Close()
 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
+
+	// Consume the entire body, so the host isn't still writing to
+	// us when we close the socket below in the !keepConn case,
+	// otherwise we'd send a RST. (golang.org/issue/4183)
+	// TODO(bradfitz): also bound this copy in time. Or send
+	// some sort of abort request to the host, so the host
+	// can properly cut off the client sending all the data.
+	// For now just bound it a little and
+	io.CopyN(ioutil.Discard, body, 100<<20)
+	body.Close()
+
 	if !req.keepConn {
 		c.conn.Close()
 	}
