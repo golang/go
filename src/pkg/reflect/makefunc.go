@@ -48,8 +48,8 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	t := typ.common()
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
-	// indirect Go func value (dummy) to obtain
-	// actual code address. (A Go func is a pointer
+	// Indirect Go func value (dummy) to obtain
+	// actual code address. (A Go func value is a pointer
 	// to a C function pointer. http://golang.org/s/go11func.)
 	dummy := makeFuncStub
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
@@ -65,3 +65,56 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 // where ctxt is the context register and frame is a pointer to the first
 // word in the passed-in argument frame.
 func makeFuncStub()
+
+type methodValue struct {
+	fn     uintptr
+	method int
+	rcvr   Value
+}
+
+// makeMethodValue converts v from the rcvr+method index representation
+// of a method value to an actual method func value, which is
+// basically the receiver value with a special bit set, into a true
+// func value - a value holding an actual func. The output is
+// semantically equivalent to the input as far as the user of package
+// reflect can tell, but the true func representation can be handled
+// by code like Convert and Interface and Assign.
+func makeMethodValue(op string, v Value) Value {
+	if v.flag&flagMethod == 0 {
+		panic("reflect: internal error: invalid use of makePartialFunc")
+	}
+
+	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
+	fl := v.flag & (flagRO | flagAddr | flagIndir)
+	fl |= flag(v.typ.Kind()) << flagKindShift
+	rcvr := Value{v.typ, v.val, fl}
+
+	// v.Type returns the actual type of the method value.
+	funcType := v.Type().(*rtype)
+
+	// Indirect Go func value (dummy) to obtain
+	// actual code address. (A Go func value is a pointer
+	// to a C function pointer. http://golang.org/s/go11func.)
+	dummy := methodValueCall
+	code := **(**uintptr)(unsafe.Pointer(&dummy))
+
+	fv := &methodValue{
+		fn:     code,
+		method: int(v.flag) >> flagMethodShift,
+		rcvr:   rcvr,
+	}
+
+	// Cause panic if method is not appropriate.
+	// The panic would still happen during the call if we omit this,
+	// but we want Interface() and other operations to fail early.
+	methodReceiver(op, fv.rcvr, fv.method)
+
+	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)<<flagKindShift}
+}
+
+// methodValueCall is an assembly function that is the code half of
+// the function returned from makeMethodValue. It expects a *methodValue
+// as its context register, and its job is to invoke callMethod(ctxt, frame)
+// where ctxt is the context register and frame is a pointer to the first
+// word in the passed-in argument frame.
+func methodValueCall()

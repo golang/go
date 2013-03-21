@@ -1458,7 +1458,7 @@ func (p Point) AnotherMethod(scale int) int {
 
 // This will be index 1.
 func (p Point) Dist(scale int) int {
-	//	println("Point.Dist", p.x, p.y, scale)
+	//println("Point.Dist", p.x, p.y, scale)
 	return p.x*p.x*scale + p.y*p.y*scale
 }
 
@@ -1474,23 +1474,23 @@ func TestMethod(t *testing.T) {
 	if !ok {
 		t.Fatalf("method by name failed")
 	}
-	m.Func.Call([]Value{ValueOf(p), ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Type MethodByName returned %d; want 250", i)
+	i = m.Func.Call([]Value{ValueOf(p), ValueOf(11)})[0].Int()
+	if i != 275 {
+		t.Errorf("Type MethodByName returned %d; want 275", i)
 	}
 
-	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Pointer Type Method returned %d; want 250", i)
+	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(12)})[0].Int()
+	if i != 300 {
+		t.Errorf("Pointer Type Method returned %d; want 300", i)
 	}
 
 	m, ok = TypeOf(&p).MethodByName("Dist")
 	if !ok {
 		t.Fatalf("ptr method by name failed")
 	}
-	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Pointer Type MethodByName returned %d; want 250", i)
+	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(13)})[0].Int()
+	if i != 325 {
+		t.Errorf("Pointer Type MethodByName returned %d; want 325", i)
 	}
 
 	// Curried method of value.
@@ -1499,17 +1499,17 @@ func TestMethod(t *testing.T) {
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Value Method returned %d; want 250", i)
+	i = v.Call([]Value{ValueOf(14)})[0].Int()
+	if i != 350 {
+		t.Errorf("Value Method returned %d; want 350", i)
 	}
 	v = ValueOf(p).MethodByName("Dist")
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Value MethodByName Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Value MethodByName returned %d; want 250", i)
+	i = v.Call([]Value{ValueOf(15)})[0].Int()
+	if i != 375 {
+		t.Errorf("Value MethodByName returned %d; want 375", i)
 	}
 
 	// Curried method of pointer.
@@ -1517,17 +1517,84 @@ func TestMethod(t *testing.T) {
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Pointer Value Method Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Pointer Value Method returned %d; want 250", i)
+	i = v.Call([]Value{ValueOf(16)})[0].Int()
+	if i != 400 {
+		t.Errorf("Pointer Value Method returned %d; want 400", i)
 	}
 	v = ValueOf(&p).MethodByName("Dist")
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
+	i = v.Call([]Value{ValueOf(17)})[0].Int()
+	if i != 425 {
+		t.Errorf("Pointer Value MethodByName returned %d; want 425", i)
+	}
+
+	// Curried method of interface value.
+	// Have to wrap interface value in a struct to get at it.
+	// Passing it to ValueOf directly would
+	// access the underlying Point, not the interface.
+	var x interface {
+		Dist(int) int
+	} = p
+	pv := ValueOf(&x).Elem()
+	v = pv.Method(0)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(18)})[0].Int()
+	if i != 450 {
+		t.Errorf("Interface Method returned %d; want 450", i)
+	}
+	v = pv.MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(19)})[0].Int()
+	if i != 475 {
+		t.Errorf("Interface MethodByName returned %d; want 475", i)
+	}
+}
+
+func TestMethodValue(t *testing.T) {
+	p := Point{3, 4}
+	var i int64
+
+	// Curried method of value.
+	tfunc := TypeOf((func(int) int)(nil))
+	v := ValueOf(p).Method(1)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
-		t.Errorf("Pointer Value MethodByName returned %d; want 250", i)
+		t.Errorf("Value Method returned %d; want 250", i)
+	}
+	v = ValueOf(p).MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Value MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(11)})[0].Int()
+	if i != 275 {
+		t.Errorf("Value MethodByName returned %d; want 275", i)
+	}
+
+	// Curried method of pointer.
+	v = ValueOf(&p).Method(1)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Value Method Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(12)})[0].Int()
+	if i != 300 {
+		t.Errorf("Pointer Value Method returned %d; want 300", i)
+	}
+	v = ValueOf(&p).MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(13)})[0].Int()
+	if i != 325 {
+		t.Errorf("Pointer Value MethodByName returned %d; want 325", i)
 	}
 
 	// Curried method of interface value.
@@ -1544,18 +1611,201 @@ func TestMethod(t *testing.T) {
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Interface Method returned %d; want 250", i)
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(14)})[0].Int()
+	if i != 350 {
+		t.Errorf("Interface Method returned %d; want 350", i)
 	}
 	v = pv.MethodByName("Dist")
 	if tt := v.Type(); tt != tfunc {
 		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
 	}
-	i = v.Call([]Value{ValueOf(10)})[0].Int()
-	if i != 250 {
-		t.Errorf("Interface MethodByName returned %d; want 250", i)
+	i = ValueOf(v.Interface()).Call([]Value{ValueOf(15)})[0].Int()
+	if i != 375 {
+		t.Errorf("Interface MethodByName returned %d; want 375", i)
 	}
+}
+
+// Reflect version of $GOROOT/test/method5.go
+
+// Concrete types implementing M method.
+// Smaller than a word, word-sized, larger than a word.
+// Value and pointer receivers.
+
+type Tinter interface {
+	M(int, byte) (byte, int)
+}
+
+type Tsmallv byte
+
+func (v Tsmallv) M(x int, b byte) (byte, int) { return b, x + int(v) }
+
+type Tsmallp byte
+
+func (p *Tsmallp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
+
+type Twordv uintptr
+
+func (v Twordv) M(x int, b byte) (byte, int) { return b, x + int(v) }
+
+type Twordp uintptr
+
+func (p *Twordp) M(x int, b byte) (byte, int) { return b, x + int(*p) }
+
+type Tbigv [2]uintptr
+
+func (v Tbigv) M(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
+
+type Tbigp [2]uintptr
+
+func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
+
+// Again, with an unexported method.
+
+type tsmallv byte
+
+func (v tsmallv) m(x int, b byte) (byte, int) { return b, x + int(v) }
+
+type tsmallp byte
+
+func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
+
+type twordv uintptr
+
+func (v twordv) m(x int, b byte) (byte, int) { return b, x + int(v) }
+
+type twordp uintptr
+
+func (p *twordp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
+
+type tbigv [2]uintptr
+
+func (v tbigv) m(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
+
+type tbigp [2]uintptr
+
+func (p *tbigp) m(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
+
+type tinter interface {
+	m(int, byte) (byte, int)
+}
+
+// Embedding via pointer.
+
+type Tm1 struct {
+	Tm2
+}
+
+type Tm2 struct {
+	*Tm3
+}
+
+type Tm3 struct {
+	*Tm4
+}
+
+type Tm4 struct {
+}
+
+func (t4 Tm4) M(x int, b byte) (byte, int) { return b, x + 40 }
+
+func TestMethod5(t *testing.T) {
+	CheckF := func(name string, f func(int, byte) (byte, int), inc int) {
+		b, x := f(1000, 99)
+		if b != 99 || x != 1000+inc {
+			t.Errorf("%s(1000, 99) = %v, %v, want 99, %v", name, b, x, 1000+inc)
+		}
+	}
+
+	CheckV := func(name string, i Value, inc int) {
+		bx := i.Method(0).Call([]Value{ValueOf(1000), ValueOf(byte(99))})
+		b := bx[0].Interface()
+		x := bx[1].Interface()
+		if b != byte(99) || x != 1000+inc {
+			t.Errorf("direct %s.M(1000, 99) = %v, %v, want 99, %v", name, b, x, 1000+inc)
+		}
+
+		CheckF(name+".M", i.Method(0).Interface().(func(int, byte) (byte, int)), inc)
+	}
+
+	var TinterType = TypeOf(new(Tinter)).Elem()
+	var tinterType = TypeOf(new(tinter)).Elem()
+
+	CheckI := func(name string, i interface{}, inc int) {
+		v := ValueOf(i)
+		CheckV(name, v, inc)
+		CheckV("(i="+name+")", v.Convert(TinterType), inc)
+	}
+
+	sv := Tsmallv(1)
+	CheckI("sv", sv, 1)
+	CheckI("&sv", &sv, 1)
+
+	sp := Tsmallp(2)
+	CheckI("&sp", &sp, 2)
+
+	wv := Twordv(3)
+	CheckI("wv", wv, 3)
+	CheckI("&wv", &wv, 3)
+
+	wp := Twordp(4)
+	CheckI("&wp", &wp, 4)
+
+	bv := Tbigv([2]uintptr{5, 6})
+	CheckI("bv", bv, 11)
+	CheckI("&bv", &bv, 11)
+
+	bp := Tbigp([2]uintptr{7, 8})
+	CheckI("&bp", &bp, 15)
+
+	t4 := Tm4{}
+	t3 := Tm3{&t4}
+	t2 := Tm2{&t3}
+	t1 := Tm1{t2}
+	CheckI("t4", t4, 40)
+	CheckI("&t4", &t4, 40)
+	CheckI("t3", t3, 40)
+	CheckI("&t3", &t3, 40)
+	CheckI("t2", t2, 40)
+	CheckI("&t2", &t2, 40)
+	CheckI("t1", t1, 40)
+	CheckI("&t1", &t1, 40)
+
+	methodShouldPanic := func(name string, i interface{}) {
+		v := ValueOf(i)
+		m := v.Method(0)
+		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
+		shouldPanic(func() { m.Interface() })
+
+		v = v.Convert(tinterType)
+		m = v.Method(0)
+		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
+		shouldPanic(func() { m.Interface() })
+	}
+
+	_sv := tsmallv(1)
+	methodShouldPanic("_sv", _sv)
+	methodShouldPanic("&_sv", &_sv)
+
+	_sp := tsmallp(2)
+	methodShouldPanic("&_sp", &_sp)
+
+	_wv := twordv(3)
+	methodShouldPanic("_wv", _wv)
+	methodShouldPanic("&_wv", &_wv)
+
+	_wp := twordp(4)
+	methodShouldPanic("&_wp", &_wp)
+
+	_bv := tbigv([2]uintptr{5, 6})
+	methodShouldPanic("_bv", _bv)
+	methodShouldPanic("&_bv", &_bv)
+
+	_bp := tbigp([2]uintptr{7, 8})
+	methodShouldPanic("&_bp", &_bp)
+
+	var tnil Tinter
+	vnil := ValueOf(&tnil).Elem()
+	shouldPanic(func() { vnil.Method(0) })
 }
 
 func TestInterfaceSet(t *testing.T) {
