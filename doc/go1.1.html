@@ -258,28 +258,6 @@ TODO introduction
 TODO
 </p>
 
-<h3 id="debug_elf">debug/elf</h3>
-
-<p>
-TODO: Decide whether to keep this change. See CL 6848044.
-</p>
-
-<p>
-Previous versions of the <a href="/debug/elf/"><code>debug/elf</code></a> package
-intentionally skipped over the first
-symbol in the ELF symbol table, since it is always an empty symbol.
-This symbol
-is no longer skipped since indexes into the symbol table returned by <code>debug/elf</code>
-will be different from indexes into the original ELF symbol table.
-Any code that calls the methods
-<a href="/pkg/debug/elf/#File.Symbols"><code>Symbols</code></a>
-or
-<a href="/pkg/debug/elf/#File.ImportedSymbols"><code>ImportedSymbols</code></a>
-of the
-<a href="/pkg/debug/elf/#File"><code>elf.File</code></a>
-type may need to be adjusted to account for the additional symbol and the change in symbol offsets.
-</p>
-
 <h3 id="net">net</h3>
 
 <p>

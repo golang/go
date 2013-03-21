@@ -422,6 +422,10 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		return nil, nil, errors.New("cannot load string table section")
 	}
 
+	// The first entry is all zeros.
+	var skip [Sym32Size]byte
+	symtab.Read(skip[:])
+
 	symbols := make([]Symbol, symtab.Len()/Sym32Size)
 
 	i := 0
@@ -460,6 +464,10 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	if err != nil {
 		return nil, nil, errors.New("cannot load string table section")
 	}
+
+	// The first entry is all zeros.
+	var skip [Sym64Size]byte
+	symtab.Read(skip[:])
 
 	symbols := make([]Symbol, symtab.Len()/Sym64Size)
 
@@ -533,10 +541,10 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 		symNo := rela.Info >> 32
 		t := R_X86_64(rela.Info & 0xffff)
 
-		if symNo >= uint64(len(symbols)) {
+		if symNo == 0 || symNo > uint64(len(symbols)) {
 			continue
 		}
-		sym := &symbols[symNo]
+		sym := &symbols[symNo-1]
 		if SymType(sym.Info&0xf) != STT_SECTION {
 			// We don't handle non-section relocations for now.
 			continue
@@ -597,6 +605,10 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 }
 
 // Symbols returns the symbol table for f.
+//
+// For compatibility with Go 1.0, Symbols omits the null symbol at index 0.
+// After retrieving the symbols as symtab, an externally supplied index x
+// corresponds to symtab[x-1], not symtab[x].
 func (f *File) Symbols() ([]Symbol, error) {
 	sym, _, err := f.getSymbols(SHT_SYMTAB)
 	return sym, err
