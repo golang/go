@@ -596,6 +596,14 @@ esc(EscState *e, Node *n)
 		// Contents make it to memory, lose track.
 		escassign(e, &e->theSink, n->left);
 		break;
+	
+	case OCALLPART:
+		n->esc = EscNone; // until proven otherwise
+		e->noesc = list(e->noesc, n);
+		n->escloopdepth = e->loopdepth;
+		// Contents make it to memory, lose track.
+		escassign(e, &e->theSink, n->left);
+		break;
 
 	case OMAPLIT:
 		n->esc = EscNone;  // until proven otherwise
@@ -667,6 +675,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OCONVNOP:
 	case OMAPLIT:
 	case OSTRUCTLIT:
+	case OCALLPART:
 		break;
 
 	case ONAME:
@@ -713,6 +722,7 @@ escassign(EscState *e, Node *dst, Node *src)
 	case OMAKESLICE:
 	case ONEW:
 	case OCLOSURE:
+	case OCALLPART:
 		escflows(e, dst, src);
 		break;
 
@@ -1073,6 +1083,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 	case OMAPLIT:
 	case ONEW:
 	case OCLOSURE:
+	case OCALLPART:
 		if(leaks) {
 			src->esc = EscHeap;
 			if(debug['m'])
