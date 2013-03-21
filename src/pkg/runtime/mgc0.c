@@ -140,6 +140,7 @@ static Workbuf* getempty(Workbuf*);
 static Workbuf* getfull(Workbuf*);
 static void	putempty(Workbuf*);
 static Workbuf* handoff(Workbuf*);
+static void	gchelperstart(void);
 
 static struct {
 	uint64	full;  // lock-free list of full blocks
@@ -287,11 +288,12 @@ struct BufferList
 {
 	PtrTarget ptrtarget[IntermediateBufferCapacity];
 	Obj obj[IntermediateBufferCapacity];
-	BufferList *next;
+	uint32 busy;
+	byte pad[CacheLineSize];
 };
-static BufferList *bufferList;
+#pragma dataflag 16  // no pointers
+static BufferList bufferList[MaxGcproc];
 
-static Lock lock;
 static Type *itabtype;
 
 static void enqueue(Obj obj, Workbuf **_wbuf, Obj **_wp, uintptr *_nobj);
@@ -598,23 +600,11 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 	// Allocate ptrbuf
 	{
-		runtime·lock(&lock);
-
-		if(bufferList == nil) {
-			bufferList = runtime·SysAlloc(sizeof(*bufferList));
-			if(bufferList == nil)
-				runtime·throw("runtime: cannot allocate memory");
-			bufferList->next = nil;
-		}
-		scanbuffers = bufferList;
-		bufferList = bufferList->next;
-
+		scanbuffers = &bufferList[m->helpgc];
 		ptrbuf = &scanbuffers->ptrtarget[0];
 		ptrbuf_end = &scanbuffers->ptrtarget[0] + nelem(scanbuffers->ptrtarget);
 		objbuf = &scanbuffers->obj[0];
 		objbuf_end = &scanbuffers->obj[0] + nelem(scanbuffers->obj);
-
-		runtime·unlock(&lock);
 	}
 
 	ptrbufpos = ptrbuf;
@@ -1056,11 +1046,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 		nobj--;
 	}
 
-endscan:
-	runtime·lock(&lock);
-	scanbuffers->next = bufferList;
-	bufferList = scanbuffers;
-	runtime·unlock(&lock);
+endscan:;
 }
 
 // debug_scanblock is the debug copy of scanblock.
@@ -1688,6 +1674,8 @@ runtime·memorydump(void)
 void
 runtime·gchelper(void)
 {
+	gchelperstart();
+
 	// parallel mark for over gc roots
 	runtime·parfordo(work.markfor);
 
@@ -1701,6 +1689,7 @@ runtime·gchelper(void)
 	}
 
 	runtime·parfordo(work.sweepfor);
+	bufferList[m->helpgc].busy = 0;
 	if(runtime·xadd(&work.ndone, +1) == work.nproc-1)
 		runtime·notewakeup(&work.alldone);
 }
@@ -1892,6 +1881,7 @@ gc(struct gc_args *args)
 
 	t1 = runtime·nanotime();
 
+	gchelperstart();
 	runtime·parfordo(work.markfor);
 	scanblock(nil, nil, 0, true);
 
@@ -1903,6 +1893,7 @@ gc(struct gc_args *args)
 	t2 = runtime·nanotime();
 
 	runtime·parfordo(work.sweepfor);
+	bufferList[m->helpgc].busy = 0;
 	t3 = runtime·nanotime();
 
 	if(work.nproc > 1)
@@ -2041,6 +2032,15 @@ runtime∕debug·setGCPercent(intgo in, intgo out)
 	gcpercent = in;
 	runtime·unlock(runtime·mheap);
 	FLUSH(&out);
+}
+
+static void
+gchelperstart(void)
+{
+	if(m->helpgc < 0 || m->helpgc >= MaxGcproc)
+		runtime·throw("gchelperstart: bad m->helpgc");
+	if(runtime·xchg(&bufferList[m->helpgc].busy, 1))
+		runtime·throw("gchelperstart: already busy");
 }
 
 static void
