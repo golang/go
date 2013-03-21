@@ -49,9 +49,192 @@ var (
 	f3     = imag(1 << s)     // ERROR "invalid"
 )
 
+// from the spec
+func _() {
+	var (
+		s uint  = 33
+		i       = 1 << s         // 1 has type int
+		j int32 = 1 << s         // 1 has type int32; j == 0
+		k       = uint64(1 << s) // 1 has type uint64; k == 1<<33
+		m int   = 1.0 << s       // 1.0 has type int
+		n       = 1.0<<s != i    // 1.0 has type int; n == false if ints are 32bits in size
+		o       = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
+		// next test only fails on 32bit systems
+		// p = 1<<s == 1<<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+		u          = 1.0 << s    // ERROR "float64"
+		u1         = 1.0<<s != 0 // ERROR "float64"
+		u2         = 1<<s != 1.0 // ERROR "float64"
+		v  float32 = 1 << s      // ERROR "float32"
+		w  int64   = 1.0 << 33   // 1.0<<33 is a constant shift expression
+	)
+}
+
+// shifts in comparisons w/ untyped operands
 var (
-	a4 float64
-	b4 int
-	c4 = complex(1<<s, a4) // ERROR "shift of type float64"
-	d4 = complex(1<<s, b4) // ERROR "invalid"
+	_ = 1<<s == 1
+	_ = 1<<s == 1.  // ERROR "shift of type float64"
+	_ = 1.<<s == 1  // ERROR "shift of type float64"
+	_ = 1.<<s == 1. // ERROR "shift of type float64"
+
+	_ = 1<<s+1 == 1
+	_ = 1<<s+1 == 1.   // ERROR "shift of type float64"
+	_ = 1<<s+1. == 1   // ERROR "shift of type float64"
+	_ = 1<<s+1. == 1.  // ERROR "shift of type float64"
+	_ = 1.<<s+1 == 1   // ERROR "shift of type float64"
+	_ = 1.<<s+1 == 1.  // ERROR "shift of type float64"
+	_ = 1.<<s+1. == 1  // ERROR "shift of type float64"
+	_ = 1.<<s+1. == 1. // ERROR "shift of type float64"
+
+	_ = 1<<s == 1<<s
+	_ = 1<<s == 1.<<s  // ERROR "shift of type float64"
+	_ = 1.<<s == 1<<s  // ERROR "shift of type float64"
+	_ = 1.<<s == 1.<<s // ERROR "shift of type float64"
+
+	_ = 1<<s+1<<s == 1
+	_ = 1<<s+1<<s == 1.   // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1   // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1.  // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1   // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1.  // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1  // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1. // ERROR "shift of type float64"
+
+	_ = 1<<s+1<<s == 1<<s+1<<s
+	_ = 1<<s+1<<s == 1<<s+1.<<s    // ERROR "shift of type float64"
+	_ = 1<<s+1<<s == 1.<<s+1<<s    // ERROR "shift of type float64"
+	_ = 1<<s+1<<s == 1.<<s+1.<<s   // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1<<s+1<<s    // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1<<s+1.<<s   // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1.<<s+1<<s   // ERROR "shift of type float64"
+	_ = 1<<s+1.<<s == 1.<<s+1.<<s  // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1<<s+1<<s    // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1<<s+1.<<s   // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1.<<s+1<<s   // ERROR "shift of type float64"
+	_ = 1.<<s+1<<s == 1.<<s+1.<<s  // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1<<s+1<<s   // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1<<s+1.<<s  // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1.<<s+1<<s  // ERROR "shift of type float64"
+	_ = 1.<<s+1.<<s == 1.<<s+1.<<s // ERROR "shift of type float64"
 )
+
+// shifts in comparisons w/ typed operands
+var (
+	x int
+	_ = 1<<s == x
+	_ = 1.<<s == x
+	_ = 1.1<<s == x // ERROR "1.1 truncated"
+
+	_ = 1<<s+x == 1
+	_ = 1<<s+x == 1.
+	_ = 1<<s+x == 1.1 // ERROR "1.1 truncated"
+	_ = 1.<<s+x == 1
+	_ = 1.<<s+x == 1.
+	_ = 1.<<s+x == 1.1  // ERROR "1.1 truncated"
+	_ = 1.1<<s+x == 1   // ERROR "1.1 truncated"
+	_ = 1.1<<s+x == 1.  // ERROR "1.1 truncated"
+	_ = 1.1<<s+x == 1.1 // ERROR "1.1 truncated"
+
+	_ = 1<<s == x<<s
+	_ = 1.<<s == x<<s
+	_ = 1.1<<s == x<<s // ERROR "1.1 truncated"
+)
+
+// shifts as operands in non-arithmetic operations and as arguments
+func _() {
+	var s uint
+	var a []int
+	_ = a[1<<s]
+	_ = a[1.]
+	// For now, the spec disallows these. We may revisit past Go 1.1.
+	_ = a[1.<<s]  // ERROR "shift of type float64"
+	_ = a[1.1<<s] // ERROR "shift of type float64"
+
+	_ = make([]int, 1)
+	_ = make([]int, 1.)
+	_ = make([]int, 1.<<s)
+	_ = make([]int, 1.1<<s) // ERROR "1.1 truncated"
+
+	_ = float32(1)
+	_ = float32(1 << s) // ERROR "shift of type float32"
+	_ = float32(1.)
+	_ = float32(1. << s)  // ERROR "shift of type float32"
+	_ = float32(1.1 << s) // ERROR "shift of type float32"
+
+	_ = append(a, 1<<s)
+	_ = append(a, 1.<<s)
+	_ = append(a, 1.1<<s) // ERROR "1.1 truncated"
+
+	var b []float32
+	_ = append(b, 1<<s)   // ERROR "type float32"
+	_ = append(b, 1.<<s)  // ERROR "type float32"
+	_ = append(b, 1.1<<s) // ERROR "type float32"
+
+	_ = complex(1.<<s, 0)  // ERROR "shift of type float64"
+	_ = complex(1.1<<s, 0) // ERROR "shift of type float64"
+	_ = complex(0, 1.<<s)  // ERROR "shift of type float64"
+	_ = complex(0, 1.1<<s) // ERROR "shift of type float64"
+
+	var a4 float64
+	var b4 int
+	_ = complex(1<<s, a4) // ERROR "shift of type float64"
+	_ = complex(1<<s, b4) // ERROR "invalid"
+
+	var m1 map[int]string
+	delete(m1, 1<<s)
+	delete(m1, 1.<<s)
+	delete(m1, 1.1<<s) // ERROR "1.1 truncated|shift of type float64"
+
+	var m2 map[float32]string
+	delete(m2, 1<<s)   // ERROR "invalid|cannot use 1 << s as type float32"
+	delete(m2, 1.<<s)  // ERROR "invalid|cannot use 1 << s as type float32"
+	delete(m2, 1.1<<s) // ERROR "invalid|cannot use 1.1 << s as type float32"
+}
+
+// shifts of shifts
+func _() {
+	var s uint
+	_ = 1 << (1 << s)
+	_ = 1 << (1. << s)
+	_ = 1 << (1.1 << s)   // ERROR "1.1 truncated"
+	_ = 1. << (1 << s)    // ERROR "shift of type float64"
+	_ = 1. << (1. << s)   // ERROR "shift of type float64"
+	_ = 1.1 << (1.1 << s) // ERROR "invalid|1.1 truncated"
+
+	_ = (1 << s) << (1 << s)
+	_ = (1 << s) << (1. << s)
+	_ = (1 << s) << (1.1 << s)   // ERROR "1.1 truncated"
+	_ = (1. << s) << (1 << s)    // ERROR "shift of type float64"
+	_ = (1. << s) << (1. << s)   // ERROR "shift of type float64"
+	_ = (1.1 << s) << (1.1 << s) // ERROR "invalid|1.1 truncated"
+
+	var x int
+	x = 1 << (1 << s)
+	x = 1 << (1. << s)
+	x = 1 << (1.1 << s) // ERROR "1.1 truncated"
+	x = 1. << (1 << s)
+	x = 1. << (1. << s)
+	x = 1.1 << (1.1 << s) // ERROR "1.1 truncated"
+
+	x = (1 << s) << (1 << s)
+	x = (1 << s) << (1. << s)
+	x = (1 << s) << (1.1 << s) // ERROR "1.1 truncated"
+	x = (1. << s) << (1 << s)
+	x = (1. << s) << (1. << s)
+	x = (1.1 << s) << (1.1 << s) // ERROR "1.1 truncated"
+
+	var y float32
+	y = 1 << (1 << s)     // ERROR "type float32"
+	y = 1 << (1. << s)    // ERROR "type float32"
+	y = 1 << (1.1 << s)   // ERROR "invalid|1.1 truncated|float32"
+	y = 1. << (1 << s)    // ERROR "type float32"
+	y = 1. << (1. << s)   // ERROR "type float32"
+	y = 1.1 << (1.1 << s) // ERROR "invalid|1.1 truncated|float32"
+
+	var z complex128
+	z = (1 << s) << (1 << s)     // ERROR "type complex128"
+	z = (1 << s) << (1. << s)    // ERROR "type complex128"
+	z = (1 << s) << (1.1 << s)   // ERROR "invalid|1.1 truncated|complex128"
+	z = (1. << s) << (1 << s)    // ERROR "type complex128"
+	z = (1. << s) << (1. << s)   // ERROR "type complex128"
+	z = (1.1 << s) << (1.1 << s) // ERROR "invalid|1.1 truncated|complex128"
+}
