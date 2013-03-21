@@ -196,6 +196,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OPLUS:
 	case OREAL:
 	case OIMAG:
+	case OCOM:
 		racewalknode(&n->left, init, wr, 0);
 		goto ret;
 
@@ -222,23 +223,17 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OCAP:
 		racewalknode(&n->left, init, 0, 0);
 		if(istype(n->left->type, TMAP)) {
-			// crashes on len(m[0]) or len(f())
-			SET(n1);
-			USED(n1);
-			/*
-			n1 = nod(OADDR, n->left, N);
-			n1 = conv(n1, types[TUNSAFEPTR]);
-			n1 = conv(n1, ptrto(ptrto(types[TINT8])));
-			n1 = nod(OIND, n1, N);
+			n1 = nod(OCONVNOP, n->left, N);
+			n1->type = ptrto(types[TUINT8]);
 			n1 = nod(OIND, n1, N);
 			typecheck(&n1, Erv);
 			callinstr(&n1, init, 0, skip);
-			*/
 		}
 		goto ret;
 
 	case OLSH:
 	case ORSH:
+	case OLROT:
 	case OAND:
 	case OANDNOT:
 	case OOR:
@@ -279,7 +274,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case ODIV:
 	case OMOD:
-		// TODO(dvyukov): add a test for this
 		racewalknode(&n->left, init, wr, 0);
 		racewalknode(&n->right, init, wr, 0);
 		goto ret;
@@ -324,7 +318,28 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OPANIC:
 	case ORECOVER:
 	case OCONVIFACE:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case OCALL:
+	case OCOPY:
+	case ORUNESTR:
+	case OARRAYBYTESTR:
+	case OARRAYRUNESTR:
+	case OSTRARRAYBYTE:
+	case OSTRARRAYRUNE:
+	case OINDEXMAP:  // lowered to call
+	case OCMPSTR:
+	case OADDSTR:
+	case ODOTTYPE:
+	case ODOTTYPE2:
 		yyerror("racewalk: %O must be lowered by now", n->op);
+		goto ret;
+
+	// impossible nodes: only appear in backend.
+	case ORROTC:
+	case OEXTEND:
+		yyerror("racewalk: %O cannot exist now", n->op);
 		goto ret;
 
 	// just do generic traversal
@@ -334,43 +349,28 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case ORETURN:
 	case OSELECT:
 	case OEMPTY:
+	case OBREAK:
+	case OCONTINUE:
+	case OFALL:
+	case OGOTO:
+	case OLABEL:
 		goto ret;
 
 	// does not require instrumentation
-	case OINDEXMAP:  // implemented in runtime
 	case OPRINT:     // don't bother instrumenting it
 	case OPRINTN:    // don't bother instrumenting it
 	case OPARAM:     // it appears only in fn->exit to copy heap params back
 		goto ret;
 
 	// unimplemented
-	case OCMPSTR:
-	case OADDSTR:
 	case OSLICESTR:
 	case OAPPEND:
-	case OCOPY:
-	case OMAKECHAN:
-	case OMAKEMAP:
-	case OMAKESLICE:
-	case ORUNESTR:
-	case OARRAYBYTESTR:
-	case OARRAYRUNESTR:
-	case OSTRARRAYBYTE:
-	case OSTRARRAYRUNE:
 	case OCMPIFACE:
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
 	case OCLOSURE:
-	case ODOTTYPE:
-	case ODOTTYPE2:
-	case OCALL:
-	case OBREAK:
 	case ODCL:
-	case OCONTINUE:
-	case OFALL:
-	case OGOTO:
-	case OLABEL:
 	case ODCLCONST:
 	case ODCLTYPE:
 	case OLITERAL:
@@ -378,14 +378,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OTYPE:
 	case ONONAME:
 	case OINDREG:
-	case OCOM:
 	case ODOTMETH:
 	case OITAB:
-	case OEXTEND:
 	case OHMUL:
-	case OLROT:
-	case ORROTC:
 	case OCHECKNOTNIL:
+	case OCLOSUREVAR:
 		goto ret;
 	}
 

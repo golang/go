@@ -94,8 +94,7 @@ func TestNoRaceMapRangeRange(t *testing.T) {
 	<-ch
 }
 
-// Map len is not instrumented.
-func TestRaceFailingMapLen(t *testing.T) {
+func TestRaceMapLen(t *testing.T) {
 	m := make(map[string]bool)
 	ch := make(chan bool, 1)
 	go func() {
@@ -117,8 +116,7 @@ func TestRaceMapDelete(t *testing.T) {
 	<-ch
 }
 
-// Map len is not instrumented.
-func TestRaceFailingMapLenDelete(t *testing.T) {
+func TestRaceMapLenDelete(t *testing.T) {
 	m := make(map[string]bool)
 	ch := make(chan bool, 1)
 	go func() {
