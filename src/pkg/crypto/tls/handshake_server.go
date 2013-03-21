@@ -33,22 +33,7 @@ func (c *Conn) serverHandshake() error {
 
 	// If this is the first server handshake, we generate a random key to
 	// encrypt the tickets with.
-	config.serverInitOnce.Do(func() {
-		if config.SessionTicketsDisabled {
-			return
-		}
-
-		// If the key has already been set then we have nothing to do.
-		for _, b := range config.SessionTicketKey {
-			if b != 0 {
-				return
-			}
-		}
-
-		if _, err := io.ReadFull(config.rand(), config.SessionTicketKey[:]); err != nil {
-			config.SessionTicketsDisabled = true
-		}
-	})
+	config.serverInitOnce.Do(config.serverInit)
 
 	hs := serverHandshakeState{
 		c: c,

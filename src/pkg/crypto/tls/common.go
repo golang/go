@@ -204,7 +204,24 @@ type Config struct {
 	// connections using that key are compromised.
 	SessionTicketKey [32]byte
 
-	serverInitOnce sync.Once
+	serverInitOnce sync.Once // guards calling (*Config).serverInit
+}
+
+func (c *Config) serverInit() {
+	if c.SessionTicketsDisabled {
+		return
+	}
+
+	// If the key has already been set then we have nothing to do.
+	for _, b := range c.SessionTicketKey {
+		if b != 0 {
+			return
+		}
+	}
+
+	if _, err := io.ReadFull(c.rand(), c.SessionTicketKey[:]); err != nil {
+		c.SessionTicketsDisabled = true
+	}
 }
 
 func (c *Config) rand() io.Reader {
