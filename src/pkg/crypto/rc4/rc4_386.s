@@ -20,19 +20,19 @@ loop:
 	INCB AX
 
 	// j += c.s[i]
-	MOVBLZX (BP)(AX*1), DX
+	MOVBLZX (BP)(AX*4), DX
 	ADDB DX, BX
 	MOVBLZX BX, BX
 
 	// c.s[i], c.s[j] = c.s[j], c.s[i]
-	MOVBLZX (BP)(BX*1), CX
-	MOVB CX, (BP)(AX*1)
-	MOVB DX, (BP)(BX*1)
+	MOVBLZX (BP)(BX*4), CX
+	MOVB CX, (BP)(AX*4)
+	MOVB DX, (BP)(BX*4)
 
 	// *dst = *src ^ c.s[c.s[i]+c.s[j]]
 	ADDB DX, CX
 	MOVBLZX CX, CX
-	MOVB (BP)(CX*1), CX
+	MOVB (BP)(CX*4), CX
 	XORB (SI), CX
 	MOVBLZX CX, CX
 	MOVB CX, (DI)

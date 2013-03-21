@@ -13,7 +13,7 @@ import "strconv"
 
 // A Cipher is an instance of RC4 using a particular key.
 type Cipher struct {
-	s    [256]byte
+	s    [256]uint32
 	i, j uint8
 }
 
@@ -32,11 +32,11 @@ func NewCipher(key []byte) (*Cipher, error) {
 	}
 	var c Cipher
 	for i := 0; i < 256; i++ {
-		c.s[i] = uint8(i)
+		c.s[i] = uint32(i)
 	}
 	var j uint8 = 0
 	for i := 0; i < 256; i++ {
-		j += c.s[i] + key[i%k]
+		j += uint8(c.s[i]) + key[i%k]
 		c.s[i], c.s[j] = c.s[j], c.s[i]
 	}
 	return &c, nil

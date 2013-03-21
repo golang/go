@@ -6,7 +6,7 @@
 
 package rc4
 
-func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+func xorKeyStream(dst, src *byte, n int, state *[256]uint32, i, j *uint8)
 
 // XORKeyStream sets dst to the result of XORing src with the key stream.
 // Dst and src may be the same slice but otherwise should not overlap.
