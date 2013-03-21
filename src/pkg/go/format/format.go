@@ -69,15 +69,14 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 	return config.Fprint(dst, fset, node)
 }
 
-// Source formats src in canonical gofmt style and writes the result to dst
-// or returns an I/O or syntax error. src is expected to be a syntactically
+// Source formats src in canonical gofmt style and returns the result
+// or an (I/O or syntax) error. src is expected to be a syntactically
 // correct Go source file, or a list of Go declarations or statements.
 //
 // If src is a partial source file, the leading and trailing space of src
 // is applied to the result (such that it has the same leading and trailing
-// space as src), and the formatted src is indented by the same amount as
-// the first line of src containing code. Imports are not sorted for partial
-// source files.
+// space as src), and the result is indented by the same amount as the first
+// line of src containing code. Imports are not sorted for partial source files.
 //
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()
