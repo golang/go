@@ -276,6 +276,29 @@ callrecvlist(NodeList *l)
 	return 0;
 }
 
+// indexlit implements typechecking of untyped values as
+// array/slice indexes. It is equivalent to defaultlit
+// except for constants of numerical kind, which are acceptable
+// whenever they can be represented by a value of type int.
+static void
+indexlit(Node **np)
+{
+	Node *n;
+
+	n = *np;
+	if(n == N || !isideal(n->type))
+		return;
+	switch(consttype(n)) {
+	case CTINT:
+	case CTRUNE:
+	case CTFLT:
+	case CTCPLX:
+		defaultlit(np, types[TINT]);
+		break;
+	}
+	defaultlit(np, T);
+}
+
 static void
 typecheck1(Node **np, int top)
 {
@@ -845,7 +868,7 @@ reswitch:
 
 		case TSTRING:
 		case TARRAY:
-			defaultlit(&n->right, T);
+			indexlit(&n->right);
 			if(t->etype == TSTRING)
 				n->type = types[TUINT8];
 			else
@@ -861,8 +884,8 @@ reswitch:
 				yyerror("non-integer %s index %N", why, n->right);
 				break;
 			}
-			if(n->right->op == OLITERAL) {
-			       	if(mpgetfix(n->right->val.u.xval) < 0)
+			if(isconst(n->right, CTINT)) {
+				if(mpgetfix(n->right->val.u.xval) < 0)
 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
 				else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
@@ -938,8 +961,8 @@ reswitch:
 		typecheck(&n->right->left, Erv);
 		typecheck(&n->right->right, Erv);
 		defaultlit(&n->left, T);
-		defaultlit(&n->right->left, T);
-		defaultlit(&n->right->right, T);
+		indexlit(&n->right->left);
+		indexlit(&n->right->right);
 		l = n->left;
 		if(isfixedarray(l->type)) {
 			if(!islvalue(n->left)) {
