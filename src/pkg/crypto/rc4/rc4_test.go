@@ -5,6 +5,7 @@
 package rc4
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -72,20 +73,43 @@ var golden = []rc4Test{
 	},
 }
 
-func TestGolden(t *testing.T) {
-	for i := 0; i < len(golden); i++ {
-		g := golden[i]
-		c, err := NewCipher(g.key)
-		if err != nil {
-			t.Errorf("Failed to create cipher at golden index %d", i)
-			return
+func testEncrypt(t *testing.T, desc string, c *Cipher, src, expect []byte) {
+	dst := make([]byte, len(src))
+	c.XORKeyStream(dst, src)
+	for i, v := range dst {
+		if v != expect[i] {
+			t.Fatalf("%s: mismatch at byte %d:\nhave %x\nwant %x", desc, i, dst, expect)
 		}
-		keystream := make([]byte, len(g.keystream))
-		c.XORKeyStream(keystream, keystream)
-		for j, v := range keystream {
-			if g.keystream[j] != v {
-				t.Errorf("Failed at golden index %d:\n%x\nvs\n%x", i, keystream, g.keystream)
-				break
+	}
+}
+
+func TestGolden(t *testing.T) {
+	for gi, g := range golden {
+		data := make([]byte, len(g.keystream))
+		for i := range data {
+			data[i] = byte(i)
+		}
+
+		expect := make([]byte, len(g.keystream))
+		for i := range expect {
+			expect[i] = byte(i) ^ g.keystream[i]
+		}
+
+		for size := 1; size <= len(g.keystream); size++ {
+			c, err := NewCipher(g.key)
+			if err != nil {
+				t.Fatalf("#%d: NewCipher: %v", gi, err)
+			}
+
+			off := 0
+			for off < len(g.keystream) {
+				n := len(g.keystream) - off
+				if n > size {
+					n = size
+				}
+				desc := fmt.Sprintf("#%d@[%d:%d]", gi, off, off+n)
+				testEncrypt(t, desc, c, data[off:off+n], expect[off:off+n])
+				off += n
 			}
 		}
 	}
