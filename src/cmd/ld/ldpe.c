@@ -135,7 +135,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 {
 	char *name;
 	int32 base;
-	int i, j, l, numaux;
+	uint32 l;
+	int i, j, numaux;
 	PeObj *obj;
 	PeSect *sect, *rsect;
 	IMAGE_SECTION_HEADER sh;
@@ -170,11 +171,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		// TODO return error if found .cormeta
 	}
 	// load string table
-	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
-	if(Bread(f, &l, sizeof l) != sizeof l) 
+	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
+	if(Bread(f, symbuf, 4) != 4) 
 		goto bad;
+	l = le32(symbuf);
 	obj->snames = mal(l);
-	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
+	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
 	if(Bread(f, obj->snames, l) != l)
 		goto bad;
 	// read symbols
