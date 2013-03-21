@@ -1303,3 +1303,25 @@ func G() {
 	var buf4 [10]byte // ERROR "moved to heap: buf4"
 	F4(buf4[:]) // ERROR "buf4 escapes to heap"
 }
+
+type Tm struct {
+	x int
+}
+
+func (t *Tm) M() { // ERROR "t does not escape"
+}
+
+func foo141() {
+	var f func()
+	
+	t := new(Tm) // ERROR "escapes to heap"
+	f = t.M // ERROR "t.M does not escape"
+	_ = f
+}
+
+var gf func()
+
+func foo142() {
+	t := new(Tm) // ERROR "escapes to heap"
+	gf = t.M // ERROR "t.M escapes to heap"
+}

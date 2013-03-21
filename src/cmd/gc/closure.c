@@ -270,8 +270,9 @@ typecheckpartialcall(Node *fn, Node *sym)
 
 	// Create top-level function.
 	fn->nname = makepartialcall(fn, fn->type, sym);
+	fn->right = sym;
 	fn->op = OCALLPART;
-	fn->type = fn->right->type;
+	fn->type = fn->nname->type;
 }
 
 static Node*
