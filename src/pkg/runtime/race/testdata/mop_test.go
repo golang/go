@@ -306,6 +306,102 @@ func TestNoRacePlus(t *testing.T) {
 	<-ch
 }
 
+func TestRaceComplement(t *testing.T) {
+	var x, y, z int
+	ch := make(chan int, 2)
+
+	go func() {
+		x = ^y
+		ch <- 1
+	}()
+	go func() {
+		y = ^z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
+func TestRaceDiv(t *testing.T) {
+	var x, y, z int
+	ch := make(chan int, 2)
+
+	go func() {
+		x = y / (z + 1)
+		ch <- 1
+	}()
+	go func() {
+		y = z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
+func TestRaceDivConst(t *testing.T) {
+	var x, y, z int
+	ch := make(chan int, 2)
+
+	go func() {
+		x = y / 3
+		ch <- 1
+	}()
+	go func() {
+		y = z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
+func TestRaceMod(t *testing.T) {
+	var x, y, z int
+	ch := make(chan int, 2)
+
+	go func() {
+		x = y % (z + 1)
+		ch <- 1
+	}()
+	go func() {
+		y = z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
+func TestRaceModConst(t *testing.T) {
+	var x, y, z int
+	ch := make(chan int, 2)
+
+	go func() {
+		x = y % 3
+		ch <- 1
+	}()
+	go func() {
+		y = z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
+func TestRaceRotate(t *testing.T) {
+	var x, y, z uint32
+	ch := make(chan int, 2)
+
+	go func() {
+		x = y<<12 | y>>20
+		ch <- 1
+	}()
+	go func() {
+		y = z
+		ch <- 1
+	}()
+	<-ch
+	<-ch
+}
+
 // May crash if the instrumentation is reckless.
 func TestNoRaceEnoughRegisters(t *testing.T) {
 	// from erf.go
