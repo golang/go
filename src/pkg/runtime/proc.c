@@ -332,7 +332,7 @@ runtime·helpgc(int32 nproc)
 		mp = mget();
 		if(mp == nil)
 			runtime·throw("runtime·gcprocs inconsistency");
-		mp->helpgc = 1;
+		mp->helpgc = n;
 		mp->mcache = runtime·allp[pos]->mcache;
 		pos++;
 		runtime·notewakeup(&mp->park);
@@ -386,7 +386,7 @@ runtime·stoptheworld(void)
 static void
 mhelpgc(void)
 {
-	m->helpgc = 1;
+	m->helpgc = -1;
 }
 
 void
@@ -485,7 +485,7 @@ runtime·mstart(void)
 		m->mstartfn();
 
 	if(m->helpgc) {
-		m->helpgc = false;
+		m->helpgc = 0;
 		stopm();
 	} else if(m != &runtime·m0) {
 		acquirep(m->nextp);
@@ -794,8 +794,8 @@ retry:
 	runtime·notesleep(&m->park);
 	runtime·noteclear(&m->park);
 	if(m->helpgc) {
-		m->helpgc = 0;
 		runtime·gchelper();
+		m->helpgc = 0;
 		m->mcache = nil;
 		goto retry;
 	}
