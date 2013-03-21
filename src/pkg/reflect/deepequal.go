@@ -118,8 +118,6 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)
 	}
-
-	panic("Not reached")
 }
 
 // DeepEqual tests for deep equality. It uses normal == equality where

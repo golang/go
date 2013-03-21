@@ -249,7 +249,7 @@ func (f flag) mustBeExported() {
 		panic(&ValueError{methodName(), 0})
 	}
 	if f&flagRO != 0 {
-		panic(methodName() + " using value obtained using unexported field")
+		panic("reflect: " + methodName() + " using value obtained using unexported field")
 	}
 }
 
@@ -262,10 +262,10 @@ func (f flag) mustBeAssignable() {
 	}
 	// Assignable if addressable and not read-only.
 	if f&flagRO != 0 {
-		panic(methodName() + " using value obtained using unexported field")
+		panic("reflect: " + methodName() + " using value obtained using unexported field")
 	}
 	if f&flagAddr == 0 {
-		panic(methodName() + " using unaddressable value")
+		panic("reflect: " + methodName() + " using unaddressable value")
 	}
 }
 
@@ -358,7 +358,7 @@ func (v Value) CallSlice(in []Value) []Value {
 	return v.call("CallSlice", in)
 }
 
-func (v Value) call(method string, in []Value) []Value {
+func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
 	t := v.typ
 	var (
@@ -366,36 +366,7 @@ func (v Value) call(method string, in []Value) []Value {
 		rcvr iword
 	)
 	if v.flag&flagMethod != 0 {
-		i := int(v.flag) >> flagMethodShift
-		if v.typ.Kind() == Interface {
-			tt := (*interfaceType)(unsafe.Pointer(v.typ))
-			if i < 0 || i >= len(tt.methods) {
-				panic("reflect: broken Value")
-			}
-			m := &tt.methods[i]
-			if m.pkgPath != nil {
-				panic(method + " of unexported method")
-			}
-			t = m.typ
-			iface := (*nonEmptyInterface)(v.val)
-			if iface.itab == nil {
-				panic(method + " of method on nil interface value")
-			}
-			fn = unsafe.Pointer(&iface.itab.fun[i])
-			rcvr = iface.word
-		} else {
-			ut := v.typ.uncommon()
-			if ut == nil || i < 0 || i >= len(ut.methods) {
-				panic("reflect: broken Value")
-			}
-			m := &ut.methods[i]
-			if m.pkgPath != nil {
-				panic(method + " of unexported method")
-			}
-			fn = unsafe.Pointer(&m.ifn)
-			t = m.mtyp
-			rcvr = v.iword()
-		}
+		t, fn, rcvr = methodReceiver(op, v, int(v.flag)>>flagMethodShift)
 	} else if v.flag&flagIndir != 0 {
 		fn = *(*unsafe.Pointer)(v.val)
 	} else {
@@ -406,7 +377,7 @@ func (v Value) call(method string, in []Value) []Value {
 		panic("reflect.Value.Call: call of nil function")
 	}
 
-	isSlice := method == "CallSlice"
+	isSlice := op == "CallSlice"
 	n := t.NumIn()
 	if isSlice {
 		if !t.IsVariadic() {
@@ -431,12 +402,12 @@ func (v Value) call(method string, in []Value) []Value {
 	}
 	for _, x := range in {
 		if x.Kind() == Invalid {
-			panic("reflect: " + method + " using zero Value argument")
+			panic("reflect: " + op + " using zero Value argument")
 		}
 	}
 	for i := 0; i < n; i++ {
 		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
-			panic("reflect: " + method + " using " + xt.String() + " as type " + targ.String())
+			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
 		}
 	}
 	if !isSlice && t.IsVariadic() {
@@ -447,7 +418,7 @@ func (v Value) call(method string, in []Value) []Value {
 		for i := 0; i < m; i++ {
 			x := in[n+i]
 			if xt := x.Type(); !xt.AssignableTo(elem) {
-				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + method)
+				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + op)
 			}
 			slice.Index(i).Set(x)
 		}
@@ -467,40 +438,11 @@ func (v Value) call(method string, in []Value) []Value {
 	// This computation is 5g/6g/8g-dependent
 	// and probably wrong for gccgo, but so
 	// is most of this function.
-	size := uintptr(0)
-	if v.flag&flagMethod != 0 {
-		// extra word for receiver interface word
-		size += ptrSize
-	}
-	for i := 0; i < nin; i++ {
-		tv := t.In(i)
-		a := uintptr(tv.Align())
-		size = (size + a - 1) &^ (a - 1)
-		size += tv.Size()
-	}
-	size = (size + ptrSize - 1) &^ (ptrSize - 1)
-	for i := 0; i < nout; i++ {
-		tv := t.Out(i)
-		a := uintptr(tv.Align())
-		size = (size + a - 1) &^ (a - 1)
-		size += tv.Size()
-	}
-
-	// size must be > 0 in order for &args[0] to be valid.
-	// the argument copying is going to round it up to
-	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
-	if size < ptrSize {
-		size = ptrSize
-	}
-
-	// round to pointer size
-	size = (size + ptrSize - 1) &^ (ptrSize - 1)
+	size, _, _, _ := frameSize(t, v.flag&flagMethod != 0)
 
 	// Copy into args.
 	//
-	// TODO(rsc): revisit when reference counting happens.
-	// The values are holding up the in references for us,
-	// but something must be done for the out references.
+	// TODO(rsc): This will need to be updated for any new garbage collector.
 	// For now make everything look like a pointer by allocating
 	// a []unsafe.Pointer.
 	args := make([]unsafe.Pointer, size/ptrSize)
@@ -614,6 +556,119 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
 			off += typ.size
 		}
 	}
+}
+
+// methodReceiver returns information about the receiver
+// described by v. The Value v may or may not have the
+// flagMethod bit set, so the kind cached in v.flag should
+// not be used.
+func methodReceiver(op string, v Value, methodIndex int) (t *rtype, fn unsafe.Pointer, rcvr iword) {
+	i := methodIndex
+	if v.typ.Kind() == Interface {
+		tt := (*interfaceType)(unsafe.Pointer(v.typ))
+		if i < 0 || i >= len(tt.methods) {
+			panic("reflect: internal error: invalid method index")
+		}
+		m := &tt.methods[i]
+		if m.pkgPath != nil {
+			panic("reflect: " + op + " of unexported method")
+		}
+		t = m.typ
+		iface := (*nonEmptyInterface)(v.val)
+		if iface.itab == nil {
+			panic("reflect: " + op + " of method on nil interface value")
+		}
+		fn = unsafe.Pointer(&iface.itab.fun[i])
+		rcvr = iface.word
+	} else {
+		ut := v.typ.uncommon()
+		if ut == nil || i < 0 || i >= len(ut.methods) {
+			panic("reflect: internal error: invalid method index")
+		}
+		m := &ut.methods[i]
+		if m.pkgPath != nil {
+			panic("reflect: " + op + " of unexported method")
+		}
+		fn = unsafe.Pointer(&m.ifn)
+		t = m.mtyp
+		rcvr = v.iword()
+	}
+	return
+}
+
+// align returns the result of rounding x up to a multiple of n.
+// n must be a power of two.
+func align(x, n uintptr) uintptr {
+	return (x + n - 1) &^ (n - 1)
+}
+
+// frameSize returns the sizes of the argument and result frame
+// for a function of the given type. The rcvr bool specifies whether
+// a one-word receiver should be included in the total.
+func frameSize(t *rtype, rcvr bool) (total, in, outOffset, out uintptr) {
+	if rcvr {
+		// extra word for receiver interface word
+		total += ptrSize
+	}
+
+	nin := t.NumIn()
+	in = -total
+	for i := 0; i < nin; i++ {
+		tv := t.In(i)
+		total = align(total, uintptr(tv.Align()))
+		total += tv.Size()
+	}
+	in += total
+	total = align(total, ptrSize)
+	nout := t.NumOut()
+	outOffset = total
+	out = -total
+	for i := 0; i < nout; i++ {
+		tv := t.Out(i)
+		total = align(total, uintptr(tv.Align()))
+		total += tv.Size()
+	}
+	out += total
+
+	// total must be > 0 in order for &args[0] to be valid.
+	// the argument copying is going to round it up to
+	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
+	if total < ptrSize {
+		total = ptrSize
+	}
+
+	// round to pointer
+	total = align(total, ptrSize)
+
+	return
+}
+
+// callMethod is the call implementation used by a function returned
+// by makeMethodValue (used by v.Method(i).Interface()).
+// It is a streamlined version of the usual reflect call: the caller has
+// already laid out the argument frame for us, so we don't have
+// to deal with individual Values for each argument.
+// It is in this file so that it can be next to the two similar functions above.
+// The remainder of the makeMethodValue implementation is in makefunc.go.
+func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+	t, fn, rcvr := methodReceiver("call", ctxt.rcvr, ctxt.method)
+	total, in, outOffset, out := frameSize(t, true)
+
+	// Copy into args.
+	//
+	// TODO(rsc): This will need to be updated for any new garbage collector.
+	// For now make everything look like a pointer by allocating
+	// a []unsafe.Pointer.
+	args := make([]unsafe.Pointer, total/ptrSize)
+	args[0] = unsafe.Pointer(rcvr)
+	base := unsafe.Pointer(&args[0])
+	memmove(unsafe.Pointer(uintptr(base)+ptrSize), frame, in)
+
+	// Call.
+	call(fn, unsafe.Pointer(&args[0]), uint32(total))
+
+	// Copy return values.
+	memmove(unsafe.Pointer(uintptr(frame)+outOffset-ptrSize), unsafe.Pointer(uintptr(base)+outOffset), out)
 }
 
 // funcName returns the name of f, for use in error messages.
@@ -902,7 +957,7 @@ func (v Value) CanInterface() bool {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.CanInterface", Invalid})
 	}
-	return v.flag&(flagMethod|flagRO) == 0
+	return v.flag&flagRO == 0
 }
 
 // Interface returns v's current value as an interface{}.
@@ -921,15 +976,14 @@ func valueInterface(v Value, safe bool) interface{} {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Interface", 0})
 	}
-	if v.flag&flagMethod != 0 {
-		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
-	}
-
 	if safe && v.flag&flagRO != 0 {
 		// Do not allow access to unexported values via Interface,
 		// because they might be pointers that should not be
 		// writable or methods or function that should not be callable.
 		panic("reflect.Value.Interface: cannot return value obtained from unexported field or method")
+	}
+	if v.flag&flagMethod != 0 {
+		v = makeMethodValue("Interface", v)
 	}
 
 	k := v.kind()
@@ -981,7 +1035,7 @@ func (v Value) IsNil() bool {
 	switch k {
 	case Chan, Func, Map, Ptr:
 		if v.flag&flagMethod != 0 {
-			panic("reflect: IsNil of method Value")
+			return false
 		}
 		ptr := v.val
 		if v.flag&flagIndir != 0 {
@@ -1100,7 +1154,7 @@ func (v Value) MapKeys() []Value {
 // Method returns a function value corresponding to v's i'th method.
 // The arguments to a Call on the returned function should not include
 // a receiver; the returned function will always use v as the receiver.
-// Method panics if i is out of range.
+// Method panics if i is out of range or if v is a nil interface value.
 func (v Value) Method(i int) Value {
 	if v.typ == nil {
 		panic(&ValueError{"reflect.Value.Method", Invalid})
@@ -1108,7 +1162,10 @@ func (v Value) Method(i int) Value {
 	if v.flag&flagMethod != 0 || i < 0 || i >= v.typ.NumMethod() {
 		panic("reflect: Method index out of range")
 	}
-	fl := v.flag & (flagRO | flagAddr | flagIndir)
+	if v.typ.Kind() == Interface && v.IsNil() {
+		panic("reflect: Method on nil interface value")
+	}
+	fl := v.flag & (flagRO | flagIndir)
 	fl |= flag(Func) << flagKindShift
 	fl |= flag(i)<<flagMethodShift | flagMethod
 	return Value{v.typ, v.val, fl}
@@ -1232,7 +1289,14 @@ func (v Value) Pointer() uintptr {
 		return uintptr(p)
 	case Func:
 		if v.flag&flagMethod != 0 {
-			panic("reflect.Value.Pointer of method Value")
+			// As the doc comment says, the returned pointer is an
+			// underlying code pointer but not necessarily enough to
+			// identify a single function uniquely. All method expressions
+			// created via reflect have the same underlying code pointer,
+			// so their Pointers are equal. The function used here must
+			// match the one used in makeMethodValue.
+			f := methodValueCall
+			return **(**uintptr)(unsafe.Pointer(&f))
 		}
 		p := v.val
 		if v.flag&flagIndir != 0 {
@@ -1267,7 +1331,7 @@ func (v Value) Recv() (x Value, ok bool) {
 func (v Value) recv(nb bool) (val Value, ok bool) {
 	tt := (*chanType)(unsafe.Pointer(v.typ))
 	if ChanDir(tt.dir)&RecvDir == 0 {
-		panic("recv on send-only channel")
+		panic("reflect: recv on send-only channel")
 	}
 	word, selected, ok := chanrecv(v.typ, v.iword(), nb)
 	if selected {
@@ -1295,7 +1359,7 @@ func (v Value) Send(x Value) {
 func (v Value) send(x Value, nb bool) (selected bool) {
 	tt := (*chanType)(unsafe.Pointer(v.typ))
 	if ChanDir(tt.dir)&SendDir == 0 {
-		panic("send on recv-only channel")
+		panic("reflect: send on recv-only channel")
 	}
 	x.mustBeExported()
 	x = x.assignTo("reflect.Value.Send", tt.elem, nil)
@@ -1578,7 +1642,7 @@ func (v Value) Type() Type {
 		// Method on interface.
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
 		if i < 0 || i >= len(tt.methods) {
-			panic("reflect: broken Value")
+			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
 		return m.typ
@@ -1586,7 +1650,7 @@ func (v Value) Type() Type {
 	// Method on concrete type.
 	ut := v.typ.uncommon()
 	if ut == nil || i < 0 || i >= len(ut.methods) {
-		panic("reflect: broken Value")
+		panic("reflect: internal error: invalid method index")
 	}
 	m := &ut.methods[i]
 	return m.mtyp
@@ -2030,7 +2094,7 @@ func NewAt(typ Type, p unsafe.Pointer) Value {
 // For a conversion to an interface type, target is a suggested scratch space to use.
 func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
 	if v.flag&flagMethod != 0 {
-		panic(context + ": cannot assign method value to type " + dst.String())
+		v = makeMethodValue(context, v)
 	}
 
 	switch {
@@ -2064,7 +2128,7 @@ func (v Value) assignTo(context string, dst *rtype, target *interface{}) Value {
 // of the value v to type t, Convert panics.
 func (v Value) Convert(t Type) Value {
 	if v.flag&flagMethod != 0 {
-		panic("reflect.Value.Convert: cannot convert method values")
+		v = makeMethodValue("Convert", v)
 	}
 	op := convertOp(t.common(), v.typ)
 	if op == nil {
