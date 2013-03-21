@@ -740,8 +740,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 
 		case GC_STRING:
 			obj = *(void**)(stack_top.b + pc[1]);
+			markonly(obj);
 			pc += 2;
-			break;
+			continue;
 
 		case GC_EFACE:
 			eface = (Eface*)(stack_top.b + pc[1]);
@@ -804,9 +805,9 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
 			break;
 
 		case GC_DEFAULT_PTR:
-			while((i = stack_top.b) <= end_b) {
+			while(stack_top.b <= end_b) {
+				obj = *(byte**)stack_top.b;
 				stack_top.b += PtrSize;
-				obj = *(byte**)i;
 				if(obj >= arena_start && obj < arena_used) {
 					*ptrbufpos++ = (PtrTarget){obj, 0};
 					if(ptrbufpos == ptrbuf_end)
