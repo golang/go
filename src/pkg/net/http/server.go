@@ -109,9 +109,11 @@ type conn struct {
 	remoteAddr string               // network address of remote side
 	server     *Server              // the Server on which the connection arrived
 	rwc        net.Conn             // i/o connection
-	sr         switchReader         // where the LimitReader reads from; usually the rwc
+	sr         liveSwitchReader     // where the LimitReader reads from; usually the rwc
 	lr         *io.LimitedReader    // io.LimitReader(sr)
 	buf        *bufio.ReadWriter    // buffered(lr,rwc), reading from bufio->limitReader->sr->rwc
+	bufswr     *switchReader        // the *switchReader io.Reader source of buf
+	bufsww     *switchWriter        // the *switchWriter io.Writer dest of buf
 	tlsState   *tls.ConnectionState // or nil when not using TLS
 
 	mu           sync.Mutex // guards the following
@@ -180,12 +182,26 @@ func (c *conn) noteClientGone() {
 	c.clientGone = true
 }
 
+// A switchReader can have its Reader changed at runtime.
+// It's not safe for concurrent Reads and switches.
 type switchReader struct {
+	io.Reader
+}
+
+// A switchWriter can have its Writer changed at runtime.
+// It's not safe for concurrent Writes and switches.
+type switchWriter struct {
+	io.Writer
+}
+
+// A liveSwitchReader is a switchReader that's safe for concurrent
+// reads and switches, if its mutex is held.
+type liveSwitchReader struct {
 	sync.Mutex
 	r io.Reader
 }
 
-func (sr *switchReader) Read(p []byte) (n int, err error) {
+func (sr *liveSwitchReader) Read(p []byte) (n int, err error) {
 	sr.Lock()
 	r := sr.r
 	sr.Unlock()
@@ -362,12 +378,85 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	if debugServerConnections {
 		c.rwc = newLoggingConn("server", c.rwc)
 	}
-	c.sr = switchReader{r: c.rwc}
+	c.sr = liveSwitchReader{r: c.rwc}
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
-	br := bufio.NewReader(c.lr)
-	bw := bufio.NewWriter(c.rwc)
+	br, sr := newBufioReader(c.lr)
+	bw, sw := newBufioWriter(c.rwc)
 	c.buf = bufio.NewReadWriter(br, bw)
+	c.bufswr = sr
+	c.bufsww = sw
 	return c, nil
+}
+
+// TODO: remove this, if issue 5100 is fixed
+type bufioReaderPair struct {
+	br *bufio.Reader
+	sr *switchReader // from which the bufio.Reader is reading
+}
+
+// TODO: remove this, if issue 5100 is fixed
+type bufioWriterPair struct {
+	bw *bufio.Writer
+	sw *switchWriter // to which the bufio.Writer is writing
+}
+
+// TODO: use a sync.Cache instead
+var (
+	bufioReaderCache = make(chan bufioReaderPair, 4)
+	bufioWriterCache = make(chan bufioWriterPair, 4)
+)
+
+func newBufioReader(r io.Reader) (*bufio.Reader, *switchReader) {
+	select {
+	case p := <-bufioReaderCache:
+		p.sr.Reader = r
+		return p.br, p.sr
+	default:
+		sr := &switchReader{r}
+		return bufio.NewReader(sr), sr
+	}
+}
+
+func putBufioReader(br *bufio.Reader, sr *switchReader) {
+	if n := br.Buffered(); n > 0 {
+		io.CopyN(ioutil.Discard, br, int64(n))
+	}
+	br.Read(nil) // clears br.err
+	sr.Reader = nil
+	select {
+	case bufioReaderCache <- bufioReaderPair{br, sr}:
+	default:
+	}
+}
+
+func newBufioWriter(w io.Writer) (*bufio.Writer, *switchWriter) {
+	select {
+	case p := <-bufioWriterCache:
+		p.sw.Writer = w
+		return p.bw, p.sw
+	default:
+		sw := &switchWriter{w}
+		return bufio.NewWriter(sw), sw
+	}
+}
+
+func putBufioWriter(bw *bufio.Writer, sw *switchWriter) {
+	if bw.Buffered() > 0 {
+		// It must have failed to flush to its target
+		// earlier. We can't reuse this bufio.Writer.
+		return
+	}
+	if err := bw.Flush(); err != nil {
+		// Its sticky error field is set, which is returned by
+		// Flush even when there's no data buffered.  This
+		// bufio Writer is dead to us.  Don't reuse it.
+		return
+	}
+	sw.Writer = nil
+	select {
+	case bufioWriterCache <- bufioWriterPair{bw, sw}:
+	default:
+	}
 }
 
 // DefaultMaxHeaderBytes is the maximum permitted size of the headers
@@ -742,6 +831,15 @@ func (w *response) Flush() {
 func (c *conn) finalFlush() {
 	if c.buf != nil {
 		c.buf.Flush()
+
+		// Steal the bufio.Reader (~4KB worth of memory) and its associated
+		// reader for a future connection.
+		putBufioReader(c.buf.Reader, c.bufswr)
+
+		// Steal the bufio.Writer (~4KB worth of memory) and its associated
+		// writer for a future connection.
+		putBufioWriter(c.buf.Writer, c.bufsww)
+
 		c.buf = nil
 	}
 }
