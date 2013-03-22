@@ -60,6 +60,7 @@ closurebody(NodeList *body)
 
 	func = curfn;
 	func->nbody = body;
+	func->endlineno = lineno;
 	funcbody(func);
 
 	// closure-specific variables are hanging off the
@@ -154,6 +155,7 @@ makeclosure(Node *func, int nowrap)
 	declare(xfunc->nname, PFUNC);
 	xfunc->nname->funcdepth = func->funcdepth;
 	xfunc->funcdepth = func->funcdepth;
+	xfunc->endlineno = func->endlineno;
 	
 	// declare variables holding addresses taken from closure
 	// and initialize in entry prologue.
