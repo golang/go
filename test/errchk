@@ -31,7 +31,7 @@ if(@ARGV < 1) {
 
 # Grab SOURCEFILES
 foreach(reverse 0 .. @ARGV-1) {
-	unless($ARGV[$_] =~ /\.go$/) {
+	unless($ARGV[$_] =~ /\.(go|s)$/) {
 		@file = @ARGV[$_+1 .. @ARGV-1];
 		last;
 	}

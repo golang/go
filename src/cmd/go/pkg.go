@@ -72,6 +72,7 @@ type Package struct {
 	imports      []*Package
 	deps         []*Package
 	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+	sfiles       []string
 	allgofiles   []string // gofiles + IgnoredGoFiles, absolute paths
 	target       string   // installed file for this package (may be executable)
 	fake         bool     // synthesized package
@@ -365,6 +366,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.gofiles[i] = filepath.Join(p.Dir, p.gofiles[i])
 	}
 	sort.Strings(p.gofiles)
+
+	p.sfiles = stringList(p.SFiles)
+	for i := range p.sfiles {
+		p.sfiles[i] = filepath.Join(p.Dir, p.sfiles[i])
+	}
+	sort.Strings(p.sfiles)
 
 	p.allgofiles = stringList(p.IgnoredGoFiles)
 	for i := range p.allgofiles {

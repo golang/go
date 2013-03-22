@@ -72,7 +72,7 @@ func checkBuildTag(name string, data []byte) {
 						elem = elem[1:]
 					}
 					for _, c := range elem {
-						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
+						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
 							fmt.Fprintf(os.Stderr, "%s:%d: invalid non-alphanumeric build constraint: %s\n", name, i+1, arg)
 							setExit(1)
 							break Args

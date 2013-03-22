@@ -29,6 +29,7 @@ var exitCode = 0
 // a flag is set explicitly.
 var report = map[string]*bool{
 	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+	"asmdecl":    flag.Bool("asmdecl", false, "check assembly against Go declarations"),
 	"assign":     flag.Bool("assign", false, "check for useless assignments"),
 	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
 	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
@@ -64,11 +65,12 @@ func Usage() {
 // File is a wrapper for the state of a file used in the parser.
 // The parse tree walkers are all methods of this type.
 type File struct {
-	pkg  *Package
-	fset *token.FileSet
-	name string
-	file *ast.File
-	b    bytes.Buffer // for use by methods
+	pkg     *Package
+	fset    *token.FileSet
+	name    string
+	content []byte
+	file    *ast.File
+	b       bytes.Buffer // for use by methods
 }
 
 func main() {
@@ -163,6 +165,7 @@ func doPackageDir(directory string) {
 	names = append(names, pkg.GoFiles...)
 	names = append(names, pkg.CgoFiles...)
 	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
+	names = append(names, pkg.SFiles...)
 	prefixDirectory(directory, names)
 	doPackage(names)
 	// Is there also a "foo_test" package? If so, do that one as well.
@@ -176,6 +179,7 @@ func doPackageDir(directory string) {
 type Package struct {
 	types  map[ast.Expr]Type
 	values map[ast.Expr]interface{}
+	files  []*File
 }
 
 // doPackage analyzes the single package constructed from the named files.
@@ -197,15 +201,19 @@ func doPackage(names []string) {
 			return
 		}
 		checkBuildTag(name, data)
-		parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
-		if err != nil {
-			warnf("%s: %s", name, err)
-			return
+		var parsedFile *ast.File
+		if strings.HasSuffix(name, ".go") {
+			parsedFile, err = parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+			if err != nil {
+				warnf("%s: %s", name, err)
+				return
+			}
+			astFiles = append(astFiles, parsedFile)
 		}
-		files = append(files, &File{fset: fs, name: name, file: parsedFile})
-		astFiles = append(astFiles, parsedFile)
+		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
 	}
 	pkg := new(Package)
+	pkg.files = files
 	// Type check the package.
 	err := pkg.check(fs, astFiles)
 	if err != nil && *verbose {
@@ -213,8 +221,11 @@ func doPackage(names []string) {
 	}
 	for _, file := range files {
 		file.pkg = pkg
-		file.walkFile(file.name, file.file)
+		if file.file != nil {
+			file.walkFile(file.name, file.file)
+		}
 	}
+	asmCheck(pkg)
 }
 
 func visit(path string, f os.FileInfo, err error) error {
@@ -228,6 +239,15 @@ func visit(path string, f os.FileInfo, err error) error {
 	}
 	doPackageDir(path)
 	return nil
+}
+
+func (pkg *Package) hasFileWithSuffix(suffix string) bool {
+	for _, f := range pkg.files {
+		if strings.HasSuffix(f.name, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // walkDir recursively walks the tree looking for Go packages.
@@ -278,6 +298,9 @@ func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
 }
 
 func (f *File) loc(pos token.Pos) string {
+	if pos == token.NoPos {
+		return ""
+	}
 	// Do not print columns. Because the pos often points to the start of an
 	// expression instead of the inner part with the actual error, the
 	// precision can mislead.
