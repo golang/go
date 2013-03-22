@@ -37,7 +37,12 @@ runtime·SysFree(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
-	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+	void *p;
+
+	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+	if(p < (void*)4096)
+		return nil;
+	return p;
 }
 
 enum
@@ -52,7 +57,7 @@ runtime·SysMap(void *v, uintptr n)
 	
 	mstats.sys += n;
 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
-	if(p == (void*)-ENOMEM)
+	if(p == (void*)ENOMEM)
 		runtime·throw("runtime: out of memory");
 	if(p != v)
 		runtime·throw("runtime: cannot map pages in arena address space");
