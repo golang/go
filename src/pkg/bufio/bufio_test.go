@@ -7,6 +7,7 @@ package bufio_test
 import (
 	. "bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -434,9 +435,12 @@ func TestWriteErrors(t *testing.T) {
 			t.Errorf("Write hello to %v: %v", w, e)
 			continue
 		}
-		e = buf.Flush()
-		if e != w.expect {
-			t.Errorf("Flush %v: got %v, wanted %v", w, e, w.expect)
+		// Two flushes, to verify the error is sticky.
+		for i := 0; i < 2; i++ {
+			e = buf.Flush()
+			if e != w.expect {
+				t.Errorf("Flush %d/2 %v: got %v, wanted %v", i+1, w, e, w.expect)
+			}
 		}
 	}
 }
@@ -960,6 +964,43 @@ func TestNegativeRead(t *testing.T) {
 		}
 	}()
 	b.Read(make([]byte, 100))
+}
+
+var errFake = errors.New("fake error")
+
+type errorThenGoodReader struct {
+	didErr bool
+	nread  int
+}
+
+func (r *errorThenGoodReader) Read(p []byte) (int, error) {
+	r.nread++
+	if !r.didErr {
+		r.didErr = true
+		return 0, errFake
+	}
+	return len(p), nil
+}
+
+func TestReaderClearError(t *testing.T) {
+	r := &errorThenGoodReader{}
+	b := NewReader(r)
+	buf := make([]byte, 1)
+	if _, err := b.Read(nil); err != nil {
+		t.Fatalf("1st nil Read = %v; want nil", err)
+	}
+	if _, err := b.Read(buf); err != errFake {
+		t.Fatalf("1st Read = %v; want errFake", err)
+	}
+	if _, err := b.Read(nil); err != nil {
+		t.Fatalf("2nd nil Read = %v; want nil", err)
+	}
+	if _, err := b.Read(buf); err != nil {
+		t.Fatalf("3rd Read with buffer = %v; want nil", err)
+	}
+	if r.nread != 2 {
+		t.Errorf("num reads = %d; want 2", r.nread)
+	}
 }
 
 // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
