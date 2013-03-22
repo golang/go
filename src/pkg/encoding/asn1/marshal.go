@@ -460,7 +460,6 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 		default:
 			return marshalUTF8String(out, v.String())
 		}
-		return
 	}
 
 	return StructuralError{"unknown Go type"}

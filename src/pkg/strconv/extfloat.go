@@ -636,7 +636,6 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
 				1<<shift, multiplier*2)
 		}
 	}
-	return false
 }
 
 // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to

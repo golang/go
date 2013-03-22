@@ -202,7 +202,6 @@ func (m *maxLatencyWriter) flushLoop() {
 			m.lk.Unlock()
 		}
 	}
-	panic("unreached")
 }
 
 func (m *maxLatencyWriter) stop() { m.done <- true }

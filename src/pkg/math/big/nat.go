@@ -1021,8 +1021,6 @@ func trailingZeroBits(x Word) uint {
 	default:
 		panic("unknown word size")
 	}
-
-	return 0
 }
 
 // trailingZeroBits returns the number of consecutive least significant zero

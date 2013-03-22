@@ -1066,7 +1066,6 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 	case reflect.Struct:
 		return true
 	}
-	return true
 }
 
 // typeString returns a human-readable description of the type identified by remoteId.

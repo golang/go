@@ -868,7 +868,6 @@ func (d *decodeState) literalInterface() interface{} {
 		}
 		return n
 	}
-	panic("unreachable")
 }
 
 // getu4 decodes \uXXXX from the beginning of s, returning the hex value,

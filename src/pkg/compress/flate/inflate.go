@@ -640,7 +640,6 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 			return int(chunk >> huffmanValueShift), nil
 		}
 	}
-	return 0, CorruptInputError(f.roffset)
 }
 
 // Flush any buffered output to the underlying writer.

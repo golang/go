@@ -215,11 +215,6 @@ childerror:
 	for {
 		RawSyscall(SYS_EXIT, 253, 0, 0)
 	}
-
-	// Calling panic is not actually safe,
-	// but the for loop above won't break
-	// and this shuts up the compiler.
-	panic("unreached")
 }
 
 // Try to open a pipe with O_CLOEXEC set on both file descriptors.

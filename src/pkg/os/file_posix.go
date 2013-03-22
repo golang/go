@@ -46,8 +46,6 @@ func Readlink(name string) (string, error) {
 			return string(b[0:n]), nil
 		}
 	}
-	// Silence 6g.
-	return "", nil
 }
 
 // Rename renames a file.

@@ -3164,7 +3164,6 @@ func ungetrune(f *bufio.Reader, c rune) {
 
 func write(f *bufio.Writer, b []byte, n int) int {
 	panic("write")
-	return 0
 }
 
 func open(s string) *bufio.Reader {
