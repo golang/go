@@ -6,4 +6,4 @@
 
 package sha1
 
-func block(*digest, []byte)
+func block(dig *digest, p []byte)

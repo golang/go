@@ -14,7 +14,7 @@
 TEXT	·block(SB),7,$0-32
 	MOVQ	dig+0(FP),	BP
 	MOVQ	p+8(FP),	SI
-	MOVQ	n+16(FP), DX
+	MOVQ	p_len+16(FP), DX
 	SHRQ	$6,		DX
 	SHLQ	$6,		DX
 

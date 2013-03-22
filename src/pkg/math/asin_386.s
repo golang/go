@@ -11,7 +11,7 @@ TEXT ·Asin(SB),7,$0
 	FSUBRDP F0, F1       // F0=1-sin(x)*sin(x) (=cos(x)*cos(x)), F1=sin(x)
 	FSQRT                // F0=cos(x), F1=sin(x)
 	FPATAN               // F0=arcsin(sin(x))=x
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 
 // func Acos(x float64) float64
@@ -24,5 +24,5 @@ TEXT ·Acos(SB),7,$0
 	FSQRT                // F0=sin(x), F1=cos(x)
 	FXCHD   F0, F1       // F0=cos(x), F1=sin(x)
 	FPATAN               // F0=arccos(cos(x))=x
-	FMOVDP	F0, r+8(FP)
+	FMOVDP	F0, ret+8(FP)
 	RET

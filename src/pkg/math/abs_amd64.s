@@ -8,5 +8,5 @@ TEXT ·Abs(SB),7,$0
 	MOVQ   BX, X0 // movsd $(-0.0), x0
 	MOVSD  x+0(FP), X1
 	ANDNPD X1, X0
-	MOVSD  X0, r+8(FP)
+	MOVSD  X0, ret+8(FP)
 	RET

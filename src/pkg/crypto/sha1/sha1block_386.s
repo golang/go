@@ -102,7 +102,7 @@
 TEXT ·block(SB),7,$92-16
 	MOVL	dig+0(FP),	BP
 	MOVL	p+4(FP),	SI
-	MOVL	n+8(FP),	DX
+	MOVL	p_len+8(FP),	DX
 	SHRL	$6,		DX
 	SHLL	$6,		DX
 	

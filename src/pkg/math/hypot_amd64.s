@@ -31,7 +31,7 @@ TEXT ·Hypot(SB),7,$0
 	ADDSD   $1.0, X1
 	SQRTSD  X1, X1
 	MULSD   X1, X0
-	MOVSD   X0, r+16(FP)
+	MOVSD   X0, ret+16(FP)
 	RET
 isInfOrNaN:
 	CMPQ    AX, BX
@@ -39,12 +39,12 @@ isInfOrNaN:
 	CMPQ    AX, CX
 	JEQ     isInf
 	MOVQ    $NaN, AX
-	MOVQ    AX, r+16(FP) // return NaN
+	MOVQ    AX, ret+16(FP) // return NaN
 	RET
 isInf:
-	MOVQ    AX, r+16(FP) // return +Inf
+	MOVQ    AX, ret+16(FP) // return +Inf
 	RET
 isZero:
 	MOVQ    $0, AX
-	MOVQ    AX, r+16(FP) // return 0
+	MOVQ    AX, ret+16(FP) // return 0
 	RET

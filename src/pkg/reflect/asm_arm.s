@@ -7,7 +7,7 @@
 // for more details.
 TEXT ·makeFuncStub(SB),7,$8
 	MOVW	R7, 4(R13)
-	MOVW	$arg+0(FP), R1
+	MOVW	$argframe+0(FP), R1
 	MOVW	R1, 8(R13)
 	BL	·callReflect(SB)
 	RET
@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),7,$8
 // for more details.
 TEXT ·methodValueCall(SB),7,$8
 	MOVW	R7, 4(R13)
-	MOVW	$arg+0(FP), R1
+	MOVW	$argframe+0(FP), R1
 	MOVW	R1, 8(R13)
 	BL	·callMethod(SB)
 	RET

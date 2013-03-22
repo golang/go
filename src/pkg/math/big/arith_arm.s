@@ -13,7 +13,7 @@ TEXT ·addVV(SB),7,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z+4(FP), R4
+	MOVW	z_len+4(FP), R4
 	MOVW	R4<<2, R4
 	ADD	R1, R4
 	B E1
@@ -41,7 +41,7 @@ TEXT ·subVV(SB),7,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z+4(FP), R4
+	MOVW	z_len+4(FP), R4
 	MOVW	R4<<2, R4
 	ADD	R1, R4
 	B E2
@@ -68,7 +68,7 @@ TEXT ·addVW(SB),7,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z+4(FP), R4
+	MOVW	z_len+4(FP), R4
 	MOVW	R4<<2, R4
 	ADD	R1, R4
 	CMP	R1, R4
@@ -102,7 +102,7 @@ TEXT ·subVW(SB),7,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z+4(FP), R4
+	MOVW	z_len+4(FP), R4
 	MOVW	R4<<2, R4
 	ADD	R1, R4
 	CMP	R1, R4
@@ -134,7 +134,7 @@ E4:
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),7,$0
-	MOVW	z+4(FP), R5
+	MOVW	z_len+4(FP), R5
 	CMP	$0, R5
 	BEQ	X7
 	
@@ -183,7 +183,7 @@ X7:
 
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),7,$0
-	MOVW	z+4(FP), R5
+	MOVW	z_len+4(FP), R5
 	CMP	$0, R5
 	BEQ	X6
 
@@ -238,7 +238,7 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
 	MOVW	r+28(FP), R4
-	MOVW	z+4(FP), R5
+	MOVW	z_len+4(FP), R5
 	MOVW	R5<<2, R5
 	ADD	R1, R5
 	B E8
@@ -265,7 +265,7 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVW	z+0(FP), R1
 	MOVW	x+12(FP), R2
 	MOVW	y+24(FP), R3
-	MOVW	z+4(FP), R5
+	MOVW	z_len+4(FP), R5
 	MOVW	R5<<2, R5
 	ADD	R1, R5
 	MOVW	$0, R4

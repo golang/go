@@ -5,5 +5,5 @@
 // func Sqrt(x float64) float64
 TEXT ·Sqrt(SB),7,$0
 	SQRTSD x+0(FP), X0
-	MOVSD X0, r+8(FP)
+	MOVSD X0, ret+8(FP)
 	RET

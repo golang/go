@@ -6,5 +6,5 @@
 TEXT ·Sqrt(SB),7,$0
 	FMOVD   x+0(FP),F0
 	FSQRT
-	FMOVDP  F0,r+8(FP)
+	FMOVDP  F0,ret+8(FP)
 	RET

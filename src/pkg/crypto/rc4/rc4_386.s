@@ -8,9 +8,9 @@ TEXT ·xorKeyStream(SB),7,$0
 	MOVL src+4(FP), SI
 	MOVL state+12(FP), BP
 
-	MOVL xPtr+16(FP), AX
+	MOVL i+16(FP), AX
 	MOVBLZX (AX), AX
-	MOVL yPtr+20(FP), BX
+	MOVL j+20(FP), BX
 	MOVBLZX (BX), BX
 	CMPL n+8(FP), $0
 	JEQ done
@@ -43,9 +43,9 @@ loop:
 	JNE loop
 
 done:
-	MOVL xPtr+16(FP), CX
+	MOVL i+16(FP), CX
 	MOVB AX, (CX)
-	MOVL yPtr+20(FP), CX
+	MOVL j+20(FP), CX
 	MOVB BX, (CX)
 
 	RET

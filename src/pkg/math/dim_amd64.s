@@ -36,12 +36,12 @@ dim3:	// (NaN, x) or (x, NaN)
 	SUBSD y+8(FP), X0
 	MOVSD $(0.0), X1
 	MAXSD X1, X0
-	MOVSD X0, r+16(FP)
+	MOVSD X0, ret+16(FP)
 	RET
 bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
 	MOVQ    $NaN, AX
 isDimNaN:
-	MOVQ    AX, r+16(FP)
+	MOVQ    AX, ret+16(FP)
 	RET
 
 // func ·Max(x, y float64) float64
@@ -72,28 +72,28 @@ TEXT ·Max(SB),7,$0
 	MOVQ    R8, X0
 	MOVQ    R9, X1
 	MAXSD   X1, X0
-	MOVSD   X0, r+16(FP)
+	MOVSD   X0, ret+16(FP)
 	RET
 isMaxNaN: // return NaN
 isPosInf: // return +Inf
-	MOVQ    AX, r+16(FP)
+	MOVQ    AX, ret+16(FP)
 	RET
 isMaxZero:
 	MOVQ    $(1<<63), AX // -0.0
 	CMPQ    AX, R8
 	JEQ     +3(PC)
-	MOVQ    R8, r+16(FP) // return 0
+	MOVQ    R8, ret+16(FP) // return 0
 	RET
-	MOVQ    R9, r+16(FP) // return other 0
+	MOVQ    R9, ret+16(FP) // return other 0
 	RET
 
 /*
 	MOVQ    $0, AX
 	CMPQ    AX, R8
 	JNE     +3(PC)
-	MOVQ    R8, r+16(FP) // return 0
+	MOVQ    R8, ret+16(FP) // return 0
 	RET
-	MOVQ    R9, r+16(FP) // return other 0
+	MOVQ    R9, ret+16(FP) // return other 0
 	RET
 */
 
@@ -125,18 +125,18 @@ TEXT ·Min(SB),7,$0
 	MOVQ    R8, X0
 	MOVQ    R9, X1
 	MINSD   X1, X0
-	MOVSD X0, r+16(FP)
+	MOVSD X0, ret+16(FP)
 	RET
 isMinNaN: // return NaN
 isNegInf: // return -Inf
-	MOVQ    AX, r+16(FP)
+	MOVQ    AX, ret+16(FP)
 	RET
 isMinZero:
 	MOVQ    $(1<<63), AX // -0.0
 	CMPQ    AX, R8
 	JEQ     +3(PC)
-	MOVQ    R9, r+16(FP) // return other 0
+	MOVQ    R9, ret+16(FP) // return other 0
 	RET
-	MOVQ    R8, r+16(FP) // return -0
+	MOVQ    R8, ret+16(FP) // return -0
 	RET
 

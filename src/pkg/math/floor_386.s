@@ -13,7 +13,7 @@ TEXT ·Ceil(SB),7,$0
 	FLDCW   -4(SP)       // load new Control Word
 	FRNDINT              // F0=Ceil(x)
 	FLDCW   -2(SP)       // load old Control Word
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 
 // func Floor(x float64) float64
@@ -27,7 +27,7 @@ TEXT ·Floor(SB),7,$0
 	FLDCW   -4(SP)       // load new Control Word
 	FRNDINT              // F0=Floor(x)
 	FLDCW   -2(SP)       // load old Control Word
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 
 // func Trunc(x float64) float64
@@ -40,5 +40,5 @@ TEXT ·Trunc(SB),7,$0
 	FLDCW   -4(SP)       // load new Control Word
 	FRNDINT              // F0=Trunc(x)
 	FLDCW   -2(SP)       // load old Control Word
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET

@@ -29,7 +29,7 @@ TEXT ·addVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
-	MOVL z+4(FP), BP
+	MOVL z_len+4(FP), BP
 	MOVL $0, BX		// i = 0
 	MOVL $0, DX		// c = 0
 	JMP E1
@@ -54,7 +54,7 @@ TEXT ·subVV(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), CX
-	MOVL z+4(FP), BP
+	MOVL z_len+4(FP), BP
 	MOVL $0, BX		// i = 0
 	MOVL $0, DX		// c = 0
 	JMP E2
@@ -78,7 +78,7 @@ TEXT ·addVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
-	MOVL z+4(FP), BP
+	MOVL z_len+4(FP), BP
 	MOVL $0, BX		// i = 0
 	JMP E3
 
@@ -100,7 +100,7 @@ TEXT ·subVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), AX	// c = y
-	MOVL z+4(FP), BP
+	MOVL z_len+4(FP), BP
 	MOVL $0, BX		// i = 0
 	JMP E4
 
@@ -120,7 +120,7 @@ E4:	CMPL BX, BP		// i < n
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),7,$0
-	MOVL z+4(FP), BX	// i = z
+	MOVL z_len+4(FP), BX	// i = z
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
 
@@ -155,7 +155,7 @@ X8b:	MOVL $0, c+28(FP)
 
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),7,$0
-	MOVL z+4(FP), BP
+	MOVL z_len+4(FP), BP
 	SUBL $1, BP		// n--
 	JL X9b			// n < 0	(n <= 0)
 
@@ -196,7 +196,7 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
 	MOVL r+28(FP), CX	// c = r
-	MOVL z+4(FP), BX
+	MOVL z_len+4(FP), BX
 	LEAL (DI)(BX*4), DI
 	LEAL (SI)(BX*4), SI
 	NEGL BX			// i = -n
@@ -222,7 +222,7 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVL z+0(FP), DI
 	MOVL x+12(FP), SI
 	MOVL y+24(FP), BP
-	MOVL z+4(FP), BX
+	MOVL z_len+4(FP), BX
 	LEAL (DI)(BX*4), DI
 	LEAL (SI)(BX*4), SI
 	NEGL BX			// i = -n
@@ -251,7 +251,7 @@ TEXT ·divWVW(SB),7,$0
 	MOVL xn+12(FP), DX	// r = xn
 	MOVL x+16(FP), SI
 	MOVL y+28(FP), CX
-	MOVL z+4(FP), BX	// i = z
+	MOVL z_len+4(FP), BX	// i = z
 	JMP E7
 
 L7:	MOVL (SI)(BX*4), AX

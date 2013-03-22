@@ -5,7 +5,7 @@
 // func Exp2(x float64) float64
 TEXT ·Exp2(SB),7,$0
 // test bits for not-finite
-	MOVL    x+4(FP), AX
+	MOVL    x_hi+4(FP), AX
 	ANDL    $0x7ff00000, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     not_finite
@@ -19,20 +19,20 @@ TEXT ·Exp2(SB),7,$0
 	FADDDP  F0, F1        // F0=2**(x-int(x)), F1=int(x)
 	FSCALE                // F0=2**x, F1=int(x)
 	FMOVDP  F0, F1        // F0=2**x
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 not_finite:
 // test bits for -Inf
-	MOVL    x+4(FP), BX
-	MOVL    x+0(FP), CX
+	MOVL    x_hi+4(FP), BX
+	MOVL    x_lo+0(FP), CX
 	CMPL    BX, $0xfff00000
 	JNE     not_neginf
 	CMPL    CX, $0
 	JNE     not_neginf
-	MOVL    $0, r+8(FP)
-	MOVL    $0, r+12(FP)
+	MOVL    $0, ret_lo+8(FP)
+	MOVL    $0, ret_hi+12(FP)
 	RET
 not_neginf:
-	MOVL    CX, r+8(FP)
-	MOVL    BX, r+12(FP)
+	MOVL    CX, ret_lo+8(FP)
+	MOVL    BX, ret_hi+12(FP)
 	RET

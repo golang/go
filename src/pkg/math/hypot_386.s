@@ -5,11 +5,11 @@
 // func Hypot(p, q float64) float64
 TEXT ·Hypot(SB),7,$0
 // test bits for not-finite
-	MOVL    p+4(FP), AX   // high word p
+	MOVL    p_hi+4(FP), AX   // high word p
 	ANDL    $0x7ff00000, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     not_finite
-	MOVL    q+12(FP), AX   // high word q
+	MOVL    q_hi+12(FP), AX   // high word q
 	ANDL    $0x7ff00000, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     not_finite
@@ -31,27 +31,27 @@ TEXT ·Hypot(SB),7,$0
 	FADDDP  F0, F1       // F0=1+q*q, F1=p
 	FSQRT                // F0=sqrt(1+q*q), F1=p
 	FMULDP  F0, F1       // F0=p*sqrt(1+q*q)
-	FMOVDP  F0, r+16(FP)
+	FMOVDP  F0, ret+16(FP)
 	RET
 	FMOVDP  F0, F1       // F0=0
-	FMOVDP  F0, r+16(FP)
+	FMOVDP  F0, ret+16(FP)
 	RET
 not_finite:
 // test bits for -Inf or +Inf
-	MOVL    p+4(FP), AX  // high word p
-	ORL     p+0(FP), AX  // low word p
+	MOVL    p_hi+4(FP), AX  // high word p
+	ORL     p_lo+0(FP), AX  // low word p
 	ANDL    $0x7fffffff, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     is_inf
-	MOVL    q+12(FP), AX  // high word q
-	ORL     q+8(FP), AX   // low word q
+	MOVL    q_hi+12(FP), AX  // high word q
+	ORL     q_lo+8(FP), AX   // low word q
 	ANDL    $0x7fffffff, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     is_inf
-	MOVL    $0x7ff80000, r+20(FP)  // return NaN = 0x7FF8000000000001
-	MOVL    $0x00000001, r+16(FP)
+	MOVL    $0x7ff80000, ret_hi+20(FP)  // return NaN = 0x7FF8000000000001
+	MOVL    $0x00000001, ret_lo+16(FP)
 	RET
 is_inf:
-	MOVL    AX, r+20(FP)  // return +Inf = 0x7FF0000000000000
-	MOVL    $0x00000000, r+16(FP)
+	MOVL    AX, ret_hi+20(FP)  // return +Inf = 0x7FF0000000000000
+	MOVL    $0x00000000, ret_lo+16(FP)
 	RET

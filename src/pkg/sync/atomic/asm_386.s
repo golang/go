@@ -31,10 +31,10 @@ TEXT ·CompareAndSwapUint64(SB),7,$0
 	TESTL	$7, BP
 	JZ	2(PC)
 	MOVL	0, AX // crash with nil ptr deref
-	MOVL	old+4(FP), AX
-	MOVL	old+8(FP), DX
-	MOVL	new+12(FP), BX
-	MOVL	new+16(FP), CX
+	MOVL	old_lo+4(FP), AX
+	MOVL	old_hi+8(FP), DX
+	MOVL	new_lo+12(FP), BX
+	MOVL	new_hi+16(FP), CX
 	// CMPXCHG8B was introduced on the Pentium.
 	LOCK
 	CMPXCHG8B	0(BP)
@@ -68,8 +68,8 @@ TEXT ·AddUint64(SB),7,$0
 	JZ	2(PC)
 	MOVL	0, AX // crash with nil ptr deref
 	// DI:SI = delta
-	MOVL	delta+4(FP), SI
-	MOVL	delta+8(FP), DI
+	MOVL	delta_lo+4(FP), SI
+	MOVL	delta_hi+8(FP), DI
 	// DX:AX = *addr
 	MOVL	0(BP), AX
 	MOVL	4(BP), DX
@@ -93,8 +93,8 @@ addloop:
 
 	// success
 	// return CX:BX
-	MOVL	BX, new+12(FP)
-	MOVL	CX, new+16(FP)
+	MOVL	BX, new_lo+12(FP)
+	MOVL	CX, new_hi+16(FP)
 	RET
 
 TEXT ·LoadInt32(SB),7,$0
