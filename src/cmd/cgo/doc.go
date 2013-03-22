@@ -70,7 +70,7 @@ assignment context to retrieve both the return value (if any) and the
 C errno variable as an error (use _ to skip the result value if the
 function returns void).  For example:
 
-	n, err := C.atoi("abc")
+	n, err := C.sqrt(-1)
 	_, err := C.voidFunc()
 
 In C, a function argument written as a fixed size array
