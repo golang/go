@@ -81,8 +81,8 @@ For example,
 The language allows the implementation to choose whether the <code>int</code> type and
 <code>uint</code> types are 32 or 64 bits. Previous Go implementations made <code>int</code>
 and <code>uint</code> 32 bits on all systems. Both the gc and gccgo implementations
-<a href="http://golang.org/issue/2188">now make
-<code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64</a>.
+now make
+<code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64.
 Among other things, this enables the allocation of slices with
 more than 2 billion elements on 64-bit platforms.
 </p>
@@ -142,6 +142,15 @@ func main() {
 
 <p>
 printed <code>"\ud800"</code> in Go 1.0, but prints <code>"\ufffd"</code> in Go 1.1.
+</p>
+
+<p>
+Surrogate-half Unicode values are now illegal in rune and string constants, so constants such as
+<code>'\ud800'</code> and <code>"\ud800"</code> are now rejected by the compilers.
+When written explicitly as UTF-8 encoded bytes,
+such strings can still be created, as in <code>"\xed\xa0\x80"</code>.
+However, when such a string is decoded as a sequence of runes, as in a range loop, it will yield only <code>utf8.RuneError</code>
+values.
 </p>
 
 <p>
@@ -255,7 +264,39 @@ TODO introduction
 <h3 id="bufio_scanner">bufio.Scanner</h3>
 
 <p>
-TODO
+The various routines to scan textual input in the
+<a href="/pkg/bufio/"><code>bufio</code></a>
+package,
+<a href="/pkg/bufio/#Reader.ReadBytes"><code>ReadBytes</code></a>,
+<a href="/pkg/bufio/#Reader.ReadString"><code>ReadString</code></a>
+and particularly
+<a href="/pkg/bufio/#Reader.ReadLine"><code>ReadLine</code></a>,
+are needlessly complex to use for simple purposes.
+In Go 1.1, a new type,
+<a href="/pkg/bufio/#Scanner"><code>Scanner</code></a>,
+has been added to make it easier to do simple tasks such as
+read the input as a sequence of lines or space-delimited words.
+It simplifies the problem by terminating the scan on problematic
+input such as pathologically long lines, and having a simple
+default: line-oriented input, with each line stripped of its terminator.
+Here is code to reproduce the input a line at a time:
+</p>
+
+<pre>
+scanner := bufio.NewScanner(os.Stdin)
+for scanner.Scan() {
+    fmt.Println(scanner.Text()) // Println will add back the final '\n'
+}
+if err := scanner.Err(); err != nil {
+    fmt.Fprintln(os.Stderr, "reading standard input:", err)
+}
+</pre>
+
+<p>
+Scanning behavior can be adjusted through a function to control subdividing the input
+(see the documentation for <a href="/pkg/bufio/#SplitFunc"><code>SplitFunc</code></a>),
+but for tough problems or the need to continue past errors, the older interface
+may still be required.
 </p>
 
 <h3 id="net">net</h3>
@@ -293,9 +334,51 @@ methods.
 <h3 id="reflect">reflect</h3>
 
 <p>
-TODO: 
-<code>reflect</code>: Select, ChanOf, MakeFunc, MapOf, SliceOf, Convert, Type.ConvertibleTo
+The <a href="/pkg/reflect/"><code>reflect</code></a> package has several significant additions.
 </p>
+
+<p>
+It is now possible to run a <code>select</code> statement using
+the <code>reflect</code> package; see the description of
+<a href="/pkg/reflect/#Select"><code>Select</code></a>
+and
+<a href="/pkg/reflect/#SelectCase"><code>SelectCase</code></a>
+for details.
+</p>
+
+<p>
+The new method
+<a href="/pkg/reflect/#Value.Convert"><code>Value.Convert</code></a>
+(or
+<a href="/pkg/reflect/#Type"><code>Type.ConvertibleTo</code></a>)
+provides functionality to execute a Go conversion or type assertion operation
+on a
+<a href="/pkg/reflect/#Value"><code>Value</code></a>
+(or test for its possibility).
+</p>
+
+<p>
+The new function
+<a href="/pkg/reflect/#MakeFunc"><code>MakeFunc</code></a>
+creates a wrapper function to make it easier to call a function with existing
+<a href="/pkg/reflect/#Value"><code>Values</code></a>,
+doing the standard Go conversions among the arguments, for instance
+to pass an actual <code>int</code> to a formal <code>interface{}</code>.
+</p>
+
+<p>
+Finally, the new functions
+<a href="/pkg/reflect/#ChanOf"><code>ChanOf</code></a>,
+<a href="/pkg/reflect/#MapOf"><code>MapOf</code></a>
+and
+<a href="/pkg/reflect/#SliceOf"><code>SliceOf</code></a>
+construct new
+<a href="/pkg/reflect/#Type"><code>Types</code></a>
+from existing types, for example to construct a the type <code>[]T</code> given
+only <code>T</code>.
+</p>
+
+
 
 <h3 id="runtime">runtime</h3>
 
