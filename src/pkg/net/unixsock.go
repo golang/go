@@ -12,7 +12,8 @@ type UnixAddr struct {
 	Net  string
 }
 
-// Network returns the address's network name, "unix" or "unixgram".
+// Network returns the address's network name, "unix", "unixgram" or
+// "unixpacket".
 func (a *UnixAddr) Network() string {
 	return a.Net
 }
@@ -36,11 +37,9 @@ func (a *UnixAddr) toAddr() Addr {
 // "unixpacket".
 func ResolveUnixAddr(net, addr string) (*UnixAddr, error) {
 	switch net {
-	case "unix":
-	case "unixpacket":
-	case "unixgram":
+	case "unix", "unixgram", "unixpacket":
+		return &UnixAddr{Name: addr, Net: net}, nil
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	return &UnixAddr{addr, net}, nil
 }
