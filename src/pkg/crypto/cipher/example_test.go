@@ -233,7 +233,7 @@ func ExampleStreamReader() {
 	}
 	defer outFile.Close()
 
-	reader := &cipher.StreamReader{stream, inFile}
+	reader := &cipher.StreamReader{S: stream, R: inFile}
 	// Copy the input file to the output file, decrypting as we go.
 	if _, err := io.Copy(outFile, reader); err != nil {
 		panic(err)
@@ -270,7 +270,7 @@ func ExampleStreamWriter() {
 	}
 	defer outFile.Close()
 
-	writer := &cipher.StreamWriter{stream, outFile, nil}
+	writer := &cipher.StreamWriter{S: stream, W: outFile}
 	// Copy the input file to the output file, encrypting as we go.
 	if _, err := io.Copy(writer, inFile); err != nil {
 		panic(err)
