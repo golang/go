@@ -50,7 +50,7 @@ runtime·SysReserve(void *v, uintptr n)
 		return v;
 
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-	if(p == (void*)ENOMEM)
+	if(p < (void*)4096)
 		return nil;
 	return p;
 }
