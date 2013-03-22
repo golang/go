@@ -4,6 +4,8 @@
 
 // Assembly to get into package runtime without using exported symbols.
 
+// +build amd64 arm 386
+
 #ifdef GOARCH_arm
 #define JMP B
 #endif

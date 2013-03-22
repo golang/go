@@ -37,13 +37,13 @@
 */
 
 TEXT ·xorKeyStream(SB),7,$0
-	MOVQ	len+16(FP),	BX		// rbx = ARG(len)
-	MOVQ	in+8(FP),	SI		// in = ARG(in)
-	MOVQ	out+0(FP),	DI		// out = ARG(out)
-	MOVQ	d+24(FP),	BP		// d = ARG(data)
-	MOVQ	xp+32(FP),	AX
+	MOVQ	n+16(FP),	BX		// rbx = ARG(len)
+	MOVQ	src+8(FP),	SI		// in = ARG(in)
+	MOVQ	dst+0(FP),	DI		// out = ARG(out)
+	MOVQ	state+24(FP),	BP		// d = ARG(data)
+	MOVQ	i+32(FP),	AX
 	MOVBQZX	0(AX),		CX		// x = *xp
-	MOVQ	yp+40(FP),	AX
+	MOVQ	j+40(FP),	AX
 	MOVBQZX	0(AX),		DX		// y = *yp
 
 	LEAQ	(SI)(BX*1),	R9		// limit = in+len
@@ -170,8 +170,8 @@ l2:	CMPQ	SI,		R9		// cmp in with in+len
 	JMP l2
 
 finished:
-	MOVQ	yp+40(FP),	BX
+	MOVQ	j+40(FP),	BX
 	MOVB	DX, 0(BX)
-	MOVQ	xp+32(FP),	AX
+	MOVQ	i+32(FP),	AX
 	MOVB	CX, 0(AX)
 	RET

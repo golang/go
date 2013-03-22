@@ -14,12 +14,12 @@ TEXT ·Log1p(SB),7,$0
 	JEQ     use_fyl2x    // jump if F0 >= F1
 	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
 	FYL2XP1              // F0=log(1+x)=log2(1+x)*log(2)
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 use_fyl2x:
 	FLD1                 // F0=1, F2=log(2)
 	FADDD   x+0(FP), F0  // F0=1+x, F1=log(2)
 	FYL2X                // F0=log(1+x)=log2(1+x)*log(2)
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 

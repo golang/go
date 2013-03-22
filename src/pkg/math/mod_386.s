@@ -11,5 +11,5 @@ TEXT ·Mod(SB),7,$0
 	ANDW    $0x0400, AX
 	JNE     -3(PC)       // jump if reduction incomplete
 	FMOVDP  F0, F1       // F0=x-q*y
-	FMOVDP  F0, r+16(FP)
+	FMOVDP  F0, ret+16(FP)
 	RET

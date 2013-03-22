@@ -4,7 +4,7 @@
 
 TEXT ·IndexByte(SB),7,$0
 	MOVQ s+0(FP), SI
-	MOVQ s+8(FP), BX
+	MOVQ s_len+8(FP), BX
 	MOVB c+24(FP), AL
 	MOVQ SI, DI
 
@@ -63,7 +63,7 @@ condition:
 	JZ success
 
 failure:
-	MOVQ $-1, r+32(FP)
+	MOVQ $-1, ret+32(FP)
 	RET
 
 // handle for lengths < 16
@@ -71,7 +71,7 @@ small:
 	MOVQ BX, CX
 	REPN; SCASB
 	JZ success
-	MOVQ $-1, r+32(FP)
+	MOVQ $-1, ret+32(FP)
 	RET
 
 // we've found the chunk containing the byte
@@ -81,18 +81,18 @@ ssesuccess:
 	BSFW DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX
-	MOVQ DX, r+32(FP)
+	MOVQ DX, ret+32(FP)
 	RET
 
 success:
 	SUBQ SI, DI
 	SUBL $1, DI
-	MOVQ DI, r+32(FP)
+	MOVQ DI, ret+32(FP)
 	RET
 
 TEXT ·Equal(SB),7,$0
-	MOVQ	a+8(FP), BX
-	MOVQ	b+32(FP), CX
+	MOVQ	a_len+8(FP), BX
+	MOVQ	b_len+32(FP), CX
 	MOVL	$0, AX
 	CMPQ	BX, CX
 	JNE	eqret
@@ -103,6 +103,6 @@ TEXT ·Equal(SB),7,$0
 	MOVL	$1, DX
 	CMOVLEQ	DX, AX
 eqret:
-	MOVB	AX, r+48(FP)
+	MOVB	AX, ret+48(FP)
 	RET
 

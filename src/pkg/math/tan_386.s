@@ -10,7 +10,7 @@ TEXT ·Tan(SB),7,$0
 	ANDW    $0x0400, AX
 	JNE     4(PC)        // jump if x outside range
 	FMOVDP  F0, F0       // F0=tan(x)
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 	FLDPI                // F0=Pi, F1=x
 	FADDD   F0, F0       // F0=2*Pi, F1=x
@@ -22,5 +22,5 @@ TEXT ·Tan(SB),7,$0
 	FMOVDP  F0, F1       // F0=reduced_x
 	FPTAN                // F0=1, F1=tan(reduced_x)
 	FMOVDP  F0, F0       // F0=tan(reduced_x)
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET

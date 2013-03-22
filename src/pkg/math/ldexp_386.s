@@ -8,5 +8,5 @@ TEXT ·Ldexp(SB),7,$0
 	FMOVD   frac+0(FP), F0   // F0=frac, F1=e
 	FSCALE                // F0=x*2**e, F1=e
 	FMOVDP  F0, F1        // F0=x*2**e
-	FMOVDP  F0, r+12(FP)
+	FMOVDP  F0, ret+12(FP)
 	RET

@@ -14,11 +14,11 @@ TEXT ·Expm1(SB),7,$0
 	FLDL2E                // F0=log2(e)
 	FMULD   x+0(FP), F0   // F0=x*log2(e) (-1<F0<1)
 	F2XM1                 // F0=e**x-1 = 2**(x*log2(e))-1
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 use_exp:
 // test bits for not-finite
-	MOVL    x+4(FP), AX
+	MOVL    x_hi+4(FP), AX
 	ANDL    $0x7ff00000, AX
 	CMPL    AX, $0x7ff00000
 	JEQ     not_finite
@@ -35,21 +35,21 @@ use_exp:
 	FMOVDP  F0, F1        // F0=e**x
 	FLD1                  // F0=1, F1=e**x
 	FSUBDP  F0, F1        // F0=e**x-1 
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 not_finite:
 // test bits for -Inf
-	MOVL    x+4(FP), BX
-	MOVL    x+0(FP), CX
+	MOVL    x_hi+4(FP), BX
+	MOVL    x_lo+0(FP), CX
 	CMPL    BX, $0xfff00000
 	JNE     not_neginf
 	CMPL    CX, $0
 	JNE     not_neginf
 	FLD1                 // F0=1
 	FCHS                 // F0=-1
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET
 not_neginf:
-	MOVL    CX, r+8(FP)
-	MOVL    BX, r+12(FP)
+	MOVL    CX, ret_lo+8(FP)
+	MOVL    BX, ret_hi+12(FP)
 	RET

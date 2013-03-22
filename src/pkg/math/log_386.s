@@ -7,5 +7,5 @@ TEXT ·Log(SB),7,$0
 	FLDLN2               // F0=log(2)
 	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
 	FYL2X                // F0=log(x)=log2(x)*log(2)
-	FMOVDP  F0, r+8(FP)
+	FMOVDP  F0, ret+8(FP)
 	RET

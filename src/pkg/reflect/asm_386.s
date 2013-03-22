@@ -7,7 +7,7 @@
 // for more details.
 TEXT ·makeFuncStub(SB),7,$8
 	MOVL	DX, 0(SP)
-	LEAL	arg+0(FP), CX
+	LEAL	argframe+0(FP), CX
 	MOVL	CX, 4(SP)
 	CALL	·callReflect(SB)
 	RET
@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),7,$8
 // for more details.
 TEXT ·methodValueCall(SB),7,$8
 	MOVL	DX, 0(SP)
-	LEAL	arg+0(FP), CX
+	LEAL	argframe+0(FP), CX
 	MOVL	CX, 4(SP)
 	CALL	·callMethod(SB)
 	RET

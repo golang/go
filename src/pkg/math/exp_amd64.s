@@ -93,7 +93,7 @@ TEXT ·Exp(SB),7,$0
 	SHLQ    CX, BX
 	MOVQ    BX, X1
 	MULSD   X1, X0
-	MOVSD   X0, r+8(FP)
+	MOVSD   X0, ret+8(FP)
 	RET
 notFinite:
 	// test bits for -Inf
@@ -103,10 +103,10 @@ notFinite:
 	// -Inf, return 0
 underflow: // return 0
 	MOVQ    $0, AX
-	MOVQ    AX, r+8(FP)
+	MOVQ    AX, ret+8(FP)
 	RET
 overflow: // return +Inf
 	MOVQ    $PosInf, BX
 notNegInf: // NaN or +Inf, return x
-	MOVQ    BX, r+8(FP)
+	MOVQ    BX, ret+8(FP)
 	RET

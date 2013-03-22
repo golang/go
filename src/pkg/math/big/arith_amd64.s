@@ -36,7 +36,7 @@ TEXT ·divWW(SB),7,$0
 
 // func addVV(z, x, y []Word) (c Word)
 TEXT ·addVV(SB),7,$0
-	MOVQ z+8(FP), DI
+	MOVQ z_len+8(FP), DI
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), R9
 	MOVQ z+0(FP), R10
@@ -90,7 +90,7 @@ E1:	MOVQ CX, c+72(FP)	// return c
 // func subVV(z, x, y []Word) (c Word)
 // (same as addVV except for SBBQ instead of ADCQ and label names)
 TEXT ·subVV(SB),7,$0
-	MOVQ z+8(FP), DI
+	MOVQ z_len+8(FP), DI
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), R9
 	MOVQ z+0(FP), R10
@@ -143,7 +143,7 @@ E2:	MOVQ CX, c+72(FP)	// return c
 
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),7,$0
-	MOVQ z+8(FP), DI
+	MOVQ z_len+8(FP), DI
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -195,7 +195,7 @@ E3:	MOVQ CX, c+56(FP)	// return c
 // func subVW(z, x []Word, y Word) (c Word)
 // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
 TEXT ·subVW(SB),7,$0
-	MOVQ z+8(FP), DI
+	MOVQ z_len+8(FP), DI
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), CX	// c = y
 	MOVQ z+0(FP), R10
@@ -247,7 +247,7 @@ E4:	MOVQ CX, c+56(FP)	// return c
 
 // func shlVU(z, x []Word, s uint) (c Word)
 TEXT ·shlVU(SB),7,$0
-	MOVQ z+8(FP), BX	// i = z
+	MOVQ z_len+8(FP), BX	// i = z
 	SUBQ $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
 
@@ -282,7 +282,7 @@ X8b:	MOVQ $0, c+56(FP)
 
 // func shrVU(z, x []Word, s uint) (c Word)
 TEXT ·shrVU(SB),7,$0
-	MOVQ z+8(FP), R11
+	MOVQ z_len+8(FP), R11
 	SUBQ $1, R11		// n--
 	JL X9b			// n < 0	(n <= 0)
 
@@ -323,7 +323,7 @@ TEXT ·mulAddVWW(SB),7,$0
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), R9
 	MOVQ r+56(FP), CX	// c = r
-	MOVQ z+8(FP), R11
+	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
 	JMP E5
 
@@ -347,7 +347,7 @@ TEXT ·addMulVVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
 	MOVQ y+48(FP), R9
-	MOVQ z+8(FP), R11
+	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
 	MOVQ $0, CX		// c = 0
 	JMP E6
@@ -374,7 +374,7 @@ TEXT ·divWVW(SB),7,$0
 	MOVQ xn+24(FP), DX	// r = xn
 	MOVQ x+32(FP), R8
 	MOVQ y+56(FP), R9
-	MOVQ z+8(FP), BX	// i = z
+	MOVQ z_len+8(FP), BX	// i = z
 	JMP E7
 
 L7:	MOVQ (R8)(BX*8), AX

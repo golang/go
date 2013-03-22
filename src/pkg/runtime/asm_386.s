@@ -717,7 +717,7 @@ TEXT runtime·stackguard(SB),7,$0
 	get_tls(CX)
 	MOVL	g(CX), BX
 	MOVL	g_stackguard(BX), DX
-	MOVL	DX, guard+4(FP)
+	MOVL	DX, limit+4(FP)
 	RET
 
 GLOBL runtime·tls0(SB), $32
