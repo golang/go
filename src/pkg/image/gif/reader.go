@@ -348,7 +348,15 @@ func (d *decoder) newImageFromDescriptor() (*image.Paletted, error) {
 	width := int(d.tmp[4]) + int(d.tmp[5])<<8
 	height := int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.imageFields = d.tmp[8]
-	return image.NewPaletted(image.Rect(left, top, left+width, top+height), nil), nil
+
+	// The GIF89a spec, Section 20 (Image Descriptor) says:
+	// "Each image must fit within the boundaries of the Logical
+	// Screen, as defined in the Logical Screen Descriptor."
+	bounds := image.Rect(left, top, left+width, top+height)
+	if bounds != bounds.Intersect(image.Rect(0, 0, d.width, d.height)) {
+		return nil, errors.New("gif: frame bounds larger than image bounds")
+	}
+	return image.NewPaletted(bounds, nil), nil
 }
 
 func (d *decoder) readBlock() (int, error) {
