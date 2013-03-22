@@ -22,6 +22,8 @@ type conversionTest struct {
 	wantint   int64
 	wantuint  uint64
 	wantstr   string
+	wantbytes []byte
+	wantraw   RawBytes
 	wantf32   float32
 	wantf64   float64
 	wanttime  time.Time
@@ -35,6 +37,8 @@ type conversionTest struct {
 // Target variables for scanning into.
 var (
 	scanstr    string
+	scanbytes  []byte
+	scanraw    RawBytes
 	scanint    int
 	scanint8   int8
 	scanint16  int16
@@ -56,6 +60,7 @@ var conversionTests = []conversionTest{
 	{s: someTime, d: &scantime, wanttime: someTime},
 
 	// To strings
+	{s: "string", d: &scanstr, wantstr: "string"},
 	{s: []byte("byteslice"), d: &scanstr, wantstr: "byteslice"},
 	{s: 123, d: &scanstr, wantstr: "123"},
 	{s: int8(123), d: &scanstr, wantstr: "123"},
@@ -65,6 +70,31 @@ var conversionTests = []conversionTest{
 	{s: uint32(123), d: &scanstr, wantstr: "123"},
 	{s: uint64(123), d: &scanstr, wantstr: "123"},
 	{s: 1.5, d: &scanstr, wantstr: "1.5"},
+
+	// To []byte
+	{s: nil, d: &scanbytes, wantbytes: nil},
+	{s: "string", d: &scanbytes, wantbytes: []byte("string")},
+	{s: []byte("byteslice"), d: &scanbytes, wantbytes: []byte("byteslice")},
+	{s: 123, d: &scanbytes, wantbytes: []byte("123")},
+	{s: int8(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: int64(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: uint8(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: uint16(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: uint32(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: uint64(123), d: &scanbytes, wantbytes: []byte("123")},
+	{s: 1.5, d: &scanbytes, wantbytes: []byte("1.5")},
+
+	// To RawBytes
+	{s: nil, d: &scanraw, wantraw: nil},
+	{s: []byte("byteslice"), d: &scanraw, wantraw: RawBytes("byteslice")},
+	{s: 123, d: &scanraw, wantraw: RawBytes("123")},
+	{s: int8(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: int64(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: uint8(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: uint16(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: uint32(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: uint64(123), d: &scanraw, wantraw: RawBytes("123")},
+	{s: 1.5, d: &scanraw, wantraw: RawBytes("1.5")},
 
 	// Strings to integers
 	{s: "255", d: &scanuint8, wantuint: 255},
