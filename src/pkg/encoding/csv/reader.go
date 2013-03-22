@@ -212,7 +212,6 @@ func (r *Reader) skip(delim rune) error {
 			return nil
 		}
 	}
-	panic("unreachable")
 }
 
 // parseRecord reads and parses a single csv record from r.
@@ -249,7 +248,6 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 			return nil, err
 		}
 	}
-	panic("unreachable")
 }
 
 // parseField parses the next field in the record.  The read field is

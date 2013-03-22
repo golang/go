@@ -120,7 +120,6 @@ func (z *Reader) readString() (string, error) {
 			return string(z.buf[0:i]), nil
 		}
 	}
-	panic("not reached")
 }
 
 func (z *Reader) read2() (uint32, error) {

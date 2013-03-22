@@ -202,7 +202,6 @@ func (d *decoder) decode() {
 			return
 		}
 	}
-	panic("unreachable")
 }
 
 func (d *decoder) flush() {

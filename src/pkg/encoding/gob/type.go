@@ -526,7 +526,6 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 	default:
 		return nil, errors.New("gob NewTypeObject can't handle type: " + rt.String())
 	}
-	return nil, nil
 }
 
 // isExported reports whether this is an exported - upper case - name.

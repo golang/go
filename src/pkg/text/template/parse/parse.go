@@ -429,7 +429,6 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
 			t.unexpected(token, context)
 		}
 	}
-	return
 }
 
 func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {

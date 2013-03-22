@@ -99,7 +99,6 @@ func sotypeToNet(sotype int) string {
 	default:
 		panic("sotypeToNet unknown socket type")
 	}
-	return ""
 }
 
 // UnixConn is an implementation of the Conn interface for connections

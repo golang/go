@@ -98,8 +98,6 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
 			return
 		}
 	}
-
-	return
 }
 
 // Int returns a uniform random value in [0, max).
@@ -130,6 +128,4 @@ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
 			return
 		}
 	}
-
-	return
 }

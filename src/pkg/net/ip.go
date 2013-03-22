@@ -222,7 +222,6 @@ func (ip IP) DefaultMask() IPMask {
 	default:
 		return classCMask
 	}
-	return nil // not reached
 }
 
 func allFF(b []byte) bool {

@@ -90,8 +90,6 @@ func Getwd() (pwd string, err error) {
 				}
 			}
 		}
-		fd.Close()
-		return "", ErrNotExist
 
 	Found:
 		pd, err := fd.Stat()
