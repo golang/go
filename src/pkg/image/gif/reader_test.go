@@ -84,3 +84,52 @@ func TestDecode(t *testing.T) {
 		}
 	}
 }
+
+// testGIF is a simple GIF that we can modify to test different scenarios.
+var testGIF = []byte{
+	'G', 'I', 'F', '8', '9', 'a',
+	1, 0, 1, 0, // w=1, h=1 (6)
+	128, 0, 0, // headerFields, bg, aspect (10)
+	0, 0, 0, 1, 1, 1, // color map and graphics control (13)
+	0x21, 0xf9, 0x04, 0x00, 0x00, 0x00, 0xff, 0x00, // (19)
+	// frame 1 (0,0 - 1,1)
+	0x2c,
+	0x00, 0x00, 0x00, 0x00,
+	0x01, 0x00, 0x01, 0x00, // (32)
+	0x00,
+	0x02, 0x02, 0x4c, 0x01, 0x00, // lzw pixels
+	// trailer
+	0x3b,
+}
+
+func try(t *testing.T, b []byte, want string) {
+	_, err := DecodeAll(bytes.NewReader(b))
+	var got string
+	if err != nil {
+		got = err.Error()
+	}
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestBounds(t *testing.T) {
+	// Make the bounds too big, just by one.
+	testGIF[32] = 2
+	want := "gif: frame bounds larger than image bounds"
+	try(t, testGIF, want)
+
+	// Make the bounds too small; does not trigger bounds
+	// check, but now there's too much data.
+	testGIF[32] = 0
+	want = "gif: too much image data"
+	try(t, testGIF, want)
+	testGIF[32] = 1
+
+	// Make the bounds really big, expect an error.
+	want = "gif: frame bounds larger than image bounds"
+	for i := 0; i < 4; i++ {
+		testGIF[32+i] = 0xff
+	}
+	try(t, testGIF, want)
+}
