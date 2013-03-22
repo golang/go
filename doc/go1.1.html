@@ -48,7 +48,39 @@ See the <a href="#unicode">Unicode</a> section for more information.
 <h3 id="method_values">Method values</h3>
 
 <p>
-TODO
+Go 1.1 now implements
+<a href="/ref/spec#Method_values">method values</a>,
+which are functions that have been bound to a specific receiver value.
+For instance, given a
+<a href="/pkg/bufio/#Writer"><code>Writer</code></a>
+value <code>w</code>,
+the expression
+<code>w.Write</code>,
+a method value, is a function that will always write to <code>w</code>; it is equivalent to
+a function literal closing over <code>w</code>:
+</p>
+
+<pre>
+func (p []byte) (n int, err error) {
+	return w.Write(n, err)
+}
+</pre>
+
+<p>
+Method values are distinct from method expressions, which generate functions
+from methods of a given type; the method expression <code>(*bufio.Writer).Write</code>
+is equivalent to a function with an extra first argument, a receiver of type
+<code>(*bufio.Writer)</code>:
+</p>
+
+<pre>
+func (w *bufio.Writer, p []byte) (n int, err error) {
+	return w.Write(n, err)
+}
+</pre>
+
+<p>
+<em>Updating</em>: No existing code is affected; the change is strictly backward-compatible.
 </p>
 
 <h3 id="return">Return requirements</h3>
@@ -87,10 +119,6 @@ Such code can be identified by <code>go vet</code>.
 </p>
 
 <h2 id="impl">Changes to the implementations and tools</h2>
-
-<p>
-TODO: more
-</p>
 
 <h3 id="gc_flag">Command-line flag parsing</h3>
 
@@ -193,7 +221,7 @@ some editors add them as a kind of "magic number" identifying a UTF-8 encoded fi
 <em>Updating</em>:
 Most programs will be unaffected by the surrogate change.
 Programs that depend on the old behavior should be modified to avoid the issue.
-The byte-order-mark change is strictly backwards-compatible.
+The byte-order-mark change is strictly backward-compatible.
 </p>
 
 <h3 id="gc_asm">The gc assemblers</h3>
@@ -206,7 +234,9 @@ to adjust frame pointer offsets.
 </p>
 
 <p>
-TODO: Point to cmd/vet once it handles this.
+<em>Updating</em>:
+The <code>go vet</code> command now checks that functions implemented in assembly
+match the Go function prototypes they implement.
 </p>
 
 <h3 id="gocmd">Changes to the go command</h3>
@@ -251,6 +281,8 @@ warning: GOPATH set to GOROOT (/home/User/go) has no effect
 package code.google.com/p/foo/quxx: cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath
 </pre>
 
+<h3 id="gotest">Changes to the go test command</h3>
+
 <p>
 The <code>go test</code> command no longer deletes the binary when run with profiling enabled,
 to make it easier to analyze the profile.
@@ -265,7 +297,20 @@ $ go test -cpuprofile cpuprof.out mypackage
 the file <code>mypackage.test</code> will be left in the directory where <code>go test</code> was run.
 </p>
 
-<h3 id="gofix">Changes to go fix</h3>
+<p>
+The <code>go test</code> command can now generate profiling information
+that reports where goroutines are blocked, that is,
+where they tend to stall waiting for an event such as a channel communication.
+The information is presented as a
+<em>blocking profile</em>
+enabled with the
+<code>-blockprofile</code>
+option of
+<code>go test</code>.
+Run <code>go help test</code> for more information.
+</p>
+
+<h3 id="gofix">Changes to the go fix command</h3>
 
 <p>
 The <a href="/cmd/fix/"><code>fix</code></a> command, usually run as
@@ -407,14 +452,6 @@ from existing types, for example to construct a the type <code>[]T</code> given
 only <code>T</code>.
 </p>
 
-
-
-<h3 id="runtime">runtime</h3>
-
-<p>
-TODO:
-<code>runtime</code>: BlockProfile
-</p>
 
 <h3 id="time">time</h3>
 <p>
@@ -644,6 +681,18 @@ to define the boundary separator used to package the output.
 </li>
 
 <li>
+The
+<a href="/pkg/net/"><code>net</code></a> package's
+<a href="/pkg/net/ListenUnixgram/"><code>net/ListenUnixgram</code></a>
+function has changed return types: it now returns a
+<a href="/pkg/net/UnixConn/"><code>net/UnixConn</code></a>
+rather than a
+<a href="/pkg/net/UDPConn/"><code>net/UDPConn</code></a>, which was
+clearly a mistake in Go 1.0.
+Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
+</li>
+
+<li>
 The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
 </li>
 
@@ -748,6 +797,16 @@ and
 <a href="/pkg/html/template/"><code>html/template</code></a> packages,
 templates can now use parentheses to group the elements of pipelines, simplifying the construction of complex pipelines.
 TODO: Link to example.
+Also, as part of the new parser, the
+<a href="/pkg/text/template/parse/#Node"><code>Node</code></a> interface got two new methods to provide
+better error reporting.
+Although this violates the Go 1 compatibility rules,
+no existing code should be affected because this interface is explicitly intended only to be used
+by the
+<a href="/pkg/text/template/"><code>text/template</code></a>
+and
+<a href="/pkg/html/template/"><code>html/template</code></a>
+packages and there are safeguards to guarantee that.
 </li>
 
 <li>
