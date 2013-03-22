@@ -537,7 +537,9 @@ buffer."
     ;; output in case of success.
     (if (zerop (call-process "gofmt" nil errbuf nil "-w" tmpfile))
         (if (zerop (call-process-region (point-min) (point-max) "diff" nil patchbuf nil "-n" "-" tmpfile))
-            (message "Buffer is already gofmted")
+            (progn
+              (kill-buffer errbuf)
+              (message "Buffer is already gofmted"))
           (go--apply-rcs-patch patchbuf)
           (kill-buffer errbuf)
           (message "Applied gofmt"))
