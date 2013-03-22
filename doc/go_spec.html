@@ -639,8 +639,8 @@ expressions</a>.
 <p>
 A type determines the set of values and operations specific to values of that
 type.  A type may be specified by a
-(possibly <a href="#Qualified_identifiers">qualified</a>) <i>type name</i>
-(§<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
+(possibly <a href="#Qualified_identifiers">qualified</a>)
+<a href="#Type_declarations"><i>type name</i></a> or a <i>type literal</i>,
 which composes a new type from previously declared types.
 </p>
 
@@ -866,8 +866,8 @@ distinct arrays always represent distinct storage.
 The array underlying a slice may extend past the end of the slice.
 The <i>capacity</i> is a measure of that extent: it is the sum of
 the length of the slice and the length of the array beyond the slice;
-a slice of length up to that capacity can be created by `slicing' a new
-one from the original slice (§<a href="#Slices">Slices</a>).
+a slice of length up to that capacity can be created by
+<a href="#Slices"><i>slicing</i></a> a new one from the original slice.
 The capacity of a slice <code>a</code> can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>cap(a)</code></a>.
 </p>
@@ -1236,8 +1236,8 @@ KeyType     = Type .
 </pre>
 
 <p>
-The comparison operators <code>==</code> and <code>!=</code>
-(§<a href="#Comparison_operators">Comparison operators</a>) must be fully defined
+The <a href="#Comparison_operators">comparison operators</a>
+<code>==</code> and <code>!=</code> must be fully defined
 for operands of the key type; thus the key type must not be a function, map, or
 slice.
 If the key type is an interface type, these
@@ -1571,8 +1571,9 @@ declarations.
 
 <p>
 Labels are declared by <a href="#Labeled_statements">labeled statements</a> and are
-used in the <code>break</code>, <code>continue</code>, and <code>goto</code>
-statements (§<a href="#Break_statements">Break statements</a>, §<a href="#Continue_statements">Continue statements</a>, §<a href="#Goto_statements">Goto statements</a>).
+used in the <a href="#Break_statements">"break"</a>,
+<a href="#Continue_statements">"continue"</a>, and
+<a href="#Goto_statements">"goto"</a> statements.
 It is illegal to define a label that is never used.
 In contrast to other identifiers, labels are not block scoped and do
 not conflict with identifiers that are not labels. The scope of a label
@@ -1872,7 +1873,7 @@ var _, found = entries[name]  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-by assigning the expressions to the variables (§<a href="#Assignments">Assignments</a>)
+by <a href="#Assignments">assigning</a> the expressions to the variables
 in order; all expressions must be consumed and all variables initialized from them.
 Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
@@ -1939,9 +1940,11 @@ a, a := 1, 2                              // illegal: double declaration of a or
 
 <p>
 Short variable declarations may appear only inside functions.
-In some contexts such as the initializers for <code>if</code>,
-<code>for</code>, or <code>switch</code> statements,
-they can be used to declare local temporary variables (§<a href="#Statements">Statements</a>).
+In some contexts such as the initializers for
+<a href="#If_statements">"if"</a>,
+<a href="#For_statements">"for"</a>, or
+<a href="#Switch_statements">"switch"</a> statements,
+they can be used to declare local temporary variables.
 </p>
 
 <h3 id="Function_declarations">Function declarations</h3>
@@ -2207,7 +2210,7 @@ For array and slice literals the following rules apply:
 </ul>
 
 <p>
-Taking the address of a composite literal (§<a href="#Address_operators">Address operators</a>)
+<a href="#Address_operators">Taking the address</a> of a composite literal
 generates a pointer to a unique instance of the literal's value.
 </p>
 <pre>
@@ -3109,8 +3112,8 @@ occurs is implementation-specific.
 For unsigned integer values, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are
 computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
-the unsigned integer's type
-(§<a href="#Numeric_types">Numeric types</a>). Loosely speaking, these unsigned integer operations
+the <a href="#Numeric_types">unsigned integer</a>'s type.
+Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on ``wrap around''.
 </p>
 <p>
@@ -3187,8 +3190,8 @@ These terms and the result of the comparisons are defined as follows:
 
 	<li>
 	Channel values are comparable.
-	Two channel values are equal if they were created by the same call to <code>make</code>
-	(§<a href="#Making_slices_maps_and_channels">Making slices, maps, and channels</a>)
+	Two channel values are equal if they were created by the same call to
+	<a href="#Making_slices_maps_and_channels"><code>make</code></a>
 	or if both have value <code>nil</code>.
 	</li>
 
@@ -3617,8 +3620,8 @@ type <code>T</code> in any of these cases:
 	<li>
 	<code>x</code> is an integer constant and <code>T</code> is a
 	<a href="#String_types">string type</a>.
-	The same rule as for non-constant <code>x</code> applies in this case
-	(§<a href="#Conversions_to_and_from_a_string_type">Conversions to and from a string type</a>).
+	The <a href="#Conversions_to_and_from_a_string_type">same rule</a>
+	as for non-constant <code>x</code> applies in this case.
 	</li>
 </ul>
 
@@ -3816,8 +3819,8 @@ A constant <a href="#Comparison_operators">comparison</a> always yields
 an untyped boolean constant.  If the left operand of a constant
 <a href="#Operators">shift expression</a> is an untyped constant, the
 result is an integer constant; otherwise it is a constant of the same
-type as the left operand, which must be of integer type
-(§<a href="#Arithmetic_operators">Arithmetic operators</a>).
+type as the left operand, which must be of
+<a href="#Numeric_types">integer type</a>.
 Applying all other operators to untyped constants results in an untyped
 constant of the same kind (that is, a boolean, integer, floating-point,
 complex, or string constant).
@@ -4440,8 +4443,7 @@ in the TypeSwitchGuard.
 </p>
 
 <p>
-The type in a case may be <code>nil</code>
-(§<a href="#Predeclared_identifiers">Predeclared identifiers</a>);
+The type in a case may be <a href="#Predeclared_identifiers"><code>nil</code></a>;
 that case is used when the expression in the TypeSwitchGuard
 is a <code>nil</code> interface value.
 </p>
@@ -4593,8 +4595,8 @@ the range clause is equivalent to the same clause with only the first variable p
 The range expression is evaluated once before beginning the loop,
 with one exception. If the range expression is an array or a pointer to an array
 and only the first iteration value is present, only the range expression's
-length is evaluated; if that length is constant by definition
-(see §<a href="#Length_and_capacity">Length and capacity</a>),
+length is evaluated; if that length is constant
+<a href="#Length_and_capacity">by definition</a>,
 the range expression itself will not be evaluated.
 </p>
 
@@ -4872,7 +4874,7 @@ func complexF2() (re float64, im float64) {
 </pre>
 	</li>
 	<li>The expression list may be empty if the function's result
-		type specifies names for its result parameters (§<a href="#Function_types">Function types</a>).
+		type specifies names for its <a href="#Function_types">result parameters</a>.
 		The result parameters act as ordinary local variables
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
@@ -4892,8 +4894,8 @@ func (devnull) Write(p []byte) (n int, _ error) {
 </ol>
 
 <p>
-Regardless of how they are declared, all the result values are initialized to the zero
-values for their type (§<a href="#The_zero_value">The zero value</a>) upon entry to the
+Regardless of how they are declared, all the result values are initialized to
+the <a href="#The_zero_value">zero values</a> for their type upon entry to the
 function. A "return" statement that specifies results sets the result parameters before
 any deferred functions are executed.
 </p>
@@ -4910,7 +4912,9 @@ TODO: Define when return is required.<br />
 
 <p>
 A "break" statement terminates execution of the innermost
-"for", "switch" or "select" statement.
+<a href="#For_statements">"for"</a>,
+<a href="#Switch_statements">"switch"</a>, or
+<a href="#Select_statements">"select"</a> statement.
 </p>
 
 <pre class="ebnf">
@@ -4919,10 +4923,8 @@ BreakStmt = "break" [ Label ] .
 
 <p>
 If there is a label, it must be that of an enclosing
-"for", "switch" or "select" statement, and that is the one whose execution
-terminates
-(§<a href="#For_statements">For statements</a>, §<a href="#Switch_statements">Switch statements</a>,
-§<a href="#Select_statements">Select statements</a>).
+"for", "switch", or "select" statement,
+and that is the one whose execution terminates.
 </p>
 
 <pre>
@@ -4939,7 +4941,7 @@ L:
 
 <p>
 A "continue" statement begins the next iteration of the
-innermost "for" loop at its post statement (§<a href="#For_statements">For statements</a>).
+innermost <a href="#For_statements">"for" loop</a> at its post statement.
 </p>
 
 <pre class="ebnf">
@@ -4949,8 +4951,7 @@ ContinueStmt = "continue" [ Label ] .
 <p>
 If there is a label, it must be that of an enclosing
 "for" statement, and that is the one whose execution
-advances
-(§<a href="#For_statements">For statements</a>).
+advances.
 </p>
 
 <h3 id="Goto_statements">Goto statements</h3>
@@ -5169,8 +5170,8 @@ constant and <code>s</code> is evaluated.
 <p>
 The built-in function <code>new</code> takes a type <code>T</code> and
 returns a value of type <code>*T</code>.
-The memory is initialized as described in the section on initial values
-(§<a href="#The_zero_value">The zero value</a>).
+The memory is initialized as described in the section on
+<a href="#The_zero_value">initial values</a>.
 </p>
 
 <pre class="grammar">
@@ -5202,8 +5203,8 @@ The built-in function <code>make</code> takes a type <code>T</code>,
 which must be a slice, map or channel type,
 optionally followed by a type-specific list of expressions.
 It returns a value of type <code>T</code> (not <code>*T</code>).
-The memory is initialized as described in the section on initial values
-(§<a href="#The_zero_value">The zero value</a>).
+The memory is initialized as described in the section on
+<a href="#The_zero_value">initial values</a>.
 </p>
 
 <pre class="grammar">
@@ -5912,7 +5913,7 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 
 <p>
-For the numeric types (§<a href="#Numeric_types">Numeric types</a>), the following sizes are guaranteed:
+For the <a href="#Numeric_types">numeric types</a>, the following sizes are guaranteed:
 </p>
 
 <pre class="grammar">
