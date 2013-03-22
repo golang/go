@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 20, 2013",
+	"Subtitle": "Version of March 22, 2013",
 	"Path": "/ref/spec"
 }-->
 
@@ -1963,6 +1963,17 @@ If the function's <a href="#Function_types">signature</a> declares
 result parameters, the function body's statement list must end in
 a <a href="#Terminating_statements">terminating statement</a>.
 </p>
+
+<pre>
+func findMarker(c <-chan int) int {
+	for i := range c {
+		if x := <-c; isMarker(x) {
+			return x
+		}
+	}
+	// invalid: missing return statement.
+}
+</pre>
 
 <p>
 A function declaration may omit the body. Such a declaration provides the
