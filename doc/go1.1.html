@@ -54,7 +54,36 @@ TODO
 <h3 id="return">Return requirements</h3>
 
 <p>
-TODO
+Before Go 1.1, a function that returned a value needed an explicit "return" 
+or call to <code>panic</code> at
+the end of the function; this was a simple way to make the programmer
+be explicit about the meaning of the function. But there are many cases
+where a final "return" is clearly unnecessary, such as a function with
+only an infinite "for" loop.
+</p>
+
+<p>
+In Go 1.1, the rule about final "return" statements is more permissive.
+It introduces the concept of a
+<a href="/ref/spec/#Terminating_statements"><em>terminating statement</em></a>,
+a statement that is guaranteed to be the last one a function executes.
+Examples include 
+"for" loops with no condition and "if-else"
+statements in which each half ends in a "return".
+If the final statement of a function can be shown <em>syntactically</em> to
+be a terminating statement, no final "return" statement is needed.
+</p>
+
+<p>
+Note that the rule is purely syntactic: it pays no attention to the values in the
+code and therefore requires no complex analysis.
+</p>
+
+<p>
+<em>Updating</em>: The change is backward-compatible, but existing code
+with superfluous "return" statements and calls to <code>panic</code> may
+be simplified manually.
+Such code can be identified by <code>go vet</code>.
 </p>
 
 <h2 id="impl">Changes to the implementations and tools</h2>
@@ -338,7 +367,7 @@ The <a href="/pkg/reflect/"><code>reflect</code></a> package has several signifi
 </p>
 
 <p>
-It is now possible to run a <code>select</code> statement using
+It is now possible to run a "select" statement using
 the <code>reflect</code> package; see the description of
 <a href="/pkg/reflect/#Select"><code>Select</code></a>
 and
