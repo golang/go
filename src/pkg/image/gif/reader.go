@@ -17,6 +17,11 @@ import (
 	"io"
 )
 
+var (
+	errNotEnough = errors.New("gif: not enough image data")
+	errTooMuch   = errors.New("gif: too much image data")
+)
+
 // If the io.Reader does not also have ReadByte, then decode will introduce its own buffering.
 type reader interface {
 	io.Reader
@@ -89,29 +94,35 @@ type decoder struct {
 // comprises (n, (n bytes)) blocks, with 1 <= n <= 255.  It is the
 // reader given to the LZW decoder, which is thus immune to the
 // blocking.  After the LZW decoder completes, there will be a 0-byte
-// block remaining (0, ()), but under normal execution blockReader
-// doesn't consume it, so it is handled in decode.
+// block remaining (0, ()), which is consumed when checking that the
+// blockReader is exhausted.
 type blockReader struct {
 	r     reader
 	slice []byte
+	err   error
 	tmp   [256]byte
 }
 
 func (b *blockReader) Read(p []byte) (int, error) {
+	if b.err != nil {
+		return 0, b.err
+	}
 	if len(p) == 0 {
 		return 0, nil
 	}
 	if len(b.slice) == 0 {
-		blockLen, err := b.r.ReadByte()
-		if err != nil {
-			return 0, err
+		var blockLen uint8
+		blockLen, b.err = b.r.ReadByte()
+		if b.err != nil {
+			return 0, b.err
 		}
 		if blockLen == 0 {
-			return 0, io.EOF
+			b.err = io.EOF
+			return 0, b.err
 		}
 		b.slice = b.tmp[0:blockLen]
-		if _, err = io.ReadFull(b.r, b.slice); err != nil {
-			return 0, err
+		if _, b.err = io.ReadFull(b.r, b.slice); b.err != nil {
+			return 0, b.err
 		}
 	}
 	n := copy(p, b.slice)
@@ -142,35 +153,33 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 		}
 	}
 
-Loop:
-	for err == nil {
-		var c byte
-		c, err = d.r.ReadByte()
-		if err == io.EOF {
-			break
+	for {
+		c, err := d.r.ReadByte()
+		if err != nil {
+			return err
 		}
 		switch c {
 		case sExtension:
-			err = d.readExtension()
+			if err = d.readExtension(); err != nil {
+				return err
+			}
 
 		case sImageDescriptor:
-			var m *image.Paletted
-			m, err = d.newImageFromDescriptor()
+			m, err := d.newImageFromDescriptor()
 			if err != nil {
-				break
+				return err
 			}
 			if d.imageFields&fColorMapFollows != 0 {
 				m.Palette, err = d.readColorMap()
 				if err != nil {
-					break
+					return err
 				}
 				// TODO: do we set transparency in this map too? That would be
 				// d.setTransparency(m.Palette)
 			} else {
 				m.Palette = d.globalColorMap
 			}
-			var litWidth uint8
-			litWidth, err = d.r.ReadByte()
+			litWidth, err := d.r.ReadByte()
 			if err != nil {
 				return err
 			}
@@ -178,18 +187,27 @@ Loop:
 				return fmt.Errorf("gif: pixel size in decode out of range: %d", litWidth)
 			}
 			// A wonderfully Go-like piece of magic.
-			lzwr := lzw.NewReader(&blockReader{r: d.r}, lzw.LSB, int(litWidth))
+			br := &blockReader{r: d.r}
+			lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
 			if _, err = io.ReadFull(lzwr, m.Pix); err != nil {
-				break
+				if err != io.ErrUnexpectedEOF {
+					return err
+				}
+				return errNotEnough
 			}
-
-			// There should be a "0" block remaining; drain that.
-			c, err = d.r.ReadByte()
-			if err != nil {
-				return err
+			// Both lzwr and br should be exhausted. Reading from them
+			// should yield (0, io.EOF).
+			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || err != io.EOF {
+				if err != nil {
+					return err
+				}
+				return errTooMuch
 			}
-			if c != 0 {
-				return errors.New("gif: extra data after image")
+			if n, err := br.Read(d.tmp[:1]); n != 0 || err != io.EOF {
+				if err != nil {
+					return err
+				}
+				return errTooMuch
 			}
 
 			// Undo the interlacing if necessary.
@@ -202,19 +220,15 @@ Loop:
 			d.delayTime = 0 // TODO: is this correct, or should we hold on to the value?
 
 		case sTrailer:
-			break Loop
+			if len(d.image) == 0 {
+				return io.ErrUnexpectedEOF
+			}
+			return nil
 
 		default:
-			err = fmt.Errorf("gif: unknown block type: 0x%.2x", c)
+			return fmt.Errorf("gif: unknown block type: 0x%.2x", c)
 		}
 	}
-	if err != nil {
-		return err
-	}
-	if len(d.image) == 0 {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 
 func (d *decoder) readHeaderAndScreenDescriptor() error {
