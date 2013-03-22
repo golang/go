@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <sys/types.h>
+#include <machine/sysarch.h>
 #include <pthread.h>
 #include <string.h>
 #include "libcgo.h"
@@ -22,10 +24,20 @@ void x_cgo_load_gm(void) __attribute__((naked));
 void
 __aeabi_read_tp(void)
 {
-	// read @ 0xffff1000
 	__asm__ __volatile__ (
+#ifdef ARM_TP_ADDRESS
+		// ARM_TP_ADDRESS is (ARM_VECTORS_HIGH + 0x1000) or 0xffff1000
+		// GCC inline asm doesn't provide a way to provide a constant
+		// to "ldr r0, =??" pseudo instruction, so we hardcode the value
+		// and check it with cpp.
+#if ARM_TP_ADDRESS != 0xffff1000
+#error Wrong ARM_TP_ADDRESS!
+#endif
 		"ldr r0, =0xffff1000\n\t"
 		"ldr r0, [r0]\n\t"
+#else
+		"mrc p15, 0, r0, c13, c0, 3\n\t"
+#endif
 		"mov pc, lr\n\t"
 	);
 }
