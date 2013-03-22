@@ -718,7 +718,7 @@ func (f *File) gnuVersionInit(str []byte) {
 // which came from offset i of the symbol table.
 func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
 	// Each entry is two bytes.
-	i = i * 2
+	i = (i + 1) * 2
 	if i >= len(f.gnuVersym) {
 		return
 	}
