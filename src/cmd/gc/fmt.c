@@ -168,7 +168,7 @@ Lconv(Fmt *fp)
 		lno = a[i].incl->line - 1;	// now print out start of this file
 	}
 	if(n == 0)
-		fmtprint(fp, "<epoch>");
+		fmtprint(fp, "<unknown line number>");
 
 	return 0;
 }
