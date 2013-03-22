@@ -384,9 +384,9 @@ that the only valid networks for
 are <code>"tcp"</code>,
 <code>"tcp4"</code>, and <code>"tcp6"</code>, the Go 1.0 implementation silently accepted any string.
 The Go 1.1 implementation returns an error if the network is not one of those strings.
-The same is true of the other protocol-specific resolvers <a href="/pkg/ResolveIPAddr/"><code>ResolveIPAddr</code></a>,
-<a href="/pkg/ResolveUDPAddr/"><code>ResolveUDPAddr</code></a>, and
-<a href="/pkg/ResolveUnixAddr/"><code>ResolveUnixAddr</code></a>.
+The same is true of the other protocol-specific resolvers <a href="/pkg/net/#ResolveIPAddr"><code>ResolveIPAddr</code></a>,
+<a href="/pkg/net/#ResolveUDPAddr"><code>ResolveUDPAddr</code></a>, and
+<a href="/pkg/net/#ResolveUnixAddr"><code>ResolveUnixAddr</code></a>.
 </p>
 
 <p>
@@ -396,7 +396,7 @@ returned a
 <a href="/pkg/net/#UDPConn"><code>UDPConn</code></a> as
 a representation of the connection endpoint.
 The Go 1.1 implementation instead returns a
-<a href="/pkg/UnixConn/"><code>UnixConn</code></a>
+<a href="/pkg/net/#UnixConn"><code>UnixConn</code></a>
 to allow reading and writing
 with its
 <a href="/pkg/net/#UnixConn.ReadFrom"><code>ReadFrom</code></a>
@@ -683,11 +683,11 @@ to define the boundary separator used to package the output.
 <li>
 The
 <a href="/pkg/net/"><code>net</code></a> package's
-<a href="/pkg/net/ListenUnixgram/"><code>net/ListenUnixgram</code></a>
+<a href="/pkg/net/#ListenUnixgram"><code>net/ListenUnixgram</code></a>
 function has changed return types: it now returns a
-<a href="/pkg/net/UnixConn/"><code>net/UnixConn</code></a>
+<a href="/pkg/net/#UnixConn"><code>net/UnixConn</code></a>
 rather than a
-<a href="/pkg/net/UDPConn/"><code>net/UDPConn</code></a>, which was
+<a href="/pkg/net/#UDPConn"><code>net/UDPConn</code></a>, which was
 clearly a mistake in Go 1.0.
 Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
 </li>
