@@ -28,16 +28,17 @@ var exitCode = 0
 // Flags to control which checks to perform. "all" is set to true here, and disabled later if
 // a flag is set explicitly.
 var report = map[string]*bool{
-	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
-	"asmdecl":    flag.Bool("asmdecl", false, "check assembly against Go declarations"),
-	"assign":     flag.Bool("assign", false, "check for useless assignments"),
-	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
-	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
-	"composites": flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
-	"methods":    flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
-	"printf":     flag.Bool("printf", false, "check printf-like invocations"),
-	"structtags": flag.Bool("structtags", false, "check that struct field tags have canonical format"),
-	"rangeloops": flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
+	"all":         flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+	"asmdecl":     flag.Bool("asmdecl", false, "check assembly against Go declarations"),
+	"assign":      flag.Bool("assign", false, "check for useless assignments"),
+	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
+	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
+	"composites":  flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
+	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
+	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
+	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
+	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
+	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
 }
 
 // vet tells whether to report errors for the named check, a flag name.
@@ -336,7 +337,9 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	case *ast.Field:
 		f.walkFieldTag(n)
 	case *ast.FuncDecl:
-		f.walkMethodDecl(n)
+		f.walkFuncDecl(n)
+	case *ast.FuncLit:
+		f.walkFuncLit(n)
 	case *ast.InterfaceType:
 		f.walkInterfaceType(n)
 	case *ast.RangeStmt:
@@ -379,18 +382,22 @@ func (f *File) walkFieldTag(field *ast.Field) {
 	f.checkCanonicalFieldTag(field)
 }
 
-// walkMethodDecl walks the method's signature.
+// walkMethod walks the method's signature.
 func (f *File) walkMethod(id *ast.Ident, t *ast.FuncType) {
 	f.checkCanonicalMethod(id, t)
 }
 
-// walkMethodDecl walks the method signature in the declaration.
-func (f *File) walkMethodDecl(d *ast.FuncDecl) {
-	if d.Recv == nil {
-		// not a method
-		return
+// walkFuncDecl walks a function declaration.
+func (f *File) walkFuncDecl(d *ast.FuncDecl) {
+	f.checkUnreachable(d.Body)
+	if d.Recv != nil {
+		f.walkMethod(d.Name, d.Type)
 	}
-	f.walkMethod(d.Name, d.Type)
+}
+
+// walkFuncLit walks a function literal.
+func (f *File) walkFuncLit(x *ast.FuncLit) {
+	f.checkUnreachable(x.Body)
 }
 
 // walkInterfaceType walks the method signatures of an interface.
