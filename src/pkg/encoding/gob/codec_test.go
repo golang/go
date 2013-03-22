@@ -1191,10 +1191,8 @@ func TestInterface(t *testing.T) {
 			if v1 != nil || v2 != nil {
 				t.Errorf("item %d inconsistent nils", i)
 			}
-			continue
-			if v1.Square() != v2.Square() {
-				t.Errorf("item %d inconsistent values: %v %v", i, v1, v2)
-			}
+		} else if v1.Square() != v2.Square() {
+			t.Errorf("item %d inconsistent values: %v %v", i, v1, v2)
 		}
 	}
 }
