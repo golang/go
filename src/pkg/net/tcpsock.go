@@ -20,14 +20,18 @@ func (a *TCPAddr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
+	if a.Zone != "" {
+		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
+	}
 	return JoinHostPort(a.IP.String(), itoa(a.Port))
 }
 
-// ResolveTCPAddr parses addr as a TCP address of the form
-// host:port and resolves domain names or port names to
-// numeric addresses on the network net, which must be "tcp",
-// "tcp4" or "tcp6".  A literal IPv6 host address must be
-// enclosed in square brackets, as in "[::]:80".
+// ResolveTCPAddr parses addr as a TCP address of the form "host:port"
+// or "[ipv6-host%zone]:port" and resolves a pair of domain name and
+// port name on the network net, which must be "tcp", "tcp4" or
+// "tcp6".  A literal address or host name for IPv6 must be enclosed
+// in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
+// "[ipv6-host%zone]:80".
 func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
