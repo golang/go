@@ -95,7 +95,7 @@
         <HlCHex attribute="Hex" context="#stay"/>
         <HlCChar attribute="Char" context="#stay"/>
         <DetectChar attribute="String" context="String" char="&quot;"/>
-        <DetectChar attribute="Multiline String" context="Multiline String" char="`"/>
+        <DetectChar attribute="String" context="Multiline String" char="`"/>
         <Detect2Chars attribute="Comment" context="Comment 1" char="/" char1="/"/>
         <Detect2Chars attribute="Comment" context="Comment 2" char="/" char1="*" beginRegion="Comment"/>
         <AnyChar attribute="Symbol" context="#stay" String=":!%&amp;()+,-/.*&lt;=&gt;?[]|~^&#59;"/>
