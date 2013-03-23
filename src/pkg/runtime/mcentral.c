@@ -19,7 +19,6 @@
 #include "malloc.h"
 
 static bool MCentral_Grow(MCentral *c);
-static void* MCentral_Alloc(MCentral *c);
 static void MCentral_Free(MCentral *c, void *v);
 
 // Initialize a single central free list.
