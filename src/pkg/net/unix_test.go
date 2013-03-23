@@ -33,7 +33,6 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 
 	off := make(chan bool)
 	data := [5]byte{1, 2, 3, 4, 5}
-
 	go func() {
 		defer func() { off <- true }()
 		s, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
@@ -54,15 +53,13 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	n, from, err := c.ReadFrom(b)
 	if err != nil {
-		t.Errorf("UnixConn.ReadFrom failed: %v", err)
-		return
+		t.Fatalf("UnixConn.ReadFrom failed: %v", err)
 	}
 	if from != nil {
-		t.Errorf("neighbor address is %v", from)
+		t.Fatalf("neighbor address is %v", from)
 	}
 	if !bytes.Equal(b[:n], data[:]) {
-		t.Errorf("got %v, want %v", b[:n], data[:])
-		return
+		t.Fatalf("got %v, want %v", b[:n], data[:])
 	}
 }
 
@@ -101,13 +98,12 @@ func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
 
 	<-off
 	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	var peer Addr
-	if _, peer, err = c.ReadFrom(nil); err != nil {
-		t.Errorf("UnixConn.ReadFrom failed: %v", err)
-		return
+	_, from, err := c.ReadFrom(nil)
+	if err != nil {
+		t.Fatalf("UnixConn.ReadFrom failed: %v", err)
 	}
-	if peer != nil {
-		t.Errorf("peer adddress is %v", peer)
+	if from != nil {
+		t.Fatalf("neighbor address is %v", from)
 	}
 }
 
@@ -126,10 +122,10 @@ func TestUnixAutobind(t *testing.T) {
 	// retrieve the autobind address
 	autoAddr := c1.LocalAddr().(*UnixAddr)
 	if len(autoAddr.Name) <= 1 {
-		t.Fatalf("Invalid autobind address: %v", autoAddr)
+		t.Fatalf("invalid autobind address: %v", autoAddr)
 	}
 	if autoAddr.Name[0] != '@' {
-		t.Fatalf("Invalid autobind address: %v", autoAddr)
+		t.Fatalf("invalid autobind address: %v", autoAddr)
 	}
 
 	c2, err := DialUnix("unixgram", nil, autoAddr)
@@ -139,6 +135,112 @@ func TestUnixAutobind(t *testing.T) {
 	defer c2.Close()
 
 	if !reflect.DeepEqual(c1.LocalAddr(), c2.RemoteAddr()) {
-		t.Fatalf("Expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
+		t.Fatalf("expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
+	}
+}
+
+func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+	for _, laddr := range []string{"", testUnixAddr()} {
+		taddr := testUnixAddr()
+		ta, err := ResolveUnixAddr("unix", taddr)
+		if err != nil {
+			t.Fatalf("ResolveUnixAddr failed: %v", err)
+		}
+		ln, err := ListenUnix("unix", ta)
+		if err != nil {
+			t.Fatalf("ListenUnix failed: %v", err)
+		}
+		defer func() {
+			ln.Close()
+			os.Remove(taddr)
+		}()
+
+		done := make(chan int)
+		go transponder(t, ln, done)
+
+		la, err := ResolveUnixAddr("unix", laddr)
+		if err != nil {
+			t.Fatalf("ResolveUnixAddr failed: %v", err)
+		}
+		c, err := DialUnix("unix", la, ta)
+		if err != nil {
+			t.Fatalf("DialUnix failed: %v", err)
+		}
+		defer func() {
+			c.Close()
+			if la != nil {
+				defer os.Remove(laddr)
+			}
+		}()
+		if _, err := c.Write([]byte("UNIXCONN LOCAL AND REMOTE NAME TEST")); err != nil {
+			t.Fatalf("UnixConn.Write failed: %v", err)
+		}
+
+		if runtime.GOOS == "linux" && laddr == "" {
+			laddr = "@" // autobind feature
+		}
+		var connAddrs = [3]struct{ got, want Addr }{
+			{ln.Addr(), ta},
+			{c.LocalAddr(), &UnixAddr{Name: laddr, Net: "unix"}},
+			{c.RemoteAddr(), ta},
+		}
+		for _, ca := range connAddrs {
+			if !reflect.DeepEqual(ca.got, ca.want) {
+				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
+			}
+		}
+
+		<-done
+	}
+}
+
+func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+	for _, laddr := range []string{"", testUnixAddr()} {
+		taddr := testUnixAddr()
+		ta, err := ResolveUnixAddr("unixgram", taddr)
+		if err != nil {
+			t.Fatalf("ResolveUnixAddr failed: %v", err)
+		}
+		c1, err := ListenUnixgram("unixgram", ta)
+		if err != nil {
+			t.Fatalf("ListenUnixgram failed: %v", err)
+		}
+		defer func() {
+			c1.Close()
+			os.Remove(taddr)
+		}()
+
+		var la *UnixAddr
+		if laddr != "" {
+			var err error
+			if la, err = ResolveUnixAddr("unixgram", laddr); err != nil {
+				t.Fatalf("ResolveUnixAddr failed: %v", err)
+			}
+		}
+		c2, err := DialUnix("unixgram", la, ta)
+		if err != nil {
+			t.Fatalf("DialUnix failed: %v", err)
+		}
+		defer func() {
+			c2.Close()
+			if la != nil {
+				defer os.Remove(laddr)
+			}
+		}()
+
+		if runtime.GOOS == "linux" && laddr == "" {
+			laddr = "@" // autobind feature
+		}
+		var connAddrs = [4]struct{ got, want Addr }{
+			{c1.LocalAddr(), ta},
+			{c1.RemoteAddr(), nil},
+			{c2.LocalAddr(), &UnixAddr{Name: laddr, Net: "unixgram"}},
+			{c2.RemoteAddr(), ta},
+		}
+		for _, ca := range connAddrs {
+			if !reflect.DeepEqual(ca.got, ca.want) {
+				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
+			}
+		}
 	}
 }

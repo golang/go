@@ -159,14 +159,50 @@ func TestUDPConnLocalName(t *testing.T) {
 	for _, tt := range udpConnLocalNameTests {
 		c, err := ListenUDP(tt.net, tt.laddr)
 		if err != nil {
-			t.Errorf("ListenUDP failed: %v", err)
-			return
+			t.Fatalf("ListenUDP failed: %v", err)
 		}
 		defer c.Close()
 		la := c.LocalAddr()
 		if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
-			t.Errorf("got %v; expected a proper address with non-zero port number", la)
-			return
+			t.Fatalf("got %v; expected a proper address with non-zero port number", la)
+		}
+	}
+}
+
+func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+	for _, laddr := range []string{"", "127.0.0.1:0"} {
+		c1, err := ListenPacket("udp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("ListenUDP failed: %v", err)
+		}
+		defer c1.Close()
+
+		var la *UDPAddr
+		if laddr != "" {
+			var err error
+			if la, err = ResolveUDPAddr("udp", laddr); err != nil {
+				t.Fatalf("ResolveUDPAddr failed: %v", err)
+			}
+		}
+		c2, err := DialUDP("udp", la, c1.LocalAddr().(*UDPAddr))
+		if err != nil {
+			t.Fatalf("DialUDP failed: %v", err)
+		}
+		defer c2.Close()
+
+		var connAddrs = [4]struct {
+			got Addr
+			ok  bool
+		}{
+			{c1.LocalAddr(), true},
+			{c1.(*UDPConn).RemoteAddr(), false},
+			{c2.LocalAddr(), true},
+			{c2.RemoteAddr(), true},
+		}
+		for _, ca := range connAddrs {
+			if a, ok := ca.got.(*UDPAddr); ok != ca.ok || ok && a.Port == 0 {
+				t.Fatalf("got %v; expected a proper address with non-zero port number", ca.got)
+			}
 		}
 	}
 }
