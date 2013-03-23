@@ -225,8 +225,8 @@ runtime·sigpanic(void)
 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
 			if(g->sigpc == 0)
 				runtime·panicstring("call of nil func value");
-			}
 			runtime·panicstring("invalid memory address or nil pointer dereference");
+		}
 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
 		runtime·throw("fault");
 	case SIGSEGV:
