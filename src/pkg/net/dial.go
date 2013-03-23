@@ -169,22 +169,27 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
 // "unixpacket".
 //
 // For TCP and UDP networks, addresses have the form host:port.
-// If host is a literal IPv6 address, it must be enclosed
-// in square brackets.  The functions JoinHostPort and SplitHostPort
-// manipulate addresses in this form.
+// If host is a literal IPv6 address or host name, it must be enclosed
+// in square brackets as in "[::1]:80", "[ipv6-host]:http" or
+// "[ipv6-host%zone]:80".
+// The functions JoinHostPort and SplitHostPort manipulate addresses
+// in this form.
 //
 // Examples:
 //	Dial("tcp", "12.34.56.78:80")
-//	Dial("tcp", "google.com:80")
-//	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
+//	Dial("tcp", "google.com:http")
+//	Dial("tcp", "[2001:db8::1]:http")
+//	Dial("tcp", "[fe80::1%lo0]:80")
 //
-// For IP networks, net must be "ip", "ip4" or "ip6" followed
-// by a colon and a protocol number or name.
+// For IP networks, the net must be "ip", "ip4" or "ip6" followed by a
+// colon and a protocol number or name and the addr must be a literal
+// IP address.
 //
 // Examples:
 //	Dial("ip4:1", "127.0.0.1")
 //	Dial("ip6:ospf", "::1")
 //
+// For Unix networks, the addr must be a file system path.
 func Dial(net, addr string) (Conn, error) {
 	return DialOpt(addr, dialNetwork(net))
 }
@@ -290,8 +295,9 @@ func (a stringAddr) Network() string { return a.net }
 func (a stringAddr) String() string  { return a.addr }
 
 // Listen announces on the local network address laddr.
-// The network string net must be a stream-oriented network:
-// "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
+// The network net must be a stream-oriented network: "tcp", "tcp4",
+// "tcp6", "unix" or "unixpacket".
+// See Dial for the syntax of laddr.
 func Listen(net, laddr string) (Listener, error) {
 	la, err := resolveAddr("listen", net, laddr, noDeadline)
 	if err != nil {
@@ -307,8 +313,9 @@ func Listen(net, laddr string) (Listener, error) {
 }
 
 // ListenPacket announces on the local network address laddr.
-// The network string net must be a packet-oriented network:
-// "udp", "udp4", "udp6", "ip", "ip4", "ip6" or "unixgram".
+// The network net must be a packet-oriented network: "udp", "udp4",
+// "udp6", "ip", "ip4", "ip6" or "unixgram".
+// See Dial for the syntax of laddr.
 func ListenPacket(net, laddr string) (PacketConn, error) {
 	la, err := resolveAddr("listen", net, laddr, noDeadline)
 	if err != nil {

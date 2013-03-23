@@ -5,6 +5,7 @@
 package net
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"testing"
@@ -158,6 +159,11 @@ var resolveTCPAddrTests = []struct {
 	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
 	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
 
+	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+	{"tcp6", "[fe80::1]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
+	{"tcp6", "[fe80::1]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
+
 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
 
@@ -166,6 +172,24 @@ var resolveTCPAddrTests = []struct {
 
 func TestResolveTCPAddr(t *testing.T) {
 	for _, tt := range resolveTCPAddrTests {
+		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
+			ifi := loopbackInterface()
+			if ifi == nil {
+				continue
+			}
+			i := last(tt.litAddr, ']')
+			if i > 0 {
+				switch tt.addr.Zone {
+				case "name":
+					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
+					tt.addr.Zone = zoneToString(ifi.Index)
+				case "index":
+					index := fmt.Sprintf("%v", ifi.Index)
+					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
+					tt.addr.Zone = index
+				}
+			}
+		}
 		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
 		if err != tt.err {
 			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
@@ -202,5 +226,81 @@ func TestTCPListenerName(t *testing.T) {
 			t.Errorf("got %v; expected a proper address with non-zero port number", la)
 			return
 		}
+	}
+}
+
+func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("skipping test to avoid external network")
+	}
+	if !supportsIPv6 {
+		t.Skip("ipv6 is not supported")
+	}
+	ifi := loopbackInterface()
+	if ifi == nil {
+		t.Skip("loopback interface not found")
+	}
+	laddr := ipv6LinkLocalUnicastAddr(ifi)
+	if laddr == "" {
+		t.Skip("ipv6 unicast address on loopback not found")
+	}
+
+	type test struct {
+		net, addr  string
+		nameLookup bool
+	}
+	var tests = []test{
+		{"tcp", "[" + laddr + "%" + ifi.Name + "]:0", false},
+		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+	}
+	switch runtime.GOOS {
+	case "darwin", "freebsd", "opensbd", "netbsd":
+		tests = append(tests, []test{
+			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
+		}...)
+	case "linux":
+		tests = append(tests, []test{
+			{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
+			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+		}...)
+	}
+	for _, tt := range tests {
+		ln, err := Listen(tt.net, tt.addr)
+		if err != nil {
+			// It might return "LookupHost returned no
+			// suitable address" error on some platforms.
+			t.Logf("Listen failed: %v", err)
+			continue
+		}
+		defer ln.Close()
+		if la, ok := ln.Addr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+			t.Fatalf("got %v; expected a proper address with zone identifier", la)
+		}
+
+		done := make(chan int)
+		go transponder(t, ln, done)
+
+		c, err := Dial(tt.net, ln.Addr().String())
+		if err != nil {
+			t.Fatalf("Dial failed: %v", err)
+		}
+		defer c.Close()
+		if la, ok := c.LocalAddr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+			t.Fatalf("got %v; expected a proper address with zone identifier", la)
+		}
+		if ra, ok := c.RemoteAddr().(*TCPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
+			t.Fatalf("got %v; expected a proper address with zone identifier", ra)
+		}
+
+		if _, err := c.Write([]byte("TCP OVER IPV6 LINKLOCAL TEST")); err != nil {
+			t.Fatalf("Conn.Write failed: %v", err)
+		}
+		b := make([]byte, 32)
+		if _, err := c.Read(b); err != nil {
+			t.Fatalf("Conn.Read failed: %v", err)
+		}
+
+		<-done
 	}
 }

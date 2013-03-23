@@ -22,6 +22,8 @@ var parseIPTests = []struct {
 	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
 	{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+	{"fe80::1%lo0", nil},
+	{"fe80::1%911", nil},
 	{"", nil},
 }
 
@@ -37,7 +39,6 @@ var ipStringTests = []struct {
 	in  IP
 	out string // see RFC 5952
 }{
-
 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, "2001:db8::123:12:1"},
 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1"},
 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1}, "2001:db8:0:1:0:1:0:1"},
@@ -257,10 +258,13 @@ var splitJoinTests = []struct {
 	{"www.google.com", "80", "www.google.com:80"},
 	{"127.0.0.1", "1234", "127.0.0.1:1234"},
 	{"::1", "80", "[::1]:80"},
-	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
+	{"fe80::1%lo0", "80", "[fe80::1%lo0]:80"},
+	{"localhost%lo0", "80", "[localhost%lo0]:80"},
 	{"", "0", ":0"},
-	{"127.0.0.1", "", "127.0.0.1:"},           // Go 1.0 behaviour
-	{"www.google.com", "", "www.google.com:"}, // Go 1.0 behaviour
+
+	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
+	{"127.0.0.1", "", "127.0.0.1:"},                     // Go 1.0 behaviour
+	{"www.google.com", "", "www.google.com:"},           // Go 1.0 behaviour
 }
 
 var splitFailureTests = []struct {
@@ -270,15 +274,27 @@ var splitFailureTests = []struct {
 	{"www.google.com", "missing port in address"},
 	{"127.0.0.1", "missing port in address"},
 	{"[::1]", "missing port in address"},
+	{"[fe80::1%lo0]", "missing port in address"},
+	{"[localhost%lo0]", "missing port in address"},
+	{"localhost%lo0", "missing port in address"},
+
 	{"::1", "too many colons in address"},
+	{"fe80::1%lo0", "too many colons in address"},
+	{"fe80::1%lo0:80", "too many colons in address"},
+
+	{"localhost%lo0:80", "missing brackets in address"},
 
 	// Test cases that didn't fail in Go 1.0
+
 	{"[foo:bar]", "missing port in address"},
 	{"[foo:bar]baz", "missing port in address"},
-	{"[foo]:[bar]:baz", "too many colons in address"},
 	{"[foo]bar:baz", "missing port in address"},
+
+	{"[foo]:[bar]:baz", "too many colons in address"},
+
 	{"[foo]:[bar]baz", "unexpected '[' in address"},
 	{"foo[bar]:baz", "unexpected '[' in address"},
+
 	{"foo]bar:baz", "unexpected ']' in address"},
 }
 
