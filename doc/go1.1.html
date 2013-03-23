@@ -323,14 +323,29 @@ to convert the code to Go 1.0 first.
 <h2 id="performance">Performance</h2>
 
 <p>
-TODO introduction
+The performance of code compiled with the Go 1.1 gc tool suite should be noticeably
+better for most Go programs.
+Typical improvements relative to Go 1.0 seem to be about 30%-40%, sometimes
+much more, but occasionally less or even non-existent.
+There are too many small performance-driven tweaks through the tools and libraries
+to list them all here, but the following major changes are worth noting:
 </p>
 
 <ul>
-<li>TODO better code generation (inlining, ...?)</li>
-<li>TODO parallel gc</li>
-<li>TODO more precise gc</li>
-<li>TODO networking is more efficient (known to runtime)</li>
+<li>The gc compilers generate better code in many cases, most noticeably for
+floating point on the 32-bit Intel architecture.</li>
+<li>The gc compilers do more in-lining, including for some operations
+in the run-time such as <a href="/pkg/builtin/#append"><code>append</code></a>
+and interface conversions.</li>
+<li>There is a new implementation of Go maps with significant reduction in
+memory footprint and CPU time.</li>
+<li>The garbage collector has been made more parallel, which can reduce
+latencies for programs running on multiple CPUs.</li>
+<li>The garbage collector is also more precise, which costs a small amount of
+CPU time but can reduce the size of the heap significantly, especially
+on 32-bit architectures.</li>
+<li>Due to tighter coupling of the run-time and network libraries, fewer
+context switches are required on network operations.</li>
 </ul>
 
 <h2 id="library">Changes to the standard library</h2>
@@ -598,7 +613,7 @@ a string, rather than a float64.
 </li>
 
 <li>
-The <a href="/pkg/encoding/xml/"><code>endoding/xml</code></a> package
+The <a href="/pkg/encoding/xml/"><code>encoding/xml</code></a> package
 has a new function,
 <a href="/pkg/encoding/xml/#EscapeText"><code>EscapeText</code></a>,
 which writes escaped XML output,
