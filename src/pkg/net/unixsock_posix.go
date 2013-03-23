@@ -15,6 +15,13 @@ import (
 	"time"
 )
 
+func (a *UnixAddr) isUnnamed() bool {
+	if a == nil || a.Name == "" {
+		return true
+	}
+	return false
+}
+
 func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.Time) (*netFD, error) {
 	var sotype int
 	switch net {
@@ -31,12 +38,12 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
 	var la, ra syscall.Sockaddr
 	switch mode {
 	case "dial":
-		if laddr != nil {
+		if !laddr.isUnnamed() {
 			la = &syscall.SockaddrUnix{Name: laddr.Name}
 		}
 		if raddr != nil {
 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
-		} else if sotype != syscall.SOCK_DGRAM || laddr == nil {
+		} else if sotype != syscall.SOCK_DGRAM || laddr.isUnnamed() {
 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
 		}
 	case "listen":
@@ -69,21 +76,21 @@ error:
 
 func sockaddrToUnix(sa syscall.Sockaddr) Addr {
 	if s, ok := sa.(*syscall.SockaddrUnix); ok {
-		return &UnixAddr{s.Name, "unix"}
+		return &UnixAddr{Name: s.Name, Net: "unix"}
 	}
 	return nil
 }
 
 func sockaddrToUnixgram(sa syscall.Sockaddr) Addr {
 	if s, ok := sa.(*syscall.SockaddrUnix); ok {
-		return &UnixAddr{s.Name, "unixgram"}
+		return &UnixAddr{Name: s.Name, Net: "unixgram"}
 	}
 	return nil
 }
 
 func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
 	if s, ok := sa.(*syscall.SockaddrUnix); ok {
-		return &UnixAddr{s.Name, "unixpacket"}
+		return &UnixAddr{Name: s.Name, Net: "unixpacket"}
 	}
 	return nil
 }
@@ -92,10 +99,10 @@ func sotypeToNet(sotype int) string {
 	switch sotype {
 	case syscall.SOCK_STREAM:
 		return "unix"
-	case syscall.SOCK_SEQPACKET:
-		return "unixpacket"
 	case syscall.SOCK_DGRAM:
 		return "unixgram"
+	case syscall.SOCK_SEQPACKET:
+		return "unixpacket"
 	default:
 		panic("sotypeToNet unknown socket type")
 	}
@@ -124,7 +131,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
 		if sa.Name != "" {
-			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
 		}
 	}
 	return
@@ -151,7 +158,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
 		if sa.Name != "" {
-			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+			addr = &UnixAddr{Name: sa.Name, Net: sotypeToNet(c.fd.sotype)}
 		}
 	}
 	return

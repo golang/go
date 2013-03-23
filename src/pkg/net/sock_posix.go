@@ -65,10 +65,10 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 	lsa, _ := syscall.Getsockname(s)
 	laddr := toAddr(lsa)
 	rsa, _ := syscall.Getpeername(s)
+	if rsa == nil {
+		rsa = ursa
+	}
 	raddr := toAddr(rsa)
 	fd.setAddr(laddr, raddr)
-	if fd.raddr == nil {
-		fd.raddr = toAddr(ursa)
-	}
 	return fd, nil
 }

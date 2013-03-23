@@ -217,14 +217,12 @@ func TestTCPListenerName(t *testing.T) {
 	for _, tt := range tcpListenerNameTests {
 		ln, err := ListenTCP(tt.net, tt.laddr)
 		if err != nil {
-			t.Errorf("ListenTCP failed: %v", err)
-			return
+			t.Fatalf("ListenTCP failed: %v", err)
 		}
 		defer ln.Close()
 		la := ln.Addr()
 		if a, ok := la.(*TCPAddr); !ok || a.Port == 0 {
-			t.Errorf("got %v; expected a proper address with non-zero port number", la)
-			return
+			t.Fatalf("got %v; expected a proper address with non-zero port number", la)
 		}
 	}
 }

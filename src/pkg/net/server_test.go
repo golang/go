@@ -402,7 +402,7 @@ func runDatagramConnClient(t *testing.T, net, laddr, taddr string, isEmpty bool)
 			t.Fatalf("Dial(%q, %q) failed: %v", net, taddr, err)
 		}
 	case "unixgram":
-		c, err = DialUnix(net, &UnixAddr{laddr, net}, &UnixAddr{taddr, net})
+		c, err = DialUnix(net, &UnixAddr{Name: laddr, Net: net}, &UnixAddr{Name: taddr, Net: net})
 		if err != nil {
 			t.Fatalf("DialUnix(%q, {%q, %q}) failed: %v", net, laddr, taddr, err)
 		}
