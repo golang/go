@@ -336,7 +336,6 @@ EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
 EXTERN	Sym*	datap;
-EXTERN	vlong	elfdatsize;
 EXTERN	int	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Sym*	textp;
