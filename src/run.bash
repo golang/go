@@ -35,16 +35,20 @@ fi
 # at least runtime/debug test will fail.
 unset GOROOT_FINAL
 
+# increase timeout for ARM up to 3 times the normal value
+timeout_scale=1
+[ "$GOARCH" == "arm" ] && timeout_scale=3
+
 echo '# Testing packages.'
-time go test std -short -timeout=120s
+time go test std -short -timeout=$(expr 120 \* $timeout_scale)s
 echo
 
 echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
-GOMAXPROCS=2 go test runtime -short -timeout=240s -cpu=1,2,4
+GOMAXPROCS=2 go test runtime -short -timeout=$(expr 240 \* $timeout_scale)s -cpu=1,2,4
 echo
 
 echo '# sync -cpu=10'
-go test sync -short -timeout=120s -cpu=10
+go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
 
 # Race detector only supported on Linux and OS X,
 # and only on amd64, and only when cgo is enabled.
