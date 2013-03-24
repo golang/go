@@ -136,9 +136,11 @@ main(int argc, char *argv[])
 	if(argc != 1)
 		usage();
 
-	if(linkmode != LinkInternal) {
+	if(linkmode == LinkExternal) {
 		diag("only -linkmode=internal is supported");
 		errorexit();
+	} else if(linkmode == LinkAuto) {
+		linkmode = LinkInternal;
 	}
 
 	libinit();

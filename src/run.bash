@@ -79,6 +79,7 @@ go run $GOROOT/test/run.go - .
 
 [ "$CGO_ENABLED" != 1 ] ||
 (xcd ../misc/cgo/test
+set -e
 go test -ldflags '-linkmode=auto'
 go test -ldflags '-linkmode=internal'
 case "$GOHOSTOS-$GOARCH" in
