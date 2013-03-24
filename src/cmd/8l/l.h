@@ -286,14 +286,12 @@ EXTERN	int32	INITTEXT;
 EXTERN	int32	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	char*	LIBINITENTRY;		/* shared library entry point */
-EXTERN	int32	casepc;
 EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
 EXTERN	Sym*	cursym;
 EXTERN	Sym*	datap;
-EXTERN	int32	elfdatsize;
 EXTERN	int	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Sym*	etextp;
@@ -319,7 +317,6 @@ EXTERN	int	dtype;
 EXTERN	int	tlsoffset;
 EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
 EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
-EXTERN	int	elftextsh;
 
 extern	Optab	optab[];
 extern	char*	anames[];
