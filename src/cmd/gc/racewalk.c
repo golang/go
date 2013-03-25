@@ -26,6 +26,7 @@ static Node* uintptraddr(Node *n);
 static Node* basenod(Node *n);
 static void foreach(Node *n, void(*f)(Node*, void*), void *c);
 static void hascallspred(Node *n, void *c);
+static void appendinit(Node **np, NodeList *init);
 static Node* detachexpr(Node *n, NodeList **init);
 
 // Do not instrument the following packages at all,
@@ -139,7 +140,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 1, 0);
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
-	
+
 	case OCFUNC:
 		// can't matter
 		goto ret;
@@ -255,9 +256,13 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OANDAND:
 	case OOROR:
 		racewalknode(&n->left, init, wr, 0);
-		// It requires more complex tree transformation,
-		// because we don't know whether it will be executed or not.
-		//racewalknode(&n->right, init, wr, 0);
+		// walk has ensured the node has moved to a location where
+		// side effects are safe.
+		// n->right may not be executed,
+		// so instrumentation goes to n->right->ninit, not init.
+		l = nil;
+		racewalknode(&n->right, &l, wr, 0);
+		appendinit(&n->right, l);
 		goto ret;
 
 	case ONAME:
@@ -398,7 +403,6 @@ ret:
 	racewalklist(n->nbody, nil);
 	racewalklist(n->nelse, nil);
 	racewalklist(n->rlist, nil);
-
 	*np = n;
 }
 
@@ -575,3 +579,30 @@ hascallspred(Node *n, void *c)
 		(*(int*)c)++;
 	}
 }
+
+// appendinit is like addinit in subr.c
+// but appends rather than prepends.
+static void
+appendinit(Node **np, NodeList *init)
+{
+	Node *n;
+
+	if(init == nil)
+		return;
+
+	n = *np;
+	switch(n->op) {
+	case ONAME:
+	case OLITERAL:
+		// There may be multiple refs to this node;
+		// introduce OCONVNOP to hold init list.
+		n = nod(OCONVNOP, n, N);
+		n->type = n->left->type;
+		n->typecheck = 1;
+		*np = n;
+		break;
+	}
+	n->ninit = concat(n->ninit, init);
+	n->ullman = UINF;
+}
+

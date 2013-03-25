@@ -970,8 +970,7 @@ func TestRaceAnd(t *testing.T) {
 	<-c
 }
 
-// OANDAND is not instrumented in the compiler.
-func TestRaceFailingAnd2(t *testing.T) {
+func TestRaceAnd2(t *testing.T) {
 	c := make(chan bool)
 	x, y := 0, 0
 	go func() {
@@ -1007,8 +1006,7 @@ func TestRaceOr(t *testing.T) {
 	<-c
 }
 
-// OOROR is not instrumented in the compiler.
-func TestRaceFailingOr2(t *testing.T) {
+func TestRaceOr2(t *testing.T) {
 	c := make(chan bool)
 	x, y := 0, 0
 	go func() {
