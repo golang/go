@@ -203,7 +203,9 @@ NextSetOfPrimes:
 		g.GCD(priv.D, y, e, totient)
 
 		if g.Cmp(bigOne) == 0 {
-			priv.D.Add(priv.D, totient)
+			if priv.D.Sign() < 0 {
+				priv.D.Add(priv.D, totient)
+			}
 			priv.Primes = primes
 			priv.N = n
 
