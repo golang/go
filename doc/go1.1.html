@@ -582,7 +582,7 @@ and a new function
 </li>
 
 <li>
-The <a href="/pkg/database/sql/"><code>database/sql/</code></a> package
+The <a href="/pkg/database/sql/"><code>database/sql</code></a> package
 has a new 
 <a href="/pkg/database/sql/#DB.Ping"><code>Ping</code></a>
 method for its
@@ -721,11 +721,26 @@ The new functions
 </li>
 
 <li>
-The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
+The <a href="/pkg/net/http/"><code>net/http</code></a> package includes several new additions.
+<a href="/pkg/net/http/#ParseTime"><code>ParseTime</code></a> parses a time string, trying
+several common HTTP time formats.
+The <a href="/pkg/net/http/#Request.PostFormValue">PostFormValue</a> method of
+<a href="/pkg/net/http/#Request"><code>Request</code></a> is like
+<a href="/pkg/net/http/#Request.FormValue"><code>FormValue</code></a> but ignores URL parameters.
+The <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a> interface provides a mechanism
+for a server handler to discover when a client has disconnected.
+The <code>ServeMux</code> type now has a
+<a href="/pkg/net/http/#ServeMux.Handler"><code>Handler</code></a> method to access a path's
+<code>Handler</code> without executing it.
+The <code>Transport</code> can now cancel an in-flight request with
+<a href="/pkg/net/http/#Transport.CancelRequest"><code>CancelRequest</code></a>.
+Finally, the Transport is now more aggresive at closing TCP connections when
+a <a href="/pkg/net/http/#Response"><code>Response.Body</code></a> is closed before
+being fully consumed.
 </li>
 
-<li> TODO: 
-<code>net/http</code>: ParseTime, CloseNotifier, Request.PostFormValue, ServeMux.Handler, Transport.CancelRequest
+<li>
+The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
 </li>
 
 <li> TODO: 
