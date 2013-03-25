@@ -74,12 +74,12 @@ echo.
 :: cgo tests
 if x%CGO_ENABLED% == x0 goto nocgo
 echo # ..\misc\cgo\life
-go run %GOROOT%\test\run.go - ..\misc\cgo\life
+go run "%GOROOT%\test\run.go" - ..\misc\cgo\life
 if errorlevel 1 goto fail
 echo.
 
 echo # ..\misc\cgo\stdio
-go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
+go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
 if errorlevel 1 goto fail
 echo.
 
@@ -90,7 +90,7 @@ echo.
 :nocgo
 
 echo # ..\doc\progs
-go run %GOROOT%\test\run.go - ..\doc\progs
+go run "%GOROOT%\test\run.go" - ..\doc\progs
 if errorlevel 1 goto fail
 echo.
 
