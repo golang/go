@@ -109,8 +109,8 @@ if x%1==x--no-banner goto nobanner
 goto end
 
 :copydist
-mkdir %GOTOOLDIR% 2>NUL
-copy cmd\dist\dist.exe %GOTOOLDIR%\
+mkdir "%GOTOOLDIR%" 2>NUL
+copy cmd\dist\dist.exe "%GOTOOLDIR%\"
 goto end
 
 :fail

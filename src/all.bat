@@ -20,7 +20,7 @@ if %GOBUILDFAIL%==1 goto end
 :: can get the original %PATH% and give suggestion to add %GOROOT%/bin
 :: to %PATH% if necessary.
 set PATH=%OLDPATH%
-%GOTOOLDIR%/dist banner
+"%GOTOOLDIR%/dist" banner
 
 :end
 if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
