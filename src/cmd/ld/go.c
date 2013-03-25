@@ -508,10 +508,6 @@ loadcgo(char *file, char *pkg, char *p, int n)
 			}
 
 			if(s->cgoexport == 0) {
-				if(strcmp(f[0], "cgo_export_static") == 0)
-					s->cgoexport |= CgoExportStatic;
-				else
-					s->cgoexport |= CgoExportDynamic;
 				s->extname = remote;
 				if(ndynexp%32 == 0)
 					dynexp = erealloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
@@ -521,6 +517,10 @@ loadcgo(char *file, char *pkg, char *p, int n)
 				nerrors++;
 				return;
 			}
+			if(strcmp(f[0], "cgo_export_static") == 0)
+				s->cgoexport |= CgoExportStatic;
+			else
+				s->cgoexport |= CgoExportDynamic;
 			if(local != f[1])
 				free(local);
 			continue;
