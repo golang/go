@@ -846,17 +846,16 @@ _lookup(char *symb, int v, int creat)
 	Sym *s;
 	char *p;
 	int32 h;
-	int l, c;
+	int c;
 
 	h = v;
 	for(p=symb; c = *p; p++)
 		h = h+h+h + c;
-	l = (p - symb) + 1;
 	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
 	h &= 0xffffff;
 	h %= NHASH;
 	for(s = hash[h]; s != S; s = s->hash)
-		if(memcmp(s->name, symb, l) == 0)
+		if(strcmp(s->name, symb) == 0)
 			return s;
 	if(!creat)
 		return nil;
