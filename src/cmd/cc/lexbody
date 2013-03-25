@@ -263,7 +263,7 @@ lookup(void)
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != c)
 			continue;
-		if(memcmp(s->name, symb, l) == 0)
+		if(strcmp(s->name, symb) == 0)
 			return s;
 	}
 	s = alloc(sizeof(*s));
