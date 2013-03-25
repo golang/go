@@ -98,6 +98,15 @@ static void unwindm(void);
 static void endcgo(void);
 static FuncVal endcgoV = { endcgo };
 
+// Gives a hint that the next syscall
+// executed by the current goroutine will block.
+// Currently used only on windows.
+void
+net·runtime_blockingSyscallHint(void)
+{
+	g->blockingsyscall = true;
+}
+
 void
 runtime·cgocall(void (*fn)(void*), void *arg)
 {
@@ -145,7 +154,11 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	 * so it is safe to call while "in a system call", outside
 	 * the $GOMAXPROCS accounting.
 	 */
-	runtime·entersyscall();
+	if(g->blockingsyscall) {
+		g->blockingsyscall = false;
+		runtime·entersyscallblock();
+	} else
+		runtime·entersyscall();
 	runtime·asmcgocall(fn, arg);
 	runtime·exitsyscall();
 

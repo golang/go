@@ -238,6 +238,7 @@ struct	G
 	bool	ispanic;
 	bool	issystem;	// do not output in stack dump
 	bool	isbackground;	// ignore in deadlock detector
+	bool	blockingsyscall;	// hint that the next syscall will block
 	int8	raceignore;	// ignore race detection events
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
