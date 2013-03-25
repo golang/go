@@ -1759,6 +1759,13 @@ ullmancalc(Node *n)
 	case OCALLINTER:
 		ul = UINF;
 		goto out;
+	case OANDAND:
+	case OOROR:
+		// hard with race detector
+		if(flag_race) {
+			ul = UINF;
+			goto out;
+		}
 	}
 	ul = 1;
 	if(n->left != N)
