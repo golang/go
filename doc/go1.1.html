@@ -708,6 +708,19 @@ Since this API change fixes a bug, it is permitted by the Go 1 compatibility rul
 </li>
 
 <li>
+The <a href="/pkg/net/"><code>net</code></a> package includes a new function,
+<a href="/pkg/net/#DialOpt"><code>DialOpt</code></a>, to supply options to
+<a href="/pkg/net/#Dial"><code>Dial</code></a>.
+Each option is represented by a new
+<a href="/pkg/net/#DialOption"><code>DialOption</code></a> interface.
+The new functions
+<a href="/pkg/net/#Deadline"><code>Deadline</code></a>,
+<a href="/pkg/net/#Timeout"><code>Timeout</code></a>,
+<a href="/pkg/net/#Network"><code>Network</code></a>, and
+<a href="/pkg/net/#LocalAddress"><code>LocalAddress</code></a> return a <code>DialOption</code>.
+</li>
+
+<li>
 The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
 </li>
 
@@ -732,7 +745,7 @@ which do ASCII-only trimming of leading and trailing spaces.
 </li>
 
 <li> TODO:
-<code>net</code>: DialOption, DialOpt, ListenUnixgram, LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
+<code>net</code>: ListenUnixgram, LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
 </li>
 
 <li>
