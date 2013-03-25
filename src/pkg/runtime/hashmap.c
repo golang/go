@@ -126,6 +126,7 @@ enum
 {
 	docheck = 0,  // check invariants before and after every op.  Slow!!!
 	debug = 0,    // print every operation
+	checkgc = 0 || docheck,  // check interaction of mallocgc() with the garbage collector
 };
 static void
 check(MapType *t, Hmap *h)
@@ -253,6 +254,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 
 	// allocate initial hash table
 	// If hint is large zeroing this memory could take a while.
+	if(checkgc) mstats.next_gc = mstats.heap_alloc;
 	buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
 	for(i = 0; i < (uintptr)1 << B; i++) {
 		b = (Bucket*)(buckets + i * bucketsize);
@@ -322,6 +324,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 				// the B'th bit of the hash in this case.
 				if((hash & newbit) == 0) {
 					if(xi == BUCKETSIZE) {
+						if(checkgc) mstats.next_gc = mstats.heap_alloc;
 						newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
 						clearbucket(newx);
 						x->overflow = newx;
@@ -346,6 +349,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
 					xv += h->valuesize;
 				} else {
 					if(yi == BUCKETSIZE) {
+						if(checkgc) mstats.next_gc = mstats.heap_alloc;
 						newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
 						clearbucket(newy);
 						y->overflow = newy;
@@ -441,6 +445,7 @@ hash_grow(MapType *t, Hmap *h)
 		runtime·throw("evacuation not done in time");
 	old_buckets = h->buckets;
 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
+	if(checkgc) mstats.next_gc = mstats.heap_alloc;
 	new_buckets = runtime·mallocgc(h->bucketsize << (h->B + 1), 0, 1, 0);
 	flags = (h->flags & ~(Iterator | OldIterator));
 	if((h->flags & Iterator) != 0) {
@@ -611,6 +616,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 
 	if(inserti == nil) {
 		// all current buckets are full, allocate a new one.
+		if(checkgc) mstats.next_gc = mstats.heap_alloc;
 		newb = runtime·mallocgc(h->bucketsize, 0, 1, 0);
 		clearbucket(newb);
 		b->overflow = newb;
@@ -621,11 +627,13 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 
 	// store new key/value at insert position
 	if((h->flags & IndirectKey) != 0) {
+		if(checkgc) mstats.next_gc = mstats.heap_alloc;
 		kmem = runtime·mallocgc(t->key->size, 0, 1, 0);
 		*(byte**)insertk = kmem;
 		insertk = kmem;
 	}
 	if((h->flags & IndirectValue) != 0) {
+		if(checkgc) mstats.next_gc = mstats.heap_alloc;
 		vmem = runtime·mallocgc(t->elem->size, 0, 1, 0);
 		*(byte**)insertv = vmem;
 		insertv = vmem;
