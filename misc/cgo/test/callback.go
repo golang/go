@@ -12,7 +12,9 @@ import "C"
 
 import (
 	"./backdoor"
+	"path"
 	"runtime"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -135,4 +137,52 @@ func testBlocking(t *testing.T) {
 			}
 		}
 	})
+}
+
+// Test that the stack can be unwound through a call out and call back
+// into Go.
+func testCallbackCallers(t *testing.T) {
+	pc := make([]uintptr, 100)
+	n := 0
+	name := []string{
+		"test.goCallback",
+		"runtime.cgocallbackg",
+		"runtime.cgocallback_gofunc",
+		"return",
+		"runtime.cgocall",
+		"test._Cfunc_callback",
+		"test.nestedCall",
+		"test.testCallbackCallers",
+		"test.TestCallbackCallers",
+		"testing.tRunner",
+		"runtime.goexit",
+	}
+	nestedCall(func() {
+		n = runtime.Callers(2, pc)
+	})
+	// The ARM cannot unwind all the way down to runtime.goexit.
+	// See issue 5124.
+	if n != len(name) && runtime.GOARCH != "arm" {
+		t.Errorf("expected %d frames, got %d", len(name), n)
+	}
+	for i := 0; i < n; i++ {
+		f := runtime.FuncForPC(pc[i])
+		if f == nil {
+			t.Fatalf("expected non-nil Func for pc %p", pc[i])
+		}
+		fname := f.Name()
+		// Remove the prepended pathname from automatically
+		// generated cgo function names.
+		if strings.HasPrefix(fname, "_") {
+			fname = path.Base(f.Name()[1:])
+		}
+		if fname != name[i] {
+			t.Errorf("expected function name %s, got %s", name[i], fname)
+		}
+		// The ARM cannot unwind frames past runtime.cgocall.
+		// See issue 5124.
+		if runtime.GOARCH == "arm" && i == 4 {
+			break
+		}
+	}
 }
