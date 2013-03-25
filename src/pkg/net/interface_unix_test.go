@@ -41,8 +41,11 @@ func (ti *testInterface) teardown() error {
 }
 
 func TestPointToPointInterface(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin":
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+	switch {
+	case runtime.GOOS == "darwin":
 		t.Skipf("skipping read test on %q", runtime.GOOS)
 	}
 	if os.Getuid() != 0 {
@@ -90,6 +93,9 @@ func TestPointToPointInterface(t *testing.T) {
 }
 
 func TestInterfaceArrivalAndDeparture(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
 	if os.Getuid() != 0 {
 		t.Skip("skipping test; must be root")
 	}
