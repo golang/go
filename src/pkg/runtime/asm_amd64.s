@@ -37,6 +37,7 @@ nocpuinfo:
 	JZ	needtls
 	// g0 already in DI
 	MOVQ	DI, CX	// Win64 uses CX for first parameter
+	MOVQ	$setmg_gcc<>(SB), SI
 	CALL	AX
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
@@ -680,6 +681,13 @@ settls:
 	MOVQ	AX, m(CX)
 	MOVQ	gg+8(FP), BX
 	MOVQ	BX, g(CX)
+	RET
+
+// void setmg_gcc(M*, G*); set m and g called from gcc.
+TEXT setmg_gcc<>(SB),7,$0
+	get_tls(AX)
+	MOVQ	DI, m(AX)
+	MOVQ	SI, g(AX)
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)

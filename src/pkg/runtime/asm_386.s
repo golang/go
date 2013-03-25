@@ -37,6 +37,8 @@ nocpuinfo:
 	MOVL	_cgo_init(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
+	MOVL	$setmg_gcc<>(SB), BX
+	MOVL	BX, 4(SP)
 	MOVL	BP, 0(SP)
 	CALL	AX
 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
@@ -641,6 +643,15 @@ settls:
 	MOVL	AX, m(CX)
 	MOVL	gg+4(FP), BX
 	MOVL	BX, g(CX)
+	RET
+
+// void setmg_gcc(M*, G*); set m and g. for use by gcc
+TEXT setmg_gcc<>(SB), 7, $0	
+	get_tls(AX)
+	MOVL	mm+0(FP), DX
+	MOVL	DX, m(AX)
+	MOVL	gg+4(FP), DX
+	MOVL	DX,g (AX)
 	RET
 
 // check that SP is in range [g->stackbase, g->stackguard)
