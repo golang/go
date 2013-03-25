@@ -597,11 +597,15 @@ loop:
 		goto loop;
 
 	case ALOCALS:
+		if(skip)
+			goto casdef;
 		cursym->locals = p->to.offset;
 		pc++;
 		goto loop;
 	
 	case ATYPE:
+		if(skip)
+			goto casdef;
 		pc++;
 		goto loop;
 
