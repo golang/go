@@ -65,6 +65,12 @@ func closeDB(t *testing.T, db *DB) {
 		fmt.Printf("Panic: %v\n", e)
 		panic(e)
 	}
+	defer setHookpostCloseConn(nil)
+	setHookpostCloseConn(func(_ *fakeConn, err error) {
+		if err != nil {
+			t.Errorf("Error closing fakeConn: %v", err)
+		}
+	})
 	err := db.Close()
 	if err != nil {
 		t.Fatalf("error closing DB: %v", err)
@@ -788,5 +794,53 @@ func TestMaxIdleConns(t *testing.T) {
 	tx.Commit()
 	if got := len(db.freeConn); got != 0 {
 		t.Errorf("freeConns = %d; want 0", got)
+	}
+}
+
+// golang.org/issue/5046
+func TestCloseConnBeforeStmts(t *testing.T) {
+	defer setHookpostCloseConn(nil)
+	setHookpostCloseConn(func(_ *fakeConn, err error) {
+		if err != nil {
+			t.Errorf("Error closing fakeConn: %v", err)
+		}
+	})
+
+	db := newTestDB(t, "people")
+
+	stmt, err := db.Prepare("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(db.freeConn) != 1 {
+		t.Fatalf("expected 1 freeConn; got %d", len(db.freeConn))
+	}
+	dc := db.freeConn[0]
+	if dc.closed {
+		t.Errorf("conn shouldn't be closed")
+	}
+
+	err = db.Close()
+	if err != nil {
+		t.Errorf("db Close = %v", err)
+	}
+	if !dc.closed {
+		t.Errorf("after db.Close, driverConn should be closed")
+	}
+	if dc.ci == nil {
+		t.Errorf("after db.Close, driverConn should still have its Conn interface")
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		t.Errorf("Stmt close = %v", err)
+	}
+
+	if !dc.closed {
+		t.Errorf("conn should be closed")
+	}
+	if dc.ci != nil {
+		t.Errorf("after Stmt Close, driverConn's Conn interface should be nil")
 	}
 }
