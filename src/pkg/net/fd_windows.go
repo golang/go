@@ -138,12 +138,18 @@ type resultSrv struct {
 	iocp syscall.Handle
 }
 
+func runtime_blockingSyscallHint()
+
 func (s *resultSrv) Run() {
 	var o *syscall.Overlapped
 	var key uint32
 	var r ioResult
 	for {
-		r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, syscall.INFINITE)
+		r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, 0)
+		if r.err == syscall.Errno(syscall.WAIT_TIMEOUT) && o == nil {
+			runtime_blockingSyscallHint()
+			r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, syscall.INFINITE)
+		}
 		switch {
 		case r.err == nil:
 			// Dequeued successfully completed IO packet.
