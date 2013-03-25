@@ -12,8 +12,10 @@ package math
 // unnecessary overflow and underflow.
 //
 // Special cases are:
-//	Hypot(p, q) = +Inf if p or q is infinite
-//	Hypot(p, q) = NaN if p or q is NaN
+//	Hypot(±Inf, q) = +Inf
+//	Hypot(p, ±Inf) = +Inf
+//	Hypot(NaN, q) = NaN
+//	Hypot(p, NaN) = NaN
 func Hypot(p, q float64) float64
 
 func hypot(p, q float64) float64 {
