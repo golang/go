@@ -11,6 +11,7 @@
 #include "libcgo.h"
 
 static void* threadentry(void*);
+static void (*setmg_gcc)(void*, void*);
 
 // TCB_SIZE is sizeof(struct thread_control_block),
 // as defined in /usr/src/lib/librthread/tcb.h
@@ -82,12 +83,13 @@ pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 }
 
 void
-x_cgo_init(G *g)
+x_cgo_init(G *g, void (*setmg)(void*, void*))
 {
 	pthread_attr_t attr;
 	size_t size;
 	void *handle;
 
+	setmg_gcc = setmg;
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
 	g->stackguard = (uintptr)&attr - size + 4096;
@@ -155,15 +157,10 @@ threadentry(void *v)
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
 	/*
-	 * Set specific keys.  On OpenBSD/ELF, the thread local storage
-	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
-	 * for the two words g and m at %fs:-16 and %fs:-8.
+	 * Set specific keys.
 	 */
-	asm volatile (
-		"movq %0, %%fs:-16\n"	// MOVL g, -16(FS)
-		"movq %1, %%fs:-8\n"	// MOVL m, -8(FS)
-		:: "r"(ts.g), "r"(ts.m)
-	);
+	setmg_gcc((void*)ts.m, (void*)ts.g);
+
 	crosscall_amd64(ts.fn);
 	return nil;
 }
