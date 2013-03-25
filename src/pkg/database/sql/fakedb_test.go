@@ -229,7 +229,26 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 	return c.currTx, nil
 }
 
-func (c *fakeConn) Close() error {
+var hookPostCloseConn struct {
+	sync.Mutex
+	fn func(*fakeConn, error)
+}
+
+func setHookpostCloseConn(fn func(*fakeConn, error)) {
+	hookPostCloseConn.Lock()
+	defer hookPostCloseConn.Unlock()
+	hookPostCloseConn.fn = fn
+}
+
+func (c *fakeConn) Close() (err error) {
+	defer func() {
+		hookPostCloseConn.Lock()
+		fn := hookPostCloseConn.fn
+		hookPostCloseConn.Unlock()
+		if fn != nil {
+			fn(c, err)
+		}
+	}()
 	if c.currTx != nil {
 		return errors.New("can't close fakeConn; in a Transaction")
 	}
