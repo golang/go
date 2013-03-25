@@ -1635,7 +1635,9 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 	res := []byte("Hello world!\n")
 
 	conn := &testConn{
-		closec: make(chan bool),
+		// testConn.Close will not push into the channel
+		// if it's full.
+		closec: make(chan bool, 1),
 	}
 	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
