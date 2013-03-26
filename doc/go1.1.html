@@ -837,12 +837,19 @@ being fully consumed.
 The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
 </li>
 
-<li> TODO: 
-<code>net/mail</code>: ParseAddress, ParseAddressList
+<li>
+The <a href="/pkg/net/mail/"><code>net/mail</code></a> package has two new functions,
+<a href="/pkg/net/mail/#ParseAddress"><code>ParseAddress</code></a> and
+<a href="/pkg/net/mail/#ParseAddressList"><code>ParseAddressList</code></a>,
+to parse RFC 5322-formatted mail addresses into
+<a href="/pkg/net/mail/#Address"><code>Address</code></a> structures.
 </li>
 
-<li> TODO: 
-<code>net/smtp</code>: Client.Hello
+<li>
+The <a href="/pkg/net/smtp/"><code>net/smtp</code></a> package's
+<a href="/pkg/net/smtp/#Client"><code>Client</code></a> type has a new method,
+<a href="/pkg/net/smtp/#Client.Hello"><code>Hello</code></a>,
+which transmits a <code>HELO</code> or <code>EHLO</code> message to the server.
 </li>
 
 <li>
