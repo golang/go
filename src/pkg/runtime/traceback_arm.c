@@ -74,8 +74,9 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			lr = *(uintptr*)sp;
 		if(fp == nil) {
 			fp = sp;
-			if(pc > f->entry && f->frame >= 0)
-				fp += f->frame;
+			if(pc > f->entry && f->frame >= sizeof(uintptr))
+				fp += f->frame - sizeof(uintptr);
+			fp += sizeof(uintptr);
 		}
 
 		if(skip > 0)

@@ -160,9 +160,7 @@ func testCallbackCallers(t *testing.T) {
 	nestedCall(func() {
 		n = runtime.Callers(2, pc)
 	})
-	// The ARM cannot unwind all the way down to runtime.goexit.
-	// See issue 5124.
-	if n != len(name) && runtime.GOARCH != "arm" {
+	if n != len(name) {
 		t.Errorf("expected %d frames, got %d", len(name), n)
 	}
 	for i := 0; i < n; i++ {
@@ -178,11 +176,6 @@ func testCallbackCallers(t *testing.T) {
 		}
 		if fname != name[i] {
 			t.Errorf("expected function name %s, got %s", name[i], fname)
-		}
-		// The ARM cannot unwind frames past runtime.cgocall.
-		// See issue 5124.
-		if runtime.GOARCH == "arm" && i == 4 {
-			break
 		}
 	}
 }
