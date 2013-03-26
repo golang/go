@@ -339,11 +339,11 @@ func TestRaceDiv(t *testing.T) {
 }
 
 func TestRaceDivConst(t *testing.T) {
-	var x, y, z int
+	var x, y, z uint32
 	ch := make(chan int, 2)
 
 	go func() {
-		x = y / 3
+		x = y / 3 // involves only a HMUL node
 		ch <- 1
 	}()
 	go func() {
