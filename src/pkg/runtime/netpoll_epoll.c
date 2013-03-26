@@ -57,6 +57,7 @@ runtime·netpollclose(int32 fd)
 G*
 runtime·netpoll(bool block)
 {
+	static int32 lasterr;
 	EpollEvent events[128], *ev;
 	int32 n, i, waitms, mode;
 	G *gp;
@@ -69,8 +70,10 @@ runtime·netpoll(bool block)
 retry:
 	n = runtime·epollwait(epfd, events, nelem(events), waitms);
 	if(n < 0) {
-		if(n != -EINTR)
-			runtime·printf("epollwait failed with %d\n", -n);
+		if(n != -EINTR && n != lasterr) {
+			lasterr = n;
+			runtime·printf("runtime: epollwait on fd %d failed with %d\n", epfd, -n);
+		}
 		goto retry;
 	}
 	gp = nil;
