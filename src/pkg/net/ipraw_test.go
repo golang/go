@@ -14,12 +14,14 @@ import (
 	"time"
 )
 
-var resolveIPAddrTests = []struct {
+type resolveIPAddrTest struct {
 	net     string
 	litAddr string
 	addr    *IPAddr
 	err     error
-}{
+}
+
+var resolveIPAddrTests = []resolveIPAddrTest{
 	{"ip", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
 	{"ip4", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
 	{"ip4:icmp", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
@@ -30,8 +32,6 @@ var resolveIPAddrTests = []struct {
 
 	{"ip", "::1%en0", &IPAddr{IP: ParseIP("::1"), Zone: "en0"}, nil},
 	{"ip6", "::1%911", &IPAddr{IP: ParseIP("::1"), Zone: "911"}, nil},
-	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "name"}, nil},
-	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "index"}, nil},
 
 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
@@ -41,23 +41,18 @@ var resolveIPAddrTests = []struct {
 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
 }
 
+func init() {
+	if ifi := loopbackInterface(); ifi != nil {
+		index := fmt.Sprintf("%v", ifi.Index)
+		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
+			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
+		}...)
+	}
+}
+
 func TestResolveIPAddr(t *testing.T) {
 	for _, tt := range resolveIPAddrTests {
-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
-			ifi := loopbackInterface()
-			if ifi == nil {
-				continue
-			}
-			switch tt.addr.Zone {
-			case "name":
-				tt.litAddr += "%" + ifi.Name
-				tt.addr.Zone = zoneToString(ifi.Index)
-			case "index":
-				index := fmt.Sprintf("%v", ifi.Index)
-				tt.litAddr += "%" + index
-				tt.addr.Zone = index
-			}
-		}
 		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
 		if err != tt.err {
 			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)

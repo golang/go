@@ -11,12 +11,14 @@ import (
 	"testing"
 )
 
-var resolveUDPAddrTests = []struct {
+type resolveUDPAddrTest struct {
 	net     string
 	litAddr string
 	addr    *UDPAddr
 	err     error
-}{
+}
+
+var resolveUDPAddrTests = []resolveUDPAddrTest{
 	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
 	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
 
@@ -25,8 +27,6 @@ var resolveUDPAddrTests = []struct {
 
 	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
 	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
-	{"udp6", "[fe80::1]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
-	{"udp6", "[fe80::1]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
 
 	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
 	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
@@ -34,26 +34,18 @@ var resolveUDPAddrTests = []struct {
 	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
 }
 
+func init() {
+	if ifi := loopbackInterface(); ifi != nil {
+		index := fmt.Sprintf("%v", ifi.Index)
+		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+			{"udp6", "[fe80::1%" + ifi.Name + "]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
+			{"udp6", "[fe80::1%" + index + "]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
+		}...)
+	}
+}
+
 func TestResolveUDPAddr(t *testing.T) {
 	for _, tt := range resolveUDPAddrTests {
-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
-			ifi := loopbackInterface()
-			if ifi == nil {
-				continue
-			}
-			i := last(tt.litAddr, ']')
-			if i > 0 {
-				switch tt.addr.Zone {
-				case "name":
-					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
-					tt.addr.Zone = zoneToString(ifi.Index)
-				case "index":
-					index := fmt.Sprintf("%v", ifi.Index)
-					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
-					tt.addr.Zone = index
-				}
-			}
-		}
 		addr, err := ResolveUDPAddr(tt.net, tt.litAddr)
 		if err != tt.err {
 			t.Fatalf("ResolveUDPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
