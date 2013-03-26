@@ -112,15 +112,13 @@ func convertAssign(dest, src interface{}) error {
 			if d == nil {
 				return errNilPtr
 			}
-			bcopy := make([]byte, len(s))
-			copy(bcopy, s)
-			*d = bcopy
+			*d = cloneBytes(s)
 			return nil
 		case *[]byte:
 			if d == nil {
 				return errNilPtr
 			}
-			*d = s
+			*d = cloneBytes(s)
 			return nil
 		case *RawBytes:
 			if d == nil {
@@ -131,6 +129,12 @@ func convertAssign(dest, src interface{}) error {
 		}
 	case nil:
 		switch d := dest.(type) {
+		case *interface{}:
+			if d == nil {
+				return errNilPtr
+			}
+			*d = nil
+			return nil
 		case *[]byte:
 			if d == nil {
 				return errNilPtr
@@ -248,6 +252,16 @@ func convertAssign(dest, src interface{}) error {
 	}
 
 	return fmt.Errorf("unsupported driver -> Scan pair: %T -> %T", src, dest)
+}
+
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	} else {
+		c := make([]byte, len(b))
+		copy(c, b)
+		return c
+	}
 }
 
 func asString(src interface{}) string {

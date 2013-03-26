@@ -143,6 +143,7 @@ var conversionTests = []conversionTest{
 	{s: []byte("byteslice"), d: &scaniface, wantiface: []byte("byteslice")},
 	{s: true, d: &scaniface, wantiface: true},
 	{s: nil, d: &scaniface},
+	{s: []byte(nil), d: &scaniface, wantiface: []byte(nil)},
 }
 
 func intPtrValue(intptr interface{}) interface{} {
@@ -221,7 +222,7 @@ func TestConversions(t *testing.T) {
 			}
 			if srcBytes, ok := ct.s.([]byte); ok {
 				dstBytes := (*ifptr).([]byte)
-				if &dstBytes[0] == &srcBytes[0] {
+				if len(srcBytes) > 0 && &dstBytes[0] == &srcBytes[0] {
 					errf("copy into interface{} didn't copy []byte data")
 				}
 			}
