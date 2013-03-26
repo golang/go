@@ -114,22 +114,25 @@ func try(t *testing.T, b []byte, want string) {
 }
 
 func TestBounds(t *testing.T) {
+	// make a local copy of testGIF
+	gif := make([]byte, len(testGIF))
+	copy(gif, testGIF)
 	// Make the bounds too big, just by one.
-	testGIF[32] = 2
+	gif[32] = 2
 	want := "gif: frame bounds larger than image bounds"
-	try(t, testGIF, want)
+	try(t, gif, want)
 
 	// Make the bounds too small; does not trigger bounds
 	// check, but now there's too much data.
-	testGIF[32] = 0
+	gif[32] = 0
 	want = "gif: too much image data"
-	try(t, testGIF, want)
-	testGIF[32] = 1
+	try(t, gif, want)
+	gif[32] = 1
 
 	// Make the bounds really big, expect an error.
 	want = "gif: frame bounds larger than image bounds"
 	for i := 0; i < 4; i++ {
-		testGIF[32+i] = 0xff
+		gif[32+i] = 0xff
 	}
-	try(t, testGIF, want)
+	try(t, gif, want)
 }
