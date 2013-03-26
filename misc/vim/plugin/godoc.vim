@@ -70,13 +70,26 @@ endfunction
 function! s:Godoc(...)
   let word = join(a:000, ' ')
   if !len(word)
+    let oldiskeyword = &iskeyword
+    setlocal iskeyword+=.
     let word = expand('<cword>')
+    let &iskeyword = oldiskeyword
   endif
   let word = substitute(word, '[^a-zA-Z0-9\\/._~-]', '', 'g')
-  if !len(word)
+  let words = split(word, '\.')
+  if !len(words)
     return
   endif
-  call s:GodocWord(word)
+  call s:GodocWord(words[0])
+  if len(words) > 1
+    if search('^\%(const\|var\|type\|\s\+\) ' . words[1] . '\s\+=\s')
+      return
+    endif
+    if search('^func ' . words[1] . '(')
+      return
+    endif
+    echo 'No documentation found for "' . word . '".'
+  endif
 endfunction
 
 command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
