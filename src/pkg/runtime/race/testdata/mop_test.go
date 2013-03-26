@@ -576,6 +576,30 @@ func TestRaceIfaceWW(t *testing.T) {
 	a = b
 }
 
+func TestRaceIfaceCmp(t *testing.T) {
+	var a, b Writer
+	a = DummyWriter{1}
+	ch := make(chan bool, 1)
+	go func() {
+		a = DummyWriter{1}
+		ch <- true
+	}()
+	_ = a == b
+	<-ch
+}
+
+func TestRaceIfaceCmpNil(t *testing.T) {
+	var a Writer
+	a = DummyWriter{1}
+	ch := make(chan bool, 1)
+	go func() {
+		a = DummyWriter{1}
+		ch <- true
+	}()
+	_ = a == nil
+	<-ch
+}
+
 func TestRaceEfaceConv(t *testing.T) {
 	c := make(chan bool)
 	v := 0
@@ -1151,6 +1175,15 @@ func (p InterImpl) Foo(x int) {
 	_, _, _ = x, y, z
 }
 
+type InterImpl2 InterImpl
+
+func (p *InterImpl2) Foo(x int) {
+	if p == nil {
+		InterImpl{}.Foo(x)
+	}
+	InterImpl(*p).Foo(x)
+}
+
 func TestRaceInterCall(t *testing.T) {
 	c := make(chan bool, 1)
 	p := InterImpl{}
@@ -1209,6 +1242,54 @@ func TestRaceMethodCall2(t *testing.T) {
 		c <- true
 	}()
 	i.Foo(0)
+	<-c
+}
+
+// Method value with concrete value receiver.
+func TestRaceMethodValue(t *testing.T) {
+	c := make(chan bool, 1)
+	i := InterImpl{}
+	go func() {
+		i = InterImpl{}
+		c <- true
+	}()
+	_ = i.Foo
+	<-c
+}
+
+// Method value with interface receiver.
+func TestRaceMethodValue2(t *testing.T) {
+	c := make(chan bool, 1)
+	var i Inter = InterImpl{}
+	go func() {
+		i = InterImpl{}
+		c <- true
+	}()
+	_ = i.Foo
+	<-c
+}
+
+// Method value with implicit dereference.
+func TestRaceMethodValue3(t *testing.T) {
+	c := make(chan bool, 1)
+	i := &InterImpl{}
+	go func() {
+		*i = InterImpl{}
+		c <- true
+	}()
+	_ = i.Foo // dereferences i.
+	<-c
+}
+
+// Method value implicitly taking receiver address.
+func TestNoRaceMethodValue(t *testing.T) {
+	c := make(chan bool, 1)
+	i := InterImpl2{}
+	go func() {
+		i = InterImpl2{}
+		c <- true
+	}()
+	_ = i.Foo // takes the address of i only.
 	<-c
 }
 
@@ -1335,6 +1416,17 @@ func TestRaceSliceSlice2(t *testing.T) {
 		c <- true
 	}()
 	_ = x[i:4]
+	<-c
+}
+
+func TestRaceSliceString(t *testing.T) {
+	c := make(chan bool, 1)
+	x := "hello"
+	go func() {
+		x = "world"
+		c <- true
+	}()
+	_ = x[2:3]
 	<-c
 }
 

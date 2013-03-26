@@ -312,6 +312,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->right, init, 0, 0);
 		goto ret;
 
+	case OITAB:
+		racewalknode(&n->left, init, 0, 0);
+		goto ret;
+
 	// should not appear in AST by now
 	case OSEND:
 	case ORECV:
@@ -323,6 +327,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OPANIC:
 	case ORECOVER:
 	case OCONVIFACE:
+	case OCMPIFACE:
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
@@ -338,6 +343,12 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OADDSTR:
 	case ODOTTYPE:
 	case ODOTTYPE2:
+	case OCALLPART: // lowered to PTRLIT
+	case OCLOSURE:  // lowered to PTRLIT
+	case ORANGE:    // lowered to ordinary for loop
+	case OARRAYLIT: // lowered to assignments
+	case OMAPLIT:
+	case OSTRUCTLIT:
 		yyerror("racewalk: %O must be lowered by now", n->op);
 		goto ret;
 
@@ -364,30 +375,23 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	// does not require instrumentation
 	case OPRINT:     // don't bother instrumenting it
 	case OPRINTN:    // don't bother instrumenting it
+	case OCHECKNOTNIL: // always followed by a read.
 	case OPARAM:     // it appears only in fn->exit to copy heap params back
+	case OCLOSUREVAR:// immutable pointer to captured variable
+	case ODOTMETH:   // either part of CALLMETH or CALLPART (lowered to PTRLIT)
 		goto ret;
 
 	// unimplemented
 	case OSLICESTR:
 	case OAPPEND:
-	case OCMPIFACE:
-	case OARRAYLIT:
-	case OMAPLIT:
-	case OSTRUCTLIT:
-	case OCLOSURE:
 	case ODCL:
 	case ODCLCONST:
 	case ODCLTYPE:
 	case OLITERAL:
-	case ORANGE:
 	case OTYPE:
 	case ONONAME:
 	case OINDREG:
-	case ODOTMETH:
-	case OITAB:
 	case OHMUL:
-	case OCHECKNOTNIL:
-	case OCLOSUREVAR:
 		goto ret;
 	}
 
