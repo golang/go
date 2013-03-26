@@ -71,6 +71,7 @@ runtime·netpollclose(int32 fd)
 G*
 runtime·netpoll(bool block)
 {
+	static int32 lasterr;
 	Kevent events[64], *ev;
 	Timespec ts, *tp;
 	int32 n, i;
@@ -88,8 +89,10 @@ runtime·netpoll(bool block)
 retry:
 	n = runtime·kevent(kq, nil, 0, events, nelem(events), tp);
 	if(n < 0) {
-		if(n != -EINTR)
-			runtime·printf("kqueue failed with %d\n", -n);
+		if(n != -EINTR && n != lasterr) {
+			lasterr = n;
+			runtime·printf("runtime: kevent on fd %d failed with %d\n", kq, -n);
+		}
 		goto retry;
 	}
 	for(i = 0; i < n; i++) {
