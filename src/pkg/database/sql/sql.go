@@ -1301,24 +1301,6 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 			return fmt.Errorf("sql: Scan error on column index %d: %v", i, err)
 		}
 	}
-	for _, dp := range dest {
-		b, ok := dp.(*[]byte)
-		if !ok {
-			continue
-		}
-		if *b == nil {
-			// If the []byte is now nil (for a NULL value),
-			// don't fall through to below which would
-			// turn it into a non-nil 0-length byte slice
-			continue
-		}
-		if _, ok = dp.(*RawBytes); ok {
-			continue
-		}
-		clone := make([]byte, len(*b))
-		copy(clone, *b)
-		*b = clone
-	}
 	return nil
 }
 
