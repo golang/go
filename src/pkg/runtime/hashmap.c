@@ -991,6 +991,13 @@ next:
 /// interfaces to go runtime
 //
 
+void
+reflect·ismapkey(Type *typ, bool ret)
+{
+	ret = typ != nil && typ->alg->hash != runtime·nohash;
+	FLUSH(&ret);
+}
+
 Hmap*
 runtime·makemap_c(MapType *typ, int64 hint)
 {
