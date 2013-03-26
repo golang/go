@@ -241,6 +241,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OXOR:
 	case OSUB:
 	case OMUL:
+	case OHMUL:
 	case OEQ:
 	case ONE:
 	case OLT:
@@ -379,19 +380,18 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OPARAM:     // it appears only in fn->exit to copy heap params back
 	case OCLOSUREVAR:// immutable pointer to captured variable
 	case ODOTMETH:   // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+	case OINDREG:    // at this stage, only n(SP) nodes from nodarg
+	case ODCL:       // declarations (without value) cannot be races
+	case ODCLCONST:
+	case ODCLTYPE:
+	case OTYPE:
+	case ONONAME:
+	case OLITERAL:
+	case OSLICESTR:  // always preceded by bounds checking, avoid double instrumentation.
 		goto ret;
 
 	// unimplemented
-	case OSLICESTR:
 	case OAPPEND:
-	case ODCL:
-	case ODCLCONST:
-	case ODCLTYPE:
-	case OLITERAL:
-	case OTYPE:
-	case ONONAME:
-	case OINDREG:
-	case OHMUL:
 		goto ret;
 	}
 
