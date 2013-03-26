@@ -6,9 +6,41 @@
 
 <h2 id="introduction">Introduction to Go 1.1</h2>
 
-TODO
- - overview
- - link back to Go 1 and also Go 1 Compatibility docs.
+<p>
+The release of <a href="/doc/go1.html">Go version 1</a> (Go 1 or Go 1.0 for short)
+in March of 2012 introduced a new period
+of stability in the Go language and libraries.
+That stability has helped nourish a growing community of Go users
+and systems around the world.
+Several "point" releases since
+then—1.0.1, 1.0.2, and 1.0.3—have been issued.
+These point releases fixed known bugs but made
+no non-critical changes to the implementation.
+</p>
+
+<p>
+This new release, Go 1.1, keeps the <a href="/doc/go1compat.html">promise
+of compatibility</a> but adds a couple of significant
+(backwards-compatible, of course) language changes, has a long list
+of (again, compatible) library changes, and
+includes major work on the implementation of the compilers,
+libraries, and run-time.
+The focus is on performance.
+Benchmarking is an inexact science at best, but we see significant,
+sometimes dramatic speedups for many of our test programs.
+We trust that many of our users' programs will also see improvements
+just by updating their Go installation and recompiling.
+</p>
+
+<p>
+This document summarizes the changes between Go 1 and Go 1.1.
+Very little if any code will need modification to run with Go 1.1,
+although a couple of rare error cases surface with this release
+and need to be addressed if they arise.
+Details appear below; see the discussion of
+<a href="#int">64-bit ints</a> and <a href="#unicode_literals">Unicode literals</a>
+in particular.
+</p>
 
 <h2 id="language">Changes to the language</h2>
 
@@ -62,7 +94,7 @@ a function literal closing over <code>w</code>:
 
 <pre>
 func (p []byte) (n int, err error) {
-	return w.Write(n, err)
+	return w.Write(p)
 }
 </pre>
 
@@ -75,7 +107,7 @@ is equivalent to a function with an extra first argument, a receiver of type
 
 <pre>
 func (w *bufio.Writer, p []byte) (n int, err error) {
-	return w.Write(n, err)
+	return w.Write(p)
 }
 </pre>
 
@@ -707,6 +739,10 @@ clearly a mistake in Go 1.0.
 Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
 </li>
 
+<li> TODO:
+<code>net</code>: LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
+</li>
+
 <li>
 The <a href="/pkg/net/"><code>net</code></a> package includes a new function,
 <a href="/pkg/net/#DialOpt"><code>DialOpt</code></a>, to supply options to
@@ -757,10 +793,6 @@ has two new functions,
 <a href="/pkg/net/textproto/#TrimBytes"><code>TrimBytes</code></a> and
 <a href="/pkg/net/textproto/#TrimString"><code>TrimString</code></a>,
 which do ASCII-only trimming of leading and trailing spaces.
-</li>
-
-<li> TODO:
-<code>net</code>: ListenUnixgram, LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
 </li>
 
 <li>
