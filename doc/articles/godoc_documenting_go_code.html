@@ -91,10 +91,9 @@ known issue from the <a href="/pkg/bytes/#pkg-bugs"><code>bytes</code></a> packa
 </pre>
 
 <p>
-Godoc treats executable commands somewhat differently. Instead of inspecting the
-command source code, it looks for a Go source file belonging to the special
-package "documentation". The comment on the "package documentation" clause is
-used as the command's documentation. For example, see the
+Godoc treats executable commands in the same way. It looks for a comment on
+package main, which is sometimes put in a separate file called <code>doc.go</code>.
+For example, see the
 <a href="/cmd/godoc/">godoc documentation</a> and its corresponding
 <a href="/src/cmd/godoc/doc.go">doc.go</a> file.
 </p>
