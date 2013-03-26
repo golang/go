@@ -23,15 +23,21 @@ import (
 // ----------------------------------------------------------------------------
 // Implementation of FormatSelections
 
-// A Selection is a function returning offset pairs []int{a, b}
-// describing consecutive non-overlapping text segments [a, b).
-// If there are no more segments, a Selection must return nil.
+// A Segment describes a text segment [start, end).
+// The zero value of a Segment is a ready-to-use empty segment.
 //
-// TODO It's more efficient to return a pair (a, b int) instead
-//      of creating lots of slices. Need to determine how to
-//      indicate the end of a Selection.
+type Segment struct {
+	start, end int
+}
+
+func (seg *Segment) isEmpty() bool { return seg.start >= seg.end }
+
+// A Selection is an "iterator" function returning a text segment.
+// Repeated calls to a selection return consecutive, non-overlapping,
+// non-empty segments, followed by an infinite sequence of empty
+// segments. The first empty segment marks the end of the selection.
 //
-type Selection func() []int
+type Selection func() Segment
 
 // A LinkWriter writes some start or end "tag" to w for the text offset offs.
 // It is called by FormatSelections at the start or end of each link segment.
@@ -141,17 +147,17 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection, 
 //
 type merger struct {
 	selections []Selection
-	segments   [][]int // segments[i] is the next segment of selections[i]
+	segments   []Segment // segments[i] is the next segment of selections[i]
 }
 
 const infinity int = 2e9
 
 func newMerger(selections []Selection) *merger {
-	segments := make([][]int, len(selections))
+	segments := make([]Segment, len(selections))
 	for i, sel := range selections {
-		segments[i] = []int{infinity, infinity}
+		segments[i] = Segment{infinity, infinity}
 		if sel != nil {
-			if seg := sel(); seg != nil {
+			if seg := sel(); !seg.isEmpty() {
 				segments[i] = seg
 			}
 		}
@@ -170,12 +176,12 @@ func (m *merger) next() (index, offs int, start bool) {
 	index = -1
 	for i, seg := range m.segments {
 		switch {
-		case seg[0] < offs:
-			offs = seg[0]
+		case seg.start < offs:
+			offs = seg.start
 			index = i
 			start = true
-		case seg[1] < offs:
-			offs = seg[1]
+		case seg.end < offs:
+			offs = seg.end
 			index = i
 			start = false
 		}
@@ -188,18 +194,17 @@ func (m *merger) next() (index, offs int, start bool) {
 	// either way it is ok to consume the start offset: set it
 	// to infinity so it won't be considered in the following
 	// next call
-	m.segments[index][0] = infinity
+	m.segments[index].start = infinity
 	if start {
 		return
 	}
 	// end offset found - consume it
-	m.segments[index][1] = infinity
+	m.segments[index].end = infinity
 	// advance to the next segment for that selection
 	seg := m.selections[index]()
-	if seg == nil {
-		return
+	if !seg.isEmpty() {
+		m.segments[index] = seg
 	}
-	m.segments[index] = seg
 	return
 }
 
@@ -209,7 +214,7 @@ func (m *merger) next() (index, offs int, start bool) {
 // lineSelection returns the line segments for text as a Selection.
 func lineSelection(text []byte) Selection {
 	i, j := 0, 0
-	return func() (seg []int) {
+	return func() (seg Segment) {
 		// find next newline, if any
 		for j < len(text) {
 			j++
@@ -219,7 +224,7 @@ func lineSelection(text []byte) Selection {
 		}
 		if i < j {
 			// text[i:j] constitutes a line
-			seg = []int{i, j}
+			seg = Segment{i, j}
 			i = j
 		}
 		return
@@ -234,7 +239,7 @@ func tokenSelection(src []byte, sel token.Token) Selection {
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
 	s.Init(file, src, nil, scanner.ScanComments)
-	return func() (seg []int) {
+	return func() (seg Segment) {
 		for {
 			pos, tok, lit := s.Scan()
 			if tok == token.EOF {
@@ -242,7 +247,7 @@ func tokenSelection(src []byte, sel token.Token) Selection {
 			}
 			offs := file.Offset(pos)
 			if tok == sel {
-				seg = []int{offs, offs + len(lit)}
+				seg = Segment{offs, offs + len(lit)}
 				break
 			}
 		}
@@ -251,13 +256,20 @@ func tokenSelection(src []byte, sel token.Token) Selection {
 }
 
 // makeSelection is a helper function to make a Selection from a slice of pairs.
+// Pairs describing empty segments are ignored.
+//
 func makeSelection(matches [][]int) Selection {
-	return func() (seg []int) {
-		if len(matches) > 0 {
-			seg = matches[0]
-			matches = matches[1:]
+	i := 0
+	return func() Segment {
+		for i < len(matches) {
+			m := matches[i]
+			i++
+			if m[0] < m[1] {
+				// non-empty segment
+				return Segment{m[0], m[1]}
+			}
 		}
-		return
+		return Segment{}
 	}
 }
 
