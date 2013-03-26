@@ -4,6 +4,9 @@
 
 // Package sql provides a generic interface around SQL (or SQL-like)
 // databases.
+//
+// The sql package must be used in conjunction with a database driver.
+// See http://golang.org/s/sqldrivers for a list of drivers.
 package sql
 
 import (
@@ -325,7 +328,9 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 // database name and connection information.
 //
 // Most users will open a database via a driver-specific connection
-// helper function that returns a *DB.
+// helper function that returns a *DB. No database drivers are included
+// in the Go standard library. See http://golang.org/s/sqldrivers for
+// a list of third-party drivers.
 //
 // Open may just validate its arguments without creating a connection
 // to the database. To verify that the data source name is valid, call
