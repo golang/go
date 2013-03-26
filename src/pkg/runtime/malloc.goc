@@ -318,7 +318,10 @@ runtime·mallocinit(void)
 
 	runtime·InitSizes();
 
-	limit = runtime·memlimit();
+	// limit = runtime·memlimit();
+	// See https://code.google.com/p/go/issues/detail?id=5049
+	// TODO(rsc): Fix after 1.1.
+	limit = 0;
 
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found.  The arena begins with a bitmap large
