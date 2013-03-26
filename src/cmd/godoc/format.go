@@ -226,10 +226,10 @@ func lineSelection(text []byte) Selection {
 	}
 }
 
-// commentSelection returns the sequence of consecutive comments
-// in the Go src text as a Selection.
+// tokenSelection returns, as a selection, the sequence of
+// consecutive occurrences of token sel in the Go src text.
 //
-func commentSelection(src []byte) Selection {
+func tokenSelection(src []byte, sel token.Token) Selection {
 	var s scanner.Scanner
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
@@ -241,7 +241,7 @@ func commentSelection(src []byte) Selection {
 				break
 			}
 			offs := file.Offset(pos)
-			if tok == token.COMMENT {
+			if tok == sel {
 				seg = []int{offs, offs + len(lit)}
 				break
 			}
@@ -338,7 +338,7 @@ func selectionTag(w io.Writer, text []byte, selections int) {
 func FormatText(w io.Writer, text []byte, line int, goSource bool, pattern string, selection Selection) {
 	var comments, highlights Selection
 	if goSource {
-		comments = commentSelection(text)
+		comments = tokenSelection(text, token.COMMENT)
 	}
 	if pattern != "" {
 		highlights = regexpSelection(text, pattern)

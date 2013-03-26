@@ -66,6 +66,7 @@ var (
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
 	showPlayground = flag.Bool("play", false, "enable playground in web interface")
 	showExamples   = flag.Bool("ex", false, "show examples in command line mode")
+	declLinks      = flag.Bool("links", true, "link identifiers to their declarations")
 
 	// search index
 	indexEnabled = flag.Bool("index", false, "enable search index")
@@ -281,8 +282,21 @@ func nodeFunc(node interface{}, fset *token.FileSet) string {
 func node_htmlFunc(node interface{}, fset *token.FileSet) string {
 	var buf1 bytes.Buffer
 	writeNode(&buf1, fset, node)
+
 	var buf2 bytes.Buffer
-	FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
+	// BUG(gri):  When showing full source text (?m=src),
+	//            identifier links are incorrect.
+	// TODO(gri): Only linkify exported code snippets, not the
+	//            full source text: identifier resolution is
+	//            not sufficiently strong w/o type checking.
+	//            Need to check if info.PAst != nil - requires
+	//            to pass *PageInfo around instead of fset.
+	if n, _ := node.(ast.Node); n != nil && *declLinks {
+		LinkifyText(&buf2, buf1.Bytes(), n)
+	} else {
+		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
+	}
+
 	return buf2.String()
 }
 
@@ -521,7 +535,7 @@ var fmap = template.FuncMap{
 	"filename": filenameFunc,
 	"repeat":   strings.Repeat,
 
-	// accss to FileInfos (directory listings)
+	// access to FileInfos (directory listings)
 	"fileInfoName": fileInfoNameFunc,
 	"fileInfoTime": fileInfoTimeFunc,
 
@@ -1020,6 +1034,23 @@ func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Ex
 	return examples
 }
 
+// poorMansImporter returns a (dummy) package object named
+// by the last path component of the provided package path
+// (as is the convention for packages). This is sufficient
+// to resolve package identifiers without doing an actual
+// import. It never returns an error.
+//
+func poorMansImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
+	pkg := imports[path]
+	if pkg == nil {
+		// note that strings.LastIndex returns -1 if there is no "/"
+		pkg = ast.NewObj(ast.Pkg, path[strings.LastIndex(path, "/")+1:])
+		pkg.Data = ast.NewScope(nil) // required by ast.NewPackage for dot-import
+		imports[path] = pkg
+	}
+	return pkg, nil
+}
+
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -1071,7 +1102,9 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
 			info.Err = err
 			return
 		}
-		pkg := &ast.Package{Name: pkgname, Files: files}
+
+		// ignore any errors - they are due to unresolved identifiers
+		pkg, _ := ast.NewPackage(fset, files, poorMansImporter, nil)
 
 		// extract package documentation
 		info.FSet = fset
