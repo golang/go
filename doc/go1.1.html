@@ -452,6 +452,26 @@ and
 methods.
 </p>
 
+<p>
+The data structures
+<a href="/pkg/net/#IPAddr"><code>IPAddr</code></a>,
+<a href="/pkg/net/#TCPAddr"><code>TCPAddr</code></a>, and
+<a href="/pkg/net/#UDPAddr"><code>UDPAddr</code></a>
+add a new string field called <code>Zone</code>.
+Code using untagged composite literals (e.g. <code>net.TCPAddr{ip, port}</code>)
+instead of tagged literals (<code>net.TCPAddr{IP: ip, Port: port}</code>)
+will break due to the new field.
+The Go 1 compatibility rules allow this change: client code must use tagged literals to avoid such breakages.
+</p>
+
+<p>
+<em>Updating</em>:
+To correct breakage caused by the new struct field,
+<code>go fix</code> will rewrite code to add tags for these types.
+More generally, <code>go vet</code> will identify composite literals that
+should be revised to use field tags.
+</p>
+
 <h3 id="reflect">reflect</h3>
 
 <p>
@@ -730,17 +750,13 @@ to define the boundary separator used to package the output.
 <li>
 The
 <a href="/pkg/net/"><code>net</code></a> package's
-<a href="/pkg/net/#ListenUnixgram"><code>net/ListenUnixgram</code></a>
+<a href="/pkg/net/#ListenUnixgram"><code>ListenUnixgram</code></a>
 function has changed return types: it now returns a
-<a href="/pkg/net/#UnixConn"><code>net/UnixConn</code></a>
+<a href="/pkg/net/#UnixConn"><code>UnixConn</code></a>
 rather than a
-<a href="/pkg/net/#UDPConn"><code>net/UDPConn</code></a>, which was
+<a href="/pkg/net/#UDPConn"><code>UDPConn</code></a>, which was
 clearly a mistake in Go 1.0.
 Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
-</li>
-
-<li> TODO:
-<code>net</code>: LookupNS, IPConn.ReadMsgIP, IPConn.WriteMsgIP, UDPConn.ReadMsgUDP, UDPConn.WriteMsgUDP, UnixConn.CloseRead, UnixConn.CloseWrite
 </li>
 
 <li>
@@ -756,6 +772,48 @@ The new functions
 <a href="/pkg/net/#LocalAddress"><code>LocalAddress</code></a> return a <code>DialOption</code>.
 </li>
 
+<li>
+The <a href="/pkg/net/"><code>net</code></a> package adds support for
+link-local IPv6 addresses with zone qualifiers, such as <code>fe80::1%lo0</code>.
+The address structures <a href="/pkg/net/#IPAddr"><code>IPAddr</code></a>,
+<a href="/pkg/net/#UDPAddr"><code>UDPAddr</code></a>, and
+<a href="/pkg/net/#TCPAddr"><code>TCPAddr</code></a>
+record the zone in a new field, and functions that expect string forms of these addresses, such as
+<a href="/pkg/net/#Dial"><code>Dial</code></a>,
+<a href="/pkg/net/#ResolveIPAddr"><code>ResolveIPAddr</code></a>,
+<a href="/pkg/net/#ResolveUDPAddr"><code>ResolveUDPAddr</code></a>, and
+<a href="/pkg/net/#ResolveTCPAddr"><code>ResolveTCPAddr</code></a>,
+now accept the zone-qualified form.
+</li>
+
+<li>
+The <a href="/pkg/net/"><code>net</code></a> package adds
+<a href="/pkg/net/#LookupNS"><code>LookupNS</code></a> to its suite of resolving functions.
+<code>LookupNS</code> returns the <a href="/pkg/net/#NS">NS records</a> for a host name.
+</li>
+
+<li>
+The <a href="/pkg/net/"><code>net</code></a> package adds protocol-specific 
+packet reading and writing methods to
+<a href="/pkg/net/#IPConn"><code>IPConn</code></a>
+(<a href="/pkg/net/#IPConn.ReadMsgIP"><code>ReadMsgIP</code></a>
+and <a href="/pkg/net/#IPConn.WriteMsgIP"><code>WriteMsgIP</code></a>) and 
+<a href="/pkg/net/#UDPConn"><code>UDPConn</code></a>
+(<a href="/pkg/net/#UDPConn.ReadMsgUDP"><code>ReadMsgUDP</code></a> and
+<a href="/pkg/net/#UDPConn.WriteMsgUDP"><code>WriteMsgUDP</code></a>).
+These are specialized versions of <a href="/pkg/net/#PacketConn"><code>PacketConn</code></a>'s
+<code>ReadFrom</code> and <code>WriteTo</code> methods that provide access to out-of-band data associated
+with the packets.
+ </li>
+ 
+ <li>
+The <a href="/pkg/net/"><code>net</code></a> package adds methods to
+<a href="/pkg/net/#UnixConn"><code>UnixConn</code></a> to allow closing half of the connection 
+(<a href="/pkg/net/#UnixConn.CloseRead"><code>CloseRead</code></a> and
+<a href="/pkg/net/#UnixConn.CloseWrite"><code>CloseWrite</code></a>),
+matching the existing methods of <a href="/pkg/net/#TCPConn"><code>TCPConn</code></a>.
+</li>
+ 
 <li>
 The <a href="/pkg/net/http/"><code>net/http</code></a> package includes several new additions.
 <a href="/pkg/net/http/#ParseTime"><code>ParseTime</code></a> parses a time string, trying
