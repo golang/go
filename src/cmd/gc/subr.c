@@ -714,6 +714,12 @@ methcmp(const void *va, const void *vb)
 	
 	a = *(Type**)va;
 	b = *(Type**)vb;
+	if(a->sym == S && b->sym == S)
+		return 0;
+	if(a->sym == S)
+		return -1;
+	if(b->sym == S)
+		return 1;
 	i = strcmp(a->sym->name, b->sym->name);
 	if(i != 0)
 		return i;
@@ -1393,7 +1399,7 @@ assignconv(Node *n, Type *t, char *context)
 	Node *r, *old;
 	char *why;
 	
-	if(n == N || n->type == T)
+	if(n == N || n->type == T || n->type->broke)
 		return n;
 
 	old = n;

@@ -1339,6 +1339,8 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
 	f = methtype(pa, 1);
 	if(f == T) {
 		t = pa;
+		if(t == T) // rely on typecheck having complained before
+			return;
 		if(t != T) {
 			if(isptr[t->etype]) {
 				if(t->sym != S) {
@@ -1347,10 +1349,8 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
 				}
 				t = t->type;
 			}
-		}
-		if(t->broke) // rely on typecheck having complained before
-			return;
-		if(t != T) {
+			if(t->broke) // rely on typecheck having complained before
+				return;
 			if(t->sym == S) {
 				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
 				return;
