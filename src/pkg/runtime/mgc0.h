@@ -16,6 +16,9 @@
 //   len      Length of an array
 //   elemsize Size (in bytes) of an element
 //   size     Size (in bytes)
+//
+// NOTE: There is a copy of these in ../reflect/type.go.
+// They must be kept in sync.
 enum {
 	GC_END,         // End of object, loop or subroutine. Args: none
 	GC_PTR,         // A typed pointer. Args: (off, objgc)

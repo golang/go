@@ -14,6 +14,7 @@ import (
 	"os"
 	. "reflect"
 	"runtime"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -2199,6 +2200,30 @@ func TestPtrTo(t *testing.T) {
 	}
 }
 
+func TestPtrToGC(t *testing.T) {
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	pt := PtrTo(tt)
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := New(pt)
+		p := new(*uintptr)
+		*p = new(uintptr)
+		**p = uintptr(i)
+		v.Elem().Set(ValueOf(p).Convert(pt))
+		x = append(x, v.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		k := ValueOf(xi).Elem().Elem().Elem().Interface().(uintptr)
+		if k != uintptr(i) {
+			t.Errorf("lost x[%d] = %d, want %d", i, k, i)
+		}
+	}
+}
+
 func TestAddr(t *testing.T) {
 	var p struct {
 		X, Y int
@@ -2991,8 +3016,10 @@ func TestSliceOf(t *testing.T) {
 	type T int
 	st := SliceOf(TypeOf(T(1)))
 	v := MakeSlice(st, 10, 10)
+	runtime.GC()
 	for i := 0; i < v.Len(); i++ {
 		v.Index(i).Set(ValueOf(T(i)))
+		runtime.GC()
 	}
 	s := fmt.Sprint(v.Interface())
 	want := "[0 1 2 3 4 5 6 7 8 9]"
@@ -3005,13 +3032,44 @@ func TestSliceOf(t *testing.T) {
 	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
 }
 
+func TestSliceOfGC(t *testing.T) {
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	st := SliceOf(tt)
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := MakeSlice(st, n, n)
+		for j := 0; j < v.Len(); j++ {
+			p := new(uintptr)
+			*p = uintptr(i*n + j)
+			v.Index(j).Set(ValueOf(p).Convert(tt))
+		}
+		x = append(x, v.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		v := ValueOf(xi)
+		for j := 0; j < v.Len(); j++ {
+			k := v.Index(j).Elem().Interface()
+			if k != uintptr(i*n+j) {
+				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+			}
+		}
+	}
+}
+
 func TestChanOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type T string
 	ct := ChanOf(BothDir, TypeOf(T("")))
 	v := MakeChan(ct, 2)
+	runtime.GC()
 	v.Send(ValueOf(T("hello")))
+	runtime.GC()
 	v.Send(ValueOf(T("world")))
+	runtime.GC()
 
 	sv1, _ := v.Recv()
 	sv2, _ := v.Recv()
@@ -3026,13 +3084,63 @@ func TestChanOf(t *testing.T) {
 	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
 }
 
+func TestChanOfGC(t *testing.T) {
+	done := make(chan bool, 1)
+	go func() {
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			panic("deadlock in TestChanOfGC")
+		}
+	}()
+
+	defer func() {
+		done <- true
+	}()
+
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	ct := ChanOf(BothDir, tt)
+
+	// NOTE: The garbage collector handles allocated channels specially,
+	// so we have to save pointers to channels in x; the pointer code will
+	// use the gc info in the newly constructed chan type.
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := MakeChan(ct, n)
+		for j := 0; j < n; j++ {
+			p := new(uintptr)
+			*p = uintptr(i*n + j)
+			v.Send(ValueOf(p).Convert(tt))
+		}
+		pv := New(ct)
+		pv.Elem().Set(v)
+		x = append(x, pv.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		v := ValueOf(xi).Elem()
+		for j := 0; j < n; j++ {
+			pv, _ := v.Recv()
+			k := pv.Elem().Interface()
+			if k != uintptr(i*n+j) {
+				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+			}
+		}
+	}
+}
+
 func TestMapOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type K string
 	type V float64
 
 	v := MakeMap(MapOf(TypeOf(K("")), TypeOf(V(0))))
+	runtime.GC()
 	v.SetMapIndex(ValueOf(K("a")), ValueOf(V(1)))
+	runtime.GC()
 
 	s := fmt.Sprint(v.Interface())
 	want := "map[a:1]"
@@ -3042,6 +3150,81 @@ func TestMapOf(t *testing.T) {
 
 	// check that type already in binary is found
 	checkSameType(t, Zero(MapOf(TypeOf(V(0)), TypeOf(K("")))).Interface(), map[V]K(nil))
+
+	// check that invalid key type panics
+	shouldPanic(func() { MapOf(TypeOf((func())(nil)), TypeOf(false)) })
+}
+
+func TestMapOfGCKeys(t *testing.T) {
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	mt := MapOf(tt, TypeOf(false))
+
+	// NOTE: The garbage collector handles allocated maps specially,
+	// so we have to save pointers to maps in x; the pointer code will
+	// use the gc info in the newly constructed map type.
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := MakeMap(mt)
+		for j := 0; j < n; j++ {
+			p := new(uintptr)
+			*p = uintptr(i*n + j)
+			v.SetMapIndex(ValueOf(p).Convert(tt), ValueOf(true))
+		}
+		pv := New(mt)
+		pv.Elem().Set(v)
+		x = append(x, pv.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		v := ValueOf(xi).Elem()
+		var out []int
+		for _, kv := range v.MapKeys() {
+			out = append(out, int(kv.Elem().Interface().(uintptr)))
+		}
+		sort.Ints(out)
+		for j, k := range out {
+			if k != i*n+j {
+				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+			}
+		}
+	}
+}
+
+func TestMapOfGCValues(t *testing.T) {
+	type T *uintptr
+	tt := TypeOf(T(nil))
+	mt := MapOf(TypeOf(1), tt)
+
+	// NOTE: The garbage collector handles allocated maps specially,
+	// so we have to save pointers to maps in x; the pointer code will
+	// use the gc info in the newly constructed map type.
+	const n = 100
+	var x []interface{}
+	for i := 0; i < n; i++ {
+		v := MakeMap(mt)
+		for j := 0; j < n; j++ {
+			p := new(uintptr)
+			*p = uintptr(i*n + j)
+			v.SetMapIndex(ValueOf(j), ValueOf(p).Convert(tt))
+		}
+		pv := New(mt)
+		pv.Elem().Set(v)
+		x = append(x, pv.Interface())
+	}
+	runtime.GC()
+
+	for i, xi := range x {
+		v := ValueOf(xi).Elem()
+		for j := 0; j < n; j++ {
+			k := v.MapIndex(ValueOf(j)).Elem().Interface().(uintptr)
+			if k != uintptr(i*n+j) {
+				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
+			}
+		}
+	}
 }
 
 type B1 struct {
