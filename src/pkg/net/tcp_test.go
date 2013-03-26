@@ -147,12 +147,14 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
 	}
 }
 
-var resolveTCPAddrTests = []struct {
+type resolveTCPAddrTest struct {
 	net     string
 	litAddr string
 	addr    *TCPAddr
 	err     error
-}{
+}
+
+var resolveTCPAddrTests = []resolveTCPAddrTest{
 	{"tcp", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
 	{"tcp4", "127.0.0.1:65535", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
 
@@ -161,8 +163,6 @@ var resolveTCPAddrTests = []struct {
 
 	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
 	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
-	{"tcp6", "[fe80::1]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
-	{"tcp6", "[fe80::1]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
 
 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
@@ -170,26 +170,18 @@ var resolveTCPAddrTests = []struct {
 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
 }
 
+func init() {
+	if ifi := loopbackInterface(); ifi != nil {
+		index := fmt.Sprintf("%v", ifi.Index)
+		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+			{"tcp6", "[fe80::1%" + ifi.Name + "]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
+			{"tcp6", "[fe80::1%" + index + "]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
+		}...)
+	}
+}
+
 func TestResolveTCPAddr(t *testing.T) {
 	for _, tt := range resolveTCPAddrTests {
-		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
-			ifi := loopbackInterface()
-			if ifi == nil {
-				continue
-			}
-			i := last(tt.litAddr, ']')
-			if i > 0 {
-				switch tt.addr.Zone {
-				case "name":
-					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
-					tt.addr.Zone = zoneToString(ifi.Index)
-				case "index":
-					index := fmt.Sprintf("%v", ifi.Index)
-					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
-					tt.addr.Zone = index
-				}
-			}
-		}
 		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
 		if err != tt.err {
 			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
