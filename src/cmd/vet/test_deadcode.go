@@ -112,31 +112,31 @@ func _() int {
 func _() int {
 	print(1)
 	return 2
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
 L:
 	print(1)
 	goto L
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
 	print(1)
 	panic(2)
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
 	{
 		print(1)
 		return 2
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -145,8 +145,8 @@ L:
 	{
 		print(1)
 		goto L
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -154,8 +154,8 @@ func _() int {
 	print(1)
 	{
 		panic(2)
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -164,8 +164,8 @@ func _() int {
 		print(1)
 		return 2
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
@@ -174,8 +174,8 @@ L:
 		print(1)
 		goto L
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
@@ -183,8 +183,8 @@ func _() int {
 	{
 		panic(2)
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 func _() int {
@@ -991,31 +991,31 @@ func _() int {
 
 func _() int {
 	return 2
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 func _() int {
 L:
 	goto L
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 func _() int {
 	panic(2)
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 func _() int {
 	{
 		return 2
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -1024,8 +1024,8 @@ func _() int {
 L:
 	{
 		goto L
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -1033,8 +1033,8 @@ L:
 func _() int {
 	{
 		panic(2)
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -1043,8 +1043,8 @@ func _() int {
 	{
 		return 2
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
@@ -1053,8 +1053,8 @@ L:
 	{
 		goto L
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
@@ -1062,8 +1062,8 @@ func _() int {
 	{
 		panic(2)
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
@@ -1165,31 +1165,31 @@ var _ = func() int {
 var _ = func() int {
 	print(1)
 	return 2
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
 L:
 	print(1)
 	goto L
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
 	print(1)
 	panic(2)
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
 	{
 		print(1)
 		return 2
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -1198,8 +1198,8 @@ L:
 	{
 		print(1)
 		goto L
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -1207,8 +1207,8 @@ var _ = func() int {
 	print(1)
 	{
 		panic(2)
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 }
 
@@ -1217,8 +1217,8 @@ var _ = func() int {
 		print(1)
 		return 2
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
@@ -1227,8 +1227,8 @@ L:
 		print(1)
 		goto L
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
@@ -1236,8 +1236,8 @@ var _ = func() int {
 	{
 		panic(2)
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 }
 
 var _ = func() int {
@@ -2044,31 +2044,31 @@ var _ = func() int {
 
 var _ = func() int {
 	return 2
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 var _ = func() int {
 L:
 	goto L
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 var _ = func() int {
 	panic(2)
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
 var _ = func() int {
 	{
 		return 2
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -2077,8 +2077,8 @@ var _ = func() int {
 L:
 	{
 		goto L
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -2086,8 +2086,8 @@ L:
 var _ = func() int {
 	{
 		panic(2)
-		{
-		} // ERROR "unreachable code"
+		{ // ERROR "unreachable code"
+		}
 	}
 	println() // ok
 }
@@ -2096,8 +2096,8 @@ var _ = func() int {
 	{
 		return 2
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
@@ -2106,8 +2106,8 @@ L:
 	{
 		goto L
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
 
@@ -2115,7 +2115,7 @@ var _ = func() int {
 	{
 		panic(2)
 	}
-	{
-	} // ERROR "unreachable code"
+	{ // ERROR "unreachable code"
+	}
 	println() // ok
 }
