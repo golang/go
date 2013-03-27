@@ -338,8 +338,7 @@ func TestRaceSliceVarCopy2(t *testing.T) {
 	<-c
 }
 
-// Not implemented.
-func TestRaceFailingSliceAppend(t *testing.T) {
+func TestRaceSliceAppend(t *testing.T) {
 	c := make(chan bool, 1)
 	s := make([]int, 10, 20)
 	go func() {

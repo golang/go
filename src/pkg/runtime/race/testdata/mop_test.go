@@ -227,6 +227,37 @@ func TestRaceCaseFallthrough(t *testing.T) {
 	<-ch
 }
 
+func TestRaceCaseType(t *testing.T) {
+	var x, y int
+	var i interface{} = x
+	c := make(chan int, 1)
+	go func() {
+		switch i.(type) {
+		case nil:
+		case int:
+		}
+		c <- 1
+	}()
+	i = y
+	<-c
+}
+
+func TestRaceCaseTypeBody(t *testing.T) {
+	var x, y int
+	var i interface{} = &x
+	c := make(chan int, 1)
+	go func() {
+		switch i := i.(type) {
+		case nil:
+		case *int:
+			*i = y
+		}
+		c <- 1
+	}()
+	x = y
+	<-c
+}
+
 func TestNoRaceRange(t *testing.T) {
 	ch := make(chan int, 3)
 	a := [...]int{1, 2, 3}
@@ -1440,6 +1471,21 @@ func TestRaceFailingSliceStruct(t *testing.T) {
 	go func() {
 		y := make([]X, 10)
 		copy(y, x)
+		c <- true
+	}()
+	x[1].y = 42
+	<-c
+}
+
+func TestRaceAppendSliceStruct(t *testing.T) {
+	type X struct {
+		x, y int
+	}
+	c := make(chan bool, 1)
+	x := make([]X, 10)
+	go func() {
+		y := make([]X, 0, 10)
+		y = append(y, x...)
 		c <- true
 	}()
 	x[1].y = 42
