@@ -499,6 +499,8 @@ var execTests = []execTest{
 	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
 	// A bug was introduced that broke map lookups for lower-case names.
 	{"bug9", "{{.cause}}", "neglect", map[string]string{"cause": "neglect"}, true},
+	// Field chain starting with function did not work.
+	{"bug10", "{{mapOfThree.three}}-{{(mapOfThree).three}}", "3-3", 0, true},
 }
 
 func zeroArgs() string {
@@ -560,19 +562,24 @@ func stringer(s fmt.Stringer) string {
 	return s.String()
 }
 
+func mapOfThree() interface{} {
+	return map[string]int{"three": 3}
+}
+
 func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
-		"add":      add,
-		"count":    count,
-		"dddArg":   dddArg,
-		"echo":     echo,
-		"makemap":  makemap,
-		"oneArg":   oneArg,
-		"typeOf":   typeOf,
-		"vfunc":    vfunc,
-		"zeroArgs": zeroArgs,
-		"stringer": stringer,
+		"add":        add,
+		"count":      count,
+		"dddArg":     dddArg,
+		"echo":       echo,
+		"makemap":    makemap,
+		"mapOfThree": mapOfThree,
+		"oneArg":     oneArg,
+		"stringer":   stringer,
+		"typeOf":     typeOf,
+		"vfunc":      vfunc,
+		"zeroArgs":   zeroArgs,
 	}
 	for _, test := range execTests {
 		var tmpl *Template
