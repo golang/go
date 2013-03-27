@@ -157,6 +157,12 @@ and so on.  These cannot be addressed well by libraries or tools; a new
 language was called for.
 </p>
 
+<p>
+The article <a href="http://talks.golang.org/2012/splash.article">Go at Google</a>
+discusses the background and motivation behind the design of the Go language,
+as well as providing more detail about many of the answers presented in this FAQ.
+</p>
+
 <h3 id="ancestors">
 What are Go's ancestors?</h3>
 <p>
@@ -214,6 +220,13 @@ production inside Google.  A public example is the server behind
 It's just the <a href="/cmd/godoc"><code>godoc</code></a>
 document server running in a production configuration on
 <a href="https://developers.google.com/appengine/">Google App Engine</a>.
+</p>
+
+<p>
+Other examples include the <a href="https://code.google.com/p/vitess/">Vitess</a>
+system for large-scale SQL installations and Google's download server, <code>dl.google.com</code>,
+which delivers Chrome binaries and other large installables such as <code>apt-get</code>
+packages.
 </p>
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
@@ -394,6 +407,8 @@ for concurrency comes from Hoare's Communicating Sequential Processes, or CSP.
 Occam and Erlang are two well known languages that stem from CSP.
 Go's concurrency primitives derive from a different part of the family tree
 whose main contribution is the powerful notion of channels as first class objects.
+Experience with several earlier languages has shown that the CSP model
+fits well into a procedural language framework.
 </p>
 
 <h3 id="goroutines">
@@ -874,11 +889,11 @@ There's a lot of history on that topic.  Early on, maps and channels
 were syntactically pointers and it was impossible to declare or use a
 non-pointer instance.  Also, we struggled with how arrays should work.
 Eventually we decided that the strict separation of pointers and
-values made the language harder to use.  Introducing reference types,
-including slices to handle the reference form of arrays, resolved
-these issues.  Reference types add some regrettable complexity to the
-language but they have a large effect on usability: Go became a more
-productive, comfortable language when they were introduced.
+values made the language harder to use.  Changing these
+types to act as references to the associated, shared data structures resolved
+these issues. This change added some regrettable complexity to the
+language but had a large effect on usability: Go became a more
+productive, comfortable language when it was introduced.
 </p>
 
 <h2 id="Writing_Code">Writing Code</h2>
@@ -1080,7 +1095,7 @@ There are several considerations.
 First, and most important, does the method need to modify the
 receiver?
 If it does, the receiver <em>must</em> be a pointer.
-(Slices and maps are reference types, so their story is a little
+(Slices and maps act as references, so their story is a little
 more subtle, but for instance to change the length of a slice
 in a method the receiver must still be a pointer.)
 In the examples above, if <code>pointerMethod</code> modifies
@@ -1131,7 +1146,7 @@ of Effective Go</a> for more details.
 </p>
 
 <h3 id="q_int_sizes">
-Why is <code>int</code> 32 bits on 64 bit machines?</h3>
+What is the size of an <code>int</code> on a 64 bit machine?</h3>
 
 <p>
 The sizes of <code>int</code> and <code>uint</code> are implementation-specific
@@ -1146,12 +1161,6 @@ numbers are always sized: <code>float32</code>, <code>complex64</code>,
 etc., because programmers should be aware of precision when using
 floating-point numbers.
 The default size of a floating-point constant is <code>float64</code>.
-</p>
-
-<p>
-At the moment, all implementations use 32-bit ints, an essentially arbitrary decision.
-However, we expect that <code>int</code> will be increased to 64 bits on 64-bit
-architectures in a future release of Go.
 </p>
 
 <h3 id="stack_or_heap">
@@ -1237,6 +1246,9 @@ run-time support to utilize more than one OS thread.
 <p>
 Programs that perform parallel computation should benefit from an increase in
 <code>GOMAXPROCS</code>.
+However, be aware that
+<a href="http://blog.golang.org/2013/01/concurrency-is-not-parallelism.html">concurrency
+is not parallelism</a>.
 </p>
 
 <h3 id="Why_GOMAXPROCS">
@@ -1269,6 +1281,11 @@ Go's goroutine scheduler is not as good as it needs to be. In future, it
 should recognize such cases and optimize its use of OS threads. For now,
 <code>GOMAXPROCS</code> should be set on a per-application basis.
 </p>
+
+<p>
+For more detail on this topic see the talk entitled,
+<a href="http://blog.golang.org/2013/01/concurrency-is-not-parallelism.html">Concurrency
+is not Parallelism</a>.
 
 <h2 id="Functions_methods">Functions and Methods</h2>
 
@@ -1503,9 +1520,11 @@ We considered writing <code>gc</code>, the original Go compiler, in Go itself bu
 elected not to do so because of the difficulties of bootstrapping and
 especially of open source distribution&mdash;you'd need a Go compiler to
 set up a Go environment. <code>Gccgo</code>, which came later, makes it possible to
-consider writing a compiler in Go, which might well happen. (Go would be a
+consider writing a compiler in Go, which might well happen.
+(Go would be a
 fine language in which to implement a compiler; a native lexer and
-parser are already available in the <a href="/pkg/go/"><code>go</code></a> package.)
+parser are already available in the <a href="/pkg/go/"><code>go</code></a> package
+and a type checker is in the works.)
 </p>
 
 <p>
