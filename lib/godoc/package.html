@@ -40,7 +40,7 @@
 				{{comment_html .Doc}}
 			</div>
 		</div>
-		{{example_html "" $.Examples $.FSet}}
+		{{example_html $ ""}}
 
 		<div id="pkg-index" class="toggleVisible">
 		<div class="collapsed">
@@ -60,18 +60,18 @@
 			{{end}}
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+				<dd><a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
 			{{end}}
 			{{range .Types}}
 				{{$tname_html := html .Name}}
 				<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
 				{{range .Funcs}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
 				{{end}}
 				{{range .Methods}}
 					{{$name_html := html .Name}}
-					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl}}</a></dd>
 				{{end}}
 			{{end}}
 			{{if $.Notes}}
@@ -109,59 +109,59 @@
 		{{with .Consts}}
 			<h2 id="pkg-constants">Constants</h2>
 			{{range .}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{with .Vars}}
 			<h2 id="pkg-variables">Variables</h2>
 			{{range .}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 		{{range .Funcs}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
-			<h2 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
-			<pre>{{node_html .Decl $.FSet}}</pre>
+			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h2>
+			<pre>{{node_html $ .Decl}}</pre>
 			{{comment_html .Doc}}
-			{{example_html .Name $.Examples $.FSet}}
+			{{example_html $ .Name}}
 		{{end}}
 		{{range .Types}}
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
-			<h2 id="{{$tname_html}}">type <a href="{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
-			<pre>{{node_html .Decl $.FSet}}</pre>
+			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a></h2>
+			<pre>{{node_html $ .Decl}}</pre>
 			{{comment_html .Doc}}
 
 			{{range .Consts}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 
 			{{range .Vars}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
 			{{end}}
 
-			{{example_html $tname $.Examples $.FSet}}
+			{{example_html $ $tname}}
 
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
-				{{example_html .Name $.Examples $.FSet}}
+				{{example_html $ .Name}}
 			{{end}}
 
 			{{range .Methods}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<pre>{{node_html .Decl $.FSet}}</pre>
+				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
+				<pre>{{node_html $ .Decl}}</pre>
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
-				{{example_html $name $.Examples $.FSet}}
+				{{example_html $ $name}}
 			{{end}}
 		{{end}}
 	{{end}}
@@ -179,7 +179,7 @@
 {{end}}
 
 {{with .PAst}}
-	<pre>{{node_html . $.FSet}}</pre>
+	<pre>{{node_html $ .}}</pre>
 {{end}}
 
 {{with .Dirs}}
