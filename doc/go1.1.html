@@ -655,7 +655,7 @@ may implement to improve performance.
 The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package's
 <a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
 has a new method
-<a href="/pkg/encoding/json/#Decoder.Reader"><code>Reader</code></a>
+<a href="/pkg/encoding/json/#Decoder.Buffered"><code>Buffered</code></a>
 to provide access to the remaining data in its buffer,
 as well as a new method
 <a href="/pkg/encoding/json/#Decoder.UseNumber"><code>UseNumber</code></a>
@@ -702,12 +702,12 @@ to format arbitrary Go source code.
 
 <li>
 The undocumented and only partially implemented "noescape" feature of the
-<a href="/pkg/html/template/">html/template</a>
+<a href="/pkg/html/template/"><code>html/template</code></a>
 package has been removed; programs that depend on it will break.
 </li>
 
 <li>
-The <a href="/pkg/io/">io</a> package now exports the
+The <a href="/pkg/io/"><code>io</code></a> package now exports the
 <a href="/pkg/io/#ByteWriter"><code>io.ByteWriter</code></a> interface to capture the common
 functionality of writing a byte at a time.
 </li>
@@ -834,7 +834,7 @@ being fully consumed.
 </li>
 
 <li>
-The new <a href="/pkg/net/http/cookiejar/">net/http/cookiejar</a> package provides the basics for managing HTTP cookies.
+The new <a href="/pkg/net/http/cookiejar/"><code>net/http/cookiejar</code></a> package provides the basics for managing HTTP cookies.
 </li>
 
 <li>
@@ -861,7 +861,7 @@ which do ASCII-only trimming of leading and trailing spaces.
 </li>
 
 <li>
-The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular</code> </a> makes it easy to ask if a file is a plain file.
+The new method <a href="/pkg/os/#FileMode.IsRegular"><code>os.FileMode.IsRegular</code></a> makes it easy to ask if a file is a plain file.
 </li>
 
 <li>
