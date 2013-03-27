@@ -1,4 +1,4 @@
-{{with .PAst}}{{node . $.FSet}}{{end}}{{/*
+{{with .PAst}}{{node $ .}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -11,14 +11,14 @@ package {{.Name}}
     import "{{.ImportPath}}"
 
 {{comment_text .Doc "    " "\t"}}
-{{example_text "" $.Examples $.FSet "    "}}{{/*
+{{example_text $ "" "    "}}{{/*
 
 ---------------------------------------
 
 */}}{{with .Consts}}
 CONSTANTS
 
-{{range .}}{{node .Decl $.FSet}}
+{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}{{end}}
 {{end}}{{/*
 
@@ -27,7 +27,7 @@ CONSTANTS
 */}}{{with .Vars}}
 VARIABLES
 
-{{range .}}{{node .Decl $.FSet}}
+{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}{{end}}
 {{end}}{{/*
 
@@ -36,9 +36,9 @@ VARIABLES
 */}}{{with .Funcs}}
 FUNCTIONS
 
-{{range .}}{{node .Decl $.FSet}}
+{{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{example_text .Name $.Examples $.FSet "    "}}
+{{example_text $ .Name "    "}}
 {{end}}{{end}}{{/*
 
 ---------------------------------------
@@ -46,19 +46,19 @@ FUNCTIONS
 */}}{{with .Types}}
 TYPES
 
-{{range .}}{{$tname := .Name}}{{node .Decl $.FSet}}
+{{range .}}{{$tname := .Name}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{range .Consts}}{{node .Decl $.FSet}}
+{{range .Consts}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{range .Vars}}{{node .Decl $.FSet}}
+{{end}}{{range .Vars}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{example_text .Name $.Examples $.FSet "    "}}
-{{range .Funcs}}{{node .Decl $.FSet}}
+{{end}}{{example_text $ .Name "    "}}
+{{range .Funcs}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{example_text .Name $.Examples $.FSet "    "}}
-{{end}}{{range .Methods}}{{node .Decl $.FSet}}
+{{example_text $ .Name "    "}}
+{{end}}{{range .Methods}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{$name := printf "%s_%s" $tname .Name}}{{example_text $name $.Examples $.FSet "    "}}
+{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}
 {{end}}{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
