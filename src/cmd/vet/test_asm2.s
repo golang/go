@@ -3,9 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build 386
-// +build ignore
-
-package main
+// +build vet_test
 
 TEXT ·arg1(SB),0,$0-2
 	MOVB	x+0(FP), AX
