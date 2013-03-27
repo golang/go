@@ -574,6 +574,7 @@ var commonHeaders = []string{
 	"Content-Length",
 	"Content-Transfer-Encoding",
 	"Content-Type",
+	"Cookie",
 	"Date",
 	"Dkim-Signature",
 	"Etag",
