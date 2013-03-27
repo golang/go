@@ -153,7 +153,7 @@ asmelfsym(void)
 	elfbind = STB_LOCAL;
 	genasmsym(putelfsym);
 	
-	if(linkmode == LinkExternal) {
+	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd) {
 		s = lookup("runtime.m", 0);
 		if(s->sect == nil) {
 			cursym = nil;
