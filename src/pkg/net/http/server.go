@@ -281,6 +281,7 @@ type response struct {
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw *chunkWriter
+	sw *switchWriter // of the bufio.Writer, for return to putBufioWriter
 
 	// handlerHeader is the Header that Handlers get access to,
 	// which may be retained and mutated even after WriteHeader.
@@ -381,7 +382,7 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	c.sr = liveSwitchReader{r: c.rwc}
 	c.lr = io.LimitReader(&c.sr, noLimit).(*io.LimitedReader)
 	br, sr := newBufioReader(c.lr)
-	bw, sw := newBufioWriter(c.rwc)
+	bw, sw := newBufioWriterSize(c.rwc, 4<<10)
 	c.buf = bufio.NewReadWriter(br, bw)
 	c.bufswr = sr
 	c.bufsww = sw
@@ -402,9 +403,20 @@ type bufioWriterPair struct {
 
 // TODO: use a sync.Cache instead
 var (
-	bufioReaderCache = make(chan bufioReaderPair, 4)
-	bufioWriterCache = make(chan bufioWriterPair, 4)
+	bufioReaderCache   = make(chan bufioReaderPair, 4)
+	bufioWriterCache2k = make(chan bufioWriterPair, 4)
+	bufioWriterCache4k = make(chan bufioWriterPair, 4)
 )
+
+func bufioWriterCache(size int) chan bufioWriterPair {
+	switch size {
+	case 2 << 10:
+		return bufioWriterCache2k
+	case 4 << 10:
+		return bufioWriterCache4k
+	}
+	return nil
+}
 
 func newBufioReader(r io.Reader) (*bufio.Reader, *switchReader) {
 	select {
@@ -429,14 +441,14 @@ func putBufioReader(br *bufio.Reader, sr *switchReader) {
 	}
 }
 
-func newBufioWriter(w io.Writer) (*bufio.Writer, *switchWriter) {
+func newBufioWriterSize(w io.Writer, size int) (*bufio.Writer, *switchWriter) {
 	select {
-	case p := <-bufioWriterCache:
+	case p := <-bufioWriterCache(size):
 		p.sw.Writer = w
 		return p.bw, p.sw
 	default:
 		sw := &switchWriter{w}
-		return bufio.NewWriter(sw), sw
+		return bufio.NewWriterSize(sw, size), sw
 	}
 }
 
@@ -454,7 +466,7 @@ func putBufioWriter(bw *bufio.Writer, sw *switchWriter) {
 	}
 	sw.Writer = nil
 	select {
-	case bufioWriterCache <- bufioWriterPair{bw, sw}:
+	case bufioWriterCache(bw.Available()) <- bufioWriterPair{bw, sw}:
 	default:
 	}
 }
@@ -540,7 +552,7 @@ func (c *conn) readRequest() (w *response, err error) {
 		cw:            new(chunkWriter),
 	}
 	w.cw.res = w
-	w.w = bufio.NewWriterSize(w.cw, bufferBeforeChunkingSize)
+	w.w, w.sw = newBufioWriterSize(w.cw, bufferBeforeChunkingSize)
 	return w, nil
 }
 
@@ -802,6 +814,7 @@ func (w *response) finishRequest() {
 	}
 
 	w.w.Flush()
+	putBufioWriter(w.w, w.sw)
 	w.cw.close()
 	w.conn.buf.Flush()
 
