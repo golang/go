@@ -758,6 +758,10 @@ elfshbits(Section *sect)
 		sh->flags |= SHF_EXECINSTR;
 	if(sect->rwx & 2)
 		sh->flags |= SHF_WRITE;
+	if(strcmp(sect->name, ".tbss") == 0) {
+		sh->flags |= SHF_TLS;
+		sh->type = SHT_NOBITS;
+	}
 	if(linkmode != LinkExternal)
 		sh->addr = sect->vaddr;
 	sh->addralign = sect->align;
@@ -779,7 +783,7 @@ elfshreloc(Section *sect)
 	// Also nothing to relocate in .shstrtab.
 	if(sect->vaddr >= sect->seg->vaddr + sect->seg->filelen)
 		return nil;
-	if(strcmp(sect->name, ".shstrtab") == 0)
+	if(strcmp(sect->name, ".shstrtab") == 0 || strcmp(sect->name, ".tbss") == 0)
 		return nil;
 
 	if(thechar == '6') {
@@ -883,6 +887,8 @@ doelf(void)
 	addstring(shstrtab, ".data");
 	addstring(shstrtab, ".bss");
 	addstring(shstrtab, ".noptrbss");
+	if(linkmode == LinkExternal)
+		addstring(shstrtab, ".tbss");
 	if(HEADTYPE == Hnetbsd)
 		addstring(shstrtab, ".note.netbsd.ident");
 	if(HEADTYPE == Hopenbsd)

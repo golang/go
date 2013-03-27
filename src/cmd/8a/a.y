@@ -507,6 +507,15 @@ omem:
 		$$.scale = $8;
 		checkscale($$.scale);
 	}
+|	con '(' LLREG ')' '(' LSREG '*' con ')'
+	{
+		$$ = nullgen;
+		$$.type = D_INDIR+$3;
+		$$.offset = $1;
+		$$.index = $6;
+		$$.scale = $8;
+		checkscale($$.scale);
+	}
 |	'(' LLREG ')'
 	{
 		$$ = nullgen;

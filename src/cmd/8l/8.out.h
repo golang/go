@@ -654,6 +654,7 @@ enum
 	D_PCREL,
 	D_GOTOFF,
 	D_GOTREL,
+	D_TLS,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,

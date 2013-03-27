@@ -296,16 +296,23 @@ patch(void)
 				//	MOVL 0(GS), reg
 				// and then off(reg) instead of saying off(GS) directly
 				// when the offset is negative.
+				// In external mode we just produce a reloc.
 				if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
 				&& p->to.type >= D_AX && p->to.type <= D_DI) {
-					q = appendp(p);
-					q->from = p->from;
-					q->from.type = D_INDIR + p->to.type;
-					q->to = p->to;
-					q->as = p->as;
-					p->as = AMOVL;
-					p->from.type = D_INDIR+D_GS;
-					p->from.offset = 0;
+					if(linkmode != LinkExternal) {
+						q = appendp(p);
+						q->from = p->from;
+						q->from.type = D_INDIR + p->to.type;
+						q->to = p->to;
+						q->as = p->as;
+						p->as = AMOVL;
+						p->from.type = D_INDIR+D_GS;
+						p->from.offset = 0;
+					} else {
+						// Add signals to relocate.
+						p->from.index = D_GS;
+						p->from.scale = 1;
+					}
 				}
 			}
 			if(HEADTYPE == Hplan9x32) {
@@ -450,16 +457,25 @@ dostkoff(void)
 				break;
 			
 			case Hlinux:
-				p->as = AMOVL;
-				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0;
-				p->to.type = D_CX;
+				if(linkmode != LinkExternal) {
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_GS;
+					p->from.offset = 0;
+					p->to.type = D_CX;
 
-				p = appendp(p);
-				p->as = AMOVL;
-				p->from.type = D_INDIR+D_CX;
-				p->from.offset = tlsoffset + 0;
-				p->to.type = D_CX;
+					p = appendp(p);
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_CX;
+					p->from.offset = tlsoffset + 0;
+					p->to.type = D_CX;
+				} else {
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_GS;
+					p->from.offset = tlsoffset + 0;
+					p->to.type = D_CX;
+					p->from.index = D_GS;
+					p->from.scale = 1;
+				}
 				break;
 			
 			case Hplan9x32:
