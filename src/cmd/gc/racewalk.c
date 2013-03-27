@@ -133,7 +133,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OASOP:
 	case OAS:
 	case OAS2:
-	case OAS2DOTTYPE:
 	case OAS2RECV:
 	case OAS2FUNC:
 	case OAS2MAPR:
@@ -184,12 +183,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 
 	case OCALLFUNC:
 		racewalknode(&n->left, init, 0, 0);
-		goto ret;
-
-	case OSWITCH:
-		if(n->ntest->op == OTYPESW)
-			// TODO(dvyukov): the expression can contain calls or reads.
-			return;
 		goto ret;
 
 	case ONOT:
@@ -317,6 +310,10 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 		racewalknode(&n->left, init, 0, 0);
 		goto ret;
 
+	case OTYPESW:
+		racewalknode(&n->right, init, 0, 0);
+		goto ret;
+
 	// should not appear in AST by now
 	case OSEND:
 	case ORECV:
@@ -334,6 +331,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OMAKESLICE:
 	case OCALL:
 	case OCOPY:
+	case OAPPEND:
 	case ORUNESTR:
 	case OARRAYBYTESTR:
 	case OARRAYRUNESTR:
@@ -344,6 +342,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OADDSTR:
 	case ODOTTYPE:
 	case ODOTTYPE2:
+	case OAS2DOTTYPE:
 	case OCALLPART: // lowered to PTRLIT
 	case OCLOSURE:  // lowered to PTRLIT
 	case ORANGE:    // lowered to ordinary for loop
@@ -364,6 +363,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case OIF:
 	case OCALLMETH:
 	case ORETURN:
+	case OSWITCH:
 	case OSELECT:
 	case OEMPTY:
 	case OBREAK:
@@ -388,10 +388,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
 	case ONONAME:
 	case OLITERAL:
 	case OSLICESTR:  // always preceded by bounds checking, avoid double instrumentation.
-		goto ret;
-
-	// unimplemented
-	case OAPPEND:
 		goto ret;
 	}
 
@@ -448,6 +444,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	if(isartificial(n))
 		return 0;
 	if(t->etype == TSTRUCT) {
+		// TODO: instrument arrays similarly.
 		// PARAMs w/o PHEAP are not interesting.
 		if(n->class == PPARAM || n->class == PPARAMOUT)
 			return 0;
@@ -484,7 +481,7 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
 	if((class&PHEAP) || class == PPARAMREF || class == PEXTERN
-		|| b->type->etype == TARRAY || b->op == ODOTPTR || b->op == OIND || b->op == OXDOT) {
+		|| b->op == OINDEX || b->op == ODOTPTR || b->op == OIND || b->op == OXDOT) {
 		hascalls = 0;
 		foreach(n, hascallspred, &hascalls);
 		if(hascalls) {
@@ -510,6 +507,8 @@ uintptraddr(Node *n)
 	return r;
 }
 
+// basenod returns the simplest child node of n pointing to the same
+// memory area.
 static Node*
 basenod(Node *n)
 {
@@ -518,7 +517,7 @@ basenod(Node *n)
 			n = n->left;
 			continue;
 		}
-		if(n->op == OINDEX) {
+		if(n->op == OINDEX && isfixedarray(n->type)) {
 			n = n->left;
 			continue;
 		}
