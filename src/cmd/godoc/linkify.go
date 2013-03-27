@@ -25,36 +25,41 @@ import (
 // formatted the same way as with FormatText.
 //
 func LinkifyText(w io.Writer, text []byte, n ast.Node) {
-	links := links(n)
+	links := linksFor(n)
 
-	i := 0        // links index
-	open := false // status of html tag
+	i := 0     // links index
+	prev := "" // prev HTML tag
 	linkWriter := func(w io.Writer, _ int, start bool) {
 		// end tag
 		if !start {
-			if open {
-				fmt.Fprintf(w, `</a>`)
-				open = false
+			if prev != "" {
+				fmt.Fprintf(w, `</%s>`, prev)
+				prev = ""
 			}
 			return
 		}
 
 		// start tag
-		open = false
+		prev = ""
 		if i < len(links) {
 			switch info := links[i]; {
-			case info.path != "" && info.ident == nil:
+			case info.path != "" && info.name == "":
 				// package path
 				fmt.Fprintf(w, `<a href="/pkg/%s/">`, info.path)
-				open = true
-			case info.path != "" && info.ident != nil:
+				prev = "a"
+			case info.path != "" && info.name != "":
 				// qualified identifier
-				fmt.Fprintf(w, `<a href="/pkg/%s/#%s">`, info.path, info.ident.Name)
-				open = true
-			case info.path == "" && info.ident != nil:
-				// locally declared identifier
-				fmt.Fprintf(w, `<a href="#%s">`, info.ident.Name)
-				open = true
+				fmt.Fprintf(w, `<a href="/pkg/%s/#%s">`, info.path, info.name)
+				prev = "a"
+			case info.path == "" && info.name != "":
+				// local identifier
+				if info.mode == identVal {
+					fmt.Fprintf(w, `<span id="%s">`, info.name)
+					prev = "span"
+				} else {
+					fmt.Fprintf(w, `<a href="#%s">`, info.name)
+					prev = "a"
+				}
 			}
 			i++
 		}
@@ -69,27 +74,34 @@ func LinkifyText(w io.Writer, text []byte, n ast.Node) {
 // The zero value of a link represents "no link".
 //
 type link struct {
-	path  string
-	ident *ast.Ident
+	mode       identMode
+	path, name string // package path, identifier name
 }
 
-// links returns the list of links for the identifiers used
+// linksFor returns the list of links for the identifiers used
 // by node in the same order as they appear in the source.
 //
-func links(node ast.Node) (list []link) {
-	defs := defs(node)
+func linksFor(node ast.Node) (list []link) {
+	modes := identModesFor(node)
 
 	// NOTE: We are expecting ast.Inspect to call the
 	//       callback function in source text order.
 	ast.Inspect(node, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.Ident:
-			info := link{}
-			if !defs[n] {
+			m := modes[n]
+			info := link{mode: m}
+			switch m {
+			case identUse:
 				if n.Obj == nil && predeclared[n.Name] {
 					info.path = builtinPkgPath
 				}
-				info.ident = n
+				info.name = n.Name
+			case identDef:
+				// any declaration expect const or var - empty link
+			case identVal:
+				// const or var declaration
+				info.name = n.Name
 			}
 			list = append(list, info)
 			return false
@@ -107,7 +119,7 @@ func links(node ast.Node) (list []link) {
 							// and one for the qualified identifier.
 							info := link{path: path}
 							list = append(list, info)
-							info.ident = n.Sel
+							info.name = n.Sel.Name
 							list = append(list, info)
 							return false
 						}
@@ -121,28 +133,37 @@ func links(node ast.Node) (list []link) {
 	return
 }
 
-// defs returns the set of identifiers that are declared ("defined") by node.
-func defs(node ast.Node) map[*ast.Ident]bool {
-	m := make(map[*ast.Ident]bool)
+// The identMode describes how an identifier is "used" at its source location.
+type identMode int
+
+const (
+	identUse identMode = iota // identifier is used (must be zero value for identMode)
+	identDef                  // identifier is defined
+	identVal                  // identifier is defined in a const or var declaration
+)
+
+// identModesFor returns a map providing the identMode for each identifier used by node.
+func identModesFor(node ast.Node) map[*ast.Ident]identMode {
+	m := make(map[*ast.Ident]identMode)
 
 	ast.Inspect(node, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.Field:
 			for _, n := range n.Names {
-				m[n] = true
+				m[n] = identDef
 			}
 		case *ast.ImportSpec:
 			if name := n.Name; name != nil {
-				m[name] = true
+				m[name] = identDef
 			}
 		case *ast.ValueSpec:
 			for _, n := range n.Names {
-				m[n] = true
+				m[n] = identVal
 			}
 		case *ast.TypeSpec:
-			m[n.Name] = true
+			m[n.Name] = identDef
 		case *ast.FuncDecl:
-			m[n.Name] = true
+			m[n.Name] = identDef
 		case *ast.AssignStmt:
 			// Short variable declarations only show up if we apply
 			// this code to all source code (as opposed to exported
@@ -155,7 +176,7 @@ func defs(node ast.Node) map[*ast.Ident]bool {
 					// Each lhs expression should be an
 					// ident, but we are conservative and check.
 					if n, _ := x.(*ast.Ident); n != nil {
-						m[n] = true
+						m[n] = identVal
 					}
 				}
 			}
@@ -167,6 +188,9 @@ func defs(node ast.Node) map[*ast.Ident]bool {
 }
 
 // The predeclared map represents the set of all predeclared identifiers.
+// TODO(gri) This information is also encoded in similar maps in go/doc,
+//           but not exported. Consider exporting an accessor and using
+//           it instead.
 var predeclared = map[string]bool{
 	"bool":       true,
 	"byte":       true,

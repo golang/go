@@ -411,7 +411,7 @@ func main() {
 		info.PDoc.ImportPath = flag.Arg(0)
 	}
 
-	// If we have more than one argument, use the remaining arguments for filtering
+	// If we have more than one argument, use the remaining arguments for filtering.
 	if flag.NArg() > 1 {
 		args := flag.Args()[1:]
 		rx := makeRx(args)
