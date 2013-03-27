@@ -881,7 +881,8 @@ putrelv:
 		r = addrel(cursym);
 		*r = rel;
 		r->off = curp->pc + andptr - and;
-	} else if(iself && linkmode == LinkExternal && a->type == D_INDIR+D_FS) {
+	} else if(iself && linkmode == LinkExternal && a->type == D_INDIR+D_FS
+		&& HEADTYPE != Hopenbsd) {
 		Reloc *r;
 		Sym *s;
 		
