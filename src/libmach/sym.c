@@ -109,7 +109,7 @@ int
 syminit(int fd, Fhdr *fp)
 {
 	Sym *p;
-	int32 i, l, size;
+	int32 i, l, size, symsz;
 	vlong vl;
 	Biobuf b;
 	int svalsz, newformat, shift;
@@ -138,6 +138,7 @@ syminit(int fd, Fhdr *fp)
 	memset(buf, 0, sizeof buf);
 	Bread(&b, buf, sizeof buf);
 	newformat = 0;
+	symsz = fp->symsz;
 	if(memcmp(buf, "\xfd\xff\xff\xff\x00\x00\x00", 7) == 0) {
 		swav = leswav;
 		swal = leswal;
@@ -151,6 +152,7 @@ syminit(int fd, Fhdr *fp)
 		swav = leswav;
 		swal = leswal;
 		Bseek(&b, fp->symoff+6, 0);
+		symsz -= 6;
 	} else {
 		Bseek(&b, fp->symoff, 0);
 	}
@@ -161,11 +163,12 @@ syminit(int fd, Fhdr *fp)
 			werrstr("invalid word size %d bytes", svalsz);
 			return -1;
 		}
+		symsz -= 8;
 	}
 
 	nsym = 0;
 	size = 0;
-	for(p = symbols; size < fp->symsz; p++, nsym++) {
+	for(p = symbols; size < symsz; p++, nsym++) {
 		if(newformat) {
 			// Go 1.1 format. See comment at top of ../pkg/runtime/symtab.c.
 			if(Bread(&b, &c, 1) != 1)
