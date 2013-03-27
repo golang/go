@@ -1477,7 +1477,7 @@ func TestRaceFailingSliceStruct(t *testing.T) {
 	<-c
 }
 
-func TestRaceAppendSliceStruct(t *testing.T) {
+func TestRaceFailingAppendSliceStruct(t *testing.T) {
 	type X struct {
 		x, y int
 	}
