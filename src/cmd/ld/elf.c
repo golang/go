@@ -887,7 +887,7 @@ doelf(void)
 	addstring(shstrtab, ".data");
 	addstring(shstrtab, ".bss");
 	addstring(shstrtab, ".noptrbss");
-	if(linkmode == LinkExternal)
+	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd)
 		addstring(shstrtab, ".tbss");
 	if(HEADTYPE == Hnetbsd)
 		addstring(shstrtab, ".note.netbsd.ident");
