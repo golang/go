@@ -104,6 +104,7 @@ func asmCheck(pkg *Package) {
 		if !strings.HasSuffix(f.name, ".s") {
 			continue
 		}
+		Println("Checking file", f.name)
 
 		// Determine architecture from file name if possible.
 		var arch string
