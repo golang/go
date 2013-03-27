@@ -1762,7 +1762,8 @@ def gofmt(ui, repo, *pats, **opts):
 	files = ChangedExistingFiles(ui, repo, pats, opts)
 	files = gofmt_required(files)
 	if not files:
-		return "no modified go files"
+		ui.status("no modified go files\n")
+		return
 	cwd = os.getcwd()
 	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
 	try:
