@@ -152,6 +152,26 @@ asmelfsym(void)
 
 	elfbind = STB_LOCAL;
 	genasmsym(putelfsym);
+	
+	if(linkmode == LinkExternal) {
+		s = lookup("runtime.m", 0);
+		if(s->sect == nil) {
+			cursym = nil;
+			diag("missing section for %s", s->name);
+			errorexit();
+		}
+		putelfsyment(putelfstr(s->name), 0, PtrSize, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
+		s->elfsym = numelfsym++;
+
+		s = lookup("runtime.g", 0);
+		if(s->sect == nil) {
+			cursym = nil;
+			diag("missing section for %s", s->name);
+			errorexit();
+		}
+		putelfsyment(putelfstr(s->name), PtrSize, PtrSize, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
+		s->elfsym = numelfsym++;
+	}
 
 	elfbind = STB_GLOBAL;
 	elfglobalsymndx = numelfsym;

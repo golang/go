@@ -172,7 +172,7 @@ relocsym(Sym *s)
 		if(r->sym != S && r->sym->type == SDYNIMPORT)
 			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
 
-		if(r->sym != S && !r->sym->reachable)
+		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
 
 		switch(r->type) {
@@ -180,6 +180,10 @@ relocsym(Sym *s)
 			o = 0;
 			if(linkmode == LinkExternal || archreloc(r, s, &o) < 0)
 				diag("unknown reloc %d", r->type);
+			break;
+		case D_TLS:
+			r->done = 0;
+			o = 0;
 			break;
 		case D_ADDR:
 			if(linkmode == LinkExternal && r->sym->type != SCONST) {
@@ -1193,11 +1197,7 @@ dodata(void)
 	sect->vaddr = datsize;
 	lookup("noptrbss", 0)->sect = sect;
 	lookup("enoptrbss", 0)->sect = sect;
-	for(; s != nil; s = s->next) {
-		if(s->type > SNOPTRBSS) {
-			cursym = s;
-			diag("unexpected symbol type %d", s->type);
-		}
+	for(; s != nil && s->type == SNOPTRBSS; s = s->next) {
 		datsize = aligndatsize(datsize, s);
 		s->sect = sect;
 		s->value = datsize;
@@ -1205,6 +1205,25 @@ dodata(void)
 	}
 	sect->len = datsize - sect->vaddr;
 	lookup("end", 0)->sect = sect;
+	
+	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS) {
+		sect = addsection(&segdata, ".tbss", 06);
+		sect->align = PtrSize;
+		sect->vaddr = 0;
+		datsize = 0;
+		for(; s != nil && s->type == STLSBSS; s = s->next) {
+			datsize = aligndatsize(datsize, s);
+			s->sect = sect;
+			s->value = datsize;
+			datsize += s->size;
+		}
+		sect->len = datsize;
+	}
+	
+	if(s != nil) {
+		cursym = nil;
+		diag("unexpected symbol type %d for %s", s->type, s->name);
+	}
 
 	/* we finished segdata, begin segtext */
 	s = datap;

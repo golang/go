@@ -83,7 +83,7 @@ main(int argc, char *argv[])
 	INITRND = -1;
 	INITENTRY = 0;
 	LIBINITENTRY = 0;
-	linkmode = LinkInternal; // TODO: LinkAuto once everything works.
+	linkmode = LinkAuto;
 	nuxiinit();
 
 	flagcount("1", "use alternate profiling code", &debug['1']);

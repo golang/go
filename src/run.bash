@@ -83,8 +83,14 @@ set -e
 go test -ldflags '-linkmode=auto'
 go test -ldflags '-linkmode=internal'
 case "$GOHOSTOS-$GOARCH" in
-darwin-386 | darwin-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64 | openbsd-386 | openbsd-amd64)
+darwin-386 | darwin-amd64 | openbsd-386 | openbsd-amd64)
+	# test linkmode=external, but __thread not supported, so skip testtls.
 	go test -ldflags '-linkmode=external'
+	;;
+freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64)
+	go test -ldflags '-linkmode=external'
+	go test -ldflags '-linkmode=auto' ../testtls
+	go test -ldflags '-linkmode=external' ../testtls
 esac
 ) || exit $?
 

@@ -32,6 +32,7 @@
 
 #include	"l.h"
 #include	"../ld/lib.h"
+#include	"../ld/elf.h"
 
 static int32	vaddr(Adr*, Reloc*);
 
@@ -559,6 +560,14 @@ vaddr(Adr *a, Reloc *r)
 	return v;
 }
 
+static int
+istls(Adr *a)
+{
+	if(HEADTYPE == Hlinux)
+		return a->index == D_GS;
+	return a->type == D_INDIR+D_GS;
+}
+
 void
 asmand(Adr *a, int r)
 {
@@ -569,7 +578,7 @@ asmand(Adr *a, int r)
 	v = a->offset;
 	t = a->type;
 	rel.siz = 0;
-	if(a->index != D_NONE) {
+	if(a->index != D_NONE && a->index != D_FS && a->index != D_GS) {
 		if(t < D_INDIR || t >= 2*D_INDIR) {
 			switch(t) {
 			default:
@@ -658,7 +667,7 @@ asmand(Adr *a, int r)
 			*andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
 			return;
 		}
-		if(v >= -128 && v < 128 && rel.siz == 0) {
+		if(v >= -128 && v < 128 && rel.siz == 0 && a->index != D_FS && a->index != D_GS) {
 			andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
 			andptr[1] = v;
 			andptr += 2;
@@ -680,7 +689,29 @@ putrelv:
 		r = addrel(cursym);
 		*r = rel;
 		r->off = curp->pc + andptr - and;
+	} else if(iself && linkmode == LinkExternal && istls(a)) {
+		Reloc *r;
+		Sym *s;
+
+		r = addrel(cursym);
+		r->off = curp->pc + andptr - and;
+		r->add = 0;
+		r->xadd = 0;
+		r->siz = 4;
+		r->type = D_TLS;
+		if(a->offset == tlsoffset+0)
+			s = lookup("runtime.g", 0);
+		else
+			s = lookup("runtime.m", 0);
+		s->type = STLSBSS;
+		s->reachable = 1;
+		s->hide = 1;
+		s->size = PtrSize;
+		r->sym = s;
+		r->xsym = s;
+		v = 0;
 	}
+
 	put4(v);
 	return;
 

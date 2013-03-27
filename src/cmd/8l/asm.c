@@ -294,6 +294,12 @@ elfreloc1(Reloc *r, vlong sectoff)
 		else
 			return -1;
 		break;
+	
+	case D_TLS:
+		if(r->siz == 4)
+			LPUT(R_386_TLS_LE | elfsym<<8);
+		else
+			return -1;
 	}
 
 	return 0;
