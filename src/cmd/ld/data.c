@@ -1206,7 +1206,7 @@ dodata(void)
 	sect->len = datsize - sect->vaddr;
 	lookup("end", 0)->sect = sect;
 	
-	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS) {
+	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
 		sect = addsection(&segdata, ".tbss", 06);
 		sect->align = PtrSize;
 		sect->vaddr = 0;
