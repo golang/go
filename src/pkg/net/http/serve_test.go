@@ -64,10 +64,34 @@ func (a dummyAddr) String() string {
 	return string(a)
 }
 
+type noopConn struct{}
+
+func (noopConn) LocalAddr() net.Addr                { return dummyAddr("local-addr") }
+func (noopConn) RemoteAddr() net.Addr               { return dummyAddr("remote-addr") }
+func (noopConn) SetDeadline(t time.Time) error      { return nil }
+func (noopConn) SetReadDeadline(t time.Time) error  { return nil }
+func (noopConn) SetWriteDeadline(t time.Time) error { return nil }
+
+type rwTestConn struct {
+	io.Reader
+	io.Writer
+	noopConn
+	closec chan bool // if non-nil, send value to it on close
+}
+
+func (c *rwTestConn) Close() error {
+	select {
+	case c.closec <- true:
+	default:
+	}
+	return nil
+}
+
 type testConn struct {
 	readBuf  bytes.Buffer
 	writeBuf bytes.Buffer
 	closec   chan bool // if non-nil, send value to it on close
+	noopConn
 }
 
 func (c *testConn) Read(b []byte) (int, error) {
@@ -83,26 +107,6 @@ func (c *testConn) Close() error {
 	case c.closec <- true:
 	default:
 	}
-	return nil
-}
-
-func (c *testConn) LocalAddr() net.Addr {
-	return dummyAddr("local-addr")
-}
-
-func (c *testConn) RemoteAddr() net.Addr {
-	return dummyAddr("remote-addr")
-}
-
-func (c *testConn) SetDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *testConn) SetReadDeadline(t time.Time) error {
-	return nil
-}
-
-func (c *testConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
@@ -1651,5 +1655,58 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
 		ln.conn = conn
 		Serve(ln, handler)
 		<-conn.closec
+	}
+}
+
+// repeatReader reads content count times, then EOFs.
+type repeatReader struct {
+	content []byte
+	count   int
+	off     int
+}
+
+func (r *repeatReader) Read(p []byte) (n int, err error) {
+	if r.count <= 0 {
+		return 0, io.EOF
+	}
+	n = copy(p, r.content[r.off:])
+	r.off += n
+	if r.off == len(r.content) {
+		r.count--
+		r.off = 0
+	}
+	return
+}
+
+func BenchmarkServerFakeConnWithKeepAlive(b *testing.B) {
+	b.ReportAllocs()
+
+	req := []byte(strings.Replace(`GET / HTTP/1.1
+Host: golang.org
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.52 Safari/537.17
+Accept-Encoding: gzip,deflate,sdch
+Accept-Language: en-US,en;q=0.8
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+
+`, "\n", "\r\n", -1))
+	res := []byte("Hello world!\n")
+
+	conn := &rwTestConn{
+		Reader: &repeatReader{content: req, count: b.N},
+		Writer: ioutil.Discard,
+		closec: make(chan bool, 1),
+	}
+	handled := 0
+	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+		handled++
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		rw.Write(res)
+	})
+	ln := &oneConnListener{conn: conn}
+	go Serve(ln, handler)
+	<-conn.closec
+	if b.N != handled {
+		b.Errorf("b.N=%d but handled %d", b.N, handled)
 	}
 }
