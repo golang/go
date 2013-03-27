@@ -255,10 +255,15 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
 	// allocate initial hash table
 	// If hint is large zeroing this memory could take a while.
 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
-	buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
-	for(i = 0; i < (uintptr)1 << B; i++) {
-		b = (Bucket*)(buckets + i * bucketsize);
-		clearbucket(b);
+	if(B == 0) {
+		// done lazily later.
+		buckets = nil;
+	} else {
+		buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
+		for(i = 0; i < (uintptr)1 << B; i++) {
+			b = (Bucket*)(buckets + i * bucketsize);
+			clearbucket(b);
+		}
 	}
 
 	// initialize Hmap
@@ -485,6 +490,8 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
 	key = *keyp;
 	if(docheck)
 		check(t, h);
+	if(h->count == 0)
+		return nil;
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	bucket = hash & (((uintptr)1 << h->B) - 1);
@@ -572,6 +579,12 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
 		check(t, h);
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
+	if(h->buckets == nil) {
+		h->buckets = runtime·mallocgc(h->bucketsize, 0, 1, 0);
+		b = (Bucket*)(h->buckets);
+		clearbucket(b);
+	}
+
  again:
 	bucket = hash & (((uintptr)1 << h->B) - 1);
 	if(h->oldbuckets != nil)
@@ -659,6 +672,8 @@ hash_remove(MapType *t, Hmap *h, void *key)
 	
 	if(docheck)
 		check(t, h);
+	if(h->count == 0)
+		return;
 	hash = h->hash0;
 	t->key->alg->hash(&hash, t->key->size, key);
 	bucket = hash & (((uintptr)1 << h->B) - 1);
@@ -749,6 +764,12 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
 
 	// Remember we have an iterator at this level.
 	h->flags |= Iterator;
+
+	if(h->buckets == nil) {
+		// Empty map. Force next hash_next to exit without
+		// evalulating h->bucket.
+		it->wrapped = true;
+	}
 }
 
 // initializes it->key and it->value to the next key/value pair
@@ -848,7 +869,7 @@ next:
 bool
 hash_gciter_init (Hmap *h, struct hash_gciter *it)
 {
-	// GC during map initialization
+	// GC during map initialization or on an empty map.
 	if(h->buckets == nil)
 		return false;
 

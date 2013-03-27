@@ -280,3 +280,10 @@ func TestEmptyKeyAndValue(t *testing.T) {
 		t.Errorf("empty key returned wrong value")
 	}
 }
+
+func BenchmarkNewEmptyMap(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int)
+	}
+}
