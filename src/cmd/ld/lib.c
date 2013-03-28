@@ -636,6 +636,9 @@ hostlink(void)
 	argv[argc++] = "-o";
 	argv[argc++] = outfile;
 	
+	if(rpath)
+		argv[argc++] = smprint("-Wl,-rpath,%s", rpath);
+
 	// Force global symbols to be exported for dlopen, etc.
 	// NOTE: May not work on OS X or Windows. We'll see.
 	argv[argc++] = "-rdynamic";
