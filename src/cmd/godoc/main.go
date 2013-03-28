@@ -388,12 +388,12 @@ func main() {
 	}
 
 	// determine what to use
-	if info.IsEmpty() {
-		if !cinfo.IsEmpty() {
+	if info == nil || info.IsEmpty() {
+		if cinfo != nil && !cinfo.IsEmpty() {
 			// only cinfo exists - switch to cinfo
 			info = cinfo
 		}
-	} else if !cinfo.IsEmpty() {
+	} else if cinfo != nil && !cinfo.IsEmpty() {
 		// both info and cinfo exist - use cinfo if info
 		// contains only subdirectory information
 		if info.PAst == nil && info.PDoc == nil {
@@ -403,9 +403,13 @@ func main() {
 		}
 	}
 
+	if info == nil {
+		log.Fatalf("%s: no such directory or package", flag.Arg(0))
+	}
 	if info.Err != nil {
 		log.Fatalf("%v", info.Err)
 	}
+
 	if info.PDoc != nil && info.PDoc.ImportPath == target {
 		// Replace virtual /target with actual argument from command line.
 		info.PDoc.ImportPath = flag.Arg(0)
