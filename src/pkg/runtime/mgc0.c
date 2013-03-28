@@ -18,6 +18,7 @@ enum {
 	Debug = 0,
 	DebugMark = 0,  // run second pass to check mark
 	CollectStats = 0,
+	ScanStackByFrames = 0,
 
 	// Four bits per word (see #defines below).
 	wordsPerBitmapWord = sizeof(void*)*8/4,
@@ -1316,51 +1317,94 @@ addroot(Obj obj)
 	work.nroot++;
 }
 
+// Scan a stack frame.  The doframe parameter is a signal that the previously
+// scanned activation has an unknown argument size.  When *doframe is true the
+// current activation must have its entire frame scanned.  Otherwise, only the
+// locals need to be scanned.
+static void
+addframeroots(Func *f, byte*, byte *sp, void *doframe)
+{
+	uintptr outs;
+
+	if(thechar == '5')
+		sp += sizeof(uintptr);
+	if(f->locals == 0 || *(bool*)doframe == true)
+		addroot((Obj){sp, f->frame - sizeof(uintptr), 0});
+	else if(f->locals > 0) {
+		outs = f->frame - sizeof(uintptr) - f->locals;
+		addroot((Obj){sp + outs, f->locals, 0});
+	}
+	if(f->args > 0)
+		addroot((Obj){sp + f->frame, f->args, 0});
+	*(bool*)doframe = (f->args == ArgsSizeUnknown);
+}
+
 static void
 addstackroots(G *gp)
 {
 	M *mp;
 	int32 n;
 	Stktop *stk;
-	byte *sp, *guard;
+	byte *sp, *guard, *pc;
+	Func *f;
+	bool doframe;
 
 	stk = (Stktop*)gp->stackbase;
 	guard = (byte*)gp->stackguard;
 
 	if(gp == g) {
 		// Scanning our own stack: start at &gp.
-		sp = (byte*)&gp;
+		sp = runtime·getcallersp(&gp);
+		pc = runtime·getcallerpc(&gp);
 	} else if((mp = gp->m) != nil && mp->helpgc) {
 		// gchelper's stack is in active use and has no interesting pointers.
 		return;
+	} else if(gp->gcstack != (uintptr)nil) {
+		// Scanning another goroutine that is about to enter or might
+		// have just exited a system call. It may be executing code such
+		// as schedlock and may have needed to start a new stack segment.
+		// Use the stack segment and stack pointer at the time of
+		// the system call instead, since that won't change underfoot.
+		sp = (byte*)gp->gcsp;
+		pc = gp->gcpc;
+		stk = (Stktop*)gp->gcstack;
+		guard = (byte*)gp->gcguard;
 	} else {
 		// Scanning another goroutine's stack.
 		// The goroutine is usually asleep (the world is stopped).
 		sp = (byte*)gp->sched.sp;
-
-		// The exception is that if the goroutine is about to enter or might
-		// have just exited a system call, it may be executing code such
-		// as schedlock and may have needed to start a new stack segment.
-		// Use the stack segment and stack pointer at the time of
-		// the system call instead, since that won't change underfoot.
-		if(gp->gcstack != (uintptr)nil) {
-			stk = (Stktop*)gp->gcstack;
-			sp = (byte*)gp->gcsp;
-			guard = (byte*)gp->gcguard;
+		pc = gp->sched.pc;
+		if(ScanStackByFrames && pc == (byte*)runtime·goexit && gp->fnstart != nil) {
+			// The goroutine has not started. However, its incoming
+			// arguments are live at the top of the stack and must
+			// be scanned.  No other live values should be on the
+			// stack.
+			f = runtime·findfunc((uintptr)gp->fnstart->fn);
+			if(f->args > 0) {
+				if(thechar == '5')
+					sp += sizeof(uintptr);
+				addroot((Obj){sp, f->args, 0});
+			}
+			return;
 		}
 	}
-
-	n = 0;
-	while(stk) {
-		if(sp < guard-StackGuard || (byte*)stk < sp) {
-			runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
-			runtime·throw("scanstack");
+	if (ScanStackByFrames) {
+		doframe = false;
+		runtime·gentraceback(pc, sp, nil, gp, 0, nil, 0x7fffffff, addframeroots, &doframe);
+	} else {
+		USED(pc);
+		n = 0;
+		while(stk) {
+			if(sp < guard-StackGuard || (byte*)stk < sp) {
+				runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+				runtime·throw("scanstack");
+			}
+			addroot((Obj){sp, (byte*)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
+			sp = (byte*)stk->gobuf.sp;
+			guard = stk->stackguard;
+			stk = (Stktop*)stk->stackbase;
+			n++;
 		}
-		addroot((Obj){sp, (byte*)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
-		sp = (byte*)stk->gobuf.sp;
-		guard = stk->stackguard;
-		stk = (Stktop*)stk->stackbase;
-		n++;
 	}
 }
 

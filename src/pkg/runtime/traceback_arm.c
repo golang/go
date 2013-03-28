@@ -17,9 +17,9 @@ void _divu(void);
 void _modu(void);
 
 int32
-runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max)
+runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*fn)(Func*, byte*, byte*, void*), void *arg)
 {
-	int32 i, n, iter;
+	int32 i, n;
 	uintptr pc, lr, tracepc, x;
 	byte *fp;
 	bool waspanic;
@@ -46,7 +46,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 
 	n = 0;
 	stk = (Stktop*)gp->stackbase;
-	for(iter = 0; iter < 100 && n < max; iter++) {	// iter avoids looping forever
+	while(n < max) {
 		// Typically:
 		//	pc is the PC of the running function.
 		//	sp is the stack pointer at that program counter.
@@ -60,14 +60,17 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			sp = (byte*)stk->gobuf.sp;
 			lr = 0;
 			fp = nil;
-			if(pcbuf == nil && runtime·showframe(nil, gp == m->curg))
+			if(pcbuf == nil && fn == nil && runtime·showframe(nil, gp == m->curg))
 				runtime·printf("----- stack segment boundary -----\n");
 			stk = (Stktop*)stk->stackbase;
 			continue;
 		}
 		
-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
+		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
+			if(fn != nil)
+				runtime·throw("unknown pc");
 			break;
+		}
 		
 		// Found an actual function.
 		if(lr == 0)
@@ -83,6 +86,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			skip--;
 		else if(pcbuf != nil)
 			pcbuf[n++] = pc;
+		else if(fn != nil)
+			(*fn)(f, (byte*)pc, sp, arg);
 		else {
 			if(runtime·showframe(f, gp == m->curg)) {
 				// Print during crash.
@@ -114,7 +119,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 		
 		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
-		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && gp == m->g0) {
+		if(pcbuf == nil && fn == nil && f->entry == (uintptr)runtime·newstack && gp == m->g0) {
 			runtime·printf("----- newstack called from goroutine %D -----\n", m->curg->goid);
 			pc = (uintptr)m->morepc;
 			sp = (byte*)m->moreargp - sizeof(void*);
@@ -125,7 +130,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			continue;
 		}
 		
-		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
+		if(pcbuf == nil && fn == nil && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
 			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
 			gp = m->curg;
 			stk = (Stktop*)gp->stackbase;
@@ -136,6 +141,10 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			continue;
 		}	
 		
+		// Do not unwind past the bottom of the stack.
+		if(pc == (uintptr)runtime·goexit)
+			break;
+
 		// Unwind to next frame.
 		pc = lr;
 		lr = 0;
@@ -163,7 +172,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 		}
 	}
 	
-	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
+	if(pcbuf == nil && fn == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
 			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
 		runtime·printf("created by %S\n", f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
@@ -187,7 +196,7 @@ runtime·traceback(byte *pc0, byte *sp, byte *lr, G *gp)
 		sp = (byte*)gp->sched.sp;
 		lr = nil;
 	}
-	runtime·gentraceback(pc0, sp, lr, gp, 0, nil, 100);
+	runtime·gentraceback(pc0, sp, lr, gp, 0, nil, 100, nil, nil);
 }
 
 // func caller(n int) (pc uintptr, file string, line int, ok bool)
@@ -199,5 +208,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 	sp = runtime·getcallersp(&skip);
 	pc = runtime·getcallerpc(&skip);
 
-	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m);
+	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil);
 }
