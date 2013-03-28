@@ -222,9 +222,17 @@ const bufferBeforeChunkingSize = 2048
 //
 // See the comment above (*response).Write for the entire write flow.
 type chunkWriter struct {
-	res         *response
-	header      Header // a deep copy of r.Header, once WriteHeader is called
-	wroteHeader bool   // whether the header's been sent
+	res *response
+
+	// header is either the same as res.handlerHeader,
+	// or a deep clone if the handler called Header.
+	header Header
+
+	// wroteHeader tells whether the header's been written to "the
+	// wire" (or rather: w.conn.buf). this is unlike
+	// (*response).wroteHeader, which tells only whether it was
+	// logically written.
+	wroteHeader bool
 
 	// set by the writeHeader method:
 	chunking bool // using chunked transfer encoding for reply body
@@ -288,6 +296,7 @@ type response struct {
 	// handlerHeader is copied into cw.header at WriteHeader
 	// time, and privately mutated thereafter.
 	handlerHeader Header
+	calledHeader  bool // handler accessed handlerHeader via Header
 
 	written       int64 // number of bytes written in body
 	contentLength int64 // explicitly-declared Content-Length; or -1
@@ -557,6 +566,13 @@ func (c *conn) readRequest() (w *response, err error) {
 }
 
 func (w *response) Header() Header {
+	if w.cw.header == nil && w.wroteHeader && !w.cw.wroteHeader {
+		// Accessing the header between logically writing it
+		// and physically writing it means we need to allocate
+		// a clone to snapshot the logically written state.
+		w.cw.header = w.handlerHeader.clone()
+	}
+	w.calledHeader = true
 	return w.handlerHeader
 }
 
@@ -583,15 +599,17 @@ func (w *response) WriteHeader(code int) {
 	w.wroteHeader = true
 	w.status = code
 
-	w.cw.header = w.handlerHeader.clone()
+	if w.calledHeader && w.cw.header == nil {
+		w.cw.header = w.handlerHeader.clone()
+	}
 
-	if cl := w.cw.header.get("Content-Length"); cl != "" {
+	if cl := w.handlerHeader.get("Content-Length"); cl != "" {
 		v, err := strconv.ParseInt(cl, 10, 64)
 		if err == nil && v >= 0 {
 			w.contentLength = v
 		} else {
 			log.Printf("http: invalid Content-Length of %q", cl)
-			w.cw.header.Del("Content-Length")
+			w.handlerHeader.Del("Content-Length")
 		}
 	}
 }
@@ -611,14 +629,29 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	cw.wroteHeader = true
 
 	w := cw.res
-	code := w.status
-	done := w.handlerDone
+
+	if cw.header == nil {
+		if w.handlerDone {
+			// The handler won't be making further changes to the
+			// response header map, so we use it directly.
+			cw.header = w.handlerHeader
+		} else {
+			// Snapshot the header map, since it might be some
+			// time before we actually write w.cw to the wire and
+			// we don't want the handler's potential future
+			// (arguably buggy) modifications to the map to make
+			// it into the written headers. This preserves
+			// compatibility with Go 1.0, which always flushed the
+			// headers on a call to rw.WriteHeader.
+			cw.header = w.handlerHeader.clone()
+		}
+	}
 
 	// If the handler is done but never sent a Content-Length
 	// response header and this is our first (and last) write, set
 	// it, even to zero. This helps HTTP/1.0 clients keep their
 	// "keep-alive" connections alive.
-	if done && cw.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
+	if w.handlerDone && cw.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
 		w.contentLength = int64(len(p))
 		cw.header.Set("Content-Length", strconv.Itoa(len(p)))
 	}
@@ -665,6 +698,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 	}
 
+	code := w.status
 	if code == StatusNotModified {
 		// Must not have body.
 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
