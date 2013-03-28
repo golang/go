@@ -467,6 +467,17 @@ func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
+// parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
+func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+	s1 := strings.Index(line, " ")
+	s2 := strings.Index(line[s1+1:], " ")
+	if s1 < 0 || s2 < 0 {
+		return
+	}
+	s2 += s1 + 1
+	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+}
+
 // ReadRequest reads and parses a request from b.
 func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
@@ -484,13 +495,12 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 		}
 	}()
 
-	var f []string
-	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
+	var ok bool
+	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
+	if !ok {
 		return nil, &badStringError{"malformed HTTP request", s}
 	}
-	req.Method, req.RequestURI, req.Proto = f[0], f[1], f[2]
 	rawurl := req.RequestURI
-	var ok bool
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
