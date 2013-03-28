@@ -763,8 +763,40 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		cw.header.Set("Connection", "close")
 	}
 
+	io.WriteString(w.conn.buf, statusLine(w.req, code))
+	cw.header.Write(w.conn.buf)
+	w.conn.buf.Write(crlf)
+}
+
+// statusLines is a cache of Status-Line strings, keyed by code (for
+// HTTP/1.1) or negative code (for HTTP/1.0). This is faster than a
+// map keyed by struct of two fields. This map's max size is bounded
+// by 2*len(statusText), two protocol types for each known official
+// status code in the statusText map.
+var (
+	statusMu    sync.RWMutex
+	statusLines = make(map[int]string)
+)
+
+// statusLine returns a response Status-Line (RFC 2616 Section 6.1)
+// for the given request and response status code.
+func statusLine(req *Request, code int) string {
+	// Fast path:
+	key := code
+	proto11 := req.ProtoAtLeast(1, 1)
+	if !proto11 {
+		key = -key
+	}
+	statusMu.RLock()
+	line, ok := statusLines[key]
+	statusMu.RUnlock()
+	if ok {
+		return line
+	}
+
+	// Slow path:
 	proto := "HTTP/1.0"
-	if w.req.ProtoAtLeast(1, 1) {
+	if proto11 {
 		proto = "HTTP/1.1"
 	}
 	codestring := strconv.Itoa(code)
@@ -772,9 +804,13 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if !ok {
 		text = "status code " + codestring
 	}
-	io.WriteString(w.conn.buf, proto+" "+codestring+" "+text+"\r\n")
-	cw.header.Write(w.conn.buf)
-	w.conn.buf.Write(crlf)
+	line = proto + " " + codestring + " " + text + "\r\n"
+	if ok {
+		statusMu.Lock()
+		defer statusMu.Unlock()
+		statusLines[key] = line
+	}
+	return line
 }
 
 // bodyAllowed returns true if a Write is allowed for this response type.
