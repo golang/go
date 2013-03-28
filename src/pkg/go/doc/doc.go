@@ -64,7 +64,7 @@ type Func struct {
 	Level int    // embedding level; 0 means not embedded
 }
 
-// A Note represents marked comments starting with "MARKER(uid): note body".
+// A Note represents a marked comment starting with "MARKER(uid): note body".
 // Any note with a marker of 2 or more upper case [A-Z] letters and a uid of
 // at least one character is recognized. The ":" following the uid is optional.
 // Notes are collected in the Package.Notes map indexed by the notes marker.
