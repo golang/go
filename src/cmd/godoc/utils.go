@@ -56,8 +56,6 @@ func isText(s []byte) bool {
 	return true
 }
 
-// TODO(gri): Should have a mapping from extension to handler, eventually.
-
 // textExt[x] is true if the extension x indicates a text file, and false otherwise.
 var textExt = map[string]bool{
 	".css": false, // must be served raw

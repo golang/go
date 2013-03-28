@@ -19,8 +19,8 @@ package {{.Name}}
 CONSTANTS
 
 {{range .}}{{node $ .Decl}}
-{{comment_text .Doc "    " "\t"}}{{end}}
-{{end}}{{/*
+{{comment_text .Doc "    " "\t"}}
+{{end}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -28,8 +28,8 @@ CONSTANTS
 VARIABLES
 
 {{range .}}{{node $ .Decl}}
-{{comment_text .Doc "    " "\t"}}{{end}}
-{{end}}{{/*
+{{comment_text .Doc "    " "\t"}}
+{{end}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -38,8 +38,7 @@ FUNCTIONS
 
 {{range .}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{example_text $ .Name "    "}}
-{{end}}{{end}}{{/*
+{{example_text $ .Name "    "}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -58,8 +57,8 @@ TYPES
 {{example_text $ .Name "    "}}
 {{end}}{{range .Methods}}{{node $ .Decl}}
 {{comment_text .Doc "    " "\t"}}
-{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}
-{{end}}{{end}}{{end}}{{end}}{{/*
+{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}{{end}}
+{{end}}{{end}}{{end}}{{/*
 
 ---------------------------------------
 
