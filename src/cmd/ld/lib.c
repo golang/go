@@ -31,6 +31,7 @@
 
 #include	"l.h"
 #include	"lib.h"
+#include	"../ld/elf.h"
 #include	"../../pkg/runtime/stack.h"
 
 #include	<ar.h>
@@ -640,8 +641,8 @@ hostlink(void)
 		argv[argc++] = smprint("-Wl,-rpath,%s", rpath);
 
 	// Force global symbols to be exported for dlopen, etc.
-	// NOTE: May not work on OS X or Windows. We'll see.
-	argv[argc++] = "-rdynamic";
+	if(iself)
+		argv[argc++] = "-rdynamic";
 
 	// already wrote main object file
 	// copy host objects to temporary directory
