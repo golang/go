@@ -69,9 +69,9 @@ type Func struct {
 // at least one character is recognized. The ":" following the uid is optional.
 // Notes are collected in the Package.Notes map indexed by the notes marker.
 type Note struct {
-	Pos  token.Pos // position of the comment containing the marker
-	UID  string    // uid found with the marker
-	Body string    // note body text
+	Pos, End token.Pos // position range of the comment containing the marker
+	UID      string    // uid found with the marker
+	Body     string    // note body text
 }
 
 // Mode values control the operation of New.

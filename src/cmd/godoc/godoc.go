@@ -481,19 +481,33 @@ func pkgLinkFunc(path string) string {
 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
 }
 
-func posLink_urlFunc(info *PageInfo, node ast.Node) string {
+// n must be an ast.Node or a *doc.Note
+func posLink_urlFunc(info *PageInfo, n interface{}) string {
+	var pos, end token.Pos
+
+	switch n := n.(type) {
+	case ast.Node:
+		pos = n.Pos()
+		end = n.End()
+	case *doc.Note:
+		pos = n.Pos
+		end = n.End
+	default:
+		panic(fmt.Sprintf("wrong type for posLink_url template formatter: %T", n))
+	}
+
 	var relpath string
 	var line int
-	var low, high int // selection
+	var low, high int // selection offset range
 
-	if p := node.Pos(); p.IsValid() {
-		pos := info.FSet.Position(p)
-		relpath = pos.Filename
-		line = pos.Line
-		low = pos.Offset
+	if pos.IsValid() {
+		p := info.FSet.Position(pos)
+		relpath = p.Filename
+		line = p.Line
+		low = p.Offset
 	}
-	if p := node.End(); p.IsValid() {
-		high = info.FSet.Position(p).Offset
+	if end.IsValid() {
+		high = info.FSet.Position(end).Offset
 	}
 
 	var buf bytes.Buffer
