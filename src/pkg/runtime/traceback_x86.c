@@ -17,14 +17,14 @@ void runtime·sigpanic(void);
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
 
-// Generic traceback.  Handles runtime stack prints (pcbuf == nil)
-// as well as the runtime.Callers function (pcbuf != nil).
-// A little clunky to merge the two but avoids duplicating
-// the code and all its subtlety.
+// Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+// the runtime.Callers function (pcbuf != nil), as well as the garbage
+// collector (fn != nil).  A little clunky to merge the two but avoids
+// duplicating the code and all its subtlety.
 int32
-runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max)
+runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*fn)(Func*, byte*, byte*, void*), void *arg)
 {
-	int32 i, n, iter, sawnewstack;
+	int32 i, n, sawnewstack;
 	uintptr pc, lr, tracepc;
 	byte *fp;
 	Stktop *stk;
@@ -54,7 +54,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 	n = 0;
 	sawnewstack = 0;
 	stk = (Stktop*)gp->stackbase;
-	for(iter = 0; iter < 100 && n < max; iter++) {	// iter avoids looping forever
+	while(n < max) {
 		// Typically:
 		//	pc is the PC of the running function.
 		//	sp is the stack pointer at that program counter.
@@ -68,13 +68,16 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			sp = (byte*)stk->gobuf.sp;
 			lr = 0;
 			fp = nil;
-			if(pcbuf == nil && runtime·showframe(nil, gp == m->curg))
+			if(pcbuf == nil && fn == nil && runtime·showframe(nil, gp == m->curg))
 				runtime·printf("----- stack segment boundary -----\n");
 			stk = (Stktop*)stk->stackbase;
 			continue;
 		}
-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
+		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
+			if(fn != nil)
+				runtime·throw("unknown pc");
 			break;
+		}
 
 		// Found an actual function.
 		if(fp == nil) {
@@ -91,6 +94,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			skip--;
 		else if(pcbuf != nil)
 			pcbuf[n++] = pc;
+		else if(fn != nil)
+			(*fn)(f, (byte*)pc, sp, arg);
 		else {
 			if(runtime·showframe(f, gp == m->curg)) {
 				// Print during crash.
@@ -129,7 +134,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 		if(f->entry == (uintptr)runtime·newstack)
 			sawnewstack = 1;
 
-		if(pcbuf == nil && f->entry == (uintptr)runtime·morestack && gp == m->g0 && sawnewstack) {
+		if(pcbuf == nil && fn == nil && f->entry == (uintptr)runtime·morestack && gp == m->g0 && sawnewstack) {
 			// The fact that we saw newstack means that morestack
 			// has managed to record its information in m, so we can
 			// use it to keep unwinding the stack.
@@ -144,7 +149,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			continue;
 		}
 
-		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
+		if(pcbuf == nil && fn == nil && f->entry == (uintptr)runtime·lessstack && gp == m->g0) {
 			// Lessstack is running on scheduler stack.  Switch to original goroutine.
 			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
 			gp = m->curg;
@@ -156,6 +161,10 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 			continue;
 		}
 
+		// Do not unwind past the bottom of the stack.
+		if(pc == (uintptr)runtime·goexit)
+			break;
+
 		// Unwind to next frame.
 		pc = lr;
 		lr = 0;
@@ -164,7 +173,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
 	}
 	
 	// Show what created goroutine, except main goroutine (goid 1).
-	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
+	if(pcbuf == nil && fn == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
 			&& runtime·showframe(f, gp == m->curg) && gp->goid != 1) {
 		runtime·printf("created by %S\n", f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
@@ -187,7 +196,7 @@ runtime·traceback(byte *pc0, byte *sp, byte*, G *gp)
 		pc0 = gp->sched.pc;
 		sp = (byte*)gp->sched.sp;
 	}
-	runtime·gentraceback(pc0, sp, nil, gp, 0, nil, 100);
+	runtime·gentraceback(pc0, sp, nil, gp, 0, nil, 100, nil, nil);
 }
 
 int32
@@ -199,5 +208,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
 	sp = (byte*)&skip;
 	pc = runtime·getcallerpc(&skip);
 
-	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m);
+	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m, nil, nil);
 }

@@ -1862,7 +1862,10 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		/* frame, locals, args, auto and param after */
 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
-		put(nil, ".args", 'm', s->args, 0, 0, 0);
+		if(s->text->textflag & NOSPLIT)
+			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
+		else
+			put(nil, ".args", 'm', s->args, 0, 0, 0);
 
 		for(a=s->autom; a; a=a->link) {
 			// Emit a or p according to actual offset, even if label is wrong.
