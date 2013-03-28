@@ -478,10 +478,31 @@ func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
 	return line[:s1], line[s1+1 : s2], line[s2+1:], true
 }
 
+// TODO(bradfitz): use a sync.Cache when available
+var textprotoReaderCache = make(chan *textproto.Reader, 4)
+
+func newTextprotoReader(br *bufio.Reader) *textproto.Reader {
+	select {
+	case r := <-textprotoReaderCache:
+		r.R = br
+		return r
+	default:
+		return textproto.NewReader(br)
+	}
+}
+
+func putTextprotoReader(r *textproto.Reader) {
+	r.R = nil
+	select {
+	case textprotoReaderCache <- r:
+	default:
+	}
+}
+
 // ReadRequest reads and parses a request from b.
 func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
-	tp := textproto.NewReader(b)
+	tp := newTextprotoReader(b)
 	req = new(Request)
 
 	// First line: GET /index.html HTTP/1.0
@@ -490,6 +511,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 		return nil, err
 	}
 	defer func() {
+		putTextprotoReader(tp)
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
