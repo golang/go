@@ -317,23 +317,22 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 // Maybe s is of the form t c u.
 // If so, return t, c u (or t, u if cutc == true).
 // If not, return s, "".
-func split(s string, c byte, cutc bool) (string, string) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			if cutc {
-				return s[0:i], s[i+1:]
-			}
-			return s[0:i], s[i:]
-		}
+func split(s string, c string, cutc bool) (string, string) {
+	i := strings.Index(s, c)
+	if i < 0 {
+		return s, ""
 	}
-	return s, ""
+	if cutc {
+		return s[0:i], s[i+len(c):]
+	}
+	return s[0:i], s[i:]
 }
 
 // Parse parses rawurl into a URL structure.
 // The rawurl may be relative or absolute.
 func Parse(rawurl string) (url *URL, err error) {
 	// Cut off #frag
-	u, frag := split(rawurl, '#', true)
+	u, frag := split(rawurl, "#", true)
 	if url, err = parse(u, false); err != nil {
 		return nil, err
 	}
@@ -380,7 +379,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	}
 	url.Scheme = strings.ToLower(url.Scheme)
 
-	rest, url.RawQuery = split(rest, '?', true)
+	rest, url.RawQuery = split(rest, "?", true)
 
 	if !strings.HasPrefix(rest, "/") {
 		if url.Scheme != "" {
@@ -396,7 +395,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
-		authority, rest = split(rest[2:], '/', false)
+		authority, rest = split(rest[2:], "/", false)
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
 			goto Error
@@ -428,7 +427,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		}
 		user = User(userinfo)
 	} else {
-		username, password := split(userinfo, ':', true)
+		username, password := split(userinfo, ":", true)
 		if username, err = unescape(username, encodeUserPassword); err != nil {
 			return
 		}
