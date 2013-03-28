@@ -419,6 +419,7 @@ func (r *reader) readNote(list []*ast.Comment) {
 			marker := text[m[2]:m[3]]
 			r.notes[marker] = append(r.notes[marker], &Note{
 				Pos:  list[0].Pos(),
+				End:  list[len(list)-1].End(),
 				UID:  text[m[4]:m[5]],
 				Body: body,
 			})
