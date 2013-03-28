@@ -651,8 +651,6 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
 // makes sure that the important files are included and massively reduces the
 // number of files to index. The advantage over a blacklist is that unexpected
 // (non-blacklisted) files won't suddenly explode the index.
-//
-// TODO(gri): We may want to make this list customizable, perhaps via a flag.
 
 // Files are whitelisted if they have a file name or extension
 // present as key in whitelisted.

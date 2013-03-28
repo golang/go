@@ -61,6 +61,8 @@ The flags are:
 		to the indexer (the indexer will never finish), a value of 1.0
 		means that index creation is running at full throttle (other
 		goroutines may get no time while the index is built)
+	-links=true:
+		link identifiers to their declarations
 	-write_index=false
 		write index to a file; the file name must be specified with
 		-index_files
