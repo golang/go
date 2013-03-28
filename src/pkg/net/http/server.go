@@ -288,7 +288,7 @@ type response struct {
 	wroteContinue bool     // 100 Continue response was written
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
-	cw *chunkWriter
+	cw chunkWriter
 	sw *switchWriter // of the bufio.Writer, for return to putBufioWriter
 
 	// handlerHeader is the Header that Handlers get access to,
@@ -558,10 +558,9 @@ func (c *conn) readRequest() (w *response, err error) {
 		req:           req,
 		handlerHeader: make(Header),
 		contentLength: -1,
-		cw:            new(chunkWriter),
 	}
 	w.cw.res = w
-	w.w, w.sw = newBufioWriterSize(w.cw, bufferBeforeChunkingSize)
+	w.w, w.sw = newBufioWriterSize(&w.cw, bufferBeforeChunkingSize)
 	return w, nil
 }
 
