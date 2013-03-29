@@ -475,3 +475,35 @@ func TestUnreadByte(t *testing.T) {
 		t.Errorf("ReadByte = %q; want %q", c, 'm')
 	}
 }
+
+// Tests that we occasionally compact. Issue 5154.
+func TestBufferGrowth(t *testing.T) {
+	var b Buffer
+	buf := make([]byte, 1024)
+	b.Write(buf[0:1])
+	var cap0 int
+	for i := 0; i < 5<<10; i++ {
+		b.Write(buf)
+		b.Read(buf)
+		if i == 0 {
+			cap0 = b.Cap()
+		}
+	}
+	cap1 := b.Cap()
+	if cap1 > cap0 {
+		t.Errorf("buffer cap = %d; too big", cap1)
+	}
+}
+
+// From Issue 5154.
+func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
+	buf := make([]byte, 1024)
+	for i := 0; i < b.N; i++ {
+		var b Buffer
+		b.Write(buf[0:1])
+		for i := 0; i < 5<<10; i++ {
+			b.Write(buf)
+			b.Read(buf)
+		}
+	}
+}
