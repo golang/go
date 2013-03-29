@@ -950,14 +950,28 @@ func TestTransportConcurrency(t *testing.T) {
 		fmt.Fprintf(w, "%v", r.FormValue("echo"))
 	}))
 	defer ts.Close()
-	tr := &Transport{}
+
+	var wg sync.WaitGroup
+	wg.Add(numReqs)
+
+	tr := &Transport{
+		Dial: func(netw, addr string) (c net.Conn, err error) {
+			// Due to the Transport's "socket late
+			// binding" (see idleConnCh in transport.go),
+			// the numReqs HTTP requests below can finish
+			// with a dial still outstanding.  So count
+			// our dials as work too so the leak checker
+			// doesn't complain at us.
+			wg.Add(1)
+			defer wg.Done()
+			return net.Dial(netw, addr)
+		},
+	}
 	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr}
 	reqs := make(chan string)
 	defer close(reqs)
 
-	var wg sync.WaitGroup
-	wg.Add(numReqs)
 	for i := 0; i < maxProcs*2; i++ {
 		go func() {
 			for req := range reqs {
