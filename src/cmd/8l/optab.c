@@ -364,6 +364,12 @@ uchar	ysvrs[] =
 	Ym,	Ynone,	Zm_o,	2,
 	0
 };
+uchar	ymskb[] =
+{
+	Yxr,	Yrl,	Zm_r_xm,	2,
+	Ymr,	Yrl,	Zm_r_xm,	1,
+	0
+};
 uchar	yxm[] = 
 {
 	Yxm,	Yxr,	Zm_r_xm,	1,
@@ -950,10 +956,12 @@ Optab optab[] =
 	{ AORPS,	yxm,	Pm, 0x56 },
 	{ APADDQ,	yxm,	Pe, 0xd4 },
 	{ APAND,	yxm,	Pe, 0xdb },
+	{ APCMPEQB,	yxmq,	Pe ,0x74 },
 	{ APMAXSW,	yxm,	Pe, 0xee },
 	{ APMAXUB,	yxm,	Pe, 0xde },
 	{ APMINSW,	yxm,	Pe, 0xea },
 	{ APMINUB,	yxm,	Pe, 0xda },
+	{ APMOVMSKB,	ymskb,	Px, Pe,0xd7,0xd7 },
 	{ APSADBW,	yxm,	Pq, 0xf6 },
 	{ APSUBB,	yxm,	Pe, 0xf8 },
 	{ APSUBL,	yxm,	Pe, 0xfa },
