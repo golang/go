@@ -93,7 +93,7 @@ var ipv6MulticastListenerTests = []struct {
 // port.
 func TestIPv6MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "solaris", "windows":
+	case "plan9", "solaris":
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 	if !supportsIPv6 {
