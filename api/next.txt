@@ -354,7 +354,6 @@ pkg net, method (*UnixConn) CloseRead() error
 pkg net, method (*UnixConn) CloseWrite() error
 pkg net, type DialOption interface, unexported methods
 pkg net, type IPAddr struct, Zone string
-pkg net, type IPNet struct, Zone string
 pkg net, type NS struct
 pkg net, type NS struct, Host string
 pkg net, type TCPAddr struct, Zone string
