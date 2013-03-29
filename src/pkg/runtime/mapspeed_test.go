@@ -138,6 +138,7 @@ func BenchmarkSmallStrMap(b *testing.B) {
 		_, _ = m[key]
 	}
 }
+
 func BenchmarkIntMap(b *testing.B) {
 	m := make(map[int]bool)
 	for i := 0; i < 8; i++ {
@@ -148,3 +149,25 @@ func BenchmarkIntMap(b *testing.B) {
 		_, _ = m[7]
 	}
 }
+
+// Accessing the same keys in a row.
+func benchmarkRepeatedLookup(b *testing.B, lookupKeySize int) {
+	m := make(map[string]bool)
+	// At least bigger than a single bucket:
+	for i := 0; i < 64; i++ {
+		m[fmt.Sprintf("some key %d", i)] = true
+	}
+	base := strings.Repeat("x", lookupKeySize-1)
+	key1 := base + "1"
+	key2 := base + "2"
+	b.ResetTimer()
+	for i := 0; i < b.N/4; i++ {
+		_ = m[key1]
+		_ = m[key1]
+		_ = m[key2]
+		_ = m[key2]
+	}
+}
+
+func BenchmarkRepeatedLookupStrMapKey32(b *testing.B) { benchmarkRepeatedLookup(b, 32) }
+func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(b, 1<<20) }
